@@ -140,6 +140,8 @@ const VIEWS: View[] = [
   { name: "tri-mid", x: 90, y: 1.4, z: 54, yaw: 60, pitch: -4, note: "1v1v1: the middle from a box" },
   { name: "kraber-scope", x: 2, z: -2, yaw: 8, pitch: -1, note: "the Kraber wearing its built-in 4x-8x", weapon: "sniper", ads: 1 },
   { name: "menu-stats", x: 0, z: 0, yaw: 0, pitch: 0, note: "menu: stats", menu: "stats" },
+  { name: "holster-mid", x: 2, z: -2, yaw: 8, pitch: -2, note: "halfway through holstering: the gun turns down and away", weapon: "rspn101", lowered: 0.5 },
+  { name: "hands-grip", x: 2, z: -2, yaw: 8, pitch: -2, note: "the rebuilt gripping hands on the Wingman", weapon: "wingman" },
   { name: "heirloom-karambit", x: 2, z: -2, yaw: 8, pitch: -2, note: "karambit, holstered", weapon: "rspn101", lowered: 1, heirloom: "karambit" },
   { name: "heirloom-butterfly", x: 2, z: -2, yaw: 8, pitch: -2, note: "butterfly knife, holstered", weapon: "rspn101", lowered: 1, heirloom: "butterfly" },
   { name: "heirloom-kukri", x: 2, z: -2, yaw: 8, pitch: -2, note: "kukri, holstered", weapon: "rspn101", lowered: 1, heirloom: "kukri" },

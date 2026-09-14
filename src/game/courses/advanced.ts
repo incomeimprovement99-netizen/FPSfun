@@ -121,10 +121,10 @@ export const ADVANCED_COURSE: CourseLayout = {
       entryZ: 84,
       tipX: 3,
       tip:
-        "BOUNCE\n\nA slalom: two fins, left then right. Jump at each fin's face on the " +
-        "diagonal, and as you slip down it press jump: the wallbounce sends you off the " +
-        "wall at 258 hu/s, round the fin, with your speed. Running round costs a second " +
-        "a fin. Three dummies after the second. Out right.",
+        "BOUNCE\n\nA slalom: two fins, left then right. Slide, jump out of the slide at each " +
+        "fin's face on the diagonal, let go of W, and press jump as you touch it near the top " +
+        "of the jump: the wallbounce sends you off the fin at 350 hu/s or more, round it, with " +
+        "your speed. Running round costs a second a fin. Three dummies after the second. Out right.",
       trigger: (_x, _y, z) => z > 84.7,
       enemies: [
         { x: -8, z: 100, gun: "rspn101" },

@@ -154,8 +154,9 @@ console.log("\nCounter-strafe: brake and drive at once");
   const t120 = s.until(() => -s.p.vel.x >= 120 * HU) + tMoving;
   const tFull = s.until(() => -s.p.vel.x >= 173 * HU) + t120;
   near("full speed right to moving left, s", tMoving, 0.046, 0.01);
-  near("to 120 hu/s left, s", t120, 0.094, 0.012);
-  near("to full walk speed left, s", tFull, 0.213, 0.015);
+  // armed: the bands at half rate (the wiki: a weapon out halves acceleration)
+  near("to 120 hu/s left, s", t120, 0.142, 0.012);
+  near("to full walk speed left, s", tFull, 0.276, 0.015);
   // a 90 degree change (right to forward) kills the old sideways motion as fast
   const q = new Sim();
   q.in.hold("right");
@@ -165,7 +166,23 @@ console.log("\nCounter-strafe: brake and drive at once");
   near("right to forward: sideways motion gone in, s", q.until(() => Math.abs(q.p.vel.x) < 0.01), 0.046, 0.01);
   const st = new Sim();
   st.in.hold("forward");
-  near("standstill to 120 hu/s, s", st.until(() => st.speedHu >= 119.9), 0.048, 0.01);
+  near("standstill to 120 hu/s armed, s", st.until(() => st.speedHu >= 119.9), 0.096, 0.01);
+  const sh = new Sim();
+  sh.p.holsterBoost = MOVE.holsterBoost;
+  sh.in.hold("forward");
+  near("standstill to 120 hu/s holstered, s (the engine's 2500 hu/s2)", sh.until(() => sh.speedHu >= 119.9), 0.048, 0.01);
+  // the wiki's own timings (Advanced Slide Tech): 0.35 s to 200 hu/s with a
+  // weapon out, 0.12 s holstered, 0.45 s to 207
+  const a200 = new Sim();
+  a200.in.hold("forward");
+  a200.in.tap("sprint");
+  near("standing to 200 hu/s with a weapon out, s (wiki 0.35)", a200.until(() => a200.speedHu >= 200), 0.35, 0.06);
+  near("and to 207, s (wiki 0.45)", a200.until(() => a200.speedHu >= 207) + 0.3, 0.45, 0.08);
+  const h200 = new Sim();
+  h200.p.holsterBoost = MOVE.holsterBoost;
+  h200.in.hold("forward");
+  h200.in.tap("sprint");
+  near("standing to 200 hu/s holstered, s (wiki 0.12)", h200.until(() => h200.speedHu >= 200), 0.12, 0.03);
 
   // the same reversal at 30 and 60 fps must take the same time as at 144
   for (const fps of [30, 60]) {
@@ -187,7 +204,7 @@ console.log("\nCounter-strafe: brake and drive at once");
       step();
       n++;
     }
-    near(`reversal to full walk speed at ${fps} fps, s`, n / fps, 0.213, 1.5 / fps);
+    near(`reversal to full walk speed at ${fps} fps, s`, n / fps, 0.276, 1.5 / fps);
   }
 }
 
@@ -570,20 +587,98 @@ const climbPeak = (s: Sim) => {
     s.in.tap("jump");
     s.frame();
     const out = hu(-s.p.vel.x);
+    const total = hu(s.p.vel.length());
     let peak = 0;
     s.until(() => {
       peak = Math.max(peak, hu(s.p.pos.y));
       return s.p.vel.y < 0 && s.p.pos.y < 0.2;
     }, 3);
-    return { attach, from, peak, out, names };
+    return { attach, from, peak, out, total, names };
   };
   const wb = bounce(true);
   const push = bounce(false);
   check("letting go of forward, you meet the wall high and slip down", wb.attach > 47, `attached at ${wb.attach.toFixed(0)} hu`);
   check("jumping in the green zone is a wallbounce", wb.names.includes("WALLBOUNCE"), wb.names.join(","));
-  near("wallbounce peak, hu above the floor (ours: tops up to 75.21)", wb.peak, 75.21, 2);
   near("wallbounce, speed away from the wall, hu/s", wb.out, 258, 1);
+  // the wiki's dismount table: 484 at the bottom of the green zone, 350 at the top
+  check("a wallbounce leaves at 350 to 484 hu/s (wiki: wall bounce min and max)", wb.total >= 349 && wb.total <= 485, `${wb.total.toFixed(0)} hu/s from ${wb.from.toFixed(0)} hu up`);
   check("a wallbounce climbs clearly higher than jumping on contact", wb.peak - push.peak > 15, `bounce ${wb.peak.toFixed(0)} hu, on contact ${push.peak.toFixed(0)} hu from ${push.from.toFixed(0)}`);
+
+  // The basic wallbounce as the wiki teaches it: sprint, crouch, slide JUMP,
+  // let go of forward, hit the wall at the top of the jump, jump. The slide
+  // jump's apex (44 hu) is inside the green zone; a plain sprint jump's (56)
+  // is not, and gives a wall push.
+  const basic = (slideJump: boolean) => {
+    const s = new Sim([WALL]);
+    const names: string[] = [];
+    s.p.onTech = (name, detail) => names.push(`${name} ${detail}`);
+    s.p.yaw = yawFacing(1, 0);
+    // start far enough back to be at full sprint, jump 2.5 m from the wall
+    // so the apex of the jump lands on it
+    s.p.pos.set(1.0 - MOVE.radius - 12, 0, 0);
+    sprintTo(s, 1.0);
+    s.until(() => s.p.pos.x > 1.0 - MOVE.radius - 2.5, 3);
+    if (slideJump) {
+      // crouch stays held through the jump frame, as a player's does: letting
+      // go on the same frame ends the slide before the jump resolves
+      s.in.hold("crouch");
+      s.frame();
+      s.in.tap("jump");
+      s.in.release("forward");
+      s.frame();
+      s.in.release("crouch");
+    } else {
+      s.in.tap("jump");
+      s.in.release("forward");
+      s.frame();
+    }
+    s.until(() => s.p.climbing, 1.5);
+    const attach = hu(s.p.pos.y);
+    s.frame();
+    s.in.tap("jump");
+    s.frame();
+    return { attach, names, total: hu(s.p.vel.length()), climbed: attach > 0 };
+  };
+  const bs = basic(true);
+  check("basic wallbounce: slide jump, W released, hit the wall, jump: WALLBOUNCE", bs.climbed && bs.names.some((n) => n.startsWith("WALLBOUNCE")), `attached at ${bs.attach.toFixed(0)} hu: ${bs.names.join(" | ")}`);
+  check("and it leaves at the wiki's 350 to 484 hu/s", bs.total >= 349 && bs.total <= 485, `${bs.total.toFixed(0)} hu/s`);
+  const bp = basic(false);
+  check("the same off a plain sprint jump is a WALL PUSH (apex 56 hu, above the zone)", bp.climbed && bp.names.some((n) => n.startsWith("WALL PUSH")), `attached at ${bp.attach.toFixed(0)} hu: ${bp.names.join(" | ")}`);
+  check("and the push line says how high you were and what to do", bp.names.some((n) => /too high: \d+ hu up.*Slide jump/.test(n)), bp.names.join(" | "));
+
+  // Crouch kick: a mini-bounce with crouch on the same frame, 320 hu/s (wiki)
+  const ck = new Sim([WALL]);
+  const cknames: string[] = [];
+  ck.p.onTech = (name) => cknames.push(name);
+  faceWall(ck);
+  ck.in.hold("forward");
+  ck.in.tap("jump");
+  ck.until(() => ck.p.climbing, 0.5);
+  ck.in.release("forward");
+  ck.in.tap("jump");
+  ck.in.tap("crouch");
+  ck.frame();
+  check("jump and crouch on the same frame in the mini zone is a crouch kick", cknames.includes("CROUCH KICK"), cknames.join(","));
+  near("crouch kick, speed away from the wall, hu/s", hu(-ck.p.vel.x), 245, 1);
+  check("crouch kick, total speed at least the wiki's 320 hu/s", hu(ck.p.vel.length()) >= 319, `${hu(ck.p.vel.length()).toFixed(0)} hu/s`);
+
+  // Wallskip: keep holding into the wall and the bounce gives height, no distance
+  const ws = new Sim([WALL]);
+  const wsnames: string[] = [];
+  ws.p.onTech = (name) => wsnames.push(name);
+  ws.p.yaw = yawFacing(1, 0);
+  ws.p.pos.set(1.0 - MOVE.radius - 1.76, 0, 0);
+  ws.p.vel.set(173.5 * HU, 0, 0);
+  ws.in.tap("jump");
+  ws.frame();
+  ws.until(() => ws.p.climbing, 1.5);
+  ws.until(() => hu(ws.p.pos.y) < 44, 1);
+  ws.in.hold("forward");
+  ws.in.tap("jump");
+  ws.frame();
+  check("wallskip: W held into the wall, still a WALLBOUNCE", wsnames.includes("WALLBOUNCE"), wsnames.join(","));
+  near("but with no speed away from the wall, hu/s", hu(-ws.p.vel.x), 0, 6);
+  check("and the height is still there", hu(ws.p.vel.y) > 230, `${hu(ws.p.vel.y).toFixed(0)} hu/s up`);
 
   // Mini-bounce: jump off within 19 hu of the baseline
   const mb = new Sim([WALL]);
@@ -1160,6 +1255,7 @@ console.log("\nThe course is completable");
   straight.until(() => straight.p.pos.z > 84.3, 2);
   straight.in.release("crouch");
   straight.in.tap("jump");
+  straight.frame();
   straight.until(() => straight.p.onGround || straight.p.pos.y < 0.5, 3);
   check("a straight jump with no turn falls in", straight.p.pos.y < 1, `y ${straight.p.pos.y.toFixed(2)}`);
   const lur = jumpGap(true);

@@ -3,6 +3,7 @@ import playerCfg from "./config/player.json";
 import { resolveWeapon, weaponIds, weaponName } from "./game/weapons";
 import { adsSensScale, cmPer360, degPerCount, hipFov43, verticalFovFrom43 } from "./game/sens";
 import { Input } from "./game/input";
+import type { PadSettings } from "./game/gamepad";
 import { Player } from "./game/player";
 import { Loadout, type SlotSetup } from "./game/loadout";
 import type { AttachSlot } from "./game/attachments";
@@ -519,12 +520,16 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onHurt = () => {
     hud.hurt(gameTime);
     audio.hit();
+    input.pad.rumble(0.6, 0.3, 120);
   };
   d.onRemoteShot = (o) => audio.shot(0.85, 10 / Math.max(10, o.distanceTo(player.pos)));
   d.onNotice = (t) => hud.notice(t, gameTime, 1);
   d.onEnd = (reason) => endMatch(reason);
+  d.onFeed = (text, mine) => hud.feed(text, gameTime, mine ? "#7ddc8a" : "#ff8a7a");
+  d.streak = profile.match(kind).streak;
   d.onMatchEnd = (s) => {
     profile.recordMatch(kind, s);
+    d.streak = profile.match(kind).streak;
     menu.renderStats();
     if (s.won) void submitScore(`${kind.replace(":", ":")}:wins`, profile.profile.name, profile.match(kind).won);
   };
@@ -632,7 +637,7 @@ window.addEventListener("pagehide", () => duel?.leave());
 // Ctrl+W still closes a windowed tab (Input.lock): mid-match or mid-play the
 // browser asks first.
 window.addEventListener("beforeunload", (e) => {
-  if (!duel && !input.locked) return;
+  if (!duel && !input.playing) return;
   e.preventDefault();
   e.returnValue = "";
 });
@@ -747,6 +752,61 @@ $("play").addEventListener("click", () => {
   void input.lock();
 });
 let courseHinted = false;
+let padWasActive = false;
+// The controller's settings (gamepad.ts), from the Settings tab, remembered
+const LS_PAD = "range.pad.v1";
+try {
+  const raw = localStorage.getItem(LS_PAD);
+  if (raw) {
+    const p = JSON.parse(raw) as Partial<PadSettings>;
+    const s = input.pad.settings;
+    if (typeof p.look === "number" && p.look >= 1 && p.look <= 8) s.look = p.look;
+    if (typeof p.ads === "number" && p.ads >= 1 && p.ads <= 8) s.ads = p.ads;
+    if (p.curve === "linear" || p.curve === "classic") s.curve = p.curve;
+    if (typeof p.deadzone === "number" && p.deadzone >= 0 && p.deadzone <= 0.3) s.deadzone = p.deadzone;
+    if (typeof p.autoSprint === "boolean") s.autoSprint = p.autoSprint;
+    if (typeof p.rumble === "boolean") s.rumble = p.rumble;
+  }
+} catch {
+  /* ignore */
+}
+{
+  const s = input.pad.settings;
+  const look = $<HTMLSelectElement>("padLook");
+  const ads = $<HTMLSelectElement>("padAds");
+  for (const sel of [look, ads]) {
+    for (let i = 1; i <= 8; i++) {
+      const o = document.createElement("option");
+      o.value = String(i);
+      o.textContent = `${i}${i === 3 ? " (the game's default)" : ""}`;
+      sel.appendChild(o);
+    }
+  }
+  const curve = $<HTMLSelectElement>("padCurve");
+  const dead = $<HTMLInputElement>("padDeadzone");
+  const auto = $<HTMLSelectElement>("padAutoSprint");
+  const rumble = $<HTMLSelectElement>("padRumble");
+  look.value = String(s.look);
+  ads.value = String(s.ads);
+  curve.value = s.curve;
+  dead.value = String(Math.round(s.deadzone * 100));
+  auto.value = s.autoSprint ? "1" : "0";
+  rumble.value = s.rumble ? "1" : "0";
+  const save = () => {
+    s.look = Number(look.value) || 3;
+    s.ads = Number(ads.value) || 3;
+    s.curve = curve.value === "linear" ? "linear" : "classic";
+    s.deadzone = Math.max(0, Math.min(0.3, (Number(dead.value) || 12) / 100));
+    s.autoSprint = auto.value === "1";
+    s.rumble = rumble.value === "1";
+    try {
+      localStorage.setItem(LS_PAD, JSON.stringify(s));
+    } catch {
+      /* ignore */
+    }
+  };
+  for (const el of [look, ads, curve, dead, auto, rumble]) el.addEventListener("change", save);
+}
 input.onLockChange = (locked) => {
   overlay.classList.toggle("hidden", locked);
   if (!locked) {
@@ -804,6 +864,28 @@ function frame(): void {
   const now = gameTime;
   fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
   frameHook?.(now, dt);
+  // The controller: read once here so every key check below sees it. Start
+  // toggles the menu; with a pad in use no pointer lock is needed to play.
+  const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, 1) - 1) * loadout.active.state.adsFrac;
+  const padLook = input.pad.poll(wall, dt, padAdsScale);
+  if (input.pad.menuPressed) {
+    if (input.locked) input.unlock();
+    else if (!overlay.classList.contains("hidden")) {
+      // on the menu: Start plays
+      if (!calibrating) {
+        readSettings();
+        input.padPlaying = true;
+        input.onLockChange?.(true);
+      }
+    } else {
+      input.padPlaying = false;
+      input.onLockChange?.(false);
+    }
+  }
+  if (input.pad.active !== padWasActive) {
+    padWasActive = input.pad.active;
+    if (padWasActive) hud.notice("CONTROLLER CONNECTED", now, 2.5);
+  }
 
   loadout.update(now);
   const ws = loadout.active.state;
@@ -817,7 +899,7 @@ function frame(): void {
   // knocked in a 1v1: no movement, no weapon keys, until the next round
   const knockedOut = duel !== null && !duel.alive;
 
-  if (input.locked) {
+  if (input.playing) {
     // Holster. While the gun is away, fire, aim, reload or any weapon key
     // brings it back up instead of doing its usual job.
     const drawKey =
@@ -845,7 +927,7 @@ function frame(): void {
     const armed = holster === "out" && !knockedOut;
 
     // discrete keys
-    if (armed && input.pressedNow("reload") && !loadout.swapping) {
+    if (armed && input.pressedNow("reload") && !loadout.swapping && !(player.zipPrompt && input.pad.pressedNow("reload"))) {
       ws.startReload(now);
       if (ws.reloading) audio.reload();
     }
@@ -908,6 +990,8 @@ function frame(): void {
     const m = input.consumeMouse();
     const adsScale = 1 + (adsSensScale(hipH, adsHNow, settings.ads) - 1) * ws.adsFrac;
     player.applyMouse(m.dx, m.dy, degPerCount(settings.sens) * adsScale, playerCfg.invertPitch);
+    // the controller's right stick, read this frame in padLook
+    player.addAngles(padLook.pitchUp * (playerCfg.invertPitch ? -1 : 1), padLook.yawLeft);
   }
 
   // holster timing, from the weapon's own holster and deploy times
@@ -927,9 +1011,9 @@ function frame(): void {
 
   // A weapon being raised, lowered or holstered cannot fire or aim.
   // In a 1v1, firing is held during the countdown and after a round is decided.
-  const trigger = input.locked && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire);
+  const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire);
   // knocked in a 1v1: no aiming either
-  const adsHeld = input.locked && input.held("ads") && !loadout.swapping && holster === "out" && (!duel || duel.alive);
+  const adsHeld = input.playing && input.held("ads") && !loadout.swapping && holster === "out" && (!duel || duel.alive);
   // Move BEFORE sampling stance, so the spread model sees this frame's stance
   // rather than last frame's. The cost is that move speed uses last frame's
   // ADS fraction, which over a 0.27 s transition is a 6% error for one frame.
@@ -952,8 +1036,10 @@ function frame(): void {
   // would move the crosshair off what you were aiming at. Dropping the eye
   // keeps the aim exactly where it was.
   camera.position.y += player.viewDip;
-  // knocked in a 1v1: on the floor until the round ends
-  if (knockedOut) camera.position.y -= 1.0;
+  // knocked in a match: on the floor until the round ends, or, with others
+  // still standing (a 1v1v1), watching one of them from behind
+  const watch = knockedOut && duel ? duel.spectateTarget() : null;
+  if (knockedOut && !watch) camera.position.y -= 1.0;
   // Sprint view shake, as the game's setting of that name: the eye bobs with
   // each stride and the view rolls a touch. Normal is the game's default;
   // Minimal is its other option. Off is ours. The aim point is not moved: the
@@ -968,6 +1054,14 @@ function frame(): void {
   }
   camera.quaternion.copy(player.orientation(off.pitchUp, off.yawLeft));
   if (sprintRoll !== 0) camera.quaternion.multiply(tmpQ.setFromAxisAngle(FORWARD_AXIS, sprintRoll));
+  if (watch) {
+    // behind and above the figure, looking where it looks (the figure faces +z of its own rotation)
+    const f = watch.group;
+    const fx = Math.sin(f.rotation.y);
+    const fz = Math.cos(f.rotation.y);
+    camera.position.set(f.position.x - fx * 2.6, f.position.y + 2.1, f.position.z - fz * 2.6);
+    camera.lookAt(f.position.x + fx * 2, f.position.y + 1.2, f.position.z + fz * 2);
+  }
   const hipV = verticalFovFrom43(hipH);
   const adsV = verticalFovFrom43(adsH);
   // Sliding widens the view by slideFovScale (an engine value). Sprint does
@@ -1015,6 +1109,7 @@ function frame(): void {
     hardYaw += s.kick.permYawLeft;
     viewModel.onShot();
     audio.shot(1);
+    input.pad.rumble(0.15, 0.35, 40);
   }
   if (shots.length) {
     // hard recoil moves the base angles, then the camera is refreshed so this
@@ -1119,6 +1214,7 @@ function frame(): void {
     onGround: player.onGround,
     raise: swapP,
     sprinting: player.sprinting,
+    sliding: player.sliding,
     reloading: debugView.reload !== null || onScreen.state.reloading,
     reloadProgress: debugView.reload ?? (onScreen.state.reloading ? onScreen.state.reloadProgress(now) : 0),
     lookYaw,
@@ -1215,6 +1311,12 @@ function frame(): void {
     course: duel ? null : (courses.map((c) => c.hud(now)).find((h) => h !== null) ?? null),
     duel: duel ? duel.hud() : null,
     vitals: duel ? { shield: duel.shield, shieldMax: SHIELD_MAX, health: duel.health, healthMax: HEALTH_MAX } : null,
+    plates: duel
+      ? duel.avatars
+          .map((a) => ({ a, r: duel!.remoteOf(a) }))
+          .filter((x) => x.r !== null && x.a.group.visible)
+          .map((x) => ({ world: new THREE.Vector3(x.a.group.position.x, x.a.group.position.y + 2.05, x.a.group.position.z), name: x.r!.name, health: x.r!.health, shield: x.r!.shield, shieldMax: SHIELD_MAX, alive: x.r!.alive }))
+      : undefined,
     stance: player.stance,
     speedMs: player.speed,
     speedHu: player.speed / HU,
@@ -1261,6 +1363,8 @@ schedule();
   courseAdvanced,
   merged,
   duel: () => duel,
+  hud,
+  input,
   profile,
   startBots,
   menu,

@@ -40,6 +40,8 @@ export interface VMFrame {
   /** 0..1 through a weapon swap, 1 when settled */
   raise: number;
   sprinting: boolean;
+  /** in a slide: the gun rides low and rolled, still ready to fire */
+  sliding: boolean;
   reloading: boolean;
   reloadProgress: number;
   /** degrees the view turned this frame; positive yaw = left, pitch = up */
@@ -252,8 +254,8 @@ export class ViewModel {
   // while you sprint. They are their own rig, parented to the camera rather
   // than to the gun, so they stay when the gun goes.
   private readonly fists = new THREE.Group();
-  private readonly fistR = new Hand(false);
-  private readonly fistL = new Hand(true);
+  private readonly fistR = new Hand(false, true);
+  private readonly fistL = new Hand(true, true);
   private readonly fistArmR = new Forearm();
   private readonly fistArmL = new Forearm();
   private readonly fistElbowR = new THREE.Vector3();
@@ -293,6 +295,12 @@ export class ViewModel {
   private cylTarget = 0;
   private bobT = 0;
   private sprintAmt = 0;
+  private slideAmt = 0;
+  /** the draw settle: a spring kicked when the gun comes up */
+  private settle = 0;
+  private settleVel = 0;
+  private lastRaise = 1;
+  private lastLowered = 0;
   private swayX = 0;
   private swayY = 0;
   private lastAds = 0;
@@ -496,6 +504,19 @@ export class ViewModel {
     const wantSprint = f.sprinting && f.adsFrac < 0.05 && !f.reloading ? 1 : 0;
     this.sprintAmt += (wantSprint - this.sprintAmt) * Math.min(1, dt / 0.16);
     const sp = easeInOut(this.sprintAmt);
+    // the slide: low and rolled like the sprint pose but a touch further
+    // in, blended from wherever the gun was so a sprint into a slide flows
+    const wantSlide = f.sliding && f.adsFrac < 0.05 ? 1 : 0;
+    this.slideAmt += (wantSlide - this.slideAmt) * Math.min(1, dt / 0.1);
+    const sl = easeInOut(this.slideAmt) * (1 - ads);
+    // the draw settle: when the gun finishes coming up (a swap, a draw from
+    // the holster) it overshoots a little and springs back, which is what
+    // reads as a hand catching it
+    if ((this.lastRaise < 0.97 && f.raise >= 0.97) || (this.lastLowered > 0.2 && f.lowered <= 0.2)) this.settleVel -= 2.2;
+    this.lastRaise = f.raise;
+    this.lastLowered = f.lowered;
+    this.settleVel += (-180 * this.settle - 16 * this.settleVel) * dt;
+    this.settle += this.settleVel * dt;
 
     // ---- recoil spring, slightly underdamped so the gun settles with one
     // small overshoot, which is what reads as weight
@@ -527,14 +548,25 @@ export class ViewModel {
     const p = this.tmp3.copy(hip).lerp(adsPos, ads);
     const sprintPos = this.tmp2.set(hip.x + 0.11, hip.y - 0.13, hip.z + 0.1);
     p.lerp(sprintPos, sp);
+    // the slide pose: down and in, muzzle a little up, rolled outward
+    p.lerp(this.tmp2.set(hip.x + 0.06, hip.y - 0.09, hip.z + 0.06), sl);
     // The sprint pump: the gun swings across and down with every stride and
     // rolls with it, the way the game's does. One stride is one full swing
     // (bobT counts two steps per cycle, so the pump runs at half rate).
     const stride = this.bobT * 0.5;
     const pump = sp * SPRINT_PUMP;
-    let rx = sp * 0.18 + Math.sin(stride * 2) * 0.05 * pump;
-    let ry = 0.05 * (1 - ads) - sp * 0.55 + Math.sin(stride) * 0.09 * pump;
-    let rz = sp * 0.42 + Math.sin(stride) * 0.14 * pump;
+    let rx = sp * 0.18 + Math.sin(stride * 2) * 0.05 * pump - sl * 0.12;
+    let ry = 0.05 * (1 - ads) - sp * 0.55 + Math.sin(stride) * 0.09 * pump - sl * 0.3;
+    let rz = sp * 0.42 + Math.sin(stride) * 0.14 * pump + sl * 0.32;
+    // idle: standing still the gun drifts a hair, as held hands do
+    const idle = (1 - Math.min(1, f.moveSpeed / 1.5)) * (1 - ads) * (f.onGround ? 1 : 0);
+    p.x += Math.sin(this.t * 0.9) * 0.0025 * idle;
+    p.y += Math.sin(this.t * 1.3 + 1) * 0.0018 * idle;
+    rz += Math.sin(this.t * 0.7) * 0.008 * idle;
+    rx += Math.sin(this.t * 1.1 + 2) * 0.005 * idle;
+    // the settle spring: a dip and a nod
+    p.y += this.settle * 0.012;
+    rx += this.settle * 0.06;
 
     // bob, sprint swing, breathing, look lag
     p.x += bx + Math.sin(stride) * 0.075 * pump + this.swayX;
@@ -576,9 +608,17 @@ export class ViewModel {
     // melee: a quick in-and-out envelope over the swing
     const mp = (this.t - this.meleeAt) / MELEE_TIME;
     const meleeEnv = mp >= 0 && mp < 1 ? Math.sin(mp * Math.PI) : 0;
-    const dip = Math.max(Math.sin(clamp(f.raise, 0, 1) * Math.PI), gunGone, meleeEnv * 0.8);
+    const swapDip = Math.sin(clamp(f.raise, 0, 1) * Math.PI);
+    const dip = Math.max(swapDip, gunGone, meleeEnv * 0.8);
     p.y -= dip * 0.35;
     rx -= dip * 0.9;
+    // holstering: the gun turns down and away to the right as it goes, and
+    // comes back the same way (a draw), so it is not a straight lift
+    const turn = Math.max(gunGone, swapDip);
+    p.x += turn * 0.16;
+    p.z += turn * 0.08;
+    ry -= turn * 0.7;
+    rz += turn * 0.55;
 
     this.pose.position.copy(p);
     this.pose.rotation.set(rx, ry, rz);

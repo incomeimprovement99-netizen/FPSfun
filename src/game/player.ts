@@ -427,7 +427,7 @@ export class Player {
     // ----- jumps -----
     const coyote = !this.onGround && now - this.lastGroundAt <= MOVE.jumpGracePeriod;
     if (jumpPressed) {
-      if (this.climbing) this.climbJump(now);
+      if (this.climbing) this.climbJump(now, wx, wz, wl, crouchPressed);
       else if (this.onGround || coyote) this.doJump(now, !this.onGround);
       // a jump pressed in the air at a wall you are not on: say why not
       else if (!this.mantle) this.explainNoAttach(wx, wz, wl);
@@ -766,11 +766,18 @@ export class Player {
    * The direction you look does not matter, only the wall and your momentum
    * along it.
    */
-  private climbJump(now: number): void {
+  private climbJump(now: number, wx: number, wz: number, wl: number, crouchPressed: boolean): void {
     const n = this.climbNormal!;
     const h = this.pos.y - this.climbBaseline;
+    const hHu = h / HU;
     const zone = h <= MOVE.climbMiniZone ? "mini" : h <= MOVE.climbGreenZoneTop ? "green" : "neutral";
-    const out = zone === "mini" ? MOVE.climbJumpOutMini : MOVE.climbJumpOut;
+    // a mini-bounce with crouch on the same frame throws you harder: the crouch kick
+    const kick = zone === "mini" && crouchPressed;
+    let out = zone === "mini" ? (kick ? MOVE.crouchKickOut : MOVE.climbJumpOutMini) : MOVE.climbJumpOut;
+    // Wallskip (the wiki): keep holding into the wall and you get the height
+    // but no distance from it. The push out fades with how hard you hold in.
+    const into = wl > 0 ? Math.max(0, -(wx * n.nx + wz * n.nz)) : 0;
+    out *= 1 - into;
     const tx = -n.nz;
     const tz = n.nx;
     const vt = this.vel.x * tx + this.vel.z * tz;
@@ -782,13 +789,20 @@ export class Player {
     this.climbBaseline -= zone === "mini" ? MOVE.climbDetachPenalty : MOVE.climbJumpPenalty;
     // it is a jump: fatigue on, lurch window open, coyote time spent
     this.launch(now, 0);
-    let gain = 0;
-    if (zone === "mini") gain = MOVE.climbJumpHeight;
-    else if (zone === "green") gain = Math.max(MOVE.climbJumpHeight, MOVE.climbGreenApex - h);
-    this.vel.y = gain > 0 ? Math.max(vy, jumpVelocityFor(gain)) : vy;
-    if (zone === "green") this.tech("WALLBOUNCE", `+${Math.round(gain / HU)} hu`);
-    else if (zone === "mini") this.tech("MINI-BOUNCE", "28 hu, small penalty");
-    else this.tech("WALL PUSH", "speed out, no height");
+    // The vertical part. Green zone: from the wiki's measured dismounts, 409
+    // hu/s at the bottom of the zone down to 236 at its top (484 and 350
+    // total with the 258 out). Mini: the 28.21 hu climb jump. Neutral: none,
+    // only what you were already doing.
+    let up = 0;
+    if (zone === "mini") up = jumpVelocityFor(MOVE.climbJumpHeight);
+    else if (zone === "green") {
+      const t = Math.max(0, Math.min(1, (h - MOVE.climbMiniZone) / (MOVE.climbGreenZoneTop - MOVE.climbMiniZone)));
+      up = MOVE.wallbounceVyBottom + (MOVE.wallbounceVyTop - MOVE.wallbounceVyBottom) * t;
+    }
+    this.vel.y = up > 0 ? Math.max(vy, up) : vy;
+    if (zone === "green") this.tech("WALLBOUNCE", `${Math.round(this.vel.length() / HU)} hu/s, from ${Math.round(hHu)} hu up${into > 0.5 ? " (wallskip: W held, no distance)" : ""}`);
+    else if (zone === "mini") this.tech(kick ? "CROUCH KICK" : "MINI-BOUNCE", `${Math.round(this.vel.length() / HU)} hu/s, small penalty`);
+    else this.tech("WALL PUSH", `too high: ${Math.round(hHu)} hu up, the green zone is 19 to 47. Slide jump (apex 44) or drop below your apex first`, false);
   }
 
   // ---------- mantle ----------
@@ -893,7 +907,7 @@ export class Player {
       this.sgJumpFrame = -10;
       this.finishMantle(now);
       this.vel.set(mt.dirX * speed, 0, mt.dirZ * speed);
-      this.launch(now, MOVE.slideJumpHeight);
+      this.launch(now, MOVE.superglideHeight);
       this.superglidedAt = now;
       this.tech("SUPERGLIDE", `${Math.round(speed / HU)} hu/s`);
       return;
@@ -1237,12 +1251,15 @@ export class Player {
           rem -= tn;
         }
       }
+      // Holding a weapon halves the acceleration (the wiki: 0.35 s to 200
+      // hu/s armed, 0.12 s holstered), so the bands are the holstered rates.
+      const armed = hb <= 1 ? MOVE.armedAccelScale : 1;
       while (rem > 1e-9 && v < target) {
         const low = MOVE.lowSpeed * hb;
-        const walk = MOVE.speed * hb;
-        const accel = v < low ? MOVE.lowAcceleration : v < walk ? MOVE.acceleration : MOVE.sprintAcceleration;
-        const top = v < low ? low : v < walk ? walk : Infinity;
-        const rate = accel * stun;
+        const band = MOVE.sprintBandStart * hb;
+        const accel = v < low ? MOVE.lowAcceleration : v < band ? MOVE.acceleration : MOVE.sprintAcceleration;
+        const top = v < low ? low : v < band ? band : Infinity;
+        const rate = accel * stun * armed;
         const edge = Math.min(target, top);
         const tn = (edge - v) / rate;
         if (tn >= rem) {
@@ -1454,13 +1471,19 @@ export class Player {
    * it was still thinking about it.
    */
   private updateHeights(dt: number): void {
-    const down = this.crouched || this.sliding;
-    const approach = (v: number, target: number, full: number) => {
-      const step = (full / MOVE.crouchVisualTime) * dt;
+    // The hull follows the crouch STATE (instant on a slide, crouchDelay after
+    // the press when standing, instant on standing up). The view follows the
+    // crouch ANIMATION: a slide drops it at once; a standing crouch lowers it
+    // over the crouchDelay the state takes to arrive, so both land together.
+    const stateDown = this.crouched || this.sliding;
+    const animDown = stateDown || (this.crouchHeld && this.onGround && !this.mantle);
+    const approach = (v: number, target: number, full: number, time: number) => {
+      const step = (full / time) * dt;
       return v < target ? Math.min(target, v + step) : Math.max(target, v - step);
     };
-    this.height = approach(this.height, down ? MOVE.crouchHeight : MOVE.standHeight, MOVE.standHeight - MOVE.crouchHeight);
-    this.eye = approach(this.eye, down ? MOVE.eyeCrouch : MOVE.eyeStand, MOVE.eyeStand - MOVE.eyeCrouch);
+    this.height = approach(this.height, stateDown ? MOVE.crouchHeight : MOVE.standHeight, MOVE.standHeight - MOVE.crouchHeight, MOVE.crouchVisualTime);
+    const eyeTime = animDown && !this.sliding && !this.crouched ? MOVE.crouchDelay : MOVE.crouchVisualTime;
+    this.eye = approach(this.eye, animDown ? MOVE.eyeCrouch : MOVE.eyeStand, MOVE.eyeStand - MOVE.eyeCrouch, eyeTime);
   }
 
   // Reused every call rather than allocated: these run several times a frame,

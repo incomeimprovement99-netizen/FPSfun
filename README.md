@@ -16,7 +16,8 @@ npm run dev        # http://localhost:5173
 ```
 
 Chrome or Edge on a desktop is the target. Click a mode on the menu to play;
-Esc brings the menu back.
+Esc brings the menu back. A controller works too: plug one in and press
+Start (Settings has the sensitivity, curve, deadzone and auto sprint).
 
 ## Modes
 
@@ -200,7 +201,7 @@ loading; compressing their textures (KTX2) would cut most of it.
 asked, what shipped, what was found wrong on the way), plus `FIDELITY.md`
 (sources for every number), `MOVEMENT_AUDIT.md`, `TESTING.md` and
 `NEXT_STEPS.md` (what to build next, ranked, and what each needs). Latest:
-`PLAN_BOTS_TRIPLES_STATS.md` and `RESULTS_BOTS_TRIPLES_STATS.md`.
+`PLAN_FEEL_CONTROLLER.md` and `RESULTS_FEEL_CONTROLLER.md`.
 
 ## Credits
 

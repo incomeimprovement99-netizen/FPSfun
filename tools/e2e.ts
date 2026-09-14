@@ -97,6 +97,9 @@ async function duelTest(browser: Browser, query: string, label: string): Promise
   await host.waitForFunction(`window.__range.duel().hud().you === 1`, { polling: 200, timeout: 10000 });
   await guest.waitForFunction(`window.__range.duel().hud().them === 1`, { polling: 200, timeout: 10000 });
   check(`${label}: a knock scores the round 1-0 for the host, on both screens`, true);
+  const feedH = await ev<string[]>(host, "window.__range.hud.feedText");
+  const feedG = await ev<string[]>(guest, "window.__range.hud.feedText");
+  check(`${label}: the kill feed says who knocked whom, on both screens`, feedH.some((t) => /knocked/.test(t)) && feedG.some((t) => /knocked/.test(t)), `host: ${feedH[0] ?? "-"} | guest: ${feedG[0] ?? "-"}`);
   // the host sees the guest's figure fall over (it used to stay standing)
   const fell = await host
     .waitForFunction("window.__range.duel().avatars[0].group.rotation.x < -1", { polling: 100, timeout: 2500 })
@@ -221,9 +224,46 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await ev(page, `(() => { const d = window.__range.duel(); const a = d.avatars[0]; const pt = { clone() { return this; } }; a.hit(0, "body", 500, 1, 1, pt); d.localHit(d.remoteOf(a), 500, false); })()`);
   const won = await page.waitForFunction("window.__range.duel().hud().you === 1", { polling: 200, timeout: 5000 }).then(() => true, () => false);
   check("bots: knocking the bot takes the round", won);
+  const bfeed = await ev<string[]>(page, "window.__range.hud.feedText");
+  check("bots: the kill feed has the knock", bfeed.some((t) => /knocked BOT/.test(t)), bfeed[0] ?? "-");
   await ev(page, "window.__range.duel().leave()");
   const gone = await ev<boolean>(page, "window.__range.duel() === null");
   check("bots: leaving ends the match", gone);
+  await page.close();
+}
+
+/** a fake gamepad: Start plays, the left stick walks, the right stick turns */
+async function padTest(browser: Browser, query: string): Promise<void> {
+  const page = await open(browser, query);
+  await ev(page, `(() => {
+    const btn = () => ({ pressed: false, touched: false, value: 0 });
+    const pad = { index: 0, id: "fake pad", connected: true, mapping: "standard", timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, btn) };
+    window.__pad = pad;
+    navigator.getGamepads = () => [pad];
+  })()`);
+  await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+  // Start on the menu: play without a pointer lock
+  await ev(page, "window.__pad.buttons[9].pressed = true");
+  await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+  await ev(page, "window.__pad.buttons[9].pressed = false");
+  await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+  const playing = await ev<{ hidden: boolean; playing: boolean; active: boolean }>(page, `({ hidden: document.getElementById("overlay").classList.contains("hidden"), playing: window.__range.input.playing, active: window.__range.input.pad.active })`);
+  check("pad: Start hides the menu and the game takes the controller", playing.hidden && playing.playing && playing.active, JSON.stringify(playing));
+  const before = await ev<{ z: number; yaw: number }>(page, "({ z: window.__range.player.pos.z, yaw: window.__range.player.yaw })");
+  // stick forward and a right turn for a second
+  await ev(page, "(() => { window.__pad.axes[1] = -1; window.__pad.axes[2] = 0.6; })()");
+  await sleep(1000);
+  await ev(page, "(() => { window.__pad.axes[1] = 0; window.__pad.axes[2] = 0; })()");
+  const after = await ev<{ z: number; yaw: number; sprint: boolean }>(page, "({ z: window.__range.player.pos.z, yaw: window.__range.player.yaw, sprint: window.__range.player.sprinting })");
+  check("pad: the left stick moves the player", Math.abs(after.z - before.z) > 1, `moved ${Math.abs(after.z - before.z).toFixed(1)} m`);
+  check("pad: the right stick turns the view (right = yaw down)", after.yaw < before.yaw - 20, `yaw ${before.yaw.toFixed(0)} -> ${after.yaw.toFixed(0)}`);
+  // RT fires: the shot counter moves
+  const shots0 = await ev<number>(page, "window.__range.loadout.slots[0].state.clip");
+  await ev(page, "window.__pad.buttons[7].pressed = true; window.__pad.buttons[7].value = 1;");
+  await sleep(300);
+  await ev(page, "window.__pad.buttons[7].pressed = false; window.__pad.buttons[7].value = 0;");
+  const shots1 = await ev<number>(page, "window.__range.loadout.slots[0].state.clip");
+  check("pad: the right trigger fires", shots1 < shots0, `clip ${shots0} -> ${shots1}`);
   await page.close();
 }
 
@@ -338,6 +378,9 @@ async function main(): Promise<void> {
 
     console.log("\nArena, Bots");
     await botsTest(browser, "?norender");
+
+    console.log("\nController");
+    await padTest(browser, "?norender");
 
     console.log("\n1v1 over peer to peer (the public broker)");
     const ran = await duelTest(browser, "?norender", "p2p");

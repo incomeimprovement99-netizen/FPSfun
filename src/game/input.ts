@@ -9,6 +9,7 @@
 let GAME_KEYS: Set<string>;
 
 import bindsJson from "../config/binds.json";
+import { GamepadInput } from "./gamepad";
 
 export type Action = keyof typeof bindsJson;
 const BINDS = bindsJson as unknown as Record<string, string[]>;
@@ -175,7 +176,20 @@ export class Input {
    * held for the one frame it happened in, so it combines with held keys the
    * way the game combines directions for a lurch.
    */
+  /** a controller, read once a frame by main (gamepad.ts); its keys join the keyboard's */
+  readonly pad = new GamepadInput();
+  /**
+   * Playing: the pointer is locked, or a controller is in use with the menu
+   * away (a controller needs no pointer lock, and a pad button cannot ask for
+   * one: the browser wants a real click for that).
+   */
+  padPlaying = false;
+  get playing(): boolean {
+    return this.locked || (this.padPlaying && this.pad.active);
+  }
+
   held(action: Action): boolean {
+    if (this.pad.held(action)) return true;
     for (const b of BINDS[action] ?? []) {
       if (isWheel(b)) {
         if (this.wheel[b] > 0) return true;
@@ -189,6 +203,9 @@ export class Input {
 
   /** did any binding for this action go down this frame */
   pressedNow(action: Action): boolean {
+    if (this.pad.pressedNow(action)) return true;
+    // the pad's X is reload and interact both; the game decides which by the prompt
+    if (action === "interact" && this.pad.pressedNow("reload")) return true;
     for (const b of BINDS[action] ?? []) {
       if (isWheel(b)) {
         if (this.wheel[b] > 0) return true;

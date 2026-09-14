@@ -24,6 +24,8 @@ export const MOVE = {
   acceleration: m(raw.acceleration),
   lowAcceleration: m(raw.lowAcceleration),
   sprintAcceleration: m(raw.sprintAcceleration),
+  sprintBandStart: m(raw.sprintBandStart),
+  armedAccelScale: raw.armedAccelScale,
   deceleration: m(raw.deceleration),
   crouchAcceleration: m(raw.crouchAcceleration),
   holsterBoost: raw.holsterBoost,
@@ -92,7 +94,9 @@ export const MOVE = {
   climbJumpOut: m(raw.climbJumpOut),
   climbAccel: m(raw.climbAccel),
   climbGreenZoneTop: m(raw.climbGreenZoneTop),
-  climbGreenApex: m(raw.climbGreenApex),
+  wallbounceVyBottom: m(raw.wallbounceVyBottom),
+  wallbounceVyTop: m(raw.wallbounceVyTop),
+  crouchKickOut: m(raw.crouchKickOut),
 
   // lurch
   lurchGraceMin: raw.lurchGraceMin,
@@ -102,6 +106,7 @@ export const MOVE = {
   lurchSpeedCap: m(raw.lurchSpeedCap),
 
   // superglide
+  superglideHeight: m(raw.superglideHeight),
   superglideWindow: raw.superglideWindow,
   superglideWalkWindow: raw.superglideWalkWindow,
 

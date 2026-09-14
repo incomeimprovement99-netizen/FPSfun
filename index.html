@@ -218,6 +218,13 @@
           <div class="row"><label>Sprint view shake <div class="hint">the game's own setting; Normal is its default</div></label><select id="sprintShake"><option value="normal">Normal</option><option value="minimal">Minimal</option><option value="off">Off</option></select></div>
           <div class="row"><label>Fullscreen while playing <div class="hint">keeps Ctrl + W (crouch walking) from closing the tab</div></label><select id="fullscreen"><option value="1">On</option><option value="0">Off</option></select></div>
           <div class="row"><label>Graphics <div class="hint">Competitive is the fastest and lowest latency</div></label><select id="quality"></select></div>
+          <div class="lohead">Controller <span class="hint">plug one in and press Start. Left stick move, right stick look, RT fire, LT aim, A jump, B crouch, X reload, Y swap, L3 sprint, R3 melee, LB holster, RB zoom, d-pad optic / mag / slots, Back ghost</span></div>
+          <div class="row"><label>Look sensitivity <div class="hint">1 to 8 like the game; 3 is 180 deg/s of yaw</div></label><select id="padLook"></select></div>
+          <div class="row"><label>ADS sensitivity <div class="hint">1 to 8; 3 scales with the zoom like the mouse</div></label><select id="padAds"></select></div>
+          <div class="row"><label>Response curve</label><select id="padCurve"><option value="classic">Classic</option><option value="linear">Linear</option></select></div>
+          <div class="row"><label>Deadzone <div class="hint">percent of the stick; 12 is the game's default</div></label><input id="padDeadzone" type="number" min="0" max="30" step="1" /></div>
+          <div class="row"><label>Auto sprint <div class="hint">push the stick forward to sprint; off, click it (L3)</div></label><select id="padAutoSprint"><option value="1">On</option><option value="0">Off</option></select></div>
+          <div class="row"><label>Rumble <div class="hint">on shots and hits taken</div></label><select id="padRumble"><option value="1">On</option><option value="0">Off</option></select></div>
         <div class="derived perf">
           <span id="perfLine">Measuring your display…</span>
           <span class="tip" tabindex="0">

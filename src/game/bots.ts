@@ -308,6 +308,9 @@ export class BotMatch implements MatchLike {
   onEnd: ((reason: string) => void) | null = null;
   onNotice: ((text: string) => void) | null = null;
   onMatchEnd: ((s: MatchSummary) => void) | null = null;
+  onFeed: ((text: string, mine: boolean) => void) | null = null;
+  streak = 0;
+  private lastSummary: MatchSummary | null = null;
 
   constructor(
     scene: THREE.Scene,
@@ -352,6 +355,7 @@ export class BotMatch implements MatchLike {
       r.alive = false;
       this.kills++;
       this.onNotice?.(`${r.name} DOWN`);
+      this.onFeed?.(`${this.myName || "YOU"} knocked ${r.name}`, true);
       this.checkRound(wallClock());
     }
   }
@@ -370,7 +374,8 @@ export class BotMatch implements MatchLike {
     if (phase === "matchEnd") {
       const mine = this.scores[0];
       const others = this.scores.slice(1).reduce((a, b) => a + b, 0);
-      this.onMatchEnd?.({ won: mine >= ROUNDS_TO_WIN, roundsWon: mine, roundsLost: others, kills: this.kills, deaths: this.deaths, damage: this.damage, shots: this.shots, hits: this.hits });
+      this.lastSummary = { won: mine >= ROUNDS_TO_WIN, roundsWon: mine, roundsLost: others, kills: this.kills, deaths: this.deaths, damage: this.damage, shots: this.shots, hits: this.hits };
+      this.onMatchEnd?.(this.lastSummary);
       this.kills = this.deaths = this.damage = this.shots = this.hits = 0;
     }
   }
@@ -410,6 +415,8 @@ export class BotMatch implements MatchLike {
     if (this.health <= 0) {
       this.alive = false;
       this.deaths++;
+      const up = this.bots.find((b) => b.alive);
+      this.onFeed?.(`${up?.remote.name ?? "A BOT"} knocked ${this.myName || "YOU"}`, false);
       this.checkRound(wallClock());
     }
   }
@@ -460,6 +467,8 @@ export class BotMatch implements MatchLike {
       if (before && !b.alive) {
         // knocked by something that did not go through localHit (a melee)
         b.remote.alive = false;
+        this.kills++;
+        this.onFeed?.(`${this.myName || "YOU"} knocked ${b.remote.name}`, true);
         this.checkRound(now);
       }
       // a bot that fires is heard
@@ -498,7 +507,13 @@ export class BotMatch implements MatchLike {
       },
       players: [{ name: this.myName || "YOU", score: mine, alive: this.alive, you: true }, ...this.bots.map((b) => ({ name: b.remote.name, score: this.scores[b.index + 1], alive: b.alive, you: false }))],
       waiting: null,
+      summary: this.phase === "matchEnd" && this.lastSummary ? { ...this.lastSummary, streak: this.streak } : null,
     };
+  }
+
+  /** against bots there is nobody to watch: the round ends when you go down */
+  spectateTarget(): Dummy | null {
+    return null;
   }
 
   leave(): void {

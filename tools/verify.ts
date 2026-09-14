@@ -728,17 +728,22 @@ console.log("\nMovement regression guards");
 }
 
 // Responsiveness. Sprint is 1.5x walk, but the thing that makes the controls
-// feel immediate is that only the sprint TOP END builds slowly: you reach walk
-// speed in about 0.29 s, and anything that is not "speed up along the current
-// heading" uses the deceleration rate, which is 12.5x the sprint acceleration.
+// feel immediate is that only the sprint TOP END builds slowly: with a weapon
+// out you reach 200 hu/s in about 0.3 s (the wiki measured 0.35), and anything
+// that is not "speed up along the current heading" uses the deceleration rate,
+// which is about 9x the sprint acceleration.
 console.log("\nMovement responsiveness");
 {
   near("sprint is 1.5x walk", MOVE.sprintSpeed / MOVE.speed, 1.4985, 0.001);
-  // lowAcceleration below lowSpeed, then acceleration up to walk speed
-  near("time to walk speed from a standstill", MOVE.lowSpeed / MOVE.lowAcceleration + (MOVE.speed - MOVE.lowSpeed) / MOVE.acceleration, 0.167, 0.005);
-  near("the sprint tail on top of that", (MOVE.sprintSpeed - MOVE.speed) / MOVE.sprintAcceleration, 0.865, 0.005);
+  // lowAcceleration below lowSpeed, then acceleration up to the sprint band,
+  // all at half rate with a weapon out (the wiki's factor of two)
+  const armed = MOVE.armedAccelScale;
+  const to200 = MOVE.lowSpeed / (MOVE.lowAcceleration * armed) + (MOVE.sprintBandStart - MOVE.lowSpeed) / (MOVE.acceleration * armed);
+  near("time to 200 hu/s from a standstill, armed (wiki 0.35)", to200, 0.296, 0.005);
+  near("holstered, walk speed in (wiki: 0.12 s to 200)", MOVE.lowSpeed * MOVE.holsterBoost / MOVE.lowAcceleration + (MOVE.speed * MOVE.holsterBoost - MOVE.lowSpeed * MOVE.holsterBoost) / MOVE.acceleration, 0.132, 0.005);
+  near("the sprint tail from 200 to 260, armed", (MOVE.sprintSpeed - MOVE.sprintBandStart) / (MOVE.sprintAcceleration * armed), 0.857, 0.005);
   near("stop from full sprint", MOVE.sprintSpeed / MOVE.deceleration, 0.208, 0.002);
-  eq("deceleration dwarfs sprint acceleration", MOVE.deceleration / MOVE.sprintAcceleration, 12.5);
+  near("deceleration dwarfs sprint acceleration", MOVE.deceleration / MOVE.sprintAcceleration, 8.93, 0.01);
 
   // A counter-strafe must use the deceleration rate. Running it through the
   // sprint acceleration band took 5.2 s to reverse instead of 0.21 s to stop.

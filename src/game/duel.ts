@@ -106,6 +106,8 @@ export interface DuelHud {
   players: Array<{ name: string; score: number; alive: boolean; you: boolean }>;
   /** the message while the host waits for the rest to arrive */
   waiting: string | null;
+  /** at the end of a match: the numbers for the card (streak from the profile) */
+  summary: (MatchSummary & { streak: number }) | null;
 }
 
 export interface LocalState {
@@ -146,6 +148,12 @@ export interface MatchLike {
   onEnd: ((reason: string) => void) | null;
   onNotice: ((text: string) => void) | null;
   onMatchEnd: ((s: MatchSummary) => void) | null;
+  /** a line for the kill feed: who knocked whom */
+  onFeed: ((text: string, mine: boolean) => void) | null;
+  /** the match end card wants your win streak from the profile */
+  streak: number;
+  /** knocked with others still standing: a figure to watch, or null */
+  spectateTarget(): Dummy | null;
 }
 
 export class Duel implements MatchLike {
@@ -207,6 +215,9 @@ export class Duel implements MatchLike {
   onNotice: ((text: string) => void) | null = null;
   /** first to 3: the result, for stats (before the rematch starts) */
   onMatchEnd: ((s: MatchSummary) => void) | null = null;
+  onFeed: ((text: string, mine: boolean) => void) | null = null;
+  streak = 0;
+  private lastSummary: MatchSummary | null = null;
   /** the host: how many have arrived, for the panel */
   onRoster: ((connected: number, players: number) => void) | null = null;
 
@@ -409,6 +420,10 @@ export class Duel implements MatchLike {
         // if one is left
         r.alive = false;
         r.avatar.fallDown();
+        {
+          const by = m.by === this.id ? (this.myName || "YOU") : (this.remotes.get(m.by)?.name ?? `PLAYER ${m.by + 1}`);
+          this.onFeed?.(`${by} knocked ${r.name}`, m.by === this.id);
+        }
         if (this.role === "host") {
           this.relay(m, from);
           this.checkLastStanding(now);
@@ -547,7 +562,8 @@ export class Duel implements MatchLike {
     this.summarised = true;
     const mine = this.scores[this.id] ?? 0;
     const others = this.scores.reduce((a, s, i) => (i === this.id ? a : a + s), 0);
-    this.onMatchEnd?.({ won: mine >= ROUNDS_TO_WIN, roundsWon: mine, roundsLost: others, kills: this.kills, deaths: this.deaths, damage: this.damage, shots: this.shots, hits: this.hits });
+    this.lastSummary = { won: mine >= ROUNDS_TO_WIN, roundsWon: mine, roundsLost: others, kills: this.kills, deaths: this.deaths, damage: this.damage, shots: this.shots, hits: this.hits };
+    this.onMatchEnd?.(this.lastSummary);
     this.kills = 0;
     this.deaths = 0;
     this.damage = 0;
@@ -565,6 +581,7 @@ export class Duel implements MatchLike {
     if (this.health <= 0) {
       this.alive = false;
       this.deaths++;
+      this.onFeed?.(`${this.remotes.get(from)?.name ?? "SOMEONE"} knocked ${this.myName || "YOU"}`, false);
       this.broadcast({ t: "down", by: from });
       if (this.role === "host") this.checkLastStanding(wallClock());
     }
@@ -744,7 +761,15 @@ export class Duel implements MatchLike {
       },
       players,
       waiting: this.phase === "waiting" ? (this.role === "host" ? `WAITING FOR ${this.players - 1 - this.links.size} MORE` : "WAITING FOR THE OTHERS") : null,
+      summary: this.phase === "matchEnd" && this.lastSummary ? { ...this.lastSummary, streak: this.streak } : null,
     };
+  }
+
+  /** knocked in a 1v1v1 with two still up: watch one of them until the round ends */
+  spectateTarget(): Dummy | null {
+    if (this.alive || this.phase !== "fight") return null;
+    for (const r of this.remotes.values()) if (r.alive && r.samples.length) return r.avatar;
+    return null;
   }
 
   private finish(reason: string): void {

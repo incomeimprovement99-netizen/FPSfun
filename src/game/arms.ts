@@ -1,14 +1,21 @@
 // First-person hands and forearms.
 //
 // A gun floating in front of the camera with nothing holding it is the other
-// half of the Roblox look. These are gloved hands built from capsules around a
-// held bar, with a padded knuckle plate, a cuffed glove and a sleeved forearm
-// that runs off the bottom of the screen toward where an elbow would be.
+// half of the Roblox look. These are gloved hands with a palm, four jointed
+// fingers and a thumb, a padded knuckle plate, a cuffed glove and a sleeved
+// forearm that runs off the bottom of the screen toward where an elbow would
+// be. Proportions are a real hand's: about 19 cm from wrist to fingertip,
+// 8.5 cm across the knuckles.
 //
-// Each hand is modelled once, holding a vertical bar at its origin. The
-// viewmodel places it on the grip or the handguard and tilts it to match; the
-// left hand is the same model mirrored, which three renders correctly because
-// it flips the winding order for any object with a negative scale.
+// One parametric build makes two hands: a GRIP hand closed round a vertical
+// bar at its origin (a pistol grip: the fingers wrap the front strap, the
+// thumb lies along the far side), and a FIST with the fingers curled into the
+// palm and the thumb across them, for the empty hands while holstered.
+//
+// The viewmodel places a hand on the grip or the handguard and tilts it to
+// match; the left hand is the same model mirrored, which three renders
+// correctly because it flips the winding order for any object with a
+// negative scale.
 import * as THREE from "three";
 
 export interface ArmMats {
@@ -17,6 +24,7 @@ export interface ArmMats {
   sleeve: THREE.MeshStandardMaterial;
   cuff: THREE.MeshStandardMaterial;
   skin: THREE.MeshStandardMaterial;
+  seam: THREE.MeshStandardMaterial;
 }
 
 let shared: ArmMats | null = null;
@@ -34,6 +42,7 @@ export function armMaterials(): ArmMats {
       sleeve: new THREE.MeshStandardMaterial({ color: 0x3a3e43, roughness: 0.9, metalness: 0 }),
       cuff: new THREE.MeshStandardMaterial({ color: 0xc9772f, roughness: 0.7, metalness: 0.05 }),
       skin: new THREE.MeshStandardMaterial({ color: 0x9a7560, roughness: 0.68, metalness: 0 }),
+      seam: new THREE.MeshStandardMaterial({ color: 0x2b2824, roughness: 0.85, metalness: 0 }),
     };
     // viewmodel-only, so extra image-based fill here lifts the shaded side of
     // the gloves without touching the world (see gunmodels.ts)
@@ -58,7 +67,7 @@ export function setArmColors(c: { glove: number; pad: number; sleeve: number; cu
 function segment(a: THREE.Vector3, b: THREE.Vector3, r: number, mat: THREE.Material): THREE.Mesh {
   const d = new THREE.Vector3().subVectors(b, a);
   const len = d.length();
-  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(0.0001, len), 4, 10), mat);
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(0.0001, len), 4, 12), mat);
   m.position.copy(a).addScaledVector(d, 0.5);
   m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
   return m;
@@ -66,74 +75,123 @@ function segment(a: THREE.Vector3, b: THREE.Vector3, r: number, mat: THREE.Mater
 
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
+/** a rounded box */
+function block(w: number, h: number, d: number, r: number, mat: THREE.Material): THREE.Mesh {
+  // a capsule-ish box: a box with sphere corners is heavier than needed; a
+  // scaled capsule reads the same at hand size
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(0.0001, h - 2 * r), 4, 14), mat);
+  m.scale.set(w / (2 * r), 1, d / (2 * r));
+  return m;
+}
+
 /**
- * A right hand closed around a vertical bar at the origin (bar about 32 mm
- * across and 46 mm fore and aft, which is a pistol grip). The back of the hand
- * faces +x, the fingers wrap the front strap (-z) and the thumb lies along the
- * left side, which is how a real firing grip sits.
+ * A right hand at the origin. The back of the hand faces +x, the fingers
+ * reach forward (-z) and curl round toward -x, the thumb lies along the -x
+ * side. Gripping, the fingers close round a bar about 4 cm across at the
+ * origin; as a fist they curl into the palm.
  */
 export class Hand {
   readonly group = new THREE.Group();
   /** where the forearm attaches, in hand space */
-  private readonly wristLocal = v(0.026, -0.022, 0.048);
+  private readonly wristLocal = v(0.024, -0.052, 0.034);
 
-  constructor(mirrored: boolean) {
+  constructor(mirrored: boolean, fist = false) {
     const M = armMaterials();
     const g = this.group;
 
-    // palm and back of hand, sitting against the right side of the grip
-    const palm = new THREE.Mesh(new THREE.CapsuleGeometry(0.02, 0.05, 4, 12), M.glove);
-    palm.scale.set(0.7, 1, 1.25);
-    palm.position.set(0.03, -0.004, 0.004);
+    // ---- palm: a slab against the +x side of the grip, wider at the knuckles
+    const palm = block(0.03, 0.094, 0.074, 0.012, M.glove);
+    palm.position.set(0.031, -0.008, 0.006);
+    palm.rotation.y = -0.12;
     g.add(palm);
-    // padded knuckle plate on the back of the hand
-    const pad = new THREE.Mesh(new THREE.CapsuleGeometry(0.011, 0.034, 3, 10), M.pad);
-    pad.scale.set(0.55, 1, 1.5);
-    pad.position.set(0.047, 0.004, -0.004);
-    pad.rotation.x = 0.15;
+    // the heel of the hand, meaty, wrapping the back strap
+    const heel = block(0.032, 0.05, 0.05, 0.012, M.glove);
+    heel.position.set(0.02, -0.035, 0.028);
+    g.add(heel);
+    // padded knuckle plate on the back of the hand, with a seam round it
+    const pad = block(0.008, 0.078, 0.052, 0.004, M.pad);
+    pad.position.set(0.049, 0.004, -0.004);
+    pad.rotation.x = 0.1;
     g.add(pad);
-    // heel of the hand wrapping the back strap
-    g.add(segment(v(0.012, -0.03, 0.03), v(0.012, 0.022, 0.03), 0.014, M.glove));
+    const seam = block(0.009, 0.084, 0.058, 0.004, M.seam);
+    seam.position.set(0.0475, 0.004, -0.004);
+    seam.rotation.x = 0.1;
+    g.add(seam);
 
-    // three fingers wrapped round the front strap, each in two segments so the
-    // knuckle bend reads
-    for (let i = 0; i < 3; i++) {
-      const y = -0.004 - i * 0.02;
-      const r = 0.0088 - i * 0.0005;
-      const k = v(0.036, y, -0.02);
-      const mid = v(0.018, y, -0.036);
-      const tip = v(-0.016, y - 0.002, -0.03);
-      g.add(segment(k, mid, r, M.glove));
-      g.add(segment(mid, tip, r * 0.95, M.glove));
+    // ---- four fingers: three segments each, curling round the bar (grip) or
+    // into the palm (fist). Knuckles across the top of the palm's front edge.
+    const fingers: Array<{ y: number; scale: number }> = [
+      { y: 0.03, scale: 1.0 }, // index
+      { y: 0.011, scale: 1.06 }, // middle
+      { y: -0.008, scale: 0.98 }, // ring
+      { y: -0.027, scale: 0.84 }, // little
+    ];
+    // bend at each joint, radians, turning from -z round toward -x then +z
+    const bends = fist ? [0.95, 1.5, 1.05] : [0.3, 1.0, 1.05];
+    const lens = [0.045, 0.028, 0.023];
+    const radii = [0.0105, 0.0095, 0.0085];
+    for (const f of fingers) {
+      // the grip's index finger sits on the trigger, straighter than the rest
+      const onTrigger = !fist && f === fingers[0];
+      const myBends = onTrigger ? [0.15, 0.55, 0.5] : bends;
+      const p = v(0.041, f.y, -0.024);
+      // the knuckle
+      const k = new THREE.Mesh(new THREE.SphereGeometry(0.0112 * f.scale, 12, 10), M.glove);
+      k.position.copy(p);
+      g.add(k);
+      let dx = -0.2;
+      let dz = -1;
+      let a = 0;
+      for (let i = 0; i < 3; i++) {
+        a += myBends[i];
+        // rotate the finger's direction about the bar (the y axis)
+        const cx = dx * Math.cos(a) + dz * Math.sin(a);
+        const cz = -dx * Math.sin(a) + dz * Math.cos(a);
+        const len = lens[i] * f.scale;
+        const q = v(p.x + cx * len, p.y - 0.004 * i, p.z + cz * len);
+        g.add(segment(p, q, radii[i] * f.scale, M.glove));
+        if (i < 2) {
+          const j = new THREE.Mesh(new THREE.SphereGeometry(radii[i + 1] * f.scale * 1.05, 10, 8), M.glove);
+          j.position.copy(q);
+          g.add(j);
+        } else {
+          // a grip pad on the fingertip
+          const cap = new THREE.Mesh(new THREE.SphereGeometry(radii[2] * f.scale * 1.02, 10, 8), M.pad);
+          cap.position.copy(q);
+          g.add(cap);
+        }
+        p.copy(q);
+      }
     }
-    // index finger on the trigger
-    g.add(segment(v(0.032, 0.02, -0.018), v(0.02, 0.018, -0.046), 0.0092, M.glove));
-    g.add(segment(v(0.02, 0.018, -0.046), v(0.004, 0.006, -0.058), 0.0086, M.glove));
-    // thumb down the left side
-    g.add(segment(v(0.016, 0.018, 0.03), v(-0.012, 0.03, 0.004), 0.0115, M.glove));
-    g.add(segment(v(-0.012, 0.03, 0.004), v(-0.022, 0.03, -0.03), 0.0102, M.glove));
 
-    // armoured knuckles: three studs in the accent colour along the pad
-    for (let i = 0; i < 3; i++) {
-      const stud = new THREE.Mesh(new THREE.SphereGeometry(0.0055, 10, 8), M.cuff);
-      stud.scale.set(0.6, 1, 1);
-      stud.position.set(0.052, 0.016 - i * 0.014, -0.008);
+    // ---- thumb: along the far side of the grip, or across the fingers as a fist
+    const t0 = v(0.014, 0.03, 0.03);
+    const t1 = fist ? v(-0.006, 0.034, -0.006) : v(-0.013, 0.038, 0.004);
+    const t2 = fist ? v(0.012, 0.026, -0.03) : v(-0.021, 0.036, -0.028);
+    g.add(segment(t0, t1, 0.0125, M.glove));
+    const tj = new THREE.Mesh(new THREE.SphereGeometry(0.0118, 12, 10), M.glove);
+    tj.position.copy(t1);
+    g.add(tj);
+    g.add(segment(t1, t2, 0.0105, M.glove));
+    const tcap = new THREE.Mesh(new THREE.SphereGeometry(0.0106, 10, 8), M.pad);
+    tcap.position.copy(t2);
+    g.add(tcap);
+
+    // ---- armoured knuckles: four studs in the accent colour along the pad
+    for (const f of fingers) {
+      const stud = new THREE.Mesh(new THREE.SphereGeometry(0.0052, 10, 8), M.cuff);
+      stud.scale.set(0.55, 1, 1);
+      stud.position.set(0.054, f.y + 0.002, -0.014);
       g.add(stud);
     }
-    // grip pads on the fingertips
-    for (let i = 0; i < 3; i++) {
-      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.0082 - i * 0.0005, 10, 8), M.pad);
-      cap.position.set(-0.016, -0.006 - i * 0.02, -0.03);
-      g.add(cap);
-    }
 
-    // glove cuff, with a strap round it in the accent colour
+    // ---- glove cuff, with a strap round it in the accent colour
     const cuffDir = v(0.1, -0.35, 1).normalize();
-    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.028, 0.03, 16), M.glove);
-    cuff.position.copy(this.wristLocal).add(v(-0.004, 0.012, -0.012));
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.03, 0.03, 18), M.glove);
+    cuff.position.copy(this.wristLocal).add(v(-0.002, 0.014, -0.01));
     cuff.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), cuffDir);
     g.add(cuff);
-    const strap = new THREE.Mesh(new THREE.TorusGeometry(0.0295, 0.0035, 6, 20), M.cuff);
+    const strap = new THREE.Mesh(new THREE.TorusGeometry(0.0325, 0.0036, 6, 22), M.cuff);
     strap.position.copy(cuff.position);
     strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), cuffDir);
     g.add(strap);
@@ -167,11 +225,11 @@ export class Forearm {
   constructor() {
     const M = armMaterials();
     // the geometry runs from y = 0 (wrist) to y = 1 (elbow)
-    const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.037, 0.03, 0.22, 16, 1, false), M.glove);
+    const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.039, 0.032, 0.22, 16, 1, false), M.glove);
     wrist.position.y = 0.11;
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.041, 0.041, 0.035, 16), M.cuff);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.043, 0.043, 0.035, 16), M.cuff);
     band.position.y = 0.23;
-    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.043, 0.78, 18), M.sleeve);
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.045, 0.78, 18), M.sleeve);
     sleeve.position.y = 0.62;
     for (const m of [wrist, band, sleeve]) {
       m.castShadow = false;

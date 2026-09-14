@@ -107,7 +107,11 @@ export interface HudState {
     /** everyone, you first: a scoreboard for three */
     players: Array<{ name: string; score: number; alive: boolean; you: boolean }>;
     waiting: string | null;
+    /** at the end of a match: the numbers for the card */
+    summary: { won: boolean; roundsWon: number; roundsLost: number; kills: number; deaths: number; damage: number; shots: number; hits: number; streak: number } | null;
   } | null;
+  /** nameplates over the other players and the bots */
+  plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean }>;
   /** real shield and health (a 1v1); the bars are decorative without it */
   vitals?: { shield: number; shieldMax: number; health: number; healthMax: number } | null;
 }
@@ -127,6 +131,8 @@ export class Hud {
   private hitMarkerHead = false;
   private noticeText = "";
   private noticeUntil = 0;
+  /** the kill feed, top right, newest first */
+  private feedLines: Array<{ text: string; born: number; color: string }> = [];
   private techFeed: TechEntry[] = [];
   private hurtAt = -Infinity;
   private w = 0;
@@ -178,6 +184,17 @@ export class Hud {
     this.hurtAt = now;
   }
 
+  /** the kill feed's lines, newest first (tools/e2e.ts) */
+  get feedText(): string[] {
+    return this.feedLines.map((l) => l.text);
+  }
+
+  /** a line in the kill feed ("YOU knocked BOT ASH") */
+  feed(text: string, now: number, color = WHITE): void {
+    this.feedLines.unshift({ text, born: now, color });
+    if (this.feedLines.length > 6) this.feedLines.length = 6;
+  }
+
   /** a centre notice, e.g. "KNOCKED DOWN" */
   notice(text: string, now: number, seconds = 1.2): void {
     this.noticeText = text;
@@ -206,7 +223,82 @@ export class Hud {
     this.drawNotice(now, u);
     this.drawPrompt(s, u);
     this.drawTechFeed(now, u);
+    this.drawPlates(now, camera, s, u);
     this.drawDuel(s, u);
+    this.drawFeed(now, u);
+    this.drawSummary(s, u);
+  }
+
+  /** names and bars over the other players and the bots, fading with distance */
+  private drawPlates(_now: number, camera: THREE.Camera, s: HudState, u: number): void {
+    if (!s.plates?.length) return;
+    const c = this.ctx;
+    const v = new THREE.Vector3();
+    for (const pl of s.plates) {
+      const dist = pl.world.distanceTo((camera as THREE.PerspectiveCamera).position);
+      if (dist > 60) continue;
+      v.copy(pl.world).project(camera);
+      if (v.z > 1) continue;
+      const x = (v.x * 0.5 + 0.5) * this.w;
+      const y = (-v.y * 0.5 + 0.5) * this.h;
+      if (x < -50 || x > this.w + 50 || y < -50 || y > this.h + 50) continue;
+      const a = dist < 40 ? 1 : 1 - (dist - 40) / 20;
+      c.globalAlpha = a * (pl.alive ? 1 : 0.5);
+      const w = 110 * u;
+      const col = pl.alive ? WHITE : DIM;
+      this.text(pl.alive ? pl.name : `${pl.name}  DOWN`, x, y - 12 * u, 700, 14 * u, col, "center");
+      if (pl.alive) {
+        c.fillStyle = "rgba(0,0,0,0.55)";
+        c.fillRect(x - w / 2, y - 8 * u, w, 4 * u);
+        c.fillRect(x - w / 2, y - 3 * u, w, 4 * u);
+        c.fillStyle = "#3b8bff";
+        c.fillRect(x - w / 2, y - 8 * u, w * Math.max(0, Math.min(1, pl.shield / Math.max(1, pl.shieldMax))), 4 * u);
+        c.fillStyle = pl.health > 30 ? "#d8e2ea" : RED;
+        c.fillRect(x - w / 2, y - 3 * u, w * Math.max(0, Math.min(1, pl.health / 100)), 4 * u);
+      }
+      c.globalAlpha = 1;
+    }
+  }
+
+  /** the kill feed under the FPS counter, six seconds a line */
+  private drawFeed(now: number, u: number): void {
+    const x = this.w - 30 * u;
+    let y = 120 * u;
+    for (let i = this.feedLines.length - 1; i >= 0; i--) if (now - this.feedLines[i].born > 6) this.feedLines.splice(i, 1);
+    for (const l of this.feedLines) {
+      const age = now - l.born;
+      this.ctx.globalAlpha = age < 5 ? 1 : 1 - (age - 5);
+      this.text(l.text, x, y, 700, 15 * u, l.color, "right");
+      y += 20 * u;
+    }
+    this.ctx.globalAlpha = 1;
+  }
+
+  /** the match summary at the end: rounds, K/D, damage, accuracy */
+  private drawSummary(s: HudState, u: number): void {
+    const d = s.duel;
+    if (!d || d.phase !== "matchEnd" || !d.summary) return;
+    const sm = d.summary;
+    const c = this.ctx;
+    const cx = this.w / 2;
+    const w = 420 * u;
+    const h = 170 * u;
+    const x0 = cx - w / 2;
+    const y0 = this.h * 0.36 + 70 * u;
+    c.fillStyle = "rgba(8,10,12,0.8)";
+    c.fillRect(x0, y0, w, h);
+    c.fillStyle = sm.won ? "#ffd23c" : RED;
+    c.fillRect(x0, y0, w, 4 * u);
+    const row = (i: number, label: string, value: string) => {
+      const y = y0 + 34 * u + i * 26 * u;
+      this.text(label, x0 + 24 * u, y, 600, 15 * u, DIM);
+      this.text(value, x0 + w - 24 * u, y, 700, 16 * u, WHITE, "right");
+    };
+    row(0, "ROUNDS", `${sm.roundsWon} - ${sm.roundsLost}`);
+    row(1, "KILLS / DEATHS", `${sm.kills} / ${sm.deaths}   K/D ${sm.deaths ? (sm.kills / sm.deaths).toFixed(2) : sm.kills.toFixed(2)}`);
+    row(2, "DAMAGE", `${Math.round(sm.damage)}`);
+    row(3, "ACCURACY", sm.shots ? `${Math.round((100 * sm.hits) / sm.shots)}%  (${sm.hits} of ${sm.shots})` : "-");
+    row(4, "STREAK", `${sm.streak} win${sm.streak === 1 ? "" : "s"} in a row`);
   }
 
   private drawHurt(now: number): void {
