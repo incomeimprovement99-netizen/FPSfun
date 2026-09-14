@@ -1,0 +1,12 @@
+{
+  "_note": "Copied by hand from the owner's game config on 2026-09-13 (read once, never written). DPI is not stored by the game; the owner types it in the site.",
+  "mouseSensitivity": 0.4,
+  "perScopeScalars": false,
+  "adsScalars": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+  "fovScale": 1.55,
+  "invertPitch": false,
+  "resolution": { "width": 1920, "height": 1440 },
+  "dpi": null,
+  "_sprintMode": "Apex's default is 'toggle' (Press): one press of sprint arms it for 3 s, a running sprint stays on, and letting go of forward ends it. 'hold' sprints only while the key is held, matching the Hold option in Apex's settings.",
+  "sprintMode": "toggle"
+}

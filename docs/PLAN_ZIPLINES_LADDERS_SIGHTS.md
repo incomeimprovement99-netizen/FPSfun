@@ -1,0 +1,20 @@
+# Plan: ziplines, ladders, sights, and the course start
+
+Every point from the request, with what will be done and how it will be checked.
+
+| ID | Ask | What will be done | Verified by |
+|---|---|---|---|
+| Z1 | Ziplines as Apex has them, with all the rules | New `zip` state in `player.ts` built from the Apex Movement Wiki's zipline page: Interact (E) to mount, direction chosen by where you look, pulled onto the rope, accelerate to 600 hu/s (480 on vertical zips) at 400 hu/s², 1000 hu/s² during the 0.5 s mount, aligned momentum kept up to the cap. Jump off (zip jump, no jump fatigue), crouch off (zip crouch), thrown off at the end (max 600 hu/s), manual exits capped at 445 hu/s. Zips steeper than 45° let you jump off in any direction, shallower ones throw you along the rope. 35° look cone on the ground, 90° in the air, no ground mount while aiming. Three mid-air mounts, reset by landing or mantling, +1 back every 3 s off a zip. 0.4 s re-use cooldown. Hitting geometry throws you off. Riding 0.5 s resets the climb space. Lurch, coyote and fatigue timers are left alone. Near a pole you are forced away from it. | movesim: speed cap, acceleration, exit caps, 45° rule, mount limit, cooldown, climb reset, no fatigue on a zip jump |
+| Z2 | Zipline in the course | New room 6 "ZIPLINE": a vertical zip up to a 5 m deck (a ladder beside it for the slow way), then a long sloped zip across the room over the enemies to the exit. Final room moves back. | movesim: ride up, jump off onto the deck, ride across; screenshot |
+| L1 | Ladders like Apex | Apex ladders are not a separate mechanic: they are rungs on walls you climb with the normal wall climb, placed where a climb reaches the top, so they tell you "climb here". Ladder models on the 4.2 m climb wall, the 5 m zip deck, and both range platforms. | movesim: each ladder's wall is climbable to the top |
+| L2 | Hints to the user | When you face a ladder within reach, a prompt: "HOLD JUMP into the ladder to climb". Zipline prompt: "E  ZIPLINE". | screenshot |
+| S1 | Course start is hard to find | Move the course to the back-left corner of the range, beside the spawn, with a lit "THE RUN" arch and sign over its gate, floor arrows from the spawn, and the gate on the minimap. | screenshot from spawn |
+| H1 | Hands visible when holstered | Holstered, the gun leaves the frame and both gloved hands stay on screen in a relaxed carry that pumps while you sprint, as in Apex. | screenshot holstered and sprinting |
+| B1 | "B00G" all over the course walls | Canvas-drawn stencil tile with "B00G" at several sizes and angles on painted panel steel, world-scale UVs on every course wall. | screenshot |
+| R1 | Roof on the course | Roof at 7 m over the whole course with light panels; it is a collider (head bumps), and does not cast sun shadow so the rooms stay lit. | movesim headroom unaffected; screenshot |
+| O1 | Sights like Apex | Optic models on the rail for all ten optics (HCOG classic, bruiser, ranger, holo, variable holo, digital threat, variable AOG, the sniper scopes). ADS lines up the optic's own sight line with the eye instead of the irons. Reticles as Apex draws them: HCOG classic dot-in-circle, bruiser and ranger chevrons, holo ring, digital threat red box. Magnified scopes (3x and up) put a scope ring over the screen at full ADS. | screenshot per optic hip and ADS |
+| P1 | More snappiness | `pointerrawupdate` for mouse input where supported (mouse deltas as they arrive, not batched to the frame), merge the static range and course meshes by material to cut draw calls, report draw calls in the benchmark. Honest note: the 60 Hz display cap still dominates. | `npm run bench` before and after; draw call count |
+| G1 | Refresh-rate text as a hover, step by step | Replace the paragraph with one line and an "i" hover card: step-by-step for Windows refresh rate, Chrome Energy Saver, hardware acceleration, GPU driver v-sync, and the uncapped Chrome shortcut. | screenshot of the hover |
+
+Out of scope for this batch: zipline carries, ghost interacts, mantle cancels off
+zips (the wiki's advanced zip tech), Pathfinder and evac tower zip speeds.

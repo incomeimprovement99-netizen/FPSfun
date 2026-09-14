@@ -1,0 +1,9 @@
+{
+  "_note": "Almost all of the recoil model now comes from the reference data: the ODE is documented in the header of springs.txt, and the hold-then-snap-back behaviour is the cold/hot spring blend driven by heat (the R-301's hot ADS pitch springConstant is 0, so the punch does not recover while the gun is hot). Only ONE number below is not recoverable from any public source.",
+
+  "_softImpulseScale": "Multiplier on the soft kick, which is injected into the spring's VELOCITY. This is the single genuinely unknown constant: the engine's own view-kick code is not public, and no open-source project contains it. The ancestor engine this one is derived from uses `punchAngleVel += offset * 20`, so 20 is the inherited default. Raising it increases how far the muzzle climbs during a spray, without changing the pattern shape or the recovery. This is the dial the playtest settles.",
+  "softImpulseScale": 20,
+
+  "_globalScale": "Multiplies the whole view kick, pattern and all. 1.0 = exactly as the data says. Only move this if every weapon feels uniformly too strong or weak.",
+  "globalScale": 1.0
+}

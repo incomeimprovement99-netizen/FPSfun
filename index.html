@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%23d4712a%22/%3E%3Ccircle cx=%228%22 cy=%228%22 r=%222%22 fill=%22%23fff%22/%3E%3C/svg%3E" />
+    <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Range</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0d10; color: #e6e6e6; font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+      #app { position: fixed; inset: 0; }
+      canvas { display: block; }
+      #hud { position: fixed; inset: 0; pointer-events: none; }
+      #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(6, 8, 10, 0.82); z-index: 10; }
+      #overlay.hidden { display: none; }
+      .panel { width: 520px; max-width: 92vw; max-height: 94vh; overflow-y: auto; box-sizing: border-box; background: #14181d; border: 1px solid #2a323b; border-radius: 6px; padding: 22px 26px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+      .panel h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: .04em; text-transform: uppercase; color: #f0f0f0; }
+      .panel .sub { color: #8b96a3; font-size: 13px; margin-bottom: 18px; }
+      .row { display: grid; grid-template-columns: 1fr 140px; align-items: center; gap: 12px; margin: 8px 0; font-size: 14px; }
+      .row label { color: #c8d0d8; }
+      .row .hint { color: #7d8895; font-size: 12px; }
+      .row input { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 7px 9px; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
+      .row input:focus, .row select:focus { outline: none; border-color: #d43a2f; }
+      .row select { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 7px 9px; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
+      .derived { margin: 14px 0 6px; padding: 10px 12px; background: #0d1014; border-radius: 4px; font-size: 13px; color: #b9c2cc; line-height: 1.5; }
+      .derived b { color: #fff; }
+      button#play { width: 100%; margin-top: 14px; padding: 12px; font-size: 15px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; background: #d43a2f; border: 0; color: #fff; border-radius: 4px; cursor: pointer; }
+      button#play:hover { background: #e8483c; }
+      .calib { margin-top: 6px; }
+      .calib button { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 7px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+      .calib button:hover { border-color: #56636f; }
+      .calib button.ghost { background: transparent; color: #8b96a3; }
+      .calibBody { margin-top: 10px; padding: 12px; background: #0d1014; border-radius: 4px; }
+      .calibMsg { font-size: 12px; color: #b9c2cc; line-height: 1.5; margin: 8px 0 10px; }
+      .calibMsg.live { color: #ffd27a; font-variant-numeric: tabular-nums; }
+      .calibMsg.good { color: #7ddc8a; }
+      .keys { margin-top: 14px; font-size: 12px; color: #7d8895; line-height: 1.6; }
+      .duel { margin-top: 14px; padding: 12px; background: #0d1014; border: 1px solid #2a323b; border-radius: 4px; }
+      .duelTitle { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #ffd23c; margin-bottom: 8px; }
+      .duelRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .duelRow button { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 7px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+      .duelRow button:hover { border-color: #56636f; }
+      .duelRow button.ghost { background: transparent; color: #ff8a7a; border-color: #5a3a38; }
+      .duelRow .or { color: #7d8895; font-size: 12px; }
+      .duelRow input { width: 90px; background: #14181d; border: 1px solid #333c46; color: #fff; padding: 7px 9px; border-radius: 4px; font-size: 15px; letter-spacing: .2em; text-transform: uppercase; font-weight: 700; }
+      .calibMsg.bad { color: #ff8a7a; }
+      .calibMsg .code { font-size: 18px; letter-spacing: .2em; color: #ffd23c; }
+      .menu { width: 780px; max-width: 94vw; max-height: 94vh; overflow-y: auto; box-sizing: border-box; background: #14181d; border: 1px solid #2a323b; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+      .brand { display: flex; align-items: baseline; gap: 10px; padding: 18px 24px 10px; font-family: "Rajdhani", "Segoe UI", sans-serif; }
+      .brand .logo { font-weight: 700; font-size: 30px; letter-spacing: .08em; color: #e2742b; }
+      .brand .title { font-weight: 700; font-size: 24px; letter-spacing: .14em; color: #f0f0f0; }
+      .brand .beta { font-size: 11px; font-weight: 700; letter-spacing: .12em; color: #101214; background: #ffd23c; padding: 1px 6px; border-radius: 3px; }
+      .brand .loadoutChip { margin-left: auto; font-size: 14px; color: #9aa4ad; }
+      .brand .loadoutChip b { color: #fff; }
+      .tabs { display: flex; gap: 2px; padding: 0 20px; border-bottom: 1px solid #2a323b; }
+      .tabs button { background: transparent; border: 0; color: #9aa4ad; font: 600 14px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .1em; text-transform: uppercase; padding: 10px 14px; cursor: pointer; border-bottom: 2px solid transparent; }
+      .tabs button:hover { color: #fff; }
+      .tabs button.on { color: #fff; border-bottom-color: #d43a2f; }
+      .menu section { padding: 16px 24px 22px; }
+      .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .mode { text-align: left; background: #0d1014; border: 1px solid #2a323b; border-radius: 6px; padding: 14px 16px; color: #c8d0d8; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+      .mode:hover { border-color: #d4712a; }
+      .mode b { font: 700 18px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .06em; color: #fff; text-transform: uppercase; }
+      .mode span { font-size: 12px; color: #8b96a3; }
+      .hintLine { margin-top: 10px; font-size: 12px; color: #7d8895; text-align: center; }
+      .rules { font-size: 13px; color: #b9c2cc; line-height: 1.6; padding-left: 18px; margin: 14px 0 0; }
+      .rules b { color: #fff; }
+      .loadouts { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
+      .lolist { display: flex; flex-direction: column; gap: 4px; }
+      .lolist .group { font-size: 11px; letter-spacing: .12em; color: #7d8895; margin: 6px 0 2px; }
+      .lolist button { text-align: left; background: #0d1014; border: 1px solid #2a323b; color: #c8d0d8; padding: 7px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+      .lolist button.on { border-color: #d43a2f; color: #fff; }
+      .lolist button small { display: block; color: #7d8895; font-size: 11px; }
+      .lohead { margin: 12px 0 6px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: #ffd23c; }
+      .lohead .hint { text-transform: none; letter-spacing: 0; color: #7d8895; }
+      .lolocked { font-size: 12px; color: #9aa4ad; margin: 4px 0 8px; }
+      .lolocked button, .lolocked select { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+      .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+      .cards button { background: #0d1014; border: 1px solid #2a323b; border-radius: 5px; padding: 8px; color: #c8d0d8; cursor: pointer; text-align: left; font-size: 12px; }
+      .cards button.on { border-color: #d43a2f; color: #fff; }
+      .cards button:disabled { cursor: default; opacity: 0.55; }
+      .cards button:disabled.on { opacity: 1; }
+      .cards .sw { display: flex; gap: 3px; margin-bottom: 6px; }
+      .cards .sw i { width: 16px; height: 16px; border-radius: 3px; display: inline-block; }
+      .cards b { display: block; font-size: 13px; }
+      .duelRow select { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 7px 8px; border-radius: 4px; font-size: 13px; }
+      .statsBody { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+      .statcard { background: #0d1014; border: 1px solid #2a323b; border-radius: 6px; padding: 12px 14px; }
+      .statcard h4 { margin: 0 0 8px; font: 700 15px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #ffd23c; }
+      .statcard .big { font: 700 30px "Rajdhani", "Segoe UI", sans-serif; color: #fff; line-height: 1; }
+      .statcard .big small { font-size: 13px; color: #8b96a3; font-weight: 600; margin-left: 6px; letter-spacing: .05em; }
+      .statcard table { width: 100%; border-collapse: collapse; font-size: 12px; color: #b9c2cc; margin-top: 6px; }
+      .statcard td { padding: 3px 0; border-bottom: 1px solid #1f262d; }
+      .statcard td:last-child { text-align: right; color: #fff; }
+      .statcard .empty { font-size: 12px; color: #7d8895; }
+      .statcard.wide { grid-column: 1 / -1; }
+      .statcard .techlist { display: flex; flex-wrap: wrap; gap: 6px; }
+      .statcard .techlist span { background: #14181d; border: 1px solid #2a323b; border-radius: 3px; padding: 2px 7px; font-size: 12px; color: #c8d0d8; }
+      .statcard .techlist span b { color: #7ddc8a; }
+      .statcard .techlist span.miss b { color: #ff9f43; }
+      .keytable { width: 100%; border-collapse: collapse; font-size: 13px; color: #b9c2cc; }
+      .keytable td { padding: 5px 6px; border-bottom: 1px solid #1f262d; }
+      .keytable kbd { background: #222932; border: 1px solid #3a4450; border-radius: 3px; padding: 0 5px; color: #dfe5eb; font-family: inherit; }
+      .perf { display: flex; align-items: flex-start; gap: 10px; }
+      .perf #perfLine { flex: 1; }
+      .tip { position: relative; outline: none; }
+      .tipIcon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: #d4712a; color: #fff; font-weight: 700; font-size: 13px; cursor: help; font-family: Georgia, serif; font-style: italic; }
+      /* The card is fixed to the right of the screen so it is never clipped by the
+         panel. Hovering the card itself keeps it open, and it lingers half a second
+         so the mouse can travel from the icon to it. */
+      .tip .card { position: fixed; right: 18px; top: 18px; width: min(560px, 92vw); max-height: calc(100vh - 36px); overflow-y: auto; box-sizing: border-box; background: #14181d; border: 1px solid #3a4450; border-radius: 6px; padding: 16px 20px; box-shadow: 0 20px 60px rgba(0,0,0,.7); font-size: 13px; line-height: 1.55; color: #c8d0d8; z-index: 20; visibility: hidden; opacity: 0; transition: opacity .12s, visibility 0s .5s; }
+      .tip:hover .card, .tip:focus-within .card { visibility: visible; opacity: 1; transition-delay: 0s; }
+      .card h3 { margin: 0 0 8px; font-size: 15px; color: #fff; letter-spacing: .03em; }
+      .card .why { color: #8b96a3; margin: 0 0 10px; }
+      .card ol { padding-left: 20px; margin: 0; }
+      .card ol ol { margin-top: 6px; }
+      .card li { margin: 0 0 8px; }
+      .card b { color: #fff; }
+      .card i { color: #ffd27a; font-style: normal; }
+      .card code { display: inline-block; background: #0d1014; border: 1px solid #333c46; border-radius: 3px; padding: 4px 6px; margin: 4px 0; font-size: 12px; color: #9fe0ff; word-break: break-all; user-select: all; }
+      .card button { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+      .keys kbd { background: #222932; border: 1px solid #3a4450; border-radius: 3px; padding: 0 5px; color: #dfe5eb; font-family: inherit; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <canvas id="hud"></canvas>
+    <div id="overlay">
+      <div class="menu">
+        <header class="brand">
+          <span class="logo">B00G</span><span class="title">RANGE</span><span class="beta">BETA</span>
+          <span class="loadoutChip" id="loadoutChip"></span>
+        </header>
+        <nav class="tabs" id="tabs">
+          <button type="button" data-tab="play" class="on">Play</button>
+          <button type="button" data-tab="duel">1v1</button>
+          <button type="button" data-tab="loadouts">Loadouts</button>
+          <button type="button" data-tab="stats">Stats</button>
+          <button type="button" data-tab="settings">Settings</button>
+          <button type="button" data-tab="controls">Controls</button>
+        </nav>
+
+        <section data-panel="play">
+          <div class="modes">
+            <button type="button" class="mode" id="goRange"><b>Firing Range</b><span>Guns, dummies, targets, ladders, ziplines and the wallbounce wall.</span></button>
+            <button type="button" class="mode" id="goRun"><b>The Run (Basic)</b><span id="runBest">Seven rooms, one technique each, twenty pop-ups.</span></button>
+            <button type="button" class="mode" id="goRunAdvanced"><b>The Run (Advanced)</b><span id="runAdvancedBest">Nine rooms, 200 m, the techniques chained. Thirty pop-ups.</span></button>
+            <button type="button" class="mode" id="goDuel"><b>1v1 and 1v1v1</b><span>Friends, a code, an arena. First to 3, with the circle.</span></button>
+            <button type="button" class="mode" id="goBots"><b>Arena, Bots</b><span id="botsBlurb">The 1v1 rules against 1 or 2 bots. Pick the difficulty on the 1v1 tab.</span></button>
+            <button type="button" class="mode" id="goArena"><b>Arena, alone</b><span>Walk the 1v1 map by yourself to learn it.</span></button>
+          </div>
+          <button id="play" type="button">Resume</button>
+          <div class="hintLine">Esc brings you back here. Everything you set is remembered.</div>
+        </section>
+
+        <section data-panel="duel" hidden>
+          <div class="duel">
+            <div class="duelTitle">1v1 or 1v1v1 with friends</div>
+            <div class="duelRow">
+              <select id="duelPlayers" title="how many play"><option value="2">2 players (1v1)</option><option value="3">3 players (1v1v1)</option></select>
+              <button id="duelHost" type="button">Create match</button>
+              <span class="or">or</span>
+              <input id="duelCode" placeholder="CODE" maxlength="5" autocomplete="off" spellcheck="false" />
+              <button id="duelJoin" type="button">Join</button>
+              <button id="duelLeave" type="button" class="ghost" hidden>Leave match</button>
+            </div>
+            <div id="duelStatus" class="calibMsg">One of you makes a match and sends the code; the others type it and join.</div>
+          </div>
+          <div class="duel" style="margin-top:10px">
+            <div class="duelTitle">Arena, Bots</div>
+            <div class="duelRow">
+              <select id="botCount"><option value="1">1 bot</option><option value="2">2 bots</option></select>
+              <select id="botDifficulty"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
+              <span class="or">then Play tab, Arena Bots. Easy bots are slow and miss; hard ones sprint and land most of a mag.</span>
+            </div>
+          </div>
+          <ul class="rules">
+            <li>1v1: three lanes. 1v1v1: a triangle, a corner each. First to 3 rounds, blue shields and 100 health.</li>
+            <li>20 s into a round the circle in the middle goes live. Stand in it alone for 10 s to take the round. The last one standing takes it at any time.</li>
+            <li>You play with your selected loadout: <b id="duelLoadout"></b>. Change it on the Loadouts tab any time; weapons swap straight away.</li>
+            <li>It connects your browser straight to your friends'. Most home internet works; some school, work or phone networks block it. With three, the host's connection carries the match.</li>
+          </ul>
+        </section>
+
+        <section data-panel="loadouts" hidden>
+          <div class="loadouts">
+            <div class="lolist" id="loadoutList"></div>
+            <div class="loedit">
+              <div class="row"><label>Name</label><input id="loadoutName" maxlength="24" /></div>
+              <div class="lolocked" id="loadoutLocked">Default loadouts cannot be changed. <button type="button" id="copyLoadout">Copy to a custom slot</button> <select id="copyTarget"></select></div>
+              <div class="lohead">Operator</div>
+              <div class="cards" id="operatorCards"></div>
+              <div class="row"><label>Slot 1 <div class="hint">key 1</div></label><select id="slot0"></select></div>
+              <div class="row"><label>Slot 2 <div class="hint">key 2</div></label><select id="slot1"></select></div>
+              <div class="lohead">Heirloom <span class="hint">held when holstered, swung with V</span></div>
+              <div class="cards" id="heirloomCards"></div>
+            </div>
+          </div>
+        </section>
+
+        <section data-panel="settings" hidden>
+          <div class="row"><label>Mouse DPI <div class="hint">stored on the mouse, so measure it</div></label><input id="dpi" type="number" min="100" max="32000" step="50" /></div>
+          <div class="calib">
+            <button id="calibStart" type="button">Measure my DPI</button>
+            <div class="calibBody" id="calibBody" hidden>
+              <div class="row"><label>Swipe distance <div class="hint">measure it on your desk or pad</div></label><input id="calibCm" type="number" min="2" max="100" step="1" value="10" /></div>
+              <div class="calibMsg" id="calibMsg">Hold the left mouse button, drag the mouse exactly that far in a straight line, then release.</div>
+              <button id="calibGo" type="button">Start measuring</button>
+              <button id="calibCancel" type="button" class="ghost">Cancel</button>
+            </div>
+          </div>
+          <div class="row"><label>Mouse sensitivity <div class="hint">in-game value</div></label><input id="sens" type="number" min="0.05" max="20" step="0.05" /></div>
+          <div class="row"><label>ADS sensitivity multiplier <div class="hint">1.0 = default</div></label><input id="ads" type="number" min="0.1" max="3" step="0.05" /></div>
+          <div class="row"><label>FOV scale <div class="hint">1.0 = 70, 1.571 = 110</div></label><input id="fov" type="number" min="1" max="1.571" step="0.01" /></div>
+          <div class="derived" id="derived"></div>
+          <div class="row"><label>Sprint <div class="hint">toggle is the default</div></label><select id="sprintMode"><option value="toggle">Toggle (press once)</option><option value="hold">Hold</option></select></div>
+          <div class="row"><label>Sprint view shake <div class="hint">the game's own setting; Normal is its default</div></label><select id="sprintShake"><option value="normal">Normal</option><option value="minimal">Minimal</option><option value="off">Off</option></select></div>
+          <div class="row"><label>Fullscreen while playing <div class="hint">keeps Ctrl + W (crouch walking) from closing the tab</div></label><select id="fullscreen"><option value="1">On</option><option value="0">Off</option></select></div>
+          <div class="row"><label>Graphics <div class="hint">Competitive is the fastest and lowest latency</div></label><select id="quality"></select></div>
+        <div class="derived perf">
+          <span id="perfLine">Measuring your display…</span>
+          <span class="tip" tabindex="0">
+            <span class="tipIcon">i</span>
+            <div class="card">
+              <h3>Getting past <span id="perfHz">60</span> fps, step by step</h3>
+              <p class="why">A browser only draws when the screen can show a new frame, so your display's refresh rate is the ceiling. On this PC the game itself runs at 800+ fps on Competitive, so the cap is the screen and the browser, not the game.</p>
+              <ol>
+                <li><b>Set your monitor to its top refresh rate.</b> Windows: Settings, System, Display, Advanced display, <i>Choose a refresh rate</i>. Pick the highest number (144, 165, 240 Hz). If only 60 is offered, the cable or port is the limit: use DisplayPort (or HDMI 2.0 or newer) and plug it into the graphics card, not the motherboard.</li>
+                <li><b>Fully restart Chrome</b> so it picks up the new rate: close every window, and if Chrome stays in the system tray, right-click it there and choose Exit. Come back here and this box shows the new number.</li>
+                <li><b>Turn off Energy Saver.</b> Chrome: Settings, Performance, <i>Energy Saver</i> off. It can cap pages at 30 fps.</li>
+                <li><b>Check hardware acceleration is on.</b> Chrome: Settings, System, <i>Use graphics acceleration when available</i> on, then Relaunch. The address <code>chrome://gpu</code> should say WebGL is hardware accelerated.</li>
+                <li><b>Laptops and PCs with two GPUs:</b> Windows Settings, System, Display, Graphics, add Chrome, Options, <i>High performance</i>, so it runs on the graphics card.</li>
+                <li><b>Optional: go past the refresh rate.</b> Like turning V-Sync off in a game: more frames and lower latency, with some screen tearing.
+                  <ol type="a">
+                    <li>Right-click the desktop, New, Shortcut.</li>
+                    <li>Paste this as the location (it is a separate Chrome profile, so your normal Chrome and its settings are untouched):<br />
+                      <code id="flagsTarget">"C:\Program Files\Google\Chrome\Application\chrome.exe" --user-data-dir="C:\ChromeUncapped" --disable-frame-rate-limit --disable-gpu-vsync http://localhost:5173</code>
+                      <button type="button" id="copyFlags">Copy</button></li>
+                    <li>Name it <i>Chrome Uncapped</i> and open it. It opens this page.</li>
+                    <li>Check the FPS counter, top right in game: it should now go past your refresh rate.</li>
+                  </ol>
+                </li>
+                <li><b>Still stuck?</b> In the GPU driver, set V-Sync to off or application controlled. AMD Software: Gaming, Graphics, <i>Wait for Vertical Refresh</i>. NVIDIA Control Panel: Manage 3D settings, <i>Vertical sync</i>.</li>
+              </ol>
+            </div>
+          </span>
+        </div>
+        </section>
+
+        <section data-panel="stats" hidden>
+          <div class="row"><label>Your name <div class="hint">shown to the people you play, and on the boards; kept in this browser</div></label><input id="profileName" maxlength="16" autocomplete="off" spellcheck="false" /></div>
+          <div id="statsBody" class="statsBody"></div>
+          <div class="hintLine" id="statsOnline"></div>
+        </section>
+
+        <section data-panel="controls" hidden>
+          <table class="keytable">
+            <tr><td><kbd>W A S D</kbd></td><td>move</td><td><kbd>Shift</kbd></td><td>sprint</td></tr>
+            <tr><td><kbd>Space</kbd> <kbd>Scroll up</kbd></td><td>jump (scroll for superjumps)</td><td><kbd>Ctrl</kbd> <kbd>C</kbd></td><td>crouch, slide</td></tr>
+            <tr><td><kbd>Scroll down</kbd></td><td>forward, for tap-strafing</td><td><kbd>E</kbd></td><td>ride a zipline</td></tr>
+            <tr><td><kbd>LMB</kbd></td><td>fire</td><td><kbd>RMB</kbd></td><td>aim down sights</td></tr>
+            <tr><td><kbd>R</kbd></td><td>reload</td><td><kbd>V</kbd></td><td>melee</td></tr>
+            <tr><td><kbd>1</kbd> <kbd>2</kbd></td><td>weapon slot</td><td><kbd>Q</kbd> <kbd>Mouse 5</kbd></td><td>swap weapon</td></tr>
+            <tr><td><kbd>3</kbd></td><td>holster (15% faster)</td><td><kbd>G</kbd></td><td>magazine level</td></tr>
+            <tr><td><kbd>O</kbd></td><td>optic</td><td><kbd>Z</kbd></td><td>variable optic zoom</td></tr>
+            <tr><td><kbd>B</kbd> <kbd>N</kbd> <kbd>H</kbd></td><td>barrel, stock, laser</td><td><kbd>T</kbd></td><td>dummy armour</td></tr>
+            <tr><td><kbd>F</kbd></td><td>reset dummies and the course</td><td><kbd>K</kbd></td><td>ghost of your best run</td></tr>
+            <tr><td><kbd>P</kbd></td><td>copy your course result</td><td><kbd>Esc</kbd></td><td>this menu</td></tr>
+          </table>
+        </section>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

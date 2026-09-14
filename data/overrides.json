@@ -1,0 +1,209 @@
+{
+  "_note": "Current-season values layered over the canonical script dump. The dump is a coherent snapshot of an early build; live balance has moved a long way since. Sources are the community wiki weapon infoboxes (NOT the damage-profile blocks below them, which lag a patch) cross-checked against official patch notes. Season 30 'Marked', live 2026-08-04, infoboxes updated 2026-08-05.",
+
+  "_howItWorks": "Each entry is applied over the extracted stats after #base inheritance and the MP_BASE merge, before attachments. `magClips` overrides the clip size at each mag level 0..4 and wins over the mag mod. `pellets` is the number of projectiles per trigger pull. Anything omitted keeps the dump's value.",
+
+  "_biggestChanges": [
+    "Kraber headshot 2.05 -> 1.4: a headshot no longer behaves the way it used to",
+    "Wingman headshot 2.1 -> 1.5, base mag 4 -> 5",
+    "Shotguns lost headshot multipliers entirely; EVA-8, Mastiff and Peacekeeper are all 1.0x now, only the Mozambique kept one",
+    "Pellet counts changed: Mastiff 8 -> 5, Peacekeeper 11 -> 9",
+    "EVA-8 fire rate up more than 40 percent"
+  ],
+
+  "weapons": {
+    "rspn101": {
+      "_name": "R-301 Carbine",
+      "damage_near_value": 15, "damage_far_value": 15, "damage_very_far_value": 15,
+      "damage_headshot_scale": 1.3, "damage_leg_scale": 0.75,
+      "fire_rate": 13.5, "reload_time": 2.4, "reloadempty_time": 3.2,
+      "magClips": [21, 23, 28, 31, 31]
+    },
+    "r97": {
+      "_name": "R-99 SMG",
+      "damage_near_value": 12, "damage_far_value": 12, "damage_very_far_value": 12,
+      "damage_headshot_scale": 1.25, "damage_leg_scale": 0.8,
+      "fire_rate": 18, "reload_time": 1.8, "reloadempty_time": 2.5,
+      "magClips": [18, 21, 24, 27, 27]
+    },
+    "volt_smg": {
+      "_name": "Volt SMG",
+      "damage_near_value": 16, "damage_far_value": 16, "damage_very_far_value": 16,
+      "damage_headshot_scale": 1.25, "damage_leg_scale": 0.8,
+      "fire_rate": 12, "reload_time": 1.44, "reloadempty_time": 2.5,
+      "magClips": [20, 22, 24, 27, 27]
+    },
+    "vinson": {
+      "_name": "VK-47 Flatline",
+      "damage_near_value": 20, "damage_far_value": 20, "damage_very_far_value": 20,
+      "damage_headshot_scale": 1.3, "damage_leg_scale": 0.75,
+      "fire_rate": 10, "reload_time": 2.4, "reloadempty_time": 3.1,
+      "magClips": [19, 23, 27, 29, 29]
+    },
+    "hemlok": {
+      "_name": "Hemlok Burst AR (final values before it left the floor pool)",
+      "damage_near_value": 20, "damage_far_value": 20, "damage_very_far_value": 20,
+      "damage_headshot_scale": 1.4, "damage_leg_scale": 0.75,
+      "burst_fire_delay": 0.3, "reload_time": 2.4, "reloadempty_time": 2.85,
+      "magClips": [21, 24, 27, 30, 30]
+    },
+    "energy_ar": {
+      "_name": "HAVOC Rifle",
+      "damage_near_value": 20, "damage_far_value": 20, "damage_very_far_value": 20,
+      "damage_headshot_scale": 1.3, "damage_leg_scale": 0.75,
+      "fire_rate": 11.2, "reload_time": 3.2, "reloadempty_time": 3.2,
+      "magClips": [18, 21, 25, 29, 29]
+    },
+    "wingman": {
+      "_name": "Wingman",
+      "damage_near_value": 50, "damage_far_value": 50, "damage_very_far_value": 50,
+      "damage_headshot_scale": 1.5, "damage_leg_scale": 0.9,
+      "fire_rate": 2.8, "reload_time": 2.1, "reloadempty_time": 2.1,
+      "magClips": [5, 6, 7, 8, 8]
+    },
+    "semipistol": {
+      "_name": "P2020",
+      "damage_near_value": 24, "damage_far_value": 24, "damage_very_far_value": 24,
+      "damage_headshot_scale": 1.25, "damage_leg_scale": 0.9,
+      "fire_rate": 7, "reload_time": 1.2, "reloadempty_time": 1.2,
+      "magClips": [9, 10, 11, 12, 12]
+    },
+    "autopistol": {
+      "_name": "RE-45 Auto (final values before it left the floor pool)",
+      "damage_near_value": 14, "damage_far_value": 14, "damage_very_far_value": 14,
+      "damage_headshot_scale": 1.3, "damage_leg_scale": 0.8,
+      "fire_rate": 13, "reload_time": 1.5, "reloadempty_time": 1.95,
+      "magClips": [20, 21, 23, 26, 26]
+    },
+    "shotgun_pistol": {
+      "_name": "Mozambique, the only shotgun that kept a headshot multiplier",
+      "pellets": 3,
+      "damage_near_value": 17, "damage_far_value": 17, "damage_very_far_value": 17,
+      "damage_headshot_scale": 1.25, "damage_leg_scale": 1.0,
+      "fire_rate": 2.67, "reload_time": 2.1, "reloadempty_time": 2.6,
+      "magClips": [5, 5, 5, 5, 5]
+    },
+    "shotgun": {
+      "_name": "EVA-8 Auto",
+      "pellets": 8,
+      "damage_near_value": 7, "damage_far_value": 7, "damage_very_far_value": 7,
+      "damage_headshot_scale": 1.0, "damage_leg_scale": 1.0,
+      "fire_rate": 2.8, "reload_time": 2.75, "reloadempty_time": 3.0,
+      "magClips": [8, 8, 8, 8, 8]
+    },
+    "mastiff": {
+      "_name": "Mastiff",
+      "pellets": 5,
+      "damage_near_value": 19, "damage_far_value": 19, "damage_very_far_value": 19,
+      "damage_headshot_scale": 1.0, "damage_leg_scale": 1.0,
+      "fire_rate": 1.1, "reload_time": 2.0, "reloadempty_time": 3.0,
+      "magClips": [5, 5, 5, 5, 5]
+    },
+    "energy_shotgun": {
+      "_name": "Peacekeeper",
+      "pellets": 9,
+      "damage_near_value": 11, "damage_far_value": 11, "damage_very_far_value": 11,
+      "damage_headshot_scale": 1.0, "damage_leg_scale": 1.0,
+      "rechamber_time": 1.36, "reload_time": 2.5, "reloadempty_time": 3.5,
+      "magClips": [5, 5, 5, 5, 5]
+    },
+    "g2": {
+      "_name": "G7 Scout. Head damage and purple mag are disputed between sources; see docs/FIDELITY.md",
+      "damage_near_value": 33, "damage_far_value": 33, "damage_very_far_value": 33,
+      "damage_headshot_scale": 1.45, "damage_leg_scale": 0.75,
+      "fire_rate": 4.1, "reload_time": 2.4, "reloadempty_time": 3.0,
+      "magClips": [10, 12, 14, 16, 16]
+    },
+    "3030": {
+      "_name": "30-30 Repeater, uncharged damage",
+      "damage_near_value": 43, "damage_far_value": 43, "damage_very_far_value": 43,
+      "damage_headshot_scale": 1.6, "damage_leg_scale": 0.85,
+      "fire_rate": 2.32, "magClips": [6, 7, 8, 10, 10]
+    },
+    "dmr": {
+      "_name": "Longbow DMR",
+      "damage_near_value": 60, "damage_far_value": 60, "damage_very_far_value": 60,
+      "damage_headshot_scale": 1.8, "damage_leg_scale": 0.8,
+      "fire_rate": 1.3, "reload_time": 2.66, "reloadempty_time": 3.66,
+      "magClips": [6, 8, 10, 12, 12]
+    },
+    "doubletake": {
+      "_name": "Triple Take",
+      "pellets": 3,
+      "damage_near_value": 23, "damage_far_value": 23, "damage_very_far_value": 23,
+      "damage_headshot_scale": 1.6, "damage_leg_scale": 0.9,
+      "fire_rate": 1.75, "reload_time": 2.6, "reloadempty_time": 3.4,
+      "magClips": [12, 12, 12, 12, 12]
+    },
+    "defender": {
+      "_name": "Charge Rifle, minimum charge damage",
+      "damage_near_value": 75, "damage_far_value": 75, "damage_very_far_value": 75,
+      "damage_headshot_scale": 1.8, "damage_leg_scale": 0.9,
+      "reload_time": 3.5, "reloadempty_time": 4.6,
+      "magClips": [6, 7, 8, 9, 9]
+    },
+    "sentinel": {
+      "_name": "Sentinel",
+      "damage_near_value": 70, "damage_far_value": 70, "damage_very_far_value": 70,
+      "damage_headshot_scale": 1.8, "damage_leg_scale": 0.9,
+      "rechamber_time": 1.62, "reload_time": 3.0, "reloadempty_time": 4.0,
+      "magClips": [4, 5, 6, 7, 7]
+    },
+    "sniper": {
+      "_name": "Kraber. The headshot multiplier fell from 2.05 to 1.4, the single largest change in the roster",
+      "damage_near_value": 150, "damage_far_value": 150, "damage_very_far_value": 150,
+      "damage_headshot_scale": 1.4, "damage_leg_scale": 0.8,
+      "rechamber_time": 2.4, "reload_time": 3.2, "reloadempty_time": 4.3,
+      "magClips": [4, 4, 4, 4, 4]
+    },
+    "lmg": {
+      "_name": "M600 Spitfire",
+      "damage_near_value": 21, "damage_far_value": 21, "damage_very_far_value": 21,
+      "damage_headshot_scale": 1.25, "damage_leg_scale": 0.85,
+      "fire_rate": 9, "reload_time": 3.4, "reloadempty_time": 4.2,
+      "magClips": [35, 40, 45, 50, 50]
+    },
+    "esaw": {
+      "_name": "Devotion LMG",
+      "damage_near_value": 16, "damage_far_value": 16, "damage_very_far_value": 16,
+      "damage_headshot_scale": 1.25, "damage_leg_scale": 0.85,
+      "reload_time": 2.8, "reloadempty_time": 3.63,
+      "magClips": [36, 40, 44, 48, 48]
+    },
+    "lstar": {
+      "_name": "L-STAR EMG",
+      "damage_near_value": 19, "damage_far_value": 19, "damage_very_far_value": 19,
+      "damage_headshot_scale": 1.25, "damage_leg_scale": 0.85,
+      "fire_rate": 10, "magClips": [24, 26, 28, 30, 30]
+    },
+    "dragon_lmg": {
+      "_name": "Rampage LMG",
+      "damage_near_value": 29, "damage_far_value": 29, "damage_very_far_value": 29,
+      "damage_headshot_scale": 1.25, "damage_leg_scale": 0.85,
+      "fire_rate": 5, "reload_time": 3.1, "reloadempty_time": 4.0,
+      "magClips": [28, 32, 36, 40, 40]
+    },
+    "car": {
+      "_name": "C.A.R. SMG",
+      "damage_near_value": 14, "damage_far_value": 14, "damage_very_far_value": 14,
+      "damage_headshot_scale": 1.25, "damage_leg_scale": 0.8,
+      "fire_rate": 15.5, "reload_time": 1.7, "reloadempty_time": 2.1,
+      "magClips": [20, 23, 26, 30, 30]
+    },
+    "pdw": {
+      "_name": "Prowler Burst PDW",
+      "damage_near_value": 16, "damage_far_value": 16, "damage_very_far_value": 16,
+      "damage_headshot_scale": 1.25, "damage_leg_scale": 0.8,
+      "burst_fire_count": 5, "burst_fire_delay": 0.28,
+      "reload_time": 2.0, "reloadempty_time": 2.6,
+      "magClips": [20, 25, 30, 35, 35]
+    },
+    "alternator_smg": {
+      "_name": "Alternator SMG",
+      "damage_near_value": 18, "damage_far_value": 18, "damage_very_far_value": 18,
+      "damage_headshot_scale": 1.25, "damage_leg_scale": 0.8,
+      "fire_rate": 10, "reload_time": 1.9, "reloadempty_time": 2.2,
+      "magClips": [18, 20, 22, 26, 26]
+    }
+  }
+}

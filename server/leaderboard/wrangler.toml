@@ -1,0 +1,17 @@
+# Cloudflare Worker for the online leaderboard (worker.ts).
+#
+#   npm i -g wrangler
+#   wrangler login
+#   wrangler kv namespace create BOARDS        # paste the id below
+#   wrangler secret put SECRET                 # the same string as VITE_LEADERBOARD_SECRET
+#   wrangler deploy
+#
+# Then build the game with VITE_LEADERBOARD_URL=https://<worker>.workers.dev and
+# the secret, and the Stats tab posts every result and shows the boards.
+name = "b00g-range-leaderboard"
+main = "worker.ts"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "BOARDS"
+id = "PASTE_THE_NAMESPACE_ID_HERE"

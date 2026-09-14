@@ -1,0 +1,11 @@
+node_modules
+dist
+.vite
+*.log
+
+# CC0 downloads (npm run assets, npm run models): fetched, not kept in git
+public/tex/*
+!public/tex/ATTRIBUTION.md
+public/models/*
+!public/models/heirlooms/
+shots/

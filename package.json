@@ -1,0 +1,38 @@
+{
+  "name": "apex-range",
+  "private": true,
+  "version": "0.2.0-beta",
+  "type": "module",
+  "description": "Browser firing range with Apex-style movement, a timed course and 1v1 by code. Own code, own art.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "extract": "tsx tools/extract.ts",
+    "check": "tsc --noEmit -p tsconfig.json",
+    "rules": "tsx tools/rules-check.ts",
+    "verify": "tsx tools/verify.ts",
+    "movesim": "tsx tools/movesim.ts",
+    "bench": "tsx tools/bench.ts",
+    "assets": "tsx tools/fetch-assets.ts",
+    "shot": "tsx tools/shot.ts",
+    "compare-sources": "tsx tools/compare-sources.ts",
+    "models": "tsx tools/fetch-models.ts",
+    "build:beta": "tsc --noEmit -p tsconfig.json && vite build --mode beta && tsx tools/beta-check.ts",
+    "e2e": "tsx tools/e2e.ts",
+    "probe": "tsx tools/tech-probe.ts",
+    "measure": "tsx tools/measure.ts"
+  },
+  "dependencies": {
+    "peerjs": "^1.5.4",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.1",
+    "@types/three": "^0.170.0",
+    "puppeteer": "^25.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0"
+  }
+}

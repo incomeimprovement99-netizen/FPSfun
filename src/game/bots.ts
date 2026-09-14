@@ -1,0 +1,518 @@
+// Arena, Bots: the 1v1 rules against one or two bots, offline.
+//
+// A bot is a Dummy figure with a weapon and a small mind: it walks toward the
+// middle of the arena until it sees you, then toward you, strafing, keeping a
+// few metres back, and fires its weapon at you with an aim error that depends
+// on the difficulty. It cannot jump, climb or slide: it walks up steps and
+// off edges, and walls it meets it slides along. Its bullets are tracers with
+// a hit test against your body; yours hit it like any dummy. When the circle
+// is live and it has no target it goes and stands in the circle.
+//
+// The rounds are the 1v1's: countdown, fight, last standing or the circle,
+// first to 3. Two bots do not shoot each other: they are both after you.
+import * as THREE from "three";
+import { Dummy } from "./dummy";
+import { RANGE_SOLIDS } from "./range";
+import { solidHit, type ProjectileSystem } from "./projectile";
+import { resolveWeapon, type ResolvedWeapon } from "./weapons";
+import { OPERATORS } from "./operators";
+import { ARENA_BOT_SPAWNS, ARENA_CENTER, ARENA_SPAWNS, ZONE_RADIUS } from "./arena";
+import { HU, MOVE } from "./movement";
+import type { RoundPhase } from "../net/link";
+import type { MatchSummary, BotDifficulty } from "./stats";
+import { HEALTH_MAX, ROUNDS_TO_WIN, SHIELD_MAX, ZONE_CAPTURE, ZONE_DELAY, type DuelHud, type LocalState, type MatchLike, type Remote, type Spawn } from "./duel";
+
+const COUNTDOWN = 3;
+const ROUND_END = 3;
+const MATCH_END = 7;
+const wallClock = (): number => performance.now() / 1000;
+
+interface Difficulty {
+  /** m/s on foot */
+  speed: number;
+  /** seconds from seeing you to the first shot */
+  reaction: number;
+  /** aim error, degrees, half cone */
+  spread: number;
+  /** how much of the weapon's fire rate it uses */
+  fireScale: number;
+  /** how close it tries to get, m */
+  keep: number;
+}
+export const DIFFICULTY: Record<BotDifficulty, Difficulty> = {
+  easy: { speed: 4.2, reaction: 0.9, spread: 6, fireScale: 0.45, keep: 8 },
+  normal: { speed: 5.4, reaction: 0.5, spread: 3.2, fireScale: 0.7, keep: 6 },
+  hard: { speed: 6.6, reaction: 0.22, spread: 1.6, fireScale: 1.0, keep: 5 },
+};
+/** what bots carry, one per bot in order */
+const BOT_WEAPONS = ["rspn101", "r97", "vinson"];
+const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM"];
+const RADIUS = MOVE.radius;
+
+class Bot {
+  readonly dummy: Dummy;
+  readonly remote: Remote;
+  readonly weapon: ResolvedWeapon;
+  pos = new THREE.Vector3();
+  yaw = 0;
+  private seenAt = -Infinity;
+  private sawLast = false;
+  private nextShotAt = 0;
+  private slideDir = 0;
+  private slideUntil = 0;
+  private strafePhase = Math.random() * 10;
+  private aimErr = new THREE.Vector2();
+  private nextErrAt = 0;
+
+  constructor(
+    readonly index: number,
+    scene: THREE.Scene,
+    private projectiles: ProjectileSystem,
+    private diff: Difficulty,
+    readonly spawn: Spawn
+  ) {
+    const wid = BOT_WEAPONS[index % BOT_WEAPONS.length];
+    this.weapon = resolveWeapon(wid, 2);
+    const skin = OPERATORS[(index + 1) % OPERATORS.length];
+    this.dummy = new Dummy(spawn.x, spawn.z, 0, { armed: wid, respawn: false, skin });
+    this.dummy.setTier(2);
+    this.dummy.group.name = `bot:${index}`;
+    scene.add(this.dummy.group);
+    projectiles.addDummy(this.dummy);
+    this.remote = {
+      id: index + 1,
+      name: BOT_NAMES[index % BOT_NAMES.length],
+      avatar: this.dummy,
+      avatarWeapon: wid,
+      avatarOp: skin.id,
+      avatars: new Map([[`${wid}|${skin.id}`, this.dummy]]),
+      samples: [],
+      health: HEALTH_MAX,
+      shield: SHIELD_MAX,
+      alive: true,
+      lastHeard: 0,
+      link: { role: "guest", send: () => undefined, close: () => undefined, onMessage: null, onClose: null },
+    };
+    this.reset();
+  }
+
+  reset(): void {
+    this.dummy.reset();
+    this.dummy.setTier(2);
+    this.dummy.setThreat(0);
+    this.remote.health = HEALTH_MAX;
+    this.remote.shield = SHIELD_MAX;
+    this.remote.alive = true;
+    this.pos.set(this.spawn.x, 0, this.spawn.z);
+    this.yaw = this.spawn.yaw;
+    this.dummy.group.position.copy(this.pos);
+    this.dummy.group.rotation.set(0, this.yaw * (Math.PI / 180) + Math.PI, 0);
+    this.seenAt = -Infinity;
+    this.sawLast = false;
+  }
+
+  get alive(): boolean {
+    return !this.dummy.knocked;
+  }
+
+  /** the ground under the feet, stepping up onto anything within reach */
+  private groundAt(x: number, z: number): number {
+    let best = 0;
+    for (const s of RANGE_SOLIDS) {
+      if (x + RADIUS > s.minX && x - RADIUS < s.maxX && z + RADIUS > s.minZ && z - RADIUS < s.maxZ) {
+        if (s.top <= this.pos.y + MOVE.stepHeight + 1e-4 && s.top > best) best = s.top;
+      }
+    }
+    return best;
+  }
+
+  /** would the body overlap a wall at this spot */
+  private blocked(x: number, z: number): boolean {
+    for (const s of RANGE_SOLIDS) {
+      if (x + RADIUS > s.minX && x - RADIUS < s.maxX && z + RADIUS > s.minZ && z - RADIUS < s.maxZ) {
+        if (s.top > this.pos.y + MOVE.stepHeight + 1e-4 && s.base < this.pos.y + MOVE.standHeight - 1e-4) return true;
+      }
+    }
+    return false;
+  }
+
+  /** can it see the player: within 60 m, nothing solid between chest heights */
+  private sees(target: THREE.Vector3): boolean {
+    const from = this.pos.clone().setY(this.pos.y + 1.4);
+    const to = target.clone().setY(target.y + 1.2);
+    const d = to.clone().sub(from);
+    const len = d.length();
+    if (len > 60) return false;
+    return solidHit(from, d.divideScalar(len), len) >= len;
+  }
+
+  /**
+   * One frame: move, look, shoot. `target` is the player's feet; returns the
+   * damage dealt to the player this frame (0 mostly).
+   */
+  update(now: number, dt: number, target: THREE.Vector3, playerAlive: boolean, zoneLive: boolean, center: THREE.Vector3, canShoot: boolean): number {
+    if (!this.alive) {
+      this.dummy.update(now, dt);
+      return 0;
+    }
+    const sees = playerAlive && this.sees(target);
+    if (sees && !this.sawLast) this.seenAt = now;
+    this.sawLast = sees;
+
+    // where to go: at you if seen (keeping a distance), else the circle when it
+    // is live, else the middle of the arena
+    const goal = sees ? target : zoneLive ? center : center;
+    const toGoal = new THREE.Vector2(goal.x - this.pos.x, goal.z - this.pos.z);
+    const dist = toGoal.length();
+    let want = new THREE.Vector2();
+    if (dist > 1e-3) want.copy(toGoal).divideScalar(dist);
+    if (sees) {
+      // strafe across the line of sight, hold the distance
+      const side = new THREE.Vector2(-want.y, want.x);
+      const strafe = Math.sin(now * 1.7 + this.strafePhase);
+      const advance = dist > this.diff.keep + 1 ? 1 : dist < this.diff.keep - 1 ? -0.6 : 0;
+      want = want.multiplyScalar(advance).addScaledVector(side, strafe * 0.9);
+      if (want.length() > 1e-3) want.normalize();
+    } else if (dist < 1.5) want.set(0, 0);
+    // a wall in the way: slide along it, and remember which way for a moment
+    if (want.length() > 1e-3) {
+      const step = this.diff.speed * dt;
+      let nx = this.pos.x + want.x * step;
+      let nz = this.pos.z + want.y * step;
+      if (this.blocked(nx, nz)) {
+        if (now > this.slideUntil) {
+          this.slideDir = Math.random() < 0.5 ? 1 : -1;
+          this.slideUntil = now + 0.6;
+        }
+        const along = new THREE.Vector2(-want.y * this.slideDir, want.x * this.slideDir);
+        nx = this.pos.x + along.x * step;
+        nz = this.pos.z + along.y * step;
+        if (this.blocked(nx, nz)) {
+          this.slideDir = -this.slideDir;
+          nx = this.pos.x - along.x * step;
+          nz = this.pos.z - along.y * step;
+        }
+      }
+      if (!this.blocked(nx, nz)) {
+        this.pos.x = nx;
+        this.pos.z = nz;
+      }
+      this.pos.y = this.groundAt(this.pos.x, this.pos.z);
+    }
+    // face the player when seen, else the way it walks
+    const faceX = sees ? target.x - this.pos.x : want.x;
+    const faceZ = sees ? target.z - this.pos.z : want.y;
+    if (Math.abs(faceX) + Math.abs(faceZ) > 1e-3) {
+      const wantYaw = Math.atan2(faceX, faceZ);
+      const cur = this.dummy.group.rotation.y;
+      let diff = wantYaw - cur;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      this.dummy.group.rotation.y = cur + diff * Math.min(1, dt * 10);
+    }
+    this.dummy.group.position.copy(this.pos);
+    this.dummy.update(now, dt);
+
+    // shooting: after the reaction time, at the weapon's rate, with an aim
+    // error that wanders every quarter second
+    let dealt = 0;
+    if (sees && canShoot && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
+      const interval = Math.max(this.weapon.shotInterval, this.weapon.semiAuto ? 0.25 : 0) / this.diff.fireScale;
+      this.nextShotAt = now + interval;
+      if (now >= this.nextErrAt) {
+        this.nextErrAt = now + 0.25;
+        this.aimErr.set((Math.random() * 2 - 1) * this.diff.spread, (Math.random() * 2 - 1) * this.diff.spread);
+      }
+      const from = this.pos.clone().setY(this.pos.y + 1.35);
+      const aimAt = target.clone().setY(target.y + 1.15);
+      const dir = aimAt.sub(from).normalize();
+      // the error: rotate about the vertical and a side axis
+      const side = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
+      dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), (this.aimErr.x * Math.PI) / 180).applyAxisAngle(side, (this.aimErr.y * Math.PI) / 180).normalize();
+      for (let p = 0; p < this.weapon.pellets; p++) {
+        const pd = dir.clone();
+        if (this.weapon.pellets > 1) {
+          pd.applyAxisAngle(new THREE.Vector3(0, 1, 0), ((Math.random() * 2 - 1) * 2 * Math.PI) / 180).applyAxisAngle(side, ((Math.random() * 2 - 1) * 2 * Math.PI) / 180);
+        }
+        this.projectiles.fire(from, pd, this.weapon, true);
+        if (hitsBody(from, pd, target)) dealt += this.weapon.damage.near;
+      }
+    }
+    return dealt;
+  }
+
+  dispose(): void {
+    this.projectiles.removeDummy(this.dummy);
+    this.dummy.dispose();
+  }
+}
+
+/** does a ray from `from` along `dir` cross the player's body (a capsule 0.3 to 1.7 m up, 0.45 m wide) before a wall */
+function hitsBody(from: THREE.Vector3, dir: THREE.Vector3, feet: THREE.Vector3): boolean {
+  const a = feet.clone().setY(feet.y + 0.3);
+  const b = feet.clone().setY(feet.y + 1.7);
+  // closest approach between the ray and the segment ab
+  const seg = b.clone().sub(a);
+  const w0 = from.clone().sub(a);
+  const aa = dir.dot(dir);
+  const bb = dir.dot(seg);
+  const cc = seg.dot(seg);
+  const dd = dir.dot(w0);
+  const ee = seg.dot(w0);
+  const den = aa * cc - bb * bb;
+  let s: number;
+  let t: number;
+  if (den < 1e-9) {
+    s = 0;
+    t = Math.max(0, Math.min(1, ee / cc));
+  } else {
+    s = (bb * ee - cc * dd) / den;
+    t = (aa * ee - bb * dd) / den;
+    t = Math.max(0, Math.min(1, t));
+    s = -(dd - bb * t) / aa;
+  }
+  if (s < 0) return false;
+  const pRay = from.clone().addScaledVector(dir, s);
+  const pSeg = a.clone().addScaledVector(seg, t);
+  if (pRay.distanceTo(pSeg) > 0.45) return false;
+  return solidHit(from, dir, s) >= s;
+}
+
+export class BotMatch implements MatchLike {
+  readonly kind = "bots" as const;
+  readonly players: number;
+  phase: RoundPhase = "countdown";
+  round = 1;
+  health = HEALTH_MAX;
+  shield = SHIELD_MAX;
+  alive = true;
+  private bots: Bot[] = [];
+  private scores: number[];
+  private lastWinner = -1;
+  private phaseEndsAt: number;
+  private fightStartedAt = 0;
+  private zoneLive = false;
+  private zoneStartsIn = ZONE_DELAY;
+  private caps: number[];
+  private lastClock: number;
+  private ended = false;
+  private kills = 0;
+  private deaths = 0;
+  private damage = 0;
+  private shots = 0;
+  private hits = 0;
+  private myName = "";
+  readonly spawn: Spawn = ARENA_SPAWNS.host;
+  onRespawn: (() => void) | null = null;
+  onHurt: ((amount: number) => void) | null = null;
+  onRemoteShot: ((origin: THREE.Vector3) => void) | null = null;
+  onEnd: ((reason: string) => void) | null = null;
+  onNotice: ((text: string) => void) | null = null;
+  onMatchEnd: ((s: MatchSummary) => void) | null = null;
+
+  constructor(
+    scene: THREE.Scene,
+    projectiles: ProjectileSystem,
+    readonly difficulty: BotDifficulty,
+    count: number
+  ) {
+    const n = Math.max(1, Math.min(2, count));
+    this.players = n + 1;
+    for (let i = 0; i < n; i++) this.bots.push(new Bot(i, scene, projectiles, DIFFICULTY[difficulty], ARENA_BOT_SPAWNS[i]));
+    this.scores = new Array(this.players).fill(0);
+    this.caps = new Array(this.players).fill(0);
+    const now = wallClock();
+    this.lastClock = now;
+    this.phaseEndsAt = now + COUNTDOWN;
+  }
+
+  get canFire(): boolean {
+    return this.phase === "fight" && this.alive;
+  }
+  get avatars(): Dummy[] {
+    return this.bots.map((b) => b.dummy);
+  }
+  remoteOf(d: Dummy): Remote | null {
+    return this.bots.find((b) => b.dummy === d)?.remote ?? null;
+  }
+
+  localShot(): void {
+    this.shots++;
+  }
+
+  /** one of your bullets hit a bot: it is a dummy, so its own hit() already took the damage */
+  localHit(r: Remote, amount: number): void {
+    if (this.phase !== "fight") return;
+    const bot = this.bots.find((b) => b.remote === r);
+    if (!bot) return;
+    this.hits++;
+    this.damage += amount;
+    r.health = bot.dummy.health;
+    r.shield = bot.dummy.shield;
+    if (bot.dummy.knocked && r.alive) {
+      r.alive = false;
+      this.kills++;
+      this.onNotice?.(`${r.name} DOWN`);
+      this.checkRound(wallClock());
+    }
+  }
+
+  private enter(phase: RoundPhase, now: number, seconds: number): void {
+    const wasEnd = this.phase === "roundEnd" || this.phase === "matchEnd";
+    this.phase = phase;
+    this.phaseEndsAt = now + seconds;
+    if (phase === "countdown" || phase === "fight") {
+      this.caps.fill(0);
+      this.zoneLive = false;
+      this.zoneStartsIn = ZONE_DELAY;
+    }
+    if (phase === "fight") this.fightStartedAt = now;
+    if (phase === "countdown" && wasEnd) this.respawn();
+    if (phase === "matchEnd") {
+      const mine = this.scores[0];
+      const others = this.scores.slice(1).reduce((a, b) => a + b, 0);
+      this.onMatchEnd?.({ won: mine >= ROUNDS_TO_WIN, roundsWon: mine, roundsLost: others, kills: this.kills, deaths: this.deaths, damage: this.damage, shots: this.shots, hits: this.hits });
+      this.kills = this.deaths = this.damage = this.shots = this.hits = 0;
+    }
+  }
+
+  private respawn(): void {
+    this.health = HEALTH_MAX;
+    this.shield = SHIELD_MAX;
+    this.alive = true;
+    for (const b of this.bots) b.reset();
+    this.onRespawn?.();
+  }
+
+  private scoreRound(winner: number, now: number): void {
+    if (this.phase !== "fight") return;
+    if (winner >= 0) this.scores[winner]++;
+    this.lastWinner = winner;
+    const over = this.scores.some((s) => s >= ROUNDS_TO_WIN);
+    this.enter(over ? "matchEnd" : "roundEnd", now, over ? MATCH_END : ROUND_END);
+  }
+
+  /** you down: the bots take it; every bot down: yours */
+  private checkRound(now: number): void {
+    if (this.phase !== "fight") return;
+    if (!this.alive) {
+      // the round goes to the bot that is still up (the first one, for the score)
+      const up = this.bots.find((b) => b.alive);
+      this.scoreRound(up ? up.index + 1 : -1, now);
+    } else if (this.bots.every((b) => !b.alive)) this.scoreRound(0, now);
+  }
+
+  private takeHit(amount: number): void {
+    if (!this.alive || this.phase !== "fight") return;
+    const toShield = Math.min(this.shield, amount);
+    this.shield -= toShield;
+    this.health = Math.max(0, this.health - (amount - toShield));
+    this.onHurt?.(amount);
+    if (this.health <= 0) {
+      this.alive = false;
+      this.deaths++;
+      this.checkRound(wallClock());
+    }
+  }
+
+  update(local: LocalState): void {
+    const now = wallClock();
+    const dt = Math.max(0, Math.min(0.1, now - this.lastClock));
+    this.lastClock = now;
+    this.myName = local.name;
+    if (this.ended) return;
+    const feet = new THREE.Vector3(local.x, local.y, local.z);
+    const center = ARENA_CENTER;
+
+    if (this.phase === "fight") {
+      const since = now - this.fightStartedAt;
+      this.zoneStartsIn = Math.max(0, ZONE_DELAY - since);
+      this.zoneLive = since >= ZONE_DELAY;
+      if (this.zoneLive) {
+        const inZone = (x: number, y: number, z: number) => Math.hypot(x - center.x, z - center.z) <= ZONE_RADIUS && y < 1.5;
+        const inside: number[] = [];
+        if (this.alive && inZone(local.x, local.y, local.z)) inside.push(0);
+        for (const b of this.bots) if (b.alive && inZone(b.pos.x, b.pos.y, b.pos.z)) inside.push(b.index + 1);
+        if (inside.length === 1) {
+          this.caps[inside[0]] += dt;
+          if (this.caps[inside[0]] >= ZONE_CAPTURE) this.scoreRound(inside[0], now);
+        }
+      }
+    }
+    if (now >= this.phaseEndsAt) {
+      if (this.phase === "countdown") {
+        this.enter("fight", now, 0);
+        this.onNotice?.("FIGHT");
+      } else if (this.phase === "roundEnd") {
+        this.round++;
+        this.enter("countdown", now, COUNTDOWN);
+      } else if (this.phase === "matchEnd") {
+        this.scores.fill(0);
+        this.round = 1;
+        this.enter("countdown", now, COUNTDOWN);
+      }
+    }
+
+    // the bots think and shoot; a hit on you lands at once
+    let dealt = 0;
+    for (const b of this.bots) {
+      const before = b.alive;
+      dealt += b.update(now, dt, feet, this.alive, this.zoneLive, center, this.phase === "fight");
+      if (before && !b.alive) {
+        // knocked by something that did not go through localHit (a melee)
+        b.remote.alive = false;
+        this.checkRound(now);
+      }
+      // a bot that fires is heard
+      if (b.alive && this.phase === "fight" && dealt >= 0) {
+        /* sound is per shot below */
+      }
+    }
+    if (dealt > 0) this.takeHit(dealt);
+    for (const b of this.bots) {
+      const s = b.remote.samples;
+      s.length = 0;
+      s.push({ at: now, x: b.pos.x, y: b.pos.y, z: b.pos.z, yaw: 0, crouch: false });
+    }
+  }
+
+  hud(): DuelHud {
+    const now = wallClock();
+    const mine = this.scores[0];
+    const theirs = Math.max(0, ...this.scores.slice(1));
+    const decided = this.phase === "roundEnd" || this.phase === "matchEnd";
+    return {
+      you: mine,
+      them: theirs,
+      round: this.round,
+      phase: this.phase,
+      left: Math.max(0, this.phaseEndsAt - now),
+      ping: null,
+      youWonRound: decided ? this.lastWinner === 0 : null,
+      youWonMatch: this.phase === "matchEnd" ? mine >= ROUNDS_TO_WIN : null,
+      zone: {
+        live: this.phase === "fight" && this.zoneLive,
+        startsIn: this.phase === "fight" ? this.zoneStartsIn : ZONE_DELAY,
+        you: this.caps[0],
+        them: Math.max(0, ...this.caps.slice(1)),
+        need: ZONE_CAPTURE,
+      },
+      players: [{ name: this.myName || "YOU", score: mine, alive: this.alive, you: true }, ...this.bots.map((b) => ({ name: b.remote.name, score: this.scores[b.index + 1], alive: b.alive, you: false }))],
+      waiting: null,
+    };
+  }
+
+  leave(): void {
+    this.dispose();
+    if (!this.ended) {
+      this.ended = true;
+      this.onEnd?.("You left the bot match.");
+    }
+  }
+
+  dispose(): void {
+    for (const b of this.bots) b.dispose();
+    this.bots = [];
+  }
+}
+
+void HU;
