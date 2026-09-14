@@ -882,10 +882,17 @@ function frame(): void {
       input.onLockChange?.(false);
     }
   }
-  if (input.pad.active !== padWasActive) {
-    padWasActive = input.pad.active;
-    if (padWasActive) hud.notice("CONTROLLER CONNECTED", now, 2.5);
+  if (input.pad.justConnected) {
+    input.pad.justConnected = false;
+    hud.notice("CONTROLLER CONNECTED: PRESS START TO PLAY", now, 3);
   }
+  // the pad went away (or idle) while it was the way in: back to the menu,
+  // or there would be no input and no menu at all
+  if (input.padPlaying && !input.locked && !input.pad.active) {
+    input.padPlaying = false;
+    input.onLockChange?.(false);
+  }
+  void padWasActive;
 
   loadout.update(now);
   const ws = loadout.active.state;
@@ -1215,6 +1222,10 @@ function frame(): void {
     raise: swapP,
     sprinting: player.sprinting,
     sliding: player.sliding,
+    climbing: player.stance === "climb",
+    mantling: player.stance === "mantle",
+    clipEmpty: onScreen.state.clip <= 0,
+    vy: player.vel.y,
     reloading: debugView.reload !== null || onScreen.state.reloading,
     reloadProgress: debugView.reload ?? (onScreen.state.reloading ? onScreen.state.reloadProgress(now) : 0),
     lookYaw,
@@ -1234,6 +1245,7 @@ function frame(): void {
     weapon: drawn.id,
     operator: loadouts.current.operator,
     name: profile.profile.name,
+    ready: input.playing,
   });
   // the arena circles: a column of light once the match's is live
   {

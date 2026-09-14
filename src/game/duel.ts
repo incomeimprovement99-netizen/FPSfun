@@ -87,6 +87,8 @@ export interface Remote {
   health: number;
   shield: number;
   alive: boolean;
+  /** off the menu, in the game */
+  ready: boolean;
   lastHeard: number;
   /** who this player's messages come in on (the host: their link; a guest: the host's) */
   link: Link;
@@ -120,6 +122,8 @@ export interface LocalState {
   weapon: string;
   operator: string;
   name: string;
+  /** in the game (not on the menu) */
+  ready: boolean;
 }
 
 /** what a match (against friends or bots) offers the game loop */
@@ -172,6 +176,8 @@ export class Duel implements MatchLike {
   shield = SHIELD_MAX;
   alive = true;
   private myName = "";
+  /** this player is in the game, not on the menu (round 1 waits for everyone) */
+  private ready = false;
 
   // the others, by id
   private remotes = new Map<number, Remote>();
@@ -264,9 +270,18 @@ export class Duel implements MatchLike {
     link.onClose = () => this.guestLeft(id);
     this.remote(id).link = link;
     this.onRoster?.(this.links.size, this.players);
-    if (this.links.size >= this.players - 1 && this.phase === "waiting") {
-      this.enter("countdown", wallClock(), COUNTDOWN);
-    }
+  }
+
+  /** the host: everyone connected and in the game (off the menu), so round 1 can start */
+  private everyoneReady(): boolean {
+    if (this.links.size < this.players - 1 || !this.ready) return false;
+    for (const id of this.links.keys()) if (!this.remotes.get(id)?.ready) return false;
+    return true;
+  }
+
+  /** the link a message to `id` goes out on: theirs (the host) or the host's (a guest) */
+  private linkFor(id: number): Link | null {
+    return this.role === "host" ? (this.links.get(id) ?? null) : this.hostLink;
   }
 
   /** the host: how many guests are connected */
@@ -312,6 +327,7 @@ export class Duel implements MatchLike {
       health: HEALTH_MAX,
       shield: SHIELD_MAX,
       alive: true,
+      ready: false,
       lastHeard: wallClock(),
       link: this.hostLink ?? (this.links.get(id) as Link),
     };
@@ -380,18 +396,53 @@ export class Duel implements MatchLike {
     // one carries the sender's id
     const from = "from" in m && typeof m.from === "number" ? m.from : via;
     if (from === this.id) return;
+    // the host only listens to links it still holds; a guest it dropped for
+    // silence must not come back as a figure with no link behind it
+    if (this.role === "host" && !this.links.has(via)) return;
+    // a goodbye or a stray message from someone unknown makes no figure
+    if (m.t === "bye" || m.t === "ping" || m.t === "pong" || m.t === "round" || m.t === "zone" || m.t === "hello" || m.t === "welcome") {
+      const known = this.remotes.get(from);
+      if (known) known.lastHeard = now;
+      if (m.t === "bye") {
+        if (this.role === "host") this.guestLeft(from);
+        else if (from === 0) this.finish("The host left the match.");
+        else this.playerGone(from, `${known?.name ?? "A player"} left the match.`);
+        return;
+      }
+      if (m.t === "ping") this.linkFor(from)?.send({ t: "pong", at: m.at });
+      else if (m.t === "pong") {
+        if (from === 0 || this.role === "host") this.ping = Math.max(0, performance.now() - m.at);
+      } else if (m.t === "round") {
+        if (this.role === "guest") this.applyRound(m);
+      } else if (m.t === "zone") {
+        if (this.role === "guest") {
+          this.zoneLive = m.live;
+          this.caps = m.caps.slice();
+          this.zoneStartsIn = m.startsIn;
+        }
+      }
+      return;
+    }
     const r = this.remote(from);
     r.lastHeard = now;
     switch (m.t) {
       case "s": {
         r.samples.push({ at: now, x: m.x, y: m.y, z: m.z, yaw: m.yaw, crouch: m.crouch });
         if (r.samples.length > 30) r.samples.shift();
-        r.health = m.hp;
-        r.shield = m.sh;
+        // Their own numbers lag our hits by a round trip, so a packet can only
+        // ever LOWER what we already predicted; a respawn (alive again) resets.
+        if (m.alive && !r.alive) {
+          r.avatar.reset();
+          r.health = m.hp;
+          r.shield = m.sh;
+        } else {
+          r.health = Math.min(r.health, m.hp);
+          r.shield = Math.min(r.shield, m.sh);
+        }
         if (m.name) r.name = m.name;
+        if (typeof m.ready === "boolean") r.ready = m.ready;
         this.setAvatarLook(r, m.w, m.op);
         if (!m.alive && r.alive) r.avatar.fallDown();
-        if (m.alive && !r.alive) r.avatar.reset();
         r.alive = m.alive;
         r.avatar.health = 1e9;
         r.avatar.shield = m.sh;
@@ -423,42 +474,26 @@ export class Duel implements MatchLike {
         {
           const by = m.by === this.id ? (this.myName || "YOU") : (this.remotes.get(m.by)?.name ?? `PLAYER ${m.by + 1}`);
           this.onFeed?.(`${by} knocked ${r.name}`, m.by === this.id);
+          if (m.by === this.id) this.kills++;
         }
         if (this.role === "host") {
           this.relay(m, from);
           this.checkLastStanding(now);
         }
         break;
-      case "round":
-        if (this.role === "guest") this.applyRound(m);
-        break;
-      case "ping":
-        r.link.send({ t: "pong", at: m.at });
-        break;
-      case "pong":
-        if (from === 0 || this.role === "host") this.ping = Math.max(0, performance.now() - m.at);
-        break;
-      case "bye":
-        if (this.role === "host") this.guestLeft(from);
-        else if (from === 0) this.finish("The host left the match.");
-        else this.playerGone(from, `${r.name} left the match.`);
-        break;
-      case "zone":
-        if (this.role === "guest") {
-          this.zoneLive = m.live;
-          this.caps = m.caps.slice();
-          this.zoneStartsIn = m.startsIn;
-        }
-        break;
-      case "hello":
-      case "welcome":
-        break;
+      // round, zone, ping, pong, bye, hello and welcome are handled above,
+      // before a figure is made for the sender
     }
   }
 
   private guestLeft(id: number): void {
+    const link = this.links.get(id);
+    if (!link) return; // already handled (a bye and a close both arrive)
     const r = this.remotes.get(id);
     this.links.delete(id);
+    link.onMessage = null;
+    link.onClose = null;
+    link.close();
     // tell the other guest, then carry on if one is left; a 1v1 is over
     this.relay({ t: "bye" }, id);
     if (this.players === 2 || this.links.size === 0) {
@@ -466,6 +501,7 @@ export class Duel implements MatchLike {
       return;
     }
     this.playerGone(id, `${r?.name ?? "A player"} left the match.`);
+    this.ping = null;
     if (this.phase === "fight") this.checkLastStanding(wallClock());
   }
 
@@ -553,7 +589,16 @@ export class Duel implements MatchLike {
     this.health = HEALTH_MAX;
     this.shield = SHIELD_MAX;
     this.alive = true;
-    for (const r of this.remotes.values()) r.alive = true;
+    // every figure stands back up here, not on the next state packet: the
+    // round message beats that packet, so the alive transition was never seen
+    // and a knocked figure lay on the floor, unhittable, for the rest of the match
+    for (const r of this.remotes.values()) {
+      r.alive = true;
+      r.health = HEALTH_MAX;
+      r.shield = SHIELD_MAX;
+      r.avatar.reset();
+      r.avatar.health = 1e9;
+    }
     this.onRespawn?.();
   }
 
@@ -607,11 +652,12 @@ export class Duel implements MatchLike {
     const toShield = Math.min(r.shield, amount);
     r.shield -= toShield;
     r.health = Math.max(0, r.health - (amount - toShield));
-    if (r.health <= 0) this.kills++;
+    // the kill is credited when their `down` says it was us (once)
   }
 
   update(local: LocalState): void {
     const now = wallClock();
+    this.ready = local.ready;
     // Capture time is real time too. Up to 1.1 s a step covers a hidden tab's
     // one frame a second; a longer gap (a stalled tab) is not counted.
     const dt = Math.max(0, Math.min(1.1, now - this.lastClock));
@@ -656,6 +702,7 @@ export class Duel implements MatchLike {
     }
 
     // host: advance the rounds
+    if (this.role === "host" && this.phase === "waiting" && this.everyoneReady()) this.enter("countdown", now, COUNTDOWN);
     if (this.role === "host" && this.phase !== "waiting" && now >= this.phaseEndsAt) {
       if (this.phase === "countdown") {
         this.enter("fight", now, 0);
@@ -689,11 +736,12 @@ export class Duel implements MatchLike {
         alive: this.alive,
         op: local.operator,
         name: this.myName,
+        ready: this.ready,
       });
     }
     if (now >= this.pingNext) {
       this.pingNext = now + 1;
-      if (this.role === "host") this.links.get(1)?.send({ t: "ping", at: performance.now() });
+      if (this.role === "host") for (const l of this.links.values()) l.send({ t: "ping", at: performance.now() });
       else this.hostLink?.send({ t: "ping", at: performance.now() });
     }
 
@@ -760,7 +808,14 @@ export class Duel implements MatchLike {
         need: ZONE_CAPTURE,
       },
       players,
-      waiting: this.phase === "waiting" ? (this.role === "host" ? `WAITING FOR ${this.players - 1 - this.links.size} MORE` : "WAITING FOR THE OTHERS") : null,
+      waiting:
+        this.phase === "waiting"
+          ? this.role === "host"
+            ? this.links.size < this.players - 1
+              ? `WAITING FOR ${this.players - 1 - this.links.size} MORE`
+              : "WAITING FOR EVERYONE TO CLICK PLAY"
+            : "WAITING FOR THE OTHERS"
+          : null,
       summary: this.phase === "matchEnd" && this.lastSummary ? { ...this.lastSummary, streak: this.streak } : null,
     };
   }

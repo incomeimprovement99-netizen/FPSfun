@@ -103,6 +103,9 @@ export class Input {
     document.addEventListener("pointerlockchange", () => {
       this.locked = document.pointerLockElement === this.el;
       if (!this.locked) {
+        // Esc off a mouse session ends a pad session too, or the pad keeps
+        // firing behind the menu
+        this.padPlaying = false;
         this.down.clear();
         this.mouseDown = [false, false, false, false, false];
       }
@@ -189,7 +192,7 @@ export class Input {
   }
 
   held(action: Action): boolean {
-    if (this.pad.held(action)) return true;
+    if (this.playing && this.pad.held(action)) return true;
     for (const b of BINDS[action] ?? []) {
       if (isWheel(b)) {
         if (this.wheel[b] > 0) return true;
@@ -203,9 +206,9 @@ export class Input {
 
   /** did any binding for this action go down this frame */
   pressedNow(action: Action): boolean {
-    if (this.pad.pressedNow(action)) return true;
+    if (this.playing && this.pad.pressedNow(action)) return true;
     // the pad's X is reload and interact both; the game decides which by the prompt
-    if (action === "interact" && this.pad.pressedNow("reload")) return true;
+    if (this.playing && action === "interact" && this.pad.pressedNow("reload")) return true;
     for (const b of BINDS[action] ?? []) {
       if (isWheel(b)) {
         if (this.wheel[b] > 0) return true;

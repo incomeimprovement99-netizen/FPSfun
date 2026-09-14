@@ -21,7 +21,9 @@
     "build:beta": "tsc --noEmit -p tsconfig.json && vite build --mode beta && tsx tools/beta-check.ts",
     "e2e": "tsx tools/e2e.ts",
     "probe": "tsx tools/tech-probe.ts",
-    "measure": "tsx tools/measure.ts"
+    "measure": "tsx tools/measure.ts",
+    "deploy": "tsx tools/deploy-pages.ts",
+    "live": "tsx tools/live-check.ts"
   },
   "dependencies": {
     "peerjs": "^1.5.4",

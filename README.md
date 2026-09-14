@@ -166,6 +166,9 @@ guns are built with their grips at the hand for that.
 
 ## Deploy
 
+The game is live at https://incomeimprovement99-netizen.github.io/FPSfun/ ;
+`docs/DEPLOY_GUIDE.md` has the step by step, and `npm run deploy` republishes.
+
 ```
 npm run build:beta   # public build into dist/, then the real-name check
 ```
@@ -174,8 +177,10 @@ npm run build:beta   # public build into dist/, then the real-name check
 host. It must be served over HTTPS (browsers only allow peer connections and
 raw mouse input on secure pages). Paths are relative, so it works from a
 sub-folder. Run `npm run assets` and `npm run models` before building, or the
-textures and props will be missing from `dist/`. Keep the repository itself
-private: it contains the reference data with the real names.
+textures and props will be missing from `dist/`. The repository is public
+(GitHub Pages on a free account needs that); the reference data with the
+real names is in it, so `DEPLOY_GUIDE.md` section 7 has the split-repo
+setup if that should change.
 
 `dist/` is about 42 MB: 1.4 MB of code (350 KB compressed), about 10 MB of
 textures and 29 MB of props. The range is playable before the props finish
@@ -193,6 +198,8 @@ loading; compressing their textures (KTX2) would cut most of it.
 | `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`) |
 | `npm run shot` | screenshots of every view into `shots/` (needs `npm run dev`) |
 | `npm run rules` | nothing references the game's install or its files |
+| `npm run deploy` | builds the public beta and publishes it to GitHub Pages (docs/DEPLOY_GUIDE.md) |
+| `npm run live` | opens the deployed site in two browser pages and plays a 1v1 over the real broker |
 | `npm run build`, `npm run build:beta` | typecheck and bundle, private and public |
 
 ## Docs
@@ -201,7 +208,8 @@ loading; compressing their textures (KTX2) would cut most of it.
 asked, what shipped, what was found wrong on the way), plus `FIDELITY.md`
 (sources for every number), `MOVEMENT_AUDIT.md`, `TESTING.md` and
 `NEXT_STEPS.md` (what to build next, ranked, and what each needs). Latest:
-`PLAN_FEEL_CONTROLLER.md` and `RESULTS_FEEL_CONTROLLER.md`.
+`RESULTS_POLISH_SHIP.md` (the beta polish, the fourteen-finding bug hunt and
+the ship) and `DEPLOY_GUIDE.md`.
 
 ## Credits
 

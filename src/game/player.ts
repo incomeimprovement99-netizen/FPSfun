@@ -882,6 +882,8 @@ export class Player {
     const mt = this.mantle!;
     this.pos.set(mt.toX, mt.toY, mt.toZ);
     this.mantle = null;
+    // a jump pressed in this mantle's window must not count for the next one
+    this.sgJumpFrame = -10;
     this.onGround = true;
     this.lastGroundAt = now;
     this.landedAt = now;

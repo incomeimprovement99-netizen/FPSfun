@@ -90,6 +90,7 @@ class Bot {
       health: HEALTH_MAX,
       shield: SHIELD_MAX,
       alive: true,
+      ready: true,
       lastHeard: 0,
       link: { role: "guest", send: () => undefined, close: () => undefined, onMessage: null, onClose: null },
     };
@@ -400,11 +401,13 @@ export class BotMatch implements MatchLike {
   private checkRound(now: number): void {
     if (this.phase !== "fight") return;
     if (!this.alive) {
-      // the round goes to the bot that is still up (the first one, for the score)
-      const up = this.bots.find((b) => b.alive);
+      // the round goes to the bot that knocked you (else the first still up)
+      const up = (this.lastHitBy?.alive ? this.lastHitBy : null) ?? this.bots.find((b) => b.alive);
       this.scoreRound(up ? up.index + 1 : -1, now);
     } else if (this.bots.every((b) => !b.alive)) this.scoreRound(0, now);
   }
+
+  private lastHitBy: Bot | null = null;
 
   private takeHit(amount: number): void {
     if (!this.alive || this.phase !== "fight") return;
@@ -415,8 +418,8 @@ export class BotMatch implements MatchLike {
     if (this.health <= 0) {
       this.alive = false;
       this.deaths++;
-      const up = this.bots.find((b) => b.alive);
-      this.onFeed?.(`${up?.remote.name ?? "A BOT"} knocked ${this.myName || "YOU"}`, false);
+      const by = this.lastHitBy ?? this.bots.find((b) => b.alive) ?? null;
+      this.onFeed?.(`${by?.remote.name ?? "A BOT"} knocked ${this.myName || "YOU"}`, false);
       this.checkRound(wallClock());
     }
   }
@@ -463,7 +466,9 @@ export class BotMatch implements MatchLike {
     let dealt = 0;
     for (const b of this.bots) {
       const before = b.alive;
-      dealt += b.update(now, dt, feet, this.alive, this.zoneLive, center, this.phase === "fight");
+      const d = b.update(now, dt, feet, this.alive, this.zoneLive, center, this.phase === "fight");
+      if (d > 0) this.lastHitBy = b;
+      dealt += d;
       if (before && !b.alive) {
         // knocked by something that did not go through localHit (a melee)
         b.remote.alive = false;

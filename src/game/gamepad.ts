@@ -60,6 +60,8 @@ export class GamepadInput {
   settings: PadSettings = { ...PAD_DEFAULTS };
   /** a pad is connected and was touched recently */
   active = false;
+  /** set on the connect event, cleared by whoever reads it (the HUD notice) */
+  justConnected = false;
   private index = -1;
   private down = new Set<Action | "menu">();
   private pressed = new Set<Action | "menu">();
@@ -72,6 +74,7 @@ export class GamepadInput {
   constructor() {
     window.addEventListener("gamepadconnected", (e) => {
       this.index = (e as GamepadEvent).gamepad.index;
+      this.justConnected = true;
     });
     window.addEventListener("gamepaddisconnected", (e) => {
       if ((e as GamepadEvent).gamepad.index === this.index) {
@@ -154,7 +157,7 @@ export class GamepadInput {
     this.down = next;
 
     if (touched) this.lastTouched = now;
-    this.active = now - this.lastTouched < 30;
+    this.active = now - this.lastTouched < 120;
 
     // look: the curve, then the speed for the level, scaled at ADS
     const curve = (v: number) => (s.curve === "linear" ? v : Math.sign(v) * Math.pow(Math.abs(v), 1.7));

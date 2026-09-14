@@ -39,6 +39,29 @@ async function open(browser: Browser, query: string): Promise<Page> {
 /** evaluate an expression string in the page (tsx mangles function sources) */
 const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
 
+/**
+ * "Click Play" without a pointer lock (a scripted page cannot take one): a
+ * fake gamepad's Start, which is the controller's way in. Round 1 waits for
+ * every player to be in the game, so every page in a match does this.
+ */
+async function pressPlay(page: Page): Promise<void> {
+  await ev(page, `(() => {
+    if (!window.__pad) {
+      const btn = () => ({ pressed: false, touched: false, value: 0 });
+      const pad = { index: 0, id: "fake pad", connected: true, mapping: "standard", timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, btn) };
+      window.__pad = pad;
+      navigator.getGamepads = () => [pad];
+    }
+  })()`);
+  // no animation frames to wait on: a page behind another tab gets none,
+  // but the game keeps ticking on a timer, so a short hold is enough
+  await sleep(300);
+  await ev(page, "window.__pad.buttons[9].pressed = true");
+  await sleep(300);
+  await ev(page, "window.__pad.buttons[9].pressed = false");
+  await sleep(300);
+}
+
 async function duelTest(browser: Browser, query: string, label: string): Promise<boolean> {
   const host = await open(browser, query);
   const guest = await open(browser, query);
@@ -80,6 +103,16 @@ async function duelTest(browser: Browser, query: string, label: string): Promise
   const seen2 = await ev<{ x: number; z: number }>(guest, `(() => { const g = window.__range.duel().avatars[0].group; return { x: g.position.x, z: g.position.z }; })()`);
   check(`${label}: and the guest sees the host at the host spawn`, Math.abs(seen2.x - 90) < 0.5 && Math.abs(seen2.z + 69) < 0.5, `${seen2.x.toFixed(1)}, ${seen2.z.toFixed(1)}`);
 
+  // nobody has clicked Play: the host holds at "waiting" (the countdown used
+  // to start the moment the guest connected, with both still on the menu)
+  await sleep(800);
+  const held = await ev<{ phase: string; waiting: string | null }>(host, "({ phase: window.__range.duel().phase, waiting: window.__range.duel().hud().waiting })");
+  check(`${label}: the match waits until everyone clicks Play`, held.phase === "waiting" && /PLAY/.test(held.waiting ?? ""), JSON.stringify(held));
+  await pressPlay(host);
+  await sleep(400);
+  const stillHeld = await ev<string>(host, "window.__range.duel().phase");
+  check(`${label}: one player in is not enough`, stillHeld === "waiting", stillHeld);
+  await pressPlay(guest);
   // the countdown ends on both sides
   await host.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
   await guest.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
@@ -180,6 +213,7 @@ async function tripleTest(browser: Browser, query: string): Promise<void> {
   const spawns = await Promise.all(pages.map((p) => ev<{ x: number; z: number }>(p, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })")));
   const distinct = new Set(spawns.map((sp) => `${sp.x.toFixed(0)},${sp.z.toFixed(0)}`)).size;
   check("1v1v1: three different corners of the triangle", distinct === 3 && spawns.every((sp) => Math.hypot(sp.x - 90, sp.z - 60) > 15), JSON.stringify(spawns.map((sp) => [+sp.x.toFixed(1), +sp.z.toFixed(1)])));
+  for (const p of pages) await pressPlay(p);
   for (const p of pages) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
   check("1v1v1: the countdown ends on all three", true);
   // the host knocks guest 1: the round goes on (two standing)
@@ -235,18 +269,8 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
 /** a fake gamepad: Start plays, the left stick walks, the right stick turns */
 async function padTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
-  await ev(page, `(() => {
-    const btn = () => ({ pressed: false, touched: false, value: 0 });
-    const pad = { index: 0, id: "fake pad", connected: true, mapping: "standard", timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, btn) };
-    window.__pad = pad;
-    navigator.getGamepads = () => [pad];
-  })()`);
-  await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
   // Start on the menu: play without a pointer lock
-  await ev(page, "window.__pad.buttons[9].pressed = true");
-  await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
-  await ev(page, "window.__pad.buttons[9].pressed = false");
-  await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+  await pressPlay(page);
   const playing = await ev<{ hidden: boolean; playing: boolean; active: boolean }>(page, `({ hidden: document.getElementById("overlay").classList.contains("hidden"), playing: window.__range.input.playing, active: window.__range.input.pad.active })`);
   check("pad: Start hides the menu and the game takes the controller", playing.hidden && playing.playing && playing.active, JSON.stringify(playing));
   const before = await ev<{ z: number; yaw: number }>(page, "({ z: window.__range.player.pos.z, yaw: window.__range.player.yaw })");

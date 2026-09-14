@@ -42,6 +42,14 @@ export interface VMFrame {
   sprinting: boolean;
   /** in a slide: the gun rides low and rolled, still ready to fire */
   sliding: boolean;
+  /** on a wall: the support hand goes up the wall, the gun hangs low */
+  climbing: boolean;
+  /** in a mantle: both hands go to the ledge */
+  mantling: boolean;
+  /** the magazine is empty: a pistol's slide locks back */
+  clipEmpty: boolean;
+  /** vertical speed, m/s, for the jump lift and the fall float */
+  vy: number;
   reloading: boolean;
   reloadProgress: number;
   /** degrees the view turned this frame; positive yaw = left, pitch = up */
@@ -296,6 +304,12 @@ export class ViewModel {
   private bobT = 0;
   private sprintAmt = 0;
   private slideAmt = 0;
+  private climbAmt = 0;
+  private mantleAmt = 0;
+  private wasOnGround = true;
+  /** a fresh weapon in hand: the bolt gets a chamber check as it comes up */
+  private checkAt = -Infinity;
+  private checkPending = false;
   /** the draw settle: a spring kicked when the gun comes up */
   private settle = 0;
   private settleVel = 0;
@@ -361,6 +375,8 @@ export class ViewModel {
       if (m.cylinder) this.cylBase.copy(m.cylinder.position);
       this.placeHands(m);
       this.cylAngle = this.cylTarget = 0;
+      // a different gun in hand: a chamber check once it has come up
+      this.checkPending = true;
     }
     // no optic fitted: a scoped weapon (the Kraber) wears its own
     this.fitOptic(this.model, w.optic ?? w.integralOptic);
@@ -509,6 +525,21 @@ export class ViewModel {
     const wantSlide = f.sliding && f.adsFrac < 0.05 ? 1 : 0;
     this.slideAmt += (wantSlide - this.slideAmt) * Math.min(1, dt / 0.1);
     const sl = easeInOut(this.slideAmt) * (1 - ads);
+    // climbing and mantling: the hands go to the wall, the gun hangs off the
+    // right hand; aiming is not possible on a wall so no ADS blend here
+    this.climbAmt += ((f.climbing ? 1 : 0) - this.climbAmt) * Math.min(1, dt / 0.12);
+    this.mantleAmt += ((f.mantling ? 1 : 0) - this.mantleAmt) * Math.min(1, dt / 0.1);
+    const cl = easeInOut(this.climbAmt);
+    const mt = easeInOut(this.mantleAmt);
+    // leaving the ground with a jump: the gun lifts a touch, then floats
+    // back as you rise; the landing dip is the player's own
+    if (this.wasOnGround && !f.onGround && f.vy > 1) this.settleVel += 1.6;
+    this.wasOnGround = f.onGround;
+    const fall = f.onGround ? 0 : clamp(-f.vy / 12, 0, 1) * (1 - ads);
+    if (this.checkPending && f.raise >= 0.97 && f.lowered < 0.2) {
+      this.checkPending = false;
+      this.checkAt = this.t + 0.12;
+    }
     // the draw settle: when the gun finishes coming up (a swap, a draw from
     // the holster) it overshoots a little and springs back, which is what
     // reads as a hand catching it
@@ -550,14 +581,20 @@ export class ViewModel {
     p.lerp(sprintPos, sp);
     // the slide pose: down and in, muzzle a little up, rolled outward
     p.lerp(this.tmp2.set(hip.x + 0.06, hip.y - 0.09, hip.z + 0.06), sl);
+    // on a wall: the gun drops to the hip and turns out of the way; in a
+    // mantle it goes low and forward as the hands reach the ledge
+    p.lerp(this.tmp2.set(hip.x + 0.1, hip.y - 0.16, hip.z + 0.12), cl);
+    p.lerp(this.tmp2.set(hip.x + 0.04, hip.y - 0.12, hip.z - 0.06), mt);
+    // falling: the gun floats up a little, as if the arms went light
+    p.y += fall * 0.02;
     // The sprint pump: the gun swings across and down with every stride and
     // rolls with it, the way the game's does. One stride is one full swing
     // (bobT counts two steps per cycle, so the pump runs at half rate).
     const stride = this.bobT * 0.5;
     const pump = sp * SPRINT_PUMP;
-    let rx = sp * 0.18 + Math.sin(stride * 2) * 0.05 * pump - sl * 0.12;
-    let ry = 0.05 * (1 - ads) - sp * 0.55 + Math.sin(stride) * 0.09 * pump - sl * 0.3;
-    let rz = sp * 0.42 + Math.sin(stride) * 0.14 * pump + sl * 0.32;
+    let rx = sp * 0.18 + Math.sin(stride * 2) * 0.05 * pump - sl * 0.12 - cl * 0.5 + mt * 0.35 - fall * 0.08;
+    let ry = 0.05 * (1 - ads) - sp * 0.55 + Math.sin(stride) * 0.09 * pump - sl * 0.3 - cl * 0.7;
+    let rz = sp * 0.42 + Math.sin(stride) * 0.14 * pump + sl * 0.32 + cl * 0.6 + mt * 0.15;
     // idle: standing still the gun drifts a hair, as held hands do
     const idle = (1 - Math.min(1, f.moveSpeed / 1.5)) * (1 - ads) * (f.onGround ? 1 : 0);
     p.x += Math.sin(this.t * 0.9) * 0.0025 * idle;
@@ -636,8 +673,19 @@ export class ViewModel {
     this.heirloom?.animate?.(this.t);
     this.updateZipHand(f, dt, ads);
 
-    this.animateAction(m, w, dt);
+    this.animateAction(m, w, dt, f.clipEmpty && !f.reloading);
     this.animateReload(m, reloadP, f.reloading);
+
+    // climbing or mantling: the support hand leaves the gun for the wall,
+    // reaching up and pulling in a rhythm on a climb, flat on the ledge in a
+    // mantle (in gun space, so it stays in front of the camera as the gun dips)
+    const wallHand = Math.max(cl, mt);
+    if (wallHand > 0.001 && this.zipAmt < 0.5) {
+      const reach = cl > mt ? 0.06 * Math.sin(this.t * 6) : 0;
+      const target = this.tmp2.set(this.supportBase.x - 0.16 * wallHand, this.supportBase.y + (0.34 + reach) * cl + 0.14 * mt, this.supportBase.z - 0.22 * wallHand);
+      this.left.group.position.lerp(target, wallHand);
+      this.left.group.rotation.x = -1.4 * wallHand;
+    }
 
     // ---- arms follow the hands wherever they went
     this.leftElbow.copy(this.leftElbowHip).lerp(this.leftElbowAds, ads);
@@ -702,16 +750,21 @@ export class ViewModel {
   }
 
   /** bolt, slide, pump, cylinder and hammer, driven by time since the last shot */
-  private animateAction(m: GunModel, w: ResolvedWeapon, dt: number): void {
+  private animateAction(m: GunModel, w: ResolvedWeapon, dt: number, clipEmpty: boolean): void {
     const e = this.t - this.lastShotAt;
+    // the chamber check on a fresh draw: the bolt or slide pulled back over
+    // a third of a second and let go, once, after the gun is up
+    const ce = this.t - this.checkAt;
+    const check = ce >= 0 && ce < 0.36 ? Math.sin(Math.PI * clamp(ce / 0.36, 0, 1)) : 0;
     if (m.cycle === "auto" && m.bolt) {
       const T = Math.min(0.075, w.shotInterval * 0.85);
       const back = e < T ? (e < T * 0.3 ? e / (T * 0.3) : 1 - (e - T * 0.3) / (T * 0.7)) : 0;
-      m.bolt.position.z = this.boltBase.z + m.travel * back;
+      m.bolt.position.z = this.boltBase.z + m.travel * Math.max(back, check);
     } else if (m.cycle === "slide" && m.bolt) {
       const T = 0.075;
       const back = e < T ? (e < T * 0.35 ? e / (T * 0.35) : 1 - (e - T * 0.35) / (T * 0.65)) : 0;
-      m.bolt.position.z = m.travel * back;
+      // an empty pistol locks its slide back until the reload seats a magazine
+      m.bolt.position.z = m.travel * Math.max(back, check, clipEmpty ? 1 : 0);
     } else if (m.cycle === "pump" && m.pump) {
       // the pump runs inside the rechamber window, starting once the muzzle
       // has come back down

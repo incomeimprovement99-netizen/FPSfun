@@ -102,7 +102,7 @@ export class Menu {
     const courseCard = (id: string, title: string): string => {
       const c = p.courses[id];
       if (!c || !c.runs) return `<div class="statcard"><h4>${esc(title)}</h4><div class="empty">No runs yet.</div></div>`;
-      const board = c.board.map((e, i) => `<tr><td>${i + 1}. ${e.rank}</td><td>${e.time.toFixed(2)} s <span style="color:#7d8895">${new Date(e.at).toLocaleDateString()}</span></td></tr>`).join("");
+      const board = c.board.map((e, i) => `<tr><td>${i + 1}. ${esc(e.rank)}</td><td>${e.time.toFixed(2)} s <span style="color:#7d8895">${new Date(e.at).toLocaleDateString()}</span></td></tr>`).join("");
       return `<div class="statcard"><h4>${esc(title)}</h4><div class="big">${c.best !== null ? c.best.toFixed(2) : "-"}<small>BEST, ${c.runs} RUNS</small></div><table>${board}</table></div>`;
     };
     const techs = Object.entries(p.tech).sort((a, b) => b[1] - a[1]);

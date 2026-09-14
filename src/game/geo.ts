@@ -365,42 +365,53 @@ export function textPanel(text: string, x: number, y: number, z: number, rotY: n
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
+  const pad = 26;
+  const paragraphs = text.split("\n");
+  /**
+   * Lay the text out at a body size, wrapping words; `paint` false only
+   * measures. Returns the height used, so the size can be shrunk until the
+   * whole text fits the panel (a sign that ran past its board was the bug).
+   */
+  const layout = (bodySize: number, paint: boolean): number => {
+    let yy = pad + 34;
+    const titleSize = h < 1.2 ? 64 : Math.max(bodySize + 12, Math.round(bodySize * 1.5));
+    paragraphs.forEach((para, i) => {
+      const size = i === 0 ? titleSize : bodySize;
+      g.font = `${i === 0 ? 700 : 500} ${size}px "Rajdhani", "Segoe UI", sans-serif`;
+      g.fillStyle = i === 0 ? "#ffd23c" : "#eef2f5";
+      if (h < 1.2) {
+        if (paint) {
+          g.textAlign = "center";
+          g.fillText(para, cv.width / 2, cv.height / 2 + size / 3);
+        }
+        return;
+      }
+      g.textAlign = "left";
+      const words = para.split(" ");
+      let line = "";
+      for (const word of words) {
+        const test = line ? `${line} ${word}` : word;
+        if (g.measureText(test).width > cv.width - pad * 2 && line) {
+          if (paint) g.fillText(line, pad, yy);
+          yy += size * 1.18;
+          line = word;
+        } else line = test;
+      }
+      if (line && paint) g.fillText(line, pad, yy);
+      yy += para ? size * 1.18 : size * 0.4;
+    });
+    return yy;
+  };
   const draw = () => {
     g.clearRect(0, 0, cv.width, cv.height);
     g.fillStyle = "rgba(10,12,15,0.86)";
     g.fillRect(0, 0, cv.width, cv.height);
     g.fillStyle = "#d4712a";
     g.fillRect(0, 0, cv.width, 8);
-    g.fillStyle = "#eef2f5";
-    const pad = 26;
-    const paragraphs = text.split("\n");
-    let yy = pad + 34;
-    const titleSize = h < 1.2 ? 64 : 46;
-    paragraphs.forEach((para, i) => {
-      const size = i === 0 ? titleSize : 30;
-      g.font = `${i === 0 ? 700 : 500} ${size}px "Rajdhani", "Segoe UI", sans-serif`;
-      if (i === 0) g.fillStyle = "#ffd23c";
-      else g.fillStyle = "#eef2f5";
-      if (h < 1.2) {
-        g.textAlign = "center";
-        g.fillText(para, cv.width / 2, cv.height / 2 + size / 3);
-        return;
-      }
-      g.textAlign = "left";
-      // word wrap
-      const words = para.split(" ");
-      let line = "";
-      for (const word of words) {
-        const test = line ? `${line} ${word}` : word;
-        if (g.measureText(test).width > cv.width - pad * 2 && line) {
-          g.fillText(line, pad, yy);
-          yy += size * 1.18;
-          line = word;
-        } else line = test;
-      }
-      if (line) g.fillText(line, pad, yy);
-      yy += para ? size * 1.18 : size * 0.4;
-    });
+    // the largest body size, from 30 px down to 18, at which everything fits
+    let size = 30;
+    while (size > 18 && layout(size, false) > cv.height - pad * 0.5) size -= 2;
+    layout(size, true);
     tex.needsUpdate = true;
   };
   draw();

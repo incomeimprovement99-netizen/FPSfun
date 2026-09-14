@@ -39,6 +39,8 @@ export type NetMsg =
       op: string;
       /** the player's name, for the scoreboard */
       name: string;
+      /** in the game (not on the menu): the host waits for everyone before round 1 */
+      ready?: boolean;
     }
   | { t: "zone"; live: boolean; caps: number[]; startsIn: number }
   | { t: "shot"; from?: number; o: [number, number, number]; d: [number, number, number]; w: string }
@@ -193,7 +195,7 @@ export function hostMatch(players: number, onCode: (code: string) => void, onLin
     peer.on("connection", (conn) => {
       if (cancelled || full()) return conn.close();
       conn.on("open", () => {
-        if (full()) return conn.close();
+        if (cancelled || full()) return conn.close();
         const id = next++;
         const link = new PeerLink("host", peer!, conn, false);
         link.send({ t: "welcome", id, players });
