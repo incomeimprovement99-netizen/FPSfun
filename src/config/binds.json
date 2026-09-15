@@ -26,5 +26,7 @@
   "resetDummies": ["KeyF"],
   "copyResult": ["KeyP"],
   "zoomToggle": ["KeyZ"],
-  "ghost": ["KeyK"]
+  "ghost": ["KeyK"],
+  "thirdPerson": ["KeyX"],
+  "orbit": ["AltLeft"]
 }

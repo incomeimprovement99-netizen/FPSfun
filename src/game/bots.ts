@@ -74,7 +74,7 @@ class Bot {
     const wid = BOT_WEAPONS[index % BOT_WEAPONS.length];
     this.weapon = resolveWeapon(wid, 2);
     const skin = OPERATORS[(index + 1) % OPERATORS.length];
-    this.dummy = new Dummy(spawn.x, spawn.z, 0, { armed: wid, respawn: false, skin });
+    this.dummy = new Dummy(spawn.x, spawn.z, 0, { armed: wid, respawn: false, skin, rig: true, noBase: true });
     this.dummy.setTier(2);
     this.dummy.group.name = `bot:${index}`;
     scene.add(this.dummy.group);
@@ -211,6 +211,10 @@ class Bot {
       this.dummy.group.rotation.y = cur + diff * Math.min(1, dt * 10);
     }
     this.dummy.group.position.copy(this.pos);
+    // the figure runs when it moves and looks at what it aims at
+    const moving = want.length() > 1e-3;
+    const aimPitch = sees ? (Math.atan2(target.y + 1.15 - (this.pos.y + 1.35), Math.max(1e-3, Math.hypot(target.x - this.pos.x, target.z - this.pos.z))) * 180) / Math.PI : 0;
+    this.dummy.setPose({ speed: moving ? this.diff.speed : 0, stance: "stand", pitch: aimPitch });
     this.dummy.update(now, dt);
 
     // shooting: after the reaction time, at the weapon's rate, with an aim
@@ -485,7 +489,7 @@ export class BotMatch implements MatchLike {
     for (const b of this.bots) {
       const s = b.remote.samples;
       s.length = 0;
-      s.push({ at: now, x: b.pos.x, y: b.pos.y, z: b.pos.z, yaw: 0, crouch: false });
+      s.push({ at: now, x: b.pos.x, y: b.pos.y, z: b.pos.z, yaw: 0, pitch: 0, crouch: false, stance: "stand", speed: 0 });
     }
   }
 

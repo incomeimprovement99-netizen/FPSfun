@@ -1549,8 +1549,13 @@ export class Player {
 
   /** the view rotation; the returned quaternion is reused, so copy it */
   orientation(offPitchUp: number, offYawLeft: number): THREE.Quaternion {
-    const pitch = Math.max(-89, Math.min(89, this.pitch + offPitchUp));
-    this.eulerTmp.set(pitch * DEG, (this.yaw + offYawLeft) * DEG, 0, "YXZ");
+    return this.orientationAt(this.yaw, this.pitch, offPitchUp, offYawLeft);
+  }
+
+  /** a rotation from any angles (the third-person camera, an aim that is not the view); reused, so copy it */
+  orientationAt(yaw: number, pitch: number, offPitchUp: number, offYawLeft: number): THREE.Quaternion {
+    const p = Math.max(-89, Math.min(89, pitch + offPitchUp));
+    this.eulerTmp.set(p * DEG, (yaw + offYawLeft) * DEG, 0, "YXZ");
     return this.quatOut.setFromEuler(this.eulerTmp);
   }
 }

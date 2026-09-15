@@ -141,7 +141,8 @@ export class Input {
   /** the browser refused the pointer lock (too soon after Esc, or not allowed here) */
   onLockRefused: (() => void) | null = null;
 
-  async lock(): Promise<void> {
+  /** `quiet`: a lock the game asks for by itself; a refusal is not reported */
+  async lock(quiet = false): Promise<void> {
     // Chrome never lets a page cancel Ctrl+W, Ctrl+T or Ctrl+N (crouch plus
     // forward, armour, stock): preventDefault on the keydown is ignored. The one
     // way round it is fullscreen with Keyboard Lock, which hands those keys to
@@ -172,7 +173,7 @@ export class Input {
       } catch {
         // no user gesture, too soon after Esc, or an embedded page without
         // permission: the menu says so rather than nothing happening
-        this.onLockRefused?.();
+        if (!quiet) this.onLockRefused?.();
       }
     }
   }

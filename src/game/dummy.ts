@@ -148,6 +148,7 @@ function bake(src: THREE.Group, keep: Set<THREE.Object3D>): THREE.Group {
   for (const [mat, geos] of byMat) {
     const merged = mergeGeometries(geos, false);
     if (!merged) continue;
+    merged.userData.baked = true;
     const mesh = new THREE.Mesh(merged, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -170,6 +171,63 @@ export interface DummyOptions {
   respawn?: boolean;
   /** the operator look; the range's own dummies use the default */
   skin?: OperatorSkin;
+  /**
+   * A figure that moves (another player, a bot, yourself in third person):
+   * built as jointed parts that `setPose` animates, about three times the
+   * draw calls of a merged range dummy. Range dummies stay merged.
+   */
+  rig?: boolean;
+  /** no plinth: a player's figure stands on the floor */
+  noBase?: boolean;
+}
+
+/** what a rigged figure is doing, from the player it stands for */
+export type FigureStance = "stand" | "crouch" | "slide" | "air" | "climb" | "mantle" | "zip";
+export interface FigurePose {
+  /** horizontal speed, m/s */
+  speed: number;
+  stance: FigureStance;
+  /** look pitch, degrees, up positive */
+  pitch: number;
+}
+const STANCE_CODE: FigureStance[] = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip"];
+/** a stance as one small number for the network, and back */
+export const stanceCode = (s: FigureStance): number => Math.max(0, STANCE_CODE.indexOf(s));
+export const stanceFromCode = (c: number | undefined): FigureStance => STANCE_CODE[c ?? 0] ?? "stand";
+
+/** the parts a rigged figure pivots */
+interface Rig {
+  /** at the hips: drops for a crouch or a slide, takes the torso and the legs */
+  pelvis: THREE.Group;
+  torso: THREE.Group;
+  head: THREE.Group;
+  /** both arms and the gun, pivoting at the chest: raised for a climb */
+  arms: THREE.Group;
+  /** the unarmed arms swing separately */
+  armL: THREE.Group | null;
+  armR: THREE.Group | null;
+  thighL: THREE.Group;
+  shinL: THREE.Group;
+  thighR: THREE.Group;
+  shinR: THREE.Group;
+}
+const PELVIS_Y = 0.9;
+
+/**
+ * Bake `meshes` (built in figure space) into one merged mesh per material,
+ * translated so `pivot` is the group's origin, so the group rotates about it.
+ * `keep` meshes are re-parented as they are (they toggle or change colour).
+ */
+function bakePart(meshes: THREE.Object3D[], pivot: THREE.Vector3, keep: Set<THREE.Object3D>): THREE.Group {
+  const src = new THREE.Group();
+  for (const m of meshes) src.add(m);
+  const out = bake(src, keep);
+  for (const o of out.children) {
+    if (keep.has(o)) o.position.sub(pivot);
+    else (o as THREE.Mesh).geometry.translate(-pivot.x, -pivot.y, -pivot.z);
+  }
+  out.position.copy(pivot);
+  return out;
 }
 
 export class Dummy {
@@ -202,8 +260,16 @@ export class Dummy {
   private readonly vest: THREE.Mesh;
   private readonly vestMat: THREE.MeshStandardMaterial;
   private readonly ringMat: THREE.MeshStandardMaterial;
-  /** the merged robot body: its geometry is this dummy's own */
+  /** the merged robot body: its geometry is this dummy's own (every part, rigged) */
   private readonly baked: THREE.Group;
+  private readonly rig: Rig | null = null;
+  /** the hit zones, scaled down for a crouch */
+  private readonly hits = new THREE.Group();
+  private crouchAmt = 0;
+  private pose: FigurePose = { speed: 0, stance: "stand", pitch: 0 };
+  private gait = 0;
+  /** eased pose values, so a change of stance blends rather than snaps */
+  private readonly eased = { lean: 0, pelvisDrop: 0, thighL: 0, thighR: 0, shinL: 0, shinR: 0, armsUp: 0, armSwing: 0, headPitch: 0 };
   readonly distanceLabel: number;
   /** the operator this figure wears */
   readonly skin: OperatorSkin;
@@ -248,9 +314,10 @@ export class Dummy {
     this.plate.userData.zone = "body";
     for (const m of [legs, torso, armL, armR, neck, head, this.plate]) {
       m.castShadow = false;
-      this.group.add(m);
+      this.hits.add(m);
       this.hitMeshes.push(m);
     }
+    this.group.add(this.hits);
 
     // ---------------- the visible robot
     // Per-dummy shell materials, so a hit can flash just this one.
@@ -261,69 +328,73 @@ export class Dummy {
     this.headShell = new THREE.MeshStandardMaterial({ color: skin.head, roughness: 0.4, metalness: 0.08 });
     this.accent = new THREE.MeshStandardMaterial({ color: skin.accent, roughness: 0.55, metalness: 0.1 });
     this.vestMat = new THREE.MeshStandardMaterial({ color: ARMOR_COLOR[1], roughness: 0.35, metalness: 0.3, emissive: ARMOR_COLOR[1], emissiveIntensity: 0.25 });
-    const b = new THREE.Group();
     const S = this.shell;
     const A = this.accent;
+    // Every piece is built in figure space (origin at the feet) and sorted
+    // into the part it belongs to. A merged dummy bakes all the parts into
+    // one body; a rigged one bakes each part about its own pivot.
+    const P = { head: [] as THREE.Object3D[], torso: [] as THREE.Object3D[], armL: [] as THREE.Object3D[], armR: [] as THREE.Object3D[], thighL: [] as THREE.Object3D[], shinL: [] as THREE.Object3D[], thighR: [] as THREE.Object3D[], shinR: [] as THREE.Object3D[] };
 
     // head: a slightly tall ovoid with a wraparound visor and a lit eye strip
     const headY = H - 0.15;
     const skull = new THREE.Mesh(new THREE.SphereGeometry(0.118, 28, 20), this.headShell);
     skull.scale.set(1, 1.1, 1.02);
     skull.position.y = headY;
-    b.add(skull);
+    P.head.push(skull);
     const visor = new THREE.Mesh(new THREE.SphereGeometry(0.1215, 28, 8, Math.PI / 2 - 0.95, 1.9, Math.PI / 2 - 0.32, 0.46), visorMat);
     visor.scale.set(1, 1.1, 1.02);
     visor.position.y = headY;
-    b.add(visor);
+    P.head.push(visor);
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1222, 28, 3, Math.PI / 2 - 0.7, 1.4, Math.PI / 2 - 0.13, 0.05), eyeMat);
     eye.scale.set(1, 1.1, 1.02);
     eye.position.y = headY;
-    b.add(eye);
+    P.head.push(eye);
     for (const sx of [-1, 1]) {
       const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.04, 0.03, 18), A);
       pod.rotation.z = Math.PI / 2;
       pod.position.set(sx * 0.118, headY + 0.005, -0.005);
-      b.add(pod);
+      P.head.push(pod);
     }
     // neck: a ribbed joint
-    b.add(limb(v(0, 1.5, 0), v(0, 1.585, 0), 0.05, jointMat));
+    P.torso.push(limb(v(0, 1.5, 0), v(0, 1.585, 0), 0.05, jointMat));
     for (const y of [1.52, 1.55]) {
       const rib = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.006, 6, 18), seamMat);
       rib.rotation.x = Math.PI / 2;
       rib.position.y = y;
-      b.add(rib);
+      P.torso.push(rib);
     }
 
     // torso, waist joint and pelvis
     torsoGeo ??= torsoGeometry();
-    b.add(new THREE.Mesh(torsoGeo, S));
+    P.torso.push(new THREE.Mesh(torsoGeo, S));
     const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.138, 0.06, 24), jointMat);
     waist.scale.z = 0.68;
     waist.position.y = 1.06;
-    b.add(waist);
+    P.torso.push(waist);
     const pelvis = new THREE.Mesh(new THREE.SphereGeometry(0.165, 24, 14, 0, Math.PI * 2, Math.PI / 2 - 0.2, Math.PI / 2), S);
     pelvis.scale.set(1, 0.9, 0.66);
     pelvis.position.y = 0.99;
-    b.add(pelvis);
+    P.torso.push(pelvis);
     // chest panel with a status light, and a seam down the sternum
     const panel = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.02), A);
     panel.position.set(0, 1.34, 0.13);
     panel.rotation.x = -0.12;
-    b.add(panel);
+    P.torso.push(panel);
     const light = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.012, 0.01), eyeMat);
     light.position.set(0.05, 1.37, 0.142);
     light.rotation.x = -0.12;
-    b.add(light);
+    P.torso.push(light);
     const seam = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.2, 0.01), seamMat);
     seam.position.set(0, 1.18, 0.105);
-    b.add(seam);
+    P.torso.push(seam);
     // armour vest in the tier colour
     vestGeo ??= vestGeometry();
     this.vest = new THREE.Mesh(vestGeo, this.vestMat);
-    b.add(this.vest);
+    P.torso.push(this.vest);
 
     // arms, hanging slightly out from the body so they sit inside the arm zones
     for (const sx of [-1, 1]) {
+      const arm = sx < 0 ? P.armL : P.armR;
       const sh = v(sx * 0.225, 1.44, 0);
       // Armed: both arms forward to the gun, right hand on the grip and the
       // left supporting it. Unarmed: hanging slightly out from the body.
@@ -332,40 +403,42 @@ export class Dummy {
       const pad = new THREE.Mesh(new THREE.SphereGeometry(0.078, 18, 12), S);
       pad.scale.set(1, 0.85, 0.95);
       pad.position.copy(sh);
-      b.add(pad);
+      P.torso.push(pad);
       const band = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.008, 6, 18), A);
       band.position.set(sh.x, sh.y - 0.04, sh.z);
       band.rotation.x = Math.PI / 2;
-      b.add(band);
-      b.add(limb(sh, el, 0.046, S));
-      b.add(ball(el, 0.045, jointMat));
-      b.add(limb(el, wr, 0.04, S));
+      P.torso.push(band);
+      arm.push(limb(sh, el, 0.046, S));
+      arm.push(ball(el, 0.045, jointMat));
+      arm.push(limb(el, wr, 0.04, S));
       const hand = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.05, 4, 10), jointMat);
       hand.scale.set(0.75, 1, 1);
       if (armed) hand.position.set(wr.x, wr.y - 0.03, wr.z + 0.02);
       else hand.position.set(wr.x + sx * 0.004, wr.y - 0.07, wr.z);
-      b.add(hand);
+      arm.push(hand);
     }
 
     // legs
     for (const sx of [-1, 1]) {
-      const hip = v(sx * 0.098, 0.9, 0);
+      const thigh = sx < 0 ? P.thighL : P.thighR;
+      const shin = sx < 0 ? P.shinL : P.shinR;
+      const hip = v(sx * 0.098, PELVIS_Y, 0);
       const knee = v(sx * 0.108, 0.49, 0.012);
       const ankle = v(sx * 0.108, 0.1, 0);
-      b.add(ball(hip, 0.066, jointMat));
-      b.add(limb(hip, knee, 0.07, S));
-      b.add(ball(knee, 0.056, jointMat));
+      thigh.push(ball(hip, 0.066, jointMat));
+      thigh.push(limb(hip, knee, 0.07, S));
+      shin.push(ball(knee, 0.056, jointMat));
       const cap = new THREE.Mesh(new THREE.SphereGeometry(0.042, 14, 10), A);
       cap.scale.set(1, 1.2, 0.6);
       cap.position.set(knee.x, knee.y, knee.z + 0.045);
-      b.add(cap);
-      b.add(limb(knee, ankle, 0.056, S));
-      b.add(ball(ankle, 0.042, jointMat));
+      shin.push(cap);
+      shin.push(limb(knee, ankle, 0.056, S));
+      shin.push(ball(ankle, 0.042, jointMat));
       const foot = new THREE.Mesh(new THREE.CapsuleGeometry(0.042, 0.13, 4, 10), jointMat);
       foot.rotation.x = Math.PI / 2;
       foot.scale.set(1.1, 1, 0.75);
       foot.position.set(ankle.x, 0.035, 0.03);
-      b.add(foot);
+      shin.push(foot);
     }
 
     // the operator's add-ons
@@ -374,26 +447,26 @@ export class Dummy {
       const crest = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.09, 0.2), A);
       crest.position.set(0, headY + 0.13, -0.01);
       crest.rotation.x = -0.25;
-      b.add(crest);
+      P.head.push(crest);
     }
     if (ex.antenna) {
-      b.add(limb(v(0.07, headY + 0.08, 0.02), v(0.1, headY + 0.34, -0.03), 0.006, jointMat));
-      b.add(ball(v(0.1, headY + 0.35, -0.03), 0.016, eyeMat));
+      P.head.push(limb(v(0.07, headY + 0.08, 0.02), v(0.1, headY + 0.34, -0.03), 0.006, jointMat));
+      P.head.push(ball(v(0.1, headY + 0.35, -0.03), 0.016, eyeMat));
     }
     if (ex.brim) {
       const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.012, 28), A);
       brim.position.set(0, headY + 0.07, 0);
-      b.add(brim);
+      P.head.push(brim);
       const hood = new THREE.Mesh(new THREE.SphereGeometry(0.13, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), A);
       hood.scale.set(1, 0.8, 1);
       hood.position.set(0, headY + 0.07, 0);
-      b.add(hood);
+      P.head.push(hood);
     }
     if (ex.mask) {
       const mask = new THREE.Mesh(new THREE.SphereGeometry(0.124, 20, 8, Math.PI / 2 - 0.9, 1.8, Math.PI / 2 + 0.15, 0.55), A);
       mask.scale.set(1, 1.1, 1.05);
       mask.position.y = headY;
-      b.add(mask);
+      P.head.push(mask);
     }
     if (ex.shoulders) {
       for (const sx of [-1, 1]) {
@@ -401,41 +474,96 @@ export class Dummy {
         plate.scale.set(1.05, 0.75, 1.1);
         plate.position.set(sx * 0.235, 1.45, 0);
         plate.rotation.z = sx * -0.35;
-        b.add(plate);
+        P.torso.push(plate);
       }
     }
-
-    this.vest.castShadow = true;
-    this.baked = bake(b, new Set<THREE.Object3D>([this.vest]));
-    this.group.add(this.baked);
 
     // The gun, pointing the way the robot faces (+z). Model space has the
     // muzzle down -z, so it turns half round, and it is placed so its grip
     // lands in the right hand.
+    let gun: THREE.Object3D | null = null;
     if (armed) {
       // an untouched copy: the viewmodel's own gun carries your optic, your
       // magazine colour and a bolt caught mid-cycle
       const m = displayGunModel(armed);
-      const gun = m.root.clone(true);
+      gun = m.root.clone(true);
       gun.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
       });
       for (const child of [...gun.children]) if (child.name === "muzzleflash") gun.remove(child);
       gun.rotation.y = Math.PI;
       gun.position.set(0.07, 1.33 - m.grip.u, 0.45 - m.grip.f);
-      this.group.add(gun);
+    }
+
+    this.vest.castShadow = true;
+    const keep = new Set<THREE.Object3D>([this.vest]);
+    if (opts.rig) {
+      // pivots: the pelvis at the hips, the torso on it, the head at the neck,
+      // the arms at the chest (with the gun, which the hands hold), each
+      // thigh at its hip and each shin at its knee
+      const pelvisG = new THREE.Group();
+      pelvisG.position.y = PELVIS_Y;
+      const torso = bakePart(P.torso, v(0, PELVIS_Y, 0), keep);
+      torso.position.set(0, 0, 0);
+      const head = bakePart(P.head, v(0, 1.58, 0), keep);
+      head.position.set(0, 1.58 - PELVIS_Y, 0);
+      const chest = v(0, 1.44, 0);
+      const arms = new THREE.Group();
+      arms.position.set(0, chest.y - PELVIS_Y, 0);
+      let armL: THREE.Group | null = null;
+      let armR: THREE.Group | null = null;
+      if (armed) {
+        const both = bakePart([...P.armL, ...P.armR], chest, keep);
+        both.position.set(0, 0, 0);
+        arms.add(both);
+        if (gun) {
+          gun.position.sub(chest);
+          arms.add(gun);
+        }
+      } else {
+        armL = bakePart(P.armL, v(-0.225, 1.44, 0), keep);
+        armL.position.set(-0.225, 0, 0);
+        armR = bakePart(P.armR, v(0.225, 1.44, 0), keep);
+        armR.position.set(0.225, 0, 0);
+        arms.add(armL, armR);
+      }
+      const leg = (thighParts: THREE.Object3D[], shinParts: THREE.Object3D[], sx: number) => {
+        const thigh = bakePart(thighParts, v(sx * 0.098, PELVIS_Y, 0), keep);
+        thigh.position.set(sx * 0.098, 0, 0);
+        const shin = bakePart(shinParts, v(sx * 0.108, 0.49, 0.012), keep);
+        shin.position.set(sx * 0.01, 0.49 - PELVIS_Y, 0.012);
+        thigh.add(shin);
+        return { thigh, shin };
+      };
+      const L = leg(P.thighL, P.shinL, -1);
+      const R = leg(P.thighR, P.shinR, 1);
+      torso.add(head, arms);
+      pelvisG.add(torso, L.thigh, R.thigh);
+      // only the torso and head throw a shadow: half the draw calls of a rig
+      for (const part of [L.thigh, L.shin, R.thigh, R.shin, arms]) part.traverse((o) => ((o as THREE.Mesh).isMesh ? ((o as THREE.Mesh).castShadow = false) : undefined));
+      this.baked = pelvisG;
+      this.rig = { pelvis: pelvisG, torso, head, arms, armL, armR, thighL: L.thigh, shinL: L.shin, thighR: R.thigh, shinR: R.shin };
+      this.group.add(pelvisG);
+    } else {
+      const b = new THREE.Group();
+      for (const list of Object.values(P)) for (const o of list) b.add(o);
+      this.baked = bake(b, keep);
+      this.group.add(this.baked);
+      if (gun) this.group.add(gun);
     }
 
     // base plinth with a lit ring in the armour colour
-    const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.05, 32), baseMat);
-    ring.position.y = 0.025;
-    ring.receiveShadow = true;
-    this.group.add(ring);
     this.ringMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x39d7ee, emissiveIntensity: 1.8 });
-    const glow = new THREE.Mesh(new THREE.TorusGeometry(0.37, 0.008, 6, 40), this.ringMat);
-    glow.rotation.x = Math.PI / 2;
-    glow.position.y = 0.05;
-    this.group.add(glow);
+    if (!opts.noBase) {
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.05, 32), baseMat);
+      ring.position.y = 0.025;
+      ring.receiveShadow = true;
+      this.group.add(ring);
+      const glow = new THREE.Mesh(new THREE.TorusGeometry(0.37, 0.008, 6, 40), this.ringMat);
+      glow.rotation.x = Math.PI / 2;
+      glow.position.y = 0.05;
+      this.group.add(glow);
+    }
 
     this.group.position.set(x, 0, z);
     this.setTier(0);
@@ -511,9 +639,133 @@ export class Dummy {
    */
   dispose(): void {
     this.group.removeFromParent();
-    for (const o of this.baked.children) if (o !== this.vest) (o as THREE.Mesh).geometry?.dispose();
+    this.baked.traverse((o) => {
+      const m = o as THREE.Mesh;
+      // the gun's geometry is the gun model's, shared; a baked part's is this figure's own
+      if (m.isMesh && m !== this.vest && !m.name.startsWith("gun") && m.geometry.userData.baked) m.geometry.dispose();
+    });
     for (const m of this.hitMeshes) m.geometry.dispose();
     for (const mat of [this.shell, this.headShell, this.accent, this.vestMat, this.ringMat]) mat.dispose();
+  }
+
+  /** a rigged figure: what it should be doing, from the player or bot it stands for */
+  setPose(p: FigurePose): void {
+    this.pose = p;
+  }
+
+  /** 0..1 crouched, eased inside update(): the hit zones shrink to two thirds */
+  get crouchAmount(): number {
+    return this.crouchAmt;
+  }
+
+  /** the pose targets for the stance, then eased onto the joints */
+  private animate(dt: number): void {
+    const r = this.rig;
+    if (!r) return;
+    const p = this.pose;
+    const speed = Math.max(0, p.speed);
+    const frac = Math.min(1, speed / 6.6);
+    // a step every 0.8 m, a full cycle every two steps
+    this.gait += dt * (speed / 0.8) * Math.PI;
+    const g = this.gait;
+    const s = Math.sin(g);
+    const s2 = Math.sin(g + Math.PI);
+    let lean = 0;
+    let drop = 0;
+    let thighBase = 0;
+    let shinBase = 0;
+    let amp = 0;
+    let armsUp = 0;
+    let armSwing = 0;
+    let thighL = 0;
+    let thighR = 0;
+    let shinL = 0;
+    let shinR = 0;
+    switch (p.stance) {
+      case "stand":
+        lean = 0.12 * frac;
+        amp = speed < 0.3 ? 0 : 0.45 + 0.45 * frac;
+        armSwing = amp * 0.55;
+        break;
+      case "crouch":
+        lean = 0.55;
+        drop = 0.34;
+        thighBase = 1.2;
+        shinBase = -1.6;
+        amp = speed < 0.3 ? 0 : 0.3;
+        break;
+      case "slide":
+        lean = -0.35;
+        drop = 0.45;
+        thighBase = 1.3;
+        shinBase = -0.15;
+        armsUp = 0.25;
+        break;
+      case "air":
+        lean = 0.05;
+        drop = 0.05;
+        thighL = 0.5;
+        thighR = -0.25;
+        shinL = -0.9;
+        shinR = -0.5;
+        break;
+      case "climb":
+        lean = -0.1;
+        drop = 0.05;
+        armsUp = 1.4;
+        this.gait += dt * 2.2 * Math.PI;
+        thighL = 0.35 + s * 0.45;
+        thighR = 0.35 + s2 * 0.45;
+        shinL = shinR = -0.9;
+        break;
+      case "mantle":
+        lean = 0.3;
+        drop = 0.15;
+        armsUp = 1.0;
+        thighL = thighR = 1.0;
+        shinL = shinR = -1.2;
+        break;
+      case "zip":
+        lean = 0.1;
+        drop = 0.02;
+        armsUp = 1.5;
+        thighL = thighR = 0.3;
+        shinL = shinR = -0.6;
+        break;
+    }
+    if (p.stance === "stand" || p.stance === "crouch") {
+      thighL = thighBase + s * amp;
+      thighR = thighBase + s2 * amp;
+      // the knee bends as the leg comes through
+      shinL = shinBase - Math.max(0, Math.sin(g + 1.2)) * amp * 1.1;
+      shinR = shinBase - Math.max(0, Math.sin(g + Math.PI + 1.2)) * amp * 1.1;
+    }
+    const DEG = Math.PI / 180;
+    const pitch = Math.max(-70, Math.min(70, p.pitch)) * DEG;
+    const e = this.eased;
+    const k = 1 - Math.exp(-14 * dt);
+    e.lean += (lean - e.lean) * k;
+    e.pelvisDrop += (drop - e.pelvisDrop) * k;
+    e.thighL += (thighL - e.thighL) * k;
+    e.thighR += (thighR - e.thighR) * k;
+    e.shinL += (shinL - e.shinL) * k;
+    e.shinR += (shinR - e.shinR) * k;
+    e.armsUp += (armsUp - e.armsUp) * k;
+    e.armSwing += (armSwing - e.armSwing) * k;
+    e.headPitch += (-pitch * 0.6 - e.headPitch) * k;
+    r.pelvis.position.y = PELVIS_Y - e.pelvisDrop;
+    r.torso.rotation.x = e.lean;
+    r.head.rotation.x = e.headPitch - e.lean * 0.7;
+    r.thighL.rotation.x = e.thighL;
+    r.thighR.rotation.x = e.thighR;
+    r.shinL.rotation.x = e.shinL;
+    r.shinR.rotation.x = e.shinR;
+    // armed: the gun follows the aim; unarmed: the arms swing against the legs
+    if (r.armL && r.armR) {
+      r.armL.rotation.x = s2 * e.armSwing - e.armsUp;
+      r.armR.rotation.x = s * e.armSwing - e.armsUp;
+      r.arms.rotation.x = 0;
+    } else r.arms.rotation.x = -(e.armsUp + pitch * 0.8) - e.lean * 0.5;
   }
 
   /** knocked by something other than a hit here (the 1v1 opponent going down) */
@@ -573,6 +825,17 @@ export class Dummy {
 
   update(now: number, dt = 0): void {
     if (this.knocked && this.respawns && now >= this.respawnAt) this.reset();
+
+    // crouched or sliding: the hit zones shrink to two thirds (the same blend
+    // at any frame rate: 35% a frame at 60 fps); a rigged figure bends into
+    // it, a merged one is squashed whole
+    const wantCrouch = this.pose.stance === "crouch" || this.pose.stance === "slide" ? 1 : 0;
+    this.crouchAmt += (wantCrouch - this.crouchAmt) * (1 - Math.exp(-26 * dt));
+    const sy = 1 - 0.34 * this.crouchAmt;
+    if (this.rig) {
+      this.hits.scale.y = sy;
+      if (!this.knocked) this.animate(dt);
+    } else this.group.scale.y = sy;
 
     // rising up after a pop-up
     if (this.rise < 1 && !this.knocked) {

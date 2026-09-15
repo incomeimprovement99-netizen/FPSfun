@@ -20,7 +20,7 @@
 // behind real time and interpolated between updates, which hides the jitter
 // of packets arriving unevenly.
 import * as THREE from "three";
-import { Dummy } from "./dummy";
+import { Dummy, stanceCode, stanceFromCode, type FigureStance } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import type { Link, NetMsg, RoundPhase } from "../net/link";
@@ -72,7 +72,11 @@ interface Sample {
   y: number;
   z: number;
   yaw: number;
+  pitch: number;
   crouch: boolean;
+  stance: FigureStance;
+  /** m/s */
+  speed: number;
 }
 
 /** another player as this side sees them */
@@ -124,6 +128,9 @@ export interface LocalState {
   name: string;
   /** in the game (not on the menu) */
   ready: boolean;
+  /** for the figure the others see */
+  stance: FigureStance;
+  speed: number;
 }
 
 /** what a match (against friends or bots) offers the game loop */
@@ -342,7 +349,7 @@ export class Duel implements MatchLike {
     const key = `${weapon}|${op}`;
     let d = r.avatars.get(key);
     if (!d) {
-      d = new Dummy(0, 0, 0, { armed: weapon, respawn: false, skin: operatorById(op) });
+      d = new Dummy(0, 0, 0, { armed: weapon, respawn: false, skin: operatorById(op), rig: true, noBase: true });
       // Its own health is not the truth, the other player's is; a huge pool
       // means its hit() reports full damage and never knocks it by itself.
       // Blue shields like the player's, so hits read in the shield colour.
@@ -432,7 +439,9 @@ export class Duel implements MatchLike {
     r.lastHeard = now;
     switch (m.t) {
       case "s": {
-        r.samples.push({ at: now, x: m.x, y: m.y, z: m.z, yaw: m.yaw, crouch: m.crouch });
+        // an older build sends no stance: its crouch flag stands in
+        const stance = typeof m.st === "number" ? stanceFromCode(m.st) : m.crouch ? "crouch" : "stand";
+        r.samples.push({ at: now, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10 });
         if (r.samples.length > 30) r.samples.shift();
         // Their own numbers lag our hits by a round trip, so a packet can only
         // ever LOWER what we already predicted; a respawn (alive again) resets.
@@ -753,6 +762,8 @@ export class Duel implements MatchLike {
         op: local.operator,
         name: this.myName,
         ready: this.ready,
+        st: stanceCode(local.stance),
+        sp: Math.round(local.speed * 10),
       });
     }
     if (now >= this.pingNext) {
@@ -794,10 +805,11 @@ export class Duel implements MatchLike {
     dy = ((((dy + 180) % 360) + 360) % 360) - 180;
     // the figure faces +z; a player at yaw 0 looks down -z
     if (!r.avatar.knocked) g.rotation.y = (a.yaw + dy * k) * DEG + Math.PI;
-    // crouched or sliding: shorter, and so are its hit zones
-    // (the same blend at any frame rate: 35% a frame at 60 fps)
-    const targetScale = (k < 0.5 ? a.crouch : b.crouch) ? 0.66 : 1;
-    g.scale.y += (targetScale - g.scale.y) * (1 - Math.exp(-26 * dt));
+    // what the figure is doing: its stance and speed drive the animation, and
+    // a crouch or a slide shrinks its hit zones (inside Dummy.update)
+    const near = k < 0.5 ? a : b;
+    r.avatar.setPose({ speed: near.speed, stance: near.stance, pitch: a.pitch + (b.pitch - a.pitch) * k });
+    void dt;
   }
 
   hud(): DuelHud {

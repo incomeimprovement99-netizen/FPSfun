@@ -110,6 +110,8 @@ export interface HudState {
     /** at the end of a match: the numbers for the card */
     summary: { won: boolean; roundsWon: number; roundsLost: number; kills: number; deaths: number; damage: number; shots: number; hits: number; streak: number } | null;
   } | null;
+  /** hosting a match and waiting in the arena: the code, and how many are still to come */
+  lobby?: { code: string; waitingFor: number } | null;
   /** nameplates over the other players and the bots */
   plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean }>;
   /** real shield and health (a 1v1); the bars are decorative without it */
@@ -225,6 +227,7 @@ export class Hud {
     this.drawTechFeed(now, u);
     this.drawPlates(now, camera, s, u);
     this.drawDuel(s, u);
+    this.drawLobby(s, u);
     this.drawFeed(now, u);
     this.drawSummary(s, u);
   }
@@ -369,6 +372,21 @@ export class Hud {
       this.text(d.youWonMatch ? "YOU WIN THE MATCH" : "YOU LOST THE MATCH", cx, this.h * 0.36, 700, 60 * u, d.youWonMatch ? "#ffd23c" : RED, "center");
       this.text(`${d.you} - ${d.them}   rematch in ${Math.ceil(d.left)}`, cx, this.h * 0.36 + 44 * u, 700, 22 * u, WHITE, "center");
     }
+  }
+
+  /** the lobby: the match code under the compass while friends are still to arrive */
+  private drawLobby(s: HudState, u: number): void {
+    const l = s.lobby;
+    if (!l) return;
+    const cx = this.w / 2;
+    const c = this.ctx;
+    const y = s.duel ? 200 * u : 60 * u;
+    c.fillStyle = PANEL;
+    c.fillRect(cx - 190 * u, y, 380 * u, 74 * u);
+    this.text("MATCH CODE", cx, y + 22 * u, 700, 14 * u, DIM, "center");
+    this.text(l.code.split("").join(" "), cx, y + 54 * u, 700, 34 * u, "#ffd23c", "center");
+    const who = l.waitingFor === 1 ? "A FRIEND" : `${l.waitingFor} FRIENDS`;
+    this.text(`WAITING FOR ${who}  ·  THE INVITE LINK IS ON YOUR CLIPBOARD (ESC TO SEE IT)`, cx, y + 92 * u, 600, 13 * u, WHITE, "center");
   }
 
   /** the tech feed, down the left edge under the stats, newest at the bottom */

@@ -28,6 +28,7 @@ async function open(browser: Browser, query: string): Promise<Page> {
   const page = await browser.newPage();
   await page.setViewport({ width: 800, height: 450, deviceScaleFactor: 1 });
   page.on("pageerror", (e) => errors.push(`pageerror: ${String((e as Error).message ?? e)}`));
+  page.on("dialog", (d) => void d.accept());
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(`console: ${m.text()}`);
   });
@@ -39,12 +40,20 @@ async function open(browser: Browser, query: string): Promise<Page> {
 /** evaluate an expression string in the page (tsx mangles function sources) */
 const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
 
+/** back to the menu (Esc), and wait until the game agrees */
+async function toMenu(p: Page): Promise<void> {
+  await ev(p, "window.__range.toMenu()");
+  await p.waitForFunction("!window.__range.input.playing", { polling: 50, timeout: 5000 }).catch(() => undefined);
+}
+
 /**
  * "Click Play" without a pointer lock (a scripted page cannot take one): a
  * fake gamepad's Start, which is the controller's way in. Round 1 waits for
  * every player to be in the game, so every page in a match does this.
  */
 async function pressPlay(page: Page): Promise<void> {
+  // already in (Create and a connect take a page straight in): nothing to press
+  if (await ev<boolean>(page, "window.__range.input.playing")) return;
   await ev(page, `(() => {
     if (!window.__pad) {
       const btn = () => ({ pressed: false, touched: false, value: 0 });
@@ -99,6 +108,12 @@ async function duelTest(browser: Browser, query: string, label: string): Promise
     return false;
   }
   check(`${label}: the host gets a 5-letter code`, /^[A-Z0-9]{5}$/.test(code), code);
+  // the lobby is the arena: the host is in it, with the code on the HUD, before anyone joins
+  const lobby = await ev<{ x: number; z: number; lobby: string | null }>(host, `(() => { const p = window.__range.player.pos; return { x: p.x, z: p.z, lobby: window.__range.lobbyCode() }; })()`);
+  check(`${label}: the host waits in the arena with the code on the HUD`, Math.abs(lobby.x - 90) < 0.5 && Math.abs(lobby.z + 69) < 0.5 && lobby.lobby === code, JSON.stringify(lobby));
+  // Create and a connect take the players straight in (a scripted page gets the
+  // lock too); back to the menu here, so the Play gate below is what is tested
+  await toMenu(host);
   await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
   try {
     await host.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
@@ -111,6 +126,8 @@ async function duelTest(browser: Browser, query: string, label: string): Promise
   }
   check(`${label}: both sides connect`, true);
   check(`${label}: roles`, (await ev<string>(host, "window.__range.duel().role")) === "host" && (await ev<string>(guest, "window.__range.duel().role")) === "guest");
+  await toMenu(guest);
+  await toMenu(host);
 
   // each sees the other at the other's spawn
   await sleep(1500);
@@ -392,7 +409,7 @@ async function main(): Promise<void> {
     await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
     await ev(page, `(() => { const p = window.__range.player; p.pos.set(${X}, 0, 13.5); p.vel.set(0, 0, 0); })()`);
     await page.waitForFunction("window.__range.course.running", { polling: 50, timeout: 5000 }).catch(() => undefined);
-    await pressPlay(page); // Start again: back to the menu
+    await toMenu(page);
     const clock = () => ev<number>(page, "window.__range.courseClock()");
     const c0 = await clock();
     await sleep(1500);
@@ -410,6 +427,22 @@ async function main(): Promise<void> {
     const optics = await ev<number>(page, "window.__range.opticsInScene()");
     check("after swapping back and forth, one optic in the scene", optics === 1, `${optics}`);
 
+    console.log("\nThird person");
+    await ev(page, `document.getElementById("goRange").click()`);
+    await ev(page, "window.__range.setThirdPerson(true)");
+    await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+    const tp = await ev<{ dist: number; fig: boolean; vm: boolean }>(page, `(() => { const p = window.__range.player; const c = window.__range.camera; const e = p.eyePosition(); return { dist: Math.hypot(c.position.x - e.x, c.position.y - e.y, c.position.z - e.z), fig: window.__range.selfFigureVisible(), vm: window.__range.viewModelVisible() }; })()`);
+    check("third person: the camera sits behind the shoulder, your figure shows, the gun in hand does not", tp.dist > 1.8 && tp.dist < 3 && tp.fig && !tp.vm, JSON.stringify(tp));
+    await ev(page, "window.__range.setOrbit(180, 10)");
+    await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+    const orbit = await ev<{ ahead: number }>(page, `(() => { const p = window.__range.player; const c = window.__range.camera; return { ahead: -(c.position.z - p.pos.z) }; })()`);
+    check("the orbit puts the camera in front of your figure", orbit.ahead > 1.5, `${orbit.ahead.toFixed(2)} m ahead`);
+    await ev(page, "window.__range.setOrbit(0, 0, false)");
+    await ev(page, "window.__range.setThirdPerson(false)");
+    await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+    const fp = await ev<{ dist: number; fig: boolean; vm: boolean }>(page, `(() => { const p = window.__range.player; const c = window.__range.camera; const e = p.eyePosition(); return { dist: Math.hypot(c.position.x - e.x, c.position.y - e.y, c.position.z - e.z), fig: window.__range.selfFigureVisible(), vm: window.__range.viewModelVisible() }; })()`);
+    check("back in first person: the camera is at the eye and the gun is back", fp.dist < 0.1 && !fp.fig && fp.vm, JSON.stringify(fp));
+
     console.log("\nThe menu and loadouts");
     const tabs = ["play", "duel", "loadouts", "settings", "controls"];
     for (const t of tabs) {
@@ -426,8 +459,8 @@ async function main(): Promise<void> {
       await sleep(50);
       await ev(page, `document.dispatchEvent(new KeyboardEvent("keydown", { code: "${code}", bubbles: true }))`);
     };
-    await rebind("Jump", "KeyX");
-    check("a key can be rebound", (await keysOf("Jump"))[0] === "X", (await keysOf("Jump")).join(","));
+    await rebind("Jump", "KeyY");
+    check("a key can be rebound", (await keysOf("Jump"))[0] === "Y", (await keysOf("Jump")).join(","));
     await rebind("Jump", "KeyC");
     const crouchKeys = await keysOf("Crouch, slide");
     check("a key taken from another action moves over", (await keysOf("Jump"))[0] === "C" && !crouchKeys.includes("C"), `jump ${(await keysOf("Jump")).join(",")}, crouch ${crouchKeys.join(",")}`);
@@ -448,7 +481,9 @@ async function main(): Promise<void> {
     await ev(page, `(() => { const n = document.getElementById("loadoutName"); n.value = "Test Kit"; n.dispatchEvent(new Event("change")); const s = document.getElementById("slot0"); s.value = "wingman"; s.dispatchEvent(new Event("change")); })()`);
     const w2 = await ev<string[]>(page, "window.__range.loadout.slots.map((s) => s.weapon.id)");
     check("an edited custom loadout applies at once", w2[0] === "wingman", w2.join(","));
-    // reload: the choice and the edit are remembered
+    // reload: the choice and the edit are remembered (a "leave site?" prompt
+    // would hang a reload; the game only asks while playing or in a match)
+    await toMenu(page);
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
     const after = await ev<{ name: string; slot1: string; w: string }>(page, `({ name: window.__range.loadouts.current.name, slot1: window.__range.loadouts.current.slot1, w: window.__range.loadout.slots[0].weapon.id })`);

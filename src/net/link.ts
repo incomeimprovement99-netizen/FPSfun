@@ -43,6 +43,9 @@ export type NetMsg =
       name: string;
       /** in the game (not on the menu): the host waits for everyone before round 1 */
       ready?: boolean;
+      /** stance code (dummy.ts stanceCode) and speed in dm/s, for the figure's animation */
+      st?: number;
+      sp?: number;
     }
   | { t: "zone"; live: boolean; caps: number[]; startsIn: number }
   | { t: "shot"; from?: number; o: [number, number, number]; d: [number, number, number]; w: string }

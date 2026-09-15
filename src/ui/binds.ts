@@ -48,6 +48,13 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
     ],
   },
   {
+    title: "Camera",
+    actions: [
+      ["thirdPerson", "Third person on / off"],
+      ["orbit", "Look round your character (hold)"],
+    ],
+  },
+  {
     title: "The range",
     actions: [
       ["cycleArmor", "Dummy armour"],

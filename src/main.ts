@@ -14,7 +14,7 @@ import { Course } from "./game/course";
 import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset } from "./game/quality";
-import { ProjectileSystem } from "./game/projectile";
+import { ProjectileSystem, solidHit } from "./game/projectile";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, type ArmorTier } from "./game/dummy";
 import { buildRange, skyFollow, RANGE_BOUNDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { placeProps } from "./game/props";
@@ -460,6 +460,36 @@ shakeSel.addEventListener("change", () => {
     /* ignore */
   }
 });
+// The camera: first person, or third person behind the shoulder (X, or the
+// Settings tab). Holding the orbit key turns the camera round your figure to
+// see the skin; letting go eases it back behind you.
+const LS_CAMERA = "range.camera";
+let thirdPerson = false;
+try {
+  thirdPerson = localStorage.getItem(LS_CAMERA) === "third";
+} catch {
+  /* ignore */
+}
+const cameraSel = $<HTMLSelectElement>("cameraMode");
+cameraSel.value = thirdPerson ? "third" : "first";
+function setThirdPerson(on: boolean): void {
+  thirdPerson = on;
+  cameraSel.value = on ? "third" : "first";
+  try {
+    localStorage.setItem(LS_CAMERA, on ? "third" : "first");
+  } catch {
+    /* ignore */
+  }
+}
+cameraSel.addEventListener("change", () => setThirdPerson(cameraSel.value === "third"));
+let orbitYaw = 0;
+let orbitPitch = 0;
+let orbiting = false;
+/** the tests hold the orbit without a key */
+let debugOrbitHold = false;
+/** the third-person aim: where the crosshair is, from the eye (in first person, the view itself) */
+let aimYaw = 0;
+let aimPitch = 0;
 const audio = new GameAudio();
 const hud = new Hud($<HTMLCanvasElement>("hud"));
 /**
@@ -618,6 +648,9 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1): void
   else setDuelStatus(`Connected as player ${myId + 1} of ${players}. First to 3 rounds. <b>Click Play</b> to fight.`, "good");
   duelButtons();
   hud.notice(players >= 3 ? "PLAYER CONNECTED" : "OPPONENT CONNECTED", gameTime, 2);
+  // straight into the arena when the browser still allows it (a Join click a
+  // moment ago counts); otherwise the menu says Click Play
+  if (!input.playing && !calibrating) void input.lock(true);
 }
 /** the offline match against bots */
 function startBots(): void {
@@ -683,6 +716,13 @@ duelHostBtn.addEventListener("click", () => {
     }
   );
   duelButtons();
+  // the lobby is the arena itself: in at once, run around, the code on the
+  // HUD; the match starts when the others arrive and everyone is in
+  goTo("arena");
+  if (!calibrating) {
+    readSettings();
+    void input.lock();
+  }
 });
 duelJoinBtn.addEventListener("click", () => {
   if (duel) return;
@@ -832,6 +872,8 @@ applyLoadout(loadouts.current);
 let armorTier: ArmorTier = 0;
 
 const stats = { shots: 0, hits: 0, headshots: 0, damage: 0, knocks: 0, lastTtk: null as number | null };
+/** figures the debug gallery put in the scene (tools/shot.ts), animated by the loop */
+const galleryFigs: Dummy[] = [];
 
 // ---------- overlay / lock ----------
 $("play").addEventListener("click", () => {
@@ -971,6 +1013,33 @@ const zoomFov43 = (w: ResolvedWeapon): number => w.zoomFov43 + ((w.zoomToggleFov
 const rnd = () => Math.random();
 const tmpDir = new THREE.Vector3();
 const tmpQ = new THREE.Quaternion();
+/** the eye this frame: where shots leave from, and the first-person camera */
+const eye = new THREE.Vector3();
+/** your own figure, drawn in third person; rebuilt when the gun or the operator changes */
+let selfFig: Dummy | null = null;
+let selfFigKey = "";
+function selfFigure(now: number, dt: number, weaponId: string, op: string, show: boolean, knocked: boolean): void {
+  if (!show) {
+    if (selfFig) selfFig.group.visible = false;
+    return;
+  }
+  const key = `${weaponId}|${op}`;
+  if (!selfFig || selfFigKey !== key) {
+    selfFig?.dispose();
+    selfFig = new Dummy(0, 0, 0, { armed: weaponId, respawn: false, skin: operatorById(op), rig: true, noBase: true });
+    selfFig.group.name = "self";
+    scene.add(selfFig.group);
+    selfFigKey = key;
+  }
+  const f = selfFig;
+  f.group.visible = true;
+  f.group.position.copy(player.pos);
+  f.group.rotation.y = player.yaw * DEG + Math.PI;
+  if (knocked) f.fallDown();
+  else if (f.knocked) f.reset();
+  f.setPose({ speed: player.speed, stance: player.stance, pitch: player.pitch });
+  f.update(now, dt);
+}
 
 /**
  * One frame, guarded. A throw inside the frame used to skip the schedule() at
@@ -1133,12 +1202,23 @@ function step(): void {
       hud.notice(on ? (course.hasGhost ? "GHOST ON" : "GHOST ON: finish a run to record one") : "GHOST OFF", now, 1.4);
     }
 
+    // X: the camera; Alt (held, third person): the mouse turns the camera round you
+    if (input.pressedNow("thirdPerson")) {
+      setThirdPerson(!thirdPerson);
+      hud.notice(thirdPerson ? "THIRD PERSON  (hold Alt to look round)" : "FIRST PERSON", now, 1.4);
+    }
+    orbiting = thirdPerson && (input.held("orbit") || debugOrbitHold);
+
     // mouse -> view. adsH is read from the CURRENT weapon object, which the
     // mag-level key above may have just replaced.
     const adsHNow = zoomFov43(loadout.active.weapon) * settings.fovScale;
     const m = input.consumeMouse();
     const adsScale = 1 + (adsSensScale(hipH, adsHNow, settings.ads) - 1) * ws.adsFrac;
-    player.applyMouse(m.dx, m.dy, degPerCount(settings.sens) * adsScale, playerCfg.invertPitch);
+    if (orbiting) {
+      const k = degPerCount(settings.sens);
+      orbitYaw -= m.dx * k;
+      orbitPitch = Math.max(-60, Math.min(70, orbitPitch - m.dy * k));
+    } else player.applyMouse(m.dx, m.dy, degPerCount(settings.sens) * adsScale, playerCfg.invertPitch);
     // the controller's right stick, read this frame in padLook, with aim
     // assist (aimassist.ts) when the pad is what is aiming: its look stick or
     // its move stick in use this frame, so a mouse player never gets it
@@ -1221,6 +1301,50 @@ function step(): void {
   }
   camera.quaternion.copy(player.orientation(off.pitchUp, off.yawLeft));
   if (sprintRoll !== 0) camera.quaternion.multiply(tmpQ.setFromAxisAngle(FORWARD_AXIS, sprintRoll));
+  // the shots leave from the eye whichever camera is on
+  eye.copy(camera.position);
+  aimYaw = player.yaw;
+  aimPitch = player.pitch;
+  const third = thirdPerson && !watch;
+  if (third) {
+    // Behind the right shoulder, looking where you look; orbiting, round the
+    // figure's chest from wherever the orbit angles put it. A wall behind
+    // pulls the camera in. The crosshair is what the camera's centre ray hits,
+    // and the shot goes from the eye to that point, so it lands on the
+    // crosshair rather than parallel to it.
+    if (!orbiting) {
+      const ease = 1 - Math.exp(-10 * dt);
+      orbitYaw -= orbitYaw * ease;
+      orbitPitch -= orbitPitch * ease;
+    }
+    const camQ = player.orientationAt(player.yaw + orbitYaw, Math.max(-80, Math.min(80, player.pitch + orbitPitch)), orbiting ? 0 : off.pitchUp, orbiting ? 0 : off.yawLeft);
+    const fwd = tmpDir.set(0, 0, -1).applyQuaternion(camQ).clone();
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camQ);
+    const back = fwd.clone().negate();
+    const pivot = orbiting ? player.pos.clone().add(new THREE.Vector3(0, player.crouched || player.sliding ? 0.85 : 1.25, 0)) : eye.clone();
+    if (!orbiting) {
+      // over the shoulder, unless a wall is against it
+      const side = Math.min(0.45, Math.max(0, solidHit(pivot, right, 0.45) - 0.1));
+      pivot.addScaledVector(right, side).y += 0.1;
+    }
+    let dist = orbiting ? 3.2 : 2.4 - 0.9 * ws.adsFrac;
+    const wall = solidHit(pivot, back, dist);
+    if (wall < dist) dist = Math.max(0.25, wall - 0.15);
+    camera.position.copy(pivot).addScaledVector(back, dist);
+    camera.quaternion.copy(camQ);
+    // the aim: the eye toward the camera ray's first wall (or 200 m out)
+    const reach = Math.min(200, solidHit(camera.position, fwd, 200));
+    const at = camera.position.clone().addScaledVector(fwd, reach);
+    const d = at.sub(eye);
+    const len = d.length();
+    if (len > 1e-3) {
+      aimYaw = (Math.atan2(-d.x, -d.z) * 180) / Math.PI;
+      aimPitch = (Math.asin(Math.max(-1, Math.min(1, d.y / len))) * 180) / Math.PI;
+    }
+  } else {
+    orbitYaw = 0;
+    orbitPitch = 0;
+  }
   if (watch) {
     // behind and above the figure, looking where it looks (the figure faces +z of its own rotation)
     const f = watch.group;
@@ -1246,10 +1370,10 @@ function step(): void {
   for (const s of shots) {
     // per pellet, as hits are: per trigger pull an EVA-8 read 800% accuracy
     stats.shots += weapon.pellets;
-    const shotQ = player.orientation(s.kick.preSoftPitchUp + hardPitch, s.kick.preSoftYawLeft + hardYaw);
+    const shotQ = player.orientationAt(aimYaw, aimPitch, s.kick.preSoftPitchUp + hardPitch, s.kick.preSoftYawLeft + hardYaw);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(shotQ);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(shotQ);
-    const origin = camera.position.clone();
+    const origin = eye.clone();
     // Shotguns fire several pellets per trigger pull, each with its own
     // deviation. Firing one projectile made an EVA-8 hit for 7 instead of 56.
     for (let p = 0; p < weapon.pellets; p++) {
@@ -1282,7 +1406,7 @@ function step(): void {
     // hard recoil moves the base angles, then the camera is refreshed so this
     // frame renders the post-shot view rather than lagging by a frame
     player.addAngles(hardPitch, hardYaw);
-    camera.quaternion.copy(player.orientation(off.pitchUp, off.yawLeft));
+    if (!third) camera.quaternion.copy(player.orientation(off.pitchUp, off.yawLeft));
   }
 
   const handleImpact = (e: ImpactEvent): void => {
@@ -1349,11 +1473,12 @@ function step(): void {
     meleeHitAt = Infinity;
     // a swing is an attack for the accuracy readout, as a hit with it counts
     stats.shots++;
-    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    projectiles.melee(camera.position, dir, MELEE_RANGE, MELEE_DAMAGE, now, handleImpact);
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(player.orientationAt(aimYaw, aimPitch, 0, 0));
+    projectiles.melee(eye, dir, MELEE_RANGE, MELEE_DAMAGE, now, handleImpact);
   }
 
   for (const d of dummies) d.update(now, dt);
+  for (const d of galleryFigs) d.update(now, dt);
   // the menu stops a run's clock (a minute on the Settings tab was a minute
   // on the time); a test script drives the course without the menu
   if (!duel) {
@@ -1401,6 +1526,9 @@ function step(): void {
     lowered: debugView.lowered ?? lowered,
     onZip: debugView.onZip ?? player.onZip,
   });
+  // in third person the gun in your hands is on your figure instead
+  viewModel.group.visible = !third;
+  selfFigure(now, dt, drawn.id, loadouts.current.operator, third, knockedOut);
 
   duel?.update({
     x: player.pos.x,
@@ -1413,6 +1541,8 @@ function step(): void {
     operator: loadouts.current.operator,
     name: profile.profile.name,
     ready: input.playing,
+    stance: player.stance,
+    speed: player.speed,
   });
   // the arena circles: a column of light once the match's is live
   {
@@ -1489,6 +1619,10 @@ function step(): void {
     holstered: holster !== "out",
     course: duel ? null : (courses.map((c) => c.hud(now)).find((h) => h !== null) ?? null),
     duel: duel ? duel.hud() : null,
+    lobby:
+      hosting && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
+        ? { code: hosting.code, waitingFor: duel ? duel.players - 1 - (duel as Duel).connected : Number(duelPlayers.value) === 3 ? 2 : 1 }
+        : null,
     vitals: duel ? { shield: duel.shield, shieldMax: SHIELD_MAX, health: duel.health, healthMax: HEALTH_MAX } : null,
     plates: duel
       ? duel.avatars
@@ -1500,7 +1634,7 @@ function step(): void {
     speedMs: player.speed,
     speedHu: player.speed / HU,
     prompt,
-    scope: optic && optic.info.overlay
+    scope: optic && optic.info.overlay && !third
       ? { style: optic.info.reticle, color: optic.info.color, amount: Math.max(0, Math.min(1, (aimNow - 0.75) / 0.2)) }
       : null,
   });
@@ -1573,6 +1707,41 @@ initWelcome();
       const d = new Dummy(ARENA_SPAWNS.host.x - 4 + i * 2, ARENA_SPAWNS.host.z + 5, 0, { armed: "rspn101", respawn: false, skin: op });
       d.group.rotation.y = Math.PI;
       scene.add(d.group);
+    });
+  },
+  galleryPositions: () => galleryFigs.map((d) => [d.group.position.x, d.group.position.y, d.group.position.z, d.group.visible]),
+  setThirdPerson,
+  selfFigureVisible: () => selfFig?.group.visible ?? false,
+  viewModelVisible: () => viewModel.group.visible,
+  lobbyCode: () => (hosting && !duel ? hosting.code : null),
+  /** back to the menu, whichever way in was used (tools/e2e.ts) */
+  toMenu: () => {
+    input.padPlaying = false;
+    if (input.locked) input.unlock();
+    else input.onLockChange?.(false);
+  },
+  /** screenshots: hold the orbit at these angles (the input block is off without a pointer lock) */
+  setOrbit: (yaw: number, pitch: number, hold = true) => {
+    orbitYaw = yaw;
+    orbitPitch = pitch;
+    orbiting = hold;
+    debugOrbitHold = hold;
+  },
+  camera,
+  /** screenshots: rigged figures in every stance, armed and unarmed, animated by the frame loop */
+  rigGallery: (speed = 5) => {
+    const stances = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip"] as const;
+    stances.forEach((st, i) => {
+      for (const [row, armed] of [
+        [0, "rspn101"],
+        [1, undefined],
+      ] as const) {
+        const d = new Dummy(ARENA_SPAWNS.host.x - 6 + i * 2, ARENA_SPAWNS.host.z + 5 + row * 2.5, 0, { armed, respawn: false, skin: OPERATORS[i % OPERATORS.length], rig: true, noBase: true });
+        d.group.rotation.y = Math.PI;
+        d.setPose({ speed: st === "stand" || st === "crouch" ? speed : 0, stance: st, pitch: 12 });
+        scene.add(d.group);
+        galleryFigs.push(d);
+      }
     });
   },
   drawCalls: () => renderer.info.render.calls,
