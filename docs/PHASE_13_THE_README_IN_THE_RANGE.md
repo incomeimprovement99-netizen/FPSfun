@@ -96,6 +96,7 @@ Everything found while building it, and what was done.
 | 7 | The e2e punch on a section's name could not reach it: the melee is 1.8 m and the name was 3.5 m from the player once the height was counted. | The test punches the last section, low on the screen. |
 | 8 | With the guns renamed "Not R-301", every replacement contained the name it replaced: a second pass turned "Not Kraber" into "Not Not Kraber", and the scrub's own final check called its own output a leak. | Both the replacement and the check skip a name that already sits behind "Not ". |
 | 9 | The README wraps its prose, so a two-word name can span a line break ("the Charge" at the end of one line, "Rifle's charge" at the start of the next). Neither the scrub nor `beta-check` matched across the break, so a real name would have shipped unrenamed — and unreported. | A space in a name now matches any whitespace in both tools. It found exactly one: the Charge Rifle in the guns section. |
+| 10 | `npm run live` asserted that no weapon name contains "R-301", which the new naming breaks: every deployed build would have failed it. The first run passed only because Pages was still serving the build before the deploy — a stale deployment hiding a real failure. | The check now fails a real name only when it is **not** behind "Not ", and it was re-run against the new build ("Not R-301, Not Wingman"). Worth remembering: `npm run live` straight after `npm run deploy` can still be reading the old site. |
 
 ## Proven
 

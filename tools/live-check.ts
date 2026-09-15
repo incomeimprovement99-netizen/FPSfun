@@ -78,7 +78,9 @@ async function main(): Promise<void> {
     const host = await open(browser);
     check("the page loads and the game starts", true);
     const names = await ev<string[]>(host, "[window.__range.loadout.slots[0].weapon.name, window.__range.loadout.slots[1].weapon.name]");
-    check("weapon names are the public codenames", !/R-301|Wingman|Glock/i.test(names.join(" ")), names.join(", "));
+    // the public build names a gun "Not" its real name (phase 13); a bare real name is the failure
+    const bare = names.filter((n) => !/^Not /.test(n) && /R-301|Wingman|Glock|Kraber|Flatline|Peacekeeper/i.test(n));
+    check('weapon names are the public build\'s ("Not R-301"), never bare', bare.length === 0, names.join(", "));
     const tex = await ev<number>(host, "performance.getEntriesByType('resource').filter((r) => /tex\\/|models\\//.test(r.name)).length");
     check("textures and props were requested from the site", tex > 5, `${tex} asset requests`);
     if (process.env.BROKER === "own") {
