@@ -17,6 +17,7 @@ import { HU, MOVE, jumpVelocityFor, slideBreakEvenAngle, SLIDE_RAMP_ANGLE } from
 import { Abilities, abilityCode, abilityFromCode } from "../src/game/abilities";
 import itemsCfg from "../src/config/items.json";
 import { DamageLog } from "../src/game/recap";
+import { Armor, HEALS, Kit } from "../src/game/kit";
 import audioCfg from "../src/config/audio.json";
 
 let fails = 0;
@@ -1163,6 +1164,42 @@ console.log("Sound (src/config/audio.json)");
   eq("every gun has a sound class", missing.join(",") || "none", "none");
   const bad = Object.values(audioCfg.guns).filter((c) => !(c in audioCfg.classes));
   eq("every class it names exists", bad.join(",") || "none", "none");
+}
+
+console.log("");
+console.log("Heals and armour (src/config/items.json, Season 30)");
+{
+  const k = new Kit();
+  k.fill("kit");
+  eq("the arena kit: 4 cells, 2 batteries, 4 syringes, 2 med kits", `${k.items.cell}/${k.items.battery}/${k.items.syringe}/${k.items.medkit}`, "4/2/4/2");
+  eq("20 shield missing: a cell", k.pick(55, 75, 100, 100), "cell");
+  eq("60 shield missing: a battery", k.pick(15, 75, 100, 100), "battery");
+  eq("shields before health", k.pick(50, 75, 40, 100), "cell");
+  eq("20 health missing, full shield: a syringe", k.pick(75, 75, 80, 100), "syringe");
+  eq("70 health missing: a med kit", k.pick(75, 75, 30, 100), "medkit");
+  k.items.phoenix = 1;
+  eq("both half gone and a phoenix: the phoenix", k.pick(10, 75, 20, 100), "phoenix");
+  eq("full: nothing", k.pick(75, 75, 100, 100), null);
+  eq("a stack holds six cells", k.add("cell", 10), 2);
+  eq("med kits stack two", HEALS.medkit.stack, 2);
+  near("a battery takes 5 s", HEALS.battery.time, 5, 1e-9);
+  near("a med kit takes 8 s", HEALS.medkit.time, 8, 1e-9);
+  near("a phoenix kit takes 10 s", HEALS.phoenix.time, 10, 1e-9);
+  const a = new Armor();
+  a.reset(1);
+  eq("a battle royale starts on a white core", a.shieldMax, 50);
+  eq("449 EVO: still white", a.addEvo(449), null);
+  eq("450: blue", a.addEvo(1), 2);
+  eq("blue holds 75", a.shieldMax, 75);
+  a.addEvo(1250);
+  eq("1,700: purple, 100", a.shieldMax, 100);
+  eq("purple is the top of the core", a.evoFrac, null);
+  a.helmet = "red";
+  eq("the mythic helmet: 125", a.shieldMax, 125);
+  a.reset(1);
+  a.helmet = "gold";
+  eq("the gold helmet: 100 on a white core", a.shieldMax, 100);
+  eq("and doubles the small heals", a.smallHealScale, 2);
 }
 
 console.log("");

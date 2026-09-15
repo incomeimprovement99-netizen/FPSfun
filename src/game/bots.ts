@@ -140,6 +140,7 @@ export class Bot {
       samples: [],
       health: HEALTH_MAX,
       shield: SHIELD_MAX,
+      shieldMax: SHIELD_MAX,
       alive: true,
       ready: true,
       lastHeard: 0,
@@ -446,6 +447,7 @@ export class BotMatch implements MatchLike {
   round = 1;
   health = HEALTH_MAX;
   shield = SHIELD_MAX;
+  shieldMax = SHIELD_MAX;
   alive = true;
   private bots: Bot[] = [];
   private scores: number[];
@@ -562,7 +564,7 @@ export class BotMatch implements MatchLike {
 
   private respawn(): void {
     this.health = HEALTH_MAX;
-    this.shield = SHIELD_MAX;
+    this.shield = this.shieldMax;
     this.alive = true;
     for (const b of this.bots) b.reset();
     this.onRespawn?.();

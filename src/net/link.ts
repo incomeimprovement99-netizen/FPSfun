@@ -46,6 +46,8 @@ export type NetMsg =
       /** stance code (dummy.ts stanceCode) and speed in dm/s, for the figure's animation */
       st?: number;
       sp?: number;
+      /** their armour's size (a battle royale's shield core) */
+      shm?: number;
     }
   | { t: "zone"; live: boolean; caps: number[]; startsIn: number }
   | { t: "shot"; from?: number; o: [number, number, number]; d: [number, number, number]; w: string }

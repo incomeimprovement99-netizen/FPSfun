@@ -133,12 +133,13 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   await ev(ringPage, "window.__range.duel()?.leave()");
   await ringPage.close();
   // a heal: a cell brings the shield up by 25 in 2.5 s, 1.25 s with TRIAGE, and costs one of four
-  await ev(page, "window.__range.player.teleport(0, 0, 500, 0)");
+  await ev(page, "(() => { window.__range.duel().holdFire = true; window.__range.player.teleport(0, 0, 500, 0); })()");
+  await sleep(300);
   await ev(page, "window.__range.startHeal()");
   const shieldBefore = await ev<number>(page, "window.__range.duel().shield");
   await sleep(1700);
-  const healed = await ev<{ shield: number; cells: number }>(page, "({ shield: window.__range.duel().shield, cells: window.__range.kit.cells })");
-  check("a shield cell heals 25 shield and is spent, in half its time with TRIAGE", healed.shield === Math.min(75, shieldBefore + 25) && healed.cells === 3, JSON.stringify({ shieldBefore, ...healed }));
+  const healed = await ev<{ shield: number; cells: number; max: number }>(page, "({ shield: window.__range.duel().shield, cells: window.__range.kit.items.cell, max: window.__range.duel().shieldMax })");
+  check("a shield cell heals 25 shield and is spent, in half its time with TRIAGE", healed.shield === Math.min(healed.max, shieldBefore + 25) && healed.cells === 1, JSON.stringify({ shieldBefore, ...healed }));
   await ev(page, "window.__range.duel().leave()");
   await sleep(300);
   check("leaving ends the battle royale", (await ev<boolean>(page, "window.__range.duel() === null")));

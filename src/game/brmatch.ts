@@ -91,6 +91,8 @@ export class BrMatch extends Duel {
   private ringSendNext = 0;
   private brOver = false;
   readonly poi: Poi;
+  /** the tests: the bots hold their fire (they still move and see) */
+  holdFire = false;
   readonly difficulty: BotDifficulty;
   readonly botCount: number;
 
@@ -513,7 +515,7 @@ export class BrMatch extends Duel {
       const g = nodes[b.goal];
       goal = new THREE.Vector3(g.x, 0, g.z);
     }
-    return { target, targetId, goal, canShoot: this.phase === "fight" };
+    return { target, targetId, goal, canShoot: this.phase === "fight" && !this.holdFire };
   }
 
   // ------------------------------------------------------------ the HUD

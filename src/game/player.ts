@@ -110,6 +110,11 @@ export class Player {
 
   /** 1.15 while holstered; scales walk, sprint, crouch and the slide boost */
   holsterBoost = 1;
+  /**
+   * Healing: you move this much of your speed (Season 30: 40% slower) and
+   * cannot sprint. 1 when not healing.
+   */
+  healSlow = 1;
   /** Apex's default is press (toggle) sprint with a 3 s buffer */
   sprintMode: SprintMode = "toggle";
 
@@ -611,7 +616,7 @@ export class Player {
    * what W plus A or D gives.
    */
   private updateSprint(now: number, input: MoveInput, fwd: number, adsFrac: number, firing: boolean): void {
-    const blocked = this.crouched || this.sliding || adsFrac >= 0.05 || firing;
+    const blocked = this.crouched || this.sliding || adsFrac >= 0.05 || firing || this.healSlow < 1;
     if (this.sprintMode === "hold") {
       this.sprinting = input.held("sprint") && fwd > 0 && !blocked;
       return;
@@ -1336,6 +1341,7 @@ export class Player {
     const hb = this.holsterBoost;
     let target = (this.crouched ? MOVE.crouchSpeed : this.sprinting ? MOVE.sprintSpeed : MOVE.speed) * hb;
     target *= 1 + (adsMoveScale - 1) * adsFrac;
+    target *= this.healSlow;
     // Fall stun slows acceleration while it lasts. How much is not published.
     const stun = now < this.stunUntil ? 1 - this.stunStrength * (1 - MOVE.fallstunAccelScale) : 1;
 

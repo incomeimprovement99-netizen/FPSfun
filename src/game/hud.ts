@@ -117,11 +117,14 @@ export interface HudState {
   mapOpen?: boolean;
   /** a heal in progress: the item, 0..1, and what is left in the kit */
   heal?: { item: string; progress: number } | null;
-  kit?: { cells: number; syringes: number } | null;
+  /** what is left of each heal */
+  kit?: Record<string, number> | null;
+  /** the heal wheel, held open: the items, their counts, the one the mouse points at */
+  healWheel?: { items: Array<{ id: string; name: string; count: number }>; pick: string | null } | null;
   /** nameplates over the other players and the bots */
   plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean }>;
   /** real shield and health (a 1v1); the bars are decorative without it */
-  vitals?: { shield: number; shieldMax: number; health: number; healthMax: number } | null;
+  vitals?: { shield: number; shieldMax: number; health: number; healthMax: number; evo?: number | null; helmet?: string | null } | null;
   /** your ability (abilities.ts): name, key, its cooldown and what is left of it (0: ready); a passive one has no key */
   ability?: { name: string; key: string; cooldown: number; left: number; passive: boolean } | null;
   /** the ability card: the two options with their keys; compact is the one-line form */
@@ -1153,12 +1156,49 @@ export class Hud {
     c.restore();
   }
 
-  /** the heal kit, bottom left over the bars: what is left of the cells and syringes */
+  /** the heal kit, bottom left over the bars: what is left of each */
   private drawKit(s: HudState, u: number): void {
-    if (!s.kit) return;
+    if (!s.kit) {
+      this.drawHealWheel(s, u);
+      return;
+    }
     const x = 34 * u + 350 * u;
     const y = this.h - 52 * u;
-    this.text(`4  CELL ${s.kit.cells}   SYRINGE ${s.kit.syringes}`, x, y, 700, 14 * u, s.kit.cells + s.kit.syringes > 0 ? DIM : "rgba(154,164,173,0.4)");
+    const short: Record<string, string> = { cell: "CELL", battery: "BATT", syringe: "SYR", medkit: "MED", phoenix: "PHX" };
+    const parts = ["cell", "battery", "syringe", "medkit", "phoenix"].filter((k) => (s.kit?.[k] ?? 0) > 0 || k === "cell" || k === "syringe").map((k) => `${short[k]} ${s.kit?.[k] ?? 0}`);
+    const any = Object.values(s.kit).some((n) => n > 0);
+    this.text(`4  ${parts.join("  ")}`, x, y, 700, 13 * u, any ? DIM : "rgba(154,164,173,0.4)");
+    this.drawHealWheel(s, u);
+  }
+
+  /** the heal wheel: the five heals round the crosshair, the one pointed at lit, a count on each */
+  private drawHealWheel(s: HudState, u: number): void {
+    const w = s.healWheel;
+    if (!w) return;
+    const c = this.ctx;
+    const cx = this.w / 2;
+    const cy = this.h / 2;
+    const R = 120 * u;
+    c.fillStyle = "rgba(0,0,0,0.35)";
+    c.beginPath();
+    c.arc(cx, cy, R + 50 * u, 0, Math.PI * 2);
+    c.fill();
+    w.items.forEach((it, i) => {
+      const a = (i / w.items.length) * Math.PI * 2;
+      const x = cx + Math.sin(a) * R;
+      const y = cy - Math.cos(a) * R;
+      const on = w.pick === it.id;
+      c.fillStyle = on ? "rgba(125,220,138,0.35)" : "rgba(8,10,12,0.75)";
+      c.beginPath();
+      c.arc(x, y, 36 * u, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = on ? "#7ddc8a" : "rgba(255,255,255,0.25)";
+      c.lineWidth = 2 * u;
+      c.stroke();
+      this.text(it.name.toUpperCase(), x, y - 2 * u, 700, 12 * u, it.count > 0 ? WHITE : DIM, "center");
+      this.text(`${it.count}`, x, y + 16 * u, 700, 16 * u, it.count > 0 ? (on ? "#7ddc8a" : WHITE) : RED, "center");
+    });
+    this.text("MOVE TO AN ITEM, LET GO TO USE IT", cx, cy + R + 70 * u, 700, 13 * u, DIM, "center");
   }
 
   private drawStats(s: HudState, u: number): void {
@@ -1272,9 +1312,18 @@ export class Hud {
       c.fillStyle = "rgba(0,0,0,0.5)";
       c.fillRect(x0 + i * (segW + gap), yShield, segW, 10 * u);
       const fill = v ? Math.max(0, Math.min(1, (v.shield - i * 25) / 25)) : 1;
-      c.fillStyle = v ? "#3b8bff" : SHIELD;
+      // the shield's colour is its tier: white 50, blue 75, purple 100, red 125
+      c.fillStyle = v ? (v.shieldMax >= 125 ? "#ff3b3b" : v.shieldMax >= 100 ? SHIELD : v.shieldMax >= 75 ? "#3b8bff" : "#e8e8e8") : SHIELD;
       c.fillRect(x0 + i * (segW + gap), yShield, segW * fill, 10 * u);
     }
+    // EVO: how far the shield core is to its next level, a thin bar under the shield
+    if (v && v.evo !== null && v.evo !== undefined) {
+      c.fillStyle = "rgba(0,0,0,0.45)";
+      c.fillRect(x0, yShield + 11 * u, barW, 2 * u);
+      c.fillStyle = "#e8e8e8";
+      c.fillRect(x0, yShield + 11 * u, barW * v.evo, 2 * u);
+    }
+    if (v?.helmet) this.text(v.helmet === "red" ? "MYTHIC HELMET" : "GOLD HELMET", x0 + barW + 10 * u, yShield + 9 * u, 700, 11 * u, v.helmet === "red" ? RED : "#ffd23c");
     const hp = v ? Math.max(0, v.health / v.healthMax) : 1;
     c.fillStyle = "rgba(0,0,0,0.5)";
     c.fillRect(x0, yHealth, barW, 12 * u);

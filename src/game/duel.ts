@@ -93,6 +93,8 @@ export interface Remote {
   samples: Sample[];
   health: number;
   shield: number;
+  /** their armour's size (a battle royale's shield core), from their state packets */
+  shieldMax: number;
   alive: boolean;
   /** off the menu, in the game */
   ready: boolean;
@@ -146,6 +148,8 @@ export interface MatchLike {
   round: number;
   health: number;
   shield: number;
+  /** this player's armour size: 75 (blue) in the arena, the shield core's in a battle royale */
+  shieldMax: number;
   alive: boolean;
   readonly canFire: boolean;
   readonly spawn: Spawn;
@@ -209,6 +213,7 @@ export class Duel implements MatchLike {
   // this player
   health = HEALTH_MAX;
   shield = SHIELD_MAX;
+  shieldMax = SHIELD_MAX;
   alive = true;
   protected myName = "";
   /** this player is in the game, not on the menu (round 1 waits for everyone) */
@@ -400,6 +405,7 @@ export class Duel implements MatchLike {
       samples: [],
       health: HEALTH_MAX,
       shield: SHIELD_MAX,
+      shieldMax: SHIELD_MAX,
       alive: true,
       ready: false,
       lastHeard: wallClock(),
@@ -538,6 +544,7 @@ export class Duel implements MatchLike {
           if (name) r.name = name;
         }
         if (typeof m.ready === "boolean") r.ready = m.ready;
+        if (typeof m.shm === "number" && Number.isFinite(m.shm) && m.shm >= 0 && m.shm <= 200) r.shieldMax = m.shm;
         this.setAvatarLook(r, m.w, m.op);
         if (!m.alive && r.alive) r.avatar.fallDown();
         r.alive = m.alive;
@@ -696,7 +703,7 @@ export class Duel implements MatchLike {
 
   protected respawn(): void {
     this.health = HEALTH_MAX;
-    this.shield = SHIELD_MAX;
+    this.shield = this.shieldMax;
     this.alive = true;
     // every figure stands back up here, not on the next state packet: the
     // round message beats that packet, so the alive transition was never seen
@@ -704,7 +711,7 @@ export class Duel implements MatchLike {
     for (const r of this.remotes.values()) {
       r.alive = true;
       r.health = HEALTH_MAX;
-      r.shield = SHIELD_MAX;
+      r.shield = r.shieldMax;
       r.avatar.reset();
       r.avatar.health = 1e9;
     }
@@ -862,6 +869,7 @@ export class Duel implements MatchLike {
         ready: this.ready,
         st: stanceCode(local.stance),
         sp: Math.round(local.speed * 10),
+        shm: this.shieldMax,
       });
     }
     if (now >= this.pingNext) {

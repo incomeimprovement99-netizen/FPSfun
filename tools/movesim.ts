@@ -1596,6 +1596,18 @@ console.log("\nJOLT, the dash ability (src/config/abilities.json: 10 m over 0.18
   near("sprint is still 260 hu/s", s.speedHu, 260, 0.05);
 }
 
+// ------------------------------------------------------------------ healing pace
+console.log("\nHealing: 40% slower, no sprint (Season 30, docs/RESEARCH_PHASE_11.md)");
+{
+  const h = new Sim();
+  h.p.healSlow = 0.6;
+  h.in.hold("forward");
+  h.in.tap("sprint");
+  h.run(2);
+  near("healing: walk at 60% (173.5 x 0.6), hu/s", h.speedHu, 104.1, 0.1);
+  check("and no sprint", !h.p.sprinting);
+}
+
 console.log(fails === 0 ? "\nMOVESIM PASS" : `\nMOVESIM FAIL (${fails})`);
 export const movesimFails = fails;
 if (process.argv[1]?.endsWith("movesim.ts")) process.exit(fails === 0 ? 0 : 1);

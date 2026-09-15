@@ -189,3 +189,20 @@ Striker 9 is) with Season 30's numbers.
 - Tests: movesim (the trainer scores a superglide one frame apart, calls a 3-frame crouch a miss with the
   reason, the cue opens in the window), e2e (strafing dummies move, shoot back hurts, the wall takes a burst,
   per-gun numbers, the drill's countdown, placement and finish), snap (the wall, the drill).
+
+## Milestone 18 — Every heal, healing as Apex does it, shield cores and helmets ✅
+2026-09-15 (Phase 11H). `src/game/kit.ts`, `src/config/items.json` (Season 30 numbers).
+- **Five heals**: shield cell 25 in 2.5 s, syringe 25 in 4 s, shield battery full in 5 s, med kit full in 8 s,
+  phoenix kit both full in 10 s; stacks 6 / 6 / 2 / 2 / 1.
+- **Healing as Apex does it**: you walk 40% slower and cannot sprint while healing; sprinting, firing,
+  aiming or a swap cancels it; the item is spent only when it finishes.
+- **The heal key**: a tap is the quick heal (shields first: a battery for 50 or more missing, else a cell;
+  then health the same way; a phoenix when both are half gone); holding it opens a wheel of all five with
+  their counts, the mouse points, letting go uses it.
+- **Shield cores**: a battle royale starts on a white 50 core that levels with EVO (the damage you deal) to
+  blue 75 at 450 and purple 100 at 1,700, refilling on the level-up (ours), with an EVO bar under the shield;
+  the arena and the bots stay on blue 75. Helmets cut no headshot damage since Season 24: the gold one sets
+  armour to 100 and doubles the small heals, the mythic one 125 (the loot comes with the next milestone).
+- **On the wire**: each player's shield size goes in the state packet, so plates and shield colours are right.
+- Tests: verify (the quick heal's choices, stacks, times, the EVO thresholds, the helmets), movesim (60% pace,
+  no sprint while healing), e2e (the BR's white core and a cell to its cap).

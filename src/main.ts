@@ -58,6 +58,7 @@ import { SuperglideTrainer } from "./game/trainer";
 import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
 import itemsCfg from "./config/items.json";
+import { Armor, HEAL_ORDER, HEALS, Kit, type HealItem } from "./game/kit";
 
 const DEG = Math.PI / 180;
 /** slot 1 and slot 2. Keys 1 and 2 select, Q swaps. */
@@ -599,8 +600,7 @@ rangeCombat.onHurt = (amount) => {
 };
 rangeCombat.onDown = () => hud.notice("DOWN: BACK UP IN 2 S", gameTime, 2);
 rangeCombat.onUp = () => {
-  kit.cells = itemsCfg.kit.cell;
-  kit.syringes = itemsCfg.kit.syringe;
+  kit.fill("kit");
   hud.notice("BACK UP", gameTime, 1);
 };
 const sprayWall = new SprayWall(scene);
@@ -884,9 +884,15 @@ function respawnForMatch(d: MatchLike): void {
   loadout.ammo.kit(loadout.slots.map((sl) => sl.weapon));
   loadout.refillEnergy();
   holster = "out";
-  kit.cells = itemsCfg.kit.cell;
-  kit.syringes = itemsCfg.kit.syringe;
+  // the arena and the bots: the fixed kit and blue shields; a battle royale:
+  // its start kit and a white shield core that levels with EVO
+  const br = d instanceof BrMatch;
+  kit.fill(br ? "brStart" : "kit");
+  armor.reset(br ? 1 : 2);
+  d.shieldMax = armor.shieldMax;
+  d.shield = d.shieldMax;
   heal = null;
+  player.healSlow = 1;
 }
 
 // ---------- healing ----------
@@ -895,35 +901,52 @@ function respawnForMatch(d: MatchLike): void {
 // the config; the heal key takes a cell while the shield is down, else a
 // syringe. Firing or aiming cancels it; the item is only spent when it
 // finishes. TRIAGE halves every time.
-type HealItem = keyof typeof itemsCfg.heals;
-const HEAL_ITEMS = itemsCfg.heals;
-const kit = { cells: itemsCfg.kit.cell, syringes: itemsCfg.kit.syringe };
+const HEAL_ITEMS = HEALS;
+/** your heals (kit.ts) and your armour: the shield core, its EVO, a helmet */
+const kit = new Kit();
+kit.fill("kit");
+const armor = new Armor();
 let heal: { item: HealItem; startedAt: number; duration: number } | null = null;
-function startHeal(now: number): void {
+/** the shield the heals and the HUD work to: the match's, else the range's */
+const shieldCap = (): number => duel?.shieldMax ?? SHIELD_MAX;
+/** a heal: the quick heal's pick (kit.ts), or the one the wheel chose */
+function startHeal(now: number, want: HealItem | null = null): void {
   const v = vitalsTarget();
   if (!v || !v.alive || heal) return;
-  const item: HealItem | null =
-    v.shield < SHIELD_MAX && kit.cells > 0 ? "cell" : v.health < HEALTH_MAX && kit.syringes > 0 ? "syringe" : null;
+  const item = want && kit.items[want] > 0 ? want : want ? null : kit.pick(v.shield, shieldCap(), v.health, HEALTH_MAX);
   if (!item) {
-    hud.notice(kit.cells + kit.syringes === 0 ? "NO HEALS LEFT" : v.shield >= SHIELD_MAX && v.health >= HEALTH_MAX ? "FULL" : kit.cells === 0 ? "NO CELLS LEFT" : "NO SYRINGES LEFT", now, 1);
+    hud.notice(want ? `NO ${HEAL_ITEMS[want].name.toUpperCase()}` : kit.whyNot(v.shield, shieldCap(), v.health, HEALTH_MAX), now, 1);
     return;
   }
   heal = { item, startedAt: now, duration: HEAL_ITEMS[item].time / abilities.healScale };
+  // walking pace, no sprint, while it runs
+  player.healSlow = itemsCfg.healSlow;
 }
+/** the heal wheel: hold the heal key, move the mouse toward an item, let go */
+let healHeldAt = -1;
+let wheelOpen = false;
+const wheelVec = { x: 0, y: 0 };
+let wheelPick: HealItem | null = null;
 /** the heal in progress: cancelled by firing or aiming, applied when its time is up */
 function updateHeal(now: number, cancel: boolean): void {
   const v = vitalsTarget();
-  if (!heal || !v) return;
+  if (!heal || !v) {
+    player.healSlow = 1;
+    return;
+  }
   if (cancel || !v.alive) {
     heal = null;
+    player.healSlow = 1;
     return;
   }
   const it = HEAL_ITEMS[heal.item];
   if (now - heal.startedAt < heal.duration) return;
-  v.shield = Math.min(SHIELD_MAX, v.shield + it.shield);
-  v.health = Math.min(HEALTH_MAX, v.health + it.health);
-  if (heal.item === "cell") kit.cells--;
-  else kit.syringes--;
+  // the gold helmet doubles what the small heals give
+  const small = heal.item === "cell" || heal.item === "syringe" ? armor.smallHealScale : 1;
+  v.shield = Math.min(shieldCap(), v.shield + it.shield * small);
+  v.health = Math.min(HEALTH_MAX, v.health + it.health * small);
+  kit.items[heal.item]--;
+  player.healSlow = 1;
   audio.healDone();
   // the others' recaps say you healed
   duel?.localFx("heal", undefined, undefined, HEAL_CODES.indexOf(heal.item));
@@ -1723,8 +1746,20 @@ function step(): void {
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
     }
-    // 4: a heal; M: the map
-    if (input.pressedNow("heal")) startHeal(now);
+    // 4: a tap is the quick heal, a hold opens the wheel (move the mouse to an item, let go)
+    if (input.pressedNow("heal")) {
+      healHeldAt = now;
+      wheelVec.x = wheelVec.y = 0;
+      wheelPick = null;
+    }
+    if (healHeldAt >= 0 && input.held("heal") && !wheelOpen && now - healHeldAt >= 0.25 && vitalsTarget()) wheelOpen = true;
+    if (healHeldAt >= 0 && !input.held("heal")) {
+      if (wheelOpen) {
+        if (wheelPick) startHeal(now, wheelPick);
+      } else startHeal(now);
+      wheelOpen = false;
+      healHeldAt = -1;
+    }
     if (input.pressedNow("map")) mapOpen = !mapOpen;
     // 5 and 6 pick an ability while its card is up (any time in the range);
     // on a controller the d-pad's left and right pick while the card is up
@@ -1754,6 +1789,17 @@ function step(): void {
     const adsHNow = zoomFov43(loadout.active.weapon) * settings.fovScale;
     const m = input.consumeMouse();
     const adsScale = 1 + (adsSensScale(hipH, adsHNow, settings.ads) - 1) * ws.adsFrac;
+    if (wheelOpen) {
+      // the wheel: five items round the circle, the mouse's direction picks
+      wheelVec.x = Math.max(-200, Math.min(200, wheelVec.x + m.dx));
+      wheelVec.y = Math.max(-200, Math.min(200, wheelVec.y + m.dy));
+      if (Math.hypot(wheelVec.x, wheelVec.y) > 40) {
+        const a = (Math.atan2(wheelVec.x, -wheelVec.y) + Math.PI * 2) % (Math.PI * 2);
+        wheelPick = HEAL_ORDER[Math.round(a / ((Math.PI * 2) / HEAL_ORDER.length)) % HEAL_ORDER.length];
+      }
+      m.dx = 0;
+      m.dy = 0;
+    }
     if (orbiting) {
       const k = degPerCount(settings.sens);
       orbitYaw -= m.dx * k;
@@ -1831,7 +1877,7 @@ function step(): void {
     audio.overheat();
     hud.notice("OVERHEATED", now, 0.8);
   }
-  updateHeal(now, trigger || adsHeld || knockedOut);
+  updateHeal(now, trigger || adsHeld || knockedOut || (input.playing && input.pressedNow("sprint")) || loadout.swapping);
 
   // camera from angles + soft recoil
   const off = ws.kick.offset();
@@ -2006,7 +2052,19 @@ function step(): void {
       const r = e.report;
       const wasAlive = remote.health > 0;
       const onShield = remote.shield > 0;
-      if (duel.phase === "fight" && remote.alive) dlog.hit({ t: realNow(), from: duel.id, to: remote.id, amount: r.amount, head: r.headshot, weapon: e.weapon, dist: e.distance });
+      if (duel.phase === "fight" && remote.alive) {
+        dlog.hit({ t: realNow(), from: duel.id, to: remote.id, amount: r.amount, head: r.headshot, weapon: e.weapon, dist: e.distance });
+        // a battle royale's shield core levels with the damage you deal
+        if (duel instanceof BrMatch) {
+          const up = armor.addEvo(r.amount);
+          if (up !== null) {
+            duel.shieldMax = armor.shieldMax;
+            duel.shield = duel.shieldMax;
+            hud.notice(`SHIELD UP: ${["", "WHITE", "BLUE", "PURPLE"][up]} ${armor.shieldMax}`, now, 1.6);
+            audio.stinger("won");
+          }
+        }
+      }
       duel.localHit(remote, r.amount, r.headshot, e.weapon, e.distance);
       stats.hits++;
       stats.damage += r.amount;
@@ -2285,12 +2343,13 @@ function step(): void {
     // the drop shows the map by itself; M opens it any other time
     mapOpen: mapOpen || !!duelHud?.br?.dropping,
     heal: heal && vitalsTarget() ? { item: HEAL_ITEMS[heal.item].name, progress: Math.min(1, (now - heal.startedAt) / heal.duration) } : null,
-    kit: (duel && duel.alive) || (!duel && rangeCombat.on && rangeCombat.alive) ? kit : null,
+    kit: (duel && duel.alive) || (!duel && rangeCombat.on && rangeCombat.alive) ? { ...kit.items } : null,
+    healWheel: wheelOpen ? { items: HEAL_ORDER.map((k) => ({ id: k, name: HEAL_ITEMS[k].name, count: kit.items[k] })), pick: wheelPick } : null,
     lobby:
       hosting && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
         ? { code: hosting.code, waitingFor: duel ? duel.players - 1 - (duel as Duel).connected : Number(duelPlayers.value) === 3 ? 2 : 1 }
         : null,
-    vitals: duel ? { shield: duel.shield, shieldMax: SHIELD_MAX, health: duel.health, healthMax: HEALTH_MAX } : rangeCombat.on ? { shield: rangeCombat.shield, shieldMax: rangeCombat.shieldMax, health: rangeCombat.health, healthMax: HEALTH_MAX } : null,
+    vitals: duel ? { shield: duel.shield, shieldMax: duel.shieldMax, health: duel.health, healthMax: HEALTH_MAX, evo: duel instanceof BrMatch ? armor.evoFrac : null, helmet: armor.helmet } : rangeCombat.on ? { shield: rangeCombat.shield, shieldMax: rangeCombat.shieldMax, health: rangeCombat.health, healthMax: HEALTH_MAX } : null,
     drill: duel ? null : drill.hud(now),
     trainer: trainer.hud(now),
     mantleCue: trainer.cue && mantleCueOn,
@@ -2313,7 +2372,7 @@ function step(): void {
       ? duel.avatars
           .map((a) => ({ a, r: duel!.remoteOf(a) }))
           .filter((x) => x.r !== null && x.a.group.visible)
-          .map((x) => ({ world: new THREE.Vector3(x.a.group.position.x, x.a.group.position.y + 2.05, x.a.group.position.z), name: x.r!.name, health: x.r!.health, shield: x.r!.shield, shieldMax: SHIELD_MAX, alive: x.r!.alive }))
+          .map((x) => ({ world: new THREE.Vector3(x.a.group.position.x, x.a.group.position.y + 2.05, x.a.group.position.z), name: x.r!.name, health: x.r!.health, shield: x.r!.shield, shieldMax: x.r!.shieldMax, alive: x.r!.alive }))
       : undefined,
     stance: player.stance,
     speedMs: player.speed,
@@ -2434,6 +2493,7 @@ initWelcome();
   gunSession: () => [...gunSession.entries()],
   startHeal: () => startHeal(gameTime),
   kit,
+  armor,
   brMap,
   renderer,
   sun: getSun,
