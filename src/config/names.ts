@@ -43,19 +43,22 @@ const CODENAMES: Record<string, string> = {
   bocek: "Compound Bow",
 };
 
-/** hop-ups: the game's names while private, generic ones on a public build */
-const HOPUP_NAMES: Record<string, [string, string]> = {
-  hopup_turbocharger: ["Turbocharger", "spin-up kit"],
-  hopup_headshot_dmg: ["Skullpiercer", "head rounds"],
-  hopup_unshielded_dmg: ["Hammerpoint", "hollow points"],
-  hopup_shield_breaker: ["Disruptor", "shield rounds"],
-  hopup_energy_choke: ["Precision choke", "choke"],
-  altfire_double_tap: ["Double tap", "double shot"],
-  selectfire: ["Selectfire", "mode switch"],
+/**
+ * hop-ups: the game's names while private, generic ones on a public build.
+ * Each is its own ternary on the build flag, so the minifier drops the name
+ * the build does not use (a table of both shipped both).
+ */
+const HOPUP_NAMES: Record<string, string> = {
+  hopup_turbocharger: PUBLIC_BUILD ? "spin-up kit" : "Turbocharger",
+  hopup_headshot_dmg: PUBLIC_BUILD ? "head rounds" : "Skullpiercer",
+  hopup_unshielded_dmg: PUBLIC_BUILD ? "hollow points" : "Hammerpoint",
+  hopup_shield_breaker: PUBLIC_BUILD ? "shield rounds" : "Disruptor",
+  hopup_energy_choke: PUBLIC_BUILD ? "choke" : "Precision choke",
+  altfire_double_tap: PUBLIC_BUILD ? "double shot" : "Double tap",
+  selectfire: PUBLIC_BUILD ? "mode switch" : "Selectfire",
 };
 export function hopupName(mod: string): string {
-  const n = HOPUP_NAMES[mod];
-  return n ? (NAME_MODE === "real" ? n[0] : n[1]) : mod;
+  return HOPUP_NAMES[mod] ?? mod;
 }
 
 /** optic labels, by attachment mod name */
