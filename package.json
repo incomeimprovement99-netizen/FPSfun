@@ -26,6 +26,7 @@
     "measure": "tsx tools/measure.ts",
     "deploy": "tsx tools/deploy-pages.ts",
     "deploy:server": "tsx tools/deploy-server.ts",
+    "fps": "tsx tools/deploy-server.ts",
     "server": "node server/game/serve.mjs",
     "live": "tsx tools/live-check.ts",
     "snap": "tsx tools/snap.ts",

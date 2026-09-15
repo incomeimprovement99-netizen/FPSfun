@@ -8,7 +8,10 @@
 #   bash setup.sh <hostname>        e.g. bash setup.sh fpsfun.duckdns.org
 #
 # What it does:
-#   1. Node 22 and pm2, if missing.
+#   0. On a fresh box: waits out the first-boot updates (apt's lock), and on a
+#      small one (the 1 GB Micro) adds 2 GB of swap.
+#   1. Node 22 and pm2, if missing; pm2 started at boot, so a reboot (Oracle's
+#      maintenance, say) brings the game back by itself.
 #   2. coturn, the TURN relay, on 3478 (UDP and TCP) with relay ports
 #      49160-49200, shared-secret auth, and NO relaying into the box or any
 #      private network (so the relay can never be used to reach the other apps
@@ -35,6 +38,22 @@ mkdir -p "$RANGE_DIR"
 
 say() { printf '\n== %s\n' "$*"; }
 
+say "0. A fresh box: first-boot updates, swap"
+# a new VM runs its own apt updates for the first few minutes; wait for them,
+# and have every apt call below (NodeSource's included) wait on the lock too
+if command -v cloud-init >/dev/null; then sudo cloud-init status --wait >/dev/null 2>&1 || true; fi
+echo 'DPkg::Lock::Timeout "600";' | sudo tee /etc/apt/apt.conf.d/90range-lock-wait >/dev/null
+MEM_KB="$(awk '/^MemTotal/ {print $2}' /proc/meminfo)"
+if [[ "$MEM_KB" -lt 2000000 ]] && [[ -z "$(swapon --show --noheadings)" ]]; then
+  [[ -f /swapfile ]] || sudo fallocate -l 2G /swapfile
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile >/dev/null
+  sudo swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
+  echo "added 2 GB of swap (this box has $((MEM_KB / 1024)) MB of memory)"
+fi
+free -m | head -2
+
 say "1. Node and pm2"
 if ! command -v node >/dev/null || [[ "$(node -p 'process.versions.node.split(".")[0]')" -lt 20 ]]; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
@@ -43,6 +62,11 @@ fi
 node --version
 if ! command -v pm2 >/dev/null; then sudo npm install -g pm2; fi
 pm2 --version
+# pm2 resurrects what the deploy saved (pm2 save) when the box boots
+if ! systemctl is-enabled "pm2-$USER" >/dev/null 2>&1; then
+  sudo env PATH="$PATH" "$(command -v pm2)" startup systemd -u "$USER" --hp "$HOME" >/dev/null
+  echo "pm2 starts at boot (pm2-$USER)"
+fi
 
 say "2. coturn (the TURN relay)"
 FRESH_COTURN=0
@@ -150,12 +174,20 @@ if ! command -v caddy >/dev/null; then
   sudo apt-get install -y caddy
 fi
 CADDYFILE=/etc/caddy/Caddyfile
+# the package's own Caddyfile is one ":80" block serving its welcome page;
+# on a box of its own the game replaces it rather than sitting under it
+STOCK_CADDY=":80{root*/usr/share/caddyfile_server}"
 if sudo grep -qF "$DOMAIN {" "$CADDYFILE" 2>/dev/null; then
   echo "Caddyfile already has $DOMAIN"
 else
   BACKUP="$CADDYFILE.bak-range-$(date +%Y%m%d%H%M%S)"
   sudo cp "$CADDYFILE" "$BACKUP" 2>/dev/null || sudo touch "$BACKUP"
-  sudo tee -a "$CADDYFILE" >/dev/null <<EOF
+  TEE_MODE=-a
+  if [[ "$(sudo grep -Ev '^[[:space:]]*(#|$)' "$CADDYFILE" 2>/dev/null | tr -d '[:space:]')" == "$STOCK_CADDY" ]]; then
+    TEE_MODE=
+    echo "replacing the package's welcome-page Caddyfile"
+  fi
+  sudo tee $TEE_MODE "$CADDYFILE" >/dev/null <<EOF
 
 # the game (apex-range server/game/setup.sh)
 $DOMAIN {
@@ -170,12 +202,11 @@ EOF
   fi
   echo "added; backup at $BACKUP"
 fi
-sudo systemctl reload caddy
+sudo systemctl reload-or-restart caddy
 
 say "Done on the box"
 cat <<EOF
-Still to do by hand (docs/SERVER_GUIDE.md):
+By hand, if not done yet (docs/SERVER_GUIDE.md):
   - DuckDNS: $DOMAIN -> $PUBLIC_IP
-  - Oracle security list ingress: UDP 3478, TCP 3478, UDP $RELAY_MIN-$RELAY_MAX (and TCP 80, 443 if not already)
-Then from the PC: npm run deploy:server
+  - Oracle security list ingress: TCP 80, TCP 443, TCP 3478, UDP 3478, UDP $RELAY_MIN-$RELAY_MAX
 EOF

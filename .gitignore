@@ -4,8 +4,11 @@ dist
 *.log
 # the server's ssh target and key path (tools/deploy-server.ts)
 .env.server
-# the online boards a local run of server/game/serve.mjs keeps
+# the online boards and accounts a local run of server/game/serve.mjs keeps,
+# and the live server's copies `npm run fps backup` brings down (hashed passwords)
 server/game/boards.json*
+server/game/accounts.json*
+server-backup/
 
 # CC0 downloads (npm run assets, npm run models): fetched, not kept in git
 public/tex/*

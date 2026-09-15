@@ -3,25 +3,37 @@
 // over ssh, install, swap it in, reload pm2, check /health, then play a 1v1 on
 // the live URL through the site's own broker.
 //
-//   npm run deploy:server                  build, ship, check
-//   npm run deploy:server -- dry           build and pack, then unpack and run the
-//                                          release here on :4101 and play a 1v1 on
-//                                          it (everything but the ssh)
-//   npm run deploy:server -- setup         one-time box setup (server/game/setup.sh)
-//   npm run deploy:server -- health        /health, pm2, coturn and caddy on the box
-//   npm run deploy:server -- logs          the last 60 lines of the server's log
-//   npm run deploy:server -- rollback      swap the previous release back in
+// `npm run fps <verb>` is the same tool (like Algonomics' `npm run prod`); on
+// its own it is `health`, while `npm run deploy:server` on its own ships.
+//
+//   npm run fps deploy          build, ship, check            (writes: a new release)
+//   npm run fps dry             build and pack, then unpack and run the release here
+//                               on :4101 and play a 1v1 on it (everything but the ssh)
+//   npm run fps check           from this PC: DNS, ssh, every firewall rule, /health
+//                               and a real datagram through the relay (read-only)
+//   npm run fps health          /health, pm2, coturn, caddy, memory, disk (read-only)
+//   npm run fps logs            the last 60 lines of the server's log (read-only)
+//   npm run fps backup          the boards and accounts down to server-backup/ (read-only)
+//   npm run fps ssh             a shell on the box
+//   npm run fps setup           one-time box setup (server/game/setup.sh; safe to rerun)
+//   npm run fps restart         restart the game server, rereading range.env
+//   npm run fps rollback        swap the previous release back in
+//   npm run fps dns             point the DuckDNS name at RANGE_HOST (needs DUCKDNS_TOKEN)
+//   npm run fps run "<cmd>"     any shell command on the box, in ~/range
 //
 // Settings, in the environment or a `.env.server` file at the repo root
 // (KEY=VALUE lines, not in git):
-//   RANGE_HOST    ssh target, e.g. ubuntu@1.2.3.4
-//   RANGE_KEY     path to the ssh private key (optional if ssh already knows it)
-//   RANGE_DOMAIN  the game's hostname, e.g. fpsfun.duckdns.org
-import { execFileSync, execSync, spawn } from "node:child_process";
+//   RANGE_HOST     ssh target, e.g. ubuntu@1.2.3.4
+//   RANGE_KEY      path to the ssh private key (optional if ssh already knows it)
+//   RANGE_DOMAIN   the game's hostname, e.g. fpsfun.duckdns.org
+//   DUCKDNS_TOKEN  optional, for `dns`: the token at the top of duckdns.org
+import { execFileSync, execSync, spawn, spawnSync } from "node:child_process";
+import { lookup } from "node:dns/promises";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stunBinding, tcpProbe, turnRelay } from "./net-probe";
 
 const ROOT = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 /** this PC's tar: Windows' own bsdtar by its full path (from Git Bash the PATH finds GNU tar first, which reads "C:\..." as a remote host) */
@@ -37,13 +49,38 @@ const HOST = process.env.RANGE_HOST ?? "";
 const KEY = process.env.RANGE_KEY ?? "";
 const DOMAIN = process.env.RANGE_DOMAIN ?? "";
 const sshArgs = [...(KEY ? ["-i", KEY] : []), "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=15"];
+/** the box's address, from RANGE_HOST (user@ip) */
+const IP = HOST.replace(/^.*@/, "");
+let keyChecked = false;
 const needHost = () => {
-  if (HOST) return;
-  console.error("Set RANGE_HOST (e.g. ubuntu@1.2.3.4), and RANGE_KEY / RANGE_DOMAIN, in .env.server or the environment. See docs/SERVER_GUIDE.md.");
-  process.exit(1);
+  if (!HOST) {
+    console.error("Set RANGE_HOST (e.g. ubuntu@1.2.3.4), and RANGE_KEY / RANGE_DOMAIN, in .env.server or the environment. See docs/SERVER_GUIDE.md.");
+    process.exit(1);
+  }
+  if (!keyChecked) {
+    keyChecked = true;
+    tightenKey();
+  }
 };
-const ssh = (cmd: string) => (needHost(), execFileSync("ssh", [...sshArgs, HOST, cmd], { stdio: "inherit" }));
-const scp = (from: string, to: string) => (needHost(), execFileSync("scp", [...sshArgs, from, `${HOST}:${to}`], { stdio: "inherit" }));
+/** Windows' ssh refuses a key other users can read ("UNPROTECTED PRIVATE KEY FILE"); a fresh download can be one */
+function tightenKey(): void {
+  if (process.platform !== "win32" || !KEY || !existsSync(KEY)) return;
+  const acl = execFileSync("icacls", [KEY], { encoding: "utf8" });
+  if (!/Everyone|Authenticated Users|BUILTIN\\Users/i.test(acl)) return;
+  execFileSync("icacls", [KEY, "/inheritance:r", "/grant:r", `${process.env.USERNAME}:R`], { stdio: "ignore" });
+  console.log(`(the key file was readable by other users, which ssh refuses; it is now yours only)`);
+}
+/** Windows' own OpenSSH by its full path, for the same reason as TAR (Git Bash's scp reads "C:\..." as a host) and because tightenKey fixes the permissions that one checks */
+const openssh = (exe: string) => {
+  const p = join(process.env.SystemRoot ?? "C:\\Windows", "System32", "OpenSSH", `${exe}.exe`);
+  return process.platform === "win32" && existsSync(p) ? p : exe;
+};
+const SSH = openssh("ssh");
+const SCP = openssh("scp");
+const ssh = (cmd: string) => (needHost(), execFileSync(SSH, [...sshArgs, HOST, cmd], { stdio: "inherit" }));
+const sshOut = (cmd: string) => (needHost(), execFileSync(SSH, [...sshArgs, HOST, cmd], { encoding: "utf8" }));
+const scp = (from: string, to: string) => (needHost(), execFileSync(SCP, [...sshArgs, from, `${HOST}:${to}`], { stdio: "inherit" }));
+const scpDown = (from: string, to: string) => (needHost(), execFileSync(SCP, [...sshArgs, `${HOST}:${from}`, to], { stdio: "inherit" }));
 const out = (cmd: string) => execSync(cmd, { cwd: ROOT, encoding: "utf8" }).trim();
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -140,15 +177,92 @@ function liveCheck(url: string, accounts = false): void {
   execSync("npx tsx tools/live-check.ts", { cwd: ROOT, stdio: "inherit", env: { ...process.env, LIVE_URL: url, BROKER: "own", ...(accounts ? { ACCOUNTS_TEST: "1" } : {}) } });
 }
 
+/**
+ * Everything a player's browser needs, probed from this PC the way a stranger
+ * would reach the box, each failure with its fix. Read-only: the relay test
+ * takes one allocation and gives it back.
+ */
+async function check(): Promise<void> {
+  needHost();
+  let fails = 0;
+  const line = (ok: boolean, label: string, fix: string) => {
+    console.log(`${ok ? "  ok  " : "FAIL  "}${label}${ok ? "" : `\n        -> ${fix}`}`);
+    if (!ok) fails++;
+  };
+  const upFix = "the cloud lets it through, the box does not answer yet: npm run fps setup, then npm run fps deploy";
+  const tcp = async (port: number, what: string) => {
+    const s = await tcpProbe(IP, port);
+    line(s === "open", `TCP ${port}, ${what}: ${s}`, s === "timeout" ? `the Oracle security list needs an ingress rule: TCP, source 0.0.0.0/0, port ${port}` : upFix);
+  };
+  console.log(`== ${DOMAIN || "(no RANGE_DOMAIN)"} on ${IP}, from this PC\n`);
+  if (KEY) line(existsSync(KEY), `the key file is there (${KEY})`, "RANGE_KEY in .env.server: the private key Oracle gave you for this VM");
+  if (DOMAIN) {
+    const got = await lookup(DOMAIN, { family: 4 }).then((r) => r.address, () => "nothing");
+    line(got === IP, `${DOMAIN} points at ${got}`, `duckdns.org: ${IP} in the ${DOMAIN.split(".")[0]} row, then "update ip" (or npm run fps dns); it can take a minute`);
+  } else line(false, "RANGE_DOMAIN is set", "RANGE_DOMAIN=fpsfun.duckdns.org in .env.server");
+  const login = spawnSync(SSH, [...sshArgs, "-o", "BatchMode=yes", HOST, "echo ok"], { encoding: "utf8" });
+  const why = (login.stderr ?? "").trim().split(/\r?\n/).filter((l) => !/^Warning: Permanently added/.test(l)).pop() ?? "";
+  line(login.stdout?.trim() === "ok", `ssh ${HOST}`, `${why || "no answer"} (RANGE_HOST is ubuntu@<the VM's public IP>, RANGE_KEY the key downloaded with that VM)`);
+  await tcp(80, "the site, and HTTPS certificates");
+  await tcp(443, "the site");
+  await tcp(3478, "the relay over TCP");
+  const stun = await stunBinding(IP, 3478).catch(() => null);
+  line(Boolean(stun), `UDP 3478, the relay: ${stun ? `answers (sees this PC as ${stun.ip})` : "no answer"}`, "the Oracle security list needs UDP 3478 from 0.0.0.0/0 (or coturn is down: npm run fps health)");
+
+  const get = (path: string) => fetch(`https://${DOMAIN}${path}`, { signal: AbortSignal.timeout(10000) }).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))));
+  const health = (await get("/health").catch((e: Error) => ({ error: e.cause instanceof Error ? e.cause.message : e.message }))) as { ok?: boolean; version?: string; turn?: boolean; error?: string };
+  line(health.ok === true, `https://${DOMAIN}/health: ${health.ok ? `release ${health.version}` : health.error}`, "npm run fps setup (Caddy and the certificate), then npm run fps deploy (the game)");
+  if (health.ok) {
+    const net = (await get("/net.json").catch(() => ({}))) as { iceServers?: Array<{ urls: string | string[]; username?: string; credential?: string }> };
+    const turn = net.iceServers?.find((s) => s.username && s.credential);
+    if (!turn) line(false, "the site hands out relay credentials", "TURN_SECRET is missing from ~/range/range.env: npm run fps setup, then npm run fps restart");
+    else {
+      const relay = await turnRelay(IP, 3478, turn.username!, turn.credential!).catch((e: Error) => ({ ok: false, detail: e.message }));
+      line(relay.ok, `the relay carries a match: ${relay.ok ? relay.detail : "no"}`, relay.detail);
+    }
+  }
+  console.log(fails ? `\n== ${fails} to fix (each has its fix under it)` : `\n== all good: https://${DOMAIN}/ works for friends on any network`);
+  if (fails) process.exitCode = 1;
+}
+
 async function main(): Promise<void> {
-  const verb = process.argv[2] ?? "deploy";
+  // `npm run fps` on its own looks; `npm run deploy:server` on its own ships (as it always has)
+  const verb = process.argv[2] ?? (process.env.npm_lifecycle_event === "fps" ? "health" : "deploy");
   if (verb === "setup") {
     if (!DOMAIN) throw new Error("setup needs RANGE_DOMAIN (the game's hostname)");
     ssh("mkdir -p ~/range");
     scp(join(ROOT, "server", "game", "setup.sh"), "range/setup.sh");
     ssh(`bash ~/range/setup.sh ${DOMAIN}`);
+    console.log("\nNext: npm run fps deploy (the game), then npm run fps check (everything, from outside)");
+  } else if (verb === "check") {
+    await check();
   } else if (verb === "health") {
-    ssh("curl -fsS localhost:4100/health; echo; pm2 ls; systemctl is-active coturn caddy");
+    ssh("curl -fsS localhost:4100/health; echo; pm2 ls; systemctl is-active coturn caddy; free -m | head -2; df -h / | tail -1");
+  } else if (verb === "ssh") {
+    needHost();
+    spawnSync(SSH, [...sshArgs, HOST], { stdio: "inherit" });
+  } else if (verb === "restart") {
+    ssh("pm2 startOrReload ~/range/app/server/ecosystem.config.cjs --update-env && pm2 save >/dev/null; sleep 1; curl -fsS localhost:4100/health; echo");
+  } else if (verb === "backup") {
+    const have = sshOut("cd ~/range && ls boards.json accounts.json 2>/dev/null || true").split(/\s+/).filter(Boolean);
+    if (!have.length) return console.log("nothing to save yet: no boards or accounts on the box");
+    const dir = join(ROOT, "server-backup", new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-"));
+    mkdirSync(dir, { recursive: true });
+    for (const f of have) scpDown(`range/${f}`, join(dir, f));
+    console.log(`saved ${have.join(" and ")} to ${dir}`);
+  } else if (verb === "dns") {
+    needHost();
+    const token = process.env.DUCKDNS_TOKEN;
+    if (!token) throw new Error("dns needs DUCKDNS_TOKEN in .env.server: the token shown at the top of duckdns.org when signed in");
+    if (!DOMAIN.endsWith(".duckdns.org")) throw new Error(`dns only knows DuckDNS names, and RANGE_DOMAIN is ${DOMAIN || "not set"}`);
+    const sub = DOMAIN.slice(0, -".duckdns.org".length);
+    const said = (await (await fetch(`https://www.duckdns.org/update?domains=${sub}&token=${encodeURIComponent(token)}&ip=${IP}`)).text()).trim();
+    if (said !== "OK") throw new Error(`DuckDNS said ${said}: a wrong token, or ${sub} is not on that account`);
+    console.log(`${DOMAIN} -> ${IP} (lookups can take a minute to catch up)`);
+  } else if (verb === "run") {
+    const cmd = process.argv.slice(3).join(" ").trim();
+    if (!cmd) throw new Error('run needs a command: npm run fps run "pm2 ls"');
+    ssh(`cd ~/range && ${cmd}`);
   } else if (verb === "logs") {
     ssh("pm2 logs range --lines 60 --nostream");
   } else if (verb === "rollback") {
@@ -210,7 +324,7 @@ async function main(): Promise<void> {
       console.log(`\n== live at https://${DOMAIN}/`);
     }
   } else {
-    console.error(`unknown: ${verb} (deploy, dry, setup, health, logs, rollback)`);
+    console.error(`unknown: ${verb} (deploy, dry, check, health, logs, backup, ssh, setup, restart, rollback, dns, run)`);
     process.exit(1);
   }
 }
