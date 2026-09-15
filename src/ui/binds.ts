@@ -35,6 +35,7 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
       ["holster", "Holster (15% faster)"],
       ["melee", "Melee"],
       ["zoomToggle", "Variable optic zoom"],
+      ["fireMode", "Fire mode (where the gun has two)"],
       ["heal", "Heal (a cell, then a syringe)"],
     ],
   },
@@ -54,6 +55,7 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
       ["barrel", "Barrel"],
       ["stock", "Stock"],
       ["laser", "Laser"],
+      ["hopup", "Hop-up"],
     ],
   },
   {

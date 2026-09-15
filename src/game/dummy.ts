@@ -793,10 +793,11 @@ export class Dummy {
    * Apply a hit. `now` is the GAME clock (the same one passed to update()),
    * not wall time: mixing the two meant a knocked dummy never respawned.
    */
-  hit(now: number, zone: Zone, baseDamage: number, headshotScale: number, legScale: number, point: THREE.Vector3): HitReport | null {
+  hit(now: number, zone: Zone, baseDamage: number, headshotScale: number, legScale: number, point: THREE.Vector3, shieldScale = 1, unshieldedScale = 1): HitReport | null {
     if (this.knocked) return null;
     const mult = zone === "head" ? headshotScale : zone === "legs" ? legScale : 1;
-    const amount = Math.floor(baseDamage * mult + 1e-6);
+    // Hammerpoint: more against bare health (no shield up at all)
+    const amount = Math.floor(baseDamage * mult * (this.shield <= 0 ? unshieldedScale : 1) + 1e-6);
     if (this.oneHit) {
       this.health = 0;
       this.knocked = true;
@@ -806,10 +807,12 @@ export class Dummy {
       else this.flash = 1;
       return { zone, amount, toShield: 0, toHealth: amount, broke: false, knocked: true, headshot: zone === "head" && headshotScale > 1, point: point.clone() };
     }
+    // Disruptor: more against a shield; what breaks through goes on at the plain rate
     let remaining = amount;
-    const toShield = Math.min(this.shield, remaining);
+    const scaled = Math.floor(remaining * shieldScale + 1e-6);
+    const toShield = Math.min(this.shield, scaled);
     this.shield -= toShield;
-    remaining -= toShield;
+    remaining = scaled > 0 ? Math.max(0, Math.round((scaled - toShield) / shieldScale)) : remaining;
     const toHealth = Math.min(this.health, remaining);
     this.health -= toHealth;
     const broke = toShield > 0 && this.shield === 0;

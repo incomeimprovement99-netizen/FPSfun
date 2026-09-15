@@ -16,10 +16,10 @@
   "back": ["KeyS"],
   "left": ["KeyA"],
   "right": ["KeyD"],
-  "magLevel": ["KeyG"],
+  "magLevel": ["KeyU"],
   "optic": ["KeyO"],
   "melee": ["KeyV"],
-  "barrel": ["KeyB"],
+  "barrel": ["KeyJ"],
   "stock": ["KeyN"],
   "laser": ["KeyH"],
   "cycleArmor": ["KeyT"],
@@ -33,5 +33,7 @@
   "map": ["KeyM"],
   "ability": ["KeyF"],
   "pickAbility1": ["Digit5"],
-  "pickAbility2": ["Digit6"]
+  "pickAbility2": ["Digit6"],
+  "fireMode": ["KeyB"],
+  "hopup": ["KeyL"]
 }

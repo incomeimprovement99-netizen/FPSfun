@@ -58,6 +58,8 @@ interface Bullet {
   visual: boolean;
   /** it has already cracked past the listener */
   whizzed: boolean;
+  /** its damage scale (a charged 30-30 round) */
+  dmgScale: number;
 }
 
 export interface ImpactEvent {
@@ -91,7 +93,7 @@ export class ProjectileSystem {
     private floorY = 0
   ) {}
 
-  fire(origin: THREE.Vector3, dir: THREE.Vector3, w: ResolvedWeapon, visual = false): void {
+  fire(origin: THREE.Vector3, dir: THREE.Vector3, w: ResolvedWeapon, visual = false, dmgScale = 1): void {
     const mesh = new THREE.Mesh(tracerGeo, visual ? remoteTracerMat : tracerMat);
     mesh.position.copy(origin);
     this.scene.add(mesh);
@@ -104,6 +106,7 @@ export class ProjectileSystem {
       weapon: w,
       visual,
       whizzed: false,
+      dmgScale,
     });
   }
 
@@ -215,12 +218,12 @@ export class ProjectileSystem {
           if (hits.length) {
             const hit = hits[0];
             const dist = hit.point.distanceTo(b.origin);
-            const dmg = falloff(b.weapon, dist);
+            const dmg = falloff(b.weapon, dist) * b.dmgScale;
             const zone = (hit.object.userData.zone as Zone) ?? "body";
             const headshotScale = dist <= b.weapon.damage.headshotMaxDist ? b.weapon.damage.headshot : 1;
             const d = owner.get(hit.object);
             if (d) {
-              const report = d.hit(now, zone, dmg, headshotScale, b.weapon.damage.leg, hit.point);
+              const report = d.hit(now, zone, dmg, headshotScale, b.weapon.damage.leg, hit.point, b.weapon.damage.shieldScale, b.weapon.damage.unshieldedScale);
               onImpact({
                 dummy: d, report, target: null, targetHead: false,
                 damage: report?.amount ?? 0, point: hit.point.clone(), distance: dist, weapon: b.weapon.id,

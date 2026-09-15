@@ -720,7 +720,7 @@ console.log("\nAttachments (every effect is a mod block in the reference data)")
   // the magazine is NOT an attachment slot: listing the same mods in both
   // places double-counted them
   eq("no mag slot in the attachment list", (SLOTS as string[]).includes("mag"), false);
-  eq("attachment slots", SLOTS.join(","), "optic,barrel,stock,laser");
+  eq("attachment slots (the hop-up is the fifth)", SLOTS.join(","), "optic,barrel,stock,laser,hopup");
 
   // scaling a stat the weapon does not have must leave it absent, not
   // fabricate a 0 that defeats the fallback chains
@@ -1029,6 +1029,109 @@ console.log("Abilities: JOLT and TRIAGE (src/config/abilities.json)");
   eq("abilities off: no pick, no scale", off.healScale, 1);
   eq("network codes round-trip", abilityFromCode(abilityCode("triage")), "triage");
   eq("a bad code is none", abilityFromCode(9), null);
+}
+
+console.log("");
+console.log("Guns that are not a plain trigger (src/config/weapon-mechanics.json)");
+{
+  const FDT = 1 / 144;
+  /** hold the trigger for `secs` (ADS as given); the times of every shot, and the requests */
+  const run = (id: string, secs: number, opts: { attach?: string[]; mag?: number; ads?: boolean; trigger?: (t: number) => boolean } = {}) => {
+    const wpn = resolveWeapon(id, opts.mag ?? 0, opts.attach ?? []);
+    const st = new WeaponState(wpn);
+    const times: number[] = [];
+    const reqs: Array<{ dmgScale: number; coneScale: number }> = [];
+    let t = 100;
+    st.update(FDT, t, false, false, "stand", "still", false, false, () => 0.5);
+    for (let i = 0; i < Math.round(secs / FDT); i++) {
+      t += FDT;
+      const trig = opts.trigger ? opts.trigger(t - 100) : true;
+      const out = st.update(FDT, t, trig, !!opts.ads, "stand", "still", false, false, () => 0.5);
+      for (const r of out) {
+        times.push(t - 100);
+        reqs.push({ dmgScale: r.dmgScale, coneScale: r.coneScale });
+      }
+    }
+    return { times, reqs, st, wpn };
+  };
+  const havoc = run("energy_ar", 1);
+  near("HAVOC: the first round after the 0.42 s wind-up, s", havoc.times[0] ?? -1, 0.42, 2 / 144);
+  const turbo = run("energy_ar", 0.3, { attach: ["hopup_turbocharger"] });
+  near("HAVOC with the Turbocharger: at once, s", turbo.times[0] ?? -1, 0.01, 2 / 144);
+  const dev = run("esaw", 3);
+  const gap0 = dev.times[1] - dev.times[0];
+  const gapN = dev.times[dev.times.length - 1] - dev.times[dev.times.length - 2];
+  near("Devotion: its first rounds at 5 a second, s apart", gap0, 0.2, 0.02);
+  near("Devotion: spun up after 1.75 s, 15 a second, s apart", gapN, 1 / 15, 0.01);
+  const lstar = run("lstar", 2.5);
+  eq("L-STAR: 24 rounds to overheat with no mag", lstar.times.length, 24);
+  eq("L-STAR: then it is overheated", lstar.st.overheated, true);
+  const lsAfter = run("lstar", 4);
+  const last = lstar.times[23];
+  const resumed = lsAfter.times.find((x) => x > last + 0.2) ?? -1;
+  near("L-STAR: firing again after the 1.19 s cooldown, s", resumed - last, 1.19, 0.12);
+  const lsCool = run("lstar", 3.5, { trigger: (x) => x < 1 });
+  eq("L-STAR: let go and the heat comes back", lsCool.st.clip, 24);
+  const cr = run("defender", 1.2, { trigger: (x) => x < 0.05 });
+  near("Charge Rifle: the round leaves 0.85 s after the pull, s", cr.times[0] ?? -1, 0.85, 2 / 144);
+  eq("Charge Rifle: one round a pull", cr.times.length, 1);
+  const r30 = run("3030", 0.9, { ads: true, trigger: (x) => x > 0.75 && x < 0.77 });
+  near("30-30: aimed 0.25 s, the round does +36%", r30.reqs[0]?.dmgScale ?? 0, 1.36, 1e-6);
+  const r30hip = run("3030", 0.1, { trigger: (x) => x < 0.02 });
+  near("30-30: from the hip, no charge", r30hip.reqs[0]?.dmgScale ?? 0, 1, 1e-6);
+  const pk = run("energy_shotgun", 2.2, { ads: true, attach: ["hopup_energy_choke"], trigger: (x) => x > 2 && x < 2.02 });
+  near("Precision choke: aimed long enough, the cone closes to 45%", pk.reqs[0]?.coneScale ?? 0, 0.45, 1e-6);
+  const pkBare = run("energy_shotgun", 2.2, { ads: true, trigger: (x) => x > 2 && x < 2.02 });
+  near("no choke fitted: the cone stays", pkBare.reqs[0]?.coneScale ?? 0, 1, 1e-6);
+  // fire modes
+  const lo = new Loadout(["hemlok", "pdw"]);
+  eq("Hemlok: B switches to single", lo.toggleFireMode(), "single");
+  eq("and it is semi-auto", lo.active.weapon.semiAuto, true);
+  eq("B again: back to the burst", lo.toggleFireMode(), "burst 3");
+  lo.requestSwap(1, 0);
+  lo.update(10);
+  eq("Prowler: no second mode without Selectfire", lo.toggleFireMode(), null);
+  let hopTries = 0;
+  while (lo.active.attach.hopup !== "selectfire" && hopTries++ < 10) lo.cycleAttachment("hopup");
+  eq("Prowler: Selectfire fitted", lo.active.attach.hopup, "selectfire");
+  eq("then B makes it automatic", lo.toggleFireMode(), "auto");
+  eq("a burst no more", lo.active.weapon.burstCount <= 1 && !lo.active.weapon.semiAuto, true);
+  // Hammerpoint and Disruptor scale the damage
+  eq("Hammerpoint P2020: 2.7x on bare health", resolveWeapon("semipistol", 0, ["hopup_unshielded_dmg"]).damage.unshieldedScale, 2.7);
+  eq("Disruptor Alternator: 1.55x on shields", resolveWeapon("alternator_smg", 0, ["hopup_shield_breaker"]).damage.shieldScale, 1.55);
+  eq("Skullpiercer Wingman: headshot 2.25", resolveWeapon("wingman", 0, ["hopup_headshot_dmg"]).damage.headshot, 2.25);
+}
+
+console.log("");
+console.log("Ammo (src/config/ammo.json, Season 30)");
+{
+  const lo = new Loadout(["rspn101", "energy_ar"]);
+  lo.ammo.infinite = false;
+  lo.ammo.kit(lo.slots.map((s) => s.weapon));
+  lo.refillEnergy();
+  eq("R-301: two stacks of light", lo.reserve(lo.slots[0]), 120);
+  eq("HAVOC: its own three magazines", lo.reserve(lo.slots[1]), 54);
+  const st = lo.slots[0].state;
+  st.clip = 0;
+  lo.ammo.stock.light = 10;
+  st.startReload(0);
+  st.update(1 / 60, 10, false, false, "stand", "still", false, false, () => 0.5);
+  eq("a reload with 10 left loads 10", st.clip, 10);
+  eq("and leaves none", lo.ammo.stock.light, 0);
+  st.clip = 0;
+  st.startReload(20);
+  eq("nothing left: no reload", st.reloading, false);
+  eq("and it says so", st.consumeNoAmmo(), true);
+  // the HAVOC's stockpile: spend a magazine, it comes back after 18 s idle
+  const e = lo.slots[1].energy!;
+  e.rounds = 18;
+  lo.update(100);
+  lo.update(117.9);
+  eq("energy: not back before 18 s", e.rounds, 18);
+  lo.update(118.1);
+  eq("energy: a magazine back after 18 s idle", e.rounds, 36);
+  const inf = new Loadout(["rspn101", "wingman"]);
+  eq("the range: endless", inf.reserve() === Infinity, true);
 }
 
 console.log("");

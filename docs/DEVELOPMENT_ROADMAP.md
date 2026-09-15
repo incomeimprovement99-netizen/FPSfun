@@ -132,3 +132,26 @@ See [`PHASE_11_PLAN_ABILITIES_KILLCAM_AND_THE_AAA_BATCH.md`](./PHASE_11_PLAN_ABI
 - **Low health**: a heartbeat under 30 and the picture losing its colour (the grade, or a blend layer in
   Competitive).
 - Tests: verify (every gun has a class), e2e (a bot fight is heard, under the voice cap).
+
+## Milestone 15 — Guns that are not a plain trigger, hop-ups, fire modes, counted ammo ✅
+2026-09-15 (Phase 11E). Rules in `src/config/weapon-mechanics.json`, numbers from the data where it has them
+and from Season 30 (`docs/RESEARCH_PHASE_11.md`) where it has moved on.
+- **HAVOC** winds up 0.42 s before its first round (the Turbocharger: 0.01); **Devotion** spins from 5 to 15
+  rounds a second over 1.75 s (Turbocharger: 6.8 and 0.85 s); **L-STAR** has no magazine: 24/26/28/30 shots
+  to overheat, a forced 1.19-1.07 s cooldown, cooling when you let go; **Charge Rifle** fires 0.85 s after the
+  pull and does 75 growing to 110 by 200 m; **30-30** (51 now) charges while aimed in 0.25 s for +36%;
+  **Precision Choke** closes the Peacekeeper's and Triple Take's cone while aimed.
+- **A hop-up slot** (L): Turbocharger, Skullpiercer, Hammerpoint (bare health ×2.7/×2.3), Disruptor
+  (shields ×1.55/×1.6), Precision Choke, Double Tap, Selectfire. Shield and bare-health scales now apply to
+  every hit.
+- **Fire modes** (B, Apex's key): R-301 and Flatline single, Hemlok single, HAVOC charged single, Prowler auto
+  (with Selectfire), G7 and EVA-8 double tap (with Double Tap). Barrel moved to J, mag level to U.
+- **Counted ammo** (`src/config/ammo.json`): each gun's type and the stacks (light 60, heavy 60, sniper 28,
+  shotgun 20); a match gives two stacks per gun; energy guns carry their own 2/3/4-magazine stockpile that
+  refills one magazine every 18 s idle (Season 30). "NO AMMO" when there is nothing to load. The range stays
+  endless unless Settings says counted.
+- **The HUD**: a charge ring round the crosshair (wind-up, charge, aimed charge, choke), the L-STAR's heat
+  and the Devotion's spin as bars, the fire mode, the reserve (an energy stockpile as a percentage); the
+  wind-up and overheat sounds.
+- Tests: verify (every mechanic timed frame by frame, the fire modes and Selectfire, the hop-up scales, the
+  reserve, a partial reload, NO AMMO, the 18 s regen).

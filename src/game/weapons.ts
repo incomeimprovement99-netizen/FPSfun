@@ -2,6 +2,29 @@
 // simulation consumes. Everything gameplay-relevant comes from here.
 import raw from "../../data/weapons.json";
 import { displayName } from "../config/names";
+import mechCfg from "../config/weapon-mechanics.json";
+import ammoCfg from "../config/ammo.json";
+
+export type AmmoType = "light" | "heavy" | "energy" | "sniper" | "shotgun" | "arrows";
+
+/** the rules of a gun that is not a plain trigger, as fitted (src/config/weapon-mechanics.json) */
+export interface WeaponMech {
+  /** HAVOC: wound up for `time` before the first round; stays wound while firing (or not, for its charged single) */
+  chargeUp: { time: number; coolDelay: number; coolTime: number; remainFull: boolean } | null;
+  /** Charge Rifle: the round leaves `time` after the trigger */
+  chargeShot: { time: number } | null;
+  /** L-STAR: the magazine is its heat; empty is an overheat with a forced cooldown */
+  overheat: { lockout: number; coolDelay: number; coolTime: number } | null;
+  /** 30-30: aiming charges it; a full charge adds `bonus` to the damage */
+  adsCharge: { time: number; bonus: number } | null;
+  /** Precision Choke: aiming closes the pellet cone to `minScale` over `time` */
+  choke: { time: number; minScale: number } | null;
+  /** Nemesis: the burst delay shortens as it charges */
+  burstCharge: { delayFrom: number; delayTo: number; perBurst: number; decayAfter: number; decayRate: number } | null;
+}
+
+type MechTable = Record<string, Record<string, unknown>>;
+const mechOf = <T>(table: string, id: string): T | null => ((mechCfg as unknown as Record<string, MechTable>)[table]?.[id] as T | undefined) ?? null;
 
 export type Pattern = { loopOffset: number; startMax: number; bullets: number[][] };
 export type Spring = Record<string, number>;
@@ -69,7 +92,17 @@ export interface ResolvedWeapon {
     near: number; far: number; veryFar: number;
     nearDist: number; farDist: number; veryFarDist: number; // metres
     headshot: number; leg: number; headshotMaxDist: number;
+    /** extra damage to a shield (Disruptor rounds: the data's damage_shield_scale) */
+    shieldScale: number;
+    /** extra damage to bare health (Hammerpoint: damage_unshielded_scale) */
+    unshieldedScale: number;
   };
+  /** Devotion: the fire rate climbs from `from` to `to` rounds a second over `time` of firing */
+  spin: { from: number; to: number; time: number } | null;
+  mech: WeaponMech;
+  /** the ammo it takes, and for an energy gun the magazines its own stockpile holds (0: the inventory's) */
+  ammoType: AmmoType;
+  energyStock: number;
   fireRate: number; // rounds per second
   /**
    * Pump and bolt-action delay between shots, seconds. On those weapons it is
@@ -218,7 +251,32 @@ export function resolveWeapon(id: string, magLevel = 0, attach: string[] = []): 
       headshot: n(s, "damage_headshot_scale", 1.5),
       leg: n(s, "damage_leg_scale", 1),
       headshotMaxDist: n(s, "headshot_distance", 11828) * U,
+      shieldScale: n(s, "damage_shield_scale", 1),
+      unshieldedScale: n(s, "damage_unshielded_scale", 1),
     },
+    spin: n(s, "fire_rate_max", 0) > n(s, "fire_rate", 10) ? { from: n(s, "fire_rate", 10), to: n(s, "fire_rate_max"), time: Math.max(0.01, n(s, "fire_rate_max_time_speedup", 1)) } : null,
+    mech: {
+      chargeUp: (() => {
+        const c = mechOf<{ coolDelay: number; coolTime: number }>("chargeUp", id);
+        return c ? { time: Math.max(0, n(s, "charge_time", 0.42)), coolDelay: n(s, "charge_cooldown_delay", c.coolDelay), coolTime: Math.max(0.01, n(s, "charge_cooldown_time", c.coolTime) || c.coolTime), remainFull: n(s, "charge_remain_full_when_fired", 1) === 1 } : null;
+      })(),
+      chargeShot: mechOf<{ time: number }>("chargeShot", id),
+      overheat: (() => {
+        const c = mechOf<{ lockout: number[]; coolDelay: number; coolTime: number }>("overheat", id);
+        return c ? { lockout: c.lockout[Math.max(0, Math.min(4, magLevel))] ?? c.lockout[0], coolDelay: c.coolDelay, coolTime: c.coolTime } : null;
+      })(),
+      adsCharge: (() => {
+        const c = mechOf<{ time: number }>("adsCharge", id);
+        return c ? { time: c.time, bonus: n(s, "charge_additional_damage_multiplier", 0) } : null;
+      })(),
+      choke: (() => {
+        const c = mechOf<{ minScale: number }>("choke", id);
+        return c && attach.includes("hopup_energy_choke") ? { time: Math.max(0.05, n(s, "charge_time", 1)), minScale: c.minScale } : null;
+      })(),
+      burstCharge: mechOf<WeaponMech["burstCharge"]>("burstCharge", id),
+    },
+    ammoType: ((ammoCfg.types as Record<string, string>)[id] ?? "light") as AmmoType,
+    energyStock: (ammoCfg.energyStock as Record<string, number>)[id] ?? 0,
     fireRate: n(s, "fire_rate", 10),
     rechamberTime: n(s, "rechamber_time", 0),
     shotInterval: Math.max(1 / Math.max(1e-6, n(s, "fire_rate", 10)), n(s, "rechamber_time", 0)),

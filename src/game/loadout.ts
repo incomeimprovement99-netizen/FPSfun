@@ -7,7 +7,8 @@
 // makes redirecting mid-swap (changing your mind) fall out for free.
 import { resolveWeapon, weaponMods, type ResolvedWeapon } from "./weapons";
 import { WeaponState } from "./weapon-state";
-import { modNames, optionsFor, SLOTS, type AttachSlot, type Attachments } from "./attachments";
+import { fireModeOf, modNames, optionsFor, SLOTS, type AttachSlot, type Attachments } from "./attachments";
+import { AMMO, AmmoPouch, fullEnergy, type EnergyStock } from "./ammo";
 import { opticInfo } from "./optics";
 import { opticName } from "../config/names";
 
@@ -19,6 +20,10 @@ export interface Slot {
   state: WeaponState;
   /** a variable optic on its second zoom */
   zoomAlt: boolean;
+  /** on its second fire mode (B) */
+  altMode: boolean;
+  /** an energy gun's own stockpile (ammo.ts), or null */
+  energy: EnergyStock | null;
 }
 
 /** a slot's weapon and its fittings, without the live state */
@@ -36,19 +41,111 @@ export class Loadout {
   private swapEndsAt = -Infinity;
   private swapTotal = 0;
 
+  /** the inventory's ammo; endless in the range (ammo.ts) */
+  readonly ammo = new AmmoPouch();
+
   constructor(ids: string[]) {
     for (const id of ids) {
       const weapon = resolveWeapon(id, 0);
-      this.slots.push({ id, magLevel: 0, attach: {}, weapon, state: new WeaponState(weapon), zoomAlt: false });
+      const s: Slot = { id, magLevel: 0, attach: {}, weapon, state: new WeaponState(weapon), zoomAlt: false, altMode: false, energy: fullEnergy(weapon) };
+      this.slots.push(s);
+      this.wireSupply(s);
     }
   }
 
-  /** rebuild the active slot's weapon from its id, mag level and attachments */
+  /** where a slot's reloads come from: nothing (endless), its energy stockpile, or the inventory */
+  private wireSupply(s: Slot): void {
+    s.state.supply = {
+      available: () => (this.ammo.infinite ? Infinity : s.energy ? s.energy.rounds : this.ammo.stock[s.weapon.ammoType]),
+      take: (n: number) => {
+        if (this.ammo.infinite) return n;
+        if (s.energy) {
+          const got = Math.min(n, s.energy.rounds);
+          s.energy.rounds -= got;
+          return got;
+        }
+        const got = Math.min(n, this.ammo.stock[s.weapon.ammoType]);
+        this.ammo.stock[s.weapon.ammoType] -= got;
+        return got;
+      },
+    };
+  }
+
+  /** the mod chain for a slot: its attachments, and its fire mode's mod when on the second one */
+  private chain(s: Slot): string[] {
+    const fm = fireModeOf(s.id);
+    const list = modNames(s.attach);
+    if (s.altMode && fm && this.fireModeAvailable(s)) list.push(fm.mod);
+    return list;
+  }
+
+  /** a gun's second fire mode can be picked (it has one, and the hop-up it needs is on) */
+  fireModeAvailable(s: Slot = this.active): boolean {
+    const fm = fireModeOf(s.id);
+    return !!fm && (!fm.needs || s.attach.hopup === fm.needs);
+  }
+
+  /** B: the other fire mode; returns its label, or null when the gun has none */
+  toggleFireMode(): string | null {
+    const s = this.active;
+    const fm = fireModeOf(s.id);
+    if (!fm || !this.fireModeAvailable(s)) return null;
+    s.altMode = !s.altMode;
+    this.rebuild(true);
+    return s.altMode ? fm.alt : fm.base;
+  }
+
+  /** the fire mode's name for the HUD */
+  fireModeLabel(s: Slot = this.display): string {
+    const fm = fireModeOf(s.id);
+    if (fm && this.fireModeAvailable(s)) return s.altMode ? fm.alt : fm.base;
+    const w = s.weapon;
+    return w.burstCount > 1 ? `burst ${w.burstCount}` : w.semiAuto ? "single" : "auto";
+  }
+
+  /** rebuild the active slot's weapon from its id, mag level, attachments and fire mode */
   private rebuild(keepState: boolean): void {
     const s = this.active;
-    s.weapon = resolveWeapon(s.id, s.magLevel, modNames(s.attach));
+    s.weapon = resolveWeapon(s.id, s.magLevel, this.chain(s));
     if (keepState) s.state.setMagLevel(s.weapon);
     else s.state.setWeapon(s.weapon);
+    if (s.energy) {
+      const max = s.weapon.energyStock * s.weapon.clipSize;
+      s.energy.rounds = Math.min(s.energy.rounds, max);
+      s.energy.max = max;
+    }
+  }
+
+  /** full energy stockpiles (a spawn with the kit) */
+  refillEnergy(): void {
+    for (const s of this.slots) s.energy = fullEnergy(s.weapon);
+  }
+
+  /**
+   * The energy stockpiles refill one magazine every 18 s while their gun is
+   * idle: not fired or reloaded in that time. A gun put away is idle.
+   */
+  private regen(now: number): void {
+    for (const s of this.slots) {
+      const e = s.energy;
+      if (!e) continue;
+      const busy = s.state.reloading || now - s.state.lastShotAt < 0.25;
+      if (busy || e.rounds >= e.max) {
+        e.regenAt = now + AMMO.energyRegen;
+        continue;
+      }
+      if (e.regenAt === 0) e.regenAt = now + AMMO.energyRegen;
+      if (now >= e.regenAt) {
+        e.rounds = Math.min(e.max, e.rounds + s.weapon.clipSize);
+        e.regenAt = now + AMMO.energyRegen;
+      }
+    }
+  }
+
+  /** what is left to reload with for a slot: rounds, or Infinity in the range */
+  reserve(s: Slot = this.display): number {
+    if (this.ammo.infinite) return Infinity;
+    return s.energy ? s.energy.rounds : this.ammo.stock[s.weapon.ammoType];
   }
 
   /** put a different weapon in a slot, resetting its attachments and state */
@@ -62,8 +159,10 @@ export class Loadout {
     s.magLevel = 0;
     s.attach = {};
     s.zoomAlt = false;
+    s.altMode = false;
     s.weapon = weapon;
     s.state.setWeapon(weapon);
+    s.energy = fullEnergy(weapon);
     // A swap in flight was timed from the weapons it started with. Changing
     // one of them mid-swap would leave the timer describing guns that are no
     // longer involved, so land it now.
@@ -89,20 +188,23 @@ export class Loadout {
     s.magLevel = su.magLevel;
     s.attach = { ...su.attach };
     s.zoomAlt = su.zoomAlt;
-    s.weapon = resolveWeapon(s.id, s.magLevel, modNames(s.attach));
+    s.weapon = resolveWeapon(s.id, s.magLevel, this.chain(s));
     s.state.setWeapon(s.weapon);
+    s.energy = fullEnergy(s.weapon);
   }
 
   /** cycle one attachment slot on the weapon in hand */
   cycleAttachment(slot: AttachSlot): void {
     const s = this.active;
-    const opts = optionsFor(slot, weaponMods(s.id));
+    const opts = optionsFor(slot, weaponMods(s.id), s.id);
     if (opts.length <= 1) return; // nothing to cycle on this weapon
     const cur = s.attach[slot] ?? null;
     const i = opts.findIndex((o) => o.mod === cur);
     const next = opts[(i + 1) % opts.length];
     s.attach[slot] = next.mod;
     if (slot === "optic") s.zoomAlt = false;
+    // a fire mode that needed the hop-up just taken off goes back to the first
+    if (slot === "hopup" && s.altMode && !this.fireModeAvailable(s)) s.altMode = false;
     this.rebuild(true);
   }
 
@@ -126,7 +228,7 @@ export class Loadout {
     const s = this.display;
     const mods = weaponMods(s.id);
     return SLOTS.map((slot) => {
-      const opts = optionsFor(slot, mods);
+      const opts = optionsFor(slot, mods, s.id);
       const cur = s.attach[slot] ?? null;
       const found = opts.find((o) => o.mod === cur);
       // a scoped weapon's own sight, when nothing else is fitted
@@ -199,8 +301,9 @@ export class Loadout {
     return this.requestSwap(this.nextIndex, now);
   }
 
-  /** call once per frame; completes a swap when its timer expires */
+  /** call once per frame; completes a swap when its timer expires, and refills energy stockpiles */
   update(now: number): void {
+    this.regen(now);
     if (this.targetIndex === this.activeIndex) {
       // a cancelled swap still runs its raise; nothing to commit
       if (now >= this.swapEndsAt) this.swapTotal = 0;

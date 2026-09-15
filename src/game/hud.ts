@@ -70,6 +70,16 @@ export interface HudState {
   attachLines: string[];
   clip: number;
   clipSize: number;
+  /** rounds left to reload with (Infinity: the range's endless ammo) */
+  reserve?: number;
+  /** an energy gun's own stockpile, shown as a percentage like the game */
+  energy?: { rounds: number; max: number } | null;
+  /** 0..1: the gun's wind-up, charge, aimed charge, choke or burst charge (a ring round the crosshair) */
+  gunCharge?: number;
+  /** the L-STAR's heat, and whether it is in its forced cooldown */
+  heat?: { heat: number; locked: boolean } | null;
+  /** the Devotion's spin, 0..1 */
+  spin?: number | null;
   reloading: boolean;
   reloadProgress: number;
   coneDeg: number;
@@ -659,6 +669,20 @@ export class Hud {
       c.fill();
       c.globalAlpha = 1;
     }
+    // a gun's charge: a ring round the crosshair that closes as it fills
+    const ch = s.gunCharge ?? 0;
+    if (ch > 0.01 && !s.holstered) {
+      c.lineWidth = 3 * u;
+      c.strokeStyle = "rgba(0,0,0,0.5)";
+      c.beginPath();
+      c.arc(cx, cy, gap + 16 * u, 0, Math.PI * 2);
+      c.stroke();
+      c.strokeStyle = ch >= 0.999 ? "#ffd23c" : "#8fd8ff";
+      c.beginPath();
+      c.arc(cx, cy, gap + 16 * u, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ch);
+      c.stroke();
+      c.lineWidth = 2;
+    }
     if (now < this.hitMarkerUntil) {
       c.strokeStyle = this.hitMarkerHead ? "rgba(255,210,60,0.95)" : "rgba(255,255,255,0.9)";
       const r0 = gap + 4;
@@ -1177,7 +1201,22 @@ export class Hud {
     const clipColor = s.clip === 0 ? RED : s.swapping || s.holstered ? DIM : WHITE;
     this.text(`${s.clip}`, right - 70 * u, bottom - 10 * u, 700, 58 * u, clipColor, "right");
     this.text(`/ ${s.clipSize}`, right, bottom - 18 * u, 700, 22 * u, DIM, "right");
-    this.text("∞", right, bottom - 44 * u, 700, 20 * u, DIM, "right");
+    // the reserve: endless in the range, rounds in the inventory, an energy gun's stockpile as a percentage
+    const res = s.reserve ?? Infinity;
+    if (s.energy && Number.isFinite(res)) {
+      const pct = Math.round((100 * s.energy.rounds) / Math.max(1, s.energy.max));
+      this.text(`${pct}%`, right, bottom - 44 * u, 700, 20 * u, pct === 0 ? RED : "#8fd8ff", "right");
+    } else this.text(Number.isFinite(res) ? String(res) : "∞", right, bottom - 44 * u, 700, 20 * u, res === 0 ? RED : DIM, "right");
+    // the L-STAR's heat, the Devotion's spin: a bar over the count
+    const bar = (v: number, col: string, label: string) => {
+      c.fillStyle = "rgba(0,0,0,0.5)";
+      c.fillRect(right - 180 * u, bottom - 72 * u, 180 * u, 6 * u);
+      c.fillStyle = col;
+      c.fillRect(right - 180 * u, bottom - 72 * u, 180 * u * Math.max(0, Math.min(1, v)), 6 * u);
+      this.text(label, right - 186 * u, bottom - 66 * u, 700, 12 * u, col, "right");
+    };
+    if (s.heat) bar(s.heat.heat, s.heat.locked ? RED : s.heat.heat > 0.75 ? "#ff9a4a" : "#ffd27a", s.heat.locked ? "OVERHEATED" : "HEAT");
+    else if (s.spin !== null && s.spin !== undefined) bar(s.spin, "#8fd8ff", "SPIN");
     // two slots, active one lit
     const slotW = 170 * u;
     const slotH = 30 * u;

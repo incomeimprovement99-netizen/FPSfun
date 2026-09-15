@@ -1,0 +1,49 @@
+{
+  "_note": "How the guns that are not a plain trigger work. Where the weapon data has the number (charge_time, fire_rate_max, fire_rate_max_time_speedup, charge_additional_damage_multiplier, the hop-up mods) it is read from there and only the rule lives here; where current Apex has moved past the data, the number here is Season 30's with its source in docs/RESEARCH_PHASE_11.md. Anything marked ours has no published number.",
+
+  "chargeUp": {
+    "_note": "HAVOC: the trigger winds it up for the data's charge_time (0.42 s; the Turbocharger mod sets 0.01) before the first round; it stays wound while firing, and runs down over charge_cooldown_time after charge_cooldown_delay once you let go.",
+    "energy_ar": { "coolDelay": 0.1, "coolTime": 0.5 }
+  },
+  "chargeShot": {
+    "_note": "Charge Rifle (Season 30): 0.85 s after the trigger, one round. No damaging beam since Season 18.",
+    "defender": { "time": 0.85 }
+  },
+  "overheat": {
+    "_note": "L-STAR: no magazine; the mag level's shots to overheat (24/26/28/30), a forced cooldown of 1.19/1.15/1.11/1.07 s from full, cooling from 0.08 s after you stop, a full cool over the data's charge_cooldown_time (2.45 s).",
+    "lstar": { "lockout": [1.19, 1.15, 1.11, 1.07, 1.07], "coolDelay": 0.08, "coolTime": 2.45 }
+  },
+  "adsCharge": {
+    "_note": "30-30 (Season 30): aiming charges it in 0.25 s; the data's charge_additional_damage_multiplier (+36%) at full; spent by the shot.",
+    "3030": { "time": 0.25 }
+  },
+  "choke": {
+    "_note": "Precision Choke (the data's hopup_energy_choke): aiming charges it over the mod's charge_time and the pellet cone closes to this fraction (ours: the data has no cone number for it).",
+    "energy_shotgun": { "minScale": 0.45 },
+    "doubletake": { "minScale": 0.4 }
+  },
+  "burstCharge": {
+    "_note": "Nemesis: the delay between bursts falls from 0.31 s to 0.19 s as it charges, +16.7% a burst fired; after 8 s without firing it loses 12.5% a second.",
+    "nemesis": { "delayFrom": 0.31, "delayTo": 0.19, "perBurst": 0.167, "decayAfter": 8, "decayRate": 0.125 }
+  },
+  "hopups": {
+    "_note": "The hop-up slot: the data's hop-up mods by name, and Selectfire, which is ours to switch the Prowler's altfire (the data has no Prowler hop-up).",
+    "hopup_turbocharger": "Turbocharger",
+    "hopup_headshot_dmg": "Skullpiercer",
+    "hopup_unshielded_dmg": "Hammerpoint",
+    "hopup_shield_breaker": "Disruptor",
+    "hopup_energy_choke": "Precision choke",
+    "altfire_double_tap": "Double tap",
+    "selectfire": "Selectfire"
+  },
+  "fireModes": {
+    "_note": "B switches to the data's altfire where there is one. `needs`: only with that hop-up fitted.",
+    "rspn101": { "mod": "altfire", "base": "auto", "alt": "single" },
+    "vinson": { "mod": "altfire", "base": "auto", "alt": "single" },
+    "hemlok": { "mod": "altfire", "base": "burst 3", "alt": "single" },
+    "energy_ar": { "mod": "altfire", "base": "auto", "alt": "charged single" },
+    "pdw": { "mod": "altfire", "base": "burst 5", "alt": "auto", "needs": "selectfire" },
+    "g2": { "mod": "altfire_double_tap", "base": "single", "alt": "double tap", "needs": "altfire_double_tap" },
+    "shotgun": { "mod": "altfire_double_tap", "base": "auto", "alt": "double tap", "needs": "altfire_double_tap" }
+  }
+}

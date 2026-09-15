@@ -1,0 +1,16 @@
+{
+  "_note": "Ammo, Season 30 (docs/RESEARCH_PHASE_11.md section 8): each gun's type, the inventory stack per type, and the energy rework: energy guns carry their own stockpile of whole magazines that refills one magazine every 18 s while the gun is idle (not firing or reloading). The range is unlimited unless Settings says otherwise; a match counts.",
+  "types": {
+    "rspn101": "light", "r97": "light", "alternator_smg": "light", "semipistol": "light", "g17": "light", "lmg": "light", "g2": "light", "car": "light",
+    "vinson": "heavy", "hemlok": "heavy", "pdw": "heavy", "dragon_lmg": "heavy", "3030": "heavy",
+    "energy_ar": "energy", "nemesis": "energy", "esaw": "energy", "lstar": "energy", "volt_smg": "energy", "doubletake": "energy", "autopistol": "energy",
+    "defender": "sniper", "sentinel": "sniper", "dmr": "sniper", "wingman": "sniper", "sniper": "sniper",
+    "mastiff": "shotgun", "shotgun": "shotgun", "energy_shotgun": "shotgun", "shotgun_pistol": "shotgun",
+    "bocek": "arrows"
+  },
+  "stacks": { "light": 60, "heavy": 60, "sniper": 28, "shotgun": 20, "arrows": 60 },
+  "energyStock": { "autopistol": 2, "volt_smg": 2, "doubletake": 2, "energy_ar": 3, "nemesis": 3, "esaw": 3, "lstar": 4 },
+  "energyRegen": 18,
+  "_kit": "what a 1v1 or bot match gives you each life: this many stacks of each gun's ammo (ours; Apex's Mixtape gives unlimited reserves)",
+  "kitStacks": 2
+}

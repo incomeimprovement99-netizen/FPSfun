@@ -62,9 +62,10 @@ const LOADOUT_IDS = ["rspn101", "wingman"];
 /** which key cycles each attachment slot, shown in the HUD */
 const ATTACH_KEY: Record<AttachSlot, string> = {
   optic: "O",
-  barrel: "B",
+  barrel: "J",
   stock: "N",
   laser: "H",
+  hopup: "L",
 };
 
 // ---------- settings (defaults from config, overrides in localStorage) ----------
@@ -603,6 +604,30 @@ const realNow = (): number => performance.now() / 1000;
     el.addEventListener("input", () => audio.setVolumes({ [key]: Math.max(0, Math.min(1, Number(el.value) / 100)) }));
   }
 }
+// the range's ammo: endless (the default), or counted like a match (Settings)
+const rangeAmmoSel = $<HTMLSelectElement>("rangeAmmo");
+let rangeAmmoCounted = false;
+try {
+  rangeAmmoCounted = localStorage.getItem("range.ammo") === "counted";
+} catch {
+  /* ignore */
+}
+rangeAmmoSel.value = rangeAmmoCounted ? "counted" : "endless";
+rangeAmmoSel.addEventListener("change", () => {
+  rangeAmmoCounted = rangeAmmoSel.value === "counted";
+  try {
+    localStorage.setItem("range.ammo", rangeAmmoSel.value);
+  } catch {
+    /* ignore */
+  }
+  if (!duel) {
+    loadout.ammo.infinite = !rangeAmmoCounted;
+    if (rangeAmmoCounted) {
+      loadout.ammo.kit(loadout.slots.map((sl) => sl.weapon));
+      loadout.refillEnergy();
+    }
+  }
+});
 // the killcam can be turned off (Settings); the recap still shows
 const killcamSel = $<HTMLSelectElement>("killcamMode");
 let killcamOn = true;
@@ -759,8 +784,12 @@ function respawnForMatch(d: MatchLike): void {
     pendingSlots.forEach((id, i) => loadout.setWeaponId(i, id));
     pendingSlots = null;
   }
-  // full magazines, settled spread and recoil, gun out, a full heal kit
+  // full magazines, settled spread and recoil, gun out, a full heal kit, and
+  // the match's ammo: counted, two stacks of each gun's, full energy stockpiles
   for (const sl of loadout.slots) sl.state.setWeapon(sl.weapon);
+  loadout.ammo.infinite = false;
+  loadout.ammo.kit(loadout.slots.map((sl) => sl.weapon));
+  loadout.refillEnergy();
   holster = "out";
   kit.cells = itemsCfg.kit.cell;
   kit.syringes = itemsCfg.kit.syringe;
@@ -1023,8 +1052,9 @@ function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
   duel?.dispose();
   duel = null;
-  // back in the range: either ability to practise, nothing picked
+  // back in the range: either ability to practise, nothing picked; ammo as Settings says
   abilities.reset(true);
+  loadout.ammo.infinite = !rangeAmmoCounted;
   killcam.stop();
   recap = null;
   recorder.clear();
@@ -1551,6 +1581,13 @@ function step(): void {
       if (input.pressedNow("barrel")) loadout.cycleAttachment("barrel");
       if (input.pressedNow("stock")) loadout.cycleAttachment("stock");
       if (input.pressedNow("laser")) loadout.cycleAttachment("laser");
+      if (input.pressedNow("hopup")) loadout.cycleAttachment("hopup");
+      // B: the gun's other fire mode, where it has one (a switch hop-up may be needed)
+      if (input.pressedNow("fireMode")) {
+        const label = loadout.toggleFireMode();
+        hud.notice(label ? `FIRE MODE: ${label.toUpperCase()}` : "THIS GUN HAS ONE FIRE MODE", now, 1);
+        if (label) audio.reloadStep("bolt");
+      }
       // Z: a variable optic's other zoom
       if (input.pressedNow("zoomToggle") && loadout.toggleZoom()) {
         const w = loadout.active.weapon;
@@ -1658,6 +1695,21 @@ function step(): void {
   const motion = player.sprinting ? "sprint" : player.speed > 0.6 ? "walk" : "still";
   const shots = ws.update(dt, now, trigger, adsHeld, stance, motion, !player.onGround, crouched, rnd);
   if (ws.consumeDryFire()) audio.dry();
+  if (ws.consumeNoAmmo()) {
+    hud.notice(`NO ${weapon.ammoType.toUpperCase()} AMMO`, now, 1);
+    audio.dry();
+  }
+  if (ws.chargeStarted) {
+    ws.chargeStarted = false;
+    const m = weapon.mech;
+    if (m.chargeUp && m.chargeUp.time > 0.05) audio.charge(m.chargeUp.time);
+    else if (m.chargeShot) audio.charge(m.chargeShot.time);
+  }
+  if (ws.overheatStarted) {
+    ws.overheatStarted = false;
+    audio.overheat();
+    hud.notice("OVERHEATED", now, 0.8);
+  }
   updateHeal(now, trigger || adsHeld || knockedOut);
 
   // camera from angles + soft recoil
@@ -1765,7 +1817,7 @@ function step(): void {
       tmpDir.set(0, 0, -1).applyQuaternion(shotQ);
       // a single pellet of a shotgun still spreads, using at least the
       // weapon's own cone so the pattern is not a laser
-      const cone = weapon.pellets > 1 ? Math.max(s.cone, weapon.spread.standHip) : s.cone;
+      const cone = (weapon.pellets > 1 ? Math.max(s.cone, weapon.spread.standHip) : s.cone) * s.coneScale;
       if (cone > 0) {
         const half = (cone / 2) * DEG;
         const ang = half * Math.sqrt(rnd()); // sqrt for a uniform disc, not centre-biased
@@ -1778,7 +1830,7 @@ function step(): void {
         tmpQ.setFromAxisAngle(axis, ang);
         tmpDir.applyQuaternion(tmpQ);
       }
-      projectiles.fire(origin.clone(), tmpDir, weapon);
+      projectiles.fire(origin.clone(), tmpDir, weapon, false, s.dmgScale);
       duel?.localShot(origin, tmpDir, weapon.id);
     }
     hardPitch += s.kick.permPitchUp;
@@ -2047,7 +2099,12 @@ function step(): void {
     slotCount: loadout.slots.length,
     otherName: loadout.slots[loadout.nextIndex].weapon.name,
     swapping: loadout.swapping,
-    fireMode: shown.weapon.burstCount > 1 ? `burst ${shown.weapon.burstCount}` : shown.weapon.semiAuto ? "single" : "auto",
+    fireMode: loadout.fireModeLabel(),
+    reserve: loadout.reserve(),
+    energy: shown.energy ? { rounds: shown.energy.rounds, max: shown.energy.max } : null,
+    gunCharge: shown.state.chargeFrac(now),
+    heat: shown.weapon.mech.overheat ? { heat: shown.state.heat, locked: shown.state.overheated } : null,
+    spin: shown.weapon.spin ? shown.state.spin : null,
     attachLines: loadout
       .attachLabels()
       .filter((a) => a.available)

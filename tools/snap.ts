@@ -73,6 +73,20 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "gun-lstar-heat",
+    note: "the L-STAR's heat bar and an energy stockpile's percentage (counted ammo)",
+    steps: [
+      [`(() => { ${hideMenu}; const s = document.getElementById("rangeAmmo"); s.value = "counted"; s.dispatchEvent(new Event("change")); const l = window.__range.loadout; l.setWeaponId(0, "lstar"); l.slots[0].state.clip = 7; })()`, 500],
+    ],
+  },
+  {
+    name: "gun-havoc-charge",
+    note: "the HAVOC winding up: the ring round the crosshair",
+    steps: [
+      [`(() => { ${hideMenu}; const l = window.__range.loadout; l.setWeaponId(0, "energy_ar"); l.slots[0].state.charge = 0.6; l.slots[0].state.update = ((f) => function (...a) { const r = f.apply(this, a); this.charge = 0.6; return r; })(l.slots[0].state.update); })()`, 500],
+    ],
+  },
+  {
     name: "ability-triage",
     note: "TRIAGE picked in a bot match: the passive slot",
     steps: [
