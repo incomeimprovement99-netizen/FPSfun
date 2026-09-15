@@ -34,6 +34,7 @@ import type { ResolvedWeapon } from "./game/weapons";
 import { Duel, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike } from "./game/duel";
 import { BotMatch } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type BotDifficulty } from "./game/stats";
+import { initAccountUi } from "./ui/account";
 import { submitScore } from "./game/leaderboard";
 import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link, type MatchOpts } from "./net/link";
 import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
@@ -1705,6 +1706,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     profile.recordMatch(kind, s);
     d.streak = profile.match(kind).streak;
     menu.renderStats();
+    profile.flush();
+    account.sync();
     if (s.won)
       void submitScore(`${kind}:wins`, profile.profile.name, profile.match(kind).won).then((rank) => {
         if (rank !== null) hud.notice(`#${rank} FOR WINS ON THE ONLINE BOARD`, gameTime, 3);
@@ -2121,6 +2124,16 @@ const menu = new Menu(loadouts, profile, {
     void input.lock();
   },
 });
+/** the optional account (Stats tab): the name is the account's once signed in; new stats go up after a match or a run */
+const account = initAccountUi({
+  setName: (name) => {
+    profile.setName(name);
+    profile.flush();
+    const nameIn = document.getElementById("profileName") as HTMLInputElement | null;
+    if (nameIn) nameIn.value = profile.profile.name;
+    menu.renderStats();
+  },
+});
 menu.setRunBest(courseBasic.best, courseAdvanced.best);
 applyLoadout(loadouts.current);
 let armorTier: ArmorTier = 0;
@@ -2274,6 +2287,7 @@ input.onLockChange = (locked) => {
     menu.setRunBest(courseBasic.best, courseAdvanced.best);
     profile.flush();
     menu.renderStats();
+    account.sync();
   }
   if (locked && !courseHinted) {
     courseHinted = true;

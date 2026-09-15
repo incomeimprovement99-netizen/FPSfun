@@ -99,8 +99,45 @@ async function boardCheck(origin: string): Promise<void> {
   if (fails.length) throw new Error(`board checks failed: ${fails.join("; ")}`);
 }
 
-function liveCheck(url: string): void {
-  execSync("npx tsx tools/live-check.ts", { cwd: ROOT, stdio: "inherit", env: { ...process.env, LIVE_URL: url, BROKER: "own" } });
+/** the accounts' rules, against the dry run's throwaway server: never a live one */
+async function accountCheck(origin: string): Promise<void> {
+  const call = async (path: string, method: string, body?: unknown, token?: string) => {
+    const r = await fetch(`${origin}/api/account/${path}`, { method, headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+    return { status: r.status, json: (await r.json().catch(() => ({}))) as Record<string, unknown> };
+  };
+  const fails: string[] = [];
+  const expect = (label: string, ok: boolean) => {
+    console.log(`${ok ? "  ok  " : "FAIL  "}accounts: ${label}`);
+    if (!ok) fails.push(label);
+  };
+  const net = (await (await fetch(`${origin}/net.json`)).json()) as { account?: string };
+  expect("/net.json says where the accounts are", net.account === "/api/account");
+  const reg = await call("register", "POST", { name: "Dry Tester", password: "correct horse" });
+  expect("sign up: a name and a password give a session", reg.status === 200 && typeof reg.json.token === "string" && (reg.json.token as string).length === 64);
+  expect("the same name in another case is taken", (await call("register", "POST", { name: "dry tester", password: "another one" })).status === 409);
+  expect("a short password is refused", (await call("register", "POST", { name: "Dry Two", password: "short" })).status === 400);
+  expect("a name with markup is refused", (await call("register", "POST", { name: "<b>x</b>", password: "long enough" })).status === 400);
+  expect("a wrong password is refused", (await call("login", "POST", { name: "Dry Tester", password: "wrong horse" })).status === 401);
+  expect("an unknown name gets the same answer", (await call("login", "POST", { name: "Nobody Here", password: "whatever12" })).status === 401);
+  const login = await call("login", "POST", { name: "dry tester", password: "correct horse" });
+  const token = login.json.token as string;
+  expect("sign in (any case) gives a new session", login.status === 200 && typeof token === "string" && token !== reg.json.token);
+  const put = await call("profile", "PUT", { profile: { "range.profile": "{\"name\":\"Dry Tester\"}", "range.sens": "1.2" } }, token);
+  expect("the profile is saved", put.status === 200 && typeof put.json.updated === "string");
+  const got = await call("profile", "GET", undefined, token);
+  expect("and comes back as it went", got.status === 200 && (got.json.profile as Record<string, string>)?.["range.sens"] === "1.2");
+  expect("no token, no profile", (await call("profile", "GET")).status === 401);
+  expect("a profile that is not an object is refused", (await call("profile", "PUT", { profile: [1, 2] }, token)).status === 400);
+  await call("logout", "POST", undefined, token);
+  expect("signed out, the token is dead", (await call("profile", "GET", undefined, token)).status === 401);
+  let limited = false;
+  for (let i = 0; i < 14 && !limited; i++) limited = (await call("login", "POST", { name: "Dry Tester", password: "guess guess" + i })).status === 429;
+  expect("guessing passwords is rate limited", limited);
+  if (fails.length) throw new Error(`account checks failed: ${fails.join("; ")}`);
+}
+
+function liveCheck(url: string, accounts = false): void {
+  execSync("npx tsx tools/live-check.ts", { cwd: ROOT, stdio: "inherit", env: { ...process.env, LIVE_URL: url, BROKER: "own", ...(accounts ? { ACCOUNTS_TEST: "1" } : {}) } });
 }
 
 async function main(): Promise<void> {
@@ -138,7 +175,10 @@ async function main(): Promise<void> {
       if (health.version !== version) throw new Error(`/health says ${health.version}, the release is ${version}`);
       console.log(`\n== the unpacked release answers /health as ${version}`);
       await boardCheck("http://127.0.0.1:4101");
-      liveCheck("http://localhost:4101/");
+      // (the dry run's server is thrown away after: the page may make an account on it; the page's
+      // sign-up goes first, as the account checks end by using up this address's tries)
+      liveCheck("http://localhost:4101/", true);
+      await accountCheck("http://127.0.0.1:4101");
       console.log("\n== DRY RUN PASS: the release installs, starts and hosts a 1v1 through its own broker");
     } finally {
       srv.kill();

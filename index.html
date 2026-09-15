@@ -353,6 +353,11 @@
 
         <section data-panel="stats" hidden>
           <div class="row"><label>Your name <div class="hint">shown to the people you play, and on the boards; kept in this browser</div></label><input id="profileName" maxlength="16" autocomplete="off" spellcheck="false" /></div>
+          <div class="row accountBox" id="accountBox"><label>Account <div class="hint">optional, on the game's own server: your settings, keys, loadouts and stats in every browser you sign in on</div></label>
+            <span id="accountSignedOut" hidden><input id="accountName" maxlength="16" placeholder="name" autocomplete="username" spellcheck="false" /> <input id="accountPass" type="password" maxlength="128" placeholder="password (8 or more)" autocomplete="current-password" /> <button type="button" id="accountSignIn">Sign in</button> <button type="button" id="accountSignUp">Sign up</button></span>
+            <span id="accountSignedIn" hidden><b id="accountWho"></b> <button type="button" id="accountSync">Sync now</button> <button type="button" id="accountSignOut">Sign out</button></span>
+          </div>
+          <div class="hintLine" id="accountStatus"></div>
           <div id="statsBody" class="statsBody"></div>
           <div class="hintLine" id="statsOnline"></div>
         </section>

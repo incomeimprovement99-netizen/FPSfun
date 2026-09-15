@@ -9,6 +9,8 @@
 //                         once by setup.sh, never shipped, never overwritten
 //   ~/range/boards.json   the online boards, outside the release so a deploy
 //                         keeps them
+//   ~/range/accounts.json the optional accounts (hashed passwords, sessions,
+//                         synced profiles), outside the release for the same reason
 const { existsSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 
@@ -33,6 +35,7 @@ module.exports = {
         HOST: "127.0.0.1",
         DIST: join(__dirname, "..", "site"),
         BOARD_FILE: join(__dirname, "..", "..", "boards.json"),
+        ACCOUNT_FILE: join(__dirname, "..", "..", "accounts.json"),
         ...boxEnv,
       },
       autorestart: true,

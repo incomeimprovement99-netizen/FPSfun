@@ -34,6 +34,38 @@ async function open(browser: Browser): Promise<Page> {
   return page;
 }
 
+/** sign up in one browser, change a setting and sync; sign in from a second, clean browser and find it there */
+async function accountFlow(browser: Browser, page: Page): Promise<void> {
+  const stats = (p: Page) => ev(p, `document.querySelector('#tabs button[data-tab="stats"]').click()`);
+  await stats(page);
+  const offered = await page.waitForFunction(`!document.getElementById("accountSignedOut").hidden`, { polling: 200, timeout: 10000 }).then(() => true, () => false);
+  check("accounts: the Stats tab offers to sign up or in (the site has the server)", offered, await ev<string>(page, `document.getElementById("accountStatus").textContent`));
+  const name = `Dry ${Math.floor(Math.random() * 9000 + 1000)}`;
+  await ev(page, `(() => { document.getElementById("accountName").value = "${name}"; document.getElementById("accountPass").value = "dry run pass"; document.getElementById("accountSignUp").click(); })()`);
+  const signed = await page.waitForFunction(`!document.getElementById("accountSignedIn").hidden`, { polling: 200, timeout: 10000 }).then(() => true, () => false);
+  const nameShown = await ev<string>(page, `document.getElementById("profileName").value`);
+  check("accounts: signing up signs you in, and your name is the account's", signed && nameShown === name, `${nameShown}: ${await ev<string>(page, `document.getElementById("accountStatus").textContent`)}`);
+  // a setting of this browser's, synced
+  await ev(page, `(() => { localStorage.setItem("range.killcam", "0"); document.getElementById("accountSync").click(); })()`);
+  const synced = await page.waitForFunction(`/Synced/.test(document.getElementById("accountStatus").textContent)`, { polling: 200, timeout: 10000 }).then(() => true, () => false);
+  check("accounts: Sync now sends this browser's settings", synced);
+  // a second browser with nothing saved signs in and gets them
+  const ctx = await browser.createBrowserContext();
+  const p2 = await ctx.newPage();
+  p2.on("pageerror", (e) => errors.push(String(e)));
+  await p2.goto(`${URL}?norender`, { waitUntil: "domcontentloaded" });
+  await p2.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 90000 });
+  await stats(p2);
+  await p2.waitForFunction(`!document.getElementById("accountSignedOut").hidden`, { polling: 200, timeout: 10000 });
+  const nav = p2.waitForNavigation({ timeout: 20000 }).catch(() => null);
+  await ev(p2, `(() => { document.getElementById("accountName").value = "${name.toLowerCase()}"; document.getElementById("accountPass").value = "dry run pass"; document.getElementById("accountSignIn").click(); })()`);
+  await nav;
+  await p2.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 90000 });
+  const there = await ev<{ killcam: string | null; name: string; signedIn: boolean }>(p2, `({ killcam: localStorage.getItem("range.killcam"), name: document.getElementById("profileName").value, signedIn: !!localStorage.getItem("range.account.v1") })`);
+  check("accounts: another browser signs in and has the same settings and name", there.killcam === "0" && there.name === name && there.signedIn, JSON.stringify(there));
+  await ctx.close();
+}
+
 async function main(): Promise<void> {
   console.log(`\nLive site: ${URL}`);
   const browser = await puppeteer.launch({
@@ -58,6 +90,8 @@ async function main(): Promise<void> {
       check("the Stats tab shows the site's online boards", online, await ev<string>(host, `document.getElementById("statsOnline").textContent`));
       await ev(host, `document.querySelector('#tabs button[data-tab="play"]').click()`);
     }
+    // accounts, end to end through the page (the dry run's throwaway server only: this writes an account)
+    if (process.env.ACCOUNTS_TEST === "1") await accountFlow(browser, host);
     const guest = await open(browser);
     await ev(host, `document.getElementById("duelHost").click()`);
     let code = "";

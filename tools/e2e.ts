@@ -1413,6 +1413,9 @@ async function main(): Promise<void> {
     check("Chrome or Edge on a PC gets no warning", probs.edge === null, String(probs.edge));
     await ev(page, `document.getElementById("welcomeOk").click()`);
     check("Got it puts the welcome away", await ev<boolean>(page, `document.getElementById("welcome").hidden`));
+    // accounts are optional and need the game's own server: here (no server) the Stats tab says so and offers nothing
+    const acct = await page.waitForFunction(`/own server/.test(document.getElementById("accountStatus").textContent)`, { polling: 200, timeout: 8000 }).then(() => true, () => false);
+    check("accounts: without the game's own server the Stats tab says so, and nothing to sign in to", acct && (await ev<boolean>(page, `document.getElementById("accountSignedOut").hidden && document.getElementById("accountSignedIn").hidden`)));
 
     console.log("\nThe course");
     // in the game, not on the menu: the menu stops a run's clock

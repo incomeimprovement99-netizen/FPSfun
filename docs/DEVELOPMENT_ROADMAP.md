@@ -521,3 +521,23 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Tests: verify (8 s to take a neutral zone alone, a point a second held, two of the other team clear it then take
   it, contested holds, the spawn chain, the lockout's win, the bonus's 150, the limit), e2e (five a side, zones A B
   C, standing on A takes it and it scores, down you come back on A), snap (control).
+
+## Milestone 32 — Optional accounts, on the game's own server ✅
+2026-09-15 (Phase 12I). `server/game/serve.mjs` (/api/account), `src/net/account.ts`, `src/ui/account.ts`.
+- **No third-party provider**: accounts live on our own server, next to the boards. A name (the boards' rules,
+  unique whatever its case) and a password of 8 to 128 characters, kept only as an scrypt hash with its own
+  salt; signing up or in gives a random 30-day session. Wrong names and wrong passwords get the same answer in
+  the same time, sign-ups and sign-ins are rate limited, and the file lives outside each release on the box, so
+  a deploy keeps it.
+- **What syncs**: the game's saved data in this browser (settings, keys and the controller's buttons,
+  loadouts, stats and records, the setting choices), all but the session and the graphics quality. Signing in
+  to an account with a profile puts it on and reloads; a new account takes this browser's. New stats go up
+  after each match and course run, and "Sync now" sends them at once.
+- **On the Stats tab**, by your name: sign up, sign in, sync, sign out. Signed in, your name is the account's.
+  Nobody needs an account to play. On GitHub Pages there is no server, and the tab says so.
+- The boards also take Control and the new bot tiers.
+- Tests: the dry run (`npm run deploy:server -- dry`) now checks the accounts against the unpacked release. The
+  API: sign up, the same name in another case refused, a short password and markup refused, a wrong password and
+  an unknown name alike refused, sign-in, the profile saved and read back, no token no profile, sign-out kills
+  the token, guessing rate limited. Through the page: sign up on the Stats tab, sync a setting, and a second,
+  clean browser signs in and has the same setting and name. e2e: without the server the tab says so.
