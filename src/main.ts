@@ -52,6 +52,8 @@ import { bindName } from "./ui/binds";
 import { FxLayer } from "./game/fx";
 import { Killcam, Recorder } from "./game/killcam";
 import { DamageLog, HEAL_CODES, type Recap } from "./game/recap";
+import { Soundscape } from "./game/soundscape";
+import type { HitTier } from "./game/audio";
 import itemsCfg from "./config/items.json";
 
 const DEG = Math.PI / 180;
@@ -291,6 +293,7 @@ const brMap = buildBrMap(scene);
  */
 function setRegion(region: "range" | "br"): void {
   const fog = scene.fog as THREE.Fog | null;
+  audio.setSpace(region === "br" ? "outdoor" : "indoor");
   if (region === "br") {
     setShadowRegion(BR_CENTER, 230);
     if (fog) {
@@ -519,10 +522,18 @@ let orbitPitch = 0;
 let orbiting = false;
 /** the tests hold the orbit without a key */
 let debugOrbitHold = false;
+/** the ears' facing, each frame */
+const earFwd = new THREE.Vector3();
+const earUp = new THREE.Vector3();
 /** the third-person aim: where the crosshair is, from the eye (in first person, the view itself) */
 let aimYaw = 0;
 let aimPitch = 0;
 const audio = new GameAudio();
+/** when each sound goes with the frame: footsteps, loops, the clock's beeps (soundscape.ts) */
+const sounds = new Soundscape(audio);
+/** the last gunshot heard from each shooter: a shotgun's pellets are one sound */
+const lastShotSound = new Map<number, number>();
+const SHIELD_TIER: Record<number, HitTier> = { 1: "white", 2: "blue", 3: "purple", 4: "red" };
 const hud = new Hud($<HTMLCanvasElement>("hud"));
 /** JOLT and TRIAGE (abilities.ts): the pick, the cooldown; the match (or the range) switches them on */
 const abilities = new Abilities();
@@ -569,6 +580,8 @@ const rangeTargets: Dummy[] = [...dummies, ...courseEnemies];
 // a copy: the projectile system adds and removes match figures in its own list
 const projectiles = new ProjectileSystem(scene, [...rangeTargets], targets, 0);
 const aimAssist = new AimAssist();
+projectiles.listener = camera.position;
+projectiles.onWhiz = (p) => audio.whiz(p);
 /** the last 8 s of every match, the replay of your elimination, and the damage log for the recap */
 const recorder = new Recorder();
 const killcam = new Killcam(scene, projectiles);
@@ -577,6 +590,19 @@ const dlog = new DamageLog();
 let recap: Recap | null = null;
 let recapShownAt = 0;
 const realNow = (): number => performance.now() / 1000;
+// the three volumes (Settings), remembered by the audio itself
+{
+  const vol = [
+    ["volMaster", "master"],
+    ["volFx", "effects"],
+    ["volHits", "hits"],
+  ] as const;
+  for (const [id, key] of vol) {
+    const el = $<HTMLInputElement>(id);
+    el.value = String(Math.round(audio.volumes[key] * 100));
+    el.addEventListener("input", () => audio.setVolumes({ [key]: Math.max(0, Math.min(1, Number(el.value) / 100)) }));
+  }
+}
 // the killcam can be turned off (Settings); the recap still shows
 const killcamSel = $<HTMLSelectElement>("killcamMode");
 let killcamOn = true;
@@ -774,7 +800,7 @@ function updateHeal(now: number, cancel: boolean): void {
   duel.health = Math.min(HEALTH_MAX, duel.health + it.health);
   if (heal.item === "cell") kit.cells--;
   else kit.syringes--;
-  audio.reload();
+  audio.healDone();
   // the others' recaps say you healed
   duel.localFx("heal", undefined, undefined, HEAL_CODES.indexOf(heal.item));
   heal = null;
@@ -854,10 +880,11 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRespawn = () => respawnForMatch(d);
   d.onHurt = () => {
     hud.hurt(gameTime);
-    audio.hit();
+    audio.hurt(d.shield > 0);
     input.pad.rumble(0.6, 0.3, 120);
   };
-  d.onRemoteShot = (o) => audio.shot(0.85, 10 / Math.max(10, o.distanceTo(player.pos)));
+  // gunfire is heard from where it was fired (onShotFired, below), once a trigger pull
+  d.onRemoteShot = null;
   d.onNotice = (t) => hud.notice(t, gameTime, 1);
   d.onEnd = (reason) => endMatch(reason);
   d.onFeed = (text, mine, neutral) => hud.feed(text, gameTime, neutral ? "#c8d0d8" : mine ? "#7ddc8a" : "#ff8a7a");
@@ -867,7 +894,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     if (remoteFxLog.length > 20) remoteFxLog.shift();
     if (k === "jolt" && a && b) {
       fx.jolt(a, b, gameTime);
-      audio.jolt(10 / Math.max(10, a.distanceTo(player.pos)));
+      audio.joltAt(a);
     }
   };
   // abilities are the match's: on or off, nothing picked yet (the card comes at the countdown or the landing)
@@ -877,9 +904,20 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   killcam.stop();
   recap = null;
   newLife(d);
-  d.onDamaged = (from, amount, head, weapon, dist) => dlog.hit({ t: realNow(), from, to: d.id, amount, head, weapon, dist });
+  d.onDamaged = (from, amount, head, weapon, dist) => {
+    dlog.hit({ t: realNow(), from, to: d.id, amount, head, weapon, dist });
+    if (from === -1) audio.ringTick();
+  };
   d.onEliminated = (by) => onEliminated(d, by);
-  d.onShotFired = (id, o, dir, w) => recorder.shot(realNow(), id, o, dir, w);
+  d.onShotFired = (id, o, dir, w) => {
+    recorder.shot(realNow(), id, o, dir, w);
+    if (id === d.id) return;
+    const t = realNow();
+    if (t - (lastShotSound.get(id) ?? -1) > 0.03) {
+      lastShotSound.set(id, t);
+      audio.gun(w, o);
+    }
+  };
   d.onHealSeen = (id, item) => dlog.heal({ t: realNow(), id, item });
   d.streak = profile.match(kind).streak;
   d.onMatchEnd = (s) => {
@@ -1463,6 +1501,7 @@ function step(): void {
       if (holster === "out") {
         holster = "lowering";
         holsterAt = now;
+        audio.swap();
         // a burst or a reload in flight does not survive being put away
         ws.cancelAction();
       } else if (holster === "away" || holster === "lowering") {
@@ -1482,10 +1521,10 @@ function step(): void {
     }
     // weapon select: 1 and 2 pick a slot, Q swaps to the other
     const cardTakesPad = abilities.choosing;
-    if (armed && input.pressedNow("slot1") && !(cardTakesPad && input.pad.pressedNow("slot1"))) loadout.requestSwap(0, now);
-    if (armed && input.pressedNow("slot2") && !(cardTakesPad && input.pad.pressedNow("slot2"))) loadout.requestSwap(1, now);
+    if (armed && input.pressedNow("slot1") && !(cardTakesPad && input.pad.pressedNow("slot1")) && loadout.requestSwap(0, now)) audio.swap();
+    if (armed && input.pressedNow("slot2") && !(cardTakesPad && input.pad.pressedNow("slot2")) && loadout.requestSwap(1, now)) audio.swap();
     // Q or the forward thumb button, which is where most players bind swap
-    if (armed && input.pressedNow("swapWeapon")) loadout.requestNext(now);
+    if (armed && input.pressedNow("swapWeapon") && loadout.requestNext(now)) audio.swap();
     if (input.pressedNow("cycleArmor")) {
       armorTier = ((armorTier + 1) % 5) as ArmorTier;
       for (const d of dummies) d.setTier(armorTier); // also clears engagedAt
@@ -1745,7 +1784,7 @@ function step(): void {
     hardPitch += s.kick.permPitchUp;
     hardYaw += s.kick.permYawLeft;
     viewModel.onShot();
-    audio.shot(1);
+    audio.gun(weapon.id);
     input.pad.rumble(0.15, 0.35, 40);
   }
   if (shots.length) {
@@ -1763,8 +1802,7 @@ function step(): void {
       if (e.targetHead) stats.headshots++;
       hud.addDamage(e.point, e.damage, e.targetHead ? "#ffd23c" : "#9fe0ff", e.targetHead, now);
       hud.hitMarker(now, e.targetHead);
-      if (e.targetHead) audio.headshot();
-      else audio.hit();
+      audio.hitTier(e.targetHead ? "head" : "white");
       return;
     }
     // another player (or a bot) in a match: send the damage, show it at once
@@ -1787,8 +1825,7 @@ function step(): void {
         stats.knocks++;
         audio.knock();
       } else if (onShield && remote.shield <= 0) audio.shieldBreak();
-      else if (r.headshot) audio.headshot();
-      else audio.hit();
+      else audio.hitTier(r.headshot ? "head" : onShield ? "blue" : "health");
       return;
     }
     if (!e.dummy || !e.report) return;
@@ -1811,8 +1848,7 @@ function step(): void {
       stats.lastTtk = now - (e.dummy.engagedAt ?? now);
       audio.knock();
     } else if (r.broke) audio.shieldBreak();
-    else if (r.headshot) audio.headshot();
-    else audio.hit();
+    else audio.hitTier(r.headshot ? "head" : r.toShield > 0 ? (SHIELD_TIER[e.dummy.tier] ?? "white") : "health");
   };
   projectiles.update(dt, now, handleImpact);
   // the melee swing lands a third of the way through
@@ -1963,6 +1999,10 @@ function step(): void {
   // The sky dome is drawn at a fixed radius around the camera, so it has to be
   // re-centred every frame or you can walk out of your own sky.
   skyFollow(camera);
+  // the ears are the camera's (the killcam's, when it plays)
+  camera.getWorldDirection(earFwd);
+  earUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+  audio.setListener(camera.position, earFwd, earUp);
   const hiddenForReplay: THREE.Object3D[] = [];
   if (killcam.active && duel) {
     for (const a of duel.avatars) {
@@ -1984,6 +2024,20 @@ function step(): void {
   const optic = viewModel.opticFitted;
   const aimNow = debugView.ads ?? ws.adsFrac;
   const duelHud = duel ? duel.hud() : null;
+  sounds.update({
+    now,
+    dt,
+    player,
+    live: input.playing || duel !== null,
+    outdoors: duel instanceof BrMatch,
+    match: duelHud,
+    alive: duel ? duel.alive : true,
+    health: duel ? duel.health : HEALTH_MAX,
+    figures: duel ? duel.avatars : [],
+    heal: heal && duel ? Math.min(1, (now - heal.startedAt) / heal.duration) : null,
+    reload: { on: ws.reloading, progress: ws.reloadProgress(now), empty: ws.clip === 0 },
+  });
+  pipeline.setDesaturation(sounds.desat);
   hud.draw(now, camera, {
     // name/ammo follow the INCOMING weapon during a swap; cone/ADS stay with
     // the gun actually in hand
@@ -2157,6 +2211,7 @@ initWelcome();
   },
   closeRecap: () => (recap = null),
   remoteFxLog,
+  audio,
   startHeal: () => startHeal(gameTime),
   kit,
   brMap,

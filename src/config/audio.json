@@ -1,0 +1,29 @@
+{
+  "_note": "All sound is synthesised (Web Audio), none recorded or copied. These are ours: how each class of gun is voiced, how sound fades with distance, the footstep cadence. Distances in metres; frequencies in Hz; times in seconds.",
+  "speedOfSound": 343,
+  "delayFrom": 25,
+  "airAbsorb": 70,
+  "maxDistance": 320,
+  "maxVoices": 56,
+  "reverb": { "seconds": 1.6, "indoor": 0.3, "outdoor": 0.1 },
+  "footsteps": { "walkStride": 0.75, "sprintStride": 1.05, "crouchStride": 0.55, "hearOthersTo": 45 },
+  "classes": {
+    "pistol": { "thump": 170, "thumpEnd": 60, "thumpTime": 0.09, "band": 1800, "bandQ": 0.8, "crack": 0.045, "tail": 0.35, "level": 0.8 },
+    "smg": { "thump": 150, "thumpEnd": 55, "thumpTime": 0.07, "band": 2100, "bandQ": 0.9, "crack": 0.035, "tail": 0.28, "level": 0.72 },
+    "rifle": { "thump": 125, "thumpEnd": 48, "thumpTime": 0.1, "band": 1500, "bandQ": 0.7, "crack": 0.05, "tail": 0.45, "level": 0.85 },
+    "lmg": { "thump": 105, "thumpEnd": 42, "thumpTime": 0.12, "band": 1200, "bandQ": 0.6, "crack": 0.055, "tail": 0.55, "level": 0.9 },
+    "marksman": { "thump": 95, "thumpEnd": 38, "thumpTime": 0.15, "band": 1300, "bandQ": 0.6, "crack": 0.07, "tail": 0.8, "level": 0.95 },
+    "sniper": { "thump": 70, "thumpEnd": 30, "thumpTime": 0.22, "band": 1000, "bandQ": 0.5, "crack": 0.09, "tail": 1.2, "level": 1 },
+    "shotgun": { "thump": 85, "thumpEnd": 35, "thumpTime": 0.16, "band": 900, "bandQ": 0.5, "crack": 0.06, "tail": 0.7, "level": 1 }
+  },
+  "guns": {
+    "semipistol": "pistol", "g17": "pistol", "wingman": "pistol", "autopistol": "pistol", "shotgun_pistol": "shotgun",
+    "r97": "smg", "alternator_smg": "smg", "car": "smg", "volt_smg": "smg", "pdw": "smg",
+    "rspn101": "rifle", "vinson": "rifle", "hemlok": "rifle", "energy_ar": "rifle", "nemesis": "rifle",
+    "lmg": "lmg", "esaw": "lmg", "dragon_lmg": "lmg", "lstar": "lmg",
+    "g2": "marksman", "doubletake": "marksman", "3030": "marksman", "bocek": "marksman",
+    "dmr": "sniper", "sniper": "sniper", "sentinel": "sniper", "defender": "sniper",
+    "shotgun": "shotgun", "mastiff": "shotgun", "energy_shotgun": "shotgun"
+  },
+  "energy": ["energy_ar", "esaw", "lstar", "volt_smg", "energy_shotgun", "doubletake", "defender", "nemesis", "sentinel"]
+}

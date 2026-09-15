@@ -113,3 +113,22 @@ See [`PHASE_11_PLAN_ABILITIES_KILLCAM_AND_THE_AAA_BATCH.md`](./PHASE_11_PLAN_ABI
 - Tests: verify (the recap's sums, distances, heal window, the ring), e2e (the bot's elimination: the
   killcam from its eyes with its gun, the recording's length, the recap both ways; the ring: recap only; the
   squad guest's killcam), snap (the replay and the card drawn for real).
+
+## Milestone 14 — Sound, positional and by class ✅
+2026-09-15 (Phase 11D). All synthesised in code (`src/game/audio.ts`, the numbers in `src/config/audio.json`).
+- **The engine**: HRTF panning on the camera, fall-off and an air-absorption low-pass with distance, sound
+  arriving late by the speed of sound past 25 m, a generated reverb (more indoors, less on Outskirts), a
+  compressor, a voice cap, master / effects / hit-sound volumes in Settings.
+- **Guns by class** (pistol, SMG, rifle, LMG, marksman, sniper, shotgun; energy guns add a zap), heard from
+  where they were fired, once a trigger pull; a round passing within 2.5 m cracks past you.
+- **Movement** (`src/game/soundscape.ts`): footsteps by surface (concrete, metal, dirt) for you and every
+  figure within 45 m, quieter crouched, louder sprinting; jump, landing by impact, the slide's scrape, the
+  zipline's whine, climbing taps, the mantle, the drop's wind, JOLT.
+- **Combat**: hit sounds pitched by the shield tier hit (white, blue, purple, red, bare health, head), the
+  shield break, the knock stinger, your own hits taken (a thud, a crackle on shield); reloads in parts
+  (magazine out, in, the bolt from empty); swap and holster.
+- **The match**: countdown beeps and the fight tone, round and match stingers, the champion's chord, the
+  ring's horn when it starts to close and its tick on you, a heal's hum and the done chime.
+- **Low health**: a heartbeat under 30 and the picture losing its colour (the grade, or a blend layer in
+  Competitive).
+- Tests: verify (every gun has a class), e2e (a bot fight is heard, under the voice cap).

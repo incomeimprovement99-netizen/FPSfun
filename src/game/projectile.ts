@@ -56,6 +56,8 @@ interface Bullet {
   weapon: ResolvedWeapon;
   /** the other player's shot in a 1v1: drawn, stopped by walls, hits nothing */
   visual: boolean;
+  /** it has already cracked past the listener */
+  whizzed: boolean;
 }
 
 export interface ImpactEvent {
@@ -101,8 +103,13 @@ export class ProjectileSystem {
       mesh,
       weapon: w,
       visual,
+      whizzed: false,
     });
   }
+
+  /** where your ears are: someone else's round passing within 2.5 m cracks past you (onWhiz) */
+  listener: THREE.Vector3 | null = null;
+  onWhiz: ((at: THREE.Vector3) => void) | null = null;
 
   /** add something bullets can hit after construction (the 1v1 opponent) */
   addDummy(d: Dummy): void {
@@ -184,6 +191,18 @@ export class ProjectileSystem {
         const len = seg.length();
         const unit = len > 0 ? seg.clone().divideScalar(len) : seg.clone();
         const wallAt = len > 0 ? solidHit(prev, unit, len) : Infinity;
+        if (b.visual && !b.whizzed && this.listener && len > 0 && b.origin.distanceToSquared(this.listener) > 9) {
+          // the closest this step comes to the listener
+          const L = this.listener;
+          const k = Math.max(0, Math.min(len, (L.x - prev.x) * unit.x + (L.y - prev.y) * unit.y + (L.z - prev.z) * unit.z));
+          const cx = prev.x + unit.x * k;
+          const cy = prev.y + unit.y * k;
+          const cz = prev.z + unit.z * k;
+          if ((cx - L.x) ** 2 + (cy - L.y) ** 2 + (cz - L.z) ** 2 < 6.25) {
+            b.whizzed = true;
+            this.onWhiz?.(new THREE.Vector3(cx, cy, cz));
+          }
+        }
         if (b.visual) {
           // someone else's shot: it only needs to stop where it would
           if (wallAt < Infinity || b.pos.y <= this.floorY || b.age > b.weapon.projectile.lifetime) dead = true;

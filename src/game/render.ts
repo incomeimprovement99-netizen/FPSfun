@@ -22,7 +22,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import type { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import { makeGradePass } from "./grade";
+import { makeGradePass, GRADE } from "./grade";
 import type { Quality } from "./quality";
 
 
@@ -134,6 +134,31 @@ export class Renderer {
   /** the window moved to a screen with another pixel ratio, or the zoom changed */
   setPixelRatio(pr: number): void {
     this.composer?.setPixelRatio(pr);
+  }
+
+  private desat = 0;
+  private desatDiv: HTMLDivElement | null = null;
+  /**
+   * 0..1: the picture loses its colour (low health). The grade does it where
+   * there is one; Competitive has no post chain, so a blend layer over the
+   * canvas does it there (only while it is above zero).
+   */
+  setDesaturation(k: number): void {
+    const v = Math.max(0, Math.min(1, k));
+    if (Math.abs(v - this.desat) < 0.005) return;
+    this.desat = v;
+    if (this.grade) {
+      this.grade.uniforms.uSaturation.value = GRADE.saturation * (1 - v);
+      return;
+    }
+    if (!this.desatDiv) {
+      const d = document.createElement("div");
+      d.style.cssText = "position:fixed;inset:0;pointer-events:none;background:#808080;mix-blend-mode:saturation;z-index:1";
+      document.body.appendChild(d);
+      this.desatDiv = d;
+    }
+    this.desatDiv.style.opacity = String(v);
+    this.desatDiv.style.display = v > 0.01 ? "block" : "none";
   }
 
   render(now = 0): void {

@@ -17,6 +17,7 @@ import { HU, MOVE, jumpVelocityFor, slideBreakEvenAngle, SLIDE_RAMP_ANGLE } from
 import { Abilities, abilityCode, abilityFromCode } from "../src/game/abilities";
 import itemsCfg from "../src/config/items.json";
 import { DamageLog } from "../src/game/recap";
+import audioCfg from "../src/config/audio.json";
 
 let fails = 0;
 const eq = (label: string, got: unknown, want: unknown) => {
@@ -1028,6 +1029,15 @@ console.log("Abilities: JOLT and TRIAGE (src/config/abilities.json)");
   eq("abilities off: no pick, no scale", off.healScale, 1);
   eq("network codes round-trip", abilityFromCode(abilityCode("triage")), "triage");
   eq("a bad code is none", abilityFromCode(9), null);
+}
+
+console.log("");
+console.log("Sound (src/config/audio.json)");
+{
+  const missing = Object.keys(DATA.weapons).filter((id) => !(id in audioCfg.guns));
+  eq("every gun has a sound class", missing.join(",") || "none", "none");
+  const bad = Object.values(audioCfg.guns).filter((c) => !(c in audioCfg.classes));
+  eq("every class it names exists", bad.join(",") || "none", "none");
 }
 
 console.log("");

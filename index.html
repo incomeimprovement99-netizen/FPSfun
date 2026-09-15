@@ -22,6 +22,8 @@
       .row .hint { color: #7d8895; font-size: 12px; }
       .row input { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 7px 9px; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
       .row input:focus, .row select:focus { outline: none; border-color: #d43a2f; }
+      .row .vols { display: flex; gap: 8px; }
+      .row .vols input { width: 33%; padding: 0; accent-color: #d43a2f; }
       .row select { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 7px 9px; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
       .derived { margin: 14px 0 6px; padding: 10px 12px; background: #0d1014; border-radius: 4px; font-size: 13px; color: #b9c2cc; line-height: 1.5; }
       .derived b { color: #fff; }
@@ -270,6 +272,7 @@
           <div class="row"><label>Sprint <div class="hint">toggle is the default</div></label><select id="sprintMode"><option value="toggle">Toggle (press once)</option><option value="hold">Hold</option></select></div>
           <div class="row"><label>Sprint view shake <div class="hint">the game's own setting; Normal is its default</div></label><select id="sprintShake"><option value="normal">Normal</option><option value="minimal">Minimal</option><option value="off">Off</option></select></div>
           <div class="row"><label>Camera <div class="hint">X switches in game; hold Alt in third person to look round your character</div></label><select id="cameraMode"><option value="first">First person</option><option value="third">Third person</option></select></div>
+          <div class="row"><label>Volume <div class="hint">master, effects, and the hit sounds; every sound is made by the game</div></label><span class="vols"><input id="volMaster" type="range" min="0" max="100" step="1" title="master" /><input id="volFx" type="range" min="0" max="100" step="1" title="effects" /><input id="volHits" type="range" min="0" max="100" step="1" title="hit sounds" /></span></div>
           <div class="row"><label>Killcam <div class="hint">eliminated: the last 4 s from your killer's eyes, then the death recap; Space skips</div></label><select id="killcamMode"><option value="1">On</option><option value="0">Off (the recap only)</option></select></div>
           <div class="row"><label>Fullscreen while playing <div class="hint">keeps Ctrl + W (crouch walking) from closing the tab</div></label><select id="fullscreen"><option value="1">On</option><option value="0">Off</option></select></div>
           <div class="row"><label>Graphics <div class="hint">Competitive is the fastest and lowest latency</div></label><select id="quality"></select></div>
