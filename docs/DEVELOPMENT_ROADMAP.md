@@ -298,3 +298,27 @@ Striker 9 is) with Season 30's numbers.
 - Tests: verify (the movement direction against the facing, the hands' codes on the wire), e2e (a guest aiming
   and healing is seen on the host's copy of the guest with the right item; with the setting on, a match's bots
   are mannequins with their clips playing), snap (figure-poses, figure-mannequins).
+
+## Milestone 22 — Throwables: the frag, the arc star, thermite ✅
+2026-09-15 (Phase 11L). `src/game/throwables.ts`, `src/config/throwables.json` (Season 30 numbers).
+- **G** readies a grenade (again: the next kind you have; after the last, your gun again); after the pin (0.45 s)
+  the fire button throws and aiming puts it away. While one is in hand the gun is down, and dots show the arc it
+  would take with a ring where it lands.
+- **The frag**: bounces and rolls, 4 s fuse from the throw; 100 inside 2.4 m falling to nothing at 8 m, +10 on a
+  direct hit. **The arc star**: sticks to the first thing it touches (a wall, the floor, or a figure, which it then
+  follows) and goes off 2.8 s later: 75 inside 1.8 m to nothing at 8.75 m, +10 to whoever it stuck to, and a slow
+  of up to 5 s scaled by the damage. **Thermite**: a 6 m line of fire across the throw for 8 s, 4 a tick twice a
+  second inside it, and 25 more over 2.5 s after leaving it. Walls stop a blast (it needs a line of sight).
+- **Who decides**: the thrower, like the shooter decides a bullet's; the damage goes through the bullets' own
+  path (damage numbers, hit markers, the match's hit messages, the recap names the grenade). The others' screens
+  replay a throw from its start and its speed alone (the flight is deterministic): they see it fly, bounce,
+  stick and go off, and hear it.
+- **Where you get them**: one of each per life in the arena, the modes and the bot match; the battle royale's
+  floor and death boxes (a stack holds two); the range never runs out. The HUD counts them over the heals and
+  names the one in hand. Drawn in code: the grenades, the blast's flash and ring, flames from a generated
+  texture. Sounds: the pin, a frag's bounce, the arc star's stick, the booms, the fire catching.
+- Tests: verify (the fall-off at the radii, the slow, a frag's flight and 4 s fuse on the floor, the arc star
+  sticking to the floor and to a moving figure, thermite's 6 m line across the throw and its 16 ticks, the
+  carried counts, G's cycle and the stack), e2e (G readies and cycles through the real key, a frag at a bot's
+  feet takes exactly 100 after the fuse, thermite burns, the range again; a friend's arc star over the local
+  transport: seen in the air, sticks, 85 in all, slowed), snap (throw-preview).

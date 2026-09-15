@@ -56,6 +56,8 @@ import { Soundscape } from "./game/soundscape";
 import { DummyBehaviour, DUMMY_MODES, DUMMY_MODE_NAME, FlickDrill, RangeCombat, SprayWall, type DummyMode } from "./game/rangetools";
 import { SuperglideTrainer } from "./game/trainer";
 import { BrPlay } from "./game/brplay";
+import { Ordnance, Throwables, THROWABLES, arcSlowFor, blastDamage, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
+import { throwName } from "./config/names";
 import { loadMannequin, setFigureStyle } from "./game/mannequin";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
@@ -771,6 +773,7 @@ function onEliminated(d: MatchLike, by: number): void {
     for (const [type, n] of Object.entries(loadout.ammo.stock)) if (n > 0 && type !== "energy") items.push({ kind: "ammo", id: type, n, rarity: "common" });
     for (const [item, n] of Object.entries(kit.items)) if (n > 0) items.push({ kind: "heal", id: item, n, rarity: "common" });
     if (armor.helmet) items.push({ kind: "helmet", id: armor.helmet, n: 1, rarity: "legendary" });
+    for (const [g, n] of Object.entries(ordnance.counts)) if (n > 0) items.push({ kind: "grenade", id: g, n, rarity: "rare" });
     if (d.players > 1) items.push({ kind: "banner", id: "banner", n: 1, rarity: "common", owner: d.id, ownerName: profile.profile.name });
     d.dropBox(items, player.pos.clone());
   }
@@ -957,12 +960,18 @@ function respawnForMatch(d: MatchLike): void {
   // its start kit and a white shield core that levels with EVO
   const br = d instanceof BrMatch;
   kit.fill(br ? "brStart" : "kit");
-  // land with nothing and loot: fists, no heals, no ammo
+  // grenades: the match's kit each life
+  ordnance.endless = false;
+  ordnance.readied = null;
+  ordnance.fill("kit");
+  player.arcSlowUntil = 0;
+  // land with nothing and loot: fists, no heals, no ammo, no grenades
   if (d instanceof BrMatch && d.startLoot) {
     loadout.clearSlot(0);
     loadout.clearSlot(1);
     loadout.ammo.empty();
     kit.fill("empty");
+    ordnance.fill("empty");
   }
   armor.reset(br ? 1 : 2);
   d.shieldMax = armor.shieldMax;
@@ -1110,6 +1119,114 @@ let joltFov = 0;
 /** the vitals heals work on: the match's, or the range's when the dummies shoot back */
 const vitalsTarget = (): { shield: number; health: number; alive: boolean } | null => duel ?? (rangeCombat?.on ? rangeCombat : null);
 
+// ---------- throwables: the frag, the arc star, thermite ----------
+/** what you carry, and the one readied (the range never runs out) */
+const ordnance = new Ordnance();
+/** the bullets' impact handler for this frame (the frame makes it): a blast's hits go through it too */
+let impactSink: ((e: ImpactEvent) => void) | null = null;
+/** figures burning after leaving the fire: by figure, how much is left and when the next bit lands */
+const afterburns = new Map<string, { left: number; next: number; per: number }>();
+/** a figure by its throwables id: a match's player or bot by its id, a range dummy by -2 - its index */
+function figureById(id: number): Dummy | null {
+  if (duel) return duel.avatars.find((a) => duel!.remoteOf(a)?.id === id) ?? null;
+  return id <= -2 ? (dummies[-2 - id] ?? null) : null;
+}
+/** the figures a throw can reach: the match's (and you, for the others' throws), or the range's dummies */
+function throwTargets(): ThrowTarget[] {
+  const out: ThrowTarget[] = [];
+  if (duel) {
+    for (const a of duel.avatars) {
+      const r = duel.remoteOf(a);
+      if (r && a.group.visible && !a.knocked) out.push({ id: r.id, feet: a.group.position });
+    }
+    if (duel.alive) out.push({ id: duel.id, feet: player.pos });
+  } else dummies.forEach((d, i) => d.group.visible && !d.knocked && out.push({ id: -2 - i, feet: d.group.position }));
+  return out;
+}
+/** your throw's damage to a figure: through the bullets' path (the numbers, the marker, the match's hit) */
+function throwHit(id: number, amount: number, kind: ThrowKind, from: THREE.Vector3): void {
+  const a = figureById(id);
+  if (!a || amount <= 0 || a.knocked) return;
+  if (duel && (duel instanceof Duel ? duel.isAlly(id) : false)) return;
+  const point = a.group.position.clone().setY(a.group.position.y + 1.2);
+  const report = a.hit(gameTime, "body", amount, 1, 1, point);
+  impactSink?.({ dummy: a, report, target: null, targetHead: false, damage: report?.amount ?? 0, point, distance: point.distanceTo(from), weapon: kind });
+}
+const throwables = new Throwables(scene, {
+  onStrike: (t: Thrown, target: number) => {
+    if (!t.mine) return;
+    if (t.kind === "frag") throwHit(target, THROWABLES.frag.direct, "frag", t.pos);
+    else if (t.kind === "arcstar") throwHit(target, THROWABLES.arcstar.stick, "arcstar", t.pos);
+  },
+  onBlast: (t: Thrown, at: THREE.Vector3) => {
+    if (!t.mine || (t.kind !== "frag" && t.kind !== "arcstar")) return;
+    // everyone in reach and in sight of it (you are not hurt by your own)
+    for (const tg of throwTargets()) {
+      if (duel && tg.id === duel.id) continue;
+      const chest = tg.feet.clone().setY(tg.feet.y + 1.1);
+      const dist = chest.distanceTo(at);
+      const dmg = blastDamage(t.kind, dist);
+      if (dmg > 0 && Throwables.inSight(at, chest)) throwHit(tg.id, dmg, t.kind, at);
+    }
+  },
+  onFireTick: (f: FireStrip) => {
+    if (!f.mine) return;
+    const now = gameTime;
+    for (const tg of throwTargets()) {
+      if (duel && tg.id === duel.id) continue;
+      const key = String(tg.id);
+      if (Throwables.inFire(f, tg.feet)) {
+        throwHit(tg.id, THROWABLES.thermite.tickDamage, "thermite", f.a.clone().lerp(f.b, 0.5));
+        // the afterburn starts over each time they are in it
+        const ticks = Math.round(THROWABLES.thermite.afterburnTime / THROWABLES.thermite.tick);
+        afterburns.set(key, { left: ticks, next: now + THROWABLES.thermite.tick, per: THROWABLES.thermite.afterburn / ticks });
+      }
+    }
+  },
+  onSound: (kind, at, what) => {
+    if (kind === "blast") audio.blast(what === "arcstar" ? "arcstar" : "frag", at);
+    else audio.throwNoise(kind, at);
+  },
+});
+/** the afterburn: out of the fire, the rest of the burn lands a bit at a time */
+function updateAfterburns(now: number): void {
+  for (const [key, b] of afterburns) {
+    if (now < b.next) continue;
+    const f = throwables.fires.find((x) => x.mine && Throwables.inFire(x, figureById(Number(key))?.group.position ?? new THREE.Vector3(1e9, 0, 1e9)));
+    // still in a fire of yours: the fire's own ticks do it
+    if (f) {
+      b.next = now + THROWABLES.thermite.tick;
+      continue;
+    }
+    throwHit(Number(key), b.per, "thermite", figureById(Number(key))?.group.position ?? player.pos);
+    b.left--;
+    b.next = now + THROWABLES.thermite.tick;
+    if (b.left <= 0) afterburns.delete(key);
+  }
+}
+const THROWABLES_ANY = (): boolean => ordnance.endless || Object.values(ordnance.counts).some((n) => n > 0);
+/** throw what is readied, the way you look, a little up, with some of your own speed */
+function throwReadied(now: number): void {
+  const kind = ordnance.spend();
+  if (!kind) return;
+  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  const from = player.eyePosition().addScaledVector(fwd, 0.45).addScaledVector(right, 0.18).add(new THREE.Vector3(0, -0.12, 0));
+  const vel = throwVelocity(kind, fwd);
+  throwables.throw(kind, from, vel, duel ? duel.id : -1, true, gameTime);
+  duel?.localFx("throw", from, vel, throwCode(kind));
+  gunRow(kind).shots++;
+  audio.whoosh();
+  void now;
+}
+function throwVelocity(kind: ThrowKind, fwd: THREE.Vector3): THREE.Vector3 {
+  return fwd
+    .clone()
+    .multiplyScalar(THROWABLES[kind].speed)
+    .add(new THREE.Vector3(0, 2.2, 0))
+    .addScaledVector(player.vel, 0.6);
+}
+
 /** the battle royale from your side: E, the pads, pings (brplay.ts) */
 const brPlay = new BrPlay({
   keyLabel: (a) => keyLabel(a),
@@ -1183,6 +1300,17 @@ function applyLoot(it: LootItem): void {
     case "banner":
       brPlay.carry(it, gameTime);
       return;
+    case "grenade": {
+      if (!(it.id === "frag" || it.id === "arcstar" || it.id === "thermite")) return;
+      const put = ordnance.add(it.id, it.n);
+      if (put < it.n) {
+        putBack({ ...it, n: it.n - put });
+        hud.notice(put ? `${label}: ${put} TAKEN, THE REST IS FULL` : `${label}: FULL`, gameTime, 1.4);
+        return;
+      }
+      audio.throwNoise("pin", null);
+      break;
+    }
   }
   hud.notice(label, gameTime, 1);
 }
@@ -1218,9 +1346,12 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onEnd = (reason) => endMatch(reason);
   d.onFeed = (text, mine, neutral) => hud.feed(text, gameTime, neutral ? "#c8d0d8" : mine ? "#7ddc8a" : "#ff8a7a");
   // someone else's JOLT: the streak where it went, and its sound by distance
-  d.onRemoteFx = (k, from, a, b) => {
+  d.onRemoteFx = (k, from, a, b, n) => {
     remoteFxLog.push({ k, from });
     if (remoteFxLog.length > 20) remoteFxLog.shift();
+    // someone's throw: its flight, bounce and blast here too (their side sends the damage)
+    const tk = throwFromCode(n);
+    if (k === "throw" && a && b && tk) throwables.throw(tk, a, b, from, false, gameTime);
     if (k === "jolt" && a && b) {
       fx.jolt(a, b, gameTime);
       audio.joltAt(a);
@@ -1235,6 +1366,11 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   newLife(d);
   d.onDamaged = (from, amount, head, weapon, dist) => {
     dlog.hit({ t: realNow(), from, to: d.id, amount, head, weapon, dist });
+    // an arc star: slowed, for longer the more it did
+    if (weapon === "arcstar") {
+      player.arcSlowUntil = Math.max(player.arcSlowUntil, gameTime + arcSlowFor(amount));
+      player.arcSlowScale = THROWABLES.arcstar.slowScale;
+    }
     if (from === -1) audio.ringTick();
   };
   d.onEliminated = (by) => onEliminated(d, by);
@@ -1415,6 +1551,12 @@ const brDifficulty = (): BotDifficulty => (botDifficulty.value === "easy" || bot
 const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
+  // the range: grenades without end; nothing in the air
+  ordnance.endless = true;
+  ordnance.readied = null;
+  throwables.clear();
+  afterburns.clear();
+  player.arcSlowUntil = 0;
   const wasGunRun = duel instanceof ArenaMode && duel.modeKind === "gunrun";
   duel?.dispose();
   duel = null;
@@ -1960,6 +2102,18 @@ function step(): void {
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
     }
+    // G: a grenade in hand (again: the next kind you have; after the last, the gun again)
+    if (input.pressedNow("grenade") && !downedNow && !knockedOut && !heal && holster === "out" && !loadout.swapping && (!duel || duel.alive)) {
+      const k = ordnance.cycle(now);
+      if (k) {
+        hud.notice(`${throwName(k)}  ·  ${keyLabel("fire")} THROWS, ${keyLabel("ads")} PUTS IT AWAY`, now, 1.6);
+        audio.throwNoise("pin", null);
+      } else if (!THROWABLES_ANY()) hud.notice("NO GRENADES", now, 1);
+    }
+    if (ordnance.readied) {
+      if (input.pressedNow("ads") || loadout.swapping || downedNow || knockedOut || heal) ordnance.readied = null;
+      else if (input.pressedNow("fire") && now >= ordnance.readied.readyAt && (!duel || duel.canFire)) throwReadied(now);
+    }
     // the middle mouse button: a ping for the squad
     if (input.pressedNow("ping") && duel instanceof BrMatch && duel.alive) {
       const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
@@ -2130,11 +2284,11 @@ function step(): void {
 
   // A weapon being raised, lowered or holstered cannot fire or aim.
   // In a 1v1, firing is held during the countdown and after a round is decided.
-  const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !loadout.active.empty && !downedNow;
+  const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !loadout.active.empty && !downedNow && !ordnance.readied;
   // a burst fires on without the trigger: knocked, or the round decided, it stops
   if (knockedOut || (duel && !duel.canFire)) ws.cancelBurst();
   // knocked in a 1v1: no aiming either
-  const adsHeld = input.playing && input.held("ads") && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow;
+  const adsHeld = input.playing && input.held("ads") && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow && !ordnance.readied;
   // Move BEFORE sampling stance, so the spread model sees this frame's stance
   // rather than last frame's. The cost is that move speed uses last frame's
   // ADS fraction, which over a 0.27 s transition is a 6% error for one frame.
@@ -2404,6 +2558,16 @@ function step(): void {
     else audio.hitTier(r.headshot ? "head" : r.toShield > 0 ? (SHIELD_TIER[e.dummy.tier] ?? "white") : "health");
   };
   projectiles.update(dt, now, handleImpact);
+  // throwables: their flights, fuses and fires; a blast's hits go the bullets' way
+  impactSink = handleImpact;
+  throwables.update(now, dt, throwTargets());
+  updateAfterburns(now);
+  if (ordnance.readied && now >= ordnance.readied.readyAt && !third) {
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+    const from = player.eyePosition().addScaledVector(fwd, 0.45).addScaledVector(right, 0.18).add(new THREE.Vector3(0, -0.12, 0));
+    throwables.preview(from, throwVelocity(ordnance.readied.kind, fwd));
+  } else throwables.preview(null, null);
   // the melee swing lands a third of the way through
   if (now >= meleeHitAt) {
     meleeHitAt = Infinity;
@@ -2485,7 +2649,7 @@ function step(): void {
     lookYaw,
     lookPitch,
     landDip: player.viewDip,
-    lowered: debugView.lowered ?? (emptyHand || downedNow ? 1 : lowered),
+    lowered: debugView.lowered ?? (emptyHand || downedNow || ordnance.readied ? 1 : lowered),
     onZip: debugView.onZip ?? player.onZip,
     draw: onScreen.state.drawFrac,
   });
@@ -2664,6 +2828,14 @@ function step(): void {
     vitals: duel ? { shield: duel.shield, shieldMax: duel.shieldMax, health: duel.health, healthMax: HEALTH_MAX, evo: duel instanceof BrMatch ? armor.evoFrac : null, helmet: armor.helmet } : rangeCombat.on ? { shield: rangeCombat.shield, shieldMax: rangeCombat.shieldMax, health: rangeCombat.health, healthMax: HEALTH_MAX } : null,
     drill: duel ? null : drill.hud(now),
     brHold: duel instanceof BrMatch ? brPlay.hud.hold : null,
+    ordnance: {
+      counts: ordnance.endless ? null : { ...ordnance.counts },
+      readied: ordnance.readied ? throwName(ordnance.readied.kind) : null,
+      ready: !!ordnance.readied && now >= ordnance.readied.readyAt,
+      key: keyLabel("grenade"),
+      fire: keyLabel("fire"),
+      cancel: keyLabel("ads"),
+    },
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
     banner: duel instanceof BrMatch ? brPlay.hud.banner : null,
     downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null } : null,
@@ -2805,6 +2977,13 @@ initWelcome();
   audio,
   brPlay,
   applyLoot,
+  ordnance,
+  throwables,
+  /** a throw now, of `kind`, from `from` with `vel` (tools/e2e.ts); yours */
+  throwAt: (kind: ThrowKind, from: THREE.Vector3, vel: THREE.Vector3) => {
+    throwables.throw(kind, from, vel, duel ? duel.id : -1, true, gameTime);
+    duel?.localFx("throw", from, vel, throwCode(kind));
+  },
   THREE,
   loadMannequin,
   setFigureStyle,

@@ -297,6 +297,40 @@ export class GameAudio {
     if (cfg.energy.includes(id)) this.tone(v.input, v.t, 0.09, "sawtooth", 1900 * jitter, 380, 0.16 * L, 0.001);
   }
 
+  /** a grenade going off: a frag's deep boom, an arc star's crackling snap */
+  blast(kind: "frag" | "arcstar", at: Vec): void {
+    const v = this.voice(at, 1.6, "fx", 2, 1.4);
+    if (!v) return;
+    if (kind === "frag") {
+      this.noise(v.input, v.t, 0.05, "highpass", 2400, 0.7, 0.9, 0.0008);
+      this.tone(v.input, v.t, 0.5, "sine", 90, 28, 1.3, 0.002);
+      this.noise(v.input, v.t, 0.45, "lowpass", 1200, 0.6, 1.0, 0.003, 120);
+      this.noise(v.input, v.t + 0.02, 1.3, "lowpass", 500, 0.5, 0.35, 0.02, 80);
+    } else {
+      this.noise(v.input, v.t, 0.04, "highpass", 5200, 0.9, 0.8, 0.0006);
+      this.tone(v.input, v.t, 0.25, "sawtooth", 1400, 180, 0.35, 0.001);
+      for (let i = 0; i < 5; i++) this.noise(v.input, v.t + 0.03 + i * 0.05, 0.05, "bandpass", 3600 - i * 300, 4, 0.35, 0.001);
+      this.tone(v.input, v.t, 0.35, "sine", 70, 40, 0.7, 0.002);
+    }
+  }
+
+  /** a thrown thing: a frag's bounce, an arc star's stick, thermite catching */
+  throwNoise(kind: "bounce" | "stick" | "fire" | "pin", at: Vec | null): void {
+    const v = this.voice(at, kind === "fire" ? 1.2 : 0.25, "fx", 1, 0.4);
+    if (!v) return;
+    if (kind === "bounce") this.tone(v.input, v.t, 0.06, "triangle", 620, 420, 0.25, 0.001);
+    else if (kind === "stick") {
+      this.tone(v.input, v.t, 0.05, "square", 1800, 1600, 0.12, 0.001);
+      this.noise(v.input, v.t, 0.4, "bandpass", 4200, 6, 0.12, 0.01);
+    } else if (kind === "pin") {
+      this.tone(v.input, v.t, 0.03, "square", 2600, 2400, 0.1, 0.0008);
+      this.tone(v.input, v.t + 0.08, 0.05, "triangle", 900, 700, 0.12, 0.001);
+    } else {
+      this.noise(v.input, v.t, 1.1, "lowpass", 1600, 0.5, 0.6, 0.02, 300);
+      this.noise(v.input, v.t, 0.08, "highpass", 3000, 0.7, 0.35, 0.001);
+    }
+  }
+
   /** the old call: a gunshot with a pitch and a volume, for anything not yet named */
   shot(pitch = 1, volume = 1): void {
     const v = this.voice(null, 0.4, "fx", 2);

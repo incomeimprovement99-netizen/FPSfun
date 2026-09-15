@@ -144,6 +144,8 @@ export interface HudState {
   trainer?: TrainerHud | null;
   /** a superglide's window is open: the mantle boost cue on the crosshair */
   mantleCue?: boolean;
+  /** grenades: how many of each (null: the range, no count), the one in hand, its keys */
+  ordnance?: { counts: Record<string, number> | null; readied: string | null; ready: boolean; key: string; fire: string; cancel: string } | null;
   /** a hold-E action in progress (a revive, a beacon): its label and 0..1 */
   brHold?: { label: string; progress: number } | null;
   /** pings in the world: an enemy (red), an item (its colour), a place (yellow) */
@@ -1445,6 +1447,7 @@ export class Hud {
   /** the heal kit, bottom left over the bars: what is left of each */
   private drawKit(s: HudState, u: number): void {
     if (!s.kit) {
+      this.drawOrdnance(s, u, 384 * u, this.h - 52 * u);
       this.drawHealWheel(s, u);
       return;
     }
@@ -1454,7 +1457,25 @@ export class Hud {
     const parts = ["cell", "battery", "syringe", "medkit", "phoenix"].filter((k) => (s.kit?.[k] ?? 0) > 0 || k === "cell" || k === "syringe").map((k) => `${short[k]} ${s.kit?.[k] ?? 0}`);
     const any = Object.values(s.kit).some((n) => n > 0);
     this.text(`4  ${parts.join("  ")}`, x, y, 700, 13 * u, any ? DIM : "rgba(154,164,173,0.4)");
+    this.drawOrdnance(s, u, x, y - 18 * u);
     this.drawHealWheel(s, u);
+  }
+
+  /** the grenades you carry, over the heals, and the one in hand under the crosshair */
+  private drawOrdnance(s: HudState, u: number, x: number, y: number): void {
+    const o = s.ordnance;
+    if (!o) return;
+    if (o.counts) {
+      const short: Record<string, string> = { frag: "FRAG", arcstar: "STAR", thermite: "THERM" };
+      const any = Object.values(o.counts).some((n) => n > 0);
+      this.text(`${o.key}  ${Object.entries(o.counts).map(([k, n]) => `${short[k] ?? k} ${n}`).join("  ")}`, x, y, 700, 13 * u, any ? DIM : "rgba(154,164,173,0.4)");
+    }
+    if (o.readied) {
+      const cx = this.w / 2;
+      const y0 = this.h * 0.64;
+      this.text(o.readied, cx, y0, 700, 18 * u, o.ready ? "#ffd27a" : DIM, "center");
+      this.text(o.ready ? `${o.fire} THROW  ·  ${o.cancel} PUT AWAY  ·  ${o.key} NEXT` : "PULLING THE PIN", cx, y0 + 18 * u, 600, 12 * u, DIM, "center");
+    }
   }
 
   /** the heal wheel: the five heals round the crosshair, the one pointed at lit, a count on each */

@@ -254,6 +254,14 @@ export const SCENARIOS: Scenario[] = [
       ],
     ],
   },
+  {
+    name: "throw-preview",
+    note: "a frag in hand: the arc it would take and where it lands; thermite burning ahead",
+    steps: [
+      [hideMenu, 300],
+      [`(() => { const r = window.__range; r.player.teleport(0, 0, -6, 0, 8); r.throwAt("thermite", new r.THREE.Vector3(-1.5, 1.2, -12), new r.THREE.Vector3(0, -1, -4)); r.ordnance.readied = { kind: "frag", readyAt: 0 }; })()`, 1400],
+    ],
+  },
 ];
 
 async function main(): Promise<void> {

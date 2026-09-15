@@ -787,6 +787,83 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await page.close();
 }
 
+/**
+ * Throwables: G readies one and again the next; a frag at a bot's feet takes
+ * its shield and a quarter of its health; thermite under it burns it; and
+ * over the local transport a friend's arc star sticks to you, goes off, slows
+ * you, and you saw it thrown.
+ */
+async function throwTest(browser: Browser, query: string): Promise<void> {
+  const page = await open(browser, query);
+  await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "easy"; window.__range.startBots(); })()`);
+  await pressPlay(page);
+  await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 15000 });
+  // the bot stands still on open ground 6 m in front of you, and does not shoot
+  await ev(page, `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; b.update = function (now, dt) { this.dummy.update(now, dt); return []; }; b.pos.set(90, 0, -1); b.dummy.group.position.copy(b.pos); r.player.teleport(90, 0, 5, 0); })()`);
+  const kit = await ev<{ counts: Record<string, number>; endless: boolean }>(page, "({ counts: { ...window.__range.ordnance.counts }, endless: window.__range.ordnance.endless })");
+  check("throwables: a bot match gives one of each and counts them", !kit.endless && kit.counts.frag === 1 && kit.counts.arcstar === 1 && kit.counts.thermite === 1, JSON.stringify(kit));
+  // the key itself (a scripted page has no pointer lock: the lock flag stands in)
+  await ev(page, "window.__range.input.locked = true");
+  await page.keyboard.press("KeyG");
+  await sleep(150);
+  const first = await ev<string | null>(page, "window.__range.ordnance.readied?.kind ?? null");
+  await page.keyboard.press("KeyG");
+  await sleep(150);
+  const second = await ev<string | null>(page, "window.__range.ordnance.readied?.kind ?? null");
+  check("throwables: G readies the frag, again the arc star", first === "frag" && second === "arcstar", `${first} then ${second}`);
+  const lowered = await ev<string>(page, "window.__range.hud.last?.ordnance?.readied ?? ''");
+  check("throwables: the HUD names the one in hand", /STAR/.test(lowered), lowered);
+  await ev(page, "(() => { window.__range.ordnance.readied = null; window.__range.input.locked = false; })()");
+  // a frag at its feet: the full 100 (its 75 shield, then 25 health)
+  await ev(page, `(() => { const r = window.__range; const b = r.duel().bots[0]; r.throwAt("frag", new r.THREE.Vector3(b.pos.x, 0.3, b.pos.z + 0.6), new r.THREE.Vector3(0, 0, 0)); })()`);
+  await sleep(3500);
+  const pre = await ev<number>(page, "(() => { const a = window.__range.duel().avatars[0]; return a.health + a.shield; })()");
+  await sleep(1100);
+  const post = await ev<{ hp: number; sh: number }>(page, "(() => { const a = window.__range.duel().avatars[0]; return { hp: a.health, sh: a.shield }; })()");
+  check("throwables: nothing before the 4 s fuse; then a frag at its feet takes 100 (75 shield, 25 health)", pre === 175 && post.sh === 0 && post.hp === 75, JSON.stringify({ pre, ...post }));
+  // thermite under it: 4 a tick, twice a second
+  await ev(page, `(() => { const r = window.__range; const b = r.duel().bots[0]; r.throwAt("thermite", new r.THREE.Vector3(b.pos.x, 0.3, b.pos.z + 0.4), new r.THREE.Vector3(0, -2, -0.5)); })()`);
+  await sleep(2100);
+  const burnt = await ev<number>(page, "window.__range.duel().avatars[0].health");
+  check("throwables: thermite under it burns it, 4 a tick", burnt <= 75 - 12 && burnt >= 75 - 24, `health ${burnt}`);
+  await ev(page, "window.__range.duel().leave()");
+  await sleep(200);
+  const range = await ev<{ endless: boolean; live: number }>(page, "({ endless: window.__range.ordnance.endless, live: window.__range.throwables.live.length + window.__range.throwables.fires.length })");
+  check("throwables: back in the range, no count and nothing left burning", range.endless && range.live === 0, JSON.stringify(range));
+  await page.close();
+
+  // ---- a friend's arc star, over the local transport
+  const host = await open(browser, "?net=local&norender");
+  const guest = await open(browser, "?net=local&norender");
+  await ev(host, `document.getElementById("duelHost").click()`);
+  let code = "";
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+  } catch {
+    check("throwables: a 1v1 to throw in", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+  for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  for (const p of [host, guest]) await pressPlay(p);
+  for (const p of [host, guest]) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 20000 });
+  await sleep(600);
+  // at the guest's chest, from a metre in front of them: it sticks (+10), then 75
+  await ev(host, `(() => { const r = window.__range; const g = r.duel().avatars[0].group.position; r.throwAt("arcstar", new r.THREE.Vector3(g.x, g.y + 1.2, g.z - 1.1), new r.THREE.Vector3(0, 0, 6)); })()`);
+  const seen = await guest.waitForFunction("window.__range.throwables.live.some((t) => t.kind === 'arcstar' && !t.mine)", { polling: 50, timeout: 3000 }).then(() => true, () => false);
+  check("throwables: the guest sees the host's arc star in the air", seen);
+  const hit = await guest.waitForFunction("window.__range.duel().shield + window.__range.duel().health <= 175 - 80", { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  const g1 = await ev<{ sh: number; hp: number; slowed: number }>(guest, "(() => { const d = window.__range.duel(); return { sh: d.shield, hp: d.health, slowed: window.__range.player.arcSlowUntil - window.__range.gameTime() }; })()");
+  check("throwables: it sticks to the guest and goes off: 10 and 75, and they are slowed", hit && g1.sh + g1.hp === 175 - 85 && g1.slowed > 2, JSON.stringify(g1));
+  await ev(guest, "window.__range.duel()?.leave()");
+  await host.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 8000 }).catch(() => undefined);
+  await host.close();
+  await guest.close();
+}
+
 /** the range's tooling: moving dummies, dummies that shoot back, the spray wall, per-gun numbers, the flick drill */
 async function rangeTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
@@ -852,7 +929,7 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   await page.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, br, loot, modes, squad, p2p) */
+/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, throw, br, loot, modes, squad, p2p) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -1074,6 +1151,11 @@ async function main(): Promise<void> {
     if (want("loot")) {
       console.log("\nBattle royale: landing with nothing, the loot");
       await brLootTest(browser, "?norender");
+    }
+
+    if (want("throw")) {
+      console.log("\nThrowables: the frag, the arc star, thermite");
+      await throwTest(browser, "?norender");
     }
 
     if (want("modes")) {

@@ -61,6 +61,16 @@ export function hopupName(mod: string): string {
   return HOPUP_NAMES[mod] ?? mod;
 }
 
+/** throwables: the frag and the thermite are plain words; the arc star is the game's own name */
+const THROW_NAMES: Record<string, string> = {
+  frag: "FRAG GRENADE",
+  arcstar: PUBLIC_BUILD ? "SPARK STAR" : "ARC STAR",
+  thermite: "THERMITE",
+};
+export function throwName(kind: string): string {
+  return THROW_NAMES[kind] ?? kind.toUpperCase();
+}
+
 /** optic labels, by attachment mod name */
 const OPTIC_CODENAMES: Record<string, string> = {
   optic_cq_holosight: "1x ring sight",

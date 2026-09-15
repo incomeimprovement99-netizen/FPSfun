@@ -37,5 +37,6 @@
   "fireMode": ["KeyB"],
   "hopup": ["KeyL"],
   "dummyMode": ["KeyI"],
-  "ping": ["mouse1"]
+  "ping": ["mouse1"],
+  "grenade": ["KeyG"]
 }

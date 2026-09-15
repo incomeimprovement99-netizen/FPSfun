@@ -115,6 +115,9 @@ export class Player {
    * cannot sprint. 1 when not healing.
    */
   healSlow = 1;
+  /** an arc star's slow: this much of the speed until then (throwables.ts) */
+  arcSlowUntil = 0;
+  arcSlowScale = 1;
   /** Apex's default is press (toggle) sprint with a 3 s buffer */
   sprintMode: SprintMode = "toggle";
 
@@ -1357,6 +1360,7 @@ export class Player {
     let target = (this.crouched ? MOVE.crouchSpeed : this.sprinting ? MOVE.sprintSpeed : MOVE.speed) * hb;
     target *= 1 + (adsMoveScale - 1) * adsFrac;
     target *= this.healSlow;
+    if (now < this.arcSlowUntil) target *= this.arcSlowScale;
     // Fall stun slows acceleration while it lasts. How much is not published.
     const stun = now < this.stunUntil ? 1 - this.stunStrength * (1 - MOVE.fallstunAccelScale) : 1;
 

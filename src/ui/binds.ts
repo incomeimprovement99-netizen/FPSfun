@@ -37,6 +37,7 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
       ["zoomToggle", "Variable optic zoom"],
       ["fireMode", "Fire mode (where the gun has two)"],
       ["heal", "Heal (a cell, then a syringe)"],
+      ["grenade", "Ready a grenade (again: the next kind; fire throws, aim puts it away)"],
     ],
   },
   {

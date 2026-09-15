@@ -5,7 +5,8 @@
   "itemsPerSpot": [1, 3],
   "rarity": { "common": 55, "rare": 30, "epic": 12, "legendary": 3 },
   "colors": { "common": "#e8e8e8", "rare": "#3b8bff", "epic": "#b04cff", "legendary": "#ffc12e" },
-  "kinds": { "weapon": 22, "ammo": 26, "heal": 26, "attach": 18, "helmet": 2, "hopup": 6 },
+  "kinds": { "weapon": 22, "ammo": 26, "heal": 26, "attach": 18, "helmet": 2, "hopup": 6, "grenade": 9 },
+  "grenades": ["frag", "frag", "arcstar", "thermite"],
   "weapons": {
     "common": ["semipistol", "shotgun_pistol", "r97", "alternator_smg", "g2", "hemlok", "shotgun", "autopistol"],
     "rare": ["rspn101", "vinson", "car", "volt_smg", "pdw", "energy_ar", "nemesis", "wingman", "mastiff", "energy_shotgun", "dmr"],

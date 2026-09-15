@@ -533,7 +533,7 @@ export class BotMatch implements MatchLike {
   onFeed: ((text: string, mine: boolean, neutral?: boolean) => void) | null = null;
   streak = 0;
   private lastSummary: MatchSummary | null = null;
-  onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3) => void) | null = null;
+  onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3, n?: number) => void) | null = null;
   onDamaged: ((from: number, amount: number, head: boolean, weapon: string, dist: number | null) => void) | null = null;
   onEliminated: ((by: number) => void) | null = null;
   onShotFired: ((id: number, o: THREE.Vector3, d: THREE.Vector3, weapon: string) => void) | null = null;

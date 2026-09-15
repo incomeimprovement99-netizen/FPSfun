@@ -13,7 +13,7 @@ const DIST = join(ROOT, "dist");
 const data = JSON.parse(readFileSync(join(ROOT, "data", "weapons.json"), "utf8")) as { weapons: Record<string, { name: string }> };
 
 const banned = new Set<string>(Object.values(data.weapons).map((w) => w.name));
-for (const extra of ["Glock", "Apex", "Respawn Entertainment", "Electronic Arts", "Nemesis", "Bocek", "Turbocharger", "Skullpiercer", "Hammerpoint", "Disruptor", "Selectfire"]) banned.add(extra);
+for (const extra of ["Glock", "Apex", "Respawn Entertainment", "Electronic Arts", "Nemesis", "Bocek", "Turbocharger", "Skullpiercer", "Hammerpoint", "Disruptor", "Selectfire", "Arc Star", "ARC STAR"]) banned.add(extra);
 
 function files(dir: string): string[] {
   const out: string[] = [];

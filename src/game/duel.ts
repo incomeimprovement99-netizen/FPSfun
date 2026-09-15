@@ -210,7 +210,7 @@ export interface MatchLike {
   /** someone else finished a heal (a player's fx, or a bot): the recap's "healed recently" */
   onHealSeen: ((id: number, item: string) => void) | null;
   /** someone else's effect (a player's, or a bot's): draw and play it */
-  onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3) => void) | null;
+  onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3, n?: number) => void) | null;
 }
 
 export class Duel implements MatchLike {
@@ -282,7 +282,7 @@ export class Duel implements MatchLike {
   onRoster: ((connected: number, players: number) => void) | null = null;
   /** the host: a guest left before round 1, so their place can be taken again */
   onSlotFree: ((id: number) => void) | null = null;
-  onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3) => void) | null = null;
+  onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3, n?: number) => void) | null = null;
   onDamaged: ((from: number, amount: number, head: boolean, weapon: string, dist: number | null) => void) | null = null;
   onEliminated: ((by: number) => void) | null = null;
   onHealSeen: ((id: number, item: string) => void) | null = null;
@@ -536,7 +536,7 @@ export class Duel implements MatchLike {
       const known = this.remotes.get(from);
       if (known) known.lastHeard = now;
       if (m.k === "heal" && typeof m.n === "number" && HEAL_CODES[m.n]) this.onHealSeen?.(from, HEAL_CODES[m.n]);
-      else this.onRemoteFx?.(m.k, from, m.a ? new THREE.Vector3(...m.a) : undefined, m.b ? new THREE.Vector3(...m.b) : undefined);
+      else this.onRemoteFx?.(m.k, from, m.a ? new THREE.Vector3(...m.a) : undefined, m.b ? new THREE.Vector3(...m.b) : undefined, m.n);
       // a JOLT: the figure leans into it
       if (m.k === "jolt") known?.avatar.jolt();
       this.relay(m, from);

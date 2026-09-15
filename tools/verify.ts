@@ -23,6 +23,7 @@ import lootCfg from "../src/config/loot.json";
 import { LootField, rollItem, seeded } from "../src/game/loot";
 import { Duel, moveDirOf } from "../src/game/duel";
 import { actCode, actFromCode } from "../src/game/dummy";
+import { Ordnance, Throwables, arcSlowFor, blastDamage } from "../src/game/throwables";
 import modesCfg from "../src/config/modes.json";
 import { Crown, GunLadder, TeamScore, gunList, pickSpawn, yawToMiddle } from "../src/game/modes";
 /** every gun the game has but the course's own pistol */
@@ -1342,6 +1343,85 @@ console.log("The figures' motion (src/game/dummy.ts, duel.ts moveDirOf)");
   eq("a heal's code carries the item", actCode("heal", 3), 13);
   eq("nothing", actFromCode(actCode(null)), null);
   eq("an older build's packet (no code): nothing", actFromCode(undefined), null);
+}
+
+console.log("");
+console.log("Throwables (src/game/throwables.ts, src/config/throwables.json, Season 30)");
+{
+  eq("a frag inside 2.4 m: 100", blastDamage("frag", 2.4), 100);
+  eq("at 8 m: nothing", blastDamage("frag", 8), 0);
+  eq("half way out (5.2 m): 50", blastDamage("frag", 5.2), 50);
+  eq("an arc star inside 1.8 m: 75", blastDamage("arcstar", 1), 75);
+  eq("past 8.75 m: nothing", blastDamage("arcstar", 9), 0);
+  near("its full 75 slows for 5 s", arcSlowFor(75), 5, 1e-9);
+  near("30 of it, 2 s", arcSlowFor(30), 2, 1e-9);
+  // flights on the floor alone (verify has no range built: the floor is all there is)
+  const events: string[] = [];
+  let blastAt = -1;
+  let fireTicks = 0;
+  const T = new Throwables(new THREE.Scene(), {
+    onBlast: (t, at) => {
+      events.push(`blast:${t.kind}`);
+      blastAt = at.y;
+    },
+    onStrike: (t, id) => events.push(`strike:${t.kind}:${id}`),
+    onFireTick: () => fireTicks++,
+    onSound: () => undefined,
+  });
+  const run = (seconds: number, t0: number, targets: Array<{ id: number; feet: THREE.Vector3 }> = []) => {
+    let now = t0;
+    for (let i = 0; i < seconds * 60; i++) {
+      now += 1 / 60;
+      T.update(now, 1 / 60, targets);
+    }
+    return now;
+  };
+  T.throw("frag", new THREE.Vector3(0, 1.5, 0), new THREE.Vector3(0, 2, -12), -1, true, 0);
+  run(3.9, 0);
+  eq("a frag has not gone off at 3.9 s", events.includes("blast:frag"), false);
+  run(0.2, 3.9);
+  eq("it goes off on its 4 s fuse", events.includes("blast:frag"), true);
+  eq("having come to rest on the floor", blastAt >= 0 && blastAt < 0.2, true);
+  events.length = 0;
+  T.throw("arcstar", new THREE.Vector3(0, 1.5, 0), new THREE.Vector3(0, 0, -20), -1, true, 10);
+  let now = run(0.6, 10);
+  const stuck = T.live[0]?.stuck !== null;
+  eq("an arc star sticks where it lands", stuck, true);
+  const fuse = (T.live[0]?.fuseAt ?? 0) - now;
+  eq("and goes off 2.8 s after that", fuse > 2.2 && fuse <= 2.8, true);
+  run(2.9, now);
+  eq("it did", events.includes("blast:arcstar"), true);
+  events.length = 0;
+  const bot = { id: 7, feet: new THREE.Vector3(0, 0, -6) };
+  T.throw("arcstar", new THREE.Vector3(0, 1.2, 0), new THREE.Vector3(0, 0, -18), -1, true, 20);
+  now = run(0.5, 20, [bot]);
+  eq("thrown at a figure, it sticks to them", events.includes("strike:arcstar:7") && T.live[0]?.stuck?.target === 7, true);
+  bot.feet.set(3, 0, -6);
+  run(0.2, now, [bot]);
+  eq("and goes where they go", Math.abs((T.live[0]?.pos.x ?? 0) - 3) < 0.4, true);
+  T.clear();
+  T.throw("thermite", new THREE.Vector3(0, 1.5, 0), new THREE.Vector3(0, 1, -10), -1, true, 40);
+  now = run(1.2, 40);
+  eq("thermite lands as a line of fire", T.fires.length, 1);
+  const f = T.fires[0];
+  near("6 m long", f.a.distanceTo(f.b), 6, 1e-6);
+  eq("across the throw (the line runs along x for a throw down -z)", Math.abs(f.a.z - f.b.z) < 1e-6, true);
+  eq("the middle of it burns", Throwables.inFire(f, f.a.clone().lerp(f.b, 0.5)), true);
+  eq("a metre to the side does not", Throwables.inFire(f, f.a.clone().lerp(f.b, 0.5).add(new THREE.Vector3(0, 0, 1))), false);
+  run(8.5, now);
+  eq("8 s of fire, a tick every half second: 16 ticks (17 counting the one it lands with)", fireTicks >= 16 && fireTicks <= 17, true);
+  eq("and then it is out", T.fires.length, 0);
+  const o = new Ordnance();
+  o.endless = false;
+  o.fill("kit");
+  eq("the arena kit: one of each", `${o.counts.frag}/${o.counts.arcstar}/${o.counts.thermite}`, "1/1/1");
+  eq("G readies the first you have", o.cycle(0), "frag");
+  eq("again: the next", o.cycle(0), "arcstar");
+  eq("after the last, back to the gun", (o.cycle(0), o.cycle(0)), null);
+  o.cycle(0);
+  eq("a throw spends one", (o.spend(), o.counts.frag), 0);
+  eq("with none left G skips it", o.cycle(0), "arcstar");
+  eq("a stack holds two", o.add("thermite", 5), 1);
 }
 
 console.log("");

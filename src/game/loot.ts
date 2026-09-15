@@ -15,12 +15,12 @@ import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
 import { weaponName, type AmmoType } from "./weapons";
 import { HEALS, type HealItem, type Helmet } from "./kit";
-import { hopupName, opticName } from "../config/names";
+import { hopupName, opticName, throwName } from "../config/names";
 import { RANGE_SOLIDS } from "./range";
 import type { Attachments } from "./attachments";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
-export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box";
+export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade";
 
 export interface LootItem {
   kind: LootKind;
@@ -85,6 +85,8 @@ export function lootLabel(it: LootItem): string {
       return hopupName(it.id).toUpperCase();
     case "helmet":
       return it.id === "red" ? "MYTHIC HELMET" : "GOLD HELMET";
+    case "grenade":
+      return `${throwName(it.id)}${it.n > 1 ? ` x${it.n}` : ""}`;
     case "banner":
       return `${it.ownerName ?? "A SQUAD MATE"}'S BANNER`;
     default:
@@ -133,6 +135,8 @@ export function rollItem(rnd: () => number): LootItem {
       return { kind, id: pick(rnd, cfg.hopups), n: 1, rarity: "epic" };
     case "helmet":
       return { kind, id: rnd() < 0.8 ? "gold" : "red", n: 1, rarity: "legendary" };
+    case "grenade":
+      return { kind, id: pick(rnd, cfg.grenades), n: 1, rarity: "rare" };
     default: {
       const type = pick(rnd, ["light", "heavy", "sniper", "shotgun"] as AmmoType[]);
       const stack = { light: 60, heavy: 60, sniper: 28, shotgun: 20 } as Record<string, number>;

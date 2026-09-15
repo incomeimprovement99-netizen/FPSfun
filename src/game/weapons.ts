@@ -1,7 +1,7 @@
 // Typed access to data/weapons.json and resolution into the numbers the
 // simulation consumes. Everything gameplay-relevant comes from here.
 import raw from "../../data/weapons.json";
-import { displayName } from "../config/names";
+import { displayName, throwName } from "../config/names";
 import mechCfg from "../config/weapon-mechanics.json";
 import ammoCfg from "../config/ammo.json";
 
@@ -216,6 +216,7 @@ export function weaponIds(): string[] {
   return Object.keys(DATA.weapons);
 }
 export function weaponName(id: string): string {
+  if (!DATA.weapons[id] && (id === "frag" || id === "arcstar" || id === "thermite")) return throwName(id);
   return displayName(id, DATA.weapons[id]?.name ?? id);
 }
 /** this weapon's Mods block, keyed by mod name, for attachment discovery */
