@@ -1,0 +1,18 @@
+{
+  "_note": "A battle royale squad's systems, Season 30 where Apex publishes a number (docs/RESEARCH_PHASE_11.md section 6): the bleed-out clock per knock, a revive's 5 s and the 20 health it gives back, the banner's 90 s, a beacon's 5 s. The crawl speed, the reach and the launch pad's throw are ours.",
+  "bleedOut": [90, 60, 30, 15],
+  "bleedHealth": 100,
+  "reviveTime": 5,
+  "reviveHealth": 20,
+  "reviveReach": 2.4,
+  "bannerLife": 90,
+  "beaconTime": 5,
+  "beaconReach": 2.8,
+  "_crawl": "down, you crawl at this fraction of the crouch walk (ours)",
+  "crawl": 0.65,
+  "_pad": "a launch pad on a road: along it and up, m/s (ours; about 33 m along and 6.7 m up)",
+  "pad": { "speed": 20, "up": 16, "reach": 1.7 },
+  "towerReach": 2.6,
+  "_ping": "how long a ping lasts, s",
+  "pingLife": { "enemy": 6, "loot": 10, "go": 12 }
+}

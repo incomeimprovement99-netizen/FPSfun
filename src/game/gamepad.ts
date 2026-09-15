@@ -2,7 +2,8 @@
 //
 // The layout is the game's default one, as far as the buttons map:
 //   left stick move, right stick look, RT fire, LT aim, A jump, B crouch,
-//   X reload (and interact: a zipline in reach), Y swap weapon, L3 sprint,
+//   X reload (and interact: a zipline in reach, an item, held for a revive or
+//   a beacon), Y swap weapon, L3 sprint,
 //   R3 melee, LB the ability (the game's tactical button), RB variable zoom,
 //   d-pad up optic, down magazine level, left slot 1, right slot 2 (and, while
 //   the ability card is up, left and right pick one), Start the menu, Back

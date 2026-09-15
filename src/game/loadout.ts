@@ -24,6 +24,8 @@ export interface Slot {
   altMode: boolean;
   /** an energy gun's own stockpile (ammo.ts), or null */
   energy: EnergyStock | null;
+  /** nothing in this slot (a battle royale's start): fists; the weapon object is only a placeholder */
+  empty: boolean;
 }
 
 /** a slot's weapon and its fittings, without the live state */
@@ -47,7 +49,7 @@ export class Loadout {
   constructor(ids: string[]) {
     for (const id of ids) {
       const weapon = resolveWeapon(id, 0);
-      const s: Slot = { id, magLevel: 0, attach: {}, weapon, state: new WeaponState(weapon), zoomAlt: false, altMode: false, energy: fullEnergy(weapon) };
+      const s: Slot = { id, magLevel: 0, attach: {}, weapon, state: new WeaponState(weapon), zoomAlt: false, altMode: false, energy: fullEnergy(weapon), empty: false };
       this.slots.push(s);
       this.wireSupply(s);
     }
@@ -105,7 +107,10 @@ export class Loadout {
 
   /** rebuild the active slot's weapon from its id, mag level, attachments and fire mode */
   private rebuild(keepState: boolean): void {
-    const s = this.active;
+    this.rebuildSlot(this.active, keepState);
+  }
+
+  private rebuildSlot(s: Slot, keepState: boolean): void {
     s.weapon = resolveWeapon(s.id, s.magLevel, this.chain(s));
     if (keepState) s.state.setMagLevel(s.weapon);
     else s.state.setWeapon(s.weapon);
@@ -148,6 +153,56 @@ export class Loadout {
     return s.energy ? s.energy.rounds : this.ammo.stock[s.weapon.ammoType];
   }
 
+  /** empty a slot: fists (a battle royale's start) */
+  clearSlot(i: number): void {
+    const s = this.slots[i];
+    if (!s) return;
+    s.empty = true;
+    s.attach = {};
+    s.altMode = false;
+    s.energy = null;
+  }
+
+  /** a looted gun into a slot, with its fittings; a full magazine (ours) and, for an energy gun, its stockpile */
+  give(i: number, id: string, magLevel = 0, attach: Attachments = {}): void {
+    const s = this.slots[i];
+    if (!s) return;
+    this.setWeaponId(i, id);
+    s.empty = false;
+    s.magLevel = Math.max(0, Math.min(4, magLevel));
+    s.attach = { ...attach };
+    s.altMode = false;
+    this.rebuildSlot(s, false);
+    s.energy = fullEnergy(s.weapon);
+  }
+
+  /** the first empty slot, or -1 */
+  get emptySlot(): number {
+    return this.slots.findIndex((s) => s.empty);
+  }
+
+  /** a looted attachment onto a slot's gun, if it takes it; true when it went on */
+  fitAttachment(i: number, slot: AttachSlot, mod: string): boolean {
+    const s = this.slots[i];
+    if (!s || s.empty) return false;
+    if (!optionsFor(slot, weaponMods(s.id), s.id).some((o) => o.mod === mod)) return false;
+    s.attach[slot] = mod;
+    this.rebuildSlot(s, true);
+    return true;
+  }
+
+  /** a looted magazine: a higher mag level on a slot's gun, if it has magazines; true when it went on */
+  fitMag(i: number, level: number): boolean {
+    const s = this.slots[i];
+    if (!s || s.empty || level <= s.magLevel) return false;
+    const before = s.weapon.clipSize;
+    const r = resolveWeapon(s.id, level, this.chain(s));
+    if (r.clipSize === before && level > 0 && s.weapon.reloadTime === r.reloadTime) return false;
+    s.magLevel = level;
+    this.rebuildSlot(s, true);
+    return true;
+  }
+
   /** put a different weapon in a slot, resetting its attachments and state */
   setWeaponId(slotIndex: number, id: string): void {
     const s = this.slots[slotIndex];
@@ -163,6 +218,7 @@ export class Loadout {
     s.weapon = weapon;
     s.state.setWeapon(weapon);
     s.energy = fullEnergy(weapon);
+    s.empty = false;
     // A swap in flight was timed from the weapons it started with. Changing
     // one of them mid-swap would leave the timer describing guns that are no
     // longer involved, so land it now.

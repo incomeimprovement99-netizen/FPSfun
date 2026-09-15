@@ -35,6 +35,11 @@ export class AmmoPouch {
   }
 }
 
+/** the ammo a gun takes (by id, for a gun not in hand) */
+export function ammoTypeOf(id: string): AmmoType {
+  return ((cfg.types as Record<string, string>)[id] ?? "light") as AmmoType;
+}
+
 /** an energy gun's own stockpile: rounds, its most, when the next magazine comes back */
 export interface EnergyStock {
   rounds: number;

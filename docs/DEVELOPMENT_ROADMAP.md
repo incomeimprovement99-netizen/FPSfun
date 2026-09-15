@@ -206,3 +206,40 @@ Striker 9 is) with Season 30's numbers.
 - **On the wire**: each player's shield size goes in the state packet, so plates and shield colours are right.
 - Tests: verify (the quick heal's choices, stacks, times, the EVO thresholds, the helmets), movesim (60% pace,
   no sprint while healing), e2e (the BR's white core and a cell to its cap).
+
+## Milestone 19 — The battle royale, filled in: loot, downs, revives, banners, beacons, pings ✅
+2026-09-15 (Phase 11I). `src/game/loot.ts`, `src/game/brplay.ts`, `src/config/loot.json`, `src/config/squad.json`.
+- **Land with nothing** (the new default, a setting beside the BR's other options): two empty slots and
+  fists (the fire button punches), no heals, no ammo; "land with your loadout" is still there.
+- **Floor loot** from the host's seed, so every browser in a squad lays out the same items under the same
+  keys: around 200 items over the five places and the field, rolled by kind and rarity (guns, ammo stacks,
+  heals, magazines, barrels, stocks, optics, hop-ups, helmets). A gun lies as its own model on a ring in its
+  rarity's colour, the rest as a box; epic and legendary items stand in a beam. Only what is within 70 m is drawn.
+- **E takes what is under the crosshair** (within 2.2 m, about 25 degrees of the line), with a TAKE prompt.
+  A gun goes into an empty slot, or in place of the one in hand, which goes down where you stand with its
+  fittings. Ammo goes in the pack; a heal past its stack takes what fits and leaves the rest; a magazine or
+  attachment goes on whichever gun takes it; a helmet goes on. In a squad the host decides who got it first.
+- **Bots land unarmed** and search (30 / 18 / 10 s by difficulty) before they have a gun and a shield.
+- **Death boxes**: yours holds your guns, ammo, heals, helmet and, in a squad, your banner; a bot's holds its
+  gun, ammo and a few heals.
+- **Care packages** in ring rounds 2 to 4: the pod shows on the maps as it falls (8 s), then lands with a gold
+  care-package gun (Kraber, 30-30, L-STAR) and two of: a gold helmet, a phoenix kit, two batteries.
+- **Down, not out** (Season 30): in a squad with someone still up, a knock puts you down; you crawl (crouched,
+  65% of the crouch walk, no guns, no heals) and bleed out over 90, 60, 30, then 15 s a knock. Down you have
+  100 more to take before you are out. A red edge, the clock and who is reviving you are on screen.
+- **Revives**: hold E for 5 s next to a downed squad mate; they are up with 20 health. Both sides see it.
+- **Banners and respawn beacons**: take a squad mate's banner from their death box (90 s), hold E for 5 s at
+  a beacon, and they drop in over it.
+- **Jump towers** (E at the balloon, a second drop from three quarters of the height) and **launch pads** on
+  the roads (about 33 m along and 6.7 m up).
+- **Pings** (the middle mouse button): an enemy under the crosshair (it follows them), an item near the line,
+  else the place you look at. Shown in the world (held to the screen's edge when off it, with the distance),
+  on the minimap and on the full map, to the whole squad.
+- **The maps** show jump towers, beacons, care packages, pings and your squad mates (red when down).
+- **Watching a squad mate** when you are out: through their eyes; the third-person key puts you behind them.
+- Tests: verify (the seed lays out the same floor on every browser, the rolls name only real guns and heals,
+  every attachment fits a gun in the pools, the rarity weights, empty slots and fitting loot, the bleed-out
+  clock), movesim (the pad's throw, the crawl), e2e (landing with nothing, the TAKE prompt and E, a second and
+  a third gun, ammo, a heal past its stack, a helmet, a care package, your death box, the loadout back after;
+  in a squad: a ping, down not out, the crawl seen by the host, the revive prompt and 5 s hold, 20 health, the
+  second knock's 60 s, finished while down, the banner in the box), snap (br-loot, br-downed, br-map-icons).

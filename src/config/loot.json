@@ -1,0 +1,33 @@
+{
+  "_note": "Battle royale loot (ours: Apex's loot tables are not published). Spots per place and items per spot, rarity weights, and what each rarity holds. Care-package guns per Season 30: the Kraber, the 30-30 and the L-STAR (docs/RESEARCH_PHASE_11.md sections 10, 11, 15). Ammo amounts are one stack of the type.",
+  "spotsPerPoi": 16,
+  "fieldSpots": 26,
+  "itemsPerSpot": [1, 3],
+  "rarity": { "common": 55, "rare": 30, "epic": 12, "legendary": 3 },
+  "colors": { "common": "#e8e8e8", "rare": "#3b8bff", "epic": "#b04cff", "legendary": "#ffc12e" },
+  "kinds": { "weapon": 22, "ammo": 26, "heal": 26, "attach": 18, "helmet": 2, "hopup": 6 },
+  "weapons": {
+    "common": ["semipistol", "shotgun_pistol", "r97", "alternator_smg", "g2", "hemlok", "shotgun", "autopistol"],
+    "rare": ["rspn101", "vinson", "car", "volt_smg", "pdw", "energy_ar", "nemesis", "wingman", "mastiff", "energy_shotgun", "dmr"],
+    "epic": ["lmg", "esaw", "dragon_lmg", "doubletake", "sentinel", "defender", "bocek"],
+    "legendary": ["rspn101", "r97", "wingman", "energy_ar"]
+  },
+  "carePackage": ["sniper", "3030", "lstar"],
+  "heals": { "common": ["cell", "syringe"], "rare": ["cell", "syringe", "battery", "medkit"], "epic": ["battery", "medkit"], "legendary": ["phoenix"] },
+  "healAmount": { "cell": 2, "syringe": 2, "battery": 1, "medkit": 1, "phoenix": 1 },
+  "attachments": {
+    "common": ["barrel_stabilizer_l1", "stock_tactical_l1", "stock_sniper_l1", "optic_cq_holosight", "optic_cq_hcog_classic", "mag:1"],
+    "rare": ["barrel_stabilizer_l2", "stock_tactical_l2", "stock_sniper_l2", "optic_cq_hcog_bruiser", "optic_cq_holosight_variable", "optic_ranged_hcog", "mag:2"],
+    "epic": ["barrel_stabilizer_l3", "stock_tactical_l3", "stock_sniper_l3", "optic_ranged_aog_variable", "optic_sniper_variable", "mag:3"],
+    "legendary": ["optic_cq_threat", "mag:4"]
+  },
+  "hopups": ["hopup_turbocharger", "hopup_headshot_dmg", "hopup_unshielded_dmg", "hopup_shield_breaker", "hopup_energy_choke", "altfire_double_tap", "selectfire"],
+  "deathBox": { "stacks": 2, "cells": 2, "syringes": 1 },
+  "carePackageContents": 3,
+  "pickupReach": 2.2,
+  "_bots": "a bot lands unarmed and searches this long before it has its gun and a shield (ours)",
+  "botSearch": { "easy": 30, "normal": 18, "hard": 10 },
+  "_pods": "a care package lands inside the next ring in rounds 2 to 4, falling this long (ours: Apex's fall time is not published)",
+  "podFall": 8,
+  "drawDistance": 70
+}

@@ -142,6 +142,7 @@ export class Bot {
       shield: SHIELD_MAX,
       shieldMax: SHIELD_MAX,
       alive: true,
+      downed: false,
       ready: true,
       lastHeard: 0,
       link: { role: "guest", send: () => undefined, close: () => undefined, onMessage: null, onClose: null },

@@ -19,6 +19,9 @@ import itemsCfg from "../src/config/items.json";
 import { DamageLog } from "../src/game/recap";
 import { Armor, HEALS, Kit } from "../src/game/kit";
 import audioCfg from "../src/config/audio.json";
+import lootCfg from "../src/config/loot.json";
+import { LootField, rollItem, seeded } from "../src/game/loot";
+import { Duel } from "../src/game/duel";
 
 let fails = 0;
 const eq = (label: string, got: unknown, want: unknown) => {
@@ -1200,6 +1203,72 @@ console.log("Heals and armour (src/config/items.json, Season 30)");
   a.helmet = "gold";
   eq("the gold helmet: 100 on a white core", a.shieldMax, 100);
   eq("and doubles the small heals", a.smallHealScale, 2);
+}
+
+console.log("");
+console.log("Battle royale loot (src/game/loot.ts, src/config/loot.json)");
+{
+  const places = [
+    { x: 0, z: 500 },
+    { x: 90, z: 430 },
+  ];
+  const bounds = { minX: -200, maxX: 200, minZ: 300, maxZ: 700 };
+  const a = new LootField(null);
+  const b = new LootField(null);
+  const c = new LootField(null);
+  a.generate(424242, places, bounds);
+  b.generate(424242, places, bounds);
+  c.generate(424243, places, bounds);
+  const same = a.count === b.count && [...a.drops].every(([k, d]) => {
+    const e = b.drops.get(k);
+    return !!e && e.item.kind === d.item.kind && e.item.id === d.item.id && e.item.n === d.item.n && e.pos.distanceTo(d.pos) < 1e-9;
+  });
+  eq("the same seed lays out the same items under the same keys (a squad's browsers agree)", same, true);
+  eq("another seed lays out another floor", [...a.drops].some(([k, d]) => c.drops.get(k)?.item.id !== d.item.id), true);
+  eq("two places and the field: at least 40 items", a.count >= 40, true);
+  // the rolls: every id they can make is one the game knows
+  const rnd = seeded(9);
+  const rar: Record<string, number> = { common: 0, rare: 0, epic: 0, legendary: 0 };
+  const unknown: string[] = [];
+  const guns = new Set(weaponIds());
+  let weapons = 0;
+  for (let i = 0; i < 20000; i++) {
+    const it = rollItem(rnd);
+    if (it.kind === "weapon") {
+      weapons++;
+      rar[it.rarity]++;
+      if (!guns.has(it.id)) unknown.push(it.id);
+    }
+    if (it.kind === "heal" && !(it.id in HEALS)) unknown.push(it.id);
+  }
+  for (const id of lootCfg.carePackage) if (!guns.has(id)) unknown.push(id);
+  eq("every gun and heal the loot rolls is in the game", [...new Set(unknown)].join(",") || "none", "none");
+  near("a legendary gun is 3% of guns", rar.legendary / weapons, 0.03, 0.01);
+  near("a common gun is 55% of guns", rar.common / weapons, 0.55, 0.02);
+  // every attachment and hop-up fits at least one gun in the loot pools
+  const pool = [...new Set(Object.values(lootCfg.weapons).flat())];
+  const fits = (slot: "optic" | "barrel" | "stock" | "hopup", mod: string) => pool.some((id) => optionsFor(slot, weaponMods(id), id).some((o) => o.mod === mod));
+  const orphan = [...Object.values(lootCfg.attachments).flat(), ...lootCfg.hopups].filter((m) => {
+    if (m.startsWith("mag:")) return false;
+    const slot = lootCfg.hopups.includes(m) ? "hopup" : m.startsWith("optic_") ? "optic" : m.startsWith("barrel_") ? "barrel" : "stock";
+    return !fits(slot, m);
+  });
+  eq("every attachment and hop-up on the floor fits some gun there", orphan.join(",") || "none", "none");
+  // a loadout starts empty and fills from the floor
+  const lo = new Loadout(["rspn101", "wingman"]);
+  lo.clearSlot(0);
+  lo.clearSlot(1);
+  eq("cleared: both slots empty, the first free is 0", lo.emptySlot, 0);
+  lo.give(0, "r97");
+  eq("a gun into slot 0; the next free is 1", lo.emptySlot, 1);
+  eq("a white mag fits the R-99", lo.fitMag(0, 1), true);
+  eq("and a lower one does not", lo.fitMag(0, 1), false);
+  eq("a blue barrel fits the R-99", lo.fitAttachment(0, "barrel", "barrel_stabilizer_l2"), true);
+  eq("a sniper stock does not", lo.fitAttachment(0, "stock", "stock_sniper_l2"), false);
+  eq("nothing fits an empty slot", lo.fitMag(1, 3), false);
+  // down, not out: the bleed-out clock per knock (Season 30)
+  eq("bleed-out: 90, 60, 30, 15 s", Duel.BLEED.join(","), "90,60,30,15");
+  eq("a revive gives 20 health", Duel.REVIVE_HEALTH, 20);
 }
 
 console.log("");

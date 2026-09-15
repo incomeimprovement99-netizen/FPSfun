@@ -34,6 +34,9 @@ const padButton = (i: number, on: boolean) => `(() => { window.__pad.buttons[${i
 /** a step that waits in the page until the match's fight is on */
 const untilFight = `new Promise((r) => { const t = setInterval(() => { if (window.__range.duel()?.phase === "fight") { clearInterval(t); r(0); } }, 50); setTimeout(() => { clearInterval(t); r(0); }, 20000); })`;
 
+/** the same for a battle royale, whose drop takes longer */
+const untilFightLong = untilFight.replace("20000", "60000");
+
 export const SCENARIOS: Scenario[] = [
   {
     name: "ability-range",
@@ -124,6 +127,48 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       [`(() => { const s = document.getElementById("botAbilities"); s.value = "1"; s.dispatchEvent(new Event("change")); ${hideMenu}; window.__range.startBots(); })()`, 600],
       [`window.__range.pickAbility("triage")`, 3200],
+    ],
+  },
+  {
+    name: "br-loot",
+    note: "a battle royale with nothing: fists, the floor's items (a gun, a purple beam, heals, ammo), the TAKE prompt",
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [untilFightLong, 400],
+      [
+        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("jolt"); const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, -28); const f = d.lootField; const V = (x, z) => new r.THREE.Vector3(s.x + x, 0, s.z + z);
+          f.add({ kind: "weapon", id: "r97", n: 1, rarity: "rare" }, V(0, -1.7));
+          f.add({ kind: "weapon", id: "bocek", n: 1, rarity: "epic", mag: 2 }, V(-1.6, -4));
+          f.add({ kind: "heal", id: "battery", n: 1, rarity: "rare" }, V(1.4, -3.2));
+          f.add({ kind: "ammo", id: "light", n: 60, rarity: "common" }, V(0.6, -4.8));
+          f.add({ kind: "helmet", id: "gold", n: 1, rarity: "legendary" }, V(2.6, -5.6));
+          r.setScript({ held: () => false, pressedNow: () => false }); })()`,
+        900,
+      ],
+    ],
+  },
+  {
+    name: "br-downed",
+    note: "down, not out: the bleed-out clock and the crawl, a squad mate's ping on screen",
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [untilFightLong, 400],
+      [
+        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("triage"); const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, 0); d.downed = true; d.bleedUntil = performance.now() / 1000 + 71.4; r.brPlay.addMarker("go", new r.THREE.Vector3(s.x + 6, 0, s.z - 30), "GOING HERE", 1, -1, r.gameTime()); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
+        900,
+      ],
+    ],
+  },
+  {
+    name: "br-map-icons",
+    note: "the full map: jump towers, respawn beacons, a care package falling, pings, the rings",
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [untilFightLong, 400],
+      [
+        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("jolt"); const p = r.player.pos; d.addPod(new r.THREE.Vector3(p.x + 40, 0, p.z - 30), 30); r.brPlay.addMarker("enemy", new r.THREE.Vector3(p.x - 30, 0, p.z - 50), "ENEMY", 0, -1, r.gameTime()); r.brPlay.addMarker("loot", new r.THREE.Vector3(p.x + 15, 0, p.z + 20), "LOOT", 0, -1, r.gameTime()); r.setScript({ held: () => false, pressedNow: () => false }); r.setMapOpen(true); })()`,
+        700,
+      ],
     ],
   },
 ];

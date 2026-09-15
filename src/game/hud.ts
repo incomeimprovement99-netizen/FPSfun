@@ -72,6 +72,8 @@ export interface HudState {
   attachLines: string[];
   clip: number;
   clipSize: number;
+  /** nothing in hand (a battle royale's start, an empty slot): no count, no reserve */
+  unarmed?: boolean;
   /** rounds left to reload with (Infinity: the range's endless ammo) */
   reserve?: number;
   /** an energy gun's own stockpile, shown as a percentage like the game */
@@ -139,6 +141,16 @@ export interface HudState {
   trainer?: TrainerHud | null;
   /** a superglide's window is open: the mantle boost cue on the crosshair */
   mantleCue?: boolean;
+  /** a hold-E action in progress (a revive, a beacon): its label and 0..1 */
+  brHold?: { label: string; progress: number } | null;
+  /** pings in the world: an enemy (red), an item (its colour), a place (yellow) */
+  markers?: Array<{ k: "enemy" | "loot" | "go"; at: THREE.Vector3; label: string; mine: boolean }> | null;
+  /** a squad mate's banner you carry, and how long it lasts */
+  banner?: { name: string; left: number } | null;
+  /** you are down: the bleed-out clock, and who is reviving you */
+  downed?: { left: number; revivedBy: string | null } | null;
+  /** out, watching a squad mate (or a bot): whose eyes, and first person or not */
+  spectating?: { name: string; first: boolean } | null;
 }
 
 /** map canvas pixels per metre */
@@ -233,7 +245,11 @@ export class Hud {
   /** false skips drawing (the end-to-end test's ?norender) */
   enabled = true;
 
+  /** the last frame's state (tools/e2e.ts reads what the HUD would show) */
+  last: HudState | null = null;
+
   draw(now: number, camera: THREE.Camera, s: HudState): void {
+    this.last = s;
     if (!this.enabled) return;
     const c = this.ctx;
     c.clearRect(0, 0, this.w, this.h);
@@ -259,6 +275,7 @@ export class Hud {
     this.drawPrompt(s, u);
     this.drawTechFeed(now, u);
     this.drawPlates(now, camera, s, u);
+    this.drawMarkers(now, camera, s, u);
     this.drawDuel(s, u);
     this.drawBr(now, s, u);
     this.drawKit(s, u);
@@ -271,6 +288,88 @@ export class Hud {
     this.drawRecap(s, u);
     this.drawDrill(s, u);
     this.drawTrainer(s, u);
+    this.drawSquad(now, s, u);
+  }
+
+  /**
+   * Pings, where they are in the world: a diamond with the label and the
+   * distance, held to the screen's edge when off it (Apex keeps a ping in
+   * view the same way).
+   */
+  private drawMarkers(now: number, camera: THREE.Camera, s: HudState, u: number): void {
+    if (!s.markers?.length) return;
+    const c = this.ctx;
+    const v = new THREE.Vector3();
+    const cam = (camera as THREE.PerspectiveCamera).position;
+    const pad = 40 * u;
+    for (const m of s.markers) {
+      v.copy(m.at).project(camera);
+      let x = (v.x * 0.5 + 0.5) * this.w;
+      let y = (-v.y * 0.5 + 0.5) * this.h;
+      // behind you: mirrored and pinned to the bottom edge
+      const behind = v.z > 1;
+      if (behind) {
+        x = this.w - x;
+        y = this.h - pad;
+      }
+      const off = behind || x < pad || x > this.w - pad || y < pad || y > this.h - pad;
+      x = Math.max(pad, Math.min(this.w - pad, x));
+      y = Math.max(pad, Math.min(this.h - pad, y));
+      const col = m.k === "enemy" ? "#ff4b3e" : m.k === "loot" ? "#8fd8ff" : "#ffd23c";
+      const r = (m.k === "enemy" ? 11 : 9) * u * (m.k === "enemy" ? 1 + 0.12 * Math.sin(now * 8) : 1);
+      c.fillStyle = col;
+      c.strokeStyle = "rgba(0,0,0,0.7)";
+      c.lineWidth = 2 * u;
+      c.beginPath();
+      c.moveTo(x, y - r);
+      c.lineTo(x + r, y);
+      c.lineTo(x, y + r);
+      c.lineTo(x - r, y);
+      c.closePath();
+      c.fill();
+      c.stroke();
+      const dist = Math.round(m.at.distanceTo(cam));
+      if (!off) this.text(m.label, x, y - r - 6 * u, 700, 13 * u, col, "center");
+      this.text(`${dist} M`, x, y + r + 14 * u, 700, 12 * u, WHITE, "center");
+    }
+  }
+
+  /**
+   * The squad's overlays: down (the bleed-out clock, a red edge, who is
+   * reviving you), a revive or beacon hold's bar, the banner you carry, and
+   * whose eyes you are watching through.
+   */
+  private drawSquad(now: number, s: HudState, u: number): void {
+    const c = this.ctx;
+    const cx = this.w / 2;
+    if (s.downed) {
+      const g = c.createRadialGradient(cx, this.h / 2, this.h * 0.3, cx, this.h / 2, this.h * 0.85);
+      g.addColorStop(0, "rgba(160,0,0,0)");
+      g.addColorStop(1, `rgba(160,0,0,${0.45 + 0.08 * Math.sin(now * 3)})`);
+      c.fillStyle = g;
+      c.fillRect(0, 0, this.w, this.h);
+      this.text("DOWN", cx, this.h * 0.3, 700, 52 * u, "#ff4b3e", "center");
+      this.text(s.downed.revivedBy ? `${s.downed.revivedBy} IS REVIVING YOU` : `BLEEDING OUT  ·  ${Math.ceil(s.downed.left)} S`, cx, this.h * 0.3 + 34 * u, 700, 20 * u, s.downed.revivedBy ? "#7ddc8a" : WHITE, "center");
+      this.text("CRAWL TO COVER: A SQUAD MATE CAN REVIVE YOU", cx, this.h * 0.3 + 60 * u, 600, 14 * u, DIM, "center");
+    }
+    if (s.brHold) {
+      const bw = 300 * u;
+      const y = this.h * 0.58;
+      c.fillStyle = "rgba(0,0,0,0.6)";
+      c.fillRect(cx - bw / 2, y, bw, 12 * u);
+      c.fillStyle = "#7ddc8a";
+      c.fillRect(cx - bw / 2, y, bw * s.brHold.progress, 12 * u);
+      this.text(s.brHold.label, cx, y - 9 * u, 700, 16 * u, WHITE, "center");
+    }
+    if (s.banner) {
+      this.text(`${s.banner.name}'S BANNER  ·  ${Math.ceil(s.banner.left)} S  ·  TAKE IT TO A RESPAWN BEACON`, cx, this.h - 150 * u, 700, 15 * u, "#7ddc8a", "center");
+    }
+    if (s.spectating) {
+      c.fillStyle = PANEL;
+      c.fillRect(cx - 190 * u, this.h - 132 * u, 380 * u, 44 * u);
+      this.text(`WATCHING ${s.spectating.name}`, cx, this.h - 106 * u, 700, 18 * u, WHITE, "center");
+      this.text(s.spectating.first ? "THEIR EYES  ·  THIRD PERSON KEY: BEHIND THEM" : "BEHIND THEM  ·  THIRD PERSON KEY: THEIR EYES", cx, this.h - 92 * u, 600, 11 * u, DIM, "center");
+    }
   }
 
   /** the flick drill: a countdown, then the clock and the count, then the result */
@@ -900,6 +999,77 @@ export class Hud {
     c.stroke();
   }
 
+  /**
+   * The battle royale's map icons: jump towers (a balloon), respawn beacons (a
+   * green mast), care packages (a blue box, falling or down), pings, and the
+   * squad mates. `yaw` turns the labels back upright on the rotating minimap.
+   */
+  private drawMapIcons(s: HudState, toX: (x: number) => number, toZ: (z: number) => number, u: number, yaw: number): void {
+    const br = s.duel?.br;
+    if (!br) return;
+    const c = this.ctx;
+    const dot = (x: number, z: number, r: number, fill: string) => {
+      c.fillStyle = fill;
+      c.beginPath();
+      c.arc(toX(x), toZ(z), r * u, 0, Math.PI * 2);
+      c.fill();
+    };
+    const upright = (x: number, z: number, draw: () => void) => {
+      c.save();
+      c.translate(toX(x), toZ(z));
+      c.rotate((-yaw * Math.PI) / 180);
+      draw();
+      c.restore();
+    };
+    c.strokeStyle = "rgba(0,0,0,0.8)";
+    c.lineWidth = 1.5 * u;
+    for (const t of br.towers) {
+      dot(t.x, t.z, 5, "#e04848");
+      c.stroke();
+      upright(t.x, t.z, () => {
+        c.fillStyle = "#e04848";
+        c.fillRect(-0.8 * u, 5 * u, 1.6 * u, 6 * u);
+      });
+    }
+    for (const b of br.beacons) {
+      upright(b.x, b.z, () => {
+        c.fillStyle = "#3ddc84";
+        c.beginPath();
+        c.moveTo(0, -7 * u);
+        c.lineTo(5 * u, 5 * u);
+        c.lineTo(-5 * u, 5 * u);
+        c.closePath();
+        c.fill();
+        c.stroke();
+      });
+    }
+    for (const p of br.pods) {
+      upright(p.x, p.z, () => {
+        c.fillStyle = p.landed ? "#3b8bff" : "rgba(59,139,255,0.5)";
+        c.fillRect(-5 * u, -5 * u, 10 * u, 10 * u);
+        c.strokeRect(-5 * u, -5 * u, 10 * u, 10 * u);
+      });
+    }
+    for (const m of s.markers ?? []) {
+      upright(m.at.x, m.at.z, () => {
+        c.fillStyle = m.k === "enemy" ? "#ff4b3e" : m.k === "loot" ? "#8fd8ff" : "#ffd23c";
+        c.beginPath();
+        c.moveTo(0, -6 * u);
+        c.lineTo(6 * u, 0);
+        c.lineTo(0, 6 * u);
+        c.lineTo(-6 * u, 0);
+        c.closePath();
+        c.fill();
+        c.stroke();
+      });
+    }
+    for (const m of br.mates) {
+      if (!m.alive) continue;
+      dot(m.x, m.z, 5, m.downed ? "#ff4b3e" : "#3ddc84");
+      c.stroke();
+    }
+  }
+
   private drawMinimap(s: HudState, u: number): void {
     this.ensureMap(s);
     const c = this.ctx;
@@ -926,6 +1096,7 @@ export class Hud {
       // the rings, in the same rotated frame (metres to canvas pixels)
       const k = MAP_PX;
       this.drawRings(s, (x) => (x - s.px) * k, (z) => (z - s.pz) * k, k, u / scale);
+      this.drawMapIcons(s, (x) => (x - s.px) * k, (z) => (z - s.pz) * k, u / scale, s.yaw);
     }
     c.restore();
     // frame and player arrow
@@ -969,6 +1140,7 @@ export class Hud {
     const br = s.duel?.br;
     if (br) {
       this.drawRings(s, toX, toZ, scale, u);
+      this.drawMapIcons(s, toX, toZ, u, 0);
       for (const p of br.pois) {
         const mine = br.dropping && p.name === br.poi;
         this.text(p.name, toX(p.x), toZ(p.z) - 10 * u, 700, (mine ? 18 : 14) * u, mine ? "#ffd23c" : WHITE, "center");
@@ -1338,13 +1510,20 @@ export class Hud {
     const c = this.ctx;
     const right = this.w - 30 * u;
     const bottom = this.h - 30 * u;
-    // big magazine count and reserve
+    // big magazine count and reserve (none with nothing in hand)
+    if (s.unarmed) {
+      this.text("—", right - 70 * u, bottom - 10 * u, 700, 58 * u, DIM, "right");
+    }
     const clipColor = s.clip === 0 ? RED : s.swapping || s.holstered ? DIM : WHITE;
-    this.text(`${s.clip}`, right - 70 * u, bottom - 10 * u, 700, 58 * u, clipColor, "right");
-    this.text(`/ ${s.clipSize}`, right, bottom - 18 * u, 700, 22 * u, DIM, "right");
+    if (!s.unarmed) {
+      this.text(`${s.clip}`, right - 70 * u, bottom - 10 * u, 700, 58 * u, clipColor, "right");
+      this.text(`/ ${s.clipSize}`, right, bottom - 18 * u, 700, 22 * u, DIM, "right");
+    }
     // the reserve: endless in the range, rounds in the inventory, an energy gun's stockpile as a percentage
     const res = s.reserve ?? Infinity;
-    if (s.energy && Number.isFinite(res)) {
+    if (s.unarmed) {
+      /* nothing to reload */
+    } else if (s.energy && Number.isFinite(res)) {
       const pct = Math.round((100 * s.energy.rounds) / Math.max(1, s.energy.max));
       this.text(`${pct}%`, right, bottom - 44 * u, 700, 20 * u, pct === 0 ? RED : "#8fd8ff", "right");
     } else this.text(Number.isFinite(res) ? String(res) : "∞", right, bottom - 44 * u, 700, 20 * u, res === 0 ? RED : DIM, "right");
@@ -1378,8 +1557,8 @@ export class Hud {
       const fit = Math.min(1, (slotW - 32 * u) / Math.max(1, this.ctx.measureText(label).width));
       this.text(label, x + 24 * u, top + 21 * u, 700, 15 * u * fit, active ? WHITE : DIM);
     }
-    this.text(`${s.fireMode.toUpperCase()}  ·  MAG ${s.magLevel}`, right, top - 10 * u, 600, 13 * u, DIM, "right");
-    if (s.attachLines.length) {
+    if (!s.unarmed) this.text(`${s.fireMode.toUpperCase()}  ·  MAG ${s.magLevel}`, right, top - 10 * u, 600, 13 * u, DIM, "right");
+    if (s.attachLines.length && !s.unarmed) {
       s.attachLines.forEach((line, i) => {
         const empty = line.endsWith("none") || line.endsWith("iron sights");
         this.text(line, right, top - 30 * u - i * 16 * u, 600, 12 * u, empty ? "#5d666f" : "#b9c2cc", "right");

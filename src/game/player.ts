@@ -357,6 +357,21 @@ export class Player {
     this.joltBlockedZ = false;
   }
 
+  /**
+   * Thrown (a launch pad): this velocity at once, off the ground, out of any
+   * slide, climb or mantle. Not a jump: no fatigue, no lurch window.
+   */
+  impulse(vx: number, vy: number, vz: number): void {
+    if (this.zip || this.dropping) return;
+    this.mantle = null;
+    this.climbing = false;
+    this.climbNormal = null;
+    this.endSlide();
+    this.vel.set(vx, vy, vz);
+    this.onGround = false;
+    this.lastGroundAt = -Infinity;
+  }
+
   /** change the play area the player is clamped to (the range, or the 1v1 arena) */
   setBounds(b: Bounds): void {
     this.bounds = b;

@@ -28,6 +28,8 @@ import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
+import { LootField, LOOT, type LootItem, type LootKind, type Rarity } from "./loot";
+import { ammoTypeOf } from "./ammo";
 
 /** how high the drop starts */
 export const DROP_HEIGHT = 90;
@@ -60,12 +62,54 @@ export interface BrHud {
   survived: number;
   pois: Array<{ name: string; x: number; z: number }>;
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /** jump towers, respawn beacons, care packages, for the maps */
+  towers: Array<{ x: number; z: number }>;
+  beacons: Array<{ x: number; z: number }>;
+  pods: Array<{ x: number; z: number; landed: boolean }>;
+  /** the squad mates, for the maps: where, their name, down or out */
+  mates: Array<{ x: number; z: number; name: string; downed: boolean; alive: boolean }>;
 }
 
 interface BrBot {
   bot: Bot;
   node: number;
   goal: number;
+  /** when it has its gun (it lands with nothing when there is loot, and searches) */
+  armedAt: number;
+  landed: boolean;
+  /** its gun and shield are out */
+  armedShown?: boolean;
+}
+
+/** a care package on its way down, or landed */
+interface Pod {
+  at: THREE.Vector3;
+  landsAt: number;
+  obj: THREE.Group;
+  landed: boolean;
+}
+
+const BR_BOUNDS_WORLD = { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HALF, minZ: BR_CENTER.z - BR_HALF, maxZ: BR_CENTER.z + BR_HALF };
+const RARITIES = ["common", "rare", "epic", "legendary"];
+const KINDS = ["weapon", "ammo", "heal", "attach", "hopup", "helmet", "banner", "box"];
+
+/** a loot item from another browser, checked field by field */
+function wireItem(x: unknown): LootItem | null {
+  const o = x as Record<string, unknown> | null;
+  if (!o || typeof o !== "object") return null;
+  if (typeof o.kind !== "string" || !KINDS.includes(o.kind) || typeof o.id !== "string" || o.id.length > 40) return null;
+  const n = typeof o.n === "number" && Number.isFinite(o.n) ? Math.max(0, Math.min(500, Math.floor(o.n))) : 1;
+  const rarity = typeof o.rarity === "string" && RARITIES.includes(o.rarity) ? (o.rarity as Rarity) : "common";
+  const it: LootItem = { kind: o.kind as LootKind, id: o.id, n, rarity };
+  if (typeof o.mag === "number" && Number.isFinite(o.mag)) it.mag = Math.max(0, Math.min(4, Math.floor(o.mag)));
+  if (o.attach && typeof o.attach === "object") {
+    const a: Record<string, string | null> = {};
+    for (const [k, v] of Object.entries(o.attach as Record<string, unknown>)) if (typeof v === "string" && v.length < 40) a[k] = v;
+    it.attach = a;
+  }
+  if (typeof o.owner === "number") it.owner = o.owner;
+  if (typeof o.ownerName === "string") it.ownerName = o.ownerName.replace(/[\p{Cc}<>&"'`]/gu, "").slice(0, 16);
+  return it;
 }
 
 /** the ring as a guest sees it: what the host last sent */
@@ -102,7 +146,7 @@ export class BrMatch extends Duel {
     private readonly map: BrMap,
     difficulty: BotDifficulty,
     botCount: number,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean },
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout" },
     rng: () => number = Math.random
   ) {
     super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br", abilities: opts.abilities ?? true });
@@ -114,6 +158,12 @@ export class BrMatch extends Duel {
     this.startedAt = now;
     this.aliveSeen = this.botCount + this.players;
     const start = { cx: BR_CENTER.x, cz: BR_CENTER.z, r: BR_HALF * 1.35 };
+    // the floor's loot, from the host's seed (the welcome carries it), unless the squad lands with its loadouts
+    this.startLoot = opts.start !== "loadout";
+    if (this.startLoot) {
+      this.lootField = new LootField(scene);
+      this.lootField.generate(opts.seed ?? 1, map.pois.map((p) => ({ x: p.x, z: p.z })), BR_BOUNDS_WORLD);
+    }
     if (this.role === "host") {
       const diff = DIFFICULTY[difficulty];
       // the bots spread over the other places first, then the squad's
@@ -125,6 +175,8 @@ export class BrMatch extends Duel {
         const jitter = () => (rng() - 0.5) * 8;
         const spawn = { x: drop.x + jitter(), z: drop.z + jitter(), yaw: rng() * 360 };
         const bot = new Bot(i, scene, projectiles, diff, spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], BOT_NAMES[i % BOT_NAMES.length]);
+        // with loot on it lands with nothing and searches first
+        if (this.startLoot) bot.dummy.setGunVisible(false);
         bot.setAbilities(this.abilities, rng);
         // a bot's JOLT: drawn here and sent to the squad
         bot.onJolt = (a, b) => {
@@ -137,7 +189,7 @@ export class BrMatch extends Duel {
           this.broadcast({ t: "fx", from: bot.remote.id, k: "heal", n: HEAL_CODES.indexOf(item) });
         };
         const node = this.nearestNode(spawn.x, spawn.z);
-        this.bots.push({ bot, node, goal: node });
+        this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false });
       }
       this.ring = new Ring(start, rng);
       this.view = { phase: 0, state: "waiting", timeLeft: RING_PHASES[0].wait, current: { ...this.ring.current }, next: { ...this.ring.next } };
@@ -149,6 +201,7 @@ export class BrMatch extends Duel {
 
   /** your drop spot: one per squad member at the squad's place */
   override get spawn(): Spawn {
+    if (this.respawnPoint) return { x: this.respawnPoint.x, z: this.respawnPoint.z, yaw: 0 };
     const d = this.poi.drops[this.id % this.poi.drops.length];
     return { x: d.x, z: d.z, yaw: 0 };
   }
@@ -169,10 +222,114 @@ export class BrMatch extends Duel {
     for (const b of this.bots) if (b.bot.alive) n++;
     return n;
   }
+  /** the squad still standing: up and not down (all of it down is the squad out) */
   private get humansAlive(): number {
-    let n = this.alive ? 1 : 0;
-    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && r.alive) n++;
+    let n = this.alive && !this.downed ? 1 : 0;
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && r.alive && !r.downed) n++;
     return n;
+  }
+
+  // ------------------------------------------------------------ loot
+
+  /** the floor's loot, death boxes and care packages (null when the squad landed with its loadouts) */
+  lootField: LootField | null = null;
+  readonly startLoot: boolean;
+  /** the item you asked for is yours (the host's own, or the host said so) */
+  onLootTaken: ((item: LootItem) => void) | null = null;
+  private pods: Pod[] = [];
+  private podPhases = new Set<number>();
+
+  /** take an item: the host's own at once, a guest's asked of the host (first come, first served) */
+  takeLoot(key: number): void {
+    const f = this.lootField;
+    if (!f) return;
+    if (this.role === "host") {
+      const it = f.remove(key);
+      if (!it) return;
+      this.onLootTaken?.(it);
+      this.broadcast({ t: "loot", op: "gone", key, by: this.id });
+    } else if (f.drops.has(key)) this.hostLink?.send({ t: "loot", op: "take", key });
+  }
+
+  /** put an item down (a swapped gun, a death box's contents): the host keys it and tells the squad */
+  dropLoot(item: LootItem, at: THREE.Vector3): void {
+    const f = this.lootField;
+    if (!f) return;
+    if (this.role === "host") {
+      const key = f.add(item, at);
+      this.broadcast({ t: "loot", op: "add", key, item, at: [at.x, at.y, at.z] });
+    } else this.hostLink?.send({ t: "loot", op: "drop", item, at: [at.x, at.y, at.z] });
+  }
+
+  /** a death box at `at`: the box itself and its items spread round it */
+  dropBox(items: LootItem[], at: THREE.Vector3): void {
+    this.dropLoot({ kind: "box", id: "box", n: 1, rarity: "common" }, at);
+    items.forEach((it, i) => {
+      const a = (i / Math.max(1, items.length)) * Math.PI * 2;
+      this.dropLoot(it, at.clone().add(new THREE.Vector3(Math.cos(a) * 0.9, 0, Math.sin(a) * 0.9)));
+    });
+  }
+
+  /** a care package: its pod falls for podFall seconds, then its items land */
+  private addPod(at: THREE.Vector3, lands: number): void {
+    const obj = new THREE.Group();
+    const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, 1.8, 10), new THREE.MeshStandardMaterial({ color: 0x3a4250, emissive: 0x3fa7e8, emissiveIntensity: 0.35, roughness: 0.5 }));
+    shell.position.y = 0.9;
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 160, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0x3fa7e8, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false }));
+    beam.position.y = 80;
+    obj.add(shell, beam);
+    obj.position.set(at.x, 120, at.z);
+    this.scene.add(obj);
+    this.pods.push({ at: at.clone(), landsAt: wallClock() + lands, obj, landed: false });
+    this.onNotice?.("CARE PACKAGE INBOUND");
+  }
+
+  /** the host: what a care package holds (a care-package gun at gold, and the best of the rest) */
+  private podItems(): LootItem[] {
+    const gun = LOOT.carePackage[Math.floor(Math.random() * LOOT.carePackage.length)];
+    const out: LootItem[] = [{ kind: "weapon", id: gun, n: 1, rarity: "legendary", mag: 4 }];
+    const extras: LootItem[] = [
+      { kind: "helmet", id: "gold", n: 1, rarity: "legendary" },
+      { kind: "heal", id: "phoenix", n: 1, rarity: "legendary" },
+      { kind: "heal", id: "battery", n: 2, rarity: "epic" },
+    ];
+    while (out.length < LOOT.carePackageContents) out.push(extras.splice(Math.floor(Math.random() * extras.length), 1)[0]);
+    return out;
+  }
+
+  /** the pods: falling, then landing (the host lays out their items) */
+  private updatePods(now: number): void {
+    for (const p of this.pods) {
+      if (p.landed) continue;
+      const left = p.landsAt - now;
+      const t = Math.max(0, Math.min(1, 1 - left / LOOT.podFall));
+      p.obj.position.y = 120 * (1 - t) + p.at.y * t;
+      if (left <= 0) {
+        p.landed = true;
+        p.obj.position.y = p.at.y;
+        if (this.role === "host") this.podItems().forEach((it, i) => this.dropLoot(it, p.at.clone().add(new THREE.Vector3(Math.cos(i * 2.1) * 1.3, 0, Math.sin(i * 2.1) * 1.3))));
+      }
+    }
+  }
+
+  /** the map's towers, beacons and pads (brplay.ts) */
+  get mapInfo(): { towers: Array<{ x: number; z: number }>; beacons: Array<{ x: number; z: number }>; pads: Array<{ x: number; z: number; dx: number; dz: number }> } {
+    return this.map;
+  }
+
+  /** a downed squad mate within reach, to revive */
+  downedMateNear(p: THREE.Vector3, reach: number): { id: number; name: string } | null {
+    for (const r of this.remotes.values()) {
+      if (r.id >= Duel.BOT_ID || !r.alive || !r.downed) continue;
+      const g = r.avatar.group.position;
+      if (Math.hypot(g.x - p.x, g.z - p.z) <= reach && Math.abs(g.y - p.y) < 1.5) return { id: r.id, name: r.name };
+    }
+    return null;
+  }
+
+  /** where care packages are and will land, for the maps */
+  get podSpots(): Array<{ x: number; z: number; landed: boolean }> {
+    return this.pods.map((p) => ({ x: p.at.x, z: p.at.z, landed: p.landed }));
   }
   get ringState(): RingView {
     return this.view;
@@ -228,6 +385,17 @@ export class BrMatch extends Duel {
     r.alive = false;
     const mine = by === this.id;
     if (mine) this.kills++;
+    // its death box: its gun (if it had found it), two stacks of its ammo, a couple of heals
+    if (this.lootField && this.role === "host") {
+      const w = r.avatarWeapon;
+      const items: LootItem[] = [];
+      if (b.armedAt <= wallClock()) items.push({ kind: "weapon", id: w, n: 1, rarity: "rare" });
+      const type = ammoTypeOf(w);
+      if (type !== "energy") items.push({ kind: "ammo", id: type, n: LOOT.deathBox.stacks * (type === "sniper" ? 28 : type === "shotgun" ? 20 : 60), rarity: "common" });
+      items.push({ kind: "heal", id: "cell", n: LOOT.deathBox.cells, rarity: "common" });
+      items.push({ kind: "heal", id: "syringe", n: LOOT.deathBox.syringes, rarity: "common" });
+      this.dropBox(items, b.bot.pos.clone());
+    }
     const who = by === -1 ? "THE RING" : by === this.id ? this.myName || "YOU" : (this.remotes.get(by)?.name ?? this.bots.find((x) => x.bot.remote.id === by)?.bot.remote.name ?? "SOMEONE");
     this.onFeed?.(`${who} knocked ${r.name}`, mine, !mine);
     this.broadcast({ t: "down", from: r.id, by });
@@ -292,7 +460,33 @@ export class BrMatch extends Duel {
   // ------------------------------------------------------------ per frame
 
   /** a guest: the ring and the end, from the host */
-  protected override onExtra(m: NetMsg, _from: number): void {
+  protected override onExtra(m: NetMsg, from: number): void {
+    if (m.t === "loot") {
+      const f = this.lootField;
+      if (!f) return;
+      const key = typeof m.key === "number" && Number.isFinite(m.key) ? m.key : -1;
+      const at = Array.isArray(m.at) && m.at.length === 3 && m.at.every((v) => typeof v === "number" && Number.isFinite(v)) ? new THREE.Vector3(...m.at) : null;
+      if (this.role === "host") {
+        if (m.op === "take" && f.drops.has(key)) {
+          f.remove(key);
+          this.broadcast({ t: "loot", op: "gone", key, by: from });
+        } else if (m.op === "drop" && at) {
+          const it = wireItem(m.item);
+          if (it) this.dropLoot(it, at);
+        }
+      } else if (m.op === "gone") {
+        const it = f.remove(key);
+        if (it && m.by === this.id) this.onLootTaken?.(it);
+      } else if (m.op === "add" && at) {
+        const it = wireItem(m.item);
+        if (it) f.add(it, at, key);
+      }
+      return;
+    }
+    if (m.t === "pod") {
+      if (this.role !== "host" && Array.isArray(m.at) && m.at.length === 3 && typeof m.lands === "number") this.addPod(new THREE.Vector3(...(m.at as [number, number, number])), Math.max(0, Math.min(30, m.lands)));
+      return;
+    }
     if (m.t === "ring") {
       this.view = {
         phase: m.ph,
@@ -314,6 +508,8 @@ export class BrMatch extends Duel {
       this.leave();
       return;
     }
+    this.updatePods(now);
+    this.lootField?.update(new THREE.Vector3(local.x, local.y + 1.6, local.z), now);
     // the ring wall, from the host's ring or the mirrored one
     const cur = this.view.current;
     const wall = this.map.ringWall;
@@ -351,6 +547,34 @@ export class BrMatch extends Duel {
       this.onNotice?.("LANDED  ·  LAST SQUAD STANDING WINS");
     }
     const feet = new THREE.Vector3(local.x, local.y, local.z);
+    // the bots that have landed search, then have their gun and a shield of some tier
+    for (const b of this.bots) {
+      if (!b.landed && b.bot.alive && !b.bot.dropping && this.phase !== "waiting") {
+        b.landed = true;
+        b.armedAt = now + (this.startLoot ? LOOT.botSearch[this.difficulty] * (0.7 + Math.random() * 0.6) : 0);
+      }
+      if (b.landed && b.armedAt <= now && !b.armedShown && b.bot.alive) {
+        // found its gun and a shield of some tier (its health is what it is)
+        b.armedShown = true;
+        if (this.startLoot) {
+          const hp = b.bot.dummy.health;
+          b.bot.dummy.setTier((1 + Math.floor(Math.random() * 3)) as 1 | 2 | 3);
+          b.bot.dummy.health = hp;
+        }
+        b.bot.dummy.setGunVisible(true);
+        b.bot.remote.shieldMax = b.bot.dummy.shieldMax;
+        b.bot.remote.shield = b.bot.dummy.shield;
+      }
+    }
+    // a care package inside the next ring as rounds 2, 3 and 4 close
+    if (this.lootField && ring.state === "closing" && ring.phase >= 1 && ring.phase <= 3 && !this.podPhases.has(ring.phase)) {
+      this.podPhases.add(ring.phase);
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.sqrt(Math.random()) * ring.next.r * 0.6;
+      const at = new THREE.Vector3(ring.next.cx + Math.cos(a) * r, 0, ring.next.cz + Math.sin(a) * r);
+      this.addPod(at, LOOT.podFall);
+      this.broadcast({ t: "pod", at: [at.x, at.y, at.z], lands: LOOT.podFall });
+    }
     // the ring: a tick hurts everyone outside it (the guests hurt themselves)
     const tick = ring.update(dt);
     this.view = { phase: ring.phase, state: ring.state, timeLeft: Math.max(0, ring.timeLeft), current: { ...ring.current }, next: { ...ring.next } };
@@ -393,6 +617,8 @@ export class BrMatch extends Duel {
       const bot = b.bot;
       const wasAlive = bot.alive;
       const sense = bot.alive && !bot.dropping ? this.sense(b, humans) : { target: null, targetId: -1, goal: null, canShoot: false };
+      // still searching: it walks the map and does not shoot
+      if (b.armedAt > now) sense.canShoot = false;
       const shots = bot.update(now, dt, sense);
       if (wasAlive && !bot.alive && bot.remote.alive) this.botDown(b, this.id);
       // its own heals show on its plate
@@ -454,7 +680,7 @@ export class BrMatch extends Duel {
           yaw,
           pitch: 0,
           crouch: false,
-          w: bot.remote.avatarWeapon,
+          w: b.armedAt <= now ? bot.remote.avatarWeapon : "",
           hp: bot.dummy.health,
           sh: bot.dummy.shield,
           alive: bot.alive,
@@ -545,6 +771,15 @@ export class BrMatch extends Duel {
       survived: now - this.startedAt,
       pois: this.map.pois.map((p) => ({ name: p.name, x: p.x, z: p.z })),
       bounds: { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HALF, minZ: BR_CENTER.z - BR_HALF, maxZ: BR_CENTER.z + BR_HALF },
+      towers: this.map.towers,
+      beacons: this.map.beacons,
+      pods: this.podSpots,
+      mates: [...this.remotes.values()]
+        .filter((r) => r.id < Duel.BOT_ID && r.samples.length)
+        .map((r) => {
+          const s = r.samples[r.samples.length - 1];
+          return { x: s.x, z: s.z, name: r.name, downed: r.downed, alive: r.alive };
+        }),
     };
     return {
       ...base,
@@ -607,6 +842,10 @@ export class BrMatch extends Duel {
   override dispose(): void {
     for (const b of this.bots) b.bot.dispose();
     this.bots = [];
+    this.lootField?.clear();
+    this.lootField?.group.removeFromParent();
+    for (const p of this.pods) p.obj.removeFromParent();
+    this.pods = [];
     this.map.ringWall.scale.set(0.01, 1, 0.01);
     super.dispose();
   }

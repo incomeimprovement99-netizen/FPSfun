@@ -16,7 +16,7 @@ import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset } from "./game/quality";
 import { ProjectileSystem, solidHit } from "./game/projectile";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, type ArmorTier } from "./game/dummy";
-import { buildRange, skyFollow, setShadowRegion, getSun, RANGE_BOUNDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
+import { buildRange, skyFollow, setShadowRegion, getSun, RANGE_BOUNDS, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { buildBrMap, BR_BOUNDS, BR_CENTER } from "./game/br";
 import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
 import { placeProps } from "./game/props";
@@ -55,6 +55,10 @@ import { DamageLog, HEAL_CODES, type Recap } from "./game/recap";
 import { Soundscape } from "./game/soundscape";
 import { DummyBehaviour, DUMMY_MODES, DUMMY_MODE_NAME, FlickDrill, RangeCombat, SprayWall, type DummyMode } from "./game/rangetools";
 import { SuperglideTrainer } from "./game/trainer";
+import { BrPlay } from "./game/brplay";
+import squadCfg from "./config/squad.json";
+import { lootLabel, type LootItem } from "./game/loot";
+import type { AmmoType } from "./game/weapons";
 import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
 import itemsCfg from "./config/items.json";
@@ -741,6 +745,16 @@ killcamSel.addEventListener("change", () => {
 /** you are out: the recap is written now, and the killcam starts if there is a killer to watch */
 function onEliminated(d: MatchLike, by: number): void {
   const t = realNow();
+  // a loot battle royale: your death box, with your banner for the squad
+  if (d instanceof BrMatch && d.lootField) {
+    const items: LootItem[] = [];
+    for (const s of loadout.slots) if (!s.empty) items.push({ kind: "weapon", id: s.id, n: 1, rarity: "rare", mag: s.magLevel, attach: { ...s.attach } });
+    for (const [type, n] of Object.entries(loadout.ammo.stock)) if (n > 0 && type !== "energy") items.push({ kind: "ammo", id: type, n, rarity: "common" });
+    for (const [item, n] of Object.entries(kit.items)) if (n > 0) items.push({ kind: "heal", id: item, n, rarity: "common" });
+    if (armor.helmet) items.push({ kind: "helmet", id: armor.helmet, n: 1, rarity: "legendary" });
+    if (d.players > 1) items.push({ kind: "banner", id: "banner", n: 1, rarity: "common", owner: d.id, ownerName: profile.profile.name });
+    d.dropBox(items, player.pos.clone());
+  }
   recap = dlog.recap(t, by, (id) => d.nameFor(id), (id) => d.vitalsFor(id));
   recapShownAt = gameTime;
   if (killcamOn && by >= 0 && by !== d.id) killcam.start(recorder, t, by, d.nameFor(by));
@@ -761,6 +775,12 @@ let hosting: HostHandle | null = null;
 let cancelJoin: (() => void) | null = null;
 /** knocked in a match: the controller gets no keys until the next round */
 const NO_INPUT: MoveInput = { held: () => false, pressedNow: () => false };
+/** down: the move keys only, and crouched (a crawl) */
+const CRAWL_KEYS = new Set(["forward", "back", "left", "right"]);
+const crawlInput = (src: MoveInput): MoveInput => ({
+  held: (a) => a === "crouch" || (CRAWL_KEYS.has(a) && src.held(a)),
+  pressedNow: (a) => CRAWL_KEYS.has(a) && src.pressedNow(a),
+});
 const duelStatus = $("duelStatus");
 const duelHostBtn = $<HTMLButtonElement>("duelHost");
 const duelJoinBtn = $<HTMLButtonElement>("duelJoin");
@@ -888,6 +908,13 @@ function respawnForMatch(d: MatchLike): void {
   // its start kit and a white shield core that levels with EVO
   const br = d instanceof BrMatch;
   kit.fill(br ? "brStart" : "kit");
+  // land with nothing and loot: fists, no heals, no ammo
+  if (d instanceof BrMatch && d.startLoot) {
+    loadout.clearSlot(0);
+    loadout.clearSlot(1);
+    loadout.ammo.empty();
+    kit.fill("empty");
+  }
   armor.reset(br ? 1 : 2);
   d.shieldMax = armor.shieldMax;
   d.shield = d.shieldMax;
@@ -1008,6 +1035,83 @@ let joltFov = 0;
 /** the vitals heals work on: the match's, or the range's when the dummies shoot back */
 const vitalsTarget = (): { shield: number; health: number; alive: boolean } | null => duel ?? (rangeCombat?.on ? rangeCombat : null);
 
+/** the battle royale from your side: E, the pads, pings (brplay.ts) */
+const brPlay = new BrPlay({
+  keyLabel: (a) => keyLabel(a),
+  notice: (t) => hud.notice(t, gameTime, 2),
+  sound: (k) => (k === "ping" ? audio.hitTier("white") : k === "revive" ? audio.healDone() : audio.whoosh()),
+});
+/** first person when you watch a squad mate (X switches to behind them) */
+let spectateFirst = true;
+
+/**
+ * An item you took: a gun into an empty slot or in place of the one in hand
+ * (which goes down where you stand), ammo and heals into the pack (what does
+ * not fit goes back down), an attachment onto whichever gun takes it, a
+ * helmet on, a banner carried.
+ */
+function applyLoot(it: LootItem): void {
+  const d = duel instanceof BrMatch ? duel : null;
+  const here = player.pos.clone();
+  const putBack = (x: LootItem) => d?.dropLoot(x, here);
+  const label = lootLabel(it);
+  switch (it.kind) {
+    case "weapon": {
+      const empty = loadout.emptySlot;
+      if (empty >= 0) {
+        loadout.give(empty, it.id, it.mag ?? 0, (it.attach ?? {}) as Parameters<typeof loadout.give>[3]);
+        if (loadout.activeIndex !== empty) loadout.requestSwap(empty, gameTime);
+      } else {
+        const s = loadout.active;
+        putBack({ kind: "weapon", id: s.id, n: 1, rarity: "common", mag: s.magLevel, attach: { ...s.attach } });
+        loadout.give(loadout.activeIndex, it.id, it.mag ?? 0, (it.attach ?? {}) as Parameters<typeof loadout.give>[3]);
+      }
+      audio.swap();
+      break;
+    }
+    case "ammo":
+      loadout.ammo.add(it.id as AmmoType, it.n);
+      audio.reloadStep("in");
+      break;
+    case "heal": {
+      const put = kit.add(it.id as HealItem, it.n);
+      if (put < it.n) {
+        putBack({ ...it, n: it.n - put });
+        hud.notice(put ? `${label}: ${put} TAKEN, THE REST IS FULL` : `${label}: FULL`, gameTime, 1.4);
+        return;
+      }
+      audio.reloadStep("out");
+      break;
+    }
+    case "attach":
+    case "hopup": {
+      const order = [loadout.activeIndex, 1 - loadout.activeIndex];
+      let ok = false;
+      if (it.id.startsWith("mag:")) ok = order.some((i) => loadout.fitMag(i, Number(it.id.slice(4))));
+      else {
+        const slot = it.kind === "hopup" ? "hopup" : it.id.startsWith("optic_") ? "optic" : it.id.startsWith("barrel_") ? "barrel" : it.id.startsWith("stock_") ? "stock" : "laser";
+        ok = order.some((i) => loadout.fitAttachment(i, slot, it.id));
+      }
+      if (!ok) {
+        putBack(it);
+        hud.notice(`${label} FITS NEITHER GUN`, gameTime, 1.4);
+        return;
+      }
+      audio.reloadStep("bolt");
+      break;
+    }
+    case "helmet":
+      armor.helmet = it.id === "red" ? "red" : "gold";
+      if (d) d.shieldMax = armor.shieldMax;
+      audio.shieldBreak();
+      break;
+    case "banner":
+      brPlay.carry(it, gameTime);
+      return;
+  }
+  hud.notice(label, gameTime, 1);
+}
+
 /** the killer's gun for the killcam's view, resolved once each */
 const killcamGuns = new Map<string, ResolvedWeapon>();
 function killcamGun(id: string): ResolvedWeapon {
@@ -1069,6 +1173,20 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     }
   };
   d.onHealSeen = (id, item) => dlog.heal({ t: realNow(), id, item });
+  brPlay.reset();
+  if (d instanceof BrMatch) {
+    d.onLootTaken = (it) => applyLoot(it);
+    d.onMark = (k, from, at, label, target) => brPlay.addMarker(k, at, label, from, target, gameTime);
+    d.onDowned = () => {
+      hud.notice("DOWN: A SQUAD MATE CAN REVIVE YOU", gameTime, 2.5);
+      audio.knock();
+      heal = null;
+    };
+    d.onRevived = () => {
+      hud.notice("REVIVED", gameTime, 1.5);
+      audio.healDone();
+    };
+  }
   d.streak = profile.match(kind).streak;
   d.onMatchEnd = (s) => {
     profile.recordMatch(kind, s);
@@ -1110,7 +1228,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   let d: Duel;
   if (squad) {
     const diff: BotDifficulty = squad.difficulty === "easy" || squad.difficulty === "hard" ? squad.difficulty : "normal";
-    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities });
+    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot" });
     duel = d;
     wireMatch(d, "br");
   } else {
@@ -1160,13 +1278,29 @@ function startBr(): void {
   for (const c of courses) c.leave();
   const diff = brDifficulty();
   const bots = brBotCount();
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br") });
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br"), seed: newSeed(), start: brStart() });
   duel = d;
   wireMatch(d, "br");
   // the drop starts on the first frame in the game (respawnForMatch, from the countdown)
   setDuelStatus(`Battle royale on Outskirts: you and ${bots} bots, ${diff}. Dropping onto ${d.poi.name}.`, "good");
   duelButtons();
 }
+const brStartSel = $<HTMLSelectElement>("brStart");
+try {
+  const v = localStorage.getItem("range.br.start");
+  if (v === "loot" || v === "loadout") brStartSel.value = v;
+} catch {
+  /* ignore */
+}
+brStartSel.addEventListener("change", () => {
+  try {
+    localStorage.setItem("range.br.start", brStartSel.value);
+  } catch {
+    /* ignore */
+  }
+});
+const brStart = (): "loot" | "loadout" => (brStartSel.value === "loadout" ? "loadout" : "loot");
+const newSeed = (): number => Math.floor(Math.random() * 2 ** 31);
 const brDifficulty = (): BotDifficulty => (botDifficulty.value === "easy" || botDifficulty.value === "hard" ? botDifficulty.value : "normal");
 const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
@@ -1181,7 +1315,13 @@ function endMatch(reason: string): void {
   recorder.clear();
   heal = null;
   mapOpen = false;
-  if (wasBr) setRegion("range");
+  if (wasBr) {
+    setRegion("range");
+    // your loadout back (a loot game left you with what you found, or nothing)
+    for (let i = 0; i < loadout.slots.length; i++) if (loadout.slots[i].empty) loadout.give(i, [loadouts.current.slot1, loadouts.current.slot2][i]);
+    applyLoadout(loadouts.current);
+    brPlay.reset();
+  }
   hosting?.cancel();
   hosting = null;
   hud.notice(reason.toUpperCase(), gameTime, 3);
@@ -1201,7 +1341,7 @@ duelHostBtn.addEventListener("click", () => {
   const players = Number(duelPlayers.value) === 3 ? 3 : 2;
   // a battle royale squad: the place, the bots and the difficulty are fixed
   // now so every guest is told the same
-  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty() } : null;
+  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart() } : null;
   hostOpts = { abilities: abilitySetting(duelKind()) };
   setDuelStatus("Making a match...", "live");
   hosting = hostMatch(
@@ -1651,6 +1791,10 @@ function step(): void {
   const hipH = hipFov43(settings.fovScale);
   // knocked in a 1v1: no movement, no weapon keys, until the next round
   const knockedOut = (duel !== null && !duel.alive) || (!duel && rangeCombat.on && !rangeCombat.alive);
+  // down, not out (a battle royale squad): a crawl, no guns, no heals
+  const downedNow = duel instanceof Duel && duel.downed && duel.alive;
+  // an empty slot (a battle royale's start): fists
+  const emptyHand = loadout.active.empty;
 
   if (input.playing) {
     // Holster. While the gun is away, fire, aim, reload or any weapon key
@@ -1678,10 +1822,23 @@ function step(): void {
       holster = "raising";
       holsterAt = now;
     }
-    const armed = holster === "out" && !knockedOut;
+    const armed = holster === "out" && !knockedOut && !downedNow && !emptyHand;
+    // fists: the fire button punches
+    if (emptyHand && !downedNow && !knockedOut && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
+      meleeReadyAt = now + MELEE_COOLDOWN;
+      viewModel.melee();
+      meleeHitAt = now + MELEE_TIME * 0.35;
+    }
+    // the middle mouse button: a ping for the squad
+    if (input.pressedNow("ping") && duel instanceof BrMatch && duel.alive) {
+      const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+      brPlay.ping(duel, camera.position.clone(), f, now, duel.id);
+    }
 
     // discrete keys
-    if (armed && input.pressedNow("reload") && !loadout.swapping && !(player.zipPrompt && input.pad.pressedNow("reload"))) {
+    // the pad's X is interact when there is a prompt for it (a zipline, an item, a revive)
+    const padInteracts = (player.zipPrompt || (duel instanceof BrMatch && brPlay.hud.prompt !== null)) && input.pad.pressedNow("reload");
+    if (armed && input.pressedNow("reload") && !loadout.swapping && !padInteracts) {
       ws.startReload(now);
       if (ws.reloading) audio.reload();
     }
@@ -1842,11 +1999,11 @@ function step(): void {
 
   // A weapon being raised, lowered or holstered cannot fire or aim.
   // In a 1v1, firing is held during the countdown and after a round is decided.
-  const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping;
+  const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !loadout.active.empty && !downedNow;
   // a burst fires on without the trigger: knocked, or the round decided, it stops
   if (knockedOut || (duel && !duel.canFire)) ws.cancelBurst();
   // knocked in a 1v1: no aiming either
-  const adsHeld = input.playing && input.held("ads") && !loadout.swapping && holster === "out" && (!duel || duel.alive);
+  const adsHeld = input.playing && input.held("ads") && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow;
   // Move BEFORE sampling stance, so the spread model sees this frame's stance
   // rather than last frame's. The cost is that move speed uses last frame's
   // ADS fraction, which over a 0.27 s transition is a 6% error for one frame.
@@ -1854,7 +2011,9 @@ function step(): void {
   const weapon = loadout.active.weapon;
   const adsH = zoomFov43(weapon) * settings.fovScale;
   const firing = now - ws.lastShotAt < 0.25;
-  player.update(dt, now, knockedOut ? NO_INPUT : (scriptInput ?? input), ws.adsFrac, weapon.adsMoveScale, firing || trigger);
+  // down: the move keys only, crouched, at a crawl
+  if (downedNow) player.healSlow = squadCfg.crawl;
+  player.update(dt, now, knockedOut ? NO_INPUT : downedNow ? crawlInput(scriptInput ?? input) : (scriptInput ?? input), ws.adsFrac, weapon.adsMoveScale, firing || trigger);
   // a slide counts as crouched for the spread model: the cone tightens
   const crouched = player.crouched || player.sliding;
   const stance = !player.onGround ? "air" : crouched ? "crouch" : "stand";
@@ -1877,7 +2036,8 @@ function step(): void {
     audio.overheat();
     hud.notice("OVERHEATED", now, 0.8);
   }
-  updateHeal(now, trigger || adsHeld || knockedOut || (input.playing && input.pressedNow("sprint")) || loadout.swapping);
+  updateHeal(now, trigger || adsHeld || knockedOut || downedNow || (input.playing && input.pressedNow("sprint")) || loadout.swapping);
+  if (!downedNow && !heal && player.healSlow !== 1) player.healSlow = 1;
 
   // camera from angles + soft recoil
   const off = ws.kick.offset();
@@ -1948,7 +2108,15 @@ function step(): void {
     orbitYaw = 0;
     orbitPitch = 0;
   }
-  if (watch) {
+  const watchMate = watch && duel ? duel.remoteOf(watch) : null;
+  if (watch && knockedOut && input.pressedNow("thirdPerson")) spectateFirst = !spectateFirst;
+  if (watch && watchMate && watchMate.id < Duel.BOT_ID && spectateFirst) {
+    // a squad mate: through their eyes, their aim
+    const f = watch.group;
+    const pose = watch.currentPose;
+    camera.position.set(f.position.x, f.position.y + (pose.stance === "crouch" || pose.stance === "slide" ? 1.05 : 1.6), f.position.z);
+    camera.quaternion.setFromEuler(new THREE.Euler((pose.pitch * Math.PI) / 180, f.rotation.y - Math.PI, 0, "YXZ"));
+  } else if (watch) {
     // behind and above the figure, looking where it looks (the figure faces +z of its own rotation)
     const f = watch.group;
     const fx = Math.sin(f.rotation.y);
@@ -2183,7 +2351,7 @@ function step(): void {
     lookYaw,
     lookPitch,
     landDip: player.viewDip,
-    lowered: debugView.lowered ?? lowered,
+    lowered: debugView.lowered ?? (emptyHand || downedNow ? 1 : lowered),
     onZip: debugView.onZip ?? player.onZip,
     draw: onScreen.state.drawFrac,
   });
@@ -2191,7 +2359,7 @@ function step(): void {
   // killcam the gun in view is your killer's, and it kicks when they fire
   viewModel.group.visible = killcam.active || !third;
   if (killcam.active && killcam.firedThisFrame) viewModel.onShot();
-  selfFigure(now, dt, onScreen.weapon.id, loadouts.current.operator, third && !killcam.active, knockedOut);
+  selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, third && !killcam.active, knockedOut);
 
   duel?.update({
     x: player.pos.x,
@@ -2200,13 +2368,19 @@ function step(): void {
     yaw: player.yaw,
     pitch: player.pitch,
     crouch: player.crouched || player.sliding,
-    weapon: drawn.id,
+    weapon: emptyHand ? "" : drawn.id,
     operator: loadouts.current.operator,
     name: profile.profile.name,
     ready: input.playing,
-    stance: player.stance,
+    stance: downedNow ? "downed" : player.stance,
     speed: player.speed,
   });
+  // the battle royale from your side: E, the pads, pings
+  if (duel instanceof BrMatch) {
+    const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    brPlay.update(now, duel, player, scriptInput ?? input, camera.position.clone(), f, { alive: duel.alive, downed: downedNow, playing: input.playing || !!scriptInput, myId: duel.id });
+  }
+
   // the killcam's recording: you and everyone else, 30 times a second
   if (duel) {
     const d = duel;
@@ -2279,7 +2453,8 @@ function step(): void {
   const shown = loadout.display;
   // context prompts: a zipline in reach, or a ladder you are facing
   let prompt: { key: string; text: string } | null = null;
-  if (player.zipPrompt) prompt = { key: "E", text: "RIDE ZIPLINE" };
+  if (duel instanceof BrMatch && brPlay.hud.prompt) prompt = brPlay.hud.prompt;
+  else if (player.zipPrompt) prompt = { key: "E", text: "RIDE ZIPLINE" };
   else if (!duel && drill.state === "idle" && drill.onPad(player.pos)) prompt = { key: keyLabel("interact"), text: "START THE FLICK DRILL" };
   else if (player.onGround && ladderAhead(player.pos.x, player.pos.y, player.pos.z, player.yaw)) {
     prompt = { key: "SPACE", text: "JUMP INTO THE WALL, HOLD W TO CLIMB" };
@@ -2304,11 +2479,12 @@ function step(): void {
   hud.draw(now, camera, {
     // name/ammo follow the INCOMING weapon during a swap; cone/ADS stay with
     // the gun actually in hand
-    weaponName: shown.weapon.name,
+    weaponName: shown.empty ? "FISTS" : shown.weapon.name,
+    unarmed: shown.empty,
     magLevel: shown.magLevel,
     slot: loadout.displayIndex + 1,
     slotCount: loadout.slots.length,
-    otherName: loadout.slots[loadout.nextIndex].weapon.name,
+    otherName: loadout.slots[loadout.nextIndex].empty ? "EMPTY" : loadout.slots[loadout.nextIndex].weapon.name,
     swapping: loadout.swapping,
     fireMode: loadout.fireModeLabel(),
     reserve: loadout.reserve(),
@@ -2351,6 +2527,11 @@ function step(): void {
         : null,
     vitals: duel ? { shield: duel.shield, shieldMax: duel.shieldMax, health: duel.health, healthMax: HEALTH_MAX, evo: duel instanceof BrMatch ? armor.evoFrac : null, helmet: armor.helmet } : rangeCombat.on ? { shield: rangeCombat.shield, shieldMax: rangeCombat.shieldMax, health: rangeCombat.health, healthMax: HEALTH_MAX } : null,
     drill: duel ? null : drill.hud(now),
+    brHold: duel instanceof BrMatch ? brPlay.hud.hold : null,
+    markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
+    banner: duel instanceof BrMatch ? brPlay.hud.banner : null,
+    downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null } : null,
+    spectating: watch && watchMate ? { name: watchMate.name, first: watchMate.id < Duel.BOT_ID && spectateFirst } : null,
     trainer: trainer.hud(now),
     mantleCue: trainer.cue && mantleCueOn,
     killcam: killcam.active ? { name: killcam.killerName, weapon: killcam.killerWeapon ? weaponName(killcam.killerWeapon) : "", progress: killcam.progress, left: killcam.left, skipKey: keyLabel("jump") } : null,
@@ -2484,6 +2665,21 @@ initWelcome();
   closeRecap: () => (recap = null),
   remoteFxLog,
   audio,
+  brPlay,
+  applyLoot,
+  THREE,
+  /** open ground near x, z: no box within `clear` metres (tools/e2e.ts) */
+  openGround: (x: number, z: number, clear = 5): { x: number; z: number } | null => {
+    for (let r = 0; r < 120; r += 3) {
+      for (let a = 0; a < 16; a++) {
+        const px = x + Math.cos((a / 16) * Math.PI * 2) * r;
+        const pz = z + Math.sin((a / 16) * Math.PI * 2) * r;
+        if (!RANGE_SOLIDS.some((s) => px > s.minX - clear && px < s.maxX + clear && pz > s.minZ - clear && pz < s.maxZ + clear)) return { x: px, z: pz };
+        if (r === 0) break;
+      }
+    }
+    return null;
+  },
   /** the range's tooling (tools/e2e.ts) */
   dummyBehaviour,
   rangeCombat,

@@ -182,7 +182,7 @@ export interface DummyOptions {
 }
 
 /** what a rigged figure is doing, from the player it stands for */
-export type FigureStance = "stand" | "crouch" | "slide" | "air" | "climb" | "mantle" | "zip";
+export type FigureStance = "stand" | "crouch" | "slide" | "air" | "climb" | "mantle" | "zip" | "downed";
 export interface FigurePose {
   /** horizontal speed, m/s */
   speed: number;
@@ -190,7 +190,7 @@ export interface FigurePose {
   /** look pitch, degrees, up positive */
   pitch: number;
 }
-const STANCE_CODE: FigureStance[] = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip"];
+const STANCE_CODE: FigureStance[] = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip", "downed"];
 /** a stance as one small number for the network, and back */
 export const stanceCode = (s: FigureStance): number => Math.max(0, STANCE_CODE.indexOf(s));
 export const stanceFromCode = (c: number | undefined): FigureStance => STANCE_CODE[c ?? 0] ?? "stand";
@@ -275,6 +275,8 @@ export class Dummy {
   readonly distanceLabel: number;
   /** the operator this figure wears */
   readonly skin: OperatorSkin;
+  /** the gun it holds, if armed */
+  private gun: THREE.Object3D | null = null;
 
   constructor(x: number, z: number, distanceLabel: number, opts: DummyOptions = {}) {
     this.distanceLabel = distanceLabel;
@@ -495,6 +497,7 @@ export class Dummy {
       for (const child of [...gun.children]) if (child.name === "muzzleflash") gun.remove(child);
       gun.rotation.y = Math.PI;
       gun.position.set(0.07, 1.33 - m.grip.u, 0.45 - m.grip.f);
+      this.gun = gun;
     }
 
     this.vest.castShadow = true;
@@ -656,6 +659,11 @@ export class Dummy {
     this.pose = p;
   }
 
+  /** show or hide the gun it holds (a bot still searching for one) */
+  setGunVisible(on: boolean): void {
+    if (this.gun) this.gun.visible = on;
+  }
+
   /** what it was last told to do (the killcam records it) */
   get currentPose(): FigurePose {
     return this.pose;
@@ -739,6 +747,15 @@ export class Dummy {
         armsUp = 1.5;
         thighL = thighR = 0.3;
         shinL = shinR = -0.6;
+        break;
+      case "downed":
+        // down, not out: on the knees and one hand, crawling
+        lean = 1.25;
+        drop = 0.6;
+        armsUp = 0.5;
+        thighL = 0.25 + s * 0.35 * frac;
+        thighR = 0.25 + s2 * 0.35 * frac;
+        shinL = shinR = -0.4;
         break;
     }
     if (p.stance === "stand" || p.stance === "crouch") {
@@ -842,7 +859,7 @@ export class Dummy {
     // crouched or sliding: the hit zones shrink to two thirds (the same blend
     // at any frame rate: 35% a frame at 60 fps); a rigged figure bends into
     // it, a merged one is squashed whole
-    const wantCrouch = this.pose.stance === "crouch" || this.pose.stance === "slide" ? 1 : 0;
+    const wantCrouch = this.pose.stance === "crouch" || this.pose.stance === "slide" || this.pose.stance === "downed" ? 1 : 0;
     this.crouchAmt += (wantCrouch - this.crouchAmt) * (1 - Math.exp(-26 * dt));
     const sy = 1 - 0.34 * this.crouchAmt;
     if (this.rig) {

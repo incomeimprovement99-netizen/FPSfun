@@ -48,6 +48,8 @@ export type NetMsg =
       sp?: number;
       /** their armour's size (a battle royale's shield core) */
       shm?: number;
+      /** down, not out (a battle royale squad) */
+      dn?: number;
     }
   | { t: "zone"; live: boolean; caps: number[]; startsIn: number }
   | { t: "shot"; from?: number; o: [number, number, number]; d: [number, number, number]; w: string }
@@ -67,6 +69,22 @@ export type NetMsg =
    * effects carry the bot's id in `from`.
    */
   | { t: "fx"; from?: number; k: string; a?: [number, number, number]; b?: [number, number, number]; n?: number }
+  /**
+   * Battle royale loot, the host's to decide: a guest asks to `take` an item
+   * or `drop` one (a swapped gun, its death box); the host says an item is
+   * `gone` (and who took it) or that one was `add`ed, with its key.
+   */
+  | { t: "loot"; from?: number; op: "take" | "gone" | "add" | "drop"; key?: number; by?: number; item?: LootItemWire; at?: [number, number, number] }
+  /** a squad member is down, not out (a squad mate can still revive them) */
+  | { t: "dnd"; from?: number; by: number }
+  /** a revive on `to`: started, given up, or done */
+  | { t: "rev"; from?: number; to: number; op: "start" | "stop" | "done" }
+  /** `to` comes back, dropping in over `at` (a respawn beacon) */
+  | { t: "respawn"; from?: number; to: number; at: [number, number, number] }
+  /** a ping for the squad: what (`k`), where, a label, a figure's id when it is on one */
+  | { t: "mark"; from?: number; k: string; at: [number, number, number]; label?: string; target?: number }
+  /** a care package is on its way down to `at`, landing in `lands` seconds */
+  | { t: "pod"; from?: number; at: [number, number, number]; lands: number }
   | { t: "bye"; from?: number };
 
 /** what a guest needs to drop into the same battle royale as the host */
@@ -75,6 +93,22 @@ export interface BrWelcome {
   poi: string;
   bots: number;
   difficulty: string;
+  /** the floor loot's seed: every browser lays out the same items with the same keys */
+  seed?: number;
+  /** land with nothing and loot (the default), or with your loadout */
+  start?: "loot" | "loadout";
+}
+
+/** a loot item as it goes over the wire (loot.ts LootItem) */
+export interface LootItemWire {
+  kind: string;
+  id: string;
+  n: number;
+  rarity: string;
+  mag?: number;
+  attach?: Record<string, string | null>;
+  owner?: number;
+  ownerName?: string;
 }
 
 /** the host's settings for the match, told to every guest in the welcome */

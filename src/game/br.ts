@@ -51,6 +51,12 @@ export interface BrMap {
   nodes: GraphNode[];
   /** the ring wall, scaled to the live ring each frame */
   ringWall: THREE.Mesh;
+  /** jump towers: a balloon to ride up and drop again from (world space) */
+  towers: Array<{ x: number; z: number }>;
+  /** respawn beacons: bring back a squad mate whose banner you carry (world space) */
+  beacons: Array<{ x: number; z: number }>;
+  /** launch pads on the roads: step on and be thrown along (dx, dz) and up (world space) */
+  pads: Array<{ x: number; z: number; dx: number; dz: number }>;
 }
 
 /** a small deterministic random, so the field's rocks land in the same places every load */
@@ -356,6 +362,59 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     root.add(m);
   }
 
+  // ---------------------------------------------------------------- jump towers, beacons, launch pads
+  // A jump tower at each outer place: a mast and a balloon; ride it up and
+  // drop again. A respawn beacon at each: a squat box with an antenna and a
+  // green light. A launch pad on each road out of the hub, thrown outward.
+  const towerSpots: Array<[number, number]> = [
+    [28, -150],
+    [-30, 150],
+    [140, 34],
+    [-192, 30],
+  ];
+  const beaconSpots: Array<[number, number]> = [
+    [-24, -150],
+    [32, 182],
+    [188, -34],
+    [-140, -26],
+  ];
+  const padSpots: Array<[number, number, number, number]> = [
+    [0, -70, 0, -1],
+    [0, 70, 0, 1],
+    [70, 0, 1, 0],
+    [-70, 0, -1, 0],
+  ];
+  const mast = flat(PAL.steelLight, 0.5, 0.3);
+  const balloonMat = new THREE.MeshStandardMaterial({ color: 0xd8452f, roughness: 0.6, emissive: 0x401208, emissiveIntensity: 0.4 });
+  for (const [x, z] of towerSpots) {
+    box(0.4, 44, 0.4, x, 0, z, mast, false);
+    box(2.4, 0.3, 2.4, x, 0, z, trim, false);
+    const balloon = new THREE.Mesh(new THREE.SphereGeometry(3, 20, 14), balloonMat);
+    balloon.position.set(x, 47, z);
+    root.add(balloon);
+  }
+  const beaconGlow = emissive(0x7ddc8a, 2.2);
+  for (const [x, z] of beaconSpots) {
+    box(1.6, 1.2, 1.6, x, 0, z, concrete);
+    box(0.12, 2.6, 0.12, x, 1.2, z, mast, false);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), beaconGlow);
+    lamp.position.set(x, 3.9, z);
+    root.add(lamp);
+  }
+  const padMat = emissive(0xffc21a, 1.4);
+  for (const [x, z, dx, dz] of padSpots) {
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 0.12, 24), flat(PAL.steelDark, 0.5, 0.3));
+    disc.position.set(x, 0.06, z);
+    root.add(disc);
+    // a chevron pointing the way it throws you
+    const chev = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.2, 3), padMat);
+    chev.rotation.x = -Math.PI / 2;
+    chev.rotation.z = -Math.atan2(dx, -dz);
+    chev.position.set(x, 0.14, z);
+    chev.scale.set(1, 1, 0.12);
+    root.add(chev);
+  }
+
   // the ring wall: a unit cylinder, scaled to the live ring; it never merges
   const ringWall = new THREE.Mesh(
     new THREE.CylinderGeometry(1, 1, 120, 96, 1, true),
@@ -424,7 +483,15 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   link(11, 17);
   link(17, 18);
 
-  return { root, pois, nodes, ringWall };
+  return {
+    root,
+    pois,
+    nodes,
+    ringWall,
+    towers: towerSpots.map(([x, z]) => P(x, z)),
+    beacons: beaconSpots.map(([x, z]) => P(x, z)),
+    pads: padSpots.map(([x, z, dx, dz]) => ({ ...P(x, z), dx, dz })),
+  };
 }
 
 /** a zipline with its rope, an anchor post at each end, recorded in world space */

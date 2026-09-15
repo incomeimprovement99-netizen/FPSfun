@@ -36,5 +36,6 @@
   "pickAbility2": ["Digit6"],
   "fireMode": ["KeyB"],
   "hopup": ["KeyL"],
-  "dummyMode": ["KeyI"]
+  "dummyMode": ["KeyI"],
+  "ping": ["mouse1"]
 }

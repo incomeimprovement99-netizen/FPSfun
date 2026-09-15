@@ -7,6 +7,7 @@
 //
 // Run on its own: npx tsx tools/movesim.ts. Also runs inside npm run verify.
 import * as THREE from "three";
+import squadCfg from "../src/config/squad.json";
 import { Player, type MoveInput } from "../src/game/player";
 import type { Action } from "../src/game/input";
 import { RANGE_SOLIDS } from "../src/game/range";
@@ -1606,6 +1607,37 @@ console.log("\nHealing: 40% slower, no sprint (Season 30, docs/RESEARCH_PHASE_11
   h.run(2);
   near("healing: walk at 60% (173.5 x 0.6), hu/s", h.speedHu, 104.1, 0.1);
   check("and no sprint", !h.p.sprinting);
+}
+
+// ------------------------------------------------------------------ launch pads, down
+console.log("\nA launch pad's throw, and the crawl when down (src/game/brplay.ts)");
+{
+  // a pad throws you along the road (17 m/s) and up (12 m/s): off the ground, far down the road, and down again
+  const l = new Sim();
+  l.p.pos.set(0, 0, 0);
+  l.frame();
+  l.p.impulse(0, squadCfg.pad.up, -squadCfg.pad.speed);
+  check("the pad takes you off the ground", !l.p.onGround);
+  let top = 0;
+  let t = 0;
+  while (t < 6 && (t < 0.2 || !l.p.onGround)) {
+    l.run(1 / 60, () => (top = Math.max(top, l.p.pos.y)));
+    t += 1 / 60;
+  }
+  check("and lands you again", l.p.onGround, `after ${t.toFixed(2)} s`);
+  check("30 m or more down the road", -l.p.pos.z >= 30, `${(-l.p.pos.z).toFixed(1)} m`);
+  check("over the walls on the way (6 m or more up)", top >= 6, `${top.toFixed(1)} m`);
+  // down: crouched, at 65% of the crouch walk, no sprint, no jump
+  const c = new Sim();
+  const plain = new Sim();
+  for (const s of [c, plain]) {
+    s.in.hold("forward");
+    s.in.hold("crouch");
+  }
+  c.p.healSlow = squadCfg.crawl;
+  c.run(2);
+  plain.run(2);
+  near("down: 65% of the crouch walk", c.speedHu / plain.speedHu, 0.65, 0.01);
 }
 
 console.log(fails === 0 ? "\nMOVESIM PASS" : `\nMOVESIM FAIL (${fails})`);
