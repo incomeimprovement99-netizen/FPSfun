@@ -553,3 +553,16 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   stays on the list. The props' geometry (.bin, about 11 MB, the fence alone 3 MB) is untouched.
 - Tests: e2e (the page's surfaces and props load 34 WebP maps, no JPEG and nothing missing), snap (the range
   textured as before).
+
+## Milestone 34 — Recorded sounds layered over the synthesis ✅
+2026-09-15 (Phase 12K). `tools/fetch-sounds.ts` (`npm run sounds`), `src/game/audio.ts`, `public/audio/ATTRIBUTION.md`.
+- **Kenney's CC0 packs** (Impact Sounds, Sci-Fi Sounds, Interface Sounds): 40 takes of 13 sounds, 436 KB, fetched
+  into `public/audio/kenney` and credited. Each is layered under the game's own synthesis where a recording carries
+  what oscillators cannot, with every take picked at random and its pitch varied a little:
+  - footsteps on concrete and grass (metal is the concrete step pitched up under its ring), and landings;
+  - a body hitting the floor where a figure is knocked, and a dropped gun clattering;
+  - the punch of a melee that lands, the magazine out and in and the bolt, and the crunch under a frag's boom;
+  - the menu's clicks.
+- The guns stay synthesised, each by its class. Without the files (a checkout that has not run `npm run sounds`)
+  every sound is the synthesis alone, as before.
+- Tests: e2e (in a bot fight the samples are loaded and layered into what is heard).

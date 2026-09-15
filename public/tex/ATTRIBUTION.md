@@ -17,8 +17,8 @@ Re-fetch with `npm run assets`. The image files are gitignored;
 | `ground/` | ambientCG Asphalt031 (CC0) | outside the pad, light asphalt |
 | `sky.hdr` | Poly Haven kloofendal_48d_partly_cloudy_puresky (CC0) | sky, reflections and ambient light |
 
-Poly Haven assets are also CC0 1.0. Sounds and all geometry are generated
-in code; no third-party audio or models are used.
+Poly Haven assets are also CC0 1.0. The level geometry is generated in code; the
+props are Poly Haven's (npm run models), the mannequin Quaternius's (CC0), and the recorded sounds Kenney's (CC0, public/audio/ATTRIBUTION.md) layered over the synthesis.
 
 ## Models
 

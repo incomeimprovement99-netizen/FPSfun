@@ -13,4 +13,6 @@ public/tex/*
 public/models/*
 !public/models/heirlooms/
 !public/models/mannequin/
+public/audio/*
+!public/audio/ATTRIBUTION.md
 shots/

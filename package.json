@@ -19,6 +19,7 @@
     "compare-sources": "tsx tools/compare-sources.ts",
     "models": "tsx tools/fetch-models.ts",
     "compress": "tsx tools/compress-assets.ts",
+    "sounds": "tsx tools/fetch-sounds.ts",
     "build:beta": "tsc --noEmit -p tsconfig.json && vite build --mode beta && tsx tools/beta-check.ts",
     "e2e": "tsx tools/e2e.ts",
     "probe": "tsx tools/tech-probe.ts",

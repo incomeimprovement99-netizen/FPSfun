@@ -1188,6 +1188,13 @@ function setBeam(key: number, at: THREE.Vector3 | null): void {
   audio.beamHum(at, squadCfg.boxRespawn.time);
 }
 
+// a dropped gun's clatter on the floor; the menu's clicks
+Dummy.onGunLands = (at) => audio.clatter(at);
+document.getElementById("overlay")?.addEventListener("click", (e) => {
+  const t = e.target as HTMLElement | null;
+  if (t && (t.tagName === "BUTTON" || t.closest("button"))) audio.ui("click");
+});
+
 /** your heals (kit.ts) and your armour: the shield core, its EVO, a helmet */
 const kit = new Kit();
 kit.fill("kit");
@@ -2945,6 +2952,8 @@ function step(): void {
   }
 
   const handleImpact = (e: ImpactEvent): void => {
+    // a melee that lands: the punch where it landed
+    if (e.weapon === "melee" && (e.dummy || e.target)) audio.punch(e.point);
     // a round into the spray wall (the range only)
     if (!duel && !e.dummy && !e.target && e.distance > 1) {
       const w = e.weapon === loadout.active.weapon.id ? loadout.active.weapon : e.weapon && e.weapon !== "melee" ? resolveWeapon(e.weapon, 0) : null;
@@ -3002,6 +3011,7 @@ function step(): void {
         hud.notice("KNOCKED DOWN", now, 0.8);
         stats.knocks++;
         audio.knock();
+        if (e.dummy) audio.bodyFall(e.dummy.group.position);
         // Executioner: a knock with the gun that has it gives shield back over a few seconds
         const ex = LOCKED_HOPUPS.hopup_executioner;
         if (ex && !loadout.active.empty && loadout.active.id === e.weapon && loadout.active.attach.hopup === "hopup_executioner") {

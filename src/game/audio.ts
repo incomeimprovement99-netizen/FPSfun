@@ -1,5 +1,9 @@
-// All the game's sound, synthesised (Web Audio). Nothing is recorded or
-// copied: every sound is built here from oscillators and filtered noise.
+// The game's sound (Web Audio): built here from oscillators and filtered
+// noise, with recorded CC0 samples layered in where a recording carries
+// what synthesis cannot (Kenney's packs, fetched by tools/fetch-sounds.ts into
+// public/audio/kenney: footsteps, landings and body falls, a punch, the
+// magazine and bolt, a frag's crunch, the menu's clicks). The guns are all
+// synthesis. Without the files every sound is the synthesis alone.
 //
 // The engine:
 //   - A listener on the camera; sounds from somewhere go through a panner
@@ -47,6 +51,11 @@ export class GameAudio {
   volumes = { master: 0.8, effects: 1, hits: 1 };
   /** sounds played (tests) */
   played = 0;
+  /** the recorded samples by name, every take of each (loaded once the audio starts) */
+  private samples = new Map<string, AudioBuffer[]>();
+  private samplesAsked = false;
+  /** samples layered in (tests) */
+  samplesPlayed = 0;
 
   constructor() {
     try {
@@ -107,6 +116,7 @@ export class GameAudio {
         this.reverbSend.connect(rev);
         rev.connect(this.master);
         this.white = this.noiseBuffer(ctx, 2);
+        this.loadSamples(ctx);
         const l = ctx.listener;
         if (l.positionX) {
           l.positionX.value = 0;
@@ -121,6 +131,52 @@ export class GameAudio {
     }
     if (this.ctx.state === "suspended") void this.ctx.resume();
     return this.ctx;
+  }
+
+  /** the recorded samples (public/audio/kenney/index.json lists them); missing, the synthesis plays alone */
+  private loadSamples(ctx: AudioContext): void {
+    if (this.samplesAsked) return;
+    this.samplesAsked = true;
+    void fetch("audio/kenney/index.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(async (index: Record<string, string[]> | null) => {
+        if (!index || typeof index !== "object") return;
+        for (const [name, files] of Object.entries(index)) {
+          if (!Array.isArray(files)) continue;
+          const takes: AudioBuffer[] = [];
+          for (const f of files) {
+            try {
+              const data = await (await fetch(`audio/kenney/${f}`)).arrayBuffer();
+              takes.push(await ctx.decodeAudioData(data));
+            } catch {
+              /* a take that will not decode is skipped */
+            }
+          }
+          if (takes.length) this.samples.set(name, takes);
+        }
+      })
+      .catch(() => undefined);
+  }
+
+  /** how many recorded sounds are loaded (tests) */
+  get sampleCount(): number {
+    return this.samples.size;
+  }
+
+  /** a take of a recorded sound into `dest` at `t`, a little varied in pitch; false when there is none */
+  private sample(dest: AudioNode, t: number, name: string, level: number, rate = 1): boolean {
+    const takes = this.samples.get(name);
+    const ctx = this.ctx;
+    if (!takes?.length || !ctx) return false;
+    const src = ctx.createBufferSource();
+    src.buffer = takes[Math.floor(Math.random() * takes.length)];
+    src.playbackRate.value = rate * (0.94 + Math.random() * 0.12);
+    const g = ctx.createGain();
+    g.gain.value = level;
+    src.connect(g).connect(dest);
+    src.start(t);
+    this.samplesPlayed++;
+    return true;
   }
 
   private noiseBuffer(ctx: AudioContext, seconds: number): AudioBuffer {
@@ -302,6 +358,7 @@ export class GameAudio {
     const v = this.voice(at, 1.6, "fx", 2, 1.4);
     if (!v) return;
     if (kind === "frag") {
+      this.sample(v.input, v.t, "explosion", 0.9, 0.85);
       this.noise(v.input, v.t, 0.05, "highpass", 2400, 0.7, 0.9, 0.0008);
       this.tone(v.input, v.t, 0.5, "sine", 90, 28, 1.3, 0.002);
       this.noise(v.input, v.t, 0.45, "lowpass", 1200, 0.6, 1.0, 0.003, 120);
@@ -358,6 +415,8 @@ export class GameAudio {
   reloadStep(kind: "out" | "in" | "bolt"): void {
     const v = this.voice(null, 0.2, "fx", 2, 0.3);
     if (!v) return;
+    // the recorded click of metal and polymer under the synthesis
+    this.sample(v.input, v.t, kind === "out" ? "mag_out" : kind === "in" ? "mag_in" : "bolt", 0.35, kind === "bolt" ? 1.2 : 1.4);
     if (kind === "out") {
       this.noise(v.input, v.t, 0.05, "bandpass", 1600, 2, 0.25);
       this.noise(v.input, v.t + 0.03, 0.12, "bandpass", 700, 1.5, 0.12, 0.01);
@@ -453,6 +512,8 @@ export class GameAudio {
     if (!v) return;
     const j = 0.9 + Math.random() * 0.2;
     const L = (at ? 0.9 : 0.35) * loud;
+    // a recorded step (concrete, or grass for dirt; metal is the concrete step pitched up under the ring)
+    this.sample(v.input, v.t, surface === "dirt" ? "step_grass" : "step_concrete", 1.1 * L, surface === "metal" ? 1.25 : 1);
     if (surface === "metal") {
       this.noise(v.input, v.t, 0.05, "bandpass", 2400 * j, 1.2, 0.35 * L);
       this.tone(v.input, v.t, 0.14, "sine", 880 * j, 860 * j, 0.1 * L);
@@ -477,9 +538,39 @@ export class GameAudio {
     const v = this.voice(null, 0.3, "fx", 1, 0.3);
     if (!v) return;
     const k = Math.max(0.2, Math.min(1, impact01));
+    this.sample(v.input, v.t, "land", 0.7 * k, 0.9);
     this.tone(v.input, v.t, 0.12 + 0.1 * k, "sine", 120, 45, 0.5 * k);
     this.noise(v.input, v.t, 0.08 + 0.06 * k, surface === "dirt" ? "lowpass" : "bandpass", surface === "metal" ? 2000 : 1100, 0.8, 0.35 * k);
     if (surface === "metal") this.tone(v.input, v.t, 0.25, "sine", 640, 620, 0.08 * k);
+  }
+
+  /** a melee landing: a punch */
+  punch(at: Vec | null = null): void {
+    const v = this.voice(at, 0.3, "fx", 2, 0.2);
+    if (!v) return;
+    if (!this.sample(v.input, v.t, "punch", 0.8)) this.tone(v.input, v.t, 0.1, "sine", 140, 60, 0.4);
+    this.noise(v.input, v.t, 0.05, "lowpass", 900, 0.7, 0.2);
+  }
+
+  /** a figure going down: a body hitting the floor where it fell */
+  bodyFall(at: Vec): void {
+    const v = this.voice(at, 0.5, "fx", 1, 0.4);
+    if (!v) return;
+    if (!this.sample(v.input, v.t, "bodyfall", 0.9, 0.85)) this.tone(v.input, v.t, 0.2, "sine", 90, 40, 0.35);
+  }
+
+  /** a dropped gun landing on the floor */
+  clatter(at: Vec): void {
+    const v = this.voice(at, 0.4, "fx", 0, 0.3);
+    if (!v) return;
+    if (!this.sample(v.input, v.t, "clatter", 0.6, 0.8)) this.tone(v.input, v.t, 0.12, "triangle", 900, 700, 0.1);
+  }
+
+  /** the menu: a click, a confirmation, an error */
+  ui(kind: "click" | "confirm" | "error"): void {
+    const v = this.voice(null, 0.4, "fx", 1, 0);
+    if (!v) return;
+    if (!this.sample(v.input, v.t, kind, kind === "click" ? 0.35 : 0.5)) this.tone(v.input, v.t, 0.04, "triangle", kind === "error" ? 300 : 1200, kind === "error" ? 240 : 1200, 0.08);
   }
 
   climbTap(): void {

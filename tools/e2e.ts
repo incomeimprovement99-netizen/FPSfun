@@ -898,6 +898,9 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   check("bots: it moved off its spawn toward you", pos.z < -12, `z ${pos.z.toFixed(1)}`);
   const snd = await ev<{ played: number; voices: number }>(page, "({ played: window.__range.audio.played, voices: window.__range.audio.voiceCount })");
   check("sound: the fight is heard (its shots and footsteps), under the voice cap", snd.played > 5 && snd.voices <= 56, JSON.stringify(snd));
+  // the recorded CC0 samples (npm run sounds) load and are layered in (a checkout without them is the synthesis alone)
+  const rec = await ev<{ loaded: number; played: number; files: boolean }>(page, "(async () => ({ loaded: window.__range.audio.sampleCount, played: window.__range.audio.samplesPlayed, files: (await fetch('audio/kenney/index.json')).ok }))()");
+  check("sound: the recorded samples are loaded and layered into the fight's sounds", !rec.files || (rec.loaded >= 10 && rec.played > 0), JSON.stringify(rec));
   // knock it: a hit through its dummy, then the match is told
   await ev(page, `(() => { const d = window.__range.duel(); const a = d.avatars[0]; const pt = { clone() { return this; } }; a.hit(0, "body", 500, 1, 1, pt); d.localHit(d.remoteOf(a), 500, false); })()`);
   const won = await page.waitForFunction("window.__range.duel().hud().you === 1", { polling: 200, timeout: 5000 }).then(() => true, () => false);

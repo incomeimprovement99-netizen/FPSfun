@@ -326,6 +326,8 @@ export class Dummy {
    * there until the figure is back up. Nobody holds a gun lying down.
    */
   private dropped: { obj: THREE.Object3D; vel: THREE.Vector3; spin: THREE.Vector3; floor: number; still: boolean } | null = null;
+  /** a dropped gun's first touch of the floor (the game plays the clatter) */
+  static onGunLands: ((at: THREE.Vector3) => void) | null = null;
   private gunShown = true;
   /** the motion-captured mannequin in place of the robot (mannequin.ts, a setting) */
   private mq: MannequinFigure | null = null;
@@ -1133,6 +1135,7 @@ export class Dummy {
     if (d.obj.position.y <= d.floor) {
       d.obj.position.y = d.floor;
       if (Math.abs(d.vel.y) > 1.2) {
+        Dummy.onGunLands?.(d.obj.position);
         // a clatter: one small bounce, most of the speed gone
         d.vel.set(d.vel.x * 0.35, -d.vel.y * 0.25, d.vel.z * 0.35);
         d.spin.multiplyScalar(0.3);
