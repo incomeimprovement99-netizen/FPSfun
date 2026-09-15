@@ -121,6 +121,17 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   await sleep(3500);
   const outside = await ev<{ hp: number; out: boolean }>(page, `(() => { const d = window.__range.duel(); return { hp: d.shield + d.health, out: d.hud().br.ring.outside }; })()`);
   check("outside the ring you take its damage", outside.out && outside.hp < before, `${before} -> ${outside.hp}`);
+  // eliminated by the ring: no killcam (nobody to watch), a recap that says so
+  const ringPage = await open(browser, query);
+  await ev(ringPage, `(() => { document.getElementById("brBots").value = "3"; document.getElementById("goBr").click(); })()`);
+  await ringPage.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 });
+  await ev(ringPage, "(() => { window.__range.player.teleport(215, 0, 715, 0); const d = window.__range.duel(); d.shield = 0; d.health = 1; })()");
+  const ringOut = await ringPage.waitForFunction("!window.__range.duel()?.alive", { polling: 200, timeout: 8000 }).then(() => true, () => false);
+  const ringRc = await ev<{ byRing: boolean; killerName: string } | null>(ringPage, "window.__range.recap()");
+  const ringKc = await ev<{ active: boolean }>(ringPage, "window.__range.killcamState()");
+  check("recap: out to the ring: no killcam, the recap says the ring", ringOut && !!ringRc?.byRing && !ringKc.active, JSON.stringify({ ringRc, ringKc }));
+  await ev(ringPage, "window.__range.duel()?.leave()");
+  await ringPage.close();
   // a heal: a cell brings the shield up by 25 in 2.5 s, 1.25 s with TRIAGE, and costs one of four
   await ev(page, "window.__range.player.teleport(0, 0, 500, 0)");
   await ev(page, "window.__range.startHeal()");
@@ -184,6 +195,8 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   const guestDown = await ev<{ alive: boolean; phase: string }>(guest, "({ alive: window.__range.duel().alive, phase: window.__range.duel().phase })");
   const hostOn = await ev<string>(host, "window.__range.duel().phase");
   check("squad: a squad mate down does not end it while the other stands", !guestDown.alive && guestDown.phase === "fight" && hostOn === "fight", JSON.stringify({ guestDown, hostOn }));
+  const gk = await ev<{ active: boolean; killer: string }>(guest, "window.__range.killcamState()");
+  check("squad: the guest's killcam is the bot that got them (a bot the host runs)", gk.active && /^BOT /.test(gk.killer), JSON.stringify(gk));
   // the host goes down too: the squad is out, both get the placement
   await ev(host, `(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()`);
   await sleep(1200);
@@ -429,6 +442,34 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   check("bots with abilities: and its cooldown is running", cd > 1.5 && cd < 3, cd.toFixed(2));
   await ev(page, "window.__range.duel().leave()");
   await ev(page, `(() => { const s = document.getElementById("botAbilities"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
+
+  // eliminated by the bot: the killcam from its eyes, then the recap with both sides
+  await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "hard"; window.__range.startBots(); })()`);
+  await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
+  // your two hits on it first (a head and a body, 12 m), then almost nothing left for its next round to take
+  await ev(page, "window.__range.landHit(1, 20, true, 'r97', 12)");
+  await ev(page, "window.__range.landHit(1, 15, false, 'r97', 12)");
+  await ev(page, "(() => { const d = window.__range.duel(); d.shield = 0; d.health = 3; })()");
+  const out = await page.waitForFunction("window.__range.duel() && !window.__range.duel().alive", { polling: 100, timeout: 30000 }).then(() => true, () => false);
+  check("recap: the bot eliminates you", out);
+  const kc = await ev<{ active: boolean; killer: string; weapon: string; frames: number; span: number }>(page, "window.__range.killcamState()");
+  check("killcam: it starts, from the bot's eyes, with its gun", kc.active && kc.killer === "BOT ASH" && kc.weapon === "rspn101", JSON.stringify(kc));
+  check("killcam: the recording holds seconds of the match", kc.frames > 60 && kc.span > 2, JSON.stringify(kc));
+  await sleep(1500);
+  const mid = await ev<{ active: boolean; progress: number }>(page, "window.__range.killcamState()");
+  check("killcam: it plays on", mid.active && mid.progress > 0.2, JSON.stringify(mid));
+  await ev(page, "window.__range.skipKillcam()");
+  const rc = await ev<{ killerName: string; rows: Array<{ name: string; killer: boolean; dealt: { damage: number; hits: number; heads: number }; taken: { damage: number; hits: number }; guns: Array<{ name: string; near: number | null }>; left: { shield: number; health: number } | null }> } | null>(page, "window.__range.recap()");
+  const row = rc?.rows[0];
+  check("recap: eliminated by the bot, the killer first", rc?.killerName === "BOT ASH" && row?.killer === true, JSON.stringify(rc?.killerName));
+  check("recap: your side: 35 in 2 hits, 1 head", row?.dealt.damage === 35 && row.dealt.hits === 2 && row.dealt.heads === 1, JSON.stringify(row?.dealt));
+  check("recap: its side: the damage and hits it landed", !!row && row.taken.damage > 0 && row.taken.hits > 0, JSON.stringify(row?.taken));
+  check("recap: its gun and the distance", !!row && row.guns.length > 0 && /R-301|CARBINE/i.test(row.guns[0].name) && (row.guns[0].near ?? 0) > 1, JSON.stringify(row?.guns));
+  check("recap: what it had left (75 + 100 less your 35)", !!row?.left && row.left.shield + row.left.health === 140, JSON.stringify(row?.left));
+  // the bot heals when it has had nobody to shoot for a while: your next life's recap would say so
+  await ev(page, "window.__range.closeRecap()");
+  check("recap: it closes", (await ev<unknown>(page, "window.__range.recap()")) === null);
+  await ev(page, "window.__range.duel().leave()");
   await page.close();
 }
 

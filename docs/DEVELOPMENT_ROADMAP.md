@@ -94,3 +94,22 @@ See [`PHASE_11_PLAN_ABILITIES_KILLCAM_AND_THE_AAA_BATCH.md`](./PHASE_11_PLAN_ABI
   TRIAGE scale), e2e (off by default in bots; the card at the countdown; JOLT moves you and starts the
   cooldown; the BR card on landing; TRIAGE halves the cell; a squad guest's JOLT reaches the host);
   `tools/snap.ts` screenshots the HUD states.
+
+## Milestone 13 — The killcam and the death recap ✅
+2026-09-15 (Phase 11C).
+- **Killcam** (`src/game/killcam.ts`): every match is recorded 30 times a second (every figure, you
+  included: place, facing, pitch, stance, speed, gun, skin; every round fired), 8 s kept. On an elimination
+  the last 4 s and the 1 s after are replayed 4 s behind real time from the killer's eyes, with their gun
+  in view kicking on their shots, ghost figures posed from the recording, the rounds re-fired as tracers.
+  Space / E / A skips; the next fight ends it; none for a ring kill; a Settings option turns it off.
+- **Death recap** (`src/game/recap.ts`): a log per life of every hit both ways (gun, amount, headshot,
+  distance) and every heal anyone finishes. The card: eliminated by whom, your damage to each opponent
+  against theirs to you with hits and headshots, their guns with the closest and farthest hit, a heal of
+  theirs in the 10 s before the kill, what they had left. Space closes it; the next fight does too.
+- **On the wire**: a hit now carries the gun and the distance; a finished heal is an effect the others log;
+  the host sends its bots' shots to the squad as tracers (guests never saw bot fire before).
+- Works in the 1v1, 1v1v1, bots, BR solo and squad (a guest's killcam can be a bot the host runs). The BR
+  end card holds 14 s so the replay and the recap fit.
+- Tests: verify (the recap's sums, distances, heal window, the ring), e2e (the bot's elimination: the
+  killcam from its eyes with its gun, the recording's length, the recap both ways; the ring: recap only; the
+  squad guest's killcam), snap (the replay and the card drawn for real).

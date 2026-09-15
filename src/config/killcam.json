@@ -1,0 +1,8 @@
+{
+  "_note": "The killcam (ours): record 30 times a second, keep 8 s, replay the 4 s before the kill and 1 s after. The recap window for 'healed recently' is 10 s.",
+  "recordHz": 30,
+  "keepSeconds": 8,
+  "before": 4,
+  "after": 1,
+  "healedWithin": 10
+}

@@ -50,6 +50,8 @@ import { Abilities, ABILITIES, JOLT, type AbilityId } from "./game/abilities";
 import { currentBinds, type Action } from "./game/input";
 import { bindName } from "./ui/binds";
 import { FxLayer } from "./game/fx";
+import { Killcam, Recorder } from "./game/killcam";
+import { DamageLog, HEAL_CODES, type Recap } from "./game/recap";
 import itemsCfg from "./config/items.json";
 
 const DEG = Math.PI / 180;
@@ -567,6 +569,45 @@ const rangeTargets: Dummy[] = [...dummies, ...courseEnemies];
 // a copy: the projectile system adds and removes match figures in its own list
 const projectiles = new ProjectileSystem(scene, [...rangeTargets], targets, 0);
 const aimAssist = new AimAssist();
+/** the last 8 s of every match, the replay of your elimination, and the damage log for the recap */
+const recorder = new Recorder();
+const killcam = new Killcam(scene, projectiles);
+const dlog = new DamageLog();
+/** the recap of your last elimination, shown after the killcam until you close it or play on */
+let recap: Recap | null = null;
+let recapShownAt = 0;
+const realNow = (): number => performance.now() / 1000;
+// the killcam can be turned off (Settings); the recap still shows
+const killcamSel = $<HTMLSelectElement>("killcamMode");
+let killcamOn = true;
+try {
+  killcamOn = localStorage.getItem("range.killcam") !== "0";
+} catch {
+  /* ignore */
+}
+killcamSel.value = killcamOn ? "1" : "0";
+killcamSel.addEventListener("change", () => {
+  killcamOn = killcamSel.value === "1";
+  try {
+    localStorage.setItem("range.killcam", killcamOn ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+});
+/** you are out: the recap is written now, and the killcam starts if there is a killer to watch */
+function onEliminated(d: MatchLike, by: number): void {
+  const t = realNow();
+  recap = dlog.recap(t, by, (id) => d.nameFor(id), (id) => d.vitalsFor(id));
+  recapShownAt = gameTime;
+  if (killcamOn && by >= 0 && by !== d.id) killcam.start(recorder, t, by, d.nameFor(by));
+}
+/**
+ * A new life: the log starts over. A replay still running (a round's respawn
+ * comes 3 s after the kill) plays on through the countdown; the fight ends it.
+ */
+function newLife(d: MatchLike): void {
+  dlog.clear(d.id);
+}
 /** everything a Digital Threat optic can light up */
 const threatTargets = [...dummies, ...courseEnemies];
 
@@ -676,6 +717,7 @@ function duelButtons(): void {
 }
 function respawnForMatch(d: MatchLike): void {
   const sp = d.spawn;
+  newLife(d);
   if (d instanceof BrMatch) {
     // a battle royale starts in the sky over your drop spot once everyone is
     // in; until then the lobby is wherever you are (the arena, for a host)
@@ -733,6 +775,8 @@ function updateHeal(now: number, cancel: boolean): void {
   if (heal.item === "cell") kit.cells--;
   else kit.syringes--;
   audio.reload();
+  // the others' recaps say you healed
+  duel.localFx("heal", undefined, undefined, HEAL_CODES.indexOf(heal.item));
   heal = null;
 }
 // ---------- abilities: JOLT and TRIAGE ----------
@@ -788,6 +832,21 @@ let wasDropping = false;
 /** extra field of view through a JOLT, eased */
 let joltFov = 0;
 
+/** the killer's gun for the killcam's view, resolved once each */
+const killcamGuns = new Map<string, ResolvedWeapon>();
+function killcamGun(id: string): ResolvedWeapon {
+  let w = killcamGuns.get(id);
+  if (!w) {
+    try {
+      w = resolveWeapon(id, 0);
+    } catch {
+      w = resolveWeapon("rspn101", 0);
+    }
+    killcamGuns.set(id, w);
+  }
+  return w;
+}
+
 /** the full map (M); shown by itself through a battle royale's drop */
 let mapOpen = false;
 /** the callbacks every kind of match gets */
@@ -813,6 +872,15 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   };
   // abilities are the match's: on or off, nothing picked yet (the card comes at the countdown or the landing)
   abilities.reset(d.abilities);
+  // the killcam's recording and the recap's log
+  recorder.clear();
+  killcam.stop();
+  recap = null;
+  newLife(d);
+  d.onDamaged = (from, amount, head, weapon, dist) => dlog.hit({ t: realNow(), from, to: d.id, amount, head, weapon, dist });
+  d.onEliminated = (by) => onEliminated(d, by);
+  d.onShotFired = (id, o, dir, w) => recorder.shot(realNow(), id, o, dir, w);
+  d.onHealSeen = (id, item) => dlog.heal({ t: realNow(), id, item });
   d.streak = profile.match(kind).streak;
   d.onMatchEnd = (s) => {
     profile.recordMatch(kind, s);
@@ -919,6 +987,9 @@ function endMatch(reason: string): void {
   duel = null;
   // back in the range: either ability to practise, nothing picked
   abilities.reset(true);
+  killcam.stop();
+  recap = null;
+  recorder.clear();
   heal = null;
   mapOpen = false;
   if (wasBr) setRegion("range");
@@ -1702,7 +1773,8 @@ function step(): void {
       const r = e.report;
       const wasAlive = remote.health > 0;
       const onShield = remote.shield > 0;
-      duel.localHit(remote, r.amount, r.headshot);
+      if (duel.phase === "fight" && remote.alive) dlog.hit({ t: realNow(), from: duel.id, to: remote.id, amount: r.amount, head: r.headshot, weapon: e.weapon, dist: e.distance });
+      duel.localHit(remote, r.amount, r.headshot, e.weapon, e.distance);
       stats.hits++;
       stats.damage += r.amount;
       if (r.headshot) stats.headshots++;
@@ -1752,6 +1824,20 @@ function step(): void {
     projectiles.melee(eye, dir, MELEE_RANGE, MELEE_DAMAGE, now, handleImpact);
   }
 
+  // ---------- the killcam and the recap ----------
+  // Space (or E, or A on a pad) skips the replay, then closes the recap; your
+  // next fight ends both. The replay's camera is set here, over the one above.
+  if (killcam.active) {
+    const skip = input.pressedNow("jump") || input.pressedNow("interact");
+    if (skip || !duel || (duel.phase === "fight" && duel.alive)) killcam.stop();
+    else if (killcam.update(wall, dt)) {
+      killcam.pose(camera);
+      camera.fov = verticalFovFrom43(hipH);
+      camera.updateProjectionMatrix();
+    }
+    if (!killcam.active && recap) recapShownAt = now;
+  } else if (recap && (input.pressedNow("jump") || input.pressedNow("interact") || !duel || (duel.phase === "fight" && duel.alive))) recap = null;
+
   for (const d of dummies) d.update(now, dt);
   for (const d of galleryFigs) d.update(now, dt);
   fx.update(now);
@@ -1770,6 +1856,7 @@ function step(): void {
   const swapP = loadout.swapping ? loadout.swapProgress(now) : 1;
   const onScreen = loadout.swapping && swapP < 0.5 ? loadout.active : loadout.display;
   let drawn = onScreen.weapon;
+  if (killcam.active && killcam.killerWeapon) drawn = killcamGun(killcam.killerWeapon);
   if (debugView.weapon) {
     const key = `${debugView.weapon}:${debugView.optic ?? ""}`;
     let dw = debugWeapons.get(key);
@@ -1802,9 +1889,11 @@ function step(): void {
     lowered: debugView.lowered ?? lowered,
     onZip: debugView.onZip ?? player.onZip,
   });
-  // in third person the gun in your hands is on your figure instead
-  viewModel.group.visible = !third;
-  selfFigure(now, dt, drawn.id, loadouts.current.operator, third, knockedOut);
+  // in third person the gun in your hands is on your figure instead; in the
+  // killcam the gun in view is your killer's, and it kicks when they fire
+  viewModel.group.visible = killcam.active || !third;
+  if (killcam.active && killcam.firedThisFrame) viewModel.onShot();
+  selfFigure(now, dt, onScreen.weapon.id, loadouts.current.operator, third && !killcam.active, knockedOut);
 
   duel?.update({
     x: player.pos.x,
@@ -1820,6 +1909,15 @@ function step(): void {
     stance: player.stance,
     speed: player.speed,
   });
+  // the killcam's recording: you and everyone else, 30 times a second
+  if (duel) {
+    const d = duel;
+    recorder.sample(wall, () => [
+      { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: player.stance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive },
+      ...d.actorStates(),
+    ]);
+  }
+
   // the ability card: at each countdown of an arena or bot match, and on
   // landing from a battle royale's drop; a re-offer (a pick already made)
   // goes away by itself when the fight starts
@@ -1865,7 +1963,17 @@ function step(): void {
   // The sky dome is drawn at a fixed radius around the camera, so it has to be
   // re-centred every frame or you can walk out of your own sky.
   skyFollow(camera);
+  const hiddenForReplay: THREE.Object3D[] = [];
+  if (killcam.active && duel) {
+    for (const a of duel.avatars) {
+      if (a.group.visible) {
+        a.group.visible = false;
+        hiddenForReplay.push(a.group);
+      }
+    }
+  }
   if (!NO_RENDER) pipeline.render(now);
+  for (const o of hiddenForReplay) o.visible = true;
   const shown = loadout.display;
   // context prompts: a zipline in reach, or a ladder you are facing
   let prompt: { key: string; text: string } | null = null;
@@ -1919,6 +2027,8 @@ function step(): void {
         ? { code: hosting.code, waitingFor: duel ? duel.players - 1 - (duel as Duel).connected : Number(duelPlayers.value) === 3 ? 2 : 1 }
         : null,
     vitals: duel ? { shield: duel.shield, shieldMax: SHIELD_MAX, health: duel.health, healthMax: HEALTH_MAX } : null,
+    killcam: killcam.active ? { name: killcam.killerName, weapon: killcam.killerWeapon ? weaponName(killcam.killerWeapon) : "", progress: killcam.progress, left: killcam.left, skipKey: keyLabel("jump") } : null,
+    recap: recap && !killcam.active ? { ...recap, age: now - recapShownAt, closeKey: keyLabel("jump") } : null,
     ability:
       abilities.enabled && abilities.picked
         ? { name: ABILITIES[abilities.picked].name, key: keyLabel("ability"), cooldown: JOLT.cooldown, left: abilities.cooldownLeft(now), passive: abilities.picked === "triage" }
@@ -2029,6 +2139,23 @@ initWelcome();
   useAbility: () => useAbility(gameTime),
   fxCount: () => fx.count,
   gameTime: () => gameTime,
+  /** the killcam and the recap (tools/e2e.ts) */
+  killcamState: () => ({ active: killcam.active, killer: killcam.killerName, weapon: killcam.killerWeapon, progress: killcam.progress, frames: recorder.frames.length, span: recorder.span, shots: recorder.shots.length }),
+  recap: () => recap,
+  skipKillcam: () => killcam.stop(),
+  /** one of your hits on a match figure, through the same log and match calls a bullet makes (tools/e2e.ts) */
+  landHit: (remoteId: number, amount: number, head: boolean, weapon: string, dist: number) => {
+    const d = duel;
+    if (!d) return false;
+    const target = d.avatars.map((a) => d.remoteOf(a)).find((r) => r?.id === remoteId);
+    if (!target) return false;
+    if (d.phase === "fight" && target.alive) dlog.hit({ t: realNow(), from: d.id, to: target.id, amount, head, weapon, dist });
+    const av = target.avatar;
+    av.hit(gameTime, head ? "head" : "body", amount, 1, 1, av.group.position.clone());
+    d.localHit(target, amount, head, weapon, dist);
+    return true;
+  },
+  closeRecap: () => (recap = null),
   remoteFxLog,
   startHeal: () => startHeal(gameTime),
   kit,

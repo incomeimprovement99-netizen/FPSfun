@@ -16,6 +16,7 @@ import { movesimFails } from "./movesim";
 import { HU, MOVE, jumpVelocityFor, slideBreakEvenAngle, SLIDE_RAMP_ANGLE } from "../src/game/movement";
 import { Abilities, abilityCode, abilityFromCode } from "../src/game/abilities";
 import itemsCfg from "../src/config/items.json";
+import { DamageLog } from "../src/game/recap";
 
 let fails = 0;
 const eq = (label: string, got: unknown, want: unknown) => {
@@ -1027,6 +1028,43 @@ console.log("Abilities: JOLT and TRIAGE (src/config/abilities.json)");
   eq("abilities off: no pick, no scale", off.healScale, 1);
   eq("network codes round-trip", abilityFromCode(abilityCode("triage")), "triage");
   eq("a bad code is none", abilityFromCode(9), null);
+}
+
+console.log("");
+console.log("The death recap (src/game/recap.ts)");
+{
+  const log = new DamageLog();
+  log.clear(0);
+  // you hit bot 1 twice (one head), bot 1 hits you three times with an R-301 at 18 to 25 m, bot 2 once from 60 m
+  log.hit({ t: 1, from: 0, to: 1, amount: 20, head: true, weapon: "r97", dist: 12 });
+  log.hit({ t: 1.2, from: 0, to: 1, amount: 15, head: false, weapon: "r97", dist: 12 });
+  log.hit({ t: 2, from: 1, to: 0, amount: 30, head: false, weapon: "rspn101", dist: 18 });
+  log.hit({ t: 2.5, from: 2, to: 0, amount: 70, head: true, weapon: "sentinel", dist: 60 });
+  log.hit({ t: 3, from: 1, to: 0, amount: 45, head: true, weapon: "rspn101", dist: 25 });
+  log.hit({ t: 3.2, from: 1, to: 0, amount: 30, head: false, weapon: "rspn101", dist: 22 });
+  log.heal({ t: 1.5, id: 1, item: "cell" });
+  log.heal({ t: -20, id: 2, item: "syringe" });
+  const names: Record<number, string> = { 1: "BOT ASH", 2: "BOT VOLT" };
+  const r = log.recap(3.3, 1, (id) => names[id] ?? "?", (id) => (id === 1 ? { shield: 40, health: 100 } : null));
+  eq("the killer's row first", r.rows[0].name, "BOT ASH");
+  eq("you to them: damage", r.rows[0].dealt.damage, 35);
+  eq("you to them: hits", r.rows[0].dealt.hits, 2);
+  eq("you to them: headshots", r.rows[0].dealt.heads, 1);
+  eq("them to you: damage", r.rows[0].taken.damage, 105);
+  eq("them to you: hits", r.rows[0].taken.hits, 3);
+  eq("them to you: headshots", r.rows[0].taken.heads, 1);
+  eq("their gun", r.rows[0].guns[0].hits, 3);
+  eq("closest hit, m", r.rows[0].guns[0].near, 18);
+  eq("farthest hit, m", r.rows[0].guns[0].far, 25);
+  near("healed 1.8 s before", r.rows[0].healed?.ago ?? -1, 1.8, 1e-9);
+  eq("with a shield cell", r.rows[0].healed?.item, "SHIELD CELL");
+  eq("what they had left", (r.rows[0].left?.shield ?? 0) + (r.rows[0].left?.health ?? 0), 140);
+  eq("the other attacker's row", r.rows[1].name, "BOT VOLT");
+  eq("a heal 23 s before is not 'recently'", r.rows[1].healed, null);
+  eq("everything you took", r.totalTaken, 175);
+  const ring = log.recap(4, -1, () => "?", () => null);
+  eq("the ring: named", ring.killerName, "THE RING");
+  eq("the ring: no row for it", ring.rows.every((x) => x.id >= 0), true);
 }
 
 console.log("");

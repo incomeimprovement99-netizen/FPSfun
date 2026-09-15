@@ -28,6 +28,8 @@ import { ARENA_CENTER, ARENA_SPAWNS, TRI_CENTER, TRI_SPAWNS, ZONE_RADIUS } from 
 import { operatorById } from "./operators";
 import type { MatchSummary } from "./stats";
 import type { BrHud } from "./brmatch";
+import type { ActorState } from "./killcam";
+import { HEAL_CODES } from "./recap";
 
 const SEND_HZ = 30;
 const INTERP_DELAY = 0.1;
@@ -151,7 +153,8 @@ export interface MatchLike {
   readonly avatars: Dummy[];
   remoteOf(d: Dummy): Remote | null;
   localShot(origin: THREE.Vector3, dir: THREE.Vector3, weapon: string): void;
-  localHit(r: Remote, amount: number, head: boolean): void;
+  /** one of your bullets hit someone: `weapon` and `dist` go to them for their recap */
+  localHit(r: Remote, amount: number, head: boolean, weapon?: string, dist?: number | null): void;
   update(local: LocalState): void;
   hud(): DuelHud;
   leave(): void;
@@ -170,8 +173,24 @@ export interface MatchLike {
   spectateTarget(): Dummy | null;
   /** JOLT and TRIAGE are on in this match (the host's setting) */
   readonly abilities: boolean;
-  /** an effect of this player's for the others (a JOLT from a to b) */
-  localFx(k: string, a?: THREE.Vector3, b?: THREE.Vector3): void;
+  /** this player's id in the match (the recap's "you") */
+  readonly id: number;
+  /** you took damage: who, how much, a headshot, their gun and the distance when known */
+  onDamaged: ((from: number, amount: number, head: boolean, weapon: string, dist: number | null) => void) | null;
+  /** you are out (of the round, or the match): by whom, -1 the ring */
+  onEliminated: ((by: number) => void) | null;
+  /** someone fired (you, a player, a bot): the killcam re-fires it */
+  onShotFired: ((id: number, o: THREE.Vector3, d: THREE.Vector3, weapon: string) => void) | null;
+  /** every other figure as it stands (the killcam's recording) */
+  actorStates(): ActorState[];
+  /** a name for anyone in the match, you included */
+  nameFor(id: number): string;
+  /** what someone has left, when known (the recap) */
+  vitalsFor(id: number): { shield: number; health: number } | null;
+  /** an effect of this player's for the others (a JOLT from a to b; a finished heal, n its item code) */
+  localFx(k: string, a?: THREE.Vector3, b?: THREE.Vector3, n?: number): void;
+  /** someone else finished a heal (a player's fx, or a bot): the recap's "healed recently" */
+  onHealSeen: ((id: number, item: string) => void) | null;
   /** someone else's effect (a player's, or a bot's): draw and play it */
   onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3) => void) | null;
 }
@@ -245,6 +264,10 @@ export class Duel implements MatchLike {
   /** the host: a guest left before round 1, so their place can be taken again */
   onSlotFree: ((id: number) => void) | null = null;
   onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3) => void) | null = null;
+  onDamaged: ((from: number, amount: number, head: boolean, weapon: string, dist: number | null) => void) | null = null;
+  onEliminated: ((by: number) => void) | null = null;
+  onHealSeen: ((id: number, item: string) => void) | null = null;
+  onShotFired: ((id: number, o: THREE.Vector3, d: THREE.Vector3, weapon: string) => void) | null = null;
   /** JOLT and TRIAGE are on (the host's setting, told to the guests in the welcome) */
   readonly abilities: boolean;
 
@@ -455,7 +478,8 @@ export class Duel implements MatchLike {
       if (!fxWellFormed(m)) return;
       const known = this.remotes.get(from);
       if (known) known.lastHeard = now;
-      this.onRemoteFx?.(m.k, from, m.a ? new THREE.Vector3(...m.a) : undefined, m.b ? new THREE.Vector3(...m.b) : undefined);
+      if (m.k === "heal" && typeof m.n === "number" && HEAL_CODES[m.n]) this.onHealSeen?.(from, HEAL_CODES[m.n]);
+      else this.onRemoteFx?.(m.k, from, m.a ? new THREE.Vector3(...m.a) : undefined, m.b ? new THREE.Vector3(...m.b) : undefined);
       this.relay(m, from);
       return;
     }
@@ -524,7 +548,9 @@ export class Duel implements MatchLike {
       }
       case "shot": {
         const o = new THREE.Vector3(...m.o);
-        this.projectiles.fire(o, new THREE.Vector3(...m.d), this.weapon(m.w), true);
+        const dir = new THREE.Vector3(...m.d);
+        this.projectiles.fire(o, dir, this.weapon(m.w), true);
+        this.onShotFired?.(from, o, dir, m.w);
         // Every pellet is its own message; the sound is once per pull. The
         // fastest guns fire about 55 ms apart, so no real shot is skipped.
         if (now - this.lastShotSound > SHOT_SOUND_GAP) {
@@ -535,7 +561,7 @@ export class Duel implements MatchLike {
         break;
       }
       case "hit":
-        if (m.to === this.id) this.takeHit(m.amount, from);
+        if (m.to === this.id) this.takeHit(m.amount, from, m.head, typeof m.w === "string" ? m.w.slice(0, 32) : "", typeof m.d === "number" && Number.isFinite(m.d) ? m.d : null);
         else if (this.role === "host" && !this.onHitOther(m.to, m.amount, m.head, from)) this.links.get(m.to)?.send({ ...m, from });
         break;
       case "down":
@@ -700,16 +726,18 @@ export class Duel implements MatchLike {
   }
 
   /** another player's bullet hit this player (in a battle royale the humans are a squad: only bots and the ring, -1, hurt) */
-  protected takeHit(amount: number, from: number): void {
+  protected takeHit(amount: number, from: number, head = false, weapon = "", dist: number | null = null): void {
     if (!this.alive || this.phase !== "fight") return;
     if (this.mode === "br" && from >= 0 && from < Duel.BOT_ID) return;
     const toShield = Math.min(this.shield, amount);
     this.shield -= toShield;
     this.health = Math.max(0, this.health - (amount - toShield));
     this.onHurt?.(amount);
+    this.onDamaged?.(from, amount, head, weapon, dist);
     if (this.health <= 0) {
       this.alive = false;
       this.deaths++;
+      this.onEliminated?.(from);
       this.onFeed?.(`${from === -1 ? "THE RING" : (this.nameOf(from) ?? "SOMEONE")} knocked ${this.myName || "YOU"}`, false);
       this.broadcast({ t: "down", by: from });
       if (this.role === "host" && this.mode === "duel") this.checkLastStanding(wallClock());
@@ -722,22 +750,23 @@ export class Duel implements MatchLike {
   /** this player's shot, so the others can draw and hear it */
   localShot(origin: THREE.Vector3, dir: THREE.Vector3, weapon: string): void {
     this.shots++;
+    this.onShotFired?.(this.id, origin, dir, weapon);
     this.broadcast({ t: "shot", o: [origin.x, origin.y, origin.z], d: [dir.x, dir.y, dir.z], w: weapon });
   }
 
   /** this player's effect (a JOLT), for the others */
-  localFx(k: string, a?: THREE.Vector3, b?: THREE.Vector3): void {
-    this.broadcast({ t: "fx", k, a: a ? [a.x, a.y, a.z] : undefined, b: b ? [b.x, b.y, b.z] : undefined });
+  localFx(k: string, a?: THREE.Vector3, b?: THREE.Vector3, n?: number): void {
+    this.broadcast({ t: "fx", k, a: a ? [a.x, a.y, a.z] : undefined, b: b ? [b.x, b.y, b.z] : undefined, n });
   }
 
   /** one of this player's bullets hit another player's figure */
-  localHit(r: Remote, amount: number, head: boolean): void {
+  localHit(r: Remote, amount: number, head: boolean, weapon = "", dist: number | null = null): void {
     if (this.phase !== "fight" || !r.alive) return;
     // a squad mate in a battle royale: no friendly fire
     if (this.mode === "br" && r.id < Duel.BOT_ID) return;
     this.hits++;
     this.damage += amount;
-    const m: NetMsg = { t: "hit", to: r.id, amount, head };
+    const m: NetMsg = { t: "hit", to: r.id, amount, head, w: weapon || undefined, d: dist === null ? undefined : Math.round(dist * 10) / 10 };
     if (this.role === "host") r.link.send(m);
     else this.hostLink?.send(m);
     // show it at once rather than a round trip later
@@ -917,6 +946,29 @@ export class Duel implements MatchLike {
     };
   }
 
+  /** every other figure as it stands: the killcam's recording */
+  actorStates(): ActorState[] {
+    const out: ActorState[] = [];
+    for (const r of this.remotes.values()) {
+      if (!r.samples.length) continue;
+      const g = r.avatar.group;
+      const p = r.avatar.currentPose;
+      out.push({ id: r.id, name: r.name, x: g.position.x, y: g.position.y, z: g.position.z, yaw: ((g.rotation.y - Math.PI) * 180) / Math.PI, pitch: p.pitch, stance: p.stance, speed: p.speed, weapon: r.avatarWeapon, op: r.avatarOp, alive: r.alive });
+    }
+    return out;
+  }
+
+  nameFor(id: number): string {
+    if (id === this.id) return this.myName || "YOU";
+    if (id === -1) return "THE RING";
+    return this.nameOf(id) ?? `PLAYER ${id + 1}`;
+  }
+
+  vitalsFor(id: number): { shield: number; health: number } | null {
+    const r = this.remotes.get(id);
+    return r ? { shield: Math.max(0, r.shield), health: Math.max(0, r.health) } : null;
+  }
+
   /** knocked in a 1v1v1 with two still up: watch one of them until the round ends */
   spectateTarget(): Dummy | null {
     if (this.alive || this.phase !== "fight") return null;
@@ -958,7 +1010,7 @@ const vec3 = (v: unknown): boolean => Array.isArray(v) && v.length === 3 && fini
 
 /** an effect: a short name and, if there, finite points */
 function fxWellFormed(m: Extract<NetMsg, { t: "fx" }>): boolean {
-  return typeof m.k === "string" && m.k.length <= 16 && (m.a === undefined || vec3(m.a)) && (m.b === undefined || vec3(m.b));
+  return typeof m.k === "string" && m.k.length <= 16 && (m.a === undefined || vec3(m.a)) && (m.b === undefined || vec3(m.b)) && (m.n === undefined || finite(m.n));
 }
 
 /** the packets that make or move a figure, checked field by field */
@@ -969,7 +1021,7 @@ function wellFormed(m: NetMsg): boolean {
     case "shot":
       return vec3(m.o) && vec3(m.d) && typeof m.w === "string";
     case "hit":
-      return finite(m.to, m.amount) && m.amount >= 0 && m.amount <= 1000;
+      return finite(m.to, m.amount) && m.amount >= 0 && m.amount <= 1000 && (m.w === undefined || typeof m.w === "string") && (m.d === undefined || finite(m.d));
     case "down":
       return finite(m.by);
     default:

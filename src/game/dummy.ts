@@ -653,6 +653,11 @@ export class Dummy {
     this.pose = p;
   }
 
+  /** what it was last told to do (the killcam records it) */
+  get currentPose(): FigurePose {
+    return this.pose;
+  }
+
   /** 0..1 crouched, eased inside update(): the hit zones shrink to two thirds */
   get crouchAmount(): number {
     return this.crouchAmt;

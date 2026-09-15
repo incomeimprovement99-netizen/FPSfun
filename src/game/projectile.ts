@@ -67,6 +67,8 @@ export interface ImpactEvent {
   damage: number;
   point: THREE.Vector3;
   distance: number;
+  /** the gun that fired it ("melee" for a melee), for the death recap */
+  weapon: string;
 }
 
 const SUBSTEPS = 4;
@@ -128,13 +130,13 @@ export class ProjectileSystem {
     if (d) {
       const zone = (hit.object.userData.zone as Zone) ?? "body";
       const report = d.hit(now, zone, damage, 1, 1, hit.point);
-      onImpact({ dummy: d, report, target: null, targetHead: false, damage: report?.amount ?? 0, point: hit.point.clone(), distance: dist });
+      onImpact({ dummy: d, report, target: null, targetHead: false, damage: report?.amount ?? 0, point: hit.point.clone(), distance: dist, weapon: "melee" });
       return true;
     }
     const t = tOwner.get(hit.object);
     if (!t) return false;
     t.hit(now, false, damage);
-    onImpact({ dummy: null, report: null, target: t, targetHead: false, damage, point: hit.point.clone(), distance: dist });
+    onImpact({ dummy: null, report: null, target: t, targetHead: false, damage, point: hit.point.clone(), distance: dist, weapon: "melee" });
     return true;
   }
 
@@ -202,7 +204,7 @@ export class ProjectileSystem {
               const report = d.hit(now, zone, dmg, headshotScale, b.weapon.damage.leg, hit.point);
               onImpact({
                 dummy: d, report, target: null, targetHead: false,
-                damage: report?.amount ?? 0, point: hit.point.clone(), distance: dist,
+                damage: report?.amount ?? 0, point: hit.point.clone(), distance: dist, weapon: b.weapon.id,
               });
             } else {
               const t = tOwner.get(hit.object)!;
@@ -212,7 +214,7 @@ export class ProjectileSystem {
               t.hit(now, head, amount);
               onImpact({
                 dummy: null, report: null, target: t, targetHead: head,
-                damage: amount, point: hit.point.clone(), distance: dist,
+                damage: amount, point: hit.point.clone(), distance: dist, weapon: b.weapon.id,
               });
             }
             dead = true;
@@ -222,14 +224,14 @@ export class ProjectileSystem {
         if (wallAt < Infinity) {
           // stopped by a wall: report it as a miss where it landed
           const at = prev.clone().addScaledVector(unit, wallAt);
-          onImpact({ dummy: null, report: null, target: null, targetHead: false, damage: 0, point: at, distance: at.distanceTo(b.origin) });
+          onImpact({ dummy: null, report: null, target: null, targetHead: false, damage: 0, point: at, distance: at.distanceTo(b.origin), weapon: b.weapon.id });
           dead = true;
           break;
         }
         if (b.pos.y <= this.floorY) {
           onImpact({
             dummy: null, report: null, target: null, targetHead: false, damage: 0,
-            point: b.pos.clone(), distance: b.pos.distanceTo(b.origin),
+            point: b.pos.clone(), distance: b.pos.distanceTo(b.origin), weapon: b.weapon.id,
           });
           dead = true;
         } else if (b.age > b.weapon.projectile.lifetime) dead = true;

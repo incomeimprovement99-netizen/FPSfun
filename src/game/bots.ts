@@ -21,6 +21,7 @@ import { HU, MOVE } from "./movement";
 import type { RoundPhase } from "../net/link";
 import type { MatchSummary, BotDifficulty } from "./stats";
 import { ABILITY_IDS, BOT_ABILITY, JOLT, TRIAGE, type AbilityId } from "./abilities";
+import type { ActorState } from "./killcam";
 import items from "../config/items.json";
 import { HEALTH_MAX, ROUNDS_TO_WIN, SHIELD_MAX, ZONE_CAPTURE, ZONE_DELAY, type DuelHud, type LocalState, type MatchLike, type Remote, type Spawn } from "./duel";
 
@@ -71,6 +72,8 @@ export interface BotShot {
   from: THREE.Vector3;
   dir: THREE.Vector3;
   damage: number;
+  /** its gun, for the recap and the killcam */
+  weapon: string;
 }
 
 export class Bot {
@@ -393,7 +396,7 @@ export class Bot {
           pd.applyAxisAngle(new THREE.Vector3(0, 1, 0), ((Math.random() * 2 - 1) * 2 * Math.PI) / 180).applyAxisAngle(side, ((Math.random() * 2 - 1) * 2 * Math.PI) / 180);
         }
         this.projectiles.fire(from, pd, this.weapon, true);
-        shots.push({ from, dir: pd, damage: this.weapon.damage.near });
+        shots.push({ from, dir: pd, damage: this.weapon.damage.near, weapon: this.weapon.id });
       }
     }
     return shots;
@@ -471,6 +474,12 @@ export class BotMatch implements MatchLike {
   streak = 0;
   private lastSummary: MatchSummary | null = null;
   onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3) => void) | null = null;
+  onDamaged: ((from: number, amount: number, head: boolean, weapon: string, dist: number | null) => void) | null = null;
+  onEliminated: ((by: number) => void) | null = null;
+  onShotFired: ((id: number, o: THREE.Vector3, d: THREE.Vector3, weapon: string) => void) | null = null;
+  onHealSeen: ((id: number, item: string) => void) | null = null;
+  /** you are always player 0 against the bots */
+  readonly id = 0;
 
   constructor(
     scene: THREE.Scene,
@@ -486,6 +495,7 @@ export class BotMatch implements MatchLike {
       const b = new Bot(i, scene, projectiles, DIFFICULTY[difficulty], ARENA_BOT_SPAWNS[i]);
       b.setAbilities(abilities);
       b.onJolt = (a, to) => this.onRemoteFx?.("jolt", b.remote.id, a, to);
+      b.onHealed = (item) => this.onHealSeen?.(b.remote.id, item);
       this.bots.push(b);
     }
     this.scores = new Array(this.players).fill(0);
@@ -578,16 +588,18 @@ export class BotMatch implements MatchLike {
 
   private lastHitBy: Bot | null = null;
 
-  private takeHit(amount: number): void {
+  private takeHit(amount: number, from: Bot | null = null, weapon = "", dist: number | null = null): void {
     if (!this.alive || this.phase !== "fight") return;
     const toShield = Math.min(this.shield, amount);
     this.shield -= toShield;
     this.health = Math.max(0, this.health - (amount - toShield));
     this.onHurt?.(amount);
+    if (from) this.onDamaged?.(from.remote.id, amount, false, weapon, dist);
     if (this.health <= 0) {
       this.alive = false;
       this.deaths++;
       const by = this.lastHitBy ?? this.bots.find((b) => b.alive) ?? null;
+      this.onEliminated?.(by ? by.remote.id : -1);
       this.onFeed?.(`${by?.remote.name ?? "A BOT"} knocked ${this.myName || "YOU"}`, false);
       this.checkRound(wallClock());
     }
@@ -631,16 +643,20 @@ export class BotMatch implements MatchLike {
       }
     }
 
-    // the bots think and shoot; a hit on you lands at once
-    let dealt = 0;
+    // the bots think and shoot; a hit on you lands at once, with the bot's gun and distance for the recap
     for (const b of this.bots) {
       const before = b.alive;
       const sees = this.alive && b.alive && !b.dropping && b.sees(feet);
       const shots = b.update(now, dt, { target: sees ? feet : null, targetId: 0, goal: center, canShoot: this.phase === "fight" });
       let d = 0;
-      for (const s of shots) if (hitsBody(s.from, s.dir, feet)) d += s.damage;
-      if (d > 0) this.lastHitBy = b;
-      dealt += d;
+      for (const s of shots) {
+        this.onShotFired?.(b.remote.id, s.from, s.dir, s.weapon);
+        if (hitsBody(s.from, s.dir, feet)) d += s.damage;
+      }
+      if (d > 0) {
+        this.lastHitBy = b;
+        this.takeHit(d, b, shots[0].weapon, b.pos.distanceTo(feet));
+      }
       if (before && !b.alive) {
         // knocked by something that did not go through localHit (a melee)
         b.remote.alive = false;
@@ -648,12 +664,7 @@ export class BotMatch implements MatchLike {
         this.onFeed?.(`${this.myName || "YOU"} knocked ${b.remote.name}`, true);
         this.checkRound(now);
       }
-      // a bot that fires is heard
-      if (b.alive && this.phase === "fight" && dealt >= 0) {
-        /* sound is per shot below */
-      }
     }
-    if (dealt > 0) this.takeHit(dealt);
     for (const b of this.bots) {
       // its own heals show on its plate
       if (b.alive) {
@@ -691,6 +702,24 @@ export class BotMatch implements MatchLike {
       waiting: null,
       summary: this.phase === "matchEnd" && this.lastSummary ? { ...this.lastSummary, streak: this.streak } : null,
     };
+  }
+
+  /** the bots as they stand: the killcam's recording */
+  actorStates(): ActorState[] {
+    return this.bots.map((b) => {
+      const p = b.dummy.currentPose;
+      return { id: b.remote.id, name: b.remote.name, x: b.pos.x, y: b.pos.y, z: b.pos.z, yaw: ((b.dummy.group.rotation.y - Math.PI) * 180) / Math.PI, pitch: p.pitch, stance: p.stance, speed: p.speed, weapon: b.remote.avatarWeapon, op: b.remote.avatarOp, alive: b.alive };
+    });
+  }
+
+  nameFor(id: number): string {
+    if (id === 0) return this.myName || "YOU";
+    return this.bots.find((b) => b.remote.id === id)?.remote.name ?? "A BOT";
+  }
+
+  vitalsFor(id: number): { shield: number; health: number } | null {
+    const b = this.bots.find((x) => x.remote.id === id);
+    return b ? { shield: b.dummy.shield, health: b.dummy.health } : null;
   }
 
   /** against bots there is nobody to watch: the round ends when you go down */

@@ -17,6 +17,7 @@ import { RANGE_SOLIDS, COURSE_GATE, COURSE_GATE_R } from "./range";
 import { ZIPLINES } from "./traversal";
 import { drawReticle, type ReticleStyle } from "./optics";
 import type { DuelHud } from "./duel";
+import type { Recap } from "./recap";
 
 export interface DamageNumber {
   world: THREE.Vector3;
@@ -113,6 +114,10 @@ export interface HudState {
   ability?: { name: string; key: string; cooldown: number; left: number; passive: boolean } | null;
   /** the ability card: the two options with their keys; compact is the one-line form */
   abilityCard?: { options: Array<{ key: string; name: string; blurb: string; picked: boolean }>; age: number; compact: boolean } | null;
+  /** the killcam is playing: whose eyes, their gun, how far through, the skip key */
+  killcam?: { name: string; weapon: string; progress: number; left: number; skipKey: string } | null;
+  /** the death recap, after the killcam: how long it has been up, the close key */
+  recap?: (Recap & { age: number; closeKey: string }) | null;
 }
 
 /** map canvas pixels per metre */
@@ -212,6 +217,12 @@ export class Hud {
     const c = this.ctx;
     c.clearRect(0, 0, this.w, this.h);
     const u = this.h / 1080; // layout unit: 1 px at 1080p
+    // the killcam has the screen to itself, and the kill feed
+    if (s.killcam) {
+      this.drawKillcam(now, s.killcam, u);
+      this.drawFeed(now, u);
+      return;
+    }
     this.drawScope(s, u);
     this.drawHurt(now);
     this.drawDamageNumbers(now, camera, u);
@@ -236,6 +247,100 @@ export class Hud {
     this.drawFeed(now, u);
     this.drawSummary(s, u);
     this.drawFullMap(now, s, u);
+    this.drawRecap(s, u);
+  }
+
+  /**
+   * The killcam: bars top and bottom, "KILLCAM" and whose eyes these are with
+   * their gun, a thin bar of how far through, and the skip key.
+   */
+  private drawKillcam(now: number, k: NonNullable<HudState["killcam"]>, u: number): void {
+    const c = this.ctx;
+    const bar = this.h * 0.09;
+    c.fillStyle = "rgba(0,0,0,0.88)";
+    c.fillRect(0, 0, this.w, bar);
+    c.fillRect(0, this.h - bar, this.w, bar);
+    // a faint red wash over the picture: this is the past
+    c.fillStyle = "rgba(120,10,10,0.12)";
+    c.fillRect(0, bar, this.w, this.h - bar * 2);
+    const blink = Math.sin(now * 5) > 0 ? 1 : 0.45;
+    c.fillStyle = `rgba(255,75,62,${blink})`;
+    c.beginPath();
+    c.arc(34 * u, bar / 2, 7 * u, 0, Math.PI * 2);
+    c.fill();
+    this.text("KILLCAM", 50 * u, bar / 2 + 8 * u, 700, 24 * u, WHITE);
+    this.text(k.name, this.w / 2, bar / 2 + 6 * u, 700, 28 * u, RED, "center");
+    if (k.weapon) this.text(k.weapon.toUpperCase(), this.w / 2, bar / 2 + 28 * u, 600, 14 * u, DIM, "center");
+    this.text(`${k.skipKey} TO SKIP`, this.w - 30 * u, this.h - bar / 2 + 6 * u, 700, 16 * u, DIM, "right");
+    c.fillStyle = "rgba(255,255,255,0.15)";
+    c.fillRect(30 * u, this.h - bar / 2 - 2 * u, this.w * 0.4, 4 * u);
+    c.fillStyle = RED;
+    c.fillRect(30 * u, this.h - bar / 2 - 2 * u, this.w * 0.4 * k.progress, 4 * u);
+  }
+
+  /**
+   * The death recap: who eliminated you and with what, then one block per
+   * opponent (the killer first): your damage to them against theirs to you,
+   * hits and headshots each way, the guns and distances they hit you from,
+   * a heal of theirs just before, and what they had left.
+   */
+  private drawRecap(s: HudState, u: number): void {
+    const r = s.recap;
+    if (!r) return;
+    const c = this.ctx;
+    const rows = r.rows.slice(0, 3);
+    const w = Math.min(this.w - 40 * u, 700 * u);
+    const rowH = 118 * u;
+    const h = 96 * u + Math.max(1, rows.length) * rowH + 30 * u;
+    const x0 = this.w / 2 - w / 2;
+    // under the countdown's number and the centre notices, above the bottom edge
+    const y0 = Math.max(60 * u, Math.min(this.h * 0.47, this.h - h - 20 * u));
+    c.save();
+    c.globalAlpha = Math.min(1, r.age / 0.2);
+    c.fillStyle = "rgba(8,10,12,0.9)";
+    c.fillRect(x0, y0, w, h);
+    c.fillStyle = RED;
+    c.fillRect(x0, y0, w, 4 * u);
+    this.text("DEATH RECAP", x0 + 22 * u, y0 + 30 * u, 700, 14 * u, DIM);
+    this.text(r.byRing ? "ELIMINATED BY THE RING" : `ELIMINATED BY ${r.killerName}`, x0 + 22 * u, y0 + 62 * u, 700, 28 * u, r.byRing ? "#ff9a4a" : WHITE);
+    this.text(`YOU DEALT ${Math.round(r.totalDealt)}  ·  TOOK ${Math.round(r.totalTaken)}`, x0 + w - 22 * u, y0 + 62 * u, 700, 15 * u, DIM, "right");
+    if (!rows.length) this.text("Nobody hit you this life: it was the ring.", x0 + 22 * u, y0 + 110 * u, 600, 15 * u, DIM);
+    rows.forEach((row, i) => {
+      const y = y0 + 88 * u + i * rowH;
+      c.fillStyle = row.killer ? "rgba(255,75,62,0.1)" : "rgba(255,255,255,0.04)";
+      c.fillRect(x0 + 12 * u, y, w - 24 * u, rowH - 10 * u);
+      this.text(row.name, x0 + 24 * u, y + 24 * u, 700, 18 * u, row.killer ? RED : WHITE);
+      if (row.killer) this.text("KILLER", x0 + 24 * u + this.measure(row.name, 18 * u) + 10 * u, y + 24 * u, 700, 12 * u, RED);
+      // you against them, as two bars on one scale
+      const most = Math.max(1, row.dealt.damage, row.taken.damage);
+      const bw = w * 0.36;
+      const bx = x0 + 24 * u;
+      const line = (yy: number, label: string, v: { damage: number; hits: number; heads: number }, col: string) => {
+        this.text(label, bx, yy, 700, 12 * u, DIM);
+        c.fillStyle = "rgba(0,0,0,0.5)";
+        c.fillRect(bx + 92 * u, yy - 10 * u, bw, 10 * u);
+        c.fillStyle = col;
+        c.fillRect(bx + 92 * u, yy - 10 * u, (bw * v.damage) / most, 10 * u);
+        this.text(`${Math.round(v.damage)}  ·  ${v.hits} HIT${v.hits === 1 ? "" : "S"}${v.heads ? `, ${v.heads} HEAD` : ""}`, bx + 100 * u + bw, yy, 700, 14 * u, WHITE);
+      };
+      line(y + 50 * u, "YOU → THEM", row.dealt, "#7ddc8a");
+      line(y + 72 * u, "THEM → YOU", row.taken, RED);
+      const gun = row.guns[0];
+      const dist = (g: typeof gun) => (g.near === null ? "" : g.far !== null && Math.round(g.far) !== Math.round(g.near) ? `  ${Math.round(g.near)}-${Math.round(g.far)} M` : `  ${Math.round(g.near)} M`);
+      const guns = row.guns.length ? row.guns.slice(0, 2).map((g) => `${g.name}${dist(g)}`).join("   ·   ") : "NO HITS ON YOU";
+      this.text(guns, bx, y + 96 * u, 600, 13 * u, "#c8d0d8");
+      const right: string[] = [];
+      if (row.healed) right.push(`HEALED ${row.healed.ago.toFixed(1)} S BEFORE (${row.healed.item})`);
+      if (row.left) right.push(`LEFT: ${Math.round(row.left.shield)} SHIELD · ${Math.round(row.left.health)} HEALTH`);
+      right.forEach((t, j) => this.text(t, x0 + w - 24 * u, y + 24 * u + j * 18 * u, 700, 12 * u, j === 0 && row.healed ? "#ffd23c" : DIM, "right"));
+    });
+    this.text(`${r.closeKey} CLOSES`, x0 + w - 22 * u, y0 + h - 12 * u, 600, 12 * u, DIM, "right");
+    c.restore();
+  }
+
+  private measure(t: string, size: number): number {
+    this.ctx.font = this.font(700, size);
+    return this.ctx.measureText(t).width;
   }
 
   /** names and bars over the other players and the bots, fading with distance */

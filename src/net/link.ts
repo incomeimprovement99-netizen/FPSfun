@@ -49,7 +49,8 @@ export type NetMsg =
     }
   | { t: "zone"; live: boolean; caps: number[]; startsIn: number }
   | { t: "shot"; from?: number; o: [number, number, number]; d: [number, number, number]; w: string }
-  | { t: "hit"; from?: number; to: number; amount: number; head: boolean }
+  /** a hit, from the shooter: `w` the gun and `d` the distance in metres, for the death recap (an older build sends neither) */
+  | { t: "hit"; from?: number; to: number; amount: number; head: boolean; w?: string; d?: number }
   | { t: "down"; from?: number; by: number }
   | { t: "round"; n: number; scores: number[]; phase: RoundPhase; left: number; winner: number }
   | { t: "ping"; at: number }

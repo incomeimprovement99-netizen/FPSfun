@@ -26,11 +26,13 @@ import { BR_CENTER, BR_HALF, type BrMap, type Poi } from "./br";
 import { Duel, HEALTH_MAX, SHIELD_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
 import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
+import type { ActorState } from "./killcam";
+import { HEAL_CODES } from "./recap";
 
 /** how high the drop starts */
 export const DROP_HEIGHT = 90;
-/** the card stays this long before the menu comes back */
-const END_HOLD = 9;
+/** the card stays this long before the menu comes back (the killcam and the recap play in it) */
+const END_HOLD = 14;
 /** bot states go out this often (the humans' own go at 30 Hz) */
 const BOT_SEND_HZ = 15;
 const wallClock = (): number => performance.now() / 1000;
@@ -127,6 +129,11 @@ export class BrMatch extends Duel {
           this.onRemoteFx?.("jolt", bot.remote.id, a, b);
           this.broadcast({ t: "fx", from: bot.remote.id, k: "jolt", a: [a.x, a.y, a.z], b: [b.x, b.y, b.z] });
         };
+        // a bot's finished heal: the recap's "healed recently", here and on the squad's screens
+        bot.onHealed = (item) => {
+          this.onHealSeen?.(bot.remote.id, item);
+          this.broadcast({ t: "fx", from: bot.remote.id, k: "heal", n: HEAL_CODES.indexOf(item) });
+        };
         const node = this.nearestNode(spawn.x, spawn.z);
         this.bots.push({ bot, node, goal: node });
       }
@@ -185,10 +192,10 @@ export class BrMatch extends Duel {
   // ------------------------------------------------------------ the fight
 
   /** the host's own bullet hit a bot (its dummy took the damage already); a guest's goes to the host as a hit message */
-  override localHit(r: Remote, amount: number, head: boolean): void {
+  override localHit(r: Remote, amount: number, head: boolean, weapon = "", dist: number | null = null): void {
     const b = this.bots.find((x) => x.bot.remote === r);
     if (!b) {
-      super.localHit(r, amount, head);
+      super.localHit(r, amount, head, weapon, dist);
       return;
     }
     if (this.phase !== "fight" || !r.alive) return;
@@ -276,8 +283,8 @@ export class BrMatch extends Duel {
   }
 
   /** damage to this player from a bot or the ring (takeHit tells the squad, and the host, when it was the last of us) */
-  private hurt(amount: number, from: number): void {
-    this.takeHit(amount, from);
+  private hurt(amount: number, from: number, weapon = "", dist: number | null = null): void {
+    this.takeHit(amount, from, false, weapon, dist);
   }
 
   // ------------------------------------------------------------ per frame
@@ -393,16 +400,20 @@ export class BrMatch extends Duel {
       }
       if (!shots.length || this.phase !== "fight") continue;
       if (shots.length && feet.distanceTo(shots[0].from) < 80) this.onRemoteShot?.(shots[0].from);
+      // every round for the killcam; one tracer a trigger pull to the squad (a shotgun's pellets are one message)
+      for (const s of shots) this.onShotFired?.(bot.remote.id, s.from, s.dir, s.weapon);
+      if (this.links.size) this.broadcast({ t: "shot", from: bot.remote.id, o: [shots[0].from.x, shots[0].from.y, shots[0].from.z], d: [shots[0].dir.x, shots[0].dir.y, shots[0].dir.z], w: shots[0].weapon });
       if (sense.targetId < Duel.BOT_ID) {
         const human = humans.find((h) => h.id === sense.targetId);
         if (!human) continue;
         let dealt = 0;
         for (const s of shots) if (hitsBody(s.from, s.dir, human.feet)) dealt += s.damage;
         if (dealt <= 0) continue;
-        if (human.id === this.id) this.hurt(dealt, bot.remote.id);
+        const dist = Math.round(bot.pos.distanceTo(human.feet) * 10) / 10;
+        if (human.id === this.id) this.hurt(dealt, bot.remote.id, shots[0].weapon, dist);
         else {
           // a guest takes it from the hit message; the figure here is predicted lower
-          this.links.get(human.id)?.send({ t: "hit", to: human.id, amount: dealt, head: false, from: bot.remote.id });
+          this.links.get(human.id)?.send({ t: "hit", to: human.id, amount: dealt, head: false, from: bot.remote.id, w: shots[0].weapon, d: dist });
           const r = this.remotes.get(human.id);
           if (r) {
             const toShield = Math.min(r.shield, dealt);
@@ -547,6 +558,22 @@ export class BrMatch extends Duel {
   }
 
   private lastLocal: LocalState | null = null;
+
+  /** the humans (Duel's), and on the host the bots it runs: the killcam's recording */
+  override actorStates(): ActorState[] {
+    const out = super.actorStates();
+    for (const b of this.bots) {
+      const bot = b.bot;
+      const p = bot.dummy.currentPose;
+      out.push({ id: bot.remote.id, name: bot.remote.name, x: bot.pos.x, y: bot.pos.y, z: bot.pos.z, yaw: ((bot.dummy.group.rotation.y - Math.PI) * 180) / Math.PI, pitch: p.pitch, stance: p.stance, speed: p.speed, weapon: bot.remote.avatarWeapon, op: bot.remote.avatarOp, alive: bot.alive });
+    }
+    return out;
+  }
+
+  override vitalsFor(id: number): { shield: number; health: number } | null {
+    const b = this.bots.find((x) => x.bot.remote.id === id);
+    return b ? { shield: b.bot.dummy.shield, health: b.bot.dummy.health } : super.vitalsFor(id);
+  }
 
   /** out with others still up: a squad mate first, else the nearest bot */
   override spectateTarget(): Dummy | null {

@@ -28,6 +28,8 @@ interface Scenario {
 }
 
 const hideMenu = `document.getElementById("overlay").classList.add("hidden")`;
+/** a step that waits in the page until the match's fight is on */
+const untilFight = `new Promise((r) => { const t = setInterval(() => { if (window.__range.duel()?.phase === "fight") { clearInterval(t); r(0); } }, 50); setTimeout(() => { clearInterval(t); r(0); }, 20000); })`;
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -49,6 +51,25 @@ export const SCENARIOS: Scenario[] = [
     note: "a bot match with abilities on: the full card at the countdown",
     steps: [
       [`(() => { const s = document.getElementById("botAbilities"); s.value = "1"; s.dispatchEvent(new Event("change")); ${hideMenu}; window.__range.startBots(); })()`, 900],
+    ],
+  },
+  {
+    name: "killcam",
+    note: "eliminated by a bot: the replay from its eyes",
+    steps: [
+      [`(() => { ${hideMenu}; document.getElementById("botDifficulty").value = "easy"; window.__range.startBots(); })()`, 0],
+      [untilFight, 200],
+      [`(() => { window.__range.landHit(1, 20, true, "r97", 14); const d = window.__range.duel(); d.takeHit(60, d.bots[0], "rspn101", 24); d.takeHit(200, d.bots[0], "rspn101", 22); })()`, 1800],
+    ],
+  },
+  {
+    name: "recap",
+    note: "after the killcam: the death recap",
+    steps: [
+      [`(() => { ${hideMenu}; document.getElementById("botDifficulty").value = "easy"; window.__range.startBots(); })()`, 0],
+      [untilFight, 200],
+      [`(() => { window.__range.landHit(1, 20, true, "r97", 14); window.__range.landHit(1, 15, false, "r97", 14); const d = window.__range.duel(); d.takeHit(60, d.bots[0], "rspn101", 24); d.takeHit(200, d.bots[0], "rspn101", 22); })()`, 300],
+      [`window.__range.skipKillcam()`, 400],
     ],
   },
   {
