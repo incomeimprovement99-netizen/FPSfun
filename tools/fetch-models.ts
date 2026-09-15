@@ -9,6 +9,7 @@
 // literally. The .bin is served from the 4k folder no matter which resolution
 // you ask for, so constructing URLs by string templating gives a 404.
 import { mkdirSync, writeFileSync, existsSync, appendFileSync } from "node:fs";
+import { compressAssets } from "./compress-assets";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -85,6 +86,9 @@ async function main(): Promise<void> {
   const att = resolve(HERE, "..", "public", "tex", "ATTRIBUTION.md");
   if (existsSync(att)) appendFileSync(att, credits.join("\n") + "\n");
   console.log(`\nappended model credits to ${att}`);
+  // smaller downloads: the maps as WebP, the .gltf files pointed at them
+  const r = await compressAssets();
+  console.log(`textures to WebP: ${(r.before / 1048576).toFixed(1)} MB -> ${(r.after / 1048576).toFixed(1)} MB`);
 }
 
 void main();

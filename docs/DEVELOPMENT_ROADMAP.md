@@ -541,3 +541,15 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   an unknown name alike refused, sign-in, the profile saved and read back, no token no profile, sign-out kills
   the token, guessing rate limited. Through the page: sign up on the Stats tab, sync a setting, and a second,
   clean browser signs in and has the same setting and name. e2e: without the server the tab says so.
+
+## Milestone 33 — Smaller downloads: the textures as WebP ✅
+2026-09-15 (Phase 12J). `tools/compress-assets.ts` (`npm run compress`), `src/game/materials.ts`.
+- The range's surfaces and the props' maps came from ambientCG and Poly Haven as high-quality JPEGs of about
+  800 KB each. They are re-encoded as WebP, the normal maps at a higher quality because their errors show in
+  the lighting first. The 49 textures went from **30.5 MB to 5.8 MB**, with no visible change.
+- `npm run assets` and `npm run models` compress what they fetch, and each prop's .gltf is pointed at its new
+  maps. The game loads `.webp` and falls back to `.jpg`, so a checkout that has not compressed still works.
+- KTX2 (GPU-compressed textures) would also cut video memory, but it needs a native encoder we do not have; it
+  stays on the list. The props' geometry (.bin, about 11 MB, the fence alone 3 MB) is untouched.
+- Tests: e2e (the page's surfaces and props load 34 WebP maps, no JPEG and nothing missing), snap (the range
+  textured as before).

@@ -6,6 +6,7 @@
 // Run: npm run assets
 // Downloaded files are gitignored; this script is the source of truth.
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { compressAssets } from "./compress-assets";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inflateRawSync } from "node:zlib";
@@ -152,6 +153,9 @@ async function main(): Promise<void> {
     console.error("no textures present; the range will fall back to flat colours");
     process.exit(1);
   }
+  // smaller downloads: the surfaces as WebP (tools/compress-assets.ts)
+  const r = await compressAssets();
+  console.log(`textures to WebP: ${(r.before / 1048576).toFixed(1)} MB -> ${(r.after / 1048576).toFixed(1)} MB`);
 }
 
 void main();

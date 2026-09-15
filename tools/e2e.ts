@@ -1393,6 +1393,9 @@ async function main(): Promise<void> {
     check("loads with the static merge done", f.merged !== null && f.merged.after < f.merged.meshes, f.merged ? `${f.merged.meshes} -> ${f.merged.after} meshes` : "none");
     check("frames are drawing", f.calls > 0, `${f.calls} draw calls`);
     check("no page errors on load", errors.length === 0, errors.slice(0, 3).join(" | "));
+    // smaller downloads (tools/compress-assets.ts): the surfaces and the props' maps come as WebP, and none is missing
+    const webp = await ev<{ webp: number; jpg: number; bad: string[] }>(page, `(() => { const r = performance.getEntriesByType("resource"); const tex = r.filter((x) => x.name.includes("/tex/") || x.name.includes("/models/")); return { webp: tex.filter((x) => x.name.endsWith(".webp")).length, jpg: tex.filter((x) => x.name.endsWith(".jpg")).length, bad: tex.filter((x) => x.responseStatus >= 400).map((x) => x.name.split("/").slice(-2).join("/")) }; })()`);
+    check("textures: the range's and the props' maps load as WebP, none missing", webp.webp >= 20 && webp.bad.length === 0, JSON.stringify(webp));
     void t0;
 
     console.log("\nThe first visit");

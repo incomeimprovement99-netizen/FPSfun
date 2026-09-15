@@ -72,7 +72,18 @@ const FALLBACK: Record<MatName, number> = {
  * on a checkout that had not run `npm run assets`.
  */
 function load(name: MatName, map: string, srgb: boolean, onFail: () => void): THREE.Texture {
-  const t = loader.load(`tex/${name}/${map}.jpg`, undefined, undefined, onFail);
+  // WebP (tools/compress-assets.ts); a checkout that has not compressed its downloads has the JPEGs
+  const t = loader.load(`tex/${name}/${map}.webp`, undefined, undefined, () => {
+    loader.load(
+      `tex/${name}/${map}.jpg`,
+      (img) => {
+        t.image = img.image;
+        t.needsUpdate = true;
+      },
+      undefined,
+      onFail
+    );
+  });
   t.wrapS = THREE.RepeatWrapping;
   t.wrapT = THREE.RepeatWrapping;
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
