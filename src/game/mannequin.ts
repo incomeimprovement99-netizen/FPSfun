@@ -115,6 +115,10 @@ export class MannequinFigure {
   private gunShown = true;
   private mats: THREE.MeshStandardMaterial[] = [];
   private joints: THREE.MeshStandardMaterial | null = null;
+  /** knocked out: the death clip, once, then lying still */
+  private dead = false;
+  /** the gun is in the hand and showing this frame */
+  gunInHand = false;
 
   constructor(skin: OperatorSkin, gunId: string | null) {
     const t = template!;
@@ -166,7 +170,38 @@ export class MannequinFigure {
 
   setGunVisible(on: boolean): void {
     this.gunShown = on;
-    if (this.gun) this.gun.visible = on;
+    if (this.gun) this.gun.visible = on && !this.dead;
+    this.gunInHand = !!this.gun && this.gun.visible;
+  }
+
+  /** the gun in its hand (the figure drops a copy of it when knocked out) */
+  get gunObject(): THREE.Object3D | null {
+    return this.gun;
+  }
+
+  /** knocked out, or back up: the death clip plays once from the start; back up snaps to the pose */
+  setDead(on: boolean): void {
+    if (on === this.dead) return;
+    this.dead = on;
+    if (this.gun) this.gun.visible = this.gunShown && !on;
+    this.gunInHand = !!this.gun && this.gun.visible;
+    if (on) {
+      // the library's death is 2.4 s: a game's is quicker (1.5 s)
+      this.play("lower", "Death01", 1.6, 0.12, true, "full");
+      this.upper?.fadeOut(0.12);
+      this.upper = null;
+      this.upperName = "";
+    } else {
+      // up again (a new round, a respawn): the next update picks the clips, at once
+      this.mixer.stopAllAction();
+      this.lower = this.upper = null;
+      this.lowerName = this.upperName = "";
+    }
+  }
+
+  /** knocked out: only the death clip runs */
+  updateDead(dt: number): void {
+    this.mixer.update(dt);
   }
 
   /** the joints glow in the armour's colour (the robot's vest does it on the robot) */
@@ -181,8 +216,8 @@ export class MannequinFigure {
     for (const m of this.mats) if (m !== this.joints) m.emissive.setRGB(amount * 0.9 + (head ? amount * 0.6 : 0), amount * 0.9 + (head ? amount * 0.3 : 0), amount * 0.9);
   }
 
-  private play(layer: "lower" | "upper", name: string, timeScale: number, fade = 0.18, once = false): void {
-    const key = `${layer}:${name}`;
+  private play(layer: "lower" | "upper", name: string, timeScale: number, fade = 0.18, once = false, source: "lower" | "upper" | "full" = layer): void {
+    const key = `${source}:${name}`;
     const clip = template?.clips.get(key) ?? template?.clips.get(`${layer}:Idle_Loop`);
     if (!clip) return;
     if ((layer === "lower" ? this.lowerName : this.upperName) === key) {
@@ -281,8 +316,9 @@ export class MannequinFigure {
     }
     this.play("lower", lower, lowerRate);
     this.play("upper", upper, upperRate, 0.15, once);
-    this.setGunVisible(this.gunShown);
-    if (this.gun) this.gun.visible = this.gunShown && p.act !== "heal";
+    // no gun in the hand for a heal, or down (the figure says armed = false then)
+    if (this.gun) this.gun.visible = this.gunShown && armed && p.act !== "heal" && !this.dead;
+    this.gunInHand = !!this.gun && this.gun.visible;
     this.mixer.update(dt);
     // on top of the clips
     const b = this.bones;
@@ -292,6 +328,12 @@ export class MannequinFigure {
       turnBone(b.spine_01, fig, Y, -fx.legYaw);
     }
     const aimed = !full && armed && p.act !== "heal" && p.act !== "swap" && p.stance !== "downed";
+    // down: the crouched walk bent over into a crawl, the head up to see
+    if (p.stance === "downed") {
+      if (b.spine_01) turnBone(b.spine_01, fig, new THREE.Vector3(1, 0, 0), 0.45);
+      if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), 0.35);
+      if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), -0.6);
+    }
     const pitch = aimed ? Math.max(-70, Math.min(70, p.pitch)) * DEG : 0;
     // +x is the figure's left: a turn about it by a negative angle tips the chest back (a look up)
     const lean = fx.jolt * 0.45 - fx.flinch * 0.22;

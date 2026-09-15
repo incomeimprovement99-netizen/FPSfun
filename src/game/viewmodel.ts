@@ -67,6 +67,8 @@ export interface VMFrame {
   inspect?: number;
   /** 0..1 through a new gun's first-draw flourish, or undefined */
   flourish?: number;
+  /** 1 down, not out: no gun, the hands low on the floor, reaching in turn as you crawl */
+  downed?: number;
 }
 
 /** an inspect's length, s, and a first draw's flourish (ours: cosmetic, the gun is usable throughout) */
@@ -289,6 +291,13 @@ export class ViewModel {
   private readonly zipHand = new Hand(true);
   private readonly zipArm = new Forearm();
   private readonly zipElbow = new THREE.Vector3();
+  /** what is in view (tools/e2e.ts): the gun, the empty hands, how far down */
+  get shown(): { gun: boolean; hands: boolean; down: number } {
+    return { gun: this.group.visible && this.holder.visible, hands: this.group.visible && this.fists.visible, down: this.downAmt };
+  }
+  /** 0..1 down (the crawl's hands), eased, and the crawl's cycle */
+  private downAmt = 0;
+  private crawlT = 0;
   private zipAmt = 0;
 
   // resting placements for this model, gun-local
@@ -738,6 +747,27 @@ export class ViewModel {
   private updateFists(f: VMFrame, up: number, melee: number): void {
     this.fists.visible = up > 0.001;
     if (!this.fists.visible) return;
+    this.downAmt += ((f.downed ?? 0) - this.downAmt) * Math.min(1, f.dt / 0.15);
+    if (this.downAmt > 0.01) {
+      this.crawlT += f.dt * (1.2 + Math.min(1, f.moveSpeed / 1.5) * 4.5);
+      const k = this.downAmt;
+      const moving = Math.min(1, f.moveSpeed / 0.8);
+      for (const [hand, arm, elbow, side] of [
+        [this.fistR, this.fistArmR, this.fistElbowR, 1],
+        [this.fistL, this.fistArmL, this.fistElbowL, -1],
+      ] as const) {
+        // one hand reaches forward and comes down while the other pulls back:
+        // palms flat, low at the edge of the frame, wide apart
+        const ph = Math.sin(this.crawlT + (side > 0 ? 0 : Math.PI));
+        const reach = ph * 0.07 * moving;
+        const lift = Math.max(0, Math.cos(this.crawlT + (side > 0 ? 0 : Math.PI))) * 0.035 * moving;
+        hand.group.position.set(side * 0.24, -0.34 - (1 - k) * 0.3 + lift, -0.44 - reach);
+        hand.group.rotation.set(-1.25, side * 0.25, side * Math.PI * 0.5, "XYZ");
+        elbow.set(side * 0.34, -0.62 - (1 - k) * 0.3, -0.12 - reach * 0.5);
+        arm.set(hand.wrist(this.tmp2), elbow);
+      }
+      return;
+    }
     const run = f.onGround ? Math.min(1, f.moveSpeed / 7.6) : 0.2;
     const amp = (f.sprinting ? SPRINT_PUMP : 0.45) * run;
     const swing = Math.sin(this.bobT * 0.5) * amp;

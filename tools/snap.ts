@@ -37,7 +37,30 @@ const untilFight = `new Promise((r) => { const t = setInterval(() => { if (windo
 /** the same for a battle royale, whose drop takes longer */
 const untilFightLong = untilFight.replace("20000", "60000");
 
+/** wait in the page until `s` seconds of GAME time have passed (a software renderer draws a few frames a second, so wall time says little) */
+const gameSeconds = (s: number) => `new Promise((r) => { const t0 = window.__range.gameTime(); const t = setInterval(() => { if (window.__range.gameTime() - t0 >= ${s}) { clearInterval(t); r(0); } }, 50); setTimeout(() => { clearInterval(t); r(0); }, 90000); })`;
+
+/** the figure lab: standing aimed, walking, crouched, down and crawling, knocked out (the gun on the floor) */
+const lab = (style: "robot" | "mannequin") =>
+  `(async () => { ${hideMenu}; const r = window.__range; if (${style === "mannequin"}) { await r.loadMannequin(); } r.setFigureStyle("${style}"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -12);
+    r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1 }, { speed: 3.5, stance: "stand", pitch: 0 }, { speed: 0, stance: "crouch", pitch: 0 }, { speed: 1, stance: "downed", pitch: 0 }, { speed: 0, stance: "stand", pitch: 0, dead: true }], 4.5); })()`;
+
 export const SCENARIOS: Scenario[] = [
+  {
+    name: "downed-view",
+    note: "down, in first person: no gun, the hands low on the floor",
+    steps: [[`(() => { ${hideMenu}; window.__range.debugView.downed = true; })()`, 0], [gameSeconds(0.6), 100]],
+  },
+  {
+    name: "figures-robot",
+    note: "the figure lab, robots: aimed, walking, crouched, down (no gun), knocked out (the gun on the floor)",
+    steps: [[lab("robot"), 0], [gameSeconds(2.5), 100]],
+  },
+  {
+    name: "figures-mannequin",
+    note: "the figure lab, mannequins: aimed, walking, crouched, down (no gun), dead (its death clip, the gun on the floor)",
+    steps: [[lab("mannequin"), 0], [gameSeconds(3), 100]],
+  },
   {
     name: "ability-range",
     note: "the range: the compact ability line; then JOLT picked, the slot with its key",

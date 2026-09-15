@@ -15,7 +15,7 @@ import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset } from "./game/quality";
 import { ProjectileSystem, solidHit } from "./game/projectile";
-import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier } from "./game/dummy";
+import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier, type FigurePose } from "./game/dummy";
 import { buildRange, skyFollow, setShadowRegion, getSun, RANGE_BOUNDS, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { buildBrMap, BR_BOUNDS, BR_CENTER } from "./game/br";
 import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
@@ -460,6 +460,8 @@ const debugView: {
   lowered: number | null;
   onZip: boolean | null;
   heirloom: string | null;
+  /** the down view's hands, for a screenshot (tools/snap.ts) */
+  downed: boolean | null;
 } = {
   weapon: null,
   ads: null,
@@ -468,6 +470,7 @@ const debugView: {
   lowered: null,
   onZip: null,
   heirloom: null,
+  downed: null,
 };
 const debugWeapons = new Map<string, ReturnType<typeof resolveWeapon>>();
 
@@ -2131,6 +2134,8 @@ const tmpQ = new THREE.Quaternion();
 const eye = new THREE.Vector3();
 /** your own figure, drawn in third person; rebuilt when the gun or the operator changes */
 let selfFig: Dummy | null = null;
+/** the figure lab (tools/snap.ts): posed figures in a row in front of you, to judge the animation */
+const labFigs: Array<{ f: Dummy; pose: FigurePose; dead: boolean; at: number }> = [];
 let selfFigKey = "";
 /** what your hands are doing, for your figure on the others' screens and in third person */
 function localAct(): number {
@@ -2140,7 +2145,7 @@ function localAct(): number {
   return 0;
 }
 
-function selfFigure(now: number, dt: number, weaponId: string, op: string, show: boolean, knocked: boolean): void {
+function selfFigure(now: number, dt: number, weaponId: string, op: string, show: boolean, knocked: boolean, downed: boolean): void {
   if (!show) {
     if (selfFig) selfFig.group.visible = false;
     return;
@@ -2160,7 +2165,7 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, show:
   if (knocked) f.fallDown();
   else if (f.knocked) f.reset();
   const ac = localAct();
-  f.setPose({ speed: player.speed, stance: player.stance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), healItem: heal?.item });
+  f.setPose({ speed: player.speed, stance: downed ? "downed" : player.stance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), healItem: heal?.item });
   f.update(now, dt);
 }
 
@@ -2869,7 +2874,8 @@ function step(): void {
     lookYaw,
     lookPitch,
     landDip: player.viewDip,
-    lowered: debugView.lowered ?? (emptyHand || downedNow || ordnance.readied ? 1 : lowered),
+    lowered: debugView.lowered ?? (emptyHand || downedNow || debugView.downed || knockedOut || ordnance.readied ? 1 : lowered),
+    downed: downedNow || debugView.downed ? 1 : 0,
     inspect: now - inspectAt < INSPECT_TIME ? (now - inspectAt) / INSPECT_TIME : undefined,
     flourish: now - flourishAt < FLOURISH_TIME ? (now - flourishAt) / FLOURISH_TIME : undefined,
     onZip: debugView.onZip ?? player.onZip,
@@ -2877,9 +2883,16 @@ function step(): void {
   });
   // in third person the gun in your hands is on your figure instead; in the
   // killcam the gun in view is your killer's, and it kicks when they fire
-  viewModel.group.visible = killcam.active || !third;
+  // out (knocked in a round, eliminated): no gun and no hands at all, except the killer's in the killcam
+  viewModel.group.visible = killcam.active || (!third && !knockedOut);
   if (killcam.active && killcam.firedThisFrame) viewModel.onShot();
-  selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, third && !killcam.active, knockedOut);
+  selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, third && !killcam.active, knockedOut, downedNow);
+  for (const lf of labFigs) {
+    lf.f.setPose(lf.pose);
+    // a knocked-out one stands a moment first (it drops the gun it held)
+    if (lf.dead && now - lf.at > 0.6) lf.f.fallDown();
+    lf.f.update(now, dt);
+  }
 
   duel?.update({
     x: player.pos.x,
@@ -2907,7 +2920,7 @@ function step(): void {
   if (duel) {
     const d = duel;
     recorder.sample(wall, () => [
-      { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: player.stance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive },
+      { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: downedNow ? "downed" : player.stance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive },
       ...d.actorStates(),
     ]);
   }
@@ -3219,7 +3232,29 @@ initWelcome();
   /** the range's readout counters (shots, hits) */
   stats: () => stats,
   /** the viewmodel's inspect and first draw (tools/e2e.ts) */
-  vmState: () => ({ inspecting: gameTime - inspectAt < INSPECT_TIME, flourish: gameTime - flourishAt < FLOURISH_TIME }),
+  vmState: () => ({ inspecting: gameTime - inspectAt < INSPECT_TIME, flourish: gameTime - flourishAt < FLOURISH_TIME, ...viewModel.shown }),
+  /** your own third-person figure (tools/e2e.ts) */
+  selfFigure: () => selfFig,
+  /**
+   * The figure lab (tools/snap.ts): figures in a row `dist` metres in front of
+   * you, facing you, one per pose ("dead" knocks it out); none clears it.
+   */
+  figureLab: (poses: Array<FigurePose & { dead?: boolean; weapon?: string }> = [], dist = 4) => {
+    for (const lf of labFigs) lf.f.dispose();
+    labFigs.length = 0;
+    const yawR = player.yaw * DEG;
+    const fx = -Math.sin(yawR);
+    const fz = -Math.cos(yawR);
+    poses.forEach((p, i) => {
+      const side = (i - (poses.length - 1) / 2) * 1.3;
+      const f = new Dummy(0, 0, 0, { armed: p.weapon ?? "r301", respawn: false, rig: true, noBase: true, skin: OPERATORS[i % OPERATORS.length] });
+      f.group.position.set(player.pos.x + fx * dist + fz * side, player.pos.y, player.pos.z + fz * dist - fx * side);
+      f.group.rotation.y = yawR;
+      scene.add(f.group);
+      labFigs.push({ f, pose: p, dead: !!p.dead, at: gameTime });
+    });
+    return labFigs.map((l) => l.f);
+  },
   loadMannequin,
   setFigureStyle,
   /** open ground near x, z: nothing standing on the floor within `clear` metres (tools/e2e.ts) */

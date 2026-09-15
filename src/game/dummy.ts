@@ -292,7 +292,7 @@ export class Dummy {
   private pose: FigurePose = { speed: 0, stance: "stand", pitch: 0 };
   private gait = 0;
   /** eased pose values, so a change of stance blends rather than snaps */
-  private readonly eased = { lean: 0, pelvisDrop: 0, thighL: 0, thighR: 0, shinL: 0, shinR: 0, armsUp: 0, armSwing: 0, headPitch: 0, legYaw: 0, ads: 0, reload: 0, swap: 0, heal: 0 };
+  private readonly eased = { lean: 0, pelvisDrop: 0, thighL: 0, thighR: 0, shinL: 0, shinR: 0, armsUp: 0, armSwing: 0, headPitch: 0, legYaw: 0, ads: 0, reload: 0, swap: 0, heal: 0, down: 0 };
   /** short-lived motions: a shot's kick, a hit's flinch, a JOLT's lean (1 at their start, decaying) */
   private kickAmt = 0;
   private flinchAmt = 0;
@@ -301,8 +301,14 @@ export class Dummy {
   private armsBase = new THREE.Vector3();
   /** the heal item in its hands, made the first time it heals */
   private healMesh: THREE.Mesh | null = null;
-  /** its gun is away for a heal (separate from a bot's gun hidden while it searches) */
+  /** its gun is away for a heal, or it is down (separate from a bot's gun hidden while it searches) */
   private gunAway = false;
+  /**
+   * Knocked out: the gun leaves its hands and falls to the floor beside it,
+   * a copy in the world (the held one hides) that tumbles, lands and lies
+   * there until the figure is back up. Nobody holds a gun lying down.
+   */
+  private dropped: { obj: THREE.Object3D; vel: THREE.Vector3; spin: THREE.Vector3; floor: number; still: boolean } | null = null;
   private gunShown = true;
   /** the motion-captured mannequin in place of the robot (mannequin.ts, a setting) */
   private mq: MannequinFigure | null = null;
@@ -648,6 +654,8 @@ export class Dummy {
 
   /** course reset: gone, and not hittable (hidden groups are skipped) */
   hide(): void {
+    this.dropped?.obj.removeFromParent();
+    this.dropped = null;
     this.setTier(this.tier);
     this.knocked = false;
     this.fall = 0;
@@ -690,6 +698,8 @@ export class Dummy {
    * while playing, like the 1v1 opponent's.
    */
   dispose(): void {
+    this.dropped?.obj.removeFromParent();
+    this.dropped = null;
     this.mq?.dispose();
     if (this.healMesh) {
       this.healMesh.geometry.dispose();
@@ -846,10 +856,12 @@ export class Dummy {
         shinL = shinR = -0.6;
         break;
       case "downed":
-        // down, not out: on the knees and one hand, crawling
-        lean = 1.25;
+        // down, not out: on the knees and the hands, no gun, crawling; the
+        // arms reach in turn against the legs, the head up to see
+        lean = 1.2;
         drop = 0.6;
-        armsUp = 0.5;
+        armsUp = -0.15;
+        armSwing = 0.45 * Math.max(0.35, frac);
         thighL = 0.25 + s * 0.35 * frac;
         thighR = 0.25 + s2 * 0.35 * frac;
         shinL = shinR = -0.4;
@@ -863,7 +875,9 @@ export class Dummy {
       shinR = shinBase - Math.max(0, Math.sin(g + Math.PI + 1.2)) * amp * 1.1;
     }
     const DEG = Math.PI / 180;
-    const pitch = Math.max(-70, Math.min(70, p.pitch)) * DEG;
+    const downed = p.stance === "downed";
+    // down: the look pitch is the head's alone (the arms are on the floor)
+    const pitch = downed ? 0 : Math.max(-70, Math.min(70, p.pitch)) * DEG;
     const e = this.eased;
     const k = 1 - Math.exp(-14 * dt);
     // the JOLT: a lean into it, the legs trailing
@@ -887,7 +901,8 @@ export class Dummy {
     e.ads += ((p.ads ?? 0) - e.ads) * k2;
     e.reload += ((act === "reload" ? 1 : 0) - e.reload) * k2;
     e.swap += ((act === "swap" ? 1 : 0) - e.swap) * k2;
-    e.heal += ((act === "heal" ? 1 : 0) - e.heal) * k2;
+    e.heal += ((act === "heal" && !downed ? 1 : 0) - e.heal) * k2;
+    e.down += ((downed ? 1 : 0) - e.down) * k2;
     // the impulses fade: a kick in a tenth of a second, a flinch in a fifth, a JOLT's lean in a third
     this.kickAmt = Math.max(0, this.kickAmt - dt * 12);
     this.flinchAmt = Math.max(0, this.flinchAmt - dt * 5);
@@ -897,7 +912,7 @@ export class Dummy {
     r.pelvis.rotation.y = e.legYaw;
     r.torso.rotation.y = -e.legYaw;
     r.torso.rotation.x = e.lean - 0.2 * flinch;
-    r.head.rotation.x = e.headPitch - e.lean * 0.7 - 0.25 * flinch + 0.15 * e.ads + 0.2 * e.reload + 0.35 * e.heal;
+    r.head.rotation.x = e.headPitch - e.lean * 0.7 - 0.25 * flinch + 0.15 * e.ads + 0.2 * e.reload + 0.35 * e.heal - 0.25 * e.down;
     r.head.rotation.z = 0.12 * e.ads;
     r.thighL.rotation.x = e.thighL;
     r.thighR.rotation.x = e.thighR;
@@ -911,22 +926,24 @@ export class Dummy {
     } else {
       // aimed: the gun up to the eye; a shot kicks it back; a reload rolls and
       // dips it; a swap takes it down out of sight; a heal lowers it for the item
-      r.arms.rotation.x = -(e.armsUp + pitch * 0.8) - e.lean * 0.5 - 0.1 * e.ads - 0.14 * this.kickAmt + 0.4 * e.reload + 1.1 * e.swap + 0.75 * e.heal;
-      r.arms.rotation.z = 0.5 * e.reload;
+      // down: the gun gone, the arms straight down to the floor, reaching in turn as it crawls
+      const crawl = e.down * s * e.armSwing * 0.6;
+      r.arms.rotation.x = -(e.armsUp + pitch * 0.8) - e.lean * 0.5 * (1 - e.down) - 0.1 * e.ads - 0.14 * this.kickAmt + 0.4 * e.reload + 1.1 * e.swap + 0.75 * e.heal + crawl;
+      r.arms.rotation.z = 0.5 * e.reload + 0.25 * crawl;
       r.arms.position.set(this.armsBase.x, this.armsBase.y + 0.07 * e.ads, this.armsBase.z - 0.05 * this.kickAmt - 0.03 * e.ads);
-      const away = e.heal > 0.5;
+      const away = e.heal > 0.5 || e.down > 0.15;
       if (away !== this.gunAway) {
         this.gunAway = away;
         if (this.gun) this.gun.visible = this.gunShown && !away;
       }
-      if (e.heal > 0.02 || this.healMesh) {
+      if ((e.heal > 0.02 && !downed) || this.healMesh) {
         const m = this.healItemMesh(r.arms);
         m.visible = e.heal > 0.5;
         (m.material as THREE.MeshStandardMaterial).color.setHex(HEAL_COLOUR[p.healItem ?? "cell"] ?? 0x3b8bff);
       }
     }
     // the mannequin plays its clips for the same pose, with the same corrections on top
-    this.mq?.update(p, dt, !!this.gun && this.gunShown, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw, ads: e.ads });
+    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw, ads: e.ads });
   }
 
   /** the heal item: a small canister held in front of the chest */
@@ -947,6 +964,7 @@ export class Dummy {
     this.knocked = true;
     this.fall = 0.0001;
     this.respawnAt = Infinity;
+    this.dropGun();
   }
 
   reset(): void {
@@ -954,7 +972,79 @@ export class Dummy {
     this.knocked = false;
     this.fall = 0;
     this.group.rotation.x = 0;
+    if (this.mq) this.mq.root.rotation.x = 0;
     this.group.visible = true;
+    this.pickUpGun();
+  }
+
+  /** the gun on the floor, or null (the tests look) */
+  get droppedGun(): THREE.Object3D | null {
+    return this.dropped?.obj ?? null;
+  }
+
+  /** is a gun in its hands and showing (the tests look: never while down or out) */
+  get holdingGun(): boolean {
+    if (this.knocked) return false;
+    return this.mq ? this.mq.gunInHand : !!this.gun && this.gun.visible;
+  }
+
+  /**
+   * Knocked out: the gun it held leaves its hands, a copy tumbling from where
+   * the hands were to the floor, the held one hidden. A figure with no gun
+   * showing (fists, a heal, down already, a bot unarmed) drops nothing.
+   */
+  private dropGun(): void {
+    const held = this.mq?.gunObject ?? this.gun;
+    const showing = this.mq ? this.mq.gunInHand : !!held && held.visible && this.gunShown && !this.gunAway;
+    this.mq?.setDead(true);
+    if (this.gun) this.gun.visible = false;
+    if (!held || !showing || !this.rig || this.dropped || !this.group.parent) return;
+    held.updateWorldMatrix(true, false);
+    const copy = held.clone(true);
+    held.matrixWorld.decompose(copy.position, copy.quaternion, copy.scale);
+    copy.visible = true;
+    copy.traverse((o) => (o.visible = true));
+    this.group.parent.add(copy);
+    // out of the hands and forward a little, the muzzle dipping, a slow roll
+    const yaw = this.group.rotation.y;
+    const vel = new THREE.Vector3(Math.sin(yaw) * 0.9, 1.1, Math.cos(yaw) * 0.9);
+    const spin = new THREE.Vector3(2.5 + Math.random(), (Math.random() - 0.5) * 2, 3 + Math.random() * 2);
+    this.dropped = { obj: copy, vel, spin, floor: this.group.position.y + 0.04, still: false };
+  }
+
+  /** back up: the gun on the floor goes, the one in its hands comes back */
+  private pickUpGun(): void {
+    this.mq?.setDead(false);
+    if (this.dropped) {
+      this.dropped.obj.removeFromParent();
+      this.dropped = null;
+    }
+    if (this.gun) this.gun.visible = this.gunShown && !this.gunAway;
+    this.mq?.setGunVisible(this.gunShown);
+  }
+
+  /** the dropped gun: falls, tumbles, and lies where it lands */
+  private stepDropped(dt: number): void {
+    const d = this.dropped;
+    if (!d || d.still) return;
+    d.vel.y -= 9.8 * dt;
+    d.obj.position.addScaledVector(d.vel, dt);
+    d.obj.rotation.x += d.spin.x * dt;
+    d.obj.rotation.y += d.spin.y * dt;
+    d.obj.rotation.z += d.spin.z * dt;
+    if (d.obj.position.y <= d.floor) {
+      d.obj.position.y = d.floor;
+      if (Math.abs(d.vel.y) > 1.2) {
+        // a clatter: one small bounce, most of the speed gone
+        d.vel.set(d.vel.x * 0.35, -d.vel.y * 0.25, d.vel.z * 0.35);
+        d.spin.multiplyScalar(0.3);
+      } else {
+        // it lies on its side: flat on the floor, keeping the way it points
+        d.still = true;
+        const e = new THREE.Euler().setFromQuaternion(d.obj.quaternion, "YXZ");
+        d.obj.rotation.set(0, e.y, Math.PI / 2, "YXZ");
+      }
+    }
   }
 
   /**
@@ -971,6 +1061,7 @@ export class Dummy {
       this.knocked = true;
       this.fall = 0.0001;
       this.respawnAt = now + RESPAWN_S;
+      this.dropGun();
       if (zone === "head") this.headFlash = 1;
       else if (zone === "legs") this.legFlash = 1;
       else this.flash = 1;
@@ -997,6 +1088,7 @@ export class Dummy {
       this.knocked = true;
       this.respawnAt = now + RESPAWN_S;
       this.fall = 0.0001;
+      this.dropGun();
     }
     // past the weapon's headshot range a head hit does body damage (the
     // caller passes a scale of 1), and it is not called a headshot either
@@ -1005,6 +1097,9 @@ export class Dummy {
 
   update(now: number, dt = 0): void {
     if (this.knocked && this.respawns && now >= this.respawnAt) this.reset();
+    this.stepDropped(dt);
+    // the mannequin plays its own death clip
+    if (this.knocked && this.mq) this.mq.updateDead(dt);
 
     // crouched or sliding: the hit zones shrink to two thirds (the same blend
     // at any frame rate: 35% a frame at 60 fps); a rigged figure bends into
@@ -1031,6 +1126,9 @@ export class Dummy {
       const t = this.fall;
       const ease = t < 0.82 ? Math.pow(t / 0.82, 2) : 1 - Math.sin(((t - 0.82) / 0.18) * Math.PI) * 0.06;
       this.group.rotation.x = (-Math.PI / 2 + 0.2) * ease;
+      // the mannequin's death clip puts it on the floor itself: the hit zones
+      // topple, the mannequin is turned back upright to play it
+      if (this.mq) this.mq.root.rotation.x = -this.group.rotation.x;
     }
 
     // hit flashes decay in about a tenth of a second
