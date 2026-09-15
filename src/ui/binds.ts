@@ -161,15 +161,32 @@ function save(changes: Partial<Record<Action, string[]>>): void {
   }
 }
 
+/**
+ * A player's saved keys against today's defaults: a key they gave to one
+ * action is taken off any action still on its default (a default can move to
+ * a key a player had already used: G was the magazine level and is now the
+ * grenade, and someone who had put melee on G got both).
+ */
+export function withoutClashes(changes: Partial<Record<Action, string[]>>): Partial<Record<Action, string[]>> {
+  const taken = new Set(Object.values(changes).flat());
+  const out: Partial<Record<Action, string[]>> = { ...changes };
+  for (const a of Object.keys(DEFAULT_BINDS) as Action[]) {
+    if (a in changes) continue;
+    const kept = DEFAULT_BINDS[a].filter((k) => !taken.has(k));
+    if (kept.length !== DEFAULT_BINDS[a].length) out[a] = kept;
+  }
+  return out;
+}
+
 /** put the saved bindings on; call once at startup, before the first frame */
 export function applySavedBinds(): void {
-  setBinds(load());
+  setBinds(withoutClashes(load()));
   setPadButtons(loadPad());
 }
 
 /** build the Controls tab's table into `root` and keep it live */
 export function initBindsUi(root: HTMLElement, note: HTMLElement): void {
-  let changes = load();
+  let changes = withoutClashes(load());
   /** the chip waiting for a key, and how to stop waiting */
   let capturing: { stop: () => void } | null = null;
 

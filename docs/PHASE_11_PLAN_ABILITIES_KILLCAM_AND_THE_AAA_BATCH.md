@@ -1,6 +1,6 @@
 # Phase 11 plan: abilities, the killcam and death recap, and every next step short of PvP BR
 
-**Date:** 2026-09-15. **Status:** plan; built in the order below, one committed checkpoint and one roadmap milestone per workstream.
+**Date:** 2026-09-15. **Status:** done; built in the order below, one committed checkpoint and one roadmap milestone per workstream. Results: `docs/PHASE_11_ABILITIES_KILLCAM_AND_THE_AAA_BATCH.md`.
 
 **Owner:**
 

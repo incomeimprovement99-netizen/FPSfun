@@ -302,7 +302,13 @@ export class MannequinFigure {
 
   dispose(): void {
     this.mixer.stopAllAction();
+    this.mixer.uncacheRoot(this.root);
     this.root.removeFromParent();
     for (const m of this.mats) m.dispose();
+    // each clone has its own skeleton (and its bone texture on the GPU)
+    this.root.traverse((o) => {
+      const m = o as THREE.SkinnedMesh;
+      if (m.isSkinnedMesh) m.skeleton.dispose();
+    });
   }
 }

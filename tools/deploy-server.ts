@@ -24,6 +24,8 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
+/** this PC's tar: Windows' own bsdtar by its full path (from Git Bash the PATH finds GNU tar first, which reads "C:\..." as a remote host) */
+const TAR = process.platform === "win32" ? join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
 const envFile = join(ROOT, ".env.server");
 if (existsSync(envFile)) {
   for (const line of readFileSync(envFile, "utf8").split(/\r?\n/)) {
@@ -61,8 +63,9 @@ function pack(): { tgz: string; version: string } {
       cpSync(join(ROOT, "server", "game", f), join(stage, "server", f));
     }
     const tgz = join(tmpdir(), `range-release-${Date.now()}.tgz`);
-    // Windows' tar is bsdtar; -C keeps the paths relative
-    execFileSync("tar", ["-czf", tgz, "-C", stage, "site", "server"], { stdio: "inherit" });
+    // Windows' own tar (bsdtar), by its full path: from Git Bash the PATH finds GNU tar first, which reads
+    // "C:\..." as a remote host and fails; -C keeps the paths relative
+    execFileSync(TAR, ["-czf", tgz, "-C", stage, "site", "server"], { stdio: "inherit" });
     return { tgz, version };
   } finally {
     rmSync(stage, { recursive: true, force: true });
@@ -123,7 +126,7 @@ async function main(): Promise<void> {
     const box = mkdtempSync(join(tmpdir(), "range-box-"));
     const app = join(box, "app");
     mkdirSync(app);
-    execFileSync("tar", ["-xzf", tgz, "-C", app], { stdio: "inherit" });
+    execFileSync(TAR, ["-xzf", tgz, "-C", app], { stdio: "inherit" });
     rmSync(tgz, { force: true });
     execSync("npm ci --omit=dev --no-audit --no-fund --loglevel=error", { cwd: join(app, "server"), stdio: "inherit" });
     // what pm2 would run: the ecosystem file's env, on another port

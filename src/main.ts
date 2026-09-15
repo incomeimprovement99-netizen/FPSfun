@@ -836,6 +836,10 @@ let cancelJoin: (() => void) | null = null;
 const NO_INPUT: MoveInput = { held: () => false, pressedNow: () => false };
 /** toggle ADS's state: in until the next press (or a sprint, a swap) */
 let adsLatch = false;
+/** a throw took this press of fire: the gun waits for the button to come up */
+let fireLockedToRelease = false;
+/** this frame's ADS press put a grenade away (it does not also aim) */
+let adsPressUsed = false;
 /** an inspect: when it began, and since when reload has been held with a full magazine */
 let inspectAt = -Infinity;
 let reloadHeldAt = -Infinity;
@@ -1016,10 +1020,10 @@ function respawnForMatch(d: MatchLike): void {
   // its start kit and a white shield core that levels with EVO
   const br = d instanceof BrMatch;
   kit.fill(br ? "brStart" : "kit");
-  // grenades: the match's kit each life
+  // grenades: the match's kit each life (Gun Run is guns and the knife: none)
   ordnance.endless = false;
   ordnance.readied = null;
-  ordnance.fill("kit");
+  ordnance.fill(d instanceof ArenaMode && d.modeKind === "gunrun" ? "empty" : "kit");
   player.arcSlowUntil = 0;
   // land with nothing and loot: fists, no heals, no ammo, no grenades
   if (d instanceof BrMatch && d.startLoot) {
@@ -1097,6 +1101,7 @@ let wheelPick: HealItem | null = null;
 function updateHeal(now: number, cancel: boolean): void {
   const v = vitalsTarget();
   if (!heal || !v) {
+    heal = null;
     player.healSlow = 1;
     return;
   }
@@ -1144,6 +1149,8 @@ function useAbility(now: number): void {
     return;
   }
   if (player.dropping) return;
+  // down (a battle royale squad): no dash
+  if (duel instanceof Duel && duel.downed) return;
   const left = abilities.cooldownLeft(now);
   if (left > 0) {
     hud.notice(`JOLT READY IN ${left.toFixed(1)} S`, now, 0.6);
@@ -1239,6 +1246,8 @@ function throwTargets(): ThrowTarget[] {
 function throwHit(id: number, amount: number, kind: ThrowKind, from: THREE.Vector3): void {
   const a = figureById(id);
   if (!a || amount <= 0 || a.knocked) return;
+  // a fire or a late frag outside the fight (a countdown, a round's end) hurts nobody
+  if (duel && duel.phase !== "fight") return;
   if (duel && (duel instanceof Duel ? duel.isAlly(id) : false)) return;
   const point = a.group.position.clone().setY(a.group.position.y + 1.2);
   const report = a.hit(gameTime, "body", amount, 1, 1, point);
@@ -1296,6 +1305,8 @@ function updateAfterburns(now: number): void {
     if (b.left <= 0) afterburns.delete(key);
   }
 }
+/** when the arc preview is next worked out */
+let previewNextAt = 0;
 const THROWABLES_ANY = (): boolean => ordnance.endless || Object.values(ordnance.counts).some((n) => n > 0);
 /** throw what is readied, the way you look, a little up, with some of your own speed */
 function throwReadied(now: number): void {
@@ -1453,6 +1464,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   // abilities are the match's: on or off, nothing picked yet (the card comes at the countdown or the landing)
   abilities.reset(d.abilities);
   tour.stop();
+  drill.stop();
   // the killcam's recording and the recap's log
   recorder.clear();
   killcam.stop();
@@ -1645,6 +1657,12 @@ const brDifficulty = (): BotDifficulty => (botDifficulty.value === "easy" || bot
 const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
+  // a loadout picked during the last fight comes on now; the range's heal kit is full again
+  if (pendingSlots) {
+    pendingSlots.forEach((id, i) => loadout.setWeaponId(i, id));
+    pendingSlots = null;
+  }
+  kit.fill("kit");
   // the range: grenades without end; nothing in the air
   ordnance.endless = true;
   ordnance.readied = null;
@@ -1792,7 +1810,7 @@ const loadout = new Loadout([loadouts.current.slot1, loadouts.current.slot2]);
 // from here the readout describes the gun actually in hand, attachments included
 currentWeapon = () => loadout.active.weapon;
 currentOpticZoom = () => {
-  const info = opticInfo(loadout.active.attach.optic ?? null);
+  const info = opticInfo(loadout.active.attach.optic ?? loadout.active.weapon.integralOptic ?? null);
   return opticZoom(info?.label ?? null, info?.zooms, loadout.active.zoomAlt);
 };
 refreshDerived();
@@ -2250,8 +2268,11 @@ function step(): void {
       holsterAt = now;
     }
     const armed = holster === "out" && !knockedOut && !downedNow && !emptyHand;
-    // fists: the fire button punches
-    if (emptyHand && !downedNow && !knockedOut && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
+    // a throw (or putting one away) uses that press of the button: the gun does not fire, the aim does not toggle
+    if (fireLockedToRelease && !input.held("fire")) fireLockedToRelease = false;
+    adsPressUsed = false;
+    // fists: the fire button punches (not with a grenade in hand: that press throws it)
+    if (emptyHand && !downedNow && !knockedOut && !ordnance.readied && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
       meleeReadyAt = now + MELEE_COOLDOWN;
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
@@ -2265,8 +2286,14 @@ function step(): void {
       } else if (!THROWABLES_ANY()) hud.notice("NO GRENADES", now, 1);
     }
     if (ordnance.readied) {
-      if (input.pressedNow("ads") || loadout.swapping || downedNow || knockedOut || heal) ordnance.readied = null;
-      else if (input.pressedNow("fire") && now >= ordnance.readied.readyAt && (!duel || duel.canFire)) throwReadied(now);
+      if (input.pressedNow("ads")) {
+        ordnance.readied = null;
+        adsPressUsed = true;
+      } else if (loadout.swapping || downedNow || knockedOut || heal) ordnance.readied = null;
+      else if (input.pressedNow("fire") && now >= ordnance.readied.readyAt && (!duel || duel.canFire)) {
+        throwReadied(now);
+        fireLockedToRelease = true;
+      }
     }
     // the middle mouse button: a ping for the squad
     if (input.pressedNow("ping") && duel instanceof BrMatch && duel.alive) {
@@ -2276,7 +2303,7 @@ function step(): void {
 
     // discrete keys
     // the pad's X is interact when there is a prompt for it (a zipline, an item, a revive)
-    const padInteracts = (player.zipPrompt || (duel instanceof BrMatch && brPlay.hud.prompt !== null)) && input.pad.pressedNow("reload");
+    const padInteracts = (player.zipPrompt || (duel instanceof BrMatch && brPlay.hud.prompt !== null) || (!duel && drill.state === "idle" && drill.onPad(player.pos))) && input.pad.pressedNow("reload");
     if (armed && input.pressedNow("reload") && !loadout.swapping && !padInteracts) {
       ws.startReload(now);
       if (ws.reloading) audio.reload();
@@ -2337,7 +2364,7 @@ function step(): void {
     }
     // V: melee, with the heirloom (or a fist). Apex's melee does 30 anywhere
     // it lands, at arm's length.
-    if (input.pressedNow("melee") && now >= meleeReadyAt && !loadout.swapping && (!duel || duel.canFire)) {
+    if (input.pressedNow("melee") && now >= meleeReadyAt && !loadout.swapping && !downedNow && (!duel || duel.canFire)) {
       meleeReadyAt = now + MELEE_COOLDOWN;
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
@@ -2438,14 +2465,15 @@ function step(): void {
 
   // A weapon being raised, lowered or holstered cannot fire or aim.
   // In a 1v1, firing is held during the countdown and after a round is decided.
-  const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !loadout.active.empty && !downedNow && !ordnance.readied;
+  const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !loadout.active.empty && !downedNow && !ordnance.readied && !fireLockedToRelease;
   // a burst fires on without the trigger: knocked, or the round decided, it stops
   if (knockedOut || (duel && !duel.canFire)) ws.cancelBurst();
   // knocked in a 1v1: no aiming either
   // toggle ADS: a press goes in, the next comes out; a sprint, a swap or a holster comes out too
   if (settings.adsToggle) {
-    if (!input.playing || loadout.swapping || holster !== "out" || player.sprinting || knockedOut || downedNow) adsLatch = false;
-    else if (input.pressedNow("ads") && !ordnance.readied && !loadout.active.empty) adsLatch = !adsLatch;
+    if (!input.playing || loadout.swapping || holster !== "out" || knockedOut || downedNow) adsLatch = false;
+    else if (input.pressedNow("ads") && !adsPressUsed && !ordnance.readied && !loadout.active.empty) adsLatch = !adsLatch;
+    else if (input.pressedNow("sprint")) adsLatch = false;
   } else adsLatch = false;
   const adsIn = settings.adsToggle ? adsLatch : input.held("ads");
   const adsHeld = input.playing && adsIn && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow && !ordnance.readied;
@@ -2453,7 +2481,8 @@ function step(): void {
   {
     const slot = loadout.active;
     const full = !slot.empty && slot.state.clip >= slot.weapon.clipSize && !slot.state.reloading;
-    if (input.playing && input.held("reload") && full && !loadout.swapping && holster === "out") {
+    // (not in the tour: there the held X is the step's skip, and the two would fight)
+    if (input.playing && input.held("reload") && full && !loadout.swapping && holster === "out" && !tour.active) {
       if (!Number.isFinite(reloadHeldAt)) reloadHeldAt = now;
       if (now - reloadHeldAt > INSPECT_HOLD && now - inspectAt > INSPECT_TIME) inspectAt = now;
     } else reloadHeldAt = -Infinity;
@@ -2742,11 +2771,18 @@ function step(): void {
   throwables.update(now, dt, throwTargets());
   updateAfterburns(now);
   if (ordnance.readied && now >= ordnance.readied.readyAt && !third) {
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-    const from = player.eyePosition().addScaledVector(fwd, 0.45).addScaledVector(right, 0.18).add(new THREE.Vector3(0, -0.12, 0));
-    throwables.preview(from, throwVelocity(ordnance.readied.kind, fwd));
-  } else throwables.preview(null, null);
+    // the path is 90 steps against every box in the world: ten times a second is plenty to aim by
+    if (now >= previewNextAt) {
+      previewNextAt = now + 0.1;
+      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+      const from = player.eyePosition().addScaledVector(fwd, 0.45).addScaledVector(right, 0.18).add(new THREE.Vector3(0, -0.12, 0));
+      throwables.preview(from, throwVelocity(ordnance.readied.kind, fwd));
+    }
+  } else {
+    previewNextAt = 0;
+    throwables.preview(null, null);
+  }
   // the melee swing lands a third of the way through
   if (now >= meleeHitAt) {
     meleeHitAt = Infinity;
@@ -2776,6 +2812,8 @@ function step(): void {
   if (!duel) {
     dummyBehaviour.update(now, dt);
     if (input.playing || scriptInput) rangeCombat.update(now, dummies, player.pos, projectiles, combatWeapon);
+    // the menu open: the drill's clock waits
+    if (!input.playing && !scriptInput) drill.hold(dt);
     drill.update(now);
   }
   trainer.update(now, player, scriptInput ?? input);
@@ -3010,6 +3048,7 @@ function step(): void {
     drill: duel ? null : drill.hud(now),
     brHold: duel instanceof BrMatch ? brPlay.hud.hold : null,
     tour: tourHud,
+    healKey: keyLabel("heal"),
     ordnance: {
       counts: ordnance.endless ? null : { ...ordnance.counts },
       readied: ordnance.readied ? throwName(ordnance.readied.kind) : null,

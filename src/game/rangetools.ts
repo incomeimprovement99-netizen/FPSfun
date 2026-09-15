@@ -377,6 +377,14 @@ export class FlickDrill {
     this.target.hide();
   }
 
+  /** the clock waits (the menu is open): every time it keeps moves on by `dt` */
+  hold(dt: number): void {
+    if (this.state === "idle") return;
+    this.startAt += dt;
+    this.endAt += dt;
+    this.doneAt += dt;
+  }
+
   /** the next figure: a random spot in a 60 degree cone ahead of the pad, 5 to 30 m out */
   private next(): void {
     const a = ((Math.random() * 2 - 1) * cfg.drill.coneDeg * 0.5 * Math.PI) / 180;

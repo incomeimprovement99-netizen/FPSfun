@@ -299,6 +299,8 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
     `(() => { const d = window.__range.duel(); const rs = d.avatars.map((a) => d.remoteOf(a)); const m = d.hud().mode; return { allies: rs.filter((r) => d.isAlly(r.id)).length, enemies: rs.filter((r) => !d.isAlly(r.id)).length, you: m.teams.you, them: m.teams.them, limit: m.teams.limit }; })()`
   );
   check("tdm: you and three bots against four, 0 - 0, first to 30", t0.allies === 3 && t0.enemies === 4 && t0.you === 0 && t0.them === 0 && t0.limit === 30, JSON.stringify(t0));
+  const tdmGuns = await ev<string[]>(t, "window.__range.duel().bots.map((b) => b.bot.remote.avatarWeapon)");
+  check("tdm: the bots keep their own guns (Gun Run's ladder is not theirs)", new Set(tdmGuns).size >= 4, tdmGuns.join(","));
   const ff = await ev<{ health: number; before: number }>(
     t,
     `(() => { const d = window.__range.duel(); const a = d.avatars.find((x) => d.isAlly(d.remoteOf(x).id)); const r = d.remoteOf(a); const before = a.health + a.shield; d.localHit(r, 80, false, "r97", 5); return { health: a.health + a.shield, before }; })()`
@@ -473,6 +475,12 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   await ev(guest, `(() => { const r = window.__range; const d = r.duel(); d.sendMark("go", r.player.pos.clone(), "GOING HERE"); })()`);
   const pinged = await host.waitForFunction("window.__range.brPlay.markers.some((m) => m.from === 1 && m.k === 'go')", { polling: 100, timeout: 4000 }).then(() => true, () => false);
   check("squad: the guest's ping reaches the host", pinged);
+  // the ring hurts a guest outside it on the guest's own clock (it used to tick about once a minute)
+  const g0 = await ev<number>(guest, "(() => { const d = window.__range.duel(); window.__range.player.teleport(215, 0, 715, 0); return d.shield + d.health; })()");
+  await sleep(3400);
+  const g1 = await ev<number>(guest, "(() => { const d = window.__range.duel(); return d.shield + d.health; })()");
+  check("squad: outside the ring the guest takes its damage every 1.5 s", g0 - g1 >= 4, `${g0} -> ${g1}`);
+  await ev(guest, "(() => { const d = window.__range.duel(); d.shield = d.shieldMax; d.health = 100; window.__range.player.teleport(0, 0, 500, 0); })()");
   // the guest goes down (not out: the host is still up); the host sees it
   await ev(guest, `(() => { const d = window.__range.duel(); d.holdFire = true; d.takeHit(500, 100); })()`);
   await sleep(800);
@@ -826,6 +834,17 @@ async function throwTest(browser: Browser, query: string): Promise<void> {
   await sleep(2100);
   const burnt = await ev<number>(page, "window.__range.duel().avatars[0].health");
   check("throwables: thermite under it burns it, 4 a tick", burnt <= 75 - 12 && burnt >= 75 - 24, `health ${burnt}`);
+  // the throw takes the click: the gun in hand does not fire with it (it used to, the same frame)
+  await ev(page, "(() => { window.__range.input.locked = true; window.__range.player.teleport(90, 0, 12, 180); })()");
+  await page.keyboard.press("KeyG");
+  await sleep(700);
+  const clip0 = await ev<number>(page, "window.__range.loadout.active.state.clip");
+  await ev(page, "(() => { window.__pad.buttons[7].pressed = true; window.__pad.buttons[7].value = 1; })()");
+  await sleep(350);
+  await ev(page, "(() => { window.__pad.buttons[7].pressed = false; window.__pad.buttons[7].value = 0; })()");
+  const thrown = await ev<{ live: number; clip: number }>(page, "({ live: window.__range.throwables.live.filter((t) => t.mine && t.kind === 'frag').length, clip: window.__range.loadout.active.state.clip })");
+  check("throwables: a click throws the grenade and the gun does not fire with it", thrown.live >= 1 && thrown.clip === clip0, JSON.stringify({ clip0, ...thrown }));
+  await ev(page, "window.__range.input.locked = false");
   await ev(page, "window.__range.duel().leave()");
   await sleep(200);
   const range = await ev<{ endless: boolean; live: number }>(page, "({ endless: window.__range.ordnance.endless, live: window.__range.throwables.live.length + window.__range.throwables.fires.length })");
@@ -1032,7 +1051,13 @@ async function finishTest(browser: Browser, query: string): Promise<void> {
   // the ability, then a grenade
   await ev(t, `(() => { window.__range.pickAbility("jolt"); window.__range.useAbility(); })()`);
   check("tour: ABILITY done with a JOLT", await stepTo("ability"), String(await step()));
-  await ev(t, `(() => { const r = window.__range; r.throwAt("frag", r.player.eyePosition().clone(), new r.THREE.Vector3(0, 4, -10)); })()`);
+  // the real G and the trigger (after the heal step, G used to be dead: the heal never ended)
+  // the cell started at the heal step finishes first (a grenade cannot come out mid-heal)
+  await t.waitForFunction("!window.__range.hud.last?.heal", { polling: 100, timeout: 6000 }).catch(() => undefined);
+  await ev(t, "window.__range.input.locked = true");
+  await t.keyboard.press("KeyG");
+  await sleep(700);
+  await padTap(t, 7, 250);
   const finished = await t.waitForFunction("window.__range.tour.stepId === null && localStorage.getItem('range.tour.done') === '1'", { polling: 100, timeout: 5000 }).then(() => true, () => false);
   check("tour: GRENADE, and the tour is complete (remembered)", finished, String(await step()));
   await t.close();

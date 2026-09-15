@@ -112,14 +112,22 @@ Your name for the kill feed: the Stats tab.
 - **Ctrl+W closed the tab**: Settings, "Fullscreen while playing" is on by
   default and stops that in Chrome; windowed, the browser asks first.
 
-## 5b. A battle royale with friends
+## 5b. A battle royale, or a mode, with friends
 
-The same codes and invite links: on the 1v1 tab, pick **"Battle royale: a
-squad against the bots"** as the mode, the squad size, **Create match**, and
-send the invite link. When everyone has clicked Play the whole squad drops
-onto the same place against the bots the host set (the 1v1 tab's bots and
-difficulty). The host's browser runs the bots and the ring, so the host's
-connection is the one that matters.
+The same codes and invite links: on the 1v1 tab, pick the mode in the first
+box before **Create match**: **"Battle royale: a squad against the bots"**,
+Gun Run, team deathmatch or Crown (and the squad or player count), then send
+the invite link. When everyone has clicked Play the match starts with what
+the host set: the bots and their difficulty, Gun Run's list, whether
+abilities are on, and for the battle royale whether you land with nothing
+and loot. The host's browser runs the bots, the ring, the loot and the
+modes' rules, so the host's connection is the one that matters.
+
+In a battle royale squad: a knock with a squad mate still up puts you down,
+not out (they hold E for 5 s to revive you); out, your banner goes in your
+death box and a squad mate can take it to a respawn beacon; the middle mouse
+button pings for the squad. All of it works on the Pages link (it is the
+same peer-to-peer connection).
 
 ## 6. Updating
 
@@ -127,12 +135,18 @@ Make changes, run the checks, commit to `main`, then:
 
 ```
 npm run verify
-npm run e2e          # needs npm run dev running in another terminal
+npm run e2e          # needs npm run dev running in another terminal (about twelve minutes;
+                     # E2E_ONLY=page,br,... runs only some sections)
+npm run build:beta   # the public build and its real-name check
 git add -A && git commit -m "..."
 git push
 npm run deploy
 npm run live         # optional: plays a 1v1 on the live site to prove it
 ```
+
+The mannequin's animation files (`public/models/mannequin/`, 4.4 MB, CC0)
+are in git and in every build; players only download them if they turn the
+mannequins on in Settings.
 
 Pages picks up the new `gh-pages` commit within a minute; players need a
 reload (Ctrl+Shift+R if the old bundle sticks: the file names carry a hash,

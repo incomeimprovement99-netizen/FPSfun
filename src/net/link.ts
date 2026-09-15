@@ -99,6 +99,22 @@ export type NetMsg =
   | { t: "mode"; left: number; rows: Array<[number, number, number, number, number]>; tm?: [number, number]; cr?: [number, number, number, number, number]; win?: number }
   | { t: "bye"; from?: number };
 
+/**
+ * A message without its undefined fields. PeerJS packs `undefined` as `null`,
+ * and a field checked as "absent or a string" then fails: a hit sent without
+ * its gun, a JOLT's effect without its number, were dropped whole on the real
+ * connection while the local transport (a structured clone) kept them.
+ */
+export function withoutUndefined<T>(v: T): T {
+  if (Array.isArray(v)) return v.map((x) => withoutUndefined(x)) as T;
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) if (x !== undefined) out[k] = withoutUndefined(x);
+    return out as T;
+  }
+  return v;
+}
+
 /** what a guest needs to drop into the same battle royale as the host */
 export interface BrWelcome {
   /** the POI id the squad drops on */
@@ -193,7 +209,7 @@ class PeerLink implements Link {
     });
   }
   send(m: NetMsg): void {
-    if (!this.closed && this.conn.open) this.conn.send(m);
+    if (!this.closed && this.conn.open) this.conn.send(withoutUndefined(m));
   }
   close(): void {
     if (this.closed) return;

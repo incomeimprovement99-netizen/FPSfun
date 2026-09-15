@@ -145,6 +145,8 @@ export interface HudState {
   trainer?: TrainerHud | null;
   /** a superglide's window is open: the mantle boost cue on the crosshair */
   mantleCue?: boolean;
+  /** the heal key's label, for the kit line */
+  healKey?: string;
   /** grenades: how many of each (null: the range, no count), the one in hand, its keys */
   ordnance?: { counts: Record<string, number> | null; readied: string | null; ready: boolean; key: string; fire: string; cancel: string } | null;
   /** the guided tour's step, or its finish card */
@@ -1523,7 +1525,7 @@ export class Hud {
     const short: Record<string, string> = { cell: "CELL", battery: "BATT", syringe: "SYR", medkit: "MED", phoenix: "PHX" };
     const parts = ["cell", "battery", "syringe", "medkit", "phoenix"].filter((k) => (s.kit?.[k] ?? 0) > 0 || k === "cell" || k === "syringe").map((k) => `${short[k]} ${s.kit?.[k] ?? 0}`);
     const any = Object.values(s.kit).some((n) => n > 0);
-    this.text(`4  ${parts.join("  ")}`, x, y, 700, 13 * u, any ? DIM : "rgba(154,164,173,0.4)");
+    this.text(`${s.healKey ?? "4"}  ${parts.join("  ")}`, x, y, 700, 13 * u, any ? DIM : "rgba(154,164,173,0.4)");
     this.drawOrdnance(s, u, x, y - 18 * u);
     this.drawHealWheel(s, u);
   }

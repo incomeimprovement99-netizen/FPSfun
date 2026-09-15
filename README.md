@@ -1,7 +1,8 @@
 # B00G Range (beta)
 
 A browser firing range that reproduces the feel of Apex Legends' movement and
-guns from published numbers, with two timed movement courses, bots, and a 1v1
+guns from published numbers, with two timed movement courses, a guided tour,
+bots, a battle royale with loot, Gun Run, team deathmatch and Crown, and a 1v1
 or 1v1v1 against friends by code. Own code, own art, nothing from the game's
 files. It runs in a browser tab and has no connection of any kind to the Apex
 install, the EA App, Steam or Easy Anti-Cheat.
@@ -42,8 +43,10 @@ install, the EA App, Steam or Easy Anti-Cheat.
    phone, a tablet or Safari, which cannot play). **Play tab, Firing Range.**
    The browser locks the mouse and goes fullscreen (Settings can turn that
    off). **Esc** brings the menu back; **Play / Resume** goes back in.
-3. Everything else is a menu button: the two courses, the arena alone, the
-   bots, and the 1v1 tab for friends.
+3. Everything else is a menu button: the guided tour (start here if you are
+   new: it walks you through every move and key), the two courses, the arena
+   alone, the bots, the battle royale, Gun Run, team deathmatch, Crown, and the
+   1v1 tab for friends.
 
 Nothing is installed and nothing is sent anywhere: settings, loadouts, your
 name, your best times and your stats live in this browser's localStorage.
@@ -69,6 +72,12 @@ the same link; it starts once all three have clicked Play. The map is a
 triangle with a corner each. A guest leaving before round 1 frees their
 place (the link works again); during the match it drops it to a 1v1; the
 host leaving ends it.
+
+**Other modes with friends**: the first box on the 1v1 tab picks what to
+play before Create match: the arena 1v1 / 1v1v1, Gun Run, team deathmatch
+(you and your friends against the bots), Crown, or the battle royale as a
+squad. The host's choice (and the bots, their difficulty, Gun Run's list and
+whether abilities are on) goes to everyone who joins.
 
 **Your name** for the kill feed and the scoreboard: the Stats tab.
 **Loadouts**: the Loadouts tab, before or during a match (mid-fight, the new
@@ -108,13 +117,17 @@ optic names; only `npm run build:beta` (what is deployed) swaps in codenames.
 
 | Mode | What it is |
 |---|---|
-| Firing Range | 28 weapons, dummies with armour tiers, target banks and moving rails, ladders, a vertical zipline, the wallbounce practice wall with its recipe on a sign, mantle ledges, a slide ramp. Two lit gates on the back wall lead to the courses. |
-| The Run (Basic) | Timed movement course in the range's back-left corner: seven rooms, each built round one technique (breach, vent slide, climb, superglide, gap lurch, zipline, final sprint), 20 armed pop-ups. Splits per room against your best, a ghost of your best run, a results TV at the start, ranks S/A/B/C. |
+| Firing Range | 29 of Apex's guns (and the course pistol), dummies with armour tiers, target banks and moving rails, ladders, a vertical zipline, the wallbounce practice wall with its recipe on a sign, mantle ledges, a slide ramp, the spray wall, the flick drill's pad and the superglide trainer. Two lit gates on the back wall lead to the courses. The Range box on the Play tab sets what the dummies do (stand, strafe, crouch, random; slow to fast) and whether they shoot back. |
+| Guided tour | Thirteen steps through the range, a green marker for each: move, sprint, slide, jump, mantle, climb, a superglide, shoot, reload, swap, heal, JOLT, a grenade. It watches what you do and moves on; hold E (X on a controller) to skip a step. |
+| The Run (Basic) | Timed movement course in the range's back-left corner: seven rooms, each built round one technique (breach, vent slide, climb, superglide, gap lurch, zipline, final sprint), 20 armed pop-ups. Splits per room against your best, a gold, silver or bronze medal per room against its par, a ghost of your best run, a results TV at the start, ranks S/A/B/C. |
 | The Run (Advanced) | The back-right corner: nine rooms, 200 m, 30 pop-ups, the techniques chained. Every gate needs its move: a 7 m gap only a superglide clears, pads only a lurch reaches, a platform only a zipline superjump gets on, two vents, a bounce slalom, a drop slide, a shooting zip, a flow room. Its own bests, splits, ghost and TV. |
 | 1v1 and 1v1v1 | One player makes a match (2 or 3 players) and gets a 5-letter code; the others type it. 1v1: a three-lane warehouse arena. 1v1v1: a triangle, a corner each, spokes between the corners. First to 3 rounds, blue shields and 100 health. 20 s into a round a circle lights up in the middle; stand in it alone for 10 s to take the round. The last one standing takes it any time. |
-| Arena, Bots | The 1v1 rules against one or two bots, offline, on Easy, Normal or Hard (their speed, reaction time and aim). They hunt you, strafe, go for the circle, and go down like anyone. |
+| Arena, Bots | The 1v1 rules against one or two bots, offline, on Easy, Normal or Hard (their speed, reaction time and aim). They hunt you, strafe, go for the circle, heal when nobody is in sight, and go down like anyone. |
+| Gun Run | Every kill moves you to the next gun and puts it in your hands at once; after the last gun comes the knife (melee, 100 a hit, 300 to the head), and a knife kill wins. A melee death costs a level. 10 minutes, then the highest level wins. Health and shields come back 4 s after the last hit; you are back in 3 s after going down. Ten guns or every gun. Against bots (Play tab), with friends and bots (1v1 tab). |
+| Team Deathmatch | You and your friends, filled out with bots to four, against four bots in the 1v1 arena; respawns after 4 s at your end; first team to 30, or ahead at 10 minutes. Team mates cannot hurt each other and their plates are green. |
+| Crown | Rounds like the 1v1: 20 s in, a crown appears in the middle; walk over it to take it; 30 s held without going down takes the round (so does being the last one up). Everyone sees who has it. First to 3. |
 | Arena, alone | The 1v1 map with nobody else, to learn it. |
-| Battle Royale, Bots | Outskirts: 440 m of open ground with the Hub in the middle and four places round it (a container yard, a depot of sheds, a stepped ridge with a bunker, a small town with a water tower). You and up to 11 bots drop from the sky onto one of the five (the map shows where, the movement keys steer the fall), the ring closes six times with Apex's damage per tick, bots walk the roads, fight each other and you, and the last one standing wins. Four shield cells and four syringes per life (4), M for the map. Out: your placement, your kills and how long you lasted; the champion screen when it is you. **As a squad**: the 1v1 tab, "Battle royale" as the mode, Create match, and two or three friends drop together on the same place against the bots; a squad mate can still be watched when you are down, and the squad wins when every bot is. |
+| Battle Royale, Bots | Outskirts: 440 m of open ground with the Hub in the middle and four places round it (a container yard, a depot of sheds, a stepped ridge with a bunker, a small town with a water tower). You and up to 11 bots drop from the sky onto one of the five (the map shows where, the movement keys steer the fall), the ring closes six times with Apex's damage per tick, bots walk the roads, fight each other and you, and the last one standing wins. **You land with nothing** (a setting keeps your loadout instead): about 200 items on the floor (guns, ammo, heals, magazines, barrels, stocks, optics, hop-ups, helmets, grenades), E takes the one you look at; the bots land unarmed and search first. Death boxes, care packages in ring rounds 2 to 4, jump towers, launch pads on the roads. A white shield core that levels with the damage you deal (EVO). M for the map. Out: your placement, your kills and how long you lasted; the champion screen when it is you. **As a squad**: the 1v1 tab, "Battle royale" as the mode, Create match, and two or three friends drop together on the same place against the bots. Knocked with a squad mate still up, you are down, not out: crawl, bleed out over 90, 60, 30, 15 s a knock, and a squad mate holds E for 5 s to revive you. Out, your banner is in your death box: a squad mate takes it to a respawn beacon and brings you back. Pings (the middle mouse button) mark an enemy, an item or a place for the squad; out, you watch a squad mate through their eyes. |
 
 In every mode the HUD is laid out where the game puts things: health and
 shield bottom left (with the heal kit beside them in a match), weapon and
@@ -124,6 +137,18 @@ line in the middle; in a battle royale the alive count, your kills and the
 ring's clock top centre, the rings on the minimap, and an orange edge when
 you are outside.
 
+**Abilities.** Pick **JOLT** (a 10 m dash the way you are moving, every 3 s,
+F) or **TRIAGE** (every heal twice as fast) with 5 or 6 when the card comes
+up: at each countdown in the arena, the modes and the bots, or when you land
+in a battle royale. A setting per kind of match turns them on or off (the
+battle royale's is on). Bots take one too.
+
+**The killcam and the death recap.** Eliminated, you see the last 4 s from
+your killer's eyes (Space skips; a setting turns it off), then a card: for
+everyone who hurt you this life, the damage, hits and headshots each way,
+their gun and the distance of each hit, whether they healed in the 10 s
+before (and with what), and what they had left.
+
 **The lobby.** Create match puts you straight into the arena with the code on
 the HUD; run around until your friends arrive (a connect takes them in too).
 The countdown starts once everyone is in.
@@ -132,8 +157,13 @@ The countdown starts once everyone is in.
 too); hold Alt to turn the camera round your own figure and see the skin.
 Shots go from your eye to what the crosshair is on, so they land where it
 says. Other players, bots and your own figure are jointed and animate: a run
-cycle, the crouch, the slide lean, arms up on a climb or a mantle, the jump
-tuck, the zipline hang, the head and gun following the aim.
+cycle whose legs go the way the figure moves while its body stays on its aim
+(a strafe, a backpedal), the crouch, the slide lean, arms up on a climb or a
+mantle, the jump tuck, the zipline hang, the gun up to the eye when aiming,
+a kick with every shot, the reload, the swap, a heal with the item in hand, a
+flinch when hit, a JOLT's lean, and down on the knees. Settings can swap the
+robots for a **motion-captured mannequin** (Quaternius's CC0 clips: walk, jog,
+sprint, crouch, the aim, the reload, the heal, the slide, the climb).
 
 ## Controls
 
@@ -148,18 +178,22 @@ defaults puts `binds.json` back.
 | Key | Action | Key | Action |
 |---|---|---|---|
 | W A S D | move | Shift | sprint (press, like the game; hold in Settings) |
-| Space, scroll up | jump (scroll makes superjumps and bunny hops easy) | Ctrl, C | crouch, slide (see Ctrl + W under limits) |
-| Scroll down | forward, one tap per notch, for tap-strafing | E | ride a zipline (interact) |
-| Left mouse | fire | Right mouse | aim down sights |
-| R | reload | V | melee (heirloom or fist) |
+| Space, scroll up | jump (scroll makes superjumps and bunny hops easy) | Ctrl, C | crouch, slide (see Ctrl + W under limits; toggle in Settings) |
+| Scroll down | forward, one tap per notch, for tap-strafing | E | interact: a zipline, an item; hold: a revive, a beacon, skip a tour step |
+| Left mouse | fire | Right mouse | aim down sights (toggle in Settings) |
+| R | reload; hold with a full magazine to inspect the gun | V | melee (heirloom or fist) |
 | 1, 2 | weapon slot | Q, Mouse 5 | swap weapon |
-| 3 | holster (move 15% faster) | G | magazine level |
-| O | cycle optic | Z | variable optic zoom |
-| B, N, H | barrel, stock, laser | T | dummy armour tier |
-| F | reset dummies and the course | K | ghost of your best run on/off |
-| P | copy your course result | Esc | menu |
-| 4 | heal (a shield cell, then a syringe) | M | the full map |
+| 3 | holster (move 15% faster) | 4 | heal: a tap is the quick heal, hold for the wheel of every heal |
+| G | a grenade in hand (again: the next kind); fire throws, aim puts it away | F | your ability (JOLT) |
+| 5, 6 | pick JOLT or TRIAGE when the card is up | B | fire mode (where a gun has two) |
+| Middle mouse | ping, for the squad | M | the full map |
+| U | magazine level | O | cycle optic |
+| J, N, H | barrel, stock, laser | L | hop-up |
+| Z | variable optic zoom | T | dummy armour tier |
+| I | what the dummies do | Y | reset dummies and the course |
+| K | ghost of your best run on/off | P | copy your course result |
 | X | third person on/off | Alt (hold) | look round your character |
+| Esc | menu | | |
 
 The defaults, as the Controls tab first shows them.
 
@@ -173,18 +207,25 @@ also brings the menu back). The layout is the game's default one:
 | Left stick | move (auto sprint when pushed all the way, by default) | Right stick | look |
 | RT | fire | LT | aim down sights |
 | A | jump | B | crouch, slide |
-| X | reload, or ride a zipline when one is in reach | Y | swap weapon |
-| LB | holster | RB | variable optic zoom |
+| X | reload; interact where there is a prompt (a zipline, an item); hold for a revive, a beacon, a tour skip | Y | swap weapon |
+| LB | your ability (JOLT) | RB | variable optic zoom |
 | L3 | sprint (when auto sprint is off) | R3 | melee |
 | D-pad up | cycle optic | D-pad down | magazine level |
-| D-pad left / right | weapon slot 1 / 2 | Back | ghost |
+| D-pad left / right | weapon slot 1 / 2 (and pick an ability while the card is up) | Back | holster |
 | Start | play / menu | | |
+
+**Every button but Start can be moved** on the Controls tab (a column for the
+controller under the keys); the heal, a grenade and the ping have no button
+by default, so give them one there if you play on a pad.
 
 Look sensitivity 1 to 8 like the game (3 is the game's default, 180 deg/s of
 yaw), a separate ADS level, a Classic (curved) or Linear response, an inner
-deadzone, and rumble on shots and hits. The stick is turned into the four
-movement keys at a threshold, so every movement rule (lurch, the 45-degree
-sprint cone, air strafing) sees the same inputs a keyboard gives.
+deadzone, and rumble on shots and hits. **Advanced look** (Settings) is the
+game's custom look controls: yaw and pitch speeds for hipfire and aiming, and
+an extra yaw and pitch at the stick's edge that ramps in over a time after a
+delay. The stick is turned into the four movement keys at a threshold, so
+every movement rule (lurch, the 45-degree sprint cone, air strafing) sees the
+same inputs a keyboard gives.
 
 **Aim assist**, on by default (Settings to turn it off), in the game's two
 parts: the stick slows with the reticle on a target (0.8 hipfire, 0.6 aiming),
@@ -202,11 +243,18 @@ The Settings tab, all remembered in this browser:
 |---|---|
 | Mouse DPI, **Measure my DPI** | your mouse's DPI, or measure it: swipe a marked distance with the button held and it counts the raw hardware counts. Needed for cm/360 to be right. |
 | Mouse sensitivity, ADS multiplier, FOV scale | the game's three numbers, with the same maths (0.022 degrees per count; ADS scaled by the zoom). The panel shows your cm/360 live. |
+| ADS per optic | a multiplier for each zoom (1x, 2x, 3x, 4x, 6x, 8x, 10x) on top of the ADS one, like the game's; a variable optic uses the zoom it is on |
+| Aim down sights, Crouch | hold, or toggle (a press in, a press out) |
 | Sprint | press (the game's default: press once, it arms for 3 s and runs while you hold forward) or hold |
 | Sprint view shake | Normal or Minimal, the game's setting |
 | Fullscreen while playing | on by default: fullscreen with Keyboard Lock, which hands Ctrl+W to the game in Chrome and Edge |
 | Graphics | Competitive (straight to the screen with MSAA, fastest), Balanced, High (post-processing, shadows, bloom) |
-| Controller: look, ADS, curve, deadzone, auto sprint, rumble, aim assist | see [Controller](#controller) |
+| Figures | the other players and bots as our robots, or the motion-captured mannequin |
+| Killcam | on (the replay, then the recap) or off (the recap only) |
+| Volume | master, effects, hits |
+| The range's ammo | endless, or counted like a match |
+| Mantle boost cue | the ring on the crosshair in the last frames of a mantle, where a superglide is possible |
+| Controller: look, ADS, curve, deadzone, auto sprint, rumble, aim assist, advanced look | see [Controller](#controller) |
 | Getting past the frame cap | a step-by-step guide to raise the browser's frame limit (monitor refresh rate, Chrome flags) |
 
 ## Movement tech, and how to do it here
@@ -240,13 +288,32 @@ what the feed registered.
 
 ## Guns, attachments, optics, loadouts
 
-28 weapons from extracted reference numbers: damage per zone, fire rate,
-magazine sizes per level, reload and tactical reload times, spread by stance,
-recoil patterns, projectile speed and drop (hitscan where the game is). Mag
-levels (G), barrels (B), stocks (N) and lasers (H) apply the reference mod
-blocks. Ten optics with their own housings, reticles, eye relief, variable
-zoom (Z) and full-screen scopes at 3x and up; a weapon whose own sight is a
-scope (the Kraber's 4x-8x) wears it by default.
+29 of Apex's guns (and the course pistol) from extracted reference numbers
+with Season 30's changes on top: damage per zone, fire rate, magazine sizes
+per level, reload and tactical reload times, spread by stance, recoil
+patterns, projectile speed and drop (hitscan where the game is). Mag levels
+(U), barrels (J), stocks (N), lasers (H) and hop-ups (L) apply the reference
+mod blocks. Ten optics with their own housings, reticles, eye relief,
+variable zoom (Z) and full-screen scopes at 3x and up; a weapon whose own
+sight is a scope (the Kraber's 4x-8x) wears it by default.
+
+The guns that are not a plain trigger work the way the game's do: the
+Havoc's and the Devotion's wind-up (a turbocharger shortens it), the Charge
+Rifle's charge and its damage growing with range, the L-STAR's heat and
+lockout (it cools only when you let go), the 30-30's aimed charge, the
+Peacekeeper's choke, the Nemesis's burst charge, the Bocek's draw, and fire
+modes on B (the Hemlok, the Prowler, the R-301...). Ammo is counted in a
+match: light, heavy, sniper, shotgun rounds and arrows in stacks, and an
+energy gun's own stockpile of whole magazines that comes back one every 18 s
+while the gun is idle (Season 30's rework).
+
+**Throwables** (G): the frag grenade (100 inside 2.4 m falling to nothing at
+8 m, a 4 s fuse, it bounces and rolls), the arc star (sticks to the first
+thing it touches, a wall or a player, and goes off 2.8 s later: 75 and a slow
+of up to 5 s), thermite (a 6 m line of fire across the throw for 8 s, 8 a
+second inside it and 25 more after). A dotted arc shows where it will land.
+One of each per life in a match; the battle royale's floor has them; the
+range never runs out.
 
 The view model is built in code: each gun with its grip at the hand, gloved
 hands in your operator's colours, and animations for sprint, slide, climb,
@@ -260,14 +327,30 @@ changed mid-match; mid-fight the new guns come at the next round. Changing
 an attachment keeps the rounds in the gun (a bigger magazine fills on the
 next reload), so the attachment keys are never a free reload.
 
-**Healing**, in every match: four shield cells (25 shield over 2.5 s) and
-four syringes (25 health over 4 s) per life, Apex's own numbers, on the heal
-key. A cell while the shield is down, else a syringe; firing or aiming
-cancels it; the item is only spent when it finishes.
+**Healing**, Season 30's items and times: the shield cell (25 in 2.5 s), the
+syringe (25 health in 4 s), the shield battery (full in 5 s), the med kit
+(full in 8 s) and the phoenix kit (both full in 10 s). A tap of the heal key
+is the quick heal (shields first, the right size for what is missing); hold
+it for a wheel of all five. You walk 40% slower and cannot sprint while
+healing; sprinting, firing, aiming or a swap cancels it; the item is only
+spent when it finishes. The arena kit is four cells, two batteries, four
+syringes and two med kits a life. Helmets: the gold one sets the armour to
+100 and doubles the small heals, the mythic one 125.
 
-Dummies have head, body and leg zones, shield tiers (T cycles them), knock
-and stand-up, damage numbers and a knock time on the HUD for time-to-kill
-checks. Pop-up targets on the courses are armed and count.
+Dummies have head, body and leg zones (a hit flashes gold, white or blue by
+zone), shield tiers (T cycles them), knock and stand-up, damage numbers and a
+knock time on the HUD for time-to-kill checks. They can stand, strafe,
+strafe and crouch or dodge at random (I, or the Range box), and shoot back
+with a bot's aim, in which case you have a shield and health in the range
+too. Pop-up targets on the courses are armed and count.
+
+**The range's tools**: the spray wall (a mag from the mark 20 m out leaves
+your hits beside the gun's own pattern, scaled to the distance), the flick
+drill (thirty figures one at a time in a 60-degree cone, a clock, your best on
+the Stats tab and the online board; the pad by the firing line or the Play
+tab's button starts it), the superglide trainer (every mantle draws a bar of
+its last 0.3 s with your jump and crouch on it and the frame you hit, ten
+tries scored), and the per-gun session numbers on the Stats tab.
 
 ## Your character, stats and boards
 
@@ -336,10 +419,31 @@ it trusts the game, so it is a board for friends, not a ranked ladder.
   reach a bot as hit messages the host applies. Alone it is the same class
   with no links. The ring is pure logic with six phases (verified in
   `tools/verify.ts`).
+- **The arena's modes** (`src/game/modes.ts`, `modematch.ts`) are a `Duel`
+  subclass too: the rules alone in `modes.ts` (Gun Run's ladder, the team
+  score, the crown, the respawn pick), tested in Node; the host runs them and
+  the bots and sends the state as a `mode` message.
+- **The battle royale's floor** (`src/game/loot.ts`, `brplay.ts`): the items
+  come from a seed in the host's welcome, so every browser lays out the same
+  items under the same keys; taking one is asked of the host (first come,
+  first served). Downs, revives, banners, beacons and pings are messages on
+  the same links.
+- **Throwables** (`src/game/throwables.ts`): a throw is a body under gravity
+  against the world's boxes, one axis at a time; the flight is deterministic,
+  so the others replay it from one message, and the thrower decides the
+  damage the way the shooter decides a bullet's.
+- **The killcam** (`src/game/killcam.ts`) records every figure 30 times a
+  second and replays the last seconds from the killer's eye; **the recap**
+  (`recap.ts`) keeps the life's hits and heals each way.
+- **Sound** (`src/game/audio.ts`, `soundscape.ts`) is synthesised: positional
+  (HRTF), dulled and delayed with distance, a gun class per weapon, footsteps
+  by surface, the reload in parts, the match's cues.
 - **Figures** (`src/game/dummy.ts`) are either merged into a few meshes (the
   range's dummies) or, for anything that moves, built as jointed parts about
   their pivots (pelvis, torso, head, arms with the gun, thighs, shins) and
-  posed from a stance and a speed sent in the state packet.
+  posed from a stance, a speed, the aim, the way it moves and what the hands
+  are doing, sent in the state packet. `mannequin.ts` swaps in the
+  motion-captured mannequin (two animation layers, legs and upper body).
 - **Rendering** (`src/game/render.ts`, `quality.ts`, `staticmerge.ts`,
   `materials.ts`, `props.ts`): the static level is merged into one mesh per
   material, PBR textures and glTF props are CC0 and fetched by script, and
@@ -374,11 +478,24 @@ src/game/
   course.ts                the course engine: rooms, gates, splits, ghosts, results TV
   courses/basic.ts         The Run (Basic), seven rooms
   courses/advanced.ts      The Run (Advanced), nine rooms
-  duel.ts                  the match: rounds, scores, the circle, remotes, spectate
+  duel.ts                  the match: rounds, scores, the circle, remotes, spectate, downs and revives
   bots.ts                  the bot controller and the offline match
-  br.ts                    the battle royale map: Outskirts, its places, roads, the bots' graph
+  br.ts                    the battle royale map: Outskirts, its places, roads, towers, beacons, pads
   ring.ts                  the ring: six phases, the tick, the next circle
   brmatch.ts               the battle royale match, alone or as a squad, on the Duel
+  brplay.ts                the battle royale from your side: E, revives, beacons, pads, pings
+  loot.ts                  the floor's loot: the seeded layout, rarities, labels
+  modes.ts, modematch.ts   Gun Run, team deathmatch, Crown: the rules and the match
+  abilities.ts             JOLT and TRIAGE
+  killcam.ts, recap.ts     the killcam's recording and replay; the death recap
+  throwables.ts            the frag, the arc star, thermite; what you carry
+  kit.ts                   the heals and the armour (shield cores, helmets)
+  ammo.ts                  counted ammo and energy stockpiles
+  rangetools.ts, trainer.ts  dummy behaviours, shoot-back, the spray wall, the flick drill; the superglide trainer
+  tour.ts                  the guided tour
+  mannequin.ts             the motion-captured figure (a setting)
+  fx.ts                    effects drawn in the world (a JOLT's streak)
+  soundscape.ts            footsteps, surfaces, the loops
   stats.ts                 the profile: matches, courses, tech, in localStorage
   leaderboard.ts           the online board client (finds the board through /net.json)
   weapons.ts               typed access to data/weapons.json
@@ -434,7 +551,14 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `data/overrides.json` | a correction to an extracted number, with the reason |
 | `src/config/names.ts` | the codename for each weapon and optic in the public build |
 | `src/game/loadouts.ts` | the five default loadouts |
-| `src/game/courses/*.ts` | the course rooms; the sim proves the gates |
+| `src/game/courses/*.ts` | the course rooms (and a room's par, if it should not be its share of the S time); the sim proves the gates |
+| `src/config/abilities.json` | JOLT's distance, time and cooldown; TRIAGE's speed; what the bots do with them |
+| `src/config/items.json` | the heals (amounts, times, stacks), the kits, shield cores and helmets |
+| `src/config/ammo.json`, `weapon-mechanics.json` | ammo types and stacks, energy stockpiles; wind-ups, charges, heat, chokes, draws, hop-ups, fire modes |
+| `src/config/loot.json`, `squad.json` | the battle royale's loot tables; downs, revives, banners, beacons, pads, pings |
+| `src/config/modes.json` | Gun Run's lists and rules, team deathmatch's score and size, Crown's times, the arena's spawns |
+| `src/config/throwables.json` | the frag, the arc star, thermite |
+| `src/config/killcam.json`, `audio.json`, `rangetools.json` | the killcam's timing; the gun classes and the sound's distances; the range's tools |
 
 ## Scripts and checks
 
@@ -451,7 +575,10 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run compare-sources` | compare two reference trees on the numbers we use |
 | `npm run verify` | 450+ checks: weapon data, damage, recoil, sensitivity maths, and the whole movement simulation (every movement rule against its source number). Must print VERIFY PASS. |
 | `npm run movesim` | the movement simulation alone: wiki timings, the wallbounce recipe, crouch kick, wallskip, every course gate, teleports |
-| `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match, the controller, the battle royale alone and as a squad of two, round scoring, the circle, the Play gate. Needs `npm run dev`. Must print E2E PASS. |
+| `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course and its medals, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match with the killcam and the recap, the controller, the range's tools, the settings and the tour, throwables, the battle royale alone, with loot and as a squad (downs, revives, banners, pings), Gun Run, team deathmatch and Crown alone and Gun Run with a friend. Needs `npm run dev`. Must print E2E PASS. `E2E_ONLY=page,br,...` runs only those sections (the file lists them); the whole run takes about twelve minutes. |
+| `npm run snap` | screenshots of named scenarios drawn for real (the HUD, the killcam, the figures, the loot, the modes) into `shots/`; `SNAP=name,name` for some |
+| `npm run slide-probe` | the slide and slide jump frame by frame in the simulation, as a page of curves beside the wiki's numbers |
+| `npx tsx tools/trim-glb.ts` | cut a .glb down to the animations named (how the mannequin's files were made) |
 | `npm run probe` | a scripted wallbounce at the practice wall in the real page, printing what the feed registered (needs `npm run dev`) |
 | `npm run measure` | what each technique reaches on the real controller (needs `npm run dev`) |
 | `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`) |
@@ -498,8 +625,9 @@ on a free account needs that); the reference data with the real names is in
 it, so `DEPLOY_GUIDE.md` section 7 has the split-repo setup if that should
 change.
 
-`dist/` is about 42 MB: 1.4 MB of code (350 KB compressed), about 10 MB of
-textures and 29 MB of props. The range is playable before the props finish
+`dist/` is about 46 MB: 1.8 MB of code (490 KB compressed), about 10 MB of
+textures, 29 MB of props and 4.4 MB for the mannequin (loaded only when
+Settings asks for it). The range is playable before the props finish
 loading; compressing their textures (KTX2) would cut most of it.
 
 ## What it can't do, and the limits
@@ -527,10 +655,10 @@ also bound to crouch.
 are stepped. That covers everything built so far, but curved or angled level
 geometry would need a real physics engine.
 
-**Characters are procedural.** The figures are jointed and posed in code
-(run, crouch, slide, climb, mantle, jump, zip) rather than motion-captured;
-there is no hand animation, no facial anything, and the gun is held in one
-pose.
+**Characters.** The default figures are jointed robots posed in code; the
+motion-captured mannequin (a setting) uses a free library's clips, which are
+pistol clips: every gun is held the way its aim pose holds a pistol, and a
+jog's forward lean carries into the aim. No fingers on the gun, no faces.
 
 **Two or three players, peer to peer.**
 - The browsers connect directly (WebRTC). On the game's own server our own
@@ -551,15 +679,16 @@ pose.
   up to three humans against bots for the same reason: the host's browser
   runs the bots and the ring, and a full lobby of humans would need the
   server.
-- **The battle royale has no loot.** Everyone drops with their loadout, blue
-  shields and the heal kit; there are no floor items, no helmets, no
-  throwables, no respawn beacons.
+- **The battle royale is a squad against bots.** A lobby of other squads
+  needs the authoritative server. The loot tables are ours (Apex's are not
+  published); the deathbox respawn of Season 29 is not in (beacons are).
 
 **Saves are per browser.** Settings, loadouts, the profile, best times and
 ghosts are in localStorage: another browser or device starts fresh. Clearing
 site data clears them.
 
-**No sound** beyond the synthesised shot, hit and reload ticks, and a
+**Sound is synthesised**, not recorded: every gun, step and cue is made in
+the browser, which keeps it small and ours but short of a recorded mix. A
 player who only ever presses Start on a controller gets none at all
 (browsers start audio only after a click or a key).
 
@@ -609,6 +738,9 @@ guns are built with their grips at the hand for that.
 |---|---|
 | `docs/SERVER_GUIDE.md` | the game on its own server like Algonomics: a DuckDNS name, the Oracle firewall rules, one-time setup, `npm run deploy:server`, day to day, troubleshooting |
 | `docs/DEPLOY_GUIDE.md` | the GitHub Pages link: publish, play, update, troubleshoot, the split-repo option |
+| `docs/DEVELOPMENT_ROADMAP.md` | a milestone for every feature shipped, newest last, with what it does and how it was tested |
+| `docs/PHASE_11_PLAN_ABILITIES_KILLCAM_AND_THE_AAA_BATCH.md`, `docs/PHASE_11_ABILITIES_KILLCAM_AND_THE_AAA_BATCH.md` | phase 11's plan and its results (the docs pattern from here on: a plan and a results document per phase) |
+| `docs/RESEARCH_PHASE_11.md` | Season 30's numbers with their sources: heals, helmets, shield cores, downs and revives, throwables, the new guns, ammo, the charge weapons, Gun Run and TDM, Crown |
 | `docs/NEXT_STEPS.md` | what you asked for and where it stands, and the next implementations ranked |
 | `docs/GAP_ANALYSIS.md` | what Apex (Season 30) and the other big shooters have against what we have, per area, with effort and value, and the ranked next steps that come out of it |
 | `docs/FIDELITY.md` | the source and confidence of every number in the game |
@@ -616,7 +748,7 @@ guns are built with their grips at the hand for that.
 | `docs/TESTING.md` | the first playtest guide: DPI, sensitivity, recoil, time to kill |
 | `docs/PLAN_*.md`, `docs/RESULTS_*.md` | a plan and a results document for every batch of work (what was asked, what shipped, what was found wrong on the way): the look pass, the HUD and course, wall tech and ghosts, ziplines and sights, the 1v1 beta, bots and triples and stats, feel and controller, the polish and ship, the server and the full bug hunt, the battle royale round |
 | `PROJECT_RULES.md` | the rules below, in full |
-| `public/tex/ATTRIBUTION.md`, `public/models/heirlooms/ATTRIBUTION.md` | where every asset came from and its licence |
+| `public/tex/ATTRIBUTION.md`, `public/models/heirlooms/ATTRIBUTION.md`, `public/models/mannequin/ATTRIBUTION.md` | where every asset came from and its licence |
 
 ## Rules of the project
 
@@ -642,6 +774,8 @@ guns are built with their grips at the hand for that.
 ## Credits
 
 Textures and props: ambientCG and Poly Haven (CC0). Heirloom models: Katana by
-CreativeTrio and Dagger by Quaternius, via Poly Pizza (CC0). Font: Rajdhani
+CreativeTrio and Dagger by Quaternius, via Poly Pizza (CC0). The mannequin and
+its motion-captured clips: Quaternius's Universal Animation Library 1 and 2
+(CC0). Font: Rajdhani
 (Google Fonts, OFL). Movement research: the Apex Movement Wiki community. Game
 data numbers are facts; no art, audio, code or branding from the game is used.

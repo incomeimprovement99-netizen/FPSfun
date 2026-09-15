@@ -404,6 +404,18 @@ export class BrMatch extends Duel {
     if (this.bots.every((x) => !x.bot.alive) && this.humansAlive > 0) this.endBr(true);
   }
 
+  /** a squad mate gone (left, or silent): with nobody of the squad still up, it is over */
+  protected override playerGone(id: number, notice: string): void {
+    super.playerGone(id, notice);
+    if (this.role === "host" && !this.brOver && this.phase === "fight" && this.humansAlive === 0) this.endBr(false);
+  }
+
+  /** the match ends for this side: once the result is in, say the result (the host's goodbye follows it) */
+  protected override finish(reason: string): void {
+    const p = this.placement;
+    super.finish(this.brOver && p ? (p === 1 ? "The squad won the battle royale." : `You placed #${p} of ${this.botCount + this.players}.`) : reason);
+  }
+
   /** a human went down (any side, this player included): the host decides whether the squad is out */
   protected override onSomeoneDown(_id: number, _by: number): void {
     if (this.role === "host" && this.humansAlive === 0) this.endBr(false);
@@ -501,6 +513,7 @@ export class BrMatch extends Duel {
 
   override update(local: LocalState): void {
     this.lastLocal = local;
+    const frameDt = Math.max(0, Math.min(0.1, wallClock() - this.lastClock));
     super.update(local);
     if (this.ended) return;
     const now = wallClock();
@@ -517,7 +530,7 @@ export class BrMatch extends Duel {
     wall.scale.set(Math.max(0.01, cur.r), 1, Math.max(0.01, cur.r));
     // a guest hurts itself outside the mirrored ring, on its own tick
     if (this.role === "guest" && this.phase === "fight") {
-      this.guestTick += Math.min(0.1, now - this.lastClock + 1e-9);
+      this.guestTick += frameDt;
       if (this.guestTick >= RING_TICK) {
         this.guestTick -= RING_TICK;
         if (this.alive && Math.hypot(local.x - cur.cx, local.z - cur.cz) > cur.r) this.hurt(RING_PHASES[Math.min(this.view.phase, RING_PHASES.length - 1)].damage, -1);
@@ -541,6 +554,8 @@ export class BrMatch extends Duel {
   protected override tick(now: number, dt: number, local: LocalState): void {
     const ring = this.ring;
     if (!ring || this.brOver) return;
+    // the lobby (someone still on the menu): the ring, the care packages and the bots wait for the drop
+    if (this.phase === "waiting") return;
     // the drop ends for the host when it lands: the fight is on from then
     if (this.phase === "countdown" && local.stance !== "air" && now - this.dropAt > 1) {
       this.enter("fight", now, 0);
@@ -549,7 +564,7 @@ export class BrMatch extends Duel {
     const feet = new THREE.Vector3(local.x, local.y, local.z);
     // the bots that have landed search, then have their gun and a shield of some tier
     for (const b of this.bots) {
-      if (!b.landed && b.bot.alive && !b.bot.dropping && this.phase !== "waiting") {
+      if (!b.landed && b.bot.alive && !b.bot.dropping) {
         b.landed = true;
         b.armedAt = now + (this.startLoot ? LOOT.botSearch[this.difficulty] * (0.7 + Math.random() * 0.6) : 0);
       }
@@ -842,9 +857,17 @@ export class BrMatch extends Duel {
   override dispose(): void {
     for (const b of this.bots) b.bot.dispose();
     this.bots = [];
-    this.lootField?.clear();
-    this.lootField?.group.removeFromParent();
-    for (const p of this.pods) p.obj.removeFromParent();
+    this.lootField?.dispose();
+    for (const p of this.pods) {
+      p.obj.removeFromParent();
+      p.obj.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh) {
+          m.geometry.dispose();
+          (m.material as THREE.Material).dispose();
+        }
+      });
+    }
     this.pods = [];
     this.map.ringWall.scale.set(0.01, 1, 0.01);
     super.dispose();

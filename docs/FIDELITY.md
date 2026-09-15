@@ -264,4 +264,31 @@ supply-drop variant is not published.
 ## Data era
 The reference set is a Season 3 base with some later weapon updates. Live
 balance differs on some guns. Patch overrides go in `data/overrides.json`
-(not yet created) and are applied by the extractor.
+and are applied by the extractor; Season 30's changes are there (the 30-30's
+51, the L-STAR's 20, the Charge Rifle's 75 growing to 110 at 200 m).
+
+## Phase 11: the Season 30 systems (sources in docs/RESEARCH_PHASE_11.md)
+
+| Number | Value | Source / confidence |
+|---|---|---|
+| Heals | cell 25 in 2.5 s, syringe 25 in 4 s, battery full in 5 s, med kit full in 8 s, phoenix both full in 10 s; stacks 6 / 6 / 2 / 2 / 1 | wiki, exact (research section 1) |
+| Healing slow | 40% slower, no sprint; not cancelled by damage | wiki, exact |
+| Helmets | no headshot cut since S24; gold sets armour 100 and doubles the small heals; mythic 125 | patch notes, exact (section 2) |
+| Shield cores (EVO) | white 50, blue at 450 EVO, purple at 1,700 | wiki, exact (section 3); EVO from damage dealt only (ours: taken and knocks are left out) |
+| Down and revive | bleed-out 90 / 60 / 30 / 15 s by knock, 100 more to finish, revive 5 s to 20 health, banner 90 s, beacon 5 s | wiki, exact (section 4); the crawl's 65% is ours |
+| Frag | 100 inside 2.4 m, 8 m radius, 4 s fuse, +10 direct | wiki, exact (section 5); straight-line fall-off, throw speed, gravity, bounce are ours |
+| Arc star | 75 inside 1.8 m, 8.75 m, 2.8 s after sticking, +10 stick, slow up to 5 s | wiki, exact; the slow's strength (55% speed) is ours |
+| Thermite | 6 m, 8 s, 4 a tick twice a second, 25 afterburn | wiki, exact; the afterburn's 2.5 s, the fire's width, lying across the throw are ours |
+| Nemesis, Bocek | the research's numbers (section 6, 7) | wiki, exact |
+| Energy ammo | a magazine back every 18 s idle; stockpiles 2 (RE-45, Volt, Triple Take), 3 (HAVOC, Nemesis, Devotion), 4 (L-STAR) | patch notes, exact (section 8) |
+| Charge Rifle, L-STAR, HAVOC, Devotion, 30-30 | 0.85 s charge, 75 to 110 at 200 m; overheat after 24/26/28/30 shots, lockout 1.19 to 1.07 s; 0.42 s wind-up (0.01 turbo); 1.75 s spin (0.85 turbo); 51 damage, 0.25 s aimed charge | patch notes and wiki, exact (sections 9 to 11) |
+| Mantle boost cue | the mantle's last 0.15 s | patch notes, exact (section 12) |
+| Gun Run | one kill a level, the knife (100 body / 300 head) wins, a melee death costs a level, 10 min, regen after 4 s | wiki, exact (section 13); free-for-all, 10 or 29 guns, 3 s respawn and the regen rate are ours |
+| Team deathmatch | first to 30, teams of 4, 10 min, 4 s respawn | ours, scaled from Apex's 6v6 first to 40 |
+| Crown | appears 20 s in, 30 s to hold, first to 3 | ours (Hyper Scape's launch value was 45 s, unverified) |
+| JOLT, TRIAGE | 10 m every 3 s; heals twice as fast | the owner's numbers; JOLT's 0.18 s and 260 hu/s exit are ours |
+| Killcam | the last 4 s, then 1 s after, recorded 30 times a second | ours |
+| Loot tables | rarity weights, items per spot, what each rarity holds | ours (Apex does not publish them); the care-package guns per S30 |
+| Launch pads, jump towers | a pad's 20 m/s along and 16 m/s up; a tower's drop from three quarters of the drop height | ours |
+| Course pars | a room's share of the S rank by length; medals at par, +25%, +60% | ours |
+| Controller advanced look | 180 / 120 deg/s hip, 90 / 60 ADS, ramp 0.33 s by default | ours (the game's own defaults are not published) |

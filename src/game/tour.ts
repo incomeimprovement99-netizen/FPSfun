@@ -115,10 +115,11 @@ export class Tour {
     return this.active ? STEPS[this.index].id : null;
   }
 
-  /** the heal step lends its vitals (the range has none of its own) */
+  /** the heal step lends its vitals (the range has none of its own), until the heal it began is over */
   get healVitals(): { shield: number; health: number; alive: boolean } | null {
-    return this.stepId === "heal" ? this.vitals : null;
+    return this.stepId === "heal" || this.lending ? this.vitals : null;
   }
+  private lending = false;
 
   start(c: TourCheck): void {
     this.index = 0;
@@ -127,6 +128,7 @@ export class Tour {
 
   stop(): void {
     this.index = -1;
+    this.lending = false;
     this.group.visible = false;
   }
 
@@ -146,6 +148,8 @@ export class Tour {
   }
 
   private next(c: TourCheck, now: number): void {
+    // the heal step is done the moment the heal starts: its shield stays lent until the heal ends
+    if (STEPS[this.index]?.id === "heal") this.lending = true;
     this.index++;
     if (this.index >= STEPS.length) {
       this.index = -1;
@@ -163,6 +167,7 @@ export class Tour {
     const step = STEPS[this.index];
     const s = this.state;
     if (c.sprinting) s.sprinted = true;
+    if (this.lending && !c.healing) this.lending = false;
     let marker: THREE.Vector3 | null = null;
     if (step.at) {
       const [x, z] = step.at;

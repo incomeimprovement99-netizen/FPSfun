@@ -636,7 +636,7 @@ export class Duel implements MatchLike {
         r.downed = false;
         r.avatar.fallDown();
         {
-          const by = m.by === this.id ? (this.myName || "YOU") : (this.remotes.get(m.by)?.name ?? `PLAYER ${m.by + 1}`);
+          const by = m.by === this.id ? this.myName || "YOU" : m.by === -1 ? "THE RING" : (this.nameOf(m.by) ?? `PLAYER ${m.by + 1}`);
           const mine = m.by === this.id;
           this.onFeed?.(`${by} knocked ${r.name}`, mine, !mine && this.mode !== "duel");
           if (mine) this.kills++;
@@ -681,6 +681,7 @@ export class Duel implements MatchLike {
 
   /** one of three is gone: their figure goes, the match carries on as a 1v1 */
   protected playerGone(id: number, notice: string): void {
+    if (this.revivedBy === id) this.revivedBy = null;
     const r = this.remotes.get(id);
     if (!r) return;
     for (const d of r.avatars.values()) {
@@ -970,7 +971,7 @@ export class Duel implements MatchLike {
     this.myName = local.name;
     if (this.ended) return;
     for (const r of [...this.remotes.values()]) {
-      if (now - r.lastHeard > SILENCE_LIMIT) {
+      if (now - r.lastHeard > SILENCE_LIMIT && !(r.id >= Duel.BOT_ID && this.phase === "matchEnd")) {
         if (this.role === "guest" && r.id === 0) {
           this.finish("Lost the connection to the host.");
           return;
@@ -1226,7 +1227,7 @@ const vec3 = (v: unknown): boolean => Array.isArray(v) && v.length === 3 && fini
 
 /** an effect: a short name and, if there, finite points */
 function fxWellFormed(m: Extract<NetMsg, { t: "fx" }>): boolean {
-  return typeof m.k === "string" && m.k.length <= 16 && (m.a === undefined || vec3(m.a)) && (m.b === undefined || vec3(m.b)) && (m.n === undefined || finite(m.n));
+  return typeof m.k === "string" && m.k.length <= 16 && (m.a == null || vec3(m.a)) && (m.b == null || vec3(m.b)) && (m.n == null || finite(m.n));
 }
 
 /** the packets that make or move a figure, checked field by field */
@@ -1237,7 +1238,7 @@ function wellFormed(m: NetMsg): boolean {
     case "shot":
       return vec3(m.o) && vec3(m.d) && typeof m.w === "string";
     case "hit":
-      return finite(m.to, m.amount) && m.amount >= 0 && m.amount <= 1000 && (m.w === undefined || typeof m.w === "string") && (m.d === undefined || finite(m.d));
+      return finite(m.to, m.amount) && m.amount >= 0 && m.amount <= 1000 && (m.w == null || typeof m.w === "string") && (m.d == null || finite(m.d));
     case "down":
       return finite(m.by);
     default:

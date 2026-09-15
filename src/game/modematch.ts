@@ -249,8 +249,8 @@ export class ArenaMode extends Duel {
     const out: Array<{ id: number; x: number; z: number; y: number; alive: boolean }> = [];
     const me = this.lastLocal;
     if (me) out.push({ id: this.id, x: me.x, y: me.y, z: me.z, alive: this.alive });
+    // a guest's remotes include the host's bots (the host's own are in this.bots)
     for (const r of this.remotes.values()) {
-      if (r.id >= Duel.BOT_ID) continue;
       const s = r.samples[r.samples.length - 1];
       if (s) out.push({ id: r.id, x: s.x, y: s.y, z: s.z, alive: r.alive });
     }
@@ -352,6 +352,7 @@ export class ArenaMode extends Duel {
 
   /** Gun Run: every bot's gun from its level, and this player's */
   private gunsChanged(): void {
+    if (this.modeKind !== "gunrun") return;
     const knife = MODES.gunRun.knifeDamage;
     for (const b of this.bots) {
       const g = this.ladder.gunFor(b.bot.remote.id);
@@ -612,7 +613,11 @@ export class ArenaMode extends Duel {
   private fight(now: number, dt: number, local: LocalState): void {
     if (now >= this.timeEndsAt) {
       // the clock ran out: the leader, or the team ahead (a draw: nobody)
-      if (this.modeKind === "gunrun") this.endMatch(this.ladder.leader?.id ?? -1, now);
+      if (this.modeKind === "gunrun") {
+        const [a, b] = this.ladder.sorted;
+        const tie = !!a && !!b && a.level === b.level && a.kills === b.kills && a.deaths === b.deaths;
+        this.endMatch(!a || tie ? -1 : a.id, now);
+      }
       else {
         const ahead = this.teams.ahead;
         this.endMatch(ahead === null ? -1 : TEAM_WIN(ahead), now);
@@ -785,6 +790,8 @@ export class ArenaMode extends Duel {
     const f = this.fighters().find((x) => x.id === id);
     super.guestLeft(id);
     if (this.ended || this.role !== "host") return;
+    this.ladder.remove(id);
+    this.roundWins.delete(id);
     if (this.crown?.carrier === id) this.crown.drop(f?.x ?? ARENA_X, f?.z ?? ARENA_Z);
     this.checkLastUp(wallClock());
   }
@@ -899,6 +906,13 @@ export class ArenaMode extends Duel {
     for (const b of this.bots) b.bot.dispose();
     this.bots = [];
     this.crownModel.removeFromParent();
+    this.crownModel.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) {
+        m.geometry.dispose();
+        (m.material as THREE.Material).dispose();
+      }
+    });
     super.dispose();
   }
 }

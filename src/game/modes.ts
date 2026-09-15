@@ -72,7 +72,8 @@ export class GunLadder {
     if (killer < 0 || killer === victim) return false;
     const k = this.row(killer);
     k.kills++;
-    if (k.level >= this.guns.length) return true;
+    // the knife level: a knife kill wins it; any other kill (a grenade) counts, but wins nothing
+    if (k.level >= this.guns.length) return melee;
     k.level++;
     return false;
   }
@@ -84,6 +85,11 @@ export class GunLadder {
 
   get sorted(): LadderRow[] {
     return [...this.rows.values()].sort((a, b) => b.level - a.level || b.kills - a.kills || a.deaths - b.deaths || a.id - b.id);
+  }
+
+  /** a player who left: off the ladder (they cannot win on time) */
+  remove(id: number): void {
+    this.rows.delete(id);
   }
 
   /** from the host's state packet */

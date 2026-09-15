@@ -79,6 +79,31 @@ function glowTexture(): THREE.Texture | null {
 const SUBSTEPS = 4;
 
 /**
+ * The shapes, made once and shared by every throw, flame and flash (a
+ * geometry per event was never freed: a frag spammed in the range grew the
+ * GPU's memory without end). Made on first use, so Node's tests pay nothing.
+ */
+let GEO: Record<"frag" | "blink" | "hub" | "blade" | "can" | "flame" | "ball" | "ring", THREE.BufferGeometry> | null = null;
+function geo(): NonNullable<typeof GEO> {
+  if (!GEO) {
+    const flame = new THREE.PlaneGeometry(0.8, 1.5);
+    // the plane's base on the ground, so a flame grows up from it
+    flame.translate(0, 0.75, 0);
+    GEO = {
+      frag: new THREE.SphereGeometry(0.075, 12, 10),
+      blink: new THREE.SphereGeometry(0.02, 6, 6),
+      hub: new THREE.CylinderGeometry(0.05, 0.05, 0.03, 14),
+      blade: new THREE.ConeGeometry(0.03, 0.12, 4),
+      can: new THREE.CylinderGeometry(0.045, 0.045, 0.16, 12),
+      flame,
+      ball: new THREE.SphereGeometry(1, 16, 12),
+      ring: new THREE.RingGeometry(0.85, 1, 40),
+    };
+  }
+  return GEO;
+}
+
+/**
  * A blast's damage at a distance from its centre: the full amount inside the
  * inner radius, falling in a straight line to nothing at the outer one.
  */
@@ -207,17 +232,17 @@ export class Throwables {
   private body(kind: ThrowKind): THREE.Object3D {
     const g = new THREE.Group();
     if (kind === "frag") {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), this.mats.frag);
+      const m = new THREE.Mesh(geo().frag, this.mats.frag);
       m.scale.y = 1.25;
-      const light = new THREE.Mesh(new THREE.SphereGeometry(0.02, 6, 6), this.blink);
+      const light = new THREE.Mesh(geo().blink, this.blink);
       light.position.y = 0.1;
       light.name = "blink";
       g.add(m, light);
     } else if (kind === "arcstar") {
-      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 14), this.mats.arcstar);
+      const hub = new THREE.Mesh(geo().hub, this.mats.arcstar);
       g.add(hub);
       for (let i = 0; i < 4; i++) {
-        const blade = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.12, 4), this.mats.arcstar);
+        const blade = new THREE.Mesh(geo().blade, this.mats.arcstar);
         blade.rotation.z = Math.PI / 2;
         blade.position.x = 0.09;
         const arm = new THREE.Group();
@@ -226,7 +251,7 @@ export class Throwables {
         g.add(arm);
       }
     } else {
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.16, 12), this.mats.thermite);
+      const m = new THREE.Mesh(geo().can, this.mats.thermite);
       m.rotation.z = Math.PI / 2;
       g.add(m);
     }
@@ -288,7 +313,7 @@ export class Throwables {
       });
     }
     this.fires = this.fires.filter((f) => {
-      if (now >= f.until) f.group.removeFromParent();
+      if (now >= f.until) this.dropFire(f);
       return now < f.until;
     });
     for (const fl of this.flashes) {
@@ -300,10 +325,7 @@ export class Throwables {
     }
     this.flashes = this.flashes.filter((fl) => {
       const over = now - fl.born > fl.life;
-      if (over) {
-        fl.obj.removeFromParent();
-        fl.ring.removeFromParent();
-      }
+      if (over) this.dropFlash(fl);
       return !over;
     });
   }
@@ -398,9 +420,7 @@ export class Throwables {
     const b = ground.clone().addScaledVector(across, c.length / 2);
     const g = new THREE.Group();
     const n = 14;
-    const plane = new THREE.PlaneGeometry(0.8, 1.5);
-    // the plane's base on the ground, so a flame grows up from it
-    plane.translate(0, 0.75, 0);
+    const plane = geo().flame;
     for (let i = 0; i <= n; i++) {
       const p = a.clone().lerp(b, i / n);
       // two crossed planes a flame, so it has body from any side
@@ -416,6 +436,8 @@ export class Throwables {
     glow.rotation.z = -Math.atan2(across.z, across.x);
     glow.position.copy(ground).setY(ground.y + 0.03);
     g.add(glow);
+    // the glow's size is this fire's own: its geometry goes with the fire
+    glow.userData.own = true;
     this.group.add(g);
     const strip: FireStrip = { owner: t.owner, mine: t.mine, a, b, until: now + c.duration, nextTick: now, group: g };
     this.fires.push(strip);
@@ -424,9 +446,9 @@ export class Throwables {
 
   /** a blast's light: a ball and a ring on the ground, growing and fading */
   private flash(at: THREE.Vector3, radius: number, colour: number, now: number): void {
-    const obj = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const obj = new THREE.Mesh(geo().ball, new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
     obj.position.copy(at);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 40), new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    const ring = new THREE.Mesh(geo().ring, new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2;
     ring.position.set(at.x, Math.max(0.05, at.y - 0.05), at.z);
     this.group.add(obj, ring);
@@ -450,13 +472,24 @@ export class Throwables {
     return solidHit(from, d.divideScalar(len), len) >= len - 0.05;
   }
 
+  /** a fire gone: out of the scene, and its own glow plane freed */
+  private dropFire(f: FireStrip): void {
+    f.group.removeFromParent();
+    for (const c of f.group.children) if (c.userData.own) (c as THREE.Mesh).geometry.dispose();
+  }
+
+  /** a flash gone: out of the scene, and its two materials (its own, for its fade) freed */
+  private dropFlash(fl: { obj: THREE.Mesh; ring: THREE.Mesh }): void {
+    fl.obj.removeFromParent();
+    fl.ring.removeFromParent();
+    (fl.obj.material as THREE.Material).dispose();
+    (fl.ring.material as THREE.Material).dispose();
+  }
+
   clear(): void {
     for (const t of this.live) t.mesh.removeFromParent();
-    for (const f of this.fires) f.group.removeFromParent();
-    for (const fl of this.flashes) {
-      fl.obj.removeFromParent();
-      fl.ring.removeFromParent();
-    }
+    for (const f of this.fires) this.dropFire(f);
+    for (const fl of this.flashes) this.dropFlash(fl);
     this.live = [];
     this.fires = [];
     this.flashes = [];

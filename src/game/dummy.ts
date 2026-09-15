@@ -691,6 +691,10 @@ export class Dummy {
    */
   dispose(): void {
     this.mq?.dispose();
+    if (this.healMesh) {
+      this.healMesh.geometry.dispose();
+      (this.healMesh.material as THREE.Material).dispose();
+    }
     this.group.removeFromParent();
     this.baked.traverse((o) => {
       const m = o as THREE.Mesh;

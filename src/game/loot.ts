@@ -163,6 +163,9 @@ export class LootField {
   private nextKey = 1;
   private beamGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6, 1, true);
   private boxGeo = new THREE.BoxGeometry(0.34, 0.2, 0.34);
+  /** a gun's ring on the floor and a death box, shared by every one (not one geometry each) */
+  private ringGeo = new THREE.RingGeometry(0.34, 0.42, 20);
+  private crateGeo = new THREE.BoxGeometry(0.9, 0.55, 0.6);
   private mats = new Map<string, THREE.Material>();
 
   /** no scene: nothing drawn (tools/verify.ts, in Node) */
@@ -190,12 +193,12 @@ export class LootField {
       m.rotation.set(0, Math.PI / 2, Math.PI / 2);
       m.position.y = 0.06;
       g.add(m);
-      const plate = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.42, 20), this.mat(`ring${colour}`, () => new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide })));
+      const plate = new THREE.Mesh(this.ringGeo, this.mat(`ring${colour}`, () => new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide })));
       plate.rotation.x = -Math.PI / 2;
       plate.position.y = 0.02;
       g.add(plate);
     } else if (it.kind === "box") {
-      const crate = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.55, 0.6), this.mat("deathbox", () => new THREE.MeshStandardMaterial({ color: 0x2b2f35, emissive: 0xff5a3a, emissiveIntensity: 0.25, roughness: 0.6 })));
+      const crate = new THREE.Mesh(this.crateGeo, this.mat("deathbox", () => new THREE.MeshStandardMaterial({ color: 0x2b2f35, emissive: 0xff5a3a, emissiveIntensity: 0.25, roughness: 0.6 })));
       crate.position.y = 0.28;
       g.add(crate);
     } else {
@@ -240,6 +243,15 @@ export class LootField {
   clear(): void {
     for (const k of [...this.drops.keys()]) this.remove(k);
     this.nextKey = 1;
+  }
+
+  /** done with the field (the match is over): the items, its shapes and its materials freed */
+  dispose(): void {
+    this.clear();
+    this.group.removeFromParent();
+    for (const g of [this.beamGeo, this.boxGeo, this.ringGeo, this.crateGeo]) g.dispose();
+    for (const m of this.mats.values()) m.dispose();
+    this.mats.clear();
   }
 
   /**

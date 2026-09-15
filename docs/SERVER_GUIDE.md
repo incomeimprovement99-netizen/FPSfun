@@ -15,13 +15,20 @@ under **pm2**, **Caddy** in front for HTTPS, a free **DuckDNS** name.
 | Address | `incomeimprovement99-netizen.github.io/FPSfun/` | `yourname.duckdns.org` (or any domain you buy) |
 | Matchmaking (the 5-letter codes) | the free public PeerJS broker, which is sometimes down or rate-limited | **our own broker** on the server |
 | Friends on strict networks (school, office, hotspot, VPN) | often "Lost the connection" | **our own TURN relay** carries the match when a direct connection is blocked |
-| Online leaderboards | none | **on**: best course times and win counts by name, in the Stats tab |
+| Online leaderboards | none | **on**: best course times, the flick drill, and win counts by name for every mode (1v1, 1v1v1, the bots, the battle royale, Gun Run, team deathmatch, Crown), in the Stats tab |
 | Deploy | `npm run deploy` | `npm run deploy:server` (builds, ships, plays a test 1v1 on the live site) |
 
 The build is the same for both. On Pages the game falls back to the public
 broker by itself, so the Pages link keeps working as a backup.
 
 ## 1. Where to put it (your choice)
+
+**Chosen: B, its own free VM.** The Algonomics box runs a live trader with
+real money and is not to be touched; option A below stays for the record
+only. Once the Micro VM exists: its IP in DuckDNS (section 2, the name
+`fpsfun`), the relay's ports in its security list (section 3), its address
+and key path in `.env.server` (section 4), then `npm run deploy:server --
+setup` and `npm run deploy:server`.
 
 **A. On the Algonomics VM (fastest).** The box has 4 cores and 24 GB and
 the game needs almost none of it: a small Node process and the relay. It

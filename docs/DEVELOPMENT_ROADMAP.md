@@ -349,3 +349,17 @@ Striker 9 is) with Season 30's numbers.
   tab with real inputs where it can: the marker walk, a sprint, a slide, a jump, a mantle, a climb, a skip, a real
   hit with the trigger, a reload, a swap, a heal, JOLT, a grenade, remembered; gold in every room of a quick
   course run), snap (tour).
+
+## Milestone 24 — Phase 11 closed: the bug hunt, the docs, the deploy ✅
+2026-09-15 (Phase 11N). `docs/PHASE_11_ABILITIES_KILLCAM_AND_THE_AAA_BATCH.md`.
+- **Two independent reviews** of everything the phase touched and the live check, 31 findings, each re-read against
+  the code: 29 fixed, one left by design, one a question for the owner. The live check found that a message with
+  an undefined field was dropped over the real peer-to-peer link (PeerJS packs it as null). The worst: a guest in a battle royale hardly ever
+  took the ring's damage; team deathmatch and Crown bots were handed Gun Run's guns; a grenade throw fired the
+  gun on the same click; the tour's heal step left a heal running that blocked grenades; toggle ADS could not
+  aim while sprinting; GPU memory grew with every throw and every battle royale.
+- Regression tests for the worst of them (verify: the knife's rule, the ladder without a leaver, saved keys
+  against new defaults; e2e: the guest's ring damage, the TDM bots' guns, the throw without a shot, the tour's
+  grenade with the real key after the heal).
+- README, the deploy and server guides, NEXT_STEPS, GAP_ANALYSIS and FIDELITY brought up to date; the results
+  document; the Pages build deployed and checked live.
