@@ -15,7 +15,7 @@ import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset } from "./game/quality";
 import { ProjectileSystem, solidHit } from "./game/projectile";
-import { Dummy, ARMOR_NAME, ARMOR_COLOR, type ArmorTier } from "./game/dummy";
+import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier } from "./game/dummy";
 import { buildRange, skyFollow, setShadowRegion, getSun, RANGE_BOUNDS, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { buildBrMap, BR_BOUNDS, BR_CENTER } from "./game/br";
 import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
@@ -30,7 +30,7 @@ import { mergeStatic } from "./game/staticmerge";
 import { opticInfo } from "./game/optics";
 import { opticName } from "./config/names";
 import type { ResolvedWeapon } from "./game/weapons";
-import { Duel, SHIELD_MAX, HEALTH_MAX, type MatchLike } from "./game/duel";
+import { Duel, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike } from "./game/duel";
 import { BotMatch } from "./game/bots";
 import { Stats, type MatchKind, type BotDifficulty } from "./game/stats";
 import { submitScore } from "./game/leaderboard";
@@ -56,6 +56,7 @@ import { Soundscape } from "./game/soundscape";
 import { DummyBehaviour, DUMMY_MODES, DUMMY_MODE_NAME, FlickDrill, RangeCombat, SprayWall, type DummyMode } from "./game/rangetools";
 import { SuperglideTrainer } from "./game/trainer";
 import { BrPlay } from "./game/brplay";
+import { loadMannequin, setFigureStyle } from "./game/mannequin";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
 import squadCfg from "./config/squad.json";
@@ -727,6 +728,22 @@ mantleCueSel.addEventListener("change", () => {
     /* ignore */
   }
 });
+// the figures: our robots, or the motion-captured mannequin (Settings; mannequin.ts)
+const figureSel = $<HTMLSelectElement>("figureStyle");
+try {
+  if (localStorage.getItem("range.figures") === "mannequin") figureSel.value = "mannequin";
+} catch {
+  /* ignore */
+}
+setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
+figureSel.addEventListener("change", () => {
+  setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
+  try {
+    localStorage.setItem("range.figures", figureSel.value);
+  } catch {
+    /* ignore */
+  }
+});
 // the killcam can be turned off (Settings); the recap still shows
 const killcamSel = $<HTMLSelectElement>("killcamMode");
 let killcamOn = true;
@@ -1082,6 +1099,7 @@ function useAbility(now: number): void {
   if (thirdPerson) fx.jolt(from, to, now);
   audio.jolt(1);
   duel?.localFx("jolt", from, to);
+  selfFig?.jolt();
 }
 /** the match's phase last frame, and whether you were in the drop: the card comes up on a change */
 let lastMatchPhase: string | null = null;
@@ -1797,6 +1815,14 @@ const eye = new THREE.Vector3();
 /** your own figure, drawn in third person; rebuilt when the gun or the operator changes */
 let selfFig: Dummy | null = null;
 let selfFigKey = "";
+/** what your hands are doing, for your figure on the others' screens and in third person */
+function localAct(): number {
+  if (heal) return actCode("heal", Math.max(0, HEAL_CODES.indexOf(heal.item)));
+  if (loadout.swapping) return actCode("swap");
+  if (loadout.active.state.reloading) return actCode("reload");
+  return 0;
+}
+
 function selfFigure(now: number, dt: number, weaponId: string, op: string, show: boolean, knocked: boolean): void {
   if (!show) {
     if (selfFig) selfFig.group.visible = false;
@@ -1816,7 +1842,8 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, show:
   f.group.rotation.y = player.yaw * DEG + Math.PI;
   if (knocked) f.fallDown();
   else if (f.knocked) f.reset();
-  f.setPose({ speed: player.speed, stance: player.stance, pitch: player.pitch });
+  const ac = localAct();
+  f.setPose({ speed: player.speed, stance: player.stance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), healItem: heal?.item });
   f.update(now, dt);
 }
 
@@ -2273,6 +2300,7 @@ function step(): void {
       }
       projectiles.fire(origin.clone(), tmpDir, weapon, false, s.dmgScale, s.speedScale);
       duel?.localShot(origin, tmpDir, weapon.id);
+      selfFig?.kick();
     }
     hardPitch += s.kick.permPitchUp;
     hardYaw += s.kick.permYawLeft;
@@ -2480,6 +2508,8 @@ function step(): void {
     ready: input.playing,
     stance: downedNow ? "downed" : player.stance,
     speed: player.speed,
+    ads: ws.adsFrac,
+    act: localAct(),
   });
   // the battle royale from your side: E, the pads, pings
   if (duel instanceof BrMatch) {
@@ -2776,6 +2806,8 @@ initWelcome();
   brPlay,
   applyLoot,
   THREE,
+  loadMannequin,
+  setFigureStyle,
   /** open ground near x, z: nothing standing on the floor within `clear` metres (tools/e2e.ts) */
   openGround: (x: number, z: number, clear = 5): { x: number; z: number } | null => {
     for (let r = 0; r < 120; r += 3) {

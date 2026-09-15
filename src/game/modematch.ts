@@ -558,7 +558,7 @@ export class ArenaMode extends Duel {
     for (const b of this.bots) {
       const s = b.bot.remote.samples;
       s.length = 0;
-      s.push({ at: now, x: b.bot.pos.x, y: b.bot.pos.y, z: b.bot.pos.z, yaw: 0, pitch: 0, crouch: false, stance: "stand", speed: 0 });
+      s.push({ at: now, x: b.bot.pos.x, y: b.bot.pos.y, z: b.bot.pos.z, yaw: 0, pitch: 0, crouch: false, stance: "stand", speed: 0, ads: 0, act: null });
     }
   }
   private lastFrame = wallClock();

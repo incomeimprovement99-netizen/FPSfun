@@ -336,6 +336,21 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   check("crown: round 2 starts with the crown waiting again", r2 && (await ev<string>(c, "window.__range.duel().hud().mode.crown.phase")) === "waiting");
   await ev(c, "window.__range.duel()?.leave()");
   await c.close();
+
+  // ---- the motion-captured figures (a setting): they load, a match's figures are mannequins and animate
+  const mq = await open(browser, query);
+  await ev(mq, `(() => { const s = document.getElementById("figureStyle"); s.value = "mannequin"; s.dispatchEvent(new Event("change")); return window.__range.loadMannequin(); })()`);
+  await ev(mq, `(() => { document.getElementById("modeBots").value = "2"; document.getElementById("goCrown").click(); })()`);
+  await pressPlay(mq);
+  await mq.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 20000 }).catch(() => undefined);
+  await sleep(800);
+  const figs = await ev<{ n: number; mannequins: number; moved: boolean }>(
+    mq,
+    `(() => { const d = window.__range.duel(); const a = d.avatars; const m = a.map((x) => x.group.getObjectByName("mannequin")).filter(Boolean); let moved = false; m[0]?.traverse((o) => { if (o.name === "thigh_l") moved = Math.abs(o.quaternion.x) + Math.abs(o.quaternion.y) + Math.abs(o.quaternion.z) > 0.01; }); return { n: a.length, mannequins: m.length, moved }; })()`
+  );
+  check("figures: with the setting on the bots are mannequins, and their clips are playing", figs.n === 2 && figs.mannequins === 2 && figs.moved, JSON.stringify(figs));
+  await ev(mq, `(() => { const s = document.getElementById("figureStyle"); s.value = "robot"; s.dispatchEvent(new Event("change")); window.__range.duel()?.leave(); })()`);
+  await mq.close();
 }
 
 /** Gun Run with a friend over the local transport, and a bot: the ladder is the host's, a kill moves the killer on on both screens, respawns */
@@ -385,6 +400,24 @@ async function modesFriendsTest(browser: Browser, query: string): Promise<void> 
   await ev(guest, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id >= 100 && x.alive); d.localHit(r, 900, true, "rspn101", 9); })()`);
   const gl = await guest.waitForFunction("window.__range.duel().ladder.level(1) === 1 && window.__range.loadout.slots[0].id === 'r97'", { polling: 200, timeout: 5000 }).then(() => true, () => false);
   check("modes friends: the guest's kill on the host's bot moves the guest on, the R-99 in the guest's hands", gl, JSON.stringify(await ev(guest, "({ lv: window.__range.duel().ladder.level(1), gun: window.__range.loadout.slots[0].id })")));
+  // the figure over the network: the guest aims down sights, then heals; the host's copy of the guest does it too
+  await ev(guest, `(() => {
+    if (!window.__pad) {
+      const btn = () => ({ pressed: false, touched: false, value: 0 });
+      const pad = { index: 0, id: "fake pad", connected: true, mapping: "standard", timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, btn) };
+      window.__pad = pad;
+      navigator.getGamepads = () => [pad];
+    }
+    window.__pad.buttons[6].pressed = true;
+    window.__pad.buttons[6].value = 1;
+  })()`);
+  const aimed = await host.waitForFunction("(window.__range.duel().remotes.get(1)?.avatar.currentPose.ads ?? 0) > 0.6", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  await ev(guest, "(() => { window.__pad.buttons[6].pressed = false; window.__pad.buttons[6].value = 0; })()");
+  check("figures: the guest aims down sights and the host's figure of the guest raises its gun", aimed, JSON.stringify(await ev(host, "window.__range.duel().remotes.get(1)?.avatar.currentPose")));
+  await ev(guest, `(() => { const d = window.__range.duel(); d.shield = d.shieldMax - 15; window.__range.startHeal(); })()`);
+  const healing = await host.waitForFunction("window.__range.duel().remotes.get(1)?.avatar.currentPose.act === 'heal'", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  const item = await ev<string | undefined>(host, "window.__range.duel().remotes.get(1)?.avatar.currentPose.healItem");
+  check("figures: the guest heals and the host's figure of the guest holds the item (a shield cell)", healing && item === "cell", String(item));
   await ev(guest, "window.__range.duel()?.leave()");
   await host.waitForFunction("window.__range.duel() === null || window.__range.duel().phase", { polling: 200, timeout: 5000 }).catch(() => undefined);
   await ev(host, "window.__range.duel()?.leave()");

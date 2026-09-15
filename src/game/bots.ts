@@ -343,6 +343,7 @@ export class Bot {
       this.joltDir.set((-tz / tl) * side, (tx / tl) * side);
       this.joltLeft = JOLT.duration;
       this.joltReadyAt = now + JOLT.cooldown;
+      this.dummy.jolt();
       this.joltFrom.copy(this.pos);
     }
 
@@ -401,10 +402,24 @@ export class Bot {
       this.dummy.group.rotation.y = cur + diff * Math.min(1, dt * 10);
     }
     this.dummy.group.position.copy(this.pos);
-    // the figure runs when it moves and looks at what it aims at
+    // the figure runs when it moves and looks at what it aims at; the legs go the
+    // way it walks (a strafe, a backpedal) while the body stays on the target;
+    // it aims down its sights at a target in sight, and a heal takes its hands
     const moving = want.length() > 1e-3;
     const aimPitch = target ? (Math.atan2(target.y + 1.15 - (this.pos.y + 1.35), Math.max(1e-3, Math.hypot(target.x - this.pos.x, target.z - this.pos.z))) * 180) / Math.PI : 0;
-    this.dummy.setPose({ speed: moving ? this.diff.speed * (this.healing ? HEAL_WALK : 1) : 0, stance: "stand", pitch: aimPitch });
+    const ry = this.dummy.group.rotation.y;
+    const fwdX = Math.sin(ry);
+    const fwdZ = Math.cos(ry);
+    const moveDir = moving ? Math.atan2(want.x * -fwdZ + want.y * fwdX, want.x * fwdX + want.y * fwdZ) : 0;
+    this.dummy.setPose({
+      speed: moving ? this.diff.speed * (this.healing ? HEAL_WALK : 1) : 0,
+      stance: "stand",
+      pitch: aimPitch,
+      moveDir,
+      ads: target && this.knife === null && !this.healing ? 0.85 : 0,
+      act: this.healing ? "heal" : null,
+      healItem: this.healing?.item,
+    });
     this.dummy.update(now, dt);
 
     // shooting: after the reaction time, at the weapon's rate, with an aim
@@ -439,6 +454,7 @@ export class Bot {
           pd.applyAxisAngle(new THREE.Vector3(0, 1, 0), ((Math.random() * 2 - 1) * 2 * Math.PI) / 180).applyAxisAngle(side, ((Math.random() * 2 - 1) * 2 * Math.PI) / 180);
         }
         this.projectiles.fire(from, pd, this.weapon, true);
+        if (p === 0) this.dummy.kick();
         shots.push({ from, dir: pd, damage: this.weapon.damage.near, weapon: this.weapon.id });
       }
     }
@@ -717,7 +733,7 @@ export class BotMatch implements MatchLike {
       }
       const s = b.remote.samples;
       s.length = 0;
-      s.push({ at: now, x: b.pos.x, y: b.pos.y, z: b.pos.z, yaw: 0, pitch: 0, crouch: false, stance: "stand", speed: 0 });
+      s.push({ at: now, x: b.pos.x, y: b.pos.y, z: b.pos.z, yaw: 0, pitch: 0, crouch: false, stance: "stand", speed: 0, ads: 0, act: null });
     }
   }
 

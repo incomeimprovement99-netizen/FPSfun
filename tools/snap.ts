@@ -208,6 +208,52 @@ export const SCENARIOS: Scenario[] = [
       [`(() => { const d = window.__range.duel(); const b = d.bots[0].bot; b.pos.set(90, 0, -40); d.crown.phase = "ground"; d.crown.x = 90; d.crown.z = -40; })()`, 1200],
     ],
   },
+  {
+    name: "figure-poses",
+    note: "the figures: a strafe aimed down sights, a backpedal reloading, a heal, a swap (left to right)",
+    steps: [
+      [fakePad, 600],
+      [`(() => { document.getElementById("modeBots").value = "4"; window.__range.startMode("crown"); })()`, 400],
+      [padButton(9, true), 300],
+      [padButton(9, false), 300],
+      [untilFight, 300],
+      [
+        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.player.teleport(89.6, 0, -30.2, 0, -6); r.debugView.lowered = 1;
+          const poses = [
+            { speed: 5, stance: "stand", pitch: 0, moveDir: Math.PI / 2, ads: 1, act: null },
+            { speed: 3, stance: "stand", pitch: 0, moveDir: Math.PI, ads: 0, act: "reload" },
+            { speed: 0, stance: "stand", pitch: -10, moveDir: 0, ads: 0, act: "heal", healItem: "battery" },
+            { speed: 0, stance: "crouch", pitch: 0, moveDir: 0, ads: 0, act: "swap" },
+          ];
+          d.bots.forEach((b, i) => { const bot = b.bot; bot.update = function (now, dt) { this.dummy.setPose(poses[i]); this.dummy.update(now, dt); return []; }; bot.pos.set(87.4 + i * 1.5, 0, -34); bot.dummy.group.position.copy(bot.pos); bot.dummy.group.rotation.y = -Math.PI / 2; });
+        })()`,
+        1500,
+      ],
+    ],
+  },  {
+    name: "figure-mannequins",
+    note: "the motion-captured mannequins (a setting): the same four poses",
+    steps: [
+      [fakePad, 600],
+      [`(() => { window.__range.setFigureStyle("mannequin"); return window.__range.loadMannequin(); })()`, 200],
+      [`(() => { document.getElementById("modeBots").value = "4"; window.__range.startMode("crown"); })()`, 400],
+      [padButton(9, true), 300],
+      [padButton(9, false), 300],
+      [untilFight, 300],
+      [
+        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.player.teleport(89.6, 0, -30.2, 0, -6); r.debugView.lowered = 1;
+          const poses = [
+            { speed: 5, stance: "stand", pitch: 0, moveDir: Math.PI / 2, ads: 1, act: null },
+            { speed: 3, stance: "stand", pitch: 0, moveDir: Math.PI, ads: 0, act: "reload" },
+            { speed: 0, stance: "stand", pitch: -10, moveDir: 0, ads: 0, act: "heal", healItem: "battery" },
+            { speed: 0, stance: "crouch", pitch: 0, moveDir: 0, ads: 0, act: "swap" },
+          ];
+          d.bots.forEach((b, i) => { const bot = b.bot; bot.update = function (now, dt) { this.dummy.setPose(poses[i]); this.dummy.update(now, dt); return []; }; bot.pos.set(87.4 + i * 1.5, 0, -34); bot.dummy.group.position.copy(bot.pos); bot.dummy.group.rotation.y = -Math.PI / 2; });
+        })()`,
+        1500,
+      ],
+    ],
+  },
 ];
 
 async function main(): Promise<void> {

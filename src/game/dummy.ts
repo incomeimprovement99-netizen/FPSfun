@@ -17,6 +17,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { displayGunModel } from "./gunmodels";
 import { OPERATORS, skinMaterials, type OperatorSkin } from "./operators";
+import { MannequinFigure, useMannequin } from "./mannequin";
 
 export type Zone = "head" | "body" | "legs";
 export type ArmorTier = 0 | 1 | 2 | 3 | 4;
@@ -183,13 +184,31 @@ export interface DummyOptions {
 
 /** what a rigged figure is doing, from the player it stands for */
 export type FigureStance = "stand" | "crouch" | "slide" | "air" | "climb" | "mantle" | "zip" | "downed";
+/** what its hands are busy with */
+export type FigureAct = "reload" | "swap" | "heal" | null;
 export interface FigurePose {
   /** horizontal speed, m/s */
   speed: number;
   stance: FigureStance;
   /** look pitch, degrees, up positive */
   pitch: number;
+  /** the way it moves, radians from the way it faces: 0 forward, +pi/2 to its right, pi backward */
+  moveDir?: number;
+  /** 0..1 aiming down sights: the gun comes up to the eye */
+  ads?: number;
+  /** a reload, a weapon swap, a heal */
+  act?: FigureAct;
+  /** a heal's item, for what it holds */
+  healItem?: string;
 }
+/** what the hands are doing, as one small number for the network: 0 nothing, 1 reload, 2 swap, 10 + a heal's code */
+export const actCode = (a: FigureAct, healCode = 0): number => (a === "reload" ? 1 : a === "swap" ? 2 : a === "heal" ? 10 + healCode : 0);
+export const actFromCode = (c: number | undefined): FigureAct => (c === 1 ? "reload" : c === 2 ? "swap" : c !== undefined && c >= 10 ? "heal" : null);
+
+/** a heal item's colour in the hand: shields blue, health red, the phoenix gold */
+const HEAL_COLOUR: Record<string, number> = { cell: 0x3b8bff, battery: 0x3b8bff, syringe: 0xe84a4a, medkit: 0xe84a4a, phoenix: 0xffa000 };
+/** the legs turn at most this far from the body toward the way it moves (a strafe) */
+const LEG_TURN = 1.25;
 const STANCE_CODE: FigureStance[] = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip", "downed"];
 /** a stance as one small number for the network, and back */
 export const stanceCode = (s: FigureStance): number => Math.max(0, STANCE_CODE.indexOf(s));
@@ -273,7 +292,20 @@ export class Dummy {
   private pose: FigurePose = { speed: 0, stance: "stand", pitch: 0 };
   private gait = 0;
   /** eased pose values, so a change of stance blends rather than snaps */
-  private readonly eased = { lean: 0, pelvisDrop: 0, thighL: 0, thighR: 0, shinL: 0, shinR: 0, armsUp: 0, armSwing: 0, headPitch: 0 };
+  private readonly eased = { lean: 0, pelvisDrop: 0, thighL: 0, thighR: 0, shinL: 0, shinR: 0, armsUp: 0, armSwing: 0, headPitch: 0, legYaw: 0, ads: 0, reload: 0, swap: 0, heal: 0 };
+  /** short-lived motions: a shot's kick, a hit's flinch, a JOLT's lean (1 at their start, decaying) */
+  private kickAmt = 0;
+  private flinchAmt = 0;
+  private joltAmt = 0;
+  /** the arms' resting place on the torso (the ADS and the kick move them from it) */
+  private armsBase = new THREE.Vector3();
+  /** the heal item in its hands, made the first time it heals */
+  private healMesh: THREE.Mesh | null = null;
+  /** its gun is away for a heal (separate from a bot's gun hidden while it searches) */
+  private gunAway = false;
+  private gunShown = true;
+  /** the motion-captured mannequin in place of the robot (mannequin.ts, a setting) */
+  private mq: MannequinFigure | null = null;
   readonly distanceLabel: number;
   /** the operator this figure wears */
   readonly skin: OperatorSkin;
@@ -517,6 +549,9 @@ export class Dummy {
       const chest = v(0, CHEST_Y, 0);
       const arms = new THREE.Group();
       arms.position.set(0, chest.y - PELVIS_Y, 0);
+      this.armsBase.copy(arms.position);
+      // the torso turns back against the hips (a strafe), then leans
+      torso.rotation.order = "YXZ";
       let armL: THREE.Group | null = null;
       let armR: THREE.Group | null = null;
       if (armed) {
@@ -551,6 +586,13 @@ export class Dummy {
       this.baked = pelvisG;
       this.rig = { pelvis: pelvisG, torso, head, arms, armL, armR, thighL: L.thigh, shinL: L.shin, thighR: R.thigh, shinR: R.shin };
       this.group.add(pelvisG);
+      // the mannequin instead, when Settings says so and it has loaded: the
+      // robot's parts stay (hidden) and still take the pose, so nothing else changes
+      if (useMannequin()) {
+        this.mq = new MannequinFigure(skin, armed);
+        pelvisG.visible = false;
+        this.group.add(this.mq.root);
+      }
     } else {
       const b = new THREE.Group();
       for (const list of Object.values(P)) for (const o of list) b.add(o);
@@ -583,6 +625,7 @@ export class Dummy {
     this.health = this.oneHit ? 1 : HEALTH_MAX;
     this.plate.visible = t !== 0;
     this.vest.visible = t !== 0;
+    this.mq?.setArmorColour(t !== 0 ? ARMOR_COLOR[t] : null);
     if (t !== 0) {
       this.vestMat.color.setHex(ARMOR_COLOR[t]);
       this.vestMat.emissive.setHex(ARMOR_COLOR[t]);
@@ -636,6 +679,7 @@ export class Dummy {
     this.shell.color.setHex(this.skin.shell).multiplyScalar(1 - 0.9 * t);
     this.headShell.color.setHex(this.skin.head).multiplyScalar(1 - 0.9 * t);
     this.shell.emissive.setRGB(f + t * 0.95 + lf * 0.1, f + t * 0.02 + lf * 0.45, f + t * 0.02 + lf * 1.1);
+    this.mq?.setFlash(Math.max(this.flash, this.headFlash, this.legFlash) * 0.8, this.headFlash > this.flash);
     this.headShell.emissive.setRGB(this.headFlash * 1.6 + t * 0.95, this.headFlash * 1.1 + t * 0.02, this.headFlash * 0.2 + t * 0.02);
   }
 
@@ -646,6 +690,7 @@ export class Dummy {
    * while playing, like the 1v1 opponent's.
    */
   dispose(): void {
+    this.mq?.dispose();
     this.group.removeFromParent();
     this.baked.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -663,6 +708,7 @@ export class Dummy {
 
   /** a different gun in its hands (Gun Run's next level): the same grip, the new model */
   setGun(id: string): void {
+    this.mq?.setGun(id);
     const old = this.gun;
     const parent = old?.parent;
     if (!old || !parent) return;
@@ -684,7 +730,19 @@ export class Dummy {
 
   /** show or hide the gun it holds (a bot still searching for one) */
   setGunVisible(on: boolean): void {
-    if (this.gun) this.gun.visible = on;
+    this.gunShown = on;
+    if (this.gun) this.gun.visible = on && !this.gunAway;
+    this.mq?.setGunVisible(on);
+  }
+
+  /** a shot: the gun kicks back into the shoulder */
+  kick(): void {
+    this.kickAmt = 1;
+  }
+
+  /** a JOLT: a lean into the dash */
+  jolt(): void {
+    this.joltAmt = 1;
   }
 
   /** what it was last told to do (the killcam records it) */
@@ -720,6 +778,18 @@ export class Dummy {
     let thighR = 0;
     let shinL = 0;
     let shinR = 0;
+    // the way it moves against the way it faces: the legs turn toward a strafe,
+    // and walking backward runs the stride backward, the body still on its aim
+    const dir = p.moveDir ?? 0;
+    const moving = speed > 0.3 && (p.stance === "stand" || p.stance === "crouch");
+    const back = moving && Math.abs(dir) > 1.9;
+    let legYaw = 0;
+    if (moving) {
+      const d = back ? Math.atan2(Math.sin(dir - Math.PI), Math.cos(dir - Math.PI)) : dir;
+      // figure space turns the other way: +x is its left
+      legYaw = -Math.max(-LEG_TURN, Math.min(LEG_TURN, d));
+      if (back) this.gait -= 2 * dt * (speed / 0.8) * Math.PI;
+    }
     switch (p.stance) {
       case "stand":
         lean = 0.12 * frac;
@@ -792,6 +862,12 @@ export class Dummy {
     const pitch = Math.max(-70, Math.min(70, p.pitch)) * DEG;
     const e = this.eased;
     const k = 1 - Math.exp(-14 * dt);
+    // the JOLT: a lean into it, the legs trailing
+    if (this.joltAmt > 0) {
+      lean += 0.55 * this.joltAmt;
+      thighL -= 0.5 * this.joltAmt;
+      thighR -= 0.3 * this.joltAmt;
+    }
     e.lean += (lean - e.lean) * k;
     e.pelvisDrop += (drop - e.pelvisDrop) * k;
     e.thighL += (thighL - e.thighL) * k;
@@ -801,9 +877,24 @@ export class Dummy {
     e.armsUp += (armsUp - e.armsUp) * k;
     e.armSwing += (armSwing - e.armSwing) * k;
     e.headPitch += (-pitch * 0.6 - e.headPitch) * k;
-    r.pelvis.position.y = PELVIS_Y - e.pelvisDrop;
-    r.torso.rotation.x = e.lean;
-    r.head.rotation.x = e.headPitch - e.lean * 0.7;
+    e.legYaw += (legYaw - e.legYaw) * (1 - Math.exp(-8 * dt));
+    const act = p.act ?? null;
+    const k2 = 1 - Math.exp(-10 * dt);
+    e.ads += ((p.ads ?? 0) - e.ads) * k2;
+    e.reload += ((act === "reload" ? 1 : 0) - e.reload) * k2;
+    e.swap += ((act === "swap" ? 1 : 0) - e.swap) * k2;
+    e.heal += ((act === "heal" ? 1 : 0) - e.heal) * k2;
+    // the impulses fade: a kick in a tenth of a second, a flinch in a fifth, a JOLT's lean in a third
+    this.kickAmt = Math.max(0, this.kickAmt - dt * 12);
+    this.flinchAmt = Math.max(0, this.flinchAmt - dt * 5);
+    this.joltAmt = Math.max(0, this.joltAmt - dt * 3);
+    const flinch = this.flinchAmt;
+    r.pelvis.position.y = PELVIS_Y - e.pelvisDrop - 0.05 * Math.max(0, flinch - 0.6);
+    r.pelvis.rotation.y = e.legYaw;
+    r.torso.rotation.y = -e.legYaw;
+    r.torso.rotation.x = e.lean - 0.2 * flinch;
+    r.head.rotation.x = e.headPitch - e.lean * 0.7 - 0.25 * flinch + 0.15 * e.ads + 0.2 * e.reload + 0.35 * e.heal;
+    r.head.rotation.z = 0.12 * e.ads;
     r.thighL.rotation.x = e.thighL;
     r.thighR.rotation.x = e.thighR;
     r.shinL.rotation.x = e.shinL;
@@ -813,7 +904,37 @@ export class Dummy {
       r.armL.rotation.x = s2 * e.armSwing - e.armsUp;
       r.armR.rotation.x = s * e.armSwing - e.armsUp;
       r.arms.rotation.x = 0;
-    } else r.arms.rotation.x = -(e.armsUp + pitch * 0.8) - e.lean * 0.5;
+    } else {
+      // aimed: the gun up to the eye; a shot kicks it back; a reload rolls and
+      // dips it; a swap takes it down out of sight; a heal lowers it for the item
+      r.arms.rotation.x = -(e.armsUp + pitch * 0.8) - e.lean * 0.5 - 0.1 * e.ads - 0.14 * this.kickAmt + 0.4 * e.reload + 1.1 * e.swap + 0.75 * e.heal;
+      r.arms.rotation.z = 0.5 * e.reload;
+      r.arms.position.set(this.armsBase.x, this.armsBase.y + 0.07 * e.ads, this.armsBase.z - 0.05 * this.kickAmt - 0.03 * e.ads);
+      const away = e.heal > 0.5;
+      if (away !== this.gunAway) {
+        this.gunAway = away;
+        if (this.gun) this.gun.visible = this.gunShown && !away;
+      }
+      if (e.heal > 0.02 || this.healMesh) {
+        const m = this.healItemMesh(r.arms);
+        m.visible = e.heal > 0.5;
+        (m.material as THREE.MeshStandardMaterial).color.setHex(HEAL_COLOUR[p.healItem ?? "cell"] ?? 0x3b8bff);
+      }
+    }
+    // the mannequin plays its clips for the same pose, with the same corrections on top
+    this.mq?.update(p, dt, !!this.gun && this.gunShown, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw, ads: e.ads });
+  }
+
+  /** the heal item: a small canister held in front of the chest */
+  private healItemMesh(parent: THREE.Group): THREE.Mesh {
+    if (!this.healMesh) {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.15, 10), new THREE.MeshStandardMaterial({ color: 0x3b8bff, emissive: 0x112244, roughness: 0.4, metalness: 0.3 }));
+      m.rotation.z = Math.PI / 2;
+      m.position.set(0, -0.2, 0.34);
+      parent.add(m);
+      this.healMesh = m;
+    }
+    return this.healMesh;
   }
 
   /** knocked by something other than a hit here (the 1v1 opponent going down) */
@@ -866,6 +987,8 @@ export class Dummy {
     else if (zone === "legs") this.legFlash = 1;
     else this.flash = 1;
     if (broke) this.vest.visible = false;
+    // a flinch on every hit, a stagger when the shield breaks
+    this.flinchAmt = Math.min(1.5, this.flinchAmt + (broke ? 1.3 : 0.5));
     if (knocked) {
       this.knocked = true;
       this.respawnAt = now + RESPAWN_S;

@@ -21,7 +21,7 @@
 // of packets arriving unevenly.
 import * as THREE from "three";
 import squadCfg from "../config/squad.json";
-import { Dummy, stanceCode, stanceFromCode, type FigureStance } from "./dummy";
+import { Dummy, actFromCode, stanceCode, stanceFromCode, type FigureAct, type FigureStance } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import type { Link, NetMsg, RoundPhase } from "../net/link";
@@ -82,6 +82,10 @@ interface Sample {
   stance: FigureStance;
   /** m/s */
   speed: number;
+  /** 0..1 aiming; the hands' action and a heal's item */
+  ads: number;
+  act: FigureAct;
+  healItem?: string;
 }
 
 /** another player as this side sees them */
@@ -144,6 +148,10 @@ export interface LocalState {
   /** for the figure the others see */
   stance: FigureStance;
   speed: number;
+  /** 0..1 aiming down sights */
+  ads?: number;
+  /** what the hands are doing (dummy.ts actCode) */
+  act?: number;
 }
 
 /** what a match (against friends or bots) offers the game loop */
@@ -529,6 +537,8 @@ export class Duel implements MatchLike {
       if (known) known.lastHeard = now;
       if (m.k === "heal" && typeof m.n === "number" && HEAL_CODES[m.n]) this.onHealSeen?.(from, HEAL_CODES[m.n]);
       else this.onRemoteFx?.(m.k, from, m.a ? new THREE.Vector3(...m.a) : undefined, m.b ? new THREE.Vector3(...m.b) : undefined);
+      // a JOLT: the figure leans into it
+      if (m.k === "jolt") known?.avatar.jolt();
       this.relay(m, from);
       return;
     }
@@ -569,7 +579,8 @@ export class Duel implements MatchLike {
       case "s": {
         // an older build sends no stance: its crouch flag stands in
         const stance = typeof m.st === "number" ? stanceFromCode(m.st) : m.crouch ? "crouch" : "stand";
-        r.samples.push({ at: now, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10 });
+        const ac = typeof m.ac === "number" && Number.isFinite(m.ac) ? m.ac : 0;
+        r.samples.push({ at: now, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), healItem: ac >= 10 ? HEAL_CODES[ac - 10] : undefined });
         if (r.samples.length > 30) r.samples.shift();
         // Their own numbers lag our hits by a round trip, so a packet can only
         // ever LOWER what we already predicted; a respawn (alive again) resets.
@@ -600,6 +611,8 @@ export class Duel implements MatchLike {
       case "shot": {
         const o = new THREE.Vector3(...m.o);
         const dir = new THREE.Vector3(...m.d);
+        // the figure's gun kicks
+        r.avatar.kick();
         this.projectiles.fire(o, dir, this.weapon(m.w), true);
         this.onShotFired?.(from, o, dir, m.w);
         // Every pellet is its own message; the sound is once per pull. The
@@ -1039,6 +1052,8 @@ export class Duel implements MatchLike {
         sp: Math.round(local.speed * 10),
         shm: this.shieldMax,
         dn: this.downed ? 1 : 0,
+        ad: local.ads ? Math.round(local.ads * 10) : undefined,
+        ac: local.act || undefined,
       });
     }
     if (now >= this.pingNext) {
@@ -1083,7 +1098,18 @@ export class Duel implements MatchLike {
     // what the figure is doing: its stance and speed drive the animation, and
     // a crouch or a slide shrinks its hit zones (inside Dummy.update)
     const near = k < 0.5 ? a : b;
-    r.avatar.setPose({ speed: near.speed, stance: near.stance, pitch: a.pitch + (b.pitch - a.pitch) * k });
+    // the way it moves against the way it faces, from the last two samples
+    const last = s[s.length - 1];
+    const prev = s.length > 1 ? s[s.length - 2] : last;
+    r.avatar.setPose({
+      speed: near.speed,
+      stance: near.stance,
+      pitch: a.pitch + (b.pitch - a.pitch) * k,
+      moveDir: moveDirOf(last.x - prev.x, last.z - prev.z, last.yaw),
+      ads: near.ads,
+      act: near.act,
+      healItem: near.healItem,
+    });
     void dt;
   }
 
@@ -1181,6 +1207,19 @@ export class Duel implements MatchLike {
 }
 
 const wall = (now: number): number => now;
+
+/**
+ * Which way a player moves against where they look, in radians: 0 forward,
+ * +pi/2 to their right, pi backward. `yaw` in degrees, positive to the left;
+ * a player at yaw 0 looks down -z.
+ */
+export function moveDirOf(dx: number, dz: number, yawDeg: number): number {
+  if (Math.hypot(dx, dz) < 1e-5) return 0;
+  const y = yawDeg * DEG;
+  const fwd = -Math.sin(y) * dx - Math.cos(y) * dz;
+  const right = Math.cos(y) * dx - Math.sin(y) * dz;
+  return Math.atan2(right, fwd);
+}
 
 const finite = (...xs: unknown[]): boolean => xs.every((x) => typeof x === "number" && Number.isFinite(x));
 const vec3 = (v: unknown): boolean => Array.isArray(v) && v.length === 3 && finite(...v);

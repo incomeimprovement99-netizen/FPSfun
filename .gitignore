@@ -12,4 +12,5 @@ public/tex/*
 !public/tex/ATTRIBUTION.md
 public/models/*
 !public/models/heirlooms/
+!public/models/mannequin/
 shots/

@@ -21,7 +21,8 @@ import { Armor, HEALS, Kit } from "../src/game/kit";
 import audioCfg from "../src/config/audio.json";
 import lootCfg from "../src/config/loot.json";
 import { LootField, rollItem, seeded } from "../src/game/loot";
-import { Duel } from "../src/game/duel";
+import { Duel, moveDirOf } from "../src/game/duel";
+import { actCode, actFromCode } from "../src/game/dummy";
 import modesCfg from "../src/config/modes.json";
 import { Crown, GunLadder, TeamScore, gunList, pickSpawn, yawToMiddle } from "../src/game/modes";
 /** every gun the game has but the course's own pistol */
@@ -1324,6 +1325,23 @@ console.log("The arena's modes (src/game/modes.ts, src/config/modes.json)");
   near("a spawn on the -x side faces +x (yaw -90)", yawToMiddle(-16, 0), -90, 1e-9);
   const inside = [...modesCfg.spawns.a, ...modesCfg.spawns.b, ...modesCfg.spawns.mid].every(([x, z]) => Math.abs(x) <= 17 && Math.abs(z) <= 31);
   eq("every spawn is inside the arena's walls", inside, true);
+}
+
+console.log("");
+console.log("The figures' motion (src/game/dummy.ts, duel.ts moveDirOf)");
+{
+  near("yaw 0 (looking down -z), moving -z: forward, 0", moveDirOf(0, -1, 0), 0, 1e-9);
+  near("moving +x: to the right, +pi/2", moveDirOf(1, 0, 0), Math.PI / 2, 1e-9);
+  near("moving +z: backward, pi", Math.abs(moveDirOf(0, 1, 0)), Math.PI, 1e-9);
+  near("yaw 90 (looking down -x), moving -x: forward", moveDirOf(-1, 0, 90), 0, 1e-9);
+  near("yaw 90, moving -z: to the right", moveDirOf(0, -1, 90), Math.PI / 2, 1e-9);
+  eq("standing still: forward", moveDirOf(0, 0, 37), 0);
+  eq("the hands on the wire: a reload", actFromCode(actCode("reload")), "reload");
+  eq("a swap", actFromCode(actCode("swap")), "swap");
+  eq("a heal (with its item's code)", actFromCode(actCode("heal", 3)), "heal");
+  eq("a heal's code carries the item", actCode("heal", 3), 13);
+  eq("nothing", actFromCode(actCode(null)), null);
+  eq("an older build's packet (no code): nothing", actFromCode(undefined), null);
 }
 
 console.log("");

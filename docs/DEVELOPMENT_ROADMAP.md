@@ -275,3 +275,26 @@ Striker 9 is) with Season 30's numbers.
   taken, the hold takes the round, round 2; every spawn clear of the boxes; Gun Run with a friend and a bot
   over the local transport: the host's ladder on both screens, the guest's respawn, the guest's kill on the
   host's bot), snap (mode-gunrun, mode-tdm, mode-crown).
+
+## Milestone 21 — Figures that move like players, and motion-captured mannequins ✅
+2026-09-15 (Phase 11K). `src/game/dummy.ts`, `src/game/mannequin.ts`, `tools/trim-glb.ts`, `public/models/mannequin/`.
+- **Legs and aim apart**: the legs walk the way a figure moves while its body stays on its aim: the hips turn
+  toward a strafe (up to 72 degrees) and the torso turns back, and walking backward runs the stride backward.
+  Worked out from the figure's movement against its facing, for players (from their state packets), bots and
+  your own third-person figure alike.
+- **The hands**: aiming down sights brings the gun up to the eye and the head down to it; every shot kicks the
+  gun into the shoulder; a reload rolls and dips it; a swap takes it down out of sight; a heal puts it away and
+  holds the item (blue for shields, red for health, gold for the phoenix).
+- **Hits and abilities**: a flinch on every hit, a bigger stagger when the shield breaks; a JOLT's lean into the
+  dash with the legs trailing. Down and eliminated keep their knees-and-crawl and fall.
+- **Over the network**: aiming (0 to 10) and what the hands are doing (a reload, a swap, a heal and its item) ride
+  in the state packet; shots and JOLTs trigger the kick and the lean from the messages already sent.
+- **Motion-captured mannequins** (a setting, Figures: mannequins): Quaternius's mannequin and 25 clips from his
+  Universal Animation Library 1 and 2 (CC0), trimmed from 15.7 MB to 4.4 MB with a new tool. Two layers: the legs
+  play idle, walk, jog, sprint or crouch at the figure's speed (backward in reverse), the upper body the aim pose,
+  the reload, the heal or the lowered gun; slides, climbs and ziplines play whole-body clips. The same strafe
+  turn, pitch, kick, flinch and lean go on top; the operator's colours tint it and its joints glow in its armour
+  tier. The robots stay the default: the library's clips are pistol clips, so every gun is held the pistol's way.
+- Tests: verify (the movement direction against the facing, the hands' codes on the wire), e2e (a guest aiming
+  and healing is seen on the host's copy of the guest with the right item; with the setting on, a match's bots
+  are mannequins with their clips playing), snap (figure-poses, figure-mannequins).

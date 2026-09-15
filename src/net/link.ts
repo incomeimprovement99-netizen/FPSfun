@@ -50,6 +50,9 @@ export type NetMsg =
       shm?: number;
       /** down, not out (a battle royale squad) */
       dn?: number;
+      /** aiming down sights, 0..10; the hands' action (dummy.ts actCode): the figure's arms */
+      ad?: number;
+      ac?: number;
     }
   | { t: "zone"; live: boolean; caps: number[]; startsIn: number }
   | { t: "shot"; from?: number; o: [number, number, number]; d: [number, number, number]; w: string }
