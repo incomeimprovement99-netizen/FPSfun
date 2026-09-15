@@ -89,7 +89,7 @@ app.get("/net.json", (req, res) => {
 // the browser is the only witness, so these are boards between friends, not
 // ranked play (that needs the game server of NEXT_STEPS).
 const BOARD_FILE = resolve(process.env.BOARD_FILE ?? join(here, "boards.json"));
-const BOARD_IDS = new Set(["course:basic", "course:advanced", "course:drill", "duel:wins", "triple:wins", "br:wins", "bots:easy:wins", "bots:normal:wins", "bots:hard:wins"]);
+const BOARD_IDS = new Set(["course:basic", "course:advanced", "course:drill", "duel:wins", "triple:wins", "br:wins", "gunrun:wins", "tdm:wins", "crown:wins", "bots:easy:wins", "bots:normal:wins", "bots:hard:wins"]);
 const LOWER_IS_BETTER = /^course:/;
 const NAME = /^[A-Za-z0-9_ .-]{1,16}$/;
 const MAX_ENTRIES = 100;

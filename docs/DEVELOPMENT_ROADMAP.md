@@ -243,3 +243,35 @@ Striker 9 is) with Season 30's numbers.
   a third gun, ammo, a heal past its stack, a helmet, a care package, your death box, the loadout back after;
   in a squad: a ping, down not out, the crawl seen by the host, the revive prompt and 5 s hold, 20 health, the
   second knock's 60 s, finished while down, the banner in the box), snap (br-loot, br-downed, br-map-icons).
+
+## Milestone 20 — The arena's modes: Gun Run, team deathmatch, Crown ✅
+2026-09-15 (Phase 11J). `src/game/modes.ts` (the rules), `src/game/modematch.ts` (the match), `src/config/modes.json`.
+- **One match class for all three**, built on the 1v1's links like the battle royale: the host runs the bots
+  and the rules and tells the guests (bots as ordinary state packets, the rules' state as a `mode` message four
+  times a second and on every change). Alone it is the same class with no links. Played in the 1v1 arena.
+- **Gun Run** (Apex's rules where published): one kill moves you to the next gun and puts it in your hands at
+  once, with its deploy time; after the last gun comes the knife (fists; 100 a hit, 300 to the head, the
+  throwing knife's numbers), and a knife kill wins. A melee death costs a level. 10 minutes, then the highest
+  level wins. Health and shields come back 4 s after the last hit. Respawns 3 s after going down, at the spawn
+  farthest from the enemies. The list: 10 guns, or every gun (29). Bots run the ladder too, and at the knife
+  they close in and swing. Every player for themselves, friends and bots together.
+- **Team deathmatch**: you and your friends, filled out with bots to four, against four bots; respawns after 4 s
+  at your end; first team to 30 (Apex's 40 is for 6v6), or ahead at 10 minutes. Team mates cannot hurt each
+  other and their bullets pass through; their plates are green and aim assist leaves them alone (which also
+  fixes aim assist pulling toward a battle royale squad mate).
+- **Crown**: rounds like the 1v1. 20 s in the crown appears in the middle; walk over it to take it; the carrier
+  wears it (a gold crown and a beam over their head) and everyone sees a marker on it; 30 s held without going
+  down takes the round, as does being the last one up. A carrier who goes down drops it where they fell. First
+  to 3. Bots go for the crown, hunt its carrier, and carry it away from the fight.
+- **Picking them**: three new Play tab buttons (alone against bots), the friends' mode list on the 1v1 tab, and
+  a box for the bots in a free-for-all and Gun Run's list. The host's choice rides in the welcome.
+- **The HUD**: a panel for each mode under the compass (your level, gun and the next; the teams' score; the
+  rounds and where the crown is, with the hold bar), the clock, a scoreboard down the right, a respawn count,
+  and the results. **Stats**: a card per mode, and online boards for each mode's wins.
+- Tests: verify (the lists name real guns; the ladder: a kill, a melee death, the ring, the knife's win, the
+  leader; the team score; the crown: its wait, the nearest taker, the 30 s hold, the drop; the respawn pick;
+  spawns inside the walls), e2e (each mode from its Play tab button; Gun Run's gun changes, respawns, the knife
+  and its win, the Stats card, the loadout back; team mates immune and the 30th kill; the crown appears, is
+  taken, the hold takes the round, round 2; every spawn clear of the boxes; Gun Run with a friend and a bot
+  over the local transport: the host's ladder on both screens, the guest's respawn, the guest's kill on the
+  host's bot), snap (mode-gunrun, mode-tdm, mode-crown).

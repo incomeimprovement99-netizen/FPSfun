@@ -352,6 +352,13 @@ export class Loadout {
     return true;
   }
 
+  /** the gun in hand comes up again, taking its deploy time (Gun Run's next gun) */
+  raise(now: number): void {
+    this.targetIndex = this.activeIndex;
+    this.swapTotal = this.active.weapon.deployTime;
+    this.swapEndsAt = now + this.swapTotal;
+  }
+
   /** cycle to the next slot */
   requestNext(now: number): boolean {
     return this.requestSwap(this.nextIndex, now);

@@ -171,6 +171,43 @@ export const SCENARIOS: Scenario[] = [
       ],
     ],
   },
+  {
+    name: "mode-gunrun",
+    note: "Gun Run against bots: your level and gun, the next one, the clock, the scoreboard",
+    steps: [
+      [fakePad, 600],
+      [`(() => { document.getElementById("modeBots").value = "3"; window.__range.startMode("gunrun"); })()`, 400],
+      [padButton(9, true), 300],
+      [padButton(9, false), 300],
+      [untilFight, 300],
+      [`(() => { const d = window.__range.duel(); d.holdFire = true; const a = d.avatars[0]; const r = d.remoteOf(a); a.hit(0, "body", 900, 1, 1, a.group.position); d.localHit(r, 900, false, "rspn101", 9); })()`, 1400],
+    ],
+  },
+  {
+    name: "mode-tdm",
+    note: "team deathmatch: the teams' score, team mates' green plates",
+    steps: [
+      [fakePad, 600],
+      [`window.__range.startMode("tdm")`, 400],
+      [padButton(9, true), 300],
+      [padButton(9, false), 300],
+      [untilFight, 300],
+      [`(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; d.teams.score[0] = 12; d.teams.score[1] = 9; r.player.teleport(90, 0, -60, 180); })()`, 1500],
+    ],
+  },
+  {
+    name: "mode-crown",
+    note: "Crown: a bot has the crown, its marker and the hold bar",
+    steps: [
+      [fakePad, 600],
+      [`(() => { document.getElementById("modeBots").value = "2"; window.__range.startMode("crown"); })()`, 400],
+      [padButton(9, true), 300],
+      [padButton(9, false), 300],
+      [untilFight, 300],
+      [`(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; d.crown.appearsAt = 0; r.player.teleport(90, 0, -62, 180); })()`, 300],
+      [`(() => { const d = window.__range.duel(); const b = d.bots[0].bot; b.pos.set(90, 0, -40); d.crown.phase = "ground"; d.crown.x = 90; d.crown.z = -40; })()`, 1200],
+    ],
+  },
 ];
 
 async function main(): Promise<void> {

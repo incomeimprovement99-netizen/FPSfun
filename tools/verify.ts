@@ -22,6 +22,10 @@ import audioCfg from "../src/config/audio.json";
 import lootCfg from "../src/config/loot.json";
 import { LootField, rollItem, seeded } from "../src/game/loot";
 import { Duel } from "../src/game/duel";
+import modesCfg from "../src/config/modes.json";
+import { Crown, GunLadder, TeamScore, gunList, pickSpawn, yawToMiddle } from "../src/game/modes";
+/** every gun the game has but the course's own pistol */
+const DATA_IDS_NO_COURSE = weaponIds().filter((id) => id !== "g17");
 
 let fails = 0;
 const eq = (label: string, got: unknown, want: unknown) => {
@@ -1269,6 +1273,57 @@ console.log("Battle royale loot (src/game/loot.ts, src/config/loot.json)");
   // down, not out: the bleed-out clock per knock (Season 30)
   eq("bleed-out: 90, 60, 30, 15 s", Duel.BLEED.join(","), "90,60,30,15");
   eq("a revive gives 20 health", Duel.REVIVE_HEALTH, 20);
+}
+
+console.log("");
+console.log("The arena's modes (src/game/modes.ts, src/config/modes.json)");
+{
+  const guns = new Set(weaponIds());
+  const bad = [...modesCfg.gunRun.short, ...modesCfg.gunRun.full].filter((id) => !guns.has(id));
+  eq("every gun on Gun Run's lists is in the game", bad.join(",") || "none", "none");
+  eq("the short list: 10 guns", gunList("short").length, 10);
+  eq("the full list: every gun but the course's pistol (29), each once", new Set(gunList("full")).size === gunList("full").length && gunList("full").length === DATA_IDS_NO_COURSE.length, true);
+  const l = new GunLadder(gunList("short"));
+  eq("a kill moves the killer on", (l.kill(0, 1, false), l.level(0)), 1);
+  eq("and costs the victim nothing", l.level(1), 0);
+  l.row(1).level = 5;
+  l.kill(0, 1, true);
+  eq("a melee death costs a level (6 to 5)", l.level(1), 4);
+  eq("the ring or yourself moves nobody on (two kills: level 2)", (l.kill(-1, 0, false), l.kill(0, 0, false), l.level(0)), 2);
+  eq("the gun at level 2: the third on the list", l.gunFor(0), "vinson");
+  l.row(0).level = 10;
+  eq("after the last gun, the knife", l.gunFor(0), null);
+  eq("a kill with the knife wins", l.kill(0, 2, true), true);
+  eq("the leader: the highest level", l.leader?.id, 0);
+  const tm = new TeamScore(3);
+  eq("team deathmatch: two kills, no winner", (tm.kill(0), tm.kill(0)), null);
+  eq("the third wins it", tm.kill(0), 0);
+  eq("ahead at the time limit", tm.ahead, 0);
+  const cr = new Crown(0, 0, 100);
+  eq("the crown waits 20 s", cr.update(119.9, 0.1, []).event, null);
+  eq("then appears in the middle", cr.update(120, 0.1, []).event, "appears");
+  const fs = [
+    { id: 1, x: 1.2, z: 0, alive: true },
+    { id: 2, x: 0.5, z: 0, alive: true },
+    { id: 3, x: 0.1, z: 0, alive: false },
+  ];
+  eq("the nearest one up within reach takes it", (cr.update(121, 0.1, fs), cr.carrier), 2);
+  let won: number | null = null;
+  for (let t = 0; t < 29.9 && won === null; t += 0.1) won = cr.update(121 + t, 0.1, fs).winner;
+  eq("29.9 s held: not yet", won, null);
+  eq("30 s held takes the round", cr.update(151, 0.2, fs).winner, 2);
+  const cr2 = new Crown(0, 0, 0);
+  cr2.update(20, 0.1, []);
+  cr2.update(21, 0.1, fs);
+  cr2.update(22, 10, fs);
+  cr2.drop(5, 5);
+  eq("a carrier who goes down drops it where they fell", `${cr2.phase} ${cr2.x},${cr2.z}`, "ground 5,5");
+  eq("and the hold starts over", cr2.held, 0);
+  eq("a respawn is the spawn farthest from the enemies", pickSpawn([[0, -29], [0, 29]], [{ x: 0, z: -20 }]).join(","), "0,29");
+  near("a spawn at the -z end faces the middle (yaw 180)", yawToMiddle(0, -29), 180, 1e-9);
+  near("a spawn on the -x side faces +x (yaw -90)", yawToMiddle(-16, 0), -90, 1e-9);
+  const inside = [...modesCfg.spawns.a, ...modesCfg.spawns.b, ...modesCfg.spawns.mid].every(([x, z]) => Math.abs(x) <= 17 && Math.abs(z) <= 31);
+  eq("every spawn is inside the arena's walls", inside, true);
 }
 
 console.log("");

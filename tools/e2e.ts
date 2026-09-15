@@ -12,6 +12,10 @@
 //
 // Run: npm run e2e        (needs `npm run dev` already running)
 import puppeteer, { type Browser, type Page } from "puppeteer";
+import modesCfg from "../src/config/modes.json";
+
+/** the arena modes' spawns (arena coordinates) */
+const MODE_SPAWNS = [...modesCfg.spawns.a, ...modesCfg.spawns.b, ...modesCfg.spawns.mid];
 
 const BASE = process.env.SHOT_URL ?? "http://localhost:5173/";
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
@@ -226,6 +230,166 @@ async function brLootTest(browser: Browser, query: string): Promise<void> {
   const back = await ev<{ empty: boolean[] }>(page, "({ empty: window.__range.loadout.slots.map((s) => s.empty) })");
   check("loot: leaving gives you your own loadout back", back.empty.every((e) => !e), JSON.stringify(back));
   await page.close();
+}
+
+/** a mode alone from the Play tab's button: in the game (the pad's Start), the fight on */
+async function startModePage(browser: Browser, query: string, button: string, setup = ""): Promise<Page> {
+  const page = await open(browser, query);
+  await ev(page, `(() => { ${setup}; document.getElementById("${button}").click(); })()`);
+  await pressPlay(page);
+  await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 20000 }).catch(() => undefined);
+  await ev(page, "(() => { const d = window.__range.duel(); if (d) d.holdFire = true; })()");
+  return page;
+}
+
+/** a bot knocked by this player's own bullet (its dummy's hit() and the match's localHit, as the game does) */
+const knockBot = (pick: string, weapon = "r97") =>
+  `(() => { const d = window.__range.duel(); const a = d.avatars.find((x) => { const r = d.remoteOf(x); return r && r.id >= 100 && r.alive && (${pick}); }); if (!a) return false; const r = d.remoteOf(a); a.hit(0, "body", 900, 1, 1, a.group.position); d.localHit(r, 900, false, "${weapon}", 8); return true; })()`;
+
+/**
+ * The arena's modes alone: Gun Run (a kill moves you on and changes your
+ * gun, a melee death costs a level, the knife's kill wins), team deathmatch
+ * (team mates, the score, the win), Crown (it appears, you take it, the hold
+ * takes the round), each from its Play tab button, and each on the Stats tab.
+ */
+async function modesTest(browser: Browser, query: string): Promise<void> {
+  // ---- Gun Run
+  const g = await startModePage(browser, query, "goGunRun", `document.getElementById("modeBots").value = "2"; document.getElementById("gunRunList").value = "short"`);
+  const g0 = await ev<{ kind: string; slots: string[]; level: number; of: number; bots: number; phase: string }>(
+    g,
+    `(() => { const r = window.__range; const d = r.duel(); const m = d.hud().mode; return { kind: d.modeKind, slots: r.loadout.slots.map((s) => (s.empty ? "-" : s.id)), level: m.gun.level, of: m.gun.of, bots: d.avatars.length, phase: d.phase }; })()`
+  );
+  const blocked = await ev<string[]>(g, `(() => { const r = window.__range; const S = ${JSON.stringify(MODE_SPAWNS)}; return S.filter(([x, z]) => { const o = r.openGround(90 + x, -40 + z, 0.6); return !o || Math.hypot(o.x - 90 - x, o.z + 40 - z) > 1e-6; }).map((p) => p.join(",")); })()`);
+  check("modes: every spawn point stands clear of the arena's boxes", blocked.length === 0, blocked.join(" "));
+  check("gun run: the Play tab button starts it, two bots, level 1 of 11 with the list's first gun and nothing else", g0.kind === "gunrun" && g0.phase === "fight" && g0.bots === 2 && g0.level === 1 && g0.of === 11 && g0.slots[0] === "rspn101" && g0.slots[1] === "-", JSON.stringify(g0));
+  await ev(g, knockBot("true"));
+  await sleep(300);
+  const g1 = await ev<{ slots: string[]; level: number; hudGun: string }>(g, `(() => { const r = window.__range; const m = r.duel().hud().mode; return { slots: r.loadout.slots.map((s) => (s.empty ? "-" : s.id)), level: m.gun.level, hudGun: r.hud.last?.weaponName ?? "" }; })()`);
+  check("gun run: a kill moves you to level 2 and the R-99 is in your hands", g1.level === 2 && g1.slots[0] === "r97" && g1.slots[1] === "-", JSON.stringify(g1));
+  const back = await g.waitForFunction("window.__range.duel().avatars.every((a) => !a.knocked)", { polling: 200, timeout: 6000 }).then(() => true, () => false);
+  check("gun run: the bot is back in after its respawn", back);
+  await ev(g, `(() => { const d = window.__range.duel(); d.ladder.row(0).level = 4; d.takeHit(900, 100, false, "melee", 1); })()`);
+  await sleep(200);
+  const g2 = await ev<{ level: number; alive: boolean; respawnIn: number | null; botLevel: number }>(g, `(() => { const d = window.__range.duel(); const m = d.hud().mode; return { level: d.ladder.level(0), alive: d.alive, respawnIn: m.respawnIn, botLevel: d.ladder.level(100) }; })()`);
+  check("gun run: knifed: a level lost (5 to 4), the knifer moves on, a respawn counting down", g2.level === 3 && !g2.alive && g2.respawnIn !== null && g2.respawnIn > 2 && g2.botLevel === 1, JSON.stringify(g2));
+  const up = await g.waitForFunction("window.__range.duel().alive", { polling: 200, timeout: 6000 }).then(() => true, () => false);
+  const spot = await ev<{ x: number; z: number }>(g, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+  check("gun run: back in 3 s later inside the arena", up && Math.abs(spot.x - 90) <= 18 && Math.abs(spot.z + 40) <= 32, JSON.stringify(spot));
+  // the knife: the last level is fists; a melee kill with it wins
+  await ev(g, `(() => { const d = window.__range.duel(); d.ladder.row(0).level = 10; d.gunsChanged(); })()`);
+  await sleep(200);
+  const knife = await ev<{ slots: string[]; knife: boolean; name: string; hudGun: string }>(g, `(() => { const r = window.__range; const d = r.duel(); return { slots: r.loadout.slots.map((s) => (s.empty ? "-" : s.id)), knife: d.knifeNow, name: d.hud().mode.gun.name, hudGun: r.hud.last?.weaponName ?? "" }; })()`);
+  check("gun run: level 11 is the knife: no guns, fists, the knife's melee", knife.knife && knife.slots.every((s) => s === "-") && knife.name === "THE KNIFE", JSON.stringify(knife));
+  const before = await ev<number>(g, `(window.__range.profile?.profile?.matches?.gunrun?.won ?? 0)`).catch(() => 0);
+  await ev(g, knockBot("true", "melee"));
+  await sleep(400);
+  const won = await ev<{ phase: string; winner: string | null; won: boolean | null; stats: number }>(g, `(() => { const d = window.__range.duel(); const m = d.hud().mode; return { phase: d.phase, winner: m.winner, won: m.won, stats: document.getElementById("statsBody").innerHTML.includes("Gun Run") ? 1 : 0 }; })()`);
+  check("gun run: a knife kill wins it: the match is over and you are the winner", won.phase === "matchEnd" && won.won === true && won.winner === "YOU", JSON.stringify({ before, ...won }));
+  check("gun run: the Stats tab has a Gun Run card", won.stats === 1);
+  await ev(g, "window.__range.duel()?.leave()");
+  await sleep(300);
+  const after = await ev<string[]>(g, "window.__range.loadout.slots.map((s) => (s.empty ? '-' : s.id))");
+  check("gun run: leaving gives your own loadout back", after.every((s) => s !== "-"), JSON.stringify(after));
+  await g.close();
+
+  // ---- team deathmatch
+  const t = await startModePage(browser, query, "goTdm");
+  const t0 = await ev<{ allies: number; enemies: number; you: number; them: number; limit: number }>(
+    t,
+    `(() => { const d = window.__range.duel(); const rs = d.avatars.map((a) => d.remoteOf(a)); const m = d.hud().mode; return { allies: rs.filter((r) => d.isAlly(r.id)).length, enemies: rs.filter((r) => !d.isAlly(r.id)).length, you: m.teams.you, them: m.teams.them, limit: m.teams.limit }; })()`
+  );
+  check("tdm: you and three bots against four, 0 - 0, first to 30", t0.allies === 3 && t0.enemies === 4 && t0.you === 0 && t0.them === 0 && t0.limit === 30, JSON.stringify(t0));
+  const ff = await ev<{ health: number; before: number }>(
+    t,
+    `(() => { const d = window.__range.duel(); const a = d.avatars.find((x) => d.isAlly(d.remoteOf(x).id)); const r = d.remoteOf(a); const before = a.health + a.shield; d.localHit(r, 80, false, "r97", 5); return { health: a.health + a.shield, before }; })()`
+  );
+  const ffScore = await ev<number>(t, "window.__range.duel().hud().mode.teams.you");
+  check("tdm: a team mate takes no damage from you and scores nothing", ff.health === ff.before && ffScore === 0, JSON.stringify(ff));
+  await ev(t, knockBot("!d.isAlly(r.id)"));
+  await sleep(200);
+  const t1 = await ev<number>(t, "window.__range.duel().hud().mode.teams.you");
+  check("tdm: an enemy down scores for your team", t1 === 1, String(t1));
+  await ev(t, "(() => { const d = window.__range.duel(); d.teams.score[0] = 29; })()");
+  await ev(t, knockBot("!d.isAlly(r.id)"));
+  await sleep(400);
+  const t2 = await ev<{ phase: string; winner: string | null; won: boolean | null }>(t, "(() => { const d = window.__range.duel(); const m = d.hud().mode; return { phase: d.phase, winner: m.winner, won: m.won }; })()");
+  check("tdm: the 30th wins it for your team", t2.phase === "matchEnd" && t2.won === true && t2.winner === "YOUR TEAM", JSON.stringify(t2));
+  await ev(t, "window.__range.duel()?.leave()");
+  await t.close();
+
+  // ---- Crown
+  const c = await startModePage(browser, query, "goCrown", `document.getElementById("modeBots").value = "2"`);
+  const c0 = await ev<{ phase: string; left: number | null }>(c, "(() => { const m = window.__range.duel().hud().mode; return { phase: m.crown.phase, left: m.left }; })()");
+  check("crown: it waits for 20 s into the round", c0.phase === "waiting" && c0.left !== null && c0.left > 17 && c0.left <= 20, JSON.stringify(c0));
+  await ev(c, "(() => { const d = window.__range.duel(); d.crown.appearsAt = 0; for (const a of d.avatars) a.group.visible = true; })()");
+  await sleep(300);
+  const c1 = await ev<string>(c, "window.__range.duel().hud().mode.crown.phase");
+  check("crown: it appears in the middle", c1 === "ground" || c1 === "carried", c1);
+  await ev(c, "window.__range.player.teleport(90, 0, -40, 0)");
+  const mine = await c.waitForFunction("window.__range.duel().hud().mode.crown.mine", { polling: 100, timeout: 3000 }).then(() => true, () => false);
+  check("crown: walking over it takes it", mine, JSON.stringify(await ev(c, "window.__range.duel().hud().mode.crown")));
+  await ev(c, "(() => { window.__range.duel().crown.held = 29.4; })()");
+  await sleep(900);
+  const c2 = await ev<{ phase: string; wins: number; round: number }>(c, "(() => { const d = window.__range.duel(); return { phase: d.phase, wins: d.hud().mode.crown.wins, round: d.round }; })()");
+  check("crown: 30 s holding it takes the round", c2.phase === "roundEnd" && c2.wins === 1, JSON.stringify(c2));
+  const r2 = await c.waitForFunction("window.__range.duel().phase === 'fight' && window.__range.duel().round === 2", { polling: 200, timeout: 12000 }).then(() => true, () => false);
+  check("crown: round 2 starts with the crown waiting again", r2 && (await ev<string>(c, "window.__range.duel().hud().mode.crown.phase")) === "waiting");
+  await ev(c, "window.__range.duel()?.leave()");
+  await c.close();
+}
+
+/** Gun Run with a friend over the local transport, and a bot: the ladder is the host's, a kill moves the killer on on both screens, respawns */
+async function modesFriendsTest(browser: Browser, query: string): Promise<void> {
+  const host = await open(browser, query);
+  const guest = await open(browser, query);
+  await ev(host, `(() => { document.getElementById("duelMode").value = "gunrun"; document.getElementById("modeBots").value = "1"; document.getElementById("gunRunList").value = "short"; document.getElementById("duelHost").click(); })()`);
+  let code = "";
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+  } catch {
+    check("modes friends: the host gets a code", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+  try {
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check("modes friends: both connect", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  const kinds = await Promise.all([host, guest].map((p) => ev<{ kind: string; role: string }>(p, "({ kind: window.__range.duel().modeKind, role: window.__range.duel().role })")));
+  check("modes friends: the guest plays the host's mode (Gun Run)", kinds.every((k) => k.kind === "gunrun"), JSON.stringify(kinds));
+  for (const p of [host, guest]) await pressPlay(p);
+  const fight = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 20000 }).then(() => true, () => false)));
+  check("modes friends: the fight starts on both", fight.every(Boolean));
+  await ev(host, "window.__range.duel().holdFire = true");
+  await sleep(1200);
+  const seen = await ev<{ bots: number; humans: number; rows: number }>(guest, `(() => { const d = window.__range.duel(); const rs = [...d.remotes.values()]; return { bots: rs.filter((r) => r.id >= 100).length, humans: rs.filter((r) => r.id < 100).length, rows: d.hud().mode.rows.length }; })()`);
+  check("modes friends: the guest sees the host and the host's bot, and all three on the scoreboard", seen.bots === 1 && seen.humans === 1 && seen.rows === 3, JSON.stringify(seen));
+  // the host knocks the guest: the host's level goes up on both screens, the guest comes back
+  await ev(host, `(() => { const d = window.__range.duel(); const r = d.remotes.get(1); d.localHit(r, 900, true, "rspn101", 12); })()`);
+  const down = await guest.waitForFunction("!window.__range.duel().alive", { polling: 100, timeout: 5000 }).then(() => true, () => false);
+  await sleep(700);
+  const lv = await Promise.all([host, guest].map((p) => ev<number>(p, "window.__range.duel().ladder.level(0)")));
+  const hostGun = await ev<string>(host, "window.__range.loadout.slots[0].id");
+  check("modes friends: the host's kill moves the host to level 2 on both screens, the R-99 in hand", down && lv[0] === 1 && lv[1] === 1 && hostGun === "r97", JSON.stringify({ down, lv, hostGun }));
+  const again = await guest.waitForFunction("window.__range.duel().alive", { polling: 200, timeout: 6000 }).then(() => true, () => false);
+  const hostSees = await host.waitForFunction("window.__range.duel().remotes.get(1)?.alive === true", { polling: 200, timeout: 4000 }).then(() => true, () => false);
+  check("modes friends: the guest respawns and the host sees them back", again && hostSees);
+  // the guest knocks the bot (a hit message the host applies): the guest moves on, told by the host
+  await ev(guest, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id >= 100 && x.alive); d.localHit(r, 900, true, "rspn101", 9); })()`);
+  const gl = await guest.waitForFunction("window.__range.duel().ladder.level(1) === 1 && window.__range.loadout.slots[0].id === 'r97'", { polling: 200, timeout: 5000 }).then(() => true, () => false);
+  check("modes friends: the guest's kill on the host's bot moves the guest on, the R-99 in the guest's hands", gl, JSON.stringify(await ev(guest, "({ lv: window.__range.duel().ladder.level(1), gun: window.__range.loadout.slots[0].id })")));
+  await ev(guest, "window.__range.duel()?.leave()");
+  await host.waitForFunction("window.__range.duel() === null || window.__range.duel().phase", { polling: 200, timeout: 5000 }).catch(() => undefined);
+  await ev(host, "window.__range.duel()?.leave()");
+  await host.close();
+  await guest.close();
 }
 
 /** two friends drop together: the guest sees the host's bots, a knock reaches both feeds, the squad's result reaches both */
@@ -655,7 +819,7 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   await page.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, br, loot, squad, p2p) */
+/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, br, loot, modes, squad, p2p) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -877,6 +1041,13 @@ async function main(): Promise<void> {
     if (want("loot")) {
       console.log("\nBattle royale: landing with nothing, the loot");
       await brLootTest(browser, "?norender");
+    }
+
+    if (want("modes")) {
+      console.log("\nThe arena's modes: Gun Run, team deathmatch, Crown (alone, against bots)");
+      await modesTest(browser, "?norender");
+      console.log("\nGun Run with a friend (two tabs, the local transport)");
+      await modesFriendsTest(browser, "?net=local&norender");
     }
 
     if (want("squad")) {

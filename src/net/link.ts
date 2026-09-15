@@ -55,7 +55,8 @@ export type NetMsg =
   | { t: "shot"; from?: number; o: [number, number, number]; d: [number, number, number]; w: string }
   /** a hit, from the shooter: `w` the gun and `d` the distance in metres, for the death recap (an older build sends neither) */
   | { t: "hit"; from?: number; to: number; amount: number; head: boolean; w?: string; d?: number }
-  | { t: "down"; from?: number; by: number }
+  /** a player (or a host's bot) is out: `by` whom; `m` 1 when it was a melee (Gun Run takes a level for it) */
+  | { t: "down"; from?: number; by: number; m?: number }
   | { t: "round"; n: number; scores: number[]; phase: RoundPhase; left: number; winner: number }
   | { t: "ping"; at: number }
   | { t: "pong"; at: number }
@@ -85,6 +86,14 @@ export type NetMsg =
   | { t: "mark"; from?: number; k: string; at: [number, number, number]; label?: string; target?: number }
   /** a care package is on its way down to `at`, landing in `lands` seconds */
   | { t: "pod"; from?: number; at: [number, number, number]; lands: number }
+  /**
+   * The arena modes' state from the host, four times a second and on every
+   * change (modematch.ts): seconds left on the clock; a row per player and bot
+   * [id, level, kills, deaths, team]; the teams' scores; the crown [phase (0
+   * waiting, 1 on the ground, 2 carried), x, z, carrier, held]; the winner
+   * (an id, or a team as -10 - team) once it is decided.
+   */
+  | { t: "mode"; left: number; rows: Array<[number, number, number, number, number]>; tm?: [number, number]; cr?: [number, number, number, number, number]; win?: number }
   | { t: "bye"; from?: number };
 
 /** what a guest needs to drop into the same battle royale as the host */
@@ -115,6 +124,16 @@ export interface LootItemWire {
 export interface MatchOpts {
   /** JOLT and TRIAGE are on (abilities.ts) */
   abilities: boolean;
+  /** an arena mode (modematch.ts): which, how many bots and how good, Gun Run's list */
+  mode?: ModeWelcome;
+}
+
+/** what a guest needs to play the host's arena mode */
+export interface ModeWelcome {
+  kind: string;
+  bots: number;
+  difficulty: string;
+  list?: "short" | "full";
 }
 
 export type RoundPhase = "waiting" | "countdown" | "fight" | "roundEnd" | "matchEnd";

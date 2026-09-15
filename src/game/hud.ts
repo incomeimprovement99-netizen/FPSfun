@@ -20,6 +20,9 @@ import type { DuelHud } from "./duel";
 import type { Recap } from "./recap";
 import type { DrillHud } from "./rangetools";
 import type { TrainerHud } from "./trainer";
+import type { ModeHud } from "./modematch";
+
+type ModeRow = ModeHud["rows"][number];
 
 export interface DamageNumber {
   world: THREE.Vector3;
@@ -124,7 +127,7 @@ export interface HudState {
   /** the heal wheel, held open: the items, their counts, the one the mouse points at */
   healWheel?: { items: Array<{ id: string; name: string; count: number }>; pick: string | null } | null;
   /** nameplates over the other players and the bots */
-  plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean }>;
+  plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean }>;
   /** real shield and health (a 1v1); the bars are decorative without it */
   vitals?: { shield: number; shieldMax: number; health: number; healthMax: number; evo?: number | null; helmet?: string | null } | null;
   /** your ability (abilities.ts): name, key, its cooldown and what is left of it (0: ready); a passive one has no key */
@@ -277,6 +280,7 @@ export class Hud {
     this.drawPlates(now, camera, s, u);
     this.drawMarkers(now, camera, s, u);
     this.drawDuel(s, u);
+    this.drawMode(now, camera, s, u);
     this.drawBr(now, s, u);
     this.drawKit(s, u);
     this.drawAbility(now, s, u);
@@ -554,7 +558,7 @@ export class Hud {
       const a = dist < 40 ? 1 : 1 - (dist - 40) / 20;
       c.globalAlpha = a * (pl.alive ? 1 : 0.5);
       const w = 110 * u;
-      const col = pl.alive ? WHITE : DIM;
+      const col = !pl.alive ? DIM : pl.ally ? "#7ddc8a" : WHITE;
       this.text(pl.alive ? pl.name : `${pl.name}  DOWN`, x, y - 12 * u, 700, 14 * u, col, "center");
       if (pl.alive) {
         c.fillStyle = "rgba(0,0,0,0.55)";
@@ -603,7 +607,8 @@ export class Hud {
       this.text(label, x0 + 24 * u, y, 600, 15 * u, DIM);
       this.text(value, x0 + w - 24 * u, y, 700, 16 * u, WHITE, "right");
     };
-    row(0, "ROUNDS", `${sm.roundsWon} - ${sm.roundsLost}`);
+    const k = d.mode?.kind;
+    row(0, k === "gunrun" ? "LEVEL REACHED" : k === "tdm" ? "TEAM SCORE" : "ROUNDS", k === "gunrun" ? `${sm.roundsWon + 1}` : `${sm.roundsWon} - ${sm.roundsLost}`);
     row(1, "KILLS / DEATHS", `${sm.kills} / ${sm.deaths}   K/D ${sm.deaths ? (sm.kills / sm.deaths).toFixed(2) : sm.kills.toFixed(2)}`);
     row(2, "DAMAGE", `${Math.round(sm.damage)}`);
     row(3, "ACCURACY", sm.shots ? `${Math.round((100 * sm.hits) / sm.shots)}%  (${sm.hits} of ${sm.shots})` : "-");
@@ -628,7 +633,7 @@ export class Hud {
    */
   private drawDuel(s: HudState, u: number): void {
     const d = s.duel;
-    if (!d || d.br) return;
+    if (!d || d.br || d.mode) return;
     const cx = this.w / 2;
     const c = this.ctx;
     c.fillStyle = PANEL;
@@ -677,6 +682,115 @@ export class Hud {
     } else if (d.phase === "matchEnd" && d.youWonMatch !== null) {
       this.text(d.youWonMatch ? "YOU WIN THE MATCH" : "YOU LOST THE MATCH", cx, this.h * 0.36, 700, 60 * u, d.youWonMatch ? "#ffd23c" : RED, "center");
       this.text(`${d.you} - ${d.them}   rematch in ${Math.ceil(d.left)}`, cx, this.h * 0.36 + 44 * u, 700, 22 * u, WHITE, "center");
+    }
+  }
+
+  /**
+   * An arena mode: its panel under the compass (Gun Run: your level and gun,
+   * the next; team deathmatch: the teams' scores; Crown: the rounds and where
+   * the crown is), the clock, a scoreboard down the right, the crown's marker
+   * in the world, the respawn count, the round and match results.
+   */
+  private drawMode(now: number, camera: THREE.Camera, s: HudState, u: number): void {
+    const d = s.duel;
+    const m = d?.mode;
+    if (!d || !m) return;
+    const c = this.ctx;
+    const cx = this.w / 2;
+    const clock = (t: number) => `${Math.floor(t / 60)}:${Math.floor(t % 60).toString().padStart(2, "0")}`;
+    c.fillStyle = PANEL;
+    c.fillRect(cx - 190 * u, 60 * u, 380 * u, 62 * u);
+    const GOLD = "#ffd23c";
+    if (m.gun) {
+      this.text(`LEVEL ${m.gun.level} / ${m.gun.of}`, cx - 175 * u, 84 * u, 700, 14 * u, DIM);
+      this.text(m.gun.name, cx - 175 * u, 110 * u, 700, 24 * u, m.gun.knife ? GOLD : WHITE);
+      if (m.gun.next) this.text(`NEXT  ${m.gun.next}`, cx + 175 * u, 110 * u, 600, 13 * u, DIM, "right");
+      if (m.left !== null) this.text(clock(m.left), cx + 175 * u, 88 * u, 700, 20 * u, m.left < 60 ? RED : WHITE, "right");
+    } else if (m.teams) {
+      this.text("YOUR TEAM", cx - 175 * u, 84 * u, 700, 13 * u, "#7ddc8a");
+      this.text(`${m.teams.you}`, cx - 40 * u, 110 * u, 700, 36 * u, WHITE, "right");
+      this.text("-", cx, 106 * u, 700, 28 * u, DIM, "center");
+      this.text(`${m.teams.them}`, cx + 40 * u, 110 * u, 700, 36 * u, WHITE);
+      this.text("THEM", cx + 175 * u, 84 * u, 700, 13 * u, RED, "right");
+      this.text(`FIRST TO ${m.teams.limit}${m.left !== null ? `  ·  ${clock(m.left)}` : ""}`, cx, 138 * u, 600, 14 * u, DIM, "center");
+    } else if (m.crown) {
+      const cr = m.crown;
+      const best = Math.max(0, ...m.rows.filter((r) => !r.you).map((r) => r.wins));
+      this.text("YOU", cx - 175 * u, 84 * u, 700, 13 * u, "#7ddc8a");
+      this.text(`${cr.wins}`, cx - 40 * u, 110 * u, 700, 36 * u, WHITE, "right");
+      this.text("-", cx, 106 * u, 700, 28 * u, DIM, "center");
+      this.text(`${best}`, cx + 40 * u, 110 * u, 700, 36 * u, WHITE);
+      this.text("BEST OTHER", cx + 175 * u, 84 * u, 700, 13 * u, RED, "right");
+      this.text(`ROUND ${d.round}  ·  FIRST TO ${cr.roundsToWin}`, cx, 138 * u, 600, 14 * u, DIM, "center");
+      if (d.phase === "fight") {
+        if (cr.phase === "waiting") this.text(`THE CROWN IN ${Math.ceil(m.left ?? 0)}`, cx, 162 * u, 700, 16 * u, GOLD, "center");
+        else if (cr.phase === "ground") this.text("THE CROWN IS UP: TAKE IT", cx, 162 * u, 700, 18 * u, GOLD, "center");
+        else {
+          this.text(cr.mine ? "YOU HAVE THE CROWN: STAY UP" : `${cr.carrier} HAS THE CROWN`, cx, 162 * u, 700, 18 * u, cr.mine ? "#7ddc8a" : GOLD, "center");
+          const bw = 220 * u;
+          c.fillStyle = "rgba(0,0,0,0.5)";
+          c.fillRect(cx - bw / 2, 172 * u, bw, 8 * u);
+          c.fillStyle = cr.mine ? "#7ddc8a" : GOLD;
+          c.fillRect(cx - bw / 2, 172 * u, bw * Math.min(1, cr.held / cr.need), 8 * u);
+          this.text(`${Math.floor(cr.held)} / ${cr.need} S`, cx + bw / 2 + 8 * u, 180 * u, 700, 12 * u, WHITE);
+        }
+        // the crown in the world, held to the screen's edge
+        if (cr.phase !== "waiting" && !cr.mine) {
+          const v = cr.at.clone().setY(cr.at.y + 0.6).project(camera);
+          const pad = 40 * u;
+          let x = (v.x * 0.5 + 0.5) * this.w;
+          let y = (-v.y * 0.5 + 0.5) * this.h;
+          if (v.z > 1) {
+            x = this.w - x;
+            y = this.h - pad;
+          }
+          x = Math.max(pad, Math.min(this.w - pad, x));
+          y = Math.max(pad, Math.min(this.h - pad, y));
+          const r = 11 * u * (1 + 0.1 * Math.sin(now * 6));
+          c.fillStyle = GOLD;
+          c.strokeStyle = "rgba(0,0,0,0.7)";
+          c.lineWidth = 2 * u;
+          c.beginPath();
+          c.moveTo(x - r, y + r * 0.6);
+          c.lineTo(x - r, y - r * 0.4);
+          c.lineTo(x - r * 0.5, y + r * 0.1);
+          c.lineTo(x, y - r * 0.7);
+          c.lineTo(x + r * 0.5, y + r * 0.1);
+          c.lineTo(x + r, y - r * 0.4);
+          c.lineTo(x + r, y + r * 0.6);
+          c.closePath();
+          c.fill();
+          c.stroke();
+          const cam = (camera as THREE.PerspectiveCamera).position;
+          this.text(`CROWN  ${Math.round(Math.hypot(cr.at.x - cam.x, cr.at.z - cam.z))} M`, x, y + r + 14 * u, 700, 12 * u, GOLD, "center");
+        }
+      }
+    }
+    // the scoreboard, down the right under the feed
+    const x = this.w - 30 * u;
+    const top = 270 * u;
+    const value = (r: ModeRow) => (m.kind === "gunrun" ? `LV ${r.level + 1}  ·  ${r.kills}` : m.kind === "crown" ? `${r.wins}  ·  ${r.kills}` : `${r.kills} / ${r.deaths}`);
+    this.text(m.kind === "gunrun" ? "LEVEL  ·  KILLS" : m.kind === "crown" ? "ROUNDS  ·  KILLS" : "KILLS / DEATHS", x, top - 18 * u, 700, 11 * u, DIM, "right");
+    m.rows.slice(0, 9).forEach((r, i) => {
+      const y = top + i * 19 * u;
+      const col = r.you ? "#7ddc8a" : r.ally ? "#8fd8ff" : r.alive ? WHITE : DIM;
+      this.text(value(r), x, y, 700, 14 * u, col, "right");
+      this.text(`${r.alive ? "" : "DOWN  "}${r.name}`, x - 110 * u, y, 700, 14 * u, col, "right");
+    });
+    // down in a mode with respawns: back in soon
+    if (m.respawnIn !== null && d.phase === "fight") {
+      this.text(`BACK IN ${Math.max(1, Math.ceil(m.respawnIn))}`, cx, this.h * 0.3, 700, 40 * u, WHITE, "center");
+    }
+    if (d.waiting) this.text(d.waiting, cx, this.h * 0.42, 700, 34 * u, GOLD, "center");
+    if (d.phase === "countdown") {
+      this.text(`${Math.max(1, Math.ceil(d.left))}`, cx, this.h * 0.42, 700, 110 * u, WHITE, "center");
+      this.text(m.title, cx, this.h * 0.42 + 40 * u, 700, 22 * u, GOLD, "center");
+    } else if (d.phase === "roundEnd" && d.youWonRound !== null) {
+      this.text(d.youWonRound ? "ROUND WON" : "ROUND LOST", cx, this.h * 0.38, 700, 56 * u, d.youWonRound ? "#7ddc8a" : RED, "center");
+    } else if (d.phase === "matchEnd" && m.winner !== null) {
+      const title = m.won ? (m.kind === "tdm" ? "YOUR TEAM WINS" : "YOU WIN") : m.winner === "NOBODY" ? "A DRAW" : `${m.winner} WINS`;
+      this.text(title, cx, this.h * 0.3, 700, 60 * u, m.won ? GOLD : RED, "center");
+      this.text(`${m.title}  ·  rematch in ${Math.ceil(d.left)}`, cx, this.h * 0.3 + 44 * u, 700, 22 * u, WHITE, "center");
     }
   }
 

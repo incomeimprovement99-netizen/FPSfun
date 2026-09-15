@@ -37,7 +37,7 @@ export interface CourseStats {
 }
 
 export type BotDifficulty = "easy" | "normal" | "hard";
-export type MatchKind = "duel" | "triple" | `bots:${BotDifficulty}` | "br";
+export type MatchKind = "duel" | "triple" | `bots:${BotDifficulty}` | "br" | "gunrun" | "tdm" | "crown";
 
 export interface Profile {
   name: string;

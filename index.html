@@ -195,6 +195,9 @@
             <button type="button" class="mode" id="goBots"><b>Arena, Bots</b><span id="botsBlurb">The 1v1 rules against 1 or 2 bots. Pick the difficulty on the 1v1 tab.</span></button>
             <button type="button" class="mode" id="goArena"><b>Arena, alone</b><span>Walk the 1v1 map by yourself to learn it.</span></button>
             <button type="button" class="mode" id="goBr"><b>Battle Royale, Bots</b><span id="brBlurb">Drop onto Outskirts with 11 bots, the ring closes, last one standing. Bots and difficulty on the 1v1 tab.</span></button>
+            <button type="button" class="mode" id="goGunRun"><b>Gun Run, Bots</b><span>Every kill is the next gun; a knife kill at the end wins. Against bots in the arena.</span></button>
+            <button type="button" class="mode" id="goTdm"><b>Team Deathmatch, Bots</b><span>You and three bots against four, respawns, first team to 30.</span></button>
+            <button type="button" class="mode" id="goCrown"><b>Crown, Bots</b><span>The crown appears 20 s into a round: take it, hold it 30 s. First to 3 rounds.</span></button>
           </div>
           <div class="rangebox">
             <b>The range</b>
@@ -211,7 +214,7 @@
           <div class="duel">
             <div class="duelTitle">1v1 or 1v1v1 with friends</div>
             <div class="duelRow">
-              <select id="duelMode" title="what to play"><option value="arena">Arena: 1v1 / 1v1v1</option><option value="br">Battle royale: a squad against the bots</option></select>
+              <select id="duelMode" title="what to play"><option value="arena">Arena: 1v1 / 1v1v1</option><option value="gunrun">Gun Run: every kill the next gun</option><option value="tdm">Team deathmatch: together against the bots</option><option value="crown">Crown: take it, hold it</option><option value="br">Battle royale: a squad against the bots</option></select>
               <select id="duelPlayers" title="how many play"><option value="2">2 players</option><option value="3">3 players</option></select>
               <select id="duelAbilities" title="JOLT (a 10 m dash, every 3 s) or TRIAGE (heals twice as fast), picked at the countdown or the landing"><option value="0">Abilities off</option><option value="1">Abilities on</option></select>
               <button id="duelHost" type="button">Create match</button>
@@ -232,6 +235,14 @@
             </div>
           </div>
           <div class="duel" style="margin-top:10px">
+            <div class="duelTitle">Modes: Gun Run, Team Deathmatch, Crown</div>
+            <div class="duelRow">
+              <select id="modeBots" title="bots in Gun Run and Crown, with friends or alone (team deathmatch fills both teams to four)"><option value="0">No bots</option><option value="1">1 bot</option><option value="2">2 bots</option><option value="3" selected>3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option></select>
+              <select id="gunRunList" title="Gun Run's guns: ten, or every gun in the game, then the knife"><option value="short">Gun Run: 10 guns</option><option value="full">Gun Run: every gun (29)</option></select>
+              <span class="or">the difficulty and abilities above. Then Play tab (alone), or pick the mode in the first box and Create match (with friends).</span>
+            </div>
+          </div>
+          <div class="duel" style="margin-top:10px">
             <div class="duelTitle">Battle Royale, Bots</div>
             <div class="duelRow">
               <select id="brBots"><option value="11" selected>11 bots (12 in the match)</option><option value="7">7 bots</option><option value="5">5 bots</option><option value="3">3 bots</option></select>
@@ -242,6 +253,7 @@
           </div>
           <ul class="rules">
             <li>1v1: three lanes. 1v1v1: a triangle, a corner each. First to 3 rounds, blue shields and 100 health.</li>
+            <li><b>Gun Run</b>: one kill moves you to the next gun; after the last gun comes the knife (melee, 100 a hit, 300 to the head), and a knife kill wins. Dying to a melee costs a level. 10 minutes, then the highest level wins. Health and shields come back 4 s after the last hit. <b>Team deathmatch</b>: you and your friends, filled out with bots to four, against four bots; respawns; first team to 30, or ahead at 10 minutes. <b>Crown</b>: rounds; 20 s in the crown appears in the middle, walk over it to take it, and 30 s holding it without going down takes the round (so does being the last one up). First to 3. All three play in the 1v1 arena.</li>
             <li>20 s into a round the circle in the middle goes live. Stand in it alone for 10 s to take the round. The last one standing takes it at any time.</li>
             <li>Abilities (a setting per match; the battle royale has them on): pick <b>JOLT</b> (a 10 m dash the way you are moving, every 3 s, key F) or <b>TRIAGE</b> (every heal twice as fast) with 5 or 6 when the card comes up: at each countdown, or when you land. In the range, 5 and 6 pick one any time to try it.</li>
             <li>You play with your selected loadout: <b id="duelLoadout"></b>. Change it on the Loadouts tab any time; weapons swap straight away.</li>

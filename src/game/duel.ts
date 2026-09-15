@@ -29,6 +29,7 @@ import { ARENA_CENTER, ARENA_SPAWNS, TRI_CENTER, TRI_SPAWNS, ZONE_RADIUS } from 
 import { operatorById } from "./operators";
 import type { MatchSummary } from "./stats";
 import type { BrHud } from "./brmatch";
+import type { ModeHud } from "./modematch";
 import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
 
@@ -124,6 +125,8 @@ export interface DuelHud {
   summary: (MatchSummary & { streak: number }) | null;
   /** a battle royale: the ring, the count, the drop (brmatch.ts) */
   br?: BrHud;
+  /** an arena mode: Gun Run, team deathmatch, Crown (modematch.ts) */
+  mode?: ModeHud;
 }
 
 export interface LocalState {
@@ -307,19 +310,21 @@ export class Duel implements MatchLike {
    * "duel": the arena rounds. "br": the battle royale (brmatch.ts) runs on
    * the same links and figures: no rounds or circle here, no damage between
    * the humans (they are a squad), the subclass drives the phases and adds
-   * the bots and the ring.
+   * the bots and the ring. "arena": the arena's modes (modematch.ts: Gun Run,
+   * team deathmatch, Crown), whose subclass drives the phases, the scores and
+   * the bots, and says who is on whose side.
    */
-  readonly mode: "duel" | "br";
+  readonly mode: "duel" | "br" | "arena";
 
   constructor(
     protected scene: THREE.Scene,
     protected projectiles: ProjectileSystem,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; mode?: "duel" | "br"; abilities?: boolean }
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; mode?: "duel" | "br" | "arena"; abilities?: boolean }
   ) {
     const now = wallClock();
     this.mode = opts.mode ?? "duel";
     this.abilities = opts.abilities ?? false;
-    this.players = this.mode === "br" ? Math.max(1, Math.min(3, opts.players)) : Math.max(2, Math.min(3, opts.players));
+    this.players = this.mode === "duel" ? Math.max(2, Math.min(3, opts.players)) : Math.max(1, Math.min(3, opts.players));
     this.id = opts.myId;
     this.role = this.id === 0 ? "host" : "guest";
     this.lastClock = now;
@@ -349,15 +354,25 @@ export class Duel implements MatchLike {
   /** a message this class does not know (the battle royale's ring, its end) */
   protected onExtra(_m: NetMsg, _from: number): void {}
   /** the host: a hit sent to an id that is not a guest's (a bot); true when taken */
-  protected onHitOther(_to: number, _amount: number, _head: boolean, _from: number): boolean {
+  protected onHitOther(_to: number, _amount: number, _head: boolean, _from: number, _weapon?: string): boolean {
     return false;
   }
   /** the host, once a frame, after the links and before the state packet */
   protected tick(_now: number, _dt: number, _local: LocalState): void {}
-  /** someone (a human) went down, on any side */
-  protected onSomeoneDown(_id: number, _by: number): void {}
+  /** someone (a human) went down, on any side; `melee` when a melee did it */
+  protected onSomeoneDown(_id: number, _by: number, _melee?: boolean): void {}
+  /** the last hit this player took was a melee (the `down` says so: Gun Run takes a level for it) */
+  protected lastHitMelee = false;
   /** the ids the humans use; bots are 100 up */
   static readonly BOT_ID = 100;
+  /** on this player's side: no damage either way (a battle royale's squad; a team in the modes) */
+  protected friendly(id: number): boolean {
+    return this.mode === "br" && id >= 0 && id < Duel.BOT_ID;
+  }
+  /** a figure on this player's side: its plate reads as a team mate's, aim assist leaves it alone */
+  isAlly(id: number): boolean {
+    return id !== this.id && this.friendly(id);
+  }
   /** a name for the feed by id (the subclass adds the bots it runs) */
   protected nameOf(id: number): string | undefined {
     return this.remotes.get(id)?.name;
@@ -518,10 +533,10 @@ export class Duel implements MatchLike {
       return;
     }
     // a goodbye or a stray message from someone unknown makes no figure
-    if (m.t === "bye" || m.t === "ping" || m.t === "pong" || m.t === "round" || m.t === "zone" || m.t === "hello" || m.t === "welcome" || m.t === "ring" || m.t === "brend") {
+    if (m.t === "bye" || m.t === "ping" || m.t === "pong" || m.t === "round" || m.t === "zone" || m.t === "hello" || m.t === "welcome" || m.t === "ring" || m.t === "brend" || m.t === "mode") {
       const known = this.remotes.get(from);
       if (known) known.lastHeard = now;
-      if (m.t === "ring" || m.t === "brend") {
+      if (m.t === "ring" || m.t === "brend" || m.t === "mode") {
         if (this.role === "guest") this.onExtra(m, from);
         return;
       }
@@ -598,7 +613,7 @@ export class Duel implements MatchLike {
       }
       case "hit":
         if (m.to === this.id) this.takeHit(m.amount, from, m.head, typeof m.w === "string" ? m.w.slice(0, 32) : "", typeof m.d === "number" && Number.isFinite(m.d) ? m.d : null);
-        else if (this.role === "host" && !this.onHitOther(m.to, m.amount, m.head, from)) this.links.get(m.to)?.send({ ...m, from });
+        else if (this.role === "host" && !this.onHitOther(m.to, m.amount, m.head, from, typeof m.w === "string" ? m.w : "")) this.links.get(m.to)?.send({ ...m, from });
         break;
       case "down":
         // a player went down: their figure falls now (the next state packet
@@ -610,14 +625,14 @@ export class Duel implements MatchLike {
         {
           const by = m.by === this.id ? (this.myName || "YOU") : (this.remotes.get(m.by)?.name ?? `PLAYER ${m.by + 1}`);
           const mine = m.by === this.id;
-          this.onFeed?.(`${by} knocked ${r.name}`, mine, !mine && this.mode === "br");
+          this.onFeed?.(`${by} knocked ${r.name}`, mine, !mine && this.mode !== "duel");
           if (mine) this.kills++;
         }
         if (this.role === "host") {
           this.relay(m, from);
           if (this.mode === "duel") this.checkLastStanding(now);
         }
-        if (from < Duel.BOT_ID) this.onSomeoneDown(from, m.by);
+        if (from < Duel.BOT_ID) this.onSomeoneDown(from, m.by, m.m === 1);
         break;
       // round, zone, ping, pong, bye, hello and welcome are handled above,
       // before a figure is made for the sender
@@ -769,7 +784,7 @@ export class Duel implements MatchLike {
   /** another player's bullet hit this player (in a battle royale the humans are a squad: only bots and the ring, -1, hurt) */
   protected takeHit(amount: number, from: number, head = false, weapon = "", dist: number | null = null): void {
     if (!this.alive || this.phase !== "fight") return;
-    if (this.mode === "br" && from >= 0 && from < Duel.BOT_ID) return;
+    if (this.friendly(from)) return;
     if (this.downed) {
       // down: what is left is the bleed-out's 100, and it can be finished
       this.bleedHp -= amount;
@@ -819,9 +834,9 @@ export class Duel implements MatchLike {
     this.onEliminated?.(from);
     const who = from === -1 ? "THE RING" : (this.nameOf(from) ?? "SOMEONE");
     this.onFeed?.(how === "bled out" ? `${this.myName || "YOU"} bled out` : how === "finished" ? `${who} eliminated ${this.myName || "YOU"}` : `${who} knocked ${this.myName || "YOU"}`, false);
-    this.broadcast({ t: "down", by: from });
+    this.broadcast({ t: "down", by: from, m: this.lastHitMelee ? 1 : undefined });
     if (this.role === "host" && this.mode === "duel") this.checkLastStanding(wallClock());
-    this.onSomeoneDown(this.id, from);
+    this.onSomeoneDown(this.id, from, this.lastHitMelee);
   }
 
   /** a revive of a downed squad mate: started, given up, or done (the reviver's side) */
@@ -918,8 +933,8 @@ export class Duel implements MatchLike {
   /** one of this player's bullets hit another player's figure */
   localHit(r: Remote, amount: number, head: boolean, weapon = "", dist: number | null = null): void {
     if (this.phase !== "fight" || !r.alive) return;
-    // a squad mate in a battle royale: no friendly fire
-    if (this.mode === "br" && r.id < Duel.BOT_ID) return;
+    // a squad mate in a battle royale, a team mate in the modes: no friendly fire
+    if (this.friendly(r.id)) return;
     this.hits++;
     this.damage += amount;
     const m: NetMsg = { t: "hit", to: r.id, amount, head, w: weapon || undefined, d: dist === null ? undefined : Math.round(dist * 10) / 10 };

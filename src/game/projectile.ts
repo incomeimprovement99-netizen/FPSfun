@@ -128,7 +128,7 @@ export class ProjectileSystem {
    * `dir`. Melee does the same damage wherever it lands, so no headshot
    * multiplier. Returns true if it hit something that takes damage.
    */
-  melee(origin: THREE.Vector3, dir: THREE.Vector3, range: number, damage: number, now: number, onImpact: (e: ImpactEvent) => void): boolean {
+  melee(origin: THREE.Vector3, dir: THREE.Vector3, range: number, damage: number, now: number, onImpact: (e: ImpactEvent) => void, headDamage = damage): boolean {
     const { meshes, owner, tOwner } = this.gather(now);
     const unit = dir.clone().normalize();
     this.ray.set(origin, unit);
@@ -139,7 +139,7 @@ export class ProjectileSystem {
     const dist = hit.distance;
     if (d) {
       const zone = (hit.object.userData.zone as Zone) ?? "body";
-      const report = d.hit(now, zone, damage, 1, 1, hit.point);
+      const report = d.hit(now, zone, zone === "head" ? headDamage : damage, 1, 1, hit.point);
       onImpact({ dummy: d, report, target: null, targetHead: false, damage: report?.amount ?? 0, point: hit.point.clone(), distance: dist, weapon: "melee" });
       return true;
     }

@@ -72,14 +72,22 @@ export interface BotShot {
   from: THREE.Vector3;
   dir: THREE.Vector3;
   damage: number;
-  /** its gun, for the recap and the killcam */
+  /** its gun, for the recap and the killcam ("melee" for a knife) */
   weapon: string;
+  /** a knife: it lands on whoever is within reach, no bullet */
+  melee?: boolean;
 }
+
+/** a bot's knife reaches this far, m, and swings this often, s (the player's melee) */
+const BOT_MELEE_RANGE = 1.8;
+const BOT_MELEE_EVERY = 0.9;
 
 export class Bot {
   readonly dummy: Dummy;
   readonly remote: Remote;
-  readonly weapon: ResolvedWeapon;
+  weapon: ResolvedWeapon;
+  /** Gun Run's last level: no gun, it closes in and swings a knife for this much */
+  knife: number | null = null;
   pos = new THREE.Vector3();
   yaw = 0;
   /** falling in from the sky at the start of a battle royale */
@@ -116,7 +124,7 @@ export class Bot {
     scene: THREE.Scene,
     private projectiles: ProjectileSystem,
     private diff: Difficulty,
-    readonly spawn: Spawn,
+    public spawn: Spawn,
     /** the remote id (1 and 2 in the arena; 100 up in a battle royale) */
     id = index + 1,
     weaponId?: string,
@@ -171,6 +179,28 @@ export class Bot {
     this.healing = null;
     this.kit = { cell: items.bots.cell, syringe: items.bots.syringe };
     this.prevVital = this.dummy.health + this.dummy.shield;
+  }
+
+  /** a different gun (Gun Run's next level): its figure's too */
+  setWeapon(id: string): void {
+    if (id === this.weapon.id) return;
+    this.weapon = resolveWeapon(id, 2);
+    this.remote.avatarWeapon = id;
+    this.dummy.setGun(id);
+    this.dummy.setGunVisible(this.knife === null);
+  }
+
+  /** Gun Run's knife: the gun goes away and it fights hand to hand */
+  setKnife(damage: number | null): void {
+    this.knife = damage;
+    this.dummy.setGunVisible(damage === null);
+  }
+
+  /** back in at another spot (a respawn in the modes) */
+  respawnAt(s: Spawn): void {
+    this.spawn = s;
+    this.reset();
+    this.dummy.setGunVisible(this.knife === null);
   }
 
   /** a random ability when the match has them on; none otherwise */
@@ -326,7 +356,8 @@ export class Bot {
       // strafe across the line of sight, hold the distance
       const side = new THREE.Vector2(-want.y, want.x);
       const strafe = Math.sin(now * 1.7 + this.strafePhase);
-      const advance = dist > this.diff.keep + 1 ? 1 : dist < this.diff.keep - 1 ? -0.6 : 0;
+      const keep = this.knife !== null ? 0.9 : this.diff.keep;
+      const advance = dist > keep + 1 ? 1 : dist < keep - 1 ? -0.6 : 0;
       want = want.multiplyScalar(advance).addScaledVector(side, strafe * 0.9);
       if (want.length() > 1e-3) want.normalize();
     } else if (dist < 1.5) want.set(0, 0);
@@ -379,6 +410,16 @@ export class Bot {
     // shooting: after the reaction time, at the weapon's rate, with an aim
     // error that wanders every quarter second
     const shots: BotShot[] = [];
+    if (this.knife !== null) {
+      // the knife: a swing whenever the target is within reach
+      if (target && sense.canShoot && !this.healing && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt && Math.hypot(target.x - this.pos.x, target.z - this.pos.z) <= BOT_MELEE_RANGE) {
+        this.nextShotAt = now + BOT_MELEE_EVERY;
+        const from = this.pos.clone().setY(this.pos.y + 1.35);
+        const dir = target.clone().setY(target.y + 1.15).sub(from).normalize();
+        shots.push({ from, dir, damage: this.knife, weapon: "melee", melee: true });
+      }
+      return shots;
+    }
     if (target && sense.canShoot && !this.healing && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
       const interval = Math.max(this.weapon.shotInterval, this.weapon.semiAuto ? 0.25 : 0) / this.diff.fireScale;
       this.nextShotAt = now + interval;

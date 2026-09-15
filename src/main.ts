@@ -56,6 +56,8 @@ import { Soundscape } from "./game/soundscape";
 import { DummyBehaviour, DUMMY_MODES, DUMMY_MODE_NAME, FlickDrill, RangeCombat, SprayWall, type DummyMode } from "./game/rangetools";
 import { SuperglideTrainer } from "./game/trainer";
 import { BrPlay } from "./game/brplay";
+import { ArenaMode } from "./game/modematch";
+import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
 import squadCfg from "./config/squad.json";
 import { lootLabel, type LootItem } from "./game/loot";
 import type { AmmoType } from "./game/weapons";
@@ -775,6 +777,12 @@ let hosting: HostHandle | null = null;
 let cancelJoin: (() => void) | null = null;
 /** knocked in a match: the controller gets no keys until the next round */
 const NO_INPUT: MoveInput = { held: () => false, pressedNow: () => false };
+/** a figure on your side (a squad mate, a team mate): no aim assist toward it, a friendly plate */
+function isAllyFigure(a: Dummy): boolean {
+  if (!(duel instanceof Duel)) return false;
+  const r = duel.remoteOf(a);
+  return !!r && duel.isAlly(r.id);
+}
 /** down: the move keys only, and crouched (a crawl) */
 const CRAWL_KEYS = new Set(["forward", "back", "left", "right"]);
 const crawlInput = (src: MoveInput): MoveInput => ({
@@ -791,6 +799,28 @@ const duelMode = $<HTMLSelectElement>("duelMode");
 const botDifficulty = $<HTMLSelectElement>("botDifficulty");
 const botCount = $<HTMLSelectElement>("botCount");
 const brBots = $<HTMLSelectElement>("brBots");
+const modeBots = $<HTMLSelectElement>("modeBots");
+const gunRunList = $<HTMLSelectElement>("gunRunList");
+for (const [sel, key] of [
+  [modeBots, "range.mode.bots"],
+  [gunRunList, "range.mode.list"],
+] as const) {
+  try {
+    const v = localStorage.getItem(key);
+    if (v && [...sel.options].some((o) => o.value === v)) sel.value = v;
+  } catch {
+    /* ignore */
+  }
+  sel.addEventListener("change", () => {
+    try {
+      localStorage.setItem(key, sel.value);
+    } catch {
+      /* ignore */
+    }
+  });
+}
+const modeBotCount = (): number => Math.max(0, Math.min(MODES.maxBots, Number(modeBots.value) || 0));
+const modeList = (): "short" | "full" => (gunRunList.value === "full" ? "full" : "short");
 // Abilities on or off, per kind of match, remembered: the friends' arena and
 // the bots off by default, the battle royale on. The friends' select follows
 // the mode picked beside it (a squad BR shows the BR's setting).
@@ -814,6 +844,8 @@ const setAbilitySetting = (kind: "arena" | "bots" | "br", on: boolean): void => 
   }
 };
 const duelKind = (): "arena" | "br" => (duelMode.value === "br" ? "br" : "arena");
+/** the friends' row's mode, when it is one of the arena's modes */
+const duelModeKind = (): ModeKind | null => (isModeKind(duelMode.value) ? duelMode.value : null);
 const showAbilitySettings = (): void => {
   duelAbilities.value = abilitySetting(duelKind()) ? "1" : "0";
   botAbilities.value = abilitySetting("bots") ? "1" : "0";
@@ -920,6 +952,31 @@ function respawnForMatch(d: MatchLike): void {
   d.shield = d.shieldMax;
   heal = null;
   player.healSlow = 1;
+  if (d instanceof ArenaMode) {
+    // Gun Run: the level's gun, one slot, endless reserve (the guns change with every kill)
+    if (d.modeKind === "gunrun") {
+      loadout.ammo.infinite = true;
+      applyModeGun(d.currentGun);
+    }
+    // back in after going down: the killcam and the recap give way
+    if (d.respawns && d.phase === "fight") {
+      killcam.stop();
+      recap = null;
+    }
+  }
+}
+
+/** Gun Run: the gun for your level in hand (the other slot empty), or the knife (fists) */
+function applyModeGun(id: string | null): void {
+  if (id === null) {
+    loadout.clearSlot(0);
+    loadout.clearSlot(1);
+    return;
+  }
+  loadout.give(loadout.activeIndex, id);
+  loadout.clearSlot(1 - loadout.activeIndex);
+  loadout.raise(gameTime);
+  refreshDerived();
 }
 
 // ---------- healing ----------
@@ -1174,6 +1231,10 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   };
   d.onHealSeen = (id, item) => dlog.heal({ t: realNow(), id, item });
   brPlay.reset();
+  if (d instanceof ArenaMode) d.onGun = (id) => {
+    applyModeGun(id);
+    if (d.alive) audio.swap();
+  };
   if (d instanceof BrMatch) {
     d.onLootTaken = (it) => applyLoot(it);
     d.onMark = (k, from, at, label, target) => brPlay.addMarker(k, at, label, from, target, gameTime);
@@ -1226,7 +1287,14 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   // the host's own choice, or what the host's welcome said (an older host sends none: off)
   const withAbilities = myId === 0 ? (hostOpts?.abilities ?? false) : (opts?.abilities ?? false);
   let d: Duel;
-  if (squad) {
+  const modeOpts = myId === 0 ? hostOpts?.mode : opts?.mode;
+  if (modeOpts && isModeKind(modeOpts.kind)) {
+    const diff: BotDifficulty = modeOpts.difficulty === "easy" || modeOpts.difficulty === "hard" ? modeOpts.difficulty : "normal";
+    d = new ArenaMode(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, kind: modeOpts.kind, bots: modeOpts.bots, difficulty: diff, list: modeOpts.list === "full" ? "full" : "short" });
+    duel = d;
+    player.setBounds(ARENA_BOUNDS);
+    wireMatch(d, modeOpts.kind);
+  } else if (squad) {
     const diff: BotDifficulty = squad.difficulty === "easy" || squad.difficulty === "hard" ? squad.difficulty : "normal";
     d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot" });
     duel = d;
@@ -1237,7 +1305,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
     player.setBounds(players >= 3 ? TRI_BOUNDS : ARENA_BOUNDS);
     wireMatch(d, players >= 3 ? "triple" : "duel");
   }
-  const goal = squad ? `The squad drops onto ${(d as BrMatch).poi.name} against ${squad.bots} bots.` : "First to 3 rounds.";
+  const goal = d instanceof ArenaMode ? `${MODE_TITLE[d.modeKind]}: ${modeGoal(d)}` : squad ? `The squad drops onto ${(d as BrMatch).poi.name} against ${squad.bots} bots.` : "First to 3 rounds.";
   d.onSlotFree = (id) => hosting?.release(id);
   d.onRoster = (connected, total) => {
     setDuelStatus(connected < total - 1 ? `${connected} of ${total - 1} friends in. Waiting for the rest; the code is <b class="code">${hosting?.code ?? ""}</b>.` : `Everyone is in. ${goal} <b>Click Play</b>.`, connected < total - 1 ? "live" : "good");
@@ -1266,6 +1334,30 @@ function startBots(): void {
   wireMatch(d, `bots:${diff}`);
   respawnForMatch(d);
   setDuelStatus(`Against ${Number(botCount.value) === 2 ? "two bots" : "a bot"}, ${diff}. First to 3 rounds.`, "good");
+  duelButtons();
+}
+/** what a mode is played to, for the status line */
+function modeGoal(d: ArenaMode): string {
+  if (d.modeKind === "gunrun") return `${d.ladder.guns.length} guns then the knife, ${Math.round(MODES.gunRun.timeLimit / 60)} minutes.`;
+  if (d.modeKind === "tdm") return `teams of ${MODES.tdm.teamSize}, first to ${MODES.tdm.scoreLimit}.`;
+  return `hold the crown ${MODES.crown.hold} s, first to ${MODES.crown.roundsToWin} rounds.`;
+}
+/** an arena mode alone, against bots */
+function startMode(kind: ModeKind): void {
+  if (duel) return;
+  hosting?.cancel();
+  hosting = null;
+  cancelJoin?.();
+  cancelJoin = null;
+  for (const c of courses) c.leave();
+  const diff = brDifficulty();
+  const bots = kind === "tdm" ? MODES.tdm.teamSize * 2 - 1 : Math.max(1, modeBotCount());
+  const d = new ArenaMode(scene, projectiles, { players: 1, myId: 0, link: null, abilities: abilitySetting("bots"), kind, bots, difficulty: diff, list: modeList() });
+  duel = d;
+  player.setBounds(ARENA_BOUNDS);
+  wireMatch(d, kind);
+  respawnForMatch(d);
+  setDuelStatus(`${MODE_TITLE[kind]} against ${kind === "tdm" ? "a team of bots, with bots on your side" : `${bots} bot${bots === 1 ? "" : "s"}`}, ${diff}: ${modeGoal(d)}`, "good");
   duelButtons();
 }
 /** the battle royale against bots, on Outskirts */
@@ -1305,6 +1397,7 @@ const brDifficulty = (): BotDifficulty => (botDifficulty.value === "easy" || bot
 const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
+  const wasGunRun = duel instanceof ArenaMode && duel.modeKind === "gunrun";
   duel?.dispose();
   duel = null;
   // back in the range: either ability to practise, nothing picked; ammo as Settings says
@@ -1315,6 +1408,12 @@ function endMatch(reason: string): void {
   recorder.clear();
   heal = null;
   mapOpen = false;
+  if (wasGunRun) {
+    for (let i = 0; i < loadout.slots.length; i++) if (loadout.slots[i].empty) loadout.give(i, [loadouts.current.slot1, loadouts.current.slot2][i]);
+    applyLoadout(loadouts.current);
+    loadout.setWeaponId(0, loadouts.current.slot1);
+    loadout.setWeaponId(1, loadouts.current.slot2);
+  }
   if (wasBr) {
     setRegion("range");
     // your loadout back (a loot game left you with what you found, or nothing)
@@ -1342,7 +1441,8 @@ duelHostBtn.addEventListener("click", () => {
   // a battle royale squad: the place, the bots and the difficulty are fixed
   // now so every guest is told the same
   hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart() } : null;
-  hostOpts = { abilities: abilitySetting(duelKind()) };
+  const mk = duelModeKind();
+  hostOpts = { abilities: abilitySetting(duelKind()), mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList() } : undefined };
   setDuelStatus("Making a match...", "live");
   hosting = hostMatch(
     players,
@@ -1513,6 +1613,10 @@ function goTo(mode: Mode): void {
   }
   if (mode === "br") {
     startBr();
+    return;
+  }
+  if (mode === "gunrun" || mode === "tdm" || mode === "crown") {
+    startMode(mode);
     return;
   }
   for (const c of courses) c.leave();
@@ -1975,7 +2079,7 @@ function step(): void {
             pitch: player.pitch,
             ads: ws.adsFrac,
             activeInput: true,
-            targets: duel ? duel.avatars : rangeTargets,
+            targets: duel ? duel.avatars.filter((a) => !isAllyFigure(a)) : rangeTargets,
           })
         : null;
     const slow = assist?.slow ?? 1;
@@ -2278,7 +2382,9 @@ function step(): void {
     // a swing is an attack for the accuracy readout, as a hit with it counts
     stats.shots++;
     const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(player.orientationAt(aimYaw, aimPitch, 0, 0));
-    projectiles.melee(eye, dir, MELEE_RANGE, MELEE_DAMAGE, now, handleImpact);
+    // Gun Run's last level: the knife (100 a hit, 300 to the head)
+    const knife = duel instanceof ArenaMode && duel.knifeNow;
+    projectiles.melee(eye, dir, MELEE_RANGE, knife ? MODES.gunRun.knifeDamage : MELEE_DAMAGE, now, handleImpact, knife ? MODES.gunRun.knifeHeadDamage : MELEE_DAMAGE);
   }
 
   // ---------- the killcam and the recap ----------
@@ -2553,7 +2659,7 @@ function step(): void {
       ? duel.avatars
           .map((a) => ({ a, r: duel!.remoteOf(a) }))
           .filter((x) => x.r !== null && x.a.group.visible)
-          .map((x) => ({ world: new THREE.Vector3(x.a.group.position.x, x.a.group.position.y + 2.05, x.a.group.position.z), name: x.r!.name, health: x.r!.health, shield: x.r!.shield, shieldMax: x.r!.shieldMax, alive: x.r!.alive }))
+          .map((x) => ({ world: new THREE.Vector3(x.a.group.position.x, x.a.group.position.y + 2.05, x.a.group.position.z), name: x.r!.name, health: x.r!.health, shield: x.r!.shield, shieldMax: x.r!.shieldMax, alive: x.r!.alive, ally: duel instanceof Duel && duel.isAlly(x.r!.id) }))
       : undefined,
     stance: player.stance,
     speedMs: player.speed,
@@ -2624,6 +2730,8 @@ initWelcome();
   input,
   profile,
   startBots,
+  startMode,
+  applyModeGun,
   menu,
   loadouts,
   /** screenshots: the five operators in a row, in front of the arena's first spawn */
@@ -2668,13 +2776,14 @@ initWelcome();
   brPlay,
   applyLoot,
   THREE,
-  /** open ground near x, z: no box within `clear` metres (tools/e2e.ts) */
+  /** open ground near x, z: nothing standing on the floor within `clear` metres (tools/e2e.ts) */
   openGround: (x: number, z: number, clear = 5): { x: number; z: number } | null => {
     for (let r = 0; r < 120; r += 3) {
       for (let a = 0; a < 16; a++) {
         const px = x + Math.cos((a / 16) * Math.PI * 2) * r;
         const pz = z + Math.sin((a / 16) * Math.PI * 2) * r;
-        if (!RANGE_SOLIDS.some((s) => px > s.minX - clear && px < s.maxX + clear && pz > s.minZ - clear && pz < s.maxZ + clear)) return { x: px, z: pz };
+        // only what stands on the floor: a roof or a girder overhead is no obstacle
+        if (!RANGE_SOLIDS.some((s) => s.base < 2 && px > s.minX - clear && px < s.maxX + clear && pz > s.minZ - clear && pz < s.maxZ + clear)) return { x: px, z: pz };
         if (r === 0) break;
       }
     }

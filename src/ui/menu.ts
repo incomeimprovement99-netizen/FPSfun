@@ -7,7 +7,7 @@ import { HEIRLOOMS } from "../game/heirlooms";
 import { Stats, type MatchKind, type MatchStats } from "../game/stats";
 import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
 
-export type Mode = "range" | "run" | "runAdvanced" | "duel" | "arena" | "bots" | "br";
+export type Mode = "range" | "run" | "runAdvanced" | "duel" | "arena" | "bots" | "br" | "gunrun" | "tdm" | "crown";
 export type Tab = "play" | "duel" | "loadouts" | "stats" | "settings" | "controls";
 
 export interface MenuOptions {
@@ -53,6 +53,9 @@ export class Menu {
     $("goArena").addEventListener("click", () => o.onGo("arena"));
     $("goBots").addEventListener("click", () => o.onGo("bots"));
     $("goBr").addEventListener("click", () => o.onGo("br"));
+    $("goGunRun").addEventListener("click", () => o.onGo("gunrun"));
+    $("goTdm").addEventListener("click", () => o.onGo("tdm"));
+    $("goCrown").addEventListener("click", () => o.onGo("crown"));
 
     // weapon pickers, sorted by name
     const sorted = o.weaponIds.slice().sort((a, b) => o.weaponName(a).localeCompare(o.weaponName(b)));
@@ -124,6 +127,9 @@ export class Menu {
       matchCard("1v1v1 with friends", ["triple"]),
       matchCard("Arena, Bots", ["bots:easy", "bots:normal", "bots:hard"]),
       matchCard("Battle Royale (bots)", ["br"]),
+      matchCard("Gun Run", ["gunrun"]),
+      matchCard("Team Deathmatch", ["tdm"]),
+      matchCard("Crown", ["crown"]),
       courseCard("basic", "The Run (Basic)"),
       courseCard("advanced", "The Run (Advanced)"),
       courseCard("drill", "Flick drill (30 targets)"),

@@ -212,6 +212,8 @@ interface Rig {
   shinR: THREE.Group;
 }
 const PELVIS_Y = 0.9;
+/** the arms turn about the chest: a rigged figure's gun sits in that frame */
+const CHEST_Y = 1.44;
 
 /**
  * Bake `meshes` (built in figure space) into one merged mesh per material,
@@ -512,7 +514,7 @@ export class Dummy {
       torso.position.set(0, 0, 0);
       const head = bakePart(P.head, v(0, 1.58, 0), keep);
       head.position.set(0, 1.58 - PELVIS_Y, 0);
-      const chest = v(0, 1.44, 0);
+      const chest = v(0, CHEST_Y, 0);
       const arms = new THREE.Group();
       arms.position.set(0, chest.y - PELVIS_Y, 0);
       let armL: THREE.Group | null = null;
@@ -657,6 +659,27 @@ export class Dummy {
   /** a rigged figure: what it should be doing, from the player or bot it stands for */
   setPose(p: FigurePose): void {
     this.pose = p;
+  }
+
+  /** a different gun in its hands (Gun Run's next level): the same grip, the new model */
+  setGun(id: string): void {
+    const old = this.gun;
+    const parent = old?.parent;
+    if (!old || !parent) return;
+    const m = displayGunModel(id);
+    const gun = m.root.clone(true);
+    gun.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
+    });
+    for (const child of [...gun.children]) if (child.name === "muzzleflash") gun.remove(child);
+    gun.rotation.copy(old.rotation);
+    // where the grip goes, in the arms' frame (the chest) for a rigged figure
+    gun.position.set(0.07, 1.33 - m.grip.u, 0.45 - m.grip.f);
+    if (parent !== this.group) gun.position.y -= CHEST_Y;
+    gun.visible = old.visible;
+    parent.add(gun);
+    old.removeFromParent();
+    this.gun = gun;
   }
 
   /** show or hide the gun it holds (a bot still searching for one) */
