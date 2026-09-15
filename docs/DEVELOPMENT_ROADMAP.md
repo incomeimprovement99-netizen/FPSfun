@@ -413,3 +413,34 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Tests: verify (the feet planted through a 0.5 rad turn, a step round past 50 degrees, walking keeps them with the
   body), e2e (the mannequin is the default; a mannequin's rifle hangs off its chest with the right hand on the
   grip), snap (figures-hold, figures-hold-close, figures-crouch-close, and the labs with a sprint).
+
+## Milestone 28 — Bot tiers that play differently, with frags, cover and hearing ✅
+2026-09-15 (Phase 12E). `src/game/bots.ts`, `src/config/bots.json`, `brmatch.ts`, `modematch.ts`.
+- **Four tiers, and mixed**: easy, normal, hard and elite, plus "mixed" (each bot drawn by weight: 20 / 45 / 25
+  / 10). Built the way CS2's shipped bot profile and TF2's published bot code grade theirs
+  (RESEARCH_PHASE_12 section 4):
+  - **Reaction** to a new sighting: 0.6 / 0.4 / 0.2 / 0.12 s.
+  - **Aim lag** behind a moving target: 0.35 / 0.2 / 0.09 / 0.045 s, so strafing beats an easy bot and not an
+    elite one.
+  - **Aim error**: starts wide on a new target and settles while the bot keeps it (14 degrees down to 5 for
+    easy; 2.5 down to 0.8 for elite).
+  - **Aim point**: from the chest up to the neck.
+- **Behaviour by tier**:
+  - **Dodging**: easy never; normal half the time; hard and elite reverse their strafe on every hit.
+  - **Hearing**: shots within 70 m, heard 20 / 50 / 90 / 100% of the time; a bot that hears one goes to look.
+  - **Hunting**: normal and up go to where they last saw you.
+  - **Crouching** now and then while firing (hard and up).
+  - **Heals**: sooner after a fight by tier.
+  - **Elite** comes back round a corner already aimed where it lost you.
+- **Frags** (normal and up): a bot throws one at a target that has stood still in its view too long (8 / 5 / 4 s)
+  or has been hiding out of sight. It lobs to land where you were, two a life, 14 s apart. The flight is drawn on
+  every screen, and the side running the bots works out the blast as it does their bullets: you, your squad and
+  rival bots. Gun Run's bots throw none.
+- **Cover** (normal and up): hurt below 55%, a bot picks a spot within 9 m, out of your sight, that it can walk
+  to in a straight line. It heals there once it is out of sight, then comes back to peek. It gives up on a spot it
+  cannot get nearer to.
+- The difficulty select gains Elite and Mixed; the Stats tab counts them; the bots' crouch reaches the guests.
+- Tests: verify (the tiers' numbers, the error's decay, mixed's weights, the lob landing on its mark), e2e (an elite
+  bot hears a shot out of its sight, throws a frag at you standing still and its blast lands, crouches, dodges,
+  finds cover out of your sight and heals there; an easy bot does none of it; both e2e batches pass with tiered,
+  frag-throwing bots in every mode).

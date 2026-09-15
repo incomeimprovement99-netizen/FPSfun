@@ -211,6 +211,11 @@ export interface MatchLike {
   onHealSeen: ((id: number, item: string) => void) | null;
   /** someone else's effect (a player's, or a bot's): draw and play it */
   onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3, n?: number) => void) | null;
+  /**
+   * A bot's frag went off at `at` (the throw's flight is the page's): the side
+   * that runs the bots works out who it hurt, as it does for their bullets.
+   */
+  botBlast?(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void;
 }
 
 export class Duel implements MatchLike {
@@ -615,6 +620,7 @@ export class Duel implements MatchLike {
         r.avatar.kick();
         this.projectiles.fire(o, dir, this.weapon(m.w), true);
         this.onShotFired?.(from, o, dir, m.w);
+        if (this.role === "host" && from < Duel.BOT_ID) this.heardShot(o);
         // Every pellet is its own message; the sound is once per pull. The
         // fastest guns fire about 55 ms apart, so no real shot is skipped.
         if (now - this.lastShotSound > SHOT_SOUND_GAP) {
@@ -934,10 +940,14 @@ export class Duel implements MatchLike {
 
   /** this player's shot, so the others can draw and hear it */
   localShot(origin: THREE.Vector3, dir: THREE.Vector3, weapon: string): void {
+    this.heardShot(origin);
     this.shots++;
     this.onShotFired?.(this.id, origin, dir, weapon);
     this.broadcast({ t: "shot", o: [origin.x, origin.y, origin.z], d: [dir.x, dir.y, dir.z], w: weapon });
   }
+
+  /** a shot went off here (this player's, or a guest's on the host): the bots in earshot may come to look */
+  protected heardShot(_at: THREE.Vector3): void {}
 
   /** this player's effect (a JOLT), for the others */
   localFx(k: string, a?: THREE.Vector3, b?: THREE.Vector3, n?: number): void {

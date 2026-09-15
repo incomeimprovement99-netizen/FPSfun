@@ -1,0 +1,35 @@
+{
+  "_note": "Bot difficulty tiers (src/game/bots.ts). The shape follows how Counter-Strike 2's shipped bot profile and Valve's published Team Fortress 2 bot code grade their bots (docs/RESEARCH_PHASE_12.md section 4): a reaction time to a newly seen enemy, an aim that re-settles on an interval (here, how far behind a moving target the aim lags), a starting aim error that shrinks while it keeps the target (errStart degrees, errDecay = the fraction of the extra error left after one second, errFloor what it settles to), where on the body it aims (height in m above the feet), the chance to dodge when shot, the chance to hear a shot within earshot, grenades, cover and a crouch while firing. Reaction and the error's start and decay are CS2's values where its tiers line up (Easy, Normal, Hard, Expert); the rest are ours, tuned so each tier plays differently rather than only aiming differently.",
+  "tiers": {
+    "easy": {
+      "speed": 4.2, "reaction": 0.6, "aimLag": 0.35, "errStart": 14, "errDecay": 0.7, "errFloor": 5, "aimHeight": 1.1,
+      "fireScale": 0.45, "keep": 8, "strafe": 0.5, "strafeRate": 1.2, "dodge": 0, "hearing": 0.2,
+      "grenadeAfter": null, "healAfter": 4, "cover": false, "crouchPeek": 0, "preAim": false, "jolt": false
+    },
+    "normal": {
+      "speed": 5.4, "reaction": 0.4, "aimLag": 0.2, "errStart": 9, "errDecay": 0.5, "errFloor": 2.6, "aimHeight": 1.25,
+      "fireScale": 0.7, "keep": 6, "strafe": 0.9, "strafeRate": 1.7, "dodge": 0.5, "hearing": 0.5,
+      "grenadeAfter": 8, "healAfter": 3, "cover": true, "crouchPeek": 0.1, "preAim": false, "jolt": true
+    },
+    "hard": {
+      "speed": 6.6, "reaction": 0.2, "aimLag": 0.09, "errStart": 5, "errDecay": 0.35, "errFloor": 1.3, "aimHeight": 1.4,
+      "fireScale": 1, "keep": 5, "strafe": 1, "strafeRate": 2.2, "dodge": 1, "hearing": 0.9,
+      "grenadeAfter": 5, "healAfter": 2, "cover": true, "crouchPeek": 0.3, "preAim": false, "jolt": true
+    },
+    "elite": {
+      "speed": 6.6, "reaction": 0.12, "aimLag": 0.045, "errStart": 2.5, "errDecay": 0.2, "errFloor": 0.8, "aimHeight": 1.48,
+      "fireScale": 1, "keep": 4.5, "strafe": 1, "strafeRate": 2.8, "dodge": 1, "hearing": 1,
+      "grenadeAfter": 4, "healAfter": 1.5, "cover": true, "crouchPeek": 0.45, "preAim": true, "jolt": true
+    }
+  },
+  "_mixed": "a battle royale's 'mixed' lobby: each bot's tier drawn with these weights",
+  "mixed": { "easy": 0.2, "normal": 0.45, "hard": 0.25, "elite": 0.1 },
+  "_grenade": "a bot's frags: how many it carries, the least time between two, the range it throws over (m), and how long a target must have stood still in view (grenadeAfter, per tier) or been out of sight behind cover (hiddenAfter) before it throws at where it was",
+  "grenade": { "count": 2, "cooldown": 14, "minRange": 7, "maxRange": 32, "hiddenAfter": 1.5, "forgetAfter": 6, "flight": 1.15 },
+  "_cover": "a bot with cover on, hurt below this fraction of its shield and health, looks for a spot within these metres out of the target's sight to heal, then peeks back",
+  "cover": { "below": 0.55, "search": 9, "samples": 10 },
+  "_hearing": "a shot within this many metres can be heard (by the tier's chance): the bot turns and goes to look, for this many seconds",
+  "hear": { "range": 70, "memory": 4 },
+  "_dodge": "hurt, a bot that dodges reverses its strafe and strafes harder for this long",
+  "dodgeTime": 0.6
+}

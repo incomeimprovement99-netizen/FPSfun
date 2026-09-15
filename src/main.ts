@@ -32,7 +32,7 @@ import { opticName } from "./config/names";
 import type { ResolvedWeapon } from "./game/weapons";
 import { Duel, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike } from "./game/duel";
 import { BotMatch } from "./game/bots";
-import { Stats, type MatchKind, type BotDifficulty } from "./game/stats";
+import { Stats, asDifficulty, type MatchKind, type BotDifficulty } from "./game/stats";
 import { submitScore } from "./game/leaderboard";
 import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link, type MatchOpts } from "./net/link";
 import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
@@ -963,7 +963,7 @@ brBots.addEventListener("change", () => {
 });
 try {
   const bd = localStorage.getItem("range.bots.difficulty");
-  if (bd === "easy" || bd === "normal" || bd === "hard") botDifficulty.value = bd;
+  if (bd) botDifficulty.value = asDifficulty(bd);
   const bc = localStorage.getItem("range.bots.count");
   if (bc === "1" || bc === "2") botCount.value = bc;
 } catch {
@@ -1281,7 +1281,12 @@ const throwables = new Throwables(scene, {
     else if (t.kind === "arcstar") throwHit(target, THROWABLES.arcstar.stick, "arcstar", t.pos);
   },
   onBlast: (t: Thrown, at: THREE.Vector3) => {
-    if (!t.mine || (t.kind !== "frag" && t.kind !== "arcstar")) return;
+    if (t.kind !== "frag" && t.kind !== "arcstar") return;
+    // someone else's: if it was a bot's, the side running the bots works out its damage
+    if (!t.mine) {
+      duel?.botBlast?.(t.owner, at, t.kind);
+      return;
+    }
     // everyone in reach and in sight of it (you are not hurt by your own)
     for (const tg of throwTargets()) {
       if (duel && tg.id === duel.id) continue;
@@ -1570,13 +1575,13 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   let d: Duel;
   const modeOpts = myId === 0 ? hostOpts?.mode : opts?.mode;
   if (modeOpts && isModeKind(modeOpts.kind)) {
-    const diff: BotDifficulty = modeOpts.difficulty === "easy" || modeOpts.difficulty === "hard" ? modeOpts.difficulty : "normal";
+    const diff: BotDifficulty = asDifficulty(modeOpts.difficulty);
     d = new ArenaMode(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, kind: modeOpts.kind, bots: modeOpts.bots, difficulty: diff, list: modeOpts.list === "full" ? "full" : "short" });
     duel = d;
     player.setBounds(ARENA_BOUNDS);
     wireMatch(d, modeOpts.kind);
   } else if (squad) {
-    const diff: BotDifficulty = squad.difficulty === "easy" || squad.difficulty === "hard" ? squad.difficulty : "normal";
+    const diff: BotDifficulty = asDifficulty(squad.difficulty);
     d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot" });
     duel = d;
     wireMatch(d, "br");
@@ -1608,7 +1613,7 @@ function startBots(): void {
   cancelJoin?.();
   cancelJoin = null;
   for (const c of courses) c.leave();
-  const diff = (botDifficulty.value === "easy" || botDifficulty.value === "hard" ? botDifficulty.value : "normal") as BotDifficulty;
+  const diff = asDifficulty(botDifficulty.value);
   const d = new BotMatch(scene, projectiles, diff, Number(botCount.value) === 2 ? 2 : 1, abilitySetting("bots"));
   duel = d;
   player.setBounds(ARENA_BOUNDS);
@@ -1674,7 +1679,7 @@ brStartSel.addEventListener("change", () => {
 });
 const brStart = (): "loot" | "loadout" => (brStartSel.value === "loadout" ? "loadout" : "loot");
 const newSeed = (): number => Math.floor(Math.random() * 2 ** 31);
-const brDifficulty = (): BotDifficulty => (botDifficulty.value === "easy" || botDifficulty.value === "hard" ? botDifficulty.value : "normal");
+const brDifficulty = (): BotDifficulty => asDifficulty(botDifficulty.value);
 const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;

@@ -18,7 +18,8 @@
 // Damage from the ring is the ring's; damage from a bot's shot is tested
 // against a capsule at the target's feet, yours, a friend's or another bot's.
 import * as THREE from "three";
-import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, hitsBody, type BotSense } from "./bots";
+import { Throwables, blastDamage, throwCode } from "./throwables";
+import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, hitsBody, tierFor, type BotSense } from "./bots";
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Ring, RING_PHASES, RING_TICK, type Circle } from "./ring";
@@ -165,7 +166,6 @@ export class BrMatch extends Duel {
       this.lootField.generate(opts.seed ?? 1, map.pois.map((p) => ({ x: p.x, z: p.z })), BR_BOUNDS_WORLD);
     }
     if (this.role === "host") {
-      const diff = DIFFICULTY[difficulty];
       // the bots spread over the other places first, then the squad's
       const others = map.pois.filter((p) => p !== this.poi).sort(() => rng() - 0.5);
       const order = [...others, this.poi];
@@ -174,7 +174,8 @@ export class BrMatch extends Duel {
         const drop = poi.drops[i % poi.drops.length];
         const jitter = () => (rng() - 0.5) * 8;
         const spawn = { x: drop.x + jitter(), z: drop.z + jitter(), yaw: rng() * 360 };
-        const bot = new Bot(i, scene, projectiles, diff, spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], BOT_NAMES[i % BOT_NAMES.length]);
+        // each its own tier: "mixed" draws one per bot
+        const bot = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty, rng)], spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], BOT_NAMES[i % BOT_NAMES.length]);
         // with loot on it lands with nothing and searches first
         if (this.startLoot) bot.dummy.setGunVisible(false);
         bot.setAbilities(this.abilities, rng);
@@ -196,6 +197,59 @@ export class BrMatch extends Duel {
     } else {
       this.ring = null;
       this.view = { phase: 0, state: "waiting", timeLeft: RING_PHASES[0].wait, current: start, next: start };
+    }
+  }
+
+  /** a shot here or a guest's: the bots in earshot may come to look */
+  protected override heardShot(at: THREE.Vector3): void {
+    if (this.role !== "host") return;
+    const now = wallClock();
+    for (const b of this.bots) b.bot.hear(at, now);
+  }
+
+  /**
+   * A bot's frag went off (the host's page drew its flight): everyone in reach
+   * and in its sight takes the damage, the squad as from the bot's bullets,
+   * other bots on their figures.
+   */
+  botBlast(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void {
+    if (this.role !== "host" || this.phase !== "fight") return;
+    const thrower = this.bots.find((x) => x.bot.remote.id === owner);
+    if (!thrower) return;
+    const now = wallClock();
+    const hurts = (feet: THREE.Vector3): number => {
+      const chest = feet.clone().setY(feet.y + 1.1);
+      const dmg = blastDamage(kind, chest.distanceTo(at));
+      return dmg > 0 && Throwables.inSight(at, chest) ? dmg : 0;
+    };
+    // the squad: this player, and the guests by their last state
+    if (this.alive && this.lastLocal) {
+      const f = new THREE.Vector3(this.lastLocal.x, this.lastLocal.y, this.lastLocal.z);
+      const d = hurts(f);
+      if (d > 0) this.hurt(d, owner, kind, Math.round(thrower.bot.pos.distanceTo(f) * 10) / 10);
+    }
+    for (const r of this.remotes.values()) {
+      if (r.id >= Duel.BOT_ID || !r.alive) continue;
+      const s = r.samples[r.samples.length - 1];
+      if (!s) continue;
+      const f = new THREE.Vector3(s.x, s.y, s.z);
+      const d = hurts(f);
+      if (d <= 0) continue;
+      const dist = Math.round(thrower.bot.pos.distanceTo(f) * 10) / 10;
+      this.links.get(r.id)?.send({ t: "hit", to: r.id, amount: d, head: false, from: owner, w: kind, d: dist });
+      const toShield = Math.min(r.shield, d);
+      r.shield -= toShield;
+      r.health = Math.max(0, r.health - (d - toShield));
+    }
+    // the other bots
+    for (const o of this.bots) {
+      if (o === thrower || !o.bot.alive || o.bot.dropping) continue;
+      const d = hurts(o.bot.pos);
+      if (d <= 0) continue;
+      o.bot.dummy.hit(now, "body", d, 1, 1, o.bot.pos.clone().setY(o.bot.pos.y + 1.2));
+      o.bot.remote.health = o.bot.dummy.health;
+      o.bot.remote.shield = o.bot.dummy.shield;
+      if (o.bot.dummy.knocked) this.botDown(o, owner);
     }
   }
 
@@ -566,7 +620,7 @@ export class BrMatch extends Duel {
     for (const b of this.bots) {
       if (!b.landed && b.bot.alive && !b.bot.dropping) {
         b.landed = true;
-        b.armedAt = now + (this.startLoot ? LOOT.botSearch[this.difficulty] * (0.7 + Math.random() * 0.6) : 0);
+        b.armedAt = now + (this.startLoot ? LOOT.botSearch[b.bot.diff.name] * (0.7 + Math.random() * 0.6) : 0);
       }
       if (b.landed && b.armedAt <= now && !b.armedShown && b.bot.alive) {
         // found its gun and a shield of some tier (its health is what it is)
@@ -636,6 +690,12 @@ export class BrMatch extends Duel {
       if (b.armedAt > now) sense.canShoot = false;
       const shots = bot.update(now, dt, sense);
       if (wasAlive && !bot.alive && bot.remote.alive) this.botDown(b, this.id);
+      // a frag: drawn here and on the squad's screens; the blast comes back through botBlast
+      const th = bot.takeThrow();
+      if (th) {
+        this.onRemoteFx?.("throw", bot.remote.id, th.from, th.vel, throwCode(th.kind));
+        this.broadcast({ t: "fx", from: bot.remote.id, k: "throw", a: [th.from.x, th.from.y, th.from.z], b: [th.vel.x, th.vel.y, th.vel.z], n: throwCode(th.kind) });
+      }
       // its own heals show on its plate
       if (bot.alive) {
         bot.remote.health = bot.dummy.health;
@@ -694,7 +754,7 @@ export class BrMatch extends Duel {
           z: bot.pos.z,
           yaw,
           pitch: 0,
-          crouch: false,
+          crouch: bot.crouching,
           w: b.armedAt <= now ? bot.remote.avatarWeapon : "",
           hp: bot.dummy.health,
           sh: bot.dummy.shield,
@@ -702,8 +762,8 @@ export class BrMatch extends Duel {
           op: bot.remote.avatarOp,
           name: bot.remote.name,
           ready: true,
-          st: bot.dropping ? 3 : 0,
-          sp: bot.alive && !bot.dropping ? Math.round(DIFFICULTY[this.difficulty].speed * 10) : 0,
+          st: bot.dropping ? 3 : bot.crouching ? 1 : 0,
+          sp: bot.alive && !bot.dropping ? Math.round(bot.diff.speed * 10) : 0,
         });
       }
     }

@@ -14,7 +14,7 @@
 import * as THREE from "three";
 import { Dummy } from "./dummy";
 import { solidHit, type ProjectileSystem } from "./projectile";
-import { DIFFICULTY, hitsBody } from "./bots";
+import { DIFFICULTY, aimError, tierFor, hitsBody } from "./bots";
 import { WeaponState } from "./weapon-state";
 import type { ResolvedWeapon } from "./weapons";
 import type { BotDifficulty } from "./stats";
@@ -134,7 +134,7 @@ export class RangeCombat {
       }
       return;
     }
-    const diff = DIFFICULTY[this.level as BotDifficulty];
+    const diff = DIFFICULTY[tierFor(this.level as BotDifficulty)];
     const chest = feet.clone().setY(feet.y + 1.2);
     const shooters = dummies
       .filter((d) => d.group.visible && !d.knocked && d.group.position.distanceTo(feet) < cfg.combat.range)
@@ -154,7 +154,9 @@ export class RangeCombat {
       if (now - (this.seenAt.get(d) ?? now) < diff.reaction || now < (this.nextShot.get(d) ?? 0)) continue;
       this.nextShot.set(d, now + weapon.shotInterval / diff.fireScale);
       let e = this.err.get(d);
-      if (!e || now - e.at > 0.25) this.err.set(d, (e = { x: (Math.random() * 2 - 1) * diff.spread, y: (Math.random() * 2 - 1) * diff.spread, at: now }));
+      // the bots' aim error: wide on a new sighting, settling as the dummy keeps you in view
+      const spread = aimError(diff, now - (this.seenAt.get(d) ?? now));
+      if (!e || now - e.at > 0.25) this.err.set(d, (e = { x: (Math.random() * 2 - 1) * spread, y: (Math.random() * 2 - 1) * spread, at: now }));
       const dir = toYou.normalize();
       const side = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
       dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), (e.x * Math.PI) / 180).applyAxisAngle(side, (e.y * Math.PI) / 180).normalize();

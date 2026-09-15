@@ -2,8 +2,12 @@
 //
 // A bot is a Dummy figure with a weapon and a small mind: it walks toward the
 // middle of the arena until it sees you, then toward you, strafing, keeping a
-// few metres back, and fires its weapon at you with an aim error that depends
-// on the difficulty. It cannot jump, climb or slide: it walks up steps and
+// few metres back, and fires its weapon at you. Its tier (src/config/bots.json:
+// easy, normal, hard, elite) is more than its aim: how fast it reacts, how far
+// behind a moving target its aim lags, an aim error that starts wide and
+// settles while it keeps you in view, where on the body it aims, whether it
+// dodges when shot, hears shots, throws a frag at someone camping or hiding,
+// breaks line of sight to heal and peeks back, and crouches while it fires. It cannot jump, climb or slide: it walks up steps and
 // off edges, and walls it meets it slides along. Its bullets are tracers with
 // a hit test against your body; yours hit it like any dummy. When the circle
 // is live and it has no target it goes and stands in the circle.
@@ -23,6 +27,10 @@ import type { MatchSummary, BotDifficulty } from "./stats";
 import { ABILITY_IDS, BOT_ABILITY, JOLT, TRIAGE, type AbilityId } from "./abilities";
 import type { ActorState } from "./killcam";
 import items from "../config/items.json";
+import botsCfg from "../config/bots.json";
+import throwCfg from "../config/throwables.json";
+import { asDifficulty } from "./stats";
+import { Throwables, blastDamage, throwCode } from "./throwables";
 import { HEALTH_MAX, ROUNDS_TO_WIN, SHIELD_MAX, ZONE_CAPTURE, ZONE_DELAY, type DuelHud, type LocalState, type MatchLike, type Remote, type Spawn } from "./duel";
 
 const COUNTDOWN = 3;
@@ -30,23 +38,82 @@ const ROUND_END = 3;
 const MATCH_END = 7;
 const wallClock = (): number => performance.now() / 1000;
 
-interface Difficulty {
+export type BotTier = "easy" | "normal" | "hard" | "elite";
+export const BOT_TIERS: BotTier[] = ["easy", "normal", "hard", "elite"];
+export interface Difficulty {
+  name: BotTier;
   /** m/s on foot */
   speed: number;
   /** seconds from seeing you to the first shot */
   reaction: number;
-  /** aim error, degrees, half cone */
-  spread: number;
+  /** how far behind a moving target the aim runs, s (the aim re-settling on its interval) */
+  aimLag: number;
+  /** the aim error, degrees: where it starts on a new target, the fraction of the extra left after 1 s, where it settles */
+  errStart: number;
+  errDecay: number;
+  errFloor: number;
+  /** where on the body it aims, m above the feet (1.1 the chest, 1.5 the neck) */
+  aimHeight: number;
   /** how much of the weapon's fire rate it uses */
   fireScale: number;
   /** how close it tries to get, m */
   keep: number;
+  /** strafe: how much of its speed, and how often it turns, rad/s */
+  strafe: number;
+  strafeRate: number;
+  /** chances: to dodge when hurt, to hear a shot in earshot */
+  dodge: number;
+  hearing: number;
+  /** a frag at a target standing still in view this long, s (null: no grenades) */
+  grenadeAfter: number | null;
+  /** it heals after this long with nobody in its sights, s */
+  healAfter: number;
+  /** breaks line of sight to heal, then peeks back */
+  cover: boolean;
+  /** the chance, every so often while firing, to crouch (or stand back up) */
+  crouchPeek: number;
+  /** comes back round a corner already aimed where it last saw you */
+  preAim: boolean;
+  /** uses a JOLT to dodge (when the match has abilities on) */
+  jolt: boolean;
 }
-export const DIFFICULTY: Record<BotDifficulty, Difficulty> = {
-  easy: { speed: 4.2, reaction: 0.9, spread: 6, fireScale: 0.45, keep: 8 },
-  normal: { speed: 5.4, reaction: 0.5, spread: 3.2, fireScale: 0.7, keep: 6 },
-  hard: { speed: 6.6, reaction: 0.22, spread: 1.6, fireScale: 1.0, keep: 5 },
-};
+export const DIFFICULTY: Record<BotTier, Difficulty> = Object.fromEntries(
+  BOT_TIERS.map((t) => [t, { name: t, ...(botsCfg.tiers[t] as Omit<Difficulty, "name">) }])
+) as Record<BotTier, Difficulty>;
+/** a lobby's setting as one bot's tier: "mixed" draws one by the config's weights */
+export function tierFor(d: BotDifficulty, rng: () => number = Math.random): BotTier {
+  const k = asDifficulty(d);
+  if (k !== "mixed") return k;
+  const w = botsCfg.mixed as Record<BotTier, number>;
+  let r = rng() * BOT_TIERS.reduce((s, t) => s + w[t], 0);
+  for (const t of BOT_TIERS) {
+    r -= w[t];
+    if (r <= 0) return t;
+  }
+  return "normal";
+}
+/** the aim error, degrees, `t` seconds into keeping a target */
+export function aimError(d: Difficulty, t: number): number {
+  return d.errFloor + (d.errStart - d.errFloor) * Math.pow(d.errDecay, Math.max(0, t));
+}
+const GRENADE = botsCfg.grenade;
+const COVER = botsCfg.cover;
+const HEAR = botsCfg.hear;
+/** is there a clear line between two chests */
+function lineOfSight(a: THREE.Vector3, b: THREE.Vector3): boolean {
+  const from = a.clone().setY(a.y + 1.4);
+  const to = b.clone().setY(b.y + 1.2);
+  const d = to.clone().sub(from);
+  const len = d.length();
+  if (len < 1e-3) return true;
+  return solidHit(from, d.divideScalar(len), len) >= len;
+}
+/** a frag's launch from `from` to land at `to` in about `flight` seconds (the throw's own gravity) */
+export function lobVelocity(from: THREE.Vector3, to: THREE.Vector3, flight: number): THREE.Vector3 {
+  const g = throwCfg.gravity;
+  const t = Math.max(0.3, flight);
+  return new THREE.Vector3((to.x - from.x) / t, (to.y - from.y + 0.5 * g * t * t) / t, (to.z - from.z) / t);
+}
 /** what bots carry, one per bot in order */
 export const BOT_WEAPONS = ["rspn101", "r97", "vinson", "wingman", "hemlok", "energy_ar", "lmg", "energy_shotgun", "volt_smg", "car", "g2", "sentinel"];
 export const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM", "BOT NOVA", "BOT FLUX", "BOT STEEL", "BOT NEON", "BOT SOLAR", "BOT RAPID", "BOT SWIFT", "BOT ONYX", "BOT DUNE"];
@@ -100,6 +167,30 @@ export class Bot {
   private strafePhase = Math.random() * 10;
   private aimErr = new THREE.Vector2();
   private nextErrAt = 0;
+  /** where its aim is, lagging the target by the tier's aimLag */
+  private aimPoint = new THREE.Vector3();
+  private aimSet = false;
+  /** the last place and time it saw its target, and who */
+  lastSeen: { pos: THREE.Vector3; at: number; id: number } | null = null;
+  /** the target standing still: since when, and where */
+  private stillSince = 0;
+  private stillAt = new THREE.Vector3();
+  /** a shot it heard: go and look */
+  heard: { pos: THREE.Vector3; until: number } | null = null;
+  /** a dodge: the strafe reversed and harder, until then */
+  private dodgeUntil = -Infinity;
+  private strafeSign = 1;
+  /** crouched while it fires, and when it next thinks about it */
+  crouching = false;
+  private crouchNext = 0;
+  /** a spot out of the target's sight to heal behind, and until when it keeps to it */
+  cover: { spot: THREE.Vector3; until: number; best: number; bestAt: number } | null = null;
+  /** frags left, when it may throw the next, and one thrown this frame (for the match) */
+  frags: number = GRENADE.count;
+  private nextThrowAt = 0;
+  private thrown: { kind: "frag"; from: THREE.Vector3; vel: THREE.Vector3 } | null = null;
+  /** the mode allows grenades (Gun Run does not) */
+  grenadesAllowed = true;
   /** JOLT or TRIAGE when the match has abilities on (abilities.ts) */
   ability: AbilityId | null = null;
   private joltLeft = 0;
@@ -126,7 +217,7 @@ export class Bot {
     readonly index: number,
     scene: THREE.Scene,
     private projectiles: ProjectileSystem,
-    private diff: Difficulty,
+    readonly diff: Difficulty,
     public spawn: Spawn,
     /** the remote id (1 and 2 in the arena; 100 up in a battle royale) */
     id = index + 1,
@@ -184,6 +275,62 @@ export class Bot {
     this.healing = null;
     this.kit = { cell: items.bots.cell, syringe: items.bots.syringe };
     this.prevVital = this.dummy.health + this.dummy.shield;
+    this.aimSet = false;
+    this.lastSeen = null;
+    this.heard = null;
+    this.cover = null;
+    this.crouching = false;
+    this.dodgeUntil = -Infinity;
+    this.frags = GRENADE.count;
+    this.nextThrowAt = 0;
+    this.thrown = null;
+  }
+
+  /** a frag it threw this frame, once (the match shows it, sends it, and the blast is the match's) */
+  takeThrow(): { kind: "frag"; from: THREE.Vector3; vel: THREE.Vector3 } | null {
+    const t = this.thrown;
+    this.thrown = null;
+    return t;
+  }
+
+  /** a shot went off at `pos`: in earshot, by the tier's chance, it goes to look */
+  hear(pos: THREE.Vector3, now: number, rng: () => number = Math.random): void {
+    if (!this.alive || this.dropping) return;
+    if (this.pos.distanceTo(pos) > HEAR.range) return;
+    if (rng() >= this.diff.hearing) return;
+    this.heard = { pos: pos.clone().setY(this.groundAt(pos.x, pos.z)), until: now + HEAR.memory };
+  }
+
+  /** can it walk straight to `p` (nothing that blocks a body on the way, every half metre) */
+  private clearWalk(p: THREE.Vector3): boolean {
+    const dx = p.x - this.pos.x;
+    const dz = p.z - this.pos.z;
+    const n = Math.ceil(Math.hypot(dx, dz) / 0.5);
+    for (let i = 1; i <= n; i++) if (this.blocked(this.pos.x + (dx * i) / n, this.pos.z + (dz * i) / n)) return false;
+    return true;
+  }
+
+  /** somewhere near, out of `threat`'s sight, that it can stand in: for a heal behind cover */
+  private findCover(threat: THREE.Vector3): THREE.Vector3 | null {
+    let best: THREE.Vector3 | null = null;
+    let bestD = Infinity;
+    for (let i = 0; i < COVER.samples; i++) {
+      const a = (i / COVER.samples) * Math.PI * 2 + this.strafePhase;
+      for (const r of [COVER.search * 0.45, COVER.search]) {
+        const p = new THREE.Vector3(this.pos.x + Math.cos(a) * r, this.pos.y, this.pos.z + Math.sin(a) * r);
+        if (this.blocked(p.x, p.z) || !this.clearWalk(p)) continue;
+        p.y = this.groundAt(p.x, p.z);
+        if (lineOfSight(p, threat)) continue;
+        // not toward the threat
+        const toward = (p.x - this.pos.x) * (threat.x - this.pos.x) + (p.z - this.pos.z) * (threat.z - this.pos.z);
+        const d = this.pos.distanceTo(p) + (toward > 0 ? 4 : 0);
+        if (d < bestD) {
+          bestD = d;
+          best = p;
+        }
+      }
+    }
+    return best;
   }
 
   /** a different gun (Gun Run's next level): its figure's too */
@@ -233,7 +380,8 @@ export class Bot {
       }
       return;
     }
-    if (now - this.lastTargetAt < BOT_ABILITY.healAfter) return;
+    // out of sight behind cover it starts at once; otherwise after its tier's quiet spell
+    if (!this.cover && now - this.lastTargetAt < this.diff.healAfter) return;
     if (d.shield < d.shieldMax && this.kit.cell > 0) this.healing = { item: "cell", startedAt: now };
     else if (d.health < HEALTH_MAX && this.kit.syringe > 0) this.healing = { item: "syringe", startedAt: now };
   }
@@ -332,19 +480,64 @@ export class Bot {
     }
     const target = sense.target;
     const sees = target !== null;
-    if (sees && !this.sawLast) this.seenAt = now;
+    const tier = this.diff;
+    if (sees && !this.sawLast) {
+      // a new sighting: the reaction starts; an elite bot back round a corner where it lost you is already aimed
+      const back = tier.preAim && this.lastSeen && now - this.lastSeen.at < 3 && this.lastSeen.pos.distanceTo(target) < 3.5;
+      this.seenAt = back ? now - tier.reaction * 0.75 : now;
+      if (!back || !this.aimSet) {
+        this.aimPoint.copy(target).setY(target.y + tier.aimHeight);
+        this.aimSet = true;
+      }
+    }
     this.sawLast = sees;
-    if (sees) this.lastTargetAt = now;
-    // hurt this frame (any source: bullets, the ring): a JOLT bot dodges
+    if (sees) {
+      this.lastTargetAt = now;
+      if (!this.lastSeen || this.lastSeen.pos.distanceTo(target) > 1.5 || this.lastSeen.id !== sense.targetId) {
+        this.stillSince = now;
+        this.stillAt.copy(target);
+      }
+      if (this.stillAt.distanceTo(target) > 1.5) {
+        this.stillSince = now;
+        this.stillAt.copy(target);
+      }
+      this.lastSeen = { pos: target.clone(), at: now, id: sense.targetId };
+      this.heard = null;
+    }
+    if (this.lastSeen && now - this.lastSeen.at > GRENADE.forgetAfter) this.lastSeen = null;
+    if (this.heard && now > this.heard.until) this.heard = null;
+    // hurt this frame (any source: bullets, the ring): a JOLT bot dodges, and by its tier it reverses its strafe
     const vital = this.dummy.health + this.dummy.shield;
-    if (vital < this.prevVital - 1e-6) this.lastHurtAt = now;
+    const hurt = vital < this.prevVital - 1e-6;
+    if (hurt) {
+      this.lastHurtAt = now;
+      if (now > this.dodgeUntil && Math.random() < tier.dodge) {
+        this.strafeSign = -this.strafeSign;
+        this.dodgeUntil = now + botsCfg.dodgeTime;
+      }
+    }
     this.prevVital = vital;
+    // low, with cover on: away out of sight to heal, then back to peek
+    const hurtFrac = vital / Math.max(1, HEALTH_MAX + this.dummy.shieldMax);
+    if (tier.cover && !this.cover && sees && target && hurtFrac < COVER.below && (this.kit.cell > 0 || this.kit.syringe > 0)) {
+      const spot = this.findCover(target);
+      if (spot) this.cover = { spot, until: now + 7, best: Infinity, bestAt: now };
+    }
+    // no nearer to it for a second while still in view: that way is blocked; look again next time
+    if (this.cover && sees) {
+      const d = Math.hypot(this.cover.spot.x - this.pos.x, this.cover.spot.z - this.pos.z);
+      if (d < this.cover.best - 0.3) {
+        this.cover.best = d;
+        this.cover.bestAt = now;
+      } else if (now - this.cover.bestAt > 1) this.cover = null;
+    }
+    if (this.cover && (now > this.cover.until || (!this.healing && hurtFrac >= 0.95) || (this.kit.cell <= 0 && this.kit.syringe <= 0))) this.cover = null;
     this.stepHeal(now, sees);
     while (this.joltCharges < JOLT.charges && now >= this.joltRechargeAt) {
       this.joltCharges++;
       this.joltRechargeAt = this.joltCharges < JOLT.charges ? this.joltRechargeAt + JOLT.recharge : Infinity;
     }
-    if (this.ability === "jolt" && this.joltLeft <= 0 && target && this.joltCharges > 0 && now - this.joltLastAt >= JOLT.gap && now - this.lastHurtAt < BOT_ABILITY.joltWhenHitWithin) {
+    if (this.ability === "jolt" && tier.jolt && this.joltLeft <= 0 && target && this.joltCharges > 0 && now - this.joltLastAt >= JOLT.gap && now - this.lastHurtAt < BOT_ABILITY.joltWhenHitWithin) {
       const tx = target.x - this.pos.x;
       const tz = target.z - this.pos.z;
       const tl = Math.hypot(tx, tz) || 1;
@@ -358,28 +551,41 @@ export class Bot {
       this.joltFrom.copy(this.pos);
     }
 
-    // where to go: at the target if seen (keeping a distance), else the goal
-    const goal = target ?? sense.goal;
+    // where to go: cover when it is healing behind it; at the target if seen
+    // (keeping a distance); where it last saw one (a hunt), or a shot it heard;
+    // else the match's goal
+    const hunting = !sees && this.lastSeen && tier.name !== "easy" ? this.lastSeen.pos : null;
+    const goal = this.cover ? this.cover.spot : (target ?? hunting ?? this.heard?.pos ?? sense.goal);
     const toGoal = goal ? new THREE.Vector2(goal.x - this.pos.x, goal.z - this.pos.z) : new THREE.Vector2();
     const dist = toGoal.length();
     let want = new THREE.Vector2();
     if (dist > 1e-3) want.copy(toGoal).divideScalar(dist);
-    if (sees) {
-      // strafe across the line of sight, hold the distance
+    if (sees && !this.cover && target) {
+      // strafe across the line of sight, hold the distance; a dodge reverses it and runs it harder
+      const toT = new THREE.Vector2(target.x - this.pos.x, target.z - this.pos.z);
+      const td = toT.length();
+      if (td > 1e-3) want.copy(toT).divideScalar(td);
       const side = new THREE.Vector2(-want.y, want.x);
-      const strafe = Math.sin(now * 1.7 + this.strafePhase);
-      const keep = this.knife !== null ? 0.9 : this.diff.keep;
-      const advance = dist > keep + 1 ? 1 : dist < keep - 1 ? -0.6 : 0;
-      want = want.multiplyScalar(advance).addScaledVector(side, strafe * 0.9);
+      const strafe = now < this.dodgeUntil ? this.strafeSign : Math.sin(now * tier.strafeRate + this.strafePhase) * this.strafeSign;
+      const keep = this.knife !== null ? 0.9 : tier.keep;
+      const advance = td > keep + 1 ? 1 : td < keep - 1 ? -0.6 : 0;
+      want = want.multiplyScalar(advance).addScaledVector(side, strafe * tier.strafe);
       if (want.length() > 1e-3) want.normalize();
-    } else if (dist < 1.5) want.set(0, 0);
+    } else if (dist < (this.cover ? 0.6 : 1.5) || (this.cover && !sees)) want.set(0, 0);
+    // a crouch now and then while it fires (by tier), never while it walks to cover or heals
+    if (sees && !this.cover && !this.healing && tier.crouchPeek > 0) {
+      if (now >= this.crouchNext) {
+        this.crouchNext = now + 0.4 + Math.random() * 0.4;
+        if (Math.random() < tier.crouchPeek) this.crouching = !this.crouching;
+      }
+    } else this.crouching = false;
     if (this.joltLeft > 0) {
       this.stepJolt(dt);
       want.set(0, 0);
     }
     // a wall in the way: slide along it, and remember which way for a moment
     if (want.length() > 1e-3) {
-      const step = this.diff.speed * dt * (this.healing ? HEAL_WALK : 1);
+      const step = this.diff.speed * dt * (this.healing ? HEAL_WALK : 1) * (this.crouching ? 0.6 : 1);
       let nx = this.pos.x + want.x * step;
       let nz = this.pos.z + want.y * step;
       if (this.blocked(nx, nz)) {
@@ -402,9 +608,10 @@ export class Bot {
       }
       this.pos.y = this.groundAt(this.pos.x, this.pos.z);
     }
-    // face the target when seen, else the way it walks
-    const faceX = target ? target.x - this.pos.x : want.x;
-    const faceZ = target ? target.z - this.pos.z : want.y;
+    // face the target when seen; an elite bot hunting keeps facing where it lost you; else the way it walks
+    const faceAt = target ?? (tier.preAim && hunting ? hunting : null);
+    const faceX = faceAt ? faceAt.x - this.pos.x : want.x;
+    const faceZ = faceAt ? faceAt.z - this.pos.z : want.y;
     if (Math.abs(faceX) + Math.abs(faceZ) > 1e-3) {
       const wantYaw = Math.atan2(faceX, faceZ);
       const cur = this.dummy.group.rotation.y;
@@ -423,8 +630,8 @@ export class Bot {
     const fwdZ = Math.cos(ry);
     const moveDir = moving ? Math.atan2(want.x * -fwdZ + want.y * fwdX, want.x * fwdX + want.y * fwdZ) : 0;
     this.dummy.setPose({
-      speed: moving ? this.diff.speed * (this.healing ? HEAL_WALK : 1) : 0,
-      stance: "stand",
+      speed: moving ? this.diff.speed * (this.healing ? HEAL_WALK : 1) * (this.crouching ? 0.6 : 1) : 0,
+      stance: this.crouching ? "crouch" : "stand",
       pitch: aimPitch,
       moveDir,
       ads: target && this.knife === null && !this.healing ? 0.85 : 0,
@@ -433,8 +640,33 @@ export class Bot {
     });
     this.dummy.update(now, dt);
 
+    // its aim follows the target, late by the tier's lag
+    if (target) {
+      const want3 = target.clone().setY(target.y + tier.aimHeight);
+      if (!this.aimSet) {
+        this.aimPoint.copy(want3);
+        this.aimSet = true;
+      }
+      this.aimPoint.lerp(want3, Math.min(1, dt / Math.max(1e-3, tier.aimLag)));
+    }
+    // a frag: at where a target was hiding, or at one that has stood still in view too long
+    if (tier.grenadeAfter !== null && this.grenadesAllowed && this.frags > 0 && now >= this.nextThrowAt && this.lastSeen && !this.healing && !this.cover && sense.canShoot && this.knife === null) {
+      const hidden = !sees && now - this.lastSeen.at > GRENADE.hiddenAfter;
+      const camping = sees && now - this.stillSince > tier.grenadeAfter;
+      const at = this.lastSeen.pos;
+      const d = Math.hypot(at.x - this.pos.x, at.z - this.pos.z);
+      if ((hidden || camping) && d >= GRENADE.minRange && d <= GRENADE.maxRange) {
+        const from = this.pos.clone().setY(this.pos.y + 1.6);
+        this.thrown = { kind: "frag", from, vel: lobVelocity(from, at, GRENADE.flight * (0.7 + d / 40)) };
+        this.frags--;
+        this.nextThrowAt = now + GRENADE.cooldown;
+        this.stillSince = now;
+        this.dummy.kick();
+      }
+    }
+
     // shooting: after the reaction time, at the weapon's rate, with an aim
-    // error that wanders every quarter second
+    // error that starts wide and settles while it keeps the target
     const shots: BotShot[] = [];
     if (this.knife !== null) {
       // the knife: a swing whenever the target is within reach
@@ -451,11 +683,13 @@ export class Bot {
       this.nextShotAt = now + interval;
       if (now >= this.nextErrAt) {
         this.nextErrAt = now + 0.25;
-        this.aimErr.set((Math.random() * 2 - 1) * this.diff.spread, (Math.random() * 2 - 1) * this.diff.spread);
+        const e = aimError(tier, now - this.seenAt);
+        const a = Math.random() * Math.PI * 2;
+        const r = e * Math.sqrt(Math.random());
+        this.aimErr.set(Math.cos(a) * r, Math.sin(a) * r);
       }
-      const from = this.pos.clone().setY(this.pos.y + 1.35);
-      const aimAt = target.clone().setY(target.y + 1.15);
-      const dir = aimAt.sub(from).normalize();
+      const from = this.pos.clone().setY(this.pos.y + (this.crouching ? 1.0 : 1.35));
+      const dir = this.aimPoint.clone().sub(from).normalize();
       // the error: rotate about the vertical and a side axis
       const side = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
       dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), (this.aimErr.x * Math.PI) / 180).applyAxisAngle(side, (this.aimErr.y * Math.PI) / 180).normalize();
@@ -563,7 +797,7 @@ export class BotMatch implements MatchLike {
     const n = Math.max(1, Math.min(2, count));
     this.players = n + 1;
     for (let i = 0; i < n; i++) {
-      const b = new Bot(i, scene, projectiles, DIFFICULTY[difficulty], ARENA_BOT_SPAWNS[i]);
+      const b = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty)], ARENA_BOT_SPAWNS[i]);
       b.setAbilities(abilities);
       b.onJolt = (a, to) => this.onRemoteFx?.("jolt", b.remote.id, a, to);
       b.onHealed = (item) => this.onHealSeen?.(b.remote.id, item);
@@ -586,8 +820,24 @@ export class BotMatch implements MatchLike {
     return this.bots.find((b) => b.dummy === d)?.remote ?? null;
   }
 
-  localShot(): void {
+  localShot(origin?: THREE.Vector3): void {
     this.shots++;
+    // the bots in earshot may come to look
+    if (origin) for (const b of this.bots) b.hear(origin, wallClock());
+  }
+
+  /** where you stood last frame (a bot's frag works out its damage against it) */
+  private lastFeet = new THREE.Vector3();
+
+  /** a bot's frag went off: you, in reach and in its sight, take its damage */
+  botBlast(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void {
+    const b = this.bots.find((x) => x.remote.id === owner);
+    if (!b || !this.alive || this.phase !== "fight") return;
+    const chest = this.lastFeet.clone().setY(this.lastFeet.y + 1.1);
+    const dmg = blastDamage(kind, chest.distanceTo(at));
+    if (dmg <= 0 || !Throwables.inSight(at, chest)) return;
+    this.lastHitBy = b;
+    this.takeHit(dmg, b, kind, Math.round(b.pos.distanceTo(this.lastFeet) * 10) / 10);
   }
 
   /** nobody to tell: the bots are here */
@@ -683,6 +933,7 @@ export class BotMatch implements MatchLike {
     this.myName = local.name;
     if (this.ended) return;
     const feet = new THREE.Vector3(local.x, local.y, local.z);
+    this.lastFeet.copy(feet);
     const center = ARENA_CENTER;
 
     if (this.phase === "fight") {
@@ -719,6 +970,9 @@ export class BotMatch implements MatchLike {
       const before = b.alive;
       const sees = this.alive && b.alive && !b.dropping && b.sees(feet);
       const shots = b.update(now, dt, { target: sees ? feet : null, targetId: 0, goal: center, canShoot: this.phase === "fight" });
+      // a frag: its flight is drawn by the page, which hands the blast back (botBlast)
+      const th = b.takeThrow();
+      if (th) this.onRemoteFx?.("throw", b.remote.id, th.from, th.vel, throwCode(th.kind));
       let d = 0;
       for (const s of shots) {
         this.onShotFired?.(b.remote.id, s.from, s.dir, s.weapon);

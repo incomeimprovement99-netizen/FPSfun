@@ -731,6 +731,54 @@ async function tripleTest(browser: Browser, query: string): Promise<void> {
   await closeAll();
 }
 
+/**
+ * The tiers play differently (src/config/bots.json): an elite bot hears a shot
+ * out of its sight, throws a frag at you standing still in view, crouches in
+ * the fight, dodges when hit; low, it breaks line of sight to heal.
+ */
+async function botTiersTest(browser: Browser, query: string): Promise<void> {
+  const page = await open(browser, query);
+  await ev(page, `document.getElementById("overlay").classList.add("hidden")`);
+  await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "elite"; window.__range.startBots(); })()`);
+  await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
+  const tier = await ev<string>(page, "window.__range.duel().bots[0].diff.name");
+  check("tiers: the elite select makes an elite bot", tier === "elite", tier);
+  // you cannot be hurt here; the hits are written down instead (what hit you, for the frag)
+  await ev(page, `(() => { const d = window.__range.duel(); window.__hits = []; d.takeHit = (amount, from, weapon) => { window.__hits.push(weapon); }; })()`);
+  // hearing: out of its sight, your shot brings it to look (elite hears every one in earshot)
+  await ev(page, `(() => { const d = window.__range.duel(); const b = d.bots[0]; b.sees = () => false; const p = window.__range.player.pos; d.localShot(p.clone().setY(p.y + 1.5), new window.__range.THREE.Vector3(0, 0, -1), "r97"); })()`);
+  const heard = await ev<boolean>(page, "!!window.__range.duel().bots[0].heard");
+  check("tiers: out of its sight, an elite bot hears your shot and goes to look", heard);
+  await ev(page, `delete window.__range.duel().bots[0].sees`);
+  // a frag at you standing still in its view: it keeps 18 m off, you stay put in the open
+  await ev(page, `(() => { const d = window.__range.duel(); const b = d.bots[0]; b.diff = { ...b.diff, keep: 17 }; const s = window.__range.openGround(90, -40, 1.5); window.__range.player.teleport(s.x, 0, s.z, 0); })()`);
+  const threw = await page.waitForFunction("window.__range.remoteFxLog.some((e) => e.k === 'throw' && e.from === 1)", { polling: 200, timeout: 14000 }).then(() => true, () => false);
+  check("tiers: you stand still in view and the elite bot throws a frag at you", threw, JSON.stringify(await ev(page, "(() => { const b = window.__range.duel().bots[0]; return { frags: b.frags, d: b.pos.distanceTo(window.__range.player.pos).toFixed(1), seen: !!b.lastSeen }; })()")));
+  const fragHit = await page.waitForFunction("window.__hits.includes('frag')", { polling: 200, timeout: 7000 }).then(() => true, () => false);
+  check("tiers: and the frag's blast lands on you (the bot's side works it out)", fragHit, JSON.stringify(await ev(page, "window.__hits.slice(-6)")));
+  // it crouches now and then in the fight, and dodges when hit
+  const crouched = await page.waitForFunction("window.__range.duel().bots[0].crouching", { polling: 50, timeout: 8000 }).then(() => true, () => false);
+  check("tiers: the elite bot crouches while it fires", crouched);
+  const dodge = await ev<boolean>(page, `(() => { const b = window.__range.duel().bots[0]; const before = b.strafeSign; b.dummy.hit(0, "body", 5, 1, 1, b.pos.clone().setY(1.2)); return new Promise((r) => setTimeout(() => r(b.strafeSign !== before), 400)); })()`);
+  check("tiers: hit, it reverses its strafe (hard and elite always dodge)", dodge);
+  // low: it finds cover out of your sight and heals there
+  await ev(page, `(() => { const b = window.__range.duel().bots[0]; b.diff = { ...b.diff, keep: 6 }; b.dummy.shield = 0; b.dummy.health = 30; })()`);
+  const covered = await page.waitForFunction("!!window.__range.duel().bots[0].cover", { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  check("tiers: low, it picks a spot out of your sight", covered);
+  const healed = await page.waitForFunction("(() => { const b = window.__range.duel().bots[0]; return b.dummy.health + b.dummy.shield > 30 || !!b.healing; })()", { polling: 100, timeout: 12000 }).then(() => true, () => false);
+  const hidden = await ev<boolean>(page, "(() => { const b = window.__range.duel().bots[0]; return !b.sees(window.__range.player.pos); })()");
+  check("tiers: and heals there, out of your sight", healed && hidden, JSON.stringify({ healed, hidden }));
+  await ev(page, "window.__range.duel().leave()");
+  // an easy bot does none of it
+  await ev(page, `(() => { document.getElementById("botDifficulty").value = "easy"; window.__range.startBots(); })()`);
+  await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 15000 });
+  const easy = await ev<{ name: string; grenade: unknown; cover: boolean; dodge: number }>(page, "(() => { const b = window.__range.duel().bots[0]; return { name: b.diff.name, grenade: b.diff.grenadeAfter, cover: b.diff.cover, dodge: b.diff.dodge }; })()");
+  check("tiers: an easy bot throws nothing, takes no cover, never dodges", easy.name === "easy" && easy.grenade === null && !easy.cover && easy.dodge === 0, JSON.stringify(easy));
+  await ev(page, "window.__range.duel().leave()");
+  await ev(page, `document.getElementById("botDifficulty").value = "normal"`);
+  await page.close();
+}
+
 /** one page against a bot: it comes for you, shoots, and can be knocked */
 async function botsTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
@@ -1368,6 +1416,8 @@ async function main(): Promise<void> {
     if (want("bots")) {
       console.log("\nArena, Bots");
       await botsTest(browser, "?norender");
+      console.log("\nBot tiers");
+      await botTiersTest(browser, "?norender");
     }
 
     if (want("pad")) {

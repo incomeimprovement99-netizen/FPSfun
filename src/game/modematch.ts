@@ -20,7 +20,8 @@
 // mates cannot hurt each other and their bullets pass through each other.
 // Gun Run and Crown are every player for themselves.
 import * as THREE from "three";
-import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, hitsBody, type BotSense } from "./bots";
+import { Throwables, blastDamage, throwCode } from "./throwables";
+import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, hitsBody, tierFor, type BotSense } from "./bots";
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Duel, HEALTH_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
@@ -135,7 +136,6 @@ export class ArenaMode extends Duel {
     this.crownModel.visible = false;
     scene.add(this.crownModel);
     if (this.role !== "host") return;
-    const diff = DIFFICULTY[this.difficulty];
     const size = MODES.tdm.teamSize;
     const allies = tdm ? Math.max(0, size - this.players) : 0;
     const enemies = tdm ? size : Math.max(0, Math.min(MODES.maxBots, opts.bots));
@@ -143,7 +143,10 @@ export class ArenaMode extends Duel {
       const team: 0 | 1 = tdm && i >= allies ? 1 : 0;
       const id = Duel.BOT_ID + i;
       const gun = this.modeKind === "gunrun" ? this.ladder.guns[0] : BOT_WEAPONS[i % BOT_WEAPONS.length];
-      const bot = new Bot(i, scene, projectiles, diff, this.startSpawn(id, team), id, gun, BOT_NAMES[i % BOT_NAMES.length]);
+      // each its own tier ("mixed" draws one per bot)
+      const bot = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(this.difficulty)], this.startSpawn(id, team), id, gun, BOT_NAMES[i % BOT_NAMES.length]);
+      // Gun Run is guns and the knife: no frags
+      bot.grenadesAllowed = this.modeKind !== "gunrun";
       bot.setAbilities(this.abilities);
       bot.onJolt = (a, b) => {
         this.onRemoteFx?.("jolt", bot.remote.id, a, b);
@@ -668,6 +671,12 @@ export class ArenaMode extends Duel {
       const wasAlive = bot.alive;
       const sense = bot.alive ? this.sense(b, fighters) : { target: null, targetId: -1, goal: null, canShoot: false };
       const shots = bot.update(now, dt, sense);
+      // a frag: drawn here and on the others' screens; the blast comes back through botBlast
+      const th = bot.takeThrow();
+      if (th) {
+        this.onRemoteFx?.("throw", bot.remote.id, th.from, th.vel, throwCode(th.kind));
+        this.broadcast({ t: "fx", from: bot.remote.id, k: "throw", a: [th.from.x, th.from.y, th.from.z], b: [th.vel.x, th.vel.y, th.vel.z], n: throwCode(th.kind) });
+      }
       // knocked by something that did not come through a hit (this player's melee)
       if (wasAlive && !bot.alive && bot.remote.alive) this.botDown(b, this.id, true);
       if (bot.alive) {
@@ -680,6 +689,46 @@ export class ArenaMode extends Duel {
       if (this.links.size && !shots[0].melee) this.broadcast({ t: "shot", from: bot.remote.id, o: [shots[0].from.x, shots[0].from.y, shots[0].from.z], d: [shots[0].dir.x, shots[0].dir.y, shots[0].dir.z], w: shots[0].weapon });
       this.applyBotShots(b, sense.targetId, shots, now);
       if (this.phase !== "fight") return;
+    }
+  }
+
+  /** a shot here or a guest's: the bots in earshot may come to look */
+  protected override heardShot(at: THREE.Vector3): void {
+    if (this.role !== "host") return;
+    const now = wallClock();
+    for (const b of this.bots) b.bot.hear(at, now);
+  }
+
+  /** a bot's frag went off (the host's page drew it): its enemies in reach and in its sight take the damage */
+  botBlast(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void {
+    if (this.role !== "host" || this.phase !== "fight") return;
+    const thrower = this.bots.find((x) => x.bot.remote.id === owner);
+    if (!thrower) return;
+    const now = wallClock();
+    for (const f of this.fighters()) {
+      if (!f.alive || f.id === owner || this.sameSide(f.id, owner)) continue;
+      const feet = new THREE.Vector3(f.x, f.y, f.z);
+      const chest = feet.clone().setY(feet.y + 1.1);
+      const dmg = blastDamage(kind, chest.distanceTo(at));
+      if (dmg <= 0 || !Throwables.inSight(at, chest)) continue;
+      const dist = Math.round(thrower.bot.pos.distanceTo(feet) * 10) / 10;
+      if (f.id === this.id) this.takeHit(dmg, owner, false, kind, dist);
+      else if (f.id < Duel.BOT_ID) {
+        this.links.get(f.id)?.send({ t: "hit", to: f.id, amount: dmg, head: false, from: owner, w: kind, d: dist });
+        const r = this.remotes.get(f.id);
+        if (r) {
+          const toShield = Math.min(r.shield, dmg);
+          r.shield -= toShield;
+          r.health = Math.max(0, r.health - (dmg - toShield));
+        }
+      } else {
+        const o = this.bots.find((x) => x.bot.remote.id === f.id);
+        if (!o || !o.bot.alive) continue;
+        o.bot.dummy.hit(now, "body", dmg, 1, 1, feet.clone().setY(feet.y + 1.2));
+        o.bot.remote.health = o.bot.dummy.health;
+        o.bot.remote.shield = o.bot.dummy.shield;
+        if (o.bot.dummy.knocked) this.botDown(o, owner, false);
+      }
     }
   }
 
@@ -771,7 +820,7 @@ export class ArenaMode extends Duel {
         z: bot.pos.z,
         yaw,
         pitch: 0,
-        crouch: false,
+        crouch: bot.crouching,
         w: bot.knife !== null ? "" : bot.remote.avatarWeapon,
         hp: bot.dummy.health,
         sh: bot.dummy.shield,
@@ -779,8 +828,8 @@ export class ArenaMode extends Duel {
         op: bot.remote.avatarOp,
         name: bot.remote.name,
         ready: true,
-        st: 0,
-        sp: bot.alive ? Math.round(DIFFICULTY[this.difficulty].speed * 10) : 0,
+        st: bot.crouching ? 1 : 0,
+        sp: bot.alive ? Math.round(bot.diff.speed * 10) : 0,
       });
     }
   }

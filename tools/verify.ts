@@ -11,6 +11,8 @@ import { Ring, RING_PHASES, RING_TICK } from "../src/game/ring";
 import { RANGE_SOLIDS } from "../src/game/range";
 import { Dummy, TURN_STEP_AT } from "../src/game/dummy";
 import * as THREE from "three";
+import { BOT_TIERS, DIFFICULTY, aimError, lobVelocity, tierFor } from "../src/game/bots";
+import throwablesCfg from "../src/config/throwables.json";
 import { MODELLED_IDS } from "../src/game/gunmodels";
 import { movesimFails } from "./movesim";
 import { HU, MOVE, jumpVelocityFor, slideBreakEvenAngle, SLIDE_RAMP_ANGLE } from "../src/game/movement";
@@ -1381,6 +1383,38 @@ console.log("The figures' motion (src/game/dummy.ts, duel.ts moveDirOf)");
   fig.update(1, 1 / 60);
   eq("walking, the feet go with the body", fig.plantedTurn, 0);
   fig.dispose();
+}
+
+console.log("");
+console.log("Bot tiers (src/config/bots.json, docs/RESEARCH_PHASE_12.md section 4)");
+{
+  eq("four tiers", BOT_TIERS.join(" "), "easy normal hard elite");
+  eq("reaction to a new sighting, s (CS2's Easy, Normal, Hard, Expert)", BOT_TIERS.map((t) => DIFFICULTY[t].reaction).join(" "), "0.6 0.4 0.2 0.12");
+  near("easy's aim error on a new sighting, deg", aimError(DIFFICULTY.easy, 0), 14, 1e-9);
+  near("after 1 s it has lost 30% of the extra (decay 0.7)", aimError(DIFFICULTY.easy, 1), 5 + 9 * 0.7, 1e-9);
+  near("and settles at its floor", aimError(DIFFICULTY.easy, 60), 5, 1e-6);
+  eq("each tier settles tighter than the one below", BOT_TIERS.every((t, i) => i === 0 || DIFFICULTY[t].errFloor < DIFFICULTY[BOT_TIERS[i - 1]].errFloor), true);
+  eq("each tier's aim lags a moving target less", BOT_TIERS.every((t, i) => i === 0 || DIFFICULTY[t].aimLag < DIFFICULTY[BOT_TIERS[i - 1]].aimLag), true);
+  eq("easy never dodges, throws no frags, takes no cover (TF2: easy bots never dodge)", [DIFFICULTY.easy.dodge, DIFFICULTY.easy.grenadeAfter, DIFFICULTY.easy.cover].join(" "), "0  false");
+  eq("hard and elite always dodge", DIFFICULTY.hard.dodge === 1 && DIFFICULTY.elite.dodge === 1, true);
+  eq("only elite pre-aims", BOT_TIERS.filter((t) => DIFFICULTY[t].preAim).join(" "), "elite");
+  eq("a named tier is itself", tierFor("hard"), "hard");
+  eq("an unknown one is normal", tierFor("nightmare" as never), "normal");
+  // mixed: the config's weights, drawn from a fixed sequence
+  const counts: Record<string, number> = { easy: 0, normal: 0, hard: 0, elite: 0 };
+  for (let i = 0; i < 1000; i++) counts[tierFor("mixed", () => (i + 0.5) / 1000)]++;
+  eq("mixed draws by weight (20 / 45 / 25 / 10 in a thousand)", [counts.easy, counts.normal, counts.hard, counts.elite].join(" "), "200 450 250 100");
+  // a frag's lob lands where it was aimed: integrate the throw's own gravity
+  const from = new THREE.Vector3(0, 1.6, 0);
+  const to = new THREE.Vector3(12, 0, -9);
+  const v = lobVelocity(from, to, 1.2);
+  const p = from.clone();
+  const vv = v.clone();
+  for (let t = 0; t < 1.2 - 1e-9; t += 0.001) {
+    vv.y -= throwablesCfg.gravity * 0.001;
+    p.addScaledVector(vv, 0.001);
+  }
+  near("a bot's lob lands on the spot it aimed at, m", p.distanceTo(to), 0, 0.05);
 }
 
 console.log("");

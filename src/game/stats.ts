@@ -36,7 +36,11 @@ export interface CourseStats {
   board: RunEntry[];
 }
 
-export type BotDifficulty = "easy" | "normal" | "hard";
+/** a bot's tier (src/config/bots.json), or "mixed": each bot a tier drawn by weight */
+export type BotDifficulty = "easy" | "normal" | "hard" | "elite" | "mixed";
+export function asDifficulty(x: unknown): BotDifficulty {
+  return x === "easy" || x === "hard" || x === "elite" || x === "mixed" ? x : "normal";
+}
 export type MatchKind = "duel" | "triple" | `bots:${BotDifficulty}` | "br" | "gunrun" | "tdm" | "crown";
 
 export interface Profile {
