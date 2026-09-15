@@ -1042,7 +1042,7 @@ console.log("Abilities: JOLT and TRIAGE (src/config/abilities.json)");
   eq("both back at 18", a.charge(18).charges, 2);
   eq("and a pick that changes fills them", (a.tryJolt(20), a.pick("triage"), a.pick("jolt"), a.charge(20).charges), 2);
   eq("a refused dash is refunded", (a.tryJolt(30), a.refund(), a.charge(30).charges), 2);
-  eq("the ability's config: 10 m in 0.14 s, out at 360 hu/s", [JOLT.distance, JOLT.duration, JOLT.exitSpeedHu].join(" "), "10 0.14 360");
+  eq("the ability's config: 10 m in 0.14 s, out at 400 hu/s, 0.25 s between", [JOLT.distance, JOLT.duration, JOLT.exitSpeedHu, JOLT.gap].join(" "), "10 0.14 400 0.25");
   eq("JOLT's heal scale is 1", a.healScale, 1);
   a.pick("triage");
   eq("TRIAGE: heals twice as fast", a.healScale, 2);
