@@ -783,6 +783,8 @@ export class Hud {
     this.text("ALIVE", cx - 120 * u, 76 * u, 700, 13 * u, DIM, "center");
     this.text(`${br.kills}`, cx + 120 * u, 102 * u, 700, 38 * u, "#7ddc8a", "center");
     this.text("KILLS", cx + 120 * u, 76 * u, 700, 13 * u, DIM, "center");
+    const d = s.duel!;
+    if (d.waiting) this.text(d.waiting, cx, this.h * 0.42, 700, 34 * u, "#ffd23c", "center");
     const t = br.ring.timeLeft;
     const mm = Math.floor(t / 60);
     const ss = Math.floor(t % 60);

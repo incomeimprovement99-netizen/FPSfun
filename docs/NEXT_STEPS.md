@@ -16,8 +16,41 @@
 | "Can't we deploy on a server like Algonomics is?" | Built and tested (`docs/SERVER_GUIDE.md`): our own broker, a TURN relay, online boards, one-command deploy. Waiting on you: which VM (the Algonomics one or a separate free one), a DuckDNS name, three Oracle firewall rules. |
 | "My friend wasn't able to do anything" | A first-visit welcome, a device check (a phone is told it is a PC game), and invite links that join a match from the address alone. |
 | Finish the bug hunt | Done: 31 more findings, all fixed (`docs/RESULTS_SERVER_HUNT.md`). |
+| The 1v1 should connect right away, the creator waits in the map | Done: Create match puts you in the arena with the code on the HUD; a connect takes the other in too. |
+| Clear next steps against Apex and the big shooters | `docs/GAP_ANALYSIS.md`, and the ranked list below. |
+| Animated figures: run, climb, mantle | Done in code (a jointed rig posed from stance and speed), sent over the network. Motion-captured animation is the next step up (item 3). |
+| Third person with a look-around | Done: X, hold Alt to orbit; shots still land on the crosshair. |
+| A BR against bots: a middle place, four outer ones, roads, a random drop shown on the map | Done: Outskirts, the ring, the drop, healing, placement (`docs/RESULTS_BR.md`). |
+| Then a buddy or two in it | Done: a squad of up to three drops together against the bots, over the same codes and invite links. |
+| Eventually people against each other | Needs the authoritative server (item 9): the host's browser runs the bots and the ring today, which is fine for a squad and not for a lobby. |
 
 ## The next implementations, ranked
+
+The full comparison with Apex Season 30 and the other shooters, with effort
+and value per item, is `docs/GAP_ANALYSIS.md`; its ranked list is the one to
+work from. In short, the things every big shooter has that we still do not:
+
+- **Sound** (the biggest gap now): footsteps by surface, slide and climb
+  sounds, distance-filtered gunfire, hit sounds by shield tier, a low-health
+  heartbeat, the ring's tick. CC0 sets, two days.
+- **Guns that are not a plain trigger**: the HAVOC charge-up, Devotion
+  spin-up, L-STAR overheat, Selectfire; the Nemesis and the Bocek. The data
+  carries the charge times already. Two to three days.
+- **Ammo**: reserve stacks and the energy regen; without them a 1v1's economy
+  is not the game's. Two days.
+- **Loot and the rest of the BR**: floor loot (weapons, attachments, heals,
+  ammo), helmets and Evo shields, a downed state with revives for the
+  squad, respawn beacons, care packages. Five days for the first pass.
+- **Motion-captured animation**: the figures are posed in code; a rigged
+  CC0 model with real run, slide and climb clips is the step up. Three days.
+- **The range's own tooling**: dummies that strafe, crouch and shoot back
+  with a panel, a spray wall, a scored flick drill, the superglide trainer.
+  Four days.
+- **Match systems**: Gun Run and TDM against bots or friends, a ping wheel
+  for the squad, healing interrupted by damage, a spectator camera that
+  follows a squad mate's view.
+- **Accounts and the authoritative server**, for more than three humans,
+  ranked boards and PvP battle royale.
 
 ### Feel (Apex first, Hyper Scape's pace second)
 
@@ -27,10 +60,8 @@
    pose every frame through a slide and a slide jump, and a page that shows
    them as curves next to the wiki's numbers. So "weird" becomes a curve we
    can point at.
-3. **Third-person figures that move.** The rigid robot slides and crouches;
-   it does not run, climb or ride a zip. A rigged CC0 model with those poses
-   is the biggest visual step left. Two or three days with a free rig
-   (Quaternius has some), more for our own.
+3. ~~**Third-person figures that move.**~~ Done in code. The step up is a
+   rigged CC0 model with motion-captured clips (Quaternius has some).
 4. **Sound.** Footsteps by surface, the slide scrape, the wall grab, the
    zip whine, a reload with parts, distant gunfire for other players. Free
    CC0 sets exist (freesound). Two days.

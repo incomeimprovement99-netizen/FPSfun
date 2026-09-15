@@ -176,24 +176,24 @@ export class Duel implements MatchLike {
   readonly players: number;
   readonly role: "host" | "guest";
   phase: RoundPhase;
-  private phaseEndsAt = 0;
+  protected phaseEndsAt = 0;
   round = 1;
-  private scores: number[];
-  private lastWinner = -1;
+  protected scores: number[];
+  protected lastWinner = -1;
 
   // this player
   health = HEALTH_MAX;
   shield = SHIELD_MAX;
   alive = true;
-  private myName = "";
+  protected myName = "";
   /** this player is in the game, not on the menu (round 1 waits for everyone) */
-  private ready = false;
+  protected ready = false;
 
   // the others, by id
-  private remotes = new Map<number, Remote>();
+  protected remotes = new Map<number, Remote>();
   /** the host's links by guest id; a guest has one link, to the host */
-  private links = new Map<number, Link>();
-  private hostLink: Link | null = null;
+  protected links = new Map<number, Link>();
+  protected hostLink: Link | null = null;
   private lastShotSound = -Infinity;
 
   // the circle
@@ -202,22 +202,22 @@ export class Duel implements MatchLike {
   private zoneStartsIn = ZONE_DELAY;
   private caps: number[];
   private zoneSendNext = 0;
-  private lastClock: number;
+  protected lastClock: number;
   private sendNext = 0;
   private pingNext = 0;
   ping: number | null = null;
   private weaponCache = new Map<string, ResolvedWeapon>();
-  private ended = false;
+  protected ended = false;
   private readonly spawns: Spawn[];
   private readonly center: THREE.Vector3;
 
   // for the summary
-  private kills = 0;
-  private deaths = 0;
-  private damage = 0;
-  private shots = 0;
-  private hits = 0;
-  private summarised = false;
+  protected kills = 0;
+  protected deaths = 0;
+  protected damage = 0;
+  protected shots = 0;
+  protected hits = 0;
+  protected summarised = false;
 
   /** a new round begins: put the player at their spawn with full health and ammo */
   onRespawn: (() => void) | null = null;
@@ -233,7 +233,7 @@ export class Duel implements MatchLike {
   onMatchEnd: ((s: MatchSummary) => void) | null = null;
   onFeed: ((text: string, mine: boolean, neutral?: boolean) => void) | null = null;
   streak = 0;
-  private lastSummary: MatchSummary | null = null;
+  protected lastSummary: MatchSummary | null = null;
   /** the host: how many have arrived, for the panel */
   onRoster: ((connected: number, players: number) => void) | null = null;
   /** the host: a guest left before round 1, so their place can be taken again */
@@ -244,26 +244,36 @@ export class Duel implements MatchLike {
    * later ones) with `myId` 0; a guest passes the host's link and the id the
    * host gave it.
    */
+  /**
+   * "duel": the arena rounds. "br": the battle royale (brmatch.ts) runs on
+   * the same links and figures: no rounds or circle here, no damage between
+   * the humans (they are a squad), the subclass drives the phases and adds
+   * the bots and the ring.
+   */
+  readonly mode: "duel" | "br";
+
   constructor(
-    private scene: THREE.Scene,
-    private projectiles: ProjectileSystem,
-    opts: { players: number; myId: number; link: Link; guestId?: number }
+    protected scene: THREE.Scene,
+    protected projectiles: ProjectileSystem,
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; mode?: "duel" | "br" }
   ) {
     const now = wallClock();
-    this.players = Math.max(2, Math.min(3, opts.players));
+    this.mode = opts.mode ?? "duel";
+    this.players = this.mode === "br" ? Math.max(1, Math.min(3, opts.players)) : Math.max(2, Math.min(3, opts.players));
     this.id = opts.myId;
     this.role = this.id === 0 ? "host" : "guest";
     this.lastClock = now;
-    this.scores = new Array(this.players).fill(0);
-    this.caps = new Array(this.players).fill(0);
+    this.scores = new Array(Math.max(2, this.players)).fill(0);
+    this.caps = new Array(Math.max(2, this.players)).fill(0);
     const a = arenaFor(this.players);
     this.spawns = a.spawns;
     this.center = a.center;
     this.phase = "waiting";
     this.phaseEndsAt = now + COUNTDOWN;
     if (this.role === "host") {
-      this.addGuest(opts.link, opts.guestId ?? 1);
-    } else {
+      // a battle royale alone has no link at all
+      if (opts.link) this.addGuest(opts.link, opts.guestId ?? 1);
+    } else if (opts.link) {
       this.hostLink = opts.link;
       opts.link.onMessage = (m) => this.receive(m, 0);
       opts.link.onClose = () => this.finish("The host left the match.");
@@ -272,6 +282,25 @@ export class Duel implements MatchLike {
     }
     // The first spawn is the caller's to do (onRespawn is not set yet); every
     // later round calls onRespawn itself.
+  }
+
+  // ------------------------------------------------- hooks for the subclass
+
+  /** a message this class does not know (the battle royale's ring, its end) */
+  protected onExtra(_m: NetMsg, _from: number): void {}
+  /** the host: a hit sent to an id that is not a guest's (a bot); true when taken */
+  protected onHitOther(_to: number, _amount: number, _head: boolean, _from: number): boolean {
+    return false;
+  }
+  /** the host, once a frame, after the links and before the state packet */
+  protected tick(_now: number, _dt: number, _local: LocalState): void {}
+  /** someone (a human) went down, on any side */
+  protected onSomeoneDown(_id: number, _by: number): void {}
+  /** the ids the humans use; bots are 100 up */
+  static readonly BOT_ID = 100;
+  /** a name for the feed by id (the subclass adds the bots it runs) */
+  protected nameOf(id: number): string | undefined {
+    return this.remotes.get(id)?.name;
   }
 
   /** the host: a guest arrived on this link with this id */
@@ -285,14 +314,14 @@ export class Duel implements MatchLike {
   }
 
   /** the host: everyone connected and in the game (off the menu), so round 1 can start */
-  private everyoneReady(): boolean {
+  protected everyoneReady(): boolean {
     if (this.links.size < this.players - 1 || !this.ready) return false;
     for (const id of this.links.keys()) if (!this.remotes.get(id)?.ready) return false;
     return true;
   }
 
   /** the link a message to `id` goes out on: theirs (the host) or the host's (a guest) */
-  private linkFor(id: number): Link | null {
+  protected linkFor(id: number): Link | null {
     return this.role === "host" ? (this.links.get(id) ?? null) : this.hostLink;
   }
 
@@ -325,7 +354,7 @@ export class Duel implements MatchLike {
 
   // ---------------------------------------------------------------- avatars
 
-  private remote(id: number): Remote {
+  protected remote(id: number): Remote {
     let r = this.remotes.get(id);
     if (r) return r;
     r = {
@@ -388,13 +417,13 @@ export class Duel implements MatchLike {
   // --------------------------------------------------------------- network
 
   /** send to everyone else (the host: every guest; a guest: the host, who relays) */
-  private broadcast(m: NetMsg): void {
+  protected broadcast(m: NetMsg): void {
     if (this.role === "host") for (const l of this.links.values()) l.send(m);
     else this.hostLink?.send(m);
   }
 
   /** the host: pass a guest's message on to the other guests, stamped */
-  private relay(m: NetMsg, from: number): void {
+  protected relay(m: NetMsg, from: number): void {
     if (this.role !== "host") return;
     const stamped = { ...m, from } as NetMsg;
     for (const [id, l] of this.links) if (id !== from) l.send(stamped);
@@ -412,9 +441,13 @@ export class Duel implements MatchLike {
     // silence must not come back as a figure with no link behind it
     if (this.role === "host" && !this.links.has(via)) return;
     // a goodbye or a stray message from someone unknown makes no figure
-    if (m.t === "bye" || m.t === "ping" || m.t === "pong" || m.t === "round" || m.t === "zone" || m.t === "hello" || m.t === "welcome") {
+    if (m.t === "bye" || m.t === "ping" || m.t === "pong" || m.t === "round" || m.t === "zone" || m.t === "hello" || m.t === "welcome" || m.t === "ring" || m.t === "brend") {
       const known = this.remotes.get(from);
       if (known) known.lastHeard = now;
+      if (m.t === "ring" || m.t === "brend") {
+        if (this.role === "guest") this.onExtra(m, from);
+        return;
+      }
       if (m.t === "bye") {
         if (this.role === "host") this.guestLeft(from);
         else if (from === 0) this.finish("The host left the match.");
@@ -484,7 +517,7 @@ export class Duel implements MatchLike {
       }
       case "hit":
         if (m.to === this.id) this.takeHit(m.amount, from);
-        else if (this.role === "host") this.links.get(m.to)?.send({ ...m, from });
+        else if (this.role === "host" && !this.onHitOther(m.to, m.amount, m.head, from)) this.links.get(m.to)?.send({ ...m, from });
         break;
       case "down":
         // a player went down: their figure falls now (the next state packet
@@ -494,20 +527,22 @@ export class Duel implements MatchLike {
         r.avatar.fallDown();
         {
           const by = m.by === this.id ? (this.myName || "YOU") : (this.remotes.get(m.by)?.name ?? `PLAYER ${m.by + 1}`);
-          this.onFeed?.(`${by} knocked ${r.name}`, m.by === this.id);
-          if (m.by === this.id) this.kills++;
+          const mine = m.by === this.id;
+          this.onFeed?.(`${by} knocked ${r.name}`, mine, !mine && this.mode === "br");
+          if (mine) this.kills++;
         }
         if (this.role === "host") {
           this.relay(m, from);
-          this.checkLastStanding(now);
+          if (this.mode === "duel") this.checkLastStanding(now);
         }
+        if (from < Duel.BOT_ID) this.onSomeoneDown(from, m.by);
         break;
       // round, zone, ping, pong, bye, hello and welcome are handled above,
       // before a figure is made for the sender
     }
   }
 
-  private guestLeft(id: number): void {
+  protected guestLeft(id: number): void {
     const link = this.links.get(id);
     if (!link) return; // already handled (a bye and a close both arrive)
     const r = this.remotes.get(id);
@@ -515,15 +550,16 @@ export class Duel implements MatchLike {
     link.onMessage = null;
     link.onClose = null;
     link.close();
-    // tell the other guest, then carry on if one is left; a 1v1 is over
+    // tell the other guest, then carry on if one is left; a 1v1 is over (a
+    // battle royale goes on for whoever is left in the squad)
     this.relay({ t: "bye" }, id);
-    if (this.players === 2 || this.links.size === 0) {
+    if (this.mode === "duel" && (this.players === 2 || this.links.size === 0)) {
       this.finish(`${r?.name ?? "Your opponent"} left the match.`);
       return;
     }
     this.playerGone(id, `${r?.name ?? "A player"} left the match.`);
     this.ping = null;
-    if (this.phase === "fight") this.checkLastStanding(wallClock());
+    if (this.phase === "fight" && this.mode === "duel") this.checkLastStanding(wallClock());
     // before round 1 a 1v1v1 waits for everyone: without a free place it
     // waited forever, and every new arrival (the same friend rejoining) was
     // turned away as "full"
@@ -534,7 +570,7 @@ export class Duel implements MatchLike {
   }
 
   /** one of three is gone: their figure goes, the match carries on as a 1v1 */
-  private playerGone(id: number, notice: string): void {
+  protected playerGone(id: number, notice: string): void {
     const r = this.remotes.get(id);
     if (!r) return;
     for (const d of r.avatars.values()) {
@@ -545,7 +581,7 @@ export class Duel implements MatchLike {
     this.onNotice?.(notice.toUpperCase());
   }
 
-  private weapon(id: string): ResolvedWeapon {
+  protected weapon(id: string): ResolvedWeapon {
     let w = this.weaponCache.get(id);
     if (!w) {
       try {
@@ -560,7 +596,7 @@ export class Duel implements MatchLike {
 
   // ----------------------------------------------------------------- rounds
 
-  private enter(phase: RoundPhase, now: number, seconds: number, winner = -1): void {
+  protected enter(phase: RoundPhase, now: number, seconds: number, winner = -1): void {
     const wasEnd = this.phase === "roundEnd" || this.phase === "matchEnd";
     this.phase = phase;
     this.phaseEndsAt = now + seconds;
@@ -590,7 +626,7 @@ export class Duel implements MatchLike {
       this.zoneLive = false;
       this.respawn();
     }
-    if (m.phase === "fight" && prev === "countdown") this.onNotice?.("FIGHT");
+    if (m.phase === "fight" && prev === "countdown") this.onNotice?.(this.mode === "br" ? "LANDED  ·  LAST SQUAD STANDING WINS" : "FIGHT");
     if (m.phase === "matchEnd" && prev !== "matchEnd") this.summarise();
     if (m.phase === "countdown" && m.n === 1 && prev === "matchEnd") this.summarised = false;
   }
@@ -605,7 +641,7 @@ export class Duel implements MatchLike {
   }
 
   /** host: with one (or none) standing, the round is over */
-  private checkLastStanding(now: number): void {
+  protected checkLastStanding(now: number): void {
     if (this.phase !== "fight") return;
     const standing: number[] = [];
     if (this.alive) standing.push(this.id);
@@ -613,7 +649,7 @@ export class Duel implements MatchLike {
     if (standing.length <= 1) this.scoreRound(standing[0] ?? -1, now);
   }
 
-  private respawn(): void {
+  protected respawn(): void {
     this.health = HEALTH_MAX;
     this.shield = SHIELD_MAX;
     this.alive = true;
@@ -630,7 +666,7 @@ export class Duel implements MatchLike {
     this.onRespawn?.();
   }
 
-  private summarise(): void {
+  protected summarise(): void {
     if (this.summarised) return;
     this.summarised = true;
     const mine = this.scores[this.id] ?? 0;
@@ -644,9 +680,10 @@ export class Duel implements MatchLike {
     this.hits = 0;
   }
 
-  /** another player's bullet hit this player */
-  private takeHit(amount: number, from: number): void {
+  /** another player's bullet hit this player (in a battle royale the humans are a squad: only bots and the ring, -1, hurt) */
+  protected takeHit(amount: number, from: number): void {
     if (!this.alive || this.phase !== "fight") return;
+    if (this.mode === "br" && from >= 0 && from < Duel.BOT_ID) return;
     const toShield = Math.min(this.shield, amount);
     this.shield -= toShield;
     this.health = Math.max(0, this.health - (amount - toShield));
@@ -654,9 +691,10 @@ export class Duel implements MatchLike {
     if (this.health <= 0) {
       this.alive = false;
       this.deaths++;
-      this.onFeed?.(`${this.remotes.get(from)?.name ?? "SOMEONE"} knocked ${this.myName || "YOU"}`, false);
+      this.onFeed?.(`${from === -1 ? "THE RING" : (this.nameOf(from) ?? "SOMEONE")} knocked ${this.myName || "YOU"}`, false);
       this.broadcast({ t: "down", by: from });
-      if (this.role === "host") this.checkLastStanding(wallClock());
+      if (this.role === "host" && this.mode === "duel") this.checkLastStanding(wallClock());
+      this.onSomeoneDown(this.id, from);
     }
   }
 
@@ -671,6 +709,8 @@ export class Duel implements MatchLike {
   /** one of this player's bullets hit another player's figure */
   localHit(r: Remote, amount: number, head: boolean): void {
     if (this.phase !== "fight" || !r.alive) return;
+    // a squad mate in a battle royale: no friendly fire
+    if (this.mode === "br" && r.id < Duel.BOT_ID) return;
     this.hits++;
     this.damage += amount;
     const m: NetMsg = { t: "hit", to: r.id, amount, head };
@@ -706,7 +746,7 @@ export class Duel implements MatchLike {
 
     // host: the circle. Live ZONE_DELAY into the fight; alone in it for
     // ZONE_CAPTURE takes the round; more than one in it is contested.
-    if (this.role === "host" && this.phase === "fight") {
+    if (this.role === "host" && this.phase === "fight" && this.mode === "duel") {
       const since = now - this.fightStartedAt;
       this.zoneStartsIn = Math.max(0, ZONE_DELAY - since);
       this.zoneLive = since >= ZONE_DELAY;
@@ -729,9 +769,11 @@ export class Duel implements MatchLike {
       }
     }
 
-    // host: advance the rounds
+    // host: advance the rounds (a battle royale drives its own phases after the drop)
     if (this.role === "host" && this.phase === "waiting" && this.everyoneReady()) this.enter("countdown", now, COUNTDOWN);
-    if (this.role === "host" && this.phase !== "waiting" && now >= this.phaseEndsAt) {
+    if (this.role === "host") this.tick(now, dt, local);
+    if (this.ended) return;
+    if (this.role === "host" && this.mode === "duel" && this.phase !== "waiting" && now >= this.phaseEndsAt) {
       if (this.phase === "countdown") {
         this.enter("fight", now, 0);
         this.onNotice?.("FIGHT");
@@ -858,7 +900,7 @@ export class Duel implements MatchLike {
     return null;
   }
 
-  private finish(reason: string): void {
+  protected finish(reason: string): void {
     if (this.ended) return;
     this.ended = true;
     this.onEnd?.(reason);

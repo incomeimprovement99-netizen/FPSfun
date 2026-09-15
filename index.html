@@ -199,14 +199,15 @@
           <div class="duel">
             <div class="duelTitle">1v1 or 1v1v1 with friends</div>
             <div class="duelRow">
-              <select id="duelPlayers" title="how many play"><option value="2">2 players (1v1)</option><option value="3">3 players (1v1v1)</option></select>
+              <select id="duelMode" title="what to play"><option value="arena">Arena: 1v1 / 1v1v1</option><option value="br">Battle royale: a squad against the bots</option></select>
+              <select id="duelPlayers" title="how many play"><option value="2">2 players</option><option value="3">3 players</option></select>
               <button id="duelHost" type="button">Create match</button>
               <span class="or">or</span>
               <input id="duelCode" placeholder="CODE" maxlength="5" autocomplete="off" spellcheck="false" />
               <button id="duelJoin" type="button">Join</button>
               <button id="duelLeave" type="button" class="ghost" hidden>Leave match</button>
             </div>
-            <div id="duelStatus" class="calibMsg">One of you makes a match and sends the code; the others type it and join.</div>
+            <div id="duelStatus" class="calibMsg">One of you makes a match and sends the invite link; the others open it. Arena: first to 3 rounds against each other. Battle royale: the same squad drops onto Outskirts together against the bots set below.</div>
           </div>
           <div class="duel" style="margin-top:10px">
             <div class="duelTitle">Arena, Bots</div>

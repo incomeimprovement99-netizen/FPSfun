@@ -34,7 +34,7 @@ import { Duel, SHIELD_MAX, HEALTH_MAX, type MatchLike } from "./game/duel";
 import { BotMatch } from "./game/bots";
 import { Stats, type MatchKind, type BotDifficulty } from "./game/stats";
 import { submitScore } from "./game/leaderboard";
-import { hostMatch, joinMatch, normaliseCode, type HostHandle, type Link } from "./net/link";
+import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link } from "./net/link";
 import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
 import { AimAssist } from "./game/aimassist";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
@@ -572,6 +572,7 @@ const duelJoinBtn = $<HTMLButtonElement>("duelJoin");
 const duelLeaveBtn = $<HTMLButtonElement>("duelLeave");
 const duelCode = $<HTMLInputElement>("duelCode");
 const duelPlayers = $<HTMLSelectElement>("duelPlayers");
+const duelMode = $<HTMLSelectElement>("duelMode");
 const botDifficulty = $<HTMLSelectElement>("botDifficulty");
 const botCount = $<HTMLSelectElement>("botCount");
 const brBots = $<HTMLSelectElement>("brBots");
@@ -625,9 +626,17 @@ function duelButtons(): void {
 }
 function respawnForMatch(d: MatchLike): void {
   const sp = d.spawn;
-  // a battle royale starts in the sky over your drop spot
-  if (d instanceof BrMatch) player.beginDrop(sp.x, DROP_HEIGHT, sp.z, sp.yaw);
-  else player.teleport(sp.x, 0, sp.z, sp.yaw);
+  if (d instanceof BrMatch) {
+    // a battle royale starts in the sky over your drop spot once everyone is
+    // in; until then the lobby is wherever you are (the arena, for a host)
+    if (d.phase !== "waiting") {
+      player.setBounds(BR_BOUNDS);
+      setRegion("br");
+      player.beginDrop(sp.x, DROP_HEIGHT, sp.z, sp.yaw);
+      mapOpen = false;
+      hud.notice(`DROPPING INTO ${d.poi.name}`, gameTime, 3);
+    }
+  } else player.teleport(sp.x, 0, sp.z, sp.yaw);
   if (pendingSlots) {
     pendingSlots.forEach((id, i) => loadout.setWeaponId(i, id));
     pendingSlots = null;
@@ -704,8 +713,11 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       });
   };
 }
-/** a friend's match: the host on its first guest, or a guest on the host's welcome */
-function startDuel(link: Link, players: number, myId: number, guestId = 1): void {
+/** the host's battle royale settings, fixed at Create so every guest's welcome says the same */
+let hostBr: BrWelcome | null = null;
+
+/** a friend's match: the host on its first guest, or a guest on the host's welcome (`br`: a battle royale squad) */
+function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: BrWelcome): void {
   if (duel && duel.kind === "duel") {
     // the host's second guest joins the match in progress
     if (myId === 0 && duel instanceof Duel) {
@@ -721,17 +733,27 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1): void
   }
   cancelJoin = null;
   for (const c of courses) c.leave();
-  const d = new Duel(scene, projectiles, { players, myId, link, guestId });
-  duel = d;
-  player.setBounds(players >= 3 ? TRI_BOUNDS : ARENA_BOUNDS);
-  wireMatch(d, players >= 3 ? "triple" : "duel");
+  const squad = myId === 0 ? hostBr : (br ?? null);
+  let d: Duel;
+  if (squad) {
+    const diff: BotDifficulty = squad.difficulty === "easy" || squad.difficulty === "hard" ? squad.difficulty : "normal";
+    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi });
+    duel = d;
+    wireMatch(d, "br");
+  } else {
+    d = new Duel(scene, projectiles, { players, myId, link, guestId });
+    duel = d;
+    player.setBounds(players >= 3 ? TRI_BOUNDS : ARENA_BOUNDS);
+    wireMatch(d, players >= 3 ? "triple" : "duel");
+  }
+  const goal = squad ? `The squad drops onto ${(d as BrMatch).poi.name} against ${squad.bots} bots.` : "First to 3 rounds.";
   d.onSlotFree = (id) => hosting?.release(id);
   d.onRoster = (connected, total) => {
-    setDuelStatus(connected < total - 1 ? `${connected} of ${total - 1} friends in. Waiting for the rest; the code is <b class="code">${hosting?.code ?? ""}</b>.` : `Everyone is in. First to 3 rounds. <b>Click Play</b> to fight.`, connected < total - 1 ? "live" : "good");
+    setDuelStatus(connected < total - 1 ? `${connected} of ${total - 1} friends in. Waiting for the rest; the code is <b class="code">${hosting?.code ?? ""}</b>.` : `Everyone is in. ${goal} <b>Click Play</b>.`, connected < total - 1 ? "live" : "good");
   };
   respawnForMatch(d);
   if (myId === 0) d.onRoster?.(1, players);
-  else setDuelStatus(`Connected as player ${myId + 1} of ${players}. First to 3 rounds. <b>Click Play</b> to fight.`, "good");
+  else setDuelStatus(`Connected as player ${myId + 1} of ${players}. ${goal} <b>Click Play</b>.`, "good");
   duelButtons();
   hud.notice(players >= 3 ? "PLAYER CONNECTED" : "OPPONENT CONNECTED", gameTime, 2);
   // straight into the arena when the browser still allows it (a Join click a
@@ -763,19 +785,17 @@ function startBr(): void {
   cancelJoin?.();
   cancelJoin = null;
   for (const c of courses) c.leave();
-  const diff = (botDifficulty.value === "easy" || botDifficulty.value === "hard" ? botDifficulty.value : "normal") as BotDifficulty;
-  const bots = Math.max(1, Math.min(11, Number(brBots.value) || 11));
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots);
+  const diff = brDifficulty();
+  const bots = brBotCount();
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null });
   duel = d;
-  player.setBounds(BR_BOUNDS);
-  setRegion("br");
   wireMatch(d, "br");
-  respawnForMatch(d);
-  mapOpen = false;
+  // the drop starts on the first frame in the game (respawnForMatch, from the countdown)
   setDuelStatus(`Battle royale on Outskirts: you and ${bots} bots, ${diff}. Dropping onto ${d.poi.name}.`, "good");
-  hud.notice(`DROPPING INTO ${d.poi.name}`, gameTime, 3);
   duelButtons();
 }
+const brDifficulty = (): BotDifficulty => (botDifficulty.value === "easy" || botDifficulty.value === "hard" ? botDifficulty.value : "normal");
+const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
   duel?.dispose();
@@ -800,6 +820,9 @@ duelHostBtn.addEventListener("click", () => {
   if (duel || hosting) return;
   cancelJoin?.();
   const players = Number(duelPlayers.value) === 3 ? 3 : 2;
+  // a battle royale squad: the place, the bots and the difficulty are fixed
+  // now so every guest is told the same
+  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty() } : null;
   setDuelStatus("Making a match...", "live");
   hosting = hostMatch(
     players,
@@ -824,7 +847,8 @@ duelHostBtn.addEventListener("click", () => {
       setDuelStatusText(err, "bad");
       hosting = null;
       duelButtons();
-    }
+    },
+    hostBr ?? undefined
   );
   duelButtons();
   // the lobby is the arena itself: in at once, run around, the code on the
@@ -841,7 +865,7 @@ duelJoinBtn.addEventListener("click", () => {
   hosting = null;
   cancelJoin?.();
   setDuelStatus("Joining...", "live");
-  cancelJoin = joinMatch(duelCode.value, (link, w) => startDuel(link, w.players, w.id), (err) => setDuelStatusText(err, "bad"));
+  cancelJoin = joinMatch(duelCode.value, (link, w) => startDuel(link, w.players, w.id, 1, w.br), (err) => setDuelStatusText(err, "bad"));
 });
 duelCode.addEventListener("keydown", (e) => {
   if (e.key === "Enter") duelJoinBtn.click();
@@ -1374,7 +1398,7 @@ function step(): void {
 
   // A weapon being raised, lowered or holstered cannot fire or aim.
   // In a 1v1, firing is held during the countdown and after a round is decided.
-  const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire);
+  const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping;
   // a burst fires on without the trigger: knocked, or the round decided, it stops
   if (knockedOut || (duel && !duel.canFire)) ws.cancelBurst();
   // knocked in a 1v1: no aiming either

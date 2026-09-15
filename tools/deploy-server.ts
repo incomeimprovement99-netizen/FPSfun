@@ -16,7 +16,7 @@
 // (KEY=VALUE lines, not in git):
 //   RANGE_HOST    ssh target, e.g. ubuntu@1.2.3.4
 //   RANGE_KEY     path to the ssh private key (optional if ssh already knows it)
-//   RANGE_DOMAIN  the game's hostname, e.g. boogrange.duckdns.org
+//   RANGE_DOMAIN  the game's hostname, e.g. fpsfun.duckdns.org
 import { execFileSync, execSync, spawn } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

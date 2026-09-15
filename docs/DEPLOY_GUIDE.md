@@ -1,6 +1,6 @@
 # Deploy Guide: from this folder to a link a friend can open and 1v1 you
 
-> **The game's own server** (a proper address like `boogrange.duckdns.org`,
+> **The game's own server** (a proper address like `fpsfun.duckdns.org`,
 > our own matchmaking, a relay for strict networks, online boards) is in
 > **`docs/SERVER_GUIDE.md`**. This guide is the GitHub Pages link, which keeps
 > working as a backup: the same build falls back to the public broker there.
@@ -111,6 +111,15 @@ Your name for the kill feed: the Stats tab.
   minimised Chrome for minutes is not.
 - **Ctrl+W closed the tab**: Settings, "Fullscreen while playing" is on by
   default and stops that in Chrome; windowed, the browser asks first.
+
+## 5b. A battle royale with friends
+
+The same codes and invite links: on the 1v1 tab, pick **"Battle royale: a
+squad against the bots"** as the mode, the squad size, **Create match**, and
+send the invite link. When everyone has clicked Play the whole squad drops
+onto the same place against the bots the host set (the 1v1 tab's bots and
+difficulty). The host's browser runs the bots and the ring, so the host's
+connection is the one that matters.
 
 ## 6. Updating
 

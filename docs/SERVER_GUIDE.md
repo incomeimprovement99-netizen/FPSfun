@@ -1,7 +1,7 @@
 # Server Guide: the game on its own server, like Algonomics
 
 The do-it-now guide for putting the game on a real server with its own
-address (for example **https://boogrange.duckdns.org**) instead of the
+address (for example **https://fpsfun.duckdns.org**) instead of the
 GitHub Pages link. Cost: $0. Time: about twenty minutes the first time, one
 command after that.
 
@@ -42,11 +42,11 @@ shape instead of A1).
 ## 2. The name: DuckDNS
 
 1. https://www.duckdns.org, sign in (the same account as `algonomics`).
-2. Type a sub domain, e.g. `boogrange`, **add domain**.
+2. Type a sub domain, e.g. `fpsfun`, **add domain**.
 3. In its row, put the VM's public IP (for A, the Algonomics IP) in
    "current ip", **update ip**.
 
-The game's address is now `boogrange.duckdns.org`.
+The game's address is now `fpsfun.duckdns.org`.
 
 ## 3. Open the relay's ports in the Oracle console
 
@@ -70,7 +70,7 @@ Create `.env.server` in `C:\Users\jwilb\Downloads\apex-range` (it is in
 ```
 RANGE_HOST=ubuntu@<the VM's public IP>
 RANGE_KEY=C:\Users\jwilb\Downloads\<the VM's ssh key file>
-RANGE_DOMAIN=boogrange.duckdns.org
+RANGE_DOMAIN=fpsfun.duckdns.org
 ```
 
 For option A these are the same IP and key file Algonomics' `npm run prod`
@@ -88,7 +88,7 @@ installs **coturn** with a generated secret, opens UDP/TCP 3478 and the relay
 ports in the box's firewall, and appends one block to the Caddyfile:
 
 ```
-boogrange.duckdns.org {
+fpsfun.duckdns.org {
 	encode zstd gzip
 	reverse_proxy localhost:4100
 }
@@ -107,9 +107,9 @@ npm run deploy:server
 It builds the public beta (codenames only, checked), packs the site with the
 server, copies it over ssh, installs, swaps it in, restarts the `range` pm2
 app, checks `/health`, and then plays a real 1v1 between two browser pages
-on `https://boogrange.duckdns.org` through its own broker. About two minutes.
+on `https://fpsfun.duckdns.org` through its own broker. About two minutes.
 
-Send your friend **https://boogrange.duckdns.org**. Better: make a match and
+Send your friend **https://fpsfun.duckdns.org**. Better: make a match and
 send the **invite link** the 1v1 tab copies; opening it joins your match.
 
 ## 7. Day to day

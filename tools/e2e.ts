@@ -128,6 +128,62 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   await page.close();
 }
 
+/** two friends drop together: the guest sees the host's bots, a knock reaches both feeds, the squad's result reaches both */
+async function brSquadTest(browser: Browser, query: string): Promise<void> {
+  const host = await open(browser, query);
+  const guest = await open(browser, query);
+  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("brBots").value = "3"; document.getElementById("duelHost").click(); })()`);
+  let code = "";
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+  } catch {
+    check("squad: the host gets a code", false, await ev<string>(host, `document.getElementById("duelStatus").textContent`));
+    await host.close();
+    await guest.close();
+    return;
+  }
+  await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+  try {
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check("squad: both connect", false, await ev<string>(guest, `document.getElementById("duelStatus").textContent`));
+    await host.close();
+    await guest.close();
+    return;
+  }
+  const kinds = await Promise.all([host, guest].map((p) => ev<{ poi: string; players: number; role: string }>(p, "({ poi: window.__range.duel().poi.name, players: window.__range.duel().players, role: window.__range.duel().role })")));
+  check("squad: both are in the same battle royale, dropping on the same place", kinds[0].poi === kinds[1].poi && kinds[0].players === 2 && kinds[1].players === 2 && kinds[0].role === "host" && kinds[1].role === "guest", JSON.stringify(kinds));
+  for (const p of [host, guest]) await pressPlay(p);
+  const dropped = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel().phase === "countdown" && window.__range.player.pos.y > 30`, { polling: 200, timeout: 15000 }).then(() => true, () => false)));
+  check("squad: everyone in, both drop from the sky", dropped[0] && dropped[1], JSON.stringify(dropped));
+  const landed = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false)));
+  check("squad: the fight starts on both when the host lands", landed[0] && landed[1]);
+  await sleep(1500);
+  const seen = await ev<{ figures: number; bots: number; humans: number }>(guest, `(() => { const d = window.__range.duel(); const rs = [...d.remotes.values()]; return { figures: d.avatars.filter((a) => a.group.visible).length, bots: rs.filter((r) => r.id >= 100).length, humans: rs.filter((r) => r.id < 100).length }; })()`);
+  check("squad: the guest sees the host and the three bots the host runs", seen.bots === 3 && seen.humans === 1 && seen.figures >= 3, JSON.stringify(seen));
+  // the guest knocks a bot: the hit goes to the host, the down comes back to both
+  await ev(guest, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id >= 100 && x.alive); for (let i = 0; i < 6; i++) d.localHit(r, 100, false); })()`);
+  await sleep(1200);
+  const after = await Promise.all([host, guest].map((p) => ev<{ alive: number; kills: number }>(p, "({ alive: window.__range.duel().hud().br.alive, kills: window.__range.duel().hud().br.kills })")));
+  check("squad: the knock is the guest's, and both see one fewer alive", after[1].kills === 1 && after[0].kills === 0 && after[0].alive === 4 && after[1].alive === 4, JSON.stringify(after));
+  // the guest goes down: the host's squad fights on (the host is still up)
+  await ev(guest, `(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()`);
+  await sleep(800);
+  const guestDown = await ev<{ alive: boolean; phase: string }>(guest, "({ alive: window.__range.duel().alive, phase: window.__range.duel().phase })");
+  const hostOn = await ev<string>(host, "window.__range.duel().phase");
+  check("squad: a squad mate down does not end it while the other stands", !guestDown.alive && guestDown.phase === "fight" && hostOn === "fight", JSON.stringify({ guestDown, hostOn }));
+  // the host goes down too: the squad is out, both get the placement
+  await ev(host, `(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()`);
+  await sleep(1200);
+  const ends = await Promise.all([host, guest].map((p) => ev<{ phase: string; placement: number | null }>(p, "({ phase: window.__range.duel()?.phase, placement: window.__range.duel()?.hud().br.placement })")));
+  check("squad: with the last of the squad down both see the placement (#3: two bots still up)", ends.every((e) => e.phase === "matchEnd" && e.placement === 3), JSON.stringify(ends));
+  await ev(host, "window.__range.duel()?.leave()");
+  await sleep(500);
+  await host.close();
+  await guest.close();
+}
+
 async function duelTest(browser: Browser, query: string, label: string): Promise<boolean> {
   const host = await open(browser, query);
   const guest = await open(browser, query);
@@ -448,13 +504,15 @@ async function main(): Promise<void> {
     await ev(page, `(() => { const p = window.__range.player; p.pos.set(${X}, 0, 11); p.vel.set(0, 0, 0); p.yaw = 180; })()`);
     await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
     await ev(page, `(() => { const p = window.__range.player; p.pos.set(${X}, 0, 13.5); p.vel.set(0, 0, 0); })()`);
-    await page.waitForFunction("window.__range.course.running", { polling: 50, timeout: 5000 }).catch(() => undefined);
+    // a little time on the clock before the menu stops it
+    await page.waitForFunction("window.__range.course.running && window.__range.courseClock() > 0.05", { polling: 50, timeout: 8000 }).catch(() => undefined);
     await toMenu(page);
     const clock = () => ev<number>(page, "window.__range.courseClock()");
     const c0 = await clock();
     await sleep(1500);
     const c1 = await clock();
-    check("the menu stops a run's clock", c0 > 0 && Math.abs(c1 - c0) < 0.05, `${c0.toFixed(2)} s -> ${c1.toFixed(2)} s over 1.5 s on the menu`);
+    const diag = await ev<string>(page, `JSON.stringify({ playing: window.__range.input.playing, running: window.__range.course.running, z: window.__range.player.pos.z, x: window.__range.player.pos.x })`);
+    check("the menu stops a run's clock", c0 > 0 && Math.abs(c1 - c0) < 0.05, `${c0.toFixed(2)} s -> ${c1.toFixed(2)} s over 1.5 s on the menu ${diag}`);
     await ev(page, `window.__range.course.reset()`);
 
     // Swap away and back: one optic on the gun in hand, not one per round trip
@@ -559,6 +617,9 @@ async function main(): Promise<void> {
 
     console.log("\nBattle royale against bots");
     await brTest(browser, "?norender");
+
+    console.log("\nBattle royale as a squad (two tabs, the local transport)");
+    await brSquadTest(browser, "?net=local&norender");
 
     console.log("\n1v1 over peer to peer (the public broker)");
     const ran = await duelTest(browser, "?norender", "p2p");

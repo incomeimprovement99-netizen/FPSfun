@@ -114,11 +114,26 @@ optic names; only `npm run build:beta` (what is deployed) swaps in codenames.
 | 1v1 and 1v1v1 | One player makes a match (2 or 3 players) and gets a 5-letter code; the others type it. 1v1: a three-lane warehouse arena. 1v1v1: a triangle, a corner each, spokes between the corners. First to 3 rounds, blue shields and 100 health. 20 s into a round a circle lights up in the middle; stand in it alone for 10 s to take the round. The last one standing takes it any time. |
 | Arena, Bots | The 1v1 rules against one or two bots, offline, on Easy, Normal or Hard (their speed, reaction time and aim). They hunt you, strafe, go for the circle, and go down like anyone. |
 | Arena, alone | The 1v1 map with nobody else, to learn it. |
+| Battle Royale, Bots | Outskirts: 440 m of open ground with the Hub in the middle and four places round it (a container yard, a depot of sheds, a stepped ridge with a bunker, a small town with a water tower). You and up to 11 bots drop from the sky onto one of the five (the map shows where, the movement keys steer the fall), the ring closes six times with Apex's damage per tick, bots walk the roads, fight each other and you, and the last one standing wins. Four shield cells and four syringes per life (4), M for the map. Out: your placement, your kills and how long you lasted; the champion screen when it is you. **As a squad**: the 1v1 tab, "Battle royale" as the mode, Create match, and two or three friends drop together on the same place against the bots; a squad mate can still be watched when you are down, and the squad wins when every bot is. |
 
 In every mode the HUD is laid out where the game puts things: health and
-shield bottom left, weapon and ammo bottom right, the tech feed on the left,
-the kill feed and scoreboard top right in a match, damage numbers and hit
-markers on the target, a notice line in the middle.
+shield bottom left (with the heal kit beside them in a match), weapon and
+ammo bottom right, the tech feed on the left, the kill feed and scoreboard
+top right in a match, damage numbers and hit markers on the target, a notice
+line in the middle; in a battle royale the alive count, your kills and the
+ring's clock top centre, the rings on the minimap, and an orange edge when
+you are outside.
+
+**The lobby.** Create match puts you straight into the arena with the code on
+the HUD; run around until your friends arrive (a connect takes them in too).
+The countdown starts once everyone is in.
+
+**Third person.** X switches the camera behind your shoulder (Settings has it
+too); hold Alt to turn the camera round your own figure and see the skin.
+Shots go from your eye to what the crosshair is on, so they land where it
+says. Other players, bots and your own figure are jointed and animate: a run
+cycle, the crouch, the slide lean, arms up on a climb or a mantle, the jump
+tuck, the zipline hang, the head and gun following the aim.
 
 ## Controls
 
@@ -143,6 +158,8 @@ defaults puts `binds.json` back.
 | B, N, H | barrel, stock, laser | T | dummy armour tier |
 | F | reset dummies and the course | K | ghost of your best run on/off |
 | P | copy your course result | Esc | menu |
+| 4 | heal (a shield cell, then a syringe) | M | the full map |
+| X | third person on/off | Alt (hold) | look round your character |
 
 The defaults, as the Controls tab first shows them.
 
@@ -243,6 +260,11 @@ changed mid-match; mid-fight the new guns come at the next round. Changing
 an attachment keeps the rounds in the gun (a bigger magazine fills on the
 next reload), so the attachment keys are never a free reload.
 
+**Healing**, in every match: four shield cells (25 shield over 2.5 s) and
+four syringes (25 health over 4 s) per life, Apex's own numbers, on the heal
+key. A cell while the shield is down, else a syringe; firing or aiming
+cancels it; the item is only spent when it finishes.
+
 Dummies have head, body and leg zones, shield tiers (T cycles them), knock
 and stand-up, damage numbers and a knock time on the HUD for time-to-kill
 checks. Pop-up targets on the courses are armed and count.
@@ -304,7 +326,20 @@ it trusts the game, so it is a board for friends, not a ranked ladder.
 - **Bots** (`src/game/bots.ts`) run the same match rules with a bot
   controller: a path down the lanes with slide-along collision, line of
   sight through the level's boxes, a reaction time and an aim error per
-  difficulty.
+  difficulty. The match tells a bot what it senses (the nearest enemy it can
+  see, where to walk); the arena sends it to the circle, the battle royale
+  along a graph of the map's nodes and into the next ring.
+- **The battle royale** (`src/game/br.ts`, `ring.ts`, `brmatch.ts`) is a
+  `Duel` subclass: the same links and figures, with the host running the
+  bots and the ring and sending the bots as ordinary state packets (ids from
+  100), so a friend's game draws a bot like any player and a friend's hits
+  reach a bot as hit messages the host applies. Alone it is the same class
+  with no links. The ring is pure logic with six phases (verified in
+  `tools/verify.ts`).
+- **Figures** (`src/game/dummy.ts`) are either merged into a few meshes (the
+  range's dummies) or, for anything that moves, built as jointed parts about
+  their pivots (pelvis, torso, head, arms with the gun, thighs, shins) and
+  posed from a stance and a speed sent in the state packet.
 - **Rendering** (`src/game/render.ts`, `quality.ts`, `staticmerge.ts`,
   `materials.ts`, `props.ts`): the static level is merged into one mesh per
   material, PBR textures and glTF props are CC0 and fetched by script, and
@@ -341,6 +376,9 @@ src/game/
   courses/advanced.ts      The Run (Advanced), nine rooms
   duel.ts                  the match: rounds, scores, the circle, remotes, spectate
   bots.ts                  the bot controller and the offline match
+  br.ts                    the battle royale map: Outskirts, its places, roads, the bots' graph
+  ring.ts                  the ring: six phases, the tick, the next circle
+  brmatch.ts               the battle royale match, alone or as a squad, on the Duel
   stats.ts                 the profile: matches, courses, tech, in localStorage
   leaderboard.ts           the online board client (finds the board through /net.json)
   weapons.ts               typed access to data/weapons.json
@@ -413,7 +451,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run compare-sources` | compare two reference trees on the numbers we use |
 | `npm run verify` | 450+ checks: weapon data, damage, recoil, sensitivity maths, and the whole movement simulation (every movement rule against its source number). Must print VERIFY PASS. |
 | `npm run movesim` | the movement simulation alone: wiki timings, the wallbounce recipe, crouch kick, wallskip, every course gate, teleports |
-| `npm run e2e` | real browser pages (puppeteer): load, the course, menus and loadouts, a full 1v1 over the local transport and over the internet, a 1v1v1 over three tabs, a bot match, the controller, round scoring, the circle, the Play gate. Needs `npm run dev`. Must print E2E PASS. |
+| `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match, the controller, the battle royale alone and as a squad of two, round scoring, the circle, the Play gate. Needs `npm run dev`. Must print E2E PASS. |
 | `npm run probe` | a scripted wallbounce at the practice wall in the real page, printing what the feed registered (needs `npm run dev`) |
 | `npm run measure` | what each technique reaches on the real controller (needs `npm run dev`) |
 | `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`) |
@@ -489,9 +527,10 @@ also bound to crouch.
 are stepped. That covers everything built so far, but curved or angled level
 geometry would need a real physics engine.
 
-**Characters are rigid.** The robot figures have no skeleton or animation
-beyond knocks and pop-ups; the other player in a 1v1 slides, turns and crouches
-but does not run or climb visibly.
+**Characters are procedural.** The figures are jointed and posed in code
+(run, crouch, slide, climb, mantle, jump, zip) rather than motion-captured;
+there is no hand animation, no facial anything, and the gun is held in one
+pose.
 
 **Two or three players, peer to peer.**
 - The browsers connect directly (WebRTC). On the game's own server our own
@@ -508,7 +547,13 @@ but does not run or climb visibly.
   silence from someone counts as leaving. Anyone past the player count is
   turned away.
 - More than three players, or trusted results, needs a server that runs the
-  game (see below and `docs/NEXT_STEPS.md`).
+  game (see below and `docs/NEXT_STEPS.md`). The battle royale is a squad of
+  up to three humans against bots for the same reason: the host's browser
+  runs the bots and the ring, and a full lobby of humans would need the
+  server.
+- **The battle royale has no loot.** Everyone drops with their loadout, blue
+  shields and the heal kit; there are no floor items, no helmets, no
+  throwables, no respawn beacons.
 
 **Saves are per browser.** Settings, loadouts, the profile, best times and
 ghosts are in localStorage: another browser or device starts fresh. Clearing
@@ -564,11 +609,12 @@ guns are built with their grips at the hand for that.
 |---|---|
 | `docs/SERVER_GUIDE.md` | the game on its own server like Algonomics: a DuckDNS name, the Oracle firewall rules, one-time setup, `npm run deploy:server`, day to day, troubleshooting |
 | `docs/DEPLOY_GUIDE.md` | the GitHub Pages link: publish, play, update, troubleshoot, the split-repo option |
-| `docs/NEXT_STEPS.md` | what you asked for and where it stands, and the next implementations ranked (aim assist, sound, broker and TURN, accounts, a game server, ranked boards, rebinding, inspect, a tech trainer, medals) |
+| `docs/NEXT_STEPS.md` | what you asked for and where it stands, and the next implementations ranked |
+| `docs/GAP_ANALYSIS.md` | what Apex (Season 30) and the other big shooters have against what we have, per area, with effort and value, and the ranked next steps that come out of it |
 | `docs/FIDELITY.md` | the source and confidence of every number in the game |
 | `docs/MOVEMENT_AUDIT.md` | the movement rules audited line by line against the wiki |
 | `docs/TESTING.md` | the first playtest guide: DPI, sensitivity, recoil, time to kill |
-| `docs/PLAN_*.md`, `docs/RESULTS_*.md` | a plan and a results document for every batch of work (what was asked, what shipped, what was found wrong on the way): the look pass, the HUD and course, wall tech and ghosts, ziplines and sights, the 1v1 beta, bots and triples and stats, feel and controller, the polish and ship, the server and the full bug hunt |
+| `docs/PLAN_*.md`, `docs/RESULTS_*.md` | a plan and a results document for every batch of work (what was asked, what shipped, what was found wrong on the way): the look pass, the HUD and course, wall tech and ghosts, ziplines and sights, the 1v1 beta, bots and triples and stats, feel and controller, the polish and ship, the server and the full bug hunt, the battle royale round |
 | `PROJECT_RULES.md` | the rules below, in full |
 | `public/tex/ATTRIBUTION.md`, `public/models/heirlooms/ATTRIBUTION.md` | where every asset came from and its licence |
 

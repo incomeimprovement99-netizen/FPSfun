@@ -22,8 +22,8 @@ import Peer, { type DataConnection, type PeerOptions } from "peerjs";
 /** everything that goes over the link; see duel.ts for the meanings */
 export type NetMsg =
   | { t: "hello"; v: number }
-  /** host to a guest on connect: its id and how many will play */
-  | { t: "welcome"; id: number; players: number }
+  /** host to a guest on connect: its id and how many will play; a battle royale says so, with its drop */
+  | { t: "welcome"; id: number; players: number; br?: BrWelcome }
   | {
       t: "s";
       from?: number;
@@ -54,7 +54,19 @@ export type NetMsg =
   | { t: "round"; n: number; scores: number[]; phase: RoundPhase; left: number; winner: number }
   | { t: "ping"; at: number }
   | { t: "pong"; at: number }
+  /** the battle royale's ring from the host, twice a second: phase, 0 waiting 1 closing 2 closed, seconds left, the live and the next circle, how many are alive */
+  | { t: "ring"; ph: number; st: number; left: number; cur: [number, number, number]; next: [number, number, number]; alive: number }
+  /** the battle royale is over for the squad */
+  | { t: "brend"; won: boolean; placement: number }
   | { t: "bye"; from?: number };
+
+/** what a guest needs to drop into the same battle royale as the host */
+export interface BrWelcome {
+  /** the POI id the squad drops on */
+  poi: string;
+  bots: number;
+  difficulty: string;
+}
 
 export type RoundPhase = "waiting" | "countdown" | "fight" | "roundEnd" | "matchEnd";
 
@@ -209,7 +221,14 @@ async function peerOptions(): Promise<PeerOptions> {
  * them (the lowest free one: 1, then 2). Guests past the count are turned
  * away; `release` opens a place again when a guest leaves before the start.
  */
-export function hostMatch(players: number, onCode: (code: string) => void, onLink: (l: Link, id: number) => void, onError: (msg: string) => void): HostHandle {
+export function hostMatch(
+  players: number,
+  onCode: (code: string) => void,
+  onLink: (l: Link, id: number) => void,
+  onError: (msg: string) => void,
+  /** a battle royale: what the welcome tells each guest */
+  br?: BrWelcome
+): HostHandle {
   let code = makeCode();
   let cancelled = false;
   const taken = new Set<number>();
@@ -231,7 +250,7 @@ export function hostMatch(players: number, onCode: (code: string) => void, onLin
       known.add(e.data.from);
       const id = claim();
       const link = new LocalLink("host", ch, "host", e.data.from, false);
-      link.send({ t: "welcome", id, players });
+      link.send({ t: "welcome", id, players, br });
       onLink(link, id);
     });
     onCode(code);
@@ -256,7 +275,7 @@ export function hostMatch(players: number, onCode: (code: string) => void, onLin
         }
         const id = claim();
         const link = new PeerLink("host", p, conn, false);
-        link.send({ t: "welcome", id, players });
+        link.send({ t: "welcome", id, players, br });
         onLink(link, id);
       });
     });
@@ -290,7 +309,7 @@ export function hostMatch(players: number, onCode: (code: string) => void, onLin
 }
 
 /** join a match by its code; `onLink` gets the link once the host has said welcome */
-export function joinMatch(rawCode: string, onLink: (l: Link, welcome: { id: number; players: number }) => void, onError: (msg: string) => void): () => void {
+export function joinMatch(rawCode: string, onLink: (l: Link, welcome: { id: number; players: number; br?: BrWelcome }) => void, onError: (msg: string) => void): () => void {
   const code = normaliseCode(rawCode);
   if (code.length !== 5) {
     onError("A match code is 5 letters and numbers.");
@@ -305,7 +324,7 @@ export function joinMatch(rawCode: string, onLink: (l: Link, welcome: { id: numb
     link.onMessage = (m) => {
       if (!joined && m.t === "welcome") {
         joined = true;
-        onLink(link, { id: m.id, players: m.players });
+        onLink(link, { id: m.id, players: m.players, br: m.br });
       }
       inner?.(m);
     };
@@ -349,7 +368,7 @@ export function joinMatch(rawCode: string, onLink: (l: Link, welcome: { id: numb
           if (!done && m.t === "welcome") {
             done = true;
             clearTimeout(timer);
-            onLink(link, { id: m.id, players: m.players });
+            onLink(link, { id: m.id, players: m.players, br: m.br });
           }
         };
         link.send({ t: "hello", v: 2 });

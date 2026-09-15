@@ -93,6 +93,9 @@ docs/MOVEMENT_AUDIT.md.
 | Controller aim assist, rotational | 0.4 of the target's angular movement, only with input | The PC controller strength Respawn has stated (console was 0.6 until it was brought to 0.4 as well). How the game measures "the target's movement" is not published; ours is its bearing from your eye, frame to frame (`src/config/aimassist.json`). |
 | Controller aim assist, slowdown and zone | 0.8 hip / 0.6 ADS, a 1.3 / 1.0 m sphere round the chest, 60 m | Ours. The game's slowdown and zone shapes are not published; chosen so a correction on a target does not overshoot, with no pull at all without input. |
 | Air step-up | a box top within the step height (22 hu) above the feet in the air is climbed onto, keeping the jump's apex | Source has no air step (the hull would hit the face and a mantle would take over). Ours, because the level's ramps are stepped boxes and the courses' 1.1 m slide-jump walls were designed with it; it never raises a jump's apex (docs/RESULTS_SERVER_HUNT.md, finding 6). |
+| The ring's damage per tick | 3, 4, 10, 15, 20, 25 every 1.5 s, six rounds | Apex's (https://apexlegends.wiki.gg/wiki/The_Ring). The waits and closes are scaled to a 440 m map (`src/game/ring.ts`); Apex's are 1:15 to 2:00 waits on a map a kilometre and a half across. |
+| Healing | shield cell 25 in 2.5 s, syringe 25 in 4 s, four of each | Apex's item numbers (https://apexlegends.wiki.gg/wiki/Consumable). No batteries, med kits or phoenix kits yet; not interrupted by damage (unverified whether current Apex does). |
+| The drop | 90 m up, 22 m/s terminal, 9 m/s steering, no fall stun | Ours: Apex's skydive is its own system with a dive angle and speed we have not measured. |
 | Sounds, art, HUD | ours | By rule. |
 
 ## Recoil: how much is actually known (updated, most of it)

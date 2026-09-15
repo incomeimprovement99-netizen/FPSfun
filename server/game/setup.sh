@@ -5,7 +5,7 @@
 # except one appended block in the Caddyfile (backed up, validated, rolled
 # back if Caddy rejects it).
 #
-#   bash setup.sh <hostname>        e.g. bash setup.sh boogrange.duckdns.org
+#   bash setup.sh <hostname>        e.g. bash setup.sh fpsfun.duckdns.org
 #
 # What it does:
 #   1. Node 22 and pm2, if missing.
