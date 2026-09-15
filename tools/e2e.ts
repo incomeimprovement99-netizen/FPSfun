@@ -341,7 +341,8 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
 
   // ---- the motion-captured figures (a setting): they load, a match's figures are mannequins and animate
   const mq = await open(browser, query);
-  await ev(mq, `(() => { const s = document.getElementById("figureStyle"); s.value = "mannequin"; s.dispatchEvent(new Event("change")); return window.__range.loadMannequin(); })()`);
+  await ev(mq, `(() => { const s = document.getElementById("figureStyle"); const def = s.value; s.value = "mannequin"; s.dispatchEvent(new Event("change")); window.__mqDefault = def; return window.__range.loadMannequin(); })()`);
+  check("figures: the mannequin is the default figure", (await ev<string>(mq, "window.__mqDefault")) === "mannequin");
   await ev(mq, `(() => { document.getElementById("modeBots").value = "2"; document.getElementById("goCrown").click(); })()`);
   await pressPlay(mq);
   await mq.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 20000 }).catch(() => undefined);
@@ -351,7 +352,10 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
     `(() => { const d = window.__range.duel(); const a = d.avatars; const m = a.map((x) => x.group.getObjectByName("mannequin")).filter(Boolean); let moved = false; m[0]?.traverse((o) => { if (o.name === "thigh_l") moved = Math.abs(o.quaternion.x) + Math.abs(o.quaternion.y) + Math.abs(o.quaternion.z) > 0.01; }); return { n: a.length, mannequins: m.length, moved }; })()`
   );
   check("figures: with the setting on the bots are mannequins, and their clips are playing", figs.n === 2 && figs.mannequins === 2 && figs.moved, JSON.stringify(figs));
-  await ev(mq, `(() => { const s = document.getElementById("figureStyle"); s.value = "robot"; s.dispatchEvent(new Event("change")); window.__range.duel()?.leave(); })()`);
+  // a long gun is shouldered: it hangs off the chest (not the hand), the right hand on the grip
+  const shouldered = await ev<Array<{ mount: boolean; grip: number }>>(mq, `window.__range.duel().avatars.filter((a) => a.mq && a.mq.gunObject).map((a) => ({ mount: a.mq.gunObject.parent?.name === "gunMount", grip: a.mq.gripReach }))`);
+  check("figures: a mannequin's rifle hangs off its chest with the right hand on the grip", shouldered.length > 0 && shouldered.every((s) => s.mount && s.grip > 0.5), JSON.stringify(shouldered));
+  await ev(mq, `(() => { window.__range.duel()?.leave(); localStorage.removeItem("range.figures"); })()`);
   await mq.close();
 }
 

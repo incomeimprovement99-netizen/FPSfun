@@ -770,10 +770,12 @@ mantleCueSel.addEventListener("change", () => {
     /* ignore */
   }
 });
-// the figures: our robots, or the motion-captured mannequin (Settings; mannequin.ts)
+// the figures: the motion-captured mannequin (the default since it holds a rifle at the
+// shoulder), or our robots (Settings; mannequin.ts). Robots stand in until it has loaded.
 const figureSel = $<HTMLSelectElement>("figureStyle");
+figureSel.value = "mannequin";
 try {
-  if (localStorage.getItem("range.figures") === "mannequin") figureSel.value = "mannequin";
+  if (localStorage.getItem("range.figures") === "robot") figureSel.value = "robot";
 } catch {
   /* ignore */
 }
@@ -3258,7 +3260,7 @@ initWelcome();
    * The figure lab (tools/snap.ts): figures in a row `dist` metres in front of
    * you, facing you, one per pose ("dead" knocks it out); none clears it.
    */
-  figureLab: (poses: Array<FigurePose & { dead?: boolean; weapon?: string }> = [], dist = 4) => {
+  figureLab: (poses: Array<FigurePose & { dead?: boolean; weapon?: string }> = [], dist = 4, turnDeg = 0) => {
     for (const lf of labFigs) lf.f.dispose();
     labFigs.length = 0;
     const yawR = player.yaw * DEG;
@@ -3266,9 +3268,9 @@ initWelcome();
     const fz = -Math.cos(yawR);
     poses.forEach((p, i) => {
       const side = (i - (poses.length - 1) / 2) * 1.3;
-      const f = new Dummy(0, 0, 0, { armed: p.weapon ?? "r301", respawn: false, rig: true, noBase: true, skin: OPERATORS[i % OPERATORS.length] });
+      const f = new Dummy(0, 0, 0, { armed: p.weapon ?? "rspn101", respawn: false, rig: true, noBase: true, skin: OPERATORS[i % OPERATORS.length] });
       f.group.position.set(player.pos.x + fx * dist + fz * side, player.pos.y, player.pos.z + fz * dist - fx * side);
-      f.group.rotation.y = yawR;
+      f.group.rotation.y = yawR + turnDeg * DEG;
       scene.add(f.group);
       labFigs.push({ f, pose: p, dead: !!p.dead, at: gameTime });
     });

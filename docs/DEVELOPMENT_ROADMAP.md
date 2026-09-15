@@ -395,3 +395,21 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Tests: e2e (a knocked bot's gun on the floor and not in its hands; down in a squad: no gun in your view,
   your hands on the floor, no gun on the host's figure of you or on your own in third person; out: the
   host's figure of you is down and empty-handed).
+
+## Milestone 27 — Figures: the rifle at the shoulder, turning on the spot, jumps and landings ✅
+2026-09-15 (Phase 12D). `src/game/mannequin.ts`, `dummy.ts`.
+- **The mannequin holds a rifle like a rifle, and is now the default figure.** The library's clips are pistol
+  clips, so a long gun no longer hangs from the hand at arm's length. It sits on the chest with its stock in
+  the right shoulder, and a two-bone IK puts the right hand on its grip and the left on its handguard (each gun's
+  own support point). For a sprint or a swap it comes down and cants across the body, the hands with it. Pistols
+  keep the clip's two-hand grip, with the left hand on the frame. The robots stay as the setting's other choice
+  (lighter to draw) and the stand-in until the files have loaded.
+- **Turning on the spot** (both figures): standing still, the feet stay planted while the body turns on its aim,
+  then step round, one foot then the other, once it has turned 50 degrees.
+- **Jumps and landings**: the robot tucks its knees on the takeoff and squashes on landing, more after a longer
+  fall; the mannequin plays its landing clip after a jump from standing.
+- **Idle and sprint**: the robot breathes standing still, and sprinting lowers and cants its gun with the arms
+  pumping. A shield break staggers the mannequin (its hit clip).
+- Tests: verify (the feet planted through a 0.5 rad turn, a step round past 50 degrees, walking keeps them with the
+  body), e2e (the mannequin is the default; a mannequin's rifle hangs off its chest with the right hand on the
+  grip), snap (figures-hold, figures-hold-close, figures-crouch-close, and the labs with a sprint).

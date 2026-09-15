@@ -9,7 +9,7 @@ import { WeaponState } from "../src/game/weapon-state";
 import { AimAssist } from "../src/game/aimassist";
 import { Ring, RING_PHASES, RING_TICK } from "../src/game/ring";
 import { RANGE_SOLIDS } from "../src/game/range";
-import type { Dummy } from "../src/game/dummy";
+import { Dummy, TURN_STEP_AT } from "../src/game/dummy";
 import * as THREE from "three";
 import { MODELLED_IDS } from "../src/game/gunmodels";
 import { movesimFails } from "./movesim";
@@ -1366,6 +1366,21 @@ console.log("The figures' motion (src/game/dummy.ts, duel.ts moveDirOf)");
   eq("a heal's code carries the item", actCode("heal", 3), 13);
   eq("nothing", actFromCode(actCode(null)), null);
   eq("an older build's packet (no code): nothing", actFromCode(undefined), null);
+  // turning on the spot: the feet stay planted, then step round past 50 degrees
+  const fig = new Dummy(0, 0, 0, { rig: true, noBase: true, respawn: false });
+  fig.setPose({ speed: 0, stance: "stand", pitch: 0 });
+  for (let i = 0; i < 5; i++) fig.update(i / 60, 1 / 60);
+  fig.group.rotation.y = 0.5;
+  fig.update(0.1, 1 / 60);
+  near("standing still, a 0.5 rad turn leaves the feet where they were", fig.plantedTurn, -0.5, 1e-6);
+  fig.group.rotation.y = 0.5 + TURN_STEP_AT + 0.05;
+  for (let i = 0; i < 40; i++) fig.update(0.2 + i / 60, 1 / 60);
+  near("past 50 degrees they step round to the body", fig.plantedTurn, 0, 0.03);
+  fig.setPose({ speed: 3, stance: "stand", pitch: 0 });
+  fig.group.rotation.y = 2;
+  fig.update(1, 1 / 60);
+  eq("walking, the feet go with the body", fig.plantedTurn, 0);
+  fig.dispose();
 }
 
 console.log("");

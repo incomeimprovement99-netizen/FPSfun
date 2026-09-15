@@ -209,6 +209,11 @@ export const actFromCode = (c: number | undefined): FigureAct => (c === 1 ? "rel
 const HEAL_COLOUR: Record<string, number> = { cell: 0x3b8bff, battery: 0x3b8bff, syringe: 0xe84a4a, medkit: 0xe84a4a, phoenix: 0xffa000 };
 /** the legs turn at most this far from the body toward the way it moves (a strafe) */
 const LEG_TURN = 1.25;
+/** standing still, the feet stay planted while the body turns, until it has turned this far (radians, 50 degrees); then a step round */
+export const TURN_STEP_AT = 0.87;
+/** the step round: the feet catch up at this rate (1/s), lifting in turn */
+const TURN_STEP_RATE = 11;
+const wrapAngle = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 const STANCE_CODE: FigureStance[] = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip", "downed"];
 /** a stance as one small number for the network, and back */
 export const stanceCode = (s: FigureStance): number => Math.max(0, STANCE_CODE.indexOf(s));
@@ -292,7 +297,19 @@ export class Dummy {
   private pose: FigurePose = { speed: 0, stance: "stand", pitch: 0 };
   private gait = 0;
   /** eased pose values, so a change of stance blends rather than snaps */
-  private readonly eased = { lean: 0, pelvisDrop: 0, thighL: 0, thighR: 0, shinL: 0, shinR: 0, armsUp: 0, armSwing: 0, headPitch: 0, legYaw: 0, ads: 0, reload: 0, swap: 0, heal: 0, down: 0 };
+  private readonly eased = { lean: 0, pelvisDrop: 0, thighL: 0, thighR: 0, shinL: 0, shinR: 0, armsUp: 0, armSwing: 0, headPitch: 0, legYaw: 0, ads: 0, reload: 0, swap: 0, heal: 0, down: 0, sprint: 0 };
+  /** the feet's yaw while standing still (world, radians), and a step round in progress */
+  private plantYaw: number | null = null;
+  private stepping = false;
+  private stepT = 0;
+  /** a landing's squash (1 on touchdown, decaying) and how long it was in the air */
+  private landAmt = 0;
+  private airT = 0;
+  private lastStance: FigureStance = "stand";
+  /** the idle's breathing clock (also the clock the stagger is timed on) */
+  private idleT = 0;
+  /** when its shield last broke, on idleT's clock (the mannequin staggers) */
+  private staggerAt = -Infinity;
   /** short-lived motions: a shot's kick, a hit's flinch, a JOLT's lean (1 at their start, decaying) */
   private kickAmt = 0;
   private flinchAmt = 0;
@@ -804,6 +821,15 @@ export class Dummy {
       legYaw = -Math.max(-LEG_TURN, Math.min(LEG_TURN, d));
       if (back) this.gait -= 2 * dt * (speed / 0.8) * Math.PI;
     }
+    // in the air, and the landing: a squash as big as the fall was long
+    if (p.stance === "air") this.airT += dt;
+    else {
+      if (this.lastStance === "air" && this.airT > 0.12) this.landAmt = Math.min(1, 0.35 + this.airT * 0.9);
+      this.airT = 0;
+    }
+    this.lastStance = p.stance;
+    this.landAmt = Math.max(0, this.landAmt - dt * 4);
+    this.idleT += dt;
     switch (p.stance) {
       case "stand":
         lean = 0.12 * frac;
@@ -824,14 +850,17 @@ export class Dummy {
         shinBase = -0.15;
         armsUp = 0.25;
         break;
-      case "air":
+      case "air": {
+        // the takeoff tucks both knees up; then one leg leads, the other trails
+        const tuck = Math.max(0, 1 - this.airT / 0.25);
         lean = 0.05;
         drop = 0.05;
-        thighL = 0.5;
-        thighR = -0.25;
-        shinL = -0.9;
-        shinR = -0.5;
+        thighL = 0.5 + 0.35 * tuck;
+        thighR = -0.25 + 0.75 * tuck;
+        shinL = -0.9 - 0.3 * tuck;
+        shinR = -0.5 - 0.6 * tuck;
         break;
+      }
       case "climb":
         lean = -0.1;
         drop = 0.05;
@@ -874,6 +903,42 @@ export class Dummy {
       shinL = shinBase - Math.max(0, Math.sin(g + 1.2)) * amp * 1.1;
       shinR = shinBase - Math.max(0, Math.sin(g + Math.PI + 1.2)) * amp * 1.1;
     }
+    // turning on the spot: the feet stay where they are while the body turns
+    // on its aim, then step round to catch up (and lift in turn as they do)
+    const facing = this.group.rotation.y;
+    const still = speed <= 0.3 && (p.stance === "stand" || p.stance === "crouch");
+    if (!still || this.plantYaw === null) {
+      this.plantYaw = facing;
+      this.stepping = false;
+    } else {
+      if (!this.stepping && Math.abs(wrapAngle(this.plantYaw - facing)) > TURN_STEP_AT) {
+        this.stepping = true;
+        this.stepT = 0;
+      }
+      if (this.stepping) {
+        this.stepT += dt;
+        this.plantYaw += wrapAngle(facing - this.plantYaw) * Math.min(1, dt * TURN_STEP_RATE);
+        const lift = Math.sin(Math.min(1, this.stepT / 0.3) * Math.PI);
+        thighL += 0.45 * lift * (this.stepT < 0.15 ? 1 : 0.3);
+        shinL -= 0.7 * lift * (this.stepT < 0.15 ? 1 : 0.3);
+        thighR += 0.45 * lift * (this.stepT >= 0.15 ? 1 : 0.3);
+        shinR -= 0.7 * lift * (this.stepT >= 0.15 ? 1 : 0.3);
+        if (Math.abs(wrapAngle(this.plantYaw - facing)) < 0.03 || this.stepT > 0.5) {
+          this.plantYaw = facing;
+          this.stepping = false;
+        }
+      }
+    }
+    const plant = wrapAngle((this.plantYaw ?? facing) - facing);
+    // the landing's squash on top of whatever the legs are doing
+    if (this.landAmt > 0) {
+      drop += 0.16 * this.landAmt;
+      lean += 0.18 * this.landAmt;
+      thighL += 0.6 * this.landAmt;
+      thighR += 0.6 * this.landAmt;
+      shinL -= 0.9 * this.landAmt;
+      shinR -= 0.9 * this.landAmt;
+    }
     const DEG = Math.PI / 180;
     const downed = p.stance === "downed";
     // down: the look pitch is the head's alone (the arms are on the floor)
@@ -903,15 +968,20 @@ export class Dummy {
     e.swap += ((act === "swap" ? 1 : 0) - e.swap) * k2;
     e.heal += ((act === "heal" && !downed ? 1 : 0) - e.heal) * k2;
     e.down += ((downed ? 1 : 0) - e.down) * k2;
+    // sprinting with the gun not up: it comes down and cants across the body, the arms pumping
+    const sprinting = p.stance === "stand" && speed > 6.2 && (p.ads ?? 0) < 0.3 && act === null;
+    e.sprint += ((sprinting ? 1 : 0) - e.sprint) * k2;
     // the impulses fade: a kick in a tenth of a second, a flinch in a fifth, a JOLT's lean in a third
     this.kickAmt = Math.max(0, this.kickAmt - dt * 12);
     this.flinchAmt = Math.max(0, this.flinchAmt - dt * 5);
     this.joltAmt = Math.max(0, this.joltAmt - dt * 3);
     const flinch = this.flinchAmt;
     r.pelvis.position.y = PELVIS_Y - e.pelvisDrop - 0.05 * Math.max(0, flinch - 0.6);
-    r.pelvis.rotation.y = e.legYaw;
-    r.torso.rotation.y = -e.legYaw;
-    r.torso.rotation.x = e.lean - 0.2 * flinch;
+    r.pelvis.rotation.y = e.legYaw + plant;
+    r.torso.rotation.y = -(e.legYaw + plant);
+    // standing still it breathes: the chest rises and settles every few seconds
+    const breathe = speed < 0.3 && p.stance === "stand" ? Math.sin(this.idleT * 1.7) : 0;
+    r.torso.rotation.x = e.lean - 0.2 * flinch + 0.02 * breathe;
     r.head.rotation.x = e.headPitch - e.lean * 0.7 - 0.25 * flinch + 0.15 * e.ads + 0.2 * e.reload + 0.35 * e.heal - 0.25 * e.down;
     r.head.rotation.z = 0.12 * e.ads;
     r.thighL.rotation.x = e.thighL;
@@ -928,9 +998,11 @@ export class Dummy {
       // dips it; a swap takes it down out of sight; a heal lowers it for the item
       // down: the gun gone, the arms straight down to the floor, reaching in turn as it crawls
       const crawl = e.down * s * e.armSwing * 0.6;
-      r.arms.rotation.x = -(e.armsUp + pitch * 0.8) - e.lean * 0.5 * (1 - e.down) - 0.1 * e.ads - 0.14 * this.kickAmt + 0.4 * e.reload + 1.1 * e.swap + 0.75 * e.heal + crawl;
-      r.arms.rotation.z = 0.5 * e.reload + 0.25 * crawl;
-      r.arms.position.set(this.armsBase.x, this.armsBase.y + 0.07 * e.ads, this.armsBase.z - 0.05 * this.kickAmt - 0.03 * e.ads);
+      const pump = e.sprint * Math.sin(g) * 0.12;
+      r.arms.rotation.x = -(e.armsUp + pitch * 0.8 * (1 - e.sprint)) - e.lean * 0.5 * (1 - e.down) - 0.1 * e.ads - 0.14 * this.kickAmt + 0.4 * e.reload + 1.1 * e.swap + 0.75 * e.heal + crawl + 0.55 * e.sprint + pump;
+      r.arms.rotation.z = 0.5 * e.reload + 0.25 * crawl + 0.45 * e.sprint;
+      r.arms.rotation.y = -0.3 * e.sprint;
+      r.arms.position.set(this.armsBase.x, this.armsBase.y + 0.07 * e.ads + 0.006 * breathe, this.armsBase.z - 0.05 * this.kickAmt - 0.03 * e.ads);
       const away = e.heal > 0.5 || e.down > 0.15;
       if (away !== this.gunAway) {
         this.gunAway = away;
@@ -943,7 +1015,7 @@ export class Dummy {
       }
     }
     // the mannequin plays its clips for the same pose, with the same corrections on top
-    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw, ads: e.ads });
+    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt });
   }
 
   /** the heal item: a small canister held in front of the chest */
@@ -980,6 +1052,11 @@ export class Dummy {
   /** the gun on the floor, or null (the tests look) */
   get droppedGun(): THREE.Object3D | null {
     return this.dropped?.obj ?? null;
+  }
+
+  /** the feet's turn from the body while standing still, radians (the tests look) */
+  get plantedTurn(): number {
+    return this.plantYaw === null ? 0 : wrapAngle(this.plantYaw - this.group.rotation.y);
   }
 
   /** is a gun in its hands and showing (the tests look: never while down or out) */
@@ -1084,6 +1161,7 @@ export class Dummy {
     if (broke) this.vest.visible = false;
     // a flinch on every hit, a stagger when the shield breaks
     this.flinchAmt = Math.min(1.5, this.flinchAmt + (broke ? 1.3 : 0.5));
+    if (broke) this.staggerAt = this.idleT;
     if (knocked) {
       this.knocked = true;
       this.respawnAt = now + RESPAWN_S;

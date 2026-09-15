@@ -43,9 +43,28 @@ const gameSeconds = (s: number) => `new Promise((r) => { const t0 = window.__ran
 /** the figure lab: standing aimed, walking, crouched, down and crawling, knocked out (the gun on the floor) */
 const lab = (style: "robot" | "mannequin") =>
   `(async () => { ${hideMenu}; const r = window.__range; if (${style === "mannequin"}) { await r.loadMannequin(); } r.setFigureStyle("${style}"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -12);
-    r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1 }, { speed: 3.5, stance: "stand", pitch: 0 }, { speed: 0, stance: "crouch", pitch: 0 }, { speed: 1, stance: "downed", pitch: 0 }, { speed: 0, stance: "stand", pitch: 0, dead: true }], 4.5); })()`;
+    r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1 }, { speed: 7, stance: "stand", pitch: 0 }, { speed: 3.5, stance: "stand", pitch: 0 }, { speed: 0, stance: "crouch", pitch: 0 }, { speed: 1, stance: "downed", pitch: 0 }, { speed: 0, stance: "stand", pitch: 0, dead: true }], 4.5); })()`;
+
+/** the rifle hold from the side: the left hand on each gun's handguard */
+const holdLab = `(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -8);
+    r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "vinson" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "energy_shotgun" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "wingman" }], 3.2, 90); })()`;
 
 export const SCENARIOS: Scenario[] = [
+  {
+    name: "figures-crouch-close",
+    note: "close up: a robot and a mannequin crouched and walking, from the side",
+    steps: [[`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -14); r.setFigureStyle("robot"); const a = r.figureLab([{ speed: 0, stance: "crouch", pitch: 0 }, { speed: 3.5, stance: "stand", pitch: 0 }], 2.6, 90); r.setFigureStyle("mannequin"); })()`, 0], [gameSeconds(1), 100]],
+  },
+  {
+    name: "figures-hold-close",
+    note: "close up, from the side: a mannequin holding the R-301, its left hand on the handguard",
+    steps: [[`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -18); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }], 1.7, 90); })()`, 0], [gameSeconds(1.2), 100]],
+  },
+  {
+    name: "figures-hold",
+    note: "mannequins from the side: the left hand on the R-301's, the Flatline's and the Peacekeeper's handguard; the Wingman two-handed",
+    steps: [[holdLab, 0], [gameSeconds(1.2), 100]],
+  },
   {
     name: "downed-view",
     note: "down, in first person: no gun, the hands low on the floor",

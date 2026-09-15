@@ -2,9 +2,12 @@
 // Animation Library clips (CC0; public/models/mannequin), in place of the
 // robot built in code, when Settings says "Figures: mannequins".
 //
-// The robot stays the default and the fallback: the clips are pistol clips
-// (the library has no rifle set), and every gun is held the way its aim pose
-// holds a pistol, which reads well at a distance and less well up close. The
+// It is the default figure; the robot is the setting's other choice and the
+// fallback until the files have loaded. The library's clips are pistol clips
+// (it has no rifle set), so a pistol is held as the aim clip holds it, and a
+// long gun is not: it hangs off the chest with its stock in the right
+// shoulder, and both arms reach onto it (a two-bone IK to the grip and the
+// handguard), lowered and canted across the body for a sprint or a swap. The
 // hit zones are the Dummy's own invisible boxes either way, so the choice
 // changes nothing about what a bullet hits.
 //
@@ -38,8 +41,12 @@ interface Template {
   scene: THREE.Object3D;
   /** the clips split in two: "lower:Walk_Loop", "upper:Pistol_Reload", and whole ones: "full:Slide_Loop" */
   clips: Map<string, THREE.AnimationClip>;
-  /** the right hand's place in the aim pose, figure space (where a gun's grip goes) */
+  /** the right hand's place in the aim pose, figure space (where a pistol's grip goes) */
   handAim: THREE.Matrix4;
+  /** the upper chest bone in the aim pose, figure space (a rifle's mount hangs off it) */
+  chestAim: THREE.Matrix4;
+  /** the right shoulder in the aim pose, figure space (a rifle's stock goes to it) */
+  shoulderR: THREE.Vector3;
 }
 let template: Template | null = null;
 let loading: Promise<void> | null = null;
@@ -68,7 +75,9 @@ export function loadMannequin(): Promise<void> {
       mixer.update(0);
       probe.updateMatrixWorld(true);
       const hand = probe.getObjectByName("hand_r")!;
-      template = { scene: main.scene, clips, handAim: hand.matrixWorld.clone() };
+      const chest = probe.getObjectByName("spine_03")!;
+      const shoulder = probe.getObjectByName("upperarm_r")!;
+      template = { scene: main.scene, clips, handAim: hand.matrixWorld.clone(), chestAim: chest.matrixWorld.clone(), shoulderR: new THREE.Vector3().setFromMatrixPosition(shoulder.matrixWorld) };
     })
     .catch((e) => {
       console.warn("the mannequin did not load; the figures stay robots", e);
@@ -101,6 +110,29 @@ export interface MannequinImpulses {
   jolt: number;
   legYaw: number;
   ads: number;
+  /** a landing's squash, 1 on touchdown */
+  land?: number;
+  /** when the shield last broke, on the figure's clock (a stagger) */
+  stagger?: number;
+}
+
+const v1 = new THREE.Vector3();
+const v2 = new THREE.Vector3();
+const v3 = new THREE.Vector3();
+const v4 = new THREE.Vector3();
+const v5 = new THREE.Vector3();
+const q1 = new THREE.Quaternion();
+const q2 = new THREE.Quaternion();
+const IDENTITY = new THREE.Quaternion();
+
+/** turn a bone (weighted by w) so its direction `from` (world) points along `to` (world) */
+function aimBone(bone: THREE.Object3D, from: THREE.Vector3, to: THREE.Vector3, w: number): void {
+  if (!bone.parent || from.lengthSq() < 1e-10 || to.lengthSq() < 1e-10) return;
+  const d = q1.setFromUnitVectors(from.normalize(), to.normalize());
+  if (w < 1) d.slerpQuaternions(IDENTITY, d.clone(), w);
+  const world = bone.getWorldQuaternion(q2).premultiply(d);
+  bone.quaternion.copy(bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(world));
+  bone.updateWorldMatrix(false, true);
 }
 
 export class MannequinFigure {
@@ -117,6 +149,27 @@ export class MannequinFigure {
   private joints: THREE.MeshStandardMaterial | null = null;
   /** knocked out: the death clip, once, then lying still */
   private dead = false;
+  /** where the left hand holds the gun, gun-local (its handguard), and how far the reach is blended in */
+  private support: THREE.Vector3 | null = null;
+  private ikW = 0;
+  /**
+   * A long gun is not held as the clips hold a pistol, out at arm's length:
+   * it hangs off the chest with its stock at the right shoulder, and both
+   * hands reach onto it (the grip and the handguard). `mount` is its pivot
+   * at the grip; `mountBase` its place in the aim pose; `grip` gun-local.
+   */
+  private mount: THREE.Object3D | null = null;
+  private mountBase = new THREE.Matrix4();
+  private grip: THREE.Vector3 | null = null;
+  private gripW = 0;
+  /** 0..1 the long gun lowered and canted across the body (a sprint, a swap) */
+  private lowered = 0;
+  /** the figure's own clock, and when a landing's clip and a stagger's end */
+  private t = 0;
+  private landUntil = -Infinity;
+  private staggerSeen = -Infinity;
+  private staggerUntil = -Infinity;
+  private wasAir = false;
   /** the gun is in the hand and showing this frame */
   gunInHand = false;
 
@@ -149,14 +202,38 @@ export class MannequinFigure {
   /** a gun into the right hand, held as the aim pose holds it: pointing the way the figure faces */
   setGun(id: string): void {
     const hand = this.bones.hand_r;
+    const chest = this.bones.spine_03;
     if (!hand || !template) return;
     this.gun?.removeFromParent();
+    this.mount?.removeFromParent();
+    this.mount = null;
     const m = displayGunModel(id);
     const gun = m.root.clone(true);
     for (const child of [...gun.children]) if (child.name === "muzzleflash") gun.remove(child);
     gun.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
     });
+    this.support = new THREE.Vector3(m.support.x ?? 0, m.support.u, -m.support.f);
+    this.grip = new THREE.Vector3(0, m.grip.u, -m.grip.f);
+    if (m.support.kind !== "pistol" && chest) {
+      // a long gun: its grip a hand's width in from the right shoulder, low and
+      // forward, so the stock sits in the shoulder; the muzzle along the facing
+      const sh = template.shoulderR;
+      const inward = -Math.sign(sh.x || 1) * 0.05;
+      const gripAt = new THREE.Vector3(sh.x + inward, sh.y - 0.1, sh.z + 0.24);
+      const inFigure = new THREE.Matrix4().compose(gripAt, new THREE.Quaternion().setFromAxisAngle(Y, Math.PI), new THREE.Vector3(1, 1, 1));
+      this.mountBase.copy(template.chestAim).invert().multiply(inFigure);
+      const mount = new THREE.Object3D();
+      mount.name = "gunMount";
+      this.mountBase.decompose(mount.position, mount.quaternion, mount.scale);
+      gun.position.copy(this.grip).negate();
+      gun.visible = this.gunShown;
+      mount.add(gun);
+      chest.add(mount);
+      this.mount = mount;
+      this.gun = gun;
+      return;
+    }
     // where the gun sits in the figure's frame in the aim pose: its grip in the
     // hand (a little into the palm), the muzzle forward
     const grip = new THREE.Vector3().setFromMatrixPosition(template.handAim).add(new THREE.Vector3(0.02, -0.02, 0.06));
@@ -166,6 +243,56 @@ export class MannequinFigure {
     gun.visible = this.gunShown;
     hand.add(gun);
     this.gun = gun;
+  }
+
+  /** the right hand's reach onto a long gun's grip, 0..1 (the tests look) */
+  get gripReach(): number {
+    return this.gripW;
+  }
+
+  /** the left hand's reach onto the gun, 0..1 (the tests look) */
+  get supportReach(): number {
+    return this.ikW;
+  }
+
+  /**
+   * The left hand onto the gun's support point: a two-bone reach (upper arm,
+   * forearm) with the elbow down and out, weighted by `w`. The clips are a
+   * pistol's two-hand grip; a rifle's handguard is 20 to 30 cm further out.
+   */
+  private reachSupport(w: number): void {
+    if (this.support) this.reach("l", this.support, w);
+  }
+
+  /** one arm (l or r) onto a point on the gun (gun-local), weighted by w */
+  private reach(side: "l" | "r", onGun: THREE.Vector3, w: number): void {
+    const b = this.bones;
+    const up = b[`upperarm_${side}`];
+    const lo = b[`lowerarm_${side}`];
+    const hand = b[`hand_${side}`];
+    if (!up || !lo || !hand || !this.gun || w < 0.01) return;
+    this.root.updateMatrixWorld(true);
+    const target = this.gun.localToWorld(v4.copy(onGun));
+    const a = up.getWorldPosition(v1);
+    const bb = lo.getWorldPosition(v2);
+    const c = hand.getWorldPosition(v3);
+    const lab = a.distanceTo(bb);
+    const lbc = bb.distanceTo(c);
+    const toT = v5.copy(target).sub(a);
+    const dist = Math.max(0.05, Math.min(lab + lbc - 1e-3, toT.length()));
+    const dir = toT.normalize();
+    // the elbow's side: down and out (the left arm to +x, the figure's left; the right to -x), a little back
+    const out = side === "l" ? 0.7 : -0.9;
+    const pole = new THREE.Vector3(out, -1, -0.2).applyQuaternion(this.root.getWorldQuaternion(new THREE.Quaternion()));
+    pole.addScaledVector(dir, -pole.dot(dir)).normalize();
+    const cosA = Math.max(-1, Math.min(1, (lab * lab + dist * dist - lbc * lbc) / (2 * lab * dist)));
+    const sinA = Math.sqrt(1 - cosA * cosA);
+    const elbow = a.clone().addScaledVector(dir, cosA * lab).addScaledVector(pole, sinA * lab);
+    aimBone(up, bb.clone().sub(a), elbow.clone().sub(a), w);
+    const b2 = lo.getWorldPosition(new THREE.Vector3());
+    const c2 = hand.getWorldPosition(new THREE.Vector3());
+    const goal = a.clone().addScaledVector(dir, dist);
+    aimBone(lo, c2.sub(b2), goal.sub(b2), w);
   }
 
   setGunVisible(on: boolean): void {
@@ -249,6 +376,16 @@ export class MannequinFigure {
    */
   update(p: FigurePose, dt: number, armed: boolean, fx: MannequinImpulses): void {
     const speed = Math.max(0, p.speed);
+    this.t += dt;
+    // a landing from standing (or a walk): the impact's crouch from the landing clip, briefly
+    const air = p.stance === "air";
+    if (this.wasAir && !air && (fx.land ?? 0) > 0.4 && speed < 2.6 && p.stance === "stand") this.landUntil = this.t + 0.32;
+    this.wasAir = air;
+    // the shield broke: the stagger clip on the upper body, once
+    if (fx.stagger !== undefined && fx.stagger !== this.staggerSeen && Number.isFinite(fx.stagger)) {
+      this.staggerSeen = fx.stagger;
+      this.staggerUntil = this.t + 0.3;
+    }
     const back = speed > 0.3 && Math.abs(p.moveDir ?? 0) > 1.9;
     const dirSign = back ? -1 : 1;
     // the legs
@@ -281,7 +418,10 @@ export class MannequinFigure {
         lowerRate = Math.max(0.2, speed / 2);
         break;
       default:
-        if (speed > 6.2) {
+        if (this.t < this.landUntil) {
+          lower = "Jump_Land";
+          lowerRate = 2.2;
+        } else if (speed > 6.2) {
           lower = "Sprint_Loop";
           lowerRate = (speed / 7.5) * dirSign;
         } else if (speed > 2.6) {
@@ -300,6 +440,10 @@ export class MannequinFigure {
       if (p.act === "heal") {
         upper = "Consume";
         upperRate = 1;
+      } else if (this.t < this.staggerUntil && p.stance !== "downed") {
+        upper = "Hit_Chest";
+        upperRate = 1.1;
+        once = true;
       } else if (!armed || p.stance === "downed") {
         upper = lower;
       } else if (p.act === "reload") {
@@ -340,6 +484,30 @@ export class MannequinFigure {
     if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), -pitch * 0.45 + lean * 0.5);
     if (b.spine_03) turnBone(b.spine_03, fig, new THREE.Vector3(1, 0, 0), -pitch * 0.45 + lean * 0.5 - fx.kick * 0.1);
     if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), -fx.flinch * 0.25 + 0.1 * fx.ads);
+    const shown = !!this.gun && this.gun.visible;
+    if (this.mount && this.grip) {
+      // a long gun: lowered and canted across the body for a sprint or a swap, up at the shoulder otherwise
+      const low = shown && !full && (p.act === "swap" || upper === "Pistol_Idle_Loop") ? 1 : 0;
+      this.lowered += (low - this.lowered) * Math.min(1, dt * 8);
+      this.mount.position.setFromMatrixPosition(this.mountBase);
+      this.mount.quaternion.setFromRotationMatrix(this.mountBase);
+      if (this.lowered > 1e-3) {
+        this.mount.position.y -= 0.12 * this.lowered;
+        this.mount.rotateX(0.75 * this.lowered);
+        this.mount.rotateZ(-0.5 * this.lowered);
+      }
+      // the right hand always on the grip while it shows; the left on the handguard unless the hands are busy
+      this.gripW += ((shown && !full ? 1 : 0) - this.gripW) * Math.min(1, dt * 12);
+      this.reach("r", this.grip, this.gripW);
+      const support = shown && !full && p.act !== "reload" && this.t >= this.staggerUntil;
+      this.ikW += ((support ? 1 : 0) - this.ikW) * Math.min(1, dt * 10);
+      this.reachSupport(this.ikW);
+    } else {
+      // a pistol: the aim clip's two-hand grip, the left hand onto the frame's support point
+      const holding = aimed && upper === "Pistol_Aim_Neutral" && shown;
+      this.ikW += ((holding ? 1 : 0) - this.ikW) * Math.min(1, dt * 10);
+      this.reachSupport(this.ikW);
+    }
   }
 
   dispose(): void {
