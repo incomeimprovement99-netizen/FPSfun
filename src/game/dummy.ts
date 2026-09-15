@@ -715,6 +715,10 @@ export class Dummy {
    * while playing, like the 1v1 opponent's.
    */
   dispose(): void {
+    if (this.kdPane) {
+      this.kdPane.geometry.dispose();
+      (this.kdPane.material as THREE.Material).dispose();
+    }
     this.dropped?.obj.removeFromParent();
     this.dropped = null;
     this.mq?.dispose();
@@ -1047,6 +1051,23 @@ export class Dummy {
     if (this.mq) this.mq.root.rotation.x = 0;
     this.group.visible = true;
     this.pickUpGun();
+  }
+
+  /** down with the knockdown shield raised: a pane of light in front of it */
+  private kdPane: THREE.Mesh | null = null;
+  setKnockShield(on: boolean): void {
+    if (!on && !this.kdPane) return;
+    if (!this.kdPane) {
+      const g = new THREE.CylinderGeometry(0.75, 0.75, 0.9, 16, 1, true, -0.9, 1.8);
+      const m = new THREE.MeshBasicMaterial({ color: 0x6fd3ff, transparent: true, opacity: 0.32, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+      this.kdPane = new THREE.Mesh(g, m);
+      this.kdPane.position.set(0, 0.55, 0.05);
+      this.group.add(this.kdPane);
+    }
+    this.kdPane.visible = on && !this.knocked;
+  }
+  get knockShieldUp(): boolean {
+    return !!this.kdPane && this.kdPane.visible;
   }
 
   /** the gun on the floor, or null (the tests look) */

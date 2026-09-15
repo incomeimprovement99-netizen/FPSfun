@@ -67,6 +67,8 @@ interface TechEntry {
 
 export interface HudState {
   weaponName: string;
+  /** the gun's locked hop-up and its progress (a battle royale, Seasons 29 and 30) */
+  hopLock?: { name: string; have: number; need: number } | null;
   magLevel: number;
   slot: number;
   slotCount: number;
@@ -158,7 +160,7 @@ export interface HudState {
   /** a squad mate's banner you carry, and how long it lasts */
   banner?: { name: string; left: number } | null;
   /** you are down: the bleed-out clock, and who is reviving you */
-  downed?: { left: number; revivedBy: string | null } | null;
+  downed?: { left: number; revivedBy: string | null; kd?: { hp: number; max: number; up: boolean; key: string } | null } | null;
   /** out, watching a squad mate (or a bot): whose eyes, and first person or not */
   spectating?: { name: string; first: boolean } | null;
 }
@@ -426,6 +428,17 @@ export class Hud {
       this.text("DOWN", cx, this.h * 0.3, 700, 52 * u, "#ff4b3e", "center");
       this.text(s.downed.revivedBy ? `${s.downed.revivedBy} IS REVIVING YOU` : `BLEEDING OUT  ·  ${Math.ceil(s.downed.left)} S`, cx, this.h * 0.3 + 34 * u, 700, 20 * u, s.downed.revivedBy ? "#7ddc8a" : WHITE, "center");
       this.text("CRAWL TO COVER: A SQUAD MATE CAN REVIVE YOU", cx, this.h * 0.3 + 60 * u, 600, 14 * u, DIM, "center");
+      // the knockdown shield: what it has left, and how to raise it
+      const kd = s.downed.kd;
+      if (kd) {
+        const bw = 220 * u;
+        const y = this.h * 0.3 + 76 * u;
+        c.fillStyle = "rgba(0,0,0,0.55)";
+        c.fillRect(cx - bw / 2, y, bw, 8 * u);
+        c.fillStyle = kd.hp <= 0 ? "#5a5f66" : kd.up ? "#6fd3ff" : "rgba(111,211,255,0.55)";
+        c.fillRect(cx - bw / 2, y, bw * Math.max(0, kd.hp / kd.max), 8 * u);
+        this.text(kd.hp <= 0 ? "KNOCKDOWN SHIELD BROKEN" : kd.up ? `KNOCKDOWN SHIELD UP  ·  ${Math.ceil(kd.hp)}` : `HOLD ${kd.key}: KNOCKDOWN SHIELD (${Math.ceil(kd.hp)})`, cx, y + 24 * u, 700, 13 * u, kd.hp <= 0 ? DIM : "#bfe9ff", "center");
+      }
     }
     if (s.brHold) {
       const bw = 300 * u;
@@ -1783,6 +1796,16 @@ export class Hud {
       this.text(label, x + 24 * u, top + 21 * u, 700, 15 * u * fit, active ? WHITE : DIM);
     }
     if (!s.unarmed) this.text(`${s.fireMode.toUpperCase()}  ·  MAG ${s.magLevel}`, right, top - 10 * u, 600, 13 * u, DIM, "right");
+    // a locked hop-up: a thin bar over the slots, filling with the damage done with the gun
+    if (s.hopLock && !s.unarmed) {
+      const w = 170 * u;
+      const y = top - 4 * u;
+      c.fillStyle = "rgba(0,0,0,0.5)";
+      c.fillRect(right - w, y, w, 3 * u);
+      c.fillStyle = "#e8b84a";
+      c.fillRect(right - w, y, w * Math.min(1, s.hopLock.have / Math.max(1, s.hopLock.need)), 3 * u);
+      this.text(`${s.hopLock.name.toUpperCase()} LOCKED  ·  ${Math.floor(s.hopLock.have)}/${s.hopLock.need}`, right - w - 8 * u, y + 4 * u, 700, 11 * u, "#e8b84a", "right");
+    }
     if (s.attachLines.length && !s.unarmed) {
       s.attachLines.forEach((line, i) => {
         const empty = line.endsWith("none") || line.endsWith("iron sights");

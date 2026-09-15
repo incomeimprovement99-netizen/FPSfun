@@ -84,7 +84,7 @@ export type NetMsg =
   /** a revive on `to`: started, given up, or done */
   | { t: "rev"; from?: number; to: number; op: "start" | "stop" | "done" }
   /** `to` comes back, dropping in over `at` (a respawn beacon) */
-  | { t: "respawn"; from?: number; to: number; at: [number, number, number] }
+  | { t: "respawn"; from?: number; to: number; at: [number, number, number]; bx?: number }
   /** a ping for the squad: what (`k`), where, a label, a figure's id when it is on one */
   | { t: "mark"; from?: number; k: string; at: [number, number, number]; label?: string; target?: number }
   /** a care package is on its way down to `at`, landing in `lands` seconds */
@@ -137,6 +137,8 @@ export interface LootItemWire {
   attach?: Record<string, string | null>;
   owner?: number;
   ownerName?: string;
+  pod?: number;
+  hop?: number;
 }
 
 /** the host's settings for the match, told to every guest in the welcome */

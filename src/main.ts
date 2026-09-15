@@ -15,6 +15,7 @@ import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset } from "./game/quality";
 import { ProjectileSystem, solidHit } from "./game/projectile";
+import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier, type FigurePose } from "./game/dummy";
 import { buildRange, skyFollow, setShadowRegion, getSun, RANGE_BOUNDS, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { buildBrMap, BR_BOUNDS, BR_CENTER } from "./game/br";
@@ -28,7 +29,7 @@ import { DpiCalibrator, snapDpi } from "./game/dpi-calibrate";
 import { ladderAhead } from "./game/traversal";
 import { mergeStatic } from "./game/staticmerge";
 import { opticInfo } from "./game/optics";
-import { opticName } from "./config/names";
+import { opticName, hopupName } from "./config/names";
 import type { ResolvedWeapon } from "./game/weapons";
 import { Duel, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike } from "./game/duel";
 import { BotMatch } from "./game/bots";
@@ -999,7 +1000,13 @@ function duelButtons(): void {
 function respawnForMatch(d: MatchLike): void {
   const sp = d.spawn;
   newLife(d);
-  if (d instanceof BrMatch) {
+  if (d instanceof BrMatch && d.respawnOnBox) {
+    // a squad mate held at your death box: you stand up on it
+    player.setBounds(BR_BOUNDS);
+    setRegion("br");
+    player.teleport(sp.x, 0, sp.z, player.yaw);
+    hud.notice("RESPAWNED AT YOUR DEATH BOX", gameTime, 2.5);
+  } else if (d instanceof BrMatch) {
     // a battle royale starts in the sky over your drop spot once everyone is
     // in; until then the lobby is wherever you are (the arena, for a host)
     if (d.phase !== "waiting") {
@@ -1027,6 +1034,19 @@ function respawnForMatch(d: MatchLike): void {
   kit.fill(br ? "brStart" : "kit");
   // JOLT's two charges, both there for every life and every round
   abilities.fill();
+  // no knockdown shield, no regen carried over from the last life
+  kd.up = false;
+  kd.knock = -1;
+  execRegen = null;
+  boxRegen = null;
+  // a Deathbox Respawn: 20 health (the match set it), the shield back over a few seconds, and what is left in the box put on
+  if (d instanceof BrMatch && d.respawnOnBox) {
+    d.health = squadCfg.boxRespawn.health;
+    d.shield = 0;
+    boxRegen = { rate: d.shieldMax / squadCfg.boxRespawn.shieldRegen };
+    const f = d.lootField;
+    if (f) for (const drop of [...f.drops.values()]) if (drop.item.kind !== "box" && Math.hypot(drop.pos.x - sp.x, drop.pos.z - sp.z) < 1.8) d.takeLoot(drop.key);
+  }
   // grenades: the match's kit each life (Gun Run is guns and the knife: none)
   ordnance.endless = false;
   ordnance.readied = null;
@@ -1079,6 +1099,94 @@ function applyModeGun(id: string | null): void {
 // syringe. Firing or aiming cancels it; the item is only spent when it
 // finishes. TRIAGE halves every time.
 const HEAL_ITEMS = HEALS;
+/**
+ * EVO (squad.json, Season 30): the damage you deal, a knock 150, an assist
+ * 100, a revive 100 twice then less, a care package 100. A level up refills
+ * the shield and says so.
+ */
+function giveEvo(amount: number, why = ""): void {
+  if (!(duel instanceof BrMatch) || amount <= 0) return;
+  const up = armor.addEvo(amount);
+  if (why) hud.notice(`+${amount} EVO  ·  ${why}`, gameTime, 1.2);
+  if (up !== null) {
+    duel.shieldMax = armor.shieldMax;
+    duel.shield = duel.shieldMax;
+    hud.notice(`SHIELD UP: ${["", "WHITE", "BLUE", "PURPLE"][up]} ${armor.shieldMax}`, gameTime, 1.6);
+    audio.stinger("won");
+  }
+}
+/** whom you hurt and when (an assist: someone else knocks them soon after) */
+const damagedAt = new Map<number, number>();
+/** the knocks already paid (a figure can be reported twice: down, then out) */
+const evoPaid = new Map<number, number>();
+/** your revives this match (the first two pay 100, then less) and the care packages already paid */
+let revivesDone = 0;
+const podsPaid = new Set<number>();
+function evoForKnock(victim: number, by: number): void {
+  if (!(duel instanceof BrMatch) || victim === duel.id) return;
+  const last = evoPaid.get(victim) ?? -Infinity;
+  if (gameTime - last < 3) return;
+  if (by === duel.id) {
+    evoPaid.set(victim, gameTime);
+    giveEvo(squadCfg.evo.knock, "KNOCK");
+  } else if (gameTime - (damagedAt.get(victim) ?? -Infinity) < squadCfg.evo.assistWindow) {
+    evoPaid.set(victim, gameTime);
+    giveEvo(squadCfg.evo.assist, "ASSIST");
+  }
+}
+
+// ---- the hop-ups of Seasons 29 and 30 (weapon-mechanics.json lockedHopups): unlocked by damage, and their effects
+/** damage with the gun in hand goes to its locked hop-up; at the mark it unlocks */
+function hopProgress(weaponId: string, amount: number): void {
+  const s = loadout.active;
+  if (s.empty || s.id !== weaponId || !s.hopLock) return;
+  s.hopLock.have += amount;
+  if (s.hopLock.have >= s.hopLock.need) {
+    const mod = s.hopLock.mod;
+    s.hopLock = null;
+    loadout.fitAttachment(loadout.activeIndex, "hopup", mod);
+    hud.notice(`${hopupName(mod).toUpperCase()} UNLOCKED`, gameTime, 2);
+    audio.healDone();
+  }
+}
+/** Shattercaps: the gun's round as a blast of pellets (7 of 8, heads x1.25), made once per gun */
+const shatterCache = new Map<string, ResolvedWeapon>();
+function shatterOf(w: ResolvedWeapon): ResolvedWeapon {
+  const key = `${w.id}:${w.magLevel}`;
+  let v = shatterCache.get(key);
+  if (!v) {
+    const h = LOCKED_HOPUPS.hopup_shattercaps;
+    const dmg = h?.damage ?? 8;
+    v = { ...w, pellets: h?.pellets ?? 7, damage: { ...w.damage, near: dmg, far: dmg, veryFar: dmg, headshot: h?.headshot ?? 1.25 } };
+    shatterCache.set(key, v);
+  }
+  return v;
+}
+/** Executioner's shield after a knock: what is left to give, and how fast */
+let execRegen: { left: number; rate: number } | null = null;
+/** a Deathbox Respawn: the shield comes back over a few seconds */
+let boxRegen: { rate: number } | null = null;
+/** the knockdown shield (squad.json kdShield): what it has left, raised or not, and the knock it belongs to */
+const kd = { hp: 0, max: 0, up: false, knock: -1 };
+let kdPane: THREE.Mesh | null = null;
+/** the Deathbox Respawn beams in the world, by who is holding (your own is -1) */
+const beams = new Map<number, { obj: THREE.Mesh; until: number }>();
+function setBeam(key: number, at: THREE.Vector3 | null): void {
+  const old = beams.get(key);
+  if (old) {
+    old.obj.removeFromParent();
+    old.obj.geometry.dispose();
+    (old.obj.material as THREE.Material).dispose();
+    beams.delete(key);
+  }
+  if (!at) return;
+  const obj = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 180, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0x5dff7a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  obj.position.set(at.x, at.y + 90, at.z);
+  scene.add(obj);
+  beams.set(key, { obj, until: gameTime + squadCfg.boxRespawn.time + 1 });
+  audio.beamHum(at, squadCfg.boxRespawn.time);
+}
+
 /** your heals (kit.ts) and your armour: the shield core, its EVO, a helmet */
 const kit = new Kit();
 kit.fill("kit");
@@ -1365,6 +1473,17 @@ const brPlay = new BrPlay({
   keyLabel: (a) => keyLabel(a),
   notice: (t) => hud.notice(t, gameTime, 2),
   sound: (k) => (k === "ping" ? audio.hitTier("white") : k === "revive" ? audio.healDone() : audio.whoosh()),
+  onRevive: () => {
+    const R = squadCfg.evo.revive;
+    giveEvo(R[Math.min(revivesDone, R.length - 1)], "REVIVE");
+    revivesDone++;
+  },
+  beam: (at) => {
+    setBeam(-1, at);
+    duel?.localFx("beam", at ?? undefined, undefined, at ? 1 : 0);
+    // the bots hear it a long way off
+    if (at && duel instanceof BrMatch) duel.hearBeam(at);
+  },
 });
 /** first person when you watch a squad mate (X switches to behind them) */
 let spectateFirst = true;
@@ -1377,20 +1496,30 @@ let spectateFirst = true;
  */
 function applyLoot(it: LootItem): void {
   const d = duel instanceof BrMatch ? duel : null;
+  // a care package's loot: its EVO, once a package
+  if (it.pod !== undefined && !podsPaid.has(it.pod)) {
+    podsPaid.add(it.pod);
+    giveEvo(squadCfg.evo.carePackage, "CARE PACKAGE");
+  }
   const here = player.pos.clone();
   const putBack = (x: LootItem) => d?.dropLoot(x, here);
   const label = lootLabel(it);
   switch (it.kind) {
     case "weapon": {
       const empty = loadout.emptySlot;
+      const into = empty >= 0 ? empty : loadout.activeIndex;
       if (empty >= 0) {
         loadout.give(empty, it.id, it.mag ?? 0, (it.attach ?? {}) as Parameters<typeof loadout.give>[3]);
         if (loadout.activeIndex !== empty) loadout.requestSwap(empty, gameTime);
       } else {
         const s = loadout.active;
-        putBack({ kind: "weapon", id: s.id, n: 1, rarity: "common", mag: s.magLevel, attach: { ...s.attach } });
+        putBack({ kind: "weapon", id: s.id, n: 1, rarity: "common", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}) });
         loadout.give(loadout.activeIndex, it.id, it.mag ?? 0, (it.attach ?? {}) as Parameters<typeof loadout.give>[3]);
       }
+      // Seasons 29 and 30: a gun with a locked hop-up earns it with damage (a care-package gun, or one already unlocked, has it)
+      const lockMod = lockedHopupFor(it.id);
+      const slot = loadout.slots[into];
+      if (lockMod && slot.attach.hopup !== lockMod) slot.hopLock = { mod: lockMod, have: it.hop ?? 0, need: LOCKED_HOPUPS[lockMod].unlock };
       audio.swap();
       break;
     }
@@ -1431,6 +1560,8 @@ function applyLoot(it: LootItem): void {
       audio.shieldBreak();
       break;
     case "banner":
+      // your own (back from your box after a Deathbox Respawn): nothing to carry
+      if (d && it.owner === d.id) return;
       brPlay.carry(it, gameTime);
       return;
     case "grenade": {
@@ -1489,6 +1620,11 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       fx.jolt(a, b, gameTime);
       audio.joltAt(a);
     }
+    // a squad mate's Deathbox Respawn: the beam while it runs
+    if (k === "beam") {
+      setBeam(from, n === 1 && a ? a : null);
+      if (n === 1 && a && duel instanceof BrMatch) duel.hearBeam(a);
+    }
   };
   // abilities are the match's: on or off, nothing picked yet (the card comes at the countdown or the landing)
   abilities.reset(d.abilities);
@@ -1525,6 +1661,33 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     if (d.alive) audio.swap();
   };
   if (d instanceof BrMatch) {
+    d.onKnockSeen = (victim, by) => evoForKnock(victim, by);
+    revivesDone = 0;
+    podsPaid.clear();
+    damagedAt.clear();
+    evoPaid.clear();
+    // the knockdown shield: raised and facing the shot, it takes what it can
+    d.downedBlock = (amount, from) => {
+      if (!kd.up || kd.hp <= 0) return amount;
+      const at = figureById(from)?.group.position;
+      if (!at) return amount;
+      const yawR = player.yaw * DEG;
+      const fx = -Math.sin(yawR);
+      const fz = -Math.cos(yawR);
+      const dx = at.x - player.pos.x;
+      const dz = at.z - player.pos.z;
+      const dl = Math.hypot(dx, dz) || 1;
+      if ((fx * dx + fz * dz) / dl < Math.cos(squadCfg.kdShield.arc * DEG)) return amount;
+      const took = Math.min(kd.hp, amount);
+      kd.hp -= took;
+      audio.hitTier("blue");
+      if (kd.hp <= 0) {
+        kd.up = false;
+        hud.notice("KNOCKDOWN SHIELD BROKEN", gameTime, 1.4);
+        audio.shieldBreak();
+      }
+      return amount - took;
+    };
     d.onLootTaken = (it) => applyLoot(it);
     d.onMark = (k, from, at, label, target) => brPlay.addMarker(k, at, label, from, target, gameTime);
     d.onDowned = () => {
@@ -2542,7 +2705,48 @@ function step(): void {
   const adsH = zoomFov43(weapon) * settings.fovScale;
   const firing = now - ws.lastShotAt < 0.25;
   // down: the move keys only, crouched, at a crawl
-  if (downedNow) player.healSlow = squadCfg.crawl;
+  if (downedNow && duel instanceof Duel) {
+    // a new knock: the knockdown shield at your EVO level's size
+    if (kd.knock !== duel.knockCount) {
+      kd.knock = duel.knockCount;
+      kd.max = squadCfg.kdShield.hp[Math.max(0, Math.min(squadCfg.kdShield.hp.length - 1, armor.level - 1))];
+      kd.hp = kd.max;
+    }
+    // held fire raises it (and slows the crawl behind it)
+    kd.up = kd.hp > 0 && (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire"));
+    duel.kdUp = kd.up;
+    player.healSlow = squadCfg.crawl * (kd.up ? squadCfg.kdShield.crawlScale : 1);
+  } else if (kd.up) {
+    kd.up = false;
+    if (duel instanceof Duel) duel.kdUp = false;
+  }
+  // the pane in front of you while it is up
+  if (kd.up && !kdPane) {
+    kdPane = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.9, 16, 1, true, -0.9, 1.8), new THREE.MeshBasicMaterial({ color: 0x6fd3ff, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+    scene.add(kdPane);
+  }
+  if (kdPane) {
+    kdPane.visible = kd.up;
+    kdPane.position.set(player.pos.x, player.pos.y + 0.55, player.pos.z);
+    kdPane.rotation.y = player.yaw * DEG + Math.PI;
+  }
+  selfFig?.setKnockShield(kd.up);
+  // Executioner's shield after a knock, a Deathbox Respawn's shield: coming back a bit each frame
+  if (execRegen && (!duel || !duel.alive)) execRegen = null;
+  if (duel && duel.alive && !(duel instanceof Duel && duel.downed)) {
+    if (execRegen) {
+      const add = Math.min(execRegen.left, execRegen.rate * dt, duel.shieldMax - duel.shield);
+      duel.shield += Math.max(0, add);
+      execRegen.left -= execRegen.rate * dt;
+      if (execRegen.left <= 0) execRegen = null;
+    }
+    if (boxRegen && duel instanceof BrMatch) {
+      duel.shield = Math.min(duel.shieldMax, duel.shield + boxRegen.rate * dt);
+      if (duel.shield >= duel.shieldMax) boxRegen = null;
+    }
+  }
+  // the beams burn out on their own (a holder who left, a message lost)
+  for (const [k, b] of beams) if (gameTime > b.until) setBeam(k, null);
   const moveIn = settings.crouchToggle && !scriptInput ? crouchToggled(input) : (scriptInput ?? input);
   player.update(dt, now, knockedOut ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
   // a slide counts as crouched for the spread model: the cone tightens
@@ -2674,7 +2878,13 @@ function step(): void {
   // accumulated so shot 2 of a frame sees shot 1's permanent kick.
   let hardPitch = 0;
   let hardYaw = 0;
-  for (const s of shots) {
+  // Seasons 29 and 30's hop-ups: Shattercaps splits a hip-fired round into a blast; Redline hits harder near overheat
+  const hop = loadout.active.attach.hopup;
+  const shatter = hop === "hopup_shattercaps" && ws.adsFrac < 0.5 ? shatterOf(weapon) : null;
+  const redline = hop === "hopup_redline" && 1 - ws.clip / Math.max(1, weapon.clipSize) >= (LOCKED_HOPUPS.hopup_redline?.heat ?? 0.75) ? (LOCKED_HOPUPS.hopup_redline?.damage ?? 1.15) : 1;
+  for (const s0 of shots) {
+    const s = redline !== 1 ? { ...s0, dmgScale: s0.dmgScale * redline } : s0;
+    const weapon = shatter ?? loadout.active.weapon;
     // per pellet, as hits are: per trigger pull an EVA-8 read 800% accuracy
     stats.shots += weapon.pellets;
     gunRow(weapon.id).shots += weapon.pellets;
@@ -2689,7 +2899,7 @@ function step(): void {
       tmpDir.set(0, 0, -1).applyQuaternion(shotQ);
       // a single pellet of a shotgun still spreads, using at least the
       // weapon's own cone so the pattern is not a laser
-      const cone = (weapon.pellets > 1 ? Math.max(s.cone, weapon.spread.standHip) : s.cone) * s.coneScale;
+      const cone = shatter ? Math.max(s.cone, LOCKED_HOPUPS.hopup_shattercaps?.cone ?? 5) : (weapon.pellets > 1 ? Math.max(s.cone, weapon.spread.standHip) : s.cone) * s.coneScale;
       if (cone > 0) {
         const half = (cone / 2) * DEG;
         const ang = half * Math.sqrt(rnd()); // sqrt for a uniform disc, not centre-biased
@@ -2758,15 +2968,11 @@ function step(): void {
       const onShield = remote.shield > 0;
       if (duel.phase === "fight" && remote.alive) {
         dlog.hit({ t: realNow(), from: duel.id, to: remote.id, amount: r.amount, head: r.headshot, weapon: e.weapon, dist: e.distance });
-        // a battle royale's shield core levels with the damage you deal
+        // a battle royale's shield core levels with the damage you deal; the gun's locked hop-up counts it too
         if (duel instanceof BrMatch) {
-          const up = armor.addEvo(r.amount);
-          if (up !== null) {
-            duel.shieldMax = armor.shieldMax;
-            duel.shield = duel.shieldMax;
-            hud.notice(`SHIELD UP: ${["", "WHITE", "BLUE", "PURPLE"][up]} ${armor.shieldMax}`, now, 1.6);
-            audio.stinger("won");
-          }
+          giveEvo(r.amount);
+          damagedAt.set(remote.id, gameTime);
+          hopProgress(e.weapon, r.amount);
         }
       }
       duel.localHit(remote, r.amount, r.headshot, e.weapon, e.distance);
@@ -2781,6 +2987,12 @@ function step(): void {
         hud.notice("KNOCKED DOWN", now, 0.8);
         stats.knocks++;
         audio.knock();
+        // Executioner: a knock with the gun that has it gives shield back over a few seconds
+        const ex = LOCKED_HOPUPS.hopup_executioner;
+        if (ex && !loadout.active.empty && loadout.active.id === e.weapon && loadout.active.attach.hopup === "hopup_executioner") {
+          execRegen = { left: ex.shield ?? 50, rate: (ex.shield ?? 50) / (ex.over ?? 5) };
+          hud.notice(`${hopupName("hopup_executioner").toUpperCase()}: +${ex.shield} SHIELD`, now, 1.2);
+        }
       } else if (onShield && remote.shield <= 0) audio.shieldBreak();
       else audio.hitTier(r.headshot ? "head" : onShield ? "blue" : "health");
       return;
@@ -3051,6 +3263,7 @@ function step(): void {
     // name/ammo follow the INCOMING weapon during a swap; cone/ADS stay with
     // the gun actually in hand
     weaponName: shown.empty ? "FISTS" : shown.weapon.name,
+    hopLock: !shown.empty && shown.hopLock ? { name: hopupName(shown.hopLock.mod), have: shown.hopLock.have, need: shown.hopLock.need } : null,
     unarmed: shown.empty,
     magLevel: shown.magLevel,
     slot: loadout.displayIndex + 1,
@@ -3111,7 +3324,7 @@ function step(): void {
     },
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
     banner: duel instanceof BrMatch ? brPlay.hud.banner : null,
-    downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null } : null,
+    downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null, kd: kd.max > 0 ? { hp: kd.hp, max: kd.max, up: kd.up, key: keyLabel("fire") } : null } : null,
     spectating: watch && watchMate ? { name: watchMate.name, first: watchMate.id < Duel.BOT_ID && spectateFirst } : null,
     trainer: trainer.hud(now),
     mantleCue: trainer.cue && mantleCueOn,
@@ -3248,6 +3461,18 @@ initWelcome();
     d.localHit(target, amount, head, weapon, dist);
     return true;
   },
+  /** a hit on a match figure through the bullets' own impact path (EVO, hop-ups, knocks), from the gun in hand (tools/e2e.ts) */
+  hitThrough: (remoteId: number, amount: number) => {
+    const d = duel;
+    const a = d?.avatars.find((x) => d.remoteOf(x)?.id === remoteId);
+    if (!d || !a || !impactSink) return false;
+    const point = a.group.position.clone().setY(a.group.position.y + 1.2);
+    const report = a.hit(gameTime, "body", amount, 1, 1, point);
+    impactSink({ dummy: a, report, target: null, targetHead: false, damage: report?.amount ?? 0, point, distance: 6, weapon: loadout.active.id });
+    return true;
+  },
+  /** the knockdown shield and the regens (tools/e2e.ts) */
+  kdState: () => ({ ...kd, exec: execRegen ? { ...execRegen } : null, box: boxRegen ? { ...boxRegen } : null }),
   closeRecap: () => (recap = null),
   remoteFxLog,
   audio,

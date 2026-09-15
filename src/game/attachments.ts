@@ -21,8 +21,18 @@ export type AttachSlot = "optic" | "barrel" | "stock" | "laser" | "hopup";
  * altfire be picked, Double Tap the G7's and the EVA-8's. They never go into
  * the mod chain themselves; the fire mode does (loadout.ts).
  */
-export const HOPUP_FLAGS = ["selectfire", "altfire_double_tap"];
-const HOPUPS = mechCfg.hopups.list.map((mod) => [mod, hopupName(mod)] as [string, string]);
+/** Season 29 and 30's hop-ups (weapon-mechanics.json lockedHopups): effects the game code runs, on their own guns */
+export const LOCKED_HOPUPS = Object.fromEntries(Object.entries(mechCfg.lockedHopups).filter(([k]) => !k.startsWith("_"))) as Record<
+  string,
+  { guns: string[]; unlock: number; shield?: number; over?: number; pellets?: number; damage?: number; headshot?: number; cone?: number; heat?: number }
+>;
+/** the locked hop-up a gun comes with, if any */
+export function lockedHopupFor(gunId: string): string | null {
+  for (const [mod, h] of Object.entries(LOCKED_HOPUPS)) if (h.guns.includes(gunId)) return mod;
+  return null;
+}
+export const HOPUP_FLAGS = ["selectfire", "altfire_double_tap", ...Object.keys(LOCKED_HOPUPS)];
+const HOPUPS = [...mechCfg.hopups.list, ...Object.keys(LOCKED_HOPUPS)].map((mod) => [mod, hopupName(mod)] as [string, string]);
 const FIRE_MODES = mechCfg.fireModes as unknown as Record<string, { mod: string; base: string; alt: string; needs?: string }>;
 
 export interface AttachOption {
@@ -88,6 +98,8 @@ export function optionsFor(slot: AttachSlot, mods: Record<string, unknown>, id =
     if (o.mod === null) out.push(o);
     else if (o.mod === "selectfire") {
       if (FIRE_MODES[id]?.needs === "selectfire") out.push(o);
+    } else if (LOCKED_HOPUPS[o.mod]) {
+      if (LOCKED_HOPUPS[o.mod].guns.includes(id)) out.push(o);
     } else if (Object.prototype.hasOwnProperty.call(mods, o.mod)) out.push(slot === "optic" ? { ...o, label: opticName(o.mod, o.label) } : o);
   }
   // mag level 4 is frequently identical to level 3 in the data; keep both so

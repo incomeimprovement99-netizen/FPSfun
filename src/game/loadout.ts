@@ -28,6 +28,8 @@ export interface Slot {
   empty: boolean;
   /** just picked up: its first time out comes with a flourish (cosmetic) */
   firstDraw?: boolean;
+  /** a battle royale gun's locked hop-up (Seasons 29 and 30): the damage done with it toward unlocking it */
+  hopLock?: { mod: string; have: number; need: number } | null;
 }
 
 /** a slot's weapon and its fittings, without the live state */
@@ -175,6 +177,7 @@ export class Loadout {
     s.magLevel = Math.max(0, Math.min(4, magLevel));
     s.attach = { ...attach };
     s.altMode = false;
+    s.hopLock = null;
     this.rebuildSlot(s, false);
     s.energy = fullEnergy(s.weapon);
   }

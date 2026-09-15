@@ -1,7 +1,8 @@
 // P1 verification: assert the simulation reproduces the reference numbers.
 // Run: npm run verify
 import { resolveWeapon, weaponMods, weaponIds, DATA } from "../src/game/weapons";
-import { optionsFor, SLOTS } from "../src/game/attachments";
+import { optionsFor, SLOTS, LOCKED_HOPUPS, lockedHopupFor, modNames } from "../src/game/attachments";
+import squadJson from "../src/config/squad.json";
 import { cmPer360, degPerCount, hipFov43, verticalFovFrom43, adsSensScale } from "../src/game/sens";
 import { ViewKick, tuning } from "../src/game/recoil";
 import { Loadout } from "../src/game/loadout";
@@ -1220,8 +1221,8 @@ console.log("Heals and armour (src/config/items.json, Season 30)");
   eq("449 EVO: still white", a.addEvo(449), null);
   eq("450: blue", a.addEvo(1), 2);
   eq("blue holds 75", a.shieldMax, 75);
-  a.addEvo(1250);
-  eq("1,700: purple, 100", a.shieldMax, 100);
+  a.addEvo(1700);
+  eq("1,700 more (2,150 in all): purple, 100", a.shieldMax, 100);
   eq("purple is the top of the core", a.evoFrac, null);
   a.helmet = "red";
   eq("the mythic helmet: 125", a.shieldMax, 125);
@@ -1383,6 +1384,32 @@ console.log("The figures' motion (src/game/dummy.ts, duel.ts moveDirOf)");
   fig.update(1, 1 / 60);
   eq("walking, the feet go with the body", fig.plantedTurn, 0);
   fig.dispose();
+}
+
+console.log("");
+console.log("The battle royale's Season 29 and 30 pieces (squad.json, weapon-mechanics.json, RESEARCH_PHASE_12 section 2)");
+{
+  const a = new Armor();
+  a.reset(1);
+  eq("450 EVO: blue", (a.addEvo(450), a.level), 2);
+  eq("purple needs 1,700 more (2,150 in all), not 1,700 in all", (a.addEvo(1249), a.level), 2);
+  eq("still blue at 2,149", (a.addEvo(450), a.level), 2);
+  eq("at 2,150: purple", (a.addEvo(1), a.level), 3);
+  eq("a knock is 150 EVO, an assist 100, a care package 100", [squadJson.evo.knock, squadJson.evo.assist, squadJson.evo.carePackage].join(" "), "150 100 100");
+  eq("revives: 100 twice, then 25 less each", squadJson.evo.revive.join(" "), "100 100 75 50 25 0");
+  eq("the knockdown shield by EVO level", squadJson.kdShield.hp.join(" "), "200 450 750");
+  near("behind it you crawl 45% slower", 1 - squadJson.kdShield.crawlScale, 0.45, 1e-9);
+  eq("Deathbox Respawn: a 7 s hold, back at 20 health", [squadJson.boxRespawn.time, squadJson.boxRespawn.health].join(" "), "7 20");
+  eq("the lockout grows with each death (ours), reset after 3 minutes alive", `${squadJson.boxRespawn.lockout.join(" ")} / ${squadJson.boxRespawn.resetAfter}`, "30 60 120 / 180");
+  eq("Executioner is the Peacekeeper's and the Mastiff's", LOCKED_HOPUPS.hopup_executioner.guns.join(" "), "energy_shotgun mastiff");
+  eq("50 shield over 5 s after a knock, unlocked at 275", [LOCKED_HOPUPS.hopup_executioner.shield, LOCKED_HOPUPS.hopup_executioner.over, LOCKED_HOPUPS.hopup_executioner.unlock].join(" "), "50 5 275");
+  eq("Shattercaps: the 30-30's hip fire as 7 pellets of 8, heads x1.25", [lockedHopupFor("3030"), LOCKED_HOPUPS.hopup_shattercaps.pellets, LOCKED_HOPUPS.hopup_shattercaps.damage, LOCKED_HOPUPS.hopup_shattercaps.headshot].join(" "), "hopup_shattercaps 7 8 1.25");
+  near("Shattercaps' blast at point blank: 56 to the body", (LOCKED_HOPUPS.hopup_shattercaps.pellets ?? 0) * (LOCKED_HOPUPS.hopup_shattercaps.damage ?? 0), 56, 1e-9);
+  eq("Redline is the L-STAR's", lockedHopupFor("lstar"), "hopup_redline");
+  eq("a gun without one has none", lockedHopupFor("r97"), null);
+  const opts = (id: string) => optionsFor("hopup", {}, id).map((o) => o.mod);
+  eq("the hop-up key offers Executioner on the Mastiff, not on the R-99", opts("mastiff").includes("hopup_executioner") && !opts("r97").includes("hopup_executioner"), true);
+  eq("and they are effects, never in the data's mod chain", modNames({ hopup: "hopup_redline", barrel: "barrel_stabilizer_l1" }).join(" "), "barrel_stabilizer_l1");
 }
 
 console.log("");

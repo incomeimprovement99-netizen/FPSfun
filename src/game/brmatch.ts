@@ -19,6 +19,7 @@
 // against a capsule at the target's feet, yours, a friend's or another bot's.
 import * as THREE from "three";
 import { Throwables, blastDamage, throwCode } from "./throwables";
+import { lockedHopupFor } from "./attachments";
 import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, hitsBody, tierFor, type BotSense } from "./bots";
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
@@ -110,6 +111,8 @@ function wireItem(x: unknown): LootItem | null {
   }
   if (typeof o.owner === "number") it.owner = o.owner;
   if (typeof o.ownerName === "string") it.ownerName = o.ownerName.replace(/[\p{Cc}<>&"'`]/gu, "").slice(0, 16);
+  if (typeof o.pod === "number" && Number.isFinite(o.pod)) it.pod = Math.floor(o.pod);
+  if (typeof o.hop === "number" && Number.isFinite(o.hop)) it.hop = Math.max(0, Math.min(10000, o.hop));
   return it;
 }
 
@@ -198,6 +201,13 @@ export class BrMatch extends Duel {
       this.ring = null;
       this.view = { phase: 0, state: "waiting", timeLeft: RING_PHASES[0].wait, current: start, next: start };
     }
+  }
+
+  /** a Deathbox Respawn's beam and hum: "high risk", heard twice as far as a shot */
+  hearBeam(at: THREE.Vector3): void {
+    if (this.role !== "host") return;
+    const now = wallClock();
+    for (const b of this.bots) b.bot.hear(at, now, Math.random, 140);
   }
 
   /** a shot here or a guest's: the bots in earshot may come to look */
@@ -291,6 +301,7 @@ export class BrMatch extends Duel {
   /** the item you asked for is yours (the host's own, or the host said so) */
   onLootTaken: ((item: LootItem) => void) | null = null;
   private pods: Pod[] = [];
+  private podCount = 0;
   private podPhases = new Set<number>();
 
   /** take an item: the host's own at once, a guest's asked of the host (first come, first served) */
@@ -341,14 +352,18 @@ export class BrMatch extends Duel {
   /** the host: what a care package holds (a care-package gun at gold, and the best of the rest) */
   private podItems(): LootItem[] {
     const gun = LOOT.carePackage[Math.floor(Math.random() * LOOT.carePackage.length)];
-    const out: LootItem[] = [{ kind: "weapon", id: gun, n: 1, rarity: "legendary", mag: 4 }];
+    // a care-package gun comes with its hop-up unlocked
+    const hop = lockedHopupFor(gun);
+    const out: LootItem[] = [{ kind: "weapon", id: gun, n: 1, rarity: "legendary", mag: 4, ...(hop ? { attach: { hopup: hop } } : {}) }];
     const extras: LootItem[] = [
       { kind: "helmet", id: "gold", n: 1, rarity: "legendary" },
       { kind: "heal", id: "phoenix", n: 1, rarity: "legendary" },
       { kind: "heal", id: "battery", n: 2, rarity: "epic" },
     ];
     while (out.length < LOOT.carePackageContents) out.push(extras.splice(Math.floor(Math.random() * extras.length), 1)[0]);
-    return out;
+    // its number: the package's EVO goes once to whoever loots it first
+    const n = ++this.podCount;
+    return out.map((it) => ({ ...it, pod: n }));
   }
 
   /** the pods: falling, then landing (the host lays out their items) */
@@ -453,6 +468,7 @@ export class BrMatch extends Duel {
     const who = by === -1 ? "THE RING" : by === this.id ? this.myName || "YOU" : (this.remotes.get(by)?.name ?? this.bots.find((x) => x.bot.remote.id === by)?.bot.remote.name ?? "SOMEONE");
     this.onFeed?.(`${who} knocked ${r.name}`, mine, !mine);
     this.broadcast({ t: "down", from: r.id, by });
+    this.onKnockSeen?.(r.id, by);
     const left = this.aliveCount;
     this.onNotice?.(mine ? `${r.name} DOWN  ·  ${left} LEFT` : `${left} LEFT`);
     if (this.bots.every((x) => !x.bot.alive) && this.humansAlive > 0) this.endBr(true);

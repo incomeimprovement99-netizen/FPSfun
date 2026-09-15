@@ -34,6 +34,10 @@ export interface LootItem {
   /** a banner: whose, and their name */
   owner?: number;
   ownerName?: string;
+  /** from a care package (its number): the package's EVO, once */
+  pod?: number;
+  /** a gun's locked hop-up: the damage done with it so far */
+  hop?: number;
 }
 
 export interface LootDrop {

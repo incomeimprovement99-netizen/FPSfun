@@ -34,6 +34,12 @@
     "_note": "The hop-up slot, by the data's mod names (the labels are in src/config/names.ts, codenames on a public build). selectfire is ours: the switch for the Prowler's altfire, which the data has no hop-up for.",
     "list": ["hopup_turbocharger", "hopup_headshot_dmg", "hopup_unshielded_dmg", "hopup_shield_breaker", "hopup_energy_choke", "altfire_double_tap", "selectfire"]
   },
+  "lockedHopups": {
+    "_note": "Season 29 and 30's hop-ups (docs/RESEARCH_PHASE_12.md section 2.4), which are not in the weapon data: they are effects here, not mods. In a battle royale a gun that takes one comes with it fitted but locked, and it unlocks after `unlock` points of damage with that gun (a care-package gun comes unlocked; a dropped gun keeps its progress). In the range they are on the hop-up key like any other. Executioner: a knock with the gun gives 50 shield over 5 s (unlock 275 since 2026-09-14). Shattercaps: hip fire splits each round into 7 pellets of 8, headshots x1.25 (the pellets' cone is ours). Redline: Apex has published no numbers; ours are +15% damage above 75% heat (and the bolts drawn larger: our rounds are rays, so a bigger projectile is not modelled). The 275 for Shattercaps and Redline is ours (theirs come on care-package guns).",
+    "hopup_executioner": { "guns": ["energy_shotgun", "mastiff"], "unlock": 275, "shield": 50, "over": 5 },
+    "hopup_shattercaps": { "guns": ["3030"], "unlock": 275, "pellets": 7, "damage": 8, "headshot": 1.25, "cone": 5.5 },
+    "hopup_redline": { "guns": ["lstar"], "unlock": 275, "heat": 0.75, "damage": 1.15 }
+  },
   "fireModes": {
     "_note": "B switches to the data's altfire where there is one. `needs`: only with that hop-up fitted.",
     "rspn101": { "mod": "altfire", "base": "auto", "alt": "single" },

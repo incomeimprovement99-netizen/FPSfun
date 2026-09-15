@@ -8,7 +8,7 @@ import type { BrMatch } from "./brmatch";
 import type { Dummy } from "./dummy";
 import type { MoveInput, Player } from "./player";
 import { solidHit } from "./projectile";
-import { lootLabel, type LootItem } from "./loot";
+import { lootLabel, type LootItem, type LootDrop } from "./loot";
 import { DROP_HEIGHT } from "./brmatch";
 import squad from "../config/squad.json";
 
@@ -33,10 +33,15 @@ interface Deps {
   keyLabel: (a: "interact" | "ping") => string;
   notice: (text: string) => void;
   sound: (kind: "ping" | "tower" | "pad" | "revive") => void;
+  /** a revive of yours finished (EVO) */
+  onRevive?: () => void;
+  /** a Deathbox Respawn's beam: on at a place, or off */
+  beam?: (at: THREE.Vector3 | null) => void;
 }
 
 /** seconds to hold for a revive and a beacon (Season 30), a banner's life, the pads (src/config/squad.json) */
 const REVIVE_TIME = squad.reviveTime;
+const BOX = squad.boxRespawn;
 const BEACON_TIME = squad.beaconTime;
 const BANNER_LIFE = squad.bannerLife;
 const PAD_SPEED = squad.pad.speed;
@@ -46,7 +51,9 @@ export class BrPlay {
   markers: Marker[] = [];
   /** a squad mate's banner you carry to a beacon */
   carried: { owner: number; name: string; until: number } | null = null;
-  private hold: { kind: "revive" | "beacon"; target: number; label: string; start: number; need: number } | null = null;
+  private hold: { kind: "revive" | "beacon" | "box"; target: number; label: string; start: number; need: number } | null = null;
+  /** interact went down at a squad mate's banner, and when (a tap takes it, a hold respawns them) */
+  private eDownAt: number | null = null;
   private padAt = -Infinity;
   /** what the frame's prompt and hold are */
   private out: BrPlayHud = { prompt: null, hold: null, markers: [], banner: null };
@@ -190,7 +197,32 @@ export class BrPlay {
         match.sendRevive(mate.id, "done");
         this.deps.notice(`${mate.name} IS BACK UP`);
         this.deps.sound("revive");
+        this.deps.onRevive?.();
       });
+    } else if (this.boxHere(match, p)) {
+      // a dead squad mate's death box: a tap takes the banner, a hold of 7 s respawns them on it
+      const d = this.boxHere(match, p)!;
+      const owner = d.item.owner!;
+      const name = d.item.ownerName ?? "A SQUAD MATE";
+      const lock = match.boxLockout(owner);
+      out.prompt = lock > 0 ? { key, text: `TAKE ${name}'S BANNER  ·  RESPAWN HERE IN ${Math.ceil(lock)} S` } : { key: `${key} / HOLD`, text: `TAKE ${name}'S BANNER  ·  HOLD: RESPAWN ${name} HERE` };
+      if (holdingE) {
+        if (this.eDownAt === null) this.eDownAt = now;
+        if (lock <= 0 && now - this.eDownAt >= BOX.tapTime) {
+          const at = d.pos.clone();
+          const fresh = !this.hold || this.hold.kind !== "box";
+          this.runHold("box", owner, `RESPAWNING ${name}`, BOX.time, true, now, match, () => {
+            match.sendRespawn(owner, at, true);
+            this.deps.notice(`${name} IS BACK`);
+            this.deps.beam?.(null);
+          });
+          if (fresh && this.hold?.kind === "box") this.deps.beam?.(at);
+        }
+      } else {
+        if (this.eDownAt !== null && now - this.eDownAt < BOX.tapTime) match.takeLoot(d.key);
+        this.eDownAt = null;
+        this.cancelHold(match);
+      }
     } else if (beacon && this.carried) {
       const who = this.carried;
       out.prompt = { key: `HOLD ${key}`, text: `RESPAWN ${who.name}` };
@@ -222,7 +254,7 @@ export class BrPlay {
   }
 
   /** a hold-E action: started, kept going, given up, or done */
-  private runHold(kind: "revive" | "beacon", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void): void {
+  private runHold(kind: "revive" | "beacon" | "box", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void): void {
     if (!holding) {
       this.cancelHold(match);
       return;
@@ -240,7 +272,21 @@ export class BrPlay {
 
   private cancelHold(match: BrMatch): void {
     if (this.hold?.kind === "revive") match.sendRevive(this.hold.target, "stop");
+    if (this.hold?.kind === "box") this.deps.beam?.(null);
     this.hold = null;
+  }
+
+  /** a dead squad mate's banner lying within reach (their death box) */
+  private boxHere(match: BrMatch, p: THREE.Vector3): LootDrop | null {
+    const f = match.lootField;
+    if (!f) return null;
+    for (const d of f.drops.values()) {
+      if (d.item.kind !== "banner" || d.item.owner === undefined || d.item.owner === match.id) continue;
+      if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > BOX.reach) continue;
+      if (match.memberAlive(d.item.owner) !== false) continue;
+      return d;
+    }
+    return null;
   }
 
   get hud(): BrPlayHud {

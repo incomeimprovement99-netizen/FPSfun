@@ -12,11 +12,11 @@
   "kit": { "cell": 4, "syringe": 4, "battery": 2, "medkit": 2, "phoenix": 0 },
   "brStart": { "cell": 2, "syringe": 2, "battery": 0, "medkit": 0, "phoenix": 0 },
   "bots": { "cell": 4, "syringe": 2 },
-  "_shields": "Shield cores (Season 20 on): you start at white 50; EVO from the damage you deal takes it to blue 75 at 450 and purple 100 at 1,700. Red 125 only from the mythic helmet. A level-up refilling the shield is ours (unverified for Season 30).",
+  "_shields": "Shield cores (Season 20 on): you start at white 50; EVO (squad.json's sources: the damage you deal, knocks, assists, revives, care packages) takes it to blue 75 at 450 and purple 100 at 1,700 more, 2,150 in all (docs/RESEARCH_PHASE_12.md section 2.3; Phase 11 had 1,700 in all). Red 125 only from the mythic helmet. A level-up refilling the shield is ours (unverified for Season 30).",
   "shieldLevels": [
     { "tier": 1, "max": 50, "evo": 0 },
     { "tier": 2, "max": 75, "evo": 450 },
-    { "tier": 3, "max": 100, "evo": 1700 }
+    { "tier": 3, "max": 100, "evo": 2150 }
   ],
   "_helmets": "Helmets cut no headshot damage since Season 24. The gold one sets your armour to 100 and doubles what cells and syringes heal (we double the amount; the source does not say amount or speed); the mythic (red) one sets it to 125.",
   "helmets": {

@@ -56,6 +56,9 @@ const HOPUP_NAMES: Record<string, string> = {
   hopup_energy_choke: PUBLIC_BUILD ? "choke" : "Precision choke",
   altfire_double_tap: PUBLIC_BUILD ? "double shot" : "Double tap",
   selectfire: PUBLIC_BUILD ? "mode switch" : "Selectfire",
+  hopup_executioner: PUBLIC_BUILD ? "knock recharge" : "Executioner",
+  hopup_shattercaps: PUBLIC_BUILD ? "split rounds" : "Shattercaps",
+  hopup_redline: PUBLIC_BUILD ? "hot bolts" : "Redline",
 };
 export function hopupName(mod: string): string {
   return HOPUP_NAMES[mod] ?? mod;

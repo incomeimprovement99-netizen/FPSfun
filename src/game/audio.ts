@@ -640,6 +640,15 @@ export class GameAudio {
     this.tone(v.input, v.t + 0.08, 0.25, "sine", 1320, 1320, 0.18);
   }
 
+  /** a Deathbox Respawn under way: a hum rising over its 7 s, heard a long way off */
+  beamHum(at: Vec, seconds: number): void {
+    const v = this.voice(at, seconds + 0.4, "fx", 2, 1.2);
+    if (!v) return;
+    this.tone(v.input, v.t, seconds, "sine", 110, 220, 0.22, 0.4);
+    this.tone(v.input, v.t, seconds, "triangle", 165, 330, 0.1, 0.4);
+    for (let i = 0; i < Math.floor(seconds); i++) this.tone(v.input, v.t + i + 0.5, 0.12, "sine", 660 + i * 40, 660 + i * 40, 0.08, 0.01);
+  }
+
   /** the ring starts to close: a long low horn */
   ringHorn(): void {
     const v = this.voice(null, 2, "fx", 2, 0.6);

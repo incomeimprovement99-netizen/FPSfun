@@ -119,6 +119,38 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   await ev(page, `(() => { const d = window.__range.duel(); const a = d.avatars.find((x) => !x.knocked); const r = d.remoteOf(a); a.hit(0, "body", 500, 1, 1, a.group.position); d.localHit(r, 500, false); })()`);
   const afterKill = await ev<{ kills: number; alive: number }>(page, `(() => { const h = window.__range.duel().hud().br; return { kills: h.kills, alive: h.alive }; })()`);
   check("a knock counts and the alive count drops", afterKill.kills === 1 && afterKill.alive === 5, JSON.stringify(afterKill));
+  // EVO the way Season 30 counts it: a knock through the bullets' own path is its damage plus 150
+  await ev(page, "window.__range.duel().holdFire = true");
+  const alive = () => ev<number[]>(page, "(() => { const d = window.__range.duel(); return d.avatars.filter((a) => !a.knocked).map((a) => d.remoteOf(a).id); })()");
+  let ids = await alive();
+  const evo0 = await ev<number>(page, "window.__range.armor.evo");
+  await ev(page, `window.__range.hitThrough(${ids[0]}, 500)`);
+  const evo1 = await ev<number>(page, "window.__range.armor.evo");
+  check("EVO: a knock earns 150 on top of the damage dealt", evo1 - evo0 >= 150 + 50, `${evo0} -> ${evo1}`);
+  // a care package's loot: 100 once a package
+  await ev(page, `window.__range.applyLoot({ kind: "heal", id: "cell", n: 1, rarity: "common", pod: 77 })`);
+  await ev(page, `window.__range.applyLoot({ kind: "heal", id: "syringe", n: 1, rarity: "common", pod: 77 })`);
+  const evo2 = await ev<number>(page, "window.__range.armor.evo");
+  check("EVO: a care package's loot earns 100, once a package", evo2 - evo1 === 100, `${evo1} -> ${evo2}`);
+  // Executioner: a knock with the Mastiff that has it brings 50 shield back over 5 s
+  ids = await alive();
+  await ev(page, `(() => { const l = window.__range.loadout; l.give(l.activeIndex, "mastiff", 0, { hopup: "hopup_executioner" }); window.__range.duel().shield = 0; })()`);
+  await ev(page, `window.__range.hitThrough(${ids[0]}, 500)`);
+  await sleep(2200);
+  const exec = await ev<{ shield: number }>(page, "({ shield: window.__range.duel().shield })");
+  check("Executioner: a knock with the Mastiff brings shield back (10 a second)", exec.shield >= 12 && exec.shield <= 40, JSON.stringify(exec));
+  // a Peacekeeper off the floor: Executioner fitted but locked, unlocking with the damage done with it
+  await ev(page, `window.__range.applyLoot({ kind: "weapon", id: "energy_shotgun", n: 1, rarity: "rare" })`);
+  const lock = await ev<{ mod: string; need: number } | null>(page, "window.__range.loadout.active.hopLock ?? null");
+  check("a Peacekeeper off the floor comes with Executioner locked until 275 damage", lock?.mod === "hopup_executioner" && lock.need === 275, JSON.stringify(lock));
+  ids = await alive();
+  await ev(page, "window.__range.loadout.active.hopLock.need = 150");
+  await ev(page, `window.__range.hitThrough(${ids[0]}, 100)`);
+  await ev(page, `window.__range.hitThrough(${ids[0]}, 100)`);
+  const unlocked = await ev<{ lock: unknown; hop: string | null }>(page, "({ lock: window.__range.loadout.active.hopLock ?? null, hop: window.__range.loadout.active.attach.hopup ?? null })");
+  check("and once the damage is done it unlocks, fitted", unlocked.lock === null && unlocked.hop === "hopup_executioner", JSON.stringify(unlocked));
+  // (Executioner's shield done coming back before the ring's damage is measured)
+  await page.waitForFunction("!window.__range.kdState().exec", { polling: 100, timeout: 8000 }).catch(() => undefined);
   // outside the ring: a corner of the map is outside ring 1
   await ev(page, "window.__range.player.teleport(215, 0, 715, 0)");
   const before = await ev<number>(page, "window.__range.duel().shield + window.__range.duel().health");
@@ -139,11 +171,12 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   // a heal: a cell brings the shield up by 25 in 2.5 s, 1.25 s with TRIAGE, and costs one of four
   await ev(page, "(() => { window.__range.duel().holdFire = true; window.__range.player.teleport(0, 0, 500, 0); })()");
   await sleep(300);
+  const cellsBefore = await ev<number>(page, "window.__range.kit.items.cell");
   await ev(page, "window.__range.startHeal()");
   const shieldBefore = await ev<number>(page, "window.__range.duel().shield");
   await sleep(1700);
   const healed = await ev<{ shield: number; cells: number; max: number }>(page, "({ shield: window.__range.duel().shield, cells: window.__range.kit.items.cell, max: window.__range.duel().shieldMax })");
-  check("a shield cell heals 25 shield and is spent, in half its time with TRIAGE", healed.shield === Math.min(healed.max, shieldBefore + 25) && healed.cells === 1, JSON.stringify({ shieldBefore, ...healed }));
+  check("a shield cell heals 25 shield and is spent, in half its time with TRIAGE", healed.shield === Math.min(healed.max, shieldBefore + 25) && healed.cells === cellsBefore - 1, JSON.stringify({ shieldBefore, cellsBefore, ...healed }));
   // the controller's Default: RB twice pings an enemy there; D-pad up heals; D-pad right readies a grenade
   await pressPlay(page);
   await padTap(page, 5, 60);
@@ -520,6 +553,19 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   const selfDown = await ev<{ holding: boolean; stance: string } | null>(guest, "(() => { const f = window.__range.selfFigure(); return f && { holding: f.holdingGun, stance: f.currentPose.stance }; })()");
   await ev(guest, "window.__range.setThirdPerson(false)");
   check("down: your own figure in third person holds no gun", !!selfDown && !selfDown.holding && selfDown.stance === "downed", JSON.stringify(selfDown));
+  // the knockdown shield: held fire raises it at your EVO level's size; the host's figure of you shows it
+  await ev(guest, padSet(7, true));
+  await sleep(500);
+  const kdG = await ev<{ up: boolean; hp: number; max: number }>(guest, "window.__range.kdState()");
+  check("knockdown shield: holding fire while down raises it, full (200 / 450 / 750 by EVO level)", kdG.up && kdG.hp === kdG.max && [200, 450, 750].includes(kdG.max), JSON.stringify(kdG));
+  const kdSeen = await host.waitForFunction("window.__range.duel().remotes.get(1)?.avatar.knockShieldUp === true", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  check("knockdown shield: the host sees it on the guest's figure", kdSeen);
+  // a shot from in front goes into it; one from behind does not
+  const front = await ev<{ kd: number; bleed: number }>(guest, `(() => { const r = window.__range; const d = r.duel(); const bot = [...d.remotes.values()].find((x) => x.id >= 100 && x.alive); const p = r.player.pos; const b = bot.avatar.group.position; r.player.yaw = Math.atan2(-(b.x - p.x), -(b.z - p.z)) * 180 / Math.PI; const k0 = r.kdState().hp; const b0 = d.bleedHp; d.takeHit(60, bot.id); return { kd: k0 - r.kdState().hp, bleed: b0 - d.bleedHp }; })()`);
+  const behind = await ev<{ kd: number; bleed: number }>(guest, `(() => { const r = window.__range; const d = r.duel(); const bot = [...d.remotes.values()].find((x) => x.id >= 100 && x.alive); r.player.yaw += 180; const k0 = r.kdState().hp; const b0 = d.bleedHp; d.takeHit(10, bot.id); return { kd: k0 - r.kdState().hp, bleed: b0 - d.bleedHp }; })()`);
+  check("knockdown shield: a hit from in front goes into it, one from behind into you", front.kd === 60 && front.bleed === 0 && behind.kd === 0 && behind.bleed === 10, JSON.stringify({ front, behind }));
+  await ev(guest, padSet(7, false));
+  await sleep(300);
   // the host walks over and holds E for 5 s: the guest is back up with 20 health
   await ev(host, `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const g = d.remotes.get(1).samples.at(-1); r.player.teleport(g.x + 1.2, g.y, g.z, 90); })()`);
   await sleep(300);
@@ -546,6 +592,26 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   check("out: the host's figure of you is down and holds no gun", outFig.knocked && !outFig.holding, JSON.stringify(outFig));
   const banner = await host.waitForFunction("[...window.__range.duel().lootField.drops.values()].some((x) => x.item.kind === 'banner' && x.item.owner === 1)", { polling: 200, timeout: 4000 }).then(() => true, () => false);
   check("squad: the guest's death box holds their banner, on the host's floor too", banner);
+  // Deathbox Respawn: the host holds interact at the guest's box (the lockout waived for the test): a beam for all, and the guest is back on it at 20 health
+  await ev(host, "window.__range.duel().boxLockout = () => 0");
+  const bAt = await ev<{ x: number; z: number } | null>(host, "(() => { const d = [...window.__range.duel().lootField.drops.values()].find((x) => x.item.kind === 'banner' && x.item.owner === 1); return d ? { x: d.pos.x, z: d.pos.z } : null; })()");
+  await ev(host, `window.__range.player.teleport(${(bAt?.x ?? 0) + 1}, 0, ${bAt?.z ?? 0}, 90)`);
+  await sleep(400);
+  const boxPrompt = await ev<string>(host, "JSON.stringify(window.__range.brPlay.hud.prompt)");
+  check("deathbox respawn: at a dead mate's box, a tap takes the banner, a hold respawns them", /HOLD: RESPAWN/.test(boxPrompt), boxPrompt);
+  await ev(host, `window.__range.setScript({ held: (a) => a === "interact", pressedNow: () => false })`);
+  const beamSeen = await guest.waitForFunction("window.__range.remoteFxLog.some((e) => e.k === 'beam' && e.from === 0)", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  check("deathbox respawn: the beam goes up on the others' screens while it runs", beamSeen);
+  const back = await guest.waitForFunction("window.__range.duel().alive", { polling: 100, timeout: 11000 }).then(() => true, () => false);
+  await ev(host, "window.__range.setScript(null)");
+  await sleep(600);
+  const gBack = await ev<{ hp: number; d: number; regen: boolean }>(guest, `(() => { const r = window.__range; const d = r.duel(); const p = r.player.pos; return { hp: d.health, d: Math.hypot(p.x - ${bAt?.x ?? 0}, p.z - ${bAt?.z ?? 0}), regen: !!r.kdState().box || d.shield > 0 }; })()`);
+  check("deathbox respawn: 7 s later the guest is up on the box at 20 health, the shield coming back", back && gBack.hp === 20 && gBack.d < 3 && gBack.regen, JSON.stringify(gBack));
+  // out again for what follows: down, then finished
+  await ev(guest, `(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()`);
+  await sleep(300);
+  await ev(guest, `(() => { const d = window.__range.duel(); d.takeHit(150, 100); })()`);
+  await sleep(800);
   const gk = await ev<{ active: boolean; killer: string }>(guest, "window.__range.killcamState()");
   check("squad: the guest's killcam is the bot that got them (a bot the host runs)", gk.active && /^BOT /.test(gk.killer), JSON.stringify(gk));
   // the host goes down too: no one left up to revive, so out; the squad is out, both get the placement
@@ -1225,6 +1291,16 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   await ev(page, "window.__pad.buttons[7].pressed = false; window.__pad.buttons[7].value = 0;");
   const shots1 = await ev<number>(page, "window.__range.loadout.slots[0].state.clip");
   check("pad: the right trigger fires", shots1 < shots0, `clip ${shots0} -> ${shots1}`);
+  // Shattercaps: the 30-30 fired from the hip is a blast of 7 pellets
+  await ev(page, `(() => { const l = window.__range.loadout; l.setWeaponId(0, "3030"); l.fitAttachment(0, "hopup", "hopup_shattercaps"); })()`);
+  await sleep(1500);
+  const sc0 = await ev<number>(page, "window.__range.stats().shots");
+  await padTap(page, 7, 60);
+  await sleep(300);
+  const sc1 = await ev<number>(page, "window.__range.stats().shots");
+  check("Shattercaps: one pull of the 30-30 from the hip is 7 pellets", sc1 - sc0 === 7, `${sc0} -> ${sc1}`);
+  await ev(page, `(() => { const l = window.__range.loadout; l.setWeaponId(0, "rspn101"); })()`);
+  await sleep(1200);
   // the game's Default: Y taps swap, Y held holsters; D-pad left held inspects
   const slotA = await ev<number>(page, "window.__range.loadout.activeIndex");
   await ev(page, padSet(3, true));

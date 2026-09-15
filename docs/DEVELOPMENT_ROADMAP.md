@@ -466,3 +466,36 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Tests: e2e (in the battle royale, RB twice is an enemy ping, D-pad up a quick heal, D-pad right a grenade; in
   the range, Y's tap swaps on its release and its hold holsters, D-pad left held inspects, a preset puts jump on
   LB and Default puts it back; with the card up, D-pad left picks JOLT and readies nothing).
+
+## Milestone 30 — The battle royale's Season 29 and 30 pieces ✅
+2026-09-15 (Phase 12G). `src/main.ts`, `duel.ts`, `brmatch.ts`, `brplay.ts`, `attachments.ts`, `src/config/squad.json`,
+`weapon-mechanics.json`, `items.json`.
+- **EVO as Season 30 counts it** (RESEARCH_PHASE_12 section 2.3):
+  - the damage you deal, as before;
+  - 150 a knock, 100 an assist (you hurt them in the last 15 s and someone else knocked them);
+  - revives: 100 for the first two, then 25 less each;
+  - 100 for looting a care package, once a package.
+  - Taking damage earns nothing. That corrects the Phase 11 gap line, and purple is now 1,700 more after blue
+    (2,150 in all), not 1,700 in all.
+- **Knockdown shields tied to your EVO level**, as since Season 28: 200, 450 or 750. Hold fire while down to raise
+  it. It takes what comes from within 70 degrees of where you face, and you crawl 45% slower behind it; broken, it
+  stays broken for that knock. Your view shows the pane and a bar under DOWN, and the others see it on your figure.
+- **Deathbox Respawn** (Season 29 on): at a dead squad mate's death box, a tap takes their banner as before, and a
+  7 s hold of interact brings them back on the box. They return at 20 health, their shield comes back over 6 s,
+  and they get whatever is left in the box. A green beam and a rising hum mark it for everyone, and the bots come
+  to see (it is heard twice as far as a shot). Each death adds a lockout before the next such respawn: 30, 60,
+  then 120 s (ours; Apex has not published its values), reset after 3 minutes alive.
+- **Seasons 29 and 30's hop-ups**, as effects rather than weapon-data mods:
+  - **Executioner** (Peacekeeper, Mastiff): a knock with the gun brings 50 shield back over 5 s.
+  - **Shattercaps** (30-30): hip fire is a blast of 7 pellets of 8, heads x1.25.
+  - **Redline** (L-STAR): +15% damage above 75% heat (ours; Apex has published no numbers).
+  - In a battle royale a floor gun comes with its hop-up **locked**, and it unlocks after 275 points of damage
+    with that gun; the HUD shows the progress. A dropped gun keeps its progress, and a care-package gun comes
+    unlocked. In the range they are on the hop-up key like any other.
+- Tests: verify (the EVO levels, sources and revive steps, the knockdown shield's sizes and crawl, the respawn's
+  numbers and lockouts, each hop-up's guns and numbers, hop-ups out of the mod chain), e2e (a knock earns 150 over
+  its damage, a care package 100 once; Executioner brings shield back after a knock; a Peacekeeper off the floor
+  comes locked and unlocks with damage; the 30-30 with Shattercaps fires 7 pellets from the hip; down, held fire
+  raises the knockdown shield, the host sees it, a shot from in front goes into it and one from behind does not;
+  the host holds at the guest's box, the beam shows on the guest's screen, and the guest is back on the box at 20
+  health with the shield coming back).

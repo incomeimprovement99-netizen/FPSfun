@@ -294,9 +294,9 @@ export class Bot {
   }
 
   /** a shot went off at `pos`: in earshot, by the tier's chance, it goes to look */
-  hear(pos: THREE.Vector3, now: number, rng: () => number = Math.random): void {
+  hear(pos: THREE.Vector3, now: number, rng: () => number = Math.random, range: number = HEAR.range): void {
     if (!this.alive || this.dropping) return;
-    if (this.pos.distanceTo(pos) > HEAR.range) return;
+    if (this.pos.distanceTo(pos) > range) return;
     if (rng() >= this.diff.hearing) return;
     this.heard = { pos: pos.clone().setY(this.groundAt(pos.x, pos.z)), until: now + HEAR.memory };
   }

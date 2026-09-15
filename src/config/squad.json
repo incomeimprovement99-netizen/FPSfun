@@ -14,5 +14,11 @@
   "pad": { "speed": 20, "up": 16, "reach": 1.7 },
   "towerReach": 2.6,
   "_ping": "how long a ping lasts, s",
-  "pingLife": { "enemy": 6, "loot": 10, "go": 12 }
+  "pingLife": { "enemy": 6, "loot": 10, "go": 12 },
+  "_evo": "EVO as Season 30 counts it (docs/RESEARCH_PHASE_12.md section 2.3): 1 per point of damage you deal (the levels are in items.json), 150 a knock, 100 an assist (you hurt them in the last assistWindow seconds and someone else knocked them; the window is ours), 100 a finisher, a revive 100 for the first two then 25 less each, 100 for looting a care package (once a package). Taking damage earns nothing.",
+  "evo": { "knock": 150, "assist": 100, "assistWindow": 15, "finisher": 100, "revive": [100, 100, 75, 50, 25, 0], "carePackage": 100 },
+  "_kdShield": "the knockdown shield (Season 28 on): its size is your EVO level's, 200 / 450 / 750; hold fire while down to raise it; it stops what comes from the front (ours: within 70 degrees of where you face); you crawl 45% slower behind it; broken, it stays broken until your next knock",
+  "kdShield": { "hp": [200, 450, 750], "arc": 70, "crawlScale": 0.55 },
+  "_boxRespawn": "Deathbox Respawn (Season 29 on, research 2.1): hold interact 7 s at a dead squad mate's box (a tap still takes their banner); a green beam and a hum for everyone while it runs; they come back on the box with 20 health, their shield regenerating (ours: to full over 6 s), with what is left in the box. Each death adds a lockout before the next such respawn (ours: 30, 60, 120 s; Apex has not published its values), reset after 3 minutes alive.",
+  "boxRespawn": { "time": 7, "reach": 2.2, "health": 20, "shieldRegen": 6, "lockout": [30, 60, 120], "resetAfter": 180, "tapTime": 0.3 }
 }
