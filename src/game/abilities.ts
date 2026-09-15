@@ -4,8 +4,9 @@
 // every countdown after, to change it), or any time in the range. The match
 // says whether abilities are on (the host's setting, in the welcome).
 //
-// This holds the choice and JOLT's cooldown; the dash itself is movement
-// (Player.jolt) and TRIAGE is a scale on the heal times.
+// This holds the choice and JOLT's charges (two, each back 4 s after the one
+// before it: a full refill in 8 s); the dash itself is movement (Player.jolt)
+// and TRIAGE is a scale on the heal times.
 import cfg from "../config/abilities.json";
 
 export type AbilityId = "jolt" | "triage";
@@ -35,7 +36,10 @@ export class Abilities {
   enabled = false;
   /** the choice card is up */
   choosing = false;
-  /** the start of the last JOLT, game clock */
+  /** JOLT's charges in hand, and when the next one is back (Infinity: they are all there) */
+  private charges: number = JOLT.charges;
+  private rechargeAt = Infinity;
+  /** the start of the last JOLT, game clock (the gap before the next) */
   private lastUseAt = -Infinity;
   /** when the card went up, for the HUD's slide-in */
   offeredAt = -Infinity;
@@ -49,7 +53,7 @@ export class Abilities {
 
   pick(id: AbilityId): void {
     if (!this.enabled) return;
-    if (this.picked !== id) this.lastUseAt = -Infinity;
+    if (this.picked !== id) this.fill();
     this.picked = id;
     this.choosing = false;
   }
@@ -59,24 +63,51 @@ export class Abilities {
     this.enabled = enabled;
     this.picked = null;
     this.choosing = false;
+    this.fill();
+  }
+
+  /** both charges back (a new life's start keeps what you had: only a pick or a new match fills them) */
+  fill(): void {
+    this.charges = JOLT.charges;
+    this.rechargeAt = Infinity;
     this.lastUseAt = -Infinity;
   }
 
-  /** seconds until JOLT can go again (0: ready) */
-  cooldownLeft(now: number): number {
-    if (this.picked !== "jolt") return 0;
-    return Math.max(0, this.lastUseAt + JOLT.cooldown - now);
+  /** the charges that have come back by now: one every `recharge` seconds, one at a time */
+  private settle(now: number): void {
+    while (this.charges < JOLT.charges && now >= this.rechargeAt) {
+      this.charges++;
+      this.rechargeAt = this.charges < JOLT.charges ? this.rechargeAt + JOLT.recharge : Infinity;
+    }
   }
 
-  /** JOLT, if it is picked and ready: starts the cooldown and says yes */
+  /** JOLT's charges now, how many it holds, and the seconds until the next one is back (0: all there) */
+  charge(now: number): { charges: number; max: number; nextIn: number; recharge: number } {
+    this.settle(now);
+    return { charges: this.charges, max: JOLT.charges, nextIn: Number.isFinite(this.rechargeAt) ? Math.max(0, this.rechargeAt - now) : 0, recharge: JOLT.recharge };
+  }
+
+  /** seconds until JOLT can go again (0: a charge is ready and the gap has passed) */
+  cooldownLeft(now: number): number {
+    if (this.picked !== "jolt") return 0;
+    this.settle(now);
+    const gap = Math.max(0, this.lastUseAt + JOLT.gap - now);
+    return this.charges > 0 ? gap : Math.max(gap, this.rechargeAt - now);
+  }
+
+  /** JOLT, if it is picked and a charge is ready: spends one (the next starts coming back) and says yes */
   tryJolt(now: number): boolean {
     if (!this.enabled || this.picked !== "jolt" || this.cooldownLeft(now) > 0) return false;
+    this.charges--;
+    if (!Number.isFinite(this.rechargeAt)) this.rechargeAt = now + JOLT.recharge;
     this.lastUseAt = now;
     return true;
   }
 
-  /** the use was refused after all (the movement code said no): give the cooldown back */
+  /** the use was refused after all (the movement code said no): give the charge back */
   refund(): void {
+    this.charges = Math.min(JOLT.charges, this.charges + 1);
+    if (this.charges >= JOLT.charges) this.rechargeAt = Infinity;
     this.lastUseAt = -Infinity;
   }
 

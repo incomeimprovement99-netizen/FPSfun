@@ -103,7 +103,10 @@ export class Bot {
   /** JOLT or TRIAGE when the match has abilities on (abilities.ts) */
   ability: AbilityId | null = null;
   private joltLeft = 0;
-  private joltReadyAt = 0;
+  /** JOLT's charges (the player's rules: two, one back every 4 s) and when the next is back */
+  private joltCharges: number = JOLT.charges;
+  private joltRechargeAt = Infinity;
+  private joltLastAt = -Infinity;
   private readonly joltDir = new THREE.Vector2();
   private readonly joltFrom = new THREE.Vector3();
   /** the last time its shield or health went down, and what they were */
@@ -173,7 +176,9 @@ export class Bot {
     this.sawLast = false;
     this.dropping = false;
     this.joltLeft = 0;
-    this.joltReadyAt = 0;
+    this.joltCharges = JOLT.charges;
+    this.joltRechargeAt = Infinity;
+    this.joltLastAt = -Infinity;
     this.lastHurtAt = -Infinity;
     this.lastTargetAt = -Infinity;
     this.healing = null;
@@ -335,14 +340,20 @@ export class Bot {
     if (vital < this.prevVital - 1e-6) this.lastHurtAt = now;
     this.prevVital = vital;
     this.stepHeal(now, sees);
-    if (this.ability === "jolt" && this.joltLeft <= 0 && target && now >= this.joltReadyAt && now - this.lastHurtAt < BOT_ABILITY.joltWhenHitWithin) {
+    while (this.joltCharges < JOLT.charges && now >= this.joltRechargeAt) {
+      this.joltCharges++;
+      this.joltRechargeAt = this.joltCharges < JOLT.charges ? this.joltRechargeAt + JOLT.recharge : Infinity;
+    }
+    if (this.ability === "jolt" && this.joltLeft <= 0 && target && this.joltCharges > 0 && now - this.joltLastAt >= JOLT.gap && now - this.lastHurtAt < BOT_ABILITY.joltWhenHitWithin) {
       const tx = target.x - this.pos.x;
       const tz = target.z - this.pos.z;
       const tl = Math.hypot(tx, tz) || 1;
       const side = Math.random() < 0.5 ? 1 : -1;
       this.joltDir.set((-tz / tl) * side, (tx / tl) * side);
       this.joltLeft = JOLT.duration;
-      this.joltReadyAt = now + JOLT.cooldown;
+      this.joltCharges--;
+      if (!Number.isFinite(this.joltRechargeAt)) this.joltRechargeAt = now + JOLT.recharge;
+      this.joltLastAt = now;
       this.dummy.jolt();
       this.joltFrom.copy(this.pos);
     }

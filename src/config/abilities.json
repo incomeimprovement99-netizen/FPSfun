@@ -1,12 +1,16 @@
 {
-  "_note": "The two abilities you pick on landing (battle royale) or at the first countdown (1v1v1, bots). Names are ours. JOLT's distance and cooldown are the owner's numbers; its duration and exit speed are ours. TRIAGE's scale is the owner's (twice as fast = every heal item's use time halved).",
+  "_note": "The two abilities you pick on landing (battle royale) or at the first countdown (1v1v1, bots). Names are ours. JOLT's distance, its two charges and the 4 s a charge takes to come back (8 s for both) are the owner's numbers; its duration, the gap between two dashes and the exit speed are ours. TRIAGE's scale is the owner's (twice as fast = every heal item's use time halved).",
   "jolt": {
     "name": "JOLT",
-    "blurb": "dash 10 m the way you are moving, every 3 s",
+    "blurb": "dash 10 m the way you are moving; two charges, one back every 4 s",
     "distance": 10,
-    "duration": 0.18,
-    "cooldown": 3,
-    "exitSpeedHu": 260
+    "duration": 0.14,
+    "charges": 2,
+    "recharge": 4,
+    "_gap": "the least time from one dash's start to the next (the second charge can follow at once, not inside the first)",
+    "gap": 0.2,
+    "_exit": "you leave a dash at this speed the way it went (above the 260 sprint), so it carries into a slide or a jump; friction takes it down from there",
+    "exitSpeedHu": 360
   },
   "triage": {
     "name": "TRIAGE",

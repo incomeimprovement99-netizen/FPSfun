@@ -1020,6 +1020,8 @@ function respawnForMatch(d: MatchLike): void {
   // its start kit and a white shield core that levels with EVO
   const br = d instanceof BrMatch;
   kit.fill(br ? "brStart" : "kit");
+  // JOLT's two charges, both there for every life and every round
+  abilities.fill();
   // grenades: the match's kit each life (Gun Run is guns and the knife: none)
   ordnance.endless = false;
   ordnance.readied = null;
@@ -1153,7 +1155,8 @@ function useAbility(now: number): void {
   if (duel instanceof Duel && duel.downed) return;
   const left = abilities.cooldownLeft(now);
   if (left > 0) {
-    hud.notice(`JOLT READY IN ${left.toFixed(1)} S`, now, 0.6);
+    // a dash just gone: the second waits out the gap quietly; empty: when the next is back
+    if (abilities.charge(now).charges === 0) hud.notice(`JOLT: NEXT CHARGE IN ${left.toFixed(1)} S`, now, 0.6);
     return;
   }
   const d = player.moveDir(scriptInput ?? input);
@@ -3067,7 +3070,10 @@ function step(): void {
     recap: recap && !killcam.active ? { ...recap, age: now - recapShownAt, closeKey: keyLabel("jump") } : null,
     ability:
       abilities.enabled && abilities.picked
-        ? { name: ABILITIES[abilities.picked].name, key: keyLabel("ability"), cooldown: JOLT.cooldown, left: abilities.cooldownLeft(now), passive: abilities.picked === "triage" }
+        ? (() => {
+            const c = abilities.charge(now);
+            return { name: ABILITIES[abilities.picked!].name, key: keyLabel("ability"), cooldown: c.recharge, left: c.charges > 0 ? 0 : c.nextIn, passive: abilities.picked === "triage", charges: c.charges, max: c.max, nextIn: c.nextIn };
+          })()
         : null,
     // the card: full when it has just come up in a match, one line after 6 s or in the range
     abilityCard:

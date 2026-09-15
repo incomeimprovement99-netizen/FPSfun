@@ -132,7 +132,7 @@ export interface HudState {
   /** real shield and health (a 1v1); the bars are decorative without it */
   vitals?: { shield: number; shieldMax: number; health: number; healthMax: number; evo?: number | null; helmet?: string | null } | null;
   /** your ability (abilities.ts): name, key, its cooldown and what is left of it (0: ready); a passive one has no key */
-  ability?: { name: string; key: string; cooldown: number; left: number; passive: boolean } | null;
+  ability?: { name: string; key: string; cooldown: number; left: number; passive: boolean; charges?: number; max?: number; nextIn?: number } | null;
   /** the ability card: the two options with their keys; compact is the one-line form */
   abilityCard?: { options: Array<{ key: string; name: string; blurb: string; picked: boolean }>; age: number; compact: boolean } | null;
   /** the killcam is playing: whose eyes, their gun, how far through, the skip key */
@@ -1468,7 +1468,28 @@ export class Hud {
       c.fillRect(x - 6 * u, y - 6 * u, 20 * u, 18 * u);
       this.text(a.key, x + 4 * u, y + 8 * u, 700, 12 * u, "#101214", "center");
     }
-    this.text(a.passive ? `${a.name}  HEALS x2` : a.name, x + size / 2, y + size + 16 * u, 700, 13 * u, ready ? WHITE : DIM, "center");
+    // the charges: a pip each under the square, full when there, the next one filling as it comes back
+    let nameY = y + size + 16 * u;
+    if (!a.passive && (a.max ?? 0) > 1) {
+      const n = a.max!;
+      const have = a.charges ?? 0;
+      const gapPx = 4 * u;
+      const pw = (size - gapPx * (n - 1)) / n;
+      const py = y + size + 4 * u;
+      const fill = 1 - Math.max(0, Math.min(1, (a.nextIn ?? 0) / Math.max(1e-3, a.cooldown)));
+      for (let i = 0; i < n; i++) {
+        const px = x + i * (pw + gapPx);
+        c.fillStyle = "rgba(0,0,0,0.55)";
+        c.fillRect(px, py, pw, 5 * u);
+        const f = i < have ? 1 : i === have ? fill : 0;
+        if (f > 0) {
+          c.fillStyle = i < have ? "#8fd8ff" : "rgba(143,216,255,0.5)";
+          c.fillRect(px, py, pw * f, 5 * u);
+        }
+      }
+      nameY += 8 * u;
+    }
+    this.text(a.passive ? `${a.name}  HEALS x2` : a.name, x + size / 2, nameY, 700, 13 * u, ready ? WHITE : DIM, "center");
   }
 
   /**

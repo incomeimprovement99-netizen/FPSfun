@@ -1534,11 +1534,11 @@ console.log("\nThe advanced course: every gate needs its technique");
 }
 
 // ------------------------------------------------------------------ JOLT
-console.log("\nJOLT, the dash ability (src/config/abilities.json: 10 m over 0.18 s, the owner's distance)");
+console.log("\nJOLT, the dash ability (src/config/abilities.json: 10 m over 0.14 s, the owner's distance, out at 360 hu/s)");
 {
   const JD = 10;
-  const JT = 0.18;
-  const EXIT = 260 * HU;
+  const JT = 0.14;
+  const EXIT = 360 * HU;
   // standing still on open ground, facing -z, no keys: forward
   const a = new Sim();
   a.p.pos.set(0, 0, 0);
@@ -1548,10 +1548,24 @@ console.log("\nJOLT, the dash ability (src/config/abilities.json: 10 m over 0.18
   check("no keys held: JOLT goes forward", Math.abs(dir.x) < 1e-6 && dir.z < -0.99, `(${dir.x.toFixed(2)}, ${dir.z.toFixed(2)})`);
   check("it starts", a.p.jolt(dir.x, dir.z, JD, JT, EXIT));
   const z0 = a.p.pos.z;
-  a.run(JT);
-  near("covers 10 m in its 0.18 s, m", z0 - a.p.pos.z, JD, 0.3);
+  a.run(JT + DT); // 0.14 s is 8.4 frames: the ninth ends it
+  near("covers 10 m in its 0.14 s, m", z0 - a.p.pos.z, JD, 0.3);
   check("and is over by then", !a.p.jolting);
-  near("leaves at 260 hu/s", a.speedHu, 260, 1);
+  near("leaves at 360 hu/s (faster than a sprint)", a.speedHu, 360, 1);
+  // what it is worth: against a sprint from a standstill, a JOLT is well ahead after a second
+  const js = new Sim();
+  js.p.pos.set(0, 0, 0);
+  js.frame();
+  js.p.jolt(0, -1, JD, JT, EXIT);
+  js.in.hold("forward");
+  js.in.tap("sprint");
+  js.run(1);
+  const sp = new Sim();
+  sp.p.pos.set(0, 0, 0);
+  sp.in.hold("forward");
+  sp.in.tap("sprint");
+  sp.run(1);
+  check("a JOLT then a sprint is 8 m+ ahead of a sprint after 1 s", -js.p.pos.z - -sp.p.pos.z > 8, `${(-js.p.pos.z - -sp.p.pos.z).toFixed(1)} m`);
   // a second one during the first is refused (the cooldown is the ability's; the movement refuses overlap)
   const b = new Sim();
   b.p.pos.set(0, 0, 0);

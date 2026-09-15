@@ -760,8 +760,18 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   const j = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
   const moved = Math.hypot(j.x - p0.x, j.z - p0.z);
   check("bots with abilities: JOLT dashes you (up to 10 m, a wall can stop it short)", moved > 3 && moved < 14, `${moved.toFixed(2)} m (the dash, then its exit speed running down)`);
+  const ch1 = await ev<{ charges: number; nextIn: number }>(page, "window.__range.abilities.charge(window.__range.gameTime())");
+  check("bots with abilities: one of JOLT's two charges spent, coming back", ch1.charges === 1 && ch1.nextIn > 2.5 && ch1.nextIn < 4, JSON.stringify(ch1));
+  // back the way you came (the first may have run you up to a wall), then the second
+  await ev(page, "window.__range.player.yaw += 180");
+  await ev(page, "window.__range.useAbility()");
+  await sleep(300);
+  const j2 = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
   const cd = await ev<number>(page, "window.__range.abilities.cooldownLeft(window.__range.gameTime())");
-  check("bots with abilities: and its cooldown is running", cd > 1.5 && cd < 3, cd.toFixed(2));
+  check("bots with abilities: the second charge dashes again", Math.hypot(j2.x - j.x, j2.z - j.z) > 2, `${Math.hypot(j2.x - j.x, j2.z - j.z).toFixed(2)} m`);
+  check("bots with abilities: then both are spent until the first is back (4 s)", cd > 2 && cd < 4, cd.toFixed(2));
+  const hudAb = await ev<{ charges?: number; max?: number } | null>(page, "window.__range.hud.last.ability");
+  check("bots with abilities: the HUD shows the charges", hudAb?.charges === 0 && hudAb?.max === 2, JSON.stringify(hudAb));
   await ev(page, "window.__range.duel().leave()");
   await ev(page, `(() => { const s = document.getElementById("botAbilities"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
 
