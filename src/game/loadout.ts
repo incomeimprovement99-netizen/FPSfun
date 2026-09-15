@@ -141,8 +141,13 @@ export class Loadout {
     return this.slots[this.activeIndex];
   }
 
+  /**
+   * A swap is running, or a cancelled one is still raising the gun that never
+   * went away (swapTotal stays set until that raise ends): it cannot fire
+   * either way, or swapping back would be an instant cancel.
+   */
   get swapping(): boolean {
-    return this.targetIndex !== this.activeIndex;
+    return this.targetIndex !== this.activeIndex || this.swapTotal > 0;
   }
 
   /**

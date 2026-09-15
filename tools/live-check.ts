@@ -4,6 +4,9 @@
 // loads with its textures and props and no errors.
 //
 // Run: npx tsx tools/live-check.ts   (LIVE_URL overrides the default)
+// On our own server (server/game/serve.mjs) the match must go through the
+// site's own broker; on GitHub Pages through the public one. BROKER=own or
+// BROKER=public makes that a check; without it the line is informational.
 import puppeteer, { type Browser, type Page } from "puppeteer";
 
 const CHROME = process.env.CHROME ?? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
@@ -16,11 +19,16 @@ const check = (label: string, ok: boolean, detail = "") => {
 const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const errors: string[] = [];
+/** the broker's id requests: our own server's /peerjs/, or the public 0.peerjs.com */
+const brokerHits = new Set<string>();
 
 async function open(browser: Browser): Promise<Page> {
   const page = await browser.newPage();
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("requestfailed", (r) => errors.push(`request failed: ${r.url()}`));
+  page.on("request", (r) => {
+    if (/\/peerjs\//.test(r.url())) brokerHits.add(new globalThis.URL(r.url()).host);
+  });
   await page.goto(`${URL}?norender`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 90000 });
   return page;
@@ -41,6 +49,15 @@ async function main(): Promise<void> {
     check("weapon names are the public codenames", !/R-301|Wingman|Glock/i.test(names.join(" ")), names.join(", "));
     const tex = await ev<number>(host, "performance.getEntriesByType('resource').filter((r) => /tex\\/|models\\//.test(r.name)).length");
     check("textures and props were requested from the site", tex > 5, `${tex} asset requests`);
+    if (process.env.BROKER === "own") {
+      // read-only: the Stats tab finds the site's board (nothing is posted to a live board)
+      await ev(host, `document.querySelector('#tabs button[data-tab="stats"]').click()`);
+      const online = await host
+        .waitForFunction(`/Online boards are on/.test(document.getElementById("statsOnline").textContent) && !document.getElementById("onlineCard").hidden`, { polling: 200, timeout: 10000 })
+        .then(() => true, () => false);
+      check("the Stats tab shows the site's online boards", online, await ev<string>(host, `document.getElementById("statsOnline").textContent`));
+      await ev(host, `document.querySelector('#tabs button[data-tab="play"]').click()`);
+    }
     const guest = await open(browser);
     await ev(host, `document.getElementById("duelHost").click()`);
     let code = "";
@@ -57,6 +74,12 @@ async function main(): Promise<void> {
       await host.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 40000 });
       await guest.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 40000 });
       check("both sides connect over the internet", true);
+      const site = new globalThis.URL(URL).host;
+      const own = brokerHits.has(site);
+      const which = own ? `this site's own broker (${site})` : `the public broker (${[...brokerHits].join(", ") || "none seen"})`;
+      const want = process.env.BROKER;
+      if (want === "own" || want === "public") check(`the match went through ${want === "own" ? "our own" : "the public"} broker`, own === (want === "own"), which);
+      else console.log(`  --  broker: ${which}`);
     } catch {
       check("both sides connect over the internet", false, await ev<string>(guest, `document.getElementById("duelStatus").textContent`));
       return;

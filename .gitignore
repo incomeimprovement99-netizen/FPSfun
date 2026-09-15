@@ -2,6 +2,10 @@ node_modules
 dist
 .vite
 *.log
+# the server's ssh target and key path (tools/deploy-server.ts)
+.env.server
+# the online boards a local run of server/game/serve.mjs keeps
+server/game/boards.json*
 
 # CC0 downloads (npm run assets, npm run models): fetched, not kept in git
 public/tex/*

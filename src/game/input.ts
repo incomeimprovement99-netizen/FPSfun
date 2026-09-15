@@ -11,8 +11,26 @@ let GAME_KEYS: Set<string>;
 import bindsJson from "../config/binds.json";
 import { GamepadInput } from "./gamepad";
 
-export type Action = keyof typeof bindsJson;
-const BINDS = bindsJson as unknown as Record<string, string[]>;
+export type Action = Exclude<keyof typeof bindsJson, "_note">;
+/** binds.json as shipped: the defaults the Controls tab resets to */
+export const DEFAULT_BINDS: Readonly<Record<Action, readonly string[]>> = Object.fromEntries(
+  Object.entries(bindsJson).filter(([k]) => !k.startsWith("_"))
+) as Record<Action, string[]>;
+/** the live bindings: the defaults with the player's changes on top (setBinds) */
+const BINDS: Record<string, string[]> = Object.fromEntries(Object.entries(DEFAULT_BINDS).map(([k, v]) => [k, [...v]]));
+
+/**
+ * Put the player's bindings on (the Controls tab, src/ui/binds.ts): every
+ * action they changed takes their list, every other one the default. The
+ * keys the game swallows follow, so a key bound away reaches the browser again.
+ */
+export function setBinds(changes: Partial<Record<Action, string[]>>): void {
+  for (const a of Object.keys(DEFAULT_BINDS) as Action[]) BINDS[a] = [...(changes[a] ?? DEFAULT_BINDS[a])];
+  GAME_KEYS = Input.boundKeys();
+}
+
+/** the live bindings, for the Controls tab */
+export const currentBinds = (): Readonly<Record<Action, readonly string[]>> => BINDS as Record<Action, string[]>;
 
 /** "mouse3" -> 3, anything else -> null */
 function mouseIndex(bind: string): number | null {
@@ -116,7 +134,12 @@ export class Input {
       this.pressed.clear(); // else a key held at blur reports justPressed on return
       this.mouseDown = [false, false, false, false, false];
     });
+    // the older, promise-less form reports a refusal only as this event
+    document.addEventListener("pointerlockerror", () => this.onLockRefused?.());
   }
+
+  /** the browser refused the pointer lock (too soon after Esc, or not allowed here) */
+  onLockRefused: (() => void) | null = null;
 
   async lock(): Promise<void> {
     // Chrome never lets a page cancel Ctrl+W, Ctrl+T or Ctrl+N (crouch plus
@@ -147,7 +170,9 @@ export class Input {
       try {
         await el.requestPointerLock();
       } catch {
-        /* user gesture required; ignore */
+        // no user gesture, too soon after Esc, or an embedded page without
+        // permission: the menu says so rather than nothing happening
+        this.onLockRefused?.();
       }
     }
   }
@@ -198,8 +223,11 @@ export class Input {
         if (this.wheel[b] > 0) return true;
         continue;
       }
+      // pressed this frame counts as held for this frame, as the wheel does: a
+      // click or a tap that goes down and up between two frames (a hitch is up
+      // to 0.1 s) was otherwise never a shot, and never in a lurch's direction
       const mi = mouseIndex(b);
-      if (mi === null ? this.down.has(b) : this.mouseDown[mi]) return true;
+      if (mi === null ? this.down.has(b) || this.pressed.has(b) : this.mouseDown[mi] || this.mousePressed[mi]) return true;
     }
     return false;
   }

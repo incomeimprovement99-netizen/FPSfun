@@ -547,7 +547,7 @@ export class Dummy {
       this.respawnAt = now + RESPAWN_S;
       if (zone === "head") this.headFlash = 1;
       else this.flash = 1;
-      return { zone, amount, toShield: 0, toHealth: amount, broke: false, knocked: true, headshot: zone === "head", point: point.clone() };
+      return { zone, amount, toShield: 0, toHealth: amount, broke: false, knocked: true, headshot: zone === "head" && headshotScale > 1, point: point.clone() };
     }
     let remaining = amount;
     const toShield = Math.min(this.shield, remaining);
@@ -566,7 +566,9 @@ export class Dummy {
       this.respawnAt = now + RESPAWN_S;
       this.fall = 0.0001;
     }
-    return { zone, amount: toShield + toHealth, toShield, toHealth, broke, knocked, headshot: zone === "head", point: point.clone() };
+    // past the weapon's headshot range a head hit does body damage (the
+    // caller passes a scale of 1), and it is not called a headshot either
+    return { zone, amount: toShield + toHealth, toShield, toHealth, broke, knocked, headshot: zone === "head" && headshotScale > 1, point: point.clone() };
   }
 
   update(now: number, dt = 0): void {

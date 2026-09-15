@@ -23,6 +23,8 @@
     "probe": "tsx tools/tech-probe.ts",
     "measure": "tsx tools/measure.ts",
     "deploy": "tsx tools/deploy-pages.ts",
+    "deploy:server": "tsx tools/deploy-server.ts",
+    "server": "node server/game/serve.mjs",
     "live": "tsx tools/live-check.ts"
   },
   "dependencies": {

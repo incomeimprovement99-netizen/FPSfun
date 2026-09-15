@@ -117,7 +117,7 @@ export class ProjectileSystem {
    * multiplier. Returns true if it hit something that takes damage.
    */
   melee(origin: THREE.Vector3, dir: THREE.Vector3, range: number, damage: number, now: number, onImpact: (e: ImpactEvent) => void): boolean {
-    const { meshes, owner, tOwner } = this.gather();
+    const { meshes, owner, tOwner } = this.gather(now);
     const unit = dir.clone().normalize();
     this.ray.set(origin, unit);
     this.ray.far = Math.min(range, solidHit(origin, unit, range));
@@ -139,7 +139,7 @@ export class ProjectileSystem {
   }
 
   /** every hit mesh in play, and who owns it */
-  private gather(): { meshes: THREE.Mesh[]; owner: Map<THREE.Object3D, Dummy>; tOwner: Map<THREE.Object3D, Target> } {
+  private gather(now: number): { meshes: THREE.Mesh[]; owner: Map<THREE.Object3D, Dummy>; tOwner: Map<THREE.Object3D, Target> } {
     const meshes: THREE.Mesh[] = [];
     const owner = new Map<THREE.Object3D, Dummy>();
     const tOwner = new Map<THREE.Object3D, Target>();
@@ -154,7 +154,7 @@ export class ProjectileSystem {
       }
     }
     for (const t of this.targets) {
-      if (!t.live || !t.group.visible) continue;
+      if (!t.isLive(now) || !t.group.visible) continue;
       for (const m of t.hitMeshes) {
         meshes.push(m);
         tOwner.set(m, t);
@@ -169,7 +169,7 @@ export class ProjectileSystem {
 
   update(dt: number, now: number, onImpact: (e: ImpactEvent) => void): void {
     const h = dt / SUBSTEPS;
-    const { meshes, owner, tOwner } = this.gather();
+    const { meshes, owner, tOwner } = this.gather(now);
     for (let bi = this.bullets.length - 1; bi >= 0; bi--) {
       const b = this.bullets[bi];
       let dead = false;
@@ -206,7 +206,8 @@ export class ProjectileSystem {
               });
             } else {
               const t = tOwner.get(hit.object)!;
-              const head = zone === "head";
+              // a head hit past headshot range is body damage and no headshot
+              const head = zone === "head" && headshotScale > 1;
               const amount = Math.floor(dmg * (head ? headshotScale : 1) + 1e-6);
               t.hit(now, head, amount);
               onImpact({

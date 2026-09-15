@@ -40,6 +40,8 @@ import { ZIPLINES, buildLadder } from "./traversal";
 
 const PENALTY_MISS = 3;
 const PENALTY_FALL = 2;
+/** a run still going after this long is abandoned (its ghost would not fit in storage) */
+const MAX_RUN = 600;
 
 export interface EnemySpec {
   x: number;
@@ -615,6 +617,24 @@ export class Course {
     this.penalties = 0;
   }
 
+  /** another mode: the run and its result card go (the card and P/K would follow you there) */
+  leave(): void {
+    this.reset();
+    this.result = null;
+  }
+
+  /**
+   * The menu is up: the clock stands still. Every time the run keeps is
+   * measured from `startedAt`, so moving it on by the paused frame stops the
+   * clock, the ghost and the recording together; the return to the start and
+   * the result card wait too.
+   */
+  pause(dt: number): void {
+    if (this.running) this.startedAt += dt;
+    if (this.returnAt !== Infinity) this.returnAt += dt;
+    if (this.result) this.resultUntil += dt;
+  }
+
   private start(now: number): void {
     this.reset();
     this.running = true;
@@ -700,8 +720,9 @@ export class Course {
 
     // start line crossed going forward (re)starts the run
     if (insideX && this.lastZ < L.startZ && z >= L.startZ) this.start(now);
-    // walking back out through the gate abandons it
-    if (this.running && (z < 9 || !insideX)) this.reset();
+    // walking back out through the gate abandons it; so does a run left going
+    // for ten minutes (its ghost recording would be too big to keep)
+    if (this.running && (z < 9 || !insideX || now - this.startedAt > MAX_RUN)) this.reset();
 
     if (this.running) {
       L.rooms.forEach((room, ri) => {

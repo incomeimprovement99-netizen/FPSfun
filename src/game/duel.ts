@@ -226,6 +226,8 @@ export class Duel implements MatchLike {
   private lastSummary: MatchSummary | null = null;
   /** the host: how many have arrived, for the panel */
   onRoster: ((connected: number, players: number) => void) | null = null;
+  /** the host: a guest left before round 1, so their place can be taken again */
+  onSlotFree: ((id: number) => void) | null = null;
 
   /**
    * A host passes its guests' links as they arrive (`addGuest` for the
@@ -423,6 +425,9 @@ export class Duel implements MatchLike {
       }
       return;
     }
+    // numbers from another browser: a NaN would poison a position or health
+    // for the rest of the match, so a malformed packet is dropped whole
+    if (!wellFormed(m)) return;
     const r = this.remote(from);
     r.lastHeard = now;
     switch (m.t) {
@@ -439,7 +444,11 @@ export class Duel implements MatchLike {
           r.health = Math.min(r.health, m.hp);
           r.shield = Math.min(r.shield, m.sh);
         }
-        if (m.name) r.name = m.name;
+        // a name is whatever the other browser sent: text only, and short
+        if (typeof m.name === "string") {
+          const name = m.name.replace(/[\p{Cc}<>&"'`]/gu, "").trim().slice(0, 16);
+          if (name) r.name = name;
+        }
         if (typeof m.ready === "boolean") r.ready = m.ready;
         this.setAvatarLook(r, m.w, m.op);
         if (!m.alive && r.alive) r.avatar.fallDown();
@@ -503,6 +512,13 @@ export class Duel implements MatchLike {
     this.playerGone(id, `${r?.name ?? "A player"} left the match.`);
     this.ping = null;
     if (this.phase === "fight") this.checkLastStanding(wallClock());
+    // before round 1 a 1v1v1 waits for everyone: without a free place it
+    // waited forever, and every new arrival (the same friend rejoining) was
+    // turned away as "full"
+    if (this.phase === "waiting") {
+      this.onSlotFree?.(id);
+      this.onRoster?.(this.links.size, this.players);
+    }
   }
 
   /** one of three is gone: their figure goes, the match carries on as a 1v1 */
@@ -855,3 +871,22 @@ export class Duel implements MatchLike {
 }
 
 const wall = (now: number): number => now;
+
+const finite = (...xs: unknown[]): boolean => xs.every((x) => typeof x === "number" && Number.isFinite(x));
+const vec3 = (v: unknown): boolean => Array.isArray(v) && v.length === 3 && finite(...v);
+
+/** the packets that make or move a figure, checked field by field */
+function wellFormed(m: NetMsg): boolean {
+  switch (m.t) {
+    case "s":
+      return finite(m.x, m.y, m.z, m.yaw, m.pitch, m.hp, m.sh) && typeof m.w === "string" && typeof m.alive === "boolean";
+    case "shot":
+      return vec3(m.o) && vec3(m.d) && typeof m.w === "string";
+    case "hit":
+      return finite(m.to, m.amount) && m.amount >= 0 && m.amount <= 1000;
+    case "down":
+      return finite(m.by);
+    default:
+      return true;
+  }
+}

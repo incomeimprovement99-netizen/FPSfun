@@ -1,0 +1,18 @@
+{
+  "_note": "Controller aim assist (src/game/aimassist.ts). The game does not publish its aim assist code, so these are its known settings where they are known and ours where they are not. Rotational strength 0.4 is the PC controller value Respawn has stated (console was 0.6 until Season 20 brought it to 0.4 too). The slowdown and the zone size are ours, chosen so a stick correction on a target does not overshoot without the pad tracking by itself. Mouse input is never assisted.",
+
+  "_rotational": "While the stick or the movement keys are in use, the view follows this share of the target's own angular movement across the screen (its strafe, or yours around it). Zero input, zero assist: it never tracks on its own.",
+  "rotationalStrength": 0.4,
+  "_rotationalMaxDeg": "a larger jump in the target's bearing in one frame is a teleport or a respawn, not movement to follow",
+  "rotationalMaxDeg": 4,
+
+  "_slowdown": "The look speed with the reticle inside the zone: 1 is none. Aiming down sights slows more.",
+  "slowdownHip": 0.8,
+  "slowdownAds": 0.6,
+
+  "_zone": "The zone is a sphere of this radius (metres) round the target's chest, so it covers less of the screen the further away the target is.",
+  "zoneRadiusHip": 1.3,
+  "zoneRadiusAds": 1.0,
+  "_maxRange": "metres; no assist beyond this",
+  "maxRange": 60
+}

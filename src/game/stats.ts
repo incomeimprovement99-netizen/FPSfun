@@ -76,6 +76,9 @@ function randomName(): string {
 
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0);
 
+/** a player name as the online board accepts it: letters, digits, space, _ . -, at most 16 */
+const cleanName = (s: string): string => s.replace(/[^A-Za-z0-9_ .-]/g, "").trim().slice(0, 16);
+
 function validMatch(m: unknown): MatchStats {
   const out = emptyMatch();
   if (m && typeof m === "object") {
@@ -105,7 +108,7 @@ export class Stats {
       }
       const p = JSON.parse(raw) as Partial<Profile>;
       const out: Profile = {
-        name: typeof p.name === "string" && p.name.trim() ? p.name.trim().slice(0, 16) : fresh.name,
+        name: (typeof p.name === "string" && cleanName(p.name)) || fresh.name,
         matches: {},
         courses: {},
         tech: {},
@@ -116,7 +119,10 @@ export class Stats {
         for (const [k, v] of Object.entries(p.matches)) out.matches[k as MatchKind] = validMatch(v);
       }
       if (p.courses && typeof p.courses === "object") {
-        for (const [id, c] of Object.entries(p.courses as Record<string, Partial<CourseStats>>)) {
+        for (const [id, c] of Object.entries(p.courses as Record<string, Partial<CourseStats> | null>)) {
+          // one bad entry is skipped: throwing here fell to the catch below,
+          // which handed back a fresh profile that the next save wrote over the real one
+          if (!c || typeof c !== "object") continue;
           const board = Array.isArray(c.board)
             ? c.board
                 .filter((e): e is RunEntry => !!e && typeof e.time === "number" && Number.isFinite(e.time) && typeof e.rank === "string" && typeof e.at === "string")
@@ -145,8 +151,13 @@ export class Stats {
     this.onChange?.();
   }
 
+  /**
+   * Letters, digits, space and _ . - only: the characters the online board
+   * accepts. Anything else was taken here and then refused by the board on
+   * every post, with nothing to say so. The field shows what was kept.
+   */
   setName(name: string): void {
-    const n = name.trim().slice(0, 16);
+    const n = cleanName(name);
     if (!n) return;
     this.profile.name = n;
     this.persist();

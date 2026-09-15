@@ -58,6 +58,10 @@ export class WeaponState {
     this.clip = w.clipSize;
     this.burstLeft = 0;
     this.burstEndedAt = -Infinity;
+    // the old gun's cooldown is not this one's (a Kraber's rechamber held a
+    // lent pistol for 2.4 s); a fresh click is needed, as after a deploy
+    this.nextShotAt = -Infinity;
+    this.triggerWasDown = true;
   }
 
   /**
@@ -70,17 +74,23 @@ export class WeaponState {
     this.burstLeft = 0;
   }
 
+  /** stop a burst in flight: it fires without the trigger, so a knock or a round's end must end it */
+  cancelBurst(): void {
+    this.burstLeft = 0;
+  }
+
   /**
    * Change mag level on the weapon in hand. Unlike a deploy this must NOT
    * touch the recoil spring, heat or pattern cursor, or the mag key becomes
    * an instant recoil-cancel button that is strictly better than not using it.
+   * For the same reason it must not fill the magazine or end a reload: the
+   * rounds in the gun stay, and a bigger mag fills on the next reload.
    */
   setMagLevel(w: ResolvedWeapon): void {
     this.w = w;
     this.spread.setWeapon(w);
     this.kick.setWeaponKeepState(w);
-    this.reloading = false;
-    this.clip = w.clipSize;
+    this.clip = Math.min(this.clip, w.clipSize);
   }
 
   /**
@@ -142,6 +152,7 @@ export class WeaponState {
     const semi = this.w.semiAuto;
     const burst = this.w.burstCount > 1;
 
+    const fresh = triggerDown && !this.triggerWasDown;
     let wantShot = false;
     if (!this.reloading) {
       if (burst) {
@@ -168,7 +179,11 @@ export class WeaponState {
     }
 
     if (wantShot) {
-      if (this.nextShotAt < now - interval) this.nextShotAt = now; // idle: fire immediately
+      // A new pull, or a trigger held through a long idle, starts the schedule
+      // from now. A stale time left within one interval must not survive a new
+      // pull: the shot it lets through would schedule the next one early (two
+      // Wingman shots 83 ms apart, two Kraber shots 0.2 s apart).
+      if (fresh || this.nextShotAt < now - interval) this.nextShotAt = Math.max(this.nextShotAt, now);
       while (this.nextShotAt <= now && this.clip > 0 && (!burst || this.burstLeft > 0)) {
         this.clip--;
         this.shotsFired++;

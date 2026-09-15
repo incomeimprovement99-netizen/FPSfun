@@ -62,6 +62,25 @@ async function pressPlay(page: Page): Promise<void> {
   await sleep(300);
 }
 
+/** a friend opens the invite link and is in the match, with no code typed */
+async function inviteTest(browser: Browser, query: string): Promise<void> {
+  const host = await open(browser, query);
+  await ev(host, `document.getElementById("duelHost").click()`);
+  const got = await host.waitForSelector("#inviteLink", { timeout: 20000 }).then(() => true, () => false);
+  const link = got ? await ev<string>(host, `document.getElementById("inviteLink").value`) : "";
+  check("the host gets an invite link", /[?&]join=[A-Z0-9]{5}/.test(link), link || "none");
+  if (!link) return void (await host.close());
+  const guest = await open(browser, new URL(link).search);
+  const joined = await guest.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 }).then(() => true, () => false);
+  check("opening the invite link joins the match", joined, await ev<string>(guest, `document.getElementById("duelStatus").textContent`));
+  const search = await ev<string>(guest, "location.search");
+  check("and the code comes off the address (a reload does not rejoin)", !/join=/.test(search) && /net=local/.test(search), search);
+  await ev(guest, "window.__range.duel()?.leave()");
+  await host.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 15000 }).catch(() => undefined);
+  await guest.close();
+  await host.close();
+}
+
 async function duelTest(browser: Browser, query: string, label: string): Promise<boolean> {
   const host = await open(browser, query);
   const guest = await open(browser, query);
@@ -319,7 +338,28 @@ async function main(): Promise<void> {
     check("no page errors on load", errors.length === 0, errors.slice(0, 3).join(" | "));
     void t0;
 
+    console.log("\nThe first visit");
+    check("a first visit shows the welcome", await ev<boolean>(page, `!document.getElementById("welcome").hidden`));
+    check("the menu button says Play before anything has started", (await ev<string>(page, `document.getElementById("play").textContent`)) === "Play");
+    const probs = await ev<Record<string, string | null>>(
+      page,
+      `(() => { const f = window.__range.deviceProblem; return {
+        phone: f("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1"),
+        android: f("Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/128.0 Mobile Safari/537.36"),
+        safari: f("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15"),
+        firefox: f("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0"),
+        edge: f("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128.0 Safari/537.36 Edg/128.0"),
+      }; })()`
+    );
+    check("a phone is told this is a PC game", /PC game/.test(probs.phone ?? "") && /PC game/.test(probs.android ?? ""));
+    check("Safari is told to use Chrome or Edge, Firefox is warned", /Safari is not supported/.test(probs.safari ?? "") && /Firefox works/.test(probs.firefox ?? ""));
+    check("Chrome or Edge on a PC gets no warning", probs.edge === null, String(probs.edge));
+    await ev(page, `document.getElementById("welcomeOk").click()`);
+    check("Got it puts the welcome away", await ev<boolean>(page, `document.getElementById("welcome").hidden`));
+
     console.log("\nThe course");
+    // in the game, not on the menu: the menu stops a run's clock
+    await pressPlay(page);
     await ev(page, `document.getElementById("overlay").classList.add("hidden")`);
     // fit an optic to slot 1 first: the course lends pistols and must give it back
     const fitted = await ev<string | null>(page, `(() => { const l = window.__range.loadout; l.cycleAttachment("optic"); return l.slots[0].attach.optic ?? null; })()`);
@@ -347,6 +387,19 @@ async function main(): Promise<void> {
       check("your own gun comes back with its optic after the run", fitted !== null && after === fitted, `${fitted} -> ${after}`);
     }
 
+    // the menu stops the clock: start a run, open the menu, and it keeps its time
+    await ev(page, `(() => { const p = window.__range.player; p.pos.set(${X}, 0, 11); p.vel.set(0, 0, 0); p.yaw = 180; })()`);
+    await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+    await ev(page, `(() => { const p = window.__range.player; p.pos.set(${X}, 0, 13.5); p.vel.set(0, 0, 0); })()`);
+    await page.waitForFunction("window.__range.course.running", { polling: 50, timeout: 5000 }).catch(() => undefined);
+    await pressPlay(page); // Start again: back to the menu
+    const clock = () => ev<number>(page, "window.__range.courseClock()");
+    const c0 = await clock();
+    await sleep(1500);
+    const c1 = await clock();
+    check("the menu stops a run's clock", c0 > 0 && Math.abs(c1 - c0) < 0.05, `${c0.toFixed(2)} s -> ${c1.toFixed(2)} s over 1.5 s on the menu`);
+    await ev(page, `window.__range.course.reset()`);
+
     // Swap away and back: one optic on the gun in hand, not one per round trip
     // (models are cached per weapon and the old optic used to stay on).
     for (const slot of [1, 0, 1, 0]) {
@@ -364,6 +417,26 @@ async function main(): Promise<void> {
       const shown = await ev<string[]>(page, `[...document.querySelectorAll("[data-panel]")].filter((p) => !p.hidden).map((p) => p.dataset.panel)`);
       check(`tab ${t} shows its panel and only that`, shown.length === 1 && shown[0] === t, shown.join(","));
     }
+    // rebinding: Jump's first key to X, then Jump takes C from Crouch
+    await ev(page, `document.querySelector('#tabs button[data-tab="controls"]').click()`);
+    const chipOf = (label: string) => `[...document.querySelectorAll("#bindTable .bindRow")].find((r) => r.querySelector(".bindName").textContent === "${label}")`;
+    const keysOf = (label: string) => ev<string[]>(page, `[...${chipOf(label)}.querySelectorAll(".bindKey:not(.add)")].map((b) => b.textContent)`);
+    const rebind = async (label: string, code: string) => {
+      await ev(page, `${chipOf(label)}.querySelector(".bindKey").click()`);
+      await sleep(50);
+      await ev(page, `document.dispatchEvent(new KeyboardEvent("keydown", { code: "${code}", bubbles: true }))`);
+    };
+    await rebind("Jump", "KeyX");
+    check("a key can be rebound", (await keysOf("Jump"))[0] === "X", (await keysOf("Jump")).join(","));
+    await rebind("Jump", "KeyC");
+    const crouchKeys = await keysOf("Crouch, slide");
+    check("a key taken from another action moves over", (await keysOf("Jump"))[0] === "C" && !crouchKeys.includes("C"), `jump ${(await keysOf("Jump")).join(",")}, crouch ${crouchKeys.join(",")}`);
+    check("and the tab says so", /It was Crouch, slide/.test(await ev<string>(page, `document.getElementById("bindsNote").textContent`)));
+    const stored = await ev<Record<string, string[]>>(page, `JSON.parse(localStorage.getItem("range.binds.v1") ?? "{}")`);
+    check("only the changed actions are stored", stored.jump?.[0] === "KeyC" && !("fire" in stored), JSON.stringify(stored));
+    await ev(page, `document.getElementById("bindsReset").click()`);
+    check("reset puts every key back", (await keysOf("Jump")).join(",") === "Space,Scroll up" && (await keysOf("Crouch, slide")).includes("C"), (await keysOf("Jump")).join(","));
+
     // pick the Close Quarters default: its weapons go in the slots
     await ev(page, `[...document.querySelectorAll("#loadoutList button")].find((b) => b.textContent.startsWith("Close Quarters")).click()`);
     const w = await ev<string[]>(page, "window.__range.loadout.slots.map((s) => s.weapon.id)");
@@ -396,6 +469,9 @@ async function main(): Promise<void> {
 
     console.log("\n1v1 over the local transport (two tabs)");
     await duelTest(browser, "?net=local&norender", "local");
+
+    console.log("\nInvite links");
+    await inviteTest(browser, "?net=local&norender");
 
     console.log("\n1v1v1 over the local transport (three tabs)");
     await tripleTest(browser, "?net=local&norender");

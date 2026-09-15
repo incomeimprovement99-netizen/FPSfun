@@ -5,6 +5,11 @@ import { optionsFor, SLOTS } from "../src/game/attachments";
 import { cmPer360, degPerCount, hipFov43, verticalFovFrom43, adsSensScale } from "../src/game/sens";
 import { ViewKick, tuning } from "../src/game/recoil";
 import { Loadout } from "../src/game/loadout";
+import { WeaponState } from "../src/game/weapon-state";
+import { AimAssist } from "../src/game/aimassist";
+import { RANGE_SOLIDS } from "../src/game/range";
+import type { Dummy } from "../src/game/dummy";
+import * as THREE from "three";
 import { MODELLED_IDS } from "../src/game/gunmodels";
 import { movesimFails } from "./movesim";
 import { HU, MOVE, jumpVelocityFor, slideBreakEvenAngle, SLIDE_RAMP_ANGLE } from "../src/game/movement";
@@ -428,6 +433,44 @@ console.log("\nLoadout (two slots, independent state)");
   eq("burst started", hs.burstRemaining > 0, true);
   lo4.requestSwap(1, 0.02);
   eq("burst cancelled by the swap", hs.burstRemaining, 0);
+
+  // a cancelled swap still raises the gun it never put away: no instant fire
+  const lo5 = new Loadout(["rspn101", "wingman"]);
+  lo5.requestSwap(1, 0);
+  lo5.requestSwap(0, 0.05);
+  lo5.update(0.06);
+  eq("a cancelled swap cannot fire at once", lo5.swapping, true);
+  lo5.update(0.05 + lo5.active.weapon.deployTime + 0.01);
+  eq("it can once the gun is back up", lo5.swapping, false);
+
+  // A fresh pull can never beat the cooldown. A stale schedule within one
+  // interval used to survive a new click: Wingman taps at 0.5, 1.16 and 1.24 s
+  // fired the last two 83 ms apart (its interval is 357 ms).
+  const semiGaps = (id: string, presses: number[]): number => {
+    const w = resolveWeapon(id, 0);
+    const st = new WeaponState(w);
+    const shots: number[] = [];
+    for (let f = 0; f < 60 * 4; f++) {
+      const now = f / 60;
+      const down = presses.some((p) => now >= p && now < p + 2 / 60);
+      if (st.update(1 / 60, now, down, false, "stand", "still", false, false, () => 0.5).length) shots.push(now);
+      if (st.clip === 0) st.clip = w.clipSize;
+    }
+    let min = Infinity;
+    for (let i = 1; i < shots.length; i++) min = Math.min(min, shots[i] - shots[i - 1]);
+    return min;
+  };
+  const wing = resolveWeapon("wingman", 0).shotInterval;
+  eq("Wingman: no two shots closer than its interval", semiGaps("wingman", [0.5, 1.16, 1.24]) >= wing - 1e-9, true);
+  const kraber = resolveWeapon("sniper", 0).shotInterval;
+  eq("Kraber: no two shots closer than its rechamber", semiGaps("sniper", [0.2, 2.62, 2.84]) >= kraber - 1e-9, true);
+
+  // a new gun does not inherit the old one's cooldown
+  const st6 = new WeaponState(resolveWeapon("sniper", 0));
+  st6.update(1 / 60, 0, true, false, "stand", "still", false, false, () => 0.5);
+  st6.setWeapon(resolveWeapon("semipistol", 0));
+  st6.update(1 / 60, 0.1, false, false, "stand", "still", false, false, () => 0.5);
+  eq("a lent pistol fires 0.1 s after a Kraber shot", st6.update(1 / 60, 0.12, true, false, "stand", "still", false, false, () => 0.5).length, 1);
 }
 
 console.log("\nRecoil fixes from the swap audit");
@@ -482,6 +525,40 @@ console.log("\nRecoil fixes from the swap audit");
   kB.kick(0, false, false, false, () => 0.5); // grounded, hipfire
   const hipGround = kB.offset().pitchUp;
   near("hipfire kick is the same in the air as on the ground", hipAir, hipGround, 1e-9);
+}
+
+console.log("\nAim assist (controller only, src/game/aimassist.ts)");
+{
+  // a stand-in figure: what AimAssist reads is visible, knocked and the torso (hitMeshes[1])
+  const fig = (x: number, y: number, z: number) => {
+    const torso = new THREE.Mesh();
+    torso.position.set(x, y, z);
+    return { group: { visible: true }, knocked: false, hitMeshes: [new THREE.Mesh(), torso] } as unknown as Dummy;
+  };
+  const eye = new THREE.Vector3(0, 1.6, 0);
+  const aa = new AimAssist();
+  // yaw 0 faces -z; a figure 10 m ahead at eye height
+  const ahead = fig(0, 1.6, -10);
+  const input = { eye, yaw: 0, pitch: 0, ads: 0, activeInput: true, targets: [ahead] };
+  const r0 = aa.update(input);
+  eq("a figure under the reticle slows the stick", r0.target === ahead && r0.slow < 1, true);
+  eq("the first frame on a figure adds no pull", r0.yawLeft, 0);
+  // it strafes 0.2 m to the right (+x): its bearing turns right, the pull follows 40% of it
+  (ahead.hitMeshes[1] as THREE.Mesh).position.x = 0.2;
+  const r1 = aa.update(input);
+  const turn = (Math.atan2(-0.2, 10) * 180) / Math.PI;
+  near("the view follows 40% of the strafe", r1.yawLeft, turn * 0.4, 1e-6);
+  (ahead.hitMeshes[1] as THREE.Mesh).position.x = 0.4;
+  eq("with no input, no pull (it never aims for you)", aa.update({ ...input, activeInput: false }).yawLeft, 0);
+  eq("ADS slows more than hipfire", aa.update({ ...input, ads: 1 }).slow < aa.update(input).slow, true);
+  const aside = fig(5, 1.6, -10); // 27 degrees off the reticle
+  eq("a figure well off the reticle is not assisted", aa.update({ ...input, targets: [aside] }).target, null);
+  eq("nothing beyond the range", aa.update({ ...input, targets: [fig(0, 1.6, -80)] }).target, null);
+  RANGE_SOLIDS.push({ minX: -2, maxX: 2, minZ: -6, maxZ: -5, top: 3, base: 0 });
+  eq("a wall between switches it off", aa.update({ ...input, targets: [fig(0, 1.6, -10)] }).target, null);
+  RANGE_SOLIDS.pop();
+  aa.enabled = false;
+  eq("off in the settings is off", aa.update(input).target, null);
 }
 
 console.log("\nAttachments (every effect is a mod block in the reference data)");
@@ -621,10 +698,20 @@ console.log("\nAttachments (every effect is a mod block in the reference data)")
   const first = lo.active.weapon.zoomFov43;
   for (let i = 0; i < opts.length; i++) lo.cycleAttachment("optic");
   near("cycling optics all the way round returns to iron sights", lo.active.weapon.zoomFov43, first, 1e-9);
-  // changing an attachment tops the mag up: this is a range with unlimited ammo
+  // changing an attachment keeps the rounds in the gun and a reload running:
+  // topping the mag up made every attachment key an instant reload, in a
+  // match and on a timed course run too
   lo.active.state.clip = 3;
   lo.cycleAttachment("optic");
-  eq("changing an attachment tops the mag up", lo.active.state.clip, lo.active.weapon.clipSize);
+  eq("changing an attachment keeps the rounds in the gun", lo.active.state.clip, 3);
+  lo.active.state.clip = 0;
+  lo.active.state.startReload(0);
+  lo.cycleAttachment("optic");
+  eq("changing an attachment does not end a reload", lo.active.state.reloading, true);
+  lo.setMagLevel(0);
+  lo.active.state.clip = lo.active.weapon.clipSize;
+  lo.setMagLevel(3);
+  eq("a bigger mag does not fill itself", lo.active.state.clip < lo.active.weapon.clipSize, true);
   // a slot the weapon cannot take is a no-op, not a crash
   const before = lo.active.weapon.spread.standHip;
   lo.cycleAttachment("laser");

@@ -5,7 +5,7 @@ import { DEFAULT_LOADOUTS, type LoadoutDef, type LoadoutRef, type Loadouts } fro
 import { OPERATORS } from "../game/operators";
 import { HEIRLOOMS } from "../game/heirlooms";
 import { Stats, type MatchKind, type MatchStats } from "../game/stats";
-import { leaderboardOnline } from "../game/leaderboard";
+import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
 
 export type Mode = "range" | "run" | "runAdvanced" | "duel" | "arena" | "bots";
 export type Tab = "play" | "duel" | "loadouts" | "stats" | "settings" | "controls";
@@ -24,6 +24,9 @@ const hex = (c: number) => `#${c.toString(16).padStart(6, "0")}`;
 
 export class Menu {
   tab: Tab = "play";
+  /** the online board the Stats tab shows, and what it last fetched (kept 20 s) */
+  private boardPick = BOARDS[0].id;
+  private boardCache = new Map<string, { at: number; entries: BoardEntry[] }>();
 
   constructor(
     private loadouts: Loadouts,
@@ -112,10 +115,8 @@ export class Menu {
         ? `<div class="statcard wide"><h4>Tech landed</h4><div class="techlist">${techs.map(([n, c]) => `<span>${esc(n)} <b>${c}</b></span>`).join("") || '<span class="empty">none yet</span>'}</div>
            <h4 style="margin-top:10px">Misses called out</h4><div class="techlist">${misses.map(([n, c]) => `<span class="miss">${esc(n)} <b>${c}</b></span>`).join("") || '<span class="empty">none</span>'}</div></div>`
         : `<div class="statcard wide"><h4>Tech</h4><div class="empty">Nothing landed yet. The feed on the left names every superglide, wallbounce and lurch as you do it, and says why a miss missed.</div></div>`;
-    $("statsOnline").textContent = leaderboardOnline()
-      ? "Online boards are on: every run and win is posted under your name."
-      : "Everything here is saved in this browser only. Online boards need the leaderboard server (docs/NEXT_STEPS.md).";
     body.innerHTML = [
+      `<div class="statcard wide" id="onlineCard" hidden></div>`,
       matchCard("1v1 with friends", ["duel"]),
       matchCard("1v1v1 with friends", ["triple"]),
       matchCard("Arena, Bots", ["bots:easy", "bots:normal", "bots:hard"]),
@@ -123,6 +124,41 @@ export class Menu {
       courseCard("advanced", "The Run (Advanced)"),
       techCard,
     ].join("");
+    void this.renderOnline();
+  }
+
+  /** the online boards card, when the site has a board (our own server does) */
+  private async renderOnline(): Promise<void> {
+    const on = await leaderboardOnline();
+    $("statsOnline").textContent = on
+      ? "Online boards are on: every course run and every win is posted under your name."
+      : "Everything here is saved in this browser only. The online boards are on the game's own server.";
+    const card = document.getElementById("onlineCard");
+    if (!card || !on) return;
+    const pick = BOARDS.find((b) => b.id === this.boardPick) ?? BOARDS[0];
+    const options = BOARDS.map((b) => `<option value="${b.id}"${b.id === pick.id ? " selected" : ""}>${esc(b.label)}</option>`).join("");
+    const head = `<h4 style="display:flex;justify-content:space-between;align-items:center;gap:10px">Online boards <select id="boardPick" class="boardPick">${options}</select></h4>`;
+    card.hidden = false;
+    const cached = this.boardCache.get(pick.id);
+    if (!cached) card.innerHTML = `${head}<div class="empty">Loading...</div>`;
+    let entries = cached?.entries ?? [];
+    if (!cached || performance.now() - cached.at > 20000) {
+      entries = await topScores(pick.id, 15);
+      this.boardCache.set(pick.id, { at: performance.now(), entries });
+    }
+    // the tab may have been redrawn while the board was on its way
+    const now = document.getElementById("onlineCard");
+    if (!now) return;
+    const me = this.stats.profile.name;
+    const fmt = (v: number) => (pick.unit === "s" ? `${v.toFixed(2)} s` : `${v} ${v === 1 ? "win" : "wins"}`);
+    const rows = entries
+      .map((e, i) => `<tr${e.name === me ? ' class="me"' : ""}><td>${i + 1}. ${esc(e.name)}</td><td>${fmt(e.value)} <span style="color:#7d8895">${esc(new Date(e.at).toLocaleDateString())}</span></td></tr>`)
+      .join("");
+    now.innerHTML = `${head}${rows ? `<table>${rows}</table>` : `<div class="empty">Nobody on this board yet. ${pick.unit === "s" ? "Finish a run" : "Win a match"} and you are first.</div>`}`;
+    now.querySelector<HTMLSelectElement>("#boardPick")?.addEventListener("change", (e) => {
+      this.boardPick = (e.target as HTMLSelectElement).value;
+      void this.renderOnline();
+    });
   }
 
   show(tab: Tab): void {

@@ -90,6 +90,9 @@ docs/MOVEMENT_AUDIT.md.
 | Projectile drag | ignored | `projectile_drag_coefficient` units unknown; effect small under 60 m. |
 | Hitboxes | head sphere 0.13 m, torso 0.5×0.6×0.32 m, legs 0.42×0.92×0.3 m | Human hull height 72 units; zone bounds are ours. |
 | Armor tiers | 50 / 75 / 100 / 125 | Reference-era shield values; no helmet. |
+| Controller aim assist, rotational | 0.4 of the target's angular movement, only with input | The PC controller strength Respawn has stated (console was 0.6 until it was brought to 0.4 as well). How the game measures "the target's movement" is not published; ours is its bearing from your eye, frame to frame (`src/config/aimassist.json`). |
+| Controller aim assist, slowdown and zone | 0.8 hip / 0.6 ADS, a 1.3 / 1.0 m sphere round the chest, 60 m | Ours. The game's slowdown and zone shapes are not published; chosen so a correction on a target does not overshoot, with no pull at all without input. |
+| Air step-up | a box top within the step height (22 hu) above the feet in the air is climbed onto, keeping the jump's apex | Source has no air step (the hull would hit the face and a mantle would take over). Ours, because the level's ramps are stepped boxes and the courses' 1.1 m slide-jump walls were designed with it; it never raises a jump's apex (docs/RESULTS_SERVER_HUNT.md, finding 6). |
 | Sounds, art, HUD | ours | By rule. |
 
 ## Recoil: how much is actually known (updated, most of it)

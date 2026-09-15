@@ -1,9 +1,11 @@
 // The connection between players.
 //
-// Peer to peer over WebRTC data channels. The PeerJS library's free public
-// broker only introduces the browsers (it passes the connection offer
-// across); after that the game traffic goes straight between them. So there is
-// no game server to run and the build stays a static site.
+// Peer to peer over WebRTC data channels. A PeerJS broker only introduces the
+// browsers (it passes the connection offer across); after that the game
+// traffic goes straight between them, or through a TURN relay when a network
+// blocks the direct path. The broker is our own when the site is served by
+// server/game/serve.mjs (it answers /net.json), else the free public one, so
+// the same build works on GitHub Pages too.
 //
 // A match code is 5 letters. The player who makes the match registers as
 // `PREFIX + code` with the broker; the others connect to that name. The host
@@ -15,7 +17,7 @@
 // `?net=local` in the URL swaps in a BroadcastChannel link instead, which
 // joins tabs of the same browser on one machine. It is how the match is
 // tested without the internet, and it is handy for trying it alone.
-import Peer, { type DataConnection } from "peerjs";
+import Peer, { type DataConnection, type PeerOptions } from "peerjs";
 
 /** everything that goes over the link; see duel.ts for the meanings */
 export type NetMsg =
@@ -159,20 +161,64 @@ class LocalLink implements Link {
 export interface HostHandle {
   code: string;
   cancel(): void;
+  /** a guest left before the match began: their place (and id) is open again */
+  release(id: number): void;
 }
 
 const useLocal = (): boolean => new URLSearchParams(location.search).get("net") === "local";
 
 /**
+ * Where the broker is and which relays to use. Our own server answers
+ * /net.json with its broker path and fresh TURN credentials; a site without it
+ * (GitHub Pages, the dev server) has no such file, and the public PeerJS
+ * broker with the library's default relays is used. Fetched per match so the
+ * credentials are never stale. `?broker=public` forces the public one.
+ */
+async function peerOptions(): Promise<PeerOptions> {
+  if (new URLSearchParams(location.search).get("broker") === "public") return {};
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 3000);
+  try {
+    const r = await fetch("./net.json", { cache: "no-store", signal: ctl.signal });
+    // the dev server answers any path with the game page, so check the type
+    if (!r.ok || !(r.headers.get("content-type") ?? "").includes("json")) return {};
+    const j = (await r.json()) as { peer?: { path?: string; key?: string }; iceServers?: RTCIceServer[] };
+    if (!j.peer?.path) return {};
+    const secure = location.protocol === "https:";
+    return {
+      host: location.hostname,
+      port: location.port ? Number(location.port) : secure ? 443 : 80,
+      path: j.peer.path,
+      key: j.peer.key ?? "peerjs",
+      secure,
+      config: { iceServers: j.iceServers ?? [] },
+    };
+  } catch {
+    return {};
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Make a match for `players` (2 or 3). Calls `onCode` once the code is
  * registered and `onLink` for each guest that arrives, with the id given to
- * them (1, then 2). Guests past the count are turned away.
+ * them (the lowest free one: 1, then 2). Guests past the count are turned
+ * away; `release` opens a place again when a guest leaves before the start.
  */
 export function hostMatch(players: number, onCode: (code: string) => void, onLink: (l: Link, id: number) => void, onError: (msg: string) => void): HostHandle {
   let code = makeCode();
   let cancelled = false;
-  let next = 1;
-  const full = () => next >= players;
+  const taken = new Set<number>();
+  const full = () => taken.size >= players - 1;
+  /** the lowest free guest id, marked taken */
+  const claim = (): number => {
+    let id = 1;
+    while (taken.has(id)) id++;
+    taken.add(id);
+    return id;
+  };
+  const release = (id: number) => void taken.delete(id);
   if (useLocal()) {
     const ch = new BroadcastChannel(`${PREFIX}${code}`);
     const known = new Set<string>();
@@ -180,40 +226,54 @@ export function hostMatch(players: number, onCode: (code: string) => void, onLin
       if (cancelled || e.data.to !== "host" || e.data.m.t !== "hello" || known.has(e.data.from)) return;
       if (full()) return;
       known.add(e.data.from);
-      const id = next++;
+      const id = claim();
       const link = new LocalLink("host", ch, "host", e.data.from, false);
       link.send({ t: "welcome", id, players });
       onLink(link, id);
     });
     onCode(code);
-    return { code, cancel: () => ((cancelled = true), ch.close()) };
+    return { code, cancel: () => ((cancelled = true), ch.close()), release };
   }
   let peer: Peer | null = null;
-  const start = (attempt: number) => {
-    peer = new Peer(`${PREFIX}${code}`);
-    peer.on("open", () => !cancelled && onCode(code));
-    peer.on("connection", (conn) => {
-      if (cancelled || full()) return conn.close();
+  const opts = peerOptions();
+  const start = async (attempt: number) => {
+    const o = await opts;
+    if (cancelled) return;
+    const p = new Peer(`${PREFIX}${code}`, o);
+    peer = p;
+    p.on("open", () => !cancelled && onCode(code));
+    p.on("connection", (conn) => {
       conn.on("open", () => {
-        if (cancelled || full()) return conn.close();
-        const id = next++;
-        const link = new PeerLink("host", peer!, conn, false);
+        // a full or cancelled match lets the connection open and then closes
+        // it, so the guest hears "turned away"; closing before it opens left
+        // the guest with no answer at all
+        if (cancelled || full()) {
+          setTimeout(() => conn.close(), 250);
+          return;
+        }
+        const id = claim();
+        const link = new PeerLink("host", p, conn, false);
         link.send({ t: "welcome", id, players });
         onLink(link, id);
       });
     });
-    peer.on("error", (err: { type?: string }) => {
+    // a broker blip while a place is still open: register the code again, or
+    // the next friend gets "no match with that code" while we show it
+    p.on("disconnected", () => {
+      if (!cancelled && !p.destroyed && !full()) p.reconnect();
+    });
+    p.on("error", (err: { type?: string }) => {
       // once someone is in, a broker hiccup does not touch the direct connections
-      if (cancelled || next > 1) return;
+      if (cancelled || taken.size > 0) return;
       if (err.type === "unavailable-id" && attempt < 3) {
         // someone already has this code: pick another
-        peer?.destroy();
+        p.destroy();
         code = makeCode();
-        start(attempt + 1);
+        void start(attempt + 1);
       } else onError(peerError(err.type));
     });
   };
-  start(0);
+  void start(0);
   return {
     get code() {
       return code;
@@ -222,6 +282,7 @@ export function hostMatch(players: number, onCode: (code: string) => void, onLin
       cancelled = true;
       peer?.destroy();
     },
+    release,
   };
 }
 
@@ -255,31 +316,58 @@ export function joinMatch(rawCode: string, onLink: (l: Link, welcome: { id: numb
       ch.close();
     };
   }
-  const peer = new Peer();
+  let peer: Peer | null = null;
   let done = false;
-  peer.on("open", () => {
-    const conn = peer.connect(`${PREFIX}${code}`, { reliable: true });
-    conn.on("open", () => {
-      const link = new PeerLink("guest", peer, conn, true);
-      const inner = link.onMessage;
-      link.onMessage = (m) => {
-        if (!done && m.t === "welcome") {
-          done = true;
-          onLink(link, { id: m.id, players: m.players });
-        }
-        inner?.(m);
-      };
-      link.send({ t: "hello", v: 2 });
+  let cancelled = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  /** report once, and let go of the broker: a failed join leaves nothing behind */
+  const fail = (msg: string) => {
+    if (done || cancelled) return;
+    done = true;
+    clearTimeout(timer);
+    onError(msg);
+    setTimeout(() => peer?.destroy(), 0);
+  };
+  void peerOptions().then((o) => {
+    if (cancelled) return;
+    const p = new Peer(o);
+    peer = p;
+    p.on("open", () => {
+      const conn = p.connect(`${PREFIX}${code}`, { reliable: true });
+      let opened = false;
+      // the broker found the host but the two browsers never reach each other:
+      // both behind networks that block direct connections, and no relay got
+      // through either. Without this the status sits on "Joining..." for good.
+      timer = setTimeout(() => fail(JOIN_TIMEOUT), JOIN_TIMEOUT_MS);
+      conn.on("open", () => {
+        opened = true;
+        const link = new PeerLink("guest", p, conn, true);
+        link.onMessage = (m) => {
+          if (!done && m.t === "welcome") {
+            done = true;
+            clearTimeout(timer);
+            onLink(link, { id: m.id, players: m.players });
+          }
+        };
+        link.send({ t: "hello", v: 2 });
+      });
+      conn.on("close", () => fail(opened ? "The host turned the connection away (the match is full, or over)." : JOIN_TIMEOUT));
+      // ICE failing shows up only as an error on the connection (PeerJS sends
+      // no close for a connection that never opened)
+      conn.on("error", () => fail(opened ? "Lost the connection to the host." : JOIN_TIMEOUT));
     });
-    conn.on("close", () => {
-      if (!done) onError("The host turned the connection away (the match is full, or over).");
-    });
+    p.on("error", (err: { type?: string }) => fail(peerError(err.type)));
   });
-  peer.on("error", (err: { type?: string }) => {
-    if (!done) onError(peerError(err.type));
-  });
-  return () => peer.destroy();
+  return () => {
+    cancelled = true;
+    clearTimeout(timer);
+    peer?.destroy();
+  };
 }
+
+const JOIN_TIMEOUT_MS = 20000;
+const JOIN_TIMEOUT =
+  "Found the match but could not connect to the host. One of you is on a network that blocks game connections (a VPN, school or office wifi, a phone hotspot): try another network or turn the VPN off.";
 
 function peerError(type: string | undefined): string {
   switch (type) {

@@ -35,40 +35,44 @@ interface Entry {
 
 const LOWER_IS_BETTER = /^course:/;
 const NAME = /^[A-Za-z0-9_ .-]{1,16}$/;
-const BOARD = /^[a-z]+(:[a-z]+){1,2}$/;
+/** the only boards the game posts to; anything else would be a new KV key per request */
+const BOARDS = new Set(["course:basic", "course:advanced", "duel:wins", "triple:wins", "bots:easy:wins", "bots:normal:wins", "bots:hard:wins"]);
 const MAX_ENTRIES = 100;
 
-const json = (data: unknown, status = 200): Response =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { "content-type": "application/json", "access-control-allow-origin": "*", "access-control-allow-headers": "content-type", "access-control-allow-methods": "GET, POST, OPTIONS" },
-  });
+const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type", "access-control-allow-methods": "GET, POST, OPTIONS" };
+const json = (data: unknown, status = 200): Response => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", ...CORS } });
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
-    if (req.method === "OPTIONS") return json(null, 204);
+    // a 204 may not carry a body: Response("null", 204) throws, and the
+    // browser's preflight for every POST got a 500 without CORS headers
+    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
     if (req.method === "GET" && url.pathname === "/top") {
       const board = url.searchParams.get("board") ?? "";
-      if (!BOARD.test(board)) return json({ error: "bad board" }, 400);
-      const n = Math.max(1, Math.min(100, Number(url.searchParams.get("n") ?? 20)));
+      if (!BOARDS.has(board)) return json({ error: "bad board" }, 400);
+      const n = Math.max(1, Math.min(100, Number(url.searchParams.get("n")) || 20));
       const entries = JSON.parse((await env.BOARDS.get(board)) ?? "[]") as Entry[];
       return json({ board, entries: entries.slice(0, n) });
     }
     if (req.method === "POST" && url.pathname === "/submit") {
-      let body: { board?: string; name?: string; value?: number; secret?: string };
+      let body: { board?: unknown; name?: unknown; value?: unknown; secret?: unknown } | null;
       try {
         body = (await req.json()) as typeof body;
       } catch {
         return json({ error: "bad json" }, 400);
       }
+      if (!body || typeof body !== "object") return json({ error: "bad json" }, 400);
       if (body.secret !== env.SECRET) return json({ error: "no" }, 403);
       const { board, name, value } = body;
-      if (!board || !BOARD.test(board)) return json({ error: "bad board" }, 400);
-      if (!name || !NAME.test(name)) return json({ error: "bad name" }, 400);
+      if (typeof board !== "string" || !BOARDS.has(board)) return json({ error: "bad board" }, 400);
+      if (typeof name !== "string" || !NAME.test(name)) return json({ error: "bad name" }, 400);
       if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1e7) return json({ error: "bad value" }, 400);
       const lower = LOWER_IS_BETTER.test(board);
       const entries = JSON.parse((await env.BOARDS.get(board)) ?? "[]") as Entry[];
+      const worst = entries[MAX_ENTRIES - 1];
+      // a full board this result would not get onto costs no write
+      if (!entries.some((e) => e.name === name) && worst && (lower ? value >= worst.value : value <= worst.value)) return json({ ok: true, rank: null });
       const mine = entries.find((e) => e.name === name);
       if (mine) {
         const better = lower ? value < mine.value : value > mine.value;

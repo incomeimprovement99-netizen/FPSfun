@@ -1,0 +1,4 @@
+# The server files run on a Linux box: bash and pm2 need LF, whatever this PC's
+# autocrlf setting is (tools/deploy-server.ts packs the working copy as it is).
+server/game/** text eol=lf
+*.sh text eol=lf

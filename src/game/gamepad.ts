@@ -29,9 +29,11 @@ export interface PadSettings {
   autoSprint: boolean;
   /** rumble on hits taken and shots fired */
   rumble: boolean;
+  /** slowdown and rotational aim assist (aimassist.ts), as the game has for controllers */
+  aimAssist: boolean;
 }
 
-export const PAD_DEFAULTS: PadSettings = { look: 3, ads: 3, curve: "classic", deadzone: 0.12, autoSprint: true, rumble: true };
+export const PAD_DEFAULTS: PadSettings = { look: 3, ads: 3, curve: "classic", deadzone: 0.12, autoSprint: true, rumble: true, aimAssist: true };
 
 /** standard-mapping button indices */
 const BUTTON: Record<number, Action | "menu"> = {

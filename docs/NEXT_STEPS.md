@@ -11,18 +11,18 @@
 | Gun animations, holster and unholster | Done: draw settle, holster turn, idle, slide pose, sprint pump. |
 | Movement feels clunky | The sprint start was 25% slower than the wiki's measurement armed and 90% slower holstered; fixed. Tell me the next thing you notice. |
 | Engagement | Nameplates, kill feed, match summary, spectate in 1v1v1, the Stats tab. |
-| 1v1v1, bots, two courses, stats | Done last batch. |
-| Private GitHub repo, playable online | Waiting on your GitHub login or a repo URL. |
+| 1v1v1, bots, two courses, stats | Done. |
+| Playable online | Live on GitHub Pages. |
+| "Can't we deploy on a server like Algonomics is?" | Built and tested (`docs/SERVER_GUIDE.md`): our own broker, a TURN relay, online boards, one-command deploy. Waiting on you: which VM (the Algonomics one or a separate free one), a DuckDNS name, three Oracle firewall rules. |
+| "My friend wasn't able to do anything" | A first-visit welcome, a device check (a phone is told it is a PC game), and invite links that join a match from the address alone. |
+| Finish the bug hunt | Done: 31 more findings, all fixed (`docs/RESULTS_SERVER_HUNT.md`). |
 
 ## The next implementations, ranked
 
 ### Feel (Apex first, Hyper Scape's pace second)
 
-1. **Aim assist for controller.** The game has two parts: a slowdown of the
-   look speed while the reticle is over a target (about 0.6x in the game's
-   settings) and a small rotational pull while the target strafes. Both are
-   a day: we already know where every figure is. Without it a pad player
-   loses every 1v1 to a mouse.
+1. ~~**Aim assist for controller.**~~ Done: slowdown and a 0.4 rotational
+   pull, `src/config/aimassist.json`. Tell me if it is too strong or too weak.
 2. **A slide feel probe.** A script that records speed, view height and gun
    pose every frame through a slide and a slide jump, and a page that shows
    them as curves next to the wiki's numbers. So "weird" becomes a curve we
@@ -42,12 +42,12 @@
 
 ### Multiplayer
 
-6. **Aim assist and the leaderboard first**, then:
-7. **Our own broker and a TURN relay** (a day, a few dollars a month) so
-   the codes never depend on the public PeerJS server and strict networks
-   connect.
+6. ~~**Aim assist and the leaderboard first.**~~ Done: the online boards are
+   on the game's own server.
+7. ~~**Our own broker and a TURN relay.**~~ Built (`server/game/`), free on
+   an Oracle VM; goes live with the server.
 8. **Accounts** (Supabase or Clerk, free tier): the profile follows you,
-   friends lists, invite links instead of codes. Two or three days.
+   friends lists. Two or three days. (Invite links are done.)
 9. **An authoritative game server** (Node with Colyseus or a WebSocket
    server running `player.ts` and the projectiles): more than three players,
    2v2, free-for-all, trusted hits and boards, replays, spectating from a
@@ -56,12 +56,12 @@
 
 ### Small things that make it feel finished
 
-11. Key rebinding screen (binds.json is data; half a day).
+11. ~~Key rebinding screen.~~ Done: the Controls tab.
 12. Weapon inspect (a long press of R), a first-equip flourish per weapon.
 13. A tech trainer screen: the superglide as a timing bar, score ten tries.
 14. Course medals and a par time per room on the results TV.
-15. A "welcome" walk-through on first launch: the range, the gates, the
-    practice wall, the 1v1 tab.
+15. ~~A "welcome" on first launch.~~ Done, with the device check. A guided
+    walk through the range itself (the gates, the practice wall) is still open.
 
 ## When to leave the browser
 

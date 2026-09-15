@@ -1,5 +1,10 @@
 # Deploy Guide: from this folder to a link a friend can open and 1v1 you
 
+> **The game's own server** (a proper address like `boogrange.duckdns.org`,
+> our own matchmaking, a relay for strict networks, online boards) is in
+> **`docs/SERVER_GUIDE.md`**. This guide is the GitHub Pages link, which keeps
+> working as a backup: the same build falls back to the public broker there.
+
 The concrete, do-it-now guide. Cost: $0. Time: about ten minutes the first
 time, one command after that.
 
@@ -62,23 +67,23 @@ it (see section 7 if you want the source private too).
 
 ## 4. Play a 1v1 with a friend
 
-1. Both of you open the link in **Chrome or Edge on a PC** (Firefox works
-   without raw mouse input; Safari and phones are not supported).
-2. Both: **Play tab, Firing Range** once, to click into the game (the browser
-   needs one click before it will lock the mouse). Esc brings the menu back.
-3. You: **1v1 tab**, leave "2 players", **Create match**. A 5-letter code
-   appears and is copied to your clipboard. Send it (Discord, text, anything).
-4. Friend: **1v1 tab**, type the code, **Join**.
-5. Both screens say connected. **Click Play** (both of you; the match holds
+1. Both of you on **Chrome or Edge on a PC** (Firefox works without raw
+   mouse input; Safari and phones are not supported, and the page says so).
+2. You: open the link, **1v1 tab**, leave "2 players", **Create match**. A
+   5-letter code appears with an **invite link**, copied to your clipboard.
+   Send the link (Discord, text, anything).
+3. Friend: opens the link. It joins your match by itself. (Or: 1v1 tab,
+   type the code, **Join**.)
+4. Both screens say connected. **Click Play** (both of you; the match holds
    at "WAITING FOR EVERYONE TO CLICK PLAY" until the last one is in). A 3 s
    countdown, then fight: first to 3 rounds, blue shields, 100 health. 20 s
    into a round the circle in the middle goes live; alone in it for 10 s
    takes the round.
-6. Esc, 1v1 tab, **Leave match** to stop. A rematch starts by itself after
+5. Esc, 1v1 tab, **Leave match** to stop. A rematch starts by itself after
    the match screen.
 
-For three: choose "3 players" before Create match; both friends join with
-the same code; it starts once all three have clicked Play.
+For three: choose "3 players" before Create match; both friends open the
+same link; it starts once all three have clicked Play.
 
 With a controller: plug it in, press **Start** instead of clicking Play
 (Start also brings the menu back). Settings tab for the look speed, curve
@@ -91,13 +96,16 @@ Your name for the kill feed: the Stats tab.
 
 - **"Could not reach the matchmaking server"**: the public PeerJS broker
   (0.peerjs.com) is down or rate-limited. Try again in a minute. The
-  permanent fix is our own broker (NEXT_STEPS 7).
+  permanent fix is the game's own server (`docs/SERVER_GUIDE.md`), which has
+  its own broker.
 - **"No match with that code"**: a typo (codes never contain 0, O, 1, I or
   L), or the host closed the tab. Make a new match.
-- **Connected, then "Lost the connection"** within seconds: one of you is on
-  a network that blocks direct peer connections (some offices, schools,
-  university halls, phone hotspots, VPNs). No TURN relay is configured yet
-  (NEXT_STEPS 7). Try from home wifi, or with the VPN off.
+- **"Found the match but could not connect to the host"** (after 20 s), or
+  connected and then "Lost the connection": one of you is on a network that
+  blocks direct peer connections (some offices, schools, university halls,
+  phone hotspots, VPNs). Pages has only PeerJS's shared public relay; the
+  game's own server has its own. Try from home wifi, or with the VPN off.
+- **Nothing happens on a phone**: it is a PC game; the menu says so.
 - **The other player freezes**: their tab was hidden, or their browser
   throttled it. Alt-tabbing is fine (frames keep running on a timer); a
   minimised Chrome for minutes is not.

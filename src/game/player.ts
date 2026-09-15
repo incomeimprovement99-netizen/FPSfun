@@ -240,6 +240,11 @@ export class Player {
     this.slideFov = 0;
     this.descentRate = 0;
     this.prevY = y;
+    // ...nor the slide boost's 2 s cooldown (a hazard respawn after a slide
+    // read as a deadslide), nor a superglide's jump frame or a zip exit
+    this.lastSlideEnterAt = -Infinity;
+    this.sgJumpFrame = -10;
+    this.zipExitAt = -Infinity;
   }
 
   /** change the play area the player is clamped to (the range, or the 1v1 arena) */
@@ -457,6 +462,15 @@ export class Player {
     const vyStart = this.vel.y;
     if (!this.climbing) this.vel.y -= MOVE.gravity * dt;
     this.integrate(dt, now, vyStart);
+
+    // Non-upward climbing has a 1 s timer: after it, anything slower than
+    // 10 hu/s upward drops you off. Read after collision: a ceiling zeroes the
+    // climb speed in integrate(), and checked before it, stepClimb's own
+    // acceleration had already put it back over the line (25 hu/s a frame at
+    // 60 fps), so a climb under an overhang never let go below 240 fps.
+    if (this.climbing && now - this.attachedAt >= MOVE.climbNonUpwardTime && this.vel.y < MOVE.climbUpwardThreshold) {
+      this.detach(MOVE.climbDetachPenalty);
+    }
 
     // ----- auto mantle when pressed into a ledge in the air -----
     if (!this.onGround && !this.climbing && this.vel.y < 1.0) this.tryMantle(now, wx, wz, wl);
@@ -738,12 +752,7 @@ export class Player {
     const stick = 0.3;
     this.vel.x = tx * vt - n.nx * stick;
     this.vel.z = tz * vt - n.nz * stick;
-
-    // Non-upward climbing has a 1 s timer: after it, anything slower than
-    // 10 hu/s upward drops you off.
-    if (now - this.attachedAt >= MOVE.climbNonUpwardTime && this.vel.y < MOVE.climbUpwardThreshold) {
-      this.detach(MOVE.climbDetachPenalty);
-    }
+    // the 1 s non-upward timer is checked in update(), after collision
   }
 
   /** leave the wall without jumping; drops the climb space and ends fatigue */
@@ -1366,20 +1375,58 @@ export class Player {
     }
     if (!hitZ) this.pos.z = nz;
 
+    // In the air the step allowance in blocks() let the body INTO a solid: a
+    // top within stepHeight of the feet is not a wall, but the air landing
+    // below only takes tops at or below the feet, so it was not a floor
+    // either. A jump at a 1.1 m wall went into it and out the far side. So in
+    // the air the body goes up onto such a top when there is room over it
+    // (the stepped ramps and the FLOW room's slide-jump walls rely on that),
+    // and back out the way it came when there is not.
+    let feetY = feet;
+    let vy0 = vyStart;
+    if (!this.onGround) {
+      const here = this.overlapping(this.pos.x, this.pos.z, r);
+      let lift = feet;
+      for (const s of here) {
+        if (s.top > feet + 1e-4 && s.base < feet + bodyH - 1e-4 && !this.blocks(s, feet, bodyH)) lift = Math.max(lift, s.top);
+      }
+      if (lift > feet) {
+        const room = !here.some((s) => s.top > lift + 1e-4 && s.base < lift + bodyH - 1e-4);
+        if (room) {
+          // the lift is paid for out of the rise still to come, so a jump's
+          // apex is never raised by it: rising at v from `feet` peaks at
+          // feet + v^2/2g, and from the top it keeps only what is left of that
+          if (vyStart > 0) {
+            const apex = feet + (vyStart * vyStart) / (2 * MOVE.gravity);
+            this.vel.y = apex > lift ? Math.sqrt(2 * MOVE.gravity * (apex - lift)) : 0;
+          }
+          // the rest of this frame moves from the top at that speed
+          vy0 = this.vel.y;
+          this.pos.y = lift;
+          feetY = lift;
+        } else {
+          this.pos.x = fromX;
+          this.pos.z = fromZ;
+          this.vel.x = 0;
+          this.vel.z = 0;
+        }
+      }
+    }
+
     // Y
     const wasAir = !this.onGround;
     const wasOnGround = this.onGround;
-    this.pos.y += 0.5 * (vyStart + this.vel.y) * dt;
+    this.pos.y += 0.5 * (vy0 + this.vel.y) * dt;
     // Ceilings: anything whose underside is above the feet stops the head.
     // Without this, a jump under an overhang put the body inside it, and the
     // horizontal push-out then threw the player clean out of the side.
     for (const s of this.overlapping(this.pos.x, this.pos.z, r)) {
-      if (s.base > feet + MOVE.stepHeight && s.base < this.pos.y + bodyH) {
-        this.pos.y = Math.max(feet, s.base - bodyH);
+      if (s.base > feetY + MOVE.stepHeight && s.base < this.pos.y + bodyH) {
+        this.pos.y = Math.max(feetY, s.base - bodyH);
         if (this.vel.y > 0) this.vel.y = 0;
       }
     }
-    const ceiling = this.onGround ? feet + MOVE.stepHeight : feet;
+    const ceiling = this.onGround ? feetY + MOVE.stepHeight : feetY;
     const ground = this.groundUnder(this.pos.x, this.pos.z, r, Math.max(ceiling, this.pos.y));
     if (this.pos.y <= ground + 1e-4) {
       this.pos.y = ground;

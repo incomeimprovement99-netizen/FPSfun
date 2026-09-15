@@ -63,9 +63,6 @@ function excludeFromAo(gtao: GTAOPass): void {
 export class Renderer {
   /** null in Competitive: the scene is drawn straight to the screen */
   readonly composer: EffectComposer | null = null;
-  private gtao: GTAOPass | null = null;
-  private bloom: UnrealBloomPass | null = null;
-  private smaa: SMAAPass | null = null;
   private grade: ShaderPass | null = null;
 
   constructor(
@@ -99,7 +96,6 @@ export class Renderer {
       });
       gtao.blendIntensity = 1.0;
       excludeFromAo(gtao);
-      this.gtao = gtao;
       composer.addPass(gtao);
     }
 
@@ -107,7 +103,6 @@ export class Renderer {
       // Threshold 0.95 and a lower strength: emissive trim glows, gunfire only
       // just crosses it. At 0.5 strength the muzzle flash lit the whole frame.
       const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.32, 0.5, 0.95);
-      this.bloom = bloom;
       composer.addPass(bloom);
     }
 
@@ -117,7 +112,6 @@ export class Renderer {
 
     if (q.smaa) {
       const smaa = new SMAAPass(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
-      this.smaa = smaa;
       composer.addPass(smaa);
     }
 
@@ -128,12 +122,18 @@ export class Renderer {
     }
   }
 
+  /**
+   * The composer sizes every pass at CSS size times its pixel ratio. Sizing
+   * the AO and bloom passes again at CSS size after it (as this did) dropped
+   * them to a quarter of the pixels on a 2x screen after the first resize.
+   */
   setSize(w: number, h: number): void {
-    if (!this.composer) return;
-    this.composer.setSize(w, h);
-    this.gtao?.setSize(w, h);
-    this.bloom?.setSize(w, h);
-    this.smaa?.setSize(w * this.renderer.getPixelRatio(), h * this.renderer.getPixelRatio());
+    this.composer?.setSize(w, h);
+  }
+
+  /** the window moved to a screen with another pixel ratio, or the zoom changed */
+  setPixelRatio(pr: number): void {
+    this.composer?.setPixelRatio(pr);
   }
 
   render(now = 0): void {

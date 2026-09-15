@@ -64,6 +64,32 @@
       .mode b { font: 700 18px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .06em; color: #fff; text-transform: uppercase; }
       .mode span { font-size: 12px; color: #8b96a3; }
       .hintLine { margin-top: 10px; font-size: 12px; color: #7d8895; text-align: center; }
+      .hintLine.warn { color: #ffd27a; }
+      .welcome { margin: 0 0 12px; padding: 14px 16px; background: #10151a; border: 1px solid #2f5a3c; border-radius: 6px; font-size: 13px; line-height: 1.55; color: #c8d0d8; }
+      .welcome h2 { margin: 0 0 6px; font: 700 18px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #7ddc8a; }
+      .welcome ol { margin: 0 0 10px; padding-left: 20px; }
+      .welcome li { margin: 0 0 5px; }
+      .welcome b { color: #fff; }
+      .welcome kbd { background: #222932; border: 1px solid #3a4450; border-radius: 3px; padding: 0 5px; margin-right: 2px; color: #dfe5eb; font-family: inherit; }
+      .welcome button { background: #2f7a45; border: 0; color: #fff; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-weight: 600; letter-spacing: .04em; }
+      .welcome button:hover { background: #3a9155; }
+      .welcomeWarn { margin: 14px 24px 0; padding: 9px 11px; font-size: 13px; line-height: 1.5; background: #3a2a12; border: 1px solid #8a6420; border-radius: 4px; color: #ffd27a; }
+      .welcomeWarn b { color: #fff; }
+      .bindHead { display: flex; align-items: flex-start; gap: 12px; font-size: 12px; color: #8b96a3; line-height: 1.5; margin-bottom: 8px; }
+      .bindHead span { flex: 1; }
+      .bindHead kbd { background: #222932; border: 1px solid #3a4450; border-radius: 3px; padding: 0 5px; color: #dfe5eb; font-family: inherit; }
+      .bindHead button { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+      .bindTable { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; }
+      .bindGroup { grid-column: 1 / -1; margin: 10px 0 2px; font: 700 13px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #ffd23c; }
+      .bindRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid #1f262d; font-size: 13px; color: #b9c2cc; }
+      .bindKeys { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+      .bindKey { background: #222932; border: 1px solid #3a4450; border-radius: 3px; padding: 1px 7px; color: #dfe5eb; font-size: 12px; cursor: pointer; min-width: 22px; }
+      .bindKey:hover { border-color: #d43a2f; }
+      .bindKey.add { color: #7d8895; }
+      .bindKey.waiting { background: #3a2a12; border-color: #ffd27a; color: #ffd27a; }
+      .invite { display: flex; gap: 6px; margin-top: 8px; }
+      .invite input { flex: 1; min-width: 0; background: #0d1014; border: 1px solid #333c46; color: #9fe0ff; padding: 5px 7px; border-radius: 4px; font-size: 12px; }
+      .invite button { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
       .rules { font-size: 13px; color: #b9c2cc; line-height: 1.6; padding-left: 18px; margin: 14px 0 0; }
       .rules b { color: #fff; }
       .loadouts { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
@@ -99,6 +125,8 @@
       .statcard .techlist span { background: #14181d; border: 1px solid #2a323b; border-radius: 3px; padding: 2px 7px; font-size: 12px; color: #c8d0d8; }
       .statcard .techlist span b { color: #7ddc8a; }
       .statcard .techlist span.miss b { color: #ff9f43; }
+      .statcard tr.me td { color: #7ddc8a; font-weight: 600; }
+      .boardPick { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 4px 6px; border-radius: 4px; font: 500 12px "Segoe UI", system-ui, sans-serif; letter-spacing: 0; text-transform: none; }
       .keytable { width: 100%; border-collapse: collapse; font-size: 13px; color: #b9c2cc; }
       .keytable td { padding: 5px 6px; border-bottom: 1px solid #1f262d; }
       .keytable kbd { background: #222932; border: 1px solid #3a4450; border-radius: 3px; padding: 0 5px; color: #dfe5eb; font-family: inherit; }
@@ -141,7 +169,19 @@
           <button type="button" data-tab="controls">Controls</button>
         </nav>
 
+        <div class="welcomeWarn" id="welcomeWarn" hidden></div>
+
         <section data-panel="play">
+          <div class="welcome" id="welcome" hidden>
+          <h2>Welcome to the range</h2>
+          <ol>
+            <li><b>Pick a mode below</b> (Firing Range is the place to start). The game takes over your mouse; <kbd>Esc</kbd> gives it back and brings this menu up.</li>
+            <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move, <kbd>Space</kbd> jump, <kbd>Shift</kbd> sprint, <kbd>Ctrl</kbd> crouch and slide, left click fire, right click aim, <kbd>R</kbd> reload, <kbd>1</kbd> <kbd>2</kbd> weapons. Everything else is on the Controls tab.</li>
+            <li><b>Playing a friend?</b> The 1v1 tab, <b>Create match</b>, and send them the invite link it copies. Opening the link joins your match.</li>
+            <li>A controller works too: plug it in and press <b>Start</b>.</li>
+          </ol>
+          <button type="button" id="welcomeOk">Got it</button>
+          </div>
           <div class="modes">
             <button type="button" class="mode" id="goRange"><b>Firing Range</b><span>Guns, dummies, targets, ladders, ziplines and the wallbounce wall.</span></button>
             <button type="button" class="mode" id="goRun"><b>The Run (Basic)</b><span id="runBest">Seven rooms, one technique each, twenty pop-ups.</span></button>
@@ -150,8 +190,8 @@
             <button type="button" class="mode" id="goBots"><b>Arena, Bots</b><span id="botsBlurb">The 1v1 rules against 1 or 2 bots. Pick the difficulty on the 1v1 tab.</span></button>
             <button type="button" class="mode" id="goArena"><b>Arena, alone</b><span>Walk the 1v1 map by yourself to learn it.</span></button>
           </div>
-          <button id="play" type="button">Resume</button>
-          <div class="hintLine">Esc brings you back here. Everything you set is remembered.</div>
+          <button id="play" type="button">Play</button>
+          <div class="hintLine" id="playHint">Esc brings you back here. Everything you set is remembered.</div>
         </section>
 
         <section data-panel="duel" hidden>
@@ -225,6 +265,7 @@
           <div class="row"><label>Deadzone <div class="hint">percent of the stick; 12 is the game's default</div></label><input id="padDeadzone" type="number" min="0" max="30" step="1" /></div>
           <div class="row"><label>Auto sprint <div class="hint">push the stick forward to sprint; off, click it (L3)</div></label><select id="padAutoSprint"><option value="1">On</option><option value="0">Off</option></select></div>
           <div class="row"><label>Rumble <div class="hint">on shots and hits taken</div></label><select id="padRumble"><option value="1">On</option><option value="0">Off</option></select></div>
+          <div class="row"><label>Aim assist <div class="hint">the stick slows on a target, and the view follows 40% of its movement while you move; never on the mouse</div></label><select id="padAimAssist"><option value="1">On</option><option value="0">Off</option></select></div>
         <div class="derived perf">
           <span id="perfLine">Measuring your display…</span>
           <span class="tip" tabindex="0">
@@ -262,19 +303,9 @@
         </section>
 
         <section data-panel="controls" hidden>
-          <table class="keytable">
-            <tr><td><kbd>W A S D</kbd></td><td>move</td><td><kbd>Shift</kbd></td><td>sprint</td></tr>
-            <tr><td><kbd>Space</kbd> <kbd>Scroll up</kbd></td><td>jump (scroll for superjumps)</td><td><kbd>Ctrl</kbd> <kbd>C</kbd></td><td>crouch, slide</td></tr>
-            <tr><td><kbd>Scroll down</kbd></td><td>forward, for tap-strafing</td><td><kbd>E</kbd></td><td>ride a zipline</td></tr>
-            <tr><td><kbd>LMB</kbd></td><td>fire</td><td><kbd>RMB</kbd></td><td>aim down sights</td></tr>
-            <tr><td><kbd>R</kbd></td><td>reload</td><td><kbd>V</kbd></td><td>melee</td></tr>
-            <tr><td><kbd>1</kbd> <kbd>2</kbd></td><td>weapon slot</td><td><kbd>Q</kbd> <kbd>Mouse 5</kbd></td><td>swap weapon</td></tr>
-            <tr><td><kbd>3</kbd></td><td>holster (15% faster)</td><td><kbd>G</kbd></td><td>magazine level</td></tr>
-            <tr><td><kbd>O</kbd></td><td>optic</td><td><kbd>Z</kbd></td><td>variable optic zoom</td></tr>
-            <tr><td><kbd>B</kbd> <kbd>N</kbd> <kbd>H</kbd></td><td>barrel, stock, laser</td><td><kbd>T</kbd></td><td>dummy armour</td></tr>
-            <tr><td><kbd>F</kbd></td><td>reset dummies and the course</td><td><kbd>K</kbd></td><td>ghost of your best run</td></tr>
-            <tr><td><kbd>P</kbd></td><td>copy your course result</td><td><kbd>Esc</kbd></td><td>this menu</td></tr>
-          </table>
+          <div class="bindHead"><span>Click a key to change it. Scroll down is forward (tap-strafing) and scroll up is jump (superjumps) by default. <kbd>Esc</kbd> is always the menu.</span><button type="button" id="bindsReset">Reset to defaults</button></div>
+          <div class="bindTable" id="bindTable"></div>
+          <div class="hintLine" id="bindsNote">Your keys are kept in this browser.</div>
         </section>
       </div>
     </div>

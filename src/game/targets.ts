@@ -375,9 +375,9 @@ export class Target {
     }
   }
 
-  /** is this target currently shootable */
-  get live(): boolean {
-    return performance.now() / 1000 >= this.downUntil;
+  /** is this target shootable at game time `now` (the clock `hit` uses; the browser's clock runs ahead of it) */
+  isLive(now: number): boolean {
+    return now >= this.downUntil;
   }
 
   reset(): void {

@@ -32,7 +32,10 @@ import { Duel, SHIELD_MAX, HEALTH_MAX, type MatchLike } from "./game/duel";
 import { BotMatch } from "./game/bots";
 import { Stats, type MatchKind, type BotDifficulty } from "./game/stats";
 import { submitScore } from "./game/leaderboard";
-import { hostMatch, joinMatch, type HostHandle, type Link } from "./net/link";
+import { hostMatch, joinMatch, normaliseCode, type HostHandle, type Link } from "./net/link";
+import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
+import { AimAssist } from "./game/aimassist";
+import { applySavedBinds, initBindsUi } from "./ui/binds";
 import type { MoveInput } from "./game/player";
 import { buildArena, buildTriArena, ARENA_BOUNDS, ARENA_SPAWNS, TRI_BOUNDS } from "./game/arena";
 import { Loadouts, type LoadoutDef } from "./game/loadouts";
@@ -116,11 +119,20 @@ inSens.value = String(settings.sens);
 inAds.value = String(settings.ads);
 inFov.value = String(settings.fovScale);
 
+/**
+ * The typed values, held to the same ranges loadSettings accepts. A sens of
+ * -1 used to invert the mouse for the session and then silently reset to the
+ * default on the next load; an empty or half-typed field keeps the last value.
+ */
 function readSettings(): void {
-  settings.dpi = Number(inDpi.value) || settings.dpi;
-  settings.sens = Number(inSens.value) || settings.sens;
-  settings.ads = Number(inAds.value) || settings.ads;
-  settings.fovScale = Math.max(1, Math.min(1.571, Number(inFov.value) || settings.fovScale));
+  const field = (el: HTMLInputElement, lo: number, hi: number, prev: number): number => {
+    const n = Number(el.value);
+    return el.value.trim() !== "" && Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : prev;
+  };
+  settings.dpi = field(inDpi, 100, 32000, settings.dpi);
+  settings.sens = field(inSens, 0.01, 20, settings.sens);
+  settings.ads = field(inAds, 0.1, 3, settings.ads);
+  settings.fovScale = field(inFov, 1, 1.571, settings.fovScale);
   saveSettings(settings);
   refreshDerived();
 }
@@ -220,7 +232,21 @@ const gl = glCanvas.getContext("webgl2", {
   powerPreference: "high-performance",
   desynchronized: quality.lowLatency,
   preserveDrawingBuffer: false,
-}) as WebGL2RenderingContext;
+}) as WebGL2RenderingContext | null;
+if (!gl) {
+  // Without WebGL 2 three throws right here, the rest of this file never runs,
+  // and the menu sits on screen with buttons that do nothing. Say why instead.
+  const box = document.createElement("div");
+  box.style.cssText =
+    "position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b0d10;color:#e6e6e6;font:16px/1.6 'Segoe UI',system-ui,sans-serif;text-align:center";
+  box.innerHTML =
+    "<div style='max-width:560px'><h2 style='margin:0 0 12px;color:#ffd23c'>This browser could not start 3D graphics</h2>" +
+    "The game needs WebGL 2. Use <b>Chrome or Edge on a PC</b>, make sure hardware acceleration is on " +
+    "(Settings, System, &ldquo;Use graphics acceleration when available&rdquo;), update the graphics driver, then reload. " +
+    "Phones, tablets and Safari are not supported.</div>";
+  document.body.appendChild(box);
+  throw new Error("WebGL 2 is not available");
+}
 const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, context: gl, antialias: true, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(quality.maxPixelRatio, window.devicePixelRatio));
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -254,6 +280,15 @@ const rangeRoots = scene.children.filter((o) => !beforeRange.has(o) && o !== are
 // The sky doubles as the environment map. Without it every metal surface is
 // black, so this is load-bearing rather than decoration.
 void installSky(scene, renderer);
+// A GPU reset (a driver update, a sleeping laptop, another tab crashing the
+// GPU) loses the context. three brings the context back by itself, but a
+// static shadow map comes back empty (the whole sunlit range in shadow) and
+// the sky's environment map comes back black, so both are redrawn.
+glCanvas.addEventListener("webglcontextlost", () => hud.notice("GRAPHICS RESET: RECOVERING", gameTime, 4));
+glCanvas.addEventListener("webglcontextrestored", () => {
+  renderer.shadowMap.needsUpdate = true;
+  void installSky(scene, renderer);
+});
 // Post-processing. Ambient occlusion is what stops a scene made of boxes
 // reading as flat shapes floating on a flat floor.
 const pipeline = new Renderer(renderer, scene, camera, quality);
@@ -352,6 +387,9 @@ const debugView: {
 const debugWeapons = new Map<string, ReturnType<typeof resolveWeapon>>();
 
 const input = new Input(renderer.domElement);
+// the player's own keys (the Controls tab) on top of binds.json
+applySavedBinds();
+initBindsUi($("bindTable"), $("bindsNote"));
 const player = new Player(RANGE_BOUNDS);
 /** your name and every result, in this browser (src/game/stats.ts) */
 const profile = new Stats();
@@ -459,7 +497,11 @@ const [courseBasic, courseAdvanced] = courses;
 /** the course a run is going on, or the one you are standing in, or the basic one */
 const activeCourse = (): Course => courses.find((c) => c.running) ?? courses.find((c) => c.hud(gameTime)) ?? courseBasic;
 const courseEnemies = courses.flatMap((c) => c.enemies);
-const projectiles = new ProjectileSystem(scene, [...dummies, ...courseEnemies], targets, 0);
+/** every figure outside a match: the range's dummies and the courses' pop-ups (hidden ones are skipped where it matters) */
+const rangeTargets: Dummy[] = [...dummies, ...courseEnemies];
+// a copy: the projectile system adds and removes match figures in its own list
+const projectiles = new ProjectileSystem(scene, [...rangeTargets], targets, 0);
+const aimAssist = new AimAssist();
 /** everything a Digital Threat optic can light up */
 const threatTargets = [...dummies, ...courseEnemies];
 
@@ -499,6 +541,11 @@ function setDuelStatus(html: string, cls = ""): void {
   duelStatus.className = `calibMsg ${cls}`;
   duelStatus.innerHTML = html;
 }
+/** a status line from text that can carry another player's name: never markup */
+function setDuelStatusText(text: string, cls = ""): void {
+  duelStatus.className = `calibMsg ${cls}`;
+  duelStatus.textContent = text;
+}
 function duelButtons(): void {
   const busy = duel !== null || hosting !== null;
   duelHostBtn.hidden = busy;
@@ -510,6 +557,10 @@ function duelButtons(): void {
 function respawnForMatch(d: MatchLike): void {
   const sp = d.spawn;
   player.teleport(sp.x, 0, sp.z, sp.yaw);
+  if (pendingSlots) {
+    pendingSlots.forEach((id, i) => loadout.setWeaponId(i, id));
+    pendingSlots = null;
+  }
   // full magazines, settled spread and recoil, gun out
   for (const sl of loadout.slots) sl.state.setWeapon(sl.weapon);
   holster = "out";
@@ -531,7 +582,10 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     profile.recordMatch(kind, s);
     d.streak = profile.match(kind).streak;
     menu.renderStats();
-    if (s.won) void submitScore(`${kind.replace(":", ":")}:wins`, profile.profile.name, profile.match(kind).won);
+    if (s.won)
+      void submitScore(`${kind}:wins`, profile.profile.name, profile.match(kind).won).then((rank) => {
+        if (rank !== null) hud.notice(`#${rank} FOR WINS ON THE ONLINE BOARD`, gameTime, 3);
+      });
   };
 }
 /** a friend's match: the host on its first guest, or a guest on the host's welcome */
@@ -550,11 +604,12 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1): void
     return;
   }
   cancelJoin = null;
-  for (const c of courses) c.reset();
+  for (const c of courses) c.leave();
   const d = new Duel(scene, projectiles, { players, myId, link, guestId });
   duel = d;
   player.setBounds(players >= 3 ? TRI_BOUNDS : ARENA_BOUNDS);
   wireMatch(d, players >= 3 ? "triple" : "duel");
+  d.onSlotFree = (id) => hosting?.release(id);
   d.onRoster = (connected, total) => {
     setDuelStatus(connected < total - 1 ? `${connected} of ${total - 1} friends in. Waiting for the rest; the code is <b class="code">${hosting?.code ?? ""}</b>.` : `Everyone is in. First to 3 rounds. <b>Click Play</b> to fight.`, connected < total - 1 ? "live" : "good");
   };
@@ -571,7 +626,7 @@ function startBots(): void {
   hosting = null;
   cancelJoin?.();
   cancelJoin = null;
-  for (const c of courses) c.reset();
+  for (const c of courses) c.leave();
   const diff = (botDifficulty.value === "easy" || botDifficulty.value === "hard" ? botDifficulty.value : "normal") as BotDifficulty;
   const d = new BotMatch(scene, projectiles, diff, Number(botCount.value) === 2 ? 2 : 1);
   duel = d;
@@ -587,9 +642,15 @@ function endMatch(reason: string): void {
   hosting?.cancel();
   hosting = null;
   hud.notice(reason.toUpperCase(), gameTime, 3);
-  setDuelStatus(reason);
+  setDuelStatusText(reason);
   duelButtons();
   goTo("range");
+}
+/** this page's address with ?join=CODE: opening it joins that match (other flags, like ?net=local, ride along) */
+function inviteLink(code: string): string {
+  const q = new URLSearchParams(location.search);
+  q.set("join", code);
+  return `${location.origin}${location.pathname}?${q.toString()}`;
 }
 duelHostBtn.addEventListener("click", () => {
   if (duel || hosting) return;
@@ -599,12 +660,24 @@ duelHostBtn.addEventListener("click", () => {
   hosting = hostMatch(
     players,
     (code) => {
-      setDuelStatus(`Your code is <b class="code">${code}</b> (copied). Send it to ${players === 3 ? "both friends" : "your friend"} and wait here.`, "live");
-      void navigator.clipboard?.writeText(code).catch(() => undefined);
+      // an invite link: opening it joins this match, no code to type
+      const link = inviteLink(code);
+      setDuelStatus(
+        `Your code is <b class="code">${code}</b>. Send ${players === 3 ? "both friends" : "your friend"} the invite link (copied) and wait here:` +
+          `<div class="invite"><input id="inviteLink" readonly value="${link.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}" /><button type="button" id="inviteCopy">Copy</button></div>`,
+        "live"
+      );
+      const copy = () => void navigator.clipboard?.writeText(link).catch(() => undefined);
+      copy();
+      $("inviteCopy")?.addEventListener("click", () => {
+        copy();
+        $("inviteCopy").textContent = "Copied";
+      });
+      $<HTMLInputElement>("inviteLink")?.addEventListener("focus", (e) => (e.target as HTMLInputElement).select());
     },
     (link, id) => startDuel(link, players, 0, id),
     (err) => {
-      setDuelStatus(err, "bad");
+      setDuelStatusText(err, "bad");
       hosting = null;
       duelButtons();
     }
@@ -617,7 +690,7 @@ duelJoinBtn.addEventListener("click", () => {
   hosting = null;
   cancelJoin?.();
   setDuelStatus("Joining...", "live");
-  cancelJoin = joinMatch(duelCode.value, (link, w) => startDuel(link, w.players, w.id), (err) => setDuelStatus(err, "bad"));
+  cancelJoin = joinMatch(duelCode.value, (link, w) => startDuel(link, w.players, w.id), (err) => setDuelStatusText(err, "bad"));
 });
 duelCode.addEventListener("keydown", (e) => {
   if (e.key === "Enter") duelJoinBtn.click();
@@ -661,6 +734,8 @@ refreshDerived();
 // Your guns come back as you had them: attachments and mag level included
 // (saving the ids alone stripped every attachment after a run).
 let savedSlots: SlotSetup[] | null = null;
+/** a loadout picked mid-fight: its guns, put on at the next round's spawn */
+let pendingSlots: string[] | null = null;
 for (const course of courses) {
   course.onRunChange = (running) => {
     if (running) {
@@ -678,7 +753,9 @@ for (const course of courses) {
   course.onFinish = (r) => {
     profile.recordRun(course.layout.id, r.time, r.rank);
     profile.flush();
-    void submitScore(`course:${course.layout.id}`, profile.profile.name, Number(r.time.toFixed(3)));
+    void submitScore(`course:${course.layout.id}`, profile.profile.name, Number(r.time.toFixed(3))).then((rank) => {
+      if (rank !== null) hud.notice(`#${rank} ON THE ONLINE BOARD`, gameTime, 3);
+    });
   };
 }
 const courseRunning = (): boolean => courses.some((c) => c.running);
@@ -689,8 +766,19 @@ const courseRunning = (): boolean => courses.some((c) => c.running);
  * stay in hand and the loadout's guns come back at the end.
  */
 function applyLoadout(def: LoadoutDef): void {
-  if (courseRunning() && savedSlots) savedSlots = [def.slot1, def.slot2].map((id) => ({ id, magLevel: 0, attach: {}, zoomAlt: false }));
-  else {
+  const ids = [def.slot1, def.slot2];
+  if (courseRunning() && savedSlots) {
+    // only a slot whose gun changed is replaced: changing the operator must
+    // not strip the attachments off guns you get back at the end
+    const saved = savedSlots;
+    savedSlots = ids.map((id, i) => (saved[i]?.id === id ? saved[i] : { id, magLevel: 0, attach: {}, zoomAlt: false }));
+  } else if (duel && duel.phase === "fight" && (loadout.slots[0].id !== def.slot1 || loadout.slots[1].id !== def.slot2)) {
+    // mid-fight a new gun would come up with a full magazine and no deploy
+    // time: it waits for the next round's spawn
+    pendingSlots = ids;
+    hud.notice("NEW LOADOUT NEXT ROUND", gameTime, 1.6);
+  } else {
+    pendingSlots = null;
     loadout.setWeaponId(0, def.slot1);
     loadout.setWeaponId(1, def.slot2);
   }
@@ -713,7 +801,7 @@ function goTo(mode: Mode): void {
     startBots();
     return;
   }
-  for (const c of courses) c.reset();
+  for (const c of courses) c.leave();
   if (mode === "range") {
     player.setBounds(RANGE_BOUNDS);
     player.teleport(0, 0, 0, 0);
@@ -766,6 +854,7 @@ try {
     if (typeof p.deadzone === "number" && p.deadzone >= 0 && p.deadzone <= 0.3) s.deadzone = p.deadzone;
     if (typeof p.autoSprint === "boolean") s.autoSprint = p.autoSprint;
     if (typeof p.rumble === "boolean") s.rumble = p.rumble;
+    if (typeof p.aimAssist === "boolean") s.aimAssist = p.aimAssist;
   }
 } catch {
   /* ignore */
@@ -786,6 +875,9 @@ try {
   const dead = $<HTMLInputElement>("padDeadzone");
   const auto = $<HTMLSelectElement>("padAutoSprint");
   const rumble = $<HTMLSelectElement>("padRumble");
+  const assistSel = $<HTMLSelectElement>("padAimAssist");
+  assistSel.value = s.aimAssist ? "1" : "0";
+  aimAssist.enabled = s.aimAssist;
   look.value = String(s.look);
   ads.value = String(s.ads);
   curve.value = s.curve;
@@ -796,19 +888,42 @@ try {
     s.look = Number(look.value) || 3;
     s.ads = Number(ads.value) || 3;
     s.curve = curve.value === "linear" ? "linear" : "classic";
-    s.deadzone = Math.max(0, Math.min(0.3, (Number(dead.value) || 12) / 100));
+    // 0 is a real deadzone (a new pad with no drift), not "empty": only a
+    // blank or unreadable field falls back to 12
+    const dz = Number(dead.value);
+    s.deadzone = Math.max(0, Math.min(0.3, (dead.value.trim() !== "" && Number.isFinite(dz) ? dz : 12) / 100));
     s.autoSprint = auto.value === "1";
     s.rumble = rumble.value === "1";
+    s.aimAssist = assistSel.value === "1";
+    aimAssist.enabled = s.aimAssist;
     try {
       localStorage.setItem(LS_PAD, JSON.stringify(s));
     } catch {
       /* ignore */
     }
   };
-  for (const el of [look, ads, curve, dead, auto, rumble]) el.addEventListener("change", save);
+  for (const el of [look, ads, curve, dead, auto, rumble, assistSel]) el.addEventListener("change", save);
 }
+const playBtn = $<HTMLButtonElement>("play");
+const playHint = $("playHint");
+const PLAY_HINT = playHint.textContent ?? "";
+// Refused (Chrome waits about a second after Esc before it locks again; an
+// embedded page may not be allowed at all): say so, instead of a click that
+// does nothing.
+input.onLockRefused = () => {
+  playHint.classList.add("warn");
+  playHint.textContent = "The browser did not let the game take the mouse. Click again in a second (after Esc, Chrome makes you wait a moment).";
+};
 input.onLockChange = (locked) => {
   overlay.classList.toggle("hidden", locked);
+  if (locked) {
+    // the first time in, the button stops saying Play: there is now a game to
+    // resume, and the welcome has done its job
+    playBtn.textContent = "Resume";
+    dismissWelcome();
+    playHint.classList.remove("warn");
+    playHint.textContent = PLAY_HINT;
+  }
   if (!locked) {
     menu.setRunBest(courseBasic.best, courseAdvanced.best);
     profile.flush();
@@ -824,6 +939,13 @@ input.onLockChange = (locked) => {
 };
 
 window.addEventListener("resize", () => {
+  // a move to a screen with another pixel ratio, or a browser zoom, fires this
+  // too: without the ratio the 3D view stayed blurry or oversized
+  const pr = Math.min(quality.maxPixelRatio, window.devicePixelRatio);
+  if (pr !== renderer.getPixelRatio()) {
+    renderer.setPixelRatio(pr);
+    pipeline.setPixelRatio(pr);
+  }
   renderer.setSize(window.innerWidth, window.innerHeight);
   pipeline.setSize(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -850,7 +972,27 @@ const rnd = () => Math.random();
 const tmpDir = new THREE.Vector3();
 const tmpQ = new THREE.Quaternion();
 
+/**
+ * One frame, guarded. A throw inside the frame used to skip the schedule() at
+ * its end, which stopped the game for good with the last picture frozen on
+ * screen. Now the loop carries on; the error is rethrown outside the loop (the
+ * first few), so the console and the tests still see it.
+ */
+let frameErrors = 0;
 function frame(): void {
+  try {
+    step();
+  } catch (e) {
+    input.endFrame();
+    if (frameErrors++ < 3)
+      setTimeout(() => {
+        throw e;
+      }, 0);
+  }
+  schedule();
+}
+
+function step(): void {
   const frameStart = performance.now();
   const wall = performance.now() / 1000;
   let dt = wall - last;
@@ -997,8 +1139,24 @@ function frame(): void {
     const m = input.consumeMouse();
     const adsScale = 1 + (adsSensScale(hipH, adsHNow, settings.ads) - 1) * ws.adsFrac;
     player.applyMouse(m.dx, m.dy, degPerCount(settings.sens) * adsScale, playerCfg.invertPitch);
-    // the controller's right stick, read this frame in padLook
-    player.addAngles(padLook.pitchUp * (playerCfg.invertPitch ? -1 : 1), padLook.yawLeft);
+    // the controller's right stick, read this frame in padLook, with aim
+    // assist (aimassist.ts) when the pad is what is aiming: its look stick or
+    // its move stick in use this frame, so a mouse player never gets it
+    const padAiming =
+      padLook.yawLeft !== 0 || padLook.pitchUp !== 0 || (["forward", "back", "left", "right"] as const).some((a) => input.pad.held(a));
+    const assist =
+      padAiming && !knockedOut
+        ? aimAssist.update({
+            eye: player.eyePosition(),
+            yaw: player.yaw,
+            pitch: player.pitch,
+            ads: ws.adsFrac,
+            activeInput: true,
+            targets: duel ? duel.avatars : rangeTargets,
+          })
+        : null;
+    const slow = assist?.slow ?? 1;
+    player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
   }
 
   // holster timing, from the weapon's own holster and deploy times
@@ -1019,6 +1177,8 @@ function frame(): void {
   // A weapon being raised, lowered or holstered cannot fire or aim.
   // In a 1v1, firing is held during the countdown and after a round is decided.
   const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire);
+  // a burst fires on without the trigger: knocked, or the round decided, it stops
+  if (knockedOut || (duel && !duel.canFire)) ws.cancelBurst();
   // knocked in a 1v1: no aiming either
   const adsHeld = input.playing && input.held("ads") && !loadout.swapping && holster === "out" && (!duel || duel.alive);
   // Move BEFORE sampling stance, so the spread model sees this frame's stance
@@ -1194,7 +1354,14 @@ function frame(): void {
   }
 
   for (const d of dummies) d.update(now, dt);
-  if (!duel) for (const c of courses) c.update(now, dt, player);
+  // the menu stops a run's clock (a minute on the Settings tab was a minute
+  // on the time); a test script drives the course without the menu
+  if (!duel) {
+    for (const c of courses) {
+      if (input.playing || scriptInput) c.update(now, dt, player);
+      else c.pause(dt);
+    }
+  }
   for (const t of targets) t.update(now, dt);
   // The model on screen switches at the bottom of the swap dip, when the gun
   // is out of frame: the outgoing weapon before the midpoint, the incoming one
@@ -1341,7 +1508,6 @@ function frame(): void {
   // CPU time for everything this frame did: simulation, render submission and
   // HUD. The GPU works on it after this, in parallel with the next frame.
   frameMs += (performance.now() - frameStart - frameMs) * 0.1;
-  schedule();
 }
 /**
  * Next frame. A hidden tab gets no animation frames at all, which in a 1v1
@@ -1363,6 +1529,26 @@ document.addEventListener("visibilitychange", () => {
   schedule();
 });
 schedule();
+
+// ---------- first visit, invite links ----------
+initWelcome();
+{
+  // Opened from an invite link (?join=CODE): straight into that match. The
+  // code comes off the address at once, so a reload does not try to join a
+  // match that is long over.
+  const q = new URLSearchParams(location.search);
+  const invite = normaliseCode(q.get("join") ?? "");
+  if (q.has("join")) {
+    q.delete("join");
+    const rest = q.toString();
+    history.replaceState(null, "", `${location.pathname}${rest ? `?${rest}` : ""}${location.hash}`);
+  }
+  if (invite.length === 5) {
+    menu.show("duel");
+    duelCode.value = invite;
+    duelJoinBtn.click();
+  }
+}
 
 // debug handle
 (window as unknown as { __range: unknown }).__range = {
@@ -1396,6 +1582,10 @@ schedule();
     scriptInput = s;
     frameHook = hook;
   },
+  /** the welcome's device check, for a user agent (tools/e2e.ts) */
+  deviceProblem,
+  /** the basic course's run clock as its HUD shows it (tools/e2e.ts: the menu stops it) */
+  courseClock: () => courseBasic.hud(gameTime)?.time ?? 0,
   /** optics fitted anywhere in the scene: one at most, on the gun in hand (tools/e2e.ts) */
   opticsInScene: () => {
     let n = 0;

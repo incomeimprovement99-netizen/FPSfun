@@ -1,0 +1,18 @@
+{
+  "name": "range-server",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Serves the public build, our own PeerJS broker, and TURN credentials for the relay. See docs/SERVER_GUIDE.md.",
+  "type": "module",
+  "main": "serve.mjs",
+  "scripts": {
+    "start": "node serve.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "peer": "^1.0.2"
+  }
+}
