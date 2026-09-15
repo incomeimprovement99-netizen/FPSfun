@@ -778,10 +778,15 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   check("bots with abilities: JOLT dashes you (up to 10 m, a wall can stop it short)", moved > 3 && moved < 14, `${moved.toFixed(2)} m (the dash, then its exit speed running down)`);
   const ch1 = await ev<{ charges: number; nextIn: number }>(page, "window.__range.abilities.charge(window.__range.gameTime())");
   check("bots with abilities: one of JOLT's two charges spent, coming back", ch1.charges === 1 && ch1.nextIn > 2.5 && ch1.nextIn < 4, JSON.stringify(ch1));
-  // back the way you came (the first may have run you up to a wall), then the second
+  // back the way you came (the first may have run you up to a wall), then the second, sideways (D held): the view leans into it
   await ev(page, "window.__range.player.yaw += 180");
+  await ev(page, `window.__range.setScript({ held: (a) => a === "right", pressedNow: () => false })`);
+  await sleep(100);
   await ev(page, "window.__range.useAbility()");
+  const rolled = await page.waitForFunction("window.__range.joltFeel().roll > 1.2 && window.__range.joltFeel().fov > 0.03", { polling: 10, timeout: 1500 }).then(() => true, () => false);
   await sleep(300);
+  await ev(page, "window.__range.setScript(null)");
+  check("bots with abilities: a sideways JOLT rolls the view toward it and widens it", rolled);
   const j2 = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
   const cd = await ev<number>(page, "window.__range.abilities.cooldownLeft(window.__range.gameTime())");
   check("bots with abilities: the second charge dashes again", Math.hypot(j2.x - j.x, j2.z - j.z) > 2, `${Math.hypot(j2.x - j.x, j2.z - j.z).toFixed(2)} m`);

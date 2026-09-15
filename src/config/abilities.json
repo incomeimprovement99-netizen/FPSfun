@@ -7,10 +7,12 @@
     "duration": 0.14,
     "charges": 2,
     "recharge": 4,
-    "_gap": "the least time from one dash's start to the next (the second charge can follow at once, not inside the first)",
-    "gap": 0.2,
-    "_exit": "you leave a dash at this speed the way it went (above the 260 sprint), so it carries into a slide or a jump; friction takes it down from there",
-    "exitSpeedHu": 360
+    "_gap": "the least time from one dash's start to the next, so two cannot merge into one 20 m teleport (docs/RESEARCH_PHASE_12.md section 6)",
+    "gap": 0.25,
+    "_exit": "you leave a dash at this speed the way it went (400 hu/s, 10 m/s, the slide cap; above the 260 sprint), so it carries into a slide or a jump; friction takes it down from there. The dash itself is an ease-out: 70% of the distance in the first half",
+    "exitSpeedHu": 400,
+    "_feel": "the view on a dash: the FOV kick in degrees, a roll toward the side you went (degrees, rising in rollIn s, back over rollOut s), a pad rumble (strong, weak, ms)",
+    "feel": { "fov": 8, "roll": 2.5, "rollIn": 0.06, "rollOut": 0.25, "rumble": [0.35, 0.6, 120] }
   },
   "triage": {
     "name": "TRIAGE",

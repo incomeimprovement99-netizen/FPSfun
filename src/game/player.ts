@@ -247,7 +247,8 @@ export class Player {
   private joltLeft = 0;
   private joltDirX = 0;
   private joltDirZ = 0;
-  private joltSpeed = 0;
+  private joltDist = 0;
+  private joltDur = 0;
   private joltExit = 0;
   /** mid-JOLT: the dash owns the horizontal velocity and holds you level */
   get jolting(): boolean {
@@ -268,18 +269,31 @@ export class Player {
     this.joltDirX = dirX / l;
     this.joltDirZ = dirZ / l;
     this.joltLeft = duration;
-    this.joltSpeed = distance / duration;
+    this.joltDur = duration;
+    this.joltDist = distance;
     this.joltExit = exitSpeed;
     this.endSlide();
     this.vel.y = 0;
     return true;
   }
 
-  /** one frame of a JOLT: the dash speed for what is left of it, the exit speed for the rest of the frame */
+  /**
+   * How far through its distance a JOLT is at fraction `u` of its time: an
+   * ease-out (a pop, not a slide: 70% of the way in the first half) that
+   * ends moving at the exit speed, so it hands over to it without a jolt.
+   */
+  static joltCurve(u: number, distance: number, duration: number, exit: number): number {
+    const a = Math.min(1, (exit * duration) / Math.max(1e-6, distance));
+    const t = Math.max(0, Math.min(1, u));
+    return a * t + (1 - a) * (1 - (1 - t) * (1 - t));
+  }
+
+  /** one frame of a JOLT: the curve's speed for what is left of it, the exit speed for the rest of the frame */
   private stepJolt(dt: number, now: number): void {
     const use = Math.min(dt, this.joltLeft);
-    const k = dt > 1e-9 ? use / dt : 1;
-    const sp = this.joltSpeed * k + this.joltExit * (1 - k);
+    const t0 = this.joltDur - this.joltLeft;
+    const along = this.joltDist * (Player.joltCurve((t0 + use) / this.joltDur, this.joltDist, this.joltDur, this.joltExit) - Player.joltCurve(t0 / this.joltDur, this.joltDist, this.joltDur, this.joltExit));
+    const sp = dt > 1e-9 ? (along + this.joltExit * (dt - use)) / dt : this.joltExit;
     // a wall hit earlier in the dash zeroed that component: it stays zeroed
     this.vel.x = this.joltBlockedX ? 0 : this.joltDirX * sp;
     this.vel.z = this.joltBlockedZ ? 0 : this.joltDirZ * sp;

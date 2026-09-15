@@ -1179,6 +1179,19 @@ function useAbility(now: number): void {
   duel?.localFx("jolt", from, to);
   selfFig?.jolt();
   joltedAt = gameTime;
+  // the feel: the view rolls toward a sideways dash (none for straight ahead or back), the pad kicks
+  const yawR = player.yaw * DEG;
+  const lateral = d.x * Math.cos(yawR) - d.z * Math.sin(yawR);
+  joltRollSide = Math.abs(lateral) > 0.3 ? Math.sign(lateral) * Math.min(1, Math.abs(lateral)) : 0;
+  if (input.pad.active) input.pad.rumble(JOLT.feel.rumble[0], JOLT.feel.rumble[1], JOLT.feel.rumble[2]);
+}
+/** a JOLT's roll: which side (+1 right), and the envelope from joltedAt */
+let joltRollSide = 0;
+function joltRoll(now: number): number {
+  const t = now - joltedAt;
+  const f = JOLT.feel;
+  const env = t < 0 ? 0 : t < f.rollIn ? t / f.rollIn : Math.max(0, 1 - (t - f.rollIn) / f.rollOut);
+  return env * f.roll * joltRollSide;
 }
 /** the match's phase last frame, and whether you were in the drop: the card comes up on a change */
 let lastMatchPhase: string | null = null;
@@ -2563,6 +2576,9 @@ function step(): void {
   }
   camera.quaternion.copy(player.orientation(off.pitchUp, off.yawLeft));
   if (sprintRoll !== 0) camera.quaternion.multiply(tmpQ.setFromAxisAngle(FORWARD_AXIS, sprintRoll));
+  // a sideways JOLT leans the view into it
+  const jr = joltRoll(gameTime);
+  if (jr !== 0) camera.quaternion.multiply(tmpQ.setFromAxisAngle(FORWARD_AXIS, -jr * DEG));
   // the shots leave from the eye whichever camera is on
   eye.copy(camera.position);
   aimYaw = player.yaw;
@@ -2627,7 +2643,8 @@ function step(): void {
   const adsV = verticalFovFrom43(adsH);
   // Sliding widens the view by slideFovScale (an engine value). Sprint does
   // not: the sprint FOV kick that was here was ours, and Apex has none.
-  joltFov += ((player.jolting ? 0.12 : 0) - joltFov) * Math.min(1, dt / 0.06);
+  // a JOLT: the view widens by its kick at once, and settles as the dash hands over to the run
+  joltFov += ((player.jolting ? JOLT.feel.fov / hipV : 0) - joltFov) * Math.min(1, dt / (player.jolting ? JOLT.feel.rollIn : JOLT.feel.rollOut));
   const speedFov = (player.slideFov + joltFov) * (1 - ws.adsFrac);
   camera.fov = (hipV + (adsV - hipV) * ws.adsFrac) * (1 + speedFov);
   camera.updateProjectionMatrix();
@@ -3232,6 +3249,8 @@ initWelcome();
   /** the range's readout counters (shots, hits) */
   stats: () => stats,
   /** the viewmodel's inspect and first draw (tools/e2e.ts) */
+  /** a JOLT's view: the roll in degrees and the FOV fraction now (tools/e2e.ts) */
+  joltFeel: () => ({ roll: joltRoll(gameTime), fov: joltFov }),
   vmState: () => ({ inspecting: gameTime - inspectAt < INSPECT_TIME, flourish: gameTime - flourishAt < FLOURISH_TIME, ...viewModel.shown }),
   /** your own third-person figure (tools/e2e.ts) */
   selfFigure: () => selfFig,

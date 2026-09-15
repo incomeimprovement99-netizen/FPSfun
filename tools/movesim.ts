@@ -1534,11 +1534,11 @@ console.log("\nThe advanced course: every gate needs its technique");
 }
 
 // ------------------------------------------------------------------ JOLT
-console.log("\nJOLT, the dash ability (src/config/abilities.json: 10 m over 0.14 s, the owner's distance, out at 360 hu/s)");
+console.log("\nJOLT, the dash ability (src/config/abilities.json: 10 m over 0.14 s on an ease-out, the owner's distance, out at 400 hu/s)");
 {
   const JD = 10;
   const JT = 0.14;
-  const EXIT = 360 * HU;
+  const EXIT = 400 * HU;
   // standing still on open ground, facing -z, no keys: forward
   const a = new Sim();
   a.p.pos.set(0, 0, 0);
@@ -1551,7 +1551,17 @@ console.log("\nJOLT, the dash ability (src/config/abilities.json: 10 m over 0.14
   a.run(JT + DT); // 0.14 s is 8.4 frames: the ninth ends it
   near("covers 10 m in its 0.14 s, m", z0 - a.p.pos.z, JD, 0.3);
   check("and is over by then", !a.p.jolting);
-  near("leaves at 360 hu/s (faster than a sprint)", a.speedHu, 360, 1);
+  near("leaves at 400 hu/s (faster than a sprint, the slide cap)", a.speedHu, 400, 1);
+  // the curve: a pop, not a slide: 70% of the way in the first half, and it ends at the exit speed
+  const half = new Sim();
+  half.p.pos.set(0, 0, 0);
+  half.frame();
+  half.p.jolt(0, -1, JD, JT, EXIT);
+  const hz0 = half.p.pos.z;
+  half.run(JT / 2);
+  near("70% of the distance in the first half (by the frame, within a frame's travel)", (hz0 - half.p.pos.z) / JD, Player.joltCurve(Math.round((JT / 2) * FPS) / FPS / JT, JD, JT, EXIT), 0.02);
+  near("the curve at half time, exactly", Player.joltCurve(0.5, JD, JT, EXIT), 0.7, 0.03);
+  near("and its speed at the end is the exit speed", (Player.joltCurve(1, JD, JT, EXIT) - Player.joltCurve(1 - 1e-4, JD, JT, EXIT)) * JD / (JT * 1e-4), EXIT, 0.05);
   // what it is worth: against a sprint from a standstill, a JOLT is well ahead after a second
   const js = new Sim();
   js.p.pos.set(0, 0, 0);

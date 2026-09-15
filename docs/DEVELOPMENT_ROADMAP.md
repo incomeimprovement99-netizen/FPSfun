@@ -363,3 +363,35 @@ Striker 9 is) with Season 30's numbers.
   grenade with the real key after the heal).
 - README, the deploy and server guides, NEXT_STEPS, GAP_ANALYSIS and FIDELITY brought up to date; the results
   document; the Pages build deployed and checked live.
+
+## Milestone 25 — JOLT: two charges, 4 s each, and a dash that feels fast ✅
+2026-09-15 (Phase 12B). `src/game/abilities.ts`, `player.ts`, `hud.ts`, `bots.ts`, `src/config/abilities.json`.
+Plan: [`PHASE_12_PLAN_DASH_FIGURES_BOTS_AND_THE_APEX_PIECES.md`](./PHASE_12_PLAN_DASH_FIGURES_BOTS_AND_THE_APEX_PIECES.md);
+research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
+- **Two stored dashes** (the owner's numbers): a spent charge comes back 4 s after the one before it, so both
+  take 8 s. At least 0.25 s between two dashes, so they cannot merge into one 20 m jump. Every life and every
+  round starts with both. Bots follow the same rules.
+- **Faster**: still 10 m, now over 0.14 s (was 0.18 s), on an ease-out curve with 70% of the distance in the
+  first half, a pop rather than a slide. You leave it at 400 hu/s (10 m/s, the slide cap), which a sprint, slide
+  or jump carries on. After one second a dash then a sprint is 9 m ahead of a plain sprint.
+- **The feel**: the view widens by 8 degrees at once and settles as the dash hands over, a sideways dash rolls
+  the view 2.5 degrees into it, and the pad rumbles.
+- **HUD**: a pip per charge under the ability square; the next one fills as it comes back. The notice says when
+  the next charge is back only when both are spent.
+- Tests: verify (the charges, one at a time, the gap, the refund, a pick filling them), movesim (10 m in
+  0.14 s, 70% by half time, leaving at 400 hu/s and at the curve's own end speed, ahead of a sprint), e2e (two
+  dashes, the second sideways with the roll and the FOV, the charges on the HUD).
+
+## Milestone 26 — No gun in the hands when down or out ✅
+2026-09-15 (Phase 12C). `src/game/dummy.ts`, `mannequin.ts`, `viewmodel.ts`, `main.ts`.
+- **Down**: every figure crawls with no gun. The robot's arms go to the floor and reach in turn; the mannequin
+  bends its crouched walk into a crawl. Your own figure in third person and the killcam's recording show you
+  down too. In first person the gun goes and your hands sit low in the frame, reaching as you crawl.
+- **Out**: the figure drops the gun it held. A copy falls from its hands, bounces once and lies on its side
+  by the body until the figure is back up. The mannequin plays its motion-captured death (sped up to 1.5 s)
+  in place of the toppled rig. Your view shows no gun and no hands (the killcam still shows the killer's).
+- **The figure lab** (`window.__range.figureLab`) lines up posed figures for screenshots. `tools/snap.ts` gains
+  figures-robot, figures-mannequin and downed-view, which wait on game time rather than wall time.
+- Tests: e2e (a knocked bot's gun on the floor and not in its hands; down in a squad: no gun in your view,
+  your hands on the floor, no gun on the host's figure of you or on your own in third person; out: the
+  host's figure of you is down and empty-handed).
