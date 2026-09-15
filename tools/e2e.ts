@@ -387,6 +387,27 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await ev(c, "window.__range.duel()?.leave()");
   await c.close();
 
+  // ---- Control: five a side over A, B and C; standing on A takes it, it scores, you come back on it
+  const ct = await startModePage(browser, query, "goControl");
+  const ctl0 = await ev<{ kind: string; n: number; allies: number; zones: string }>(ct, "(() => { const d = window.__range.duel(); const h = d.hud().mode; return { kind: h.kind, n: d.avatars.length, allies: h.rows.filter((r) => r.ally).length, zones: (h.control?.zones ?? []).map((z) => z.id).join('') }; })()");
+  check("control: five a side (you and four bots against five), zones A, B and C", ctl0.kind === "control" && ctl0.n === 9 && ctl0.allies === 4 && ctl0.zones === "ABC", JSON.stringify(ctl0));
+  // the bots stand still (the test's zone is its own); you walk onto A, on your side
+  await ev(ct, "(() => { const d = window.__range.duel(); d.bots.forEach((b) => { b.bot.update = () => []; }); const z = d.hud().mode.control.zones[0].at; window.__range.player.teleport(z.x, 0, z.z, 180); })()");
+  const tookA = await ct.waitForFunction("window.__range.duel().hud().mode.control.zones[0].owner === 'you'", { polling: 200, timeout: 14000 }).then(() => true, () => false);
+  check("control: 8 s on a neutral zone takes it for your team", tookA, JSON.stringify(await ev(ct, "window.__range.duel().hud().mode.control.zones[0]")));
+  const s0 = await ev<number>(ct, "window.__range.duel().hud().mode.control.you");
+  await sleep(3200);
+  const s1 = await ev<number>(ct, "window.__range.duel().hud().mode.control.you");
+  check("control: a zone held scores a point a second", s1 - s0 >= 2 && s1 - s0 <= 5, `${s0} -> ${s1}`);
+  // down: back in 5 s later on A (held in a line from your base), not at the base
+  await ev(ct, "(() => { const d = window.__range.duel(); window.__range.player.teleport(d.hud().mode.control.zones[1].at.x + 6, 0, d.hud().mode.control.zones[1].at.z, 180); d.takeHit(900, 106); })()");
+  const backIn = await ct.waitForFunction("window.__range.duel().alive", { polling: 200, timeout: 9000 }).then(() => true, () => false);
+  await sleep(300);
+  const where = await ev<number>(ct, "(() => { const z = window.__range.duel().hud().mode.control.zones[0].at; const p = window.__range.player.pos; return Math.hypot(p.x - z.x, p.z - z.z); })()");
+  check("control: down, you come back on your team's zone A", backIn && where < 4.5, `${where.toFixed(1)} m from A`);
+  await ev(ct, "window.__range.duel()?.leave()");
+  await ct.close();
+
   // ---- the motion-captured figures (a setting): they load, a match's figures are mannequins and animate
   const mq = await open(browser, query);
   await ev(mq, `(() => { const s = document.getElementById("figureStyle"); const def = s.value; s.value = "mannequin"; s.dispatchEvent(new Event("change")); window.__mqDefault = def; return window.__range.loadMannequin(); })()`);

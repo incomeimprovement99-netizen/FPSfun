@@ -1792,6 +1792,7 @@ function startBots(): void {
 function modeGoal(d: ArenaMode): string {
   if (d.modeKind === "gunrun") return `${d.ladder.guns.length} guns then the knife, ${Math.round(MODES.gunRun.timeLimit / 60)} minutes.`;
   if (d.modeKind === "tdm") return `teams of ${MODES.tdm.teamSize}, first to ${MODES.tdm.scoreLimit}.`;
+  if (d.modeKind === "control") return `teams of ${MODES.control.teamSize} over zones A, B and C, a point a second a zone, first to ${MODES.control.scoreLimit}.`;
   return `hold the crown ${MODES.crown.hold} s, first to ${MODES.crown.roundsToWin} rounds.`;
 }
 /** an arena mode alone, against bots */
@@ -1803,13 +1804,13 @@ function startMode(kind: ModeKind): void {
   cancelJoin = null;
   for (const c of courses) c.leave();
   const diff = brDifficulty();
-  const bots = kind === "tdm" ? MODES.tdm.teamSize * 2 - 1 : Math.max(1, modeBotCount());
+  const bots = kind === "tdm" ? MODES.tdm.teamSize * 2 - 1 : kind === "control" ? MODES.control.teamSize * 2 - 1 : Math.max(1, modeBotCount());
   const d = new ArenaMode(scene, projectiles, { players: 1, myId: 0, link: null, abilities: abilitySetting("bots"), kind, bots, difficulty: diff, list: modeList() });
   duel = d;
   player.setBounds(ARENA_BOUNDS);
   wireMatch(d, kind);
   respawnForMatch(d);
-  setDuelStatus(`${MODE_TITLE[kind]} against ${kind === "tdm" ? "a team of bots, with bots on your side" : `${bots} bot${bots === 1 ? "" : "s"}`}, ${diff}: ${modeGoal(d)}`, "good");
+  setDuelStatus(`${MODE_TITLE[kind]} against ${kind === "tdm" || kind === "control" ? "a team of bots, with bots on your side" : `${bots} bot${bots === 1 ? "" : "s"}`}, ${diff}: ${modeGoal(d)}`, "good");
   duelButtons();
 }
 /** the battle royale against bots, on Outskirts */
@@ -2083,7 +2084,7 @@ function goTo(mode: Mode): void {
     startBr();
     return;
   }
-  if (mode === "gunrun" || mode === "tdm" || mode === "crown") {
+  if (mode === "gunrun" || mode === "tdm" || mode === "crown" || mode === "control") {
     startMode(mode);
     return;
   }

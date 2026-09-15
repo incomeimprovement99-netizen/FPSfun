@@ -35,7 +35,7 @@ import { PAD_DEFAULTS, advancedLookRate } from "../src/game/gamepad";
 import { withoutClashes } from "../src/ui/binds";
 import { withoutUndefined } from "../src/net/link";
 import modesCfg from "../src/config/modes.json";
-import { Crown, GunLadder, TeamScore, gunList, pickSpawn, yawToMiddle } from "../src/game/modes";
+import { Control, Crown, GunLadder, MODES as MODES_CFG, TeamScore, gunList, pickSpawn, teamMode, yawToMiddle } from "../src/game/modes";
 /** every gun the game has but the course's own pistol */
 const DATA_IDS_NO_COURSE = weaponIds().filter((id) => id !== "g17");
 
@@ -1384,6 +1384,76 @@ console.log("The figures' motion (src/game/dummy.ts, duel.ts moveDirOf)");
   fig.update(1, 1 / 60);
   eq("walking, the feet go with the body", fig.plantedTurn, 0);
   fig.dispose();
+}
+
+console.log("");
+console.log("Control (src/game/modes.ts, src/config/modes.json control; RESEARCH_PHASE_12 section 3)");
+{
+  const run = (c: Control, from: number, secs: number, fighters: Array<{ x: number; z: number; team: 0 | 1; alive: boolean }>) => {
+    let r: ReturnType<Control["update"]> = { winner: null, events: [] };
+    const ev: string[] = [];
+    for (let t = 0; t < secs - 1e-9; t += 0.05) {
+      r = c.update(from + t, 0.05, fighters);
+      ev.push(...r.events);
+    }
+    return { ...r, events: ev };
+  };
+  const A = MODES_CFG.control.zones[0];
+  const onA = (team: 0 | 1, n = 1) => Array.from({ length: n }, () => ({ x: Number(A[1]), z: Number(A[2]), team, alive: true }));
+  const c = new Control(0, () => 0);
+  eq("three zones, all neutral", c.zones.map((z) => `${z.id}${z.owner}`).join(" "), "A-1 B-1 C-1");
+  eq("Control and team deathmatch are the team modes", teamMode("control") && teamMode("tdm") && !teamMode("crown"), true);
+  near("the capture rate by count (Apex's multipliers) over our 8 s", Control.rate(3) * MODES_CFG.control.captureTime, 2, 1e-9);
+  run(c, 0, 7.9, onA(0));
+  eq("one player on A: not yet at 7.9 s", c.zones[0].owner, -1);
+  run(c, 7.9, 0.2, onA(0));
+  eq("A is team 0's at 8 s", c.zones[0].owner, 0);
+  const sc0 = c.score[0];
+  run(c, 8.1, 10, []);
+  near("held, it scores a point a second", c.score[0] - sc0, 10, 0.06);
+  // two of team 1 take it back: clear it first (8 / 1.5 s), then capture (as long again)
+  const flip = run(c, 20, 5.4, onA(1, 2));
+  eq("two of the other team: cleared to neutral in 5.3 s", c.zones[0].owner, -1);
+  eq("(the feed hears it go neutral)", flip.events.includes("neutral A"), true);
+  run(c, 25.4, 5.4, onA(1, 2));
+  eq("and theirs 5.3 s after that", c.zones[0].owner, 1);
+  // both teams on it: it holds
+  const v0 = c.zones[0].v;
+  run(c, 31, 3, [...onA(0, 3), ...onA(1, 1)]);
+  eq("contested: it holds, whatever the numbers", c.zones[0].v, v0);
+  // spawns: a team comes back on its held zones in a line from its base, never the one beside the enemy's base
+  const s = new Control(0, () => 0);
+  s.zones[0].owner = 0;
+  s.zones[1].owner = 0;
+  s.zones[2].owner = 0;
+  eq("team 0 holding A, B, C respawns at B (C is beside the enemy's base)", s.spawnZone(0)?.id, "B");
+  s.zones[0].owner = 1;
+  eq("with A lost, the line from its base is broken: the base", s.spawnZone(0), null);
+  eq("team 1, holding only A, has no link to it from C: the base", s.spawnZone(1), null);
+  // the lockout: all three for 30 s wins
+  const l = new Control(0, () => 0);
+  for (const z of l.zones) {
+    z.owner = 1;
+    z.v = 1;
+  }
+  const lk = run(l, 10, 1, []);
+  eq("all three held starts the lockout", lk.events.includes("lockout 1"), true);
+  const lw = run(l, 11, 30, []);
+  eq("30 s later, unbroken, it wins", lw.winner, 1);
+  // the bonus: at 150 s, held at its end, 150 points
+  const b = new Control(0, () => 0.5);
+  b.zones[1].owner = 0;
+  b.zones[1].v = -1;
+  run(b, 0, 150.1, []);
+  eq("the bonus zone at 150 s (B, from the draw)", b.bonus?.zone, 1);
+  const before = b.score[0];
+  run(b, 150.1, 60.2, []);
+  near("held to its end: 150 on top of the 60 it scored", b.score[0] - before, 150 + 60.2, 0.2);
+  // the limit
+  const w = new Control(0, () => 0);
+  w.score = [499.9, 10];
+  w.zones[1].owner = 0;
+  eq("at 500 a team wins", w.update(1, 0.2, []).winner, 0);
 }
 
 console.log("");

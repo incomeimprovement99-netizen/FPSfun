@@ -33,6 +33,19 @@
     "pickup": 1.6,
     "roundsToWin": 3
   },
+  "_control": "Control (docs/RESEARCH_PHASE_12.md section 3), scaled to the arena: Apex plays 9 v 9 over three zones, 1 point a second per zone held, first to 1,000 or 30 minutes, a 150-point bonus zone, spawns on zones linked to your base, and a lockout when one team holds all three. Ours: 5 v 5, first to 500 or 10 minutes. The capture speed by the number on a zone is Apex's (1, 1.5, 2, 2.25, 2.5, 2.75, 3); the base capture time (8 s from neutral with one player, twice that to take an enemy's), the bonus timings, the lockout's 30 s and the 5 s respawn are ours (Apex's are unpublished, and it respawns in waves of up to 10 s). Zones are in arena coordinates: A on team A's side in the left lane, B in the middle, C on team B's side in the right lane.",
+  "control": {
+    "teamSize": 5,
+    "scoreLimit": 500,
+    "timeLimit": 600,
+    "respawn": 5,
+    "zones": [["A", -12, -13], ["B", 0, 0], ["C", 12, 13]],
+    "radius": 4,
+    "captureTime": 8,
+    "captureMult": [1, 1.5, 2, 2.25, 2.5, 2.75, 3],
+    "bonus": { "firstAt": 150, "every": 240, "lasts": 60, "points": 150 },
+    "lockout": { "time": 30, "notWithin": 100 }
+  },
   "countdown": 3,
   "roundEnd": 4,
   "matchEnd": 10,

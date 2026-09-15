@@ -499,3 +499,25 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   raises the knockdown shield, the host sees it, a shot from in front goes into it and one from behind does not;
   the host holds at the guest's box, the beam shows on the guest's screen, and the guest is back on the box at 20
   health with the shield coming back).
+
+## Milestone 31 — Control against bots ✅
+2026-09-15 (Phase 12H). `src/game/modes.ts` (Control), `modematch.ts`, `hud.ts`, `src/config/modes.json` control.
+- **Apex's Control, scaled to the arena** (RESEARCH_PHASE_12 section 3): five a side, you (and friends) with bots
+  against bots, over zones A, B and C (A on your side in the left lane, B in the middle, C on theirs in the right
+  lane). A point a second for each zone your team holds; first to 500 or the most after 10 minutes (Apex: 9 v 9,
+  1,000, 30 minutes).
+- **Capture**: Apex's speed by the number on a zone (1, 1.5, 2, 2.25, 2.5, 2.75, 3 times) over our 8 s from neutral.
+  An enemy zone is cleared to neutral first, then captured, and a zone with both teams on it holds.
+- **The bonus zone** (a gold pole; whoever holds it when its minute is up takes 150), **the lockout** (all three
+  held starts 30 s; unbroken, it wins the match), and **spawns on zones linked to your base**: you come back 5 s
+  after going down on the most forward zone your team holds in a line from its base, never the one beside the
+  enemy's base.
+- **Bots play the zones**: they go for a zone of theirs under attack first, then the nearest one not theirs,
+  spread over the three, and fight whoever they meet.
+- **In the world**: a ring on each zone's floor in the holder's colour, a fill that grows with the capture, and a
+  pole of light (gold for the bonus). **On the HUD**: the scores, A B C in their colours with the capture filling,
+  a mark on the zone you stand on, the bonus and the lockout's clocks, and each zone's letter over it in the
+  world. It is on the Play tab, and in the friends' mode list (the host runs it, the guests are sent its state).
+- Tests: verify (8 s to take a neutral zone alone, a point a second held, two of the other team clear it then take
+  it, contested holds, the spawn chain, the lockout's win, the bonus's 150, the limit), e2e (five a side, zones A B
+  C, standing on A takes it and it scores, down you come back on A), snap (control).

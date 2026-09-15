@@ -14,14 +14,17 @@
 //   down, it takes the round. A carrier who goes down drops it where they fell.
 import cfg from "../config/modes.json";
 
-export type ModeKind = "gunrun" | "tdm" | "crown";
-export const MODE_KINDS: ModeKind[] = ["gunrun", "tdm", "crown"];
+export type ModeKind = "gunrun" | "tdm" | "crown" | "control";
+export const MODE_KINDS: ModeKind[] = ["gunrun", "tdm", "crown", "control"];
 export const MODES = cfg;
-export const MODE_TITLE: Record<ModeKind, string> = { gunrun: "GUN RUN", tdm: "TEAM DEATHMATCH", crown: "CROWN" };
+export const MODE_TITLE: Record<ModeKind, string> = { gunrun: "GUN RUN", tdm: "TEAM DEATHMATCH", crown: "CROWN", control: "CONTROL" };
 
 export function isModeKind(x: unknown): x is ModeKind {
-  return x === "gunrun" || x === "tdm" || x === "crown";
+  return x === "gunrun" || x === "tdm" || x === "crown" || x === "control";
 }
+
+/** the team modes (sides, team scores): team deathmatch and Control */
+export const teamMode = (k: ModeKind): boolean => k === "tdm" || k === "control";
 
 /** Gun Run's guns in order, the short list or every gun; the knife follows the last */
 export function gunList(which: "short" | "full"): string[] {
@@ -232,4 +235,136 @@ export function pickSpawn(cands: Array<[number, number]>, enemies: Array<{ x: nu
 /** the yaw that faces the arena's middle from (x, z) in arena coordinates (look = (-sin yaw, -cos yaw)) */
 export function yawToMiddle(x: number, z: number): number {
   return (Math.atan2(x, z) * 180) / Math.PI;
+}
+
+// ------------------------------------------------------------------ Control
+//
+// Three zones, A B C, from team 0's end to team 1's. Each zone is a number
+// from -1 (team 0 holds it) to +1 (team 1 holds it), 0 neutral: the players of
+// one team on it move it toward their end, at the capture rate for how many of
+// them there are; both teams on it, it holds. A zone changes hands only at the
+// ends, and goes neutral when pushed back through 0, so taking an enemy's
+// zone is clearing it first, then capturing it (Apex's rule).
+
+export type ControlOwner = -1 | 0 | 1;
+export interface ControlZone {
+  id: string;
+  x: number;
+  z: number;
+  v: number;
+  owner: ControlOwner;
+}
+
+export class Control {
+  zones: ControlZone[];
+  score: [number, number] = [0, 0];
+  /** the bonus event: which zone, when it ends (the owner then takes the points) */
+  bonus: { zone: number; endsAt: number } | null = null;
+  private nextBonusAt: number;
+  /** one team holding all three: who, and when it wins if nobody retakes one */
+  lockout: { team: 0 | 1; endsAt: number } | null = null;
+
+  constructor(fightStart: number, private readonly rng: () => number = Math.random) {
+    this.zones = cfg.control.zones.map(([id, x, z]) => ({ id: String(id), x: Number(x), z: Number(z), v: 0, owner: -1 as ControlOwner }));
+    this.nextBonusAt = fightStart + cfg.control.bonus.firstAt;
+  }
+
+  /** the capture rate for n players on a zone, per second (a full capture from neutral is 1) */
+  static rate(n: number): number {
+    if (n <= 0) return 0;
+    const m = cfg.control.captureMult;
+    return m[Math.min(n, m.length) - 1] / cfg.control.captureTime;
+  }
+
+  /** how many of each team's fighters (up) stand on each zone */
+  counts(fighters: Array<{ x: number; z: number; team: 0 | 1; alive: boolean }>): Array<[number, number]> {
+    return this.zones.map((zn) => {
+      const c: [number, number] = [0, 0];
+      for (const f of fighters) if (f.alive && Math.hypot(f.x - zn.x, f.z - zn.z) <= cfg.control.radius) c[f.team]++;
+      return c;
+    });
+  }
+
+  /**
+   * One step (fighters in arena coordinates): the zones move, the points
+   * come in, the bonus and the lockout run. Returns the winning team once
+   * decided (a score at the limit, or a lockout run out), and what happened.
+   */
+  update(now: number, dt: number, fighters: Array<{ x: number; z: number; team: 0 | 1; alive: boolean }>): { winner: 0 | 1 | null; events: string[] } {
+    const events: string[] = [];
+    const counts = this.counts(fighters);
+    this.zones.forEach((zn, i) => {
+      const [a, b] = counts[i];
+      if (a > 0 && b > 0) return; // contested: it holds
+      const team: 0 | 1 | null = a > 0 ? 0 : b > 0 ? 1 : null;
+      if (team === null) return;
+      const dir = team === 0 ? -1 : 1;
+      zn.v = Math.max(-1, Math.min(1, zn.v + dir * Control.rate(team === 0 ? a : b) * dt));
+      // pushed back to or through 0 (the other side's hold cleared): neutral; to the end: theirs
+      if (zn.owner !== -1 && zn.owner !== team && zn.v * dir >= 0) {
+        zn.owner = -1;
+        events.push("neutral " + zn.id);
+      }
+      if (zn.v * dir >= 1 - 1e-9 && zn.owner !== team) {
+        zn.owner = team;
+        events.push("taken " + zn.id + " " + team);
+      }
+    });
+    // the points: 1 a second per zone held
+    for (const zn of this.zones) if (zn.owner !== -1) this.score[zn.owner] += dt;
+    // the bonus: a zone marked for a while; whoever holds it at the end takes the points
+    const B = cfg.control.bonus;
+    if (!this.bonus && now >= this.nextBonusAt) {
+      this.bonus = { zone: Math.floor(this.rng() * this.zones.length), endsAt: now + B.lasts };
+      this.nextBonusAt = now + B.every;
+      events.push("bonus");
+    }
+    if (this.bonus && now >= this.bonus.endsAt) {
+      const o = this.zones[this.bonus.zone].owner;
+      if (o !== -1) {
+        this.score[o] += B.points;
+        events.push("bonus " + o);
+      }
+      this.bonus = null;
+    }
+    // the lockout: all three held by one team; broken when the other retakes one
+    const L = cfg.control.lockout;
+    const all: 0 | 1 | null = this.zones.every((zn) => zn.owner === 0) ? 0 : this.zones.every((zn) => zn.owner === 1) ? 1 : null;
+    if (this.lockout && all !== this.lockout.team) {
+      this.lockout = null;
+      events.push("lockout broken");
+    }
+    const late = Math.max(...this.score) >= cfg.control.scoreLimit - L.notWithin;
+    if (!this.lockout && all !== null && !late) {
+      this.lockout = { team: all, endsAt: now + L.time };
+      events.push("lockout " + all);
+    }
+    if (this.lockout && now >= this.lockout.endsAt) return { winner: this.lockout.team, events };
+    const limit = cfg.control.scoreLimit;
+    if (this.score[0] >= limit || this.score[1] >= limit) return { winner: this.score[0] >= this.score[1] ? 0 : 1, events };
+    return { winner: null, events };
+  }
+
+  /**
+   * Where a team can come back in: the zones it holds in an unbroken line
+   * from its base, but not the last one before the enemy's base (Apex: a
+   * spawn zone is linked to your base and a zone away from theirs). The most
+   * forward of them, or null for the base.
+   */
+  spawnZone(team: 0 | 1): ControlZone | null {
+    const chain = team === 0 ? this.zones : [...this.zones].reverse();
+    let best: ControlZone | null = null;
+    for (let i = 0; i < chain.length - 1; i++) {
+      if (chain[i].owner !== team) break;
+      best = chain[i];
+    }
+    return best;
+  }
+
+  /** the ahead team at the time limit, or null for a draw */
+  get ahead(): 0 | 1 | null {
+    const a = Math.floor(this.score[0]);
+    const b = Math.floor(this.score[1]);
+    return a > b ? 0 : b > a ? 1 : null;
+  }
 }

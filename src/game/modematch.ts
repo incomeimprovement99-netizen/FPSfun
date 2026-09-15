@@ -14,6 +14,9 @@
 //   until someone (or a team) reaches the end, or the clock runs out.
 //   Crown is played in rounds like the 1v1: down is out until the next round;
 //   the crown, or being the last one up, takes the round; first to 3.
+//   Control (modes.ts Control) is team deathmatch's teams over three zones:
+//   a point a second for each zone held, first to 500; you come back on the
+//   most forward zone your team holds in a line from its base.
 //
 // Who is on whose side: in team deathmatch the players (the humans) are one
 // team, filled out with bots to the team size, against a team of bots. Team
@@ -30,7 +33,7 @@ import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
-import { Crown, GunLadder, MODES, MODE_TITLE, TeamScore, gunList, pickSpawn, yawToMiddle, type CrownPhase, type ModeKind } from "./modes";
+import { Control, Crown, GunLadder, MODES, MODE_TITLE, TeamScore, gunList, pickSpawn, teamMode, yawToMiddle, type CrownPhase, type ModeKind } from "./modes";
 import { weaponName } from "./weapons";
 
 const wallClock = (): number => performance.now() / 1000;
@@ -54,6 +57,15 @@ export interface ModeHud {
   teams?: { you: number; them: number; limit: number };
   /** Crown: where it is, who has it, how long they have held it */
   crown?: { phase: CrownPhase; carrier: string | null; mine: boolean; held: number; need: number; at: THREE.Vector3; wins: number; roundsToWin: number };
+  /** Control: the zones (owner from your side: "you", "them" or null; how far toward your side, -1..1), the scores, the bonus and a lockout */
+  control?: {
+    zones: Array<{ id: string; owner: "you" | "them" | null; v: number; bonus: boolean; at: THREE.Vector3; here: boolean }>;
+    you: number;
+    them: number;
+    limit: number;
+    bonusLeft: number | null;
+    lockout: { mine: boolean; left: number } | null;
+  };
   /** down in a mode with respawns: seconds until you are back */
   respawnIn: number | null;
   /** once decided: who won ("YOU", a name, "YOUR TEAM", "THE OTHER TEAM") */
@@ -99,6 +111,10 @@ export class ArenaMode extends Duel {
   private bots: ModeBot[] = [];
   /** team by id (team deathmatch); everyone is team 0 on their own otherwise */
   private teamOf = new Map<number, 0 | 1>();
+  /** Control's zones and scores (the host's; a guest mirrors it in `controlView`), and the zones drawn in the arena */
+  private control: Control | null = null;
+  private controlView: { v: number[]; owner: number[]; score: [number, number]; bonus: number; bonusLeft: number; lockTeam: number; lockLeft: number } | null = null;
+  private zoneModels: Array<{ root: THREE.Group; ring: THREE.Mesh; fill: THREE.Mesh; pole: THREE.Mesh }> = [];
   /** the round's crown (the host's; a guest mirrors it in `crownView`) */
   private crown: Crown | null = null;
   private crownView: { phase: CrownPhase; x: number; z: number; carrier: number; held: number } | null = null;
@@ -129,14 +145,15 @@ export class ArenaMode extends Duel {
     this.difficulty = opts.difficulty;
     this.list = opts.list === "full" ? "full" : "short";
     this.ladder = new GunLadder(gunList(this.list));
-    const tdm = this.modeKind === "tdm";
+    const tdm = teamMode(this.modeKind);
     // the humans: team 0 in team deathmatch
     for (let id = 0; id < this.players; id++) this.teamOf.set(id, 0);
     this.crownModel = makeCrown();
     this.crownModel.visible = false;
     scene.add(this.crownModel);
+    if (this.modeKind === "control") this.buildZones(scene);
     if (this.role !== "host") return;
-    const size = MODES.tdm.teamSize;
+    const size = this.modeKind === "control" ? MODES.control.teamSize : MODES.tdm.teamSize;
     const allies = tdm ? Math.max(0, size - this.players) : 0;
     const enemies = tdm ? size : Math.max(0, Math.min(MODES.maxBots, opts.bots));
     for (let i = 0; i < allies + enemies; i++) {
@@ -169,7 +186,7 @@ export class ArenaMode extends Duel {
 
   /** team deathmatch: the same side as this player; nobody in a free-for-all */
   protected override friendly(id: number): boolean {
-    if (this.modeKind !== "tdm" || id < 0) return false;
+    if (!teamMode(this.modeKind) || id < 0) return false;
     const a = this.teamOf.get(this.id);
     const b = this.teamOf.get(id);
     return a !== undefined && a === b;
@@ -177,7 +194,7 @@ export class ArenaMode extends Duel {
 
   private sameSide(a: number, b: number): boolean {
     if (a === b) return true;
-    if (this.modeKind !== "tdm") return false;
+    if (!teamMode(this.modeKind)) return false;
     const ta = this.teamOf.get(a);
     return ta !== undefined && ta === this.teamOf.get(b);
   }
@@ -218,7 +235,7 @@ export class ArenaMode extends Duel {
   private startSpawn(id: number, team: 0 | 1): Spawn {
     const S = MODES.spawns;
     let p: number[];
-    if (this.modeKind === "tdm") {
+    if (teamMode(this.modeKind)) {
       const list = team === 0 ? S.a : S.b;
       const i = id < Duel.BOT_ID ? id : (this.players + (id - Duel.BOT_ID)) % list.length;
       p = list[i % list.length];
@@ -234,7 +251,19 @@ export class ArenaMode extends Duel {
   /** a respawn: this side's spawns (a team's end in team deathmatch, anywhere otherwise) farthest from the enemies up */
   private respawnSpawn(id: number): Spawn {
     const S = MODES.spawns;
-    const cands = (this.modeKind === "tdm" ? (this.teamFor(id) === 0 ? [...S.a, ...S.mid.slice(0, 2)] : [...S.b, ...S.mid.slice(2, 4)]) : [...S.a, ...S.b, ...S.mid]) as Array<[number, number]>;
+    // Control: the most forward zone your team holds in a line from its base, else the base
+    if (this.modeKind === "control" && this.control) {
+      const team = this.teamFor(id);
+      const zn = this.control.spawnZone(team);
+      if (zn) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 1.5 + Math.random() * 1.5;
+        const p = [zn.x + Math.cos(a) * r, zn.z + Math.sin(a) * r];
+        const w = world(p);
+        return { x: w.x, z: w.z, yaw: yawToMiddle(team === 0 ? p[0] : p[0], team === 0 ? p[1] - 20 : p[1] + 20) };
+      }
+    }
+    const cands = (teamMode(this.modeKind) ? (this.teamFor(id) === 0 ? [...S.a, ...S.mid.slice(0, 2)] : [...S.b, ...S.mid.slice(2, 4)]) : [...S.a, ...S.b, ...S.mid]) as Array<[number, number]>;
     const enemies = this.fighters()
       .filter((f) => f.alive && !this.sameSide(f.id, id))
       .map((f) => ({ x: f.x - ARENA_X, z: f.z - ARENA_Z }));
@@ -308,7 +337,7 @@ export class ArenaMode extends Duel {
   }
 
   private get respawnDelay(): number {
-    return this.modeKind === "gunrun" ? MODES.gunRun.respawn : MODES.tdm.respawn;
+    return this.modeKind === "gunrun" ? MODES.gunRun.respawn : this.modeKind === "control" ? MODES.control.respawn : MODES.tdm.respawn;
   }
 
   /** a human went down (this player, or a guest's `down`): a respawn to come, and the score */
@@ -448,7 +477,7 @@ export class ArenaMode extends Duel {
     this.summarised = true;
     const me = this.ladder.row(this.id);
     const myTeam = this.teamFor(this.id);
-    const won = this.winner !== null && (this.winner === this.id || (this.modeKind === "tdm" && this.winner === TEAM_WIN(myTeam)));
+    const won = this.winner !== null && (this.winner === this.id || (teamMode(this.modeKind) && this.winner === TEAM_WIN(myTeam)));
     let roundsWon = 0;
     let roundsLost = 0;
     if (this.modeKind === "crown") {
@@ -457,6 +486,10 @@ export class ArenaMode extends Duel {
     } else if (this.modeKind === "tdm") {
       roundsWon = this.teams.score[myTeam];
       roundsLost = this.teams.score[myTeam === 0 ? 1 : 0];
+    } else if (this.modeKind === "control") {
+      const sc = this.controlScore();
+      roundsWon = Math.floor(sc[myTeam]);
+      roundsLost = Math.floor(sc[myTeam === 0 ? 1 : 0]);
     } else roundsWon = me.level;
     this.lastSummary = { won, roundsWon, roundsLost, kills: me.kills, deaths: me.deaths, damage: this.damage, shots: this.shots, hits: this.hits };
     this.onMatchEnd?.(this.lastSummary);
@@ -468,6 +501,124 @@ export class ArenaMode extends Duel {
   }
 
   // ------------------------------------------------------------ the network
+
+  // ------------------------------------------------------------ Control
+
+  /** the zones in the arena: a ring on the floor, a fill that grows with the capture, a pole with a light */
+  private buildZones(scene: THREE.Scene): void {
+    if (this.zoneModels.length) return;
+    const R = MODES.control.radius;
+    for (const [, x, z] of MODES.control.zones) {
+      const root = new THREE.Group();
+      const w = world([Number(x), Number(z)]);
+      root.position.set(w.x, 0.03, w.z);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(R - 0.18, R, 48), new THREE.MeshBasicMaterial({ color: 0xe8e8e8, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
+      ring.rotation.x = -Math.PI / 2;
+      const fill = new THREE.Mesh(new THREE.CircleGeometry(R - 0.2, 48), new THREE.MeshBasicMaterial({ color: 0xe8e8e8, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false }));
+      fill.rotation.x = -Math.PI / 2;
+      fill.position.y = 0.01;
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 6, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xe8e8e8, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
+      pole.position.y = 3;
+      root.add(ring, fill, pole);
+      scene.add(root);
+      this.zoneModels.push({ root, ring, fill, pole });
+    }
+  }
+
+  /** the zones as this side sees them: the host's Control, or what a guest was told */
+  private zonesNow(): Array<{ v: number; owner: number }> {
+    if (this.control) return this.control.zones.map((z) => ({ v: z.v, owner: z.owner }));
+    const cv = this.controlView;
+    return cv ? cv.v.map((v, i) => ({ v, owner: cv.owner[i] })) : MODES.control.zones.map(() => ({ v: 0, owner: -1 }));
+  }
+
+  private controlScore(): [number, number] {
+    return this.control ? this.control.score : (this.controlView?.score ?? [0, 0]);
+  }
+
+  /** colours: your team's blue, theirs red, nobody's white; the fill grows with the side's hold */
+  private drawZones(now: number): void {
+    const mine = this.teamFor(this.id);
+    const col = (owner: number) => (owner === -1 ? 0xe8e8e8 : owner === mine ? 0x3fa7ff : 0xff4a3d);
+    const bonus = this.control?.bonus?.zone ?? (this.controlView && this.controlView.bonus >= 0 ? this.controlView.bonus : -1);
+    this.zonesNow().forEach((z, i) => {
+      const m = this.zoneModels[i];
+      if (!m) return;
+      const lean = z.v < 0 ? 0 : 1;
+      (m.ring.material as THREE.MeshBasicMaterial).color.setHex(col(z.owner));
+      (m.fill.material as THREE.MeshBasicMaterial).color.setHex(Math.abs(z.v) < 1e-3 ? 0xe8e8e8 : col(lean));
+      m.fill.scale.setScalar(Math.max(0.02, Math.abs(z.v)));
+      (m.pole.material as THREE.MeshBasicMaterial).color.setHex(i === bonus ? 0xffd23c : col(z.owner));
+      (m.pole.material as THREE.MeshBasicMaterial).opacity = i === bonus ? 0.45 + 0.25 * Math.sin(now * 5) : 0.35;
+    });
+  }
+
+  /** the host's Control for the guests: 12 numbers */
+  private controlPacket(now: number): number[] {
+    const c = this.control!;
+    return [...c.zones.map((z) => z.v), ...c.zones.map((z) => z.owner), c.score[0], c.score[1], c.bonus ? c.bonus.zone : -1, c.bonus ? Math.max(0, c.bonus.endsAt - now) : 0, c.lockout ? c.lockout.team : -1, c.lockout ? Math.max(0, c.lockout.endsAt - now) : 0];
+  }
+
+  /** Control for the HUD, from this side */
+  private controlHud(now: number): NonNullable<ModeHud["control"]> {
+    const mine = this.teamFor(this.id);
+    const sc = this.controlScore();
+    const c = this.control;
+    const cv = this.controlView;
+    const bonusZone = c ? (c.bonus ? c.bonus.zone : -1) : (cv?.bonus ?? -1);
+    const bonusLeft = c ? (c.bonus ? c.bonus.endsAt - now : null) : cv && cv.bonus >= 0 ? cv.bonusLeft : null;
+    const lockTeam = c ? (c.lockout ? c.lockout.team : -1) : (cv?.lockTeam ?? -1);
+    const lockLeft = c ? (c.lockout ? c.lockout.endsAt - now : 0) : (cv?.lockLeft ?? 0);
+    const me = this.lastLocal;
+    return {
+      zones: this.zonesNow().map((z, i) => {
+        const [id, x, zz] = MODES.control.zones[i];
+        const w = world([Number(x), Number(zz)]);
+        return {
+          id: String(id),
+          owner: z.owner === -1 ? null : z.owner === mine ? "you" : "them",
+          v: mine === 0 ? -z.v : z.v,
+          bonus: i === bonusZone,
+          at: new THREE.Vector3(w.x, 0, w.z),
+          here: !!me && Math.hypot(me.x - w.x, me.z - w.z) <= MODES.control.radius,
+        };
+      }),
+      you: Math.floor(sc[mine]),
+      them: Math.floor(sc[mine === 0 ? 1 : 0]),
+      limit: MODES.control.scoreLimit,
+      bonusLeft: bonusLeft !== null ? Math.max(0, bonusLeft) : null,
+      lockout: lockTeam >= 0 ? { mine: lockTeam === mine, left: Math.max(0, lockLeft) } : null,
+    };
+  }
+
+  /** a Control bot's goal: a zone of its team's that is being taken, else the nearest zone not its team's, else the bonus, else the middle */
+  private controlGoal(b: ModeBot): THREE.Vector3 | null {
+    const c = this.control;
+    if (!c) return null;
+    const team = b.team;
+    const counts = c.counts(this.fighters().map((f) => ({ x: f.x - ARENA_X, z: f.z - ARENA_Z, team: this.teamFor(f.id), alive: f.alive })));
+    const pos = { x: b.bot.pos.x - ARENA_X, z: b.bot.pos.z - ARENA_Z };
+    let best: { x: number; z: number } | null = null;
+    let bestD = Infinity;
+    c.zones.forEach((z, i) => {
+      const threatened = z.owner === team && counts[i][team === 0 ? 1 : 0] > 0;
+      const want = threatened || z.owner !== team || (c.bonus?.zone === i && z.owner !== team);
+      if (!want) return;
+      // spread out: each bot has its own lean toward a zone (its index), threats first
+      const d = Math.hypot(z.x - pos.x, z.z - pos.z) - (threatened ? 20 : 0) + ((b.bot.index + i) % 3) * 6;
+      if (d < bestD) {
+        bestD = d;
+        best = { x: z.x, z: z.z };
+      }
+    });
+    if (!best) {
+      // everything held: hold the middle zone, a bit off its centre
+      const z = c.zones[1];
+      best = { x: z.x + (((b.bot.index % 3) - 1) * 2), z: z.z };
+    }
+    const w = world([best.x, best.z]);
+    return new THREE.Vector3(w.x, 0, w.z);
+  }
 
   /** the host: the rules' state to every guest */
   private sendMode(now: number): void {
@@ -488,6 +639,7 @@ export class ArenaMode extends Duel {
       rows,
       tm: this.modeKind === "tdm" ? [this.teams.score[0], this.teams.score[1]] : undefined,
       cr: c ? [c.phase === "waiting" ? 0 : c.phase === "ground" ? 1 : 2, c.x, c.z, c.carrier, c.held] : undefined,
+      ct: this.control ? this.controlPacket(now) : undefined,
       win: this.winner ?? undefined,
     });
   }
@@ -505,6 +657,11 @@ export class ArenaMode extends Duel {
     }
     for (const [id, , , , team] of rows) this.teamOf.set(id, team === 1 ? 1 : 0);
     if (Array.isArray(m.tm) && m.tm.length === 2 && m.tm.every(fin)) this.teams.score = [m.tm[0], m.tm[1]];
+    // Control: v A B C, owners A B C, the two scores, the bonus zone and its time, the lockout's team and time
+    if (Array.isArray(m.ct) && m.ct.length === 12 && m.ct.every(fin)) {
+      const c = m.ct;
+      this.controlView = { v: [c[0], c[1], c[2]], owner: [c[3], c[4], c[5]], score: [c[6], c[7]], bonus: c[8], bonusLeft: c[9], lockTeam: c[10], lockLeft: c[11] };
+    }
     if (Array.isArray(m.cr) && m.cr.length === 5 && m.cr.every(fin)) {
       const [ph, x, z, carrier, held] = m.cr;
       this.crownView = { phase: ph === 2 ? "carried" : ph === 1 ? "ground" : "waiting", x, z, carrier, held };
@@ -519,6 +676,7 @@ export class ArenaMode extends Duel {
   private clockLeft(now: number): number | null {
     if (this.role !== "host") return this.leftSeen === null ? null : Math.max(0, this.leftSeen - (now - this.leftAt));
     if (this.modeKind === "crown") return this.crown && this.crown.phase === "waiting" ? this.crown.appearsIn - now : null;
+    // (Control's clock is the same as team deathmatch's)
     return Number.isFinite(this.timeEndsAt) ? this.timeEndsAt - now : null;
   }
 
@@ -541,8 +699,10 @@ export class ArenaMode extends Duel {
       heal -= toShield;
       this.health = Math.min(HEALTH_MAX, this.health + heal);
     }
+    // Control: the zones in the arena, in the colour of whoever holds them
+    if (this.modeKind === "control") this.drawZones(now);
     // team deathmatch: a team mate's figure is no target for this side's bullets
-    if (this.modeKind === "tdm") for (const r of this.remotes.values()) if (this.friendly(r.id)) this.projectiles.removeDummy(r.avatar);
+    if (teamMode(this.modeKind)) for (const r of this.remotes.values()) if (this.friendly(r.id)) this.projectiles.removeDummy(r.avatar);
     // the crown: over its carrier's head, or turning on the floor
     const cv = this.crownState();
     this.crownModel.visible = !!cv && cv.phase !== "waiting" && this.phase === "fight";
@@ -588,7 +748,8 @@ export class ArenaMode extends Duel {
       this.enter("fight", now, 0);
       this.onNotice?.(this.modeKind === "crown" ? "FIGHT  ·  THE CROWN IN 20 S" : "FIGHT");
       if (this.modeKind === "crown") this.crown = new Crown(ARENA_X, ARENA_Z, now);
-      else if (!Number.isFinite(this.timeEndsAt)) this.timeEndsAt = now + (this.modeKind === "gunrun" ? MODES.gunRun.timeLimit : MODES.tdm.timeLimit);
+      else if (!Number.isFinite(this.timeEndsAt)) this.timeEndsAt = now + (this.modeKind === "gunrun" ? MODES.gunRun.timeLimit : this.modeKind === "control" ? MODES.control.timeLimit : MODES.tdm.timeLimit);
+      if (this.modeKind === "control" && !this.control) this.control = new Control(now);
       this.gunsChanged();
       this.sendMode(now);
     } else if (this.phase === "roundEnd" && now >= this.phaseEndsAt) {
@@ -599,6 +760,7 @@ export class ArenaMode extends Duel {
       this.ladder.clear();
       this.teams.clear();
       this.roundWins.clear();
+      this.control = null;
       this.winner = null;
       this.timeEndsAt = Infinity;
       this.round = 1;
@@ -622,12 +784,29 @@ export class ArenaMode extends Duel {
         this.endMatch(!a || tie ? -1 : a.id, now);
       }
       else {
-        const ahead = this.teams.ahead;
+        const ahead = this.modeKind === "control" && this.control ? this.control.ahead : this.teams.ahead;
         this.endMatch(ahead === null ? -1 : TEAM_WIN(ahead), now);
       }
       return;
     }
     const fighters = this.fighters();
+    // Control: the zones, the points, the bonus and the lockout
+    if (this.control) {
+      const r = this.control.update(now, dt, fighters.map((f) => ({ x: f.x - ARENA_X, z: f.z - ARENA_Z, team: this.teamFor(f.id), alive: f.alive })));
+      const mine = this.teamFor(this.id);
+      for (const e of r.events) {
+        const [what, zone, team] = e.split(" ");
+        if (what === "taken") this.onNotice?.(Number(team) === mine ? `ZONE ${zone} TAKEN` : `ZONE ${zone} LOST`);
+        else if (what === "bonus" && zone === undefined) this.onNotice?.(`BONUS: HOLD ZONE ${this.control.zones[this.control.bonus?.zone ?? 0].id} FOR ${MODES.control.bonus.points}`);
+        else if (what === "lockout" && zone !== "broken") this.onNotice?.(Number(zone) === mine ? "LOCKOUT: HOLD ALL THREE TO WIN" : "LOCKOUT: RETAKE A ZONE OR LOSE");
+        else if (what === "lockout") this.onNotice?.("LOCKOUT BROKEN");
+      }
+      if (r.events.length) this.sendMode(now);
+      if (r.winner !== null) {
+        this.endMatch(TEAM_WIN(r.winner), now);
+        return;
+      }
+    }
     if (this.crown) {
       const r = this.crown.update(now, dt, fighters);
       if (r.event === "appears") {
@@ -790,7 +969,8 @@ export class ArenaMode extends Duel {
     }
     let goal: THREE.Vector3 | null = null;
     const c = this.crown;
-    if (c && c.phase === "ground") goal = new THREE.Vector3(c.x, 0, c.z);
+    if (this.modeKind === "control") goal = this.controlGoal(b);
+    else if (c && c.phase === "ground") goal = new THREE.Vector3(c.x, 0, c.z);
     else if (c && c.phase === "carried" && c.carrier !== me) goal = new THREE.Vector3(c.x, 0, c.z);
     else if (c && c.carrier === me) {
       const s = this.respawnSpawn(me);
@@ -865,6 +1045,7 @@ export class ArenaMode extends Duel {
     }));
     if (this.modeKind === "crown") rows.sort((a, b) => b.wins - a.wins || b.kills - a.kills);
     const myTeam = this.teamFor(this.id);
+    if (teamMode(this.modeKind)) rows.sort((a, b) => a.team - b.team || b.kills - a.kills);
     const winnerName =
       this.winner === null
         ? null
@@ -877,7 +1058,7 @@ export class ArenaMode extends Duel {
             : this.winner === this.id
               ? "YOU"
               : names(this.winner);
-    const won = this.winner === null ? null : this.winner === this.id || (this.modeKind === "tdm" && this.winner === TEAM_WIN(myTeam));
+    const won = this.winner === null ? null : this.winner === this.id || (teamMode(this.modeKind) && this.winner === TEAM_WIN(myTeam));
     const mode: ModeHud = {
       kind: this.modeKind,
       title: MODE_TITLE[this.modeKind],
@@ -895,6 +1076,8 @@ export class ArenaMode extends Duel {
       mode.gun = { level: level + 1, of: guns.length + 1, name: gun === null ? "THE KNIFE" : weaponName(gun).toUpperCase(), next: gun === null ? null : next === null ? "THE KNIFE" : weaponName(next).toUpperCase(), knife: gun === null };
     } else if (this.modeKind === "tdm") {
       mode.teams = { you: this.teams.score[myTeam], them: this.teams.score[myTeam === 0 ? 1 : 0], limit: this.teams.limit };
+    } else if (this.modeKind === "control") {
+      mode.control = this.controlHud(now);
     } else {
       const cv = this.crownState();
       mode.crown = {
@@ -911,7 +1094,7 @@ export class ArenaMode extends Duel {
     const decided = this.phase === "roundEnd" || this.phase === "matchEnd";
     return {
       ...base,
-      you: this.modeKind === "tdm" ? this.teams.score[myTeam] : this.modeKind === "crown" ? (this.roundWins.get(this.id) ?? 0) : this.ladder.level(this.id),
+      you: this.modeKind === "tdm" ? this.teams.score[myTeam] : this.modeKind === "control" ? Math.floor(this.controlScore()[myTeam]) : this.modeKind === "crown" ? (this.roundWins.get(this.id) ?? 0) : this.ladder.level(this.id),
       them: 0,
       youWonRound: decided && this.phase === "roundEnd" ? this.lastWinner === this.id : base.youWonRound,
       youWonMatch: this.phase === "matchEnd" ? won : null,
@@ -954,6 +1137,17 @@ export class ArenaMode extends Duel {
   override dispose(): void {
     for (const b of this.bots) b.bot.dispose();
     this.bots = [];
+    for (const z of this.zoneModels) {
+      z.root.removeFromParent();
+      z.root.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh) {
+          m.geometry.dispose();
+          (m.material as THREE.Material).dispose();
+        }
+      });
+    }
+    this.zoneModels = [];
     this.crownModel.removeFromParent();
     this.crownModel.traverse((o) => {
       const m = o as THREE.Mesh;

@@ -51,6 +51,18 @@ const holdLab = `(async () => { ${hideMenu}; const r = window.__range; await r.l
 
 export const SCENARIOS: Scenario[] = [
   {
+    name: "control",
+    note: "Control: the A B C strip and the scores, zone A taken, the zones in the arena",
+    steps: [
+      [`(() => { ${hideMenu}; document.getElementById("goControl").click(); })()`, 0],
+      [untilFight, 100],
+      [`(() => { const d = window.__range.duel(); d.holdFire = true; const z = d.hud().mode.control.zones[0].at; window.__range.player.teleport(z.x + 3, 0, z.z - 9, 180, -8); })()`, 0],
+      [gameSeconds(1.5), 100],
+      [`(() => { const d = window.__range.duel(); d.control.zones[0].owner = 0; d.control.zones[0].v = -1; d.control.zones[1].v = 0.45; })()`, 0],
+      [gameSeconds(1), 100],
+    ],
+  },
+  {
     name: "figures-crouch-close",
     note: "close up: a robot and a mannequin crouched and walking, from the side",
     steps: [[`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -14); r.setFigureStyle("robot"); const a = r.figureLab([{ speed: 0, stance: "crouch", pitch: 0 }, { speed: 3.5, stance: "stand", pitch: 0 }], 2.6, 90); r.setFigureStyle("mannequin"); })()`, 0], [gameSeconds(1), 100]],

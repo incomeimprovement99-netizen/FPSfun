@@ -7,7 +7,7 @@ import { HEIRLOOMS } from "../game/heirlooms";
 import { Stats, type MatchKind, type MatchStats } from "../game/stats";
 import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
 
-export type Mode = "range" | "run" | "runAdvanced" | "duel" | "arena" | "bots" | "br" | "gunrun" | "tdm" | "crown" | "tour";
+export type Mode = "range" | "run" | "runAdvanced" | "duel" | "arena" | "bots" | "br" | "gunrun" | "tdm" | "crown" | "control" | "tour";
 export type Tab = "play" | "duel" | "loadouts" | "stats" | "settings" | "controls";
 
 export interface MenuOptions {
@@ -57,6 +57,7 @@ export class Menu {
     $("goGunRun").addEventListener("click", () => o.onGo("gunrun"));
     $("goTdm").addEventListener("click", () => o.onGo("tdm"));
     $("goCrown").addEventListener("click", () => o.onGo("crown"));
+    $("goControl").addEventListener("click", () => o.onGo("control"));
 
     // weapon pickers, sorted by name
     const sorted = o.weaponIds.slice().sort((a, b) => o.weaponName(a).localeCompare(o.weaponName(b)));
@@ -131,6 +132,7 @@ export class Menu {
       matchCard("Gun Run", ["gunrun"]),
       matchCard("Team Deathmatch", ["tdm"]),
       matchCard("Crown", ["crown"]),
+      matchCard("Control", ["control"]),
       courseCard("basic", "The Run (Basic)"),
       courseCard("advanced", "The Run (Advanced)"),
       courseCard("drill", "Flick drill (30 targets)"),

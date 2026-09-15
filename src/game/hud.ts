@@ -797,6 +797,59 @@ export class Hud {
       this.text(`${m.teams.them}`, cx + 40 * u, 110 * u, 700, 36 * u, WHITE);
       this.text("THEM", cx + 175 * u, 84 * u, 700, 13 * u, RED, "right");
       this.text(`FIRST TO ${m.teams.limit}${m.left !== null ? `  ·  ${clock(m.left)}` : ""}`, cx, 138 * u, 600, 14 * u, DIM, "center");
+    } else if (m.control) {
+      const ct = m.control;
+      const BLUE = "#3fa7ff";
+      this.text("YOUR TEAM", cx - 175 * u, 80 * u, 700, 12 * u, BLUE);
+      this.text(`${ct.you}`, cx - 175 * u, 110 * u, 700, 28 * u, WHITE);
+      this.text("THEM", cx + 175 * u, 80 * u, 700, 12 * u, RED, "right");
+      this.text(`${ct.them}`, cx + 175 * u, 110 * u, 700, 28 * u, WHITE, "right");
+      // A B C: a square each in the holder's colour, the capture's fill from the side it leans to
+      ct.zones.forEach((z, i) => {
+        const sz = 34 * u;
+        const x = cx + (i - 1) * 46 * u - sz / 2;
+        const y = 70 * u;
+        c.fillStyle = "rgba(0,0,0,0.55)";
+        c.fillRect(x, y, sz, sz);
+        const lean = z.v >= 0 ? BLUE : RED;
+        c.fillStyle = z.owner === "you" ? BLUE : z.owner === "them" ? RED : "rgba(255,255,255,0.12)";
+        c.globalAlpha = z.owner ? 0.85 : 1;
+        c.fillRect(x, y, sz, sz);
+        c.globalAlpha = 1;
+        if (!z.owner && Math.abs(z.v) > 0.01) {
+          c.fillStyle = lean;
+          c.fillRect(x, y + sz * (1 - Math.abs(z.v)), sz, sz * Math.abs(z.v));
+        }
+        if (z.here) {
+          c.strokeStyle = WHITE;
+          c.lineWidth = 2 * u;
+          c.strokeRect(x - 2 * u, y - 2 * u, sz + 4 * u, sz + 4 * u);
+        }
+        if (z.bonus) {
+          c.strokeStyle = GOLD;
+          c.lineWidth = 3 * u;
+          c.strokeRect(x - 4 * u, y - 4 * u, sz + 8 * u, sz + 8 * u);
+        }
+        this.text(z.id, x + sz / 2, y + sz / 2 + 8 * u, 700, 20 * u, WHITE, "center");
+      });
+      const line = ct.lockout
+        ? `${ct.lockout.mine ? "LOCKOUT: HOLD ALL THREE" : "LOCKOUT: RETAKE A ZONE"}  ·  ${Math.ceil(ct.lockout.left)} S`
+        : ct.bonusLeft !== null
+          ? `BONUS ZONE ${ct.zones.find((z) => z.bonus)?.id ?? ""}  ·  ${Math.ceil(ct.bonusLeft)} S`
+          : `FIRST TO ${ct.limit}${m.left !== null ? `  ·  ${clock(m.left)}` : ""}`;
+      this.text(line, cx, 138 * u, 700, 14 * u, ct.lockout ? (ct.lockout.mine ? BLUE : RED) : ct.bonusLeft !== null ? GOLD : DIM, "center");
+      // each zone's letter in the world, held to the screen's edge
+      for (const z of ct.zones) {
+        if (z.here) continue;
+        const v = z.at.clone().setY(z.at.y + 2.5).project(camera);
+        if (v.z > 1) continue;
+        const x = (v.x * 0.5 + 0.5) * this.w;
+        const y = (-v.y * 0.5 + 0.5) * this.h;
+        if (x < 0 || x > this.w || y < 0 || y > this.h) continue;
+        c.fillStyle = "rgba(0,0,0,0.5)";
+        c.fillRect(x - 11 * u, y - 11 * u, 22 * u, 22 * u);
+        this.text(z.id, x, y + 6 * u, 700, 16 * u, z.owner === "you" ? BLUE : z.owner === "them" ? RED : WHITE, "center");
+      }
     } else if (m.crown) {
       const cr = m.crown;
       const best = Math.max(0, ...m.rows.filter((r) => !r.you).map((r) => r.wins));
