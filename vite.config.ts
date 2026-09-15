@@ -11,7 +11,30 @@
 //
 // `base: "./"` makes every path relative, so dist/ works from any folder of
 // any static host (GitHub Pages serves a project from /<repo>/).
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
+import { publicText } from "./tools/public-text";
+
+const ROOT = fileURLToPath(new URL(".", import.meta.url));
+
+/**
+ * README.md is bundled (the range's README screen, src/game/readmetv.ts).
+ * On the public build every real name in it becomes the codename the game
+ * itself shows, before it is ever written into dist/.
+ */
+function scrubReadme(): Plugin {
+  return {
+    name: "scrub-readme",
+    enforce: "pre",
+    load(id) {
+      const file = id.replace(/\\/g, "/");
+      if (!file.endsWith("/README.md?raw")) return null;
+      const md = readFileSync(file.slice(0, -"?raw".length), "utf8");
+      return `export default ${JSON.stringify(publicText(md, ROOT))};`;
+    },
+  };
+}
 
 function scrubForPublic(): Plugin {
   const strip = (v: unknown): unknown => {
@@ -44,7 +67,7 @@ export default defineConfig(({ mode }) => {
   return {
     base: "./",
     define: { __PUBLIC_BUILD__: JSON.stringify(beta) },
-    plugins: beta ? [scrubForPublic()] : [],
+    plugins: beta ? [scrubForPublic(), scrubReadme()] : [],
     build: { chunkSizeWarningLimit: 2000 },
   };
 });

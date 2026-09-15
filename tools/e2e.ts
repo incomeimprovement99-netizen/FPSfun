@@ -1294,7 +1294,72 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   for (let i = 0; i < 30; i++) await ev(page, "window.__range.drill.onHit(window.__range.drill.target, window.__range.gameTime())");
   const done = await ev<{ state: string; best: number | null }>(page, "({ state: window.__range.drill.state, best: window.__range.drill.best })");
   check("range: thirty down and the drill has a time and a best", done.state === "done" && (done.best ?? 0) > 0, JSON.stringify(done));
+  await readmeTvChecks(page);
   await page.close();
+}
+
+/** look straight at a point in the world (bullets leave the eye, so this is what the crosshair is on) */
+const AIM = `const aimAt = (p) => { const r = window.__range; const e = r.player.eyePosition(); const dx = p.x - e.x, dy = p.y - e.y, dz = p.z - e.z; r.player.yaw = Math.atan2(-dx, -dz) * 180 / Math.PI; r.player.pitch = Math.atan2(dy, Math.hypot(dx, dz)) * 180 / Math.PI; };`;
+
+interface TvState {
+  section: number;
+  page: number;
+  pages: number;
+  title: string;
+  sections: string[];
+}
+
+/**
+ * The README screen at the far end of the range: it is this repository's own
+ * README, and shooting the arrow plates beside it turns its pages.
+ */
+async function readmeTvChecks(page: Page): Promise<void> {
+  const tv = (): Promise<TvState> => ev<TvState>(page, "window.__range.readmeTv.state()");
+  const shootAt = async (expr: string, ms = 60) => {
+    await ev(page, `(() => { ${AIM} aimAt(${expr}); })()`);
+    await sleep(120);
+    await padTap(page, 7, ms);
+    await sleep(500);
+  };
+  await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, -98, 0, 0); r.readmeTv.goto(0, 0); })()`);
+  await sleep(200);
+  const start = await tv();
+  check(
+    "README screen: the range's own README, in sections and pages",
+    start.sections.length > 8 && start.pages >= 1 && /range/i.test(start.title),
+    `${start.sections.length} sections, "${start.title}" is ${start.pages} page(s)`
+  );
+  const text = await ev<string>(page, "window.__range.readmeTv.pageText()");
+  check("README screen: the first page is the README's own text", /browser firing range/i.test(text), text.slice(0, 80).replace(/\n/g, " "));
+
+  // the right-hand PAGE arrow
+  await shootAt(`window.__range.readmeTv.buttonAt("nextPage")`);
+  const paged = await tv();
+  check("README screen: a round on the ▶ arrow turns the page", paged.page > start.page || paged.section !== start.section, `${start.section}/${start.page} -> ${paged.section}/${paged.page}`);
+  // the SECTION arrow below it
+  await shootAt(`window.__range.readmeTv.buttonAt("nextSection")`);
+  const sectioned = await tv();
+  check("README screen: a round on the ▼ arrow moves to the next section", sectioned.section !== paged.section && sectioned.page === 0, `${paged.section} -> ${sectioned.section} (page ${sectioned.page})`);
+  // and back the other way
+  await shootAt(`window.__range.readmeTv.buttonAt("prevSection")`);
+  const back = await tv();
+  check("README screen: the ▲ arrow goes back a section", back.section === paged.section, `${sectioned.section} -> ${back.section}`);
+
+  // a round on the page itself changes nothing (stray fire down range)
+  const beforeStray = await tv();
+  await shootAt(`window.__range.readmeTv.bodyPoint()`);
+  const afterStray = await tv();
+  check("README screen: a round on the page itself does not move it", afterStray.section === beforeStray.section && afterStray.page === beforeStray.page, `${beforeStray.section}/${beforeStray.page} -> ${afterStray.section}/${afterStray.page}`);
+
+  // the list of sections: a punch on a name opens it (the melee path). The
+  // last one sits low on the screen, within a fist's reach of the floor.
+  const jump = beforeStray.sections.length - 1;
+  await ev(page, `(() => { ${AIM} const r = window.__range; const p = r.readmeTv.entryAt(${jump}); r.player.teleport(p.x, 0, p.z + 1.2, 0, 0); aimAt(p); })()`);
+  await sleep(200);
+  await padTap(page, 11, 90);
+  await sleep(500);
+  const jumped = await tv();
+  check("README screen: a hit on a section's name opens that section", jumped.section === jump && jumped.page === 0, `wanted ${jump}, got ${jumped.section} ("${jumped.title}")`);
 }
 
 /** a fake gamepad: Start plays, the left stick walks, the right stick turns */

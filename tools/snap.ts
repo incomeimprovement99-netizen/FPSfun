@@ -51,6 +51,22 @@ const holdLab = `(async () => { ${hideMenu}; const r = window.__range; await r.l
 
 export const SCENARIOS: Scenario[] = [
   {
+    name: "readme-tv",
+    note: "the README screen at the far end of the range, under its B00G'S RANGE sign, with the arrow plates beside it",
+    steps: [
+      [`(() => { ${hideMenu}; window.__range.player.teleport(0, 0, -96, 0, 6); })()`, 0],
+      [gameSeconds(0.8), 200],
+    ],
+  },
+  {
+    name: "readme-tv-page",
+    note: "the same screen a few pages in: a section jumped to, then two pages on",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.teleport(0, 0, -99.5, 0, 5); r.readmeTv.goto(3, 0); r.readmeTv.press("nextPage"); })()`, 0],
+      [gameSeconds(0.8), 200],
+    ],
+  },
+  {
     name: "control",
     note: "Control: the A B C strip and the scores, zone A taken, the zones in the arena",
     steps: [

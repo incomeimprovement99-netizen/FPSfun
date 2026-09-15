@@ -56,6 +56,7 @@ import { Killcam, Recorder } from "./game/killcam";
 import { DamageLog, HEAL_CODES, type Recap } from "./game/recap";
 import { Soundscape } from "./game/soundscape";
 import { DummyBehaviour, DUMMY_MODES, DUMMY_MODE_NAME, FlickDrill, RangeCombat, SprayWall, type DummyMode } from "./game/rangetools";
+import { ReadmeTv } from "./game/readmetv";
 import { SuperglideTrainer } from "./game/trainer";
 import { BrPlay } from "./game/brplay";
 import { Tour, type TourCheck } from "./game/tour";
@@ -655,6 +656,15 @@ rangeCombat.onUp = () => {
   hud.notice("BACK UP", gameTime, 1);
 };
 const sprayWall = new SprayWall(scene);
+// the README screen under the "B00G'S RANGE" sign at the far end: its pages
+// turn when you shoot the arrows beside it (src/game/readmetv.ts)
+const readmeTv = new ReadmeTv(scene);
+readmeTv.onPress = (action, at) => {
+  audio.ui("click");
+  hud.notice(action === "jump" ? readmeTv.state().title.toUpperCase() : `${readmeTv.state().title.toUpperCase()}  ·  PAGE ${readmeTv.page + 1}/${readmeTv.pageCount}`, gameTime, 2);
+  void at;
+};
+projectiles.addShootable(readmeTv);
 const drill = new FlickDrill(scene, projectiles);
 drill.onFinish = (time, acc) => {
   const rank = time < 22 ? "S" : time < 28 ? "A" : time < 36 ? "B" : "C";
@@ -2965,6 +2975,12 @@ function step(): void {
   const handleImpact = (e: ImpactEvent): void => {
     // a melee that lands: the punch where it landed
     if (e.weapon === "melee" && (e.dummy || e.target)) audio.punch(e.point);
+    // the README screen took the round (an arrow, or a section's name): a hit
+    // marker, no damage and no spray-wall dot
+    if (e.shootable) {
+      hud.hitMarker(now, false);
+      return;
+    }
     // a round into the spray wall (the range only)
     if (!duel && !e.dummy && !e.target && e.distance > 1) {
       const w = e.weapon === loadout.active.weapon.id ? loadout.active.weapon : e.weapon && e.weapon !== "melee" ? resolveWeapon(e.weapon, 0) : null;
@@ -3109,6 +3125,7 @@ function step(): void {
     drill.update(now);
   }
   trainer.update(now, player, scriptInput ?? input);
+  readmeTv.update(now);
   for (const d of dummies) d.update(now, dt);
   drill.target.update(now, dt);
   for (const d of galleryFigs) d.update(now, dt);
@@ -3575,6 +3592,8 @@ initWelcome();
   sprayWall,
   drill,
   trainer,
+  /** the README screen at the far end (tools/e2e.ts, tools/snap.ts) */
+  readmeTv,
   gunSession: () => [...gunSession.entries()],
   startHeal: () => startHeal(gameTime),
   kit,

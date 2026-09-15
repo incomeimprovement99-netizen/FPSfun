@@ -45,8 +45,11 @@ the bytes came from someone else's asset files.
   textures, sounds, fonts, icons, map geometry, UI .res/.menu files,
   localization strings, or any EA logo/branding.
 - Weapon display names are real while the project is private. A single
-  mapping in `src/config/names.ts` swaps them to codenames before any public
-  URL.
+  mapping in `src/config/names.ts` renames them before any public URL: a gun
+  becomes "Not" its real name ("Not R-301", "Not Kraber"), which says what
+  it is without claiming to be it, and optics, hop-ups and the one branded
+  heal get generic labels. `tools/beta-check.ts` fails the build on a real
+  name in `dist/` in any other form.
 
 ## 3. Engineering
 

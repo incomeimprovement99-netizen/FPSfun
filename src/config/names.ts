@@ -9,38 +9,49 @@
 export const PUBLIC_BUILD = typeof __PUBLIC_BUILD__ !== "undefined" && __PUBLIC_BUILD__;
 export const NAME_MODE: "real" | "codename" = PUBLIC_BUILD ? "codename" : "real";
 
-/** every weapon, generic names by class */
+/**
+ * Every weapon on the public build. The owner's call (phase 13): "Not R-301"
+ * reads better than a class name like "Carbine A", and says plainly that this
+ * is a replica of a published number set rather than the gun itself.
+ *
+ * It does put the real name on the screen, so `tools/beta-check.ts` allows a
+ * real name **only** in this exact form: a bare one anywhere in `dist/` still
+ * fails the build.
+ *
+ * The course pistol keeps a made-up name: its real one is a firearm brand
+ * rather than a game's weapon, which is not ours to joke with.
+ */
 const CODENAMES: Record<string, string> = {
-  rspn101: "Carbine A",
-  vinson: "Rifle B",
-  hemlok: "Burst Rifle",
-  energy_ar: "Energy Rifle",
-  "3030": "Lever Rifle",
-  g2: "Scout Rifle",
-  dmr: "Marksman Rifle",
-  doubletake: "Triple Rifle",
-  sentinel: "Bolt Rifle",
-  sniper: "Heavy Sniper",
-  defender: "Beam Rifle",
-  r97: "SMG A",
-  volt_smg: "SMG B",
-  car: "SMG C",
-  alternator_smg: "SMG D",
-  pdw: "Burst SMG",
-  lmg: "LMG A",
-  esaw: "LMG B",
-  dragon_lmg: "LMG C",
-  lstar: "Energy LMG",
-  shotgun: "Auto Shotgun",
-  mastiff: "Heavy Shotgun",
-  energy_shotgun: "Choke Shotgun",
-  shotgun_pistol: "Shotgun Pistol",
-  wingman: "Revolver",
-  autopistol: "Auto Pistol",
-  semipistol: "Pistol A",
+  rspn101: "Not R-301",
+  vinson: "Not Flatline",
+  hemlok: "Not Hemlok",
+  energy_ar: "Not HAVOC",
+  "3030": "Not 30-30",
+  g2: "Not G7 Scout",
+  dmr: "Not Longbow",
+  doubletake: "Not Triple Take",
+  sentinel: "Not Sentinel",
+  sniper: "Not Kraber",
+  defender: "Not Charge Rifle",
+  r97: "Not R-99",
+  volt_smg: "Not Volt",
+  car: "Not C.A.R.",
+  alternator_smg: "Not Alternator",
+  pdw: "Not Prowler",
+  lmg: "Not Spitfire",
+  esaw: "Not Devotion",
+  dragon_lmg: "Not Rampage",
+  lstar: "Not L-STAR",
+  shotgun: "Not EVA-8",
+  mastiff: "Not Mastiff",
+  energy_shotgun: "Not Peacekeeper",
+  shotgun_pistol: "Not Mozambique",
+  wingman: "Not Wingman",
+  autopistol: "Not RE-45",
+  semipistol: "Not P2020",
   g17: "Striker 9",
-  nemesis: "Burst Rifle E",
-  bocek: "Compound Bow",
+  nemesis: "Not Nemesis",
+  bocek: "Not Bocek",
 };
 
 /**

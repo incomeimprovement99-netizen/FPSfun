@@ -2,6 +2,16 @@
 
 ## What you asked for, and where it stands
 
+### Phase 13 (2026-09-15)
+
+| Ask | Status |
+|---|---|
+| "Make sure the readme is updated" | Done. It had not caught up with Control in its opening line, and now carries the screen, the naming change, the new files and the new checks. |
+| "we can see the readme in the firing range near the end" | Done. A 16 m x 6.5 m screen on the far backstop, 107 m down range: the README itself, bundled with the build and paginated to fit. |
+| "scroll through the tv pages and sections by shooting an Aarow near the tv" | Done. Four arrow plates beside it: the two PAGE arrows step a page, the two SECTION arrows a section, both wrapping round. The list of sections is shootable too, so a round on a name opens it. |
+| "above it should say B00G's range" | Done: a lit **B00G'S RANGE** board over the screen, readable from the firing line. |
+| "instead of 'R-301' its 'Not R-301'" | Done for every gun on the public build, in the HUD and in the README on the screen. Said at the time and worth repeating: it is not legally safer than "Carbine A" was; the build check was narrowed (a real name only behind "Not ") rather than dropped. |
+
 ### Phase 12 (2026-09-15)
 
 | Ask | Status |

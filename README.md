@@ -2,13 +2,19 @@
 
 A browser firing range that reproduces the feel of Apex Legends' movement and
 guns from published numbers, with two timed movement courses, a guided tour,
-bots, a battle royale with loot, Gun Run, team deathmatch and Crown, and a 1v1
-or 1v1v1 against friends by code. Own code, own art, nothing from the game's
-files. It runs in a browser tab and has no connection of any kind to the Apex
-install, the EA App, Steam or Easy Anti-Cheat.
+bots, a battle royale with loot, Gun Run, team deathmatch, Control and Crown,
+and a 1v1 or 1v1v1 against friends by code. Own code, own art, nothing from the
+game's files. It runs in a browser tab and has no connection of any kind to the
+Apex install, the EA App, Steam or Easy Anti-Cheat.
+
+**This page is in the game.** At the far end of the range, under a lit
+**B00G'S RANGE** sign, a 16 m screen shows this README: shoot the arrow plates
+beside it to turn a page or step a section, or put a round on a section's name
+down its left side to jump there.
 
 **Play it: https://incomeimprovement99-netizen.github.io/FPSfun/**
-(Chrome or Edge on a PC; the public build uses codenames for the guns.)
+(Chrome or Edge on a PC; the public build names the guns "Not R-301",
+"Not Kraber" and so on.)
 
 ## Contents
 
@@ -111,13 +117,15 @@ URL flags, all for testing:
 | `?nomerge` | skips the static-mesh merge, to compare frame rates |
 
 The local build (`npm run dev`, `npm run build`) shows the real weapon and
-optic names; only `npm run build:beta` (what is deployed) swaps in codenames.
+optic names; only `npm run build:beta` (what is deployed) renames the guns
+"Not R-301", "Not Kraber" and the rest, and uses generic labels for the
+optics and hop-ups.
 
 ## Modes
 
 | Mode | What it is |
 |---|---|
-| Firing Range | 29 of Apex's guns (and the course pistol), dummies with armour tiers, target banks and moving rails, ladders, a vertical zipline, the wallbounce practice wall with its recipe on a sign, mantle ledges, a slide ramp, the spray wall, the flick drill's pad and the superglide trainer. Two lit gates on the back wall lead to the courses. The Range box on the Play tab sets what the dummies do (stand, strafe, crouch, random; slow to fast) and whether they shoot back. |
+| Firing Range | 29 of Apex's guns (and the course pistol), dummies with armour tiers, target banks and moving rails, ladders, a vertical zipline, the wallbounce practice wall with its recipe on a sign, mantle ledges, a slide ramp, the spray wall, the flick drill's pad and the superglide trainer. Two lit gates on the back wall lead to the courses, and the README screen stands at the far end, 107 m down range, under the **B00G'S RANGE** sign. The Range box on the Play tab sets what the dummies do (stand, strafe, crouch, random; slow to fast) and whether they shoot back. |
 | Guided tour | Thirteen steps through the range, a green marker for each: move, sprint, slide, jump, mantle, climb, a superglide, shoot, reload, swap, heal, JOLT, a grenade. It watches what you do and moves on; hold E (X on a controller) to skip a step. |
 | The Run (Basic) | Timed movement course in the range's back-left corner: seven rooms, each built round one technique (breach, vent slide, climb, superglide, gap lurch, zipline, final sprint), 20 armed pop-ups. Splits per room against your best, a gold, silver or bronze medal per room against its par, a ghost of your best run, a results TV at the start, ranks S/A/B/C. |
 | The Run (Advanced) | The back-right corner: nine rooms, 200 m, 30 pop-ups, the techniques chained. Every gate needs its move: a 7 m gap only a superglide clears, pads only a lurch reaches, a platform only a zipline superjump gets on, two vents, a bounce slalom, a drop slide, a shooting zip, a flow room. Its own bests, splits, ghost and TV. |
@@ -355,6 +363,16 @@ strafe and crouch or dodge at random (I, or the Range box), and shoot back
 with a bot's aim, in which case you have a shield and health in the range
 too. Pop-up targets on the courses are armed and count.
 
+**The README screen**: run to the far end of the range (or ride the 100 m
+with a scope on) and this file is on a 16 m screen under the **B00G'S RANGE**
+sign, as sections and pages. Four arrow plates beside it do the paging — ◀ ▶
+a page, ▲ ▼ a section — and the list of sections down the left side is
+shootable too, so a round on a name opens it. Any gun, pellet, arrow or a
+melee punch works; a round anywhere else on the screen does nothing, so stray
+fire never moves the page. It is this file, bundled at build time, so the
+screen can never say something the README does not (the public build swaps in
+the codenames first).
+
 **The range's tools**: the spray wall (a mag from the mark 20 m out leaves
 your hits beside the gun's own pattern, scaled to the distance), the flick
 drill (thirty figures one at a time in a 60-degree cone, a clock, your best on
@@ -465,10 +483,20 @@ it trusts the game, so it is a board for friends, not a ranked ladder.
   `materials.ts`, `props.ts`): the static level is merged into one mesh per
   material, PBR textures and glTF props are CC0 and fetched by script, and
   three presets trade post-processing for frame rate.
+- **The README screen** (`src/game/readme.ts`, `readmetv.ts`): this file is
+  bundled with the build (`README.md?raw`), parsed into sections and blocks,
+  and laid out on a canvas by measuring the text, so it paginates itself and
+  follows every edit to the file. Its arrow plates are `Shootable`s in the
+  projectile system (`addShootable`), which any bullet, pellet, arrow or
+  melee hits through the same path a target does; the public build rewrites
+  the real names to codenames first (`tools/public-text.ts`, vite.config.ts).
 - **Names** (`src/config/names.ts`): the private build shows the real
-  weapon and optic names; the public build (`--mode beta`) uses codenames
-  and strips the real names from the shipped data, and `tools/beta-check.ts`
-  refuses a build with one in it.
+  weapon and optic names. The public build (`--mode beta`) calls each gun
+  "Not" its real name ("Not R-301", "Not Kraber"), gives the optics and
+  hop-ups generic labels, and strips the real names from the shipped data.
+  `tools/beta-check.ts` refuses a build with a real name anywhere in `dist/`
+  unless it is in that exact "Not " form, so an accidental leak still fails
+  the build.
 
 ## Project layout
 
@@ -481,6 +509,7 @@ src/config/
   binds.json               the default key and mouse bindings
   aimassist.json           controller aim assist: slowdown, rotational strength, zone
   recoil-tuning.json       the one tuned recoil dial (softImpulseScale)
+  readme-tv.json           the README screen: where it stands, how big, its layout
   names.ts                 real names vs codenames (private vs public build)
 src/game/
   player.ts                the first-person controller: every movement rule
@@ -509,6 +538,7 @@ src/game/
   kit.ts                   the heals and the armour (shield cores, helmets)
   ammo.ts                  counted ammo and energy stockpiles
   rangetools.ts, trainer.ts  dummy behaviours, shoot-back, the spray wall, the flick drill; the superglide trainer
+  readme.ts, readmetv.ts   README.md as sections and blocks; the screen at the far end, its sign and its shootable arrows
   tour.ts                  the guided tour
   mannequin.ts             the motion-captured figure (a setting)
   fx.ts                    effects drawn in the world (a JOLT's streak)
@@ -566,7 +596,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `src/config/recoil-tuning.json` | `softImpulseScale`, the one tuned recoil number (docs/TESTING.md has the table) |
 | `data/weapons.json` | the extracted numbers; regenerate with `npm run extract` rather than editing |
 | `data/overrides.json` | a correction to an extracted number, with the reason |
-| `src/config/names.ts` | the codename for each weapon and optic in the public build |
+| `src/config/names.ts` | the public build's name for each weapon ("Not R-301") and the generic labels for the optics, hop-ups and the one heal |
 | `src/game/loadouts.ts` | the five default loadouts |
 | `src/game/courses/*.ts` | the course rooms (and a room's par, if it should not be its share of the S time); the sim proves the gates |
 | `src/config/abilities.json` | JOLT's distance, time, charges and recharge, gap, exit speed and feel; TRIAGE's speed; what the bots do with them |
@@ -577,6 +607,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `src/config/modes.json` | Gun Run's lists and rules, team deathmatch's score and size, Crown's times, Control's zones and numbers, the arena's spawns |
 | `src/config/throwables.json` | the frag, the arc star, thermite |
 | `src/config/killcam.json`, `audio.json`, `rangetools.json` | the killcam's timing; the gun classes and the sound's distances; the range's tools |
+| `src/config/readme-tv.json` | the README screen at the far end of the range: where it stands, its size, its arrow plates and the layout of its pages |
 
 ## Scripts and checks
 
@@ -584,7 +615,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 |---|---|
 | `npm run dev` | the dev server at http://localhost:5173 |
 | `npm run build` | typecheck and bundle the private build into `dist/` |
-| `npm run build:beta` | typecheck, the public build (codenames), then `tools/beta-check.ts` |
+| `npm run build:beta` | typecheck, the public build (the "Not" gun names, generic optics), then `tools/beta-check.ts` |
 | `npm run preview` | serve `dist/` locally |
 | `npm run check` | typecheck only |
 | `npm run assets` | fetch the CC0 textures into `public/tex` (as WebP) |
@@ -595,8 +626,8 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run compare-sources` | compare two reference trees on the numbers we use |
 | `npm run verify` | 820+ checks: weapon data, damage, recoil, sensitivity maths, and the whole movement simulation (every movement rule against its source number). Must print VERIFY PASS. |
 | `npm run movesim` | the movement simulation alone: wiki timings, the wallbounce recipe, crouch kick, wallskip, every course gate, teleports |
-| `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course and its medals, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match with the killcam and the recap, the controller, the range's tools, the settings and the tour, throwables, the battle royale alone, with loot and as a squad (downs, revives, banners, pings), Gun Run, team deathmatch, Crown and Control alone and Gun Run with a friend, the bot tiers, the controller's layout and presets. Needs `npm run dev`. Must print E2E PASS. `E2E_ONLY=page,br,...` runs only those sections (the file lists them); the whole run takes about twelve minutes. |
-| `npm run snap` | screenshots of named scenarios drawn for real (the HUD, the killcam, the figures, the loot, the modes) into `shots/`; `SNAP=name,name` for some |
+| `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course and its medals, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match with the killcam and the recap, the controller, the range's tools, the settings and the tour, throwables, the battle royale alone, with loot and as a squad (downs, revives, banners, pings), Gun Run, team deathmatch, Crown and Control alone and Gun Run with a friend, the bot tiers, the controller's layout and presets, and the README screen paged by shooting its arrows. Needs `npm run dev`. Must print E2E PASS. `E2E_ONLY=page,br,...` runs only those sections (the file lists them); the whole run takes about twelve minutes. |
+| `npm run snap` | screenshots of named scenarios drawn for real (the HUD, the killcam, the figures, the loot, the modes, the README screen) into `shots/`; `SNAP=name,name` for some |
 | `npm run slide-probe` | the slide and slide jump frame by frame in the simulation, as a page of curves beside the wiki's numbers |
 | `npx tsx tools/trim-glb.ts` | cut a .glb down to the animations named (how the mannequin's files were made) |
 | `npm run probe` | a scripted wallbounce at the practice wall in the real page, printing what the feed registered (needs `npm run dev`) |
@@ -765,6 +796,7 @@ guns are built with their grips at the hand for that.
 | `docs/SERVER_GUIDE.md` | the game on its own server like Algonomics: a DuckDNS name, the Oracle firewall rules, one-time setup, `npm run deploy:server`, day to day, troubleshooting |
 | `docs/DEPLOY_GUIDE.md` | the GitHub Pages link: publish, play, update, troubleshoot, the split-repo option |
 | `docs/DEVELOPMENT_ROADMAP.md` | a milestone for every feature shipped, newest last, with what it does and how it was tested |
+| `docs/PHASE_13_PLAN_THE_README_IN_THE_RANGE.md`, `docs/PHASE_13_THE_README_IN_THE_RANGE.md` | phase 13's plan and its results: the README on a screen in the range, paged by shooting it, and the public build's "Not R-301" gun names |
 | `docs/PHASE_12_PLAN_DASH_FIGURES_BOTS_AND_THE_APEX_PIECES.md`, `docs/PHASE_12_DASH_FIGURES_BOTS_AND_THE_APEX_PIECES.md` | phase 12's plan and its results |
 | `docs/RESEARCH_PHASE_12.md` | the sources for phase 12: Apex's controller defaults, Seasons 29 and 30's battle royale systems and hop-ups, Control, how CS2 and TF2 grade their bots, Hyper Scape, dash references |
 | `docs/PHASE_11_PLAN_ABILITIES_KILLCAM_AND_THE_AAA_BATCH.md`, `docs/PHASE_11_ABILITIES_KILLCAM_AND_THE_AAA_BATCH.md` | phase 11's plan and its results (the docs pattern from here on: a plan and a results document per phase) |
@@ -790,9 +822,10 @@ guns are built with their grips at the hand for that.
    replicated on purpose; the game's own art, audio, script code, fonts,
    icons, map geometry, UI files and branding are never copied. Every asset
    is CC0 or made here, with attribution files. Real weapon and optic names
-   only in the private build: the public build uses codenames, and
-   `tools/beta-check.ts` fails `npm run build:beta` if a real name is in
-   `dist/`.
+   only in the private build: the public build names each gun "Not" its real
+   name and labels the optics and hop-ups generically, and
+   `tools/beta-check.ts` fails `npm run build:beta` on a real name in `dist/`
+   in any other form.
 3. **Engineering.** Every gameplay constant comes from `data/weapons.json`
    or `src/config/*.json`, never a literal in game code, so a patch-note
    change is a data edit; every substitute number is documented in

@@ -593,3 +593,32 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - **A new gap analysis** against Apex (Season 30) and **Hyper Scape**, and a new ranked NEXT_STEPS; README, the
   deploy and server guides, and FIDELITY brought up to date; the results document; the Pages build deployed and
   checked live.
+
+## Milestone 37 — The README in the range, paged by shooting it ✅
+2026-09-15 (Phase 13). `src/game/readme.ts`, `readmetv.ts`, `src/config/readme-tv.json`, `projectile.ts`, `main.ts`.
+- A **16 m × 6.5 m screen on the far backstop**, 107 m down the range, under a lit **B00G'S RANGE** sign: this
+  repository's README, in 22 sections, paginated to fit, with the list of sections down its left side and the
+  section and page number in its header.
+- It is **the README itself**, not a copy: `README.md?raw` is bundled with the build, parsed into blocks
+  (headings, paragraphs, lists, fenced code, tables, bold, code, links) and laid out by measuring the text, so it
+  paginates itself and follows every later edit to the file.
+- **Shot to page.** Four plates beside it: ◀ ▶ a page, ▲ ▼ a section, wrapping at both ends. The list of sections
+  is shootable too, so a round on a name opens it. Every gun, every pellet, an arrow and a melee punch work,
+  through a new `Shootable` in the projectile system (`addShootable`), gathered with the dummies and the targets.
+  A hit gives a hit marker and a click and does no damage; a round anywhere else on the screen is an ordinary
+  miss, so stray fire down range never moves the page.
+- Tests: six e2e checks in the `range` section (the screen is the README, ▶ pages, ▼ and ▲ move a section each
+  way, a round on the page changes nothing, a punch on a name opens that section) and two snap scenarios.
+
+## Milestone 38 — "Not R-301": the public build's gun names ✅
+2026-09-15 (Phase 13). `src/config/names.ts`, `tools/public-text.ts`, `tools/beta-check.ts`, `weapons.ts`.
+- The owner's call, replacing the class names ("Carbine A", "SMG A") that had been the public build's since the
+  first beta: a gun is now **"Not" its real name** — Not R-301, Not Kraber, Not Peacekeeper — which reads as what
+  it is, a replica built from published numbers. Optics, hop-ups and the one branded heal keep their generic
+  labels, and the course pistol keeps a made-up name (its real one is a firearm brand, not a game's weapon).
+- That puts a real name on a public screen on purpose, so the guard was narrowed rather than dropped:
+  `tools/beta-check.ts` now allows a real name **only** directly after "Not ", and a bare one anywhere in `dist/`
+  still fails the build. It also matches a name across a line break, which caught "the Charge\nRifle" in the
+  README's own prose.
+- The README on the range's screen is renamed the same way on the public build (`tools/public-text.ts`), so the
+  manual and the HUD agree.

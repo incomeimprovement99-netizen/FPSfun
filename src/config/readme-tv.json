@@ -1,0 +1,19 @@
+{
+  "_note": "The README screen at the far end of the range (ours). The backstop's front face is z = -106.75 and the wall is 9 m tall (range.ts): the screen sits 5 cm proud of it and the arrow plates 13 cm, so a round reaches them before the wall stops it. It is 16 m wide so the text reads from the 100 m mark with an optic, and from anywhere near it without one. Canvas pixels per metre, then the screen's own layout in those pixels.",
+  "screen": { "x": 0, "y": 4.05, "z": -106.7, "width": 16, "height": 6.5, "px": 150 },
+  "sign": { "y": 8.2, "width": 16.6, "height": 1.4, "text": "B00G'S RANGE", "sub": "THE MANUAL · SHOOT THE ARROWS TO TURN THE PAGES" },
+  "buttons": { "z": -106.62, "x": 9.3, "pageY": 3.0, "sectionY": 5.4, "width": 2.2, "height": 1.9, "flash": 0.22 },
+  "layout": {
+    "pad": 34,
+    "header": 96,
+    "footer": 52,
+    "sidebar": 560,
+    "entryLine": 42,
+    "entrySize": 32,
+    "titleSize": 44,
+    "bodySize": 40,
+    "bodyLine": 52,
+    "indent": 44,
+    "gap": 18
+  }
+}

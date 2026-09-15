@@ -80,7 +80,7 @@ addDerived("g17", "semipistol", PUB ? "Striker 9" : "Glock 17", [17, 19, 21, 24,
 addDerived(
   "nemesis",
   "hemlok",
-  PUB ? "Burst Rifle E" : "Nemesis Burst AR",
+  PUB ? "Not Nemesis" : "Nemesis Burst AR",
   [20, 24, 28, 32, 32],
   {
     damage_near_value: 17, damage_far_value: 17, damage_very_far_value: 17,
@@ -101,7 +101,7 @@ addDerived(
 addDerived(
   "bocek",
   "g2",
-  PUB ? "Compound Bow" : "Bocek Compound Bow",
+  PUB ? "Not Bocek" : "Bocek Compound Bow",
   [1, 1, 1, 1, 1],
   {
     damage_near_value: 55, damage_far_value: 55, damage_very_far_value: 55,

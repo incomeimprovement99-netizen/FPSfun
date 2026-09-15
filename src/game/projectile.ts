@@ -73,6 +73,19 @@ export interface ImpactEvent {
   distance: number;
   /** the gun that fired it ("melee" for a melee), for the death recap */
   weapon: string;
+  /** it landed on something shootable that took it (the README screen's arrows) */
+  shootable?: boolean;
+}
+
+/**
+ * Something bullets can hit that is not a figure or a target: the README
+ * screen's arrow plates (readmetv.ts). `onHit` returns true when it took the
+ * hit; false leaves it an ordinary miss, so a round on the rest of the screen
+ * still behaves like a round into the wall behind it.
+ */
+export interface Shootable {
+  meshes: THREE.Mesh[];
+  onHit(point: THREE.Vector3, weapon: string): boolean;
 }
 
 const SUBSTEPS = 4;
@@ -123,13 +136,19 @@ export class ProjectileSystem {
     if (i >= 0) this.dummies.splice(i, 1);
   }
 
+  private shootables: Shootable[] = [];
+  /** add something that reacts to being shot but takes no damage (the README screen) */
+  addShootable(s: Shootable): void {
+    if (!this.shootables.includes(s)) this.shootables.push(s);
+  }
+
   /**
    * A melee strike: the first dummy, target or wall within `range` along
    * `dir`. Melee does the same damage wherever it lands, so no headshot
    * multiplier. Returns true if it hit something that takes damage.
    */
   melee(origin: THREE.Vector3, dir: THREE.Vector3, range: number, damage: number, now: number, onImpact: (e: ImpactEvent) => void, headDamage = damage): boolean {
-    const { meshes, owner, tOwner } = this.gather(now);
+    const { meshes, owner, tOwner, sOwner } = this.gather(now);
     const unit = dir.clone().normalize();
     this.ray.set(origin, unit);
     this.ray.far = Math.min(range, solidHit(origin, unit, range));
@@ -143,6 +162,13 @@ export class ProjectileSystem {
       onImpact({ dummy: d, report, target: null, targetHead: false, damage: report?.amount ?? 0, point: hit.point.clone(), distance: dist, weapon: "melee" });
       return true;
     }
+    const s = sOwner.get(hit.object);
+    if (s) {
+      // a punch on the README screen's arrows turns the page too
+      const took = s.onHit(hit.point.clone(), "melee");
+      onImpact({ dummy: null, report: null, target: null, targetHead: false, damage: 0, point: hit.point.clone(), distance: dist, weapon: "melee", shootable: took });
+      return took;
+    }
     const t = tOwner.get(hit.object);
     if (!t) return false;
     t.hit(now, false, damage);
@@ -151,10 +177,21 @@ export class ProjectileSystem {
   }
 
   /** every hit mesh in play, and who owns it */
-  private gather(now: number): { meshes: THREE.Mesh[]; owner: Map<THREE.Object3D, Dummy>; tOwner: Map<THREE.Object3D, Target> } {
+  private gather(now: number): { meshes: THREE.Mesh[]; owner: Map<THREE.Object3D, Dummy>; tOwner: Map<THREE.Object3D, Target>; sOwner: Map<THREE.Object3D, Shootable> } {
     const meshes: THREE.Mesh[] = [];
     const owner = new Map<THREE.Object3D, Dummy>();
     const tOwner = new Map<THREE.Object3D, Target>();
+    const sOwner = new Map<THREE.Object3D, Shootable>();
+    for (const s of this.shootables) {
+      for (const m of s.meshes) {
+        if (!m.visible) continue;
+        // nothing else updates these: with ?norender the renderer never runs,
+        // and an un-updated matrix leaves the mesh at the origin to a raycast
+        m.updateMatrixWorld();
+        meshes.push(m);
+        sOwner.set(m, s);
+      }
+    }
     for (const d of this.dummies) {
       if (!d.group.visible || d.knocked) continue;
       for (const m of d.hitMeshes) {
@@ -176,12 +213,12 @@ export class ProjectileSystem {
     // against last frame's position
     for (const t of this.targets) t.group.updateMatrixWorld();
     for (const d of this.dummies) d.group.updateMatrixWorld();
-    return { meshes, owner, tOwner };
+    return { meshes, owner, tOwner, sOwner };
   }
 
   update(dt: number, now: number, onImpact: (e: ImpactEvent) => void): void {
     const h = dt / SUBSTEPS;
-    const { meshes, owner, tOwner } = this.gather(now);
+    const { meshes, owner, tOwner, sOwner } = this.gather(now);
     for (let bi = this.bullets.length - 1; bi >= 0; bi--) {
       const b = this.bullets[bi];
       let dead = false;
@@ -227,6 +264,14 @@ export class ProjectileSystem {
               onImpact({
                 dummy: d, report, target: null, targetHead: false,
                 damage: report?.amount ?? 0, point: hit.point.clone(), distance: dist, weapon: b.weapon.id,
+              });
+            } else if (sOwner.has(hit.object)) {
+              // the README screen: it turns its own page, and takes no damage
+              const s = sOwner.get(hit.object)!;
+              const took = s.onHit(hit.point.clone(), b.weapon.id);
+              onImpact({
+                dummy: null, report: null, target: null, targetHead: false, damage: 0,
+                point: hit.point.clone(), distance: dist, weapon: b.weapon.id, shootable: took,
               });
             } else {
               const t = tOwner.get(hit.object)!;

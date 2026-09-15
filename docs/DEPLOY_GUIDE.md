@@ -22,7 +22,7 @@ introduces the two.
   WebRTC).
 - Everything in the menu: the range, both courses, 1v1 and 1v1v1 by code,
   bots, loadouts, stats (per browser).
-- Weapon and optic names are the codenames (PROJECT_RULES.md section 2);
+- Guns are named "Not R-301" and so on, optics and hop-ups generically (PROJECT_RULES.md section 2);
   `tools/beta-check.ts` refuses to publish a build with a real name in it.
 - The source stays in the `main` branch of the repo; the site is the
   `gh-pages` branch, which only ever holds `dist/`.
