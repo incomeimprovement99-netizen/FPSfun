@@ -53,6 +53,9 @@ import { FxLayer } from "./game/fx";
 import { Killcam, Recorder } from "./game/killcam";
 import { DamageLog, HEAL_CODES, type Recap } from "./game/recap";
 import { Soundscape } from "./game/soundscape";
+import { DummyBehaviour, DUMMY_MODES, DUMMY_MODE_NAME, FlickDrill, RangeCombat, SprayWall, type DummyMode } from "./game/rangetools";
+import { SuperglideTrainer } from "./game/trainer";
+import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
 import itemsCfg from "./config/items.json";
 
@@ -551,6 +554,7 @@ hud.enabled = !NO_RENDER;
 // for the tools (tools/tech-probe.ts drives a wallbounce in the real page)
 const techLog: Array<{ name: string; detail: string; good: boolean; at: number }> = [];
 player.onTech = (name, detail, good) => {
+  trainer?.onTech(name, detail);
   hud.tech(name, detail, good, gameTime);
   techLog.push({ name, detail, good, at: gameTime });
   if (techLog.length > 200) techLog.shift();
@@ -583,6 +587,78 @@ const projectiles = new ProjectileSystem(scene, [...rangeTargets], targets, 0);
 const aimAssist = new AimAssist();
 projectiles.listener = camera.position;
 projectiles.onWhiz = (p) => audio.whiz(p);
+
+// ---------- the range's tooling (rangetools.ts, trainer.ts) ----------
+const dummyBehaviour = new DummyBehaviour(dummies);
+const rangeCombat = new RangeCombat();
+const combatWeapon = resolveWeapon(rangeToolsCfg.combat.weapon, 2);
+rangeCombat.onHurt = (amount) => {
+  hud.hurt(gameTime);
+  audio.hurt(rangeCombat.shield > 0);
+  void amount;
+};
+rangeCombat.onDown = () => hud.notice("DOWN: BACK UP IN 2 S", gameTime, 2);
+rangeCombat.onUp = () => {
+  kit.cells = itemsCfg.kit.cell;
+  kit.syringes = itemsCfg.kit.syringe;
+  hud.notice("BACK UP", gameTime, 1);
+};
+const sprayWall = new SprayWall(scene);
+const drill = new FlickDrill(scene, projectiles);
+drill.onFinish = (time, acc) => {
+  const rank = time < 22 ? "S" : time < 28 ? "A" : time < 36 ? "B" : "C";
+  hud.notice(`FLICK DRILL ${time.toFixed(2)} S  ·  ${Math.round(acc * 100)}%  ·  ${rank}`, gameTime, 4);
+  audio.stinger(time <= (drill.best ?? Infinity) + 1e-6 ? "won" : "lost");
+  profile.recordRun("drill", time, rank);
+  profile.flush();
+  void submitScore("course:drill", profile.profile.name, Number(time.toFixed(3))).then((r) => {
+    if (r !== null) hud.notice(`#${r} ON THE ONLINE BOARD`, gameTime, 3);
+  });
+};
+const trainer = new SuperglideTrainer();
+/** this session's shots and hits per gun (the Stats tab) */
+const gunSession = new Map<string, { shots: number; hits: number; heads: number; damage: number }>();
+const gunRow = (id: string) => {
+  let r = gunSession.get(id);
+  if (!r) gunSession.set(id, (r = { shots: 0, hits: 0, heads: 0, damage: 0 }));
+  return r;
+};
+/** I: the next dummy behaviour (set up with the Range box below) */
+let cycleDummyMode: () => string = () => "";
+// the Range box on the Play tab, remembered
+{
+  const modeSel = $<HTMLSelectElement>("dummyMode");
+  const speedSel = $<HTMLSelectElement>("dummySpeed");
+  const shootSel = $<HTMLSelectElement>("dummyShoot");
+  try {
+    const v = JSON.parse(localStorage.getItem("range.dummies") ?? "{}") as { mode?: string; speed?: string; shoot?: string };
+    if (v.mode && DUMMY_MODES.includes(v.mode as DummyMode)) modeSel.value = v.mode;
+    if (v.speed && [...speedSel.options].some((o) => o.value === v.speed)) speedSel.value = v.speed;
+    if (v.shoot && [...shootSel.options].some((o) => o.value === v.shoot)) shootSel.value = v.shoot;
+  } catch {
+    /* ignore */
+  }
+  const apply = () => {
+    dummyBehaviour.mode = modeSel.value as DummyMode;
+    dummyBehaviour.speed = Number(speedSel.value) || 1;
+    rangeCombat.level = (shootSel.value === "easy" || shootSel.value === "normal" || shootSel.value === "hard" ? shootSel.value : "off") as RangeCombat["level"];
+    rangeCombat.refill();
+    try {
+      localStorage.setItem("range.dummies", JSON.stringify({ mode: modeSel.value, speed: speedSel.value, shoot: shootSel.value }));
+    } catch {
+      /* ignore */
+    }
+  };
+  for (const s of [modeSel, speedSel, shootSel]) s.addEventListener("change", apply);
+  apply();
+  // I in the range cycles the dummies' behaviour; the select follows
+  cycleDummyMode = () => {
+    const i = DUMMY_MODES.indexOf(dummyBehaviour.mode);
+    modeSel.value = DUMMY_MODES[(i + 1) % DUMMY_MODES.length];
+    apply();
+    return DUMMY_MODE_NAME[dummyBehaviour.mode];
+  };
+}
 /** the last 8 s of every match, the replay of your elimination, and the damage log for the recap */
 const recorder = new Recorder();
 const killcam = new Killcam(scene, projectiles);
@@ -626,6 +702,23 @@ rangeAmmoSel.addEventListener("change", () => {
       loadout.ammo.kit(loadout.slots.map((sl) => sl.weapon));
       loadout.refillEnergy();
     }
+  }
+});
+// the mantle boost cue: a ring on the crosshair while a superglide's window is open (Settings)
+const mantleCueSel = $<HTMLSelectElement>("mantleCue");
+let mantleCueOn = true;
+try {
+  mantleCueOn = localStorage.getItem("range.mantleCue") !== "0";
+} catch {
+  /* ignore */
+}
+mantleCueSel.value = mantleCueOn ? "1" : "0";
+mantleCueSel.addEventListener("change", () => {
+  mantleCueOn = mantleCueSel.value === "1";
+  try {
+    localStorage.setItem("range.mantleCue", mantleCueOn ? "1" : "0");
+  } catch {
+    /* ignore */
   }
 });
 // the killcam can be turned off (Settings); the recap still shows
@@ -807,31 +900,33 @@ const HEAL_ITEMS = itemsCfg.heals;
 const kit = { cells: itemsCfg.kit.cell, syringes: itemsCfg.kit.syringe };
 let heal: { item: HealItem; startedAt: number; duration: number } | null = null;
 function startHeal(now: number): void {
-  if (!duel || !duel.alive || heal) return;
+  const v = vitalsTarget();
+  if (!v || !v.alive || heal) return;
   const item: HealItem | null =
-    duel.shield < SHIELD_MAX && kit.cells > 0 ? "cell" : duel.health < HEALTH_MAX && kit.syringes > 0 ? "syringe" : null;
+    v.shield < SHIELD_MAX && kit.cells > 0 ? "cell" : v.health < HEALTH_MAX && kit.syringes > 0 ? "syringe" : null;
   if (!item) {
-    hud.notice(kit.cells + kit.syringes === 0 ? "NO HEALS LEFT" : duel.shield >= SHIELD_MAX && duel.health >= HEALTH_MAX ? "FULL" : kit.cells === 0 ? "NO CELLS LEFT" : "NO SYRINGES LEFT", now, 1);
+    hud.notice(kit.cells + kit.syringes === 0 ? "NO HEALS LEFT" : v.shield >= SHIELD_MAX && v.health >= HEALTH_MAX ? "FULL" : kit.cells === 0 ? "NO CELLS LEFT" : "NO SYRINGES LEFT", now, 1);
     return;
   }
   heal = { item, startedAt: now, duration: HEAL_ITEMS[item].time / abilities.healScale };
 }
 /** the heal in progress: cancelled by firing or aiming, applied when its time is up */
 function updateHeal(now: number, cancel: boolean): void {
-  if (!heal || !duel) return;
-  if (cancel || !duel.alive) {
+  const v = vitalsTarget();
+  if (!heal || !v) return;
+  if (cancel || !v.alive) {
     heal = null;
     return;
   }
   const it = HEAL_ITEMS[heal.item];
   if (now - heal.startedAt < heal.duration) return;
-  duel.shield = Math.min(SHIELD_MAX, duel.shield + it.shield);
-  duel.health = Math.min(HEALTH_MAX, duel.health + it.health);
+  v.shield = Math.min(SHIELD_MAX, v.shield + it.shield);
+  v.health = Math.min(HEALTH_MAX, v.health + it.health);
   if (heal.item === "cell") kit.cells--;
   else kit.syringes--;
   audio.healDone();
   // the others' recaps say you healed
-  duel.localFx("heal", undefined, undefined, HEAL_CODES.indexOf(heal.item));
+  duel?.localFx("heal", undefined, undefined, HEAL_CODES.indexOf(heal.item));
   heal = null;
 }
 // ---------- abilities: JOLT and TRIAGE ----------
@@ -886,6 +981,9 @@ let lastMatchPhase: string | null = null;
 let wasDropping = false;
 /** extra field of view through a JOLT, eased */
 let joltFov = 0;
+
+/** the vitals heals work on: the match's, or the range's when the dummies shoot back */
+const vitalsTarget = (): { shield: number; health: number; alive: boolean } | null => duel ?? (rangeCombat?.on ? rangeCombat : null);
 
 /** the killer's gun for the killcam's view, resolved once each */
 const killcamGuns = new Map<string, ResolvedWeapon>();
@@ -1127,6 +1225,20 @@ duelJoinBtn.addEventListener("click", () => {
   setDuelStatus("Joining...", "live");
   cancelJoin = joinMatch(duelCode.value, (link, w) => startDuel(link, w.players, w.id, 1, w.br, w.opts), (err) => setDuelStatusText(err, "bad"));
 });
+// the Flick drill button: to the pad, facing downrange, the countdown starts once you are in
+$("goDrill").addEventListener("click", () => {
+  if (duel) {
+    hud.notice("LEAVE THE MATCH FIRST (1V1 TAB)", gameTime, 2);
+    return;
+  }
+  goTo("range");
+  player.teleport(rangeToolsCfg.drill.padX, 0, rangeToolsCfg.drill.padZ, 0);
+  drill.start(gameTime);
+  if (!calibrating) {
+    readSettings();
+    void input.lock();
+  }
+});
 duelCode.addEventListener("keydown", (e) => {
   if (e.key === "Enter") duelJoinBtn.click();
 });
@@ -1259,6 +1371,7 @@ const menu = new Menu(loadouts, profile, {
   weaponIds: weaponIds(),
   weaponName,
   onApply: applyLoadout,
+  sessionGuns: () => [...gunSession.entries()].map(([id, r]) => ({ name: weaponName(id), ...r })),
   onGo: (mode) => {
     goTo(mode);
     if (calibrating) return;
@@ -1514,7 +1627,7 @@ function step(): void {
   }
   const hipH = hipFov43(settings.fovScale);
   // knocked in a 1v1: no movement, no weapon keys, until the next round
-  const knockedOut = duel !== null && !duel.alive;
+  const knockedOut = (duel !== null && !duel.alive) || (!duel && rangeCombat.on && !rangeCombat.alive);
 
   if (input.playing) {
     // Holster. While the gun is away, fire, aim, reload or any weapon key
@@ -1555,6 +1668,8 @@ function step(): void {
     if (armed && input.pressedNow("slot2") && !(cardTakesPad && input.pad.pressedNow("slot2")) && loadout.requestSwap(1, now)) audio.swap();
     // Q or the forward thumb button, which is where most players bind swap
     if (armed && input.pressedNow("swapWeapon") && loadout.requestNext(now)) audio.swap();
+    if (!duel && input.pressedNow("dummyMode")) hud.notice(`DUMMIES: ${cycleDummyMode()}`, now, 1.2);
+    if (!duel && input.pressedNow("interact") && drill.state === "idle" && drill.onPad(player.pos)) drill.start(now);
     if (input.pressedNow("cycleArmor")) {
       armorTier = ((armorTier + 1) % 5) as ArmorTier;
       for (const d of dummies) d.setTier(armorTier); // also clears engagedAt
@@ -1563,6 +1678,11 @@ function step(): void {
       for (const d of dummies) d.reset();
       for (const t of targets) t.reset();
       for (const c of courses) c.reset();
+      // and the live overlay's numbers, the spray wall, a drill in progress
+      Object.assign(stats, { shots: 0, hits: 0, headshots: 0, damage: 0, knocks: 0, lastTtk: null });
+      sprayWall.clear();
+      drill.stop();
+      hud.notice("RESET: DUMMIES, NUMBERS, THE WALL", now, 1);
     }
     if (input.pressedNow("copyResult")) {
       const line = activeCourse().shareText();
@@ -1808,6 +1928,8 @@ function step(): void {
   for (const s of shots) {
     // per pellet, as hits are: per trigger pull an EVA-8 read 800% accuracy
     stats.shots += weapon.pellets;
+    gunRow(weapon.id).shots += weapon.pellets;
+    drill.onShot(weapon.pellets);
     const shotQ = player.orientationAt(aimYaw, aimPitch, s.kick.preSoftPitchUp + hardPitch, s.kick.preSoftYawLeft + hardYaw);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(shotQ);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(shotQ);
@@ -1848,6 +1970,26 @@ function step(): void {
   }
 
   const handleImpact = (e: ImpactEvent): void => {
+    // a round into the spray wall (the range only)
+    if (!duel && !e.dummy && !e.target && e.distance > 1) {
+      const w = e.weapon === loadout.active.weapon.id ? loadout.active.weapon : e.weapon && e.weapon !== "melee" ? resolveWeapon(e.weapon, 0) : null;
+      if (w) sprayWall.hit(e.point, w, now, e.distance);
+      return;
+    }
+    // the flick drill's figure: counted, and the next one is up at once
+    if (e.dummy && drill.onHit(e.dummy, now)) {
+      hud.hitMarker(now, e.report?.headshot ?? false);
+      audio.hitTier(e.report?.headshot ? "head" : "health");
+      const g = gunRow(e.weapon);
+      g.hits++;
+      return;
+    }
+    if (e.damage > 0 || e.report) {
+      const g = gunRow(e.weapon);
+      g.hits++;
+      g.damage += e.report?.amount ?? e.damage;
+      if (e.report?.headshot || e.targetHead) g.heads++;
+    }
     // a shootable target rather than a dummy
     if (e.target) {
       stats.hits++;
@@ -1927,7 +2069,15 @@ function step(): void {
     if (!killcam.active && recap) recapShownAt = now;
   } else if (recap && (input.pressedNow("jump") || input.pressedNow("interact") || !duel || (duel.phase === "fight" && duel.alive))) recap = null;
 
+  // the range's tooling: moving dummies, the ones that shoot back, the drill, the trainer
+  if (!duel) {
+    dummyBehaviour.update(now, dt);
+    if (input.playing || scriptInput) rangeCombat.update(now, dummies, player.pos, projectiles, combatWeapon);
+    drill.update(now);
+  }
+  trainer.update(now, player, scriptInput ?? input);
   for (const d of dummies) d.update(now, dt);
+  drill.target.update(now, dt);
   for (const d of galleryFigs) d.update(now, dt);
   fx.update(now);
   // the menu stops a run's clock (a minute on the Settings tab was a minute
@@ -2072,6 +2222,7 @@ function step(): void {
   // context prompts: a zipline in reach, or a ladder you are facing
   let prompt: { key: string; text: string } | null = null;
   if (player.zipPrompt) prompt = { key: "E", text: "RIDE ZIPLINE" };
+  else if (!duel && drill.state === "idle" && drill.onPad(player.pos)) prompt = { key: keyLabel("interact"), text: "START THE FLICK DRILL" };
   else if (player.onGround && ladderAhead(player.pos.x, player.pos.y, player.pos.z, player.yaw)) {
     prompt = { key: "SPACE", text: "JUMP INTO THE WALL, HOLD W TO CLIMB" };
   }
@@ -2133,13 +2284,16 @@ function step(): void {
     mapRegion: duel instanceof BrMatch ? BR_BOUNDS : undefined,
     // the drop shows the map by itself; M opens it any other time
     mapOpen: mapOpen || !!duelHud?.br?.dropping,
-    heal: heal && duel ? { item: HEAL_ITEMS[heal.item].name, progress: Math.min(1, (now - heal.startedAt) / heal.duration) } : null,
-    kit: duel && duel.alive ? kit : null,
+    heal: heal && vitalsTarget() ? { item: HEAL_ITEMS[heal.item].name, progress: Math.min(1, (now - heal.startedAt) / heal.duration) } : null,
+    kit: (duel && duel.alive) || (!duel && rangeCombat.on && rangeCombat.alive) ? kit : null,
     lobby:
       hosting && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
         ? { code: hosting.code, waitingFor: duel ? duel.players - 1 - (duel as Duel).connected : Number(duelPlayers.value) === 3 ? 2 : 1 }
         : null,
-    vitals: duel ? { shield: duel.shield, shieldMax: SHIELD_MAX, health: duel.health, healthMax: HEALTH_MAX } : null,
+    vitals: duel ? { shield: duel.shield, shieldMax: SHIELD_MAX, health: duel.health, healthMax: HEALTH_MAX } : rangeCombat.on ? { shield: rangeCombat.shield, shieldMax: rangeCombat.shieldMax, health: rangeCombat.health, healthMax: HEALTH_MAX } : null,
+    drill: duel ? null : drill.hud(now),
+    trainer: trainer.hud(now),
+    mantleCue: trainer.cue && mantleCueOn,
     killcam: killcam.active ? { name: killcam.killerName, weapon: killcam.killerWeapon ? weaponName(killcam.killerWeapon) : "", progress: killcam.progress, left: killcam.left, skipKey: keyLabel("jump") } : null,
     recap: recap && !killcam.active ? { ...recap, age: now - recapShownAt, closeKey: keyLabel("jump") } : null,
     ability:
@@ -2271,6 +2425,13 @@ initWelcome();
   closeRecap: () => (recap = null),
   remoteFxLog,
   audio,
+  /** the range's tooling (tools/e2e.ts) */
+  dummyBehaviour,
+  rangeCombat,
+  sprayWall,
+  drill,
+  trainer,
+  gunSession: () => [...gunSession.entries()],
   startHeal: () => startHeal(gameTime),
   kit,
   brMap,

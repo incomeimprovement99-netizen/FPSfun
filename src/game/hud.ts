@@ -18,6 +18,8 @@ import { ZIPLINES } from "./traversal";
 import { drawReticle, type ReticleStyle } from "./optics";
 import type { DuelHud } from "./duel";
 import type { Recap } from "./recap";
+import type { DrillHud } from "./rangetools";
+import type { TrainerHud } from "./trainer";
 
 export interface DamageNumber {
   world: THREE.Vector3;
@@ -128,6 +130,12 @@ export interface HudState {
   killcam?: { name: string; weapon: string; progress: number; left: number; skipKey: string } | null;
   /** the death recap, after the killcam: how long it has been up, the close key */
   recap?: (Recap & { age: number; closeKey: string }) | null;
+  /** the flick drill: its countdown, the clock, how many are down */
+  drill?: DrillHud | null;
+  /** the superglide trainer's bar */
+  trainer?: TrainerHud | null;
+  /** a superglide's window is open: the mantle boost cue on the crosshair */
+  mantleCue?: boolean;
 }
 
 /** map canvas pixels per metre */
@@ -258,6 +266,81 @@ export class Hud {
     this.drawSummary(s, u);
     this.drawFullMap(now, s, u);
     this.drawRecap(s, u);
+    this.drawDrill(s, u);
+    this.drawTrainer(s, u);
+  }
+
+  /** the flick drill: a countdown, then the clock and the count, then the result */
+  private drawDrill(s: HudState, u: number): void {
+    const d = s.drill;
+    if (!d) return;
+    const cx = this.w / 2;
+    if (d.state === "countdown") {
+      this.text(`${Math.max(1, Math.ceil(d.left))}`, cx, this.h * 0.42, 700, 90 * u, WHITE, "center");
+      this.text("FLICK DRILL: 30 TARGETS", cx, this.h * 0.42 + 36 * u, 700, 20 * u, "#8fd8ff", "center");
+      return;
+    }
+    const acc = d.shots ? Math.round((100 * d.hits) / d.shots) : 0;
+    if (d.state === "running") {
+      this.text(d.time.toFixed(2), cx, 110 * u, 700, 48 * u, WHITE, "center");
+      this.text(`${d.done} / ${d.total}   ·   ${acc}%${d.best !== null ? `   ·   BEST ${d.best.toFixed(2)}` : ""}`, cx, 136 * u, 700, 16 * u, DIM, "center");
+      return;
+    }
+    const c = this.ctx;
+    const w = 420 * u;
+    const h = 150 * u;
+    const x0 = cx - w / 2;
+    const y0 = this.h * 0.24;
+    c.fillStyle = "rgba(8,10,12,0.82)";
+    c.fillRect(x0, y0, w, h);
+    c.fillStyle = "#8fd8ff";
+    c.fillRect(x0, y0, w, 4 * u);
+    this.text("FLICK DRILL COMPLETE", cx, y0 + 32 * u, 700, 18 * u, DIM, "center");
+    this.text(d.time.toFixed(2), cx, y0 + 88 * u, 700, 56 * u, WHITE, "center");
+    this.text(`${acc}% ACCURACY  ·  ${(d.time / d.total).toFixed(2)} S A TARGET`, cx, y0 + 116 * u, 700, 15 * u, DIM, "center");
+    this.text(d.newBest ? "NEW PERSONAL BEST" : d.best !== null ? `BEST ${d.best.toFixed(2)}` : "", cx, y0 + 138 * u, 700, 14 * u, d.newBest ? "#ffd23c" : DIM, "center");
+  }
+
+  /**
+   * The superglide trainer: the mantle's last 0.3 s as a bar with the window
+   * shaded green, your jump (J) and crouch (C) where they landed, the frames
+   * between them, the verdict and your last ten tries.
+   */
+  private drawTrainer(s: HudState, u: number): void {
+    const t = s.trainer;
+    if (!t) return;
+    const c = this.ctx;
+    const cx = this.w / 2;
+    const w = 300 * u;
+    const y = this.h * 0.6;
+    const x0 = cx - w / 2;
+    c.globalAlpha = t.live ? 1 : Math.max(0, 1 - Math.max(0, t.age - 1.8) / 0.7);
+    // time runs left to right: the bar's right edge is the mantle's end
+    const xAt = (before: number) => x0 + w * (1 - Math.max(0, Math.min(t.span, before)) / t.span);
+    c.fillStyle = "rgba(0,0,0,0.55)";
+    c.fillRect(x0, y, w, 12 * u);
+    c.fillStyle = "rgba(125,220,138,0.55)";
+    c.fillRect(xAt(t.window), y, x0 + w - xAt(t.window), 12 * u);
+    const mark = (before: number | null, label: string, col: string) => {
+      if (before === null) return;
+      const x = xAt(before);
+      c.fillStyle = col;
+      c.fillRect(x - 1.5 * u, y - 6 * u, 3 * u, 24 * u);
+      this.text(label, x, y - 9 * u, 700, 11 * u, col, "center");
+    };
+    mark(t.jump, "JUMP", "#ffd23c");
+    mark(t.crouch, "CROUCH", "#8fd8ff");
+    const verdict = t.result === "SUPERGLIDE" ? "SUPERGLIDE" : t.result === "MISS" ? `MISS: ${t.reason}` : "SUPERGLIDE: JUMP IN THE GREEN, CROUCH ONE FRAME LATER";
+    this.text(verdict + (t.frames !== null && t.result ? `   (${t.frames} frame${t.frames === 1 ? "" : "s"} apart)` : ""), cx, y + 30 * u, 700, 13 * u, t.result === "SUPERGLIDE" ? "#7ddc8a" : t.result === "MISS" ? "#ff9f43" : DIM, "center");
+    // the last ten tries as dots
+    t.tries.forEach((ok, i) => {
+      c.fillStyle = ok ? "#7ddc8a" : "#ff6a4a";
+      c.beginPath();
+      c.arc(x0 + w + 14 * u + i * 10 * u, y + 6 * u, 3.5 * u, 0, Math.PI * 2);
+      c.fill();
+    });
+    if (t.tries.length) this.text(`${t.tries.filter(Boolean).length}/${t.tries.length}`, x0 + w + 20 * u + t.tries.length * 10 * u, y + 11 * u, 700, 12 * u, WHITE);
+    c.globalAlpha = 1;
   }
 
   /**
@@ -668,6 +751,15 @@ export class Hud {
       c.arc(cx, cy, 1.4, 0, Math.PI * 2);
       c.fill();
       c.globalAlpha = 1;
+    }
+    // the mantle boost cue: a green ring while a superglide's window is open
+    if (s.mantleCue) {
+      c.strokeStyle = "rgba(125,220,138,0.95)";
+      c.lineWidth = 3 * u;
+      c.beginPath();
+      c.arc(cx, cy, gap + 24 * u, 0, Math.PI * 2);
+      c.stroke();
+      c.lineWidth = 2;
     }
     // a gun's charge: a ring round the crosshair that closes as it fills
     const ch = s.gunCharge ?? 0;

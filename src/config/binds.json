@@ -35,5 +35,6 @@
   "pickAbility1": ["Digit5"],
   "pickAbility2": ["Digit6"],
   "fireMode": ["KeyB"],
-  "hopup": ["KeyL"]
+  "hopup": ["KeyL"],
+  "dummyMode": ["KeyI"]
 }

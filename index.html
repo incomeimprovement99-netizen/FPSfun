@@ -23,6 +23,9 @@
       .row input { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 7px 9px; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
       .row input:focus, .row select:focus { outline: none; border-color: #d43a2f; }
       .row .vols { display: flex; gap: 8px; }
+      .rangebox { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 12px 0 4px; padding: 10px 12px; background: rgba(255,255,255,0.04); border: 1px solid #2a3139; border-radius: 6px; font-size: 13px; color: #c8d0d8; }
+      .rangebox select { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 4px 6px; border-radius: 4px; margin-left: 4px; }
+      .rangebox button { padding: 5px 12px; }
       .row .vols input { width: 33%; padding: 0; accent-color: #d43a2f; }
       .row select { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 7px 9px; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
       .derived { margin: 14px 0 6px; padding: 10px 12px; background: #0d1014; border-radius: 4px; font-size: 13px; color: #b9c2cc; line-height: 1.5; }
@@ -193,6 +196,13 @@
             <button type="button" class="mode" id="goArena"><b>Arena, alone</b><span>Walk the 1v1 map by yourself to learn it.</span></button>
             <button type="button" class="mode" id="goBr"><b>Battle Royale, Bots</b><span id="brBlurb">Drop onto Outskirts with 11 bots, the ring closes, last one standing. Bots and difficulty on the 1v1 tab.</span></button>
           </div>
+          <div class="rangebox">
+            <b>The range</b>
+            <label>Dummies <select id="dummyMode"><option value="stand">Stand</option><option value="strafe">Strafe</option><option value="crouch">Strafe and crouch</option><option value="random">Random</option></select></label>
+            <label>Speed <select id="dummySpeed"><option value="0.6">Slow</option><option value="1" selected>Normal</option><option value="1.4">Fast</option></select></label>
+            <label>Shoot back <select id="dummyShoot"><option value="off">Off</option><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option></select></label>
+            <button type="button" id="goDrill" title="thirty figures one at a time, 5 to 30 m out; the pad by the firing line starts it too">Flick drill</button>
+          </div>
           <button id="play" type="button">Play</button>
           <div class="hintLine" id="playHint">Esc brings you back here. Everything you set is remembered.</div>
         </section>
@@ -274,6 +284,7 @@
           <div class="row"><label>Camera <div class="hint">X switches in game; hold Alt in third person to look round your character</div></label><select id="cameraMode"><option value="first">First person</option><option value="third">Third person</option></select></div>
           <div class="row"><label>Volume <div class="hint">master, effects, and the hit sounds; every sound is made by the game</div></label><span class="vols"><input id="volMaster" type="range" min="0" max="100" step="1" title="master" /><input id="volFx" type="range" min="0" max="100" step="1" title="effects" /><input id="volHits" type="range" min="0" max="100" step="1" title="hit sounds" /></span></div>
           <div class="row"><label>Ammo in the range <div class="hint">matches always count it: two stacks per gun, energy guns refill a magazine every 18 s while idle</div></label><select id="rangeAmmo"><option value="endless">Endless</option><option value="counted">Counted, like a match</option></select></div>
+          <div class="row"><label>Mantle boost cue <div class="hint">a ring on the crosshair while a superglide's window is open, as Season 27's option</div></label><select id="mantleCue"><option value="1">On</option><option value="0">Off</option></select></div>
           <div class="row"><label>Killcam <div class="hint">eliminated: the last 4 s from your killer's eyes, then the death recap; Space skips</div></label><select id="killcamMode"><option value="1">On</option><option value="0">Off (the recap only)</option></select></div>
           <div class="row"><label>Fullscreen while playing <div class="hint">keeps Ctrl + W (crouch walking) from closing the tab</div></label><select id="fullscreen"><option value="1">On</option><option value="0">Off</option></select></div>
           <div class="row"><label>Graphics <div class="hint">Competitive is the fastest and lowest latency</div></label><select id="quality"></select></div>

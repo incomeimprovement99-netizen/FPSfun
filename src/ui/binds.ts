@@ -70,6 +70,7 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
     title: "The range",
     actions: [
       ["cycleArmor", "Dummy armour"],
+      ["dummyMode", "Dummies: stand, strafe, crouch, random"],
       ["resetDummies", "Reset dummies and the course"],
       ["ghost", "Ghost of your best run"],
       ["copyResult", "Copy your course result"],

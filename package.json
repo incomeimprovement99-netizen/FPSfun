@@ -25,7 +25,9 @@
     "deploy": "tsx tools/deploy-pages.ts",
     "deploy:server": "tsx tools/deploy-server.ts",
     "server": "node server/game/serve.mjs",
-    "live": "tsx tools/live-check.ts"
+    "live": "tsx tools/live-check.ts",
+    "snap": "tsx tools/snap.ts",
+    "slide-probe": "tsx tools/slide-probe.ts"
   },
   "dependencies": {
     "peerjs": "^1.5.4",

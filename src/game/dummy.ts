@@ -247,6 +247,8 @@ export class Dummy {
   private fall = 0;
   private flash = 0;
   private headFlash = 0;
+  /** a leg hit flashes blue: the flash's colour says which zone you hit */
+  private legFlash = 0;
   /** 0..1 rising from the ground after a pop-up; 1 when upright */
   private rise = 1;
   /** 0..1 Digital Threat highlight */
@@ -624,10 +626,11 @@ export class Dummy {
   private applyGlow(): void {
     const t = this.threat;
     const f = this.flash * 0.9;
+    const lf = this.legFlash;
     // Kept under 1: filmic tone mapping pushes a brighter red toward orange.
     this.shell.color.setHex(this.skin.shell).multiplyScalar(1 - 0.9 * t);
     this.headShell.color.setHex(this.skin.head).multiplyScalar(1 - 0.9 * t);
-    this.shell.emissive.setRGB(f + t * 0.95, f + t * 0.02, f + t * 0.02);
+    this.shell.emissive.setRGB(f + t * 0.95 + lf * 0.1, f + t * 0.02 + lf * 0.45, f + t * 0.02 + lf * 1.1);
     this.headShell.emissive.setRGB(this.headFlash * 1.6 + t * 0.95, this.headFlash * 1.1 + t * 0.02, this.headFlash * 0.2 + t * 0.02);
   }
 
@@ -804,6 +807,7 @@ export class Dummy {
       this.fall = 0.0001;
       this.respawnAt = now + RESPAWN_S;
       if (zone === "head") this.headFlash = 1;
+      else if (zone === "legs") this.legFlash = 1;
       else this.flash = 1;
       return { zone, amount, toShield: 0, toHealth: amount, broke: false, knocked: true, headshot: zone === "head" && headshotScale > 1, point: point.clone() };
     }
@@ -817,8 +821,9 @@ export class Dummy {
     this.health -= toHealth;
     const broke = toShield > 0 && this.shield === 0;
     const knocked = this.health <= 0;
-    // hit flash: the whole shell for a body hit, the head alone for a headshot
+    // hit flash by zone: the head alone in gold, the shell white for the body, blue for the legs
     if (zone === "head") this.headFlash = 1;
+    else if (zone === "legs") this.legFlash = 1;
     else this.flash = 1;
     if (broke) this.vest.visible = false;
     if (knocked) {
@@ -862,9 +867,10 @@ export class Dummy {
     }
 
     // hit flashes decay in about a tenth of a second
-    if (this.flash > 0 || this.headFlash > 0) {
+    if (this.flash > 0 || this.headFlash > 0 || this.legFlash > 0) {
       this.flash = Math.max(0, this.flash - dt * 9);
       this.headFlash = Math.max(0, this.headFlash - dt * 7);
+      this.legFlash = Math.max(0, this.legFlash - dt * 8);
       this.applyGlow();
     }
 

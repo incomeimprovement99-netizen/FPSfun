@@ -17,6 +17,8 @@ export interface MenuOptions {
   onApply: (def: LoadoutDef) => void;
   /** a mode button: go there and play */
   onGo: (mode: Mode) => void;
+  /** this session's numbers per gun, for the Stats tab */
+  sessionGuns?: () => Array<{ name: string; shots: number; hits: number; heads: number; damage: number }>;
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -124,9 +126,21 @@ export class Menu {
       matchCard("Battle Royale (bots)", ["br"]),
       courseCard("basic", "The Run (Basic)"),
       courseCard("advanced", "The Run (Advanced)"),
+      courseCard("drill", "Flick drill (30 targets)"),
+      this.gunsCard(),
       techCard,
     ].join("");
     void this.renderOnline();
+  }
+
+  /** this session, per gun: shots, hits, headshots, damage, accuracy (the live overlay's numbers, split) */
+  private gunsCard(): string {
+    const rows = (this.o.sessionGuns?.() ?? []).filter((r) => r.shots > 0).sort((a, b) => b.shots - a.shots);
+    if (!rows.length) return `<div class="statcard"><h4>This session, by gun</h4><div class="empty">Fire something: each gun's numbers go here.</div></div>`;
+    const tr = rows
+      .map((r) => `<tr><td>${esc(r.name)}</td><td>${Math.round((100 * r.hits) / r.shots)}% · ${r.hits}/${r.shots} · ${r.heads} HS · ${Math.round(r.damage)} dmg</td></tr>`)
+      .join("");
+    return `<div class="statcard"><h4>This session, by gun</h4><table>${tr}</table></div>`;
   }
 
   /** the online boards card, when the site has a board (our own server does) */

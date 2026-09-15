@@ -28,6 +28,9 @@ interface Scenario {
 }
 
 const hideMenu = `document.getElementById("overlay").classList.add("hidden")`;
+/** a fake controller whose Start plays (a scripted page gets no pointer lock), and its trigger */
+const fakePad = `(() => { const btn = () => ({ pressed: false, touched: false, value: 0 }); const pad = { index: 0, id: "fake pad", connected: true, mapping: "standard", timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, btn) }; window.__pad = pad; navigator.getGamepads = () => [pad]; })()`;
+const padButton = (i: number, on: boolean) => `(() => { window.__pad.buttons[${i}].pressed = ${on}; window.__pad.buttons[${i}].value = ${on ? 1 : 0}; })()`;
 /** a step that waits in the page until the match's fight is on */
 const untilFight = `new Promise((r) => { const t = setInterval(() => { if (window.__range.duel()?.phase === "fight") { clearInterval(t); r(0); } }, 50); setTimeout(() => { clearInterval(t); r(0); }, 20000); })`;
 
@@ -97,6 +100,23 @@ export const SCENARIOS: Scenario[] = [
     name: "gun-nemesis",
     note: "the Nemesis in hand",
     steps: [[`(() => { ${hideMenu}; window.__range.loadout.setWeaponId(0, "nemesis"); })()`, 1200]],
+  },
+  {
+    name: "spray-wall",
+    note: "the spray wall after a burst from the mark: your hits and the gun's own pattern",
+    steps: [
+      [fakePad, 800],
+      [padButton(9, true), 400],
+      [padButton(9, false), 400],
+      [`(() => { const p = window.__range.player; p.teleport(13.45, 0, -64, -90); p.pitch = 1.2; window.__range.sprayWall.clear(); })()`, 300],
+      [padButton(7, true), 900],
+      [padButton(7, false), 700],
+    ],
+  },
+  {
+    name: "flick-drill",
+    note: "the flick drill running: a figure out in the cone, the clock",
+    steps: [[`document.getElementById("goDrill").click()`, 0], [hideMenu, 4200]],
   },
   {
     name: "ability-triage",

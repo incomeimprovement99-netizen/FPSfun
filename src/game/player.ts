@@ -218,6 +218,18 @@ export class Player {
     return this.zip !== null;
   }
 
+  /**
+   * A mantle in progress, for the superglide trainer and the mantle boost
+   * cue: when it started, how long it lasts, and the window at its end in
+   * which a jump then a crouch one frame later is a superglide (wider when you
+   * sprinted into it).
+   */
+  get mantleInfo(): { started: number; duration: number; window: number; remaining: number } | null {
+    const mt = this.mantle;
+    if (!mt) return null;
+    return { started: mt.started, duration: mt.duration, window: mt.sprint ? MOVE.superglideWindow : MOVE.superglideWalkWindow, remaining: mt.started + mt.duration - this.lastNow };
+  }
+
   // ----- JOLT (abilities.ts): a level dash -----
   private joltLeft = 0;
   private joltDirX = 0;

@@ -475,6 +475,46 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await page.close();
 }
 
+/** the range's tooling: moving dummies, dummies that shoot back, the spray wall, per-gun numbers, the flick drill */
+async function rangeTest(browser: Browser, query: string): Promise<void> {
+  const page = await open(browser, query);
+  await pressPlay(page);
+  const sel = (id: string, v: string) => ev(page, `(() => { const s = document.getElementById("${id}"); s.value = "${v}"; s.dispatchEvent(new Event("change")); })()`);
+  const home = await ev<number[]>(page, "window.__range.dummies.filter((d) => !d.rail).map((d) => d.group.position.x)");
+  await sel("dummyMode", "strafe");
+  await sleep(900);
+  const moved = await ev<number[]>(page, "window.__range.dummies.filter((d) => !d.rail).map((d) => d.group.position.x)");
+  check("range: strafing dummies move off their marks", moved.some((x, i) => Math.abs(x - home[i]) > 0.3), moved.map((x, i) => (x - home[i]).toFixed(2)).join(","));
+  await sel("dummyMode", "stand");
+  // shoot back: the nearest dummies fire and you have a shield in the range
+  await ev(page, "window.__range.player.teleport(0, 0, 0, 0)");
+  await sel("dummyShoot", "hard");
+  const hurt = await page.waitForFunction("window.__range.rangeCombat.shield < 75 || window.__range.rangeCombat.health < 100", { polling: 200, timeout: 12000 }).then(() => true, () => false);
+  check("range: shoot back: the dummies hit you", hurt, JSON.stringify(await ev(page, "({ sh: window.__range.rangeCombat.shield, hp: window.__range.rangeCombat.health })")));
+  await sel("dummyShoot", "off");
+  // the spray wall: a burst from the yellow mark lands on it
+  await ev(page, "(() => { const p = window.__range.player; p.teleport(13.45, 0, -64, -90); p.pitch = 1.2; window.__range.sprayWall.clear(); })()");
+  await ev(page, "window.__pad.buttons[7].pressed = true; window.__pad.buttons[7].value = 1;");
+  await sleep(700);
+  await ev(page, "window.__pad.buttons[7].pressed = false; window.__pad.buttons[7].value = 0;");
+  await sleep(500);
+  const marks = await ev<number>(page, "window.__range.sprayWall.marks");
+  check("range: the spray wall takes the burst", marks >= 3, `${marks} marks`);
+  const guns = await ev<Array<[string, { shots: number; hits: number }]>>(page, "window.__range.gunSession()");
+  check("range: this session's numbers per gun", guns.some(([, r]) => r.shots > 0), JSON.stringify(guns));
+  // the flick drill: its countdown, thirty figures, a time and a best
+  await ev(page, `document.getElementById("goDrill").click()`);
+  const running = await page.waitForFunction(`window.__range.drill.state === "running"`, { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  check("range: the flick drill counts down and starts", running);
+  const pos = await ev<{ x: number; z: number }>(page, "({ x: window.__range.drill.target.group.position.x, z: window.__range.drill.target.group.position.z })");
+  const dist = Math.hypot(pos.x - 3, pos.z - 2.2);
+  check("range: its figure is 5 to 30 m out ahead of the pad", dist >= 4.9 && dist <= 30.1 && pos.z < 2.2, JSON.stringify(pos));
+  for (let i = 0; i < 30; i++) await ev(page, "window.__range.drill.onHit(window.__range.drill.target, window.__range.gameTime())");
+  const done = await ev<{ state: string; best: number | null }>(page, "({ state: window.__range.drill.state, best: window.__range.drill.best })");
+  check("range: thirty down and the drill has a time and a best", done.state === "done" && (done.best ?? 0) > 0, JSON.stringify(done));
+  await page.close();
+}
+
 /** a fake gamepad: Start plays, the left stick walks, the right stick turns */
 async function padTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
@@ -641,8 +681,8 @@ async function main(): Promise<void> {
       await sleep(50);
       await ev(page, `document.dispatchEvent(new KeyboardEvent("keydown", { code: "${code}", bubbles: true }))`);
     };
-    await rebind("Jump", "KeyI");
-    check("a key can be rebound", (await keysOf("Jump"))[0] === "I", (await keysOf("Jump")).join(","));
+    await rebind("Jump", "Semicolon");
+    check("a key can be rebound", (await keysOf("Jump"))[0] === ";", (await keysOf("Jump")).join(","));
     await rebind("Jump", "KeyC");
     const crouchKeys = await keysOf("Crouch, slide");
     check("a key taken from another action moves over", (await keysOf("Jump"))[0] === "C" && !crouchKeys.includes("C"), `jump ${(await keysOf("Jump")).join(",")}, crouch ${crouchKeys.join(",")}`);
@@ -710,6 +750,10 @@ async function main(): Promise<void> {
       await padTest(browser, "?norender");
     }
 
+    if (want("range")) {
+      console.log("\nThe range's tooling");
+      await rangeTest(browser, "?norender");
+    }
     if (want("br")) {
       console.log("\nBattle royale against bots");
       await brTest(browser, "?norender");

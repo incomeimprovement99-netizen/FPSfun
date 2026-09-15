@@ -14,6 +14,7 @@ import { ZIPLINES } from "../src/game/traversal";
 import { HU, MOVE, jumpVelocityFor, slideFriction } from "../src/game/movement";
 import { courseColliders } from "../src/game/course";
 import { ADVANCED_COURSE, GLIDE, STRAFE, SUPERJUMP, DROP, ZIP } from "../src/game/courses/advanced";
+import { SuperglideTrainer } from "../src/game/trainer";
 
 let fails = 0;
 const hu = (m: number) => m / HU;
@@ -741,6 +742,48 @@ console.log("\nMantle and superglide (wiki: Mantle, Superglide)");
   s2.in.tap("crouch");
   s2.frame();
   check("superglide fires in the last 0.15 s", s2.p.superglidedAt >= startedAt, s2.p.stance);
+
+  // the trainer and the cue (trainer.ts): the same superglide scored, a late crouch called a miss
+  {
+    const tr = new SuperglideTrainer();
+    const t1 = approach();
+    t1.p.onTech = (n, d) => tr.onTech(n, d);
+    check("the trainer's cue is shut early in the mantle", !tr.cue && t1.p.mantleInfo !== null);
+    for (let i = 0; i < frames - Math.round(0.1 * FPS); i++) {
+      t1.p.update(DT, (t1.t += DT), t1.in, 0, 1, false);
+      tr.update(t1.t, t1.p, t1.in);
+      t1.in.endFrame();
+    }
+    check("the cue is open inside the window", tr.cue, `${t1.p.mantleInfo?.remaining.toFixed(3)} s left`);
+    t1.in.tap("jump");
+    t1.p.update(DT, (t1.t += DT), t1.in, 0, 1, false);
+    tr.update(t1.t, t1.p, t1.in);
+    t1.in.endFrame();
+    t1.in.tap("crouch");
+    t1.p.update(DT, (t1.t += DT), t1.in, 0, 1, false);
+    tr.update(t1.t, t1.p, t1.in);
+    t1.in.endFrame();
+    const h = tr.hud(t1.t);
+    check("the trainer scores it a superglide, one frame apart", h?.result === "SUPERGLIDE" && h.frames === 1 && tr.tries.join() === "true", JSON.stringify(h && { r: h.result, f: h.frames }));
+    const t2 = approach();
+    t2.p.onTech = (n, d) => tr.onTech(n, d);
+    for (let i = 0; i < frames - Math.round(0.1 * FPS); i++) {
+      t2.p.update(DT, (t2.t += DT), t2.in, 0, 1, false);
+      tr.update(t2.t, t2.p, t2.in);
+      t2.in.endFrame();
+    }
+    t2.in.tap("jump");
+    for (let i = 0; i < 4; i++) {
+      if (i === 3) t2.in.tap("crouch");
+      t2.p.update(DT, (t2.t += DT), t2.in, 0, 1, false);
+      tr.update(t2.t, t2.p, t2.in);
+      t2.in.endFrame();
+    }
+    t2.until(() => t2.p.stance !== "mantle", 1);
+    tr.update(t2.t, t2.p, t2.in);
+    const h2 = tr.hud(t2.t);
+    check("a crouch 3 frames late is a miss, with the reason", h2?.result === "MISS" && /3 frames/.test(h2.reason) && tr.tries.join() === "true,false", JSON.stringify(h2 && { r: h2.result, why: h2.reason, tries: tr.tries }));
+  }
   near("superglide speed out of a sprint, hu/s", s2.speedHu, 400, 3);
 
   // same frame jump and crouch: no superglide

@@ -17,6 +17,7 @@ export interface BoardEntry {
 export const BOARDS: ReadonlyArray<{ id: string; label: string; unit: "s" | "wins" }> = [
   { id: "course:basic", label: "The Run (Basic)", unit: "s" },
   { id: "course:advanced", label: "The Run (Advanced)", unit: "s" },
+  { id: "course:drill", label: "Flick drill (30 targets)", unit: "s" },
   { id: "duel:wins", label: "1v1 wins", unit: "wins" },
   { id: "triple:wins", label: "1v1v1 wins", unit: "wins" },
   { id: "br:wins", label: "Battle royale wins", unit: "wins" },

@@ -1,0 +1,7 @@
+{
+  "_note": "The range's tooling (ours: Apex's dummy panel gives no numbers). Strafe speed is walking speed (173.5 hu/s = 4.4 m/s); the drill is Valorant's Blink-style thirty targets.",
+  "dummies": { "strafeSpeed": 4.4, "range": 2.6, "flipMin": 0.45, "flipMax": 1.1 },
+  "combat": { "range": 60, "shooters": 2, "downSeconds": 2, "weapon": "rspn101" },
+  "sprayWall": { "x": 33.45, "z": -64, "y": 2.0, "width": 5, "height": 3.5, "distance": 20, "stringGap": 1.2 },
+  "drill": { "padX": 3, "padZ": 2.2, "targets": 30, "coneDeg": 60, "minDist": 5, "maxDist": 30 }
+}

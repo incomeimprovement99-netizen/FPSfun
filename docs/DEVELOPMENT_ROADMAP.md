@@ -168,3 +168,24 @@ Striker 9 is) with Season 30's numbers.
 - Codenames on the public build for both, and for the hop-up names (the check now bans the real ones).
 - Tests: verify (the burst cadence charged and not, the draw's damage and timing, the auto nock, the roster
   count, every gun modelled).
+
+## Milestone 17 — The range's own tooling ✅
+2026-09-15 (Phase 11G). `src/game/rangetools.ts`, `src/game/trainer.ts`, a Range box on the Play tab.
+- **Dummies that move** (Apex's panel): stand, strafe, strafe and crouch, random; slow / normal / fast; I cycles.
+- **Shoot back**: the two nearest dummies that can see you fire with a bot's aim (easy / normal / hard); you
+  get a shield, health and the heal kit in the range, back up 2 s after you drop.
+- **Spray wall** on the right-hand wall, 20 m from a yellow mark: your hits in white and, from the first of
+  a string, where the gun puts a magazine with no compensation (the game's own recoil model, run for a whole
+  magazine) in gold. Y clears it.
+- **Flick drill**: 30 figures one at a time, 5-30 m out in a 60 degree cone from a pad by the firing line (E
+  on the pad, or the Flick drill button); time, accuracy, a best, the Stats tab and an online board.
+- **Superglide trainer** on every mantle: the mantle's last 0.3 s as a bar, the window in green, where your
+  jump and crouch landed and the frames between, the verdict with the reason, your last ten tries. **The
+  mantle boost cue**: a ring on the crosshair while the window is open (Season 27's option; Settings).
+- **Hits by zone**: a dummy flashes gold on the head, white on the body, blue on the legs. **Per-gun numbers**
+  for the session on the Stats tab; Y now resets the overlay's numbers too.
+- **The slide probe** (`npm run slide-probe`): speed and view height through a slide and two slide jumps,
+  frame by frame from the real controller, as curves beside the wiki's numbers.
+- Tests: movesim (the trainer scores a superglide one frame apart, calls a 3-frame crouch a miss with the
+  reason, the cue opens in the window), e2e (strafing dummies move, shoot back hurts, the wall takes a burst,
+  per-gun numbers, the drill's countdown, placement and finish), snap (the wall, the drill).
