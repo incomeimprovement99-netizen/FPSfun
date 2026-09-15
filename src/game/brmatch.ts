@@ -263,6 +263,11 @@ export class BrMatch extends Duel {
     }
   }
 
+  /** a Deathbox Respawn under way (during onRespawn): the box's spot, height included */
+  get boxRespawnAt(): THREE.Vector3 | null {
+    return this.respawnOnBox && this.respawnPoint ? this.respawnPoint.clone() : null;
+  }
+
   /** your drop spot: one per squad member at the squad's place */
   override get spawn(): Spawn {
     if (this.respawnPoint) return { x: this.respawnPoint.x, z: this.respawnPoint.z, yaw: 0 };
@@ -361,7 +366,7 @@ export class BrMatch extends Duel {
       { kind: "heal", id: "battery", n: 2, rarity: "epic" },
     ];
     while (out.length < LOOT.carePackageContents) out.push(extras.splice(Math.floor(Math.random() * extras.length), 1)[0]);
-    // its number: the package's EVO goes once to whoever loots it first
+    // its number: each of the squad who loots from it gets the package's EVO once (Apex pays the squad)
     const n = ++this.podCount;
     return out.map((it) => ({ ...it, pod: n }));
   }
@@ -467,6 +472,7 @@ export class BrMatch extends Duel {
     }
     const who = by === -1 ? "THE RING" : by === this.id ? this.myName || "YOU" : (this.remotes.get(by)?.name ?? this.bots.find((x) => x.bot.remote.id === by)?.bot.remote.name ?? "SOMEONE");
     this.onFeed?.(`${who} knocked ${r.name}`, mine, !mine);
+    for (const o of this.bots) o.bot.forget(r.id);
     this.broadcast({ t: "down", from: r.id, by });
     this.onKnockSeen?.(r.id, by);
     const left = this.aliveCount;
@@ -488,6 +494,7 @@ export class BrMatch extends Duel {
 
   /** a human went down (any side, this player included): the host decides whether the squad is out */
   protected override onSomeoneDown(_id: number, _by: number): void {
+    for (const o of this.bots) o.bot.forget(_id);
     if (this.role === "host" && this.humansAlive === 0) this.endBr(false);
   }
 
@@ -832,7 +839,7 @@ export class BrMatch extends Duel {
       const g = nodes[b.goal];
       goal = new THREE.Vector3(g.x, 0, g.z);
     }
-    return { target, targetId, goal, canShoot: this.phase === "fight" && !this.holdFire };
+    return { target, targetId, goal, canShoot: this.phase === "fight" && !this.holdFire, urgent: hurry };
   }
 
   // ------------------------------------------------------------ the HUD

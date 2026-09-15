@@ -125,6 +125,26 @@ export async function signOut(): Promise<void> {
   saveSession(null);
 }
 
+/**
+ * On load, signed in: if the account's profile is newer than what this
+ * browser last synced (another browser saved since), put it on and say so
+ * (the caller reloads). Once per change: the new time is kept.
+ */
+export async function pullIfNewer(): Promise<boolean> {
+  const s = session();
+  if (!s) return false;
+  const r = await call("profile", "GET", undefined, s.token);
+  if (r.status === 401) saveSession(null);
+  if (r.status !== 200) return false;
+  const updated = typeof r.json.updated === "string" ? r.json.updated : null;
+  const prof = r.json.profile;
+  if (!updated || updated === s.updated || !prof || typeof prof !== "object" || Array.isArray(prof)) return false;
+  if (s.updated && updated < s.updated) return false;
+  applyProfile(prof as Record<string, unknown>);
+  saveSession({ ...s, updated });
+  return true;
+}
+
 /** this browser's saved data up to the account; false when not signed in or it failed */
 export async function push(): Promise<boolean> {
   const s = session();

@@ -33,7 +33,7 @@ import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
-import { Control, Crown, GunLadder, MODES, MODE_TITLE, TeamScore, gunList, pickSpawn, teamMode, yawToMiddle, type CrownPhase, type ModeKind } from "./modes";
+import { Control, Crown, GunLadder, MODES, MODE_TITLE, TeamScore, controlSpawnZone, gunList, pickSpawn, teamMode, yawToMiddle, type CrownPhase, type ModeKind } from "./modes";
 import { weaponName } from "./weapons";
 
 const wallClock = (): number => performance.now() / 1000;
@@ -252,9 +252,11 @@ export class ArenaMode extends Duel {
   private respawnSpawn(id: number): Spawn {
     const S = MODES.spawns;
     // Control: the most forward zone your team holds in a line from its base, else the base
-    if (this.modeKind === "control" && this.control) {
+    // (a guest works it out from the zones the host last sent)
+    if (this.modeKind === "control" && (this.control || this.controlView)) {
       const team = this.teamFor(id);
-      const zn = this.control.spawnZone(team);
+      const zones = MODES.control.zones.map(([, x, z], i) => ({ x: Number(x), z: Number(z), owner: this.zonesNow()[i]?.owner ?? -1 }));
+      const zn = controlSpawnZone(zones, team);
       if (zn) {
         const a = Math.random() * Math.PI * 2;
         const r = 1.5 + Math.random() * 1.5;
@@ -356,6 +358,7 @@ export class ArenaMode extends Duel {
   private scoreDown(victim: number, by: number, melee: boolean, x: number, z: number): void {
     if (this.phase !== "fight" || this.winner !== null) return;
     const killer = by >= 0 && !this.sameSide(by, victim) ? by : -1;
+    for (const b of this.bots) b.bot.forget(victim);
     const won = this.ladder.kill(killer, victim, melee && this.modeKind === "gunrun");
     const now = wallClock();
     if (this.modeKind === "gunrun") {
@@ -661,7 +664,7 @@ export class ArenaMode extends Duel {
     if (Array.isArray(m.ct) && m.ct.length === 12 && m.ct.every(fin)) {
       const c = m.ct;
       this.controlView = { v: [c[0], c[1], c[2]], owner: [c[3], c[4], c[5]], score: [c[6], c[7]], bonus: c[8], bonusLeft: c[9], lockTeam: c[10], lockLeft: c[11] };
-    }
+    } else this.controlView = null;
     if (Array.isArray(m.cr) && m.cr.length === 5 && m.cr.every(fin)) {
       const [ph, x, z, carrier, held] = m.cr;
       this.crownView = { phase: ph === 2 ? "carried" : ph === 1 ? "ground" : "waiting", x, z, carrier, held };

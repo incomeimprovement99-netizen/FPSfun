@@ -91,7 +91,8 @@ async function main(): Promise<void> {
       await ev(host, `document.querySelector('#tabs button[data-tab="play"]').click()`);
     }
     // accounts, end to end through the page (the dry run's throwaway server only: this writes an account)
-    if (process.env.ACCOUNTS_TEST === "1") await accountFlow(browser, host);
+    // (and never on a real server, whatever the environment says: only this PC's dry run)
+    if (process.env.ACCOUNTS_TEST === "1" && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(URL)) await accountFlow(browser, host);
     const guest = await open(browser);
     await ev(host, `document.getElementById("duelHost").click()`);
     let code = "";

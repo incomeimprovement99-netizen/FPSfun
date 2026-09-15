@@ -29,8 +29,9 @@ introduces the two.
 
 ## 1. Prerequisites (already true on this PC)
 
-- Node 20 or 22, `npm install` done, `npm run assets` and `npm run models`
-  done (the CC0 textures and props are not in git; `dist/` needs them).
+- Node 20 or 22, `npm install` done, `npm run assets`, `npm run models` and
+  `npm run sounds` done (the CC0 textures, props and recorded sounds are not
+  in git; `dist/` needs them). The first two leave their textures as WebP.
 - Git with the credential manager signed in to GitHub as the repo owner
   (it is: the `main` push below used it).
 - The repo exists and `origin` points at it:
@@ -116,7 +117,7 @@ Your name for the kill feed: the Stats tab.
 
 The same codes and invite links: on the 1v1 tab, pick the mode in the first
 box before **Create match**: **"Battle royale: a squad against the bots"**,
-Gun Run, team deathmatch or Crown (and the squad or player count), then send
+Gun Run, team deathmatch, Crown or Control (and the squad or player count), then send
 the invite link. When everyone has clicked Play the match starts with what
 the host set: the bots and their difficulty, Gun Run's list, whether
 abilities are on, and for the battle royale whether you land with nothing
@@ -124,10 +125,12 @@ and loot. The host's browser runs the bots, the ring, the loot and the
 modes' rules, so the host's connection is the one that matters.
 
 In a battle royale squad: a knock with a squad mate still up puts you down,
-not out (they hold E for 5 s to revive you); out, your banner goes in your
-death box and a squad mate can take it to a respawn beacon; the middle mouse
-button pings for the squad. All of it works on the Pages link (it is the
-same peer-to-peer connection).
+not out (they hold E for 5 s to revive you, and you can hold fire for your
+knockdown shield); out, your banner goes in your death box, and a squad mate
+can take it to a respawn beacon or hold E for 7 s at the box to bring you
+back on it; the middle mouse button pings for the squad (twice for an enemy).
+All of it works on the Pages link (it is the same peer-to-peer connection).
+Accounts do not: they need the game's own server (`docs/SERVER_GUIDE.md`).
 
 ## 6. Updating
 
@@ -144,9 +147,9 @@ npm run deploy
 npm run live         # optional: plays a 1v1 on the live site to prove it
 ```
 
-The mannequin's animation files (`public/models/mannequin/`, 4.4 MB, CC0)
-are in git and in every build; players only download them if they turn the
-mannequins on in Settings.
+The mannequin's animation files (`public/models/mannequin/`, 4.3 MB, CC0)
+are in git and in every build; the mannequin is the default figure, so every
+player downloads them (the robots stand in until they have loaded).
 
 Pages picks up the new `gh-pages` commit within a minute; players need a
 reload (Ctrl+Shift+R if the old bundle sticks: the file names carry a hash,

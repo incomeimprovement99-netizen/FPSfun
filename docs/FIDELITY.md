@@ -292,3 +292,23 @@ and are applied by the extractor; Season 30's changes are there (the 30-30's
 | Launch pads, jump towers | a pad's 20 m/s along and 16 m/s up; a tower's drop from three quarters of the drop height | ours |
 | Course pars | a room's share of the S rank by length; medals at par, +25%, +60% | ours |
 | Controller advanced look | 180 / 120 deg/s hip, 90 / 60 ADS, ramp 0.33 s by default | ours (the game's own defaults are not published) |
+
+## Phase 12: the dash, bots, the battle royale's newer systems, Control (sources in docs/RESEARCH_PHASE_12.md)
+
+| Number | Value | Source / confidence |
+|---|---|---|
+| JOLT | 10 m, 2 charges, one back every 4 s (8 s for both) | the owner's numbers |
+| JOLT's feel | 0.14 s on an ease-out (70% in the first half), 0.25 s between dashes, leaving at 400 hu/s, FOV +8 deg, roll 2.5 deg | ours, from the research's references (section 6: Tracer 3 x 3 s, The Finals 2 x 5 s, 0.1 to 0.3 s travel) |
+| Shield cores (EVO) | blue at 450, purple 1,700 more (2,150 in all) | wiki, exact (section 2.3); Phase 11's "1,700 in all" corrected |
+| EVO sources | damage 1 a point, knock 150, assist 100, finisher 100, revives 100 / 100 / 75 / 50 / 25 / 0, care package 100 | wiki and S28 notes, exact; the assist's 15 s window and "care package once a package" are ours; finishers do not apply (bots cannot be downed) |
+| Knockdown shield | 200 / 450 / 750 by EVO level, front only, crawl -45%, broken for the knock | S28 notes and wiki, exact (section 2.2); the 70-degree arc is ours |
+| Deathbox Respawn | 7 s hold, back at 20 HP with what is left in the box, a beam and a sound for all, a lockout per death | S29 notes and wiki, exact (section 2.1); the lockout's 30 / 60 / 120 s, the 3-minute reset, the 6 s shield regen and the 2.2 m reach are ours |
+| Executioner | Peacekeeper and Mastiff, 50 shield over 5 s on a knock, 275 points | S29 mid and S30 mid notes, exact (section 2.4) |
+| Shattercaps | 30-30 hip fire, 7 pellets x 8, heads x1.25 | S30 notes, exact; the 5.5-degree cone is ours |
+| Redline | +15% damage above 75% heat | ours: Apex has published no numbers; the bigger projectile is not modelled (our rounds are rays) |
+| Locked hop-ups | unlock after 275 damage with the gun; care-package guns unlocked | S26 on; 275 is Executioner's, ours for the other two |
+| Controller Default | RB ping (double tap enemy), D-pad up heal (hold wheel), D-pad right grenade, D-pad left fire mode (hold inspect), Y hold holster, Back map; presets Default, Bumper Jumper, Button Puncher, Evolved, Grenadier, Ninja | EA's controls page, exact (section 1); D-pad down's zoom, the 0.3 s hold, and where Evolved and Grenadier put the actions they displace are ours |
+| Bot tiers | reaction 0.6 / 0.4 / 0.2 / 0.12 s; aim error start, decay and floor; aim lag; dodge, hearing | CS2's bot profile and TF2's bot code (section 4) for the shape and the reactions; the rest ours |
+| Bot frags and cover | frag after 8 / 5 / 4 s still in view or 1.5 s hidden, 2 a life, 14 s apart; cover below 55%, within 9 m | ours |
+| Control | three zones, 1 a second per zone, bonus 150, lockout, linked spawns, capture x1 / 1.5 / 2 / 2.25 / 2.5 / 2.75 / 3 | wiki, exact (section 3); 5 v 5, first to 500, 10 min, 8 s base capture, the bonus's timings, the 30 s lockout and 5 s respawn are ours |
+| The phoenix kit | "Nova kit" on the public build | the owner's Phase 11 question; decided in Phase 12 |

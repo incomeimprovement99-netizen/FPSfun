@@ -73,8 +73,6 @@ async function get(url: string): Promise<Buffer> {
 }
 
 async function main(): Promise<void> {
-  rmSync(OUT, { recursive: true, force: true });
-  mkdirSync(OUT, { recursive: true });
   const packs = new Map<string, Map<string, Buffer>>();
   for (const pack of PACKS) {
     process.stdout.write(`  kenney ${pack} ... `);
@@ -85,6 +83,9 @@ async function main(): Promise<void> {
     packs.set(pack, files);
     console.log(`${files.size} files`);
   }
+  // everything fetched: only now the old files go (a failed download leaves them as they were)
+  rmSync(OUT, { recursive: true, force: true });
+  mkdirSync(OUT, { recursive: true });
   const index: Record<string, string[]> = {};
   let bytes = 0;
   for (const [name, p] of Object.entries(PICK)) {

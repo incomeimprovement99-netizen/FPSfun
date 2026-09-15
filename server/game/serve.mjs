@@ -176,14 +176,30 @@ const ACCOUNT_FILE = resolve(process.env.ACCOUNT_FILE ?? join(here, "accounts.js
 const SESSION_DAYS = 30;
 const PASSWORD_MIN = 8;
 const PASSWORD_MAX = 128;
-const PROFILE_MAX = 256 * 1024;
-/** @type {{ users: Record<string, { name: string; salt: string; hash: string; created: string; profile: unknown; updated: string | null }>; sessions: Record<string, { user: string; expires: number }> }} */
-let accounts = { users: {}, sessions: {} };
+const PROFILE_MAX = 128 * 1024;
+// Both tables have no prototype: a name like "constructor" or "__proto__" is a
+// key like any other, not something every object already has.
+/** @type {{ users: Record<string, { name: string; salt: string; hash: string; created: string; profile: unknown; updated: string | null; saves?: number[] }>; sessions: Record<string, { user: string; expires: number }> }} */
+let accounts = { users: Object.create(null), sessions: Object.create(null) };
 try {
-  if (existsSync(ACCOUNT_FILE)) accounts = { users: {}, sessions: {}, ...JSON.parse(readFileSync(ACCOUNT_FILE, "utf8")) };
+  if (existsSync(ACCOUNT_FILE)) {
+    const saved = JSON.parse(readFileSync(ACCOUNT_FILE, "utf8"));
+    accounts = { users: Object.assign(Object.create(null), saved.users), sessions: Object.assign(Object.create(null), saved.sessions) };
+  }
 } catch (e) {
   console.error(`accounts: could not read ${ACCOUNT_FILE}, starting empty (${e})`);
 }
+/** a user by key, only if it is one (never anything inherited) */
+const userAt = (key) => (Object.hasOwn(accounts.users, key) ? accounts.users[key] : undefined);
+// the file's size is bounded: this many accounts, profiles this big, this many profile saves a user per 10 minutes
+const MAX_ACCOUNTS = 5000;
+const SAVE_LIMIT = 40;
+/** an async handler whose failure is a plain 500, not a crash of the whole server */
+const safe = (fn) => (req, res) =>
+  fn(req, res).catch((e) => {
+    console.error(`accounts: ${req.path}: ${e}`);
+    if (!res.headersSent) res.status(500).json({ error: "server error" });
+  });
 let accountsDirty = false;
 const flushAccounts = () => {
   if (!accountsDirty) return;
@@ -231,9 +247,9 @@ const newSession = (key) => {
 /** the signed-in user from the Bearer token, or null */
 const userOf = (req) => {
   const m = /^Bearer ([0-9a-f]{64})$/.exec(req.get("authorization") ?? "");
-  const s = m ? accounts.sessions[m[1]] : undefined;
+  const s = m && Object.hasOwn(accounts.sessions, m[1]) ? accounts.sessions[m[1]] : undefined;
   if (!s || s.expires < Date.now()) return null;
-  const u = accounts.users[s.user];
+  const u = userAt(s.user);
   return u ? { key: s.user, token: m[1], user: u } : null;
 };
 const credentials = (body) => {
@@ -245,32 +261,33 @@ const credentials = (body) => {
   return { name, password, key: name.toLowerCase() };
 };
 
-app.post("/api/account/register", express.json({ limit: "2kb" }), async (req, res) => {
+app.post("/api/account/register", express.json({ limit: "2kb" }), safe(async (req, res) => {
   res.set("Cache-Control", "no-store");
   if (tooMany(req)) return res.status(429).json({ error: "slow down" });
   const c = credentials(req.body);
   if (c.error) return res.status(400).json({ error: c.error });
-  if (accounts.users[c.key]) return res.status(409).json({ error: "that name is taken" });
+  if (userAt(c.key)) return res.status(409).json({ error: "that name is taken" });
+  if (Object.keys(accounts.users).length >= MAX_ACCOUNTS) return res.status(503).json({ error: "no room for new accounts" });
   const salt = randomBytes(16).toString("hex");
   const hash = await hashOf(c.password, salt);
   // (a second sign-up for the same name while this one hashed)
-  if (accounts.users[c.key]) return res.status(409).json({ error: "that name is taken" });
+  if (userAt(c.key)) return res.status(409).json({ error: "that name is taken" });
   accounts.users[c.key] = { name: c.name, salt, hash, created: new Date().toISOString(), profile: null, updated: null };
   accountsDirty = true;
   res.json({ ok: true, name: c.name, token: newSession(c.key), profile: null, updated: null });
-});
+}));
 
-app.post("/api/account/login", express.json({ limit: "2kb" }), async (req, res) => {
+app.post("/api/account/login", express.json({ limit: "2kb" }), safe(async (req, res) => {
   res.set("Cache-Control", "no-store");
   if (tooMany(req)) return res.status(429).json({ error: "slow down" });
   const c = credentials(req.body);
   if (c.error) return res.status(400).json({ error: "wrong name or password" });
-  const u = accounts.users[c.key];
+  const u = userAt(c.key);
   // an unknown name costs the same hash as a known one, so the answer's timing tells nothing
   const hash = await hashOf(c.password, u?.salt ?? "00".repeat(16));
-  if (!u || !timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(u.hash, "hex"))) return res.status(401).json({ error: "wrong name or password" });
+  if (!u || typeof u.hash !== "string" || !timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(u.hash, "hex"))) return res.status(401).json({ error: "wrong name or password" });
   res.json({ ok: true, name: u.name, token: newSession(c.key), profile: u.profile, updated: u.updated });
-});
+}));
 
 app.post("/api/account/logout", (req, res) => {
   res.set("Cache-Control", "no-store");
@@ -293,6 +310,11 @@ app.put("/api/account/profile", express.json({ limit: PROFILE_MAX }), (req, res)
   res.set("Cache-Control", "no-store");
   const s = userOf(req);
   if (!s) return res.status(401).json({ error: "sign in again" });
+  // a save limit a user: the game saves after a match or a run, not every second
+  const now = Date.now();
+  s.user.saves = (s.user.saves ?? []).filter((t) => now - t < POST_WINDOW_MS);
+  if (s.user.saves.length >= SAVE_LIMIT) return res.status(429).json({ error: "slow down" });
+  s.user.saves.push(now);
   const profile = req.body && typeof req.body === "object" ? req.body.profile : undefined;
   if (!profile || typeof profile !== "object" || Array.isArray(profile)) return res.status(400).json({ error: "bad profile" });
   s.user.profile = profile;

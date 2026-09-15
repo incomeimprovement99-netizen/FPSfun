@@ -227,7 +227,7 @@ export class MannequinFigure {
       mount.name = "gunMount";
       this.mountBase.decompose(mount.position, mount.quaternion, mount.scale);
       gun.position.copy(this.grip).negate();
-      gun.visible = this.gunShown;
+      gun.visible = this.gunShown && !this.dead;
       mount.add(gun);
       chest.add(mount);
       this.mount = mount;
@@ -240,7 +240,7 @@ export class MannequinFigure {
     const inFigure = new THREE.Matrix4().compose(grip.clone().sub(new THREE.Vector3(0, m.grip.u, m.grip.f)), new THREE.Quaternion().setFromAxisAngle(Y, Math.PI), new THREE.Vector3(1, 1, 1));
     const local = new THREE.Matrix4().copy(template.handAim).invert().multiply(inFigure);
     local.decompose(gun.position, gun.quaternion, gun.scale);
-    gun.visible = this.gunShown;
+    gun.visible = this.gunShown && !this.dead;
     hand.add(gun);
     this.gun = gun;
   }

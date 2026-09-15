@@ -813,7 +813,7 @@ function onEliminated(d: MatchLike, by: number): void {
   // a loot battle royale: your death box, with your banner for the squad
   if (d instanceof BrMatch && d.lootField) {
     const items: LootItem[] = [];
-    for (const s of loadout.slots) if (!s.empty) items.push({ kind: "weapon", id: s.id, n: 1, rarity: "rare", mag: s.magLevel, attach: { ...s.attach } });
+    for (const s of loadout.slots) if (!s.empty) items.push({ kind: "weapon", id: s.id, n: 1, rarity: "rare", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}) });
     for (const [type, n] of Object.entries(loadout.ammo.stock)) if (n > 0 && type !== "energy") items.push({ kind: "ammo", id: type, n, rarity: "common" });
     for (const [item, n] of Object.entries(kit.items)) if (n > 0) items.push({ kind: "heal", id: item, n, rarity: "common" });
     if (armor.helmet) items.push({ kind: "helmet", id: armor.helmet, n: 1, rarity: "legendary" });
@@ -1001,11 +1001,12 @@ function duelButtons(): void {
 function respawnForMatch(d: MatchLike): void {
   const sp = d.spawn;
   newLife(d);
-  if (d instanceof BrMatch && d.respawnOnBox) {
-    // a squad mate held at your death box: you stand up on it
+  const boxAt = d instanceof BrMatch && d.respawnOnBox ? d.boxRespawnAt : null;
+  if (d instanceof BrMatch && boxAt) {
+    // a squad mate held at your death box: you stand up on it, at its height
     player.setBounds(BR_BOUNDS);
     setRegion("br");
-    player.teleport(sp.x, 0, sp.z, player.yaw);
+    player.teleport(boxAt.x, boxAt.y, boxAt.z, player.yaw);
     hud.notice("RESPAWNED AT YOUR DEATH BOX", gameTime, 2.5);
   } else if (d instanceof BrMatch) {
     // a battle royale starts in the sky over your drop spot once everyone is
@@ -1040,14 +1041,6 @@ function respawnForMatch(d: MatchLike): void {
   kd.knock = -1;
   execRegen = null;
   boxRegen = null;
-  // a Deathbox Respawn: 20 health (the match set it), the shield back over a few seconds, and what is left in the box put on
-  if (d instanceof BrMatch && d.respawnOnBox) {
-    d.health = squadCfg.boxRespawn.health;
-    d.shield = 0;
-    boxRegen = { rate: d.shieldMax / squadCfg.boxRespawn.shieldRegen };
-    const f = d.lootField;
-    if (f) for (const drop of [...f.drops.values()]) if (drop.item.kind !== "box" && Math.hypot(drop.pos.x - sp.x, drop.pos.z - sp.z) < 1.8) d.takeLoot(drop.key);
-  }
   // grenades: the match's kit each life (Gun Run is guns and the knife: none)
   ordnance.endless = false;
   ordnance.readied = null;
@@ -1066,6 +1059,21 @@ function respawnForMatch(d: MatchLike): void {
   d.shield = d.shieldMax;
   heal = null;
   player.healSlow = 1;
+  // A Deathbox Respawn, last (after the life's kit and armour above, so nothing of the box is cleared
+  // again): 20 health, the shield back over a few seconds, and what is left in the box put on (the
+  // box's items lie 0.9 m round its own spot, near the banner the mate held at)
+  if (d instanceof BrMatch && boxAt) {
+    d.health = squadCfg.boxRespawn.health;
+    d.shield = 0;
+    boxRegen = { rate: d.shieldMax / squadCfg.boxRespawn.shieldRegen };
+    const f = d.lootField;
+    if (f) {
+      const drops = [...f.drops.values()];
+      const box = drops.filter((x) => x.item.kind === "box").sort((a, b) => a.pos.distanceTo(boxAt) - b.pos.distanceTo(boxAt))[0];
+      const at = box && box.pos.distanceTo(boxAt) < 2 ? box.pos : boxAt;
+      for (const drop of drops) if (drop.item.kind !== "box" && Math.hypot(drop.pos.x - at.x, drop.pos.z - at.z) < 1.3) d.takeLoot(drop.key);
+    }
+  }
   if (d instanceof ArenaMode) {
     // Gun Run: the level's gun, one slot, endless reserve (the guns change with every kill)
     if (d.modeKind === "gunrun") {
@@ -1111,7 +1119,7 @@ function giveEvo(amount: number, why = ""): void {
   if (why) hud.notice(`+${amount} EVO  ·  ${why}`, gameTime, 1.2);
   if (up !== null) {
     duel.shieldMax = armor.shieldMax;
-    duel.shield = duel.shieldMax;
+    if (!duel.downed) duel.shield = duel.shieldMax;
     hud.notice(`SHIELD UP: ${["", "WHITE", "BLUE", "PURPLE"][up]} ${armor.shieldMax}`, gameTime, 1.6);
     audio.stinger("won");
   }
@@ -1171,10 +1179,11 @@ let boxRegen: { rate: number } | null = null;
 const kd = { hp: 0, max: 0, up: false, knock: -1 };
 let kdPane: THREE.Mesh | null = null;
 /** the Deathbox Respawn beams in the world, by who is holding (your own is -1) */
-const beams = new Map<number, { obj: THREE.Mesh; until: number }>();
+const beams = new Map<number, { obj: THREE.Mesh; until: number; hum: (() => void) | null }>();
 function setBeam(key: number, at: THREE.Vector3 | null): void {
   const old = beams.get(key);
   if (old) {
+    old.hum?.();
     old.obj.removeFromParent();
     old.obj.geometry.dispose();
     (old.obj.material as THREE.Material).dispose();
@@ -1184,8 +1193,7 @@ function setBeam(key: number, at: THREE.Vector3 | null): void {
   const obj = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 180, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0x5dff7a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
   obj.position.set(at.x, at.y + 90, at.z);
   scene.add(obj);
-  beams.set(key, { obj, until: gameTime + squadCfg.boxRespawn.time + 1 });
-  audio.beamHum(at, squadCfg.boxRespawn.time);
+  beams.set(key, { obj, until: gameTime + squadCfg.boxRespawn.time + 1, hum: audio.beamHum(at, squadCfg.boxRespawn.time) });
 }
 
 // a dropped gun's clatter on the floor; the menu's clicks
@@ -2355,7 +2363,10 @@ function localAct(): number {
 
 function selfFigure(now: number, dt: number, weaponId: string, op: string, show: boolean, knocked: boolean, downed: boolean): void {
   if (!show) {
-    if (selfFig) selfFig.group.visible = false;
+    if (selfFig) {
+      selfFig.group.visible = false;
+      selfFig.clearDropped();
+    }
     return;
   }
   const key = `${weaponId}|${op}`;
@@ -2519,8 +2530,8 @@ function step(): void {
         brPlay.pingEnemy(duel, camera.position.clone(), f, now, duel.id);
         lastPingAt = -Infinity;
       } else {
-        brPlay.ping(duel, camera.position.clone(), f, now, duel.id);
-        lastPingAt = now;
+        // (a first tap that already marked an enemy is not turned into a plain "enemy here" by a second)
+        lastPingAt = brPlay.ping(duel, camera.position.clone(), f, now, duel.id) === "enemy" ? -Infinity : now;
       }
     }
 
@@ -2748,7 +2759,7 @@ function step(): void {
     scene.add(kdPane);
   }
   if (kdPane) {
-    kdPane.visible = kd.up;
+    kdPane.visible = kd.up && !thirdPerson;
     kdPane.position.set(player.pos.x, player.pos.y + 0.55, player.pos.z);
     kdPane.rotation.y = player.yaw * DEG + Math.PI;
   }
@@ -3147,7 +3158,7 @@ function step(): void {
     lookYaw,
     lookPitch,
     landDip: player.viewDip,
-    lowered: debugView.lowered ?? (emptyHand || downedNow || debugView.downed || knockedOut || ordnance.readied ? 1 : lowered),
+    lowered: debugView.lowered ?? (emptyHand || downedNow || debugView.downed || (knockedOut && !killcam.active) || ordnance.readied ? 1 : lowered),
     downed: downedNow || debugView.downed ? 1 : 0,
     inspect: now - inspectAt < INSPECT_TIME ? (now - inspectAt) / INSPECT_TIME : undefined,
     flourish: now - flourishAt < FLOURISH_TIME ? (now - flourishAt) / FLOURISH_TIME : undefined,
@@ -3174,7 +3185,7 @@ function step(): void {
     yaw: player.yaw,
     pitch: player.pitch,
     crouch: player.crouched || player.sliding,
-    weapon: emptyHand ? "" : drawn.id,
+    weapon: emptyHand ? "" : onScreen.weapon.id,
     operator: loadouts.current.operator,
     name: profile.profile.name,
     ready: input.playing,

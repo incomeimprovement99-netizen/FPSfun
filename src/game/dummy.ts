@@ -768,7 +768,7 @@ export class Dummy {
   /** show or hide the gun it holds (a bot still searching for one) */
   setGunVisible(on: boolean): void {
     this.gunShown = on;
-    if (this.gun) this.gun.visible = on && !this.gunAway;
+    if (this.gun) this.gun.visible = on && !this.gunAway && !(this.knocked && this.rig);
     this.mq?.setGunVisible(on);
   }
 
@@ -1037,12 +1037,23 @@ export class Dummy {
   }
 
   /** knocked by something other than a hit here (the 1v1 opponent going down) */
-  fallDown(): void {
+  fallDown(dropGun = true): void {
     if (this.knocked) return;
     this.knocked = true;
     this.fall = 0.0001;
     this.respawnAt = Infinity;
-    this.dropGun();
+    if (dropGun) this.dropGun();
+    else {
+      // a stand-in for a figure already down (a look change): no second drop, no gun in its hands
+      this.mq?.setDead(true);
+      if (this.gun) this.gun.visible = false;
+    }
+  }
+
+  /** the gun on the floor goes (a figure put away, or replaced) */
+  clearDropped(): void {
+    this.dropped?.obj.removeFromParent();
+    this.dropped = null;
   }
 
   reset(): void {
@@ -1094,11 +1105,13 @@ export class Dummy {
    * showing (fists, a heal, down already, a bot unarmed) drops nothing.
    */
   private dropGun(): void {
+    // a merged figure (a range dummy, a course's pop-up) topples whole, gun and all, as it always has
+    if (!this.rig) return;
     const held = this.mq?.gunObject ?? this.gun;
     const showing = this.mq ? this.mq.gunInHand : !!held && held.visible && this.gunShown && !this.gunAway;
     this.mq?.setDead(true);
     if (this.gun) this.gun.visible = false;
-    if (!held || !showing || !this.rig || this.dropped || !this.group.parent) return;
+    if (!held || !showing || this.dropped || !this.group.parent) return;
     held.updateWorldMatrix(true, false);
     const copy = held.clone(true);
     held.matrixWorld.decompose(copy.position, copy.quaternion, copy.scale);
@@ -1126,7 +1139,15 @@ export class Dummy {
   /** the dropped gun: falls, tumbles, and lies where it lands */
   private stepDropped(dt: number): void {
     const d = this.dropped;
-    if (!d || d.still) return;
+    if (!d) return;
+    // hidden with its figure (the killcam's stand-ins, your own figure in first person)
+    d.obj.visible = this.group.visible;
+    // a figure knocked in the air: the floor is where its body comes to rest
+    d.floor = Math.min(d.floor, this.group.position.y + 0.04);
+    if (d.still) {
+      if (d.obj.position.y > d.floor + 1e-3) d.still = false;
+      else return;
+    }
     d.vel.y -= 9.8 * dt;
     d.obj.position.addScaledVector(d.vel, dt);
     d.obj.rotation.x += d.spin.x * dt;

@@ -352,19 +352,24 @@ export class Control {
    * forward of them, or null for the base.
    */
   spawnZone(team: 0 | 1): ControlZone | null {
-    const chain = team === 0 ? this.zones : [...this.zones].reverse();
-    let best: ControlZone | null = null;
-    for (let i = 0; i < chain.length - 1; i++) {
-      if (chain[i].owner !== team) break;
-      best = chain[i];
-    }
-    return best;
+    return controlSpawnZone(this.zones, team);
   }
 
-  /** the ahead team at the time limit, or null for a draw */
+  /** the ahead team at the time limit, or null for a draw (below, the spawn rule on its own, for a guest's view) */
   get ahead(): 0 | 1 | null {
     const a = Math.floor(this.score[0]);
     const b = Math.floor(this.score[1]);
     return a > b ? 0 : b > a ? 1 : null;
   }
+}
+
+/** Control's spawn rule on any zones (the host's, or a guest's view of them): see Control.spawnZone */
+export function controlSpawnZone<Z extends { owner: number }>(zones: Z[], team: 0 | 1): Z | null {
+  const chain = team === 0 ? zones : [...zones].reverse();
+  let best: Z | null = null;
+  for (let i = 0; i < chain.length - 1; i++) {
+    if (chain[i].owner !== team) break;
+    best = chain[i];
+  }
+  return best;
 }

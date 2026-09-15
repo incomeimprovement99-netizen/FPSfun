@@ -78,6 +78,8 @@ export class BrPlay {
     const kind = k === "enemy" || k === "loot" ? k : "go";
     // one ping each at a time: a new one replaces your last
     this.markers = this.markers.filter((m) => m.from !== from || m.k !== kind);
+    // an "enemy here" right after a place ping is the double tap: it replaces that place ping (on every screen)
+    if (kind === "enemy" && target === -1) this.markers = this.markers.filter((m) => !(m.from === from && m.k === "go" && m.until - squad.pingLife.go > now - 0.6));
     this.markers.push({ k: kind, at: at.clone(), label, from, until: now + squad.pingLife[kind], target });
     this.deps.sound("ping");
   }
@@ -88,8 +90,6 @@ export class BrPlay {
     const ground = fwd.y < -1e-3 ? eye.y / -fwd.y : Infinity;
     const t = Math.min(wall, ground, 300);
     const at = eye.clone().addScaledVector(fwd, Number.isFinite(t) ? t : 60);
-    // the place ping it replaces goes
-    this.markers = this.markers.filter((m) => !(m.from === myId && m.k === "go"));
     this.addMarker("enemy", at, "ENEMY HERE", myId, -1, now);
     match.sendMark("enemy", at, "ENEMY HERE");
   }
@@ -98,7 +98,7 @@ export class BrPlay {
    * A ping where you look: a figure under the crosshair is an enemy, an item
    * near the line is loot, else the ground or wall you are looking at.
    */
-  ping(match: BrMatch, eye: THREE.Vector3, fwd: THREE.Vector3, now: number, myId: number): void {
+  ping(match: BrMatch, eye: THREE.Vector3, fwd: THREE.Vector3, now: number, myId: number): "enemy" | "loot" | "go" {
     // a figure within 2 degrees of the line and in sight
     let best: { d: Dummy; dist: number } | null = null;
     for (const a of match.avatars) {
@@ -117,14 +117,14 @@ export class BrPlay {
       const at = best.d.group.position.clone();
       this.addMarker("enemy", at, `ENEMY: ${r.name}`, myId, r.id, now);
       match.sendMark("enemy", at, `ENEMY: ${r.name}`, r.id);
-      return;
+      return "enemy";
     }
     const drop = match.lootField?.nearest(eye, fwd, 40);
     if (drop) {
       const label = `LOOT: ${lootLabel(drop.item)}`;
       this.addMarker("loot", drop.pos, label, myId, -1, now);
       match.sendMark("loot", drop.pos, label);
-      return;
+      return "loot";
     }
     const wall = solidHit(eye, fwd, 300);
     const ground = fwd.y < -1e-3 ? eye.y / -fwd.y : Infinity;
@@ -132,6 +132,7 @@ export class BrPlay {
     const at = eye.clone().addScaledVector(fwd, Number.isFinite(t) ? t : 60);
     this.addMarker("go", at, "GOING HERE", myId, -1, now);
     match.sendMark("go", at, "GOING HERE");
+    return "go";
   }
 
   /**
@@ -189,6 +190,8 @@ export class BrPlay {
     const holdingE = input.held("interact");
     // a revive: a downed squad mate within reach
     const mate = match.downedMateNear(p, squad.reviveReach);
+    const boxDrop = mate ? null : this.boxHere(match, p, eye, fwd, now);
+    if (!boxDrop) this.eDownAt = null;
     // a beacon, carrying a banner
     const beacon = this.carried ? match.mapInfo.beacons.find((b) => Math.hypot(p.x - b.x, p.z - b.z) < squad.beaconReach) : undefined;
     if (mate) {
@@ -199,9 +202,9 @@ export class BrPlay {
         this.deps.sound("revive");
         this.deps.onRevive?.();
       });
-    } else if (this.boxHere(match, p)) {
+    } else if (boxDrop) {
       // a dead squad mate's death box: a tap takes the banner, a hold of 7 s respawns them on it
-      const d = this.boxHere(match, p)!;
+      const d = boxDrop;
       const owner = d.item.owner!;
       const name = d.item.ownerName ?? "A SQUAD MATE";
       const lock = match.boxLockout(owner);
@@ -215,6 +218,9 @@ export class BrPlay {
             match.sendRespawn(owner, at, true);
             this.deps.notice(`${name} IS BACK`);
             this.deps.beam?.(null);
+            // (until their first packet says they are up, the box is not offered again)
+            this.boxDone = { owner, at: now };
+            this.eDownAt = null;
           });
           if (fresh && this.hold?.kind === "box") this.deps.beam?.(at);
         }
@@ -276,14 +282,24 @@ export class BrPlay {
     this.hold = null;
   }
 
-  /** a dead squad mate's banner lying within reach (their death box) */
-  private boxHere(match: BrMatch, p: THREE.Vector3): LootDrop | null {
+  /** a hold at a box just finished: that mate is on their way back */
+  private boxDone: { owner: number; at: number } | null = null;
+
+  /**
+   * A dead squad mate's banner lying within reach (their death box), when you
+   * look at it or at no other item: an item under the crosshair (a gun in
+   * the box) is taken as any item is.
+   */
+  private boxHere(match: BrMatch, p: THREE.Vector3, eye: THREE.Vector3, fwd: THREE.Vector3, now: number): LootDrop | null {
     const f = match.lootField;
     if (!f) return null;
+    const aimed = f.nearest(eye, fwd);
+    if (aimed && aimed.item.kind !== "banner") return null;
     for (const d of f.drops.values()) {
       if (d.item.kind !== "banner" || d.item.owner === undefined || d.item.owner === match.id) continue;
       if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > BOX.reach) continue;
       if (match.memberAlive(d.item.owner) !== false) continue;
+      if (this.boxDone && this.boxDone.owner === d.item.owner && now - this.boxDone.at < 3) continue;
       return d;
     }
     return null;

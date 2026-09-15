@@ -513,7 +513,9 @@ export class Duel implements MatchLike {
     next.group.rotation.copy(old.group.rotation);
     next.group.scale.copy(old.group.scale);
     next.shield = old.shield;
-    if (old.knocked) next.fallDown();
+    // (the new look of a figure already down: down, without a second gun falling; the old one's goes)
+    if (old.knocked) next.fallDown(false);
+    old.clearDropped();
     this.scene.remove(old.group);
     this.projectiles.removeDummy(old);
     r.avatar = next;

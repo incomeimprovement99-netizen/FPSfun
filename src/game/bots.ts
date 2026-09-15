@@ -97,11 +97,13 @@ export function aimError(d: Difficulty, t: number): number {
   return d.errFloor + (d.errStart - d.errFloor) * Math.pow(d.errDecay, Math.max(0, t));
 }
 const GRENADE = botsCfg.grenade;
+/** a crouched bot's eye, m */
+const CROUCH_EYE = 0.95;
 const COVER = botsCfg.cover;
 const HEAR = botsCfg.hear;
-/** is there a clear line between two chests */
-function lineOfSight(a: THREE.Vector3, b: THREE.Vector3): boolean {
-  const from = a.clone().setY(a.y + 1.4);
+/** is there a clear line between two chests (`eye`: the looker's eye height, lower crouched) */
+function lineOfSight(a: THREE.Vector3, b: THREE.Vector3, eye = 1.4): boolean {
+  const from = a.clone().setY(a.y + eye);
   const to = b.clone().setY(b.y + 1.2);
   const d = to.clone().sub(from);
   const len = d.length();
@@ -131,6 +133,8 @@ export interface BotSense {
   targetId: number;
   /** where to walk with no target in sight (null: stay) */
   goal: THREE.Vector3 | null;
+  /** the goal comes first (the ring closing on it): no hunting, no going to look at a shot */
+  urgent?: boolean;
   canShoot: boolean;
 }
 
@@ -184,7 +188,13 @@ export class Bot {
   crouching = false;
   private crouchNext = 0;
   /** a spot out of the target's sight to heal behind, and until when it keeps to it */
-  cover: { spot: THREE.Vector3; until: number; best: number; bestAt: number } | null = null;
+  cover: { spot: THREE.Vector3; crouch: boolean; via: THREE.Vector3 | null; until: number; best: number; bestAt: number } | null = null;
+  private coverTryAt = 0;
+  /** headway: where it last got somewhere, and since when; a detour out of a pocket and until when */
+  private headwayAt = new THREE.Vector3();
+  private headwaySince = 0;
+  private detour = new THREE.Vector2();
+  private detourUntil = -Infinity;
   /** frags left, when it may throw the next, and one thrown this frame (for the match) */
   frags: number = GRENADE.count;
   private nextThrowAt = 0;
@@ -286,6 +296,11 @@ export class Bot {
     this.thrown = null;
   }
 
+  /** someone it was after went down: no hunting them, no frag at where they were */
+  forget(id: number): void {
+    if (this.lastSeen?.id === id) this.lastSeen = null;
+  }
+
   /** a frag it threw this frame, once (the match shows it, sends it, and the blast is the match's) */
   takeThrow(): { kind: "frag"; from: THREE.Vector3; vel: THREE.Vector3 } | null {
     const t = this.thrown;
@@ -302,31 +317,51 @@ export class Bot {
   }
 
   /** can it walk straight to `p` (nothing that blocks a body on the way, every half metre) */
-  private clearWalk(p: THREE.Vector3): boolean {
-    const dx = p.x - this.pos.x;
-    const dz = p.z - this.pos.z;
+  private clearWalk(p: THREE.Vector3, from: { x: number; z: number } = this.pos): boolean {
+    const dx = p.x - from.x;
+    const dz = p.z - from.z;
     const n = Math.ceil(Math.hypot(dx, dz) / 0.5);
-    for (let i = 1; i <= n; i++) if (this.blocked(this.pos.x + (dx * i) / n, this.pos.z + (dz * i) / n)) return false;
+    for (let i = 1; i <= n; i++) if (this.blocked(from.x + (dx * i) / n, from.z + (dz * i) / n)) return false;
     return true;
   }
 
-  /** somewhere near, out of `threat`'s sight, that it can stand in: for a heal behind cover */
-  private findCover(threat: THREE.Vector3): THREE.Vector3 | null {
-    let best: THREE.Vector3 | null = null;
+  /**
+   * Somewhere near, out of `threat`'s sight: a spot hidden standing (behind
+   * a wall) or, second best, hidden crouched (behind low cover, where it
+   * heals crouched, as players do). It must be reachable: straight, or by one
+   * turn at a clear point 3 m off (round the end of a crate). For a heal.
+   */
+  private findCover(threat: THREE.Vector3): { spot: THREE.Vector3; crouch: boolean; via: THREE.Vector3 | null } | null {
+    let best: { spot: THREE.Vector3; crouch: boolean; via: THREE.Vector3 | null } | null = null;
     let bestD = Infinity;
+    // the turning points: clear, and clear to walk to
+    const vias: THREE.Vector3[] = [];
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const w = new THREE.Vector3(this.pos.x + Math.cos(a) * 3, this.pos.y, this.pos.z + Math.sin(a) * 3);
+      if (!this.blocked(w.x, w.z) && this.clearWalk(w)) vias.push(w);
+    }
     for (let i = 0; i < COVER.samples; i++) {
       const a = (i / COVER.samples) * Math.PI * 2 + this.strafePhase;
-      for (const r of [COVER.search * 0.45, COVER.search]) {
+      for (const r of [COVER.search * 0.35, COVER.search * 0.7, COVER.search, COVER.search * 1.4]) {
         const p = new THREE.Vector3(this.pos.x + Math.cos(a) * r, this.pos.y, this.pos.z + Math.sin(a) * r);
-        if (this.blocked(p.x, p.z) || !this.clearWalk(p)) continue;
+        if (this.blocked(p.x, p.z)) continue;
         p.y = this.groundAt(p.x, p.z);
-        if (lineOfSight(p, threat)) continue;
-        // not toward the threat
+        // hidden first (the cheap test), then a way there
+        const standing = !lineOfSight(p, threat);
+        const crouched = standing || !lineOfSight(p, threat, CROUCH_EYE);
+        if (!crouched) continue;
+        let via: THREE.Vector3 | null = null;
+        if (!this.clearWalk(p)) {
+          via = vias.find((w) => this.clearWalk(p, w)) ?? null;
+          if (!via) continue;
+        }
+        // not toward the threat; standing cover before crouched; a straight way before a turn
         const toward = (p.x - this.pos.x) * (threat.x - this.pos.x) + (p.z - this.pos.z) * (threat.z - this.pos.z);
-        const d = this.pos.distanceTo(p) + (toward > 0 ? 4 : 0);
+        const d = this.pos.distanceTo(p) + (toward > 0 ? 4 : 0) + (standing ? 0 : 3) + (via ? 2 : 0);
         if (d < bestD) {
           bestD = d;
-          best = p;
+          best = { spot: p, crouch: !standing, via };
         }
       }
     }
@@ -447,7 +482,8 @@ export class Bot {
 
   /** can it see this spot (someone's feet): within 60 m, nothing solid between chest heights */
   sees(target: THREE.Vector3): boolean {
-    const from = this.pos.clone().setY(this.pos.y + 1.4);
+    // crouched (behind low cover) it looks from lower down
+    const from = this.pos.clone().setY(this.pos.y + (this.crouching ? CROUCH_EYE : 1.4));
     const to = target.clone().setY(target.y + 1.2);
     const d = to.clone().sub(from);
     const len = d.length();
@@ -481,7 +517,8 @@ export class Bot {
     const target = sense.target;
     const sees = target !== null;
     const tier = this.diff;
-    if (sees && !this.sawLast) {
+    // (a glance lost for under half a second is the same sighting: the reaction does not start over)
+    if (sees && !this.sawLast && now - this.lastTargetAt > 0.5) {
       // a new sighting: the reaction starts; an elite bot back round a corner where it lost you is already aimed
       const back = tier.preAim && this.lastSeen && now - this.lastSeen.at < 3 && this.lastSeen.pos.distanceTo(target) < 3.5;
       this.seenAt = back ? now - tier.reaction * 0.75 : now;
@@ -519,13 +556,16 @@ export class Bot {
     this.prevVital = vital;
     // low, with cover on: away out of sight to heal, then back to peek
     const hurtFrac = vital / Math.max(1, HEALTH_MAX + this.dummy.shieldMax);
-    if (tier.cover && !this.cover && sees && target && hurtFrac < COVER.below && (this.kit.cell > 0 || this.kit.syringe > 0)) {
-      const spot = this.findCover(target);
-      if (spot) this.cover = { spot, until: now + 7, best: Infinity, bestAt: now };
+    if (tier.cover && !this.cover && sees && target && now >= this.coverTryAt && hurtFrac < COVER.below && (this.kit.cell > 0 || this.kit.syringe > 0)) {
+      // (nothing found: look again in a moment, from wherever the strafe has taken it)
+      this.coverTryAt = now + 0.5;
+      const found = this.findCover(target);
+      if (found) this.cover = { spot: found.spot, crouch: found.crouch, via: found.via, until: now + 7, best: Infinity, bestAt: now };
     }
     // no nearer to it for a second while still in view: that way is blocked; look again next time
     if (this.cover && sees) {
-      const d = Math.hypot(this.cover.spot.x - this.pos.x, this.cover.spot.z - this.pos.z);
+      const leg = this.cover.via ?? this.cover.spot;
+      const d = Math.hypot(leg.x - this.pos.x, leg.z - this.pos.z) + (this.cover.via ? 100 : 0);
       if (d < this.cover.best - 0.3) {
         this.cover.best = d;
         this.cover.bestAt = now;
@@ -555,7 +595,8 @@ export class Bot {
     // (keeping a distance); where it last saw one (a hunt), or a shot it heard;
     // else the match's goal
     const hunting = !sees && this.lastSeen && tier.name !== "easy" ? this.lastSeen.pos : null;
-    const goal = this.cover ? this.cover.spot : (target ?? hunting ?? this.heard?.pos ?? sense.goal);
+    if (this.cover?.via && Math.hypot(this.cover.via.x - this.pos.x, this.cover.via.z - this.pos.z) < 0.8) this.cover.via = null;
+    const goal = this.cover ? (this.cover.via ?? this.cover.spot) : (target ?? (sense.urgent ? sense.goal : (hunting ?? this.heard?.pos ?? sense.goal)));
     const toGoal = goal ? new THREE.Vector2(goal.x - this.pos.x, goal.z - this.pos.z) : new THREE.Vector2();
     const dist = toGoal.length();
     let want = new THREE.Vector2();
@@ -573,18 +614,41 @@ export class Bot {
       if (want.length() > 1e-3) want.normalize();
     } else if (dist < (this.cover ? 0.6 : 1.5) || (this.cover && !sees)) want.set(0, 0);
     // a crouch now and then while it fires (by tier), never while it walks to cover or heals
-    if (sees && !this.cover && !this.healing && tier.crouchPeek > 0) {
+    if (sees && target && !this.cover && !this.healing && tier.crouchPeek > 0) {
+      // only a crouch that still sees the target (not one that ducks behind low cover mid-fight)
+      const seesLow = lineOfSight(this.pos, target, CROUCH_EYE);
       if (now >= this.crouchNext) {
         this.crouchNext = now + 0.4 + Math.random() * 0.4;
-        if (Math.random() < tier.crouchPeek) this.crouching = !this.crouching;
+        if (Math.random() < tier.crouchPeek) this.crouching = !this.crouching && seesLow;
       }
-    } else this.crouching = false;
+      if (this.crouching && !seesLow) this.crouching = false;
+    } else this.crouching = !!this.cover && this.cover.crouch && Math.hypot(this.cover.spot.x - this.pos.x, this.cover.spot.z - this.pos.z) < 1.5;
     if (this.joltLeft > 0) {
       this.stepJolt(dt);
       want.set(0, 0);
     }
-    // a wall in the way: slide along it, and remember which way for a moment
+    // a wall in the way: slide along it, and remember which way for a moment.
+    // Wedged (a pocket between boxes where both slides are blocked too): no
+    // headway for 0.7 s and it takes the free way nearest the one it wants,
+    // backing out if it must, for 0.8 s.
     if (want.length() > 1e-3) {
+      if (now < this.detourUntil) want.copy(this.detour);
+      else if (this.pos.distanceTo(this.headwayAt) > 0.1) {
+        this.headwayAt.copy(this.pos);
+        this.headwaySince = now;
+      } else if (now - this.headwaySince > 0.7) {
+        const base = Math.atan2(want.y, want.x);
+        for (const turn of [0.8, -0.8, 1.6, -1.6, 2.4, -2.4, Math.PI]) {
+          const d = new THREE.Vector2(Math.cos(base + turn), Math.sin(base + turn));
+          if (!this.blocked(this.pos.x + d.x * 0.5, this.pos.z + d.y * 0.5)) {
+            this.detour.copy(d);
+            this.detourUntil = now + 0.8;
+            want.copy(d);
+            break;
+          }
+        }
+        this.headwaySince = now;
+      }
       const step = this.diff.speed * dt * (this.healing ? HEAL_WALK : 1) * (this.crouching ? 0.6 : 1);
       let nx = this.pos.x + want.x * step;
       let nz = this.pos.z + want.y * step;
@@ -919,6 +983,7 @@ export class BotMatch implements MatchLike {
     if (this.health <= 0) {
       this.alive = false;
       this.deaths++;
+      for (const b of this.bots) b.forget(0);
       const by = this.lastHitBy ?? this.bots.find((b) => b.alive) ?? null;
       this.onEliminated?.(by ? by.remote.id : -1);
       this.onFeed?.(`${by?.remote.name ?? "A BOT"} knocked ${this.myName || "YOU"}`, false);

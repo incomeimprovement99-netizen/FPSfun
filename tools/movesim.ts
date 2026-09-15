@@ -1598,6 +1598,20 @@ console.log("\nJOLT, the dash ability (src/config/abilities.json: 10 m over 0.14
   w.p.jolt(0, -1, JD, JT, EXIT);
   w.run(JT + 0.05);
   check("a wall 4 m ahead stops it at the wall", w.p.pos.z > -4 - 0.01 && w.p.pos.z < -3.4, `z ${w.p.pos.z.toFixed(2)}`);
+  // at 60 and 30 fps a 1 m wall still stops it (the peak is over 2 m a frame; it moves in 0.3 m steps)
+  for (const fps of [60, 30]) {
+    const slow = new Sim([{ minX: -5, maxX: 5, minZ: -3, maxZ: -2, top: 4 }]);
+    slow.p.pos.set(0, 0, -1.2);
+    slow.p.yaw = 0;
+    slow.frame();
+    slow.p.jolt(0, -1, JD, JT, EXIT);
+    for (let i = 0; i < fps / 2; i++) {
+      slow.t += 1 / fps;
+      slow.p.update(1 / fps, slow.t, slow.in, 0, 1, false);
+      slow.in.endFrame();
+    }
+    check(`at ${fps} fps a 1 m wall still stops it`, slow.p.pos.z > -2, `z ${slow.p.pos.z.toFixed(2)}`);
+  }
   // in the air it stays level for its duration
   const air = new Sim();
   air.p.pos.set(0, 0, 0);

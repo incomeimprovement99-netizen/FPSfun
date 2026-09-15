@@ -294,15 +294,20 @@ export class Player {
     const t0 = this.joltDur - this.joltLeft;
     const along = this.joltDist * (Player.joltCurve((t0 + use) / this.joltDur, this.joltDist, this.joltDur, this.joltExit) - Player.joltCurve(t0 / this.joltDur, this.joltDist, this.joltDur, this.joltExit));
     const sp = dt > 1e-9 ? (along + this.joltExit * (dt - use)) / dt : this.joltExit;
-    // a wall hit earlier in the dash zeroed that component: it stays zeroed
-    this.vel.x = this.joltBlockedX ? 0 : this.joltDirX * sp;
-    this.vel.z = this.joltBlockedZ ? 0 : this.joltDirZ * sp;
-    this.vel.y = 0;
-    const wantX = this.vel.x;
-    const wantZ = this.vel.z;
-    this.integrate(dt, now, 0);
-    if (wantX !== 0 && this.vel.x === 0) this.joltBlockedX = true;
-    if (wantZ !== 0 && this.vel.z === 0) this.joltBlockedZ = true;
+    // in steps of at most 0.3 m: the collision tests where a step ends, and the
+    // dash's peak (over 2 m a frame at 60 fps) would otherwise pass a 1 m wall
+    const steps = Math.max(1, Math.ceil((sp * dt) / 0.3));
+    for (let i = 0; i < steps; i++) {
+      // a wall hit earlier in the dash zeroed that component: it stays zeroed
+      this.vel.x = this.joltBlockedX ? 0 : this.joltDirX * sp;
+      this.vel.z = this.joltBlockedZ ? 0 : this.joltDirZ * sp;
+      this.vel.y = 0;
+      const wantX = this.vel.x;
+      const wantZ = this.vel.z;
+      this.integrate(dt / steps, now, 0);
+      if (wantX !== 0 && this.vel.x === 0) this.joltBlockedX = true;
+      if (wantZ !== 0 && this.vel.z === 0) this.joltBlockedZ = true;
+    }
     this.joltLeft -= dt;
     if (this.joltLeft <= 0) {
       this.joltLeft = 0;

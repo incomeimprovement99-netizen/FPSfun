@@ -574,3 +574,22 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   lives in `names.ts` behind the build flag, so the real one is not in the public bundle at all.
 - `beta-check` now also bans Phoenix and the three new hop-ups' names (Executioner, Shattercaps, Redline, codenamed
   "knock recharge", "split rounds" and "hot bolts" on a public build).
+
+## Milestone 36 — Phase 12 closed: the bug hunt, a new gap analysis, the docs, the deploy ✅
+2026-09-15 (Phase 12M). `docs/PHASE_12_DASH_FIGURES_BOTS_AND_THE_APEX_PIECES.md`.
+- **Two independent reviews**, 29 findings, and 3 more from the e2e runs: 32 in all, each checked against the code.
+  All are fixed, apart from one that was intended (the care package's EVO goes to each looter). The worst were:
+  - a request that crashed the game server (a name like "constructor");
+  - a second browser's sign-in wiping the account's stats;
+  - a Deathbox Respawn of the host losing the box and duplicating guns;
+  - the faster JOLT passing through 1 m walls at 60 fps;
+  - guests in Control always spawning at base;
+  - the killcam showing fists;
+  - course enemies losing their guns;
+  - bots wedging in a pocket between crates.
+- Regression checks for the worst: movesim (a 1 m wall at 60 and 30 fps), the dry run (signing in as "constructor",
+  the server still up), e2e (the killer's gun in the killcam; the box's things on after a Deathbox Respawn and the
+  shield coming back from nothing).
+- **A new gap analysis** against Apex (Season 30) and **Hyper Scape**, and a new ranked NEXT_STEPS; README, the
+  deploy and server guides, and FIDELITY brought up to date; the results document; the Pages build deployed and
+  checked live.

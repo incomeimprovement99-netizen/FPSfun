@@ -1,7 +1,7 @@
 // The account box on the Stats tab (src/net/account.ts): sign up, sign in,
 // sync, sign out. Optional; on a site without the game's own server it says
 // so and stays out of the way.
-import { accountBase, push, session, signIn, signOut } from "../net/account";
+import { accountBase, pullIfNewer, push, session, signIn, signOut } from "../net/account";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -39,6 +39,11 @@ export function initAccountUi(deps: AccountUiDeps): { sync: () => void } {
     render();
     const s = session();
     say(s ? `Signed in as ${s.name}. Your settings, keys, loadouts and stats sync to the account.` : "Optional: keep your settings, keys, loadouts and stats across browsers. Nobody needs one to play.");
+    // another browser saved to the account since this one last synced: its things, and a fresh start from them
+    if (s)
+      void pullIfNewer().then((newer) => {
+        if (newer) location.reload();
+      });
   });
   const go = async (create: boolean) => {
     const name = nameIn.value.trim();
@@ -51,12 +56,14 @@ export function initAccountUi(deps: AccountUiDeps): { sync: () => void } {
       return;
     }
     const s = session();
-    if (s) deps.setName(s.name);
     if (r.reload) {
+      // the account's things are on: reload at once, before anything of this page's writes over them
+      // (its name comes with its profile)
       say(`Signed in as ${s?.name}. Loading your profile...`);
-      setTimeout(() => location.reload(), 400);
+      location.reload();
       return;
     }
+    if (s) deps.setName(s.name);
     // (a new account took this browser's things; the name change goes up too)
     await push();
     render();

@@ -599,7 +599,8 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   await ev(host, "window.__range.setScript(null)");
   const hp = await ev<number>(guest, "window.__range.duel().health");
   check("squad: after 5 s of E the guest is back up with 20 health", revived && hp === 20, `health ${hp}`);
-  // down again and finished off: out, the killcam, the banner for the squad
+  // down again and finished off: out, the killcam, the banner for the squad (two cells on them first, for their box)
+  await ev(guest, `window.__range.applyLoot({ kind: "heal", id: "cell", n: 2, rarity: "common" })`);
   await ev(guest, `(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()`);
   await sleep(300);
   const second = await ev<{ downed: boolean; left: number }>(guest, "(() => { const d = window.__range.duel(); return { downed: d.downed, left: d.bleedUntil - performance.now() / 1000 }; })()");
@@ -626,8 +627,8 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   const back = await guest.waitForFunction("window.__range.duel().alive", { polling: 100, timeout: 11000 }).then(() => true, () => false);
   await ev(host, "window.__range.setScript(null)");
   await sleep(600);
-  const gBack = await ev<{ hp: number; d: number; regen: boolean }>(guest, `(() => { const r = window.__range; const d = r.duel(); const p = r.player.pos; return { hp: d.health, d: Math.hypot(p.x - ${bAt?.x ?? 0}, p.z - ${bAt?.z ?? 0}), regen: !!r.kdState().box || d.shield > 0 }; })()`);
-  check("deathbox respawn: 7 s later the guest is up on the box at 20 health, the shield coming back", back && gBack.hp === 20 && gBack.d < 3 && gBack.regen, JSON.stringify(gBack));
+  const gBack = await ev<{ hp: number; d: number; regen: boolean; shield: number; max: number; things: number }>(guest, `(() => { const r = window.__range; const d = r.duel(); const p = r.player.pos; return { hp: d.health, d: Math.hypot(p.x - ${bAt?.x ?? 0}, p.z - ${bAt?.z ?? 0}), regen: !!r.kdState().box, shield: d.shield, max: d.shieldMax, things: r.loadout.slots.filter((s) => !s.empty).length + Object.values(r.kit.items).reduce((a, b) => a + b, 0) }; })()`);
+  check("deathbox respawn: 7 s later the guest is up on the box at 20 health, the shield coming back from nothing, the box's things on", back && gBack.hp === 20 && gBack.d < 3 && gBack.regen && gBack.shield < gBack.max && gBack.things > 0, JSON.stringify(gBack));
   // out again for what follows: down, then finished
   await ev(guest, `(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()`);
   await sleep(300);
@@ -858,8 +859,9 @@ async function botTiersTest(browser: Browser, query: string): Promise<void> {
   check("tiers: you stand still in view and the elite bot throws a frag at you", threw, JSON.stringify(await ev(page, "(() => { const b = window.__range.duel().bots[0]; return { frags: b.frags, d: b.pos.distanceTo(window.__range.player.pos).toFixed(1), seen: !!b.lastSeen }; })()")));
   const fragHit = await page.waitForFunction("window.__hits.includes('frag')", { polling: 200, timeout: 7000 }).then(() => true, () => false);
   check("tiers: and the frag's blast lands on you (the bot's side works it out)", fragHit, JSON.stringify(await ev(page, "window.__hits.slice(-6)")));
-  // it crouches now and then in the fight, and dodges when hit
-  const crouched = await page.waitForFunction("window.__range.duel().bots[0].crouching", { polling: 50, timeout: 8000 }).then(() => true, () => false);
+  // it crouches now and then in the fight (close in, where nothing low stands between you), and dodges when hit
+  await ev(page, "(() => { const b = window.__range.duel().bots[0]; b.diff = { ...b.diff, keep: 6 }; })()");
+  const crouched = await page.waitForFunction("window.__range.duel().bots[0].crouching", { polling: 50, timeout: 12000 }).then(() => true, () => false);
   check("tiers: the elite bot crouches while it fires", crouched);
   const dodge = await ev<boolean>(page, `(() => { const b = window.__range.duel().bots[0]; const before = b.strafeSign; b.dummy.hit(0, "body", 5, 1, 1, b.pos.clone().setY(1.2)); return new Promise((r) => setTimeout(() => r(b.strafeSign !== before), 400)); })()`);
   check("tiers: hit, it reverses its strafe (hard and elite always dodge)", dodge);
@@ -894,12 +896,12 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   // the bot hunts you down the middle lane and shoots: the shield drops
   const shot = await page.waitForFunction("window.__range.duel().shield < 75", { polling: 250, timeout: 25000 }).then(() => true, () => false);
   const pos = await ev<{ x: number; z: number; sh: number }>(page, "(() => { const b = window.__range.duel().avatars[0].group.position; return { x: b.x, z: b.z, sh: window.__range.duel().shield }; })()");
-  check("bots: the bot closes in and lands a shot", shot, `bot at ${pos.x.toFixed(1)}, ${pos.z.toFixed(1)}, your shield ${pos.sh}`);
+  check("bots: the bot closes in and lands a shot", shot, `bot at ${pos.x.toFixed(1)}, ${pos.z.toFixed(1)}, your shield ${pos.sh}` + (shot ? "" : " " + JSON.stringify(await ev(page, `(() => { const d = window.__range.duel(); const b = d.bots[0]; const pl = window.__range.player.pos; return { y: b.pos.y, you: [pl.x.toFixed(1), pl.z.toFixed(1)], sees: b.sees(pl), crouch: b.crouching, cover: !!b.cover, heard: !!b.heard, seen: b.lastSeen && [b.lastSeen.pos.x.toFixed(1), b.lastSeen.pos.z.toFixed(1)], slideDir: b.slideDir, joltLeft: b.joltLeft, healing: !!b.healing }; })()`))));
   check("bots: it moved off its spawn toward you", pos.z < -12, `z ${pos.z.toFixed(1)}`);
   const snd = await ev<{ played: number; voices: number }>(page, "({ played: window.__range.audio.played, voices: window.__range.audio.voiceCount })");
   check("sound: the fight is heard (its shots and footsteps), under the voice cap", snd.played > 5 && snd.voices <= 56, JSON.stringify(snd));
   // the recorded CC0 samples (npm run sounds) load and are layered in (a checkout without them is the synthesis alone)
-  const rec = await ev<{ loaded: number; played: number; files: boolean }>(page, "(async () => ({ loaded: window.__range.audio.sampleCount, played: window.__range.audio.samplesPlayed, files: (await fetch('audio/kenney/index.json')).ok }))()");
+  const rec = await ev<{ loaded: number; played: number; files: boolean }>(page, "(async () => { const a = window.__range.audio; a.land(1, 'concrete'); a.punch(null); return { loaded: a.sampleCount, played: a.samplesPlayed, files: (await fetch('audio/kenney/index.json')).ok }; })()");
   check("sound: the recorded samples are loaded and layered into the fight's sounds", !rec.files || (rec.loaded >= 10 && rec.played > 0), JSON.stringify(rec));
   // knock it: a hit through its dummy, then the match is told
   await ev(page, `(() => { const d = window.__range.duel(); const a = d.avatars[0]; const pt = { clone() { return this; } }; a.hit(0, "body", 500, 1, 1, pt); d.localHit(d.remoteOf(a), 500, false); })()`);
@@ -961,9 +963,11 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await ev(page, "window.__range.landHit(1, 15, false, 'r97', 12)");
   await ev(page, "(() => { const d = window.__range.duel(); d.shield = 0; d.health = 3; })()");
   const out = await page.waitForFunction("window.__range.duel() && !window.__range.duel().alive", { polling: 100, timeout: 30000 }).then(() => true, () => false);
-  check("recap: the bot eliminates you", out);
+  check("recap: the bot eliminates you", out, out ? "" : JSON.stringify(await ev(page, `(() => { const d = window.__range.duel(); const b = d.bots[0]; const pl = window.__range.player.pos; return { phase: d.phase, alive: d.alive, hp: d.health, bot: [b.pos.x.toFixed(1), b.pos.y.toFixed(1), b.pos.z.toFixed(1)], you: [pl.x.toFixed(1), pl.y.toFixed(1), pl.z.toFixed(1)], sees: b.sees(pl), crouch: b.crouching, cover: !!b.cover, heard: !!b.heard, seen: !!b.lastSeen, knocked: b.dummy.knocked, joltLeft: b.joltLeft, dropping: b.dropping }; })()`)));
   const kc = await ev<{ active: boolean; killer: string; weapon: string; frames: number; span: number }>(page, "window.__range.killcamState()");
   check("killcam: it starts, from the bot's eyes, with its gun", kc.active && kc.killer === "BOT ASH" && kc.weapon === "rspn101", JSON.stringify(kc));
+  const kcView = await ev<{ gun: boolean; hands: boolean }>(page, "window.__range.vmState()");
+  check("killcam: the killer's gun is in view (not your empty hands)", kcView.gun, JSON.stringify(kcView));
   check("killcam: the recording holds seconds of the match", kc.frames > 60 && kc.span > 2, JSON.stringify(kc));
   await sleep(1500);
   const mid = await ev<{ active: boolean; progress: number }>(page, "window.__range.killcamState()");

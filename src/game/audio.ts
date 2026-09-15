@@ -508,7 +508,8 @@ export class GameAudio {
 
   /** a footstep: yours (no `at`) or someone's; quieter crouched, louder sprinting */
   footstep(surface: Surface, at: Vec | null = null, loud = 1): void {
-    const v = this.voice(at, 0.2, "fx", at ? 0 : 1, 0.3);
+    // (long enough for the recorded steps, the grass ones about 0.8 s)
+    const v = this.voice(at, 0.85, "fx", at ? 0 : 1, 0.3);
     if (!v) return;
     const j = 0.9 + Math.random() * 0.2;
     const L = (at ? 0.9 : 0.35) * loud;
@@ -732,12 +733,17 @@ export class GameAudio {
   }
 
   /** a Deathbox Respawn under way: a hum rising over its 7 s, heard a long way off */
-  beamHum(at: Vec, seconds: number): void {
+  beamHum(at: Vec, seconds: number): (() => void) | null {
     const v = this.voice(at, seconds + 0.4, "fx", 2, 1.2);
-    if (!v) return;
+    if (!v) return null;
     this.tone(v.input, v.t, seconds, "sine", 110, 220, 0.22, 0.4);
     this.tone(v.input, v.t, seconds, "triangle", 165, 330, 0.1, 0.4);
     for (let i = 0; i < Math.floor(seconds); i++) this.tone(v.input, v.t + i + 0.5, 0.12, "sine", 660 + i * 40, 660 + i * 40, 0.08, 0.01);
+    // stopped early (the hold given up): fade it out
+    const g = v.input as GainNode;
+    return () => {
+      if (this.ctx) g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+    };
   }
 
   /** the ring starts to close: a long low horn */

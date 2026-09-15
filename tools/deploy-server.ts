@@ -197,6 +197,10 @@ async function accountCheck(origin: string): Promise<void> {
   expect("a profile that is not an object is refused", (await call("profile", "PUT", { profile: [1, 2] }, token)).status === 400);
   await call("logout", "POST", undefined, token);
   expect("signed out, the token is dead", (await call("profile", "GET", undefined, token)).status === 401);
+  // a name every JavaScript object has is only a name (it used to crash the server)
+  expect("signing in as \"constructor\" is a wrong name, not a crash", (await call("login", "POST", { name: "constructor", password: "whatever12" })).status === 401);
+  const health = await fetch(`${origin}/health`).then((r) => r.ok, () => false);
+  expect("and the server is still up", health);
   let limited = false;
   for (let i = 0; i < 14 && !limited; i++) limited = (await call("login", "POST", { name: "Dry Tester", password: "guess guess" + i })).status === 429;
   expect("guessing passwords is rate limited", limited);
@@ -204,7 +208,7 @@ async function accountCheck(origin: string): Promise<void> {
 }
 
 function liveCheck(url: string, accounts = false): void {
-  execSync("npx tsx tools/live-check.ts", { cwd: ROOT, stdio: "inherit", env: { ...process.env, LIVE_URL: url, BROKER: "own", ...(accounts ? { ACCOUNTS_TEST: "1" } : {}) } });
+  execSync("npx tsx tools/live-check.ts", { cwd: ROOT, stdio: "inherit", env: { ...process.env, LIVE_URL: url, BROKER: "own", ACCOUNTS_TEST: accounts ? "1" : "" } });
 }
 
 /**
