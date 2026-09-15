@@ -39,7 +39,24 @@ const CODENAMES: Record<string, string> = {
   autopistol: "Auto Pistol",
   semipistol: "Pistol A",
   g17: "Striker 9",
+  nemesis: "Burst Rifle E",
+  bocek: "Compound Bow",
 };
+
+/** hop-ups: the game's names while private, generic ones on a public build */
+const HOPUP_NAMES: Record<string, [string, string]> = {
+  hopup_turbocharger: ["Turbocharger", "spin-up kit"],
+  hopup_headshot_dmg: ["Skullpiercer", "head rounds"],
+  hopup_unshielded_dmg: ["Hammerpoint", "hollow points"],
+  hopup_shield_breaker: ["Disruptor", "shield rounds"],
+  hopup_energy_choke: ["Precision choke", "choke"],
+  altfire_double_tap: ["Double tap", "double shot"],
+  selectfire: ["Selectfire", "mode switch"],
+};
+export function hopupName(mod: string): string {
+  const n = HOPUP_NAMES[mod];
+  return n ? (NAME_MODE === "real" ? n[0] : n[1]) : mod;
+}
 
 /** optic labels, by attachment mod name */
 const OPTIC_CODENAMES: Record<string, string> = {

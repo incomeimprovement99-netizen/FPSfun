@@ -93,13 +93,13 @@ export class ProjectileSystem {
     private floorY = 0
   ) {}
 
-  fire(origin: THREE.Vector3, dir: THREE.Vector3, w: ResolvedWeapon, visual = false, dmgScale = 1): void {
+  fire(origin: THREE.Vector3, dir: THREE.Vector3, w: ResolvedWeapon, visual = false, dmgScale = 1, speedScale = 1): void {
     const mesh = new THREE.Mesh(tracerGeo, visual ? remoteTracerMat : tracerMat);
     mesh.position.copy(origin);
     this.scene.add(mesh);
     this.bullets.push({
       pos: origin.clone(),
-      vel: dir.clone().normalize().multiplyScalar(w.projectile.speed),
+      vel: dir.clone().normalize().multiplyScalar(w.projectile.speed * speedScale),
       origin: origin.clone(),
       age: 0,
       mesh,

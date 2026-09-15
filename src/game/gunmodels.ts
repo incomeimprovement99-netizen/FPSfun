@@ -25,7 +25,7 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 /** a profile point: [forward, up], with an optional per-corner chamfer */
 type P = [number, number] | [number, number, number];
 
-export type Cycle = "auto" | "slide" | "pump" | "bolt" | "cylinder" | "none";
+export type Cycle = "auto" | "slide" | "pump" | "bolt" | "cylinder" | "draw" | "none";
 export type ReloadStyle = "mag" | "cylinder" | "shells";
 
 export interface HandPlacement {
@@ -79,6 +79,8 @@ export interface GunModel {
   energy: boolean;
   /** hip pose, before the global viewmodel scale */
   hip: THREE.Vector3;
+  /** a bow's string: the two halves, from the limb tips to the nock (the bolt group's origin), re-aimed as it draws */
+  bowString?: { top: THREE.Mesh; bottom: THREE.Mesh; tipTop: THREE.Vector3; tipBottom: THREE.Vector3 };
 }
 
 // ------------------------------------------------------------------ textures
@@ -1384,7 +1386,125 @@ type Family =
   | { kind: "pistol"; spec: PistolSpec }
   | { kind: "revolver" }
   | { kind: "p2020" }
-  | { kind: "g17" };
+  | { kind: "g17" }
+  | { kind: "bow" };
+
+/**
+ * A compound bow, our own: a machined riser with a grip cut into it, two
+ * limbs sweeping back to cams at the tips, a string from the cams to the nock,
+ * and an arrow on the rest. The arrow and the nock are the `bolt` group, which
+ * the viewmodel draws back; the string's two halves are re-aimed at the nock
+ * every frame (`bowString`).
+ */
+function buildBow(id: string): GunModel {
+  const M = materials(0x2d3238, 0xc0612a, 0x3a2a20);
+  const root = new THREE.Group();
+  root.name = `gun:${id}`;
+  const stat = new Part();
+  // the riser, its grip, and a sight bracket
+  stat.add(
+    prof(
+      [
+        [0.27, -0.15],
+        [0.31, -0.15],
+        [0.335, -0.07],
+        [0.318, -0.02],
+        [0.318, 0.03],
+        [0.34, 0.08],
+        [0.315, 0.15],
+        [0.275, 0.15],
+        [0.29, 0.08],
+        [0.275, 0.03],
+        [0.285, -0.07],
+      ],
+      0.026,
+      0.004
+    ),
+    M.body
+  );
+  stat.add(box(0.03, 0.07, 0.035, 0.008), M.grip, T(0.305, -0.005));
+  stat.add(box(0.012, 0.012, 0.05), M.accent, T(0.31, 0.02, -0.02));
+  // the limbs: flat, sweeping back from the riser to the cam at each tip
+  const tipTop = new THREE.Vector3(0, 0.43, -0.2);
+  const tipBottom = new THREE.Vector3(0, -0.43, -0.2);
+  for (const sgn of [1, -1]) {
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 0.14 * sgn, -0.3),
+      new THREE.Vector3(0, 0.26 * sgn, -0.29),
+      new THREE.Vector3(0, 0.36 * sgn, -0.25),
+      new THREE.Vector3(0, 0.43 * sgn, -0.2),
+    ]);
+    const limb = new THREE.TubeGeometry(curve, 16, 0.012, 6, false);
+    limb.scale(1.6, 1, 1);
+    stat.add(limb, M.accent);
+    stat.add(cylX(0.024, 0.016), M.metal, T(0.2, 0.43 * sgn));
+    stat.add(cylX(0.012, 0.03), M.inset, T(0.2, 0.43 * sgn));
+  }
+  root.add(stat.build("frame"));
+  // the arrow and the nock, drawn back together
+  const arrow = new Part();
+  arrow.add(cylZ(0.0038, 0.0038, 0.74), M.metal, T(0.37, 0, -0.012));
+  arrow.add(new THREE.ConeGeometry(0.009, 0.045, 10).rotateX(-Math.PI / 2), M.metal, T(0.76, 0, -0.012));
+  for (let i = 0; i < 3; i++) arrow.add(box(0.002, 0.018, 0.06), M.accent, T(0.05, 0, -0.012, (i * Math.PI * 2) / 3, 0, 0));
+  arrow.add(box(0.012, 0.012, 0.012), M.inset, T(0, 0, -0.012));
+  const nock = arrow.build("arrow");
+  nock.position.set(0, 0, -0.2);
+  root.add(nock);
+  // the string: two thin rods, one per half, re-aimed at the nock as it moves
+  const stringMat = new THREE.MeshStandardMaterial({ color: 0x1a1c1e, roughness: 0.9 });
+  const half = new THREE.CylinderGeometry(0.0022, 0.0022, 1, 5);
+  const top = new THREE.Mesh(half, stringMat);
+  const bottom = new THREE.Mesh(half, stringMat);
+  root.add(top, bottom);
+  const model: GunModel = {
+    id,
+    root,
+    mag: null,
+    magPlate: null,
+    bolt: nock,
+    cylinder: null,
+    hammer: null,
+    pump: null,
+    cycle: "draw",
+    reload: "mag",
+    travel: 0.3,
+    muzzle: new THREE.Vector3(-0.012, 0, -0.98),
+    port: null,
+    shell: null,
+    sightY: 0.035,
+    irons: null,
+    railY: 0.15,
+    opticF: 0.3,
+    opticOnSlide: false,
+    rearF: 0.18,
+    magBottom: new THREE.Vector3(0, -0.1, -0.3),
+    grip: { f: 0.2, u: -0.035, angle: 0.1, scale: 1 },
+    support: { f: 0.305, u: -0.035, x: 0, angle: 0.05, scale: 1, kind: "pistol" },
+    kick: 0.4,
+    energy: false,
+    hip: new THREE.Vector3(0.13, -0.16, -0.34),
+    bowString: { top, bottom, tipTop, tipBottom },
+  };
+  aimBowString(model);
+  return model;
+}
+
+/** point each half of a bow's string from its limb tip to the nock (the bolt group's origin) */
+export function aimBowString(m: GunModel): void {
+  const s = m.bowString;
+  if (!s || !m.bolt) return;
+  const nock = m.bolt.position;
+  for (const [mesh, tip] of [
+    [s.top, s.tipTop],
+    [s.bottom, s.tipBottom],
+  ] as const) {
+    const d = new THREE.Vector3().subVectors(nock, tip);
+    const len = d.length();
+    mesh.position.copy(tip).addScaledVector(d, 0.5);
+    mesh.scale.set(1, Math.max(0.001, len), 1);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+  }
+}
 
 const SMG: Partial<RifleSpec> = {
   recvRear: 0.1,
@@ -1492,6 +1612,9 @@ const ROSTER: Record<string, Family> = {
   autopistol: { kind: "pistol", spec: { body: 0x4a4e53, accent: 0x3f8fd8, slideLen: 0.13, triple: false, extMag: true, kick: 0.6 } },
   shotgun_pistol: { kind: "pistol", spec: { body: 0x3a3f36, accent: 0xd6a13a, slideLen: 0.11, triple: true, extMag: false, kick: 1.4 } },
   wingman: { kind: "revolver" },
+  // newer than the data: an energy burst rifle and a bow
+  nemesis: { kind: "rifle", spec: { body: 0x363a44, accent: 0x6fd0ff, mag: "energy", muzzle: "energy", energy: true, shell: null, cycle: "none", recvH: 0.062, guardLen: 0.24, stock: "solid" } },
+  bocek: { kind: "bow" },
 };
 
 const built = new Map<string, GunModel>();
@@ -1504,6 +1627,7 @@ function buildModel(id: string): GunModel {
   else if (fam.kind === "revolver") m = buildRevolver(id);
   else if (fam.kind === "p2020") m = buildP2020();
   else if (fam.kind === "g17") m = buildGlock17();
+  else if (fam.kind === "bow") m = buildBow(id);
   else m = buildRifle(id, { ...RIFLE, ...fam.spec });
   // remember the plate's own colour so a mag level of 0 can restore it
   if (m.magPlate) m.magPlate.userData.base = m.magPlate.material;

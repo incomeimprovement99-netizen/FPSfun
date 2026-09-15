@@ -23,8 +23,10 @@ export interface ShotRequest {
   kick: KickResult;
   /** the pellet cone this round (a choke closes it) */
   coneScale: number;
-  /** the damage this round (a charged 30-30) */
+  /** the damage this round (a charged 30-30, a drawn arrow) */
   dmgScale: number;
+  /** the launch speed this round (a drawn arrow flies faster) */
+  speedScale: number;
 }
 
 /** where a reload's rounds come from */
@@ -71,6 +73,8 @@ export class WeaponState {
   choke = 0;
   /** Nemesis: 0..1 */
   burstCharge = 0;
+  /** Bocek: 0..1 drawn */
+  drawFrac = 0;
   private lastBurstAt = -Infinity;
   /** a wind-up or a charge began this frame, or an overheat (for the sounds); read and cleared by the loop */
   chargeStarted = false;
@@ -114,6 +118,7 @@ export class WeaponState {
     this.choke = 0;
     this.burstCharge = 0;
     this.lastBurstAt = -Infinity;
+    this.drawFrac = 0;
   }
 
   /**
@@ -226,6 +231,7 @@ export class WeaponState {
     const m = this.w.mech;
     if (m.chargeShot) return this.chargeShotAt === null ? 0 : Math.max(0, Math.min(1, 1 - (this.chargeShotAt - now) / m.chargeShot.time));
     if (m.chargeUp) return this.charge;
+    if (m.draw) return this.drawFrac;
     if (m.adsCharge) return this.adsCharge;
     if (m.choke) return this.choke;
     if (m.burstCharge) return this.burstCharge;
@@ -293,6 +299,36 @@ export class WeaponState {
       if (triggerDown && !this.reloading && this.clip > 0) this.spin = Math.min(1, this.spin + dt / sp.time);
       else this.spin = 0;
       interval = 1 / (sp.from + (sp.to - sp.from) * this.spin);
+    }
+
+    // the bow: hold to draw, let go to loose one arrow; the next one nocks by itself
+    if (m.draw) {
+      const out: ShotRequest[] = [];
+      const letGo = !triggerDown && this.triggerWasDown;
+      if (triggerDown && !this.reloading && this.clip > 0) {
+        if (this.drawFrac === 0) this.chargeStarted = true;
+        this.drawFrac = Math.min(1, this.drawFrac + dt / m.draw.time);
+      } else if (letGo && this.drawFrac > 0.08 && this.clip > 0 && !this.reloading) {
+        this.clip--;
+        this.shotsFired++;
+        this.lastShotAt = now;
+        const cone = this.spread.cone();
+        this.spread.onShot(now, this.adsFrac);
+        const kick = this.kick.kick(now, this.adsFrac > 0.5, inAir, crouched, rnd);
+        const d = this.drawFrac;
+        // a fuller draw hits harder, flies faster and truer (the truer is ours)
+        out.push({ cone, kick, coneScale: 1.5 - 0.5 * d, dmgScale: m.draw.minDamage + (1 - m.draw.minDamage) * d, speedScale: m.draw.minSpeed + (1 - m.draw.minSpeed) * d });
+        this.drawFrac = 0;
+        this.beginReload(now, this.w.reloadTime);
+      } else if (!triggerDown) this.drawFrac = 0;
+      if (triggerDown && !this.triggerWasDown && this.clip <= 0 && !this.reloading) {
+        this.dryFire = true;
+        this.beginReload(now, this.w.reloadTime);
+      }
+      this.triggerWasDown = triggerDown;
+      this.spread.update(dt, now, stance, motion, this.adsFrac);
+      this.kick.update(dt, this.adsFrac > 0.5, now);
+      return out;
     }
 
     const shots: ShotRequest[] = [];
@@ -363,6 +399,7 @@ export class WeaponState {
           kick,
           coneScale: m.choke ? 1 - (1 - m.choke.minScale) * this.choke : 1,
           dmgScale: m.adsCharge ? 1 + m.adsCharge.bonus * this.adsCharge : 1,
+          speedScale: 1,
         });
         // a charged 30-30 round spends the charge; a charged single spends the wind-up
         if (m.adsCharge) this.adsCharge = 0;

@@ -1,4 +1,4 @@
-import { opticName } from "../config/names";
+import { hopupName, opticName } from "../config/names";
 import mechCfg from "../config/weapon-mechanics.json";
 
 // Attachments. Every effect below is a mod block in the reference weapon data;
@@ -22,7 +22,7 @@ export type AttachSlot = "optic" | "barrel" | "stock" | "laser" | "hopup";
  * the mod chain themselves; the fire mode does (loadout.ts).
  */
 export const HOPUP_FLAGS = ["selectfire", "altfire_double_tap"];
-const HOPUPS = Object.entries(mechCfg.hopups).filter(([k]) => !k.startsWith("_")) as Array<[string, string]>;
+const HOPUPS = mechCfg.hopups.list.map((mod) => [mod, hopupName(mod)] as [string, string]);
 const FIRE_MODES = mechCfg.fireModes as unknown as Record<string, { mod: string; base: string; alt: string; needs?: string }>;
 
 export interface AttachOption {

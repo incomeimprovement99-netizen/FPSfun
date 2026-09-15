@@ -20,7 +20,7 @@
 // the player is standing against: the player's own radius is 41 cm.
 import * as THREE from "three";
 import type { ResolvedWeapon } from "./weapons";
-import { gunModel, setMagRarity, type GunModel } from "./gunmodels";
+import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels";
 import { Forearm, Hand } from "./arms";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
@@ -61,6 +61,8 @@ export interface VMFrame {
   lowered: number;
   /** riding a zipline: the left hand goes up to the trolley */
   onZip: boolean;
+  /** a bow: 0..1 drawn */
+  draw?: number;
 }
 
 /** how hard the gun and the empty hands pump while sprinting (1 = the old swing) */
@@ -444,6 +446,7 @@ export class ViewModel {
     const g = m.grip;
     const s = g.scale ?? 1;
     this.right.group.position.set(g.x ?? 0, g.u, -g.f);
+    this.gripBaseZ = -g.f;
     this.right.group.rotation.set(-g.angle, 0, 0);
     this.right.group.scale.set(s, s, s);
     this.rightElbow.set((g.x ?? 0) + 0.1, g.u - 0.28, -g.f + 0.34);
@@ -502,10 +505,15 @@ export class ViewModel {
     this.shells.emit(this.tmp, m.shell, this.tmp2);
   }
 
+  /** a bow's draw, 0..1, and where the string hand sits undrawn */
+  private drawFrac = 0;
+  private gripBaseZ = 0;
+
   update(f: VMFrame): void {
     const m = this.model;
     const w = this.weapon;
     const dt = Math.min(0.05, f.dt);
+    this.drawFrac = f.draw ?? 0;
     this.t += dt;
     this.lastAds = f.adsFrac;
     this.flash.update(dt);
@@ -775,6 +783,11 @@ export class ViewModel {
         this.cycleEjected = true;
         this.eject();
       }
+    } else if (m.cycle === "draw" && m.bolt) {
+      // the bow: the nock (and the string hand) come back as it is drawn
+      m.bolt.position.z = this.boltBase.z + m.travel * this.drawFrac;
+      aimBowString(m);
+      this.right.group.position.z = this.gripBaseZ + m.travel * this.drawFrac;
     } else if (m.cycle === "bolt" && m.bolt) {
       const R = Math.max(0.4, w.rechamberTime || w.shotInterval);
       const u = clamp((e - 0.14) / (R * 0.75), 0, 1);

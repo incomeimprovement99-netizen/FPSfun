@@ -911,8 +911,8 @@ console.log("\nShotgun pellets (current season)");
 }
 
 console.log("\nRoster sanity");
-// 27 from the game's data, plus the Glock 17 added for the course
-eq("weapon count", Object.keys(DATA.weapons).length, 28);
+// 27 from the game's data, the Glock 17 for the course, and the two newer than the data
+eq("weapon count (27 from the data, the Striker 9, the Nemesis, the Bocek)", Object.keys(DATA.weapons).length, 30);
 eq("Glock 17 magazine", resolveWeapon("g17", 0).clipSize, 17);
 eq("Glock uses P2020 damage", resolveWeapon("g17", 0).damage.near, resolveWeapon("semipistol", 0).damage.near);
 for (const id of ["r97", "volt_smg", "vinson", "wingman", "mastiff", "hemlok", "g2"]) {
@@ -1083,6 +1083,28 @@ console.log("Guns that are not a plain trigger (src/config/weapon-mechanics.json
   near("Precision choke: aimed long enough, the cone closes to 45%", pk.reqs[0]?.coneScale ?? 0, 0.45, 1e-6);
   const pkBare = run("energy_shotgun", 2.2, { ads: true, trigger: (x) => x > 2 && x < 2.02 });
   near("no choke fitted: the cone stays", pkBare.reqs[0]?.coneScale ?? 0, 1, 1e-6);
+  // the Nemesis: bursts of 4 at 18 a second; 0.31 s between bursts, 0.19 s once charged
+  // a purple magazine (32, eight bursts) so it charges fully before a reload
+  const nem = run("nemesis", 3, { mag: 3 });
+  near("Nemesis: rounds in a burst 1/18 s apart", nem.times[1] - nem.times[0], 1 / 18, 0.01);
+  const gapBefore = (k: number) => nem.times[4 * k] - nem.times[4 * k - 1];
+  const firstGap = gapBefore(1);
+  const lastGap = gapBefore(6);
+  near("Nemesis: uncharged, 0.31 s between bursts", firstGap, 0.31, 0.02);
+  near("Nemesis: charged (6 bursts), 0.19 s between bursts", lastGap, 0.19, 0.02);
+  eq("Nemesis: 17 a round, 20 in the magazine", `${resolveWeapon("nemesis", 0).damage.near}/${resolveWeapon("nemesis", 0).clipSize}`, "17/20");
+  eq("Nemesis: energy ammo, a 3-magazine stockpile", `${resolveWeapon("nemesis", 0).ammoType}/${resolveWeapon("nemesis", 0).energyStock}`, "energy/3");
+  // the Bocek: hold to draw, let go to loose
+  const full = run("bocek", 1, { trigger: (x) => x < 0.4 });
+  eq("Bocek: one arrow on the let-go", full.times.length, 1);
+  near("Bocek: loosed at the let-go, s", full.times[0] ?? -1, 0.4, 2 / 144);
+  near("Bocek: a full draw does all 55", full.reqs[0]?.dmgScale ?? 0, 1, 1e-9);
+  const quick = run("bocek", 0.5, { trigger: (x) => x < 0.1 });
+  eq("Bocek: a quick draw hits softer", (quick.reqs[0]?.dmgScale ?? 1) < 0.75 && (quick.reqs[0]?.dmgScale ?? 0) > 0.6, true);
+  const again = run("bocek", 1.4, { trigger: (x) => x < 0.4 || (x > 0.95 && x < 1.35) });
+  eq("Bocek: the next arrow nocks by itself", again.times.length, 2);
+  eq("Bocek: arrows, and it takes optics only", resolveWeapon("bocek", 0).ammoType === "arrows" && Object.keys(weaponMods("bocek")).every((m) => m.startsWith("optic_")), true);
+
   // fire modes
   const lo = new Loadout(["hemlok", "pdw"]);
   eq("Hemlok: B switches to single", lo.toggleFireMode(), "single");

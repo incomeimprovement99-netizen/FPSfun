@@ -25,7 +25,8 @@ export class AmmoPouch {
     for (const w of weapons) {
       if (w.energyStock > 0 || w.ammoType === "energy") continue;
       const per = STACK[w.ammoType as Exclude<AmmoType, "energy">] ?? 60;
-      this.stock[w.ammoType] = Math.max(this.stock[w.ammoType], per * stacks);
+      // the bow's arrows are its own quiver: one of them, not stacks
+      this.stock[w.ammoType] = Math.max(this.stock[w.ammoType], w.ammoType === "arrows" ? per : per * stacks);
     }
   }
 

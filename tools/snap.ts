@@ -87,6 +87,18 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "gun-bocek-drawn",
+    note: "the Bocek, drawn most of the way",
+    steps: [
+      [`(() => { ${hideMenu}; const l = window.__range.loadout; l.setWeaponId(0, "bocek"); const st = l.slots[0].state; st.update = ((f) => function (...a) { const r = f.apply(this, a); this.drawFrac = 0.8; return r; })(st.update); })()`, 1200],
+    ],
+  },
+  {
+    name: "gun-nemesis",
+    note: "the Nemesis in hand",
+    steps: [[`(() => { ${hideMenu}; window.__range.loadout.setWeaponId(0, "nemesis"); })()`, 1200]],
+  },
+  {
     name: "ability-triage",
     note: "TRIAGE picked in a bot match: the passive slot",
     steps: [

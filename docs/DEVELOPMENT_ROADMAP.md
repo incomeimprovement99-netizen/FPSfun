@@ -155,3 +155,16 @@ and from Season 30 (`docs/RESEARCH_PHASE_11.md`) where it has moved on.
   wind-up and overheat sounds.
 - Tests: verify (every mechanic timed frame by frame, the fire modes and Selectfire, the hop-up scales, the
   reserve, a partial reload, NO AMMO, the 18 s regen).
+
+## Milestone 16 — The Nemesis and the Bocek: the roster at 29 of Apex's guns ✅
+2026-09-15 (Phase 11F). Both are newer than the reference data, so they are derived weapons (as the course's
+Striker 9 is) with Season 30's numbers.
+- **Nemesis Burst AR**: the Hemlok's handling, 17 a round (22 head, 13 leg), bursts of 4 at 18 a second,
+  0.31 s between bursts falling to 0.19 s as it charges (+16.7% a burst, draining after 8 s idle),
+  20/24/28/32 rounds, reloads 2.7 / 3.0 s, energy ammo with a 3-magazine stockpile.
+- **Bocek Compound Bow**: hold to draw (0.35 s), let go to loose; 55 at full draw, less and slower for a
+  short draw; the next arrow nocks itself; its own 60 arrows; optics only. A bow model of its own (riser,
+  limbs, cams, a string that follows the nock), drawn back in first person with the string hand.
+- Codenames on the public build for both, and for the hop-up names (the check now bans the real ones).
+- Tests: verify (the burst cadence charged and not, the draw's damage and timing, the auto nock, the roster
+  count, every gun modelled).

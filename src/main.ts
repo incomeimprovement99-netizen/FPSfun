@@ -1704,6 +1704,7 @@ function step(): void {
     const m = weapon.mech;
     if (m.chargeUp && m.chargeUp.time > 0.05) audio.charge(m.chargeUp.time);
     else if (m.chargeShot) audio.charge(m.chargeShot.time);
+    else if (m.draw) audio.charge(m.draw.time);
   }
   if (ws.overheatStarted) {
     ws.overheatStarted = false;
@@ -1830,7 +1831,7 @@ function step(): void {
         tmpQ.setFromAxisAngle(axis, ang);
         tmpDir.applyQuaternion(tmpQ);
       }
-      projectiles.fire(origin.clone(), tmpDir, weapon, false, s.dmgScale);
+      projectiles.fire(origin.clone(), tmpDir, weapon, false, s.dmgScale, s.speedScale);
       duel?.localShot(origin, tmpDir, weapon.id);
     }
     hardPitch += s.kick.permPitchUp;
@@ -1976,6 +1977,7 @@ function step(): void {
     landDip: player.viewDip,
     lowered: debugView.lowered ?? lowered,
     onZip: debugView.onZip ?? player.onZip,
+    draw: onScreen.state.drawFrac,
   });
   // in third person the gun in your hands is on your figure instead; in the
   // killcam the gun in view is your killer's, and it kicks when they fire

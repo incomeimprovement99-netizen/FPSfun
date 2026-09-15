@@ -21,6 +21,8 @@ export interface WeaponMech {
   choke: { time: number; minScale: number } | null;
   /** Nemesis: the burst delay shortens as it charges */
   burstCharge: { delayFrom: number; delayTo: number; perBurst: number; decayAfter: number; decayRate: number } | null;
+  /** Bocek: hold to draw over `time`, let go to loose; damage from `minDamage` of full at no draw, speed from `minSpeed` */
+  draw: { time: number; minDamage: number; minSpeed: number } | null;
 }
 
 type MechTable = Record<string, Record<string, unknown>>;
@@ -53,19 +55,65 @@ export const DATA = raw as unknown as DataFile;
  * recoil, ADS) and its own 17-round magazine, with extended magazines at the
  * sizes the real one ships with.
  */
-function addDerived(id: string, base: string, name: string, clips: number[]): void {
+function addDerived(id: string, base: string, name: string, clips: number[], stats: Record<string, number> = {}, keepMod: (m: string) => boolean = () => true): void {
   const b = DATA.weapons[base];
   if (!b || DATA.weapons[id]) return;
+  const mods = Object.fromEntries(Object.entries(b.mods).filter(([m]) => keepMod(m)));
   DATA.weapons[id] = {
     ...b,
     id,
     name,
-    stats: { ...b.stats, ammo_clip_size: clips[0] },
+    stats: { ...b.stats, ...stats, ammo_clip_size: clips[0] },
+    mods,
     magClips: clips,
   };
 }
-// The public build folds this to the codename, so the brand never ships.
-addDerived("g17", "semipistol", typeof __PUBLIC_BUILD__ !== "undefined" && __PUBLIC_BUILD__ ? "Striker 9" : "Glock 17", [17, 19, 21, 24, 24]);
+const PUB = typeof __PUBLIC_BUILD__ !== "undefined" && __PUBLIC_BUILD__;
+// The public build folds these to their codenames, so no real name ships.
+addDerived("g17", "semipistol", PUB ? "Striker 9" : "Glock 17", [17, 19, 21, 24, 24]);
+// The Nemesis is newer than the dump: the Hemlok's burst-rifle handling with
+// Season 30's numbers (docs/RESEARCH_PHASE_11.md section 6): 17 a round
+// (22 head, 13 leg), bursts of 4 at 18 a second, 0.31 s between bursts
+// falling to 0.19 s charged (weapon-mechanics.json), 20/24/28/32 rounds,
+// reloads 2.7 / 3.0 s, 31,000 hu/s, energy ammo. Its single-fire altfire is
+// the Hemlok's, not the Nemesis's, so it goes.
+addDerived(
+  "nemesis",
+  "hemlok",
+  PUB ? "Burst Rifle E" : "Nemesis Burst AR",
+  [20, 24, 28, 32, 32],
+  {
+    damage_near_value: 17, damage_far_value: 17, damage_very_far_value: 17,
+    damage_headshot_scale: 1.3, damage_leg_scale: 0.75,
+    burst_fire_count: 4, fire_rate: 18, burst_fire_delay: 0.31,
+    reload_time: 2.7, reloadempty_time: 3.0,
+    projectile_launch_speed: 31000,
+    zoom_time_in: 0.27, zoom_time_out: 0.23, deploy_time: 0.6,
+  },
+  (m) => m !== "altfire"
+);
+// The Bocek: a bow. Season 30's numbers where published (section 7): 55 at
+// full draw, a 0.35 s draw, arrows from 10,000 hu/s undrawn to 28,000 drawn,
+// its own 60 arrows. The head and leg scales are the wiki infobox's ratios
+// (x1.6, x0.8), the least damage at the least draw is its 35-of-65 ratio, and
+// the half-second nock of the next arrow is ours. It takes optics and nothing
+// else. The draw itself is weapon-mechanics.json's `draw`.
+addDerived(
+  "bocek",
+  "g2",
+  PUB ? "Compound Bow" : "Bocek Compound Bow",
+  [1, 1, 1, 1, 1],
+  {
+    damage_near_value: 55, damage_far_value: 55, damage_very_far_value: 55,
+    damage_headshot_scale: 1.6, damage_leg_scale: 0.8,
+    fire_rate: 10, rechamber_time: 0, is_semi_auto: 1,
+    reload_time: 0.5, reloadempty_time: 0.5,
+    projectile_launch_speed: 28000, projectile_gravity_scale: 1.6,
+    zoom_fov: 55, zoom_time_in: 0.25, zoom_time_out: 0.2, deploy_time: 0.5,
+    spread_stand_hip: 1.2, spread_crouch_hip: 1, spread_air_hip: 3, spread_stand_hip_run: 2, spread_stand_hip_sprint: 3,
+  },
+  (m) => m.startsWith("optic_")
+);
 
 /** metres per engine unit (1 unit = 1 inch) */
 export const U = 0.0254;
@@ -274,6 +322,7 @@ export function resolveWeapon(id: string, magLevel = 0, attach: string[] = []): 
         return c && attach.includes("hopup_energy_choke") ? { time: Math.max(0.05, n(s, "charge_time", 1)), minScale: c.minScale } : null;
       })(),
       burstCharge: mechOf<WeaponMech["burstCharge"]>("burstCharge", id),
+      draw: mechOf<WeaponMech["draw"]>("draw", id),
     },
     ammoType: ((ammoCfg.types as Record<string, string>)[id] ?? "light") as AmmoType,
     energyStock: (ammoCfg.energyStock as Record<string, number>)[id] ?? 0,

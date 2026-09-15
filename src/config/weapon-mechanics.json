@@ -26,15 +26,13 @@
     "_note": "Nemesis: the delay between bursts falls from 0.31 s to 0.19 s as it charges, +16.7% a burst fired; after 8 s without firing it loses 12.5% a second.",
     "nemesis": { "delayFrom": 0.31, "delayTo": 0.19, "perBurst": 0.167, "decayAfter": 8, "decayRate": 0.125 }
   },
+  "draw": {
+    "_note": "Bocek (Season 30): a 0.35 s draw; at no draw 35/65 of the damage (the wiki infobox's range) and 10,000 of its 28,000 hu/s.",
+    "bocek": { "time": 0.35, "minDamage": 0.54, "minSpeed": 0.357 }
+  },
   "hopups": {
-    "_note": "The hop-up slot: the data's hop-up mods by name, and Selectfire, which is ours to switch the Prowler's altfire (the data has no Prowler hop-up).",
-    "hopup_turbocharger": "Turbocharger",
-    "hopup_headshot_dmg": "Skullpiercer",
-    "hopup_unshielded_dmg": "Hammerpoint",
-    "hopup_shield_breaker": "Disruptor",
-    "hopup_energy_choke": "Precision choke",
-    "altfire_double_tap": "Double tap",
-    "selectfire": "Selectfire"
+    "_note": "The hop-up slot, by the data's mod names (the labels are in src/config/names.ts, codenames on a public build). selectfire is ours: the switch for the Prowler's altfire, which the data has no hop-up for.",
+    "list": ["hopup_turbocharger", "hopup_headshot_dmg", "hopup_unshielded_dmg", "hopup_shield_breaker", "hopup_energy_choke", "altfire_double_tap", "selectfire"]
   },
   "fireModes": {
     "_note": "B switches to the data's altfire where there is one. `needs`: only with that hop-up fitted.",
