@@ -24,6 +24,11 @@ import { LootField, rollItem, seeded } from "../src/game/loot";
 import { Duel, moveDirOf } from "../src/game/duel";
 import { actCode, actFromCode } from "../src/game/dummy";
 import { Ordnance, Throwables, arcSlowFor, blastDamage } from "../src/game/throwables";
+import { medalFor, roomPars } from "../src/game/course";
+import { BASIC_COURSE } from "../src/game/courses/basic";
+import { ADVANCED_COURSE } from "../src/game/courses/advanced";
+import { opticZoom } from "../src/game/sens";
+import { PAD_DEFAULTS, advancedLookRate } from "../src/game/gamepad";
 import modesCfg from "../src/config/modes.json";
 import { Crown, GunLadder, TeamScore, gunList, pickSpawn, yawToMiddle } from "../src/game/modes";
 /** every gun the game has but the course's own pistol */
@@ -1422,6 +1427,38 @@ console.log("Throwables (src/game/throwables.ts, src/config/throwables.json, Sea
   eq("a throw spends one", (o.spend(), o.counts.frag), 0);
   eq("with none left G skips it", o.cycle(0), "arcstar");
   eq("a stack holds two", o.add("thermite", 5), 1);
+}
+
+console.log("");
+console.log("Finishing touches: medals, per-optic ADS, the controller's advanced look, a first draw");
+{
+  eq("a room at its par: gold", medalFor(5, 5), "gold");
+  eq("25% over: silver", medalFor(6.25, 5), "silver");
+  eq("60% over: bronze", medalFor(8, 5), "bronze");
+  eq("past that: none", medalFor(8.1, 5), null);
+  eq("a skipped room: none", medalFor(NaN, 5), null);
+  for (const L of [BASIC_COURSE, ADVANCED_COURSE]) {
+    const pars = roomPars(L);
+    const firstLeg = (L.ranks[0][1] * (L.rooms[0].entryZ - L.startZ)) / (L.finishZ - L.startZ);
+    near(`${L.title}: the pars add up to its S time less the walk to the first room`, pars.reduce((a, b) => a + b, 0) + firstLeg, L.ranks[0][1], 0.6);
+    eq(`${L.title}: every room has a par over a second`, pars.every((p) => p > 1), true);
+  }
+  eq("no optic: 1x", opticZoom(null), "1x");
+  eq("the 3x HCOG: 3x", opticZoom("3x HCOG Ranger"), "3x");
+  eq("a 2x-4x on its first zoom: 2x", opticZoom("2x-4x Variable AOG", ["2x", "4x"], false), "2x");
+  eq("and toggled: 4x", opticZoom("2x-4x Variable AOG", ["2x", "4x"], true), "4x");
+  eq("the 4x-10x toggled: 10x", opticZoom("x", ["4x", "10x"], true), "10x");
+  const ps = { ...PAD_DEFAULTS, advanced: true, curve: "linear" as const, yaw: 200, pitch: 150, extraYaw: 200, extraPitch: 0, rampTime: 0.5, rampDelay: 0.2, adsYaw: 100, adsPitch: 80 };
+  near("advanced look: half stick is half the yaw speed (linear), deg/s", -advancedLookRate(ps, 0.5, 0, 0, 0).yawLeft, 100, 1e-9);
+  near("full stick, no time at the edge: the yaw speed", -advancedLookRate(ps, 1, 0, 0, 0).yawLeft, 200, 1e-9);
+  near("inside the ramp delay: still no extra", -advancedLookRate(ps, 1, 0, 0, 0.15).yawLeft, 200, 1e-9);
+  near("half way up the ramp: half the extra yaw", -advancedLookRate(ps, 1, 0, 0, 0.45).yawLeft, 300, 1e-6);
+  near("past it: all of it", -advancedLookRate(ps, 1, 0, 0, 2).yawLeft, 400, 1e-9);
+  near("aimed: the ADS speed, and no extra", -advancedLookRate(ps, 1, 0, 1, 2).yawLeft, 100, 1e-9);
+  const lo = new Loadout(["rspn101", "wingman"]);
+  eq("a loadout's own guns: no flourish", lo.slots[0].firstDraw ?? false, false);
+  lo.give(1, "r97");
+  eq("a gun picked up: its first draw has the flourish", lo.slots[1].firstDraw, true);
 }
 
 console.log("");

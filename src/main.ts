@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import playerCfg from "./config/player.json";
 import { resolveWeapon, weaponIds, weaponName } from "./game/weapons";
-import { adsSensScale, cmPer360, degPerCount, hipFov43, verticalFovFrom43 } from "./game/sens";
+import { adsSensScale, cmPer360, degPerCount, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
 import { Input } from "./game/input";
-import type { PadSettings } from "./game/gamepad";
+import { padButtons, type PadSettings } from "./game/gamepad";
 import { Player } from "./game/player";
 import { Loadout, type SlotSetup } from "./game/loadout";
 import type { AttachSlot } from "./game/attachments";
@@ -45,7 +45,7 @@ import { operatorById, OPERATORS } from "./game/operators";
 import { setArmColors } from "./game/arms";
 import { Menu, type Mode } from "./ui/menu";
 import type { ImpactEvent } from "./game/projectile";
-import { MELEE_TIME } from "./game/viewmodel";
+import { INSPECT_TIME, FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
 import { Abilities, ABILITIES, JOLT, type AbilityId } from "./game/abilities";
 import { currentBinds, type Action } from "./game/input";
 import { bindName } from "./ui/binds";
@@ -56,6 +56,7 @@ import { Soundscape } from "./game/soundscape";
 import { DummyBehaviour, DUMMY_MODES, DUMMY_MODE_NAME, FlickDrill, RangeCombat, SprayWall, type DummyMode } from "./game/rangetools";
 import { SuperglideTrainer } from "./game/trainer";
 import { BrPlay } from "./game/brplay";
+import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, arcSlowFor, blastDamage, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
 import { loadMannequin, setFigureStyle } from "./game/mannequin";
@@ -87,6 +88,11 @@ interface Settings {
   sens: number;
   ads: number;
   fovScale: number;
+  /** aim down sights and crouch: held, or a press to go in and another to come out */
+  adsToggle: boolean;
+  crouchToggle: boolean;
+  /** the per-optic ADS multipliers, on top of the ADS one (1 each by default) */
+  opticAds: Record<OpticZoom, number>;
 }
 const LS_KEY = "range.settings.v1";
 function loadSettings(): Settings {
@@ -95,6 +101,9 @@ function loadSettings(): Settings {
     sens: playerCfg.mouseSensitivity,
     ads: playerCfg.adsScalars[0] ?? 1,
     fovScale: playerCfg.fovScale,
+    adsToggle: false,
+    crouchToggle: false,
+    opticAds: Object.fromEntries(OPTIC_ZOOMS.map((z) => [z, 1])) as Record<OpticZoom, number>,
   };
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -111,6 +120,10 @@ function loadSettings(): Settings {
       base.sens = num(saved.sens, 0.01, 20) ?? base.sens;
       base.ads = num(saved.ads, 0.1, 3) ?? base.ads;
       base.fovScale = num(saved.fovScale, 1, 1.571) ?? base.fovScale;
+      base.adsToggle = saved.adsToggle === true;
+      base.crouchToggle = saved.crouchToggle === true;
+      const oa = saved.opticAds as Record<string, unknown> | undefined;
+      if (oa && typeof oa === "object") for (const z of OPTIC_ZOOMS) base.opticAds[z] = num(oa[z], 0.1, 3) ?? 1;
     }
   } catch {
     /* ignore */
@@ -158,6 +171,9 @@ function readSettings(): void {
   settings.sens = field(inSens, 0.01, 20, settings.sens);
   settings.ads = field(inAds, 0.1, 3, settings.ads);
   settings.fovScale = field(inFov, 1, 1.571, settings.fovScale);
+  settings.adsToggle = $<HTMLSelectElement>("adsMode").value === "toggle";
+  settings.crouchToggle = $<HTMLSelectElement>("crouchMode").value === "toggle";
+  for (const z of OPTIC_ZOOMS) settings.opticAds[z] = field($<HTMLInputElement>(`opticAds${z}`), 0.1, 3, settings.opticAds[z]);
   saveSettings(settings);
   refreshDerived();
 }
@@ -168,11 +184,31 @@ function refreshDerived(): void {
   // 2x optic changes the ADS field of view by 30%, and reading the bare
   // iron-sight number here would be wrong exactly when someone checks it.
   const w = currentWeapon();
-  const adsScale = adsSensScale(hip, w.zoomFov43 * settings.fovScale, settings.ads);
+  const adsScale = adsSensScale(hip, w.zoomFov43 * settings.fovScale, settings.ads * opticAdsMult());
   derived.innerHTML =
     `<b>${cm.toFixed(2)} cm/360</b> hipfire (${degPerCount(settings.sens).toFixed(5)}° per count) · ` +
     `ADS ${(cm / adsScale).toFixed(2)} cm/360<br/>` +
     `FOV ${hip.toFixed(1)} (4:3 horizontal) · vertical ${verticalFovFrom43(hip).toFixed(1)}° · ADS ${(w.zoomFov43 * settings.fovScale).toFixed(1)}`;
+}
+// the hold / toggle choices and the per-optic multipliers: the Settings tab's rows
+{
+  $<HTMLSelectElement>("adsMode").value = settings.adsToggle ? "toggle" : "hold";
+  $<HTMLSelectElement>("crouchMode").value = settings.crouchToggle ? "toggle" : "hold";
+  const box = $("opticAdsBox");
+  for (const z of OPTIC_ZOOMS) {
+    const lab = document.createElement("label");
+    lab.className = "opticAds";
+    lab.innerHTML = `${z} <input id="opticAds${z}" type="number" min="0.1" max="3" step="0.05" value="${settings.opticAds[z]}" />`;
+    box.appendChild(lab);
+  }
+  for (const id of ["adsMode", "crouchMode"]) $(id).addEventListener("change", readSettings);
+  for (const z of OPTIC_ZOOMS) $(`opticAds${z}`).addEventListener("input", readSettings);
+}
+/** the optic in hand's zoom (set once the loadout exists: until then, 1x) */
+let currentOpticZoom = (): OpticZoom => "1x";
+/** the per-optic multiplier for the optic in hand (its current zoom, for a variable one) */
+function opticAdsMult(): number {
+  return settings.opticAds[currentOpticZoom()] ?? 1;
 }
 for (const el of [inDpi, inSens, inAds, inFov]) el.addEventListener("input", readSettings);
 refreshDerived();
@@ -565,6 +601,7 @@ hud.enabled = !NO_RENDER;
 const techLog: Array<{ name: string; detail: string; good: boolean; at: number }> = [];
 player.onTech = (name, detail, good) => {
   trainer?.onTech(name, detail);
+  if (good) tour?.onTech(name);
   hud.tech(name, detail, good, gameTime);
   techLog.push({ name, detail, good, at: gameTime });
   if (techLog.length > 200) techLog.shift();
@@ -797,6 +834,25 @@ let hosting: HostHandle | null = null;
 let cancelJoin: (() => void) | null = null;
 /** knocked in a match: the controller gets no keys until the next round */
 const NO_INPUT: MoveInput = { held: () => false, pressedNow: () => false };
+/** toggle ADS's state: in until the next press (or a sprint, a swap) */
+let adsLatch = false;
+/** an inspect: when it began, and since when reload has been held with a full magazine */
+let inspectAt = -Infinity;
+let reloadHeldAt = -Infinity;
+/** hold reload this long (a full magazine) to inspect */
+const INSPECT_HOLD = 0.4;
+/** a new gun's first-draw flourish: when it began */
+let flourishAt = -Infinity;
+/** the tour's panel this frame */
+let tourHud: ReturnType<Tour["update"]> = null;
+/** toggle crouch's state: down until the next press, a jump or a sprint */
+let crouchLatch = false;
+/** the movement's input with crouch as a toggle: a press flips it, and it is "held" while down */
+function crouchToggled(src: MoveInput): MoveInput {
+  if (src.pressedNow("crouch")) crouchLatch = !crouchLatch;
+  if (src.pressedNow("jump") || src.pressedNow("sprint")) crouchLatch = false;
+  return { held: (a) => (a === "crouch" ? crouchLatch : src.held(a)), pressedNow: (a) => src.pressedNow(a) };
+}
 /** a figure on your side (a squad mate, a team mate): no aim assist toward it, a friendly plate */
 function isAllyFigure(a: Dummy): boolean {
   if (!(duel instanceof Duel)) return false;
@@ -1109,6 +1165,7 @@ function useAbility(now: number): void {
   audio.jolt(1);
   duel?.localFx("jolt", from, to);
   selfFig?.jolt();
+  joltedAt = gameTime;
 }
 /** the match's phase last frame, and whether you were in the drop: the card comes up on a change */
 let lastMatchPhase: string | null = null;
@@ -1117,7 +1174,42 @@ let wasDropping = false;
 let joltFov = 0;
 
 /** the vitals heals work on: the match's, or the range's when the dummies shoot back */
-const vitalsTarget = (): { shield: number; health: number; alive: boolean } | null => duel ?? (rangeCombat?.on ? rangeCombat : null);
+const vitalsTarget = (): { shield: number; health: number; alive: boolean } | null => duel ?? (rangeCombat?.on ? rangeCombat : (tour?.healVitals ?? null));
+/** the guided tour of the range (tour.ts): it watches, the steps move on when you do each thing */
+const tour = new Tour(scene);
+/** throws made (the tour's grenade step) and whether a JOLT has gone this step */
+let throwsMade = 0;
+let joltedAt = -Infinity;
+function tourCheck(now: number): TourCheck {
+  return {
+    pos: player.pos,
+    sprinting: player.sprinting,
+    sliding: player.sliding,
+    onGround: player.onGround,
+    vy: player.vel.y,
+    mantling: player.mantling,
+    climbing: player.climbing,
+    hits: stats.hits,
+    reloading: loadout.active.state.reloading,
+    swapping: loadout.swapping,
+    healing: heal !== null,
+    joltUsed: now - joltedAt < 0.5,
+    thrown: throwsMade,
+  };
+}
+tour.onStep = (title) => {
+  hud.notice(`TOUR: ${title}`, gameTime, 1.4);
+  audio.countdown(false);
+};
+tour.onDone = () => {
+  hud.notice("TOUR COMPLETE", gameTime, 3);
+  audio.stinger("won");
+  try {
+    localStorage.setItem("range.tour.done", "1");
+  } catch {
+    /* ignore */
+  }
+};
 
 // ---------- throwables: the frag, the arc star, thermite ----------
 /** what you carry, and the one readied (the range never runs out) */
@@ -1216,6 +1308,7 @@ function throwReadied(now: number): void {
   throwables.throw(kind, from, vel, duel ? duel.id : -1, true, gameTime);
   duel?.localFx("throw", from, vel, throwCode(kind));
   gunRow(kind).shots++;
+  throwsMade++;
   audio.whoosh();
   void now;
 }
@@ -1359,6 +1452,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   };
   // abilities are the match's: on or off, nothing picked yet (the card comes at the countdown or the landing)
   abilities.reset(d.abilities);
+  tour.stop();
   // the killcam's recording and the recap's log
   recorder.clear();
   killcam.stop();
@@ -1697,6 +1791,10 @@ const merged = new URLSearchParams(location.search).has("nomerge")
 const loadout = new Loadout([loadouts.current.slot1, loadouts.current.slot2]);
 // from here the readout describes the gun actually in hand, attachments included
 currentWeapon = () => loadout.active.weapon;
+currentOpticZoom = () => {
+  const info = opticInfo(loadout.active.attach.optic ?? null);
+  return opticZoom(info?.label ?? null, info?.zooms, loadout.active.zoomAlt);
+};
 refreshDerived();
 
 // Starting a run equips the course pistols; finishing (or leaving) gives your
@@ -1780,6 +1878,12 @@ function goTo(mode: Mode): void {
     return;
   }
   for (const c of courses) c.leave();
+  if (mode === "tour") {
+    player.setBounds(RANGE_BOUNDS);
+    player.teleport(0, 0, 0, 0);
+    tour.start(tourCheck(gameTime));
+    return;
+  }
   if (mode === "range") {
     player.setBounds(RANGE_BOUNDS);
     player.teleport(0, 0, 0, 0);
@@ -1836,6 +1940,16 @@ try {
     if (typeof p.autoSprint === "boolean") s.autoSprint = p.autoSprint;
     if (typeof p.rumble === "boolean") s.rumble = p.rumble;
     if (typeof p.aimAssist === "boolean") s.aimAssist = p.aimAssist;
+    if (typeof p.advanced === "boolean") s.advanced = p.advanced;
+    const rng = (v: unknown, lo: number, hi: number, d: number) => (typeof v === "number" && Number.isFinite(v) && v >= lo && v <= hi ? v : d);
+    s.yaw = rng(p.yaw, 10, 1000, s.yaw);
+    s.pitch = rng(p.pitch, 10, 1000, s.pitch);
+    s.extraYaw = rng(p.extraYaw, 0, 1000, s.extraYaw);
+    s.extraPitch = rng(p.extraPitch, 0, 1000, s.extraPitch);
+    s.rampTime = rng(p.rampTime, 0, 3, s.rampTime);
+    s.rampDelay = rng(p.rampDelay, 0, 3, s.rampDelay);
+    s.adsYaw = rng(p.adsYaw, 10, 1000, s.adsYaw);
+    s.adsPitch = rng(p.adsPitch, 10, 1000, s.adsPitch);
   }
 } catch {
   /* ignore */
@@ -1884,6 +1998,46 @@ try {
     }
   };
   for (const el of [look, ads, curve, dead, auto, rumble, assistSel]) el.addEventListener("change", save);
+  // the advanced look: on or off, and its numbers
+  const adv = $<HTMLSelectElement>("padAdvanced");
+  const nums: Array<[keyof PadSettings, number, number]> = [
+    ["yaw", 10, 1000],
+    ["pitch", 10, 1000],
+    ["extraYaw", 0, 1000],
+    ["extraPitch", 0, 1000],
+    ["rampTime", 0, 3],
+    ["rampDelay", 0, 3],
+    ["adsYaw", 10, 1000],
+    ["adsPitch", 10, 1000],
+  ];
+  const advBox = $("padAdvancedBox");
+  const inputs = new Map<string, HTMLInputElement>();
+  const labels: Record<string, string> = { yaw: "Yaw", pitch: "Pitch", extraYaw: "Extra yaw", extraPitch: "Extra pitch", rampTime: "Ramp-up time", rampDelay: "Ramp-up delay", adsYaw: "ADS yaw", adsPitch: "ADS pitch" };
+  for (const [k, lo, hi] of nums) {
+    const lab = document.createElement("label");
+    lab.className = "opticAds";
+    const step = hi <= 3 ? 0.01 : 5;
+    lab.innerHTML = `${labels[k]} <input id="pad_${k}" type="number" min="${lo}" max="${hi}" step="${step}" value="${s[k]}" />`;
+    advBox.appendChild(lab);
+    inputs.set(k, lab.querySelector("input")!);
+  }
+  adv.value = s.advanced ? "1" : "0";
+  advBox.hidden = !s.advanced;
+  const saveAdv = () => {
+    s.advanced = adv.value === "1";
+    advBox.hidden = !s.advanced;
+    for (const [k, lo, hi] of nums) {
+      const n = Number(inputs.get(k)!.value);
+      if (Number.isFinite(n)) (s as unknown as Record<string, number>)[k] = Math.max(lo, Math.min(hi, n));
+    }
+    try {
+      localStorage.setItem(LS_PAD, JSON.stringify(s));
+    } catch {
+      /* ignore */
+    }
+  };
+  adv.addEventListener("change", saveAdv);
+  for (const el of inputs.values()) el.addEventListener("change", saveAdv);
 }
 const playBtn = $<HTMLButtonElement>("play");
 const playHint = $("playHint");
@@ -2025,8 +2179,8 @@ function step(): void {
   frameHook?.(now, dt);
   // The controller: read once here so every key check below sees it. Start
   // toggles the menu; with a pad in use no pointer lock is needed to play.
-  const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, 1) - 1) * loadout.active.state.adsFrac;
-  const padLook = input.pad.poll(wall, dt, padAdsScale);
+  const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, opticAdsMult()) - 1) * loadout.active.state.adsFrac;
+  const padLook = input.pad.poll(wall, dt, padAdsScale, loadout.active.state.adsFrac);
   if (input.pad.menuPressed) {
     if (input.locked) input.unlock();
     else if (!overlay.classList.contains("hidden")) {
@@ -2230,7 +2384,7 @@ function step(): void {
     // mag-level key above may have just replaced.
     const adsHNow = zoomFov43(loadout.active.weapon) * settings.fovScale;
     const m = input.consumeMouse();
-    const adsScale = 1 + (adsSensScale(hipH, adsHNow, settings.ads) - 1) * ws.adsFrac;
+    const adsScale = 1 + (adsSensScale(hipH, adsHNow, settings.ads * opticAdsMult()) - 1) * ws.adsFrac;
     if (wheelOpen) {
       // the wheel: five items round the circle, the mouse's direction picks
       wheelVec.x = Math.max(-200, Math.min(200, wheelVec.x + m.dx));
@@ -2288,7 +2442,29 @@ function step(): void {
   // a burst fires on without the trigger: knocked, or the round decided, it stops
   if (knockedOut || (duel && !duel.canFire)) ws.cancelBurst();
   // knocked in a 1v1: no aiming either
-  const adsHeld = input.playing && input.held("ads") && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow && !ordnance.readied;
+  // toggle ADS: a press goes in, the next comes out; a sprint, a swap or a holster comes out too
+  if (settings.adsToggle) {
+    if (!input.playing || loadout.swapping || holster !== "out" || player.sprinting || knockedOut || downedNow) adsLatch = false;
+    else if (input.pressedNow("ads") && !ordnance.readied && !loadout.active.empty) adsLatch = !adsLatch;
+  } else adsLatch = false;
+  const adsIn = settings.adsToggle ? adsLatch : input.held("ads");
+  const adsHeld = input.playing && adsIn && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow && !ordnance.readied;
+  // inspect: hold reload with a full magazine; anything that uses the gun ends it
+  {
+    const slot = loadout.active;
+    const full = !slot.empty && slot.state.clip >= slot.weapon.clipSize && !slot.state.reloading;
+    if (input.playing && input.held("reload") && full && !loadout.swapping && holster === "out") {
+      if (!Number.isFinite(reloadHeldAt)) reloadHeldAt = now;
+      if (now - reloadHeldAt > INSPECT_HOLD && now - inspectAt > INSPECT_TIME) inspectAt = now;
+    } else reloadHeldAt = -Infinity;
+    if (trigger || adsHeld || loadout.swapping || player.sprinting || holster !== "out" || ordnance.readied || knockedOut) inspectAt = -Infinity;
+    // a new gun's first time out (a pickup, Gun Run's next gun): the flourish, once it is up
+    if (slot.firstDraw && !loadout.swapping && !slot.empty) {
+      slot.firstDraw = false;
+      flourishAt = now;
+    }
+    if (trigger || adsHeld) flourishAt = -Infinity;
+  }
   // Move BEFORE sampling stance, so the spread model sees this frame's stance
   // rather than last frame's. The cost is that move speed uses last frame's
   // ADS fraction, which over a 0.27 s transition is a 6% error for one frame.
@@ -2298,7 +2474,8 @@ function step(): void {
   const firing = now - ws.lastShotAt < 0.25;
   // down: the move keys only, crouched, at a crawl
   if (downedNow) player.healSlow = squadCfg.crawl;
-  player.update(dt, now, knockedOut ? NO_INPUT : downedNow ? crawlInput(scriptInput ?? input) : (scriptInput ?? input), ws.adsFrac, weapon.adsMoveScale, firing || trigger);
+  const moveIn = settings.crouchToggle && !scriptInput ? crouchToggled(input) : (scriptInput ?? input);
+  player.update(dt, now, knockedOut ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
   // a slide counts as crouched for the spread model: the cone tightens
   const crouched = player.crouched || player.sliding;
   const stance = !player.onGround ? "air" : crouched ? "crouch" : "stand";
@@ -2558,6 +2735,8 @@ function step(): void {
     else audio.hitTier(r.headshot ? "head" : r.toShield > 0 ? (SHIELD_TIER[e.dummy.tier] ?? "white") : "health");
   };
   projectiles.update(dt, now, handleImpact);
+  // the guided tour: its marker and the check for the step
+  tourHud = !duel ? tour.update(now, tourCheck(now), input.playing && input.held("interact"), (a) => keyLabel(a as Parameters<typeof keyLabel>[0])) : null;
   // throwables: their flights, fuses and fires; a blast's hits go the bullets' way
   impactSink = handleImpact;
   throwables.update(now, dt, throwTargets());
@@ -2650,6 +2829,8 @@ function step(): void {
     lookPitch,
     landDip: player.viewDip,
     lowered: debugView.lowered ?? (emptyHand || downedNow || ordnance.readied ? 1 : lowered),
+    inspect: now - inspectAt < INSPECT_TIME ? (now - inspectAt) / INSPECT_TIME : undefined,
+    flourish: now - flourishAt < FLOURISH_TIME ? (now - flourishAt) / FLOURISH_TIME : undefined,
     onZip: debugView.onZip ?? player.onZip,
     draw: onScreen.state.drawFrac,
   });
@@ -2828,6 +3009,7 @@ function step(): void {
     vitals: duel ? { shield: duel.shield, shieldMax: duel.shieldMax, health: duel.health, healthMax: HEALTH_MAX, evo: duel instanceof BrMatch ? armor.evoFrac : null, helmet: armor.helmet } : rangeCombat.on ? { shield: rangeCombat.shield, shieldMax: rangeCombat.shieldMax, health: rangeCombat.health, healthMax: HEALTH_MAX } : null,
     drill: duel ? null : drill.hud(now),
     brHold: duel instanceof BrMatch ? brPlay.hud.hold : null,
+    tour: tourHud,
     ordnance: {
       counts: ordnance.endless ? null : { ...ordnance.counts },
       readied: ordnance.readied ? throwName(ordnance.readied.kind) : null,
@@ -2981,10 +3163,18 @@ initWelcome();
   throwables,
   /** a throw now, of `kind`, from `from` with `vel` (tools/e2e.ts); yours */
   throwAt: (kind: ThrowKind, from: THREE.Vector3, vel: THREE.Vector3) => {
+    throwsMade++;
     throwables.throw(kind, from, vel, duel ? duel.id : -1, true, gameTime);
     duel?.localFx("throw", from, vel, throwCode(kind));
   },
   THREE,
+  tour,
+  opticAdsMult,
+  padButtons,
+  /** the range's readout counters (shots, hits) */
+  stats: () => stats,
+  /** the viewmodel's inspect and first draw (tools/e2e.ts) */
+  vmState: () => ({ inspecting: gameTime - inspectAt < INSPECT_TIME, flourish: gameTime - flourishAt < FLOURISH_TIME }),
   loadMannequin,
   setFigureStyle,
   /** open ground near x, z: nothing standing on the floor within `clear` metres (tools/e2e.ts) */

@@ -26,6 +26,8 @@ export interface Slot {
   energy: EnergyStock | null;
   /** nothing in this slot (a battle royale's start): fists; the weapon object is only a placeholder */
   empty: boolean;
+  /** just picked up: its first time out comes with a flourish (cosmetic) */
+  firstDraw?: boolean;
 }
 
 /** a slot's weapon and its fittings, without the live state */
@@ -169,6 +171,7 @@ export class Loadout {
     if (!s) return;
     this.setWeaponId(i, id);
     s.empty = false;
+    s.firstDraw = true;
     s.magLevel = Math.max(0, Math.min(4, magLevel));
     s.attach = { ...attach };
     s.altMode = false;

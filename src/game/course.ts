@@ -62,6 +62,36 @@ export interface Room {
   /** the room's enemies pop up when this returns true (course coordinates) */
   trigger: (x: number, y: number, z: number) => boolean;
   enemies: EnemySpec[];
+  /** the par for this room, seconds (else its share of the course's S time by its length) */
+  par?: number;
+}
+
+export type Medal = "gold" | "silver" | "bronze";
+/** a medal against a par: gold at or under it, silver within 25%, bronze within 60% (ours) */
+export const MEDAL_STEPS: Array<[Medal, number]> = [
+  ["gold", 1],
+  ["silver", 1.25],
+  ["bronze", 1.6],
+];
+export function medalFor(time: number, par: number): Medal | null {
+  if (!Number.isFinite(time) || !Number.isFinite(par) || par <= 0) return null;
+  for (const [m, k] of MEDAL_STEPS) if (time <= par * k + 1e-9) return m;
+  return null;
+}
+
+/**
+ * Each room's par: its own if set, else the course's S time shared out by the
+ * rooms' lengths along the course (the stretch from the start line to the
+ * first room and each room to the next entry, the last to the finish).
+ */
+export function roomPars(L: Pick<CourseLayout, "rooms" | "ranks" | "startZ" | "finishZ">): number[] {
+  const sTime = L.ranks[0]?.[1] ?? 60;
+  const total = Math.max(1, L.finishZ - L.startZ);
+  return L.rooms.map((room, i) => {
+    if (room.par !== undefined) return room.par;
+    const end = i + 1 < L.rooms.length ? L.rooms[i + 1].entryZ : L.finishZ;
+    return Math.round(((sTime * (end - room.entryZ)) / total) * 10) / 10;
+  });
 }
 
 /** a hazard floor: below `fallY` between these z you have fallen; back to `respawn`, 2 s added */
@@ -145,6 +175,10 @@ export interface CourseSplit {
   time: number;
   /** against the best run's split here, or null with no best run yet */
   delta: number | null;
+  /** the time spent in this room (to the next room, or the finish), its par, and the medal it earned */
+  room?: number;
+  par?: number;
+  medal?: Medal | null;
 }
 
 export interface CourseResult {
@@ -461,6 +495,7 @@ export class Course {
   }
 
   private drawTv(): void {
+    const MEDAL_COLOUR: Record<Medal, string> = { gold: "#ffd23c", silver: "#cfd8e0", bronze: "#d0803a" };
     const g = this.tvCanvas.getContext("2d")!;
     const W = this.tvCanvas.width;
     const H = this.tvCanvas.height;
@@ -518,6 +553,19 @@ export class Course {
         g.fillStyle = "#eef2f5";
         g.textAlign = "right";
         g.fillText(Number.isFinite(sp.time) ? sp.time.toFixed(2) : "-", x0 + 330, y);
+        if (sp.medal !== undefined) {
+          g.fillStyle = sp.medal ? MEDAL_COLOUR[sp.medal] : "#3a434c";
+          g.beginPath();
+          g.arc(x0 + 360, y - 9, 11, 0, Math.PI * 2);
+          g.fill();
+          if (sp.room !== undefined && Number.isFinite(sp.room)) {
+            g.fillStyle = "#9aa4ad";
+            g.textAlign = "left";
+            g.font = font(600, Math.min(22, rowH - 12));
+            g.fillText(`${sp.room.toFixed(1)}/${sp.par?.toFixed(1)}`, x0 + 380, y);
+            g.font = font(600, Math.min(30, rowH - 8));
+          }
+        }
         if (sp.delta !== null) {
           g.fillStyle = sp.delta <= 0 ? "#7ddc8a" : "#ff6a5a";
           g.fillText(`${sp.delta <= 0 ? "-" : "+"}${Math.abs(sp.delta).toFixed(2)}`, W - 40, y);
@@ -673,6 +721,17 @@ export class Course {
       const t = this.splits[i] ?? NaN;
       const b = this.bestSplits?.[i];
       return { name: room.name, time: t, delta: b !== undefined && Number.isFinite(b) && Number.isFinite(t) ? t - b : null };
+    });
+    // each room's own time against its par: a medal a room. The last room runs
+    // to the clock at the line: the missed-enemy penalty is the run's, not the room's
+    const pars = roomPars(L);
+    const atLine = raw + this.penalties;
+    splits.forEach((sp, i) => {
+      const next = i + 1 < splits.length ? splits[i + 1].time : atLine;
+      const inRoom = Number.isFinite(sp.time) && Number.isFinite(next) ? next - sp.time : NaN;
+      sp.room = inRoom;
+      sp.par = pars[i];
+      sp.medal = medalFor(inRoom, pars[i]);
     });
     const bFinish = this.bestSplits?.[L.rooms.length];
     splits.push({ name: "FINISH", time, delta: bFinish !== undefined && Number.isFinite(bFinish) ? time - bFinish : null });

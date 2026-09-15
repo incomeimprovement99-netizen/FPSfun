@@ -21,6 +21,7 @@ import type { Recap } from "./recap";
 import type { DrillHud } from "./rangetools";
 import type { TrainerHud } from "./trainer";
 import type { ModeHud } from "./modematch";
+import type { TourHud } from "./tour";
 
 type ModeRow = ModeHud["rows"][number];
 
@@ -49,7 +50,7 @@ export interface CourseHud {
     missed: number;
     rank: string;
     newBest: boolean;
-    splits: Array<{ name: string; time: number; delta: number | null }>;
+    splits: Array<{ name: string; time: number; delta: number | null; room?: number; par?: number; medal?: "gold" | "silver" | "bronze" | null }>;
   } | null;
   /** short banner, e.g. "COURSE: cross the line to start" */
   banner: string | null;
@@ -146,6 +147,8 @@ export interface HudState {
   mantleCue?: boolean;
   /** grenades: how many of each (null: the range, no count), the one in hand, its keys */
   ordnance?: { counts: Record<string, number> | null; readied: string | null; ready: boolean; key: string; fire: string; cancel: string } | null;
+  /** the guided tour's step, or its finish card */
+  tour?: TourHud | null;
   /** a hold-E action in progress (a revive, a beacon): its label and 0..1 */
   brHold?: { label: string; progress: number } | null;
   /** pings in the world: an enemy (red), an item (its colour), a place (yellow) */
@@ -295,6 +298,70 @@ export class Hud {
     this.drawDrill(s, u);
     this.drawTrainer(s, u);
     this.drawSquad(now, s, u);
+    this.drawTour(camera, s, u);
+  }
+
+  /** the tour: the step under the compass, what to do, the skip bar, and an arrow to the marker when it is off screen */
+  private drawTour(camera: THREE.Camera, s: HudState, u: number): void {
+    const t = s.tour;
+    if (!t) return;
+    const c = this.ctx;
+    const cx = this.w / 2;
+    const w = 620 * u;
+    const y0 = 62 * u;
+    c.fillStyle = "rgba(8,10,12,0.78)";
+    c.fillRect(cx - w / 2, y0, w, 86 * u);
+    c.fillStyle = t.done ? "#ffd23c" : "#7ddc8a";
+    c.fillRect(cx - w / 2, y0, w * (t.step / t.of), 4 * u);
+    this.text(t.done ? t.title : `TOUR ${t.step} / ${t.of}  ·  ${t.title}`, cx, y0 + 30 * u, 700, 20 * u, t.done ? "#ffd23c" : "#7ddc8a", "center");
+    // the instruction, wrapped to the panel
+    c.font = this.font(600, 14 * u);
+    const words = t.text.split(" ");
+    const lines: string[] = [];
+    let line = "";
+    for (const wd of words) {
+      const next = line ? `${line} ${wd}` : wd;
+      if (c.measureText(next).width > w - 40 * u && line) {
+        lines.push(line);
+        line = wd;
+      } else line = next;
+    }
+    if (line) lines.push(line);
+    lines.slice(0, 3).forEach((l, i) => this.text(l, cx, y0 + 52 * u + i * 16 * u, 600, 14 * u, WHITE, "center"));
+    if (t.skip > 0) {
+      c.fillStyle = "rgba(255,255,255,0.15)";
+      c.fillRect(cx - 80 * u, y0 + 92 * u, 160 * u, 5 * u);
+      c.fillStyle = "#ffd23c";
+      c.fillRect(cx - 80 * u, y0 + 92 * u, 160 * u * t.skip, 5 * u);
+    }
+    // the marker: where on screen, or an arrow at the edge toward it
+    if (t.marker) {
+      const v = t.marker.clone().setY(1.2).project(camera);
+      const pad = 44 * u;
+      let x = (v.x * 0.5 + 0.5) * this.w;
+      let y = (-v.y * 0.5 + 0.5) * this.h;
+      const behind = v.z > 1;
+      if (behind) {
+        x = this.w - x;
+        y = this.h - pad;
+      }
+      const off = behind || x < pad || x > this.w - pad || y < pad || y > this.h - pad;
+      x = Math.max(pad, Math.min(this.w - pad, x));
+      y = Math.max(pad, Math.min(this.h - pad, y));
+      const cam = (camera as THREE.PerspectiveCamera).position;
+      const dist = Math.round(Math.hypot(t.marker.x - cam.x, t.marker.z - cam.z));
+      c.fillStyle = "#7ddc8a";
+      c.beginPath();
+      if (off) {
+        const a = Math.atan2(y - this.h / 2, x - cx);
+        c.moveTo(x + Math.cos(a) * 14 * u, y + Math.sin(a) * 14 * u);
+        c.lineTo(x + Math.cos(a + 2.4) * 11 * u, y + Math.sin(a + 2.4) * 11 * u);
+        c.lineTo(x + Math.cos(a - 2.4) * 11 * u, y + Math.sin(a - 2.4) * 11 * u);
+      } else c.arc(x, y, 7 * u, 0, Math.PI * 2);
+      c.closePath();
+      c.fill();
+      this.text(`${dist} M`, x, y + 24 * u, 700, 12 * u, "#7ddc8a", "center");
+    }
   }
 
   /**
@@ -1751,6 +1818,13 @@ export class Hud {
         const y = y0 + 206 * u + i * rowH;
         this.text(sp.name, x0 + 28 * u, y, 600, 14 * u, DIM);
         this.text(Number.isFinite(sp.time) ? sp.time.toFixed(2) : "-", x0 + w * 0.62, y, 700, 15 * u, WHITE, "right");
+        // the room's medal against its par
+        if (sp.medal !== undefined) {
+          c.fillStyle = sp.medal === "gold" ? "#ffd23c" : sp.medal === "silver" ? "#cfd8e0" : sp.medal === "bronze" ? "#d0803a" : "#3a434c";
+          c.beginPath();
+          c.arc(x0 + w * 0.66, y - 5 * u, 5 * u, 0, Math.PI * 2);
+          c.fill();
+        }
         if (sp.delta !== null) {
           this.text(`${sp.delta <= 0 ? "-" : "+"}${Math.abs(sp.delta).toFixed(2)}`, x0 + w - 28 * u, y, 700, 15 * u, sp.delta <= 0 ? "#7ddc8a" : RED, "right");
         }

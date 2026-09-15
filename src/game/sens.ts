@@ -34,6 +34,20 @@ export function horizontalFovAtAspect(h43: number, aspect: number): number {
  * turn rate by the zoom ratio (0% monitor-distance match). Approximation noted
  * in docs/FIDELITY.md.
  */
+/** the per-optic ADS multipliers' zooms, as the game lists them */
+export const OPTIC_ZOOMS = ["1x", "2x", "3x", "4x", "6x", "8x", "10x"] as const;
+export type OpticZoom = (typeof OPTIC_ZOOMS)[number];
+
+/**
+ * Which per-optic multiplier applies: the optic's zoom from its label ("3x
+ * HCOG Ranger"), a variable optic's current one (its two zooms, `alt` the
+ * second), iron sights and anything unlabelled 1x.
+ */
+export function opticZoom(label: string | null, zooms?: [string, string], alt = false): OpticZoom {
+  const z = zooms ? zooms[alt ? 1 : 0] : label ? /^(\d+)x/.exec(label)?.[0] : null;
+  return (OPTIC_ZOOMS as readonly string[]).includes(z ?? "") ? (z as OpticZoom) : "1x";
+}
+
 export function adsSensScale(hipH43: number, adsH43: number, multiplier: number): number {
   return (multiplier * Math.tan((adsH43 * DEG) / 2)) / Math.tan((hipH43 * DEG) / 2);
 }

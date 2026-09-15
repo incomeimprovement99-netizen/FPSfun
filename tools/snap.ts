@@ -262,6 +262,15 @@ export const SCENARIOS: Scenario[] = [
       [`(() => { const r = window.__range; r.player.teleport(0, 0, -6, 0, 8); r.throwAt("thermite", new r.THREE.Vector3(-1.5, 1.2, -12), new r.THREE.Vector3(0, -1, -4)); r.ordnance.readied = { kind: "frag", readyAt: 0 }; })()`, 1400],
     ],
   },
+  {
+    name: "tour",
+    note: "the guided tour: the step, what to do and the keys, the marker to walk to",
+    steps: [
+      [`(() => { document.getElementById("goTour").click(); ${hideMenu}; })()`, 600],
+      [`(() => { window.__range.player.teleport(0, 0, -8, 0); })()`, 500],
+      [`(() => { window.__range.player.teleport(2, 0, -2, 20); })()`, 600],
+    ],
+  },
 ];
 
 async function main(): Promise<void> {

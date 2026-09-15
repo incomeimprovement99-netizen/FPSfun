@@ -322,3 +322,30 @@ Striker 9 is) with Season 30's numbers.
   carried counts, G's cycle and the stack), e2e (G readies and cycles through the real key, a frag at a bot's
   feet takes exactly 100 after the fuse, thermite burns, the range again; a friend's arc star over the local
   transport: seen in the air, sticks, 85 in all, slowed), snap (throw-preview).
+
+## Milestone 23 — Finishing touches: the tour, medals, inspect, toggles, the controller ✅
+2026-09-15 (Phase 11M). `src/game/tour.ts`, `course.ts` medals, `gamepad.ts`, `sens.ts`, `viewmodel.ts`.
+- **The guided tour** (the Play tab's first mode after the range): thirteen steps through the range, each with a
+  green marker to walk to (a beam, and an arrow at the screen's edge when it is off screen) and what to do with
+  your own keys filled in: move, sprint, slide under the rail, jump, mantle the 2.4 m ledge, climb the ladder, a
+  superglide, shoot a target, reload, swap, heal (the tour lends a shield to heal), JOLT, a grenade. It watches
+  the game's own state and moves on when you do each; holding interact skips a step. Finishing it is remembered.
+- **Course medals**: every room has a par (its own, or the S time shared out by the room's length) and each run
+  earns gold (at par), silver (within 25%) or bronze (within 60%) per room, on the results TV (with the room's
+  time against its par) and the result card. The last room runs to the line (the missed-enemy penalty is the
+  run's, not the room's).
+- **Weapon inspect**: hold reload with a full magazine and the gun comes up and turns to show one side, then the
+  other; firing, aiming, a swap or a sprint ends it. **A first draw**: a gun just picked up (the battle royale,
+  Gun Run's next gun) comes out with a twirl; cosmetic, the gun is usable throughout.
+- **Toggle ADS and toggle crouch** (Settings): a press in and a press out; a sprint or a swap comes out of the
+  aim, a jump or a sprint stands you up. **Per-optic ADS sensitivity** like the game's: a multiplier for each
+  zoom (1x, 2x, 3x, 4x, 6x, 8x, 10x) on top of the ADS one, by the optic in hand and a variable optic's zoom.
+- **The controller**: the game's **advanced look** (yaw and pitch speeds for hip and aim, an extra yaw and pitch at
+  the stick's edge that ramps in over a time after a delay), and **button rebinding** on the Controls tab (every
+  button but Start, which stays the menu so you cannot lock yourself out).
+- Tests: verify (the medal steps, the pars adding to the S time, the optic zoom buckets, the advanced look's rate
+  through its ramp and at ADS, a pickup's first draw), e2e (toggle ADS and crouch, the 3x's multiplier, Y rebound
+  to reload reloads, the advanced look saved, inspect and its cancel, the first draw, the whole tour from the Play
+  tab with real inputs where it can: the marker walk, a sprint, a slide, a jump, a mantle, a climb, a skip, a real
+  hit with the trigger, a reload, a swap, a heal, JOLT, a grenade, remembered; gold in every room of a quick
+  course run), snap (tour).

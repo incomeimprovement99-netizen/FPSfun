@@ -7,7 +7,7 @@ import { HEIRLOOMS } from "../game/heirlooms";
 import { Stats, type MatchKind, type MatchStats } from "../game/stats";
 import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
 
-export type Mode = "range" | "run" | "runAdvanced" | "duel" | "arena" | "bots" | "br" | "gunrun" | "tdm" | "crown";
+export type Mode = "range" | "run" | "runAdvanced" | "duel" | "arena" | "bots" | "br" | "gunrun" | "tdm" | "crown" | "tour";
 export type Tab = "play" | "duel" | "loadouts" | "stats" | "settings" | "controls";
 
 export interface MenuOptions {
@@ -47,6 +47,7 @@ export class Menu {
     });
     this.renderStats();
     $("goRange").addEventListener("click", () => o.onGo("range"));
+    $("goTour").addEventListener("click", () => o.onGo("tour"));
     $("goRun").addEventListener("click", () => o.onGo("run"));
     $("goRunAdvanced").addEventListener("click", () => o.onGo("runAdvanced"));
     $("goDuel").addEventListener("click", () => this.show("duel"));

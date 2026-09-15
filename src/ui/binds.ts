@@ -4,6 +4,26 @@
 // and the tab says so. The changes live in this browser (localStorage) on top
 // of src/config/binds.json, which stays the default.
 import { DEFAULT_BINDS, currentBinds, setBinds, type Action } from "../game/input";
+import { DEFAULT_PAD_BUTTONS, PAD_BUTTON_NAMES, padButtons, setPadButtons } from "../game/gamepad";
+
+const PAD_KEY = "range.padbinds.v1";
+/** the controller's changes: a button's index to an action, or "none" */
+type PadChanges = Partial<Record<number, Action | "none">>;
+
+function loadPad(): PadChanges {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PAD_KEY) ?? "{}") as Record<string, unknown>;
+    const out: PadChanges = {};
+    for (const [k, v] of Object.entries(raw)) {
+      const i = Number(k);
+      if (!Number.isInteger(i) || i < 0 || i > 15 || i === 9) continue;
+      if (v === "none" || (typeof v === "string" && v in DEFAULT_BINDS)) out[i] = v as Action | "none";
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
 
 const KEY = "range.binds.v1";
 /** at most this many keys per action */
@@ -20,7 +40,7 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
       ["jump", "Jump"],
       ["crouch", "Crouch, slide"],
       ["sprint", "Sprint"],
-      ["interact", "Ride a zipline"],
+      ["interact", "Interact: a zipline, an item (hold: a revive, a beacon, skip a tour step)"],
     ],
   },
   {
@@ -144,6 +164,7 @@ function save(changes: Partial<Record<Action, string[]>>): void {
 /** put the saved bindings on; call once at startup, before the first frame */
 export function applySavedBinds(): void {
   setBinds(load());
+  setPadButtons(loadPad());
 }
 
 /** build the Controls tab's table into `root` and keep it live */
@@ -279,6 +300,73 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement): void {
         root.appendChild(row);
       }
     }
+    renderPad();
+  };
+
+  /** the controller: a row per button, a list of what it can do; Start is always the menu */
+  const renderPad = () => {
+    let pad = loadPad();
+    const h = document.createElement("div");
+    h.className = "bindGroup";
+    h.textContent = "Controller buttons";
+    root.appendChild(h);
+    const hint = document.createElement("div");
+    hint.className = "bindRow";
+    hint.innerHTML = `<span class="bindName" style="color:#7d8895">The sticks move and look. Start is always the menu, so it cannot be moved. X also rides ziplines and takes items where there is a prompt.</span>`;
+    root.appendChild(hint);
+    const actions = GROUPS.flatMap((g) => g.actions);
+    const live = padButtons();
+    PAD_BUTTON_NAMES.forEach((name, i) => {
+      const row = document.createElement("div");
+      row.className = "bindRow";
+      const lab = document.createElement("span");
+      lab.className = "bindName";
+      lab.textContent = name;
+      row.appendChild(lab);
+      if (i === 9) {
+        const fixed = document.createElement("span");
+        fixed.className = "bindKeys";
+        fixed.textContent = "Menu";
+        row.appendChild(fixed);
+        root.appendChild(row);
+        return;
+      }
+      const sel = document.createElement("select");
+      sel.className = "padBind";
+      sel.dataset.button = String(i);
+      sel.innerHTML = `<option value="none">Nothing</option>` + actions.map(([a, l]) => `<option value="${a}">${l}</option>`).join("");
+      sel.value = (live[i] as string | undefined) ?? "none";
+      sel.addEventListener("change", () => {
+        const def = (DEFAULT_PAD_BUTTONS[i] as string | undefined) ?? "none";
+        if (sel.value === def) delete pad[i];
+        else pad[i] = sel.value as Action | "none";
+        try {
+          localStorage.setItem(PAD_KEY, JSON.stringify(pad));
+        } catch {
+          /* ignore */
+        }
+        setPadButtons(pad);
+        note.textContent = `${name} is now ${sel.value === "none" ? "nothing" : labelOf(sel.value as Action)}.`;
+      });
+      row.appendChild(sel);
+      root.appendChild(row);
+    });
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "bindKey";
+    reset.textContent = "Controller back to the default";
+    reset.addEventListener("click", () => {
+      pad = {};
+      try {
+        localStorage.removeItem(PAD_KEY);
+      } catch {
+        /* ignore */
+      }
+      setPadButtons(pad);
+      note.textContent = "The controller's buttons are back to the default.";
+      render();
+    });
+    root.appendChild(reset);
   };
 
   document.getElementById("bindsReset")?.addEventListener("click", () => {

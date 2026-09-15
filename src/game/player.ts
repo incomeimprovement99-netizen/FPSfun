@@ -232,6 +232,11 @@ export class Player {
    * which a jump then a crouch one frame later is a superglide (wider when you
    * sprinted into it).
    */
+  /** in a mantle right now (the tour's check) */
+  get mantling(): boolean {
+    return this.mantle !== null;
+  }
+
   get mantleInfo(): { started: number; duration: number; window: number; remaining: number } | null {
     const mt = this.mantle;
     if (!mt) return null;

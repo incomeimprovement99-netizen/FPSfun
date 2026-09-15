@@ -34,12 +34,67 @@ export interface PadSettings {
   rumble: boolean;
   /** slowdown and rotational aim assist (aimassist.ts), as the game has for controllers */
   aimAssist: boolean;
+  /**
+   * The game's advanced look controls: yaw and pitch speeds in degrees a
+   * second at full deflection (hip and aimed), and at the stick's edge an
+   * extra yaw and pitch that ramps in over `rampTime` after `rampDelay`.
+   */
+  advanced: boolean;
+  yaw: number;
+  pitch: number;
+  extraYaw: number;
+  extraPitch: number;
+  rampTime: number;
+  rampDelay: number;
+  adsYaw: number;
+  adsPitch: number;
 }
 
-export const PAD_DEFAULTS: PadSettings = { look: 3, ads: 3, curve: "classic", deadzone: 0.12, autoSprint: true, rumble: true, aimAssist: true };
+export const PAD_DEFAULTS: PadSettings = {
+  look: 3,
+  ads: 3,
+  curve: "classic",
+  deadzone: 0.12,
+  autoSprint: true,
+  rumble: true,
+  aimAssist: true,
+  advanced: false,
+  yaw: 180,
+  pitch: 120,
+  extraYaw: 0,
+  extraPitch: 0,
+  rampTime: 0.33,
+  rampDelay: 0,
+  adsYaw: 90,
+  adsPitch: 60,
+};
 
-/** standard-mapping button indices */
-const BUTTON: Record<number, Action | "menu"> = {
+/** the stick counts as at its edge (where the extra turn ramps in) from here */
+export const PAD_EDGE = 0.98;
+
+/**
+ * The advanced look's rate, degrees a second (yaw left, pitch up): the curve
+ * times the speed for the aim (between hip and ADS by how far the aim is in),
+ * plus the extra turn at the stick's edge, ramped in by how long it has been there.
+ */
+export function advancedLookRate(s: PadSettings, rx: number, ry: number, adsFrac: number, edgeTime: number): { yawLeft: number; pitchUp: number } {
+  const curve = (v: number) => (s.curve === "linear" ? v : Math.sign(v) * Math.pow(Math.abs(v), 1.7));
+  const a = Math.max(0, Math.min(1, adsFrac));
+  const yawSp = s.yaw + (s.adsYaw - s.yaw) * a;
+  const pitchSp = s.pitch + (s.adsPitch - s.pitch) * a;
+  const ramp = s.rampTime > 0 ? Math.max(0, Math.min(1, (edgeTime - s.rampDelay) / s.rampTime)) : edgeTime >= s.rampDelay ? 1 : 0;
+  // the extra turn is a hipfire thing: it fades out as the aim comes in
+  const extra = ramp * (1 - a);
+  const yaw = curve(rx) * yawSp + (Math.abs(rx) >= PAD_EDGE ? Math.sign(rx) * s.extraYaw * extra : 0);
+  const pitch = curve(ry) * pitchSp + (Math.abs(ry) >= PAD_EDGE ? Math.sign(ry) * s.extraPitch * extra : 0);
+  return { yawLeft: -yaw, pitchUp: -pitch };
+}
+
+/** the buttons by their standard-mapping index, as a person would say them */
+export const PAD_BUTTON_NAMES = ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "Back", "Start", "L3", "R3", "D-pad up", "D-pad down", "D-pad left", "D-pad right"];
+
+/** what each button does out of the box (standard-mapping indices) */
+export const DEFAULT_PAD_BUTTONS: Readonly<Record<number, Action | "menu">> = {
   0: "jump",
   1: "crouch",
   2: "reload",
@@ -57,6 +112,22 @@ const BUTTON: Record<number, Action | "menu"> = {
   14: "slot1",
   15: "slot2",
 };
+/** the live map: the defaults with the player's changes (the Controls tab) */
+const BUTTON: Record<number, Action | "menu"> = { ...DEFAULT_PAD_BUTTONS };
+/** put a button map on; Start stays the menu, so a player can always get back to it */
+export function setPadButtons(changes: Partial<Record<number, Action | "none">>): void {
+  for (const k of Object.keys(BUTTON)) delete BUTTON[Number(k)];
+  Object.assign(BUTTON, DEFAULT_PAD_BUTTONS);
+  for (const [k, v] of Object.entries(changes)) {
+    const i = Number(k);
+    if (i === 9 || !Number.isInteger(i) || i < 0 || i > 15) continue;
+    if (v === "none") delete BUTTON[i];
+    else if (v) BUTTON[i] = v;
+  }
+}
+export function padButtons(): Readonly<Record<number, Action | "menu">> {
+  return BUTTON;
+}
 /** the stick as keys, above this deflection */
 const MOVE_THRESHOLD = 0.35;
 const TRIGGER_THRESHOLD = 0.35;
@@ -75,6 +146,8 @@ export class GamepadInput {
   private lookY = 0;
   private lastTouched = -Infinity;
   private lastMove = { x: 0, y: 0 };
+  /** how long the right stick has been at its edge (the advanced look's ramp) */
+  private edgeTime = 0;
 
   constructor() {
     window.addEventListener("gamepadconnected", (e) => {
@@ -105,7 +178,7 @@ export class GamepadInput {
    * Read the pad once per frame. `dt` scales the look; the result is in
    * degrees for this frame (yaw left positive, pitch up positive).
    */
-  poll(now: number, dt: number, adsScale: number): { yawLeft: number; pitchUp: number } {
+  poll(now: number, dt: number, adsScale: number, adsFrac = 0): { yawLeft: number; pitchUp: number } {
     const p = this.pad();
     this.pressed.clear();
     this.lookX = 0;
@@ -164,6 +237,14 @@ export class GamepadInput {
     if (touched) this.lastTouched = now;
     this.active = now - this.lastTouched < 120;
 
+    // the advanced look: its own speeds, and the extra turn at the edge
+    if (s.advanced) {
+      this.edgeTime = Math.abs(rx) >= PAD_EDGE || Math.abs(ry) >= PAD_EDGE ? this.edgeTime + dt : 0;
+      const r = advancedLookRate(s, rx, ry, adsFrac, this.edgeTime);
+      this.lookX = r.yawLeft * dt;
+      this.lookY = r.pitchUp * dt;
+      return { yawLeft: this.lookX, pitchUp: this.lookY };
+    }
     // look: the curve, then the speed for the level, scaled at ADS
     const curve = (v: number) => (s.curve === "linear" ? v : Math.sign(v) * Math.pow(Math.abs(v), 1.7));
     const yawSpeed = 60 * Math.max(1, Math.min(8, s.look));

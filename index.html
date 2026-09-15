@@ -28,6 +28,10 @@
       .rangebox button { padding: 5px 12px; }
       .row .vols input { width: 33%; padding: 0; accent-color: #d43a2f; }
       .row select { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 7px 9px; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
+      .opticAdsBox { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+      .bindRow select.padBind { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 4px 6px; border-radius: 4px; font-size: 13px; min-width: 220px; }
+      .opticAds { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #9aa4ad; white-space: nowrap; }
+      .row .opticAds input { width: 64px; padding: 5px 6px; }
       .derived { margin: 14px 0 6px; padding: 10px 12px; background: #0d1014; border-radius: 4px; font-size: 13px; color: #b9c2cc; line-height: 1.5; }
       .derived b { color: #fff; }
       button#play { width: 100%; margin-top: 14px; padding: 12px; font-size: 15px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; background: #d43a2f; border: 0; color: #fff; border-radius: 4px; cursor: pointer; }
@@ -189,6 +193,7 @@
           </div>
           <div class="modes">
             <button type="button" class="mode" id="goRange"><b>Firing Range</b><span>Guns, dummies, targets, ladders, ziplines and the wallbounce wall.</span></button>
+            <button type="button" class="mode" id="goTour"><b>Guided tour</b><span id="tourBlurb">Every move and key the range teaches, a step at a time: slide, mantle, climb, superglide, shoot, heal, JOLT, a grenade.</span></button>
             <button type="button" class="mode" id="goRun"><b>The Run (Basic)</b><span id="runBest">Seven rooms, one technique each, twenty pop-ups.</span></button>
             <button type="button" class="mode" id="goRunAdvanced"><b>The Run (Advanced)</b><span id="runAdvancedBest">Nine rooms, 200 m, the techniques chained. Thirty pop-ups.</span></button>
             <button type="button" class="mode" id="goDuel"><b>1v1 and 1v1v1</b><span>Friends, a code, an arena. First to 3, with the circle.</span></button>
@@ -291,6 +296,9 @@
           <div class="row"><label>Mouse sensitivity <div class="hint">in-game value</div></label><input id="sens" type="number" min="0.05" max="20" step="0.05" /></div>
           <div class="row"><label>ADS sensitivity multiplier <div class="hint">1.0 = default</div></label><input id="ads" type="number" min="0.1" max="3" step="0.05" /></div>
           <div class="row"><label>FOV scale <div class="hint">1.0 = 70, 1.571 = 110</div></label><input id="fov" type="number" min="1" max="1.571" step="0.01" /></div>
+          <div class="row"><label>ADS per optic <div class="hint">on top of the multiplier above, by the optic's zoom (a variable optic uses the zoom it is on); 1.0 = the same as the rest</div></label><div id="opticAdsBox" class="opticAdsBox"></div></div>
+          <div class="row"><label>Aim down sights <div class="hint">hold the button, or press once to aim and again to stop</div></label><select id="adsMode"><option value="hold">Hold</option><option value="toggle">Toggle</option></select></div>
+          <div class="row"><label>Crouch <div class="hint">hold, or press once to crouch and again to stand (a jump or a sprint stands you up)</div></label><select id="crouchMode"><option value="hold">Hold</option><option value="toggle">Toggle</option></select></div>
           <div class="derived" id="derived"></div>
           <div class="row"><label>Sprint <div class="hint">toggle is the default</div></label><select id="sprintMode"><option value="toggle">Toggle (press once)</option><option value="hold">Hold</option></select></div>
           <div class="row"><label>Sprint view shake <div class="hint">the game's own setting; Normal is its default</div></label><select id="sprintShake"><option value="normal">Normal</option><option value="minimal">Minimal</option><option value="off">Off</option></select></div>
@@ -309,6 +317,8 @@
           <div class="row"><label>Deadzone <div class="hint">percent of the stick; 12 is the game's default</div></label><input id="padDeadzone" type="number" min="0" max="30" step="1" /></div>
           <div class="row"><label>Auto sprint <div class="hint">push the stick forward to sprint; off, click it (L3)</div></label><select id="padAutoSprint"><option value="1">On</option><option value="0">Off</option></select></div>
           <div class="row"><label>Rumble <div class="hint">on shots and hits taken</div></label><select id="padRumble"><option value="1">On</option><option value="0">Off</option></select></div>
+          <div class="row"><label>Advanced look <div class="hint">the game's custom look controls: degrees a second at full stick (hip and aimed), and an extra turn at the stick's edge that ramps in</div></label><select id="padAdvanced"><option value="0">Off</option><option value="1">On</option></select></div>
+          <div class="row"><label></label><div id="padAdvancedBox" class="opticAdsBox" hidden></div></div>
           <div class="row"><label>Aim assist <div class="hint">the stick slows on a target, and the view follows 40% of its movement while you move; never on the mouse</div></label><select id="padAimAssist"><option value="1">On</option><option value="0">Off</option></select></div>
         <div class="derived perf">
           <span id="perfLine">Measuring your display…</span>

@@ -63,7 +63,15 @@ export interface VMFrame {
   onZip: boolean;
   /** a bow: 0..1 drawn */
   draw?: number;
+  /** 0..1 through an inspect (holding reload with a full magazine), or undefined */
+  inspect?: number;
+  /** 0..1 through a new gun's first-draw flourish, or undefined */
+  flourish?: number;
 }
+
+/** an inspect's length, s, and a first draw's flourish (ours: cosmetic, the gun is usable throughout) */
+export const INSPECT_TIME = 3.2;
+export const FLOURISH_TIME = 0.95;
 
 /** how hard the gun and the empty hands pump while sprinting (1 = the old swing) */
 const SPRINT_PUMP = 1.6;
@@ -664,6 +672,28 @@ export class ViewModel {
     p.z += turn * 0.08;
     ry -= turn * 0.7;
     rz += turn * 0.55;
+
+    // ---- an inspect: the gun comes up and turns to show its left side, then
+    // over to its right and top, and settles back into the hands
+    if (f.inspect !== undefined && f.inspect >= 0 && f.inspect < 1) {
+      const t = f.inspect;
+      const k1 = smooth(0.04, 0.26, t) - smooth(0.44, 0.62, t);
+      const k2 = smooth(0.44, 0.62, t) - smooth(0.84, 1, t);
+      const up = k1 + k2;
+      p.x -= 0.07 * up;
+      p.y += 0.05 * up;
+      p.z -= 0.05 * up;
+      ry += 1.05 * k1 - 0.75 * k2;
+      rz -= 0.55 * k1 - 0.95 * k2;
+      rx -= 0.2 * k1 - 0.35 * k2;
+    }
+    // ---- a new gun's first draw: a twirl round its barrel as it comes up
+    if (f.flourish !== undefined && f.flourish >= 0 && f.flourish < 1) {
+      const t = f.flourish;
+      rz += Math.PI * 2 * easeInOut(smooth(0.05, 0.75, t));
+      p.y += 0.035 * Math.sin(Math.PI * smooth(0, 0.9, t));
+      rx -= 0.25 * Math.sin(Math.PI * smooth(0, 0.9, t));
+    }
 
     this.pose.position.copy(p);
     this.pose.rotation.set(rx, ry, rz);

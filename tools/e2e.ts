@@ -864,6 +864,180 @@ async function throwTest(browser: Browser, query: string): Promise<void> {
   await guest.close();
 }
 
+/** a fake controller on a page (if it has none) and a button held or let go */
+const padSet = (i: number, on: boolean) =>
+  `(() => {
+    if (!window.__pad) {
+      const btn = () => ({ pressed: false, touched: false, value: 0 });
+      const pad = { index: 0, id: "fake pad", connected: true, mapping: "standard", timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, btn) };
+      window.__pad = pad;
+      navigator.getGamepads = () => [pad];
+    }
+    window.__pad.buttons[${i}].pressed = ${on};
+    window.__pad.buttons[${i}].value = ${on ? 1 : 0};
+  })()`;
+const padTap = async (page: Page, i: number, ms = 120): Promise<void> => {
+  await ev(page, padSet(i, true));
+  await sleep(ms);
+  await ev(page, padSet(i, false));
+  await sleep(120);
+};
+
+/**
+ * The finishing touches: toggle ADS and crouch, per-optic ADS, the
+ * controller's buttons and advanced look, weapon inspect and the first-draw
+ * flourish, and the guided tour from its first step to its last.
+ */
+async function finishTest(browser: Browser, query: string): Promise<void> {
+  const page = await open(browser, query);
+  await pressPlay(page);
+  // ---- toggle ADS: one press in, it stays in after the button is let go, the next press out
+  await ev(page, `(() => { const s = document.getElementById("adsMode"); s.value = "toggle"; s.dispatchEvent(new Event("change")); })()`);
+  await padTap(page, 6);
+  await sleep(500);
+  const aimed = await ev<number>(page, "window.__range.loadout.active.state.adsFrac");
+  await padTap(page, 6);
+  await sleep(500);
+  const out = await ev<number>(page, "window.__range.loadout.active.state.adsFrac");
+  check("toggle ADS: a press aims and it stays aimed; the next press comes out", aimed > 0.9 && out < 0.1, `${aimed.toFixed(2)} then ${out.toFixed(2)}`);
+  await ev(page, `(() => { const s = document.getElementById("adsMode"); s.value = "hold"; s.dispatchEvent(new Event("change")); })()`);
+  // ---- toggle crouch: a press crouches, it stays; a jump stands you up
+  await ev(page, `(() => { const s = document.getElementById("crouchMode"); s.value = "toggle"; s.dispatchEvent(new Event("change")); window.__range.player.teleport(0, 0, 0, 0); })()`);
+  await padTap(page, 1);
+  await sleep(400);
+  const down = await ev<boolean>(page, "window.__range.player.crouched");
+  await padTap(page, 0);
+  await sleep(500);
+  const up = await ev<boolean>(page, "window.__range.player.crouched");
+  check("toggle crouch: a press crouches and it holds; a jump stands you up", down && !up, `${down} then ${up}`);
+  await ev(page, `(() => { const s = document.getElementById("crouchMode"); s.value = "hold"; s.dispatchEvent(new Event("change")); })()`);
+  // ---- per-optic ADS: the 3x's multiplier applies with a 3x on
+  await ev(page, `(() => { const i = document.getElementById("opticAds3x"); i.value = "0.5"; i.dispatchEvent(new Event("input")); const l = window.__range.loadout; l.fitAttachment(l.activeIndex, "optic", "optic_ranged_hcog"); })()`);
+  await sleep(200);
+  const mult = await ev<number>(page, "window.__range.opticAdsMult()");
+  check("per-optic ADS: with the 3x on, its multiplier (0.5) applies", Math.abs(mult - 0.5) < 1e-9, String(mult));
+  await ev(page, `(() => { const i = document.getElementById("opticAds3x"); i.value = "1"; i.dispatchEvent(new Event("input")); })()`);
+  // ---- the controller's buttons: Y to reload, and it reloads
+  await ev(page, `(() => { const sel = document.querySelector('select.padBind[data-button="3"]'); sel.value = "reload"; sel.dispatchEvent(new Event("change")); })()`);
+  const mapped = await ev<string>(page, "window.__range.padButtons()[3]");
+  await ev(page, "(() => { const s = window.__range.loadout.active.state; s.clip = 3; })()");
+  await padTap(page, 3);
+  await sleep(200);
+  const reloading = await ev<boolean>(page, "window.__range.loadout.active.state.reloading");
+  check("controller buttons: Y set to reload on the Controls tab reloads", mapped === "reload" && reloading, `${mapped}, reloading ${reloading}`);
+  await ev(page, `(() => { const sel = document.querySelector('select.padBind[data-button="3"]'); sel.value = "swapWeapon"; sel.dispatchEvent(new Event("change")); })()`);
+  // ---- the advanced look: switched on, the numbers kept
+  await ev(page, `(() => { const s = document.getElementById("padAdvanced"); s.value = "1"; s.dispatchEvent(new Event("change")); const y = document.getElementById("pad_extraYaw"); y.value = "150"; y.dispatchEvent(new Event("change")); })()`);
+  const adv = await ev<{ advanced: boolean; extraYaw: number; saved: boolean }>(page, `({ advanced: window.__range.input.pad.settings.advanced, extraYaw: window.__range.input.pad.settings.extraYaw, saved: (JSON.parse(localStorage.getItem("range.pad.v1") || "{}").extraYaw === 150) })`);
+  check("advanced look: on, with the extra yaw set and remembered", adv.advanced && adv.extraYaw === 150 && adv.saved, JSON.stringify(adv));
+  await ev(page, `(() => { const s = document.getElementById("padAdvanced"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
+  // ---- inspect: hold reload with a full magazine; firing ends it
+  await sleep(2500);
+  await ev(page, "(() => { const s = window.__range.loadout.active.state; s.clip = window.__range.loadout.active.weapon.clipSize; })()");
+  await ev(page, padSet(2, true));
+  await sleep(700);
+  const inspecting = await ev<boolean>(page, "window.__range.vmState().inspecting");
+  await ev(page, padSet(2, false));
+  await padTap(page, 7);
+  const stopped = await ev<boolean>(page, "window.__range.vmState().inspecting");
+  check("inspect: holding reload with a full magazine turns the gun over; firing ends it", inspecting && !stopped, `${inspecting} then ${stopped}`);
+  // ---- a gun picked up: its first time out has the flourish
+  await ev(page, "(() => { const l = window.__range.loadout; l.give(l.activeIndex, 'r97'); })()");
+  const flourish = await page.waitForFunction("window.__range.vmState().flourish", { polling: 50, timeout: 3000 }).then(() => true, () => false);
+  check("first draw: a gun just picked up comes out with the flourish", flourish);
+  await page.close();
+
+  // ---- the guided tour, every step, from the Play tab
+  const t = await open(browser, query);
+  await ev(t, `document.getElementById("goTour").click()`);
+  await pressPlay(t);
+  const step = () => ev<string | null>(t, "window.__range.tour.stepId");
+  check("tour: the Play tab's button starts it at MOVE", (await step()) === "move", String(await step()));
+  // keys held from now on, pressed on the first frame only (a press every frame toggles a sprint on and off)
+  const hold = (keys: string[]) =>
+    `(() => { const K = ${JSON.stringify(keys)}; let f = 0; window.__range.setScript({ held: (a) => K.includes(a), pressedNow: (a) => K.includes(a) && f <= 1 }, () => { f++; }); })()`;
+  // the same, with a press of `again` every third of a second (a jump when you reach a wall)
+  const holdRepeat = (keys: string[], again: string) =>
+    `(() => { const K = ${JSON.stringify(keys)}; let f = 0; window.__range.setScript({ held: (a) => K.includes(a), pressedNow: (a) => (K.includes(a) && f <= 1) || (a === ${JSON.stringify(again)} && f % 20 === 0) }, () => { f++; }); })()`;
+  const ORDER = ["move", "sprint", "slide", "jump", "mantle", "climb", "superglide", "shoot", "reload", "swap", "heal", "ability", "grenade"];
+  // the tour moved from this step to the very next one (not merely "somewhere else")
+  const stepTo = async (id: string, timeout = 6000) => {
+    const next = ORDER[ORDER.indexOf(id) + 1] ?? null;
+    return t.waitForFunction(`window.__range.tour.stepId === ${JSON.stringify(next)}`, { polling: 50, timeout }).then(() => true, () => false);
+  };
+  const tp = (x: number, z: number, yaw: number) => ev(t, `window.__range.player.teleport(${x}, 0, ${z}, ${yaw})`);
+  // move: to the marker
+  await tp(0, -8, 0);
+  check("tour: MOVE done at the marker", await stepTo("move"));
+  // sprint: run to the next marker holding sprint
+  await tp(-6, -5, 0);
+  await ev(t, hold(["forward", "sprint"]));
+  check("tour: SPRINT done running to the marker", await stepTo("sprint", 8000), String(await step()));
+  await ev(t, "window.__range.setScript(null)");
+  // slide: sprint at the rail, then crouch
+  await tp(0, -16, 0);
+  await ev(t, hold(["forward", "sprint"]));
+  await sleep(700);
+  await ev(t, hold(["forward", "sprint", "crouch"]));
+  check("tour: SLIDE done", await stepTo("slide"), String(await step()));
+  await ev(t, "window.__range.setScript(null)");
+  await sleep(300);
+  // jump
+  await ev(t, hold(["jump"]));
+  check("tour: JUMP done", await stepTo("jump"));
+  await ev(t, "window.__range.setScript(null)");
+  await sleep(800);
+  // mantle: at the 2.4 m ledge (x -33 to -27 at z -58), too high to jump onto: forward, a jump at the face
+  await tp(-25.8, -58, 90);
+  await ev(t, holdRepeat(["forward"], "jump"));
+  check("tour: MANTLE done at the ledge", await stepTo("mantle", 8000), String(await step()));
+  await ev(t, "window.__range.setScript(null)");
+  await sleep(400);
+  // climb: into the ladder's wall (x 16 to 16.5 at z -46), forward, a jump at it
+  await tp(15, -46, -90);
+  await ev(t, holdRepeat(["forward"], "jump"));
+  check("tour: CLIMB done at the ladder", await stepTo("climb", 8000), String(await step()));
+  await ev(t, "window.__range.setScript(null)");
+  await sleep(1500);
+  // the superglide: skipped by holding interact (the pad's X)
+  await tp(25.5, -8, -90);
+  // back in the game by the controller's Start if the pointer lock has gone (a background page loses it)
+  await pressPlay(t);
+  await sleep(300);
+  await ev(t, padSet(2, true));
+  const skipped = await stepTo("superglide", 4000);
+  const diag = await ev(t, "({ step: window.__range.tour.stepId, playing: window.__range.input.playing, locked: window.__range.input.locked, active: window.__range.input.pad.active, interact: window.__range.input.held('interact'), skip: window.__range.hud.last?.tour?.skip })");
+  await ev(t, padSet(2, false));
+  check("tour: a step can be skipped by holding interact (the superglide)", skipped, JSON.stringify(diag));
+  // shoot: from the firing line, six metres from a dummy and facing it, a burst with the trigger
+  await ev(t, "window.__range.player.teleport(0, 0, -2, 0)");
+  await sleep(300);
+  await ev(t, `(() => { const r = window.__range; const d = r.dummies.find((x) => x.group.visible && !x.knocked); const p = d.group.position; const from = { x: p.x, z: p.z + 6 }; const yaw = Math.atan2(-(p.x - from.x), -(p.z - from.z)) * 180 / Math.PI; r.player.teleport(from.x, 0, from.z, yaw, -5); })()`);
+  await sleep(300);
+  await ev(t, padSet(7, true));
+  const shot = await stepTo("shoot", 3000);
+  await ev(t, padSet(7, false));
+  check("tour: SHOOT done with a real hit on a dummy", shot, JSON.stringify(await ev(t, "window.__range.stats()")));
+  // reload, swap
+  await ev(t, "(() => { window.__range.loadout.active.state.clip = 2; })()");
+  await padTap(t, 2);
+  check("tour: RELOAD done", await stepTo("reload"));
+  await sleep(2500);
+  await padTap(t, 3);
+  check("tour: SWAP done", await stepTo("swap"));
+  await sleep(800);
+  // heal: the tour's own shield is down; the heal key
+  await ev(t, "window.__range.startHeal()");
+  check("tour: HEAL done (the tour lends a shield to heal)", await stepTo("heal"), String(await step()));
+  // the ability, then a grenade
+  await ev(t, `(() => { window.__range.pickAbility("jolt"); window.__range.useAbility(); })()`);
+  check("tour: ABILITY done with a JOLT", await stepTo("ability"), String(await step()));
+  await ev(t, `(() => { const r = window.__range; r.throwAt("frag", r.player.eyePosition().clone(), new r.THREE.Vector3(0, 4, -10)); })()`);
+  const finished = await t.waitForFunction("window.__range.tour.stepId === null && localStorage.getItem('range.tour.done') === '1'", { polling: 100, timeout: 5000 }).then(() => true, () => false);
+  check("tour: GRENADE, and the tour is complete (remembered)", finished, String(await step()));
+  await t.close();
+}
+
 /** the range's tooling: moving dummies, dummies that shoot back, the spray wall, per-gun numbers, the flick drill */
 async function rangeTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
@@ -929,7 +1103,7 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   await page.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, throw, br, loot, modes, squad, p2p) */
+/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, modes, squad, p2p) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -1001,6 +1175,8 @@ async function main(): Promise<void> {
     if (res) {
       const skipped = res.splits.filter((s) => !Number.isFinite(s.time)).map((s) => s.name);
       check("with a split for every room and the finish", res.splits.length === 8 && skipped.length === 0, skipped.length ? `skipped ${skipped.join(",")}` : "8 splits");
+      const medals = (res.splits as Array<{ name: string; par?: number; medal?: string | null }>).slice(0, 7);
+      check("medals: every room has a par, and a run this quick takes gold in each", medals.every((s) => (s.par ?? 0) > 1 && s.medal === "gold"), JSON.stringify(medals.map((s) => `${s.name}:${s.medal}/${s.par}`)));
       // 1.5 s after the finish you are put back near the start, facing the results TV
       const back = await page
         .waitForFunction(`Math.abs(window.__range.player.pos.x - (${X} + 7)) < 0.3 && Math.abs(window.__range.player.pos.z - 11.4) < 0.3`, { polling: 200, timeout: 10000 })
@@ -1151,6 +1327,11 @@ async function main(): Promise<void> {
     if (want("loot")) {
       console.log("\nBattle royale: landing with nothing, the loot");
       await brLootTest(browser, "?norender");
+    }
+
+    if (want("finish")) {
+      console.log("\nThe finishing touches: toggles, per-optic ADS, the controller, inspect, the first draw, the tour");
+      await finishTest(browser, "?norender");
     }
 
     if (want("throw")) {
