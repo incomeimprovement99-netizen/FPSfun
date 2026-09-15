@@ -6,9 +6,13 @@
 // `npm run fps <verb>` is the same tool (like Algonomics' `npm run prod`); on
 // its own it is `health`, while `npm run deploy:server` on its own ships.
 //
-//   npm run fps deploy          build, ship, check            (writes: a new release)
-//   npm run fps dry             build and pack, then unpack and run the release here
-//                               on :4101 and play a 1v1 on it (everything but the ssh)
+//   npm run fps deploy          build the LAST COMMIT (a clean copy, whatever is
+//                               half-edited here is left out), ship, check
+//                               (writes: a new release); `deploy local` ships this
+//                               folder as it is instead
+//   npm run fps dry             build this folder as it is and pack it, then unpack and
+//                               run the release here on :4101 and play a 1v1 on it
+//                               (everything but the ssh)
 //   npm run fps check           from this PC: DNS, ssh, every firewall rule, /health
 //                               and a real datagram through the relay (read-only)
 //   npm run fps health          /health, pm2, coturn, caddy, memory, disk (read-only)
@@ -29,9 +33,9 @@
 //   DUCKDNS_TOKEN  optional, for `dns`: the token at the top of duckdns.org
 import { execFileSync, execSync, spawn, spawnSync } from "node:child_process";
 import { lookup } from "node:dns/promises";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { stunBinding, tcpProbe, turnRelay } from "./net-probe";
 
@@ -84,20 +88,46 @@ const scpDown = (from: string, to: string) => (needHost(), execFileSync(SCP, [..
 const out = (cmd: string) => execSync(cmd, { cwd: ROOT, encoding: "utf8" }).trim();
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** build the public beta and pack site/ + server/ into one tarball; returns its path and the version stamp */
-function pack(): { tgz: string; version: string } {
-  console.log("\n== building the public beta");
-  execSync("npm run build:beta", { cwd: ROOT, stdio: "inherit" });
+/**
+ * A clean copy of the last commit to build a release from, so a deploy ships
+ * exactly what is committed even while someone (another agent, say) is halfway
+ * through an edit in this folder: `git archive HEAD`, the fetched assets git
+ * ignores (public/tex, models, audio) copied in, and a junction to this
+ * folder's node_modules. dropSnapshot() removes it.
+ */
+function snapshot(): string {
+  const dir = mkdtempSync(join(tmpdir(), "range-head-"));
+  const tar = `${dir}.tar`;
+  execFileSync("git", ["archive", "--format=tar", "-o", tar, "HEAD"], { cwd: ROOT });
+  execFileSync(TAR, ["-xf", tar, "-C", dir]);
+  rmSync(tar, { force: true });
+  for (const f of execFileSync("git", ["ls-files", "-o", "-i", "--exclude-standard", "-z", "--", "public"], { cwd: ROOT, encoding: "utf8" }).split("\0").filter(Boolean)) {
+    mkdirSync(dirname(join(dir, f)), { recursive: true });
+    cpSync(join(ROOT, f), join(dir, f));
+  }
+  symlinkSync(join(ROOT, "node_modules"), join(dir, "node_modules"), "junction");
+  return dir;
+}
+function dropSnapshot(dir: string): void {
+  // the junction first, by itself, so nothing can ever walk into the real node_modules
+  unlinkSync(join(dir, "node_modules"));
+  rmSync(dir, { recursive: true, force: true });
+}
+
+/** build the public beta in `src` (this folder, or a snapshot of the last commit) and pack site/ + server/ into one tarball; returns its path and the version stamp */
+function pack(src = ROOT): { tgz: string; version: string } {
+  console.log(`\n== building the public beta${src === ROOT ? " from this folder as it is" : " from the last commit"}`);
+  execSync("npm run build:beta", { cwd: src, stdio: "inherit" });
   const sha = out("git rev-parse --short HEAD");
-  const dirty = out("git status --porcelain") ? "+local" : "";
+  const dirty = src === ROOT && out("git status --porcelain") ? "+local" : "";
   const version = `${sha}${dirty} ${new Date().toISOString().slice(0, 16)}Z`;
-  writeFileSync(join(ROOT, "dist", "version.txt"), `${version}\n`);
+  writeFileSync(join(src, "dist", "version.txt"), `${version}\n`);
   const stage = mkdtempSync(join(tmpdir(), "range-release-"));
   try {
-    cpSync(join(ROOT, "dist"), join(stage, "site"), { recursive: true });
+    cpSync(join(src, "dist"), join(stage, "site"), { recursive: true });
     mkdirSync(join(stage, "server"));
     for (const f of ["serve.mjs", "package.json", "package-lock.json", "ecosystem.config.cjs", "setup.sh"]) {
-      cpSync(join(ROOT, "server", "game", f), join(stage, "server", f));
+      cpSync(join(src, "server", "game", f), join(stage, "server", f));
     }
     const tgz = join(tmpdir(), `range-release-${Date.now()}.tgz`);
     // Windows' own tar (bsdtar), by its full path: from Git Bash the PATH finds GNU tar first, which reads
@@ -262,7 +292,8 @@ async function main(): Promise<void> {
   } else if (verb === "run") {
     const cmd = process.argv.slice(3).join(" ").trim();
     if (!cmd) throw new Error('run needs a command: npm run fps run "pm2 ls"');
-    ssh(`cd ~/range && ${cmd}`);
+    // in ~/range once setup has made it, the home directory before
+    ssh(`cd ~/range 2>/dev/null || cd; ${cmd}`);
   } else if (verb === "logs") {
     ssh("pm2 logs range --lines 60 --nostream");
   } else if (verb === "rollback") {
@@ -301,7 +332,22 @@ async function main(): Promise<void> {
     }
   } else if (verb === "deploy") {
     needHost();
-    const { tgz, version } = pack();
+    // the last commit, built from a clean copy; `deploy local` ships this folder as it is, uncommitted edits and all
+    const local = process.argv[3] === "local";
+    if (!local) {
+      console.log(`== deploying the last commit: ${execFileSync("git", ["log", "-1", "--format=%h %s"], { cwd: ROOT, encoding: "utf8" }).trim()}`);
+      const ahead = spawnSync("git", ["rev-list", "--count", "origin/main..HEAD"], { cwd: ROOT, encoding: "utf8" });
+      if (ahead.status === 0 && ahead.stdout.trim() !== "0") console.log(`   (${ahead.stdout.trim()} of them not pushed to origin/main yet)`);
+      if (out("git status --porcelain")) console.log("   (this folder has uncommitted changes, which this release leaves out: commit them first, or npm run fps deploy local)");
+    }
+    const src = local ? ROOT : snapshot();
+    let packed: { tgz: string; version: string };
+    try {
+      packed = pack(src);
+    } finally {
+      if (!local) dropSnapshot(src);
+    }
+    const { tgz, version } = packed;
     console.log(`\n== shipping ${version} to ${HOST}`);
     ssh("mkdir -p ~/range");
     scp(tgz, "range/incoming.tgz");
@@ -321,7 +367,7 @@ async function main(): Promise<void> {
     if (DOMAIN) {
       console.log(`\n== playing a 1v1 on https://${DOMAIN}/ through its own broker`);
       liveCheck(`https://${DOMAIN}/`);
-      console.log(`\n== live at https://${DOMAIN}/`);
+      console.log(`\n== live at https://${DOMAIN}/ (npm run fps check probes it from outside)`);
     }
   } else {
     console.error(`unknown: ${verb} (deploy, dry, check, health, logs, backup, ssh, setup, restart, rollback, dns, run)`);
