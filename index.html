@@ -201,6 +201,7 @@
             <div class="duelRow">
               <select id="duelMode" title="what to play"><option value="arena">Arena: 1v1 / 1v1v1</option><option value="br">Battle royale: a squad against the bots</option></select>
               <select id="duelPlayers" title="how many play"><option value="2">2 players</option><option value="3">3 players</option></select>
+              <select id="duelAbilities" title="JOLT (a 10 m dash, every 3 s) or TRIAGE (heals twice as fast), picked at the countdown or the landing"><option value="0">Abilities off</option><option value="1">Abilities on</option></select>
               <button id="duelHost" type="button">Create match</button>
               <span class="or">or</span>
               <input id="duelCode" placeholder="CODE" maxlength="5" autocomplete="off" spellcheck="false" />
@@ -214,6 +215,7 @@
             <div class="duelRow">
               <select id="botCount"><option value="1">1 bot</option><option value="2">2 bots</option></select>
               <select id="botDifficulty"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
+              <select id="botAbilities" title="JOLT or TRIAGE for you and the bots, picked at each countdown"><option value="0">Abilities off</option><option value="1">Abilities on</option></select>
               <span class="or">then Play tab, Arena Bots. Easy bots are slow and miss; hard ones sprint and land most of a mag.</span>
             </div>
           </div>
@@ -221,12 +223,14 @@
             <div class="duelTitle">Battle Royale, Bots</div>
             <div class="duelRow">
               <select id="brBots"><option value="11" selected>11 bots (12 in the match)</option><option value="7">7 bots</option><option value="5">5 bots</option><option value="3">3 bots</option></select>
+              <select id="brAbilities" title="JOLT or TRIAGE, picked when you land; on by default"><option value="1">Abilities on</option><option value="0">Abilities off</option></select>
               <span class="or">the difficulty above. Then Play tab, Battle Royale. You drop onto one of five places; the ring closes six times; 4 heals (cells then syringes); M is the map.</span>
             </div>
           </div>
           <ul class="rules">
             <li>1v1: three lanes. 1v1v1: a triangle, a corner each. First to 3 rounds, blue shields and 100 health.</li>
             <li>20 s into a round the circle in the middle goes live. Stand in it alone for 10 s to take the round. The last one standing takes it at any time.</li>
+            <li>Abilities (a setting per match; the battle royale has them on): pick <b>JOLT</b> (a 10 m dash the way you are moving, every 3 s, key F) or <b>TRIAGE</b> (every heal twice as fast) with 5 or 6 when the card comes up: at each countdown, or when you land. In the range, 5 and 6 pick one any time to try it.</li>
             <li>You play with your selected loadout: <b id="duelLoadout"></b>. Change it on the Loadouts tab any time; weapons swap straight away.</li>
             <li>It connects your browser straight to your friends'. Most home internet works; some school, work or phone networks block it. With three, the host's connection carries the match.</li>
           </ul>

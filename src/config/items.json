@@ -1,0 +1,9 @@
+{
+  "_note": "Heal items: amount and use time, seconds (docs/RESEARCH_PHASE_11.md has the sources). `kit` is what a 1v1 and a bot match give you each life; `bots` what a bot carries.",
+  "heals": {
+    "cell": { "name": "Shield cell", "shield": 25, "health": 0, "time": 2.5 },
+    "syringe": { "name": "Syringe", "shield": 0, "health": 25, "time": 4 }
+  },
+  "kit": { "cell": 4, "syringe": 4 },
+  "bots": { "cell": 4, "syringe": 2 }
+}

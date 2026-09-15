@@ -39,6 +39,14 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
     ],
   },
   {
+    title: "Abilities",
+    actions: [
+      ["ability", "Use your ability (JOLT)"],
+      ["pickAbility1", "Pick JOLT (when offered)"],
+      ["pickAbility2", "Pick TRIAGE (when offered)"],
+    ],
+  },
+  {
     title: "Attachments",
     actions: [
       ["magLevel", "Magazine level"],

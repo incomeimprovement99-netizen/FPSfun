@@ -1,0 +1,21 @@
+{
+  "_note": "The two abilities you pick on landing (battle royale) or at the first countdown (1v1v1, bots). Names are ours. JOLT's distance and cooldown are the owner's numbers; its duration and exit speed are ours. TRIAGE's scale is the owner's (twice as fast = every heal item's use time halved).",
+  "jolt": {
+    "name": "JOLT",
+    "blurb": "dash 10 m the way you are moving, every 3 s",
+    "distance": 10,
+    "duration": 0.18,
+    "cooldown": 3,
+    "exitSpeedHu": 260
+  },
+  "triage": {
+    "name": "TRIAGE",
+    "blurb": "every heal works twice as fast",
+    "healSpeed": 2
+  },
+  "bots": {
+    "_note": "ours: a JOLT bot jolts sideways when it has been hit in the last this many seconds; every bot heals when it has had no target for healAfter seconds",
+    "joltWhenHitWithin": 0.4,
+    "healAfter": 4
+  }
+}

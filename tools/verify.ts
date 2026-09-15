@@ -14,6 +14,8 @@ import * as THREE from "three";
 import { MODELLED_IDS } from "../src/game/gunmodels";
 import { movesimFails } from "./movesim";
 import { HU, MOVE, jumpVelocityFor, slideBreakEvenAngle, SLIDE_RAMP_ANGLE } from "../src/game/movement";
+import { Abilities, abilityCode, abilityFromCode } from "../src/game/abilities";
+import itemsCfg from "../src/config/items.json";
 
 let fails = 0;
 const eq = (label: string, got: unknown, want: unknown) => {
@@ -994,6 +996,37 @@ console.log("Apex movement constants (apexmovement.tech; engine values where not
   near("ramp run, metres", rampRun, 7.83, 0.02);
   eq("slope slide is capped", MOVE.slideSlopeMaxSpeed > MOVE.slideSpeedBoostCap, true);
   near("slope slide cap", hu(MOVE.slideSlopeMaxSpeed), 560, 1e-9);
+}
+
+console.log("");
+console.log("Abilities: JOLT and TRIAGE (src/config/abilities.json)");
+{
+  const a = new Abilities();
+  a.reset(true);
+  eq("nothing picked at the start", a.picked, null);
+  eq("JOLT refused before a pick", a.tryJolt(10), false);
+  a.offer(10);
+  eq("the card goes up when offered", a.choosing, true);
+  a.pick("jolt");
+  eq("a pick takes the card down", a.choosing, false);
+  eq("JOLT goes", a.tryJolt(10), true);
+  near("then its cooldown is 3 s", a.cooldownLeft(10), 3, 1e-9);
+  eq("refused 2.9 s later", a.tryJolt(12.9), false);
+  eq("ready at 3 s", a.tryJolt(13), true);
+  eq("JOLT's heal scale is 1", a.healScale, 1);
+  a.pick("triage");
+  eq("TRIAGE: heals twice as fast", a.healScale, 2);
+  near("a shield cell with TRIAGE, s", itemsCfg.heals.cell.time / a.healScale, 1.25, 1e-9);
+  near("a syringe with TRIAGE, s", itemsCfg.heals.syringe.time / a.healScale, 2, 1e-9);
+  eq("TRIAGE is not a dash", a.tryJolt(100), false);
+  const off = new Abilities();
+  off.reset(false);
+  off.offer(0);
+  eq("abilities off: no card", off.choosing, false);
+  off.pick("triage");
+  eq("abilities off: no pick, no scale", off.healScale, 1);
+  eq("network codes round-trip", abilityFromCode(abilityCode("triage")), "triage");
+  eq("a bad code is none", abilityFromCode(9), null);
 }
 
 console.log("");

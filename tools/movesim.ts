@@ -1489,6 +1489,70 @@ console.log("\nThe advanced course: every gate needs its technique");
   check("zip: riding it out lands you by the exit door", zr.p.pos.z > 158, `z ${zr.p.pos.z.toFixed(1)} x ${zr.p.pos.x.toFixed(1)}`);
 }
 
+// ------------------------------------------------------------------ JOLT
+console.log("\nJOLT, the dash ability (src/config/abilities.json: 10 m over 0.18 s, the owner's distance)");
+{
+  const JD = 10;
+  const JT = 0.18;
+  const EXIT = 260 * HU;
+  // standing still on open ground, facing -z, no keys: forward
+  const a = new Sim();
+  a.p.pos.set(0, 0, 0);
+  a.p.yaw = 0;
+  a.frame();
+  const dir = a.p.moveDir(a.in);
+  check("no keys held: JOLT goes forward", Math.abs(dir.x) < 1e-6 && dir.z < -0.99, `(${dir.x.toFixed(2)}, ${dir.z.toFixed(2)})`);
+  check("it starts", a.p.jolt(dir.x, dir.z, JD, JT, EXIT));
+  const z0 = a.p.pos.z;
+  a.run(JT);
+  near("covers 10 m in its 0.18 s, m", z0 - a.p.pos.z, JD, 0.3);
+  check("and is over by then", !a.p.jolting);
+  near("leaves at 260 hu/s", a.speedHu, 260, 1);
+  // a second one during the first is refused (the cooldown is the ability's; the movement refuses overlap)
+  const b = new Sim();
+  b.p.pos.set(0, 0, 0);
+  b.frame();
+  b.p.jolt(0, -1, JD, JT, EXIT);
+  check("a JOLT during a JOLT is refused", !b.p.jolt(1, 0, JD, JT, EXIT));
+  // strafing right: goes right
+  const r = new Sim();
+  r.p.pos.set(0, 0, 0);
+  r.p.yaw = 0;
+  r.in.hold("right");
+  r.frame();
+  const rd = r.p.moveDir(r.in);
+  check("holding D: JOLT goes right (+x at yaw 0)", rd.x > 0.99, `(${rd.x.toFixed(2)}, ${rd.z.toFixed(2)})`);
+  // a wall 4 m ahead stops it
+  const w = new Sim([{ minX: -5, maxX: 5, minZ: -5, maxZ: -4, top: 4 }]);
+  w.p.pos.set(0, 0, 0);
+  w.p.yaw = 0;
+  w.frame();
+  w.p.jolt(0, -1, JD, JT, EXIT);
+  w.run(JT + 0.05);
+  check("a wall 4 m ahead stops it at the wall", w.p.pos.z > -4 - 0.01 && w.p.pos.z < -3.4, `z ${w.p.pos.z.toFixed(2)}`);
+  // in the air it stays level for its duration
+  const air = new Sim();
+  air.p.pos.set(0, 0, 0);
+  air.frame();
+  air.in.tap("jump");
+  air.run(0.2);
+  const y0 = air.p.pos.y;
+  check("mid-jump it starts", air.p.jolt(0, -1, JD, JT, EXIT));
+  let worst = 0;
+  air.run(JT - 0.01, () => (worst = Math.max(worst, Math.abs(air.p.pos.y - y0))));
+  check("and holds you level through it", worst < 0.01, `moved ${worst.toFixed(3)} m vertically`);
+  // not on a zipline, a mantle, a climb or the drop
+  const dz = new Sim();
+  dz.p.beginDrop(0, 50, 0, 0);
+  check("not in the drop", !dz.p.jolt(0, -1, JD, JT, EXIT));
+  // the sprint numbers are untouched
+  const s = new Sim();
+  s.in.hold("forward");
+  s.in.tap("sprint");
+  s.run(3);
+  near("sprint is still 260 hu/s", s.speedHu, 260, 0.05);
+}
+
 console.log(fails === 0 ? "\nMOVESIM PASS" : `\nMOVESIM FAIL (${fails})`);
 export const movesimFails = fails;
 if (process.argv[1]?.endsWith("movesim.ts")) process.exit(fails === 0 ? 0 : 1);

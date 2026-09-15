@@ -168,6 +168,12 @@ export interface MatchLike {
   streak: number;
   /** knocked with others still standing: a figure to watch, or null */
   spectateTarget(): Dummy | null;
+  /** JOLT and TRIAGE are on in this match (the host's setting) */
+  readonly abilities: boolean;
+  /** an effect of this player's for the others (a JOLT from a to b) */
+  localFx(k: string, a?: THREE.Vector3, b?: THREE.Vector3): void;
+  /** someone else's effect (a player's, or a bot's): draw and play it */
+  onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3) => void) | null;
 }
 
 export class Duel implements MatchLike {
@@ -238,6 +244,9 @@ export class Duel implements MatchLike {
   onRoster: ((connected: number, players: number) => void) | null = null;
   /** the host: a guest left before round 1, so their place can be taken again */
   onSlotFree: ((id: number) => void) | null = null;
+  onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3) => void) | null = null;
+  /** JOLT and TRIAGE are on (the host's setting, told to the guests in the welcome) */
+  readonly abilities: boolean;
 
   /**
    * A host passes its guests' links as they arrive (`addGuest` for the
@@ -255,10 +264,11 @@ export class Duel implements MatchLike {
   constructor(
     protected scene: THREE.Scene,
     protected projectiles: ProjectileSystem,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; mode?: "duel" | "br" }
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; mode?: "duel" | "br"; abilities?: boolean }
   ) {
     const now = wallClock();
     this.mode = opts.mode ?? "duel";
+    this.abilities = opts.abilities ?? false;
     this.players = this.mode === "br" ? Math.max(1, Math.min(3, opts.players)) : Math.max(2, Math.min(3, opts.players));
     this.id = opts.myId;
     this.role = this.id === 0 ? "host" : "guest";
@@ -440,6 +450,15 @@ export class Duel implements MatchLike {
     // the host only listens to links it still holds; a guest it dropped for
     // silence must not come back as a figure with no link behind it
     if (this.role === "host" && !this.links.has(via)) return;
+    // an effect: drawn where it happened, passed on by the host; it makes no figure
+    if (m.t === "fx") {
+      if (!fxWellFormed(m)) return;
+      const known = this.remotes.get(from);
+      if (known) known.lastHeard = now;
+      this.onRemoteFx?.(m.k, from, m.a ? new THREE.Vector3(...m.a) : undefined, m.b ? new THREE.Vector3(...m.b) : undefined);
+      this.relay(m, from);
+      return;
+    }
     // a goodbye or a stray message from someone unknown makes no figure
     if (m.t === "bye" || m.t === "ping" || m.t === "pong" || m.t === "round" || m.t === "zone" || m.t === "hello" || m.t === "welcome" || m.t === "ring" || m.t === "brend") {
       const known = this.remotes.get(from);
@@ -706,6 +725,11 @@ export class Duel implements MatchLike {
     this.broadcast({ t: "shot", o: [origin.x, origin.y, origin.z], d: [dir.x, dir.y, dir.z], w: weapon });
   }
 
+  /** this player's effect (a JOLT), for the others */
+  localFx(k: string, a?: THREE.Vector3, b?: THREE.Vector3): void {
+    this.broadcast({ t: "fx", k, a: a ? [a.x, a.y, a.z] : undefined, b: b ? [b.x, b.y, b.z] : undefined });
+  }
+
   /** one of this player's bullets hit another player's figure */
   localHit(r: Remote, amount: number, head: boolean): void {
     if (this.phase !== "fight" || !r.alive) return;
@@ -931,6 +955,11 @@ const wall = (now: number): number => now;
 
 const finite = (...xs: unknown[]): boolean => xs.every((x) => typeof x === "number" && Number.isFinite(x));
 const vec3 = (v: unknown): boolean => Array.isArray(v) && v.length === 3 && finite(...v);
+
+/** an effect: a short name and, if there, finite points */
+function fxWellFormed(m: Extract<NetMsg, { t: "fx" }>): boolean {
+  return typeof m.k === "string" && m.k.length <= 16 && (m.a === undefined || vec3(m.a)) && (m.b === undefined || vec3(m.b));
+}
 
 /** the packets that make or move a figure, checked field by field */
 function wellFormed(m: NetMsg): boolean {

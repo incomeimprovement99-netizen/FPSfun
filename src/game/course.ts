@@ -527,7 +527,7 @@ export class Course {
     g.textAlign = "center";
     g.fillStyle = "#6f7a85";
     g.font = font(600, 28);
-    g.fillText("Turn round: the start line is behind you.  F resets.  P copies your result.  K toggles the ghost.", W / 2, H - 28);
+    g.fillText("Turn round: the start line is behind you.  Y resets.  P copies your result.  K toggles the ghost.", W / 2, H - 28);
     this.tvTex.needsUpdate = true;
   }
 

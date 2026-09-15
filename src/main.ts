@@ -34,7 +34,7 @@ import { Duel, SHIELD_MAX, HEALTH_MAX, type MatchLike } from "./game/duel";
 import { BotMatch } from "./game/bots";
 import { Stats, type MatchKind, type BotDifficulty } from "./game/stats";
 import { submitScore } from "./game/leaderboard";
-import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link } from "./net/link";
+import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link, type MatchOpts } from "./net/link";
 import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
 import { AimAssist } from "./game/aimassist";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
@@ -46,6 +46,11 @@ import { setArmColors } from "./game/arms";
 import { Menu, type Mode } from "./ui/menu";
 import type { ImpactEvent } from "./game/projectile";
 import { MELEE_TIME } from "./game/viewmodel";
+import { Abilities, ABILITIES, JOLT, type AbilityId } from "./game/abilities";
+import { currentBinds, type Action } from "./game/input";
+import { bindName } from "./ui/binds";
+import { FxLayer } from "./game/fx";
+import itemsCfg from "./config/items.json";
 
 const DEG = Math.PI / 180;
 /** slot 1 and slot 2. Keys 1 and 2 select, Q swaps. */
@@ -517,6 +522,11 @@ let aimYaw = 0;
 let aimPitch = 0;
 const audio = new GameAudio();
 const hud = new Hud($<HTMLCanvasElement>("hud"));
+/** JOLT and TRIAGE (abilities.ts): the pick, the cooldown; the match (or the range) switches them on */
+const abilities = new Abilities();
+abilities.enabled = true; // the range lets you practise either
+/** short-lived world effects: JOLT streaks (fx.ts) */
+const fx = new FxLayer(scene);
 /**
  * ?norender: run the simulation and the network without drawing. Only for the
  * end-to-end test, which runs two pages at once on a software renderer.
@@ -576,6 +586,46 @@ const duelMode = $<HTMLSelectElement>("duelMode");
 const botDifficulty = $<HTMLSelectElement>("botDifficulty");
 const botCount = $<HTMLSelectElement>("botCount");
 const brBots = $<HTMLSelectElement>("brBots");
+// Abilities on or off, per kind of match, remembered: the friends' arena and
+// the bots off by default, the battle royale on. The friends' select follows
+// the mode picked beside it (a squad BR shows the BR's setting).
+const duelAbilities = $<HTMLSelectElement>("duelAbilities");
+const botAbilities = $<HTMLSelectElement>("botAbilities");
+const brAbilities = $<HTMLSelectElement>("brAbilities");
+const ABILITY_DEFAULTS: Record<"arena" | "bots" | "br", "0" | "1"> = { arena: "0", bots: "0", br: "1" };
+const abilitySetting = (kind: "arena" | "bots" | "br"): boolean => {
+  try {
+    const v = localStorage.getItem(`range.abilities.${kind}`);
+    return (v === "0" || v === "1" ? v : ABILITY_DEFAULTS[kind]) === "1";
+  } catch {
+    return ABILITY_DEFAULTS[kind] === "1";
+  }
+};
+const setAbilitySetting = (kind: "arena" | "bots" | "br", on: boolean): void => {
+  try {
+    localStorage.setItem(`range.abilities.${kind}`, on ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+};
+const duelKind = (): "arena" | "br" => (duelMode.value === "br" ? "br" : "arena");
+const showAbilitySettings = (): void => {
+  duelAbilities.value = abilitySetting(duelKind()) ? "1" : "0";
+  botAbilities.value = abilitySetting("bots") ? "1" : "0";
+  brAbilities.value = abilitySetting("br") ? "1" : "0";
+};
+showAbilitySettings();
+duelAbilities.addEventListener("change", () => {
+  setAbilitySetting(duelKind(), duelAbilities.value === "1");
+  showAbilitySettings();
+});
+botAbilities.addEventListener("change", () => setAbilitySetting("bots", botAbilities.value === "1"));
+brAbilities.addEventListener("change", () => {
+  setAbilitySetting("br", brAbilities.value === "1");
+  showAbilitySettings();
+});
+// choosing the battle royale on the friends' row shows its own setting (on unless you turned it off)
+duelMode.addEventListener("change", showAbilitySettings);
 try {
   const bb = localStorage.getItem("range.br.bots");
   if (bb && [...brBots.options].some((o) => o.value === bb)) brBots.value = bb;
@@ -644,30 +694,30 @@ function respawnForMatch(d: MatchLike): void {
   // full magazines, settled spread and recoil, gun out, a full heal kit
   for (const sl of loadout.slots) sl.state.setWeapon(sl.weapon);
   holster = "out";
-  kit.cells = KIT_CELLS;
-  kit.syringes = KIT_SYRINGES;
+  kit.cells = itemsCfg.kit.cell;
+  kit.syringes = itemsCfg.kit.syringe;
   heal = null;
 }
 
 // ---------- healing ----------
-// Apex's two small items, the numbers its own: a shield cell is 25 shield
-// over 2.5 s, a syringe 25 health over 4 s. Four of each per life; the heal
-// key takes a cell while the shield is down, else a syringe. Firing or aiming
-// cancels it; the item is only spent when it finishes.
-const KIT_CELLS = 4;
-const KIT_SYRINGES = 4;
-const HEAL_ITEMS = { cell: { name: "Shield cell", time: 2.5, amount: 25 }, syringe: { name: "Syringe", time: 4, amount: 25 } } as const;
-const kit = { cells: KIT_CELLS, syringes: KIT_SYRINGES };
-let heal: { item: keyof typeof HEAL_ITEMS; startedAt: number } | null = null;
+// Apex's items, the numbers its own (src/config/items.json): a shield cell is
+// 25 shield over 2.5 s, a syringe 25 health over 4 s. The kit per life is in
+// the config; the heal key takes a cell while the shield is down, else a
+// syringe. Firing or aiming cancels it; the item is only spent when it
+// finishes. TRIAGE halves every time.
+type HealItem = keyof typeof itemsCfg.heals;
+const HEAL_ITEMS = itemsCfg.heals;
+const kit = { cells: itemsCfg.kit.cell, syringes: itemsCfg.kit.syringe };
+let heal: { item: HealItem; startedAt: number; duration: number } | null = null;
 function startHeal(now: number): void {
   if (!duel || !duel.alive || heal) return;
-  const item: keyof typeof HEAL_ITEMS | null =
+  const item: HealItem | null =
     duel.shield < SHIELD_MAX && kit.cells > 0 ? "cell" : duel.health < HEALTH_MAX && kit.syringes > 0 ? "syringe" : null;
   if (!item) {
     hud.notice(kit.cells + kit.syringes === 0 ? "NO HEALS LEFT" : duel.shield >= SHIELD_MAX && duel.health >= HEALTH_MAX ? "FULL" : kit.cells === 0 ? "NO CELLS LEFT" : "NO SYRINGES LEFT", now, 1);
     return;
   }
-  heal = { item, startedAt: now };
+  heal = { item, startedAt: now, duration: HEAL_ITEMS[item].time / abilities.healScale };
 }
 /** the heal in progress: cancelled by firing or aiming, applied when its time is up */
 function updateHeal(now: number, cancel: boolean): void {
@@ -677,17 +727,67 @@ function updateHeal(now: number, cancel: boolean): void {
     return;
   }
   const it = HEAL_ITEMS[heal.item];
-  if (now - heal.startedAt < it.time) return;
-  if (heal.item === "cell") {
-    duel.shield = Math.min(SHIELD_MAX, duel.shield + it.amount);
-    kit.cells--;
-  } else {
-    duel.health = Math.min(HEALTH_MAX, duel.health + it.amount);
-    kit.syringes--;
-  }
+  if (now - heal.startedAt < heal.duration) return;
+  duel.shield = Math.min(SHIELD_MAX, duel.shield + it.shield);
+  duel.health = Math.min(HEALTH_MAX, duel.health + it.health);
+  if (heal.item === "cell") kit.cells--;
+  else kit.syringes--;
   audio.reload();
   heal = null;
 }
+// ---------- abilities: JOLT and TRIAGE ----------
+/** the key an action is on, as the HUD shows it */
+const keyLabel = (a: Action): string => bindName(currentBinds()[a]?.[0] ?? "?").toUpperCase();
+function pickAbility(id: AbilityId, now: number): void {
+  if (!abilities.enabled) return;
+  abilities.pick(id);
+  const a = ABILITIES[id];
+  hud.notice(`${a.name}: ${a.blurb.toUpperCase()}${id === "jolt" ? `  (${keyLabel("ability")})` : ""}`, now, 2.2);
+  audio.reload();
+}
+/**
+ * The ability key. JOLT dashes the way the movement keys point (forward with
+ * none); the streak and the sound go to the others. TRIAGE has nothing to
+ * press: it says so.
+ */
+function useAbility(now: number): void {
+  if (!abilities.enabled) return;
+  if (!abilities.picked) {
+    hud.notice(abilities.choosing ? `PICK AN ABILITY FIRST: ${keyLabel("pickAbility1")} JOLT, ${keyLabel("pickAbility2")} TRIAGE` : "NO ABILITY IN THIS MATCH", now, 1.4);
+    return;
+  }
+  if (abilities.picked === "triage") {
+    hud.notice("TRIAGE IS ALWAYS ON: YOUR HEALS ARE TWICE AS FAST", now, 1.4);
+    return;
+  }
+  if (player.dropping) return;
+  const left = abilities.cooldownLeft(now);
+  if (left > 0) {
+    hud.notice(`JOLT READY IN ${left.toFixed(1)} S`, now, 0.6);
+    return;
+  }
+  const d = player.moveDir(scriptInput ?? input);
+  const from = player.pos.clone();
+  if (!abilities.tryJolt(now)) return;
+  if (!player.jolt(d.x, d.z, JOLT.distance, JOLT.duration, JOLT.exitSpeedHu * HU)) {
+    abilities.refund();
+    return;
+  }
+  // where it will end: a wall ahead stops it
+  const dir = new THREE.Vector3(d.x, 0, d.z);
+  const reach = Math.max(0, Math.min(JOLT.distance, solidHit(from.clone().setY(from.y + 1), dir, JOLT.distance) - MOVE.radius));
+  const to = from.clone().addScaledVector(dir, reach);
+  // your own streak only from behind: in first person you are inside it
+  if (thirdPerson) fx.jolt(from, to, now);
+  audio.jolt(1);
+  duel?.localFx("jolt", from, to);
+}
+/** the match's phase last frame, and whether you were in the drop: the card comes up on a change */
+let lastMatchPhase: string | null = null;
+let wasDropping = false;
+/** extra field of view through a JOLT, eased */
+let joltFov = 0;
+
 /** the full map (M); shown by itself through a battle royale's drop */
 let mapOpen = false;
 /** the callbacks every kind of match gets */
@@ -702,6 +802,17 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onNotice = (t) => hud.notice(t, gameTime, 1);
   d.onEnd = (reason) => endMatch(reason);
   d.onFeed = (text, mine, neutral) => hud.feed(text, gameTime, neutral ? "#c8d0d8" : mine ? "#7ddc8a" : "#ff8a7a");
+  // someone else's JOLT: the streak where it went, and its sound by distance
+  d.onRemoteFx = (k, from, a, b) => {
+    remoteFxLog.push({ k, from });
+    if (remoteFxLog.length > 20) remoteFxLog.shift();
+    if (k === "jolt" && a && b) {
+      fx.jolt(a, b, gameTime);
+      audio.jolt(10 / Math.max(10, a.distanceTo(player.pos)));
+    }
+  };
+  // abilities are the match's: on or off, nothing picked yet (the card comes at the countdown or the landing)
+  abilities.reset(d.abilities);
   d.streak = profile.match(kind).streak;
   d.onMatchEnd = (s) => {
     profile.recordMatch(kind, s);
@@ -713,11 +824,15 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       });
   };
 }
+/** the others' effects as they arrived, for the tests */
+const remoteFxLog: Array<{ k: string; from: number }> = [];
 /** the host's battle royale settings, fixed at Create so every guest's welcome says the same */
 let hostBr: BrWelcome | null = null;
+/** the host's settings (abilities on or off), fixed at Create, in every guest's welcome */
+let hostOpts: MatchOpts | null = null;
 
 /** a friend's match: the host on its first guest, or a guest on the host's welcome (`br`: a battle royale squad) */
-function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: BrWelcome): void {
+function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: BrWelcome, opts?: MatchOpts): void {
   if (duel && duel.kind === "duel") {
     // the host's second guest joins the match in progress
     if (myId === 0 && duel instanceof Duel) {
@@ -734,14 +849,16 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   cancelJoin = null;
   for (const c of courses) c.leave();
   const squad = myId === 0 ? hostBr : (br ?? null);
+  // the host's own choice, or what the host's welcome said (an older host sends none: off)
+  const withAbilities = myId === 0 ? (hostOpts?.abilities ?? false) : (opts?.abilities ?? false);
   let d: Duel;
   if (squad) {
     const diff: BotDifficulty = squad.difficulty === "easy" || squad.difficulty === "hard" ? squad.difficulty : "normal";
-    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi });
+    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities });
     duel = d;
     wireMatch(d, "br");
   } else {
-    d = new Duel(scene, projectiles, { players, myId, link, guestId });
+    d = new Duel(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities });
     duel = d;
     player.setBounds(players >= 3 ? TRI_BOUNDS : ARENA_BOUNDS);
     wireMatch(d, players >= 3 ? "triple" : "duel");
@@ -769,7 +886,7 @@ function startBots(): void {
   cancelJoin = null;
   for (const c of courses) c.leave();
   const diff = (botDifficulty.value === "easy" || botDifficulty.value === "hard" ? botDifficulty.value : "normal") as BotDifficulty;
-  const d = new BotMatch(scene, projectiles, diff, Number(botCount.value) === 2 ? 2 : 1);
+  const d = new BotMatch(scene, projectiles, diff, Number(botCount.value) === 2 ? 2 : 1, abilitySetting("bots"));
   duel = d;
   player.setBounds(ARENA_BOUNDS);
   wireMatch(d, `bots:${diff}`);
@@ -787,7 +904,7 @@ function startBr(): void {
   for (const c of courses) c.leave();
   const diff = brDifficulty();
   const bots = brBotCount();
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null });
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br") });
   duel = d;
   wireMatch(d, "br");
   // the drop starts on the first frame in the game (respawnForMatch, from the countdown)
@@ -800,6 +917,8 @@ function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
   duel?.dispose();
   duel = null;
+  // back in the range: either ability to practise, nothing picked
+  abilities.reset(true);
   heal = null;
   mapOpen = false;
   if (wasBr) setRegion("range");
@@ -823,6 +942,7 @@ duelHostBtn.addEventListener("click", () => {
   // a battle royale squad: the place, the bots and the difficulty are fixed
   // now so every guest is told the same
   hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty() } : null;
+  hostOpts = { abilities: abilitySetting(duelKind()) };
   setDuelStatus("Making a match...", "live");
   hosting = hostMatch(
     players,
@@ -848,7 +968,8 @@ duelHostBtn.addEventListener("click", () => {
       hosting = null;
       duelButtons();
     },
-    hostBr ?? undefined
+    hostBr ?? undefined,
+    hostOpts
   );
   duelButtons();
   // the lobby is the arena itself: in at once, run around, the code on the
@@ -865,7 +986,7 @@ duelJoinBtn.addEventListener("click", () => {
   hosting = null;
   cancelJoin?.();
   setDuelStatus("Joining...", "live");
-  cancelJoin = joinMatch(duelCode.value, (link, w) => startDuel(link, w.players, w.id, 1, w.br), (err) => setDuelStatusText(err, "bad"));
+  cancelJoin = joinMatch(duelCode.value, (link, w) => startDuel(link, w.players, w.id, 1, w.br, w.opts), (err) => setDuelStatusText(err, "bad"));
 });
 duelCode.addEventListener("keydown", (e) => {
   if (e.key === "Enter") duelJoinBtn.click();
@@ -1289,8 +1410,9 @@ function step(): void {
       if (ws.reloading) audio.reload();
     }
     // weapon select: 1 and 2 pick a slot, Q swaps to the other
-    if (armed && input.pressedNow("slot1")) loadout.requestSwap(0, now);
-    if (armed && input.pressedNow("slot2")) loadout.requestSwap(1, now);
+    const cardTakesPad = abilities.choosing;
+    if (armed && input.pressedNow("slot1") && !(cardTakesPad && input.pad.pressedNow("slot1"))) loadout.requestSwap(0, now);
+    if (armed && input.pressedNow("slot2") && !(cardTakesPad && input.pad.pressedNow("slot2"))) loadout.requestSwap(1, now);
     // Q or the forward thumb button, which is where most players bind swap
     if (armed && input.pressedNow("swapWeapon")) loadout.requestNext(now);
     if (input.pressedNow("cycleArmor")) {
@@ -1337,6 +1459,15 @@ function step(): void {
     // 4: a heal; M: the map
     if (input.pressedNow("heal")) startHeal(now);
     if (input.pressedNow("map")) mapOpen = !mapOpen;
+    // 5 and 6 pick an ability while its card is up (any time in the range);
+    // on a controller the d-pad's left and right pick while the card is up
+    if (abilities.enabled && (abilities.choosing || !duel)) {
+      const padPick = abilities.choosing;
+      if (input.pressedNow("pickAbility1") || (padPick && input.pad.pressedNow("slot1"))) pickAbility("jolt", now);
+      else if (input.pressedNow("pickAbility2") || (padPick && input.pad.pressedNow("slot2"))) pickAbility("triage", now);
+    }
+    // F: the ability
+    if (input.pressedNow("ability") && !knockedOut) useAbility(now);
     // K: race your best run's ghost, or not
     if (input.pressedNow("ghost")) {
       const course = activeCourse();
@@ -1500,7 +1631,8 @@ function step(): void {
   const adsV = verticalFovFrom43(adsH);
   // Sliding widens the view by slideFovScale (an engine value). Sprint does
   // not: the sprint FOV kick that was here was ours, and Apex has none.
-  const speedFov = player.slideFov * (1 - ws.adsFrac);
+  joltFov += ((player.jolting ? 0.12 : 0) - joltFov) * Math.min(1, dt / 0.06);
+  const speedFov = (player.slideFov + joltFov) * (1 - ws.adsFrac);
   camera.fov = (hipV + (adsV - hipV) * ws.adsFrac) * (1 + speedFov);
   camera.updateProjectionMatrix();
 
@@ -1622,6 +1754,7 @@ function step(): void {
 
   for (const d of dummies) d.update(now, dt);
   for (const d of galleryFigs) d.update(now, dt);
+  fx.update(now);
   // the menu stops a run's clock (a minute on the Settings tab was a minute
   // on the time); a test script drives the course without the menu
   if (!duel) {
@@ -1687,6 +1820,19 @@ function step(): void {
     stance: player.stance,
     speed: player.speed,
   });
+  // the ability card: at each countdown of an arena or bot match, and on
+  // landing from a battle royale's drop; a re-offer (a pick already made)
+  // goes away by itself when the fight starts
+  if (duel && duel.abilities) {
+    const ph = duel.phase;
+    if (duel instanceof BrMatch) {
+      if (wasDropping && !player.dropping && duel.alive && !abilities.picked) abilities.offer(now);
+    } else if (ph === "countdown" && lastMatchPhase !== "countdown") abilities.offer(now);
+    else if (ph === "fight" && lastMatchPhase === "countdown" && abilities.picked) abilities.choosing = false;
+    lastMatchPhase = ph;
+  } else lastMatchPhase = null;
+  wasDropping = player.dropping;
+
   // the arena circles: a column of light once the match's is live
   {
     const z = duel ? duel.hud().zone : null;
@@ -1766,13 +1912,26 @@ function step(): void {
     mapRegion: duel instanceof BrMatch ? BR_BOUNDS : undefined,
     // the drop shows the map by itself; M opens it any other time
     mapOpen: mapOpen || !!duelHud?.br?.dropping,
-    heal: heal && duel ? { item: HEAL_ITEMS[heal.item].name, progress: Math.min(1, (now - heal.startedAt) / HEAL_ITEMS[heal.item].time) } : null,
+    heal: heal && duel ? { item: HEAL_ITEMS[heal.item].name, progress: Math.min(1, (now - heal.startedAt) / heal.duration) } : null,
     kit: duel && duel.alive ? kit : null,
     lobby:
       hosting && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
         ? { code: hosting.code, waitingFor: duel ? duel.players - 1 - (duel as Duel).connected : Number(duelPlayers.value) === 3 ? 2 : 1 }
         : null,
     vitals: duel ? { shield: duel.shield, shieldMax: SHIELD_MAX, health: duel.health, healthMax: HEALTH_MAX } : null,
+    ability:
+      abilities.enabled && abilities.picked
+        ? { name: ABILITIES[abilities.picked].name, key: keyLabel("ability"), cooldown: JOLT.cooldown, left: abilities.cooldownLeft(now), passive: abilities.picked === "triage" }
+        : null,
+    // the card: full when it has just come up in a match, one line after 6 s or in the range
+    abilityCard:
+      abilities.enabled && (abilities.choosing || (!duel && !abilities.picked))
+        ? {
+            options: (["jolt", "triage"] as const).map((id, i) => ({ key: keyLabel(i === 0 ? "pickAbility1" : "pickAbility2"), name: ABILITIES[id].name, blurb: ABILITIES[id].blurb, picked: abilities.picked === id })),
+            age: now - abilities.offeredAt,
+            compact: !duel || !abilities.choosing || now - abilities.offeredAt > 6,
+          }
+        : null,
     plates: duel
       ? duel.avatars
           .map((a) => ({ a, r: duel!.remoteOf(a) }))
@@ -1864,6 +2023,13 @@ initWelcome();
   viewModelVisible: () => viewModel.group.visible,
   lobbyCode: () => (hosting && !duel ? hosting.code : null),
   setMapOpen: (on: boolean) => (mapOpen = on),
+  /** abilities (tools/e2e.ts): the state, a pick, a use */
+  abilities,
+  pickAbility: (id: AbilityId) => pickAbility(id, gameTime),
+  useAbility: () => useAbility(gameTime),
+  fxCount: () => fx.count,
+  gameTime: () => gameTime,
+  remoteFxLog,
   startHeal: () => startHeal(gameTime),
   kit,
   brMap,

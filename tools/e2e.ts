@@ -102,6 +102,12 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   check("the drop starts high over one of the five places, six in the match", drop.y > 40 && drop.dropping && /HUB|YARD|DEPOT|RIDGE|TOWN/.test(drop.poi) && drop.alive === 6 && drop.bounds, JSON.stringify(drop));
   const landed = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false);
   check("the fight starts when you land", landed, await ev<string>(page, "String(window.__range.duel()?.phase)"));
+  await sleep(300);
+  const card = await ev<{ on: boolean; choosing: boolean; picked: string | null }>(page, "({ on: window.__range.abilities.enabled, choosing: window.__range.abilities.choosing, picked: window.__range.abilities.picked })");
+  check("abilities: the battle royale has them on, and the card is up on landing", card.on && card.choosing && card.picked === null, JSON.stringify(card));
+  await ev(page, `window.__range.pickAbility("triage")`);
+  const picked = await ev<{ choosing: boolean; picked: string | null }>(page, "({ choosing: window.__range.abilities.choosing, picked: window.__range.abilities.picked })");
+  check("abilities: picking TRIAGE takes the card down", !picked.choosing && picked.picked === "triage", JSON.stringify(picked));
   const bots = await ev<{ n: number; onGround: boolean; feet: number }>(page, `(() => { const d = window.__range.duel(); const a = d.avatars; return { n: a.length, onGround: a.every((x) => x.group.position.y < 20), feet: window.__range.player.pos.y }; })()`);
   check("five bots dropped in and are on the map", bots.n === 5 && bots.onGround, JSON.stringify(bots));
   check("no fall stun off the drop: you are standing on something", bots.feet >= 0 && bots.feet < 20, `${bots.feet.toFixed(1)} m`);
@@ -115,13 +121,13 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   await sleep(3500);
   const outside = await ev<{ hp: number; out: boolean }>(page, `(() => { const d = window.__range.duel(); return { hp: d.shield + d.health, out: d.hud().br.ring.outside }; })()`);
   check("outside the ring you take its damage", outside.out && outside.hp < before, `${before} -> ${outside.hp}`);
-  // a heal: a cell brings the shield up by 25 in 2.5 s and costs one of four
+  // a heal: a cell brings the shield up by 25 in 2.5 s, 1.25 s with TRIAGE, and costs one of four
   await ev(page, "window.__range.player.teleport(0, 0, 500, 0)");
   await ev(page, "window.__range.startHeal()");
   const shieldBefore = await ev<number>(page, "window.__range.duel().shield");
-  await sleep(3200);
+  await sleep(1700);
   const healed = await ev<{ shield: number; cells: number }>(page, "({ shield: window.__range.duel().shield, cells: window.__range.kit.cells })");
-  check("a shield cell heals 25 shield and is spent", healed.shield === Math.min(75, shieldBefore + 25) && healed.cells === 3, JSON.stringify({ shieldBefore, ...healed }));
+  check("a shield cell heals 25 shield and is spent, in half its time with TRIAGE", healed.shield === Math.min(75, shieldBefore + 25) && healed.cells === 3, JSON.stringify({ shieldBefore, ...healed }));
   await ev(page, "window.__range.duel().leave()");
   await sleep(300);
   check("leaving ends the battle royale", (await ev<boolean>(page, "window.__range.duel() === null")));
@@ -162,6 +168,11 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   await sleep(1500);
   const seen = await ev<{ figures: number; bots: number; humans: number }>(guest, `(() => { const d = window.__range.duel(); const rs = [...d.remotes.values()]; return { figures: d.avatars.filter((a) => a.group.visible).length, bots: rs.filter((r) => r.id >= 100).length, humans: rs.filter((r) => r.id < 100).length }; })()`);
   check("squad: the guest sees the host and the three bots the host runs", seen.bots === 3 && seen.humans === 1 && seen.figures >= 3, JSON.stringify(seen));
+  // abilities are on in a squad by default: the guest picks JOLT on landing and the host sees it
+  await ev(guest, `window.__range.pickAbility("jolt")`);
+  await ev(guest, "window.__range.useAbility()");
+  const seenJolt = await host.waitForFunction("window.__range.remoteFxLog.some((e) => e.k === 'jolt' && e.from === 1)", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  check("squad: the guest's JOLT reaches the host", seenJolt, JSON.stringify(await ev(host, "window.__range.remoteFxLog")));
   // the guest knocks a bot: the hit goes to the host, the down comes back to both
   await ev(guest, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id >= 100 && x.alive); for (let i = 0; i < 6; i++) d.localHit(r, 100, false); })()`);
   await sleep(1200);
@@ -379,6 +390,8 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   const d0 = await ev<{ kind: string; players: number; n: number } | null>(page, "window.__range.duel() ? { kind: window.__range.duel().kind, players: window.__range.duel().players, n: window.__range.duel().avatars.length } : null");
   check("bots: a bot match starts with one bot", d0 !== null && d0.kind === "bots" && d0.players === 2 && d0.n === 1, JSON.stringify(d0));
   await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
+  const offAb = await ev<{ on: boolean; choosing: boolean }>(page, "({ on: window.__range.abilities.enabled, choosing: window.__range.abilities.choosing })");
+  check("bots: abilities are off by default, no card", !offAb.on && !offAb.choosing, JSON.stringify(offAb));
   // the bot hunts you down the middle lane and shoots: the shield drops
   const shot = await page.waitForFunction("window.__range.duel().shield < 75", { polling: 250, timeout: 25000 }).then(() => true, () => false);
   const pos = await ev<{ x: number; z: number; sh: number }>(page, "(() => { const b = window.__range.duel().avatars[0].group.position; return { x: b.x, z: b.z, sh: window.__range.duel().shield }; })()");
@@ -393,6 +406,29 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await ev(page, "window.__range.duel().leave()");
   const gone = await ev<boolean>(page, "window.__range.duel() === null");
   check("bots: leaving ends the match", gone);
+  // the same with abilities on: the card at the countdown, JOLT, the bots have theirs
+  await ev(page, `(() => { const s = document.getElementById("botAbilities"); s.value = "1"; s.dispatchEvent(new Event("change")); window.__range.startBots(); })()`);
+  const cardUp = await page.waitForFunction("window.__range.abilities.choosing === true", { polling: 100, timeout: 5000 }).then(() => true, () => false);
+  check("bots with abilities: the card is up at the countdown", cardUp);
+  const botAb = await ev<string[]>(page, "window.__range.duel().bots.map((b) => String(b.ability))");
+  check("bots with abilities: the bot has one too", botAb.every((a) => a === "jolt" || a === "triage"), botAb.join(","));
+  await ev(page, `window.__range.pickAbility("jolt")`);
+  await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
+  const p0 = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+  // third person, where your own streak is drawn (in first person you are inside it)
+  await ev(page, "window.__range.setThirdPerson(true)");
+  await ev(page, "window.__range.useAbility()");
+  const streak = await ev<number>(page, "window.__range.fxCount()");
+  await ev(page, "window.__range.setThirdPerson(false)");
+  check("bots with abilities: JOLT leaves its streak (third person)", streak > 0, `${streak} effects`);
+  await sleep(500);
+  const j = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+  const moved = Math.hypot(j.x - p0.x, j.z - p0.z);
+  check("bots with abilities: JOLT dashes you (up to 10 m, a wall can stop it short)", moved > 3 && moved < 14, `${moved.toFixed(2)} m (the dash, then its exit speed running down)`);
+  const cd = await ev<number>(page, "window.__range.abilities.cooldownLeft(window.__range.gameTime())");
+  check("bots with abilities: and its cooldown is running", cd > 1.5 && cd < 3, cd.toFixed(2));
+  await ev(page, "window.__range.duel().leave()");
+  await ev(page, `(() => { const s = document.getElementById("botAbilities"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
   await page.close();
 }
 
@@ -421,6 +457,10 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   await page.close();
 }
 
+/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, br, squad, p2p) */
+const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
+const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
+
 async function main(): Promise<void> {
   const browser = await puppeteer.launch({
     executablePath: CHROME,
@@ -439,6 +479,7 @@ async function main(): Promise<void> {
     ],
   });
   try {
+    if (want("page")) {
     console.log("\nThe page");
     const page = await open(browser, "");
     await sleep(2500);
@@ -557,8 +598,8 @@ async function main(): Promise<void> {
       await sleep(50);
       await ev(page, `document.dispatchEvent(new KeyboardEvent("keydown", { code: "${code}", bubbles: true }))`);
     };
-    await rebind("Jump", "KeyY");
-    check("a key can be rebound", (await keysOf("Jump"))[0] === "Y", (await keysOf("Jump")).join(","));
+    await rebind("Jump", "KeyI");
+    check("a key can be rebound", (await keysOf("Jump"))[0] === "I", (await keysOf("Jump")).join(","));
     await rebind("Jump", "KeyC");
     const crouchKeys = await keysOf("Crouch, slide");
     check("a key taken from another action moves over", (await keysOf("Jump"))[0] === "C" && !crouchKeys.includes("C"), `jump ${(await keysOf("Jump")).join(",")}, crouch ${crouchKeys.join(",")}`);
@@ -599,31 +640,48 @@ async function main(): Promise<void> {
     // put the default back for the 1v1 pages
     await ev(page, `[...document.querySelectorAll("#loadoutList button")].find((b) => b.textContent.startsWith("Assault")).click()`);
     await page.close();
+    }
 
-    console.log("\n1v1 over the local transport (two tabs)");
-    await duelTest(browser, "?net=local&norender", "local");
+    if (want("duel")) {
+      console.log("\n1v1 over the local transport (two tabs)");
+      await duelTest(browser, "?net=local&norender", "local");
+    }
 
-    console.log("\nInvite links");
-    await inviteTest(browser, "?net=local&norender");
+    if (want("invite")) {
+      console.log("\nInvite links");
+      await inviteTest(browser, "?net=local&norender");
+    }
 
-    console.log("\n1v1v1 over the local transport (three tabs)");
-    await tripleTest(browser, "?net=local&norender");
+    if (want("triple")) {
+      console.log("\n1v1v1 over the local transport (three tabs)");
+      await tripleTest(browser, "?net=local&norender");
+    }
 
-    console.log("\nArena, Bots");
-    await botsTest(browser, "?norender");
+    if (want("bots")) {
+      console.log("\nArena, Bots");
+      await botsTest(browser, "?norender");
+    }
 
-    console.log("\nController");
-    await padTest(browser, "?norender");
+    if (want("pad")) {
+      console.log("\nController");
+      await padTest(browser, "?norender");
+    }
 
-    console.log("\nBattle royale against bots");
-    await brTest(browser, "?norender");
+    if (want("br")) {
+      console.log("\nBattle royale against bots");
+      await brTest(browser, "?norender");
+    }
 
-    console.log("\nBattle royale as a squad (two tabs, the local transport)");
-    await brSquadTest(browser, "?net=local&norender");
+    if (want("squad")) {
+      console.log("\nBattle royale as a squad (two tabs, the local transport)");
+      await brSquadTest(browser, "?net=local&norender");
+    }
 
-    console.log("\n1v1 over peer to peer (the public broker)");
-    const ran = await duelTest(browser, "?norender", "p2p");
-    if (!ran) console.log("  --  skipped: the broker or the internet was not reachable");
+    if (want("p2p")) {
+      console.log("\n1v1 over peer to peer (the public broker)");
+      const ran = await duelTest(browser, "?norender", "p2p");
+      if (!ran) console.log("  --  skipped: the broker or the internet was not reachable");
+    }
 
     check("no page errors anywhere", errors.length === 0, [...new Set(errors)].slice(0, 5).join(" | "));
   } finally {

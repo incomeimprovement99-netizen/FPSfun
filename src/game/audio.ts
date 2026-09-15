@@ -92,6 +92,26 @@ export class GameAudio {
   reload(): void {
     this.tick(300, 0.04, 0.2);
   }
+  /** a JOLT: a rising rush of air; `volume` below 1 for someone else's */
+  jolt(volume = 1): void {
+    const ctx = this.ensure();
+    if (!ctx || !this.master) return;
+    const t = ctx.currentTime;
+    const v = Math.max(0.03, Math.min(1, volume));
+    const n = ctx.createBufferSource();
+    n.buffer = this.noiseBuffer(ctx, 0.3);
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = 1.2;
+    bp.frequency.setValueAtTime(500, t);
+    bp.frequency.exponentialRampToValueAtTime(2600, t + 0.2);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.exponentialRampToValueAtTime(0.7 * v, t + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+    n.connect(bp).connect(g).connect(this.master);
+    n.start(t);
+  }
   dry(): void {
     this.tick(900, 0.03, 0.15);
   }

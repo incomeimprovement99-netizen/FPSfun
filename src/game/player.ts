@@ -218,6 +218,83 @@ export class Player {
     return this.zip !== null;
   }
 
+  // ----- JOLT (abilities.ts): a level dash -----
+  private joltLeft = 0;
+  private joltDirX = 0;
+  private joltDirZ = 0;
+  private joltSpeed = 0;
+  private joltExit = 0;
+  /** mid-JOLT: the dash owns the horizontal velocity and holds you level */
+  get jolting(): boolean {
+    return this.joltLeft > 0;
+  }
+
+  /**
+   * JOLT: `distance` metres along (dirX, dirZ) over `duration` seconds, level
+   * (no gravity during it), through the normal collision so a wall stops it,
+   * leaving at `exitSpeed` m/s in the same direction. It ends a slide, and
+   * cannot start on a zipline, in a mantle or climb, or in the drop. Returns
+   * whether it started.
+   */
+  jolt(dirX: number, dirZ: number, distance: number, duration: number, exitSpeed: number): boolean {
+    if (this.zip || this.mantle || this.climbing || this.dropping || this.joltLeft > 0) return false;
+    const l = Math.hypot(dirX, dirZ);
+    if (l < 1e-6 || duration <= 0) return false;
+    this.joltDirX = dirX / l;
+    this.joltDirZ = dirZ / l;
+    this.joltLeft = duration;
+    this.joltSpeed = distance / duration;
+    this.joltExit = exitSpeed;
+    this.endSlide();
+    this.vel.y = 0;
+    return true;
+  }
+
+  /** one frame of a JOLT: the dash speed for what is left of it, the exit speed for the rest of the frame */
+  private stepJolt(dt: number, now: number): void {
+    const use = Math.min(dt, this.joltLeft);
+    const k = dt > 1e-9 ? use / dt : 1;
+    const sp = this.joltSpeed * k + this.joltExit * (1 - k);
+    // a wall hit earlier in the dash zeroed that component: it stays zeroed
+    this.vel.x = this.joltBlockedX ? 0 : this.joltDirX * sp;
+    this.vel.z = this.joltBlockedZ ? 0 : this.joltDirZ * sp;
+    this.vel.y = 0;
+    const wantX = this.vel.x;
+    const wantZ = this.vel.z;
+    this.integrate(dt, now, 0);
+    if (wantX !== 0 && this.vel.x === 0) this.joltBlockedX = true;
+    if (wantZ !== 0 && this.vel.z === 0) this.joltBlockedZ = true;
+    this.joltLeft -= dt;
+    if (this.joltLeft <= 0) {
+      this.joltLeft = 0;
+      this.joltBlockedX = false;
+      this.joltBlockedZ = false;
+      const h = this.hSpeed();
+      if (h > this.joltExit && h > 1e-6) {
+        this.vel.x *= this.joltExit / h;
+        this.vel.z *= this.joltExit / h;
+      }
+    }
+  }
+  private joltBlockedX = false;
+  private joltBlockedZ = false;
+
+  /** the way the movement keys point, flattened (forward with none held): JOLT goes this way */
+  moveDir(input: MoveInput): { x: number; z: number } {
+    let fwd = 0;
+    let side = 0;
+    if (input.held("forward")) fwd += 1;
+    if (input.held("back")) fwd -= 1;
+    if (input.held("right")) side += 1;
+    if (input.held("left")) side -= 1;
+    if (fwd === 0 && side === 0) fwd = 1;
+    const { fx, fz } = this.look();
+    const x = fx * fwd - fz * side;
+    const z = fz * fwd + fx * side;
+    const l = Math.hypot(x, z) || 1;
+    return { x: x / l, z: z / l };
+  }
+
   /**
    * Put the player somewhere else, standing still and in no special state:
    * off any zipline, out of any mantle, climb or slide. Respawns, the course's
@@ -258,6 +335,9 @@ export class Player {
     this.lastSlideEnterAt = -Infinity;
     this.sgJumpFrame = -10;
     this.zipExitAt = -Infinity;
+    this.joltLeft = 0;
+    this.joltBlockedX = false;
+    this.joltBlockedZ = false;
   }
 
   /** change the play area the player is clamped to (the range, or the 1v1 arena) */
@@ -382,6 +462,16 @@ export class Player {
         this.updateView(dt);
         return;
       }
+    }
+
+    if (this.joltLeft > 0) {
+      this.zipPrompt = false;
+      this.stepJolt(dt, now);
+      this.updateHeights(dt);
+      this.speed = this.hSpeed();
+      this.descentRate = 0;
+      this.updateView(dt);
+      return;
     }
 
     // ----- inputs: the wish direction combines every held direction -----

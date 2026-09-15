@@ -109,6 +109,10 @@ export interface HudState {
   plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean }>;
   /** real shield and health (a 1v1); the bars are decorative without it */
   vitals?: { shield: number; shieldMax: number; health: number; healthMax: number } | null;
+  /** your ability (abilities.ts): name, key, its cooldown and what is left of it (0: ready); a passive one has no key */
+  ability?: { name: string; key: string; cooldown: number; left: number; passive: boolean } | null;
+  /** the ability card: the two options with their keys; compact is the one-line form */
+  abilityCard?: { options: Array<{ key: string; name: string; blurb: string; picked: boolean }>; age: number; compact: boolean } | null;
 }
 
 /** map canvas pixels per metre */
@@ -226,6 +230,8 @@ export class Hud {
     this.drawDuel(s, u);
     this.drawBr(now, s, u);
     this.drawKit(s, u);
+    this.drawAbility(now, s, u);
+    this.drawAbilityCard(s, u);
     this.drawLobby(s, u);
     this.drawFeed(now, u);
     this.drawSummary(s, u);
@@ -819,6 +825,111 @@ export class Hud {
       const sec = Math.floor(br.survived % 60);
       this.text(`${br.kills} kill${br.kills === 1 ? "" : "s"}  ·  ${m}:${sec.toString().padStart(2, "0")} survived  ·  menu in ${Math.ceil(s.duel?.left ?? 0)}`, cx, this.h * 0.3 + 44 * u, 700, 22 * u, DIM, "center");
     }
+  }
+
+  /**
+   * The ability, bottom left beside the bars: a square with its key, a dark
+   * sweep for the cooldown and the seconds left, a bright edge when ready.
+   * TRIAGE is passive: a cross and "HEALS x2".
+   */
+  private drawAbility(now: number, s: HudState, u: number): void {
+    const a = s.ability;
+    if (!a) return;
+    const c = this.ctx;
+    const size = 54 * u;
+    const x = 384 * u;
+    const y = this.h - 76 * u - size;
+    c.fillStyle = PANEL;
+    c.fillRect(x, y, size, size);
+    const ready = a.passive || a.left <= 0;
+    // the icon: a chevron for JOLT, a cross for TRIAGE
+    c.save();
+    c.translate(x + size / 2, y + size / 2);
+    c.strokeStyle = ready ? "#8fd8ff" : "rgba(143,216,255,0.45)";
+    c.fillStyle = c.strokeStyle;
+    c.lineWidth = 4 * u;
+    if (a.passive) {
+      c.fillRect(-4 * u, -14 * u, 8 * u, 28 * u);
+      c.fillRect(-14 * u, -4 * u, 28 * u, 8 * u);
+    } else {
+      for (const dx of [-8, 4]) {
+        c.beginPath();
+        c.moveTo((dx - 5) * u, -12 * u);
+        c.lineTo((dx + 7) * u, 0);
+        c.lineTo((dx - 5) * u, 12 * u);
+        c.stroke();
+      }
+    }
+    c.restore();
+    if (!ready) {
+      // the cooldown: a dark pie over what is still to come, the seconds on top
+      const frac = Math.max(0, Math.min(1, a.left / Math.max(1e-3, a.cooldown)));
+      c.fillStyle = "rgba(0,0,0,0.62)";
+      c.save();
+      c.beginPath();
+      c.rect(x, y, size, size);
+      c.clip();
+      c.beginPath();
+      c.moveTo(x + size / 2, y + size / 2);
+      c.arc(x + size / 2, y + size / 2, size * 0.72, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+      c.closePath();
+      c.fill();
+      c.restore();
+      this.text(a.left.toFixed(1), x + size / 2, y + size / 2 + 7 * u, 700, 18 * u, WHITE, "center");
+    } else {
+      c.strokeStyle = `rgba(143,216,255,${0.55 + 0.25 * Math.sin(now * 4)})`;
+      c.lineWidth = 2 * u;
+      c.strokeRect(x + 1, y + 1, size - 2, size - 2);
+    }
+    // the key cap, top left, and the name under the square
+    if (!a.passive) {
+      c.fillStyle = "#f2f2f2";
+      c.fillRect(x - 6 * u, y - 6 * u, 20 * u, 18 * u);
+      this.text(a.key, x + 4 * u, y + 8 * u, 700, 12 * u, "#101214", "center");
+    }
+    this.text(a.passive ? `${a.name}  HEALS x2` : a.name, x + size / 2, y + size + 16 * u, 700, 13 * u, ready ? WHITE : DIM, "center");
+  }
+
+  /**
+   * The ability card. Full: a panel low in the middle, "CHOOSE YOUR ABILITY",
+   * the two options side by side with their keys. Compact: one line over the
+   * ability square, for when it has been up a while or you are in the range.
+   */
+  private drawAbilityCard(s: HudState, u: number): void {
+    const k = s.abilityCard;
+    if (!k) return;
+    const c = this.ctx;
+    if (k.compact) {
+      const line = k.options.map((o) => `[${o.key}] ${o.name}`).join("   ");
+      this.text(`ABILITY   ${line}`, 384 * u, this.h - 150 * u, 700, 14 * u, "#8fd8ff");
+      return;
+    }
+    const cx = this.w / 2;
+    const w = 620 * u;
+    const h = 128 * u;
+    const y0 = this.h * 0.7;
+    // slides up over the first quarter second
+    const rise = Math.max(0, 1 - k.age / 0.25) * 30 * u;
+    c.save();
+    c.globalAlpha = Math.min(1, k.age / 0.2);
+    c.fillStyle = "rgba(8,10,12,0.82)";
+    c.fillRect(cx - w / 2, y0 + rise, w, h);
+    c.fillStyle = "#8fd8ff";
+    c.fillRect(cx - w / 2, y0 + rise, w, 3 * u);
+    this.text("CHOOSE YOUR ABILITY", cx, y0 + rise + 24 * u, 700, 15 * u, "#8fd8ff", "center");
+    const bw = (w - 36 * u) / 2;
+    k.options.forEach((o, i) => {
+      const bx = cx - w / 2 + 12 * u + i * (bw + 12 * u);
+      const by = y0 + rise + 36 * u;
+      c.fillStyle = o.picked ? "rgba(143,216,255,0.18)" : "rgba(255,255,255,0.06)";
+      c.fillRect(bx, by, bw, h - 48 * u);
+      c.fillStyle = "#f2f2f2";
+      c.fillRect(bx + 10 * u, by + 12 * u, 30 * u, 30 * u);
+      this.text(o.key, bx + 25 * u, by + 34 * u, 700, 18 * u, "#101214", "center");
+      this.text(o.name, bx + 52 * u, by + 34 * u, 700, 26 * u, o.picked ? "#8fd8ff" : WHITE);
+      this.text(o.blurb, bx + 10 * u, by + 64 * u, 600, 14 * u, DIM);
+    });
+    c.restore();
   }
 
   /** the heal kit, bottom left over the bars: what is left of the cells and syringes */

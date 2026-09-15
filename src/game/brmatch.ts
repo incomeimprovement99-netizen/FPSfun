@@ -98,10 +98,10 @@ export class BrMatch extends Duel {
     private readonly map: BrMap,
     difficulty: BotDifficulty,
     botCount: number,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string },
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean },
     rng: () => number = Math.random
   ) {
-    super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br" });
+    super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br", abilities: opts.abilities ?? true });
     this.difficulty = difficulty;
     this.botCount = Math.max(1, Math.min(BOT_NAMES.length, botCount));
     // the squad drops on one place: the host's pick, told to the guests
@@ -121,6 +121,12 @@ export class BrMatch extends Duel {
         const jitter = () => (rng() - 0.5) * 8;
         const spawn = { x: drop.x + jitter(), z: drop.z + jitter(), yaw: rng() * 360 };
         const bot = new Bot(i, scene, projectiles, diff, spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], BOT_NAMES[i % BOT_NAMES.length]);
+        bot.setAbilities(this.abilities, rng);
+        // a bot's JOLT: drawn here and sent to the squad
+        bot.onJolt = (a, b) => {
+          this.onRemoteFx?.("jolt", bot.remote.id, a, b);
+          this.broadcast({ t: "fx", from: bot.remote.id, k: "jolt", a: [a.x, a.y, a.z], b: [b.x, b.y, b.z] });
+        };
         const node = this.nearestNode(spawn.x, spawn.z);
         this.bots.push({ bot, node, goal: node });
       }
@@ -380,6 +386,11 @@ export class BrMatch extends Duel {
       const sense = bot.alive && !bot.dropping ? this.sense(b, humans) : { target: null, targetId: -1, goal: null, canShoot: false };
       const shots = bot.update(now, dt, sense);
       if (wasAlive && !bot.alive && bot.remote.alive) this.botDown(b, this.id);
+      // its own heals show on its plate
+      if (bot.alive) {
+        bot.remote.health = bot.dummy.health;
+        bot.remote.shield = bot.dummy.shield;
+      }
       if (!shots.length || this.phase !== "fight") continue;
       if (shots.length && feet.distanceTo(shots[0].from) < 80) this.onRemoteShot?.(shots[0].from);
       if (sense.targetId < Duel.BOT_ID) {

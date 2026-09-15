@@ -23,12 +23,15 @@
   "stock": ["KeyN"],
   "laser": ["KeyH"],
   "cycleArmor": ["KeyT"],
-  "resetDummies": ["KeyF"],
+  "resetDummies": ["KeyY"],
   "copyResult": ["KeyP"],
   "zoomToggle": ["KeyZ"],
   "ghost": ["KeyK"],
   "thirdPerson": ["KeyX"],
   "orbit": ["AltLeft"],
   "heal": ["Digit4"],
-  "map": ["KeyM"]
+  "map": ["KeyM"],
+  "ability": ["KeyF"],
+  "pickAbility1": ["Digit5"],
+  "pickAbility2": ["Digit6"]
 }

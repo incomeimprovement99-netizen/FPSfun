@@ -3,8 +3,10 @@
 // The layout is the game's default one, as far as the buttons map:
 //   left stick move, right stick look, RT fire, LT aim, A jump, B crouch,
 //   X reload (and interact: a zipline in reach), Y swap weapon, L3 sprint,
-//   R3 melee, LB holster, RB variable zoom, d-pad up optic, down magazine
-//   level, left slot 1, right slot 2, Start the menu, Back the ghost.
+//   R3 melee, LB the ability (the game's tactical button), RB variable zoom,
+//   d-pad up optic, down magazine level, left slot 1, right slot 2 (and, while
+//   the ability card is up, left and right pick one), Start the menu, Back
+//   holster.
 //
 // Look: a deadzone, a response curve (the game's Classic is a steeper curve
 // than Linear), and yaw and pitch speeds from a look sensitivity of 1 to 8
@@ -41,11 +43,11 @@ const BUTTON: Record<number, Action | "menu"> = {
   1: "crouch",
   2: "reload",
   3: "swapWeapon",
-  4: "holster",
+  4: "ability",
   5: "zoomToggle",
   6: "ads",
   7: "fire",
-  8: "ghost",
+  8: "holster",
   9: "menu",
   10: "sprint",
   11: "melee",

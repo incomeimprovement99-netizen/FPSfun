@@ -20,6 +20,8 @@ import { ARENA_BOT_SPAWNS, ARENA_CENTER, ARENA_SPAWNS, ZONE_RADIUS } from "./are
 import { HU, MOVE } from "./movement";
 import type { RoundPhase } from "../net/link";
 import type { MatchSummary, BotDifficulty } from "./stats";
+import { ABILITY_IDS, BOT_ABILITY, JOLT, TRIAGE, type AbilityId } from "./abilities";
+import items from "../config/items.json";
 import { HEALTH_MAX, ROUNDS_TO_WIN, SHIELD_MAX, ZONE_CAPTURE, ZONE_DELAY, type DuelHud, type LocalState, type MatchLike, type Remote, type Spawn } from "./duel";
 
 const COUNTDOWN = 3;
@@ -48,6 +50,8 @@ export const DIFFICULTY: Record<BotDifficulty, Difficulty> = {
 export const BOT_WEAPONS = ["rspn101", "r97", "vinson", "wingman", "hemlok", "energy_ar", "lmg", "energy_shotgun", "volt_smg", "car", "g2", "sentinel"];
 export const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM", "BOT NOVA", "BOT FLUX", "BOT STEEL", "BOT NEON", "BOT SOLAR", "BOT RAPID", "BOT SWIFT", "BOT ONYX", "BOT DUNE"];
 const RADIUS = MOVE.radius;
+/** a bot healing walks at this fraction of its speed (ours) */
+const HEAL_WALK = 0.45;
 /** a drop from the sky: terminal speed, m/s */
 export const DROP_SPEED = 22;
 
@@ -85,6 +89,24 @@ export class Bot {
   private strafePhase = Math.random() * 10;
   private aimErr = new THREE.Vector2();
   private nextErrAt = 0;
+  /** JOLT or TRIAGE when the match has abilities on (abilities.ts) */
+  ability: AbilityId | null = null;
+  private joltLeft = 0;
+  private joltReadyAt = 0;
+  private readonly joltDir = new THREE.Vector2();
+  private readonly joltFrom = new THREE.Vector3();
+  /** the last time its shield or health went down, and what they were */
+  private lastHurtAt = -Infinity;
+  private prevVital = 0;
+  /** the last time it had someone in its sights */
+  private lastTargetAt = -Infinity;
+  /** a heal in progress: bots heal when they have had nobody to shoot for a while */
+  healing: { item: "cell" | "syringe"; startedAt: number } | null = null;
+  private kit = { cell: items.bots.cell, syringe: items.bots.syringe };
+  /** a JOLT went from a to b: the match draws it (and sends it) */
+  onJolt: ((a: THREE.Vector3, b: THREE.Vector3) => void) | null = null;
+  /** a heal finished, for the death recap */
+  onHealed: ((item: "cell" | "syringe") => void) | null = null;
 
   constructor(
     readonly index: number,
@@ -137,6 +159,65 @@ export class Bot {
     this.seenAt = -Infinity;
     this.sawLast = false;
     this.dropping = false;
+    this.joltLeft = 0;
+    this.joltReadyAt = 0;
+    this.lastHurtAt = -Infinity;
+    this.lastTargetAt = -Infinity;
+    this.healing = null;
+    this.kit = { cell: items.bots.cell, syringe: items.bots.syringe };
+    this.prevVital = this.dummy.health + this.dummy.shield;
+  }
+
+  /** a random ability when the match has them on; none otherwise */
+  setAbilities(on: boolean, rng: () => number = Math.random): void {
+    this.ability = on ? ABILITY_IDS[Math.floor(rng() * ABILITY_IDS.length)] : null;
+  }
+
+  /** the heal it is doing, if its time is up: applied; a target in sight cancels it */
+  private stepHeal(now: number, hasTarget: boolean): void {
+    const d = this.dummy;
+    if (hasTarget) {
+      this.healing = null;
+      return;
+    }
+    const scale = this.ability === "triage" ? TRIAGE.healSpeed : 1;
+    if (this.healing) {
+      const it = items.heals[this.healing.item];
+      if (now - this.healing.startedAt >= it.time / scale) {
+        d.shield = Math.min(d.shieldMax, d.shield + it.shield);
+        d.health = Math.min(HEALTH_MAX, d.health + it.health);
+        this.kit[this.healing.item]--;
+        this.onHealed?.(this.healing.item);
+        this.healing = null;
+        this.prevVital = d.health + d.shield;
+      }
+      return;
+    }
+    if (now - this.lastTargetAt < BOT_ABILITY.healAfter) return;
+    if (d.shield < d.shieldMax && this.kit.cell > 0) this.healing = { item: "cell", startedAt: now };
+    else if (d.health < HEALTH_MAX && this.kit.syringe > 0) this.healing = { item: "syringe", startedAt: now };
+  }
+
+  /** a JOLT in progress: across its line of fire at the dash speed, stopped by walls */
+  private stepJolt(dt: number): void {
+    const use = Math.min(dt, this.joltLeft);
+    let left = (JOLT.distance / JOLT.duration) * use;
+    // in steps no longer than a quarter metre, so a thin wall stops it
+    while (left > 1e-6) {
+      const step = Math.min(0.25, left);
+      left -= step;
+      const nx = this.pos.x + this.joltDir.x * step;
+      const nz = this.pos.z + this.joltDir.y * step;
+      if (this.blocked(nx, nz)) break;
+      this.pos.x = nx;
+      this.pos.z = nz;
+      this.pos.y = this.groundAt(this.pos.x, this.pos.z);
+    }
+    this.joltLeft -= dt;
+    if (this.joltLeft <= 0) {
+      this.joltLeft = 0;
+      this.onJolt?.(this.joltFrom.clone(), this.pos.clone());
+    }
   }
 
   /** start `height` metres up and fall in at the drop speed; no shooting until it lands */
@@ -213,6 +294,22 @@ export class Bot {
     const sees = target !== null;
     if (sees && !this.sawLast) this.seenAt = now;
     this.sawLast = sees;
+    if (sees) this.lastTargetAt = now;
+    // hurt this frame (any source: bullets, the ring): a JOLT bot dodges
+    const vital = this.dummy.health + this.dummy.shield;
+    if (vital < this.prevVital - 1e-6) this.lastHurtAt = now;
+    this.prevVital = vital;
+    this.stepHeal(now, sees);
+    if (this.ability === "jolt" && this.joltLeft <= 0 && target && now >= this.joltReadyAt && now - this.lastHurtAt < BOT_ABILITY.joltWhenHitWithin) {
+      const tx = target.x - this.pos.x;
+      const tz = target.z - this.pos.z;
+      const tl = Math.hypot(tx, tz) || 1;
+      const side = Math.random() < 0.5 ? 1 : -1;
+      this.joltDir.set((-tz / tl) * side, (tx / tl) * side);
+      this.joltLeft = JOLT.duration;
+      this.joltReadyAt = now + JOLT.cooldown;
+      this.joltFrom.copy(this.pos);
+    }
 
     // where to go: at the target if seen (keeping a distance), else the goal
     const goal = target ?? sense.goal;
@@ -228,9 +325,13 @@ export class Bot {
       want = want.multiplyScalar(advance).addScaledVector(side, strafe * 0.9);
       if (want.length() > 1e-3) want.normalize();
     } else if (dist < 1.5) want.set(0, 0);
+    if (this.joltLeft > 0) {
+      this.stepJolt(dt);
+      want.set(0, 0);
+    }
     // a wall in the way: slide along it, and remember which way for a moment
     if (want.length() > 1e-3) {
-      const step = this.diff.speed * dt;
+      const step = this.diff.speed * dt * (this.healing ? HEAL_WALK : 1);
       let nx = this.pos.x + want.x * step;
       let nz = this.pos.z + want.y * step;
       if (this.blocked(nx, nz)) {
@@ -267,13 +368,13 @@ export class Bot {
     // the figure runs when it moves and looks at what it aims at
     const moving = want.length() > 1e-3;
     const aimPitch = target ? (Math.atan2(target.y + 1.15 - (this.pos.y + 1.35), Math.max(1e-3, Math.hypot(target.x - this.pos.x, target.z - this.pos.z))) * 180) / Math.PI : 0;
-    this.dummy.setPose({ speed: moving ? this.diff.speed : 0, stance: "stand", pitch: aimPitch });
+    this.dummy.setPose({ speed: moving ? this.diff.speed * (this.healing ? HEAL_WALK : 1) : 0, stance: "stand", pitch: aimPitch });
     this.dummy.update(now, dt);
 
     // shooting: after the reaction time, at the weapon's rate, with an aim
     // error that wanders every quarter second
     const shots: BotShot[] = [];
-    if (target && sense.canShoot && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
+    if (target && sense.canShoot && !this.healing && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
       const interval = Math.max(this.weapon.shotInterval, this.weapon.semiAuto ? 0.25 : 0) / this.diff.fireScale;
       this.nextShotAt = now + interval;
       if (now >= this.nextErrAt) {
@@ -369,16 +470,24 @@ export class BotMatch implements MatchLike {
   onFeed: ((text: string, mine: boolean, neutral?: boolean) => void) | null = null;
   streak = 0;
   private lastSummary: MatchSummary | null = null;
+  onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3) => void) | null = null;
 
   constructor(
     scene: THREE.Scene,
     projectiles: ProjectileSystem,
     readonly difficulty: BotDifficulty,
-    count: number
+    count: number,
+    /** JOLT and TRIAGE on: you pick one, each bot takes one at random */
+    readonly abilities = false
   ) {
     const n = Math.max(1, Math.min(2, count));
     this.players = n + 1;
-    for (let i = 0; i < n; i++) this.bots.push(new Bot(i, scene, projectiles, DIFFICULTY[difficulty], ARENA_BOT_SPAWNS[i]));
+    for (let i = 0; i < n; i++) {
+      const b = new Bot(i, scene, projectiles, DIFFICULTY[difficulty], ARENA_BOT_SPAWNS[i]);
+      b.setAbilities(abilities);
+      b.onJolt = (a, to) => this.onRemoteFx?.("jolt", b.remote.id, a, to);
+      this.bots.push(b);
+    }
     this.scores = new Array(this.players).fill(0);
     this.caps = new Array(this.players).fill(0);
     const now = wallClock();
@@ -399,6 +508,9 @@ export class BotMatch implements MatchLike {
   localShot(): void {
     this.shots++;
   }
+
+  /** nobody to tell: the bots are here */
+  localFx(): void {}
 
   /** one of your bullets hit a bot: it is a dummy, so its own hit() already took the damage */
   localHit(r: Remote, amount: number): void {
@@ -543,6 +655,11 @@ export class BotMatch implements MatchLike {
     }
     if (dealt > 0) this.takeHit(dealt);
     for (const b of this.bots) {
+      // its own heals show on its plate
+      if (b.alive) {
+        b.remote.health = b.dummy.health;
+        b.remote.shield = b.dummy.shield;
+      }
       const s = b.remote.samples;
       s.length = 0;
       s.push({ at: now, x: b.pos.x, y: b.pos.y, z: b.pos.z, yaw: 0, pitch: 0, crouch: false, stance: "stand", speed: 0 });
