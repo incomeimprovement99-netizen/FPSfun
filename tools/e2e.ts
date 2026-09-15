@@ -90,6 +90,44 @@ async function inviteTest(browser: Browser, query: string): Promise<void> {
   await host.close();
 }
 
+/** the battle royale: the drop, the landing, a knock, the ring's damage, a heal, leaving */
+async function brTest(browser: Browser, query: string): Promise<void> {
+  const page = await open(browser, query);
+  await ev(page, `(() => { document.getElementById("brBots").value = "5"; document.getElementById("goBr").click(); })()`);
+  await sleep(400);
+  const drop = await ev<{ y: number; phase: string; dropping: boolean; poi: string; alive: number; bounds: boolean }>(
+    page,
+    `(() => { const d = window.__range.duel(); const h = d.hud().br; const p = window.__range.player.pos; return { y: p.y, phase: d.phase, dropping: h.dropping, poi: h.poi, alive: h.alive, bounds: p.z > 280 && p.z < 720 }; })()`
+  );
+  check("the drop starts high over one of the five places, six in the match", drop.y > 40 && drop.dropping && /HUB|YARD|DEPOT|RIDGE|TOWN/.test(drop.poi) && drop.alive === 6 && drop.bounds, JSON.stringify(drop));
+  const landed = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false);
+  check("the fight starts when you land", landed, await ev<string>(page, "String(window.__range.duel()?.phase)"));
+  const bots = await ev<{ n: number; onGround: boolean; feet: number }>(page, `(() => { const d = window.__range.duel(); const a = d.avatars; return { n: a.length, onGround: a.every((x) => x.group.position.y < 20), feet: window.__range.player.pos.y }; })()`);
+  check("five bots dropped in and are on the map", bots.n === 5 && bots.onGround, JSON.stringify(bots));
+  check("no fall stun off the drop: you are standing on something", bots.feet >= 0 && bots.feet < 20, `${bots.feet.toFixed(1)} m`);
+  // a knock: the bot's own hit() takes the damage, localHit credits it
+  await ev(page, `(() => { const d = window.__range.duel(); const a = d.avatars.find((x) => !x.knocked); const r = d.remoteOf(a); a.hit(0, "body", 500, 1, 1, a.group.position); d.localHit(r, 500, false); })()`);
+  const afterKill = await ev<{ kills: number; alive: number }>(page, `(() => { const h = window.__range.duel().hud().br; return { kills: h.kills, alive: h.alive }; })()`);
+  check("a knock counts and the alive count drops", afterKill.kills === 1 && afterKill.alive === 5, JSON.stringify(afterKill));
+  // outside the ring: a corner of the map is outside ring 1
+  await ev(page, "window.__range.player.teleport(215, 0, 715, 0)");
+  const before = await ev<number>(page, "window.__range.duel().shield + window.__range.duel().health");
+  await sleep(3500);
+  const outside = await ev<{ hp: number; out: boolean }>(page, `(() => { const d = window.__range.duel(); return { hp: d.shield + d.health, out: d.hud().br.ring.outside }; })()`);
+  check("outside the ring you take its damage", outside.out && outside.hp < before, `${before} -> ${outside.hp}`);
+  // a heal: a cell brings the shield up by 25 in 2.5 s and costs one of four
+  await ev(page, "window.__range.player.teleport(0, 0, 500, 0)");
+  await ev(page, "window.__range.startHeal()");
+  const shieldBefore = await ev<number>(page, "window.__range.duel().shield");
+  await sleep(3200);
+  const healed = await ev<{ shield: number; cells: number }>(page, "({ shield: window.__range.duel().shield, cells: window.__range.kit.cells })");
+  check("a shield cell heals 25 shield and is spent", healed.shield === Math.min(75, shieldBefore + 25) && healed.cells === 3, JSON.stringify({ shieldBefore, ...healed }));
+  await ev(page, "window.__range.duel().leave()");
+  await sleep(300);
+  check("leaving ends the battle royale", (await ev<boolean>(page, "window.__range.duel() === null")));
+  await page.close();
+}
+
 async function duelTest(browser: Browser, query: string, label: string): Promise<boolean> {
   const host = await open(browser, query);
   const guest = await open(browser, query);
@@ -405,6 +443,8 @@ async function main(): Promise<void> {
     }
 
     // the menu stops the clock: start a run, open the menu, and it keeps its time
+    // (reset first: the finish's return to the start would override the teleport)
+    await ev(page, `window.__range.course.reset()`);
     await ev(page, `(() => { const p = window.__range.player; p.pos.set(${X}, 0, 11); p.vel.set(0, 0, 0); p.yaw = 180; })()`);
     await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
     await ev(page, `(() => { const p = window.__range.player; p.pos.set(${X}, 0, 13.5); p.vel.set(0, 0, 0); })()`);
@@ -516,6 +556,9 @@ async function main(): Promise<void> {
 
     console.log("\nController");
     await padTest(browser, "?norender");
+
+    console.log("\nBattle royale against bots");
+    await brTest(browser, "?norender");
 
     console.log("\n1v1 over peer to peer (the public broker)");
     const ran = await duelTest(browser, "?norender", "p2p");

@@ -16,7 +16,9 @@ import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset } from "./game/quality";
 import { ProjectileSystem, solidHit } from "./game/projectile";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, type ArmorTier } from "./game/dummy";
-import { buildRange, skyFollow, RANGE_BOUNDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
+import { buildRange, skyFollow, setShadowRegion, getSun, RANGE_BOUNDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
+import { buildBrMap, BR_BOUNDS, BR_CENTER } from "./game/br";
+import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
 import { placeProps } from "./game/props";
 import { Target } from "./game/targets";
 import { ViewModel } from "./game/viewmodel";
@@ -274,6 +276,29 @@ buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadow
 // the 1v1 arena, east of the range, and the 1v1v1 triangle north of it (src/game/arena.ts)
 const arena = buildArena(scene);
 const triArena = buildTriArena(scene);
+// the battle royale map, 500 m south (src/game/br.ts)
+const brMap = buildBrMap(scene);
+/**
+ * The sun's shadow map and the fog follow the part of the world you are in:
+ * the range (tight, sharp shadows) or the open BR map (wide and far).
+ */
+function setRegion(region: "range" | "br"): void {
+  const fog = scene.fog as THREE.Fog | null;
+  if (region === "br") {
+    setShadowRegion(BR_CENTER, 230);
+    if (fog) {
+      fog.near = 140;
+      fog.far = 680;
+    }
+  } else {
+    setShadowRegion(new THREE.Vector3(-10, 0, 12), 135);
+    if (fog) {
+      fog.near = 55;
+      fog.far = 290;
+    }
+  }
+  renderer.shadowMap.needsUpdate = true;
+}
 // exactly what the range built, for the static merge below (not the dummies
 // and targets added later, which move)
 const rangeRoots = scene.children.filter((o) => !beforeRange.has(o) && o !== arena.root && o !== triArena.root);
@@ -549,6 +574,20 @@ const duelCode = $<HTMLInputElement>("duelCode");
 const duelPlayers = $<HTMLSelectElement>("duelPlayers");
 const botDifficulty = $<HTMLSelectElement>("botDifficulty");
 const botCount = $<HTMLSelectElement>("botCount");
+const brBots = $<HTMLSelectElement>("brBots");
+try {
+  const bb = localStorage.getItem("range.br.bots");
+  if (bb && [...brBots.options].some((o) => o.value === bb)) brBots.value = bb;
+} catch {
+  /* ignore */
+}
+brBots.addEventListener("change", () => {
+  try {
+    localStorage.setItem("range.br.bots", brBots.value);
+  } catch {
+    /* ignore */
+  }
+});
 try {
   const bd = localStorage.getItem("range.bots.difficulty");
   if (bd === "easy" || bd === "normal" || bd === "hard") botDifficulty.value = bd;
@@ -586,15 +625,62 @@ function duelButtons(): void {
 }
 function respawnForMatch(d: MatchLike): void {
   const sp = d.spawn;
-  player.teleport(sp.x, 0, sp.z, sp.yaw);
+  // a battle royale starts in the sky over your drop spot
+  if (d instanceof BrMatch) player.beginDrop(sp.x, DROP_HEIGHT, sp.z, sp.yaw);
+  else player.teleport(sp.x, 0, sp.z, sp.yaw);
   if (pendingSlots) {
     pendingSlots.forEach((id, i) => loadout.setWeaponId(i, id));
     pendingSlots = null;
   }
-  // full magazines, settled spread and recoil, gun out
+  // full magazines, settled spread and recoil, gun out, a full heal kit
   for (const sl of loadout.slots) sl.state.setWeapon(sl.weapon);
   holster = "out";
+  kit.cells = KIT_CELLS;
+  kit.syringes = KIT_SYRINGES;
+  heal = null;
 }
+
+// ---------- healing ----------
+// Apex's two small items, the numbers its own: a shield cell is 25 shield
+// over 2.5 s, a syringe 25 health over 4 s. Four of each per life; the heal
+// key takes a cell while the shield is down, else a syringe. Firing or aiming
+// cancels it; the item is only spent when it finishes.
+const KIT_CELLS = 4;
+const KIT_SYRINGES = 4;
+const HEAL_ITEMS = { cell: { name: "Shield cell", time: 2.5, amount: 25 }, syringe: { name: "Syringe", time: 4, amount: 25 } } as const;
+const kit = { cells: KIT_CELLS, syringes: KIT_SYRINGES };
+let heal: { item: keyof typeof HEAL_ITEMS; startedAt: number } | null = null;
+function startHeal(now: number): void {
+  if (!duel || !duel.alive || heal) return;
+  const item: keyof typeof HEAL_ITEMS | null =
+    duel.shield < SHIELD_MAX && kit.cells > 0 ? "cell" : duel.health < HEALTH_MAX && kit.syringes > 0 ? "syringe" : null;
+  if (!item) {
+    hud.notice(kit.cells + kit.syringes === 0 ? "NO HEALS LEFT" : duel.shield >= SHIELD_MAX && duel.health >= HEALTH_MAX ? "FULL" : kit.cells === 0 ? "NO CELLS LEFT" : "NO SYRINGES LEFT", now, 1);
+    return;
+  }
+  heal = { item, startedAt: now };
+}
+/** the heal in progress: cancelled by firing or aiming, applied when its time is up */
+function updateHeal(now: number, cancel: boolean): void {
+  if (!heal || !duel) return;
+  if (cancel || !duel.alive) {
+    heal = null;
+    return;
+  }
+  const it = HEAL_ITEMS[heal.item];
+  if (now - heal.startedAt < it.time) return;
+  if (heal.item === "cell") {
+    duel.shield = Math.min(SHIELD_MAX, duel.shield + it.amount);
+    kit.cells--;
+  } else {
+    duel.health = Math.min(HEALTH_MAX, duel.health + it.amount);
+    kit.syringes--;
+  }
+  audio.reload();
+  heal = null;
+}
+/** the full map (M); shown by itself through a battle royale's drop */
+let mapOpen = false;
 /** the callbacks every kind of match gets */
 function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRespawn = () => respawnForMatch(d);
@@ -606,7 +692,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRemoteShot = (o) => audio.shot(0.85, 10 / Math.max(10, o.distanceTo(player.pos)));
   d.onNotice = (t) => hud.notice(t, gameTime, 1);
   d.onEnd = (reason) => endMatch(reason);
-  d.onFeed = (text, mine) => hud.feed(text, gameTime, mine ? "#7ddc8a" : "#ff8a7a");
+  d.onFeed = (text, mine, neutral) => hud.feed(text, gameTime, neutral ? "#c8d0d8" : mine ? "#7ddc8a" : "#ff8a7a");
   d.streak = profile.match(kind).streak;
   d.onMatchEnd = (s) => {
     profile.recordMatch(kind, s);
@@ -669,9 +755,34 @@ function startBots(): void {
   setDuelStatus(`Against ${Number(botCount.value) === 2 ? "two bots" : "a bot"}, ${diff}. First to 3 rounds.`, "good");
   duelButtons();
 }
+/** the battle royale against bots, on Outskirts */
+function startBr(): void {
+  if (duel) return;
+  hosting?.cancel();
+  hosting = null;
+  cancelJoin?.();
+  cancelJoin = null;
+  for (const c of courses) c.leave();
+  const diff = (botDifficulty.value === "easy" || botDifficulty.value === "hard" ? botDifficulty.value : "normal") as BotDifficulty;
+  const bots = Math.max(1, Math.min(11, Number(brBots.value) || 11));
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots);
+  duel = d;
+  player.setBounds(BR_BOUNDS);
+  setRegion("br");
+  wireMatch(d, "br");
+  respawnForMatch(d);
+  mapOpen = false;
+  setDuelStatus(`Battle royale on Outskirts: you and ${bots} bots, ${diff}. Dropping onto ${d.poi.name}.`, "good");
+  hud.notice(`DROPPING INTO ${d.poi.name}`, gameTime, 3);
+  duelButtons();
+}
 function endMatch(reason: string): void {
+  const wasBr = duel instanceof BrMatch;
   duel?.dispose();
   duel = null;
+  heal = null;
+  mapOpen = false;
+  if (wasBr) setRegion("range");
   hosting?.cancel();
   hosting = null;
   hud.notice(reason.toUpperCase(), gameTime, 3);
@@ -760,7 +871,7 @@ window.addEventListener("beforeunload", (e) => {
 // benchmark can measure both.
 const merged = new URLSearchParams(location.search).has("nomerge")
   ? null
-  : mergeStatic(scene, [...rangeRoots, ...courses.map((c) => c.root), arena.root, triArena.root]);
+  : mergeStatic(scene, [...rangeRoots, ...courses.map((c) => c.root), arena.root, triArena.root, brMap.root]);
 
 // Two slots, each with its own clip and reload state: empty one mag, swap,
 // empty the other, swap back and the first is still empty.
@@ -839,6 +950,10 @@ function goTo(mode: Mode): void {
   }
   if (mode === "bots") {
     startBots();
+    return;
+  }
+  if (mode === "br") {
+    startBr();
     return;
   }
   for (const c of courses) c.leave();
@@ -1195,6 +1310,9 @@ function step(): void {
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
     }
+    // 4: a heal; M: the map
+    if (input.pressedNow("heal")) startHeal(now);
+    if (input.pressedNow("map")) mapOpen = !mapOpen;
     // K: race your best run's ghost, or not
     if (input.pressedNow("ghost")) {
       const course = activeCourse();
@@ -1275,6 +1393,7 @@ function step(): void {
   const motion = player.sprinting ? "sprint" : player.speed > 0.6 ? "walk" : "still";
   const shots = ws.update(dt, now, trigger, adsHeld, stance, motion, !player.onGround, crouched, rnd);
   if (ws.consumeDryFire()) audio.dry();
+  updateHeal(now, trigger || adsHeld || knockedOut);
 
   // camera from angles + soft recoil
   const off = ws.kick.offset();
@@ -1586,6 +1705,7 @@ function step(): void {
   }
   const optic = viewModel.opticFitted;
   const aimNow = debugView.ads ?? ws.adsFrac;
+  const duelHud = duel ? duel.hud() : null;
   hud.draw(now, camera, {
     // name/ammo follow the INCOMING weapon during a swap; cone/ADS stay with
     // the gun actually in hand
@@ -1618,7 +1738,12 @@ function step(): void {
     pz: player.pos.z,
     holstered: holster !== "out",
     course: duel ? null : (courses.map((c) => c.hud(now)).find((h) => h !== null) ?? null),
-    duel: duel ? duel.hud() : null,
+    duel: duelHud,
+    mapRegion: duel instanceof BrMatch ? BR_BOUNDS : undefined,
+    // the drop shows the map by itself; M opens it any other time
+    mapOpen: mapOpen || !!duelHud?.br?.dropping,
+    heal: heal && duel ? { item: HEAL_ITEMS[heal.item].name, progress: Math.min(1, (now - heal.startedAt) / HEAL_ITEMS[heal.item].time) } : null,
+    kit: duel && duel.alive ? kit : null,
     lobby:
       hosting && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
         ? { code: hosting.code, waitingFor: duel ? duel.players - 1 - (duel as Duel).connected : Number(duelPlayers.value) === 3 ? 2 : 1 }
@@ -1714,6 +1839,13 @@ initWelcome();
   selfFigureVisible: () => selfFig?.group.visible ?? false,
   viewModelVisible: () => viewModel.group.visible,
   lobbyCode: () => (hosting && !duel ? hosting.code : null),
+  setMapOpen: (on: boolean) => (mapOpen = on),
+  startHeal: () => startHeal(gameTime),
+  kit,
+  brMap,
+  renderer,
+  sun: getSun,
+  quality,
   /** back to the menu, whichever way in was used (tools/e2e.ts) */
   toMenu: () => {
     input.padPlaying = false;

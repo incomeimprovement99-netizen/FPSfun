@@ -35,6 +35,7 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
       ["holster", "Holster (15% faster)"],
       ["melee", "Melee"],
       ["zoomToggle", "Variable optic zoom"],
+      ["heal", "Heal (a cell, then a syringe)"],
     ],
   },
   {
@@ -52,6 +53,7 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
     actions: [
       ["thirdPerson", "Third person on / off"],
       ["orbit", "Look round your character (hold)"],
+      ["map", "The full map"],
     ],
   },
   {

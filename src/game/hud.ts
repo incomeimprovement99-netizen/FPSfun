@@ -16,6 +16,7 @@ import * as THREE from "three";
 import { RANGE_SOLIDS, COURSE_GATE, COURSE_GATE_R } from "./range";
 import { ZIPLINES } from "./traversal";
 import { drawReticle, type ReticleStyle } from "./optics";
+import type { DuelHud } from "./duel";
 
 export interface DamageNumber {
   world: THREE.Vector3;
@@ -93,30 +94,25 @@ export interface HudState {
   prompt: { key: string; text: string } | null;
   /** a magnified scope's full-screen picture, faded in with aim */
   scope: { style: ReticleStyle; color: string; amount: number } | null;
-  /** a 1v1 in progress */
-  duel?: {
-    you: number;
-    them: number;
-    round: number;
-    phase: "waiting" | "countdown" | "fight" | "roundEnd" | "matchEnd";
-    left: number;
-    ping: number | null;
-    youWonRound: boolean | null;
-    youWonMatch: boolean | null;
-    zone: { live: boolean; startsIn: number; you: number; them: number; need: number };
-    /** everyone, you first: a scoreboard for three */
-    players: Array<{ name: string; score: number; alive: boolean; you: boolean }>;
-    waiting: string | null;
-    /** at the end of a match: the numbers for the card */
-    summary: { won: boolean; roundsWon: number; roundsLost: number; kills: number; deaths: number; damage: number; shots: number; hits: number; streak: number } | null;
-  } | null;
+  /** a match in progress (duel.ts DuelHud: the 1v1, the bots, the battle royale) */
+  duel?: DuelHud | null;
   /** hosting a match and waiting in the arena: the code, and how many are still to come */
   lobby?: { code: string; waitingFor: number } | null;
+  /** the part of the world the minimap draws (the range, or the BR map) */
+  mapRegion?: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /** the full map is open (M), or shown by the drop */
+  mapOpen?: boolean;
+  /** a heal in progress: the item, 0..1, and what is left in the kit */
+  heal?: { item: string; progress: number } | null;
+  kit?: { cells: number; syringes: number } | null;
   /** nameplates over the other players and the bots */
   plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean }>;
   /** real shield and health (a 1v1); the bars are decorative without it */
   vitals?: { shield: number; shieldMax: number; health: number; healthMax: number } | null;
 }
+
+/** map canvas pixels per metre */
+const MAP_PX = 6;
 
 // Apex-flavoured palette
 const WHITE = "#f2f2f2";
@@ -139,11 +135,12 @@ export class Hud {
   private hurtAt = -Infinity;
   private w = 0;
   private h = 0;
-  /** pre-drawn top-down map of the whole world, PX_PER_M pixels per metre */
+  /** pre-drawn top-down map of the current region, MAP_PX pixels per metre */
   private map: HTMLCanvasElement | null = null;
   private mapMinX = 0;
   private mapMinZ = 0;
   private mapSolids = -1;
+  private mapRegionKey = "";
 
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext("2d")!;
@@ -227,9 +224,12 @@ export class Hud {
     this.drawTechFeed(now, u);
     this.drawPlates(now, camera, s, u);
     this.drawDuel(s, u);
+    this.drawBr(now, s, u);
+    this.drawKit(s, u);
     this.drawLobby(s, u);
     this.drawFeed(now, u);
     this.drawSummary(s, u);
+    this.drawFullMap(now, s, u);
   }
 
   /** names and bars over the other players and the bots, fading with distance */
@@ -280,7 +280,7 @@ export class Hud {
   /** the match summary at the end: rounds, K/D, damage, accuracy */
   private drawSummary(s: HudState, u: number): void {
     const d = s.duel;
-    if (!d || d.phase !== "matchEnd" || !d.summary) return;
+    if (!d || d.phase !== "matchEnd" || !d.summary || d.br) return;
     const sm = d.summary;
     const c = this.ctx;
     const cx = this.w / 2;
@@ -322,7 +322,7 @@ export class Hud {
    */
   private drawDuel(s: HudState, u: number): void {
     const d = s.duel;
-    if (!d) return;
+    if (!d || d.br) return;
     const cx = this.w / 2;
     const c = this.ctx;
     c.fillStyle = PANEL;
@@ -582,17 +582,28 @@ export class Hud {
    * things are lighter, so walls read over floor-level cover. Rebuilt if the
    * number of solids changes (the course adds its own after load).
    */
-  private buildMap(): void {
-    const PX = 6;
+  private buildMap(region?: HudState["mapRegion"]): void {
+    const PX = MAP_PX;
     let minX = Infinity;
     let maxX = -Infinity;
     let minZ = Infinity;
     let maxZ = -Infinity;
-    for (const s of RANGE_SOLIDS) {
+    // the region's solids only: the BR map is 500 m from the range, and one
+    // canvas for both would be tens of millions of pixels
+    const inRegion = (s: { minX: number; maxX: number; minZ: number; maxZ: number }) =>
+      !region || (s.maxX > region.minX && s.minX < region.maxX && s.maxZ > region.minZ && s.minZ < region.maxZ);
+    const solids = RANGE_SOLIDS.filter(inRegion);
+    for (const s of solids) {
       minX = Math.min(minX, s.minX);
       maxX = Math.max(maxX, s.maxX);
       minZ = Math.min(minZ, s.minZ);
       maxZ = Math.max(maxZ, s.maxZ);
+    }
+    if (region) {
+      minX = region.minX;
+      maxX = region.maxX;
+      minZ = region.minZ;
+      maxZ = region.maxZ;
     }
     if (!Number.isFinite(minX)) return;
     minX -= 10;
@@ -603,11 +614,11 @@ export class Hud {
     cv.width = Math.ceil((maxX - minX) * PX);
     cv.height = Math.ceil((maxZ - minZ) * PX);
     const g = cv.getContext("2d")!;
-    g.fillStyle = "#1c2227";
+    g.fillStyle = region ? "#2a2d27" : "#1c2227";
     g.fillRect(0, 0, cv.width, cv.height);
     // Overhead pieces (the course roof, the vent slab) would cover what is
     // under them, so the map shows only what stands on the floor.
-    const sorted = RANGE_SOLIDS.filter((s) => s.base < 2.5).sort((a, b) => a.top - b.top);
+    const sorted = solids.filter((s) => s.base < 2.5).sort((a, b) => a.top - b.top);
     for (const s of sorted) {
       const shade = Math.min(1, s.top / 6);
       const l = Math.round(70 + shade * 120);
@@ -618,6 +629,7 @@ export class Hud {
     g.strokeStyle = "#ffc21a";
     g.lineWidth = 2;
     for (const z of ZIPLINES) {
+      if (!inRegion({ minX: Math.min(z.a.x, z.b.x), maxX: Math.max(z.a.x, z.b.x), minZ: Math.min(z.a.z, z.b.z), maxZ: Math.max(z.a.z, z.b.z) })) continue;
       g.beginPath();
       g.moveTo((z.a.x - minX) * PX, (z.a.z - minZ) * PX);
       g.lineTo((z.b.x - minX) * PX + 0.01, (z.b.z - minZ) * PX + 0.01);
@@ -625,21 +637,46 @@ export class Hud {
       g.fillStyle = "#ffc21a";
       g.fillRect((z.a.x - minX) * PX - 3, (z.a.z - minZ) * PX - 3, 6, 6);
     }
-    g.fillStyle = "#e2742b";
-    for (const gate of [COURSE_GATE, COURSE_GATE_R]) g.fillRect((gate.minX - minX) * PX, (8 - minZ) * PX, (gate.maxX - gate.minX) * PX, 1 * PX);
+    if (!region) {
+      g.fillStyle = "#e2742b";
+      for (const gate of [COURSE_GATE, COURSE_GATE_R]) g.fillRect((gate.minX - minX) * PX, (8 - minZ) * PX, (gate.maxX - gate.minX) * PX, 1 * PX);
+    }
     this.map = cv;
     this.mapMinX = minX;
     this.mapMinZ = minZ;
     this.mapSolids = RANGE_SOLIDS.length;
+    this.mapRegionKey = region ? `${region.minX},${region.minZ},${region.maxX},${region.maxZ}` : "";
+  }
+
+  private ensureMap(s: HudState): void {
+    const key = s.mapRegion ? `${s.mapRegion.minX},${s.mapRegion.minZ},${s.mapRegion.maxX},${s.mapRegion.maxZ}` : "";
+    if (this.mapSolids !== RANGE_SOLIDS.length || key !== this.mapRegionKey) this.buildMap(s.mapRegion);
+  }
+
+  /** the rings on a map: the live one orange, the next one white */
+  private drawRings(s: HudState, toX: (x: number) => number, toZ: (z: number) => number, scale: number, u: number): void {
+    const br = s.duel?.br;
+    if (!br) return;
+    const c = this.ctx;
+    c.lineWidth = 2 * u;
+    c.strokeStyle = "rgba(255,255,255,0.9)";
+    c.beginPath();
+    c.arc(toX(br.ring.next.cx), toZ(br.ring.next.cz), Math.max(0.5, br.ring.next.r * scale), 0, Math.PI * 2);
+    c.stroke();
+    c.strokeStyle = "rgba(255,122,26,0.95)";
+    c.lineWidth = 2.5 * u;
+    c.beginPath();
+    c.arc(toX(br.ring.current.cx), toZ(br.ring.current.cz), Math.max(0.5, br.ring.current.r * scale), 0, Math.PI * 2);
+    c.stroke();
   }
 
   private drawMinimap(s: HudState, u: number): void {
-    if (this.mapSolids !== RANGE_SOLIDS.length) this.buildMap();
+    this.ensureMap(s);
     const c = this.ctx;
     const size = 230 * u;
     const x0 = 26 * u;
     const y0 = 26 * u;
-    const metres = 70; // across the minimap
+    const metres = s.duel?.br ? 160 : 70; // across the minimap
     c.save();
     c.fillStyle = PANEL;
     c.fillRect(x0, y0, size, size);
@@ -647,15 +684,18 @@ export class Hud {
     c.rect(x0, y0, size, size);
     c.clip();
     if (this.map) {
-      const scale = size / metres / 6;
+      const scale = size / metres / MAP_PX;
       c.translate(x0 + size / 2, y0 + size / 2);
       // Rotate so the direction you face is up. Yaw is positive to the left
       // and 0 faces -z, which is "up" on an unrotated map.
       c.rotate((s.yaw * Math.PI) / 180);
       c.scale(scale, scale);
       c.globalAlpha = 0.9;
-      c.drawImage(this.map, -(s.px - this.mapMinX) * 6, -(s.pz - this.mapMinZ) * 6);
+      c.drawImage(this.map, -(s.px - this.mapMinX) * MAP_PX, -(s.pz - this.mapMinZ) * MAP_PX);
       c.globalAlpha = 1;
+      // the rings, in the same rotated frame (metres to canvas pixels)
+      const k = MAP_PX;
+      this.drawRings(s, (x) => (x - s.px) * k, (z) => (z - s.pz) * k, k, u / scale);
     }
     c.restore();
     // frame and player arrow
@@ -672,6 +712,119 @@ export class Hud {
     c.lineTo(ax - 6 * u, ay + 7 * u);
     c.closePath();
     c.fill();
+  }
+
+  /**
+   * The full map (M, and shown through the drop): the region to fit the
+   * screen, north up, the POIs named, the rings, you as an arrow, and while
+   * dropping a pulsing marker on the POI you are dropping onto.
+   */
+  private drawFullMap(now: number, s: HudState, u: number): void {
+    if (!s.mapOpen || !this.map) return;
+    const c = this.ctx;
+    const r = s.mapRegion ?? { minX: this.mapMinX, maxX: this.mapMinX + this.map.width / MAP_PX, minZ: this.mapMinZ, maxZ: this.mapMinZ + this.map.height / MAP_PX };
+    const side = Math.min(this.w * 0.62, this.h * 0.8);
+    const scale = side / Math.max(r.maxX - r.minX, r.maxZ - r.minZ);
+    const x0 = this.w / 2 - ((r.maxX - r.minX) * scale) / 2;
+    const y0 = this.h / 2 - ((r.maxZ - r.minZ) * scale) / 2;
+    const toX = (x: number) => x0 + (x - r.minX) * scale;
+    const toZ = (z: number) => y0 + (z - r.minZ) * scale;
+    c.save();
+    c.fillStyle = "rgba(4,6,8,0.78)";
+    c.fillRect(0, 0, this.w, this.h);
+    c.drawImage(this.map, (r.minX - this.mapMinX) * MAP_PX, (r.minZ - this.mapMinZ) * MAP_PX, (r.maxX - r.minX) * MAP_PX, (r.maxZ - r.minZ) * MAP_PX, x0, y0, (r.maxX - r.minX) * scale, (r.maxZ - r.minZ) * scale);
+    c.strokeStyle = "rgba(255,255,255,0.4)";
+    c.lineWidth = 1.5 * u;
+    c.strokeRect(x0, y0, (r.maxX - r.minX) * scale, (r.maxZ - r.minZ) * scale);
+    const br = s.duel?.br;
+    if (br) {
+      this.drawRings(s, toX, toZ, scale, u);
+      for (const p of br.pois) {
+        const mine = br.dropping && p.name === br.poi;
+        this.text(p.name, toX(p.x), toZ(p.z) - 10 * u, 700, (mine ? 18 : 14) * u, mine ? "#ffd23c" : WHITE, "center");
+        if (mine) {
+          const pulse = 1 + 0.35 * Math.sin(now * 6);
+          c.strokeStyle = "#ffd23c";
+          c.lineWidth = 3 * u;
+          c.beginPath();
+          c.arc(toX(p.x), toZ(p.z), 18 * u * pulse, 0, Math.PI * 2);
+          c.stroke();
+        }
+      }
+    }
+    // you, as the minimap's arrow, facing the way you face
+    c.translate(toX(s.px), toZ(s.pz));
+    c.rotate((-s.yaw * Math.PI) / 180);
+    c.fillStyle = "#ffd23c";
+    c.beginPath();
+    c.moveTo(0, -10 * u);
+    c.lineTo(7 * u, 8 * u);
+    c.lineTo(0, 4 * u);
+    c.lineTo(-7 * u, 8 * u);
+    c.closePath();
+    c.fill();
+    c.restore();
+    if (br?.dropping) {
+      this.text(`DROPPING INTO ${br.poi}`, this.w / 2, y0 - 26 * u, 700, 34 * u, "#ffd23c", "center");
+      this.text("STEER WITH THE MOVEMENT KEYS", this.w / 2, y0 + (r.maxZ - r.minZ) * scale + 34 * u, 600, 15 * u, DIM, "center");
+    } else this.text("M CLOSES THE MAP", this.w / 2, y0 + (r.maxZ - r.minZ) * scale + 34 * u, 600, 15 * u, DIM, "center");
+  }
+
+  /** the battle royale: who is left, the ring's clock, outside the ring, the heal, the card */
+  private drawBr(now: number, s: HudState, u: number): void {
+    const br = s.duel?.br;
+    if (!br) return;
+    const c = this.ctx;
+    const cx = this.w / 2;
+    // top centre, under the compass: alive, kills, the ring's clock
+    c.fillStyle = PANEL;
+    c.fillRect(cx - 170 * u, 60 * u, 340 * u, 58 * u);
+    this.text(`${br.alive}`, cx - 120 * u, 102 * u, 700, 38 * u, WHITE, "center");
+    this.text("ALIVE", cx - 120 * u, 76 * u, 700, 13 * u, DIM, "center");
+    this.text(`${br.kills}`, cx + 120 * u, 102 * u, 700, 38 * u, "#7ddc8a", "center");
+    this.text("KILLS", cx + 120 * u, 76 * u, 700, 13 * u, DIM, "center");
+    const t = br.ring.timeLeft;
+    const mm = Math.floor(t / 60);
+    const ss = Math.floor(t % 60);
+    const clock = `${mm}:${ss.toString().padStart(2, "0")}`;
+    const ringDone = br.ring.phase >= br.ring.phases && !br.ring.closing;
+    this.text(ringDone ? "RING CLOSED" : br.ring.closing ? "RING CLOSING" : `RING ${br.ring.phase} CLOSES IN`, cx, 80 * u, 700, 13 * u, br.ring.closing ? "#ff7a1a" : DIM, "center");
+    this.text(ringDone ? "" : clock, cx, 108 * u, 700, 30 * u, br.ring.closing ? "#ff7a1a" : WHITE, "center");
+    // outside: an orange vignette and the damage it costs
+    if (br.ring.outside && !br.dropping && !br.placement) {
+      const g = c.createRadialGradient(cx, this.h / 2, this.h * 0.35, cx, this.h / 2, this.h * 0.9);
+      g.addColorStop(0, "rgba(255,110,20,0)");
+      g.addColorStop(1, `rgba(255,110,20,${0.35 + 0.1 * Math.sin(now * 5)})`);
+      c.fillStyle = g;
+      c.fillRect(0, 0, this.w, this.h);
+      this.text(`OUTSIDE THE RING  ·  ${br.ring.damage} EVERY 1.5 S`, cx, this.h * 0.3, 700, 26 * u, "#ff9a4a", "center");
+    }
+    // the heal in progress, and the kit
+    if (s.heal) {
+      const bw = 260 * u;
+      const y = this.h * 0.62;
+      c.fillStyle = "rgba(0,0,0,0.55)";
+      c.fillRect(cx - bw / 2, y, bw, 10 * u);
+      c.fillStyle = "#7ddc8a";
+      c.fillRect(cx - bw / 2, y, bw * s.heal.progress, 10 * u);
+      this.text(s.heal.item.toUpperCase(), cx, y - 8 * u, 700, 15 * u, WHITE, "center");
+    }
+    // the card at the end
+    if (br.placement !== null) {
+      const won = br.placement === 1;
+      this.text(won ? "YOU ARE THE CHAMPION" : `#${br.placement} OF ${br.total}`, cx, this.h * 0.3, 700, 62 * u, won ? "#ffd23c" : WHITE, "center");
+      const m = Math.floor(br.survived / 60);
+      const sec = Math.floor(br.survived % 60);
+      this.text(`${br.kills} kill${br.kills === 1 ? "" : "s"}  ·  ${m}:${sec.toString().padStart(2, "0")} survived  ·  menu in ${Math.ceil(s.duel?.left ?? 0)}`, cx, this.h * 0.3 + 44 * u, 700, 22 * u, DIM, "center");
+    }
+  }
+
+  /** the heal kit, bottom left over the bars: what is left of the cells and syringes */
+  private drawKit(s: HudState, u: number): void {
+    if (!s.kit) return;
+    const x = 34 * u + 350 * u;
+    const y = this.h - 52 * u;
+    this.text(`4  CELL ${s.kit.cells}   SYRINGE ${s.kit.syringes}`, x, y, 700, 14 * u, s.kit.cells + s.kit.syringes > 0 ? DIM : "rgba(154,164,173,0.4)");
   }
 
   private drawStats(s: HudState, u: number): void {

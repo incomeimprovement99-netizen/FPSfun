@@ -28,5 +28,7 @@
   "zoomToggle": ["KeyZ"],
   "ghost": ["KeyK"],
   "thirdPerson": ["KeyX"],
-  "orbit": ["AltLeft"]
+  "orbit": ["AltLeft"],
+  "heal": ["Digit4"],
+  "map": ["KeyM"]
 }

@@ -25,6 +25,9 @@ import { RANGE_SOLIDS, type Solid } from "./range";
 import { ZIPLINES, type Zipline } from "./traversal";
 
 const DEG = Math.PI / 180;
+/** the skydive: terminal speed and steering, m/s (ours; the game's dive is its own system) */
+const DROP_SPEED = 22;
+const DROP_STEER = 9;
 
 export interface Bounds {
   minX: number; maxX: number; minZ: number; maxZ: number;
@@ -198,6 +201,16 @@ export class Player {
     if (this.sliding) return "slide";
     if (!this.onGround) return "air";
     return this.crouched ? "crouch" : "stand";
+  }
+
+  /**
+   * A drop from the sky (the battle royale's start): falling at a terminal
+   * speed with full steering, no fall stun on landing. Cleared by the landing.
+   */
+  dropping = false;
+  beginDrop(x: number, y: number, z: number, yaw: number): void {
+    this.teleport(x, y, z, yaw, -35);
+    this.dropping = true;
   }
 
   /** riding a zipline */
@@ -461,6 +474,12 @@ export class Player {
     // framerate drops.
     const vyStart = this.vel.y;
     if (!this.climbing) this.vel.y -= MOVE.gravity * dt;
+    if (this.dropping && !this.onGround) {
+      // the skydive: terminal speed, and the stick steers the fall directly
+      this.vel.y = Math.max(this.vel.y, -DROP_SPEED);
+      this.vel.x = wx * DROP_STEER;
+      this.vel.z = wz * DROP_STEER;
+    }
     this.integrate(dt, now, vyStart);
 
     // Non-upward climbing has a 1 s timer: after it, anything slower than
@@ -1474,6 +1493,14 @@ export class Player {
       this.climbNormal = null;
     }
     this.landingSpeed = impact;
+    if (this.dropping) {
+      // the end of a drop: on your feet, no stun, no slide, a small dip
+      this.dropping = false;
+      this.vel.x = 0;
+      this.vel.z = 0;
+      this.viewDip -= MOVE.landDipMetres;
+      return;
+    }
 
     // Fall stun: none below the speed of a 300 hu fall, a full 1 s and all
     // horizontal speed lost at the speed of an 800 hu fall, quadratic between.

@@ -33,6 +33,28 @@ export const COURSE_GATE_R = { minX: 19.5, maxX: 23.5 };
  */
 export const SUN_DIR = new THREE.Vector3(0.56, 0.66, 0.50).normalize();
 
+let sunLight: THREE.DirectionalLight | null = null;
+/** the sun, for the debug handle */
+export const getSun = (): THREE.DirectionalLight | null => sunLight;
+/**
+ * Point the sun's shadow map at another part of the world (the BR map is 500
+ * m south of the range). `half` is half the width covered: 135 for the range,
+ * 230 for the whole BR map (11 cm a texel at 4096, coarse but there).
+ */
+export function setShadowRegion(centre: THREE.Vector3, half: number): void {
+  const sun = sunLight;
+  if (!sun) return;
+  sun.position.copy(SUN_DIR).multiplyScalar(150 + half * 0.4).add(centre);
+  sun.target.position.copy(centre);
+  const c = sun.shadow.camera;
+  c.left = -half;
+  c.right = half;
+  c.top = half;
+  c.bottom = -half;
+  c.far = 360 + half;
+  c.updateProjectionMatrix();
+}
+
 /** the sky dome, so the frame loop can keep it centred on the camera */
 let rangeSky: Sky | null = null;
 export function skyFollow(camera: THREE.Camera): void {
@@ -742,6 +764,7 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // of being switched off. Contrast now comes from the RATIO of sun to fill,
   // not from turning everything down.
   const sun = new THREE.DirectionalLight(0xfff2dc, 3.1);
+  sunLight = sun;
   // Centred between the range and the course behind it, so the shadow map
   // covers both.
   const shadowCentre = new THREE.Vector3(-10, 0, 12);

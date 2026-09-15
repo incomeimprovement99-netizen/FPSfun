@@ -27,6 +27,7 @@ import type { Link, NetMsg, RoundPhase } from "../net/link";
 import { ARENA_CENTER, ARENA_SPAWNS, TRI_CENTER, TRI_SPAWNS, ZONE_RADIUS } from "./arena";
 import { operatorById } from "./operators";
 import type { MatchSummary } from "./stats";
+import type { BrHud } from "./brmatch";
 
 const SEND_HZ = 30;
 const INTERP_DELAY = 0.1;
@@ -114,6 +115,8 @@ export interface DuelHud {
   waiting: string | null;
   /** at the end of a match: the numbers for the card (streak from the profile) */
   summary: (MatchSummary & { streak: number }) | null;
+  /** a battle royale: the ring, the count, the drop (brmatch.ts) */
+  br?: BrHud;
 }
 
 export interface LocalState {
@@ -159,8 +162,8 @@ export interface MatchLike {
   onEnd: ((reason: string) => void) | null;
   onNotice: ((text: string) => void) | null;
   onMatchEnd: ((s: MatchSummary) => void) | null;
-  /** a line for the kill feed: who knocked whom */
-  onFeed: ((text: string, mine: boolean) => void) | null;
+  /** a line for the kill feed: who knocked whom (`neutral`: neither side was you) */
+  onFeed: ((text: string, mine: boolean, neutral?: boolean) => void) | null;
   /** the match end card wants your win streak from the profile */
   streak: number;
   /** knocked with others still standing: a figure to watch, or null */
@@ -228,7 +231,7 @@ export class Duel implements MatchLike {
   onNotice: ((text: string) => void) | null = null;
   /** first to 3: the result, for stats (before the rematch starts) */
   onMatchEnd: ((s: MatchSummary) => void) | null = null;
-  onFeed: ((text: string, mine: boolean) => void) | null = null;
+  onFeed: ((text: string, mine: boolean, neutral?: boolean) => void) | null = null;
   streak = 0;
   private lastSummary: MatchSummary | null = null;
   /** the host: how many have arrived, for the panel */

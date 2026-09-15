@@ -189,6 +189,7 @@
             <button type="button" class="mode" id="goDuel"><b>1v1 and 1v1v1</b><span>Friends, a code, an arena. First to 3, with the circle.</span></button>
             <button type="button" class="mode" id="goBots"><b>Arena, Bots</b><span id="botsBlurb">The 1v1 rules against 1 or 2 bots. Pick the difficulty on the 1v1 tab.</span></button>
             <button type="button" class="mode" id="goArena"><b>Arena, alone</b><span>Walk the 1v1 map by yourself to learn it.</span></button>
+            <button type="button" class="mode" id="goBr"><b>Battle Royale, Bots</b><span id="brBlurb">Drop onto Outskirts with 11 bots, the ring closes, last one standing. Bots and difficulty on the 1v1 tab.</span></button>
           </div>
           <button id="play" type="button">Play</button>
           <div class="hintLine" id="playHint">Esc brings you back here. Everything you set is remembered.</div>
@@ -213,6 +214,13 @@
               <select id="botCount"><option value="1">1 bot</option><option value="2">2 bots</option></select>
               <select id="botDifficulty"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
               <span class="or">then Play tab, Arena Bots. Easy bots are slow and miss; hard ones sprint and land most of a mag.</span>
+            </div>
+          </div>
+          <div class="duel" style="margin-top:10px">
+            <div class="duelTitle">Battle Royale, Bots</div>
+            <div class="duelRow">
+              <select id="brBots"><option value="11" selected>11 bots (12 in the match)</option><option value="7">7 bots</option><option value="5">5 bots</option><option value="3">3 bots</option></select>
+              <span class="or">the difficulty above. Then Play tab, Battle Royale. You drop onto one of five places; the ring closes six times; 4 heals (cells then syringes); M is the map.</span>
             </div>
           </div>
           <ul class="rules">

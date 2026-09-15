@@ -7,6 +7,7 @@ import { ViewKick, tuning } from "../src/game/recoil";
 import { Loadout } from "../src/game/loadout";
 import { WeaponState } from "../src/game/weapon-state";
 import { AimAssist } from "../src/game/aimassist";
+import { Ring, RING_PHASES, RING_TICK } from "../src/game/ring";
 import { RANGE_SOLIDS } from "../src/game/range";
 import type { Dummy } from "../src/game/dummy";
 import * as THREE from "three";
@@ -559,6 +560,46 @@ console.log("\nAim assist (controller only, src/game/aimassist.ts)");
   RANGE_SOLIDS.pop();
   aa.enabled = false;
   eq("off in the settings is off", aa.update(input).target, null);
+}
+
+console.log("\nThe ring (src/game/ring.ts)");
+{
+  let seed = 7;
+  const rng = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const ring = new Ring({ cx: 0, cz: 500, r: 297 }, rng);
+  eq("phase 1 waits first", ring.state, "waiting");
+  eq("phase 1 costs 3 a tick outside", ring.damage, 3);
+  const inside = (a: { cx: number; cz: number; r: number }, b: { cx: number; cz: number; r: number }) => Math.hypot(a.cx - b.cx, a.cz - b.cz) + a.r <= b.r + 1e-6;
+  eq("the next ring fits inside the first", inside(ring.next, ring.current), true);
+  let ticks = 0;
+  let closingSeen = false;
+  let t = 0;
+  // run the whole ring at 60 fps
+  while (!ring.done && t < 2000) {
+    if (ring.update(1 / 60)) ticks++;
+    if (ring.state === "closing") closingSeen = true;
+    t += 1 / 60;
+  }
+  const total = RING_PHASES.reduce((a, p) => a + p.wait + p.close, 0);
+  eq("it closed six times", ring.done && ring.phase === RING_PHASES.length, true);
+  near("in the sum of the waits and closes", t, total, 0.05);
+  near("a tick every 1.5 s", ticks, Math.floor(total / RING_TICK), 1);
+  eq("the last ring is a point", ring.current.r < 0.01, true);
+  eq("the closing state was seen", closingSeen, true);
+  eq("the last phase costs 25 a tick", ring.damage, 25);
+  eq("a point 300 m out is outside", ring.outside(300, 500), true);
+  // every phase's target sits inside the ring it closes from
+  seed = 3;
+  const r2 = new Ring({ cx: 0, cz: 500, r: 297 }, rng);
+  let ok = true;
+  let prev = { ...r2.current };
+  while (!r2.done) {
+    const phase = r2.phase;
+    if (!inside(r2.next, prev)) ok = false;
+    while (!r2.done && r2.phase === phase) r2.update(0.25);
+    prev = { ...r2.current };
+  }
+  eq("every ring closes to a circle inside the last", ok, true);
 }
 
 console.log("\nAttachments (every effect is a mod block in the reference data)");

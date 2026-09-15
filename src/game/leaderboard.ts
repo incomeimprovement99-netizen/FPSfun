@@ -19,6 +19,7 @@ export const BOARDS: ReadonlyArray<{ id: string; label: string; unit: "s" | "win
   { id: "course:advanced", label: "The Run (Advanced)", unit: "s" },
   { id: "duel:wins", label: "1v1 wins", unit: "wins" },
   { id: "triple:wins", label: "1v1v1 wins", unit: "wins" },
+  { id: "br:wins", label: "Battle royale wins", unit: "wins" },
   { id: "bots:hard:wins", label: "Wins against hard bots", unit: "wins" },
   { id: "bots:normal:wins", label: "Wins against normal bots", unit: "wins" },
   { id: "bots:easy:wins", label: "Wins against easy bots", unit: "wins" },

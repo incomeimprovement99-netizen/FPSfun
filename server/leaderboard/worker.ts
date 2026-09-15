@@ -36,7 +36,7 @@ interface Entry {
 const LOWER_IS_BETTER = /^course:/;
 const NAME = /^[A-Za-z0-9_ .-]{1,16}$/;
 /** the only boards the game posts to; anything else would be a new KV key per request */
-const BOARDS = new Set(["course:basic", "course:advanced", "duel:wins", "triple:wins", "bots:easy:wins", "bots:normal:wins", "bots:hard:wins"]);
+const BOARDS = new Set(["course:basic", "course:advanced", "duel:wins", "triple:wins", "br:wins", "bots:easy:wins", "bots:normal:wins", "bots:hard:wins"]);
 const MAX_ENTRIES = 100;
 
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type", "access-control-allow-methods": "GET, POST, OPTIONS" };

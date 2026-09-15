@@ -45,16 +45,38 @@ export const DIFFICULTY: Record<BotDifficulty, Difficulty> = {
   hard: { speed: 6.6, reaction: 0.22, spread: 1.6, fireScale: 1.0, keep: 5 },
 };
 /** what bots carry, one per bot in order */
-const BOT_WEAPONS = ["rspn101", "r97", "vinson"];
-const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM"];
+export const BOT_WEAPONS = ["rspn101", "r97", "vinson", "wingman", "hemlok", "energy_ar", "lmg", "energy_shotgun", "volt_smg", "car", "g2", "sentinel"];
+export const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM", "BOT NOVA", "BOT FLUX", "BOT STEEL", "BOT NEON", "BOT SOLAR", "BOT RAPID", "BOT SWIFT", "BOT ONYX", "BOT DUNE"];
 const RADIUS = MOVE.radius;
+/** a drop from the sky: terminal speed, m/s */
+export const DROP_SPEED = 22;
 
-class Bot {
+/** what a bot knows this frame; the match works it out from its own rules */
+export interface BotSense {
+  /** the nearest enemy it can see, feet position, or null */
+  target: THREE.Vector3 | null;
+  /** who that is, for the credit and the feed */
+  targetId: number;
+  /** where to walk with no target in sight (null: stay) */
+  goal: THREE.Vector3 | null;
+  canShoot: boolean;
+}
+
+/** a shot a bot fired that may have hit an enemy: for the match to apply */
+export interface BotShot {
+  from: THREE.Vector3;
+  dir: THREE.Vector3;
+  damage: number;
+}
+
+export class Bot {
   readonly dummy: Dummy;
   readonly remote: Remote;
   readonly weapon: ResolvedWeapon;
   pos = new THREE.Vector3();
   yaw = 0;
+  /** falling in from the sky at the start of a battle royale */
+  dropping = false;
   private seenAt = -Infinity;
   private sawLast = false;
   private nextShotAt = 0;
@@ -69,9 +91,13 @@ class Bot {
     scene: THREE.Scene,
     private projectiles: ProjectileSystem,
     private diff: Difficulty,
-    readonly spawn: Spawn
+    readonly spawn: Spawn,
+    /** the remote id (1 and 2 in the arena; 100 up in a battle royale) */
+    id = index + 1,
+    weaponId?: string,
+    name?: string
   ) {
-    const wid = BOT_WEAPONS[index % BOT_WEAPONS.length];
+    const wid = weaponId ?? BOT_WEAPONS[index % BOT_WEAPONS.length];
     this.weapon = resolveWeapon(wid, 2);
     const skin = OPERATORS[(index + 1) % OPERATORS.length];
     this.dummy = new Dummy(spawn.x, spawn.z, 0, { armed: wid, respawn: false, skin, rig: true, noBase: true });
@@ -80,8 +106,8 @@ class Bot {
     scene.add(this.dummy.group);
     projectiles.addDummy(this.dummy);
     this.remote = {
-      id: index + 1,
-      name: BOT_NAMES[index % BOT_NAMES.length],
+      id,
+      name: name ?? BOT_NAMES[index % BOT_NAMES.length],
       avatar: this.dummy,
       avatarWeapon: wid,
       avatarOp: skin.id,
@@ -110,10 +136,23 @@ class Bot {
     this.dummy.group.rotation.set(0, this.yaw * (Math.PI / 180) + Math.PI, 0);
     this.seenAt = -Infinity;
     this.sawLast = false;
+    this.dropping = false;
+  }
+
+  /** start `height` metres up and fall in at the drop speed; no shooting until it lands */
+  dropFrom(height: number): void {
+    this.pos.y = height;
+    this.dropping = true;
+    this.dummy.group.position.copy(this.pos);
   }
 
   get alive(): boolean {
     return !this.dummy.knocked;
+  }
+
+  /** its feet, for the others' aim and the ring */
+  get feet(): THREE.Vector3 {
+    return this.pos;
   }
 
   /** the ground under the feet, stepping up onto anything within reach */
@@ -137,8 +176,8 @@ class Bot {
     return false;
   }
 
-  /** can it see the player: within 60 m, nothing solid between chest heights */
-  private sees(target: THREE.Vector3): boolean {
+  /** can it see this spot (someone's feet): within 60 m, nothing solid between chest heights */
+  sees(target: THREE.Vector3): boolean {
     const from = this.pos.clone().setY(this.pos.y + 1.4);
     const to = target.clone().setY(target.y + 1.2);
     const d = to.clone().sub(from);
@@ -148,22 +187,36 @@ class Bot {
   }
 
   /**
-   * One frame: move, look, shoot. `target` is the player's feet; returns the
-   * damage dealt to the player this frame (0 mostly).
+   * One frame: move, look, shoot at what the match says it senses. Returns
+   * the shots it fired this frame, for the match to test against whoever it
+   * was shooting at.
    */
-  update(now: number, dt: number, target: THREE.Vector3, playerAlive: boolean, zoneLive: boolean, center: THREE.Vector3, canShoot: boolean): number {
+  update(now: number, dt: number, sense: BotSense): BotShot[] {
     if (!this.alive) {
       this.dummy.update(now, dt);
-      return 0;
+      return [];
     }
-    const sees = playerAlive && this.sees(target);
+    if (this.dropping) {
+      // straight down at the drop speed until the ground, or a roof, is under the feet
+      this.pos.y -= DROP_SPEED * dt;
+      const ground = this.groundAt(this.pos.x, this.pos.z);
+      if (this.pos.y <= ground) {
+        this.pos.y = ground;
+        this.dropping = false;
+      }
+      this.dummy.group.position.copy(this.pos);
+      this.dummy.setPose({ speed: 0, stance: "air", pitch: -30 });
+      this.dummy.update(now, dt);
+      return [];
+    }
+    const target = sense.target;
+    const sees = target !== null;
     if (sees && !this.sawLast) this.seenAt = now;
     this.sawLast = sees;
 
-    // where to go: at you if seen (keeping a distance), else the circle when it
-    // is live, else the middle of the arena
-    const goal = sees ? target : zoneLive ? center : center;
-    const toGoal = new THREE.Vector2(goal.x - this.pos.x, goal.z - this.pos.z);
+    // where to go: at the target if seen (keeping a distance), else the goal
+    const goal = target ?? sense.goal;
+    const toGoal = goal ? new THREE.Vector2(goal.x - this.pos.x, goal.z - this.pos.z) : new THREE.Vector2();
     const dist = toGoal.length();
     let want = new THREE.Vector2();
     if (dist > 1e-3) want.copy(toGoal).divideScalar(dist);
@@ -200,9 +253,9 @@ class Bot {
       }
       this.pos.y = this.groundAt(this.pos.x, this.pos.z);
     }
-    // face the player when seen, else the way it walks
-    const faceX = sees ? target.x - this.pos.x : want.x;
-    const faceZ = sees ? target.z - this.pos.z : want.y;
+    // face the target when seen, else the way it walks
+    const faceX = target ? target.x - this.pos.x : want.x;
+    const faceZ = target ? target.z - this.pos.z : want.y;
     if (Math.abs(faceX) + Math.abs(faceZ) > 1e-3) {
       const wantYaw = Math.atan2(faceX, faceZ);
       const cur = this.dummy.group.rotation.y;
@@ -213,14 +266,14 @@ class Bot {
     this.dummy.group.position.copy(this.pos);
     // the figure runs when it moves and looks at what it aims at
     const moving = want.length() > 1e-3;
-    const aimPitch = sees ? (Math.atan2(target.y + 1.15 - (this.pos.y + 1.35), Math.max(1e-3, Math.hypot(target.x - this.pos.x, target.z - this.pos.z))) * 180) / Math.PI : 0;
+    const aimPitch = target ? (Math.atan2(target.y + 1.15 - (this.pos.y + 1.35), Math.max(1e-3, Math.hypot(target.x - this.pos.x, target.z - this.pos.z))) * 180) / Math.PI : 0;
     this.dummy.setPose({ speed: moving ? this.diff.speed : 0, stance: "stand", pitch: aimPitch });
     this.dummy.update(now, dt);
 
     // shooting: after the reaction time, at the weapon's rate, with an aim
     // error that wanders every quarter second
-    let dealt = 0;
-    if (sees && canShoot && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
+    const shots: BotShot[] = [];
+    if (target && sense.canShoot && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
       const interval = Math.max(this.weapon.shotInterval, this.weapon.semiAuto ? 0.25 : 0) / this.diff.fireScale;
       this.nextShotAt = now + interval;
       if (now >= this.nextErrAt) {
@@ -239,10 +292,10 @@ class Bot {
           pd.applyAxisAngle(new THREE.Vector3(0, 1, 0), ((Math.random() * 2 - 1) * 2 * Math.PI) / 180).applyAxisAngle(side, ((Math.random() * 2 - 1) * 2 * Math.PI) / 180);
         }
         this.projectiles.fire(from, pd, this.weapon, true);
-        if (hitsBody(from, pd, target)) dealt += this.weapon.damage.near;
+        shots.push({ from, dir: pd, damage: this.weapon.damage.near });
       }
     }
-    return dealt;
+    return shots;
   }
 
   dispose(): void {
@@ -251,8 +304,8 @@ class Bot {
   }
 }
 
-/** does a ray from `from` along `dir` cross the player's body (a capsule 0.3 to 1.7 m up, 0.45 m wide) before a wall */
-function hitsBody(from: THREE.Vector3, dir: THREE.Vector3, feet: THREE.Vector3): boolean {
+/** does a ray from `from` along `dir` cross a body (a capsule 0.3 to 1.7 m up, 0.45 m wide) at `feet` before a wall */
+export function hitsBody(from: THREE.Vector3, dir: THREE.Vector3, feet: THREE.Vector3): boolean {
   const a = feet.clone().setY(feet.y + 0.3);
   const b = feet.clone().setY(feet.y + 1.7);
   // closest approach between the ray and the segment ab
@@ -313,7 +366,7 @@ export class BotMatch implements MatchLike {
   onEnd: ((reason: string) => void) | null = null;
   onNotice: ((text: string) => void) | null = null;
   onMatchEnd: ((s: MatchSummary) => void) | null = null;
-  onFeed: ((text: string, mine: boolean) => void) | null = null;
+  onFeed: ((text: string, mine: boolean, neutral?: boolean) => void) | null = null;
   streak = 0;
   private lastSummary: MatchSummary | null = null;
 
@@ -470,7 +523,10 @@ export class BotMatch implements MatchLike {
     let dealt = 0;
     for (const b of this.bots) {
       const before = b.alive;
-      const d = b.update(now, dt, feet, this.alive, this.zoneLive, center, this.phase === "fight");
+      const sees = this.alive && b.alive && !b.dropping && b.sees(feet);
+      const shots = b.update(now, dt, { target: sees ? feet : null, targetId: 0, goal: center, canShoot: this.phase === "fight" });
+      let d = 0;
+      for (const s of shots) if (hitsBody(s.from, s.dir, feet)) d += s.damage;
       if (d > 0) this.lastHitBy = b;
       dealt += d;
       if (before && !b.alive) {

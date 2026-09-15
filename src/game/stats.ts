@@ -37,7 +37,7 @@ export interface CourseStats {
 }
 
 export type BotDifficulty = "easy" | "normal" | "hard";
-export type MatchKind = "duel" | "triple" | `bots:${BotDifficulty}`;
+export type MatchKind = "duel" | "triple" | `bots:${BotDifficulty}` | "br";
 
 export interface Profile {
   name: string;
@@ -60,6 +60,10 @@ export interface MatchSummary {
   damage: number;
   shots: number;
   hits: number;
+  /** a battle royale: where you finished, out of how many, and how long you lasted */
+  placement?: number;
+  players?: number;
+  survived?: number;
 }
 
 const KEY = "range.profile.v1";
