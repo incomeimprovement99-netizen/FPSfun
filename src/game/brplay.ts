@@ -75,6 +75,18 @@ export class BrPlay {
     this.deps.sound("ping");
   }
 
+  /** an enemy ping where you look (the double tap): "ENEMY HERE", whatever is there */
+  pingEnemy(match: BrMatch, eye: THREE.Vector3, fwd: THREE.Vector3, now: number, myId: number): void {
+    const wall = solidHit(eye, fwd, 300);
+    const ground = fwd.y < -1e-3 ? eye.y / -fwd.y : Infinity;
+    const t = Math.min(wall, ground, 300);
+    const at = eye.clone().addScaledVector(fwd, Number.isFinite(t) ? t : 60);
+    // the place ping it replaces goes
+    this.markers = this.markers.filter((m) => !(m.from === myId && m.k === "go"));
+    this.addMarker("enemy", at, "ENEMY HERE", myId, -1, now);
+    match.sendMark("enemy", at, "ENEMY HERE");
+  }
+
   /**
    * A ping where you look: a figure under the crosshair is an enemy, an item
    * near the line is loot, else the ground or wall you are looking at.

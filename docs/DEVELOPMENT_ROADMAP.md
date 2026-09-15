@@ -444,3 +444,25 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   bot hears a shot out of its sight, throws a frag at you standing still and its blast lands, crouches, dodges,
   finds cover out of your sight and heals there; an easy bot does none of it; both e2e batches pass with tiered,
   frag-throwing bots in every mode).
+
+## Milestone 29 — The controller: Apex's Default layout, its presets, taps and holds ✅
+2026-09-15 (Phase 12F). `src/game/gamepad.ts`, `src/ui/binds.ts`, `brplay.ts`, `main.ts`.
+- **The game's Default layout** (EA's own table, RESEARCH_PHASE_12 section 1):
+  - RB pings, and twice quickly pings an enemy there.
+  - D-pad up heals: a tap is the quick heal, holding opens the wheel, and the right stick picks.
+  - D-pad right readies a grenade, and again the next kind.
+  - D-pad left toggles the fire mode; held, it inspects the gun.
+  - Y swaps; held, it holsters.
+  - Back opens the map; LB is the ability (the game's tactical button).
+  - D-pad down is the variable zoom (ours: the game puts a character action there).
+- **Taps and holds on one button**: a button with a hold does its tap as it comes up and its hold after 0.3 s
+  down, as the game does.
+- **Presets** on the Controls tab: Default, Bumper Jumper, Button Puncher, Evolved, Grenadier and Ninja, and
+  Range, the Phase 11 layout with the optic, the magazine level and the slots on the D-pad. Every button can
+  still be changed one at a time; Start stays the menu.
+- **The ability card on the D-pad**: while it is up, left and right pick JOLT or TRIAGE, and do nothing else.
+- **The keyboard** gets an Inspect action of its own (no key by default; holding R with a full magazine still
+  inspects) and the same double-click enemy ping on the middle button.
+- Tests: e2e (in the battle royale, RB twice is an enemy ping, D-pad up a quick heal, D-pad right a grenade; in
+  the range, Y's tap swaps on its release and its hold holsters, D-pad left held inspects, a preset puts jump on
+  LB and Default puts it back; with the card up, D-pad left picks JOLT and readies nothing).

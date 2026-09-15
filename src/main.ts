@@ -1195,6 +1195,9 @@ function joltRoll(now: number): number {
   const env = t < 0 ? 0 : t < f.rollIn ? t / f.rollIn : Math.max(0, 1 - (t - f.rollIn) / f.rollOut);
   return env * f.roll * joltRollSide;
 }
+/** a ping twice within this long is an enemy ping (the game's double tap), and when the last went */
+const PING_DOUBLE = 0.35;
+let lastPingAt = -Infinity;
 /** the match's phase last frame, and whether you were in the drop: the card comes up on a change */
 let lastMatchPhase: string | null = null;
 let wasDropping = false;
@@ -2226,6 +2229,7 @@ function step(): void {
   // The controller: read once here so every key check below sees it. Start
   // toggles the menu; with a pad in use no pointer lock is needed to play.
   const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, opticAdsMult()) - 1) * loadout.active.state.adsFrac;
+  input.pad.cardOpen = abilities.choosing;
   const padLook = input.pad.poll(wall, dt, padAdsScale, loadout.active.state.adsFrac);
   if (input.pad.menuPressed) {
     if (input.locked) input.unlock();
@@ -2323,10 +2327,16 @@ function step(): void {
         fireLockedToRelease = true;
       }
     }
-    // the middle mouse button: a ping for the squad
+    // the middle mouse button (RB): a ping for the squad; twice quickly, an enemy there
     if (input.pressedNow("ping") && duel instanceof BrMatch && duel.alive) {
       const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-      brPlay.ping(duel, camera.position.clone(), f, now, duel.id);
+      if (now - lastPingAt < PING_DOUBLE) {
+        brPlay.pingEnemy(duel, camera.position.clone(), f, now, duel.id);
+        lastPingAt = -Infinity;
+      } else {
+        brPlay.ping(duel, camera.position.clone(), f, now, duel.id);
+        lastPingAt = now;
+      }
     }
 
     // discrete keys
@@ -2337,9 +2347,8 @@ function step(): void {
       if (ws.reloading) audio.reload();
     }
     // weapon select: 1 and 2 pick a slot, Q swaps to the other
-    const cardTakesPad = abilities.choosing;
-    if (armed && input.pressedNow("slot1") && !(cardTakesPad && input.pad.pressedNow("slot1")) && loadout.requestSwap(0, now)) audio.swap();
-    if (armed && input.pressedNow("slot2") && !(cardTakesPad && input.pad.pressedNow("slot2")) && loadout.requestSwap(1, now)) audio.swap();
+    if (armed && input.pressedNow("slot1") && loadout.requestSwap(0, now)) audio.swap();
+    if (armed && input.pressedNow("slot2") && loadout.requestSwap(1, now)) audio.swap();
     // Q or the forward thumb button, which is where most players bind swap
     if (armed && input.pressedNow("swapWeapon") && loadout.requestNext(now)) audio.swap();
     if (!duel && input.pressedNow("dummyMode")) hud.notice(`DUMMIES: ${cycleDummyMode()}`, now, 1.2);
@@ -2415,9 +2424,9 @@ function step(): void {
     // 5 and 6 pick an ability while its card is up (any time in the range);
     // on a controller the d-pad's left and right pick while the card is up
     if (abilities.enabled && (abilities.choosing || !duel)) {
-      const padPick = abilities.choosing;
-      if (input.pressedNow("pickAbility1") || (padPick && input.pad.pressedNow("slot1"))) pickAbility("jolt", now);
-      else if (input.pressedNow("pickAbility2") || (padPick && input.pad.pressedNow("slot2"))) pickAbility("triage", now);
+      // (the pad's D-pad left and right are these while the card is up: gamepad.ts)
+      if (input.pressedNow("pickAbility1")) pickAbility("jolt", now);
+      else if (input.pressedNow("pickAbility2")) pickAbility("triage", now);
     }
     // F: the ability
     if (input.pressedNow("ability") && !knockedOut) useAbility(now);
@@ -2441,9 +2450,9 @@ function step(): void {
     const m = input.consumeMouse();
     const adsScale = 1 + (adsSensScale(hipH, adsHNow, settings.ads * opticAdsMult()) - 1) * ws.adsFrac;
     if (wheelOpen) {
-      // the wheel: five items round the circle, the mouse's direction picks
-      wheelVec.x = Math.max(-200, Math.min(200, wheelVec.x + m.dx));
-      wheelVec.y = Math.max(-200, Math.min(200, wheelVec.y + m.dy));
+      // the wheel: five items round the circle, the mouse's (or the right stick's) direction picks
+      wheelVec.x = Math.max(-200, Math.min(200, wheelVec.x + m.dx - padLook.yawLeft * 14));
+      wheelVec.y = Math.max(-200, Math.min(200, wheelVec.y + m.dy - padLook.pitchUp * 14));
       if (Math.hypot(wheelVec.x, wheelVec.y) > 40) {
         const a = (Math.atan2(wheelVec.x, -wheelVec.y) + Math.PI * 2) % (Math.PI * 2);
         wheelPick = HEAL_ORDER[Math.round(a / ((Math.PI * 2) / HEAL_ORDER.length)) % HEAL_ORDER.length];
@@ -2473,7 +2482,8 @@ function step(): void {
           })
         : null;
     const slow = assist?.slow ?? 1;
-    player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
+    // (the wheel open: the stick is picking, not looking)
+    if (!wheelOpen) player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
   }
 
   // holster timing, from the weapon's own holster and deploy times
@@ -2514,6 +2524,8 @@ function step(): void {
       if (!Number.isFinite(reloadHeldAt)) reloadHeldAt = now;
       if (now - reloadHeldAt > INSPECT_HOLD && now - inspectAt > INSPECT_TIME) inspectAt = now;
     } else reloadHeldAt = -Infinity;
+    // its own button too (the pad's D-pad left, held): any magazine
+    if (input.playing && input.pressedNow("inspect") && !slot.empty && !loadout.swapping && holster === "out" && now - inspectAt > INSPECT_TIME) inspectAt = now;
     if (trigger || adsHeld || loadout.swapping || player.sprinting || holster !== "out" || ordnance.readied || knockedOut) inspectAt = -Infinity;
     // a new gun's first time out (a pickup, Gun Run's next gun): the flourish, once it is up
     if (slot.firstDraw && !loadout.swapping && !slot.empty) {

@@ -144,6 +144,21 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   await sleep(1700);
   const healed = await ev<{ shield: number; cells: number; max: number }>(page, "({ shield: window.__range.duel().shield, cells: window.__range.kit.items.cell, max: window.__range.duel().shieldMax })");
   check("a shield cell heals 25 shield and is spent, in half its time with TRIAGE", healed.shield === Math.min(healed.max, shieldBefore + 25) && healed.cells === 1, JSON.stringify({ shieldBefore, ...healed }));
+  // the controller's Default: RB twice pings an enemy there; D-pad up heals; D-pad right readies a grenade
+  await pressPlay(page);
+  await padTap(page, 5, 60);
+  await padTap(page, 5, 60);
+  const enemyPing = await ev<boolean>(page, "window.__range.brPlay.markers.some((m) => m.k === 'enemy' && m.label === 'ENEMY HERE' && m.from === window.__range.duel().id)");
+  check("pad: RB twice quickly is an enemy ping where you look (the game's double tap)", enemyPing, JSON.stringify(await ev(page, "window.__range.brPlay.markers.map((m) => m.label)")));
+  await ev(page, "window.__range.duel().shield = 0");
+  await padTap(page, 12, 80);
+  const padHeal = await ev<string | null>(page, "window.__range.hud.last?.heal?.item ?? null");
+  check("pad: D-pad up (a tap) is the quick heal", padHeal !== null, String(padHeal));
+  await sleep(1500);
+  await padTap(page, 15);
+  const padNade = await ev<string | null>(page, "window.__range.ordnance.readied?.kind ?? null");
+  check("pad: D-pad right readies a grenade", padNade !== null, String(padNade));
+  await padTap(page, 6);
   await ev(page, "window.__range.duel().leave()");
   await sleep(300);
   check("leaving ends the battle royale", (await ev<boolean>(page, "window.__range.duel() === null")));
@@ -1127,7 +1142,9 @@ async function finishTest(browser: Browser, query: string): Promise<void> {
   await sleep(2500);
   await padTap(t, 3);
   check("tour: SWAP done", await stepTo("swap"));
-  await sleep(800);
+  // (Y's tap goes as it comes up: let the swap finish before the heal, which a swap would cancel)
+  await t.waitForFunction("!window.__range.loadout.swapping", { polling: 50, timeout: 3000 }).catch(() => undefined);
+  await sleep(300);
   // heal: the tour's own shield is down; the heal key
   await ev(t, "window.__range.startHeal()");
   check("tour: HEAL done (the tour lends a shield to heal)", await stepTo("heal"), String(await step()));
@@ -1208,7 +1225,44 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   await ev(page, "window.__pad.buttons[7].pressed = false; window.__pad.buttons[7].value = 0;");
   const shots1 = await ev<number>(page, "window.__range.loadout.slots[0].state.clip");
   check("pad: the right trigger fires", shots1 < shots0, `clip ${shots0} -> ${shots1}`);
+  // the game's Default: Y taps swap, Y held holsters; D-pad left held inspects
+  const slotA = await ev<number>(page, "window.__range.loadout.activeIndex");
+  await ev(page, padSet(3, true));
+  await sleep(100);
+  await ev(page, padSet(3, false));
+  const swapping = await page.waitForFunction(`window.__range.loadout.swapping || window.__range.loadout.activeIndex !== ${slotA}`, { polling: 20, timeout: 1000 }).then(() => true, () => false);
+  await sleep(1500);
+  const slotB = await ev<number>(page, "window.__range.loadout.activeIndex");
+  check("pad: Y (a tap) swaps weapons (on the release)", swapping && slotB !== slotA, `${slotA} -> ${slotB}, swap seen ${swapping}`);
+  await padTap(page, 3, 550);
+  await sleep(900);
+  const away = await ev<{ gun: boolean }>(page, "window.__range.vmState()");
+  check("pad: Y held holsters (the gun goes away)", !away.gun, JSON.stringify(away));
+  await padTap(page, 7);
+  await sleep(900);
+  await ev(page, "(() => { const s = window.__range.loadout.active.state; s.clip = window.__range.loadout.active.weapon.clipSize; })()");
+  await ev(page, padSet(14, true));
+  await sleep(500);
+  const insp = await ev<boolean>(page, "window.__range.vmState().inspecting");
+  await ev(page, padSet(14, false));
+  check("pad: D-pad left held inspects the gun", insp);
+  // the presets: Bumper Jumper puts jump on LB and the ability on A; Default puts them back
+  await ev(page, `(() => { const s = document.getElementById("padPreset"); s.value = "bumperJumper"; s.dispatchEvent(new Event("change")); })()`);
+  const bj = await ev<string[]>(page, "(() => { const b = window.__range.padButtons(); return [b[4], b[0]]; })()");
+  await ev(page, `(() => { const s = document.getElementById("padPreset"); s.value = "default"; s.dispatchEvent(new Event("change")); })()`);
+  const df = await ev<string[]>(page, "(() => { const b = window.__range.padButtons(); return [b[4], b[0], b[5], b[12], b[15]]; })()");
+  check("pad presets: Bumper Jumper (jump on LB, the ability on A), then Default (ability, jump, ping, heal, grenade)", bj.join() === "jump,ability" && df.join() === "ability,jump,ping,heal,grenade", `${bj} / ${df}`);
   await page.close();
+  // the ability card takes D-pad left and right while it is up: left picks JOLT, and readies no grenade or fire mode
+  const cp = await open(browser, query);
+  await pressPlay(cp);
+  await ev(cp, `(() => { const s = document.getElementById("botAbilities"); s.value = "1"; s.dispatchEvent(new Event("change")); document.getElementById("botCount").value = "1"; window.__range.startBots(); })()`);
+  await cp.waitForFunction("window.__range.abilities.choosing === true", { polling: 100, timeout: 5000 });
+  await padTap(cp, 14);
+  const cardPick = await ev<{ picked: string | null; nade: unknown }>(cp, "({ picked: window.__range.abilities.picked, nade: window.__range.ordnance.readied })");
+  check("pad: with the card up, D-pad left picks JOLT (and nothing else)", cardPick.picked === "jolt" && !cardPick.nade, JSON.stringify(cardPick));
+  await ev(cp, `(() => { window.__range.duel()?.leave(); const s = document.getElementById("botAbilities"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
+  await cp.close();
 }
 
 /** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, modes, squad, p2p) */

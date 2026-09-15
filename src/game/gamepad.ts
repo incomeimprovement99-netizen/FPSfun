@@ -1,13 +1,17 @@
 // Controller support, through the browser's Gamepad API.
 //
-// The layout is the game's default one, as far as the buttons map:
+// The layout is the game's Default preset (EA's own table,
+// docs/RESEARCH_PHASE_12.md section 1):
 //   left stick move, right stick look, RT fire, LT aim, A jump, B crouch,
 //   X reload (and interact: a zipline in reach, an item, held for a revive or
-//   a beacon), Y swap weapon, L3 sprint,
-//   R3 melee, LB the ability (the game's tactical button), RB variable zoom,
-//   d-pad up optic, down magazine level, left slot 1, right slot 2 (and, while
-//   the ability card is up, left and right pick one), Start the menu, Back
-//   holster.
+//   a beacon), Y swap weapon (hold: holster), L3 sprint, R3 melee, LB the
+//   ability (the game's tactical), RB ping (twice: an enemy there), D-pad up
+//   heal (tap: the quick heal; hold: the wheel), D-pad right a grenade (again:
+//   the next kind), D-pad left fire mode (hold: inspect), D-pad down the
+//   variable zoom (ours: the game puts a character action there), Back the
+//   map, Start the menu. While the ability card is up, D-pad left and right
+//   pick one instead. The game's other presets are here too, and "Range",
+//   the layout with the optic and magazine on the D-pad for trying guns.
 //
 // Look: a deadzone, a response curve (the game's Classic is a steeper curve
 // than Linear), and yaw and pitch speeds from a look sensitivity of 1 to 8
@@ -93,25 +97,54 @@ export function advancedLookRate(s: PadSettings, rx: number, ry: number, adsFrac
 /** the buttons by their standard-mapping index, as a person would say them */
 export const PAD_BUTTON_NAMES = ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "Back", "Start", "L3", "R3", "D-pad up", "D-pad down", "D-pad left", "D-pad right"];
 
-/** what each button does out of the box (standard-mapping indices) */
+/** what each button does out of the box (standard-mapping indices): the game's Default */
 export const DEFAULT_PAD_BUTTONS: Readonly<Record<number, Action | "menu">> = {
   0: "jump",
   1: "crouch",
   2: "reload",
   3: "swapWeapon",
   4: "ability",
-  5: "zoomToggle",
+  5: "ping",
   6: "ads",
   7: "fire",
-  8: "holster",
+  8: "map",
   9: "menu",
   10: "sprint",
   11: "melee",
-  12: "optic",
-  13: "magLevel",
-  14: "slot1",
-  15: "slot2",
+  12: "heal",
+  13: "zoomToggle",
+  14: "fireMode",
+  15: "grenade",
 };
+export type PadPreset = "default" | "bumperJumper" | "buttonPuncher" | "evolved" | "grenadier" | "ninja" | "range";
+/**
+ * The game's named presets, as what moves from Default (EA's accessibility
+ * page; where it does not say where a displaced action goes, ours is noted),
+ * and Range: Phase 11's layout, the optic and magazine level on the D-pad.
+ */
+export const PAD_PRESETS: Record<PadPreset, { name: string; changes: Partial<Record<number, Action>> }> = {
+  default: { name: "Default", changes: {} },
+  // jump to LB, the tactical to A
+  bumperJumper: { name: "Bumper Jumper", changes: { 4: "jump", 0: "ability" } },
+  // crouch to R3, melee to B
+  buttonPuncher: { name: "Button Puncher", changes: { 11: "crouch", 1: "melee" } },
+  // jump to LB, crouch to R3; the tactical to A and melee to B (ours: unconfirmed)
+  evolved: { name: "Evolved", changes: { 4: "jump", 11: "crouch", 0: "ability", 1: "melee" } },
+  // grenades to RB, ping to D-pad up; the heal to D-pad right (ours: unconfirmed)
+  grenadier: { name: "Grenadier", changes: { 5: "grenade", 12: "ping", 15: "heal" } },
+  // jump to LB, crouch to RB; the tactical to B, ping to A
+  ninja: { name: "Ninja", changes: { 4: "jump", 5: "crouch", 1: "ability", 0: "ping" } },
+  // the range: the optic and the magazine level on the D-pad, the slots on it too, holster on Back, zoom on RB
+  range: { name: "Range (optic, magazine and slots on the D-pad)", changes: { 5: "zoomToggle", 8: "holster", 12: "optic", 13: "magLevel", 14: "slot1", 15: "slot2" } },
+};
+/**
+ * A button's hold does something else than its tap, where the game has one:
+ * the action on the button, then what holding it does. The tap then goes
+ * when the button comes up (before HOLD_TIME); the hold once it has been
+ * down that long.
+ */
+export const PAD_HOLDS: Partial<Record<Action, Action>> = { swapWeapon: "holster", fireMode: "inspect" };
+export const HOLD_TIME = 0.3;
 /** the live map: the defaults with the player's changes (the Controls tab) */
 const BUTTON: Record<number, Action | "menu"> = { ...DEFAULT_PAD_BUTTONS };
 /** put a button map on; Start stays the menu, so a player can always get back to it */
@@ -148,6 +181,11 @@ export class GamepadInput {
   private lastMove = { x: 0, y: 0 };
   /** how long the right stick has been at its edge (the advanced look's ramp) */
   private edgeTime = 0;
+  /** a button with a hold: when it went down, and whether its hold has gone */
+  private holdStart: Array<number | null> = [];
+  private holdFired: boolean[] = [];
+  /** the ability card is up: the D-pad's left and right pick (the game does it with the same buttons) */
+  cardOpen = false;
 
   constructor() {
     window.addEventListener("gamepadconnected", (e) => {
@@ -207,13 +245,33 @@ export class GamepadInput {
     p.buttons.forEach((b, i) => {
       const on = b.pressed || b.value > TRIGGER_THRESHOLD;
       if (on) touched = true;
-      const action = BUTTON[i];
+      const was = !!this.prevButtons[i];
+      this.prevButtons[i] = on;
+      // the card up: left and right on the D-pad pick an ability, nothing else
+      const card = this.cardOpen && (i === 14 || i === 15);
+      const action: Action | "menu" | undefined = card ? (i === 14 ? "pickAbility1" : "pickAbility2") : BUTTON[i];
       if (!action) return;
+      const hold = card || action === "menu" ? undefined : PAD_HOLDS[action];
+      if (hold) {
+        // a tap goes as it comes up; the hold once it has been down HOLD_TIME, and is held after
+        if (on && !was) {
+          this.holdStart[i] = now;
+          this.holdFired[i] = false;
+        }
+        const start = this.holdStart[i];
+        if (on && start != null && !this.holdFired[i] && now - start >= HOLD_TIME) {
+          this.holdFired[i] = true;
+          this.pressed.add(hold);
+        }
+        if (on && this.holdFired[i]) next.add(hold);
+        if (!on && was && start != null && !this.holdFired[i]) this.pressed.add(action);
+        if (!on) this.holdStart[i] = null;
+        return;
+      }
       if (on) {
         next.add(action);
-        if (!this.prevButtons[i]) this.pressed.add(action);
+        if (!was) this.pressed.add(action);
       }
-      this.prevButtons[i] = on;
     });
     // the stick as keys, with a press when a direction crosses the threshold
     const moveKeys: Array<[Action, boolean]> = [

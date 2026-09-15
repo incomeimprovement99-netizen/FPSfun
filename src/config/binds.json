@@ -38,5 +38,6 @@
   "hopup": ["KeyL"],
   "dummyMode": ["KeyI"],
   "ping": ["mouse1"],
-  "grenade": ["KeyG"]
+  "grenade": ["KeyG"],
+  "inspect": []
 }

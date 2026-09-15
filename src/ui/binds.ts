@@ -4,7 +4,7 @@
 // and the tab says so. The changes live in this browser (localStorage) on top
 // of src/config/binds.json, which stays the default.
 import { DEFAULT_BINDS, currentBinds, setBinds, type Action } from "../game/input";
-import { DEFAULT_PAD_BUTTONS, PAD_BUTTON_NAMES, padButtons, setPadButtons } from "../game/gamepad";
+import { DEFAULT_PAD_BUTTONS, PAD_BUTTON_NAMES, PAD_HOLDS, PAD_PRESETS, padButtons, setPadButtons, type PadPreset } from "../game/gamepad";
 
 const PAD_KEY = "range.padbinds.v1";
 /** the controller's changes: a button's index to an action, or "none" */
@@ -53,6 +53,7 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
       ["slot1", "Weapon 1"],
       ["slot2", "Weapon 2"],
       ["holster", "Holster (15% faster)"],
+      ["inspect", "Inspect the gun (also: hold reload with a full magazine)"],
       ["melee", "Melee"],
       ["zoomToggle", "Variable optic zoom"],
       ["fireMode", "Fire mode (where the gun has two)"],
@@ -329,8 +330,40 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement): void {
     root.appendChild(h);
     const hint = document.createElement("div");
     hint.className = "bindRow";
-    hint.innerHTML = `<span class="bindName" style="color:#7d8895">The sticks move and look. Start is always the menu, so it cannot be moved. X also rides ziplines and takes items where there is a prompt.</span>`;
+    hint.innerHTML = `<span class="bindName" style="color:#7d8895">The game's Default layout. The sticks move and look. Start is always the menu, so it cannot be moved. X also rides ziplines and takes items where there is a prompt. Held: ${Object.entries(PAD_HOLDS)
+      .map(([a, h]) => `${labelOf(a as Action).split(" (")[0].toLowerCase()} → ${labelOf(h as Action).split(" (")[0].toLowerCase()}`)
+      .join("; ")}. Twice on ping: an enemy there. While the ability card is up, D-pad left and right pick.</span>`;
     root.appendChild(hint);
+    // the game's presets: a layout in one go
+    const presetRow = document.createElement("div");
+    presetRow.className = "bindRow";
+    presetRow.innerHTML = `<span class="bindName">Preset</span>`;
+    const presetSel = document.createElement("select");
+    presetSel.id = "padPreset";
+    presetSel.className = "padBind";
+    presetSel.innerHTML = `<option value="">Custom</option>` + (Object.keys(PAD_PRESETS) as PadPreset[]).map((k) => `<option value="${k}">${PAD_PRESETS[k].name}</option>`).join("");
+    const matching = (Object.keys(PAD_PRESETS) as PadPreset[]).find((k) => {
+      const want: Record<number, string> = { ...DEFAULT_PAD_BUTTONS, ...PAD_PRESETS[k].changes } as Record<number, string>;
+      const live = padButtons() as Record<number, string>;
+      return PAD_BUTTON_NAMES.every((_, i) => (want[i] ?? "none") === (live[i] ?? "none"));
+    });
+    presetSel.value = matching ?? "";
+    presetSel.addEventListener("change", () => {
+      const k = presetSel.value as PadPreset | "";
+      if (!k) return;
+      pad = { ...PAD_PRESETS[k].changes };
+      try {
+        if (Object.keys(pad).length) localStorage.setItem(PAD_KEY, JSON.stringify(pad));
+        else localStorage.removeItem(PAD_KEY);
+      } catch {
+        /* ignore */
+      }
+      setPadButtons(pad);
+      note.textContent = `The controller is on ${PAD_PRESETS[k].name}.`;
+      render();
+    });
+    presetRow.appendChild(presetSel);
+    root.appendChild(presetRow);
     const actions = GROUPS.flatMap((g) => g.actions);
     const live = padButtons();
     PAD_BUTTON_NAMES.forEach((name, i) => {
