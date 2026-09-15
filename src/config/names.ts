@@ -60,6 +60,10 @@ const HOPUP_NAMES: Record<string, string> = {
   hopup_shattercaps: PUBLIC_BUILD ? "split rounds" : "Shattercaps",
   hopup_redline: PUBLIC_BUILD ? "hot bolts" : "Redline",
 };
+/** the one heal whose name is the game's own (the others are plain words): a codename on a public build */
+export const PHOENIX_NAME = PUBLIC_BUILD ? "Nova kit" : "Phoenix kit";
+export const PHOENIX_SHORT = PUBLIC_BUILD ? "NOVA" : "PHX";
+
 export function hopupName(mod: string): string {
   return HOPUP_NAMES[mod] ?? mod;
 }

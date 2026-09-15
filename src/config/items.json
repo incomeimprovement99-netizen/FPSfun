@@ -5,8 +5,9 @@
     "syringe": { "name": "Syringe", "shield": 0, "health": 25, "time": 4, "stack": 6 },
     "battery": { "name": "Shield battery", "shield": 999, "health": 0, "time": 5, "stack": 2 },
     "medkit": { "name": "Med kit", "shield": 0, "health": 999, "time": 8, "stack": 2 },
-    "phoenix": { "name": "Phoenix kit", "shield": 999, "health": 999, "time": 10, "stack": 1 }
+    "phoenix": { "name": "", "shield": 999, "health": 999, "time": 10, "stack": 1 }
   },
+  "_phoenixName": "the phoenix kit's name (blank above) is in src/config/names.ts: the game's own while the project is private, a codename (Nova kit) on a public build",
   "healSlow": 0.6,
   "_kits": "what you start a life with: the arena and the bot match get a fixed kit (ours: two of the big heals, four of the small); a battle royale starts empty and loots (the start kit is for when loot is off)",
   "kit": { "cell": 4, "syringe": 4, "battery": 2, "medkit": 2, "phoenix": 0 },

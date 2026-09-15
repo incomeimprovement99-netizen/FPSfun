@@ -1468,6 +1468,7 @@ console.log("The battle royale's Season 29 and 30 pieces (squad.json, weapon-mec
   eq("a knock is 150 EVO, an assist 100, a care package 100", [squadJson.evo.knock, squadJson.evo.assist, squadJson.evo.carePackage].join(" "), "150 100 100");
   eq("revives: 100 twice, then 25 less each", squadJson.evo.revive.join(" "), "100 100 75 50 25 0");
   eq("the knockdown shield by EVO level", squadJson.kdShield.hp.join(" "), "200 450 750");
+  eq("the phoenix kit's name comes from names.ts (a codename, Nova kit, on a public build)", HEALS.phoenix.name, "Phoenix kit");
   near("behind it you crawl 45% slower", 1 - squadJson.kdShield.crawlScale, 0.45, 1e-9);
   eq("Deathbox Respawn: a 7 s hold, back at 20 health", [squadJson.boxRespawn.time, squadJson.boxRespawn.health].join(" "), "7 20");
   eq("the lockout grows with each death (ours), reset after 3 minutes alive", `${squadJson.boxRespawn.lockout.join(" ")} / ${squadJson.boxRespawn.resetAfter}`, "30 60 120 / 180");

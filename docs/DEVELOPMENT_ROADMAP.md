@@ -566,3 +566,11 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - The guns stay synthesised, each by its class. Without the files (a checkout that has not run `npm run sounds`)
   every sound is the synthesis alone, as before.
 - Tests: e2e (in a bot fight the samples are loaded and layered into what is heard).
+
+## Milestone 35 — The phoenix kit's codename ✅
+2026-09-15 (Phase 12L). `src/config/names.ts`, `items.json`, `tools/beta-check.ts`.
+- The owner's Phase 11 question, decided here: of the heals, only the phoenix kit carries the game's own name, so
+  the public build calls it the **Nova kit** (NOVA on the kit line); the others are plain words and stay. The name
+  lives in `names.ts` behind the build flag, so the real one is not in the public bundle at all.
+- `beta-check` now also bans Phoenix and the three new hop-ups' names (Executioner, Shattercaps, Redline, codenamed
+  "knock recharge", "split rounds" and "hot bolts" on a public build).

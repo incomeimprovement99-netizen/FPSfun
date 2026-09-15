@@ -8,6 +8,7 @@
 // into one row per opponent who hurt you or whom you hurt, the killer first:
 // damage and hits each way, their guns and distances, a heal of theirs in the
 // 10 s before the kill, and what they had left.
+import { PHOENIX_NAME } from "../config/names";
 import cfg from "../config/killcam.json";
 import { weaponName } from "./weapons";
 
@@ -61,7 +62,7 @@ export interface Recap {
 /** heal items as small numbers for the network (the fx message's n) */
 export const HEAL_CODES = ["cell", "syringe", "battery", "medkit", "phoenix"];
 
-const ITEM_NAME: Record<string, string> = { cell: "SHIELD CELL", syringe: "SYRINGE", battery: "SHIELD BATTERY", medkit: "MED KIT", phoenix: "PHOENIX KIT" };
+const ITEM_NAME: Record<string, string> = { cell: "SHIELD CELL", syringe: "SYRINGE", battery: "SHIELD BATTERY", medkit: "MED KIT", phoenix: PHOENIX_NAME.toUpperCase() };
 export const healItemName = (item: string): string => ITEM_NAME[item] ?? item.toUpperCase();
 
 export class DamageLog {

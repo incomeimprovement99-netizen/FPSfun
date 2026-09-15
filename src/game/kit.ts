@@ -9,10 +9,13 @@
 // 50 to blue 75 to purple 100; the gold helmet sets it to 100 and doubles what
 // the small heals give, the mythic one sets it to 125.
 import cfg from "../config/items.json";
+import { PHOENIX_NAME } from "../config/names";
 
 export type HealItem = keyof typeof cfg.heals;
 export const HEAL_ORDER: HealItem[] = ["cell", "battery", "syringe", "medkit", "phoenix"];
 export const HEALS = cfg.heals;
+// (its name is the game's own: names.ts gives it, codenamed on a public build)
+HEALS.phoenix.name = PHOENIX_NAME;
 export type Helmet = keyof typeof cfg.helmets;
 
 export class Kit {

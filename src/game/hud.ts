@@ -12,6 +12,7 @@
 //
 // One 2D canvas, redrawn every frame. Everything is sized from the viewport
 // height so the layout holds at any resolution.
+import { PHOENIX_SHORT } from "../config/names";
 import * as THREE from "three";
 import { RANGE_SOLIDS, COURSE_GATE, COURSE_GATE_R } from "./range";
 import { ZIPLINES } from "./traversal";
@@ -1609,7 +1610,7 @@ export class Hud {
     }
     const x = 34 * u + 350 * u;
     const y = this.h - 52 * u;
-    const short: Record<string, string> = { cell: "CELL", battery: "BATT", syringe: "SYR", medkit: "MED", phoenix: "PHX" };
+    const short: Record<string, string> = { cell: "CELL", battery: "BATT", syringe: "SYR", medkit: "MED", phoenix: PHOENIX_SHORT };
     const parts = ["cell", "battery", "syringe", "medkit", "phoenix"].filter((k) => (s.kit?.[k] ?? 0) > 0 || k === "cell" || k === "syringe").map((k) => `${short[k]} ${s.kit?.[k] ?? 0}`);
     const any = Object.values(s.kit).some((n) => n > 0);
     this.text(`${s.healKey ?? "4"}  ${parts.join("  ")}`, x, y, 700, 13 * u, any ? DIM : "rgba(154,164,173,0.4)");
