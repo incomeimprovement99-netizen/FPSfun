@@ -65,7 +65,7 @@ import hudCfg from "./config/hud.json";
 import { SuperglideTrainer } from "./game/trainer";
 import { BrPlay } from "./game/brplay";
 import { Tour, type TourCheck } from "./game/tour";
-import { Ordnance, Throwables, THROWABLES, arcSlowFor, blastDamage, isThrowKind, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
+import { Ordnance, Throwables, THROWABLES, arcSlowFor, blastDamage, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
 import { loadMannequin, setFigureStyle } from "./game/mannequin";
 import { ArenaMode } from "./game/modematch";
@@ -1657,17 +1657,13 @@ let previewNextAt = 0;
 const THROWABLES_ANY = (): boolean => ordnance.endless || Object.values(ordnance.counts).some((n) => n > 0);
 /** throw what is readied, the way you look, a little up, with some of your own speed */
 function throwReadied(now: number): void {
-  // spend takes the clock because the carried charges have a cooldown of
-  // their own: without it a shockwave's never starts
-  const kind = ordnance.spend(now);
+  const kind = ordnance.spend();
   if (!kind) return;
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
   const from = player.eyePosition().addScaledVector(fwd, 0.45).addScaledVector(right, 0.18).add(new THREE.Vector3(0, -0.12, 0));
   const vel = throwVelocity(kind, fwd);
-  // the seventh argument is where the thrower is STANDING: a rift's near
-  // mouth belongs on that ground and not at the eye height it was thrown from
-  throwables.throw(kind, from, vel, duel ? duel.id : -1, true, gameTime, player.pos);
+  throwables.throw(kind, from, vel, duel ? duel.id : -1, true, gameTime);
   duel?.localFx("throw", from, vel, throwCode(kind));
   gunRow(kind).shots++;
   throwsMade++;
@@ -1779,7 +1775,7 @@ function applyLoot(it: LootItem): void {
       brPlay.carry(it, gameTime);
       return;
     case "grenade": {
-      if (!isThrowKind(it.id)) return;
+      if (!(it.id === "frag" || it.id === "arcstar" || it.id === "thermite")) return;
       const put = ordnance.add(it.id, it.n);
       if (put < it.n) {
         putBack({ ...it, n: it.n - put });
@@ -2752,7 +2748,7 @@ function step(): void {
     }
     // G: a grenade in hand (again: the next kind you have; after the last, the gun again)
     if (input.pressedNow("grenade") && !downedNow && !knockedOut && !heal && holster === "out" && !loadout.swapping && (!duel || duel.alive)) {
-      const k = ordnance.cycle(now, downedNow);
+      const k = ordnance.cycle(now);
       if (k) {
         hud.notice(`${throwName(k)}  ·  ${keyLabel("fire")} THROWS, ${keyLabel("ads")} PUTS IT AWAY`, now, 1.6);
         audio.throwNoise("pin", null);
@@ -3346,17 +3342,6 @@ function step(): void {
   // throwables: their flights, fuses and fires; a blast's hits go the bullets' way
   impactSink = handleImpact;
   throwables.update(now, dt, throwTargets());
-  // The carried charges move whoever is standing on or in them. Throws replay
-  // on every client already, so every client has the same pads and the same
-  // rifts and moves only its own player: an enemy is thrown and carried with
-  // no new packet at all.
-  {
-    const me = { id: duel ? duel.id : -1, feet: player.pos, downed: downedNow };
-    const launch = throwables.launchFor(me, now);
-    if (launch) player.impulse(launch.x, launch.y, launch.z);
-    const out = throwables.riftFor(me, now);
-    if (out) player.teleport(out.x, out.y, out.z, player.yaw, player.pitch);
-  }
   updateAfterburns(now);
   if (ordnance.readied && now >= ordnance.readied.readyAt && !third) {
     // the path is 90 steps against every box in the world: ten times a second is plenty to aim by

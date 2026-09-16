@@ -1709,7 +1709,7 @@ export class Hud {
     const o = s.ordnance;
     if (!o) return;
     if (o.counts) {
-      const short: Record<string, string> = { frag: "FRAG", arcstar: "STAR", thermite: "THERM", shockwave: "WAVE", rift: "RIFT" };
+      const short: Record<string, string> = { frag: "FRAG", arcstar: "STAR", thermite: "THERM" };
       const any = Object.values(o.counts).some((n) => n > 0);
       const color = any ? DIM : "rgba(154,164,173,0.4)";
       // An icon and a count read faster than five words, and at a glance the

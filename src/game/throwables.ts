@@ -1,7 +1,5 @@
-// Throwables: the frag grenade, the arc star and thermite, and the two
-// carried mobility charges, the shockwave and the rift (src/config/
-// throwables.json, Season 30's numbers where Apex publishes them, ours for
-// the two charges, which are no game's).
+// Throwables: the frag grenade, the arc star and thermite (src/config/
+// throwables.json, Season 30's numbers where Apex publishes them).
 //
 // A throw is a small body under gravity that collides with the world's boxes
 // (RANGE_SOLIDS) one axis at a time: a frag bounces and rolls until its fuse
@@ -10,48 +8,21 @@
 // fire across the throw where it lands. The flight is deterministic, so the
 // others' screens replay a throw from its start and its velocity alone.
 //
-// The two charges take that same flight and, instead of hurting anyone, leave
-// something behind on landing. A shockwave charge becomes a launch pad facing
-// the way it was thrown, and after it arms it throws whoever stands on it with
-// exactly the velocity the roads' pads use (src/config/squad.json pad.speed
-// and pad.up, read here rather than copied, because two sets of numbers for
-// one feeling is how the two drift apart). A rift charge opens a mouth where
-// it lands and a second mouth where it was thrown from, and for a few seconds
-// anyone who walks into either comes out of the other. Both throw enemies and
-// carry enemies: they are ground you left behind, not an ability aimed at
-// someone. Mobility on this map was furniture until now, four pads and three
-// ziplines bolted where the map put them, so where you could rotate to was the
-// map's decision. A charge in your pocket makes it yours.
-//
 // Who decides the damage: the thrower, like the shooter decides a bullet's
 // (duel.ts). The match's side of it lives in main.ts: at a blast or a tick
 // of fire this module says where, and main.ts works out who is in reach and
-// in sight and sends the hits. The charges are the same shape of deal: this
-// module says who a live charge would move and where to, and the caller does
-// the moving, because only the caller knows who is down and who is on a
-// zipline.
+// in sight and sends the hits.
 import * as THREE from "three";
 import cfg from "../config/throwables.json";
-import squad from "../config/squad.json";
 import { RANGE_SOLIDS } from "./range";
 import { solidHit } from "./projectile";
 
-export type ThrowKind = "frag" | "arcstar" | "thermite" | "shockwave" | "rift";
-/**
- * The order is the wire's: throwCode is the index, so the two charges go on
- * the end and an older build's 0, 1 and 2 still mean what they always meant.
- */
-export const THROW_KINDS: ThrowKind[] = ["frag", "arcstar", "thermite", "shockwave", "rift"];
-/** the two that move people instead of hurting them */
-export type MobilityKind = "shockwave" | "rift";
-export const MOBILITY_KINDS: MobilityKind[] = ["shockwave", "rift"];
+export type ThrowKind = "frag" | "arcstar" | "thermite";
+export const THROW_KINDS: ThrowKind[] = ["frag", "arcstar", "thermite"];
 export const THROWABLES = cfg;
-/** the roads' launch pads, borrowed whole: a shockwave charge is one of these you carry */
-export const PAD_LAUNCH = squad.pad;
 export const throwCode = (k: ThrowKind): number => THROW_KINDS.indexOf(k);
 export const throwFromCode = (n: number | undefined): ThrowKind | null => (n !== undefined && THROW_KINDS[n]) || null;
-export const isThrowKind = (x: unknown): x is ThrowKind => THROW_KINDS.includes(x as ThrowKind);
-export const isMobilityKind = (x: unknown): x is MobilityKind => x === "shockwave" || x === "rift";
+export const isThrowKind = (x: unknown): x is ThrowKind => x === "frag" || x === "arcstar" || x === "thermite";
 
 /** a body's radius, m */
 const R = 0.08;
@@ -112,7 +83,7 @@ const SUBSTEPS = 4;
  * geometry per event was never freed: a frag spammed in the range grew the
  * GPU's memory without end). Made on first use, so Node's tests pay nothing.
  */
-let GEO: Record<"frag" | "blink" | "hub" | "blade" | "can" | "flame" | "ball" | "ring" | "puck" | "disc" | "chev" | "mouth", THREE.BufferGeometry> | null = null;
+let GEO: Record<"frag" | "blink" | "hub" | "blade" | "can" | "flame" | "ball" | "ring", THREE.BufferGeometry> | null = null;
 function geo(): NonNullable<typeof GEO> {
   if (!GEO) {
     const flame = new THREE.PlaneGeometry(0.8, 1.5);
@@ -127,13 +98,6 @@ function geo(): NonNullable<typeof GEO> {
       flame,
       ball: new THREE.SphereGeometry(1, 16, 12),
       ring: new THREE.RingGeometry(0.85, 1, 40),
-      // the two charges in the hand, and what they leave on the ground: a
-      // plate with a chevron on it the way the roads' pads are built (br.ts),
-      // and a standing hoop for a rift's mouth
-      puck: new THREE.CylinderGeometry(0.07, 0.07, 0.05, 14),
-      disc: new THREE.CylinderGeometry(1, 1, 0.06, 26),
-      chev: new THREE.ConeGeometry(0.34, 0.6, 3),
-      mouth: new THREE.TorusGeometry(1, 0.08, 10, 30),
     };
   }
   return GEO;
@@ -178,9 +142,6 @@ export interface Thrown {
   mine: boolean;
   pos: THREE.Vector3;
   vel: THREE.Vector3;
-  /** where it left the hand, and the ground the thrower stood on: a rift's near mouth is there */
-  from: THREE.Vector3;
-  fromFeet: THREE.Vector3;
   /** when it goes off: a frag's fuse from the throw, an arc star's from where it stuck */
   fuseAt: number;
   /** an arc star stuck here: to a figure (followed), or the world (null) */
@@ -202,113 +163,6 @@ export interface FireStrip {
   group: THREE.Group;
 }
 
-/**
- * A shockwave charge on the ground: where it sits, the flat direction it was
- * thrown in (which is the way it throws you), when it arms and when it dies.
- * `lastAt` is the last time it threw each figure, so standing on a live one
- * does not launch you thirty times a second.
- */
-export interface Shockwave {
-  owner: number;
-  mine: boolean;
-  at: THREE.Vector3;
-  /** unit, flat: the way it faces and the way it throws */
-  face: THREE.Vector3;
-  armAt: number;
-  until: number;
-  lastAt: Map<number, number>;
-  mesh: THREE.Object3D | null;
-}
-
-/**
- * A rift: two mouths, `a` where the charge was thrown from and `b` where it
- * landed, and walking into either takes you to the other. It is two-way on
- * purpose. A one-way rift is a retreat, and a retreat is the thing a squad
- * already has; a rift a squad can come back through is a position they have to
- * decide about.
- */
-export interface Rift {
-  owner: number;
-  mine: boolean;
-  a: THREE.Vector3;
-  b: THREE.Vector3;
-  openAt: number;
-  until: number;
-  lastAt: Map<number, number>;
-  mesh: THREE.Object3D | null;
-}
-
-/** anyone a charge could move: the match's id for them, where their feet are, and whether they are down */
-export interface Mover {
-  id: number;
-  feet: THREE.Vector3;
-  downed: boolean;
-}
-
-/** a flat unit vector from a throw's velocity, falling back to `or` when it came straight down */
-function facing(vel: THREE.Vector3, or: THREE.Vector3): THREE.Vector3 {
-  const flat = new THREE.Vector3(vel.x, 0, vel.z);
-  if (flat.lengthSq() < 1e-6) flat.copy(or).setY(0);
-  if (flat.lengthSq() < 1e-6) flat.set(0, 0, 1);
-  return flat.normalize();
-}
-
-/** a shockwave charge planted at `at`, facing `face`, from a landing at `now` */
-export function makeShockwave(owner: number, mine: boolean, at: THREE.Vector3, face: THREE.Vector3, now: number): Shockwave {
-  const armAt = now + cfg.shockwave.arm;
-  return { owner, mine, at: at.clone(), face: facing(face, new THREE.Vector3(0, 0, 1)), armAt, until: armAt + cfg.shockwave.life, lastAt: new Map(), mesh: null };
-}
-
-/** a rift between `a` (the throw) and `b` (the landing), opened from a landing at `now` */
-export function makeRift(owner: number, mine: boolean, a: THREE.Vector3, b: THREE.Vector3, now: number): Rift {
-  const openAt = now + cfg.rift.arm;
-  return { owner, mine, a: a.clone(), b: b.clone(), openAt, until: openAt + cfg.rift.life, lastAt: new Map(), mesh: null };
-}
-
-/** a charge is live when it has armed and has not run out */
-export const shockwaveLive = (s: Shockwave, now: number): boolean => now >= s.armAt && now < s.until;
-export const riftOpen = (r: Rift, now: number): boolean => now >= r.openAt && now < r.until;
-
-/**
- * What a shockwave charge should throw `who` with, or null if it should not:
- * it is not armed yet, it has run out, they are not standing on it, they were
- * thrown by it a moment ago, or they are down. Being down is the whole of the
- * rule for both charges: a knocked player crawling over one is not making a
- * rotation, they are being flung out of reach of the mate trying to pick them
- * up, and the same charge is what got them knocked half the time.
- *
- * The velocity is the roads' pads', to the metre. Asking books the launch, so
- * a caller that asks and then ignores the answer has spent it.
- */
-export function shockwaveLaunch(s: Shockwave, who: Mover, now: number): THREE.Vector3 | null {
-  if (who.downed || !shockwaveLive(s, now)) return null;
-  if (now - (s.lastAt.get(who.id) ?? -Infinity) < cfg.shockwave.regap) return null;
-  const up = who.feet.y - s.at.y;
-  if (up < -cfg.shockwave.under || up > cfg.shockwave.rise) return null;
-  if (Math.hypot(who.feet.x - s.at.x, who.feet.z - s.at.z) > cfg.shockwave.radius) return null;
-  s.lastAt.set(who.id, now);
-  return new THREE.Vector3(s.face.x * PAD_LAUNCH.speed, PAD_LAUNCH.up, s.face.z * PAD_LAUNCH.speed);
-}
-
-/**
- * Where a rift should put `who`'s feet, or null if it should not move them.
- * Whichever mouth they are in, they come out of the other one, and the same
- * short gap that stops a shockwave firing every frame stops the far mouth
- * throwing them straight back through the one they arrived in.
- */
-export function riftStep(r: Rift, who: Mover, now: number): THREE.Vector3 | null {
-  if (who.downed || !riftOpen(r, now)) return null;
-  if (now - (r.lastAt.get(who.id) ?? -Infinity) < cfg.rift.regap) return null;
-  const inMouth = (m: THREE.Vector3): boolean => {
-    const up = who.feet.y - m.y;
-    return up > -cfg.rift.under && up < cfg.rift.rise && Math.hypot(who.feet.x - m.x, who.feet.z - m.z) <= cfg.rift.reach;
-  };
-  const out = inMouth(r.a) ? r.b : inMouth(r.b) ? r.a : null;
-  if (!out) return null;
-  r.lastAt.set(who.id, now);
-  return out.clone();
-}
-
 export interface ThrowEvents {
   /** a frag or an arc star went off here */
   onBlast: (t: Thrown, at: THREE.Vector3) => void;
@@ -318,12 +172,6 @@ export interface ThrowEvents {
   onFireTick: (f: FireStrip) => void;
   /** a sound for it: the bounce of a frag, a blast, the fire catching */
   onSound: (kind: "bounce" | "blast" | "fire" | "stick", at: THREE.Vector3, what: ThrowKind) => void;
-  /**
-   * A carried charge landed and is now a thing on the map. Optional, because
-   * the two charges work without anyone listening: this is for the caller that
-   * wants to ping it on the map, name it in the HUD or give it its own noise.
-   */
-  onDeploy?: (kind: MobilityKind, what: Shockwave | Rift) => void;
 }
 
 /** the arc a throw takes from `from` with `vel`, until it touches something (the preview) */
@@ -352,9 +200,6 @@ export class Throwables {
   readonly group = new THREE.Group();
   live: Thrown[] = [];
   fires: FireStrip[] = [];
-  /** the charges lying about: pads to stand on and rifts to walk into */
-  pads: Shockwave[] = [];
-  rifts: Rift[] = [];
   private flashes: Array<{ obj: THREE.Mesh; ring: THREE.Mesh; born: number; life: number; size: number }> = [];
   private readonly mats: Record<ThrowKind, THREE.Material>;
   private readonly blink = new THREE.MeshBasicMaterial({ color: 0xff3020 });
@@ -371,10 +216,6 @@ export class Throwables {
       frag: new THREE.MeshStandardMaterial({ color: 0x3d4a36, roughness: 0.6, metalness: 0.4 }),
       arcstar: new THREE.MeshStandardMaterial({ color: 0x9ad8ff, emissive: 0x2a8cff, emissiveIntensity: 1.4, roughness: 0.3, metalness: 0.6 }),
       thermite: new THREE.MeshStandardMaterial({ color: 0x8a6a3a, emissive: 0x552200, roughness: 0.5, metalness: 0.3 }),
-      // the roads' pads are amber and the charge that copies them is amber too,
-      // so a player reads it as the same thing without being told
-      shockwave: new THREE.MeshStandardMaterial({ color: 0xffc21a, emissive: 0xc07800, emissiveIntensity: 1.1, roughness: 0.4, metalness: 0.5 }),
-      rift: new THREE.MeshStandardMaterial({ color: 0xc9a6ff, emissive: 0x7a3cff, emissiveIntensity: 1.3, roughness: 0.3, metalness: 0.4 }),
     };
     this.arc = new THREE.InstancedMesh(new THREE.SphereGeometry(0.028, 8, 6), new THREE.MeshBasicMaterial({ color: 0xfff2a8, transparent: true, opacity: 0.9, depthTest: false }), ARC_DOTS);
     this.arc.renderOrder = 10;
@@ -409,12 +250,6 @@ export class Throwables {
         arm.add(blade);
         g.add(arm);
       }
-    } else if (kind === "shockwave" || kind === "rift") {
-      // both charges are the same puck in the hand: what they are is written
-      // on the ground they land on, not on the thing spinning through the air
-      const m = new THREE.Mesh(geo().puck, this.mats[kind]);
-      m.rotation.z = Math.PI / 2;
-      g.add(m);
     } else {
       const m = new THREE.Mesh(geo().can, this.mats.thermite);
       m.rotation.z = Math.PI / 2;
@@ -423,52 +258,14 @@ export class Throwables {
     return g;
   }
 
-  /**
-   * A throw: from `from` with `vel`; `mine` when this side threw it. `feet` is
-   * the ground the thrower is standing on, which only a rift needs, for its
-   * near mouth. Without it the mouth is dropped an eye's height below the hand
-   * (src/config/throwables.json rift.eye), which is right on flat ground and
-   * near enough everywhere else: a replay of someone else's throw off the wire
-   * carries a hand and a velocity and never carried their feet.
-   */
-  throw(kind: ThrowKind, from: THREE.Vector3, vel: THREE.Vector3, owner: number, mine: boolean, now: number, feet?: THREE.Vector3): Thrown {
+  /** a throw: from `from` with `vel`; `mine` when this side threw it */
+  throw(kind: ThrowKind, from: THREE.Vector3, vel: THREE.Vector3, owner: number, mine: boolean, now: number): Thrown {
     const mesh = this.body(kind);
     mesh.position.copy(from);
     this.group.add(mesh);
-    const t: Thrown = {
-      kind,
-      owner,
-      mine,
-      pos: from.clone(),
-      vel: vel.clone(),
-      from: from.clone(),
-      fromFeet: feet ? feet.clone() : new THREE.Vector3(from.x, Math.max(0, from.y - cfg.rift.eye), from.z),
-      fuseAt: kind === "frag" ? now + cfg.frag.fuse : Infinity,
-      stuck: null,
-      hitTarget: null,
-      mesh,
-      done: false,
-    };
+    const t: Thrown = { kind, owner, mine, pos: from.clone(), vel: vel.clone(), fuseAt: kind === "frag" ? now + cfg.frag.fuse : Infinity, stuck: null, hitTarget: null, mesh, done: false };
     this.live.push(t);
     return t;
-  }
-
-  /** the launch a figure standing on one of the charges has earned, or null */
-  launchFor(who: Mover, now: number): THREE.Vector3 | null {
-    for (const s of this.pads) {
-      const v = shockwaveLaunch(s, who, now);
-      if (v) return v;
-    }
-    return null;
-  }
-
-  /** where a figure walking into a rift comes out, or null */
-  riftFor(who: Mover, now: number): THREE.Vector3 | null {
-    for (const r of this.rifts) {
-      const out = riftStep(r, who, now);
-      if (out) return out;
-    }
-    return null;
   }
 
   /** the preview while one is readied: the arc it would take and where it lands */
@@ -504,7 +301,6 @@ export class Throwables {
       if (t.done) t.mesh.removeFromParent();
       return !t.done;
     });
-    this.ageCharges(now);
     for (const f of this.fires) {
       if (now >= f.nextTick && now < f.until) {
         f.nextTick += cfg.thermite.tick;
@@ -561,10 +357,6 @@ export class Throwables {
               this.events.onSound("stick", t.pos, t.kind);
             } else if (t.kind === "thermite") {
               this.ignite(t, now);
-            } else if (t.kind === "shockwave" || t.kind === "rift") {
-              // a charge that hits someone sets up on them, which is a fair
-              // thing to do to a person standing where you wanted a pad
-              this.deploy(t, now);
             } else {
               // a frag off a body: it drops at their feet
               t.vel.set(t.vel.x * -0.2, 0, t.vel.z * -0.2);
@@ -600,7 +392,6 @@ export class Throwables {
           t.fuseAt = now + c.arcstar.fuse;
           this.events.onSound("stick", t.pos, t.kind);
         } else if (touched && t.kind === "thermite") this.ignite(t, now);
-        else if (touched && (t.kind === "shockwave" || t.kind === "rift")) this.deploy(t, now);
       }
     }
     t.mesh.position.copy(t.pos);
@@ -613,94 +404,6 @@ export class Throwables {
       this.events.onSound("blast", t.pos, t.kind);
       this.events.onBlast(t, t.pos.clone());
     }
-  }
-
-  /**
-   * A carried charge lands: the thrown body is gone and what it leaves behind
-   * takes its place. A shockwave becomes a plate on the ground facing the way
-   * it was travelling, so you aim one by the direction you threw it and not by
-   * where you were standing. A rift's far mouth is here and its near mouth is
-   * back at the throw.
-   */
-  private deploy(t: Thrown, now: number): void {
-    t.done = true;
-    const ground = t.pos.clone().setY(Math.max(0, t.pos.y - R));
-    if (t.kind === "shockwave") {
-      const s = makeShockwave(t.owner, t.mine, ground, facing(t.vel, t.pos.clone().sub(t.from)), now);
-      s.mesh = this.padMesh(s);
-      this.group.add(s.mesh);
-      this.pads.push(s);
-      this.events.onSound("stick", ground, t.kind);
-      this.events.onDeploy?.("shockwave", s);
-    } else {
-      const r = makeRift(t.owner, t.mine, t.fromFeet.clone(), ground, now);
-      r.mesh = this.riftMesh(r);
-      this.group.add(r.mesh);
-      this.rifts.push(r);
-      this.events.onSound("stick", ground, t.kind);
-      this.events.onDeploy?.("rift", r);
-    }
-  }
-
-  /** a planted shockwave: a plate the size of its reach with a chevron pointing the way it throws */
-  private padMesh(s: Shockwave): THREE.Object3D {
-    const g = new THREE.Group();
-    const plate = new THREE.Mesh(geo().disc, this.mats.shockwave);
-    plate.scale.set(cfg.shockwave.radius, 1, cfg.shockwave.radius);
-    const chev = new THREE.Mesh(geo().chev, this.mats.shockwave);
-    chev.name = "chev";
-    chev.position.y = 0.35;
-    // a cone points up by default, so lay it on its side facing the throw
-    chev.rotation.x = Math.PI / 2;
-    const aim = new THREE.Group();
-    aim.rotation.y = Math.atan2(s.face.x, s.face.z);
-    aim.add(chev);
-    g.add(plate, aim);
-    g.position.copy(s.at).setY(s.at.y + 0.03);
-    return g;
-  }
-
-  /** a rift: a standing hoop at each mouth */
-  private riftMesh(r: Rift): THREE.Object3D {
-    const g = new THREE.Group();
-    const across = new THREE.Vector3().subVectors(r.b, r.a).setY(0);
-    const turn = across.lengthSq() > 1e-6 ? Math.atan2(across.x, across.z) : 0;
-    for (const at of [r.a, r.b]) {
-      const hoop = new THREE.Mesh(geo().mouth, this.mats.rift);
-      hoop.scale.setScalar(cfg.rift.reach);
-      // the hoops face each other, so from one mouth you are looking at the other
-      hoop.rotation.y = turn + Math.PI / 2;
-      hoop.position.copy(at).setY(at.y + cfg.rift.reach * 0.8);
-      g.add(hoop);
-    }
-    return g;
-  }
-
-  /**
-   * The charges as time passes: a pad's chevron beats faster once it is armed,
-   * a rift's hoops turn, and both fade away in their last second so nobody is
-   * surprised by one that is about to stop being there.
-   */
-  private ageCharges(now: number): void {
-    for (const s of this.pads) {
-      const chev = s.mesh?.getObjectByName("chev");
-      if (chev) chev.visible = now < s.armAt ? Math.sin(now * 9) > 0 : true;
-      if (s.mesh) s.mesh.scale.setScalar(Math.min(1, Math.max(0.2, s.until - now)));
-    }
-    this.pads = this.pads.filter((s) => {
-      if (now >= s.until) s.mesh?.removeFromParent();
-      return now < s.until;
-    });
-    for (const r of this.rifts) {
-      if (!r.mesh) continue;
-      r.mesh.children.forEach((c, i) => (c.rotation.z = now * (i ? -1.4 : 1.4)));
-      r.mesh.visible = now >= r.openAt;
-      r.mesh.scale.setScalar(Math.min(1, Math.max(0.2, r.until - now)));
-    }
-    this.rifts = this.rifts.filter((r) => {
-      if (now >= r.until) r.mesh?.removeFromParent();
-      return now < r.until;
-    });
   }
 
   /** thermite lands: a line of fire across the throw, on the ground where it is */
@@ -787,13 +490,9 @@ export class Throwables {
     for (const t of this.live) t.mesh.removeFromParent();
     for (const f of this.fires) this.dropFire(f);
     for (const fl of this.flashes) this.dropFlash(fl);
-    for (const s of this.pads) s.mesh?.removeFromParent();
-    for (const r of this.rifts) r.mesh?.removeFromParent();
     this.live = [];
     this.fires = [];
     this.flashes = [];
-    this.pads = [];
-    this.rifts = [];
     this.preview(null, null);
   }
 }
@@ -803,52 +502,21 @@ export class Throwables {
  * range has no count (`endless`).
  */
 export class Ordnance {
-  counts: Record<ThrowKind, number> = { frag: 0, arcstar: 0, thermite: 0, shockwave: 0, rift: 0 };
+  counts: Record<ThrowKind, number> = { frag: 0, arcstar: 0, thermite: 0 };
   endless = true;
   /** the one in hand, and when its pin was out (ready to throw), or null */
   readied: { kind: ThrowKind; readyAt: number } | null = null;
-  /**
-   * When each of the two charges last left the hand. A count alone would let a
-   * whole stack go out in one second, and two shockwaves a second apart is not
-   * a rotation, it is a catapult, so a charge also has to wait its cooldown.
-   * The grenades are not in here: they always had only their count.
-   */
-  private thrownAt: Partial<Record<ThrowKind, number>> = {};
 
   fill(which: "kit" | "empty"): void {
     for (const k of THROW_KINDS) this.counts[k] = which === "kit" ? (cfg.kit as Record<ThrowKind, number>)[k] : 0;
-    this.thrownAt = {};
   }
 
   has(k: ThrowKind): boolean {
     return this.endless || this.counts[k] > 0;
   }
 
-  /** how many of a kind you can carry: the charges carry their own number, everything else the shared one */
-  static stackOf(k: ThrowKind): number {
-    return k === "shockwave" ? cfg.shockwave.stack : k === "rift" ? cfg.rift.stack : cfg.stack;
-  }
-
-  /** seconds until another of this kind can be readied (0: now) */
-  cooldownLeft(k: ThrowKind, now: number): number {
-    const gap = k === "shockwave" ? cfg.shockwave.cooldown : k === "rift" ? cfg.rift.cooldown : 0;
-    const last = this.thrownAt[k];
-    return last === undefined ? 0 : Math.max(0, last + gap - now);
-  }
-
-  /**
-   * Can this one be taken out right now: you have one, its cooldown has run
-   * out, and you are not down. Down is only ever a bar on the two charges
-   * here, because a downed player has no hands for anything anyway and that
-   * wider rule belongs to whoever owns the key.
-   */
-  canReady(k: ThrowKind, now: number, downed = false): boolean {
-    if (downed && isMobilityKind(k)) return false;
-    return this.has(k) && this.cooldownLeft(k, now) <= 0;
-  }
-
   add(k: ThrowKind, n: number): number {
-    const room = Math.max(0, Ordnance.stackOf(k) - this.counts[k]);
+    const room = Math.max(0, cfg.stack - this.counts[k]);
     const put = Math.min(room, n);
     this.counts[k] += put;
     return put;
@@ -857,11 +525,9 @@ export class Ordnance {
   /**
    * The key: nothing in hand, the first you have; one in hand, the next you
    * have (and after the last, back to the gun). Returns what is in hand now.
-   * A charge still on its cooldown is stepped over rather than offered, so the
-   * key never puts something in your hand you are not allowed to throw.
    */
-  cycle(now: number, downed = false): ThrowKind | null {
-    const order = THROW_KINDS.filter((k) => this.canReady(k, now, downed));
+  cycle(now: number): ThrowKind | null {
+    const order = THROW_KINDS.filter((k) => this.has(k));
     if (!order.length) {
       this.readied = null;
       return null;
@@ -872,12 +538,11 @@ export class Ordnance {
     return next;
   }
 
-  /** thrown: one fewer; the hand is empty; a charge starts its cooldown */
-  spend(now = 0): ThrowKind | null {
+  /** thrown: one fewer; the hand is empty */
+  spend(): ThrowKind | null {
     const r = this.readied;
     if (!r) return null;
     if (!this.endless) this.counts[r.kind] = Math.max(0, this.counts[r.kind] - 1);
-    if (isMobilityKind(r.kind)) this.thrownAt[r.kind] = now;
     this.readied = null;
     return r.kind;
   }
