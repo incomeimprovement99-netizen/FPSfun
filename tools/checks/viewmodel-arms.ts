@@ -375,7 +375,7 @@ console.log("The fists at a sprint");
 {
   const SPRINT_PUMP = 1.6;
   const toView = new THREE.Matrix4().makeScale(VM_SCALE, VM_SCALE, VM_SCALE);
-  const arm = new Forearm(0.055);
+  const arm = new Forearm();
   const wrist = new THREE.Vector3();
   const elbow = new THREE.Vector3();
   let shortest = Infinity;
