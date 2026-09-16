@@ -237,6 +237,18 @@ async function brLootTest(browser: Browser, query: string): Promise<void> {
   );
   check("loot: you land with nothing (two empty slots, fists, no heals, no ammo) on a floor of items", start.empty && start.kit === 0 && start.light === 0 && start.field > 100 && start.weapon === "FISTS", JSON.stringify(start));
   check("loot: the bots land unarmed and search first", start.botsArmed === 0, JSON.stringify(start));
+  // The places are buildings now, so the loot has to be IN them: a spot picks
+  // any floor at that point with headroom, which is what puts items upstairs
+  // and on roofs. Before the buildings, a spot under anything was refused
+  // outright and every item ended up outdoors.
+  const spread = await ev<{ total: number; upstairs: number; guns: number }>(
+    page,
+    `(() => { const lf = window.__range.duel().lootField; const all = [...lf.drops.values()];
+      const y = (d) => (d.at ? d.at.y : d.pos ? d.pos.y : 0);
+      return { total: all.length, upstairs: all.filter((d) => y(d) > 1.5).length, guns: all.filter((d) => (d.item?.kind ?? d.kind) === "weapon").length }; })()`
+  );
+  check("loot: the map carries hundreds of items, a couple of hundred of them guns", spread.total > 500 && spread.guns > 120, JSON.stringify(spread));
+  check("loot: a good share of it is upstairs and on roofs, not all on the sand", spread.upstairs > 80, `${spread.upstairs} of ${spread.total} above ground`);
   // an R-97 on the ground in front, looked at; E takes it (through the game's own E)
   // open ground to stand on, the item 1.6 m ahead, looked at from 45 degrees down
   const spot = await ev<{ x: number; z: number } | null>(page, "window.__range.openGround(window.__range.player.pos.x, window.__range.player.pos.z)");

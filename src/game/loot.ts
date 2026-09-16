@@ -150,15 +150,33 @@ export function rollItem(rnd: () => number): LootItem {
 }
 
 /** the floor (or a roof, if there is a low one there) at x, z */
-function floorAt(x: number, z: number): number | null {
-  let top = 0;
-  for (const s of RANGE_SOLIDS) {
-    if (x > s.minX - 0.3 && x < s.maxX + 0.3 && z > s.minZ - 0.3 && z < s.maxZ + 0.3) {
-      if (s.top > 7 || s.base > 0.5) return null;
-      top = Math.max(top, s.top);
-    }
+/**
+ * Every surface at (x, z) a player could stand on with room over their head:
+ * the ground, a building's first floor, a roof, the top of a crate.
+ *
+ * This used to be one number and it refused a spot outright if anything above
+ * it had a base over 0.5 m — which was right when a place was a solid block,
+ * and wrong the moment the places became buildings with floors in them
+ * (src/game/brpoi.ts): every room in every building was disqualified, so the
+ * loot all went back outdoors, which is the opposite of what the buildings
+ * are for.
+ */
+function standingSpots(x: number, z: number): number[] {
+  const here = RANGE_SOLIDS.filter((s) => x > s.minX - 0.3 && x < s.maxX + 0.3 && z > s.minZ - 0.3 && z < s.maxZ + 0.3);
+  const tops = [0, ...here.map((s) => s.top)].filter((y) => y <= 12);
+  const out: number[] = [];
+  for (const y of new Set(tops)) {
+    // room to stand: nothing occupying the 1.9 m above this surface
+    const blocked = here.some((s) => s.base < y + 1.9 - 1e-4 && s.top > y + 0.05);
+    if (!blocked) out.push(y);
   }
-  return top;
+  return out.sort((a, b) => a - b);
+}
+
+/** the lowest place to stand at (x, z), or null when there is none */
+function floorAt(x: number, z: number): number | null {
+  const spots = standingSpots(x, z);
+  return spots.length ? spots[0] : null;
 }
 
 export class LootField {
@@ -271,13 +289,22 @@ export class LootField {
       const y = floorAt(x, z);
       if (y !== null) spots.push(new THREE.Vector3(x, y + 0.01, z));
     };
+    // A place's loot goes on ANY floor at that spot, picked at random from the
+    // ones with headroom, so a two-storey building holds loot upstairs and on
+    // its roof as well as on its ground floor. That is the reason to go in.
+    const trySpotAnyFloor = (x: number, z: number): void => {
+      const floors = standingSpots(x, z);
+      if (!floors.length) return;
+      const y = floors[Math.floor(rnd() * floors.length)];
+      spots.push(new THREE.Vector3(x, y + 0.01, z));
+    };
     for (const p of places) {
       let tries = 0;
       const before = spots.length;
-      while (spots.length - before < cfg.spotsPerPoi && tries++ < 200) {
+      while (spots.length - before < cfg.spotsPerPoi && tries++ < 300) {
         const a = rnd() * Math.PI * 2;
         const r = 4 + rnd() * 30;
-        trySpot(p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
+        trySpotAnyFloor(p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
       }
     }
     for (let i = 0; i < cfg.fieldSpots; i++) trySpot(bounds.minX + 20 + rnd() * (bounds.maxX - bounds.minX - 40), bounds.minZ + 20 + rnd() * (bounds.maxZ - bounds.minZ - 40));
