@@ -34,6 +34,20 @@ const PICK: Record<string, { pack: (typeof PACKS)[number]; files: string[] }> = 
   click: { pack: "interface-sounds", files: ["click_001", "click_002", "click_003"] },
   confirm: { pack: "interface-sounds", files: ["confirmation_001", "confirmation_002"] },
   error: { pack: "interface-sounds", files: ["error_004"] },
+  // Outskirts' interactions. Doors, supply bins and the drop's horn all make
+  // a sound a player listens FOR: a door swinging two rooms away is the tell
+  // that someone is in the building with you, and in Apex it is most of how
+  // you know. Synthesis cannot do a door, so these are recorded takes.
+  door_open: { pack: "impact-sounds", files: [0, 1].map((i) => `impactWood_medium_00${i}`) },
+  door_close: { pack: "impact-sounds", files: [2, 3].map((i) => `impactWood_medium_00${i}`) },
+  door_kick: { pack: "impact-sounds", files: [0, 1].map((i) => `impactWood_heavy_00${i}`) },
+  bin_open: { pack: "impact-sounds", files: [0, 1].map((i) => `impactMetal_heavy_00${i}`) },
+  bin_close: { pack: "impact-sounds", files: [2, 3].map((i) => `impactMetal_heavy_00${i}`) },
+  pickup: { pack: "interface-sounds", files: ["select_002", "select_003"] },
+  beacon: { pack: "sci-fi-sounds", files: ["forceField_000", "forceField_001"] },
+  horn: { pack: "sci-fi-sounds", files: ["lowFrequency_explosion_000"] },
+  ping: { pack: "interface-sounds", files: ["tick_002", "tick_004"] },
+  zip_ride: { pack: "sci-fi-sounds", files: ["spaceEngine_001"] },
 };
 
 /** a small ZIP reader (the same as tools/fetch-assets.ts): no unzip binary to depend on */

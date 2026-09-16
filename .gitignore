@@ -18,4 +18,7 @@ public/models/*
 !public/models/mannequin/
 public/audio/*
 !public/audio/ATTRIBUTION.md
+# the self-hosted HUD faces (npm run fonts): OFL, fetched not kept
+public/fonts/*
+!public/fonts/ATTRIBUTION.md
 shots/

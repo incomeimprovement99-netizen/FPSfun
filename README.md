@@ -860,6 +860,7 @@ CreativeTrio and Dagger by Quaternius, via Poly Pizza (CC0). The mannequin and
 its motion-captured clips: Quaternius's Universal Animation Library 1 and 2
 (CC0). Recorded sounds: Kenney's Impact, Sci-Fi and Interface Sounds (CC0). Bot
 difficulty modelled on Counter-Strike 2's shipped bot profile and Valve's
-published Team Fortress 2 bot code. Font: Rajdhani
-(Google Fonts, OFL). Movement research: the Apex Movement Wiki community. Game
+published Team Fortress 2 bot code. Fonts: Rajdhani and Barlow Condensed
+(Google Fonts, SIL OFL 1.1), self-hosted by `npm run fonts` so the game makes
+no third-party request and still works offline. Movement research: the Apex Movement Wiki community. Game
 data numbers are facts; no art, audio, code or branding from the game is used.

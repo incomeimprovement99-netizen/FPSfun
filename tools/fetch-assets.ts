@@ -25,6 +25,22 @@ const MATERIALS: Array<{ id: string; as: string; note: string }> = [
   { id: "Metal050A", as: "catwalk", note: "platforms and stairs, brushed aluminium" },
   { id: "Metal041A", as: "panel", note: "cover, posts and target frames, clean iron" },
   { id: "Asphalt031", as: "ground", note: "outside the pad, light asphalt" },
+  // The battle royale's own set. Every place on Outskirts used to be the same
+  // grey concrete and the same painted steel, so from 200 m one yard of boxes
+  // looked like the next and there was no reason to choose where to land.
+  // These give each place a surface of its own. They are fetched but not
+  // preloaded: src/game/materials.ts loads a set the first time something
+  // asks for it, so a set nothing uses costs nothing to ship.
+  { id: "Ground037", as: "sand", note: "Outskirts' floor, dry packed sand" },
+  { id: "Rock030", as: "rock", note: "the ridge, the mesas and the boulders" },
+  { id: "Gravel023", as: "gravel", note: "yards and the roadside" },
+  { id: "CorrugatedSteel005", as: "corrugated", note: "North Yard's sheds and warehouse" },
+  { id: "Rust004", as: "rust", note: "South Depot: industrial, weathered" },
+  { id: "PaintedPlaster017", as: "plaster", note: "West Town's houses" },
+  { id: "Bricks066", as: "brick", note: "the Hub's compound walls" },
+  { id: "RoofingTiles003", as: "roof", note: "roofs that read as roofs from above" },
+  { id: "WoodFloor051", as: "planks", note: "interior floors and crate stacks" },
+  { id: "Metal046B", as: "steel", note: "containers, masts and zipline posts" },
 ];
 
 /** the only maps we ship; the rest of each pack is discarded */
@@ -41,6 +57,26 @@ const HDRI = {
   url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kloofendal_48d_partly_cloudy_puresky_1k.hdr",
   file: "sky.hdr",
 };
+
+/**
+ * The other skies. One sky meant every match looked the same hour of the same
+ * day, which is the single cheapest thing a shooter can vary: the light does
+ * more for how a map reads than any amount of geometry. A match picks one by
+ * seed, so a squad sees the same sky as each other and a different one next
+ * game. They are extra files, not replacements, and the game falls back to
+ * sky.hdr when one is missing, so a checkout that skipped them still runs.
+ *
+ * All Poly Haven, all CC0, all the 1k HDR so the whole set is a few megabytes.
+ */
+const SKIES: Array<{ id: string; file: string; note: string }> = [
+  { id: "kloofendal_43d_clear_puresky", file: "sky-noon.hdr", note: "hard noon, short shadows" },
+  { id: "qwantani_mid_morning_puresky", file: "sky-morning.hdr", note: "mid morning, long soft shadows" },
+  { id: "qwantani_late_afternoon_puresky", file: "sky-afternoon.hdr", note: "low warm sun" },
+  { id: "qwantani_dusk_1_puresky", file: "sky-dusk.hdr", note: "dusk, the lamps start to matter" },
+  { id: "kloofendal_overcast_puresky", file: "sky-overcast.hdr", note: "flat grey, no shadows to read" },
+  { id: "qwantani_moon_noon_puresky", file: "sky-night.hdr", note: "moonlight, for the night variant" },
+];
+const skyUrl = (id: string) => `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/${id}_1k.hdr`;
 
 /**
  * Minimal ZIP reader: walks the central directory and inflates the entries we
@@ -139,6 +175,19 @@ async function main(): Promise<void> {
   } catch (err) {
     console.log(`FAILED: ${(err as Error).message}`);
     lines.push(`| \`${HDRI.file}\` | Poly Haven ${HDRI.id} (CC0) | sky — DOWNLOAD FAILED |`);
+  }
+
+  for (const sky of SKIES) {
+    process.stdout.write(`  ${sky.id} -> ${sky.file} ... `);
+    try {
+      const hdr = await download(skyUrl(sky.id));
+      writeFileSync(join(OUT, sky.file), hdr);
+      console.log(`${(hdr.length / 1024).toFixed(0)} KB`);
+      lines.push(`| \`${sky.file}\` | Poly Haven ${sky.id} (CC0) | ${sky.note} |`);
+    } catch (err) {
+      console.log(`FAILED: ${(err as Error).message}`);
+      lines.push(`| \`${sky.file}\` | Poly Haven ${sky.id} (CC0) | ${sky.note} — DOWNLOAD FAILED |`);
+    }
   }
 
   lines.push(

@@ -3,8 +3,14 @@
   <head>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%23d4712a%22/%3E%3Ccircle cx=%228%22 cy=%228%22 r=%222%22 fill=%22%23fff%22/%3E%3C/svg%3E" />
     <meta charset="UTF-8" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+    <!-- The HUD's faces, self-hosted (npm run fonts, SIL OFL 1.1). They used
+         to come from fonts.googleapis.com, which is a third-party request on
+         the first frame: it held the menu on a slow connection, failed
+         outright offline, and the reflow when it landed late moved the HUD
+         mid-fight. The files are 95 KB in public/fonts. -->
+    <link rel="preload" href="fonts/display-700.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="fonts/ui-600.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="fonts/fonts.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Range</title>
     <style>

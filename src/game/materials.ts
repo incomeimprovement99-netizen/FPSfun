@@ -3,7 +3,27 @@
 // the range still runs before `npm run assets` has been called.
 import * as THREE from "three";
 
-export type MatName = "concrete" | "wall" | "catwalk" | "panel" | "ground";
+export type MatName =
+  | "concrete"
+  | "wall"
+  | "catwalk"
+  | "panel"
+  | "ground"
+  // Outskirts' own set (tools/fetch-assets.ts). Each place on the battle
+  // royale map takes one or two of these so its walls, roofs and floors are
+  // not the same grey as every other place. Nothing is preloaded: a set is
+  // fetched from public/tex the first time something asks for it, so a set
+  // nothing uses costs no bandwidth.
+  | "sand"
+  | "rock"
+  | "gravel"
+  | "corrugated"
+  | "rust"
+  | "plaster"
+  | "brick"
+  | "roof"
+  | "planks"
+  | "steel";
 
 const loader = new THREE.TextureLoader();
 const cache = new Map<string, THREE.MeshStandardMaterial>();
@@ -63,6 +83,18 @@ const FALLBACK: Record<MatName, number> = {
   catwalk: 0x6b7078,
   panel: 0x7b8189,
   ground: 0x7a7266,
+  // the colours Outskirts used before it had textures, so a checkout that has
+  // not run `npm run assets` still reads as the same map in the same palette
+  sand: 0xb8a988,
+  rock: 0x6f6a62,
+  gravel: 0x8b857a,
+  corrugated: 0x9aa3a6,
+  rust: 0x8a5a3c,
+  plaster: 0xc9bda6,
+  brick: 0x9c6a52,
+  roof: 0x5a5e62,
+  planks: 0x8a6a44,
+  steel: 0x7f8891,
 };
 
 /**
@@ -103,7 +135,7 @@ export function material(name: MatName, opts: Opts = {}): THREE.MeshStandardMate
   const m = new THREE.MeshStandardMaterial({
     color: opts.color ?? 0xffffff,
     roughness: opts.roughness ?? 0.9,
-    metalness: opts.metalness ?? (name === "catwalk" || name === "panel" ? 0.55 : 0.05),
+    metalness: opts.metalness ?? (name === "catwalk" || name === "panel" || name === "steel" || name === "corrugated" ? 0.55 : 0.05),
   });
 
   // If any map 404s, drop every map on this material and fall back to a flat

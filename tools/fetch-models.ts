@@ -29,6 +29,22 @@ const MODELS: Array<{ slug: string; note: string }> = [
   { slug: "steel_frame_shelves_01", note: "rack shelving" },
   { slug: "portable_generator", note: "yard clutter" },
   { slug: "modular_chainlink_fence", note: "perimeter" },
+  // Outskirts' field. The open ground between the places was 40 hand-placed
+  // boxes called rocks, which from any distance read as 40 boxes. These are
+  // scans, so one of them breaks a sightline the way a rock does and not the
+  // way a crate does. They are decoration only: the collision box that
+  // stands in for each is still registered in src/game/br.ts, because this
+  // engine collides against axis-aligned boxes and nothing else.
+  { slug: "namaqualand_boulder_04", note: "field cover, waist high" },
+  { slug: "namaqualand_boulder_06", note: "field cover, chest high" },
+  { slug: "namaqualand_boulders_01", note: "a cluster, for the bigger stops" },
+  { slug: "namaqualand_rocks_01", note: "scatter, ankle high, no collision" },
+  { slug: "rock_face_02", note: "against the ridge and the mesas" },
+  { slug: "sand_rocks_small_01", note: "roadside scatter" },
+  // dry scrub: something vertical in the field that is not a box or a rock
+  { slug: "dead_quiver_trunk", note: "dead tree, a silhouette in the open" },
+  { slug: "dead_quiver_branch_02", note: "scrub at the foot of the rocks" },
+  { slug: "dry_branches_medium_01", note: "ground dressing near the places" },
 ];
 
 interface FileEntry {
