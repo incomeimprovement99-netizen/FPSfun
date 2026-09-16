@@ -343,6 +343,10 @@ export class ViewModel {
   private readonly tmp = new THREE.Vector3();
   private readonly tmp2 = new THREE.Vector3();
   private readonly tmp3 = new THREE.Vector3();
+  /** the inverse of the gun's pose, to pin an elbow in view space */
+  private readonly poseInv = new THREE.Matrix4();
+  /** how far the gun is being turned in the hands this frame (an inspect, a flourish) */
+  private handTurn = 0;
 
   constructor() {
     this.group.scale.setScalar(VM_SCALE);
@@ -689,6 +693,8 @@ export class ViewModel {
       const k1 = smooth(0.04, 0.26, t) - smooth(0.44, 0.62, t);
       const k2 = smooth(0.44, 0.62, t) - smooth(0.84, 1, t);
       const up = k1 + k2;
+      // how far the gun is being turned IN the hands, for the elbows below
+      this.handTurn = Math.max(this.handTurn, Math.min(1, up));
       p.x -= 0.07 * up;
       p.y += 0.05 * up;
       p.z -= 0.05 * up;
@@ -699,6 +705,7 @@ export class ViewModel {
     // ---- a new gun's first draw: a twirl round its barrel as it comes up
     if (f.flourish !== undefined && f.flourish >= 0 && f.flourish < 1) {
       const t = f.flourish;
+      this.handTurn = Math.max(this.handTurn, Math.sin(Math.PI * smooth(0, 0.9, t)));
       rz += Math.PI * 2 * easeInOut(smooth(0.05, 0.75, t));
       p.y += 0.035 * Math.sin(Math.PI * smooth(0, 0.9, t));
       rx -= 0.25 * Math.sin(Math.PI * smooth(0, 0.9, t));
@@ -736,8 +743,26 @@ export class ViewModel {
 
     // ---- arms follow the hands wherever they went
     this.leftElbow.copy(this.leftElbowHip).lerp(this.leftElbowAds, ads);
+    // An elbow is a point on the gun, so when the gun turns in the hands the
+    // elbow swings round with it. During an inspect that put the forearm's
+    // elbow end straight down the camera: a 60 degree turn swung it in front
+    // of the eye and its cap filled the middle of the screen as a dark disc.
+    // Your shoulder does not move when you turn a gun over, so while the gun
+    // is being turned the elbows are pinned in VIEW space instead, low and
+    // back, and the forearms keep running off the bottom of the frame.
+    if (this.handTurn > 0.001) {
+      this.pose.updateMatrix();
+      this.poseInv.copy(this.pose.matrix).invert();
+      const pin = (out: THREE.Vector3, side: number): void => {
+        this.tmp3.set(side * 0.3, -0.62, -0.05).applyMatrix4(this.poseInv);
+        out.lerp(this.tmp3, Math.min(1, this.handTurn));
+      };
+      pin(this.rightElbow, 1);
+      pin(this.leftElbow, -1);
+    }
     this.rightArm.set(this.right.wrist(this.tmp), this.rightElbow);
     this.leftArm.set(this.left.wrist(this.tmp), this.leftElbow);
+    this.handTurn = 0;
   }
 
   /**

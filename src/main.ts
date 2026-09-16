@@ -468,9 +468,12 @@ const debugView: {
   heirloom: string | null;
   /** the down view's hands, for a screenshot (tools/snap.ts) */
   downed: boolean | null;
+  /** hold an inspect at a point in its run, 0..1, for a screenshot (tools/snap.ts) */
+  inspect: number | null;
 } = {
   weapon: null,
   ads: null,
+  inspect: null,
   reload: null,
   optic: null,
   lowered: null,
@@ -3374,7 +3377,7 @@ function step(): void {
     landDip: player.viewDip,
     lowered: debugView.lowered ?? (emptyHand || downedNow || debugView.downed || (knockedOut && !killcam.active) || ordnance.readied ? 1 : lowered),
     downed: downedNow || debugView.downed ? 1 : 0,
-    inspect: now - inspectAt < INSPECT_TIME ? (now - inspectAt) / INSPECT_TIME : undefined,
+    inspect: debugView.inspect ?? (now - inspectAt < INSPECT_TIME ? (now - inspectAt) / INSPECT_TIME : undefined),
     flourish: now - flourishAt < FLOURISH_TIME ? (now - flourishAt) / FLOURISH_TIME : undefined,
     onZip: debugView.onZip ?? player.onZip,
     draw: onScreen.state.drawFrac,

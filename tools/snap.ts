@@ -85,6 +85,22 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "inspect-mid",
+    note: "the weapon inspect held at its first turn: the owner reports the arm stub ends up in the camera",
+    steps: [
+      [`(() => { ${hideMenu}; window.__range.debugView.inspect = 0.34; })()`, 0],
+      [gameSeconds(0.8), 250],
+    ],
+  },
+  {
+    name: "inspect-late",
+    note: "the weapon inspect at its second turn, showing the other side",
+    steps: [
+      [`(() => { ${hideMenu}; window.__range.debugView.inspect = 0.72; })()`, 0],
+      [gameSeconds(0.8), 250],
+    ],
+  },
+  {
     name: "control",
     note: "Control: the A B C strip and the scores, zone A taken, the zones in the arena",
     steps: [
