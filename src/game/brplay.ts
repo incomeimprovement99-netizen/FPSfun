@@ -215,6 +215,23 @@ export class BrPlay {
   /** the interact key went down at a spot, and when the last item came up */
   private takeDownAt: number | null = null;
   private lastTakeAt = -Infinity;
+  /**
+   * The last gun taken, and the highest loot key there was at that moment.
+   * Taking a gun with both slots full puts the one in hand down at your feet,
+   * where it is in reach and nearest, so a press read over a few frames took
+   * it straight back and the two guns swapped every frame. A gun with a key
+   * above the floor is one that appeared after the take, and it is left out
+   * of the list until LOOTING.swapGuard has passed.
+   */
+  private gunTakenAt = -Infinity;
+  private gunKeyFloor = Infinity;
+  /**
+   * Where you stood when you took it. main.ts puts a swapped-out gun down at
+   * exactly your feet, so only a new gun there is the one you let go of. The
+   * first version guarded every new gun in reach, and hid a gun somebody else
+   * put down a step away half a second after you took yours.
+   */
+  private gunTakenFrom = { x: 0, z: 0 };
   /** items already asked of the host, and when: a guest must not ask twice a frame while the answer is in flight */
   private asked = new Map<number, number>();
 
@@ -499,7 +516,14 @@ export class BrPlay {
   ): void {
     const f = match.lootField;
     if (!f) return;
-    const rows = reachRows(f.drops.values(), p, carry);
+    const isGun = (key: number): boolean => f.drops.get(key)?.item.kind === "weapon";
+    const guarding = now - this.gunTakenAt < LOOTING.swapGuard;
+    const letGo = (key: number): boolean => {
+      if (!guarding || key <= this.gunKeyFloor || !isGun(key)) return false;
+      const d = f.drops.get(key);
+      return !!d && Math.hypot(d.pos.x - this.gunTakenFrom.x, d.pos.z - this.gunTakenFrom.z) < 0.5;
+    };
+    const rows = reachRows(f.drops.values(), p, carry).filter((r) => !letGo(r.key));
     if (!rows.length) {
       this.stopTaking();
       return;
@@ -518,6 +542,13 @@ export class BrPlay {
     out.prompt = { key: many && left.length > 1 ? `${key} / HOLD` : key, text: many && left.length > 1 ? `TAKE ${row.label}  ·  HOLD: TAKE ALL` : `TAKE ${row.label}` };
     if (input.pressedNow("interact")) {
       // the press takes the one the prompt names, as it always has
+      if (isGun(row.key)) {
+        this.gunTakenAt = now;
+        this.gunTakenFrom = { x: p.x, z: p.z };
+        let top = 0;
+        for (const k of f.drops.keys()) if (k > top) top = k;
+        this.gunKeyFloor = top;
+      }
       this.take(match, row.key, now);
       this.takeDownAt = now;
       this.lastTakeAt = now;
@@ -531,7 +562,10 @@ export class BrPlay {
     // the nearest one still worth taking that is not already asked for: on the
     // host the press has taken its item and it is gone from the list by now,
     // but a guest's take is a question and the item stays put until the answer
-    const next = left.find((r) => !this.inFlight(r.key, now));
+    // A hold takes everything EXCEPT guns. Taking a gun is a choice about what
+    // you carry, and with both slots full it puts the one in hand down, which
+    // the next step of the hold would pick straight back up.
+    const next = left.find((r) => !this.inFlight(r.key, now) && !isGun(r.key));
     if (next && holdDue(now, this.takeDownAt, this.lastTakeAt)) {
       this.take(match, next.key, now);
       this.lastTakeAt = now;
