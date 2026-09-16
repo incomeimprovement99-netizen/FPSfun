@@ -93,5 +93,6 @@ check("every hour's sky is one npm run assets downloads", missing.length === 0, 
 
 check("the config carries its own notes", Boolean(skyCfg._note && skyCfg._hdr && skyCfg._colors && skyCfg._sun && skyCfg._fog));
 
+console.log(fails === 0 ? "\nSKY HOURS PASS" : "\nSKY HOURS FAIL (" + fails + ")");
 export const skyHoursFails = fails;
-if (process.argv[1]?.includes("sky-hours")) console.log(fails ? `\n${fails} FAILED` : "\nsky hours PASS");
+if (process.argv[1]?.endsWith("sky-hours.ts")) process.exit(fails === 0 ? 0 : 1);

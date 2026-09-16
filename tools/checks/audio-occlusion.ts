@@ -119,5 +119,6 @@ check(
 RANGE_SOLIDS.length = 0;
 RANGE_SOLIDS.push(...savedSolids);
 
+console.log(fails === 0 ? "\nAUDIO OCCLUSION PASS" : "\nAUDIO OCCLUSION FAIL (" + fails + ")");
 export const audioOcclusionFails = fails;
-if (process.argv[1]?.includes("audio-occlusion")) console.log(fails ? `\n${fails} FAILED` : "\naudio occlusion PASS");
+if (process.argv[1]?.endsWith("audio-occlusion.ts")) process.exit(fails === 0 ? 0 : 1);

@@ -17,6 +17,20 @@ import { BOT_TIERS, DIFFICULTY, aimError, lobVelocity, tierFor } from "../src/ga
 import throwablesCfg from "../src/config/throwables.json";
 import { MODELLED_IDS } from "../src/game/gunmodels";
 import { movesimFails } from "./movesim";
+// The check modules under tools/checks/. Each prints its own section and
+// exports how many of its checks failed, the way movesim does. They live in
+// their own files because this one is already seventeen hundred lines, and
+// because several subjects can be added at once without meeting in the same
+// diff. audio-occlusion is imported LAST on purpose: it swaps the shared
+// solid list for a wall of its own and puts the real one back, so nothing
+// that reads RANGE_SOLIDS should be running while it does.
+import { skyHoursFails } from "./checks/sky-hours";
+import { ringPlaceFails } from "./checks/ring-place";
+import { lootTiersFails } from "./checks/loot-tiers";
+import { pickupReachFails } from "./checks/pickup-reach";
+import { botSenseFails } from "./checks/bot-sense";
+import { viewmodelArmsFails } from "./checks/viewmodel-arms";
+import { audioOcclusionFails } from "./checks/audio-occlusion";
 import { HU, MOVE, jumpVelocityFor, slideBreakEvenAngle, SLIDE_RAMP_ANGLE } from "../src/game/movement";
 import { Abilities, JOLT, abilityCode, abilityFromCode } from "../src/game/abilities";
 import itemsCfg from "../src/config/items.json";
@@ -1727,6 +1741,10 @@ console.log("Viewmodel roster");
   eq("every weapon has a viewmodel", missing.join(",") || "none", "none");
   eq("the model roster has no stale ids", MODELLED_IDS.filter((id) => !(id in DATA.weapons)).join(",") || "none", "none");
 }
+
+// the modules under tools/checks/ printed their sections as they were
+// imported, which is before this file's own body ran
+fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + audioOcclusionFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);
