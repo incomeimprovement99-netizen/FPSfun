@@ -927,6 +927,39 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
       res({ shown: r.platesNow().length, clear: r.clearTo(chest) }); }, 250)); })()`
   );
   check("plates: once hurt, the bot's plate shows exactly when your eye has a clear line to it", (plate.shown === 1) === plate.clear, JSON.stringify(plate));
+  // the mannequin's upper body holds still on a held pose: it used to spin
+  // without end (three's mixer skips a bone whose clip value has not changed,
+  // so every frame's turn piled onto the last). Force a still pose with a
+  // steep look and watch the chest's and head's yaw against the figure's.
+  const spin = await ev<{ mannequin: boolean; chest: number; head: number; pelvis: number } | null>(
+    page,
+    `(() => new Promise((res) => {
+      const r = window.__range; const T = r.THREE; const d = r.duel(); const a = d.avatars[0];
+      if (!a.group.getObjectByName("spine_03")) return res(null);
+      // no shots: a recoil kick and a flinch are meant to move the chest and head
+      const heldFire = d.holdFire; d.holdFire = true;
+      const orig = a.setPose.bind(a);
+      a.setPose = (p) => orig({ ...p, moveDir: 0.6, speed: 0, stance: "stand", pitch: 40, ads: 1, act: null });
+      const q = new T.Quaternion();
+      const yawOf = (o) => { o.getWorldQuaternion(q); const f = new T.Vector3(0, 0, 1).applyQuaternion(q); return Math.atan2(f.x, f.z) * 180 / Math.PI; };
+      const rows = [];
+      const t = setInterval(() => {
+        a.group.updateMatrixWorld(true);
+        const gy = a.group.rotation.y * 180 / Math.PI;
+        rows.push({ chest: yawOf(a.group.getObjectByName("spine_03")) - gy, head: yawOf(a.group.getObjectByName("Head")) - gy, pelvis: yawOf(a.group.getObjectByName("pelvis")) - gy });
+        if (rows.length >= 20) {
+          clearInterval(t);
+          a.setPose = orig;
+          d.holdFire = heldFire;
+          const range = (k) => { const x0 = rows[0][k]; const xs = rows.map((w) => ((w[k] - x0 + 540) % 360) - 180); return Math.max(...xs) - Math.min(...xs); };
+          res({ mannequin: true, chest: range("chest"), head: range("head"), pelvis: range("pelvis") });
+        }
+      }, 60);
+    }))()`
+  );
+  // the pelvis is left out: standing still, the feet stay planted as the bot turns its aim, then step round (by design)
+  if (spin) check("figures: a still mannequin's chest and head hold their yaw on the aim (no endless upper-body spin)", spin.chest < 15 && spin.head < 15, `over 1.2 s the chest moved ${spin.chest.toFixed(1)} deg, the head ${spin.head.toFixed(1)} (the planted pelvis ${spin.pelvis.toFixed(1)})`);
+  else check("figures: the bot is a mannequin (the spin check needs one)", false, "no spine_03 bone on the figure");
   await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
   const offAb = await ev<{ on: boolean; choosing: boolean }>(page, "({ on: window.__range.abilities.enabled, choosing: window.__range.abilities.choosing })");
   check("bots: abilities are off by default, no card", !offAb.on && !offAb.choosing, JSON.stringify(offAb));
@@ -995,7 +1028,10 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   // eliminated by the bot: the killcam from its eyes, then the recap with both sides
   await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "hard"; window.__range.startBots(); })()`);
   await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
-  // your two hits on it first (a head and a body, 12 m), then almost nothing left for its next round to take
+  // your two hits on it first (a head and a body, 12 m), then almost nothing left for its next round to take.
+  // It keeps no heals: a hard bot that heals behind cover is back at full by the kill, and the recap below
+  // reads what it really has left, so the check would be measuring the heal rather than your damage.
+  await ev(page, "(() => { const b = window.__range.duel().bots[0]; b.kit.cell = 0; b.kit.syringe = 0; b.healing = null; })()");
   await ev(page, "window.__range.landHit(1, 20, true, 'r97', 12)");
   await ev(page, "window.__range.landHit(1, 15, false, 'r97', 12)");
   await ev(page, "(() => { const d = window.__range.duel(); d.shield = 0; d.health = 3; })()");
@@ -1575,9 +1611,13 @@ async function main(): Promise<void> {
     // ...but not while typing a name, and not while the game is running
     const typing = await ev<{ taken: number; focused: boolean; blurred: boolean }>(
       page,
-      `(() => { const el = document.createElement("input"); document.getElementById("overlay").appendChild(el); el.focus(); const focused = document.activeElement === el;
+      `(() => { const el = document.getElementById("profileName") ?? document.createElement("input");
+        if (!el.isConnected) document.getElementById("overlay").appendChild(el);
+        document.querySelector('#tabs button[data-tab="stats"]').click();
+        el.focus(); const focused = document.activeElement === el;
         window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", key: "Escape", bubbles: true, cancelable: true }));
-        const out = { taken: window.__range.menuEscapes(), focused, blurred: document.activeElement !== el }; el.remove(); return out; })()`
+        const out = { taken: window.__range.menuEscapes(), focused, blurred: document.activeElement !== el };
+        document.querySelector('#tabs button[data-tab="play"]').click(); return out; })()`
     );
     check("Esc in a text field leaves the field instead of resuming", typing.focused && typing.taken === escOnMenu && typing.blurred, JSON.stringify(typing));
     const inGame = await ev<number>(page, `(() => { document.getElementById("overlay").classList.add("hidden"); window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", key: "Escape", bubbles: true, cancelable: true })); document.getElementById("overlay").classList.remove("hidden"); return window.__range.menuEscapes(); })()`);

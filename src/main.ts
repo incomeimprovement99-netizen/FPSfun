@@ -1694,6 +1694,9 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   recorder.clear();
   killcam.stop();
   recap = null;
+  // who you have hurt is this match's: an id is reused by the next match's
+  // bots, and a stale entry would show their plate before you touched them
+  damagedAt.clear();
   newLife(d);
   d.onDamaged = (from, amount, head, weapon, dist) => {
     dlog.hit({ t: realNow(), from, to: d.id, amount, head, weapon, dist });

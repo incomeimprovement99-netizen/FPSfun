@@ -143,6 +143,30 @@ export class MannequinFigure {
   private lowerName = "";
   private upperName = "";
   private bones: Record<string, THREE.Object3D> = {};
+  /**
+   * The clip's own rotation of each bone this class turns on top of the clips.
+   * three's mixer writes a bone only when the clip's value has changed since
+   * the last frame ("value has changed -> update scene graph" in
+   * PropertyMixer.apply), and the upper body plays a held pose: after the first
+   * frame it never wrote spine_01..03 or the head again, so every frame's
+   * turnBone piled onto the last frame's and the torso spun without end. So:
+   * the clip's pose goes back on before the mixer runs, is taken again after
+   * it, and the edits start from it every frame.
+   */
+  private clipPose = new Map<THREE.Object3D, THREE.Quaternion>();
+  private static readonly EDITED = ["pelvis", "spine_01", "spine_02", "spine_03", "Head", "upperarm_l", "lowerarm_l", "upperarm_r", "lowerarm_r"];
+  private restoreClipPose(): void {
+    for (const [b, q] of this.clipPose) b.quaternion.copy(q);
+  }
+  private captureClipPose(): void {
+    for (const n of MannequinFigure.EDITED) {
+      const b = this.bones[n];
+      if (!b) continue;
+      const q = this.clipPose.get(b);
+      if (q) q.copy(b.quaternion);
+      else this.clipPose.set(b, b.quaternion.clone());
+    }
+  }
   private gun: THREE.Object3D | null = null;
   private gunShown = true;
   private mats: THREE.MeshStandardMaterial[] = [];
@@ -328,7 +352,10 @@ export class MannequinFigure {
 
   /** knocked out: only the death clip runs */
   updateDead(dt: number): void {
+    // the last live frame's turns come off first, so the death clip starts clean
+    this.restoreClipPose();
     this.mixer.update(dt);
+    this.captureClipPose();
   }
 
   /** the joints glow in the armour's colour (the robot's vest does it on the robot) */
@@ -463,7 +490,9 @@ export class MannequinFigure {
     // no gun in the hand for a heal, or down (the figure says armed = false then)
     if (this.gun) this.gun.visible = this.gunShown && armed && p.act !== "heal" && !this.dead;
     this.gunInHand = !!this.gun && this.gun.visible;
+    this.restoreClipPose();
     this.mixer.update(dt);
+    this.captureClipPose();
     // on top of the clips
     const b = this.bones;
     const fig = this.root;

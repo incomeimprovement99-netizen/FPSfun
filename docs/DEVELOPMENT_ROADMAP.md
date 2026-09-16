@@ -646,8 +646,8 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - A pull's pellets are summed into one damage number on the HUD, as the game shows them: 95, not five 19s.
 - Tests: verify (a place per pellet for every shotgun, none for a rifle or the Shattercaps blast, the Mastiff's
   line 5.9 degrees and half that aimed, the Peacekeeper's star closing to 0.45, the line horizontal and
-  symmetric); e2e (a Mastiff pull at 4 m is 5 pellets, 5 hits, 95 dealt, one number); snap (the patterns on the
-  spray wall).
+  symmetric); e2e (a Mastiff pull at 4 m is 5 pellets, 5 hits, 95 dealt, one number). A spray-wall screenshot
+  was tried and dropped: the snap harness's fake trigger does not fire there, so it showed an empty wall.
 
 ## Milestone 41 — An enemy's plate only after a hit, and only in sight ✅
 2026-09-16 (Phase 14). `src/main.ts`, `src/game/hud.ts`, `src/config/hud.json`.
@@ -672,3 +672,21 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Tests: verify (a mode kind and not a team mode; the config; `killLeader` with a leader, a tie on kills, a
   draw, one fighter, nobody); e2e (three bots and no allies, 0 - 0 first to 20, no team score; a kill is yours
   alone and tops the board; a bot's kill on another bot is that bot's own; the 20th kill wins it for you alone).
+
+## Milestone 43 — The mannequin's upper body no longer spins ✅
+2026-09-16 (Phase 14). `src/game/mannequin.ts`.
+- **The bug:** bots' and players' mannequins whipped their torso, head and arms round in endless loops while the
+  legs stayed sane. Measured in world space: the pelvis held its yaw; the chest and head swung the full circle
+  every few frames, and the hands went with them.
+- **The cause:** three's `AnimationMixer` writes a bone only when the clip's value has changed since the last frame
+  (`PropertyMixer.apply`: "value has changed -> update scene graph"). The legs play loops, so their bones are
+  rewritten every frame. The upper body plays a held aim pose, so after the first frame the mixer never wrote
+  `spine_01..03` or the head again, and every frame's `turnBone` (the leg counter-turn, the look pitch, the
+  head's ADS tilt, a flinch) piled onto the last frame's. A steep look pitch spun the chest end over end within a
+  second; a strafe whipped it by the leg turn every frame. The robot figure sets its rotations absolutely and
+  never had it. The fix was found by forcing the pose: still with a 40-degree pitch, the chest turned 280 degrees
+  in 1.5 s; with the fix, none.
+- **The fix:** the clip's own rotation of each edited bone is put back before the mixer runs and taken again after
+  it, so the edits start from the pure clip pose every frame (and the death clip starts clean).
+- Tests: e2e (a still mannequin bot with a steep look: over 1.2 s the chest, head and pelvis hold their yaw
+  within 15 degrees).

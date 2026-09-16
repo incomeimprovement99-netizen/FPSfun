@@ -808,6 +808,7 @@ guns are built with their grips at the hand for that.
 | `docs/SERVER_GUIDE.md` | the game on its own server like Algonomics: a DuckDNS name, the Oracle firewall rules, one-time setup, `npm run deploy:server`, day to day, troubleshooting |
 | `docs/DEPLOY_GUIDE.md` | the static mirror: publish, play, update, troubleshoot |
 | `docs/DEVELOPMENT_ROADMAP.md` | a milestone for every feature shipped, newest last, with what it does and how it was tested |
+| `docs/PHASE_14_PLAN_ESC_SHOTGUNS_PLATES_FFA_AND_THE_SPIN.md`, `docs/PHASE_14_ESC_SHOTGUNS_PLATES_FFA_AND_THE_SPIN.md` | phase 14's plan and its results: Esc as Resume, the shotguns' blast patterns, enemy plates only after a hit and in sight, free-for-all, and how the mannequin's upper-body spin was found and fixed |
 | `docs/PHASE_13_PLAN_THE_README_IN_THE_RANGE.md`, `docs/PHASE_13_THE_README_IN_THE_RANGE.md` | phase 13's plan and its results: the README on a screen in the range, paged by shooting it, and the public build's "Not R-301" gun names |
 | `docs/PHASE_12_PLAN_DASH_FIGURES_BOTS_AND_THE_APEX_PIECES.md`, `docs/PHASE_12_DASH_FIGURES_BOTS_AND_THE_APEX_PIECES.md` | phase 12's plan and its results |
 | `docs/RESEARCH_PHASE_12.md` | the sources for phase 12: Apex's controller defaults, Seasons 29 and 30's battle royale systems and hop-ups, Control, how CS2 and TF2 grade their bots, Hyper Scape, dash references |

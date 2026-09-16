@@ -51,31 +51,6 @@ const holdLab = `(async () => { ${hideMenu}; const r = window.__range; await r.l
 
 export const SCENARIOS: Scenario[] = [
   {
-    name: "shotgun-pattern",
-    note: "the Mastiff's line (upper left, then upper right aimed: half as wide) and the Peacekeeper's star (lower) on the spray wall from 6 m: the blast patterns, not one line",
-    steps: [
-      [fakePad, 0],
-      // Start: the game reads the pad's trigger only once it is playing
-      [padButton(9, true), 150],
-      [padButton(9, false), 500],
-      // 6 m from the wall (x 33.45), the eye at 1.6 m: the wall's centre (y 3.75) is 20 degrees up
-      [`(() => { ${hideMenu}; const r = window.__range; r.loadout.setWeaponId(0, "mastiff"); r.loadout.setWeaponId(1, "energy_shotgun"); r.player.teleport(27.45, 0, -62.8, -90, 24); r.sprayWall.clear(); })()`, 1800],
-      [padButton(7, true), 80],
-      [padButton(7, false), 1400],
-      // aimed: the Mastiff's line halves
-      [`(() => { window.__range.player.teleport(27.45, 0, -65.2, -90, 24); })()`, 100],
-      [padButton(6, true), 500],
-      [padButton(7, true), 80],
-      [padButton(7, false), 1400],
-      [padButton(6, false), 200],
-      [`(() => { const r = window.__range; r.loadout.requestSwap(1, r.gameTime()); r.player.teleport(27.45, 0, -64, -90, 13); })()`, 1800],
-      [padButton(7, true), 80],
-      [padButton(7, false), 1400],
-      [`(() => { window.__range.player.teleport(27.45, 0, -64, -90, 20); })()`, 100],
-      [gameSeconds(0.5), 200],
-    ],
-  },
-  {
     name: "readme-tv",
     note: "the README screen at the far end of the range, under its B00G'S RANGE sign, with the arrow plates beside it",
     steps: [
