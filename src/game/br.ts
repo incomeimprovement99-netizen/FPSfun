@@ -305,6 +305,11 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     building(poi, { x: cx - 8, z: 16, w: 12, d: 10, storeys: 1, storeyH: 3.4, doors: ["s", "n"], windows: ["e", "w"] });
     // a ramp the bots can walk (0.5 m steps over 32 m) up the north face
     for (let i = 0; i < 16; i++) box(5, 0.5 * (i + 1), 2, cx - 4, 0, -38 + i * 2, rock);
+    // and a landing joining its head to the top step. Without it the ramp
+    // stopped 5 m short in open air: a bot walked all the way up, dropped
+    // onto the shelf below at 6 m, and could not climb the last 2 m — so
+    // nothing but the zipline ever put anyone in the bunker.
+    box(5, 8, 8, cx - 4, 0, -4, rock);
     zipline(root, new THREE.Vector3(cx - 1, top + 1.6, -4), new THREE.Vector3(88, 1.6, -6), top, 0);
     box(1.6, 1.4, 1.6, cx - 24, 0, 8, crate);
     box(1.6, 1.4, 1.6, cx + 3, 0, 26, crate);
@@ -560,20 +565,26 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   const P = (x: number, z: number) => ({ x: x + BR_X, z: z + BR_Z });
   const pois: Poi[] = [
     { id: "hub", name: "THE HUB", ...P(0, 0), drops: [P(-14, -28), P(14, 28), P(26, -8)] },
-    { id: "north", name: "NORTH YARD", ...P(0, -165), drops: [P(0, -150), P(-14, -178), P(16, -176)] },
+    { id: "north", name: "NORTH YARD", ...P(0, -150), drops: [P(0, -150), P(-14, -178), P(6, -180)] },
     { id: "south", name: "SOUTH DEPOT", ...P(0, 165), drops: [P(0, 148), P(-24, 178), P(24, 150)] },
     { id: "east", name: "EAST RIDGE", ...P(165, 0), drops: [P(140, -18), P(188, 20), P(150, 26)] },
-    { id: "west", name: "WEST TOWN", ...P(-165, 0), drops: [P(-145, 12), P(-188, -14), P(-160, 30)] },
+    { id: "west", name: "WEST TOWN", ...P(-165, 0), drops: [P(-143, 12), P(-186, -14), P(-160, 30)] },
     // the four compounds: smaller places to drop, and the reason the corners are worth crossing
     { id: "nw", name: "NORTHWEST FARM", ...P(-104, -104), drops: [P(-112, -112), P(-92, -96), P(-114, -92)] },
-    { id: "ne", name: "NORTHEAST STORE", ...P(104, -104), drops: [P(112, -112), P(92, -96), P(114, -92)] },
+    { id: "ne", name: "NORTHEAST STORE", ...P(104, -104), drops: [P(112, -112), P(92, -96), P(114, -88)] },
     { id: "sw", name: "SOUTHWEST PENS", ...P(-104, 104), drops: [P(-112, 112), P(-92, 96), P(-114, 92)] },
     { id: "se", name: "SOUTHEAST WORKS", ...P(104, 104), drops: [P(112, 112), P(92, 96), P(114, 92)] },
   ];
   // the graph: POI centres and gates, road bends, field corners
   const N = (x: number, z: number, poi?: string): GraphNode => ({ ...P(x, z), poi, links: [] });
   const nodes: GraphNode[] = [
-    N(0, 0, "hub"), // 0 hub centre
+    // The hub's node was (0, 0) — inside the tower's own 8 x 8 m base. A bot
+    // that picked it could never arrive (it stops 4.4 m out and the arrival
+    // test is 3 m), so it ground against the tower until the ring moved it
+    // on. It sits in the courtyard now, clear of the tower and of the four
+    // buildings' corners. tools/e2e.ts walks the graph and fails on a node a
+    // bot cannot reach, so a move like this cannot quietly come back.
+    N(10, 10, "hub"), // 0 hub courtyard
     N(0, -36, "hub"), // 1 north gate
     N(0, 36, "hub"), // 2 south gate
     N(36, 0, "hub"), // 3 east gate
@@ -584,14 +595,16 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     N(-100, 0), // 8 west road
     N(0, -160, "north"), // 9
     N(0, 160, "south"), // 10
-    N(150, -20, "east"), // 11 the ridge foot (the ramp's bottom is at 161, -38)
+    // Was (150, -20), inside the ridge's first 2 m step: both ground edges
+    // into it dead-ended at a face a 0.56 m step cannot climb.
+    N(140, -12, "east"), // 11 the flat west of the ridge's steps
     N(-165, 4, "west"), // 12
     N(150, -150), // 13 corners
     N(150, 150), // 14
     N(-150, 150), // 15
     N(-150, -150), // 16
     N(161, -40, "east"), // 17 the ramp foot
-    N(165, 6, "east"), // 18 the ridge top
+    N(166, 2, "east"), // 18 the ridge top, west of the bunker's door
   ];
   const link = (a: number, b: number) => {
     nodes[a].links.push(b);

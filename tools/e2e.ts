@@ -95,6 +95,89 @@ async function inviteTest(browser: Browser, query: string): Promise<void> {
 }
 
 /** the battle royale: the drop, the landing, a knock, the ring's damage, a heal, leaving */
+/** the battle royale's bot graph: every node a bot can actually walk to */
+async function navChecks(page: Page): Promise<void> {
+  const nav = await ev<{ nodes: number; pois: number; cells: number; bad: Array<Record<string, unknown>> }>(page, NAV_PROBE);
+  check(
+    "the map's bot graph: every node, link and drop is somewhere a bot can walk to",
+    nav.bad.length === 0 && nav.nodes > 12 && nav.pois === 9,
+    nav.bad.length ? JSON.stringify(nav.bad).slice(0, 400) : nav.nodes + " nodes, " + nav.pois + " places, " + nav.cells + " walkable half-metre cells"
+  );
+}
+
+const NAV_PROBE = String.raw`(() => {
+  // Can a bot walk the battle royale's graph? Floods the map on a half-metre
+  // grid using the bot's own rules from src/game/bots.ts (0.41 m radius,
+  // 0.56 m step, 1.83 m standing room) and reports any node the flood never
+  // reaches. A node it cannot reach is a bot stuck for a whole match.
+  const S = window.__range.solids, map = window.__range.brMap;
+  const R = 0.406, STEP = 0.5588, STAND = 1.83;
+  const X0 = -224, Z0 = 276, SIDE = 448, C = 0.5, N = Math.ceil(SIDE / C);
+  // solids bucketed 8 m, so a cell looks at a dozen boxes and not two thousand
+  const B = 8, BN = Math.ceil(SIDE / B), bucket = new Array(BN * BN);
+  for (const s of S) {
+    if (s.top <= 0.01) continue;
+    const i0 = Math.max(0, Math.floor((s.minX - R - X0) / B)), i1 = Math.min(BN - 1, Math.floor((s.maxX + R - X0) / B));
+    const j0 = Math.max(0, Math.floor((s.minZ - R - Z0) / B)), j1 = Math.min(BN - 1, Math.floor((s.maxZ + R - Z0) / B));
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) (bucket[i * BN + j] ??= []).push(s);
+  }
+  const at = (x, z) => bucket[Math.min(BN - 1, Math.max(0, Math.floor((x - X0) / B))) * BN + Math.min(BN - 1, Math.max(0, Math.floor((z - Z0) / B)))] ?? [];
+  // the highest floor a body at height y can step up onto, and -1 if a wall is in the way
+  const stand = (x, z, y) => {
+    let floor = 0;
+    const near = at(x, z);
+    for (const s of near) if (x + R > s.minX && x - R < s.maxX && z + R > s.minZ && z - R < s.maxZ && s.top <= y + STEP + 1e-4 && s.top > floor) floor = s.top;
+    for (const s of near) if (x + R > s.minX && x - R < s.maxX && z + R > s.minZ && z - R < s.maxZ && s.top > floor + STEP + 1e-4 && s.base < floor + STAND - 1e-4) return -1;
+    return floor;
+  };
+  const best = new Float32Array(N * N).fill(-2);
+  const start = map.nodes[5];
+  const si = Math.round((start.x - X0) / C), sj = Math.round((start.z - Z0) / C);
+  const y0 = stand(start.x, start.z, 40);
+  best[si * N + sj] = y0;
+  let queue = [si * N + sj], reached = 1;
+  while (queue.length) {
+    const next = [];
+    for (const k of queue) {
+      const i = (k / N) | 0, j = k % N, y = best[k];
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const ni = i + di, nj = j + dj;
+        if (ni < 0 || nj < 0 || ni >= N || nj >= N) continue;
+        const nk = ni * N + nj, was = best[nk];
+        const ny = stand(X0 + ni * C, Z0 + nj * C, y);
+        if (ny < 0 || ny <= was + 1e-4) continue;
+        if (was < -1) reached++;
+        best[nk] = ny;
+        next.push(nk);
+      }
+    }
+    queue = next;
+  }
+  const reachable = (x, z) => { const k = Math.round((x - X0) / C) * N + Math.round((z - Z0) / C); return k >= 0 && k < N * N && best[k] > -1; };
+  // the nearest spot the flood did reach, so a report says where to move to
+  const nearestFree = (x, z) => {
+    for (let r = 1; r < 40; r++) for (let a = -r; a <= r; a++) for (const [dx, dz] of [[a, -r], [a, r], [-r, a], [r, a]]) {
+      const px = x + dx * C, pz = z + dz * C;
+      if (reachable(px, pz)) return { x: Math.round(px), z: Math.round(pz - 500), away: +(r * C).toFixed(1) };
+    }
+    return null;
+  };
+  const bad = [];
+  map.nodes.forEach((n, i) => {
+    if (!reachable(n.x, n.z)) bad.push({ kind: "node-cut-off", i, x: Math.round(n.x), z: Math.round(n.z - 500) });
+    for (const j of n.links) {
+      if (!map.nodes[j]) { bad.push({ kind: "link-missing", i, j }); continue; }
+      if (!map.nodes[j].links.includes(i)) bad.push({ kind: "link-one-way", i, j });
+    }
+    if (!n.links.length) bad.push({ kind: "node-no-links", i });
+  });
+  // every place has to be reachable too, and every spot a squad drops on
+  map.pois.forEach((p) => {
+    p.drops.forEach((d, k) => { if (!reachable(d.x, d.z)) bad.push({ kind: "drop-cut-off", id: p.id, k, x: Math.round(d.x), z: Math.round(d.z - 500), nearest: nearestFree(d.x, d.z) }); });
+  });
+  return { nodes: map.nodes.length, pois: map.pois.length, cells: reached, bad };
+})()`;
+
 async function brTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
   await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("brBots").value = "5"; document.getElementById("goBr").click(); })()`);
@@ -124,6 +207,7 @@ async function brTest(browser: Browser, query: string): Promise<void> {
     `(() => { const m = window.__range.brMap; return { pois: m.pois.length, zips: window.__range.ziplines.filter((z) => z.a.z > 280 && z.a.z < 720).length, towers: m.towers.length, pads: m.pads.length }; })()`
   );
   check("the map: nine places, ziplines off them, jump towers and launch pads", shape.pois === 9 && shape.zips >= 8 && shape.towers >= 3 && shape.pads >= 2, JSON.stringify(shape));
+  await navChecks(page);
   check("landing: no bot drops on your place, so the nearest is a long way off", landing.nearest > 60, `${landing.nearest.toFixed(0)} m to the nearest bot at ${landing.poi}`);
 
   await sleep(300);
