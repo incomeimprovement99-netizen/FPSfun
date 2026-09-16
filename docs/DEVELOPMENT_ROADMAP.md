@@ -750,3 +750,43 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   nearest big place. Nine POIs now, so the bots spread wider and the ring can end somewhere worth fighting in.
 - Loot follows the rooms: 30 spots a place instead of 16, 2 to 4 items a spot instead of 1 to 3, the open field cut
   from 26 spots to 20, and weapons weighted up from 22 to 30 of the kind roll.
+
+## Milestone 50 — Bots can reach every node on Outskirts, and a test that says so ✅
+2026-09-16 (Phase 15). `src/game/br.ts`, `tools/e2e.ts`.
+- Three of the nineteen graph nodes stood inside solid boxes: the hub's node was the tower's own base, the ridge's
+  foot node was inside its first 2 m step, and its top node was in the bunker wall. A bot that picked one walked
+  until it touched the box and then ground against it for the rest of the match, because the arrival test is 3 m
+  and the box held it 4.4 m out.
+- The ridge's ramp climbed 0.5 m a step, which a bot can take, and then **stopped five metres short of the top in
+  open air**. A bot walked the whole ramp, dropped back to the shelf at 6 m, and could not climb the last 2 m, so
+  nothing but the zipline ever put anyone in the bunker. A landing joins the ramp's head to the top step now.
+- Three drop spots were half a metre inside walls, two at West Town and one at the Northeast Store.
+- The guard floods the whole map on a half-metre grid using the bot's own rules from `bots.ts` (0.41 m radius,
+  0.56 m step, 1.83 m standing room) and fails on any node, link or drop the flood does not reach. It reaches
+  **779,941 cells**, which is the map. `verify.ts` cannot do this one: building the map wants a DOM for its
+  textures, so it lives in the browser half of the suite.
+
+## Milestone 51 — More free assets: materials, skies, rocks, doors and the fonts come home ✅
+2026-09-16 (Phase 15). `tools/fetch-assets.ts`, `fetch-models.ts`, `fetch-sounds.ts`, `fetch-fonts.ts`,
+`fetch-icons.ts`, `src/game/materials.ts`, `index.html`.
+- **Ten material sets** (ambientCG, CC0): sand, rock, gravel, corrugated steel, rust, plaster, brick, roof tile,
+  planks and steel, so each place on Outskirts can stop being the same grey. Lazy: a set nothing uses costs no
+  bandwidth, and each falls back to the flat colour the map already used.
+- **Six more skies** (Poly Haven, CC0) and **nine models**: six rock scans and three dead trees.
+  `sand_rocks_small_01` was fetched and dropped again, because its geometry alone is a 21 MB `.bin`.
+- **Seventeen more sounds** (Kenney, CC0): a door opening, closing and kicked, a bin lid, a pickup, a beacon, the
+  drop's horn, a ping, a zipline.
+- **Forty-five icons**: Lucide (ISC) for the interface, game-icons.net (CC BY 3.0, so credited by name) for ammo,
+  magazines, grenades, armour and a parachute.
+- **The fonts stopped being a third-party request.** Rajdhani came from fonts.googleapis.com on every load, which
+  held the menu on a slow connection, failed offline, and reflowed the HUD mid-fight when it landed late. Now
+  self-hosted with Barlow Condensed beside it: latin only, five weights, 110 KB, SIL OFL with the licence text.
+
+## Milestone 52 — Seven hours of the day ✅
+2026-09-16 (Phase 15). `src/config/sky.json`, `src/game/sky.ts`, `range.ts`, `materials.ts`, `main.ts`.
+- One sky meant every match was the same hour of the same day. Morning, hard noon, afternoon, golden hour,
+  overcast, dusk and moonlight, each with its own dome palette, sun, light colour, environment intensity and fog.
+- Changing hour writes four colours into one shader, moves one light and reloads the environment map, so it costs
+  a frame and needs no reload. It sits under Graphics and is kept like the graphics preset.
+- The afternoon is the range's old look to the digit, and a check fails if that drifts. The sun **disk** and the
+  **light** turned out to be two different colours (fff0d0 and fff2dc) and conflating them quietly relit the range.
