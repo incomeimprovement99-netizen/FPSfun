@@ -23,5 +23,22 @@
   "helmets": {
     "gold": { "armor": 100, "smallHealScale": 2 },
     "red": { "armor": 125, "smallHealScale": 1 }
-  }
+  },
+  "_knockdown": "Knockdown shields. Season 28 took them out of the loot pool and tied the size to your EVO level, 200 / 450 / 750 (docs/RESEARCH_PHASE_12.md section 2.2, from wiki/Knockdown_Shield and the Breach notes of 2026-02-09). src/config/squad.json holds those same three for the down code, along with the arc and the crawl, and the tiers here are them under their colours so the two cannot drift. Your EVO level is the floor and a shield you find can only raise it. Gold is Apex's old level 4 Guardian Angel shield, removed from every mode on 2024-11-26, and it is back here because the whole point of a tier is that it is a decision: it soaks purple's 750 and no more, and what it adds is one self-revive. Ours, because Apex has published none of it: a self-revive existing at all in Season 30, its channel, and a spent gold shield still soaking 750.",
+  "knockdown": {
+    "white": { "name": "Knockdown shield", "hp": 200, "rarity": "common", "selfRevives": 0 },
+    "blue": { "name": "Knockdown shield", "hp": 450, "rarity": "rare", "selfRevives": 0 },
+    "purple": { "name": "Knockdown shield", "hp": 750, "rarity": "epic", "selfRevives": 0 },
+    "gold": { "name": "Gold knockdown shield", "hp": 750, "rarity": "legendary", "selfRevives": 1 }
+  },
+  "_selfRevive": "The gold shield's self-revive, all ours: Apex published no channel for it. Seven seconds is the longest hold in the game on purpose (a squad mate's revive is 5 and a Deathbox Respawn is 7, src/config/squad.json), so pushing a gold knock is still the right call as long as you actually push it. It gives back the 20 health a squad mate's revive gives, for the same reason: getting yourself up should not beat being picked up. Letting go, moving or taking a hit drops the channel and the seconds are not kept, so an interrupted self-revive starts again from nothing, which is what makes shooting a crawling enemy worth the bullets.",
+  "selfRevive": { "time": 7, "health": 20 },
+  "_backpacks": "Backpacks. The white one has been in the starter kit since Season 28 (docs/RESEARCH_PHASE_12.md section 2.5, Breach), so nobody is ever without one and the three worth finding are blue, purple and gold. Published: with a gold backpack a med kit and a shield battery stack 3 and a phoenix kit stacks 2 (docs/RESEARCH_PHASE_11.md section 1, wiki/Med_Kit, wiki/Shield_Battery, wiki/Phoenix_Kit), which is what purple and gold both give here, because in Apex the level 3 and level 4 packs carry the same six extra slots and gold's difference is its perk rather than its room. Ours, unpublished: how much cell and syringe room each tier adds, and gold's heal time. The stack numbers below are ROOM ON TOP of the heal's own stack above, so the published stacks stay the one place those are written down. Season 30 took gold backpacks out of the loot pool (Marked); ours stays in, because a battle royale whose only other legendary carry item is a helmet has too little reason to read a death box.",
+  "backpacks": {
+    "white": { "name": "Backpack", "rarity": "common", "stack": { "cell": 0, "syringe": 0, "battery": 0, "medkit": 0, "phoenix": 0 }, "healTime": 1 },
+    "blue": { "name": "Blue backpack", "rarity": "rare", "stack": { "cell": 2, "syringe": 2, "battery": 0, "medkit": 0, "phoenix": 0 }, "healTime": 1 },
+    "purple": { "name": "Purple backpack", "rarity": "epic", "stack": { "cell": 4, "syringe": 4, "battery": 1, "medkit": 1, "phoenix": 1 }, "healTime": 1 },
+    "gold": { "name": "Gold backpack", "rarity": "legendary", "stack": { "cell": 4, "syringe": 4, "battery": 1, "medkit": 1, "phoenix": 1 }, "healTime": 0.75 }
+  },
+  "_healTime": "healTime is the fraction of a heal's published seconds the tier takes, and gold's 0.75 is ours. It is deliberately not a half: TRIAGE already halves every heal (src/game/abilities.ts) and the two multiply, so a gold pack under TRIAGE is a 3 s med kit as it stands."
 }

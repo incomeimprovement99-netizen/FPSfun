@@ -1899,6 +1899,39 @@ async function main(): Promise<void> {
     // smaller downloads (tools/compress-assets.ts): the surfaces and the props' maps come as WebP, and none is missing
     const webp = await ev<{ webp: number; jpg: number; bad: string[] }>(page, `(() => { const r = performance.getEntriesByType("resource"); const tex = r.filter((x) => x.name.includes("/tex/") || x.name.includes("/models/")); return { webp: tex.filter((x) => x.name.endsWith(".webp")).length, jpg: tex.filter((x) => x.name.endsWith(".jpg")).length, bad: tex.filter((x) => x.responseStatus >= 400).map((x) => x.name.split("/").slice(-2).join("/")) }; })()`);
     check("textures: the range's and the props' maps load as WebP, none missing", webp.webp >= 20 && webp.bad.length === 0, JSON.stringify(webp));
+    // The HUD's icons (npm run icons). They are SVG, so they have to survive
+    // being rasterised and then tinted with a source-in fill: an icon that
+    // still carried game-icons.net's black background plate would light every
+    // pixel of the square instead of the glyph, which is a black box over the
+    // ammo counter rather than an icon.
+    const icons = await ev<{ count: number; loaded: boolean; lit: number; all: number }>(
+      page,
+      `(async () => {
+        const idx = await (await fetch("icons/index.json")).json();
+        const img = new Image();
+        const loaded = await new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); img.src = "icons/frag.svg"; });
+        const c = document.createElement("canvas"); c.width = 16; c.height = 16;
+        const g = c.getContext("2d");
+        g.drawImage(img, 0, 0, 16, 16);
+        g.globalCompositeOperation = "source-in";
+        g.fillStyle = "#ff0000";
+        g.fillRect(0, 0, 16, 16);
+        const d = g.getImageData(0, 0, 16, 16).data;
+        let lit = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 10) lit++;
+        return { count: Object.keys(idx).length, loaded, lit, all: 256 };
+      })()`
+    );
+    check(
+      "the HUD's icons load, tint, and are a glyph rather than a black square",
+      icons.count >= 40 && icons.loaded && icons.lit > 20 && icons.lit < icons.all * 0.8,
+      `${icons.count} icons, ${icons.lit} of ${icons.all} pixels lit`
+    );
+    // the fonts are ours now, not a third-party request on the first frame
+    const fonts = await ev<{ own: number; google: number }>(
+      page,
+      `(() => { const r = performance.getEntriesByType("resource").map((x) => x.name); return { own: r.filter((n) => n.includes("/fonts/") && n.endsWith(".woff2")).length, google: r.filter((n) => n.includes("googleapis") || n.includes("gstatic")).length }; })()`
+    );
+    check("the fonts are self-hosted and nothing is fetched from Google", fonts.own >= 2 && fonts.google === 0, JSON.stringify(fonts));
     void t0;
 
     console.log("\nThe first visit");
