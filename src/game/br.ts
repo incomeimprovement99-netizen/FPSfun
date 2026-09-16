@@ -393,6 +393,50 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     root.add(textPanel(c.name, c.x, 3.2, c.z - W + 0.6, 0, 7, 1.4));
   }
 
+  // ------------------------------------------------------------ the roadside
+  // Crossing between places was a long run with nothing to break a sightline,
+  // so anyone on a roof could watch you the whole way. These are small stops
+  // on the roads: a ruin with two walls and a roof, a culvert to run through,
+  // a stack of containers. None is a POI (no loot spot of its own) — they are
+  // there so the ground between places is not one flat plane of sand.
+  {
+    const spots: Array<[number, number, number]> = [
+      [0, -86, 0],
+      [0, 86, 1],
+      [86, 0, 2],
+      [-86, 0, 0],
+      [62, -62, 1],
+      [-62, 62, 2],
+      [62, 62, 0],
+      [-62, -62, 1],
+      [0, -130, 2],
+      [0, 130, 0],
+      [130, 0, 1],
+      [-130, 0, 2],
+    ];
+    for (const [x, z, kind] of spots) {
+      if (kind === 0) {
+        // a ruin: two standing walls and half a roof to shelter under
+        box(12, 4, 0.6, x, 0, z - 4, wallMat);
+        box(0.6, 4, 9, x - 6, 0, z, wallMat);
+        box(9, 0.4, 7, x - 1.5, 4, z - 1, roofMat);
+        box(1.6, 1.4, 1.6, x + 4, 0, z + 2, crate);
+      } else if (kind === 1) {
+        // a culvert: a covered run you can cross the road inside
+        box(0.6, 2.6, 14, x - 2.2, 0, z, concrete);
+        box(0.6, 2.6, 14, x + 2.2, 0, z, concrete);
+        box(5, 0.5, 14, x, 2.6, z, concrete);
+        box(1.6, 1.4, 1.6, x, 0, z + 5, crate);
+      } else {
+        // a container stack with a gap to shoot through
+        box(6, 2.6, 2.6, x, 0, z, steelA);
+        box(6, 2.6, 2.6, x + 1.5, 0, z + 3.4, steelB);
+        box(6, 2.6, 2.6, x, 2.6, z, steelC);
+        box(1.6, 1.4, 1.6, x - 4, 0, z + 1, crate);
+      }
+    }
+  }
+
   // ---------------------------------------------------------------- the field
   // cover clusters along the spokes, and rocks in the open
   const rnd = lcg(7);
