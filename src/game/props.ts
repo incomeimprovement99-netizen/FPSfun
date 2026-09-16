@@ -17,7 +17,21 @@ export type PropName =
   | "ammo_box"
   | "steel_frame_shelves_01"
   | "portable_generator"
-  | "modular_chainlink_fence";
+  | "modular_chainlink_fence"
+  // Outskirts' field. The open ground between the places is boxes called
+  // rocks, which from any distance read as boxes. These are scans, fetched by
+  // npm run models. They are DECORATION: a prop's collider comes from its
+  // placement's `solid` footprint and not from its geometry, because this
+  // engine collides against axis-aligned boxes and nothing else, so a rock
+  // mesh goes over the box that was already there.
+  | "namaqualand_boulder_04"
+  | "namaqualand_boulder_06"
+  | "namaqualand_boulders_01"
+  | "namaqualand_rocks_01"
+  | "rock_face_02"
+  | "dead_quiver_trunk"
+  | "dead_quiver_branch_02"
+  | "dry_branches_medium_01";
 
 export interface Placement {
   prop: PropName;
