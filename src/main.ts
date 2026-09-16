@@ -15,6 +15,7 @@ import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset } from "./game/quality";
 import { ProjectileSystem, solidHit } from "./game/projectile";
+import AUDIO_CFG from "./config/audio.json";
 import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier, type FigurePose } from "./game/dummy";
 import { buildRange, skyFollow, setShadowRegion, setHour, getSun, RANGE_BOUNDS, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
@@ -619,6 +620,43 @@ const earUp = new THREE.Vector3();
 let aimYaw = 0;
 let aimPitch = 0;
 const audio = new GameAudio();
+// How much of the world stands between the ear and a sound. Three lines
+// rather than one, spread across the source, so a figure half behind a pillar
+// is half blocked instead of all or nothing, which is what a single ray gives
+// and what makes occlusion pop on and off as someone walks.
+//
+// It lives here rather than in audio.ts because that module knows about gain
+// and filters and should not know about collision boxes. solidHit is the same
+// test the bullets use, so what you cannot shoot through is what you cannot
+// hear clearly through, which is the rule a player can actually learn.
+{
+  const from = new THREE.Vector3();
+  const dir = new THREE.Vector3();
+  const side = new THREE.Vector3();
+  audio.setOccluder((ear, at) => {
+    from.set(ear.x, ear.y, ear.z);
+    dir.set(at.x - ear.x, at.y - ear.y, at.z - ear.z);
+    const len = dir.length();
+    if (len < 0.5) return 0;
+    dir.divideScalar(len);
+    // a horizontal offset, so the extra rays straddle the source
+    side.set(-dir.z, 0, dir.x);
+    if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
+    else side.normalize();
+    const spread = AUDIO_CFG.occlusion.spread;
+    let blocked = 0;
+    for (let i = 0; i < AUDIO_CFG.occlusion.rays; i++) {
+      const off = i === 0 ? 0 : i === 1 ? spread : -spread;
+      const tx = at.x + side.x * off;
+      const tz = at.z + side.z * off;
+      dir.set(tx - ear.x, at.y - ear.y, tz - ear.z);
+      const l = dir.length();
+      dir.divideScalar(l);
+      if (solidHit(from, dir, l) < l) blocked++;
+    }
+    return blocked / AUDIO_CFG.occlusion.rays;
+  });
+}
 /** when each sound goes with the frame: footsteps, loops, the clock's beeps (soundscape.ts) */
 const sounds = new Soundscape(audio);
 /** the last gunshot heard from each shooter: a shotgun's pellets are one sound */

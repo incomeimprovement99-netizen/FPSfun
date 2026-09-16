@@ -56,6 +56,41 @@ export class GameAudio {
   private samplesAsked = false;
   /** samples layered in (tests) */
   samplesPlayed = 0;
+  /**
+   * How much of the world is between the ear and a sound, 0 clear and 1 fully
+   * blocked. Injected rather than imported: this module knows about gain and
+   * filters, not about the level's collision boxes, and the range, both arenas
+   * and the battle royale map all fill the same list. src/main.ts wires it.
+   */
+  private occluder: ((from: Vec, to: Vec) => number) | null = null;
+  /** the last few answers, keyed by the ear and the source rounded to a metre */
+  private occCache = new Map<string, { v: number; at: number }>();
+  /** blocked voices (tests) */
+  occluded = 0;
+
+  setOccluder(fn: ((from: Vec, to: Vec) => number) | null): void {
+    this.occluder = fn;
+    this.occCache.clear();
+  }
+
+  /**
+   * Blocked fraction for a sound at `at`, cached. Footsteps fire several times
+   * a second from nearly the same place, so tracing every one would be three
+   * rays per step per figure against every box in the level.
+   */
+  private blockedAt(at: Vec): number {
+    if (!this.occluder) return 0;
+    const key = `${Math.round(at.x)},${Math.round(at.y)},${Math.round(at.z)}|${Math.round(this.lis.x)},${Math.round(this.lis.y)},${Math.round(this.lis.z)}`;
+    const now = performance.now();
+    const hit = this.occCache.get(key);
+    if (hit && now - hit.at < cfg.occlusion.cacheMs) return hit.v;
+    const v = this.occluder(this.lis, at);
+    // the cache is per ear position, so it turns over as you walk; a cap stops
+    // a long match growing it without bound
+    if (this.occCache.size > 512) this.occCache.clear();
+    this.occCache.set(key, { v, at: now });
+    return v;
+  }
 
   constructor() {
     try {
@@ -251,9 +286,23 @@ export class GameAudio {
     const input = ctx.createGain();
     let t = ctx.currentTime;
     if (at) {
+      // Through a wall a sound loses its top end and most of its level, and
+      // what is left is mostly the room rather than the source. Without this
+      // a gunfight two rooms away is as bright and as loud as one in front of
+      // you, which is most of why a player cannot tell where a fight is.
+      const blocked = this.blockedAt(at);
+      if (blocked > 0.02) this.occluded++;
       const lp = ctx.createBiquadFilter();
       lp.type = "lowpass";
-      lp.frequency.value = Math.max(650, 18000 * Math.exp(-dist / cfg.airAbsorb));
+      const air = Math.max(650, 18000 * Math.exp(-dist / cfg.airAbsorb));
+      // A source above or below you is filtered a little differently, because
+      // the head does very little to tell up from down and a stereo panner
+      // does nothing at all. It is a cue, not realism: it is what tells you
+      // the fight is upstairs.
+      const rise = (at.y - this.lis.y) / 3.2;
+      const tilt = Math.abs(rise) > cfg.vertical.from / 3.2 ? 1 + Math.max(-0.75, Math.min(0.75, rise)) * cfg.vertical.tilt : 1;
+      lp.frequency.value = Math.max(220, air * (1 - blocked) + cfg.occlusion.lowpass * blocked) * tilt;
+      input.gain.value = 1 - blocked * (1 - cfg.occlusion.gain);
       const pan = ctx.createPanner();
       pan.panningModel = "HRTF";
       pan.distanceModel = "inverse";
@@ -268,7 +317,7 @@ export class GameAudio {
       input.connect(lp).connect(pan).connect(out);
       // far away there is more room than sound: more of it goes to the reverb
       const send = ctx.createGain();
-      send.gain.value = reverb * Math.min(1.6, 0.6 + dist / 60);
+      send.gain.value = reverb * Math.min(1.6, 0.6 + dist / 60) * (1 + blocked * (cfg.occlusion.reverbBoost - 1));
       pan.connect(send).connect(this.reverbSend);
       if (dist > cfg.delayFrom) t += dist / cfg.speedOfSound;
     } else {

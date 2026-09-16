@@ -5,6 +5,10 @@
   "airAbsorb": 70,
   "maxDistance": 320,
   "maxVoices": 56,
+  "_occlusion": "Sound through walls. Ours: Apex does not publish its numbers, and the shape here is the standard game-audio one, an obstruction ray from the ear to the source that lowers the level and takes the top off the sound. Without it a gunfight two rooms away is as bright and as loud as one in front of you, which is the single biggest reason a player cannot tell where a fight is. rays is how many lines are traced (one to the source, two offset, so a source half behind a pillar is half blocked rather than all or nothing). gain and lowpass are what a fully blocked source keeps. reverbBoost is how much more of it goes to the room, because a sound you hear through a wall is mostly its reflections. cacheMs is how long a result is reused for a source within a metre, since footsteps fire many times a second from nearly the same place.",
+  "occlusion": { "rays": 3, "spread": 0.6, "gain": 0.34, "lowpass": 900, "reverbBoost": 1.5, "cacheMs": 140 },
+  "_vertical": "A source well above or below you is filtered differently, because the head does almost nothing to tell up from down and a stereo panner does nothing at all. A small shelf is not realism, it is the cue that tells you the fight is upstairs. from is the height difference in metres where it starts, tilt is how far the top end moves at a full storey.",
+  "vertical": { "from": 2.5, "tilt": 0.42 },
   "reverb": { "seconds": 1.6, "indoor": 0.3, "outdoor": 0.1 },
   "footsteps": { "walkStride": 0.75, "sprintStride": 1.05, "crouchStride": 0.55, "hearOthersTo": 45, "ownLevel": 0.175, "othersLevel": 0.45 },
   "classes": {
