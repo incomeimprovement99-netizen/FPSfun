@@ -628,9 +628,12 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `src/config/loot.json`, `squad.json` | the battle royale's loot tables; downs, revives, banners, beacons, pads, pings, EVO's sources, knockdown shields, Deathbox Respawn |
 | `src/config/modes.json` | Gun Run's lists and rules, team deathmatch's score and size, free-for-all's kill limit and clock, Crown's times, Control's zones and numbers, the arena's spawns |
 | `src/config/throwables.json` | the frag, the arc star, thermite |
-| `src/config/killcam.json`, `audio.json`, `rangetools.json` | the killcam's timing; the gun classes and the sound's distances; the range's tools |
+| `src/config/killcam.json`, `audio.json`, `rangetools.json` | the killcam's timing; the gun classes, the sound's distances, and how much a wall takes off a sound it is between you and; the range's tools |
 | `src/config/readme-tv.json` | the README screen at the far end of the range: where it stands, its size, its arrow plates and the layout of its pages |
-| `src/config/hud.json` | the plates over the others: how long after a hit an enemy's shows, how far away it is drawn |
+| `src/config/hud.json` | the plates over the others (how long after a hit an enemy's shows, how far away it is drawn), and the looting reach: the walk-over radius, what comes up with no press, the hold cadence and the reach list |
+| `src/config/sky.json` | the seven hours of the day: each one's dome palette, sun direction, light colour, environment strength, fog and which HDRI it uses. The setting is under Graphics and applies without a reload. |
+| `src/config/ring.json` | the battle royale ring: the six phases (wait, close, radius, damage), the tick, the square every circle is clamped inside, and the cover attractors late circles are pulled toward |
+| `src/config/viewmodel.json` | the first-person arms: one shoulder anchor set per gun family, the closest an arm may come to the eye, and the radius the sleeve narrows to at the elbow |
 
 ## Scripts and checks
 
@@ -644,10 +647,12 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run assets` | fetch the CC0 textures into `public/tex` (as WebP) |
 | `npm run models` | fetch the CC0 props into `public/models` (their maps as WebP) |
 | `npm run sounds` | fetch Kenney's CC0 recorded sounds into `public/audio/kenney` |
+| `npm run fonts` | fetch the HUD's two faces from Google Fonts and self-host them into `public/fonts` (SIL OFL 1.1, latin only, 110 KB). The game makes no third-party font request and works offline. |
+| `npm run icons` | fetch the HUD's 45 icons into `public/icons`: Lucide (ISC) for the interface, game-icons.net (CC BY 3.0, credited by author) for ammo, magazines, grenades, armour and a parachute |
 | `npm run compress` | re-encode already fetched textures as WebP |
 | `npm run extract` | rebuild `data/weapons.json` from the reference sheet (read-only, outside the repo) |
 | `npm run compare-sources` | compare two reference trees on the numbers we use |
-| `npm run verify` | 820+ checks: weapon data, damage, recoil, sensitivity maths, and the whole movement simulation (every movement rule against its source number). Must print VERIFY PASS. |
+| `npm run verify` | 1,100+ checks: weapon data, damage, recoil, sensitivity maths, and the whole movement simulation (every movement rule against its source number), plus the modules under `tools/checks/` (the hours of the day, the ring's placement, loot tiers, the pickup reach, the bots' senses, the view model's arms, audio occlusion), each of which also runs on its own with `npx tsx tools/checks/<name>.ts`. Must print VERIFY PASS. |
 | `npm run movesim` | the movement simulation alone: wiki timings, the wallbounce recipe, crouch kick, wallskip, every course gate, teleports |
 | `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course and its medals, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match with the killcam and the recap, the controller, the range's tools, the settings and the tour, throwables, the battle royale alone, with loot and as a squad (downs, revives, banners, pings), Gun Run, team deathmatch, Crown and Control alone and Gun Run with a friend, the bot tiers, the controller's layout and presets, and the README screen paged by shooting its arrows. Needs `npm run dev`. Must print E2E PASS. `E2E_ONLY=page,br,...` runs only those sections (the file lists them); the whole run takes about twelve minutes. |
 | `npm run snap` | screenshots of named scenarios drawn for real (the HUD, the killcam, the figures, the loot, the modes, the README screen) into `shots/`; `SNAP=name,name` for some |
