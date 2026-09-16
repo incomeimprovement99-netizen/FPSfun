@@ -6,7 +6,7 @@
   "maxDistance": 320,
   "maxVoices": 56,
   "reverb": { "seconds": 1.6, "indoor": 0.3, "outdoor": 0.1 },
-  "footsteps": { "walkStride": 0.75, "sprintStride": 1.05, "crouchStride": 0.55, "hearOthersTo": 45 },
+  "footsteps": { "walkStride": 0.75, "sprintStride": 1.05, "crouchStride": 0.55, "hearOthersTo": 45, "ownLevel": 0.175, "othersLevel": 0.45 },
   "classes": {
     "pistol": { "thump": 170, "thumpEnd": 60, "thumpTime": 0.09, "band": 1800, "bandQ": 0.8, "crack": 0.045, "tail": 0.35, "level": 0.8 },
     "smg": { "thump": 150, "thumpEnd": 55, "thumpTime": 0.07, "band": 2100, "bandQ": 0.9, "crack": 0.035, "tail": 0.28, "level": 0.72 },

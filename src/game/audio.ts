@@ -512,7 +512,8 @@ export class GameAudio {
     const v = this.voice(at, 0.85, "fx", at ? 0 : 1, 0.3);
     if (!v) return;
     const j = 0.9 + Math.random() * 0.2;
-    const L = (at ? 0.9 : 0.35) * loud;
+    // halved on the owner's ear (2026-09-15): steps were louder than the room
+    const L = (at ? cfg.footsteps.othersLevel : cfg.footsteps.ownLevel) * loud;
     // a recorded step (concrete, or grass for dirt; metal is the concrete step pitched up under the ring)
     this.sample(v.input, v.t, surface === "dirt" ? "step_grass" : "step_concrete", 1.1 * L, surface === "metal" ? 1.25 : 1);
     if (surface === "metal") {

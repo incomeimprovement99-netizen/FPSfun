@@ -12,7 +12,7 @@ Apex install, the EA App, Steam or Easy Anti-Cheat.
 beside it to turn a page or step a section, or put a round on a section's name
 down its left side to jump there.
 
-**Play it: https://incomeimprovement99-netizen.github.io/FPSfun/**
+**Play it: https://fpsfun.duckdns.org/**
 (Chrome or Edge on a PC; the public build names the guns "Not R-301",
 "Not Kraber" and so on.)
 
@@ -91,7 +91,7 @@ guns come at the next round).
 
 Codes never contain 0, O, 1, I or L, so they can be read out loud. The
 connection is browser to browser (WebRTC); a PeerJS broker only introduces
-the two (our own on the game's server, the free public one on GitHub Pages),
+the two (our own on the game's server, the free public one on a static mirror),
 and a TURN relay carries the match when a network blocks the direct path.
 See [Troubleshooting](#troubleshooting) when it will not connect.
 
@@ -395,13 +395,13 @@ tech landed or called out as a miss.
 the Stats tab with a name and a password, and your settings, keys, loadouts
 and stats follow you to any browser you sign in on. The password is kept
 only as a salted scrypt hash on our server; nothing is shared with anyone.
-Playing never needs one, and on GitHub Pages there is no server to sign in to.
+Playing never needs one, and a static mirror has no server to sign in to.
 
 **Online boards** come with the game's own server (`server/game/serve.mjs`,
 [Deploy](#deploy)): every course run and every win is posted under the
 player's name, the Stats tab shows the top 15 of each board with you
 highlighted, and the HUD says your place after a run or a win. The game
-finds the board by itself (`/net.json`); on GitHub Pages there is none and
+finds the board by itself (`/net.json`); a static mirror has none and
 everything stays local. `server/leaderboard/` is the same boards as a
 Cloudflare Worker, for a build made with `VITE_LEADERBOARD_URL`. Either way
 it trusts the game, so it is a board for friends, not a ranked ladder.
@@ -635,7 +635,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`) |
 | `npm run shot` | screenshots of every view into `shots/` (needs `npm run dev`) |
 | `npm run rules` | nothing in the repo references the game's install or its files |
-| `npm run deploy` | `build:beta`, then publish `dist/` as the `gh-pages` branch (GitHub Pages) |
+| `npm run deploy` | `build:beta`, then publish `dist/` as the `gh-pages` branch (the static mirror) |
 | `npm run deploy:server` | `build:beta`, ship it to the game's own server, reload, check, and play a 1v1 there (`-- dry` does it all on this PC, the boards and the accounts included, `-- setup`, `-- health`, `-- logs`, `-- rollback`; `docs/SERVER_GUIDE.md`) |
 | `npm run fps <verb>` | the same tool, Algonomics `npm run prod` style; on its own it is `health`. `check` probes DNS, ssh, every firewall rule and a real datagram through the relay from this PC; `backup` brings the boards and accounts down; `ssh`, `restart`, `dns`, `run "<cmd>"` |
 | `npm run server` | run the game's server here on :4100 (after `build:beta`) |
@@ -649,33 +649,30 @@ while the e2e runs; the dev server's reload kills the pages it is driving.
 
 Two places, the same build:
 
-**The game's own server** (`docs/SERVER_GUIDE.md`): an Oracle Always Free
-VM like Algonomics', with pm2, Caddy and a DuckDNS name, running
-`server/game/serve.mjs`: the site, our own broker, a TURN relay, the
-online boards and the optional accounts. `npm run deploy:server` ships it and plays a 1v1 on it.
-
-**GitHub Pages**: https://incomeimprovement99-netizen.github.io/FPSfun/ ,
-served from the `gh-pages` branch of this repo, which only ever holds the
-built `dist/`. It uses the public broker and has no relay or boards.
-`docs/DEPLOY_GUIDE.md` has the step by step; the short form:
+**The game's own server**, https://fpsfun.duckdns.org/ , is where the game
+lives (`docs/SERVER_GUIDE.md`): an Oracle Always Free VM with pm2, Caddy and a
+DuckDNS name, running `server/game/serve.mjs` — the site, our own broker, a
+TURN relay, the online boards and the optional accounts. The short form:
 
 ```
-git push             # the source, to main
-npm run deploy       # the site: build:beta, then force-push dist/ to gh-pages
-npm run live         # optional: prove it with a real 1v1 on the live URL
+npm run fps deploy   # build the last commit, ship it, reload, play a 1v1 on it
+npm run fps check    # from your PC: DNS, the firewall, /health, a real relayed datagram
+npm run fps backup   # the boards and accounts down to server-backup/ first
 ```
 
-Pages picks the new commit up within a minute; players need a reload (the
-file names carry a hash, so a plain reload is enough).
+**A static mirror** can be published beside it with `npm run deploy` (the
+built `dist/` on a `gh-pages` branch). A mirror uses the free public broker
+and has no relay, boards or accounts, so it is a fallback rather than the
+address to hand out. Players need a reload after either (the file names carry
+a hash, so a plain reload is enough).
 
 `dist/` is a static site and would work on Netlify, Cloudflare Pages or any
 web host. It must be served over HTTPS (browsers only allow peer connections
 and raw mouse input on secure pages). Paths are relative, so it works from a
 sub-folder. Run `npm run assets`, `npm run models` and `npm run sounds` before
-building, or the textures, props and recorded sounds will be missing. The repository is public (GitHub Pages
-on a free account needs that); the reference data with the real names is in
-it, so `DEPLOY_GUIDE.md` section 7 has the split-repo setup if that should
-change.
+building, or the textures, props and recorded sounds will be missing. The
+source (which holds the reference data with the real names) is not what is
+served: only `dist/` goes to a host.
 
 `dist/` is about 22 MB: 1.9 MB of code (505 KB compressed), 3 MB of textures
 and 17 MB of props (their textures as WebP since Phase 12: the textures went
@@ -718,7 +715,7 @@ are posed in code.
 - The browsers connect directly (WebRTC). On the game's own server our own
   broker introduces them and a TURN relay carries the match when a strict
   network (some offices, schools, mobile carriers) blocks the direct path.
-  On GitHub Pages the free public broker does the introducing (no uptime
+  On a static mirror the free public broker does the introducing (no uptime
   promise) and only PeerJS's shared public relay is there.
 - The shooter decides hits. It feels right on your screen and is fine between
   friends; it is trivially cheatable. There is no anti-cheat, no matchmaking,
@@ -777,7 +774,7 @@ guns are built with their grips at the hand for that.
 |---|---|
 | Nothing works on a phone or tablet | it is a PC game (keyboard and mouse, or a controller); the menu says so on a phone. Open the link on a PC in Chrome or Edge. |
 | Clicking Play does nothing | the menu now says why: Chrome waits about a second after Esc before it locks the mouse again; click again. A DPI measurement in progress also holds the lock. |
-| "Could not reach the matchmaking server" | on GitHub Pages: the public PeerJS broker is down or rate-limited; try again in a minute, or use the game's own server. On our server: the server is down (`npm run deploy:server -- health`). |
+| "Could not reach the matchmaking server" | on https://fpsfun.duckdns.org/ the server is down (`npm run fps health`); on a static mirror it means the free public broker is down or rate-limited, so try again in a minute or use the address above. |
 | "No match with that code" | a typo (codes never contain 0, O, 1, I or L) or the host closed the tab. Make a new match. |
 | "Found the match but could not connect to the host" (after 20 s) | one of you is on a network that blocks direct peer connections (offices, schools, university halls, phone hotspots, VPNs) and no relay got through. On our server, check the relay (SERVER_GUIDE section 8). Try home wifi, or with the VPN off. |
 | "WAITING FOR EVERYONE TO CLICK PLAY" | someone is still on the menu; every player clicks Play (or presses Start) before round 1. |
@@ -794,7 +791,7 @@ guns are built with their grips at the hand for that.
 | Doc | What it is |
 |---|---|
 | `docs/SERVER_GUIDE.md` | the game on its own server like Algonomics: a DuckDNS name, the Oracle firewall rules, one-time setup, `npm run deploy:server`, day to day, troubleshooting |
-| `docs/DEPLOY_GUIDE.md` | the GitHub Pages link: publish, play, update, troubleshoot, the split-repo option |
+| `docs/DEPLOY_GUIDE.md` | the static mirror: publish, play, update, troubleshoot |
 | `docs/DEVELOPMENT_ROADMAP.md` | a milestone for every feature shipped, newest last, with what it does and how it was tested |
 | `docs/PHASE_13_PLAN_THE_README_IN_THE_RANGE.md`, `docs/PHASE_13_THE_README_IN_THE_RANGE.md` | phase 13's plan and its results: the README on a screen in the range, paged by shooting it, and the public build's "Not R-301" gun names |
 | `docs/PHASE_12_PLAN_DASH_FIGURES_BOTS_AND_THE_APEX_PIECES.md`, `docs/PHASE_12_DASH_FIGURES_BOTS_AND_THE_APEX_PIECES.md` | phase 12's plan and its results |

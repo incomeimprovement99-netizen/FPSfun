@@ -95,7 +95,7 @@ Two independent read-only reviews, one of the match and network code, one of the
 | `npm run rules` | rules ok |
 | `npm run build:beta` | BETA CHECK PASS: no real names in the public build |
 | `npm run snap` | every scenario drawn (the HUD for the abilities, the killcam and the recap, the guns, the range's tools, the loot, a down, the maps, the modes, the figures, a throw, the tour) |
-| `npm run deploy` then `npm run live` | deployed to https://incomeimprovement99-netizen.github.io/FPSfun/; LIVE CHECK PASS (two pages on the live URL, a 1v1 over the public broker, the hit landing) after the fix for L1 |
+| `npm run deploy` then `npm run live` | deployed to https://fpsfun.duckdns.org/; LIVE CHECK PASS (two pages on the live URL, a 1v1 over the public broker, the hit landing) after the fix for L1 |
 | `npm run deploy:server -- dry` | DRY RUN PASS: the release installs, starts and hosts a 1v1 through its own broker on this PC (the tool now calls Windows' own `tar` by its path: from Git Bash, GNU tar read `C:\` as a remote host) |
 
 The mannequin's files were made with:

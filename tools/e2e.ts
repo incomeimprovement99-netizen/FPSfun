@@ -1315,11 +1315,18 @@ interface TvState {
  */
 async function readmeTvChecks(page: Page): Promise<void> {
   const tv = (): Promise<TvState> => ev<TvState>(page, "window.__range.readmeTv.state()");
+  // aimed, not hip fired: a hip-fired round at 8 m can spread off a plate, and
+  // this is a test of the paging, not of the cone
   const shootAt = async (expr: string, ms = 60) => {
+    await ev(page, `(() => { ${AIM} aimAt(${expr}); })()`);
+    await ev(page, padSet(6, true));
+    await sleep(420);
     await ev(page, `(() => { ${AIM} aimAt(${expr}); })()`);
     await sleep(120);
     await padTap(page, 7, ms);
     await sleep(500);
+    await ev(page, padSet(6, false));
+    await sleep(150);
   };
   await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, -98, 0, 0); r.readmeTv.goto(0, 0); })()`);
   await sleep(200);

@@ -12,7 +12,7 @@ under **pm2**, **Caddy** in front for HTTPS, a free **DuckDNS** name.
 
 | | GitHub Pages (today) | Own server |
 |---|---|---|
-| Address | `incomeimprovement99-netizen.github.io/FPSfun/` | `yourname.duckdns.org` (or any domain you buy) |
+| Address | a static mirror's own URL | **https://fpsfun.duckdns.org/** (or any domain you buy) |
 | Matchmaking (the 5-letter codes) | the free public PeerJS broker, which is sometimes down or rate-limited | **our own broker** on the server |
 | Friends on strict networks (school, office, hotspot, VPN) | often "Lost the connection" | **our own TURN relay** carries the match when a direct connection is blocked |
 | Online leaderboards | none | **on**: best course times, the flick drill, and win counts by name for every mode (1v1, 1v1v1, the bots by tier, the battle royale, Gun Run, team deathmatch, Crown, Control), in the Stats tab |

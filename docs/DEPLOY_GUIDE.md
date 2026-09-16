@@ -10,14 +10,14 @@ time, one command after that.
 
 Target: the public build (`npm run build:beta`, codenames only, no source, no
 real names) on **GitHub Pages**, served over HTTPS from the repo
-`https://github.com/incomeimprovement99-netizen/FPSfun`. The game is a
+`<your repo>`. The game is a
 static site, so Pages is all it needs: no server, nothing to keep running.
 The 1v1 goes browser to browser (WebRTC); the free PeerJS broker only
 introduces the two.
 
 ## 0. What you get
 
-- The game at **https://incomeimprovement99-netizen.github.io/FPSfun/**
+- The game at **https://fpsfun.duckdns.org/**
   (HTTPS, which browsers require for pointer lock, raw mouse input and
   WebRTC).
 - Everything in the menu: the range, both courses, 1v1 and 1v1v1 by code,
@@ -35,7 +35,7 @@ introduces the two.
 - Git with the credential manager signed in to GitHub as the repo owner
   (it is: the `main` push below used it).
 - The repo exists and `origin` points at it:
-  `git remote -v` shows `https://github.com/incomeimprovement99-netizen/FPSfun.git`.
+  `git remote -v` shows `<your repo>.git`.
 
 ## 2. Publish the site (once per release)
 
@@ -54,11 +54,11 @@ minute.
 
 GitHub switched Pages on by itself when the `gh-pages` branch arrived (the
 repo is public). It serves that branch at
-**https://incomeimprovement99-netizen.github.io/FPSfun/**, confirmed live
+**https://fpsfun.duckdns.org/**, confirmed live
 with the textures and props loading and a real 1v1 between two browser pages
 over the public broker (`npm run live` runs that check any time).
 
-If it ever shows as off: https://github.com/incomeimprovement99-netizen/FPSfun/settings/pages,
+If it ever shows as off: the repo's Settings, Pages,
 Source "Deploy from a branch", branch `gh-pages`, folder `/ (root)`, Save.
 
 If the repo is private: GitHub Pages on a private repo needs GitHub Pro. The
@@ -164,7 +164,7 @@ $0: make this repo private and create a second, public repo for the site
 only (`FPSfun-site`), then point the deploy at it:
 
 ```
-git remote add site https://github.com/incomeimprovement99-netizen/FPSfun-site.git
+git remote add site <your repo>-site.git
 ```
 
 and change `origin` to `site` in `tools/deploy-pages.ts` (one line). Switch

@@ -10,7 +10,7 @@
 import puppeteer, { type Browser, type Page } from "puppeteer";
 
 const CHROME = process.env.CHROME ?? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-const URL = (process.env.LIVE_URL ?? "https://incomeimprovement99-netizen.github.io/FPSfun/").replace(/\/?$/, "/");
+const URL = (process.env.LIVE_URL ?? "https://fpsfun.duckdns.org/").replace(/\/?$/, "/");
 let fails = 0;
 const check = (label: string, ok: boolean, detail = "") => {
   if (!ok) fails++;
