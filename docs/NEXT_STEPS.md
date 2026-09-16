@@ -24,6 +24,17 @@ The first two items on the ranked list, the bot-count and lobby work, and most o
 - **#2 loot indoors, upstairs and on roofs** — done: `standingSpots` replaced `floorAt`, and the map now carries 855 items, 233 of them guns, 217 of them above ground level.
 - **#12 interiors for the other POIs**, **#15 connective tissue**, part of **#13 a rotation network** — done: every place has buildings you can enter, four compounds fill the corners, twelve roadside stops break the sightlines, and every place has a mast and zipline.
 
+## Done since the analysis
+
+Working the list from the top down. Each of these has a check that fails if the behaviour goes away.
+
+- **#3 the bot nav-graph traps** — done, and more than the item asked for. Three of the nineteen nodes stood inside solid boxes, and the ridge's ramp stopped five metres short of the top in open air, so nothing but the zipline ever put anyone in the bunker. Three drop spots were half a metre inside walls. The guard floods the whole map on a half-metre grid with the bot's own radius, step and standing room and fails on anything it cannot reach.
+- **#26 more skies**, and the **time of day** half of **#50** — done: seven hours (morning, hard noon, afternoon, golden hour, overcast, dusk, moonlight), each with its own palette, sun, light colour, environment and fog, picked from a setting and applied without a reload.
+- **#27 recorded sound for the new interactions** — done: seventeen more CC0 takes, with calls in the audio engine for a door, a bin, a pickup, a beacon, the drop's horn, a ping and a zipline. The zipline is wired; the rest wait on the doors and pods being built.
+- **#28 HUD iconography and a type pair** — done: forty-five icons (Lucide ISC for the interface, game-icons.net CC BY 3.0 for the gameplay glyphs, credited by author), and the fonts moved off fonts.googleapis.com to self-hosted OFL files, 110 KB, so the game makes no third-party request and works offline.
+- **The fetch half of #7 and #8** — done: ten material sets for per-place palettes and nine rock and scrub meshes are downloaded, credited and lazily loadable. Applying them to the map is still open and belongs with the map work.
+- **The critic's "audio occlusion, obstruction and a vertical cue"** — done: three rays from the ear to the source through `solidHit`, so what you cannot shoot through is what you cannot hear clearly through, plus a filter tilt that tells you a fight is upstairs.
+
 ## The ranked list
 
 | # | Area | Item | What | Effort | Value |
