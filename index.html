@@ -171,7 +171,7 @@
         </header>
         <nav class="tabs" id="tabs">
           <button type="button" data-tab="play" class="on">Play</button>
-          <button type="button" data-tab="duel">1v1</button>
+          <button type="button" data-tab="duel">Friends</button>
           <button type="button" data-tab="loadouts">Loadouts</button>
           <button type="button" data-tab="stats">Stats</button>
           <button type="button" data-tab="settings">Settings</button>
@@ -214,15 +214,16 @@
             <button type="button" id="goDrill" title="thirty figures one at a time, 5 to 30 m out; the pad by the firing line starts it too">Flick drill</button>
           </div>
           <button id="play" type="button">Play</button>
+          <div class="hintLine">Any of these can be played with friends and bots: the <b>Friends</b> tab, pick the mode, Create match.</div>
           <div class="hintLine" id="playHint">Esc brings you back here, and Esc again goes straight back in. Everything you set is remembered.</div>
         </section>
 
         <section data-panel="duel" hidden>
           <div class="duel">
-            <div class="duelTitle">1v1 or 1v1v1 with friends</div>
+            <div class="duelTitle">Play with friends: any mode, with bots</div>
             <div class="duelRow">
               <select id="duelMode" title="what to play"><option value="arena">Arena: 1v1 / 1v1v1</option><option value="gunrun">Gun Run: every kill the next gun</option><option value="tdm">Team deathmatch: together against the bots</option><option value="crown">Crown: take it, hold it</option><option value="control">Control: three zones, five a side</option><option value="ffa">Free-for-all: everyone for themselves</option><option value="br">Battle royale: a squad against the bots</option></select>
-              <select id="duelPlayers" title="how many play"><option value="2">2 players</option><option value="3">3 players</option></select>
+              <select id="duelPlayers" title="how many people (not counting bots). Two is the 1v1 arena, three the triangle, more the warehouse with a spawn each"><option value="2">2 players</option><option value="3">3 players</option><option value="4">4 players</option><option value="5">5 players</option><option value="6">6 players</option><option value="7">7 players</option><option value="8">8 players</option></select>
               <select id="duelAbilities" title="JOLT (a 10 m dash, every 3 s) or TRIAGE (heals twice as fast), picked at the countdown or the landing"><option value="0">Abilities off</option><option value="1">Abilities on</option></select>
               <button id="duelHost" type="button">Create match</button>
               <span class="or">or</span>
@@ -244,9 +245,10 @@
           <div class="duel" style="margin-top:10px">
             <div class="duelTitle">Modes: Gun Run, Team Deathmatch, Crown</div>
             <div class="duelRow">
-              <select id="modeBots" title="bots in Gun Run, Crown and free-for-all, with friends or alone (team deathmatch fills both teams to four)"><option value="0">No bots</option><option value="1">1 bot</option><option value="2">2 bots</option><option value="3" selected>3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option></select>
+              <select id="modeBots" title="the bots you face, in every mode, with friends or alone. In a team mode your side is filled with ally bots to match"><option value="0">No bots</option><option value="1">1 bot</option><option value="2">2 bots</option><option value="3" selected>3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option><option value="6">6 bots</option><option value="7">7 bots</option><option value="8">8 bots</option></select>
               <select id="gunRunList" title="Gun Run's guns: ten, or every gun in the game, then the knife"><option value="short">Gun Run: 10 guns</option><option value="full">Gun Run: every gun (29)</option></select>
-              <span class="or">the difficulty and abilities above. Then Play tab (alone), or pick the mode in the first box and Create match (with friends).</span>
+              <select id="botWeapon" title="what the bots carry (not Gun Run, which hands out its own ladder)"><option value="">Bot guns: mixed</option></select>
+              <span class="or">the difficulty and abilities above. Then the Play tab (alone), or pick the mode in the first box up there and Create match (with friends).</span>
             </div>
           </div>
           <div class="duel" style="margin-top:10px">

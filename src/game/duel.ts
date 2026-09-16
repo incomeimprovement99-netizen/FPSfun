@@ -25,7 +25,7 @@ import { Dummy, actFromCode, stanceCode, stanceFromCode, type FigureAct, type Fi
 import type { ProjectileSystem } from "./projectile";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import type { Link, NetMsg, RoundPhase } from "../net/link";
-import { ARENA_CENTER, ARENA_SPAWNS, TRI_CENTER, TRI_SPAWNS, ZONE_RADIUS } from "./arena";
+import { ARENA_CENTER, ARENA_LOBBY_SPAWNS, ARENA_SPAWNS, TRI_CENTER, TRI_SPAWNS, ZONE_RADIUS } from "./arena";
 import { operatorById } from "./operators";
 import type { MatchSummary } from "./stats";
 import type { BrHud } from "./brmatch";
@@ -49,6 +49,13 @@ export const HEALTH_MAX = 100;
 const DEG = Math.PI / 180;
 /** nothing from a player for this long and they are gone */
 const SILENCE_LIMIT = 10;
+/**
+ * The most humans in one match. The star topology puts every packet through
+ * the host, which also runs the bots, so this is a friends-and-bots ceiling
+ * rather than a lobby size: at eight the host is relaying about 1,500 small
+ * messages a second. Spawns exist for eight in the warehouse (arena.ts).
+ */
+export const MAX_PLAYERS = 8;
 /** one gunshot sound per trigger pull: a shotgun's pellets arrive together */
 const SHOT_SOUND_GAP = 0.03;
 
@@ -68,7 +75,12 @@ export interface Spawn {
 
 /** the arena a match of this size uses */
 export function arenaFor(players: number): { spawns: Spawn[]; center: THREE.Vector3 } {
-  return players >= 3 ? { spawns: TRI_SPAWNS, center: TRI_CENTER } : { spawns: [ARENA_SPAWNS.host, ARENA_SPAWNS.guest], center: ARENA_CENTER };
+  // two: the warehouse's ends. three: the triangle, a corner each. more than
+  // that and the triangle is too small and has only three corners, so a lobby
+  // plays the warehouse, which has a spawn each.
+  if (players === 3) return { spawns: TRI_SPAWNS, center: TRI_CENTER };
+  if (players > 3) return { spawns: ARENA_LOBBY_SPAWNS, center: ARENA_CENTER };
+  return { spawns: [ARENA_SPAWNS.host, ARENA_SPAWNS.guest], center: ARENA_CENTER };
 }
 
 interface Sample {
@@ -356,7 +368,7 @@ export class Duel implements MatchLike {
     const now = wallClock();
     this.mode = opts.mode ?? "duel";
     this.abilities = opts.abilities ?? false;
-    this.players = this.mode === "duel" ? Math.max(2, Math.min(3, opts.players)) : Math.max(1, Math.min(3, opts.players));
+    this.players = this.mode === "duel" ? Math.max(2, Math.min(MAX_PLAYERS, opts.players)) : Math.max(1, Math.min(MAX_PLAYERS, opts.players));
     this.id = opts.myId;
     this.role = this.id === 0 ? "host" : "guest";
     this.lastClock = now;
@@ -438,7 +450,13 @@ export class Duel implements MatchLike {
   }
 
   get spawn(): Spawn {
-    return this.spawns[this.id] ?? this.spawns[0];
+    // never two players on one spot: past the list, step round it and push
+    // out, rather than silently stacking everyone on the first
+    const s = this.spawns[this.id];
+    if (s) return s;
+    const base = this.spawns[this.id % this.spawns.length] ?? this.spawns[0];
+    const lap = Math.floor(this.id / Math.max(1, this.spawns.length));
+    return { x: base.x + lap * 2.5, z: base.z + lap * 2.5, yaw: base.yaw };
   }
 
   /** firing is held during the countdown and after a round is decided */

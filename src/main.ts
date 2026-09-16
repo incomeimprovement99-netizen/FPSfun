@@ -31,7 +31,7 @@ import { mergeStatic } from "./game/staticmerge";
 import { opticInfo } from "./game/optics";
 import { opticName, hopupName } from "./config/names";
 import type { ResolvedWeapon } from "./game/weapons";
-import { Duel, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike } from "./game/duel";
+import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike } from "./game/duel";
 import { BotMatch } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
@@ -978,6 +978,28 @@ for (const [sel, key] of [
 }
 const modeBotCount = (): number => Math.max(0, Math.min(MODES.maxBots, Number(modeBots.value) || 0));
 const modeList = (): "short" | "full" => (gunRunList.value === "full" ? "full" : "short");
+// What the bots carry: mixed (the built-in list) or one gun for all of them.
+const botWeaponSel = $<HTMLSelectElement>("botWeapon");
+for (const id of weaponIds()) {
+  const o = document.createElement("option");
+  o.value = id;
+  o.textContent = `Bot guns: ${weaponName(id)}`;
+  botWeaponSel.appendChild(o);
+}
+try {
+  const saved = localStorage.getItem("range.botWeapon") ?? "";
+  if (saved && [...botWeaponSel.options].some((o) => o.value === saved)) botWeaponSel.value = saved;
+} catch {
+  /* ignore */
+}
+botWeaponSel.addEventListener("change", () => {
+  try {
+    localStorage.setItem("range.botWeapon", botWeaponSel.value);
+  } catch {
+    /* ignore */
+  }
+});
+const botWeaponChoice = (): string | null => botWeaponSel.value || null;
 // Abilities on or off, per kind of match, remembered: the friends' arena and
 // the bots off by default, the battle royale on. The friends' select follows
 // the mode picked beside it (a squad BR shows the BR's setting).
@@ -1866,7 +1888,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   const modeOpts = myId === 0 ? hostOpts?.mode : opts?.mode;
   if (modeOpts && isModeKind(modeOpts.kind)) {
     const diff: BotDifficulty = asDifficulty(modeOpts.difficulty);
-    d = new ArenaMode(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, kind: modeOpts.kind, bots: modeOpts.bots, difficulty: diff, list: modeOpts.list === "full" ? "full" : "short" });
+    d = new ArenaMode(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, kind: modeOpts.kind, bots: modeOpts.bots, difficulty: diff, botWeapon: modeOpts.botWeapon ?? null, list: modeOpts.list === "full" ? "full" : "short" });
     duel = d;
     player.setBounds(ARENA_BOUNDS);
     wireMatch(d, modeOpts.kind);
@@ -1929,8 +1951,10 @@ function startMode(kind: ModeKind): void {
   cancelJoin = null;
   for (const c of courses) c.leave();
   const diff = brDifficulty();
-  const bots = kind === "tdm" ? MODES.tdm.teamSize * 2 - 1 : kind === "control" ? MODES.control.teamSize * 2 - 1 : Math.max(1, modeBotCount());
-  const d = new ArenaMode(scene, projectiles, { players: 1, myId: 0, link: null, abilities: abilitySetting("bots"), kind, bots, difficulty: diff, list: modeList() });
+  // the bots you picked are the ones you face, in every mode; a team mode
+  // fills your side to match (modematch.ts)
+  const bots = Math.max(1, modeBotCount());
+  const d = new ArenaMode(scene, projectiles, { players: 1, myId: 0, link: null, abilities: abilitySetting("bots"), kind, bots, difficulty: diff, list: modeList(), botWeapon: botWeaponChoice() });
   duel = d;
   player.setBounds(ARENA_BOUNDS);
   wireMatch(d, kind);
@@ -2027,12 +2051,12 @@ function inviteLink(code: string): string {
 duelHostBtn.addEventListener("click", () => {
   if (duel || hosting) return;
   cancelJoin?.();
-  const players = Number(duelPlayers.value) === 3 ? 3 : 2;
+  const players = Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
   // a battle royale squad: the place, the bots and the difficulty are fixed
   // now so every guest is told the same
   hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart() } : null;
   const mk = duelModeKind();
-  hostOpts = { abilities: abilitySetting(duelKind()), mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList() } : undefined };
+  hostOpts = { abilities: abilitySetting(duelKind()), mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList(), botWeapon: botWeaponChoice() } : undefined };
   setDuelStatus("Making a match...", "live");
   hosting = hostMatch(
     players,

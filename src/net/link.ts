@@ -157,6 +157,8 @@ export interface ModeWelcome {
   bots: number;
   difficulty: string;
   list?: "short" | "full";
+  /** the gun every bot carries, the host's choice; unset is the mixed list */
+  botWeapon?: string | null;
 }
 
 export type RoundPhase = "waiting" | "countdown" | "fight" | "roundEnd" | "matchEnd";

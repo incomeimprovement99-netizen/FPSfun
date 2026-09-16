@@ -94,9 +94,14 @@ export interface ArenaModeOpts {
   guestId?: number;
   abilities?: boolean;
   kind: ModeKind;
-  /** bots in a free-for-all (Gun Run, Crown); team deathmatch fills both teams to the team size */
+  /**
+   * The bots you face. In a team mode your side is filled with ally bots to
+   * match, so "3 bots" is three against you whoever else is on your side.
+   */
   bots: number;
   difficulty: BotDifficulty;
+  /** the gun every bot carries; unset is the mixed list */
+  botWeapon?: string | null;
   /** Gun Run's list */
   list?: "short" | "full";
 }
@@ -155,13 +160,15 @@ export class ArenaMode extends Duel {
     scene.add(this.crownModel);
     if (this.modeKind === "control") this.buildZones(scene);
     if (this.role !== "host") return;
-    const size = this.modeKind === "control" ? MODES.control.teamSize : MODES.tdm.teamSize;
-    const allies = tdm ? Math.max(0, size - this.players) : 0;
-    const enemies = tdm ? size : Math.max(0, Math.min(MODES.maxBots, opts.bots));
+    // The bots you asked for are the ones you face. A team mode then fills
+    // your side with ally bots so the sides are even, which is what "3 bots"
+    // means when there are two of you: three against you, one beside you.
+    const enemies = Math.max(tdm ? 1 : 0, Math.min(MODES.maxBots, opts.bots));
+    const allies = tdm ? Math.max(0, enemies - this.players) : 0;
     for (let i = 0; i < allies + enemies; i++) {
       const team: 0 | 1 = tdm && i >= allies ? 1 : 0;
       const id = Duel.BOT_ID + i;
-      const gun = this.modeKind === "gunrun" ? this.ladder.guns[0] : BOT_WEAPONS[i % BOT_WEAPONS.length];
+      const gun = this.modeKind === "gunrun" ? this.ladder.guns[0] : (opts.botWeapon || BOT_WEAPONS[i % BOT_WEAPONS.length]);
       // each its own tier ("mixed" draws one per bot)
       const bot = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(this.difficulty)], this.startSpawn(id, team), id, gun, BOT_NAMES[i % BOT_NAMES.length]);
       // Gun Run is guns and the knife: no frags
@@ -242,7 +249,9 @@ export class ArenaMode extends Duel {
       const i = id < Duel.BOT_ID ? id : (this.players + (id - Duel.BOT_ID)) % list.length;
       p = list[i % list.length];
     } else {
-      const order = [S.a[0], S.b[0], S.mid[0], S.mid[1], S.a[1], S.b[2], S.mid[2], S.mid[3], S.a[2], S.b[1]];
+      // all eighteen points, ends and middle alternating: a lobby of eight
+      // humans plus bots each gets their own
+      const order = [S.a[0], S.b[0], S.mid[0], S.mid[1], S.a[1], S.b[2], S.mid[2], S.mid[3], S.a[2], S.b[1], S.a[3], S.b[4], S.mid[4], S.mid[5], S.a[4], S.b[3], S.a[5], S.b[5]];
       const i = id < Duel.BOT_ID ? id : this.players + (id - Duel.BOT_ID);
       p = order[i % order.length];
     }

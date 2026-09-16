@@ -341,12 +341,14 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await g.close();
 
   // ---- team deathmatch
-  const t = await startModePage(browser, query, "goTdm");
+  // four bots to face, so your side is filled to four: a 4 v 4 like before,
+  // but now because the count says so rather than a fixed team size
+  const t = await startModePage(browser, query, "goTdm", `document.getElementById("modeBots").value = "4"`);
   const t0 = await ev<{ allies: number; enemies: number; you: number; them: number; limit: number }>(
     t,
     `(() => { const d = window.__range.duel(); const rs = d.avatars.map((a) => d.remoteOf(a)); const m = d.hud().mode; return { allies: rs.filter((r) => d.isAlly(r.id)).length, enemies: rs.filter((r) => !d.isAlly(r.id)).length, you: m.teams.you, them: m.teams.them, limit: m.teams.limit }; })()`
   );
-  check("tdm: you and three bots against four, 0 - 0, first to 30", t0.allies === 3 && t0.enemies === 4 && t0.you === 0 && t0.them === 0 && t0.limit === 30, JSON.stringify(t0));
+  check("tdm: four bots to face fills your side to four, 0 - 0, first to 30", t0.allies === 3 && t0.enemies === 4 && t0.you === 0 && t0.them === 0 && t0.limit === 30, JSON.stringify(t0));
   const tdmGuns = await ev<string[]>(t, "window.__range.duel().bots.map((b) => b.bot.remote.avatarWeapon)");
   check("tdm: the bots keep their own guns (Gun Run's ladder is not theirs)", new Set(tdmGuns).size >= 4, tdmGuns.join(","));
   const ff = await ev<{ health: number; before: number }>(
@@ -413,9 +415,9 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await c.close();
 
   // ---- Control: five a side over A, B and C; standing on A takes it, it scores, you come back on it
-  const ct = await startModePage(browser, query, "goControl");
+  const ct = await startModePage(browser, query, "goControl", `document.getElementById("modeBots").value = "5"`);
   const ctl0 = await ev<{ kind: string; n: number; allies: number; zones: string }>(ct, "(() => { const d = window.__range.duel(); const h = d.hud().mode; return { kind: h.kind, n: d.avatars.length, allies: h.rows.filter((r) => r.ally).length, zones: (h.control?.zones ?? []).map((z) => z.id).join('') }; })()");
-  check("control: five a side (you and four bots against five), zones A, B and C", ctl0.kind === "control" && ctl0.n === 9 && ctl0.allies === 4 && ctl0.zones === "ABC", JSON.stringify(ctl0));
+  check("control: five bots to face makes it five a side, zones A, B and C", ctl0.kind === "control" && ctl0.n === 9 && ctl0.allies === 4 && ctl0.zones === "ABC", JSON.stringify(ctl0));
   // the bots stand still (the test's zone is its own); you walk onto A, on your side
   await ev(ct, "(() => { const d = window.__range.duel(); d.bots.forEach((b) => { b.bot.update = () => []; }); const z = d.hud().mode.control.zones[0].at; window.__range.player.teleport(z.x, 0, z.z, 180); })()");
   const tookA = await ct.waitForFunction("window.__range.duel().hud().mode.control.zones[0].owner === 'you'", { polling: 200, timeout: 14000 }).then(() => true, () => false);
@@ -451,6 +453,86 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   check("figures: a mannequin's rifle hangs off its chest with the right hand on the grip", shouldered.length > 0 && shouldered.every((s) => s.mount && s.grip > 0.5), JSON.stringify(shouldered));
   await ev(mq, `(() => { window.__range.duel()?.leave(); localStorage.removeItem("range.figures"); })()`);
   await mq.close();
+}
+
+/**
+ * A buddy joining a team deathmatch or a free-for-all with bots: the thing
+ * the owner tried and could not do. The code was fine; the way in was behind
+ * a tab called "1v1". These hold the whole path anyway, per mode.
+ */
+async function friendsModesTest(browser: Browser, query: string): Promise<void> {
+  for (const [kind, bots, wantsAllies] of [["tdm", 3, true], ["ffa", 3, false], ["control", 2, true]] as const) {
+    const host = await open(browser, query);
+    const guest = await open(browser, query);
+    await ev(host, `(() => { document.getElementById("duelMode").value = "${kind}"; document.getElementById("modeBots").value = "${bots}"; document.getElementById("botWeapon").value = "wingman"; document.getElementById("duelHost").click(); })()`);
+    let code = "";
+    try {
+      await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+      code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    } catch {
+      check(`friends ${kind}: the host gets a code`, false, await ev<string>(host, `document.getElementById("duelStatus").textContent`));
+      await host.close();
+      await guest.close();
+      continue;
+    }
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    const joined = await Promise.all([host, guest].map((p) => p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 25000 }).then(() => true, () => false)));
+    if (!joined.every(Boolean)) {
+      check(`friends ${kind}: the buddy joins`, false, JSON.stringify(joined));
+      await host.close();
+      await guest.close();
+      continue;
+    }
+    for (const p of [host, guest]) await pressPlay(p);
+    const fight = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 20000 }).then(() => true, () => false)));
+    check(`friends ${kind}: a buddy joins and the fight starts on both screens`, fight.every(Boolean), JSON.stringify(fight));
+    await sleep(1200);
+    const side = await ev<{ enemies: number; allies: number; guns: string[] }>(
+      host,
+      `(() => { const d = window.__range.duel(); const mine = d.bots.filter((b) => b.team === 0).length; const theirs = d.bots.filter((b) => b.team === 1).length;
+        return { enemies: ${kind === "ffa"} ? d.bots.length : theirs, allies: mine, guns: d.bots.map((b) => b.bot.remote.avatarWeapon) }; })()`
+    );
+    check(`friends ${kind}: the ${bots} bots you asked for are the ones you face`, side.enemies === bots, JSON.stringify({ enemies: side.enemies, allies: side.allies }));
+    if (wantsAllies) check(`friends ${kind}: your side is filled to match (two of you, so ${bots - 2} ally bot(s))`, side.allies === bots - 2, `${side.allies} allies`);
+    check(`friends ${kind}: the bots carry the gun the host chose`, side.guns.every((g) => g === "wingman"), [...new Set(side.guns)].join(","));
+    await ev(host, "window.__range.duel()?.leave()");
+    await host.close();
+    await guest.close();
+  }
+}
+
+/** a lobby bigger than three: everyone gets their own spawn, nobody stacks */
+async function lobbyTest(browser: Browser, query: string): Promise<void> {
+  const pages: Page[] = [];
+  const host = await open(browser, query);
+  pages.push(host);
+  await ev(host, `(() => { document.getElementById("duelMode").value = "ffa"; document.getElementById("duelPlayers").value = "4"; document.getElementById("modeBots").value = "1"; document.getElementById("duelHost").click(); })()`);
+  let code = "";
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+  } catch {
+    check("lobby: the host gets a code for four", false);
+    for (const p of pages) await p.close();
+    return;
+  }
+  for (let i = 0; i < 3; i++) {
+    const g = await open(browser, query);
+    pages.push(g);
+    await ev(g, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    await sleep(600);
+  }
+  const inMatch = await Promise.all(pages.map((p) => p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 25000 }).then(() => true, () => false)));
+  check("lobby: four people join one match", inMatch.every(Boolean), JSON.stringify(inMatch));
+  for (const p of pages) await pressPlay(p);
+  await Promise.all(pages.map((p) => p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 25000 }).catch(() => undefined)));
+  await sleep(800);
+  const spots = await Promise.all(pages.map((p) => ev<{ x: number; z: number }>(p, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })")));
+  let closest = Infinity;
+  for (let i = 0; i < spots.length; i++) for (let j = i + 1; j < spots.length; j++) closest = Math.min(closest, Math.hypot(spots[i].x - spots[j].x, spots[i].z - spots[j].z));
+  check("lobby: nobody spawns on top of anybody (the fourth used to land inside the host)", closest > 4, `${closest.toFixed(1)} m between the nearest two`);
+  await ev(host, "window.__range.duel()?.leave()");
+  for (const p of pages) await p.close();
 }
 
 /** Gun Run with a friend over the local transport, and a bot: the ladder is the host's, a kill moves the killer on on both screens, respawns */
@@ -1890,6 +1972,8 @@ async function main(): Promise<void> {
       await modesTest(browser, "?norender");
       console.log("\nGun Run with a friend (two tabs, the local transport)");
       await modesFriendsTest(browser, "?net=local&norender");
+      await friendsModesTest(browser, "?net=local&norender");
+      await lobbyTest(browser, "?net=local&norender");
     }
 
     if (want("squad")) {

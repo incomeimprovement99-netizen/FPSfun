@@ -40,6 +40,22 @@ export const ARENA_SPAWNS = {
   guest: { x: ARENA_X, z: ARENA_Z + 29, yaw: 0 },
 } as const;
 
+/**
+ * A lobby's worth of spawns in the warehouse, ends first and then down the
+ * sides, alternating so the first two are still the 1v1's own ends. Before
+ * this there were two, and a fourth player spawned inside the host.
+ */
+export const ARENA_LOBBY_SPAWNS: Array<{ x: number; z: number; yaw: number }> = [
+  { x: ARENA_X, z: ARENA_Z - 29, yaw: 180 },
+  { x: ARENA_X, z: ARENA_Z + 29, yaw: 0 },
+  { x: ARENA_X - 13, z: ARENA_Z - 27, yaw: 180 },
+  { x: ARENA_X + 13, z: ARENA_Z + 27, yaw: 0 },
+  { x: ARENA_X + 13, z: ARENA_Z - 27, yaw: 180 },
+  { x: ARENA_X - 13, z: ARENA_Z + 27, yaw: 0 },
+  { x: ARENA_X - 15, z: ARENA_Z - 6, yaw: 90 },
+  { x: ARENA_X + 15, z: ARENA_Z + 6, yaw: -90 },
+];
+
 /** the arena's boxes, arena coordinates, for the movement tests */
 export const ARENA_BOXES: Array<{ x: number; z: number; w: number; d: number; h: number }> = [];
 
