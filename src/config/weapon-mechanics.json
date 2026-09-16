@@ -22,6 +22,14 @@
     "energy_shotgun": { "minScale": 0.45 },
     "doubletake": { "minScale": 0.4 }
   },
+  "blast": {
+    "_note": "Shotgun blast patterns (blast.ts). The game fires a fixed shape per gun rather than a random cone; the data has each gun's blast_pattern_default_scale, _ads_scale and _zero_distance but not the shape, so the shapes are the game's known ones and their `unit` (hammer units at the zero distance) is ours, sized from how wide each blast reads at about 8 m: the Mastiff's line about 6 degrees, the Peacekeeper's star 8 closing to 3.6 with the choke, the EVA-8's figure 8 about 7 tall by 3 wide, the Mozambique's triangle 5, the Triple Take's three 2.3 closing to 0.9. `shape` is [across, up] per pellet, one entry per pellet; `jitter` is degrees of random on each, so no two blasts are the same. The spread stat deviates the whole blast once a pull.",
+    "mastiff": { "shape": [[-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0]], "unit": 12, "jitter": 0.2 },
+    "shotgun": { "shape": [[-0.65, 1.55], [0.65, 1.55], [-0.65, 0.25], [0.65, 0.25], [-0.65, -0.25], [0.65, -0.25], [-0.65, -1.55], [0.65, -1.55]], "unit": 14, "jitter": 0.25 },
+    "energy_shotgun": { "shape": [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]], "unit": 17, "jitter": 0.25 },
+    "shotgun_pistol": { "shape": [[0, 1], [-0.87, -0.5], [0.87, -0.5]], "unit": 13.5, "jitter": 0.3 },
+    "doubletake": { "shape": [[-1, 0], [0, 0], [1, 0]], "unit": 5, "jitter": 0.1 }
+  },
   "burstCharge": {
     "_note": "Nemesis: the delay between bursts falls from 0.31 s to 0.19 s as it charges, +16.7% a burst fired; after 8 s without firing it loses 12.5% a second.",
     "nemesis": { "delayFrom": 0.31, "delayTo": 0.19, "perBurst": 0.167, "decayAfter": 8, "decayRate": 0.125 }

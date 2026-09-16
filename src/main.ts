@@ -57,6 +57,8 @@ import { DamageLog, HEAL_CODES, type Recap } from "./game/recap";
 import { Soundscape } from "./game/soundscape";
 import { DummyBehaviour, DUMMY_MODES, DUMMY_MODE_NAME, FlickDrill, RangeCombat, SprayWall, type DummyMode } from "./game/rangetools";
 import { ReadmeTv } from "./game/readmetv";
+import { blastOffsets } from "./game/blast";
+import hudCfg from "./config/hud.json";
 import { SuperglideTrainer } from "./game/trainer";
 import { BrPlay } from "./game/brplay";
 import { Tour, type TourCheck } from "./game/tour";
@@ -1136,6 +1138,38 @@ function giveEvo(amount: number, why = ""): void {
 }
 /** whom you hurt and when (an assist: someone else knocks them soon after) */
 const damagedAt = new Map<number, number>();
+
+type Plate = { world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean };
+/** the plates drawn this frame (tools/e2e.ts) */
+let lastPlates: Plate[] = [];
+/** nothing of the level between your eye and `p` */
+function clearTo(p: THREE.Vector3): boolean {
+  const eye = camera.position;
+  const dir = p.clone().sub(eye);
+  const len = dir.length();
+  if (len < 1e-3) return true;
+  return solidHit(eye, dir.divideScalar(len), len) >= len;
+}
+/**
+ * The names and bars over the others. A team mate's always; an enemy's only
+ * after you have hurt them (hud.json's afterHit), and only while your eye has
+ * a clear line to their chest: a bar through a wall gave their position away.
+ */
+function platesNow(d: NonNullable<typeof duel>, now: number): Plate[] {
+  const out: Plate[] = [];
+  for (const a of d.avatars) {
+    const r = d.remoteOf(a);
+    if (!r || !a.group.visible) continue;
+    const ally = d instanceof Duel && d.isAlly(r.id);
+    if (!ally) {
+      if (now - (damagedAt.get(r.id) ?? -Infinity) >= hudCfg.plates.afterHit) continue;
+      const chest = a.hitMeshes.find((m) => m.userData.zone === "body")?.getWorldPosition(new THREE.Vector3()) ?? a.group.position.clone().setY(a.group.position.y + 1.2);
+      if (!clearTo(chest)) continue;
+    }
+    out.push({ world: new THREE.Vector3(a.group.position.x, a.group.position.y + 2.05, a.group.position.z), name: r.name, health: r.health, shield: r.shield, shieldMax: r.shieldMax, alive: r.alive, ally });
+  }
+  return out;
+}
 /** the knocks already paid (a figure can be reported twice: down, then out) */
 const evoPaid = new Map<number, number>();
 /** your revives this match (the first two pay 100, then less) and the care packages already paid */
@@ -2973,24 +3007,38 @@ function step(): void {
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(shotQ);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(shotQ);
     const origin = eye.clone();
-    // Shotguns fire several pellets per trigger pull, each with its own
-    // deviation. Firing one projectile made an EVA-8 hit for 7 instead of 56.
+    /** a random deviation inside a cone of `cone` degrees, applied to `dir` */
+    const deviate = (dir: THREE.Vector3, cone: number): void => {
+      if (cone <= 0) return;
+      const half = (cone / 2) * DEG;
+      const ang = half * Math.sqrt(rnd()); // sqrt for a uniform disc, not centre-biased
+      const rot = rnd() * Math.PI * 2;
+      const axis = right
+        .clone()
+        .multiplyScalar(Math.cos(rot))
+        .add(up.clone().multiplyScalar(Math.sin(rot)))
+        .normalize();
+      tmpQ.setFromAxisAngle(axis, ang);
+      dir.applyQuaternion(tmpQ);
+    };
+    // A shotgun fires its pattern (blast.ts): the spread stat deviates the
+    // blast as a whole, once, and each pellet sits at its place in the shape
+    // round that. Without a pattern (a Shattercaps blast, a single round) each
+    // projectile takes its own deviation inside the cone.
+    const pattern = shatter ? null : blastOffsets(weapon, ws.adsFrac > 0.5, s.coneScale, rnd);
+    const centre = new THREE.Vector3(0, 0, -1).applyQuaternion(shotQ);
+    if (pattern) deviate(centre, s.cone * s.coneScale);
     for (let p = 0; p < weapon.pellets; p++) {
-      tmpDir.set(0, 0, -1).applyQuaternion(shotQ);
-      // a single pellet of a shotgun still spreads, using at least the
-      // weapon's own cone so the pattern is not a laser
-      const cone = shatter ? Math.max(s.cone, LOCKED_HOPUPS.hopup_shattercaps?.cone ?? 5) : (weapon.pellets > 1 ? Math.max(s.cone, weapon.spread.standHip) : s.cone) * s.coneScale;
-      if (cone > 0) {
-        const half = (cone / 2) * DEG;
-        const ang = half * Math.sqrt(rnd()); // sqrt for a uniform disc, not centre-biased
-        const rot = rnd() * Math.PI * 2;
-        const axis = right
-          .clone()
-          .multiplyScalar(Math.cos(rot))
-          .add(up.clone().multiplyScalar(Math.sin(rot)))
-          .normalize();
-        tmpQ.setFromAxisAngle(axis, ang);
-        tmpDir.applyQuaternion(tmpQ);
+      tmpDir.copy(centre);
+      if (pattern) {
+        // across: positive is right, which is a turn the other way about `up`; up is a turn about `right`
+        const [across, upDeg] = pattern[p % pattern.length];
+        tmpDir.applyAxisAngle(up, -across * DEG).applyAxisAngle(right, upDeg * DEG);
+      } else {
+        // a single pellet of a shotgun still spreads, using at least the
+        // weapon's own cone so the pattern is not a laser
+        const cone = shatter ? Math.max(s.cone, LOCKED_HOPUPS.hopup_shattercaps?.cone ?? 5) : (weapon.pellets > 1 ? Math.max(s.cone, weapon.spread.standHip) : s.cone) * s.coneScale;
+        deviate(tmpDir, cone);
       }
       projectiles.fire(origin.clone(), tmpDir, weapon, false, s.dmgScale, s.speedScale);
       duel?.localShot(origin, tmpDir, weapon.id);
@@ -3056,10 +3104,11 @@ function step(): void {
       const onShield = remote.shield > 0;
       if (duel.phase === "fight" && remote.alive) {
         dlog.hit({ t: realNow(), from: duel.id, to: remote.id, amount: r.amount, head: r.headshot, weapon: e.weapon, dist: e.distance });
+        // when you last hurt them: their plate shows for a while after (and a battle royale's assists)
+        damagedAt.set(remote.id, gameTime);
         // a battle royale's shield core levels with the damage you deal; the gun's locked hop-up counts it too
         if (duel instanceof BrMatch) {
           giveEvo(r.amount);
-          damagedAt.set(remote.id, gameTime);
           hopProgress(e.weapon, r.amount);
         }
       }
@@ -3436,12 +3485,7 @@ function step(): void {
             compact: !duel || !abilities.choosing || now - abilities.offeredAt > 6,
           }
         : null,
-    plates: duel
-      ? duel.avatars
-          .map((a) => ({ a, r: duel!.remoteOf(a) }))
-          .filter((x) => x.r !== null && x.a.group.visible)
-          .map((x) => ({ world: new THREE.Vector3(x.a.group.position.x, x.a.group.position.y + 2.05, x.a.group.position.z), name: x.r!.name, health: x.r!.health, shield: x.r!.shield, shieldMax: x.r!.shieldMax, alive: x.r!.alive, ally: duel instanceof Duel && duel.isAlly(x.r!.id) }))
-      : undefined,
+    plates: duel ? (lastPlates = platesNow(duel, now)) : (lastPlates = []),
     stance: player.stance,
     speedMs: player.speed,
     speedHu: player.speed / HU,
@@ -3584,6 +3628,9 @@ initWelcome();
   stats: () => stats,
   /** Esc on the menu: how many were taken as Resume (tools/e2e.ts) */
   menuEscapes: () => menuEscapes,
+  /** the plates drawn this frame, and the line-of-sight test they use (tools/e2e.ts) */
+  platesNow: () => lastPlates,
+  clearTo,
   /** the viewmodel's inspect and first draw (tools/e2e.ts) */
   /** a JOLT's view: the roll in degrees and the FOV fraction now (tools/e2e.ts) */
   joltFeel: () => ({ roll: joltRoll(gameTime), fov: joltFov }),

@@ -23,6 +23,7 @@ import type { DrillHud } from "./rangetools";
 import type { TrainerHud } from "./trainer";
 import type { ModeHud } from "./modematch";
 import type { TourHud } from "./tour";
+import hudCfg from "../config/hud.json";
 
 type ModeRow = ModeHud["rows"][number];
 
@@ -32,6 +33,8 @@ export interface DamageNumber {
   color: string;
   born: number;
   big: boolean;
+  /** what the text says, summed over a shot's pellets */
+  amount: number;
 }
 
 export interface CourseHud {
@@ -215,8 +218,28 @@ export class Hud {
   }
 
   addDamage(world: THREE.Vector3, amount: number, color: string, big: boolean, now: number): void {
-    this.numbers.push({ world, text: String(amount), color, born: now, big });
+    // one trigger pull's pellets read as one number, as the game's do: five
+    // 19s on top of each other looked like a single pellet
+    for (let i = this.numbers.length - 1; i >= 0; i--) {
+      const n = this.numbers[i];
+      if (now - n.born > 0.05) break;
+      if (n.world.distanceTo(world) < 1.5) {
+        n.amount += amount;
+        n.text = String(n.amount);
+        if (big && !n.big) {
+          n.big = true;
+          n.color = color;
+        }
+        return;
+      }
+    }
+    this.numbers.push({ world, text: String(amount), color, born: now, big, amount });
     if (this.numbers.length > 40) this.numbers.shift();
+  }
+
+  /** the damage numbers up now, newest last (tools/e2e.ts) */
+  get damageNumbers(): ReadonlyArray<{ amount: number; text: string; big: boolean }> {
+    return this.numbers.map((n) => ({ amount: n.amount, text: n.text, big: n.big }));
   }
 
   hitMarker(now: number, head: boolean): void {
@@ -632,15 +655,16 @@ export class Hud {
     if (!s.plates?.length) return;
     const c = this.ctx;
     const v = new THREE.Vector3();
+    const { range, fadeFrom } = hudCfg.plates;
     for (const pl of s.plates) {
       const dist = pl.world.distanceTo((camera as THREE.PerspectiveCamera).position);
-      if (dist > 60) continue;
+      if (dist > range) continue;
       v.copy(pl.world).project(camera);
       if (v.z > 1) continue;
       const x = (v.x * 0.5 + 0.5) * this.w;
       const y = (-v.y * 0.5 + 0.5) * this.h;
       if (x < -50 || x > this.w + 50 || y < -50 || y > this.h + 50) continue;
-      const a = dist < 40 ? 1 : 1 - (dist - 40) / 20;
+      const a = dist < fadeFrom ? 1 : 1 - (dist - fadeFrom) / (range - fadeFrom);
       c.globalAlpha = a * (pl.alive ? 1 : 0.5);
       const w = 110 * u;
       const col = !pl.alive ? DIM : pl.ally ? "#7ddc8a" : WHITE;

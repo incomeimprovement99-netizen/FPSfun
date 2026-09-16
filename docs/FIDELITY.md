@@ -312,3 +312,14 @@ and are applied by the extractor; Season 30's changes are there (the 30-30's
 | Bot frags and cover | frag after 8 / 5 / 4 s still in view or 1.5 s hidden, 2 a life, 14 s apart; cover below 55%, within 9 m | ours |
 | Control | three zones, 1 a second per zone, bonus 150, lockout, linked spawns, capture x1 / 1.5 / 2 / 2.25 / 2.5 / 2.75 / 3 | wiki, exact (section 3); 5 v 5, first to 500, 10 min, 8 s base capture, the bonus's timings, the 30 s lockout and 5 s respawn are ours |
 | The phoenix kit | "Nova kit" on the public build | the owner's Phase 11 question; decided in Phase 12 |
+
+## Phase 14: the shotguns' blast patterns, the plates
+
+| Number | Value | Source | Confidence |
+|---|---|---|---|
+| Shotgun blast scales: `blast_pattern_default_scale` (Mastiff 1.1, EVA-8 1.5, Peacekeeper 1.5, Mozambique 1.65, Triple Take 16), `blast_pattern_ads_scale` (Mastiff 0.5, Mozambique 0.5), `blast_pattern_zero_distance` (512 hu; Triple Take 3940) | as listed | the weapon data, read at resolve time | high |
+| The blast shapes: the Mastiff's horizontal line of five, the EVA-8's figure 8, the Peacekeeper's star (a centre, four cardinal, four diagonal), the Mozambique's triangle, the Triple Take's three in a row | shapes only | the game's known patterns; the data names the pattern but does not carry its points | medium |
+| The shapes' unit (hammer units at the zero distance): Mastiff 12, EVA-8 14, Peacekeeper 17, Mozambique 13.5, Triple Take 5; the jitter on each pellet 0.1 to 0.3 degrees | as listed | **ours**, sized from how wide each blast reads at about 8 m (the Mastiff's line about 6 degrees from the hip, 3 aimed; the Peacekeeper's star 8, closing to 3.6 with the choke) | low |
+| The spread stat deviates the whole blast once a trigger pull, not each pellet | rule | how the game's blast patterns behave: the pattern holds its shape and the shot as a whole wanders | medium |
+| A pull's pellets summed into one damage number within 0.05 s and 1.5 m | 0.05 s, 1.5 m | **ours**; the game shows one number a pull | high (the rule), ours (the window) |
+| An enemy's plate shows only after you have hurt them, for 6 s from the last hit, and only in line of sight (`hud.json`) | 6 s | **ours**: the game shows no enemy health bars at all outside a hit; a bar through a wall gave a position away | ours |

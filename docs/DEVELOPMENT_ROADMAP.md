@@ -622,3 +622,38 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   README's own prose.
 - The README on the range's screen is renamed the same way on the public build (`tools/public-text.ts`), so the
   manual and the HUD agree.
+
+## Milestone 39 — Esc on the menu is Resume ✅
+2026-09-16 (Phase 14). `src/main.ts`, `index.html`.
+- The game's own menus close on Esc; ours needed a click on Resume. Esc on the menu now takes the button's path
+  (read the settings, take the mouse back). Not while a key is being rebound (that capture eats Esc first), and
+  Esc in a text field leaves the field instead. Chrome refuses a pointer lock for about a second after the Esc that
+  let the mouse go, which is exactly when this is pressed, so a refused one is retried quietly once the second is
+  up, unless the menu was clicked in the meantime. The hint under the button says so.
+- Tests: e2e (taken as Resume on the menu; only leaves a text field; nothing with the menu closed).
+
+## Milestone 40 — The shotguns fire the game's blast patterns ✅
+2026-09-16 (Phase 14). `src/game/blast.ts`, `weapons.ts`, `main.ts`, `hud.ts`, `src/config/weapon-mechanics.json`.
+- **The bug:** the Mastiff read as one 19-damage pellet. Its spread stat is 0 in the data (the game sizes shotgun
+  spread by a blast pattern, not by the stat), so all five pellets flew one line and the HUD stacked five 19s on
+  one spot. The damage landed (95 on a dummy) but it looked and felt like a single pellet, and against a moving
+  target the whole blast hit or missed together.
+- **The fix:** each shotgun fires its pattern — the Mastiff's horizontal line of five, the EVA-8's figure 8, the
+  Peacekeeper's star of nine, the Mozambique's triangle, the Triple Take's three in a row — sized by the data's own
+  `blast_pattern_default_scale`, tightened to `blast_pattern_ads_scale` when aimed where the gun has one (the
+  Mastiff and Mozambique halve), closed by the choke, at `blast_pattern_zero_distance`. The shapes and their unit
+  are ours (FIDELITY). The spread stat now deviates the whole blast once a pull, so the shape holds.
+- A pull's pellets are summed into one damage number on the HUD, as the game shows them: 95, not five 19s.
+- Tests: verify (a place per pellet for every shotgun, none for a rifle or the Shattercaps blast, the Mastiff's
+  line 5.9 degrees and half that aimed, the Peacekeeper's star closing to 0.45, the line horizontal and
+  symmetric); e2e (a Mastiff pull at 4 m is 5 pellets, 5 hits, 95 dealt, one number); snap (the patterns on the
+  spray wall).
+
+## Milestone 41 — An enemy's plate only after a hit, and only in sight ✅
+2026-09-16 (Phase 14). `src/main.ts`, `src/game/hud.ts`, `src/config/hud.json`.
+- Names and bars over enemies showed through walls, which gave their positions away. Now an enemy's plate shows
+  only after you have hurt them (6 s from the last hit) and only while your eye has a clear line to their chest,
+  through the same `solidHit` the bullets use, which covers the range, both arenas and the battle royale map. A
+  team mate's green plate always shows. The numbers (and the old 40 and 60 m fade) are in `hud.json`.
+- Tests: e2e (no plate before a hit; once hurt, the plate shows exactly when the line is clear; the line-of-sight
+  test is open down the range and blocked through the backstop).

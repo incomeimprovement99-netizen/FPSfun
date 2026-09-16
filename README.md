@@ -144,7 +144,10 @@ ammo bottom right, the tech feed on the left, the kill feed and scoreboard
 top right in a match, damage numbers and hit markers on the target, a notice
 line in the middle; in a battle royale the alive count, your kills and the
 ring's clock top centre, the rings on the minimap, and an orange edge when
-you are outside.
+you are outside. **An enemy's name and bars** show only after you have hurt
+them (for 6 s from the last hit) and only while your eye has a clear line to
+their chest, so a bar never gives away someone behind cover; a team mate's
+green plate always shows.
 
 **Abilities.** Pick **JOLT** or **TRIAGE** with 5 or 6 when the card comes
 up: at each countdown in the arena, the modes and the bots, or when you land
@@ -325,6 +328,14 @@ modes on B (the Hemlok, the Prowler, the R-301...). Ammo is counted in a
 match: light, heavy, sniper, shotgun rounds and arrows in stacks, and an
 energy gun's own stockpile of whole magazines that comes back one every 18 s
 while the gun is idle (Season 30's rework).
+
+**Shotguns fire the game's blast patterns**, not a random cone: the
+Mastiff's horizontal line of five, the EVA-8's figure 8, the Peacekeeper's
+star of nine (the choke closes it), the Mozambique's triangle, the Triple
+Take's three in a row. The data's own scales size them (the Mastiff and the
+Mozambique tighten to half when aimed); the spread stat deviates the whole
+blast once a pull. A pull's pellets read as one damage number on the HUD, so
+a full Mastiff blast says 95, not five 19s.
 
 **Throwables** (G): the frag grenade (100 inside 2.4 m falling to nothing at
 8 m, a 4 s fuse, it bounces and rolls), the arc star (sticks to the first
@@ -510,6 +521,7 @@ src/config/
   aimassist.json           controller aim assist: slowdown, rotational strength, zone
   recoil-tuning.json       the one tuned recoil dial (softImpulseScale)
   readme-tv.json           the README screen: where it stands, how big, its layout
+  hud.json                 the HUD's gameplay numbers: when an enemy's plate shows, and how far
   names.ts                 real names vs codenames (private vs public build)
 src/game/
   player.ts                the first-person controller: every movement rule
@@ -539,6 +551,7 @@ src/game/
   ammo.ts                  counted ammo and energy stockpiles
   rangetools.ts, trainer.ts  dummy behaviours, shoot-back, the spray wall, the flick drill; the superglide trainer
   readme.ts, readmetv.ts   README.md as sections and blocks; the screen at the far end, its sign and its shootable arrows
+  blast.ts                 the shotguns' blast patterns: each pellet's place round the blast
   tour.ts                  the guided tour
   mannequin.ts             the motion-captured figure (a setting)
   fx.ts                    effects drawn in the world (a JOLT's streak)
@@ -602,12 +615,13 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `src/config/abilities.json` | JOLT's distance, time, charges and recharge, gap, exit speed and feel; TRIAGE's speed; what the bots do with them |
 | `src/config/bots.json` | the bot tiers (reaction, aim lag and error, aim point, dodging, hearing, frags, cover, crouching), mixed's weights |
 | `src/config/items.json` | the heals (amounts, times, stacks), the kits, shield cores and helmets |
-| `src/config/ammo.json`, `weapon-mechanics.json` | ammo types and stacks, energy stockpiles; wind-ups, charges, heat, chokes, draws, hop-ups (and the locked ones of Seasons 29 and 30), fire modes |
+| `src/config/ammo.json`, `weapon-mechanics.json` | ammo types and stacks, energy stockpiles; wind-ups, charges, heat, chokes, draws, the shotguns' blast patterns, hop-ups (and the locked ones of Seasons 29 and 30), fire modes |
 | `src/config/loot.json`, `squad.json` | the battle royale's loot tables; downs, revives, banners, beacons, pads, pings, EVO's sources, knockdown shields, Deathbox Respawn |
 | `src/config/modes.json` | Gun Run's lists and rules, team deathmatch's score and size, Crown's times, Control's zones and numbers, the arena's spawns |
 | `src/config/throwables.json` | the frag, the arc star, thermite |
 | `src/config/killcam.json`, `audio.json`, `rangetools.json` | the killcam's timing; the gun classes and the sound's distances; the range's tools |
 | `src/config/readme-tv.json` | the README screen at the far end of the range: where it stands, its size, its arrow plates and the layout of its pages |
+| `src/config/hud.json` | the plates over the others: how long after a hit an enemy's shows, how far away it is drawn |
 
 ## Scripts and checks
 

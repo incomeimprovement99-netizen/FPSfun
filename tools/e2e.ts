@@ -890,6 +890,18 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "hard"; window.__range.startBots(); })()`);
   const d0 = await ev<{ kind: string; players: number; n: number } | null>(page, "window.__range.duel() ? { kind: window.__range.duel().kind, players: window.__range.duel().players, n: window.__range.duel().avatars.length } : null");
   check("bots: a bot match starts with one bot", d0 !== null && d0.kind === "bots" && d0.players === 2 && d0.n === 1, JSON.stringify(d0));
+  // an enemy's plate: nothing until you have hurt them, then only in your line of sight
+  await page.waitForFunction("window.__range.duel()?.phase === 'fight'", { polling: 100, timeout: 20000 }).catch(() => undefined);
+  await sleep(300);
+  const noPlate = await ev<number>(page, "window.__range.platesNow().length");
+  check("plates: an enemy you have not hurt has no name or bars over them", noPlate === 0, `${noPlate} plates`);
+  const plate = await ev<{ shown: number; clear: boolean }>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; r.hitThrough(b.remote.id, 5); return new Promise((res) => setTimeout(() => {
+      const a = d.avatars[0]; const chest = a.hitMeshes.find((m) => m.userData.zone === "body").getWorldPosition(new r.THREE.Vector3());
+      res({ shown: r.platesNow().length, clear: r.clearTo(chest) }); }, 250)); })()`
+  );
+  check("plates: once hurt, the bot's plate shows exactly when your eye has a clear line to it", (plate.shown === 1) === plate.clear, JSON.stringify(plate));
   await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
   const offAb = await ev<{ on: boolean; choosing: boolean }>(page, "({ on: window.__range.abilities.enabled, choosing: window.__range.abilities.choosing })");
   check("bots: abilities are off by default, no card", !offAb.on && !offAb.choosing, JSON.stringify(offAb));
@@ -1294,8 +1306,40 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   for (let i = 0; i < 30; i++) await ev(page, "window.__range.drill.onHit(window.__range.drill.target, window.__range.gameTime())");
   const done = await ev<{ state: string; best: number | null }>(page, "({ state: window.__range.drill.state, best: window.__range.drill.best })");
   check("range: thirty down and the drill has a time and a best", done.state === "done" && (done.best ?? 0) > 0, JSON.stringify(done));
+  await shotgunChecks(page);
+  // the plates' line-of-sight test, on known geometry: the backstop is at z -106.75
+  const los = await ev<{ open: boolean; wall: boolean }>(page, `(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, 0); const T = r.THREE; return { open: r.clearTo(new T.Vector3(0, 1.2, -50)), wall: r.clearTo(new T.Vector3(0, 1.2, -110)) }; })()`);
+  check("plates: the line of sight is clear down the range and blocked through the backstop", los.open && !los.wall, JSON.stringify(los));
   await readmeTvChecks(page);
   await page.close();
+}
+
+/**
+ * A shotgun's blast at a dummy from 4 m: every pellet leaves, they land in a
+ * pattern rather than down one line, and the HUD sums the pull into one
+ * damage number (the Mastiff read as a single 19 before).
+ */
+async function shotgunChecks(page: Page): Promise<void> {
+  await ev(page, `(() => { const r = window.__range; r.loadout.setWeaponId(0, "mastiff"); })()`);
+  await sleep(1600);
+  const set = await ev<{ pellets: number; near: number }>(
+    page,
+    `(() => { const r = window.__range; const d = r.dummies[0]; const t = d.group.position; r.player.teleport(t.x, 0, t.z + 4, 0, 0); const eye = r.player.eyePosition();
+      r.player.pitch = Math.atan2(t.y + 1.2 - eye.y, 4) * 180 / Math.PI; r.player.yaw = 0; const w = r.loadout.active.weapon; const st = r.loadout.active.state; st.clip = w.clipSize; return { pellets: w.pellets, near: w.damage.near }; })()`
+  );
+  const s0 = await ev<{ shots: number; hits: number; damage: number }>(page, "window.__range.stats()");
+  await padTap(page, 7, 60);
+  await sleep(700);
+  const s1 = await ev<{ shots: number; hits: number; damage: number }>(page, "window.__range.stats()");
+  const nums = await ev<Array<{ amount: number; text: string }>>(page, "window.__range.hud.damageNumbers");
+  const fired = s1.shots - s0.shots;
+  const hits = s1.hits - s0.hits;
+  const dealt = s1.damage - s0.damage;
+  check(`shotgun: one pull of the Mastiff is ${set.pellets} pellets, and at 4 m they all land`, fired === set.pellets && hits === set.pellets, `fired ${fired}, hit ${hits}`);
+  check("shotgun: the pellets do damage each, not one pellet's worth", dealt >= set.near * set.pellets * 0.75, `${dealt} dealt, a pellet is ${set.near}`);
+  check("shotgun: the HUD sums the pull into one damage number", nums.length === 1 && nums[0].amount === dealt, JSON.stringify(nums));
+  await ev(page, `window.__range.loadout.setWeaponId(0, "rspn101")`);
+  await sleep(1600);
 }
 
 /** look straight at a point in the world (bullets leave the eye, so this is what the crosshair is on) */

@@ -19,6 +19,12 @@ export interface WeaponMech {
   adsCharge: { time: number; bonus: number } | null;
   /** Precision Choke: aiming closes the pellet cone to `minScale` over `time` */
   choke: { time: number; minScale: number } | null;
+  /**
+   * Shotguns: the fixed pellet pattern (blast.ts). `shape` is [across, up] per
+   * pellet in `unit` hammer units at `zeroDistance`; `scale` and `adsScale`
+   * are the data's blast_pattern scales; `jitter` is degrees of random on top.
+   */
+  blast: { shape: Array<[number, number]>; unit: number; jitter: number; scale: number; adsScale: number; zeroDistance: number } | null;
   /** Nemesis: the burst delay shortens as it charges */
   burstCharge: { delayFrom: number; delayTo: number; perBurst: number; decayAfter: number; decayRate: number } | null;
   /** Bocek: hold to draw over `time`, let go to loose; damage from `minDamage` of full at no draw, speed from `minSpeed` */
@@ -324,6 +330,12 @@ export function resolveWeapon(id: string, magLevel = 0, attach: string[] = []): 
       })(),
       burstCharge: mechOf<WeaponMech["burstCharge"]>("burstCharge", id),
       draw: mechOf<WeaponMech["draw"]>("draw", id),
+      blast: (() => {
+        const c = mechOf<{ shape: Array<[number, number]>; unit: number; jitter: number }>("blast", id);
+        if (!c || n(s, "pellets", 1) <= 1) return null;
+        const scale = n(s, "blast_pattern_default_scale", 1);
+        return { shape: c.shape, unit: c.unit, jitter: c.jitter, scale, adsScale: n(s, "blast_pattern_ads_scale", scale), zeroDistance: n(s, "blast_pattern_zero_distance", 512) };
+      })(),
     },
     ammoType: ((ammoCfg.types as Record<string, string>)[id] ?? "light") as AmmoType,
     energyStock: (ammoCfg.energyStock as Record<string, number>)[id] ?? 0,

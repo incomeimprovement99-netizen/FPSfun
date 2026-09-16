@@ -1,6 +1,7 @@
 // P1 verification: assert the simulation reproduces the reference numbers.
 // Run: npm run verify
 import { resolveWeapon, weaponMods, weaponIds, DATA } from "../src/game/weapons";
+import { blastOffsets, blastWidth } from "../src/game/blast";
 import { optionsFor, SLOTS, LOCKED_HOPUPS, lockedHopupFor, modNames } from "../src/game/attachments";
 import squadJson from "../src/config/squad.json";
 import { cmPer360, degPerCount, hipFov43, verticalFovFrom43, adsSensScale } from "../src/game/sens";
@@ -928,6 +929,35 @@ console.log("\nShotgun pellets (current season)");
   }
   eq("the Mozambique kept one", resolveWeapon("shotgun_pistol", 0).damage.headshot, 1.25);
   eq("every non-shotgun fires one projectile", resolveWeapon("rspn101", 0).pellets, 1);
+}
+
+console.log("\nShotgun blast patterns (blast.ts)");
+{
+  // every shotgun has a pattern with one place per pellet; nothing else has one
+  for (const id of ["shotgun_pistol", "shotgun", "mastiff", "energy_shotgun", "doubletake"]) {
+    const g = resolveWeapon(id, 0);
+    eq(`${id} has a place in its pattern for every pellet`, g.mech.blast?.shape.length ?? 0, g.pellets);
+    const offs = blastOffsets(g, false, 1, () => 0.5)!;
+    eq(`${id} pattern gives one offset a pellet`, offs.length, g.pellets);
+    // the pellets are spread out, not down one line: the Mastiff read as one pellet before this
+    const distinct = new Set(offs.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`)).size;
+    eq(`${id} pellets go to different places`, distinct, g.pellets);
+  }
+  eq("a rifle has no pattern", resolveWeapon("rspn101", 0).mech.blast, null);
+  eq("the Shattercaps 30-30 has no pattern (its blast is a cone)", resolveWeapon("3030", 0).mech.blast, null);
+  // the data's scales: the Mastiff and Mozambique halve when aimed (blast_pattern_ads_scale 0.5); the EVA-8 does not
+  const m = resolveWeapon("mastiff", 0);
+  near("the Mastiff's line is about 6 degrees wide from the hip", blastWidth(m), 5.9, 0.4);
+  near("aimed, the Mastiff's line is half as wide (the data's ads scale 0.5)", blastWidth(m, true) / blastWidth(m), 0.5 / 1.1, 0.02);
+  const e = resolveWeapon("shotgun", 0);
+  near("the EVA-8 has no ads scale in the data: aimed is the same width", blastWidth(e, true) / blastWidth(e), 1, 1e-9);
+  // a choke closes the Peacekeeper's star to its minScale
+  const pk = resolveWeapon("energy_shotgun", 0);
+  near("the Peacekeeper's star, choked to 0.45, is 0.45 as wide", blastWidth(pk, false, 0.45) / blastWidth(pk), 0.45, 0.01);
+  // the pattern is a shape, so the first and last Mastiff pellets are across from each other at the same height
+  const line = blastOffsets(m, false, 1, () => 0.5)!;
+  near("the Mastiff's line is horizontal", Math.abs(line[0][1] - line[4][1]), 0, 1e-9);
+  eq("and symmetric about the centre", line[0][0].toFixed(4), (-line[4][0]).toFixed(4));
 }
 
 console.log("\nRoster sanity");
