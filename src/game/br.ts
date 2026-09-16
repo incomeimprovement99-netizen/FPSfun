@@ -15,7 +15,7 @@
 // nodes (POI centres, gates, road bends) laid out here as well.
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
-import { building, coverWall, crateStair, type PoiCtx } from "./brpoi";
+import { building, coverWall, crateStair, jumpTower, type PoiCtx } from "./brpoi";
 import { PAL, bevel, flat, emissive, textPanel } from "./geo";
 import { material } from "./materials";
 import { ZIPLINES } from "./traversal";
@@ -357,6 +357,39 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     root.add(textPanel("WEST TOWN", cx, 3.4, -24, 0, 6, 1.4));
   }
 
+  // ------------------------------------------------------- the four compounds
+  // The corners between the five places were 100 m of empty sand you crossed
+  // with nothing to use. Each diagonal now holds a small walled compound: three
+  // or four rooms, a watch platform, and a zipline pointing at the nearest big
+  // place, so a rotation has somewhere to stop.
+  const COMPOUNDS: Array<{ id: string; name: string; x: number; z: number; to: [number, number] }> = [
+    { id: "nw", name: "NORTHWEST FARM", x: -104, z: -104, to: [-165, 0] },
+    { id: "ne", name: "NORTHEAST STORE", x: 104, z: -104, to: [165, 0] },
+    { id: "sw", name: "SOUTHWEST PENS", x: -104, z: 104, to: [0, 165] },
+    { id: "se", name: "SOUTHEAST WORKS", x: 104, z: 104, to: [0, 165] },
+  ];
+  for (const c of COMPOUNDS) {
+    // a wall round three sides, open toward the middle of the map
+    const W = 26;
+    const gapSide = c.x < 0 ? 1 : -1;
+    box(W * 2, 2.6, 1, c.x, 0, c.z - W, wallMat);
+    box(W * 2, 2.6, 1, c.x, 0, c.z + W, wallMat);
+    box(1, 2.6, W * 2, c.x + gapSide * -W, 0, c.z, wallMat);
+    // the rooms
+    building(poi, { x: c.x - 8, z: c.z - 8, w: 13, d: 11, storeys: 2, storeyH: 3.4, doors: ["s"], windows: ["n", "e", "w"], stairs: true, balcony: true });
+    building(poi, { x: c.x + 9, z: c.z + 7, w: 11, d: 9, storeys: 1, storeyH: 3.4, doors: ["n", "w"], windows: ["s", "e"] });
+    building(poi, { x: c.x - 10, z: c.z + 10, w: 9, d: 8, storeys: 1, storeyH: 3.4, doors: ["e"], windows: ["n", "s"] });
+    crateStair(poi, c.x - 1, c.z - 8, 6.8, 1);
+    // a watch platform with the zipline off it toward the nearest big place
+    jumpTower(poi, c.x + 14, c.z - 14, new THREE.Vector3(c.to[0] + (c.x < 0 ? 26 : -26), 2.2, c.to[1] + (c.z < 0 ? 26 : -26)), 13);
+    for (const [ox, oz] of [
+      [-2, 16],
+      [16, -2],
+      [-16, -2],
+    ]) box(4, 1.2, 1, c.x + ox, 0, c.z + oz, concrete);
+    root.add(textPanel(c.name, c.x, 3.2, c.z - W + 0.6, 0, 7, 1.4));
+  }
+
   // ---------------------------------------------------------------- the field
   // cover clusters along the spokes, and rocks in the open
   const rnd = lcg(7);
@@ -484,6 +517,11 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     { id: "south", name: "SOUTH DEPOT", ...P(0, 165), drops: [P(0, 148), P(-24, 178), P(24, 150)] },
     { id: "east", name: "EAST RIDGE", ...P(165, 0), drops: [P(140, -18), P(188, 20), P(150, 26)] },
     { id: "west", name: "WEST TOWN", ...P(-165, 0), drops: [P(-145, 12), P(-188, -14), P(-160, 30)] },
+    // the four compounds: smaller places to drop, and the reason the corners are worth crossing
+    { id: "nw", name: "NORTHWEST FARM", ...P(-104, -104), drops: [P(-112, -112), P(-92, -96), P(-114, -92)] },
+    { id: "ne", name: "NORTHEAST STORE", ...P(104, -104), drops: [P(112, -112), P(92, -96), P(114, -92)] },
+    { id: "sw", name: "SOUTHWEST PENS", ...P(-104, 104), drops: [P(-112, 112), P(-92, 96), P(-114, 92)] },
+    { id: "se", name: "SOUTHEAST WORKS", ...P(104, 104), drops: [P(112, 112), P(92, 96), P(114, 92)] },
   ];
   // the graph: POI centres and gates, road bends, field corners
   const N = (x: number, z: number, poi?: string): GraphNode => ({ ...P(x, z), poi, links: [] });

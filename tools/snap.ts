@@ -117,6 +117,14 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-compound",
+    note: "NORTHWEST FARM, one of the four new compounds filling the corners: walled, three buildings, a watch tower with a zipline out",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(-104, 0, 500 - 104 + 34, 180, 2); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
     name: "control",
     note: "Control: the A B C strip and the scores, zone A taken, the zones in the arena",
     steps: [
