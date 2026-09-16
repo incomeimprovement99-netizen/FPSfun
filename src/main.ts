@@ -2168,10 +2168,47 @@ const stats = { shots: 0, hits: 0, headshots: 0, damage: 0, knocks: 0, lastTtk: 
 const galleryFigs: Dummy[] = [];
 
 // ---------- overlay / lock ----------
-$("play").addEventListener("click", () => {
+/** Play / Resume: read the settings and take the mouse back */
+function resumeFromMenu(): void {
   if (calibrating) return; // a measurement is in progress; do not steal the lock
   readSettings();
   void input.lock();
+}
+$("play").addEventListener("click", () => resumeFromMenu());
+/**
+ * Esc on the menu is the Resume button, the way the game's own menus close.
+ *
+ * A key being rebound eats Esc first (it cancels that capture, and its
+ * listener stops the event), and Esc in a text field leaves the field rather
+ * than resuming. Chrome blocks a pointer lock for about a second after the Esc
+ * that let the mouse go, which is exactly when this is pressed, so a refused
+ * one is tried again quietly once that is over, unless the menu is being used
+ * in the meantime.
+ */
+let escRelock: ReturnType<typeof setTimeout> | null = null;
+const dropRelock = (): void => {
+  if (escRelock === null) return;
+  clearTimeout(escRelock);
+  escRelock = null;
+};
+overlay.addEventListener("pointerdown", dropRelock, true);
+/** Esc presses on the menu (tools/e2e.ts) */
+let menuEscapes = 0;
+window.addEventListener("keydown", (e) => {
+  if (e.code !== "Escape" || overlay.classList.contains("hidden")) return;
+  const el = document.activeElement as HTMLElement | null;
+  if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) {
+    el.blur();
+    return;
+  }
+  e.preventDefault();
+  menuEscapes++;
+  dropRelock();
+  resumeFromMenu();
+  escRelock = setTimeout(() => {
+    escRelock = null;
+    if (!input.locked && !calibrating && !overlay.classList.contains("hidden")) void input.lock(true);
+  }, 1100);
 });
 let courseHinted = false;
 let padWasActive = false;
@@ -2296,7 +2333,7 @@ const PLAY_HINT = playHint.textContent ?? "";
 // does nothing.
 input.onLockRefused = () => {
   playHint.classList.add("warn");
-  playHint.textContent = "The browser did not let the game take the mouse. Click again in a second (after Esc, Chrome makes you wait a moment).";
+  playHint.textContent = "The browser did not let the game take the mouse. Press Esc or click again in a second (after Esc, Chrome makes you wait a moment).";
 };
 input.onLockChange = (locked) => {
   overlay.classList.toggle("hidden", locked);
@@ -3545,6 +3582,8 @@ initWelcome();
   padButtons,
   /** the range's readout counters (shots, hits) */
   stats: () => stats,
+  /** Esc on the menu: how many were taken as Resume (tools/e2e.ts) */
+  menuEscapes: () => menuEscapes,
   /** the viewmodel's inspect and first draw (tools/e2e.ts) */
   /** a JOLT's view: the roll in degrees and the FOV fraction now (tools/e2e.ts) */
   joltFeel: () => ({ roll: joltRoll(gameTime), fov: joltFov }),

@@ -1498,6 +1498,21 @@ async function main(): Promise<void> {
     // accounts are optional and need the game's own server: here (no server) the Stats tab says so and offers nothing
     const acct = await page.waitForFunction(`/own server/.test(document.getElementById("accountStatus").textContent)`, { polling: 200, timeout: 8000 }).then(() => true, () => false);
     check("accounts: without the game's own server the Stats tab says so, and nothing to sign in to", acct && (await ev<boolean>(page, `document.getElementById("accountSignedOut").hidden && document.getElementById("accountSignedIn").hidden`)));
+    // Esc on the menu is the Resume button (a scripted page gets no pointer
+    // lock, so what is checked is that the press is taken as Resume)
+    const escKey = `(() => { window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", key: "Escape", bubbles: true, cancelable: true })); return window.__range.menuEscapes(); })()`;
+    const escOnMenu = await ev<number>(page, escKey);
+    check("Esc on the menu is Resume", escOnMenu === 1, `${escOnMenu} taken as Resume`);
+    // ...but not while typing a name, and not while the game is running
+    const typing = await ev<{ taken: number; focused: boolean; blurred: boolean }>(
+      page,
+      `(() => { const el = document.createElement("input"); document.getElementById("overlay").appendChild(el); el.focus(); const focused = document.activeElement === el;
+        window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", key: "Escape", bubbles: true, cancelable: true }));
+        const out = { taken: window.__range.menuEscapes(), focused, blurred: document.activeElement !== el }; el.remove(); return out; })()`
+    );
+    check("Esc in a text field leaves the field instead of resuming", typing.focused && typing.taken === escOnMenu && typing.blurred, JSON.stringify(typing));
+    const inGame = await ev<number>(page, `(() => { document.getElementById("overlay").classList.add("hidden"); window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", key: "Escape", bubbles: true, cancelable: true })); document.getElementById("overlay").classList.remove("hidden"); return window.__range.menuEscapes(); })()`);
+    check("Esc with the menu closed is not a resume", inGame === escOnMenu, `${inGame} taken as Resume, ${escOnMenu} before`);
 
     console.log("\nThe course");
     // in the game, not on the menu: the menu stops a run's clock
