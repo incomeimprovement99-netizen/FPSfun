@@ -316,9 +316,22 @@ export class BotLooter {
     const k = this.kit;
     return k.gun * s.gun + Object.keys(k.mods).length * s.mod + k.armor * s.armor + (k.cells + k.syringes) * s.heal + k.frags * s.frag;
   }
-  /** kitted out, or its time is up: it goes back to fighting the match */
+  /**
+   * Kitted out, or its time is up and it has something to fight with.
+   *
+   * The time alone used to end it, which meant a bot that landed badly and
+   * found no gun inside its window stopped looking AND stayed unarmed, so it
+   * held its fire for the rest of the match and walked the ring as a free
+   * kill. The clock can only retire a bot that is armed; one that is not
+   * keeps looking, and `overtime` says how much longer it may take before it
+   * gives up and fights with its fists rather than following the loot for
+   * ever.
+   */
   done(now: number): boolean {
-    return this.score >= LOOTING.enough || now - this.startedAt > this.window;
+    if (this.score >= LOOTING.enough) return true;
+    const spent = now - this.startedAt;
+    if (spent <= this.window) return false;
+    return this.armed || spent > this.window * LOOTING.overtime;
   }
 
   /** would it rather have this than what it is carrying */

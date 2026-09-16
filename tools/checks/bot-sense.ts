@@ -260,8 +260,16 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
 
   const fight = loot("normal", richFloor(), 30, true);
   check("someone in its sights puts looting down", fight.looter.kit.taken === 0, `${fight.looter.kit.taken} taken`);
-  const over = loot("hard", richFloor(), 5);
-  check("and it stops once its looting time is up", over.looter.done(lootCfg.botSearch.hard * LOOTING.window + 1));
+  // The clock used to end the search on its own, so a bot that landed badly
+  // and found no gun stopped looking AND stayed unarmed: it held its fire for
+  // the rest of the match and walked the ring as a free kill. The clock may
+  // only retire a bot that has something to fight with.
+  const upAt = lootCfg.botSearch.hard * LOOTING.window + 1;
+  const armedOut = loot("hard", richFloor(), 40);
+  check("an armed bot stops once its looting time is up", armedOut.looter.armed && armedOut.looter.done(upAt), `armed ${armedOut.looter.armed}`);
+  const bare = loot("hard", new Floor(), 14);
+  check("but one that has found no gun keeps looking rather than going unarmed", !bare.looter.armed && !bare.looter.done(upAt));
+  check("and it gives up in the end rather than following the floor for ever", bare.looter.done(lootCfg.botSearch.hard * LOOTING.window * LOOTING.overtime + 1), `${LOOTING.overtime} windows`);
 }
 
 console.log("\nWhat a bot would rather have (bots.ts BotLooter.wants)");
