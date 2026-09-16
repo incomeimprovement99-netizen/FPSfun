@@ -364,7 +364,9 @@
     "frag",
     "frag",
     "arcstar",
-    "thermite"
+    "thermite",
+    "shockwave",
+    "rift"
   ],
   "weapons": {
     "common": [
