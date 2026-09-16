@@ -46,6 +46,15 @@ check(
   `(${after.dir.x.toFixed(3)}, ${after.dir.y.toFixed(3)}, ${after.dir.z.toFixed(3)})`
 );
 check("and it is 3.1, the strength the range was built at", Math.abs(after.intensity - 3.1) < 1e-6, String(after.intensity));
+// The dome's sun DISK and the directional LIGHT are different colours and
+// always were: fff0d0 in the sky, fff2dc on the world. Reading one for the
+// other relights the whole range by a shade, which is exactly the kind of
+// drift a feature like this causes if nobody checks.
+check(
+  "the light on the world is not the disk in the sky",
+  after.light === 0xfff2dc && after.colors.sun === 0xfff0d0,
+  `light ${after.light.toString(16)}, disk ${after.colors.sun.toString(16)}`
+);
 
 let badColor = "";
 let badDir = "";
@@ -55,6 +64,7 @@ for (const [id, h] of Object.entries(HOURS)) {
   for (const [k, v] of Object.entries(h.colors)) {
     if (!Number.isInteger(v) || v < 0 || v > 0xffffff) badColor = `${id}.${k}`;
   }
+  if (!Number.isInteger(h.light) || h.light < 0 || h.light > 0xffffff) badColor = `${id}.light`;
   if (Math.abs(h.dir.length() - 1) > 1e-4 || h.dir.y <= 0) badDir = id;
   if (!(h.fog[0] > 0 && h.fog[1] > h.fog[0])) badFog = id;
   if (!(h.intensity > 0 && h.intensity <= 6) || !(h.env > 0 && h.env <= 2)) badLight = id;

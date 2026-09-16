@@ -100,6 +100,13 @@ export interface Hour {
   /** the HDRI in public/tex; a missing one falls back to sky.hdr */
   hdr: string;
   colors: SkyColors;
+  /**
+   * The directional light's colour, which is NOT the sun disk in the dome:
+   * the disk is what you see looking at the sun, this is what falls on the
+   * world. Making them one value quietly relit the range, whose light has
+   * always been fff2dc while its disk is fff0d0.
+   */
+  light: number;
   /** the direction the light comes from, normalised */
   dir: THREE.Vector3;
   /** the directional light's strength, and scene.environmentIntensity */
@@ -119,6 +126,7 @@ export const HOURS: Record<string, Hour> = Object.fromEntries(
       label: h.label,
       hdr: h.hdr,
       colors: { zenith: hex(h.zenith), horizon: hex(h.horizon), ground: hex(h.ground), sun: hex(h.sun) },
+      light: hex(h.light ?? h.sun),
       dir: new THREE.Vector3(h.dir[0], h.dir[1], h.dir[2]).normalize(),
       intensity: h.intensity,
       env: h.env,

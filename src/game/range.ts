@@ -78,7 +78,7 @@ export function setHour(h: Hour, scene: THREE.Scene): void {
   if (sun) {
     const centre = sun.target.position.clone();
     sun.position.copy(h.dir).multiplyScalar(150).add(centre);
-    sun.color.setHex(h.colors.sun);
+    sun.color.setHex(h.light);
     sun.intensity = h.intensity;
   }
   scene.environmentIntensity = h.env;
