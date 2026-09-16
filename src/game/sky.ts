@@ -13,6 +13,7 @@
 // Three bands, blended: ground haze below the horizon, a warm band at the
 // horizon, and a deep band at the zenith, plus a sun disk with a wide glow.
 import * as THREE from "three";
+import skyCfg from "../config/sky.json";
 
 const vert = /* glsl */ `
 varying vec3 vDir;
@@ -87,12 +88,86 @@ export const SKY: SkyColors = {
   sun: 0xfff0d0,
 };
 
+/**
+ * The hours of the day (src/config/sky.json), each with its own dome palette,
+ * sun and environment map. One sky meant every match was the same hour of the
+ * same day, which is the cheapest variety a shooter can have: the light does
+ * more for how a map reads than any amount of geometry.
+ */
+export interface Hour {
+  id: string;
+  label: string;
+  /** the HDRI in public/tex; a missing one falls back to sky.hdr */
+  hdr: string;
+  colors: SkyColors;
+  /** the direction the light comes from, normalised */
+  dir: THREE.Vector3;
+  /** the directional light's strength, and scene.environmentIntensity */
+  intensity: number;
+  env: number;
+  /** the range's fog, in metres; the battle royale scales both up */
+  fog: [number, number];
+}
+
+const hex = (s: string): number => parseInt(s, 16);
+
+export const HOURS: Record<string, Hour> = Object.fromEntries(
+  Object.entries(skyCfg.hours).map(([id, h]) => [
+    id,
+    {
+      id,
+      label: h.label,
+      hdr: h.hdr,
+      colors: { zenith: hex(h.zenith), horizon: hex(h.horizon), ground: hex(h.ground), sun: hex(h.sun) },
+      dir: new THREE.Vector3(h.dir[0], h.dir[1], h.dir[2]).normalize(),
+      intensity: h.intensity,
+      env: h.env,
+      fog: [h.fog[0], h.fog[1]] as [number, number],
+    },
+  ])
+);
+
+/** the order the settings menu shows them in */
+export const HOUR_IDS: string[] = skyCfg.order.filter((id) => id in HOURS);
+export const DEFAULT_HOUR = skyCfg.default;
+
+/** an unknown id (an old saved setting, a typo) falls back to the default */
+export function hourFor(id: string | null | undefined): Hour {
+  return HOURS[id ?? ""] ?? HOURS[DEFAULT_HOUR];
+}
+
+const HOUR_KEY = "range.sky.hour";
+
+/** the owner's chosen hour, kept the way the graphics preset is */
+export function loadHour(): Hour {
+  try {
+    return hourFor(localStorage.getItem(HOUR_KEY));
+  } catch {
+    return HOURS[DEFAULT_HOUR];
+  }
+}
+
+export function saveHour(id: string): void {
+  try {
+    localStorage.setItem(HOUR_KEY, id);
+  } catch {
+    // a browser with storage switched off still gets to change the hour, it
+    // just does not keep it
+  }
+}
+
 export interface Sky {
   mesh: THREE.Mesh;
   /** call once per frame so the dome stays centred on the camera */
   follow(camera: THREE.Camera): void;
   /** the colour the scene fog should be, so ground meets sky without a seam */
   fogColor: THREE.Color;
+  /**
+   * Repaint the dome for another hour. The dome is one shader with four
+   * colour uniforms, so changing the hour is four writes and a fog colour
+   * rather than rebuilding anything.
+   */
+  setHour(h: Hour): void;
 }
 
 export function makeSky(sunDir: THREE.Vector3, c: SkyColors = SKY): Sky {
@@ -134,11 +209,20 @@ export function makeSky(sunDir: THREE.Vector3, c: SkyColors = SKY): Sky {
   // ground haze rather than either one.
   const fogColor = new THREE.Color(c.horizon).lerp(new THREE.Color(c.ground), 0.18);
 
+  const u = mat.uniforms;
   return {
     mesh,
     fogColor,
     follow(camera: THREE.Camera) {
       mesh.position.copy(camera.position);
+    },
+    setHour(h: Hour) {
+      (u.uZenith.value as THREE.Color).setHex(h.colors.zenith);
+      (u.uHorizon.value as THREE.Color).setHex(h.colors.horizon);
+      (u.uGround.value as THREE.Color).setHex(h.colors.ground);
+      (u.uSunColor.value as THREE.Color).setHex(h.colors.sun);
+      (u.uSunDir.value as THREE.Vector3).copy(h.dir);
+      fogColor.setHex(h.colors.horizon).lerp(new THREE.Color(h.colors.ground), 0.18);
     },
   };
 }

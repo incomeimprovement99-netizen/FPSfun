@@ -1,0 +1,95 @@
+{
+  "_note": "The hours of the day. Ours: a sky palette is art direction and not a published number, so these are tuned by eye against the CC0 HDRIs they ship with (Poly Haven, fetched by tools/fetch-assets.ts). One sky meant every match was the same hour of the same day, and the light does more for how a map reads than any amount of geometry.",
+  "_hdr": "The environment map, for reflections and ambient light. A MeshStandardMaterial with metalness reflects its environment, and with nothing to reflect every metal surface renders pure BLACK, so this is load-bearing and not decoration. A missing file falls back to sky.hdr, which means a checkout that has not run `npm run assets` still renders.",
+  "_colors": "zenith, horizon and ground are the three bands of the authored dome (src/game/sky.ts) and sun is the disk. Hex strings, because a palette is read and edited by eye far more often than it is computed. The dome is authored rather than photographic because a photo's horizon sits at a fixed height that does not line up with where our ground plane ends.",
+  "_sun": "dir is the direction the light comes FROM and is normalised by the code. intensity is the directional light's; env is scene.environmentIntensity, which at full strength fills every shadow straight back in and costs the scene its contrast.",
+  "_fog": "near and far in metres. The battle royale scales both up because its map is 440 m across and the range is 80 m.",
+  "default": "afternoon",
+  "order": ["morning", "noon", "afternoon", "goldenHour", "overcast", "dusk", "night"],
+  "hours": {
+    "morning": {
+      "label": "Morning",
+      "hdr": "sky-morning.hdr",
+      "zenith": "4a86c8",
+      "horizon": "d6e2ea",
+      "ground": "a89880",
+      "sun": "fff4e2",
+      "dir": [0.44, 0.46, 0.77],
+      "intensity": 2.7,
+      "env": 0.95,
+      "fog": [60, 300]
+    },
+    "noon": {
+      "label": "Hard noon",
+      "hdr": "sky-noon.hdr",
+      "zenith": "2f6fbe",
+      "horizon": "bfd3e4",
+      "ground": "ab9b82",
+      "sun": "fffaf0",
+      "dir": [0.12, 0.96, 0.25],
+      "intensity": 3.6,
+      "env": 0.7,
+      "fog": [70, 320]
+    },
+    "afternoon": {
+      "label": "Afternoon (default)",
+      "hdr": "sky.hdr",
+      "zenith": "3f7cc4",
+      "horizon": "c6d5e2",
+      "ground": "a89880",
+      "sun": "fff0d0",
+      "dir": [0.56, 0.66, 0.5],
+      "intensity": 3.1,
+      "env": 0.85,
+      "fog": [55, 290]
+    },
+    "goldenHour": {
+      "label": "Golden hour",
+      "hdr": "sky-afternoon.hdr",
+      "zenith": "3a6ea8",
+      "horizon": "eec79a",
+      "ground": "9c8462",
+      "sun": "ffd9a0",
+      "dir": [0.78, 0.26, 0.57],
+      "intensity": 2.9,
+      "env": 0.95,
+      "fog": [50, 280]
+    },
+    "overcast": {
+      "label": "Overcast",
+      "hdr": "sky-overcast.hdr",
+      "zenith": "8f9aa6",
+      "horizon": "c3c9cf",
+      "ground": "8e8878",
+      "sun": "d8dde2",
+      "dir": [0.2, 0.9, 0.38],
+      "intensity": 1.5,
+      "env": 1.25,
+      "fog": [40, 240]
+    },
+    "dusk": {
+      "label": "Dusk",
+      "hdr": "sky-dusk.hdr",
+      "zenith": "20386e",
+      "horizon": "d98a52",
+      "ground": "5e4a3c",
+      "sun": "ff9a4a",
+      "dir": [0.92, 0.12, 0.38],
+      "intensity": 1.9,
+      "env": 0.8,
+      "fog": [45, 260]
+    },
+    "night": {
+      "label": "Moonlight",
+      "hdr": "sky-night.hdr",
+      "zenith": "0b1430",
+      "horizon": "2a3a5c",
+      "ground": "1c2233",
+      "sun": "bcd0ff",
+      "dir": [0.3, 0.82, 0.49],
+      "intensity": 0.75,
+      "env": 0.6,
+      "fog": [35, 220]
+    }
+  }
+}

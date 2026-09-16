@@ -17,7 +17,8 @@ import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset } from "
 import { ProjectileSystem, solidHit } from "./game/projectile";
 import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier, type FigurePose } from "./game/dummy";
-import { buildRange, skyFollow, setShadowRegion, getSun, RANGE_BOUNDS, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
+import { buildRange, skyFollow, setShadowRegion, setHour, getSun, RANGE_BOUNDS, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
+import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, type Hour } from "./game/sky";
 import { buildBrMap, BR_BOUNDS, BR_CENTER } from "./game/br";
 import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
 import { placeProps } from "./game/props";
@@ -370,7 +371,19 @@ function setRegion(region: "range" | "br"): void {
 const rangeRoots = scene.children.filter((o) => !beforeRange.has(o) && o !== arena.root && o !== triArena.root);
 // The sky doubles as the environment map. Without it every metal surface is
 // black, so this is load-bearing rather than decoration.
-void installSky(scene, renderer);
+//
+// Which sky is the owner's setting (src/config/sky.json, seven hours). It is
+// applied before the first frame so the menu's background is already the
+// right hour, and applying it is four shader colours, the sun and the fog:
+// nothing is rebuilt, so changing it mid-game costs a frame.
+let hour = loadHour();
+function applyHour(h: Hour): void {
+  hour = h;
+  setHour(h, scene);
+  renderer.shadowMap.needsUpdate = true;
+  void installSky(scene, renderer, h.hdr);
+}
+applyHour(hour);
 // A GPU reset (a driver update, a sleeping laptop, another tab crashing the
 // GPU) loses the context. three brings the context back by itself, but a
 // static shadow map comes back empty (the whole sunlit range in shadow) and
@@ -378,7 +391,7 @@ void installSky(scene, renderer);
 glCanvas.addEventListener("webglcontextlost", () => hud.notice("GRAPHICS RESET: RECOVERING", gameTime, 4));
 glCanvas.addEventListener("webglcontextrestored", () => {
   renderer.shadowMap.needsUpdate = true;
-  void installSky(scene, renderer);
+  void installSky(scene, renderer, hour.hdr);
 });
 // Post-processing. Ambient occlusion is what stops a scene made of boxes
 // reading as flat shapes floating on a flat floor.
@@ -403,6 +416,21 @@ qualitySel.value = quality.preset;
 qualitySel.addEventListener("change", () => {
   saveQuality(qualitySel.value as Preset);
   location.reload();
+});
+// Time of day. Unlike the graphics preset this needs no reload: the dome is
+// one shader with four colour uniforms, the sun is one light, and the
+// environment map is reloaded in the background.
+const skySel = $<HTMLSelectElement>("skyHour");
+for (const id of HOUR_IDS) {
+  const o = document.createElement("option");
+  o.value = id;
+  o.textContent = HOURS[id].label;
+  skySel.appendChild(o);
+}
+skySel.value = hour.id;
+skySel.addEventListener("change", () => {
+  saveHour(skySel.value);
+  applyHour(hourFor(skySel.value));
 });
 const perfLine = $("perfLine");
 void measureRefresh().then((hz) => {
@@ -3660,6 +3688,26 @@ initWelcome();
   loadout,
   player,
   settings,
+  // the hour of the day, so the suite can set one and read back what it did
+  sky: {
+    get id() {
+      return hour.id;
+    },
+    ids: HOUR_IDS,
+    set: (id: string) => {
+      saveHour(id);
+      applyHour(hourFor(id));
+      skySel.value = hour.id;
+      return hour.id;
+    },
+    read: () => ({
+      id: hour.id,
+      sun: getSun()?.color.getHex() ?? 0,
+      intensity: getSun()?.intensity ?? 0,
+      env: scene.environmentIntensity,
+      fog: (scene.fog as THREE.Fog | null)?.color.getHex() ?? 0,
+    }),
+  },
   debugView,
   dummies,
   course: courseBasic,

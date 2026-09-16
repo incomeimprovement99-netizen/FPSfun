@@ -49,16 +49,28 @@ const cache = new Map<string, THREE.MeshStandardMaterial>();
  */
 export async function installSky(
   scene: THREE.Scene,
-  renderer: THREE.WebGLRenderer
+  renderer: THREE.WebGLRenderer,
+  /**
+   * Which sky, from src/config/sky.json. A file that is not there (a checkout
+   * that fetched the assets before the extra hours existed) falls back to
+   * sky.hdr rather than leaving the scene with no environment at all, because
+   * no environment means every metal surface renders black.
+   */
+  file = "sky.hdr"
 ): Promise<boolean> {
   try {
     const { RGBELoader } = await import("three/examples/jsm/loaders/RGBELoader.js");
-    const hdr = await new RGBELoader().loadAsync("tex/sky.hdr");
+    const loadHdr = new RGBELoader();
+    const hdr = await loadHdr.loadAsync(`tex/${file}`).catch(async (err: unknown) => {
+      if (file === "sky.hdr") throw err;
+      return loadHdr.loadAsync("tex/sky.hdr");
+    });
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
     const env = pmrem.fromEquirectangular(hdr).texture;
     scene.environment = env;
-    scene.environmentIntensity = 0.85;
+    // the hour sets its own; this is the default until one does
+    if (scene.environmentIntensity === 1) scene.environmentIntensity = 0.85;
     hdr.dispose();
     pmrem.dispose();
     return true;

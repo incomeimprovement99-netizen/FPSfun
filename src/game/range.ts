@@ -9,7 +9,7 @@ import { material, tileBox } from "./materials";
 import { PAL, bevel, flat, emissive, hazardTexture, floorNumber, textPanel } from "./geo";
 import { LADDERS, ZIPLINES, buildLadder } from "./traversal";
 import { warehouseRoof } from "./warehouse";
-import { makeSky, type Sky } from "./sky";
+import { makeSky, type Hour, type Sky } from "./sky";
 import type { Bounds } from "./player";
 import { MOVE, SLIDE_RAMP_ANGLE } from "./movement";
 import type { Placement } from "./props";
@@ -59,6 +59,29 @@ export function setShadowRegion(centre: THREE.Vector3, half: number): void {
 let rangeSky: Sky | null = null;
 export function skyFollow(camera: THREE.Camera): void {
   rangeSky?.follow(camera);
+}
+
+/**
+ * Put the world on another hour of the day: the dome's four colours, the
+ * sun's direction, colour and strength, and the fog. The shadow map has to be
+ * redrawn because it is static, and the caller reinstalls the environment map
+ * because that needs the renderer.
+ *
+ * The sun keeps the shadow centre it was built with rather than being moved,
+ * so a change of hour never slides the shadow region off the range.
+ */
+export function setHour(h: Hour, scene: THREE.Scene): void {
+  rangeSky?.setHour(h);
+  const fog = scene.fog as THREE.Fog | null;
+  if (fog && rangeSky) fog.color.copy(rangeSky.fogColor);
+  const sun = sunLight;
+  if (sun) {
+    const centre = sun.target.position.clone();
+    sun.position.copy(h.dir).multiplyScalar(150).add(centre);
+    sun.color.setHex(h.colors.sun);
+    sun.intensity = h.intensity;
+  }
+  scene.environmentIntensity = h.env;
 }
 
 /** Axis-aligned solid the player collides with and can stand on. */
