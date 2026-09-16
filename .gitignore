@@ -21,4 +21,7 @@ public/audio/*
 # the self-hosted HUD faces (npm run fonts): OFL, fetched not kept
 public/fonts/*
 !public/fonts/ATTRIBUTION.md
+# the HUD's icons (npm run icons): Lucide ISC and game-icons.net CC BY 3.0
+public/icons/*
+!public/icons/ATTRIBUTION.md
 shots/

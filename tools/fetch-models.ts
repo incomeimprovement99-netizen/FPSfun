@@ -40,7 +40,11 @@ const MODELS: Array<{ slug: string; note: string }> = [
   { slug: "namaqualand_boulders_01", note: "a cluster, for the bigger stops" },
   { slug: "namaqualand_rocks_01", note: "scatter, ankle high, no collision" },
   { slug: "rock_face_02", note: "against the ridge and the mesas" },
-  { slug: "sand_rocks_small_01", note: "roadside scatter" },
+  // sand_rocks_small_01 was here and is not any more: its geometry alone is a
+  // 21 MB .bin, which is more than the rest of the models put together and
+  // four times the whole texture set. A scan that dense buys nothing at the
+  // size a roadside rock is drawn. Anything added here should stay under
+  // about 2 MB of .bin; check before you keep it.
   // dry scrub: something vertical in the field that is not a box or a rock
   { slug: "dead_quiver_trunk", note: "dead tree, a silhouette in the open" },
   { slug: "dead_quiver_branch_02", note: "scrub at the foot of the rocks" },

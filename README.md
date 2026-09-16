@@ -862,5 +862,10 @@ its motion-captured clips: Quaternius's Universal Animation Library 1 and 2
 difficulty modelled on Counter-Strike 2's shipped bot profile and Valve's
 published Team Fortress 2 bot code. Fonts: Rajdhani and Barlow Condensed
 (Google Fonts, SIL OFL 1.1), self-hosted by `npm run fonts` so the game makes
-no third-party request and still works offline. Movement research: the Apex Movement Wiki community. Game
-data numbers are facts; no art, audio, code or branding from the game is used.
+no third-party request and still works offline. Interface icons: Lucide (ISC).
+Gameplay icons: **Lorc and Delapouite at
+[game-icons.net](https://game-icons.net), Creative Commons Attribution 3.0** —
+this one has attribution as a condition of its licence, and the per-file list
+is in `public/icons/ATTRIBUTION.md`. Movement research: the Apex Movement Wiki
+community. Game data numbers are facts; no art, audio, code or branding from
+the game is used.
