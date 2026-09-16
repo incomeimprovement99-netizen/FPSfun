@@ -26,7 +26,8 @@ import { RANGE_SOLIDS } from "./range";
 import { solidHit, type ProjectileSystem } from "./projectile";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import { OPERATORS } from "./operators";
-import { ARENA_BOT_SPAWNS, ARENA_CENTER, ARENA_SPAWNS, ZONE_RADIUS } from "./arena";
+import { ARENA_BOT_SPAWNS, ARENA_BOUNDS, ARENA_CENTER, ARENA_SPAWNS, ZONE_RADIUS, arenaMap, type ArenaMapId } from "./arena";
+import type { Bounds } from "./player";
 import { HU, MOVE } from "./movement";
 import type { RoundPhase } from "../net/link";
 import type { MatchSummary, BotDifficulty } from "./stats";
@@ -1273,7 +1274,11 @@ export class BotMatch implements MatchLike {
   private shots = 0;
   private hits = 0;
   private myName = "";
-  readonly spawn: Spawn = ARENA_SPAWNS.host;
+  readonly spawn: Spawn;
+  /** the arena this match is on, its walls and its middle (src/game/arena.ts ARENA_MAPS) */
+  readonly arenaId: ArenaMapId;
+  readonly arenaBounds: Bounds;
+  private readonly center: THREE.Vector3;
   onRespawn: (() => void) | null = null;
   onHurt: ((amount: number) => void) | null = null;
   onRemoteShot: ((origin: THREE.Vector3) => void) | null = null;
@@ -1297,15 +1302,27 @@ export class BotMatch implements MatchLike {
     readonly difficulty: BotDifficulty,
     count: number,
     /** JOLT and TRIAGE on: you pick one, each bot takes one at random */
-    readonly abilities = false
+    readonly abilities = false,
+    /** the arena; none is the warehouse, as it always was */
+    map: ArenaMapId | null = null
   ) {
+    // A drawn map's spawns come in opposite pairs, so you take the first and
+    // the bots take the rest, the far end first. The warehouse keeps its own
+    // host spawn and three bot spawns exactly as they were.
+    const m = map ? arenaMap(map) : null;
+    const drawn = m && m.plan ? m : null;
+    this.arenaId = (drawn ? drawn.id : "warehouse") as ArenaMapId;
+    this.arenaBounds = drawn ? drawn.bounds : ARENA_BOUNDS;
+    this.center = drawn ? new THREE.Vector3(drawn.center.x, 0, drawn.center.z) : ARENA_CENTER;
+    this.spawn = drawn ? drawn.spawns[0] : ARENA_SPAWNS.host;
+    const homes = drawn ? drawn.spawns.slice(1) : ARENA_BOT_SPAWNS;
     // up to five, as every other mode's bot count now goes to eight: the
     // three arena bot spawns are cycled and pushed apart past the third
     const n = Math.max(1, Math.min(5, count));
     this.players = n + 1;
     for (let i = 0; i < n; i++) {
-      const home = ARENA_BOT_SPAWNS[i % ARENA_BOT_SPAWNS.length];
-      const lap = Math.floor(i / ARENA_BOT_SPAWNS.length);
+      const home = homes[i % homes.length];
+      const lap = Math.floor(i / homes.length);
       const spawn = lap === 0 ? home : { x: home.x + lap * 3.5, z: home.z + lap * 3.5, yaw: home.yaw };
       const b = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty)], spawn);
       b.setAbilities(abilities);
@@ -1445,7 +1462,7 @@ export class BotMatch implements MatchLike {
     if (this.ended) return;
     const feet = new THREE.Vector3(local.x, local.y, local.z);
     this.lastFeet.copy(feet);
-    const center = ARENA_CENTER;
+    const center = this.center;
 
     if (this.phase === "fight") {
       const since = now - this.fightStartedAt;

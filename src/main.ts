@@ -43,7 +43,7 @@ import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
 import { AimAssist } from "./game/aimassist";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
 import type { MoveInput } from "./game/player";
-import { buildArena, buildTriArena, ARENA_BOUNDS, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
+import { buildArena, buildTriArena, ARENA_BOUNDS, ARENA_HANDLES, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
 import { Loadouts, type LoadoutDef } from "./game/loadouts";
 import { operatorById, OPERATORS } from "./game/operators";
 import { setArmColors } from "./game/arms";
@@ -2034,9 +2034,11 @@ function startBots(): void {
   cancelJoin = null;
   for (const c of courses) c.leave();
   const diff = asDifficulty(botDifficulty.value);
-  const d = new BotMatch(scene, projectiles, diff, Number(botCount.value) === 2 ? 2 : 1, abilitySetting("bots"));
+  const count = Number(botCount.value) === 2 ? 2 : 1;
+  // the Map picker covers the 1v1 against bots too; the warehouse is still the default
+  const d = new BotMatch(scene, projectiles, diff, count, abilitySetting("bots"), arenaMapChoice("duel", 2));
   duel = d;
-  player.setBounds(ARENA_BOUNDS);
+  player.setBounds(d.arenaBounds);
   wireMatch(d, `bots:${diff}`);
   respawnForMatch(d);
   setDuelStatus(`Against ${Number(botCount.value) === 2 ? "two bots" : "a bot"}, ${diff}. First to 3 rounds.`, "good");
@@ -3564,11 +3566,13 @@ function step(): void {
   {
     const z = duel ? duel.hud().zone : null;
     const inTri = duel !== null && duel.players >= 3 && duel.kind === "duel";
-    for (const [a, mine] of [
-      [arena, !inTri],
-      [triArena, inTri],
-    ] as const) {
-      const live = mine && !!z?.live;
+    // Every arena has its own circle now (src/game/arena.ts ARENA_HANDLES), and
+    // only the one the match is standing in lights up. A match that does not
+    // say which is the warehouse, or the triangle for three.
+    const onMap = duel && "arenaId" in duel ? (duel as { arenaId: string }).arenaId : "warehouse";
+    const active = inTri ? "triangle" : onMap;
+    for (const [id, a] of ARENA_HANDLES) {
+      const live = id === active && !!z?.live;
       a.zone.column.visible = live;
       (a.zone.ring.material as THREE.MeshStandardMaterial).emissiveIntensity = live ? 2.2 + Math.sin(now * 6) * 0.6 : 1.2;
     }

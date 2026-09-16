@@ -445,6 +445,21 @@ async function arenaMapsTest(browser: Browser, query: string): Promise<void> {
     if (r.kind === "control") check(`maps: Control's three zones are on ${r.id}, not in the warehouse`, r.zones === 3 && r.zonesIn === 3, `${r.zonesIn} of ${r.zones}`);
     await page.close();
   }
+  // the 1v1 against bots, alone, which is where a 1v1 on a small map is played
+  // most: the same picker, the Vault
+  const page = await startModePage(browser, query, "goBots", `document.getElementById("botCount").value = "1"; document.getElementById("arenaMap").value = "vault"`);
+  await sleep(1500);
+  const v = await ev<{ id: string; me: boolean; bots: number; botsIn: number; phase: string }>(
+    page,
+    `(() => {
+      const R = window.__range; const d = R.duel(); const b = d.arenaBounds; const p = R.player.pos;
+      const inside = (x, z) => x >= b.minX - 0.5 && x <= b.maxX + 0.5 && z >= b.minZ - 0.5 && z <= b.maxZ + 0.5;
+      const figs = d.avatars.map((a) => a.group.position);
+      return { id: d.arenaId, phase: d.phase, me: inside(p.x, p.z), bots: figs.length, botsIn: figs.filter((q) => inside(q.x, q.z)).length };
+    })()`
+  );
+  check("maps: the 1v1 against a bot plays on the Vault when it is picked, you and the bot inside it", v.id === "vault" && v.me && v.bots === 1 && v.botsIn === 1, JSON.stringify(v));
+  await page.close();
 }
 
 /** a bot knocked by this player's own bullet (its dummy's hit() and the match's localHit, as the game does) */
