@@ -15,6 +15,7 @@
 - **Seven hours of the day**, a setting under Graphics that applies with no reload.
 - **Audio occlusion** and a cue for sounds above or below you.
 - **Icons on the grenade row** of the HUD.
+- **Carried shockwave and rift charges** (restored after the reset), battle royale floor loot.
 - **Three new arenas and a map picker** (finished after the limit reset): the Vault for 1v1 and free-for-all, the Crossing for team modes, the Ringworks for free-for-all and Crown. Pick one in the modes row, or "picked for the mode". The warehouse is still the default. The offline 1v1 against bots still plays the warehouse.
 - **verify** is 1,160+ checks; its new subjects live in `tools/checks/`.
 
@@ -25,22 +26,18 @@
 | **The Outskirts map expansion**: ground shape, a real map edge, THE MAST landmark, rebuilt ridge and town, eight micro-POIs, the rotation network, the bot graph over it | A six-stage build plan was designed and merged from three designs. **No stage was built**: the session limit hit first. | The plan is in the workflow result; the next prompt below restarts it. |
 | **The BR rules bundle**: loadout drops, care package theatre, Storm Surge, solo and duo BR (items 24, 32, 34, 46) | Built, but its adversarial review never ran. | `wip/phase15-unfinished`: `brmatch.ts`, `loadouts.ts`, `squad.json`, `br.json`, `index.html`, `menu.ts`, `tools/checks/br-rules.ts` |
 | **Delta-compressed netcode** (item 51) | Built, review never ran. Netcode that is wrong breaks every game with your buddy, so it is not shipped unreviewed. | `wip/phase15-unfinished`: `src/net/state.ts`, `statesync.ts`, `wire.ts`, `link.ts`, `net.json`, `tools/checks/net-delta.ts` |
-| **Carried mobility: shockwave and rift charges** (item 29) | Built and wired, then **backed out**: it stops a bot's frag blast from landing on you (e2e "tiers: and the frag's blast lands on you" passes without it and fails with it). Cause not found. | Commit `4027dcb` (reverted on `main`), also on `wip/phase15-unfinished` |
 | **Wiring bot senses and bot looting** into a match | `brmatch.ts` never sets `sightMode` or `lootSource`, so battle royale bots still use arena sight and are handed a kit. | `src/game/bots.ts` is ready; the wiring goes in `brmatch.ts` |
 | **Wiring knockdown and backpack tiers** | `main.ts` still uses its own inline knockdown object; no backpack is generated as loot. | The kit agent's full wiring list is in the workflow result |
 | **Applying the new materials and rock meshes to the map** | Fetched and loadable, not placed. | Belongs with the map expansion |
 | **Per-match sky pick** in the battle royale | The setting works; a match does not pick an hour by seed. | `brmatch.ts` |
 
-## Known failing check
+## Fixed after the limit reset
 
-One e2e check fails on `main`: **"loot: a second gun fills the other slot, a third goes in place of the one in hand, which goes down."** The test holds the take key for about 250 ms. With the new reach list, the gun you just swapped out lands at your feet, is in reach, and gets taken straight back. A real single press is one frame and is probably fine; **holding** the key to take everything is likely to swap back and forth. A quick fix that skips just-dropped items was tried, and in that version the swapped gun disappeared from the floor, so it was not shipped. Fix this one first.
-
-Not run before the deploy: the `p2p` e2e section. The deploy's own live check played a real 1v1 over the internet and passed.
+- **The gun swap bug.** Taking a gun with both slots full put the old one at your feet, and a held press took it straight back: sixteen swaps in a quarter of a second, traced in a real page. A gun at your own feet is left out of the reach list for 0.8 s after you take one, and holding the key never takes guns. The e2e loot check passes.
+- **The carried charges are back.** The frag check that failed with them does not reproduce: it failed only when the three-tab section ran first, passed with the blast instrumented, and the full first batch (185) and second batch (128) pass with the charges in. That check waits a fixed seven seconds for an elite bot's frag on a slow headless page, so treat a lone failure of it as timing before treating it as a bug.
 
 ## Ranked next steps
 
-1. **Fix the gun swap in the reach list** and make that e2e check pass.
-2. **Find why the mobility charges break bot frag blasts**, then restore commit `4027dcb`.
 3. **Build the Outskirts map expansion** from the six-stage plan. It is the owner's top ask and the backbone of everything else in the battle royale.
 4. **Review and ship the BR rules bundle** from the parked branch.
 5. **Wire bot sight and bot looting** into `brmatch.ts`, so BR bots see across the map and loot for their kit.
@@ -68,8 +65,6 @@ These came out of the gap analysis and nobody has started them:
 
 ## Prompts to paste when the limit resets
 
-1. "Fix the gun swap bug in the reach list: holding E after a swap picks the dropped gun back up. Make the e2e loot check pass without making the swapped gun disappear."
-2. "On branch wip/phase15-unfinished, commit 4027dcb added shockwave and rift charges and it breaks the e2e check 'tiers: and the frag's blast lands on you'. Find the cause, fix it, and bring the charges back to main."
 3. "Build the Outskirts map expansion. The six-stage plan is in docs/PHASE_15_UNFINISHED.md: ground shape and map edge, THE MAST at the hub, rebuilt ridge and town, the other places, eight micro-POIs, then the rotation network and the bot graph. Keep the nav flood test passing."
 4. "Review the BR rules bundle on wip/phase15-unfinished (loadout drops, care package theatre, Storm Surge, solo and duo), fix what the review finds, and merge it."
 5. "Wire bot sight and bot looting into brmatch.ts, and wire the knockdown and backpack tiers into main.ts and the loot table."
