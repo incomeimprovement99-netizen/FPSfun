@@ -2,8 +2,8 @@
 
 A browser firing range that reproduces the feel of Apex Legends' movement and
 guns from published numbers, with two timed movement courses, a guided tour,
-bots, a battle royale with loot, Gun Run, team deathmatch, Control and Crown,
-and a 1v1 or 1v1v1 against friends by code. Own code, own art, nothing from the
+bots, a battle royale with loot, Gun Run, team deathmatch, free-for-all,
+Control and Crown, and a 1v1 or 1v1v1 against friends by code. Own code, own art, nothing from the
 game's files. It runs in a browser tab and has no connection of any kind to the
 Apex install, the EA App, Steam or Easy Anti-Cheat.
 
@@ -51,8 +51,8 @@ down its left side to jump there.
    off). **Esc** brings the menu back; **Play / Resume** goes back in.
 3. Everything else is a menu button: the guided tour (start here if you are
    new: it walks you through every move and key), the two courses, the arena
-   alone, the bots, the battle royale, Gun Run, team deathmatch, Crown, and the
-   1v1 tab for friends.
+   alone, the bots, the battle royale, Gun Run, team deathmatch, free-for-all,
+   Crown, Control, and the 1v1 tab for friends.
 
 Nothing is installed and nothing is sent anywhere: settings, loadouts, your
 name, your best times and your stats live in this browser's localStorage.
@@ -81,8 +81,8 @@ host leaving ends it.
 
 **Other modes with friends**: the first box on the 1v1 tab picks what to
 play before Create match: the arena 1v1 / 1v1v1, Gun Run, team deathmatch
-(you and your friends against the bots), Crown, or the battle royale as a
-squad. The host's choice (and the bots, their difficulty, Gun Run's list and
+(you and your friends against the bots), Crown, Control, free-for-all, or
+the battle royale as a squad. The host's choice (and the bots, their difficulty, Gun Run's list and
 whether abilities are on) goes to everyone who joins.
 
 **Your name** for the kill feed and the scoreboard: the Stats tab.
@@ -135,6 +135,7 @@ optics and hop-ups.
 | Team Deathmatch | You and your friends, filled out with bots to four, against four bots in the 1v1 arena; respawns after 4 s at your end; first team to 30, or ahead at 10 minutes. Team mates cannot hurt each other and their plates are green. |
 | Crown | Rounds like the 1v1: 20 s in, a crown appears in the middle; walk over it to take it; 30 s held without going down takes the round (so does being the last one up). Everyone sees who has it. First to 3. |
 | Control | Apex's Control in the arena: five a side (you and friends with bots, against bots) over zones A (your side), B (the middle) and C (theirs). A point a second for each zone your team holds, first to 500 or the most at 10 minutes. More of you on a zone takes it faster (Apex's multipliers); an enemy's zone is cleared to neutral first; with both teams on it, it holds. A bonus zone (the gold pole) is worth 150 to whoever holds it when its minute is up; holding all three starts a 30 s lockout that wins the match if it is not broken. You come back 5 s after going down on your team's most forward zone linked to its base. |
+| Free-for-all | Everyone for themselves in the arena, you and up to five bots (the Play tab's bot count; with friends, everyone who joins plus the bots). Respawns 4 s after going down at the spot farthest from any enemy; first to 20 kills, or the most at 10 minutes (the fewest deaths on a tie; level on both is a draw). The board is kills and deaths, you against the best of the others. |
 | Arena, alone | The 1v1 map with nobody else, to learn it. |
 | Battle Royale, Bots | Outskirts: 440 m of open ground with the Hub in the middle and four places round it (a container yard, a depot of sheds, a stepped ridge with a bunker, a small town with a water tower). You and up to 11 bots drop from the sky onto one of the five (the map shows where, the movement keys steer the fall), the ring closes six times with Apex's damage per tick, bots walk the roads, fight each other and you, and the last one standing wins. **You land with nothing** (a setting keeps your loadout instead): about 200 items on the floor (guns, ammo, heals, magazines, barrels, stocks, optics, hop-ups, helmets, grenades), E takes the one you look at; the bots land unarmed and search first. Death boxes, care packages in ring rounds 2 to 4, jump towers, launch pads on the roads. A white shield core that levels with EVO, which you earn the way Season 30 counts it: the damage you deal, 150 a knock, 100 an assist, revives and care packages. **Hop-ups of Seasons 29 and 30**: a Peacekeeper or Mastiff off the floor comes with Executioner (50 shield back over 5 s after a knock) locked until you have done 275 damage with it, the 30-30 with Shattercaps (hip fire is a blast of 7 pellets) and the L-STAR with Redline (harder hits near overheat); the HUD shows the progress, and care-package guns come unlocked. M for the map. Out: your placement, your kills and how long you lasted; the champion screen when it is you. **As a squad**: the 1v1 tab, "Battle royale" as the mode, Create match, and two or three friends drop together on the same place against the bots. Knocked with a squad mate still up, you are down, not out: crawl, bleed out over 90, 60, 30, 15 s a knock, and a squad mate holds E for 5 s to revive you. Down, hold fire to raise your **knockdown shield** (200, 450 or 750 by your EVO level; it stops shots from in front, and you crawl slower behind it). Out, your banner is in your death box: a squad mate can take it to a respawn beacon, or **hold E for 7 s at the box** to bring you back on it (Season 29's Deathbox Respawn: a green beam and a hum give it away to everyone, you return with 20 health, your shield comes back over 6 s, and you get what is left in the box; each death adds a lockout before the next). Pings (the middle mouse button) mark an enemy, an item or a place for the squad; out, you watch a squad mate through their eyes. |
 
@@ -617,7 +618,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `src/config/items.json` | the heals (amounts, times, stacks), the kits, shield cores and helmets |
 | `src/config/ammo.json`, `weapon-mechanics.json` | ammo types and stacks, energy stockpiles; wind-ups, charges, heat, chokes, draws, the shotguns' blast patterns, hop-ups (and the locked ones of Seasons 29 and 30), fire modes |
 | `src/config/loot.json`, `squad.json` | the battle royale's loot tables; downs, revives, banners, beacons, pads, pings, EVO's sources, knockdown shields, Deathbox Respawn |
-| `src/config/modes.json` | Gun Run's lists and rules, team deathmatch's score and size, Crown's times, Control's zones and numbers, the arena's spawns |
+| `src/config/modes.json` | Gun Run's lists and rules, team deathmatch's score and size, free-for-all's kill limit and clock, Crown's times, Control's zones and numbers, the arena's spawns |
 | `src/config/throwables.json` | the frag, the arc star, thermite |
 | `src/config/killcam.json`, `audio.json`, `rangetools.json` | the killcam's timing; the gun classes and the sound's distances; the range's tools |
 | `src/config/readme-tv.json` | the README screen at the far end of the range: where it stands, its size, its arrow plates and the layout of its pages |

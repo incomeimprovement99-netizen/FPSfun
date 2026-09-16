@@ -367,6 +367,31 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await ev(t, "window.__range.duel()?.leave()");
   await t.close();
 
+  // ---- free-for-all: no teams, everyone scores for themselves, first to 20
+  const f = await startModePage(browser, query, "goFfa", `document.getElementById("modeBots").value = "3"`);
+  const f0 = await ev<{ allies: number; enemies: number; you: number; best: number; limit: number; teams: boolean }>(
+    f,
+    `(() => { const d = window.__range.duel(); const rs = d.avatars.map((a) => d.remoteOf(a)); const m = d.hud().mode; return { allies: rs.filter((r) => d.isAlly(r.id)).length, enemies: rs.filter((r) => !d.isAlly(r.id)).length, you: m.ffa.you, best: m.ffa.best, limit: m.ffa.limit, teams: !!m.teams }; })()`
+  );
+  check("ffa: three bots, none of them yours, 0 - 0, first to 20, no team score", f0.allies === 0 && f0.enemies === 3 && f0.you === 0 && f0.best === 0 && f0.limit === 20 && !f0.teams, JSON.stringify(f0));
+  await ev(f, knockBot("true"));
+  await sleep(200);
+  const f1 = await ev<{ you: number; top: string; kills: number }>(f, "(() => { const m = window.__range.duel().hud().mode; return { you: m.ffa.you, top: m.rows[0].name, kills: m.rows[0].kills }; })()");
+  check("ffa: a kill is yours alone, and puts you at the top of the board", f1.you === 1 && f1.kills === 1 && /YOU|^[A-Z]/.test(f1.top), JSON.stringify(f1));
+  // a bot's kill on another bot counts for that bot, not for a side
+  const f2 = await ev<{ best: number; you: number }>(
+    f,
+    `(() => { const d = window.__range.duel(); const bots = d.bots; const v = bots[1]; d.onHitOther(v.bot.remote.id, 900, false, bots[0].bot.remote.id, "r97"); const m = d.hud().mode; return { best: m.ffa.best, you: m.ffa.you }; })()`
+  );
+  check("ffa: a bot's kill on another bot is that bot's own", f2.best === 1 && f2.you === 1, JSON.stringify(f2));
+  await ev(f, "(() => { const d = window.__range.duel(); d.ladder.row(d.id).kills = 19; })()");
+  await ev(f, knockBot("true"));
+  await sleep(400);
+  const f3 = await ev<{ phase: string; winner: string | null; won: boolean | null; summary: { roundsWon: number } | null }>(f, "(() => { const d = window.__range.duel(); const m = d.hud().mode; return { phase: d.phase, winner: m.winner, won: m.won, summary: d.lastSummary ? { roundsWon: d.lastSummary.roundsWon } : null }; })()");
+  check("ffa: the 20th kill wins it for you alone", f3.phase === "matchEnd" && f3.won === true && f3.winner === "YOU" && f3.summary?.roundsWon === 20, JSON.stringify(f3));
+  await ev(f, "window.__range.duel()?.leave()");
+  await f.close();
+
   // ---- Crown
   const c = await startModePage(browser, query, "goCrown", `document.getElementById("modeBots").value = "2"`);
   const c0 = await ev<{ phase: string; left: number | null }>(c, "(() => { const m = window.__range.duel().hud().mode; return { phase: m.crown.phase, left: m.left }; })()");

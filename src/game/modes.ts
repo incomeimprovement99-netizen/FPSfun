@@ -14,13 +14,13 @@
 //   down, it takes the round. A carrier who goes down drops it where they fell.
 import cfg from "../config/modes.json";
 
-export type ModeKind = "gunrun" | "tdm" | "crown" | "control";
-export const MODE_KINDS: ModeKind[] = ["gunrun", "tdm", "crown", "control"];
+export type ModeKind = "gunrun" | "tdm" | "crown" | "control" | "ffa";
+export const MODE_KINDS: ModeKind[] = ["gunrun", "tdm", "crown", "control", "ffa"];
 export const MODES = cfg;
-export const MODE_TITLE: Record<ModeKind, string> = { gunrun: "GUN RUN", tdm: "TEAM DEATHMATCH", crown: "CROWN", control: "CONTROL" };
+export const MODE_TITLE: Record<ModeKind, string> = { gunrun: "GUN RUN", tdm: "TEAM DEATHMATCH", crown: "CROWN", control: "CONTROL", ffa: "FREE FOR ALL" };
 
 export function isModeKind(x: unknown): x is ModeKind {
-  return x === "gunrun" || x === "tdm" || x === "crown" || x === "control";
+  return x === "gunrun" || x === "tdm" || x === "crown" || x === "control" || x === "ffa";
 }
 
 /** the team modes (sides, team scores): team deathmatch and Control */
@@ -125,6 +125,18 @@ export class TeamScore {
   clear(): void {
     this.score = [0, 0];
   }
+}
+
+/**
+ * Free-for-all: whoever has the most kills, the fewest deaths on a tie, or
+ * null when the top two are level on both (a draw at the clock).
+ */
+export function killLeader(rows: Array<{ id: number; kills: number; deaths: number }>): number | null {
+  if (!rows.length) return null;
+  const s = [...rows].sort((a, b) => b.kills - a.kills || a.deaths - b.deaths || a.id - b.id);
+  const [a, b] = s;
+  if (b && a.kills === b.kills && a.deaths === b.deaths) return null;
+  return a.id;
 }
 
 export interface CrownFighter {

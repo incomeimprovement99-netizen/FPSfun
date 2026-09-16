@@ -24,6 +24,8 @@ export const BOARDS: ReadonlyArray<{ id: string; label: string; unit: "s" | "win
   { id: "gunrun:wins", label: "Gun Run wins", unit: "wins" },
   { id: "tdm:wins", label: "Team deathmatch wins", unit: "wins" },
   { id: "crown:wins", label: "Crown wins", unit: "wins" },
+  { id: "control:wins", label: "Control wins", unit: "wins" },
+  { id: "ffa:wins", label: "Free-for-all wins", unit: "wins" },
   { id: "bots:hard:wins", label: "Wins against hard bots", unit: "wins" },
   { id: "bots:normal:wins", label: "Wins against normal bots", unit: "wins" },
   { id: "bots:easy:wins", label: "Wins against easy bots", unit: "wins" },

@@ -36,7 +36,7 @@ import { PAD_DEFAULTS, advancedLookRate } from "../src/game/gamepad";
 import { withoutClashes } from "../src/ui/binds";
 import { withoutUndefined } from "../src/net/link";
 import modesCfg from "../src/config/modes.json";
-import { Control, Crown, GunLadder, MODES as MODES_CFG, TeamScore, gunList, pickSpawn, teamMode, yawToMiddle } from "../src/game/modes";
+import { Control, Crown, GunLadder, MODES as MODES_CFG, TeamScore, gunList, isModeKind, killLeader, pickSpawn, teamMode, yawToMiddle } from "../src/game/modes";
 /** every gun the game has but the course's own pistol */
 const DATA_IDS_NO_COURSE = weaponIds().filter((id) => id !== "g17");
 
@@ -1433,6 +1433,14 @@ console.log("Control (src/game/modes.ts, src/config/modes.json control; RESEARCH
   const c = new Control(0, () => 0);
   eq("three zones, all neutral", c.zones.map((z) => `${z.id}${z.owner}`).join(" "), "A-1 B-1 C-1");
   eq("Control and team deathmatch are the team modes", teamMode("control") && teamMode("tdm") && !teamMode("crown"), true);
+  // free-for-all: a mode kind with no teams; the leader is the most kills, the fewest deaths on a tie, nobody when level
+  eq("free-for-all is a mode kind and not a team mode", isModeKind("ffa") && !teamMode("ffa"), true);
+  eq("ffa: first to 20 kills, 10 minutes, a 4 s respawn", [MODES_CFG.ffa.scoreLimit, MODES_CFG.ffa.timeLimit, MODES_CFG.ffa.respawn].join(","), "20,600,4");
+  eq("ffa: the most kills leads", killLeader([{ id: 0, kills: 3, deaths: 5 }, { id: 100, kills: 7, deaths: 1 }, { id: 101, kills: 5, deaths: 0 }]), 100);
+  eq("ffa: level on kills, the fewest deaths leads", killLeader([{ id: 0, kills: 7, deaths: 5 }, { id: 100, kills: 7, deaths: 1 }]), 100);
+  eq("ffa: level on both is a draw", killLeader([{ id: 0, kills: 7, deaths: 1 }, { id: 100, kills: 7, deaths: 1 }]), null);
+  eq("ffa: one fighter leads alone", killLeader([{ id: 0, kills: 0, deaths: 0 }]), 0);
+  eq("ffa: nobody, nobody leads", killLeader([]), null);
   near("the capture rate by count (Apex's multipliers) over our 8 s", Control.rate(3) * MODES_CFG.control.captureTime, 2, 1e-9);
   run(c, 0, 7.9, onA(0));
   eq("one player on A: not yet at 7.9 s", c.zones[0].owner, -1);

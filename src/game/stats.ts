@@ -41,7 +41,7 @@ export type BotDifficulty = "easy" | "normal" | "hard" | "elite" | "mixed";
 export function asDifficulty(x: unknown): BotDifficulty {
   return x === "easy" || x === "hard" || x === "elite" || x === "mixed" ? x : "normal";
 }
-export type MatchKind = "duel" | "triple" | `bots:${BotDifficulty}` | "br" | "gunrun" | "tdm" | "crown" | "control";
+export type MatchKind = "duel" | "triple" | `bots:${BotDifficulty}` | "br" | "gunrun" | "tdm" | "crown" | "control" | "ffa";
 
 export interface Profile {
   name: string;

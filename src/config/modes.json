@@ -27,6 +27,12 @@
     "respawn": 4,
     "teamSize": 4
   },
+  "_ffa": "Free-for-all (ours; Apex has none, and the arena modes' shared rules give it for free): everyone for themselves in the arena, respawns, first to 20 kills or the most at 10 minutes, the fewest deaths on a tie, bots by the host's setting. A respawn picks the spot farthest from any enemy, as the other modes' do.",
+  "ffa": {
+    "scoreLimit": 20,
+    "timeLimit": 600,
+    "respawn": 4
+  },
   "crown": {
     "appearsAfter": 20,
     "hold": 30,
@@ -49,7 +55,7 @@
   "countdown": 3,
   "roundEnd": 4,
   "matchEnd": 10,
-  "_bots": "bots added to a free-for-all (Gun Run, Crown) by the host's setting; team deathmatch fills both teams to teamSize",
+  "_bots": "bots added to a mode with no teams (Gun Run, Crown, free-for-all) by the host's setting; team deathmatch and Control fill both teams to teamSize",
   "maxBots": 5,
   "_spawns": "arena coordinates (the 1v1 arena's centre is 0, 0; team A's end is -z, team B's +z), each facing up the map toward the middle",
   "spawns": {

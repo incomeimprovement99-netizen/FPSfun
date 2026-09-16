@@ -33,7 +33,7 @@ import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
-import { Control, Crown, GunLadder, MODES, MODE_TITLE, TeamScore, controlSpawnZone, gunList, pickSpawn, teamMode, yawToMiddle, type CrownPhase, type ModeKind } from "./modes";
+import { Control, Crown, GunLadder, MODES, MODE_TITLE, TeamScore, controlSpawnZone, gunList, killLeader, pickSpawn, teamMode, yawToMiddle, type CrownPhase, type ModeKind } from "./modes";
 import { weaponName } from "./weapons";
 
 const wallClock = (): number => performance.now() / 1000;
@@ -66,6 +66,8 @@ export interface ModeHud {
     bonusLeft: number | null;
     lockout: { mine: boolean; left: number } | null;
   };
+  /** free-for-all: your kills, the best of the others, the limit */
+  ffa?: { you: number; best: number; limit: number };
   /** down in a mode with respawns: seconds until you are back */
   respawnIn: number | null;
   /** once decided: who won ("YOU", a name, "YOUR TEAM", "THE OTHER TEAM") */
@@ -339,7 +341,7 @@ export class ArenaMode extends Duel {
   }
 
   private get respawnDelay(): number {
-    return this.modeKind === "gunrun" ? MODES.gunRun.respawn : this.modeKind === "control" ? MODES.control.respawn : MODES.tdm.respawn;
+    return this.modeKind === "gunrun" ? MODES.gunRun.respawn : this.modeKind === "control" ? MODES.control.respawn : this.modeKind === "ffa" ? MODES.ffa.respawn : MODES.tdm.respawn;
   }
 
   /** a human went down (this player, or a guest's `down`): a respawn to come, and the score */
@@ -374,6 +376,12 @@ export class ArenaMode extends Duel {
           this.endMatch(TEAM_WIN(done), now);
           return;
         }
+      }
+    } else if (this.modeKind === "ffa") {
+      // everyone for themselves: the killer's own count, first to the limit
+      if (killer >= 0 && this.ladder.row(killer).kills >= MODES.ffa.scoreLimit) {
+        this.endMatch(killer, now);
+        return;
       }
     } else if (this.crown) {
       if (this.crown.carrier === victim) {
@@ -493,6 +501,10 @@ export class ArenaMode extends Duel {
       const sc = this.controlScore();
       roundsWon = Math.floor(sc[myTeam]);
       roundsLost = Math.floor(sc[myTeam === 0 ? 1 : 0]);
+    } else if (this.modeKind === "ffa") {
+      // your kills against the best of the others
+      roundsWon = me.kills;
+      roundsLost = Math.max(0, ...this.ladder.sorted.filter((r) => r.id !== this.id).map((r) => r.kills));
     } else roundsWon = me.level;
     this.lastSummary = { won, roundsWon, roundsLost, kills: me.kills, deaths: me.deaths, damage: this.damage, shots: this.shots, hits: this.hits };
     this.onMatchEnd?.(this.lastSummary);
@@ -751,7 +763,7 @@ export class ArenaMode extends Duel {
       this.enter("fight", now, 0);
       this.onNotice?.(this.modeKind === "crown" ? "FIGHT  ·  THE CROWN IN 20 S" : "FIGHT");
       if (this.modeKind === "crown") this.crown = new Crown(ARENA_X, ARENA_Z, now);
-      else if (!Number.isFinite(this.timeEndsAt)) this.timeEndsAt = now + (this.modeKind === "gunrun" ? MODES.gunRun.timeLimit : this.modeKind === "control" ? MODES.control.timeLimit : MODES.tdm.timeLimit);
+      else if (!Number.isFinite(this.timeEndsAt)) this.timeEndsAt = now + (this.modeKind === "gunrun" ? MODES.gunRun.timeLimit : this.modeKind === "control" ? MODES.control.timeLimit : this.modeKind === "ffa" ? MODES.ffa.timeLimit : MODES.tdm.timeLimit);
       if (this.modeKind === "control" && !this.control) this.control = new Control(now);
       this.gunsChanged();
       this.sendMode(now);
@@ -785,8 +797,11 @@ export class ArenaMode extends Duel {
         const [a, b] = this.ladder.sorted;
         const tie = !!a && !!b && a.level === b.level && a.kills === b.kills && a.deaths === b.deaths;
         this.endMatch(!a || tie ? -1 : a.id, now);
-      }
-      else {
+      } else if (this.modeKind === "ffa") {
+        // the most kills, the fewest deaths on a tie; level on both is a draw
+        const lead = killLeader(this.ladder.sorted.map((r) => ({ id: r.id, kills: r.kills, deaths: r.deaths })));
+        this.endMatch(lead ?? -1, now);
+      } else {
         const ahead = this.modeKind === "control" && this.control ? this.control.ahead : this.teams.ahead;
         this.endMatch(ahead === null ? -1 : TEAM_WIN(ahead), now);
       }
@@ -1049,6 +1064,7 @@ export class ArenaMode extends Duel {
     if (this.modeKind === "crown") rows.sort((a, b) => b.wins - a.wins || b.kills - a.kills);
     const myTeam = this.teamFor(this.id);
     if (teamMode(this.modeKind)) rows.sort((a, b) => a.team - b.team || b.kills - a.kills);
+    if (this.modeKind === "ffa") rows.sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
     const winnerName =
       this.winner === null
         ? null
@@ -1081,6 +1097,9 @@ export class ArenaMode extends Duel {
       mode.teams = { you: this.teams.score[myTeam], them: this.teams.score[myTeam === 0 ? 1 : 0], limit: this.teams.limit };
     } else if (this.modeKind === "control") {
       mode.control = this.controlHud(now);
+    } else if (this.modeKind === "ffa") {
+      const me = this.ladder.row(this.id);
+      mode.ffa = { you: me.kills, best: Math.max(0, ...rows.filter((r) => !r.you).map((r) => r.kills)), limit: MODES.ffa.scoreLimit };
     } else {
       const cv = this.crownState();
       mode.crown = {
@@ -1097,7 +1116,7 @@ export class ArenaMode extends Duel {
     const decided = this.phase === "roundEnd" || this.phase === "matchEnd";
     return {
       ...base,
-      you: this.modeKind === "tdm" ? this.teams.score[myTeam] : this.modeKind === "control" ? Math.floor(this.controlScore()[myTeam]) : this.modeKind === "crown" ? (this.roundWins.get(this.id) ?? 0) : this.ladder.level(this.id),
+      you: this.modeKind === "tdm" ? this.teams.score[myTeam] : this.modeKind === "control" ? Math.floor(this.controlScore()[myTeam]) : this.modeKind === "crown" ? (this.roundWins.get(this.id) ?? 0) : this.modeKind === "ffa" ? this.ladder.row(this.id).kills : this.ladder.level(this.id),
       them: 0,
       youWonRound: decided && this.phase === "roundEnd" ? this.lastWinner === this.id : base.youWonRound,
       youWonMatch: this.phase === "matchEnd" ? won : null,

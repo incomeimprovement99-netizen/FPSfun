@@ -1855,6 +1855,7 @@ function modeGoal(d: ArenaMode): string {
   if (d.modeKind === "gunrun") return `${d.ladder.guns.length} guns then the knife, ${Math.round(MODES.gunRun.timeLimit / 60)} minutes.`;
   if (d.modeKind === "tdm") return `teams of ${MODES.tdm.teamSize}, first to ${MODES.tdm.scoreLimit}.`;
   if (d.modeKind === "control") return `teams of ${MODES.control.teamSize} over zones A, B and C, a point a second a zone, first to ${MODES.control.scoreLimit}.`;
+  if (d.modeKind === "ffa") return `everyone for themselves, first to ${MODES.ffa.scoreLimit} kills or the most at ${Math.round(MODES.ffa.timeLimit / 60)} minutes.`;
   return `hold the crown ${MODES.crown.hold} s, first to ${MODES.crown.roundsToWin} rounds.`;
 }
 /** an arena mode alone, against bots */
@@ -2146,7 +2147,7 @@ function goTo(mode: Mode): void {
     startBr();
     return;
   }
-  if (mode === "gunrun" || mode === "tdm" || mode === "crown" || mode === "control") {
+  if (mode === "gunrun" || mode === "tdm" || mode === "crown" || mode === "control" || mode === "ffa") {
     startMode(mode);
     return;
   }

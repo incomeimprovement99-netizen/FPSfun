@@ -657,3 +657,18 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   team mate's green plate always shows. The numbers (and the old 40 and 60 m fade) are in `hud.json`.
 - Tests: e2e (no plate before a hit; once hurt, the plate shows exactly when the line is clear; the line-of-sight
   test is open down the range and blocked through the backstop).
+
+## Milestone 42 — Free-for-all ✅
+2026-09-16 (Phase 14). `src/game/modes.ts`, `modematch.ts`, `hud.ts`, `src/config/modes.json`, `index.html`, `src/ui/menu.ts`.
+- Team deathmatch's sibling with no sides: everyone for themselves in the arena, you and up to five bots (the
+  Play tab's bot count; with friends, everyone who joins plus the bots). Respawns 4 s after going down, at the
+  spot farthest from any enemy (the modes' own `pickSpawn`); **first to 20 kills, or the most at 10 minutes**,
+  the fewest deaths on a tie, level on both a draw (`killLeader`, tested in Node). The board is kills and deaths,
+  the panel you against the best of the others; the win is yours alone ("YOU WIN"), never a team's.
+- Most of it came free from the arena modes' shared rules: with `teamMode` false, nobody is friendly, every other
+  fighter is a target, and the respawn already avoided enemies. What was added is the kind, its config, the kill
+  limit and clock branches, the summary, the HUD block, the menu button and select option, the Stats card and
+  the online board (Control's board, which was missing from the list, is added too).
+- Tests: verify (a mode kind and not a team mode; the config; `killLeader` with a leader, a tie on kills, a
+  draw, one fighter, nobody); e2e (three bots and no allies, 0 - 0 first to 20, no team score; a kill is yours
+  alone and tops the board; a bot's kill on another bot is that bot's own; the 20th kill wins it for you alone).

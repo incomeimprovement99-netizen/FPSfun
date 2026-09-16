@@ -875,6 +875,14 @@ export class Hud {
         c.fillRect(x - 11 * u, y - 11 * u, 22 * u, 22 * u);
         this.text(z.id, x, y + 6 * u, 700, 16 * u, z.owner === "you" ? BLUE : z.owner === "them" ? RED : WHITE, "center");
       }
+    } else if (m.ffa) {
+      // free-for-all: your kills against the best of the others, the limit and the clock
+      this.text("YOU", cx - 175 * u, 84 * u, 700, 13 * u, "#7ddc8a");
+      this.text(`${m.ffa.you}`, cx - 40 * u, 110 * u, 700, 36 * u, WHITE, "right");
+      this.text("-", cx, 106 * u, 700, 28 * u, DIM, "center");
+      this.text(`${m.ffa.best}`, cx + 40 * u, 110 * u, 700, 36 * u, WHITE);
+      this.text("BEST OTHER", cx + 175 * u, 84 * u, 700, 13 * u, RED, "right");
+      this.text(`FIRST TO ${m.ffa.limit} KILLS${m.left !== null ? `  ·  ${clock(m.left)}` : ""}`, cx, 138 * u, 600, 14 * u, DIM, "center");
     } else if (m.crown) {
       const cr = m.crown;
       const best = Math.max(0, ...m.rows.filter((r) => !r.you).map((r) => r.wins));
