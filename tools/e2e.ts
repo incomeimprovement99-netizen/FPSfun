@@ -406,6 +406,43 @@ async function startModePage(browser: Browser, query: string, button: string, se
   return page;
 }
 
+/**
+ * The three new arenas (src/game/arenas). One map for six modes was why
+ * every mode played the same, and the owner asked for small maps for 1v1s
+ * and free-for-all. Each map is started from the menu's Map picker in the
+ * mode it was drawn for, and has to put you, the bots and Control's zones
+ * inside ITS walls: a match that quietly stayed in the warehouse would still
+ * reach the fight, so the positions are what is checked.
+ */
+async function arenaMapsTest(browser: Browser, query: string): Promise<void> {
+  const cases: Array<{ map: string; button: string; want: string; bots: string }> = [
+    { map: "vault", button: "goFfa", want: "vault", bots: "3" },
+    { map: "crossing", button: "goControl", want: "crossing", bots: "3" },
+    { map: "ringworks", button: "goCrown", want: "ringworks", bots: "3" },
+    // "picked for the mode": a free-for-all is drawn for the ringworks
+    { map: "auto", button: "goFfa", want: "ringworks", bots: "2" },
+  ];
+  for (const c of cases) {
+    const page = await startModePage(browser, query, c.button, `document.getElementById("modeBots").value = "${c.bots}"; document.getElementById("arenaMap").value = "${c.map}"`);
+    await sleep(2500);
+    const r = await ev<{ id: string; kind: string; phase: string; me: boolean; bots: number; botsIn: number; zones: number; zonesIn: number; bounds: string }>(
+      page,
+      `(() => {
+        const R = window.__range; const d = R.duel(); const b = d.arenaBounds; const p = R.player.pos;
+        const inside = (x, z) => x >= b.minX - 0.5 && x <= b.maxX + 0.5 && z >= b.minZ - 0.5 && z <= b.maxZ + 0.5;
+        const figs = d.avatars.map((a) => a.group.position);
+        const zones = d.hud().mode?.control?.zones ?? [];
+        return { id: d.arenaId, kind: d.modeKind, phase: d.phase, me: inside(p.x, p.z), bots: figs.length, botsIn: figs.filter((q) => inside(q.x, q.z)).length,
+          zones: zones.length, zonesIn: zones.filter((z) => inside(z.at.x, z.at.z)).length, bounds: [b.minX, b.maxX, b.minZ, b.maxZ].map((v) => v.toFixed(0)).join(",") };
+      })()`
+    );
+    check(`maps: ${c.map} for ${r.kind} opens on ${c.want}, fighting`, r.id === c.want && r.phase === "fight", JSON.stringify({ id: r.id, phase: r.phase }));
+    check(`maps: on ${r.id} you and every bot stand inside its walls`, r.me && r.bots > 0 && r.botsIn === r.bots, `${r.botsIn} of ${r.bots} bots, bounds ${r.bounds}`);
+    if (r.kind === "control") check(`maps: Control's three zones are on ${r.id}, not in the warehouse`, r.zones === 3 && r.zonesIn === 3, `${r.zonesIn} of ${r.zones}`);
+    await page.close();
+  }
+}
+
 /** a bot knocked by this player's own bullet (its dummy's hit() and the match's localHit, as the game does) */
 const knockBot = (pick: string, weapon = "r97") =>
   `(() => { const d = window.__range.duel(); const a = d.avatars.find((x) => { const r = d.remoteOf(x); return r && r.id >= 100 && r.alive && (${pick}); }); if (!a) return false; const r = d.remoteOf(a); a.hit(0, "body", 900, 1, 1, a.group.position); d.localHit(r, 900, false, "${weapon}", 8); return true; })()`;
@@ -2164,6 +2201,8 @@ async function main(): Promise<void> {
     if (want("modes")) {
       console.log("\nThe arena's modes: Gun Run, team deathmatch, Crown (alone, against bots)");
       await modesTest(browser, "?norender");
+      console.log("\nThe new arenas: the Vault, the Crossing, the Ringworks");
+      await arenaMapsTest(browser, "?norender");
       console.log("\nGun Run with a friend (two tabs, the local transport)");
       await modesFriendsTest(browser, "?net=local&norender");
       await friendsModesTest(browser, "?net=local&norender");

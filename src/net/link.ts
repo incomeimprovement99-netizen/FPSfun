@@ -149,6 +149,12 @@ export interface MatchOpts {
   abilities: boolean;
   /** an arena mode (modematch.ts): which, how many bots and how good, Gun Run's list */
   mode?: ModeWelcome;
+  /**
+   * The arena, for a friends' 1v1 (src/game/arena.ts ARENA_MAPS). A guest has
+   * to stand in the same building as the host, so the host's choice travels
+   * in the welcome. An older host sends none, which is the warehouse.
+   */
+  map?: string;
 }
 
 /** what a guest needs to play the host's arena mode */
@@ -159,6 +165,8 @@ export interface ModeWelcome {
   list?: "short" | "full";
   /** the gun every bot carries, the host's choice; unset is the mixed list */
   botWeapon?: string | null;
+  /** the arena the mode is played on; unset is the warehouse */
+  map?: string;
 }
 
 export type RoundPhase = "waiting" | "countdown" | "fight" | "roundEnd" | "matchEnd";

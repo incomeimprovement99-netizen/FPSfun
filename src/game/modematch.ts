@@ -28,7 +28,7 @@ import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, hitsBody, tierFor, type BotSen
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Duel, HEALTH_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
-import { ARENA_X, ARENA_Z } from "./arena";
+import { ARENA_X, ARENA_Z, arenaMap, type ArenaMapId } from "./arena";
 import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
@@ -104,12 +104,76 @@ export interface ArenaModeOpts {
   botWeapon?: string | null;
   /** Gun Run's list */
   list?: "short" | "full";
+  /** the arena (src/game/arena.ts ARENA_MAPS); none is the warehouse, as it always was */
+  map?: ArenaMapId | null;
 }
 
-/** arena coordinates to the world */
-const world = (p: number[]): { x: number; z: number } => ({ x: p[0] + ARENA_X, z: p[1] + ARENA_Z });
+/**
+ * Where a mode's points are, for the map it is played on. Everything in the
+ * mode rules is in the arena's own coordinates, its middle at 0, 0, so the
+ * same rules play on any map: the warehouse's come from src/config/modes.json
+ * as they always did, and a drawn arena's come from its plan
+ * (src/game/arenas), turned from world space into the arena's own.
+ */
+interface ModeLayout {
+  /** the arena's middle in world space */
+  ox: number;
+  oz: number;
+  /** team deathmatch's two ends, and the spread points between them */
+  a: number[][];
+  b: number[][];
+  mid: number[][];
+  /** a free-for-all's order of starts: a lobby of eight each gets their own */
+  order: number[][];
+  /** Control's three points: id, x, z */
+  zones: Array<[string, number, number]>;
+  /** where the crown drops, world space */
+  crown: { x: number; z: number };
+}
+
+function layoutFor(map: ArenaMapId | null | undefined): ModeLayout {
+  const m = map ? arenaMap(map) : null;
+  if (!m || m.id === "warehouse" || m.id === "triangle") {
+    const S = MODES.spawns;
+    return {
+      ox: ARENA_X,
+      oz: ARENA_Z,
+      a: S.a,
+      b: S.b,
+      mid: S.mid,
+      // all eighteen points, ends and middle alternating
+      order: [S.a[0], S.b[0], S.mid[0], S.mid[1], S.a[1], S.b[2], S.mid[2], S.mid[3], S.a[2], S.b[1], S.a[3], S.b[4], S.mid[4], S.mid[5], S.a[4], S.b[3], S.a[5], S.b[5]],
+      zones: MODES.control.zones.map(([id, x, z]) => [String(id), Number(x), Number(z)] as [string, number, number]),
+      crown: { x: ARENA_X, z: ARENA_Z },
+    };
+  }
+  const local = (q: { x: number; z: number }): number[] => [q.x - m.center.x, q.z - m.center.z];
+  return {
+    ox: m.center.x,
+    oz: m.center.z,
+    a: m.teams.a.map(local),
+    b: m.teams.b.map(local),
+    // a drawn map's eight spawns are its spread points: every one is a start
+    // somebody can have, and the arenas check proves none sees another across
+    // the map
+    mid: m.spawns.map(local),
+    order: m.spawns.map(local),
+    zones: m.zones.map((z) => [z.id.toUpperCase(), z.x - m.center.x, z.z - m.center.z] as [string, number, number]),
+    crown: { x: m.crown.x, z: m.crown.z },
+  };
+}
 
 export class ArenaMode extends Duel {
+  private layoutCache: ModeLayout | null = null;
+  /** this match's map in the mode's own coordinates; lazy, because Duel's constructor can ask for a spawn before this class's fields exist */
+  private get layout(): ModeLayout {
+    if (!this.layoutCache) this.layoutCache = layoutFor(this.arenaId);
+    return this.layoutCache;
+  }
+  /** arena coordinates to the world */
+  private world(p: number[]): { x: number; z: number } {
+    return { x: p[0] + this.layout.ox, z: p[1] + this.layout.oz };
+  }
   readonly modeKind: ModeKind;
   readonly difficulty: BotDifficulty;
   readonly list: "short" | "full";
@@ -147,7 +211,7 @@ export class ArenaMode extends Duel {
   onGun: ((id: string | null) => void) | null = null;
 
   constructor(scene: THREE.Scene, projectiles: ProjectileSystem, opts: ArenaModeOpts) {
-    super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "arena", abilities: opts.abilities });
+    super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "arena", abilities: opts.abilities, map: opts.map ?? null });
     this.modeKind = opts.kind;
     this.difficulty = opts.difficulty;
     this.list = opts.list === "full" ? "full" : "short";
@@ -242,7 +306,7 @@ export class ArenaMode extends Duel {
 
   /** where a player or bot starts a round: a team's end, or spread round the arena */
   private startSpawn(id: number, team: 0 | 1): Spawn {
-    const S = MODES.spawns;
+    const S = this.layout;
     let p: number[];
     if (teamMode(this.modeKind)) {
       const list = team === 0 ? S.a : S.b;
@@ -251,37 +315,37 @@ export class ArenaMode extends Duel {
     } else {
       // all eighteen points, ends and middle alternating: a lobby of eight
       // humans plus bots each gets their own
-      const order = [S.a[0], S.b[0], S.mid[0], S.mid[1], S.a[1], S.b[2], S.mid[2], S.mid[3], S.a[2], S.b[1], S.a[3], S.b[4], S.mid[4], S.mid[5], S.a[4], S.b[3], S.a[5], S.b[5]];
+      const order = S.order;
       const i = id < Duel.BOT_ID ? id : this.players + (id - Duel.BOT_ID);
       p = order[i % order.length];
     }
-    const w = world(p);
+    const w = this.world(p);
     return { x: w.x, z: w.z, yaw: yawToMiddle(p[0], p[1]) };
   }
 
   /** a respawn: this side's spawns (a team's end in team deathmatch, anywhere otherwise) farthest from the enemies up */
   private respawnSpawn(id: number): Spawn {
-    const S = MODES.spawns;
+    const S = this.layout;
     // Control: the most forward zone your team holds in a line from its base, else the base
     // (a guest works it out from the zones the host last sent)
     if (this.modeKind === "control" && (this.control || this.controlView)) {
       const team = this.teamFor(id);
-      const zones = MODES.control.zones.map(([, x, z], i) => ({ x: Number(x), z: Number(z), owner: this.zonesNow()[i]?.owner ?? -1 }));
+      const zones = this.layout.zones.map(([, x, z], i) => ({ x, z, owner: this.zonesNow()[i]?.owner ?? -1 }));
       const zn = controlSpawnZone(zones, team);
       if (zn) {
         const a = Math.random() * Math.PI * 2;
         const r = 1.5 + Math.random() * 1.5;
         const p = [zn.x + Math.cos(a) * r, zn.z + Math.sin(a) * r];
-        const w = world(p);
+        const w = this.world(p);
         return { x: w.x, z: w.z, yaw: yawToMiddle(team === 0 ? p[0] : p[0], team === 0 ? p[1] - 20 : p[1] + 20) };
       }
     }
     const cands = (teamMode(this.modeKind) ? (this.teamFor(id) === 0 ? [...S.a, ...S.mid.slice(0, 2)] : [...S.b, ...S.mid.slice(2, 4)]) : [...S.a, ...S.b, ...S.mid]) as Array<[number, number]>;
     const enemies = this.fighters()
       .filter((f) => f.alive && !this.sameSide(f.id, id))
-      .map((f) => ({ x: f.x - ARENA_X, z: f.z - ARENA_Z }));
+      .map((f) => ({ x: f.x - this.layout.ox, z: f.z - this.layout.oz }));
     const p = pickSpawn(cands, enemies);
-    const w = world(p);
+    const w = this.world(p);
     return { x: w.x, z: w.z, yaw: yawToMiddle(p[0], p[1]) };
   }
 
@@ -532,9 +596,9 @@ export class ArenaMode extends Duel {
   private buildZones(scene: THREE.Scene): void {
     if (this.zoneModels.length) return;
     const R = MODES.control.radius;
-    for (const [, x, z] of MODES.control.zones) {
+    for (const [, x, z] of this.layout.zones) {
       const root = new THREE.Group();
-      const w = world([Number(x), Number(z)]);
+      const w = this.world([Number(x), Number(z)]);
       root.position.set(w.x, 0.03, w.z);
       const ring = new THREE.Mesh(new THREE.RingGeometry(R - 0.18, R, 48), new THREE.MeshBasicMaterial({ color: 0xe8e8e8, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
       ring.rotation.x = -Math.PI / 2;
@@ -553,7 +617,7 @@ export class ArenaMode extends Duel {
   private zonesNow(): Array<{ v: number; owner: number }> {
     if (this.control) return this.control.zones.map((z) => ({ v: z.v, owner: z.owner }));
     const cv = this.controlView;
-    return cv ? cv.v.map((v, i) => ({ v, owner: cv.owner[i] })) : MODES.control.zones.map(() => ({ v: 0, owner: -1 }));
+    return cv ? cv.v.map((v, i) => ({ v, owner: cv.owner[i] })) : this.layout.zones.map(() => ({ v: 0, owner: -1 }));
   }
 
   private controlScore(): [number, number] {
@@ -596,8 +660,8 @@ export class ArenaMode extends Duel {
     const me = this.lastLocal;
     return {
       zones: this.zonesNow().map((z, i) => {
-        const [id, x, zz] = MODES.control.zones[i];
-        const w = world([Number(x), Number(zz)]);
+        const [id, x, zz] = this.layout.zones[i];
+        const w = this.world([Number(x), Number(zz)]);
         return {
           id: String(id),
           owner: z.owner === -1 ? null : z.owner === mine ? "you" : "them",
@@ -620,8 +684,8 @@ export class ArenaMode extends Duel {
     const c = this.control;
     if (!c) return null;
     const team = b.team;
-    const counts = c.counts(this.fighters().map((f) => ({ x: f.x - ARENA_X, z: f.z - ARENA_Z, team: this.teamFor(f.id), alive: f.alive })));
-    const pos = { x: b.bot.pos.x - ARENA_X, z: b.bot.pos.z - ARENA_Z };
+    const counts = c.counts(this.fighters().map((f) => ({ x: f.x - this.layout.ox, z: f.z - this.layout.oz, team: this.teamFor(f.id), alive: f.alive })));
+    const pos = { x: b.bot.pos.x - this.layout.ox, z: b.bot.pos.z - this.layout.oz };
     let best: { x: number; z: number } | null = null;
     let bestD = Infinity;
     c.zones.forEach((z, i) => {
@@ -640,7 +704,7 @@ export class ArenaMode extends Duel {
       const z = c.zones[1];
       best = { x: z.x + (((b.bot.index % 3) - 1) * 2), z: z.z };
     }
-    const w = world([best.x, best.z]);
+    const w = this.world([best.x, best.z]);
     return new THREE.Vector3(w.x, 0, w.z);
   }
 
@@ -771,9 +835,9 @@ export class ArenaMode extends Duel {
     if (this.phase === "countdown" && now >= this.phaseEndsAt) {
       this.enter("fight", now, 0);
       this.onNotice?.(this.modeKind === "crown" ? "FIGHT  ·  THE CROWN IN 20 S" : "FIGHT");
-      if (this.modeKind === "crown") this.crown = new Crown(ARENA_X, ARENA_Z, now);
+      if (this.modeKind === "crown") this.crown = new Crown(this.layout.crown.x, this.layout.crown.z, now);
       else if (!Number.isFinite(this.timeEndsAt)) this.timeEndsAt = now + (this.modeKind === "gunrun" ? MODES.gunRun.timeLimit : this.modeKind === "control" ? MODES.control.timeLimit : this.modeKind === "ffa" ? MODES.ffa.timeLimit : MODES.tdm.timeLimit);
-      if (this.modeKind === "control" && !this.control) this.control = new Control(now);
+      if (this.modeKind === "control" && !this.control) this.control = new Control(now, Math.random, this.layout.zones);
       this.gunsChanged();
       this.sendMode(now);
     } else if (this.phase === "roundEnd" && now >= this.phaseEndsAt) {
@@ -819,7 +883,7 @@ export class ArenaMode extends Duel {
     const fighters = this.fighters();
     // Control: the zones, the points, the bonus and the lockout
     if (this.control) {
-      const r = this.control.update(now, dt, fighters.map((f) => ({ x: f.x - ARENA_X, z: f.z - ARENA_Z, team: this.teamFor(f.id), alive: f.alive })));
+      const r = this.control.update(now, dt, fighters.map((f) => ({ x: f.x - this.layout.ox, z: f.z - this.layout.oz, team: this.teamFor(f.id), alive: f.alive })));
       const mine = this.teamFor(this.id);
       for (const e of r.events) {
         const [what, zone, team] = e.split(" ");
@@ -1004,10 +1068,10 @@ export class ArenaMode extends Duel {
       goal = new THREE.Vector3(s.x, 0, s.z);
     } else {
       // a roam over the spawns and the middle, a new point on arrival
-      const pts = [...MODES.spawns.a, ...MODES.spawns.b, ...MODES.spawns.mid];
-      const g = world(pts[b.goal % pts.length]);
+      const pts = [...this.layout.a, ...this.layout.b, ...this.layout.mid];
+      const g = this.world(pts[b.goal % pts.length]);
       if (Math.hypot(g.x - bot.pos.x, g.z - bot.pos.z) < 2.5) b.goal = Math.floor(Math.random() * pts.length);
-      const n = world(pts[b.goal % pts.length]);
+      const n = this.world(pts[b.goal % pts.length]);
       goal = new THREE.Vector3(n.x, 0, n.z);
     }
     return { target, targetId, goal, canShoot: this.phase === "fight" && !this.holdFire };
@@ -1048,7 +1112,7 @@ export class ArenaMode extends Duel {
     if (this.ended || this.role !== "host") return;
     this.ladder.remove(id);
     this.roundWins.delete(id);
-    if (this.crown?.carrier === id) this.crown.drop(f?.x ?? ARENA_X, f?.z ?? ARENA_Z);
+    if (this.crown?.carrier === id) this.crown.drop(f?.x ?? this.layout.crown.x, f?.z ?? this.layout.crown.z);
     this.checkLastUp(wallClock());
   }
 

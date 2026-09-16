@@ -25,7 +25,8 @@ import { Dummy, actFromCode, stanceCode, stanceFromCode, type FigureAct, type Fi
 import type { ProjectileSystem } from "./projectile";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import type { Link, NetMsg, RoundPhase } from "../net/link";
-import { ARENA_CENTER, ARENA_LOBBY_SPAWNS, ARENA_SPAWNS, TRI_CENTER, TRI_SPAWNS, ZONE_RADIUS } from "./arena";
+import { ARENA_BOUNDS, ARENA_CENTER, ARENA_LOBBY_SPAWNS, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, TRI_CENTER, TRI_SPAWNS, ZONE_RADIUS, arenaMap, mapFor, type ArenaMapId } from "./arena";
+import type { Bounds } from "./player";
 import { operatorById } from "./operators";
 import type { MatchSummary } from "./stats";
 import type { BrHud } from "./brmatch";
@@ -53,7 +54,9 @@ const SILENCE_LIMIT = 10;
  * The most humans in one match. The star topology puts every packet through
  * the host, which also runs the bots, so this is a friends-and-bots ceiling
  * rather than a lobby size: at eight the host is relaying about 1,500 small
- * messages a second. Spawns exist for eight in the warehouse (arena.ts).
+ * messages a second. Every arena carries eight spawns for exactly this
+ * reason: the warehouse's are in arena.ts, and each drawn map's are in its
+ * own plan under src/game/arenas.
  */
 export const MAX_PLAYERS = 8;
 /** one gunshot sound per trigger pull: a shotgun's pellets arrive together */
@@ -73,15 +76,50 @@ export interface Spawn {
   yaw: number;
 }
 
-/** the arena a match of this size uses */
-export function arenaFor(players: number): { spawns: Spawn[]; center: THREE.Vector3 } {
+/** what a match plays on: where everyone starts, the middle, and the walls the player is held inside */
+export interface ArenaChoice {
+  map: ArenaMapId;
+  spawns: Spawn[];
+  center: THREE.Vector3;
+  bounds: Bounds;
+}
+
+/**
+ * The arena a match uses. There are five of them now (src/game/arena.ts
+ * ARENA_MAPS): the warehouse, the triangle, and the three in
+ * src/game/arenas. `map` is the host's choice, and it is the host's because
+ * everyone in a match has to be standing in the same building.
+ *
+ * With no choice made this returns exactly what it always returned, which is
+ * on purpose. main.ts still clamps a match's player to ARENA_BOUNDS by hand,
+ * so a match that quietly moved to another map would put the player in the
+ * warehouse's walls with the Vault's floor under them. The day the menu and
+ * the welcome packet carry a map id, and main.ts reads `bounds` off this,
+ * every mode can open on the map `mapFor` picks for it.
+ */
+export function arenaFor(players: number, map?: ArenaMapId | null): ArenaChoice {
+  if (map) {
+    const m = arenaMap(map);
+    // a map has to have a spawn for everyone in the match; the warehouse and
+    // the three drawn arenas all carry eight
+    const spawns = m.spawns.length ? m.spawns : ARENA_LOBBY_SPAWNS;
+    return { map: m.id as ArenaMapId, spawns, center: new THREE.Vector3(m.center.x, 0, m.center.z), bounds: m.bounds };
+  }
   // two: the warehouse's ends. three: the triangle, a corner each. more than
   // that and the triangle is too small and has only three corners, so a lobby
   // plays the warehouse, which has a spawn each.
-  if (players === 3) return { spawns: TRI_SPAWNS, center: TRI_CENTER };
-  if (players > 3) return { spawns: ARENA_LOBBY_SPAWNS, center: ARENA_CENTER };
-  return { spawns: [ARENA_SPAWNS.host, ARENA_SPAWNS.guest], center: ARENA_CENTER };
+  if (players === 3) return { map: "triangle", spawns: TRI_SPAWNS, center: TRI_CENTER, bounds: TRI_BOUNDS };
+  if (players > 3) return { map: "warehouse", spawns: ARENA_LOBBY_SPAWNS, center: ARENA_CENTER, bounds: ARENA_BOUNDS };
+  return { map: "warehouse", spawns: [ARENA_SPAWNS.host, ARENA_SPAWNS.guest], center: ARENA_CENTER, bounds: ARENA_BOUNDS };
 }
+
+/** the maps a menu can offer, each with the modes it was drawn for */
+export function arenaMapList(): Array<{ id: ArenaMapId; name: string; blurb: string; bestFor: string[]; players: number }> {
+  return ARENA_MAPS.map((m) => ({ id: m.id as ArenaMapId, name: m.name, blurb: m.blurb, bestFor: m.bestFor, players: m.spawns.length }));
+}
+
+/** the map a mode opens on when the host has not picked one (src/game/arena.ts mapFor) */
+export const defaultMapFor = mapFor;
 
 interface Sample {
   at: number;
@@ -275,6 +313,11 @@ export class Duel implements MatchLike {
   protected ended = false;
   private readonly spawns: Spawn[];
   private readonly center: THREE.Vector3;
+  /** the arena this match is played in, and the walls the player is held inside it by */
+  // Named arenaId and not map: BrMatch extends Duel and already keeps its
+  // own private `map`, the battle royale's, and the two collided.
+  readonly arenaId: ArenaMapId;
+  readonly arenaBounds: Bounds;
 
   // for the summary
   protected kills = 0;
@@ -363,7 +406,7 @@ export class Duel implements MatchLike {
   constructor(
     protected scene: THREE.Scene,
     protected projectiles: ProjectileSystem,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; mode?: "duel" | "br" | "arena"; abilities?: boolean }
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; mode?: "duel" | "br" | "arena"; abilities?: boolean; map?: ArenaMapId | null }
   ) {
     const now = wallClock();
     this.mode = opts.mode ?? "duel";
@@ -374,9 +417,11 @@ export class Duel implements MatchLike {
     this.lastClock = now;
     this.scores = new Array(Math.max(2, this.players)).fill(0);
     this.caps = new Array(Math.max(2, this.players)).fill(0);
-    const a = arenaFor(this.players);
+    const a = arenaFor(this.players, opts.map ?? null);
     this.spawns = a.spawns;
     this.center = a.center;
+    this.arenaId = a.map;
+    this.arenaBounds = a.bounds;
     this.phase = "waiting";
     this.phaseEndsAt = now + COUNTDOWN;
     if (this.role === "host") {

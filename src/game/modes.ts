@@ -276,8 +276,13 @@ export class Control {
   /** one team holding all three: who, and when it wins if nobody retakes one */
   lockout: { team: 0 | 1; endsAt: number } | null = null;
 
-  constructor(fightStart: number, private readonly rng: () => number = Math.random) {
-    this.zones = cfg.control.zones.map(([id, x, z]) => ({ id: String(id), x: Number(x), z: Number(z), v: 0, owner: -1 as ControlOwner }));
+  constructor(
+    fightStart: number,
+    private readonly rng: () => number = Math.random,
+    /** the three points in the arena's own coordinates; the warehouse's, from modes.json, when none are given */
+    zones: ReadonlyArray<readonly [string, number, number]> = cfg.control.zones.map(([id, x, z]) => [String(id), Number(x), Number(z)] as const)
+  ) {
+    this.zones = zones.map(([id, x, z]) => ({ id, x, z, v: 0, owner: -1 as ControlOwner }));
     this.nextBonusAt = fightStart + cfg.control.bonus.firstAt;
   }
 

@@ -43,7 +43,7 @@ import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
 import { AimAssist } from "./game/aimassist";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
 import type { MoveInput } from "./game/player";
-import { buildArena, buildTriArena, ARENA_BOUNDS, ARENA_SPAWNS, TRI_BOUNDS } from "./game/arena";
+import { buildArena, buildTriArena, ARENA_BOUNDS, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
 import { Loadouts, type LoadoutDef } from "./game/loadouts";
 import { operatorById, OPERATORS } from "./game/operators";
 import { setArmColors } from "./game/arms";
@@ -1069,6 +1069,41 @@ botWeaponSel.addEventListener("change", () => {
   }
 });
 const botWeaponChoice = (): string | null => botWeaponSel.value || null;
+// The arena. One map for six modes was why every mode played the same, and the
+// owner asked for small maps for 1v1s and free-for-all. The warehouse stays
+// the default so a match that worked yesterday opens where it opened
+// yesterday; "picked for the mode" uses the map each mode was drawn for.
+const arenaMapSel = $<HTMLSelectElement>("arenaMap");
+for (const [value, label] of [
+  ["warehouse", "Map: the warehouse"],
+  ["auto", "Map: picked for the mode"],
+  ...ARENA_MAPS.filter((m) => m.plan).map((m) => [m.id, `Map: ${m.name.replace(/^THE /, "the ").toLowerCase()}`]),
+] as Array<[string, string]>) {
+  const o = document.createElement("option");
+  o.value = value;
+  o.textContent = label;
+  arenaMapSel.appendChild(o);
+}
+try {
+  const saved = localStorage.getItem("range.arenaMap") ?? "";
+  if (saved && [...arenaMapSel.options].some((o) => o.value === saved)) arenaMapSel.value = saved;
+} catch {
+  /* ignore */
+}
+arenaMapSel.addEventListener("change", () => {
+  try {
+    localStorage.setItem("range.arenaMap", arenaMapSel.value);
+  } catch {
+    /* ignore */
+  }
+});
+/** the arena for a mode (or "duel"), from the picker */
+const arenaMapChoice = (kind: string, players: number): ArenaMapId => {
+  if (arenaMapSel.value === "auto") return mapFor(kind, players);
+  return arenaMap(arenaMapSel.value).id as ArenaMapId;
+};
+/** a map id from the wire, which may be from an older build or not a map at all */
+const arenaFromWire = (id: string | undefined): ArenaMapId | null => (id ? (arenaMap(id).id as ArenaMapId) : null);
 // Abilities on or off, per kind of match, remembered: the friends' arena and
 // the bots off by default, the battle royale on. The friends' select follows
 // the mode picked beside it (a squad BR shows the BR's setting).
@@ -1957,9 +1992,10 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   const modeOpts = myId === 0 ? hostOpts?.mode : opts?.mode;
   if (modeOpts && isModeKind(modeOpts.kind)) {
     const diff: BotDifficulty = asDifficulty(modeOpts.difficulty);
-    d = new ArenaMode(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, kind: modeOpts.kind, bots: modeOpts.bots, difficulty: diff, botWeapon: modeOpts.botWeapon ?? null, list: modeOpts.list === "full" ? "full" : "short" });
+    d = new ArenaMode(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, kind: modeOpts.kind, bots: modeOpts.bots, difficulty: diff, botWeapon: modeOpts.botWeapon ?? null, list: modeOpts.list === "full" ? "full" : "short", map: arenaFromWire(modeOpts.map) });
     duel = d;
-    player.setBounds(ARENA_BOUNDS);
+    // the walls of the map this match is on, which is not always the warehouse now
+    player.setBounds(d.arenaBounds);
     wireMatch(d, modeOpts.kind);
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
@@ -1967,9 +2003,12 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
     duel = d;
     wireMatch(d, "br");
   } else {
-    d = new Duel(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities });
+    // three is still the triangle, the only map with three corners; two play
+    // on the host's pick
+    const wireMap = myId === 0 ? hostOpts?.map : opts?.map;
+    d = new Duel(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, map: players >= 3 ? null : arenaFromWire(wireMap) });
     duel = d;
-    player.setBounds(players >= 3 ? TRI_BOUNDS : ARENA_BOUNDS);
+    player.setBounds(players >= 3 ? TRI_BOUNDS : d.arenaBounds);
     wireMatch(d, players >= 3 ? "triple" : "duel");
   }
   const goal = d instanceof ArenaMode ? `${MODE_TITLE[d.modeKind]}: ${modeGoal(d)}` : squad ? `The squad drops onto ${(d as BrMatch).poi.name} against ${squad.bots} bots.` : "First to 3 rounds.";
@@ -2023,9 +2062,9 @@ function startMode(kind: ModeKind): void {
   // the bots you picked are the ones you face, in every mode; a team mode
   // fills your side to match (modematch.ts)
   const bots = Math.max(1, modeBotCount());
-  const d = new ArenaMode(scene, projectiles, { players: 1, myId: 0, link: null, abilities: abilitySetting("bots"), kind, bots, difficulty: diff, list: modeList(), botWeapon: botWeaponChoice() });
+  const d = new ArenaMode(scene, projectiles, { players: 1, myId: 0, link: null, abilities: abilitySetting("bots"), kind, bots, difficulty: diff, list: modeList(), botWeapon: botWeaponChoice(), map: arenaMapChoice(kind, 1 + bots) });
   duel = d;
-  player.setBounds(ARENA_BOUNDS);
+  player.setBounds(d.arenaBounds);
   wireMatch(d, kind);
   respawnForMatch(d);
   setDuelStatus(`${MODE_TITLE[kind]} against ${kind === "tdm" || kind === "control" ? "a team of bots, with bots on your side" : `${bots} bot${bots === 1 ? "" : "s"}`}, ${diff}: ${modeGoal(d)}`, "good");
@@ -2125,7 +2164,11 @@ duelHostBtn.addEventListener("click", () => {
   // now so every guest is told the same
   hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart() } : null;
   const mk = duelModeKind();
-  hostOpts = { abilities: abilitySetting(duelKind()), mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList(), botWeapon: botWeaponChoice() } : undefined };
+  hostOpts = {
+    abilities: abilitySetting(duelKind()),
+    mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList(), botWeapon: botWeaponChoice(), map: arenaMapChoice(mk, 8) } : undefined,
+    map: arenaMapChoice("duel", 2),
+  };
   setDuelStatus("Making a match...", "live");
   hosting = hostMatch(
     players,
