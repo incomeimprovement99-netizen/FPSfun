@@ -15,7 +15,7 @@
 //
 // Run on its own: npx tsx tools/checks/viewmodel-arms.ts.
 import * as THREE from "three";
-import { Forearm, Hand, MIN_VIEW_DEPTH, SLEEVE_CAP } from "../../src/game/arms";
+import { Forearm, Hand, MAX_ARM_LENGTH, MAX_VIEW_SLIDE, MIN_VIEW_DEPTH, SLEEVE_CAP } from "../../src/game/arms";
 import { VM_SCALE, inspectTurn, shoulderAnchor, turnAboutCentre, type ArmFamily } from "../../src/game/viewmodel";
 
 let fails = 0;
@@ -360,6 +360,49 @@ console.log("\nThe elbow end of a sleeve");
   const stretch = arm.group.scale.y * cap.scale.y;
   check("the dome stays round however far the arm is stretched", Math.abs(stretch - 1) < 1e-9, `${stretch.toFixed(6)} of its own height`);
 }
+
+// ------------------------------------------------- the fists, at a full sprint
+//
+// The gun arms end at fixed shoulder anchors, so their length is right by
+// construction and the guard never has to move them. The fists, the crawl
+// hands and the zipline arm are not in that scheme: they set an elbow
+// directly, and the holstered fists put theirs 1.68 mm in front of the camera
+// at full sprint amplitude. The guard rescued the screen position and handed
+// back an EIGHT METRE forearm, because sliding along the line of sight means
+// scaling the whole vector and a factor of thirty applies sideways too.
+console.log("");
+console.log("The fists at a sprint");
+{
+  const SPRINT_PUMP = 1.6;
+  const toView = new THREE.Matrix4().makeScale(VM_SCALE, VM_SCALE, VM_SCALE);
+  const arm = new Forearm(0.055);
+  const wrist = new THREE.Vector3();
+  const elbow = new THREE.Vector3();
+  let shortest = Infinity;
+  let longest = 0;
+  let nearest = Infinity;
+  const STEPS = 121;
+  for (let i = 0; i < STEPS; i++) {
+    // the sprint pump runs the whole way either side, and the drop is the
+    // crouch offset, which only moves the elbow down
+    const sw = (i / (STEPS - 1)) * 2 * SPRINT_PUMP - SPRINT_PUMP;
+    for (const drop of [0, 0.18]) {
+      wrist.set(0.17 - 0.02, -0.25 - drop + Math.abs(sw) * 0.035 - Math.max(0, -sw) * 0.05, -0.4 - sw * 0.09);
+      elbow.set(0.3, -0.58 - drop, -0.1 - sw * 0.06);
+      arm.set(wrist, elbow, toView);
+      const len = arm.group.scale.y;
+      shortest = Math.min(shortest, len);
+      longest = Math.max(longest, len);
+      for (const p of [wrist, elbow]) nearest = Math.min(nearest, -p.clone().applyMatrix4(toView).z);
+    }
+  }
+  check("the fists' forearm is still a forearm at any sprint amplitude", longest <= MAX_ARM_LENGTH + 1e-9, `${(shortest * VM_SCALE).toFixed(2)} to ${(longest * VM_SCALE).toFixed(2)} m of sleeve`);
+  // the pose itself asks for an elbow 1.68 mm in front of the camera at full
+  // amplitude, which is the whole reason the guard exists
+  check("the pose really does ask for an elbow inside the guard", nearest < MIN_VIEW_DEPTH, `it asks for ${nearest.toFixed(4)}`);
+  check("the guard's slide is capped, and so is the arm", MAX_VIEW_SLIDE > 1 && MAX_VIEW_SLIDE < 4 && MAX_ARM_LENGTH > 0.9 && MAX_ARM_LENGTH < 2, `slide x${MAX_VIEW_SLIDE}, length ${MAX_ARM_LENGTH}`);
+}
+
 
 console.log(fails === 0 ? "\nVIEWMODEL ARMS PASS" : `\nVIEWMODEL ARMS FAIL (${fails})`);
 export const viewmodelArmsFails = fails;

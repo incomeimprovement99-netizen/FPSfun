@@ -2,12 +2,64 @@
   "_note": "The first-person arms (src/game/viewmodel.ts, src/game/arms.ts). Ours: none of this is a published number. A forearm runs from the wrist, which is on the gun, back to one fixed point per arm, and that point stands for a joint on the body, so it lives in CAMERA space and does not move when the gun moves. Positions are in viewmodel space, before VM_SCALE, with the eye at the origin, +x right, +y up and +z back toward you; multiply by VM_SCALE for real metres from the eye. They started as wherever the old gun-local elbows landed at the hip, then went out along the line of sight until the far end of the arm cleared the near plane, which leaves the forearm on the same line across the screen as before and only further away, and on down the same line until the end of the arm was off the bottom of the frame, where an arm that carries on past the model belongs.",
   "shoulders": {
     "_note": "One set per gun family (GunModel.support.kind: a rifle's handguard, a shotgun's pump, a pistol). `right` is the trigger arm and holds for every pose. `leftHip` and `leftAds` are the support arm at the hip and aimed, blended by the ADS fraction, because aiming brings the support elbow in under the gun and a hip elbow would stretch the forearm across the sight picture. The bow rides the pistol family, which is the family its support hand says it is.",
-    "guard": { "right": [0.46, -0.86, -0.17], "leftHip": [-0.24, -0.57, -0.45], "leftAds": [-0.18, -0.55, -0.43] },
-    "pump": { "right": [0.46, -0.86, -0.17], "leftHip": [-0.235, -0.56, -0.44], "leftAds": [-0.175, -0.54, -0.42] },
-    "pistol": { "right": [0.34, -0.62, -0.2], "leftHip": [-0.18, -0.72, -0.24], "leftAds": [-0.15, -0.62, -0.22] }
+    "guard": {
+      "right": [
+        0.46,
+        -0.86,
+        -0.17
+      ],
+      "leftHip": [
+        -0.24,
+        -0.57,
+        -0.45
+      ],
+      "leftAds": [
+        -0.18,
+        -0.55,
+        -0.43
+      ]
+    },
+    "pump": {
+      "right": [
+        0.46,
+        -0.86,
+        -0.17
+      ],
+      "leftHip": [
+        -0.235,
+        -0.56,
+        -0.44
+      ],
+      "leftAds": [
+        -0.175,
+        -0.54,
+        -0.42
+      ]
+    },
+    "pistol": {
+      "right": [
+        0.34,
+        -0.62,
+        -0.2
+      ],
+      "leftHip": [
+        -0.18,
+        -0.72,
+        -0.24
+      ],
+      "leftAds": [
+        -0.15,
+        -0.62,
+        -0.22
+      ]
+    }
   },
   "_minDepth": "metres in front of the eye that no end of an arm may come inside, whatever an animation asks for. The camera's near plane is 0.02 m (src/main.ts) and the capped end of a sleeve is about a centimetre across out there, so this leaves the geometry at twice the near plane. A point inside it is slid out along the line of sight, so it keeps its place on screen and only gets further away.",
   "minDepth": 0.05,
+  "_maxSlide": "the most the guard may scale a point out by. It slides ALONG the line of sight, which keeps the point where it was on screen and means scaling the whole vector, so the factor applies sideways too: the holstered fists at a sprint asked for an elbow 12 mm in front of the eye, the factor came out at 4.25, and the forearm came back 2.5 times longer than an arm. Past this the point is simply held at the guard depth, which moves it a little on screen and keeps it an arm.",
+  "maxSlide": 1.8,
+  "_maxLength": "the longest a forearm may be, viewmodel metres, whatever the pose and the guard between them ask for. A real one here runs about 0.24 to 0.95. This is the last word: the elbow is drawn in along the arm until it fits, because an elbow is off the bottom of the frame anyway and a metres-long sleeve across the screen is not a thing any pose should be able to produce.",
+  "maxLength": 1.0,
   "_sleeveCap": "the radius the sleeve narrows to at the elbow, viewmodel metres, closed over with a dome of the same radius. The old end was a flat 0.06 disc at full width, which is invisible while the arm runs off the bottom of the frame and a dark plate across the screen the moment a pose swings it round.",
   "sleeveCap": 0.022
 }

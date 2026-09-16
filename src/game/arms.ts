@@ -25,6 +25,10 @@ import cfg from "../config/viewmodel.json";
 
 /** no end of an arm may come inside this many metres of the eye */
 export const MIN_VIEW_DEPTH = cfg.minDepth;
+/** the most the guard may scale an arm end out by (src/config/viewmodel.json) */
+export const MAX_VIEW_SLIDE = cfg.maxSlide;
+/** the longest a forearm may end up, whatever is asked for */
+export const MAX_ARM_LENGTH = cfg.maxLength;
 /** the radius the sleeve narrows to at the elbow */
 export const SLEEVE_CAP = cfg.sleeveCap;
 
@@ -280,7 +284,17 @@ export class Forearm {
       this.keepBack(this.b, toView);
     }
     this.dir.subVectors(this.b, this.a);
-    const len = Math.max(0.05, this.dir.length());
+    let len = Math.max(0.05, this.dir.length());
+    // The last word on how long an arm may be. The guard above can only push
+    // an end AWAY from the eye, and two ends pushed different distances make
+    // a longer arm, so a pose nobody has written yet could still stretch one
+    // across the screen. The elbow is drawn back in along the arm instead: it
+    // is off the bottom of the frame either way.
+    if (len > MAX_ARM_LENGTH) {
+      this.b.copy(this.a).addScaledVector(this.dir, MAX_ARM_LENGTH / len);
+      this.dir.subVectors(this.b, this.a);
+      len = MAX_ARM_LENGTH;
+    }
     this.group.position.copy(this.a);
     this.group.quaternion.setFromUnitVectors(this.up, this.dir.divideScalar(len));
     this.group.scale.set(1, len, 1);
@@ -299,8 +313,17 @@ export class Forearm {
     this.view.copy(p).applyMatrix4(toView);
     const depth = -this.view.z;
     if (depth >= MIN_VIEW_DEPTH) return;
-    if (depth > 1e-4) this.view.multiplyScalar(MIN_VIEW_DEPTH / depth);
-    else this.view.z = -MIN_VIEW_DEPTH;
+    if (depth > 1e-4) {
+      // The slide scales the whole vector, which is what keeps the point where
+      // it was on screen. It also means a point a millimetre in front of the
+      // eye is thrown out sideways by the same factor: the holstered fists at
+      // full sprint amplitude came back with an eight metre forearm. Past
+      // MAX_VIEW_REACH it stops sliding and is held at the guard depth
+      // instead, which moves it on screen a little and keeps it an arm.
+      const k = MIN_VIEW_DEPTH / depth;
+      if (k <= MAX_VIEW_SLIDE) this.view.multiplyScalar(k);
+      else this.view.z = -MIN_VIEW_DEPTH;
+    } else this.view.z = -MIN_VIEW_DEPTH;
     p.copy(this.view).applyMatrix4(this.viewInv);
   }
 }
