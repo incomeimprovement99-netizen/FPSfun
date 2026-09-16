@@ -790,3 +790,15 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   a frame and needs no reload. It sits under Graphics and is kept like the graphics preset.
 - The afternoon is the range's old look to the digit, and a check fails if that drifts. The sun **disk** and the
   **light** turned out to be two different colours (fff0d0 and fff2dc) and conflating them quietly relit the range.
+
+## Milestone 53 — Three new arenas and a map picker ✅
+2026-09-16 (Phase 15). `src/game/arenas/`, `arena.ts`, `duel.ts`, `modematch.ts`, `modes.ts`, `main.ts`, `index.html`.
+- "More maps small for 1v1s and FFA modes." One map for six modes was why every mode played the same.
+- **The Vault** (26 by 30, two storeys round a hole, two ropes) for 1v1, free-for-all and Gun Run. **The Crossing**
+  (56 by 68, symmetric high ground) for team deathmatch, Control and Crown. **The Ringworks** (44 by 44, open sky)
+  for free-for-all, Gun Run and Crown.
+- Drawn from plans so a check walks them in node: spawns clear, no spawn-to-spawn shot, a bot route between every
+  pair of spawns, a bot staircase to every raised floor, zones on a bot route, no pocket to be shut in. 34 checks.
+- A Map picker in the modes row; the warehouse stays the default. A friends' match carries the host's pick in the
+  welcome. The mode rules moved from warehouse offsets to a per-map layout, and the player is clamped to the chosen
+  map's walls.
