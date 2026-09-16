@@ -249,6 +249,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     box(1.6, 1.4, 1.6, 21, 0, cz - 13.5, crate);
     box(1.6, 1.4, 1.6, 3, 0, cz + 14, crate);
     box(1.6, 1.4, 1.6, -9, 0, cz - 14, crate);
+    jumpTower(poi, -26, cz + 6, new THREE.Vector3(-18, 2.2, cz + 92), 15);
     root.add(textPanel("NORTH YARD", 0, 3.4, cz - 22, 0, 6, 1.4));
   }
 
@@ -281,6 +282,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     }
     building(poi, { x: 26, z: cz + 12, w: 11, d: 9, storeys: 2, storeyH: 3.4, doors: ["w"], windows: ["n", "s", "e"], stairs: true, balcony: true });
     crateStair(poi, 33, cz + 6, 6.8, -1);
+    jumpTower(poi, -28, cz - 6, new THREE.Vector3(-18, 2.2, cz - 92), 15);
     root.add(textPanel("SOUTH DEPOT", 0, 3.4, cz + 22, Math.PI, 6, 1.4));
   }
 
@@ -354,6 +356,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
       [cx + 12, 22],
       [cx - 4, 26],
     ]) box(6, 1.1, 0.8, x, 0, z, concrete);
+    jumpTower(poi, cx + 6, -26, new THREE.Vector3(cx + 92, 2.2, -18), 15);
     root.add(textPanel("WEST TOWN", cx, 3.4, -24, 0, 6, 1.4));
   }
 
