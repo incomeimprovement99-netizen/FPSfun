@@ -1705,7 +1705,7 @@ export class Hud {
     const o = s.ordnance;
     if (!o) return;
     if (o.counts) {
-      const short: Record<string, string> = { frag: "FRAG", arcstar: "STAR", thermite: "THERM" };
+      const short: Record<string, string> = { frag: "FRAG", arcstar: "STAR", thermite: "THERM", shockwave: "WAVE", rift: "RIFT" };
       const any = Object.values(o.counts).some((n) => n > 0);
       this.text(`${o.key}  ${Object.entries(o.counts).map(([k, n]) => `${short[k] ?? k} ${n}`).join("  ")}`, x, y, 700, 13 * u, any ? DIM : "rgba(154,164,173,0.4)");
     }
