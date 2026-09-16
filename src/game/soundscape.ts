@@ -79,6 +79,11 @@ export class Soundscape {
     this.wasGround = p.onGround;
     const stance = p.stance;
     if (stance === "mantle" && this.lastStance !== "mantle") a.mantle();
+    // The zipline had a loop and no start. Stepping on is the moment the ride
+    // reads as a decision, and on the battle royale map it is also the tell
+    // that gives a rotating squad away, so it is a placed sound and not a
+    // menu click.
+    if (stance === "zip" && this.lastStance !== "zip") a.zipOn(p.pos);
     if (stance === "climb" && f.now >= this.climbTapAt) {
       this.climbTapAt = f.now + 0.22;
       a.climbTap();

@@ -568,6 +568,68 @@ export class GameAudio {
     if (!this.sample(v.input, v.t, "clatter", 0.6, 0.8)) this.tone(v.input, v.t, 0.12, "triangle", 900, 700, 0.1);
   }
 
+  /**
+   * A door swinging, closing or being kicked. This is the one Apex sound a
+   * player listens FOR rather than at: a door two rooms away is most of how
+   * you know someone is in the building with you, so it carries further than
+   * its loudness suggests and it is never synthesised, because synthesis
+   * cannot do a hinge.
+   */
+  door(at: Vec, kind: "open" | "close" | "kick"): void {
+    const v = this.voice(at, kind === "kick" ? 0.9 : 0.55, "fx", 0, kind === "kick" ? 0.7 : 0.45);
+    if (!v) return;
+    const name = kind === "open" ? "door_open" : kind === "close" ? "door_close" : "door_kick";
+    if (!this.sample(v.input, v.t, name, kind === "kick" ? 1 : 0.7)) {
+      this.tone(v.input, v.t, kind === "kick" ? 0.22 : 0.14, "triangle", kind === "kick" ? 160 : 420, 90, 0.3);
+    }
+  }
+
+  /** a supply bin's lid, the same tell as a door but shorter */
+  bin(at: Vec, open: boolean): void {
+    const v = this.voice(at, 0.5, "fx", 0, 0.4);
+    if (!v) return;
+    if (!this.sample(v.input, v.t, open ? "bin_open" : "bin_close", 0.7)) this.tone(v.input, v.t, 0.12, "square", 300, 180, 0.18);
+  }
+
+  /** an item going into the pack: the player's own, so it is not placed in the world */
+  pickup(): void {
+    const v = this.voice(null, 0.25, "fx", 1, 0);
+    if (!v) return;
+    if (!this.sample(v.input, v.t, "pickup", 0.4)) this.tone(v.input, v.t, 0.05, "triangle", 900, 1400, 0.09);
+  }
+
+  /** a respawn beacon working, and a squad mate's banner going in */
+  beacon(at: Vec): void {
+    const v = this.voice(at, 0.7, "fx", 0, 0.5);
+    if (!v) return;
+    if (!this.sample(v.input, v.t, "beacon", 0.6)) this.tone(v.input, v.t, 0.5, "sine", 220, 660, 0.2);
+  }
+
+  /**
+   * The drop's horn: a care package or a loadout pod on its way in. It is
+   * deliberately the loudest thing on the map and it does not attenuate the
+   * way an impact does, because everyone is meant to hear it and decide.
+   */
+  horn(at: Vec | null): void {
+    const v = this.voice(at, 1, "fx", 1, 1);
+    if (!v) return;
+    if (!this.sample(v.input, v.t, "horn", 1)) this.tone(v.input, v.t, 1.2, "sawtooth", 110, 80, 0.35);
+  }
+
+  /** a ping landing: short, dry, and the same for everyone in the squad */
+  pingTick(): void {
+    const v = this.voice(null, 0.2, "fx", 1, 0);
+    if (!v) return;
+    if (!this.sample(v.input, v.t, "ping", 0.5)) this.tone(v.input, v.t, 0.05, "square", 1500, 1100, 0.08);
+  }
+
+  /** stepping onto a zipline: the hook taking the line */
+  zipOn(at: Vec): void {
+    const v = this.voice(at, 0.5, "fx", 0, 0.35);
+    if (!v) return;
+    if (!this.sample(v.input, v.t, "zip_ride", 0.5, 1.15)) this.tone(v.input, v.t, 0.25, "sawtooth", 500, 900, 0.14);
+  }
+
   /** the menu: a click, a confirmation, an error */
   ui(kind: "click" | "confirm" | "error"): void {
     const v = this.voice(null, 0.4, "fx", 1, 0);
