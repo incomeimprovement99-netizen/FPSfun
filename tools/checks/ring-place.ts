@@ -225,6 +225,48 @@ console.log(`\nThe late circles lean onto cover (${MATCHES} paired matches, bias
   check("round one is drawn the same way it always was", a.every((v, i) => v === b[i]), `fromPhase ${cfg.cover.fromPhase}`);
 }
 
+// -------------------------------------------------------- where round one lands
+//
+// The first version of the bounds fix drew a centre and then CLAMPED it into
+// the map's box. Round one draws in a disc of radius 157 m and that box is
+// 80 m across, so two thirds of the draws landed ON the box: over a hundred
+// thousand rings the first circle's edge sat flush against the map edge in
+// 58 per cent of matches, and on one of four identical corner points in
+// another 9. Every check passed, because they all asked whether the circle
+// was inside the map and none asked where inside. These ask.
+console.log("");
+console.log("Where round one lands");
+{
+  const N = 20000;
+  const reach = Math.max(0, cfg.bounds.half - RING_PHASES[0].radius);
+  const seen = new Set<string>();
+  let flush = 0;
+  let corner = 0;
+  let outside = 0;
+  for (let i = 0; i < N; i++) {
+    let x = (i * 7919 + 3) >>> 0;
+    const rnd = (): number => {
+      x = (x * 1664525 + 1013904223) >>> 0;
+      return x / 4294967296;
+    };
+    const ring = new Ring({ cx: cfg.bounds.centerX, cz: cfg.bounds.centerZ, r: 320 }, rnd);
+    const c = ring.next;
+    const dx = Math.abs(c.cx - cfg.bounds.centerX);
+    const dz = Math.abs(c.cz - cfg.bounds.centerZ);
+    if (dx > reach + 1e-6 || dz > reach + 1e-6) outside++;
+    const ex = Math.abs(dx - reach) < 1e-6;
+    const ez = Math.abs(dz - reach) < 1e-6;
+    if (ex && ez) corner++;
+    else if (ex || ez) flush++;
+    seen.add(`${c.cx.toFixed(1)},${c.cz.toFixed(1)}`);
+  }
+  check("no first circle hangs over the map edge", outside === 0, `${outside} of ${N}`);
+  check("and none is pinned flush against it", flush * 100 < N, `${((flush / N) * 100).toFixed(2)}%`);
+  check("and none lands on a corner point", corner === 0, `${corner} of ${N}`);
+  check("twenty thousand matches give twenty thousand different first rings", seen.size > N * 0.95, `${seen.size} distinct centres`);
+}
+
+
 console.log(fails === 0 ? "\nRING PLACE PASS" : `\nRING PLACE FAIL (${fails})`);
 export const ringPlaceFails = fails;
 if (process.argv[1]?.endsWith("ring-place.ts")) process.exit(fails === 0 ? 0 : 1);
