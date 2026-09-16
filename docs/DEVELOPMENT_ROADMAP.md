@@ -690,3 +690,63 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   it, so the edits start from the pure clip pose every frame (and the death clip starts clean).
 - Tests: e2e (a still mannequin bot with a steep look: over 1.2 s the chest, head and pelvis hold their yaw
   within 15 degrees).
+
+## Milestone 44 — Clipping a wall stops costing you your speed ✅
+2026-09-16 (Phase 15). `src/game/player.ts`, `tools/movesim.ts`.
+- Measured first: sprinting along a wall met at 45 degrees left **0.31 m/s of 6.54**, at 20 degrees 1.80, at 10
+  degrees 3.24. The collision was not at fault. `groundMove` splits velocity into "along the wish" and
+  "perpendicular" and brakes the perpendicular at the turn rate; once a wall has taken the into-wall axis, the
+  speed you have left IS the perpendicular part, so the movement model was braking the only direction you could go.
+- The wish is now clipped to the wall plane and renormalised, as every Source-family engine does it: **255 to 257
+  hu/s at every angle** against 257 in the open. Straight into a wall still stops you. Ground only — in the air,
+  pressing into a wall is how a climb and a wallbounce are asked for.
+- Tests: six movesim checks (5, 10, 20 and 45 degrees against the open, and head-on still stopping).
+
+## Milestone 45 — The practice aim bot, and it cannot be hidden ✅
+2026-09-16 (Phase 15). `src/game/aimbot.ts`, `src/config/aimbot.json`, `hud.ts`, `duel.ts`, `net/link.ts`.
+- Settings, off by default: the view sweeps onto the nearest enemy chest in sight, capped by a turn rate, using
+  the torso hitbox and `solidHit`, so it takes nothing it cannot see.
+- The owner's call: it works in a match with friends too. The price is that it is never secret — whoever has it on
+  wears a **red bar and the word AIM BOT** over them on every other screen, at any range, through walls, carried
+  on the state packet.
+- Also: the dash is configurable (distance, time, charges, recharge) and the ability card rewrites its own blurb;
+  the fire button swings when the gun is holstered on 3; enemy plates are cut to 30 m.
+
+## Milestone 46 — A buddy plus bots in every mode, lobbies to eight ✅
+2026-09-16 (Phase 15). `duel.ts`, `modematch.ts`, `arena.ts`, `index.html`, `main.ts`.
+- The report was that a buddy could not join a TDM or FFA with bots. A probe of the exact path showed the code was
+  fine in tdm, ffa, control and crown — the way in was the problem: every mode with friends sat behind a tab
+  labelled "1v1", and the Play tab's buttons start offline with no code to share. The tab is **Friends** now.
+- The cap went from three humans to **eight** (`MAX_PLAYERS`), the warehouse got eight spawns, and a spawn past the
+  end of the list steps round and pushes out rather than stacking players in one cubic metre.
+- The bot count you pick is the side you **face** in every mode, including team modes that used to ignore it; your
+  side fills to match. Plus a **Bot guns** picker, carried to guests.
+
+## Milestone 47 — Land and live ✅
+2026-09-16 (Phase 15). `brmatch.ts`, `src/config/squad.json`.
+- "I died right away from people spawning near me... then i land and die." The bots were dealt round every place
+  including the squad's, so two or three landed on top of you while you had nothing. They take the other places
+  now; the nearest bot at landing went from on top of you to **150 to 190 m away**. They also spread in 18 m rings
+  round a drop point, and no gun works for 4 s after its owner lands.
+
+## Milestone 48 — The weapon inspect stops shoving a forearm into the camera ✅
+2026-09-16 (Phase 15). `src/game/viewmodel.ts`.
+- Reproduced with a screenshot: the flat end cap of the forearm cylinder sat dead centre of the frame as a dark
+  disc. An elbow is a point in GUN space, so turning the gun 60 degrees swung the elbow round to face the eye.
+- While the gun is being turned in the hands (an inspect, a first draw's flourish) the elbows are pinned in VIEW
+  space through the inverse of the gun's own pose, so the forearms keep running off the bottom of the frame. At
+  rest, aimed and reloading nothing changes.
+
+## Milestone 49 — Outskirts has buildings you can fight inside, and four more places ✅
+2026-09-16 (Phase 15). `src/game/brpoi.ts`, `br.ts`, `src/config/loot.json`.
+- Every POI was solid boxes: `box(12, 5, 10, ...)` is a building you can only stand ON, so every fight was outdoors
+  on open sand. `brpoi.ts`'s `building()` makes shells instead — wall runs with doorway and window gaps, a floor
+  per storey with a hole for the stairs, stairs whose steps clear the 0.56 m the movement walks, roofs with
+  parapets, balconies — plus `crateStair`, `jumpTower` and `coverWall`.
+- WEST TOWN is six houses on a street; THE HUB four two-storey buildings round the tower; NORTH YARD a warehouse;
+  SOUTH DEPOT three sheds and an office; EAST RIDGE a room under the bunker.
+- **Four new compounds** fill the empty diagonals (NORTHWEST FARM, NORTHEAST STORE, SOUTHWEST PENS, SOUTHEAST
+  WORKS): three buildings each, a wall open toward the middle, and a watch tower with a zipline pointing at the
+  nearest big place. Nine POIs now, so the bots spread wider and the ring can end somewhere worth fighting in.
+- Loot follows the rooms: 30 spots a place instead of 16, 2 to 4 items a spot instead of 1 to 3, the open field cut
+  from 26 spots to 20, and weapons weighted up from 22 to 30 of the kind roll.
