@@ -375,6 +375,10 @@ export class Duel implements MatchLike {
   // ---- down, not out (a battle royale squad; Season 30's numbers)
   downed = false;
   private bleedHp = 0;
+  /** what is left of the bleed-out while down: a hit lands here, not on health (a gold shield's self-revive watches it) */
+  get bleedLeft(): number {
+    return this.bleedHp;
+  }
   bleedUntil = 0;
   /** the knocks this life (the bleed-out shortens each time; the knockdown shield is per knock) */
   knockCount = 0;

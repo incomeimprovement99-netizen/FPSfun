@@ -965,6 +965,18 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   await sleep(600);
   const gBack = await ev<{ hp: number; d: number; regen: boolean; shield: number; max: number; things: number }>(guest, `(() => { const r = window.__range; const d = r.duel(); const p = r.player.pos; return { hp: d.health, d: Math.hypot(p.x - ${bAt?.x ?? 0}, p.z - ${bAt?.z ?? 0}), regen: !!r.kdState().box, shield: d.shield, max: d.shieldMax, things: r.loadout.slots.filter((s) => !s.empty).length + Object.values(r.kit.items).reduce((a, b) => a + b, 0) }; })()`);
   check("deathbox respawn: 7 s later the guest is up on the box at 20 health, the shield coming back from nothing, the box's things on", back && gBack.hp === 20 && gBack.d < 3 && gBack.regen && gBack.shield < gBack.max && gBack.things > 0, JSON.stringify(gBack));
+  // A gold knockdown shield's self-revive: the guest loots one, goes down with
+  // the host still up, holds interact, and stands again at a squad mate's
+  // revive health with the shield's one self-revive spent.
+  await ev(guest, `window.__range.applyLoot({ kind: "knockdown", id: "gold", n: 1, rarity: "legendary" })`);
+  await ev(guest, `(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()`);
+  await sleep(500);
+  const selfPrompt = await ev<string>(guest, "JSON.stringify(window.__range.hud.last?.downed?.self ?? null)");
+  await ev(guest, `window.__range.setScript({ held: (a) => a === "interact", pressedNow: () => false })`);
+  const selfUp = await guest.waitForFunction("!window.__range.duel().downed && window.__range.duel().alive", { polling: 100, timeout: 12000 }).then(() => true, () => false);
+  await ev(guest, "window.__range.setScript(null)");
+  const selfState = await ev<{ hp: number; left: number }>(guest, "(() => { const r = window.__range; return { hp: r.duel().health, left: r.kd.selfLeft }; })()");
+  check("self-revive: down with a gold shield, the HUD offers it, holding interact stands you up at revive health, and it is spent", /"key"/.test(selfPrompt) && selfUp && selfState.hp === 20 && selfState.left === 0, JSON.stringify({ selfPrompt, selfUp, selfState }));
   // out again for what follows: down, then finished
   await ev(guest, `(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()`);
   await sleep(300);

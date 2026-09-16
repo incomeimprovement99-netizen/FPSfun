@@ -167,7 +167,13 @@ export interface HudState {
   /** a squad mate's banner you carry, and how long it lasts */
   banner?: { name: string; left: number } | null;
   /** you are down: the bleed-out clock, and who is reviving you */
-  downed?: { left: number; revivedBy: string | null; kd?: { hp: number; max: number; up: boolean; key: string } | null } | null;
+  downed?: {
+    left: number;
+    revivedBy: string | null;
+    kd?: { hp: number; max: number; up: boolean; key: string } | null;
+    /** a gold knockdown shield's self-revive: the key to hold, and how far the channel has run (null while it is not) */
+    self?: { key: string; progress: number | null } | null;
+  } | null;
   /** out, watching a squad mate (or a bot): whose eyes, and first person or not */
   spectating?: { name: string; first: boolean } | null;
 }
@@ -469,6 +475,19 @@ export class Hud {
         c.fillStyle = kd.hp <= 0 ? "#5a5f66" : kd.up ? "#6fd3ff" : "rgba(111,211,255,0.55)";
         c.fillRect(cx - bw / 2, y, bw * Math.max(0, kd.hp / kd.max), 8 * u);
         this.text(kd.hp <= 0 ? "KNOCKDOWN SHIELD BROKEN" : kd.up ? `KNOCKDOWN SHIELD UP  ·  ${Math.ceil(kd.hp)}` : `HOLD ${kd.key}: KNOCKDOWN SHIELD (${Math.ceil(kd.hp)})`, cx, y + 24 * u, 700, 13 * u, kd.hp <= 0 ? DIM : "#bfe9ff", "center");
+      }
+      // a gold shield's self-revive: the prompt, and the channel's bar while it runs
+      const self = s.downed.self;
+      if (self) {
+        const y = this.h * 0.3 + 116 * u;
+        if (self.progress !== null) {
+          const bw = 220 * u;
+          c.fillStyle = "rgba(0,0,0,0.55)";
+          c.fillRect(cx - bw / 2, y, bw, 8 * u);
+          c.fillStyle = "#ffc12e";
+          c.fillRect(cx - bw / 2, y, bw * self.progress, 8 * u);
+        }
+        this.text(self.progress !== null ? "SELF-REVIVING  ·  DO NOT GET HIT" : `HOLD ${self.key}: SELF-REVIVE (GOLD SHIELD)`, cx, y + 24 * u, 700, 13 * u, "#ffd27a", "center");
       }
     }
     if (s.brHold) {

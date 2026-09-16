@@ -413,10 +413,18 @@ export class BrPlay {
     // the loop would meet that remainder, weigh it against the same
     // frame-old carry, take it, put it back, and never leave the loop.
     if (carry && match.lootField) {
+      // Never out of a death box. The box's things lie spread round it, and a
+      // squad mate standing on it to bring the owner back (a Deathbox
+      // Respawn) swept up the ammo and heals the owner was meant to get back,
+      // so they came back with nothing. A box is opened on purpose, with the
+      // key, like everywhere else in the genre.
+      const boxes: Array<{ x: number; z: number }> = [];
+      for (const d of match.lootField.drops.values()) if (d.item.kind === "box") boxes.push({ x: d.pos.x, z: d.pos.z });
       const sweep: number[] = [];
       for (const d of match.lootField.drops.values()) {
         if (Math.abs(d.pos.y - p.y) > LOOTING.floorGap) continue;
         if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > LOOTING.sweep) continue;
+        if (boxes.some((b) => Math.hypot(d.pos.x - b.x, d.pos.z - b.z) < LOOTING.boxClear)) continue;
         if (autoTakes(d.item, carry)) sweep.push(d.key);
       }
       for (const k of sweep) this.take(match, k, now);

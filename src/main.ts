@@ -1409,6 +1409,8 @@ let boxRegen: { rate: number } | null = null;
 // The knockdown shield (src/game/kit.ts): its size comes from your EVO level,
 // or a better one you looted, and a gold one carries a self-revive.
 const kd = new Knockdown();
+/** your bleed-out last frame while down, so the self-revive can tell a hit landed */
+let selfReviveHp = 0;
 let kdPane: THREE.Mesh | null = null;
 /** the Deathbox Respawn beams in the world, by who is holding (your own is -1) */
 const beams = new Map<number, { obj: THREE.Mesh; until: number; hum: (() => void) | null }>();
@@ -3085,6 +3087,24 @@ function step(): void {
     // held fire raises it (and slows the crawl behind it)
     kd.up = kd.hp > 0 && (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire"));
     duel.kdUp = kd.up;
+    // A gold shield's self-revive: hold interact. A hit, a squad mate starting
+    // to revive you, or raising the shield all break the channel, and what it
+    // had run is not kept (kit.ts selfRevive). Done, you stand at the same
+    // health a squad mate's revive gives you, not more.
+    if (kd.canSelfRevive) {
+      const held = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("interact") : input.held("interact"));
+      // down, a hit lands on the bleed-out and not on health
+      const hurt = duel.bleedLeft < selfReviveHp - 1e-6;
+      const sr = kd.selfRevive(gameTime, held, hurt || duel.revivedBy !== null || kd.up);
+      if (sr.state === "done") {
+        duel.downed = false;
+        duel.health = sr.health;
+        duel.revivedBy = null;
+        hud.notice("SELF-REVIVED", gameTime, 1.5);
+        audio.healDone();
+      } else if (sr.state === "cancelled") audio.ui("error");
+    }
+    selfReviveHp = duel.bleedLeft;
     player.healSlow = squadCfg.crawl * (kd.up ? squadCfg.kdShield.crawlScale : 1);
   } else if (kd.up) {
     kd.up = false;
@@ -3734,7 +3754,7 @@ function step(): void {
     },
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
     banner: duel instanceof BrMatch ? brPlay.hud.banner : null,
-    downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null, kd: kd.max > 0 ? { hp: kd.hp, max: kd.max, up: kd.up, key: keyLabel("fire") } : null } : null,
+    downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null, kd: kd.max > 0 ? { hp: kd.hp, max: kd.max, up: kd.up, key: keyLabel("fire") } : null, self: kd.canSelfRevive ? { key: keyLabel("interact"), progress: kd.selfProgress(gameTime) } : null } : null,
     spectating: watch && watchMate ? { name: watchMate.name, first: watchMate.id < Duel.BOT_ID && spectateFirst } : null,
     trainer: trainer.hud(now),
     mantleCue: trainer.cue && mantleCueOn,
