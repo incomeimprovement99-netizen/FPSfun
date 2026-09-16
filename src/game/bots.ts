@@ -1098,7 +1098,7 @@ export class BotMatch implements MatchLike {
   actorStates(): ActorState[] {
     return this.bots.map((b) => {
       const p = b.dummy.currentPose;
-      return { id: b.remote.id, name: b.remote.name, x: b.pos.x, y: b.pos.y, z: b.pos.z, yaw: ((b.dummy.group.rotation.y - Math.PI) * 180) / Math.PI, pitch: p.pitch, stance: p.stance, speed: p.speed, weapon: b.remote.avatarWeapon, op: b.remote.avatarOp, alive: b.alive };
+      return { id: b.remote.id, name: b.remote.name, x: b.pos.x, y: b.pos.y, z: b.pos.z, yaw: ((b.dummy.group.rotation.y - Math.PI) * 180) / Math.PI, pitch: p.pitch, stance: p.stance, speed: p.speed, weapon: b.remote.avatarWeapon, op: b.remote.avatarOp, alive: b.alive, ads: p.ads ?? 0 };
     });
   }
 

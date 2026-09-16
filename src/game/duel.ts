@@ -106,6 +106,8 @@ export interface Remote {
   downed: boolean;
   /** off the menu, in the game */
   ready: boolean;
+  /** the practice aim bot is on for them: everyone is shown it */
+  aimbot?: boolean;
   lastHeard: number;
   /** who this player's messages come in on (the host: their link; a guest: the host's) */
   link: Link;
@@ -152,6 +154,8 @@ export interface LocalState {
   ads?: number;
   /** what the hands are doing (dummy.ts actCode) */
   act?: number;
+  /** the practice aim bot is on (it is shown to everyone) */
+  aimbot?: boolean;
 }
 
 /** what a match (against friends or bots) offers the game loop */
@@ -620,6 +624,7 @@ export class Duel implements MatchLike {
           if (name) r.name = name;
         }
         if (typeof m.ready === "boolean") r.ready = m.ready;
+        r.aimbot = m.bot === 1;
         if (typeof m.shm === "number" && Number.isFinite(m.shm) && m.shm >= 0 && m.shm <= 200) r.shieldMax = m.shm;
         r.downed = m.alive && (m.dn === 1 || m.dn === 2);
         r.avatar.setKnockShield(r.downed && m.dn === 2);
@@ -1116,6 +1121,7 @@ export class Duel implements MatchLike {
         alive: this.alive,
         op: local.operator,
         name: this.myName,
+        bot: local.aimbot ? 1 : undefined,
         ready: this.ready,
         st: stanceCode(local.stance),
         sp: Math.round(local.speed * 10),
@@ -1225,7 +1231,7 @@ export class Duel implements MatchLike {
       if (!r.samples.length) continue;
       const g = r.avatar.group;
       const p = r.avatar.currentPose;
-      out.push({ id: r.id, name: r.name, x: g.position.x, y: g.position.y, z: g.position.z, yaw: ((g.rotation.y - Math.PI) * 180) / Math.PI, pitch: p.pitch, stance: p.stance, speed: p.speed, weapon: r.avatarWeapon, op: r.avatarOp, alive: r.alive });
+      out.push({ id: r.id, name: r.name, x: g.position.x, y: g.position.y, z: g.position.z, yaw: ((g.rotation.y - Math.PI) * 180) / Math.PI, pitch: p.pitch, stance: p.stance, speed: p.speed, weapon: r.avatarWeapon, op: r.avatarOp, alive: r.alive, ads: p.ads ?? 0 });
     }
     return out;
   }

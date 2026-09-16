@@ -1368,11 +1368,87 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   const done = await ev<{ state: string; best: number | null }>(page, "({ state: window.__range.drill.state, best: window.__range.drill.best })");
   check("range: thirty down and the drill has a time and a best", done.state === "done" && (done.best ?? 0) > 0, JSON.stringify(done));
   await shotgunChecks(page);
+  await aimbotChecks(page);
+  await dashChecks(page);
   // the plates' line-of-sight test, on known geometry: the backstop is at z -106.75
   const los = await ev<{ open: boolean; wall: boolean }>(page, `(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, 0); const T = r.THREE; return { open: r.clearTo(new T.Vector3(0, 1.2, -50)), wall: r.clearTo(new T.Vector3(0, 1.2, -110)) }; })()`);
   check("plates: the line of sight is clear down the range and blocked through the backstop", los.open && !los.wall, JSON.stringify(los));
   await readmeTvChecks(page);
   await page.close();
+}
+
+/**
+ * The practice aim bot: it pulls the view onto a target you are not looking
+ * straight at, it takes nothing it cannot see, and anyone running it is
+ * marked on everyone else's screen.
+ */
+async function aimbotChecks(page: Page): Promise<void> {
+  // it locks whichever target is nearest the crosshair, so the check is the
+  // angle to the one it settles on, not to the one the test picked
+  const aim = await ev<{ before: number; after: number }>(
+    page,
+    `(() => new Promise((res) => {
+      const r = window.__range;
+      const offTo = () => {
+        const eye = r.player.eyePosition();
+        let best = 999;
+        for (const d of r.dummies) {
+          if (!d.group.visible || d.knocked) continue;
+          const part = d.hitMeshes.find((m) => m.userData.zone === "body") ?? d.hitMeshes[1];
+          if (!part) continue;
+          const at = part.getWorldPosition(new r.THREE.Vector3());
+          const dx = at.x - eye.x, dy = at.y - eye.y, dz = at.z - eye.z;
+          const dist = Math.hypot(dx, dy, dz);
+          if (dist > 120) continue;
+          const yaw = Math.atan2(-dx, -dz) * 180 / Math.PI;
+          const pitch = Math.asin(dy / dist) * 180 / Math.PI;
+          let dyaw = ((yaw - r.player.yaw + 540) % 360) - 180;
+          best = Math.min(best, Math.hypot(dyaw, pitch - r.player.pitch));
+        }
+        return best;
+      };
+      const t = r.dummies[0].group.position;
+      r.player.teleport(t.x, 0, t.z + 8, 0, 0);
+      r.player.yaw = 25;
+      r.player.pitch = 0;
+      const before = offTo();
+      r.aimbot.enabled = true;
+      setTimeout(() => { const after = offTo(); r.aimbot.enabled = false; res({ before, after }); }, 2500);
+    }))()`
+  );
+  check("aim bot: it sweeps the view onto the nearest target in sight", aim.before > 5 && aim.after < 2, `${aim.before.toFixed(1)} deg off -> ${aim.after.toFixed(1)}`);
+  const blind = await ev<number>(
+    page,
+    `(() => new Promise((res) => {
+      const r = window.__range;
+      // nose to the backstop at the far end: every dummy is behind you
+      r.player.teleport(0, 0, -103, 0, 0);
+      const yaw0 = r.player.yaw;
+      r.aimbot.enabled = true;
+      setTimeout(() => { r.aimbot.enabled = false; res(Math.abs(r.player.yaw - yaw0)); }, 1200);
+    }))()`
+  );
+  check("aim bot: with nothing in sight it leaves your view alone", blind < 1, `${blind.toFixed(2)} deg`);
+}
+
+/** the dash's settings reach the dash itself, and the card stops claiming the old numbers */
+async function dashChecks(page: Page): Promise<void> {
+  const set = await ev<{ distance: number; charges: number; blurb: string }>(
+    page,
+    `(() => { const r = window.__range; r.setJolt({ distance: 22, duration: 0.1, charges: 3, recharge: 9 }); const j = r.jolt(); return { distance: j.distance, charges: j.charges, blurb: j.blurb }; })()`
+  );
+  check("dash: the settings reach the dash", set.distance === 22 && set.charges === 3, JSON.stringify({ d: set.distance, c: set.charges }));
+  check("dash: the ability card stops claiming numbers the dash no longer has", /22 m/.test(set.blurb) && /3 charges/.test(set.blurb) && /9 s/.test(set.blurb), set.blurb);
+  // across the open floor past the last target bank, so nothing caps the reach
+  const went = async (d: number): Promise<number> => {
+    await ev(page, `(() => { const r = window.__range; r.setJolt({ distance: ${d}, duration: 0.14, charges: 2, recharge: 4 }); r.player.teleport(-25, 0, -95, -90, 0); r.abilities.fill(); r.pickAbility("jolt"); r.useAbility(); })()`);
+    await sleep(400);
+    return Math.abs((await ev<number>(page, "window.__range.player.pos.x")) + 25);
+  };
+  const short = await went(6);
+  const long = await went(20);
+  check("dash: a 20 m dash goes further than a 6 m one", long > short + 6, `${short.toFixed(1)} m then ${long.toFixed(1)} m`);
+  await ev(page, "window.__range.setJolt({ distance: 10, duration: 0.14, charges: 2, recharge: 4 })");
 }
 
 /**

@@ -570,6 +570,37 @@ const climbPeak = (s: Sim) => {
   });
   near("wall push height: only the carried 225 hu/s climb (225^2 / 2g), hu", hu(top - y0), (225 * 225) / 1500, 1);
 
+  // Running along a wall keeps your speed: the wish is clipped to the wall
+  // plane, as every Source-family engine does it. Before this, the movement
+  // model braked the along-the-wall speed as "the wrong direction" and a 45
+  // degree approach left 12 hu/s of 257.
+  {
+    const speedAlong = (angleDeg: number, wall: boolean): number => {
+      const w = new Sim(wall ? [{ minX: 1.0, maxX: 9, minZ: -200, maxZ: 200, top: 4 }] : []);
+      w.p.teleport(0, 0, 0, angleDeg, 0);
+      w.in.hold("forward");
+      w.in.hold("sprint");
+      let sum = 0;
+      let n = 0;
+      w.run(2.5, (f) => {
+        if (f > FPS * 0.8) {
+          sum += Math.hypot(w.p.vel.x, w.p.vel.z);
+          n++;
+        }
+      });
+      return hu(sum / Math.max(1, n));
+    };
+    const open = speedAlong(0, false);
+    near("sprinting in the open, hu/s", open, 257, 2);
+    for (const angle of [5, 10, 20, 45]) {
+      const along = speedAlong(-angle, true);
+      near(`sprinting along a wall met at ${angle} degrees keeps the same speed, hu/s`, along, open, 4);
+    }
+    // straight into it still stops you
+    const headOn = speedAlong(-90, true);
+    check("straight into a wall still stops you", headOn < 20, `${headOn.toFixed(0)} hu/s`);
+  }
+
   // Wallbounce: run at the wall, let go of forward, reach it at the top of a
   // jump, slip into the green zone and jump. Against the same approach
   // jumping as soon as you touch the wall (still in the neutral zone).

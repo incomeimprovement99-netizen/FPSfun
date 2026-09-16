@@ -1,4 +1,4 @@
 {
-  "_note": "The HUD's few gameplay numbers (ours). Plates: an enemy's name and bars show only after you have damaged them, for `afterHit` seconds from the last hit, and only while the line from your eye to their chest is clear of the level; a team mate's always. A plate is last drawn at `range` metres, fading from `fadeFrom`.",
-  "plates": { "afterHit": 6, "range": 60, "fadeFrom": 40 }
+  "_note": "The HUD's few gameplay numbers (ours). Plates: an enemy's name and bars show only after you have damaged them, for `afterHit` seconds from the last hit, and only while the line from your eye to their chest is clear of the level; a team mate's always. A plate is last drawn at `range` metres, fading from `fadeFrom`: the owner asked for them off far away as well as behind cover, so this is a room-and-a-half, not the width of the map.",
+  "plates": { "afterHit": 6, "range": 30, "fadeFrom": 20 }
 }

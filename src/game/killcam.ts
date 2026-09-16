@@ -34,6 +34,8 @@ export interface ActorState {
   weapon: string;
   op: string;
   alive: boolean;
+  /** how far into the sights, 0..1: the killcam holds the gun as they held it */
+  ads?: number;
 }
 
 interface Frame {
@@ -181,6 +183,7 @@ export class Killcam {
       yaw: lerpAngle(a.yaw, b.yaw, k),
       pitch: lerp(a.pitch, b.pitch, k),
       speed: lerp(a.speed, b.speed, k),
+      ads: lerp(a.ads ?? 0, b.ads ?? 0, k),
       stance: k < 0.5 ? a.stance : b.stance,
       alive: k < 0.5 ? a.alive : b.alive,
     };
@@ -236,7 +239,7 @@ export class Killcam {
       if (!a.alive) g.fallDown();
       else if (g.knocked) g.reset();
       if (!g.knocked) g.group.rotation.y = a.yaw * DEG + Math.PI;
-      g.setPose({ speed: a.speed, stance: a.stance, pitch: a.pitch });
+      g.setPose({ speed: a.speed, stance: a.stance, pitch: a.pitch, ads: a.ads ?? 0 });
       g.update(this.t, dt);
       // the killer's own figure would sit on the camera
       if (id === this.killerId) g.group.visible = false;
@@ -251,6 +254,9 @@ export class Killcam {
     return true;
   }
 
+  /** how far into the sights the killer was, this frame of the replay (0..1) */
+  killerAds = 0;
+
   /** the camera: at the killer's eye, looking where they looked */
   pose(camera: THREE.PerspectiveCamera): void {
     const k = this.actorAt(this.t, this.killerId);
@@ -258,6 +264,7 @@ export class Killcam {
     camera.position.set(k.x, k.y + eyeHeight(k.stance), k.z);
     camera.quaternion.setFromEuler(new THREE.Euler(k.pitch * DEG, k.yaw * DEG, 0, "YXZ"));
     this.killerWeapon = k.weapon;
+    this.killerAds = k.ads ?? 0;
   }
 
   /** the ghosts, to hide the live figures behind them for the frame */

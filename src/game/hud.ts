@@ -134,7 +134,7 @@ export interface HudState {
   /** the heal wheel, held open: the items, their counts, the one the mouse points at */
   healWheel?: { items: Array<{ id: string; name: string; count: number }>; pick: string | null } | null;
   /** nameplates over the other players and the bots */
-  plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean }>;
+  plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean; aimbot?: boolean }>;
   /** real shield and health (a 1v1); the bars are decorative without it */
   vitals?: { shield: number; shieldMax: number; health: number; healthMax: number; evo?: number | null; helmet?: string | null } | null;
   /** your ability (abilities.ts): name, key, its cooldown and what is left of it (0: ready); a passive one has no key */
@@ -658,17 +658,25 @@ export class Hud {
     const { range, fadeFrom } = hudCfg.plates;
     for (const pl of s.plates) {
       const dist = pl.world.distanceTo((camera as THREE.PerspectiveCamera).position);
-      if (dist > range) continue;
+      // the aim bot's mark is not subject to the plate rules: whoever has it
+      // on is shown to everyone, at any range, through anything
+      if (dist > range && !pl.aimbot) continue;
       v.copy(pl.world).project(camera);
       if (v.z > 1) continue;
       const x = (v.x * 0.5 + 0.5) * this.w;
       const y = (-v.y * 0.5 + 0.5) * this.h;
       if (x < -50 || x > this.w + 50 || y < -50 || y > this.h + 50) continue;
-      const a = dist < fadeFrom ? 1 : 1 - (dist - fadeFrom) / (range - fadeFrom);
+      const a = pl.aimbot ? 1 : dist < fadeFrom ? 1 : 1 - (dist - fadeFrom) / (range - fadeFrom);
       c.globalAlpha = a * (pl.alive ? 1 : 0.5);
       const w = 110 * u;
-      const col = !pl.alive ? DIM : pl.ally ? "#7ddc8a" : WHITE;
+      const col = !pl.alive ? DIM : pl.aimbot ? RED : pl.ally ? "#7ddc8a" : WHITE;
       this.text(pl.alive ? pl.name : `${pl.name}  DOWN`, x, y - 12 * u, 700, 14 * u, col, "center");
+      // the aim bot: a red bar and a word over them, so nobody has to wonder
+      if (pl.aimbot && pl.alive) {
+        c.fillStyle = RED;
+        c.fillRect(x - w / 2, y - 30 * u, w, 5 * u);
+        this.text("AIM BOT", x, y - 34 * u, 700, 12 * u, RED, "center");
+      }
       if (pl.alive) {
         c.fillStyle = "rgba(0,0,0,0.55)";
         c.fillRect(x - w / 2, y - 8 * u, w, 4 * u);

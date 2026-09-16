@@ -22,6 +22,26 @@ export const ABILITIES: Record<AbilityId, AbilityInfo> = {
   triage: { id: "triage", name: cfg.triage.name, blurb: cfg.triage.blurb },
 };
 export const JOLT = cfg.jolt;
+
+/** the dash as the config ships it, to reset a setting back to it */
+export const JOLT_DEFAULTS = { distance: cfg.jolt.distance, duration: cfg.jolt.duration, charges: cfg.jolt.charges, recharge: cfg.jolt.recharge };
+
+/**
+ * The dash's feel, from Settings. `JOLT` is one object every user reads
+ * through, so writing here changes the dash for the player, the bots and the
+ * HUD at once. The card's blurb is rewritten so it never claims numbers the
+ * dash no longer has.
+ */
+export function setJolt(v: Partial<{ distance: number; duration: number; charges: number; recharge: number }>): void {
+  const clamp = (x: number, lo: number, hi: number, fallback: number): number => (Number.isFinite(x) ? Math.max(lo, Math.min(hi, x)) : fallback);
+  if (v.distance !== undefined) JOLT.distance = clamp(v.distance, 2, 30, JOLT.distance);
+  if (v.duration !== undefined) JOLT.duration = clamp(v.duration, 0.05, 0.6, JOLT.duration);
+  if (v.charges !== undefined) JOLT.charges = Math.round(clamp(v.charges, 1, 4, JOLT.charges));
+  if (v.recharge !== undefined) JOLT.recharge = clamp(v.recharge, 1, 30, JOLT.recharge);
+  const each = JOLT.charges > 1 ? `, ${JOLT.charges} charges, one back every ${JOLT.recharge} s` : `, back every ${JOLT.recharge} s`;
+  JOLT.blurb = `dash ${JOLT.distance} m the way you are moving${each}`;
+  ABILITIES.jolt.blurb = JOLT.blurb;
+}
 export const TRIAGE = cfg.triage;
 export const BOT_ABILITY = cfg.bots;
 

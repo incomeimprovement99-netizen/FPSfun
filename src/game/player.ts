@@ -481,6 +481,55 @@ export class Player {
     return null;
   }
 
+  /**
+   * The wish direction with the part that goes into a wall taken out, and
+   * renormalised so the full acceleration is spent along the wall.
+   *
+   * Without this, running along a wall braked you almost to a stop: the
+   * movement model splits velocity into "along the wish" and "perpendicular"
+   * and brakes the perpendicular part at the turn rate, and once a wall has
+   * taken the into-wall axis, the speed you have left IS the perpendicular
+   * part. Measured before: sprinting into a wall at 45 degrees left 0.31 m/s
+   * of 6.54. Every Source-family engine clips the wish to the wall plane
+   * instead, which is what Apex, Hyper Scape and CoD all feel like.
+   *
+   * Ground only: in the air, pressing into a wall is how a climb and a
+   * wallbounce are asked for, so the wish is left alone there.
+   */
+  private clipWishToWalls(wx: number, wz: number): { wx: number; wz: number; wl: number } {
+    const r = MOVE.radius;
+    const feet = this.pos.y;
+    const bodyH = this.height;
+    const reach = MOVE.radius * 0.35;
+    const inside = this.overlapping(this.pos.x, this.pos.z, r);
+    let cx = wx;
+    let cz = wz;
+    for (const [dx, dz] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      // pressing this way at all, and a wall that way within reach
+      if (cx * dx + cz * dz <= 1e-6) continue;
+      let wall = false;
+      for (const s of this.overlapping(this.pos.x + dx * reach, this.pos.z + dz * reach, r)) {
+        if (!this.blocks(s, feet, bodyH) || inside.includes(s)) continue;
+        wall = true;
+        break;
+      }
+      if (!wall) continue;
+      // the outward normal is -d: drop the component going into it
+      const into = cx * dx + cz * dz;
+      cx -= dx * into;
+      cz -= dz * into;
+    }
+    const l = Math.hypot(cx, cz);
+    if (l < 1e-6) return { wx: 0, wz: 0, wl: 0 };
+    // renormalised: along a wall you accelerate as hard as in the open
+    return { wx: cx / l, wz: cz / l, wl: 1 };
+  }
+
   /** is there something overhead lower than a standing player's head */
   private headroomBlocked(): boolean {
     for (const s of this.overlapping(this.pos.x, this.pos.z, MOVE.radius)) {
@@ -608,9 +657,12 @@ export class Player {
     if (this.climbing) {
       // velocity is owned by stepClimb while on a wall
     } else if (this.onGround && !this.sliding) {
-      this.groundMove(now, dt, wx, wz, wl, adsFrac, adsMoveScale);
+      // against a wall, the wish goes along it rather than into it
+      const c = wl > 0 ? this.clipWishToWalls(wx, wz) : { wx, wz, wl };
+      this.groundMove(now, dt, c.wx, c.wz, c.wl, adsFrac, adsMoveScale);
     } else if (this.sliding) {
-      this.slideMove(dt, wx, wz, wl);
+      const c = wl > 0 ? this.clipWishToWalls(wx, wz) : { wx, wz, wl };
+      this.slideMove(dt, c.wx, c.wz, c.wl);
     } else {
       this.tryLurch(now, input, wx, wz, wl);
       this.airMove(dt, wx, wz, wl);

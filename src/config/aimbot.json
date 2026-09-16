@@ -1,0 +1,8 @@
+{
+  "_note": "The practice aim bot (ours; not a game mechanic, and off in any match with another human in it). `turnRate` caps how fast the view sweeps, degrees a second; `smooth` is how hard it closes the angle that is left each second (higher snaps harder); `range` metres; `cone` the degrees across, centred on your aim, that it will take a target from (360 would be behind you as well); `head` aims at the head instead of the chest.",
+  "turnRate": 540,
+  "smooth": 12,
+  "range": 120,
+  "cone": 120,
+  "head": false
+}

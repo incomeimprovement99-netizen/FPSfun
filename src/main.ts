@@ -48,7 +48,7 @@ import { setArmColors } from "./game/arms";
 import { Menu, type Mode } from "./ui/menu";
 import type { ImpactEvent } from "./game/projectile";
 import { INSPECT_TIME, FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
-import { Abilities, ABILITIES, JOLT, type AbilityId } from "./game/abilities";
+import { Abilities, ABILITIES, JOLT, JOLT_DEFAULTS, setJolt, type AbilityId } from "./game/abilities";
 import { currentBinds, type Action } from "./game/input";
 import { bindName } from "./ui/binds";
 import { FxLayer } from "./game/fx";
@@ -57,6 +57,7 @@ import { DamageLog, HEAL_CODES, type Recap } from "./game/recap";
 import { Soundscape } from "./game/soundscape";
 import { DummyBehaviour, DUMMY_MODES, DUMMY_MODE_NAME, FlickDrill, RangeCombat, SprayWall, type DummyMode } from "./game/rangetools";
 import { ReadmeTv } from "./game/readmetv";
+import { Aimbot } from "./game/aimbot";
 import { blastOffsets } from "./game/blast";
 import hudCfg from "./config/hud.json";
 import { SuperglideTrainer } from "./game/trainer";
@@ -802,6 +803,63 @@ figureSel.addEventListener("change", () => {
     /* ignore */
   }
 });
+// The practice aim bot (Settings): it steers the view onto the nearest enemy
+// you can see. Off in any match with another human in it (see the frame loop),
+// which is the one place using it would take something from someone else.
+const aimbot = new Aimbot();
+
+const aimbotSel = $<HTMLSelectElement>("aimbotMode");
+try {
+  aimbot.enabled = localStorage.getItem("range.aimbot") === "1";
+} catch {
+  /* ignore */
+}
+aimbotSel.value = aimbot.enabled ? "1" : "0";
+aimbotSel.addEventListener("change", () => {
+  aimbot.enabled = aimbotSel.value === "1";
+  try {
+    localStorage.setItem("range.aimbot", aimbot.enabled ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+});
+
+// The dash, from Settings: distance, how long it takes, how many charges and
+// how long each takes to come back. They are the same numbers the bots use.
+const dashInputs = {
+  distance: $<HTMLInputElement>("dashDistance"),
+  duration: $<HTMLInputElement>("dashTime"),
+  charges: $<HTMLInputElement>("dashCharges"),
+  recharge: $<HTMLInputElement>("dashRecharge"),
+};
+const LS_DASH = "range.dash.v1";
+function showDash(): void {
+  dashInputs.distance.value = String(JOLT.distance);
+  dashInputs.duration.value = String(JOLT.duration);
+  dashInputs.charges.value = String(JOLT.charges);
+  dashInputs.recharge.value = String(JOLT.recharge);
+}
+try {
+  const raw = localStorage.getItem(LS_DASH);
+  if (raw) setJolt(JSON.parse(raw) as Partial<typeof JOLT_DEFAULTS>);
+} catch {
+  /* ignore */
+}
+showDash();
+for (const [key, el] of Object.entries(dashInputs)) {
+  el.addEventListener("change", () => {
+    setJolt({ [key]: Number(el.value) } as Partial<typeof JOLT_DEFAULTS>);
+    // a charge count change takes effect on the next fill
+    abilities.fill();
+    showDash();
+    try {
+      localStorage.setItem(LS_DASH, JSON.stringify({ distance: JOLT.distance, duration: JOLT.duration, charges: JOLT.charges, recharge: JOLT.recharge }));
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 // the killcam can be turned off (Settings); the recap still shows
 const killcamSel = $<HTMLSelectElement>("killcamMode");
 let killcamOn = true;
@@ -1139,7 +1197,7 @@ function giveEvo(amount: number, why = ""): void {
 /** whom you hurt and when (an assist: someone else knocks them soon after) */
 const damagedAt = new Map<number, number>();
 
-type Plate = { world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean };
+type Plate = { world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean; aimbot?: boolean };
 /** the plates drawn this frame (tools/e2e.ts) */
 let lastPlates: Plate[] = [];
 /** nothing of the level between your eye and `p` */
@@ -1161,12 +1219,13 @@ function platesNow(d: NonNullable<typeof duel>, now: number): Plate[] {
     const r = d.remoteOf(a);
     if (!r || !a.group.visible) continue;
     const ally = d instanceof Duel && d.isAlly(r.id);
-    if (!ally) {
+    // the aim bot's mark is shown whatever the plate rules say
+    if (!ally && !r.aimbot) {
       if (now - (damagedAt.get(r.id) ?? -Infinity) >= hudCfg.plates.afterHit) continue;
       const chest = a.hitMeshes.find((m) => m.userData.zone === "body")?.getWorldPosition(new THREE.Vector3()) ?? a.group.position.clone().setY(a.group.position.y + 1.2);
       if (!clearTo(chest)) continue;
     }
-    out.push({ world: new THREE.Vector3(a.group.position.x, a.group.position.y + 2.05, a.group.position.z), name: r.name, health: r.health, shield: r.shield, shieldMax: r.shieldMax, alive: r.alive, ally });
+    out.push({ world: new THREE.Vector3(a.group.position.x, a.group.position.y + 2.05, a.group.position.z), name: r.name, health: r.health, shield: r.shield, shieldMax: r.shieldMax, alive: r.alive, ally, aimbot: !!r.aimbot });
   }
   return out;
 }
@@ -2584,8 +2643,12 @@ function step(): void {
     // a throw (or putting one away) uses that press of the button: the gun does not fire, the aim does not toggle
     if (fireLockedToRelease && !input.held("fire")) fireLockedToRelease = false;
     adsPressUsed = false;
-    // fists: the fire button punches (not with a grenade in hand: that press throws it)
-    if (emptyHand && !downedNow && !knockedOut && !ordnance.readied && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
+    // Fists or the heirloom out: the fire button swings, the way the melee key
+    // does. That is the empty hand of Gun Run's knife level AND the gun put
+    // away on 3, where clicking used to do nothing at all. Not with a grenade
+    // in hand: that press throws it.
+    const handsOut = emptyHand || holster === "away";
+    if (handsOut && !downedNow && !knockedOut && !ordnance.readied && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
       meleeReadyAt = now + MELEE_COOLDOWN;
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
@@ -2765,6 +2828,25 @@ function step(): void {
     const slow = assist?.slow ?? 1;
     // (the wheel open: the stick is picking, not looking)
     if (!wheelOpen) player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
+  }
+
+  // The practice aim bot, after the look input so it is the last word on where
+  // you are pointing. It works in a match with friends too (the owner's call:
+  // a 1v1 where both know is a laugh), and the price of that is that it cannot
+  // be hidden: whoever has it on wears a red bar and the word AIM BOT over
+  // them on every other screen, at any range, through walls.
+  {
+    if (aimbot.enabled && !knockedOut && !downedNow && input.playing) {
+      const aim = aimbot.update({
+        eye: player.eyePosition(),
+        yaw: player.yaw,
+        pitch: player.pitch,
+        dt,
+        targets: duel ? duel.avatars.filter((a) => !isAllyFigure(a)) : rangeTargets,
+      });
+      // through addAngles, so the pitch clamp is the one every other input uses
+      if (aim) player.addAngles(aim.pitch - player.pitch, aim.yaw - player.yaw);
+    }
   }
 
   // holster timing, from the weapon's own holster and deploy times
@@ -3250,7 +3332,8 @@ function step(): void {
   prevPitch = player.pitch;
   viewModel.update({
     dt,
-    adsFrac: debugView.ads ?? ws.adsFrac,
+    // in the killcam the gun is the killer's, held as they held it
+    adsFrac: debugView.ads ?? (killcam.active ? killcam.killerAds : ws.adsFrac),
     moveSpeed: player.speed,
     onGround: player.onGround,
     raise: swapP,
@@ -3300,6 +3383,7 @@ function step(): void {
     speed: player.speed,
     ads: ws.adsFrac,
     act: localAct(),
+    aimbot: aimbot.enabled,
   });
   // the battle royale from your side: E, the pads, pings
   if (duel instanceof BrMatch) {
@@ -3635,6 +3719,10 @@ initWelcome();
   /** the plates drawn this frame, and the line-of-sight test they use (tools/e2e.ts) */
   platesNow: () => lastPlates,
   clearTo,
+  /** the practice aim bot and the dash's settings (tools/e2e.ts) */
+  aimbot,
+  jolt: () => ({ ...JOLT }),
+  setJolt,
   /** the viewmodel's inspect and first draw (tools/e2e.ts) */
   /** a JOLT's view: the roll in degrees and the FOV fraction now (tools/e2e.ts) */
   joltFeel: () => ({ roll: joltRoll(gameTime), fov: joltFov }),

@@ -53,6 +53,8 @@ export type NetMsg =
       /** aiming down sights, 0..10; the hands' action (dummy.ts actCode): the figure's arms */
       ad?: number;
       ac?: number;
+      /** the practice aim bot is on: everyone sees a red mark over them for it */
+      bot?: number;
     }
   | { t: "zone"; live: boolean; caps: number[]; startsIn: number }
   | { t: "shot"; from?: number; o: [number, number, number]; d: [number, number, number]; w: string }
