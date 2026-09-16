@@ -289,17 +289,26 @@ export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
   const heals = count(spot.heal);
   const throwables = count(spot.throwables);
   const out: LootItem[] = [];
-  let takes: AmmoType | null = null;
+  // A rack used to remember only the LAST gun's ammo type, so a rack holding
+  // two guns left one of them with a stack it could not use. Each gun's type
+  // is kept, and the stacks are dealt round the guns, so two guns means two
+  // kinds of ammo and not two of one.
+  const takes: Array<AmmoType | null> = [];
   for (let i = 0; i < guns; i++) {
     const gun = makeWeapon(rnd, rollRarity(rnd, tier));
     out.push(gun);
-    takes = ammoTypeOf(gun.id);
+    takes.push(ammoTypeOf(gun.id));
   }
-  if (takes === "energy") {
-    attach += ammo;
-    ammo = 0;
+  // The stacks are NOT one per gun. A rack of two with one stack between them
+  // is the old floor's ratio (about three stacks for every four guns) and it
+  // is the more interesting spot: it decides which of the two you take.
+  for (let i = 0; i < ammo; i++) {
+    const t = takes.length ? takes[i % takes.length] : null;
+    // an energy gun draws on a stockpile rather than a stack, so its share of
+    // the spot goes to an attachment instead of an ammo box it cannot use
+    if (t === "energy") attach++;
+    else out.push(makeAmmo(rnd, t));
   }
-  for (let i = 0; i < ammo; i++) out.push(makeAmmo(rnd, takes));
   for (let i = 0; i < mags; i++) out.push(makeMag(rollRarity(rnd, tier)));
   for (let i = 0; i < attach; i++) out.push(makeAttach(rnd, rollRarity(rnd, tier)));
   for (let i = 0; i < heals; i++) out.push(makeHeal(rnd, rollRarity(rnd, tier)));

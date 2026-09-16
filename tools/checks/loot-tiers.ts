@@ -211,20 +211,71 @@ console.log(`Loot tiers, the Hot Zone and the typed spots (src/game/loot.ts, src
   for (let i = 0; i < 40000; i++) {
     const spot = rollSpot(rnd, "mid");
     sizes.push(spot.length);
-    const gun = spot.find((it) => it.kind === "weapon");
-    if (!gun) continue;
+    const guns = spot.filter((it) => it.kind === "weapon");
+    if (!guns.length) continue;
     racks++;
-    const takes = ammoTypeOf(gun.id);
+    // A rack can hold two guns, so a stack has to match ONE of them and not
+    // whichever happens to be first. The roller used to remember only the
+    // last gun's type, which left the other one with a stack it could not
+    // use; this is the check that would have caught it.
+    const types = guns.map((g) => ammoTypeOf(g.id));
     const ammo = spot.filter((it) => it.kind === "ammo");
-    if (takes === "energy") energyStacks += ammo.length;
-    else if (!ammo.length || ammo.some((a) => a.id !== takes)) wrongAmmo++;
+    // An energy gun draws on a stockpile rather than a stack, so its share of
+    // the spot becomes an attachment. A rack that holds one is allowed to
+    // carry no ammo at all; what is never allowed is a stack that none of the
+    // guns on the rack can take.
+    if (types.every((t) => t === "energy")) energyStacks += ammo.length;
+    else if (ammo.some((a) => !types.includes(a.id as ReturnType<typeof ammoTypeOf>))) wrongAmmo++;
+    else if (!ammo.length && !types.includes("energy")) wrongAmmo++;
     if (!spot.some((it) => it.kind === "attach" && it.id.startsWith("mag:"))) noMag++;
   }
-  check("a gun rack holds the ammo its own gun takes", wrongAmmo === 0, `${racks} racks, ${wrongAmmo} with the wrong stack`);
-  check("an energy gun's rack holds no stack it cannot use", energyStacks === 0, `${energyStacks} useless stacks`);
-  check("and every rack comes with a magazine", noMag === 0, `${noMag} racks without one`);
+  check("a gun rack holds ammo one of its own guns takes", wrongAmmo === 0, `${racks} racks, ${wrongAmmo} with the wrong stack`);
+  check("a rack of energy guns holds no stack it cannot use", energyStacks === 0, `${energyStacks} useless stacks`);
+  // A rack used to come with a magazine every time. That was written when
+  // racks were a third of the floor; they are over half of it now, because a
+  // rack is what puts a gun in your hands and the owner asked for guns. At
+  // that share, a magazine on every rack made the magazine the commonest
+  // object on the map after a heal, at nearly two per gun, most of them worse
+  // than the one already fitted. Magazines come off the attachment table now,
+  // like every other attachment, and the rule is only that they stay rarer
+  // than the guns they go in.
+  check("a magazine is an attachment and not what the floor is made of", noMag > racks * 0.5, `${noMag} of ${racks} racks carry none`);
   check("a spot is never empty", Math.min(...sizes) > 0, `smallest ${Math.min(...sizes)}, largest ${Math.max(...sizes)} items`);
 }
+
+// ---------------------------------------------------------------- density
+//
+// What the whole floor holds, by kind, over every seed. The move to typed
+// spots re-tuned this without anyone noticing: guns fell 57 per cent,
+// helmets 80, hop-ups 69, and magazines went up eight times, so the
+// commonest thing on the map after a heal was a magazine, most of them worse
+// than the one already fitted. Every check passed, because they all asked
+// whether a place hands you a gun and none asked how many. These do ask.
+console.log("");
+console.log("Loot density");
+{
+  const tally: Record<string, number> = { weapon: 0, ammo: 0, heal: 0, attach: 0, helmet: 0, hopup: 0, grenade: 0, mag: 0 };
+  let total = 0;
+  for (const seed of seeds) {
+    field.generate(seed, places, bounds);
+    for (const d of field.drops.values()) {
+      total++;
+      tally[d.item.kind] = (tally[d.item.kind] ?? 0) + 1;
+      if (d.item.kind === "attach" && String(d.item.id).startsWith("mag")) tally.mag++;
+    }
+  }
+  const per = (n: number) => n / seeds.length;
+  const targets = lootCfg.densityTargets as unknown as Record<string, [number, number]>;
+  for (const [kind, [lo, hi]] of Object.entries(targets)) {
+    const got = kind === "total" ? per(total) : per(tally[kind] ?? 0);
+    check(`a match's floor holds the right number of ${kind === "mag" ? "magazines" : kind === "total" ? "items in all" : kind + "s"}`, got >= lo && got <= hi, `${got.toFixed(1)}, want ${lo} to ${hi}`);
+  }
+  // A magazine is an attachment among others, not the thing the floor is made
+  // of: it went to 1.8 magazines per gun, and a floor reads as junk long
+  // before that.
+  check("and fewer magazines than guns", tally.mag < tally.weapon, `${per(tally.mag).toFixed(1)} against ${per(tally.weapon).toFixed(1)}`);
+}
+
 
 console.log(fails === 0 ? "\nLOOT TIERS PASS" : `\nLOOT TIERS FAIL (${fails})`);
 export const lootTiersFails = fails;
