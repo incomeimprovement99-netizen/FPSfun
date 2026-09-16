@@ -998,7 +998,10 @@ async function botTiersTest(browser: Browser, query: string): Promise<void> {
   check("tiers: out of its sight, an elite bot hears your shot and goes to look", heard);
   await ev(page, `delete window.__range.duel().bots[0].sees`);
   // a frag at you standing still in its view: it keeps 18 m off, you stay put in the open
-  await ev(page, `(() => { const d = window.__range.duel(); const b = d.bots[0]; b.diff = { ...b.diff, keep: 17 }; const s = window.__range.openGround(90, -40, 1.5); window.__range.player.teleport(s.x, 0, s.z, 0); })()`);
+  // Out in the open near a spawn, not the middle of the map: there is a
+  // building over the capture circle now. A lobbed frag thrown from the far
+  // side of it lands on its roof, and from the middle it lands on its floor.
+  await ev(page, `(() => { const d = window.__range.duel(); const b = d.bots[0]; b.diff = { ...b.diff, keep: 10 }; const s = window.__range.openGround(90, -60, 1.5); window.__range.player.teleport(s.x, 0, s.z, 0); })()`);
   const threw = await page.waitForFunction("window.__range.remoteFxLog.some((e) => e.k === 'throw' && e.from === 1)", { polling: 200, timeout: 14000 }).then(() => true, () => false);
   check("tiers: you stand still in view and the elite bot throws a frag at you", threw, JSON.stringify(await ev(page, "(() => { const b = window.__range.duel().bots[0]; return { frags: b.frags, d: b.pos.distanceTo(window.__range.player.pos).toFixed(1), seen: !!b.lastSeen }; })()")));
   const fragHit = await page.waitForFunction("window.__hits.includes('frag')", { polling: 200, timeout: 7000 }).then(() => true, () => false);
@@ -1077,7 +1080,9 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
     }))()`
   );
   // the pelvis is left out: standing still, the feet stay planted as the bot turns its aim, then step round (by design)
-  if (spin) check("figures: a still mannequin's chest and head hold their yaw on the aim (no endless upper-body spin)", spin.chest < 15 && spin.head < 15, `over 1.2 s the chest moved ${spin.chest.toFixed(1)} deg, the head ${spin.head.toFixed(1)} (the planted pelvis ${spin.pelvis.toFixed(1)})`);
+  // 30 degrees: a hunting bot turns its aim and the clip moves the spine a
+  // little; an accumulating spine went round 280 degrees in a second and a half
+  if (spin) check("figures: a still mannequin's chest and head hold their yaw on the aim (no endless upper-body spin)", spin.chest < 30 && spin.head < 30, `over 1.2 s the chest moved ${spin.chest.toFixed(1)} deg, the head ${spin.head.toFixed(1)} (the planted pelvis ${spin.pelvis.toFixed(1)})`);
   else check("figures: the bot is a mannequin (the spin check needs one)", false, "no spine_03 bone on the figure");
   await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
   const offAb = await ev<{ on: boolean; choosing: boolean }>(page, "({ on: window.__range.abilities.enabled, choosing: window.__range.abilities.choosing })");
@@ -1160,6 +1165,23 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   check("killcam: it starts, from the bot's eyes, with its gun", kc.active && kc.killer === "BOT ASH" && kc.weapon === "rspn101", JSON.stringify(kc));
   const kcView = await ev<{ gun: boolean; hands: boolean }>(page, "window.__range.vmState()");
   check("killcam: the killer's gun is in view (not your empty hands)", kcView.gun, JSON.stringify(kcView));
+  // The killer was aiming when they killed you, so the replay holds the gun
+  // aimed. Sampled ACROSS the replay, not at its first frame: it starts four
+  // seconds before the kill, where the bot has often not seen you yet.
+  const kcAds = await ev<{ killer: number; gun: number }>(
+    page,
+    `(() => new Promise((res) => {
+      let killer = 0;
+      let gun = 0;
+      let n = 0;
+      const t = setInterval(() => {
+        killer = Math.max(killer, window.__range.killcamAds());
+        gun = Math.max(gun, window.__range.vmState().ads);
+        if (++n >= 14) { clearInterval(t); res({ killer, gun }); }
+      }, 120);
+    }))()`
+  );
+  check("killcam: it scopes in as your killer did, not from the hip", kcAds.killer > 0.5 && kcAds.gun > 0.4, `the killer's aim reached ${kcAds.killer.toFixed(2)}, the gun in view ${kcAds.gun.toFixed(2)}`);
   check("killcam: the recording holds seconds of the match", kc.frames > 60 && kc.span > 2, JSON.stringify(kc));
   await sleep(1500);
   const mid = await ev<{ active: boolean; progress: number }>(page, "window.__range.killcamState()");

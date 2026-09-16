@@ -3754,6 +3754,8 @@ initWelcome();
   /** a JOLT's view: the roll in degrees and the FOV fraction now (tools/e2e.ts) */
   joltFeel: () => ({ roll: joltRoll(gameTime), fov: joltFov }),
   vmState: () => ({ inspecting: gameTime - inspectAt < INSPECT_TIME, flourish: gameTime - flourishAt < FLOURISH_TIME, ...viewModel.shown }),
+  /** how far into the sights the killcam is holding the killer's gun (tools/e2e.ts) */
+  killcamAds: () => killcam.killerAds,
   /** your own third-person figure (tools/e2e.ts) */
   selfFigure: () => selfFig,
   /**

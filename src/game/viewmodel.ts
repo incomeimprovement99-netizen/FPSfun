@@ -292,8 +292,8 @@ export class ViewModel {
   private readonly zipArm = new Forearm();
   private readonly zipElbow = new THREE.Vector3();
   /** what is in view (tools/e2e.ts): the gun, the empty hands, how far down */
-  get shown(): { gun: boolean; hands: boolean; down: number } {
-    return { gun: this.group.visible && this.holder.visible, hands: this.group.visible && this.fists.visible, down: this.downAmt };
+  get shown(): { gun: boolean; hands: boolean; down: number; ads: number } {
+    return { gun: this.group.visible && this.holder.visible, hands: this.group.visible && this.fists.visible, down: this.downAmt, ads: this.lastAds };
   }
   /** 0..1 down (the crawl's hands), eased, and the crawl's cycle */
   private downAmt = 0;

@@ -197,10 +197,11 @@ export function buildArena(scene: THREE.Scene): ArenaHandles {
     for (const sx of [-1, 1]) {
       box(0.7, ROOF, 0.7, sx * (W / 2 - 0.35), 0, -D / 2 + 0.35, wallMat);
       box(0.7, ROOF, 0.7, sx * (W / 2 - 0.35), 0, D / 2 - 0.35, wallMat);
-      // the long faces: a wall to the first floor with a gap at the middle to run through
-      box(0.5, F1, 3.1, sx * (W / 2 - 0.25), 0, -D / 2 + 1.9, wallMat);
-      box(0.5, F1, 3.1, sx * (W / 2 - 0.25), 0, D / 2 - 1.9, wallMat);
-      // the first floor's own low wall, to shoot over from up there
+      // The ground floor is a canopy on pillars, not a walled room: walls here
+      // closed the middle lane, and a bot walking it could no longer find its
+      // way to the other end (every killcam and recap check in the e2e died
+      // with it). You run straight through; the cover is upstairs.
+      // The first floor's own low wall, to shoot over from up there:
       box(0.4, 1.0, D - 1.4, sx * (W / 2 - 0.2), F1, 0, coverMat);
     }
     // the first floor itself, a hole at each end so you can drop through
@@ -215,8 +216,11 @@ export function buildArena(scene: THREE.Scene): ArenaHandles {
       crate(1.6, 1.6, 1.6, sx * (W / 2 + 1.1), 2.6, crateMat);
       ARENA_BOXES.push({ x: sx * (W / 2 + 1.1), z: 2.6, w: 1.6, d: 1.6, h: 1.6 });
     }
-    // a stack inside, under the end holes: the first floor from the ground
-    for (const sz of [-1, 1]) crate(1.4, 1.5, 1.4, 0, sz * (D / 2 - 1.9), crateMat);
+    // A stack inside under each end hole, the first floor from the ground.
+    // Off the centre line on purpose: dead centre they closed the middle
+    // corridor at chest height, and a bot at one end could no longer see or
+    // reach the other.
+    for (const sz of [-1, 1]) crate(1.4, 1.5, 1.4, sz * 2.6, sz * (D / 2 - 1.9), crateMat);
 
     // Ziplines from each end of the map onto the roof: the rotate that the
     // middle lane never had. They ride in the direction you look, so each is
