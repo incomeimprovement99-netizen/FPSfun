@@ -16,6 +16,8 @@
   "_ping": "how long a ping lasts, s",
   "pingLife": { "enemy": 6, "loot": 10, "go": 12 },
   "_evo": "EVO as Season 30 counts it (docs/RESEARCH_PHASE_12.md section 2.3): 1 per point of damage you deal (the levels are in items.json), 150 a knock, 100 an assist (you hurt them in the last assistWindow seconds and someone else knocked them; the window is ours), 100 a finisher, a revive 100 for the first two then 25 less each, 100 for looting a care package (once a package). Taking damage earns nothing.",
+  "_drop": "Landing: the bots drop on the OTHER places while there are any (a squad's own place is theirs), they are spread `apart` metres around a place's drop points so they do not pile onto one, and nobody's gun works for `grace` seconds after they land. Before this you could land beside three bots and be dead before the drop animation finished.",
+  "drop": { "apart": 18, "grace": 4 },
   "evo": { "knock": 150, "assist": 100, "assistWindow": 15, "finisher": 100, "revive": [100, 100, 75, 50, 25, 0], "carePackage": 100 },
   "_kdShield": "the knockdown shield (Season 28 on): its size is your EVO level's, 200 / 450 / 750; hold fire while down to raise it; it stops what comes from the front (ours: within 70 degrees of where you face); you crawl 45% slower behind it; broken, it stays broken until your next knock",
   "kdShield": { "hp": [200, 450, 750], "arc": 70, "crawlScale": 0.55 },

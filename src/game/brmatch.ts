@@ -18,6 +18,7 @@
 // Damage from the ring is the ring's; damage from a bot's shot is tested
 // against a capsule at the target's feet, yours, a friend's or another bot's.
 import * as THREE from "three";
+import squadCfg from "../config/squad.json";
 import { Throwables, blastDamage, throwCode } from "./throwables";
 import { lockedHopupFor } from "./attachments";
 import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, hitsBody, tierFor, type BotSense } from "./bots";
@@ -169,14 +170,19 @@ export class BrMatch extends Duel {
       this.lootField.generate(opts.seed ?? 1, map.pois.map((p) => ({ x: p.x, z: p.z })), BR_BOUNDS_WORLD);
     }
     if (this.role === "host") {
-      // the bots spread over the other places first, then the squad's
+      // The bots take the OTHER places: where the squad drops is the squad's.
+      // Landing beside three of them with no gun was the whole of a match.
       const others = map.pois.filter((p) => p !== this.poi).sort(() => rng() - 0.5);
-      const order = [...others, this.poi];
+      const order = others.length ? others : [this.poi];
+      const apart = squadCfg.drop.apart;
       for (let i = 0; i < this.botCount; i++) {
         const poi = order[i % order.length];
         const drop = poi.drops[i % poi.drops.length];
-        const jitter = () => (rng() - 0.5) * 8;
-        const spawn = { x: drop.x + jitter(), z: drop.z + jitter(), yaw: rng() * 360 };
+        // spread round the drop point, further out the more of them share it
+        const ring = Math.floor(i / (order.length * poi.drops.length));
+        const a = rng() * Math.PI * 2;
+        const r = apart * (0.5 + ring);
+        const spawn = { x: drop.x + Math.cos(a) * r, z: drop.z + Math.sin(a) * r, yaw: rng() * 360 };
         // each its own tier: "mixed" draws one per bot
         const bot = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty, rng)], spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], BOT_NAMES[i % BOT_NAMES.length]);
         // with loot on it lands with nothing and searches first
@@ -643,7 +649,8 @@ export class BrMatch extends Duel {
     for (const b of this.bots) {
       if (!b.landed && b.bot.alive && !b.bot.dropping) {
         b.landed = true;
-        b.armedAt = now + (this.startLoot ? LOOT.botSearch[b.bot.diff.name] * (0.7 + Math.random() * 0.6) : 0);
+        // nobody shoots for a moment after a landing, loot or loadouts
+        b.armedAt = now + squadCfg.drop.grace + (this.startLoot ? LOOT.botSearch[b.bot.diff.name] * (0.7 + Math.random() * 0.6) : 0);
       }
       if (b.landed && b.armedAt <= now && !b.armedShown && b.bot.alive) {
         // found its gun and a shield of some tier (its health is what it is)

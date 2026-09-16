@@ -104,8 +104,22 @@ async function brTest(browser: Browser, query: string): Promise<void> {
     `(() => { const d = window.__range.duel(); const h = d.hud().br; const p = window.__range.player.pos; return { y: p.y, phase: d.phase, dropping: h.dropping, poi: h.poi, alive: h.alive, bounds: p.z > 280 && p.z < 720 }; })()`
   );
   check("the drop starts high over one of the five places, six in the match", drop.y > 40 && drop.dropping && /HUB|YARD|DEPOT|RIDGE|TOWN/.test(drop.poi) && drop.alive === 6 && drop.bounds, JSON.stringify(drop));
+  const early = await ev<number>(page, `(() => { const d = window.__range.duel(); const now = performance.now() / 1000; return d.bots.filter((b) => b.armedAt <= now).length; })()`);
+  check("landing: nobody's gun works while the drop is still coming down", early === 0, `${early} armed`);
   const landed = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false);
   check("the fight starts when you land", landed, await ev<string>(page, "String(window.__range.duel()?.phase)"));
+  // the owner landed beside bots and died before the drop finished. They take
+  // the OTHER places now, and a bot's gun does not work for the first seconds
+  // after ITS landing, taken here the moment you touch down.
+  const landing = await ev<{ nearest: number; poi: string }>(
+    page,
+    `(() => { const d = window.__range.duel(); const me = window.__range.player.pos;
+      let nearest = Infinity;
+      for (const a of d.avatars) nearest = Math.min(nearest, Math.hypot(a.group.position.x - me.x, a.group.position.z - me.z));
+      return { nearest, poi: d.hud().br.poi }; })()`,
+  );
+  check("landing: no bot drops on your place, so the nearest is a long way off", landing.nearest > 60, `${landing.nearest.toFixed(0)} m to the nearest bot at ${landing.poi}`);
+
   await sleep(300);
   const card = await ev<{ on: boolean; choosing: boolean; picked: string | null }>(page, "({ on: window.__range.abilities.enabled, choosing: window.__range.abilities.choosing, picked: window.__range.abilities.picked })");
   check("abilities: the battle royale has them on, and the card is up on landing", card.on && card.choosing && card.picked === null, JSON.stringify(card));
