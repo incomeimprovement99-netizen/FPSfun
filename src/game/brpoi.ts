@@ -29,7 +29,6 @@ export interface PoiCtx {
     trim: THREE.Material;
     crate: THREE.Material;
     steel: THREE.Material;
-    glass: THREE.Material;
   };
 }
 

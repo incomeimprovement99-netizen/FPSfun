@@ -101,6 +101,22 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-town",
+    note: "WEST TOWN: houses you can go inside, a street between the rows, roofs and a zipline off the water tower",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(-165 - 30, 0, 500 + 2, -90, 2); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
+    name: "br-town-inside",
+    note: "standing inside one of WEST TOWN's houses, looking out of the door",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(-179, 0, 492, 180, 0); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
     name: "control",
     note: "Control: the A B C strip and the scores, zone A taken, the zones in the arena",
     steps: [

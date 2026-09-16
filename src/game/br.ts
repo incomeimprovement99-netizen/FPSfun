@@ -15,6 +15,7 @@
 // nodes (POI centres, gates, road bends) laid out here as well.
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
+import { building, coverWall, crateStair, type PoiCtx } from "./brpoi";
 import { PAL, bevel, flat, emissive, textPanel } from "./geo";
 import { material } from "./materials";
 import { ZIPLINES } from "./traversal";
@@ -146,6 +147,16 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     strip(outer[i][0], outer[i][1], corners[i][0], corners[i][1], 6);
     strip(corners[i][0], corners[i][1], outer[(i + 1) % 4][0], outer[(i + 1) % 4][1], 6);
   }
+
+  // Buildings you can go INSIDE (src/game/brpoi.ts). The places used to be
+  // solid boxes you could only stand on, so every fight was outdoors on open
+  // sand. This hands the helpers the same box maker the rest of the map uses.
+  const poi: PoiCtx = {
+    box,
+    root,
+    zip: (a, b, fa, fb) => zipline(root, a, b, fa, fb),
+    mats: { wall: wallMat, floor: concrete, trim, crate, steel: post },
+  };
 
   // ---------------------------------------------------------------- THE HUB
   {
@@ -282,16 +293,33 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   // ---------------------------------------------------------------- WEST TOWN
   {
     const cx = -165;
+    // Six houses you can go inside, in two rows with a street between them:
+    // doors onto the street, windows on the far sides, stairs to a first
+    // floor and a roof to fight from. They were solid 8 x 8 blocks before.
     for (let r = 0; r < 2; r++) {
       for (let c = 0; c < 3; c++) {
         const x = cx - 14 + c * 14;
         const z = -8 + r * 16;
-        box(8, 4, 8, x, 0, z, wallMat);
-        box(1.6, 1.4, 1.6, x + 5, 0, z + (r ? 5 : -5), crate);
-        box(1.6, 1.4, 1.6, x + 5, 1.4, z + (r ? 3.4 : -3.4), crate);
-        box(1.6, 1.4, 1.6, x + 5, 2.8, z + (r ? 1.8 : -1.8), crate);
+        const twoStorey = c !== 1;
+        building(poi, {
+          x,
+          z,
+          w: 10,
+          d: 9,
+          storeys: twoStorey ? 2 : 1,
+          storeyH: 3.4,
+          doors: [r ? "n" : "s"],
+          windows: r ? ["s", "e", "w"] : ["n", "e", "w"],
+          stairs: twoStorey,
+          balcony: c === 2,
+        });
+        // the way onto the roof from the street, for anyone who does not want the stairs
+        crateStair(poi, x + 6.4, z + (r ? 5 : -5), twoStorey ? 6.8 : 3.4, r ? 1 : -1);
       }
     }
+    // a low wall down the middle of the street: cover between the two rows
+    for (const zz of [-2, 6]) coverWall(poi, cx - 14, zz, 6, 0.8);
+    coverWall(poi, cx + 6, 2, 0.8, 7);
     // the water tower: four legs and a tank
     for (const [lx, lz] of [
       [-2, -2],
@@ -300,6 +328,8 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
       [2, 2],
     ]) box(0.5, 10, 0.5, cx + 24 + lx, 0, 20 + lz, post);
     box(6, 3.5, 6, cx + 24, 10, 20, steelA);
+    // off the tank, out of town: a place needs a way out that is not a run across the open
+    zipline(root, new THREE.Vector3(cx + 24, 14.6, 20), new THREE.Vector3(cx + 70, 2.2, 52), 13.5, 0);
     for (const [x, z] of [
       [cx - 26, -14],
       [cx + 12, 22],
