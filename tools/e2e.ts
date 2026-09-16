@@ -383,6 +383,29 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await ev(t, "window.__range.duel()?.leave()");
   await t.close();
 
+  // ---- the middle building: a roof to stand on, and ziplines onto it
+  // (no match: a mode would put the player back on a spawn)
+  {
+    const a = await open(browser, query);
+    await pressPlay(a);
+    await ev(a, `document.getElementById("goArena").click()`);
+    await sleep(800);
+    const built = await ev<{ zips: number; slab: boolean }>(
+      a,
+      `(() => { const r = window.__range;
+        const zips = r.ziplines.filter((z) => Math.abs(z.a.x - 90) < 40 && z.a.z > -80 && z.a.z < 0).length;
+        // the roof as a floor in the collision. Standing on it is not checked
+        // here: with no drawing the page runs a handful of frames a second and
+        // falls half a metre a frame, which tunnels a 0.3 m slab. A page with
+        // drawing on, at 56 fps, lands on it and stays.
+        const slab = r.solids.some((s) => s.top > 5.9 && s.top < 6.1 && s.minX < 90 && s.maxX > 90 && s.minZ < -40 && s.maxZ > -40);
+        return { zips, slab }; })()`
+    );
+    check("arena: the middle building's roof is a floor over the middle of the map, 6 m up", built.slab);
+    check("arena: two ziplines run onto it, one from each end", built.zips === 2, `${built.zips} ziplines in the arena`);
+    await a.close();
+  }
+
   // ---- free-for-all: no teams, everyone scores for themselves, first to 20
   const f = await startModePage(browser, query, "goFfa", `document.getElementById("modeBots").value = "3"`);
   const f0 = await ev<{ allies: number; enemies: number; you: number; best: number; limit: number; teams: boolean }>(

@@ -16,9 +16,10 @@
 // Every box is reachable: the simulation checks the jump and mantle heights.
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
-import { PAL, bevel, flat, graffitiTexture, worldTiledMaterial, textPanel } from "./geo";
+import { PAL, bevel, emissive, flat, graffitiTexture, worldTiledMaterial, textPanel } from "./geo";
 import { material } from "./materials";
 import { warehouseRoof } from "./warehouse";
+import { ZIPLINES } from "./traversal";
 import type { Bounds } from "./player";
 
 export const ARENA_X = 90;
@@ -177,9 +178,55 @@ export function buildArena(scene: THREE.Scene): ArenaHandles {
   }
   // cover round the circle, and double stacks on the flanks
   for (const sx of [-1, 1]) {
-    crate(1.2, 1.2, 2.4, sx * 7.5, 0, crateMat);
     crate(2.2, 2.4, 2.2, sx * 13, sx * 3, crateMat);
     crate(1.2, 1.2, 1.2, sx * 13, -sx * 1.2, crateMat);
+  }
+
+  // The middle building. The middle lane was a corridor with two low walls in
+  // it: nothing to go over, round or through, and the circle sat in the open.
+  // This is a two-storey shell over the circle you can fight around and on
+  // top of, reached by a mantle chain on each side or a zipline from either
+  // end of the map (Hyper Scape's lesson: give people a reason to be above
+  // the floor, docs/HYPER_SCAPE.md).
+  {
+    const F1 = 3.2; // the first floor, a mantle up from the 1.6 m crates beside it
+    const ROOF = 6.0;
+    const W = 11; // across the middle lane, short of the lane walls at x 6
+    const D = 9;
+    // four corner pillars and the two side walls, open to the lanes at the ends
+    for (const sx of [-1, 1]) {
+      box(0.7, ROOF, 0.7, sx * (W / 2 - 0.35), 0, -D / 2 + 0.35, wallMat);
+      box(0.7, ROOF, 0.7, sx * (W / 2 - 0.35), 0, D / 2 - 0.35, wallMat);
+      // the long faces: a wall to the first floor with a gap at the middle to run through
+      box(0.5, F1, 3.1, sx * (W / 2 - 0.25), 0, -D / 2 + 1.9, wallMat);
+      box(0.5, F1, 3.1, sx * (W / 2 - 0.25), 0, D / 2 - 1.9, wallMat);
+      // the first floor's own low wall, to shoot over from up there
+      box(0.4, 1.0, D - 1.4, sx * (W / 2 - 0.2), F1, 0, coverMat);
+    }
+    // the first floor itself, a hole at each end so you can drop through
+    box(W - 1.4, 0.3, 3.4, 0, F1 - 0.3, -D / 2 + 1.9, laneMat);
+    box(W - 1.4, 0.3, 3.4, 0, F1 - 0.3, D / 2 - 1.9, laneMat);
+    // the roof, and a lip you can crouch behind
+    box(W, 0.3, D, 0, ROOF - 0.3, 0, laneMat);
+    for (const sz of [-1, 1]) box(W, 0.7, 0.35, 0, ROOF, sz * (D / 2 - 0.18), coverMat);
+    // the way up: a crate against each side, first floor, then roof by mantle
+    for (const sx of [-1, 1]) {
+      crate(1.6, 1.6, 1.6, sx * (W / 2 + 1.1), -2.6, crateMat);
+      crate(1.6, 1.6, 1.6, sx * (W / 2 + 1.1), 2.6, crateMat);
+      ARENA_BOXES.push({ x: sx * (W / 2 + 1.1), z: 2.6, w: 1.6, d: 1.6, h: 1.6 });
+    }
+    // a stack inside, under the end holes: the first floor from the ground
+    for (const sz of [-1, 1]) crate(1.4, 1.5, 1.4, 0, sz * (D / 2 - 1.9), crateMat);
+
+    // Ziplines from each end of the map onto the roof: the rotate that the
+    // middle lane never had. They ride in the direction you look, so each is
+    // a way in AND a way out.
+    for (const sz of [-1, 1]) {
+      // clear of the spawns at z 29: a 4.6 m post right in front of one was in the way
+      const post = new THREE.Vector3(0, 4.6, sz * 21);
+      const roofEnd = new THREE.Vector3(0, ROOF + 1.1, sz * (D / 2 - 0.8));
+      arenaZip(root, post, roofEnd, 0, ROOF);
+    }
   }
 
   // the capture circle
@@ -376,3 +423,24 @@ export const ARENA_BOT_SPAWNS: Array<{ x: number; z: number; yaw: number }> = [
   { x: ARENA_X - 13, z: ARENA_Z + 24, yaw: 0 },
   { x: ARENA_X + 13, z: ARENA_Z + 24, yaw: 0 },
 ];
+
+/** a rideable zipline between two arena-local points, with a post at each end */
+function arenaZip(root: THREE.Group, a: THREE.Vector3, b: THREE.Vector3, floorA: number, floorB: number): void {
+  const origin = root.position;
+  const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, a.distanceTo(b), 8), emissive(0xffc21a, 0.55));
+  rope.position.copy(a).lerp(b, 0.5);
+  rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(b, a).normalize());
+  root.add(rope);
+  const poleMat = flat(PAL.steelDark, 0.55, 0.3);
+  for (const [p, floor] of [
+    [a, floorA],
+    [b, floorB],
+  ] as const) {
+    const h = Math.max(0.3, p.y + 0.35 - floor);
+    const post = new THREE.Mesh(bevel(0.22, h, 0.22, 0.04), poleMat);
+    post.position.set(p.x, floor + h / 2, p.z);
+    post.castShadow = true;
+    root.add(post);
+  }
+  ZIPLINES.push({ a: new THREE.Vector3(a.x + origin.x, a.y, a.z + origin.z), b: new THREE.Vector3(b.x + origin.x, b.y, b.z + origin.z) });
+}

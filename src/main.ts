@@ -26,7 +26,7 @@ import { ViewModel } from "./game/viewmodel";
 import { GameAudio } from "./game/audio";
 import { Hud } from "./game/hud";
 import { DpiCalibrator, snapDpi } from "./game/dpi-calibrate";
-import { ladderAhead } from "./game/traversal";
+import { ZIPLINES, ladderAhead } from "./game/traversal";
 import { mergeStatic } from "./game/staticmerge";
 import { opticInfo } from "./game/optics";
 import { opticName, hopupName } from "./config/names";
@@ -3743,6 +3743,9 @@ initWelcome();
   /** the plates drawn this frame, and the line-of-sight test they use (tools/e2e.ts) */
   platesNow: () => lastPlates,
   clearTo,
+  /** the level's ziplines and collision boxes (tools/e2e.ts) */
+  ziplines: ZIPLINES,
+  solids: RANGE_SOLIDS,
   /** the practice aim bot and the dash's settings (tools/e2e.ts) */
   aimbot,
   jolt: () => ({ ...JOLT }),

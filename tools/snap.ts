@@ -67,6 +67,24 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "arena-middle",
+    note: "the 1v1 arena's new middle building over the capture circle, from a spawn: two storeys, the roof, the ziplines onto it",
+    steps: [
+      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); })()`, 600],
+      [`(() => { const r = window.__range; r.player.teleport(90, 0, -58, 180, 6); })()`, 0],
+      [gameSeconds(1), 250],
+    ],
+  },
+  {
+    name: "arena-middle-roof",
+    note: "the middle building from the side, at roof height: the two storeys, the roof lip and the ziplines",
+    steps: [
+      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); })()`, 600],
+      [`(() => { const r = window.__range; r.setThirdPerson(true); r.player.teleport(90 - 15.5, 4.2, -48, -90, -2); })()`, 0],
+      [gameSeconds(1), 250],
+    ],
+  },
+  {
     name: "control",
     note: "Control: the A B C strip and the scores, zone A taken, the zones in the arena",
     steps: [
