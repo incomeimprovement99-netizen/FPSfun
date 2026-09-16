@@ -1,4 +1,18 @@
 {
   "_note": "The HUD's few gameplay numbers (ours). Plates: an enemy's name and bars show only after you have damaged them, for `afterHit` seconds from the last hit, and only while the line from your eye to their chest is clear of the level; a team mate's always. A plate is last drawn at `range` metres, fading from `fadeFrom`: the owner asked for them off far away as well as behind cover, so this is a room-and-a-half, not the width of the map.",
-  "plates": { "afterHit": 6, "range": 30, "fadeFrom": 20 }
+  "plates": { "afterHit": 6, "range": 30, "fadeFrom": 20 },
+
+  "_loot": "Looting, so that kitting up after a landing is not dozens of presses with your head down (ours; Apex, Warzone and The Finals all take ammo as you walk over it and let you hold one key to empty a box). `reach` is the radius round your feet the prompt's list covers, wider than loot.json's 2.2 m aimed reach so a whole spot fits in one list, and `floorGap` keeps that list to the floor you are standing on now that the buildings hold loot upstairs. `sweep` is the walk-over radius: an item whose kind is in `autoKinds` and, for a heal, whose id is in `autoHeals`, comes up inside it with no press at all. `startAfter` is how long the key must stay down before the hold starts emptying the spot, so a tap still takes exactly one thing; `cadence` is the gap between the ones after that, slow enough to read the notices and fast enough to clear a death box in a second. `askAgain` stops a guest asking the host for the same item every frame while the answer is still in flight. `listMax` is how many rows the list shows, and `cycle` is the action that steps it: the armour cycle, a range tool with nothing to do in a battle royale, so it is free to borrow here.",
+  "loot": {
+    "reach": 3,
+    "floorGap": 2,
+    "sweep": 1.4,
+    "autoKinds": ["ammo", "heal"],
+    "autoHeals": ["cell", "syringe"],
+    "startAfter": 0.3,
+    "cadence": 0.18,
+    "askAgain": 1,
+    "listMax": 5,
+    "cycle": "cycleArmor"
+  }
 }

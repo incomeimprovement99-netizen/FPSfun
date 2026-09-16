@@ -10,14 +10,23 @@
 // Drawn in code: a gun lies as its own model, the rest as a small box in the
 // rarity's colour; epic and legendary items stand in a beam of light. Only
 // what is within 70 m is drawn.
+//
+// Two things decide what you find. A place has a TIER (src/config/loot.json),
+// which says how many spots it carries and how the rarity weights lean, and
+// one place a match is the HOT ZONE, which rolls the richest tier and holds a
+// gun that is already kitted. That is the whole reason to pick one place over
+// another. And a spot is a KIND, not a handful of separate dice: a gun rack, a
+// med shelf, a bench, an ordnance crate, an ammo crate, so a room reads as a
+// room instead of coming out four shield cells and nothing else.
 import * as THREE from "three";
 import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
-import { weaponName, type AmmoType } from "./weapons";
+import { weaponMods, weaponName, type AmmoType } from "./weapons";
 import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName, throwName } from "../config/names";
 import { RANGE_SOLIDS } from "./range";
-import type { Attachments } from "./attachments";
+import { ammoTypeOf, STACK } from "./ammo";
+import { optionsFor, SLOTS, type Attachments } from "./attachments";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
 export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade";
@@ -45,6 +54,26 @@ export interface LootDrop {
   item: LootItem;
   pos: THREE.Vector3;
   obj: THREE.Object3D;
+}
+
+/** how rich a place is: loot.json's tiers, and "hot" for the one the match picked */
+export type PlaceTier = keyof typeof cfg.tiers;
+
+/** a place to put loot round. The id names its tier; without one we go by position in loot.json's placeOrder */
+export interface LootPlace {
+  x: number;
+  z: number;
+  id?: string;
+}
+
+/** the match's Hot Zone, for the maps to ring and the HUD to call out */
+export interface HotZone {
+  /** the place's id, and where it sat in the list handed to generate */
+  id: string;
+  index: number;
+  x: number;
+  z: number;
+  radius: number;
 }
 
 const RARITY_ORDER: Rarity[] = ["common", "rare", "epic", "legendary"];
@@ -98,9 +127,24 @@ export function lootLabel(it: LootItem): string {
   }
 }
 
-/** a rarity from the weights */
-function rollRarity(rnd: () => number): Rarity {
-  const w = cfg.rarity;
+/**
+ * The rarity weights a tier rolls on: loot.json's one table, each weight
+ * scaled by the tier's multiplier. The owner tunes `rarity` and every tier
+ * moves with it, which is the point of writing the tiers as multipliers
+ * rather than as four more tables to keep in step.
+ */
+export function rarityWeights(tier: PlaceTier | null): Record<Rarity, number> {
+  const base = cfg.rarity as Record<Rarity, number>;
+  if (!tier) return { ...base };
+  const mult = cfg.tiers[tier].rarity as Record<Rarity, number>;
+  const out = {} as Record<Rarity, number>;
+  for (const k of RARITY_ORDER) out[k] = base[k] * mult[k];
+  return out;
+}
+
+/** a rarity from the weights, leaning the way the place's tier leans */
+function rollRarity(rnd: () => number, tier: PlaceTier | null = null): Rarity {
+  const w = rarityWeights(tier);
   const total = w.common + w.rare + w.epic + w.legendary;
   let r = rnd() * total;
   for (const k of RARITY_ORDER) {
@@ -112,8 +156,31 @@ function rollRarity(rnd: () => number): Rarity {
 
 const pick = <T>(rnd: () => number, xs: T[]): T => xs[Math.floor(rnd() * xs.length) % xs.length];
 
-/** one random floor item */
-export function rollItem(rnd: () => number): LootItem {
+// One item of each class, so the single-item roll below and the typed spots
+// further down make the same things out of the same table.
+const makeWeapon = (rnd: () => number, rarity: Rarity): LootItem => ({ kind: "weapon", id: pick(rnd, cfg.weapons[rarity]), n: 1, rarity, mag: (cfg.gunMag as Record<Rarity, number>)[rarity] });
+const makeHeal = (rnd: () => number, rarity: Rarity): LootItem => {
+  const id = pick(rnd, cfg.heals[rarity]) as HealItem;
+  return { kind: "heal", id, n: cfg.healAmount[id], rarity };
+};
+const makeAttach = (rnd: () => number, rarity: Rarity): LootItem => ({ kind: "attach", id: pick(rnd, cfg.attachments[rarity]), n: 1, rarity });
+const makeMag = (rarity: Rarity): LootItem => ({ kind: "attach", id: `mag:${(cfg.magLevel as Record<Rarity, number>)[rarity]}`, n: 1, rarity });
+const makeHopup = (rnd: () => number): LootItem => ({ kind: "hopup", id: pick(rnd, cfg.hopups), n: 1, rarity: "epic" });
+const makeHelmet = (rnd: () => number): LootItem => ({ kind: "helmet", id: rnd() < cfg.helmetGold ? "gold" : "red", n: 1, rarity: "legendary" });
+const makeGrenade = (rnd: () => number): LootItem => ({ kind: "grenade", id: pick(rnd, cfg.grenades), n: 1, rarity: "rare" });
+/** a stack of one type: the gun's own where a rack names one, otherwise whatever lies about */
+const makeAmmo = (rnd: () => number, type: AmmoType | null): LootItem => {
+  const t = type ?? (pick(rnd, cfg.ammoTypes) as AmmoType);
+  return { kind: "ammo", id: t, n: STACK[t as Exclude<AmmoType, "energy">] ?? STACK.light, rarity: "common" };
+};
+
+/**
+ * One loose item from the kinds table. The floor is laid out by spot kind now
+ * (see rollSpot), so this is what something wants when it wants a single item
+ * on its own, and it is where tools/verify.ts holds the rarity table to
+ * account.
+ */
+export function rollItem(rnd: () => number, tier: PlaceTier | null = null): LootItem {
   const kinds = Object.entries(cfg.kinds) as Array<[LootKind, number]>;
   const total = kinds.reduce((a, [, w]) => a + w, 0);
   let r = rnd() * total;
@@ -125,28 +192,121 @@ export function rollItem(rnd: () => number): LootItem {
       break;
     }
   }
-  const rarity = rollRarity(rnd);
+  const rarity = rollRarity(rnd, tier);
   switch (kind) {
     case "weapon":
-      return { kind, id: pick(rnd, cfg.weapons[rarity]), n: 1, rarity, mag: rarity === "legendary" ? 4 : rarity === "epic" ? 2 : 0 };
-    case "heal": {
-      const id = pick(rnd, cfg.heals[rarity]) as HealItem;
-      return { kind, id, n: cfg.healAmount[id], rarity: rarity };
-    }
+      return makeWeapon(rnd, rarity);
+    case "heal":
+      return makeHeal(rnd, rarity);
     case "attach":
-      return { kind, id: pick(rnd, cfg.attachments[rarity]), n: 1, rarity };
+      return makeAttach(rnd, rarity);
     case "hopup":
-      return { kind, id: pick(rnd, cfg.hopups), n: 1, rarity: "epic" };
+      return makeHopup(rnd);
     case "helmet":
-      return { kind, id: rnd() < 0.8 ? "gold" : "red", n: 1, rarity: "legendary" };
+      return makeHelmet(rnd);
     case "grenade":
-      return { kind, id: pick(rnd, cfg.grenades), n: 1, rarity: "rare" };
-    default: {
-      const type = pick(rnd, ["light", "heavy", "sniper", "shotgun"] as AmmoType[]);
-      const stack = { light: 60, heavy: 60, sniper: 28, shotgun: 20 } as Record<string, number>;
-      return { kind: "ammo", id: type, n: stack[type], rarity: "common" };
+      return makeGrenade(rnd);
+    default:
+      return makeAmmo(rnd, null);
+  }
+}
+
+interface SpotKind {
+  id: string;
+  weight: Record<PlaceTier, number>;
+  gun: number[];
+  ammo: number[];
+  mag: number[];
+  attach: number[];
+  heal: number[];
+  throwables: number[];
+  hopupChance: number;
+  helmetChance: number;
+}
+const SPOT_KINDS = cfg.spotKinds as SpotKind[];
+
+/** the tier a place rolls on: its id's, or its place in loot.json's placeOrder when it arrives without one */
+export function tierOf(place: LootPlace, index: number): PlaceTier {
+  const id = place.id ?? cfg.placeOrder[index];
+  return ((cfg.places as Record<string, PlaceTier>)[id] ?? cfg.defaultTier) as PlaceTier;
+}
+
+/**
+ * The Hot Zone for a match: one place, off the seed alone. It runs on its own
+ * stream so a guest works it out from the welcome's seed without the host
+ * sending anything, and so that adding it moved none of the floor's other
+ * rolls. The mix is Knuth's, the same family of constant as `seeded` itself.
+ */
+export function pickHotZone(seed: number, places: LootPlace[]): HotZone | null {
+  if (!places.length) return null;
+  const rnd = seeded(Math.imul(seed >>> 0 || 1, 2654435761) >>> 0);
+  const index = Math.floor(rnd() * places.length) % places.length;
+  const p = places[index];
+  return { id: p.id ?? cfg.placeOrder[index] ?? String(index), index, x: p.x, z: p.z, radius: cfg.hotZone.radius };
+}
+
+/**
+ * The Hot Zone's prize: a gun off the epic list wearing everything it can
+ * take. Every slot is filled from what the gun is actually offered
+ * (src/game/attachments.ts knows which mods fit which gun), so this cannot
+ * hand out a sniper stock on an SMG.
+ */
+export function kittedGun(rnd: () => number): LootItem {
+  const id = pick(rnd, cfg.weapons[cfg.kitted.pool as Rarity]);
+  const mods = weaponMods(id);
+  const attach: Attachments = {};
+  for (const slot of SLOTS) {
+    const fits = optionsFor(slot, mods, id).filter((o) => o.mod !== null);
+    if (!fits.length) continue;
+    const prefer = (cfg.kitted.prefer as Record<string, string[]>)[slot] ?? [];
+    attach[slot] = prefer.find((m) => fits.some((o) => o.mod === m)) ?? fits[fits.length - 1].mod;
+  }
+  return { kind: "weapon", id, n: 1, rarity: cfg.kitted.rarity as Rarity, mag: cfg.kitted.mag, attach };
+}
+
+/**
+ * What one spot holds. The kind comes off the tier's weights, then the kind
+ * says what goes in it: a rack's ammo is the ammo its own gun eats, and when
+ * that gun runs on energy it carries its magazines with it (ammo.json), so
+ * the rack holds another attachment instead of a stack nobody can use.
+ */
+export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
+  const total = SPOT_KINDS.reduce((a, s) => a + s.weight[tier], 0);
+  let r = rnd() * total;
+  let spot = SPOT_KINDS[SPOT_KINDS.length - 1];
+  for (const s of SPOT_KINDS) {
+    r -= s.weight[tier];
+    if (r <= 0) {
+      spot = s;
+      break;
     }
   }
+  const count = (range: number[]) => range[0] + Math.floor(rnd() * (range[1] - range[0] + 1));
+  const guns = count(spot.gun);
+  let ammo = count(spot.ammo);
+  const mags = count(spot.mag);
+  let attach = count(spot.attach);
+  const heals = count(spot.heal);
+  const throwables = count(spot.throwables);
+  const out: LootItem[] = [];
+  let takes: AmmoType | null = null;
+  for (let i = 0; i < guns; i++) {
+    const gun = makeWeapon(rnd, rollRarity(rnd, tier));
+    out.push(gun);
+    takes = ammoTypeOf(gun.id);
+  }
+  if (takes === "energy") {
+    attach += ammo;
+    ammo = 0;
+  }
+  for (let i = 0; i < ammo; i++) out.push(makeAmmo(rnd, takes));
+  for (let i = 0; i < mags; i++) out.push(makeMag(rollRarity(rnd, tier)));
+  for (let i = 0; i < attach; i++) out.push(makeAttach(rnd, rollRarity(rnd, tier)));
+  for (let i = 0; i < heals; i++) out.push(makeHeal(rnd, rollRarity(rnd, tier)));
+  for (let i = 0; i < throwables; i++) out.push(makeGrenade(rnd));
+  if (rnd() < spot.hopupChance) out.push(makeHopup(rnd));
+  if (rnd() < spot.helmetChance) out.push(makeHelmet(rnd));
+  return out;
 }
 
 /** the floor (or a roof, if there is a low one there) at x, z */
@@ -182,6 +342,13 @@ function floorAt(x: number, z: number): number | null {
 export class LootField {
   readonly group = new THREE.Group();
   drops = new Map<number, LootDrop>();
+  /**
+   * The place this match's rich table went to, once generate has run. It is
+   * here so the maps can ring it and the HUD can call it out without anyone
+   * having to re-roll it: the same seed gives the same answer everywhere,
+   * which is also why a guest needs nothing sent to draw the same circle.
+   */
+  hotZone: HotZone | null = null;
   private nextKey = 1;
   private beamGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6, 1, true);
   private boxGeo = new THREE.BoxGeometry(0.34, 0.2, 0.34);
@@ -265,6 +432,9 @@ export class LootField {
   clear(): void {
     for (const k of [...this.drops.keys()]) this.remove(k);
     this.nextKey = 1;
+    // the Hot Zone belongs to the floor that was cleared: generate() names the
+    // next one, and nothing should be able to read the last match's circle
+    this.hotZone = null;
   }
 
   /** done with the field (the match is over): the items, its shapes and its materials freed */
@@ -277,44 +447,62 @@ export class LootField {
   }
 
   /**
-   * The floor's loot from a seed: spots round each place (on the ground, or a
-   * low roof), and in the field; one to three items a spot. The same on every
-   * browser for the same seed.
+   * The floor's loot from a seed: spots round each place (on the ground, on a
+   * floor above, or on a roof), and in the field. How many spots a place gets
+   * and how its rarities lean is its tier's, and one place a match rolls the
+   * hot tier and keeps the kitted gun. The same on every browser for the same
+   * seed.
    */
-  generate(seed: number, places: Array<{ x: number; z: number }>, bounds: { minX: number; maxX: number; minZ: number; maxZ: number }): void {
+  generate(seed: number, places: LootPlace[], bounds: { minX: number; maxX: number; minZ: number; maxZ: number }): void {
     this.clear();
     const rnd = seeded(seed);
-    const spots: THREE.Vector3[] = [];
-    const trySpot = (x: number, z: number) => {
+    this.hotZone = pickHotZone(seed, places);
+    const trySpot = (into: THREE.Vector3[], x: number, z: number) => {
       const y = floorAt(x, z);
-      if (y !== null) spots.push(new THREE.Vector3(x, y + 0.01, z));
+      if (y !== null) into.push(new THREE.Vector3(x, y + 0.01, z));
     };
     // A place's loot goes on ANY floor at that spot, picked at random from the
     // ones with headroom, so a two-storey building holds loot upstairs and on
     // its roof as well as on its ground floor. That is the reason to go in.
-    const trySpotAnyFloor = (x: number, z: number): void => {
+    const trySpotAnyFloor = (into: THREE.Vector3[], x: number, z: number): void => {
       const floors = standingSpots(x, z);
       if (!floors.length) return;
       const y = floors[Math.floor(rnd() * floors.length)];
-      spots.push(new THREE.Vector3(x, y + 0.01, z));
+      into.push(new THREE.Vector3(x, y + 0.01, z));
     };
-    for (const p of places) {
+    const fill = (spots: THREE.Vector3[], tier: PlaceTier) => {
+      for (const s of spots) {
+        for (const item of rollSpot(rnd, tier)) {
+          const off = new THREE.Vector3((rnd() - 0.5) * 1.2, 0, (rnd() - 0.5) * 1.2);
+          this.add(item, s.clone().add(off));
+        }
+      }
+    };
+    let hotSpots: THREE.Vector3[] = [];
+    for (let i = 0; i < places.length; i++) {
+      const p = places[i];
+      const hot = this.hotZone?.index === i;
+      const tier: PlaceTier = hot ? "hot" : tierOf(p, i);
+      const spots: THREE.Vector3[] = [];
       let tries = 0;
-      const before = spots.length;
-      while (spots.length - before < cfg.spotsPerPoi && tries++ < 300) {
+      while (spots.length < cfg.tiers[tier].spots && tries++ < 400) {
         const a = rnd() * Math.PI * 2;
         const r = 4 + rnd() * 30;
-        trySpotAnyFloor(p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
+        trySpotAnyFloor(spots, p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
       }
+      if (hot) hotSpots = spots;
+      fill(spots, tier);
     }
-    for (let i = 0; i < cfg.fieldSpots; i++) trySpot(bounds.minX + 20 + rnd() * (bounds.maxX - bounds.minX - 40), bounds.minZ + 20 + rnd() * (bounds.maxZ - bounds.minZ - 40));
-    for (const s of spots) {
-      const [lo, hi] = cfg.itemsPerSpot;
-      const n = lo + Math.floor(rnd() * (hi - lo + 1));
-      for (let i = 0; i < n; i++) {
-        const off = new THREE.Vector3((rnd() - 0.5) * 1.2, 0, (rnd() - 0.5) * 1.2);
-        this.add(rollItem(rnd), s.clone().add(off));
-      }
+    const field: THREE.Vector3[] = [];
+    for (let i = 0; i < cfg.fieldSpots; i++) trySpot(field, bounds.minX + 20 + rnd() * (bounds.maxX - bounds.minX - 40), bounds.minZ + 20 + rnd() * (bounds.maxZ - bounds.minZ - 40));
+    fill(field, cfg.fieldTier as PlaceTier);
+    // The kitted gun last, on one of the Hot Zone's own spots so it is indoors
+    // as often as the rest of that place's loot is. Not every match has one:
+    // a Hot Zone you can see is worth crossing for even when the prize is not
+    // in it, and a guaranteed prize would make it the only place to land.
+    if (hotSpots.length && rnd() < cfg.hotZone.kittedChance) {
+      const at = hotSpots[Math.floor(rnd() * hotSpots.length)];
+      this.add(kittedGun(rnd), at.clone().add(new THREE.Vector3((rnd() - 0.5) * 1.2, 0, (rnd() - 0.5) * 1.2)));
     }
   }
 

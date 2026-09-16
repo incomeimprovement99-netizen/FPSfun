@@ -24,11 +24,12 @@ import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels
 import { Forearm, Hand } from "./arms";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
+import armCfg from "../config/viewmodel.json";
 
 /** a melee swing, seconds */
 export const MELEE_TIME = 0.38;
 
-const VM_SCALE = 0.42;
+export const VM_SCALE = 0.42;
 /** eye to rear sight when aiming down sights, before VM_SCALE */
 const ADS_EYE = 0.26;
 
@@ -84,6 +85,59 @@ const smooth = (a: number, b: number, x: number): number => {
 };
 const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
+
+// ------------------------------------------------------------------ the arms
+
+/** which set of shoulders a gun uses: the kind of hold its support hand has (gunmodels.ts) */
+export type ArmFamily = GunModel["support"]["kind"];
+
+/**
+ * Where a forearm's far end sits, in the camera's own space: low, wide, and
+ * far enough down to be off the bottom of the frame. It stands for a joint on
+ * the body, and a body joint does not move when the gun moves, so this is the
+ * one place in the viewmodel that is NOT gun-local. Aiming is the exception:
+ * it brings the support elbow in under the gun, so that arm has two points and
+ * blends between them. Numbers: src/config/viewmodel.json.
+ */
+export function shoulderAnchor(out: THREE.Vector3, family: ArmFamily, side: "right" | "left", ads: number): THREE.Vector3 {
+  const s = armCfg.shoulders[family];
+  if (side === "right") return out.fromArray(s.right);
+  return out.fromArray(s.leftHip).lerp(TMP_A.fromArray(s.leftAds), clamp(ads, 0, 1));
+}
+
+/**
+ * The gun's position, moved so that a turn in the hands happens about the
+ * gun's own centre instead of about the model's origin, which is back at the
+ * receiver. Turning about a point behind the gun throws the barrel across the
+ * screen and drags the hands with it; turning about the middle of the gun is
+ * what a hand does when it rolls a weapon over to look at it.
+ *
+ * `base` is where the gun was pointing before the turn, `turned` after it.
+ * Writes into `pos` and returns it.
+ */
+export function turnAboutCentre(pos: THREE.Vector3, base: THREE.Euler, turned: THREE.Euler, centre: THREE.Vector3): THREE.Vector3 {
+  TMP_A.copy(centre).applyQuaternion(TMP_Q.setFromEuler(base));
+  TMP_B.copy(centre).applyQuaternion(TMP_Q.setFromEuler(turned));
+  return pos.add(TMP_A).sub(TMP_B);
+}
+
+/**
+ * An inspect's own offset and turn, 0..1 through it: the gun comes up and
+ * turns to show its left side, then over to its right and top, and settles
+ * back into the hands. Pure, so tools can walk the whole animation
+ * (tools/checks/viewmodel-arms.ts).
+ */
+export function inspectTurn(t: number, pos: THREE.Vector3, rot: THREE.Euler): void {
+  const k1 = smooth(0.04, 0.26, t) - smooth(0.44, 0.62, t);
+  const k2 = smooth(0.44, 0.62, t) - smooth(0.84, 1, t);
+  const up = k1 + k2;
+  pos.set(-0.07 * up, 0.05 * up, -0.05 * up);
+  rot.set(-0.2 * k1 + 0.35 * k2, 1.05 * k1 - 0.75 * k2, -0.55 * k1 + 0.95 * k2);
+}
+
+const TMP_A = new THREE.Vector3();
+const TMP_B = new THREE.Vector3();
+const TMP_Q = new THREE.Quaternion();
 
 // ------------------------------------------------------------ muzzle flash
 
@@ -302,10 +356,14 @@ export class ViewModel {
 
   // resting placements for this model, gun-local
   private readonly supportBase = new THREE.Vector3();
-  private readonly rightElbow = new THREE.Vector3();
-  private readonly leftElbow = new THREE.Vector3();
-  private readonly leftElbowHip = new THREE.Vector3();
-  private readonly leftElbowAds = new THREE.Vector3();
+  // ...and where each forearm ends, which is the one thing here that does not
+  // belong to the gun: a joint on the body, fixed in the camera's space and
+  // carried back into gun space once a frame
+  private readonly armEndR = new THREE.Vector3();
+  private readonly armEndL = new THREE.Vector3();
+  private armFamily: ArmFamily = "guard";
+  /** the middle of the gun, gun-local: what an inspect or a flourish turns about */
+  private readonly gunCentre = new THREE.Vector3();
   private readonly boltBase = new THREE.Vector3();
   private readonly pumpBase = new THREE.Vector3();
   private readonly magBase = new THREE.Vector3();
@@ -343,10 +401,14 @@ export class ViewModel {
   private readonly tmp = new THREE.Vector3();
   private readonly tmp2 = new THREE.Vector3();
   private readonly tmp3 = new THREE.Vector3();
-  /** the inverse of the gun's pose, to pin an elbow in view space */
+  /** the inverse of the gun's pose: a body joint comes back through it into gun space */
   private readonly poseInv = new THREE.Matrix4();
-  /** how far the gun is being turned in the hands this frame (an inspect, a flourish) */
-  private handTurn = 0;
+  /** the gun's own space to the camera's, for the arms' near-plane guard */
+  private readonly armView = new THREE.Matrix4();
+  /** where the gun points before any turn in the hands, so the turn can be about its centre */
+  private readonly baseRot = new THREE.Euler();
+  private readonly turnPos = new THREE.Vector3();
+  private readonly turnRot = new THREE.Euler();
 
   constructor() {
     this.group.scale.setScalar(VM_SCALE);
@@ -389,6 +451,9 @@ export class ViewModel {
       if (this.model) this.holder.remove(this.model.root);
       const m = gunModel(w.id);
       this.model = m;
+      // the middle of the gun, measured before it is parented or given a
+      // flash, so the box is the weapon itself in its own space
+      new THREE.Box3().setFromObject(m.root).getCenter(this.gunCentre);
       this.holder.add(m.root);
       m.root.add(this.flash.group);
       this.flash.group.position.copy(m.muzzle);
@@ -470,7 +535,6 @@ export class ViewModel {
     this.gripBaseZ = -g.f;
     this.right.group.rotation.set(-g.angle, 0, 0);
     this.right.group.scale.set(s, s, s);
-    this.rightElbow.set((g.x ?? 0) + 0.1, g.u - 0.28, -g.f + 0.34);
 
     const sp = m.support;
     const ss = sp.scale ?? 1;
@@ -481,18 +545,10 @@ export class ViewModel {
     const roll = sp.kind === "pistol" ? 0 : 0.55;
     this.left.group.rotation.set(-sp.angle, 0, roll, "ZYX");
     this.left.group.scale.set(-ss, ss, ss);
-    // The support elbow sits low and well LEFT, so the forearm enters from the
-    // lower-left corner at a shallow angle. With the elbow nearly under the
-    // hand, the forearm dropped straight down the middle of the frame.
-    if (sp.kind === "pistol") this.leftElbowHip.set((sp.x ?? 0) - 0.2, sp.u - 0.24, -sp.f + 0.3);
-    else this.leftElbowHip.set((sp.x ?? 0) - 0.32, sp.u - 0.19, -sp.f + 0.31);
-    // Aiming brings the gun to the centre line, and a hip-position elbow then
-    // stretched the forearm into a huge tube across the lower-left of the
-    // sight picture. Aimed, the elbow tucks in under the gun instead, which is
-    // also what a real shooter does.
-    if (sp.kind === "pistol") this.leftElbowAds.set((sp.x ?? 0) - 0.08, sp.u - 0.3, -sp.f + 0.24);
-    else this.leftElbowAds.set((sp.x ?? 0) - 0.1, sp.u - 0.3, -sp.f + 0.2);
-    this.leftElbow.copy(this.leftElbowHip);
+    // Which shoulders this gun hangs off. The points themselves are in the
+    // camera's space and are picked up again every frame, because the whole
+    // point of them is that the gun's pose cannot move them.
+    this.armFamily = sp.kind;
   }
 
   onShot(): void {
@@ -536,6 +592,9 @@ export class ViewModel {
     const dt = Math.min(0.05, f.dt);
     this.drawFrac = f.draw ?? 0;
     this.t += dt;
+    // the rig's own matrix, which is the viewmodel scale: every arm's
+    // near-plane guard measures through it, and the fists hang straight off it
+    this.group.updateMatrix();
     this.lastAds = f.adsFrac;
     this.flash.update(dt);
     this.shells.update(dt);
@@ -686,33 +745,34 @@ export class ViewModel {
     ry -= turn * 0.7;
     rz += turn * 0.55;
 
+    // Where the gun points before it is turned in the hands. A turn about the
+    // model's origin, which is back at the receiver, throws the barrel across
+    // the screen; these two poses let it turn about the middle of the gun.
+    this.baseRot.set(rx, ry, rz);
+    let turning = false;
+
     // ---- an inspect: the gun comes up and turns to show its left side, then
     // over to its right and top, and settles back into the hands
     if (f.inspect !== undefined && f.inspect >= 0 && f.inspect < 1) {
-      const t = f.inspect;
-      const k1 = smooth(0.04, 0.26, t) - smooth(0.44, 0.62, t);
-      const k2 = smooth(0.44, 0.62, t) - smooth(0.84, 1, t);
-      const up = k1 + k2;
-      // how far the gun is being turned IN the hands, for the elbows below
-      this.handTurn = Math.max(this.handTurn, Math.min(1, up));
-      p.x -= 0.07 * up;
-      p.y += 0.05 * up;
-      p.z -= 0.05 * up;
-      ry += 1.05 * k1 - 0.75 * k2;
-      rz -= 0.55 * k1 - 0.95 * k2;
-      rx -= 0.2 * k1 - 0.35 * k2;
+      inspectTurn(f.inspect, this.turnPos, this.turnRot);
+      p.add(this.turnPos);
+      rx += this.turnRot.x;
+      ry += this.turnRot.y;
+      rz += this.turnRot.z;
+      turning = true;
     }
     // ---- a new gun's first draw: a twirl round its barrel as it comes up
     if (f.flourish !== undefined && f.flourish >= 0 && f.flourish < 1) {
       const t = f.flourish;
-      this.handTurn = Math.max(this.handTurn, Math.sin(Math.PI * smooth(0, 0.9, t)));
       rz += Math.PI * 2 * easeInOut(smooth(0.05, 0.75, t));
       p.y += 0.035 * Math.sin(Math.PI * smooth(0, 0.9, t));
       rx -= 0.25 * Math.sin(Math.PI * smooth(0, 0.9, t));
+      turning = true;
     }
 
-    this.pose.position.copy(p);
     this.pose.rotation.set(rx, ry, rz);
+    if (turning) turnAboutCentre(p, this.baseRot, this.pose.rotation, this.gunCentre);
+    this.pose.position.copy(p);
 
     // Magnified scopes: at full aim the HUD draws the scope picture, and the
     // gun would only block it.
@@ -741,28 +801,21 @@ export class ViewModel {
       this.left.group.rotation.x = -1.4 * wallHand;
     }
 
-    // ---- arms follow the hands wherever they went
-    this.leftElbow.copy(this.leftElbowHip).lerp(this.leftElbowAds, ads);
-    // An elbow is a point on the gun, so when the gun turns in the hands the
-    // elbow swings round with it. During an inspect that put the forearm's
-    // elbow end straight down the camera: a 60 degree turn swung it in front
-    // of the eye and its cap filled the middle of the screen as a dark disc.
-    // Your shoulder does not move when you turn a gun over, so while the gun
-    // is being turned the elbows are pinned in VIEW space instead, low and
-    // back, and the forearms keep running off the bottom of the frame.
-    if (this.handTurn > 0.001) {
-      this.pose.updateMatrix();
-      this.poseInv.copy(this.pose.matrix).invert();
-      const pin = (out: THREE.Vector3, side: number): void => {
-        this.tmp3.set(side * 0.3, -0.62, -0.05).applyMatrix4(this.poseInv);
-        out.lerp(this.tmp3, Math.min(1, this.handTurn));
-      };
-      pin(this.rightElbow, 1);
-      pin(this.leftElbow, -1);
-    }
-    this.rightArm.set(this.right.wrist(this.tmp), this.rightElbow);
-    this.leftArm.set(this.left.wrist(this.tmp), this.leftElbow);
-    this.handTurn = 0;
+    // ---- arms follow the hands wherever they went.
+    // The far end of a forearm is a joint on the body, so it is fixed in the
+    // camera's space and the gun moves in front of it. An elbow kept in gun
+    // space instead swings through a wider arc than the gun does, because it
+    // is further from the pivot: on an inspect that swung it in front of the
+    // eye, where the end of the arm filled the middle of the screen. Aiming is
+    // the one thing that moves it, because it brings the support elbow in
+    // under the gun.
+    this.pose.updateMatrix();
+    this.poseInv.copy(this.pose.matrix).invert();
+    this.armView.multiplyMatrices(this.group.matrix, this.pose.matrix);
+    shoulderAnchor(this.armEndR, this.armFamily, "right", ads).applyMatrix4(this.poseInv);
+    shoulderAnchor(this.armEndL, this.armFamily, "left", ads).applyMatrix4(this.poseInv);
+    this.rightArm.set(this.right.wrist(this.tmp), this.armEndR, this.armView);
+    this.leftArm.set(this.left.wrist(this.tmp), this.armEndL, this.armView);
   }
 
   /**
@@ -789,7 +842,7 @@ export class ViewModel {
         hand.group.position.set(side * 0.24, -0.34 - (1 - k) * 0.3 + lift, -0.44 - reach);
         hand.group.rotation.set(-1.25, side * 0.25, side * Math.PI * 0.5, "XYZ");
         elbow.set(side * 0.34, -0.62 - (1 - k) * 0.3, -0.12 - reach * 0.5);
-        arm.set(hand.wrist(this.tmp2), elbow);
+        arm.set(hand.wrist(this.tmp2), elbow, this.group.matrix);
       }
       return;
     }
@@ -817,7 +870,7 @@ export class ViewModel {
         hand.group.rotation.y += 0.9 * (melee - 0.5);
         hand.group.rotation.z -= 0.5 * e;
       }
-      arm.set(hand.wrist(this.tmp2), elbow);
+      arm.set(hand.wrist(this.tmp2), elbow, this.group.matrix);
     }
   }
 
@@ -839,7 +892,7 @@ export class ViewModel {
     this.zipRig.rotation.set(0.2, 0, 0.25);
     this.zipElbow.set(x - 0.12, -0.2, -0.05);
     this.zipRig.updateMatrix();
-    this.zipArm.set(this.zipHand.wrist(this.tmp2).applyMatrix4(this.zipRig.matrix), this.zipElbow);
+    this.zipArm.set(this.zipHand.wrist(this.tmp2).applyMatrix4(this.zipRig.matrix), this.zipElbow, this.group.matrix);
   }
 
   /** bolt, slide, pump, cylinder and hammer, driven by time since the last shot */

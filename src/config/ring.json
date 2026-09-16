@@ -1,0 +1,41 @@
+{
+  "_note": "The ring on Outskirts (src/game/ring.ts). Apex runs six rounds; ours keep its shape and its damage per tick (3, 4, 10, 15, 20, 25 outside, one tick every 1.5 s) and scale the waits and the closes to a map 440 m across instead of a kilometre and a half (docs/GAP_ANALYSIS.md 4). Radii are ours, picked so round one still leaves most of the map playable and round six is a point.",
+  "phases": [
+    { "wait": 45, "close": 60, "radius": 140, "damage": 3 },
+    { "wait": 50, "close": 45, "radius": 80, "damage": 4 },
+    { "wait": 45, "close": 35, "radius": 45, "damage": 10 },
+    { "wait": 40, "close": 30, "radius": 22, "damage": 15 },
+    { "wait": 35, "close": 25, "radius": 10, "damage": 20 },
+    { "wait": 30, "close": 40, "radius": 0, "damage": 25 }
+  ],
+  "_tick": "seconds between damage ticks outside (Apex: 1.5 s)",
+  "tick": 1.5,
+  "_bounds": "the battle royale's square, copied from BR_X, BR_Z and BR_HALF in src/game/br.ts. The ring reads them here rather than importing br.ts, which builds meshes on load. Every picked circle is clamped to sit wholly inside this square: a circle whose edge ran past it stranded players in the void, because the player is hard-clamped to the same square (src/game/player.ts).",
+  "bounds": { "centerX": 0, "centerZ": 500, "half": 220 },
+  "_cover": "Late circles used to land on open sand as often as on a place, so the end game was a flat plain shoot-out. From `fromPhase` on the ring draws `candidates` centres the ordinary way and keeps the one with the best cover score, w * e^(-d / falloff) against the nearest attractor: a pull that falls by e every `falloff` metres, which is steep enough that cover underfoot beats a bigger place out of reach (a weight of 3 is worth about 27 m of walking over a weight of 1). Candidates are still random draws, so no two matches end on the same spot and no one place takes more than a third of them. Ours, swept in tools/checks/ring-place.ts: 8 draws and 25 m end nine matches in ten within 25 m of cover while still spreading over eleven of the map's twenty-one places.",
+  "cover": { "fromPhase": 3, "candidates": 8, "falloff": 25 },
+  "_attractors": "Where the fights should end, in map-local metres (add the bounds centre for world space), each with a pull weight. The five big places from br.ts's poi list pull hardest, the four corner compounds next, and the twelve roadside stops (br.ts's ruins, culverts and container stacks) least: they are cover on the way, not somewhere to hold. tools/checks/ring-place.ts fails if these drift from br.ts.",
+  "attractors": [
+    { "x": 0, "z": 0, "w": 3 },
+    { "x": 0, "z": -150, "w": 3 },
+    { "x": 0, "z": 165, "w": 3 },
+    { "x": 165, "z": 0, "w": 3 },
+    { "x": -165, "z": 0, "w": 3 },
+    { "x": -104, "z": -104, "w": 2 },
+    { "x": 104, "z": -104, "w": 2 },
+    { "x": -104, "z": 104, "w": 2 },
+    { "x": 104, "z": 104, "w": 2 },
+    { "x": 0, "z": -86, "w": 1 },
+    { "x": 0, "z": 86, "w": 1 },
+    { "x": 86, "z": 0, "w": 1 },
+    { "x": -86, "z": 0, "w": 1 },
+    { "x": 62, "z": -62, "w": 1 },
+    { "x": -62, "z": 62, "w": 1 },
+    { "x": 62, "z": 62, "w": 1 },
+    { "x": -62, "z": -62, "w": 1 },
+    { "x": 0, "z": -130, "w": 1 },
+    { "x": 0, "z": 130, "w": 1 },
+    { "x": 130, "z": 0, "w": 1 },
+    { "x": -130, "z": 0, "w": 1 }
+  ]
+}

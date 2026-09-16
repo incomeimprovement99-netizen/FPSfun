@@ -24,6 +24,8 @@ import type { TrainerHud } from "./trainer";
 import type { ModeHud } from "./modematch";
 import type { TourHud } from "./tour";
 import hudCfg from "../config/hud.json";
+import lootCfg from "../config/loot.json";
+import { REACH } from "./brplay";
 
 type ModeRow = ModeHud["rows"][number];
 
@@ -309,6 +311,7 @@ export class Hud {
     this.drawCourse(s, u);
     this.drawNotice(now, u);
     this.drawPrompt(s, u);
+    this.drawReachList(u);
     this.drawTechFeed(now, u);
     this.drawPlates(now, camera, s, u);
     this.drawMarkers(now, camera, s, u);
@@ -1068,6 +1071,45 @@ export class Hud {
     c.fillRect(x, y - cap / 2, key, cap);
     this.text(p.key, x + key / 2, y + 7 * u, 700, 18 * u, "#101214", "center");
     this.text(p.text, x + key + gap, y + 8 * u, 700, 22 * u, WHITE);
+  }
+
+  /**
+   * What is lying at your feet, when there is more than one thing (the reach
+   * list, src/game/brplay.ts): a short list under the prompt, nearest first,
+   * every row ticked in its rarity's colour. The row the prompt points at is
+   * picked out, the rows there is nothing to gain from are greyed, and the
+   * cycle key steps down the list. Before this the game silently took
+   * whichever item happened to be nearest the crosshair and you found out
+   * what it was from the notice afterwards.
+   */
+  private drawReachList(u: number): void {
+    const rows = REACH.rows;
+    if (rows.length < 2) return;
+    const c = this.ctx;
+    const cx = this.w / 2;
+    const rowH = 21 * u;
+    // under the prompt, and under the hold bar that shares the prompt's line
+    const top = this.h * 0.58 + 30 * u;
+    c.font = this.font(700, 14 * u);
+    let widest = 0;
+    for (const r of rows) widest = Math.max(widest, c.measureText(r.label).width);
+    const pw = widest + 96 * u;
+    const foot = REACH.cycleKey ? 16 * u : 0;
+    c.fillStyle = PANEL;
+    c.fillRect(cx - pw / 2, top - 6 * u, pw, rows.length * rowH + foot + 10 * u);
+    rows.forEach((r, i) => {
+      const y = top + i * rowH + 15 * u;
+      const picked = r.key === REACH.pick;
+      if (picked) {
+        c.fillStyle = "rgba(242,242,242,0.12)";
+        c.fillRect(cx - pw / 2 + 4 * u, y - 15 * u, pw - 8 * u, rowH);
+      }
+      c.fillStyle = r.dim ? "#5a5f66" : lootCfg.colors[r.rarity];
+      c.fillRect(cx - pw / 2 + 12 * u, y - 11 * u, 4 * u, 13 * u);
+      this.text(r.label, cx - pw / 2 + 24 * u, y, picked ? 700 : 600, 14 * u, r.dim ? "#5a5f66" : picked ? WHITE : "#c8d0d8");
+      this.text(`${r.dist.toFixed(1)} M`, cx + pw / 2 - 12 * u, y, 600, 12 * u, DIM, "right");
+    });
+    if (REACH.cycleKey) this.text(`${REACH.cycleKey}: NEXT ITEM`, cx, top + rows.length * rowH + 8 * u, 600, 11 * u, DIM, "center");
   }
 
   // ------------------------------------------------------------ helpers

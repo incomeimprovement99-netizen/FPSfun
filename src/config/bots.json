@@ -31,5 +31,41 @@
   "_hearing": "a shot within this many metres can be heard (by the tier's chance): the bot turns and goes to look, for this many seconds",
   "hear": { "range": 70, "memory": 4 },
   "_dodge": "hurt, a bot that dodges reverses its strafe and strafes harder for this long",
-  "dodgeTime": 0.6
+  "dodgeTime": 0.6,
+  "_sight": "How far a bot can see someone, metres (bots.ts sees()). 60 m was right for the arena, which is 36 m by 64, and blind on the battle royale's 440 m map, whose defining feature is 100 to 165 m of open ground between places, so the range is per mode and per tier: an arena bot still fights at arena range, while a battle royale elite holds a ridge and an easy one has to come down off it. What the target is doing counts, because spotting is about how much of it there is to see: a body at a run is picked up further out (`moving`, full value at `at` m/s), a crouched one behind cover much later, and a muzzle flash gives a shooter away at any range. `size` is the target's height against a standing body, scaled by `sizeGain`. Under `min` metres a bot always sees (someone in its face), over `max` it never does. A long gun sees `scoped` further and holds its angle at `holdFrac` of that range instead of walking into it: a long gun is one that still does its full damage past `longFrom` metres (the marksman and sniper family, whose falloff in the weapon data starts at 190 m where an SMG is done by 25) or one wearing a ranged optic it looted (the `scopes` prefixes). `far` keeps a long shot missable without a second model: the aim error is multiplied by 1 plus `perMetre` for every metre past `from`, so an elite bot spots you at 170 m and still has to work for the hit.",
+  "sight": {
+    "range": {
+      "arena": { "easy": 55, "normal": 60, "hard": 65, "elite": 70 },
+      "br": { "easy": 60, "normal": 90, "hard": 130, "elite": 170 }
+    },
+    "scoped": 1.25,
+    "scopes": ["optic_ranged_", "optic_sniper"],
+    "longFrom": 100,
+    "moving": { "at": 5.5, "gain": 0.35 },
+    "crouched": 0.65,
+    "firing": 1.4,
+    "sizeGain": 1,
+    "min": 14,
+    "max": 260,
+    "holdFrac": 0.35,
+    "far": { "from": 30, "perMetre": 0.006 }
+  },
+  "_loot": "A bot that lands with nothing loots like a player instead of waiting out a timer: it walks to the nearest thing on the floor it would rather have, inside `search` metres, and takes it once it is within `reach` and has spent `perItem` of its tier's botSearch (src/config/loot.json) rummaging, so an easy bot fumbles over every item and an elite one is quick. It looks again every `rescan` seconds, gives a spot up after `giveUp` seconds of not getting there (a wall in the way), stops after `window` of those botSearches or once its kit scores `enough`, and scores its kit by `score`, where a gun is worth most and armour next. There are no body shields on this map's floor (a player's shield EVOs instead), so kitting up stands in for them: every `armorPerItems` things it takes is worth a tier of shield up to `maxArmor`, and a helmet is worth the tier in `helmetTier` at once (those match the helmet armour in items.json to the dummy's shield tiers). That is what makes a bot that landed in a rich place better armed than one that landed in a field.",
+  "loot": {
+    "search": 45,
+    "reach": 2,
+    "perItem": 0.22,
+    "rescan": 0.75,
+    "giveUp": 10,
+    "window": 3,
+    "enough": 20,
+    "startArmor": 1,
+    "maxArmor": 3,
+    "armorPerItems": 3,
+    "helmetTier": { "gold": 3, "red": 4 },
+    "maxHeals": 6,
+    "maxMods": 4,
+    "startMag": 0,
+    "score": { "gun": 4, "mod": 1, "armor": 2, "heal": 0.5, "frag": 0.5 }
+  }
 }

@@ -16,7 +16,17 @@
 // match; the left hand is the same model mirrored, which three renders
 // correctly because it flips the winding order for any object with a
 // negative scale.
+//
+// The far end of a forearm is a stub: the arm carries on past it in real life.
+// Its shape and how close to the eye it is allowed to come are in
+// src/config/viewmodel.json.
 import * as THREE from "three";
+import cfg from "../config/viewmodel.json";
+
+/** no end of an arm may come inside this many metres of the eye */
+export const MIN_VIEW_DEPTH = cfg.minDepth;
+/** the radius the sleeve narrows to at the elbow */
+export const SLEEVE_CAP = cfg.sleeveCap;
 
 export interface ArmMats {
   glove: THREE.MeshStandardMaterial;
@@ -221,6 +231,12 @@ export class Forearm {
   readonly group = new THREE.Group();
   private readonly up = new THREE.Vector3(0, 1, 0);
   private readonly dir = new THREE.Vector3();
+  /** the dome over the elbow end, unsquashed as the arm stretches */
+  private readonly cap: THREE.Mesh;
+  private readonly a = new THREE.Vector3();
+  private readonly b = new THREE.Vector3();
+  private readonly view = new THREE.Vector3();
+  private readonly viewInv = new THREE.Matrix4();
 
   constructor() {
     const M = armMaterials();
@@ -229,9 +245,17 @@ export class Forearm {
     wrist.position.y = 0.11;
     const band = new THREE.Mesh(new THREE.CylinderGeometry(0.043, 0.043, 0.035, 16), M.cuff);
     band.position.y = 0.23;
-    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.045, 0.78, 18), M.sleeve);
-    sleeve.position.y = 0.62;
-    for (const m of [wrist, band, sleeve]) {
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.045, 0.62, 18), M.sleeve);
+    sleeve.position.y = 0.54;
+    // The elbow end is where the model stops, not where the arm does. At full
+    // width it is a flat disc the size of the sleeve, which nothing hides
+    // except the arm running off the bottom of the frame, so the last
+    // centimetres narrow to a stub and close over with a dome.
+    const taper = new THREE.Mesh(new THREE.CylinderGeometry(SLEEVE_CAP, 0.058, 0.15, 18), M.sleeve);
+    taper.position.y = 0.925;
+    this.cap = new THREE.Mesh(new THREE.SphereGeometry(SLEEVE_CAP, 14, 10), M.sleeve);
+    this.cap.position.y = 1;
+    for (const m of [wrist, band, sleeve, taper, this.cap]) {
       m.castShadow = false;
       m.receiveShadow = true;
       this.group.add(m);
@@ -241,12 +265,42 @@ export class Forearm {
   /**
    * Stretch from wrist to elbow. Only the length is scaled, so the radii stay
    * true however far the hand travels.
+   *
+   * `toView` maps this arm's parent space into camera space. Given it, neither
+   * end is allowed inside MIN_VIEW_DEPTH of the eye: an arm end a few
+   * centimetres from a 0.02 m near plane is a dark plate across the middle of
+   * the screen, and an animation that swings the arm round will ask for one.
    */
-  set(wrist: THREE.Vector3, elbow: THREE.Vector3): void {
-    this.dir.subVectors(elbow, wrist);
+  set(wrist: THREE.Vector3, elbow: THREE.Vector3, toView?: THREE.Matrix4): void {
+    this.a.copy(wrist);
+    this.b.copy(elbow);
+    if (toView) {
+      this.viewInv.copy(toView).invert();
+      this.keepBack(this.a, toView);
+      this.keepBack(this.b, toView);
+    }
+    this.dir.subVectors(this.b, this.a);
     const len = Math.max(0.05, this.dir.length());
-    this.group.position.copy(wrist);
+    this.group.position.copy(this.a);
     this.group.quaternion.setFromUnitVectors(this.up, this.dir.divideScalar(len));
     this.group.scale.set(1, len, 1);
+    // the group's stretch would flatten the dome into a plate of its own
+    this.cap.scale.set(1, 1 / len, 1);
+  }
+
+  /**
+   * Push a point out in front of the eye if it has come too close to it. It
+   * goes along the line of sight, so it keeps the place on screen the
+   * animation asked for and only ends up further away. A point at or behind
+   * the eye has no line of sight left to slide along, so that one goes
+   * straight out in front instead.
+   */
+  private keepBack(p: THREE.Vector3, toView: THREE.Matrix4): void {
+    this.view.copy(p).applyMatrix4(toView);
+    const depth = -this.view.z;
+    if (depth >= MIN_VIEW_DEPTH) return;
+    if (depth > 1e-4) this.view.multiplyScalar(MIN_VIEW_DEPTH / depth);
+    else this.view.z = -MIN_VIEW_DEPTH;
+    p.copy(this.view).applyMatrix4(this.viewInv);
   }
 }

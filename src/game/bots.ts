@@ -12,6 +12,12 @@
 // a hit test against your body; yours hit it like any dummy. When the circle
 // is live and it has no target it goes and stands in the circle.
 //
+// How far it sees is the map's business, not one number: the range comes from
+// src/config/bots.json per mode and per tier, and what the target is doing
+// moves it (sightRange below). A bot handed a loot field loots instead of
+// being handed a kit: BotLooter walks it to the nearest thing on the floor it
+// would rather have, and what it finds is what it fights with.
+//
 // The rounds are the 1v1's: countdown, fight, last standing or the circle,
 // first to 3. Two bots do not shoot each other: they are both after you.
 import * as THREE from "three";
@@ -28,6 +34,7 @@ import { ABILITY_IDS, BOT_ABILITY, JOLT, TRIAGE, type AbilityId } from "./abilit
 import type { ActorState } from "./killcam";
 import items from "../config/items.json";
 import botsCfg from "../config/bots.json";
+import lootCfg from "../config/loot.json";
 import throwCfg from "../config/throwables.json";
 import { asDifficulty } from "./stats";
 import { Throwables, blastDamage, throwCode } from "./throwables";
@@ -92,10 +99,68 @@ export function tierFor(d: BotDifficulty, rng: () => number = Math.random): BotT
   }
   return "normal";
 }
-/** the aim error, degrees, `t` seconds into keeping a target */
-export function aimError(d: Difficulty, t: number): number {
-  return d.errFloor + (d.errStart - d.errFloor) * Math.pow(d.errDecay, Math.max(0, t));
+const SIGHT = botsCfg.sight;
+/**
+ * The aim error, degrees, `t` seconds into keeping a target `dist` metres off.
+ * Distance widens the whole error rather than putting a second model on top of
+ * it, so a bot that can now see you at 170 m still has to work for the hit:
+ * the shot it takes the moment it spots you is the wide one, and it dials in
+ * from there exactly as it always did at arena range.
+ */
+export function aimError(d: Difficulty, t: number, dist = 0): number {
+  const far = 1 + SIGHT.far.perMetre * Math.max(0, dist - SIGHT.far.from);
+  return (d.errFloor + (d.errStart - d.errFloor) * Math.pow(d.errDecay, Math.max(0, t))) * far;
 }
+
+/** which map a bot is on: the arena is 36 m by 64, the battle royale's map 440 across */
+export type BotSightMode = keyof typeof SIGHT.range;
+export const BOT_SIGHT_MODES: BotSightMode[] = ["arena", "br"];
+
+/** what a looker can tell about a target at a glance: it changes how far off the target is spotted */
+export interface SightCue {
+  /** how fast it is moving, m/s (a body at a run is picked up further out) */
+  speed?: number;
+  /** crouched, so there is much less of it to see */
+  crouched?: boolean;
+  /** it is firing: the flash and the tracer give it away */
+  firing?: boolean;
+  /** how tall it is against a standing body (1 is a player) */
+  size?: number;
+}
+
+/** how much further (or less far) than its plain range a bot sees a target doing this */
+export function sightScale(cue: SightCue = {}): number {
+  let k = 1;
+  if (cue.crouched) k *= SIGHT.crouched;
+  k *= 1 + SIGHT.moving.gain * Math.min(1, Math.max(0, cue.speed ?? 0) / SIGHT.moving.at);
+  if (cue.firing) k *= SIGHT.firing;
+  k *= 1 + ((cue.size ?? 1) - 1) * SIGHT.sizeGain;
+  return Math.max(0, k);
+}
+
+/**
+ * How far a bot of this tier sees on this map, metres: the config's range for
+ * the mode and the tier, further with a scope in its hands, then what the
+ * target is doing. Held between the config's min (someone in its face is
+ * always seen) and max.
+ */
+export function sightRange(tier: BotTier, mode: BotSightMode = "arena", cue: SightCue = {}, scoped = false): number {
+  const base = SIGHT.range[mode][tier] * (scoped ? SIGHT.scoped : 1);
+  return Math.max(SIGHT.min, Math.min(SIGHT.max, base * sightScale(cue)));
+}
+
+/**
+ * A gun a bot fights at range with: the marksman and sniper family, or one
+ * wearing a ranged optic it found. The family is read off the weapon data
+ * rather than a list of names, because the data already says it plainly: those
+ * guns hold their full damage out to 190 m where an SMG is falling off by 25.
+ */
+export function scopedGun(w: Pick<ResolvedWeapon, "optic" | "integralOptic" | "damage">): boolean {
+  if (w.damage.nearDist >= SIGHT.longFrom) return true;
+  const o = w.optic ?? w.integralOptic;
+  return o !== null && SIGHT.scopes.some((p) => o.startsWith(p));
+}
+
 const GRENADE = botsCfg.grenade;
 /** a crouched bot's eye, m */
 const CROUCH_EYE = 0.95;
@@ -138,6 +203,244 @@ export interface BotSense {
   canShoot: boolean;
 }
 
+// ------------------------------------------------------------- looting
+//
+// A bot does not know what a LootField is. It asks two questions of whatever
+// the match hands it: what is lying near me, and may I have that one. Anything
+// that answers those can feed a bot, and the real field (src/game/loot.ts)
+// answers them as it stands, so the match wires it in a line.
+
+/** one thing on the floor, as much of it as a bot needs to know */
+export interface BotLootItem {
+  /** "weapon", "attach", "hopup", "heal", "helmet", "grenade", "ammo": src/game/loot.ts's kinds */
+  kind: string;
+  id: string;
+  rarity: string;
+  /** how many (a heal stack, a pair of frags) */
+  n?: number;
+  /** a gun off the floor keeps the magazine it was found with */
+  mag?: number;
+}
+/** that item, and where it is lying */
+export interface BotLootDrop {
+  key: number;
+  pos: THREE.Vector3;
+  item: BotLootItem;
+}
+/** the floor's loot, as a bot needs it */
+export interface BotLootSource {
+  /** everything lying within `radius` metres of `at`, in any order */
+  near(at: THREE.Vector3, radius: number): BotLootDrop[];
+  /** take it: the item, or null if someone got there first */
+  take(key: number): BotLootItem | null;
+}
+
+/** what a bot has on it, as it loots */
+export interface BotKit {
+  /** the gun it is carrying and its grade: 0 nothing, then 1 common up to 4 legendary */
+  gunId: string | null;
+  gun: number;
+  /** the magazine level and the fittings, one to a slot */
+  mag: number;
+  mods: Record<string, { id: string; rank: number }>;
+  /** the shield tier it has kitted up to: 1 white to 4 red */
+  armor: number;
+  cells: number;
+  syringes: number;
+  frags: number;
+  /** how many things it has taken off the floor */
+  taken: number;
+}
+
+/**
+ * Loot rarity as a ladder. A bot swaps up it and never down, which is the
+ * whole of its taste in guns: the grade is the only thing the floor tells it
+ * about a weapon it has never fired.
+ */
+const RARITY_RANK: Record<string, number> = { common: 1, rare: 2, epic: 3, legendary: 4 };
+/** the heals a bot counts as cells: its heal only knows a shield one and a health one */
+const SHIELD_HEALS = ["cell", "battery", "phoenix"];
+const LOOTING = botsCfg.loot;
+const HELMET_TIER = LOOTING.helmetTier as Record<string, number>;
+const BOT_SEARCH = lootCfg.botSearch as Record<string, number>;
+
+/**
+ * A bot looting. It holds the kit (the bot puts it on) and one job at a time:
+ * walk to the nearest thing it would rather have, stand over it for as long as
+ * its tier takes to rummage, take it. A fight interrupts the rummage, a wall
+ * it cannot get round makes it give that spot up, and it stops once its kit is
+ * good enough or its tier's looting time is gone.
+ *
+ * Kept apart from Bot so it runs without a scene, a figure or a weapon: this
+ * is the part with the decisions in it, and tools/checks/bot-sense.ts drives
+ * it straight.
+ */
+export class BotLooter {
+  readonly kit: BotKit = { gunId: null, gun: 0, mag: LOOTING.startMag, mods: {}, armor: LOOTING.startArmor, cells: 0, syringes: 0, frags: 0, taken: 0 };
+  /** the drop it is walking to, when it started walking, and when its rummage there is up */
+  private mark: { key: number; pos: THREE.Vector3; since: number } | null = null;
+  private holdUntil = Infinity;
+  private scanAt = -Infinity;
+  private startedAt = Infinity;
+  /** spots it could not get to: it does not pick the same unreachable one again */
+  private gaveUp = new Set<number>();
+  /** how long one rummage takes, and how long it loots at all, both off its tier's botSearch */
+  readonly rummage: number;
+  readonly window: number;
+
+  constructor(readonly tier: BotTier) {
+    const search = BOT_SEARCH[tier] ?? BOT_SEARCH.normal;
+    this.rummage = search * LOOTING.perItem;
+    this.window = search * LOOTING.window;
+  }
+
+  /** the mods it has fitted, for resolveWeapon */
+  get modIds(): string[] {
+    return Object.values(this.kit.mods).map((m) => m.id);
+  }
+  /** it has found a gun (a bot that lands with nothing does not shoot until it has) */
+  get armed(): boolean {
+    return this.kit.gunId !== null;
+  }
+  /** where it is walking, or null: nothing near it wants, or it is done looting */
+  get goal(): THREE.Vector3 | null {
+    return this.mark?.pos ?? null;
+  }
+  /** standing over a drop, rummaging: it does not walk while it does that */
+  get holding(): boolean {
+    return this.mark !== null && Number.isFinite(this.holdUntil);
+  }
+  /** the kit in one number, so a match (or a check) can say one bot is better armed than another */
+  get score(): number {
+    const s = LOOTING.score;
+    const k = this.kit;
+    return k.gun * s.gun + Object.keys(k.mods).length * s.mod + k.armor * s.armor + (k.cells + k.syringes) * s.heal + k.frags * s.frag;
+  }
+  /** kitted out, or its time is up: it goes back to fighting the match */
+  done(now: number): boolean {
+    return this.score >= LOOTING.enough || now - this.startedAt > this.window;
+  }
+
+  /** would it rather have this than what it is carrying */
+  wants(item: BotLootItem): boolean {
+    const k = this.kit;
+    const rank = RARITY_RANK[item.rarity] ?? 1;
+    switch (item.kind) {
+      case "weapon":
+        return rank > k.gun;
+      case "attach": {
+        // a gun first: fittings are no use with nothing to fit them to
+        if (!k.gunId) return false;
+        if (item.id.startsWith("mag:")) return Number(item.id.slice(4)) > k.mag;
+        const slot = item.id.split("_")[0];
+        const has = k.mods[slot];
+        return rank > (has?.rank ?? 0) && (has !== undefined || Object.keys(k.mods).length < LOOTING.maxMods);
+      }
+      case "hopup":
+        return Boolean(k.gunId) && k.mods.hopup === undefined && Object.keys(k.mods).length < LOOTING.maxMods;
+      case "heal":
+        return k.cells + k.syringes < LOOTING.maxHeals;
+      case "helmet":
+        return (HELMET_TIER[item.id] ?? 0) > k.armor;
+      case "grenade":
+        // it only ever throws a frag (GRENADE above), so an arc star is someone else's
+        return item.id === "frag" && k.frags < GRENADE.count;
+      default:
+        // ammo, a banner, a death box: nothing a bot keeps track of
+        return false;
+    }
+  }
+
+  /** that item onto the kit */
+  private put(item: BotLootItem): void {
+    const k = this.kit;
+    const rank = RARITY_RANK[item.rarity] ?? 1;
+    const slot = item.id.split("_")[0];
+    switch (item.kind) {
+      case "weapon":
+        k.gunId = item.id;
+        k.gun = rank;
+        k.mag = Math.max(k.mag, item.mag ?? 0);
+        break;
+      case "attach":
+        if (item.id.startsWith("mag:")) k.mag = Number(item.id.slice(4));
+        else k.mods[slot] = { id: item.id, rank };
+        break;
+      case "hopup":
+        k.mods.hopup = { id: item.id, rank };
+        break;
+      case "heal":
+        if (SHIELD_HEALS.includes(item.id)) k.cells += item.n ?? 1;
+        else k.syringes += item.n ?? 1;
+        break;
+      case "helmet":
+        k.armor = Math.max(k.armor, HELMET_TIER[item.id] ?? k.armor);
+        break;
+      case "grenade":
+        k.frags = Math.min(GRENADE.count, k.frags + (item.n ?? 1));
+        break;
+      default:
+        break;
+    }
+    k.taken++;
+    // there is no body shield on this map's floor, so kitting up is the shield:
+    // every few things it finds is a tier, which is what makes a rich landing tell
+    k.armor = Math.max(k.armor, Math.min(LOOTING.maxArmor, LOOTING.startArmor + Math.floor(k.taken / LOOTING.armorPerItems)));
+  }
+
+  /**
+   * One frame at `at`. `busy` (someone in its sights) puts looting down, since
+   * a fight comes first and the rummage starts over when it comes back.
+   * Returns what it took this frame, for the bot to put on, or null.
+   */
+  step(now: number, at: THREE.Vector3, source: BotLootSource, busy: boolean): BotLootItem | null {
+    if (!Number.isFinite(this.startedAt)) this.startedAt = now;
+    if (busy || this.done(now)) {
+      this.mark = null;
+      this.holdUntil = Infinity;
+      return null;
+    }
+    if (this.mark) {
+      const d = Math.hypot(this.mark.pos.x - at.x, this.mark.pos.z - at.z);
+      if (d > LOOTING.reach) {
+        this.holdUntil = Infinity;
+        // no way in: leave it and look for something else
+        if (now - this.mark.since > LOOTING.giveUp) {
+          this.gaveUp.add(this.mark.key);
+          this.mark = null;
+        }
+        return null;
+      }
+      if (!Number.isFinite(this.holdUntil)) {
+        this.holdUntil = now + this.rummage;
+        return null;
+      }
+      if (now < this.holdUntil) return null;
+      const key = this.mark.key;
+      this.mark = null;
+      this.holdUntil = Infinity;
+      const item = source.take(key);
+      if (!item) return null;
+      this.put(item);
+      return item;
+    }
+    if (now < this.scanAt) return null;
+    this.scanAt = now + LOOTING.rescan;
+    let best: BotLootDrop | null = null;
+    let bestD = Infinity;
+    for (const drop of source.near(at, LOOTING.search)) {
+      if (this.gaveUp.has(drop.key) || !this.wants(drop.item)) continue;
+      const d = Math.hypot(drop.pos.x - at.x, drop.pos.z - at.z);
+      if (d < bestD) {
+        bestD = d;
+        best = drop;
+      }
+    }
+    if (best) this.mark = { key: best.key, pos: best.pos.clone(), since: now };
+    return null;
+  }
+}
+
 /** a shot a bot fired that may have hit an enemy: for the match to apply */
 export interface BotShot {
   from: THREE.Vector3;
@@ -163,6 +466,17 @@ export class Bot {
   yaw = 0;
   /** falling in from the sky at the start of a battle royale */
   dropping = false;
+  /** which map it is on: how far it sees is the map's business (sightRange above) */
+  sightMode: BotSightMode = "arena";
+  /**
+   * The floor it loots off, or null for a bot that was handed its kit (every
+   * arena mode). Setting it is the whole of the wiring: from its next frame
+   * the bot lands with nothing, goes looking, and fights with what it found.
+   */
+  lootSource: BotLootSource | null = null;
+  /** its looting, made in reset() once its tier is known (the rummage times are per tier) */
+  private looter!: BotLooter;
+  private lootStarted = false;
   private seenAt = -Infinity;
   private sawLast = false;
   private nextShotAt = 0;
@@ -284,6 +598,8 @@ export class Bot {
     this.lastTargetAt = -Infinity;
     this.healing = null;
     this.kit = { cell: items.bots.cell, syringe: items.bots.syringe };
+    this.looter = new BotLooter(this.diff.name);
+    this.lootStarted = false;
     this.prevVital = this.dummy.health + this.dummy.shield;
     this.aimSet = false;
     this.lastSeen = null;
@@ -480,15 +796,115 @@ export class Bot {
     return false;
   }
 
-  /** can it see this spot (someone's feet): within 60 m, nothing solid between chest heights */
-  sees(target: THREE.Vector3): boolean {
+  /**
+   * Its gun has a scope on it: its own glass, or a ranged optic it looted. A
+   * bot that is still looting for its first gun is carrying nothing, whatever
+   * `weapon` it was handed, so it gets no sniper's eyes and holds no angle.
+   */
+  get scoped(): boolean {
+    return !this.holdingFire && scopedGun(this.weapon);
+  }
+
+  /** how far it can see a plain standing target on this map, m */
+  get sight(): number {
+    return sightRange(this.diff.name, this.sightMode, {}, this.scoped);
+  }
+
+  /**
+   * Can it see this spot (someone's feet): within its sight range, nothing
+   * solid between chest heights. `cue` is what the target is doing, so a
+   * sprinting or firing one is picked up further out than a crouched one; with
+   * none given it is read as a standing, still body.
+   */
+  sees(target: THREE.Vector3, cue: SightCue = {}): boolean {
+    // the range first, because the line of sight is the expensive half
+    const eye = this.pos.y + (this.crouching ? CROUCH_EYE : 1.4);
+    const dx = target.x - this.pos.x;
+    const dy = target.y + 1.2 - eye;
+    const dz = target.z - this.pos.z;
+    const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (len < 1e-3) return true;
+    if (len > sightRange(this.diff.name, this.sightMode, cue, this.scoped)) return false;
     // crouched (behind low cover) it looks from lower down
-    const from = this.pos.clone().setY(this.pos.y + (this.crouching ? CROUCH_EYE : 1.4));
-    const to = target.clone().setY(target.y + 1.2);
-    const d = to.clone().sub(from);
-    const len = d.length();
-    if (len > 60) return false;
-    return solidHit(from, d.divideScalar(len), len) >= len;
+    const from = this.pos.clone().setY(eye);
+    const d = new THREE.Vector3(dx / len, dy / len, dz / len);
+    return solidHit(from, d, len) >= len;
+  }
+
+  /** what it has looted so far: the match's plate, the recap and the checks read it */
+  get lootKit(): Readonly<BotKit> {
+    return this.looter.kit;
+  }
+
+  /** a bot that loots and has not found a gun yet holds its fire */
+  get holdingFire(): boolean {
+    return this.lootSource !== null && this.knife === null && !this.looter.armed;
+  }
+
+  /**
+   * One frame of looting: the spot it is walking to, or null. The first frame
+   * with a floor under it strips the kit it was handed, because the point of
+   * looting is that what it has is what it found.
+   */
+  private stepLoot(now: number, busy: boolean): THREE.Vector3 | null {
+    const src = this.lootSource;
+    if (!src) return null;
+    if (!this.lootStarted) {
+      this.lootStarted = true;
+      this.kit.cell = 0;
+      this.kit.syringe = 0;
+      this.frags = 0;
+      this.setArmor(this.looter.kit.armor);
+      this.dummy.setGunVisible(false);
+    }
+    const got = this.looter.step(now, this.pos, src, busy);
+    if (got) this.equip(got);
+    return this.looter.goal;
+  }
+
+  /**
+   * The shield tier it has kitted up to. setTier hands back a full shield and
+   * a full health bar with it, so the health it was on is put back: a shield
+   * found on the floor is a fresh shield, but it is not a heal.
+   */
+  private setArmor(tier: number): void {
+    const t = Math.max(0, Math.min(4, Math.round(tier))) as 0 | 1 | 2 | 3 | 4;
+    if (t === this.dummy.tier) return;
+    const hp = this.dummy.health;
+    this.dummy.setTier(t);
+    this.dummy.health = hp;
+    this.remote.shieldMax = this.dummy.shieldMax;
+    this.remote.shield = this.dummy.shield;
+    this.prevVital = this.dummy.health + this.dummy.shield;
+  }
+
+  /**
+   * Something off the floor, onto the bot. What it picked up is ADDED to what
+   * it is carrying: the looter's kit counts what it has found, and the bot's
+   * counts what it still has, so a heal it drank or a frag it threw is not
+   * handed back the next time it picks one up.
+   */
+  private equip(item: BotLootItem): void {
+    const k = this.looter.kit;
+    if (item.kind === "weapon" || item.kind === "attach" || item.kind === "hopup") this.refit();
+    else if (item.kind === "heal") {
+      const n = item.n ?? 1;
+      if (SHIELD_HEALS.includes(item.id)) this.kit.cell = Math.min(k.cells, this.kit.cell + n);
+      else this.kit.syringe = Math.min(k.syringes, this.kit.syringe + n);
+    } else if (item.kind === "grenade") this.frags = Math.min(k.frags, this.frags + (item.n ?? 1));
+    this.setArmor(k.armor);
+  }
+
+  /** its gun as the kit now has it: the weapon it found, with the magazine and the mods it found */
+  private refit(): void {
+    const k = this.looter.kit;
+    if (!k.gunId) return;
+    this.weapon = resolveWeapon(k.gunId, k.mag, this.looter.modIds);
+    if (this.remote.avatarWeapon !== k.gunId) {
+      this.remote.avatarWeapon = k.gunId;
+      this.dummy.setGun(k.gunId);
+    }
+    this.dummy.setGunVisible(this.knife === null);
   }
 
   /**
@@ -591,12 +1007,17 @@ export class Bot {
       this.joltFrom.copy(this.pos);
     }
 
+    // loot: a landed bot with a floor under it goes and kits itself out. It
+    // comes before hunting and before the match's goal, because the first
+    // minutes of a battle royale are the looting. Someone in its sights puts it
+    // down, and so does the ring: nobody rummages through a box in the wall.
+    const lootGoal = this.stepLoot(now, sees || sense.urgent === true);
     // where to go: cover when it is healing behind it; at the target if seen
-    // (keeping a distance); where it last saw one (a hunt), or a shot it heard;
-    // else the match's goal
+    // (keeping a distance); the loot it is going for; where it last saw one (a
+    // hunt), or a shot it heard; else the match's goal
     const hunting = !sees && this.lastSeen && tier.name !== "easy" ? this.lastSeen.pos : null;
     if (this.cover?.via && Math.hypot(this.cover.via.x - this.pos.x, this.cover.via.z - this.pos.z) < 0.8) this.cover.via = null;
-    const goal = this.cover ? (this.cover.via ?? this.cover.spot) : (target ?? (sense.urgent ? sense.goal : (hunting ?? this.heard?.pos ?? sense.goal)));
+    const goal = this.cover ? (this.cover.via ?? this.cover.spot) : (target ?? (sense.urgent ? sense.goal : (lootGoal ?? hunting ?? this.heard?.pos ?? sense.goal)));
     const toGoal = goal ? new THREE.Vector2(goal.x - this.pos.x, goal.z - this.pos.z) : new THREE.Vector2();
     const dist = toGoal.length();
     let want = new THREE.Vector2();
@@ -608,11 +1029,18 @@ export class Bot {
       if (td > 1e-3) want.copy(toT).divideScalar(td);
       const side = new THREE.Vector2(-want.y, want.x);
       const strafe = now < this.dodgeUntil ? this.strafeSign : Math.sin(now * tier.strafeRate + this.strafePhase) * this.strafeSign;
-      const keep = this.knife !== null ? 0.9 : tier.keep;
+      // a scope holds its angle: it closes to a share of its sight range and no
+      // further, so a bot that spotted you across the open ground shoots across
+      // it instead of walking into your gun. Its tier's keep is still the floor,
+      // so someone in its face still backs it off.
+      const hold = this.scoped ? Math.max(tier.keep, Math.min(this.sight * SIGHT.holdFrac, td)) : tier.keep;
+      const keep = this.knife !== null ? 0.9 : hold;
       const advance = td > keep + 1 ? 1 : td < keep - 1 ? -0.6 : 0;
       want = want.multiplyScalar(advance).addScaledVector(side, strafe * tier.strafe);
       if (want.length() > 1e-3) want.normalize();
     } else if (dist < (this.cover ? 0.6 : 1.5) || (this.cover && !sees)) want.set(0, 0);
+    // standing over a drop, rummaging through it: it does not walk while it does that
+    if (this.looter.holding) want.set(0, 0);
     // a crouch now and then while it fires (by tier), never while it walks to cover or heals
     if (sees && target && !this.cover && !this.healing && tier.crouchPeek > 0) {
       // only a crouch that still sees the target (not one that ducks behind low cover mid-fight)
@@ -742,12 +1170,12 @@ export class Bot {
       }
       return shots;
     }
-    if (target && sense.canShoot && !this.healing && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
+    if (target && sense.canShoot && !this.holdingFire && !this.healing && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
       const interval = Math.max(this.weapon.shotInterval, this.weapon.semiAuto ? 0.25 : 0) / this.diff.fireScale;
       this.nextShotAt = now + interval;
       if (now >= this.nextErrAt) {
         this.nextErrAt = now + 0.25;
-        const e = aimError(tier, now - this.seenAt);
+        const e = aimError(tier, now - this.seenAt, Math.hypot(target.x - this.pos.x, target.z - this.pos.z));
         const a = Math.random() * Math.PI * 2;
         const r = e * Math.sqrt(Math.random());
         this.aimErr.set(Math.cos(a) * r, Math.sin(a) * r);
