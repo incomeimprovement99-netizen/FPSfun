@@ -315,12 +315,16 @@ async function brLootTest(browser: Browser, query: string): Promise<void> {
   await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 });
   await sleep(300);
   await ev(page, `(() => { window.__range.duel().holdFire = true; window.__range.pickAbility("jolt"); })()`);
-  const start = await ev<{ empty: boolean; kit: number; field: number; light: number; weapon: string; botsArmed: number }>(
+  const start = await ev<{ empty: boolean; kit: number; field: number; light: number; weapon: string; botsArmed: number; looted: number; sight: number[] }>(
     page,
-    `(() => { const r = window.__range; const d = r.duel(); return { empty: r.loadout.slots.every((s) => s.empty), kit: r.kit.total, field: d.lootField ? d.lootField.count : 0, light: r.loadout.ammo.stock.light, weapon: r.hud.last?.weaponName ?? "", botsArmed: d.bots.filter((b) => b.armedShown).length }; })()`
+    `(() => { const r = window.__range; const d = r.duel(); return { empty: r.loadout.slots.every((s) => s.empty), kit: r.kit.total, field: d.lootField ? d.lootField.count : 0, light: r.loadout.ammo.stock.light, weapon: r.hud.last?.weaponName ?? "", botsArmed: d.bots.filter((b) => b.armedShown).length, looted: d.bots.filter((b) => b.armedShown && b.bot.lootKit.gunId !== null && b.bot.lootKit.taken > 0).length, sight: d.bots.map((b) => Math.round(b.bot.sight)) }; })()`
   );
   check("loot: you land with nothing (two empty slots, fists, no heals, no ammo) on a floor of items", start.empty && start.kit === 0 && start.light === 0 && start.field > 100 && start.weapon === "FISTS", JSON.stringify(start));
-  check("loot: the bots land unarmed and search first", start.botsArmed === 0, JSON.stringify(start));
+  // A bot lands with nothing and LOOTS its gun off the floor, so one that came
+  // down a few seconds before you may already have one. What must never
+  // happen is a bot holding a gun it did not find.
+  check("loot: the bots land unarmed and search first: any bot with a gun looted it", start.botsArmed === start.looted, JSON.stringify({ armed: start.botsArmed, looted: start.looted }));
+  check("loot: the bots see with the battle royale's range, not the arena's 60 m", start.sight.length > 0 && start.sight.every((m) => m >= 60) && start.sight.some((m) => m > 70), JSON.stringify(start.sight));
   // The places are buildings now, so the loot has to be IN them: a spot picks
   // any floor at that point with headroom, which is what puts items upstairs
   // and on roofs. Before the buildings, a spot under anything was refused

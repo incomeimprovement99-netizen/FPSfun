@@ -22,6 +22,31 @@ import squadCfg from "../config/squad.json";
 import { Throwables, blastDamage, throwCode } from "./throwables";
 import { lockedHopupFor } from "./attachments";
 import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, hitsBody, tierFor, type BotSense } from "./bots";
+import botsCfg from "../config/bots.json";
+import { RANGE_SOLIDS } from "./range";
+/**
+ * The nearest point to (x, z) where a body stands clear of every box at body
+ * height: walls, rock, crates. Floor slabs and roofs are not in the way. The
+ * rings stop at 40 m, which no place on the map needs, and the spot asked for
+ * comes back if nothing clear is found rather than no spot at all.
+ */
+function clearGround(x: number, z: number): { x: number; z: number } {
+  const pad = 0.7;
+  const blocked = (px: number, pz: number): boolean =>
+    RANGE_SOLIDS.some((s) => s.base < 1.8 && s.top > 0.56 && px > s.minX - pad && px < s.maxX + pad && pz > s.minZ - pad && pz < s.maxZ + pad);
+  if (!blocked(x, z)) return { x, z };
+  for (let r = 1; r <= 40; r += 1) {
+    for (let k = 0; k < 16; k++) {
+      const px = x + Math.cos((k / 16) * Math.PI * 2) * r;
+      const pz = z + Math.sin((k / 16) * Math.PI * 2) * r;
+      if (!blocked(px, pz)) return { x: px, z: pz };
+    }
+  }
+  return { x, z };
+}
+
+/** a bot goes only for loot within this height of its feet (src/config/bots.json loot.floor) */
+const BOT_LOOT_FLOOR = botsCfg.loot.floor;
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Ring, RING_PHASES, RING_TICK, type Circle } from "./ring";
@@ -182,11 +207,42 @@ export class BrMatch extends Duel {
         const ring = Math.floor(i / (order.length * poi.drops.length));
         const a = rng() * Math.PI * 2;
         const r = apart * (0.5 + ring);
-        const spawn = { x: drop.x + Math.cos(a) * r, z: drop.z + Math.sin(a) * r, yaw: rng() * 360 };
+        // A ring round a drop point can cross a building or the ridge's rock,
+        // and a bot put down inside a box is boxed in for the whole match: a
+        // probe found one standing in the East Ridge's first step for 40 s,
+        // unarmed. The spot is walked out to the nearest clear ground.
+        const clear = clearGround(drop.x + Math.cos(a) * r, drop.z + Math.sin(a) * r);
+        const spawn = { x: clear.x, z: clear.z, yaw: rng() * 360 };
         // each its own tier: "mixed" draws one per bot
         const bot = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty, rng)], spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], BOT_NAMES[i % BOT_NAMES.length]);
-        // with loot on it lands with nothing and searches first
-        if (this.startLoot) bot.dummy.setGunVisible(false);
+        // Its eyes are the battle royale's. A bot nobody tells keeps the arena's
+        // 55 to 70 m, which was right for a 40 m room and blind on a map
+        // 440 m across (bots.ts sightRange, src/config/bots.json sight).
+        bot.sightMode = "br";
+        // With loot on it lands with nothing and LOOTS for its kit, rather than
+        // waiting out a timer and being handed one: a bot that landed somewhere
+        // rich is really better armed than one that landed in a field. It
+        // holds its fire until it has found a gun (bot.holdingFire).
+        if (this.startLoot) {
+          bot.dummy.setGunVisible(false);
+          const field = this.lootField;
+          if (field) {
+            bot.lootSource = {
+              // Only what is on the bot's own floor. A bot cannot jump or
+              // climb, so an item on the floor above can be a metre away across
+              // the ground and still out of reach for ever: it stood under one,
+              // gave it up, picked the next one up there, and never moved.
+              near: (at, r) => [...field.drops.values()].filter((d) => d.item.kind !== "box" && Math.abs(d.pos.y - at.y) <= BOT_LOOT_FLOOR && d.pos.distanceTo(at) <= r),
+              take: (key) => {
+                const it = field.remove(key);
+                // the squad's fields drop an item only on this message, so
+                // without it a bot's pickups would stay on every other screen
+                if (it) this.broadcast({ t: "loot", op: "gone", key, by: bot.remote.id });
+                return it;
+              },
+            };
+          }
+        }
         bot.setAbilities(this.abilities, rng);
         // a bot's JOLT: drawn here and sent to the squad
         bot.onJolt = (a, b) => {
@@ -228,6 +284,12 @@ export class BrMatch extends Duel {
    * and in its sight takes the damage, the squad as from the bot's bullets,
    * other bots on their figures.
    */
+  /** a bot has a gun in its hands: past the landing grace, and with loot on, one it has actually found */
+  private botArmed(b: { bot: Bot; armedAt: number }, now: number): boolean {
+    if (b.armedAt > now) return false;
+    return !this.startLoot || b.bot.lootKit.gunId !== null;
+  }
+
   botBlast(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void {
     if (this.role !== "host" || this.phase !== "fight") return;
     const thrower = this.bots.find((x) => x.bot.remote.id === owner);
@@ -469,7 +531,7 @@ export class BrMatch extends Duel {
     if (this.lootField && this.role === "host") {
       const w = r.avatarWeapon;
       const items: LootItem[] = [];
-      if (b.armedAt <= wallClock()) items.push({ kind: "weapon", id: w, n: 1, rarity: "rare" });
+      if (this.botArmed(b, wallClock())) items.push({ kind: "weapon", id: w, n: 1, rarity: "rare" });
       const type = ammoTypeOf(w);
       if (type !== "energy") items.push({ kind: "ammo", id: type, n: LOOT.deathBox.stacks * (type === "sniper" ? 28 : type === "shotgun" ? 20 : 60), rarity: "common" });
       items.push({ kind: "heal", id: "cell", n: LOOT.deathBox.cells, rarity: "common" });
@@ -649,18 +711,17 @@ export class BrMatch extends Duel {
     for (const b of this.bots) {
       if (!b.landed && b.bot.alive && !b.bot.dropping) {
         b.landed = true;
-        // nobody shoots for a moment after a landing, loot or loadouts
-        b.armedAt = now + squadCfg.drop.grace + (this.startLoot ? LOOT.botSearch[b.bot.diff.name] * (0.7 + Math.random() * 0.6) : 0);
+        // nobody shoots for a moment after a landing, loot or loadouts; with
+        // loot on, the bot's own search is what keeps its gun down after that
+        b.armedAt = now + squadCfg.drop.grace;
       }
-      if (b.landed && b.armedAt <= now && !b.armedShown && b.bot.alive) {
+      if (b.landed && this.botArmed(b, now) && !b.armedShown && b.bot.alive) {
         // found its gun and a shield of some tier (its health is what it is)
         b.armedShown = true;
-        if (this.startLoot) {
-          const hp = b.bot.dummy.health;
-          b.bot.dummy.setTier((1 + Math.floor(Math.random() * 3)) as 1 | 2 | 3);
-          b.bot.dummy.health = hp;
-        }
-        b.bot.dummy.setGunVisible(true);
+        // With loot on, the shield tier and the gun are whatever the bot has
+        // found (bots.ts equip and setArmor): a random tier here would write
+        // over the armour it looted. With loadouts it had its kit all along.
+        if (!this.startLoot) b.bot.dummy.setGunVisible(true);
         b.bot.remote.shieldMax = b.bot.dummy.shieldMax;
         b.bot.remote.shield = b.bot.dummy.shield;
       }
@@ -785,7 +846,7 @@ export class BrMatch extends Duel {
           yaw,
           pitch: 0,
           crouch: bot.crouching,
-          w: b.armedAt <= now ? bot.remote.avatarWeapon : "",
+          w: this.botArmed(b, now) ? bot.remote.avatarWeapon : "",
           hp: bot.dummy.health,
           sh: bot.dummy.shield,
           alive: bot.alive,

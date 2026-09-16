@@ -180,6 +180,8 @@
       "frag": 0.5
     },
     "_overtime": "how many of its own search windows a bot that still has NO gun may spend before it gives up and fights unarmed. The window alone used to end the search, so a bot that landed badly stopped looking and stayed unarmed, held its fire for the whole match and walked the ring as a free kill. Ours.",
-    "overtime": 2.5
+    "overtime": 2.5,
+    "_floor": "how far above or below its feet, in metres, an item may be for a bot to go for it. A bot cannot jump or climb, so an item on the floor above can be a metre away across the ground and out of reach for ever: in a probe, one stood under loot on an upper floor for the whole 40 s, unarmed. A storey here is 3.4 m, so 1.2 keeps a bot to its own floor with room for a crate top. Ours.",
+    "floor": 1.2
   }
 }
