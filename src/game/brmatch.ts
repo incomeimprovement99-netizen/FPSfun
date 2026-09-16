@@ -17,10 +17,34 @@
 // down, and the card says where you placed when the last of you goes down.
 // Damage from the ring is the ring's; damage from a bot's shot is tested
 // against a capsule at the target's feet, yours, a friend's or another bot's.
+//
+// The match rules that are not the ring's live in src/config/br.json:
+//
+//   the squad size   solo, duos or trios. It decides whether a knock is a
+//                    down or an elimination, how long the bleed-out is, how
+//                    many squads the lobby holds, and how the bots are
+//                    grouped, so a solo match is a lobby of singles rather
+//                    than a trio match with two gaps in it.
+//   care packages    called before they arrive, marked where they will land,
+//                    trailing smoke under a canopy, and lit and pinged for a
+//                    while after the thump so there is a window to fight over
+//                    one. Bots go for them too.
+//   loadout crates   the drop that hands you the loadout you built on the
+//                    Loadouts tab. One serves the whole lobby: each player
+//                    claims their own guns out of it once. Nothing about it
+//                    goes over the wire, because every browser works out the
+//                    same spot from the match seed and the ring it can see.
+//   Storm Surge      the ring is the only pressure and it only hurts you
+//                    outside it, so hiding used to win ties. In the late
+//                    rounds, when more are alive than the phase allows,
+//                    whoever has dealt the least damage starts taking it.
 import * as THREE from "three";
 import squadCfg from "../config/squad.json";
+import brCfg from "../config/br.json";
 import { Throwables, blastDamage, throwCode } from "./throwables";
-import { lockedHopupFor } from "./attachments";
+import { lockedHopupFor, optionsFor, SLOTS, type Attachments } from "./attachments";
+import { weaponMods, weaponName } from "./weapons";
+import { savedLoadout, type LoadoutDef } from "./loadouts";
 import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, hitsBody, tierFor, type BotSense } from "./bots";
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
@@ -31,11 +55,108 @@ import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
-import { LootField, LOOT, type LootItem, type LootKind, type Rarity } from "./loot";
+import { LootField, LOOT, seeded, type LootItem, type LootKind, type Rarity } from "./loot";
 import { ammoTypeOf } from "./ammo";
 
 /** how high the drop starts */
 export const DROP_HEIGHT = 90;
+
+/** solo, duos or trios: one row of src/config/br.json's teams */
+export interface TeamMode {
+  id: string;
+  /** how many share a squad */
+  size: number;
+  label: string;
+  /** the bot counts the lobby offers in this size (1 + each is a whole number of squads) */
+  bots: readonly number[];
+  defaultBots: number;
+  /** what the bleed-out clock is multiplied by (0 = no downs at all) */
+  bleed: number;
+}
+
+export const TEAMS: readonly TeamMode[] = brCfg.teams;
+
+/** the size a lobby or a welcome packet names, and the default when it names none we know */
+export function teamFor(id: string | null | undefined): TeamMode {
+  return TEAMS.find((t) => t.id === id) ?? TEAMS.find((t) => t.id === brCfg.defaultTeam) ?? TEAMS[TEAMS.length - 1];
+}
+
+/** where the lobby's squad size is kept in this browser (the menu writes it, a match alone reads it) */
+const TEAM_KEY = "range.br.team";
+
+export function savedTeamId(): string {
+  try {
+    return teamFor(localStorage.getItem(TEAM_KEY)).id;
+  } catch {
+    return teamFor(null).id;
+  }
+}
+
+export function saveTeamId(id: string): void {
+  try {
+    localStorage.setItem(TEAM_KEY, teamFor(id).id);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** how many squads a lobby of this many players makes, rounded up for a part-full one */
+export function lobbySquads(players: number, size: number): number {
+  return Math.ceil(Math.max(1, players) / Math.max(1, size));
+}
+
+/**
+ * How many may still be alive in this ring phase before Storm Surge starts.
+ * Infinity in the early rounds, and never below br.json's minAlive, so the
+ * surge cannot go after a lobby that is already down to one fight.
+ */
+export function surgeAllowed(phase: number, total: number): number {
+  const s = brCfg.surge;
+  if (phase < s.fromPhase) return Infinity;
+  const frac = s.alive[Math.min(phase, s.alive.length - 1)];
+  if (frac >= 1) return Infinity;
+  return Math.max(s.minAlive, Math.ceil(total * frac));
+}
+
+/**
+ * Who the surge takes a tick out of: everyone below the line when the living
+ * are ranked by the damage they have dealt, least first, minus anyone who has
+ * dealt damage inside br.json's grace. The rule is aimed at hiding, so losing
+ * a fight you are actually in must not be what kills you.
+ */
+export function surgeVictims(rows: ReadonlyArray<{ id: number; dealt: number; at: number }>, allowed: number, now: number): number[] {
+  if (rows.length <= allowed) return [];
+  // least damage first; ties go to the higher id so the order never wobbles
+  const order = [...rows].sort((a, b) => a.dealt - b.dealt || b.id - a.id);
+  return order
+    .slice(0, rows.length - Math.max(0, allowed))
+    .filter((r) => now - r.at >= brCfg.surge.grace)
+    .map((r) => r.id);
+}
+
+/** what one surge tick costs, a step higher every br.json stepEvery seconds it stays live */
+export function surgeDamage(liveFor: number): number {
+  const d = brCfg.surge.damage;
+  return d[Math.max(0, Math.min(d.length - 1, Math.floor(liveFor / brCfg.surge.stepEvery)))];
+}
+
+/**
+ * Where a loadout crate comes down for a ring phase: a point well inside the
+ * circle that phase closes to, drawn from the match seed on its own stream.
+ *
+ * Every browser has the seed (the welcome carries it) and sees the same next
+ * circle in the ring packet, so all of them work out the same spot and the
+ * crate needs no message of its own.
+ */
+export function loadoutPodAt(seed: number, phase: number, c: Circle): { x: number; z: number } {
+  const rnd = seeded((seed ^ Math.imul(0x9e3779b9, phase + 1)) >>> 0);
+  // the first draw off an LCG seeded this way still tracks the seed, so spend it
+  rnd();
+  const a = rnd() * Math.PI * 2;
+  const r = Math.sqrt(rnd()) * c.r * brCfg.loadoutPod.inset;
+  return { x: c.cx + Math.cos(a) * r, z: c.cz + Math.sin(a) * r };
+}
+
 /** the card stays this long before the menu comes back (the killcam and the recap play in it) */
 const END_HOLD = 14;
 /** bot states go out this often (the humans' own go at 30 Hz) */
@@ -65,12 +186,20 @@ export interface BrHud {
   survived: number;
   pois: Array<{ name: string; x: number; z: number }>;
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /** how many share a squad (1 solo, 2 duos, 3 trios), and how many squads are still up */
+  team: number;
+  squads: number;
   /** jump towers, respawn beacons, care packages, for the maps */
   towers: Array<{ x: number; z: number }>;
   beacons: Array<{ x: number; z: number }>;
-  pods: Array<{ x: number; z: number; landed: boolean }>;
+  /** `loadout` is a loadout crate rather than a care package; `hot` is still worth contesting */
+  pods: Array<{ x: number; z: number; landed: boolean; loadout: boolean; hot: boolean }>;
   /** the squad mates, for the maps: where, their name, down or out */
   mates: Array<{ x: number; z: number; name: string; downed: boolean; alive: boolean }>;
+  /** Storm Surge, null until the late rounds put it in play (the host's: it owns the ranking) */
+  surge: { live: boolean; startsIn: number; damage: number; safe: boolean; below: number } | null;
+  /** standing in a loadout crate: how far through the claim you are, 0 to 1 */
+  crate: number | null;
 }
 
 interface BrBot {
@@ -82,15 +211,34 @@ interface BrBot {
   landed: boolean;
   /** its gun and shield are out */
   armedShown?: boolean;
+  /** which bot squad it belongs to: its own in solo, one of a pair or a three otherwise */
+  team: number;
 }
 
-/** a care package on its way down, or landed */
+/** a care package or a loadout crate: called, on its way down, or landed */
 interface Pod {
+  id: number;
+  kind: "supply" | "loadout";
   at: THREE.Vector3;
   landsAt: number;
+  /** seconds of the drop you can see it falling: before that it is called but not yet in the sky */
+  fallFor: number;
+  /** lit, pinged and worth fighting over until this moment */
+  hotUntil: number;
   obj: THREE.Group;
+  canopy: THREE.Object3D;
+  beam: THREE.Mesh;
+  /** the smoke it leaves behind it, in world space so it stays where it was made */
+  trail: THREE.Group;
+  nextPuff: number;
+  dust: THREE.Mesh | null;
   landed: boolean;
+  /** a loadout crate: the players who have taken their own loadout out of it */
+  claimed: Set<number>;
 }
+
+/** one puff of the falling pod's smoke; shared, because every pod draws dozens */
+const PUFF_GEO = new THREE.SphereGeometry(brCfg.pod.trail.radius, 8, 6);
 
 const BR_BOUNDS_WORLD = { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HALF, minZ: BR_CENTER.z - BR_HALF, maxZ: BR_CENTER.z + BR_HALF };
 const RARITIES = ["common", "rare", "epic", "legendary"];
@@ -144,6 +292,10 @@ export class BrMatch extends Duel {
   holdFire = false;
   readonly difficulty: BotDifficulty;
   readonly botCount: number;
+  /** solo, duos or trios (src/config/br.json): the whole lobby plays the same one */
+  readonly team: TeamMode;
+  /** the match seed: the floor's loot, and the loadout crates every browser works out for itself */
+  private readonly seed: number;
 
   constructor(
     scene: THREE.Scene,
@@ -151,12 +303,18 @@ export class BrMatch extends Duel {
     private readonly map: BrMap,
     difficulty: BotDifficulty,
     botCount: number,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout" },
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string },
     rng: () => number = Math.random
   ) {
     super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br", abilities: opts.abilities ?? true });
     this.difficulty = difficulty;
     this.botCount = Math.max(1, Math.min(BOT_NAMES.length, botCount));
+    // The squad size is the host's for everyone: a guest that ran its own
+    // would revive in a lobby where nobody else believes in revives. Alone
+    // there is no host and no welcome packet, so the lobby row's own choice
+    // is read here instead.
+    this.team = teamFor(opts.team ?? (opts.players <= 1 ? savedTeamId() : undefined));
+    this.seed = opts.seed ?? 1;
     // the squad drops on one place: the host's pick, told to the guests
     this.poi = (opts.poi && map.pois.find((p) => p.id === opts.poi)) || map.pois[Math.floor(rng() * map.pois.length)];
     const now = wallClock();
@@ -167,7 +325,7 @@ export class BrMatch extends Duel {
     this.startLoot = opts.start !== "loadout";
     if (this.startLoot) {
       this.lootField = new LootField(scene);
-      this.lootField.generate(opts.seed ?? 1, map.pois.map((p) => ({ x: p.x, z: p.z })), BR_BOUNDS_WORLD);
+      this.lootField.generate(this.seed, map.pois.map((p) => ({ x: p.x, z: p.z })), BR_BOUNDS_WORLD);
     }
     if (this.role === "host") {
       // The bots take the OTHER places: where the squad drops is the squad's.
@@ -176,10 +334,14 @@ export class BrMatch extends Duel {
       const order = others.length ? others : [this.poi];
       const apart = squadCfg.drop.apart;
       for (let i = 0; i < this.botCount; i++) {
-        const poi = order[i % order.length];
-        const drop = poi.drops[i % poi.drops.length];
+        // A bot squad lands together: the place and the drop point belong to
+        // the squad, not to the bot, so trios arrive as three and a solo
+        // lobby still spreads one bot per place the way it always did.
+        const squad = Math.floor(i / this.team.size);
+        const poi = order[squad % order.length];
+        const drop = poi.drops[squad % poi.drops.length];
         // spread round the drop point, further out the more of them share it
-        const ring = Math.floor(i / (order.length * poi.drops.length));
+        const ring = Math.floor(squad / (order.length * poi.drops.length));
         const a = rng() * Math.PI * 2;
         const r = apart * (0.5 + ring);
         const spawn = { x: drop.x + Math.cos(a) * r, z: drop.z + Math.sin(a) * r, yaw: rng() * 360 };
@@ -199,7 +361,7 @@ export class BrMatch extends Duel {
           this.broadcast({ t: "fx", from: bot.remote.id, k: "heal", n: HEAL_CODES.indexOf(item) });
         };
         const node = this.nearestNode(spawn.x, spawn.z);
-        this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false });
+        this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false, team: squad });
       }
       this.ring = new Ring(start, rng);
       this.view = { phase: 0, state: "waiting", timeLeft: RING_PHASES[0].wait, current: { ...this.ring.current }, next: { ...this.ring.next } };
@@ -242,7 +404,10 @@ export class BrMatch extends Duel {
     if (this.alive && this.lastLocal) {
       const f = new THREE.Vector3(this.lastLocal.x, this.lastLocal.y, this.lastLocal.z);
       const d = hurts(f);
-      if (d > 0) this.hurt(d, owner, kind, Math.round(thrower.bot.pos.distanceTo(f) * 10) / 10);
+      if (d > 0) {
+        this.noteDamage(owner, d);
+        this.hurt(d, owner, kind, Math.round(thrower.bot.pos.distanceTo(f) * 10) / 10);
+      }
     }
     for (const r of this.remotes.values()) {
       if (r.id >= Duel.BOT_ID || !r.alive) continue;
@@ -251,17 +416,20 @@ export class BrMatch extends Duel {
       const f = new THREE.Vector3(s.x, s.y, s.z);
       const d = hurts(f);
       if (d <= 0) continue;
+      this.noteDamage(owner, d);
       const dist = Math.round(thrower.bot.pos.distanceTo(f) * 10) / 10;
       this.links.get(r.id)?.send({ t: "hit", to: r.id, amount: d, head: false, from: owner, w: kind, d: dist });
       const toShield = Math.min(r.shield, d);
       r.shield -= toShield;
       r.health = Math.max(0, r.health - (d - toShield));
     }
-    // the other bots
+    // the other bots, its own squad excepted: a frag that knocked the two it
+    // landed with turned every bot trio into a suicide pact
     for (const o of this.bots) {
-      if (o === thrower || !o.bot.alive || o.bot.dropping) continue;
+      if (o === thrower || o.team === thrower.team || !o.bot.alive || o.bot.dropping) continue;
       const d = hurts(o.bot.pos);
       if (d <= 0) continue;
+      this.noteDamage(owner, d);
       o.bot.dummy.hit(now, "body", d, 1, 1, o.bot.pos.clone().setY(o.bot.pos.y + 1.2));
       o.bot.remote.health = o.bot.dummy.health;
       o.bot.remote.shield = o.bot.dummy.shield;
@@ -303,6 +471,13 @@ export class BrMatch extends Duel {
     for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && r.alive && !r.downed) n++;
     return n;
   }
+  /** squads still in it: this one, and every bot squad with someone up (in solo everyone is their own) */
+  private get squadsAlive(): number {
+    const teams = new Set<number>();
+    for (const b of this.bots) if (b.bot.alive) teams.add(b.team);
+    const mine = this.team.size === 1 ? this.humansAlive : this.humansAlive > 0 ? 1 : 0;
+    return teams.size + mine;
+  }
 
   // ------------------------------------------------------------ loot
 
@@ -313,7 +488,21 @@ export class BrMatch extends Duel {
   onLootTaken: ((item: LootItem) => void) | null = null;
   private pods: Pod[] = [];
   private podCount = 0;
+  private podSeq = 0;
   private podPhases = new Set<number>();
+  /** the ring phases whose loadout crate has been called (on every browser, not just the host's) */
+  private cratePhases = new Set<number>();
+  /** standing in a loadout crate: which one, and since when */
+  private crateHold: { id: number; since: number } | null = null;
+  private crateProgress: number | null = null;
+  /**
+   * Your loadout crate is yours: your saved loadout's two guns, kitted. The
+   * match cannot put a gun in your hands itself (main.ts owns the kit), so it
+   * hands them over here. With nothing listening and nobody else in the
+   * match, the crate spills them at your feet instead and the ordinary loot
+   * prompt does the rest.
+   */
+  onLoadoutDrop: ((guns: LootItem[], def: LoadoutDef) => void) | null = null;
 
   /** take an item: the host's own at once, a guest's asked of the host (first come, first served) */
   takeLoot(key: number): void {
@@ -346,18 +535,57 @@ export class BrMatch extends Duel {
     });
   }
 
-  /** a care package: its pod falls for podFall seconds, then its items land */
-  private addPod(at: THREE.Vector3, lands: number): void {
+  /**
+   * A care package or a loadout crate is called: `lands` seconds from now,
+   * counting br.json's announce ahead of the fall itself.
+   *
+   * The arrival is the event, not the contents. It is named and pinged the
+   * moment it is called, so everyone has time to start moving; it appears
+   * high under a canopy and trails smoke down; it thumps into a ring of dust;
+   * and it stays lit and marked for br.json's contest seconds afterwards,
+   * which is the window the fight over it happens in.
+   */
+  private addPod(at: THREE.Vector3, lands: number, kind: Pod["kind"] = "supply"): void {
+    const cfg = brCfg.pod;
+    const crate = kind === "loadout";
+    const tint = crate ? 0xffc12e : 0x3fa7e8;
     const obj = new THREE.Group();
-    const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, 1.8, 10), new THREE.MeshStandardMaterial({ color: 0x3a4250, emissive: 0x3fa7e8, emissiveIntensity: 0.35, roughness: 0.5 }));
+    const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, 1.8, 10), new THREE.MeshStandardMaterial({ color: 0x3a4250, emissive: tint, emissiveIntensity: 0.35, roughness: 0.5 }));
     shell.position.y = 0.9;
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 160, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0x3fa7e8, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 160, 8, 1, true), new THREE.MeshBasicMaterial({ color: tint, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false }));
     beam.position.y = 80;
-    obj.add(shell, beam);
-    obj.position.set(at.x, 120, at.z);
+    // the canopy that carries it down, cut loose the moment it lands
+    const canopy = new THREE.Mesh(new THREE.ConeGeometry(cfg.canopy.radius, cfg.canopy.height, 12, 1, true), new THREE.MeshStandardMaterial({ color: crate ? 0xd8a63a : 0xdde3ea, emissive: tint, emissiveIntensity: 0.12, roughness: 0.9, side: THREE.DoubleSide }));
+    canopy.position.y = 1.8 + cfg.canopy.height * 0.5;
+    obj.add(shell, beam, canopy);
+    obj.position.set(at.x, cfg.height, at.z);
+    obj.visible = false;
     this.scene.add(obj);
-    this.pods.push({ at: at.clone(), landsAt: wallClock() + lands, obj, landed: false });
-    this.onNotice?.("CARE PACKAGE INBOUND");
+    // the smoke hangs where it was made, so it cannot be a child of the pod
+    const trail = new THREE.Group();
+    this.scene.add(trail);
+    const fallFor = Math.min(lands, LOOT.podFall);
+    this.pods.push({ id: ++this.podSeq, kind, at: at.clone(), landsAt: wallClock() + lands, fallFor, hotUntil: Infinity, obj, canopy, beam, trail, nextPuff: 0, dust: null, landed: false, claimed: new Set() });
+    const where = this.placeNear(at);
+    this.onNotice?.(crate ? `LOADOUT CRATE INBOUND  ·  ${where}` : `CARE PACKAGE INBOUND  ·  ${where}`);
+    // the compass and both maps get it through the ping path the squad already has
+    this.onMark?.("go", this.id, at.clone(), crate ? "LOADOUT CRATE" : "CARE PACKAGE", -1);
+    // the horn, for the page that owns the audio: 0 called, 1 landed, 2 a crate called
+    this.onRemoteFx?.("pod", this.id, at.clone(), undefined, crate ? 2 : 0);
+  }
+
+  /** the name of the place a point is nearest, for a notice that says where to go */
+  private placeNear(at: THREE.Vector3): string {
+    let best = this.map.pois[0];
+    let bd = Infinity;
+    for (const p of this.map.pois) {
+      const d = Math.hypot(p.x - at.x, p.z - at.z);
+      if (d < bd) {
+        bd = d;
+        best = p;
+      }
+    }
+    return best.name.toUpperCase();
   }
 
   /** the host: what a care package holds (a care-package gun at gold, and the best of the rest) */
@@ -377,19 +605,150 @@ export class BrMatch extends Duel {
     return out.map((it) => ({ ...it, pod: n }));
   }
 
-  /** the pods: falling, then landing (the host lays out their items) */
+  /** the pods: called, falling under smoke, then landing (the host lays out a package's items) */
   private updatePods(now: number): void {
+    const cfg = brCfg.pod;
     for (const p of this.pods) {
-      if (p.landed) continue;
-      const left = p.landsAt - now;
-      const t = Math.max(0, Math.min(1, 1 - left / LOOT.podFall));
-      p.obj.position.y = 120 * (1 - t) + p.at.y * t;
-      if (left <= 0) {
-        p.landed = true;
-        p.obj.position.y = p.at.y;
-        if (this.role === "host") this.podItems().forEach((it, i) => this.dropLoot(it, p.at.clone().add(new THREE.Vector3(Math.cos(i * 2.1) * 1.3, 0, Math.sin(i * 2.1) * 1.3))));
+      if (!p.landed) {
+        const left = p.landsAt - now;
+        // before the fall it is called but not yet in the sky: only the
+        // notice and the ping exist, which is the warning the item asked for
+        p.obj.visible = left <= p.fallFor;
+        const t = Math.max(0, Math.min(1, 1 - left / p.fallFor));
+        p.obj.position.y = cfg.height * (1 - t) + p.at.y * t;
+        if (p.obj.visible && now >= p.nextPuff) {
+          p.nextPuff = now + cfg.trail.every;
+          const puff = new THREE.Mesh(PUFF_GEO, new THREE.MeshBasicMaterial({ color: 0xcdd4dc, transparent: true, opacity: 0.5, depthWrite: false }));
+          puff.position.set(p.at.x + (Math.random() - 0.5) * 0.7, p.obj.position.y + 0.6, p.at.z + (Math.random() - 0.5) * 0.7);
+          puff.userData.born = now;
+          p.trail.add(puff);
+        }
+        if (left <= 0) {
+          p.landed = true;
+          p.obj.position.y = p.at.y;
+          p.canopy.visible = false;
+          p.hotUntil = now + cfg.contest;
+          // the dust it throws up, and the thump for whoever is near enough to hear it
+          const dust = new THREE.Mesh(new THREE.RingGeometry(0.55, 1, 28), new THREE.MeshBasicMaterial({ color: 0xc9bda6, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
+          dust.rotation.x = -Math.PI / 2;
+          dust.position.set(p.at.x, p.at.y + 0.06, p.at.z);
+          dust.userData.born = now;
+          this.scene.add(dust);
+          p.dust = dust;
+          this.onRemoteFx?.("pod", this.id, p.at.clone(), undefined, 1);
+          this.onNotice?.(`${p.kind === "loadout" ? "LOADOUT CRATE" : "CARE PACKAGE"} DOWN  ·  ${this.placeNear(p.at)}`);
+          if (p.kind === "supply" && this.role === "host") this.podItems().forEach((it, i) => this.dropLoot(it, p.at.clone().add(new THREE.Vector3(Math.cos(i * 2.1) * 1.3, 0, Math.sin(i * 2.1) * 1.3))));
+        }
+      }
+      // the smoke: each puff swells and fades where it was left
+      for (const puff of [...p.trail.children] as THREE.Mesh[]) {
+        const age = (now - (puff.userData.born as number)) / cfg.trail.life;
+        if (age >= 1) {
+          puff.removeFromParent();
+          (puff.material as THREE.Material).dispose();
+          continue;
+        }
+        const s = 1 + age * cfg.trail.grow;
+        puff.scale.set(s, s, s);
+        (puff.material as THREE.MeshBasicMaterial).opacity = 0.5 * (1 - age);
+      }
+      if (p.dust) {
+        const age = (now - (p.dust.userData.born as number)) / cfg.dust.time;
+        if (age >= 1) {
+          p.dust.removeFromParent();
+          p.dust.geometry.dispose();
+          (p.dust.material as THREE.Material).dispose();
+          p.dust = null;
+        } else {
+          const s = 0.5 + age * cfg.dust.radius;
+          p.dust.scale.set(s, s, s);
+          (p.dust.material as THREE.MeshBasicMaterial).opacity = 0.55 * (1 - age);
+        }
+      }
+      // the beam burns while it is worth contesting, then drops to a marker
+      (p.beam.material as THREE.MeshBasicMaterial).opacity = now < p.hotUntil ? 0.25 : 0.08;
+    }
+  }
+
+  /**
+   * The loadout crate (item 24): called into the ring as br.json's phases
+   * start closing, once per phase, on every browser at once.
+   *
+   * Nothing about it goes over the wire. The host and the guests share the
+   * match seed and see the same circle in the ring packet, so all of them
+   * work the same spot out, and the claim below is each player's own anyway.
+   */
+  private maybeCrate(): void {
+    if (this.phase !== "fight") return;
+    const v = this.view;
+    if (v.state !== "closing" || this.cratePhases.has(v.phase) || !brCfg.loadoutPod.phases.includes(v.phase)) return;
+    this.cratePhases.add(v.phase);
+    const spot = loadoutPodAt(this.seed, v.phase, v.next);
+    this.addPod(new THREE.Vector3(spot.x, 0, spot.z), brCfg.pod.announce + LOOT.podFall, "loadout");
+  }
+
+  /**
+   * Standing in a landed loadout crate: hold still for br.json's claim time
+   * and it hands you the loadout you built on the Loadouts tab. One crate
+   * serves the lobby, a claim each, so a squad mate taking theirs first costs
+   * you nothing.
+   */
+  private updateCrateClaim(now: number, local: LocalState): void {
+    const claim = brCfg.loadoutPod.claim;
+    let on: Pod | null = null;
+    if (this.alive && !this.downed && this.phase === "fight") {
+      for (const p of this.pods) {
+        if (p.kind !== "loadout" || !p.landed || p.claimed.has(this.id)) continue;
+        if (Math.hypot(local.x - p.at.x, local.z - p.at.z) <= claim.reach && Math.abs(local.y - p.at.y) < 3) {
+          on = p;
+          break;
+        }
       }
     }
+    if (!on) {
+      this.crateHold = null;
+      this.crateProgress = null;
+      return;
+    }
+    if (!this.crateHold || this.crateHold.id !== on.id) {
+      this.crateHold = { id: on.id, since: now };
+      this.onNotice?.("LOADOUT CRATE  ·  STAY ON IT");
+    }
+    const t = (now - this.crateHold.since) / claim.time;
+    this.crateProgress = Math.min(1, t);
+    if (t < 1) return;
+    this.crateHold = null;
+    this.crateProgress = null;
+    on.claimed.add(this.id);
+    const def = savedLoadout();
+    const guns = this.loadoutGuns(def);
+    this.onNotice?.(`${def.name.toUpperCase()}  ·  ${weaponName(def.slot1).toUpperCase()} + ${weaponName(def.slot2).toUpperCase()}`);
+    if (this.onLoadoutDrop) this.onLoadoutDrop(guns, def);
+    else if (this.lootField && !this.links.size && !this.hostLink) {
+      // alone, with nothing listening: the crate pops them out at your feet
+      guns.forEach((g, i) => this.dropLoot(g, on!.at.clone().add(new THREE.Vector3(Math.cos(i * 2.1) * 1.1, 0, Math.sin(i * 2.1) * 1.1))));
+    }
+  }
+
+  /**
+   * Your loadout's two guns as the crate hands them over: fitted from the
+   * same preference list the Hot Zone's kitted gun uses (loot.json's
+   * kitted.prefer), because a second list of preferences would drift from the
+   * first, and wearing a magazine of br.json's tier.
+   */
+  private loadoutGuns(def: LoadoutDef): LootItem[] {
+    const cfg = brCfg.loadoutPod;
+    return [def.slot1, def.slot2].map((id) => {
+      const mods = weaponMods(id);
+      const attach: Attachments = {};
+      for (const slot of SLOTS) {
+        const fits = optionsFor(slot, mods, id).filter((o) => o.mod !== null);
+        if (!fits.length) continue;
+        const prefer = (LOOT.kitted.prefer as Record<string, string[]>)[slot] ?? [];
+        attach[slot] = prefer.find((m) => fits.some((o) => o.mod === m)) ?? fits[fits.length - 1].mod;
+      }
+      return { kind: "weapon", id, n: 1, rarity: cfg.rarity as Rarity, mag: cfg.mag, attach };
+    });
   }
 
   /** the map's towers, beacons and pads (brplay.ts) */
@@ -407,12 +766,29 @@ export class BrMatch extends Duel {
     return null;
   }
 
-  /** where care packages are and will land, for the maps */
-  get podSpots(): Array<{ x: number; z: number; landed: boolean }> {
-    return this.pods.map((p) => ({ x: p.at.x, z: p.at.z, landed: p.landed }));
+  /** where care packages and loadout crates are and will land, for the maps */
+  get podSpots(): Array<{ x: number; z: number; landed: boolean; loadout: boolean; hot: boolean }> {
+    const now = wallClock();
+    return this.pods.map((p) => ({ x: p.at.x, z: p.at.z, landed: p.landed, loadout: p.kind === "loadout", hot: now < p.hotUntil }));
   }
   get ringState(): RingView {
     return this.view;
+  }
+
+  /** the nearest package worth walking to from here: falling, or landed and still hot */
+  private podToContest(from: THREE.Vector3): THREE.Vector3 | null {
+    const now = wallClock();
+    let best: Pod | null = null;
+    let bd = brCfg.podLure;
+    for (const p of this.pods) {
+      if (now >= p.hotUntil) continue;
+      const d = Math.hypot(p.at.x - from.x, p.at.z - from.z);
+      if (d < bd) {
+        bd = d;
+        best = p;
+      }
+    }
+    return best ? new THREE.Vector3(best.at.x, 0, best.at.z) : null;
   }
 
   private nearestNode(x: number, z: number): number {
@@ -440,6 +816,7 @@ export class BrMatch extends Duel {
     if (this.phase !== "fight" || !r.alive) return;
     this.hits++;
     this.damage += amount;
+    this.noteDamage(this.id, amount);
     r.health = b.bot.dummy.health;
     r.shield = b.bot.dummy.shield;
     if (b.bot.dummy.knocked) this.botDown(b, this.id);
@@ -451,6 +828,7 @@ export class BrMatch extends Duel {
     if (!b) return false;
     if (this.phase !== "fight" || !b.bot.alive) return true;
     const bot = b.bot;
+    this.noteDamage(from, amount);
     bot.dummy.hit(wallClock(), head ? "head" : "body", amount, 1, 1, bot.pos.clone().setY(bot.pos.y + 1.2));
     bot.remote.health = bot.dummy.health;
     bot.remote.shield = bot.dummy.shield;
@@ -486,6 +864,101 @@ export class BrMatch extends Duel {
     if (this.bots.every((x) => !x.bot.alive) && this.humansAlive > 0) this.endBr(true);
   }
 
+  // ------------------------------------------------------------ Storm Surge
+
+  /** who has dealt how much damage, and when they last dealt any: the surge ranks on it */
+  private dealt = new Map<number, { total: number; at: number }>();
+  /** when the first surge tick lands, and when the surge went live (Infinity for neither) */
+  private surgeAt = Infinity;
+  private surgeSince = Infinity;
+  private surgeStep = -1;
+  private surgeSafe = true;
+  private surgeBelow = 0;
+
+  /** damage dealt by a human or a bot, for the ranking (the host sees everyone's: it runs the bots and the guests' hits come to it) */
+  private noteDamage(by: number, amount: number): void {
+    if (by < 0 || !(amount > 0)) return;
+    const row = this.dealt.get(by) ?? { total: 0, at: -Infinity };
+    row.total += amount;
+    row.at = wallClock();
+    this.dealt.set(by, row);
+  }
+
+  /** everyone who can still be surged, with their damage: the living, downed players excepted */
+  private surgeRows(): Array<{ id: number; dealt: number; at: number }> {
+    const row = (id: number) => {
+      const d = this.dealt.get(id);
+      return { id, dealt: d?.total ?? 0, at: d?.at ?? -Infinity };
+    };
+    const out: Array<{ id: number; dealt: number; at: number }> = [];
+    if (this.alive && !this.downed) out.push(row(this.id));
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && r.alive && !r.downed) out.push(row(r.id));
+    for (const b of this.bots) if (b.bot.alive && !b.bot.dropping) out.push(row(b.bot.remote.id));
+    return out;
+  }
+
+  /**
+   * Storm Surge (item 34): the late rounds stop paying for hiding.
+   *
+   * When more are alive than the phase allows, everyone is ranked by the
+   * damage they have dealt and the ones below the line take a tick wherever
+   * they stand. It is warned first and it cancels if enough die during the
+   * countdown, so it is a reason to go and fight rather than a punishment
+   * that arrives with no notice.
+   */
+  private updateSurge(now: number, tick: boolean): void {
+    const ring = this.ring;
+    if (!ring) return;
+    const allowed = surgeAllowed(ring.phase, this.botCount + this.players);
+    if (this.phase !== "fight" || this.aliveCount <= allowed) {
+      if (this.surgeSince < Infinity) this.onNotice?.("STORM SURGE OVER");
+      this.surgeAt = Infinity;
+      this.surgeSince = Infinity;
+      this.surgeStep = -1;
+      this.surgeSafe = true;
+      this.surgeBelow = 0;
+      return;
+    }
+    if (this.surgeAt === Infinity) {
+      this.surgeAt = now + brCfg.surge.warn;
+      this.onNotice?.(`STORM SURGE IN ${brCfg.surge.warn}  ·  DEAL DAMAGE OR TAKE IT`);
+    }
+    const victims = new Set(surgeVictims(this.surgeRows(), allowed, now));
+    this.surgeBelow = victims.size;
+    this.surgeSafe = !victims.has(this.id);
+    if (now < this.surgeAt) return;
+    if (this.surgeSince === Infinity) this.surgeSince = now;
+    const amount = surgeDamage(now - this.surgeSince);
+    const step = brCfg.surge.damage.indexOf(amount);
+    if (step !== this.surgeStep) {
+      this.surgeStep = step;
+      this.onNotice?.(`STORM SURGE  ·  ${amount} EVERY ${RING_TICK} S IF YOU HIDE`);
+    }
+    if (!tick || !victims.size) return;
+    // the surge is the ring's kind of damage: it comes from nobody (-1)
+    if (victims.has(this.id) && this.alive) this.hurt(amount, -1);
+    // A squad mate below the line is ranked but not yet hurt. The host cannot
+    // send this one: a hit message carries a sender, every sender that is not
+    // a squad mate builds a figure for them on the other browser, and a squad
+    // mate's hits are ignored in a battle royale. It wants one flag on the
+    // ring packet (net/link.ts) that a guest hurts itself by, next to the one
+    // it already uses for standing outside the circle.
+    for (const b of this.bots) {
+      if (!victims.has(b.bot.remote.id) || !b.bot.alive || b.bot.dropping) continue;
+      b.bot.dummy.hit(now, "body", amount, 1, 1, b.bot.pos);
+      b.bot.remote.health = b.bot.dummy.health;
+      b.bot.remote.shield = b.bot.dummy.shield;
+      if (b.bot.dummy.knocked) this.botDown(b, -1);
+    }
+  }
+
+  // ------------------------------------------------------------ the squad
+
+  /** solo: there is nobody to pick you up, so a knock is an elimination */
+  protected override squadUp(): boolean {
+    return this.team.size > 1 && super.squadUp();
+  }
+
   /** a squad mate gone (left, or silent): with nobody of the squad still up, it is over */
   protected override playerGone(id: number, notice: string): void {
     super.playerGone(id, notice);
@@ -501,6 +974,14 @@ export class BrMatch extends Duel {
   /** a human went down (any side, this player included): the host decides whether the squad is out */
   protected override onSomeoneDown(_id: number, _by: number): void {
     for (const o of this.bots) o.bot.forget(_id);
+    // A duo has less time on the floor than a trio: only one person can ever
+    // be coming. Duel owns the bleed-out clock and has already started it by
+    // the time this runs, so the size cuts what it set rather than running a
+    // second clock beside it.
+    if (_id === this.id && this.team.bleed > 0 && this.team.bleed < 1) {
+      const now = wallClock();
+      this.bleedUntil = now + (this.bleedUntil - now) * this.team.bleed;
+    }
     if (this.role === "host" && this.humansAlive === 0) this.endBr(false);
   }
 
@@ -604,7 +1085,11 @@ export class BrMatch extends Duel {
       this.leave();
       return;
     }
+    // the crates are everyone's to work out and everyone's to claim, so both
+    // run here rather than in the host-only tick below
+    this.maybeCrate();
     this.updatePods(now);
+    this.updateCrateClaim(now, local);
     this.lootField?.update(new THREE.Vector3(local.x, local.y + 1.6, local.z), now);
     // the ring wall, from the host's ring or the mirrored one
     const cur = this.view.current;
@@ -642,7 +1127,7 @@ export class BrMatch extends Duel {
     // the drop ends for the host when it lands: the fight is on from then
     if (this.phase === "countdown" && local.stance !== "air" && now - this.dropAt > 1) {
       this.enter("fight", now, 0);
-      this.onNotice?.("LANDED  ·  LAST SQUAD STANDING WINS");
+      this.onNotice?.(`LANDED  ·  LAST ${this.team.size === 1 ? "ONE" : "SQUAD"} STANDING WINS`);
     }
     const feet = new THREE.Vector3(local.x, local.y, local.z);
     // the bots that have landed search, then have their gun and a shield of some tier
@@ -665,14 +1150,17 @@ export class BrMatch extends Duel {
         b.bot.remote.shield = b.bot.dummy.shield;
       }
     }
-    // a care package inside the next ring as rounds 2, 3 and 4 close
+    // a care package inside the next ring as rounds 2, 3 and 4 close; the
+    // squad is told the whole warning, announce and fall, so every screen
+    // counts the same arrival down
     if (this.lootField && ring.state === "closing" && ring.phase >= 1 && ring.phase <= 3 && !this.podPhases.has(ring.phase)) {
       this.podPhases.add(ring.phase);
       const a = Math.random() * Math.PI * 2;
       const r = Math.sqrt(Math.random()) * ring.next.r * 0.6;
       const at = new THREE.Vector3(ring.next.cx + Math.cos(a) * r, 0, ring.next.cz + Math.sin(a) * r);
-      this.addPod(at, LOOT.podFall);
-      this.broadcast({ t: "pod", at: [at.x, at.y, at.z], lands: LOOT.podFall });
+      const warning = brCfg.pod.announce + LOOT.podFall;
+      this.addPod(at, warning);
+      this.broadcast({ t: "pod", at: [at.x, at.y, at.z], lands: warning });
     }
     // the ring: a tick hurts everyone outside it (the guests hurt themselves)
     const tick = ring.update(dt);
@@ -689,6 +1177,7 @@ export class BrMatch extends Duel {
         }
       }
     }
+    this.updateSurge(now, tick);
     if (now >= this.ringSendNext) {
       this.ringSendNext = now + 0.5;
       this.broadcast({
@@ -742,6 +1231,7 @@ export class BrMatch extends Duel {
         let dealt = 0;
         for (const s of shots) if (hitsBody(s.from, s.dir, human.feet)) dealt += s.damage;
         if (dealt <= 0) continue;
+        this.noteDamage(bot.remote.id, dealt);
         const dist = Math.round(bot.pos.distanceTo(human.feet) * 10) / 10;
         if (human.id === this.id) this.hurt(dealt, bot.remote.id, shots[0].weapon, dist);
         else {
@@ -759,6 +1249,7 @@ export class BrMatch extends Duel {
         if (!other || !other.bot.alive) continue;
         for (const s of shots) {
           if (!hitsBody(s.from, s.dir, other.bot.pos)) continue;
+          this.noteDamage(bot.remote.id, s.damage);
           other.bot.dummy.hit(now, "body", s.damage, 1, 1, other.bot.pos.clone().setY(other.bot.pos.y + 1.2));
           other.bot.remote.health = other.bot.dummy.health;
           other.bot.remote.shield = other.bot.dummy.shield;
@@ -817,7 +1308,9 @@ export class BrMatch extends Duel {
       }
     }
     for (const o of this.bots) {
-      if (o === b || !o.bot.alive || o.bot.dropping) continue;
+      // its own squad is not a target: in duos and trios the bots land in
+      // twos and threes, and they used to shoot each other on the way down
+      if (o === b || o.team === b.team || !o.bot.alive || o.bot.dropping) continue;
       const d = bot.pos.distanceTo(o.bot.pos);
       if (d < best && bot.sees(o.bot.pos)) {
         best = d;
@@ -832,8 +1325,14 @@ export class BrMatch extends Duel {
     const outsideNext = Math.hypot(bot.pos.x - ring.next.cx, bot.pos.z - ring.next.cz) > ring.next.r - 4;
     const hurry = outsideNext && (ring.state === "closing" || ring.timeLeft < 25 || ring.outside(bot.pos.x, bot.pos.z));
     let goal: THREE.Vector3 | null;
+    // a package coming down near it is worth more than the next node: without
+    // this nobody contests one but the squad, and a package nobody contests
+    // is a free gold gun rather than an event
+    const pod = this.podToContest(bot.pos);
     if (hurry) {
       goal = new THREE.Vector3(ring.next.cx, 0, ring.next.cz);
+    } else if (pod) {
+      goal = pod;
     } else {
       const here = nodes[b.goal];
       if (Math.hypot(here.x - bot.pos.x, here.z - bot.pos.z) < 3) {
@@ -876,15 +1375,32 @@ export class BrMatch extends Duel {
       survived: now - this.startedAt,
       pois: this.map.pois.map((p) => ({ name: p.name, x: p.x, z: p.z })),
       bounds: { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HALF, minZ: BR_CENTER.z - BR_HALF, maxZ: BR_CENTER.z + BR_HALF },
+      team: this.team.size,
+      squads: this.squadsAlive,
       towers: this.map.towers,
       beacons: this.map.beacons,
       pods: this.podSpots,
-      mates: [...this.remotes.values()]
-        .filter((r) => r.id < Duel.BOT_ID && r.samples.length)
-        .map((r) => {
-          const s = r.samples[r.samples.length - 1];
-          return { x: s.x, z: s.z, name: r.name, downed: r.downed, alive: r.alive };
-        }),
+      // solo: there is no squad, so the squad panel has nothing to collapse to
+      mates:
+        this.team.size === 1
+          ? []
+          : [...this.remotes.values()]
+              .filter((r) => r.id < Duel.BOT_ID && r.samples.length)
+              .map((r) => {
+                const s = r.samples[r.samples.length - 1];
+                return { x: s.x, z: s.z, name: r.name, downed: r.downed, alive: r.alive };
+              }),
+      surge:
+        this.surgeAt === Infinity
+          ? null
+          : {
+              live: this.surgeSince < Infinity,
+              startsIn: Math.max(0, this.surgeAt - now),
+              damage: surgeDamage(this.surgeSince < Infinity ? now - this.surgeSince : 0),
+              safe: this.surgeSafe,
+              below: this.surgeBelow,
+            },
+      crate: this.crateProgress,
     };
     return {
       ...base,
@@ -957,6 +1473,16 @@ export class BrMatch extends Duel {
           (m.material as THREE.Material).dispose();
         }
       });
+      // the smoke and the dust are the scene's, not the pod's, so that they
+      // stay where they were made while the pod goes on falling. Only their
+      // materials are theirs: the puffs share one geometry with every pod.
+      p.trail.removeFromParent();
+      for (const puff of p.trail.children as THREE.Mesh[]) (puff.material as THREE.Material).dispose();
+      if (p.dust) {
+        p.dust.removeFromParent();
+        p.dust.geometry.dispose();
+        (p.dust.material as THREE.Material).dispose();
+      }
     }
     this.pods = [];
     this.map.ringWall.scale.set(0.01, 1, 0.01);

@@ -1,7 +1,8 @@
 // The menu: tabs (Play, 1v1, Loadouts, Settings, Controls) and the loadout
 // editor. Settings and the 1v1 box keep their own wiring in main.ts; this
-// owns navigation and loadouts.
+// owns navigation, loadouts and the battle royale's lobby row.
 import { DEFAULT_LOADOUTS, type LoadoutDef, type LoadoutRef, type Loadouts } from "../game/loadouts";
+import { lobbySquads, saveTeamId, savedTeamId, teamFor } from "../game/brmatch";
 import { OPERATORS } from "../game/operators";
 import { HEIRLOOMS } from "../game/heirlooms";
 import { Stats, type MatchKind, type MatchStats } from "../game/stats";
@@ -23,6 +24,30 @@ export interface MenuOptions {
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const hex = (c: number) => `#${c.toString(16).padStart(6, "0")}`;
+
+/** where main.ts keeps the bot count; the row writes it too, since it moves the count itself */
+const BR_BOTS_KEY = "range.br.bots";
+const COUNT_WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+const word = (n: number): string => COUNT_WORDS[n] ?? String(n);
+
+/**
+ * The battle royale's squad size, for whoever starts the match: a host should
+ * put it in the welcome packet so the whole lobby plays the same one.
+ *
+ * It is read off the row rather than out of main.ts because the row is this
+ * file's, and a size taken from anywhere else would be a second source of
+ * truth for the same choice. A match played alone reads the same store for
+ * itself (brmatch.ts savedTeamId).
+ */
+export function brTeamId(): string {
+  const sel = document.getElementById("brTeam") as HTMLSelectElement | null;
+  return sel?.value ? teamFor(sel.value).id : savedTeamId();
+}
+
+/** how many share a squad in the size the row is on (1 solo, 2 duos, 3 trios) */
+export function brTeamSize(): number {
+  return teamFor(brTeamId()).size;
+}
 
 export class Menu {
   tab: Tab = "play";
@@ -60,6 +85,18 @@ export class Menu {
     $("goControl").addEventListener("click", () => o.onGo("control"));
     $("goFfa").addEventListener("click", () => o.onGo("ffa"));
 
+    // the battle royale's lobby row: the squad size, and a bot count that
+    // goes with it. main.ts restores the bot count before this runs, so the
+    // row keeps whatever it restored when the size still offers it.
+    const brTeam = $<HTMLSelectElement>("brTeam");
+    brTeam.value = savedTeamId();
+    brTeam.addEventListener("change", () => {
+      saveTeamId(brTeam.value);
+      this.renderBrRow();
+    });
+    $<HTMLSelectElement>("brBots").addEventListener("change", () => this.renderBrRow());
+    this.renderBrRow();
+
     // weapon pickers, sorted by name
     const sorted = o.weaponIds.slice().sort((a, b) => o.weaponName(a).localeCompare(o.weaponName(b)));
     for (const [i, id] of [
@@ -89,6 +126,38 @@ export class Menu {
       this.render();
     });
     this.render();
+  }
+
+  /**
+   * The battle royale's row: the squad size, the bot counts that fill whole
+   * squads at that size, and one line saying what the lobby comes to. The
+   * counts are the size's (src/config/br.json), so picking Solo cannot leave
+   * you in a lobby of three and a half squads, and moving between sizes keeps
+   * the lobby about as big as it was.
+   */
+  private renderBrRow(): void {
+    const t = teamFor($<HTMLSelectElement>("brTeam").value);
+    const bots = $<HTMLSelectElement>("brBots");
+    const want = Number(bots.value) || t.defaultBots;
+    const pick = t.bots.reduce((a, b) => (Math.abs(b - want) < Math.abs(a - want) ? b : a), t.defaultBots);
+    bots.innerHTML = "";
+    for (const n of t.bots) {
+      const o = document.createElement("option");
+      o.value = String(n);
+      o.textContent = `${n} bots (${n + 1} in the match)`;
+      bots.appendChild(o);
+    }
+    bots.value = String(pick);
+    try {
+      localStorage.setItem(BR_BOTS_KEY, bots.value);
+    } catch {
+      /* ignore */
+    }
+    const players = pick + 1;
+    const squads = lobbySquads(players, t.size);
+    const lobby = t.size === 1 ? `${word(players)} in the match, one life each` : `${word(players)} in the match, ${word(squads)} squad${squads === 1 ? "" : "s"} of ${t.size}`;
+    $("brLobby").textContent = `${lobby[0].toUpperCase()}${lobby.slice(1)}. The difficulty is set above. Then Play tab, Battle Royale: the ring closes six times, 4 heals, M is the map.`;
+    $("brBlurb").textContent = `${t.label}: drop onto Outskirts, ${lobby}, the ring closes, last ${t.size === 1 ? "one" : "squad"} standing. Size, bots and difficulty on the Friends tab.`;
   }
 
   /** the Stats tab: matches, courses, tech, from the profile */

@@ -15,11 +15,14 @@
 // Everything is in arena coordinates (centre 0,0) and placed at ARENA_X/Z.
 // Every box is reachable: the simulation checks the jump and mantle heights.
 import * as THREE from "three";
+import MODES from "../config/modes.json";
 import { RANGE_SOLIDS } from "./range";
 import { PAL, bevel, emissive, flat, graffitiTexture, worldTiledMaterial, textPanel } from "./geo";
 import { material } from "./materials";
 import { warehouseRoof } from "./warehouse";
 import { ZIPLINES } from "./traversal";
+import { buildPlan } from "./arenas/build";
+import { PLAN_MAPS, type ArenaMapInfo } from "./arenas";
 import type { Bounds } from "./player";
 
 export const ARENA_X = 90;
@@ -260,8 +263,16 @@ export function buildArena(scene: THREE.Scene): ArenaHandles {
   root.add(textPanel("1V1\nThree lanes. From 20 s into a round the circle in the middle goes live: stand in it alone for 10 s to take the round. A knock wins it at any time.", 0, 4.5, -HZ + 0.02, 0, 7, 2.4));
   root.add(textPanel("1V1\nThree lanes. From 20 s into a round the circle in the middle goes live: stand in it alone for 10 s to take the round. A knock wins it at any time.", 0, 4.5, HZ - 0.02, Math.PI, 7, 2.4));
 
+  // The other three arenas go up with this one. They are built here rather
+  // than from main.ts because main.ts belongs to somebody else this week, and
+  // because it costs nothing: they are meshes in the same scene, merged by
+  // the same static merge, and no match looks at one until it is chosen.
+  buildOtherArenas(scene);
+
   root.updateMatrixWorld(true);
-  return { root, zone: { ring, column, disc } };
+  const handles: ArenaHandles = { root, zone: { ring, column, disc } };
+  ARENA_HANDLES.set("warehouse", handles);
+  return handles;
 }
 
 // ------------------------------------------------------------- 1v1v1: the triangle
@@ -418,7 +429,9 @@ export function buildTriArena(scene: THREE.Scene): ArenaHandles {
   root.add(textPanel(rules, 0, 4.5, TRI_H - 0.02, Math.PI, 7, 2.4));
 
   root.updateMatrixWorld(true);
-  return { root, zone: { ring, column, disc } };
+  const handles: ArenaHandles = { root, zone: { ring, column, disc } };
+  ARENA_HANDLES.set("triangle", handles);
+  return handles;
 }
 
 /** where a bot starts in the 1v1 arena, by index (0 the guest's spawn, then the flanks) */
@@ -447,4 +460,93 @@ function arenaZip(root: THREE.Group, a: THREE.Vector3, b: THREE.Vector3, floorA:
     root.add(post);
   }
   ZIPLINES.push({ a: new THREE.Vector3(a.x + origin.x, a.y, a.z + origin.z), b: new THREE.Vector3(b.x + origin.x, b.y, b.z + origin.z) });
+}
+
+// ------------------------------------------------------------- the maps
+//
+// One map for six modes is why a 1v1, a free-for-all, Gun Run, team
+// deathmatch, Control and Crown all play the same. There are five now: the
+// warehouse and the triangle above, which are hand built, and the three in
+// src/game/arenas, which are drawn from plans so that a check can walk them
+// in plain node (tools/checks/arenas.ts).
+//
+// Everything a match, a mode or a menu needs to know about a map is in the
+// list below in world coordinates. Nothing here picks a map by itself: the
+// choosing is duel.ts's arenaFor, and what a mode would pick if nobody says
+// otherwise is `mapFor`.
+
+export type ArenaMapId = "warehouse" | "triangle" | "vault" | "crossing" | "ringworks";
+
+/** the 1v1 warehouse as the list sees it; its Control points are the ones in src/config/modes.json */
+const WAREHOUSE_MAP: ArenaMapInfo = {
+  id: "warehouse",
+  name: "THE WAREHOUSE",
+  blurb: "Three lanes, a two-storey shell over the middle and a rope in from each end. The arena everything was built on.",
+  bounds: ARENA_BOUNDS,
+  center: { x: ARENA_X, z: ARENA_Z },
+  spawns: ARENA_LOBBY_SPAWNS,
+  teams: {
+    a: MODES.spawns.a.slice(0, 4).map((p) => ({ x: ARENA_X + p[0], z: ARENA_Z + p[1], yaw: 180 })),
+    b: MODES.spawns.b.slice(0, 4).map((p) => ({ x: ARENA_X + p[0], z: ARENA_Z + p[1], yaw: 0 })),
+  },
+  zones: MODES.control.zones.map((z) => ({ id: String(z[0]), x: ARENA_X + Number(z[1]), z: ARENA_Z + Number(z[2]) })),
+  crown: { x: ARENA_X, z: ARENA_Z },
+  bestFor: ["duel", "tdm", "gunrun"],
+  plan: null,
+};
+
+/** the 1v1v1 triangle: three corners, and no fourth, which is why it is only ever offered to three */
+const TRIANGLE_MAP: ArenaMapInfo = {
+  id: "triangle",
+  name: "THE TRIANGLE",
+  blurb: "Three corners and one circle, for three players. Spokes of blocks between each pair of spawns.",
+  bounds: TRI_BOUNDS,
+  center: { x: TRI_X, z: TRI_Z },
+  spawns: TRI_SPAWNS,
+  teams: { a: [TRI_SPAWNS[0]], b: [TRI_SPAWNS[1]] },
+  zones: [{ id: "B", x: TRI_X, z: TRI_Z }],
+  crown: { x: TRI_X, z: TRI_Z },
+  bestFor: ["duel"],
+  plan: null,
+};
+
+/** every arena there is, in the order a menu should offer them */
+export const ARENA_MAPS: ArenaMapInfo[] = [WAREHOUSE_MAP, TRIANGLE_MAP, ...PLAN_MAPS];
+
+/** a map by id, falling back to the warehouse so a stale saved id can never leave a match without an arena */
+export function arenaMap(id: string | null | undefined): ArenaMapInfo {
+  return ARENA_MAPS.find((m) => m.id === id) ?? WAREHOUSE_MAP;
+}
+
+/**
+ * The map a mode is played on when nobody has chosen one. These are
+ * recommendations rather than the law: `arenaFor` only uses them when a
+ * match is told to, because until the menu and the welcome packet carry a map
+ * id, and main.ts clamps the player to the chosen map's bounds, every match
+ * has to keep landing in the warehouse it lands in today.
+ */
+export function mapFor(mode: string, players: number): ArenaMapId {
+  // three players is still the triangle: it is the only map with three
+  // corners and no fourth side to be caught from
+  if (mode === "duel" && players === 3) return "triangle";
+  // a 1v1 wants the small two-storey room, where a round is a fight
+  if (mode === "duel") return "vault";
+  // the modes where everybody fights everybody want a map with no back line
+  if (mode === "ffa" || mode === "crown") return "ringworks";
+  // Gun Run is a race through weapons, so the smallest map wins
+  if (mode === "gunrun") return "vault";
+  // teams want the wide map: high ground each, and three points worth holding
+  if (mode === "tdm" || mode === "control") return "crossing";
+  return "warehouse";
+}
+
+/** the built arenas by id, so whoever shows a capture circle can find the right one */
+export const ARENA_HANDLES = new Map<string, ArenaHandles>();
+let othersBuilt = false;
+
+/** the three drawn arenas, built into the scene once */
+function buildOtherArenas(scene: THREE.Scene): void {
+  if (othersBuilt) return;
+  othersBuilt = true;
+  for (const m of PLAN_MAPS) if (m.plan) ARENA_HANDLES.set(m.id, buildPlan(scene, m.plan, ZONE_RADIUS));
 }

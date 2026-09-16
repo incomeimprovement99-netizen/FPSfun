@@ -18,12 +18,21 @@
 // joins tabs of the same browser on one machine. It is how the match is
 // tested without the internet, and it is handy for trying it alone.
 import Peer, { type DataConnection, type PeerOptions } from "peerjs";
+import { STATE_PROTOCOL } from "./state";
+import { withoutUndefined } from "./wire";
 
 /** everything that goes over the link; see duel.ts for the meanings */
 export type NetMsg =
-  | { t: "hello"; v: number }
+  /**
+   * `v` is the version of this message set and has always been 2. `d` is the
+   * separate version of the delta compressed state format (state.ts), sent by
+   * both sides and believed from neither: a peer that does not name it gets
+   * the old full "s" packets, which is what makes an old build and a new one
+   * still able to play together.
+   */
+  | { t: "hello"; v: number; d?: number }
   /** host to a guest on connect: its id and how many will play; a battle royale says so, with its drop */
-  | { t: "welcome"; id: number; players: number; br?: BrWelcome; opts?: MatchOpts }
+  | { t: "welcome"; id: number; players: number; br?: BrWelcome; opts?: MatchOpts; d?: number }
   | {
       t: "s";
       from?: number;
@@ -56,6 +65,17 @@ export type NetMsg =
       /** the practice aim bot is on: everyone sees a red mark over them for it */
       bot?: number;
     }
+  /**
+   * The same state, delta compressed (state.ts). `q` is this packet's
+   * sequence for the stream, `b` the sequence it is a difference from (absent
+   * means the packet carries the whole state), `c` the mask of optional
+   * fields that have GONE since then, and `d` the short keyed fields that
+   * changed. A field missing from `d` is a field that did not change, which
+   * is why nothing in here is ever sent as null.
+   */
+  | { t: "sd"; from?: number; q: number; b?: number; c?: number; d: Record<string, number | string | undefined> }
+  /** what a receiver got: the newest sequence it applied per player, and the players it is stuck on and needs whole again */
+  | { t: "sa"; ok?: Array<[number, number]>; need?: number[] }
   | { t: "zone"; live: boolean; caps: number[]; startsIn: number }
   | { t: "shot"; from?: number; o: [number, number, number]; d: [number, number, number]; w: string }
   /** a hit, from the shooter: `w` the gun and `d` the distance in metres, for the death recap (an older build sends neither) */
@@ -102,20 +122,17 @@ export type NetMsg =
   | { t: "bye"; from?: number };
 
 /**
- * A message without its undefined fields. PeerJS packs `undefined` as `null`,
- * and a field checked as "absent or a string" then fails: a hit sent without
- * its gun, a JOLT's effect without its number, were dropped whole on the real
- * connection while the local transport (a structured clone) kept them.
+ * A message without its undefined fields, so nothing packs as null. It lives
+ * in wire.ts now, next to the long version of why it has to exist, and is
+ * still exported from here because that is where everything else imports it
+ * from.
  */
-export function withoutUndefined<T>(v: T): T {
-  if (Array.isArray(v)) return v.map((x) => withoutUndefined(x)) as T;
-  if (v && typeof v === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [k, x] of Object.entries(v as Record<string, unknown>)) if (x !== undefined) out[k] = withoutUndefined(x);
-    return out as T;
-  }
-  return v;
-}
+export { withoutUndefined };
+
+/** the full state packet, and the two messages the delta codec adds (state.ts) */
+export type StateMsg = Extract<NetMsg, { t: "s" }>;
+export type DeltaMsg = Extract<NetMsg, { t: "sd" }>;
+export type AckMsg = Extract<NetMsg, { t: "sa" }>;
 
 /** what a guest needs to drop into the same battle royale as the host */
 export interface BrWelcome {
@@ -345,7 +362,7 @@ export function hostMatch(
       known.add(e.data.from);
       const id = claim();
       const link = new LocalLink("host", ch, "host", e.data.from, false);
-      link.send({ t: "welcome", id, players, br, opts });
+      link.send({ t: "welcome", id, players, br, opts, d: STATE_PROTOCOL });
       onLink(link, id);
     });
     onCode(code);
@@ -370,7 +387,7 @@ export function hostMatch(
         }
         const id = claim();
         const link = new PeerLink("host", p, conn, false);
-        link.send({ t: "welcome", id, players, br, opts });
+        link.send({ t: "welcome", id, players, br, opts, d: STATE_PROTOCOL });
         onLink(link, id);
       });
     });
@@ -404,7 +421,7 @@ export function hostMatch(
 }
 
 /** join a match by its code; `onLink` gets the link once the host has said welcome */
-export function joinMatch(rawCode: string, onLink: (l: Link, welcome: { id: number; players: number; br?: BrWelcome; opts?: MatchOpts }) => void, onError: (msg: string) => void): () => void {
+export function joinMatch(rawCode: string, onLink: (l: Link, welcome: { id: number; players: number; br?: BrWelcome; opts?: MatchOpts; d?: number }) => void, onError: (msg: string) => void): () => void {
   const code = normaliseCode(rawCode);
   if (code.length !== 5) {
     onError("A match code is 5 letters and numbers.");
@@ -419,11 +436,11 @@ export function joinMatch(rawCode: string, onLink: (l: Link, welcome: { id: numb
     link.onMessage = (m) => {
       if (!joined && m.t === "welcome") {
         joined = true;
-        onLink(link, { id: m.id, players: m.players, br: m.br, opts: m.opts });
+        onLink(link, { id: m.id, players: m.players, br: m.br, opts: m.opts, d: m.d });
       }
       inner?.(m);
     };
-    link.send({ t: "hello", v: 2 });
+    link.send({ t: "hello", v: 2, d: STATE_PROTOCOL });
     // no host answers: say so rather than sitting there
     const timer = setTimeout(() => {
       if (!joined) onError("No match with that code (no host answered).");
@@ -463,10 +480,10 @@ export function joinMatch(rawCode: string, onLink: (l: Link, welcome: { id: numb
           if (!done && m.t === "welcome") {
             done = true;
             clearTimeout(timer);
-            onLink(link, { id: m.id, players: m.players, br: m.br, opts: m.opts });
+            onLink(link, { id: m.id, players: m.players, br: m.br, opts: m.opts, d: m.d });
           }
         };
-        link.send({ t: "hello", v: 2 });
+        link.send({ t: "hello", v: 2, d: STATE_PROTOCOL });
       });
       conn.on("close", () => fail(opened ? "The host turned the connection away (the match is full, or over)." : JOIN_TIMEOUT));
       // ICE failing shows up only as an error on the connection (PeerJS sends

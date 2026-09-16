@@ -26,6 +26,7 @@ import type { TourHud } from "./tour";
 import hudCfg from "../config/hud.json";
 import lootCfg from "../config/loot.json";
 import { REACH } from "./brplay";
+import { drawIcon, loadIcons } from "./icons";
 
 type ModeRow = ModeHud["rows"][number];
 
@@ -206,6 +207,9 @@ export class Hud {
     this.ctx = canvas.getContext("2d")!;
     this.resize();
     window.addEventListener("resize", () => this.resize());
+    // fire and forget: nothing waits on the icons, and every place that draws
+    // one falls back to the text it drew before until they arrive
+    loadIcons();
   }
 
   resize(): void {
@@ -1707,7 +1711,27 @@ export class Hud {
     if (o.counts) {
       const short: Record<string, string> = { frag: "FRAG", arcstar: "STAR", thermite: "THERM", shockwave: "WAVE", rift: "RIFT" };
       const any = Object.values(o.counts).some((n) => n > 0);
-      this.text(`${o.key}  ${Object.entries(o.counts).map(([k, n]) => `${short[k] ?? k} ${n}`).join("  ")}`, x, y, 700, 13 * u, any ? DIM : "rgba(154,164,173,0.4)");
+      const color = any ? DIM : "rgba(154,164,173,0.4)";
+      // An icon and a count read faster than five words, and at a glance the
+      // shapes are what you actually recognise. Every icon that is not here
+      // yet falls back to the word it replaced, so a checkout that has not
+      // run npm run icons looks exactly like the old row and nothing leaves
+      // a hole while the files load.
+      const size = 15 * u;
+      let cx = x;
+      this.text(o.key, cx, y, 700, 13 * u, color);
+      cx += this.ctx.measureText(o.key).width + 10 * u;
+      for (const [k, n] of Object.entries(o.counts)) {
+        if (drawIcon(this.ctx, k, cx + size / 2, y - 4 * u, size, color)) cx += size + 3 * u;
+        else {
+          const word = short[k] ?? k;
+          this.text(word, cx, y, 700, 13 * u, color);
+          cx += this.ctx.measureText(word).width + 3 * u;
+        }
+        const count = String(n);
+        this.text(count, cx, y, 700, 13 * u, color);
+        cx += this.ctx.measureText(count).width + 10 * u;
+      }
     }
     if (o.readied) {
       const cx = this.w / 2;

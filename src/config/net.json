@@ -1,0 +1,31 @@
+{
+  "_note": "The state packets between browsers (src/net/state.ts, src/net/statesync.ts). Ours, measured rather than published, because the numbers come from this game's own wire. The match is a star with the host in the middle, so every guest's view of every other player is paid for by the host's UPLOAD, which is the smallest pipe most people have. A full state packet (the \"s\" message in link.ts) is about 250 bytes of JSON: twelve required fields, five of them printed as full doubles, plus the player's name and operator repeated on all thirty ticks a second. Eight players and four bots is twelve subjects, so the host sends 12 x 250 x 30 = 90 kB/s to each of seven guests, 630 kB/s or 5 Mbit/s up, which is more upload than a typical home line has and is the real reason the lobby cap is 8. Delta encoded and quantised the same lobby is about 50 bytes a subject, near 1 Mbit/s, which leaves room to raise the cap.",
+  "_protocol": "The version of the delta format, announced in the hello and the welcome (link.ts) and never assumed. A peer that does not announce it is sent the old full packets, so an old build and a new one still play together at the old cost. Bump this only for a change that an older decoder would get WRONG; a new field it does not know is ignored by the decoder on purpose, so adding one needs no bump.",
+  "_quantise": "The step each number is rounded to before it goes on the wire, which is what turns a 17 digit double into a small integer. position 0.01 is one centimetre: the figures are interpolated 100 ms behind and drawn at human scale, and a centimetre is far below what anyone can see at the range you can make out a player at all. angle 0.1 is a tenth of a degree, and remote look is COSMETIC here (a shot carries its own origin and direction as full floats, and hits are claimed by the shooter), so it only has to be smooth, not exact. health 1 is one hit point, which is the granularity the health bar draws anyway. Nothing here rounds a number the simulation reads back: quantising happens on the way out, and the sender keeps its own full precision.",
+  "_keyframe": "seconds is how often a stream sends a full state instead of a difference, so a peer that lost the chain recovers on its own rather than drifting or freezing forever. It is also the heartbeat: a player standing perfectly still sends nothing at all between keyframes, and duel.ts drops a player it has not heard from for 10 seconds, so this has to stay well under that. sentHistory and appliedHistory are how many past states each end keeps so a difference can be taken against an acknowledged state rather than the last one sent; 64 at 30 Hz is a little over two seconds, which covers any round trip a playable match has. spread and phaseStep are what keep every stream from keyframing on the SAME tick: all of them start together, so without this the host sends eleven whole states in one tick every two seconds and nothing at all in between, which is the one shape a budget cannot absorb. Each stream takes a phase from its player id (phaseStep is the golden ratio, which spreads a list of ids about as evenly as a constant can) and stretches or shrinks its own interval by up to spread, so the keyframes arrive in a steady trickle instead of a wave.",
+  "_rate": "slack is how early a tick may count as due, as a fraction of the gap between sends: a caller ticking at 30 Hz against a 30 Hz band would otherwise lose every other packet to floating point, because tick/30 minus (tick-1)/30 is not exactly 1/30. bands are [metres, hertz] and are read in order: a subject within 40 m of the peer it is being sent to goes at the full 30, out to 90 m at 15, beyond that at 12. Only the HOST bands a rate, because only the host knows where everyone is and only the host's upload is the bottleneck; a guest always sends itself at the full rate because the host re-encodes it for everyone else. The far band is 12 and not lower because duel.ts interpolates 100 ms behind, so samples more than 100 ms apart would leave a distant figure sitting on its last sample instead of moving; 12 Hz is 83 ms and still interpolates. ackHz is how often each end tells the other which state it managed to apply. A request for a keyframe does not wait for that timer, it goes at once.",
+  "_budget": "bytesPerPeerTick is the ceiling on what one peer is sent in one tick, measured as JSON length (the real PeerJS encoder is binary and smaller, so this is the pessimistic number). 1200 bytes at 30 Hz is 36 kB/s to one peer, so seven guests is 250 kB/s or 2 Mbit/s up, roughly twice what the same lobby actually costs and therefore headroom rather than a limit that bites in a normal match. When a tick would go over, the subjects furthest past their own due time are sent and the rest wait for the next tick, which costs a distant figure one frame of smoothness and never costs a near one anything. Old peers are exempt: they get the full packets at the full rate, so an old client plays exactly as it does today. guessBytes and guessBlend are how the budget knows what the next packet will cost WITHOUT encoding it, which it has to, because encoding one and then dropping it for want of room would spend a sequence number on a packet the far side never sees. guessBytes is where the running average starts and guessBlend is how fast it moves, low enough that one fat keyframe does not make the next tick think everything is expensive.",
+  "protocol": 1,
+  "quantise": {
+    "position": 0.01,
+    "angle": 0.1,
+    "health": 1
+  },
+  "keyframe": {
+    "seconds": 2,
+    "spread": 0.25,
+    "phaseStep": 0.6180339887,
+    "sentHistory": 64,
+    "appliedHistory": 64
+  },
+  "rate": {
+    "bands": [[40, 30], [90, 15], [100000, 12]],
+    "slack": 0.9,
+    "ackHz": 5
+  },
+  "budget": {
+    "bytesPerPeerTick": 1200,
+    "guessBytes": 64,
+    "guessBlend": 0.1
+  }
+}
