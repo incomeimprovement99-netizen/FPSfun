@@ -858,10 +858,15 @@ export class BotMatch implements MatchLike {
     /** JOLT and TRIAGE on: you pick one, each bot takes one at random */
     readonly abilities = false
   ) {
-    const n = Math.max(1, Math.min(2, count));
+    // up to five, as every other mode's bot count now goes to eight: the
+    // three arena bot spawns are cycled and pushed apart past the third
+    const n = Math.max(1, Math.min(5, count));
     this.players = n + 1;
     for (let i = 0; i < n; i++) {
-      const b = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty)], ARENA_BOT_SPAWNS[i]);
+      const home = ARENA_BOT_SPAWNS[i % ARENA_BOT_SPAWNS.length];
+      const lap = Math.floor(i / ARENA_BOT_SPAWNS.length);
+      const spawn = lap === 0 ? home : { x: home.x + lap * 3.5, z: home.z + lap * 3.5, yaw: home.yaw };
+      const b = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty)], spawn);
       b.setAbilities(abilities);
       b.onJolt = (a, to) => this.onRemoteFx?.("jolt", b.remote.id, a, to);
       b.onHealed = (item) => this.onHealSeen?.(b.remote.id, item);

@@ -1300,8 +1300,15 @@ console.log("Battle royale loot (src/game/loot.ts, src/config/loot.json)");
   }
   for (const id of lootCfg.carePackage) if (!guns.has(id)) unknown.push(id);
   eq("every gun and heal the loot rolls is in the game", [...new Set(unknown)].join(",") || "none", "none");
-  near("a legendary gun is 3% of guns", rar.legendary / weapons, 0.03, 0.01);
-  near("a common gun is 55% of guns", rar.common / weapons, 0.55, 0.02);
+  // against the configured weights, not a number typed here: the owner tunes
+  // loot.json's rarity, and a test that hardcodes it just fails on their edit
+  {
+    const w = lootCfg.rarity as Record<string, number>;
+    const total = Object.values(w).reduce((a, b) => a + b, 0);
+    for (const tier of ["common", "rare", "epic", "legendary"] as const) {
+      near(`a ${tier} gun is ${Math.round((w[tier] / total) * 100)}% of guns, as loot.json weights it`, rar[tier] / weapons, w[tier] / total, 0.02);
+    }
+  }
   // every attachment and hop-up fits at least one gun in the loot pools
   const pool = [...new Set(Object.values(lootCfg.weapons).flat())];
   const fits = (slot: "optic" | "barrel" | "stock" | "hopup", mod: string) => pool.some((id) => optionsFor(slot, weaponMods(id), id).some((o) => o.mod === mod));

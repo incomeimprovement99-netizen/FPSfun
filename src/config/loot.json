@@ -1,11 +1,13 @@
 {
   "_note": "Battle royale loot (ours: Apex's loot tables are not published). Spots per place and items per spot, rarity weights, and what each rarity holds. Care-package guns per Season 30: the Kraber, the 30-30 and the L-STAR (docs/RESEARCH_PHASE_11.md sections 10, 11, 15). Ammo amounts are one stack of the type.",
-  "spotsPerPoi": 16,
-  "fieldSpots": 26,
-  "itemsPerSpot": [1, 3],
-  "rarity": { "common": 55, "rare": 30, "epic": 12, "legendary": 3 },
+  "_density": "The owner's note, 2026-09-16: 'there needs to be much less open space and more loot, like guns available'. The places now have buildings with floors and rooms to put loot IN (src/game/brpoi.ts), so a place carries 30 spots rather than 16, and a spot holds more. The field keeps fewer, so the reason to go indoors is the loot: a landing that finds nothing is the complaint this fixes.",
+  "spotsPerPoi": 30,
+  "fieldSpots": 20,
+  "itemsPerSpot": [2, 4],
+  "rarity": { "common": 48, "rare": 33, "epic": 15, "legendary": 4 },
   "colors": { "common": "#e8e8e8", "rare": "#3b8bff", "epic": "#b04cff", "legendary": "#ffc12e" },
-  "kinds": { "weapon": 22, "ammo": 26, "heal": 26, "attach": 18, "helmet": 2, "hopup": 6, "grenade": 9 },
+  "_kinds": "weapon weighted up: landing with no gun while three bots land near you was the whole of a match (the drop fix in squad.json handles the bots; this handles the gun)",
+  "kinds": { "weapon": 30, "ammo": 22, "heal": 24, "attach": 16, "helmet": 2, "hopup": 5, "grenade": 8 },
   "grenades": ["frag", "frag", "arcstar", "thermite"],
   "weapons": {
     "common": ["semipistol", "shotgun_pistol", "r97", "alternator_smg", "g2", "hemlok", "shotgun", "autopistol"],

@@ -203,11 +203,20 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     ]) {
       const x = sx * 19;
       const z = sz * 17;
-      box(12, 5, 10, x, 0, z, wallMat);
-      box(1.6, 1.4, 1.6, x + sx * 7.5, 0, z - sz * 2, crate);
-      box(1.6, 1.4, 1.6, x + sx * 7.5, 1.4, z - sz * 0.4, crate);
-      box(1.6, 1.4, 1.6, x + sx * 7.5, 2.8, z + sz * 1.2, crate);
-      box(1.6, 1.4, 1.6, x + sx * 7.5, 4.2, z + sz * 2.8, crate);
+      // two floors you can fight through, doors facing the tower, windows out
+      building(poi, {
+        x,
+        z,
+        w: 13,
+        d: 11,
+        storeys: 2,
+        storeyH: 3.4,
+        doors: [sz > 0 ? "n" : "s", sx > 0 ? "w" : "e"],
+        windows: [sz > 0 ? "s" : "n", sx > 0 ? "e" : "w"],
+        stairs: true,
+        balcony: true,
+      });
+      crateStair(poi, x + sx * 8.4, z - sz * 2, 6.8, sz > 0 ? -1 : 1);
       box(6, 2.6, 2.6, x - sx * 4, 0, z + sz * 9, [steelA, steelB, steelC][(sx + 1 + sz + 1) % 3]);
     }
     // low cover round the tower
@@ -234,7 +243,9 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
         if ((col === -2 || col === 2) && Math.abs(row) > 1) box(6, 2.6, 2.6, x, 2.6, z, [steelB, steelC, steelA][n % 3]);
       }
     }
-    box(6, 3, 6, 24, 0, cz - 18, wallMat);
+    // the yard's warehouse: two floors, four ways in, a roof worth holding
+    building(poi, { x: 24, z: cz - 18, w: 18, d: 14, storeys: 2, storeyH: 3.6, doors: ["s", "w"], windows: ["n", "e"], stairs: true });
+    crateStair(poi, 13, cz - 12, 7.2, -1);
     box(1.6, 1.4, 1.6, 21, 0, cz - 13.5, crate);
     box(1.6, 1.4, 1.6, 3, 0, cz + 14, crate);
     box(1.6, 1.4, 1.6, -9, 0, cz - 14, crate);
@@ -263,7 +274,13 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
       [-24, cz + 2],
       [24, cz - 2],
     ]) box(6, 1.1, 0.8, x, 0, z, concrete);
-    box(4, 3.2, 4, 26, 0, cz + 12, wallMat);
+    // three sheds under the canopies, and the depot office over the yard: the
+    // lanes between the canopies were the whole place before
+    for (const x of [-16, 0, 16]) {
+      building(poi, { x, z: cz + (x === 0 ? -18 : 18), w: 9, d: 7, storeys: 1, storeyH: 3.4, doors: [x === 0 ? "s" : "n"], windows: ["e", "w"] });
+    }
+    building(poi, { x: 26, z: cz + 12, w: 11, d: 9, storeys: 2, storeyH: 3.4, doors: ["w"], windows: ["n", "s", "e"], stairs: true, balcony: true });
+    crateStair(poi, 33, cz + 6, 6.8, -1);
     root.add(textPanel("SOUTH DEPOT", 0, 3.4, cz + 22, Math.PI, 6, 1.4));
   }
 
@@ -282,6 +299,8 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     box(1, 3, 8, cx + 10, top, 4.5, wallMat);
     box(1, 3, 3, cx + 2, top, 4.5 + 2.5, wallMat);
     box(8.4, 0.5, 8.4, cx + 6, top + 3, 4.5, roofMat);
+    // a room in the step below, so the ridge is somewhere to be inside as well as on
+    building(poi, { x: cx - 8, z: 16, w: 12, d: 10, storeys: 1, storeyH: 3.4, doors: ["s", "n"], windows: ["e", "w"] });
     // a ramp the bots can walk (0.5 m steps over 32 m) up the north face
     for (let i = 0; i < 16; i++) box(5, 0.5 * (i + 1), 2, cx - 4, 0, -38 + i * 2, rock);
     zipline(root, new THREE.Vector3(cx - 1, top + 1.6, -4), new THREE.Vector3(88, 1.6, -6), top, 0);

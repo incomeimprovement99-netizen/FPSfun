@@ -52,18 +52,19 @@ down its left side to jump there.
 3. Everything else is a menu button: the guided tour (start here if you are
    new: it walks you through every move and key), the two courses, the arena
    alone, the bots, the battle royale, Gun Run, team deathmatch, free-for-all,
-   Crown, Control, and the 1v1 tab for friends.
+   Crown, Control, and the **Friends** tab, where any of them can be played
+   with up to eight people and bots.
 
 Nothing is installed and nothing is sent anywhere: settings, loadouts, your
 name, your best times and your stats live in this browser's localStorage.
 
 ## 1v1 a friend
 
-1. You: **1v1 tab**, leave "2 players", **Create match**. A 5-letter code
+1. You: **Friends tab**, leave "2 players", **Create match**. A 5-letter code
    appears with an **invite link**, copied to your clipboard. Send the link
    (Discord, a text).
 2. Friend: open the link (on a PC, in Chrome or Edge). It joins your match by
-   itself. (Or: 1v1 tab, type the code, **Join**.)
+   itself. (Or: Friends tab, type the code, **Join**.)
 3. Both screens say connected. **Both click Play.** The HUD holds at
    "WAITING FOR EVERYONE TO CLICK PLAY" until the last one is in, then a 3 s
    countdown.
@@ -71,7 +72,14 @@ name, your best times and your stats live in this browser's localStorage.
    circle in the middle goes live; stand in it alone for 10 s to take the
    round. The last one standing takes it any time. A rematch starts by itself
    after the match screen.
-5. Esc, 1v1 tab, **Leave match** to stop.
+5. Esc, Friends tab, **Leave match** to stop.
+
+**Up to eight people.** The player count on the Friends tab goes to 8: two is
+the warehouse arena, three the triangle, and four or more play the warehouse,
+which has a spawn each. Every mode below can be played this way, with bots
+filling in — the bot count you pick is the side you **face**, and a team mode
+fills your side to match. The **Bot guns** box gives every bot the same gun if
+you want a shotgun-only night.
 
 **Three players**: pick "3 players" before Create match; both friends open
 the same link; it starts once all three have clicked Play. The map is a
@@ -79,7 +87,7 @@ triangle with a corner each. A guest leaving before round 1 frees their
 place (the link works again); during the match it drops it to a 1v1; the
 host leaving ends it.
 
-**Other modes with friends**: the first box on the 1v1 tab picks what to
+**Other modes with friends**: the first box on the Friends tab picks what to
 play before Create match: the arena 1v1 / 1v1v1, Gun Run, team deathmatch
 (you and your friends against the bots), Crown, Control, free-for-all, or
 the battle royale as a squad. The host's choice (and the bots, their difficulty, Gun Run's list and
