@@ -27,9 +27,10 @@ import { hopupName, opticName, throwName } from "../config/names";
 import { RANGE_SOLIDS } from "./range";
 import { ammoTypeOf, STACK } from "./ammo";
 import { optionsFor, SLOTS, type Attachments } from "./attachments";
+import { BACKPACKS, KNOCK_SHIELDS, type BackTier, type KnockTier } from "./kit";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
-export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade";
+export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade" | "backpack" | "knockdown";
 
 export interface LootItem {
   kind: LootKind;
@@ -118,6 +119,10 @@ export function lootLabel(it: LootItem): string {
       return hopupName(it.id).toUpperCase();
     case "helmet":
       return it.id === "red" ? "MYTHIC HELMET" : "GOLD HELMET";
+    case "backpack":
+      return `${(BACKPACKS[it.id as BackTier]?.name ?? it.id).toUpperCase()}`;
+    case "knockdown":
+      return `${(KNOCK_SHIELDS[it.id as KnockTier]?.name ?? it.id).toUpperCase()}`;
     case "grenade":
       return `${throwName(it.id)}${it.n > 1 ? ` x${it.n}` : ""}`;
     case "banner":
@@ -222,6 +227,9 @@ interface SpotKind {
   throwables: number[];
   hopupChance: number;
   helmetChance: number;
+  /** a backpack and a knockdown shield on top, now and then (loot.json _packs) */
+  backpackChance?: number;
+  knockdownChance?: number;
 }
 const SPOT_KINDS = cfg.spotKinds as SpotKind[];
 
@@ -270,6 +278,17 @@ export function kittedGun(rnd: () => number): LootItem {
  * that gun runs on energy it carries its magazines with it (ammo.json), so
  * the rack holds another attachment instead of a stack nobody can use.
  */
+/**
+ * A backpack or a knockdown shield of the rarity rolled. A common roll comes
+ * up blue: the white pack is in the starter kit and a white shield is what EVO
+ * gives you, so neither is worth placing on a floor.
+ */
+function makeTiered(rarity: Rarity, kind: "backpack" | "knockdown"): LootItem {
+  const table = (kind === "backpack" ? BACKPACKS : KNOCK_SHIELDS) as Record<string, { rarity: string }>;
+  const pick = Object.keys(table).find((t) => table[t].rarity === rarity && t !== "white") ?? "blue";
+  return { kind, id: pick, n: 1, rarity: (table[pick]?.rarity ?? "rare") as Rarity };
+}
+
 export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
   const total = SPOT_KINDS.reduce((a, s) => a + s.weight[tier], 0);
   let r = rnd() * total;
@@ -315,6 +334,10 @@ export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
   for (let i = 0; i < throwables; i++) out.push(makeGrenade(rnd));
   if (rnd() < spot.hopupChance) out.push(makeHopup(rnd));
   if (rnd() < spot.helmetChance) out.push(makeHelmet(rnd));
+  // the two drawn after everything else, so adding them moved none of the
+  // rolls above and a seed lays out the same floor it always did
+  if (rnd() < (spot.backpackChance ?? 0)) out.push(makeTiered(rollRarity(rnd, tier), "backpack"));
+  if (rnd() < (spot.knockdownChance ?? 0)) out.push(makeTiered(rollRarity(rnd, tier), "knockdown"));
   return out;
 }
 

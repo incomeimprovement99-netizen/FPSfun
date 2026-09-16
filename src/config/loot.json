@@ -150,7 +150,9 @@
         0
       ],
       "hopupChance": 0.13,
-      "helmetChance": 0.06
+      "helmetChance": 0.06,
+      "backpackChance": 0,
+      "knockdownChance": 0.06
     },
     {
       "id": "medShelf",
@@ -185,7 +187,9 @@
         0
       ],
       "hopupChance": 0,
-      "helmetChance": 0
+      "helmetChance": 0,
+      "backpackChance": 0.18,
+      "knockdownChance": 0
     },
     {
       "id": "attachBench",
@@ -220,7 +224,9 @@
         0
       ],
       "hopupChance": 0.38,
-      "helmetChance": 0.16
+      "helmetChance": 0.16,
+      "backpackChance": 0,
+      "knockdownChance": 0.12
     },
     {
       "id": "ordnance",
@@ -255,7 +261,9 @@
         2
       ],
       "hopupChance": 0,
-      "helmetChance": 0
+      "helmetChance": 0,
+      "backpackChance": 0,
+      "knockdownChance": 0
     },
     {
       "id": "ammoCrate",
@@ -290,7 +298,9 @@
         0
       ],
       "hopupChance": 0,
-      "helmetChance": 0
+      "helmetChance": 0,
+      "backpackChance": 0,
+      "knockdownChance": 0
     }
   ],
   "_density_targets": "What the whole floor should hold in one match, counted over sixty seeds in tools/checks/loot-tiers.ts. These exist because the move to typed spots re-tuned the floor without anyone noticing: guns fell 57 per cent, helmets 80, hop-ups 69, and magazines went up eight times, so the commonest object on the map after a heal was a magazine, most of them worse than the one already fitted. Every check passed, because they all asked whether a place hands you a gun and none asked how many. The numbers below are what the floor held before typed spots, with guns and the total a little higher because the owner asked for more of both. A spot kind's weights are free to move inside them; a change that takes the floor outside one is a balance decision and should be made on purpose.",
@@ -495,5 +505,6 @@
   },
   "_pods": "a care package lands inside the next ring in rounds 2 to 4, falling this long (ours: Apex's fall time is not published)",
   "podFall": 8,
-  "drawDistance": 70
+  "drawDistance": 70,
+  "_packs": "backpackChance and knockdownChance: the chance a spot kind also holds a backpack or a knockdown shield (src/game/kit.ts, src/config/items.json). A backpack goes with the heals, on a med shelf, because what it does is carry more of them; a knockdown shield goes with the armour on an attachment bench, and now and then on a gun rack. The tier rolls on the place's rarity like everything else, so a gold one turns up where gold things do. A white one is never placed: Season 28 put the white backpack in the starter kit, and a white knockdown shield is what EVO gives you anyway. Ours."
 }

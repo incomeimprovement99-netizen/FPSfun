@@ -377,6 +377,40 @@ async function brLootTest(browser: Browser, query: string): Promise<void> {
   await ev(page, `window.__range.applyLoot({ kind: "helmet", id: "gold", n: 1, rarity: "legendary" })`);
   const helm = await ev<string | null>(page, "window.__range.armor.helmet");
   check("loot: a helmet goes on", helm === "gold", String(helm));
+  // A backpack: more room for every heal, and a worse one stays on the floor.
+  const packs = await ev<{ before: number; after: number; pack: string; kept: string }>(
+    page,
+    `(() => { const r = window.__range; const before = r.kit.room.battery + r.kit.items.battery;
+      r.applyLoot({ kind: "backpack", id: "gold", n: 1, rarity: "legendary" });
+      const after = r.kit.room.battery + r.kit.items.battery; const pack = r.kit.pack;
+      r.applyLoot({ kind: "backpack", id: "blue", n: 1, rarity: "rare" });
+      return { before, after, pack, kept: r.kit.pack }; })()`
+  );
+  check("loot: a gold backpack fits more batteries, and a blue one after it stays down", packs.pack === "gold" && packs.after > packs.before && packs.kept === "gold", JSON.stringify(packs));
+  // A knockdown shield off the floor: a gold one carries a self-revive.
+  const kdGold = await ev<{ self: boolean; looted: string | null }>(
+    page,
+    `(() => { const r = window.__range; r.applyLoot({ kind: "knockdown", id: "gold", n: 1, rarity: "legendary" }); return { self: r.kd.canSelfRevive, looted: r.kd.looted }; })()`
+  );
+  check("loot: a gold knockdown shield is taken and carries its self-revive", kdGold.self && kdGold.looted === "gold", JSON.stringify(kdGold));
+  // The walk-over pickup. It shipped with its carry hook never set, so in a
+  // real match it took nothing: ammo for a gun you carry, dropped at your
+  // feet, has to come up with no press at all.
+  const walk = await ev<{ light: number }>(
+    page,
+    `(() => { const r = window.__range; const f = r.duel().lootField;
+      r.player.teleport(${S.x}, 0, ${S.z}, 0, -45);
+      for (const k of [...f.drops.keys()]) { const x = f.drops.get(k); if (x && Math.hypot(x.pos.x - ${S.x}, x.pos.z - ${S.z}) < 6) f.remove(k); }
+      const light = r.loadout.ammo.stock.light;
+      f.add({ kind: "ammo", id: "light", n: 60, rarity: "common" }, new r.THREE.Vector3(${S.x} + 0.6, 0, ${S.z}));
+      return { light }; })()`
+  );
+  await sleep(1200);
+  const walked = await ev<{ light: number; left: boolean }>(
+    page,
+    `(() => { const r = window.__range; const f = r.duel().lootField; return { light: r.loadout.ammo.stock.light, left: [...f.drops.values()].some((x) => x.item.kind === "ammo" && x.item.id === "light" && Math.hypot(x.pos.x - ${S.x}, x.pos.z - ${S.z}) < 2) }; })()`
+  );
+  check("loot: ammo for the gun you carry comes up as you stand over it, no key pressed", walked.light > walk.light && !walked.left, JSON.stringify({ before: walk.light, after: walked.light, stillThere: walked.left }));
   // a care package: on the maps while it falls, then its gold gun and extras around it
   await ev(page, `(() => { const d = window.__range.duel(); const f = d.lootField; for (const k of [...f.drops.keys()]) { const x = f.drops.get(k); if (x && Math.hypot(x.pos.x - (${S.x} + 12), x.pos.z - ${S.z}) < 4) f.remove(k); } d.addPod(new window.__range.THREE.Vector3(${S.x} + 12, 0, ${S.z}), 1.2); })()`);
   const falling = await ev<number>(page, "window.__range.duel().hud().br.pods.filter((p) => !p.landed).length");

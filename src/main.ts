@@ -77,6 +77,8 @@ import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
 import itemsCfg from "./config/items.json";
 import { Armor, HEAL_ORDER, HEALS, Kit, type HealItem } from "./game/kit";
+import { Knockdown, type BackTier, type KnockTier } from "./game/kit";
+import { ammoTypeOf } from "./game/ammo";
 
 const DEG = Math.PI / 180;
 /** slot 1 and slot 2. Keys 1 and 2 select, Q swaps. */
@@ -1233,8 +1235,7 @@ function respawnForMatch(d: MatchLike): void {
   // JOLT's two charges, both there for every life and every round
   abilities.fill();
   // no knockdown shield, no regen carried over from the last life
-  kd.up = false;
-  kd.knock = -1;
+  kd.reset();
   execRegen = null;
   boxRegen = null;
   // grenades: the match's kit each life (Gun Run is guns and the knife: none)
@@ -1405,7 +1406,9 @@ let execRegen: { left: number; rate: number } | null = null;
 /** a Deathbox Respawn: the shield comes back over a few seconds */
 let boxRegen: { rate: number } | null = null;
 /** the knockdown shield (squad.json kdShield): what it has left, raised or not, and the knock it belongs to */
-const kd = { hp: 0, max: 0, up: false, knock: -1 };
+// The knockdown shield (src/game/kit.ts): its size comes from your EVO level,
+// or a better one you looted, and a gold one carries a self-revive.
+const kd = new Knockdown();
 let kdPane: THREE.Mesh | null = null;
 /** the Deathbox Respawn beams in the world, by who is holding (your own is -1) */
 const beams = new Map<number, { obj: THREE.Mesh; until: number; hum: (() => void) | null }>();
@@ -1448,7 +1451,8 @@ function startHeal(now: number, want: HealItem | null = null): void {
     hud.notice(want ? `NO ${HEAL_ITEMS[want].name.toUpperCase()}` : kit.whyNot(v.shield, shieldCap(), v.health, HEALTH_MAX), now, 1);
     return;
   }
-  heal = { item, startedAt: now, duration: HEAL_ITEMS[item].time / abilities.healScale };
+  // a gold backpack takes a quarter off every heal (kit.healTime)
+  heal = { item, startedAt: now, duration: kit.healTime(item) / abilities.healScale };
   // walking pace, no sprint, while it runs
   player.healSlow = itemsCfg.healSlow;
 }
@@ -1730,6 +1734,19 @@ const brPlay = new BrPlay({
     if (at && duel instanceof BrMatch) duel.hearBeam(at);
   },
 });
+// What you carry, for the walk-over pickup and the reach list's grey-out. The
+// looting shipped with this hook documented and never set, so in a real match
+// the walk-over pickup did nothing at all: with no carry state it takes
+// nothing, because it cannot tell ammo for your gun from ammo for someone
+// else's.
+brPlay.carrying = () => {
+  const held = loadout.slots.filter((s) => !s.empty);
+  return {
+    ammo: held.map((s) => ammoTypeOf(s.id)),
+    healRoom: kit.room,
+    mag: held.length ? Math.min(...held.map((s) => s.magLevel)) : 0,
+  };
+};
 /** first person when you watch a squad mate (X switches to behind them) */
 let spectateFirst = true;
 
@@ -1799,6 +1816,26 @@ function applyLoot(it: LootItem): void {
       audio.reloadStep("bolt");
       break;
     }
+    case "backpack":
+      // more room for every heal, and at gold, faster heals; a worse one stays down
+      if (!kit.takePack(it.id as BackTier)) {
+        putBack(it);
+        hud.notice(`${label}: YOURS IS AS GOOD`, gameTime, 1.2);
+        return;
+      }
+      hud.notice(`${label}: MORE HEALS FIT`, gameTime, 1.4);
+      audio.reloadStep("out");
+      break;
+    case "knockdown":
+      // the shield you crawl behind when you are knocked; a gold one gets you up once
+      if (!kd.take(it.id as KnockTier, armor.level)) {
+        putBack(it);
+        hud.notice(`${label}: YOURS IS AS GOOD`, gameTime, 1.2);
+        return;
+      }
+      hud.notice(kd.canSelfRevive ? `${label}: CARRIES A SELF-REVIVE` : label, gameTime, 1.4);
+      audio.shieldBreak();
+      break;
     case "helmet":
       armor.helmet = it.id === "red" ? "red" : "gold";
       if (d) d.shieldMax = armor.shieldMax;
@@ -1926,15 +1963,13 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       const dz = at.z - player.pos.z;
       const dl = Math.hypot(dx, dz) || 1;
       if ((fx * dx + fz * dz) / dl < Math.cos(squadCfg.kdShield.arc * DEG)) return amount;
-      const took = Math.min(kd.hp, amount);
-      kd.hp -= took;
+      const r = kd.absorb(amount);
       audio.hitTier("blue");
-      if (kd.hp <= 0) {
-        kd.up = false;
+      if (r.broke) {
         hud.notice("KNOCKDOWN SHIELD BROKEN", gameTime, 1.4);
         audio.shieldBreak();
       }
-      return amount - took;
+      return r.through;
     };
     d.onLootTaken = (it) => applyLoot(it);
     d.onMark = (k, from, at, label, target) => brPlay.addMarker(k, at, label, from, target, gameTime);
@@ -3045,11 +3080,8 @@ function step(): void {
   // down: the move keys only, crouched, at a crawl
   if (downedNow && duel instanceof Duel) {
     // a new knock: the knockdown shield at your EVO level's size
-    if (kd.knock !== duel.knockCount) {
-      kd.knock = duel.knockCount;
-      kd.max = squadCfg.kdShield.hp[Math.max(0, Math.min(squadCfg.kdShield.hp.length - 1, armor.level - 1))];
-      kd.hp = kd.max;
-    }
+    // (a looted shield better than your EVO level's is the one that comes up)
+    kd.onKnock(duel.knockCount, armor.level);
     // held fire raises it (and slows the crawl behind it)
     kd.up = kd.hp > 0 && (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire"));
     duel.kdUp = kd.up;
@@ -3951,6 +3983,8 @@ initWelcome();
   gunSession: () => [...gunSession.entries()],
   startHeal: () => startHeal(gameTime),
   kit,
+  /** the knockdown shield (tools/e2e.ts) */
+  kd,
   armor,
   brMap,
   renderer,
