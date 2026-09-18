@@ -27,5 +27,14 @@
     "boxClear": 1.6
   },
   "_swapGuard": "loot.swapGuard: seconds after you take a gun during which a gun that appears within reach is left out of the list. Taking a gun with both slots full puts the one in hand down at your feet, inside the reach list, and nearest. A press read over several frames, or a hold, took it straight back and put the new one down, and the two swapped every frame for as long as the key was down. Ours: long enough to cover a press and let go, short enough that a gun dropped by someone else a moment later is still offered.",
-  "_boxClear": "loot.boxClear: metres round a death box inside which the walk-over pickup takes nothing. A box's things are spread 0.9 m round it (brmatch.ts dropBox), so 1.6 covers them with a margin. Without it a squad mate respawning the owner at the box swept up the ammo and heals the owner was meant to get back. Ours."
+  "_boxClear": "loot.boxClear: metres round a death box inside which the walk-over pickup takes nothing. A box's things are spread 0.9 m round it (brmatch.ts dropBox), so 1.6 covers them with a margin. Without it a squad mate respawning the owner at the box swept up the ammo and heals the owner was meant to get back. Ours.",
+  "_damageDir": "Where you are being shot from: a red arc round the crosshair pointing at whoever hit you, the way Apex, Warzone and every other shooter since Halo draws it. Without it a hit from behind was a number going down and no idea which way to turn. life is how long an arc lasts after the last hit from that direction, radius and thick its size in HUD pixels at 1080p, arc its width in degrees. A new hit from within merge metres of an arc's source refreshes that arc instead of stacking a second one, and at most max are shown, newest first. Ours.",
+  "damageDir": {
+    "life": 1.8,
+    "radius": 118,
+    "thick": 7,
+    "arc": 36,
+    "merge": 4,
+    "max": 5
+  }
 }

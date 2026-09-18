@@ -1406,6 +1406,43 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
 }
 
 /**
+ * Where you are being shot from: a hit from a bot draws a red arc round the
+ * crosshair pointing at it, and the arc keeps pointing at the bot when you
+ * turn, because it is anchored to where the shooter stood and not to where
+ * it was on screen.
+ */
+async function damageDirTest(browser: Browser, query: string): Promise<void> {
+  const page = await startModePage(browser, query, "goBots", `document.getElementById("botCount").value = "1"`);
+  await sleep(800);
+  // the bot 10 m straight to your right, and a hit from it
+  const right = await ev<{ angle: number | null }>(
+    page,
+    `(async () => {
+      const R = window.__range; const d = R.duel(); const b = d.bots[0];
+      R.player.yaw = 0;
+      const p = R.player.pos;
+      b.pos.set(p.x + 10, p.y, p.z);
+      d.takeHit(1, b, "r97", 10);
+      await new Promise((r) => setTimeout(r, 400));
+      const dirs = R.hud.last?.damageDirs ?? [];
+      return { angle: dirs.length ? dirs[0].angle : null };
+    })()`
+  );
+  check("hit feedback: a hit from your right draws an arc on the right of the crosshair", right.angle !== null && Math.abs(right.angle - Math.PI / 2) < 0.35, JSON.stringify(right));
+  // turn to face the bot: the same arc swings round to straight ahead
+  const turned = await ev<{ angle: number | null }>(
+    page,
+    `(async () => { const R = window.__range; R.player.yaw = -90; await new Promise((r) => setTimeout(r, 300)); const dirs = R.hud.last?.damageDirs ?? []; return { angle: dirs.length ? dirs[0].angle : null }; })()`
+  );
+  check("hit feedback: turn to face the shooter and the arc swings to straight ahead", turned.angle !== null && Math.abs(turned.angle) < 0.35, JSON.stringify(turned));
+  await sleep(2200);
+  const gone = await ev<number>(page, "(window.__range.hud.last?.damageDirs ?? []).length");
+  check("hit feedback: and it fades out on its own", gone === 0, `${gone} arcs left`);
+  await ev(page, "window.__range.duel().leave()");
+  await page.close();
+}
+
+/**
  * Throwables: G readies one and again the next; a frag at a bot's feet takes
  * its shield and a quarter of its health; thermite under it burns it; and
  * over the local transport a friend's arc star sticks to you, goes off, slows
@@ -2232,6 +2269,8 @@ async function main(): Promise<void> {
       await botsTest(browser, "?norender");
       console.log("\nBot tiers");
       await botTiersTest(browser, "?norender");
+      console.log("\nWhere you are being shot from");
+      await damageDirTest(browser, "?norender");
     }
 
     if (want("pad")) {

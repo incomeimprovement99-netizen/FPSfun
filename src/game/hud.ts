@@ -91,6 +91,12 @@ export interface HudState {
   reserve?: number;
   /** an energy gun's own stockpile, shown as a percentage like the game */
   energy?: { rounds: number; max: number } | null;
+  /**
+   * Where the recent hits on you came from: `angle` in radians clockwise from
+   * straight ahead, `alpha` how much of its life is left (src/main.ts works
+   * both out from the shooter's position and your yaw every frame).
+   */
+  damageDirs?: Array<{ angle: number; alpha: number }>;
   /** 0..1: the gun's wind-up, charge, aimed charge, choke or burst charge (a ring round the crosshair) */
   gunCharge?: number;
   /** the L-STAR's heat, and whether it is in its forced cooldown */
@@ -312,6 +318,7 @@ export class Hud {
     this.drawHurt(now);
     this.drawDamageNumbers(now, camera, u);
     this.drawCrosshair(now, s, u);
+    this.drawDamageDirs(s, u);
     this.drawMinimap(s, u);
     this.drawStats(s, u);
     this.drawCompass(s, u);
@@ -1175,6 +1182,34 @@ export class Hud {
       c.fillText(n.text, x, y);
     }
     c.globalAlpha = 1;
+  }
+
+  /**
+   * The damage direction arcs. Drawn on their own rather than inside the
+   * crosshair, because the crosshair goes away when you aim down sights and a
+   * hit from behind matters most exactly then.
+   */
+  private drawDamageDirs(s: HudState, u: number): void {
+    const dirs = s.damageDirs;
+    if (!dirs || !dirs.length) return;
+    const c = this.ctx;
+    const cfg = hudCfg.damageDir;
+    const cx = this.w / 2;
+    const cy = this.h / 2;
+    const r = cfg.radius * u;
+    const half = ((cfg.arc / 2) * Math.PI) / 180;
+    c.lineCap = "round";
+    for (const d of dirs) {
+      // canvas angles start at +x and run clockwise; ours start straight up
+      const a = d.angle - Math.PI / 2;
+      c.strokeStyle = `rgba(255,60,50,${(0.9 * d.alpha).toFixed(3)})`;
+      c.lineWidth = cfg.thick * u;
+      c.beginPath();
+      c.arc(cx, cy, r, a - half, a + half);
+      c.stroke();
+    }
+    c.lineCap = "butt";
+    c.lineWidth = 2;
   }
 
   private drawCrosshair(now: number, s: HudState, u: number): void {

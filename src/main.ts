@@ -1609,6 +1609,50 @@ let impactSink: ((e: ImpactEvent) => void) | null = null;
 /** figures burning after leaving the fire: by figure, how much is left and when the next bit lands */
 const afterburns = new Map<string, { left: number; next: number; per: number }>();
 /** a figure by its throwables id: a match's player or bot by its id, a range dummy by -2 - its index */
+/**
+ * Where the recent hits on you came from, for the HUD's damage direction arcs.
+ * A position rather than an angle, because you keep turning after the hit and
+ * the arc has to keep pointing at the shooter, not at where they were on
+ * screen when it landed.
+ */
+const damageFrom: Array<{ id: number; x: number; z: number; at: number }> = [];
+function noteDamageFrom(id: number): void {
+  const fig = figureById(id);
+  if (!fig) return;
+  const p = fig.group.position;
+  const cfg = hudCfg.damageDir;
+  const same = damageFrom.find((e) => e.id === id || Math.hypot(e.x - p.x, e.z - p.z) < cfg.merge);
+  if (same) {
+    same.id = id;
+    same.x = p.x;
+    same.z = p.z;
+    same.at = gameTime;
+  } else damageFrom.unshift({ id, x: p.x, z: p.z, at: gameTime });
+  damageFrom.length = Math.min(damageFrom.length, cfg.max);
+}
+/** the arcs as the HUD draws them this frame: angle from straight ahead, clockwise, and what is left of each */
+function damageDirs(): Array<{ angle: number; alpha: number }> {
+  const cfg = hudCfg.damageDir;
+  const yawR = player.yaw * DEG;
+  const fx = -Math.sin(yawR);
+  const fz = -Math.cos(yawR);
+  const rx = Math.cos(yawR);
+  const rz = -Math.sin(yawR);
+  const out: Array<{ angle: number; alpha: number }> = [];
+  for (let i = damageFrom.length - 1; i >= 0; i--) {
+    const e = damageFrom[i];
+    const age = gameTime - e.at;
+    if (age > cfg.life || age < 0) {
+      damageFrom.splice(i, 1);
+      continue;
+    }
+    const dx = e.x - player.pos.x;
+    const dz = e.z - player.pos.z;
+    out.push({ angle: Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz), alpha: 1 - age / cfg.life });
+  }
+  return out;
+}
+
 function figureById(id: number): Dummy | null {
   if (duel) return duel.avatars.find((a) => duel!.remoteOf(a)?.id === id) ?? null;
   return id <= -2 ? (dummies[-2 - id] ?? null) : null;
@@ -1924,6 +1968,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   newLife(d);
   d.onDamaged = (from, amount, head, weapon, dist) => {
     dlog.hit({ t: realNow(), from, to: d.id, amount, head, weapon, dist });
+    noteDamageFrom(from);
     // an arc star: slowed, for longer the more it did
     if (weapon === "arcstar") {
       player.arcSlowUntil = Math.max(player.arcSlowUntil, gameTime + arcSlowFor(amount));
@@ -3734,6 +3779,7 @@ function step(): void {
     mapOpen: mapOpen || !!duelHud?.br?.dropping,
     heal: heal && vitalsTarget() ? { item: HEAL_ITEMS[heal.item].name, progress: Math.min(1, (now - heal.startedAt) / heal.duration) } : null,
     kit: (duel && duel.alive) || (!duel && rangeCombat.on && rangeCombat.alive) ? { ...kit.items } : null,
+    damageDirs: duel ? damageDirs() : undefined,
     healWheel: wheelOpen ? { items: HEAL_ORDER.map((k) => ({ id: k, name: HEAL_ITEMS[k].name, count: kit.items[k] })), pick: wheelPick } : null,
     lobby:
       hosting && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
