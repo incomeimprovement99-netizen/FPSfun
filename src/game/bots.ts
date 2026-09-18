@@ -182,6 +182,51 @@ export function lobVelocity(from: THREE.Vector3, to: THREE.Vector3, flight: numb
   const t = Math.max(0.3, flight);
   return new THREE.Vector3((to.x - from.x) / t, (to.y - from.y + 0.5 * g * t * t) / t, (to.z - from.z) / t);
 }
+
+/**
+ * Where a lob first meets the world: traced as a chain of short segments
+ * against the same boxes the bullets use, until it strikes something or comes
+ * down to the target's height past the target. A bot that threw without
+ * looking put frags into roofs and walls between it and you.
+ */
+export function lobContact(from: THREE.Vector3, vel: THREE.Vector3, to: THREE.Vector3): THREE.Vector3 {
+  const g = throwCfg.gravity;
+  const p = from.clone();
+  const v = vel.clone();
+  const dir = new THREE.Vector3();
+  const h = 0.03;
+  for (let i = 0; i < 400; i++) {
+    const next = p.clone().addScaledVector(v, h);
+    next.y -= 0.5 * g * h * h;
+    v.y -= g * h;
+    dir.subVectors(next, p);
+    const len = dir.length();
+    if (len > 1e-6) {
+      dir.divideScalar(len);
+      const hit = solidHit(p, dir, len);
+      if (hit < len) return p.addScaledVector(dir, hit);
+    }
+    // coming down at or below the target's feet: that is where it lands
+    if (v.y < 0 && next.y <= to.y) return next;
+    p.copy(next);
+  }
+  return p;
+}
+
+/**
+ * The lob a bot should throw at `to`, or null when every arc it tries would
+ * strike something well short of it (bots.json grenade.arcTries, arcSlack).
+ */
+export function clearLob(from: THREE.Vector3, to: THREE.Vector3, flight: number): THREE.Vector3 | null {
+  for (const k of GRENADE.arcTries) {
+    const vel = lobVelocity(from, to, flight * k);
+    const at = lobContact(from, vel, to);
+    // near across AND near in height: on the roof right over the target is
+    // close across and a floor away, and the roof takes the blast
+    if (Math.hypot(at.x - to.x, at.z - to.z) <= GRENADE.arcSlack && Math.abs(at.y - to.y) <= GRENADE.arcRise) return vel;
+  }
+  return null;
+}
 /** what bots carry, one per bot in order */
 export const BOT_WEAPONS = ["rspn101", "r97", "vinson", "wingman", "hemlok", "energy_ar", "lmg", "energy_shotgun", "volt_smg", "car", "g2", "sentinel"];
 export const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM", "BOT NOVA", "BOT FLUX", "BOT STEEL", "BOT NEON", "BOT SOLAR", "BOT RAPID", "BOT SWIFT", "BOT ONYX", "BOT DUNE"];
@@ -1163,11 +1208,15 @@ export class Bot {
       const d = Math.hypot(at.x - this.pos.x, at.z - this.pos.z);
       if ((hidden || camping) && d >= GRENADE.minRange && d <= GRENADE.maxRange) {
         const from = this.pos.clone().setY(this.pos.y + 1.6);
-        this.thrown = { kind: "frag", from, vel: lobVelocity(from, at, GRENADE.flight * (0.7 + d / 40)) };
-        this.frags--;
-        this.nextThrowAt = now + GRENADE.cooldown;
-        this.stillSince = now;
-        this.dummy.kick();
+        // only an arc that lands near the target: a frag into a roof is wasted
+        const vel = clearLob(from, at, GRENADE.flight * (0.7 + d / 40));
+        if (vel) {
+          this.thrown = { kind: "frag", from, vel };
+          this.frags--;
+          this.nextThrowAt = now + GRENADE.cooldown;
+          this.stillSince = now;
+          this.dummy.kick();
+        } else this.nextThrowAt = now + 1; // no clear arc from here: look again in a moment
       }
     }
 

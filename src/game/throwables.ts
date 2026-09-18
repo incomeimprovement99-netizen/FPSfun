@@ -543,8 +543,11 @@ export class Throwables {
         if (tg) t.pos.copy(tg.feet).add(t.stuck.offset);
       }
     } else {
-      const h = dt / SUBSTEPS;
-      for (let i = 0; i < SUBSTEPS && !t.stuck && !t.done; i++) {
+      // at least SUBSTEPS slices, and none longer than cfg.maxStep, so the
+      // flight is the same at 10 fps as at 60 (throwables.json _maxStep)
+      const n = Math.max(SUBSTEPS, Math.ceil(dt / cfg.maxStep));
+      const h = dt / n;
+      for (let i = 0; i < n && !t.stuck && !t.done; i++) {
         t.vel.y -= c.gravity * h;
         // a figure in the way: a direct hit (a frag's +10, once), an arc star sticks
         for (const tg of targets) {

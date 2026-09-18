@@ -101,7 +101,14 @@
     "maxRange": 32,
     "hiddenAfter": 1.5,
     "forgetAfter": 6,
-    "flight": 1.15
+    "flight": 1.15,
+    "arcSlack": 3,
+    "arcTries": [
+      1,
+      1.35,
+      1.75
+    ],
+    "arcRise": 1.5
   },
   "_cover": "a bot with cover on, hurt below this fraction of its shield and health, looks for a spot within these metres out of the target's sight to heal, then peeks back",
   "cover": {
@@ -183,5 +190,6 @@
     "overtime": 2.5,
     "_floor": "how far above or below its feet, in metres, an item may be for a bot to go for it. A bot cannot jump or climb, so an item on the floor above can be a metre away across the ground and out of reach for ever: in a probe, one stood under loot on an upper floor for the whole 40 s, unarmed. A storey here is 3.4 m, so 1.2 keeps a bot to its own floor with room for a crate top. Ours.",
     "floor": 1.2
-  }
+  },
+  "_arc": "grenade.arcSlack and arcTries: before a bot throws, it traces its lob against the world. The first arc it tries is the flight the throw has always used; if that would strike something more than arcSlack metres short of where it is aiming (a roof, a wall, the building over the circle), it tries the steeper lobs in arcTries, and if none lands within arcSlack across and arcRise up or down it keeps the frag for later: a frag on the roof right over your head is close across and a floor away. A probe of the tiers test caught an elite bot's frag going off 14 m from its target one run in two, into whatever stood in the arc's way. Ours."
 }

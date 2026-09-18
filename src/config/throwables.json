@@ -1,18 +1,74 @@
 {
   "_note": "Throwables, Season 30 (docs/RESEARCH_PHASE_11.md section 5). Frag: 100 inside 2.4 m falling to nothing at 8 m, a 4 s fuse from the throw, +10 on a direct hit. Arc star: 75 inside 1.8 m falling to nothing at 8.75 m, 2.8 s after it sticks, +10 to whoever it sticks to, and a slow of up to 5 s scaled by the damage. Thermite: a 6 m line of fire for 8 s, 4 a tick twice a second inside it, and 25 more after you leave it. Ours (Apex does not publish them): the throw speed, the gravity on a throw, the bounce, the fall-off being a straight line, the slow's strength, the afterburn's 2.5 s, the fire's width and that it lies across the throw.",
-  "frag": { "damage": 100, "inner": 2.4, "radius": 8, "fuse": 4, "direct": 10, "speed": 19, "bounce": 0.38, "roll": 2.2 },
-  "arcstar": { "damage": 75, "inner": 1.8, "radius": 8.75, "fuse": 2.8, "stick": 10, "slow": 5, "slowScale": 0.55, "speed": 24 },
-  "thermite": { "length": 6, "width": 1.3, "duration": 8, "tick": 0.5, "tickDamage": 4, "afterburn": 25, "afterburnTime": 2.5, "speed": 18 },
+  "frag": {
+    "damage": 100,
+    "inner": 2.4,
+    "radius": 8,
+    "fuse": 4,
+    "direct": 10,
+    "speed": 19,
+    "bounce": 0.38,
+    "roll": 2.2
+  },
+  "arcstar": {
+    "damage": 75,
+    "inner": 1.8,
+    "radius": 8.75,
+    "fuse": 2.8,
+    "stick": 10,
+    "slow": 5,
+    "slowScale": 0.55,
+    "speed": 24
+  },
+  "thermite": {
+    "length": 6,
+    "width": 1.3,
+    "duration": 8,
+    "tick": 0.5,
+    "tickDamage": 4,
+    "afterburn": 25,
+    "afterburnTime": 2.5,
+    "speed": 18
+  },
   "_carried": "The two carried mobility charges, the shockwave and the rift (docs/NEXT_STEPS.md item 29, from docs/HYPER_SCAPE.md). Neither is an Apex item and neither is a Hyper Scape one with a published number, so EVERY number below is OURS. The one number that is deliberately not here is the shockwave's throw: it launches you with the road pads' own velocity, src/config/squad.json pad.speed and pad.up, because a pad you carry has to feel like the pads on the roads or it is a second thing to learn. What the rest of them are for: the arm times are long enough that neither charge is an escape from a fight you are already losing, and the lives are short enough that a squad cannot fence a position off with them. A cooldown on top of the count is what stops both of a stack going out in the same second, which is the only way either of these turns into a teleport.",
   "_shockwave": "speed: how fast it leaves your hand, m/s. arm: seconds from landing until it will throw anyone, so you can see one land and step off it. life: seconds it stays live after it arms. radius: how far from it you can be standing and still be thrown, m (wider than a road pad's 1.7 because a thrown charge does not settle exactly where you aimed). rise: how far above it your feet can be, m, and under: how far below it, so a charge on a roof does not throw the floor below. regap: the least seconds between one figure's two launches off the same charge. cooldown: seconds before you can ready another. stack: how many you carry.",
-  "shockwave": { "speed": 17, "arm": 1.05, "life": 14, "radius": 2.4, "rise": 1.4, "under": 0.5, "regap": 1, "cooldown": 1.6, "stack": 2 },
+  "shockwave": {
+    "speed": 17,
+    "arm": 1.05,
+    "life": 14,
+    "radius": 2.4,
+    "rise": 1.4,
+    "under": 0.5,
+    "regap": 1,
+    "cooldown": 1.6,
+    "stack": 2
+  },
   "_rift": "speed, arm, life, cooldown and stack read as the shockwave's. reach: how close to either mouth you walk to be taken through, m. rise: how far above a mouth your feet can be and still go through, m, and under: how far below it. regap: the least seconds between one figure's two crossings, which is what stops you bouncing back and forth every frame while you stand in a mouth. eye: a thrower's eyes above their feet, m, used to put the near mouth on the ground the thrower was standing on when the caller does not hand us their feet.",
-  "rift": { "speed": 19, "arm": 0.45, "life": 9, "reach": 1.9, "rise": 2.2, "under": 0.5, "regap": 0.8, "cooldown": 2.2, "stack": 1, "eye": 1.5 },
+  "rift": {
+    "speed": 19,
+    "arm": 0.45,
+    "life": 9,
+    "reach": 1.9,
+    "rise": 2.2,
+    "under": 0.5,
+    "regap": 0.8,
+    "cooldown": 2.2,
+    "stack": 1,
+    "eye": 1.5
+  },
   "_gravity": "m/s^2 on a thrown item (ours: lighter than a player's 19, so a throw carries like the game's)",
   "gravity": 15,
   "_kit": "what an arena match or a bot match gives you each life; the battle royale's floor has them; the range never runs out. The two mobility charges are zero here on purpose: they are floor loot for the battle royale, where a rotation is a decision, and an arena round is too small a place to need one.",
-  "kit": { "frag": 1, "arcstar": 1, "thermite": 1, "shockwave": 0, "rift": 0 },
+  "kit": {
+    "frag": 1,
+    "arcstar": 1,
+    "thermite": 1,
+    "shockwave": 0,
+    "rift": 0
+  },
   "stack": 2,
   "_ready": "seconds from the key to the pin out and ready to throw (ours)",
-  "ready": 0.45
+  "ready": 0.45,
+  "_maxStep": "The longest slice of time a thrown body's flight is moved in, seconds. A frame was cut into four slices whatever its length, so at 60 fps a slice was 4 ms and on a slow machine, where the game caps a frame at 0.1 s, it was 25 ms: a frag at 18 m/s moved 45 cm a slice, enough to step past a body's hit radius or through a thin wall, and bounce somewhere else than it would at 60 fps. Slices are now at most this long, so the same throw lands in the same place on every machine. At 60 fps nothing changes (four 4 ms slices). Ours.",
+  "maxStep": 0.008333333333333333
 }
