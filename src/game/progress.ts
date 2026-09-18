@@ -64,7 +64,7 @@ export function xpFor(kind: MatchKind, s: MatchSummary): number {
   let xp = x.played + s.kills * x.kill + Math.floor(Math.max(0, s.damage) / 100) * x.damagePer100;
   if (kind === "br") {
     const players = s.players ?? 0;
-    if (s.placement !== undefined && s.placement <= 3) xp += x.brTop3;
+    if (s.placement !== undefined && s.placement <= 3 && players >= x.brTop3Min) xp += x.brTop3;
     else if (s.placement !== undefined && players > 10 && s.placement <= 10) xp += x.brTop10;
     xp += Math.floor(Math.min(x.brMinutesCap, Math.max(0, (s.survived ?? 0) / 60))) * x.brPerMinute;
   } else {
@@ -82,7 +82,7 @@ function statsOf(kind: MatchKind, s: MatchSummary): Record<string, number> {
     hits: Math.max(0, s.hits),
     wins: s.won ? 1 : 0,
     br: kind === "br" ? 1 : 0,
-    brTop3: kind === "br" && s.placement !== undefined && s.placement <= 3 ? 1 : 0,
+    brTop3: kind === "br" && s.placement !== undefined && s.placement <= 3 && (s.players ?? 0) >= cfg.xp.brTop3Min ? 1 : 0,
     arena: MODE_KINDS.has(kind) ? 1 : 0,
   };
 }

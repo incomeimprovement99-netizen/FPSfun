@@ -17,7 +17,8 @@
       "A": 150,
       "B": 80,
       "C": 40
-    }
+    },
+    "brTop3Min": 5
   },
   "_levels": "Level n to n + 1 needs first x growth^(n - 1) XP, rounded to 50. An ordinary match (finished, two kills, 300 damage) pays about 300 XP, so at 1,500 and 1.04 the first level is about five matches and level 50 about seven hundred, which is roughly a long season's pace. cap is where it stops counting up.",
   "levels": {

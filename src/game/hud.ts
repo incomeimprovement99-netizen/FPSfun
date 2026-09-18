@@ -1239,7 +1239,10 @@ export class Hud {
     const rowH = 22 * u;
     const h = (118 + m.rows.length * 22 + m.lines.length * 20 + 46) * u;
     const x = this.w / 2 - w / 2;
-    const y = this.h * 0.2;
+    // A battle royale's own end card (the placement, big, at 30% down) is up
+    // while its match ends: this one goes under it rather than over it.
+    const brEnd = s.duel?.br?.placement !== null && s.duel?.br?.placement !== undefined;
+    const y = brEnd ? this.h * 0.3 + 76 * u : this.h * 0.2;
     c.save();
     c.globalAlpha = m.alpha;
     c.fillStyle = "rgba(10,13,16,0.86)";

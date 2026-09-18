@@ -35,6 +35,7 @@ const brMid = xpFor("br", match({ placement: 8, players: 12, survived: 600, kill
 const brLow = xpFor("br", match({ placement: 11, players: 12, survived: 600, kills: 3, damage: 800 }));
 check("a battle royale pays for placement: top 3 more than top 10, top 10 more than the rest", brTop > brMid && brMid > brLow, `${brTop} / ${brMid} / ${brLow}`);
 check("a small lobby's 8th of 9 is not a top-10 finish", xpFor("br", match({ placement: 8, players: 9 })) === xpFor("br", match({ placement: 9, players: 9 })));
+check("and third of three squads is not a podium: last is last", xpFor("br", match({ placement: 3, players: 3 })) === xpFor("br", match({ placement: 3, players: 3, survived: 0 })) && xpFor("br", match({ placement: 3, players: 3 })) < xpFor("br", match({ placement: 3, players: 6 })));
 const hide = xpFor("br", match({ placement: 11, players: 12, survived: 3600 }));
 const capped = xpFor("br", match({ placement: 11, players: 12, survived: cfg.xp.brMinutesCap * 60 }));
 check("survival time is capped, so an hour spent hiding pays what fifteen minutes does", hide === capped, `${hide} against ${capped}`);
