@@ -156,8 +156,20 @@ export interface HudState {
   mapRegion?: { minX: number; maxX: number; minZ: number; maxZ: number };
   /** the full map is open (M), or shown by the drop */
   mapOpen?: boolean;
-  /** in the skydive: 0 gliding to 1 diving (player.ts diveFactor), and how high you are */
-  dive?: { k: number; height: number } | null;
+  /** in the skydive: 0 gliding to 1 diving (player.ts diveFactor), how high you are, and the jumpmaster you follow */
+  dive?: { k: number; height: number; following?: string | null; breakKey?: string } | null;
+  /** aboard the dropship (dropship.ts): its line and where it is on it, the doors, the end, and who jumps for whom */
+  ship?: {
+    line: [number, number, number, number];
+    at: [number, number];
+    doorsIn: number;
+    endIn: number;
+    /** you are the jumpmaster: your jump is the squad's */
+    master: boolean;
+    /** the jumpmaster you are linked to */
+    linkedTo: string | null;
+    keys: { jump: string; crouch: string; map: string };
+  } | null;
   /** a heal in progress: the item, 0..1, and what is left in the kit */
   heal?: { item: string; progress: number } | null;
   /** what is left of each heal */
@@ -361,6 +373,7 @@ export class Hud {
     this.drawMode(now, camera, s, u);
     this.drawBr(now, s, u);
     this.drawDive(s, u);
+    this.drawShip(s, u);
     this.drawKit(s, u);
     this.drawAbility(now, s, u);
     this.drawAbilityCard(s, u);
@@ -1641,6 +1654,24 @@ export class Hud {
         }
       }
     }
+    // the dropship's line: the way it has come faint, the way it is going bright
+    if (s.ship) {
+      const [ax, az, bx, bz] = s.ship.line;
+      const [sx, sz] = s.ship.at;
+      c.lineWidth = 3 * u;
+      c.setLineDash([10 * u, 7 * u]);
+      c.strokeStyle = "rgba(255,255,255,0.3)";
+      c.beginPath();
+      c.moveTo(toX(ax), toZ(az));
+      c.lineTo(toX(sx), toZ(sz));
+      c.stroke();
+      c.strokeStyle = "rgba(255,255,255,0.9)";
+      c.beginPath();
+      c.moveTo(toX(sx), toZ(sz));
+      c.lineTo(toX(bx), toZ(bz));
+      c.stroke();
+      c.setLineDash([]);
+    }
     // you, as the minimap's arrow, facing the way you face
     c.translate(toX(s.px), toZ(s.pz));
     c.rotate((-s.yaw * Math.PI) / 180);
@@ -1653,10 +1684,16 @@ export class Hud {
     c.closePath();
     c.fill();
     c.restore();
-    if (br?.dropping) {
+    const foot = y0 + (r.maxZ - r.minZ) * scale + 34 * u;
+    if (s.ship) {
+      const sh = s.ship;
+      this.text(`THE SHIP PASSES ${br?.poi ?? "YOUR PLACE"}`, this.w / 2, y0 - 26 * u, 700, 34 * u, "#ffd23c", "center");
+      this.text(this.shipLine(sh), this.w / 2, foot, 600, 15 * u, sh.doorsIn > 0 ? DIM : WHITE, "center");
+      this.text(this.shipWho(sh), this.w / 2, foot + 22 * u, 600, 14 * u, DIM, "center");
+    } else if (br?.dropping) {
       this.text(`DROPPING INTO ${br.poi}`, this.w / 2, y0 - 26 * u, 700, 34 * u, "#ffd23c", "center");
-      this.text("STEER WITH THE MOVEMENT KEYS, LOOK DOWN TO DIVE", this.w / 2, y0 + (r.maxZ - r.minZ) * scale + 34 * u, 600, 15 * u, DIM, "center");
-    } else this.text("M CLOSES THE MAP", this.w / 2, y0 + (r.maxZ - r.minZ) * scale + 34 * u, 600, 15 * u, DIM, "center");
+      this.text("STEER WITH THE MOVEMENT KEYS, LOOK DOWN TO DIVE", this.w / 2, foot, 600, 15 * u, DIM, "center");
+    } else this.text("M CLOSES THE MAP", this.w / 2, foot, 600, 15 * u, DIM, "center");
   }
 
   /**
@@ -1685,7 +1722,41 @@ export class Hud {
     this.text("GLIDE", cx - w / 2 - 8 * u, y + 20 * u, 600, 12 * u, DIM, "right");
     this.text("DIVE", cx + w / 2 + 8 * u, y + 20 * u, 600, 12 * u, DIM, "left");
     this.text(`${Math.max(0, Math.round(d.height))} M`, cx, y + 44 * u, 700, 16 * u, WHITE, "center");
-    this.text("LOOK DOWN TO DIVE, LEVEL TO GLIDE", cx, y + 64 * u, 600, 13 * u, DIM, "center");
+    // following a jumpmaster, they fly it for you
+    if (d.following) this.text(`FOLLOWING ${d.following}  ·  ${d.breakKey ?? "C"} BREAKS OFF`, cx, y + 64 * u, 600, 13 * u, "#7ddc8a", "center");
+    else this.text("LOOK DOWN TO DIVE, LEVEL TO GLIDE", cx, y + 64 * u, 600, 13 * u, DIM, "center");
+  }
+
+  /** the ship's clock and the key that matters now */
+  private shipLine(sh: NonNullable<HudState["ship"]>): string {
+    if (sh.doorsIn > 0) return `THE DOORS OPEN IN ${Math.ceil(sh.doorsIn)}`;
+    const jump = sh.linkedTo ? `${sh.keys.jump} JUMPS ALONE` : `${sh.keys.jump} TO JUMP`;
+    return `${jump}  ·  ${sh.keys.map} FOR THE MAP  ·  OUT AT THE EDGE IN ${Math.ceil(sh.endIn)} S`;
+  }
+
+  /** who jumps for whom */
+  private shipWho(sh: NonNullable<HudState["ship"]>): string {
+    if (sh.master) return "YOU ARE THE JUMPMASTER: THE SQUAD JUMPS WITH YOU";
+    if (sh.linkedTo) return `LINKED TO ${sh.linkedTo}, WHO JUMPS FOR YOU  ·  ${sh.keys.crouch} BREAKS OFF`;
+    return "JUMP OVER ANY PLACE YOU LIKE: A GLIDE CARRIES ABOUT 160 M";
+  }
+
+  /**
+   * Aboard, with the map closed: what the map's foot would say, on a panel
+   * where the dive's readout goes.
+   */
+  private drawShip(s: HudState, u: number): void {
+    const sh = s.ship;
+    if (!sh || s.mapOpen) return;
+    const c = this.ctx;
+    const cx = this.w / 2;
+    // under the ship, which the chase camera puts a little below the middle
+    const y = this.h * 0.83;
+    c.fillStyle = PANEL;
+    c.fillRect(cx - 260 * u, y - 30 * u, 520 * u, 92 * u);
+    this.text("ON THE DROPSHIP", cx, y, 700, 24 * u, "#ffd23c", "center");
+    this.text(this.shipLine(sh), cx, y + 26 * u, 600, 14 * u, sh.doorsIn > 0 ? DIM : WHITE, "center");
+    this.text(this.shipWho(sh), cx, y + 48 * u, 600, 13 * u, DIM, "center");
   }
 
   /** the battle royale: who is left, the ring's clock, outside the ring, the heal, the card */

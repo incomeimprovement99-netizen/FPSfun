@@ -20,6 +20,8 @@
 - **Bots look at their arc before throwing**, and grenades fly the same at any frame rate. This was the cause of the one flaky e2e check.
 - **Three new arenas and a map picker** (finished after the limit reset): the Vault for 1v1 and free-for-all, the Crossing for team modes, the Ringworks for free-for-all and Crown. Pick one in the modes row, or "picked for the mode". The warehouse is still the default. The offline 1v1 against bots uses the picker too.
 - **After the second reset:** a damage direction indicator, crosshair customisation, colour vision modes and a HUD scale, XP with levels and challenges, a match summary card, quick chat, and spawning facing open floor in the new arenas. Two flaky e2e checks were found at their causes and fixed.
+- **Delta state packets (item 51)**, reviewed, fixed and merged (Milestone 62): a player's state goes as its difference from one the other end has acknowledged, and one packet a frame carries everything for a peer. The host's upload to a guest in a squad battle royale fell from 34.8 to 7.3 kB/s; an older build still plays against this one on the full packets.
+- **The dropship and the jumpmaster**: the match starts on a ship flying a line across the map over the squad's place; you jump when you like, the ship puts out whoever is left at the far edge, a squad follows the host's jump in formation until C breaks off, and the bots ride along out of sight and glide onto their places. The bots drop from the sky again, which they had stopped doing when the squad match came in.
 - **A two-state skydive**: look down to dive at 30 m/s, look level to glide 14 m/s across at 12 down, blended between; the drop's map steps aside after 2.5 s so you can see where you are steering.
 - **verify** is 1,200+ checks; its new subjects live in `tools/checks/`.
 
@@ -28,7 +30,6 @@
 | What | State | Where it is |
 |---|---|---|
 | **The Outskirts map expansion**: ground shape, a real map edge, THE MAST landmark, rebuilt ridge and town, eight micro-POIs, the rotation network, the bot graph over it | A six-stage build plan was designed and merged from three designs. **No stage was built**: the session limit hit first. | The plan is in the workflow result; the next prompt below restarts it. |
-| **Delta-compressed netcode** (item 51) | Reviewed, fixed and wired in (Milestone 61): the review found the wip version inert and fixed five problems in it, and the first real-broker run found a sixth. verify, the p2p section, an old-build-against-new section and `npm run live` against a local public build pass. Waiting to be merged and deployed. | the branch `netcode` |
 | **Applying the new materials and rock meshes to the map** | Fetched and loadable, not placed. | Belongs with the map expansion |
 | **Per-match sky pick** in the battle royale | The setting works; a match does not pick an hour by seed. | `brmatch.ts` |
 
@@ -40,24 +41,21 @@
 ## Ranked next steps
 
 3. **Build the Outskirts map expansion** from the six-stage plan. It is the owner's top ask and the backbone of everything else in the battle royale.
-8. **Merge and deploy the delta netcode** from the branch `netcode` (reviewed; Milestone 61), and run `npm run live` against the deployed site after.
 9. **Place the new materials and rock meshes** on the map, one palette per place.
 10. **Doors and supply bins** (items 10 and 11). The sounds for them are already fetched and have calls in `audio.ts`.
-11. Then down `docs/NEXT_STEPS.md`: the Ring Console, Resurgence, spectate your squad, the Gulag, a drop with a dropship and a jumpmaster, emotes.
+11. Then down `docs/NEXT_STEPS.md`: the Ring Console, Resurgence, the Gulag, emotes. (Spectating your squad already works, and the dropship is done.)
 
 ## What we are still missing against the big shooters
 
-These came out of the gap analysis and nobody has started them:
+These came out of the gap analysis. The ones since shipped are gone from this list: the drop (the dive, the dropship and the jumpmaster), who is shooting me (the damage direction arcs), the reticle, HUD scale and colour vision settings, XP with levels and challenges, the match summary card, and quick chat.
 
-- **A map that is a level**, with terrain, landmarks you can name from far away, and a mid band worth crossing.
-- **A drop**: a dropship line and a jumpmaster. (The two-state dive is done.)
+- **A map that is a level**, with terrain, landmarks you can name from far away, and a mid band worth crossing. The expansion is being built.
 - **Doors, bins, vaults and keycards**, the interactive layer every modern battle royale has.
 - **Crafting and an economy**: replicators, cash and buy stations, contracts.
-- **After you die**: spectating your squad, the Gulag, a real match summary.
-- **Who is shooting me**: a damage direction ring and better hit feedback.
-- **Settings**: reticle customisation, HUD scale, colourblind palettes, text scale.
-- **Progression**: XP, levels, challenges, unlocks, emotes, banners.
-- **Netplay**: voice or quick chat, host migration and rejoin, and moving the leaderboard secret out of the browser bundle.
+- **After you die**: the Gulag, a second chance won in a 1v1. (Watching a squad mate through their eyes already works.)
+- **Settings**: a text scale apart from the HUD scale.
+- **Progression**: unlocks, emotes and banners on top of the levels and challenges.
+- **Netplay**: voice, host migration and rejoin. The online board's shared key is still in the page, though a signed-in name can no longer be taken by anyone else.
 - **Performance**: batching the map's draw calls, LOD and draw distance, and a loading screen.
 
 ## Prompts to paste when the limit resets

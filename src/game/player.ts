@@ -29,6 +29,8 @@ const DEG = Math.PI / 180;
 /** the skydive: terminal speed and steering, m/s (ours; the game's dive is its own system) */
 /** the skydive's two states: look level to glide far, look down to dive fast (src/config/squad.json dive) */
 const DIVE = squadCfg.dive;
+/** following a jumpmaster down (src/config/squad.json ship.follow) */
+const FOLLOW = squadCfg.ship.follow;
 
 export interface Bounds {
   minX: number; maxX: number; minZ: number; maxZ: number;
@@ -217,6 +219,44 @@ export class Player {
    * speed with full steering, no fall stun on landing. Cleared by the landing.
    */
   dropping = false;
+  /**
+   * Aboard the dropship (src/game/dropship.ts): carried with it, no gravity,
+   * no moving, looking round freely, until you jump or it puts you out. The
+   * battle royale's match drives it from outside with ride().
+   */
+  aboard = false;
+  /**
+   * In the skydive, following a jumpmaster: where to be this frame (main sets
+   * it from the jumpmaster's figure). Null flies yourself.
+   */
+  leash: THREE.Vector3 | null = null;
+
+  /** on the ship: at its seat, out of any movement, keeping where you look */
+  board(x: number, y: number, z: number): void {
+    const yaw = this.yaw;
+    const pitch = this.pitch;
+    this.teleport(x, y, z, yaw, pitch);
+    this.aboard = true;
+    this.dropping = false;
+    this.leash = null;
+    this.onGround = false;
+  }
+
+  /** carried with the ship this frame */
+  ride(x: number, y: number, z: number): void {
+    this.pos.set(x, y, z);
+    this.vel.set(0, 0, 0);
+  }
+
+  /** off the ship: into the skydive from where you are, looking where you look */
+  leaveShip(below: number): void {
+    this.aboard = false;
+    this.pos.y -= below;
+    this.vel.set(0, 0, 0);
+    this.onGround = false;
+    this.dropping = true;
+  }
+
   /** 0 gliding (looking level or up) to 1 diving (looking straight down) */
   get diveFactor(): number {
     return Math.max(0, Math.min(1, (DIVE.flatPitch - this.pitch) / (DIVE.flatPitch - DIVE.downPitch)));
@@ -269,7 +309,7 @@ export class Player {
    * whether it started.
    */
   jolt(dirX: number, dirZ: number, distance: number, duration: number, exitSpeed: number): boolean {
-    if (this.zip || this.mantle || this.climbing || this.dropping || this.joltLeft > 0) return false;
+    if (this.zip || this.mantle || this.climbing || this.dropping || this.aboard || this.joltLeft > 0) return false;
     const l = Math.hypot(dirX, dirZ);
     if (l < 1e-6 || duration <= 0) return false;
     this.joltDirX = dirX / l;
@@ -356,6 +396,8 @@ export class Player {
     this.vel.set(0, 0, 0);
     this.yaw = yaw;
     this.pitch = pitch;
+    this.aboard = false;
+    this.leash = null;
     this.zip = null;
     this.mantle = null;
     this.climbing = false;
@@ -395,7 +437,7 @@ export class Player {
    * slide, climb or mantle. Not a jump: no fatigue, no lurch window.
    */
   impulse(vx: number, vy: number, vz: number): void {
-    if (this.zip || this.dropping) return;
+    if (this.zip || this.dropping || this.aboard) return;
     this.mantle = null;
     this.climbing = false;
     this.climbNormal = null;
@@ -555,6 +597,17 @@ export class Player {
     const jumpPressed = input.pressedNow("jump");
     const crouchPressed = input.pressedNow("crouch");
 
+    if (this.aboard) {
+      // the ship carries you (ride()): nothing moves you but it
+      this.vel.set(0, 0, 0);
+      this.onGround = false;
+      this.zipPrompt = false;
+      this.speed = 0;
+      this.descentRate = 0;
+      this.updateView(dt);
+      return;
+    }
+
     if (this.zip) {
       this.zipPrompt = false;
       this.stepZip(now, dt, input, jumpPressed, crouchPressed);
@@ -681,7 +734,16 @@ export class Player {
     // framerate drops.
     const vyStart = this.vel.y;
     if (!this.climbing) this.vel.y -= MOVE.gravity * dt;
-    if (this.dropping && !this.onGround) {
+    if (this.dropping && !this.onGround && this.leash) {
+      // Following a jumpmaster: close on your place in the formation, whatever
+      // you look at. Their dive is yours until you break off.
+      const l = this.leash;
+      const g = FOLLOW.gain;
+      this.vel.set((l.x - this.pos.x) * g, (l.y - this.pos.y) * g, (l.z - this.pos.z) * g);
+      const v = this.vel.length();
+      const most = DIVE.diveFall + DIVE.glideSpeed;
+      if (v > most) this.vel.multiplyScalar(most / v);
+    } else if (this.dropping && !this.onGround) {
       // The skydive, in two states: where you look is the trade between
       // falling and travelling. Level is a glide, the long way to a far
       // place; straight down is a dive, the fast way onto the place under you.
@@ -1709,6 +1771,7 @@ export class Player {
     if (this.dropping) {
       // the end of a drop: on your feet, no stun, no slide, a small dip
       this.dropping = false;
+      this.leash = null;
       this.vel.x = 0;
       this.vel.z = 0;
       this.viewDip -= MOVE.landDipMetres;

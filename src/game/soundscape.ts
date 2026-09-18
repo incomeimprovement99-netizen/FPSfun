@@ -92,7 +92,8 @@ export class Soundscape {
     // ---- loops: the slide, the zipline, the drop's wind, a heal
     a.loop("slide", p.sliding ? Math.min(0.5, (p.speed / 10) * 0.5) : 0, 0.8 + p.speed / 15);
     a.loop("zip", p.onZip ? 0.22 : 0, 0.7 + p.speed / 12);
-    a.loop("wind", p.dropping ? 0.3 : 0, 1);
+    // the drop's wind, and on the ship its engines, the same loop low and slow
+    a.loop("wind", p.dropping ? 0.3 : p.aboard ? 0.2 : 0, p.aboard ? 0.35 : 1);
     a.loop("heal", f.heal !== null ? 0.08 : 0, 0.8 + (f.heal ?? 0) * 0.9);
     // ---- the others' feet
     const hear = cfg.footsteps.hearOthersTo;
