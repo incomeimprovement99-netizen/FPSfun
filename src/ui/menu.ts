@@ -19,6 +19,8 @@ export interface MenuOptions {
   onGo: (mode: Mode) => void;
   /** this session's numbers per gun, for the Stats tab */
   sessionGuns?: () => Array<{ name: string; shots: number; hits: number; heads: number; damage: number }>;
+  /** the account level and the active challenges (src/game/progress.ts), for the Stats tab */
+  progress?: () => { level: number; into: number; need: number; xp: number; done: number; challenges: Array<{ label: string; got: number; goal: number; xp: number }> };
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -124,7 +126,23 @@ export class Menu {
         ? `<div class="statcard wide"><h4>Tech landed</h4><div class="techlist">${techs.map(([n, c]) => `<span>${esc(n)} <b>${c}</b></span>`).join("") || '<span class="empty">none yet</span>'}</div>
            <h4 style="margin-top:10px">Misses called out</h4><div class="techlist">${misses.map(([n, c]) => `<span class="miss">${esc(n)} <b>${c}</b></span>`).join("") || '<span class="empty">none</span>'}</div></div>`
         : `<div class="statcard wide"><h4>Tech</h4><div class="empty">Nothing landed yet. The feed on the left names every superglide, wallbounce and lurch as you do it, and says why a miss missed.</div></div>`;
+    // the level and the challenges, first: it is the one card that changes
+    // every match whatever you played
+    const pr = this.o.progress?.();
+    const levelCard = pr
+      ? `<div class="statcard wide" id="levelCard"><h4>Level ${pr.level}</h4>
+          <div class="big">${pr.level}<small>${pr.need ? `${Math.floor(pr.into)} / ${pr.need} XP TO ${pr.level + 1}` : "MAX LEVEL"}</small></div>
+          <div style="height:8px;background:#222932;border-radius:4px;margin:6px 0 10px"><div style="height:8px;border-radius:4px;background:#ffd23c;width:${pr.need ? Math.round((100 * pr.into) / pr.need) : 100}%"></div></div>
+          <table>${pr.challenges
+            .map(
+              (c) =>
+                `<tr><td>${esc(c.label)}</td><td>${Math.floor(c.got)} / ${c.goal} <span style="color:#ffd23c">+${c.xp} XP</span></td></tr>`
+            )
+            .join("")}</table>
+          <div class="empty" style="margin-top:6px">${pr.xp} XP all time, ${pr.done} challenges finished. Every match pays; winning, damage and kills pay more.</div></div>`
+      : "";
     body.innerHTML = [
+      levelCard,
       `<div class="statcard wide" id="onlineCard" hidden></div>`,
       matchCard("1v1 with friends", ["duel"]),
       matchCard("1v1v1 with friends", ["triple"]),

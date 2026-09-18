@@ -80,6 +80,7 @@ import { Armor, HEAL_ORDER, HEALS, Kit, type HealItem } from "./game/kit";
 import { Knockdown, type BackTier, type KnockTier } from "./game/kit";
 import { ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
+import { Progress, type Award } from "./game/progress";
 
 const DEG = Math.PI / 180;
 /** slot 1 and slot 2. Keys 1 and 2 select, Q swaps. */
@@ -149,6 +150,16 @@ function saveSettings(s: Settings): void {
   }
 }
 const settings = loadSettings();
+// XP, the account level and the challenges (src/game/progress.ts)
+const progress = new Progress();
+/** what an award earned, said on the HUD: the XP, a level reached, a challenge finished */
+function announceAward(a: Award): void {
+  if (a.gained <= 0) return;
+  const lines = [`+${a.gained} XP`];
+  for (const c of a.completed) lines.push(`CHALLENGE: ${c.label.toUpperCase()}  +${c.xp}`);
+  if (a.levelAfter > a.levelBefore) lines.push(`LEVEL ${a.levelAfter}`);
+  hud.notice(lines.join("  ·  "), gameTime, 3.5);
+}
 // The crosshair (src/game/reticle.ts), and the Settings rows that set it up.
 // Every change applies at once, is kept, and redraws the little preview so
 // the choice can be made without starting a match.
@@ -2103,6 +2114,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.streak = profile.match(kind).streak;
   d.onMatchEnd = (s) => {
     profile.recordMatch(kind, s);
+    // what the match earned: XP, a level, any challenge it finished
+    announceAward(progress.award(kind as MatchKind, s));
     d.streak = profile.match(kind).streak;
     menu.renderStats();
     profile.flush();
@@ -2446,6 +2459,7 @@ for (const course of courses) {
   course.onNotice = (text) => hud.notice(text, gameTime, 1.2);
   course.onFinish = (r) => {
     profile.recordRun(course.layout.id, r.time, r.rank);
+    announceAward(progress.awardRun(r.rank));
     profile.flush();
     void submitScore(`course:${course.layout.id}`, profile.profile.name, Number(r.time.toFixed(3))).then((rank) => {
       if (rank !== null) hud.notice(`#${rank} ON THE ONLINE BOARD`, gameTime, 3);
@@ -2525,6 +2539,7 @@ function goTo(mode: Mode): void {
 }
 
 const menu = new Menu(loadouts, profile, {
+  progress: () => ({ ...progress.level, xp: progress.xp, done: progress.done, challenges: progress.challenges }),
   weaponIds: weaponIds(),
   weaponName,
   onApply: applyLoadout,
@@ -2536,6 +2551,8 @@ const menu = new Menu(loadouts, profile, {
     void input.lock();
   },
 });
+// the Stats tab's level card follows every award
+progress.onChange = () => menu.renderStats();
 /** the optional account (Stats tab): the name is the account's once signed in; new stats go up after a match or a run */
 const account = initAccountUi({
   setName: (name) => {
@@ -4122,6 +4139,8 @@ initWelcome();
   kit,
   /** the crosshair as set up on the Settings tab (tools/e2e.ts) */
   reticle,
+  /** XP, the level and the challenges (tools/e2e.ts) */
+  progress,
   /** the knockdown shield (tools/e2e.ts) */
   kd,
   armor,
