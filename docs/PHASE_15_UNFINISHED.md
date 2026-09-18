@@ -28,7 +28,7 @@
 | What | State | Where it is |
 |---|---|---|
 | **The Outskirts map expansion**: ground shape, a real map edge, THE MAST landmark, rebuilt ridge and town, eight micro-POIs, the rotation network, the bot graph over it | A six-stage build plan was designed and merged from three designs. **No stage was built**: the session limit hit first. | The plan is in the workflow result; the next prompt below restarts it. |
-| **Delta-compressed netcode** (item 51) | Built, review never ran. Netcode that is wrong breaks every game with your buddy, so it is not shipped unreviewed. | `wip/phase15-unfinished`: `src/net/state.ts`, `statesync.ts`, `wire.ts`, `link.ts`, `net.json`, `tools/checks/net-delta.ts` |
+| **Delta-compressed netcode** (item 51) | Reviewed, fixed and wired in (Milestone 61): the review found the wip version inert and fixed five problems in it, and the first real-broker run found a sixth. verify, the p2p section, an old-build-against-new section and `npm run live` against a local public build pass. Waiting to be merged and deployed. | the branch `netcode` |
 | **Applying the new materials and rock meshes to the map** | Fetched and loadable, not placed. | Belongs with the map expansion |
 | **Per-match sky pick** in the battle royale | The setting works; a match does not pick an hour by seed. | `brmatch.ts` |
 
@@ -40,7 +40,7 @@
 ## Ranked next steps
 
 3. **Build the Outskirts map expansion** from the six-stage plan. It is the owner's top ask and the backbone of everything else in the battle royale.
-8. **Review and ship the delta netcode**, then run the `p2p` section and `npm run live` before any deploy.
+8. **Merge and deploy the delta netcode** from the branch `netcode` (reviewed; Milestone 61), and run `npm run live` against the deployed site after.
 9. **Place the new materials and rock meshes** on the map, one palette per place.
 10. **Doors and supply bins** (items 10 and 11). The sounds for them are already fetched and have calls in `audio.ts`.
 11. Then down `docs/NEXT_STEPS.md`: the Ring Console, Resurgence, spectate your squad, the Gulag, a drop with a dropship and a jumpmaster, emotes.

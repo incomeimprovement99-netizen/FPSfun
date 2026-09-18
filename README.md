@@ -123,6 +123,7 @@ URL flags, all for testing:
 | `?net=local` | the 1v1 joins tabs of the same browser through a BroadcastChannel instead of the internet: open two tabs, create in one, join in the other |
 | `?norender` | runs the game without drawing (the test tools use it; the simulation still runs) |
 | `?nomerge` | skips the static-mesh merge, to compare frame rates |
+| `?deltas=0` | this browser plays on the full state packets, exactly as a build from before the delta packets: for a match that ever looks wrong, and for testing an old build against a new one |
 
 The local build (`npm run dev`, `npm run build`) shows the real weapon and
 optic names; only `npm run build:beta` (what is deployed) renames the guns
@@ -461,6 +462,15 @@ it trusts the game, so it is a board for friends, not a ranked ladder.
   shooter decides hits. The host runs the round clock, the circle and the
   scores; guests apply what it sends. `?net=local` swaps the transport for
   a BroadcastChannel so two tabs can play without the internet.
+  Between two browsers of this build the states travel as **delta packets**
+  (`src/net/state.ts`, `statesync.ts`, `src/config/net.json`): each player
+  is sent as its difference from a state the other end acknowledged, in
+  centimetres and tenths of a degree, a player standing still sends nothing
+  but a keyframe every two seconds, and everything one frame says goes in
+  one packet. A build from before them is sent the full packets it has
+  always had, so an old build and a new one still play together. It costs
+  the host about a fifth of the upload in a battle royale squad with
+  eleven bots, and `?deltas=0` turns it off for one browser.
 - **The server** (`server/game/serve.mjs`): one Node process that serves the
   public build, runs the PeerJS broker, hands out TURN credentials for the
   coturn relay, keeps the online boards and answers `/health`.
@@ -632,6 +642,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `src/config/loot.json`, `squad.json` | the battle royale's loot tables; downs, revives, banners, beacons, pads, pings, EVO's sources, knockdown shields, Deathbox Respawn |
 | `src/config/br.json` | the battle royale's match rules: solo, duos and trios (the bot counts each offers, the bleed-out it scales), the care package's arrival, the loadout crate, Storm Surge |
 | `src/config/modes.json` | Gun Run's lists and rules, team deathmatch's score and size, free-for-all's kill limit and clock, Crown's times, Control's zones and numbers, the arena's spawns |
+| `src/config/net.json` | the delta state packets: on or off, their version, the rounding of position, look and health, the keyframe interval, how often an ack goes |
 | `src/config/throwables.json` | the frag, the arc star, thermite |
 | `src/config/killcam.json`, `audio.json`, `rangetools.json` | the killcam's timing; the gun classes, the sound's distances, and how much a wall takes off a sound it is between you and; the range's tools |
 | `src/config/readme-tv.json` | the README screen at the far end of the range: where it stands, its size, its arrow plates and the layout of its pages |
@@ -657,9 +668,9 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run compress` | re-encode already fetched textures as WebP |
 | `npm run extract` | rebuild `data/weapons.json` from the reference sheet (read-only, outside the repo) |
 | `npm run compare-sources` | compare two reference trees on the numbers we use |
-| `npm run verify` | 1,100+ checks: weapon data, damage, recoil, sensitivity maths, and the whole movement simulation (every movement rule against its source number), plus the modules under `tools/checks/` (the hours of the day, the ring's placement, loot tiers, the pickup reach, the bots' senses, the view model's arms, audio occlusion), each of which also runs on its own with `npx tsx tools/checks/<name>.ts`. Must print VERIFY PASS. |
+| `npm run verify` | 1,100+ checks: weapon data, damage, recoil, sensitivity maths, and the whole movement simulation (every movement rule against its source number), plus the modules under `tools/checks/` (the hours of the day, the ring's placement, loot tiers, the pickup reach, the bots' senses, the view model's arms, the delta state packets, audio occlusion), each of which also runs on its own with `npx tsx tools/checks/<name>.ts`. Must print VERIFY PASS. |
 | `npm run movesim` | the movement simulation alone: wiki timings, the wallbounce recipe, crouch kick, wallskip, every course gate, teleports |
-| `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course and its medals, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match with the killcam and the recap, the controller, the range's tools, the settings and the tour, throwables, the battle royale alone, with loot and as a squad (solo and duos, downs, revives, banners, pings, the care package's arrival, the loadout crate and Storm Surge, on a guest's screen too), Gun Run, team deathmatch, Crown and Control alone and Gun Run with a friend, the bot tiers, the controller's layout and presets, and the README screen paged by shooting its arrows. Needs `npm run dev`. Must print E2E PASS. `E2E_ONLY=page,br,...` runs only those sections (the file lists them); the whole run takes about twelve minutes. |
+| `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course and its medals, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match with the killcam and the recap, the controller, the range's tools, the settings and the tour, throwables, the battle royale alone, with loot and as a squad (solo and duos, downs, revives, banners, pings, the care package's arrival, the loadout crate and Storm Surge, on a guest's screen too), Gun Run, team deathmatch, Crown and Control alone and Gun Run with a friend, the bot tiers, the controller's layout and presets, and the README screen paged by shooting its arrows. Needs `npm run dev`. Must print E2E PASS. `E2E_ONLY=page,br,...` runs only those sections (the file lists them); the whole run takes about twelve minutes. The `mixed` section plays an older build against this one over the internet, both ways round and as a 1v1v1 whose host relays between the two: serve a checkout from before a change to the state packets on a second port and name it in `OLD_URL`. |
 | `npm run snap` | screenshots of named scenarios drawn for real (the HUD, the killcam, the figures, the loot, the modes, the README screen) into `shots/`; `SNAP=name,name` for some |
 | `npm run slide-probe` | the slide and slide jump frame by frame in the simulation, as a page of curves beside the wiki's numbers |
 | `npx tsx tools/trim-glb.ts` | cut a .glb down to the animations named (how the mannequin's files were made) |
@@ -673,6 +684,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run fps <verb>` | the same tool, Algonomics `npm run prod` style; on its own it is `health`. `check` probes DNS, ssh, every firewall rule and a real datagram through the relay from this PC; `backup` brings the boards and accounts down; `ssh`, `restart`, `dns`, `run "<cmd>"` |
 | `npm run server` | run the game's server here on :4100 (after `build:beta`) |
 | `npm run live` | opens the deployed site in two browser pages and plays a 1v1 over the real broker (`LIVE_URL`, and `BROKER=own` on our server). Must print LIVE CHECK PASS. |
+| `npx tsx tools/net-cost.ts` | what a match costs the host's upload, read from WebRTC's own counters over the real peer to peer path: a 1v1 running and standing, team deathmatch with bots, a battle royale squad with eleven bots. `HOST_URL` and `GUEST_URL` measure two builds against each other (needs `npm run dev`) |
 
 Before a push: `npm run verify`, `npm run e2e` (with `npm run dev` running in
 another terminal), `npm run rules`, `npm run build:beta`. Do not edit `src/`

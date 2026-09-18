@@ -866,3 +866,26 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - The drop's numbers moved from literals in `player.ts` and `bots.ts` into `squad.json` `dive`; movesim checks the
   four speeds, e2e checks them in the page, and `npm run snap` has a picture of the readout.
 
+
+## Milestone 61 — Delta state packets: a fraction of the host's upload, and an old build still plays ✅
+2026-09-18 (Phase 15). `src/net/state.ts`, `statesync.ts`, `wire.ts`, `link.ts`, `duel.ts`, `src/config/net.json`.
+- Between two browsers of this build a player's state goes as its difference from a state the other end has
+  acknowledged: position in centimetres, look in tenths of a degree, health in whole points (a sliver stays above
+  zero), a mask naming any field that has gone, and a whole keyframe every two seconds or when a peer asks. A player
+  standing still sends nothing but the keyframe. Nothing is ever sent as null.
+- Everything one frame tells a peer (your state, the host's bots) goes in one packet, because every packet carries
+  about 90 bytes of SCTP, DTLS, UDP and IP, which is more than the differences inside it.
+- Measured over the real peer to peer path with `tools/net-cost.ts`, the host's upload to a guest: a 1v1 from 8.1 to
+  5.7 kB/s running and from 8.1 to 1.5 standing still; team deathmatch with eight bots from 31.5 to 11.9; a battle
+  royale squad with eleven bots from 34.8 to 7.3 (285 to 60 kbit/s).
+- A peer names the version it reads on its own full packet; an older build names nothing and is sent the full
+  packets it always had, so old and new play together at the old cost. The e2e `mixed` section plays the previous
+  build against this one over the internet both ways round, and as a 1v1v1 whose host relays between the two.
+- Wired where every state already passed in `duel.ts`, so the battle royale and the arena modes use it with no
+  change of their own. `?deltas=0` turns it off for one browser; `enabled` in `net.json` for a build.
+- The version on `wip/phase15-unfinished` was reviewed first and was inert: nothing called it. The review fixed a
+  negotiation that could not have worked (the hello never reached the match), a scheduler that would have re-sent
+  stale states to old builds and doubled their bot traffic, a restarted stream that froze a figure for good,
+  malformed differences taken as no movement, and a sliver of health rounded to zero. The first run over the real
+  broker found one more: whichever end switched first stayed the only one sending deltas. Distance bands and a byte
+  budget were left out; at today's lobby sizes the budget never bites and the bands would only thin far figures.
