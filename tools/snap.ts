@@ -25,6 +25,8 @@ interface Scenario {
   query?: string;
   /** steps: an expression to run, then a wait in ms */
   steps: Array<[string, number]>;
+  /** a battle royale starts on the dropship (the rest drop straight in, as the e2e does) */
+  ship?: boolean;
 }
 
 const hideMenu = `document.getElementById("overlay").classList.add("hidden")`;
@@ -345,6 +347,27 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-dropship",
+    note: "aboard the dropship with the map closed: the chase camera behind the ship, the panel with the jump key and the clock",
+    ship: true,
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 300],
+      [gameSeconds(0.5), 0],
+      // the ship runs on the wall clock and a software renderer is slow: pin it 6 s into the flight
+      [`(() => { const r = window.__range; r.setScript({ held: () => false, pressedNow: () => false }); r.player.pitch = -14; r.player.yaw += 18; r.setMapOpen(false); r.ship().startAt = performance.now() / 1000 - 6; })()`, 500],
+    ],
+  },
+  {
+    name: "br-dropship-map",
+    note: "aboard the dropship with the map up: the line flown and still to fly, the squad's place on it, the keys",
+    ship: true,
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 300],
+      [gameSeconds(0.5), 0],
+      [`(() => { const r = window.__range; r.setScript({ held: () => false, pressedNow: () => false }); r.ship().startAt = performance.now() / 1000 - 7; })()`, 500],
+    ],
+  },
+  {
     name: "mode-gunrun",
     note: "Gun Run against bots: your level and gun, the next one, the clock, the scoreboard",
     steps: [
@@ -466,6 +489,7 @@ async function main(): Promise<void> {
         if (m.type() === "error") errors.push(m.text());
       });
       await page.evaluateOnNewDocument(() => localStorage.setItem("range.welcomed", "1"));
+      if (!sc.ship) await page.evaluateOnNewDocument("window.__straightDrop = true");
       await page.goto(BASE + (sc.query ?? ""), { waitUntil: "domcontentloaded", timeout: 60000 });
       await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
       await sleep(1500);

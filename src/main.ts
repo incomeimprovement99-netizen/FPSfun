@@ -22,6 +22,7 @@ import { buildRange, skyFollow, setShadowRegion, setHour, getSun, RANGE_BOUNDS, 
 import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, type Hour } from "./game/sky";
 import { buildBrMap, BR_BOUNDS, BR_CENTER } from "./game/br";
 import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
+import { SHIP, surfaceUnder, type ShipRun } from "./game/dropship";
 import brCfg from "./config/br.json";
 import { placeProps } from "./game/props";
 import { Target } from "./game/targets";
@@ -1418,6 +1419,99 @@ function openYaw(x: number, z: number, yaw: number): number {
   }
   return best;
 }
+/**
+ * Aboard the dropship at the start of a battle royale: facing the way it
+ * flies, the map up to choose by, and in a squad linked to the jumpmaster
+ * (the host), whose jump takes the squad with them.
+ */
+function boardShip(d: BrMatch, run: ShipRun): void {
+  const at = run.at(realNow());
+  player.yaw = run.yaw;
+  player.pitch = -12;
+  player.board(at.x, at.y + SHIP.seat, at.z);
+  mapOpen = true;
+  following = null;
+  linkedTo = d.players > 1 && d.id !== 0 ? 0 : null;
+  const master = d.players > 1 && d.id === 0;
+  hud.notice(master ? "YOU ARE THE JUMPMASTER: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(0)} IS THE JUMPMASTER` : `THE SHIP PASSES ${d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
+}
+
+/** off the ship, into the skydive where it is; the jumpmaster's jump takes the linked squad with them */
+function jumpOut(d: BrMatch, why: string | null): void {
+  player.leaveShip(SHIP.exit);
+  mapOpen = false;
+  dropMapUntil = 0;
+  audio.whoosh();
+  if (why) hud.notice(why, gameTime, 2);
+  if (d.id === 0 && d.players > 1) d.localFx("jm", player.pos.clone());
+}
+
+/**
+ * The ship each frame: carried with it, the jump once the doors are open,
+ * out at the end of the line whatever you do, and a linked squad mate's
+ * break. Then following the jumpmaster down: held in the formation behind
+ * them until the break key or until they are near the ground.
+ */
+function shipFrame(d: BrMatch, keys: MoveInput): void {
+  const t = realNow();
+  const run = d.ship;
+  if (player.aboard) {
+    if (!run) {
+      player.aboard = false;
+      return;
+    }
+    const at = run.riderAt(t);
+    player.ride(at.x, at.y + SHIP.seat, at.z);
+    if (linkedTo !== null && keys.pressedNow("crouch")) {
+      linkedTo = null;
+      hud.notice("YOU BROKE OFF: JUMP WHEN YOU LIKE", gameTime, 2);
+    }
+    if (run.gone(t)) jumpOut(d, "THE SHIP IS LEAVING THE MAP");
+    else if (run.doorsOpen(t) && keys.pressedNow("jump")) {
+      // a linked squad mate who jumps first goes alone
+      linkedTo = null;
+      jumpOut(d, null);
+    }
+    return;
+  }
+  if (following === null) return;
+  const f = d.figureOf(following);
+  const g = f?.group.position;
+  const clear = g ? g.y - surfaceUnder(g.x, g.z, g.y) : 0;
+  if (!player.dropping || !f || !g || f.currentPose.stance !== "air" || clear < SHIP.follow.release) {
+    following = null;
+    player.leash = null;
+    if (player.dropping) hud.notice("ON YOUR OWN: STEER IN", gameTime, 1.5);
+  } else if (keys.pressedNow("crouch")) {
+    following = null;
+    player.leash = null;
+    hud.notice("YOU BROKE OFF", gameTime, 1.5);
+  } else {
+    // behind the jumpmaster and to one side, the side by your id so a trio fans out
+    const yaw = f.group.rotation.y - Math.PI;
+    const fx = -Math.sin(yaw);
+    const fz = -Math.cos(yaw);
+    const side = (d.id % 2 === 1 ? -1 : 1) * SHIP.follow.side;
+    leashAt.set(g.x - fx * SHIP.follow.back - fz * side, g.y + SHIP.follow.up, g.z - fz * SHIP.follow.back + fx * side);
+    player.leash = leashAt;
+  }
+}
+
+/** the ship for the HUD: its line and where it is, the doors, the end, and who jumps for whom */
+function shipHud(d: BrMatch, run: ShipRun): NonNullable<HudState["ship"]> {
+  const t = realNow();
+  const at = run.at(t);
+  return {
+    line: [run.line.ax, run.line.az, run.line.bx, run.line.bz],
+    at: [at.x, at.z],
+    doorsIn: run.doorsIn(t),
+    endIn: run.endIn(t),
+    master: d.players > 1 && d.id === 0,
+    linkedTo: linkedTo !== null ? d.nameFor(linkedTo) : null,
+    keys: { jump: keyLabel("jump"), crouch: keyLabel("crouch"), map: keyLabel("map") },
+  };
+}
+
 function respawnForMatch(d: MatchLike): void {
   const sp = d.spawn;
   newLife(d);
@@ -1434,10 +1528,15 @@ function respawnForMatch(d: MatchLike): void {
     if (d.phase !== "waiting") {
       player.setBounds(BR_BOUNDS);
       setRegion("br");
-      player.beginDrop(sp.x, DROP_HEIGHT, sp.z, sp.yaw);
-      mapOpen = false;
-      dropMapUntil = gameTime + squadCfg.dive.mapSeconds;
-      hud.notice(`DROPPING INTO ${d.poi.name}`, gameTime, 3);
+      // the start of the match is the ship; a beacon's respawn (and the tests) drop straight in
+      const run = d.takeBoarding();
+      if (run) boardShip(d, run);
+      else {
+        player.beginDrop(sp.x, DROP_HEIGHT, sp.z, sp.yaw);
+        mapOpen = false;
+        dropMapUntil = gameTime + squadCfg.dive.mapSeconds;
+        hud.notice(`DROPPING INTO ${d.poi.name}`, gameTime, 3);
+      }
     }
   } else player.teleport(sp.x, 0, sp.z, openYaw(sp.x, sp.z, sp.yaw));
   if (pendingSlots) {
@@ -2149,6 +2248,18 @@ function killcamGun(id: string): ResolvedWeapon {
 let mapOpen = false;
 /** until when the drop keeps the full map up by itself (squad.json dive.mapSeconds) */
 let dropMapUntil = 0;
+/** on the ship in a squad: the jumpmaster (the host) you are linked to, whose jump takes you with them */
+let linkedTo: number | null = null;
+/** following that jumpmaster down: their id, until you break off or the ground comes close */
+let following: number | null = null;
+/** where the formation puts you behind the jumpmaster this frame */
+const leashAt = new THREE.Vector3();
+/**
+ * The tests' switch (tools/e2e.ts sets it on every page): the drop goes
+ * straight onto the squad's place, as it did before the ship, for the checks
+ * that are about what happens after a landing and not about the ship.
+ */
+const straightDrop = (): boolean => (window as unknown as { __straightDrop?: boolean }).__straightDrop === true;
 /** the callbacks every kind of match gets */
 function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRespawn = () => respawnForMatch(d);
@@ -2169,6 +2280,13 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     // a quick chat line: its number, said in the feed under their name
     if (k === "chat" && typeof n === "number") {
       sayQuick(d.nameFor(from) ?? "PLAYER", n, false);
+      return;
+    }
+    // the jumpmaster jumped: a squad mate still linked to them goes too, and follows them down
+    if (k === "jm" && player.aboard && linkedTo === from && d instanceof BrMatch) {
+      linkedTo = null;
+      jumpOut(d, `FOLLOWING ${d.nameFor(from)}  ·  ${keyLabel("crouch")} BREAKS OFF`);
+      following = from;
       return;
     }
     // someone's throw: its flight, bounce and blast here too (their side sends the damage)
@@ -2346,7 +2464,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
     // the squad size is the host's for everyone (an older host sends none: the default size)
-    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team });
+    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop() });
     duel = d;
     wireMatch(d, "br");
   } else {
@@ -2429,7 +2547,7 @@ function startBr(): void {
   for (const c of courses) c.leave();
   const diff = brDifficulty();
   const bots = brBotCount();
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br"), seed: newSeed(), start: brStart(), team: brTeamId() });
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br"), seed: newSeed(), start: brStart(), team: brTeamId(), ship: !straightDrop() });
   duel = d;
   wireMatch(d, "br");
   // the drop starts on the first frame in the game (respawnForMatch, from the countdown)
@@ -3137,13 +3255,13 @@ function step(): void {
     // away on 3, where clicking used to do nothing at all. Not with a grenade
     // in hand: that press throws it.
     const handsOut = emptyHand || holster === "away";
-    if (handsOut && !downedNow && !knockedOut && !ordnance.readied && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
+    if (handsOut && !downedNow && !knockedOut && !player.aboard && !ordnance.readied && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
       meleeReadyAt = now + MELEE_COOLDOWN;
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
     }
     // G: a grenade in hand (again: the next kind you have; after the last, the gun again)
-    if (input.pressedNow("grenade") && !downedNow && !knockedOut && !heal && holster === "out" && !loadout.swapping && (!duel || duel.alive)) {
+    if (input.pressedNow("grenade") && !downedNow && !knockedOut && !player.aboard && !heal && holster === "out" && !loadout.swapping && (!duel || duel.alive)) {
       const k = ordnance.cycle(now, downedNow);
       if (k) {
         hud.notice(`${throwName(k)}  ·  ${keyLabel("fire")} THROWS, ${keyLabel("ads")} PUTS IT AWAY`, now, 1.6);
@@ -3355,7 +3473,7 @@ function step(): void {
 
   // A weapon being raised, lowered or holstered cannot fire or aim.
   // In a 1v1, firing is held during the countdown and after a round is decided.
-  const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !loadout.active.empty && !downedNow && !ordnance.readied && !fireLockedToRelease;
+  const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && !downedNow && !ordnance.readied && !fireLockedToRelease;
   // a burst fires on without the trigger: knocked, or the round decided, it stops
   if (knockedOut || (duel && !duel.canFire)) ws.cancelBurst();
   // knocked in a 1v1: no aiming either
@@ -3453,6 +3571,8 @@ function step(): void {
   // the beams burn out on their own (a holder who left, a message lost)
   for (const [k, b] of beams) if (gameTime > b.until) setBeam(k, null);
   const moveIn = settings.crouchToggle && !scriptInput ? crouchToggled(input) : (scriptInput ?? input);
+  if (duel instanceof BrMatch) shipFrame(duel, moveIn);
+  else if (player.aboard) player.aboard = false;
   player.update(dt, now, knockedOut ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
   // a slide counts as crouched for the spread model: the cone tightens
   const crouched = player.crouched || player.sliding;
@@ -3550,6 +3670,14 @@ function step(): void {
   } else {
     orbitYaw = 0;
     orbitPitch = 0;
+  }
+  if (player.aboard && duel instanceof BrMatch && duel.ship) {
+    // aboard: the camera rides behind and above the ship, round it as you look
+    const camQ = player.orientationAt(player.yaw, player.pitch, 0, 0);
+    const back = tmpDir.set(0, 0, 1).applyQuaternion(camQ);
+    camera.position.copy(duel.ship.at(realNow())).addScaledVector(back, SHIP.chase);
+    camera.position.y += SHIP.chaseUp;
+    camera.quaternion.copy(camQ);
   }
   const watchMate = watch && duel ? duel.remoteOf(watch) : null;
   if (watch && knockedOut && input.pressedNow("thirdPerson")) spectateFirst = !spectateFirst;
@@ -3875,7 +4003,7 @@ function step(): void {
   // killcam the gun in view is your killer's, and it kicks when they fire
   // out (knocked in a round, eliminated): no gun and no hands at all, except the killer's in the killcam;
   // in the skydive the hands are put away, out of the view of the ground you are steering onto
-  viewModel.group.visible = killcam.active || (!third && !knockedOut && !player.dropping);
+  viewModel.group.visible = killcam.active || (!third && !knockedOut && !player.dropping && !player.aboard);
   if (killcam.active && killcam.firedThisFrame) viewModel.onShot();
   selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, third && !killcam.active, knockedOut, downedNow);
   for (const lf of labFigs) {
@@ -4051,7 +4179,10 @@ function step(): void {
     // time. Only while you are still in the air: a guest who lands before the
     // host no longer stares at the map until the host does.
     mapOpen: mapOpen || (!!duelHud?.br?.dropping && player.dropping && now < dropMapUntil),
-    dive: player.dropping ? { k: player.diveFactor, height: player.pos.y } : null,
+    dive: player.dropping
+      ? { k: player.diveFactor, height: player.pos.y - surfaceUnder(player.pos.x, player.pos.z, player.pos.y), following: following !== null && duel ? duel.nameFor(following) : null, breakKey: keyLabel("crouch") }
+      : null,
+    ship: player.aboard && duel instanceof BrMatch && duel.ship ? shipHud(duel, duel.ship) : null,
     heal: heal && vitalsTarget() ? { item: HEAL_ITEMS[heal.item].name, progress: Math.min(1, (now - heal.startedAt) / heal.duration) } : null,
     kit: (duel && duel.alive) || (!duel && rangeCombat.on && rangeCombat.alive) ? { ...kit.items } : null,
     damageDirs: duel ? damageDirs() : undefined,
@@ -4209,6 +4340,9 @@ initWelcome();
   viewModelVisible: () => viewModel.group.visible,
   lobbyCode: () => (hosting && !duel ? hosting.code : null),
   setMapOpen: (on: boolean) => (mapOpen = on),
+  /** the dropship: this match's flight, and who you are linked to or following */
+  ship: () => (duel instanceof BrMatch ? duel.ship : null),
+  shipState: () => ({ aboard: player.aboard, linkedTo, following, leash: player.leash ? player.leash.toArray() : null }),
   /** abilities (tools/e2e.ts): the state, a pick, a use */
   abilities,
   pickAbility: (id: AbilityId) => pickAbility(id, gameTime),

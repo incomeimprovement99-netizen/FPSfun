@@ -36,6 +36,10 @@
 //                    claims their own guns out of it once. Nothing about it
 //                    goes over the wire, because every browser works out the
 //                    same spot from the match seed and the ring it can see.
+//   the dropship     the match starts on a ship flying a line across the
+//                    map (dropship.ts); you jump when you like, a squad
+//                    follows its jumpmaster, and the bots leave it as it
+//                    passes their places and glide down onto them.
 //   Storm Surge      the ring is the only pressure and it only hurts you
 //                    outside it, so hiding used to win ties. In the late
 //                    rounds, when more are alive than the phase allows,
@@ -74,12 +78,33 @@ function clearGround(x: number, z: number): { x: number; z: number } {
   return { x, z };
 }
 
+/**
+ * The nearest point to (x, z) that is clear at body height AND open to the
+ * sky: somewhere a body coming down from the ship can land. clearGround lets
+ * a spot sit under a roof, which is right for someone who walks there and
+ * wrong for someone who falls there, since they land on the roof instead.
+ */
+function openGround(x: number, z: number): { x: number; z: number } {
+  const pad = 0.7;
+  const covered = (px: number, pz: number): boolean => RANGE_SOLIDS.some((s) => s.top > 0.56 && px > s.minX - pad && px < s.maxX + pad && pz > s.minZ - pad && pz < s.maxZ + pad);
+  if (!covered(x, z)) return { x, z };
+  for (let r = 1; r <= 40; r += 1) {
+    for (let k = 0; k < 16; k++) {
+      const px = x + Math.cos((k / 16) * Math.PI * 2) * r;
+      const pz = z + Math.sin((k / 16) * Math.PI * 2) * r;
+      if (!covered(px, pz)) return { x: px, z: pz };
+    }
+  }
+  return clearGround(x, z);
+}
+
 /** a bot goes only for loot within this height of its feet (src/config/bots.json loot.floor) */
 const BOT_LOOT_FLOOR = botsCfg.loot.floor;
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Ring, RING_PHASES, RING_TICK, type Circle } from "./ring";
-import { BR_CENTER, BR_HALF, type BrMap, type Poi } from "./br";
+import { BR_BOUNDS, BR_CENTER, BR_HALF, type BrMap, type Poi } from "./br";
+import { SHIP, ShipRun, buildShip, shipLine, type ShipLine } from "./dropship";
 import { Duel, HEALTH_MAX, SHIELD_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
 import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
@@ -307,6 +332,14 @@ interface BrBot {
   armedShown?: boolean;
   /** which bot squad it belongs to: its own in solo, one of a pair or a three otherwise */
   team: number;
+  /** its place in its squad: the second and third leave the ship a moment after the first */
+  slot: number;
+  /** where it lands: its place, open to the sky */
+  dropTo: { x: number; z: number };
+  /** when it leaves the ship (performance.now() seconds) */
+  jumpAt: number;
+  /** where it came down (the tests: a glide lands on its place) */
+  landedAt?: { x: number; z: number };
 }
 
 /** a care package or a loadout crate: called, on its way down, or landed */
@@ -394,6 +427,14 @@ export class BrMatch extends Duel {
   private squadsSeen: number;
   /** the match seed: the floor's loot, and the loadout crates every browser works out for itself */
   private readonly seed: number;
+  /** the dropship's line, from the seed and the squad's place (null: the drop goes straight onto the place, which the tests ask for) */
+  readonly shipLine: ShipLine | null;
+  /** this browser's flight along the line, from the start of its drop */
+  ship: ShipRun | null = null;
+  private shipModel: { group: THREE.Group; setDoors(open: boolean): void } | null = null;
+  /** the ship is handed to main once, at the start of the drop: a beacon's respawn drops straight in */
+  private boardingTaken = false;
+  private botsLaunched = false;
 
   constructor(
     scene: THREE.Scene,
@@ -401,7 +442,7 @@ export class BrMatch extends Duel {
     private readonly map: BrMap,
     difficulty: BotDifficulty,
     botCount: number,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string },
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean },
     rng: () => number = Math.random
   ) {
     super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br", abilities: opts.abilities ?? true });
@@ -417,6 +458,8 @@ export class BrMatch extends Duel {
     this.seed = opts.seed ?? 1;
     // the squad drops on one place: the host's pick, told to the guests
     this.poi = (opts.poi && map.pois.find((p) => p.id === opts.poi)) || map.pois[Math.floor(rng() * map.pois.length)];
+    // the ship's line passes over it, and every browser draws the same one
+    this.shipLine = opts.ship === false ? null : shipLine(this.seed, this.poi, BR_BOUNDS);
     const now = wallClock();
     this.startedAt = now;
     this.aliveSeen = this.botCount + this.players;
@@ -492,7 +535,9 @@ export class BrMatch extends Duel {
           this.broadcast({ t: "fx", from: bot.remote.id, k: "heal", n: HEAL_CODES.indexOf(item) });
         };
         const node = this.nearestNode(spawn.x, spawn.z);
-        this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false, team: squad });
+        // it comes down from the sky, so it lands somewhere with no roof over it
+        const dropTo = openGround(spawn.x, spawn.z);
+        this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false, team: squad, slot: i % this.team.size, dropTo, jumpAt: Infinity });
       }
       this.ring = new Ring(start, rng);
       this.view = { phase: 0, state: "waiting", timeLeft: RING_PHASES[0].wait, current: { ...this.ring.current }, next: { ...this.ring.next } };
@@ -1251,6 +1296,8 @@ export class BrMatch extends Duel {
       this.leave();
       return;
     }
+    // the ship flies on every browser, on its own clock
+    this.placeShip(now);
     // the crates are everyone's to work out and everyone's to claim, so both
     // run here rather than in the host-only tick below
     this.maybeCrate();
@@ -1282,8 +1329,86 @@ export class BrMatch extends Duel {
   /** when the drop began: the landing is only a landing once it has been in the air */
   private dropAt = Infinity;
   protected override respawn(): void {
+    // the start of the drop: the ship sets off on this browser's clock, before
+    // main is told (super.respawn calls onRespawn, which boards it)
+    if (this.shipLine && !this.ship) {
+      const now = wallClock();
+      this.ship = new ShipRun(this.shipLine, now);
+      this.shipModel = buildShip();
+      this.scene.add(this.shipModel.group);
+      this.placeShip(now);
+    }
     super.respawn();
     this.dropAt = wallClock();
+    this.launchBots();
+  }
+
+  /**
+   * Main asks at the start of the drop whether to board the ship rather than
+   * drop straight in. Once: a beacon's respawn later in the match drops
+   * straight in over the beacon.
+   */
+  takeBoarding(): ShipRun | null {
+    if (this.boardingTaken || !this.ship || this.respawnPoint || this.ship.gone(wallClock())) return null;
+    this.boardingTaken = true;
+    return this.ship;
+  }
+
+  /**
+   * The host: the bots board the ship, each to leave it as it passes nearest
+   * its place (a squad together, the squads a moment apart). With no ship they
+   * drop straight onto their places. Either way they come down from the sky:
+   * the squad match had them start on the ground.
+   */
+  private launchBots(): void {
+    if (this.role !== "host" || this.botsLaunched) return;
+    this.botsLaunched = true;
+    const run = this.ship;
+    const late = new Map<number, number>();
+    for (const b of this.bots) {
+      if (!b.bot.alive) continue;
+      if (run) {
+        if (!late.has(b.team)) late.set(b.team, Math.random() * SHIP.botJitter);
+        b.bot.boardShip();
+        b.bot.pos.copy(run.at(wallClock()));
+        b.jumpAt = run.abeamAt(b.dropTo.x, b.dropTo.z) + late.get(b.team)! + b.slot * SHIP.botGap;
+      } else {
+        b.bot.pos.x = b.dropTo.x;
+        b.bot.pos.z = b.dropTo.z;
+        b.bot.dropFrom(DROP_HEIGHT * (0.8 + Math.random() * 0.4));
+      }
+    }
+  }
+
+  /** the ship's figure where the flight has got to; taken away a while after it leaves the map */
+  private placeShip(now: number): void {
+    const run = this.ship;
+    const m = this.shipModel;
+    if (!run || !m) return;
+    run.at(now, m.group.position);
+    m.group.rotation.set(0, (run.yaw * Math.PI) / 180, 0);
+    m.setDoors(run.doorsOpen(now));
+    if (run.along(now) > run.line.length + SHIP.speed * 12) this.dropShipModel();
+  }
+
+  private dropShipModel(): void {
+    const m = this.shipModel;
+    if (!m) return;
+    m.group.removeFromParent();
+    m.group.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh) {
+        mesh.geometry.dispose();
+        (mesh.material as THREE.Material).dispose();
+      }
+    });
+    this.shipModel = null;
+  }
+
+  /** a player's figure by id, while it is being drawn: the jumpmaster a squad follows down */
+  figureOf(id: number): Dummy | null {
+    const r = this.remotes.get(id);
+    return r && r.samples.length ? r.avatar : null;
   }
 
   /** the host: the ring, the bots, and what goes out about them */
@@ -1302,6 +1427,7 @@ export class BrMatch extends Duel {
     for (const b of this.bots) {
       if (!b.landed && b.bot.alive && !b.bot.dropping) {
         b.landed = true;
+        b.landedAt = { x: b.bot.pos.x, z: b.bot.pos.z };
         // nobody shoots for a moment after a landing, loot or loadouts; with
         // loot on, the bot's own search is what keeps its gun down after that
         b.armedAt = now + squadCfg.drop.grace;
@@ -1375,6 +1501,18 @@ export class BrMatch extends Duel {
       if (last) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z) });
     }
 
+    // the ship: a bot leaves it as it passes nearest the bot's place, and
+    // nobody is still aboard past the far edge
+    const run = this.ship;
+    if (run) {
+      const at = run.riderAt(now);
+      for (const b of this.bots) {
+        if (!b.bot.aboard) continue;
+        if (now >= b.jumpAt || run.gone(now)) b.bot.leaveShip(at.clone().setY(at.y - SHIP.exit), b.dropTo);
+        else b.bot.pos.copy(at);
+      }
+    }
+
     // the bots: sense, walk the graph, fight; their shots are tested here
     for (const b of this.bots) {
       const bot = b.bot;
@@ -1441,6 +1579,8 @@ export class BrMatch extends Duel {
       this.botSendNext = now + 1 / BOT_SEND_HZ;
       for (const b of this.bots) {
         const bot = b.bot;
+        // on the ship it is nowhere yet: a guest draws a figure only once one has been sent
+        if (bot.aboard) continue;
         const yaw = ((bot.dummy.group.rotation.y - Math.PI) * 180) / Math.PI;
         this.broadcast({
           t: "s",
@@ -1628,6 +1768,7 @@ export class BrMatch extends Duel {
   }
 
   override dispose(): void {
+    this.dropShipModel();
     for (const b of this.bots) b.bot.dispose();
     this.bots = [];
     this.lootField?.dispose();

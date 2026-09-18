@@ -866,3 +866,22 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - The drop's numbers moved from literals in `player.ts` and `bots.ts` into `squad.json` `dive`; movesim checks the
   four speeds, e2e checks them in the page, and `npm run snap` has a picture of the readout.
 
+## Milestone 61 — The dropship, the jumpmaster, and bots that drop again ✅
+2026-09-18 (Phase 15). `dropship.ts` (new), `brmatch.ts`, `bots.ts`, `player.ts`, `main.ts`, `hud.ts`, `soundscape.ts`,
+`src/config/squad.json`.
+- The battle royale starts on a ship flying a straight line across the map at 140 m and 26 m/s. The line passes
+  within 30 m of the squad's place and comes in from the far side, so the place is ahead of you; it is at least
+  320 m long, so a place in a corner does not get a line that clips the corner. Every browser works it out from
+  the match seed, so nothing about the ship goes over the wire.
+- Aboard: a chase camera behind the ship, the map up with the line on it (flown faint, to come bright), the doors
+  shut for the first 2 s. Space jumps once they open; the far edge puts out whoever is still aboard. No weapons,
+  no hands, the engines under the wind.
+- In a squad the host is the jumpmaster. A linked squad mate jumps when the host jumps and is held in formation
+  behind them until C breaks off or the jumpmaster is 25 m off the ground; Space on the ship jumps alone.
+- The bots ride it out of sight (a guest draws nobody until the host sends a bot's first packet off the ship),
+  leave as it passes their places, a squad together, and glide down onto them flying the player's numbers. They had
+  not dropped at all since the squad match came in: they started on the ground.
+- Checks: `tools/checks/dropship.ts` (the line over ten thousand seeded matches, the flight's clock, the glide with
+  and without a wall), the e2e `ship` section (the ride, the refused and taken jump, the bots landing on their
+  places, the end of the line, the jumpmaster and the break), and three `npm run snap` pictures.
+

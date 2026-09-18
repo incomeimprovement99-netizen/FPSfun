@@ -40,6 +40,11 @@ async function open(browser: Browser, query: string): Promise<Page> {
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(`console: ${m.text()}`);
   });
+  // The battle royale drops straight onto the squad's place in every test but
+  // the ship's own (shipTest), which turns it back off: the checks after a
+  // landing are about the landing, and a ride across the map would add half a
+  // minute to each of them.
+  await page.evaluateOnNewDocument("window.__straightDrop = true");
   await page.goto(BASE + query, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
   return page;
@@ -2273,7 +2278,134 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   await cp.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, modes, squad, p2p) */
+/**
+ * The dropship (src/game/dropship.ts): the battle royale starts on a ship
+ * flying a line across the map. Alone: aboard with the map up and the doors
+ * shut, the bots riding out of sight, the jump refused until the doors open
+ * and taken the moment they do, and every bot leaving the ship as it passes
+ * its place and gliding onto it. Then the end of the line, which puts out
+ * whoever is still aboard. Then a squad: the host is the jumpmaster, the
+ * guest is linked, the host's jump takes the guest along in formation, and
+ * the guest's break key lets go.
+ */
+async function shipTest(browser: Browser, query: string, squadQuery: string): Promise<void> {
+  const page = await open(browser, query);
+  await ev(page, "window.__straightDrop = false");
+  await ev(page, brRow("solo", 5));
+  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+  await sleep(400);
+  // the bots hold their fire: this is about the ride, and an idle rider on the ground is easy prey
+  await ev(page, "window.__range.duel().holdFire = true");
+  const on = await ev<{ aboard: boolean; y: number; map: boolean; doorsIn: number; hud: boolean; hidden: number; bots: number; edge: number[]; off: number; ahead: boolean; hands: boolean }>(
+    page,
+    `(() => { const R = window.__range; const d = R.duel(); const run = R.ship(); const h = R.hud.last; const L = run.line;
+      const B = { minX: -220, maxX: 220, minZ: 280, maxZ: 720 };
+      const edge = (x, z) => Math.min(Math.abs(x - B.minX), Math.abs(x - B.maxX), Math.abs(z - B.minZ), Math.abs(z - B.maxZ));
+      const along = Math.max(0, Math.min(L.length, (d.poi.x - L.ax) * L.dx + (d.poi.z - L.az) * L.dz));
+      const off = Math.hypot(d.poi.x - (L.ax + L.dx * along), d.poi.z - (L.az + L.dz * along));
+      return { aboard: R.shipState().aboard, y: R.player.pos.y, map: !!h?.mapOpen, doorsIn: h?.ship?.doorsIn ?? -1, hud: !!h?.ship,
+        hidden: d.bots.filter((b) => b.bot.aboard && !b.bot.dummy.group.visible).length, bots: d.bots.length,
+        edge: [edge(L.ax, L.az), edge(L.bx, L.bz)], off, ahead: along >= L.length / 2 - 30, hands: R.viewModelVisible() }; })()`
+  );
+  check("the ship: the battle royale starts aboard it, at its height, the map up, the doors still shut", on.aboard && Math.abs(on.y - 138.4) < 0.6 && on.map && on.hud && on.doorsIn > 0, JSON.stringify(on));
+  check("the ship: the five bots ride it too, out of sight", on.bots === 5 && on.hidden === 5, `${on.hidden} of ${on.bots} hidden aboard`);
+  check("the ship: its line crosses the map edge to edge, over the squad's place, with the place ahead", on.edge.every((e) => e < 0.05) && on.off <= 30.01 && on.ahead, JSON.stringify({ edge: on.edge, off: on.off, ahead: on.ahead }));
+  check("the ship: no hands in the view aboard", !on.hands);
+  // the ship carries you: two readings of where you are a second apart
+  const pace = await ev<number>(page, `new Promise((ok) => { const R = window.__range; const a = R.player.pos.clone(); const t0 = performance.now(); setTimeout(() => { const b = R.player.pos; ok(Math.hypot(b.x - a.x, b.z - a.z) / ((performance.now() - t0) / 1000)); }, 500); })`);
+  check("the ship: it carries you along its line at 26 m/s", Math.abs(pace - 26) < 4, `${pace.toFixed(1)} m/s`);
+  // the jump key held from here: refused while the doors are shut, taken as they open
+  await ev(page, `window.__range.setScript({ held: (a) => a === "jump", pressedNow: (a) => a === "jump", playing: true, endFrame: () => {} })`);
+  await sleep(150);
+  const shut = await ev<{ aboard: boolean; doorsIn: number }>(page, `(() => { const R = window.__range; return { aboard: R.shipState().aboard, doorsIn: R.ship().doorsIn(performance.now() / 1000) }; })()`);
+  check("the ship: the jump is refused while the doors are shut", shut.aboard && shut.doorsIn > 0, JSON.stringify(shut));
+  const out = await page.waitForFunction("!window.__range.shipState().aboard", { polling: 50, timeout: 6000 }).then(() => true, () => false);
+  const left = await ev<{ dropping: boolean; map: boolean; along: number; inside: boolean }>(
+    page,
+    `(() => { const R = window.__range; const L = R.ship().line; const p = R.player.pos;
+      return { dropping: R.player.dropping, map: !!R.hud.last?.mapOpen, along: (p.x - L.ax) * L.dx + (p.z - L.az) * L.dz, inside: p.x > -220 && p.x < 220 && p.z > 280 && p.z < 720 }; })()`
+  );
+  check("the ship: and taken the moment they open, into the skydive over the map's edge, the map out of the way", out && left.dropping && !left.map && left.inside && left.along >= -1 && left.along < 30, JSON.stringify(left));
+  await ev(page, "window.__range.setScript(null)");
+  const fight = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 30000 }).then(() => true, () => false);
+  check("the ship: the fight starts when you land", fight, await ev<string>(page, "String(window.__range.duel()?.phase)"));
+  // the bots leave as the ship passes their places and glide down onto them
+  const allOff = await page.waitForFunction("window.__range.duel().bots.every((b) => !b.bot.aboard)", { polling: 250, timeout: 30000 }).then(() => true, () => false);
+  const down = await page.waitForFunction("window.__range.duel().bots.every((b) => !b.bot.dropping)", { polling: 250, timeout: 20000 }).then(() => true, () => false);
+  const bots = await ev<Array<{ miss: number; off: number; y: number }>>(
+    page,
+    `(() => { const R = window.__range; const run = R.ship(); if (!run) return []; const L = run.line; return R.duel().bots.map((b) => {
+      const t = b.dropTo; const s = Math.max(0, Math.min(L.length, (t.x - L.ax) * L.dx + (t.z - L.az) * L.dz));
+      const at = b.landedAt ?? { x: Infinity, z: Infinity };
+      return { miss: Math.hypot(at.x - t.x, at.z - t.z), off: Math.hypot(t.x - (L.ax + L.dx * s), t.z - (L.az + L.dz * s)), y: b.bot.pos.y }; }); })()`
+  );
+  const inReach = bots.filter((b) => b.off < 140);
+  check("the ship: every bot leaves it and lands", allOff && down && bots.length === 5, JSON.stringify({ allOff, down, bots: bots.length }));
+  check("the ship: a bot whose place is in a glide's reach lands on it", inReach.every((b) => b.miss < 3), JSON.stringify(bots.map((b) => [b.miss.toFixed(1), b.off.toFixed(0)])));
+  await page.close();
+
+  // ---- the end of the line: whoever is still aboard is put out
+  const late = await open(browser, query);
+  await ev(late, "window.__straightDrop = false");
+  await ev(late, brRow("solo", 2));
+  await ev(late, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+  await sleep(400);
+  await ev(late, "window.__range.ship().startAt -= 60");
+  const put = await late.waitForFunction("!window.__range.shipState().aboard", { polling: 50, timeout: 3000 }).then(() => true, () => false);
+  const lastOut = await ev<{ dropping: boolean; bots: number }>(late, "(() => { const R = window.__range; return { dropping: R.player.dropping, bots: R.duel().bots.filter((b) => b.bot.aboard).length }; })()");
+  check("the ship: at the far edge it puts out whoever is still aboard, you and the bots", put && lastOut.dropping && lastOut.bots === 0, JSON.stringify(lastOut));
+  await late.close();
+
+  // ---- a squad: the jumpmaster's jump is the squad's
+  const host = await open(browser, squadQuery);
+  const guest = await open(browser, squadQuery);
+  for (const p of [host, guest]) await ev(p, "window.__straightDrop = false");
+  await ev(host, brRow("duo", 2));
+  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelHost").click(); })()`);
+  let code = "";
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check("the ship: a squad connects", false, code);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  for (const p of [host, guest]) await pressPlay(p);
+  const both = await Promise.all([host, guest].map((p) => p.waitForFunction("window.__range.shipState().aboard", { polling: 100, timeout: 15000 }).then(() => true, () => false)));
+  const roles = await Promise.all(
+    [host, guest].map((p) => ev<{ linkedTo: number | null; master: boolean; linkedName: string | null }>(p, "(() => { const R = window.__range; const h = R.hud.last?.ship; return { linkedTo: R.shipState().linkedTo, master: !!h?.master, linkedName: h?.linkedTo ?? null }; })()"))
+  );
+  check("the ship: a squad boards together, the host the jumpmaster and the guest linked to them", both[0] && both[1] && roles[0].master && roles[0].linkedTo === null && roles[1].linkedTo === 0 && !!roles[1].linkedName, JSON.stringify(roles));
+  await host.waitForFunction("window.__range.ship().doorsOpen(performance.now() / 1000)", { polling: 100, timeout: 8000 }).catch(() => undefined);
+  await ev(host, `window.__range.setScript({ held: (a) => a === "jump", pressedNow: (a) => a === "jump", playing: true, endFrame: () => {} })`);
+  const hostOut = await host.waitForFunction("!window.__range.shipState().aboard", { polling: 50, timeout: 4000 }).then(() => true, () => false);
+  await ev(host, "window.__range.setScript(null)");
+  const guestOut = await guest.waitForFunction("!window.__range.shipState().aboard", { polling: 50, timeout: 4000 }).then(() => true, () => false);
+  const gs = await ev<{ following: number | null; dropping: boolean }>(guest, "(() => { const R = window.__range; return { following: R.shipState().following, dropping: R.player.dropping }; })()");
+  check("the ship: the jumpmaster's jump takes the linked guest out with them", hostOut && guestOut && gs.following === 0 && gs.dropping, JSON.stringify({ hostOut, guestOut, gs }));
+  await sleep(2000);
+  const gap = await ev<{ gap: number; following: number | null; hint: string | null }>(
+    guest,
+    `(() => { const R = window.__range; const f = R.duel().figureOf(0); const p = R.player.pos; const g = f ? f.group.position : null;
+      return { gap: g ? Math.hypot(p.x - g.x, p.y - g.y, p.z - g.z) : -1, following: R.shipState().following, hint: R.hud.last?.dive?.following ?? null }; })()`
+  );
+  check("the ship: the guest flies in formation behind the jumpmaster, and the dive readout says whom it follows", gap.following === 0 && gap.gap > 2 && gap.gap < 12 && !!gap.hint, JSON.stringify(gap));
+  await ev(guest, `window.__range.setScript({ held: (a) => a === "crouch", pressedNow: (a) => a === "crouch", playing: true, endFrame: () => {} })`);
+  await sleep(300);
+  await ev(guest, "window.__range.setScript(null)");
+  const broke = await ev<{ following: number | null; leash: unknown; dropping: boolean }>(guest, "(() => { const R = window.__range; const s = R.shipState(); return { following: s.following, leash: s.leash, dropping: R.player.dropping }; })()");
+  check("the ship: the break key lets go, and the guest flies themself", broke.following === null && broke.leash === null && broke.dropping, JSON.stringify(broke));
+  const landed = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel().phase === "fight" && !window.__range.player.dropping`, { polling: 200, timeout: 30000 }).then(() => true, () => false)));
+  check("the ship: both land and the fight is on", landed[0] && landed[1], JSON.stringify(landed));
+  await host.close();
+  await guest.close();
+}
+
+/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, ship, modes, squad, p2p) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -2613,6 +2745,11 @@ async function main(): Promise<void> {
     if (want("loot")) {
       console.log("\nBattle royale: landing with nothing, the loot");
       await brLootTest(browser, "?norender");
+    }
+
+    if (want("ship")) {
+      console.log("\nThe dropship: the ride, the jump, the end of the line, the bots, the jumpmaster");
+      await shipTest(browser, "?norender", "?net=local&norender");
     }
 
     if (want("finish")) {

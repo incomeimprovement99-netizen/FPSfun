@@ -41,6 +41,7 @@ import { asDifficulty } from "./stats";
 import { Throwables, blastDamage, throwCode } from "./throwables";
 import { HEALTH_MAX, ROUNDS_TO_WIN, SHIELD_MAX, ZONE_CAPTURE, ZONE_DELAY, type DuelHud, type LocalState, type MatchLike, type Remote, type Spawn } from "./duel";
 import squadCfg from "../config/squad.json";
+import { glideStep } from "./dropship";
 
 const COUNTDOWN = 3;
 const ROUND_END = 3;
@@ -237,6 +238,7 @@ const HEAL_WALK = 0.45;
 /** a drop from the sky: terminal speed, m/s */
 /** how fast a bot comes down from the drop, straight (src/config/squad.json dive.botFall) */
 export const DROP_SPEED = squadCfg.dive.botFall;
+
 
 /** what a bot knows this frame; the match works it out from its own rules */
 export interface BotSense {
@@ -527,6 +529,10 @@ export class Bot {
   yaw = 0;
   /** falling in from the sky at the start of a battle royale */
   dropping = false;
+  /** on the dropship: carried by the match, out of sight and out of reach (it counts as dropping) */
+  aboard = false;
+  /** where its skydive glides to; null falls straight down */
+  dropTarget: { x: number; z: number } | null = null;
   /** which map it is on: how far it sees is the map's business (sightRange above) */
   sightMode: BotSightMode = "arena";
   /**
@@ -651,6 +657,8 @@ export class Bot {
     this.seenAt = -Infinity;
     this.sawLast = false;
     this.dropping = false;
+    this.aboard = false;
+    this.dropTarget = null;
     this.joltLeft = 0;
     this.joltCharges = JOLT.charges;
     this.joltRechargeAt = Infinity;
@@ -820,6 +828,24 @@ export class Bot {
     }
   }
 
+  /** on the ship: hidden, and dropping as far as everything that leaves a falling bot alone is concerned */
+  boardShip(): void {
+    this.aboard = true;
+    this.dropping = true;
+    this.dropTarget = null;
+    this.dummy.group.visible = false;
+  }
+
+  /** off the ship at `at`, gliding for its place */
+  leaveShip(at: THREE.Vector3, target: { x: number; z: number }): void {
+    this.aboard = false;
+    this.dropping = true;
+    this.pos.copy(at);
+    this.dropTarget = { x: target.x, z: target.z };
+    this.dummy.group.visible = true;
+    this.dummy.group.position.copy(this.pos);
+  }
+
   /** start `height` metres up and fall in at the drop speed; no shooting until it lands */
   dropFrom(height: number): void {
     this.pos.y = height;
@@ -979,12 +1005,28 @@ export class Bot {
       return [];
     }
     if (this.dropping) {
-      // straight down at the drop speed until the ground, or a roof, is under the feet
-      this.pos.y -= DROP_SPEED * dt;
+      // on the ship: the match carries it
+      if (this.aboard) {
+        this.dummy.group.visible = false;
+        return [];
+      }
+      const t = this.dropTarget;
+      if (t) {
+        // gliding onto its place off the ship, the way a player would fly it (dropship.ts)
+        const yaw = glideStep(this.pos, t, dt, (x, z) => this.groundAt(x, z), (x, z) => this.blocked(x, z));
+        if (yaw !== null) {
+          this.yaw = yaw;
+          this.dummy.group.rotation.set(0, yaw * (Math.PI / 180) + Math.PI, 0);
+        }
+      } else {
+        // straight down at the drop speed until the ground, or a roof, is under the feet
+        this.pos.y -= DROP_SPEED * dt;
+      }
       const ground = this.groundAt(this.pos.x, this.pos.z);
       if (this.pos.y <= ground) {
         this.pos.y = ground;
         this.dropping = false;
+        this.dropTarget = null;
       }
       this.dummy.group.position.copy(this.pos);
       this.dummy.setPose({ speed: 0, stance: "air", pitch: -30 });
