@@ -53,9 +53,9 @@
       }
     }
   },
-  "_places": "Which place is which tier, by the id in src/game/br.ts's pois. East Ridge and West Town are high: the ridge is the hardest place on the map to leave and the town is the only one built room by room, so both should pay for the walk. The hub and the two yards are mid, because everybody lands on them anyway and they do not need a second reason. The four corner compounds are low, so crossing a corner is a choice and not a shortcut to a full kit.",
+  "_places": "Which place is which tier, by the id in src/game/br.ts's pois. East Ridge, West Town and the hub are high: the ridge is the hardest place on the map to leave, the town is built room by room, and the hub has the Mast, the map's tallest place, seven floors to clear and a roof to hold, so all three pay for the fight. The two yards are mid, because everybody lands on them anyway and they do not need a second reason. The four corner compounds are low, so crossing a corner is a choice and not a shortcut to a full kit.",
   "places": {
-    "hub": "mid",
+    "hub": "high",
     "north": "mid",
     "south": "mid",
     "east": "high",

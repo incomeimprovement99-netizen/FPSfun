@@ -17,9 +17,19 @@
 // 2.4 m container is a climb.
 import * as THREE from "three";
 
-/** what a POI builder hands these helpers: the box maker from br.ts (POI-local coordinates) */
+/** a box maker in POI-local coordinates: size, then where its base sits */
+export type BoxMaker = (w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material, isSolid?: boolean) => THREE.Mesh;
+
+/** what a POI builder hands these helpers: the box makers from br.ts (POI-local coordinates) */
 export interface PoiCtx {
-  box: (w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material, isSolid?: boolean) => THREE.Mesh;
+  /** a bevelled box: for small things, crates, posts and trim, where the chamfer is seen */
+  box: BoxMaker;
+  /**
+   * A plain box, 12 triangles to the bevel's 300: for walls, floors, steps
+   * and anything else big. The bevel costs the same at any size, and on a
+   * 13 m wall nobody sees it.
+   */
+  slab: BoxMaker;
   root: THREE.Group;
   /** a rideable zipline between two POI-local points */
   zip: (a: THREE.Vector3, b: THREE.Vector3, floorA: number, floorB: number) => void;
@@ -38,6 +48,11 @@ export type Side = "n" | "s" | "e" | "w";
 export interface BuildingOpts {
   x: number;
   z: number;
+  /**
+   * Where the ground floor stands, metres (0 is the sand). A shell on a
+   * terrace stands on the terrace's top, since nothing can be dug below 0.
+   */
+  y?: number;
   /** footprint, metres */
   w: number;
   d: number;
@@ -48,8 +63,21 @@ export interface BuildingOpts {
   doors?: Side[];
   /** sides with windows on every storey: a 1.2 m sill you can shoot over and vault */
   windows?: Side[];
-  /** a stair run from the ground to the top, inside */
+  /**
+   * Stairs from the ground to the top storey, inside, up the east side. A
+   * flight fills one storey and the next starts at the other end of the
+   * building, so nothing is ever built over a step. With two or more flights
+   * (three storeys, or a roof stair on two) the treads share the building's
+   * depth and you walk round from one flight to the next beside them: that
+   * wants `w` of 5 m or more and `d` of 8.5 m or more at a 4 m storey (8 at
+   * 3.6, 7.5 at 3.4), or the treads are too shallow for the bots. 12 m deep
+   * gives a tread you would call a stair.
+   */
   stairs?: boolean;
+  /** one more flight, up through a hole in the roof: the roof is somewhere to walk to (implies stairs) */
+  roofAccess?: boolean;
+  /** the ground storey is an open hall on four corner columns rather than walled rooms */
+  openGround?: boolean;
   /** a balcony round the top storey */
   balcony?: boolean;
   /** a lip round the roof, to crouch behind */
@@ -62,21 +90,46 @@ const DOOR_W = 2.4;
 const DOOR_H = 2.6;
 const SILL = 1.1;
 const WIN_TOP = 2.4;
+/** the stair hole's width across the building: the flight's 2.6 m and a margin */
+const HOLE_W = 3.2;
+/**
+ * The least distance from the end wall to where a flight's third step
+ * starts. A body gets onto a flight from a spot clear of the end wall behind
+ * it and of the third step, which is a wall seen from the floor. The bots'
+ * walk (and tools/e2e.ts's flood of it) only stands on a half-metre grid, so
+ * that stretch has to be more than half a metre long, or whether the flight
+ * can be climbed at all depends on where the building happens to sit. Deep
+ * treads leave room for it anyway; shallow ones push the flight's foot away
+ * from the wall.
+ */
+const FOOT = 1.33;
+/**
+ * The shallowest tread the bots can climb. Under a quarter of a metre one
+ * half-metre move can cross three steps, more than a step and a step's lag,
+ * and nothing walking that grid gets up it. Test shells flooded at 64
+ * placements each agree: 0.25 m treads climbed at every one, 0.22 m at none.
+ */
+const MIN_TREAD = 0.25;
 
 /**
  * A building with an inside. Returns the roof height and the interior floor
  * heights, so a caller can put loot on them.
  */
 export function building(ctx: PoiCtx, o: BuildingOpts): { roof: number; floors: number[] } {
-  const { box, mats } = ctx;
+  const { box, slab, mats } = ctx;
   const w = o.w;
   const d = o.d;
   const t = o.t ?? 0.4;
+  const base = o.y ?? 0;
   const storeys = o.storeys ?? 1;
   const h = o.storeyH ?? 3.4;
   const doors = o.doors ?? ["s"];
   const windows = o.windows ?? [];
   const floors: number[] = [];
+  const inner = { w: w - t * 2, d: d - t * 2 };
+  // Anything 2 m or more across is a slab: a building is dozens of pieces and
+  // the bevel is 300 triangles each whatever its size. A mullion keeps it.
+  const piece: BoxMaker = (bw, bh, bd, x, y, z, mat) => (Math.max(bw, bh, bd) >= 2 ? slab : box)(bw, bh, bd, x, y, z, mat);
 
   /**
    * One side's wall for one storey, with a doorway gap on the ground floor
@@ -87,12 +140,12 @@ export function building(ctx: PoiCtx, o: BuildingOpts): { roof: number; floors: 
     const horizontal = side === "n" || side === "s";
     const len = horizontal ? w : d;
     const along = (v: number): [number, number] => (horizontal ? [o.x + v, o.z + (side === "n" ? -d / 2 : d / 2)] : [o.x + (side === "w" ? -w / 2 : w / 2), o.z + v]);
-    const put = (from: number, to: number, base: number, top: number): void => {
+    const put = (from: number, to: number, bottom: number, top: number): void => {
       const mid = (from + to) / 2;
       const [bx, bz] = along(mid);
       const size = Math.abs(to - from);
-      if (size < 0.05 || top - base < 0.05) return;
-      box(horizontal ? size : t, top - base, horizontal ? t : size, bx, base, bz, mats.wall);
+      if (size < 0.05 || top - bottom < 0.05) return;
+      piece(horizontal ? size : t, top - bottom, horizontal ? t : size, bx, bottom, bz, mats.wall);
     };
     const hasDoor = storey === 0 && doors.includes(side);
     const hasWindow = windows.includes(side) && (storey > 0 || !hasDoor);
@@ -114,35 +167,80 @@ export function building(ctx: PoiCtx, o: BuildingOpts): { roof: number; floors: 
     }
   };
 
+  // The stairs are worked out before the floors, because each floor's hole
+  // is cut to fit the flight that comes up through it.
+  //
+  // This fixes two things that made every building of three storeys or more
+  // a dead end for the bots. Every flight used to sit at the same x and z, so
+  // storey 1's steps were built straight over storey 0's: at a 3.4 m storey
+  // the headroom over the fourth step was 1.7 m, under the 1.83 m a body
+  // needs, and the climb stopped there. And the hole was always 4.2 m long
+  // however long the flight was, so a 3.6 m storey's 5.6 m flight ran its top
+  // steps in under the slab: the North Yard warehouse's first floor could not
+  // be walked to at all. Now each flight starts at the opposite end from the
+  // one below it, and each hole is as long as its flight.
+  const flights = o.stairs || o.roofAccess ? storeys - 1 + (o.roofAccess ? 1 : 0) : 0;
+  const steps = Math.max(2, Math.round(h / 0.42));
+  const rise = h / steps;
+  // The tread that fits when a flight's first step sits `lead` from the end
+  // wall. One flight may use the whole depth. Two or more share it: each
+  // flight's hole runs 0.3 m past its top step, and the floor between that
+  // and the next flight's top is where you step off one and walk round to
+  // the foot of the other.
+  const fit = (lead: number): number => Math.min(0.62, flights > 1 ? (inner.d - 0.8 - 2 * lead) / (2 * steps) : (inner.d - 0.6 - lead) / steps);
+  let lead = 0.6;
+  let run = fit(lead);
+  if (FOOT - 1.5 * run > lead) {
+    // shallow treads: solve lead = FOOT - 1.5 run and run = fit(lead) together
+    run = Math.min(0.62, flights > 1 ? (inner.d - 0.8 - 2 * FOOT) / (2 * steps - 3) : (inner.d - 0.6 - FOOT) / (steps - 1.5));
+    lead = FOOT - 1.5 * run;
+  }
+  const holeD = Math.min(inner.d - 0.6, lead + steps * run + 0.3);
+  /** which end a flight climbs from: +1 starts at the south wall and climbs north, -1 the reverse */
+  const endOf = (s: number): 1 | -1 => (s % 2 === 0 ? 1 : -1);
+  // Neither of these stops the build: the building still stands, it is just
+  // somewhere the bots cannot go, and this says so where someone will see it.
+  if (flights > 0 && run < MIN_TREAD) {
+    console.warn(`building at (${o.x}, ${o.z}): its ${run.toFixed(2)} m stair treads are too shallow for the bots to climb; it needs to be deeper than ${d} m`);
+  }
+  if (flights > 1 && w < 5) {
+    console.warn(`building at (${o.x}, ${o.z}): at ${w} m wide there is no floor beside the stairs to walk round from one flight to the next`);
+  }
+
   for (let s = 0; s < storeys; s++) {
-    const y = s * h;
-    for (const side of ["n", "s", "e", "w"] as Side[]) wall(side, y, s);
+    const y = base + s * h;
+    if (s === 0 && o.openGround) {
+      // an open hall: four corner columns carry the storeys above
+      for (const [sx, sz] of [
+        [-1, -1],
+        [1, -1],
+        [-1, 1],
+        [1, 1],
+      ]) piece(1.4, h, 1.4, o.x + sx * (w / 2 - 0.7), y, o.z + sz * (d / 2 - 0.7), mats.wall);
+    } else {
+      for (const side of ["n", "s", "e", "w"] as Side[]) wall(side, y, s);
+    }
     // the floor over this storey: the next storey's floor, or the roof
     const top = y + h;
-    const inner = { w: w - t * 2, d: d - t * 2 };
-    if (s < storeys - 1) {
-      // a floor with a hole at one corner for the stairs
-      const holeW = o.stairs ? 3.2 : 0;
-      box(inner.w - holeW, 0.3, inner.d, o.x - holeW / 2, top - 0.3, o.z, mats.floor);
-      if (holeW > 0) box(holeW, 0.3, inner.d - 4.2, o.x + inner.w / 2 - holeW / 2, top - 0.3, o.z - 2.1, mats.floor);
-      floors.push(top);
+    if (s < flights) {
+      // a hole down the east side at the end this storey's flight climbs to
+      const end = endOf(s);
+      slab(inner.w - HOLE_W, 0.3, inner.d, o.x - HOLE_W / 2, top - 0.3, o.z, mats.floor);
+      slab(HOLE_W, 0.3, inner.d - holeD, o.x + inner.w / 2 - HOLE_W / 2, top - 0.3, o.z - (end * holeD) / 2, mats.floor);
     } else {
-      box(inner.w, 0.3, inner.d, o.x, top - 0.3, o.z, mats.floor);
+      slab(inner.w, 0.3, inner.d, o.x, top - 0.3, o.z, mats.floor);
     }
+    if (s < storeys - 1) floors.push(top);
   }
-  const roof = storeys * h;
+  const roof = base + storeys * h;
 
-  // the stairs: a run up the east side of each storey, steps the movement can walk
-  if (o.stairs) {
-    const steps = Math.max(2, Math.round(h / 0.42));
-    const rise = h / steps;
-    const run = Math.min(0.62, (d - t * 2 - 1.2) / steps);
-    for (let s = 0; s < storeys - 1; s++) {
-      const y = s * h;
-      for (let i = 0; i < steps; i++) {
-        const z = o.z + d / 2 - t - 0.6 - i * run;
-        box(2.6, rise * (i + 1), run, o.x + w / 2 - t - 1.5, y, z, mats.floor);
-      }
+  // the stairs: a flight up the east side of each storey, steps the movement can walk
+  for (let s = 0; s < flights; s++) {
+    const end = endOf(s);
+    const y = base + s * h;
+    for (let i = 0; i < steps; i++) {
+      const z = o.z + end * (inner.d / 2 - lead - i * run);
+      slab(2.6, rise * (i + 1), run, o.x + w / 2 - t - 1.5, y, z, mats.floor);
     }
   }
 
@@ -152,8 +250,8 @@ export function building(ctx: PoiCtx, o: BuildingOpts): { roof: number; floors: 
       [0, d / 2 + 0.8, w + 1.6, 1.6],
       [0, -d / 2 - 0.8, w + 1.6, 1.6],
     ] as const) {
-      box(bw, 0.3, bd, o.x + dx, y - 0.3, o.z + dz, mats.floor);
-      box(bw, 0.9, 0.2, o.x + dx, y, o.z + dz + (dz > 0 ? bd / 2 : -bd / 2), mats.trim);
+      slab(bw, 0.3, bd, o.x + dx, y - 0.3, o.z + dz, mats.floor);
+      slab(bw, 0.9, 0.2, o.x + dx, y, o.z + dz + (dz > 0 ? bd / 2 : -bd / 2), mats.trim);
     }
   }
 
@@ -163,7 +261,7 @@ export function building(ctx: PoiCtx, o: BuildingOpts): { roof: number; floors: 
       [w, 0.3, 0, d / 2 - 0.15],
       [0.3, d, -w / 2 + 0.15, 0],
       [0.3, d, w / 2 - 0.15, 0],
-    ] as const) box(bw, 0.9, bd, o.x + dx, roof, o.z + dz, mats.trim);
+    ] as const) piece(bw, 0.9, bd, o.x + dx, roof, o.z + dz, mats.trim);
   }
 
   return { roof, floors };
@@ -177,19 +275,57 @@ export function crateStair(ctx: PoiCtx, x: number, z: number, to: number, dir: 1
 }
 
 /**
- * A jump tower: a mast with a pad on top and a zipline off it, the way up
- * being a crate stair. Hyper Scape's lesson, and Apex's balloons: a place
- * should have a way OUT that is not running across open ground.
+ * Where a jump tower's ramp goes: the face of the pad it runs along, and the
+ * way it runs down to its foot along that face.
  */
-export function jumpTower(ctx: PoiCtx, x: number, z: number, to: THREE.Vector3, height = 14): void {
-  const { box, mats } = ctx;
+export type RampSide = { face: "e" | "w"; foot: "n" | "s" } | { face: "n" | "s"; foot: "e" | "w" };
+
+/**
+ * A jump tower: a mast with a pad on top, a ramp up to it, and a zipline off
+ * it. Hyper Scape's lesson, and Apex's balloons: a place should have a way
+ * OUT that is not running across open ground.
+ *
+ * It used to be a 13 to 15 m mast with a crate stair that stopped at 5.4 m
+ * in 1.35 m steps, so nobody could stand on the pad and its zipline could
+ * only be ridden toward it, never away. The pad is 6 m now and a ramp of
+ * half-metre tiers climbs to it, which a bot can walk as well as a player.
+ *
+ * `toFloor` is the ground under the rope's far end, for a rope that comes
+ * down on raised ground: its post stands there, not on the sand beneath.
+ */
+export function jumpTower(ctx: PoiCtx, x: number, z: number, to: THREE.Vector3, ramp: RampSide, height = 6, toFloor = 0): void {
+  const { box, slab, mats } = ctx;
   box(2.4, height, 2.4, x, 0, z, mats.steel);
-  box(4, 0.4, 4, x, height, z, mats.trim);
-  crateStair(ctx, x + 3.2, z - 2, Math.min(height - 2, 5.4));
-  ctx.zip(new THREE.Vector3(x, height + 1.2, z), to, height, 0);
+  slab(4, 0.4, 4, x, height, z, mats.trim);
+  // The ramp: tiers a metre deep rising at most 0.5 m each, all standing on
+  // the ground, flush against one face of the pad. Its top tier is level with
+  // the mast's head, 0.4 m under the pad, at the pad's far end; each tier
+  // below it is a tread nearer the foot.
+  const n = Math.ceil(height / 0.5);
+  const rise = height / n;
+  const tread = 1;
+  const alongZ = ramp.face === "e" || ramp.face === "w";
+  // the ramp's middle line, off the pad's middle: the pad's half-width and the ramp's
+  const out = (ramp.face === "e" || ramp.face === "s" ? 1 : -1) * (2 + 1.8);
+  const down = ramp.foot === "s" || ramp.foot === "e" ? 1 : -1;
+  for (let i = 0; i < n; i++) {
+    // along the face, off the pad's middle: tier n - 1 is the pad's far end
+    const at = down * ((n - 1 - i) * tread - (2 - tread / 2));
+    if (alongZ) slab(3.6, rise * (i + 1), tread, x + out, 0, z + at, mats.floor);
+    else slab(tread, rise * (i + 1), 3.6, x + at, 0, z + out, mats.floor);
+  }
+  // The rope is 1.8 m over the pad. Your hands are 2.13 m over your feet and
+  // reach 2.41 m, so it is in reach from the pad; and hanging from it your
+  // feet are within a step of the pad's top, so the pad does not knock you
+  // off the moment you set off, which a rope 1.2 m over it would.
+  ctx.zip(new THREE.Vector3(x, height + 2.2, z), to, height + 0.4, toFloor);
 }
 
-/** a low wall to break a sightline: cover you can shoot over crouched and vault standing */
-export function coverWall(ctx: PoiCtx, x: number, z: number, w: number, d: number): void {
-  ctx.box(w, 1.2, d, x, 0, z, ctx.mats.wall);
+/**
+ * A low wall to break a sightline: cover you can shoot over crouched and
+ * vault standing. `y` is the ground it stands on, for a wall along a berm's
+ * crest. Two metres or more long it is a slab, as a building's walls are.
+ */
+export function coverWall(ctx: PoiCtx, x: number, z: number, w: number, d: number, y = 0): void {
+  (Math.max(w, d) >= 2 ? ctx.slab : ctx.box)(w, 1.2, d, x, y, z, ctx.mats.wall);
 }

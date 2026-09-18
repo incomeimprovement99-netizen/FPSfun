@@ -2249,6 +2249,9 @@ function killcamGun(id: string): ResolvedWeapon {
 let mapOpen = false;
 /** until when the drop keeps the full map up by itself (squad.json dive.mapSeconds) */
 let dropMapUntil = 0;
+/** the battle royale place you are in, and when its name was last shown (the arrival card) */
+let placeHere: string | null = null;
+const placeShownAt = new Map<string, number>();
 /** on the ship in a squad: the jumpmaster (the host) you are linked to, whose jump takes you with them */
 let linkedTo: number | null = null;
 /** following that jumpmaster down: their id, until you break off or the ground comes close */
@@ -3580,6 +3583,23 @@ function step(): void {
   const moveIn = settings.crouchToggle && !scriptInput ? crouchToggled(input) : (scriptInput ?? input);
   if (duel instanceof BrMatch) shipFrame(duel, moveIn);
   else if (player.aboard) player.aboard = false;
+  // The arrival card: walk into a place and its name comes up, the way the
+  // big games name the ground you have just reached. On your feet only, and a
+  // name once in a while, so a walk along a place's edge does not flicker it.
+  if (duel instanceof BrMatch && duel.alive && player.onGround && duel.phase === "fight") {
+    const here = brMap.placeAt(player.pos.x, player.pos.z);
+    const id = here ? here.id : null;
+    if (id !== placeHere) {
+      placeHere = id;
+      if (here && now - (placeShownAt.get(here.id) ?? -Infinity) > 20) {
+        placeShownAt.set(here.id, now);
+        hud.notice(here.name, now, 2);
+      }
+    }
+  } else if (!duel) {
+    placeHere = null;
+    placeShownAt.clear();
+  }
   player.update(dt, now, knockedOut ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
   // a slide counts as crouched for the spread model: the cone tightens
   const crouched = player.crouched || player.sliding;

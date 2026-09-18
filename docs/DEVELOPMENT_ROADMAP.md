@@ -921,3 +921,24 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   and its way round a building), and the e2e `console` section (the prompt, the hold, the circle shown being the
   chain's, the console spent, the EVO, and a guest's scan on the host's map).
 
+## Milestone 64 — Outskirts has ground, an edge and a landmark ✅
+2026-09-18 (Phase 15). `br.ts`, `brpoi.ts`, `src/config/brmap.json` (new), `src/config/loot.json`, `brplay.ts`, `main.ts`.
+- Built by the map expansion's first three stages and most of the fourth, designed as six from three competing designs
+  and judged; the session limit stopped the rest (the compounds, the micro-POIs, the rotation network, the bot graph).
+- The ground has a shape, built of stepped 0.5 m tiers because the collision is boxes and the bots step 0.56 m: a
+  bowl of berms round the hub with passes on the roads, the Notch (a 6 m ridge north of the hub with a sheer defile
+  and scarp ledges), the Table (an 8 m mesa, sheer on its east face), the Wash (banks and a bed with six box culverts
+  you can hide in), and the Knuckles (two mounds to the west).
+- The map ends at a 10 m cliff on a five-tier shelf with four gate towers, in place of the 92 posts.
+- THE MAST stands at the hub: seven floors to a 28 m roof, a lattice to 40 m, a lamp, and a balloon ridden from the
+  roof. East Ridge has a room inside the mesa, a second ramp, a bunker the crates reach and a 31 m chimney stack. West
+  Town has roof stairs, a clocktower and a water tower. North Yard's containers are walk-through runs under a catwalk
+  the bots can climb to, beside a four-storey silo block and two silos. South Depot's bays are walled rooms, beside a
+  three-storey loading building and a portal crane with the depot's name on its girder. Each big place has its own tint.
+- Every building's stair climbs to its roof, so a bot stands on a roof for the first time. `slab()` builds the big
+  flat pieces unbevelled: the map went from 457k triangles to under 200k while its meshes grew.
+- Checked in node by the stages (the bot flood, every rope ridden both ways, the loot counts over five seeds, the
+  real player on the cliff) and here by the whole e2e suite and eight new `npm run snap` views of the map. The
+  jump tower's prompt now asks for the tower's own floor (the Mast's balloon is on its roof), the hub's loot is
+  high, and walking into a place puts its name up.
+

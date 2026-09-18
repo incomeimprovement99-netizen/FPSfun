@@ -21,6 +21,7 @@
 - **Three new arenas and a map picker** (finished after the limit reset): the Vault for 1v1 and free-for-all, the Crossing for team modes, the Ringworks for free-for-all and Crown. Pick one in the modes row, or "picked for the mode". The warehouse is still the default. The offline 1v1 against bots uses the picker too.
 - **After the second reset:** a damage direction indicator, crosshair customisation, colour vision modes and a HUD scale, XP with levels and challenges, a match summary card, quick chat, and spawning facing open floor in the new arenas. Two flaky e2e checks were found at their causes and fixed.
 - **Delta state packets (item 51)**, reviewed, fixed and merged (Milestone 62): a player's state goes as its difference from one the other end has acknowledged, and one packet a frame carries everything for a peer. The host's upload to a guest in a squad battle royale fell from 34.8 to 7.3 kB/s; an older build still plays against this one on the full packets.
+- **The Outskirts map, stages 1 to 3 and most of 4 (items 12, 16, 17, 18, 30)**: the ground has a shape (a bowl of berms round the hub, the Notch ridge with its defile, the Table mesa, the Wash with its culverts, the Knuckles), the map ends at a 10 m cliff on a stepped shelf with four gate towers instead of 92 posts, THE MAST stands at the hub (seven floors to a 28 m roof, its balloon on top), East Ridge has a room inside it and a chimney stack, West Town has roof stairs, a clocktower and a water tower, North Yard has walk-through container runs and a silo block, South Depot has walled bays, a loading building and a portal crane, and each of the five big places has its own wall tint. Building stairs climb to the roofs, so the bots stand on roofs for the first time. The map's triangles fell from 457k to under 200k while the meshes grew. Walk into a place and its name comes up.
 - **Ring Consoles (item 22)**: four by four of the places; a 7.5 s scan puts the circle after next on the squad's map until the ring gets there, pays 100 EVO, and the console reboots when the ring closes. The ring's whole chain is drawn from the seed at the start, so every browser knows it.
 - **The dropship and the jumpmaster**: the match starts on a ship flying a line across the map over the squad's place; you jump when you like, the ship puts out whoever is left at the far edge, a squad follows the host's jump in formation until C breaks off, and the bots ride along out of sight and glide onto their places. The bots drop from the sky again, which they had stopped doing when the squad match came in.
 - **A two-state skydive**: look down to dive at 30 m/s, look level to glide 14 m/s across at 12 down, blended between; the drop's map steps aside after 2.5 s so you can see where you are steering.
@@ -30,7 +31,7 @@
 
 | What | State | Where it is |
 |---|---|---|
-| **The Outskirts map expansion**: ground shape, a real map edge, THE MAST landmark, rebuilt ridge and town, eight micro-POIs, the rotation network, the bot graph over it | A six-stage build plan was designed and merged from three designs. **No stage was built**: the session limit hit first. | The plan is in the workflow result; the next prompt below restarts it. |
+| **The Outskirts map expansion, stages 4 to 6**: the four compounds rebuilt with a fourth building each, eight micro-POIs between the places (the `sites` list is ready for them, empty), the rotation network, and the bot graph over the new ground | Stages 1 to 3 are built and shipped, and most of stage 4 (North Yard and South Depot); the session limit stopped the rest. | The six-stage plan is in the workflow's result; `.map-expansion.js` in the main folder is its script. |
 | **Applying the new materials and rock meshes to the map** | Fetched and loadable, not placed. | Belongs with the map expansion |
 | **Per-match sky pick** in the battle royale | The setting works; a match does not pick an hour by seed. | `brmatch.ts` |
 
@@ -41,7 +42,7 @@
 
 ## Ranked next steps
 
-3. **Build the Outskirts map expansion** from the six-stage plan. It is the owner's top ask and the backbone of everything else in the battle royale.
+3. **Finish the Outskirts map expansion**: the four compounds, the eight micro-POIs with their loot and arrival names, the rotation network, and new bot nodes on the new ground. Stages 1 to 3 and most of 4 are in.
 9. **Place the new materials and rock meshes** on the map, one palette per place.
 10. **Doors and supply bins** (items 10 and 11). The sounds for them are already fetched and have calls in `audio.ts`.
 11. Then down `docs/NEXT_STEPS.md`: Resurgence, the Gulag, emotes. (Spectating your squad already works; the dropship and the Ring Console are done.)
@@ -61,5 +62,5 @@ These came out of the gap analysis. The ones since shipped are gone from this li
 
 ## Prompts to paste when the limit resets
 
-3. "Build the Outskirts map expansion. The six-stage plan is in docs/PHASE_15_UNFINISHED.md: ground shape and map edge, THE MAST at the hub, rebuilt ridge and town, the other places, eight micro-POIs, then the rotation network and the bot graph. Keep the nav flood test passing."
+3. "Finish the Outskirts map expansion: the four compounds, the eight micro-POIs, the rotation network and the bot graph over the new ground. Keep the nav flood test passing."
 7. "Review the delta-compressed netcode on wip/phase15-unfinished, run the p2p e2e section and npm run live, and merge only if both pass."

@@ -501,7 +501,8 @@ export class BrPlay {
       }
     } else {
       this.cancelHold(match);
-      const tower = match.mapInfo.towers.find((t) => Math.hypot(p.x - t.x, p.z - t.z) < squad.towerReach);
+      // on the tower's own floor: the Mast's balloon is on its roof, not in the hall 28 m under it
+      const tower = match.mapInfo.towers.find((t) => Math.hypot(p.x - t.x, p.z - t.z) < squad.towerReach && Math.abs(p.y - t.y) < 1.5);
       if (tower && player.onGround) {
         out.prompt = { key, text: "RIDE THE JUMP TOWER" };
         if (input.pressedNow("interact")) {

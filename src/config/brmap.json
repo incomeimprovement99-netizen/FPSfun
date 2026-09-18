@@ -1,0 +1,5 @@
+{
+  "_note": "The battle royale map's places (src/game/br.ts), ours: there is nothing published to copy. A place's radius is how far it reaches, for the arrival card and anything else that asks which place you are in. 30 m takes in each big place's buildings and matches the ring its loot is laid in, 4 to 34 m from its centre (src/game/loot.ts). A site between the big places is 15 to 30 m across (docs/NEXT_STEPS.md item 15), so 18 m takes one in with a few metres of approach.",
+  "placeRadius": 30,
+  "siteRadius": 18
+}

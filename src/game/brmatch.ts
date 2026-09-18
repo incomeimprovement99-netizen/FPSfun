@@ -1022,7 +1022,7 @@ export class BrMatch extends Duel {
   }
 
   /** the map's towers, beacons and pads (brplay.ts) */
-  get mapInfo(): { towers: Array<{ x: number; z: number }>; beacons: Array<{ x: number; z: number }>; pads: Array<{ x: number; z: number; dx: number; dz: number }> } {
+  get mapInfo(): { towers: Array<{ x: number; z: number; y: number }>; beacons: Array<{ x: number; z: number }>; pads: Array<{ x: number; z: number; dx: number; dz: number }> } {
     return this.map;
   }
 
