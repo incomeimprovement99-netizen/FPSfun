@@ -176,5 +176,18 @@
       1.25,
       1.4
     ]
+  },
+  "_quickChat": "Quick chat: the chat key opens these lines and 1 to 6 sends one to everyone in the match, where it shows in the kill feed with your name. A browser game has no text chat worth the name while you are aiming, and playing with a friend with no way to say GG or wait was the gap. open is how long the list stays up untouched, seconds; gap is the least time between two lines, so a key held down or mashed is not a flood. A line travels as its number, so a guest's text never reaches anyone: nobody can type into anyone else's screen. Ours.",
+  "quickChat": {
+    "lines": [
+      "GG",
+      "Nice shot!",
+      "Thanks!",
+      "On my way",
+      "Wait for me",
+      "Rematch?"
+    ],
+    "open": 4,
+    "gap": 1.5
   }
 }

@@ -101,6 +101,8 @@ export interface HudState {
   damageDirs?: Array<{ angle: number; alpha: number }>;
   /** the player's crosshair (src/game/reticle.ts); none is the old three prongs */
   reticle?: Reticle;
+  /** the quick chat list while it is open: the lines, numbered 1 up */
+  quickChat?: string[] | null;
   /** the card when a match ends: the result, the numbers, the XP and the level bar (src/main.ts) */
   summary?: {
     title: string;
@@ -338,6 +340,7 @@ export class Hud {
     this.drawCrosshair(now, s, u);
     this.drawDamageDirs(s, u);
     this.drawMatchCard(s, u);
+    this.drawQuickChat(s, u);
     this.drawMinimap(s, u);
     this.drawStats(s, u);
     this.drawCompass(s, u);
@@ -1208,6 +1211,24 @@ export class Hud {
    * crosshair, because the crosshair goes away when you aim down sights and a
    * hit from behind matters most exactly then.
    */
+  /** the quick chat list, left of centre, while it is open */
+  private drawQuickChat(s: HudState, u: number): void {
+    const lines = s.quickChat;
+    if (!lines || !lines.length) return;
+    const c = this.ctx;
+    const x = 40 * u;
+    const w = 230 * u;
+    const rowH = 24 * u;
+    const y = this.h * 0.42;
+    c.fillStyle = "rgba(10,13,16,0.82)";
+    c.fillRect(x, y, w, (lines.length + 1) * rowH + 12 * u);
+    this.text("QUICK CHAT", x + 14 * u, y + 20 * u, 700, 13 * u, "#ffd23c");
+    lines.forEach((line, i) => {
+      this.text(`${i + 1}`, x + 14 * u, y + 20 * u + (i + 1) * rowH, 700, 14 * u, "#ffd23c");
+      this.text(line, x + 38 * u, y + 20 * u + (i + 1) * rowH, 600, 14 * u, WHITE);
+    });
+  }
+
   /** the match summary: a card over the middle of the screen once a match ends */
   private drawMatchCard(s: HudState, u: number): void {
     const m = s.summary;

@@ -182,6 +182,44 @@ loadAccess();
 }
 // XP, the account level and the challenges (src/game/progress.ts)
 const progress = new Progress();
+/**
+ * Quick chat (hud.json quickChat): the chat key opens the list, 1 to 6 sends a
+ * line. A line travels as its number over the effect message the host already
+ * relays, so nobody's typed text ever reaches anyone else's screen.
+ */
+const QUICK = hudCfg.quickChat;
+let quickOpenUntil = 0;
+let quickSentAt = -Infinity;
+/** a line said by someone: the kill feed, with their name */
+function sayQuick(name: string, i: number, mine: boolean): void {
+  const line = QUICK.lines[i];
+  if (line === undefined) return;
+  hud.feed(`${name}: ${line}`, gameTime, mine ? P.feedAlly : "#c8d0d8");
+}
+/** send line i, if the gap since the last allows */
+function sendQuick(i: number): boolean {
+  if (!duel || i < 0 || i >= QUICK.lines.length) return false;
+  if (gameTime - quickSentAt < QUICK.gap) return false;
+  quickSentAt = gameTime;
+  quickOpenUntil = 0;
+  duel.localFx("chat", undefined, undefined, i);
+  sayQuick(profile.profile.name || "YOU", i, true);
+  return true;
+}
+// 1 to 6 while the list is open send a line instead of switching weapons:
+// caught before the game's own key handling sees them
+window.addEventListener(
+  "keydown",
+  (e) => {
+    if (gameTime >= quickOpenUntil || !e.code.startsWith("Digit")) return;
+    const n = Number(e.code.slice(5));
+    if (!(n >= 1 && n <= QUICK.lines.length)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    sendQuick(n - 1);
+  },
+  { capture: true }
+);
 /** the last match's result, for the summary card while it shows */
 let lastSummary: { at: number; kind: string; s: MatchSummary; a: Award; xpBefore: number } | null = null;
 /**
@@ -2124,6 +2162,11 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRemoteFx = (k, from, a, b, n) => {
     remoteFxLog.push({ k, from });
     if (remoteFxLog.length > 20) remoteFxLog.shift();
+    // a quick chat line: its number, said in the feed under their name
+    if (k === "chat" && typeof n === "number") {
+      sayQuick(d.nameFor(from) ?? "PLAYER", n, false);
+      return;
+    }
     // someone's throw: its flight, bounce and blast here too (their side sends the damage)
     const tk = throwFromCode(n);
     if (k === "throw" && a && b && tk) throwables.throw(tk, a, b, from, false, gameTime);
@@ -3299,6 +3342,7 @@ function step(): void {
       if (now - reloadHeldAt > INSPECT_HOLD && now - inspectAt > INSPECT_TIME) inspectAt = now;
     } else reloadHeldAt = -Infinity;
     // its own button too (the pad's D-pad left, held): any magazine
+    if (input.playing && input.pressedNow("chat") && duel) quickOpenUntil = gameTime < quickOpenUntil ? 0 : gameTime + QUICK.open;
     if (input.playing && input.pressedNow("inspect") && !slot.empty && !loadout.swapping && holster === "out" && now - inspectAt > INSPECT_TIME) inspectAt = now;
     if (trigger || adsHeld || loadout.swapping || player.sprinting || holster !== "out" || ordnance.readied || knockedOut) inspectAt = -Infinity;
     // a new gun's first time out (a pickup, Gun Run's next gun): the flourish, once it is up
@@ -3973,6 +4017,7 @@ function step(): void {
     damageDirs: duel ? damageDirs() : undefined,
     reticle,
     summary: summaryView(),
+    quickChat: gameTime < quickOpenUntil ? QUICK.lines : null,
     healWheel: wheelOpen ? { items: HEAL_ORDER.map((k) => ({ id: k, name: HEAL_ITEMS[k].name, count: kit.items[k] })), pick: wheelPick } : null,
     lobby:
       hosting && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
@@ -4246,6 +4291,8 @@ initWelcome();
   reticle,
   /** XP, the level and the challenges (tools/e2e.ts) */
   progress,
+  /** say quick chat line i, as the 1 to 6 keys do (tools/e2e.ts) */
+  quickChat: (i: number) => sendQuick(i),
   /** the knockdown shield (tools/e2e.ts) */
   kd,
   armor,

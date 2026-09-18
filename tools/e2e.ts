@@ -1114,6 +1114,14 @@ async function duelTest(browser: Browser, query: string, label: string): Promise
     check(`${label}: and the guest's screen agrees`, gsaw);
   }
 
+  // Quick chat: the host says line 1 and it shows in the guest's kill feed
+  // under the host's name, and the next line inside the gap is refused
+  const said = await ev<[boolean, boolean]>(host, "[window.__range.quickChat(0), window.__range.quickChat(1)]");
+  const heard = await guest
+    .waitForFunction("window.__range.hud.feedText.some((t) => /: GG$/.test(t))", { polling: 200, timeout: 6000 })
+    .then(() => true, () => false);
+  check(`${label}: quick chat: a line said by the host shows in the guest's feed, and a second inside the gap is held`, said[0] && !said[1] && heard, JSON.stringify({ said, heard }));
+
   // leaving tells the other side
   await ev(guest, "window.__range.duel().leave()");
   await host.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 15000 });
