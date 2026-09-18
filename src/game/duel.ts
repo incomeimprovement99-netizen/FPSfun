@@ -466,6 +466,10 @@ export class Duel implements MatchLike {
   isAlly(id: number): boolean {
     return id !== this.id && this.friendly(id);
   }
+  /** what a guest is told as the fight starts; the battle royale says who wins it, and a solo one says it differently */
+  protected fightNotice(): string {
+    return this.mode === "br" ? "LANDED  ·  LAST SQUAD STANDING WINS" : "FIGHT";
+  }
   /** a name for the feed by id (the subclass adds the bots it runs) */
   protected nameOf(id: number): string | undefined {
     return this.remotes.get(id)?.name;
@@ -837,7 +841,7 @@ export class Duel implements MatchLike {
       this.zoneLive = false;
       this.respawn();
     }
-    if (m.phase === "fight" && prev === "countdown") this.onNotice?.(this.mode === "br" ? "LANDED  ·  LAST SQUAD STANDING WINS" : "FIGHT");
+    if (m.phase === "fight" && prev === "countdown") this.onNotice?.(this.fightNotice());
     if (m.phase === "matchEnd" && prev !== "matchEnd") this.summarise();
     if (m.phase === "countdown" && m.n === 1 && prev === "matchEnd") this.summarised = false;
   }

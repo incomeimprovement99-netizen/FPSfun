@@ -42,6 +42,19 @@ function valid(d: Partial<LoadoutDef> | undefined, fallback: LoadoutDef): Loadou
   };
 }
 
+/**
+ * The loadout this browser has selected, read fresh from storage.
+ *
+ * The battle royale's loadout crate needs your pick at the moment you claim
+ * it, and it has no way to reach the Loadouts the menu holds: it is built
+ * before the match and lives in main.ts. Reading the store again costs one
+ * JSON parse and cannot go stale, which a second long-lived copy could if you
+ * edited a loadout between matches.
+ */
+export function savedLoadout(): LoadoutDef {
+  return new Loadouts().current;
+}
+
 export class Loadouts {
   private store: Store;
 

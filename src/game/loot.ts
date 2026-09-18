@@ -254,13 +254,17 @@ export function pickHotZone(seed: number, places: LootPlace[]): HotZone | null {
 }
 
 /**
- * The Hot Zone's prize: a gun off the epic list wearing everything it can
- * take. Every slot is filled from what the gun is actually offered
- * (src/game/attachments.ts knows which mods fit which gun), so this cannot
- * hand out a sniper stock on an SMG.
+ * Everything a gun can wear, the best of it: per slot the first mod on
+ * loot.json's kitted.prefer list that the gun is actually offered, and the
+ * last one it is offered when it takes none of them. Every slot is filled
+ * from what the gun is offered (src/game/attachments.ts knows which mods fit
+ * which gun), so this cannot hand out a sniper stock on an SMG.
+ *
+ * The Hot Zone's prize wears this, and so do the guns out of the battle
+ * royale's loadout crate (brmatch.ts), from this one function: a second copy
+ * of the loop would drift from the first the way a second list would.
  */
-export function kittedGun(rnd: () => number): LootItem {
-  const id = pick(rnd, cfg.weapons[cfg.kitted.pool as Rarity]);
+export function kittedAttach(id: string): Attachments {
   const mods = weaponMods(id);
   const attach: Attachments = {};
   for (const slot of SLOTS) {
@@ -269,7 +273,13 @@ export function kittedGun(rnd: () => number): LootItem {
     const prefer = (cfg.kitted.prefer as Record<string, string[]>)[slot] ?? [];
     attach[slot] = prefer.find((m) => fits.some((o) => o.mod === m)) ?? fits[fits.length - 1].mod;
   }
-  return { kind: "weapon", id, n: 1, rarity: cfg.kitted.rarity as Rarity, mag: cfg.kitted.mag, attach };
+  return attach;
+}
+
+/** the Hot Zone's prize: a gun off the epic list wearing everything it can take */
+export function kittedGun(rnd: () => number): LootItem {
+  const id = pick(rnd, cfg.weapons[cfg.kitted.pool as Rarity]);
+  return { kind: "weapon", id, n: 1, rarity: cfg.kitted.rarity as Rarity, mag: cfg.kitted.mag, attach: kittedAttach(id) };
 }
 
 /**
