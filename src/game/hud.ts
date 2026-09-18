@@ -28,6 +28,7 @@ import lootCfg from "../config/loot.json";
 import { REACH } from "./brplay";
 import { drawIcon, loadIcons } from "./icons";
 import { drawReticle as drawCrosshair2d, type Reticle } from "./reticle";
+import { P, access } from "./palette";
 
 type ModeRow = ModeHud["rows"][number];
 
@@ -323,7 +324,8 @@ export class Hud {
     if (!this.enabled) return;
     const c = this.ctx;
     c.clearRect(0, 0, this.w, this.h);
-    const u = this.h / 1080; // layout unit: 1 px at 1080p
+    // layout unit: 1 px at 1080p, times the player's HUD scale (Settings, Accessibility)
+    const u = (this.h / 1080) * access.hudScale;
     // the killcam has the screen to itself, and the kill feed
     if (s.killcam) {
       this.drawKillcam(now, s.killcam, u);
@@ -453,7 +455,7 @@ export class Hud {
       const off = behind || x < pad || x > this.w - pad || y < pad || y > this.h - pad;
       x = Math.max(pad, Math.min(this.w - pad, x));
       y = Math.max(pad, Math.min(this.h - pad, y));
-      const col = m.k === "enemy" ? "#ff4b3e" : m.k === "loot" ? "#8fd8ff" : "#ffd23c";
+      const col = m.k === "enemy" ? P.enemy : m.k === "loot" ? "#8fd8ff" : "#ffd23c";
       const r = (m.k === "enemy" ? 11 : 9) * u * (m.k === "enemy" ? 1 + 0.12 * Math.sin(now * 8) : 1);
       c.fillStyle = col;
       c.strokeStyle = "rgba(0,0,0,0.7)";
@@ -719,7 +721,7 @@ export class Hud {
       const a = pl.aimbot ? 1 : dist < fadeFrom ? 1 : 1 - (dist - fadeFrom) / (range - fadeFrom);
       c.globalAlpha = a * (pl.alive ? 1 : 0.5);
       const w = 110 * u;
-      const col = !pl.alive ? DIM : pl.aimbot ? RED : pl.ally ? "#7ddc8a" : WHITE;
+      const col = !pl.alive ? DIM : pl.aimbot ? RED : pl.ally ? P.ally : WHITE;
       this.text(pl.alive ? pl.name : `${pl.name}  DOWN`, x, y - 12 * u, 700, 14 * u, col, "center");
       // the aim bot: a red bar and a word over them, so nobody has to wonder
       if (pl.aimbot && pl.alive) {
@@ -1259,7 +1261,7 @@ export class Hud {
     for (const d of dirs) {
       // canvas angles start at +x and run clockwise; ours start straight up
       const a = d.angle - Math.PI / 2;
-      c.strokeStyle = `rgba(255,60,50,${(0.9 * d.alpha).toFixed(3)})`;
+      c.strokeStyle = `rgba(${P.damage},${(0.9 * d.alpha).toFixed(3)})`;
       c.lineWidth = cfg.thick * u;
       c.beginPath();
       c.arc(cx, cy, r, a - half, a + half);
@@ -1505,7 +1507,7 @@ export class Hud {
     }
     for (const m of s.markers ?? []) {
       upright(m.at.x, m.at.z, () => {
-        c.fillStyle = m.k === "enemy" ? "#ff4b3e" : m.k === "loot" ? "#8fd8ff" : "#ffd23c";
+        c.fillStyle = m.k === "enemy" ? P.enemy : m.k === "loot" ? "#8fd8ff" : "#ffd23c";
         c.beginPath();
         c.moveTo(0, -6 * u);
         c.lineTo(6 * u, 0);

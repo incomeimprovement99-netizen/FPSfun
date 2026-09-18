@@ -127,5 +127,54 @@
   "summary": {
     "show": 12,
     "fill": 1.6
+  },
+  "_accessibility": "Settings, Accessibility (src/game/palette.ts). vision is the set of meaning colours per kind of colour vision: enemy and ally, the softer pair the kill feed uses for its lines, and the damage arcs as r,g,b. Red against green is the pair about one man in twelve cannot tell apart, so the two red-green modes move the enemy to orange and your side to blue, and the blue-yellow mode keeps red but moves your side to a teal that stays clear of it. The normal set is the colours the HUD always used. scales are the HUD sizes offered; a free number is not accepted, because a HUD scaled to 4 is off the screen. Ours, after the palettes Valorant, Apex and Fortnite ship.",
+  "accessibility": {
+    "vision": [
+      {
+        "id": "normal",
+        "label": "Normal colour vision",
+        "enemy": "#ff4b3e",
+        "ally": "#7ddc8a",
+        "damage": "255,60,50",
+        "feedEnemy": "#ff8a7a",
+        "feedAlly": "#7ddc8a"
+      },
+      {
+        "id": "deuteranopia",
+        "label": "Deuteranopia (red-green)",
+        "enemy": "#ff9d1a",
+        "ally": "#3db4ff",
+        "damage": "255,157,26",
+        "feedEnemy": "#ffbf66",
+        "feedAlly": "#7cc9ff"
+      },
+      {
+        "id": "protanopia",
+        "label": "Protanopia (red-green)",
+        "enemy": "#ffb21a",
+        "ally": "#3d8bff",
+        "damage": "255,178,26",
+        "feedEnemy": "#ffc966",
+        "feedAlly": "#7cabff"
+      },
+      {
+        "id": "tritanopia",
+        "label": "Tritanopia (blue-yellow)",
+        "enemy": "#ff3d6e",
+        "ally": "#2fd9c6",
+        "damage": "255,61,110",
+        "feedEnemy": "#ff7a9c",
+        "feedAlly": "#6fe6d6"
+      }
+    ],
+    "scales": [
+      0.8,
+      0.9,
+      1,
+      1.1,
+      1.25,
+      1.4
+    ]
   }
 }

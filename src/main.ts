@@ -81,6 +81,7 @@ import { Knockdown, type BackTier, type KnockTier } from "./game/kit";
 import { ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
 import { Progress, levelFor, type Award } from "./game/progress";
+import { HUD_SCALES, P, VISION_MODES, access, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
 
 const DEG = Math.PI / 180;
 /** slot 1 and slot 2. Keys 1 and 2 select, Q swaps. */
@@ -150,6 +151,35 @@ function saveSettings(s: Settings): void {
   }
 }
 const settings = loadSettings();
+// Accessibility (src/game/palette.ts): colour vision and the HUD scale, before
+// the first frame so the HUD never draws once in the wrong colours
+loadAccess();
+{
+  const vision = document.getElementById("accVision") as HTMLSelectElement;
+  const scale = document.getElementById("accHudScale") as HTMLSelectElement;
+  for (const v of VISION_MODES) {
+    const o = document.createElement("option");
+    o.value = v.id;
+    o.textContent = v.label;
+    vision.appendChild(o);
+  }
+  for (const k of HUD_SCALES) {
+    const o = document.createElement("option");
+    o.value = String(k);
+    o.textContent = k === 1 ? "HUD scale: 100% (default)" : `HUD scale: ${Math.round(k * 100)}%`;
+    scale.appendChild(o);
+  }
+  vision.value = access.vision;
+  scale.value = String(access.hudScale);
+  vision.addEventListener("change", () => {
+    setVision(vision.value as VisionMode);
+    saveAccess();
+  });
+  scale.addEventListener("change", () => {
+    setHudScale(Number(scale.value));
+    saveAccess();
+  });
+}
 // XP, the account level and the challenges (src/game/progress.ts)
 const progress = new Progress();
 /** the last match's result, for the summary card while it shows */
@@ -2058,7 +2088,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRemoteShot = null;
   d.onNotice = (t) => hud.notice(t, gameTime, 1);
   d.onEnd = (reason) => endMatch(reason);
-  d.onFeed = (text, mine, neutral) => hud.feed(text, gameTime, neutral ? "#c8d0d8" : mine ? "#7ddc8a" : "#ff8a7a");
+  d.onFeed = (text, mine, neutral) => hud.feed(text, gameTime, neutral ? "#c8d0d8" : mine ? P.feedAlly : P.feedEnemy);
   // someone else's JOLT: the streak where it went, and its sound by distance
   d.onRemoteFx = (k, from, a, b, n) => {
     remoteFxLog.push({ k, from });

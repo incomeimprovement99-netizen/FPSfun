@@ -2119,9 +2119,13 @@ async function main(): Promise<void> {
     // ...but not while typing a name, and not while the game is running
     const typing = await ev<{ taken: number; focused: boolean; blurred: boolean }>(
       page,
-      `(() => { const el = document.getElementById("profileName") ?? document.createElement("input");
+      `(async () => { const el = document.getElementById("profileName") ?? document.createElement("input");
         if (!el.isConnected) document.getElementById("overlay").appendChild(el);
         document.querySelector('#tabs button[data-tab="stats"]').click();
+        // A hidden field cannot take focus, and on a loaded machine the tab's
+        // panel is not always shown by the time the click returns: this flaked
+        // with "focused: false" whenever the CPU was busy. Wait for it to show.
+        for (let i = 0; i < 40 && el.offsetParent === null; i++) await new Promise((r) => requestAnimationFrame(r));
         el.focus(); const focused = document.activeElement === el;
         window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", key: "Escape", bubbles: true, cancelable: true }));
         const out = { taken: window.__range.menuEscapes(), focused, blurred: document.activeElement !== el };
@@ -2161,6 +2165,19 @@ async function main(): Promise<void> {
       })()`
     );
     check("progression: a won 1v1 pays XP, and the Stats tab shows the level and three challenges", prog.after > prog.before && prog.card && prog.challenges === 3 && /Level/.test(prog.text), JSON.stringify(prog));
+    // Accessibility: the colour vision and HUD size selects apply and are kept
+    const acc = await ev<{ saved: string; options: number; scales: number }>(
+      page,
+      `(() => { const $ = (id) => document.getElementById(id);
+        $("accVision").value = "deuteranopia"; $("accVision").dispatchEvent(new Event("change"));
+        $("accHudScale").value = "1.25"; $("accHudScale").dispatchEvent(new Event("change"));
+        const saved = localStorage.getItem("range.access.v1") ?? "";
+        const out = { saved, options: $("accVision").options.length, scales: $("accHudScale").options.length };
+        $("accVision").value = "normal"; $("accVision").dispatchEvent(new Event("change"));
+        $("accHudScale").value = "1"; $("accHudScale").dispatchEvent(new Event("change"));
+        return out; })()`
+    );
+    check("accessibility: four colour vision modes and six HUD sizes, and a choice is kept", acc.options === 4 && acc.scales === 6 && /deuteranopia/.test(acc.saved) && /1\.25/.test(acc.saved), JSON.stringify(acc));
     const inGame = await ev<number>(page, `(() => { document.getElementById("overlay").classList.add("hidden"); window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", key: "Escape", bubbles: true, cancelable: true })); document.getElementById("overlay").classList.remove("hidden"); return window.__range.menuEscapes(); })()`);
     check("Esc with the menu closed is not a resume", inGame === escOnMenu, `${inGame} taken as Resume, ${escOnMenu} before`);
 

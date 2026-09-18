@@ -34,6 +34,7 @@ import { knockdownFails } from "./checks/knockdown";
 import { arenasFails } from "./checks/arenas";
 import { reticleFails } from "./checks/reticle";
 import { progressFails } from "./checks/progress";
+import { accessFails } from "./checks/access";
 import { mobilityFails } from "./checks/mobility";
 import { audioOcclusionFails } from "./checks/audio-occlusion";
 import { HU, MOVE, jumpVelocityFor, slideBreakEvenAngle, SLIDE_RAMP_ANGLE } from "../src/game/movement";
@@ -1749,7 +1750,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + mobilityFails + knockdownFails + arenasFails + reticleFails + progressFails + audioOcclusionFails;
+fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + mobilityFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + audioOcclusionFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);
