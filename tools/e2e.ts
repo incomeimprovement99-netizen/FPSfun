@@ -32,6 +32,14 @@ function check(label: string, ok: boolean, detail = ""): void {
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Headless Chrome grants a test page pointer lock and then hands it the real
+ * mouse on this machine: whoever moves it while the suite runs turns the
+ * player's view in every page. No test drives the mouse, so a page drops
+ * trusted pointer movement before the game hears it.
+ */
+const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
+
 async function open(browser: Browser, query: string, base = BASE): Promise<Page> {
   const page = await browser.newPage();
   await page.setViewport({ width: 800, height: 450, deviceScaleFactor: 1 });
@@ -45,6 +53,7 @@ async function open(browser: Browser, query: string, base = BASE): Promise<Page>
   // landing are about the landing, and a ride across the map would add half a
   // minute to each of them.
   await page.evaluateOnNewDocument("window.__straightDrop = true");
+  await page.evaluateOnNewDocument(NO_REAL_MOUSE);
   // a base with a query of its own (OLD_URL=https://the.site/?broker=public) keeps it
   const url = base.includes("?") && query.startsWith("?") ? `${base}&${query.slice(1)}` : base + query;
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -2404,8 +2413,10 @@ async function shipTest(browser: Browser, query: string, squadQuery: string): Pr
       return { miss: Math.hypot(at.x - t.x, at.z - t.z), off: Math.hypot(t.x - (L.ax + L.dx * s), t.z - (L.az + L.dz * s)), y: b.bot.pos.y }; }); })()`
   );
   const inReach = bots.filter((b) => b.off < 140);
+  // Within 5 m: the landforms and the tall buildings stand in some glide
+  // paths, and a bot that meets one slides along it and comes down beside it.
   check("the ship: every bot leaves it and lands", allOff && down && bots.length === 5, JSON.stringify({ allOff, down, bots: bots.length }));
-  check("the ship: a bot whose place is in a glide's reach lands on it", inReach.every((b) => b.miss < 3), JSON.stringify(bots.map((b) => [b.miss.toFixed(1), b.off.toFixed(0)])));
+  check("the ship: a bot whose place is in a glide's reach lands on it", inReach.every((b) => b.miss < 5), JSON.stringify(bots.map((b) => [b.miss.toFixed(1), b.off.toFixed(0)])));
   await page.close();
 
   // ---- the end of the line: whoever is still aboard is put out

@@ -162,6 +162,70 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-mast",
+    note: "THE MAST from 70 m south: seven storeys, the lattice and the lamp, the hub round it",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(0, 0, 500 + (70), 0, 9); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
+    name: "br-mast-roof",
+    note: "on the Mast's roof at 28 m, looking east over the bowl's berm toward East Ridge and its stack",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(0, 28.2, 500 + (0), -90, -6); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
+    name: "br-north-yard",
+    note: "NORTH YARD from the south: the silo block and its drum, the two silos, the container runs",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(0, 0, 500 + (-136), 8, 7); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
+    name: "br-south-depot",
+    note: "SOUTH DEPOT from the north: the portal crane with the name on its girder, the loading building, the walled bays",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(0, 0, 500 + (100), 180, 8); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
+    name: "br-notch",
+    note: "the Notch from its west crest: the defile below, the east crest across it",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(-20, 6.2, 500 + (-120), -90, -8); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
+    name: "br-east-ridge",
+    note: "EAST RIDGE from the hub side: the undercroft, the bunker on the terrace, the stack",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(110, 0, 500 + (10), -90, 7); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
+    name: "br-town-clock",
+    note: "WEST TOWN from the east: the clocktower, the water tower, the houses with their roof stairs",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(-115, 0, 500 + (10), 90, 6); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
+    name: "br-edge",
+    note: "the map's edge: the shelf and the 10 m cliff with a gate tower, where the posts used to be",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(-180, 0, 500 + (40), 90, 8); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
     name: "control",
     note: "Control: the A B C strip and the scores, zone A taken, the zones in the arena",
     steps: [
@@ -347,6 +411,15 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-fullmap",
+    note: "the full map after landing: the landforms shaded as steps, the places, the consoles, the rings",
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [untilFightLong, 400],
+      [`(() => { const r = window.__range; r.duel().holdFire = true; r.setScript({ held: () => false, pressedNow: () => false }); r.setMapOpen(true); })()`, 700],
+    ],
+  },
+  {
     name: "br-dropship",
     note: "aboard the dropship with the map closed: the chase camera behind the ship, the panel with the jump key and the clock",
     ship: true,
@@ -490,6 +563,8 @@ async function main(): Promise<void> {
       });
       await page.evaluateOnNewDocument(() => localStorage.setItem("range.welcomed", "1"));
       if (!sc.ship) await page.evaluateOnNewDocument("window.__straightDrop = true");
+      // the real mouse reaches a pointer-locked headless page: none of it here, or whoever moves it turns the picture
+      await page.evaluateOnNewDocument(`for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`);
       await page.goto(BASE + (sc.query ?? ""), { waitUntil: "domcontentloaded", timeout: 60000 });
       await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
       await sleep(1500);

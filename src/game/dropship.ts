@@ -126,10 +126,13 @@ export function glideStep(pos: THREE.Vector3, target: { x: number; z: number }, 
     const step = Math.min(dist, DIVE.glideSpeed * dt);
     const nx = pos.x + (dx / dist) * step;
     const nz = pos.z + (dz / dist) * step;
+    // against a wall it slides along it, the way a walking body does, and
+    // only comes straight down where neither way along is open
     if (!blocked(nx, nz)) {
       pos.x = nx;
       pos.z = nz;
-    }
+    } else if (!blocked(nx, pos.z)) pos.x = nx;
+    else if (!blocked(pos.x, nz)) pos.z = nz;
     yaw = (Math.atan2(-dx, -dz) * 180) / Math.PI;
   }
   pos.y -= fall * dt;
