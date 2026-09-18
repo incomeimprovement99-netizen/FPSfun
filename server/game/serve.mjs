@@ -144,8 +144,17 @@ app.post("/api/board/submit", express.json({ limit: "2kb" }), (req, res) => {
   if (++p.count > POST_LIMIT) return res.status(429).json({ error: "slow down" });
   posts.set(ip, p);
   const body = req.body && typeof req.body === "object" ? req.body : {};
-  const { board, name, value } = body;
+  const { board, value } = body;
+  let { name } = body;
   if (typeof board !== "string" || !BOARD_IDS.has(board)) return res.status(400).json({ error: "bad board" });
+  // Who a result is from. It used to be whatever name the post carried, so
+  // anyone could post under anyone's name, a registered player's included, and
+  // overwrite their entry. Signed in, a result goes under the account's own
+  // name whatever the post says. Not signed in, a result may not use a name an
+  // account owns: those names are reserved for the account.
+  const who = userOf(req);
+  if (who) name = who.user.name;
+  else if (typeof name === "string" && userAt(name.toLowerCase())) return res.status(403).json({ error: "that name belongs to an account: sign in to post under it" });
   if (typeof name !== "string" || !NAME.test(name)) return res.status(400).json({ error: "bad name" });
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1e5) return res.status(400).json({ error: "bad value" });
   const lower = LOWER_IS_BETTER.test(board);

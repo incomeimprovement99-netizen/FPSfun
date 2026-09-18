@@ -7,6 +7,7 @@
 // Results are posted after the fact and never block the game; a failed post
 // is dropped (the local profile still has it).
 
+import { session } from "../net/account";
 export interface BoardEntry {
   name: string;
   value: number;
@@ -32,6 +33,10 @@ export const BOARDS: ReadonlyArray<{ id: string; label: string; unit: "s" | "win
 ];
 
 const BUILD_URL = (import.meta.env.VITE_LEADERBOARD_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+// Only the old Cloudflare board (server/leaderboard/worker.ts) reads this. It
+// is built into the page, so it is not a secret from anyone who opens the
+// bundle, and the game's own server does not look at it: that one checks the
+// account session instead.
 const SECRET = (import.meta.env.VITE_LEADERBOARD_SECRET as string | undefined) ?? "";
 
 let base: Promise<string> | null = null;
@@ -60,7 +65,10 @@ export async function submitScore(board: string, name: string, value: number): P
   try {
     const r = await fetch(`${b}/submit`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      // signed in, the session goes with it: the game's server posts the result
+      // under the account's own name, and refuses an account's name from anyone
+      // who is not signed in to it (server/game/serve.mjs)
+      headers: { "content-type": "application/json", ...(session() ? { authorization: `Bearer ${session()!.token}` } : {}) },
       body: JSON.stringify({ board, name, value, secret: SECRET }),
     });
     if (!r.ok) return null;
