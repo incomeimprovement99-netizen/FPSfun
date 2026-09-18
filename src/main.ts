@@ -1348,6 +1348,37 @@ function duelButtons(): void {
   duelPlayers.hidden = busy;
   duelLeaveBtn.hidden = !busy;
 }
+/**
+ * The heading nearest `yaw` that looks down some open floor (modes.json
+ * spawnFacing). The new arenas put cover on the line between opposite spawns
+ * on purpose, so facing the middle meant facing a box a metre away; a spawn
+ * that already sees open floor keeps the middle.
+ */
+function openYaw(x: number, z: number, yaw: number): number {
+  const cfg = MODES.spawnFacing;
+  const eye = new THREE.Vector3(x, 1.6, z);
+  const dir = new THREE.Vector3();
+  const clearAt = (deg: number): number => {
+    const r = deg * DEG;
+    dir.set(-Math.sin(r), 0, -Math.cos(r));
+    return Math.min(60, solidHit(eye, dir, 60));
+  };
+  let best = yaw;
+  let bestClear = clearAt(yaw);
+  if (bestClear >= cfg.clear) return yaw;
+  for (let off = cfg.step; off <= cfg.sweep; off += cfg.step) {
+    for (const sign of [1, -1]) {
+      const y = yaw + sign * off;
+      const c = clearAt(y);
+      if (c >= cfg.clear) return y;
+      if (c > bestClear) {
+        bestClear = c;
+        best = y;
+      }
+    }
+  }
+  return best;
+}
 function respawnForMatch(d: MatchLike): void {
   const sp = d.spawn;
   newLife(d);
@@ -1368,7 +1399,7 @@ function respawnForMatch(d: MatchLike): void {
       mapOpen = false;
       hud.notice(`DROPPING INTO ${d.poi.name}`, gameTime, 3);
     }
-  } else player.teleport(sp.x, 0, sp.z, sp.yaw);
+  } else player.teleport(sp.x, 0, sp.z, openYaw(sp.x, sp.z, sp.yaw));
   if (pendingSlots) {
     pendingSlots.forEach((id, i) => loadout.setWeaponId(i, id));
     pendingSlots = null;

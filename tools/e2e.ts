@@ -476,6 +476,17 @@ async function arenaMapsTest(browser: Browser, query: string): Promise<void> {
     );
     check(`maps: ${c.map} for ${r.kind} opens on ${c.want}, fighting`, r.id === c.want && r.phase === "fight", JSON.stringify({ id: r.id, phase: r.phase }));
     check(`maps: on ${r.id} you and every bot stand inside its walls`, r.me && r.bots > 0 && r.botsIn === r.bots, `${r.botsIn} of ${r.bots} bots, bounds ${r.bounds}`);
+    // you spawn looking down open floor, not at the cover a metre away that
+    // breaks the line between opposite spawns
+    const view = await ev<number>(
+      page,
+      `(() => { const R = window.__range; const p = R.player.pos; const y = R.player.yaw * Math.PI / 180;
+        const dx = -Math.sin(y), dz = -Math.cos(y); let d = 0;
+        for (; d < 30; d += 0.25) { const x = p.x + dx * d, z = p.z + dz * d;
+          if (R.solids.some((s) => x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ && s.base < 1.6 && s.top > 1.6)) break; }
+        return d; })()`
+    );
+    check(`maps: on ${r.id} you spawn facing open floor, not a box`, view >= 6, `${view.toFixed(1)} m clear ahead`);
     if (r.kind === "control") check(`maps: Control's three zones are on ${r.id}, not in the warehouse`, r.zones === 3 && r.zonesIn === 3, `${r.zonesIn} of ${r.zones}`);
     await page.close();
   }
@@ -2121,6 +2132,10 @@ async function main(): Promise<void> {
       page,
       `(async () => { const el = document.getElementById("profileName") ?? document.createElement("input");
         if (!el.isConnected) document.getElementById("overlay").appendChild(el);
+        // The Esc just above was taken as Resume, and whether the menu has
+        // closed by now is a race: it flaked with the whole overlay hidden.
+        // This check is about typing on the menu, so the menu is put back.
+        document.getElementById("overlay").classList.remove("hidden");
         document.querySelector('#tabs button[data-tab="stats"]').click();
         // A hidden field cannot take focus, and on a loaded machine the tab's
         // panel is not always shown by the time the click returns: this flaked

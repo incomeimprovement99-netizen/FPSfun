@@ -1,15 +1,48 @@
 {
   "_note": "The arena's modes (docs/RESEARCH_PHASE_11.md sections 13 and 14). Gun Run: one kill moves you to the next gun, a melee kill at the end wins (Apex's throwing knife), a melee death costs a level, 10 minutes then the highest level wins, health and shields come back after 4 s without damage. Apex plays it as 4 teams of 3 on 25 guns; ours is every player for themselves in the arena, on a short list of 10 or every gun. Team deathmatch: Apex is 6v6, first to 40, 10 minutes; the arena holds teams of up to 4, so ours is first to 30 (ours). Crown: Hyper Scape's Crown Rush (45 s to hold at launch); ours is a round mode, the crown appears 20 s in and 30 s of holding it takes the round (ours).",
   "gunRun": {
-    "short": ["rspn101", "r97", "vinson", "volt_smg", "lmg", "g2", "mastiff", "sentinel", "wingman", "semipistol"],
+    "short": [
+      "rspn101",
+      "r97",
+      "vinson",
+      "volt_smg",
+      "lmg",
+      "g2",
+      "mastiff",
+      "sentinel",
+      "wingman",
+      "semipistol"
+    ],
     "full": [
-      "rspn101", "vinson", "hemlok", "energy_ar", "nemesis",
-      "r97", "alternator_smg", "car", "volt_smg", "pdw",
-      "lmg", "dragon_lmg", "esaw", "lstar",
-      "g2", "3030", "doubletake", "dmr", "bocek",
-      "shotgun", "energy_shotgun", "mastiff", "shotgun_pistol",
-      "sentinel", "defender", "sniper",
-      "wingman", "autopistol", "semipistol"
+      "rspn101",
+      "vinson",
+      "hemlok",
+      "energy_ar",
+      "nemesis",
+      "r97",
+      "alternator_smg",
+      "car",
+      "volt_smg",
+      "pdw",
+      "lmg",
+      "dragon_lmg",
+      "esaw",
+      "lstar",
+      "g2",
+      "3030",
+      "doubletake",
+      "dmr",
+      "bocek",
+      "shotgun",
+      "energy_shotgun",
+      "mastiff",
+      "shotgun_pistol",
+      "sentinel",
+      "defender",
+      "sniper",
+      "wingman",
+      "autopistol",
+      "semipistol"
     ],
     "timeLimit": 600,
     "respawn": 3,
@@ -45,12 +78,44 @@
     "scoreLimit": 500,
     "timeLimit": 600,
     "respawn": 5,
-    "zones": [["A", -12, -13], ["B", 0, 0], ["C", 12, 13]],
+    "zones": [
+      [
+        "A",
+        -12,
+        -13
+      ],
+      [
+        "B",
+        0,
+        0
+      ],
+      [
+        "C",
+        12,
+        13
+      ]
+    ],
     "radius": 4,
     "captureTime": 8,
-    "captureMult": [1, 1.5, 2, 2.25, 2.5, 2.75, 3],
-    "bonus": { "firstAt": 150, "every": 240, "lasts": 60, "points": 150 },
-    "lockout": { "time": 30, "notWithin": 100 }
+    "captureMult": [
+      1,
+      1.5,
+      2,
+      2.25,
+      2.5,
+      2.75,
+      3
+    ],
+    "bonus": {
+      "firstAt": 150,
+      "every": 240,
+      "lasts": 60,
+      "points": 150
+    },
+    "lockout": {
+      "time": 30,
+      "notWithin": 100
+    }
   },
   "countdown": 3,
   "roundEnd": 4,
@@ -59,8 +124,89 @@
   "maxBots": 5,
   "_spawns": "arena coordinates (the 1v1 arena's centre is 0, 0; team A's end is -z, team B's +z), each facing up the map toward the middle",
   "spawns": {
-    "a": [[0, -29], [-12, -28], [12, -28], [-15, -23], [15, -23], [0, -12]],
-    "b": [[0, 29], [-12, 28], [12, 28], [-15, 23], [15, 23], [0, 12]],
-    "mid": [[-16, -6], [16, 6], [-9, -5], [9, 5], [-12, 8], [12, -8]]
+    "a": [
+      [
+        0,
+        -29
+      ],
+      [
+        -12,
+        -28
+      ],
+      [
+        12,
+        -28
+      ],
+      [
+        -15,
+        -23
+      ],
+      [
+        15,
+        -23
+      ],
+      [
+        0,
+        -12
+      ]
+    ],
+    "b": [
+      [
+        0,
+        29
+      ],
+      [
+        -12,
+        28
+      ],
+      [
+        12,
+        28
+      ],
+      [
+        -15,
+        23
+      ],
+      [
+        15,
+        23
+      ],
+      [
+        0,
+        12
+      ]
+    ],
+    "mid": [
+      [
+        -16,
+        -6
+      ],
+      [
+        16,
+        6
+      ],
+      [
+        -9,
+        -5
+      ],
+      [
+        9,
+        5
+      ],
+      [
+        -12,
+        8
+      ],
+      [
+        12,
+        -8
+      ]
+    ]
+  },
+  "_spawnFacing": "Which way you face when an arena match puts you down. A spawn faces the middle, and the new arenas put a pillar or a container on that line on purpose, to break the shot from one spawn to the other; so a spawn faced the box a metre away. Now the facing turns, in steps of `step` degrees either side up to `sweep`, to the nearest heading with at least `clear` metres of open view, and keeps the middle when it already has that. Ours.",
+  "spawnFacing": {
+    "clear": 8,
+    "sweep": 70,
+    "step": 10
   }
 }

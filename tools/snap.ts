@@ -76,6 +76,33 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "arena-vault",
+    note: "the Vault, the small two-storey arena for 1v1 and free-for-all, from a spawn at one end",
+    steps: [
+      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); })()`, 600],
+      [`(() => { const r = window.__range; r.player.setBounds({ minX: -86, maxX: -58, minZ: -64, maxZ: -32 }); r.player.teleport(-72, 0, -60.5, 180, 4); })()`, 0],
+      [gameSeconds(1), 250],
+    ],
+  },
+  {
+    name: "arena-crossing",
+    note: "the Crossing, the wide symmetric team arena, from one team's end",
+    steps: [
+      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); })()`, 600],
+      [`(() => { const r = window.__range; r.player.setBounds({ minX: -125, maxX: -67, minZ: -1, maxZ: 69 }); r.player.teleport(-96, 0, 2.5, 180, 4); })()`, 0],
+      [gameSeconds(1), 250],
+    ],
+  },
+  {
+    name: "arena-ringworks",
+    note: "the Ringworks, the open-sky free-for-all arena, from a spawn on its edge",
+    steps: [
+      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); })()`, 600],
+      [`(() => { const r = window.__range; r.player.setBounds({ minX: -95, maxX: -49, minZ: 89, maxZ: 135 }); r.player.teleport(-72, 0, 93, 180, 4); })()`, 0],
+      [gameSeconds(1), 250],
+    ],
+  },
+  {
     name: "arena-middle-roof",
     note: "the middle building from the side, at roof height: the two storeys, the roof lip and the ziplines",
     steps: [
