@@ -1435,6 +1435,9 @@ async function damageDirTest(browser: Browser, query: string): Promise<void> {
     `(async () => { const R = window.__range; R.player.yaw = -90; await new Promise((r) => setTimeout(r, 300)); const dirs = R.hud.last?.damageDirs ?? []; return { angle: dirs.length ? dirs[0].angle : null }; })()`
   );
   check("hit feedback: turn to face the shooter and the arc swings to straight ahead", turned.angle !== null && Math.abs(turned.angle) < 0.35, JSON.stringify(turned));
+  // the bot is live and would shoot again, drawing a fresh arc: put it far
+  // out of its own sight range before waiting for the old one to fade
+  await ev(page, "(() => { const R = window.__range; const b = R.duel().bots[0]; const p = R.player.pos; b.pos.set(p.x + 400, p.y, p.z + 400); })()");
   await sleep(2200);
   const gone = await ev<number>(page, "(window.__range.hud.last?.damageDirs ?? []).length");
   check("hit feedback: and it fades out on its own", gone === 0, `${gone} arcs left`);
@@ -2111,6 +2114,27 @@ async function main(): Promise<void> {
         document.querySelector('#tabs button[data-tab="play"]').click(); return out; })()`
     );
     check("Esc in a text field leaves the field instead of resuming", typing.focused && typing.taken === escOnMenu && typing.blurred, JSON.stringify(typing));
+    // The crosshair: the Settings rows change it at once, keep it, and draw a
+    // preview; Reset puts the game's own back.
+    const xh = await ev<{ before: string; style: string; color: string; hud: string; stored: string; lit: number; reset: string }>(
+      page,
+      `(async () => {
+        const R = window.__range; const $ = (id) => document.getElementById(id);
+        const before = R.reticle.style;
+        $("xhStyle").value = "cross"; $("xhStyle").dispatchEvent(new Event("change"));
+        $("xhColor").value = "green"; $("xhColor").dispatchEvent(new Event("change"));
+        await new Promise((r) => setTimeout(r, 300));
+        const cur = { style: R.reticle.style, color: R.reticle.color };
+        const stored = JSON.parse(localStorage.getItem("range.reticle.v1") ?? "{}");
+        const g = $("xhPreview").getContext("2d"); const px = g.getImageData(0, 0, 96, 96).data;
+        let lit = 0; for (let i = 0; i < px.length; i += 4) if (px[i + 1] > 200 && px[i] < 120) lit++;
+        $("xhReset").click();
+        const reset = JSON.parse(localStorage.getItem("range.reticle.v1") ?? "{}").style;
+        return { before, style: cur?.style ?? "", color: cur?.color ?? "", hud: cur ? cur.style + "/" + cur.color : "", stored: stored.style + "/" + stored.color, lit, reset };
+      })()`
+    );
+    check("crosshair: the game's own by default; a new style and colour apply at once and are kept", xh.before === "apex" && xh.style === "cross" && xh.color === "green" && xh.stored === "cross/green", JSON.stringify(xh));
+    check("crosshair: the preview draws it, and Reset brings the game's own back", xh.lit > 10 && xh.reset === "apex", JSON.stringify({ lit: xh.lit, reset: xh.reset }));
     const inGame = await ev<number>(page, `(() => { document.getElementById("overlay").classList.add("hidden"); window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", key: "Escape", bubbles: true, cancelable: true })); document.getElementById("overlay").classList.remove("hidden"); return window.__range.menuEscapes(); })()`);
     check("Esc with the menu closed is not a resume", inGame === escOnMenu, `${inGame} taken as Resume, ${escOnMenu} before`);
 

@@ -36,5 +36,91 @@
     "arc": 36,
     "merge": 4,
     "max": 5
+  },
+  "_reticle": "The crosshair's options (Settings, Crosshair; src/game/reticle.ts). The default is the crosshair the game always had, Apex's three prongs and a dot, white, dynamic with the gun's spread, so nobody sees a change until they ask for one. The colours are the ones every competitive shooter offers, and they are chosen to stay apart for the three common kinds of colour blindness: the green and the magenta, and the yellow and the cyan, are the pairs to use when red and green look alike. limits are the ranges the settings accept; a stored value outside them is clamped. Ours.",
+  "reticle": {
+    "styles": [
+      {
+        "id": "apex",
+        "label": "Three prongs (the game's)"
+      },
+      {
+        "id": "cross",
+        "label": "Cross"
+      },
+      {
+        "id": "t",
+        "label": "T (no top line)"
+      },
+      {
+        "id": "circle",
+        "label": "Circle"
+      },
+      {
+        "id": "dot",
+        "label": "Dot only"
+      }
+    ],
+    "colors": [
+      {
+        "id": "white",
+        "label": "White",
+        "hex": "#f2f2f2"
+      },
+      {
+        "id": "green",
+        "label": "Green",
+        "hex": "#3dff6e"
+      },
+      {
+        "id": "yellow",
+        "label": "Yellow",
+        "hex": "#ffe14d"
+      },
+      {
+        "id": "cyan",
+        "label": "Cyan",
+        "hex": "#3de0ff"
+      },
+      {
+        "id": "magenta",
+        "label": "Magenta",
+        "hex": "#ff4dff"
+      },
+      {
+        "id": "red",
+        "label": "Red",
+        "hex": "#ff4040"
+      }
+    ],
+    "default": {
+      "style": "apex",
+      "color": "white",
+      "size": 1,
+      "thickness": 2,
+      "gap": 0,
+      "dot": true,
+      "outline": false,
+      "dynamic": true,
+      "opacity": 0.95
+    },
+    "limits": {
+      "size": [
+        0.3,
+        3
+      ],
+      "thickness": [
+        1,
+        5
+      ],
+      "gap": [
+        0,
+        20
+      ],
+      "opacity": [
+        0.2,
+        1
+      ]
+    }
   }
 }

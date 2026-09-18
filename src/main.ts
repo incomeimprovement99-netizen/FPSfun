@@ -79,6 +79,7 @@ import itemsCfg from "./config/items.json";
 import { Armor, HEAL_ORDER, HEALS, Kit, type HealItem } from "./game/kit";
 import { Knockdown, type BackTier, type KnockTier } from "./game/kit";
 import { ammoTypeOf } from "./game/ammo";
+import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
 
 const DEG = Math.PI / 180;
 /** slot 1 and slot 2. Keys 1 and 2 select, Q swaps. */
@@ -148,6 +149,75 @@ function saveSettings(s: Settings): void {
   }
 }
 const settings = loadSettings();
+// The crosshair (src/game/reticle.ts), and the Settings rows that set it up.
+// Every change applies at once, is kept, and redraws the little preview so
+// the choice can be made without starting a match.
+const reticle: Reticle = loadReticle();
+{
+  const fill = (sel: HTMLSelectElement, items: Array<{ id: string; label: string }>) => {
+    for (const it of items) {
+      const o = document.createElement("option");
+      o.value = it.id;
+      o.textContent = it.label;
+      sel.appendChild(o);
+    }
+  };
+  const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const style = el<HTMLSelectElement>("xhStyle");
+  const color = el<HTMLSelectElement>("xhColor");
+  const size = el<HTMLInputElement>("xhSize");
+  const thick = el<HTMLInputElement>("xhThick");
+  const gapIn = el<HTMLInputElement>("xhGap");
+  const dot = el<HTMLSelectElement>("xhDot");
+  const outline = el<HTMLSelectElement>("xhOutline");
+  const dynamic = el<HTMLSelectElement>("xhDynamic");
+  const opacity = el<HTMLInputElement>("xhOpacity");
+  const preview = el<HTMLCanvasElement>("xhPreview");
+  fill(style, RETICLE_STYLES);
+  fill(color, RETICLE_COLORS);
+  const show = () => {
+    style.value = reticle.style;
+    color.value = reticle.color;
+    size.value = String(reticle.size);
+    thick.value = String(reticle.thickness);
+    gapIn.value = String(reticle.gap);
+    dot.value = reticle.dot ? "1" : "0";
+    outline.value = reticle.outline ? "1" : "0";
+    dynamic.value = reticle.dynamic ? "1" : "0";
+    opacity.value = String(reticle.opacity);
+    const g = preview.getContext("2d");
+    if (g) {
+      g.clearRect(0, 0, preview.width, preview.height);
+      drawReticle(g, preview.width / 2, preview.height / 2, 6, 1.4, 1, reticle);
+    }
+  };
+  const read = () => {
+    Object.assign(
+      reticle,
+      cleanReticle({
+        style: style.value,
+        color: color.value,
+        size: Number(size.value),
+        thickness: Number(thick.value),
+        gap: Number(gapIn.value),
+        dot: dot.value === "1",
+        outline: outline.value === "1",
+        dynamic: dynamic.value === "1",
+        opacity: Number(opacity.value),
+      })
+    );
+    saveReticle(reticle);
+    show();
+  };
+  for (const c of [style, color, dot, outline, dynamic]) c.addEventListener("change", read);
+  for (const c of [size, thick, gapIn, opacity]) c.addEventListener("change", read);
+  el<HTMLButtonElement>("xhReset").addEventListener("click", () => {
+    Object.assign(reticle, RETICLE_DEFAULT);
+    saveReticle(reticle);
+    show();
+  });
+  show();
+}
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /**
@@ -3780,6 +3850,7 @@ function step(): void {
     heal: heal && vitalsTarget() ? { item: HEAL_ITEMS[heal.item].name, progress: Math.min(1, (now - heal.startedAt) / heal.duration) } : null,
     kit: (duel && duel.alive) || (!duel && rangeCombat.on && rangeCombat.alive) ? { ...kit.items } : null,
     damageDirs: duel ? damageDirs() : undefined,
+    reticle,
     healWheel: wheelOpen ? { items: HEAL_ORDER.map((k) => ({ id: k, name: HEAL_ITEMS[k].name, count: kit.items[k] })), pick: wheelPick } : null,
     lobby:
       hosting && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
@@ -4049,6 +4120,8 @@ initWelcome();
   gunSession: () => [...gunSession.entries()],
   startHeal: () => startHeal(gameTime),
   kit,
+  /** the crosshair as set up on the Settings tab (tools/e2e.ts) */
+  reticle,
   /** the knockdown shield (tools/e2e.ts) */
   kd,
   armor,

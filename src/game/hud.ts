@@ -27,6 +27,7 @@ import hudCfg from "../config/hud.json";
 import lootCfg from "../config/loot.json";
 import { REACH } from "./brplay";
 import { drawIcon, loadIcons } from "./icons";
+import { drawReticle as drawCrosshair2d, type Reticle } from "./reticle";
 
 type ModeRow = ModeHud["rows"][number];
 
@@ -97,6 +98,8 @@ export interface HudState {
    * both out from the shooter's position and your yaw every frame).
    */
   damageDirs?: Array<{ angle: number; alpha: number }>;
+  /** the player's crosshair (src/game/reticle.ts); none is the old three prongs */
+  reticle?: Reticle;
   /** 0..1: the gun's wind-up, charge, aimed charge, choke or burst charge (a ring round the crosshair) */
   gunCharge?: number;
   /** the L-STAR's heat, and whether it is in its forced cooldown */
@@ -1227,7 +1230,11 @@ export class Hud {
     // aim, and the sights (irons, reticle or scope) are the aim point. Hit
     // markers still show while aiming.
     const hip = s.holstered ? 0.35 : Math.max(0, 1 - s.adsFrac / 0.3);
-    if (hip > 0) {
+    if (hip > 0 && s.reticle) {
+      c.shadowBlur = 0;
+      drawCrosshair2d(c, cx, cy, gap, u, hip, s.reticle);
+      c.shadowBlur = 2;
+    } else if (hip > 0) {
       c.globalAlpha = hip;
       const len = 7 * u + 3;
       for (const [dx, dy] of [
