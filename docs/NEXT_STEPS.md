@@ -34,6 +34,7 @@ Working the list from the top down. Each of these has a check that fails if the 
 - **#28 HUD iconography and a type pair** — done: forty-five icons (Lucide ISC for the interface, game-icons.net CC BY 3.0 for the gameplay glyphs, credited by author), and the fonts moved off fonts.googleapis.com to self-hosted OFL files, 110 KB, so the game makes no third-party request and works offline.
 - **The fetch half of #7 and #8** — done: ten material sets for per-place palettes and nine rock and scrub meshes are downloaded, credited and lazily loadable. Applying them to the map is still open and belongs with the map work.
 - **The critic's "audio occlusion, obstruction and a vertical cue"** — done: three rays from the ear to the source through `solidHit`, so what you cannot shoot through is what you cannot hear clearly through, plus a filter tilt that tells you a fight is upstairs.
+- **The two-state dive of #14** — done: where you look is the trade between falling and travelling. Level glides (12 m/s down, 14 across, about 105 m from the drop's 90), straight down dives (30 down, 5 across, on the ground in 3 s), blended between; the drop starts looking 35 degrees down, which is the old single speed. The drop's map now steps aside after 2.5 s. The dropship and the jumpmaster are still open. The numbers are in `squad.json` `dive`, and movesim and e2e check them.
 
 ## The ranked list
 

@@ -20,6 +20,7 @@
 - **Bots look at their arc before throwing**, and grenades fly the same at any frame rate. This was the cause of the one flaky e2e check.
 - **Three new arenas and a map picker** (finished after the limit reset): the Vault for 1v1 and free-for-all, the Crossing for team modes, the Ringworks for free-for-all and Crown. Pick one in the modes row, or "picked for the mode". The warehouse is still the default. The offline 1v1 against bots uses the picker too.
 - **After the second reset:** a damage direction indicator, crosshair customisation, colour vision modes and a HUD scale, XP with levels and challenges, a match summary card, quick chat, and spawning facing open floor in the new arenas. Two flaky e2e checks were found at their causes and fixed.
+- **A two-state skydive**: look down to dive at 30 m/s, look level to glide 14 m/s across at 12 down, blended between; the drop's map steps aside after 2.5 s so you can see where you are steering.
 - **verify** is 1,200+ checks; its new subjects live in `tools/checks/`.
 
 ## Not done, and why
@@ -49,7 +50,7 @@
 These came out of the gap analysis and nobody has started them:
 
 - **A map that is a level**, with terrain, landmarks you can name from far away, and a mid band worth crossing.
-- **A drop**: a dropship line, a jumpmaster, a two-state dive.
+- **A drop**: a dropship line and a jumpmaster. (The two-state dive is done.)
 - **Doors, bins, vaults and keycards**, the interactive layer every modern battle royale has.
 - **Crafting and an economy**: replicators, cash and buy stations, contracts.
 - **After you die**: spectating your squad, the Gulag, a real match summary.

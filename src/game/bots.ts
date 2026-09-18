@@ -40,6 +40,7 @@ import throwCfg from "../config/throwables.json";
 import { asDifficulty } from "./stats";
 import { Throwables, blastDamage, throwCode } from "./throwables";
 import { HEALTH_MAX, ROUNDS_TO_WIN, SHIELD_MAX, ZONE_CAPTURE, ZONE_DELAY, type DuelHud, type LocalState, type MatchLike, type Remote, type Spawn } from "./duel";
+import squadCfg from "../config/squad.json";
 
 const COUNTDOWN = 3;
 const ROUND_END = 3;
@@ -234,7 +235,8 @@ const RADIUS = MOVE.radius;
 /** a bot healing walks at this fraction of its speed (ours) */
 const HEAL_WALK = 0.45;
 /** a drop from the sky: terminal speed, m/s */
-export const DROP_SPEED = 22;
+/** how fast a bot comes down from the drop, straight (src/config/squad.json dive.botFall) */
+export const DROP_SPEED = squadCfg.dive.botFall;
 
 /** what a bot knows this frame; the match works it out from its own rules */
 export interface BotSense {

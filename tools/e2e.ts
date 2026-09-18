@@ -203,6 +203,18 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   check("the drop starts high over one of the nine places, six in the match", drop.y > 40 && drop.dropping && /HUB|YARD|DEPOT|RIDGE|TOWN|FARM|STORE|PENS|WORKS/.test(drop.poi) && drop.alive === 6 && drop.bounds, JSON.stringify(drop));
   const early = await ev<number>(page, `(() => { const d = window.__range.duel(); const now = performance.now() / 1000; return d.bots.filter((b) => b.armedAt <= now).length; })()`);
   check("landing: nobody's gun works while the drop is still coming down", early === 0, `${early} armed`);
+  // the skydive's two states in the page: after its first moments the drop's
+  // map steps aside, and where you look is the trade between falling and travelling
+  const glideAt = await ev<{ map: boolean; k: number; fall: number; air: boolean }>(
+    page,
+    `new Promise((ok) => { const R = window.__range; R.player.pitch = 0; setTimeout(() => ok({ map: !!R.hud.last?.mapOpen, k: R.hud.last?.dive?.k ?? -1, fall: -R.player.vel.y, air: R.player.dropping }), 2800); })`
+  );
+  check("the skydive: the map steps aside after the drop's first moments, and looking level glides (12 m/s down)", !glideAt.map && glideAt.k === 0 && glideAt.air && Math.abs(glideAt.fall - 12) < 0.6, JSON.stringify(glideAt));
+  const diveAt = await ev<{ k: number; fall: number; air: boolean }>(
+    page,
+    `new Promise((ok) => { const R = window.__range; R.player.pitch = -89; setTimeout(() => ok({ k: R.hud.last?.dive?.k ?? -1, fall: -R.player.vel.y, air: R.player.dropping }), 1200); })`
+  );
+  check("and looking down dives (30 m/s)", diveAt.k === 1 && (!diveAt.air || diveAt.fall > 27), JSON.stringify(diveAt));
   const landed = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false);
   check("the fight starts when you land", landed, await ev<string>(page, "String(window.__range.duel()?.phase)"));
   // the owner landed beside bots and died before the drop finished. They take

@@ -1666,6 +1666,39 @@ console.log("\nJOLT, the dash ability (src/config/abilities.json: 10 m over 0.14
   near("sprint is still 260 hu/s", s.speedHu, 260, 0.05);
 }
 
+// ------------------------------------------------------------------ the skydive
+console.log("\nThe skydive in two states: look level to glide far, look down to dive fast (squad.json dive)");
+{
+  const D = squadCfg.dive;
+  /** settled speeds holding forward at a pitch (null: the pitch the drop starts at) */
+  const fly = (pitch: number | null) => {
+    const s = new Sim();
+    s.p.beginDrop(0, 400, 0, 0);
+    if (pitch !== null) s.p.pitch = pitch;
+    s.in.hold("forward");
+    s.run(3);
+    const y0 = s.p.pos.y;
+    const x0 = s.p.pos.x;
+    const z0 = s.p.pos.z;
+    s.run(1);
+    return { down: y0 - s.p.pos.y, across: Math.hypot(s.p.pos.x - x0, s.p.pos.z - z0), k: s.p.diveFactor };
+  };
+  const glide = fly(0);
+  const dive = fly(-89);
+  const start = fly(null);
+  const up = fly(30);
+  near("looking level: a glide, falling at glideFall m/s", glide.down, D.glideFall, 0.3);
+  near("and travelling at glideSpeed m/s", glide.across, D.glideSpeed, 0.3);
+  near("looking straight down: a dive, falling at diveFall m/s", dive.down, D.diveFall, 0.3);
+  near("and travelling at diveSpeed m/s", dive.across, D.diveSpeed, 0.3);
+  check("looking up is no better than looking level", Math.abs(up.down - glide.down) < 1e-6 && Math.abs(up.across - glide.across) < 1e-6);
+  check("the pitch the drop starts at is about the old single speed (22 down, 9 across)", start.down > 18 && start.down < 23 && start.across > 8.5 && start.across < 11, `${start.down.toFixed(1)} down, ${start.across.toFixed(1)} across`);
+  // from the drop's 90 m: the glide reaches the next place over, the dive lands at least twice as soon
+  const reach = (v: { down: number; across: number }) => (90 / v.down) * v.across;
+  check("from the drop's height a glide carries 90 m or more, a neighbouring place", reach(glide) >= 90, `${reach(glide).toFixed(0)} m`);
+  check("and a dive is on the ground in under half the glide's time", 90 / dive.down < (0.5 * 90) / glide.down, `${(90 / dive.down).toFixed(1)} s against ${(90 / glide.down).toFixed(1)} s`);
+}
+
 // ------------------------------------------------------------------ healing pace
 console.log("\nHealing: 40% slower, no sprint (Season 30, docs/RESEARCH_PHASE_11.md)");
 {

@@ -156,6 +156,8 @@ export interface HudState {
   mapRegion?: { minX: number; maxX: number; minZ: number; maxZ: number };
   /** the full map is open (M), or shown by the drop */
   mapOpen?: boolean;
+  /** in the skydive: 0 gliding to 1 diving (player.ts diveFactor), and how high you are */
+  dive?: { k: number; height: number } | null;
   /** a heal in progress: the item, 0..1, and what is left in the kit */
   heal?: { item: string; progress: number } | null;
   /** what is left of each heal */
@@ -358,6 +360,7 @@ export class Hud {
     this.drawDuel(s, u);
     this.drawMode(now, camera, s, u);
     this.drawBr(now, s, u);
+    this.drawDive(s, u);
     this.drawKit(s, u);
     this.drawAbility(now, s, u);
     this.drawAbilityCard(s, u);
@@ -1652,8 +1655,37 @@ export class Hud {
     c.restore();
     if (br?.dropping) {
       this.text(`DROPPING INTO ${br.poi}`, this.w / 2, y0 - 26 * u, 700, 34 * u, "#ffd23c", "center");
-      this.text("STEER WITH THE MOVEMENT KEYS", this.w / 2, y0 + (r.maxZ - r.minZ) * scale + 34 * u, 600, 15 * u, DIM, "center");
+      this.text("STEER WITH THE MOVEMENT KEYS, LOOK DOWN TO DIVE", this.w / 2, y0 + (r.maxZ - r.minZ) * scale + 34 * u, 600, 15 * u, DIM, "center");
     } else this.text("M CLOSES THE MAP", this.w / 2, y0 + (r.maxZ - r.minZ) * scale + 34 * u, 600, 15 * u, DIM, "center");
+  }
+
+  /**
+   * The skydive's readout: which of its two states you are in, where between
+   * them, and how high you are, with the hint that says how to change it.
+   * Hidden while the full map is over the screen.
+   */
+  private drawDive(s: HudState, u: number): void {
+    const d = s.dive;
+    if (!d || s.mapOpen) return;
+    const c = this.ctx;
+    const cx = this.w / 2;
+    const y = this.h * 0.7;
+    const diving = d.k > 0.66;
+    const gliding = d.k < 0.33;
+    // on a panel: the ground under a skydive is bright, and plain text on it is lost
+    c.fillStyle = PANEL;
+    c.fillRect(cx - 170 * u, y - 30 * u, 340 * u, 106 * u);
+    this.text(diving ? "DIVING" : gliding ? "GLIDING" : "FALLING", cx, y, 700, 24 * u, diving ? "#ff9a3c" : gliding ? "#7fd8ff" : WHITE, "center");
+    // the bar: the glide at the left end, the dive at the right, a mark where you are
+    const w = 220 * u;
+    c.fillStyle = "rgba(255,255,255,0.2)";
+    c.fillRect(cx - w / 2, y + 12 * u, w, 6 * u);
+    c.fillStyle = "#ffd23c";
+    c.fillRect(cx - w / 2 + d.k * w - 2 * u, y + 8 * u, 4 * u, 14 * u);
+    this.text("GLIDE", cx - w / 2 - 8 * u, y + 20 * u, 600, 12 * u, DIM, "right");
+    this.text("DIVE", cx + w / 2 + 8 * u, y + 20 * u, 600, 12 * u, DIM, "left");
+    this.text(`${Math.max(0, Math.round(d.height))} M`, cx, y + 44 * u, 700, 16 * u, WHITE, "center");
+    this.text("LOOK DOWN TO DIVE, LEVEL TO GLIDE", cx, y + 64 * u, 600, 13 * u, DIM, "center");
   }
 
   /** the battle royale: who is left, the ring's clock, outside the ring, the heal, the card */

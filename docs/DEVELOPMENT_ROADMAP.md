@@ -854,3 +854,15 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - The online board posts a result under your account's name when you are signed in, and refuses an account's name
   from anyone who is not.
 
+## Milestone 60 — The skydive has two states: look down to dive, look level to glide ✅
+2026-09-18 (Phase 15). `player.ts`, `hud.ts`, `main.ts`, `bots.ts`, `src/config/squad.json`.
+- Where you look is the trade between falling and travelling: level glides at 12 m/s down and 14 across, about
+  105 m from the drop's 90; straight down dives at 30 down and 5 across, on the ground in 3 s. It blends between.
+- The drop starts looking 35 degrees down, which falls at about the old single speed, so nobody's drop changes
+  unless they look.
+- The drop's full map steps aside after 2.5 s so you can see the ground you are steering onto (M brings it back),
+  and a guest who lands before the host no longer stares at it until the host does. A readout says which state you
+  are in and how high you are, and the hands are put away for the fall.
+- The drop's numbers moved from literals in `player.ts` and `bots.ts` into `squad.json` `dive`; movesim checks the
+  four speeds, e2e checks them in the page, and `npm run snap` has a picture of the readout.
+

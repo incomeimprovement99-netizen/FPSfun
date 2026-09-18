@@ -1,7 +1,12 @@
 {
   "_note": "A battle royale squad's systems, Season 30 where Apex publishes a number (docs/RESEARCH_PHASE_11.md section 6): the bleed-out clock per knock, a revive's 5 s and the 20 health it gives back, the banner's 90 s, a beacon's 5 s. The crawl speed, the reach and the launch pad's throw are ours.",
   "_bleedOut": "seconds on the floor for the first, second, third and later knocks of a life. It is a trio's clock: the battle royale multiplies it by its squad size's `bleed` (src/config/br.json), so a duo has half of it and a solo has no down at all.",
-  "bleedOut": [90, 60, 30, 15],
+  "bleedOut": [
+    90,
+    60,
+    30,
+    15
+  ],
   "bleedHealth": 100,
   "reviveTime": 5,
   "reviveHealth": 20,
@@ -12,16 +17,72 @@
   "_crawl": "down, you crawl at this fraction of the crouch walk (ours)",
   "crawl": 0.65,
   "_pad": "a launch pad on a road: along it and up, m/s (ours; about 33 m along and 6.7 m up)",
-  "pad": { "speed": 20, "up": 16, "reach": 1.7 },
+  "pad": {
+    "speed": 20,
+    "up": 16,
+    "reach": 1.7
+  },
   "towerReach": 2.6,
   "_ping": "how long a ping lasts, s",
-  "pingLife": { "enemy": 6, "loot": 10, "go": 12 },
+  "pingLife": {
+    "enemy": 6,
+    "loot": 10,
+    "go": 12
+  },
   "_evo": "EVO as Season 30 counts it (docs/RESEARCH_PHASE_12.md section 2.3): 1 per point of damage you deal (the levels are in items.json), 150 a knock, 100 an assist (you hurt them in the last assistWindow seconds and someone else knocked them; the window is ours), 100 a finisher, a revive 100 for the first two then 25 less each, 100 for looting a care package (once a package). Taking damage earns nothing.",
   "_drop": "Landing: the bots drop on the OTHER places while there are any (a squad's own place is theirs), they are spread `apart` metres around a place's drop points so they do not pile onto one, and nobody's gun works for `grace` seconds after they land. Before this you could land beside three bots and be dead before the drop animation finished.",
-  "drop": { "apart": 18, "grace": 4 },
-  "evo": { "knock": 150, "assist": 100, "assistWindow": 15, "finisher": 100, "revive": [100, 100, 75, 50, 25, 0], "carePackage": 100 },
+  "drop": {
+    "apart": 18,
+    "grace": 4
+  },
+  "_dive": "The skydive, in two states the way Apex flies it: where you look decides the trade between falling and travelling. Look level (flatPitch) and you glide: glideFall m/s down and glideSpeed m/s across, the long way to a far place. Look straight down (downPitch) and you dive: diveFall down and diveSpeed across, the fast way onto the place under you. In between it blends. The drop starts looking 35 degrees down, which lands on about 20 m/s down and 10 across, near the single speed the skydive always had (22 and 9), so a player who never touches the mouse drops as before. botFall is how fast a bot comes down, straight, as it always did. Ours: Apex does not publish its freefall numbers, and its map is ten times the size of this one. mapSeconds is how long the drop keeps the full map over the screen by itself: long enough to see which place you are over and which is next to it, then it steps aside so you can see the ground you are steering onto (M brings it back). It used to stay up for the whole fall, which was fine when looking did nothing.",
+  "dive": {
+    "flatPitch": 0,
+    "downPitch": -80,
+    "glideFall": 12,
+    "diveFall": 30,
+    "glideSpeed": 14,
+    "diveSpeed": 5,
+    "botFall": 22,
+    "mapSeconds": 2.5
+  },
+  "evo": {
+    "knock": 150,
+    "assist": 100,
+    "assistWindow": 15,
+    "finisher": 100,
+    "revive": [
+      100,
+      100,
+      75,
+      50,
+      25,
+      0
+    ],
+    "carePackage": 100
+  },
   "_kdShield": "the knockdown shield (Season 28 on): its size is your EVO level's, 200 / 450 / 750; hold fire while down to raise it; it stops what comes from the front (ours: within 70 degrees of where you face); you crawl 45% slower behind it; broken, it stays broken until your next knock",
-  "kdShield": { "hp": [200, 450, 750], "arc": 70, "crawlScale": 0.55 },
+  "kdShield": {
+    "hp": [
+      200,
+      450,
+      750
+    ],
+    "arc": 70,
+    "crawlScale": 0.55
+  },
   "_boxRespawn": "Deathbox Respawn (Season 29 on, research 2.1): hold interact 7 s at a dead squad mate's box (a tap still takes their banner); a green beam and a hum for everyone while it runs; they come back on the box with 20 health, their shield regenerating (ours: to full over 6 s), with what is left in the box. Each death adds a lockout before the next such respawn (ours: 30, 60, 120 s; Apex has not published its values), reset after 3 minutes alive.",
-  "boxRespawn": { "time": 7, "reach": 2.2, "health": 20, "shieldRegen": 6, "lockout": [30, 60, 120], "resetAfter": 180, "tapTime": 0.3 }
+  "boxRespawn": {
+    "time": 7,
+    "reach": 2.2,
+    "health": 20,
+    "shieldRegen": 6,
+    "lockout": [
+      30,
+      60,
+      120
+    ],
+    "resetAfter": 180,
+    "tapTime": 0.3
+  }
 }

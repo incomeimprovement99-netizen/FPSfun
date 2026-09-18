@@ -23,11 +23,12 @@ import type { Action } from "./input";
 import { HU, MOVE, jumpVelocityFor, slideFriction } from "./movement";
 import { RANGE_SOLIDS, type Solid } from "./range";
 import { ZIPLINES, type Zipline } from "./traversal";
+import squadCfg from "../config/squad.json";
 
 const DEG = Math.PI / 180;
 /** the skydive: terminal speed and steering, m/s (ours; the game's dive is its own system) */
-const DROP_SPEED = 22;
-const DROP_STEER = 9;
+/** the skydive's two states: look level to glide far, look down to dive fast (src/config/squad.json dive) */
+const DIVE = squadCfg.dive;
 
 export interface Bounds {
   minX: number; maxX: number; minZ: number; maxZ: number;
@@ -216,6 +217,11 @@ export class Player {
    * speed with full steering, no fall stun on landing. Cleared by the landing.
    */
   dropping = false;
+  /** 0 gliding (looking level or up) to 1 diving (looking straight down) */
+  get diveFactor(): number {
+    return Math.max(0, Math.min(1, (DIVE.flatPitch - this.pitch) / (DIVE.flatPitch - DIVE.downPitch)));
+  }
+
   beginDrop(x: number, y: number, z: number, yaw: number): void {
     this.teleport(x, y, z, yaw, -35);
     this.dropping = true;
@@ -676,10 +682,14 @@ export class Player {
     const vyStart = this.vel.y;
     if (!this.climbing) this.vel.y -= MOVE.gravity * dt;
     if (this.dropping && !this.onGround) {
-      // the skydive: terminal speed, and the stick steers the fall directly
-      this.vel.y = Math.max(this.vel.y, -DROP_SPEED);
-      this.vel.x = wx * DROP_STEER;
-      this.vel.z = wz * DROP_STEER;
+      // The skydive, in two states: where you look is the trade between
+      // falling and travelling. Level is a glide, the long way to a far
+      // place; straight down is a dive, the fast way onto the place under you.
+      const k = this.diveFactor;
+      this.vel.y = Math.max(this.vel.y, -(DIVE.glideFall + (DIVE.diveFall - DIVE.glideFall) * k));
+      const across = DIVE.glideSpeed + (DIVE.diveSpeed - DIVE.glideSpeed) * k;
+      this.vel.x = wx * across;
+      this.vel.z = wz * across;
     }
     this.integrate(dt, now, vyStart);
 

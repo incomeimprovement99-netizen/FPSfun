@@ -1436,6 +1436,7 @@ function respawnForMatch(d: MatchLike): void {
       setRegion("br");
       player.beginDrop(sp.x, DROP_HEIGHT, sp.z, sp.yaw);
       mapOpen = false;
+      dropMapUntil = gameTime + squadCfg.dive.mapSeconds;
       hud.notice(`DROPPING INTO ${d.poi.name}`, gameTime, 3);
     }
   } else player.teleport(sp.x, 0, sp.z, openYaw(sp.x, sp.z, sp.yaw));
@@ -2146,6 +2147,8 @@ function killcamGun(id: string): ResolvedWeapon {
 
 /** the full map (M); shown by itself through a battle royale's drop */
 let mapOpen = false;
+/** until when the drop keeps the full map up by itself (squad.json dive.mapSeconds) */
+let dropMapUntil = 0;
 /** the callbacks every kind of match gets */
 function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRespawn = () => respawnForMatch(d);
@@ -3870,8 +3873,9 @@ function step(): void {
   });
   // in third person the gun in your hands is on your figure instead; in the
   // killcam the gun in view is your killer's, and it kicks when they fire
-  // out (knocked in a round, eliminated): no gun and no hands at all, except the killer's in the killcam
-  viewModel.group.visible = killcam.active || (!third && !knockedOut);
+  // out (knocked in a round, eliminated): no gun and no hands at all, except the killer's in the killcam;
+  // in the skydive the hands are put away, out of the view of the ground you are steering onto
+  viewModel.group.visible = killcam.active || (!third && !knockedOut && !player.dropping);
   if (killcam.active && killcam.firedThisFrame) viewModel.onShot();
   selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, third && !killcam.active, knockedOut, downedNow);
   for (const lf of labFigs) {
@@ -4042,8 +4046,12 @@ function step(): void {
     course: duel ? null : (courses.map((c) => c.hud(now)).find((h) => h !== null) ?? null),
     duel: duelHud,
     mapRegion: duel instanceof BrMatch ? BR_BOUNDS : undefined,
-    // the drop shows the map by itself; M opens it any other time
-    mapOpen: mapOpen || !!duelHud?.br?.dropping,
+    // the drop shows the map by itself for its first moments, then it steps
+    // aside so you can see the ground you are steering onto; M opens it any
+    // time. Only while you are still in the air: a guest who lands before the
+    // host no longer stares at the map until the host does.
+    mapOpen: mapOpen || (!!duelHud?.br?.dropping && player.dropping && now < dropMapUntil),
+    dive: player.dropping ? { k: player.diveFactor, height: player.pos.y } : null,
     heal: heal && vitalsTarget() ? { item: HEAL_ITEMS[heal.item].name, progress: Math.min(1, (now - heal.startedAt) / heal.duration) } : null,
     kit: (duel && duel.alive) || (!duel && rangeCombat.on && rangeCombat.alive) ? { ...kit.items } : null,
     damageDirs: duel ? damageDirs() : undefined,

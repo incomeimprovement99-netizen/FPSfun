@@ -335,6 +335,16 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-skydive",
+    note: "the skydive after the map steps aside: the dive readout between glide and dive, the height, the hint",
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 300],
+      [`(() => { const r = window.__range; r.player.pitch = -10; r.setScript({ held: () => false, pressedNow: () => false }); })()`, 0],
+      [gameSeconds(2.8), 0],
+      [`(() => { window.__range.player.pitch = -52; })()`, 400],
+    ],
+  },
+  {
     name: "mode-gunrun",
     note: "Gun Run against bots: your level and gun, the next one, the clock, the scoreboard",
     steps: [
