@@ -834,3 +834,23 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Quick chat: Enter, then 1 to 6, says a line to everyone in the match. It travels as a number over the relayed
   effect message, so nobody's typed text reaches anyone else's screen.
 
+## Milestone 58 — The battle royale's rules: squads, the drop's theatre, the loadout crate, Storm Surge ✅
+2026-09-18 (Phase 15). `brmatch.ts`, `hud.ts`, `main.ts`, `src/config/br.json`, `index.html`, `src/ui/menu.ts`.
+- Solo, duos and trios, with bot counts that make whole bot squads, placement counted in squads, a solo knock an
+  elimination, and a duo's bleed-out half a trio's. The host's size travels to guests in the welcome.
+- The care package is called before it appears, falls under a canopy with a smoke trail, lands with a thump and
+  stays lit for a contest window; bots within 90 m go for it.
+- A loadout crate in two late rings hands each player their own saved loadout, kitted, once each.
+- Storm Surge: late, with too many alive, whoever has dealt no damage recently takes escalating damage.
+- Reviewed on its own branch before merging; twenty problems fixed there, among them a surge that never reached a
+  guest and a squad count that was always zero on one.
+
+## Milestone 59 — Bots look before they throw, and grenades fly the same everywhere ✅
+2026-09-18 (Phase 15). `bots.ts`, `throwables.ts`, `src/config/bots.json`, `src/config/throwables.json`.
+- A bot traces its lob against the world and throws only an arc that comes down near its target, trying steeper
+  ones over a wall and keeping the frag when the target is shut in a room.
+- A throw's flight is cut into slices no longer than 1/120 s, so the same frag goes off within 5 cm at 10 fps as at
+  60 fps (46 cm before).
+- The online board posts a result under your account's name when you are signed in, and refuses an account's name
+  from anyone who is not.
+

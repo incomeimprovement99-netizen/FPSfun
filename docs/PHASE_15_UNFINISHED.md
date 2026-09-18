@@ -16,6 +16,8 @@
 - **Audio occlusion** and a cue for sounds above or below you.
 - **Icons on the grenade row** of the HUD.
 - **Carried shockwave and rift charges** (restored after the reset), battle royale floor loot.
+- **The battle royale rules (items 24, 32, 34, 46)**, reviewed and merged after the second reset: solo, duos and trios; the care package called before it falls, with its canopy, smoke, thump and a contest window; a loadout crate that hands you your own saved guns; and Storm Surge, which hurts whoever has dealt no damage lately when too many are alive late. The review found and fixed twenty problems, among them a surge that only ever reached the host.
+- **Bots look at their arc before throwing**, and grenades fly the same at any frame rate. This was the cause of the one flaky e2e check.
 - **Three new arenas and a map picker** (finished after the limit reset): the Vault for 1v1 and free-for-all, the Crossing for team modes, the Ringworks for free-for-all and Crown. Pick one in the modes row, or "picked for the mode". The warehouse is still the default. The offline 1v1 against bots uses the picker too.
 - **After the second reset:** a damage direction indicator, crosshair customisation, colour vision modes and a HUD scale, XP with levels and challenges, a match summary card, quick chat, and spawning facing open floor in the new arenas. Two flaky e2e checks were found at their causes and fixed.
 - **verify** is 1,200+ checks; its new subjects live in `tools/checks/`.
@@ -25,7 +27,6 @@
 | What | State | Where it is |
 |---|---|---|
 | **The Outskirts map expansion**: ground shape, a real map edge, THE MAST landmark, rebuilt ridge and town, eight micro-POIs, the rotation network, the bot graph over it | A six-stage build plan was designed and merged from three designs. **No stage was built**: the session limit hit first. | The plan is in the workflow result; the next prompt below restarts it. |
-| **The BR rules bundle**: loadout drops, care package theatre, Storm Surge, solo and duo BR (items 24, 32, 34, 46) | Built, but its adversarial review never ran. | `wip/phase15-unfinished`: `brmatch.ts`, `loadouts.ts`, `squad.json`, `br.json`, `index.html`, `menu.ts`, `tools/checks/br-rules.ts` |
 | **Delta-compressed netcode** (item 51) | Built, review never ran. Netcode that is wrong breaks every game with your buddy, so it is not shipped unreviewed. | `wip/phase15-unfinished`: `src/net/state.ts`, `statesync.ts`, `wire.ts`, `link.ts`, `net.json`, `tools/checks/net-delta.ts` |
 | **Applying the new materials and rock meshes to the map** | Fetched and loadable, not placed. | Belongs with the map expansion |
 | **Per-match sky pick** in the battle royale | The setting works; a match does not pick an hour by seed. | `brmatch.ts` |
@@ -33,12 +34,11 @@
 ## Fixed after the limit reset
 
 - **The gun swap bug.** Taking a gun with both slots full put the old one at your feet, and a held press took it straight back: sixteen swaps in a quarter of a second, traced in a real page. A gun at your own feet is left out of the reach list for 0.8 s after you take one, and holding the key never takes guns. The e2e loot check passes.
-- **The carried charges are back.** The frag check that failed with them does not reproduce: it failed only when the three-tab section ran first, passed with the blast instrumented, and the full first batch (185) and second batch (128) pass with the charges in. That check waits a fixed seven seconds for an elite bot's frag on a slow headless page, so treat a lone failure of it as timing before treating it as a bug.
+- **The carried charges are back.** The frag check that failed with them does not reproduce: it failed only when the three-tab section ran first, passed with the blast instrumented, and the full first batch (185) and second batch (128) pass with the charges in. It turned out to be real after all: the bot lobbed frags into whatever stood in the arc's way. Bots now trace their arc before throwing, and the check passes steadily.
 
 ## Ranked next steps
 
 3. **Build the Outskirts map expansion** from the six-stage plan. It is the owner's top ask and the backbone of everything else in the battle royale.
-4. **Review and ship the BR rules bundle** from the parked branch.
 8. **Review and ship the delta netcode**, then run the `p2p` section and `npm run live` before any deploy.
 9. **Place the new materials and rock meshes** on the map, one palette per place.
 10. **Doors and supply bins** (items 10 and 11). The sounds for them are already fetched and have calls in `audio.ts`.
@@ -62,5 +62,4 @@ These came out of the gap analysis and nobody has started them:
 ## Prompts to paste when the limit resets
 
 3. "Build the Outskirts map expansion. The six-stage plan is in docs/PHASE_15_UNFINISHED.md: ground shape and map edge, THE MAST at the hub, rebuilt ridge and town, the other places, eight micro-POIs, then the rotation network and the bot graph. Keep the nav flood test passing."
-4. "Review the BR rules bundle on wip/phase15-unfinished (loadout drops, care package theatre, Storm Surge, solo and duo), fix what the review finds, and merge it."
 7. "Review the delta-compressed netcode on wip/phase15-unfinished, run the p2p e2e section and npm run live, and merge only if both pass."
