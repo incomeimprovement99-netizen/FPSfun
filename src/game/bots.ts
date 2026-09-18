@@ -846,6 +846,13 @@ export class Bot {
     this.dummy.group.position.copy(this.pos);
   }
 
+  /** Resurgence: back in, fresh, falling from `height` over (x, z) with nothing, the way it first came down */
+  redeployAt(x: number, z: number, height: number): void {
+    this.reset();
+    this.pos.set(x, 0, z);
+    this.dropFrom(height);
+  }
+
   /** start `height` metres up and fall in at the drop speed; no shooting until it lands */
   dropFrom(height: number): void {
     this.pos.y = height;

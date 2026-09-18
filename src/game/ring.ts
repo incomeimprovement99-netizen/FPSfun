@@ -64,7 +64,7 @@ export interface Circle {
 export type RingState = "waiting" | "closing" | "closed";
 
 export class Ring {
-  /** which phase is live (0-based); RING_PHASES.length once everything has closed */
+  /** which phase is live (0-based); this.phases.length once everything has closed */
   phase = 0;
   state: RingState = "waiting";
   /** the ring as it stands now */
@@ -82,19 +82,21 @@ export class Ring {
     start: Circle,
     private readonly rng: () => number = Math.random,
     /** what the late circles lean toward; pass [] for a ring that ignores the map */
-    private readonly attractors: readonly Attractor[] = RING_ATTRACTORS
+    private readonly attractors: readonly Attractor[] = RING_ATTRACTORS,
+    /** the rounds: their waits, closes, radii and damage (Resurgence runs a faster clock over the same circles) */
+    private readonly phases: readonly RingPhase[] = RING_PHASES
   ) {
     this.current = { ...start };
     this.from = { ...start };
     const plan: Circle[] = [];
     let inside = start;
-    for (let p = 0; p < RING_PHASES.length; p++) {
+    for (let p = 0; p < this.phases.length; p++) {
       inside = this.pick(inside, p);
       plan.push(inside);
     }
     this.plan = plan;
     this.next = { ...plan[0] };
-    this.timeLeft = RING_PHASES[0].wait;
+    this.timeLeft = this.phases[0].wait;
   }
 
   /**
@@ -105,7 +107,7 @@ export class Ring {
    * rather than on open sand.
    */
   private pick(inside: Circle, phase: number): Circle {
-    const r = RING_PHASES[phase].radius;
+    const r = this.phases[phase].radius;
     let best = this.draw(inside, r);
     if (phase < cfg.cover.fromPhase || this.attractors.length === 0) return best;
     let bestScore = this.coverScore(best);
@@ -182,11 +184,11 @@ export class Ring {
 
   /** the live phase's damage per tick; the last phase's once everything has closed */
   get damage(): number {
-    return RING_PHASES[Math.min(this.phase, RING_PHASES.length - 1)].damage;
+    return this.phases[Math.min(this.phase, this.phases.length - 1)].damage;
   }
 
   get done(): boolean {
-    return this.phase >= RING_PHASES.length;
+    return this.phase >= this.phases.length;
   }
 
   outside(x: number, z: number): boolean {
@@ -202,11 +204,11 @@ export class Ring {
       this.timeLeft -= dt;
       if (this.state === "waiting" && this.timeLeft <= 0) {
         this.state = "closing";
-        this.timeLeft += RING_PHASES[this.phase].close;
+        this.timeLeft += this.phases[this.phase].close;
         this.from = { ...this.current };
       }
       if (this.state === "closing") {
-        const p = RING_PHASES[this.phase];
+        const p = this.phases[this.phase];
         const k = Math.max(0, Math.min(1, 1 - this.timeLeft / p.close));
         this.current.cx = this.from.cx + (this.next.cx - this.from.cx) * k;
         this.current.cz = this.from.cz + (this.next.cz - this.from.cz) * k;
@@ -217,7 +219,7 @@ export class Ring {
           if (this.done) this.state = "closed";
           else {
             this.state = "waiting";
-            this.timeLeft += RING_PHASES[this.phase].wait;
+            this.timeLeft += this.phases[this.phase].wait;
             Object.assign(this.next, this.plan[this.phase]);
           }
         }

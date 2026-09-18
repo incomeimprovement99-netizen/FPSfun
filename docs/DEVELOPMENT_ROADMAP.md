@@ -942,3 +942,19 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   jump tower's prompt now asks for the tower's own floor (the Mast's balloon is on its roof), the hub's loot is
   high, and walking into a place puts its name up.
 
+## Milestone 65 — Resurgence: the dead come back ✅
+2026-09-18 (Phase 15). `resurgence.ts` (new), `brmatch.ts`, `bots.ts`, `ring.ts`, `main.ts`, `hud.ts`, `menu.ts`, `link.ts`,
+`index.html`, `src/config/br.json`.
+- A rules choice beside the squad size; the host's goes in the welcome, so it is everyone's.
+- Out, you redeploy from the sky after a wait of 15 s early to 39 s late, and every kill by your side takes 5 s off it
+  (a knock 2), never below 3 s. You come down 8 to 30 m from a squad mate who is up, or alone anywhere well inside the
+  ring, with a sidearm, two stacks of its ammo and four heals; the killcam gives way.
+- The bots come back by the same rules, near a squad mate, and search for their kit again.
+- A side all down or dead at the same moment is out. From the fifth ring every death is final; a wait already running
+  when it comes still finishes. The ring's waits and closes run at 60% of the battle royale's over the same circles.
+- The HUD says how long the dead still come back and, while you are out, your wait.
+- Checks: `tools/checks/resurgence.ts` (the waits, who comes back, the cuts and their floor, the faster ring, the clock
+  to final deaths) and the e2e `resurgence` section (alone: the wait, the way back and its kit, a bot's way back, the
+  final round; as a squad: the host's kill cutting the guest's wait, the guest landing near the host, both down at
+  once ending it).
+

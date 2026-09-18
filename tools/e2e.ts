@@ -205,7 +205,7 @@ const NAV_PROBE = String.raw`(() => {
  * test that leaves it to the last test's choice is testing that test.
  */
 const brRow = (team: "solo" | "duo" | "trio", bots: number): string =>
-  `(() => { const t = document.getElementById("brTeam"); t.value = "${team}"; t.dispatchEvent(new Event("change")); const b = document.getElementById("brBots"); b.value = "${bots}"; b.dispatchEvent(new Event("change")); })()`;
+  `(() => { const t = document.getElementById("brTeam"); t.value = "${team}"; t.dispatchEvent(new Event("change")); const b = document.getElementById("brBots"); b.value = "${bots}"; b.dispatchEvent(new Event("change")); const r = document.getElementById("brRules"); if (r) { r.value = "br"; r.dispatchEvent(new Event("change")); } })()`;
 
 async function brTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
@@ -2551,7 +2551,119 @@ async function consoleTest(browser: Browser, query: string, squadQuery: string):
   await guest.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, ship, console, modes, squad, p2p, mixed) */
+/** the lobby row's rules, the way a pick would set them */
+const brRules = (rules: "br" | "resurgence"): string => `(() => { const r = document.getElementById("brRules"); r.value = "${rules}"; r.dispatchEvent(new Event("change")); })()`;
+
+/**
+ * Resurgence (src/game/resurgence.ts). Alone: the lobby's choice reaches the
+ * match with its faster ring; a death is not the end, the wait is on the
+ * screen, and when it runs out you come back from the sky with a sidearm,
+ * its ammo and heals; a bot killed comes back too; from the round where
+ * deaths go final, a death ends it. As a squad: the guest dies, the host's
+ * kill cuts the guest's wait, the guest comes back near the host, and both
+ * down at once is the squad out.
+ */
+async function resurgenceTest(browser: Browser, query: string, squadQuery: string): Promise<void> {
+  const R = brCfg.resurgence;
+  const page = await open(browser, query);
+  await ev(page, brRow("solo", 3));
+  await ev(page, brRules("resurgence"));
+  await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); })()`);
+  await sleep(400);
+  await ev(page, "window.__range.duel().holdFire = true");
+  const fight = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 30000 }).then(() => true, () => false);
+  const on = await ev<{ rules: string; rs: { live: boolean; toFinal: number; redeployIn: number | null } | null; wait: number }>(
+    page,
+    "(() => { const d = window.__range.duel(); return { rules: d.rules, rs: d.hud().br.resurgence, wait: d.phases[0].wait }; })()"
+  );
+  check(
+    "resurgence: the lobby's choice reaches the match, with a faster ring and the clock to final deaths on the HUD",
+    fight && on.rules === "resurgence" && !!on.rs && on.rs.live && on.rs.toFinal > 60 && on.rs.redeployIn === null && Math.abs(on.wait - ringCfg.phases[0].wait * R.ringScale) < 1e-6,
+    JSON.stringify(on)
+  );
+  // alone, a knock is the end of a life, not of the match
+  await ev(page, "(() => { const d = window.__range.duel(); d.takeHit(1000, d.bots[0].bot.remote.id); })()");
+  await sleep(600);
+  const dead = await ev<{ alive: boolean; phase: string; wait: number | null }>(page, "(() => { const d = window.__range.duel(); return { alive: d.alive, phase: d.phase, wait: d.hud().br.resurgence.redeployIn }; })()");
+  check(`resurgence: alone, a death is not the end: the match goes on and the wait is ${R.redeploy[0]} s`, !dead.alive && dead.phase === "fight" && dead.wait !== null && dead.wait > R.redeploy[0] - 2 && dead.wait <= R.redeploy[0], JSON.stringify(dead));
+  // the wait, run down: back from the sky with a sidearm, its ammo and heals
+  await ev(page, "window.__range.duel().selfRedeploy.left = 0.3");
+  const back = await page.waitForFunction("window.__range.duel().alive && window.__range.player.dropping", { polling: 50, timeout: 5000 }).then(() => true, () => false);
+  const kit = await ev<{ y: number; gun: string | null; heals: number; ammo: number; inRing: boolean }>(
+    page,
+    `(() => { const R = window.__range; const d = R.duel(); const g = R.loadout.slots.find((s) => !s.empty); const c = d.hud().br.ring.current; const p = R.player.pos;
+      // an energy sidearm's rounds are its own stockpile, not the reserve
+      return { y: p.y, gun: g ? g.id : null, heals: R.kit.total, ammo: Object.values(R.loadout.ammo.stock).reduce((a, n) => a + n, 0) + (g && g.energy ? g.energy.rounds : 0), inRing: Math.hypot(p.x - c.cx, p.z - c.cz) < c.r }; })()`
+  );
+  check("resurgence: the wait over, you come back from the sky, inside the ring, with a sidearm, its ammo and heals", back && kit.y > 40 && kit.inRing && R.kit.includes(kit.gun ?? "") && kit.ammo > 0 && kit.heals >= 4, JSON.stringify(kit));
+  // a bot killed comes back too
+  const victim = await ev<number>(page, "window.__range.duel().bots.find((b) => b.bot.alive).bot.remote.id");
+  await ev(page, `window.__range.hitThrough(${victim}, 500)`);
+  const waiting = await ev<{ alive: boolean; wait: number | null }>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${victim}); return { alive: b.bot.alive, wait: b.redeploy ? b.redeploy.left : null }; })()`);
+  await ev(page, `window.__range.duel().bots.find((x) => x.bot.remote.id === ${victim}).redeploy.left = 0.2`);
+  const botBack = await page.waitForFunction(`(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${victim}); return b.bot.alive && b.bot.dropping; })()`, { polling: 50, timeout: 5000 }).then(() => true, () => false);
+  check("resurgence: a bot killed waits too, then comes back from the sky", !waiting.alive && waiting.wait !== null && waiting.wait > 10 && botBack, JSON.stringify({ waiting, botBack }));
+  // the round where deaths go final: said once, and a death now is the end
+  await ev(page, `(() => { const d = window.__range.duel(); d.ring.phase = ${R.endPhase}; d.ring.state = "waiting"; d.ring.timeLeft = 60; })()`);
+  const said = await page.waitForFunction("window.__range.duel().hud().br.resurgence.live === false", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  await ev(page, "(() => { const d = window.__range.duel(); d.takeHit(1000, d.bots.find((b) => b.bot.alive).bot.remote.id); })()");
+  const ended = await page.waitForFunction(`window.__range.duel() === null || window.__range.duel().phase === "matchEnd"`, { polling: 100, timeout: 5000 }).then(() => true, () => false);
+  check(`resurgence: from ring ${R.endPhase + 1} every death is final, and a death then ends it`, said && ended, JSON.stringify({ said, ended }));
+  await page.close();
+
+  // ---- a squad: a kill by the host cuts the guest's wait, and the guest comes back near the host
+  const host = await open(browser, squadQuery);
+  const guest = await open(browser, squadQuery);
+  await ev(host, brRow("duo", 2));
+  await ev(host, brRules("resurgence"));
+  await ev(guest, brRules("br"));
+  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const pg of [host, guest]) await pg.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check("resurgence: a squad connects", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  const rules = await Promise.all([host, guest].map((pg) => ev<string>(pg, "window.__range.duel().rules")));
+  check("resurgence: the host's rules are the guest's, whatever the guest's own row says", rules[0] === "resurgence" && rules[1] === "resurgence", JSON.stringify(rules));
+  for (const pg of [host, guest]) await pressPlay(pg);
+  await ev(host, "window.__range.duel().holdFire = true");
+  await Promise.all([host, guest].map((pg) => pg.waitForFunction(`window.__range.duel().phase === "fight" && !window.__range.player.dropping`, { polling: 200, timeout: 30000 }).catch(() => undefined)));
+  // the guest goes down and bleeds out
+  await ev(guest, "(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()");
+  await sleep(400);
+  await ev(guest, "(() => { const d = window.__range.duel(); d.bleedUntil = performance.now() / 1000; })()");
+  const gDead = await guest.waitForFunction("!window.__range.duel().alive && window.__range.duel().selfRedeploy !== null", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  const w0 = await ev<number>(guest, "window.__range.duel().selfRedeploy.left");
+  // the host kills a bot: the guest's wait is cut
+  const target = await ev<number>(host, "window.__range.duel().bots.find((b) => b.bot.alive).bot.remote.id");
+  await ev(host, `window.__range.hitThrough(${target}, 500)`);
+  await sleep(700);
+  const w1 = await ev<number>(guest, "window.__range.duel().selfRedeploy ? window.__range.duel().selfRedeploy.left : -1");
+  check(`resurgence: the guest is out and waiting, and the host's kill takes ${R.killCut} s off the guest's wait`, gDead && w1 > 0 && w0 - w1 >= R.killCut - 0.2 && w0 - w1 < R.killCut + 1.5, `${w0.toFixed(1)} -> ${w1.toFixed(1)}`);
+  await ev(guest, "window.__range.duel().selfRedeploy.left = 0.3");
+  const gBack = await guest.waitForFunction("window.__range.duel().alive && window.__range.player.dropping", { polling: 50, timeout: 5000 }).then(() => true, () => false);
+  const near = await Promise.all([host, guest].map((pg) => ev<{ x: number; z: number }>(pg, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })")));
+  const gap = Math.hypot(near[0].x - near[1].x, near[0].z - near[1].z);
+  const hostSees = await host.waitForFunction("window.__range.duel().remotes.get(1)?.alive === true", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  check("resurgence: the guest comes back from the sky near the host, and the host sees them back", gBack && gap >= 5 && gap <= R.spread + 12 && hostSees, `${gap.toFixed(1)} m apart`);
+  // both down at once: nobody left to come back to, the squad is out
+  await ev(host, "(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()");
+  await ev(guest, "(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()");
+  const out = await Promise.all([host, guest].map((pg) => pg.waitForFunction(`window.__range.duel() === null || window.__range.duel().phase === "matchEnd"`, { polling: 100, timeout: 6000 }).then(() => true, () => false)));
+  check("resurgence: both down at once is the squad out", out[0] && out[1], JSON.stringify(out));
+  // the browser's stored choice back to the battle royale for whatever runs next
+  await ev(host, brRules("br"));
+  await host.close();
+  await guest.close();
+}
+
+/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, ship, console, resurgence, modes, squad, p2p, mixed) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -2906,6 +3018,11 @@ async function main(): Promise<void> {
     if (want("console")) {
       console.log("\nRing Consoles: the scan, the circle after next, the squad");
       await consoleTest(browser, "?norender", "?net=local&norender");
+    }
+
+    if (want("resurgence")) {
+      console.log("\nResurgence: the wait, the way back, the bots, the final round, the squad");
+      await resurgenceTest(browser, "?norender", "?net=local&norender");
     }
 
     if (want("finish")) {

@@ -162,6 +162,8 @@ export interface DeltaPart {
 export interface BrWelcome {
   /** the POI id the squad drops on */
   poi: string;
+  /** the battle royale or Resurgence (src/game/resurgence.ts): the host's, for everyone; an older host sends none, the battle royale */
+  rules?: string;
   bots: number;
   difficulty: string;
   /** the floor loot's seed: every browser lays out the same items with the same keys */

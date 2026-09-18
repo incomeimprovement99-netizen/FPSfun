@@ -49,7 +49,7 @@ import { buildArena, buildTriArena, ARENA_BOUNDS, ARENA_HANDLES, ARENA_MAPS, ARE
 import { Loadouts, type LoadoutDef } from "./game/loadouts";
 import { operatorById, OPERATORS } from "./game/operators";
 import { setArmColors } from "./game/arms";
-import { Menu, brTeamId, type Mode } from "./ui/menu";
+import { Menu, brRulesId, brTeamId, type Mode } from "./ui/menu";
 import type { ImpactEvent } from "./game/projectile";
 import { INSPECT_TIME, FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
 import { Abilities, ABILITIES, JOLT, JOLT_DEFAULTS, setJolt, type AbilityId } from "./game/abilities";
@@ -80,7 +80,7 @@ import type { HitTier } from "./game/audio";
 import itemsCfg from "./config/items.json";
 import { Armor, HEAL_ORDER, HEALS, Kit, type HealItem } from "./game/kit";
 import { Knockdown, type BackTier, type KnockTier } from "./game/kit";
-import { ammoTypeOf } from "./game/ammo";
+import { STACK, ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
 import { Progress, levelFor, type Award } from "./game/progress";
 import { HUD_SCALES, P, VISION_MODES, access, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
@@ -1535,7 +1535,7 @@ function respawnForMatch(d: MatchLike): void {
         player.beginDrop(sp.x, DROP_HEIGHT, sp.z, sp.yaw);
         mapOpen = false;
         dropMapUntil = gameTime + squadCfg.dive.mapSeconds;
-        hud.notice(`DROPPING INTO ${d.poi.name}`, gameTime, 3);
+        hud.notice(d.redeploying ? "REDEPLOYED: BACK INTO THE FIGHT" : `DROPPING INTO ${d.poi.name}`, gameTime, 3);
       }
     }
   } else player.teleport(sp.x, 0, sp.z, openYaw(sp.x, sp.z, sp.yaw));
@@ -1592,6 +1592,20 @@ function respawnForMatch(d: MatchLike): void {
       const at = box && box.pos.distanceTo(boxAt) < 2 ? box.pos : boxAt;
       for (const drop of drops) if (drop.item.kind !== "box" && Math.hypot(drop.pos.x - at.x, drop.pos.z - at.z) < 1.3) d.takeLoot(drop.key);
     }
+  }
+  // Resurgence: back from the sky with a sidearm, some of its ammo and a few heals
+  // (a match that lands with loadouts already has them), and the killcam gives way
+  if (d instanceof BrMatch && d.takeRedeployKit()) {
+    if (d.startLoot) {
+      const R = brCfg.resurgence;
+      const gun = R.kit[Math.floor(Math.random() * R.kit.length)];
+      applyLoot({ kind: "weapon", id: gun, n: 1, rarity: "common" });
+      const type = ammoTypeOf(gun);
+      if (type !== "energy") applyLoot({ kind: "ammo", id: type, n: STACK[type] * R.kitStacks, rarity: "common" });
+      for (const [h, n] of Object.entries(R.heals)) applyLoot({ kind: "heal", id: h, n, rarity: "common" });
+    }
+    killcam.stop();
+    recap = null;
   }
   if (d instanceof ArenaMode) {
     // Gun Run: the level's gun, one slot, endless reserve (the guns change with every kill)
@@ -2361,7 +2375,14 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     if (d.alive) audio.swap();
   };
   if (d instanceof BrMatch) {
-    d.onKnockSeen = (victim, by) => evoForKnock(victim, by);
+    d.onKnockSeen = (victim, by) => {
+      evoForKnock(victim, by);
+      // Resurgence: a knock by your side cuts your wait to come back
+      if (d instanceof BrMatch) {
+        const cut = d.sideKill(victim, by);
+        if (cut > 0) hud.notice(`-${cut} S TO YOUR REDEPLOY  ·  ${d.nameFor(by)} GOT ONE`, gameTime, 1.6);
+      }
+    };
     revivesDone = 0;
     podsPaid.clear();
     damagedAt.clear();
@@ -2474,7 +2495,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
     // the squad size is the host's for everyone (an older host sends none: the default size)
-    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop() });
+    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), rules: squad.rules });
     duel = d;
     wireMatch(d, "br");
   } else {
@@ -2557,7 +2578,7 @@ function startBr(): void {
   for (const c of courses) c.leave();
   const diff = brDifficulty();
   const bots = brBotCount();
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br"), seed: newSeed(), start: brStart(), team: brTeamId(), ship: !straightDrop() });
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br"), seed: newSeed(), start: brStart(), team: brTeamId(), ship: !straightDrop(), rules: brRulesId() });
   duel = d;
   wireMatch(d, "br");
   // the drop starts on the first frame in the game (respawnForMatch, from the countdown)
@@ -2639,7 +2660,7 @@ duelHostBtn.addEventListener("click", () => {
   const players = Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
   // a battle royale squad: the place, the bots, the difficulty and the squad
   // size are fixed now so every guest is told the same
-  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId() } : null;
+  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId(), rules: brRulesId() } : null;
   const mk = duelModeKind();
   hostOpts = {
     abilities: abilitySetting(duelKind()),

@@ -124,5 +124,32 @@
     "hold": 7.5,
     "reach": 2.2,
     "evo": 100
+  },
+  "_resurgence": "Resurgence (src/game/resurgence.ts), Warzone's rules over this battle royale. While they are on, the dead redeploy from the sky after redeploy[round] seconds (15 early and 39 late, the NEXT_STEPS item's numbers); each knock by your side takes knockCut and each kill killCut off the wait of everyone of yours who is dead, never below `floor`. A side whose every member is down or dead at once is out. From ring round endPhase + 1 every death is final; a wait already running then still finishes. The ring's waits and closes run at ringScale of the battle royale's, the circles and damage the same. A redeploy lands you 8 to `spread` metres from a squad mate who is up, or alone somewhere inside the ring, and in a match that lands with nothing it comes with one of `kit`, kitStacks stacks of its ammo and the heals in `heals`. Ours, except the 15 and 39.",
+  "resurgence": {
+    "redeploy": [
+      15,
+      20,
+      25,
+      30,
+      39,
+      39
+    ],
+    "killCut": 5,
+    "knockCut": 2,
+    "floor": 3,
+    "endPhase": 4,
+    "ringScale": 0.6,
+    "spread": 30,
+    "kit": [
+      "semipistol",
+      "autopistol",
+      "shotgun_pistol"
+    ],
+    "kitStacks": 2,
+    "heals": {
+      "cell": 2,
+      "syringe": 2
+    }
   }
 }

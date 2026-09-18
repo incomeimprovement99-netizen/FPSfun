@@ -420,6 +420,20 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-resurgence",
+    note: "Resurgence, out and waiting: the redeploy countdown, and the clock to final deaths under the ring's",
+    steps: [
+      [`(() => { const r = document.getElementById("brRules"); r.value = "resurgence"; r.dispatchEvent(new Event("change")); document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      // put down on the ground rather than waiting out the drop, which a software renderer takes minutes over
+      [gameSeconds(0.5), 0],
+      [`(() => { const p = window.__range.player.pos; window.__range.player.teleport(p.x, 0.5, p.z, 0, -4); })()`, 0],
+      [untilFight, 300],
+      [`(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.setScript({ held: () => false, pressedNow: () => false }); d.takeHit(1000, d.bots[0].bot.remote.id); })()`, 600],
+      [`(() => { const d = window.__range.duel(); if (d.selfRedeploy) d.selfRedeploy.left = 12.4; })()`, 300],
+      [`(() => { const r = document.getElementById("brRules"); r.value = "br"; r.dispatchEvent(new Event("change")); })()`, 100],
+    ],
+  },
+  {
     name: "br-dropship",
     note: "aboard the dropship with the map closed: the chase camera behind the ship, the panel with the jump key and the clock",
     ship: true,
