@@ -26,7 +26,7 @@ import { placeProps } from "./game/props";
 import { Target } from "./game/targets";
 import { ViewModel } from "./game/viewmodel";
 import { GameAudio } from "./game/audio";
-import { Hud } from "./game/hud";
+import { Hud, type HudState } from "./game/hud";
 import { DpiCalibrator, snapDpi } from "./game/dpi-calibrate";
 import { ZIPLINES, ladderAhead } from "./game/traversal";
 import { mergeStatic } from "./game/staticmerge";
@@ -35,7 +35,7 @@ import { opticName, hopupName } from "./config/names";
 import type { ResolvedWeapon } from "./game/weapons";
 import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike } from "./game/duel";
 import { BotMatch } from "./game/bots";
-import { Stats, asDifficulty, type MatchKind, type BotDifficulty } from "./game/stats";
+import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
 import { submitScore } from "./game/leaderboard";
 import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link, type MatchOpts } from "./net/link";
@@ -80,7 +80,7 @@ import { Armor, HEAL_ORDER, HEALS, Kit, type HealItem } from "./game/kit";
 import { Knockdown, type BackTier, type KnockTier } from "./game/kit";
 import { ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
-import { Progress, type Award } from "./game/progress";
+import { Progress, levelFor, type Award } from "./game/progress";
 
 const DEG = Math.PI / 180;
 /** slot 1 and slot 2. Keys 1 and 2 select, Q swaps. */
@@ -152,6 +152,47 @@ function saveSettings(s: Settings): void {
 const settings = loadSettings();
 // XP, the account level and the challenges (src/game/progress.ts)
 const progress = new Progress();
+/** the last match's result, for the summary card while it shows */
+let lastSummary: { at: number; kind: string; s: MatchSummary; a: Award; xpBefore: number } | null = null;
+/**
+ * The summary card as the HUD draws it this frame, or null once it has had
+ * its time or a new match has started.
+ */
+function summaryView(): HudState["summary"] {
+  const L = lastSummary;
+  if (!L) return null;
+  const cfg = hudCfg.summary;
+  const age = gameTime - L.at;
+  if (age < 0 || age > cfg.show || (duel && duel.phase === "fight")) {
+    lastSummary = null;
+    return null;
+  }
+  const s = L.s;
+  const br = s.placement !== undefined;
+  const title = br ? (s.placement === 1 ? "CHAMPIONS" : `#${s.placement} OF ${s.players ?? "?"}`) : s.won ? "VICTORY" : "DEFEAT";
+  const rows: Array<[string, string]> = [
+    ["Kills", String(s.kills)],
+    ["Damage", String(Math.round(s.damage))],
+    ["Accuracy", s.shots ? `${Math.round((100 * s.hits) / s.shots)}%` : "-"],
+  ];
+  if (br) rows.push(["Survived", `${Math.floor((s.survived ?? 0) / 60)}:${String(Math.floor((s.survived ?? 0) % 60)).padStart(2, "0")}`]);
+  else rows.push(["Rounds", `${s.roundsWon} - ${s.roundsLost}`]);
+  // the bar runs from the XP before the match to the XP after, over `fill`
+  const t = Math.min(1, age / cfg.fill);
+  const shown = L.xpBefore + L.a.gained * (1 - Math.pow(1 - t, 3));
+  const lv = levelFor(shown);
+  return {
+    title,
+    good: br ? (s.placement ?? 99) <= 3 : s.won,
+    rows,
+    xp: L.a.gained,
+    lines: L.a.completed.map((c) => `CHALLENGE: ${c.label.toUpperCase()}  +${c.xp}`),
+    level: lv.level,
+    bar: lv.need ? lv.into / lv.need : 1,
+    levelUp: L.a.levelAfter > L.a.levelBefore && t >= 1,
+    alpha: Math.min(1, age * 4, (cfg.show - age) * 2),
+  };
+}
 /** what an award earned, said on the HUD: the XP, a level reached, a challenge finished */
 function announceAward(a: Award): void {
   if (a.gained <= 0) return;
@@ -2115,7 +2156,9 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onMatchEnd = (s) => {
     profile.recordMatch(kind, s);
     // what the match earned: XP, a level, any challenge it finished
-    announceAward(progress.award(kind as MatchKind, s));
+    const award = progress.award(kind as MatchKind, s);
+    announceAward(award);
+    lastSummary = { at: gameTime, kind, s, a: award, xpBefore: progress.xp - award.gained };
     d.streak = profile.match(kind).streak;
     menu.renderStats();
     profile.flush();
@@ -3868,6 +3911,7 @@ function step(): void {
     kit: (duel && duel.alive) || (!duel && rangeCombat.on && rangeCombat.alive) ? { ...kit.items } : null,
     damageDirs: duel ? damageDirs() : undefined,
     reticle,
+    summary: summaryView(),
     healWheel: wheelOpen ? { items: HEAL_ORDER.map((k) => ({ id: k, name: HEAL_ITEMS[k].name, count: kit.items[k] })), pick: wheelPick } : null,
     lobby:
       hosting && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))

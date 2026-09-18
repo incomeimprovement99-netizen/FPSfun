@@ -100,6 +100,19 @@ export interface HudState {
   damageDirs?: Array<{ angle: number; alpha: number }>;
   /** the player's crosshair (src/game/reticle.ts); none is the old three prongs */
   reticle?: Reticle;
+  /** the card when a match ends: the result, the numbers, the XP and the level bar (src/main.ts) */
+  summary?: {
+    title: string;
+    good: boolean;
+    rows: Array<[string, string]>;
+    xp: number;
+    lines: string[];
+    level: number;
+    /** 0..1, where the bar is now as it runs from before to after */
+    bar: number;
+    levelUp: boolean;
+    alpha: number;
+  } | null;
   /** 0..1: the gun's wind-up, charge, aimed charge, choke or burst charge (a ring round the crosshair) */
   gunCharge?: number;
   /** the L-STAR's heat, and whether it is in its forced cooldown */
@@ -322,6 +335,7 @@ export class Hud {
     this.drawDamageNumbers(now, camera, u);
     this.drawCrosshair(now, s, u);
     this.drawDamageDirs(s, u);
+    this.drawMatchCard(s, u);
     this.drawMinimap(s, u);
     this.drawStats(s, u);
     this.drawCompass(s, u);
@@ -1192,6 +1206,46 @@ export class Hud {
    * crosshair, because the crosshair goes away when you aim down sights and a
    * hit from behind matters most exactly then.
    */
+  /** the match summary: a card over the middle of the screen once a match ends */
+  private drawMatchCard(s: HudState, u: number): void {
+    const m = s.summary;
+    if (!m || m.alpha <= 0) return;
+    const c = this.ctx;
+    const w = 420 * u;
+    const rowH = 22 * u;
+    const h = (118 + m.rows.length * 22 + m.lines.length * 20 + 46) * u;
+    const x = this.w / 2 - w / 2;
+    const y = this.h * 0.2;
+    c.save();
+    c.globalAlpha = m.alpha;
+    c.fillStyle = "rgba(10,13,16,0.86)";
+    c.fillRect(x, y, w, h);
+    c.fillStyle = m.good ? "#ffd23c" : "#c8d0d8";
+    c.fillRect(x, y, w, 4 * u);
+    this.text(m.title, this.w / 2, y + 38 * u, 700, 30 * u, m.good ? "#ffd23c" : WHITE, "center");
+    let ry = y + 70 * u;
+    for (const [k, v] of m.rows) {
+      this.text(k, x + 24 * u, ry, 600, 15 * u, DIM);
+      this.text(v, x + w - 24 * u, ry, 700, 15 * u, WHITE, "right");
+      ry += rowH;
+    }
+    ry += 8 * u;
+    this.text(`+${m.xp} XP`, this.w / 2, ry + 6 * u, 700, 22 * u, "#ffd23c", "center");
+    ry += 26 * u;
+    for (const line of m.lines) {
+      this.text(line, this.w / 2, ry, 600, 13 * u, "#ffe9a8", "center");
+      ry += 20 * u;
+    }
+    // the level bar, running from where you were to where you are
+    const bw = w - 48 * u;
+    c.fillStyle = "rgba(255,255,255,0.12)";
+    c.fillRect(x + 24 * u, ry + 4 * u, bw, 8 * u);
+    c.fillStyle = "#ffd23c";
+    c.fillRect(x + 24 * u, ry + 4 * u, bw * Math.max(0, Math.min(1, m.bar)), 8 * u);
+    this.text(m.levelUp ? `LEVEL ${m.level}  ·  LEVEL UP` : `LEVEL ${m.level}`, this.w / 2, ry + 32 * u, 700, 14 * u, m.levelUp ? "#ffd23c" : DIM, "center");
+    c.restore();
+  }
+
   private drawDamageDirs(s: HudState, u: number): void {
     const dirs = s.damageDirs;
     if (!dirs || !dirs.length) return;

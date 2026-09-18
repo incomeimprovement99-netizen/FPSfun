@@ -122,5 +122,10 @@
         1
       ]
     }
+  },
+  "_summary": "The match summary: the card over the middle of the screen when a match ends, with the result, your numbers, the XP it paid and the level bar filling. show is how long it stays, seconds; fill is how long the level bar takes to run from where you were to where you are, which is the moment the XP reads as earned rather than as a number. A new match starting takes it down at once. Ours.",
+  "summary": {
+    "show": 12,
+    "fill": 1.6
   }
 }

@@ -1441,6 +1441,20 @@ async function damageDirTest(browser: Browser, query: string): Promise<void> {
   await sleep(2200);
   const gone = await ev<number>(page, "(window.__range.hud.last?.damageDirs ?? []).length");
   check("hit feedback: and it fades out on its own", gone === 0, `${gone} arcs left`);
+  // The match summary: the real match-end path (main.ts's onMatchEnd) puts a
+  // card up with the result, the numbers and the XP, and the level bar runs.
+  const card = await ev<{ title: string; xp: number; rows: number; bar: number } | null>(
+    page,
+    `(async () => {
+      const R = window.__range; const d = R.duel();
+      d.phase = "matchEnd";
+      d.onMatchEnd({ won: true, roundsWon: 3, roundsLost: 1, kills: 5, deaths: 1, damage: 710, shots: 50, hits: 26 });
+      await new Promise((r) => setTimeout(r, 2200));
+      const m = R.hud.last?.summary;
+      return m ? { title: m.title, xp: m.xp, rows: m.rows.length, bar: m.bar } : null;
+    })()`
+  );
+  check("summary: a won match ends on a VICTORY card with the numbers and the XP it paid", !!card && card.title === "VICTORY" && card.xp > 0 && card.rows >= 4, JSON.stringify(card));
   await ev(page, "window.__range.duel().leave()");
   await page.close();
 }
