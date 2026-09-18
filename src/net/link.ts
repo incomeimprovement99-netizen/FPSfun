@@ -18,6 +18,7 @@
 // joins tabs of the same browser on one machine. It is how the match is
 // tested without the internet, and it is handy for trying it alone.
 import Peer, { type DataConnection, type PeerOptions } from "peerjs";
+import { withoutUndefined } from "./wire";
 
 /** everything that goes over the link; see duel.ts for the meanings */
 export type NetMsg =
@@ -27,6 +28,13 @@ export type NetMsg =
   | {
       t: "s";
       from?: number;
+      /**
+       * On a player's own full packet only: the version of the delta packets
+       * below that this build reads (src/net/state.ts). An older build sends
+       * none and ignores it, so it is also how two builds find out whether
+       * they can use them. A relayed packet never carries it.
+       */
+      dp?: number;
       x: number;
       y: number;
       z: number;
@@ -56,6 +64,14 @@ export type NetMsg =
       /** the practice aim bot is on: everyone sees a red mark over them for it */
       bot?: number;
     }
+  /**
+   * The same states, delta compressed (src/net/state.ts), one part per
+   * player. Only ever sent to a peer whose own full packet named the same
+   * `dp`, so an older build never sees one.
+   */
+  | { t: "sd"; p: DeltaPart[] }
+  /** what a receiver of "sd" managed to apply, per player [id, sequence], and the players it is stuck on and needs whole again */
+  | { t: "sa"; ok?: Array<[number, number]>; need?: number[] }
   | { t: "zone"; live: boolean; caps: number[]; startsIn: number }
   | { t: "shot"; from?: number; o: [number, number, number]; d: [number, number, number]; w: string }
   /** a hit, from the shooter: `w` the gun and `d` the distance in metres, for the death recap (an older build sends neither) */
@@ -111,19 +127,35 @@ export type NetMsg =
   | { t: "bye"; from?: number };
 
 /**
- * A message without its undefined fields. PeerJS packs `undefined` as `null`,
- * and a field checked as "absent or a string" then fails: a hit sent without
- * its gun, a JOLT's effect without its number, were dropped whole on the real
- * connection while the local transport (a structured clone) kept them.
+ * A message without its undefined fields, so nothing packs as null. It lives
+ * in wire.ts now, next to the long version of why it has to exist, and is
+ * still exported from here because that is where everything else imports it
+ * from.
  */
-export function withoutUndefined<T>(v: T): T {
-  if (Array.isArray(v)) return v.map((x) => withoutUndefined(x)) as T;
-  if (v && typeof v === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [k, x] of Object.entries(v as Record<string, unknown>)) if (x !== undefined) out[k] = withoutUndefined(x);
-    return out as T;
-  }
-  return v;
+export { withoutUndefined };
+
+/** the full state packet, and the two messages the delta packets add */
+export type StateMsg = Extract<NetMsg, { t: "s" }>;
+export type DeltaMsg = Extract<NetMsg, { t: "sd" }>;
+export type AckMsg = Extract<NetMsg, { t: "sa" }>;
+
+/**
+ * One player's state in an "sd" packet (src/net/state.ts). `f` is the player
+ * it is about (absent: the peer that sent it, as on the full packet); `q` is
+ * this part's sequence in its stream; `b` the sequence it is a difference
+ * from, and absent on a keyframe, which carries the whole state and `e`, the
+ * stream's epoch, so a stream that starts again is told from a late packet;
+ * `c` is the mask of optional fields that have GONE since `b`; `d` holds the
+ * short keyed fields that changed. A field missing from `d` did not change,
+ * which is why nothing in here is ever sent as null.
+ */
+export interface DeltaPart {
+  f?: number;
+  q: number;
+  b?: number;
+  e?: number;
+  c?: number;
+  d: Record<string, number | string>;
 }
 
 /** what a guest needs to drop into the same battle royale as the host */

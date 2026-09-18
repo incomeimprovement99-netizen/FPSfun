@@ -32,7 +32,7 @@ function check(label: string, ok: boolean, detail = ""): void {
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function open(browser: Browser, query: string): Promise<Page> {
+async function open(browser: Browser, query: string, base = BASE): Promise<Page> {
   const page = await browser.newPage();
   await page.setViewport({ width: 800, height: 450, deviceScaleFactor: 1 });
   page.on("pageerror", (e) => errors.push(`pageerror: ${String((e as Error).message ?? e)}`));
@@ -40,7 +40,9 @@ async function open(browser: Browser, query: string): Promise<Page> {
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(`console: ${m.text()}`);
   });
-  await page.goto(BASE + query, { waitUntil: "domcontentloaded", timeout: 60000 });
+  // a base with a query of its own (OLD_URL=https://the.site/?broker=public) keeps it
+  const url = base.includes("?") && query.startsWith("?") ? `${base}&${query.slice(1)}` : base + query;
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
   return page;
 }
@@ -1239,9 +1241,33 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   await guest.close();
 }
 
-async function duelTest(browser: Browser, query: string, label: string): Promise<boolean> {
-  const host = await open(browser, query);
-  const guest = await open(browser, query);
+/**
+ * What a match's state packets should have been, for NET_PROBE: "deltas" when
+ * both pages are this build (they find each other and switch to the delta
+ * packets), "full" when one of them is a build from before them or has them
+ * off (this build's page must never have switched, and must never have been
+ * sent one).
+ */
+type NetWant = "deltas" | "full";
+
+/** a page's delta packets as its Duel saw them, toward `peer`; null on a build from before them */
+const NET_PROBE = (peer: number) => `(() => { const s = window.__range.duel()?.sync; return s ? { on: s.speaksDeltas(${peer}), applied: s.stats.applied, refused: s.stats.refused, unexpected: s.stats.unexpected, sent: s.stats.parts } : null; })()`;
+interface NetSeen {
+  on: boolean;
+  applied: number;
+  refused: number;
+  unexpected: number;
+  sent: number;
+}
+/** whether one page's state packets went the way they should have */
+function netAsWanted(n: NetSeen | null, want: NetWant): boolean {
+  if (!n) return want === "full";
+  return want === "deltas" ? n.on && n.applied > 0 && n.sent > 0 && n.refused === 0 && n.unexpected === 0 : !n.on && n.applied === 0 && n.sent === 0 && n.unexpected === 0;
+}
+
+async function duelTest(browser: Browser, query: string, label: string, bases: [string, string] = [BASE, BASE], want: NetWant = "deltas"): Promise<boolean> {
+  const host = await open(browser, query, bases[0]);
+  const guest = await open(browser, query, bases[1]);
   // clicks through script, not the mouse: a background page gets no
   // animation frames, which puppeteer's mouse click waits on
   await ev(host, `document.getElementById("duelHost").click()`);
@@ -1355,6 +1381,13 @@ async function duelTest(browser: Browser, query: string, label: string): Promise
     .then(() => true, () => false);
   check(`${label}: quick chat: a line said by the host shows in the guest's feed, and a second inside the gap is held`, said[0] && !said[1] && heard, JSON.stringify({ said, heard }));
 
+  // The state packets over the whole match: two pages of this build found
+  // each other and moved every figure above with the delta packets, and
+  // nothing was refused; with an older build on one side, this build's page
+  // never switched and was never sent one.
+  const nets = [await ev<NetSeen | null>(host, NET_PROBE(1)), await ev<NetSeen | null>(guest, NET_PROBE(0))];
+  check(`${label}: the state packets were ${want === "deltas" ? "delta packets both ways, none refused" : "the full ones, both ways"}`, nets.every((n) => netAsWanted(n, want)), JSON.stringify(nets));
+
   // leaving tells the other side
   await ev(guest, "window.__range.duel().leave()");
   await host.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 15000 });
@@ -1365,10 +1398,11 @@ async function duelTest(browser: Browser, query: string, label: string): Promise
 }
 
 /** three tabs: the host makes a 3-player match, two guests join, the host knocks both */
-async function tripleTest(browser: Browser, query: string): Promise<void> {
-  const host = await open(browser, query);
-  const g1 = await open(browser, query);
-  const g2 = await open(browser, query);
+async function tripleTest(browser: Browser, query: string, tag = "1v1v1", pages3: Array<{ base?: string; extra?: string; want?: NetWant }> = []): Promise<void> {
+  const at = (i: number) => pages3[i] ?? {};
+  const host = await open(browser, query + (at(0).extra ?? ""), at(0).base);
+  const g1 = await open(browser, query + (at(1).extra ?? ""), at(1).base);
+  const g2 = await open(browser, query + (at(2).extra ?? ""), at(2).base);
   const pages = [host, g1, g2];
   const closeAll = async () => {
     for (const p of pages) await p.close();
@@ -1379,58 +1413,82 @@ async function tripleTest(browser: Browser, query: string): Promise<void> {
     await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
     code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
   } catch {
-    check("1v1v1: the host gets a code", false, await ev<string>(host, `document.getElementById("duelStatus").textContent`));
+    check(`${tag}: the host gets a code`, false, await ev<string>(host, `document.getElementById("duelStatus").textContent`));
     await closeAll();
     return;
   }
   await ev(g1, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
   await host.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
   const waiting = await ev<string>(host, "window.__range.duel().phase");
-  check("1v1v1: with one guest in, the host waits for the second", waiting === "waiting", waiting);
+  check(`${tag}: with one guest in, the host waits for the second`, waiting === "waiting", waiting);
   await ev(g2, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
   try {
     for (const p of pages) await p.waitForFunction("window.__range.duel() !== null && window.__range.duel().players === 3", { polling: 200, timeout: 30000 });
   } catch {
-    check("1v1v1: all three connect", false, await ev<string>(g2, `document.getElementById("duelStatus").textContent`));
+    check(`${tag}: all three connect`, false, await ev<string>(g2, `document.getElementById("duelStatus").textContent`));
     await closeAll();
     return;
   }
-  check("1v1v1: all three connect", true);
+  check(`${tag}: all three connect`, true);
   const ids = await Promise.all(pages.map((p) => ev<number>(p, "window.__range.duel().id")));
-  check("1v1v1: ids 0, 1, 2", ids.join(",") === "0,1,2", ids.join(","));
+  check(`${tag}: ids 0, 1, 2`, ids.join(",") === "0,1,2", ids.join(","));
   await sleep(1500);
   const seen = await ev<number>(host, "window.__range.duel().avatars.filter((a) => a.group.visible).length");
-  check("1v1v1: the host sees two figures", seen === 2, `${seen}`);
+  check(`${tag}: the host sees two figures`, seen === 2, `${seen}`);
   const seenByGuest = await ev<number>(g2, "window.__range.duel().avatars.filter((a) => a.group.visible).length");
-  check("1v1v1: a guest sees the other two (one relayed by the host)", seenByGuest === 2, `${seenByGuest}`);
+  check(`${tag}: a guest sees the other two (one relayed by the host)`, seenByGuest === 2, `${seenByGuest}`);
   const spawns = await Promise.all(pages.map((p) => ev<{ x: number; z: number }>(p, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })")));
   const distinct = new Set(spawns.map((sp) => `${sp.x.toFixed(0)},${sp.z.toFixed(0)}`)).size;
-  check("1v1v1: three different corners of the triangle", distinct === 3 && spawns.every((sp) => Math.hypot(sp.x - 90, sp.z - 60) > 15), JSON.stringify(spawns.map((sp) => [+sp.x.toFixed(1), +sp.z.toFixed(1)])));
+  check(`${tag}: three different corners of the triangle`, distinct === 3 && spawns.every((sp) => Math.hypot(sp.x - 90, sp.z - 60) > 15), JSON.stringify(spawns.map((sp) => [+sp.x.toFixed(1), +sp.z.toFixed(1)])));
+  // The relay moves figures, whatever form each guest reads it in: guest 2
+  // steps toward the middle and guest 1 sees it there, then the other way
+  // round. With one guest on the full packets this is the host turning one
+  // guest's delta packets into the other's full ones, and back.
+  for (const [mover, watcher, id] of [
+    [g2, g1, 2],
+    [g1, g2, 1],
+  ] as const) {
+    const to = await ev<{ x: number; z: number }>(mover, `(() => { const p = window.__range.player; const dx = 90 - p.pos.x, dz = 60 - p.pos.z, d = Math.hypot(dx, dz) || 1; p.teleport(p.pos.x + (dx / d) * 4, p.pos.y, p.pos.z + (dz / d) * 4, p.yaw); return { x: p.pos.x, z: p.pos.z }; })()`);
+    const moved = await watcher
+      .waitForFunction(`(() => { const r = window.__range.duel().remotes.get(${id}); const g = r && r.avatar.group.position; return !!g && Math.hypot(g.x - ${to.x}, g.z - ${to.z}) < 0.2; })()`, { polling: 100, timeout: 5000 })
+      .then(() => true, () => false);
+    check(`${tag}: player ${id + 1} moves and the other guest sees it, through the host`, moved, JSON.stringify(await ev(watcher, `(() => { const g = window.__range.duel().remotes.get(${id})?.avatar.group.position; return { want: ${JSON.stringify(to)}, saw: g && { x: +g.x.toFixed(2), z: +g.z.toFixed(2) } }; })()`)));
+  }
   for (const p of pages) await pressPlay(p);
   for (const p of pages) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
-  check("1v1v1: the countdown ends on all three", true);
+  check(`${tag}: the countdown ends on all three`, true);
   // the host knocks guest 1: the round goes on (two standing)
   await ev(host, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id === 1); d.localHit(r, 200, true); })()`);
   await g1.waitForFunction("window.__range.duel().alive === false", { polling: 200, timeout: 10000 });
   await sleep(600);
   const still = await ev<string>(host, "window.__range.duel().phase");
-  check("1v1v1: one down, two standing: the round goes on", still === "fight", still);
+  check(`${tag}: one down, two standing: the round goes on`, still === "fight", still);
   const g2sees = await ev<boolean>(g2, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id === 1); return r ? !r.alive : false; })()`);
-  check("1v1v1: the other guest sees player 2 down (relayed)", g2sees);
+  check(`${tag}: the other guest sees player 2 down (relayed)`, g2sees);
   // then guest 2: last standing, the host takes the round on every screen
   await ev(host, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id === 2); d.localHit(r, 200, true); })()`);
   const scored = await Promise.all(pages.map((p) => p.waitForFunction(`window.__range.duel().hud().players.find((x) => x.name === window.__range.duel().hud().players[0].name) && window.__range.duel().hud().players.reduce((a, x) => a + x.score, 0) === 1`, { polling: 200, timeout: 10000 }).then(() => true, () => false)));
-  check("1v1v1: last one standing, the host takes the round on all three screens", scored.every(Boolean), scored.join(","));
+  check(`${tag}: last one standing, the host takes the round on all three screens`, scored.every(Boolean), scored.join(","));
   const hostYou = await ev<number>(host, "window.__range.duel().hud().you");
-  check("1v1v1: and it is the host's point", hostYou === 1, `${hostYou}`);
+  check(`${tag}: and it is the host's point`, hostYou === 1, `${hostYou}`);
+  // The state packets, page by page: each guest's link to the host carried
+  // the delta packets when both ends are this build with them on, and the
+  // full ones otherwise; nothing was refused and nobody was sent a delta
+  // packet it had not asked for.
+  const wants = [0, 1, 2].map((i) => at(i).want ?? "deltas");
+  const hostNet = await ev<{ on1: boolean; on2: boolean; refused: number; unexpected: number } | null>(host, `(() => { const s = window.__range.duel()?.sync; return s ? { on1: s.speaksDeltas(1), on2: s.speaksDeltas(2), refused: s.stats.refused, unexpected: s.stats.unexpected } : null; })()`);
+  const g1Net = await ev<NetSeen | null>(g1, NET_PROBE(0));
+  const g2Net = await ev<NetSeen | null>(g2, NET_PROBE(0));
+  const hostOk = !hostNet ? wants[0] === "full" : hostNet.on1 === (wants[1] === "deltas") && hostNet.on2 === (wants[2] === "deltas") && hostNet.refused === 0 && hostNet.unexpected === 0;
+  check(`${tag}: the state packets went in the form each guest reads (${wants.slice(1).join(", ")})`, hostOk && netAsWanted(g1Net, wants[1]) && netAsWanted(g2Net, wants[2]), JSON.stringify({ hostNet, g1Net, g2Net }));
   // a guest leaves: the match carries on as a 1v1 for the other two
   await ev(g1, "window.__range.duel().leave()");
   await host.waitForFunction("window.__range.duel() !== null && window.__range.duel().avatars.length === 1", { polling: 200, timeout: 10000 }).then(() => true, () => false);
   const left = await ev<number>(host, "window.__range.duel() ? window.__range.duel().avatars.length : -1");
-  check("1v1v1: a guest leaving drops to a 1v1 for the other two", left === 1, `${left} figures left on the host`);
+  check(`${tag}: a guest leaving drops to a 1v1 for the other two`, left === 1, `${left} figures left on the host`);
   await ev(host, "window.__range.duel().leave()");
   await g2.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 10000 });
-  check("1v1v1: the host leaving ends it for the rest", true);
+  check(`${tag}: the host leaving ends it for the rest`, true);
   await closeAll();
 }
 
@@ -2273,7 +2331,7 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   await cp.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, modes, squad, p2p) */
+/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, modes, squad, p2p, mixed) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -2585,6 +2643,11 @@ async function main(): Promise<void> {
     if (want("triple")) {
       console.log("\n1v1v1 over the local transport (three tabs)");
       await tripleTest(browser, "?net=local&norender");
+      // ?deltas=0 puts a page on the full packets exactly as a build from
+      // before the delta packets would be: it announces nothing and reads
+      // nothing else. The host has to relay between the two forms.
+      console.log("\n1v1v1 with one guest on the full packets (?deltas=0, as an older build)");
+      await tripleTest(browser, "?net=local&norender", "1v1v1 mixed", [{}, {}, { extra: "&deltas=0", want: "full" }]);
     }
 
     if (want("bots")) {
@@ -2645,6 +2708,23 @@ async function main(): Promise<void> {
       console.log("\n1v1 over peer to peer (the public broker)");
       const ran = await duelTest(browser, "?norender", "p2p");
       if (!ran) console.log("  --  skipped: the broker or the internet was not reachable");
+    }
+
+    // A build from before the delta packets against this one, over the real
+    // peer to peer path: OLD_URL is where the older build is served (a second
+    // dev server on an older checkout, or the deployed site with
+    // ?broker=public, so both meet on the public broker). Both ways round for
+    // the 1v1, and a 1v1v1 whose host has to relay between the two.
+    if (want("mixed")) {
+      const OLD = process.env.OLD_URL;
+      if (!OLD) console.log("\nAn older build and this one: skipped, set OLD_URL to a build from before the delta packets");
+      else {
+        console.log(`\nAn older build (${OLD}) and this one, over peer to peer`);
+        await duelTest(browser, "?norender", "old guest", [BASE, OLD], "full");
+        await duelTest(browser, "?norender", "old host", [OLD, BASE], "full");
+        await tripleTest(browser, "?norender", "1v1v1, an old guest", [{}, {}, { base: OLD, want: "full" }]);
+        await tripleTest(browser, "?norender", "1v1v1, an old host", [{ base: OLD, want: "full" }, { want: "full" }, { want: "full" }]);
+      }
     }
 
     check("no page errors anywhere", errors.length === 0, [...new Set(errors)].slice(0, 5).join(" | "));

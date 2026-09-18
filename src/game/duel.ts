@@ -19,12 +19,21 @@
 // The other players are drawn as robot figures holding their weapons, 100 ms
 // behind real time and interpolated between updates, which hides the jitter
 // of packets arriving unevenly.
+//
+// Every state packet goes out through broadcast (ours, and the host's bots)
+// or relay (the host passing a guest on), and every one comes in through
+// receive, so this class is the one place that decides what form it takes:
+// a delta packet to a peer that has said it reads them (src/net/statesync.ts),
+// the full packet to any other. The battle royale and the arena modes send
+// their bots through the same broadcast and get the same choice for free.
 import * as THREE from "three";
 import squadCfg from "../config/squad.json";
 import { Dummy, actFromCode, stanceCode, stanceFromCode, type FigureAct, type FigureStance } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
-import type { Link, NetMsg, RoundPhase } from "../net/link";
+import type { AckMsg, DeltaMsg, DeltaPart, Link, NetMsg, RoundPhase, StateMsg } from "../net/link";
+import { stateMsg, stateOf, type PlayerState } from "../net/state";
+import { StateSync } from "../net/statesync";
 import { ARENA_BOUNDS, ARENA_CENTER, ARENA_LOBBY_SPAWNS, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, TRI_CENTER, TRI_SPAWNS, ZONE_RADIUS, arenaMap, mapFor, type ArenaMapId } from "./arena";
 import type { Bounds } from "./player";
 import { operatorById } from "./operators";
@@ -297,6 +306,10 @@ export class Duel implements MatchLike {
   /** the host's links by guest id; a guest has one link, to the host */
   protected links = new Map<number, Link>();
   protected hostLink: Link | null = null;
+  /** the delta packets' streams to and from each peer, and whether each peer reads them (public for the tests and tools/net-cost.ts) */
+  readonly sync: StateSync;
+  /** during a frame (update), the delta parts waiting to go to each peer as one packet */
+  private batch: Map<number, DeltaPart[]> | null = null;
   private lastShotSound = -Infinity;
 
   // the circle
@@ -418,6 +431,7 @@ export class Duel implements MatchLike {
     this.players = this.mode === "duel" ? Math.max(2, Math.min(MAX_PLAYERS, opts.players)) : Math.max(1, Math.min(MAX_PLAYERS, opts.players));
     this.id = opts.myId;
     this.role = this.id === 0 ? "host" : "guest";
+    this.sync = new StateSync(this.id);
     this.lastClock = now;
     this.scores = new Array(Math.max(2, this.players)).fill(0);
     this.caps = new Array(Math.max(2, this.players)).fill(0);
@@ -600,6 +614,11 @@ export class Duel implements MatchLike {
 
   /** send to everyone else (the host: every guest; a guest: the host, who relays) */
   protected broadcast(m: NetMsg): void {
+    if (m.t === "s") {
+      // a state: ours, or one of the host's bots, which carries its id
+      this.sendState(m, typeof m.from === "number" ? m.from : this.id, -1);
+      return;
+    }
     if (this.role === "host") for (const l of this.links.values()) l.send(m);
     else this.hostLink?.send(m);
   }
@@ -607,8 +626,72 @@ export class Duel implements MatchLike {
   /** the host: pass a guest's message on to the other guests, stamped */
   protected relay(m: NetMsg, from: number): void {
     if (this.role !== "host") return;
+    if (m.t === "s") {
+      this.sendState(m, from, from);
+      return;
+    }
     const stamped = { ...m, from } as NetMsg;
     for (const [id, l] of this.links) if (id !== from) l.send(stamped);
+  }
+
+  /**
+   * One player's state to everyone who should have it: on the host every
+   * guest but the one it is about (and `except`, the one it came in from), on
+   * a guest the host. A peer that reads the delta packets gets a difference,
+   * or nothing at all when nothing has changed; any other peer gets the full
+   * packet it has always had, at the same moment, so an older build's match
+   * is the match it always was.
+   */
+  private sendState(m: StateMsg, subject: number, except: number): void {
+    const now = wallClock();
+    let state: PlayerState | null = null;
+    let full: StateMsg | null = null;
+    for (const [to, link] of this.stateTargets()) {
+      if (to === subject || to === except) continue;
+      if (this.sync.speaksDeltas(to)) {
+        state ??= stateOf(m);
+        const part = this.sync.encode(to, subject, state, now);
+        if (!part) continue;
+        // inside a frame, held for the frame's one packet (update); a relay goes at once
+        const held = this.batch?.get(to);
+        if (this.batch && held) held.push(part);
+        else if (this.batch) this.batch.set(to, [part]);
+        else link.send({ t: "sd", p: [part] });
+      } else {
+        full ??= this.fullPacket(m, subject);
+        link.send(full);
+      }
+    }
+  }
+
+  /** who a state goes to: the host's guests, or a guest's host */
+  private stateTargets(): Iterable<[number, Link]> {
+    return this.role === "host" ? this.links : this.hostLink ? [[0, this.hostLink]] : [];
+  }
+
+  /** the frame's delta parts, one packet to each peer that is still there */
+  private sendBatch(): void {
+    const batch = this.batch;
+    this.batch = null;
+    if (!batch?.size) return;
+    for (const [to, link] of this.stateTargets()) {
+      const parts = batch.get(to);
+      if (parts?.length) link.send({ t: "sd", p: parts });
+    }
+  }
+
+  /**
+   * The full packet for a peer that does not read the delta packets. Our own
+   * carries the announcement (`dp`), which is how a newer peer finds out it
+   * can send us differences; anyone else's carries the id it is about and no
+   * announcement, because one is only ever about its sender.
+   */
+  private fullPacket(m: StateMsg, subject: number): StateMsg {
+    const out: StateMsg = { ...m };
+    delete out.dp;
+    if (subject !== this.id) out.from = subject;
+    else if (this.sync.announce !== undefined) out.dp = this.sync.announce;
+    return out;
   }
 
   private receive(m: NetMsg, via: number): void {
@@ -622,6 +705,11 @@ export class Duel implements MatchLike {
     // the host only listens to links it still holds; a guest it dropped for
     // silence must not come back as a figure with no link behind it
     if (this.role === "host" && !this.links.has(via)) return;
+    // a state: the full packet, a delta one, or the ack for deltas we sent
+    if (m.t === "s" || m.t === "sd" || m.t === "sa") {
+      this.receiveState(m, from, via, now);
+      return;
+    }
     // a squad's systems: downs, revives, respawns, pings, loot and care packages
     if (m.t === "dnd" || m.t === "rev" || m.t === "respawn" || m.t === "mark" || m.t === "loot" || m.t === "pod") {
       this.receiveSquad(m, from, via);
@@ -673,42 +761,6 @@ export class Duel implements MatchLike {
     const r = this.remote(from);
     r.lastHeard = now;
     switch (m.t) {
-      case "s": {
-        // an older build sends no stance: its crouch flag stands in
-        const stance = typeof m.st === "number" ? stanceFromCode(m.st) : m.crouch ? "crouch" : "stand";
-        const ac = typeof m.ac === "number" && Number.isFinite(m.ac) ? m.ac : 0;
-        r.samples.push({ at: now, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), healItem: ac >= 10 ? HEAL_CODES[ac - 10] : undefined });
-        if (r.samples.length > 30) r.samples.shift();
-        // Their own numbers lag our hits by a round trip, so a packet can only
-        // ever LOWER what we already predicted; a respawn (alive again) resets.
-        if (m.alive && !r.alive) {
-          r.avatar.reset();
-          r.health = m.hp;
-          r.shield = m.sh;
-        } else {
-          r.health = Math.min(r.health, m.hp);
-          r.shield = Math.min(r.shield, m.sh);
-        }
-        // a name is whatever the other browser sent: text only, and short
-        if (typeof m.name === "string") {
-          const name = m.name.replace(/[\p{Cc}<>&"'`]/gu, "").trim().slice(0, 16);
-          if (name) r.name = name;
-        }
-        if (typeof m.ready === "boolean") r.ready = m.ready;
-        r.aimbot = m.bot === 1;
-        if (typeof m.shm === "number" && Number.isFinite(m.shm) && m.shm >= 0 && m.shm <= 200) r.shieldMax = m.shm;
-        r.downed = m.alive && (m.dn === 1 || m.dn === 2);
-        r.avatar.setKnockShield(r.downed && m.dn === 2);
-        // back in (a respawn): the lockout's "alive since"
-        if (m.alive && !r.alive) this.noteBack(from);
-        this.setAvatarLook(r, m.w, m.op);
-        if (!m.alive && r.alive) r.avatar.fallDown();
-        r.alive = m.alive;
-        r.avatar.health = 1e9;
-        r.avatar.shield = m.sh;
-        this.relay(m, from);
-        break;
-      }
       case "shot": {
         const o = new THREE.Vector3(...m.o);
         const dir = new THREE.Vector3(...m.d);
@@ -751,9 +803,74 @@ export class Duel implements MatchLike {
         if (from < Duel.BOT_ID) this.noteDeath(from);
         if (from < Duel.BOT_ID) this.onSomeoneDown(from, m.by, m.m === 1);
         break;
-      // round, zone, ping, pong, bye, hello and welcome are handled above,
-      // before a figure is made for the sender
+      // the state packets, round, zone, ping, pong, bye, hello and welcome
+      // are handled above, before a figure is made for the sender
     }
+  }
+
+  /** a state packet: a full one (any build), a delta one (a peer of this build), or an ack for the deltas we sent */
+  private receiveState(m: StateMsg | DeltaMsg | AckMsg, from: number, via: number, now: number): void {
+    if (m.t === "sa") {
+      this.sync.onAck(m, via);
+      const known = this.remotes.get(via);
+      if (known) known.lastHeard = now;
+      return;
+    }
+    if (m.t === "sd") {
+      // every part that could be applied, rebuilt as the full packet it
+      // stands for, so it is read by exactly the code that reads one
+      for (const got of this.sync.decode(m, via)) this.applyState(stateMsg(got.state), got.from, now);
+      // what we applied, and anything we are stuck on, back to the sender
+      const ack = this.sync.ackFor(via, now);
+      if (ack) this.linkFor(via)?.send(ack);
+      return;
+    }
+    // A peer's own full packet says whether it reads the delta packets (an
+    // older build says nothing). A relayed one carries the id it is about and
+    // says nothing about the peer that passed it on, which may well be an
+    // older host relaying a newer guest.
+    if (typeof m.from !== "number") this.sync.notePeer(via, m.dp);
+    this.applyState(m, from, now);
+  }
+
+  /** one player's state: their figure moves and shows what they are doing, and the host passes it on */
+  private applyState(m: StateMsg, from: number, now: number): void {
+    if (!wellFormed(m)) return;
+    const r = this.remote(from);
+    r.lastHeard = now;
+    // an older build sends no stance: its crouch flag stands in
+    const stance = typeof m.st === "number" ? stanceFromCode(m.st) : m.crouch ? "crouch" : "stand";
+    const ac = typeof m.ac === "number" && Number.isFinite(m.ac) ? m.ac : 0;
+    r.samples.push({ at: now, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), healItem: ac >= 10 ? HEAL_CODES[ac - 10] : undefined });
+    if (r.samples.length > 30) r.samples.shift();
+    // Their own numbers lag our hits by a round trip, so a packet can only
+    // ever LOWER what we already predicted; a respawn (alive again) resets.
+    if (m.alive && !r.alive) {
+      r.avatar.reset();
+      r.health = m.hp;
+      r.shield = m.sh;
+    } else {
+      r.health = Math.min(r.health, m.hp);
+      r.shield = Math.min(r.shield, m.sh);
+    }
+    // a name is whatever the other browser sent: text only, and short
+    if (typeof m.name === "string") {
+      const name = m.name.replace(/[\p{Cc}<>&"'`]/gu, "").trim().slice(0, 16);
+      if (name) r.name = name;
+    }
+    if (typeof m.ready === "boolean") r.ready = m.ready;
+    r.aimbot = m.bot === 1;
+    if (typeof m.shm === "number" && Number.isFinite(m.shm) && m.shm >= 0 && m.shm <= 200) r.shieldMax = m.shm;
+    r.downed = m.alive && (m.dn === 1 || m.dn === 2);
+    r.avatar.setKnockShield(r.downed && m.dn === 2);
+    // back in (a respawn): the lockout's "alive since"
+    if (m.alive && !r.alive) this.noteBack(from);
+    this.setAvatarLook(r, m.w, m.op);
+    if (!m.alive && r.alive) r.avatar.fallDown();
+    r.alive = m.alive;
+    r.avatar.health = 1e9;
+    r.avatar.shield = m.sh;
+    this.relay(m, from);
   }
 
   protected guestLeft(id: number): void {
@@ -761,6 +878,7 @@ export class Duel implements MatchLike {
     if (!link) return; // already handled (a bye and a close both arrive)
     const r = this.remotes.get(id);
     this.links.delete(id);
+    this.sync.forgetPeer(id);
     link.onMessage = null;
     link.onClose = null;
     link.close();
@@ -786,6 +904,8 @@ export class Duel implements MatchLike {
   /** one of three is gone: their figure goes, the match carries on as a 1v1 */
   protected playerGone(id: number, notice: string): void {
     if (this.revivedBy === id) this.revivedBy = null;
+    // their streams go with them, so a friend who rejoins under the same id starts clean
+    this.sync.forgetSubject(id);
     const r = this.remotes.get(id);
     if (!r) return;
     for (const d of r.avatars.values()) {
@@ -1106,6 +1226,23 @@ export class Duel implements MatchLike {
   }
 
   update(local: LocalState): void {
+    // Everything this frame tells a peer about its players (our own state,
+    // and on the host the bots its tick sends) goes out as ONE delta packet,
+    // because every message pays about 90 bytes of SCTP, DTLS, UDP and IP
+    // around it, which is more than the differences inside it. The frame's
+    // other messages (shots, downs, rounds) go as they always did, and the
+    // subclasses send their bots' shots and downs before their states, so
+    // nothing a figure's state depends on is overtaken by holding it here.
+    this.batch = new Map();
+    try {
+      this.frame(local);
+    } finally {
+      this.sendBatch();
+    }
+  }
+
+  /** one frame of the match: the silence check, the circle, the rounds, the host's tick, our state, the figures */
+  private frame(local: LocalState): void {
     const now = wallClock();
     this.ready = local.ready;
     // Capture time is real time too. Up to 1.1 s a step covers a hidden tab's

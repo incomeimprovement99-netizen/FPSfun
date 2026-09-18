@@ -1,0 +1,23 @@
+{
+  "_note": "The state packets between browsers (src/net/state.ts, src/net/statesync.ts, wired in src/game/duel.ts). The match is a star with the host in the middle, so every guest's view of every other player is paid for by the host's UPLOAD, which is the smallest pipe most people have. Measured with tools/net-cost.ts over the real peer to peer path, the full packets cost the host 8.2 kB/s per guest in a 1v1 (67 kbit/s) and 37 kB/s in a battle royale squad with eleven bots (305 kbit/s), and every message rides in a packet of its own with about 90 bytes of SCTP, DTLS, UDP and IP on top of it.",
+  "_enabled": "Off plays on the full packets, exactly as a build from before them: nothing is announced, so no peer sends a delta packet here and none is sent from here. ?deltas=0 in the address does the same for one browser without a rebuild.",
+  "_protocol": "The version of the delta format, announced as `dp` on a player's own full packet (link.ts) and never assumed. A peer that does not announce it is sent the old full packets, so an old build and a new one still play together at the old cost. Bump this only for a change that an older decoder would get WRONG; a new field it does not know is dropped by the decoder on purpose, so adding one needs no bump.",
+  "_quantise": "The step each number is rounded to before it goes on the wire, which is what turns a nine byte double into a one or two byte integer. position 0.01 is one centimetre, so a figure is drawn at most half a centimetre off on each axis (0.87 cm in the worst diagonal) from where its player is; the figures are drawn 100 ms behind, which for a running player is 70 cm, so the rounding is a hundredth of the lag that is already there. angle 0.1 is a tenth of a degree, at most 0.05 off; remote look is cosmetic here (a shot carries its own origin and direction as full floats, and the shooter claims the hit). health 1 is one hit point, which is finer than the health bar draws, and a sliver above zero is kept above zero. Nothing here rounds a number the simulation reads back: quantising happens on the way out, and the sender keeps its own full precision.",
+  "_keyframe": "seconds is how often a stream sends a whole state instead of a difference, so a peer that lost the chain recovers on its own rather than drifting or freezing forever. It is also the heartbeat: a player or a bot standing still sends nothing at all between keyframes, and duel.ts drops a player it has not heard from for 10 seconds, so this has to stay well under that even across the host's relay (two streams in a row, so up to twice seconds x (1 + spread)). sentHistory and appliedHistory are how many past states each end keeps so a difference can be taken against an acknowledged state rather than the last one sent; 64 at 30 a second is a little over two seconds, which covers any round trip a playable match has. spread and phaseStep keep every stream from keyframing at the same moment: each takes a phase from its player id (phaseStep is the golden ratio, which spreads a run of ids about as evenly as a constant can) and stretches or shrinks its own interval by up to spread.",
+  "_ackHz": "How often a receiver tells the sender which states it managed to apply, which is what lets the next difference be taken from a newer state (a smaller difference). An ack only names what changed since the last one. A request for a keyframe does not wait for this timer; it goes at once.",
+  "enabled": true,
+  "protocol": 1,
+  "quantise": {
+    "position": 0.01,
+    "angle": 0.1,
+    "health": 1
+  },
+  "keyframe": {
+    "seconds": 2,
+    "spread": 0.25,
+    "phaseStep": 0.6180339887,
+    "sentHistory": 64,
+    "appliedHistory": 64
+  },
+  "ackHz": 5
+}
