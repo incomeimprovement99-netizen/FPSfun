@@ -65,8 +65,17 @@ export type NetMsg =
   | { t: "round"; n: number; scores: number[]; phase: RoundPhase; left: number; winner: number }
   | { t: "ping"; at: number }
   | { t: "pong"; at: number }
-  /** the battle royale's ring from the host, twice a second: phase, 0 waiting 1 closing 2 closed, seconds left, the live and the next circle, how many are alive */
-  | { t: "ring"; ph: number; st: number; left: number; cur: [number, number, number]; next: [number, number, number]; alive: number }
+  /**
+   * The battle royale's ring from the host, twice a second: phase, 0 waiting
+   * 1 closing 2 closed, seconds left, the live and the next circle, how many
+   * are alive. `sq` is how many squads are still in it. `sg` is Storm Surge
+   * once it is called, [seconds to its first tick, 1 once it is live, the
+   * damage a tick, how many are below the line], and `sv` the players below
+   * it, so a guest can take its own tick the way it takes the ring's: the
+   * host ranks everyone, because every hit on a bot comes to it. An older
+   * build sends none of the three, and a guest then shows no surge.
+   */
+  | { t: "ring"; ph: number; st: number; left: number; cur: [number, number, number]; next: [number, number, number]; alive: number; sq?: number; sg?: [number, number, number, number]; sv?: number[] }
   /** the battle royale is over for the squad */
   | { t: "brend"; won: boolean; placement: number }
   /**
@@ -127,6 +136,13 @@ export interface BrWelcome {
   seed?: number;
   /** land with nothing and loot (the default), or with your loadout */
   start?: "loot" | "loadout";
+  /**
+   * solo, duo or trio (src/config/br.json teams): the host's, for everyone,
+   * because a guest that ran its own size would bleed out on another clock or
+   * wait for a revive nobody else believes in. An older host sends none, and
+   * that is the default size.
+   */
+  team?: string;
 }
 
 /** a loot item as it goes over the wire (loot.ts LootItem) */

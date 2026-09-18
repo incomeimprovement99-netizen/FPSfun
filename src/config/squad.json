@@ -1,5 +1,6 @@
 {
   "_note": "A battle royale squad's systems, Season 30 where Apex publishes a number (docs/RESEARCH_PHASE_11.md section 6): the bleed-out clock per knock, a revive's 5 s and the 20 health it gives back, the banner's 90 s, a beacon's 5 s. The crawl speed, the reach and the launch pad's throw are ours.",
+  "_bleedOut": "seconds on the floor for the first, second, third and later knocks of a life. It is a trio's clock: the battle royale multiplies it by its squad size's `bleed` (src/config/br.json), so a duo has half of it and a solo has no down at all.",
   "bleedOut": [90, 60, 30, 15],
   "bleedHealth": 100,
   "reviveTime": 5,

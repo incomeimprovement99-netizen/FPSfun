@@ -22,6 +22,7 @@ import { buildRange, skyFollow, setShadowRegion, setHour, getSun, RANGE_BOUNDS, 
 import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, type Hour } from "./game/sky";
 import { buildBrMap, BR_BOUNDS, BR_CENTER } from "./game/br";
 import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
+import brCfg from "./config/br.json";
 import { placeProps } from "./game/props";
 import { Target } from "./game/targets";
 import { ViewModel } from "./game/viewmodel";
@@ -47,7 +48,7 @@ import { buildArena, buildTriArena, ARENA_BOUNDS, ARENA_HANDLES, ARENA_MAPS, ARE
 import { Loadouts, type LoadoutDef } from "./game/loadouts";
 import { operatorById, OPERATORS } from "./game/operators";
 import { setArmColors } from "./game/arms";
-import { Menu, type Mode } from "./ui/menu";
+import { Menu, brTeamId, type Mode } from "./ui/menu";
 import type { ImpactEvent } from "./game/projectile";
 import { INSPECT_TIME, FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
 import { Abilities, ABILITIES, JOLT, JOLT_DEFAULTS, setJolt, type AbilityId } from "./game/abilities";
@@ -2179,6 +2180,16 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       setBeam(from, n === 1 && a ? a : null);
       if (n === 1 && a && duel instanceof BrMatch) duel.hearBeam(a);
     }
+    // A care package or a loadout crate (brmatch.ts: n 0 or 2 called, 1
+    // landed): the horn when it is called and the thump when it lands, each
+    // heard only so far (br.json podHeard). Past 25 m the audio holds each
+    // back by its distance over the speed of sound, so a far one comes late.
+    if (k === "pod" && a) {
+      const far = Math.hypot(a.x - player.pos.x, a.z - player.pos.z);
+      if (n === 1) {
+        if (far <= brCfg.podHeard.thump) audio.bodyFall(a);
+      } else if (far <= brCfg.podHeard.horn) audio.horn(a);
+    }
   };
   // abilities are the match's: on or off, nothing picked yet (the card comes at the countdown or the landing)
   abilities.reset(d.abilities);
@@ -2245,6 +2256,26 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       return r.through;
     };
     d.onLootTaken = (it) => applyLoot(it);
+    // The loadout crate (brmatch.ts): the two guns you built go straight into
+    // your two slots, and what you were carrying goes down at your feet the
+    // way a swap puts it down, so nothing you found is lost to the crate.
+    // The ammo that came with them goes in the pack.
+    d.onLoadoutDrop = (items) => {
+      const here = player.pos.clone();
+      items
+        .filter((it) => it.kind === "weapon")
+        .slice(0, loadout.slots.length)
+        .forEach((g, i) => {
+          const s = loadout.slots[i];
+          if (!s.empty) d.dropLoot({ kind: "weapon", id: s.id, n: 1, rarity: "common", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}) }, here);
+          loadout.give(i, g.id, g.mag ?? 0, (g.attach ?? {}) as Parameters<typeof loadout.give>[3]);
+          // a hop-up earned with damage is earned here too, unless the crate fitted it (as applyLoot)
+          const lockMod = lockedHopupFor(g.id);
+          if (lockMod && loadout.slots[i].attach.hopup !== lockMod) loadout.slots[i].hopLock = { mod: lockMod, have: 0, need: LOCKED_HOPUPS[lockMod].unlock };
+        });
+      for (const it of items) if (it.kind === "ammo") loadout.ammo.add(it.id as AmmoType, it.n);
+      audio.swap();
+    };
     d.onMark = (k, from, at, label, target) => brPlay.addMarker(k, at, label, from, target, gameTime);
     d.onDowned = () => {
       hud.notice("DOWN: A SQUAD MATE CAN REVIVE YOU", gameTime, 2.5);
@@ -2311,7 +2342,8 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
     wireMatch(d, modeOpts.kind);
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
-    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot" });
+    // the squad size is the host's for everyone (an older host sends none: the default size)
+    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team });
     duel = d;
     wireMatch(d, "br");
   } else {
@@ -2323,7 +2355,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
     player.setBounds(players >= 3 ? TRI_BOUNDS : d.arenaBounds);
     wireMatch(d, players >= 3 ? "triple" : "duel");
   }
-  const goal = d instanceof ArenaMode ? `${MODE_TITLE[d.modeKind]}: ${modeGoal(d)}` : squad ? `The squad drops onto ${(d as BrMatch).poi.name} against ${squad.bots} bots.` : "First to 3 rounds.";
+  const goal = d instanceof ArenaMode ? `${MODE_TITLE[d.modeKind]}: ${modeGoal(d)}` : squad ? `${(d as BrMatch).team.label}: the squad drops onto ${(d as BrMatch).poi.name} against ${squad.bots} bots.` : "First to 3 rounds.";
   d.onSlotFree = (id) => hosting?.release(id);
   d.onRoster = (connected, total) => {
     setDuelStatus(connected < total - 1 ? `${connected} of ${total - 1} friends in. Waiting for the rest; the code is <b class="code">${hosting?.code ?? ""}</b>.` : `Everyone is in. ${goal} <b>Click Play</b>.`, connected < total - 1 ? "live" : "good");
@@ -2394,11 +2426,11 @@ function startBr(): void {
   for (const c of courses) c.leave();
   const diff = brDifficulty();
   const bots = brBotCount();
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br"), seed: newSeed(), start: brStart() });
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br"), seed: newSeed(), start: brStart(), team: brTeamId() });
   duel = d;
   wireMatch(d, "br");
   // the drop starts on the first frame in the game (respawnForMatch, from the countdown)
-  setDuelStatus(`Battle royale on Outskirts: you and ${bots} bots, ${diff}. Dropping onto ${d.poi.name}.`, "good");
+  setDuelStatus(`Battle royale on Outskirts, ${d.team.label.toLowerCase()}: you and ${bots} bots, ${diff}. Dropping onto ${d.poi.name}.`, "good");
   duelButtons();
 }
 const brStartSel = $<HTMLSelectElement>("brStart");
@@ -2474,9 +2506,9 @@ duelHostBtn.addEventListener("click", () => {
   if (duel || hosting) return;
   cancelJoin?.();
   const players = Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
-  // a battle royale squad: the place, the bots and the difficulty are fixed
-  // now so every guest is told the same
-  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart() } : null;
+  // a battle royale squad: the place, the bots, the difficulty and the squad
+  // size are fixed now so every guest is told the same
+  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId() } : null;
   const mk = duelModeKind();
   hostOpts = {
     abilities: abilitySetting(duelKind()),
@@ -4025,7 +4057,8 @@ function step(): void {
         : null,
     vitals: duel ? { shield: duel.shield, shieldMax: duel.shieldMax, health: duel.health, healthMax: HEALTH_MAX, evo: duel instanceof BrMatch ? armor.evoFrac : null, helmet: armor.helmet } : rangeCombat.on ? { shield: rangeCombat.shield, shieldMax: rangeCombat.shieldMax, health: rangeCombat.health, healthMax: HEALTH_MAX } : null,
     drill: duel ? null : drill.hud(now),
-    brHold: duel instanceof BrMatch ? brPlay.hud.hold : null,
+    // a hold-E action, or standing on a loadout crate while it hands your loadout over
+    brHold: duel instanceof BrMatch ? (brPlay.hud.hold ?? (duelHud?.br?.crate != null ? { label: "LOADOUT CRATE  ·  STAY ON IT", progress: duelHud.br.crate } : null)) : null,
     tour: tourHud,
     healKey: keyLabel("heal"),
     ordnance: {

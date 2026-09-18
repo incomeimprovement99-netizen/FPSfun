@@ -29,6 +29,7 @@ import { REACH } from "./brplay";
 import { drawIcon, loadIcons } from "./icons";
 import { drawReticle as drawCrosshair2d, type Reticle } from "./reticle";
 import { P, access } from "./palette";
+import { RING_TICK } from "./ring";
 
 type ModeRow = ModeHud["rows"][number];
 
@@ -1519,9 +1520,13 @@ export class Hud {
         c.stroke();
       });
     }
+    // a care package blue and a loadout crate gold: faint while it is only
+    // called or falling, bright while it is down and worth fighting over, and
+    // dim again once its window has passed and it has most likely been had
     for (const p of br.pods) {
       upright(p.x, p.z, () => {
-        c.fillStyle = p.landed ? "#3b8bff" : "rgba(59,139,255,0.5)";
+        const rgb = p.loadout ? "255,193,46" : "59,139,255";
+        c.fillStyle = `rgba(${rgb},${!p.landed ? 0.5 : p.hot ? 1 : 0.3})`;
         c.fillRect(-5 * u, -5 * u, 10 * u, 10 * u);
         c.strokeRect(-5 * u, -5 * u, 10 * u, 10 * u);
       });
@@ -1670,6 +1675,19 @@ export class Hud {
     const ringDone = br.ring.phase >= br.ring.phases && !br.ring.closing;
     this.text(ringDone ? "RING CLOSED" : br.ring.closing ? "RING CLOSING" : `RING ${br.ring.phase} CLOSES IN`, cx, 80 * u, 700, 13 * u, br.ring.closing ? "#ff7a1a" : DIM, "center");
     this.text(ringDone ? "" : clock, cx, 108 * u, 700, 30 * u, br.ring.closing ? "#ff7a1a" : WHITE, "center");
+    // in duos and trios the count that decides a placement is squads, so it sits under the alive count
+    if (br.team > 1 && br.placement === null) this.text(`${br.squads} SQUAD${br.squads === 1 ? "" : "S"}`, cx - 120 * u, 132 * u, 700, 12 * u, DIM, "center");
+    // Storm Surge under the panel: the countdown once it is called, then what
+    // a tick costs and whether you are the one below the line
+    const sg = br.surge;
+    if (sg && br.placement === null) {
+      const text = !sg.live
+        ? `STORM SURGE IN ${Math.ceil(sg.startsIn)}  ·  DEAL DAMAGE OR TAKE IT`
+        : sg.safe
+          ? `STORM SURGE  ·  ${sg.below} BELOW THE LINE  ·  YOU ARE CLEAR`
+          : `STORM SURGE  ·  ${sg.damage} EVERY ${RING_TICK} S  ·  DEAL DAMAGE`;
+      this.text(text, cx, 150 * u, 700, 15 * u, !sg.live ? "#ffd23c" : sg.safe ? DIM : "#ff5a4a", "center");
+    }
     // outside: an orange vignette and the damage it costs
     if (br.ring.outside && !br.dropping && !br.placement) {
       const g = c.createRadialGradient(cx, this.h / 2, this.h * 0.35, cx, this.h / 2, this.h * 0.9);
@@ -1677,7 +1695,7 @@ export class Hud {
       g.addColorStop(1, `rgba(255,110,20,${0.35 + 0.1 * Math.sin(now * 5)})`);
       c.fillStyle = g;
       c.fillRect(0, 0, this.w, this.h);
-      this.text(`OUTSIDE THE RING  ·  ${br.ring.damage} EVERY 1.5 S`, cx, this.h * 0.3, 700, 26 * u, "#ff9a4a", "center");
+      this.text(`OUTSIDE THE RING  ·  ${br.ring.damage} EVERY ${RING_TICK} S`, cx, this.h * 0.3, 700, 26 * u, "#ff9a4a", "center");
     }
     // the heal in progress, and the kit
     if (s.heal) {
@@ -1692,7 +1710,8 @@ export class Hud {
     // the card at the end
     if (br.placement !== null) {
       const won = br.placement === 1;
-      this.text(won ? "YOU ARE THE CHAMPION" : `#${br.placement} OF ${br.total}`, cx, this.h * 0.3, 700, 62 * u, won ? "#ffd23c" : WHITE, "center");
+      // out of the squads: in solo that is everyone, in duos and trios it is how Apex counts it
+      this.text(won ? "YOU ARE THE CHAMPION" : `#${br.placement} OF ${br.squadsTotal}${br.team > 1 ? " SQUADS" : ""}`, cx, this.h * 0.3, 700, 62 * u, won ? "#ffd23c" : WHITE, "center");
       const m = Math.floor(br.survived / 60);
       const sec = Math.floor(br.survived % 60);
       this.text(`${br.kills} kill${br.kills === 1 ? "" : "s"}  ·  ${m}:${sec.toString().padStart(2, "0")} survived  ·  menu in ${Math.ceil(s.duel?.left ?? 0)}`, cx, this.h * 0.3 + 44 * u, 700, 22 * u, DIM, "center");

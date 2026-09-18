@@ -1,0 +1,50 @@
+{
+  "_note": "The battle royale's match rules that are not the ring's (src/config/ring.json) and not the loot's (src/config/loot.json): how many share a squad, the care package's arrival, the loadout crate and Storm Surge. Apex publishes almost none of this, so nearly every number here says it is ours; the two that are published are cited where they sit.",
+
+  "_teams": "Solo, duos and trios, Apex's three squad sizes. `size` is how many share a squad, and the whole lobby plays the host's size. `bots` is the bot counts the lobby row offers, and every one of them is a whole number of bot squads: you, and any friends you bring, are a squad of your own, and nothing fills your squad's empty seats, so a count where 1 + it divided by the size (the first version of this row) left the last bot squad a seat short in every duo and trio lobby. That is the gap item 46 of docs/NEXT_STEPS.md is about, a trio match with holes in it. `bleed` scales the bleed-out clock in src/config/squad.json: a duo has half the time to be picked up because there is only ever one person who can come, and a solo has no bleed-out at all because a knock is the end. Ours: Apex runs the same 90 s in every size.",
+  "teams": [
+    { "id": "solo", "size": 1, "label": "Solo", "bots": [3, 5, 7, 11], "defaultBots": 11, "bleed": 0 },
+    { "id": "duo", "size": 2, "label": "Duos", "bots": [2, 4, 6, 8, 10], "defaultBots": 10, "bleed": 0.5 },
+    { "id": "trio", "size": 3, "label": "Trios", "bots": [3, 6, 9], "defaultBots": 9, "bleed": 1 }
+  ],
+  "_defaultTeam": "what the lobby opens on, and what a match whose host sent no size (an older build) is",
+  "defaultTeam": "trio",
+
+  "_pod": "The care package's arrival (item 32). It used to appear at 120 m with a dim beam, fall in silence and print one line of text. Now it is called first: a notice and a ping name the place it is coming down on, `announce` seconds before it appears, so everyone can start moving. It falls under a canopy trailing smoke, thumps down in a ring of dust, and stays lit and marked for `contest` seconds, which is the window the fight over it happens in. `height` is where it comes in from, unchanged. The fall time itself is loot.json's podFall, which the package already had. `phases` are the ring phases, counted from 0, whose close calls one, and `inset` is how far from the next circle's centre it can land as a fraction of that circle's radius: both were written into the code as rounds 2 to 4 and 0.6 before they came here. Apex announces its packages 4:05 before the ring closes and lands them 2:30 before (docs/RESEARCH_PHASE_11.md section 15); ours is that shape scaled to a ten-minute match, and every number below is ours.",
+  "pod": {
+    "phases": [1, 2, 3],
+    "inset": 0.6,
+    "height": 120,
+    "announce": 6,
+    "contest": 45,
+    "canopy": { "radius": 2.4, "height": 2.8 },
+    "trail": { "every": 0.18, "life": 1.7, "radius": 0.5, "grow": 2.6 },
+    "dust": { "radius": 6, "time": 1.2 }
+  },
+  "_podHeard": "How far the horn when it is called and the thump when it lands carry, metres, for the page that plays them (src/main.ts, through onRemoteFx). The delay comes for free from the 343 m/s speed of sound the audio already models. Ours.",
+  "podHeard": { "horn": 200, "thump": 120 },
+  "_podLure": "A bot inside this many metres of a package that is falling or still in its contest window goes for it instead of walking its graph. Without this nobody contests a care package but the squad, which is the whole of what makes one an event. Ours.",
+  "podLure": 90,
+
+  "_loadoutPod": "The loadout crate (item 24): the drop that hands you the loadout you built on the Loadouts tab, the way Warzone does it. It comes down in the late rings, one per phase listed, only in a match that lands with nothing (a match that lands with its loadouts has nothing for it to give, which is also when there are no care packages), and it serves the whole lobby: each player claims their own guns out of it once, so a squad mate taking theirs does not empty it. `phases` are the ring's phases counted from 0, so 1 and 4 are the second and the fifth rounds. `after` is how many seconds into its phase's close it is called: the second round's close also calls a care package, both used to be called on the same frame, and the HUD shows one notice at a time, so the package's call was never seen. Eight seconds puts the crate's call between the package's call and its landing, and lands the crate (its announce and the fall after that) before the fifth round's 25 s close is over. The guns arrive kitted to `mag` and `rarity`, fitted by the same code and the same preference list as the Hot Zone's kitted gun (loot.json kitted.prefer), because a second copy of either would drift from the first, and with `stacks` of each one's ammo (ammo.json stacks; an energy gun brings its own stockpile), because a loadout one magazine deep is not one you can fight with. It falls for loot.json's podFall like the care package does. `inset` keeps it well inside the ring it is called into. `claim` is how close you stand, how long you hold still on it, and how far above or below it you can be (so it cannot be claimed through a floor). Ours: Warzone publishes none of this.",
+  "loadoutPod": {
+    "phases": [1, 4],
+    "after": 8,
+    "inset": 0.55,
+    "mag": 3,
+    "rarity": "epic",
+    "stacks": 2,
+    "claim": { "reach": 2.8, "time": 2.5, "height": 3 }
+  },
+
+  "_surge": "Storm Surge (item 34). The ring only hurts you outside it, so a squad that sits in the middle of the safe zone is never punished and hiding wins ties. From `fromPhase` on, when more players are alive than the phase's share of the lobby allows, everyone is ranked by the damage they have dealt and the ones below the line take a tick of damage wherever they stand, on the ring's own 1.5 s clock. `alive` is that share, one per ring phase: 1 means everyone may live, so the early rounds never surge. `minAlive` is the floor, so the surge never tries to thin a lobby that is already down to a fight. `warn` is the countdown before the first tick, and the surge cancels if enough people die during it. `grace` spares anyone who has dealt damage that recently, because the rule is aimed at hiding and not at losing a fight. `damage` escalates one step every `stepEvery` seconds it stays live. Ours: Apex has not published its thresholds, and ours are fractions of the lobby rather than counts so they hold for a lobby of four as well as one of twelve.",
+  "surge": {
+    "fromPhase": 3,
+    "alive": [1, 1, 1, 0.5, 0.34, 0.25],
+    "minAlive": 2,
+    "warn": 10,
+    "grace": 20,
+    "damage": [5, 10, 20, 35],
+    "stepEvery": 12
+  }
+}
