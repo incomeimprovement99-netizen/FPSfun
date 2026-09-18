@@ -1728,6 +1728,9 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
  */
 async function damageDirTest(browser: Browser, query: string): Promise<void> {
   const page = await startModePage(browser, query, "goBots", `document.getElementById("botCount").value = "1"`);
+  // The bot holds its fire: the arcs checked here are the test's own hits,
+  // and a live bot's shot would add one of its own.
+  await ev(page, "window.__range.duel().holdFire = true");
   await sleep(800);
   // the bot 10 m straight to your right, and a hit from it
   const right = await ev<{ angle: number | null }>(
@@ -1737,6 +1740,9 @@ async function damageDirTest(browser: Browser, query: string): Promise<void> {
       R.player.yaw = 0;
       const p = R.player.pos;
       b.pos.set(p.x + 10, p.y, p.z);
+      // the arc is drawn from the shooter's figure, which a bot moves to its
+      // position on its next frame: move it now, as a frame would have
+      b.dummy.group.position.copy(b.pos);
       d.takeHit(1, b, "r97", 10);
       await new Promise((r) => setTimeout(r, 400));
       const dirs = R.hud.last?.damageDirs ?? [];
@@ -2463,7 +2469,78 @@ async function shipTest(browser: Browser, query: string, squadQuery: string): Pr
   await guest.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, ship, modes, squad, p2p, mixed) */
+/**
+ * Ring Consoles (src/game/ringconsole.ts): four by the map's places, lit.
+ * Alone: the prompt at one, a scan that takes its hold and shows nothing
+ * until it is done, then the circle after next on the map (the very circle
+ * the ring's chain holds for that round), the console spent and saying so,
+ * and the EVO paid. As a squad: a guest's scan reaches the host's map.
+ */
+async function consoleTest(browser: Browser, query: string, squadQuery: string): Promise<void> {
+  const page = await open(browser, query);
+  await ev(page, brRow("solo", 3));
+  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+  await sleep(400);
+  await ev(page, "window.__range.duel().holdFire = true");
+  const fight = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 30000 }).then(() => true, () => false);
+  const setup = await ev<{ n: number; lit: number; icons: number; plan: number; ahead: unknown; places: number }>(
+    page,
+    `(() => { const d = window.__range.duel(); const br = d.hud().br; return { n: d.consoles.length, lit: br.consoles.filter((c) => c.ready).length, icons: br.consoles.length, plan: d.ringPlan.length, ahead: br.ring.ahead, places: new Set(d.consoles.map((c) => c.place)).size }; })()`
+  );
+  check("ring console: four by four different places, lit and on the map; the ring's six circles known from the start; nothing ahead shown yet", fight && setup.n === 4 && setup.places === 4 && setup.lit === 4 && setup.icons === 4 && setup.plan === 6 && setup.ahead === null, JSON.stringify(setup));
+  await ev(page, `(() => { const R = window.__range; const c = R.duel().consoles[0]; R.player.teleport(c.x + 1.2, 0, c.z, 0); })()`);
+  await sleep(300);
+  const prompt = await ev<string>(page, "JSON.stringify(window.__range.brPlay.hud.prompt)");
+  check("ring console: standing at one, the prompt offers the scan", /SCAN THE RING CONSOLE/.test(prompt), prompt);
+  const evo0 = await ev<number>(page, "window.__range.armor.evo");
+  await ev(page, `window.__range.setScript({ held: (a) => a === "interact", pressedNow: (a) => a === "interact" })`);
+  await sleep(3000);
+  const half = await ev<{ hold: number; ahead: unknown }>(page, "(() => { const R = window.__range; return { hold: R.hud.last?.brHold?.progress ?? -1, ahead: R.duel().hud().br.ring.ahead }; })()");
+  check("ring console: the scan is a hold, and shows nothing until it is done", half.hold > 0.2 && half.hold < 0.8 && half.ahead === null, JSON.stringify(half));
+  const done = await page.waitForFunction("window.__range.duel().hud().br.ring.ahead !== null", { polling: 100, timeout: 8000 }).then(() => true, () => false);
+  await ev(page, "window.__range.setScript(null)");
+  await sleep(200);
+  const after = await ev<{ ahead: { cx: number; cz: number; r: number } | null; want: { cx: number; cz: number; r: number }; ready: boolean; evo: number; prompt: string }>(
+    page,
+    `(() => { const R = window.__range; const d = R.duel(); const br = d.hud().br; return { ahead: br.ring.ahead, want: d.ringPlan[br.ring.phase], ready: br.consoles[0].ready, evo: R.armor.evo, prompt: JSON.stringify(R.brPlay.hud.prompt) }; })()`
+  );
+  const match = !!after.ahead && Math.abs(after.ahead.cx - after.want.cx) < 1e-6 && Math.abs(after.ahead.cz - after.want.cz) < 1e-6 && Math.abs(after.ahead.r - after.want.r) < 1e-6;
+  check("ring console: done, the circle after next is on the map, the one the ring's chain holds for that round", done && match, JSON.stringify({ ahead: after.ahead, want: after.want }));
+  check("ring console: spent for the round, and it says it reboots when the ring closes", !after.ready && /REBOOTS/.test(after.prompt), after.prompt);
+  check("ring console: the scan pays 100 EVO", after.evo - evo0 === 100, `${evo0} -> ${after.evo}`);
+  await page.close();
+
+  // ---- a squad mate's scan reaches the host
+  const host = await open(browser, squadQuery);
+  const guest = await open(browser, squadQuery);
+  await ev(host, brRow("duo", 2));
+  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const pg of [host, guest]) await pg.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check("ring console: a squad connects", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  for (const pg of [host, guest]) await pressPlay(pg);
+  await ev(host, "window.__range.duel().holdFire = true");
+  const landed = await Promise.all([host, guest].map((pg) => pg.waitForFunction(`window.__range.duel().phase === "fight" && !window.__range.player.dropping`, { polling: 200, timeout: 30000 }).then(() => true, () => false)));
+  const plans = await Promise.all([host, guest].map((pg) => ev<string>(pg, "JSON.stringify({ plan: window.__range.duel().ringPlan, spots: window.__range.duel().consoles.map((c) => [c.x, c.z]) })")));
+  check("ring console: host and guest know the same chain and the same consoles", landed[0] && landed[1] && plans[0] === plans[1], plans[0] === plans[1] ? "" : `${plans[0].slice(0, 120)} / ${plans[1].slice(0, 120)}`);
+  await ev(guest, `(() => { const R = window.__range; const c = R.duel().consoles[1]; R.player.teleport(c.x + 1.2, 0, c.z, 0); R.setScript({ held: (a) => a === "interact", pressedNow: (a) => a === "interact" }); })()`);
+  const seen = await host.waitForFunction("window.__range.duel().hud().br.ring.ahead !== null", { polling: 100, timeout: 12000 }).then(() => true, () => false);
+  await ev(guest, "window.__range.setScript(null)");
+  const hostView = await ev<{ ready: boolean[]; ahead: unknown }>(host, "(() => { const br = window.__range.duel().hud().br; return { ready: br.consoles.map((c) => c.ready), ahead: br.ring.ahead }; })()");
+  check("ring console: the guest's scan puts the circle after next on the host's map too, and the host sees that console spent", seen && hostView.ready[1] === false && hostView.ready.filter(Boolean).length === 3, JSON.stringify(hostView));
+  await host.close();
+  await guest.close();
+}
+
+/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, ship, console, modes, squad, p2p, mixed) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -2813,6 +2890,11 @@ async function main(): Promise<void> {
     if (want("ship")) {
       console.log("\nThe dropship: the ride, the jump, the end of the line, the bots, the jumpmaster");
       await shipTest(browser, "?norender", "?net=local&norender");
+    }
+
+    if (want("console")) {
+      console.log("\nRing Consoles: the scan, the circle after next, the squad");
+      await consoleTest(browser, "?norender", "?net=local&norender");
     }
 
     if (want("finish")) {

@@ -25,6 +25,7 @@ import { lootLabel, type LootItem, type LootDrop, type Rarity } from "./loot";
 import { DROP_HEIGHT } from "./brmatch";
 import squad from "../config/squad.json";
 import hudCfg from "../config/hud.json";
+import { CONSOLE } from "./ringconsole";
 
 export interface Marker {
   k: "enemy" | "loot" | "go";
@@ -177,6 +178,8 @@ interface Deps {
   onRevive?: () => void;
   /** a Deathbox Respawn's beam: on at a place, or off */
   beam?: (at: THREE.Vector3 | null) => void;
+  /** a Ring Console scan of yours finished (EVO) */
+  onScan?: () => void;
 }
 
 /** seconds to hold for a revive and a beacon (Season 30), a banner's life, the pads (src/config/squad.json) */
@@ -191,7 +194,7 @@ export class BrPlay {
   markers: Marker[] = [];
   /** a squad mate's banner you carry to a beacon */
   carried: { owner: number; name: string; until: number } | null = null;
-  private hold: { kind: "revive" | "beacon" | "box"; target: number; label: string; start: number; need: number } | null = null;
+  private hold: { kind: "revive" | "beacon" | "box" | "console"; target: number; label: string; start: number; need: number } | null = null;
   /** interact went down at a squad mate's banner, and when (a tap takes it, a hold respawns them) */
   private eDownAt: number | null = null;
   private padAt = -Infinity;
@@ -437,6 +440,8 @@ export class BrPlay {
     if (!boxDrop) this.eDownAt = null;
     // a beacon, carrying a banner
     const beacon = this.carried ? match.mapInfo.beacons.find((b) => Math.hypot(p.x - b.x, p.z - b.z) < squad.beaconReach) : undefined;
+    // a Ring Console at your feet
+    const rc = player.onGround ? match.consoleNear(p, CONSOLE.reach) : null;
     if (mate) {
       out.prompt = { key: `HOLD ${key}`, text: `REVIVE ${mate.name}` };
       this.runHold("revive", mate.id, `REVIVING ${mate.name}`, REVIVE_TIME, holdingE, now, match, () => {
@@ -480,6 +485,20 @@ export class BrPlay {
         this.deps.notice(`${who.name} IS DROPPING IN`);
         this.carried = null;
       });
+    } else if (rc) {
+      // a Ring Console: hold to put the circle after next on the squad's map
+      if (!rc.ready) {
+        this.cancelHold(match);
+        out.prompt = { key: "", text: "RING CONSOLE: SCANNED THIS ROUND, IT REBOOTS WHEN THE RING CLOSES" };
+      } else {
+        out.prompt = { key: `HOLD ${key}`, text: "SCAN THE RING CONSOLE: SEE WHERE THE RING GOES AFTER NEXT" };
+        this.runHold("console", rc.index, "SCANNING THE RING CONSOLE", CONSOLE.hold, holdingE, now, match, () => {
+          if (!match.scanConsole(rc.index)) return;
+          this.deps.notice("THE RING AFTER NEXT IS ON YOUR MAP");
+          this.deps.sound("ping");
+          this.deps.onScan?.();
+        });
+      }
     } else {
       this.cancelHold(match);
       const tower = match.mapInfo.towers.find((t) => Math.hypot(p.x - t.x, p.z - t.z) < squad.towerReach);
@@ -595,7 +614,7 @@ export class BrPlay {
   }
 
   /** a hold-E action: started, kept going, given up, or done */
-  private runHold(kind: "revive" | "beacon" | "box", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void): void {
+  private runHold(kind: "revive" | "beacon" | "box" | "console", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void): void {
     if (!holding) {
       this.cancelHold(match);
       return;

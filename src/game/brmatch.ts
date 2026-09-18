@@ -40,6 +40,11 @@
 //                    map (dropship.ts); you jump when you like, a squad
 //                    follows its jumpmaster, and the bots leave it as it
 //                    passes their places and glide down onto them.
+//   Ring Consoles    terminals by four of the places (ringconsole.ts): a
+//                    scan puts the circle after next on the squad's map.
+//                    The ring's chain is drawn from the seed at the start,
+//                    so every browser knows it; a scan only says which
+//                    console and which circle.
 //   Storm Surge      the ring is the only pressure and it only hurts you
 //                    outside it, so hiding used to win ties. In the late
 //                    rounds, when more are alive than the phase allows,
@@ -105,6 +110,10 @@ import type { ProjectileSystem } from "./projectile";
 import { Ring, RING_PHASES, RING_TICK, type Circle } from "./ring";
 import { BR_BOUNDS, BR_CENTER, BR_HALF, type BrMap, type Poi } from "./br";
 import { SHIP, ShipRun, buildShip, shipLine, type ShipLine } from "./dropship";
+import { buildConsole, consoleSpots } from "./ringconsole";
+
+/** the ring's own stream off the match seed, so the loot field's and the ship's draws do not shift it */
+const RING_SALT = 0x2545f491;
 import { Duel, HEALTH_MAX, SHIELD_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
 import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
@@ -295,6 +304,8 @@ export interface BrHud {
     timeLeft: number;
     current: Circle;
     next: Circle;
+    /** the circle after next, while a Ring Console scan has shown it */
+    ahead: Circle | null;
     /** you are outside the live ring */
     outside: boolean;
     damage: number;
@@ -311,6 +322,8 @@ export interface BrHud {
   /** jump towers, respawn beacons, care packages, for the maps */
   towers: Array<{ x: number; z: number }>;
   beacons: Array<{ x: number; z: number }>;
+  /** the Ring Consoles, lit while they have something to show this round */
+  consoles: Array<{ x: number; z: number; ready: boolean }>;
   /** `loadout` is a loadout crate rather than a care package; `hot` is still worth contesting */
   pods: Array<{ x: number; z: number; landed: boolean; loadout: boolean; hot: boolean }>;
   /** the squad mates, for the maps: where, their name, down or out */
@@ -435,6 +448,12 @@ export class BrMatch extends Duel {
   /** the ship is handed to main once, at the start of the drop: a beacon's respawn drops straight in */
   private boardingTaken = false;
   private botsLaunched = false;
+  /** the ring's whole chain, the same on every browser (the host's ring's, or one made from the seed) */
+  readonly ringPlan: readonly Circle[];
+  /** the Ring Consoles: where, the round each was last scanned in, and its figure */
+  readonly consoles: Array<{ x: number; z: number; place: string; usedPhase: number; model: ReturnType<typeof buildConsole> }> = [];
+  /** the furthest circle of the plan a console has shown the squad (-1: none) */
+  private revealed = -1;
 
   constructor(
     scene: THREE.Scene,
@@ -539,12 +558,81 @@ export class BrMatch extends Duel {
         const dropTo = openGround(spawn.x, spawn.z);
         this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false, team: squad, slot: i % this.team.size, dropTo, jumpAt: Infinity });
       }
-      this.ring = new Ring(start, rng);
+      this.ring = new Ring(start, seeded((this.seed ^ RING_SALT) >>> 0));
       this.view = { phase: 0, state: "waiting", timeLeft: RING_PHASES[0].wait, current: { ...this.ring.current }, next: { ...this.ring.next } };
     } else {
       this.ring = null;
       this.view = { phase: 0, state: "waiting", timeLeft: RING_PHASES[0].wait, current: start, next: start };
     }
+    // the chain: the host's own, or the same one drawn here from the seed
+    this.ringPlan = this.ring ? this.ring.plan : new Ring(start, seeded((this.seed ^ RING_SALT) >>> 0)).plan;
+    // the consoles, where the seed puts them, lit
+    for (const spot of consoleSpots(this.seed, map.pois)) {
+      const model = buildConsole();
+      model.group.position.set(spot.x, 0, spot.z);
+      // the screen toward the place it belongs to
+      const poi = map.pois.find((q) => q.name === spot.place);
+      if (poi) model.group.rotation.y = Math.atan2(poi.x - spot.x, poi.z - spot.z);
+      scene.add(model.group);
+      this.consoles.push({ ...spot, usedPhase: -1, model });
+    }
+  }
+
+  /** the round the ring is on (0-based; the host's, or what its last packet said) */
+  private get ringPhase(): number {
+    return this.view.phase;
+  }
+
+  /** a console can be scanned: not already this round, and there is a circle after next to show */
+  consoleReady(i: number): boolean {
+    const c = this.consoles[i];
+    return !!c && c.usedPhase !== this.ringPhase && this.ringPhase + 1 < this.ringPlan.length;
+  }
+
+  /** the console within reach of the feet, and whether it has something to show */
+  consoleNear(p: THREE.Vector3, reach: number): { index: number; ready: boolean; place: string } | null {
+    for (let i = 0; i < this.consoles.length; i++) {
+      const c = this.consoles[i];
+      if (Math.hypot(p.x - c.x, p.z - c.z) <= reach && Math.abs(p.y) < 2) return { index: i, ready: this.consoleReady(i), place: c.place };
+    }
+    return null;
+  }
+
+  /** your scan finished: the circle after next for the squad, and the console spent for the round. False when there was nothing to show */
+  scanConsole(i: number): boolean {
+    if (!this.consoleReady(i)) return false;
+    const c = this.consoles[i];
+    const show = this.ringPhase + 1;
+    this.markScanned(i, show);
+    this.localFx("rcon", new THREE.Vector3(c.x, 0, c.z), undefined, show);
+    return true;
+  }
+
+  /** a squad mate's scan (their "rcon" effect): the console at `at` is spent, and plan[show] is on the map */
+  hearConsole(at: THREE.Vector3, show: number): void {
+    if (!Number.isInteger(show) || show < 1 || show >= this.ringPlan.length) return;
+    let best = -1;
+    let bestD = 3;
+    this.consoles.forEach((c, i) => {
+      const d = Math.hypot(c.x - at.x, c.z - at.z);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+    if (best >= 0) this.markScanned(best, show);
+    else this.revealed = Math.max(this.revealed, show);
+  }
+
+  private markScanned(i: number, show: number): void {
+    const c = this.consoles[i];
+    c.usedPhase = show - 1;
+    this.revealed = Math.max(this.revealed, show);
+  }
+
+  /** the circle after next, while a scan has shown it and the ring has not got there yet */
+  get ringAhead(): Circle | null {
+    return this.revealed === this.ringPhase + 1 ? { ...this.ringPlan[this.revealed] } : null;
   }
 
   /** a Deathbox Respawn's beam and hum: "high risk", heard twice as far as a shot */
@@ -1298,6 +1386,12 @@ export class BrMatch extends Duel {
     }
     // the ship flies on every browser, on its own clock
     this.placeShip(now);
+    // the consoles: lit while they have something to show this round, their rings turning
+    for (let i = 0; i < this.consoles.length; i++) {
+      const c = this.consoles[i];
+      c.model.setReady(this.consoleReady(i));
+      c.model.spin(frameDt);
+    }
     // the crates are everyone's to work out and everyone's to claim, so both
     // run here rather than in the host-only tick below
     this.maybeCrate();
@@ -1683,6 +1777,7 @@ export class BrMatch extends Duel {
         timeLeft: v.timeLeft,
         current: { ...v.current },
         next: { ...v.next },
+        ahead: this.ringAhead,
         outside: local ? Math.hypot(local.x - v.current.cx, local.z - v.current.cz) > v.current.r : false,
         damage: RING_PHASES[Math.min(v.phase, RING_PHASES.length - 1)].damage,
       },
@@ -1695,6 +1790,7 @@ export class BrMatch extends Duel {
       squadsTotal: this.squadsTotal,
       towers: this.map.towers,
       beacons: this.map.beacons,
+      consoles: this.consoles.map((c, i) => ({ x: c.x, z: c.z, ready: this.consoleReady(i) })),
       pods: this.podSpots,
       // Friends are on the maps in every size. Alone the list is empty
       // anyway, and friends in a solo match are still on one side (only the
@@ -1769,6 +1865,17 @@ export class BrMatch extends Duel {
 
   override dispose(): void {
     this.dropShipModel();
+    for (const c of this.consoles) {
+      c.model.group.removeFromParent();
+      c.model.group.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.geometry.dispose();
+          (mesh.material as THREE.Material).dispose();
+        }
+      });
+    }
+    this.consoles.length = 0;
     for (const b of this.bots) b.bot.dispose();
     this.bots = [];
     this.lootField?.dispose();

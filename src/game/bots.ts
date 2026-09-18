@@ -1351,6 +1351,8 @@ export class BotMatch implements MatchLike {
   shield = SHIELD_MAX;
   shieldMax = SHIELD_MAX;
   alive = true;
+  /** the tests: the bots hold their fire (they still move and see), as the battle royale's can */
+  holdFire = false;
   private bots: Bot[] = [];
   private scores: number[];
   private lastWinner = -1;
@@ -1590,7 +1592,7 @@ export class BotMatch implements MatchLike {
     for (const b of this.bots) {
       const before = b.alive;
       const sees = this.alive && b.alive && !b.dropping && b.sees(feet);
-      const shots = b.update(now, dt, { target: sees ? feet : null, targetId: 0, goal: center, canShoot: this.phase === "fight" });
+      const shots = b.update(now, dt, { target: sees ? feet : null, targetId: 0, goal: center, canShoot: this.phase === "fight" && !this.holdFire });
       // a frag: its flight is drawn by the page, which hands the blast back (botBlast)
       const th = b.takeThrow();
       if (th) this.onRemoteFx?.("throw", b.remote.id, th.from, th.vel, throwCode(th.kind));

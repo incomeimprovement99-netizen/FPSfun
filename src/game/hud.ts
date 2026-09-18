@@ -1478,11 +1478,22 @@ export class Hud {
     if (this.mapSolids !== RANGE_SOLIDS.length || key !== this.mapRegionKey) this.buildMap(s.mapRegion);
   }
 
-  /** the rings on a map: the live one orange, the next one white */
+  /** the rings on a map: the live one orange, the next one white, and the one after dashed cyan when a Ring Console has shown it */
   private drawRings(s: HudState, toX: (x: number) => number, toZ: (z: number) => number, scale: number, u: number): void {
     const br = s.duel?.br;
     if (!br) return;
     const c = this.ctx;
+    if (br.ring.ahead) {
+      const a = br.ring.ahead;
+      c.save();
+      c.lineWidth = 2 * u;
+      c.setLineDash([8 * u, 6 * u]);
+      c.strokeStyle = "rgba(57,208,255,0.95)";
+      c.beginPath();
+      c.arc(toX(a.cx), toZ(a.cz), Math.max(0.5, a.r * scale), 0, Math.PI * 2);
+      c.stroke();
+      c.restore();
+    }
     c.lineWidth = 2 * u;
     c.strokeStyle = "rgba(255,255,255,0.9)";
     c.beginPath();
@@ -1525,6 +1536,16 @@ export class Hud {
       upright(t.x, t.z, () => {
         c.fillStyle = "#e04848";
         c.fillRect(-0.8 * u, 5 * u, 1.6 * u, 6 * u);
+      });
+    }
+    // a Ring Console: a cyan screen, dim once it has been scanned this round
+    for (const k of br.consoles ?? []) {
+      upright(k.x, k.z, () => {
+        c.fillStyle = k.ready ? "#39d0ff" : "rgba(57,208,255,0.3)";
+        c.fillRect(-5 * u, -4 * u, 10 * u, 8 * u);
+        c.strokeRect(-5 * u, -4 * u, 10 * u, 8 * u);
+        c.fillStyle = "rgba(0,0,0,0.8)";
+        c.fillRect(-3 * u, -2 * u, 6 * u, 1.5 * u);
       });
     }
     for (const b of br.beacons) {

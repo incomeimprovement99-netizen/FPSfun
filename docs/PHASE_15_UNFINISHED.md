@@ -21,6 +21,7 @@
 - **Three new arenas and a map picker** (finished after the limit reset): the Vault for 1v1 and free-for-all, the Crossing for team modes, the Ringworks for free-for-all and Crown. Pick one in the modes row, or "picked for the mode". The warehouse is still the default. The offline 1v1 against bots uses the picker too.
 - **After the second reset:** a damage direction indicator, crosshair customisation, colour vision modes and a HUD scale, XP with levels and challenges, a match summary card, quick chat, and spawning facing open floor in the new arenas. Two flaky e2e checks were found at their causes and fixed.
 - **Delta state packets (item 51)**, reviewed, fixed and merged (Milestone 62): a player's state goes as its difference from one the other end has acknowledged, and one packet a frame carries everything for a peer. The host's upload to a guest in a squad battle royale fell from 34.8 to 7.3 kB/s; an older build still plays against this one on the full packets.
+- **Ring Consoles (item 22)**: four by four of the places; a 7.5 s scan puts the circle after next on the squad's map until the ring gets there, pays 100 EVO, and the console reboots when the ring closes. The ring's whole chain is drawn from the seed at the start, so every browser knows it.
 - **The dropship and the jumpmaster**: the match starts on a ship flying a line across the map over the squad's place; you jump when you like, the ship puts out whoever is left at the far edge, a squad follows the host's jump in formation until C breaks off, and the bots ride along out of sight and glide onto their places. The bots drop from the sky again, which they had stopped doing when the squad match came in.
 - **A two-state skydive**: look down to dive at 30 m/s, look level to glide 14 m/s across at 12 down, blended between; the drop's map steps aside after 2.5 s so you can see where you are steering.
 - **verify** is 1,200+ checks; its new subjects live in `tools/checks/`.
@@ -43,7 +44,7 @@
 3. **Build the Outskirts map expansion** from the six-stage plan. It is the owner's top ask and the backbone of everything else in the battle royale.
 9. **Place the new materials and rock meshes** on the map, one palette per place.
 10. **Doors and supply bins** (items 10 and 11). The sounds for them are already fetched and have calls in `audio.ts`.
-11. Then down `docs/NEXT_STEPS.md`: the Ring Console, Resurgence, the Gulag, emotes. (Spectating your squad already works, and the dropship is done.)
+11. Then down `docs/NEXT_STEPS.md`: Resurgence, the Gulag, emotes. (Spectating your squad already works; the dropship and the Ring Console are done.)
 
 ## What we are still missing against the big shooters
 

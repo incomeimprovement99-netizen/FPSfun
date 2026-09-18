@@ -14,6 +14,12 @@
 // shoot-out. The square and the cover points are config, not an import of
 // br.ts: that module builds meshes the moment it loads.
 //
+// The whole chain of circles is drawn when the ring is made (`plan`), in the
+// order the rounds would have drawn them one at a time, so the same random
+// stream gives the same circles either way. Knowing the chain up front is
+// what lets a Ring Console show the circle after next (ringconsole.ts), and
+// a guest that makes a ring from the same seed knows the same chain.
+//
 // Pure logic, so tools/verify.ts can run a whole ring in a loop.
 import cfg from "../config/ring.json";
 
@@ -65,6 +71,8 @@ export class Ring {
   readonly current: Circle;
   /** where the live phase closes to */
   readonly next: Circle;
+  /** every round's circle, worked out at the start: plan[p] is where round p closes to */
+  readonly plan: readonly Circle[];
   /** seconds left in the wait, or in the close */
   timeLeft: number;
   private from: Circle;
@@ -78,7 +86,14 @@ export class Ring {
   ) {
     this.current = { ...start };
     this.from = { ...start };
-    this.next = this.pick(start, 0);
+    const plan: Circle[] = [];
+    let inside = start;
+    for (let p = 0; p < RING_PHASES.length; p++) {
+      inside = this.pick(inside, p);
+      plan.push(inside);
+    }
+    this.plan = plan;
+    this.next = { ...plan[0] };
     this.timeLeft = RING_PHASES[0].wait;
   }
 
@@ -203,7 +218,7 @@ export class Ring {
           else {
             this.state = "waiting";
             this.timeLeft += RING_PHASES[this.phase].wait;
-            Object.assign(this.next, this.pick(this.current, this.phase));
+            Object.assign(this.next, this.plan[this.phase]);
           }
         }
       }

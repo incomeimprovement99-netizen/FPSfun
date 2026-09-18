@@ -2090,6 +2090,7 @@ const brPlay = new BrPlay({
   keyLabel: (a) => keyLabel(a),
   notice: (t) => hud.notice(t, gameTime, 2),
   sound: (k) => (k === "ping" ? audio.hitTier("white") : k === "revive" ? audio.healDone() : audio.whoosh()),
+  onScan: () => giveEvo(brCfg.console.evo, "RING CONSOLE"),
   onRevive: () => {
     const R = squadCfg.evo.revive;
     giveEvo(R[Math.min(revivesDone, R.length - 1)], "REVIVE");
@@ -2280,6 +2281,12 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     // a quick chat line: its number, said in the feed under their name
     if (k === "chat" && typeof n === "number") {
       sayQuick(d.nameFor(from) ?? "PLAYER", n, false);
+      return;
+    }
+    // a squad mate scanned a Ring Console: the circle after next is on our map too
+    if (k === "rcon" && a && typeof n === "number" && d instanceof BrMatch) {
+      d.hearConsole(a, n);
+      hud.notice(`${d.nameFor(from)} SCANNED A RING CONSOLE: THE RING AFTER NEXT IS ON THE MAP`, gameTime, 2.5);
       return;
     }
     // the jumpmaster jumped: a squad mate still linked to them goes too, and follows them down

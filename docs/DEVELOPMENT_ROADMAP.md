@@ -907,3 +907,17 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   malformed differences taken as no movement, and a sliver of health rounded to zero. The first run over the real
   broker found one more: whichever end switched first stayed the only one sending deltas. Distance bands and a byte
   budget were left out; at today's lobby sizes the budget never bites and the bands would only thin far figures.
+
+## Milestone 63 — Ring Consoles: the circle after next ✅
+2026-09-18 (Phase 15). `ringconsole.ts` (new), `ring.ts`, `brmatch.ts`, `brplay.ts`, `hud.ts`, `main.ts`, `src/config/br.json`.
+- The ring works out its whole chain of circles when it is made, in the order the rounds would have drawn them one at
+  a time, so the same random stream closes onto the same circles as before. Its stream now comes from the match seed,
+  so a guest draws the same chain; before, only the host knew where the ring was going.
+- Four consoles stand by four of the places, on clear ground 7 to 22 m from each middle, chosen from the seed. Hold E
+  for 7.5 s at one and the circle after next is on the whole squad's map (full map and minimap), dashed cyan, until
+  the ring gets there. The console goes dark until the ring closes, and the scan pays 100 EVO.
+- A scan is one effect message naming the console and the circle; nothing else about the consoles goes over the wire.
+- Checks: `tools/checks/ring-console.ts` (two hundred rings closing onto their plans, a guest's chain, the placement
+  and its way round a building), and the e2e `console` section (the prompt, the hold, the circle shown being the
+  chain's, the console spent, the EVO, and a guest's scan on the host's map).
+
