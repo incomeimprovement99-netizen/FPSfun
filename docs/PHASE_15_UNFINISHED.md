@@ -17,7 +17,8 @@
 - **Icons on the grenade row** of the HUD.
 - **Carried shockwave and rift charges** (restored after the reset), battle royale floor loot.
 - **Three new arenas and a map picker** (finished after the limit reset): the Vault for 1v1 and free-for-all, the Crossing for team modes, the Ringworks for free-for-all and Crown. Pick one in the modes row, or "picked for the mode". The warehouse is still the default. The offline 1v1 against bots uses the picker too.
-- **verify** is 1,160+ checks; its new subjects live in `tools/checks/`.
+- **After the second reset:** a damage direction indicator, crosshair customisation, colour vision modes and a HUD scale, XP with levels and challenges, a match summary card, quick chat, and spawning facing open floor in the new arenas. Two flaky e2e checks were found at their causes and fixed.
+- **verify** is 1,200+ checks; its new subjects live in `tools/checks/`.
 
 ## Not done, and why
 
@@ -41,7 +42,7 @@
 8. **Review and ship the delta netcode**, then run the `p2p` section and `npm run live` before any deploy.
 9. **Place the new materials and rock meshes** on the map, one palette per place.
 10. **Doors and supply bins** (items 10 and 11). The sounds for them are already fetched and have calls in `audio.ts`.
-11. Then down `docs/NEXT_STEPS.md`: the Ring Console, Resurgence, spectate your squad, a match summary, the Gulag, a damage direction indicator, reticle and colourblind settings, a progression spine.
+11. Then down `docs/NEXT_STEPS.md`: the Ring Console, Resurgence, spectate your squad, the Gulag, a drop with a dropship and a jumpmaster, emotes.
 
 ## What we are still missing against the big shooters
 

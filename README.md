@@ -207,7 +207,8 @@ defaults puts `binds.json` back.
 |---|---|---|---|
 | W A S D | move | Shift | sprint (press, like the game; hold in Settings) |
 | Space, scroll up | jump (scroll makes superjumps and bunny hops easy) | Ctrl, C | crouch, slide (see Ctrl + W under limits; toggle in Settings) |
-| Scroll down | forward, one tap per notch, for tap-strafing | E | interact: a zipline, an item; hold: a revive, a beacon, skip a tour step |
+| Scroll down | forward, one tap per notch, for tap-strafing | E | interact: a zipline, an item; hold: a revive, a beacon, skip a tour step; down with a gold knockdown shield, hold to self-revive |
+| Enter, then 1 to 6 | quick chat: a line (GG, Nice shot!, Thanks!, On my way, Wait for me, Rematch?) to everyone in the match, in their kill feed | | |
 | Left mouse | fire | Right mouse | aim down sights (toggle in Settings) |
 | R | reload; hold with a full magazine to inspect the gun (Inspect can have a key of its own) | V | melee (heirloom or fist) |
 | 1, 2 | weapon slot | Q, Mouse 5 | swap weapon |
@@ -285,6 +286,9 @@ The Settings tab, all remembered in this browser:
 | Volume | master, effects, hits |
 | The range's ammo | endless, or counted like a match |
 | Mantle boost cue | the ring on the crosshair in the last frames of a mantle, where a superglide is possible |
+| Time of day | seven hours, morning to moonlight: the sky, the sun, the light and the fog, applied at once with no reload |
+| Accessibility | a colour vision mode (normal, deuteranopia, protanopia, tritanopia) that moves the enemy and ally colours on pings, the kill feed, name plates and the damage arcs to a pair you can tell apart; and a HUD size, 80% to 140% |
+| Crosshair | five styles (the game's three prongs, cross, T, circle, dot), six colours, length, thickness, gap, centre dot, outline, whether it opens with spread, opacity; a live preview, and Reset for the game's own |
 | Controller: look, ADS, curve, deadzone, auto sprint, rumble, aim assist, advanced look | see [Controller](#controller) |
 | Getting past the frame cap | a step-by-step guide to raise the browser's frame limit (monitor refresh rate, Chrome flags) |
 

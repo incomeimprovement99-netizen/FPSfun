@@ -802,3 +802,35 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - A Map picker in the modes row; the warehouse stays the default. A friends' match carries the host's pick in the
   welcome. The mode rules moved from warehouse offsets to a per-map layout, and the player is clamped to the chosen
   map's walls.
+
+## Milestone 54 — The bots on Outskirts see and loot, and the looting you do works ✅
+2026-09-16 to 18 (Phase 15). `brmatch.ts`, `bots.ts`, `brplay.ts`, `kit.ts`, `loot.ts`, `main.ts`.
+- Battle royale bots see 60 to 170 m by tier instead of the arena's 60, and loot their own gun, armour, heals and
+  grenades off the floor. A probe found two bugs the wiring exposed: bots chasing loot on the floor above, and bots
+  landing inside the ridge's rock. Both fixed.
+- The walk-over pickup had never run in a real match (its carry hook was never set). It runs, and keeps out of death
+  boxes, because a squad mate respawning the owner swept up the owner's things.
+- Taking a gun with both slots full swapped back and forth every frame of a held press; fixed.
+- Backpacks and knockdown shields are floor loot; a gold shield's self-revive works.
+
+## Milestone 55 — Who is shooting me ✅
+2026-09-18 (Phase 15). `hud.ts`, `main.ts`, `src/config/hud.json`.
+- A red arc round the crosshair points at whoever hit you, anchored to where they stood so it keeps pointing at them
+  as you turn, and drawn apart from the crosshair so it still shows while you aim.
+
+## Milestone 56 — Crosshair, accessibility, and spawning facing open floor ✅
+2026-09-18 (Phase 15). `reticle.ts`, `palette.ts`, `hud.ts`, `main.ts`, `index.html`, `src/config/modes.json`.
+- Crosshair customisation: five styles, six colours, size, thickness, gap, dot, outline, spread, opacity. The default
+  is the old crosshair exactly.
+- Colour vision modes and a HUD scale. A check runs the enemy and ally pair through a deuteranopia simulation.
+- The new arenas put cover on the line between opposite spawns, so you spawned staring at a box. A spawn now turns to
+  the nearest heading with 8 m of open view.
+
+## Milestone 57 — Progression, the match summary, and quick chat ✅
+2026-09-18 (Phase 15). `progress.ts`, `hud.ts`, `main.ts`, `src/ui/menu.ts`, `src/config/progress.json`.
+- XP from every match and course run, an account level (about five matches for the first, seven hundred for level
+  50), and three rolling challenges from a pool of ten. The Stats tab opens on a level card.
+- A summary card when a match ends: the result, your numbers, the XP and the level bar filling.
+- Quick chat: Enter, then 1 to 6, says a line to everyone in the match. It travels as a number over the relayed
+  effect message, so nobody's typed text reaches anyone else's screen.
+
