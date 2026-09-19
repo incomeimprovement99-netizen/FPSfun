@@ -2254,7 +2254,11 @@ export class BrMatch extends Duel {
       }
       const g = nodes[b.goal];
       goal = new THREE.Vector3(g.x, 0, g.z);
-      // the squad follows its first bot: the others close in when they drift off, each at its own place round it
+    }
+    // The squad follows its first bot, wandering or running from the ring:
+    // the others close in when they drift off, each at its own place round it.
+    // Not while one of them has a target, or is going for a care package.
+    if (!target && !(pod && !hurry) && mates.length) {
       const lead = [b, ...mates].reduce((a, o) => (o.slot < a.slot ? o : a));
       if (lead !== b && bot.pos.distanceTo(lead.bot.pos) > SQUADS.follow) {
         const a = (b.slot / this.team.size) * Math.PI * 2;

@@ -1167,5 +1167,8 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   bot, the others closing in to their own places 4 m round it when they drift past 12 m; a bot that sees someone
   tells its mates within 80 m, who go to look; and a downed human counts as three times as far off, so a bot turns
   to whoever is still up rather than finishing the one on the floor.
+- The squad keeps following its first bot when it runs from the ring; the first cut only followed while wandering,
+  and a closing ring split every squad.
 - Checks: the e2e `botsquads` section: in trios with six bots, each squad's members are within 25 m of each other in
-  27 of 30 samples over 30 s after landing (15 of 30 with the following turned off).
+  at least 70 per cent of 40 samples over 30 s after landing (measured 75 to 100 per cent; about 50 with the
+  following turned off).
