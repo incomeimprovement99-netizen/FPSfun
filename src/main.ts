@@ -630,6 +630,8 @@ const arena = buildArena(scene);
 const triArena = buildTriArena(scene);
 // the battle royale map, 500 m south (src/game/br.ts)
 const brMap = buildBrMap(scene);
+// a door opening or shutting, heard where it hangs (whoever did it)
+brMap.doors.onChange = (d) => audio.door(d.centre, d.open ? "open" : "close");
 /**
  * The sun's shadow map and the fog follow the part of the world you are in:
  * the range (tight, sharp shadows) or the open BR map (wide and far).
@@ -3861,6 +3863,8 @@ function step(): void {
   const now = gameTime;
   fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
   frameHook?.(now, dt);
+  // the map's doors swing to where they are (any of them, in a match or not)
+  brMap.doors.update(dt);
   // The controller: read once here so every key check below sees it. Start
   // toggles the menu; with a pad in use no pointer lock is needed to play.
   const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, opticAdsMult()) - 1) * loadout.active.state.adsFrac;

@@ -98,7 +98,9 @@ export type NetMsg =
    * host ranks everyone, because every hit on a bot comes to it. An older
    * build sends none of the three, and a guest then shows no surge.
    */
-  | { t: "ring"; ph: number; st: number; left: number; cur: [number, number, number]; next: [number, number, number]; alive: number; sq?: number; sg?: [number, number, number, number]; sv?: number[] }
+  | { t: "ring"; ph: number; st: number; left: number; cur: [number, number, number]; next: [number, number, number]; alive: number; sq?: number; sg?: [number, number, number, number]; sv?: number[]; dr?: number[] }
+  /** a door (doors.ts): a friend asking the host, or the host saying (the ring packet's `dr` lists the open ones for anyone who missed it) */
+  | { t: "door"; i: number; open: boolean }
   /** the battle royale is over for the squad */
   | { t: "brend"; won: boolean; placement: number }
   /**

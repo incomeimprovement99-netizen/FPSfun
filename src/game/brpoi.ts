@@ -15,6 +15,7 @@
 // jump 1.42 m, a mantle 2.03 m. So: a 3.4 m storey clears a standing player
 // and a jump; stairs rise 0.42 m a step; a 1.2 m sill is vaultable and a
 // 2.4 m container is a climb.
+import { DOORWAYS } from "./doors";
 import * as THREE from "three";
 
 /** a box maker in POI-local coordinates: size, then where its base sits */
@@ -149,6 +150,9 @@ export function building(ctx: PoiCtx, o: BuildingOpts): { roof: number; floors: 
     const hasWindow = windows.includes(side) && (storey > 0 || !hasDoor);
     const half = len / 2;
     if (hasDoor) {
+      // the doorway, for its door (doors.ts)
+      const [dx, dz] = along(0);
+      DOORWAYS.push({ x: dx, z: dz, y, side, t, w: DOOR_W, h: DOOR_H });
       put(-half, -DOOR_W / 2, y, y + h);
       put(DOOR_W / 2, half, y, y + h);
       // the lintel over the doorway

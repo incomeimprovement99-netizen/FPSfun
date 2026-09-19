@@ -143,6 +143,22 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-door",
+    note: "a door in a doorway, shut: the panel, its handle, the frame round it",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); const d = r.brMap.doors.list.find((x) => x.side === "s" && x.centre.y < 3); r.player.teleport(d.centre.x + 1.2, d.centre.y - 1.3, d.centre.z + 3.2, 20, -4); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
+    name: "br-door-open",
+    note: "the same door opened: swung in against the hinge side, the room behind it",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); const d = r.brMap.doors.list.find((x) => x.side === "s" && x.centre.y < 3); r.brMap.doors.set(d.i, true); r.player.teleport(d.centre.x + 1.2, d.centre.y - 1.3, d.centre.z + 3.2, 20, -4); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
     name: "br-town-inside",
     note: "standing inside one of WEST TOWN's houses, looking out of the door",
     steps: [

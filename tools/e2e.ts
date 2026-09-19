@@ -139,7 +139,8 @@ const NAV_PROBE = String.raw`(() => {
   // solids bucketed 8 m, so a cell looks at a dozen boxes and not two thousand
   const B = 8, BN = Math.ceil(SIDE / B), bucket = new Array(BN * BN);
   for (const s of S) {
-    if (s.top <= 0.01) continue;
+    // a door is a way through: the bots open the ones they walk into
+    if (s.top <= 0.01 || s.door) continue;
     const i0 = Math.max(0, Math.floor((s.minX - R - X0) / B)), i1 = Math.min(BN - 1, Math.floor((s.maxX + R - X0) / B));
     const j0 = Math.max(0, Math.floor((s.minZ - R - Z0) / B)), j1 = Math.min(BN - 1, Math.floor((s.maxZ + R - Z0) / B));
     for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) (bucket[i * BN + j] ??= []).push(s);
@@ -215,6 +216,64 @@ const NAV_PROBE = String.raw`(() => {
  */
 const brRow = (team: "solo" | "duo" | "trio", bots: number): string =>
   `(() => { const t = document.getElementById("brTeam"); t.value = "${team}"; t.dispatchEvent(new Event("change")); const b = document.getElementById("brBots"); b.value = "${bots}"; b.dispatchEvent(new Event("change")); const r = document.getElementById("brRules"); if (r) { r.value = "br"; r.dispatchEvent(new Event("change")); } })()`;
+
+/**
+ * Doors: a shut door stops you, E opens the one you look at and you walk
+ * through, and a bot that walks into a shut door opens it.
+ */
+async function doorTest(browser: Browser, query: string): Promise<void> {
+  const page = await open(browser, query);
+  await ev(page, brRow("solo", 5));
+  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+  // on the ship, before anyone has landed: every door shut
+  await page.waitForFunction(`window.__range.duel()?.phase === "countdown"`, { polling: 100, timeout: 20000 }).catch(() => undefined);
+  const openAtStart = await ev<number>(page, "window.__range.brMap.doors.openList().length");
+  const fought = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false);
+  if (!fought) {
+    check("doors: the match starts", false);
+    await page.close();
+    return;
+  }
+  // the ring off the doors' way, the bots held, every door shut
+  const info = await ev<{ count: number; open: number; i: number; z: number } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const ds = r.brMap.doors; const door = ds.list.find((x) => x.side === "s" && x.centre.y < 3 && !ds.list.some((y) => y !== x && Math.hypot(y.centre.x - x.centre.x, y.centre.z - x.centre.z) < 8)); if (!door) return null; for (const b of d.bots) b.bot.pos.set(door.centre.x + 60, 0, door.centre.z + 60); r.player.teleport(door.centre.x, door.centre.y - 1.3, door.centre.z + 2.5, 0, 0); return { count: ds.list.length, open: ds.openList().length, i: door.i, z: door.centre.z }; })()`
+  );
+  if (!info) {
+    check("doors: a door to test on", false);
+    await page.close();
+    return;
+  }
+  check(`doors: a door in every ground-floor doorway, all shut as the match starts (${info.count})`, info.count > 50 && openAtStart === 0, JSON.stringify({ ...info, openAtStart }));
+  // walk into it shut: stopped outside
+  await ev(page, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: () => false })`);
+  await sleep(1500);
+  const stopped = await ev<number>(page, "window.__range.player.pos.z");
+  // look at it and press E: it opens, and the walk carries on inside
+  await ev(page, "window.__range.setScript({ held: () => false, pressedNow: () => false })");
+  await sleep(300);
+  const prompt = await ev<string>(page, "window.__range.brPlay.hud?.prompt?.text ?? ''");
+  // E for one frame (held, the door would open and shut every frame)
+  await ev(page, `(() => { const s = { k: 0, held: () => false, pressedNow: (a) => a === "interact" && s.k === 2 }; window.__range.setScript(s, () => { s.k++; }); })()`);
+  await sleep(300);
+  await ev(page, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: () => false })`);
+  await sleep(1500);
+  const through = await ev<{ z: number; open: boolean }>(page, `({ z: window.__range.player.pos.z, open: window.__range.brMap.doors.list[${info.i}].open })`);
+  await ev(page, "window.__range.setScript(null)");
+  check("doors: a shut door stops you; E opens the one you look at, and you walk through it", stopped > info.z + 0.3 && prompt === "OPEN THE DOOR" && through.open && through.z < info.z - 1, JSON.stringify({ doorZ: info.z, stopped, prompt, through }));
+  // a bot walking into a shut door opens it
+  const other = await ev<{ i: number } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const ds = r.brMap.doors; const door = ds.list.find((x) => !x.open && x.centre.y < 3 && x.i !== ${info.i}); if (!door) return null; const b = d.bots.find((x) => x.bot.alive); b.bot.pos.set(door.centre.x, door.centre.y - 1.3, door.centre.z + (door.side === "s" ? 1 : door.side === "n" ? -1 : 0)); if (door.side === "e") b.bot.pos.x += 1; if (door.side === "w") b.bot.pos.x -= 1; return { i: door.i }; })()`
+  );
+  const botOpened = !!other && (await page.waitForFunction(`window.__range.brMap.doors.list[${other?.i ?? 0}].open`, { polling: 100, timeout: 3000 }).then(() => true, () => false));
+  check("doors: a bot that walks into a shut door opens it", botOpened, JSON.stringify(other));
+  await ev(page, "window.__range.duel()?.leave()");
+  await page.waitForFunction("window.__range.duel() === null", { polling: 100, timeout: 5000 }).catch(() => undefined);
+  const afterOpen = await ev<number>(page, "window.__range.brMap.doors.openList().length");
+  check("doors: leaving the match shuts every door again, for the next", afterOpen === 0, `${afterOpen} open`);
+  await page.close();
+}
 
 async function brTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
@@ -1192,6 +1251,16 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   await ev(host, `(() => { const d = window.__range.duel(); const a = d.bots.find((x) => x.bot.remote.id === ${knocked}); const m = a && d.bots.find((o) => o !== a && o.team === a.team && o.bot.alive && !o.down); if (a && m) d.reviveBot(a, m); })()`);
   const upSeen = downSeen && (await guest.waitForFunction(`(() => { const r = window.__range.duel().remotes.get(${knocked}); const s = r?.samples[r.samples.length - 1]; return !!r && !r.downed && s?.stance !== "downed"; })()`, { polling: 100, timeout: 4000 }).then(() => true, () => false));
   check("squad: a duo's bot knocked with its mate up shows down on the guest's screen, and up again once revived", downSeen && upSeen, JSON.stringify({ knocked, downSeen, upSeen }));
+  // doors: the guest opens one (the host does it for everyone), the host shuts it, and a door the guest has wrong is put right
+  const doorI = await ev<number>(guest, `(() => { const r = window.__range; const me = r.player.pos; const ds = r.brMap.doors; const d = ds.list.filter((x) => !x.open).sort((a, b) => Math.hypot(a.centre.x - me.x, a.centre.z - me.z) - Math.hypot(b.centre.x - me.x, b.centre.z - me.z))[0]; r.player.teleport(d.centre.x, d.centre.y - 1.3, d.centre.z + (d.side === "s" ? 2 : d.side === "n" ? -2 : 0) + 0, 0, 0); if (d.side === "e") r.player.pos.x += 2; if (d.side === "w") r.player.pos.x -= 2; return d.i; })()`);
+  await sleep(600);
+  await ev(guest, `window.__range.duel().useDoor(${doorI}, true)`);
+  const hostSawOpen = await host.waitForFunction(`window.__range.brMap.doors.list[${doorI}].open`, { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  await ev(host, `window.__range.duel().useDoor(${doorI}, false)`);
+  const guestSawShut = await guest.waitForFunction(`!window.__range.brMap.doors.list[${doorI}].open`, { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  const wrong = await ev<number>(guest, `(() => { const ds = window.__range.brMap.doors; const d = ds.list.find((x) => !x.open && x.i !== ${doorI}); ds.set(d.i, true); return d.i; })()`);
+  const putRight = await guest.waitForFunction(`!window.__range.brMap.doors.list[${wrong}].open`, { polling: 100, timeout: 3000 }).then(() => true, () => false);
+  check("squad: doors: the guest opens one and the host sees it, the host shuts it and the guest sees that, and a door the guest had wrong is put right by the host", hostSawOpen && guestSawShut && putRight, JSON.stringify({ doorI, hostSawOpen, guestSawShut, wrong, putRight }));
   // abilities are on in a squad by default: the guest picks JOLT on landing and the host sees it
   await ev(guest, `window.__range.pickAbility("jolt")`);
   await ev(guest, "window.__range.useAbility()");
@@ -3874,6 +3943,8 @@ async function main(): Promise<void> {
     if (want("br")) {
       console.log("\nBattle royale against bots");
       await brTest(browser, "?norender");
+      console.log("\nDoors");
+      await doorTest(browser, "?norender");
     }
 
     if (want("loot")) {

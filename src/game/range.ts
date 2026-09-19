@@ -89,6 +89,8 @@ export interface Solid {
   minX: number; maxX: number; minZ: number; maxZ: number; top: number;
   /** floor height of the solid; the player can only stand on it from above */
   base: number;
+  /** a door (doors.ts): it moves as the door opens and shuts, and a walk of the map treats its doorway as a way through */
+  door?: boolean;
 }
 export const RANGE_SOLIDS: Solid[] = [];
 

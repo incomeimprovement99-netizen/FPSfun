@@ -29,6 +29,7 @@
 // Everything is boxes on RANGE_SOLIDS like the rest of the world, so the
 // player, the bots and the bullets see it the same way. Bots walk a graph of
 // nodes (POI centres, gates, road bends) laid out here as well.
+import { DOORWAYS, Doors } from "./doors";
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
 import { building, coverWall, crateStair, jumpTower, type BoxMaker, type PoiCtx, type Side } from "./brpoi";
@@ -105,6 +106,8 @@ export interface BrMap {
   beacons: Array<{ x: number; z: number }>;
   /** launch pads on the roads: step on and be thrown along (dx, dz) and up (world space) */
   pads: Array<{ x: number; z: number; dx: number; dz: number }>;
+  /** a door in every ground-floor doorway (doors.ts) */
+  doors: Doors;
 }
 
 /** a small deterministic random, so the field's rocks land in the same places every load */
@@ -121,6 +124,8 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   root.name = "br";
   root.position.set(BR_X, 0, BR_Z);
   scene.add(root);
+  // the buildings below record their doorways here, for the doors hung in them at the end
+  DOORWAYS.length = 0;
 
   const solid = (minX: number, maxX: number, minZ: number, maxZ: number, base: number, top: number) =>
     RANGE_SOLIDS.push({ minX: minX + BR_X, maxX: maxX + BR_X, minZ: minZ + BR_Z, maxZ: maxZ + BR_Z, base, top });
@@ -2588,6 +2593,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     towers: towerSpots.map(([x, z, foot]) => ({ ...P(x, z), y: foot })),
     beacons: beaconSpots.map(([x, z]) => P(x, z)),
     pads: padSpots.map(([x, z, dx, dz]) => ({ ...P(x, z), dx, dz })),
+    doors: new Doors(root, { x: BR_X, z: BR_Z }, DOORWAYS),
   };
 }
 

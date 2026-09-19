@@ -515,6 +515,9 @@ export class BrPlay {
     } else {
       this.cancelHold(match);
       // on the tower's own floor: the Mast's balloon is on its roof, not in the hall 28 m under it
+      // a door you look at, unless there is loot under the crosshair (that is what you meant)
+      const aimedLoot = match.lootField?.nearest(eye, fwd) ?? null;
+      const door = aimedLoot ? null : match.doors.aimedAt(eye, fwd);
       const tower = match.mapInfo.towers.find((t) => Math.hypot(p.x - t.x, p.z - t.z) < squad.towerReach && Math.abs(p.y - t.y) < 1.5);
       if (tower && player.onGround) {
         out.prompt = { key, text: "RIDE THE JUMP TOWER" };
@@ -522,6 +525,11 @@ export class BrPlay {
           player.beginDrop(tower.x, DROP_HEIGHT * 0.75, tower.z, player.yaw);
           this.deps.sound("tower");
         }
+      } else if (door && !player.zipPrompt) {
+        // a door you look at: a tap opens or shuts it
+        this.stopTaking();
+        out.prompt = { key, text: door.open ? "SHUT THE DOOR" : "OPEN THE DOOR" };
+        if (input.pressedNow("interact")) match.useDoor(door.i, !door.open);
       } else if (!player.zipPrompt) {
         this.lootHere(now, match, input, p, eye, fwd, key, carry, out);
       } else this.stopTaking();

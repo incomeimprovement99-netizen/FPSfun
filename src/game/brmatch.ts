@@ -62,6 +62,8 @@
 //                    The host ranks everyone, because every hit on a bot
 //                    comes to it, and the ring packet carries the line, so a
 //                    guest takes its own tick the way it takes the ring's.
+import type { Doors } from "./doors";
+import doorsCfg from "../config/doors.json";
 import { senderStamp } from "../net/state";
 import * as THREE from "three";
 import squadCfg from "../config/squad.json";
@@ -554,6 +556,8 @@ export class BrMatch extends Duel {
     const spokes = map.pois.filter((p) => ["north", "south", "east", "west"].includes(p.id));
     const area = this.rules === "resurgence" ? resurgenceArea(this.seed, BR_CENTER, spokes) : full;
     this.area = area;
+    // every door shut, as a match starts
+    map.doors.reset();
     // the squad drops on one place: the host's pick, told to the guests; in
     // Resurgence one inside the area (the nearest to the pick, the same on
     // every browser)
@@ -1136,6 +1140,52 @@ export class BrMatch extends Duel {
   }
 
   /** the map's towers, beacons and pads (brplay.ts) */
+  /** the map's doors (doors.ts) */
+  get doors(): Doors {
+    return this.map.doors;
+  }
+
+  /** a guest: doors it asked about lately, and when: the ring packet's word on those waits for the host's answer */
+  private doorAsked = new Map<number, number>();
+
+  /**
+   * Open or shut door `i`: the host does it and tells everyone; a guest shows
+   * it at once and asks the host, whose answer (or the next ring packet) puts
+   * it right if the host said no.
+   */
+  useDoor(i: number, open: boolean): void {
+    const doors = this.map.doors;
+    if (!doors.list[i] || this.phase === "matchEnd") return;
+    if (this.role === "host") {
+      this.hostDoor(i, open);
+      return;
+    }
+    this.hostLink?.send({ t: "door", i, open });
+    this.doorAsked.set(i, wallClock());
+    const me = this.lastLocal;
+    if (open || !me || doors.canClose(i, [me])) doors.set(i, open);
+  }
+
+  /** the host: a door opened or shut for everyone; a door is not shut on anybody standing in it. True if it is as asked */
+  private hostDoor(i: number, open: boolean): boolean {
+    const doors = this.map.doors;
+    if (!open && !doors.canClose(i, this.bodies())) return false;
+    if (doors.set(i, open)) this.broadcast({ t: "door", i, open });
+    return true;
+  }
+
+  /** everyone's feet as the host knows them: this player, the guests' last states, the bots */
+  private bodies(): Array<{ x: number; y: number; z: number }> {
+    const out: Array<{ x: number; y: number; z: number }> = [];
+    if (this.lastLocal && this.alive) out.push(this.lastLocal);
+    for (const r of this.remotes.values()) {
+      const s = r.samples[r.samples.length - 1];
+      if (r.id < Duel.BOT_ID && r.alive && s) out.push(s);
+    }
+    for (const b of this.bots) if (b.bot.alive) out.push(b.bot.pos);
+    return out;
+  }
+
   get mapInfo(): { towers: Array<{ x: number; z: number; y: number }>; beacons: Array<{ x: number; z: number }>; pads: Array<{ x: number; z: number; dx: number; dz: number }> } {
     return this.map;
   }
@@ -1981,6 +2031,20 @@ export class BrMatch extends Duel {
 
   /** a guest: the ring and the end, from the host */
   protected override onExtra(m: NetMsg, from: number): void {
+    if (m.t === "door") {
+      const doors = this.map.doors;
+      const d = doors.list[m.i];
+      if (!d) return;
+      if (this.role === "host") {
+        // a friend asking: only from near the door (a page can claim anything), and never shut on anybody
+        const at = this.whereIs(from);
+        if (!at || at.distanceTo(d.centre) > doorsCfg.guestReach || !this.hostDoor(d.i, m.open)) this.links.get(from)?.send({ t: "door", i: d.i, open: d.open });
+      } else {
+        this.doorAsked.delete(d.i);
+        doors.set(d.i, m.open);
+      }
+      return;
+    }
     if (m.t === "loot") {
       const f = this.lootField;
       if (!f) return;
@@ -2024,6 +2088,13 @@ export class BrMatch extends Duel {
       };
       this.aliveSeen = m.alive;
       if (typeof m.sq === "number" && Number.isFinite(m.sq)) this.squadsSeen = Math.max(0, Math.floor(m.sq));
+      // the doors as the host has them (this is how a friend who missed a door, or came back, is put right),
+      // but not one this page asked about in the last second: the host's answer is on its way
+      if (Array.isArray(m.dr)) {
+        const t = wallClock();
+        const open = new Set(m.dr.filter((n) => typeof n === "number"));
+        for (const d of this.map.doors.list) if (t - (this.doorAsked.get(d.i) ?? -Infinity) > 1) this.map.doors.set(d.i, open.has(d.i));
+      }
       // Storm Surge, as the host ranked it: a guest shows it and takes its
       // own tick while the packet names it below the line (update, below)
       const sg = m.sg;
@@ -2253,6 +2324,7 @@ export class BrMatch extends Duel {
         sq: this.squadsAlive,
         sg,
         sv: s ? this.surgeHumans : undefined,
+        dr: this.map.doors.openList(),
       });
     }
 
@@ -2290,6 +2362,11 @@ export class BrMatch extends Duel {
       const wasAlive = bot.alive;
       const sense: BotSense = bot.alive && !bot.dropping ? this.sense(b, humans) : { target: null, targetId: -1, goal: null, canShoot: false };
       this.botCare(b, sense, dt);
+      // a shut door in its way: it opens it, as anyone would
+      if (bot.alive && !b.down && !bot.dropping) {
+        const door = this.map.doors.closedAt(bot.pos, doorsCfg.botReach);
+        if (door) this.hostDoor(door.i, true);
+      }
       // still searching: it walks the map and does not shoot
       if (b.armedAt > now) sense.canShoot = false;
       const shots = bot.update(now, dt, sense);
@@ -2618,6 +2695,7 @@ export class BrMatch extends Duel {
   }
 
   override dispose(): void {
+    this.map.doors.reset();
     this.dropShipModel();
     this.gulagBot?.dispose();
     this.gulagBot = null;

@@ -1487,3 +1487,31 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   free-for-all lobby; the host clicks Make host on player 2, and all three are in player 2's new lobby with player 2
   hosting and the same mode, nobody typing a code).
 
+## Milestone 97 — Doors ✅
+2026-09-19 (Phase 15). `doors.ts` (new), `brpoi.ts`, `br.ts`, `brmatch.ts`, `brplay.ts`, `duel.ts`, `link.ts`, `range.ts`,
+`main.ts`, `src/config/doors.json`.
+- Every doorway on Outskirts was a hole with a lintel: nobody inside heard anyone coming, and a building could not
+  be held. Each ground-floor doorway the buildings make now has a door hung in it, 64 of them, shut when a match
+  starts. E opens or shuts the one you look at (unless there is loot under the crosshair, which is what you meant);
+  one opening or shutting is heard across a building (the recorded door sounds the audio already had, unused); a shut
+  one stops bullets, the bots' sight and sound through walls, since it is a solid like any wall; and a door will not
+  shut on anybody standing in it.
+- A door is a panel on a hinge at one end of the gap, eased through 90 degrees into the building in 0.35 s, and a
+  solid in the map's collision list that is moved, not added or removed: closed it fills the doorway, open it is the
+  panel against the hinge side. The list keeps its length, so the minimap does not redraw. The panel is left out of
+  the map's static merge so it can move.
+- The host decides every door for everyone. A friend's E shows at once on their screen and asks the host, which does
+  it (only for a friend within 5 m of it: a page can claim anything) and tells everyone, or answers with the truth.
+  The ring packet, twice a second, lists the open doors, which puts right anyone who missed one (a friend who came
+  back after a dropped connection, say), except a door that page asked about in the last second. An older build has
+  no doors and ignores both.
+- The bots open a shut door they walk into (within 1.4 m of it), as anyone would. The tests' walk of the map treats a
+  doorway as a way through for the same reason.
+- Checks: the e2e `br` section (64 doors, all shut on the ship; walking into one stops you outside, the prompt says
+  OPEN THE DOOR, E opens it and the walk carries on inside; a bot put against a shut door opens it; leaving the match
+  shuts them all), the `squad` section (the guest opens one and the host sees it, the host shuts it and the guest
+  sees that, and a door the guest had wrong is put right by the host), and the snapshots `br-door` and
+  `br-door-open`.
+- Not yet: kicking a door in (Apex's doors break under a melee or a charge), and a door's panel does not push a body
+  it swings into.
+

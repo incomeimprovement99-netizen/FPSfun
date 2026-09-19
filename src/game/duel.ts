@@ -866,7 +866,7 @@ export class Duel implements MatchLike {
       return;
     }
     // a squad's systems: downs, revives, respawns, pings, loot and care packages
-    if (m.t === "dnd" || m.t === "rev" || m.t === "respawn" || m.t === "mark" || m.t === "loot" || m.t === "pod") {
+    if (m.t === "dnd" || m.t === "rev" || m.t === "respawn" || m.t === "mark" || m.t === "loot" || m.t === "pod" || m.t === "door") {
       this.receiveSquad(m, from, via);
       return;
     }
@@ -1861,6 +1861,8 @@ function wellFormed(m: NetMsg): boolean {
       return finite(m.to, m.amount) && m.amount >= 0 && m.amount <= 1000 && (m.w == null || typeof m.w === "string") && (m.d == null || finite(m.d));
     case "down":
       return finite(m.by);
+    case "door":
+      return finite(m.i) && typeof m.open === "boolean";
     default:
       return true;
   }

@@ -1,0 +1,12 @@
+{
+  "_note": "Doors (src/game/doors.ts): one in every ground-floor doorway brpoi.ts builds, shut at the start of a match. colour is the panel's paint; gap the clearance round it in the frame, m; thick its thickness, m; swing the seconds it takes to open or shut. reach is how far from the eye a door can be opened (m), aimDot how squarely you have to look at it (the cosine of the angle off the crosshair; up close any look at the doorway will do); bodyRadius the body a door will not shut on; botReach how close a bot walking into a shut door comes before it opens it; guestReach how far from a door the host believes a friend asking to open or shut it (a page can claim anything). Ours: Apex publishes no door numbers, and its doors can also be kicked in, which these cannot yet.",
+  "colour": 5006434,
+  "gap": 0.03,
+  "thick": 0.07,
+  "swing": 0.35,
+  "reach": 2.6,
+  "aimDot": 0.72,
+  "bodyRadius": 0.41,
+  "botReach": 1.4,
+  "guestReach": 5
+}
