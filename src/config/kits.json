@@ -26,6 +26,20 @@
     "tactical": { "name": "GRAPPLE", "range": 30, "speed": 24, "lift": 0.35, "cooldown": 10 },
     "ult": { "name": "ZIP LINE", "length": 45, "seconds": 90 }
   },
+  "_smoke": "SMOKE: its tactical, a canister thrown at what you look at within range metres (fly seconds in the air), blooming into a cloud radius metres across that stands for seconds and blocks sight both ways: a bot cannot see through one (bots.ts), and nor can anyone, because it is opaque. Bullets go through it: smoke hides, it does not stop. Its passive, THERMAL, shows you every enemy standing in one of your clouds, so your own smoke is yours to fight in. Its ultimate, SCREEN, throws ultCount of them in a line across where you look, ultSpread metres apart. grow, fade, opacity and puffs are the look of it.",
+  "smoke": {
+    "name": "SMOKE",
+    "passive": "THERMAL",
+    "tactical": { "name": "CANISTER", "range": 30, "cooldown": 14 },
+    "radius": 5.5,
+    "seconds": 18,
+    "fly": 0.55,
+    "grow": 0.5,
+    "fade": 2,
+    "opacity": 0.82,
+    "puffs": 8,
+    "ult": { "name": "SCREEN", "count": 3, "spread": 9 }
+  },
   "_medic": "MEDIC: TRIAGE's faster heals as its passive; its tactical, PATCH, gives back health over seconds (not past full), every cooldown seconds; its ultimate, FIELD HEAL, gives health over seconds to you and every team or squad mate within radius metres of you, each page healing its own player.",
   "medic": {
     "name": "MEDIC",

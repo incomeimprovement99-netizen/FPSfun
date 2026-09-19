@@ -20,6 +20,8 @@
 //
 // The rounds are the 1v1's: countdown, fight, last standing or the circle,
 // first to 3. Two bots do not shoot each other: they are both after you.
+import { smokeBlocks } from "./smoke";
+import { Revealed, type Seen } from "./reveal";
 import * as THREE from "three";
 import { Dummy } from "./dummy";
 import { RANGE_SOLIDS } from "./range";
@@ -1097,8 +1099,15 @@ export class Bot {
     if (!fighting && !inCone(this.dummy.group.rotation.y, dx, dz)) return false;
     // crouched (behind low cover) it looks from lower down
     const from = this.pos.clone().setY(eye);
+    // a cloud of smoke in the way: it sees nothing through one (SMOKE's kit)
+    if (this.inSmoke(from, new THREE.Vector3(target.x, target.y + 1.2, target.z))) return false;
     const d = new THREE.Vector3(dx / len, dy / len, dz / len);
     return solidHit(from, d, len) >= len;
+  }
+
+  /** a cloud of smoke between it and what it is looking at (SMOKE's kit): it sees nothing through one */
+  private inSmoke(from: THREE.Vector3, to: THREE.Vector3): boolean {
+    return smokeBlocks(from, to, this.clock);
   }
 
   /** what it has looted so far: the match's plate, the recap and the checks read it */
@@ -1611,6 +1620,29 @@ export class BotMatch implements MatchLike {
   alive = true;
   /** the tests: the bots hold their fire (they still move and see), as the battle royale's can */
   holdFire = false;
+  /** the kits that show an enemy (SCOUT, SMOKE) work here too: the practice is where a kit is learned */
+  private readonly shownKit = new Revealed();
+  get shown(): ReadonlySet<Dummy> {
+    return this.shownKit.figures;
+  }
+
+  /** its bots as a scan sees them */
+  private enemiesNow(): Seen[] {
+    return this.bots.filter((b) => b.alive).map((b) => ({ id: b.remote.id, name: b.remote.name, at: b.pos, avatar: b.dummy }));
+  }
+
+  reveal(at: THREE.Vector3, fwd: THREE.Vector3 | null, range: number, cone: number, seconds: number): number {
+    return this.shownKit.scan(this.enemiesNow(), at, fwd, range, cone, seconds, performance.now() / 1000);
+  }
+
+  revealWhere(where: (at: THREE.Vector3) => boolean, seconds: number): number {
+    return this.shownKit.where(this.enemiesNow(), where, seconds, performance.now() / 1000);
+  }
+
+  revealOne(id: number, seconds: number): void {
+    const s = this.enemiesNow().find((x) => x.id === id);
+    if (s) this.shownKit.one(id, s.avatar, seconds, performance.now() / 1000);
+  }
   private bots: Bot[] = [];
   private scores: number[];
   private lastWinner = -1;

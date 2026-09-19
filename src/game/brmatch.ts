@@ -62,6 +62,7 @@
 //                    The host ranks everyone, because every hit on a bot
 //                    comes to it, and the ring packet carries the line, so a
 //                    guest takes its own tick the way it takes the ring's.
+import type { Seen } from "./reveal";
 import moveCfg from "../config/movement.json";
 import { ZIPLINES } from "./traversal";
 import type { Doors } from "./doors";
@@ -911,7 +912,7 @@ export class BrMatch extends Duel {
   }
 
   /** the bots this page runs (a squad's, and the vault's guard): a SCOUT's scan finds them as it finds a player */
-  protected override ownFigures(): Array<{ id: number; name: string; at: THREE.Vector3; avatar: Dummy }> {
+  protected override ownFigures(): Seen[] {
     return this.bots.filter((b) => b.bot.alive && !b.bot.dropping && !b.bot.aboard).map((b) => ({ id: b.bot.remote.id, name: b.bot.remote.name, at: b.bot.pos, avatar: b.bot.dummy }));
   }
 

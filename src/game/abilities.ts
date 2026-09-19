@@ -25,8 +25,8 @@ export interface KitInfo {
   blurb: string;
 }
 
-export type AbilityId = "jolt" | "triage" | "scout" | "hook";
-export const ABILITY_IDS: AbilityId[] = ["jolt", "triage", "scout", "hook"];
+export type AbilityId = "jolt" | "triage" | "scout" | "hook" | "smoke";
+export const ABILITY_IDS: AbilityId[] = ["jolt", "triage", "scout", "hook", "smoke"];
 /** the kits a bot takes: the two it can play (SCOUT's is all sight, which a bot's own eyes already do) */
 export const BOT_ABILITY_IDS: AbilityId[] = ["jolt", "triage"];
 
@@ -40,6 +40,7 @@ export const ABILITIES: Record<AbilityId, AbilityInfo> = {
   triage: { id: "triage", name: cfg.triage.name, blurb: cfg.triage.blurb },
   scout: { id: "scout", name: kits.scout.tactical.name, blurb: `every enemy within ${kits.scout.tactical.range} m in front of you shown for ${kits.scout.tactical.seconds} s` },
   hook: { id: "hook", name: kits.hook.tactical.name, blurb: `a line at what you look at within ${kits.hook.tactical.range} m, and a pull to it` },
+  smoke: { id: "smoke", name: kits.smoke.tactical.name, blurb: `a cloud ${kits.smoke.radius * 2} m across that nobody sees through, for ${kits.smoke.seconds} s` },
 };
 export const JOLT = cfg.jolt;
 
@@ -48,6 +49,11 @@ export function kitOf(id: AbilityId): KitInfo {
   if (id === "jolt") {
     const u = kits.runner.ult;
     return { kit: kits.runner.name, tactical: cfg.jolt.name, passive: kits.runner.passive, ult: u.name, blurb: `${cfg.jolt.name}: ${JOLT.blurb}. ${kits.runner.passive}: no stun from a hard landing. ${u.name}: ${u.seconds} s ${Math.round((u.speed - 1) * 100)}% faster, JOLT refilled` };
+  }
+  if (id === "smoke") {
+    const t = kits.smoke.tactical;
+    const u = kits.smoke.ult;
+    return { kit: kits.smoke.name, tactical: t.name, passive: kits.smoke.passive, ult: u.name, blurb: `${t.name}: a cloud ${kits.smoke.radius * 2} m across at what you look at within ${t.range} m, for ${kits.smoke.seconds} s, every ${t.cooldown} s. ${kits.smoke.passive}: an enemy in your smoke is shown to you. ${u.name}: ${u.count} of them in a line across your view` };
   }
   if (id === "hook") {
     const t = kits.hook.tactical;
@@ -110,6 +116,19 @@ export class Abilities {
   private patchAt = -Infinity;
   private pulseAt = -Infinity;
   private grappleAt = -Infinity;
+  private canisterAt = -Infinity;
+
+  /** SMOKE's CANISTER, if it is ready: starts its cooldown and says yes */
+  tryCanister(now: number): boolean {
+    if (!this.enabled || this.picked !== "smoke" || now < this.canisterAt) return false;
+    this.canisterAt = now + KITS.smoke.tactical.cooldown;
+    return true;
+  }
+
+  /** seconds until CANISTER is back (0: ready) */
+  canisterLeft(now: number): number {
+    return Math.max(0, this.canisterAt - now);
+  }
 
   /** HOOK's GRAPPLE, if it is ready: starts its cooldown and says yes */
   tryGrapple(now: number): boolean {
@@ -188,6 +207,7 @@ export class Abilities {
     this.patchAt = -Infinity;
     this.pulseAt = -Infinity;
     this.grappleAt = -Infinity;
+    this.canisterAt = -Infinity;
     this.fill();
   }
 

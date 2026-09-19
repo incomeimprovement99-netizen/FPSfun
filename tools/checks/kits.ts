@@ -71,10 +71,21 @@ console.log("Ability kits");
   check("a line that found nothing costs no cooldown", a.grappleLeft(2 + cd) === 0 && a.tryGrapple(2 + cd));
 }
 {
+  const a = new Abilities();
+  a.reset(true);
+  a.pick("hook");
+  check("CANISTER is SMOKE's: HOOK cannot use it", !a.tryCanister(0));
+  a.pick("smoke");
+  const cd = KITS.smoke.tactical.cooldown;
+  check(`SMOKE's CANISTER goes, then is back ${cd} s later and not before`, a.tryCanister(3) && !a.tryCanister(3 + cd - 0.1) && Math.abs(a.canisterLeft(3) - cd) < 1e-9 && a.tryCanister(3 + cd));
+}
+{
   const r = kitOf("jolt");
   const m = kitOf("triage");
   const sc = kitOf("scout");
   const hk = kitOf("hook");
+  const sm = kitOf("smoke");
+  check("SMOKE's card names its canister, its thermal and its screen, with their numbers", sm.kit === KITS.smoke.name && sm.tactical === KITS.smoke.tactical.name && sm.passive === KITS.smoke.passive && sm.ult === KITS.smoke.ult.name && sm.blurb.includes(`${KITS.smoke.seconds} s`) && sm.blurb.includes(`${KITS.smoke.ult.count} of them`), sm.blurb);
   check("HOOK's card names its grapple, its arms and its zipline, with their numbers", hk.kit === KITS.hook.name && hk.tactical === KITS.hook.tactical.name && hk.passive === KITS.hook.passive && hk.ult === KITS.hook.ult.name && hk.blurb.includes(`${KITS.hook.tactical.range} m`) && hk.blurb.includes(`${KITS.hook.ult.length} m`), hk.blurb);
   check("SCOUT's card names its pulse, its ears and its sweep, with their numbers", sc.kit === KITS.scout.name && sc.tactical === KITS.scout.tactical.name && sc.passive === KITS.scout.passive && sc.ult === KITS.scout.ult.name && sc.blurb.includes(`${KITS.scout.tactical.range} m`) && sc.blurb.includes(`${KITS.scout.ult.range} m`), sc.blurb);
   check("the card names each kit with its tactical, passive and ultimate", r.kit === KITS.runner.name && r.tactical === "JOLT" && r.ult === KITS.runner.ult.name && m.kit === KITS.medic.name && m.tactical === KITS.medic.tactical.name && m.passive === "TRIAGE" && m.ult === KITS.medic.ult.name, `${r.blurb} | ${m.blurb}`);

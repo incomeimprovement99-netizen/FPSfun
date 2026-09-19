@@ -22,6 +22,7 @@
 // team, filled out with bots to the team size, against a team of bots. Team
 // mates cannot hurt each other and their bullets pass through each other.
 // Gun Run and Crown are every player for themselves.
+import type { Seen } from "./reveal";
 import { senderStamp } from "../net/state";
 import * as THREE from "three";
 import { Throwables, blastDamage, throwCode } from "./throwables";
@@ -380,7 +381,7 @@ export class ArenaMode extends Duel {
   }
 
   /** the bots this page runs: a SCOUT's scan finds them as it finds a player */
-  protected override ownFigures(): Array<{ id: number; name: string; at: THREE.Vector3; avatar: Dummy }> {
+  protected override ownFigures(): Seen[] {
     return this.bots.filter((b) => b.bot.alive).map((b) => ({ id: b.bot.remote.id, name: b.bot.remote.name, at: b.bot.pos, avatar: b.bot.dummy }));
   }
 

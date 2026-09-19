@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { SMOKES, clearSmoke, smokeAt, stepSmoke, throwSmoke } from "./game/smoke";
 import playerCfg from "./config/player.json";
 import { resolveWeapon, weaponClass, weaponIds, weaponName } from "./game/weapons";
 import { adsSensScale, cmPer360, degPerCount, gunFov, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
@@ -2518,6 +2519,34 @@ function clearZiplines(): void {
   for (const z of ziplines) z.take();
   ziplines = [];
 }
+/**
+ * The match's kit sight (SCOUT's scans, SMOKE's passive): every kind of match
+ * has it, the ones built on Duel and the offline bot practice, so the page
+ * asks for it rather than for a class.
+ */
+function kitSight(): { reveal(at: THREE.Vector3, fwd: THREE.Vector3 | null, range: number, cone: number, seconds: number): number; revealWhere(where: (at: THREE.Vector3) => boolean, seconds: number): number; revealOne(id: number, seconds: number): void; shown: ReadonlySet<Dummy> } | null {
+  const d = duel as unknown as { reveal?: unknown; shown?: unknown } | null;
+  return d && typeof d.reveal === "function" && d.shown instanceof Set ? (d as never) : null;
+}
+
+/** where a throw of this reach lands: what you look at, or the far end of it */
+function aimPoint(reach: number): THREE.Vector3 {
+  const eye = camera.position.clone();
+  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  const wall = solidHit(eye, fwd, reach);
+  const ground = fwd.y < -1e-3 ? eye.y / -fwd.y : Infinity;
+  const t = Math.max(1, Math.min(reach, wall - 0.3, ground));
+  const at = eye.clone().addScaledVector(fwd, t);
+  return at.setY(Math.max(0, at.y - (t >= reach ? 1.4 : 0)));
+}
+
+/** SMOKE's clouds a step on, and its passive: an enemy standing in one of them is shown to you */
+function stepSmokeKit(now: number, dt: number): void {
+  stepSmoke(now, dt);
+  if (!SMOKES.length || abilities.picked !== "smoke") return;
+  kitSight()?.revealWhere((at) => !!smokeAt(at, now), 0.4);
+}
+
 /** RUNNER's OVERDRIVE: every move speed up until this time (game clock) */
 let overdriveUntil = -Infinity;
 /** the damage this player had dealt last frame, for the ultimate's meter */
@@ -2548,6 +2577,20 @@ function useUltimate(now: number): void {
     abilities.fill();
     audio.jolt(1);
     duel?.localFx("ult", at, undefined, 1);
+  } else if (abilities.picked === "smoke") {
+    const u = KITS.smoke.ult;
+    const from = camera.position.clone();
+    const to = aimPoint(KITS.smoke.tactical.range);
+    // across your view: the middle one where you look, the others either side of it
+    const across = new THREE.Vector3(0, 1, 0).cross(to.clone().sub(from).setY(0).normalize()).normalize();
+    for (let i = 0; i < u.count; i++) {
+      const off = (i - (u.count - 1) / 2) * u.spread;
+      throwSmoke(scene, from, to.clone().addScaledVector(across, off), now);
+    }
+    audio.throwNoise("bounce", to);
+    duel?.localFx("ult", from, to, 5);
+    hud.notice(`${u.name}: ${u.count} CLOUDS`, now, 1.6);
+    return;
   } else if (abilities.picked === "hook") {
     const u = KITS.hook.ult;
     const eye = camera.position.clone();
@@ -2560,7 +2603,7 @@ function useUltimate(now: number): void {
     return;
   } else if (abilities.picked === "scout") {
     const u = KITS.scout.ult;
-    const n = duel instanceof Duel ? duel.reveal(player.pos, null, u.range, 360, u.seconds) : 0;
+    const n = kitSight()?.reveal(player.pos, null, u.range, 360, u.seconds) ?? 0;
     audio.beacon(player.pos);
     duel?.localFx("ult", at, undefined, 3);
     hud.notice(`${u.name}: ${n} ENEMY CONTACT${n === 1 ? "" : "S"}`, now, 1.8);
@@ -2582,6 +2625,22 @@ function useAbility(now: number): void {
   if (!abilities.enabled) return;
   if (!abilities.picked) {
     hud.notice(abilities.choosing ? `PICK AN ABILITY FIRST: ${keyLabel("pickAbility1")} JOLT, ${keyLabel("pickAbility2")} TRIAGE` : "NO ABILITY IN THIS MATCH", now, 1.4);
+    return;
+  }
+  // SMOKE's tactical: a canister at what you look at, and a cloud where it lands
+  if (abilities.picked === "smoke") {
+    if (player.dropping || (duel instanceof Duel && (duel.downed || !duel.alive))) return;
+    const left = abilities.canisterLeft(now);
+    if (left > 0) {
+      hud.notice(`CANISTER: BACK IN ${left.toFixed(1)} S`, now, 0.6);
+      return;
+    }
+    if (!abilities.tryCanister(now)) return;
+    const to = aimPoint(KITS.smoke.tactical.range);
+    const from = camera.position.clone();
+    throwSmoke(scene, from, to, now);
+    audio.throwNoise("bounce", to);
+    duel?.localFx("smoke", from, to);
     return;
   }
   // HOOK's tactical: GRAPPLE, a line at what you look at and a pull to it
@@ -2622,7 +2681,7 @@ function useAbility(now: number): void {
     }
     if (!abilities.tryPulse(now)) return;
     const t = KITS.scout.tactical;
-    const n = duel instanceof Duel ? duel.reveal(player.pos, new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion), t.range, t.cone, t.seconds) : 0;
+    const n = kitSight()?.reveal(player.pos, new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion), t.range, t.cone, t.seconds) ?? 0;
     audio.pingTick();
     hud.notice(n > 0 ? `PULSE: ${n} ENEMY${n > 1 ? " CONTACTS" : ""}` : "PULSE: NOBODY IN FRONT", now, 1.4);
     return;
@@ -3164,6 +3223,19 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       putUpZipline(a, b, gameTime);
       return;
     }
+    // someone else's canister, or their screen of three: the same clouds here
+    if (k === "smoke" && a && b) {
+      throwSmoke(scene, a, b, gameTime);
+      audio.throwNoise("bounce", b);
+      return;
+    }
+    if (k === "ult" && n === 5 && a && b) {
+      const u = KITS.smoke.ult;
+      const across = new THREE.Vector3(0, 1, 0).cross(b.clone().sub(a).setY(0).normalize()).normalize();
+      for (let i = 0; i < u.count; i++) throwSmoke(scene, a, b.clone().addScaledVector(across, (i - (u.count - 1) / 2) * u.spread), gameTime);
+      audio.throwNoise("bounce", b);
+      return;
+    }
     if (k === "ult" || k === "patch") return;
     // a quick chat line: its number, said in the feed under their name
     if (k === "chat" && typeof n === "number") {
@@ -3266,7 +3338,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     recorder.shot(realNow(), id, o, dir, w);
     if (id === d.id) return;
     // SCOUT's SHARP EARS: an enemy firing within earshot shows itself
-    if (abilities.enabled && abilities.picked === "scout" && d instanceof Duel && !d.isFriend(id) && player.pos.distanceTo(o) <= KITS.scout.hearing) d.revealOne(id, KITS.scout.tactical.seconds);
+    if (abilities.enabled && abilities.picked === "scout" && !(d instanceof Duel && d.isFriend(id)) && player.pos.distanceTo(o) <= KITS.scout.hearing) kitSight()?.revealOne(id, KITS.scout.tactical.seconds);
     const t = realNow();
     if (t - (lastShotSound.get(id) ?? -1) > 0.03) {
       lastShotSound.set(id, t);
@@ -3537,8 +3609,9 @@ const brDifficulty = (): BotDifficulty => asDifficulty(botDifficulty.value);
 const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
-  // any zipline HOOK put up comes down with the match
+  // any zipline HOOK put up, and any cloud SMOKE left, go with the match
   clearZiplines();
+  clearSmoke();
   voiceStop();
   matchGuns = null;
   flushTally();
@@ -4595,6 +4668,7 @@ function step(): void {
       else if (input.pressedNow("pickAbility2")) pickAbility("triage", now);
       else if (input.pressedNow("pickAbility3")) pickAbility("scout", now);
       else if (input.pressedNow("pickAbility4")) pickAbility("hook", now);
+      else if (input.pressedNow("pickAbility5")) pickAbility("smoke", now);
     }
     // F: the ability; Z: the ultimate
     if (input.pressedNow("ability") && !knockedOut) useAbility(now);
@@ -4703,6 +4777,7 @@ function step(): void {
   player.sureFooting = abilities.enabled && abilities.picked === "jolt";
   player.climbBoost = abilities.enabled && abilities.picked === "hook" ? KITS.hook.climbSpace : 1;
   stepZiplines(gameTime);
+  stepSmokeKit(gameTime, dt);
   {
     const dealt = duel instanceof Duel ? duel.damageDealt : 0;
     abilities.chargeUlt(duel ? dt : 0, Math.max(0, dealt - ultDamageSeen));
@@ -5434,7 +5509,7 @@ function step(): void {
     const aim = Math.max(0, Math.min(1, ((debugView.ads ?? ws.adsFrac) - 0.6) / 0.3));
     for (const d of duel ? [...threatTargets, ...duel.avatars] : threatTargets) {
       // SCOUT's PULSE or SWEEP (or a squad mate's) shows an enemy whatever the optic
-      let t = duel instanceof Duel && duel.shown.has(d) ? 1 : 0;
+      let t = kitSight()?.shown.has(d) ? 1 : 0;
       if (range && aim > 0 && d.group.visible && !d.knocked) {
         const dist = d.group.position.distanceTo(camera.position);
         t = Math.max(t, aim * (dist <= range[0] ? 1 : dist >= range[1] ? 0 : 1 - (dist - range[0]) / (range[1] - range[0])));
@@ -5589,7 +5664,8 @@ function step(): void {
             const c = abilities.charge(now);
             const k = kitOf(abilities.picked!);
             const ult = { name: k.ult, key: keyLabel("ultimate"), k: abilities.ult, live: abilities.picked === "jolt" ? Math.max(0, overdriveUntil - now) : regen ? Math.max(0, regen.until - now) : 0 };
-            if (abilities.picked === "hook") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.hook.tactical.cooldown, left: abilities.grappleLeft(now), passive: false, icon: "hook" as const, ult };
+            if (abilities.picked === "smoke") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.smoke.tactical.cooldown, left: abilities.canisterLeft(now), passive: false, icon: "cloud" as const, ult };
+    if (abilities.picked === "hook") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.hook.tactical.cooldown, left: abilities.grappleLeft(now), passive: false, icon: "hook" as const, ult };
     if (abilities.picked === "scout") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.scout.tactical.cooldown, left: abilities.pulseLeft(now), passive: false, icon: "eye" as const, ult };
     if (abilities.picked === "triage") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.medic.tactical.cooldown, left: abilities.patchLeft(now), passive: false, icon: "cross" as const, ult };
             return { name: ABILITIES[abilities.picked!].name, key: keyLabel("ability"), cooldown: c.recharge, left: c.charges > 0 ? 0 : c.nextIn, passive: false, charges: c.charges, max: c.max, nextIn: c.nextIn, icon: "dash" as const, ult };
@@ -5599,7 +5675,7 @@ function step(): void {
     abilityCard:
       abilities.enabled && (abilities.choosing || (!duel && !abilities.picked))
         ? {
-            options: (["jolt", "triage", "scout", "hook"] as const).map((id, i) => ({ key: keyLabel((["pickAbility1", "pickAbility2", "pickAbility3", "pickAbility4"] as const)[i]), name: kitOf(id).kit, blurb: kitOf(id).blurb, picked: abilities.picked === id })),
+            options: (["jolt", "triage", "scout", "hook", "smoke"] as const).map((id, i) => ({ key: keyLabel((["pickAbility1", "pickAbility2", "pickAbility3", "pickAbility4", "pickAbility5"] as const)[i]), name: kitOf(id).kit, blurb: kitOf(id).blurb, picked: abilities.picked === id })),
             age: now - abilities.offeredAt,
             compact: !duel || !abilities.choosing || now - abilities.offeredAt > 6,
           }
@@ -5780,6 +5856,10 @@ initWelcome();
   fxCount: () => fx.count,
   /** the ziplines in the world now, HOOK's put up among them (the checks count them) */
   ziplineCount: () => ZIPLINES.length,
+  /** the clouds standing now (the checks count them) */
+  smokeCount: () => SMOKES.length,
+  /** where each cloud stands (the checks look) */
+  smokeSpots: () => SMOKES.map((c) => ({ x: c.at.x, y: c.at.y, z: c.at.z, r: c.r })),
   gameTime: () => gameTime,
   /** the killcam and the recap (tools/e2e.ts) */
   killcamState: () => ({ active: killcam.active, killer: killcam.killerName, weapon: killcam.killerWeapon, progress: killcam.progress, frames: recorder.frames.length, span: recorder.span, shots: recorder.shots.length }),

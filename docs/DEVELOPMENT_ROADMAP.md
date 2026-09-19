@@ -1913,3 +1913,24 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/kits.ts` (GRAPPLE is HOOK's, its cooldown, a miss costing nothing, and its card's numbers),
   and the e2e `bots` section (the climb passive at 1.5, a grapple that pulls you at 23.8 m/s and then waits out its
   cooldown; a ZIP LINE put up in play that comes down with the match).
+
+## Milestone 119 — Ability kits, phase 4: SMOKE ✅
+2026-09-19 (Phase 15). `smoke.ts` (new), `reveal.ts` (new), `abilities.ts`, `duel.ts`, `bots.ts`, `modematch.ts`,
+`brmatch.ts`, `main.ts`, `hud.ts`, `src/config/kits.json`, `src/config/binds.json` (`pickAbility5`: 9),
+`tools/checks/smoke.ts` (new), `tools/checks/kits.ts`, `tools/e2e.ts`.
+- A fifth kit, all cover. **SMOKE**: CANISTER (F), a canister thrown at what you look at within 30 m that blooms
+  into a cloud 11 m across for 18 s, every 14 s; THERMAL, an enemy standing in one of your clouds is shown to you;
+  SCREEN (Z), three clouds in a line across your view, 9 m apart.
+- A cloud blocks sight both ways: a bot cannot see through one (`bots.ts sees` asks `smokeBlocks`), and nor can
+  anyone, because it is opaque. Bullets go through it: smoke hides, it does not stop, as in the game this follows.
+- The clouds are their own small piece (`smoke.ts`), not a carried grenade: the canister flies for 0.55 s, blooms into
+  a ball of puffs that swells over half a second and fades over its last two, and every page blooms its own from the
+  two points the effect carries, so they stand in the same places everywhere with nothing more on the wire.
+- The kits that show an enemy (SCOUT's scans, SMOKE's THERMAL) were built into `Duel`, so they did nothing in the
+  offline bot practice, which is its own class: that work is now `reveal.ts`, which both hold, and the page asks the
+  match for its kit sight rather than for a class. A kit is learned in the practice, so it has to work there.
+- Checks: `tools/checks/smoke.ts` (eight: a canister blocks nothing in the air, its cloud blooms and blocks a line
+  through it, a line past it or wide of it is not blocked, standing inside it everything is, the cloud and its puffs
+  go when its seconds are up, and three of them block three lines), `tools/checks/kits.ts` (CANISTER is SMOKE's, its
+  cooldown, and its card's numbers), and the e2e `bots` section (a canister between you and a bot: it cannot see you
+  and THERMAL shows it; SCREEN throws three).

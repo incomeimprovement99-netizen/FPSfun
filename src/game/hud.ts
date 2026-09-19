@@ -211,7 +211,7 @@ export interface HudState {
     max?: number;
     nextIn?: number;
     /** the square's icon: a dash's chevrons, a heal's cross, a scan's eye, or a grapple's hook */
-    icon?: "dash" | "cross" | "eye" | "hook";
+    icon?: "dash" | "cross" | "eye" | "hook" | "cloud";
     /** the kit's ultimate: its name and key, the meter (0..1), and the seconds it still runs once used */
     ult?: { name: string; key: string; k: number; live: number };
   } | null;
@@ -2087,7 +2087,18 @@ export class Hud {
     c.strokeStyle = ready ? "#8fd8ff" : "rgba(143,216,255,0.45)";
     c.fillStyle = c.strokeStyle;
     c.lineWidth = 4 * u;
-    if (a.icon === "hook") {
+    if (a.icon === "cloud") {
+      // a cloud: three rounds in a row
+      for (const [dx, dy, rr] of [
+        [-7, 2, 6],
+        [2, -2, 8],
+        [10, 3, 5],
+      ] as const) {
+        c.beginPath();
+        c.arc(dx * u, dy * u, rr * u, 0, Math.PI * 2);
+        c.fill();
+      }
+    } else if (a.icon === "hook") {
       // a hook: a line with a curl at its end
       c.beginPath();
       c.moveTo(-12 * u, -12 * u);

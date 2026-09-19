@@ -26,6 +26,7 @@
 // a delta packet to a peer that has said it reads them (src/net/statesync.ts),
 // the full packet to any other. The battle royale and the arena modes send
 // their bots through the same broadcast and get the same choice for free.
+import { Revealed, type Seen } from "./reveal";
 import * as THREE from "three";
 import squadCfg from "../config/squad.json";
 import netCfg from "../config/net.json";
@@ -540,10 +541,23 @@ export class Duel implements MatchLike {
   /** the ids the humans use; bots are 100 up */
   static readonly BOT_ID = 100;
   /** on this player's side: no damage either way (a battle royale's squad; a team in the modes) */
-  /** SCOUT (kits.json): the enemies shown by a PULSE or a SWEEP, and until when */
-  private shownAt = new Map<number, number>();
-  /** their figures, which the page draws in the threat highlight while they are shown (main.ts draws it, so it is the one place that sets it) */
-  readonly shown = new Set<Dummy>();
+  /** SCOUT and SMOKE (kits.json): the enemies shown now, which the page draws in the threat highlight */
+  private readonly shownKit = new Revealed();
+  get shown(): ReadonlySet<Dummy> {
+    return this.shownKit.figures;
+  }
+
+  /** every enemy this page knows of: its remotes, and the figures it runs itself (the host's bots) */
+  private enemiesNow(): Seen[] {
+    const out: Seen[] = [];
+    for (const r of this.remotes.values()) {
+      const s = r.samples[r.samples.length - 1];
+      if (!r.alive || !s || r.id === this.id || this.friendly(r.id)) continue;
+      out.push({ id: r.id, name: r.name, at: new THREE.Vector3(s.x, s.y, s.z), avatar: r.avatar });
+    }
+    for (const f of this.ownFigures()) if (!this.friendly(f.id)) out.push(f);
+    return out;
+  }
 
   /**
    * SCOUT: every enemy within `range` of `at`, and within `cone` degrees of
@@ -552,53 +566,23 @@ export class Duel implements MatchLike {
    * many it found.
    */
   reveal(at: THREE.Vector3, fwd: THREE.Vector3 | null, range: number, cone: number, seconds: number): number {
-    const cos = Math.cos((cone / 2) * (Math.PI / 180));
-    let found = 0;
-    const others: Array<{ id: number; name: string; at: THREE.Vector3 }> = [];
-    for (const r of this.remotes.values()) {
-      if (!r.alive || r.id === this.id || this.friendly(r.id)) continue;
-      const s = r.samples[r.samples.length - 1];
-      if (s) others.push({ id: r.id, name: r.name, at: new THREE.Vector3(s.x, s.y, s.z) });
-    }
-    // the bots this page runs itself are not among its remotes
-    for (const f of this.ownFigures()) if (!this.friendly(f.id)) others.push(f);
-    for (const s of others) {
-      const to = new THREE.Vector3(s.at.x - at.x, 0, s.at.z - at.z);
-      const d = to.length();
-      if (d > range) continue;
-      if (fwd && d > 0.5) {
-        const f = new THREE.Vector3(fwd.x, 0, fwd.z).normalize();
-        if (to.normalize().dot(f) < cos) continue;
-      }
-      found++;
-      this.revealOne(s.id, seconds);
-      this.sendMark("scan", s.at.clone(), s.name, s.id);
-    }
-    return found;
+    return this.shownKit.scan(this.enemiesNow(), at, fwd, range, cone, seconds, wallClock(), (s) => this.sendMark("scan", s.at.clone(), s.name, s.id));
+  }
+
+  /** SMOKE's passive: every enemy standing somewhere `where` says yes to, shown for `seconds` */
+  revealWhere(where: (at: THREE.Vector3) => boolean, seconds: number): number {
+    return this.shownKit.where(this.enemiesNow(), where, seconds, wallClock());
+  }
+
+  /** one enemy shown for `seconds` (a squad mate's scan says so) */
+  revealOne(id: number, seconds: number): void {
+    const s = this.enemiesNow().find((x) => x.id === id);
+    if (s) this.shownKit.one(id, s.avatar, seconds, wallClock());
   }
 
   /** the figures this page runs itself and its remotes do not hold (the host's bots): the modes and the battle royale say */
-  protected ownFigures(): Array<{ id: number; name: string; at: THREE.Vector3; avatar?: Dummy }> {
+  protected ownFigures(): Seen[] {
     return [];
-  }
-
-  /** one enemy shown for `seconds` (a squad mate's scan says so too) */
-  revealOne(id: number, seconds: number): void {
-    if (this.friendly(id)) return;
-    const av = this.remotes.get(id)?.avatar ?? this.ownFigures().find((f) => f.id === id)?.avatar;
-    if (!av) return;
-    this.shownAt.set(id, wallClock() + seconds);
-    this.shown.add(av);
-  }
-
-  /** the ones whose time is up go back to themselves */
-  private stepRevealed(now: number): void {
-    for (const [id, until] of [...this.shownAt]) {
-      if (now < until) continue;
-      this.shownAt.delete(id);
-      const av = this.remotes.get(id)?.avatar ?? this.ownFigures().find((f) => f.id === id)?.avatar;
-      if (av) this.shown.delete(av);
-    }
   }
 
   /** the damage this player has dealt this match (the ultimate's meter reads it) */
@@ -1889,7 +1873,7 @@ export class Duel implements MatchLike {
     if (this.role === "host") this.tick(now, dt, local);
     if (this.ended) return;
     if (this.role === "host" && now >= this.heirSendNext) this.sendHeir(now);
-    if (this.shownAt.size) this.stepRevealed(now);
+    this.shownKit.step(now);
     if (this.role === "host" && this.mode === "duel" && this.phase !== "waiting" && now >= this.phaseEndsAt) {
       if (this.phase === "countdown") {
         this.enter("fight", now, 0);

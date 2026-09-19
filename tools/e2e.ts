@@ -2338,6 +2338,25 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
     if (pulled.speed > 6) break;
   }
   check("kits: HOOK's STRONG ARMS gives half again the climb, and GRAPPLE pulls you at what you look at, then waits out its cooldown", Math.abs(climb - 1.5) < 1e-9 && pulled.speed > 6 && pulled.left > 8 && pulled.name === "GRAPPLE", JSON.stringify({ climb, pulled }));
+  // SMOKE: a canister blinds a bot through it, your own cloud shows an enemy standing in it, and SCREEN throws three
+  await ev(page, `window.__range.pickAbility("smoke")`);
+  const smoke = await ev<{ before: boolean; id: number } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; if (!b) return null; d.holdFire = true; b.update = () => []; const p = r.player.pos; b.pos.set(p.x, p.y, p.z - 8); b.dummy.group.position.copy(b.pos); r.player.yaw = 180; r.player.pitch = -11.3; b.lastSeen = { pos: r.player.pos.clone(), at: b.clock, id: 0 }; return { before: b.sees(r.player.pos), id: b.remote.id }; })()`
+  ).catch(() => null);
+  const smoke0 = await ev<number>(page, "window.__range.smokeCount()");
+  await ev(page, "window.__range.useAbility()");
+  await sleep(1400);
+  const smoked = await ev<{ clouds: number; sees: boolean; threat: number; spots?: unknown; me?: unknown; bot?: unknown }>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; return { clouds: r.smokeCount(), sees: b.sees(r.player.pos), threat: b.dummy.threat, spots: r.smokeSpots(), me: { x: r.player.pos.x, z: r.player.pos.z }, bot: { x: b.pos.x, z: b.pos.z } }; })()`
+  );
+  check("kits: SMOKE's canister blooms a cloud that blinds a bot through it, and THERMAL shows an enemy standing in it", !!smoke && smoke.before && smoked.clouds === smoke0 + 1 && !smoked.sees && smoked.threat === 1, JSON.stringify({ smoke, smoke0, smoked }));
+  await ev(page, "(() => { const r = window.__range; r.abilities.ult = 1; r.useUltimate(); })()");
+  await sleep(300);
+  const screen = await ev<number>(page, "window.__range.smokeCount()");
+  check("kits: SMOKE's SCREEN throws three clouds in a line", screen === smoked.clouds + 3, `${smoked.clouds} then ${screen}`);
+  await ev(page, `window.__range.pickAbility("hook")`);
   const zip0 = await ev<number>(page, "window.__range.ziplineCount()");
   await ev(page, "(() => { const r = window.__range; r.abilities.ult = 1; r.useUltimate(); })()");
   await sleep(200);
