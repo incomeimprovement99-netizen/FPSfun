@@ -1674,9 +1674,26 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   once (the frame is not running while the menu is up, which the first test run showed).
 - A finish chosen when it was open but that the level no longer allows (a reset profile) falls back to the factory
   paint.
-- Not yet: other players seeing your finish, and finishes on the floor guns and your third-person figure's gun.
+- Other players seeing your finish came next (Milestone 109); floor guns and your own third-person figure's gun are
+  left in their factory paint.
 - Checks: `tools/checks/finishes.ts` (the factory paint first and always open, the rest in order of level, a locked
   one not taken, a level that no longer allows one falls back, every gun its own), the e2e `page` section (at level 1
   Gold and Carbon are locked; at the level, Gold is picked for the first slot's gun and the gun in hand wears it), and
   the snapshots `gun-finish-gold` and `gun-finish-arctic`.
+
+## Milestone 109 — Finishes seen by the others, and squads that ride together ✅
+2026-09-19 (Phase 15). `gunmodels.ts`, `dummy.ts`, `mannequin.ts`, `duel.ts`, `main.ts`, `brmatch.ts`, `tools/e2e.ts`.
+- Your finish is on the gun in your figure's hands on your friends' screens. Each page tells the match the finish of
+  the gun in hand as an effect (on a change, and every 10 s for anyone who arrives late), and paints it on that
+  player's figure, on either rig, and again after any change of gun. A finish is painted on a figure's own copy of the
+  display model, with each mesh's own material kept apart from its data (a clone copies data, and a material there
+  would be copied as data).
+- Bots on the pads and ropes (Milestone 107) split their squads: a follower that stepped onto a launch pad was
+  thrown 33 m down the road away from its squad, and the squads' check fell to 39% together. A squad's first bot
+  takes a pad or a rope where it will; a follower takes a pad only where it throws it toward its lead, and a rope only
+  toward it; and a lead takes a rope (a choice, unlike stepping on a pad) only with its squad about it. The check
+  now leaves out a squad with a bot in mid-flight, as it leaves out one in a fight: it is apart for the length of
+  the ride. Measured over four runs: 55, 75, 100 and 91% together, against 60, 100 and 86% with the traversal off.
+- Checks: the e2e `emote` section (the host's gun in Gold, and the guest's figure of the host wears it) and the
+  `botsquads` section.
 

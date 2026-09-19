@@ -1072,6 +1072,11 @@ const botBanner = (id: number): number => bannerCode(id % 8, (id * 3) % 8, (id *
 /** the others' cards, by player id */
 const remoteBanners = new Map<number, number>();
 let bannerSentAt = -Infinity;
+/** the finish of the gun in hand as last told to the match, and when */
+let finishSent = "";
+let finishSentAt = -Infinity;
+/** each player's finish (an index into FINISHES), as their page said */
+const remoteFinishes = new Map<number, number>();
 
 /**
  * Your spray on the wall you look at, within reach, for everyone in the
@@ -2932,6 +2937,11 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       endTable.set(from, { name: duel.nameFor(from) ?? `PLAYER ${from + 1}`, kills: Math.max(0, Math.round(a.x)), damage: Math.max(0, a.y), place: Math.max(0, Math.round(a.z)) });
       return;
     }
+    // the finish on someone's gun
+    if (k === "fin" && typeof n === "number") {
+      if (n >= 0 && n < FINISHES.length) remoteFinishes.set(from, n);
+      return;
+    }
     // someone's banner card
     if (k === "banner" && typeof n === "number") {
       remoteBanners.set(from, n);
@@ -3298,6 +3308,8 @@ function endMatch(reason: string): void {
   duel?.dispose();
   duel = null;
   bannerSentAt = -Infinity;
+  finishSent = "";
+  remoteFinishes.clear();
   remoteBanners.clear();
   // the match's bullet holes and sprays go with it
   impacts.clear();
@@ -5001,11 +5013,25 @@ function step(): void {
     drawn = dw;
   }
   viewModel.setWeapon(drawn);
-  // the gun in hand in its finish (the Loadouts tab's choice for it, if your level allows it)
+  // the gun in hand in its finish (the Loadouts tab's choice for it, if your level allows it),
+  // and the match told which, on a change and now and then for anyone who arrives late
   {
     const f = finishFor(drawn.id, progress.level.level);
     const m = gunModel(drawn.id);
     if (m.root.userData.finish !== f.id) applyFinish(m, f);
+    const key = `${drawn.id}:${f.id}`;
+    if (duel && (key !== finishSent || now - finishSentAt > BANNERS.resend)) {
+      finishSent = key;
+      finishSentAt = now;
+      duel.localFx("fin", undefined, undefined, FINISHES.indexOf(f));
+    }
+    // the others' figures in the finishes their pages said
+    if (duel instanceof Duel)
+      for (const [id, n] of remoteFinishes) {
+        const fig = duel.avatarOf(id);
+        const want = FINISHES[n] ?? null;
+        if (fig && fig.finishId !== (want?.id ?? "factory")) fig.setFinish(want);
+      }
   }
   viewModel.setHeirloom(debugView.heirloom ?? loadouts.current.heirloom);
   const lookYaw = player.yaw - prevYaw;

@@ -1406,14 +1406,24 @@ export class BrMatch extends Duel {
   private botTraversal(b: BrBot, sense: BotSense): void {
     const bot = b.bot;
     if (bot.travel) return;
+    // A squad goes as one: its first bot takes a pad or a rope where it will,
+    // and the others only toward it (a follower thrown down the road away from
+    // its squad split it, and the squads' test caught it).
+    const lead = this.team.size > 1 ? this.bots.filter((o) => o.team === b.team && o.bot.alive && !o.down && !o.bot.dropping).reduce<BrBot | null>((a, o) => (!a || o.slot < a.slot ? o : a), null) : null;
+    const follower = !!lead && lead !== b;
     const P = squadCfg.pad;
     for (const p of this.map.pads) {
       if (Math.hypot(bot.pos.x - p.x, bot.pos.z - p.z) > P.reach || bot.pos.y > 0.6) continue;
+      // a follower: only where the pad throws it toward its lead
+      if (follower && lead && (lead.bot.pos.x - bot.pos.x) * p.dx + (lead.bot.pos.z - bot.pos.z) * p.dz < SQUADS.follow) continue;
       bot.fling(new THREE.Vector3(p.dx * P.speed, P.up, p.dz * P.speed));
       return;
     }
     if (sense.target || !sense.goal) return;
-    const goal = sense.goal;
+    // a rope is a choice: a lead takes one only with its squad about it
+    if (lead === b && this.bots.some((o) => o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.dropping && o.bot.pos.distanceTo(bot.pos) > SQUADS.follow)) return;
+    // a follower heads for its lead
+    const goal = follower && lead ? lead.bot.pos : sense.goal;
     const here = Math.hypot(goal.x - bot.pos.x, goal.z - bot.pos.z);
     for (const z of ZIPLINES) {
       for (const [end, far] of [

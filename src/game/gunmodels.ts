@@ -247,15 +247,23 @@ function finishMat(f: Finish, base: THREE.MeshStandardMaterial): THREE.MeshStand
  * them back.
  */
 export function applyFinish(model: GunModel, f: Finish | null): void {
-  model.root.traverse((o) => {
+  applyFinishTo(model.root, f);
+}
+
+/** each painted mesh's own material, kept apart from userData (which a clone copies as data) */
+const ownMat = new WeakMap<THREE.Mesh, THREE.MeshStandardMaterial>();
+
+/** any gun's meshes in a finish: the viewmodel's model, or a figure's copy of a display model */
+export function applyFinishTo(root: THREE.Object3D, f: Finish | null): void {
+  root.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
-    const base = (mesh.userData.baseMat ?? mesh.material) as THREE.MeshStandardMaterial;
+    const base = ownMat.get(mesh) ?? (mesh.material as THREE.MeshStandardMaterial);
     if (!base || Array.isArray(base) || !base.userData?.part) return;
-    mesh.userData.baseMat = base;
+    ownMat.set(mesh, base);
     mesh.material = f && f.id !== "factory" ? finishMat(f, base) : base;
   });
-  model.root.userData.finish = f?.id ?? "factory";
+  root.userData.finish = f?.id ?? "factory";
 }
 
 /** rarity colours for the magazine base plate: none, white, blue, purple, gold */

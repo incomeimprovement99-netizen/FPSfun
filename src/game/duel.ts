@@ -629,6 +629,11 @@ export class Duel implements MatchLike {
     this.onFeed?.("Back in the match", false);
   }
 
+  /** a player's figure by id, or null (the page paints their gun's finish on it) */
+  avatarOf(id: number): Dummy | null {
+    return this.remotes.get(id)?.avatar ?? null;
+  }
+
   /** a link of this match (the host's first guest's, a guest's to the host): its PeerJS peer carries voice chat */
   anyLink(): Link | null {
     return this.role === "host" ? (this.links.values().next().value ?? null) : this.hostLink;

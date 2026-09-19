@@ -173,6 +173,10 @@ export class MannequinFigure {
     }
   }
   private gun: THREE.Object3D | null = null;
+  /** the gun in its hands, for a finish to be painted on (dummy.ts) */
+  get gunRoot(): THREE.Object3D | null {
+    return this.gun;
+  }
   /** its gun's muzzle flash, lit by the figure on a shot */
   flash: THREE.Sprite | null = null;
   private gunShown = true;

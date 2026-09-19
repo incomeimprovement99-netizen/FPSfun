@@ -3274,6 +3274,11 @@ async function emoteTest(browser: Browser, query: string, duelQuery: string): Pr
   const hostCard = await ev<number>(host, "window.__range.banner()");
   const cardSeen = await guest.waitForFunction(`window.__range.banners()[0] === ${hostCard}`, { polling: 200, timeout: 12000 }).then(() => true, () => false);
   check("banner cards: the host's card reaches the guest", cardSeen, `${hostCard}`);
+  // the host's finish on its gun: the guest's figure of the host wears it too
+  await ev(host, `(() => { const r = window.__range; r.progress.s.xp = 1e7; r.progress.onChange?.(); const slot = document.getElementById("slot0"); slot.value = r.loadout.active.id; const f = document.getElementById("finish0"); f.value = "gold"; f.dispatchEvent(new Event("change")); })()`);
+  const finishSeen = await guest.waitForFunction("window.__range.duel().avatarOf(0)?.finishId === 'gold'", { polling: 200, timeout: 8000 }).then(() => true, () => false);
+  const hostWorn = await ev<string>(host, "window.__range.gunFinish(window.__range.loadout.active.id).finish");
+  check("finishes: the host's gun in Gold, and the guest's figure of the host wears it too", finishSeen && hostWorn === "gold", JSON.stringify({ finishSeen, hostWorn }));
   await ev(host, "window.__range.emote(0)");
   const seen = await guest.waitForFunction("window.__range.duel().remotes.get(0)?.avatar.emoting === 0", { polling: 100, timeout: 4000 }).then(() => true, () => false);
   await ev(host, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: (a) => a === "forward" })`);
@@ -3652,7 +3657,7 @@ async function botSquadsTest(browser: Browser, query: string): Promise<void> {
     await sleep(1500);
     // only a squad out of a fight: one that has seen someone lately breaks formation to fight, as it should
     const spread = await ev<number[]>(page, `(() => { const d = window.__range.duel(); const now = performance.now() / 1000; const by = new Map(); const fighting = new Set();
-      for (const b of d.bots) { if (!b.bot.alive) continue; if (!by.has(b.team)) by.set(b.team, []); by.get(b.team).push(b.bot.pos); if (b.bot.lastSeen && now - b.bot.lastSeen.at < 8) fighting.add(b.team); }
+      for (const b of d.bots) { if (!b.bot.alive) continue; if (!by.has(b.team)) by.set(b.team, []); by.get(b.team).push(b.bot.pos); if ((b.bot.lastSeen && now - b.bot.lastSeen.at < 8) || b.bot.travel) fighting.add(b.team); }
       return [...by.entries()].filter(([t]) => !fighting.has(t)).map(([, ps]) => { let m = 0; for (const a of ps) for (const c of ps) m = Math.max(m, Math.hypot(a.x - c.x, a.z - c.z)); return m; }); })()`);
     for (const m of spread) {
       samples++;
@@ -3661,7 +3666,9 @@ async function botSquadsTest(browser: Browser, query: string): Promise<void> {
   }
   // A squad walks with some slack (a follower closes in only past 12 m), so it
   // is not every sample: measured 60 to 100 per cent out of a fight with the
-  // squad following its first bot, and nearer 37 without.
+  // squad following its first bot, and nearer 37 without. A squad with a bot
+  // in the air off a launch pad or on a rope is left out with the fighting
+  // ones: it is apart for the length of the ride, then together again.
   check("bot squads: each squad out of a fight keeps together (within 25 m, most of the time)", samples >= 8 && together / samples >= 0.55, `${together} of ${samples} squad samples together`);
   await botKnockSteps(page);
   await ev(page, "window.__range.duel()?.leave()");

@@ -13,9 +13,10 @@
 // The visual body sits inside the hit zones everywhere, so a round that
 // visibly lands on the robot always registers. The robot is our own design, a
 // generic range mannequin, and deliberately not any game's character.
+import type { Finish } from "./finishes";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { displayGunModel } from "./gunmodels";
+import { displayGunModel, applyFinishTo } from "./gunmodels";
 import { MUZZLE, fitMuzzle, showFlash } from "./muzzle";
 import { ammoTypeOf } from "./ammo";
 import { OPERATORS, skinMaterials, type OperatorSkin } from "./operators";
@@ -366,6 +367,8 @@ export class Dummy {
   readonly skin: OperatorSkin;
   /** the gun it holds, if armed */
   private gun: THREE.Object3D | null = null;
+  /** the finish its gun wears (another player's, from their page): kept across a change of gun */
+  private finish: Finish | null = null;
 
   /**
    * A soft dark disc at every figure's feet, on the presets whose shadow map
@@ -806,12 +809,32 @@ export class Dummy {
     return this.emoteIndex;
   }
 
+  /** the finish its gun wears, or none */
+  get finishId(): string {
+    return this.finish?.id ?? "factory";
+  }
+
+  /** its gun in a finish (another player's own), now and after any change of gun */
+  setFinish(f: Finish | null): void {
+    this.finish = f;
+    this.paintGuns();
+  }
+
+  private paintGuns(): void {
+    if (this.gun) applyFinishTo(this.gun, this.finish);
+    const mg = this.mq?.gunRoot;
+    if (mg) applyFinishTo(mg, this.finish);
+  }
+
   /** a different gun in its hands (Gun Run's next level): the same grip, the new model */
   setGun(id: string): void {
     this.mq?.setGun(id);
     const old = this.gun;
     const parent = old?.parent;
-    if (!old || !parent) return;
+    if (!old || !parent) {
+      this.paintGuns();
+      return;
+    }
     const m = displayGunModel(id);
     const gun = m.root.clone(true);
     gun.traverse((o) => {
@@ -826,6 +849,7 @@ export class Dummy {
     parent.add(gun);
     old.removeFromParent();
     this.gun = gun;
+    this.paintGuns();
   }
 
   /** show or hide the gun it holds (a bot still searching for one) */
