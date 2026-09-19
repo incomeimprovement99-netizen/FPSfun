@@ -1172,3 +1172,18 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: the e2e `botsquads` section: in trios with six bots, each squad's members are within 25 m of each other in
   at least 70 per cent of 40 samples over 30 s after landing (measured 75 to 100 per cent; about 50 with the
   following turned off).
+
+## Milestone 80 — An ammo limit, and the lobby's roster and kick ✅
+2026-09-19 (Phase 15). `ammo.ts`, `brplay.ts`, `duel.ts`, `net/link.ts`, `main.ts`, `index.html`,
+`src/config/ammo.json`, `tools/checks/loot-tiers.ts`.
+- In the battle royale each ammo type holds 4 stacks with the white backpack and one more for each tier above it:
+  there was no limit, the walk-over pickup took every matching stack and a match ended with thousands of rounds. The
+  sweep takes a stack only when it all fits; taken by hand, what does not fit goes back down. The range and the modes
+  are unlimited as before.
+- The host's lobby lists each friend in, whether they have clicked Play and their ping, with a Kick for each: the
+  status line only said how many were in. A kicked friend is told so, and their place is open again.
+- Fixed on the way, in the local test transport: a goodbye the host relays for one guest closed every other guest's
+  link with it, so a friend leaving a lobby of three over it ended the match for the rest (the real peer to peer
+  links never closed on a message).
+- Checks: `tools/checks/loot-tiers.ts` (the stacks by backpack, a stack that half fits, no limit outside), and the e2e
+  `modes` lobby: the roster's rows, a kick told as one, and the match starting for the two left.

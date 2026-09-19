@@ -13,7 +13,8 @@ import lootCfg from "../../src/config/loot.json";
 import { LootField, pickHotZone, rarityWeights, rollSpot, seeded, tierOf, type LootItem, type LootPlace, type PlaceTier, type Rarity } from "../../src/game/loot";
 import { optionsFor, SLOTS } from "../../src/game/attachments";
 import { weaponMods } from "../../src/game/weapons";
-import { ammoTypeOf } from "../../src/game/ammo";
+import { AmmoPouch, STACK, ammoCap, ammoTypeOf } from "../../src/game/ammo";
+import ammoCfg from "../../src/config/ammo.json";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -317,6 +318,21 @@ console.log("Loot density");
   check("and fewer magazines than guns", tally.mag < tally.weapon, `${per(tally.mag).toFixed(1)} against ${per(tally.weapon).toFixed(1)}`);
 }
 
+// ---------------------------------------------------------------- what you can carry
+// There was no limit: the walk-over pickup took every matching stack and a
+// match ended with thousands of rounds. The backpack sets it now.
+{
+  const C = ammoCfg.carry;
+  check(`a white backpack carries ${C.stacks} stacks of a type, each tier up ${C.perPack} more`, ammoCap("light", 0) === STACK.light * C.stacks && ammoCap("light", 3) === STACK.light * (C.stacks + 3 * C.perPack), `${ammoCap("light", 0)} light rounds white, ${ammoCap("light", 3)} gold`);
+  const pouch = new AmmoPouch();
+  pouch.packTier = 0;
+  const cap = ammoCap("heavy", 0);
+  pouch.add("heavy", cap - 10);
+  const put = pouch.add("heavy", 60);
+  check("a stack that does not fit goes in as far as it fits, and says how much", put === 10 && pouch.stock.heavy === cap && pouch.room("heavy") === 0, `${put} went in`);
+  const range = new AmmoPouch();
+  check("outside a battle royale nothing limits it", range.add("light", 100000) === 100000);
+}
 
 console.log(fails === 0 ? "\nLOOT TIERS PASS" : `\nLOOT TIERS FAIL (${fails})`);
 export const lootTiersFails = fails;

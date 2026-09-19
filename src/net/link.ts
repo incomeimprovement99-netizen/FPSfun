@@ -124,7 +124,9 @@ export type NetMsg =
    * (an id, or a team as -10 - team) once it is decided.
    */
   | { t: "mode"; left: number; rows: Array<[number, number, number, number, number]>; tm?: [number, number]; cr?: [number, number, number, number, number]; ct?: number[]; win?: number }
-  | { t: "bye"; from?: number };
+  | { t: "bye"; from?: number }
+  /** the host took this guest out of the lobby */
+  | { t: "kick" };
 
 /**
  * A message without its undefined fields, so nothing packs as null. It lives
@@ -309,7 +311,10 @@ class LocalLink implements Link {
   ) {
     this.handler = (e: MessageEvent<Envelope>) => {
       if (this.closed || e.data.to !== this.me || e.data.from !== this.peer) return;
-      if (e.data.m.t === "bye") this.onClose?.();
+      // the other end's own goodbye closes the link; one the host relays for
+      // another player (it carries their id) does not: a friend leaving a
+      // lobby of three used to close every other guest's link with it
+      if (e.data.m.t === "bye" && typeof (e.data.m as { from?: number }).from !== "number") this.onClose?.();
       this.onMessage?.(e.data.m);
     };
     ch.addEventListener("message", this.handler);

@@ -518,6 +518,26 @@ export class Duel implements MatchLike {
     return true;
   }
 
+  /** the host's lobby as it stands: each friend in, whether they have clicked Play, their ping */
+  roster(): Array<{ id: number; name: string; ready: boolean; ping: number | null }> {
+    if (this.role !== "host") return [];
+    return [...this.links.keys()].sort((a, b) => a - b).map((id) => {
+      const r = this.remotes.get(id);
+      return { id, name: r?.name ?? `PLAYER ${id + 1}`, ready: !!r?.ready, ping: this.pingOf.get(id) ?? null };
+    });
+  }
+
+  /** the host, in the lobby: take a friend out (told so), and their place is open again */
+  kick(id: number): boolean {
+    if (this.role !== "host" || this.phase !== "waiting") return false;
+    const link = this.links.get(id);
+    if (!link) return false;
+    link.send({ t: "kick" });
+    // a moment for the message to go before the link closes behind it
+    setTimeout(() => this.guestLeft(id), 150);
+    return true;
+  }
+
   /** the match is for fewer than it was made for (startNow): anything counted by the headcount recounts */
   protected onStartShort(): void {}
 
@@ -752,6 +772,11 @@ export class Duel implements MatchLike {
       return;
     }
     // a goodbye or a stray message from someone unknown makes no figure
+    // the host took you out of its lobby
+    if (m.t === "kick") {
+      if (this.role === "guest" && from === 0) this.finish("The host took you out of the match.");
+      return;
+    }
     if (m.t === "bye" || m.t === "ping" || m.t === "pong" || m.t === "round" || m.t === "zone" || m.t === "hello" || m.t === "welcome" || m.t === "ring" || m.t === "brend" || m.t === "mode") {
       const known = this.remotes.get(from);
       if (known) known.lastHeard = now;

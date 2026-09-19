@@ -79,7 +79,7 @@ import type { AmmoType } from "./game/weapons";
 import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
 import itemsCfg from "./config/items.json";
-import { Armor, HEAL_ORDER, HEALS, Kit, type HealItem } from "./game/kit";
+import { PACK_ORDER, Armor, HEAL_ORDER, HEALS, Kit, type HealItem } from "./game/kit";
 import { Knockdown, type BackTier, type KnockTier } from "./game/kit";
 import { STACK, ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
@@ -1431,9 +1431,34 @@ function duelButtons(): void {
   const d = duel instanceof Duel ? duel : null;
   const short = !!d && !!hosting && d.role === "host" && d.phase === "waiting" && d.mode !== "duel" && d.connected >= 1 && d.connected < d.players - 1;
   duelStartNowBtn.hidden = !short;
+  renderRoster();
   if (short && d) duelStartNowBtn.textContent = `Start with ${d.connected + 1}`;
 }
 const duelStartNowBtn = $<HTMLButtonElement>("duelStartNow");
+/**
+ * The host's lobby: each friend in, whether they have clicked Play, their
+ * ping, and a button to take them out. The status line only said "3 of 7
+ * friends in", which never told the host who they were waiting on.
+ */
+const duelRosterEl = $("duelRoster");
+/** a friend's name into the page as text, never as markup (they typed it) */
+const escapeHtml = (t: string): string => t.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
+let rosterKey = "";
+function renderRoster(): void {
+  const d = duel instanceof Duel && duel.role === "host" && duel.phase === "waiting" ? duel : null;
+  const rows = d ? d.roster() : [];
+  const key = JSON.stringify(rows.map((r) => [r.id, r.name, r.ready, r.ping === null ? null : Math.round(r.ping / 10)]));
+  if (key === rosterKey) return;
+  rosterKey = key;
+  duelRosterEl.hidden = !rows.length;
+  duelRosterEl.innerHTML = rows
+    .map((r) => `<div class="rosterRow"><b>${escapeHtml(r.name)}</b> · ${r.ready ? "in" : "on the menu"} · ${r.ping === null ? "ping -" : `${Math.round(r.ping)} ms`} <button type="button" class="ghost" data-kick="${r.id}">Kick</button></div>`)
+    .join("");
+}
+duelRosterEl.addEventListener("click", (e) => {
+  const id = Number((e.target as HTMLElement).getAttribute("data-kick"));
+  if (Number.isFinite(id) && duel instanceof Duel) duel.kick(id);
+});
 duelStartNowBtn.addEventListener("click", () => {
   if (duel instanceof Duel && duel.startNow()) {
     hosting?.stopAccepting();
@@ -2261,6 +2286,7 @@ brPlay.carrying = () => {
   return {
     ammo: held.map((s) => ammoTypeOf(s.id)),
     healRoom: kit.room,
+    ammoRoom: Object.fromEntries(held.map((s) => [ammoTypeOf(s.id), loadout.ammo.room(ammoTypeOf(s.id))])),
     mag: held.length ? Math.min(...held.map((s) => s.magLevel)) : 0,
   };
 };
@@ -2302,10 +2328,17 @@ function applyLoot(it: LootItem): void {
       audio.swap();
       break;
     }
-    case "ammo":
-      loadout.ammo.add(it.id as AmmoType, it.n);
+    case "ammo": {
+      // as much as fits; the rest goes back down where it lay (ammo.json carry)
+      const put = loadout.ammo.add(it.id as AmmoType, it.n);
+      if (put < it.n) {
+        putBack({ ...it, n: it.n - put });
+        hud.notice(put ? `${label}: ${put} TAKEN, THE REST IS FULL` : `${label}: FULL`, gameTime, 1.4);
+        if (!put) return;
+      }
       audio.reloadStep("in");
       break;
+    }
     case "heal": {
       const put = kit.add(it.id as HealItem, it.n);
       if (put < it.n) {
@@ -2775,6 +2808,8 @@ function endMatch(reason: string): void {
   duel = null;
   // the match's bullet holes go with it
   impacts.clear();
+  // and out of a battle royale nothing limits the ammo you carry
+  loadout.ammo.packTier = null;
   // back in the range: either ability to practise, nothing picked; ammo as Settings says
   abilities.reset(true);
   loadout.ammo.infinite = !rangeAmmoCounted;
@@ -3355,7 +3390,13 @@ function frame(): void {
   schedule();
 }
 
+let rosterAt = 0;
 function step(): void {
+  // the host's lobby list changes as friends click Play and pings come back: redrawn twice a second while it waits
+  if (performance.now() - rosterAt > 500) {
+    rosterAt = performance.now();
+    renderRoster();
+  }
   const frameStart = performance.now();
   const wall = performance.now() / 1000;
   let dt = wall - last;
@@ -4315,6 +4356,8 @@ function step(): void {
   // the battle royale from your side: E, the pads, pings
   if (duel instanceof BrMatch) {
     const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    // what the backpack lets you carry of each ammo type (ammo.json carry)
+    loadout.ammo.packTier = PACK_ORDER.indexOf(kit.pack);
     brPlay.update(now, duel, player, scriptInput ?? input, camera.position.clone(), f, { alive: duel.alive, downed: downedNow, playing: input.playing || !!scriptInput, myId: duel.id });
   }
 

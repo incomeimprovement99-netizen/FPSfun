@@ -1,4 +1,6 @@
 {
+  "_carry": "What you can carry of each ammo type, in stacks (the stack sizes below): stacks with the white backpack, and perPack more for each tier above it. Ours, after Apex's inventory: there was no limit, so the walk-over pickup took every matching stack on the map and a player finished a match with 2,000 rounds; the limit is what makes a backpack worth having and ammo a choice.",
+  "carry": { "stacks": 4, "perPack": 1 },
   "_note": "Ammo, Season 30 (docs/RESEARCH_PHASE_11.md section 8): each gun's type, the inventory stack per type, and the energy rework: energy guns carry their own stockpile of whole magazines that refills one magazine every 18 s while the gun is idle (not firing or reloading). The range is unlimited unless Settings says otherwise; a match counts.",
   "types": {
     "rspn101": "light", "r97": "light", "alternator_smg": "light", "semipistol": "light", "g17": "light", "lmg": "light", "g2": "light", "car": "light",

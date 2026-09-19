@@ -3065,11 +3065,25 @@ async function lobbyShortTest(browser: Browser, query: string): Promise<void> {
   await sleep(300);
   const btn = await ev<{ shown: boolean; text: string }>(host, `(() => { const b = document.getElementById("duelStartNow"); return { shown: !b.hidden, text: b.textContent }; })()`);
   check("start with those in: two of three friends in, the host is offered to start with three", btn.shown && btn.text === "Start with 3", JSON.stringify(btn));
+  // the roster: both friends by name, and a kick for each
+  await sleep(700);
+  const roster = await ev<number>(host, `document.querySelectorAll("#duelRoster [data-kick]").length`);
+  check("the lobby's roster: the host sees each friend in, with a kick", roster === 2, `${roster} rows`);
+  // the host takes the second friend out: they are told, and the host can start with two
+  await ev(host, `document.querySelector('#duelRoster [data-kick="2"]').click()`);
+  const kicked = await pages[2].waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 8000 }).then(() => true, () => false);
+  const told = await ev<string>(pages[2], `document.getElementById("duelStatus").textContent`);
+  await sleep(700);
+  const btn2 = await ev<string>(host, `document.getElementById("duelStartNow").textContent`);
+  check("the lobby's kick: the friend is out and told so, and the host is offered to start with two", kicked && /took you out/.test(told) && btn2 === "Start with 2", JSON.stringify({ kicked, told, btn2 }));
+  await pages[2].close();
+  pages.splice(2, 1);
   await ev(host, `document.getElementById("duelStartNow").click()`);
   for (const p of pages) await pressPlay(p);
-  const going = await Promise.all(pages.map((p) => p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 25000 }).then(() => true, () => false)));
-  const count = await ev<number>(host, "window.__range.duel().players");
-  check("start with those in: the match starts for the three who are in", going.every(Boolean) && count === 3, JSON.stringify({ going, count }));
+  const going = await Promise.all(pages.map((p) => p.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 25000 }).then(() => true, () => false)));
+  const count = await ev<number>(host, "window.__range.duel()?.players ?? -1");
+  const dbg = going.every(Boolean) ? "" : JSON.stringify(await Promise.all(pages.map((p) => ev(p, "(() => { const d = window.__range.duel(); return d ? { phase: d.phase, players: d.players, links: d.links?.size, ready: d.ready, rs: [...d.remotes.values()].filter((r) => r.id < 100).map((r) => [r.id, r.ready]), status: document.getElementById('duelStatus').textContent.slice(0, 80) } : { none: document.getElementById('duelStatus').textContent.slice(0, 80) }; })()"))));
+  check("start with those in: the match starts for the two who are in", going.every(Boolean) && count === 2, JSON.stringify({ going, count }) + dbg);
   const late = await open(browser, query);
   pages.push(late);
   await ev(late, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);

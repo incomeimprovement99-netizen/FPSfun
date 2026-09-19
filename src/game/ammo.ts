@@ -11,9 +11,22 @@ import type { AmmoType, ResolvedWeapon } from "./weapons";
 export const AMMO = cfg;
 export const STACK: Record<Exclude<AmmoType, "energy">, number> = cfg.stacks;
 
+/** how many rounds of a type fit, carrying a backpack `packTier` tiers above the white one (ammo.json carry) */
+export function ammoCap(type: AmmoType, packTier: number): number {
+  if (type === "energy" || type === "arrows") return Infinity;
+  return STACK[type] * (cfg.carry.stacks + cfg.carry.perPack * Math.max(0, packTier));
+}
+
 export class AmmoPouch {
   infinite = true;
   stock: Record<AmmoType, number> = { light: 0, heavy: 0, energy: 0, sniper: 0, shotgun: 0, arrows: 0 };
+  /** the backpack's tier above the white one: how much fits (null: no limit, the range) */
+  packTier: number | null = null;
+
+  /** how many more rounds of a type fit */
+  room(type: AmmoType): number {
+    return this.packTier === null ? Infinity : Math.max(0, ammoCap(type, this.packTier) - this.stock[type]);
+  }
 
   empty(): void {
     for (const k of Object.keys(this.stock) as AmmoType[]) this.stock[k] = 0;
@@ -30,8 +43,11 @@ export class AmmoPouch {
     }
   }
 
-  add(type: AmmoType, n: number): void {
-    this.stock[type] += Math.max(0, Math.floor(n));
+  /** put rounds in, as many as fit; returns how many went in */
+  add(type: AmmoType, n: number): number {
+    const put = Math.min(Math.max(0, Math.floor(n)), this.room(type));
+    this.stock[type] += put;
+    return put;
   }
 }
 

@@ -73,6 +73,8 @@ export interface CarryState {
   ammo: string[];
   /** how many more of each heal fit in the kit, by its id; 0 or missing is full */
   healRoom: Record<string, number>;
+  /** how many more rounds of each ammo type fit, by type; missing is no limit */
+  ammoRoom?: Record<string, number>;
   /**
    * The magazine to measure a looted one against, 0 to 4: the LOWER of your
    * two guns' levels, because main.ts's applyLoot offers a magazine to both
@@ -127,7 +129,8 @@ const CYCLE = LOOTING.cycle as Action;
 export function autoTakes(item: LootItem, carry: CarryState | null): boolean {
   if (!carry) return false;
   if (!(LOOTING.autoKinds as string[]).includes(item.kind)) return false;
-  if (item.kind === "ammo") return carry.ammo.includes(item.id);
+  // ammo as heals: swept only when the whole stack fits (see above)
+  if (item.kind === "ammo") return carry.ammo.includes(item.id) && (carry.ammoRoom?.[item.id] ?? Infinity) >= item.n;
   if (item.kind === "heal") return (LOOTING.autoHeals as string[]).includes(item.id) && (carry.healRoom[item.id] ?? 0) >= item.n;
   return false;
 }
@@ -135,7 +138,7 @@ export function autoTakes(item: LootItem, carry: CarryState | null): boolean {
 /** nothing to gain from this one: it is listed, but greyed, and the hold steps over it */
 export function nothingToGain(item: LootItem, carry: CarryState | null): boolean {
   if (!carry) return false;
-  if (item.kind === "ammo") return !carry.ammo.includes(item.id);
+  if (item.kind === "ammo") return !carry.ammo.includes(item.id) || (carry.ammoRoom?.[item.id] ?? Infinity) <= 0;
   if (item.kind === "heal") return (carry.healRoom[item.id] ?? 0) <= 0;
   if (item.kind === "attach" && item.id.startsWith("mag:")) return Number(item.id.slice(4)) <= (carry.mag ?? 0);
   return false;
