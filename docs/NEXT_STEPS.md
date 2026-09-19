@@ -68,7 +68,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 - **#12 and #13:** their text describes the old hub tower and ziplines.
 
 **The next rounds, in order:**
-1. **Materials and rocks on the map (#7, #8):** about a day. Already fetched; each place gets its palette, and real rocks replace box cover.
+1. **Materials and rocks on the map (#7, #8):** the materials are done (Milestone 81); the rock meshes (Poly Haven boulders in place of box rocks) are left. about a day. Already fetched; each place gets its palette, and real rocks replace box cover.
 2. **Supply bins and chests (#11):** 1 to 1.5 days. The sounds are loaded, and the micro-POIs leave room for a chest.
 3. **Doors (#10), with bots opening them:** about 2.5 days, in one change, so doors never trap bots on the new graph.
 4. **Host migration and rejoin:** 3 to 4 days. One person's bad connection ending an eight-player match is the failure a group of friends hits most.

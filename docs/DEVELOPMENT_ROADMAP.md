@@ -1187,3 +1187,18 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   links never closed on a message).
 - Checks: `tools/checks/loot-tiers.ts` (the stacks by backpack, a stack that half fits, no limit outside), and the e2e
   `modes` lobby: the roster's rows, a kick told as one, and the match starting for the two left.
+
+## Milestone 81 — Outskirts in its own materials ✅
+2026-09-19 (Phase 15). `br.ts`, `staticmerge.ts`.
+- The CC0 sets fetched and credited for the map (ambientCG) were never put on it: every wall was one concrete and
+  every rock a flat colour. Now the hub is concrete, North Yard's sheds and silos corrugated metal, South Depot block
+  masonry, East Ridge and West Town rendered plaster, each in its colour; the containers are corrugated metal, the
+  crates planks, the roofs roofing, the rocks and cliff faces rock, and the raised ground the floor's own earth.
+- The map's boxes share one geometry per size with 0-to-1 texture coordinates, so a texture stretched once across a
+  20 m wall. The static merge now gives a material that asks for it (userData.worldUV, metres a tile) coordinates
+  from where each vertex is in the world, projected along its face, so every box shows its texture at one real size.
+- Matte: the sets' roughness maps have glossy texels, and in full sun, looking into the light, treads and the floor
+  itself flashed white (the floor did before any of this). The map's textured surfaces keep their normal maps for the
+  detail and take one roughness of their own.
+- No change in draw calls (a set in a colour is one merge group, as the flat colour was); `npm run bench` at the hub
+  within noise of before.

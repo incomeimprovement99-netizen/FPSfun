@@ -33,7 +33,7 @@ import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
 import { building, coverWall, crateStair, jumpTower, type BoxMaker, type PoiCtx, type Side } from "./brpoi";
 import { PAL, bevel, flat, emissive, textPanel } from "./geo";
-import { material } from "./materials";
+import { type MatName, material } from "./materials";
 import { ZIPLINES } from "./traversal";
 import type { Bounds } from "./player";
 import cfg from "../config/brmap.json";
@@ -232,6 +232,17 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
    * fails to load, materials.ts drops it from the original, and this follows
    * so it does not render black, keeping its own colour.
    */
+  /**
+   * The sets' roughness maps have glossy texels: in full sun, looked at into
+   * the light, a whole tread or apron flashed white. The map's surfaces keep
+   * the normal maps (the detail) and take one roughness of their own instead.
+   */
+  const matte = (m: THREE.MeshStandardMaterial, roughness: number): THREE.MeshStandardMaterial => {
+    m.roughnessMap = null;
+    m.roughness = roughness;
+    m.needsUpdate = true;
+    return m;
+  };
   const recolour = (base: THREE.MeshStandardMaterial, color: number): THREE.MeshStandardMaterial => {
     const m = base.clone();
     m.color.setHex(color);
@@ -243,15 +254,38 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     };
     return m;
   };
-  const wallOf = (color: number) => recolour(wallMat, color);
-  const concrete = flat(0x9a948a, 0.8, 0.05);
-  const rock = flat(0x6f6a62, 0.9, 0.02);
-  const crate = flat(0x8a6a44, 0.8, 0.05);
-  const steelA = flat(0x3f6e8a, 0.55, 0.25);
-  const steelB = flat(0x8a4b3a, 0.55, 0.25);
-  const steelC = flat(0x5d6b3a, 0.55, 0.25);
+  /**
+   * One of the CC0 sets (public/tex, fetched and credited, and until now
+   * never put on the map), in a colour, at `metres` a tile. The map's boxes
+   * share their geometry by size, so the merge gives each its coordinates
+   * from where it is in the world (staticmerge.ts worldUVs), and a wall shows
+   * its bricks at one real size however long it is. A colour of its own is a
+   * material of its own but shares the set's textures (materials.ts caches the
+   * maps by set).
+   */
+  const tex = (name: MatName, color: number, metres: number, roughness?: number): THREE.MeshStandardMaterial => {
+    const m = matte(material(name, { color, roughness }), roughness ?? 0.9);
+    m.userData.worldUV = metres;
+    return m;
+  };
+  // the floor itself glared white looking toward the sun, for the same reason
+  matte(ground, 1);
+  wallMat.userData.worldUV = 3;
+  const wallOf = (color: number) => {
+    const m = recolour(wallMat, color);
+    m.userData.worldUV = 3;
+    return m;
+  };
+  // Concrete048 is a clean light concrete: darker, or it glares in the sun
+  const concrete = tex("concrete", 0x8e8880, 3, 0.9);
+  const rock = tex("rock", 0xa8a094, 3, 0.95);
+  const crate = tex("planks", 0xd0b088, 1.2, 0.85);
+  // the containers: corrugated metal in three colours
+  const steelA = tex("corrugated", 0x6f9ec0, 2.4, 0.6);
+  const steelB = tex("corrugated", 0xc27a62, 2.4, 0.6);
+  const steelC = tex("corrugated", 0x8e9c62, 2.4, 0.6);
   const trim = flat(PAL.orange, 0.55, 0.25);
-  const roofMat = flat(PAL.steelDark, 0.6, 0.2);
+  const roofMat = tex("roof", 0x9aa0a6, 2, 0.7);
   const post = flat(PAL.steelLight, 0.55, 0.14);
   // the jump towers' masts, the Mast's lattice and its stays
   const mast = flat(PAL.steelLight, 0.5, 0.3);
@@ -264,21 +298,27 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   // reads after a difference in hue has gone. The compounds and the roadside
   // keep wallMat. A tint costs a merge group or two and no textures of its own.
   const TINT = {
+    // concrete at the hub, corrugated sheds at North Yard, brick at South
+    // Depot, rendered plaster on East Ridge and in West Town, each in its colour
     hub: { wall: wallOf(0xb6b0a4), trim: flat(0xc0392b, 0.55, 0.25) },
-    north: { wall: wallOf(0xa8825e), trim: flat(0xb5612a, 0.55, 0.25) },
-    south: { wall: wallOf(0xc2beb2), trim: flat(0xd8a52a, 0.55, 0.25) },
-    east: { wall: wallOf(0x9a6f5c), trim: flat(0x8a4030, 0.55, 0.25) },
-    west: { wall: wallOf(0x8e968f), trim: flat(0x3d6e63, 0.55, 0.25) },
+    north: { wall: tex("corrugated", 0xd0a27a, 2.4, 0.65), trim: flat(0xb5612a, 0.55, 0.25) },
+    south: { wall: tex("brick", 0xe6ded2, 2, 0.9), trim: flat(0xd8a52a, 0.55, 0.25) },
+    east: { wall: tex("plaster", 0xc4957e, 2.5, 0.9), trim: flat(0x8a4030, 0.55, 0.25) },
+    west: { wall: tex("plaster", 0xb4bcb4, 2.5, 0.9), trim: flat(0x3d6e63, 0.55, 0.25) },
   };
   // The ground's own: the top of a raised landform, the face of a cliff, and
   // gravel laid on the sand. Slabs only, so each merges into one group.
-  const earth = flat(0xa89473, 1, 0);
-  const scarp = flat(0x6d5f47, 1, 0);
-  const gravel = recolour(ground, 0x8d8b80);
+  // the raised ground in the floor's own texture at the floor's own scale
+  // (8 m a tile: 440 m over 55), so a landform reads as the same earth piled
+  // up; the "sand" set is Ground037, which has grass in it
+  const earth = matte(recolour(ground, 0xb09c7a), 1);
+  earth.userData.worldUV = 8;
+  const scarp = tex("rock", 0x9a8a70, 4, 1);
+  const gravel = matte(recolour(ground, 0x8d8b80), 1);
   // The ground plan's own, laid flat on the sand like the roads: a dirt track,
   // and the dark of an oil stain or a wet braid down the wash's bed.
-  const dirt = recolour(ground, 0x8c7456);
-  const stain = recolour(ground, 0x4b453d);
+  const dirt = matte(recolour(ground, 0x8c7456), 1);
+  const stain = matte(recolour(ground, 0x4b453d), 1);
   // All of it lies a centimetre over the sand, and the roads over the aprons
   // and tracks where they cross. A centimetre is nothing to the depth buffer
   // from the drop, 150 m up with the near plane at 2 cm, so each layer is
