@@ -1396,3 +1396,22 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   shot, a claim from the wrong distance, a swing from 20 m and a stream faster than the gun are refused), and the
   e2e `squad` section (a guest's 900 from an R-301 and a hit with no shot behind it are both dropped by the host).
 
+## Milestone 93 — Tonight's tally ✅
+2026-09-19 (Phase 15). `main.ts`, `index.html`.
+- A night of friends had one table per match and nothing across them. The Friends tab now keeps **Tonight**: every
+  match with friends since the code was made, each player's wins, kills and damage added up and the number played.
+  Each browser adds up the end tables it is sent (Milestone 87), which are the same on every browser, so every
+  screen's tally is the same with no message of its own. A match goes on the tally once its end screen is over,
+  when every line has come in: back in the range after a battle royale, or as the next match begins in the arena and
+  the modes (which rematch in place); the end card keeps showing that match's table meanwhile. Play again keeps
+  adding to it, a new code starts it over, and a match alone (the bots only) is not on it.
+- Players are keyed by name, since ids change when a group plays again; two with the same name are told apart by
+  their order in the match, which Play again keeps. The first run of the test found it: its two tabs share a profile
+  and so a name.
+- Two test timings: the old-build 1v1v1 counted the relayed figure after a fixed 1.5 s, and a player standing still
+  sends a whole state only every keyframe, across two streams through the host, so it now waits up to 6 s for it;
+  and a bot squad's revive check could land while the ring pushed the squad on, which kept the mate from reviving.
+  A bot the ring is pushing on no longer walks back for a downed mate, but one already beside it picks it up.
+- Checks: the e2e `brsolo` section (after the battle royale both screens show the same table of the two, one played
+  and the one win for the winner, and Play again keeps it).
+

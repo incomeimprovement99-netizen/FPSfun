@@ -100,7 +100,10 @@ Friends tab shows **Play again with N**. Pick the next mode and settings on
 the tab and click it, and everyone goes straight into the new match on the
 connections they already have. **Leave the group** drops out; if the host
 leaves, everyone is told. The end screen of a match with friends carries one
-table of everybody: kills, damage and where each placed.
+table of everybody: kills, damage and where each placed. And the Friends tab keeps **Tonight**: every
+match the group has played since the code was made, each player's wins,
+kills and damage added up, the same on every screen. Play again keeps adding
+to it; a new code starts a new night.
 
 **Three players**: pick "3 players" before Create match; both friends open
 the same link; it starts once all three have clicked Play. The map is a

@@ -1275,8 +1275,9 @@ export class BrMatch extends Duel {
   /**
    * The host, each frame: a downed bot's bleed-out runs, and a standing bot
    * with nothing in sight goes to a downed mate within reach of its squad
-   * and kneels over it for the revive's 5 s. A target, or the ring pushing
-   * it on, breaks the revive off and it starts over.
+   * and kneels over it for the revive's 5 s. A target breaks the revive off
+   * and it starts over. The ring pushing it on keeps it from walking back for
+   * one, but not from picking up one it is already beside.
    */
   private botCare(b: BrBot, sense: BotSense, dt: number): void {
     const bot = b.bot;
@@ -1286,7 +1287,7 @@ export class BrMatch extends Duel {
       if (b.down.bleed <= 0) this.finishDowned(b);
       return;
     }
-    if (!bot.alive || bot.dropping || this.team.size < 2 || sense.target || sense.urgent) {
+    if (!bot.alive || bot.dropping || this.team.size < 2 || sense.target) {
       b.reviving = 0;
       return;
     }
@@ -1305,6 +1306,10 @@ export class BrMatch extends Duel {
       return;
     }
     if (best > squadCfg.reviveReach * 0.8) {
+      if (sense.urgent) {
+        b.reviving = 0;
+        return;
+      }
       sense.goal = mate.bot.pos.clone();
       b.reviving = 0;
       return;

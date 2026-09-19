@@ -242,8 +242,66 @@ window.addEventListener(
  * own numbers alone.
  */
 const endTable = new Map<number, { name: string; kills: number; damage: number; place: number }>();
-/** the last match's result, for the summary card while it shows */
-let lastSummary: { at: number; kind: string; s: MatchSummary; a: Award; xpBefore: number } | null = null;
+/** the last match's result, for the summary card while it shows (its table fixed once the match is added to tonight's tally) */
+let lastSummary: { at: number; kind: string; s: MatchSummary; a: Award; xpBefore: number; table?: EndRow[] } | null = null;
+type EndRow = { name: string; kills: number; damage: number; place: number; you: boolean; id?: number };
+/** your id in the match whose line is pending */
+let tallyId = 0;
+
+/**
+ * Tonight's tally: every match with friends since the code was made, by
+ * name (the ids change when a group plays again). Each browser adds up the
+ * end tables it is sent, which are the same on every browser, so everyone's
+ * tally is the same without a message of its own. A match is added once its
+ * end screen is over (the next match starting, or back in the range), when
+ * every player's line has come in.
+ */
+const tonight = new Map<string, { played: number; wins: number; kills: number; damage: number }>();
+/** your line of the match whose end screen is up, until it is added to the tally */
+let tallyPending: EndRow | null = null;
+/** the whole end table: your line and everyone else's that has come in */
+function endRows(mine: EndRow): EndRow[] {
+  return [mine, ...[...endTable.entries()].map(([id, r]) => ({ ...r, you: false, id }))].sort((a, b) => a.place - b.place || b.kills - a.kills || b.damage - a.damage);
+}
+/** the match whose end screen is over goes on tonight's tally */
+function flushTally(): void {
+  const mine = tallyPending;
+  if (!mine) return;
+  tallyPending = null;
+  const rows = endRows(mine);
+  if (lastSummary) lastSummary.table = rows;
+  // two friends with the same name are told apart by their order in the match (by id, which Play again keeps in order)
+  const byId = [...rows].sort((a, b) => (a.you ? tallyId : (a.id ?? 0)) - (b.you ? tallyId : (b.id ?? 0)));
+  const seen = new Map<string, number>();
+  for (const r of byId) {
+    const n = (seen.get(r.name) ?? 0) + 1;
+    seen.set(r.name, n);
+    const key = rows.filter((o) => o.name === r.name).length > 1 ? `${r.name} (${n})` : r.name;
+    const t = tonight.get(key) ?? { played: 0, wins: 0, kills: 0, damage: 0 };
+    t.played++;
+    if (r.place === 1) t.wins++;
+    t.kills += r.kills;
+    t.damage += Math.round(r.damage);
+    tonight.set(key, t);
+  }
+  // the lines were this match's: a rematch fills it again
+  endTable.clear();
+  renderTonight();
+}
+/** a new code: a new night */
+function newNight(): void {
+  tonight.clear();
+  tallyPending = null;
+  renderTonight();
+}
+function renderTonight(): void {
+  const el = $("tonight");
+  el.hidden = tonight.size === 0;
+  const rows = [...tonight.entries()].sort((a, b) => b[1].wins - a[1].wins || b[1].kills - a[1].kills || b[1].damage - a[1].damage);
+  el.innerHTML =
+    `<div class="rosterRow"><b>TONIGHT</b> · ${Math.max(0, ...rows.map(([, t]) => t.played))} played</div>` +
+    rows.map(([name, t]) => `<div class="rosterRow" data-name="${escapeHtml(name)}"><b>${escapeHtml(name)}</b> · ${t.wins} ${t.wins === 1 ? "win" : "wins"} · ${t.kills} ${t.kills === 1 ? "kill" : "kills"} · ${t.damage} damage · ${t.played} played</div>`).join("");
+}
 /**
  * The summary card as the HUD draws it this frame, or null once it has had
  * its time or a new match has started.
@@ -277,7 +335,7 @@ function summaryView(): HudState["summary"] {
     rows,
     xp: L.a.gained,
     lines: L.a.completed.map((c) => `CHALLENGE: ${c.label.toUpperCase()}  +${c.xp}`),
-    table: [{ name: profile.profile.name || "YOU", kills: s.kills, damage: s.damage, place: s.placement ?? (s.won ? 1 : 2), you: true }, ...[...endTable.values()].map((r) => ({ ...r, you: false }))].sort((a, b) => a.place - b.place || b.kills - a.kills || b.damage - a.damage),
+    table: L.table ?? endRows({ name: profile.profile.name || "YOU", kills: s.kills, damage: s.damage, place: s.placement ?? (s.won ? 1 : 2), you: true }),
     level: lv.level,
     bar: lv.need ? lv.into / lv.need : 1,
     levelUp: L.a.levelAfter > L.a.levelBefore && t >= 1,
@@ -2904,6 +2962,10 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onMatchEnd = (s) => {
     // your line for everyone's end table (the others' arrive as theirs end)
     d.localFx("sum", new THREE.Vector3(s.kills, Math.round(s.damage), s.placement ?? (s.won ? 1 : 2)), undefined, s.deaths);
+    // with friends it goes on tonight's tally once the end screen is over (a match before it still on screen goes first)
+    flushTally();
+    if (d instanceof Duel && d.players > 1) tallyId = d.id;
+    if (d instanceof Duel && d.players > 1) tallyPending = { name: profile.profile.name || "YOU", kills: s.kills, damage: Math.round(s.damage), place: s.placement ?? (s.won ? 1 : 2), you: true };
     profile.recordMatch(kind, s);
     // what the match earned: XP, a level, any challenge it finished
     const award = progress.award(kind as MatchKind, s);
@@ -3072,6 +3134,7 @@ const brDifficulty = (): BotDifficulty => asDifficulty(botDifficulty.value);
 const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
+  flushTally();
   // a match that ran to its end keeps the group: its links, handed back open (leaving closed them)
   if (duel instanceof Duel && duel.phase === "matchEnd" && !duel.left) {
     const { guests, host } = duel.takeLinks();
@@ -3156,6 +3219,7 @@ function inviteLink(code: string): string {
 duelHostBtn.addEventListener("click", () => {
   if (duel || hosting) return;
   cancelJoin?.();
+  newNight();
   const players = Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
   readHostSettings();
   setDuelStatus("Making a match...", "live");
@@ -3202,6 +3266,7 @@ duelJoinBtn.addEventListener("click", () => {
   hosting?.cancel();
   hosting = null;
   cancelJoin?.();
+  newNight();
   setDuelStatus("Joining...", "live");
   const code = duelCode.value;
   cancelJoin = joinMatch(
@@ -3709,6 +3774,8 @@ function step(): void {
   if (performance.now() - rosterAt > 500) {
     rosterAt = performance.now();
     renderRoster();
+    // a rematch in the same match (the arena, the modes): the last one goes on the tally as the next begins
+    if (tallyPending && duel && duel.phase !== "matchEnd") flushTally();
   }
   const frameStart = performance.now();
   const wall = performance.now() / 1000;

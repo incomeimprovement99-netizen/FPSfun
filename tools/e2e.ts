@@ -1519,10 +1519,14 @@ async function tripleTest(browser: Browser, query: string, tag = "1v1v1", pages3
   check(`${tag}: all three connect`, true);
   const ids = await Promise.all(pages.map((p) => ev<number>(p, "window.__range.duel().id")));
   check(`${tag}: ids 0, 1, 2`, ids.join(",") === "0,1,2", ids.join(","));
-  await sleep(1500);
-  const seen = await ev<number>(host, "window.__range.duel().avatars.filter((a) => a.group.visible).length");
+  // a player standing still sends a whole state only every keyframe (2 s), and one relayed by the host
+  // crosses two streams, so the figures can take a few seconds to appear
+  const visible = "window.__range.duel().avatars.filter((a) => a.group.visible).length";
+  await host.waitForFunction(`${visible} === 2`, { polling: 200, timeout: 6000 }).catch(() => undefined);
+  const seen = await ev<number>(host, visible);
   check(`${tag}: the host sees two figures`, seen === 2, `${seen}`);
-  const seenByGuest = await ev<number>(g2, "window.__range.duel().avatars.filter((a) => a.group.visible).length");
+  await g2.waitForFunction(`${visible} === 2`, { polling: 200, timeout: 6000 }).catch(() => undefined);
+  const seenByGuest = await ev<number>(g2, visible);
   check(`${tag}: a guest sees the other two (one relayed by the host)`, seenByGuest === 2, `${seenByGuest}`);
   const spawns = await Promise.all(pages.map((p) => ev<{ x: number; z: number }>(p, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })")));
   const distinct = new Set(spawns.map((sp) => `${sp.x.toFixed(0)},${sp.z.toFixed(0)}`)).size;
@@ -3144,9 +3148,15 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
   const offer = await ev<{ shown: boolean; text: string }>(host, `(() => { const b = document.getElementById("duelAgain"); return { shown: !b.hidden, text: b.textContent }; })()`);
   const told = await ev<string>(guest, `document.getElementById("duelStatus").textContent`);
   check("the group: back in the range, the host is offered Play again with both, and the guest told the group is still together", back.every(Boolean) && offer.shown && offer.text.includes("2") && told.includes("still together"), JSON.stringify({ back, offer, told }));
+  // tonight's tally: the same on both pages, the host with the win
+  const tallies = await Promise.all([host, guest].map((p) => ev<string[]>(p, `[...document.querySelectorAll("#tonight [data-name]")].map((r) => r.textContent)`)));
+  const same = tallies[0].join("|") === tallies[1].join("|");
+  check("tonight's tally: both pages show the same table of the two, one match played, one win for the winner", same && tallies[0].length === 2 && tallies[0].every((t) => /1 played/.test(t)) && tallies[0].filter((t) => /1 win /.test(t)).length === 1, JSON.stringify(tallies));
   await ev(host, `(() => { document.getElementById("duelMode").value = "gunrun"; document.getElementById("duelMode").dispatchEvent(new Event("change")); document.getElementById("duelAgain").click(); })()`);
   const again = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel()?.modeKind === "gunrun"`, { polling: 200, timeout: 15000 }).then(() => true, () => false)));
   const who = await Promise.all([host, guest].map((p) => ev<{ role: string; id: number } | null>(p, "(() => { const d = window.__range.duel(); return d ? { role: d.role, id: d.id } : null; })()")));
+  const kept = await Promise.all([host, guest].map((p) => ev<number>(p, `document.querySelectorAll("#tonight [data-name]").length`)));
+  check("tonight's tally: Play again keeps it (a new code would start it over)", kept.every((n) => n === 2), JSON.stringify(kept));
   check("the group: the host's Play again puts both straight into Gun Run, on the links they had", again.every(Boolean) && who[0]?.role === "host" && who[1]?.role === "guest" && who[1]?.id === 1, JSON.stringify({ again, who }));
   await host.close();
   await guest.close();
