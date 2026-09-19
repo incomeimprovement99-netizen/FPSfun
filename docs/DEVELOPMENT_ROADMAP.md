@@ -1662,3 +1662,21 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: the e2e `br` section (a bot put on a launch pad is thrown 33 m along it; a bot at a rope's end heading for a
   node by the far end rides the rope and lands 0.4 m from the end).
 
+## Milestone 108 — Weapon finishes, unlocked by level ✅
+2026-09-19 (Phase 15). `finishes.ts` (new), `gunmodels.ts`, `main.ts`, `menu.ts`, `index.html`, `src/config/finishes.json`.
+- XP had nothing to unlock. Eight finishes, each paint for a gun's body and accents: Factory (the gun as built,
+  always yours), then Carbon at level 2, Desert at 4, Arctic at 6, Forest at 9, Crimson at 12, Cobalt at 16 and Gold
+  at 25 (metal, not paint). Beside each slot on the Loadouts tab is its gun's finish picker: the locked ones show the
+  level that opens them and cannot be picked. Every gun keeps its own, remembered in the browser.
+- A finish swaps the model's body and accent materials (tagged where the palettes are made) for the finish's, kept
+  per finish, part and palette, so two guns sharing a palette do not change together, and a change of mind puts the
+  model's own back. The gun in hand wears its finish, checked each frame, and a pick on the Loadouts tab goes on at
+  once (the frame is not running while the menu is up, which the first test run showed).
+- A finish chosen when it was open but that the level no longer allows (a reset profile) falls back to the factory
+  paint.
+- Not yet: other players seeing your finish, and finishes on the floor guns and your third-person figure's gun.
+- Checks: `tools/checks/finishes.ts` (the factory paint first and always open, the rest in order of level, a locked
+  one not taken, a level that no longer allows one falls back, every gun its own), the e2e `page` section (at level 1
+  Gold and Carbon are locked; at the level, Gold is picked for the first slot's gun and the gun in hand wears it), and
+  the snapshots `gun-finish-gold` and `gun-finish-arctic`.
+

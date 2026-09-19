@@ -112,6 +112,10 @@ straight between the players, not through the host. How loud they are is
 on the Settings tab; during a match the Friends tab lists who you can hear,
 with a Mute for each (it holds for the night, by name).
 
+**Finishes.** Your level unlocks paint for your guns: Carbon at level 2,
+then Desert, Arctic, Forest, Crimson, Cobalt, and Gold at 25. Pick one for
+each gun beside its slot on the Loadouts tab; every gun keeps its own.
+
 **Custom rules.** Three boxes beside Create match: which guns the match
 allows (any, or one class: assault rifles, SMGs, LMGs, shotguns, snipers and
 marksmen, pistols; anyone holding another is handed that class's guns, and

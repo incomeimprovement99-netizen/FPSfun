@@ -76,7 +76,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 6. ~~**A sky per match from its seed:** about 2 hours.~~ Done (Milestone 69).
 7. ~~**Resurgence's smaller play area**~~ Done (Milestone 82).
 8. ~~**Sprays and banner cards**~~ Done (Milestones 85, 86).
-9. **Weapon finishes and unlocks:** 2 to 2.5 days. XP unlocks nothing yet.
+9. ~~**Weapon finishes and unlocks**~~ Done (Milestone 108): eight finishes opened by level, chosen gun by gun. Others seeing your finish is left.
 10. ~~**Custom match rules**~~ Done (Milestone 106): guns by class, rounds to win, friendly fire, carried in the match options.
 11. **Plant and defuse:** 2 to 3 days, built from the Crown carry, the Control capture and the round clock.
 12. **Vault and keycard (#35):** about 2 days, after doors.

@@ -18,6 +18,7 @@
 // Parts are merged per material, so a whole rifle costs a handful of draw
 // calls. Anything that animates (magazine, bolt, slide, pump, cylinder,
 // hammer) is kept as its own group so the viewmodel can move it.
+import type { Finish } from "./finishes";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
@@ -210,8 +211,51 @@ function materials(body: number, accent: number, grip: number): Mats {
   // materials ARE viewmodel-only, so extra image-based fill on them does the
   // same job without brightening the world.
   for (const mat of Object.values(m)) mat.envMapIntensity = 1.9;
+  // the parts a finish repaints (applyFinish)
+  m.body.userData.part = "body";
+  m.body2.userData.part = "body2";
+  m.accent.userData.part = "accent";
   matCache.set(key, m);
   return m;
+}
+
+/** a finish's version of one painted part, made once a finish and part and the part's own look */
+const finishMats = new Map<string, THREE.MeshStandardMaterial>();
+function finishMat(f: Finish, base: THREE.MeshStandardMaterial): THREE.MeshStandardMaterial {
+  const part = base.userData.part as string;
+  const key = `${f.id}:${part}:${base.uuid}`;
+  let m = finishMats.get(key);
+  if (m) return m;
+  m = base.clone();
+  m.userData = { ...base.userData, finish: f.id };
+  if (part === "accent") {
+    if (f.accent !== undefined) m.color.setHex(f.accent);
+  } else if (f.body !== undefined) {
+    m.color.setHex(f.body);
+    if (part === "body2") m.color.multiplyScalar(0.72);
+    if (f.metalness !== undefined) m.metalness = f.metalness;
+    if (f.roughness !== undefined) m.roughness = f.roughness;
+  }
+  finishMats.set(key, m);
+  return m;
+}
+
+/**
+ * A gun model in a finish (finishes.ts), or back in its factory paint for
+ * none: its body and accent parts' materials swapped for the finish's. The
+ * model's own materials are kept on each mesh, so a change of mind puts
+ * them back.
+ */
+export function applyFinish(model: GunModel, f: Finish | null): void {
+  model.root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const base = (mesh.userData.baseMat ?? mesh.material) as THREE.MeshStandardMaterial;
+    if (!base || Array.isArray(base) || !base.userData?.part) return;
+    mesh.userData.baseMat = base;
+    mesh.material = f && f.id !== "factory" ? finishMat(f, base) : base;
+  });
+  model.root.userData.finish = f?.id ?? "factory";
 }
 
 /** rarity colours for the magazine base plate: none, white, blue, purple, gold */

@@ -12,6 +12,8 @@ export type Mode = "range" | "run" | "runAdvanced" | "duel" | "arena" | "bots" |
 export type Tab = "play" | "duel" | "loadouts" | "stats" | "settings" | "controls";
 
 export interface MenuOptions {
+  /** the Loadouts tab was drawn again (a loadout picked, one changed): the page's own pickers follow it */
+  onRendered?: () => void;
   weaponIds: string[];
   weaponName: (id: string) => string;
   /** the selected loadout changed, or was edited: apply it */
@@ -366,6 +368,7 @@ export class Menu {
     $<HTMLSelectElement>("slot1").value = cur.slot2;
     $<HTMLSelectElement>("slot0").disabled = !editable;
     $<HTMLSelectElement>("slot1").disabled = !editable;
+    this.o.onRendered?.();
 
     const ops = $("operatorCards");
     ops.innerHTML = "";

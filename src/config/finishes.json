@@ -1,0 +1,13 @@
+{
+  "_note": "Weapon finishes (src/game/finishes.ts): paint for a gun's body and its accents, chosen gun by gun on the Loadouts tab and unlocked by your level (progress.json's XP). body and accent are colours; metalness and roughness, where given, are the body's (gold is metal, not paint). The first is the gun as it was built and is always yours. The levels are ours: one every few levels to about 25, where a few nights of play reaches.",
+  "list": [
+    { "id": "factory", "label": "Factory", "level": 1 },
+    { "id": "carbon", "label": "Carbon", "level": 2, "body": 1909282, "accent": 3816770, "metalness": 0.35, "roughness": 0.42 },
+    { "id": "desert", "label": "Desert", "level": 4, "body": 11836010, "accent": 8021056 },
+    { "id": "arctic", "label": "Arctic", "level": 6, "body": 14673128, "accent": 10135216 },
+    { "id": "forest", "label": "Forest", "level": 9, "body": 4081202, "accent": 7035450 },
+    { "id": "crimson", "label": "Crimson", "level": 12, "body": 8002850, "accent": 1776414 },
+    { "id": "cobalt", "label": "Cobalt", "level": 16, "body": 2180986, "accent": 13159892 },
+    { "id": "gold", "label": "Gold", "level": 25, "body": 16241739, "accent": 1776414, "metalness": 0.85, "roughness": 0.3 }
+  ]
+}

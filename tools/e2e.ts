@@ -3961,6 +3961,18 @@ async function main(): Promise<void> {
     const optics = await ev<number>(page, "window.__range.opticsInScene()");
     check("after swapping back and forth, one optic in the scene", optics === 1, `${optics}`);
 
+    console.log("\nWeapon finishes");
+    {
+      const before = await ev<{ locked: boolean; carbon: boolean; gun: string }>(page, `(() => { const s = document.getElementById("finish0"); const o = (v) => [...s.options].find((x) => x.value === v); return { locked: !!o("gold")?.disabled, carbon: !!o("carbon")?.disabled, gun: document.getElementById("slot0").value }; })()`);
+      // the level reached, Gold chosen for the first slot's gun
+      await ev(page, `(() => { const p = window.__range.progress; p.s.xp = 1e7; p.onChange?.(); const sel = document.getElementById("finish0"); sel.value = "gold"; sel.dispatchEvent(new Event("change")); })()`);
+      await sleep(400);
+      const worn = await ev<{ finish: string }>(page, `window.__range.gunFinish(${JSON.stringify(before.gun)})`);
+      const shown = await ev<string>(page, `document.getElementById("finish0").value`);
+      const drawn = await ev<string>(page, "window.__range.loadout.active.id");
+      check("finishes: at level 1 Gold and Carbon are locked; at the level for it Gold is chosen for the first slot's gun, and that gun wears it in hand", before.locked && before.carbon && shown === "gold" && drawn === before.gun && worn.finish === "gold", JSON.stringify({ before, shown, worn, drawn }));
+    }
+
     console.log("\nThird person");
     await ev(page, `document.getElementById("goRange").click()`);
     await ev(page, "window.__range.setThirdPerson(true)");

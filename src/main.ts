@@ -15,6 +15,8 @@ import netCfg from "./config/net.json";
 import doorsCfg from "./config/doors.json";
 import voiceCfg from "./config/voice.json";
 import rulesCfg from "./config/rules.json";
+import { FINISHES, chooseFinish, finishFor } from "./game/finishes";
+import { applyFinish, gunModel } from "./game/gunmodels";
 import { Voice } from "./net/voice";
 import type Peer from "peerjs";
 import { Course } from "./game/course";
@@ -3709,6 +3711,8 @@ function goTo(mode: Mode): void {
 }
 
 const menu = new Menu(loadouts, profile, {
+  // the finish pickers follow the slots (hoisted: it runs once the pickers exist)
+  onRendered: () => renderFinishes(),
   progress: () => ({ ...progress.level, xp: progress.xp, done: progress.done, challenges: progress.challenges }),
   weaponIds: weaponIds(),
   weaponName,
@@ -3722,7 +3726,36 @@ const menu = new Menu(loadouts, profile, {
   },
 });
 // the Stats tab's level card follows every award
-progress.onChange = () => menu.renderStats();
+progress.onChange = () => {
+  menu.renderStats();
+  renderFinishes();
+};
+/**
+ * The Loadouts tab's finish pickers, one by each slot's gun: every finish,
+ * the ones your level has not opened shown with the level that opens them
+ * and not choosable, and the gun's own choice picked.
+ */
+function renderFinishes(): void {
+  const level = progress.level.level;
+  for (const i of [0, 1]) {
+    const gun = $<HTMLSelectElement>(`slot${i}`).value;
+    const sel = $<HTMLSelectElement>(`finish${i}`);
+    sel.innerHTML = FINISHES.map((f) => `<option value="${f.id}"${f.level > level ? " disabled" : ""}>${f.label}${f.level > level ? ` (level ${f.level})` : ""}</option>`).join("");
+    sel.value = finishFor(gun, level).id;
+  }
+}
+for (const i of [0, 1]) {
+  $<HTMLSelectElement>(`finish${i}`).addEventListener("change", (e) => {
+    const gun = $<HTMLSelectElement>(`slot${i}`).value;
+    chooseFinish(gun, (e.target as HTMLSelectElement).value, progress.level.level);
+    // on the gun at once (the menu is up: the frame that keeps the gun in hand in its finish is not running)
+    applyFinish(gunModel(gun), finishFor(gun, progress.level.level));
+    renderFinishes();
+  });
+  // a different gun in the slot: its own finish
+  $<HTMLSelectElement>(`slot${i}`).addEventListener("change", () => renderFinishes());
+}
+renderFinishes();
 /** the optional account (Stats tab): the name is the account's once signed in; new stats go up after a match or a run */
 const account = initAccountUi({
   setName: (name) => {
@@ -4968,6 +5001,12 @@ function step(): void {
     drawn = dw;
   }
   viewModel.setWeapon(drawn);
+  // the gun in hand in its finish (the Loadouts tab's choice for it, if your level allows it)
+  {
+    const f = finishFor(drawn.id, progress.level.level);
+    const m = gunModel(drawn.id);
+    if (m.root.userData.finish !== f.id) applyFinish(m, f);
+  }
   viewModel.setHeirloom(debugView.heirloom ?? loadouts.current.heirloom);
   const lookYaw = player.yaw - prevYaw;
   const lookPitch = player.pitch - prevPitch;
@@ -5406,6 +5445,8 @@ initWelcome();
   viewModelVisible: () => viewModel.group.visible,
   /** the gun's own camera's vertical FOV against the world's */
   gunFov: () => ({ gun: vmCamera.fov, world: camera.fov }),
+  /** the finish a gun model wears now (tools/e2e.ts) */
+  gunFinish: (id: string) => ({ finish: gunModel(id).root.userData.finish ?? "factory" }),
   /** voice chat as this page has it: sending, the loudest each player it hears is now, and the group (tools/e2e.ts) */
   voiceState: () => ({ live: voice?.live ?? false, levels: voice ? Object.fromEntries(voice.levels()) : {}, group: voiceGroupKey, denied: voice?.denied ?? false, muted: [...voiceNames.keys()].filter((p) => voice?.isMuted(p)) }),
   /** a melee swing, as the key starts one (tools/e2e.ts: kicking a door in) */

@@ -395,6 +395,16 @@ export const SCENARIOS: Scenario[] = [
     steps: [[`(() => { ${hideMenu}; window.__range.loadout.setWeaponId(0, "nemesis"); })()`, 1200]],
   },
   {
+    name: "gun-finish-gold",
+    note: "the R-301 in the Gold finish (the level for it reached): the body metal, the accents dark",
+    steps: [[`(() => { ${hideMenu}; const r = window.__range; r.progress.s.xp = 1e7; r.progress.onChange?.(); r.loadout.setWeaponId(0, "rspn101"); const s0 = document.getElementById("slot0"); s0.value = "rspn101"; const f = document.getElementById("finish0"); f.value = "gold"; f.dispatchEvent(new Event("change")); })()`, 1200]],
+  },
+  {
+    name: "gun-finish-arctic",
+    note: "the R-301 in the Arctic finish",
+    steps: [[`(() => { ${hideMenu}; const r = window.__range; r.progress.s.xp = 1e7; r.progress.onChange?.(); r.loadout.setWeaponId(0, "rspn101"); const s0 = document.getElementById("slot0"); s0.value = "rspn101"; const f = document.getElementById("finish0"); f.value = "arctic"; f.dispatchEvent(new Event("change")); })()`, 1200]],
+  },
+  {
     name: "gun-fov-wide",
     note: "the widest FOV setting: the world wide, the gun as it is at the default (its own camera)",
     steps: [[`(() => { ${hideMenu}; const f = document.getElementById("fov"); f.value = "1.571"; f.dispatchEvent(new Event("input")); window.__range.loadout.setWeaponId(0, "rspn101"); })()`, 1200]],
