@@ -1632,3 +1632,19 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: the e2e `p2p` section (the host mutes the guest on the Friends tab, the guest talks, and the host hears
   nothing; the button reads Unmute).
 
+## Milestone 106 — Custom match rules ✅
+2026-09-19 (Phase 15). `main.ts`, `duel.ts`, `weapons.ts`, `link.ts`, `index.html`, `src/config/rules.json`.
+- A night of friends had the modes as they come. The Friends tab's Rules boxes: which guns the match allows (any, or
+  one class by the weapon data's own category: assault rifles, SMGs, LMGs, shotguns, snipers and marksmen, pistols,
+  the Mozambique counting as a pistol), how many rounds win the 1v1 (first to 1, 2, 3, 4, 5 or 7), and friendly
+  fire. They go to every friend in the welcome's match options; an older host sends none and plays as ever.
+- A class of guns: anyone holding another gun is handed the class's first two (rules.json), checked every frame, so
+  the start, a respawn and a change on the Loadouts tab all land on the class; the bots are armed with its first
+  unless the Bot guns box already picked one. It is for the 1v1s and the arena modes: a battle royale's guns are what
+  you find, and Gun Run has its ladder.
+- Friendly fire: squad mates and team mates can hurt each other (the plates and aim assist still know them as
+  friends).
+- Checks: `tools/checks/rules.ts` (each class's guns are real guns of that class), and the e2e `duel` section (a 1v1
+  with shotguns only and first to 1: both hold only shotguns and one knock ends the match; a team deathmatch with a
+  friend on the same side and friendly fire on: the host's round hurts its team mate).
+

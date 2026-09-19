@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import playerCfg from "./config/player.json";
-import { resolveWeapon, weaponIds, weaponName } from "./game/weapons";
+import { resolveWeapon, weaponClass, weaponIds, weaponName } from "./game/weapons";
 import { adsSensScale, cmPer360, degPerCount, gunFov, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
 import { Input } from "./game/input";
 import { padButtons, type PadSettings } from "./game/gamepad";
@@ -14,6 +14,7 @@ import vmCfg from "./config/viewmodel.json";
 import netCfg from "./config/net.json";
 import doorsCfg from "./config/doors.json";
 import voiceCfg from "./config/voice.json";
+import rulesCfg from "./config/rules.json";
 import { Voice } from "./net/voice";
 import type Peer from "peerjs";
 import { Course } from "./game/course";
@@ -47,7 +48,7 @@ import { BotMatch } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
 import { submitScore } from "./game/leaderboard";
-import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link, type MatchOpts, type NetMsg } from "./net/link";
+import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link, type MatchOpts, type MatchRules, type NetMsg } from "./net/link";
 import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
 import { AimAssist } from "./game/aimassist";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
@@ -3150,6 +3151,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
     // the walls of the map this match is on, which is not always the warehouse now
     player.setBounds(d.arenaBounds);
     wireMatch(d, modeOpts.kind);
+    applyRules(d, myId === 0 ? (hostOpts?.rules ?? undefined) : opts?.rules);
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
     // the squad size is the host's for everyone (an older host sends none: the default size)
@@ -3157,6 +3159,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
     d = br;
     duel = d;
     wireMatch(d, "br");
+    applyRules(d, myId === 0 ? (hostOpts?.rules ?? undefined) : opts?.rules);
     brHour(br);
   } else {
     // three is still the triangle, the only map with three corners; two play
@@ -3166,6 +3169,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
     duel = d;
     player.setBounds(players >= 3 ? TRI_BOUNDS : d.arenaBounds);
     wireMatch(d, players >= 3 ? "triple" : "duel");
+    applyRules(d, myId === 0 ? (hostOpts?.rules ?? undefined) : opts?.rules);
   }
   const goal = d instanceof ArenaMode ? `${MODE_TITLE[d.modeKind]}: ${modeGoal(d)}` : squad ? `${(d as BrMatch).team.label}: the squad drops onto ${(d as BrMatch).poi.name} against ${squad.bots} bots.` : "First to 3 rounds.";
   d.onSlotFree = (id) => hosting?.release(id);
@@ -3268,6 +3272,7 @@ const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) |
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
   voiceStop();
+  matchGuns = null;
   flushTally();
   // a match that ran to its end keeps the group: its links, handed back open (leaving closed them)
   if (duel instanceof Duel && duel.phase === "matchEnd" && !duel.left) {
@@ -3338,11 +3343,39 @@ function readHostSettings(): void {
   // size are fixed now so every guest is told the same
   hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId(), rules: brRulesId(), split: $<HTMLSelectElement>("brSides").value === "split" } : null;
   const mk = duelModeKind();
+  // the custom rules (the Rules row), for everyone
+  const guns = $<HTMLSelectElement>("ruleGuns").value;
+  const rules: MatchRules = { guns: guns in rulesCfg.classes ? guns : "any", rounds: Number($<HTMLSelectElement>("ruleRounds").value) || 3, ff: $<HTMLSelectElement>("ruleFF").value === "on" };
+  // a class of guns arms the bots with its first, unless the Bot guns box already picked one
+  const classGun = rules.guns !== "any" ? rulesCfg.classes[rules.guns as keyof typeof rulesCfg.classes].guns[0] : null;
   hostOpts = {
     abilities: abilitySetting(duelKind()),
-    mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList(), botWeapon: botWeaponChoice(), map: arenaMapChoice(mk, 8), split: $<HTMLSelectElement>("modeSides").value === "split" } : undefined,
+    mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList(), botWeapon: botWeaponChoice() ?? (mk !== "gunrun" ? classGun : null), map: arenaMapChoice(mk, 8), split: $<HTMLSelectElement>("modeSides").value === "split" } : undefined,
     map: arenaMapChoice("duel", 2),
+    rules,
   };
+}
+
+/** the class of guns this match allows (custom rules), or null for any: not in a battle royale or Gun Run */
+let matchGuns: keyof typeof rulesCfg.classes | null = null;
+/** a match's custom rules, as the host set them (this page's, or the welcome's): rounds, friendly fire, guns */
+function applyRules(d: Duel, r: MatchRules | undefined): void {
+  matchGuns = null;
+  if (!r) return;
+  if (typeof r.rounds === "number" && rulesCfg.rounds.includes(r.rounds)) d.roundsToWin = r.rounds;
+  d.friendlyFire = r.ff === true;
+  const gunRun = d instanceof ArenaMode && d.modeKind === "gunrun";
+  if (typeof r.guns === "string" && r.guns in rulesCfg.classes && !(d instanceof BrMatch) && !gunRun) matchGuns = r.guns as keyof typeof rulesCfg.classes;
+}
+/** every frame of such a match: a gun of another class in hand (the start, a respawn, the Loadouts tab) becomes one of the class's */
+function enforceGuns(): void {
+  if (!matchGuns || !duel) return;
+  const list = rulesCfg.classes[matchGuns].guns;
+  for (let i = 0; i < loadout.slots.length; i++) {
+    const s = loadout.slots[i];
+    if (s.empty || weaponClass(s.id) === matchGuns) continue;
+    loadout.setWeaponId(i, list[i % list.length]);
+  }
 }
 /** this page's address with ?join=CODE: opening it joins that match (other flags, like ?net=local, ride along) */
 function inviteLink(code: string): string {
@@ -4032,6 +4065,7 @@ function step(): void {
   // the map's doors swing to where they are (any of them, in a match or not)
   brMap.doors.update(dt);
   voiceFrame();
+  enforceGuns();
   // The controller: read once here so every key check below sees it. Start
   // toggles the menu; with a pad in use no pointer lock is needed to play.
   const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, opticAdsMult()) - 1) * loadout.active.state.adsFrac;

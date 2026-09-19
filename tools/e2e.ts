@@ -1168,6 +1168,60 @@ async function handoverTest(browser: Browser, query: string): Promise<void> {
   for (const p of pages) await p.close();
 }
 
+/**
+ * Custom rules: a 1v1 with shotguns only and first to 1 (everyone holds a
+ * shotgun, and one knock ends the match), then a team deathmatch with a
+ * friend on the same side and friendly fire on (the host's round hurts them).
+ */
+async function rulesTest(browser: Browser, query: string): Promise<void> {
+  const pair = async (setup: string): Promise<[Page, Page] | null> => {
+    const host = await open(browser, query);
+    const guest = await open(browser, query);
+    await ev(host, `(() => { ${setup}; document.getElementById("duelHost").click(); })()`);
+    try {
+      await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+      const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+      await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+      for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+      for (const p of [host, guest]) await pressPlay(p);
+      for (const p of [host, guest]) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 30000 });
+      return [host, guest];
+    } catch {
+      await host.close();
+      await guest.close();
+      return null;
+    }
+  };
+  const set = (id: string, v: string) => `document.getElementById("${id}").value = "${v}"`;
+  const one = await pair([set("duelMode", "arena"), set("duelPlayers", "2"), set("ruleGuns", "shotgun"), set("ruleRounds", "1"), set("ruleFF", "off")].join("; "));
+  if (!one) {
+    check("rules: the 1v1 starts", false);
+    return;
+  }
+  const [h1, g1] = one;
+  await sleep(500);
+  const guns = await Promise.all([h1, g1].map((p) => ev<string[]>(p, "window.__range.loadout.slots.filter((s) => !s.empty).map((s) => s.id)")));
+  await ev(h1, `(() => { const d = window.__range.duel(); d.localHit(d.remotes.get(1), 250, true, "shotgun"); })()`);
+  const over = await Promise.all([h1, g1].map((p) => p.waitForFunction(`window.__range.duel()?.phase === "matchEnd"`, { polling: 100, timeout: 8000 }).then(() => true, () => false)));
+  check("rules: shotguns only, first to 1: both hold only shotguns, and one knock ends the match", guns.every((g) => g.length > 0 && g.every((id) => id === "shotgun" || id === "mastiff")) && over.every(Boolean), JSON.stringify({ guns, over }));
+  await h1.close();
+  await g1.close();
+  const two = await pair([set("duelMode", "tdm"), set("duelPlayers", "2"), set("modeBots", "1"), set("ruleGuns", "any"), set("ruleRounds", "3"), set("ruleFF", "on")].join("; "));
+  if (!two) {
+    check("rules: the team deathmatch starts", false);
+    return;
+  }
+  const [h2, g2] = two;
+  await sleep(500);
+  const ally = await ev<boolean>(h2, "window.__range.duel().isAlly(1)");
+  const before = await ev<number>(g2, "(() => { const d = window.__range.duel(); return d.health + d.shield; })()");
+  await ev(h2, `(() => { const d = window.__range.duel(); d.localHit(d.remotes.get(1), 30, false, "rspn101"); })()`);
+  const hurt = await g2.waitForFunction(`(() => { const d = window.__range.duel(); return d.health + d.shield < ${before}; })()`, { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  check("rules: friendly fire on: the host's round hurts its team mate", ally && hurt, JSON.stringify({ ally, before, hurt }));
+  await h2.close();
+  await g2.close();
+}
+
 /** a lobby bigger than three: everyone gets their own spawn, nobody stacks */
 async function lobbyTest(browser: Browser, query: string): Promise<void> {
   const pages: Page[] = [];
@@ -3979,6 +4033,8 @@ async function main(): Promise<void> {
       await jitterTest(browser, "?net=local&norender&jitter=60");
       console.log("\nA friend's figure with state packets lost and out of order");
       await jitterTest(browser, "?net=local&norender&jitter=60&loss=0.15", true);
+      console.log("\nCustom rules");
+      await rulesTest(browser, "?net=local&norender");
     }
 
     if (want("emote")) {

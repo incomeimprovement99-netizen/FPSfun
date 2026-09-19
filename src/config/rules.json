@@ -1,0 +1,12 @@
+{
+  "_note": "Custom match rules (the Friends tab's Rules row, carried to every friend in the welcome). guns names which guns a match allows, by the weapon data's own category (menu_category: a pistol and the Mozambique's handgun are both pistols); with a class chosen, anyone holding another gun is handed that class's guns (the first two here, in slot order), and so are the bots. It applies to the 1v1s and the arena modes, not to a battle royale (its guns are what you find) or Gun Run (its ladder is the list). rounds is what the 1v1's first-to may be set to. Friendly fire lets squad mates and team mates hurt each other. Ours.",
+  "classes": {
+    "ar": { "label": "Assault rifles", "guns": ["rspn101", "hemlok"] },
+    "smg": { "label": "SMGs", "guns": ["r97", "car"] },
+    "lmg": { "label": "LMGs", "guns": ["lmg", "esaw"] },
+    "shotgun": { "label": "Shotguns", "guns": ["shotgun", "mastiff"] },
+    "sniper": { "label": "Snipers and marksmen", "guns": ["dmr", "g2"] },
+    "pistol": { "label": "Pistols", "guns": ["semipistol", "autopistol"] }
+  },
+  "rounds": [1, 2, 3, 4, 5, 7]
+}

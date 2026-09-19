@@ -230,6 +230,15 @@ export interface MatchOpts {
    * in the welcome. An older host sends none, which is the warehouse.
    */
   map?: string;
+  /** the host's custom rules (src/config/rules.json): an older host sends none, the rules as they always were */
+  rules?: MatchRules;
+}
+
+/** custom match rules: which guns (a category, or any), the 1v1's first-to, friendly fire */
+export interface MatchRules {
+  guns?: string;
+  rounds?: number;
+  ff?: boolean;
 }
 
 /** what a guest needs to play the host's arena mode */

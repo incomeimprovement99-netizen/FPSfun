@@ -218,6 +218,13 @@ export interface ResolvedWeapon {
   };
 }
 
+/** a gun's category in the weapon data (menu_category): ar, smg, lmg, shotgun, sniper, pistol (the handgun is a pistol) */
+export function weaponClass(id: string): string {
+  const w = (DATA as unknown as { weapons: Record<string, { stats?: Record<string, unknown> } | undefined> }).weapons[id];
+  const c = String(w?.stats?.menu_category ?? "");
+  return c === "handgun" ? "pistol" : c;
+}
+
 export function weaponIds(): string[] {
   return Object.keys(DATA.weapons);
 }

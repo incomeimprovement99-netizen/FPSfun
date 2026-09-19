@@ -112,6 +112,14 @@ straight between the players, not through the host. How loud they are is
 on the Settings tab; during a match the Friends tab lists who you can hear,
 with a Mute for each (it holds for the night, by name).
 
+**Custom rules.** Three boxes beside Create match: which guns the match
+allows (any, or one class: assault rifles, SMGs, LMGs, shotguns, snipers and
+marksmen, pistols; anyone holding another is handed that class's guns, and
+so are the bots), how many rounds win the 1v1 (first to 1 up to 7), and
+friendly fire. They reach every friend with the match. The gun rule is for
+the 1v1s and the arena modes: a battle royale's guns are what you find, and
+Gun Run has its ladder.
+
 **Handing the host over.** In the lobby the host's list of who is in has a
 **Make host** button by each friend. A friend with a better connection takes
 over: their page opens a new code for the same match, and everyone, the old

@@ -77,7 +77,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 7. ~~**Resurgence's smaller play area**~~ Done (Milestone 82).
 8. ~~**Sprays and banner cards**~~ Done (Milestones 85, 86).
 9. **Weapon finishes and unlocks:** 2 to 2.5 days. XP unlocks nothing yet.
-10. **Custom match rules:** about a day. Weapons allowed, rounds and friendly fire, carried in the match options.
+10. ~~**Custom match rules**~~ Done (Milestone 106): guns by class, rounds to win, friendly fire, carried in the match options.
 11. **Plant and defuse:** 2 to 3 days, built from the Crown carry, the Control capture and the round clock.
 12. **Vault and keycard (#35):** about 2 days, after doors.
 13. ~~**Voice chat:**~~ Done (Milestones 104, 105): push to talk, your squad or team, peer to peer, a volume on the Settings tab and a mute per player on the Friends tab.

@@ -373,6 +373,11 @@ export class Duel implements MatchLike {
   protected lastSummary: MatchSummary | null = null;
   /** the host: how many have arrived, for the panel */
   onRoster: ((connected: number, players: number) => void) | null = null;
+  /** rounds to win the 1v1 (custom rules; 3 as ever) */
+  roundsToWin = ROUNDS_TO_WIN;
+  /** squad mates and team mates can hurt each other (custom rules; off as ever) */
+  friendlyFire = false;
+
   /** voice chat: each player's PeerJS id (the host's own, and every guest's), for voice.ts's calls */
   readonly voicePeers = new Map<number, string>();
 
@@ -1254,7 +1259,7 @@ export class Duel implements MatchLike {
     if (this.phase !== "fight") return;
     if (winner >= 0) this.scores[winner]++;
     this.lastWinner = winner;
-    const over = this.scores.some((s) => s >= ROUNDS_TO_WIN);
+    const over = this.scores.some((s) => s >= this.roundsToWin);
     this.enter(over ? "matchEnd" : "roundEnd", now, over ? MATCH_END : ROUND_END, winner);
   }
 
@@ -1293,7 +1298,7 @@ export class Duel implements MatchLike {
     this.summarised = true;
     const mine = this.scores[this.id] ?? 0;
     const others = this.scores.reduce((a, s, i) => (i === this.id ? a : a + s), 0);
-    this.lastSummary = { won: mine >= ROUNDS_TO_WIN, roundsWon: mine, roundsLost: others, kills: this.kills, deaths: this.deaths, damage: this.damage, shots: this.shots, hits: this.hits };
+    this.lastSummary = { won: mine >= this.roundsToWin, roundsWon: mine, roundsLost: others, kills: this.kills, deaths: this.deaths, damage: this.damage, shots: this.shots, hits: this.hits };
     this.onMatchEnd?.(this.lastSummary);
     this.kills = 0;
     this.deaths = 0;
@@ -1305,7 +1310,7 @@ export class Duel implements MatchLike {
   /** another player's bullet hit this player (in a battle royale the humans are a squad: only bots and the ring, -1, hurt) */
   protected takeHit(amount: number, from: number, head = false, weapon = "", dist: number | null = null): void {
     if (!this.alive || this.phase !== "fight") return;
-    if (this.friendly(from)) return;
+    if (!this.friendlyFire && this.friendly(from)) return;
     if (this.downed) {
       // the knockdown shield, raised and facing it, takes what it can
       if (this.downedBlock) amount = this.downedBlock(amount, from);
@@ -1514,7 +1519,7 @@ export class Duel implements MatchLike {
   localHit(r: Remote, amount: number, head: boolean, weapon = "", dist: number | null = null): void {
     if (this.phase !== "fight" || !r.alive) return;
     // a squad mate in a battle royale, a team mate in the modes: no friendly fire
-    if (this.friendly(r.id)) return;
+    if (!this.friendlyFire && this.friendly(r.id)) return;
     this.hits++;
     this.damage += amount;
     const m: NetMsg = { t: "hit", to: r.id, amount, head, w: weapon || undefined, d: dist === null ? undefined : Math.round(dist * 10) / 10 };
@@ -1776,7 +1781,7 @@ export class Duel implements MatchLike {
       left: Math.max(0, this.phaseEndsAt - now),
       ping: this.ping,
       youWonRound: decided ? this.lastWinner === this.id : null,
-      youWonMatch: this.phase === "matchEnd" ? mine >= ROUNDS_TO_WIN : null,
+      youWonMatch: this.phase === "matchEnd" ? mine >= this.roundsToWin : null,
       zone: {
         live: this.phase === "fight" && this.zoneLive,
         startsIn: this.phase === "fight" ? this.zoneStartsIn : ZONE_DELAY,
