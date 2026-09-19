@@ -323,6 +323,8 @@ export class Duel implements MatchLike {
   private sendNext = 0;
   private pingNext = 0;
   ping: number | null = null;
+  /** when each player last fired (the host's bots are given it: a shooter gives itself away) */
+  protected readonly shotAt = new Map<number, number>();
   /** the host: each guest's round trip, ms (the roster, and the worst as this.ping) */
   readonly pingOf = new Map<number, number>();
   private weaponCache = new Map<string, ResolvedWeapon>();
@@ -798,6 +800,7 @@ export class Duel implements MatchLike {
         this.projectiles.fire(o, dir, this.weapon(m.w), true, 1, 1, r.avatar.muzzleWorld());
         this.onShotFired?.(from, o, dir, m.w);
         if (this.role === "host" && from < Duel.BOT_ID) this.heardShot(o);
+        this.shotAt.set(from, wallClock());
         // Every pellet is its own message; the sound is once per pull. The
         // fastest guns fire about 55 ms apart, so no real shot is skipped.
         if (now - this.lastShotSound > SHOT_SOUND_GAP) {
@@ -1226,6 +1229,7 @@ export class Duel implements MatchLike {
   /** this player's shot, so the others can draw and hear it */
   localShot(origin: THREE.Vector3, dir: THREE.Vector3, weapon: string): void {
     this.heardShot(origin);
+    this.shotAt.set(this.id, wallClock());
     this.shots++;
     this.onShotFired?.(this.id, origin, dir, weapon);
     this.broadcast({ t: "shot", o: [origin.x, origin.y, origin.z], d: [dir.x, dir.y, dir.z], w: weapon });

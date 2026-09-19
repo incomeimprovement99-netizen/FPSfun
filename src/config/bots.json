@@ -153,6 +153,9 @@
     "firing": 1.4,
     "sizeGain": 1,
     "min": 14,
+    "_cone": "Ours, after every shooter's AI: a bot not in a fight sees only within cone degrees of the way it faces (past min metres; closer than that it always notices you). One that has seen someone in the last fightMemory seconds is looking round and sees all the way round. Bots used to see behind themselves, so a player could never come up on one unseen.",
+    "cone": 150,
+    "fightMemory": 5,
     "max": 260,
     "holdFrac": 0.35,
     "far": {

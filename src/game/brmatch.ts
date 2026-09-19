@@ -69,7 +69,7 @@ import { Throwables, blastDamage, throwCode } from "./throwables";
 import { lockedHopupFor } from "./attachments";
 import { weaponName } from "./weapons";
 import { savedLoadout, type LoadoutDef } from "./loadouts";
-import { Bot, BODY_TOP, BOT_NAMES, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense } from "./bots";
+import { Bot, BODY_TOP, BOT_NAMES, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense, type SightCue } from "./bots";
 import botsCfg from "../config/bots.json";
 import { RANGE_SOLIDS } from "./range";
 /**
@@ -117,6 +117,7 @@ function openGround(x: number, z: number): { x: number; z: number } {
 const BOT_LOOT_FLOOR = botsCfg.loot.floor;
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
+import { navTree, type NavTree } from "./navgraph";
 import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, type Circle, type RingPhase } from "./ring";
 import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, secondsToFinal, type BrRules } from "./resurgence";
 import { GULAG, Gulag, gulagFor, type GulagEvent } from "./gulag";
@@ -2046,12 +2047,16 @@ export class BrMatch extends Duel {
     }
 
     // the humans a bot can go after: the host, and the guests where they last were
-    const humans: Array<{ id: number; feet: THREE.Vector3; low: boolean }> = [];
-    if (this.alive && !this.gulagIds.has(this.id)) humans.push({ id: this.id, feet, low: local.crouch });
+    // what each is doing, for the bots' eyes: a runner is seen further out, a
+    // crouched body nearer, and anyone who has just fired gives themselves away
+    const firing = (id: number) => now - (this.shotAt.get(id) ?? -Infinity) < 0.5;
+    const humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue }> = [];
+    if (this.alive && !this.gulagIds.has(this.id)) humans.push({ id: this.id, feet, low: local.crouch, cue: { speed: local.speed, crouched: local.crouch, firing: firing(this.id) } });
     for (const r of this.remotes.values()) {
       if (r.id >= Duel.BOT_ID || !r.alive) continue;
       const last = r.samples[r.samples.length - 1];
-      if (last) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z), low: last.stance === "crouch" || last.stance === "slide" });
+      const low = !!last && (last.stance === "crouch" || last.stance === "slide");
+      if (last) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z), low, cue: { speed: last.speed, crouched: low, firing: firing(r.id) } });
     }
 
     // Resurgence: the bots whose wait is over come back
@@ -2162,7 +2167,7 @@ export class BrMatch extends Duel {
   }
 
   /** what a bot can see and where it should go */
-  private sense(b: BrBot, humans: Array<{ id: number; feet: THREE.Vector3; low: boolean }>): BotSense {
+  private sense(b: BrBot, humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue }>): BotSense {
     const bot = b.bot;
     // the nearest enemy in sight: a human, or another bot
     let target: THREE.Vector3 | null = null;
@@ -2171,7 +2176,7 @@ export class BrMatch extends Duel {
     if (this.phase === "fight") {
       for (const h of humans) {
         const d = bot.pos.distanceTo(h.feet);
-        if (d < best && bot.sees(h.feet)) {
+        if (d < best && bot.sees(h.feet, h.cue)) {
           best = d;
           target = h.feet;
           targetId = h.id;
@@ -2201,7 +2206,21 @@ export class BrMatch extends Duel {
     // is a free gold gun rather than an event
     const pod = this.podToContest(bot.pos);
     if (hurry) {
-      goal = new THREE.Vector3(ring.next.cx, 0, ring.next.cz);
+      // Along the graph to the node nearest the circle's middle, then straight
+      // in: a straight line at the middle from anywhere crossed the Table,
+      // the Notch's defile and the edge cliffs, which the graph's tested
+      // links go round.
+      // It finishes the link it is on first (b.goal), then takes the steps.
+      const inside = Math.hypot(bot.pos.x - ring.next.cx, bot.pos.z - ring.next.cz) < ring.next.r * 0.8;
+      const cur = nodes[b.goal];
+      if (!inside && cur && Math.hypot(cur.x - bot.pos.x, cur.z - bot.pos.z) < 3 && Math.abs((cur.y ?? bot.pos.y) - bot.pos.y) < 2.5) {
+        b.node = b.goal;
+        const hop = this.hurryHop(ring.next.cx, ring.next.cz, b.node);
+        if (hop >= 0) b.goal = hop;
+      }
+      const g = nodes[b.goal];
+      // inside the circle, or at the node nearest its middle: straight in
+      goal = inside || !g || (b.goal === b.node && this.hurryHop(ring.next.cx, ring.next.cz, b.node) < 0) ? new THREE.Vector3(ring.next.cx, 0, ring.next.cz) : new THREE.Vector3(g.x, 0, g.z);
     } else if (pod) {
       goal = pod;
     } else {
@@ -2225,6 +2244,19 @@ export class BrMatch extends Duel {
       goal = new THREE.Vector3(g.x, 0, g.z);
     }
     return { target, targetId, goal, canShoot: this.phase === "fight" && !this.holdFire, urgent: hurry };
+  }
+
+  /** the next step along the graph from each node toward the node nearest a circle's middle, worked out once per circle (navgraph.ts) */
+  private hurryTree: { key: string; tree: NavTree } | null = null;
+
+  /** from node `from`, the next node on the graph toward the node nearest (cx, cz): -1 at it (walk straight in from there) */
+  private hurryHop(cx: number, cz: number, from: number): number {
+    const key = `${cx.toFixed(1)},${cz.toFixed(1)}`;
+    if (!this.hurryTree || this.hurryTree.key !== key) this.hurryTree = { key, tree: navTree(this.map.nodes, cx, cz) };
+    const t = this.hurryTree.tree;
+    if (from < 0 || from >= t.toward.length || from === t.target) return -1;
+    const step = t.toward[from];
+    return step === -2 ? -1 : step;
   }
 
   // ------------------------------------------------------------ the HUD

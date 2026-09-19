@@ -132,6 +132,18 @@ export interface SightCue {
   size?: number;
 }
 
+/**
+ * Is a point (dx, dz from the bot) inside the bot's view cone, facing `yaw`
+ * (radians, the figure's own: forward is (sin, cos))? Within SIGHT.min
+ * metres it always is: close by, a bot notices you whichever way it faces.
+ */
+export function inCone(yaw: number, dx: number, dz: number, coneDeg = SIGHT.cone): boolean {
+  const d = Math.hypot(dx, dz);
+  if (d <= SIGHT.min) return true;
+  const dot = (Math.sin(yaw) * dx + Math.cos(yaw) * dz) / d;
+  return dot >= Math.cos(((coneDeg / 2) * Math.PI) / 180);
+}
+
 /** how much further (or less far) than its plain range a bot sees a target doing this */
 export function sightScale(cue: SightCue = {}): number {
   let k = 1;
@@ -528,6 +540,8 @@ export class Bot {
   knife: number | null = null;
   pos = new THREE.Vector3();
   yaw = 0;
+  /** the time its last update ran at (sees() is asked between updates) */
+  private clock = 0;
   /** falling in from the sky at the start of a battle royale */
   dropping = false;
   /** on the dropship: carried by the match, out of sight and out of reach (it counts as dropping) */
@@ -922,6 +936,9 @@ export class Bot {
     const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
     if (len < 1e-3) return true;
     if (len > sightRange(this.diff.name, this.sightMode, cue, this.scoped)) return false;
+    // not in a fight, it sees what is in front of it (inCone), not behind
+    const fighting = !!this.lastSeen && this.clock - this.lastSeen.at < SIGHT.fightMemory;
+    if (!fighting && !inCone(this.dummy.group.rotation.y, dx, dz)) return false;
     // crouched (behind low cover) it looks from lower down
     const from = this.pos.clone().setY(eye);
     const d = new THREE.Vector3(dx / len, dy / len, dz / len);
@@ -1010,6 +1027,7 @@ export class Bot {
    * was shooting at.
    */
   update(now: number, dt: number, sense: BotSense): BotShot[] {
+    this.clock = now;
     if (!this.alive) {
       this.dummy.update(now, dt);
       return [];

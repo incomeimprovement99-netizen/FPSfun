@@ -1144,3 +1144,19 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   flickered between them.
 - Checks: the e2e `modes` section: a match for four with two friends in offers "Start with 3", starts for the
   three, and turns a late fourth away.
+
+## Milestone 78 — Bots that see what is in front of them, and find their way to the ring ✅
+2026-09-19 (Phase 15). `bots.ts`, `brmatch.ts`, `duel.ts`, `navgraph.ts` (new), `src/config/bots.json`,
+`tools/checks/bot-walk.ts` (new).
+- The bots' sight cues were tuned and never used: every caller asked `sees()` with nothing. In the battle royale a
+  bot now knows how fast you move, whether you are crouched, and whether you fired in the last half second, so
+  walking and crouching keep you hidden further and a shot gives you away.
+- A bot not in a fight sees within a 150 degree cone in front of it (anything within 14 m it always notices); it
+  used to see behind itself, so nobody could come up on one unseen. One that saw someone in the last 5 s looks all
+  round.
+- A bot running from the ring walks the graph to the node nearest the circle's middle, finishing the link it is on
+  first, then goes straight in; it used to walk a straight line at the middle across the Table, the Notch's defile
+  and the edge cliffs, none of it a tested link.
+- Checks: `tools/checks/bot-walk.ts` builds the real map in node: from all 113 nodes, along the graph's own links, to
+  the node nearest each of the 21 places a ring closes toward (the longest 11 steps); the cone's front, back and
+  close-by rules.
