@@ -1332,3 +1332,26 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   hip and aimed, and equals the world's at the default), the e2e `page` section (the setting moves the world's FOV
   by over 20 degrees and the gun's not at all), and the snapshots `gun-fov-wide` and `gun-fov-narrow`.
 
+## Milestone 90 — Squads of friends against each other ✅
+2026-09-19 (Phase 15). `brmatch.ts`, `duel.ts`, `brplay.ts`, `main.ts`, `link.ts`, `index.html`.
+- Friends in a duo or trio battle royale were always one side, however many came. A box on the lobby row now splits
+  them into squads of the size in the order they joined (ids 0 and 1 a duo, 2 and 3 the next; a trio of five is a
+  trio and a pair), told to every browser in the welcome as one flag, so each works out every side the same way.
+  Solo is everyone for themselves either way; an older host sends no flag and plays one side.
+- Every "a human is a squad mate" rule is now "a human of your squad": no damage between squad mates only, the
+  plates and aim assist, reviving, the banner in a death box (another squad's is not yours to carry or respawn on),
+  the redeploy and Gulag drop spots, spectating, the map (another squad is enemies, so it is not on yours), and pings
+  (passed on by the host, shown only to the pinger's squad). Each squad has its own jumpmaster, its first player.
+- A player down whose last standing squad mate is then knocked goes out with them, on whoever knocked them (each
+  browser decides it for itself on the knock or the elimination it is told of, so no new message). With one side
+  the match still ends there instead, as before.
+- The host's judge of solo with friends, which placed each player as they went out, now places each side: a side is
+  standing while one of it is up or in the Gulag, and the match ends when one side is left or no human stands. The
+  placement's count of squads counts each squad of friends.
+- The bots' own knocks and revives (Milestone 88) stay on in split squads.
+- Checks: `tools/checks/br-rules.ts` (the sides by join order, together, split and solo, and the squads counted),
+  `tools/checks/pickup-reach.ts` (another squad's banner is left out of the list), and the e2e `brsolo` section
+  (four tabs in split duos: the allies and jumpmasters, the host's shots hurting the other duo, the map showing only
+  your duo, the last of a duo knocked taking its downed mate out, and the host's duo winning with the other placed
+  third of three).
+

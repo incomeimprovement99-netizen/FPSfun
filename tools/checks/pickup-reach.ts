@@ -57,6 +57,10 @@ console.log("\nThe reach list: what is at your feet, nearest first (src/game/brp
   check("a death box is the box, not a row", keysOf(boxed) === "2", `keys ${keysOf(boxed)}`);
 
   const crowd = Array.from({ length: L.listMax + 3 }, (_, i) => at(i + 1, ammo("light"), 0.2 + i * 0.1, 0));
+  // another squad's banner (squads of friends) is left out; a squad mate's is listed
+  const banner = (owner: number) => ({ kind: "banner", id: "banner", n: 1, rarity: "common", owner }) as never;
+  const theirs = reachRows([at(1, banner(3), 0.4, 0), at(2, banner(1), 0.6, 0)], HERE, null, (o) => o === 1);
+  check("another squad's banner is not in the list; a squad mate's is", keysOf(theirs) === "2", keysOf(theirs));
   check("a pile longer than the list is cut to listMax", reachRows(crowd, HERE, null).length === L.listMax, `${L.listMax} rows`);
   check("and the rows it keeps are the nearest ones", keysOf(reachRows(crowd, HERE, null)) === Array.from({ length: L.listMax }, (_, i) => i + 1).join(","));
 }

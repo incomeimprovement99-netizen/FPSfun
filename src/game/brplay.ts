@@ -151,10 +151,12 @@ export function nothingToGain(item: LootItem, carry: CarryState | null): boolean
  * on the map. Equal distances go to the lower key, so the list holds still
  * under the cursor instead of shuffling while you stand there.
  */
-export function reachRows(drops: Iterable<ReachDrop>, at: { x: number; y: number; z: number }, carry: CarryState | null): ReachRow[] {
+export function reachRows(drops: Iterable<ReachDrop>, at: { x: number; y: number; z: number }, carry: CarryState | null, ours: (owner: number) => boolean = () => true): ReachRow[] {
   const rows: ReachRow[] = [];
   for (const d of drops) {
     if (d.item.kind === "box" || d.item.kind === "bin") continue;
+    // another squad's banner is not yours to carry (squads of friends)
+    if (d.item.kind === "banner" && d.item.owner !== undefined && !ours(d.item.owner)) continue;
     if (Math.abs(d.pos.y - at.y) > LOOTING.floorGap) continue;
     const dist = Math.hypot(d.pos.x - at.x, d.pos.z - at.z);
     if (dist > LOOTING.reach) continue;
@@ -562,7 +564,7 @@ export class BrPlay {
       const d = f.drops.get(key);
       return !!d && Math.hypot(d.pos.x - this.gunTakenFrom.x, d.pos.z - this.gunTakenFrom.z) < 0.5;
     };
-    const rows = reachRows(f.drops.values(), p, carry).filter((r) => !letGo(r.key));
+    const rows = reachRows(f.drops.values(), p, carry, (o) => o === match.id || match.isAlly(o)).filter((r) => !letGo(r.key));
     if (!rows.length) {
       this.stopTaking();
       return;
@@ -662,7 +664,7 @@ export class BrPlay {
     const aimed = f.nearest(eye, fwd);
     if (aimed && aimed.item.kind !== "banner") return null;
     for (const d of f.drops.values()) {
-      if (d.item.kind !== "banner" || d.item.owner === undefined || d.item.owner === match.id) continue;
+      if (d.item.kind !== "banner" || d.item.owner === undefined || d.item.owner === match.id || !match.isAlly(d.item.owner)) continue;
       if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > BOX.reach) continue;
       if (match.memberAlive(d.item.owner) !== false) continue;
       if (this.boxDone && this.boxDone.owner === d.item.owner && now - this.boxDone.at < 3) continue;

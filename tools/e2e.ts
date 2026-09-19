@@ -2940,6 +2940,77 @@ async function emoteTest(browser: Browser, query: string, duelQuery: string): Pr
 }
 
 /**
+ * Squads of friends: four friends in duos, split, are two duos against each
+ * other and the bots. Each duo's first leads it down; a friend of the other
+ * duo is an enemy (a plate, the damage, the map); a player down whose mate is
+ * then knocked goes out with them; and the duo left standing wins, the other
+ * placed where it went out.
+ */
+async function brSquadsTest(browser: Browser, query: string): Promise<void> {
+  const pages: Page[] = [];
+  const host = await open(browser, query);
+  pages.push(host);
+  await ev(host, brRow("duo", 2));
+  await ev(host, `(() => { document.getElementById("brSides").value = "split"; document.getElementById("duelMode").value = "br"; document.getElementById("duelPlayers").value = "4"; document.getElementById("duelHost").click(); })()`);
+  let code = "";
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    for (let i = 0; i < 3; i++) {
+      const g = await open(browser, query);
+      pages.push(g);
+      await ev(g, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+      await sleep(600);
+    }
+    for (const p of pages) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check("squads of friends: four connect", false, code || "no code");
+    for (const p of pages) await p.close();
+    return;
+  }
+  // by id: 0 and 1 are one duo, 2 and 3 the other
+  const ids = await Promise.all(pages.map((p) => ev<number>(p, "window.__range.duel().id")));
+  const by = (id: number) => pages[ids.indexOf(id)];
+  const sides = await Promise.all(pages.map((p) => ev<{ id: number; allies: number[]; jm: number | null; lead: boolean; total: number }>(p, `(() => { const d = window.__range.duel(); return { id: d.id, allies: [0, 1, 2, 3].filter((i) => d.isAlly(i)), jm: d.jumpmaster(), lead: d.isJumpmaster(), total: d.squadsTotal }; })()`)));
+  const want = (s: { id: number; allies: number[]; jm: number | null; lead: boolean; total: number }) => {
+    const mate = s.id ^ 1;
+    const first = s.id & 2;
+    return s.allies.length === 1 && s.allies[0] === mate && s.lead === (s.id === first) && s.jm === (s.id === first ? null : first) && s.total === 3;
+  };
+  check("squads of friends: split into two duos by join order, each led down by its first, three squads with the bots'", sides.every(want), JSON.stringify(sides));
+  for (const p of pages) await pressPlay(p);
+  const landed = await Promise.all(pages.map((p) => p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 45000 }).then(() => true, () => false)));
+  if (!landed.every(Boolean)) {
+    check("squads of friends: all four land", false, JSON.stringify(landed));
+    for (const p of pages) await p.close();
+    return;
+  }
+  await ev(host, "window.__range.duel().holdFire = true");
+  await sleep(1500);
+  // the host's map shows its own duo, not the other one
+  const mapped = await ev<number>(host, "window.__range.duel().hud().br.mates.length");
+  // the host knocks player 2: player 3 is up, so 2 is down, not out
+  const hit = (to: number) => ev(host, `(() => { const d = window.__range.duel(); const r = d.remotes.get(${to}); d.localHit(r, 250, true); })()`);
+  await hit(2);
+  const down2 = await by(2).waitForFunction("window.__range.duel().downed && window.__range.duel().alive", { polling: 100, timeout: 5000 }).then(() => true, () => false);
+  check("squads of friends: the host's shots hurt the other duo, and one of it is down with its mate up", down2, `the host's map shows ${mapped} mate(s)`);
+  check("squads of friends: the map shows your duo only", mapped === 1, `${mapped}`);
+  // then 3: nobody of that duo is up, so 3 is out, and 2, down, goes with it
+  await hit(3);
+  const out = await Promise.all([2, 3].map((id) => by(id).waitForFunction("!window.__range.duel().alive", { polling: 100, timeout: 6000 }).then(() => true, () => false)));
+  check("squads of friends: the last of a duo knocked is out, and its mate on the floor goes with it", out.every(Boolean), JSON.stringify(out));
+  const going = await ev<string>(host, "window.__range.duel().phase");
+  check("squads of friends: the match goes on for the duo still standing", going === "fight", going);
+  // the bots go: the host's duo is the one left
+  await ev(host, `(() => { const d = window.__range.duel(); for (let k = 0; k < 4; k++) for (const b of d.bots) if (b.bot.remote.alive) d.onHitOther(b.bot.remote.id, 999, true, d.id); })()`);
+  const ends = await Promise.all(pages.map((p) => p.waitForFunction(`window.__range.duel()?.phase === "matchEnd"`, { polling: 100, timeout: 10000 }).then(() => true, () => false)));
+  const placed = await Promise.all(pages.map((p) => ev<{ id: number; p: number | null } | null>(p, "(() => { const d = window.__range.duel(); return d ? { id: d.id, p: d.placement } : null; })()")));
+  const right = placed.every((x) => !!x && x.p === (x.id < 2 ? 1 : 3));
+  check("squads of friends: the host's duo wins, and the other duo placed third of three, both of it", ends.every(Boolean) && right, JSON.stringify({ ends, placed }));
+  for (const p of pages) await p.close();
+}
+
+/**
  * Solo with friends: everyone against everyone. Friends in a solo battle
  * royale could not hurt each other, and two left alive both "won" when the
  * bots were gone. The host knocks the guest (in solo a knock is the end), the
@@ -3672,6 +3743,8 @@ async function main(): Promise<void> {
     if (want("brsolo")) {
       console.log("\nSolo with a friend: everyone against everyone, each placed on their own");
       await brSoloTest(browser, "?net=local&norender");
+      console.log("\nSquads of friends: two duos against each other");
+      await brSquadsTest(browser, "?net=local&norender");
     }
 
     if (want("squad")) {

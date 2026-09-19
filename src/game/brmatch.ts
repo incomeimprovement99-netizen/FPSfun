@@ -194,8 +194,19 @@ export function botSquads(bots: number, size: number): number {
 }
 
 /** every squad in a match at its start: the bots', and the humans' (in solo each human is their own) */
-export function squadsInMatch(bots: number, size: number, humans: number): number {
-  return botSquads(bots, size) + (size === 1 ? Math.max(1, humans) : 1);
+export function squadsInMatch(bots: number, size: number, humans: number, split = false): number {
+  return botSquads(bots, size) + humanSides(size, humans, split);
+}
+
+/** how many sides the humans make: each their own in solo, squads of the size when split, else one */
+export function humanSides(size: number, humans: number, split: boolean): number {
+  const n = Math.max(1, humans);
+  return size === 1 ? n : split ? Math.ceil(n / size) : 1;
+}
+
+/** a human's side by id (ids are handed out in join order): their own in solo, their squad of the size when split, else all one */
+export function sideOfHuman(id: number, size: number, split: boolean): number {
+  return size === 1 ? id : split ? Math.floor(id / size) : 0;
 }
 
 /** Storm Surge as the HUD shows it, the host's own or read off its ring packet */
@@ -466,6 +477,8 @@ export class BrMatch extends Duel {
   readonly botCount: number;
   /** solo, duos or trios (src/config/br.json): the whole lobby plays the same one */
   readonly team: TeamMode;
+  /** friends in squads of the size against each other (the host's choice, in the welcome), not one side */
+  readonly split: boolean;
   /** every squad at the start, the humans' included: what a placement is out of */
   squadsTotal: number;
   /** a guest: the squads still up, as the host's ring packet last said (a guest runs no bots to count) */
@@ -519,7 +532,7 @@ export class BrMatch extends Duel {
     private readonly map: BrMap,
     difficulty: BotDifficulty,
     botCount: number,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean; rules?: string; gulag?: boolean },
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean; rules?: string; gulag?: boolean; split?: boolean },
     rng: () => number = Math.random
   ) {
     super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br", abilities: opts.abilities ?? true });
@@ -530,7 +543,8 @@ export class BrMatch extends Duel {
     // there is no host and no welcome packet, so the lobby row's own choice
     // is read here instead.
     this.team = teamFor(opts.team ?? (opts.players <= 1 ? savedTeamId() : undefined));
-    this.squadsTotal = squadsInMatch(this.botCount, this.team.size, this.players);
+    this.split = opts.split === true && this.team.size > 1;
+    this.squadsTotal = squadsInMatch(this.botCount, this.team.size, this.players, this.split);
     this.squadsSeen = this.squadsTotal;
     this.seed = opts.seed ?? 1;
     // the rules first: Resurgence is played on a quarter of the map
@@ -828,7 +842,11 @@ export class BrMatch extends Duel {
   /** squads still in it: the humans', and every bot squad with someone up (in solo everyone is their own); a guest has the host's count */
   private get squadsAlive(): number {
     if (this.role !== "host") return this.squadsSeen;
-    const mine = this.team.size === 1 ? this.humansAlive : this.humansAlive > 0 ? 1 : 0;
+    // the humans' sides with someone up: each their own in solo, each squad when split, else one
+    const up = new Set<number>();
+    if (this.alive && !this.downed) up.add(this.sideOf(this.id));
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && r.alive && !r.downed) up.add(this.sideOf(r.id));
+    const mine = up.size;
     return this.botSquadsAlive + mine;
   }
 
@@ -1124,7 +1142,7 @@ export class BrMatch extends Duel {
   /** a downed squad mate within reach, to revive */
   downedMateNear(p: THREE.Vector3, reach: number): { id: number; name: string } | null {
     for (const r of this.remotes.values()) {
-      if (r.id >= Duel.BOT_ID || !r.alive || !r.downed) continue;
+      if (r.id >= Duel.BOT_ID || !this.friendly(r.id) || !r.alive || !r.downed) continue;
       const g = r.avatar.group.position;
       if (Math.hypot(g.x - p.x, g.z - p.z) <= reach && Math.abs(g.y - p.y) < 1.5) return { id: r.id, name: r.name };
     }
@@ -1216,7 +1234,7 @@ export class BrMatch extends Duel {
 
   /** a squad's bot can be knocked (not killed) while one of its squad still stands; in solo, and against friends in solo, a knock is the end */
   private canKnockBot(b: BrBot): boolean {
-    return this.team.size > 1 && !this.soloFriends && this.bots.some((o) => o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.aboard);
+    return this.team.size > 1 && this.bots.some((o) => o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.aboard);
   }
 
   /**
@@ -1350,7 +1368,7 @@ export class BrMatch extends Duel {
       // the killer's squad: a kill cuts the wait of its own dead
       this.cutBotWaits(by, "kill");
     }
-    if (this.soloFriends) this.judgeSolo();
+    if (this.manySides) this.judgeSides();
     else if (this.bots.every((x) => !x.bot.alive && !x.redeploy) && this.humansAlive > 0) this.endBr(true);
   }
 
@@ -1390,7 +1408,7 @@ export class BrMatch extends Duel {
       this.onFeed?.(`${b.bot.remote.name} redeployed`, false, true);
     }
     // nobody left to fight and nobody coming back: the squad has won
-    if (this.soloFriends) this.judgeSolo();
+    if (this.manySides) this.judgeSides();
     else if (this.phase === "fight" && this.humansAlive > 0 && this.bots.every((x) => !x.bot.alive && !x.redeploy)) this.endBr(true);
   }
 
@@ -1417,7 +1435,7 @@ export class BrMatch extends Duel {
   /** your side, besides you, still up: squad mates alive and not down */
   private get matesUp(): number {
     let n = 0;
-    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && r.alive && !r.downed) n++;
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && this.friendly(r.id) && r.alive && !r.downed) n++;
     return n;
   }
 
@@ -1469,7 +1487,7 @@ export class BrMatch extends Duel {
     else this.gulagIds.delete(id);
     if (id === this.id) this.localFx("gulag", undefined, undefined, n);
     // a loss, yours or a squad mate's: the squad is judged again now that nobody of it is in there
-    if (this.soloFriends) this.judgeSolo();
+    if (this.manySides) this.judgeSides();
     else if (n === 0 && this.role === "host" && !this.brOver && this.phase === "fight" && this.sideOut) this.endBr(false);
   }
 
@@ -1566,7 +1584,7 @@ export class BrMatch extends Duel {
     if (!won || !g) return;
     const mates: THREE.Vector3[] = [];
     for (const r of this.remotes.values()) {
-      if (r.id >= Duel.BOT_ID || !r.alive || r.downed || this.gulagIds.has(r.id)) continue;
+      if (r.id >= Duel.BOT_ID || !this.friendly(r.id) || !r.alive || r.downed || this.gulagIds.has(r.id)) continue;
       const s = r.samples[r.samples.length - 1];
       if (s) mates.push(new THREE.Vector3(s.x, 0, s.z));
     }
@@ -1652,7 +1670,7 @@ export class BrMatch extends Duel {
     if (this.players > 1 && this.matesUp === 0) return;
     const mates: THREE.Vector3[] = [];
     for (const r of this.remotes.values()) {
-      if (r.id >= Duel.BOT_ID || !r.alive || r.downed) continue;
+      if (r.id >= Duel.BOT_ID || !this.friendly(r.id) || !r.alive || r.downed) continue;
       const s = r.samples[r.samples.length - 1];
       if (s) mates.push(new THREE.Vector3(s.x, 0, s.z));
     }
@@ -1769,7 +1787,7 @@ export class BrMatch extends Duel {
 
   /** started with fewer friends than it was made for: the sides are counted again */
   protected override onStartShort(): void {
-    this.squadsTotal = squadsInMatch(this.botCount, this.team.size, this.players);
+    this.squadsTotal = squadsInMatch(this.botCount, this.team.size, this.players, this.split);
     this.squadsSeen = this.squadsTotal;
   }
 
@@ -1784,24 +1802,45 @@ export class BrMatch extends Duel {
    * other and two left alive both "won" when the bots were gone.
    */
   protected override friendly(id: number): boolean {
-    return this.team.size > 1 && super.friendly(id);
+    return this.team.size > 1 && super.friendly(id) && this.sideOf(id) === this.sideOf(this.id);
   }
 
-  /** solo with friends: each human is their own side, placed on their own */
-  private get soloFriends(): boolean {
-    return this.team.size === 1 && this.players > 1;
+  /** a human's side: their own in solo, their squad when the friends are split, else everyone's */
+  sideOf(id: number): number {
+    return sideOfHuman(id, this.team.size, this.split);
   }
 
-  /** the host: where each human finished, noted as they went out (solo with friends) */
+  /** the humans are more than one side (solo with friends, or squads of friends): each placed on its own */
+  private get manySides(): boolean {
+    return humanSides(this.team.size, this.players, this.split) > 1;
+  }
+
+  /** the one whose jump takes you with them: the first of your squad, unless that is you or you are alone in it */
+  jumpmaster(): number | null {
+    if (this.team.size === 1 || this.players < 2) return null;
+    const first = this.split ? this.sideOf(this.id) * this.team.size : 0;
+    return first === this.id || first >= this.players ? null : first;
+  }
+
+  /** you lead a squad of more than you down */
+  isJumpmaster(): boolean {
+    if (this.team.size === 1 || this.players < 2) return false;
+    const first = this.split ? this.sideOf(this.id) * this.team.size : 0;
+    return first === this.id && first + 1 < this.players;
+  }
+
+  /** the host: where each side of humans finished, noted as it went out (by side) */
   private placedAt = new Map<number, number>();
 
   /**
-   * The host, solo with friends: note who is out and where they placed, and
-   * end the match once one side is left. A human in the Gulag is still in
-   * it; one who comes back (the Gulag won, a redeploy) loses the placing.
+   * The host, with the humans on more than one side (solo with friends, or
+   * squads of friends): note which side is out and where it placed, and end
+   * the match once one side is left. A side is standing while one of it is up
+   * (a player in the Gulag counts); one that comes back (the Gulag won, a
+   * redeploy) loses the placing.
    */
-  private judgeSolo(): void {
-    if (!this.soloFriends || this.role !== "host" || this.brOver || this.phase !== "fight") return;
+  private judgeSides(): void {
+    if (!this.manySides || this.role !== "host" || this.brOver || this.phase !== "fight") return;
     const humans = [this.id, ...[...this.remotes.values()].filter((r) => r.id < Duel.BOT_ID).map((r) => r.id)];
     const up = (id: number): boolean => {
       if (this.gulagIds.has(id)) return true;
@@ -1809,22 +1848,23 @@ export class BrMatch extends Duel {
       const r = this.remotes.get(id);
       return !!r && r.alive && !r.downed;
     };
-    const standing = humans.filter(up);
+    const sides = [...new Set(humans.map((id) => this.sideOf(id)))];
+    const standing = sides.filter((s) => humans.some((id) => this.sideOf(id) === s && up(id)));
     const botSides = this.botSquadsAlive + new Set(this.bots.filter((b) => !b.bot.alive && b.redeploy).map((b) => b.team)).size;
-    for (const id of humans) {
-      if (up(id)) this.placedAt.delete(id);
+    for (const s of sides) {
+      if (standing.includes(s)) this.placedAt.delete(s);
       // out now: behind every side still standing
-      else if (!this.placedAt.has(id)) this.placedAt.set(id, standing.length + botSides + 1);
+      else if (!this.placedAt.has(s)) this.placedAt.set(s, standing.length + botSides + 1);
     }
     // over when one side is left, or when no human is: the bots finishing it
     // among themselves is nothing any of the humans can play for
     if (standing.length > 0 && standing.length + botSides > 1) return;
-    // a human won, or every human is out and placed where they went out
+    // a side of humans won, or every human is out and placed where their side went out
     this.brOver = true;
     const winner = standing.length === 1 && botSides === 0 ? standing[0] : -1;
     for (const id of humans) {
-      const won = id === winner;
-      const placement = won ? 1 : Math.max(2, this.placedAt.get(id) ?? 2);
+      const won = this.sideOf(id) === winner;
+      const placement = won ? 1 : Math.max(2, this.placedAt.get(this.sideOf(id)) ?? 2);
       if (id === this.id) {
         this.brOver = false;
         this.finishBr(won, placement);
@@ -1833,10 +1873,15 @@ export class BrMatch extends Duel {
     this.brOver = true;
   }
 
+  /** squads of friends: a player down with nobody of their squad left up is out with it */
+  protected override wipesWithSquad(): boolean {
+    return this.manySides;
+  }
+
   /** a squad mate gone (left, or silent): with nobody of the squad still up, it is over */
   protected override playerGone(id: number, notice: string): void {
     super.playerGone(id, notice);
-    if (this.soloFriends) this.judgeSolo();
+    if (this.manySides) this.judgeSides();
     else if (this.role === "host" && !this.brOver && this.phase === "fight" && this.sideOut) this.endBr(false);
   }
 
@@ -1871,7 +1916,7 @@ export class BrMatch extends Duel {
     }
     // a bot's knock of one of yours cuts its squad's waits (Resurgence)
     if (_by >= Duel.BOT_ID) this.cutBotWaits(_by, (_id === this.id ? this.downed : !!this.remotes.get(_id)?.downed) ? "knock" : "kill");
-    if (this.soloFriends) this.judgeSolo();
+    if (this.manySides) this.judgeSides();
     else if (this.role === "host" && this.sideOut) this.endBr(false);
   }
 
@@ -2483,11 +2528,10 @@ export class BrMatch extends Duel {
       beacons: this.map.beacons,
       consoles: this.consoles.map((c, i) => ({ x: c.x, z: c.z, ready: this.consoleReady(i) })),
       pods: this.podSpots,
-      // Friends are on the maps in every size. Alone the list is empty
-      // anyway, and friends in a solo match are still on one side (only the
-      // bots come in squads), so hiding them there only lost them.
+      // your squad on the map: friends on another side (solo with friends,
+      // squads against each other) are enemies, and the map does not show those
       mates: [...this.remotes.values()]
-        .filter((r) => r.id < Duel.BOT_ID && r.samples.length)
+        .filter((r) => r.id < Duel.BOT_ID && this.friendly(r.id) && r.samples.length)
         .map((r) => {
           const s = r.samples[r.samples.length - 1];
           return { x: s.x, z: s.z, name: r.name, downed: r.downed, alive: r.alive };
@@ -2535,7 +2579,7 @@ export class BrMatch extends Duel {
   /** out with others still up: a squad mate first, else the nearest bot */
   override spectateTarget(): Dummy | null {
     if (this.alive || this.phase !== "fight") return null;
-    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && r.alive && r.samples.length) return r.avatar;
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && this.friendly(r.id) && r.alive && r.samples.length) return r.avatar;
     let best: Dummy | null = null;
     let bd = Infinity;
     const me = this.lastLocal;

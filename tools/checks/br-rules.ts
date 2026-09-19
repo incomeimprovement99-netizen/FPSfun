@@ -12,7 +12,7 @@
 //
 // Run on its own: npx tsx tools/checks/br-rules.ts. Also belongs inside npm
 // run verify.
-import { TEAMS, teamFor, savedTeamId, botSquads, squadsInMatch, surgeAllowed, surgeVictims, surgeDamage, surgeNotice, loadoutPodAt, loadoutItems, DROP_HEIGHT, type SurgeView } from "../../src/game/brmatch";
+import { TEAMS, teamFor, savedTeamId, botSquads, squadsInMatch, humanSides, sideOfHuman, surgeAllowed, surgeVictims, surgeDamage, surgeNotice, loadoutPodAt, loadoutItems, DROP_HEIGHT, type SurgeView } from "../../src/game/brmatch";
 import { BOT_NAMES } from "../../src/game/bots";
 import { DEFAULT_LOADOUTS } from "../../src/game/loadouts";
 import { kittedAttach } from "../../src/game/loot";
@@ -88,6 +88,18 @@ check(
   squadsInMatch(9, 3, 1) === 4 && squadsInMatch(10, 2, 2) === 6 && squadsInMatch(11, 1, 1) === 12 && squadsInMatch(3, 1, 2) === 5,
   "trios alone with 9 bots is 4, duos with a friend and 10 bots is 6, solo is everyone"
 );
+
+// Squads of friends: split, the humans are squads of the size in join order,
+// and each squad is a side of its own in the count.
+check(
+  "split, friends make squads of the size in join order: four in duos are two duos, five in trios a trio and a pair",
+  [0, 1, 2, 3].map((id) => sideOfHuman(id, 2, true)).join() === "0,0,1,1" && [0, 1, 2, 3, 4].map((id) => sideOfHuman(id, 3, true)).join() === "0,0,0,1,1" && humanSides(2, 4, true) === 2 && humanSides(3, 5, true) === 2
+);
+check(
+  "together, every friend is one side; in solo each is their own either way",
+  [0, 1, 2, 3].every((id) => sideOfHuman(id, 2, false) === 0) && humanSides(2, 4, false) === 1 && humanSides(1, 3, true) === 3 && humanSides(1, 3, false) === 3 && sideOfHuman(2, 1, false) === 2
+);
+check("the placement counts every squad of friends as a squad", squadsInMatch(6, 2, 4, true) === 5 && squadsInMatch(6, 2, 4) === 4, `${squadsInMatch(6, 2, 4, true)}`);
 
 // ---------------------------------------------------------------- the surge
 

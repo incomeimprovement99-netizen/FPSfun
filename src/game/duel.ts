@@ -861,6 +861,7 @@ export class Duel implements MatchLike {
           if (this.mode === "duel") this.checkLastStanding(now);
         }
         this.onKnockSeen?.(from, m.by);
+        this.outWithSquad();
         if (from < Duel.BOT_ID) this.noteDeath(from);
         if (from < Duel.BOT_ID) this.onSomeoneDown(from, m.by, m.m === 1);
         break;
@@ -1110,8 +1111,18 @@ export class Duel implements MatchLike {
 
   /** a squad mate still standing (up and not down) */
   protected squadUp(): boolean {
-    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && r.alive && !r.downed) return true;
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && this.friendly(r.id) && r.alive && !r.downed) return true;
     return false;
+  }
+
+  /** a player down goes out with their squad when it has nobody up (squads of friends; with one side the match ends instead) */
+  protected wipesWithSquad(): boolean {
+    return false;
+  }
+
+  /** down with nobody of your squad left up: out, on whoever knocked you */
+  protected outWithSquad(): void {
+    if (this.wipesWithSquad() && this.alive && this.downed && !this.squadUp()) this.eliminate(this.downBy, "finished");
   }
 
   /** down, not out: the bleed-out clock (90, 60, 30, then 15 s a knock), the squad told */
@@ -1221,6 +1232,7 @@ export class Duel implements MatchLike {
         this.relay(m, from);
         this.onKnockSeen?.(from, m.by);
         if (from < Duel.BOT_ID) this.onSomeoneDown(from, m.by);
+        this.outWithSquad();
         break;
       }
       case "rev":
@@ -1248,7 +1260,8 @@ export class Duel implements MatchLike {
       }
       case "mark":
         if (!vec3(m.at) || typeof m.k !== "string") return;
-        this.onMark?.(m.k.slice(0, 12), from, new THREE.Vector3(...m.at), typeof m.label === "string" ? m.label.replace(/[\p{Cc}<>&"'`]/gu, "").slice(0, 40) : "", typeof m.target === "number" ? m.target : -1);
+        // a ping is for its squad: another squad's (squads of friends) is passed on, not shown
+        if (this.friendly(from)) this.onMark?.(m.k.slice(0, 12), from, new THREE.Vector3(...m.at), typeof m.label === "string" ? m.label.replace(/[\p{Cc}<>&"'`]/gu, "").slice(0, 40) : "", typeof m.target === "number" ? m.target : -1);
         this.relay(m, from);
         break;
       default:

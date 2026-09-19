@@ -179,6 +179,12 @@ export interface BrWelcome {
    * that is the default size.
    */
   team?: string;
+  /**
+   * Friends split into squads of that size against each other (players 0 and
+   * 1 one duo, 2 and 3 the next, in join order), rather than all one side.
+   * An older host sends none: one side.
+   */
+  split?: boolean;
 }
 
 /** a loot item as it goes over the wire (loot.ts LootItem) */

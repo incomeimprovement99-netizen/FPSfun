@@ -1717,9 +1717,10 @@ function boardShip(d: BrMatch, run: ShipRun): void {
   player.board(at.x, at.y + SHIP.seat, at.z);
   mapOpen = true;
   following = null;
-  linkedTo = d.players > 1 && d.id !== 0 ? 0 : null;
-  const master = d.players > 1 && d.id === 0;
-  hud.notice(master ? "YOU ARE THE JUMPMASTER: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(0)} IS THE JUMPMASTER` : `THE SHIP PASSES ${d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
+  // the first of your squad leads it down (the host, unless the friends are split into squads)
+  linkedTo = d.jumpmaster();
+  const master = d.isJumpmaster();
+  hud.notice(master ? "YOU ARE THE JUMPMASTER: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(linkedTo)} IS THE JUMPMASTER` : `THE SHIP PASSES ${d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
 }
 
 /** off the ship, into the skydive where it is; the jumpmaster's jump takes the linked squad with them */
@@ -1729,7 +1730,7 @@ function jumpOut(d: BrMatch, why: string | null): void {
   dropMapUntil = 0;
   audio.whoosh();
   if (why) hud.notice(why, gameTime, 2);
-  if (d.id === 0 && d.players > 1) d.localFx("jm", player.pos.clone());
+  if (d.isJumpmaster()) d.localFx("jm", player.pos.clone());
 }
 
 /**
@@ -2909,7 +2910,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
     // the squad size is the host's for everyone (an older host sends none: the default size)
-    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), rules: squad.rules, gulag: !noGulag() });
+    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), rules: squad.rules, gulag: !noGulag(), split: squad.split === true });
     d = br;
     duel = d;
     wireMatch(d, "br");
@@ -3090,7 +3091,7 @@ function endMatch(reason: string): void {
 function readHostSettings(): void {
   // a battle royale squad: the place, the bots, the difficulty and the squad
   // size are fixed now so every guest is told the same
-  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId(), rules: brRulesId() } : null;
+  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId(), rules: brRulesId(), split: $<HTMLSelectElement>("brSides").value === "split" } : null;
   const mk = duelModeKind();
   hostOpts = {
     abilities: abilitySetting(duelKind()),
