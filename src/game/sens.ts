@@ -23,6 +23,19 @@ export function verticalFovFrom43(h43: number): number {
   return (2 * Math.atan(Math.tan((h43 * DEG) / 2) * 0.75)) / DEG;
 }
 
+/**
+ * The first-person gun's vertical FOV (it has a camera of its own): the
+ * hip-to-aimed blend of the world's, at the gun's own FOV scale rather than
+ * the player's, so the gun is drawn the same on every FOV setting. `hipH` and
+ * `adsH` are the world's 4:3 values at the player's `userScale`. A slide or a
+ * JOLT widens only the world: they are not in here.
+ */
+export function gunFov(hipH: number, adsH: number, adsFrac: number, userScale: number, gunScale: number): number {
+  const k = gunScale / userScale;
+  const hip = verticalFovFrom43(hipH * k);
+  return hip + (verticalFovFrom43(adsH * k) - hip) * adsFrac;
+}
+
 /** actual horizontal FOV at a given aspect for a 4:3-referenced value */
 export function horizontalFovAtAspect(h43: number, aspect: number): number {
   const v = verticalFovFrom43(h43) * DEG;

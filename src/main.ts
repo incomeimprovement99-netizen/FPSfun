@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import playerCfg from "./config/player.json";
 import { resolveWeapon, weaponIds, weaponName } from "./game/weapons";
-import { adsSensScale, cmPer360, degPerCount, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
+import { adsSensScale, cmPer360, degPerCount, gunFov, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
 import { Input } from "./game/input";
 import { padButtons, type PadSettings } from "./game/gamepad";
 import { Player } from "./game/player";
@@ -9,7 +9,8 @@ import { Loadout, type SlotSetup } from "./game/loadout";
 import type { AttachSlot } from "./game/attachments";
 import { HU, MOVE } from "./game/movement";
 import { installSky } from "./game/materials";
-import { Renderer } from "./game/render";
+import { Renderer, VM_LAYER } from "./game/render";
+import vmCfg from "./config/viewmodel.json";
 import { Course } from "./game/course";
 import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
@@ -559,6 +560,10 @@ app.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.02, 400);
 scene.add(camera);
+// the gun's own camera, at the world camera's place, drawn after it at its own FOV (render.ts)
+const vmCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.02, 20);
+vmCamera.layers.set(VM_LAYER);
+camera.add(vmCamera);
 const beforeRange = new Set(scene.children);
 buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize });
 // the 1v1 arena, east of the range, and the 1v1v1 triangle north of it (src/game/arena.ts)
@@ -617,7 +622,7 @@ glCanvas.addEventListener("webglcontextrestored", () => {
 });
 // Post-processing. Ambient occlusion is what stops a scene made of boxes
 // reading as flat shapes floating on a flat floor.
-const pipeline = new Renderer(renderer, scene, camera, quality);
+const pipeline = new Renderer(renderer, scene, camera, quality, vmCamera);
 
 // ---------- graphics preset and the frame-rate explanation ----------
 const qualitySel = $<HTMLSelectElement>("quality");
@@ -708,7 +713,44 @@ for (const rail of TARGET_RAILS) {
 for (const d of dummies) scene.add(d.group);
 
 const viewModel = new ViewModel();
-camera.add(viewModel.group);
+vmCamera.add(viewModel.group);
+/**
+ * Everything of the gun on the gun's layer, every frame (a new gun or optic
+ * brings new meshes); a light on it (the flash) lights the world as well.
+ */
+function gunLayer(): void {
+  viewModel.group.traverse((o) => {
+    if ((o as THREE.Light).isLight) o.layers.enable(VM_LAYER);
+    else o.layers.set(VM_LAYER);
+  });
+}
+/**
+ * The world's lights light the gun too: every light in the scene on its
+ * layer as well. Walked again only when the scene's top level changes (a map
+ * or a match adding its own), not every frame: the walk is the whole world.
+ */
+let lightsLayeredFor = -1;
+function lightsOnGun(): void {
+  if (scene.children.length === lightsLayeredFor) return;
+  lightsLayeredFor = scene.children.length;
+  scene.traverse((o) => {
+    if ((o as THREE.Light).isLight) o.layers.enable(VM_LAYER);
+  });
+}
+/**
+ * A point on the gun, where it shows in the world's picture. The gun is
+ * drawn at its own FOV, so its muzzle is on screen somewhere its world
+ * position is not; the tracer leaves the muzzle you see, at the same depth.
+ */
+function onScreenAsWorld(p: THREE.Vector3 | null): THREE.Vector3 | null {
+  if (!p) return null;
+  camera.updateMatrixWorld();
+  const v = p.clone().applyMatrix4(camera.matrixWorld.clone().invert());
+  const k = Math.tan((camera.fov * Math.PI) / 360) / Math.tan((vmCamera.fov * Math.PI) / 360);
+  v.x *= k;
+  v.y *= k;
+  return v.applyMatrix4(camera.matrixWorld);
+}
 // last frame's view angles, so the gun can lag behind how fast you turn
 let prevYaw = 0;
 let prevPitch = 0;
@@ -4221,6 +4263,10 @@ function step(): void {
   const speedFov = (player.slideFov + joltFov) * (1 - ws.adsFrac);
   camera.fov = (hipV + (adsV - hipV) * ws.adsFrac) * (1 + speedFov);
   camera.updateProjectionMatrix();
+  // the gun's FOV: the same blend at viewmodel.json's scale, not yours, and no slide or JOLT in it
+  vmCamera.fov = gunFov(hipH, adsH, ws.adsFrac, settings.fovScale, vmCfg.fovScale);
+  vmCamera.aspect = camera.aspect;
+  vmCamera.updateProjectionMatrix();
 
   // Spawn shots. Each bullet leaves along the aim as it stood the instant
   // BEFORE that shot's own view kick, so the first round of a burst is
@@ -4277,7 +4323,7 @@ function step(): void {
         deviate(tmpDir, cone);
       }
       // the tracer from the muzzle you see: the gun in first person, your figure's in third
-      const muzzle = thirdPerson ? (selfFig?.muzzleWorld() ?? null) : viewModel.muzzleWorld();
+      const muzzle = thirdPerson ? (selfFig?.muzzleWorld() ?? null) : onScreenAsWorld(viewModel.muzzleWorld());
       projectiles.fire(origin.clone(), tmpDir, weapon, false, s.dmgScale, s.speedScale, muzzle);
       duel?.localShot(origin, tmpDir, weapon.id);
       selfFig?.kick();
@@ -4670,7 +4716,11 @@ function step(): void {
   renderer.info.reset();
   // the other players' muzzle flashes size themselves to this view (muzzle.ts)
   setMuzzleViewer(camera, renderer.domElement.clientHeight || window.innerHeight);
-  if (!NO_RENDER && !document.hidden) pipeline.render(now);
+  if (!NO_RENDER && !document.hidden) {
+    gunLayer();
+    lightsOnGun();
+    pipeline.render(now);
+  }
   frameCost = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
   for (const o of hiddenForReplay) o.visible = true;
   const shown = loadout.display;
@@ -4944,6 +4994,8 @@ initWelcome();
   setThirdPerson,
   selfFigureVisible: () => selfFig?.group.visible ?? false,
   viewModelVisible: () => viewModel.group.visible,
+  /** the gun's own camera's vertical FOV against the world's */
+  gunFov: () => ({ gun: vmCamera.fov, world: camera.fov }),
   lobbyCode: () => (hosting && !duel ? hosting.code : null),
   setMapOpen: (on: boolean) => (mapOpen = on),
   /** emotes (tools/e2e.ts): play one, and what is playing */
@@ -5135,7 +5187,7 @@ initWelcome();
   /** a round from the gun in hand along a direction, through the bullets' own path (tools/snap.ts) */
   fireRound: (dir: [number, number, number]) => {
     const w = loadout.active.weapon;
-    projectiles.fire(player.eyePosition(), new THREE.Vector3(...dir).normalize(), w, false, 1, 1, viewModel.muzzleWorld());
+    projectiles.fire(player.eyePosition(), new THREE.Vector3(...dir).normalize(), w, false, 1, 1, onScreenAsWorld(viewModel.muzzleWorld()));
   },
   /** the last frame's draw calls and triangles over every pass (tools/bench.ts) */
   frameCost: () => ({ ...frameCost }),

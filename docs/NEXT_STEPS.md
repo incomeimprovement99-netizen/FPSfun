@@ -108,7 +108,7 @@ Three read-only passes over the code, after the map expansion (Milestone 71), ag
 13. ~~**Tracers are 4 cm dots from your eye:**~~ Done (Milestones 74, 75). a stretched streak from the muzzle, blended onto the real path. 3 h.
 14. ~~**A downed figure looks like a crouching live one:**~~ Done (Milestones 74, 75). low and crawling, the knockback clip played. 2-3 h.
 15. ~~**Damage numbers pile up in a spray:**~~ Done (Milestone 74): one per target, adding while hits keep coming. 1.5 h. ~~**No low-ammo warning:**~~ Done: LOW AMMO, RELOAD and a rising click. 1 h. ~~**Figures float on Competitive and Balanced**~~ Done (Milestone 75) (static shadows): a contact shadow under each. 1.5 h.
-16. ~~**Explosions are a ball and a ring:**~~ Done (Milestone 76): shake (off with reduced motion), smoke, a scorch, ringing ears inside 6 m. 3 h. **The gun shares the world's FOV** and warps on a slide: its own camera. 4-6 h. **Gunshots are all synthesis:** recorded CC0 layers under it. 5-6 h.
+16. ~~**Explosions are a ball and a ring:**~~ Done (Milestone 76): shake (off with reduced motion), smoke, a scorch, ringing ears inside 6 m. 3 h. ~~**The gun shares the world's FOV** and warps on a slide~~ Done (Milestone 89): its own camera. 4-6 h. **Gunshots are all synthesis:** recorded CC0 layers under it. 5-6 h.
 
 **Then: eight friends playing each other (about a week)**
 17. ~~**Friends split into sides in team deathmatch and Control**~~ Done (Milestone 76) (every human is team 0 today). 4-5 h.

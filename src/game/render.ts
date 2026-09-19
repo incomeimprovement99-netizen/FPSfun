@@ -17,6 +17,7 @@
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { Pass } from "three/examples/jsm/postprocessing/Pass.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
@@ -60,6 +61,45 @@ function excludeFromAo(gtao: GTAOPass): void {
   };
 }
 
+/** the layer the first-person gun is on: only its own camera sees it */
+export const VM_LAYER = 1;
+
+/**
+ * The gun, over the world: its own camera (its own FOV), the depth cleared
+ * so it never sinks into a wall. The sky is the world pass's (a background
+ * drawn again here would paint over it), and the shadow maps are too (the
+ * lights the gun is lit by are the world's, and drawing their shadows again
+ * would cost a second shadow pass for nothing).
+ */
+function drawViewModel(r: THREE.WebGLRenderer, scene: THREE.Scene, cam: THREE.Camera): void {
+  const clear = r.autoClear;
+  const shadows = r.shadowMap.autoUpdate;
+  const sky = scene.background;
+  r.autoClear = false;
+  r.shadowMap.autoUpdate = false;
+  scene.background = null;
+  r.clearDepth();
+  r.render(scene, cam);
+  r.autoClear = clear;
+  r.shadowMap.autoUpdate = shadows;
+  scene.background = sky;
+}
+
+/** the gun's pass in the post chain: after the world and its AO (the gun takes none), before bloom (its flash blooms) */
+class ViewModelPass extends Pass {
+  constructor(
+    private scene: THREE.Scene,
+    private cam: THREE.Camera
+  ) {
+    super();
+    this.needsSwap = false;
+  }
+  render(renderer: THREE.WebGLRenderer, _write: THREE.WebGLRenderTarget, read: THREE.WebGLRenderTarget): void {
+    renderer.setRenderTarget(this.renderToScreen ? null : read);
+    drawViewModel(renderer, this.scene, this.cam);
+  }
+}
+
 export class Renderer {
   /** null in Competitive: the scene is drawn straight to the screen */
   readonly composer: EffectComposer | null = null;
@@ -69,7 +109,8 @@ export class Renderer {
     private renderer: THREE.WebGLRenderer,
     private scene: THREE.Scene,
     private camera: THREE.PerspectiveCamera,
-    q: Quality
+    q: Quality,
+    private vmCamera: THREE.PerspectiveCamera | null = null
   ) {
     // Competitive: no composer at all. Rendering straight to the canvas keeps
     // hardware MSAA, skips four full-screen passes, and removes the offscreen
@@ -98,6 +139,8 @@ export class Renderer {
       excludeFromAo(gtao);
       composer.addPass(gtao);
     }
+
+    if (vmCamera) composer.addPass(new ViewModelPass(scene, vmCamera));
 
     if (q.bloom) {
       // Threshold 0.95 and a lower strength: emissive trim glows, gunfire only
@@ -164,6 +207,7 @@ export class Renderer {
   render(now = 0): void {
     if (!this.composer) {
       this.renderer.render(this.scene, this.camera);
+      if (this.vmCamera) drawViewModel(this.renderer, this.scene, this.vmCamera);
       return;
     }
     if (this.grade) this.grade.uniforms.uTime.value = now;

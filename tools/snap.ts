@@ -371,6 +371,16 @@ export const SCENARIOS: Scenario[] = [
     steps: [[`(() => { ${hideMenu}; window.__range.loadout.setWeaponId(0, "nemesis"); })()`, 1200]],
   },
   {
+    name: "gun-fov-wide",
+    note: "the widest FOV setting: the world wide, the gun as it is at the default (its own camera)",
+    steps: [[`(() => { ${hideMenu}; const f = document.getElementById("fov"); f.value = "1.571"; f.dispatchEvent(new Event("input")); window.__range.loadout.setWeaponId(0, "rspn101"); })()`, 1200]],
+  },
+  {
+    name: "gun-fov-narrow",
+    note: "the narrowest FOV setting: the gun still as it is at the default",
+    steps: [[`(() => { ${hideMenu}; const f = document.getElementById("fov"); f.value = "1"; f.dispatchEvent(new Event("input")); window.__range.loadout.setWeaponId(0, "rspn101"); })()`, 1200]],
+  },
+  {
     name: "spray-wall",
     note: "the spray wall after a burst from the mark: your hits and the gun's own pattern",
     steps: [

@@ -17,6 +17,8 @@
 import * as THREE from "three";
 import { Forearm, Hand, MAX_ARM_LENGTH, MAX_VIEW_SLIDE, MIN_VIEW_DEPTH, SLEEVE_CAP } from "../../src/game/arms";
 import { VM_SCALE, inspectTurn, shoulderAnchor, turnAboutCentre, type ArmFamily } from "../../src/game/viewmodel";
+import { gunFov, hipFov43, verticalFovFrom43 } from "../../src/game/sens";
+import vmCfg from "../../src/config/viewmodel.json";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -403,6 +405,16 @@ console.log("The fists at a sprint");
   check("the guard's slide is capped, and so is the arm", MAX_VIEW_SLIDE > 1 && MAX_VIEW_SLIDE < 4 && MAX_ARM_LENGTH > 0.9 && MAX_ARM_LENGTH < 2, `slide x${MAX_VIEW_SLIDE}, length ${MAX_ARM_LENGTH}`);
 }
 
+console.log("\nThe gun's own FOV");
+{
+  // the hip FOV of a setting, and a 1x sight's aimed FOV (0.9 of the base 70) at the same setting
+  const at = (scale: number, ads: number) => gunFov(hipFov43(scale), 70 * 0.9 * scale, ads, scale, vmCfg.fovScale);
+  const def = at(vmCfg.fovScale, 0);
+  check("the gun is drawn at the same FOV on the narrowest, the default and the widest setting, at hip", Math.abs(at(1, 0) - def) < 1e-9 && Math.abs(at(1.571, 0) - def) < 1e-9, `${def.toFixed(2)} deg`);
+  const aimed = at(vmCfg.fovScale, 1);
+  check("and aimed: the sight picture is the default's on every setting", Math.abs(at(1, 1) - aimed) < 1e-9 && Math.abs(at(1.571, 1) - aimed) < 1e-9 && aimed < def, `${aimed.toFixed(2)} deg`);
+  check("at the default setting it is exactly the world's FOV, so the gun looks as it was built", Math.abs(def - verticalFovFrom43(hipFov43(vmCfg.fovScale))) < 1e-9);
+}
 
 console.log(fails === 0 ? "\nVIEWMODEL ARMS PASS" : `\nVIEWMODEL ARMS FAIL (${fails})`);
 export const viewmodelArmsFails = fails;

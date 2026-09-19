@@ -284,7 +284,7 @@ The Settings tab, all remembered in this browser:
 | Setting | What it is |
 |---|---|
 | Mouse DPI, **Measure my DPI** | your mouse's DPI, or measure it: swipe a marked distance with the button held and it counts the raw hardware counts. Needed for cm/360 to be right. |
-| Mouse sensitivity, ADS multiplier, FOV scale | the game's three numbers, with the same maths (0.022 degrees per count; ADS scaled by the zoom). The panel shows your cm/360 live. |
+| Mouse sensitivity, ADS multiplier, FOV scale | the game's three numbers, with the same maths (0.022 degrees per count; ADS scaled by the zoom). The panel shows your cm/360 live. The FOV is the world's: the gun in your hands has a camera of its own and looks the same on every setting, and a slide widens the world, not the gun. |
 | ADS per optic | a multiplier for each zoom (1x, 2x, 3x, 4x, 6x, 8x, 10x) on top of the ADS one, like the game's; a variable optic uses the zoom it is on |
 | Aim down sights, Crouch | hold, or toggle (a press in, a press out) |
 | Sprint | press (the game's default: press once, it arms for 3 s and runs while you hold forward) or hold |

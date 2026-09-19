@@ -3492,6 +3492,16 @@ async function main(): Promise<void> {
     await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
     const fp = await ev<{ dist: number; fig: boolean; vm: boolean }>(page, `(() => { const p = window.__range.player; const c = window.__range.camera; const e = p.eyePosition(); return { dist: Math.hypot(c.position.x - e.x, c.position.y - e.y, c.position.z - e.z), fig: window.__range.selfFigureVisible(), vm: window.__range.viewModelVisible() }; })()`);
     check("back in first person: the camera is at the eye and the gun is back", fp.dist < 0.1 && !fp.fig && fp.vm, JSON.stringify(fp));
+    // the gun has its own camera: the FOV setting widens the world, not the gun
+    const fovAt = async (v: string) => {
+      await ev(page, `(() => { const f = document.getElementById("fov"); f.value = "${v}"; f.dispatchEvent(new Event("input")); })()`);
+      await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+      return ev<{ gun: number; world: number }>(page, "window.__range.gunFov()");
+    };
+    const narrow = await fovAt("1");
+    const wide = await fovAt("1.571");
+    await fovAt("1.55");
+    check("the gun's own FOV: the narrowest and widest settings change the world's FOV, not the gun's", Math.abs(narrow.gun - wide.gun) < 0.01 && wide.world - narrow.world > 20, JSON.stringify({ narrow, wide }));
 
     console.log("\nThe menu and loadouts");
     const tabs = ["play", "duel", "loadouts", "settings", "controls"];

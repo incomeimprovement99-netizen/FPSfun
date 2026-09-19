@@ -1310,3 +1310,25 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   in a group over links already closed, and a host so kept could not make a new match. Leaving, either way, now keeps
   nothing; the `squad` section's second match, made after the first was left on its end screen, caught it.
 
+## Milestone 89 — The gun has its own FOV ✅
+2026-09-19 (Phase 15). `render.ts`, `sens.ts`, `main.ts`, `src/config/viewmodel.json`.
+- The gun in your hands was drawn by the world's camera, so the FOV setting stretched it (on the widest setting it
+  was pushed into the corner, on the narrowest it filled a third of the screen) and every slide and JOLT shrank it
+  for their length. It now has a camera of its own, at the world camera's place, drawn after the world on a layer
+  only it sees, with the depth cleared so it never sinks into a wall. Its FOV is the world's hip-to-aimed blend at
+  the default setting's scale (viewmodel.json `fovScale`, 1.55, what the gun was built and checked at), whatever
+  yours is, and a slide or a JOLT is not in it. At the default setting the picture is the same as before, lighting
+  and all; aimed, every optic's sight picture is the default's on every setting.
+- It is lit by the world's lights (each on the gun's layer as well; the scene is walked again for them only when
+  its top level changes) and the world's environment map; the second pass draws no sky and no shadow maps of its
+  own. In the post chain it goes after the world's ambient occlusion (the gun takes none now) and before bloom (its
+  flash still blooms).
+- The tracer leaves the muzzle you see: the gun's muzzle is carried from the gun's FOV into the world's at the same
+  depth, since the two cameras put it at different places on screen off the default setting.
+- Cost: about 0.2 ms a frame on Competitive (1.8 to 2.0-2.1 ms median here, a depth clear and a second draw on the
+  multisampled canvas) and within noise on High (3.7-3.8 to 3.8-3.9 ms). Leaving the world's lightless parts out of
+  the gun's pass measured no difference, so the pass stays simple.
+- Checks: `tools/checks/viewmodel-arms.ts` (the gun's FOV is the same on the narrowest, default and widest setting,
+  hip and aimed, and equals the world's at the default), the e2e `page` section (the setting moves the world's FOV
+  by over 20 degrees and the gun's not at all), and the snapshots `gun-fov-wide` and `gun-fov-narrow`.
+
