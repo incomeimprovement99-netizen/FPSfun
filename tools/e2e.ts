@@ -2656,6 +2656,9 @@ async function resurgenceTest(browser: Browser, query: string, squadQuery: strin
     fight && on.rules === "resurgence" && !!on.rs && on.rs.live && on.rs.toFinal > 60 && on.rs.redeployIn === null && Math.abs(on.wait - ringCfg.phases[0].wait * R.ringScale) < 1e-6,
     JSON.stringify(on)
   );
+  // a quarter of the map: the first circle is the area, and the squad drops inside it
+  const area = await ev<{ r: number; poiIn: boolean; bots: number; botsIn: number }>(page, `(() => { const d = window.__range.duel(); const a = d.area; const inA = (x, z) => Math.hypot(x - a.cx, z - a.cz) <= a.r; return { r: d.ringState.current.r, poiIn: inA(d.poi.x, d.poi.z), bots: d.bots.length, botsIn: d.bots.filter((b) => inA(b.dropTo.x, b.dropTo.z)).length }; })()`);
+  check("resurgence: played on a quarter of the map: the first circle is the area, and everyone drops inside it", area.r === R.area.radius && area.poiIn && area.botsIn === area.bots, JSON.stringify(area));
   // alone, a knock is the end of a life, not of the match
   await ev(page, "(() => { const d = window.__range.duel(); d.takeHit(1000, d.bots[0].bot.remote.id); })()");
   await sleep(600);

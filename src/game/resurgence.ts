@@ -72,8 +72,31 @@ export class Redeploy {
 }
 
 /** the ring's rounds for Resurgence: the same circles and damage, the waits and closes shortened */
-export function resurgencePhases(phases: readonly RingPhase[]): RingPhase[] {
-  return phases.map((p) => ({ ...p, wait: p.wait * RESURGENCE.ringScale, close: p.close * RESURGENCE.ringScale }));
+/**
+ * The rounds under Resurgence: the same circles on a faster clock, and, on
+ * the smaller area, every radius shrunk by `shrink` (the area's radius over
+ * the whole map's first circle) so each round still fits inside the last.
+ */
+export function resurgencePhases(phases: readonly RingPhase[], shrink = 1): RingPhase[] {
+  return phases.map((p) => ({ ...p, wait: p.wait * RESURGENCE.ringScale, close: p.close * RESURGENCE.ringScale, radius: p.radius * shrink }));
+}
+
+/**
+ * Resurgence's area: a circle across the hub (`centre`), leaning toward one
+ * of the big places round it (`spokes`), picked from the match seed so every
+ * browser draws the same one.
+ */
+export function resurgenceArea(seed: number, centre: { x: number; z: number }, spokes: ReadonlyArray<{ x: number; z: number }>): { cx: number; cz: number; r: number } {
+  const A = RESURGENCE.area;
+  // a small hash of the seed, its own, so it moves nothing else drawn from it
+  let h = (seed ^ 0x2e5a91c3) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
+  h = (h ^ (h >>> 12)) >>> 0;
+  const s = spokes.length ? spokes[h % spokes.length] : centre;
+  const dx = s.x - centre.x;
+  const dz = s.z - centre.z;
+  const d = Math.hypot(dx, dz) || 1;
+  return { cx: centre.x + (dx / d) * A.lean, cz: centre.z + (dz / d) * A.lean, r: A.radius };
 }
 
 /** seconds until deaths are final: what is left of the live round, then every round before the cut */

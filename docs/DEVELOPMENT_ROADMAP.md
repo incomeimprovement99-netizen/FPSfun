@@ -1202,3 +1202,15 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   detail and take one roughness of their own.
 - No change in draw calls (a set in a colour is one merge group, as the flat colour was); `npm run bench` at the hub
   within noise of before.
+
+## Milestone 82 — Resurgence on a quarter of Outskirts ✅
+2026-09-19 (Phase 15). `resurgence.ts`, `brmatch.ts`, `src/config/br.json`, `tools/checks/resurgence.ts`.
+- The item's smaller play area, waiting on the map: under Resurgence the first circle is 130 m across the hub,
+  leaning 55 m toward one of the four big places round it (from the match seed, so every browser draws the same),
+  which takes in the hub, that place and the compounds beside it. The squad drops on a place inside it (the nearest
+  to the host's pick, the same on every browser), the bots take the other places inside, and every round's circle
+  shrinks with the area so each still fits inside the last. Resurgence was the whole map on a faster clock.
+- A place counts as inside only when every spot a squad drops on there is: a drop can be 30 m from its middle.
+- Checks: `tools/checks/resurgence.ts` (the area the same for a seed and leaning toward each of the four over many,
+  the hub and its place inside, every round's circle inside the last), and the e2e `resurgence` section (the first
+  circle is the area, and everyone drops inside it).

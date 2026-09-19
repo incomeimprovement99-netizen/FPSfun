@@ -7,7 +7,7 @@
 // damage and shortens only its clock.
 //
 // Run on its own: npx tsx tools/checks/resurgence.ts.
-import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, secondsToFinal } from "../../src/game/resurgence";
+import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, resurgenceArea, secondsToFinal } from "../../src/game/resurgence";
 import { RING_PHASES } from "../../src/game/ring";
 
 let fails = 0;
@@ -71,6 +71,40 @@ console.log("\nThe faster ring");
   let rest = 5;
   for (let p = 2; p < RESURGENCE.endPhase; p++) rest += fast[p].wait + fast[p].close;
   check("mid-close, it counts what is left of the close and the rounds after", Math.abs(mid - rest) < 1e-6);
+}
+
+// ------------------------------------------------------------ the area
+// A quarter of Outskirts: across the hub, leaning toward one of the four big
+// places round it, the same on every browser for a seed, and every round's
+// circle shrunk to fit.
+{
+  const centre = { x: 0, z: 500 };
+  const spokes = [
+    { x: 0, z: 500 - 150 },
+    { x: 0, z: 500 + 165 },
+    { x: 165, z: 500 },
+    { x: -165, z: 500 },
+  ];
+  const A = RESURGENCE.area;
+  const seen = new Set<string>();
+  let same = true;
+  let covers = true;
+  for (let seed = 1; seed < 400; seed++) {
+    const a = resurgenceArea(seed, centre, spokes);
+    const b = resurgenceArea(seed, centre, spokes);
+    if (a.cx !== b.cx || a.cz !== b.cz) same = false;
+    seen.add(`${a.cx},${a.cz}`);
+    // the hub, and the place it leans toward, well inside
+    const toward = spokes.reduce((m, s) => (Math.hypot(s.x - a.cx, s.z - a.cz) < Math.hypot(m.x - a.cx, m.z - a.cz) ? s : m));
+    if (Math.hypot(centre.x - a.cx, centre.z - a.cz) > a.r * 0.9 || Math.hypot(toward.x - a.cx, toward.z - a.cz) > a.r * 0.9) covers = false;
+  }
+  check("the area is the same on every browser for a seed, and over many seeds leans toward each of the four places", same && seen.size === 4, `${seen.size} areas`);
+  check(`it takes in the hub and the place it leans toward (${A.radius} m across the hub, ${A.lean} m toward it)`, covers);
+  const full = 220 * 1.35;
+  const P = resurgencePhases(RING_PHASES, A.radius / full);
+  let fits = P[0].radius <= A.radius;
+  for (let i = 1; i < P.length; i++) if (P[i].radius > P[i - 1].radius) fits = false;
+  check("every round's circle fits inside the area and inside the round before", fits, P.map((p) => Math.round(p.radius)).join(", "));
 }
 
 console.log(fails === 0 ? "\nRESURGENCE PASS" : `\nRESURGENCE FAIL (${fails})`);

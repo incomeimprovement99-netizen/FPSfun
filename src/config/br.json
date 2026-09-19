@@ -140,6 +140,8 @@
     "floor": 3,
     "endPhase": 4,
     "ringScale": 0.6,
+    "_area": "Resurgence is played on a quarter of Outskirts, as Apex plays it on a part of a map: the first circle is radius metres across the hub, leaning lean metres toward one of the four big places round it (from the match seed), which takes in the hub, that place and the two compounds beside it. The squad and the bots drop on places inside it, and every round's circle shrinks with it.",
+    "area": { "radius": 130, "lean": 55 },
     "spread": 30,
     "kit": [
       "semipistol",

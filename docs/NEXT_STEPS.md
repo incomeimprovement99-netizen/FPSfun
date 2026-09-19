@@ -74,7 +74,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 4. **Host migration and rejoin:** 3 to 4 days. One person's bad connection ending an eight-player match is the failure a group of friends hits most.
 5. **Bots on the ziplines, pads, balloons and the Mast (#19 typed edges, #20):** 1 to 1.5 days. The graph it needs has landed (Milestone 71).
 6. ~~**A sky per match from its seed:** about 2 hours.~~ Done (Milestone 69).
-7. **Resurgence's smaller play area:** 3 to 4 hours. It was only waiting for the map to settle, which it now has.
+7. ~~**Resurgence's smaller play area**~~ Done (Milestone 82).
 8. **Sprays and banner cards:** about a day. The other half of the emotes item, on the same message and wheel.
 9. **Weapon finishes and unlocks:** 2 to 2.5 days. XP unlocks nothing yet.
 10. **Custom match rules:** about a day. Weapons allowed, rounds and friendly fire, carried in the match options.

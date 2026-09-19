@@ -119,7 +119,7 @@ import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { navTree, type NavTree } from "./navgraph";
 import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, type Circle, type RingPhase } from "./ring";
-import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, secondsToFinal, type BrRules } from "./resurgence";
+import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, resurgenceArea, secondsToFinal, type BrRules } from "./resurgence";
 import { GULAG, Gulag, gulagFor, type GulagEvent } from "./gulag";
 import { arenaMap } from "./arena";
 
@@ -529,19 +529,28 @@ export class BrMatch extends Duel {
     this.squadsTotal = squadsInMatch(this.botCount, this.team.size, this.players);
     this.squadsSeen = this.squadsTotal;
     this.seed = opts.seed ?? 1;
-    // the squad drops on one place: the host's pick, told to the guests
-    this.poi = (opts.poi && map.pois.find((p) => p.id === opts.poi)) || map.pois[Math.floor(rng() * map.pois.length)];
+    // the rules first: Resurgence is played on a quarter of the map
+    this.rules = asRules(opts.rules);
+    const full = { cx: BR_CENTER.x, cz: BR_CENTER.z, r: BR_HALF * 1.35 };
+    const spokes = map.pois.filter((p) => ["north", "south", "east", "west"].includes(p.id));
+    const area = this.rules === "resurgence" ? resurgenceArea(this.seed, BR_CENTER, spokes) : full;
+    this.area = area;
+    // the squad drops on one place: the host's pick, told to the guests; in
+    // Resurgence one inside the area (the nearest to the pick, the same on
+    // every browser)
+    let poi = (opts.poi && map.pois.find((p) => p.id === opts.poi)) || map.pois[Math.floor(rng() * map.pois.length)];
+    if (!this.inArea(poi)) poi = [...map.pois].filter((p) => this.inArea(p)).sort((a, b) => Math.hypot(a.x - poi.x, a.z - poi.z) - Math.hypot(b.x - poi.x, b.z - poi.z))[0] ?? poi;
+    this.poi = poi;
     // the ship's line passes over it, and every browser draws the same one
     this.shipLine = opts.ship === false ? null : shipLine(this.seed, this.poi, BR_BOUNDS);
     const now = wallClock();
     this.startedAt = now;
     this.aliveSeen = this.botCount + this.players;
-    const start = { cx: BR_CENTER.x, cz: BR_CENTER.z, r: BR_HALF * 1.35 };
-    // the rules, and the ring's clock that goes with them
-    this.rules = asRules(opts.rules);
+    const start = area;
     // the tests of the plain death switch it off; a real match always has it
     this.gulagOn = opts.gulag !== false;
-    this.phases = this.rules === "resurgence" ? resurgencePhases(RING_PHASES) : RING_PHASES;
+    // the ring's clock that goes with the rules, its circles shrunk to the area
+    this.phases = this.rules === "resurgence" ? resurgencePhases(RING_PHASES, area.r / full.r) : RING_PHASES;
     // the floor's loot, from the host's seed (the welcome carries it), unless the squad lands with its loadouts
     this.startLoot = opts.start !== "loadout";
     if (this.startLoot) {
@@ -556,7 +565,7 @@ export class BrMatch extends Duel {
     if (this.role === "host") {
       // The bots take the OTHER places: where the squad drops is the squad's.
       // Landing beside three of them with no gun was the whole of a match.
-      const others = map.pois.filter((p) => p !== this.poi).sort(() => rng() - 0.5);
+      const others = map.pois.filter((p) => p !== this.poi && this.inArea(p)).sort(() => rng() - 0.5);
       const order = others.length ? others : [this.poi];
       const apart = squadCfg.drop.apart;
       for (let i = 0; i < this.botCount; i++) {
@@ -1613,6 +1622,15 @@ export class BrMatch extends Duel {
   protected override squadUp(): boolean {
     if (this.gulag) return false;
     return this.team.size > 1 && super.squadUp();
+  }
+
+  /** where the match is played: the whole map, or Resurgence's quarter of it */
+  readonly area: { cx: number; cz: number; r: number };
+
+  /** a place well inside the area, and every spot a squad drops on there too (a drop can be 30 m from the middle) */
+  private inArea(p: { x: number; z: number; drops?: ReadonlyArray<{ x: number; z: number }> }): boolean {
+    const inside = (x: number, z: number) => Math.hypot(x - this.area.cx, z - this.area.cz) <= this.area.r * 0.9;
+    return inside(p.x, p.z) && (p.drops ?? []).every((d) => inside(d.x, d.z));
   }
 
   /** started with fewer friends than it was made for: the sides are counted again */
