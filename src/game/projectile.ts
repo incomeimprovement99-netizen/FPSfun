@@ -1,6 +1,8 @@
 // Projectiles with launch speed and scaled gravity, sub-stepped, swept
 // against dummy hit meshes with a raycast per step.
 import * as THREE from "three";
+import tracerCfg from "../config/hud.json";
+import { viewer } from "./muzzle";
 import type { Dummy, HitReport, Zone } from "./dummy";
 import type { Target } from "./targets";
 import type { ResolvedWeapon } from "./weapons";
@@ -71,6 +73,8 @@ interface Bullet {
   origin: THREE.Vector3;
   age: number;
   mesh: THREE.Mesh;
+  /** where the streak is drawn from (the muzzle) less where the round really left (the eye): blended out over the first metres */
+  drawOffset: THREE.Vector3 | null;
   weapon: ResolvedWeapon;
   /** the other player's shot in a 1v1: drawn, stopped by walls, hits nothing */
   visual: boolean;
@@ -109,10 +113,20 @@ export interface Shootable {
 }
 
 const SUBSTEPS = 4;
-const tracerGeo = new THREE.SphereGeometry(0.02, 6, 4);
-const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffd27a });
+/**
+ * A tracer is a streak along the round's flight, not a dot: a unit box
+ * stretched along the velocity to a frame's travel (at most TRACER.maxLen),
+ * additive, and never thinner than TRACER.minPx on screen. A 4 cm sphere
+ * moving 6 to 12 m a frame read as a string of dots, when it read at all.
+ */
+const TRACER = tracerCfg.tracers;
+const tracerGeo = new THREE.BoxGeometry(1, 1, 1);
+const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
 /** the other player's rounds, redder so you can tell whose is whose */
-const remoteTracerMat = new THREE.MeshBasicMaterial({ color: 0xff6a4a });
+const remoteTracerMat = new THREE.MeshBasicMaterial({ color: 0xff6a4a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+const Z = new THREE.Vector3(0, 0, 1);
+const tv = new THREE.Vector3();
+const td = new THREE.Vector3();
 
 export class ProjectileSystem {
   private bullets: Bullet[] = [];
@@ -126,9 +140,17 @@ export class ProjectileSystem {
     private floorY = 0
   ) {}
 
-  fire(origin: THREE.Vector3, dir: THREE.Vector3, w: ResolvedWeapon, visual = false, dmgScale = 1, speedScale = 1): void {
+  /**
+   * A round. `drawFrom` is where its tracer is drawn from (the gun's muzzle):
+   * the round itself leaves the eye, so a tracer drawn from there sat on the
+   * line of sight and was never seen; drawn from the muzzle, it joins the
+   * real path over the first TRACER.blend metres.
+   */
+  fire(origin: THREE.Vector3, dir: THREE.Vector3, w: ResolvedWeapon, visual = false, dmgScale = 1, speedScale = 1, drawFrom: THREE.Vector3 | null = null): void {
     const mesh = new THREE.Mesh(tracerGeo, visual ? remoteTracerMat : tracerMat);
-    mesh.position.copy(origin);
+    mesh.position.copy(drawFrom ?? origin);
+    mesh.scale.setScalar(0.001);
+    mesh.renderOrder = 5;
     this.scene.add(mesh);
     this.bullets.push({
       pos: origin.clone(),
@@ -136,11 +158,37 @@ export class ProjectileSystem {
       origin: origin.clone(),
       age: 0,
       mesh,
+      drawOffset: drawFrom ? drawFrom.clone().sub(origin) : null,
       weapon: w,
       visual,
       whizzed: false,
       dmgScale,
     });
+  }
+
+  /** the live rounds' tracers: how long and wide each is drawn, and how far its head is off the real path (tools/e2e.ts) */
+  get tracers(): Array<{ len: number; width: number; off: number; travelled: number }> {
+    return this.bullets.map((b) => {
+      const head = b.mesh.position.clone().addScaledVector(b.vel.clone().normalize(), b.mesh.scale.z / 2);
+      return { len: b.mesh.scale.z, width: b.mesh.scale.x, off: head.distanceTo(b.pos), travelled: b.pos.distanceTo(b.origin) };
+    });
+  }
+
+  /** the streak: along the velocity, a frame's travel long, from the muzzle blending onto the real path */
+  private placeTracer(b: Bullet, dt: number): void {
+    const speed = b.vel.length();
+    if (speed < 1e-6) return;
+    td.copy(b.vel).divideScalar(speed);
+    const travelled = b.pos.distanceTo(b.origin);
+    const len = Math.min(TRACER.maxLen, speed * Math.max(dt, 1 / 60), travelled + 0.05);
+    tv.copy(b.pos);
+    if (b.drawOffset) tv.addScaledVector(b.drawOffset, Math.max(0, 1 - travelled / TRACER.blend));
+    // its middle half a length behind the round's head
+    b.mesh.position.copy(tv).addScaledVector(td, -len / 2);
+    b.mesh.quaternion.setFromUnitVectors(Z, td);
+    const dist = viewer.pos.distanceTo(tv);
+    const width = Math.max(TRACER.width, (dist * TRACER.minPx) / viewer.pxPerRad);
+    b.mesh.scale.set(width, width, len);
   }
 
   /** where your ears are: someone else's round passing within 2.5 m cracks past you (onWhiz) */
@@ -332,7 +380,7 @@ export class ProjectileSystem {
       if (dead) {
         this.scene.remove(b.mesh);
         this.bullets.splice(bi, 1);
-      } else b.mesh.position.copy(b.pos);
+      } else this.placeTracer(b, dt);
     }
   }
 }

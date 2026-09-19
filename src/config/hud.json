@@ -1,4 +1,6 @@
 {
+  "_tracers": "Tracers (projectile.ts). Ours, after Apex and Warzone: a streak along the round's flight, a frame's travel long up to maxLen metres, width metres across and never thinner than minPx on screen; drawn from the gun's muzzle and joined to the real path (which leaves the eye) over the first blend metres.",
+  "tracers": { "maxLen": 6, "width": 0.025, "minPx": 1.5, "blend": 8 },
   "_impacts": "Bullet impacts on the level (src/game/impacts.ts). Ours: holes is how many hole decals stay on the map at once (the oldest goes first), each holeSize metres across and gone after holeLife seconds; a hit throws puffPer dust sprites (sparks off metal) from a pool of puffs, each living puffLife seconds; the sound carries hearing metres.",
   "impacts": { "holes": 256, "holeSize": 0.07, "holeLife": 20, "puffs": 48, "puffPer": 4, "puffLife": 0.35, "hearing": 40 },
   "_killMarker": "The knock and kill marker (hud.ts hitMarker). Ours, after Valorant's and Apex's: a knock is orange and a kill red, scale times the size of a hit's marker, held for hold seconds against a hit's 0.12; the chime under a kill climbs by chimeStep semitones for each kill within streak seconds of the last, up to chimeMax steps.",

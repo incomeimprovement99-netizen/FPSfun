@@ -1308,7 +1308,7 @@ export class Bot {
         if (this.weapon.pellets > 1) {
           pd.applyAxisAngle(new THREE.Vector3(0, 1, 0), ((Math.random() * 2 - 1) * 2 * Math.PI) / 180).applyAxisAngle(side, ((Math.random() * 2 - 1) * 2 * Math.PI) / 180);
         }
-        this.projectiles.fire(from, pd, this.weapon, true);
+        this.projectiles.fire(from, pd, this.weapon, true, 1, 1, this.dummy.muzzleWorld());
         if (p === 0) this.dummy.kick();
         // the damage a player's round does at that range, not always the near value
         shots.push({ from, dir: pd, damage: falloff(this.weapon, from.distanceTo(target)), weapon: this.weapon.id });

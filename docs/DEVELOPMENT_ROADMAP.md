@@ -1095,3 +1095,29 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: the e2e `brsolo` section (an opponent, the knock the end, the match going on, first and seventh of seven),
   the squad section's solo pair each placed where they went out, and the `hidden` section (30 frames a second hidden,
   against 2 on the page's own timer).
+
+## Milestone 74 — Feel: muzzle flashes, impacts, kill confirmation, gunfire that carries ✅
+2026-09-19 (Phase 15). `muzzle.ts` (new), `impacts.ts` (new), `dummy.ts`, `mannequin.ts`, `projectile.ts`, `audio.ts`,
+`hud.ts`, `duel.ts`, `brmatch.ts`, `main.ts`, `src/config/hud.json`, `src/config/audio.json`, `tools/checks/feel.ts` (new).
+- Other players' guns flash at the muzzle (a pooled additive sprite for 35 ms, never under 6 px on screen): the
+  flash had been taken off every third-person gun and nothing put back.
+- Rounds into the level are marked in a match, anyone's: a hole flat on the face hit, dust or sparks, a crack or a
+  thud close by. solidHit() records the face it entered through.
+- A kill confirms as one: a bigger red marker held longer (orange for a knock), ELIMINATED, a chime that climbs with a
+  streak; the feed says "eliminated" for a bot's death or a player out, and a wiped bot squad is called.
+- Gunfire carries: one distance curve for every sound had a gun at 100 m 31 dB down; guns now carry 20 m at full
+  level, blasts 25, footsteps still 3, and a far shot echoes. Near footsteps are never dropped for the voice cap,
+  and your own gun has its own bus and compressor so it no longer pushes the enemy's steps down.
+- A spray at one target is one growing number; LOW AMMO and RELOAD under the crosshair with a climbing click.
+
+## Milestone 75 — Feel: tracers, a knock that looks like one, contact shadows ✅
+2026-09-19 (Phase 15). `projectile.ts`, `viewmodel.ts`, `dummy.ts`, `mannequin.ts`, `bots.ts`, `duel.ts`, `main.ts`,
+`src/config/hud.json`.
+- A tracer is a streak along the round's flight, a frame's travel long (up to 6 m) and never under 1.5 px, drawn from
+  the gun's muzzle and joined to the real path (which leaves the eye) over the first 8 m: a 4 cm sphere from the eye
+  sat on the line of sight and read as dots.
+- A knocked figure is low and bent into a crawl (the mannequin about 70 degrees and sunk, the robot on its knees and
+  hands), where at 45 degrees it read as a live player crouching.
+- On the presets whose shadow map is drawn once, every figure has a soft contact shadow at its feet, so a moving
+  figure no longer floats; hidden once it falls.
+- Checks: e2e: a tracer in flight is a streak a metre or more long; snapshots `tracers`, `br-downed-3p`.

@@ -533,6 +533,8 @@ renderer.shadowMap.type = quality.preset === "high" ? THREE.PCFSoftShadowMap : T
 // A static shadow map is drawn once and again only when asked. The range
 // barely moves, so this removes a 2048-4096 depth render from every frame.
 renderer.shadowMap.autoUpdate = quality.shadows === "live";
+// where the shadow map is drawn once, figures get a contact shadow instead (dummy.ts)
+Dummy.contactShadows = quality.shadows !== "live";
 renderer.shadowMap.needsUpdate = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 // filmic tonemapping instead of raw linear output: without it the textured
@@ -3968,7 +3970,9 @@ function step(): void {
         const cone = shatter ? Math.max(s.cone, LOCKED_HOPUPS.hopup_shattercaps?.cone ?? 5) : (weapon.pellets > 1 ? Math.max(s.cone, weapon.spread.standHip) : s.cone) * s.coneScale;
         deviate(tmpDir, cone);
       }
-      projectiles.fire(origin.clone(), tmpDir, weapon, false, s.dmgScale, s.speedScale);
+      // the tracer from the muzzle you see: the gun in first person, your figure's in third
+      const muzzle = thirdPerson ? (selfFig?.muzzleWorld() ?? null) : viewModel.muzzleWorld();
+      projectiles.fire(origin.clone(), tmpDir, weapon, false, s.dmgScale, s.speedScale, muzzle);
       duel?.localShot(origin, tmpDir, weapon.id);
       selfFig?.kick();
     }
@@ -4788,12 +4792,14 @@ initWelcome();
   drawCalls: () => frameCost.calls,
   /** frames run since the page opened */
   frames: () => framesRun,
+  /** the live rounds' tracers (projectile.ts) */
+  tracers: () => projectiles.tracers,
   /** bullet impacts marked on the level since the page opened */
   impacts: () => impacts.count,
   /** a round from the gun in hand along a direction, through the bullets' own path (tools/snap.ts) */
   fireRound: (dir: [number, number, number]) => {
     const w = loadout.active.weapon;
-    projectiles.fire(player.eyePosition(), new THREE.Vector3(...dir).normalize(), w, false);
+    projectiles.fire(player.eyePosition(), new THREE.Vector3(...dir).normalize(), w, false, 1, 1, viewModel.muzzleWorld());
   },
   /** the last frame's draw calls and triangles over every pass (tools/bench.ts) */
   frameCost: () => ({ ...frameCost }),

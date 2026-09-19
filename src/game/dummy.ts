@@ -259,6 +259,33 @@ function bakePart(meshes: THREE.Object3D[], pivot: THREE.Vector3, keep: Set<THRE
   return out;
 }
 
+
+/** the contact shadow's disc and its soft dark falloff, made once and shared by every figure */
+let cGeo: THREE.PlaneGeometry | null = null;
+let cMat: THREE.MeshBasicMaterial | null = null;
+function contactGeo(): THREE.PlaneGeometry {
+  return (cGeo ??= new THREE.PlaneGeometry(1.1, 1.1));
+}
+function contactMat(): THREE.MeshBasicMaterial {
+  if (cMat) return cMat;
+  let map: THREE.Texture | null = null;
+  if (typeof document !== "undefined") {
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const g = c.getContext("2d");
+    if (g) {
+      const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grad.addColorStop(0, "rgba(0,0,0,1)");
+      grad.addColorStop(0.5, "rgba(0,0,0,0.55)");
+      grad.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 64, 64);
+      map = new THREE.CanvasTexture(c);
+    }
+  }
+  cMat = new THREE.MeshBasicMaterial({ map, color: 0x000000, transparent: true, opacity: 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  return cMat;
+}
 export class Dummy {
   readonly group = new THREE.Group();
   readonly hitMeshes: THREE.Mesh[] = [];
@@ -340,8 +367,24 @@ export class Dummy {
   /** the gun it holds, if armed */
   private gun: THREE.Object3D | null = null;
 
+  /**
+   * A soft dark disc at every figure's feet, on the presets whose shadow map
+   * is drawn once (Competitive, Balanced): there a moving figure casts
+   * nothing and reads as floating over the floor. main.ts turns it on for
+   * those and off where shadows are live.
+   */
+  static contactShadows = false;
+  private contact: THREE.Mesh | null = null;
+
   constructor(x: number, z: number, distanceLabel: number, opts: DummyOptions = {}) {
     this.distanceLabel = distanceLabel;
+    if (Dummy.contactShadows) {
+      this.contact = new THREE.Mesh(contactGeo(), contactMat());
+      this.contact.rotation.x = -Math.PI / 2;
+      this.contact.position.y = 0.02;
+      this.contact.renderOrder = -1;
+      this.group.add(this.contact);
+    }
     this.oneHit = opts.oneHit ?? false;
     this.respawns = opts.respawn ?? true;
     // Yaw first, then the fall, so an armed dummy turned to face you falls
@@ -801,6 +844,20 @@ export class Dummy {
 
   /** the robot gun's muzzle flash (the mannequin's is its own), and how long it has left lit */
   private flashSprite: THREE.Sprite | null = null;
+
+  /** the muzzle of the gun this figure shows, in the world: where its tracers start (null with no gun) */
+  muzzleWorld(): THREE.Vector3 | null {
+    for (const s of [this.mq?.flash ?? null, this.flashSprite]) {
+      const m = s?.parent;
+      if (!m) continue;
+      let shown = true;
+      for (let o: THREE.Object3D | null = m; o; o = o.parent) if (!o.visible) shown = false;
+      if (!shown) continue;
+      m.updateWorldMatrix(true, false);
+      return m.getWorldPosition(new THREE.Vector3());
+    }
+    return null;
+  }
   private flashLeft = 0;
   private flashSpin = 0;
   /** frames drawn with a flash lit (the suite counts them: a flash lasts two) */
@@ -926,9 +983,10 @@ export class Dummy {
         break;
       case "downed":
         // down, not out: on the knees and the hands, no gun, crawling; the
-        // arms reach in turn against the legs, the head up to see
-        lean = 1.2;
-        drop = 0.6;
+        // arms reach in turn against the legs, the head up to see. Low: a
+        // knock at 30 m must not read as a live player crouching.
+        lean = 1.3;
+        drop = 0.7;
         armsUp = -0.15;
         armSwing = 0.45 * Math.max(0.35, frac);
         thighL = 0.25 + s * 0.35 * frac;
@@ -1017,6 +1075,8 @@ export class Dummy {
     this.flashLeft = Math.max(0, this.flashLeft - dt);
     for (const s of [this.flashSprite, this.mq?.flash ?? null]) if (s) showFlash(s, this.flashLeft > 0, this.flashSpin);
     if (this.flashLeft > 0) this.flashFrames++;
+    // the contact shadow: under a standing figure, not one that has fallen (its group tips over with it)
+    if (this.contact) this.contact.visible = !this.knocked && this.group.visible;
     this.flinchAmt = Math.max(0, this.flinchAmt - dt * 5);
     this.joltAmt = Math.max(0, this.joltAmt - dt * 3);
     const flinch = this.flinchAmt;

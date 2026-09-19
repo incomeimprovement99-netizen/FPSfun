@@ -396,6 +396,14 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "tracers",
+    note: "a burst down the range, caught in flight: streaks from the muzzle joining the line of sight, not dots",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.teleport(0, 0, 0, 0, 1); })()`, 600],
+      [`(() => { const r = window.__range; for (let i = 0; i < 4; i++) setTimeout(() => r.fireRound([(i - 1.5) * 0.02, 0.01, -1]), i * 25); })()`, 110],
+    ],
+  },
+  {
     name: "br-impacts",
     note: "a burst into the hub's north berm: bullet holes on its face, the dust off it",
     steps: [
@@ -432,6 +440,18 @@ export const SCENARIOS: Scenario[] = [
       [
         `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("triage"); const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, 0); d.downed = true; d.bleedUntil = performance.now() / 1000 + 71.4; r.brPlay.addMarker("go", new r.THREE.Vector3(s.x + 6, 0, s.z - 30), "GOING HERE", 1, -1, r.gameTime()); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
         900,
+      ],
+    ],
+  },
+  {
+    name: "br-downed-3p",
+    note: "down, seen in third person: the figure low and bent into a crawl, not a crouch",
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [untilFightLong, 400],
+      [
+        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("triage"); const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, 0); d.downed = true; d.bleedUntil = performance.now() / 1000 + 71.4; r.setThirdPerson(true); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
+        1400,
       ],
     ],
   },

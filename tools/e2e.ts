@@ -2254,6 +2254,13 @@ async function shotgunChecks(page: Page): Promise<void> {
     for (let i = 0; i < 5; i++) r.hud.addDamage(new r.THREE.Vector3(0, 1.2, -10), 10, "#ff4a3d", false, now + i * 0.1, key);
     return r.hud.damageNumbers.slice(before); })()`);
   check("damage numbers: a spray at one target reads as one number that grows", spray.length === 1 && spray[0].amount === 50, JSON.stringify(spray));
+  // a tracer is a streak from the muzzle, not a dot on the line of sight:
+  // caught in flight, it is a metre or more long, and a few metres out it
+  // has joined the real path
+  const tr = await ev<{ first: { len: number; width: number; off: number } | null; later: { off: number; travelled: number } | null }>(page, `new Promise((ok) => { const r = window.__range; r.fireRound([0, 0.01, -1]); let first = null;
+    const look = () => { const t = r.tracers(); if (!t.length) return ok({ first, later: null }); const x = t[t.length - 1]; if (!first && x.travelled > 0.5) first = x; if (x.travelled > 12) return ok({ first, later: x }); requestAnimationFrame(look); };
+    requestAnimationFrame(look); })`);
+  check("tracers: a streak a metre or more long, and on the real path once it is clear of the gun", !!tr.first && tr.first.len >= 1 && tr.first.width >= 0.02 && (!tr.later || tr.later.off < 0.05), JSON.stringify(tr));
   // the low-ammo line: a quarter of the magazine left, then none
   await ev(page, "(() => { const r = window.__range; r.loadout.active.state.clip = 3; })()");
   await sleep(200);

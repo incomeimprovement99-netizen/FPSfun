@@ -512,11 +512,14 @@ export class MannequinFigure {
       turnBone(b.spine_01, fig, Y, -fx.legYaw);
     }
     const aimed = !full && armed && p.act !== "heal" && p.act !== "swap" && p.stance !== "downed";
-    // down: the crouched walk bent over into a crawl, the head up to see
+    // Down: the crouched walk bent right over into a crawl, the head up to
+    // see. At 45 degrees a knocked figure at 30 m read as a live one
+    // crouching, which is the one thing a knock has to not look like: bent to
+    // about 70 and sunk (below), it is low and plainly out of the fight.
     if (p.stance === "downed") {
-      if (b.spine_01) turnBone(b.spine_01, fig, new THREE.Vector3(1, 0, 0), 0.45);
-      if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), 0.35);
-      if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), -0.6);
+      if (b.spine_01) turnBone(b.spine_01, fig, new THREE.Vector3(1, 0, 0), 0.7);
+      if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), 0.5);
+      if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), -0.95);
     }
     const pitch = aimed ? Math.max(-70, Math.min(70, p.pitch)) * DEG : 0;
     // +x is the figure's left: a turn about it by a negative angle tips the chest back (a look up)
@@ -559,7 +562,7 @@ export class MannequinFigure {
         turnBone(b.lowerarm_l, fig, X, -em.lElbowF);
       }
       this.root.position.y = em.bounce;
-    } else this.root.position.y = 0;
+    } else this.root.position.y = p.stance === "downed" ? -0.15 : 0;
     const shown = !!this.gun && this.gun.visible;
     if (this.mount && this.grip) {
       // a long gun: lowered and canted across the body for a sprint or a swap, up at the shoulder otherwise

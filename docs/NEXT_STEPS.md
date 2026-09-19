@@ -100,14 +100,14 @@ Three read-only passes over the code, after the map expansion (Milestone 71), ag
 7. ~~**The host alt-tabs and the match runs at one frame a second for everyone:**~~ Done (Milestone 73). a hidden tab's timer is throttled. When hidden, a Worker timer drives the simulation and the network at 30 Hz; e2e gains a section with throttling on. 3-4 h.
 
 **Then: feel, what a player notices in ten minutes (about three days)**
-8. **Other players' guns show no muzzle flash** (removed from every third-person gun), so a shooter at range is invisible; the bots' own sight model assumes the flash is there. A pooled 35 ms flash at the muzzle, never under 6 px. 2 h (plus 1 h for a pooled sprite layer in `fx.ts`, which 9, 10 and 13 need).
-9. **Bullets hitting the world show and sound like nothing in a match** (the impact only reaches the range's spray wall). Holes, a puff, a surface sound, remote rounds too. 4-5 h.
-10. **Kills do not confirm, and the feed is wrong:** one hit marker for everything, bot deaths reported as knocks, nobody else's eliminations in the feed. A kill marker and a rising chime, a structured feed, "SQUAD WIPED". 4 h.
-11. **Gunfire fades far too fast for 165 m sightlines** (every voice on one curve, -31 dB at 100 m), and the voice cap drops near footsteps before far gunfire. A distance per voice kind, a far echo, priorities. 2-3 h.
-12. **Your own gunfire squashes enemy footsteps** through one master compressor: your gun gets its own bus. 2 h.
-13. **Tracers are 4 cm dots from your eye:** a stretched streak from the muzzle, blended onto the real path. 3 h.
-14. **A downed figure looks like a crouching live one:** low and crawling, the knockback clip played. 2-3 h.
-15. **Damage numbers pile up in a spray:** one per target, adding while hits keep coming. 1.5 h. **No low-ammo warning:** LOW AMMO, RELOAD and a rising click. 1 h. **Figures float on Competitive and Balanced** (static shadows): a contact shadow under each. 1.5 h.
+8. ~~**Other players' guns show no muzzle flash**~~ Done (Milestones 74, 75). (removed from every third-person gun), so a shooter at range is invisible; the bots' own sight model assumes the flash is there. A pooled 35 ms flash at the muzzle, never under 6 px. 2 h (plus 1 h for a pooled sprite layer in `fx.ts`, which 9, 10 and 13 need).
+9. ~~**Bullets hitting the world show and sound like nothing in a match**~~ Done (Milestones 74, 75). (the impact only reaches the range's spray wall). Holes, a puff, a surface sound, remote rounds too. 4-5 h.
+10. ~~**Kills do not confirm, and the feed is wrong:**~~ Done (Milestones 74, 75). one hit marker for everything, bot deaths reported as knocks, nobody else's eliminations in the feed. A kill marker and a rising chime, a structured feed, "SQUAD WIPED". 4 h.
+11. ~~**Gunfire fades far too fast for 165 m sightlines**~~ Done (Milestones 74, 75). (every voice on one curve, -31 dB at 100 m), and the voice cap drops near footsteps before far gunfire. A distance per voice kind, a far echo, priorities. 2-3 h.
+12. ~~**Your own gunfire squashes enemy footsteps**~~ Done (Milestones 74, 75). through one master compressor: your gun gets its own bus. 2 h.
+13. ~~**Tracers are 4 cm dots from your eye:**~~ Done (Milestones 74, 75). a stretched streak from the muzzle, blended onto the real path. 3 h.
+14. ~~**A downed figure looks like a crouching live one:**~~ Done (Milestones 74, 75). low and crawling, the knockback clip played. 2-3 h.
+15. ~~**Damage numbers pile up in a spray:**~~ Done (Milestone 74): one per target, adding while hits keep coming. 1.5 h. ~~**No low-ammo warning:**~~ Done: LOW AMMO, RELOAD and a rising click. 1 h. ~~**Figures float on Competitive and Balanced**~~ Done (Milestone 75) (static shadows): a contact shadow under each. 1.5 h.
 16. **Explosions are a ball and a ring:** shake (off with reduced motion), smoke, a scorch, ringing ears inside 6 m. 3 h. **The gun shares the world's FOV** and warps on a slide: its own camera. 4-6 h. **Gunshots are all synthesis:** recorded CC0 layers under it. 5-6 h.
 
 **Then: eight friends playing each other (about a week)**

@@ -321,6 +321,13 @@ export class ViewModel {
   private readonly rightArm = new Forearm();
   private readonly leftArm = new Forearm();
   private readonly flash = new MuzzleFlash();
+
+  /** the gun's muzzle in the world, for a tracer to start at (null with no gun in hand) */
+  muzzleWorld(): THREE.Vector3 | null {
+    if (!this.flash.group.parent) return null;
+    this.flash.group.updateWorldMatrix(true, false);
+    return this.flash.group.getWorldPosition(new THREE.Vector3());
+  }
   private readonly shells = new Shells();
   private optic: OpticModel | null = null;
 

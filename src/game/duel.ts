@@ -768,7 +768,7 @@ export class Duel implements MatchLike {
         const dir = new THREE.Vector3(...m.d);
         // the figure's gun kicks
         r.avatar.kick();
-        this.projectiles.fire(o, dir, this.weapon(m.w), true);
+        this.projectiles.fire(o, dir, this.weapon(m.w), true, 1, 1, r.avatar.muzzleWorld());
         this.onShotFired?.(from, o, dir, m.w);
         if (this.role === "host" && from < Duel.BOT_ID) this.heardShot(o);
         // Every pellet is its own message; the sound is once per pull. The
