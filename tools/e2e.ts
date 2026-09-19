@@ -1594,7 +1594,7 @@ async function botTiersTest(browser: Browser, query: string): Promise<void> {
   // it crouches now and then in the fight (close in, where nothing low stands between you), and dodges when hit
   await ev(page, "(() => { const b = window.__range.duel().bots[0]; b.diff = { ...b.diff, keep: 6 }; })()");
   const crouched = await page.waitForFunction("window.__range.duel().bots[0].crouching", { polling: 50, timeout: 12000 }).then(() => true, () => false);
-  check("tiers: the elite bot crouches while it fires", crouched);
+  check("tiers: the elite bot crouches while it fires", crouched, crouched ? "" : JSON.stringify(await ev(page, `(() => { const b = window.__range.duel().bots[0]; const p = window.__range.player.pos; const y = b.dummy.group.rotation.y; const dx = p.x - b.pos.x, dz = p.z - b.pos.z; return { sees: b.sees(p), seenAgo: b.lastSeen ? +(performance.now() / 1000 - b.lastSeen.at).toFixed(1) : null, facingDeg: Math.round(Math.acos(Math.max(-1, Math.min(1, (Math.sin(y) * dx + Math.cos(y) * dz) / Math.hypot(dx, dz)))) * 180 / Math.PI), d: +Math.hypot(dx, dz).toFixed(1), healing: !!b.healing, cover: !!b.cover }; })()`)));
   const dodge = await ev<boolean>(page, `(() => { const b = window.__range.duel().bots[0]; const before = b.strafeSign; b.dummy.hit(0, "body", 5, 1, 1, b.pos.clone().setY(1.2)); return new Promise((r) => setTimeout(() => r(b.strafeSign !== before), 400)); })()`);
   check("tiers: hit, it reverses its strafe (hard and elite always dodge)", dodge);
   // low: it finds cover out of your sight and heals there
@@ -3136,8 +3136,10 @@ async function botSquadsTest(browser: Browser, query: string): Promise<void> {
   let samples = 0;
   for (let i = 0; i < 20; i++) {
     await sleep(1500);
-    const spread = await ev<number[]>(page, `(() => { const d = window.__range.duel(); const by = new Map(); for (const b of d.bots) { if (!b.bot.alive) continue; if (!by.has(b.team)) by.set(b.team, []); by.get(b.team).push(b.bot.pos); }
-      return [...by.values()].map((ps) => { let m = 0; for (const a of ps) for (const c of ps) m = Math.max(m, Math.hypot(a.x - c.x, a.z - c.z)); return m; }); })()`);
+    // only a squad out of a fight: one that has seen someone lately breaks formation to fight, as it should
+    const spread = await ev<number[]>(page, `(() => { const d = window.__range.duel(); const now = performance.now() / 1000; const by = new Map(); const fighting = new Set();
+      for (const b of d.bots) { if (!b.bot.alive) continue; if (!by.has(b.team)) by.set(b.team, []); by.get(b.team).push(b.bot.pos); if (b.bot.lastSeen && now - b.bot.lastSeen.at < 8) fighting.add(b.team); }
+      return [...by.entries()].filter(([t]) => !fighting.has(t)).map(([, ps]) => { let m = 0; for (const a of ps) for (const c of ps) m = Math.max(m, Math.hypot(a.x - c.x, a.z - c.z)); return m; }); })()`);
     for (const m of spread) {
       samples++;
       if (m < 25) together++;
@@ -3146,7 +3148,7 @@ async function botSquadsTest(browser: Browser, query: string): Promise<void> {
   // Bots that see someone leave the formation to fight, as they should, so it
   // is not all the time: measured 75 to 90 per cent with the squad following
   // its first bot, and about 50 without.
-  check("bot squads: each squad keeps together after landing (within 25 m, most of the time)", samples > 0 && together / samples >= 0.7, `${together} of ${samples} squad samples together`);
+  check("bot squads: each squad out of a fight keeps together (within 25 m, most of the time)", samples >= 8 && together / samples >= 0.7, `${together} of ${samples} squad samples together`);
   await ev(page, "window.__range.duel()?.leave()");
   await page.close();
 }
