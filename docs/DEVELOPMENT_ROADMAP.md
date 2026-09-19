@@ -1577,3 +1577,19 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: the e2e `loot` and `br` sections, unchanged; the `br-loot` snapshot (boxes, rings, beams and floor guns all
   drawn); the benchmark before and after.
 
+## Milestone 102 — The eight-player rehearsal ✅
+2026-09-19 (Phase 15). `tools/rehearsal.ts` (new), `package.json`.
+- Everything about eight friends had been tested with two or four tabs. `npm run rehearsal` plays the full lobby:
+  eight pages join one battle royale through the public broker (WebRTC between them, as friends play), split into
+  four duos with three bot duos, land, and play for a minute with every guest running circles and looking about, so
+  every state stream changes every tick. It fails if anyone cannot connect or land, if anyone does not see all seven
+  others, if anyone is out of the match by the end, or if any page logs an error; and it reports the host's upload
+  to each guest (the wire bytes of both data channels) and how long its match update takes a frame.
+- First run, on this machine, 45 s: all eight connected, landed and saw the other seven, and nothing logged an
+  error. The host sent 19 kB/s to each guest, 132 kB/s (about 1.1 Mbit/s) in all; its match update took 1.5 ms
+  median, 2.9 ms p95, 3.5 ms p99.
+- What it says next: the host's upload grows with the square of the lobby (every guest gets every other player's
+  state at the full 30 a second, and the bots'), and a megabit is more than a phone's hotspot always has. Sending a
+  guest the players far from it less often (interest management) is the next saving; the rehearsal is how to
+  measure it.
+
