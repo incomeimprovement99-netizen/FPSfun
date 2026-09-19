@@ -2692,6 +2692,11 @@ async function main(): Promise<void> {
     const t0 = await ev<number>(page, "performance.now()");
     const f = await ev<{ merged: { meshes: number; after: number } | null; calls: number }>(page, "({ merged: window.__range.merged, calls: window.__range.drawCalls() })");
     check("loads with the static merge done", f.merged !== null && f.merged.after < f.merged.meshes, f.merged ? `${f.merged.meshes} -> ${f.merged.after} meshes` : "none");
+    // the loading screen counts the models and textures in, and goes once they are and a frame is drawn
+    const inWorld = await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 30000 }).then(() => true, () => false);
+    await sleep(500);
+    const ls = await ev<{ hidden: boolean; status: string; fill: string }>(page, `(() => { const e = document.getElementById("loading"); return { hidden: e.hidden, status: document.getElementById("loadingStatus").textContent, fill: document.getElementById("loadingFill").style.width }; })()`);
+    check("the loading screen counts the world in and goes once it is", inWorld && ls.hidden && /\d+ OF \d+/.test(ls.status) && ls.fill === "100%", JSON.stringify(ls));
     check("frames are drawing", f.calls > 0, `${f.calls} draw calls`);
     check("no page errors on load", errors.length === 0, errors.slice(0, 3).join(" | "));
     // smaller downloads (tools/compress-assets.ts): the surfaces and the props' maps come as WebP, and none is missing

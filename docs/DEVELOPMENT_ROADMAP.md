@@ -957,4 +957,16 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   to final deaths) and the e2e `resurgence` section (alone: the wait, the way back and its kit, a bot's way back, the
   final round; as a squad: the host's kill cutting the guest's wait, the guest landing near the host, both down at
   once ending it).
+## Milestone 66 — A loading screen, and loot where you can reach it ✅
+2026-09-18 (Phase 15). `src/ui/loading.ts` (new), `index.html`, `main.ts`, `loot.ts`, `brmatch.ts`, `src/config/hud.json`,
+`src/config/loot.json`, `tools/bench.ts`, `tools/snap.ts`.
+- The page opened straight onto the menu with 30 MB of models and 16 MB of textures still arriving. It now opens on a
+  loading screen that counts every model and texture in through three.js's default loading manager (every loader in
+  the game goes through it), with a tip that turns over, and goes once everything asked for is in and a frame is
+  drawn: never under 0.6 s, so it does not flash, and never over 25 s, so a stuck request cannot keep you out.
+- snap and bench wait for it, so no picture or measurement catches the world half loaded; the e2e checks it counts the
+  world in and goes. `BENCH_SPOT=br` measures from the Mast's roof across the whole battle royale map.
+- Loot is laid over each place's whole reach rather than a fixed 34 m, so West Town's clocktower and water tower get
+  theirs, and a box's top is a floor for loot only if it is 1 m across both ways: nothing lands on a parapet, a wall
+  or a stair tread, where it could be seen and not reached.
 

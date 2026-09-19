@@ -510,7 +510,7 @@ export class BrMatch extends Duel {
     this.startLoot = opts.start !== "loadout";
     if (this.startLoot) {
       this.lootField = new LootField(scene);
-      this.lootField.generate(this.seed, map.pois.map((p) => ({ x: p.x, z: p.z })), BR_BOUNDS_WORLD);
+      this.lootField.generate(this.seed, map.pois.map((p) => ({ x: p.x, z: p.z, id: p.id, radius: p.radius })), BR_BOUNDS_WORLD);
     }
     if (this.role === "host") {
       // The bots take the OTHER places: where the squad drops is the squad's.

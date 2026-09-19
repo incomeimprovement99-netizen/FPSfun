@@ -84,6 +84,10 @@ import { STACK, ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
 import { Progress, levelFor, type Award } from "./game/progress";
 import { HUD_SCALES, P, VISION_MODES, access, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
+import { LoadingScreen } from "./ui/loading";
+
+// the loading screen listens from here on: before any loader of the page's own has started
+const loadingScreen = new LoadingScreen();
 
 const DEG = Math.PI / 180;
 /** slot 1 and slot 2. Keys 1 and 2 select, Q swaps. */
@@ -4290,6 +4294,8 @@ function step(): void {
       : null,
   });
   input.endFrame();
+  // the loading screen goes once the world is in and this frame is drawn
+  loadingScreen.frame();
   // CPU time for everything this frame did: simulation, render submission and
   // HUD. The GPU works on it after this, in parallel with the next frame.
   frameMs += (performance.now() - frameStart - frameMs) * 0.1;
@@ -4388,6 +4394,8 @@ initWelcome();
   viewModelVisible: () => viewModel.group.visible,
   lobbyCode: () => (hosting && !duel ? hosting.code : null),
   setMapOpen: (on: boolean) => (mapOpen = on),
+  /** the loading screen has gone: everything asked for is in and a frame is drawn (the tools wait on it) */
+  loaded: () => loadingScreen.loaded,
   /** the dropship: this match's flight, and who you are linked to or following */
   ship: () => (duel instanceof BrMatch ? duel.ship : null),
   shipState: () => ({ aboard: player.aboard, linkedTo, following, leash: player.leash ? player.leash.toArray() : null }),

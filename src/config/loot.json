@@ -65,7 +65,7 @@
     "sw": "low",
     "se": "low"
   },
-  "_placeOrder": "brmatch.ts hands the loot its places as bare x and z, so when a place arrives without its id we read the tier off this list by position. It is the order of the pois array in src/game/br.ts, and a place added there belongs here too.",
+  "_placeOrder": "brmatch.ts hands the loot its places with their ids, so the tier is read by id; this list, the order of the pois array in src/game/br.ts, is for a place that arrives without one (a test, or an older caller), whose tier is read by its position. A place added there belongs here too.",
   "placeOrder": [
     "hub",
     "north",
@@ -506,5 +506,8 @@
   "_pods": "a care package lands inside the next ring in rounds 2 to 4, falling this long (ours: Apex's fall time is not published)",
   "podFall": 8,
   "drawDistance": 70,
-  "_packs": "backpackChance and knockdownChance: the chance a spot kind also holds a backpack or a knockdown shield (src/game/kit.ts, src/config/items.json). A backpack goes with the heals, on a med shelf, because what it does is carry more of them; a knockdown shield goes with the armour on an attachment bench, and now and then on a gun rack. The tier rolls on the place's rarity like everything else, so a gold one turns up where gold things do. A white one is never placed: Season 28 put the white backpack in the starter kit, and a white knockdown shield is what EVO gives you anyway. Ours."
+  "_packs": "backpackChance and knockdownChance: the chance a spot kind also holds a backpack or a knockdown shield (src/game/kit.ts, src/config/items.json). A backpack goes with the heals, on a med shelf, because what it does is carry more of them; a knockdown shield goes with the armour on an attachment bench, and now and then on a gun rack. The tier rolls on the place's rarity like everything else, so a gold one turns up where gold things do. A white one is never placed: Season 28 put the white backpack in the starter kit, and a white knockdown shield is what EVO gives you anyway. Ours.",
+  "_surface": "A spot for loot has to be a surface you can stand on: a box's top counts only if it is at least minSurface metres across both ways. Without it loot landed on parapets, wall tops and stair treads, where a player sees it and cannot walk to it. A place's loot is laid from 4 m out to the place's own reach (src/config/brmap.json, br.ts's radius), never less than 34 m, so West Town's clocktower and water tower, 34 m and more from its middle, get their share.",
+  "minSurface": 1.0,
+  "placeReachMin": 34
 }

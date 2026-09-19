@@ -676,7 +676,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npx tsx tools/trim-glb.ts` | cut a .glb down to the animations named (how the mannequin's files were made) |
 | `npm run probe` | a scripted wallbounce at the practice wall in the real page, printing what the feed registered (needs `npm run dev`) |
 | `npm run measure` | what each technique reaches on the real controller (needs `npm run dev`) |
-| `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`) |
+| `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`); `BENCH_SPOT=br` measures from the Mast's roof across the whole battle royale map |
 | `npm run shot` | screenshots of every view into `shots/` (needs `npm run dev`) |
 | `npm run rules` | nothing in the repo references the game's install or its files |
 | `npm run deploy` | `build:beta`, then publish `dist/` as the `gh-pages` branch (the static mirror) |

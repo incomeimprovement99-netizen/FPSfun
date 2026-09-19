@@ -53,6 +53,11 @@ const holdLab = `(async () => { ${hideMenu}; const r = window.__range; await r.l
 
 export const SCENARIOS: Scenario[] = [
   {
+    name: "loading",
+    note: "the loading screen, held part way: the name, the bar, the count and a tip",
+    steps: [[`(() => { const e = document.getElementById("loading"); e.hidden = false; e.classList.remove("done"); document.getElementById("loadingFill").style.width = "42%"; document.getElementById("loadingStatus").textContent = "LOADING THE WORLD  ·  21 OF 50"; })()`, 400]],
+  },
+  {
     name: "readme-tv",
     note: "the README screen at the far end of the range, under its B00G'S RANGE sign, with the arrow plates beside it",
     steps: [
@@ -581,6 +586,8 @@ async function main(): Promise<void> {
       await page.evaluateOnNewDocument(`for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`);
       await page.goto(BASE + (sc.query ?? ""), { waitUntil: "domcontentloaded", timeout: 60000 });
       await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
+      // the loading screen is over everything until the world is in
+      await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 60000 });
       await sleep(1500);
       for (const [expr, wait] of sc.steps) {
         await ev(page, expr);

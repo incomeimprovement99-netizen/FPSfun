@@ -65,6 +65,8 @@ export interface LootPlace {
   x: number;
   z: number;
   id?: string;
+  /** how far the place reaches, metres (br.ts): its loot is laid out to here */
+  radius?: number;
 }
 
 /** the match's Hot Zone, for the maps to ring and the HUD to call out */
@@ -365,7 +367,9 @@ export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
  */
 function standingSpots(x: number, z: number): number[] {
   const here = RANGE_SOLIDS.filter((s) => x > s.minX - 0.3 && x < s.maxX + 0.3 && z > s.minZ - 0.3 && z < s.maxZ + 0.3);
-  const tops = [0, ...here.map((s) => s.top)].filter((y) => y <= 12);
+  // a top is a floor only if it is wide enough to stand on: not a parapet, a wall's top or a stair's tread
+  const floorTops = here.filter((s) => s.maxX - s.minX >= cfg.minSurface && s.maxZ - s.minZ >= cfg.minSurface).map((s) => s.top);
+  const tops = [0, ...floorTops].filter((y) => y <= 12);
   const out: number[] = [];
   for (const y of new Set(tops)) {
     // room to stand: nothing occupying the 1.9 m above this surface
@@ -529,7 +533,9 @@ export class LootField {
       let tries = 0;
       while (spots.length < cfg.tiers[tier].spots && tries++ < 400) {
         const a = rnd() * Math.PI * 2;
-        const r = 4 + rnd() * 30;
+        // out to the place's own reach: West Town's clocktower is 34 m and more from its middle
+        const reach = Math.max(cfg.placeReachMin, p.radius ?? 0);
+        const r = 4 + rnd() * (reach - 4);
         trySpotAnyFloor(spots, p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
       }
       if (hot) hotSpots = spots;

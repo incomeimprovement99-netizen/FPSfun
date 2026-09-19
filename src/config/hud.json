@@ -189,5 +189,23 @@
     ],
     "open": 4,
     "gap": 1.5
+  },
+  "_loading": "The loading screen (src/ui/loading.ts): up for at least minSeconds so it does not flash, gone once everything asked for is in and a frame is drawn, or after maxSeconds whatever happens. With nothing asked for at all (a page served from the cache) it goes after quietSeconds. A tip turns over every tipSeconds. Ours.",
+  "loading": {
+    "minSeconds": 0.6,
+    "maxSeconds": 25,
+    "quietSeconds": 1.2,
+    "tipSeconds": 4.5,
+    "tips": [
+      "Look straight down in the drop to dive fast, level to glide far.",
+      "In a squad the host is the jumpmaster. Press C to break off and fly yourself.",
+      "A Ring Console shows your whole squad where the ring goes after next.",
+      "Resurgence: every kill by your side takes 5 s off a dead squad mate's wait.",
+      "Hold the interact key over a pile of loot to take everything at your feet.",
+      "Crouch while you sprint to slide, and jump out of the slide to keep its speed.",
+      "M opens the map. The middle mouse button pings a place, an item or an enemy for your squad.",
+      "The Mast at the hub is seven floors to the best loot on the map, and everyone knows it.",
+      "Walk into a place and its name comes up. The quieter corners are walled compounds."
+    ]
   }
 }

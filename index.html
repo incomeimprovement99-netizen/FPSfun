@@ -19,6 +19,14 @@
       canvas { display: block; }
       #hud { position: fixed; inset: 0; pointer-events: none; }
       #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(6, 8, 10, 0.82); z-index: 10; }
+      /* the loading screen (src/ui/loading.ts): over everything until the world is in */
+      #loading { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: radial-gradient(ellipse at center, #171c23 0%, #0b0d10 72%); transition: opacity .35s ease; }
+      #loading.done { opacity: 0; pointer-events: none; }
+      #loading .brand { padding: 0; }
+      #loading .bar { width: min(420px, 80vw); height: 6px; background: #1d232b; border-radius: 3px; overflow: hidden; }
+      #loading .fill { height: 100%; width: 0%; background: linear-gradient(90deg, #d4712a, #ffd23c); transition: width .2s ease; }
+      #loading .status { color: #9aa4ad; font-family: "Rajdhani", "Segoe UI", sans-serif; font-size: 14px; font-weight: 700; letter-spacing: .14em; }
+      #loading .tip { color: #c8d0d8; font-size: 15px; max-width: min(520px, 86vw); min-height: 2.8em; text-align: center; line-height: 1.4; }
       #overlay.hidden { display: none; }
       .panel { width: 520px; max-width: 92vw; max-height: 94vh; overflow-y: auto; box-sizing: border-box; background: #14181d; border: 1px solid #2a323b; border-radius: 6px; padding: 22px 26px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
       .panel h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: .04em; text-transform: uppercase; color: #f0f0f0; }
@@ -167,6 +175,12 @@
     </style>
   </head>
   <body>
+    <div id="loading" role="status" aria-live="polite">
+      <div class="brand"><span class="logo">B00G</span><span class="title">RANGE</span></div>
+      <div class="bar"><div class="fill" id="loadingFill"></div></div>
+      <div class="status" id="loadingStatus">LOADING THE WORLD</div>
+      <div class="tip" id="loadingTip"></div>
+    </div>
     <div id="app"></div>
     <canvas id="hud"></canvas>
     <div id="overlay">
