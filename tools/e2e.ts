@@ -3297,7 +3297,7 @@ async function emoteTest(browser: Browser, query: string, duelQuery: string): Pr
  * seat. The match goes on: the same match on both pages, the score and the
  * clock carried over, and the two hearing each other.
  */
-async function migrateTest(browser: Browser, query: string, label = "host migration"): Promise<void> {
+async function migrateTest(browser: Browser, query: string, label = "host migration", kind = "ffa", bots = 0): Promise<void> {
   const host = await open(browser, query);
   const b = await open(browser, query);
   const c = await open(browser, query);
@@ -3305,7 +3305,7 @@ async function migrateTest(browser: Browser, query: string, label = "host migrat
   const close = async () => {
     for (const p of pages) if (!p.isClosed()) await p.close();
   };
-  await ev(host, `(() => { document.getElementById("duelMode").value = "ffa"; document.getElementById("modeBots").value = "0"; document.getElementById("duelPlayers").value = "3"; document.getElementById("duelHost").click(); })()`);
+  await ev(host, `(() => { document.getElementById("duelMode").value = "${kind}"; document.getElementById("modeBots").value = "${bots}"; document.getElementById("modeSides").value = "together"; document.getElementById("botDifficulty").value = "mixed"; document.getElementById("duelPlayers").value = "3"; document.getElementById("duelHost").click(); })()`);
   try {
     await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
     const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
@@ -3317,7 +3317,7 @@ async function migrateTest(browser: Browser, query: string, label = "host migrat
     for (const p of pages) await pressPlay(p);
     for (const p of pages) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 45000 });
   } catch {
-    check(`${label}: the three start a Free-for-all`, false);
+    check(`${label}: the three start the match`, false);
     await close();
     return;
   }
@@ -3336,6 +3336,9 @@ async function migrateTest(browser: Browser, query: string, label = "host migrat
   const before = await ev<number>(host, "window.__range.duel().clockLeft(performance.now() / 1000)");
   const beforeAt = Date.now();
   for (const p of [heir, other]) await ev(p, "window.__match = window.__range.duel()");
+  // the bots as the host has them: index, tier, team
+  const botsOf = "window.__range.duel().bots.map((b) => [b.bot.index, b.bot.diff.name, b.team].join(':')).sort().join(',')";
+  const botsBefore = await ev<string>(host, botsOf);
   // the host's tab crashes: every link cut with no goodbye, then the tab is gone
   await ev(host, "(() => { const d = window.__range.duel(); for (const l of d.links.values()) { l.onClose = null; l.abandon?.(); } d.leave = () => undefined; })()");
   await host.close();
@@ -3360,6 +3363,14 @@ async function migrateTest(browser: Browser, query: string, label = "host migrat
     after.phase === "fight" && otherView.phase === "fight" && after.kills === 3 && otherView.kills === 3 && Math.abs(after.left - expected) < 2 && after.linked && !after.held && after.oldGone && otherView.oldGone && flow[0] < 1.5 && flow[1] < 1.5,
     JSON.stringify({ after, otherView, expected, flow })
   );
+  if (bots > 0) {
+    // the bots: the same ones, made again on the heir, and still moving on the other guest's screen
+    const botsAfter = await ev<string>(heir, botsOf);
+    const botFlow = await ev<number>(other, "Math.max(...[...window.__range.duel().remotes.values()].filter((r) => r.id >= 100).map((r) => performance.now() / 1000 - r.lastHeard))");
+    const figures = await ev<number>(heir, "[...window.__range.duel().remotes.keys()].filter((id) => id >= 100).length");
+    const extra = kind === "control" ? await ev<{ zones: number; heirZones: number }>(heir, "(() => { const d = window.__range.duel(); return { zones: d.control ? d.control.zones.length : 0, heirZones: d.control ? 1 : 0 }; })()") : null;
+    check(`${label}: the bots are the same ones, each with its tier and team, run by the new host, and heard from on the other guest's screen`, botsBefore.length > 0 && botsAfter === botsBefore && figures === 0 && botFlow < 1.5 && (!extra || extra.zones === 3), JSON.stringify({ botsBefore, botsAfter, figures, botFlow, extra }));
+  }
   // and the new host names its own heir: the last guest
   const next = await heir.waitForFunction(`window.__range.duel().heir === ${otherId}`, { polling: 200, timeout: 5000 }).then(() => true, () => false);
   check(`${label}: the new host names the other guest its heir`, next);
@@ -4271,6 +4282,10 @@ async function main(): Promise<void> {
     if (want("migrate")) {
       console.log("\nHost migration: the host's tab crashes and a friend takes the match over");
       await migrateTest(browser, "?net=local&norender");
+      console.log("\nHost migration in team deathmatch, with bots");
+      await migrateTest(browser, "?net=local&norender", "host migration (tdm)", "tdm", 6);
+      console.log("\nHost migration in Control, with bots");
+      await migrateTest(browser, "?net=local&norender", "host migration (control)", "control", 3);
     }
 
     if (want("squad")) {

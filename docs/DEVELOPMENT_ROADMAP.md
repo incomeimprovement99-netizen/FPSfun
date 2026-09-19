@@ -1737,3 +1737,22 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   the next heir named, a goodbye handed on, and a match that cannot migrate still ending), and the e2e `migrate`
   section (three pages in a Free-for-all; the host's tab crashes; the heir is the host and the third page is back on
   its seat, the same match on both, three kills and the clock carried over), also run over the internet in `p2p`.
+
+## Milestone 112 — Host migration, phase 3: the arena modes with bots, the crown and Control ✅
+2026-09-19 (Phase 15). `modematch.ts`, `modes.ts`, `duel.ts`, `link.ts`, `tools/checks/mode-restore.ts` (new),
+`tools/e2e.ts`.
+- Every arena mode now outlives its host. The heir's snapshot carries what only the host had: each bot's index,
+  tier, team, gun, respawn time and waypoint; when the crown appears, if it has not; and when Control's next bonus
+  comes. The rest (where each bot stands and its health, the crown's carrier and hold, each zone's owner and value,
+  the scores, the bonus and the lockout) is in the heir's own copy already.
+- The heir makes each bot again where it last saw that bot's figure, with its health and shield, and the figure
+  gives way to it, so nothing jumps on anyone's screen. A bot that was down comes back when its respawn was due.
+  Bots are made in one place (`makeBot`) for the host at the start and for the heir.
+- `Crown.restore` and `Control.restore` put the crown and the zones back as they stood, so the hold keeps counting
+  to the same win, a zone held keeps scoring, and a lockout keeps its clock.
+- Checks: `tools/checks/mode-restore.ts` (the crown carried through a takeover wins as the host's would have; one
+  still waiting appears when the snapshot said; Control's zones and score run on exactly as the host's; a lockout
+  keeps its clock), and the e2e `migrate` section in team deathmatch (seven bots, allies and foes) and Control
+  (three), on mixed difficulty so each bot draws its own tier (the same bots, each with its tier and team, run by
+  the new host and heard from on the other guest's screen; three zones on the new host). Both took over in 0.05 s
+  and had the third player back in at 1.05 s.

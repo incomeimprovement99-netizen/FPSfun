@@ -25,7 +25,7 @@
 import { senderStamp } from "../net/state";
 import * as THREE from "three";
 import { Throwables, blastDamage, throwCode } from "./throwables";
-import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP, hitsBody, tierFor, type BotSense } from "./bots";
+import { Bot, BOT_NAMES, BOT_TIERS, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP, hitsBody, tierFor, type BotSense, type BotTier } from "./bots";
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Duel, HEALTH_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
@@ -170,6 +170,24 @@ function layoutFor(map: ArenaMapId | null | undefined): ModeLayout {
   };
 }
 
+/** the heir's snapshot of an arena match (ArenaMode.snapshotMode): bots [index, tier, team, respawn in s or -1, waypoint, gun], the crown's appearance in s, Control's next bonus in s (-1: none) */
+interface ArenaSnap {
+  b: Array<[number, number, 0 | 1, number, number, string]>;
+  ca: number;
+  nb: number;
+}
+
+/** a snapshot as it came over the wire: only well formed rows, or null */
+function readArenaSnap(v: unknown): ArenaSnap | null {
+  if (!v || typeof v !== "object") return null;
+  const o = v as Record<string, unknown>;
+  const num = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
+  const b = Array.isArray(o.b)
+    ? o.b.filter((r): r is ArenaSnap["b"][number] => Array.isArray(r) && r.length === 6 && num(r[0]) && r[0] >= 0 && r[0] < 64 && num(r[1]) && (r[2] === 0 || r[2] === 1) && num(r[3]) && num(r[4]) && typeof r[5] === "string")
+    : [];
+  return { b, ca: num(o.ca) ? o.ca : -1, nb: num(o.nb) ? o.nb : -1 };
+}
+
 export class ArenaMode extends Duel {
   private layoutCache: ModeLayout | null = null;
   /** this match's map in the mode's own coordinates; lazy, because Duel's constructor can ask for a spawn before this class's fields exist */
@@ -255,7 +273,19 @@ export class ArenaMode extends Duel {
       const id = Duel.BOT_ID + i;
       const gun = this.modeKind === "gunrun" ? this.ladder.guns[0] : (opts.botWeapon || BOT_WEAPONS[i % BOT_WEAPONS.length]);
       // each its own tier ("mixed" draws one per bot)
-      const bot = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(this.difficulty)], this.startSpawn(id, team), id, gun, BOT_NAMES[i % BOT_NAMES.length]);
+      this.makeBot(i, team, tierFor(this.difficulty), gun, this.startSpawn(id, team));
+    }
+    for (let id = 0; id < this.players; id++) this.ladder.row(id);
+  }
+
+  /** one of the match's bots: the host's, at the start, or the heir's, in place of the figure it saw (host migration) */
+  private makeBot(i: number, team: 0 | 1, tier: BotTier, gun: string, spawn: Spawn): ModeBot {
+    const scene = this.scene;
+    const projectiles = this.projectiles;
+    const tdm = teamMode(this.modeKind);
+    const id = Duel.BOT_ID + i;
+    {
+      const bot = new Bot(i, scene, projectiles, DIFFICULTY[tier], spawn, id, gun, BOT_NAMES[i % BOT_NAMES.length]);
       // Gun Run is guns and the knife: no frags
       bot.grenadesAllowed = this.modeKind !== "gunrun";
       bot.setAbilities(this.abilities);
@@ -269,11 +299,12 @@ export class ArenaMode extends Duel {
       };
       this.teamOf.set(id, team);
       this.ladder.row(id);
-      this.bots.push({ bot, team, respawnAt: Infinity, goal: Math.floor(Math.random() * 12), hurtAt: -Infinity, vital: 0 });
+      const mb: ModeBot = { bot, team, respawnAt: Infinity, goal: Math.floor(Math.random() * 12), hurtAt: -Infinity, vital: 0 };
+      this.bots.push(mb);
       // a team mate's bullets pass through it (it is not a target for this side's guns)
       if (tdm && team === 0) projectiles.removeDummy(bot.dummy);
+      return mb;
     }
-    for (let id = 0; id < this.players; id++) this.ladder.row(id);
   }
 
   // ------------------------------------------------------------ who is who
@@ -754,23 +785,68 @@ export class ArenaMode extends Duel {
   }
 
   /**
-   * Host migration: a match whose host state is all in a guest's copy of it
-   * (the ladder's rows, the teams, the clock, the winner). Free-for-all and
-   * Gun Run among friends; bots, the crown and Control's zones live only on
-   * the host, and wait for the snapshot that carries them.
+   * Host migration: every mode. A guest's copy holds the ladder's rows, the
+   * teams, the clock, the winner, and where the crown and Control's zones
+   * stand; the snapshot adds what only the host has: each bot's tier, team,
+   * gun, respawn and waypoint, when the crown appears, and when Control's
+   * next bonus comes.
    */
   protected override canMigrate(): boolean {
-    return (this.modeKind === "ffa" || this.modeKind === "gunrun") && this.bots.length === 0;
+    return true;
   }
 
-  /** the heir, now the host: the clock from what the last "mode" said, the old host off the board as a leaver is, and everyone told the state at once */
-  protected override restoreAsHost(now: number, oldHost: number): void {
+  protected override snapshotMode(now: number): ArenaSnap {
+    return {
+      b: this.bots.map((b) => [b.bot.index, Math.max(0, BOT_TIERS.indexOf(b.bot.diff.name as BotTier)), b.team, Number.isFinite(b.respawnAt) ? Math.max(0, b.respawnAt - now) : -1, b.goal, b.bot.remote.avatarWeapon]),
+      ca: this.crown && this.crown.phase === "waiting" ? Math.max(0, this.crown.appearsIn - now) : -1,
+      nb: this.control ? this.control.nextBonus - now : -1,
+    };
+  }
+
+  /**
+   * The heir, now the host: the clock from what the last "mode" said, the old
+   * host off the board as a leaver is, the bots made again where this page
+   * last saw them (their figures give way to them, so nothing jumps), the
+   * crown and Control's zones as they stood, and everyone told at once.
+   */
+  protected override restoreAsHost(now: number, oldHost: number, mode: unknown): void {
     this.ladder.remove(oldHost);
     this.roundWins.delete(oldHost);
     const left = this.leftSeen === null ? null : Math.max(0, this.leftSeen - (now - this.leftAt));
     if (left !== null && this.phase === "fight") this.timeEndsAt = now + left;
     this.leftSeen = null;
+    const snap = readArenaSnap(mode);
+    for (const [i, tier, team, respawnIn, goal, gun] of snap?.b ?? []) {
+      const id = Duel.BOT_ID + i;
+      if (this.bots.some((b) => b.bot.index === i)) continue;
+      const r = this.remotes.get(id);
+      const last = r?.samples[r.samples.length - 1];
+      const spawn: Spawn = last ? { x: last.x, z: last.z, yaw: last.yaw } : this.startSpawn(id, team);
+      const mb = this.makeBot(i, team, BOT_TIERS[tier] ?? "normal", gun || BOT_WEAPONS[i % BOT_WEAPONS.length], spawn);
+      mb.goal = goal;
+      if (r) {
+        mb.bot.dummy.health = r.health;
+        mb.bot.dummy.shield = r.shield;
+        if (!r.alive) {
+          mb.bot.dummy.fallDown(false);
+          mb.bot.remote.alive = false;
+        }
+      }
+      mb.respawnAt = respawnIn >= 0 ? now + respawnIn : !mb.bot.alive ? now + this.respawnDelay : Infinity;
+      mb.vital = mb.bot.dummy.health + mb.bot.dummy.shield;
+      this.dropFigure(id);
+    }
+    if (this.crownView && this.phase === "fight" && this.modeKind === "crown") {
+      this.crown = new Crown(this.layout.crown.x, this.layout.crown.z, now);
+      this.crown.restore(this.crownView, now + Math.max(0, snap?.ca ?? left ?? 0));
+    }
+    if (this.controlView && this.modeKind === "control") {
+      this.control = new Control(now, Math.random, this.layout.zones);
+      this.control.restore(this.controlView, now, now + (snap && snap.nb >= 0 ? snap.nb : MODES.control.bonus.every));
+    }
+    if (this.modeKind === "gunrun") this.gunsChanged();
     this.modeSendNext = 0;
+    this.botSendNext = 0;
   }
 
   /** a guest: the host's state */

@@ -69,6 +69,8 @@ const MIGRATE = netCfg.migrate.on && (typeof location === "undefined" || new URL
 export interface HeirSnapshot {
   keys: Array<[number, string]>;
   ids: number[];
+  /** the mode's own host state (snapshotMode), checked by the mode that reads it */
+  mode?: unknown;
   at: number;
 }
 /**
@@ -674,8 +676,13 @@ export class Duel implements MatchLike {
     return false;
   }
 
-  /** the heir, now the host: the mode's host state rebuilt from what this page had as a guest (`oldHost` has gone) */
-  protected restoreAsHost(_now: number, _oldHost: number): void {
+  /** the host: what the mode keeps only on the host, for the heir's snapshot (nothing, for a mode a guest's copy covers) */
+  protected snapshotMode(_now: number): unknown {
+    return undefined;
+  }
+
+  /** the heir, now the host: the mode's host state rebuilt from what this page had as a guest and the snapshot's `mode` (`oldHost` has gone) */
+  protected restoreAsHost(_now: number, _oldHost: number, _mode: unknown): void {
     /* the base match's phase, round and scores are already every guest's */
   }
 
@@ -704,7 +711,7 @@ export class Duel implements MatchLike {
       this.sync.forgetPeer(id);
     }
     this.playerGone(old, `${this.remotes.get(old)?.name ?? "The host"} left: you are the host now`);
-    this.restoreAsHost(now, old);
+    this.restoreAsHost(now, old, snap.mode);
     this.onFeed?.("The host is gone: you are the host now", false);
   }
 
@@ -718,7 +725,8 @@ export class Duel implements MatchLike {
     if (heir === null) return;
     const ids = [this.id, ...this.links.keys(), ...this.held.keys()];
     const keys = this.seatKeys?.(ids.filter((id) => id !== this.id)) ?? [];
-    for (const [id, l] of this.links) l.send(id === heir ? { t: "heir", op: "snap", keys, ids } : { t: "heir", op: "is", id: heir });
+    const m = this.snapshotMode(now);
+    for (const [id, l] of this.links) l.send(id === heir ? { t: "heir", op: "snap", keys, ids, m } : { t: "heir", op: "is", id: heir });
   }
 
   /** the host's heir, or null (the tests) */
@@ -1067,7 +1075,7 @@ export class Duel implements MatchLike {
         else if (m.op === "snap" && Array.isArray(m.keys) && Array.isArray(m.ids)) {
           const keys = m.keys.filter((k): k is [number, string] => Array.isArray(k) && typeof k[0] === "number" && typeof k[1] === "string" && k[1].length < 40);
           const ids = m.ids.filter((id): id is number => typeof id === "number" && id >= 0 && id < Duel.BOT_ID);
-          this.heirSnap = { keys, ids, at: now };
+          this.heirSnap = { keys, ids, mode: m.m, at: now };
           this.heirSeen = { id: this.id, at: now };
         }
       }
@@ -1338,16 +1346,21 @@ export class Duel implements MatchLike {
   /** one of three is gone: their figure goes, the match carries on as a 1v1 */
   protected playerGone(id: number, notice: string): void {
     if (this.revivedBy === id) this.revivedBy = null;
+    if (this.dropFigure(id)) this.onNotice?.(notice.toUpperCase());
+  }
+
+  /** a figure and its stream gone, with nothing said (a bot the heir now runs itself): true if there was one */
+  protected dropFigure(id: number): boolean {
     // their streams go with them, so a friend who rejoins under the same id starts clean
     this.sync.forgetSubject(id);
     const r = this.remotes.get(id);
-    if (!r) return;
+    if (!r) return false;
     for (const d of r.avatars.values()) {
       this.projectiles.removeDummy(d);
       d.dispose();
     }
     this.remotes.delete(id);
-    this.onNotice?.(notice.toUpperCase());
+    return true;
   }
 
   protected weapon(id: string): ResolvedWeapon {

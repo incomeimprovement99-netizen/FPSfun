@@ -172,6 +172,16 @@ export class Crown {
     return this.appearsAt;
   }
 
+  /** as a guest last saw it (host migration): where it is, who has it, and when it appears if it has not */
+  restore(s: { phase: CrownPhase; x: number; z: number; carrier: number; held: number }, appearsAt: number): void {
+    this.phase = s.phase;
+    this.x = s.x;
+    this.z = s.z;
+    this.carrier = s.phase === "carried" ? s.carrier : -1;
+    this.held = s.held;
+    this.appearsAt = appearsAt;
+  }
+
   /**
    * One step: it appears on time, the nearest fighter up within reach takes
    * it, the carrier's hold counts up while they stay up. Returns the round's
@@ -284,6 +294,24 @@ export class Control {
   ) {
     this.zones = zones.map(([id, x, z]) => ({ id, x, z, v: 0, owner: -1 as ControlOwner }));
     this.nextBonusAt = fightStart + cfg.control.bonus.firstAt;
+  }
+
+  /** the next bonus event's time (host migration: the heir's snapshot carries it) */
+  get nextBonus(): number {
+    return this.nextBonusAt;
+  }
+
+  /** as a guest last saw it (host migration): the zones, the scores, the bonus and the lockout; `nextBonusAt` from the snapshot */
+  restore(v: { v: number[]; owner: number[]; score: [number, number]; bonus: number; bonusLeft: number; lockTeam: number; lockLeft: number }, now: number, nextBonusAt: number): void {
+    this.zones.forEach((z, i) => {
+      z.v = v.v[i] ?? 0;
+      const o = v.owner[i];
+      z.owner = o === 0 || o === 1 ? o : -1;
+    });
+    this.score = [v.score[0], v.score[1]];
+    this.bonus = v.bonus >= 0 && v.bonus < this.zones.length ? { zone: v.bonus, endsAt: now + v.bonusLeft } : null;
+    this.lockout = v.lockTeam === 0 || v.lockTeam === 1 ? { team: v.lockTeam, endsAt: now + v.lockLeft } : null;
+    this.nextBonusAt = nextBonusAt;
   }
 
   /** the capture rate for n players on a zone, per second (a full capture from neutral is 1) */

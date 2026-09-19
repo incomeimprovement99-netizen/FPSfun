@@ -150,7 +150,7 @@ export type NetMsg =
    * and sends the heir what no guest's copy of the match has ("snap": each
    * seat's key, and everyone's ids).
    */
-  | { t: "heir"; op: "can" | "is" | "snap"; id?: number; keys?: Array<[number, string]>; ids?: number[] };
+  | { t: "heir"; op: "can" | "is" | "snap"; id?: number; keys?: Array<[number, string]>; ids?: number[]; m?: unknown };
 
 /**
  * A message without its undefined fields, so nothing packs as null. It lives
