@@ -40,6 +40,11 @@
 //                    map (dropship.ts); you jump when you like, a squad
 //                    follows its jumpmaster, and the bots leave it as it
 //                    passes their places and glide down onto them.
+//   the Gulag        under the battle royale's own rules, a first death
+//                    goes to a 1v1 in an arena against a bot of your own
+//                    (gulag.ts): win and you drop back in, lose and you are
+//                    out. The host only hears you are in it, so your squad
+//                    is not out and its bots leave you be.
 //   Resurgence       a choice beside the squad size (resurgence.ts): the
 //                    dead redeploy from the sky after a wait that the side's
 //                    kills cut, until a set round of the ring; a side all
@@ -114,6 +119,11 @@ import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, type Circle, type RingPhase } from "./ring";
 import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, secondsToFinal, type BrRules } from "./resurgence";
+import { GULAG, Gulag, gulagFor, type GulagEvent } from "./gulag";
+import { arenaMap } from "./arena";
+
+/** the Gulag's bot, apart from the match's (theirs start at Duel.BOT_ID) */
+const GULAG_BOT_ID = 990;
 import { BR_BOUNDS, BR_CENTER, BR_HALF, type BrMap, type Poi } from "./br";
 import { SHIP, ShipRun, buildShip, shipLine, type ShipLine } from "./dropship";
 import { buildConsole, consoleSpots } from "./ringconsole";
@@ -340,6 +350,8 @@ export interface BrHud {
   crate: number | null;
   /** Resurgence: still on (and for how long), and your wait while you are on your way back */
   resurgence: { live: boolean; toFinal: number; redeployIn: number | null } | null;
+  /** the Gulag, while you are in it or on your way: the phase, its clock, your opponent, and the flag's two counts in overtime */
+  gulag: { phase: string; clock: number; opponent: string; capMe: number; capThem: number; capture: number } | null;
 }
 
 interface BrBot {
@@ -474,6 +486,21 @@ export class BrMatch extends Duel {
   private redeployKit = false;
   /** the cut to final deaths has been announced */
   private finalSaid = false;
+  /** the Gulag, from your death to your way back or out (gulag.ts); null when you are not in it */
+  gulag: Gulag | null = null;
+  /** your opponent in it: a bot of your own that nobody else sees */
+  gulagBot: Bot | null = null;
+  /** one trip a match */
+  private gulagUsed = false;
+  /** the Gulag is on in this match (only the tests of the plain death turn it off) */
+  private readonly gulagOn: boolean;
+  /** the host: players in the Gulag or on their way to it (their side is not out, and the match's bots leave them be) */
+  private gulagIds = new Set<number>();
+  /** the overtime flag in the room's middle */
+  private gulagFlag: THREE.Group | null = null;
+  /** for main, once each: the room's spawn to put you in, and the guns you fought with, handed back as you drop in again */
+  private gulagEntry: { x: number; z: number; yaw: number; guns: [string, string] } | null = null;
+  private gulagKit: [string, string] | null = null;
 
   constructor(
     scene: THREE.Scene,
@@ -481,7 +508,7 @@ export class BrMatch extends Duel {
     private readonly map: BrMap,
     difficulty: BotDifficulty,
     botCount: number,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean; rules?: string },
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean; rules?: string; gulag?: boolean },
     rng: () => number = Math.random
   ) {
     super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br", abilities: opts.abilities ?? true });
@@ -505,6 +532,8 @@ export class BrMatch extends Duel {
     const start = { cx: BR_CENTER.x, cz: BR_CENTER.z, r: BR_HALF * 1.35 };
     // the rules, and the ring's clock that goes with them
     this.rules = asRules(opts.rules);
+    // the tests of the plain death switch it off; a real match always has it
+    this.gulagOn = opts.gulag !== false;
     this.phases = this.rules === "resurgence" ? resurgencePhases(RING_PHASES) : RING_PHASES;
     // the floor's loot, from the host's seed (the welcome carries it), unless the squad lands with its loadouts
     this.startLoot = opts.start !== "loadout";
@@ -743,10 +772,11 @@ export class BrMatch extends Duel {
   }
 
   override get avatars(): Dummy[] {
-    return [...super.avatars, ...this.bots.map((b) => b.bot.dummy)];
+    return [...super.avatars, ...this.bots.map((b) => b.bot.dummy), ...(this.gulagBot ? [this.gulagBot.dummy] : [])];
   }
 
   override remoteOf(d: Dummy): Remote | null {
+    if (this.gulagBot && d === this.gulagBot.dummy) return this.gulagBot.remote;
     return this.bots.find((b) => b.bot.dummy === d)?.bot.remote ?? super.remoteOf(d);
   }
 
@@ -1101,6 +1131,14 @@ export class BrMatch extends Duel {
 
   /** the host's own bullet hit a bot (its dummy took the damage already); a guest's goes to the host as a hit message */
   override localHit(r: Remote, amount: number, head: boolean, weapon = "", dist: number | null = null): void {
+    if (this.gulagBot && r === this.gulagBot.remote) {
+      if (!this.gulag?.live) return;
+      this.hits++;
+      this.damage += amount;
+      r.health = this.gulagBot.dummy.health;
+      r.shield = this.gulagBot.dummy.shield;
+      return;
+    }
     const b = this.bots.find((x) => x.bot.remote === r);
     if (!b) {
       super.localHit(r, amount, head, weapon, dist);
@@ -1237,9 +1275,190 @@ export class BrMatch extends Duel {
    */
   protected override eliminate(from: number, how: "knocked" | "finished" | "bled out"): void {
     if (!this.alive) return;
-    if (this.rules === "resurgence" && comesBack(this.ringPhase, this.players, this.matesUp)) this.selfRedeploy = new Redeploy(this.id, redeployWait(this.ringPhase));
+    // a death in the Gulag is the end of the trip: out for good
+    const inGulag = this.gulag !== null && this.gulag.phase !== "wait";
+    if (inGulag) this.gulag!.lost(wallClock());
+    else if (this.rules === "resurgence" && comesBack(this.ringPhase, this.players, this.matesUp)) this.selfRedeploy = new Redeploy(this.id, redeployWait(this.ringPhase));
+    // a first death, early, goes to the Gulag; decided before the squad is judged, so it is not out meanwhile
+    else if (this.gulagOn && this.phase === "fight" && gulagFor(this.rules, this.ringPhase, this.gulagUsed)) {
+      this.gulag = new Gulag(wallClock());
+      this.gulagUsed = true;
+      this.noteGulag(this.id, 1);
+    }
     super.eliminate(from, how);
+    if (inGulag) this.leaveGulag(false);
   }
+
+  /**
+   * A squad mate brought you back (a beacon, your death box) while you were on
+   * your way to the Gulag or in it: that is your way back, and the trip is over.
+   */
+  protected override respawnHere(at: THREE.Vector3, box = false): void {
+    if (this.gulag) {
+      this.gulag = null;
+      this.gulagBot?.dispose();
+      this.gulagBot = null;
+      this.showFlag(false);
+      this.noteGulag(this.id, 2);
+      this.alive = false;
+    }
+    super.respawnHere(at, box);
+  }
+
+  /** the side is out: nobody of it up, nobody of it in the Gulag, and a side of one not on its way back */
+  private get sideOut(): boolean {
+    return this.humansAlive === 0 && this.gulagIds.size === 0 && !(this.players === 1 && this.selfRedeploy);
+  }
+
+  /** someone of the side went to the Gulag (1), came back from it (2) or lost it (0): the host keeps count, and yours is told to everyone */
+  private noteGulag(id: number, n: number): void {
+    if (n === 1) this.gulagIds.add(id);
+    else this.gulagIds.delete(id);
+    if (id === this.id) this.localFx("gulag", undefined, undefined, n);
+    // a loss, yours or a squad mate's: the squad is judged again now that nobody of it is in there
+    if (n === 0 && this.role === "host" && !this.brOver && this.phase === "fight" && this.sideOut) this.endBr(false);
+  }
+
+  /** a squad mate's Gulag, heard (their "gulag" effect) */
+  hearGulag(from: number, n: number): void {
+    if (n === 0 || n === 1 || n === 2) this.noteGulag(from, n);
+  }
+
+  /** main, once: the room's spawn and the guns, the moment you go in */
+  takeGulagEntry(): { x: number; z: number; yaw: number; guns: [string, string] } | null {
+    const e = this.gulagEntry;
+    this.gulagEntry = null;
+    return e;
+  }
+
+  /** main, once: the guns you won with, as you drop back in */
+  takeGulagKit(): [string, string] | null {
+    const k = this.gulagKit;
+    this.gulagKit = null;
+    return k;
+  }
+
+  /**
+   * The Gulag, every frame, on this browser only: the clock, your way in, the
+   * bot's fight and its shots on you, the flag in overtime, and the end.
+   */
+  private gulagFrame(now: number, dt: number, local: LocalState): void {
+    const g = this.gulag;
+    if (!g) return;
+    const room = arenaMap(GULAG.map);
+    const feet = new THREE.Vector3(local.x, local.y, local.z);
+    const bot = this.gulagBot;
+    const onFlag = (x: number, y: number, z: number) => Math.hypot(x - room.center.x, z - room.center.z) <= GULAG.flagRadius && y < 1.5;
+    const meOn = g.phase === "overtime" && this.alive && onFlag(local.x, local.y, local.z);
+    const themOn = g.phase === "overtime" && !!bot && bot.alive && onFlag(bot.pos.x, bot.pos.y, bot.pos.z);
+    const ev = g.tick(now, dt, meOn, themOn);
+    if (ev === "enter") this.enterGulag();
+    else if (ev === "fight") this.onNotice?.("FIGHT");
+    else if (ev === "overtime") {
+      this.onNotice?.("OVERTIME: TAKE THE FLAG");
+      this.showFlag(true);
+    }
+    if (bot && (g.phase === "countdown" || g.live)) {
+      const sees = this.alive && bot.alive && bot.sees(feet);
+      // in overtime it goes for the flag
+      const goal = g.phase === "overtime" ? new THREE.Vector3(room.center.x, 0, room.center.z) : null;
+      const shots = bot.update(now, dt, { target: sees ? feet : null, targetId: this.id, goal, canShoot: g.live });
+      let d = 0;
+      for (const s of shots) {
+        this.onShotFired?.(bot.remote.id, s.from, s.dir, s.weapon);
+        if (hitsBody(s.from, s.dir, feet)) d += s.damage;
+      }
+      if (d > 0 && this.alive) this.takeHit(d, bot.remote.id, false, shots[0].weapon, bot.pos.distanceTo(feet));
+      bot.remote.health = bot.dummy.health;
+      bot.remote.shield = bot.dummy.shield;
+      if (g.live && !bot.alive) this.decideGulag(g.won(now));
+    }
+    if (ev === "won" || ev === "lost") this.decideGulag(ev);
+    // won: a moment to see it, then back into the match
+    if (this.gulag && g.phase === "won" && now - g.decidedAt >= GULAG.after) this.leaveGulag(true);
+  }
+
+  /** in: up again in the room, at its first spawn, with the bot at the other, both on the fight's guns */
+  private enterGulag(): void {
+    const g = this.gulag!;
+    const room = arenaMap(GULAG.map);
+    const mine = room.spawns[0];
+    const theirs = room.spawns[1];
+    const name = `GULAG ${BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)]}`;
+    const bot = new Bot(90, this.scene, this.projectiles, DIFFICULTY[GULAG.tier as keyof typeof DIFFICULTY], theirs, GULAG_BOT_ID, g.guns[Math.random() < 0.5 ? 0 : 1], name);
+    bot.remote.name = name;
+    this.gulagBot = bot;
+    this.alive = true;
+    this.downed = false;
+    this.health = HEALTH_MAX;
+    this.gulagEntry = { x: mine.x, z: mine.z, yaw: mine.yaw, guns: g.guns };
+    this.onRespawn?.();
+  }
+
+  /** won or lost: said, and a loss by the flag is a death */
+  private decideGulag(ev: GulagEvent): void {
+    if (ev === "won") this.onNotice?.("YOU WON THE GULAG: BACK INTO THE MATCH");
+    else if (ev === "lost" && this.alive && this.gulagBot) this.eliminate(this.gulagBot.remote.id, "finished");
+  }
+
+  /** out of the room: won, dropping back into the live ring near someone of yours; lost, out */
+  private leaveGulag(won: boolean): void {
+    const g = this.gulag;
+    this.gulag = null;
+    this.gulagBot?.dispose();
+    this.gulagBot = null;
+    this.showFlag(false);
+    this.noteGulag(this.id, won ? 2 : 0);
+    if (!won || !g) return;
+    const mates: THREE.Vector3[] = [];
+    for (const r of this.remotes.values()) {
+      if (r.id >= Duel.BOT_ID || !r.alive || r.downed || this.gulagIds.has(r.id)) continue;
+      const s = r.samples[r.samples.length - 1];
+      if (s) mates.push(new THREE.Vector3(s.x, 0, s.z));
+    }
+    const at = this.redeploySpot(mates.length ? mates[Math.floor(Math.random() * mates.length)] : null);
+    this.gulagKit = g.guns;
+    this.respawnPoint = new THREE.Vector3(at.x, 0, at.z);
+    this.onRespawn?.();
+    this.respawnPoint = null;
+  }
+
+  /** the overtime flag: a lit ring on the floor of the room's middle and a pole with a flag on it */
+  private showFlag(on: boolean): void {
+    if (!on) {
+      if (this.gulagFlag) {
+        this.gulagFlag.removeFromParent();
+        this.gulagFlag.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (m.isMesh) {
+            m.geometry.dispose();
+            (m.material as THREE.Material).dispose();
+          }
+        });
+      }
+      this.gulagFlag = null;
+      return;
+    }
+    if (this.gulagFlag) return;
+    const room = arenaMap(GULAG.map);
+    const g = new THREE.Group();
+    const lit = new THREE.MeshStandardMaterial({ color: 0xffd23c, emissive: 0xffc020, emissiveIntensity: 1.6, transparent: true, opacity: 0.85 });
+    const ring = new THREE.Mesh(new THREE.RingGeometry(GULAG.flagRadius - 0.25, GULAG.flagRadius, 48), lit);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.03;
+    g.add(ring);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3, 8), new THREE.MeshStandardMaterial({ color: 0xc8d0d8, roughness: 0.4 }));
+    pole.position.y = 1.5;
+    g.add(pole);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.7), new THREE.MeshStandardMaterial({ color: 0xff7a1a, emissive: 0xff7a1a, emissiveIntensity: 0.5, side: THREE.DoubleSide }));
+    flag.position.set(0.56, 2.6, 0);
+    g.add(flag);
+    g.position.set(room.center.x, 0, room.center.z);
+    this.scene.add(g);
+    this.gulagFlag = g;
+  }
+
+  /** your side knocked or finished someone (main hears every down): the wait of yours is cut. The seconds cut */
 
   /** your side knocked or finished someone (main hears every down): the wait of yours is cut. The seconds cut */
   sideKill(victim: number, by: number): number {
@@ -1353,7 +1572,7 @@ export class BrMatch extends Duel {
     this.setSurge({ live, startsIn: Math.max(0, this.surgeAt - now), damage: amount, below: victims.size }, victims.has(this.id));
     if (!live || !tick || !victims.size) return;
     // the surge is the ring's kind of damage: it comes from nobody (-1)
-    if (victims.has(this.id) && this.alive) this.hurt(amount, -1);
+    if (victims.has(this.id) && this.alive && !this.gulag) this.hurt(amount, -1);
     // A guest below the line takes its own tick off the ring packet (onExtra
     // and update below): a hit message from here would carry a sender, and a
     // sender that is not a squad mate builds a figure on the guest's screen.
@@ -1378,6 +1597,7 @@ export class BrMatch extends Duel {
 
   /** solo: there is nobody to pick you up, so a knock is an elimination */
   protected override squadUp(): boolean {
+    if (this.gulag) return false;
     return this.team.size > 1 && super.squadUp();
   }
 
@@ -1389,7 +1609,7 @@ export class BrMatch extends Duel {
   /** a squad mate gone (left, or silent): with nobody of the squad still up, it is over */
   protected override playerGone(id: number, notice: string): void {
     super.playerGone(id, notice);
-    if (this.role === "host" && !this.brOver && this.phase === "fight" && this.humansAlive === 0) this.endBr(false);
+    if (this.role === "host" && !this.brOver && this.phase === "fight" && this.sideOut) this.endBr(false);
   }
 
   /** the match ends for this side: once the result is in, say the result (the host's goodbye follows it) */
@@ -1423,11 +1643,12 @@ export class BrMatch extends Duel {
     }
     // a bot's knock of one of yours cuts its squad's waits (Resurgence)
     if (_by >= Duel.BOT_ID) this.cutBotWaits(_by, (_id === this.id ? this.downed : !!this.remotes.get(_id)?.downed) ? "knock" : "kill");
-    if (this.role === "host" && this.humansAlive === 0 && !(this.players === 1 && this.selfRedeploy)) this.endBr(false);
+    if (this.role === "host" && this.sideOut) this.endBr(false);
   }
 
   /** the remote's name for the feed, bots included on the host */
   protected nameOf(id: number): string | undefined {
+    if (this.gulagBot && id === this.gulagBot.remote.id) return this.gulagBot.remote.name;
     return this.remotes.get(id)?.name ?? this.bots.find((b) => b.bot.remote.id === id)?.bot.remote.name;
   }
 
@@ -1544,6 +1765,8 @@ export class BrMatch extends Duel {
     this.placeShip(now);
     // Resurgence: your wait and your way back
     this.resurgenceFrame(frameDt);
+    // the Gulag: your first death's way back
+    this.gulagFrame(now, frameDt, local);
     // the consoles: lit while they have something to show this round, their rings turning
     for (let i = 0; i < this.consoles.length; i++) {
       const c = this.consoles[i];
@@ -1566,9 +1789,9 @@ export class BrMatch extends Duel {
       this.guestTick += frameDt;
       if (this.guestTick >= RING_TICK) {
         this.guestTick -= RING_TICK;
-        if (this.alive && Math.hypot(local.x - cur.cx, local.z - cur.cz) > cur.r) this.hurt(RING_PHASES[Math.min(this.view.phase, RING_PHASES.length - 1)].damage, -1);
+        if (this.alive && !this.gulag && Math.hypot(local.x - cur.cx, local.z - cur.cz) > cur.r) this.hurt(RING_PHASES[Math.min(this.view.phase, RING_PHASES.length - 1)].damage, -1);
         // Storm Surge on the same clock, while the host's packet has this player below the line
-        if (this.alive && !this.downed && this.surge?.live && this.surgeMine) this.hurt(this.surge.damage, -1);
+        if (this.alive && !this.downed && !this.gulag && this.surge?.live && this.surgeMine) this.hurt(this.surge.damage, -1);
       }
     }
     for (const b of this.bots) {
@@ -1714,7 +1937,7 @@ export class BrMatch extends Duel {
     const tick = ring.update(dt);
     this.view = { phase: ring.phase, state: ring.state, timeLeft: Math.max(0, ring.timeLeft), current: { ...ring.current }, next: { ...ring.next } };
     if (tick && this.phase === "fight") {
-      if (this.alive && ring.outside(local.x, local.z)) this.hurt(ring.damage, -1);
+      if (this.alive && !this.gulag && ring.outside(local.x, local.z)) this.hurt(ring.damage, -1);
       for (const b of this.bots) {
         if (!b.bot.alive || b.bot.dropping) continue;
         if (ring.outside(b.bot.pos.x, b.bot.pos.z)) {
@@ -1746,7 +1969,7 @@ export class BrMatch extends Duel {
 
     // the humans a bot can go after: the host, and the guests where they last were
     const humans: Array<{ id: number; feet: THREE.Vector3 }> = [];
-    if (this.alive) humans.push({ id: this.id, feet });
+    if (this.alive && !this.gulagIds.has(this.id)) humans.push({ id: this.id, feet });
     for (const r of this.remotes.values()) {
       if (r.id >= Duel.BOT_ID || !r.alive) continue;
       const last = r.samples[r.samples.length - 1];
@@ -1939,7 +2162,8 @@ export class BrMatch extends Duel {
         current: { ...v.current },
         next: { ...v.next },
         ahead: this.ringAhead,
-        outside: local ? Math.hypot(local.x - v.current.cx, local.z - v.current.cz) > v.current.r : false,
+        // not in the Gulag's room: the ring cannot reach you there, so it does not warn you either
+        outside: local && !(this.gulag && this.gulag.phase !== "wait") ? Math.hypot(local.x - v.current.cx, local.z - v.current.cz) > v.current.r : false,
         damage: this.phases[Math.min(v.phase, this.phases.length - 1)].damage,
       },
       placement: this.phase === "matchEnd" ? this.placement : null,
@@ -1965,6 +2189,7 @@ export class BrMatch extends Duel {
       // the card is up once it is over: no surge on it
       surge: this.surge && this.phase !== "matchEnd" ? { ...this.surge, safe: !this.surgeMine } : null,
       crate: this.crateProgress,
+      gulag: this.gulag ? { phase: this.gulag.phase, clock: this.gulag.clock(now), opponent: this.gulagBot?.remote.name ?? "", capMe: this.gulag.capMe, capThem: this.gulag.capThem, capture: GULAG.capture } : null,
       resurgence:
         this.rules === "resurgence"
           ? { live: resurgenceLive(v.phase), toFinal: secondsToFinal(this.phases, Math.min(v.phase, this.phases.length - 1), v.state === "closing", v.timeLeft), redeployIn: this.selfRedeploy && !this.alive ? this.selfRedeploy.left : null }
@@ -2030,6 +2255,9 @@ export class BrMatch extends Duel {
 
   override dispose(): void {
     this.dropShipModel();
+    this.gulagBot?.dispose();
+    this.gulagBot = null;
+    this.showFlag(false);
     for (const c of this.consoles) {
       c.model.group.removeFromParent();
       c.model.group.traverse((o) => {

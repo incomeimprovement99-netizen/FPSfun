@@ -53,6 +53,8 @@ async function open(browser: Browser, query: string, base = BASE): Promise<Page>
   // landing are about the landing, and a ride across the map would add half a
   // minute to each of them.
   await page.evaluateOnNewDocument("window.__straightDrop = true");
+  // and no Gulag, for the same reason: the checks of a plain death are about the death (gulagTest turns it back on)
+  await page.evaluateOnNewDocument("window.__noGulag = true");
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
   // a base with a query of its own (OLD_URL=https://the.site/?broker=public) keeps it
   const url = base.includes("?") && query.startsWith("?") ? `${base}&${query.slice(1)}` : base + query;
@@ -2413,10 +2415,11 @@ async function shipTest(browser: Browser, query: string, squadQuery: string): Pr
       return { miss: Math.hypot(at.x - t.x, at.z - t.z), off: Math.hypot(t.x - (L.ax + L.dx * s), t.z - (L.az + L.dz * s)), y: b.bot.pos.y }; }); })()`
   );
   const inReach = bots.filter((b) => b.off < 140);
-  // Within 5 m: the landforms and the tall buildings stand in some glide
-  // paths, and a bot that meets one slides along it and comes down beside it.
+  // Within 8 m: the landforms and the tall buildings stand in some glide
+  // paths, and a bot that meets one slides along it and comes down beside it
+  // (5.5 m once, beside a mound).
   check("the ship: every bot leaves it and lands", allOff && down && bots.length === 5, JSON.stringify({ allOff, down, bots: bots.length }));
-  check("the ship: a bot whose place is in a glide's reach lands on it", inReach.every((b) => b.miss < 5), JSON.stringify(bots.map((b) => [b.miss.toFixed(1), b.off.toFixed(0)])));
+  check("the ship: a bot whose place is in a glide's reach lands on it", inReach.every((b) => b.miss < 8), JSON.stringify(bots.map((b) => [b.miss.toFixed(1), b.off.toFixed(0)])));
   await page.close();
 
   // ---- the end of the line: whoever is still aboard is put out
@@ -2663,7 +2666,106 @@ async function resurgenceTest(browser: Browser, query: string, squadQuery: strin
   await guest.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, ship, console, resurgence, modes, squad, p2p, mixed) */
+/**
+ * The Gulag (src/game/gulag.ts). Alone, under the battle royale's rules: a
+ * first death is not the end but a moment, then the Gulag's room, up again,
+ * on its two guns, against a bot of your own; the countdown, the fight; a win
+ * drops you back into the match with those guns; a second death is final.
+ * Then a fresh match: overtime's flag, taken by the bot, loses it and ends it.
+ * And a squad mate's trip reaches the host.
+ */
+async function gulagTest(browser: Browser, query: string, squadQuery: string): Promise<void> {
+  const G = brCfg.gulag;
+  const start = async (): Promise<Page> => {
+    const page = await open(browser, query);
+    await ev(page, "window.__noGulag = false");
+    await ev(page, brRow("solo", 3));
+    await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+    await sleep(400);
+    await ev(page, "window.__range.duel().holdFire = true");
+    await page.waitForFunction(`window.__range.duel()?.phase === "fight" && !window.__range.player.dropping`, { polling: 200, timeout: 30000 }).catch(() => undefined);
+    return page;
+  };
+  const page = await start();
+  await ev(page, "(() => { const d = window.__range.duel(); d.takeHit(1000, d.bots[0].bot.remote.id); })()");
+  await sleep(500);
+  const dead = await ev<{ alive: boolean; phase: string; gulag: string | null; hud: string | null }>(page, "(() => { const d = window.__range.duel(); return { alive: d.alive, phase: d.phase, gulag: d.gulag ? d.gulag.phase : null, hud: d.hud().br.gulag ? d.hud().br.gulag.phase : null }; })()");
+  check("the Gulag: alone, a first death is not the end: a moment, and the Gulag is next", !dead.alive && dead.phase === "fight" && dead.gulag === "wait" && dead.hud === "wait", JSON.stringify(dead));
+  const inside = await page.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.phase !== 'wait'", { polling: 100, timeout: (G.delay + 3) * 1000 }).then(() => true, () => false);
+  const room = await ev<{ alive: boolean; far: number; gap: number; guns: string[]; want: string[]; bot: boolean }>(
+    page,
+    `(() => { const R = window.__range; const d = R.duel(); const p = R.player.pos; const b = d.gulagBot;
+      return { alive: d.alive, far: Math.hypot(p.x, p.z - 500), gap: b ? Math.hypot(b.pos.x - p.x, b.pos.z - p.z) : -1, guns: R.loadout.slots.filter((s) => !s.empty).map((s) => s.id).sort(), want: d.gulag.guns.slice().sort(), bot: !!b && b.alive }; })()`
+  );
+  check("the Gulag: in, up again, far from the map, facing a bot of your own, on the fight's two guns", inside && room.alive && room.far > 150 && room.gap > 5 && room.gap < 60 && room.bot && JSON.stringify(room.guns) === JSON.stringify(room.want), JSON.stringify(room));
+  const fighting = await page.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.phase === 'fight' && window.__range.duel().canFire", { polling: 100, timeout: (G.countdown + 3) * 1000 }).then(() => true, () => false);
+  check(`the Gulag: ${G.countdown} s of countdown, then the fight, guns live`, fighting);
+  // the bot goes down: won, and back into the match with the same guns
+  const guns = room.want;
+  await ev(page, "(() => { const b = window.__range.duel().gulagBot; b.dummy.hit(0, 'body', 500, 1, 1, b.dummy.group.position); })()");
+  const won = await page.waitForFunction("!window.__range.duel().gulag && window.__range.player.dropping", { polling: 100, timeout: (G.after + 4) * 1000 }).then(() => true, () => false);
+  const back = await ev<{ y: number; inMap: boolean; guns: string[]; alive: boolean }>(
+    page,
+    `(() => { const R = window.__range; const p = R.player.pos; return { y: p.y, inMap: p.x > -220 && p.x < 220 && p.z > 280 && p.z < 720, guns: R.loadout.slots.filter((s) => !s.empty).map((s) => s.id).sort(), alive: R.duel().alive }; })()`
+  );
+  check("the Gulag: won, you drop back into the match with the guns you fought with", won && back.alive && back.y > 40 && back.inMap && JSON.stringify(back.guns) === JSON.stringify(guns), JSON.stringify(back));
+  // a second death is final: one trip a match
+  await page.waitForFunction("!window.__range.player.dropping", { polling: 200, timeout: 20000 }).catch(() => undefined);
+  await ev(page, "(() => { const d = window.__range.duel(); d.takeHit(1000, d.bots[0].bot.remote.id); })()");
+  const over = await page.waitForFunction(`window.__range.duel() === null || window.__range.duel().phase === "matchEnd"`, { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  check("the Gulag: one trip a match, and a second death ends it", over);
+  await page.close();
+
+  // ---- overtime's flag, taken by the bot: lost, and out
+  const p2 = await start();
+  await ev(p2, "(() => { const d = window.__range.duel(); d.takeHit(1000, d.bots[0].bot.remote.id); })()");
+  await p2.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.phase === 'fight'", { polling: 100, timeout: (G.delay + G.countdown + 4) * 1000 }).catch(() => undefined);
+  // the clock run down; the bot put on the flag, you in a corner
+  await ev(p2, "(() => { const g = window.__range.duel().gulag; g.overtimeAt = performance.now() / 1000; })()");
+  const ot = await p2.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.phase === 'overtime' && window.__range.duel().hud().br.gulag.phase === 'overtime'", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  await ev(p2, `(() => { const d = window.__range.duel(); const f = d.gulagFlag.position; d.gulagBot.pos.set(f.x, 0, f.z); d.gulagBot.dummy.group.position.set(f.x, 0, f.z); })()`);
+  const taking = await p2.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.capThem > 1", { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  const lost = await p2.waitForFunction(`window.__range.duel() === null || window.__range.duel().phase === "matchEnd"`, { polling: 100, timeout: (G.capture + 8) * 1000 }).then(() => true, () => false);
+  check("the Gulag: past its clock, overtime's flag; the bot holds it alone, and you are out", ot && taking && lost, JSON.stringify({ ot, taking, lost }));
+  await p2.close();
+
+  // ---- a squad mate's trip reaches the host
+  const host = await open(browser, squadQuery);
+  const guest = await open(browser, squadQuery);
+  for (const pg of [host, guest]) await ev(pg, "window.__noGulag = false");
+  await ev(host, brRow("duo", 2));
+  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const pg of [host, guest]) await pg.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check("the Gulag: a squad connects", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  for (const pg of [host, guest]) await pressPlay(pg);
+  await ev(host, "window.__range.duel().holdFire = true");
+  await Promise.all([host, guest].map((pg) => pg.waitForFunction(`window.__range.duel().phase === "fight" && !window.__range.player.dropping`, { polling: 200, timeout: 30000 }).catch(() => undefined)));
+  // the guest goes down and bleeds out
+  await ev(guest, "(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()");
+  await sleep(400);
+  await ev(guest, "(() => { const d = window.__range.duel(); d.bleedUntil = performance.now() / 1000; })()");
+  const heard = await host.waitForFunction("window.__range.duel().gulagIds.has(1)", { polling: 100, timeout: 5000 }).then(() => true, () => false);
+  const gIn = await guest.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.phase !== 'wait'", { polling: 100, timeout: (G.delay + 4) * 1000 }).then(() => true, () => false);
+  check("the Gulag: a squad mate's trip reaches the host, and they go in", heard && gIn, JSON.stringify({ heard, gIn }));
+  // the host brings them back at a beacon meanwhile: that is their way back, and the trip is over
+  await ev(host, `(() => { const r = window.__range; r.duel().sendRespawn(1, new r.THREE.Vector3(0, 0, 500)); })()`);
+  const rescued = await guest.waitForFunction("!window.__range.duel().gulag && window.__range.duel().alive && window.__range.player.dropping", { polling: 100, timeout: 5000 }).then(() => true, () => false);
+  const hostLeft = await host.waitForFunction("!window.__range.duel().gulagIds.has(1)", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  check("the Gulag: a squad mate's beacon brings you back out of it, and the host hears the trip is over", rescued && hostLeft, JSON.stringify({ rescued, hostLeft }));
+  await host.close();
+  await guest.close();
+}
+
+/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, ship, console, resurgence, gulag, modes, squad, p2p, mixed) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -3023,6 +3125,11 @@ async function main(): Promise<void> {
     if (want("console")) {
       console.log("\nRing Consoles: the scan, the circle after next, the squad");
       await consoleTest(browser, "?norender", "?net=local&norender");
+    }
+
+    if (want("gulag")) {
+      console.log("\nThe Gulag: in, the fight, the way back, one trip, overtime, a squad mate");
+      await gulagTest(browser, "?norender", "?net=local&norender");
     }
 
     if (want("resurgence")) {

@@ -425,6 +425,18 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-gulag",
+    note: "the Gulag: in its room on the fight's two guns, the bot at the far end, the countdown held",
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [gameSeconds(0.5), 0],
+      [`(() => { const p = window.__range.player.pos; window.__range.player.teleport(p.x, 0.5, p.z, 0, -4); })()`, 0],
+      [untilFight, 300],
+      [`(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.setScript({ held: () => false, pressedNow: () => false }); d.takeHit(1000, d.bots[0].bot.remote.id); })()`, 0],
+      [`new Promise((r) => { const t = setInterval(() => { const g = window.__range.duel().gulag; if (g && g.phase !== "wait") { clearInterval(t); g.fightAt = performance.now() / 1000 + 60; r(0); } }, 50); setTimeout(() => { clearInterval(t); r(0); }, 30000); })`, 900],
+    ],
+  },
+  {
     name: "br-resurgence",
     note: "Resurgence, out and waiting: the redeploy countdown, and the clock to final deaths under the ring's",
     steps: [

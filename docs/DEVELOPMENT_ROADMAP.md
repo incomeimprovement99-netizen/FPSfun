@@ -970,3 +970,20 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   theirs, and a box's top is a floor for loot only if it is 1 m across both ways: nothing lands on a parapet, a wall
   or a stair tread, where it could be seen and not reached.
 
+## Milestone 67 — The Gulag: a 1v1 for your way back ✅
+2026-09-18 (Phase 15). `gulag.ts` (new), `brmatch.ts`, `main.ts`, `hud.ts`, `src/config/br.json`.
+- Under the battle royale's own rules, your first death before the fourth ring is not the end: a moment after it you
+  are up again in the Vault, one of the arenas, against a bot of your own, the two of you on the same two guns drawn
+  for the fight. A 3 s countdown, 40 s to win, then overtime: a flag in the room's middle, won by 4 s alone on it.
+- Win and you drop back into the match near a squad mate who is up, with the guns you fought with; lose and you are
+  out. One trip a match, and none under Resurgence, which has its own way back.
+- The room is yours alone: nobody else sees the fight and the bot is yours, not the host's. The host hears you went
+  in and came out, so your squad is not out while you are in it and the match's bots do not hunt you there; the ring
+  and Storm Surge cannot reach you in it. A knock in the Gulag is final: nobody can pick you up there.
+- A squad mate who brings you back at a beacon or your death box meanwhile is your way back instead: the trip ends.
+- The HUD counts you in, down the countdown and the clock, and fills two bars on the flag in overtime; a squad mate's
+  trip comes up as a notice.
+- Checks: `tools/checks/gulag.ts` (who goes, the two guns, the clock, the flag's stand-off and capture) and the e2e
+  `gulag` section (alone: in, the fight, the win and the drop back with the same guns, the second death; a fresh
+  match: overtime's flag taken by the bot; a squad mate's trip reaching the host).
+

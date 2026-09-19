@@ -151,5 +151,30 @@
       "cell": 2,
       "syringe": 2
     }
+  },
+  "_gulag": "The Gulag (src/game/gulag.ts), under the battle royale's own rules (Resurgence has its redeploys instead). A first death before ring round untilPhase + 1 sends you, `delay` seconds later, to the arena `map` against a bot of tier `tier`, the two of you on two of `guns` drawn for the fight; a countdown of `countdown` seconds, then `fight` seconds, then overtime: a flag `flagRadius` metres across in the room's middle, won by `capture` seconds on it alone. Win and you drop back into the match `after` seconds later with those guns and kitStacks stacks of their ammo; lose and you are out. One trip a match. Ours: Warzone's Gulag is the idea, and none of its numbers carry over to a map this size.",
+  "gulag": {
+    "enabled": true,
+    "untilPhase": 3,
+    "delay": 3,
+    "countdown": 3,
+    "fight": 40,
+    "capture": 4,
+    "flagRadius": 3,
+    "after": 2,
+    "map": "vault",
+    "tier": "normal",
+    "guns": [
+      "r97",
+      "alternator_smg",
+      "rspn101",
+      "g2",
+      "hemlok",
+      "shotgun",
+      "car",
+      "wingman",
+      "semipistol"
+    ],
+    "kitStacks": 2
   }
 }

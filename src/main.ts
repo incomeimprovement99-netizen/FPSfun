@@ -23,6 +23,7 @@ import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, type Hour } from "./game/
 import { buildBrMap, BR_BOUNDS, BR_CENTER } from "./game/br";
 import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
 import { SHIP, surfaceUnder, type ShipRun } from "./game/dropship";
+import { GULAG } from "./game/gulag";
 import brCfg from "./config/br.json";
 import { placeProps } from "./game/props";
 import { Target } from "./game/targets";
@@ -1520,7 +1521,16 @@ function respawnForMatch(d: MatchLike): void {
   const sp = d.spawn;
   newLife(d);
   const boxAt = d instanceof BrMatch && d.respawnOnBox ? d.boxRespawnAt : null;
-  if (d instanceof BrMatch && boxAt) {
+  // the Gulag: this respawn is into its room
+  const gulagIn = d instanceof BrMatch ? d.takeGulagEntry() : null;
+  if (gulagIn) {
+    const room = arenaMap(GULAG.map);
+    player.setBounds(room.bounds);
+    setRegion("range");
+    // facing open floor, as every arena spawn does, not the wall a metre off
+    player.teleport(gulagIn.x, 0, gulagIn.z, openYaw(gulagIn.x, gulagIn.z, gulagIn.yaw));
+    hud.notice("THE GULAG: WIN AND YOU ARE BACK IN", gameTime, 3);
+  } else if (d instanceof BrMatch && boxAt) {
     // a squad mate held at your death box: you stand up on it, at its height
     player.setBounds(BR_BOUNDS);
     setRegion("br");
@@ -1596,6 +1606,21 @@ function respawnForMatch(d: MatchLike): void {
       const at = box && box.pos.distanceTo(boxAt) < 2 ? box.pos : boxAt;
       for (const drop of drops) if (drop.item.kind !== "box" && Math.hypot(drop.pos.x - at.x, drop.pos.z - at.z) < 1.3) d.takeLoot(drop.key);
     }
+  }
+  // The Gulag: in, the fight's two guns and their ammo; won, the same guns
+  // back as you drop in again. The killcam of the death that sent you gives way.
+  const gulagGuns = gulagIn ? gulagIn.guns : d instanceof BrMatch ? d.takeGulagKit() : null;
+  if (gulagGuns) {
+    loadout.clearSlot(0);
+    loadout.clearSlot(1);
+    loadout.ammo.empty();
+    for (const gun of gulagGuns) {
+      applyLoot({ kind: "weapon", id: gun, n: 1, rarity: "common" });
+      const type = ammoTypeOf(gun);
+      if (type !== "energy") applyLoot({ kind: "ammo", id: type, n: STACK[type] * GULAG.kitStacks, rarity: "common" });
+    }
+    killcam.stop();
+    recap = null;
   }
   // Resurgence: back from the sky with a sidearm, some of its ammo and a few heals
   // (a match that lands with loadouts already has them), and the killcam gives way
@@ -2282,6 +2307,8 @@ const leashAt = new THREE.Vector3();
  * that are about what happens after a landing and not about the ship.
  */
 const straightDrop = (): boolean => (window as unknown as { __straightDrop?: boolean }).__straightDrop === true;
+/** the tests' other switch: no Gulag, for the checks of what a plain death does (the Gulag's own section turns it back on) */
+const noGulag = (): boolean => (window as unknown as { __noGulag?: boolean }).__noGulag === true;
 /** the callbacks every kind of match gets */
 function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRespawn = () => respawnForMatch(d);
@@ -2305,6 +2332,13 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       return;
     }
     // a squad mate scanned a Ring Console: the circle after next is on our map too
+    // a squad mate's Gulag: in it, back from it, or out
+    if (k === "gulag" && typeof n === "number" && d instanceof BrMatch) {
+      d.hearGulag(from, n);
+      const who = d.nameFor(from);
+      hud.notice(n === 1 ? `${who} IS IN THE GULAG` : n === 2 ? `${who} WON THE GULAG AND IS DROPPING BACK IN` : `${who} LOST IN THE GULAG`, gameTime, 2.5);
+      return;
+    }
     if (k === "rcon" && a && typeof n === "number" && d instanceof BrMatch) {
       d.hearConsole(a, n);
       hud.notice(`${d.nameFor(from)} SCANNED A RING CONSOLE: THE RING AFTER NEXT IS ON THE MAP`, gameTime, 2.5);
@@ -2499,7 +2533,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
     // the squad size is the host's for everyone (an older host sends none: the default size)
-    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), rules: squad.rules });
+    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), rules: squad.rules, gulag: !noGulag() });
     duel = d;
     wireMatch(d, "br");
   } else {
@@ -2582,7 +2616,7 @@ function startBr(): void {
   for (const c of courses) c.leave();
   const diff = brDifficulty();
   const bots = brBotCount();
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br"), seed: newSeed(), start: brStart(), team: brTeamId(), ship: !straightDrop(), rules: brRulesId() });
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br"), seed: newSeed(), start: brStart(), team: brTeamId(), ship: !straightDrop(), rules: brRulesId(), gulag: !noGulag() });
   duel = d;
   wireMatch(d, "br");
   // the drop starts on the first frame in the game (respawnForMatch, from the countdown)
@@ -4225,7 +4259,8 @@ function step(): void {
     holstered: holster !== "out",
     course: duel ? null : (courses.map((c) => c.hud(now)).find((h) => h !== null) ?? null),
     duel: duelHud,
-    mapRegion: duel instanceof BrMatch ? BR_BOUNDS : undefined,
+    // the battle royale's map, except in the Gulag's room, where the minimap shows the room
+    mapRegion: duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? BR_BOUNDS : undefined,
     // the drop shows the map by itself for its first moments, then it steps
     // aside so you can see the ground you are steering onto; M opens it any
     // time. Only while you are still in the air: a guest who lands before the

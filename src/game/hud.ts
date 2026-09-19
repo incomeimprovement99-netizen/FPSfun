@@ -1800,6 +1800,43 @@ export class Hud {
     const ss = Math.floor(t % 60);
     const clock = `${mm}:${ss.toString().padStart(2, "0")}`;
     const ringDone = br.ring.phase >= br.ring.phases && !br.ring.closing;
+    // The Gulag: on the way in, the countdown, the fight's clock, and overtime's flag
+    if (br.gulag) {
+      const gl = br.gulag;
+      const y = this.h * 0.22;
+      c.fillStyle = PANEL;
+      c.fillRect(cx - 210 * u, y - 36 * u, 420 * u, gl.phase === "overtime" ? 96 * u : 70 * u);
+      const mm = Math.floor(gl.clock / 60);
+      const ss = Math.floor(gl.clock % 60);
+      const title =
+        gl.phase === "wait"
+          ? `TO THE GULAG IN ${Math.ceil(gl.clock)}`
+          : gl.phase === "countdown"
+            ? `THE GULAG  ·  FIGHT IN ${Math.ceil(gl.clock)}`
+            : gl.phase === "fight"
+              ? `THE GULAG  ·  ${mm}:${ss.toString().padStart(2, "0")}`
+              : gl.phase === "overtime"
+                ? "OVERTIME: TAKE THE FLAG"
+                : gl.phase === "won"
+                  ? "YOU WON: BACK INTO THE MATCH"
+                  : "OUT";
+      this.text(title, cx, y, 700, 28 * u, gl.phase === "overtime" ? "#ffd23c" : gl.phase === "lost" ? "#ff5a4a" : "#7ddc8a", "center");
+      this.text(gl.phase === "wait" ? "A 1V1 FOR YOUR WAY BACK" : `WIN AND YOU ARE BACK IN  ·  AGAINST ${gl.opponent}`, cx, y + 24 * u, 600, 13 * u, DIM, "center");
+      if (gl.phase === "overtime") {
+        // two bars: yours and theirs, each filling to the capture
+        const w = 150 * u;
+        for (const [k, v, col] of [
+          [-1, gl.capMe, "#7ddc8a"],
+          [1, gl.capThem, "#ff5a4a"],
+        ] as const) {
+          const x0 = cx + (k < 0 ? -w - 20 * u : 20 * u);
+          c.fillStyle = "rgba(255,255,255,0.15)";
+          c.fillRect(x0, y + 40 * u, w, 8 * u);
+          c.fillStyle = col;
+          c.fillRect(x0, y + 40 * u, w * Math.min(1, v / gl.capture), 8 * u);
+        }
+      }
+    }
     // Resurgence: how long the dead still come back, and your own wait while you are out
     if (br.resurgence) {
       const rs = br.resurgence;
