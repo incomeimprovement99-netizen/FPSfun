@@ -9,6 +9,7 @@
 // So most structure here is `bevel()` plus `flat()`, and the photographic
 // materials are kept for the few genuinely large surfaces (floor, ground)
 // where tiling is not obvious and the detail actually earns its bandwidth.
+import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 
@@ -104,8 +105,10 @@ export function bevel(w: number, h: number, d: number, radius = 0.035): THREE.Bu
   const key = `${w.toFixed(3)}:${h.toFixed(3)}:${d.toFixed(3)}:${r.toFixed(3)}`;
   const hit = bevelCache.get(key);
   if (hit) return hit;
-  // 2 segments is enough for a chamfer read; more only costs vertices.
-  const g = new RoundedBoxGeometry(w, h, d, 2, r);
+  // 2 segments is enough for a chamfer read; more only costs vertices. It
+  // comes with every triangle's corners its own (900 vertices a box): indexed,
+  // it is 212, and it merges with the indexed plain boxes instead of apart.
+  const g = mergeVertices(new RoundedBoxGeometry(w, h, d, 2, r));
   // shared by every model that asks for this size: never dispose it
   g.userData.shared = true;
   bevelCache.set(key, g);

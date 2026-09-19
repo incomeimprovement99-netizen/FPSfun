@@ -15,6 +15,7 @@
 // sound through walls) sees the door as it is now. It carries `door: true`,
 // so the tests' walk of the map treats a doorway as a way through.
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import cfg from "../config/doors.json";
 import { RANGE_SOLIDS, type Solid } from "./range";
 
@@ -66,8 +67,18 @@ export class Doors {
   onChange: ((door: Door, what: "open" | "close" | "kick" | "break") => void) | null = null;
 
   constructor(root: THREE.Group, origin: { x: number; z: number }, ways: readonly Doorway[]) {
-    const panelMat = new THREE.MeshStandardMaterial({ color: cfg.colour, roughness: 0.55, metalness: 0.35 });
-    const handleMat = new THREE.MeshStandardMaterial({ color: 0xc8c8c8, roughness: 0.3, metalness: 0.9 });
+    // One mesh a door, the handle's colour in the vertices: the panel and its
+    // handle as two meshes were two draw calls a door, about sixty at the hub.
+    const doorMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.4 });
+    const paint = new THREE.Color(cfg.colour);
+    const steel = new THREE.Color(0xc8c8c8);
+    const coloured = (g: THREE.BufferGeometry, c: THREE.Color): THREE.BufferGeometry => {
+      const n = g.getAttribute("position").count;
+      const col = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) col.set([c.r, c.g, c.b], i * 3);
+      g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+      return g;
+    };
     for (const d of ways) {
       const horizontal = d.side === "n" || d.side === "s";
       const width = d.w - cfg.gap * 2;
@@ -82,18 +93,15 @@ export class Doors {
       const pivot = new THREE.Group();
       pivot.position.set(hx, d.y, hz);
       pivot.rotation.y = yaw0;
-      const panel = new THREE.Mesh(new THREE.BoxGeometry(width, height, cfg.thick), panelMat);
-      panel.position.set(width / 2, height / 2, 0);
+      const slab = coloured(new THREE.BoxGeometry(width, height, cfg.thick).translate(width / 2, height / 2, 0), paint);
+      // a handle through it, on each face, at the far end from the hinge
+      const grip = coloured(new THREE.BoxGeometry(0.14, 0.04, cfg.thick + 0.08).translate(width - 0.18, 1.0, 0), steel);
+      const panel = new THREE.Mesh(mergeGeometries([slab, grip]) ?? slab, doorMat);
       panel.castShadow = true;
       panel.receiveShadow = true;
-      // a handle on each face, at the far end from the hinge
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.04, cfg.thick + 0.08), handleMat);
-      handle.position.set(width - 0.18, 1.0, 0);
-      for (const m of [panel, handle]) {
-        // it moves: the map's static merge must leave it out
-        m.userData.dynamic = true;
-        pivot.add(m);
-      }
+      // it moves: the map's static merge must leave it out
+      panel.userData.dynamic = true;
+      pivot.add(panel);
       root.add(pivot);
       const wx = origin.x;
       const wz = origin.z;

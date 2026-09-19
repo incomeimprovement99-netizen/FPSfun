@@ -1541,3 +1541,25 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Made rather than fetched: no model or licence to carry. Cliffs and vegetation are still to do.
 - Checks: the snapshot `br-rocks` (the north spoke's cover), and the e2e `br` section's walk of the map, unchanged.
 
+## Milestone 100 — The map drawn once, and only from itself ✅
+2026-09-19 (Phase 15). `staticmerge.ts`, `geo.ts`, `doors.ts`, `main.ts`, `tools/bench.ts`, `docs/PLAN_LOD_DRAW_DISTANCE.md`.
+- Step F of the LOD plan, after profiling the frame by object found what its first measurement had missed (the plan
+  now has the whole account): the battle royale map was in the range's list of roots as well as its own, so the
+  merge took each of its meshes twice and the whole map was drawn double; and each side of the world, the range and
+  the map 500 m apart, drew the other through 400 m of fog (from the Mast's roof, the range's target frames, course
+  signs and fetched props were about 350 draw calls and a million triangles).
+- The map is out of the range's list; the merge keeps each region's meshes apart and puts them in the caller's group;
+  main draws only the side the camera is on (the lights the range builds stay out of it: hiding them with the range
+  turned the sun off on the map, which the door snapshot showed at once); and the bevelled box is indexed (900
+  vertices to 212). Cells of 73 m inside a region were built, measured worse (1,262 draw calls to 1,986 from the
+  Mast's roof for 15% fewer triangles, on a frame bound by its calls) and dropped.
+- A door is one mesh now, its handle's colour in the vertices: two a door was about sixty draw calls at the hub.
+- The benchmark's `brmatch` spot measured the range's edge with a match waiting: nothing took the pointer lock a
+  click takes, so the match never began and the teleport onto the hub was clamped by the range. It takes the lock
+  now, and it measures a match.
+- From the Mast's roof: Competitive 159 to 385 fps median (p99 9.0 to 3.7 ms), Balanced 270 to 500, High 175 to 333;
+  draw calls 1,262 to 400. In a match at the hub: Competitive 172 to 185, High 93 to 106 (p99 14.6 to 12.3 ms). The
+  range is unchanged. The full table is in the plan.
+- Checks: the benchmark before and after at all three spots and presets; the door snapshot (the lighting, and the
+  one-mesh door); the e2e walk of the map and every section, unchanged.
+

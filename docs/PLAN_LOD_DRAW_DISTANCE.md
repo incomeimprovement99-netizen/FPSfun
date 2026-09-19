@@ -38,6 +38,43 @@ Step A below was built first, the same day. `npm run bench` now counts every pas
 
 **What this changes: the world, not the loot, is the first target.** The empty map already costs 1,238 draw calls and 2.85M triangles, about fifteen times the map's own 186k triangles. The loot and bots in view at the hub add only about 130 calls. So something across the whole merged world is drawn from everywhere, twice or more per frame: the range, the arenas and the battle royale map share merged groups with no culling, and the shadow pass comes on top. **Step F (cells) moves ahead of C and D**, after a short investigation. That investigation lists the draw calls by mesh at the `br` spot to find what the 2.85M triangles are. The Competitive preset at the hub, 100 fps median with a 16 ms p99, is the number to beat.
 
+## Step F, as built, and what the first measurement got wrong (2026-09-19, Milestone 100)
+
+Profiling the frame by object (every draw call attributed to the mesh that made it) found three things the table
+above could not show:
+
+- **The `brmatch` spot never measured a match.** `startBr` builds the match but nothing took the pointer lock a
+  click takes, so the match waited for the page to be in the game, and the teleport onto the hub was clamped by the
+  range's bounds: every `brmatch` row above is the range's southern edge with a battle royale waiting. The spot now
+  takes the lock (the same pretend lock the e2e's clicks take).
+- **The battle royale map was drawn twice.** `rangeRoots` in main.ts is "everything added to the scene since the
+  range started building", and the map is built in between, so its root was in that list and in the merge's list
+  as well: every one of its meshes went into its merged group twice.
+- **Each side of the world drew the other.** The camera sees 400 m and the range is 500 m from the map, so from the
+  Mast's roof the range's target frames (232 calls), its course signs (80), its fetched props (a million triangles:
+  eight road barriers are 61k triangles each) and its merged walls were all drawn, fogged to nothing.
+
+What was built: the map out of `rangeRoots`; the merge takes a region per list of roots and merges nothing across
+two, and puts each region's merged meshes in a group of the caller's; main keeps the range side (the range, the
+courses, the arenas, the targets and dummies) and the map side in two groups and draws only the one the camera is
+on; and the bevelled box is indexed (900 vertices to 212). **Cells of 73 m inside a region were tried and dropped**:
+from the Mast's roof they took the map from 1,262 draw calls to 1,986 for 15% fewer triangles, and this frame is
+bound by its draw calls, not its triangles.
+
+| Where | Preset | fps median before | after | p99 before | after | Draw calls before | after | Triangles before | after |
+|---|---|---|---|---|---|---|---|---|---|
+| BR, empty, from the Mast's roof | Competitive | 159 | 385 | 9.0 ms | 3.7 ms | 1,262 | 400 | 3.01M | 1.64M |
+| BR, empty, from the Mast's roof | Balanced | 270 | 500 | 5.1 ms | 3.3 ms | 1,276 | 418 | 3.00M | 1.64M |
+| BR, empty, from the Mast's roof | High | 175 | 333 | 9.5 ms | 4.9 ms | 2,535 | 731 | 6.82M | 3.77M |
+| BR match at the hub, 9 bots (now a match) | Competitive | 172 | 185 | 8.5 ms | 7.2 ms | 966 | 867 | 1.27M | 0.78M |
+| BR match at the hub, 9 bots | Balanced | 175 | 182 | 8.1 ms | 7.6 ms | 962 | 913 | 1.25M | 0.80M |
+| BR match at the hub, 9 bots | High | 93 | 106 | 14.6 ms | 12.3 ms | 2,077 | 1,833 | 4.04M | 2.21M |
+| Range | Competitive | 476 | 476 | 3.0 ms | 2.9 ms | 490 | 497 | 619k | 581k |
+
+In a match what is left of the draw calls is now what the plan first suspected: the loot (its boxes, rings and
+beams, about 150 calls at the hub), the doors (one mesh each now, from two), and the gun's hands (about 75 calls of
+capsules and spheres in the gun's own pass). Steps C (loot) and D (figures) are next, and the hands after them.
+
 ## Options, best gain per hour first
 
 1. **Fix the measurements.** Everything else is judged by them.
@@ -80,7 +117,7 @@ A new `tools/checks/render-budget.ts` in verify builds the map headless and asse
 | C | Loot LOD: merged guns, instanced boxes and plates | 4-6 | Merged-gun check; `brmatch` draw calls drop by hundreds |
 | D | Figure LOD: bounds, animation stride, far gun, 60 m shadows | 3-4 | Stride check; the bot and knockdown checks still pass; High benchmark |
 | E | Far plane and fog per preset | 1-2 | The sky-hours check; a map-corner benchmark |
-| F | Cells in mergeStatic, regions apart, indexed bevels | 4-6 | The cell and region assertions; `br` and `range` benchmarks |
+| F | ~~Cells in mergeStatic, regions apart, indexed bevels~~ done without the cells (measured worse), with the double merge fixed and each side drawn only from itself: see above | 4-6 | The cell and region assertions; `br` and `range` benchmarks |
 | G | A shadow box that follows the player on High | 2-3 | High benchmark; snap comparison |
 | H | Dynamic resolution, then building the map per mode | 3-4 each | Percentiles; loading-screen timing |
 

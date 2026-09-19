@@ -86,28 +86,41 @@ export function worldUVs(g: THREE.BufferGeometry, metres: number): void {
 const worldUVOf = (m: THREE.Material): number => (typeof m.userData.worldUV === "number" ? m.userData.worldUV : 0);
 
 /**
- * Merge every static mesh under `roots` into the scene. Roots are removed
+ * Merge every static mesh under `regions` into the scene: each entry is a
+ * region (a root, or a list of roots that are one place), and nothing merges
+ * across two regions. A region's merged meshes go under `into[region]` if it
+ * is given (main hides the side of the world you are not on), else under the
+ * scene. A mesh is taken once however many roots reach it. Roots are removed
  * from nothing; merged originals are detached from their parents.
+ *
+ * Cells inside a region (a 73 m grid, so a camera could cull the map a piece
+ * at a time) were tried and measured worse: from the Mast's roof they took
+ * the map from 1,262 draw calls to 1,986 for 15% fewer triangles, and this
+ * frame is bound by its draw calls (docs/PLAN_LOD_DRAW_DISTANCE.md).
  */
-export function mergeStatic(scene: THREE.Scene, roots: THREE.Object3D[]): MergeReport {
-  for (const r of roots) r.updateMatrixWorld(true);
-  const groups = new Map<string, THREE.Mesh[]>();
+export function mergeStatic(scene: THREE.Scene, regions: Array<THREE.Object3D | THREE.Object3D[]>, into?: THREE.Object3D[]): MergeReport {
+  const lists = regions.map((r) => (Array.isArray(r) ? r : [r]));
+  for (const list of lists) for (const r of list) r.updateMatrixWorld(true);
+  const groups = new Map<string, { region: number; list: THREE.Mesh[] }>();
+  const seen = new Set<THREE.Mesh>();
   let meshes = 0;
-  for (const r of roots) {
-    r.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      meshes++;
-      if (!mergeable(m) || !m.visible) return;
-      const key = layoutKey(m);
-      let list = groups.get(key);
-      if (!list) groups.set(key, (list = []));
-      list.push(m);
-    });
-  }
+  lists.forEach((roots, region) => {
+    for (const r of roots)
+      r.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh || seen.has(m)) return;
+        seen.add(m);
+        meshes++;
+        if (!mergeable(m) || !m.visible) return;
+        const key = `${region}|${layoutKey(m)}`;
+        let g = groups.get(key);
+        if (!g) groups.set(key, (g = { region, list: [] }));
+        g.list.push(m);
+      });
+  });
   let removed = 0;
   let added = 0;
-  for (const list of groups.values()) {
+  for (const { region, list } of groups.values()) {
     if (list.length < 2) {
       // one of its kind: a textured one still wants its coordinates from the
       // world, on a copy (its geometry is shared with others of that size)
@@ -142,7 +155,7 @@ export function mergeStatic(scene: THREE.Scene, roots: THREE.Object3D[]): MergeR
     mesh.name = "static-merged";
     mesh.matrixAutoUpdate = false;
     mesh.updateMatrix();
-    scene.add(mesh);
+    (into?.[region] ?? scene).add(mesh);
     for (const m of list) m.removeFromParent();
     removed += list.length;
     added++;

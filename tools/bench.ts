@@ -30,7 +30,9 @@ const SPOT = process.env.BENCH_SPOT ?? "range";
 const SPOTS: Record<string, string> = {
   range: "",
   br: `(() => { const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(0, 28.2, 500, 45, -8); })()`,
-  brmatch: `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "hub" });
+  // (the lock is what a click on the menu's button takes: the match waits for everyone in the game, this page included,
+  // and without it this spot measured the range's edge with the match still waiting)
+  brmatch: `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "hub" }); r.input.lock();
     for (let i = 0; i < 400 && r.duel()?.phase !== "fight"; i++) await new Promise((ok) => setTimeout(ok, 100));
     const d = r.duel(); if (d) d.holdFire = true;
     r.player.teleport(0, 0, 530, 0, -2); })()`,

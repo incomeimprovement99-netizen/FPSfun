@@ -657,7 +657,9 @@ function setRegion(region: "range" | "br"): void {
 }
 // exactly what the range built, for the static merge below (not the dummies
 // and targets added later, which move)
-const rangeRoots = scene.children.filter((o) => !beforeRange.has(o) && o !== arena.root && o !== triArena.root);
+// (not the battle royale map, built between: it was in this list, so the merge
+// took every one of its meshes twice and the whole map was drawn double)
+const rangeRoots = scene.children.filter((o) => !beforeRange.has(o) && o !== arena.root && o !== triArena.root && o !== brMap.root);
 // The sky doubles as the environment map. Without it every metal surface is
 // black, so this is load-bearing rather than decoration.
 //
@@ -3390,13 +3392,53 @@ window.addEventListener("beforeunload", (e) => {
   e.preventDefault();
   e.returnValue = "";
 });
+/**
+ * The two sides of the world, 500 m apart: the range with its courses,
+ * targets, dummies and arenas, and the battle royale map. The camera sees
+ * 400 m, so from one side the other was in view and drawn: from the Mast's
+ * roof the range's target frames, course signs and props were about 350 draw
+ * calls and a million triangles of nothing anyone could see through the fog.
+ * Each side is a group now, and only the side you stand on is drawn (showSide).
+ */
+const rangeSide = new THREE.Group();
+rangeSide.name = "range-side";
+const brSide = new THREE.Group();
+brSide.name = "br-side";
+scene.add(rangeSide, brSide);
+{
+  // The lights the range builds (the sun, the sky's fill, the rim) light the
+  // whole world: hiding them with the range turned the sun off on the map.
+  // They, and the objects the sun aims at, stay on the scene.
+  const lit = new Set<THREE.Object3D>();
+  scene.traverse((o) => {
+    if ((o as THREE.Light).isLight) {
+      lit.add(o);
+      const target = (o as THREE.DirectionalLight).target;
+      if (target) lit.add(target);
+    }
+  });
+  const onRangeSide = [...rangeRoots, ...courses.map((c) => c.root), arena.root, triArena.root, ...targets.map((t) => t.group), ...dummies.map((d) => d.group)];
+  for (const o of onRangeSide) if (!lit.has(o)) rangeSide.attach(o);
+}
+brSide.attach(brMap.root);
+/** which side is drawn: the one the camera is on (the battle royale map starts 280 m south; the range side ends well short of it) */
+let sideShown: "range" | "br" | null = null;
+function showSide(): void {
+  const want = camera.position.z > 250 ? "br" : "range";
+  if (want === sideShown) return;
+  sideShown = want;
+  rangeSide.visible = want === "range";
+  brSide.visible = want === "br";
+  // the static shadow map is drawn from what is shown
+  renderer.shadowMap.needsUpdate = true;
+}
 // The range and the course are several hundred static meshes. Merged by
 // material they are a few dozen draw calls, which is CPU time back on every
 // frame (see staticmerge.ts). ?nomerge in the URL turns it off, so the
 // benchmark can measure both.
 const merged = new URLSearchParams(location.search).has("nomerge")
   ? null
-  : mergeStatic(scene, [...rangeRoots, ...courses.map((c) => c.root), arena.root, triArena.root, brMap.root]);
+  : mergeStatic(scene, [[...rangeRoots, ...courses.map((c) => c.root)], arena.root, triArena.root, brMap.root], [rangeSide, rangeSide, rangeSide, brSide]);
 
 // Two slots, each with its own clip and reload state: empty one mag, swap,
 // empty the other, swap back and the first is still empty.
@@ -4927,6 +4969,7 @@ function step(): void {
   if (!NO_RENDER && !document.hidden) {
     gunLayer();
     lightsOnGun();
+    showSide();
     pipeline.render(now);
   }
   frameCost = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
