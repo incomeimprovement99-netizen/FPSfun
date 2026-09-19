@@ -7,7 +7,7 @@
 //     you hit. They apply it to their shield, then health. That is what makes
 //     a hit feel right on your screen, and between friends it is the right
 //     trade; it offers no protection against cheating.
-//   - The player who made the match (the host, id 0) runs the rounds:
+//   - The player who made the match (the host: id 0, or hostId after a takeover) runs the rounds:
 //     countdown, fight, round over, match over. Guests follow the host's
 //     messages. With three players the host also relays: everything a guest
 //     sends goes to the host, which passes it to the other guest with the
@@ -293,7 +293,14 @@ export class Duel implements MatchLike {
   readonly id: number;
   /** how many people the match is for (the host can start with fewer: startNow) */
   players: number;
-  readonly role: "host" | "guest";
+  /**
+   * Whose match it is: the one with the host's id. That is 0 from the start,
+   * and a guest's own id after it takes a match over from a host that dropped
+   * (docs/PLAN_HOST_MIGRATION.md), so nothing below may take 0 to mean the host.
+   */
+  role: "host" | "guest";
+  /** the host's id (see role) */
+  hostId = 0;
   phase: RoundPhase;
   protected phaseEndsAt = 0;
   round = 1;
@@ -455,14 +462,15 @@ export class Duel implements MatchLike {
   constructor(
     protected scene: THREE.Scene,
     protected projectiles: ProjectileSystem,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; mode?: "duel" | "br" | "arena"; abilities?: boolean; map?: ArenaMapId | null }
+    opts: { players: number; myId: number; hostId?: number; link: Link | null; guestId?: number; mode?: "duel" | "br" | "arena"; abilities?: boolean; map?: ArenaMapId | null }
   ) {
     const now = wallClock();
     this.mode = opts.mode ?? "duel";
     this.abilities = opts.abilities ?? false;
     this.players = this.mode === "duel" ? Math.max(2, Math.min(MAX_PLAYERS, opts.players)) : Math.max(1, Math.min(MAX_PLAYERS, opts.players));
     this.id = opts.myId;
-    this.role = this.id === 0 ? "host" : "guest";
+    this.hostId = opts.hostId ?? 0;
+    this.role = this.id === this.hostId ? "host" : "guest";
     this.sync = new StateSync(this.id);
     this.lastClock = now;
     this.scores = new Array(Math.max(2, this.players)).fill(0);
@@ -479,10 +487,10 @@ export class Duel implements MatchLike {
       if (opts.link) this.addGuest(opts.link, opts.guestId ?? 1);
     } else if (opts.link) {
       this.hostLink = opts.link;
-      opts.link.onMessage = (m) => this.receive(m, 0);
+      opts.link.onMessage = (m) => this.receive(m, this.hostId);
       opts.link.onClose = () => this.hostDropped();
-      // the others are known once their state arrives; the host is id 0
-      this.remote(0);
+      // the others are known once their state arrives; the host at once
+      this.remote(this.hostId);
     }
     // The first spawn is the caller's to do (onRespawn is not set yet); every
     // later round calls onRespawn itself.
@@ -621,11 +629,11 @@ export class Duel implements MatchLike {
       return;
     }
     this.hostLink = link;
-    link.onMessage = (m) => this.receive(m, 0);
+    link.onMessage = (m) => this.receive(m, this.hostId);
     link.onClose = () => this.hostDropped();
     this.reconnectUntil = null;
-    this.remote(0).lastHeard = wallClock();
-    this.sync.forgetPeer(0);
+    this.remote(this.hostId).lastHeard = wallClock();
+    this.sync.forgetPeer(this.hostId);
     this.onFeed?.("Back in the match", false);
   }
 
@@ -873,7 +881,7 @@ export class Duel implements MatchLike {
 
   /** who a state goes to: the host's guests, or a guest's host */
   private stateTargets(): Iterable<[number, Link]> {
-    return this.role === "host" ? this.links : this.hostLink ? [[0, this.hostLink]] : [];
+    return this.role === "host" ? this.links : this.hostLink ? [[this.hostId, this.hostLink]] : [];
   }
 
   /** the frame's delta parts, one packet to each peer that is still there */
@@ -939,19 +947,19 @@ export class Duel implements MatchLike {
     // a goodbye or a stray message from someone unknown makes no figure
     // voice chat's roster, from the host
     if (m.t === "voice") {
-      if (this.role !== "guest" || from !== 0 || !Array.isArray(m.peers)) return;
+      if (this.role !== "guest" || from !== this.hostId || !Array.isArray(m.peers)) return;
       this.voicePeers.clear();
       for (const p of m.peers) if (Array.isArray(p) && typeof p[0] === "number" && typeof p[1] === "string" && p[1].length < 80) this.voicePeers.set(p[0], p[1]);
       return;
     }
     // the host handed over, or is being handed it (main runs the rest)
     if (m.t === "host") {
-      if (this.phase === "waiting" && (this.role === "host" || from === 0)) this.onHandover?.(m, from);
+      if (this.phase === "waiting" && (this.role === "host" || from === this.hostId)) this.onHandover?.(m, from);
       return;
     }
     // the host took you out of its lobby
     if (m.t === "kick") {
-      if (this.role === "guest" && from === 0) this.finish("The host took you out of the match.");
+      if (this.role === "guest" && from === this.hostId) this.finish("The host took you out of the match.");
       return;
     }
     if (m.t === "bye" || m.t === "ping" || m.t === "pong" || m.t === "round" || m.t === "zone" || m.t === "hello" || m.t === "welcome" || m.t === "ring" || m.t === "brend" || m.t === "mode") {
@@ -963,7 +971,7 @@ export class Duel implements MatchLike {
       }
       if (m.t === "bye") {
         if (this.role === "host") this.guestLeft(from);
-        else if (from === 0) {
+        else if (from === this.hostId) {
           this.left = true;
           this.finish("The host left the match.");
         }
@@ -979,7 +987,7 @@ export class Duel implements MatchLike {
           // the worst, the connection its match is waiting on.
           this.pingOf.set(from, ms);
           this.ping = Math.max(...this.pingOf.values());
-        } else if (from === 0) this.ping = ms;
+        } else if (from === this.hostId) this.ping = ms;
       } else if (m.t === "round") {
         if (this.role === "guest") this.applyRound(m);
       } else if (m.t === "zone") {
@@ -1605,7 +1613,7 @@ export class Duel implements MatchLike {
     }
     for (const r of [...this.remotes.values()]) {
       if (now - r.lastHeard > SILENCE_LIMIT && !(r.id >= Duel.BOT_ID && this.phase === "matchEnd")) {
-        if (this.role === "guest" && r.id === 0) {
+        if (this.role === "guest" && r.id === this.hostId) {
           // a connection gone quiet is a dropped one: drop it and get back in (the timer above ends it)
           if (this.reconnectUntil !== null) continue;
           if (this.hostLink) this.hostLink.onClose = null;

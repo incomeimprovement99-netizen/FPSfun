@@ -1697,3 +1697,15 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: the e2e `emote` section (the host's gun in Gold, and the guest's figure of the host wears it) and the
   `botsquads` section.
 
+## Milestone 110 — Host migration, phase 1: the host's id is a field ✅
+2026-09-19 (Phase 15). `duel.ts`, `tools/checks/net-delta.ts`, `docs/PLAN_HOST_MIGRATION.md` (new).
+- The plan for a match that outlives its host: one guest, the heir, is kept a snapshot of everything only the host
+  knows, and when the host drops it takes over the match's code, so the other guests' rejoin retries (Milestone 91)
+  land on it. Four phases, each shipped on its own.
+- Phase 1 changes nothing anyone sees. A match's host was the player with id 0, taken for granted in a dozen places:
+  a guest's figure of its host, the ping, the relay's targets, the host's goodbye, its kick, its handover, its voice
+  roster, and the silence that means a dropped host. A migrated match's host keeps its own id, and the old host's
+  id 0 becomes a held seat it can come back to, so each of those now goes by `hostId`, and the role follows from it.
+- Checks: `tools/checks/net-delta.ts` runs real matches hosted by id 2 and id 3 (the roles, the relay in deltas both
+  ways, no figure of guest 0 for itself, pings answered, a host gone quiet noticed by both guests, the host's goodbye
+  ending the guest's match).

@@ -910,6 +910,62 @@ const scene = new THREE.Scene();
   guest.dispose();
 }
 
+{
+  // A host that is not id 0: what a guest becomes when it takes a match over
+  // from a host that dropped (docs/PLAN_HOST_MIGRATION.md). Here player 2
+  // hosts, and 0 and 1 are its guests. Everything that went by "the host is
+  // 0" (a guest's replica of its host, the relay, the ping, the host's
+  // goodbye, a host gone quiet) has to go by the host's id instead.
+  const wire = new Wire();
+  const [h0, g0] = wire.pair(2, 0);
+  const [h1, g1] = wire.pair(2, 1);
+  const host = new Duel(scene, projectiles, { players: 3, myId: 2, hostId: 2, link: h0, guestId: 0 });
+  host.addGuest(h1, 1);
+  const a = new Duel(scene, projectiles, { players: 3, myId: 0, hostId: 2, link: g0 });
+  const b = new Duel(scene, projectiles, { players: 3, myId: 1, hostId: 2, link: g1 });
+  check("host id 2: the roles go by the host's id", host.role === "host" && a.role === "guest" && b.role === "guest");
+  let f = run(wire, [
+    { d: host, id: 2 },
+    { d: a, id: 0 },
+    { d: b, id: 1 },
+  ], [], 0, 300);
+  check("host id 2: each guest sees the host and the other guest through the relay, in deltas", lag(a, 2, f - 1) < 0.01 && lag(b, 2, f - 1) < 0.01 && lag(a, 1, f - 1) < 0.01 && lag(b, 0, f - 1) < 0.01 && host.sync.speaksDeltas(0) && a.sync.speaksDeltas(2), `${(lag(a, 1, f - 1) * 100).toFixed(2)} cm`);
+  check("host id 2: guest 0 makes no figure of itself for the host", !inside(a).remotes.has(0) && inside(a).remotes.has(2) && inside(host).remotes.has(0));
+  check("host id 2: the guests' pings are answered by the host", wire.count(0, 2, "ping") > 0 && wire.count(2, 0, "pong") > 0 && a.ping !== null, `${wire.count(0, 2, "ping")} pings`);
+  // the host goes quiet (no goodbye, no states, no answers: a frozen tab), and a guest takes it for a dropped host
+  h0.onMessage = null;
+  h1.onMessage = null;
+  const ends: string[] = [];
+  a.onEnd = (r) => ends.push(`a:${r}`);
+  b.onEnd = (r) => ends.push(`b:${r}`);
+  f = run(wire, [
+    { d: a, id: 0 },
+    { d: b, id: 1 },
+  ], [], f, 60 * 12);
+  check("host id 2: a host gone quiet is noticed by its guests", ends.length === 2 && ends.every((e) => /host/i.test(e)), JSON.stringify(ends));
+  host.dispose();
+  a.dispose();
+  b.dispose();
+}
+
+{
+  // and its goodbye ends the match for a guest, as host 0's always did
+  const wire = new Wire();
+  const [h, gl] = wire.pair(3, 1);
+  const host = new Duel(scene, projectiles, { players: 2, myId: 3, hostId: 3, link: h, guestId: 1 });
+  const guest = new Duel(scene, projectiles, { players: 2, myId: 1, hostId: 3, link: gl });
+  let why = "";
+  guest.onEnd = (r) => (why = r);
+  run(wire, [
+    { d: host, id: 3 },
+    { d: guest, id: 1 },
+  ], [], 0, 60);
+  host.leave();
+  wire.drain();
+  check("host id 3: the host's goodbye ends the guest's match", why === "The host left the match." && guest.left, why);
+  guest.dispose();
+}
+
 // put back what the Duel checks borrowed
 // ------------------------------------------------------------ the sender's clock
 // A state carries its sender's clock (16 bits of milliseconds). It has to
