@@ -201,7 +201,20 @@ export interface HudState {
   /** real shield and health (a 1v1); the bars are decorative without it */
   vitals?: { shield: number; shieldMax: number; health: number; healthMax: number; evo?: number | null; helmet?: string | null } | null;
   /** your ability (abilities.ts): name, key, its cooldown and what is left of it (0: ready); a passive one has no key */
-  ability?: { name: string; key: string; cooldown: number; left: number; passive: boolean; charges?: number; max?: number; nextIn?: number } | null;
+  ability?: {
+    name: string;
+    key: string;
+    cooldown: number;
+    left: number;
+    passive: boolean;
+    charges?: number;
+    max?: number;
+    nextIn?: number;
+    /** the square's icon: a dash's chevrons or a heal's cross */
+    icon?: "dash" | "cross";
+    /** the kit's ultimate: its name and key, the meter (0..1), and the seconds it still runs once used */
+    ult?: { name: string; key: string; k: number; live: number };
+  } | null;
   /** the ability card: the two options with their keys; compact is the one-line form */
   abilityCard?: { options: Array<{ key: string; name: string; blurb: string; picked: boolean }>; age: number; compact: boolean } | null;
   /** the killcam is playing: whose eyes, their gun, how far through, the skip key */
@@ -2070,7 +2083,7 @@ export class Hud {
     c.strokeStyle = ready ? "#8fd8ff" : "rgba(143,216,255,0.45)";
     c.fillStyle = c.strokeStyle;
     c.lineWidth = 4 * u;
-    if (a.passive) {
+    if (a.passive || a.icon === "cross") {
       c.fillRect(-4 * u, -14 * u, 8 * u, 28 * u);
       c.fillRect(-14 * u, -4 * u, 28 * u, 8 * u);
     } else {
@@ -2131,6 +2144,37 @@ export class Hud {
       nameY += 8 * u;
     }
     this.text(a.passive ? `${a.name}  HEALS x2` : a.name, x + size / 2, nameY, 700, 13 * u, ready ? WHITE : DIM, "center");
+    if (a.ult) this.drawUlt(now, a.ult, x + size + 16 * u, y, size, u);
+  }
+
+  /**
+   * The ultimate, beside the ability: a ring that fills as the meter does, its
+   * key in the middle and the percentage under it; full, it glows and says
+   * READY; while it runs, the seconds left.
+   */
+  private drawUlt(now: number, ult: { name: string; key: string; k: number; live: number }, x: number, y: number, size: number, u: number): void {
+    const c = this.ctx;
+    const r = size / 2;
+    const cx = x + r;
+    const cy = y + r;
+    const GOLD = "#ffd23c";
+    const full = ult.k >= 1;
+    c.fillStyle = PANEL;
+    c.beginPath();
+    c.arc(cx, cy, r, 0, Math.PI * 2);
+    c.fill();
+    c.lineWidth = 5 * u;
+    c.strokeStyle = "rgba(255,255,255,0.12)";
+    c.beginPath();
+    c.arc(cx, cy, r - 4 * u, 0, Math.PI * 2);
+    c.stroke();
+    c.strokeStyle = full ? `rgba(255,210,60,${0.7 + 0.3 * Math.sin(now * 5)})` : GOLD;
+    c.beginPath();
+    c.arc(cx, cy, r - 4 * u, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, ult.k));
+    c.stroke();
+    this.text(ult.key, cx, cy + 7 * u, 700, 20 * u, full ? GOLD : WHITE, "center");
+    const line = ult.live > 0 ? `${ult.name}  ${Math.ceil(ult.live)} S` : full ? `${ult.name}  READY` : `${ult.name}  ${Math.floor(ult.k * 100)}%`;
+    this.text(line, cx, y + size + 16 * u, 700, 12 * u, full || ult.live > 0 ? GOLD : DIM, "center");
   }
 
   /**

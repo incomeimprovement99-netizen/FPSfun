@@ -8,6 +8,22 @@
 // before it: a full refill in 8 s); the dash itself is movement (Player.jolt)
 // and TRIAGE is a scale on the heal times.
 import cfg from "../config/abilities.json";
+import kits from "../config/kits.json";
+
+/**
+ * The kits (kits.json): each ability is now a kit's tactical or passive, with
+ * an ultimate beside it. The ids stay "jolt" and "triage", which the bots and
+ * the settings already use; what the player sees is the kit.
+ */
+export const KITS = kits;
+export interface KitInfo {
+  kit: string;
+  tactical: string;
+  passive: string;
+  ult: string;
+  /** one line for the card: all three */
+  blurb: string;
+}
 
 export type AbilityId = "jolt" | "triage";
 export const ABILITY_IDS: AbilityId[] = ["jolt", "triage"];
@@ -22,6 +38,17 @@ export const ABILITIES: Record<AbilityId, AbilityInfo> = {
   triage: { id: "triage", name: cfg.triage.name, blurb: cfg.triage.blurb },
 };
 export const JOLT = cfg.jolt;
+
+/** each kit as the card and the HUD show it */
+export function kitOf(id: AbilityId): KitInfo {
+  if (id === "jolt") {
+    const u = kits.runner.ult;
+    return { kit: kits.runner.name, tactical: cfg.jolt.name, passive: kits.runner.passive, ult: u.name, blurb: `${cfg.jolt.name}: ${JOLT.blurb}. ${kits.runner.passive}: no stun from a hard landing. ${u.name}: ${u.seconds} s ${Math.round((u.speed - 1) * 100)}% faster, JOLT refilled` };
+  }
+  const t = kits.medic.tactical;
+  const u = kits.medic.ult;
+  return { kit: kits.medic.name, tactical: t.name, passive: cfg.triage.name, ult: u.name, blurb: `${t.name}: ${t.health} health over ${t.seconds} s, every ${t.cooldown} s. ${cfg.triage.name}: ${cfg.triage.blurb}. ${u.name}: ${u.health} health to your team within ${u.radius} m` };
+}
 
 /** the dash as the config ships it, to reset a setting back to it */
 export const JOLT_DEFAULTS = { distance: cfg.jolt.distance, duration: cfg.jolt.duration, charges: cfg.jolt.charges, recharge: cfg.jolt.recharge };
@@ -63,6 +90,35 @@ export class Abilities {
   private lastUseAt = -Infinity;
   /** when the card went up, for the HUD's slide-in */
   offeredAt = -Infinity;
+  /** the ultimate's meter, 0 to 1 (kits.json ultimate): kept through deaths, emptied by a new match */
+  ult = 0;
+  /** MEDIC's PATCH: when it can go again */
+  private patchAt = -Infinity;
+
+  /** the meter: time passing, and damage dealt */
+  chargeUlt(dt: number, damage = 0): void {
+    if (!this.enabled || !this.picked) return;
+    this.ult = Math.min(1, this.ult + Math.max(0, dt) / KITS.ultimate.fullAfter + Math.max(0, damage) * KITS.ultimate.perDamage);
+  }
+
+  /** the ultimate, if the meter is full: spends it and says yes */
+  tryUlt(): boolean {
+    if (!this.enabled || !this.picked || this.ult < 1) return false;
+    this.ult = 0;
+    return true;
+  }
+
+  /** MEDIC's PATCH, if it is ready: starts its cooldown and says yes */
+  tryPatch(now: number): boolean {
+    if (!this.enabled || this.picked !== "triage" || now < this.patchAt) return false;
+    this.patchAt = now + KITS.medic.tactical.cooldown;
+    return true;
+  }
+
+  /** seconds until PATCH is back (0: ready) */
+  patchLeft(now: number): number {
+    return Math.max(0, this.patchAt - now);
+  }
 
   /** the ability becomes available: put the card up (a pick already made stays, and can be changed) */
   offer(now: number): void {
@@ -83,6 +139,8 @@ export class Abilities {
     this.enabled = enabled;
     this.picked = null;
     this.choosing = false;
+    this.ult = 0;
+    this.patchAt = -Infinity;
     this.fill();
   }
 

@@ -1140,6 +1140,42 @@ async function searchFriendsTest(browser: Browser, query: string): Promise<void>
   await guest.close();
 }
 
+/**
+ * A MEDIC's FIELD HEAL between friends: the guest's ultimate goes to the host
+ * as an effect, and the host's page, a team mate within its reach, heals its
+ * own player.
+ */
+async function kitsFriendsTest(browser: Browser, query: string): Promise<void> {
+  const host = await open(browser, query);
+  const guest = await open(browser, query);
+  await ev(host, `(() => { document.getElementById("duelMode").value = "tdm"; document.getElementById("modeBots").value = "1"; document.getElementById("modeSides").value = "together"; const a = document.getElementById("duelAbilities"); a.value = "1"; a.dispatchEvent(new Event("change")); document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+    for (const p of [host, guest]) await pressPlay(p);
+    for (const p of [host, guest]) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 30000 });
+  } catch {
+    check("kits with a friend: the two start", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  await ev(host, "(() => { const d = window.__range.duel(); d.holdFire = true; d.bots.forEach((b) => { b.bot.update = () => []; }); })()");
+  // side by side, the host hurt, the guest a MEDIC with a full meter
+  await ev(guest, `(() => { const r = window.__range; r.pickAbility("triage"); r.abilities.ult = 1; })()`);
+  const at = await ev<{ x: number; z: number }>(guest, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+  await ev(host, `(() => { const r = window.__range; r.player.teleport(${at.x + 3}, 0, ${at.z}, 0); r.duel().health = 35; })()`);
+  await sleep(600);
+  await ev(guest, "window.__range.useUltimate()");
+  const healed = await host.waitForFunction("window.__range.duel().health > 90", { polling: 200, timeout: 8000 }).then(() => true, () => false);
+  const hp = await ev<number>(host, "window.__range.duel().health");
+  check("kits with a friend: a MEDIC's FIELD HEAL reaches a team mate close by, whose page heals them", healed, hp.toFixed(1));
+  await host.close();
+  await guest.close();
+}
+
 async function friendsModesTest(browser: Browser, query: string): Promise<void> {
   for (const [kind, bots, wantsAllies] of [["tdm", 3, true], ["ffa", 3, false], ["control", 2, true]] as const) {
     const host = await open(browser, query);
@@ -2233,6 +2269,24 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   check("bots with abilities: then both are spent until the first is back (4 s)", cd > 2 && cd < 4, cd.toFixed(2));
   const hudAb = await ev<{ charges?: number; max?: number } | null>(page, "window.__range.hud.last.ability");
   check("bots with abilities: the HUD shows the charges", hudAb?.charges === 0 && hudAb?.max === 2, JSON.stringify(hudAb));
+  // the kit's ultimate: the meter fills in the match; full, RUNNER's OVERDRIVE is faster moving and JOLT refilled
+  await ev(page, "(() => { const d = window.__range.duel(); d.holdFire = true; })()");
+  const k0 = await ev<number>(page, "window.__range.abilities.ult");
+  await ev(page, "window.__range.abilities.ult = 1");
+  await ev(page, "window.__range.useUltimate()");
+  await sleep(300);
+  const od = await ev<{ boost: number; charges: number; ult: { name: string; live: number; k: number } | null }>(page, "(() => { const r = window.__range; return { boost: r.player.holsterBoost, charges: r.abilities.charge(r.gameTime()).charges, ult: r.hud.last.ability?.ult ?? null }; })()");
+  check("kits: the ultimate's meter fills in a match; full, RUNNER's OVERDRIVE makes you faster for 8 s, JOLT refilled, the meter spent", k0 > 0 && od.boost >= 1.24 && od.charges === 2 && !!od.ult && od.ult.name === "OVERDRIVE" && od.ult.live > 7 && od.ult.k < 0.05, JSON.stringify({ k0, od }));
+  // MEDIC: PATCH gives 25 health over 3 s; FIELD HEAL 60 over 5
+  await ev(page, `window.__range.pickAbility("triage")`);
+  await ev(page, "(() => { window.__range.duel().health = 50; window.__range.useAbility(); })()");
+  await sleep(3400);
+  const patched = await ev<{ hp: number; left: number; name: string }>(page, "(() => { const r = window.__range; return { hp: r.duel().health, left: r.abilities.patchLeft(r.gameTime()), name: r.hud.last.ability?.name ?? '' }; })()");
+  check("kits: MEDIC's PATCH gives back 25 health over 3 s, then waits out its cooldown", Math.abs(patched.hp - 75) < 2.5 && patched.left > 12 && patched.name === "PATCH", JSON.stringify(patched));
+  await ev(page, "(() => { const r = window.__range; r.abilities.ult = 1; r.duel().health = 30; r.useUltimate(); })()");
+  await sleep(5400);
+  const healed = await ev<number>(page, "window.__range.duel().health");
+  check("kits: MEDIC's FIELD HEAL gives 60 health over 5 s", Math.abs(healed - 90) < 2.5, healed.toFixed(1));
   await ev(page, "window.__range.duel().leave()");
   await ev(page, `(() => { const s = document.getElementById("botAbilities"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
 
@@ -4499,6 +4553,7 @@ async function main(): Promise<void> {
       await modesSplitTest(browser, "?net=local&norender");
       await friendsModesTest(browser, "?net=local&norender");
       await searchFriendsTest(browser, "?net=local&norender");
+      await kitsFriendsTest(browser, "?net=local&norender");
       await lobbyTest(browser, "?net=local&norender");
       await lobbyShortTest(browser, "?net=local&norender");
     }

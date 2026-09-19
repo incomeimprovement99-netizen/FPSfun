@@ -1854,3 +1854,26 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   mythic gun at gold mag and two bins inside; without the card the door says LOCKED, stays shut and cannot be kicked;
   the Warden down, his box holds the keycard and everyone is told; holding it, the way is marked and the door offers
   to open; E opens it and the card is used).
+
+## Milestone 116 — Ability kits, phase 1: the ultimate, RUNNER and MEDIC ✅
+2026-09-19 (Phase 15). `abilities.ts`, `main.ts`, `hud.ts`, `player.ts`, `duel.ts`, `src/config/kits.json` (new),
+`src/config/binds.json` (`ultimate`: Z), `tools/checks/kits.ts` (new), `tools/e2e.ts`,
+`docs/PLAN_ABILITY_KITS.md` (new).
+- The two abilities are now the first two kits, each a tactical, a passive and an ultimate. RUNNER: JOLT; SURE
+  FOOTING (no stun from a hard landing); OVERDRIVE (8 s of every move speed times 1.25, JOLT's charges refilled).
+  MEDIC: PATCH (25 health over 3 s, every 18 s); TRIAGE (heals twice as fast); FIELD HEAL (60 health over 5 s for
+  you and every team or squad mate within 10 m). The ids stay "jolt" and "triage", so the bots, the settings and the
+  checks that use them are unchanged; the card shows the kit.
+- The ultimate's meter fills with time alone in 150 s, and a point of damage dealt adds 0.0004 of it (2,500 damage
+  is a meter), and is spent whole. It is kept through deaths and emptied by a new match. Z uses it; the HUD's gold
+  ring beside the ability fills with it, glows full and counts down while the ultimate runs.
+- FIELD HEAL goes to the others as an effect with where it was used; a team or squad mate's page within reach heals
+  its own player, as every page runs its own health. An older build ignores the new effects.
+- Health given back over time (PATCH and FIELD HEAL) works in any match with a health bar. The first run of the
+  checks found it doing nothing in a bot match, which is its own class and not a `Duel`.
+- Left for later phases: the bots' ultimates, the accelerant item, and four more kits (SCOUT, HOOK, SMOKE, WARD).
+- Checks: `tools/checks/kits.ts` (eleven: no meter before a kit, full in 150 s by time, capped, spent whole, damage
+  fills it, a new match and abilities off empty it, PATCH is MEDIC's and waits its cooldown, and the card's names
+  and numbers), the e2e `bots` section (the meter fills in a match; OVERDRIVE's speed, refill and HUD; PATCH's 25
+  health and cooldown; FIELD HEAL's 60), and the `modes` section with a friend (a MEDIC guest's FIELD HEAL heals the
+  host beside them).

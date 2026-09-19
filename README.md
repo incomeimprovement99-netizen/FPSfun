@@ -230,15 +230,23 @@ them (for 6 s from the last hit) and only while your eye has a clear line to
 their chest, so a bar never gives away someone behind cover; a team mate's
 green plate always shows.
 
-**Abilities.** Pick **JOLT** or **TRIAGE** with 5 or 6 when the card comes
-up: at each countdown in the arena, the modes and the bots, or when you land
-in a battle royale. JOLT (F) is a 10 m dash the way you are moving, over
+**Kits.** Pick a kit with 5 or 6 when the card comes up: at each countdown
+in the arena, the modes and the bots, or when you land in a battle royale.
+Each kit has a tactical (F), a passive that is always on, and an **ultimate**
+(Z) whose meter (the gold ring beside the ability) fills over about two and a
+half minutes of a match, faster with the damage you deal, and is spent whole.
+**RUNNER**: JOLT as its tactical; SURE FOOTING, no stun from a hard landing;
+OVERDRIVE, 8 s of moving 25% faster with JOLT's charges refilled. **MEDIC**:
+PATCH, 25 health back over 3 s every 18 s; TRIAGE, every heal twice as fast;
+FIELD HEAL, 60 health over 5 s for you and every team or squad mate within
+10 m. JOLT (F) is a 10 m dash the way you are moving, over
 0.14 s on an ease-out (most of the distance in the first half), leaving you
 at 400 hu/s so a sprint, slide or jump carries it on; it has **two charges**,
 and a spent one comes back 4 s after the one before it (8 s for both). The
 HUD shows a pip per charge; a sideways dash rolls the view into it, and a pad
-rumbles. TRIAGE makes every heal twice as fast. A setting per kind of match
-turns them on or off (the battle royale's is on). Bots take one too.
+rumbles. A setting per kind of match turns abilities on or off (the battle
+royale's is on). Bots take a kit too, and use its tactical and passive; their
+ultimates are the next step (docs/PLAN_ABILITY_KITS.md).
 
 **The killcam and the death recap.** Eliminated, you see the last 4 s from
 your killer's eyes (Space skips; a setting turns it off), then a card: for
@@ -286,8 +294,9 @@ defaults puts `binds.json` back.
 | R | reload; hold with a full magazine to inspect the gun (Inspect can have a key of its own) | V | melee (heirloom or fist) |
 | 1, 2 | weapon slot | Q, Mouse 5 | swap weapon |
 | 3 | holster (move 15% faster) | 4 | heal: a tap is the quick heal, hold for the wheel of every heal |
-| G | a grenade in hand (again: the next kind); fire throws, aim puts it away | F | your ability (JOLT) |
-| 5, 6 | pick JOLT or TRIAGE when the card is up | B | fire mode (where a gun has two) |
+| G | a grenade in hand (again: the next kind); fire throws, aim puts it away | F | your kit's tactical (JOLT, PATCH) |
+| 5, 6 | pick RUNNER or MEDIC when the card is up | Z | your kit's ultimate, when its meter is full |
+| B | fire mode (where a gun has two) | | |
 | Middle mouse | ping, for the squad (twice quickly: an enemy there) | M | the full map |
 | U | magazine level | O | cycle optic |
 | J, N, H | barrel, stock, laser | L | hop-up |
@@ -640,7 +649,7 @@ src/game/
   brplay.ts                the battle royale from your side: E, revives, beacons, pads, pings
   loot.ts                  the floor's loot: the seeded layout, rarities, labels
   modes.ts, modematch.ts   Gun Run, team deathmatch, Crown: the rules and the match
-  abilities.ts             JOLT and TRIAGE
+  abilities.ts             the kits: JOLT, TRIAGE, PATCH, the ultimate's meter
   killcam.ts, recap.ts     the killcam's recording and replay; the death recap
   throwables.ts            the frag, the arc star, thermite; what you carry
   kit.ts                   the heals and the armour (shield cores, helmets)

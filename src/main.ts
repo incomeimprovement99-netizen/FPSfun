@@ -62,7 +62,7 @@ import { setArmColors } from "./game/arms";
 import { Menu, brRulesId, brTeamId, type Mode } from "./ui/menu";
 import type { ImpactEvent } from "./game/projectile";
 import { INSPECT_TIME, FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
-import { Abilities, ABILITIES, JOLT, JOLT_DEFAULTS, setJolt, type AbilityId } from "./game/abilities";
+import { Abilities, ABILITIES, JOLT, JOLT_DEFAULTS, KITS, kitOf, setJolt, type AbilityId } from "./game/abilities";
 import { currentBinds, type Action } from "./game/input";
 import { bindName } from "./ui/binds";
 import { FxLayer } from "./game/fx";
@@ -2465,9 +2465,70 @@ const keyLabel = (a: Action): string => bindName(currentBinds()[a]?.[0] ?? "?").
 function pickAbility(id: AbilityId, now: number): void {
   if (!abilities.enabled) return;
   abilities.pick(id);
-  const a = ABILITIES[id];
-  hud.notice(`${a.name}: ${a.blurb.toUpperCase()}${id === "jolt" ? `  (${keyLabel("ability")})` : ""}`, now, 2.2);
+  const k = kitOf(id);
+  hud.notice(`${k.kit}: ${k.tactical} (${keyLabel("ability")}), ${k.passive}, ${k.ult} (${keyLabel("ultimate")})`, now, 2.6);
   audio.reload();
+}
+
+/**
+ * Health given back over time (MEDIC's PATCH and FIELD HEAL): so much a
+ * second until it is done, in a match, while you are up. A second one while
+ * one runs takes whichever gives more.
+ */
+let regen: { perSec: number; until: number } | null = null;
+function startRegen(health: number, seconds: number, now: number): void {
+  const perSec = health / Math.max(0.1, seconds);
+  if (regen && now < regen.until && regen.perSec * (regen.until - now) >= health) return;
+  regen = { perSec, until: now + seconds };
+}
+function stepRegen(now: number, dt: number): void {
+  if (!regen) return;
+  if (now >= regen.until) {
+    regen = null;
+    return;
+  }
+  // any kind of match with a health bar (a 1v1, the modes, a bot match, a battle royale), while you are up
+  const d = duel as unknown as { health?: number; alive?: boolean; downed?: boolean } | null;
+  if (!d || typeof d.health !== "number" || d.alive === false || d.downed === true) return;
+  d.health = Math.min(HEALTH_MAX, d.health + regen.perSec * dt);
+}
+/** RUNNER's OVERDRIVE: every move speed up until this time (game clock) */
+let overdriveUntil = -Infinity;
+/** the damage this player had dealt last frame, for the ultimate's meter */
+let ultDamageSeen = 0;
+
+/**
+ * The ultimate key. A full meter spends itself on the kit's ultimate:
+ * RUNNER's OVERDRIVE (faster, JOLT refilled), MEDIC's FIELD HEAL (health
+ * over time for you and every mate close by, their pages healing them).
+ */
+function useUltimate(now: number): void {
+  if (!abilities.enabled) return;
+  if (!abilities.picked) {
+    hud.notice(abilities.choosing ? "PICK A KIT FIRST" : "NO ABILITIES IN THIS MATCH", now, 1.4);
+    return;
+  }
+  const k = kitOf(abilities.picked);
+  if (abilities.ult < 1) {
+    hud.notice(`${k.ult}: ${Math.floor(abilities.ult * 100)}%`, now, 0.8);
+    return;
+  }
+  if (player.dropping || (duel instanceof Duel && (duel.downed || !duel.alive))) return;
+  if (!abilities.tryUlt()) return;
+  // (the meter starts filling again at once, so the HUD shows it near empty rather than exactly 0)
+  const at = player.pos.clone();
+  if (abilities.picked === "jolt") {
+    overdriveUntil = now + KITS.runner.ult.seconds;
+    abilities.fill();
+    audio.jolt(1);
+    duel?.localFx("ult", at, undefined, 1);
+  } else {
+    const u = KITS.medic.ult;
+    startRegen(u.health, u.seconds, now);
+    audio.reload();
+    duel?.localFx("ult", at, undefined, 2);
+  }
+  hud.notice(k.ult, now, 1.6);
 }
 /**
  * The ability key. JOLT dashes the way the movement keys point (forward with
@@ -2480,8 +2541,19 @@ function useAbility(now: number): void {
     hud.notice(abilities.choosing ? `PICK AN ABILITY FIRST: ${keyLabel("pickAbility1")} JOLT, ${keyLabel("pickAbility2")} TRIAGE` : "NO ABILITY IN THIS MATCH", now, 1.4);
     return;
   }
+  // MEDIC's tactical: PATCH, health back over a few seconds
   if (abilities.picked === "triage") {
-    hud.notice("TRIAGE IS ALWAYS ON: YOUR HEALS ARE TWICE AS FAST", now, 1.4);
+    if (duel instanceof Duel && (duel.downed || !duel.alive)) return;
+    const left = abilities.patchLeft(now);
+    if (left > 0) {
+      hud.notice(`PATCH: BACK IN ${left.toFixed(1)} S`, now, 0.6);
+      return;
+    }
+    if (!abilities.tryPatch(now)) return;
+    const t = KITS.medic.tactical;
+    startRegen(t.health, t.seconds, now);
+    audio.reload();
+    duel?.localFx("patch", player.pos.clone());
     return;
   }
   if (player.dropping) return;
@@ -2988,6 +3060,15 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRemoteFx = (k, from, a, b, n) => {
     remoteFxLog.push({ k, from });
     if (remoteFxLog.length > 20) remoteFxLog.shift();
+    // a MEDIC mate's FIELD HEAL: close enough, and it is health over time for this player too
+    if (k === "ult" && n === 2 && a && d instanceof Duel && d.isFriend(from)) {
+      if (player.pos.distanceTo(a) <= KITS.medic.ult.radius) {
+        startRegen(KITS.medic.ult.health, KITS.medic.ult.seconds, gameTime);
+        hud.notice(`${KITS.medic.ult.name} FROM ${d.nameFor(from) ?? "A MATE"}`, gameTime, 1.4);
+      }
+      return;
+    }
+    if (k === "ult" || k === "patch") return;
     // a quick chat line: its number, said in the feed under their name
     if (k === "chat" && typeof n === "number") {
       sayQuick(d.nameFor(from) ?? "PLAYER", n, false);
@@ -4404,8 +4485,9 @@ function step(): void {
       if (input.pressedNow("pickAbility1")) pickAbility("jolt", now);
       else if (input.pressedNow("pickAbility2")) pickAbility("triage", now);
     }
-    // F: the ability
+    // F: the ability; Z: the ultimate
     if (input.pressedNow("ability") && !knockedOut) useAbility(now);
+    if (input.pressedNow("ultimate") && !knockedOut) useUltimate(now);
     // K: race your best run's ghost, or not
     if (input.pressedNow("ghost")) {
       const course = activeCourse();
@@ -4505,7 +4587,15 @@ function step(): void {
           : 0;
   // Holstered you move 15% faster: walk 199.5, sprint 299, crouch 92, and the
   // slide boost and cap scale with it.
-  player.holsterBoost = holster === "away" ? MOVE.holsterBoost : 1;
+  player.holsterBoost = (holster === "away" ? MOVE.holsterBoost : 1) * (gameTime < overdriveUntil ? KITS.runner.ult.speed : 1);
+  // the kit: RUNNER's passive, the ultimate's meter (time, and the damage dealt since last frame), MEDIC's heals over time
+  player.sureFooting = abilities.enabled && abilities.picked === "jolt";
+  {
+    const dealt = duel instanceof Duel ? duel.damageDealt : 0;
+    abilities.chargeUlt(duel ? dt : 0, Math.max(0, dealt - ultDamageSeen));
+    ultDamageSeen = dealt;
+  }
+  stepRegen(gameTime, dt);
 
   // A weapon being raised, lowered or holstered cannot fire or aim.
   // In a 1v1, firing is held during the countdown and after a round is decided.
@@ -5383,14 +5473,17 @@ function step(): void {
       abilities.enabled && abilities.picked
         ? (() => {
             const c = abilities.charge(now);
-            return { name: ABILITIES[abilities.picked!].name, key: keyLabel("ability"), cooldown: c.recharge, left: c.charges > 0 ? 0 : c.nextIn, passive: abilities.picked === "triage", charges: c.charges, max: c.max, nextIn: c.nextIn };
+            const k = kitOf(abilities.picked!);
+            const ult = { name: k.ult, key: keyLabel("ultimate"), k: abilities.ult, live: abilities.picked === "jolt" ? Math.max(0, overdriveUntil - now) : regen ? Math.max(0, regen.until - now) : 0 };
+            if (abilities.picked === "triage") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.medic.tactical.cooldown, left: abilities.patchLeft(now), passive: false, icon: "cross" as const, ult };
+            return { name: ABILITIES[abilities.picked!].name, key: keyLabel("ability"), cooldown: c.recharge, left: c.charges > 0 ? 0 : c.nextIn, passive: false, charges: c.charges, max: c.max, nextIn: c.nextIn, icon: "dash" as const, ult };
           })()
         : null,
     // the card: full when it has just come up in a match, one line after 6 s or in the range
     abilityCard:
       abilities.enabled && (abilities.choosing || (!duel && !abilities.picked))
         ? {
-            options: (["jolt", "triage"] as const).map((id, i) => ({ key: keyLabel(i === 0 ? "pickAbility1" : "pickAbility2"), name: ABILITIES[id].name, blurb: ABILITIES[id].blurb, picked: abilities.picked === id })),
+            options: (["jolt", "triage"] as const).map((id, i) => ({ key: keyLabel(i === 0 ? "pickAbility1" : "pickAbility2"), name: kitOf(id).kit, blurb: kitOf(id).blurb, picked: abilities.picked === id })),
             age: now - abilities.offeredAt,
             compact: !duel || !abilities.choosing || now - abilities.offeredAt > 6,
           }
@@ -5567,6 +5660,7 @@ initWelcome();
   abilities,
   pickAbility: (id: AbilityId) => pickAbility(id, gameTime),
   useAbility: () => useAbility(gameTime),
+  useUltimate: () => useUltimate(gameTime),
   fxCount: () => fx.count,
   gameTime: () => gameTime,
   /** the killcam and the recap (tools/e2e.ts) */

@@ -113,6 +113,8 @@ export class Player {
 
   /** 1.15 while holstered; scales walk, sprint, crouch and the slide boost */
   holsterBoost = 1;
+  /** RUNNER's SURE FOOTING (kits.json): a hard landing does not stun */
+  sureFooting = false;
   /**
    * Healing: you move this much of your speed (Season 30: 40% slower) and
    * cannot sprint. 1 when not healing.
@@ -1780,7 +1782,8 @@ export class Player {
 
     // Fall stun: none below the speed of a 300 hu fall, a full 1 s and all
     // horizontal speed lost at the speed of an 800 hu fall, quadratic between.
-    if (impact > MOVE.fallstunMinSpeed) {
+    // RUNNER's passive (kits.json): no stun from a hard landing
+    if (impact > MOVE.fallstunMinSpeed && !this.sureFooting) {
       const x = Math.min(1, (impact - MOVE.fallstunMinSpeed) / (MOVE.fallstunMaxSpeed - MOVE.fallstunMinSpeed));
       const s = x * x;
       this.stunStrength = s;

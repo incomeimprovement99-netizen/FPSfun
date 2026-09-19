@@ -540,6 +540,16 @@ export class Duel implements MatchLike {
   /** the ids the humans use; bots are 100 up */
   static readonly BOT_ID = 100;
   /** on this player's side: no damage either way (a battle royale's squad; a team in the modes) */
+  /** the damage this player has dealt this match (the ultimate's meter reads it) */
+  get damageDealt(): number {
+    return this.damage;
+  }
+
+  /** a team or squad mate of this player's (the page's kits ask: a MEDIC's FIELD HEAL is for them) */
+  isFriend(id: number): boolean {
+    return id !== this.id && this.friendly(id);
+  }
+
   protected friendly(id: number): boolean {
     return this.mode === "br" && id >= 0 && id < Duel.BOT_ID;
   }

@@ -1,0 +1,19 @@
+{
+  "_note": "Ability kits (docs/PLAN_ABILITY_KITS.md): a tactical, a passive and an ultimate each, named and numbered by us. RUNNER is JOLT's kit and MEDIC is TRIAGE's (abilities.json keeps those two's own numbers). The ultimate is a meter from 0 to 1: it fills with time alone in fullAfter seconds, and faster with damage dealt (perDamage a point of damage), and is spent whole. The genre's ultimates take two to four minutes by time alone; ours is two and a half, because our matches are shorter.",
+  "ultimate": {
+    "fullAfter": 150,
+    "perDamage": 0.0004
+  },
+  "_runner": "RUNNER: JOLT's dash as its tactical; its passive, SURE FOOTING, takes away the stun of a hard landing (movement.json fallstun); its ultimate, OVERDRIVE, is seconds of every move speed times speed, with JOLT's charges refilled at the start.",
+  "runner": {
+    "name": "RUNNER",
+    "passive": "SURE FOOTING",
+    "ult": { "name": "OVERDRIVE", "seconds": 8, "speed": 1.25 }
+  },
+  "_medic": "MEDIC: TRIAGE's faster heals as its passive; its tactical, PATCH, gives back health over seconds (not past full), every cooldown seconds; its ultimate, FIELD HEAL, gives health over seconds to you and every team or squad mate within radius metres of you, each page healing its own player.",
+  "medic": {
+    "name": "MEDIC",
+    "tactical": { "name": "PATCH", "health": 25, "seconds": 3, "cooldown": 18 },
+    "ult": { "name": "FIELD HEAL", "health": 60, "seconds": 5, "radius": 10 }
+  }
+}
