@@ -283,6 +283,27 @@ async function doorTest(browser: Browser, query: string): Promise<void> {
   await ev(page, "window.__range.setScript(null)");
   const afterTwo = kicked ? await ev<{ broken: boolean; flat: boolean; shown: boolean }>(page, `(() => { const d = window.__range.brMap.doors.list[${kicked.i}]; return { broken: d.broken, flat: d.solid.top === d.solid.base, shown: d.pivot.visible }; })()`) : null;
   check("doors: one swing into a shut door shakes it, the second kicks it in: gone from the doorway for the match", !!afterOne && afterOne.hits === 1 && !afterOne.open && !!afterTwo && afterTwo.broken && afterTwo.flat && !afterTwo.shown, JSON.stringify({ kicked, afterOne, afterTwo }));
+  // the traversal: a bot put on a launch pad is thrown along it
+  const pad = await ev<{ id: number; x: number; z: number; dx: number; dz: number } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const p = r.brMap.pads[0]; const b = d.bots.find((x) => x.bot.alive && !x.down && !x.bot.travel); if (!b) return null; b.bot.pos.set(p.x, 0, p.z); return { id: b.bot.remote.id, x: p.x, z: p.z, dx: p.dx, dz: p.dz }; })()`
+  );
+  const flew = !!pad && (await page.waitForFunction(`window.__range.duel().bots.find((x) => x.bot.remote.id === ${pad?.id ?? -1})?.bot.travel?.kind === "fling"`, { polling: 50, timeout: 2000 }).then(() => true, () => false));
+  if (pad) await page.waitForFunction(`!window.__range.duel().bots.find((x) => x.bot.remote.id === ${pad.id})?.bot.travel`, { polling: 100, timeout: 8000 }).catch(() => undefined);
+  const landed = pad ? await ev<{ x: number; z: number }>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${pad.id}); return { x: b.bot.pos.x, z: b.bot.pos.z }; })()`) : null;
+  const along = pad && landed ? (landed.x - pad.x) * pad.dx + (landed.z - pad.z) * pad.dz : 0;
+  check("traversal: a bot that steps on a launch pad is thrown along it", flew && along > 20, JSON.stringify({ pad, landed, along: Math.round(along) }));
+  // a bot at a rope's end, going somewhere nearer the far end, rides the rope there
+  const rope = await ev<{ id: number; far: number[] } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const zs = r.ziplines.filter((q) => q.a.z > 250).map((q) => ({ a: [q.a.x, q.a.y, q.a.z], b: [q.b.x, q.b.y, q.b.z] })); const z = zs.find((q) => q.a[1] < 12) ?? zs[0]; if (!z) return null; const b = d.bots.find((x) => x.bot.alive && !x.down && !x.bot.travel); if (!b) return null;
+      const nodes = r.brMap.nodes; let best = 0, bd = Infinity; nodes.forEach((n, i) => { const dd = Math.hypot(n.x - z.b[0], n.z - z.b[2]); if (dd < bd) { bd = dd; best = i; } });
+      b.bot.pos.set(z.a[0], z.a[1] - 2.13, z.a[2]); b.goal = best; b.node = best; for (const o of d.bots) if (o !== b) o.bot.pos.set(z.a[0] + 150, 0, z.a[2] + 150); return { id: b.bot.remote.id, far: z.b }; })()`
+  );
+  const rode = !!rope && (await page.waitForFunction(`window.__range.duel().bots.find((x) => x.bot.remote.id === ${rope?.id ?? -1})?.bot.travel?.kind === "zip"`, { polling: 50, timeout: 3000 }).then(() => true, () => false));
+  if (rope) await page.waitForFunction(`!window.__range.duel().bots.find((x) => x.bot.remote.id === ${rope.id})?.bot.travel`, { polling: 100, timeout: 20000 }).catch(() => undefined);
+  const at = rope ? await ev<number>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${rope.id}); return Math.hypot(b.bot.pos.x - ${rope.far[0]}, b.bot.pos.z - ${rope.far[2]}); })()`) : -1;
+  check("traversal: a bot at a zipline's end, going somewhere nearer its far end, rides it there", rode && at >= 0 && at < 4, JSON.stringify({ rope, rode, at: +at.toFixed(1) }));
   await ev(page, "window.__range.duel()?.leave()");
   await page.waitForFunction("window.__range.duel() === null", { polling: 100, timeout: 5000 }).catch(() => undefined);
   const afterOpen = await ev<number>(page, "window.__range.brMap.doors.openList().length");

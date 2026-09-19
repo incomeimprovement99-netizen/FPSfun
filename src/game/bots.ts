@@ -532,6 +532,11 @@ export interface BotShot {
 const BOT_MELEE_RANGE = 1.8;
 const BOT_MELEE_EVERY = 0.9;
 
+/** a launch pad's flight comes down at the players' gravity (movement.json, hammer units to metres) */
+const FLING_GRAVITY = moveCfg.gravity * 0.0254;
+/** a zipline rider's feet under their hands, m (the ropes in br.ts are hung for this) */
+const ZIP_HANG = 2.13;
+
 export class Bot {
   readonly dummy: Dummy;
   readonly remote: Remote;
@@ -595,6 +600,12 @@ export class Bot {
   private crawlSpeed = 0;
   /** on one knee over a downed squad mate: holds still, crouched */
   kneel = false;
+  /**
+   * Carried by the traversal, as a player is: thrown by a launch pad (a flight
+   * under gravity until it lands), or riding a zipline from one end to the
+   * other, hanging from it. It does nothing else meanwhile.
+   */
+  travel: { kind: "fling"; vel: THREE.Vector3 } | { kind: "zip"; a: THREE.Vector3; b: THREE.Vector3; t: number; dur: number } | null = null;
   private crouchNext = 0;
   /** a spot out of the target's sight to heal behind, and until when it keeps to it */
   cover: { spot: THREE.Vector3; crouch: boolean; via: THREE.Vector3 | null; until: number; best: number; bestAt: number } | null = null;
@@ -911,6 +922,53 @@ export class Bot {
     this.aimSet = false;
   }
 
+  /** thrown by a launch pad: off the ground at `vel` (m/s), under gravity until it comes down */
+  fling(vel: THREE.Vector3): void {
+    if (this.travel || this.dropping) return;
+    this.travel = { kind: "fling", vel: vel.clone() };
+    this.healing = null;
+    this.crouching = false;
+  }
+
+  /** onto a zipline from `a` (the rope where it takes it) to `b`, at the ride's own speed */
+  ride(a: THREE.Vector3, b: THREE.Vector3, speed: number): void {
+    if (this.travel || this.dropping) return;
+    this.travel = { kind: "zip", a: a.clone(), b: b.clone(), t: 0, dur: Math.max(0.2, a.distanceTo(b) / speed) };
+    this.healing = null;
+    this.crouching = false;
+  }
+
+  /** a frame of a flight or a ride */
+  private travelStep(now: number, dt: number): void {
+    const tr = this.travel;
+    if (!tr) return;
+    if (tr.kind === "fling") {
+      this.pos.addScaledVector(tr.vel, dt);
+      tr.vel.y -= FLING_GRAVITY * dt;
+      const ground = this.groundAt(this.pos.x, this.pos.z);
+      if (tr.vel.y < 0 && this.pos.y <= ground) {
+        this.pos.y = ground;
+        this.travel = null;
+      }
+      if (Math.hypot(tr.vel.x, tr.vel.z) > 0.1) this.dummy.group.rotation.set(0, Math.atan2(tr.vel.x, tr.vel.z), 0);
+      this.dummy.setPose({ speed: 0, stance: "air", pitch: -10 });
+    } else {
+      tr.t += dt;
+      const k = Math.min(1, tr.t / tr.dur);
+      // the hands on the rope, the feet under them
+      this.pos.lerpVectors(tr.a, tr.b, k).setY(tr.a.y + (tr.b.y - tr.a.y) * k - ZIP_HANG);
+      this.dummy.group.rotation.set(0, Math.atan2(tr.b.x - tr.a.x, tr.b.z - tr.a.z), 0);
+      this.dummy.setPose({ speed: 0, stance: "zip", pitch: 0 });
+      if (k >= 1) {
+        // off at the end, onto whatever is under it
+        this.pos.y = Math.max(this.groundAt(this.pos.x, this.pos.z), this.pos.y - 1.2);
+        this.travel = null;
+      }
+    }
+    this.dummy.group.position.copy(this.pos);
+    this.dummy.update(now, dt);
+  }
+
   /** picked up: standing again with `health` and no shield */
   standUp(health: number): void {
     this.downedAt = null;
@@ -1094,6 +1152,10 @@ export class Bot {
     }
     if (this.downedAt !== null) {
       this.crawl(now, dt, sense.goal);
+      return [];
+    }
+    if (this.travel) {
+      this.travelStep(now, dt);
       return [];
     }
     if (this.dropping) {

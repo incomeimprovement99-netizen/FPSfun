@@ -62,6 +62,8 @@
 //                    The host ranks everyone, because every hit on a bot
 //                    comes to it, and the ring packet carries the line, so a
 //                    guest takes its own tick the way it takes the ring's.
+import moveCfg from "../config/movement.json";
+import { ZIPLINES } from "./traversal";
 import type { Doors } from "./doors";
 import doorsCfg from "../config/doors.json";
 import { senderStamp } from "../net/state";
@@ -1394,6 +1396,41 @@ export class BrMatch extends Duel {
     }
   }
 
+  /**
+   * The traversal, taken as a player passing by would take it. A bot that
+   * steps onto a launch pad is thrown by it; a bot out of a fight standing at
+   * a zipline's end, when the rope's far end is nearer where it is going (by
+   * rideGain metres), rides it. Before this every rope and pad was scenery
+   * to the bots, and a bot wanting the other side of the map walked it.
+   */
+  private botTraversal(b: BrBot, sense: BotSense): void {
+    const bot = b.bot;
+    if (bot.travel) return;
+    const P = squadCfg.pad;
+    for (const p of this.map.pads) {
+      if (Math.hypot(bot.pos.x - p.x, bot.pos.z - p.z) > P.reach || bot.pos.y > 0.6) continue;
+      bot.fling(new THREE.Vector3(p.dx * P.speed, P.up, p.dz * P.speed));
+      return;
+    }
+    if (sense.target || !sense.goal) return;
+    const goal = sense.goal;
+    const here = Math.hypot(goal.x - bot.pos.x, goal.z - bot.pos.z);
+    for (const z of ZIPLINES) {
+      for (const [end, far] of [
+        [z.a, z.b],
+        [z.b, z.a],
+      ] as const) {
+        // at this end: under the rope's end, on the floor it is hung over
+        if (Math.hypot(bot.pos.x - end.x, bot.pos.z - end.z) > SQUADS.ropeReach) continue;
+        const feet = end.y - 2.13;
+        if (bot.pos.y < feet - 1.4 || bot.pos.y > feet + 0.6) continue;
+        if (Math.hypot(goal.x - far.x, goal.z - far.z) + SQUADS.rideGain > here) continue;
+        bot.ride(end, far, moveCfg.ziplineSpeed * 0.0254);
+        return;
+      }
+    }
+  }
+
   /** a downed bot's end without a last shot (bled out, or its squad gone): on its knocker */
   private finishDowned(b: BrBot): void {
     const by = b.down?.by ?? -1;
@@ -2395,6 +2432,7 @@ export class BrMatch extends Duel {
       if (bot.alive && !b.down && !bot.dropping) {
         const door = this.map.doors.closedAt(bot.pos, doorsCfg.botReach);
         if (door) this.hostDoor(door.i, true);
+        this.botTraversal(b, sense);
       }
       // still searching: it walks the map and does not shoot
       if (b.armedAt > now) sense.canShoot = false;
@@ -2477,7 +2515,7 @@ export class BrMatch extends Duel {
           op: bot.remote.avatarOp,
           name: bot.remote.name,
           ready: true,
-          st: b.down ? 7 : bot.dropping ? 3 : bot.crouching || bot.kneel ? 1 : 0,
+          st: b.down ? 7 : bot.travel?.kind === "zip" ? 6 : bot.dropping || bot.travel ? 3 : bot.crouching || bot.kneel ? 1 : 0,
           dn: b.down ? 1 : 0,
           sp: bot.alive && !bot.dropping ? Math.round(bot.diff.speed * 10) : 0,
         });

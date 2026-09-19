@@ -1648,3 +1648,17 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   with shotguns only and first to 1: both hold only shotguns and one knock ends the match; a team deathmatch with a
   friend on the same side and friendly fire on: the host's round hurts its team mate).
 
+## Milestone 107 — Bots on the ropes and the pads ✅
+2026-09-19 (Phase 15). `bots.ts`, `brmatch.ts`, `src/config/bots.json`.
+- Every zipline and launch pad was scenery to the bots: a bot wanting the other side of the map walked it. Now a bot
+  takes the traversal as a player passing by would. A launch pad throws any bot that steps on it, along the road at
+  the players' speed and lift, and it comes down under the players' gravity (33 m on, as a player's throw). A bot
+  out of a fight standing at a zipline's end rides it when the rope's far end is at least 30 m nearer where it is
+  going, hanging 2.13 m under the rope at the ride's 600 hu/s, and steps off at the far end.
+- While it flies or rides it does nothing else, and its friends see it do so: its state packets carry the air or
+  zipline stance.
+- Opportunistic rather than planned: the graph has no typed rope and pad edges yet, so a bot uses one when its walk
+  brings it there, not as a planned route. The balloons are left too.
+- Checks: the e2e `br` section (a bot put on a launch pad is thrown 33 m along it; a bot at a rope's end heading for a
+  node by the far end rides the rope and lands 0.4 m from the end).
+
