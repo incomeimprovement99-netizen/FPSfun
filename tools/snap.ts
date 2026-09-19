@@ -143,6 +143,14 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-rocks",
+    note: "the field's cover on the north spoke: rocks, not boxes the colour of rock",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(0, 0, 500 - 40, 0, -8); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
     name: "br-door",
     note: "a door in a doorway, shut: the panel, its handle, the frame round it",
     steps: [

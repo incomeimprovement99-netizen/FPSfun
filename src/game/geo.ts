@@ -112,6 +112,44 @@ export function bevel(w: number, h: number, d: number, radius = 0.035): THREE.Bu
   return g;
 }
 
+/**
+ * A rock that fills a w x h x d box: the box cut into facets, pulled part way
+ * toward the egg inside it and pushed in and out a little at random, with its
+ * underside left flat on the ground. The field's cover was bevelled boxes the
+ * colour of rock; this keeps each one's footprint and height (so the box that
+ * collides with it still fits it: it never reaches more than 4% past its box,
+ * and its corners sit inside it) and makes it read as stone. The random is
+ * fixed by `seed` and by the facet grid, so a vertex shared by two faces moves
+ * the same way for both and the seams stay shut.
+ */
+export function rockGeometry(w: number, h: number, d: number, seed: number): THREE.BufferGeometry {
+  const g = new THREE.BoxGeometry(w, h, d, 4, 3, 4);
+  const pos = g.attributes.position;
+  const v = new THREE.Vector3();
+  const hash = (a: number, b: number, c: number): number => {
+    const n = Math.sin(a * 127.1 + b * 311.7 + c * 74.7 + seed * 19.31) * 43758.5453;
+    return n - Math.floor(n);
+  };
+  const ROUND = 0.4;
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const ux = v.x / (w / 2);
+    const uy = v.y / (h / 2);
+    const uz = v.z / (d / 2);
+    const len = Math.hypot(ux, uy, uz) || 1;
+    // part way from the box's surface to the egg through its face centres
+    const k = 1 - ROUND + ROUND / len;
+    const n = 0.9 + hash(Math.round(ux * 4), Math.round(uy * 3), Math.round(uz * 4)) * 0.14;
+    const x = ux * k * n;
+    const z = uz * k * n;
+    // the underside stays on the ground, and nothing goes below it
+    const y = uy <= -0.999 ? -1 : Math.max(-1, uy * k * n);
+    pos.setXYZ(i, (x * w) / 2, (y * h) / 2, (z * d) / 2);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
 /** a bevelled box mesh that casts and receives shadow */
 export function block(
   w: number,

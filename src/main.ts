@@ -12,6 +12,7 @@ import { installSky } from "./game/materials";
 import { Renderer, VM_LAYER } from "./game/render";
 import vmCfg from "./config/viewmodel.json";
 import netCfg from "./config/net.json";
+import doorsCfg from "./config/doors.json";
 import { Course } from "./game/course";
 import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
@@ -631,7 +632,7 @@ const triArena = buildTriArena(scene);
 // the battle royale map, 500 m south (src/game/br.ts)
 const brMap = buildBrMap(scene);
 // a door opening or shutting, heard where it hangs (whoever did it)
-brMap.doors.onChange = (d) => audio.door(d.centre, d.open ? "open" : "close");
+brMap.doors.onChange = (d, what) => audio.door(d.centre, what === "break" || what === "kick" ? "kick" : what);
 /**
  * The sun's shadow map and the fog follow the part of the world you are in:
  * the range (tight, sharp shadows) or the open BR map (wide and far).
@@ -4707,6 +4708,11 @@ function step(): void {
     // Gun Run's last level: the knife (100 a hit, 300 to the head)
     const knife = duel instanceof ArenaMode && duel.knifeNow;
     projectiles.melee(eye, dir, MELEE_RANGE, knife ? MODES.gunRun.knifeDamage : MELEE_DAMAGE, now, handleImpact, knife ? MODES.gunRun.knifeHeadDamage : MELEE_DAMAGE);
+    // a shut door in front of the swing takes the kick (doors.json kicks break it)
+    if (duel instanceof BrMatch) {
+      const door = brMap.doors.aimedAt(eye, dir);
+      if (door && !door.open && door.centre.distanceTo(eye) < doorsCfg.kickReach) duel.kickDoor(door.i);
+    }
   }
 
   // ---------- the killcam and the recap ----------
@@ -5198,6 +5204,14 @@ initWelcome();
   viewModelVisible: () => viewModel.group.visible,
   /** the gun's own camera's vertical FOV against the world's */
   gunFov: () => ({ gun: vmCamera.fov, world: camera.fov }),
+  /** a melee swing, as the key starts one (tools/e2e.ts: kicking a door in) */
+  swing: (): boolean => {
+    if (gameTime < meleeReadyAt || loadout.swapping) return false;
+    meleeReadyAt = gameTime + MELEE_COOLDOWN;
+    viewModel.melee();
+    meleeHitAt = gameTime + MELEE_TIME * 0.35;
+    return true;
+  },
   lobbyCode: () => (hosting && !duel ? hosting.code : null),
   setMapOpen: (on: boolean) => (mapOpen = on),
   /** emotes (tools/e2e.ts): play one, and what is playing */

@@ -1166,6 +1166,25 @@ export class BrMatch extends Duel {
     if (open || !me || doors.canClose(i, [me])) doors.set(i, open);
   }
 
+  /** a melee swing into shut door `i`: the host counts it; a friend's page asks, and hears the kick at once */
+  kickDoor(i: number): void {
+    const doors = this.map.doors;
+    const d = doors.list[i];
+    if (!d || d.open || d.broken || this.phase !== "fight") return;
+    if (this.role === "host") this.hostKick(i);
+    else {
+      this.hostLink?.send({ t: "door", i, open: false, k: 1 });
+      doors.kickHeard(i);
+    }
+  }
+
+  /** the host: a kick counted, and everyone told (the break carries the door's new state) */
+  private hostKick(i: number): void {
+    const r = this.map.doors.kick(i);
+    if (r === "break") this.broadcast({ t: "door", i, open: true, b: 1 });
+    else if (r === "kick") this.broadcast({ t: "door", i, open: false, k: 1 });
+  }
+
   /** the host: a door opened or shut for everyone; a door is not shut on anybody standing in it. True if it is as asked */
   private hostDoor(i: number, open: boolean): boolean {
     const doors = this.map.doors;
@@ -2038,10 +2057,18 @@ export class BrMatch extends Duel {
       if (this.role === "host") {
         // a friend asking: only from near the door (a page can claim anything), and never shut on anybody
         const at = this.whereIs(from);
-        if (!at || at.distanceTo(d.centre) > doorsCfg.guestReach || !this.hostDoor(d.i, m.open)) this.links.get(from)?.send({ t: "door", i: d.i, open: d.open });
+        const near = !!at && at.distanceTo(d.centre) <= doorsCfg.guestReach;
+        if (m.k === 1) {
+          // a friend's kick: counted from within a swing of it
+          if (at && at.distanceTo(d.centre) <= doorsCfg.kickReach + 1.5) this.hostKick(d.i);
+          return;
+        }
+        if (!near || !this.hostDoor(d.i, m.open)) this.links.get(from)?.send({ t: "door", i: d.i, open: d.open, b: d.broken ? 1 : undefined });
       } else {
         this.doorAsked.delete(d.i);
-        doors.set(d.i, m.open);
+        if (m.b === 1) doors.breakDoor(d.i);
+        else if (m.k === 1) doors.kickHeard(d.i);
+        else doors.set(d.i, m.open);
       }
       return;
     }
@@ -2090,6 +2117,7 @@ export class BrMatch extends Duel {
       if (typeof m.sq === "number" && Number.isFinite(m.sq)) this.squadsSeen = Math.max(0, Math.floor(m.sq));
       // the doors as the host has them (this is how a friend who missed a door, or came back, is put right),
       // but not one this page asked about in the last second: the host's answer is on its way
+      if (Array.isArray(m.db)) for (const n of m.db) if (typeof n === "number") this.map.doors.breakDoor(n);
       if (Array.isArray(m.dr)) {
         const t = wallClock();
         const open = new Set(m.dr.filter((n) => typeof n === "number"));
@@ -2325,6 +2353,7 @@ export class BrMatch extends Duel {
         sg,
         sv: s ? this.surgeHumans : undefined,
         dr: this.map.doors.openList(),
+        db: this.map.doors.brokenList(),
       });
     }
 

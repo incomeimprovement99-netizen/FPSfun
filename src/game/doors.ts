@@ -43,6 +43,10 @@ export interface Door {
   readonly centre: THREE.Vector3;
   readonly side: DoorSide;
   open: boolean;
+  /** kicked in: gone from the doorway until the next match, and it cannot be shut */
+  broken: boolean;
+  /** melee hits taken while shut (config kicks breaks it) */
+  hits: number;
   /** 0 closed to 1 open, as drawn */
   swing: number;
   readonly pivot: THREE.Group;
@@ -58,8 +62,8 @@ const HALF_PI = Math.PI / 2;
 
 export class Doors {
   readonly list: Door[] = [];
-  /** a door opened or closed here (by anyone): main plays it */
-  onChange: ((door: Door) => void) | null = null;
+  /** a door opened, shut, kicked or kicked in here (by anyone): main plays it */
+  onChange: ((door: Door, what: "open" | "close" | "kick" | "break") => void) | null = null;
 
   constructor(root: THREE.Group, origin: { x: number; z: number }, ways: readonly Doorway[]) {
     const panelMat = new THREE.MeshStandardMaterial({ color: cfg.colour, roughness: 0.55, metalness: 0.35 });
@@ -116,6 +120,8 @@ export class Doors {
         centre: new THREE.Vector3(wx + d.x, d.y + d.h / 2, wz + d.z),
         side: d.side,
         open: false,
+        broken: false,
+        hits: 0,
         swing: 0,
         pivot,
         solid,
@@ -135,11 +141,47 @@ export class Doors {
    */
   set(i: number, open: boolean): boolean {
     const d = this.list[i];
-    if (!d || d.open === open) return false;
+    if (!d || d.open === open || d.broken) return false;
     d.open = open;
     Object.assign(d.solid, open ? d.opened : d.closed);
-    this.onChange?.(d);
+    this.onChange?.(d, open ? "open" : "close");
     return true;
+  }
+
+  /** a melee hit on shut door `i`: "kick" while it holds, "break" as it goes, null for an open or broken one */
+  kick(i: number): "kick" | "break" | null {
+    const d = this.list[i];
+    if (!d || d.open || d.broken) return null;
+    d.hits++;
+    if (d.hits < cfg.kicks) {
+      this.onChange?.(d, "kick");
+      return "kick";
+    }
+    this.breakDoor(i);
+    return "break";
+  }
+
+  /** a kick heard here that the host counted (a friend's page plays it; the state comes with the break) */
+  kickHeard(i: number): void {
+    const d = this.list[i];
+    if (d && !d.broken) this.onChange?.(d, "kick");
+  }
+
+  /** door `i` kicked in: gone from the doorway, nothing left to bump into, never shut again this match */
+  breakDoor(i: number): void {
+    const d = this.list[i];
+    if (!d || d.broken) return;
+    d.broken = true;
+    d.open = true;
+    // flat on its own floor: no height left to stop anything
+    Object.assign(d.solid, { ...d.closed, top: d.closed.base });
+    d.pivot.visible = false;
+    this.onChange?.(d, "break");
+  }
+
+  /** the kicked-in doors, for the ring packet */
+  brokenList(): number[] {
+    return this.list.filter((d) => d.broken).map((d) => d.i);
   }
 
   /** every door as the host says: open the listed ones, close the rest (the ring packet's door list) */
@@ -157,9 +199,12 @@ export class Doors {
   reset(): void {
     for (const d of this.list) {
       d.open = false;
+      d.broken = false;
+      d.hits = 0;
       d.swing = 0;
       Object.assign(d.solid, d.closed);
       d.pivot.rotation.y = d.yaw0;
+      d.pivot.visible = true;
     }
   }
 
@@ -179,6 +224,7 @@ export class Doors {
     let bestDot = cfg.aimDot;
     const to = new THREE.Vector3();
     for (const d of this.list) {
+      if (d.broken) continue;
       to.subVectors(d.centre, eye);
       const dist = to.length();
       if (dist > cfg.reach || Math.abs(d.centre.y - eye.y) > 2) continue;

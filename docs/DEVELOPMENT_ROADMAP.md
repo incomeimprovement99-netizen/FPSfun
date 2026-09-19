@@ -1512,6 +1512,32 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   shuts them all), the `squad` section (the guest opens one and the host sees it, the host shuts it and the guest
   sees that, and a door the guest had wrong is put right by the host), and the snapshots `br-door` and
   `br-door-open`.
-- Not yet: kicking a door in (Apex's doors break under a melee or a charge), and a door's panel does not push a body
-  it swings into.
+- Not yet: a door's panel does not push a body it swings into. (Kicking a door in came next, Milestone 98.)
+
+## Milestone 98 — Kicking a door in ✅
+2026-09-19 (Phase 15). `doors.ts`, `brmatch.ts`, `main.ts`, `link.ts`, `src/config/doors.json`.
+- A held building had one answer to a shut door: open it with E and walk into the guns behind it. As in Apex, two
+  melee swings into a shut door now kick it in: the first shakes it (heard as a kick), the second breaks it, and it
+  is gone from the doorway for the rest of the match, with nothing left to bump into or shut. The recorded kick the
+  audio already had plays for both.
+- The host counts the kicks (a friend's from within a swing of the door) and tells everyone; a break carries the
+  door's new state, and the ring packet lists the broken doors alongside the open ones, so a friend who missed one
+  is put right. A new match hangs every door again.
+- A test hook starts a swing as the V key does (`swing`).
+- Checks: the e2e `br` section (one swing into a shut door leaves it shut with one hit on it, the second kicks it
+  in: broken, its solid flat, the panel gone).
+
+## Milestone 99 — Rocks for the field's cover ✅
+2026-09-19 (Phase 15). `geo.ts`, `br.ts`, `tools/snap.ts`.
+- The field's cover between the places, the forty scattered rocks, the rocks of the spoke clusters and the four in
+  the dry wash, were bevelled boxes the colour of rock. Each is now a rock made to its box: the box cut into facets,
+  pulled part way toward the egg inside it and pushed in and out a little at random, its underside flat on the
+  ground. It keeps its footprint and height, so the box it collides with still fits it (it never reaches more than
+  4% past its box, and its corners sit inside it) and nothing a bot or a test walks changed. The random is fixed by
+  the rock's place and the facet grid, so every load makes the same rocks and the seams between faces stay shut.
+- About 190 triangles a rock against the bevelled box's 300, merged with the rest of the map.
+- They take a lighter tint of the same stone than the mesas and the scarp: the rock set is dark, and on the tint the
+  cliffs use, a boulder on the sand read as a black lump.
+- Made rather than fetched: no model or licence to carry. Cliffs and vegetation are still to do.
+- Checks: the snapshot `br-rocks` (the north spoke's cover), and the e2e `br` section's walk of the map, unchanged.
 

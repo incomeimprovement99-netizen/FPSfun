@@ -268,6 +268,21 @@ async function doorTest(browser: Browser, query: string): Promise<void> {
   );
   const botOpened = !!other && (await page.waitForFunction(`window.__range.brMap.doors.list[${other?.i ?? 0}].open`, { polling: 100, timeout: 3000 }).then(() => true, () => false));
   check("doors: a bot that walks into a shut door opens it", botOpened, JSON.stringify(other));
+  // two swings into a shut door kick it in: gone from the doorway, nothing left to bump into
+  const kicked = await ev<{ i: number } | null>(
+    page,
+    `(() => { const r = window.__range; const ds = r.brMap.doors; const door = ds.list.find((x) => !x.open && x.side === "s" && x.centre.y < 3 && x.i !== ${info.i} && x.i !== ${other?.i ?? -1}); if (!door) return null; r.player.teleport(door.centre.x, door.centre.y - 1.3, door.centre.z + 1.3, 0, 0); return { i: door.i }; })()`
+  );
+  const swing = "window.__range.swing()";
+  await sleep(400);
+  await ev(page, swing);
+  await sleep(900);
+  const afterOne = kicked ? await ev<{ hits: number; open: boolean }>(page, `(() => { const d = window.__range.brMap.doors.list[${kicked.i}]; return { hits: d.hits, open: d.open }; })()`) : null;
+  await ev(page, swing);
+  await sleep(900);
+  await ev(page, "window.__range.setScript(null)");
+  const afterTwo = kicked ? await ev<{ broken: boolean; flat: boolean; shown: boolean }>(page, `(() => { const d = window.__range.brMap.doors.list[${kicked.i}]; return { broken: d.broken, flat: d.solid.top === d.solid.base, shown: d.pivot.visible }; })()`) : null;
+  check("doors: one swing into a shut door shakes it, the second kicks it in: gone from the doorway for the match", !!afterOne && afterOne.hits === 1 && !afterOne.open && !!afterTwo && afterTwo.broken && afterTwo.flat && !afterTwo.shown, JSON.stringify({ kicked, afterOne, afterTwo }));
   await ev(page, "window.__range.duel()?.leave()");
   await page.waitForFunction("window.__range.duel() === null", { polling: 100, timeout: 5000 }).catch(() => undefined);
   const afterOpen = await ev<number>(page, "window.__range.brMap.doors.openList().length");

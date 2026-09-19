@@ -33,7 +33,7 @@ import { DOORWAYS, Doors } from "./doors";
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
 import { building, coverWall, crateStair, jumpTower, type BoxMaker, type PoiCtx, type Side } from "./brpoi";
-import { PAL, bevel, flat, emissive, textPanel } from "./geo";
+import { PAL, bevel, flat, emissive, rockGeometry, textPanel } from "./geo";
 import { type MatName, material } from "./materials";
 import { ZIPLINES } from "./traversal";
 import type { Bounds } from "./player";
@@ -167,6 +167,15 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     if (isSolid) solid(x - w / 2, x + w / 2, z - d / 2, z + d / 2, y, y + h);
     return m;
   };
+  /** a rock the size of a box (geo.ts rockGeometry), on the same box of collision a crate that size would have */
+  const rockAt = (w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material): void => {
+    const m = new THREE.Mesh(rockGeometry(w, h, d, Math.round(x * 13 + z * 7)), mat);
+    m.position.set(x, y + h / 2, z);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    root.add(m);
+    solid(x - w / 2, x + w / 2, z - d / 2, z + d / 2, y, y + h);
+  };
   /**
    * A round thing's collision. There is nothing but boxes, so a cylinder of
    * radius r is five overlapping boxes whose corners stand on its circle, at
@@ -284,6 +293,8 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   // Concrete048 is a clean light concrete: darker, or it glares in the sun
   const concrete = tex("concrete", 0x8e8880, 3, 0.9);
   const rock = tex("rock", 0xa8a094, 3, 0.95);
+  // the field's boulders: the same stone, lit as sun-bleached rock on sand rather than the dark of a cliff face
+  const boulder = tex("rock", 0xf0e6d6, 2.5, 0.95);
   const crate = tex("planks", 0xd0b088, 1.2, 0.85);
   // the containers: corrugated metal in three colours
   const steelA = tex("corrugated", 0x6f9ec0, 2.4, 0.6);
@@ -572,7 +583,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     [-34, 114.3, 2.8, 1.6, 3],
     [34, 117.6, 3.2, 1.8, 2.8],
     [53, 114.2, 3, 2, 2.6],
-  ]) slab(w, h, d, x, 0, z, rock);
+  ]) rockAt(w, h, d, x, 0, z, boulder);
   // (The bed's gravel is laid with the rest of the ground plan, after the sites.)
 
   // THE KNUCKLES: two mounds west of the hub, not a ridge, so the west stays
@@ -1975,7 +1986,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
       const z = dz * d + (dx ? side : 0);
       // two stood where a site is now, one in the Crossing's pump house and one in the Well's yard
       if (!clearOf(x - 1.6, x + 3.4, z - 1.2, z + 2)) continue;
-      box(3.2, 1.7, 2.4, x, 0, z, rock);
+      rockAt(3.2, 1.7, 2.4, x, 0, z, boulder);
       box(1.6, 1.4, 1.6, x + 2.6, 0, z + 1.2, crate);
     }
   }
@@ -2003,7 +2014,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     const clear = LANDFORMS.every((l) => x + w / 2 + 1 < l.minX || x - w / 2 - 1 > l.maxX || z + d / 2 + 1 < l.minZ || z - d / 2 - 1 > l.maxZ);
     const inBed = Math.abs(x) < 73 && Math.abs(z - 116) < 5;
     if (Math.abs(x) > 196 || Math.abs(z) > 196 || !clear || inBed || !clearOf(x - w / 2 - 1, x + w / 2 + 1, z - d / 2 - 1, z + d / 2 + 1)) continue;
-    box(w, h, d, x, groundTop(x, z), z, rock);
+    rockAt(w, h, d, x, groundTop(x, z), z, boulder);
   }
 
   // ---------------------------------------------------------------- the rotation network
