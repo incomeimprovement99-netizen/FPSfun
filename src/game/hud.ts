@@ -210,8 +210,8 @@ export interface HudState {
     charges?: number;
     max?: number;
     nextIn?: number;
-    /** the square's icon: a dash's chevrons or a heal's cross */
-    icon?: "dash" | "cross";
+    /** the square's icon: a dash's chevrons, a heal's cross, or a scan's eye */
+    icon?: "dash" | "cross" | "eye";
     /** the kit's ultimate: its name and key, the meter (0..1), and the seconds it still runs once used */
     ult?: { name: string; key: string; k: number; live: number };
   } | null;
@@ -272,6 +272,10 @@ export class Hud {
   private hitMarkerUntil = 0;
   private hitMarkerHead = false;
   private hitMarkerKind: "hit" | "knock" | "kill" = "hit";
+  /** the last notice put up, for the checks (tools/e2e.ts reads it) */
+  get noticeNow(): string {
+    return this.noticeText;
+  }
   private noticeText = "";
   private noticeUntil = 0;
   /** the kill feed, top right, newest first */
@@ -2083,7 +2087,20 @@ export class Hud {
     c.strokeStyle = ready ? "#8fd8ff" : "rgba(143,216,255,0.45)";
     c.fillStyle = c.strokeStyle;
     c.lineWidth = 4 * u;
-    if (a.passive || a.icon === "cross") {
+    if (a.icon === "eye") {
+      // a scan: two rings out from a dot
+      c.beginPath();
+      c.arc(0, 0, 3.5 * u, 0, Math.PI * 2);
+      c.fill();
+      for (const rr of [8, 13]) {
+        c.beginPath();
+        c.arc(0, 0, rr * u, -0.9, 0.9);
+        c.stroke();
+        c.beginPath();
+        c.arc(0, 0, rr * u, Math.PI - 0.9, Math.PI + 0.9);
+        c.stroke();
+      }
+    } else if (a.passive || a.icon === "cross") {
       c.fillRect(-4 * u, -14 * u, 8 * u, 28 * u);
       c.fillRect(-14 * u, -4 * u, 28 * u, 8 * u);
     } else {

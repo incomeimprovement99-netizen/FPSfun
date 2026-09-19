@@ -25,8 +25,10 @@ export interface KitInfo {
   blurb: string;
 }
 
-export type AbilityId = "jolt" | "triage";
-export const ABILITY_IDS: AbilityId[] = ["jolt", "triage"];
+export type AbilityId = "jolt" | "triage" | "scout";
+export const ABILITY_IDS: AbilityId[] = ["jolt", "triage", "scout"];
+/** the kits a bot takes: the two it can play (SCOUT's is all sight, which a bot's own eyes already do) */
+export const BOT_ABILITY_IDS: AbilityId[] = ["jolt", "triage"];
 
 export interface AbilityInfo {
   id: AbilityId;
@@ -36,6 +38,7 @@ export interface AbilityInfo {
 export const ABILITIES: Record<AbilityId, AbilityInfo> = {
   jolt: { id: "jolt", name: cfg.jolt.name, blurb: cfg.jolt.blurb },
   triage: { id: "triage", name: cfg.triage.name, blurb: cfg.triage.blurb },
+  scout: { id: "scout", name: kits.scout.tactical.name, blurb: `every enemy within ${kits.scout.tactical.range} m in front of you shown for ${kits.scout.tactical.seconds} s` },
 };
 export const JOLT = cfg.jolt;
 
@@ -44,6 +47,11 @@ export function kitOf(id: AbilityId): KitInfo {
   if (id === "jolt") {
     const u = kits.runner.ult;
     return { kit: kits.runner.name, tactical: cfg.jolt.name, passive: kits.runner.passive, ult: u.name, blurb: `${cfg.jolt.name}: ${JOLT.blurb}. ${kits.runner.passive}: no stun from a hard landing. ${u.name}: ${u.seconds} s ${Math.round((u.speed - 1) * 100)}% faster, JOLT refilled` };
+  }
+  if (id === "scout") {
+    const t = kits.scout.tactical;
+    const u = kits.scout.ult;
+    return { kit: kits.scout.name, tactical: t.name, passive: kits.scout.passive, ult: u.name, blurb: `${t.name}: every enemy within ${t.range} m in front shown for ${t.seconds} s, every ${t.cooldown} s. ${kits.scout.passive}: an enemy firing within ${kits.scout.hearing} m is shown too. ${u.name}: every enemy within ${u.range} m, any way they are, for ${u.seconds} s` };
   }
   const t = kits.medic.tactical;
   const u = kits.medic.ult;
@@ -92,8 +100,21 @@ export class Abilities {
   offeredAt = -Infinity;
   /** the ultimate's meter, 0 to 1 (kits.json ultimate): kept through deaths, emptied by a new match */
   ult = 0;
-  /** MEDIC's PATCH: when it can go again */
+  /** MEDIC's PATCH and SCOUT's PULSE: when each can go again */
   private patchAt = -Infinity;
+  private pulseAt = -Infinity;
+
+  /** SCOUT's PULSE, if it is ready: starts its cooldown and says yes */
+  tryPulse(now: number): boolean {
+    if (!this.enabled || this.picked !== "scout" || now < this.pulseAt) return false;
+    this.pulseAt = now + KITS.scout.tactical.cooldown;
+    return true;
+  }
+
+  /** seconds until PULSE is back (0: ready) */
+  pulseLeft(now: number): number {
+    return Math.max(0, this.pulseAt - now);
+  }
 
   /** the meter: time passing, and damage dealt */
   chargeUlt(dt: number, damage = 0): void {
@@ -141,6 +162,7 @@ export class Abilities {
     this.choosing = false;
     this.ult = 0;
     this.patchAt = -Infinity;
+    this.pulseAt = -Infinity;
     this.fill();
   }
 

@@ -230,7 +230,7 @@ them (for 6 s from the last hit) and only while your eye has a clear line to
 their chest, so a bar never gives away someone behind cover; a team mate's
 green plate always shows.
 
-**Kits.** Pick a kit with 5 or 6 when the card comes up: at each countdown
+**Kits.** Pick a kit with 5, 6 or 7 when the card comes up: at each countdown
 in the arena, the modes and the bots, or when you land in a battle royale.
 Each kit has a tactical (F), a passive that is always on, and an **ultimate**
 (Z) whose meter (the gold ring beside the ability) fills over about two and a
@@ -239,14 +239,19 @@ half minutes of a match, faster with the damage you deal, and is spent whole.
 OVERDRIVE, 8 s of moving 25% faster with JOLT's charges refilled. **MEDIC**:
 PATCH, 25 health back over 3 s every 18 s; TRIAGE, every heal twice as fast;
 FIELD HEAL, 60 health over 5 s for you and every team or squad mate within
-10 m. JOLT (F) is a 10 m dash the way you are moving, over
+10 m. **SCOUT**: PULSE, every enemy within 40 m in front of you shown in red
+for 2 s (and marked for your squad), every 12 s; SHARP EARS, an enemy firing
+within 45 m shown the same way; SWEEP, every enemy within 60 m, whichever way
+they are, for 6 s. JOLT (F) is a 10 m dash the way you are moving, over
 0.14 s on an ease-out (most of the distance in the first half), leaving you
 at 400 hu/s so a sprint, slide or jump carries it on; it has **two charges**,
 and a spent one comes back 4 s after the one before it (8 s for both). The
 HUD shows a pip per charge; a sideways dash rolls the view into it, and a pad
 rumbles. A setting per kind of match turns abilities on or off (the battle
-royale's is on). Bots take a kit too, and use its tactical and passive; their
-ultimates are the next step (docs/PLAN_ABILITY_KITS.md).
+royale's is on). Bots take one of the two kits they can play (RUNNER or MEDIC:
+SCOUT's whole kit is sight, which their eyes already are) and use all of it,
+ultimate included: with a full meter and someone to fight, a RUNNER bot goes
+quicker for 8 s and a MEDIC bot heals itself.
 
 **The killcam and the death recap.** Eliminated, you see the last 4 s from
 your killer's eyes (Space skips; a setting turns it off), then a card: for
@@ -295,7 +300,7 @@ defaults puts `binds.json` back.
 | 1, 2 | weapon slot | Q, Mouse 5 | swap weapon |
 | 3 | holster (move 15% faster) | 4 | heal: a tap is the quick heal, hold for the wheel of every heal |
 | G | a grenade in hand (again: the next kind); fire throws, aim puts it away | F | your kit's tactical (JOLT, PATCH) |
-| 5, 6 | pick RUNNER or MEDIC when the card is up | Z | your kit's ultimate, when its meter is full |
+| 5, 6, 7 | pick RUNNER, MEDIC or SCOUT when the card is up | Z | your kit's ultimate, when its meter is full |
 | B | fire mode (where a gun has two) | | |
 | Middle mouse | ping, for the squad (twice quickly: an enemy there) | M | the full map |
 | U | magazine level | O | cycle optic |

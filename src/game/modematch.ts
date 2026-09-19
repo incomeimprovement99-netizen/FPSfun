@@ -379,6 +379,11 @@ export class ArenaMode extends Duel {
     return [...super.avatars, ...this.bots.map((b) => b.bot.dummy)];
   }
 
+  /** the bots this page runs: a SCOUT's scan finds them as it finds a player */
+  protected override ownFigures(): Array<{ id: number; name: string; at: THREE.Vector3; avatar: Dummy }> {
+    return this.bots.filter((b) => b.bot.alive).map((b) => ({ id: b.bot.remote.id, name: b.bot.remote.name, at: b.bot.pos, avatar: b.bot.dummy }));
+  }
+
   override remoteOf(d: Dummy): Remote | null {
     return this.bots.find((b) => b.bot.dummy === d)?.bot.remote ?? super.remoteOf(d);
   }

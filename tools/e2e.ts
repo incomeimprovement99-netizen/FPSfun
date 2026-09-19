@@ -1026,6 +1026,35 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await ev(ct, "window.__range.duel()?.leave()");
   await ct.close();
 
+  // ---- SCOUT: PULSE shows the enemies in front, SWEEP everyone around
+  const sc = await startModePage(browser, query, "goFfa", `document.getElementById("modeBots").value = "2"; const ab = document.getElementById("botAbilities"); ab.value = "1"; ab.dispatchEvent(new Event("change"))`);
+  await ev(sc, `window.__range.pickAbility("scout")`);
+  // one bot 20 m in front of you, the other 45 m behind
+  const put = await ev<{ front: number; back: number } | null>(
+    sc,
+    `(() => { const r = window.__range; const d = r.duel(); if (d.bots.length < 2) return null; d.holdFire = true; d.bots.forEach((b) => { b.bot.update = () => []; }); const p = r.player.pos; r.player.yaw = 0; const f = d.bots[0].bot, b2 = d.bots[1].bot; f.pos.set(p.x, p.y, p.z - 20); f.dummy.group.position.copy(f.pos); b2.pos.set(p.x, p.y, p.z + 45); b2.dummy.group.position.copy(b2.pos); return { front: f.remote.id, back: b2.remote.id }; })()`
+  );
+  await sleep(300);
+  await ev(sc, "window.__range.useAbility()");
+  await sleep(200);
+  const pulsed = await ev<{ front: number; back: number; said: string; left: number }>(
+    sc,
+    `(() => { const r = window.__range; const d = r.duel(); const at = (id) => d.bots.find((b) => b.bot.remote.id === id)?.bot.dummy.threat ?? -1; return { front: at(${put?.front ?? -1}), back: at(${put?.back ?? -1}), said: r.hud.noticeNow, left: r.abilities.pulseLeft(r.gameTime()) }; })()`
+  );
+  await sleep(2200);
+  const faded = await ev<number>(sc, `(() => { const d = window.__range.duel(); return d.bots.find((b) => b.bot.remote.id === ${put?.front ?? -1})?.bot.dummy.threat ?? -1; })()`);
+  check("scout: PULSE shows the enemy in front (not the one behind) for its seconds, then they fade, and it waits out its cooldown", !!put && pulsed.front === 1 && pulsed.back === 0 && /PULSE: 1 ENEMY/.test(pulsed.said) && pulsed.left > 10 && faded === 0, JSON.stringify({ put, pulsed, faded }));
+  await ev(sc, "(() => { const r = window.__range; r.abilities.ult = 1; r.useUltimate(); })()");
+  await sleep(200);
+  const swept = await ev<{ front: number; back: number; said: string }>(
+    sc,
+    `(() => { const r = window.__range; const d = r.duel(); const at = (id) => d.bots.find((b) => b.bot.remote.id === id)?.bot.dummy.threat ?? -1; return { front: at(${put?.front ?? -1}), back: at(${put?.back ?? -1}), said: r.hud.noticeNow }; })()`
+  );
+  check("scout: SWEEP shows everyone around, the one behind included", swept.front === 1 && swept.back === 1 && /SWEEP: 2 ENEMY CONTACTS/.test(swept.said), JSON.stringify(swept));
+  await ev(sc, "window.__range.duel()?.leave()");
+  await ev(sc, `(() => { const ab = document.getElementById("botAbilities"); ab.value = "0"; ab.dispatchEvent(new Event("change")); })()`);
+  await sc.close();
+
   // ---- Search: plant and defuse, one life a round
   const sr = await startModePage(browser, query, "goSearch", `document.getElementById("modeBots").value = "3"`);
   const sr0 = await ev<{ kind: string; attacking: boolean; phase: string; left: number; sites: string; allies: number; n: number } | null>(sr, "(() => { const d = window.__range.duel(); const m = d.hud().mode; return m.search ? { kind: m.kind, attacking: m.search.attacking, phase: m.search.phase, left: m.search.left, sites: m.search.sites.map((q) => q.id).join(''), allies: m.rows.filter((r) => r.ally).length, n: d.avatars.length } : null; })()");
@@ -2287,6 +2316,14 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await sleep(5400);
   const healed = await ev<number>(page, "window.__range.duel().health");
   check("kits: MEDIC's FIELD HEAL gives 60 health over 5 s", Math.abs(healed - 90) < 2.5, healed.toFixed(1));
+  // a bot's own ultimate: a RUNNER bot with a full meter and someone in front of it goes quicker for its seconds
+  const botUlt = await ev<{ base: number; speed: number } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; if (!b) return null; b.ability = "jolt"; b.ultAt = 0; const p = r.player.pos; b.pos.set(p.x, p.y, p.z - 8); b.dummy.group.position.copy(b.pos); r.player.yaw = 180; return { base: b.diff.speed, speed: b.speedNow }; })()`
+  );
+  await sleep(900);
+  const botAfter = await ev<{ base: number; speed: number } | null>(page, "(() => { const b = window.__range.duel().bots[0]; return b ? { base: b.diff.speed, speed: b.speedNow } : null; })()");
+  check("kits: a bot with a full meter and someone to fight uses its own ultimate (RUNNER: it moves faster)", !!botUlt && botUlt.speed === botUlt.base && !!botAfter && botAfter.speed > botAfter.base * 1.2, JSON.stringify({ botUlt, botAfter }));
   await ev(page, "window.__range.duel().leave()");
   await ev(page, `(() => { const s = document.getElementById("botAbilities"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
 

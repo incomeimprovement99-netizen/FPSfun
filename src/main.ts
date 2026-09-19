@@ -2522,6 +2522,13 @@ function useUltimate(now: number): void {
     abilities.fill();
     audio.jolt(1);
     duel?.localFx("ult", at, undefined, 1);
+  } else if (abilities.picked === "scout") {
+    const u = KITS.scout.ult;
+    const n = duel instanceof Duel ? duel.reveal(player.pos, null, u.range, 360, u.seconds) : 0;
+    audio.beacon(player.pos);
+    duel?.localFx("ult", at, undefined, 3);
+    hud.notice(`${u.name}: ${n} ENEMY CONTACT${n === 1 ? "" : "S"}`, now, 1.8);
+    return;
   } else {
     const u = KITS.medic.ult;
     startRegen(u.health, u.seconds, now);
@@ -2539,6 +2546,21 @@ function useAbility(now: number): void {
   if (!abilities.enabled) return;
   if (!abilities.picked) {
     hud.notice(abilities.choosing ? `PICK AN ABILITY FIRST: ${keyLabel("pickAbility1")} JOLT, ${keyLabel("pickAbility2")} TRIAGE` : "NO ABILITY IN THIS MATCH", now, 1.4);
+    return;
+  }
+  // SCOUT's tactical: PULSE, the enemies in front shown
+  if (abilities.picked === "scout") {
+    if (duel instanceof Duel && (duel.downed || !duel.alive)) return;
+    const left = abilities.pulseLeft(now);
+    if (left > 0) {
+      hud.notice(`PULSE: BACK IN ${left.toFixed(1)} S`, now, 0.6);
+      return;
+    }
+    if (!abilities.tryPulse(now)) return;
+    const t = KITS.scout.tactical;
+    const n = duel instanceof Duel ? duel.reveal(player.pos, new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion), t.range, t.cone, t.seconds) : 0;
+    audio.pingTick();
+    hud.notice(n > 0 ? `PULSE: ${n} ENEMY${n > 1 ? " CONTACTS" : ""}` : "PULSE: NOBODY IN FRONT", now, 1.4);
     return;
   }
   // MEDIC's tactical: PATCH, health back over a few seconds
@@ -3169,6 +3191,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onShotFired = (id, o, dir, w) => {
     recorder.shot(realNow(), id, o, dir, w);
     if (id === d.id) return;
+    // SCOUT's SHARP EARS: an enemy firing within earshot shows itself
+    if (abilities.enabled && abilities.picked === "scout" && d instanceof Duel && !d.isFriend(id) && player.pos.distanceTo(o) <= KITS.scout.hearing) d.revealOne(id, KITS.scout.tactical.seconds);
     const t = realNow();
     if (t - (lastShotSound.get(id) ?? -1) > 0.03) {
       lastShotSound.set(id, t);
@@ -3183,6 +3207,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   };
   // Search's bomb, beeping where it lies (quicker, and higher in its last ten seconds)
   if (d instanceof ArenaMode) d.onBeep = (at, left) => audio.bombBeep(at, left < 10);
+  // a team mate's SCOUT scan, in the modes (a battle royale's marks go through onMark below)
+  if (d instanceof Duel && !(d instanceof BrMatch)) d.onMark = (k, _from, _at, _label, target) => void (k === "scan" && target >= 0 && d.revealOne(target, KITS.scout.tactical.seconds));
   if (d instanceof BrMatch) {
     d.onBinOpened = (at) => audio.bin(at, true);
     d.onKnockSeen = (victim, by) => {
@@ -3238,7 +3264,14 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       for (const it of items) if (it.kind === "ammo") loadout.ammo.add(it.id as AmmoType, it.n);
       audio.swap();
     };
-    d.onMark = (k, from, at, label, target) => brPlay.addMarker(k, at, label, from, target, gameTime);
+    d.onMark = (k, from, at, label, target) => {
+      // a squad mate's PULSE or SWEEP: the same enemies shown here
+      if (k === "scan") {
+        if (target >= 0) d.revealOne(target, KITS.scout.tactical.seconds);
+        return;
+      }
+      brPlay.addMarker(k, at, label, from, target, gameTime);
+    };
     d.onDowned = () => {
       hud.notice("DOWN: A SQUAD MATE CAN REVIVE YOU", gameTime, 2.5);
       audio.knock();
@@ -4484,6 +4517,7 @@ function step(): void {
       // (the pad's D-pad left and right are these while the card is up: gamepad.ts)
       if (input.pressedNow("pickAbility1")) pickAbility("jolt", now);
       else if (input.pressedNow("pickAbility2")) pickAbility("triage", now);
+      else if (input.pressedNow("pickAbility3")) pickAbility("scout", now);
     }
     // F: the ability; Z: the ultimate
     if (input.pressedNow("ability") && !knockedOut) useAbility(now);
@@ -5320,10 +5354,11 @@ function step(): void {
     const range = drawn.threatRange;
     const aim = Math.max(0, Math.min(1, ((debugView.ads ?? ws.adsFrac) - 0.6) / 0.3));
     for (const d of duel ? [...threatTargets, ...duel.avatars] : threatTargets) {
-      let t = 0;
+      // SCOUT's PULSE or SWEEP (or a squad mate's) shows an enemy whatever the optic
+      let t = duel instanceof Duel && duel.shown.has(d) ? 1 : 0;
       if (range && aim > 0 && d.group.visible && !d.knocked) {
         const dist = d.group.position.distanceTo(camera.position);
-        t = aim * (dist <= range[0] ? 1 : dist >= range[1] ? 0 : 1 - (dist - range[0]) / (range[1] - range[0]));
+        t = Math.max(t, aim * (dist <= range[0] ? 1 : dist >= range[1] ? 0 : 1 - (dist - range[0]) / (range[1] - range[0])));
       }
       d.setThreat(t);
     }
@@ -5475,7 +5510,8 @@ function step(): void {
             const c = abilities.charge(now);
             const k = kitOf(abilities.picked!);
             const ult = { name: k.ult, key: keyLabel("ultimate"), k: abilities.ult, live: abilities.picked === "jolt" ? Math.max(0, overdriveUntil - now) : regen ? Math.max(0, regen.until - now) : 0 };
-            if (abilities.picked === "triage") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.medic.tactical.cooldown, left: abilities.patchLeft(now), passive: false, icon: "cross" as const, ult };
+            if (abilities.picked === "scout") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.scout.tactical.cooldown, left: abilities.pulseLeft(now), passive: false, icon: "eye" as const, ult };
+    if (abilities.picked === "triage") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.medic.tactical.cooldown, left: abilities.patchLeft(now), passive: false, icon: "cross" as const, ult };
             return { name: ABILITIES[abilities.picked!].name, key: keyLabel("ability"), cooldown: c.recharge, left: c.charges > 0 ? 0 : c.nextIn, passive: false, charges: c.charges, max: c.max, nextIn: c.nextIn, icon: "dash" as const, ult };
           })()
         : null,
@@ -5483,7 +5519,7 @@ function step(): void {
     abilityCard:
       abilities.enabled && (abilities.choosing || (!duel && !abilities.picked))
         ? {
-            options: (["jolt", "triage"] as const).map((id, i) => ({ key: keyLabel(i === 0 ? "pickAbility1" : "pickAbility2"), name: kitOf(id).kit, blurb: kitOf(id).blurb, picked: abilities.picked === id })),
+            options: (["jolt", "triage", "scout"] as const).map((id, i) => ({ key: keyLabel(i === 0 ? "pickAbility1" : i === 1 ? "pickAbility2" : "pickAbility3"), name: kitOf(id).kit, blurb: kitOf(id).blurb, picked: abilities.picked === id })),
             age: now - abilities.offeredAt,
             compact: !duel || !abilities.choosing || now - abilities.offeredAt > 6,
           }

@@ -1877,3 +1877,24 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   and numbers), the e2e `bots` section (the meter fills in a match; OVERDRIVE's speed, refill and HUD; PATCH's 25
   health and cooldown; FIELD HEAL's 60), and the `modes` section with a friend (a MEDIC guest's FIELD HEAL heals the
   host beside them).
+
+## Milestone 117 — Ability kits, phase 2: SCOUT, and the bots' ultimates ✅
+2026-09-19 (Phase 15). `abilities.ts`, `duel.ts`, `modematch.ts`, `brmatch.ts`, `bots.ts`, `main.ts`, `hud.ts`,
+`src/config/kits.json`, `src/config/binds.json` (`pickAbility3`: 7), `tools/checks/kits.ts`, `tools/e2e.ts`.
+- A third kit, all sight. **SCOUT**: PULSE (F), every enemy within 40 m and inside 60 degrees of where you look
+  shown in red for 2 s, every 12 s; SHARP EARS, an enemy firing within 45 m shown the same way; SWEEP (Z), every
+  enemy within 60 m whichever way they are, for 6 s.
+- An enemy shown glows red on the figure (the threat highlight the aim-bot practice already draws) and is marked for
+  the squad through the ping path (a `scan` mark, one per enemy), so a friend sees the same contacts: in a battle
+  royale on the map and the compass, and in the modes as the same red glow.
+- A scan finds the bots this page runs itself as well as its remotes: a host keeps its bots outside the remotes, so
+  `reveal` asks the match for its own figures (`ownFigures`, overridden by the arena modes and the battle royale).
+- The bots now use their ultimates: a bot's meter is time alone (150 s), and it spends it the first moment it has
+  someone to fight. A RUNNER bot moves 25% faster for 8 s with its dash charges refilled; a MEDIC bot heals itself
+  60 over 5 s. Bots take only RUNNER or MEDIC: SCOUT's kit is sight, which a bot's own eyes already are.
+- Checks: `tools/checks/kits.ts` (PULSE is SCOUT's and waits its cooldown; a bot never takes SCOUT; SCOUT's card and
+  its numbers), and the e2e (the `modes` section: PULSE shows the bot 20 m in front and not the one 45 m behind,
+  they fade after its seconds, and SWEEP shows both; the `bots` section: a RUNNER bot with a full meter and someone
+  in front of it goes from 6.6 to 8.25 m/s).
+- The threat highlight is drawn in one place, per frame, from the optic's range, and it wrote over a scan's glow: the
+  match now says which figures are shown (`Duel.shown`) and that one place takes the brighter of the two.

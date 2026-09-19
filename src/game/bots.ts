@@ -32,7 +32,7 @@ import type { Bounds } from "./player";
 import { HU, MOVE } from "./movement";
 import type { RoundPhase } from "../net/link";
 import type { MatchSummary, BotDifficulty } from "./stats";
-import { ABILITY_IDS, BOT_ABILITY, JOLT, TRIAGE, type AbilityId } from "./abilities";
+import { BOT_ABILITY, BOT_ABILITY_IDS, JOLT, KITS, TRIAGE, type AbilityId } from "./abilities";
 import type { ActorState } from "./killcam";
 import items from "../config/items.json";
 import botsCfg from "../config/bots.json";
@@ -624,6 +624,18 @@ export class Bot {
   /** JOLT or TRIAGE when the match has abilities on (abilities.ts) */
   ability: AbilityId | null = null;
   private joltLeft = 0;
+  /**
+   * Its kit's ultimate (kits.json): when its meter is full (a bot's fills with
+   * time alone), how long RUNNER's OVERDRIVE still has, and MEDIC's FIELD
+   * HEAL as health over time. A bot uses it the moment it has one and a target.
+   */
+  private ultAt = Infinity;
+  private boostUntil = -Infinity;
+  private botRegen: { perSec: number; until: number } | null = null;
+  /** its move speed now: its tier's, times OVERDRIVE while that runs */
+  get speedNow(): number {
+    return this.diff.speed * (this.clock < this.boostUntil ? KITS.runner.ult.speed : 1);
+  }
   /** JOLT's charges (the player's rules: two, one back every 4 s) and when the next is back */
   private joltCharges: number = JOLT.charges;
   private joltRechargeAt = Infinity;
@@ -816,9 +828,35 @@ export class Bot {
     this.dummy.setGunVisible(this.knife === null);
   }
 
+  /**
+   * Its ultimate (kits.json): a bot's meter is time alone, and it spends it
+   * the first moment it has a target. RUNNER's OVERDRIVE makes it quicker for
+   * its seconds; MEDIC's FIELD HEAL gives it health back over time.
+   */
+  private stepUlt(now: number, dt: number, hasTarget: boolean): void {
+    if (!this.ability) return;
+    if (this.ultAt === Infinity) this.ultAt = now + KITS.ultimate.fullAfter;
+    const r = this.botRegen;
+    if (r) {
+      if (now >= r.until) this.botRegen = null;
+      else this.dummy.health = Math.min(HEALTH_MAX, this.dummy.health + r.perSec * dt);
+    }
+    if (!hasTarget || now < this.ultAt || !this.alive) return;
+    this.ultAt = now + KITS.ultimate.fullAfter;
+    if (this.ability === "jolt") {
+      this.boostUntil = now + KITS.runner.ult.seconds;
+      this.joltCharges = JOLT.charges;
+      this.joltRechargeAt = Infinity;
+    } else if (this.ability === "triage") {
+      const u = KITS.medic.ult;
+      this.botRegen = { perSec: u.health / u.seconds, until: now + u.seconds };
+    }
+  }
+
   /** a random ability when the match has them on; none otherwise */
   setAbilities(on: boolean, rng: () => number = Math.random): void {
-    this.ability = on ? ABILITY_IDS[Math.floor(rng() * ABILITY_IDS.length)] : null;
+    this.ability = on ? BOT_ABILITY_IDS[Math.floor(rng() * BOT_ABILITY_IDS.length)] : null;
+    this.ultAt = Infinity;
   }
 
   /** the heal it is doing, if its time is up: applied; a target in sight cancels it */
@@ -1266,6 +1304,7 @@ export class Bot {
     }
     if (this.cover && (now > this.cover.until || (!this.healing && hurtFrac >= 0.95) || (this.kit.cell <= 0 && this.kit.syringe <= 0))) this.cover = null;
     this.stepHeal(now, sees);
+    this.stepUlt(now, dt, !!target);
     while (this.joltCharges < JOLT.charges && now >= this.joltRechargeAt) {
       this.joltCharges++;
       this.joltRechargeAt = this.joltCharges < JOLT.charges ? this.joltRechargeAt + JOLT.recharge : Infinity;
@@ -1354,7 +1393,7 @@ export class Bot {
         }
         this.headwaySince = now;
       }
-      const step = this.diff.speed * dt * (this.healing ? HEAL_WALK : 1) * (this.crouching ? botsCfg.squads.crouchWalk : 1);
+      const step = this.speedNow * dt * (this.healing ? HEAL_WALK : 1) * (this.crouching ? botsCfg.squads.crouchWalk : 1);
       let nx = this.pos.x + want.x * step;
       let nz = this.pos.z + want.y * step;
       if (this.blocked(nx, nz)) {
@@ -1399,7 +1438,7 @@ export class Bot {
     const fwdZ = Math.cos(ry);
     const moveDir = moving ? Math.atan2(want.x * -fwdZ + want.y * fwdX, want.x * fwdX + want.y * fwdZ) : 0;
     this.dummy.setPose({
-      speed: moving ? this.diff.speed * (this.healing ? HEAL_WALK : 1) * (this.crouching ? botsCfg.squads.crouchWalk : 1) : 0,
+      speed: moving ? this.speedNow * (this.healing ? HEAL_WALK : 1) * (this.crouching ? botsCfg.squads.crouchWalk : 1) : 0,
       stance: this.crouching || this.kneel ? "crouch" : "stand",
       pitch: aimPitch,
       moveDir,

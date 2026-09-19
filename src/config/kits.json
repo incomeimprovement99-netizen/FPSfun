@@ -10,6 +10,14 @@
     "passive": "SURE FOOTING",
     "ult": { "name": "OVERDRIVE", "seconds": 8, "speed": 1.25 }
   },
+  "_scout": "SCOUT: PULSE, its tactical, shows every enemy within range metres and inside cone degrees of where you look, for seconds, to you and your squad (a red glow on the figure, and a mark for the squad in a battle royale), every cooldown seconds. Its passive, SHARP EARS, shows an enemy you can hear firing within hearing metres the same way. Its ultimate, SWEEP, shows every enemy within ultRange metres, whichever way they are, for ultSeconds.",
+  "scout": {
+    "name": "SCOUT",
+    "passive": "SHARP EARS",
+    "tactical": { "name": "PULSE", "range": 40, "cone": 60, "seconds": 2, "cooldown": 12 },
+    "hearing": 45,
+    "ult": { "name": "SWEEP", "range": 60, "seconds": 6 }
+  },
   "_medic": "MEDIC: TRIAGE's faster heals as its passive; its tactical, PATCH, gives back health over seconds (not past full), every cooldown seconds; its ultimate, FIELD HEAL, gives health over seconds to you and every team or squad mate within radius metres of you, each page healing its own player.",
   "medic": {
     "name": "MEDIC",

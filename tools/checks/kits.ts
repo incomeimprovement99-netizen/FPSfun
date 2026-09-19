@@ -6,7 +6,7 @@
 // match; nothing fills it before a kit is picked. PATCH goes once a cooldown.
 //
 // Run on its own: npx tsx tools/checks/kits.ts.
-import { Abilities, JOLT, KITS, kitOf } from "../../src/game/abilities";
+import { Abilities, BOT_ABILITY_IDS, JOLT, KITS, kitOf } from "../../src/game/abilities";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -50,8 +50,20 @@ console.log("Ability kits");
   check(`MEDIC's PATCH goes, then is back ${cd} s later and not before`, a.tryPatch(10) && !a.tryPatch(10 + cd - 0.1) && Math.abs(a.patchLeft(10) - cd) < 1e-9 && a.tryPatch(10 + cd));
 }
 {
+  const a = new Abilities();
+  a.reset(true);
+  a.pick("triage");
+  check("PULSE is SCOUT's: MEDIC cannot use it", !a.tryPulse(0));
+  a.pick("scout");
+  const cd = KITS.scout.tactical.cooldown;
+  check(`SCOUT's PULSE goes, then is back ${cd} s later and not before`, a.tryPulse(5) && !a.tryPulse(5 + cd - 0.1) && Math.abs(a.pulseLeft(5) - cd) < 1e-9 && a.tryPulse(5 + cd));
+  check("a bot takes one of the two kits it can play, never SCOUT (its whole kit is sight, which a bot's eyes already are)", BOT_ABILITY_IDS.length === 2 && !BOT_ABILITY_IDS.includes("scout"), BOT_ABILITY_IDS.join(","));
+}
+{
   const r = kitOf("jolt");
   const m = kitOf("triage");
+  const sc = kitOf("scout");
+  check("SCOUT's card names its pulse, its ears and its sweep, with their numbers", sc.kit === KITS.scout.name && sc.tactical === KITS.scout.tactical.name && sc.passive === KITS.scout.passive && sc.ult === KITS.scout.ult.name && sc.blurb.includes(`${KITS.scout.tactical.range} m`) && sc.blurb.includes(`${KITS.scout.ult.range} m`), sc.blurb);
   check("the card names each kit with its tactical, passive and ultimate", r.kit === KITS.runner.name && r.tactical === "JOLT" && r.ult === KITS.runner.ult.name && m.kit === KITS.medic.name && m.tactical === KITS.medic.tactical.name && m.passive === "TRIAGE" && m.ult === KITS.medic.ult.name, `${r.blurb} | ${m.blurb}`);
   check("and its blurb carries the numbers it plays by", r.blurb.includes(`${KITS.runner.ult.seconds} s`) && r.blurb.includes(`${JOLT.distance} m`) && m.blurb.includes(`${KITS.medic.tactical.health} health`) && m.blurb.includes(`${KITS.medic.ult.radius} m`));
 }

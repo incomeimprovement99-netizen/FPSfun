@@ -540,6 +540,67 @@ export class Duel implements MatchLike {
   /** the ids the humans use; bots are 100 up */
   static readonly BOT_ID = 100;
   /** on this player's side: no damage either way (a battle royale's squad; a team in the modes) */
+  /** SCOUT (kits.json): the enemies shown by a PULSE or a SWEEP, and until when */
+  private shownAt = new Map<number, number>();
+  /** their figures, which the page draws in the threat highlight while they are shown (main.ts draws it, so it is the one place that sets it) */
+  readonly shown = new Set<Dummy>();
+
+  /**
+   * SCOUT: every enemy within `range` of `at`, and within `cone` degrees of
+   * `fwd` where one is given, shown for `seconds`: a red glow on the figure
+   * here, and a mark for the squad, so a friend sees them too. Returns how
+   * many it found.
+   */
+  reveal(at: THREE.Vector3, fwd: THREE.Vector3 | null, range: number, cone: number, seconds: number): number {
+    const cos = Math.cos((cone / 2) * (Math.PI / 180));
+    let found = 0;
+    const others: Array<{ id: number; name: string; at: THREE.Vector3 }> = [];
+    for (const r of this.remotes.values()) {
+      if (!r.alive || r.id === this.id || this.friendly(r.id)) continue;
+      const s = r.samples[r.samples.length - 1];
+      if (s) others.push({ id: r.id, name: r.name, at: new THREE.Vector3(s.x, s.y, s.z) });
+    }
+    // the bots this page runs itself are not among its remotes
+    for (const f of this.ownFigures()) if (!this.friendly(f.id)) others.push(f);
+    for (const s of others) {
+      const to = new THREE.Vector3(s.at.x - at.x, 0, s.at.z - at.z);
+      const d = to.length();
+      if (d > range) continue;
+      if (fwd && d > 0.5) {
+        const f = new THREE.Vector3(fwd.x, 0, fwd.z).normalize();
+        if (to.normalize().dot(f) < cos) continue;
+      }
+      found++;
+      this.revealOne(s.id, seconds);
+      this.sendMark("scan", s.at.clone(), s.name, s.id);
+    }
+    return found;
+  }
+
+  /** the figures this page runs itself and its remotes do not hold (the host's bots): the modes and the battle royale say */
+  protected ownFigures(): Array<{ id: number; name: string; at: THREE.Vector3; avatar?: Dummy }> {
+    return [];
+  }
+
+  /** one enemy shown for `seconds` (a squad mate's scan says so too) */
+  revealOne(id: number, seconds: number): void {
+    if (this.friendly(id)) return;
+    const av = this.remotes.get(id)?.avatar ?? this.ownFigures().find((f) => f.id === id)?.avatar;
+    if (!av) return;
+    this.shownAt.set(id, wallClock() + seconds);
+    this.shown.add(av);
+  }
+
+  /** the ones whose time is up go back to themselves */
+  private stepRevealed(now: number): void {
+    for (const [id, until] of [...this.shownAt]) {
+      if (now < until) continue;
+      this.shownAt.delete(id);
+      const av = this.remotes.get(id)?.avatar ?? this.ownFigures().find((f) => f.id === id)?.avatar;
+      if (av) this.shown.delete(av);
+    }
+  }
+
   /** the damage this player has dealt this match (the ultimate's meter reads it) */
   get damageDealt(): number {
     return this.damage;
@@ -1828,6 +1889,7 @@ export class Duel implements MatchLike {
     if (this.role === "host") this.tick(now, dt, local);
     if (this.ended) return;
     if (this.role === "host" && now >= this.heirSendNext) this.sendHeir(now);
+    if (this.shownAt.size) this.stepRevealed(now);
     if (this.role === "host" && this.mode === "duel" && this.phase !== "waiting" && now >= this.phaseEndsAt) {
       if (this.phase === "countdown") {
         this.enter("fight", now, 0);
