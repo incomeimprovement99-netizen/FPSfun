@@ -93,11 +93,11 @@ Three read-only passes over the code, after the map expansion (Milestone 71), ag
 **First: bugs and cheap fixes (about a day)**
 1. ~~**Bug: a guest can post as anyone.**~~ Done (Milestone 72). The host takes `from` from the guest's own message (`duel.ts:703`), so a forged `bye`, `down` or `hit` from a bot's id goes through. The host sets `from` to the link it arrived on. 1 h.
 2. ~~**Bug: the free-for-all wins board does not exist on the server.**~~ Done (Milestone 72). `ffa:wins` is posted and read, and the server answers 400. Add it, and a check that every client board is one the server knows. 0.5 h.
-3. **Bug: in a solo battle royale, friends cannot hurt each other**, and two humans left alive both "win". `friendly()` treats every human as a mate in any battle royale (`duel.ts:476`); the match ends when the bots are gone. Solo is everyone against everyone, placements by elimination. 3-5 h.
+3. ~~**Bug: in a solo battle royale, friends cannot hurt each other**~~ Done (Milestone 73)., and two humans left alive both "win". `friendly()` treats every human as a mate in any battle royale (`duel.ts:476`); the match ends when the bots are gone. Solo is everyone against everyone, placements by elimination. 3-5 h.
 4. ~~**Bots have an unfair gun:**~~ Done (Milestone 72); no bot gun falls off today, so the falloff rule waits for one that does. they never reload, they take no damage falloff, and a crouched player behind cover is hit as if standing. A magazine and a reload, the players' falloff, and the crouched hitbox. 3 h.
 5. ~~**The first ring's wait predates the dropship:**~~ Done (Milestone 72). the ride and the dive eat 12 to 25 s of round 1's 45 s. Start round 1's wait when the ship has gone. 1 h.
 6. ~~**A bot's death box throws away what it looted:**~~ Done (Milestone 72). build it from the bot's own kit. 1.5 h.
-7. **The host alt-tabs and the match runs at one frame a second for everyone:** a hidden tab's timer is throttled. When hidden, a Worker timer drives the simulation and the network at 30 Hz; e2e gains a section with throttling on. 3-4 h.
+7. ~~**The host alt-tabs and the match runs at one frame a second for everyone:**~~ Done (Milestone 73). a hidden tab's timer is throttled. When hidden, a Worker timer drives the simulation and the network at 30 Hz; e2e gains a section with throttling on. 3-4 h.
 
 **Then: feel, what a player notices in ten minutes (about three days)**
 8. **Other players' guns show no muzzle flash** (removed from every third-person gun), so a shooter at range is invisible; the bots' own sight model assumes the flash is there. A pooled 35 ms flash at the muzzle, never under 6 px. 2 h (plus 1 h for a pooled sprite layer in `fx.ts`, which 9, 10 and 13 need).

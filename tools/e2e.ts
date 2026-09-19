@@ -1275,7 +1275,9 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   await sleep(1200);
   const botsUp = await ev<number>(host, "window.__range.duel().bots.filter((b) => b.bot.alive).length");
   const soloEnds = await Promise.all([host, guest].map((p) => ev<{ phase: string; placement: number | null; of: number } | null>(p, "(() => { const d = window.__range.duel(); return d && { phase: d.phase, placement: d.hud().br.placement, of: d.hud().br.squadsTotal }; })()")));
-  check("solo with a friend: the last of you out ends it for both, placed behind every bot still up, out of everyone", soloEnds.every((e) => !!e && e.phase === "matchEnd" && e.placement === botsUp + 1 && e.of === 5), JSON.stringify({ soloEnds, botsUp }));
+  // each placed on their own (solo is everyone against everyone): the host, out
+  // last, behind every bot still up; the guest, out first, behind the host too
+  check("solo with a friend: the last of you out ends it for both, each placed where they went out, out of everyone", soloEnds.every((e) => !!e && e.phase === "matchEnd" && e.of === 5) && soloEnds[0]?.placement === botsUp + 1 && soloEnds[1]?.placement === botsUp + 2, JSON.stringify({ soloEnds, botsUp }));
   await ev(host, "window.__range.duel()?.leave()");
   await sleep(500);
   await host.close();

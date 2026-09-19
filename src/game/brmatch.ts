@@ -1651,8 +1651,10 @@ export class BrMatch extends Duel {
       // out now: behind every side still standing
       else if (!this.placedAt.has(id)) this.placedAt.set(id, standing.length + botSides + 1);
     }
-    if (standing.length + botSides > 1) return;
-    // one side left: a human wins, or a bot squad did and every human is placed
+    // over when one side is left, or when no human is: the bots finishing it
+    // among themselves is nothing any of the humans can play for
+    if (standing.length > 0 && standing.length + botSides > 1) return;
+    // a human won, or every human is out and placed where they went out
     this.brOver = true;
     const winner = standing.length === 1 && botSides === 0 ? standing[0] : -1;
     for (const id of humans) {

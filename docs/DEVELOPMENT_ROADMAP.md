@@ -1082,3 +1082,16 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/bot-fire.ts` (a bot's shots over 20 s against a player's with four guns, the reload, the
   falloff rule, the crouched body, the death box), `tools/checks/boards.ts`, and e2e: a forged goodbye in the 1v1v1
   leaves both guests in, and the ring's clock holds while the ship flies.
+
+## Milestone 73 — Solo with friends is everyone against everyone; a hidden host keeps the match running ✅
+2026-09-19 (Phase 15). `brmatch.ts`, `main.ts`, `tools/e2e.ts`.
+- In a solo battle royale every human was on one side: friends could not hurt each other, and two left alive both
+  "won" once the bots were gone. Solo now treats the other humans as opponents. The host notes where each placed as
+  they go out (a trip to the Gulag or a redeploy keeps them in), and the match ends when one side is left, or when no
+  human is; each player is sent their own result. Nobody drops a banner in solo, so nobody brings an opponent back.
+- A host who alt-tabbed (to paste the invite) ran the whole match at one frame a second: Chrome slows a background
+  tab's timers and the loop ran on one. While hidden, a small worker, whose timer is not slowed, ticks the game at
+  30 Hz, and nothing is drawn that nobody can see.
+- Checks: the e2e `brsolo` section (an opponent, the knock the end, the match going on, first and seventh of seven),
+  the squad section's solo pair each placed where they went out, and the `hidden` section (30 frames a second hidden,
+  against 2 on the page's own timer).
