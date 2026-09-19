@@ -18,6 +18,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { displayGunModel } from "./gunmodels";
 import { OPERATORS, skinMaterials, type OperatorSkin } from "./operators";
 import { MannequinFigure, useMannequin } from "./mannequin";
+import { emoteAt, emotePose } from "./emotes";
 
 export type Zone = "head" | "body" | "legs";
 export type ArmorTier = 0 | 1 | 2 | 3 | 4;
@@ -743,6 +744,23 @@ export class Dummy {
     this.pose = p;
   }
 
+  /** an emote playing (emotes.ts): which, and how far in */
+  private emoteIndex: number | null = null;
+  private emoteT = 0;
+  /** the gun this figure put away for an emote, to bring back after */
+  private emoteHidGun = false;
+
+  /** play an emote (null, or past the list: stop); it runs its length unless the figure moves */
+  emote(index: number | null): void {
+    this.emoteIndex = emoteAt(index) ? index : null;
+    this.emoteT = 0;
+  }
+
+  /** the emote playing, or null (the tests, and the page's own figure) */
+  get emoting(): number | null {
+    return this.emoteIndex;
+  }
+
   /** a different gun in its hands (Gun Run's next level): the same grip, the new model */
   setGun(id: string): void {
     this.mq?.setGun(id);
@@ -1020,8 +1038,45 @@ export class Dummy {
         (m.material as THREE.MeshStandardMaterial).color.setHex(HEAL_COLOUR[p.healItem ?? "cell"] ?? 0x3b8bff);
       }
     }
+    // An emote, on top: it runs its length, and moving or going down ends it.
+    // The robot's armed arms are one piece with the gun, so it raises them
+    // together; an unarmed robot and the mannequin move each arm.
+    if (this.emoteIndex !== null) {
+      this.emoteT += dt;
+      const def = emoteAt(this.emoteIndex);
+      if (!def || this.emoteT >= def.seconds || speed > 1.5 || downed || (p.stance !== "stand" && p.stance !== "crouch")) this.emoteIndex = null;
+    }
+    const ep = this.emoteIndex !== null ? emotePose(this.emoteIndex, this.emoteT) : null;
+    const emoting = !!ep && ep.weight > 0.02;
+    if (emoting) {
+      r.pelvis.rotation.y += ep.hipSway;
+      r.pelvis.position.y += ep.bounce;
+      r.torso.rotation.y += ep.spineTwist;
+      r.torso.rotation.x += ep.spineLean;
+      r.torso.rotation.z += ep.spineSide;
+      r.head.rotation.x += ep.headNod;
+      r.head.rotation.z += ep.headTilt;
+      if (r.armL && r.armR) {
+        r.armR.rotation.x -= ep.rForward + ep.rRaise * 0.9;
+        r.armR.rotation.z = -ep.rRaise * 0.35;
+        r.armL.rotation.x -= ep.lForward + ep.lRaise * 0.9;
+        r.armL.rotation.z = ep.lRaise * 0.35;
+      } else {
+        r.arms.rotation.x -= Math.max(ep.rRaise, ep.lRaise, ep.rForward) * 0.9;
+        r.arms.rotation.z += (ep.lRaise - ep.rRaise) * 0.2;
+      }
+    }
+    if (this.gun) {
+      if (emoting && !this.emoteHidGun && this.gun.visible) {
+        this.gun.visible = false;
+        this.emoteHidGun = true;
+      } else if (!emoting && this.emoteHidGun) {
+        this.gun.visible = this.gunShown && !this.gunAway;
+        this.emoteHidGun = false;
+      }
+    }
     // the mannequin plays its clips for the same pose, with the same corrections on top
-    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt });
+    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, emote: emoting ? ep : null });
   }
 
   /** the heal item: a small canister held in front of the chest */

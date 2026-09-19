@@ -88,6 +88,7 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
       ["orbit", "Look round your character (hold)"],
       ["map", "The full map"],
       ["ping", "Ping (enemy, item, place) for the squad"],
+      ["emote", "Emote wheel (hold, move to one, let go)"],
     ],
   },
   {

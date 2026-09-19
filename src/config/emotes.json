@@ -1,0 +1,42 @@
+{
+  "_note": "Emotes (src/game/emotes.ts): the wheel on the emote key (binds.json, 7) and what each one is called and lasts, seconds. blendIn and blendOut ease a figure into and out of one; cooldown is the least time between two of yours; camera is where your own view stands to watch it, metres behind and above your eyes. Ours: the big games do not publish theirs, and these are poses on our rigs. The blends are 0.4 s because the cheer's arms travel 2.75 rad: over 0.25 s they moved a quarter of a radian in a single frame, a snap the check catches.",
+  "list": [
+    {
+      "id": "wave",
+      "name": "WAVE",
+      "seconds": 2.6
+    },
+    {
+      "id": "cheer",
+      "name": "CHEER",
+      "seconds": 2.6
+    },
+    {
+      "id": "point",
+      "name": "OVER THERE",
+      "seconds": 2.2
+    },
+    {
+      "id": "salute",
+      "name": "SALUTE",
+      "seconds": 2.4
+    },
+    {
+      "id": "shrug",
+      "name": "SHRUG",
+      "seconds": 2.2
+    },
+    {
+      "id": "dance",
+      "name": "DANCE",
+      "seconds": 4.0
+    }
+  ],
+  "blendIn": 0.4,
+  "blendOut": 0.4,
+  "cooldown": 0.8,
+  "camera": {
+    "back": 3.0,
+    "up": 0.3
+  }
+}

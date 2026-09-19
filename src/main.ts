@@ -86,6 +86,8 @@ import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReti
 import { Progress, levelFor, type Award } from "./game/progress";
 import { HUD_SCALES, P, VISION_MODES, access, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
 import { LoadingScreen } from "./ui/loading";
+import { EMOTES, EMOTE_STOP } from "./game/emotes";
+import emotesCfg from "./config/emotes.json";
 
 // the loading screen listens from here on: before any loader of the page's own has started
 const loadingScreen = new LoadingScreen();
@@ -1828,6 +1830,36 @@ let healHeldAt = -1;
 let wheelOpen = false;
 const wheelVec = { x: 0, y: 0 };
 let wheelPick: HealItem | null = null;
+/** the emote wheel (7, held): open, where the mouse has moved it, what it points at */
+let emoteWheelOpen = false;
+const emoteVec = { x: 0, y: 0 };
+let emotePick: number | null = null;
+let emoteHeldAt = -1;
+/** your emote playing (emotes.ts): which, and until when; your view steps back to watch it */
+let emoting: { index: number; until: number } | null = null;
+let emoteReadyAt = 0;
+/** a tap of the key plays the last one again */
+let lastEmote = 0;
+
+/** play an emote: your figure does it for everyone, and the camera comes round to watch */
+function playEmote(i: number, now: number): void {
+  const def = EMOTES[i];
+  const d = duel;
+  if (!def || now < emoteReadyAt || !player.onGround || (d && (!d.alive || (d instanceof Duel && d.downed)))) return;
+  emoting = { index: i, until: now + def.seconds };
+  emoteReadyAt = now + def.seconds + emotesCfg.cooldown;
+  lastEmote = i;
+  selfFig?.emote(i);
+  d?.localFx("emote", undefined, undefined, i);
+}
+
+/** your emote ends early (you moved, fired, were hit): the figure stops for everyone */
+function stopEmote(): void {
+  if (!emoting) return;
+  emoting = null;
+  selfFig?.emote(null);
+  duel?.localFx("emote", undefined, undefined, EMOTE_STOP);
+}
 /** the heal in progress: cancelled by firing or aiming, applied when its time is up */
 function updateHeal(now: number, cancel: boolean): void {
   const v = vitalsTarget();
@@ -2313,6 +2345,7 @@ const noGulag = (): boolean => (window as unknown as { __noGulag?: boolean }).__
 function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRespawn = () => respawnForMatch(d);
   d.onHurt = () => {
+    stopEmote();
     hud.hurt(gameTime);
     audio.hurt(d.shield > 0);
     input.pad.rumble(0.6, 0.3, 120);
@@ -2332,6 +2365,11 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       return;
     }
     // a squad mate scanned a Ring Console: the circle after next is on our map too
+    // someone's emote: their figure plays it (or stops)
+    if (k === "emote" && typeof n === "number") {
+      figureById(from)?.emote(n === EMOTE_STOP ? null : n);
+      return;
+    }
     // a squad mate's Gulag: in it, back from it, or out
     if (k === "gulag" && typeof n === "number" && d instanceof BrMatch) {
       d.hearGulag(from, n);
@@ -3196,6 +3234,8 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, show:
     selfFig.group.name = "self";
     scene.add(selfFig.group);
     selfFigKey = key;
+    // an emote in progress: the figure is often made for it (the view only goes third person to watch), so it starts it
+    if (emoting) selfFig.emote(emoting.index);
   }
   const f = selfFig;
   f.group.visible = true;
@@ -3440,6 +3480,19 @@ function step(): void {
       wheelOpen = false;
       healHeldAt = -1;
     }
+    // 7: hold for the emote wheel (move to one, let go); a tap plays the last one again
+    if (input.pressedNow("emote")) {
+      emoteHeldAt = now;
+      emoteVec.x = emoteVec.y = 0;
+      emotePick = null;
+    }
+    if (emoteHeldAt >= 0 && input.held("emote") && !emoteWheelOpen && now - emoteHeldAt >= 0.2) emoteWheelOpen = true;
+    if (emoteHeldAt >= 0 && !input.held("emote")) {
+      const pick = emoteWheelOpen ? emotePick : lastEmote;
+      emoteWheelOpen = false;
+      emoteHeldAt = -1;
+      if (pick !== null) playEmote(pick, now);
+    }
     if (input.pressedNow("map")) mapOpen = !mapOpen;
     // 5 and 6 pick an ability while its card is up (any time in the range);
     // on a controller the d-pad's left and right pick while the card is up
@@ -3480,6 +3533,17 @@ function step(): void {
       m.dx = 0;
       m.dy = 0;
     }
+    if (emoteWheelOpen) {
+      // the emote wheel: the mouse's direction picks, as the heal wheel's does
+      emoteVec.x = Math.max(-200, Math.min(200, emoteVec.x + m.dx));
+      emoteVec.y = Math.max(-200, Math.min(200, emoteVec.y + m.dy));
+      if (Math.hypot(emoteVec.x, emoteVec.y) > 40) {
+        const a = (Math.atan2(emoteVec.x, -emoteVec.y) + Math.PI * 2) % (Math.PI * 2);
+        emotePick = Math.round(a / ((Math.PI * 2) / EMOTES.length)) % EMOTES.length;
+      }
+      m.dx = 0;
+      m.dy = 0;
+    }
     if (orbiting) {
       const k = degPerCount(settings.sens);
       orbitYaw -= m.dx * k;
@@ -3503,7 +3567,7 @@ function step(): void {
         : null;
     const slow = assist?.slow ?? 1;
     // (the wheel open: the stick is picking, not looking)
-    if (!wheelOpen) player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
+    if (!wheelOpen && !emoteWheelOpen) player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
   }
 
   // The practice aim bot, after the look input so it is the last word on where
@@ -3640,6 +3704,14 @@ function step(): void {
   // the beams burn out on their own (a holder who left, a message lost)
   for (const [k, b] of beams) if (gameTime > b.until) setBeam(k, null);
   const moveIn = settings.crouchToggle && !scriptInput ? crouchToggled(input) : (scriptInput ?? input);
+  // An emote ends when it has played, or the moment you move, jump, crouch,
+  // aim or fire. Every frame, and off the same keys that move you (a script's
+  // in the tests), so one never outlives the menu or a scripted walk.
+  if (emoting) {
+    const moved = (["forward", "back", "left", "right"] as const).some((a) => moveIn.held(a)) || moveIn.pressedNow("jump") || moveIn.pressedNow("crouch") || input.pressedNow("fire") || input.pressedNow("ads");
+    if (moved) stopEmote();
+    else if (now >= emoting.until) emoting = null;
+  }
   if (duel instanceof BrMatch) shipFrame(duel, moveIn);
   else if (player.aboard) player.aboard = false;
   // The arrival card: walk into a place and its name comes up, the way the
@@ -3717,29 +3789,36 @@ function step(): void {
   eye.copy(camera.position);
   aimYaw = player.yaw;
   aimPitch = player.pitch;
-  const third = thirdPerson && !watch;
+  // an emote steps your view back to watch it, whichever camera you play in
+  const third = (thirdPerson || !!emoting) && !watch;
   if (third) {
     // Behind the right shoulder, looking where you look; orbiting, round the
     // figure's chest from wherever the orbit angles put it. A wall behind
     // pulls the camera in. The crosshair is what the camera's centre ray hits,
     // and the shot goes from the eye to that point, so it lands on the
     // crosshair rather than parallel to it.
-    if (!orbiting) {
+    // an emote: the camera comes round in front of you to watch it
+    const orbitNow = orbiting || !!emoting;
+    if (emoting) {
+      const ease = 1 - Math.exp(-4 * dt);
+      orbitYaw += (160 - orbitYaw) * ease;
+      orbitPitch += (-6 - orbitPitch) * ease;
+    } else if (!orbiting) {
       const ease = 1 - Math.exp(-10 * dt);
       orbitYaw -= orbitYaw * ease;
       orbitPitch -= orbitPitch * ease;
     }
-    const camQ = player.orientationAt(player.yaw + orbitYaw, Math.max(-80, Math.min(80, player.pitch + orbitPitch)), orbiting ? 0 : off.pitchUp, orbiting ? 0 : off.yawLeft);
+    const camQ = player.orientationAt(player.yaw + orbitYaw, Math.max(-80, Math.min(80, player.pitch + orbitPitch)), orbitNow ? 0 : off.pitchUp, orbitNow ? 0 : off.yawLeft);
     const fwd = tmpDir.set(0, 0, -1).applyQuaternion(camQ).clone();
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camQ);
     const back = fwd.clone().negate();
-    const pivot = orbiting ? player.pos.clone().add(new THREE.Vector3(0, player.crouched || player.sliding ? 0.85 : 1.25, 0)) : eye.clone();
-    if (!orbiting) {
+    const pivot = orbitNow ? player.pos.clone().add(new THREE.Vector3(0, player.crouched || player.sliding ? 0.85 : 1.25, 0)) : eye.clone();
+    if (!orbitNow) {
       // over the shoulder, unless a wall is against it
       const side = Math.min(0.45, Math.max(0, solidHit(pivot, right, 0.45) - 0.1));
       pivot.addScaledVector(right, side).y += 0.1;
     }
-    let dist = orbiting ? 3.2 : 2.4 - 0.9 * ws.adsFrac;
+    let dist = orbitNow ? (emoting ? emotesCfg.camera.back : 3.2) : 2.4 - 0.9 * ws.adsFrac;
     const wall = solidHit(pivot, back, dist);
     if (wall < dist) dist = Math.max(0.25, wall - 0.15);
     camera.position.copy(pivot).addScaledVector(back, dist);
@@ -4277,6 +4356,7 @@ function step(): void {
     summary: summaryView(),
     quickChat: gameTime < quickOpenUntil ? QUICK.lines : null,
     healWheel: wheelOpen ? { items: HEAL_ORDER.map((k) => ({ id: k, name: HEAL_ITEMS[k].name, count: kit.items[k] })), pick: wheelPick } : null,
+    emoteWheel: emoteWheelOpen ? { items: EMOTES.map((e) => e.name), pick: emotePick } : null,
     lobby:
       hosting && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
         ? { code: hosting.code, waitingFor: duel ? duel.players - 1 - (duel as Duel).connected : Number(duelPlayers.value) === 3 ? 2 : 1 }
@@ -4429,6 +4509,10 @@ initWelcome();
   viewModelVisible: () => viewModel.group.visible,
   lobbyCode: () => (hosting && !duel ? hosting.code : null),
   setMapOpen: (on: boolean) => (mapOpen = on),
+  /** emotes (tools/e2e.ts): play one, and what is playing */
+  emote: (i: number) => playEmote(i, gameTime),
+  emoting: () => emoting,
+  cameraPos: () => camera.position.toArray(),
   /** the loading screen has gone: everything asked for is in and a frame is drawn (the tools wait on it) */
   loaded: () => loadingScreen.loaded,
   /** the dropship: this match's flight, and who you are linked to or following */

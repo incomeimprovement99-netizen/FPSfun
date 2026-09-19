@@ -176,6 +176,8 @@ export interface HudState {
   kit?: Record<string, number> | null;
   /** the heal wheel, held open: the items, their counts, the one the mouse points at */
   healWheel?: { items: Array<{ id: string; name: string; count: number }>; pick: string | null } | null;
+  /** the emote wheel (7, held): the emotes round it and the one the mouse points at */
+  emoteWheel?: { items: string[]; pick: number | null } | null;
   /** nameplates over the other players and the bots */
   plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean; aimbot?: boolean }>;
   /** real shield and health (a 1v1); the bars are decorative without it */
@@ -2027,6 +2029,7 @@ export class Hud {
     if (!s.kit) {
       this.drawOrdnance(s, u, 384 * u, this.h - 52 * u);
       this.drawHealWheel(s, u);
+    this.drawEmoteWheel(s, u);
       return;
     }
     const x = 34 * u + 350 * u;
@@ -2077,6 +2080,35 @@ export class Hud {
   }
 
   /** the heal wheel: the five heals round the crosshair, the one pointed at lit, a count on each */
+  /** the emote wheel: six round the middle, the one pointed at lit */
+  private drawEmoteWheel(s: HudState, u: number): void {
+    const w = s.emoteWheel;
+    if (!w) return;
+    const c = this.ctx;
+    const cx = this.w / 2;
+    const cy = this.h / 2;
+    const R = 120 * u;
+    c.fillStyle = "rgba(0,0,0,0.35)";
+    c.beginPath();
+    c.arc(cx, cy, R + 50 * u, 0, Math.PI * 2);
+    c.fill();
+    w.items.forEach((name, i) => {
+      const a = (i / w.items.length) * Math.PI * 2;
+      const x = cx + Math.sin(a) * R;
+      const y = cy - Math.cos(a) * R;
+      const on = w.pick === i;
+      c.fillStyle = on ? "rgba(255,210,60,0.3)" : "rgba(8,10,12,0.75)";
+      c.beginPath();
+      c.arc(x, y, 38 * u, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = on ? "#ffd23c" : "rgba(255,255,255,0.25)";
+      c.lineWidth = 2 * u;
+      c.stroke();
+      this.text(name, x, y + 5 * u, 700, 12 * u, on ? "#ffd23c" : WHITE, "center");
+    });
+    this.text("MOVE TO AN EMOTE, LET GO TO PLAY IT", cx, cy + R + 70 * u, 700, 13 * u, DIM, "center");
+  }
+
   private drawHealWheel(s: HudState, u: number): void {
     const w = s.healWheel;
     if (!w) return;

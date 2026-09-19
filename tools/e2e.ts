@@ -2765,7 +2765,58 @@ async function gulagTest(browser: Browser, query: string, squadQuery: string): P
   await guest.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, br, loot, ship, console, resurgence, gulag, modes, squad, p2p, mixed) */
+/**
+ * Emotes (src/game/emotes.ts). Your own: the figure plays it, your view steps
+ * back and comes round in front to watch, and a step ends it. Someone
+ * else's: a 1v1's host waves, and the guest's figure of the host waves, then
+ * stops when the host moves.
+ */
+async function emoteTest(browser: Browser, query: string, duelQuery: string): Promise<void> {
+  const page = await open(browser, query);
+  await sleep(800);
+  await ev(page, "window.__range.emote(1)");
+  await sleep(700);
+  const on = await ev<{ emoting: number | null; fig: number | null; shown: boolean; dist: number; ahead: number }>(
+    page,
+    `(() => { const R = window.__range; const c = R.cameraPos(); const e = R.player.eyePosition(); const f = R.selfFigure(); const y = R.player.yaw * Math.PI / 180;
+      const dx = c[0] - e.x, dz = c[2] - e.z;
+      return { emoting: R.emoting() ? R.emoting().index : null, fig: f ? f.emoting : null, shown: !!f && f.group.visible, dist: Math.hypot(dx, c[1] - e.y, dz), ahead: dx * -Math.sin(y) + dz * -Math.cos(y) }; })()`
+  );
+  check("emote: yours plays on your figure, and your view steps back in front of you to watch", on.emoting === 1 && on.fig === 1 && on.shown && on.dist > 1.5 && on.ahead > 0.5, JSON.stringify(on));
+  await ev(page, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: (a) => a === "forward" })`);
+  await sleep(300);
+  await ev(page, "window.__range.setScript(null)");
+  const off = await ev<{ emoting: unknown; fig: number | null }>(page, "(() => { const R = window.__range; const f = R.selfFigure(); return { emoting: R.emoting(), fig: f ? f.emoting : null }; })()");
+  check("emote: a step ends it", off.emoting === null && off.fig === null, JSON.stringify(off));
+  await page.close();
+
+  // a 1v1's host waves: the guest's figure of the host waves, and stops when the host moves
+  const host = await open(browser, duelQuery);
+  const guest = await open(browser, duelQuery);
+  await ev(host, `document.getElementById("duelHost").click()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const pg of [host, guest]) await pg.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check("emote: a 1v1 connects", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  await sleep(1200);
+  await ev(host, "window.__range.emote(0)");
+  const seen = await guest.waitForFunction("window.__range.duel().remotes.get(0)?.avatar.emoting === 0", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  await ev(host, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: (a) => a === "forward" })`);
+  const stopped = await guest.waitForFunction("window.__range.duel().remotes.get(0)?.avatar.emoting === null", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  await ev(host, "window.__range.setScript(null)");
+  check("emote: the host's wave shows on the guest's figure of the host, and stops when the host moves", seen && stopped, JSON.stringify({ seen, stopped }));
+  await host.close();
+  await guest.close();
+}
+
+/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, squad, p2p, mixed) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -3074,6 +3125,11 @@ async function main(): Promise<void> {
       await duelTest(browser, "?net=local&norender", "local");
     }
 
+    if (want("emote")) {
+      console.log("\nEmotes: yours, the camera, a step to end it, a 1v1's host's on the guest's screen");
+      await emoteTest(browser, "?norender", "?net=local&norender");
+    }
+
     if (want("invite")) {
       console.log("\nInvite links");
       await inviteTest(browser, "?net=local&norender");
@@ -3169,20 +3225,24 @@ async function main(): Promise<void> {
       if (!ran) console.log("  --  skipped: the broker or the internet was not reachable");
     }
 
-    // A build from before the delta packets against this one, over the real
-    // peer to peer path: OLD_URL is where the older build is served (a second
-    // dev server on an older checkout, or the deployed site with
-    // ?broker=public, so both meet on the public broker). Both ways round for
-    // the 1v1, and a 1v1v1 whose host has to relay between the two.
+    // An older build against this one, over the real peer to peer path:
+    // OLD_URL is where the older build is served (a second dev server on an
+    // older checkout, or the deployed site with ?broker=public, so both meet
+    // on the public broker). Both ways round for the 1v1, and a 1v1v1 whose
+    // host has to relay between the two. The deployed build has had the delta
+    // packets since they shipped, so the two find each other and use them;
+    // OLD_NET=full is for a build from before them, where both fall back to
+    // the full packets.
     if (want("mixed")) {
       const OLD = process.env.OLD_URL;
-      if (!OLD) console.log("\nAn older build and this one: skipped, set OLD_URL to a build from before the delta packets");
+      const oldNet: NetWant = process.env.OLD_NET === "full" ? "full" : "deltas";
+      if (!OLD) console.log("\nAn older build and this one: skipped, set OLD_URL to an older build (and OLD_NET=full if it is from before the delta packets)");
       else {
-        console.log(`\nAn older build (${OLD}) and this one, over peer to peer`);
-        await duelTest(browser, "?norender", "old guest", [BASE, OLD], "full");
-        await duelTest(browser, "?norender", "old host", [OLD, BASE], "full");
-        await tripleTest(browser, "?norender", "1v1v1, an old guest", [{}, {}, { base: OLD, want: "full" }]);
-        await tripleTest(browser, "?norender", "1v1v1, an old host", [{ base: OLD, want: "full" }, { want: "full" }, { want: "full" }]);
+        console.log(`\nAn older build (${OLD}, ${oldNet} packets) and this one, over peer to peer`);
+        await duelTest(browser, "?norender", "old guest", [BASE, OLD], oldNet);
+        await duelTest(browser, "?norender", "old host", [OLD, BASE], oldNet);
+        await tripleTest(browser, "?norender", "1v1v1, an old guest", [{}, {}, { base: OLD, want: oldNet }]);
+        await tripleTest(browser, "?norender", "1v1v1, an old host", [{ base: OLD, want: oldNet }, { want: oldNet }, { want: oldNet }]);
       }
     }
 

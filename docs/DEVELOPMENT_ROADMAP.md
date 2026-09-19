@@ -987,3 +987,18 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   `gulag` section (alone: in, the fight, the win and the drop back with the same guns, the second death; a fresh
   match: overtime's flag taken by the bot; a squad mate's trip reaching the host).
 
+## Milestone 68 — Emotes ✅
+2026-09-18 (Phase 15). `emotes.ts` (new), `dummy.ts`, `mannequin.ts`, `main.ts`, `hud.ts`, `binds.ts`, `src/config/emotes.json`,
+`src/config/binds.json`.
+- A wheel on 7, held as the heal wheel on 4 is: move to an emote and let go; a tap plays the last one again. Six:
+  wave, cheer, over there, salute, shrug, dance.
+- Each is described once, as angles for a generic body eased in and out over 0.4 s, and each rig reads what it can:
+  the mannequin turns each arm and bends it at the elbow, the spine, the head and the hips; the armed robot, whose
+  arms are one piece with its gun, raises them together and moves its body. The gun goes away for it.
+- Your view steps back and comes round in front of you to watch. Moving, jumping, crouching, aiming, firing or being
+  hit ends it, and everyone in the match sees it on your figure through one effect message.
+- Checks: `tools/checks/emotes.ts` (nothing before or after one, eased with no jump between two frames at 60 fps,
+  every one moving the body, none alike; the first blends were 0.25 s and the cheer's arms snapped a quarter of a
+  radian in a frame) and the e2e `emote` section (yours, the camera, a step ending it, a 1v1 host's on the guest's
+  screen); three `npm run snap` pictures.
+

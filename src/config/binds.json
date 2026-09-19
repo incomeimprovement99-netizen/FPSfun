@@ -122,5 +122,8 @@
   "inspect": [],
   "chat": [
     "Enter"
+  ],
+  "emote": [
+    "Digit7"
   ]
 }

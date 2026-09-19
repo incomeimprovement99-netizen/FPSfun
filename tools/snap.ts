@@ -509,6 +509,39 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "emotes-mannequin",
+    note: "the six emotes on the mannequin, a moment in: wave, cheer, over there, salute, shrug, dance",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
+        const still = { speed: 0, stance: "stand", pitch: 0 };
+        const figs = r.figureLab([still, still, still, still, still, still], 5.5);
+        figs.forEach((f, i) => f.emote(i)); })()`, 0],
+      [gameSeconds(1.1), 200],
+    ],
+  },
+  {
+    name: "emote-self",
+    note: "your own emote: the view steps back and comes round in front to watch you dance",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 0); })()`, 0],
+      // on game time: an emote wants your feet on the ground, and a slow renderer may not have drawn the landing yet
+      [gameSeconds(0.6), 0],
+      [`(() => { window.__range.emote(5); })()`, 0],
+      [gameSeconds(1.4), 200],
+    ],
+  },
+  {
+    name: "emotes-robot",
+    note: "the six emotes on the robots, a moment in",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; r.setFigureStyle("robot"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
+        const still = { speed: 0, stance: "stand", pitch: 0 };
+        const figs = r.figureLab([still, still, still, still, still, still], 5.5);
+        figs.forEach((f, i) => f.emote(i)); })()`, 0],
+      [gameSeconds(1.1), 200],
+    ],
+  },
+  {
     name: "figure-poses",
     note: "the figures: a strafe aimed down sights, a backpedal reloading, a heal, a swap (left to right)",
     steps: [

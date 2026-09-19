@@ -25,6 +25,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { displayGunModel } from "./gunmodels";
 import type { OperatorSkin } from "./operators";
 import type { FigurePose } from "./dummy";
+import type { EmotePose } from "./emotes";
 
 export type FigureStyle = "robot" | "mannequin";
 let style: FigureStyle = "robot";
@@ -114,6 +115,8 @@ export interface MannequinImpulses {
   land?: number;
   /** when the shield last broke, on the figure's clock (a stagger) */
   stagger?: number;
+  /** an emote in progress (emotes.ts): its angles, already eased */
+  emote?: EmotePose | null;
 }
 
 const v1 = new THREE.Vector3();
@@ -459,6 +462,9 @@ export class MannequinFigure {
           lowerRate = (speed / 1.6) * dirSign;
         }
     }
+    // an emote: the gun put away, the arms hanging from the legs' clip, and the pose on top (below)
+    const em = fx.emote && fx.emote.weight > 0.02 ? fx.emote : null;
+    if (em) armed = false;
     // the hands: a full-body clip takes them too; otherwise the gun's pose, or the arms' swing
     let upper = lower;
     let upperRate = lowerRate;
@@ -513,6 +519,42 @@ export class MannequinFigure {
     if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), -pitch * 0.45 + lean * 0.5);
     if (b.spine_03) turnBone(b.spine_03, fig, new THREE.Vector3(1, 0, 0), -pitch * 0.45 + lean * 0.5 - fx.kick * 0.1);
     if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), -fx.flinch * 0.25 + 0.1 * fx.ads);
+    // The emote, on top of everything: the arms raised and swung in figure
+    // space (+x is the figure's left, +z its front), the forearms bent at the
+    // elbow, the spine and the head turned, the hips swung. Each angle arrives
+    // eased, so the figure goes into it and comes out of it smoothly.
+    if (em) {
+      const X = new THREE.Vector3(1, 0, 0);
+      const Z = new THREE.Vector3(0, 0, 1);
+      if (b.pelvis) turnBone(b.pelvis, fig, Y, em.hipSway);
+      if (b.spine_02) {
+        turnBone(b.spine_02, fig, Y, em.spineTwist);
+        turnBone(b.spine_02, fig, X, em.spineLean);
+        turnBone(b.spine_02, fig, Z, -em.spineSide);
+      }
+      if (b.Head) {
+        turnBone(b.Head, fig, X, em.headNod);
+        turnBone(b.Head, fig, Z, -em.headTilt);
+      }
+      // the right arm hangs toward -x's side: raising it turns it about the front axis the negative way
+      if (b.upperarm_r) {
+        turnBone(b.upperarm_r, fig, Z, -em.rRaise);
+        turnBone(b.upperarm_r, fig, X, -em.rForward);
+      }
+      if (b.lowerarm_r) {
+        turnBone(b.lowerarm_r, fig, Z, -em.rElbow);
+        turnBone(b.lowerarm_r, fig, X, -em.rElbowF);
+      }
+      if (b.upperarm_l) {
+        turnBone(b.upperarm_l, fig, Z, em.lRaise);
+        turnBone(b.upperarm_l, fig, X, -em.lForward);
+      }
+      if (b.lowerarm_l) {
+        turnBone(b.lowerarm_l, fig, Z, em.lElbow);
+        turnBone(b.lowerarm_l, fig, X, -em.lElbowF);
+      }
+      this.root.position.y = em.bounce;
+    } else this.root.position.y = 0;
     const shown = !!this.gun && this.gun.visible;
     if (this.mount && this.grip) {
       // a long gun: lowered and canted across the body for a sprint or a swap, up at the shoulder otherwise
