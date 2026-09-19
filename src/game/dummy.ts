@@ -16,6 +16,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { displayGunModel } from "./gunmodels";
+import { MUZZLE, fitMuzzle, showFlash } from "./muzzle";
+import { ammoTypeOf } from "./ammo";
 import { OPERATORS, skinMaterials, type OperatorSkin } from "./operators";
 import { MannequinFigure, useMannequin } from "./mannequin";
 import { emoteAt, emotePose } from "./emotes";
@@ -554,7 +556,7 @@ export class Dummy {
       gun.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
       });
-      for (const child of [...gun.children]) if (child.name === "muzzleflash") gun.remove(child);
+      this.flashSprite = fitMuzzle(gun, ammoTypeOf(armed) === "energy");
       gun.rotation.y = Math.PI;
       gun.position.set(0.07, 1.33 - m.grip.u, 0.45 - m.grip.f);
       this.gun = gun;
@@ -772,7 +774,7 @@ export class Dummy {
     gun.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
     });
-    for (const child of [...gun.children]) if (child.name === "muzzleflash") gun.remove(child);
+    this.flashSprite = fitMuzzle(gun, ammoTypeOf(id) === "energy");
     gun.rotation.copy(old.rotation);
     // where the grip goes, in the arms' frame (the chest) for a rigged figure
     gun.position.set(0.07, 1.33 - m.grip.u, 0.45 - m.grip.f);
@@ -790,9 +792,23 @@ export class Dummy {
     this.mq?.setGunVisible(on);
   }
 
-  /** a shot: the gun kicks back into the shoulder */
+  /** a shot: the gun kicks back into the shoulder, and its muzzle flashes */
   kick(): void {
     this.kickAmt = 1;
+    this.flashLeft = MUZZLE.life;
+    this.flashSpin = Math.random() * Math.PI * 2;
+  }
+
+  /** the robot gun's muzzle flash (the mannequin's is its own), and how long it has left lit */
+  private flashSprite: THREE.Sprite | null = null;
+  private flashLeft = 0;
+  private flashSpin = 0;
+  /** frames drawn with a flash lit (the suite counts them: a flash lasts two) */
+  flashFrames = 0;
+
+  /** is a muzzle flash lit on this figure now (the suite reads it) */
+  get flashShown(): boolean {
+    return [this.flashSprite, this.mq?.flash ?? null].some((s) => !!s && s.visible);
   }
 
   /** a JOLT: a lean into the dash */
@@ -997,6 +1013,10 @@ export class Dummy {
     e.sprint += ((sprinting ? 1 : 0) - e.sprint) * k2;
     // the impulses fade: a kick in a tenth of a second, a flinch in a fifth, a JOLT's lean in a third
     this.kickAmt = Math.max(0, this.kickAmt - dt * 12);
+    // the flash: lit for its few hundredths of a second after a shot, on whichever gun is drawn
+    this.flashLeft = Math.max(0, this.flashLeft - dt);
+    for (const s of [this.flashSprite, this.mq?.flash ?? null]) if (s) showFlash(s, this.flashLeft > 0, this.flashSpin);
+    if (this.flashLeft > 0) this.flashFrames++;
     this.flinchAmt = Math.max(0, this.flinchAmt - dt * 5);
     this.joltAmt = Math.max(0, this.joltAmt - dt * 3);
     const flinch = this.flinchAmt;

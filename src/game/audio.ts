@@ -41,6 +41,8 @@ export class GameAudio {
   private master: GainNode | null = null;
   private fxBus: GainNode | null = null;
   private hitBus: GainNode | null = null;
+  /** your own gun: its own bus and compressor, joined after the master one (audio.json ownGun) */
+  private ownBus: GainNode | null = null;
   private reverbSend: GainNode | null = null;
   private white: AudioBuffer | null = null;
   private voices = 0;
@@ -123,6 +125,8 @@ export class GameAudio {
     this.master.gain.setTargetAtTime(0.5 * this.volumes.master, t, 0.02);
     this.fxBus.gain.setTargetAtTime(this.volumes.effects, t, 0.02);
     this.hitBus.gain.setTargetAtTime(this.volumes.hits, t, 0.02);
+    // your own gun skips the master gain (it joins after the master compressor), so the sliders reach it here
+    this.ownBus?.gain.setTargetAtTime(0.5 * this.volumes.master * this.volumes.effects, t, 0.02);
   }
 
   private ensure(): AudioContext | null {
@@ -143,6 +147,18 @@ export class GameAudio {
         this.fxBus.connect(this.master);
         this.hitBus = ctx.createGain();
         this.hitBus.connect(this.master);
+        // Your own gun on a bus of its own: through the master compressor
+        // every shot of yours pushed the enemy's footsteps down. Its own
+        // compressor keeps it in check and the master never sees it.
+        const own = ctx.createDynamicsCompressor();
+        own.threshold.value = cfg.ownGun.threshold;
+        own.knee.value = 6;
+        own.ratio.value = cfg.ownGun.ratio;
+        own.attack.value = 0.002;
+        own.release.value = 0.12;
+        own.connect(ctx.destination);
+        this.ownBus = ctx.createGain();
+        this.ownBus.connect(own);
         // the reverb: a convolver on a decaying stereo noise burst
         const rev = ctx.createConvolver();
         rev.buffer = this.impulse(ctx, cfg.reverb.seconds);
@@ -276,13 +292,13 @@ export class GameAudio {
    * distance past 25 m; from you (no `at`): straight to the bus. Null when it
    * is too far, or the voice cap is reached, or there is no audio.
    */
-  private voice(at: Vec | null, length: number, bus: "fx" | "hit" = "fx", priority = 1, reverb = 1): { input: AudioNode; t: number; dist: number } | null {
+  private voice(at: Vec | null, length: number, bus: "fx" | "hit" | "own" = "fx", priority = 1, reverb = 1, ref = cfg.distance.ref.default): { input: AudioNode; t: number; dist: number } | null {
     const ctx = this.ensure();
     if (!ctx || !this.fxBus || !this.hitBus || !this.reverbSend) return null;
     if (this.voices >= cfg.maxVoices && priority < 2) return null;
     const dist = at ? Math.hypot(at.x - this.lis.x, at.y - this.lis.y, at.z - this.lis.z) : 0;
     if (dist > cfg.maxDistance) return null;
-    const out = bus === "hit" ? this.hitBus : this.fxBus;
+    const out = bus === "hit" ? this.hitBus : bus === "own" && this.ownBus ? this.ownBus : this.fxBus;
     const input = ctx.createGain();
     let t = ctx.currentTime;
     if (at) {
@@ -306,7 +322,8 @@ export class GameAudio {
       const pan = ctx.createPanner();
       pan.panningModel = "HRTF";
       pan.distanceModel = "inverse";
-      pan.refDistance = 3;
+      // how far this kind of sound carries at full level (audio.json distance)
+      pan.refDistance = ref;
       pan.rolloffFactor = 1.1;
       pan.maxDistance = cfg.maxDistance;
       if (pan.positionX) {
@@ -387,12 +404,21 @@ export class GameAudio {
    */
   gun(id: string, at: Vec | null = null, level = 1): void {
     const k = cfg.classes[this.gunClass(id)];
-    const v = this.voice(at, k.tail + 0.2, "fx", at ? 1 : 2);
+    const D = cfg.distance;
+    const far0 = at ? Math.hypot(at.x - this.lis.x, at.y - this.lis.y, at.z - this.lis.z) : 0;
+    // a gun carries (ref 20 m, not a footstep's 3); your own on its own bus; far gunfire is dropped first
+    const v = at ? this.voice(at, k.tail + 0.6, "fx", far0 > D.gunLow ? 0 : 1, 1, D.ref.gun) : this.voice(null, k.tail + 0.2, "own", 2);
     if (!v) return;
     const L = k.level * level;
     const jitter = 0.94 + Math.random() * 0.12;
-    // the crack: a very short bright burst
-    this.noise(v.input, v.t, k.crack, "highpass", 3200 * jitter, 0.7, 0.55 * L, 0.0008);
+    const far = v.dist > D.farFrom;
+    // the crack: a very short bright burst (gone far off: the air takes it)
+    if (!far) this.noise(v.input, v.t, k.crack, "highpass", 3200 * jitter, 0.7, 0.55 * L, 0.0008);
+    // far off, the shot comes back off the land a moment later, low
+    if (far) {
+      const echo = D.farEcho[0] + Math.random() * (D.farEcho[1] - D.farEcho[0]);
+      this.noise(v.input, v.t + echo, k.tail * 0.8, "lowpass", D.farEchoHz, 0.6, 0.35 * L, 0.01, 180);
+    }
     // the body: a band of noise with the class's colour
     this.noise(v.input, v.t, k.thumpTime * 1.4, "bandpass", k.band * jitter, k.bandQ, 0.8 * L, 0.001);
     // the thump: a falling sine, felt more than heard
@@ -404,7 +430,7 @@ export class GameAudio {
 
   /** a grenade going off: a frag's deep boom, an arc star's crackling snap */
   blast(kind: "frag" | "arcstar", at: Vec): void {
-    const v = this.voice(at, 1.6, "fx", 2, 1.4);
+    const v = this.voice(at, 1.6, "fx", 2, 1.4, cfg.distance.ref.blast);
     if (!v) return;
     if (kind === "frag") {
       this.sample(v.input, v.t, "explosion", 0.9, 0.85);
@@ -458,6 +484,30 @@ export class GameAudio {
     if (!v) return;
     this.tone(v.input, v.t, 0.03, "square", 900, 900, 0.12);
     this.noise(v.input, v.t, 0.02, "highpass", 4000, 1, 0.1);
+  }
+
+  /**
+   * A kill confirmed: two quick rising notes over the knock's thump, pitched
+   * up by `semitones` for a streak, as Valorant's chime climbs with each kill.
+   */
+  eliminate(semitones = 0): void {
+    const v = this.voice(null, 0.5, "fx", 3, 0);
+    if (!v) return;
+    const k = Math.pow(2, semitones / 12);
+    this.tone(v.input, v.t, 0.09, "triangle", 880 * k, 1175 * k, 0.16);
+    this.tone(v.input, v.t + 0.08, 0.14, "triangle", 1175 * k, 1568 * k, 0.14);
+  }
+
+  /**
+   * The last rounds of a magazine: a short dry click under the shot that
+   * rises in pitch as the magazine empties (`k` 0 at the start of the warning
+   * to 1 on the last round), so you hear it running out without looking.
+   */
+  lowAmmo(k: number): void {
+    const v = this.voice(null, 0.1, "fx", 2, 0);
+    if (!v) return;
+    const f = 1500 + 1300 * Math.max(0, Math.min(1, k));
+    this.tone(v.input, v.t, 0.025, "square", f, f, 0.06);
   }
 
   /** a part of a reload: the magazine out, in, or the bolt */
@@ -558,7 +608,9 @@ export class GameAudio {
   /** a footstep: yours (no `at`) or someone's; quieter crouched, louder sprinting */
   footstep(surface: Surface, at: Vec | null = null, loud = 1): void {
     // (long enough for the recorded steps, the grass ones about 0.8 s)
-    const v = this.voice(at, 0.85, "fx", at ? 0 : 1, 0.3);
+    // someone else's step near you is never dropped for the voice cap: it is the information
+    const near = !!at && Math.hypot(at.x - this.lis.x, at.y - this.lis.y, at.z - this.lis.z) <= cfg.distance.stepsNear;
+    const v = this.voice(at, 0.85, "fx", at ? (near ? 2 : 0) : 1, 0.3);
     if (!v) return;
     const j = 0.9 + Math.random() * 0.2;
     // halved on the owner's ear (2026-09-15): steps were louder than the room
@@ -593,6 +645,24 @@ export class GameAudio {
     this.tone(v.input, v.t, 0.12 + 0.1 * k, "sine", 120, 45, 0.5 * k);
     this.noise(v.input, v.t, 0.08 + 0.06 * k, surface === "dirt" ? "lowpass" : "bandpass", surface === "metal" ? 2000 : 1100, 0.8, 0.35 * k);
     if (surface === "metal") this.tone(v.input, v.t, 0.25, "sine", 640, 620, 0.08 * k);
+  }
+
+  /**
+   * A round into the level: a dry crack off concrete, a dull thud into the
+   * ground, a short ring off metal. Quiet and short: a spray lands dozens.
+   */
+  impact(surface: "concrete" | "dirt" | "metal", at: Vec | null): void {
+    const v = this.voice(at, 0.2, "fx", 0, 0.3);
+    if (!v) return;
+    if (surface === "dirt") {
+      this.noise(v.input, v.t, 0.05, "lowpass", 700, 0.8, 0.18);
+      this.tone(v.input, v.t, 0.05, "sine", 160, 70, 0.12);
+    } else if (surface === "metal") {
+      this.noise(v.input, v.t, 0.02, "highpass", 3500, 1, 0.12);
+      this.tone(v.input, v.t, 0.15, "sine", 1850 + Math.random() * 400, 1800, 0.05);
+    } else {
+      this.noise(v.input, v.t, 0.03, "bandpass", 2500 + Math.random() * 600, 1.2, 0.2);
+    }
   }
 
   /** a melee landing: a punch */

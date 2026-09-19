@@ -20,6 +20,8 @@
 // spine turns back onto the aim, the spine bends to the look pitch, a shot
 // kicks, a hit flinches, a JOLT leans.
 import * as THREE from "three";
+import { fitMuzzle } from "./muzzle";
+import { ammoTypeOf } from "./ammo";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { displayGunModel } from "./gunmodels";
@@ -171,6 +173,8 @@ export class MannequinFigure {
     }
   }
   private gun: THREE.Object3D | null = null;
+  /** its gun's muzzle flash, lit by the figure on a shot */
+  flash: THREE.Sprite | null = null;
   private gunShown = true;
   private mats: THREE.MeshStandardMaterial[] = [];
   private joints: THREE.MeshStandardMaterial | null = null;
@@ -236,7 +240,8 @@ export class MannequinFigure {
     this.mount = null;
     const m = displayGunModel(id);
     const gun = m.root.clone(true);
-    for (const child of [...gun.children]) if (child.name === "muzzleflash") gun.remove(child);
+    // the model's own flash out, a marker with a flash sprite in its place (muzzle.ts)
+    this.flash = fitMuzzle(gun, ammoTypeOf(id) === "energy");
     gun.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
     });

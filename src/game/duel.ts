@@ -794,7 +794,8 @@ export class Duel implements MatchLike {
         {
           const by = m.by === this.id ? this.myName || "YOU" : m.by === -1 ? "THE RING" : (this.nameOf(m.by) ?? `PLAYER ${m.by + 1}`);
           const mine = m.by === this.id;
-          this.onFeed?.(`${by} knocked ${r.name}`, mine, !mine && this.mode !== "duel");
+          // a `down` is the end of them (a knock is a `dnd`): the feed says so
+          this.onFeed?.(`${by} eliminated ${r.name}`, mine, !mine && this.mode !== "duel");
           if (mine) this.kills++;
         }
         if (this.role === "host") {
@@ -1077,7 +1078,7 @@ export class Duel implements MatchLike {
     this.deaths++;
     this.onEliminated?.(from);
     const who = from === -1 ? "THE RING" : (this.nameOf(from) ?? "SOMEONE");
-    this.onFeed?.(how === "bled out" ? `${this.myName || "YOU"} bled out` : how === "finished" ? `${who} eliminated ${this.myName || "YOU"}` : `${who} knocked ${this.myName || "YOU"}`, false);
+    this.onFeed?.(how === "bled out" ? `${this.myName || "YOU"} bled out` : `${who} eliminated ${this.myName || "YOU"}`, false);
     this.broadcast({ t: "down", by: from, m: this.lastHitMelee ? 1 : undefined });
     this.noteDeath(this.id);
     if (this.role === "host" && this.mode === "duel") this.checkLastStanding(wallClock());

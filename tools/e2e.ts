@@ -386,6 +386,9 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   await ev(page, `window.__range.hitThrough(${ids[0]}, 500)`);
   const evo1 = await ev<number>(page, "window.__range.armor.evo");
   check("EVO: a knock earns 150 on top of the damage dealt", evo1 - evo0 >= 150 + 50, `${evo0} -> ${evo1}`);
+  // a bot's knock is its death: the kill marker (not a hit's), and the feed says eliminated
+  const kill = await ev<{ mark: string; feed: string[] }>(page, "({ mark: window.__range.hud.hitMarkerKindNow, feed: window.__range.hud.feedText })");
+  check("a kill confirms as one: the kill marker, and 'eliminated' in the feed", kill.mark === "kill" && kill.feed.some((t) => /eliminated BOT/.test(t)), JSON.stringify({ mark: kill.mark, feed: kill.feed.slice(0, 3) }));
   // a care package's loot: 100 once a package
   await ev(page, `window.__range.applyLoot({ kind: "heal", id: "cell", n: 1, rarity: "common", pod: 77 })`);
   await ev(page, `window.__range.applyLoot({ kind: "heal", id: "syringe", n: 1, rarity: "common", pod: 77 })`);
@@ -1386,7 +1389,7 @@ async function duelTest(browser: Browser, query: string, label: string, bases: [
   check(`${label}: a knock scores the round 1-0 for the host, on both screens`, true);
   const feedH = await ev<string[]>(host, "window.__range.hud.feedText");
   const feedG = await ev<string[]>(guest, "window.__range.hud.feedText");
-  check(`${label}: the kill feed says who knocked whom, on both screens`, feedH.some((t) => /knocked/.test(t)) && feedG.some((t) => /knocked/.test(t)), `host: ${feedH[0] ?? "-"} | guest: ${feedG[0] ?? "-"}`);
+  check(`${label}: the kill feed says who eliminated whom, on both screens`, feedH.some((t) => /eliminated/.test(t)) && feedG.some((t) => /eliminated/.test(t)), `host: ${feedH[0] ?? "-"} | guest: ${feedG[0] ?? "-"}`);
   // the host sees the guest's figure fall over (it used to stay standing)
   const fell = await host
     .waitForFunction("window.__range.duel().avatars[0].group.rotation.x < -1", { polling: 100, timeout: 2500 })
@@ -2244,6 +2247,22 @@ async function shotgunChecks(page: Page): Promise<void> {
   check("shotgun: the HUD sums the pull into one damage number", nums.length === 1 && nums[0].amount === dealt, JSON.stringify(nums));
   await ev(page, `window.__range.loadout.setWeaponId(0, "rspn101")`);
   await sleep(1600);
+  // a spray at one target: one number that grows, not one a round (hud.json
+  // damageNumbers); five hits on one target handed to the HUD, as main.ts does
+  const spray = await ev<Array<{ amount: number }>>(page, `(() => { const r = window.__range; const key = {}; const now = performance.now() / 1000;
+    const before = r.hud.damageNumbers.length;
+    for (let i = 0; i < 5; i++) r.hud.addDamage(new r.THREE.Vector3(0, 1.2, -10), 10, "#ff4a3d", false, now + i * 0.1, key);
+    return r.hud.damageNumbers.slice(before); })()`);
+  check("damage numbers: a spray at one target reads as one number that grows", spray.length === 1 && spray[0].amount === 50, JSON.stringify(spray));
+  // the low-ammo line: a quarter of the magazine left, then none
+  await ev(page, "(() => { const r = window.__range; r.loadout.active.state.clip = 3; })()");
+  await sleep(200);
+  const low = await ev<string | null>(page, "window.__range.hud.ammoWarningNow");
+  await ev(page, "(() => { const r = window.__range; r.loadout.active.state.clip = 0; })()");
+  await sleep(200);
+  const none = await ev<string | null>(page, "window.__range.hud.ammoWarningNow");
+  await ev(page, "(() => { const r = window.__range; r.loadout.active.state.clip = r.loadout.active.weapon.clipSize; })()");
+  check("the low-ammo line: LOW AMMO with a few rounds left, RELOAD with none", low === "LOW AMMO" && none === "RELOAD", JSON.stringify({ low, none }));
 }
 
 /** look straight at a point in the world (bullets leave the eye, so this is what the crosshair is on) */
@@ -2849,6 +2868,18 @@ async function emoteTest(browser: Browser, query: string, duelQuery: string): Pr
     return;
   }
   await sleep(1200);
+  // the host fires: the guest's figure of the host flashes at the muzzle, and the flash goes out
+  const f0 = await ev<number>(guest, "window.__range.duel().remotes.get(0)?.avatar.flashFrames ?? -1");
+  await ev(host, "(() => { const p = window.__range.player.eyePosition(); window.__range.duel().localShot(p, new window.__range.THREE.Vector3(0, 0, -1), 'rspn101'); })()");
+  const lit = await guest.waitForFunction(`(window.__range.duel().remotes.get(0)?.avatar.flashFrames ?? -1) > ${f0}`, { polling: 50, timeout: 3000 }).then(() => true, () => false);
+  await sleep(400);
+  const out = await ev<boolean>(guest, "!window.__range.duel().remotes.get(0)?.avatar.flashShown");
+  check("muzzle flash: the host fires and the guest's figure of the host flashes at the muzzle, then goes out", f0 >= 0 && lit && out, JSON.stringify({ f0, lit, out }));
+  // the host fires into the floor: where it lands is marked on the guest's screen too
+  const i0 = await ev<number>(guest, "window.__range.impacts()");
+  await ev(host, "(() => { const p = window.__range.player.eyePosition(); window.__range.duel().localShot(p, new window.__range.THREE.Vector3(0, -1, -1).normalize(), 'rspn101'); })()");
+  const marked = await guest.waitForFunction(`window.__range.impacts() > ${i0}`, { polling: 50, timeout: 3000 }).then(() => true, () => false);
+  check("impacts: another player's round into the floor is marked where it lands", marked, `${i0} before`);
   await ev(host, "window.__range.emote(0)");
   const seen = await guest.waitForFunction("window.__range.duel().remotes.get(0)?.avatar.emoting === 0", { polling: 100, timeout: 4000 }).then(() => true, () => false);
   await ev(host, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: (a) => a === "forward" })`);

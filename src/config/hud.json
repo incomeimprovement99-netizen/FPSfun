@@ -1,4 +1,14 @@
 {
+  "_impacts": "Bullet impacts on the level (src/game/impacts.ts). Ours: holes is how many hole decals stay on the map at once (the oldest goes first), each holeSize metres across and gone after holeLife seconds; a hit throws puffPer dust sprites (sparks off metal) from a pool of puffs, each living puffLife seconds; the sound carries hearing metres.",
+  "impacts": { "holes": 256, "holeSize": 0.07, "holeLife": 20, "puffs": 48, "puffPer": 4, "puffLife": 0.35, "hearing": 40 },
+  "_killMarker": "The knock and kill marker (hud.ts hitMarker). Ours, after Valorant's and Apex's: a knock is orange and a kill red, scale times the size of a hit's marker, held for hold seconds against a hit's 0.12; the chime under a kill climbs by chimeStep semitones for each kill within streak seconds of the last, up to chimeMax steps.",
+  "killMarker": { "scale": 1.5, "hold": 0.35, "streak": 8, "chimeStep": 2, "chimeMax": 5 },
+  "_lowAmmo": "The low-ammo warning. Ours, after Apex and Warzone: at warn of the magazine or less the count turns amber and LOW AMMO shows under the crosshair, at none it reads RELOAD in red; over the last click of the magazine each shot adds a dry click rising in pitch as it runs out. A magazine under minClip rounds (a sniper, a shotgun) is short by design and gets neither.",
+  "lowAmmo": { "warn": 0.25, "click": 0.2, "minClip": 5 },
+  "_damageNumbers": "Damage numbers. Ours, after Apex's default: every hit on the same target within stack seconds of the last adds to one number, which pops to 1.25 times its size and back over pop seconds as it grows; a spray used to draw one number a round, sixteen of them on top of each other.",
+  "damageNumbers": { "stack": 0.7, "pop": 0.08 },
+  "_muzzleFlash": "Other players' muzzle flashes (src/game/muzzle.ts). Ours: a flash lights for life seconds on each shot, two frames at 60 fps, as a player's own view model flash does; size is its width in metres up close, a little over a rifle's muzzle brake; minPx is the fewest pixels across it is ever drawn on screen, so a shot at 150 m is still a point of light and not nothing.",
+  "muzzleFlash": { "life": 0.035, "size": 0.35, "minPx": 6 },
   "_note": "The HUD's few gameplay numbers (ours). Plates: an enemy's name and bars show only after you have damaged them, for `afterHit` seconds from the last hit, and only while the line from your eye to their chest is clear of the level; a team mate's always. A plate is last drawn at `range` metres, fading from `fadeFrom`: the owner asked for them off far away as well as behind cover, so this is a room-and-a-half, not the width of the map.",
   "plates": {
     "afterHit": 6,

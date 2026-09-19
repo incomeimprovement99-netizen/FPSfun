@@ -24,6 +24,17 @@ import type { TrainerHud } from "./trainer";
 import type { ModeHud } from "./modematch";
 import type { TourHud } from "./tour";
 import hudCfg from "../config/hud.json";
+/** damage numbers: the window a spray at one target adds to one number, and the pop as it grows (hud.json) */
+const NUMBERS = hudCfg.damageNumbers;
+const LOW_AMMO = hudCfg.lowAmmo;
+const KILL_MARK = hudCfg.killMarker;
+
+/** the warning under the crosshair for a magazine: RELOAD when empty, LOW AMMO from the warn share down, or nothing */
+export function ammoWarning(clip: number, clipSize: number, reloading: boolean): "RELOAD" | "LOW AMMO" | null {
+  if (clipSize < LOW_AMMO.minClip || reloading) return null;
+  if (clip <= 0) return "RELOAD";
+  return clip <= Math.ceil(clipSize * LOW_AMMO.warn) ? "LOW AMMO" : null;
+}
 import lootCfg from "../config/loot.json";
 import { REACH } from "./brplay";
 import { drawIcon, loadIcons } from "./icons";
@@ -39,8 +50,12 @@ export interface DamageNumber {
   color: string;
   born: number;
   big: boolean;
-  /** what the text says, summed over a shot's pellets */
+  /** what the text says, summed over a shot's pellets, or over a spray at one target */
   amount: number;
+  /** the target it is for (a spray at it adds to this number), when the last hit added to it, and when it last grew */
+  key?: object;
+  last: number;
+  pop: number;
 }
 
 export interface CourseHud {
@@ -236,6 +251,7 @@ export class Hud {
   private numbers: DamageNumber[] = [];
   private hitMarkerUntil = 0;
   private hitMarkerHead = false;
+  private hitMarkerKind: "hit" | "knock" | "kill" = "hit";
   private noticeText = "";
   private noticeUntil = 0;
   /** the kill feed, top right, newest first */
@@ -271,24 +287,39 @@ export class Hud {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  addDamage(world: THREE.Vector3, amount: number, color: string, big: boolean, now: number): void {
-    // one trigger pull's pellets read as one number, as the game's do: five
-    // 19s on top of each other looked like a single pellet
+  addDamage(world: THREE.Vector3, amount: number, color: string, big: boolean, now: number, key?: object): void {
+    const grow = (n: DamageNumber): void => {
+      n.amount += amount;
+      n.text = String(n.amount);
+      n.world = world;
+      n.last = now;
+      n.pop = now;
+      n.color = color;
+      if (big) n.big = true;
+    };
+    // A spray at one target reads as one number that grows, as Apex's do by
+    // default: every hit on the same target within the stack window adds to
+    // it. Without a target, one trigger pull's pellets still read as one: five
+    // 19s on top of each other looked like a single pellet.
     for (let i = this.numbers.length - 1; i >= 0; i--) {
       const n = this.numbers[i];
-      if (now - n.born > 0.05) break;
-      if (n.world.distanceTo(world) < 1.5) {
-        n.amount += amount;
-        n.text = String(n.amount);
-        if (big && !n.big) {
-          n.big = true;
-          n.color = color;
-        }
+      if (key ? n.key === key && now - n.last < NUMBERS.stack : now - n.born <= 0.05 && n.world.distanceTo(world) < 1.5) {
+        grow(n);
         return;
       }
+      if (!key && now - n.born > 0.05) break;
     }
-    this.numbers.push({ world, text: String(amount), color, born: now, big, amount });
+    this.numbers.push({ world, text: String(amount), color, born: now, big, amount, key, last: now, pop: now });
     if (this.numbers.length > 40) this.numbers.shift();
+  }
+
+  /** the low-ammo line under the crosshair last frame drawn */
+  lastAmmoWarning: "RELOAD" | "LOW AMMO" | null = null;
+
+  /** the low-ammo line for the last state handed in, drawn or not (tools/e2e.ts) */
+  get ammoWarningNow(): "RELOAD" | "LOW AMMO" | null {
+    const s = this.last;
+    return !s || s.unarmed || s.holstered ? null : ammoWarning(s.clip, s.clipSize, s.reloading);
   }
 
   /** the damage numbers up now, newest last (tools/e2e.ts) */
@@ -296,9 +327,20 @@ export class Hud {
     return this.numbers.map((n) => ({ amount: n.amount, text: n.text, big: n.big }));
   }
 
-  hitMarker(now: number, head: boolean): void {
-    this.hitMarkerUntil = now + 0.12;
+  /**
+   * The hit marker. A knock and a kill get their own, bigger, red and held
+   * longer: one white flicker for every hit left a kill unconfirmed, and in a
+   * spray you could not tell the round that finished them.
+   */
+  hitMarker(now: number, head: boolean, kind: "hit" | "knock" | "kill" = "hit"): void {
+    this.hitMarkerUntil = now + (kind === "hit" ? 0.12 : KILL_MARK.hold);
     this.hitMarkerHead = head;
+    this.hitMarkerKind = kind;
+  }
+
+  /** the last hit marker's kind (tools/e2e.ts) */
+  get hitMarkerKindNow(): "hit" | "knock" | "kill" {
+    return this.hitMarkerKind;
   }
 
   /**
@@ -355,6 +397,9 @@ export class Hud {
     this.drawHurt(now);
     this.drawDamageNumbers(now, camera, u);
     this.drawCrosshair(now, s, u);
+    // LOW AMMO / RELOAD under the crosshair, where the eyes are in a fight
+    this.lastAmmoWarning = s.unarmed || s.holstered ? null : ammoWarning(s.clip, s.clipSize, s.reloading);
+    if (this.lastAmmoWarning) this.text(this.lastAmmoWarning, this.w / 2, this.h / 2 + 64 * u, 700, 15 * u, this.lastAmmoWarning === "RELOAD" ? RED : "#ffb13d", "center");
     this.drawDamageDirs(s, u);
     this.drawMatchCard(s, u);
     this.drawQuickChat(s, u);
@@ -1204,7 +1249,8 @@ export class Hud {
     const v = new THREE.Vector3();
     for (let i = this.numbers.length - 1; i >= 0; i--) {
       const n = this.numbers[i];
-      const age = now - n.born;
+      // it rises and fades from its last hit, so a number still growing stays up
+      const age = now - n.last;
       if (age > 0.9) {
         this.numbers.splice(i, 1);
         continue;
@@ -1214,7 +1260,9 @@ export class Hud {
       const x = (v.x * 0.5 + 0.5) * this.w;
       const y = (-v.y * 0.5 + 0.5) * this.h - age * 60 * u - 14 * u;
       c.globalAlpha = age < 0.6 ? 1 : 1 - (age - 0.6) / 0.3;
-      c.font = this.font(700, (n.big ? 30 : 24) * u);
+      // a pop as it grows: 1.25 times, back to its size over the pop time
+      const pop = 1 + 0.25 * Math.max(0, 1 - (now - n.pop) / NUMBERS.pop);
+      c.font = this.font(700, (n.big ? 30 : 24) * pop * u);
       c.textAlign = "center";
       c.lineWidth = 4 * u;
       c.strokeStyle = "rgba(0,0,0,0.8)";
@@ -1376,9 +1424,11 @@ export class Hud {
       c.lineWidth = 2;
     }
     if (now < this.hitMarkerUntil) {
-      c.strokeStyle = this.hitMarkerHead ? "rgba(255,210,60,0.95)" : "rgba(255,255,255,0.9)";
+      const big = this.hitMarkerKind !== "hit";
+      c.strokeStyle = big ? (this.hitMarkerKind === "kill" ? "rgba(255,60,50,0.98)" : "rgba(255,140,60,0.98)") : this.hitMarkerHead ? "rgba(255,210,60,0.95)" : "rgba(255,255,255,0.9)";
+      if (big) c.lineWidth = 3;
       const r0 = gap + 4;
-      const r1 = r0 + 8 * u + 2;
+      const r1 = r0 + (8 * u + 2) * (big ? KILL_MARK.scale : 1);
       for (const [dx, dy] of [
         [1, 1],
         [-1, 1],
@@ -2289,7 +2339,8 @@ export class Hud {
     if (s.unarmed) {
       this.text("—", right - 70 * u, bottom - 10 * u, 700, 58 * u, DIM, "right");
     }
-    const clipColor = s.clip === 0 ? RED : s.swapping || s.holstered ? DIM : WHITE;
+    const warn = s.unarmed ? null : ammoWarning(s.clip, s.clipSize, s.reloading);
+    const clipColor = s.clip === 0 ? RED : s.swapping || s.holstered ? DIM : warn ? "#ffb13d" : WHITE;
     if (!s.unarmed) {
       this.text(`${s.clip}`, right - 70 * u, bottom - 10 * u, 700, 58 * u, clipColor, "right");
       this.text(`/ ${s.clipSize}`, right, bottom - 18 * u, 700, 22 * u, DIM, "right");

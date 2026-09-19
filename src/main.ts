@@ -86,6 +86,8 @@ import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReti
 import { Progress, levelFor, type Award } from "./game/progress";
 import { HUD_SCALES, P, VISION_MODES, access, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
 import { LoadingScreen } from "./ui/loading";
+import { setMuzzleViewer } from "./game/muzzle";
+import { ImpactLayer, IMPACTS } from "./game/impacts";
 import { EMOTES, EMOTE_STOP } from "./game/emotes";
 import emotesCfg from "./config/emotes.json";
 
@@ -887,6 +889,15 @@ const abilities = new Abilities();
 abilities.enabled = true; // the range lets you practise either
 /** short-lived world effects: JOLT streaks (fx.ts) */
 const fx = new FxLayer(scene);
+// bullet holes and dust where rounds hit the level, anyone's (impacts.ts)
+const impacts = new ImpactLayer(scene);
+/** a round into the level: marked, and heard close by (the ground in the battle royale is dirt) */
+function markImpact(at: THREE.Vector3, normal: THREE.Vector3): void {
+  impacts.add(at, normal, gameTime);
+  if (at.distanceTo(player.pos) > IMPACTS.hearing) return;
+  const ground = normal.y > 0.9 && at.y < 0.6;
+  audio.impact(ground && at.z > 280 ? "dirt" : "concrete", at);
+}
 /**
  * ?norender: run the simulation and the network without drawing. Only for the
  * end-to-end test, which runs two pages at once on a software renderer.
@@ -931,6 +942,7 @@ const projectiles = new ProjectileSystem(scene, [...rangeTargets], targets, 0);
 const aimAssist = new AimAssist();
 projectiles.listener = camera.position;
 projectiles.onWhiz = (p) => audio.whiz(p);
+projectiles.onVisualImpact = (at, normal) => markImpact(at, normal);
 
 // ---------- the range's tooling (rangetools.ts, trainer.ts) ----------
 const dummyBehaviour = new DummyBehaviour(dummies);
@@ -2718,6 +2730,8 @@ function endMatch(reason: string): void {
   const wasGunRun = duel instanceof ArenaMode && duel.modeKind === "gunrun";
   duel?.dispose();
   duel = null;
+  // the match's bullet holes go with it
+  impacts.clear();
   // back in the range: either ability to practise, nothing picked; ammo as Settings says
   abilities.reset(true);
   loadout.ammo.infinite = !rangeAmmoCounted;
@@ -3279,6 +3293,9 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, show:
  * first few), so the console and the tests still see it.
  */
 let frameErrors = 0;
+/** kills in a row (each within the streak window of the last): the chime climbs with them */
+let killStreak = 0;
+let lastKillAt = -Infinity;
 /** frames run since the page opened (the suite counts them while the tab is hidden) */
 let framesRun = 0;
 function frame(): void {
@@ -3959,6 +3976,13 @@ function step(): void {
     hardYaw += s.kick.permYawLeft;
     viewModel.onShot();
     audio.gun(weapon.id);
+    // the last rounds: a click that climbs as the magazine runs out (hud.json lowAmmo)
+    {
+      const left = loadout.active.state.clip;
+      const size = weapon.clipSize;
+      const from = Math.ceil(size * hudCfg.lowAmmo.click);
+      if (size >= hudCfg.lowAmmo.minClip && left <= from) audio.lowAmmo(1 - left / Math.max(1, from));
+    }
     input.pad.rumble(0.15, 0.35, 40);
   }
   if (shots.length) {
@@ -3975,6 +3999,11 @@ function step(): void {
     // marker, no damage and no spray-wall dot
     if (e.shootable) {
       hud.hitMarker(now, false);
+      return;
+    }
+    // a round into the level in a match: a hole, dust and its sound
+    if (duel && !e.dummy && !e.target && e.normal && e.weapon !== "melee") {
+      markImpact(e.point, e.normal);
       return;
     }
     // a round into the spray wall (the range only)
@@ -4002,7 +4031,7 @@ function step(): void {
       stats.hits++;
       stats.damage += e.damage;
       if (e.targetHead) stats.headshots++;
-      hud.addDamage(e.point, e.damage, e.targetHead ? "#ffd23c" : "#9fe0ff", e.targetHead, now);
+      hud.addDamage(e.point, e.damage, e.targetHead ? "#ffd23c" : "#9fe0ff", e.targetHead, now, e.target);
       hud.hitMarker(now, e.targetHead);
       audio.hitTier(e.targetHead ? "head" : "white");
       return;
@@ -4029,10 +4058,19 @@ function step(): void {
       if (r.headshot) stats.headshots++;
       const color = onShield ? `#${ARMOR_COLOR[2].toString(16).padStart(6, "0")}` : "#ff4a3d";
       const knock = wasAlive && remote.health <= 0;
-      hud.addDamage(r.point, r.amount, r.headshot ? "#ffd23c" : color, r.headshot || knock, now);
-      hud.hitMarker(now, r.headshot);
+      hud.addDamage(r.point, r.amount, r.headshot ? "#ffd23c" : color, r.headshot || knock, now, remote);
+      // A bot's knock is its death, and so is a human's once the hit left
+      // them out (solo, a 1v1): that is a kill, marked and heard as one. A
+      // knock a squad mate can still revive is a knock.
+      const kill = knock && (remote.id >= Duel.BOT_ID || !remote.alive || !(duel instanceof BrMatch) || duel.team.size === 1);
+      hud.hitMarker(now, r.headshot, kill ? "kill" : knock ? "knock" : "hit");
+      if (kill) {
+        killStreak = gameTime - lastKillAt <= hudCfg.killMarker.streak ? killStreak + 1 : 0;
+        lastKillAt = gameTime;
+        audio.eliminate(Math.min(killStreak, hudCfg.killMarker.chimeMax) * hudCfg.killMarker.chimeStep);
+      }
       if (knock) {
-        hud.notice("KNOCKED DOWN", now, 0.8);
+        hud.notice(kill ? "ELIMINATED" : "KNOCKED DOWN", now, 0.8);
         stats.knocks++;
         audio.knock();
         if (e.dummy) audio.bodyFall(e.dummy.group.position);
@@ -4057,8 +4095,8 @@ function step(): void {
     const firstHit = e.dummy.engagedAt === null;
     if (firstHit) e.dummy.engagedAt = now;
     const color = r.toShield > 0 ? `#${ARMOR_COLOR[e.dummy.tier].toString(16).padStart(6, "0")}` : "#ff4a3d";
-    hud.addDamage(r.point, r.amount, r.headshot ? "#ffd23c" : color, r.headshot || r.knocked, now);
-    hud.hitMarker(now, r.headshot);
+    hud.addDamage(r.point, r.amount, r.headshot ? "#ffd23c" : color, r.headshot || r.knocked, now, e.dummy);
+    hud.hitMarker(now, r.headshot, r.knocked ? "knock" : "hit");
     if (r.knocked) {
       hud.notice("KNOCKED DOWN", now, 0.8);
       stats.knocks++;
@@ -4138,6 +4176,7 @@ function step(): void {
   drill.target.update(now, dt);
   for (const d of galleryFigs) d.update(now, dt);
   fx.update(now);
+  impacts.update(gameTime, dt);
   // the menu stops a run's clock (a minute on the Settings tab was a minute
   // on the time); a test script drives the course without the menu
   if (!duel) {
@@ -4298,6 +4337,8 @@ function step(): void {
     }
   }
   renderer.info.reset();
+  // the other players' muzzle flashes size themselves to this view (muzzle.ts)
+  setMuzzleViewer(camera, renderer.domElement.clientHeight || window.innerHeight);
   if (!NO_RENDER && !document.hidden) pipeline.render(now);
   frameCost = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
   for (const o of hiddenForReplay) o.visible = true;
@@ -4747,6 +4788,13 @@ initWelcome();
   drawCalls: () => frameCost.calls,
   /** frames run since the page opened */
   frames: () => framesRun,
+  /** bullet impacts marked on the level since the page opened */
+  impacts: () => impacts.count,
+  /** a round from the gun in hand along a direction, through the bullets' own path (tools/snap.ts) */
+  fireRound: (dir: [number, number, number]) => {
+    const w = loadout.active.weapon;
+    projectiles.fire(player.eyePosition(), new THREE.Vector3(...dir).normalize(), w, false);
+  },
   /** the last frame's draw calls and triangles over every pass (tools/bench.ts) */
   frameCost: () => ({ ...frameCost }),
   /** a solo battle royale on a given seed and place, so the benchmark measures the same match every run */

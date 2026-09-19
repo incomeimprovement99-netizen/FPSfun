@@ -396,6 +396,16 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-impacts",
+    note: "a burst into the hub's north berm: bullet holes on its face, the dust off it",
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [untilFightLong, 400],
+      [`(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("jolt"); r.input.locked = true; r.player.teleport(24, 0, 500 - 36, 0, 6);
+        for (let i = 0; i < 14; i++) setTimeout(() => r.fireRound([(Math.random() - 0.5) * 0.12, 0.02 + (Math.random() - 0.5) * 0.1, -1]), i * 30); })()`, 520],
+    ],
+  },
+  {
     name: "br-loot",
     note: "a battle royale with nothing: fists, the floor's items (a gun, a purple beam, heals, ammo), the TAKE prompt",
     steps: [

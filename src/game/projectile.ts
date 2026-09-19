@@ -13,18 +13,28 @@ import { RANGE_SOLIDS } from "./range";
  * but in the course it let you shoot the next room's dummies before you got
  * there.
  */
+/**
+ * The face the last solidHit() entered through, as a unit normal: the axis
+ * whose slab it crossed last, facing back along the ray. A box's faces are
+ * axis-aligned, so this is the face's own normal, for nothing: an impact's
+ * hole and dust sit flat on the wall it hit.
+ */
+export const lastSolidNormal = new THREE.Vector3(0, 1, 0);
+
 export function solidHit(p0: THREE.Vector3, dir: THREE.Vector3, len: number): number {
   let best = Infinity;
   for (const s of RANGE_SOLIDS) {
     let t0 = 0;
     let t1 = len;
+    let axis = -1;
     const axes: Array<[number, number, number, number]> = [
       [p0.x, dir.x, s.minX, s.maxX],
       [p0.y, dir.y, s.base, s.top],
       [p0.z, dir.z, s.minZ, s.maxZ],
     ];
     let miss = false;
-    for (const [o, d, lo, hi] of axes) {
+    for (let k = 0; k < 3; k++) {
+      const [o, d, lo, hi] = axes[k];
       if (Math.abs(d) < 1e-9) {
         if (o < lo || o > hi) {
           miss = true;
@@ -35,14 +45,22 @@ export function solidHit(p0: THREE.Vector3, dir: THREE.Vector3, len: number): nu
       let a = (lo - o) / d;
       let b = (hi - o) / d;
       if (a > b) [a, b] = [b, a];
-      t0 = Math.max(t0, a);
+      if (a > t0) {
+        t0 = a;
+        axis = k;
+      }
       t1 = Math.min(t1, b);
       if (t0 > t1) {
         miss = true;
         break;
       }
     }
-    if (!miss && t0 < best) best = t0;
+    if (!miss && t0 < best) {
+      best = t0;
+      lastSolidNormal.set(0, 0, 0);
+      if (axis >= 0) lastSolidNormal.setComponent(axis, -Math.sign(axes[axis][1]) || 1);
+      else lastSolidNormal.set(0, 1, 0);
+    }
   }
   return best;
 }
@@ -75,6 +93,8 @@ export interface ImpactEvent {
   weapon: string;
   /** it landed on something shootable that took it (the README screen's arrows) */
   shootable?: boolean;
+  /** a round into the level: the face it hit (a wall's, or the ground's) */
+  normal?: THREE.Vector3;
 }
 
 /**
@@ -126,6 +146,8 @@ export class ProjectileSystem {
   /** where your ears are: someone else's round passing within 2.5 m cracks past you (onWhiz) */
   listener: THREE.Vector3 | null = null;
   onWhiz: ((at: THREE.Vector3) => void) | null = null;
+  /** someone else's round stopped against the level (where, the face, the gun): the page marks it */
+  onVisualImpact: ((at: THREE.Vector3, normal: THREE.Vector3, weapon: string) => void) | null = null;
 
   /** add something bullets can hit after construction (the 1v1 opponent) */
   addDummy(d: Dummy): void {
@@ -231,6 +253,7 @@ export class ProjectileSystem {
         const len = seg.length();
         const unit = len > 0 ? seg.clone().divideScalar(len) : seg.clone();
         const wallAt = len > 0 ? solidHit(prev, unit, len) : Infinity;
+        const wallNormal = wallAt < Infinity ? lastSolidNormal.clone() : null;
         if (b.visual && !b.whizzed && this.listener && len > 0 && b.origin.distanceToSquared(this.listener) > 9) {
           // the closest this step comes to the listener
           const L = this.listener;
@@ -245,6 +268,9 @@ export class ProjectileSystem {
         }
         if (b.visual) {
           // someone else's shot: it only needs to stop where it would
+          // and it marks where it stopped, as a round of your own does
+          if (wallAt < Infinity) this.onVisualImpact?.(prev.clone().addScaledVector(unit, wallAt), wallNormal!, b.weapon.id);
+          else if (b.pos.y <= this.floorY) this.onVisualImpact?.(b.pos.clone(), new THREE.Vector3(0, 1, 0), b.weapon.id);
           if (wallAt < Infinity || b.pos.y <= this.floorY || b.age > b.weapon.projectile.lifetime) dead = true;
           continue;
         }
@@ -291,14 +317,14 @@ export class ProjectileSystem {
         if (wallAt < Infinity) {
           // stopped by a wall: report it as a miss where it landed
           const at = prev.clone().addScaledVector(unit, wallAt);
-          onImpact({ dummy: null, report: null, target: null, targetHead: false, damage: 0, point: at, distance: at.distanceTo(b.origin), weapon: b.weapon.id });
+          onImpact({ dummy: null, report: null, target: null, targetHead: false, damage: 0, point: at, distance: at.distanceTo(b.origin), weapon: b.weapon.id, normal: wallNormal ?? undefined });
           dead = true;
           break;
         }
         if (b.pos.y <= this.floorY) {
           onImpact({
             dummy: null, report: null, target: null, targetHead: false, damage: 0,
-            point: b.pos.clone(), distance: b.pos.distanceTo(b.origin), weapon: b.weapon.id,
+            point: b.pos.clone(), distance: b.pos.distanceTo(b.origin), weapon: b.weapon.id, normal: new THREE.Vector3(0, 1, 0),
           });
           dead = true;
         } else if (b.age > b.weapon.projectile.lifetime) dead = true;

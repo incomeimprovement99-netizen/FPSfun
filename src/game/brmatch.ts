@@ -1190,12 +1190,16 @@ export class BrMatch extends Duel {
       this.dropBox(deathBoxOf(kit.gunId ? kit : null, armed ? r.avatarWeapon : null), b.bot.pos.clone());
     }
     const who = by === -1 ? "THE RING" : by === this.id ? this.myName || "YOU" : (this.remotes.get(by)?.name ?? this.bots.find((x) => x.bot.remote.id === by)?.bot.remote.name ?? "SOMEONE");
-    this.onFeed?.(`${who} knocked ${r.name}`, mine, !mine);
+    // a bot's knock is its death: the feed says eliminated
+    this.onFeed?.(`${who} eliminated ${r.name}`, mine, !mine);
     for (const o of this.bots) o.bot.forget(r.id);
     this.broadcast({ t: "down", from: r.id, by });
     this.onKnockSeen?.(r.id, by);
     const left = this.aliveCount;
-    this.onNotice?.(mine ? `${r.name} DOWN  ·  ${left} LEFT` : `${left} LEFT`);
+    // the last of a bot squad: the squad is wiped (duos and trios; in solo every death is one)
+    const wiped = this.team.size > 1 && !this.bots.some((o) => o.team === b.team && o.bot.alive);
+    if (wiped) this.onNotice?.(`SQUAD WIPED  ·  ${this.squadsAlive} SQUADS LEFT`);
+    else this.onNotice?.(mine ? `${r.name} DOWN  ·  ${left} LEFT` : `${left} LEFT`);
     if (this.rules === "resurgence") {
       // it comes back if its squad has someone up (a bot on its own always does, while the rules are on)
       const up = this.bots.filter((o) => o.team === b.team && o.bot.alive).length;

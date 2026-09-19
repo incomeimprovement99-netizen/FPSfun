@@ -1,4 +1,8 @@
 {
+  "_distance": "How far each kind of sound carries (src/game/audio.ts voice()). Ours, after Apex's mix: every voice used one curve (level halving by 3 m), so a gun at 100 m was 31 dB down and a fight across the map was silent, while footsteps are meant to fade fast. ref is the distance in metres a kind is heard at full level; a gun at 20 m is 14 dB down at 100 m and 23 at 300. Past farFrom metres a gunshot loses its crack and gains an echo farEcho seconds later (the first to the last of the range), low-passed at farEchoHz. Footsteps within stepsNear metres are never dropped for the voice cap; gunfire past gunLow is dropped first.",
+  "distance": { "ref": { "default": 3, "gun": 20, "blast": 25 }, "farFrom": 80, "farEcho": [0.18, 0.35], "farEchoHz": 700, "stepsNear": 20, "gunLow": 150 },
+  "_ownGun": "Your own gun goes to a bus of its own with its own compressor (threshold dB, ratio), joined after the master one: through the one master compressor every shot of yours pushed enemy footsteps down.",
+  "ownGun": { "threshold": -18, "ratio": 6 },
   "_note": "All sound is synthesised (Web Audio), none recorded or copied. These are ours: how each class of gun is voiced, how sound fades with distance, the footstep cadence. Distances in metres; frequencies in Hz; times in seconds.",
   "speedOfSound": 343,
   "delayFrom": 25,
