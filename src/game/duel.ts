@@ -161,8 +161,8 @@ export interface Remote {
   samples: Sample[];
   /** the sender's clock against ours: its unwrapped time, and the smallest gap seen between the two (placeByClock) */
   clock?: { last: number; sent: number; gap: number; heard: number };
-  /** the jitter buffer: the worst recent lateness of their states, the usual gap between two, and the delay the figure is drawn at */
-  buffer?: { late: number; spacing: number; delay: number };
+  /** the jitter buffer: the worst recent wait from one state's time to the next one's arrival, and the delay the figure is drawn at */
+  buffer?: { need: number; delay: number };
   health: number;
   shield: number;
   /** their armour's size (a battle royale's shield core), from their state packets */
@@ -802,7 +802,7 @@ export class Duel implements MatchLike {
         const held = this.batch?.get(to);
         if (this.batch && held) held.push(part);
         else if (this.batch) this.batch.set(to, [part]);
-        else link.send({ t: "sd", p: [part] });
+        else (link.sendFast ?? link.send).call(link, { t: "sd", p: [part] });
       } else {
         full ??= this.fullPacket(m, subject);
         link.send(full);
@@ -822,7 +822,7 @@ export class Duel implements MatchLike {
     if (!batch?.size) return;
     for (const [to, link] of this.stateTargets()) {
       const parts = batch.get(to);
-      if (parts?.length) link.send({ t: "sd", p: parts });
+      if (parts?.length) (link.sendFast ?? link.send).call(link, { t: "sd", p: parts });
     }
   }
 
@@ -990,7 +990,8 @@ export class Duel implements MatchLike {
       for (const got of this.sync.decode(m, via)) this.applyState(stateMsg(got.state), got.from, now);
       // what we applied, and anything we are stuck on, back to the sender
       const ack = this.sync.ackFor(via, now);
-      if (ack) this.linkFor(via)?.send(ack);
+      const back = this.linkFor(via);
+      if (ack && back) (back.sendFast ?? back.send).call(back, ack);
       return;
     }
     // A peer's own full packet says whether it reads the delta packets (an
@@ -1029,17 +1030,18 @@ export class Duel implements MatchLike {
   }
 
   /**
-   * The jitter buffer: how late this state arrived against when it was made,
-   * and the gap since the last one. The figure is drawn far enough behind to
-   * have a state on each side of the moment it shows, so it never stalls
-   * waiting for the next one to come in.
+   * The jitter buffer. As a state arrives, how long it has been since the
+   * time of the one before it: a figure drawn less far behind than that ran
+   * out of states before this one came, and stood still. The worst of that
+   * lately is how far behind the figure is drawn, so it never does.
    */
-  private noteLateness(r: Remote, at: number, now: number): void {
+  private noteLateness(r: Remote, _at: number, now: number): void {
     const B = netCfg.buffer;
-    const b = (r.buffer ??= { late: 0, spacing: 1 / SEND_HZ, delay: INTERP_DELAY });
+    const b = (r.buffer ??= { need: 0, delay: INTERP_DELAY });
     const prev = r.samples[r.samples.length - 1];
-    if (prev && at > prev.at && at - prev.at < 0.5) b.spacing += (at - prev.at - b.spacing) * 0.1;
-    b.late = Math.max(now - at, b.late * B.keep);
+    // a gap of seconds is a player who stopped sending (standing still between keyframes), not a late state
+    if (prev && now - prev.at < B.max * 2) b.need = Math.max(now - prev.at, b.need * B.keep);
+    else b.need *= B.keep;
   }
 
   /** one player's state: their figure moves and shows what they are doing, and the host passes it on */
@@ -1650,8 +1652,8 @@ export class Duel implements MatchLike {
     const buf = r.buffer;
     let delay = INTERP_DELAY;
     if (buf) {
-      const want = Math.max(B.min, Math.min(B.max, buf.late + buf.spacing + 0.01));
-      buf.delay += (want - buf.delay) * Math.min(1, dt * B.ease);
+      const want = Math.max(B.min, Math.min(B.max, buf.need + 0.01));
+      buf.delay += (want - buf.delay) * Math.min(1, dt * (want > buf.delay ? B.grow : B.shrink));
       delay = buf.delay;
     }
     const t = now - delay;
@@ -1664,10 +1666,15 @@ export class Duel implements MatchLike {
         break;
       }
     }
+    // past the newest state (lost ones, a late one): along the last two a little way rather than a freeze
+    const past = s.length > 1 && t > b.at;
+    if (past) a = s[s.length - 2];
     const span = b.at - a.at;
     const k = span > 1e-6 ? Math.max(0, Math.min(1, (t - a.at) / span)) : 1;
+    const ahead = past && span > 1e-6 && span < 0.5 ? Math.min(t - b.at, B.extrapolate) / span : 0;
     const g = r.avatar.group;
-    g.position.set(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, a.z + (b.z - a.z) * k);
+    const kp = k + ahead;
+    g.position.set(a.x + (b.x - a.x) * kp, a.y + (b.y - a.y) * kp, a.z + (b.z - a.z) * kp);
     let dy = b.yaw - a.yaw;
     dy = ((((dy + 180) % 360) + 360) % 360) - 180;
     // the figure faces +z; a player at yaw 0 looks down -z

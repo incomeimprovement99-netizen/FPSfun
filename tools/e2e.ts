@@ -944,7 +944,7 @@ async function friendsModesTest(browser: Browser, query: string): Promise<void> 
  * message, the guest running a steady circle, and the host measuring how even
  * the guest's figure's speed is from frame to frame, placed each way.
  */
-async function jitterTest(browser: Browser, query: string): Promise<void> {
+async function jitterTest(browser: Browser, query: string, lossy = false): Promise<void> {
   const host = await open(browser, query);
   const guest = await open(browser, query);
   await ev(host, `(() => { document.getElementById("duelMode").value = "arena"; document.getElementById("duelPlayers").value = "2"; document.getElementById("duelHost").click(); })()`);
@@ -970,11 +970,16 @@ async function jitterTest(browser: Browser, query: string): Promise<void> {
   await ev(host, "window.__range.duel().senderClock = false");
   await sleep(800);
   const byArrival = await ev<{ frames: number; mean: number; spread: number }>(host, measure);
-  check(
-    "jitter: placed by when its states were sent, a friend running at one speed moves at one speed through 60 ms of jitter (and far more evenly than placed by arrival)",
-    bySent.frames > 60 && bySent.mean > 3 && bySent.spread < 0.25 && bySent.spread < byArrival.spread * 0.6,
-    JSON.stringify({ bySent, byArrival })
-  );
+  if (lossy) {
+    // a sixth of the state packets lost and the rest out of order: the figure still runs as the player did
+    const fast = await ev<{ sent: number; got: number } | null>(guest, "window.__range.duel()?.linkFor(0)?.fastStats?.() ?? null");
+    check("loss: with 15% of the state packets lost and the rest out of order, a friend running at one speed still moves at one speed", bySent.frames > 60 && bySent.mean > 3 && bySent.spread < 0.3, JSON.stringify({ bySent, fast }));
+  } else
+    check(
+      "jitter: placed by when its states were sent, a friend running at one speed moves at one speed through 60 ms of jitter (and far more evenly than placed by arrival)",
+      bySent.frames > 60 && bySent.mean > 3 && bySent.spread < 0.25 && bySent.spread < byArrival.spread * 0.6,
+      JSON.stringify({ bySent, byArrival })
+    );
   await host.close();
   await guest.close();
 }
@@ -1517,6 +1522,11 @@ async function duelTest(browser: Browser, query: string, label: string, bases: [
   // never switched and was never sent one.
   const nets = [await ev<NetSeen | null>(host, NET_PROBE(1)), await ev<NetSeen | null>(guest, NET_PROBE(0))];
   check(`${label}: the state packets were ${want === "deltas" ? "delta packets both ways, none refused" : "the full ones, both ways"}`, nets.every((n) => netAsWanted(n, want)), JSON.stringify(nets));
+  // two pages of this build over the internet: the delta packets went on the unordered channel, both ways
+  if (label === "p2p") {
+    const fast = [await ev<{ open: boolean; sent: number; got: number } | null>(host, "window.__range.duel()?.linkFor(1)?.fastStats?.() ?? null"), await ev<{ open: boolean; sent: number; got: number } | null>(guest, "window.__range.duel()?.linkFor(0)?.fastStats?.() ?? null")];
+    check(`${label}: the delta packets and their acks went on the unordered channel, both ways`, fast.every((f) => !!f && f.open && f.sent > 5 && f.got > 5), JSON.stringify(fast));
+  }
 
   // leaving tells the other side
   await ev(guest, "window.__range.duel().leave()");
@@ -3770,6 +3780,8 @@ async function main(): Promise<void> {
       await duelTest(browser, "?net=local&norender", "local");
       console.log("\nA friend's figure over a jittery connection");
       await jitterTest(browser, "?net=local&norender&jitter=60");
+      console.log("\nA friend's figure with state packets lost and out of order");
+      await jitterTest(browser, "?net=local&norender&jitter=60&loss=0.15", true);
     }
 
     if (want("emote")) {

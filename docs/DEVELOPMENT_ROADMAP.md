@@ -1423,9 +1423,12 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   the states were sent: each sender's clock is mapped onto ours through the smallest gap seen between the two (the
   least delayed state), creeping up 2 ms a second so one lucky state does not pin it. The host's bots carry the
   host's clock; a relayed state keeps its sender's.
-- A jitter buffer: how far behind a figure is drawn follows how late its states have been arriving lately plus the
-  gap between two, between 100 ms (what it always was) and 300 ms, eased so the figure never jumps when it changes.
-  On a good connection nothing changes.
+- A jitter buffer: how far behind a figure is drawn follows the worst recent wait from one state's time to the next
+  state's arrival (a figure drawn less far behind than that runs out of states and stands still), between 100 ms
+  (what it always was) and 300 ms; it grows fast and shrinks slowly, eased so the figure never jumps. Past the newest
+  state (a burst of lost ones) the figure carries on along its last motion for up to 150 ms rather than freezing. On
+  a good connection nothing changes. The first version followed lateness plus the average gap, which a spike beat:
+  the full e2e run caught it at 0.47 with ten stalls, where alone it had read 0.13.
 - The stamp rides only on a state that is sent anyway: a player standing still still costs nothing between
   keyframes. It is the delta format's ninth optional field, added at the end of the list (an older build ignores a
   key it does not know, and it is never cleared, so it never sets a mask bit an older build would misread). Measured
@@ -1436,7 +1439,27 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/net-delta.ts` (the clock survives the codec and wraps at 16 bits, a still player costs
   nothing though the clock moved, a moving one carries it), and the e2e `duel` section: two tabs with 60 ms of jitter,
   the guest running a steady circle, the host measuring its figure's speed frame to frame. Placed by send time the
-  spread is 0.13 of the mean, as even as the guest's own states (0.12); placed by arrival it is 0.55. The first
+  spread is 0.06 to 0.09 of the mean with no stalls over three runs, evener than the guest's own states (0.12);
+  placed by arrival it is 0.55 to 0.76. The first
   version of the measurement stamped each frame after the match's update rather than before, whose own few
   milliseconds on a 6.6 ms frame read as unevenness that was not on screen.
+
+## Milestone 95 — The state packets on an unordered channel ✅
+2026-09-19 (Phase 15). `link.ts`, `duel.ts`, `src/config/net.json`.
+- Every message rode PeerJS's one reliable, ordered channel, so a single lost packet held every later state behind
+  it until it was resent: every figure stalled at once, then caught up in a lurch. The delta format was built for
+  loss from the start (a difference from an acknowledged state, a keyframe every couple of seconds, a late part
+  dropped as stale), so the delta packets and their acks now ride a second data channel on the same connection,
+  unordered and never resent. It is a negotiated channel: both ends open it with the same id, so there is no
+  signalling and no second connection to set up. An older build opens none, the channel never pairs, and everything
+  goes on the reliable channel as before; so does anything sent while it is not open or has 64 kB waiting.
+  Everything else (shots, hits, downs, the full packets an older build reads) stays reliable and ordered.
+- On the wire it is packed as PeerJS packs the reliable channel (binarypack); only a delta packet or an ack is
+  accepted off it.
+- The local transport takes `?loss=P`: that channel drops P of its messages and delivers the rest in any order.
+- Measured with tools/net-cost.ts over the real peer to peer path: a battle royale squad's host upload 6.8 kB/s on
+  the wire, against 6.4 to 6.5 before (the second channel's own overhead, about 5%).
+- Checks: the e2e `duel` section (with 15% of the state packets lost and the rest out of order, a friend running at
+  one speed still moves at one speed: a spread of 0.07 to 0.10 of the mean, no stalls, over three runs), and the
+  `p2p` section (over the internet the channel opens both ways and carries the delta packets and acks, none lost).
 

@@ -92,7 +92,9 @@ carries their own clock, and their figure on your screen is placed by when
 the states were sent, not when they arrived, so a friend running at one speed
 moves at one speed however the connection bunches and gaps. How far behind the
 figure is drawn grows with the connection's jitter (100 ms on a good one, up to
-300 ms), so it never stalls waiting for the next state.
+300 ms), so it never stalls waiting for the next state. The states travel on a
+channel of their own that never waits for a lost one to be resent: a lost
+state costs only itself, not every state behind it.
 
 **Up to eight people.** The player count on the Friends tab goes to 8: two is
 the warehouse arena, three the triangle, and four or more play the warehouse,

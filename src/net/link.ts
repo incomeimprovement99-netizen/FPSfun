@@ -17,8 +17,13 @@
 // `?net=local` in the URL swaps in a BroadcastChannel link instead, which
 // joins tabs of the same browser on one machine. It is how the match is
 // tested without the internet, and it is handy for trying it alone.
+import { pack, unpack } from "peerjs-js-binarypack";
+import netCfgFast from "../config/net.json";
 import Peer, { type DataConnection, type PeerOptions } from "peerjs";
 import { withoutUndefined } from "./wire";
+
+/** the unordered channel for the delta packets (net.json fast) */
+const FAST = netCfgFast.fast;
 
 /** everything that goes over the link; see duel.ts for the meanings */
 export type NetMsg =
@@ -236,6 +241,10 @@ export type RoundPhase = "waiting" | "countdown" | "fight" | "roundEnd" | "match
 export interface Link {
   readonly role: "host" | "guest";
   send(m: NetMsg): void;
+  /** a delta packet or its ack: on the unordered channel when it is open, else as `send` (net.json fast) */
+  sendFast?(m: NetMsg): void;
+  /** the unordered channel: open, and how many messages went each way on it (the tests) */
+  fastStats?(): { open: boolean; sent: number; got: number };
   close(): void;
   /** drop it without a goodbye, as a lost connection does (the other end holds the seat; the tests' dropped connection) */
   abandon?(): void;
@@ -264,6 +273,10 @@ class PeerLink implements Link {
   onMessage: ((m: NetMsg) => void) | null = null;
   onClose: (() => void) | null = null;
   private closed = false;
+  /** the unordered, never resent channel for the delta packets (net.json fast); null where the browser gave none */
+  private fast: RTCDataChannel | null = null;
+  private fastSent = 0;
+  private fastGot = 0;
   constructor(
     readonly role: "host" | "guest",
     private peer: Peer,
@@ -285,6 +298,47 @@ class PeerLink implements Link {
     peer.on("disconnected", () => {
       // losing the broker does not matter once the data channel is open
     });
+    // The second channel: negotiated, so each end opens it with the same id
+    // and no signalling; an older build opens none, and it never pairs.
+    const pc = (conn as unknown as { peerConnection?: RTCPeerConnection }).peerConnection;
+    if (FAST.on && pc) {
+      try {
+        const ch = pc.createDataChannel("fast", { negotiated: true, id: FAST.id, ordered: false, maxRetransmits: 0 });
+        ch.binaryType = "arraybuffer";
+        ch.onmessage = (e: MessageEvent) => {
+          if (this.closed) return;
+          let m: NetMsg | null = null;
+          try {
+            m = unpack(e.data as ArrayBuffer) as NetMsg;
+          } catch {
+            return;
+          }
+          // only what this channel is for: a state difference or its ack
+          if (!m || typeof m !== "object" || (m.t !== "sd" && m.t !== "sa")) return;
+          this.fastGot++;
+          this.onMessage?.(m);
+        };
+        this.fast = ch;
+      } catch {
+        this.fast = null;
+      }
+    }
+  }
+  sendFast(m: NetMsg): void {
+    const ch = this.fast;
+    if (!this.closed && ch && ch.readyState === "open" && ch.bufferedAmount < FAST.buffered) {
+      try {
+        ch.send(pack(withoutUndefined(m) as unknown as Parameters<typeof pack>[0]) as ArrayBuffer);
+        this.fastSent++;
+        return;
+      } catch {
+        // full, or closing: the reliable channel takes it
+      }
+    }
+    this.send(m);
+  }
+  fastStats(): { open: boolean; sent: number; got: number } {
+    return { open: this.fast?.readyState === "open", sent: this.fastSent, got: this.fastGot };
   }
   send(m: NetMsg): void {
     if (!this.closed && this.conn.open) this.conn.send(withoutUndefined(m));
@@ -294,6 +348,7 @@ class PeerLink implements Link {
     this.send({ t: "bye" });
     this.closed = true;
     setTimeout(() => {
+      this.fast?.close();
       this.conn.close();
       if (this.ownsPeer) this.peer.destroy();
     }, 100);
@@ -301,6 +356,7 @@ class PeerLink implements Link {
   abandon(): void {
     if (this.closed) return;
     this.closed = true;
+    this.fast?.close();
     this.conn.close();
     if (this.ownsPeer) setTimeout(() => this.peer.destroy(), 0);
     this.onClose?.();
@@ -321,6 +377,8 @@ interface Envelope {
  * message's followers back behind it, which is what bunches arrivals).
  */
 const JITTER_MS = Number(new URLSearchParams(typeof location === "undefined" ? "" : location.search).get("jitter")) || 0;
+/** ?loss=P: the local transport's unordered channel drops P of its messages and delivers the rest out of order (net.json fast) */
+const LOSS = Math.max(0, Math.min(0.9, Number(new URLSearchParams(typeof location === "undefined" ? "" : location.search).get("loss")) || 0));
 
 class LocalLink implements Link {
   onMessage: ((m: NetMsg) => void) | null = null;
@@ -328,6 +386,8 @@ class LocalLink implements Link {
   private closed = false;
   /** with jitter, when the last message goes out: none may overtake it */
   private lastOut = 0;
+  private fastSent = 0;
+  private fastGot = 0;
   private readonly handler: (e: MessageEvent<Envelope>) => void;
   constructor(
     readonly role: "host" | "guest",
@@ -349,6 +409,7 @@ class LocalLink implements Link {
       // lobby of three used to close every other guest's link with it. The
       // goodbye is delivered first, so the match hears a leave (a goodbye)
       // before the close, and does not take it for a lost connection.
+      if (e.data.m.t === "sd" || e.data.m.t === "sa") this.fastGot++;
       this.onMessage?.(e.data.m);
       if (e.data.m.t === "bye" && typeof (e.data.m as { from?: number }).from !== "number") this.onClose?.();
     };
@@ -372,6 +433,23 @@ class LocalLink implements Link {
     if (this.closed) return;
     this.send({ t: "bye" });
     this.shut();
+  }
+  /** the tests' unordered channel: with ?loss, some are dropped and the rest arrive in any order; without, as `send` */
+  sendFast(m: NetMsg): void {
+    if (this.closed) return;
+    if (!LOSS && !JITTER_MS) {
+      this.send(m);
+      return;
+    }
+    this.fastSent++;
+    if (Math.random() < LOSS) return;
+    const env = { from: this.me, to: this.peer, m } satisfies Envelope;
+    setTimeout(() => {
+      if (!this.closed) this.ch.postMessage(env);
+    }, Math.random() * JITTER_MS);
+  }
+  fastStats(): { open: boolean; sent: number; got: number } {
+    return { open: LOSS > 0 || JITTER_MS > 0, sent: this.fastSent, got: this.fastGot };
   }
   abandon(): void {
     if (this.closed) return;
