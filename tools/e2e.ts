@@ -3035,6 +3035,51 @@ async function modesSplitTest(browser: Browser, query: string): Promise<void> {
   await guest.close();
 }
 
+/**
+ * Start with those in: a match made for four with two friends in starts for
+ * three when the host says so, and the code takes nobody after. A host who
+ * made a match for eight with seven in used to wait for ever.
+ */
+async function lobbyShortTest(browser: Browser, query: string): Promise<void> {
+  const pages: Page[] = [];
+  const host = await open(browser, query);
+  pages.push(host);
+  await ev(host, `(() => { document.getElementById("duelMode").value = "ffa"; document.getElementById("duelPlayers").value = "4"; document.getElementById("modeBots").value = "1"; document.getElementById("duelHost").click(); })()`);
+  let code = "";
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+  } catch {
+    check("start with those in: the host gets a code", false);
+    for (const p of pages) await p.close();
+    return;
+  }
+  for (let i = 0; i < 2; i++) {
+    const g = await open(browser, query);
+    pages.push(g);
+    await ev(g, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    await sleep(600);
+  }
+  await Promise.all(pages.map((p) => p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 25000 }).catch(() => undefined)));
+  await ev(host, "window.__range.toMenu()");
+  await sleep(300);
+  const btn = await ev<{ shown: boolean; text: string }>(host, `(() => { const b = document.getElementById("duelStartNow"); return { shown: !b.hidden, text: b.textContent }; })()`);
+  check("start with those in: two of three friends in, the host is offered to start with three", btn.shown && btn.text === "Start with 3", JSON.stringify(btn));
+  await ev(host, `document.getElementById("duelStartNow").click()`);
+  for (const p of pages) await pressPlay(p);
+  const going = await Promise.all(pages.map((p) => p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 25000 }).then(() => true, () => false)));
+  const count = await ev<number>(host, "window.__range.duel().players");
+  check("start with those in: the match starts for the three who are in", going.every(Boolean) && count === 3, JSON.stringify({ going, count }));
+  const late = await open(browser, query);
+  pages.push(late);
+  await ev(late, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+  await sleep(3000);
+  const lateIn = await ev<boolean>(late, "window.__range.duel() !== null");
+  check("start with those in: the code takes nobody after it", !lateIn);
+  await ev(host, "window.__range.duel()?.leave()");
+  for (const p of pages) await p.close();
+}
+
 /** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
@@ -3450,6 +3495,7 @@ async function main(): Promise<void> {
       await modesSplitTest(browser, "?net=local&norender");
       await friendsModesTest(browser, "?net=local&norender");
       await lobbyTest(browser, "?net=local&norender");
+      await lobbyShortTest(browser, "?net=local&norender");
     }
 
     if (want("hidden")) {

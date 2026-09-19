@@ -331,6 +331,8 @@ export interface HostHandle {
   cancel(): void;
   /** a guest left before the match began: their place (and id) is open again */
   release(id: number): void;
+  /** no more guests: the match started with whoever is in (the links already made stay) */
+  stopAccepting(): void;
 }
 
 const useLocal = (): boolean => new URLSearchParams(location.search).get("net") === "local";
@@ -386,8 +388,10 @@ export function hostMatch(
 ): HostHandle {
   let code = makeCode();
   let cancelled = false;
+  let closed = false;
   const taken = new Set<number>();
-  const full = () => taken.size >= players - 1;
+  const full = () => closed || taken.size >= players - 1;
+  const stopAccepting = () => void (closed = true);
   /** the lowest free guest id, marked taken */
   const claim = (): number => {
     let id = 1;
@@ -409,7 +413,7 @@ export function hostMatch(
       onLink(link, id);
     });
     onCode(code);
-    return { code, cancel: () => ((cancelled = true), ch.close()), release };
+    return { code, cancel: () => ((cancelled = true), ch.close()), release, stopAccepting };
   }
   let peer: Peer | null = null;
   const peerOpts = peerOptions();
@@ -460,6 +464,7 @@ export function hostMatch(
       peer?.destroy();
     },
     release,
+    stopAccepting,
   };
 }
 

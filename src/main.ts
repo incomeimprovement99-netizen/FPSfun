@@ -1427,7 +1427,19 @@ function duelButtons(): void {
   duelCode.hidden = busy;
   duelPlayers.hidden = busy;
   duelLeaveBtn.hidden = !busy;
+  // the host with some friends in and some places still open: start with those in
+  const d = duel instanceof Duel ? duel : null;
+  const short = !!d && !!hosting && d.role === "host" && d.phase === "waiting" && d.mode !== "duel" && d.connected >= 1 && d.connected < d.players - 1;
+  duelStartNowBtn.hidden = !short;
+  if (short && d) duelStartNowBtn.textContent = `Start with ${d.connected + 1}`;
 }
+const duelStartNowBtn = $<HTMLButtonElement>("duelStartNow");
+duelStartNowBtn.addEventListener("click", () => {
+  if (duel instanceof Duel && duel.startNow()) {
+    hosting?.stopAccepting();
+    duelButtons();
+  }
+});
 /**
  * The heading nearest `yaw` that looks down some open floor (modes.json
  * spawnFacing). The new arenas put cover on the line between opposite spawns
@@ -2649,6 +2661,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   const goal = d instanceof ArenaMode ? `${MODE_TITLE[d.modeKind]}: ${modeGoal(d)}` : squad ? `${(d as BrMatch).team.label}: the squad drops onto ${(d as BrMatch).poi.name} against ${squad.bots} bots.` : "First to 3 rounds.";
   d.onSlotFree = (id) => hosting?.release(id);
   d.onRoster = (connected, total) => {
+    duelButtons();
     setDuelStatus(connected < total - 1 ? `${connected} of ${total - 1} friends in. Waiting for the rest; the code is <b class="code">${hosting?.code ?? ""}</b>.` : `Everyone is in. ${goal} <b>Click Play</b>.`, connected < total - 1 ? "live" : "good");
   };
   respawnForMatch(d);

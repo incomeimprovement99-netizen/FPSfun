@@ -284,7 +284,8 @@ export interface MatchLike {
 export class Duel implements MatchLike {
   readonly kind = "duel" as const;
   readonly id: number;
-  readonly players: number;
+  /** how many people the match is for (the host can start with fewer: startNow) */
+  players: number;
   readonly role: "host" | "guest";
   phase: RoundPhase;
   protected phaseEndsAt = 0;
@@ -322,6 +323,8 @@ export class Duel implements MatchLike {
   private sendNext = 0;
   private pingNext = 0;
   ping: number | null = null;
+  /** the host: each guest's round trip, ms (the roster, and the worst as this.ping) */
+  readonly pingOf = new Map<number, number>();
   private weaponCache = new Map<string, ResolvedWeapon>();
   protected ended = false;
   private readonly spawns: Spawn[];
@@ -498,6 +501,23 @@ export class Duel implements MatchLike {
     this.remote(id).link = link;
     this.onRoster?.(this.links.size, this.players);
   }
+
+  /**
+   * The host, in the lobby: start with whoever is in. A host who made a match
+   * for eight with seven in waited for ever: the match waited for every seat.
+   * Not the 1v1s, whose arena is chosen by the count. The page stops the code
+   * taking anyone new.
+   */
+  startNow(): boolean {
+    if (this.role !== "host" || this.phase !== "waiting" || this.mode === "duel" || this.links.size < 1 || this.links.size >= this.players - 1) return false;
+    this.players = this.links.size + 1;
+    this.onStartShort();
+    this.onRoster?.(this.links.size, this.players);
+    return true;
+  }
+
+  /** the match is for fewer than it was made for (startNow): anything counted by the headcount recounts */
+  protected onStartShort(): void {}
 
   /** the host: everyone connected and in the game (off the menu), so round 1 can start */
   protected everyoneReady(): boolean {
@@ -745,7 +765,14 @@ export class Duel implements MatchLike {
       }
       if (m.t === "ping") this.linkFor(from)?.send({ t: "pong", at: m.at });
       else if (m.t === "pong") {
-        if (from === 0 || this.role === "host") this.ping = Math.max(0, performance.now() - m.at);
+        const ms = Math.max(0, performance.now() - m.at);
+        if (this.role === "host") {
+          // one number per guest: each guest's answer used to overwrite the
+          // last, so the host's ping flickered between them. The host shows
+          // the worst, the connection its match is waiting on.
+          this.pingOf.set(from, ms);
+          this.ping = Math.max(...this.pingOf.values());
+        } else if (from === 0) this.ping = ms;
       } else if (m.t === "round") {
         if (this.role === "guest") this.applyRound(m);
       } else if (m.t === "zone") {
@@ -882,6 +909,7 @@ export class Duel implements MatchLike {
     const r = this.remotes.get(id);
     this.links.delete(id);
     this.sync.forgetPeer(id);
+    this.pingOf.delete(id);
     link.onMessage = null;
     link.onClose = null;
     link.close();

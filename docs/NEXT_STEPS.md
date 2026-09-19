@@ -112,7 +112,7 @@ Three read-only passes over the code, after the map expansion (Milestone 71), ag
 
 **Then: eight friends playing each other (about a week)**
 17. ~~**Friends split into sides in team deathmatch and Control**~~ Done (Milestone 76) (every human is team 0 today). 4-5 h.
-18. **The lobby:** start with who is here, a roster with ready and ping per player, a kick. 4-5 h.
+18. **The lobby:** ~~start with who is here~~ and ~~a ping per player~~ done (Milestone 77); a roster with ready and ping on screen, and a kick, are left. 2-3 h.
 19. **The group stays together between matches:** a party that owns the links, so the next match needs no new code. 1-1.5 days; rejoin (below) and handing the host over build on it.
 20. **Battle royale squads of friends** (duos and trios against each other): the list above assumed this needs a real server, but the 1v1v1 and free-for-all already trust the host the same way. A squad table in the welcome, and every squad rule keyed by it. 2.5-3 days, after 3.
 21. **Rejoin a match in the same tab** (a 60 s held seat), **the delta packets on an unordered channel with a loss simulator**, **interpolation on the sender's clock**, **an eight-player rehearsal**, **hit sanity checks on the receiver**, **a shared end-of-match table and a tally for the night**, **hand the host over before a match by ping**. 1 day, 5-6 h, 4-6 h, 6-8 h, 5-7 h, 5-6 h and 4-6 h.

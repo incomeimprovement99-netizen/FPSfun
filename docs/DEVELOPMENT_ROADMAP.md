@@ -1134,3 +1134,13 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   could never fight each other in a team mode. The split travels in the welcome.
 - Checks: `tools/checks/feel.ts` (the shake's falloff, the ringing's reach), e2e: a frag leaves its scorch and smoke,
   and two friends split in team deathmatch are opponents whose hits land.
+
+## Milestone 77 — Start with those in, and a ping per friend ✅
+2026-09-19 (Phase 15). `duel.ts`, `brmatch.ts`, `net/link.ts`, `main.ts`, `index.html`.
+- A host who made a match for eight with seven in waited for ever: the match waited for every seat. With at least
+  one friend in and places still open, the host gets "Start with N": the match is for those in, the code takes nobody
+  after, and a battle royale counts its sides again. Not the 1v1s, whose arena is chosen by the count.
+- The host keeps a ping per guest and shows the worst: each guest's answer used to overwrite the last, so it
+  flickered between them.
+- Checks: the e2e `modes` section: a match for four with two friends in offers "Start with 3", starts for the
+  three, and turns a late fourth away.

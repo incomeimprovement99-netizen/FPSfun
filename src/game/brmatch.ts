@@ -460,7 +460,7 @@ export class BrMatch extends Duel {
   /** solo, duos or trios (src/config/br.json): the whole lobby plays the same one */
   readonly team: TeamMode;
   /** every squad at the start, the humans' included: what a placement is out of */
-  readonly squadsTotal: number;
+  squadsTotal: number;
   /** a guest: the squads still up, as the host's ring packet last said (a guest runs no bots to count) */
   private squadsSeen: number;
   /** the match seed: the floor's loot, and the loadout crates every browser works out for itself */
@@ -1610,6 +1610,12 @@ export class BrMatch extends Duel {
   protected override squadUp(): boolean {
     if (this.gulag) return false;
     return this.team.size > 1 && super.squadUp();
+  }
+
+  /** started with fewer friends than it was made for: the sides are counted again */
+  protected override onStartShort(): void {
+    this.squadsTotal = squadsInMatch(this.botCount, this.team.size, this.players);
+    this.squadsSeen = this.squadsTotal;
   }
 
   /** the host's landing and a guest's say the same thing, and solo says it differently */
