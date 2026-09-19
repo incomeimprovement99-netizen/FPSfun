@@ -1592,7 +1592,8 @@ async function botTiersTest(browser: Browser, query: string): Promise<void> {
   const fragHit = await page.waitForFunction("window.__hits.includes('frag')", { polling: 200, timeout: 7000 }).then(() => true, () => false);
   check("tiers: and the frag's blast lands on you (the bot's side works it out)", fragHit, JSON.stringify(await ev(page, "window.__hits.slice(-6)")));
   // it crouches now and then in the fight (close in, where nothing low stands between you), and dodges when hit
-  await ev(page, "(() => { const b = window.__range.duel().bots[0]; b.diff = { ...b.diff, keep: 6 }; })()");
+  // in front of it: a bot that has wandered off with its back to you does not see you (its view cone), which is the point
+  await ev(page, "(() => { const r = window.__range; const b = r.duel().bots[0]; b.diff = { ...b.diff, keep: 6 }; const y = b.dummy.group.rotation.y; const s = r.openGround(b.pos.x + Math.sin(y) * 12, b.pos.z + Math.cos(y) * 12, 1.5); if (s) r.player.teleport(s.x, 0, s.z, 0); })()");
   const crouched = await page.waitForFunction("window.__range.duel().bots[0].crouching", { polling: 50, timeout: 12000 }).then(() => true, () => false);
   check("tiers: the elite bot crouches while it fires", crouched, crouched ? "" : JSON.stringify(await ev(page, `(() => { const b = window.__range.duel().bots[0]; const p = window.__range.player.pos; const y = b.dummy.group.rotation.y; const dx = p.x - b.pos.x, dz = p.z - b.pos.z; return { sees: b.sees(p), seenAgo: b.lastSeen ? +(performance.now() / 1000 - b.lastSeen.at).toFixed(1) : null, facingDeg: Math.round(Math.acos(Math.max(-1, Math.min(1, (Math.sin(y) * dx + Math.cos(y) * dz) / Math.hypot(dx, dz)))) * 180 / Math.PI), d: +Math.hypot(dx, dz).toFixed(1), healing: !!b.healing, cover: !!b.cover }; })()`)));
   const dodge = await ev<boolean>(page, `(() => { const b = window.__range.duel().bots[0]; const before = b.strafeSign; b.dummy.hit(0, "body", 5, 1, 1, b.pos.clone().setY(1.2)); return new Promise((r) => setTimeout(() => r(b.strafeSign !== before), 400)); })()`);
@@ -2918,6 +2919,10 @@ async function emoteTest(browser: Browser, query: string, duelQuery: string): Pr
   }
   const seenSpray = sprayed && (await guest.waitForFunction("window.__range.sprays().owners.includes(0)", { polling: 100, timeout: 4000 }).then(() => true, () => false));
   check("sprays: the host sprays the wall in front of it, and the guest sees the host's spray there", seenSpray, JSON.stringify({ sprayed }));
+  // the host's banner card reaches the guest, for a recap or a champion screen
+  const hostCard = await ev<number>(host, "window.__range.banner()");
+  const cardSeen = await guest.waitForFunction(`window.__range.banners()[0] === ${hostCard}`, { polling: 200, timeout: 12000 }).then(() => true, () => false);
+  check("banner cards: the host's card reaches the guest", cardSeen, `${hostCard}`);
   await ev(host, "window.__range.emote(0)");
   const seen = await guest.waitForFunction("window.__range.duel().remotes.get(0)?.avatar.emoting === 0", { polling: 100, timeout: 4000 }).then(() => true, () => false);
   await ev(host, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: (a) => a === "forward" })`);
@@ -3154,10 +3159,10 @@ async function botSquadsTest(browser: Browser, query: string): Promise<void> {
       if (m < 25) together++;
     }
   }
-  // Bots that see someone leave the formation to fight, as they should, so it
-  // is not all the time: measured 75 to 90 per cent with the squad following
-  // its first bot, and about 50 without.
-  check("bot squads: each squad out of a fight keeps together (within 25 m, most of the time)", samples >= 8 && together / samples >= 0.7, `${together} of ${samples} squad samples together`);
+  // A squad walks with some slack (a follower closes in only past 12 m), so it
+  // is not every sample: measured 60 to 100 per cent out of a fight with the
+  // squad following its first bot, and nearer 37 without.
+  check("bot squads: each squad out of a fight keeps together (within 25 m, most of the time)", samples >= 8 && together / samples >= 0.55, `${together} of ${samples} squad samples together`);
   await ev(page, "window.__range.duel()?.leave()");
   await page.close();
 }

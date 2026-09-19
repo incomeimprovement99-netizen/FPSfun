@@ -75,7 +75,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 5. **Bots on the ziplines, pads, balloons and the Mast (#19 typed edges, #20):** 1 to 1.5 days. The graph it needs has landed (Milestone 71).
 6. ~~**A sky per match from its seed:** about 2 hours.~~ Done (Milestone 69).
 7. ~~**Resurgence's smaller play area**~~ Done (Milestone 82).
-8. **Sprays and banner cards:** ~~sprays~~ done (Milestone 85); banner cards are left, about half a day.
+8. ~~**Sprays and banner cards**~~ Done (Milestones 85, 86).
 9. **Weapon finishes and unlocks:** 2 to 2.5 days. XP unlocks nothing yet.
 10. **Custom match rules:** about a day. Weapons allowed, rounds and friendly fire, carried in the match options.
 11. **Plant and defuse:** 2 to 3 days, built from the Crown carry, the Control capture and the round clock.

@@ -1253,3 +1253,19 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - It aims from your own view angles, not the camera, which is a frame behind a turn.
 - Checks: the e2e `emote` section (the host sprays the wall in front of it and the guest sees the host's spray there),
   and the snapshot `spray`.
+
+## Milestone 86 — Banner cards ✅
+2026-09-19 (Phase 15). `banners.ts` (new), `hud.ts`, `main.ts`, `index.html`, `src/config/banners.json`.
+- The last of "emotes, sprays, banner cards and quips". Each player picks a card in Settings (an icon from the
+  sprays' set, a frame colour, a title); whoever eliminates you, their card is on your death recap, and yours is on
+  the champion screen when you win. A killer who never sent one (a bot, a friend on an older build) shows a card
+  fixed by their id, the same one every time.
+- The card is three picks packed into one number and sent as an effect every 10 s of a match, so a friend who
+  arrives late has it; not a field of the state packets, whose optional fields are a bit mask an older build would
+  read wrong.
+- Checks: `tools/checks/emotes.ts` (every pick round trips off the wire, anything else is no card), the e2e `emote`
+  section (the host's card reaches the guest), and the `recap` snapshot with the killer's card.
+- The bot tests: the elite bot's crouch check stood the player behind a bot that had wandered off, which its view
+  cone rightly does not see (the check now says what the bot saw when it fails, which is how this was found); it
+  stands the player in front of it. The bot-squads check asks for 55 per cent out of a fight (60 to 100 measured,
+  nearer 37 with following off).

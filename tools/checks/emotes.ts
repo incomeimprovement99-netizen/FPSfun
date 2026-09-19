@@ -8,6 +8,7 @@
 // Run on its own: npx tsx tools/checks/emotes.ts.
 import cfg from "../../src/config/emotes.json";
 import { EMOTES, emoteAt, emotePose, type EmotePose } from "../../src/game/emotes";
+import { BANNERS, bannerCode, bannerOf } from "../../src/game/banners";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -51,6 +52,19 @@ console.log("The emotes");
   // different from each other at their fullest
   const sig = EMOTES.map((e, i) => angles(emotePose(i, e.seconds / 2)).map((v) => v.toFixed(1)).join(","));
   check("and no two the same", new Set(sig).size === EMOTES.length);
+}
+
+console.log("\nBanner cards");
+{
+  let round = true;
+  for (let icon = 0; icon < 8; icon++)
+    for (let frame = 0; frame < BANNERS.frames.length; frame++)
+      for (let title = 0; title < BANNERS.titles.length; title++) {
+        const card = bannerOf(bannerCode(icon, frame, title));
+        if (!card || card.frame !== BANNERS.frames[frame] || card.title !== BANNERS.titles[title]) round = false;
+      }
+  check("every pick of icon, frame and title comes back off the wire as itself", round);
+  check("and anything else off the wire is no card", bannerOf(-1) === null && bannerOf(512) === null && bannerOf(3.5) === null && bannerOf("7") === null);
 }
 
 console.log(fails === 0 ? "\nEMOTES PASS" : `\nEMOTES FAIL (${fails})`);

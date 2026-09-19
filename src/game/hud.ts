@@ -19,6 +19,7 @@ import { ZIPLINES } from "./traversal";
 import { drawReticle, type ReticleStyle } from "./optics";
 import type { DuelHud } from "./duel";
 import type { Recap } from "./recap";
+import type { BannerCard } from "./banners";
 import type { DrillHud } from "./rangetools";
 import type { TrainerHud } from "./trainer";
 import type { ModeHud } from "./modematch";
@@ -204,7 +205,9 @@ export interface HudState {
   /** the killcam is playing: whose eyes, their gun, how far through, the skip key */
   killcam?: { name: string; weapon: string; progress: number; left: number; skipKey: string } | null;
   /** the death recap, after the killcam: how long it has been up, the close key */
-  recap?: (Recap & { age: number; closeKey: string }) | null;
+  recap?: (Recap & { age: number; closeKey: string; killerCard?: BannerCard | null }) | null;
+  /** your banner card, for the champion screen */
+  myCard?: BannerCard | null;
   /** the flick drill: its countdown, the clock, how many are down */
   drill?: DrillHud | null;
   /** the superglide trainer's bar */
@@ -704,6 +707,21 @@ export class Hud {
     c.fillRect(30 * u, this.h - bar / 2 - 2 * u, this.w * 0.4 * k.progress, 4 * u);
   }
 
+  /** a banner card: its frame colour, its icon, the name and its title */
+  private drawCard(card: BannerCard, name: string, x: number, y: number, w: number, h: number, u: number): void {
+    const c = this.ctx;
+    c.fillStyle = "rgba(8,10,12,0.92)";
+    c.fillRect(x, y, w, h);
+    c.strokeStyle = card.frame;
+    c.lineWidth = 3 * u;
+    c.strokeRect(x + 1.5 * u, y + 1.5 * u, w - 3 * u, h - 3 * u);
+    c.fillStyle = card.frame;
+    c.fillRect(x, y, h, h);
+    drawIcon(c, card.icon, x + h / 2, y + h / 2, h * 0.62, "#0b0d10");
+    this.text(name, x + h + 12 * u, y + h * 0.45, 700, h * 0.3, WHITE);
+    this.text(card.title, x + h + 12 * u, y + h * 0.8, 700, h * 0.2, card.frame);
+  }
+
   /**
    * The death recap: who eliminated you and with what, then one block per
    * opponent (the killer first): your damage to them against theirs to you,
@@ -729,6 +747,8 @@ export class Hud {
     c.fillRect(x0, y0, w, 4 * u);
     this.text("DEATH RECAP", x0 + 22 * u, y0 + 30 * u, 700, 14 * u, DIM);
     this.text(r.byRing ? "ELIMINATED BY THE RING" : `ELIMINATED BY ${r.killerName}`, x0 + 22 * u, y0 + 62 * u, 700, 28 * u, r.byRing ? "#ff9a4a" : WHITE);
+    // their card, over the recap's top right edge
+    if (!r.byRing && r.killerCard) this.drawCard(r.killerCard, r.killerName, x0 + w - 232 * u, y0 - 66 * u, 220 * u, 58 * u, u);
     this.text(`YOU DEALT ${Math.round(r.totalDealt)}  ·  TOOK ${Math.round(r.totalTaken)}`, x0 + w - 22 * u, y0 + 62 * u, 700, 15 * u, DIM, "right");
     if (!rows.length) this.text("Nobody hit you this life: it was the ring.", x0 + 22 * u, y0 + 110 * u, 600, 15 * u, DIM);
     rows.forEach((row, i) => {
@@ -1955,6 +1975,8 @@ export class Hud {
       const m = Math.floor(br.survived / 60);
       const sec = Math.floor(br.survived % 60);
       this.text(`${br.kills} kill${br.kills === 1 ? "" : "s"}  ·  ${m}:${sec.toString().padStart(2, "0")} survived  ·  menu in ${Math.ceil(s.duel?.left ?? 0)}`, cx, this.h * 0.3 + 44 * u, 700, 22 * u, DIM, "center");
+      // the champion's card under it
+      if (won && s.myCard) this.drawCard(s.myCard, "YOU", cx - 150 * u, this.h * 0.3 + 70 * u, 300 * u, 74 * u, u);
     }
   }
 

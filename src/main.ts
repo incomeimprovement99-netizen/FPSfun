@@ -88,6 +88,7 @@ import { HUD_SCALES, P, VISION_MODES, access, loadAccess, saveAccess, setHudScal
 import { LoadingScreen } from "./ui/loading";
 import { setMuzzleViewer } from "./game/muzzle";
 import { SPRAYS, SprayLayer } from "./game/sprays";
+import { BANNERS, BANNER_ICONS, bannerCode, bannerOf } from "./game/banners";
 import { ImpactLayer, IMPACTS, blastShakeDeg } from "./game/impacts";
 import { EMOTES, EMOTE_STOP } from "./game/emotes";
 import emotesCfg from "./config/emotes.json";
@@ -914,6 +915,44 @@ sprayPick.addEventListener("change", () => {
     /* kept for this visit */
   }
 });
+// Your banner card: three picks, kept; sent to the match every few seconds so
+// a friend who arrives late has it; everyone else's kept as it arrives.
+const bannerSel = {
+  icon: $<HTMLSelectElement>("bannerIcon"),
+  frame: $<HTMLSelectElement>("bannerFrame"),
+  title: $<HTMLSelectElement>("bannerTitle"),
+};
+const fillSel = (sel: HTMLSelectElement, names: string[]) =>
+  names.forEach((n, i) => {
+    const o = document.createElement("option");
+    o.value = String(i);
+    o.textContent = n;
+    sel.appendChild(o);
+  });
+fillSel(bannerSel.icon, BANNER_ICONS);
+fillSel(bannerSel.frame, BANNERS.frames.map((_, i) => `Frame ${i + 1}`));
+fillSel(bannerSel.title, BANNERS.titles.map((t) => t.charAt(0) + t.slice(1).toLowerCase()));
+try {
+  const saved = JSON.parse(localStorage.getItem("range.banner") ?? "null") as number[] | null;
+  if (saved) [bannerSel.icon.value, bannerSel.frame.value, bannerSel.title.value] = saved.map(String);
+} catch {
+  /* ignore */
+}
+for (const sel of Object.values(bannerSel))
+  sel.addEventListener("change", () => {
+    try {
+      localStorage.setItem("range.banner", JSON.stringify([bannerSel.icon.value, bannerSel.frame.value, bannerSel.title.value].map(Number)));
+    } catch {
+      /* kept for this visit */
+    }
+  });
+const myBanner = (): number => bannerCode(Number(bannerSel.icon.value), Number(bannerSel.frame.value), Number(bannerSel.title.value));
+/** the card of a killer who never sent one (a bot, or a friend on an older build): fixed by the id, so the same one always shows the same */
+const botBanner = (id: number): number => bannerCode(id % 8, (id * 3) % 8, (id * 5) % 8);
+/** the others' cards, by player id */
+const remoteBanners = new Map<number, number>();
+let bannerSentAt = -Infinity;
+
 /**
  * Your spray on the wall you look at, within reach, for everyone in the
  * match: found with the level's own ray test (the face it hits is the wall's
@@ -2522,6 +2561,11 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     }
     // a squad mate scanned a Ring Console: the circle after next is on our map too
     // someone's emote: their figure plays it (or stops)
+    // someone's banner card
+    if (k === "banner" && typeof n === "number") {
+      remoteBanners.set(from, n);
+      return;
+    }
     // someone's spray, where they put it
     if (k === "spray" && a && b && typeof n === "number") {
       sprays.place(from, a, b, n, gameTime);
@@ -2863,6 +2907,8 @@ function endMatch(reason: string): void {
   const wasGunRun = duel instanceof ArenaMode && duel.modeKind === "gunrun";
   duel?.dispose();
   duel = null;
+  bannerSentAt = -Infinity;
+  remoteBanners.clear();
   // the match's bullet holes and sprays go with it
   impacts.clear();
   sprays.clear();
@@ -3671,6 +3717,11 @@ function step(): void {
     // 7: hold for the emote wheel (move to one, let go); a tap plays the last one again
     // 8: your spray on the wall you look at
     if (input.pressedNow("spray")) doSpray(now);
+    // your banner card to the match, now and then
+    if (duel && now - bannerSentAt > BANNERS.resend) {
+      bannerSentAt = now;
+      duel.localFx("banner", undefined, undefined, myBanner());
+    }
     if (input.pressedNow("emote")) {
       emoteHeldAt = now;
       emoteVec.x = emoteVec.y = 0;
@@ -4624,7 +4675,8 @@ function step(): void {
     trainer: trainer.hud(now),
     mantleCue: trainer.cue && mantleCueOn,
     killcam: killcam.active ? { name: killcam.killerName, weapon: killcam.killerWeapon ? weaponName(killcam.killerWeapon) : "", progress: killcam.progress, left: killcam.left, skipKey: keyLabel("jump") } : null,
-    recap: recap && !killcam.active ? { ...recap, age: now - recapShownAt, closeKey: keyLabel("jump") } : null,
+    recap: recap && !killcam.active ? { ...recap, age: now - recapShownAt, closeKey: keyLabel("jump"), killerCard: bannerOf(remoteBanners.get(recap.killerId) ?? botBanner(recap.killerId)) } : null,
+    myCard: bannerOf(myBanner()),
     ability:
       abilities.enabled && abilities.picked
         ? (() => {
@@ -4962,6 +5014,9 @@ initWelcome();
   frames: () => framesRun,
   /** the live rounds' tracers (projectile.ts) */
   tracers: () => projectiles.tracers,
+  /** banner cards: yours as a number, and the ones others sent */
+  banner: () => myBanner(),
+  banners: () => Object.fromEntries(remoteBanners),
   /** sprays: put yours up, and whose are up */
   spray: () => doSpray(gameTime),
   sprays: () => ({ count: sprays.count, owners: sprays.owners() }),

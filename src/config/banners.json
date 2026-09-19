@@ -1,0 +1,6 @@
+{
+  "_note": "Banner cards (src/game/banners.ts): the card each player shows the others, on the death recap of anyone they eliminate and on the champion screen. Three picks in Settings: an icon (the sprays' set, the HUD's own credited icons), a frame colour and a title. It travels as one number in an effect every few seconds of a match (resend), so a friend who arrives late still has it.",
+  "resend": 10,
+  "frames": ["#ffd23c", "#ff4b3e", "#9fe0ff", "#7ddc8a", "#c28bff", "#ff7a3d", "#f2f2f2", "#3fd0c8"],
+  "titles": ["ROOKIE", "SHARPSHOOTER", "CHAMPION", "SQUAD LEADER", "WALLRUNNER", "LAST ONE STANDING", "THE WALL", "UNDERDOG"]
+}
