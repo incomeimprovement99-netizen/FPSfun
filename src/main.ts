@@ -43,7 +43,7 @@ import { BotMatch } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
 import { submitScore } from "./game/leaderboard";
-import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link, type MatchOpts } from "./net/link";
+import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link, type MatchOpts, type NetMsg } from "./net/link";
 import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
 import { AimAssist } from "./game/aimassist";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
@@ -1765,12 +1765,17 @@ function renderRoster(): void {
   rosterKey = key;
   duelRosterEl.hidden = !rows.length;
   duelRosterEl.innerHTML = rows
-    .map((r) => `<div class="rosterRow"><b>${escapeHtml(r.name)}</b> · ${r.ready ? "in" : "on the menu"} · ${r.ping === null ? "ping -" : `${Math.round(r.ping)} ms`} <button type="button" class="ghost" data-kick="${r.id}">Kick</button></div>`)
+    .map((r) => `<div class="rosterRow"><b>${escapeHtml(r.name)}</b> · ${r.ready ? "in" : "on the menu"} · ${r.ping === null ? "ping -" : `${Math.round(r.ping)} ms`} <button type="button" class="ghost" data-host="${r.id}" title="hand the host over: they make a new code for this lobby and everyone moves there">Make host</button> <button type="button" class="ghost" data-kick="${r.id}">Kick</button></div>`)
     .join("");
 }
 duelRosterEl.addEventListener("click", (e) => {
-  const id = Number((e.target as HTMLElement).getAttribute("data-kick"));
-  if (Number.isFinite(id) && duel instanceof Duel) duel.kick(id);
+  const t = e.target as HTMLElement;
+  if (t.hasAttribute("data-host")) {
+    handOver(Number(t.getAttribute("data-host")));
+    return;
+  }
+  const id = Number(t.getAttribute("data-kick"));
+  if (t.hasAttribute("data-kick") && Number.isFinite(id) && duel instanceof Duel) duel.kick(id);
 });
 duelStartNowBtn.addEventListener("click", () => {
   if (duel instanceof Duel && duel.startNow()) {
@@ -2769,6 +2774,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRespawn = () => respawnForMatch(d);
   // a guest with a seat key (a host that gives one) gets back in after a dropped connection
   if (d instanceof Duel && d.role === "guest" && mySeat) d.onHostLost = () => getBackIn(d);
+  // the lobby's host handover
+  if (d instanceof Duel) d.onHandover = (m, from) => onHandover(d, m, from);
   d.onHurt = () => {
     stopEmote();
     hud.hurt(gameTime);
@@ -3188,7 +3195,7 @@ function endMatch(reason: string): void {
   }
   // the host's code stays open behind a kept group (no new friends join it); otherwise it goes
   if (party && "guests" in party) hosting?.stopAccepting();
-  else {
+  else if (!takingOver) {
     hosting?.cancel();
     hosting = null;
   }
@@ -3222,6 +3229,18 @@ duelHostBtn.addEventListener("click", () => {
   newNight();
   const players = Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
   readHostSettings();
+  openHosting(players);
+  // the lobby is the arena itself: in at once, run around, the code on the
+  // HUD; the match starts when the others arrive and everyone is in
+  goTo("arena");
+  if (!calibrating) {
+    readSettings();
+    void input.lock();
+  }
+});
+
+/** a code for a match of `players` on hostBr and hostOpts as they stand: the invite on the Friends tab, the guests into the match as they come */
+function openHosting(players: number, then?: (code: string) => void): void {
   setDuelStatus("Making a match...", "live");
   hosting = hostMatch(
     players,
@@ -3240,6 +3259,7 @@ duelHostBtn.addEventListener("click", () => {
         $("inviteCopy").textContent = "Copied";
       });
       $<HTMLInputElement>("inviteLink")?.addEventListener("focus", (e) => (e.target as HTMLInputElement).select());
+      then?.(code);
     },
     (link, id) => startDuel(link, players, 0, id),
     (err) => {
@@ -3253,22 +3273,11 @@ duelHostBtn.addEventListener("click", () => {
   // a guest back after a dropped connection: the match takes them back on their held seat
   hosting.onRejoin = (link, id) => (duel instanceof Duel && duel.role === "host" ? duel.rejoin(link, id) : false);
   duelButtons();
-  // the lobby is the arena itself: in at once, run around, the code on the
-  // HUD; the match starts when the others arrive and everyone is in
-  goTo("arena");
-  if (!calibrating) {
-    readSettings();
-    void input.lock();
-  }
-});
-duelJoinBtn.addEventListener("click", () => {
-  if (duel) return;
-  hosting?.cancel();
-  hosting = null;
-  cancelJoin?.();
-  newNight();
+}
+
+/** join a match by code as the Join button does (the handover moves everyone this way too) */
+function joinCode(code: string): void {
   setDuelStatus("Joining...", "live");
-  const code = duelCode.value;
   cancelJoin = joinMatch(
     code,
     (link, w) => {
@@ -3278,6 +3287,68 @@ duelJoinBtn.addEventListener("click", () => {
     },
     (err) => setDuelStatusText(err, "bad")
   );
+}
+
+/**
+ * Handing the host over, in the lobby (the host's roster has a Make host
+ * button). The host asks one guest to take it; that guest opens a new code
+ * for the same match, sends it back and leaves the old lobby; the host tells
+ * everyone else to move to it, then goes there itself. Nobody types a code.
+ */
+let handingTo: number | null = null;
+/** the new host's own code while it leaves the old lobby: its end must not close the new one */
+let takingOver = false;
+function handOver(to: number): void {
+  const d = duel;
+  if (!(d instanceof Duel) || d.role !== "host" || d.phase !== "waiting" || handingTo !== null) return;
+  handingTo = to;
+  d.tell(to, { t: "host", op: "take", players: d.players, br: hostBr ?? undefined, opts: hostOpts ?? undefined });
+  setDuelStatusText(`Handing the host to ${d.nameFor(to)}...`);
+}
+function onHandover(d: Duel, m: Extract<NetMsg, { t: "host" }>, from: number): void {
+  if (m.op === "take" && d.role === "guest") {
+    const players = typeof m.players === "number" && m.players >= 2 && m.players <= MAX_PLAYERS ? m.players : d.players;
+    // the match the old host made, now ours to host
+    hostBr = m.br ?? null;
+    hostOpts = m.opts ?? null;
+    takingOver = true;
+    openHosting(players, (code) => {
+      // The code, then out of the old lobby at once (the code goes first on
+      // the ordered channel): a friend who arrived while this page was still
+      // a guest there would be turned away. The new code stays open (endMatch).
+      d.tell(0, { t: "host", op: "code", code });
+      if (duel === d) d.leave();
+      takingOver = false;
+      goTo("arena");
+      setDuelStatusText(`You are the host now. Your code is ${code}: the others are on their way.`);
+      duelButtons();
+    });
+  } else if (m.op === "code" && d.role === "host" && from === handingTo && typeof m.code === "string" && m.code.length === 5) {
+    const code = m.code;
+    handingTo = null;
+    // everyone else to the new code, then this page too
+    for (const id of d.roster().map((r) => r.id)) if (id !== from) d.tell(id, { t: "host", op: "move", code });
+    setTimeout(() => {
+      if (duel === d) d.leave();
+      hosting?.cancel();
+      hosting = null;
+      joinCode(code);
+    }, 150);
+  } else if (m.op === "move" && d.role === "guest" && typeof m.code === "string" && m.code.length === 5) {
+    const code = m.code;
+    d.leave();
+    joinCode(code);
+  }
+}
+
+duelJoinBtn.addEventListener("click", () => {
+  if (duel) return;
+  hosting?.cancel();
+  hosting = null;
+  cancelJoin?.();
+  newNight();
+  setDuelStatus("Joining...", "live");
+  joinCode(duelCode.value);
 });
 // the Flick drill button: to the pad, facing downrange, the countdown starts once you are in
 $("goDrill").addEventListener("click", () => {

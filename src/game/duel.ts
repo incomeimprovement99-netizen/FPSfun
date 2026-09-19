@@ -373,6 +373,8 @@ export class Duel implements MatchLike {
   protected lastSummary: MatchSummary | null = null;
   /** the host: how many have arrived, for the panel */
   onRoster: ((connected: number, players: number) => void) | null = null;
+  /** the lobby's host handover (link.ts "host"): main runs it; only while waiting, and a guest only hears it from the host */
+  onHandover: ((m: Extract<NetMsg, { t: "host" }>, from: number) => void) | null = null;
   /** a guest: the connection to the host dropped mid-match; main tries the code again with the seat's key (swapHost takes the new link) */
   onHostLost: (() => void) | null = null;
   /** the host: seats held for guests whose connection dropped, until when (net.json rejoin.hold) */
@@ -601,6 +603,11 @@ export class Duel implements MatchLike {
     this.remote(0).lastHeard = wallClock();
     this.sync.forgetPeer(0);
     this.onFeed?.("Back in the match", false);
+  }
+
+  /** a message to one player: theirs from the host, the host's from a guest */
+  tell(id: number, m: NetMsg): void {
+    this.linkFor(id)?.send(m);
   }
 
   /** the tests: this guest's connection to the host drops, as a real one does, with no goodbye */
@@ -876,6 +883,11 @@ export class Duel implements MatchLike {
       return;
     }
     // a goodbye or a stray message from someone unknown makes no figure
+    // the host handed over, or is being handed it (main runs the rest)
+    if (m.t === "host") {
+      if (this.phase === "waiting" && (this.role === "host" || from === 0)) this.onHandover?.(m, from);
+      return;
+    }
     // the host took you out of its lobby
     if (m.t === "kick") {
       if (this.role === "guest" && from === 0) this.finish("The host took you out of the match.");

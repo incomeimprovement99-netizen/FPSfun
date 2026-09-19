@@ -133,7 +133,13 @@ export type NetMsg =
   | { t: "mode"; left: number; rows: Array<[number, number, number, number, number]>; tm?: [number, number]; cr?: [number, number, number, number, number]; ct?: number[]; win?: number }
   | { t: "bye"; from?: number }
   /** the host took this guest out of the lobby */
-  | { t: "kick" };
+  | { t: "kick" }
+  /**
+   * Handing the host over, in the lobby: the host asks a guest to `take` it
+   * (with the match it made), that guest answers with its new `code`, and the
+   * host tells everyone else to `move` there.
+   */
+  | { t: "host"; op: "take" | "code" | "move"; players?: number; br?: BrWelcome; opts?: MatchOpts; code?: string };
 
 /**
  * A message without its undefined fields, so nothing packs as null. It lives

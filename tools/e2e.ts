@@ -984,6 +984,53 @@ async function jitterTest(browser: Browser, query: string, lossy = false): Promi
   await guest.close();
 }
 
+/**
+ * Handing the host over in the lobby: the host picks a friend on its roster,
+ * that friend opens a new code for the same match, and all three are in it
+ * with the friend hosting, nobody typing a code.
+ */
+async function handoverTest(browser: Browser, query: string): Promise<void> {
+  const pages: Page[] = [];
+  const host = await open(browser, query);
+  pages.push(host);
+  await ev(host, `(() => { document.getElementById("duelMode").value = "ffa"; document.getElementById("duelPlayers").value = "3"; document.getElementById("modeBots").value = "1"; document.getElementById("duelHost").click(); })()`);
+  let code = "";
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    for (let i = 0; i < 2; i++) {
+      const g = await open(browser, query);
+      pages.push(g);
+      await ev(g, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+      await sleep(500);
+    }
+    for (const p of pages) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 25000 });
+  } catch {
+    check("handover: three in one lobby", false, code);
+    for (const p of pages) await p.close();
+    return;
+  }
+  const ids = await Promise.all(pages.map((p) => ev<number>(p, "window.__range.duel().id")));
+  const heir = pages[ids.indexOf(1)];
+  // the host's roster: Make host on player 2
+  const clicked = await host
+    .waitForSelector('#duelRoster [data-host="1"]', { timeout: 6000 })
+    .then(async () => {
+      await ev(host, `document.querySelector('#duelRoster [data-host="1"]').click()`);
+      return true;
+    }, () => false);
+  const moved = await heir.waitForFunction(`window.__range.duel()?.role === "host" && window.__range.duel().id === 0`, { polling: 200, timeout: 20000 }).then(() => true, () => false);
+  const all = await Promise.all(pages.map((p) => p.waitForFunction(`(() => { const d = window.__range.duel(); return !!d && (d.role === "host" ? d.links.size === 2 : d.remotes.has(0)); })()`, { polling: 200, timeout: 20000 }).then(() => true, () => false)));
+  const roles = await Promise.all(pages.map((p) => ev<{ role: string; id: number; players: number } | null>(p, "(() => { const d = window.__range.duel(); return d ? { role: d.role, id: d.id, players: d.players } : null; })()")));
+  const said = await ev<string>(heir, `document.getElementById("duelStatus").textContent`);
+  check(
+    "handover: Make host moves the lobby to player 2's new code, the three of them in it with player 2 hosting",
+    clicked && moved && all.every(Boolean) && roles.filter((r) => r?.role === "host").length === 1 && roles.every((r) => r?.players === 3) && !said.includes(code),
+    JSON.stringify({ clicked, moved, all, roles, said })
+  );
+  for (const p of pages) await p.close();
+}
+
 /** a lobby bigger than three: everyone gets their own spawn, nobody stacks */
 async function lobbyTest(browser: Browser, query: string): Promise<void> {
   const pages: Page[] = [];
@@ -3802,6 +3849,8 @@ async function main(): Promise<void> {
       // nothing else. The host has to relay between the two forms.
       console.log("\n1v1v1 with one guest on the full packets (?deltas=0, as an older build)");
       await tripleTest(browser, "?net=local&norender", "1v1v1 mixed", [{}, {}, { extra: "&deltas=0", want: "full" }]);
+      console.log("\nHanding the host over in the lobby");
+      await handoverTest(browser, "?net=local&norender");
     }
 
     if (want("bots")) {
@@ -3906,6 +3955,8 @@ async function main(): Promise<void> {
       else {
         console.log("\nGetting back in after a dropped connection, over peer to peer");
         await rejoinTest(browser, "?norender");
+        console.log("\nHanding the host over, over peer to peer");
+        await handoverTest(browser, "?norender");
       }
     }
 

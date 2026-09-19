@@ -103,6 +103,11 @@ filling in — the bot count you pick is the side you **face**, and a team mode
 fills your side to match. The **Bot guns** box gives every bot the same gun if
 you want a shotgun-only night.
 
+**Handing the host over.** In the lobby the host's list of who is in has a
+**Make host** button by each friend. A friend with a better connection takes
+over: their page opens a new code for the same match, and everyone, the old
+host included, moves to it by themselves; nobody types a code.
+
 **The group stays together.** When a battle royale ends (or any match runs to
 its end screen and closes), nobody is sent back to swap codes: the host's
 Friends tab shows **Play again with N**. Pick the next mode and settings on

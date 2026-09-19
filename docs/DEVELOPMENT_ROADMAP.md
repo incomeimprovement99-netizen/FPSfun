@@ -1468,3 +1468,22 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   one speed still moves at one speed: a spread of 0.07 to 0.10 of the mean, no stalls, over three runs), and the
   `p2p` section (over the internet the channel opens both ways and carries the delta packets and acks, none lost).
 
+## Milestone 96 — Handing the host over in the lobby ✅
+2026-09-19 (Phase 15). `main.ts`, `duel.ts`, `link.ts`.
+- The host is the one whose upload carries the lobby, and whoever clicked Create match first was it, however bad
+  their connection. The host's roster now has a **Make host** button by each friend. The host asks that friend to
+  take it (with the match it made: the mode, the bots, the map); the friend's page opens a new code for the same
+  match, sends it back and leaves the old lobby with the new code kept open; the host tells everyone else to move
+  there, then goes itself. Three lobby messages (`host` take, code and move), only while waiting; a guest acts on
+  them only from its host, and the host only takes a code from the friend it asked.
+- The host button's code and the Join button's are one function each now (openHosting, joinCode), which the
+  handover calls as a player would.
+- Choosing the new host by ping is left: in a star the host knows only its own ping to each guest, not theirs to
+  each other, so "best connection" needs every guest to measure the others first.
+- The first version had the new host leave the old lobby 150 ms after sending its code, and a friend told to move
+  in that time reached the new code while its host was still a guest there, and was turned away. It now sends the
+  code and leaves in the same moment (the code goes first on the ordered channel).
+- Checks: the e2e `triple` section over two tabs and the `p2p` section over the internet (three pages in a
+  free-for-all lobby; the host clicks Make host on player 2, and all three are in player 2's new lobby with player 2
+  hosting and the same mode, nobody typing a code).
+
