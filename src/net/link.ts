@@ -275,6 +275,16 @@ class PeerLink implements Link {
   private closed = false;
   /** the unordered, never resent channel for the delta packets (net.json fast); null where the browser gave none */
   private fast: RTCDataChannel | null = null;
+  /**
+   * Something has arrived on it from the other end. A negotiated channel
+   * opens as soon as the connection is up whether or not the other end made
+   * it, and an older build never does: what goes on it then is lost. So each
+   * end says hello on it as it opens, and states go on it only once the
+   * other end's hello (or anything) has come in.
+   */
+  private fastHeard = false;
+  /** a hello back for the first thing heard: an end whose own hello came before this one made the channel would otherwise never hear one */
+  private fastAnswered = false;
   private fastSent = 0;
   private fastGot = 0;
   constructor(
@@ -305,6 +315,13 @@ class PeerLink implements Link {
       try {
         const ch = pc.createDataChannel("fast", { negotiated: true, id: FAST.id, ordered: false, maxRetransmits: 0 });
         ch.binaryType = "arraybuffer";
+        ch.onopen = () => {
+          try {
+            ch.send(pack({ t: "hi" }) as ArrayBuffer);
+          } catch {
+            // it closed again: the reliable channel carries everything
+          }
+        };
         ch.onmessage = (e: MessageEvent) => {
           if (this.closed) return;
           let m: NetMsg | null = null;
@@ -313,8 +330,19 @@ class PeerLink implements Link {
           } catch {
             return;
           }
+          if (!m || typeof m !== "object") return;
+          // the other end is there (its hello, or anything at all)
+          this.fastHeard = true;
+          if (!this.fastAnswered) {
+            this.fastAnswered = true;
+            try {
+              ch.send(pack({ t: "hi" }) as ArrayBuffer);
+            } catch {
+              // closing: nothing to answer
+            }
+          }
           // only what this channel is for: a state difference or its ack
-          if (!m || typeof m !== "object" || (m.t !== "sd" && m.t !== "sa")) return;
+          if (m.t !== "sd" && m.t !== "sa") return;
           this.fastGot++;
           this.onMessage?.(m);
         };
@@ -326,7 +354,7 @@ class PeerLink implements Link {
   }
   sendFast(m: NetMsg): void {
     const ch = this.fast;
-    if (!this.closed && ch && ch.readyState === "open" && ch.bufferedAmount < FAST.buffered) {
+    if (!this.closed && ch && this.fastHeard && ch.readyState === "open" && ch.bufferedAmount < FAST.buffered) {
       try {
         ch.send(pack(withoutUndefined(m) as unknown as Parameters<typeof pack>[0]) as ArrayBuffer);
         this.fastSent++;
@@ -338,7 +366,7 @@ class PeerLink implements Link {
     this.send(m);
   }
   fastStats(): { open: boolean; sent: number; got: number } {
-    return { open: this.fast?.readyState === "open", sent: this.fastSent, got: this.fastGot };
+    return { open: this.fastHeard && this.fast?.readyState === "open", sent: this.fastSent, got: this.fastGot };
   }
   send(m: NetMsg): void {
     if (!this.closed && this.conn.open) this.conn.send(withoutUndefined(m));

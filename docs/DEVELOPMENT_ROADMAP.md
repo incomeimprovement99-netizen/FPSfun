@@ -1456,6 +1456,11 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   Everything else (shots, hits, downs, the full packets an older build reads) stays reliable and ordered.
 - On the wire it is packed as PeerJS packs the reliable channel (binarypack); only a delta packet or an ack is
   accepted off it.
+- A negotiated channel opens as soon as the connection is up whether or not the other end made one, so "open" does
+  not mean anyone is listening: the first version sent a new host's states to an older guest into nothing (the
+  `mixed` run caught it, the older guest applying 0 of 167). Each end now says hello on the channel as it opens and
+  answers the first thing it hears with one of its own, and states go on it only once the other end has been heard
+  there; until then, and always with an older build, they stay on the reliable channel.
 - The local transport takes `?loss=P`: that channel drops P of its messages and delivers the rest in any order.
 - Measured with tools/net-cost.ts over the real peer to peer path: a battle royale squad's host upload 6.8 kB/s on
   the wire, against 6.4 to 6.5 before (the second channel's own overhead, about 5%).
