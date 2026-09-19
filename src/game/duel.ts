@@ -35,6 +35,7 @@ import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import type { AckMsg, DeltaMsg, DeltaPart, Link, NetMsg, RoundPhase, StateMsg } from "../net/link";
 import { stateMsg, stateOf, type PlayerState } from "../net/state";
 import { StateSync } from "../net/statesync";
+import { HitCheck } from "../net/hitcheck";
 import { ARENA_BOUNDS, ARENA_CENTER, ARENA_LOBBY_SPAWNS, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, TRI_CENTER, TRI_SPAWNS, ZONE_RADIUS, arenaMap, mapFor, type ArenaMapId } from "./arena";
 import type { Bounds } from "./player";
 import { operatorById } from "./operators";
@@ -326,6 +327,10 @@ export class Duel implements MatchLike {
   ping: number | null = null;
   /** when each player last fired (the host's bots are given it: a shooter gives itself away) */
   protected readonly shotAt = new Map<number, number>();
+  /** the host: every claimed hit held up to what the gun can do before it reaches anyone (src/net/hitcheck.ts) */
+  readonly hitCheck = new HitCheck();
+  /** where this player last was, for the host's hit check */
+  private selfAt = new THREE.Vector3();
   /** the host: each guest's round trip, ms (the roster, and the worst as this.ping) */
   readonly pingOf = new Map<number, number>();
   private weaponCache = new Map<string, ResolvedWeapon>();
@@ -933,6 +938,8 @@ export class Duel implements MatchLike {
         break;
       }
       case "hit":
+        // the host holds every claim up to what the gun can do (its own hits it makes itself)
+        if (this.role === "host" && !this.hitSane(from, m)) break;
         if (m.to === this.id) this.takeHit(m.amount, from, m.head, typeof m.w === "string" ? m.w.slice(0, 32) : "", typeof m.d === "number" && Number.isFinite(m.d) ? m.d : null);
         else if (this.role === "host" && !this.onHitOther(m.to, m.amount, m.head, from, typeof m.w === "string" ? m.w : "")) this.links.get(m.to)?.send({ ...m, from });
         break;
@@ -1422,9 +1429,35 @@ export class Duel implements MatchLike {
     }
   }
 
+  /** the host: whether a claimed hit passes the check; one that does not is dropped (and noted once per player in the console) */
+  private hitSane(from: number, m: Extract<NetMsg, { t: "hit" }>): boolean {
+    const a = this.whereIs(from);
+    const b = this.whereIs(m.to);
+    const why = this.hitCheck.judge(
+      { from, amount: m.amount, weapon: typeof m.w === "string" ? m.w : "", dist: typeof m.d === "number" && Number.isFinite(m.d) ? m.d : null },
+      wallClock(),
+      this.shotAt.get(from),
+      a && b ? a.distanceTo(b) : null
+    );
+    if (why && !this.warned.has(from)) {
+      this.warned.add(from);
+      console.warn(`hit from ${this.nameOf(from) ?? from} refused: ${why}`);
+    }
+    return why === null;
+  }
+  private warned = new Set<number>();
+
+  /** where a player is as this browser sees it (this player, or a remote's last state); the subclasses add their bots */
+  protected whereIs(id: number): THREE.Vector3 | null {
+    if (id === this.id) return this.selfAt;
+    const s = this.remotes.get(id)?.samples.at(-1);
+    return s ? new THREE.Vector3(s.x, s.y, s.z) : null;
+  }
+
   /** one frame of the match: the silence check, the circle, the rounds, the host's tick, our state, the figures */
   private frame(local: LocalState): void {
     const now = wallClock();
+    this.selfAt.set(local.x, local.y, local.z);
     this.ready = local.ready;
     // Capture time is real time too. Up to 1.1 s a step covers a hidden tab's
     // one frame a second; a longer gap (a stalled tab) is not counted.

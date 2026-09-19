@@ -1378,3 +1378,21 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   match and is taken back on its held seat, the two hear each other again within a second, a seat nobody comes back
   for is given up, and a guest that cannot get back is out).
 
+## Milestone 92 — The host checks every claimed hit ✅
+2026-09-19 (Phase 15). `hitcheck.ts` (new), `duel.ts`, `brmatch.ts`, `modematch.ts`, `src/config/net.json`.
+- The shooter's own browser decides a hit and tells the others what it did, which is what keeps a hit where you saw
+  it at any ping. It also meant a page could claim anything: a 999 from across the map with a gun it never fired.
+  The host sees every shot and every hit, so it now holds each claim to what the gun can do before it reaches
+  anyone: no more than one round of that gun (a headshot at its nearest range with every bonus it can carry, 30%
+  over), only within 2.5 s of a shot from that player, from within 10 m plus 30% of the distance the host sees
+  between the two (a round trip stale), a swing only from within 5 m, and no more in a second than the gun fires
+  in one, 60% over, and never less than one whole trigger pull. A claim that fails is dropped, and the first from
+  each player is noted in the console; nothing is shown to players.
+- Every gun's best real round, and a whole magazine of them at the gun's fastest, passes: the unit check runs all
+  30. It caught the sniper on the first run (slower than a shot a second, its per-second limit was below one round).
+- Three e2e steps that faked a guest's hits with no shot behind them and more than a round could do now claim as a
+  gun would (a shot, then R-301 rounds of 25).
+- Checks: `tools/checks/hitcheck.ts` (every gun's best round and full magazine pass; a round too many, a hit with no
+  shot, a claim from the wrong distance, a swing from 20 m and a stream faster than the gun are refused), and the
+  e2e `squad` section (a guest's 900 from an R-301 and a hit with no shot behind it are both dropped by the host).
+

@@ -2576,6 +2576,12 @@ export class BrMatch extends Duel {
     return b ? { shield: b.bot.dummy.shield, health: b.bot.dummy.health } : super.vitalsFor(id);
   }
 
+  /** a bot of this match where it stands, for the hit check */
+  protected override whereIs(id: number): THREE.Vector3 | null {
+    const b = this.bots.find((x) => x.bot.remote.id === id);
+    return b ? b.bot.pos : super.whereIs(id);
+  }
+
   /** out with others still up: a squad mate first, else the nearest bot */
   override spectateTarget(): Dummy | null {
     if (this.alive || this.phase !== "fight") return null;

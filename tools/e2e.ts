@@ -694,6 +694,14 @@ async function arenaMapsTest(browser: Browser, query: string): Promise<void> {
   await page.close();
 }
 
+/**
+ * A guest's rounds into a target as its gun would claim them: a shot the
+ * host hears first, then R-301 rounds of 25 (the host's hit check refuses a
+ * claim no round could make, or one with no shot behind it).
+ */
+const guestRounds = (pick: string, n: number): string =>
+  `(() => { const d = window.__range.duel(); const T = window.__range.THREE; const r = [...d.remotes.values()].find((x) => ${pick}); if (!r) return false; d.localShot(new T.Vector3(), new T.Vector3(0, 0, -1), "rspn101"); for (let i = 0; i < ${n}; i++) d.localHit(r, 25, true, "rspn101"); return true; })()`;
+
 /** a bot knocked by this player's own bullet (its dummy's hit() and the match's localHit, as the game does) */
 const knockBot = (pick: string, weapon = "r97") =>
   `(() => { const d = window.__range.duel(); const a = d.avatars.find((x) => { const r = d.remoteOf(x); return r && r.id >= 100 && r.alive && (${pick}); }); if (!a) return false; const r = d.remoteOf(a); a.hit(0, "body", 900, 1, 1, a.group.position); d.localHit(r, 900, false, "${weapon}", 8); return true; })()`;
@@ -1006,7 +1014,7 @@ async function modesFriendsTest(browser: Browser, query: string): Promise<void> 
   const hostSees = await host.waitForFunction("window.__range.duel().remotes.get(1)?.alive === true", { polling: 200, timeout: 4000 }).then(() => true, () => false);
   check("modes friends: the guest respawns and the host sees them back", again && hostSees);
   // the guest knocks the bot (a hit message the host applies): the guest moves on, told by the host
-  await ev(guest, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id >= 100 && x.alive); d.localHit(r, 900, true, "rspn101", 9); })()`);
+  await ev(guest, guestRounds("x.id >= 100 && x.alive", 16));
   const gl = await guest.waitForFunction("window.__range.duel().ladder.level(1) === 1 && window.__range.loadout.slots[0].id === 'r97'", { polling: 200, timeout: 5000 }).then(() => true, () => false);
   check("modes friends: the guest's kill on the host's bot moves the guest on, the R-99 in the guest's hands", gl, JSON.stringify(await ev(guest, "({ lv: window.__range.duel().ladder.level(1), gun: window.__range.loadout.slots[0].id })")));
   // the figure over the network: the guest aims down sights, then heals; the host's copy of the guest does it too
@@ -1095,10 +1103,21 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   const seenJolt = await host.waitForFunction("window.__range.remoteFxLog.some((e) => e.k === 'jolt' && e.from === 1)", { polling: 100, timeout: 4000 }).then(() => true, () => false);
   check("squad: the guest's JOLT reaches the host", seenJolt, JSON.stringify(await ev(host, "window.__range.remoteFxLog")));
   // the guest knocks a bot: the hit goes to the host, the down comes back to both
-  await ev(guest, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id >= 100 && x.alive); for (let i = 0; i < 6; i++) d.localHit(r, 100, false); })()`);
+  await ev(guest, guestRounds("x.id >= 100 && x.alive", 12));
   await sleep(1200);
   const after = await Promise.all([host, guest].map((p) => ev<{ alive: number; kills: number; squads: number }>(p, "({ alive: window.__range.duel().hud().br.alive, kills: window.__range.duel().hud().br.kills, squads: window.__range.duel().hud().br.squads })")));
   check("squad: the knock is the guest's, and both see one fewer alive", after[1].kills === 1 && after[0].kills === 0 && after[0].alive === 5 && after[1].alive === 5, JSON.stringify(after));
+  // a forged claim: more than one round of the gun can do, then a hit with no shot behind it; the host drops both
+  const refusedBefore = await ev<number>(host, "window.__range.duel().hitCheck.refused.length");
+  const target = await ev<{ id: number; hp: number } | null>(host, "(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.bot.alive && !x.down); return b ? { id: b.bot.remote.id, hp: b.bot.dummy.health + b.bot.dummy.shield } : null; })()");
+  if (target) {
+    await ev(guest, `(() => { const d = window.__range.duel(); const r = d.remotes.get(${target.id}); if (r) d.localHit(r, 900, true, "rspn101"); })()`);
+    await sleep(3000);
+    await ev(guest, `(() => { const d = window.__range.duel(); const r = d.remotes.get(${target.id}); if (r) d.localHit(r, 20, false, "rspn101"); })()`);
+    await sleep(600);
+  }
+  const forged = await ev<{ refused: Array<{ why: string }>; hp: number }>(host, `(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.bot.remote.id === ${target?.id ?? -1}); return { refused: d.hitCheck.refused.slice(${refusedBefore}), hp: b ? b.bot.dummy.health + b.bot.dummy.shield : -1 }; })()`);
+  check("squad: the host drops a forged hit (more than a round can do) and one with no shot behind it", !!target && forged.refused.length === 2 && /more than one round/.test(forged.refused[0].why) && /no shot/.test(forged.refused[1].why), JSON.stringify({ target, forged }));
   // the guest runs no bots: its squad count is the host's, off the ring packet (the pair with a bot down is still in it)
   check("squad: the guest counts the squads still in it the way the host does", after[0].squads === 3 && after[1].squads === 3, JSON.stringify(after.map((a) => a.squads)));
   // a ping: the guest marks a place, the host sees it

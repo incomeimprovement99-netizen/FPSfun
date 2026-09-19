@@ -1241,6 +1241,12 @@ export class ArenaMode extends Duel {
     return this.bots.find((b) => b.bot.alive)?.bot.dummy ?? null;
   }
 
+  /** a bot of this match where it stands, for the hit check */
+  protected override whereIs(id: number): THREE.Vector3 | null {
+    const b = this.bots.find((x) => x.bot.remote.id === id);
+    return b ? b.bot.pos : super.whereIs(id);
+  }
+
   override leave(): void {
     if (this.ended) return;
     this.left = true;

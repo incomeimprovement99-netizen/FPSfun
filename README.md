@@ -81,6 +81,12 @@ holds their place, their figure where it stood, for 60 s and takes them back
 on it. A seat nobody comes back for is let go after that. A 1v1 still ends
 when either of you goes.
 
+**The host checks every hit.** Your own browser decides your hits, which is
+what keeps a hit where you saw it at any ping; the host now holds each one up
+to what the gun can do (no more than one of its rounds, only after a shot, from
+about where you stand, no faster than it fires) and drops any that could not
+have happened.
+
 **Up to eight people.** The player count on the Friends tab goes to 8: two is
 the warehouse arena, three the triangle, and four or more play the warehouse,
 which has a spawn each. Every mode below can be played this way, with bots

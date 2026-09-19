@@ -49,6 +49,7 @@ import { feelFails } from "./checks/feel";
 import { botWalkFails } from "./checks/bot-walk";
 import { resurgenceFails } from "./checks/resurgence";
 import { gulagFails } from "./checks/gulag";
+import { hitcheckFails } from "./checks/hitcheck";
 import { HU, MOVE, jumpVelocityFor, slideBreakEvenAngle, SLIDE_RAMP_ANGLE } from "../src/game/movement";
 import { Abilities, JOLT, abilityCode, abilityFromCode } from "../src/game/abilities";
 import itemsCfg from "../src/config/items.json";
@@ -1762,7 +1763,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + mobilityFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + throwStepsFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + resurgenceFails + gulagFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails;
+fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + mobilityFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + throwStepsFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + resurgenceFails + gulagFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);
