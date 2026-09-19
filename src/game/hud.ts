@@ -1031,6 +1031,46 @@ export class Hud {
         c.fillRect(x - 11 * u, y - 11 * u, 22 * u, 22 * u);
         this.text(z.id, x, y + 6 * u, 700, 16 * u, z.owner === "you" ? BLUE : z.owner === "them" ? RED : WHITE, "center");
       }
+    } else if (m.search) {
+      // Search: the rounds, your job this round and the clock; once planted, the bomb's clock in red
+      const sr = m.search;
+      const BLUE = "#3fa7ff";
+      const ORANGE = "#ffa23c";
+      this.text("YOUR TEAM", cx - 175 * u, 84 * u, 700, 13 * u, BLUE);
+      this.text(`${sr.you}`, cx - 40 * u, 110 * u, 700, 36 * u, WHITE, "right");
+      this.text("-", cx, 106 * u, 700, 28 * u, DIM, "center");
+      this.text(`${sr.them}`, cx + 40 * u, 110 * u, 700, 36 * u, WHITE);
+      this.text("THEM", cx + 175 * u, 84 * u, 700, 13 * u, RED, "right");
+      const job = sr.attacking ? "ATTACK" : "DEFEND";
+      const line =
+        sr.phase === "planted" ? `BOMB ON ${sr.site ?? ""}  ·  ${Math.ceil(sr.left)} S` : d.phase === "fight" ? `${job}  ·  ${clock(sr.left)}  ·  FIRST TO ${sr.limit}` : `ROUND ${d.round}  ·  ${job} NEXT  ·  FIRST TO ${sr.limit}`;
+      this.text(line, cx, 138 * u, 700, 15 * u, sr.phase === "planted" ? RED : sr.attacking ? ORANGE : BLUE, "center");
+      if (d.phase === "fight") {
+        // a plant or a defuse under way: a bar over the crosshair, yours or someone's
+        if (sr.work) {
+          const bw = 240 * u;
+          const y = this.h * 0.58;
+          const what = sr.work.kind === "plant" ? "PLANTING" : "DEFUSING";
+          const who = sr.work.mine ? "" : sr.work.ally ? "  ·  YOUR TEAM" : "  ·  THEM";
+          c.fillStyle = "rgba(0,0,0,0.55)";
+          c.fillRect(cx - bw / 2, y, bw, 10 * u);
+          c.fillStyle = sr.work.kind === "plant" ? ORANGE : BLUE;
+          c.fillRect(cx - bw / 2, y, bw * sr.work.k, 10 * u);
+          this.text(`${what}${who}`, cx, y - 8 * u, 700, 14 * u, WHITE, "center");
+        } else if (sr.prompt) this.text(sr.prompt, cx, this.h * 0.58, 700, 18 * u, WHITE, "center");
+        // the sites' letters in the world (the bomb's in red), held to the screen
+        for (const q of sr.sites) {
+          if (q.here) continue;
+          const v = q.at.clone().setY(q.at.y + 2.5).project(camera);
+          if (v.z > 1) continue;
+          const x = (v.x * 0.5 + 0.5) * this.w;
+          const y = (-v.y * 0.5 + 0.5) * this.h;
+          if (x < 0 || x > this.w || y < 0 || y > this.h) continue;
+          c.fillStyle = "rgba(0,0,0,0.5)";
+          c.fillRect(x - 11 * u, y - 11 * u, 22 * u, 22 * u);
+          this.text(q.id, x, y + 6 * u, 700, 16 * u, q.bomb ? RED : ORANGE, "center");
+        }
+      }
     } else if (m.ffa) {
       // free-for-all: your kills against the best of the others, the limit and the clock
       this.text("YOU", cx - 175 * u, 84 * u, 700, 13 * u, "#7ddc8a");

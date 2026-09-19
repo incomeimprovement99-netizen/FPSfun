@@ -965,6 +965,57 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await ev(ct, "window.__range.duel()?.leave()");
   await ct.close();
 
+  // ---- Search: plant and defuse, one life a round
+  const sr = await startModePage(browser, query, "goSearch", `document.getElementById("modeBots").value = "3"`);
+  const sr0 = await ev<{ kind: string; attacking: boolean; phase: string; left: number; sites: string; allies: number; n: number } | null>(sr, "(() => { const d = window.__range.duel(); const m = d.hud().mode; return m.search ? { kind: m.kind, attacking: m.search.attacking, phase: m.search.phase, left: m.search.left, sites: m.search.sites.map((q) => q.id).join(''), allies: m.rows.filter((r) => r.ally).length, n: d.avatars.length } : null; })()");
+  check("search: three bots to face makes it three a side; round 1 you attack, sites A and B, the round's clock running", !!sr0 && sr0.kind === "search" && sr0.attacking && sr0.phase === "live" && sr0.left > 95 && sr0.left <= 105 && sr0.sites === "AB" && sr0.allies === 2 && sr0.n === 5, JSON.stringify(sr0));
+  // the bots stand still (nobody goes down); you on site A, holding interact
+  await ev(sr, "(() => { const d = window.__range.duel(); window.__notices = []; const say = d.onNotice; d.onNotice = (t) => { window.__notices.push(t); say?.(t); }; d.bots.forEach((b) => { b.bot.update = () => []; }); const q = d.hud().mode.search.sites[0].at; window.__range.player.teleport(q.x, 0, q.z, 180); })()");
+  await sleep(400);
+  const prompt = await ev<string | null>(sr, "window.__range.duel().hud().mode.search.prompt");
+  await ev(sr, `window.__range.setScript({ held: (a) => a === "interact", pressedNow: () => false })`);
+  await sleep(2000);
+  const mid = await ev<{ kind: string; mine: boolean; k: number } | null>(sr, "window.__range.duel().hud().mode.search.work");
+  const planted = await sr.waitForFunction("window.__range.duel().hud().mode.search.phase === 'planted'", { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  await ev(sr, "window.__range.setScript(null)");
+  const sr1 = await ev<{ site: string | null; left: number; bomb: boolean; said: boolean }>(sr, "(() => { const d = window.__range.duel(); const m = d.hud().mode.search; return { site: m.site, left: m.left, bomb: d.bombModel.visible, said: window.__notices.some((t) => t.startsWith('BOMB PLANTED ON A')) }; })()");
+  check("search: on site A the prompt says to hold E; held, a bar fills and the bomb is planted on A with its 40 s clock", prompt === "HOLD E TO PLANT ON A" && !!mid && mid.kind === "plant" && mid.mine && mid.k > 0.2 && mid.k < 0.8 && planted && sr1.site === "A" && sr1.left > 36 && sr1.bomb && sr1.said, JSON.stringify({ prompt, mid, planted, sr1 }));
+  // the bomb beeps, quicker as it runs down, and going off takes the round for the attackers (you)
+  // 20 s left, then 2 s: the gaps between beeps at each
+  await ev(sr, "(() => { const d = window.__range.duel(); window.__beeps = []; const beep = d.onBeep; d.onBeep = (at, left) => { window.__beeps.push([performance.now(), left]); beep?.(at, left); }; d.search.endsAt = performance.now() / 1000 + 20; })()");
+  await sleep(1600);
+  await ev(sr, "(() => { const d = window.__range.duel(); d.search.endsAt = performance.now() / 1000 + 2; })()");
+  const blown = await sr.waitForFunction("window.__range.duel().phase === 'roundEnd'", { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  const sr2 = await ev<{ you: number; them: number; won: boolean | null; slow: number; fast: number; said: boolean }>(sr, "(() => { const d = window.__range.duel(); const h = d.hud(); const b = window.__beeps; const gaps = (hi, lo) => { const g = []; for (let i = 1; i < b.length; i++) if (b[i - 1][1] <= hi && b[i - 1][1] > lo) g.push(b[i][0] - b[i - 1][0]); return g.length ? Math.round(g.reduce((x, y) => x + y, 0) / g.length) : 0; }; return { you: h.mode.search.you, them: h.mode.search.them, won: h.youWonRound, slow: gaps(21, 17), fast: gaps(2.1, 0), said: window.__notices.some((t) => t.startsWith('THE BOMB WENT OFF')) }; })()");
+  const quicker = sr2.slow > 250 && sr2.fast > 0 && sr2.fast < sr2.slow * 0.5;
+  check("search: the bomb beeps quicker as it runs down, and going off takes the round for the attackers", blown && sr2.you === 1 && sr2.them === 0 && sr2.won === true && sr2.said && quicker, JSON.stringify(sr2));
+  // round 2: the clock running out before a plant is the defenders'
+  await sr.waitForFunction("window.__range.duel().phase === 'fight' && window.__range.duel().round === 2", { polling: 200, timeout: 15000 }).catch(() => undefined);
+  await ev(sr, "(() => { const d = window.__range.duel(); d.bots.forEach((b) => { b.bot.update = () => []; }); d.search.endsAt = performance.now() / 1000 + 0.5; })()");
+  await sr.waitForFunction("window.__range.duel().phase === 'roundEnd'", { polling: 100, timeout: 5000 }).catch(() => undefined);
+  const sr3 = await ev<{ you: number; them: number; alive: boolean }>(sr, "(() => { const m = window.__range.duel().hud().mode.search; return { you: m.you, them: m.them, alive: window.__range.duel().alive }; })()");
+  check("search: the clock running out before a plant is the defenders' round", sr3.you === 1 && sr3.them === 1, JSON.stringify(sr3));
+  // after round 6 the sides swap: round 7, you defend, and the bots attack a site and plant on their own
+  await ev(sr, "(() => { const d = window.__range.duel(); d.round = 6; })()");
+  await sr.waitForFunction("window.__range.duel().phase === 'fight' && window.__range.duel().round === 7", { polling: 200, timeout: 15000 }).catch(() => undefined);
+  const swapped = await ev<{ attacking: boolean; round: number }>(sr, "(() => { const d = window.__range.duel(); return { attacking: d.hud().mode.search.attacking, round: d.round }; })()");
+  // you and your two bots stay at your end (the bots hold their fire); the attacking bots are let go
+  await ev(sr, "(() => { const d = window.__range.duel(); d.bots.forEach((b) => { if (b.team === 1) delete b.bot.update; }); const s = d.startSpawn(0, 0); window.__range.player.teleport(s.x, 0, s.z, s.yaw); })()");
+  const botPlant = await sr.waitForFunction("window.__range.duel().hud().mode.search.phase === 'planted'", { polling: 250, timeout: 50000 }).then(() => true, () => false);
+  const bySite = await ev<string | null>(sr, "window.__range.duel().hud().mode.search.site");
+  check("search: after round 6 the sides swap, and the bots attack a site and plant the bomb on their own", swapped.round === 7 && !swapped.attacking && botPlant && (bySite === "A" || bySite === "B"), JSON.stringify({ swapped, botPlant, bySite }));
+  // you defuse it: beside the bomb, holding interact for 7 s (the bots frozen again, so nobody goes down)
+  await ev(sr, "(() => { const d = window.__range.duel(); d.bots.forEach((b) => { b.bot.update = () => []; }); d.search.endsAt = performance.now() / 1000 + 30; const q = d.search.bomb; const w = d.world([q.x, q.z]); window.__range.player.teleport(w.x + 0.8, 0, w.z, 0); })()");
+  await sleep(300);
+  const dPrompt = await ev<string | null>(sr, "window.__range.duel().hud().mode.search.prompt");
+  await ev(sr, `window.__range.setScript({ held: (a) => a === "interact", pressedNow: () => false })`);
+  const defused = await sr.waitForFunction("window.__range.duel().phase === 'roundEnd'", { polling: 100, timeout: 10000 }).then(() => true, () => false);
+  await ev(sr, "window.__range.setScript(null)");
+  const sr4 = await ev<{ you: number; them: number; said: boolean }>(sr, "(() => { const m = window.__range.duel().hud().mode.search; return { you: m.you, them: m.them, said: window.__notices.some((t) => t.startsWith('BOMB DEFUSED')) }; })()");
+  check("search: beside the bomb the prompt says to hold E, and 7 s of it defuses the bomb: the round is yours", dPrompt === "HOLD E TO DEFUSE" && defused && sr4.you === 2 && sr4.said, JSON.stringify({ dPrompt, defused, sr4 }));
+  await ev(sr, "window.__range.duel()?.leave()");
+  await sr.close();
+
   // ---- the motion-captured figures (a setting): they load, a match's figures are mannequins and animate
   const mq = await open(browser, query);
   await ev(mq, `(() => { const s = document.getElementById("figureStyle"); const def = s.value; s.value = "mannequin"; s.dispatchEvent(new Event("change")); window.__mqDefault = def; return window.__range.loadMannequin(); })()`);
@@ -990,6 +1041,44 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
  * the owner tried and could not do. The code was fine; the way in was behind
  * a tab called "1v1". These hold the whole path anyway, per mode.
  */
+/**
+ * Search with a friend: the guest plants. The host runs the round, so the
+ * guest's hold on interact has to reach it (the "hold" effect), and the bar
+ * and the bomb have to come back to the guest's screen.
+ */
+async function searchFriendsTest(browser: Browser, query: string): Promise<void> {
+  const host = await open(browser, query);
+  const guest = await open(browser, query);
+  await ev(host, `(() => { document.getElementById("duelMode").value = "search"; document.getElementById("modeBots").value = "1"; document.getElementById("modeSides").value = "together"; document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+    for (const p of [host, guest]) await pressPlay(p);
+    for (const p of [host, guest]) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 30000 });
+  } catch {
+    check("search with a friend: the two start", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  // the bots stand still; the guest on site B, holding interact
+  await ev(host, "(() => { const d = window.__range.duel(); d.holdFire = true; d.bots.forEach((b) => { b.bot.update = () => []; }); })()");
+  await ev(guest, "(() => { const q = window.__range.duel().hud().mode.search.sites[1].at; window.__range.player.teleport(q.x, 0, q.z, 0); })()");
+  await sleep(600);
+  await ev(guest, `window.__range.setScript({ held: (a) => a === "interact", pressedNow: () => false })`);
+  const barOnGuest = await guest.waitForFunction("window.__range.duel().hud().mode.search.work?.mine === true", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  const barOnHost = await host.waitForFunction("(() => { const w = window.__range.duel().hud().mode.search.work; return !!w && !w.mine && w.ally; })()", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  const planted = await host.waitForFunction("window.__range.duel().hud().mode.search.phase === 'planted'", { polling: 100, timeout: 8000 }).then(() => true, () => false);
+  await ev(guest, "window.__range.setScript(null)");
+  const seen = await guest.waitForFunction("(() => { const m = window.__range.duel().hud().mode.search; return m.phase === 'planted' && m.site === 'B'; })()", { polling: 100, timeout: 3000 }).then(() => true, () => false);
+  const bomb = await ev<boolean>(guest, "window.__range.duel().bombModel.visible");
+  check("search with a friend: the guest holds E on site B, both screens show its bar, and the host plants the bomb on B for it; the guest sees it", barOnGuest && barOnHost && planted && seen && bomb, JSON.stringify({ barOnGuest, barOnHost, planted, seen, bomb }));
+  await host.close();
+  await guest.close();
+}
+
 async function friendsModesTest(browser: Browser, query: string): Promise<void> {
   for (const [kind, bots, wantsAllies] of [["tdm", 3, true], ["ffa", 3, false], ["control", 2, true]] as const) {
     const host = await open(browser, query);
@@ -4346,6 +4435,7 @@ async function main(): Promise<void> {
       await modesFriendsTest(browser, "?net=local&norender");
       await modesSplitTest(browser, "?net=local&norender");
       await friendsModesTest(browser, "?net=local&norender");
+      await searchFriendsTest(browser, "?net=local&norender");
       await lobbyTest(browser, "?net=local&norender");
       await lobbyShortTest(browser, "?net=local&norender");
     }

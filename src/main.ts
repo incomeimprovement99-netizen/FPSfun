@@ -3092,6 +3092,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     applyModeGun(id);
     if (d.alive) audio.swap();
   };
+  // Search's bomb, beeping where it lies (quicker, and higher in its last ten seconds)
+  if (d instanceof ArenaMode) d.onBeep = (at, left) => audio.bombBeep(at, left < 10);
   if (d instanceof BrMatch) {
     d.onBinOpened = (at) => audio.bin(at, true);
     d.onKnockSeen = (victim, by) => {
@@ -3277,6 +3279,7 @@ function modeGoal(d: ArenaMode): string {
   if (d.modeKind === "gunrun") return `${d.ladder.guns.length} guns then the knife, ${Math.round(MODES.gunRun.timeLimit / 60)} minutes.`;
   if (d.modeKind === "tdm") return `teams of ${MODES.tdm.teamSize}, first to ${MODES.tdm.scoreLimit}.`;
   if (d.modeKind === "control") return `teams of ${MODES.control.teamSize} over zones A, B and C, a point a second a zone, first to ${MODES.control.scoreLimit}.`;
+  if (d.modeKind === "search") return `teams of ${MODES.search.teamSize}, one life a round: plant on A or B, or stop them; sides swap after ${MODES.search.swapAt} rounds, first to ${MODES.search.roundsToWin}.`;
   if (d.modeKind === "ffa") return `everyone for themselves, first to ${MODES.ffa.scoreLimit} kills or the most at ${Math.round(MODES.ffa.timeLimit / 60)} minutes.`;
   return `hold the crown ${MODES.crown.hold} s, first to ${MODES.crown.roundsToWin} rounds.`;
 }
@@ -3753,7 +3756,7 @@ function goTo(mode: Mode): void {
     startBr();
     return;
   }
-  if (mode === "gunrun" || mode === "tdm" || mode === "crown" || mode === "control" || mode === "ffa") {
+  if (mode === "gunrun" || mode === "tdm" || mode === "crown" || mode === "control" || mode === "ffa" || mode === "search") {
     startMode(mode);
     return;
   }
@@ -5133,6 +5136,8 @@ function step(): void {
     lf.f.update(now, dt);
   }
 
+  // Search: interact held is a plant on a site, or a defuse beside the bomb
+  if (duel instanceof ArenaMode) duel.holding = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("interact") : input.held("interact"));
   duel?.update({
     x: player.pos.x,
     y: player.pos.y,

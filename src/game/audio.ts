@@ -755,6 +755,13 @@ export class GameAudio {
     if (!this.sample(v.input, v.t, "pickup", 0.4)) this.tone(v.input, v.t, 0.05, "triangle", 900, 1400, 0.09);
   }
 
+  /** Search's bomb: a short, bright beep, where the bomb is (the match quickens it as it runs down) */
+  bombBeep(at: Vec, urgent: boolean): void {
+    const v = this.voice(at, 0.12, "fx", 1, 0.3);
+    if (!v) return;
+    this.tone(v.input, v.t, 0.09, "square", urgent ? 1760 : 1320, urgent ? 1760 : 1320, 0.16);
+  }
+
   /** a respawn beacon working, and a squad mate's banner going in */
   beacon(at: Vec): void {
     const v = this.voice(at, 0.7, "fx", 0, 0.5);

@@ -66,6 +66,21 @@
     "timeLimit": 600,
     "respawn": 4
   },
+  "_search": "Search (plant and defuse; docs/NEXT_STEPS.md): one life a round, two teams of up to teamSize. The attackers plant the bomb on site A or B by holding interact on it for plantTime seconds; the defenders stop them for roundTime seconds, or defuse a planted bomb by holding interact beside it (within defuseReach metres) for defuseTime. A planted bomb goes off bombTime seconds later. A round is the attackers' if the bomb goes off or every defender is down; the defenders' if the time runs out before a plant, every attacker is down before one, or they defuse it. Letting go, moving off the site or going down starts a plant or a defuse over. Team A attacks the first swapAt rounds and team B after; the first to roundsToWin rounds wins. The sites are the arena's Control zones A and C, siteRadius across. The numbers are the genre's (Counter-Strike and Valorant: a 1:40 to 1:55 round, a 3.2 to 4 s plant, a 5 to 7 s defuse, a 40 to 45 s bomb, halves of 12 or 15, first to 13); teams of four and first to seven are ours, for a lobby of eight. The beep quickens from beepSlow seconds apart to beepFast in the last seconds. A bot whose job is the objective (an attacker before the plant, a defender after it) makes for it and turns on an enemy only within engage metres: a bot that chased everyone it saw never planted (ours).",
+  "search": {
+    "teamSize": 4,
+    "roundTime": 105,
+    "plantTime": 4,
+    "defuseTime": 7,
+    "defuseReach": 2.2,
+    "bombTime": 40,
+    "swapAt": 6,
+    "roundsToWin": 7,
+    "siteRadius": 3.5,
+    "engage": 14,
+    "beepSlow": 1,
+    "beepFast": 0.12
+  },
   "crown": {
     "appearsAfter": 20,
     "hold": 30,

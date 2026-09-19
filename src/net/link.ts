@@ -132,7 +132,7 @@ export type NetMsg =
    * waiting, 1 on the ground, 2 carried), x, z, carrier, held]; the winner
    * (an id, or a team as -10 - team) once it is decided.
    */
-  | { t: "mode"; left: number; rows: Array<[number, number, number, number, number]>; tm?: [number, number]; cr?: [number, number, number, number, number]; ct?: number[]; win?: number }
+  | { t: "mode"; left: number; rows: Array<[number, number, number, number, number]>; tm?: [number, number]; cr?: [number, number, number, number, number]; ct?: number[]; win?: number; sr?: number[] }
   | { t: "bye"; from?: number }
   /** the host took this guest out of the lobby */
   | { t: "kick" }

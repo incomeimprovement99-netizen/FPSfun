@@ -78,7 +78,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 8. ~~**Sprays and banner cards**~~ Done (Milestones 85, 86).
 9. ~~**Weapon finishes and unlocks**~~ Done (Milestone 108): eight finishes opened by level, chosen gun by gun, and seen by the others (Milestone 109).
 10. ~~**Custom match rules**~~ Done (Milestone 106): guns by class, rounds to win, friendly fire, carried in the match options.
-11. **Plant and defuse:** 2 to 3 days, built from the Crown carry, the Control capture and the round clock.
+11. ~~**Plant and defuse**~~ Done (Milestone 114): Search, first to seven, one life a round, bots that attack and defend.
 12. **Vault and keycard (#35):** about 2 days, after doors.
 13. ~~**Voice chat:**~~ Done (Milestones 104, 105): push to talk, your squad or team, peer to peer, a volume on the Settings tab and a mute per player on the Friends tab.
 14. ~~**The leaderboard secret behind the server**~~ Done, as the real weakness (Milestone 84): the server never read the secret; a wins board now counts posts, not totals.

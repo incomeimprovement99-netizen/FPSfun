@@ -1788,3 +1788,40 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   battle royale (a trio against two bot squads on mixed difficulty; the host's tab crashes mid-close with most bots
   armed; the same bots with their tiers, squads and kits, the ring where it was, and the third friend back in
   hearing the bots).
+
+## Milestone 114 — Search: plant and defuse ✅
+2026-09-19 (Phase 15). `modes.ts` (`Search`), `modematch.ts`, `hud.ts`, `audio.ts`, `duel.ts`, `main.ts`, `menu.ts`,
+`index.html`, `src/config/modes.json` (`search`), `tools/checks/search.ts` (new), `tools/e2e.ts`.
+- The genre's highest-tension format, built from the arena modes' parts: Crown's rounds with one life, Control's
+  zones as the sites, and the round clock. Two teams of up to four (bots fill the sides, and friends can be split);
+  sites A and B are the arena's Control zones A and C. The attackers plant by holding interact on a site for 4 s; the
+  defenders run out the 1:45 clock, wipe out the attackers before a plant, or defuse by holding interact within
+  2.2 m of the bomb for 7 s. The bomb goes off 40 s after it is planted. Letting go, stepping off, or going down
+  starts a plant or defuse over. Attackers wiped out after a plant still leave the bomb to be defused. Team A
+  attacks the first six rounds and team B after; first to seven.
+- The rules are a class on their own (`Search` in `modes.ts`) that the host steps with who is where, who is up and
+  who is holding interact, so the checks drive it bare. A guest tells the host when it holds interact or lets go
+  (a `hold` effect the mode keeps for itself, through a new `onFx` hook, again every 0.3 s while it holds). The host
+  sends the round in the `mode` packet (`sr`: phase, clock, the bomb's site and place, a plant or defuse under way,
+  who attacks), ten times a second while someone is at work so the bar moves on every screen.
+- On screen: the rounds, your job this round and the clock; once it is planted, the bomb's site and seconds in red.
+  The prompt says HOLD E TO PLANT ON A or HOLD E TO DEFUSE where it would work, a bar over the crosshair shows a plant
+  or defuse and whose it is, and the sites' letters stand in the world. The bomb is a case on the floor with a red
+  light that blinks with its beep, a square tone where it lies, from 1 s apart to 0.12 s, higher in its last ten
+  seconds.
+- Bots: attackers take the round's site together and plant when they are on it; defenders split between the two
+  sites; once the bomb is down the defenders go for it and the attackers guard it from a few metres off. A bot whose
+  job is the objective (an attacker before the plant, a defender after it) makes for it and turns on an enemy only
+  within `engage` metres (14). The first test run showed why: a bot goes at anyone it sees, and the attackers spent
+  the round closing on a player across the map instead of planting.
+- Host migration covers it: the heir rebuilds the round from its view, with the bomb and any plant or defuse.
+- The numbers are the genre's (Counter-Strike and Valorant: a round of 1:40 to 1:55, a 3.2 to 4 s plant, a 5 to 7 s
+  defuse, a 40 to 45 s bomb); teams of four and first to seven are ours, for a lobby of eight.
+- Checks: `tools/checks/search.ts` (nineteen: the plant's time, the bomb's clock, going off, holding off a site,
+  starting over, only attackers plant and only on their side of the swap, the defuse's time and reach and starting
+  over, the clock, the wipes and the planted-bomb exception, the swap, the quickening beep, and a round rebuilt from
+  a guest's view mid-defuse finishing at the same moment), and the e2e `modes` section (three a side; the prompt, the
+  bar and the plant on A; the bomb beeping 0.32 s apart with 20 s left and 0.12 s with 2 s, and going off for the round; the clock running out for the
+  defenders; after round six you defend, and the bots attack a site and plant on their own; you defuse it), and with
+  a friend (the guest holds E on site B, both screens show its bar, the host plants the bomb for it, and the guest
+  sees it).

@@ -676,6 +676,11 @@ export class Duel implements MatchLike {
     return false;
   }
 
+  /** an effect a mode keeps for itself (the host hears a guest's Search "hold"): true if it took it */
+  protected onFx(_k: string, _from: number, _n: number | undefined): boolean {
+    return false;
+  }
+
   /** the host: what the mode keeps only on the host, for the heir's snapshot (nothing, for a mode a guest's copy covers) */
   protected snapshotMode(_now: number): unknown {
     return undefined;
@@ -1058,6 +1063,8 @@ export class Duel implements MatchLike {
       if (!fxWellFormed(m)) return;
       const known = this.remotes.get(from);
       if (known) known.lastHeard = now;
+      // a mode's own (Search's "hold"): its to keep, not a thing to draw or pass on
+      if (this.onFx(m.k, from, m.n)) return;
       if (m.k === "heal" && typeof m.n === "number" && HEAL_CODES[m.n]) this.onHealSeen?.(from, HEAL_CODES[m.n]);
       else this.onRemoteFx?.(m.k, from, m.a ? new THREE.Vector3(...m.a) : undefined, m.b ? new THREE.Vector3(...m.b) : undefined, m.n);
       // a JOLT: the figure leans into it

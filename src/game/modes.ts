@@ -14,17 +14,17 @@
 //   down, it takes the round. A carrier who goes down drops it where they fell.
 import cfg from "../config/modes.json";
 
-export type ModeKind = "gunrun" | "tdm" | "crown" | "control" | "ffa";
-export const MODE_KINDS: ModeKind[] = ["gunrun", "tdm", "crown", "control", "ffa"];
+export type ModeKind = "gunrun" | "tdm" | "crown" | "control" | "ffa" | "search";
+export const MODE_KINDS: ModeKind[] = ["gunrun", "tdm", "crown", "control", "ffa", "search"];
 export const MODES = cfg;
-export const MODE_TITLE: Record<ModeKind, string> = { gunrun: "GUN RUN", tdm: "TEAM DEATHMATCH", crown: "CROWN", control: "CONTROL", ffa: "FREE FOR ALL" };
+export const MODE_TITLE: Record<ModeKind, string> = { gunrun: "GUN RUN", tdm: "TEAM DEATHMATCH", crown: "CROWN", control: "CONTROL", ffa: "FREE FOR ALL", search: "SEARCH" };
 
 export function isModeKind(x: unknown): x is ModeKind {
-  return x === "gunrun" || x === "tdm" || x === "crown" || x === "control" || x === "ffa";
+  return x === "gunrun" || x === "tdm" || x === "crown" || x === "control" || x === "ffa" || x === "search";
 }
 
-/** the team modes (sides, team scores): team deathmatch and Control */
-export const teamMode = (k: ModeKind): boolean => k === "tdm" || k === "control";
+/** the team modes (sides, team scores): team deathmatch, Control and Search */
+export const teamMode = (k: ModeKind): boolean => k === "tdm" || k === "control" || k === "search";
 
 /** Gun Run's guns in order, the short list or every gun; the knife follows the last */
 export function gunList(which: "short" | "full"): string[] {
@@ -417,4 +417,132 @@ export function controlSpawnZone<Z extends { owner: number }>(zones: Z[], team: 
     best = chain[i];
   }
   return best;
+}
+
+// ------------------------------------------------------------------ Search
+//
+// Plant and defuse, one life a round (modes.json search). The attackers plant
+// on a site by holding interact there; the defenders run the clock out, wipe
+// the attackers before a plant, or defuse. Everything here is the round's
+// rules and nothing else: who holds interact where, and who is up, come in
+// from the match (modematch.ts) each step, so the checks can drive it bare.
+
+export type SearchPhase = "live" | "planted" | "over";
+export type SearchEvent = "planted" | "defused" | "exploded" | "time" | "wiped" | null;
+
+export interface SearchFighter {
+  id: number;
+  x: number;
+  z: number;
+  team: 0 | 1;
+  alive: boolean;
+  /** holding interact this step */
+  holding: boolean;
+}
+
+/** which team attacks in round `round` (1-based): team A the first swapAt rounds, team B after */
+export function searchAttackers(round: number): 0 | 1 {
+  return round <= cfg.search.swapAt ? 0 : 1;
+}
+
+export class Search {
+  phase: SearchPhase = "live";
+  /** when the round's time runs out (live), or the bomb goes off (planted) */
+  endsAt: number;
+  /** the planted bomb: which site, and where */
+  bomb: { site: number; x: number; z: number } | null = null;
+  /** a plant or a defuse under way: whose, and how far along (seconds) */
+  work: { id: number; t: number; kind: "plant" | "defuse" } | null = null;
+  /** the round's winning team, once it is over */
+  winner: 0 | 1 | null = null;
+
+  constructor(
+    now: number,
+    /** the two sites, in the arena's own coordinates */
+    readonly sites: ReadonlyArray<{ id: string; x: number; z: number }>,
+    readonly attackers: 0 | 1
+  ) {
+    this.endsAt = now + cfg.search.roundTime;
+  }
+
+  get defenders(): 0 | 1 {
+    return this.attackers === 0 ? 1 : 0;
+  }
+
+  /** seconds on the clock: the round's, or the bomb's */
+  left(now: number): number {
+    return Math.max(0, this.endsAt - now);
+  }
+
+  /** the site a point stands on, or -1 */
+  siteAt(x: number, z: number): number {
+    return this.sites.findIndex((s) => Math.hypot(s.x - x, s.z - z) <= cfg.search.siteRadius);
+  }
+
+  /**
+   * One step. Returns the round's winner once it is decided, and what
+   * happened for the feed (a plant is an event with no winner yet).
+   */
+  update(now: number, dt: number, fighters: readonly SearchFighter[]): { winner: 0 | 1 | null; event: SearchEvent } {
+    if (this.phase === "over") return { winner: this.winner, event: null };
+    const up = (team: 0 | 1) => fighters.some((f) => f.team === team && f.alive);
+    // the plant, or the defuse: the one already at it keeps it while they hold; else the first who can starts one
+    const kind: "plant" | "defuse" = this.phase === "live" ? "plant" : "defuse";
+    const team = kind === "plant" ? this.attackers : this.defenders;
+    const can = (f: SearchFighter) =>
+      f.alive && f.holding && f.team === team && (kind === "plant" ? this.siteAt(f.x, f.z) >= 0 : !!this.bomb && Math.hypot(this.bomb.x - f.x, this.bomb.z - f.z) <= cfg.search.defuseReach);
+    const busy = this.work && this.work.kind === kind ? fighters.find((f) => f.id === this.work?.id) : undefined;
+    if (busy && can(busy)) (this.work as { t: number }).t += dt;
+    else {
+      const next = fighters.find(can);
+      this.work = next ? { id: next.id, t: dt, kind } : null;
+    }
+    const w = this.work;
+    if (w && kind === "plant" && w.t >= cfg.search.plantTime) {
+      const f = fighters.find((x) => x.id === w.id) as SearchFighter;
+      const site = this.siteAt(f.x, f.z);
+      this.bomb = { site, x: f.x, z: f.z };
+      this.phase = "planted";
+      this.endsAt = now + cfg.search.bombTime;
+      this.work = null;
+      // a plant with no defender left up is the attackers' round at once
+      if (!up(this.defenders)) return this.over(this.attackers, "wiped");
+      return { winner: null, event: "planted" };
+    }
+    if (w && kind === "defuse" && w.t >= cfg.search.defuseTime) return this.over(this.defenders, "defused");
+    if (this.phase === "planted") {
+      if (now >= this.endsAt) return this.over(this.attackers, "exploded");
+      // the attackers all down after a plant: the bomb still has to be defused
+      if (!up(this.defenders)) return this.over(this.attackers, "wiped");
+      return { winner: null, event: null };
+    }
+    if (now >= this.endsAt) return this.over(this.defenders, "time");
+    if (!up(this.attackers)) return this.over(this.defenders, "wiped");
+    if (!up(this.defenders)) return this.over(this.attackers, "wiped");
+    return { winner: null, event: null };
+  }
+
+  private over(team: 0 | 1, event: SearchEvent): { winner: 0 | 1; event: SearchEvent } {
+    this.phase = "over";
+    this.winner = team;
+    this.work = null;
+    return { winner: team, event };
+  }
+
+  /**
+   * As a guest last saw it (host migration): the phase, the clock, the bomb
+   * and any plant or defuse under way.
+   */
+  restore(v: { phase: SearchPhase; left: number; site: number; bx: number; bz: number; work: { id: number; t: number; kind: "plant" | "defuse" } | null }, now: number): void {
+    this.phase = v.phase;
+    this.endsAt = now + Math.max(0, v.left);
+    this.bomb = v.phase !== "live" && v.site >= 0 ? { site: v.site, x: v.bx, z: v.bz } : null;
+    this.work = v.work ? { ...v.work } : null;
+  }
+
+  /** the time between two beeps of a bomb with `left` seconds to go: slow at first, quicker toward the end */
+  static beepGap(left: number): number {
+    const k = Math.max(0, Math.min(1, left / cfg.search.bombTime));
+    return cfg.search.beepFast + (cfg.search.beepSlow - cfg.search.beepFast) * k * k;
+  }
 }

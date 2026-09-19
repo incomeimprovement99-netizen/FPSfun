@@ -8,7 +8,7 @@ import { HEIRLOOMS } from "../game/heirlooms";
 import { Stats, type MatchKind, type MatchStats } from "../game/stats";
 import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
 
-export type Mode = "range" | "run" | "runAdvanced" | "duel" | "arena" | "bots" | "br" | "gunrun" | "tdm" | "crown" | "control" | "ffa" | "tour";
+export type Mode = "range" | "run" | "runAdvanced" | "duel" | "arena" | "bots" | "br" | "gunrun" | "tdm" | "crown" | "control" | "ffa" | "search" | "tour";
 export type Tab = "play" | "duel" | "loadouts" | "stats" | "settings" | "controls";
 
 export interface MenuOptions {
@@ -95,6 +95,7 @@ export class Menu {
     $("goCrown").addEventListener("click", () => o.onGo("crown"));
     $("goControl").addEventListener("click", () => o.onGo("control"));
     $("goFfa").addEventListener("click", () => o.onGo("ffa"));
+    $("goSearch").addEventListener("click", () => o.onGo("search"));
 
     // The battle royale's lobby row: the squad size, and a bot count that
     // goes with it. The first render reads the stored count itself: the
@@ -256,6 +257,7 @@ export class Menu {
       matchCard("Crown", ["crown"]),
       matchCard("Control", ["control"]),
       matchCard("Free-for-all", ["ffa"]),
+      matchCard("Search", ["search"]),
       courseCard("basic", "The Run (Basic)"),
       courseCard("advanced", "The Run (Advanced)"),
       courseCard("drill", "Flick drill (30 targets)"),
