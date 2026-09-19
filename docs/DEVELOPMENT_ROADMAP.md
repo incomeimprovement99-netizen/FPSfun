@@ -1773,9 +1773,16 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   to it. Bots are made in one place (`makeBot`) for the host at the start and for the heir.
 - What is not carried: a bot's memory of where it last saw someone (it looks again) and its current loot target (it
   picks the next).
-- Host migration's four phases are done. Measured in the e2e: the heir held the code 0.1 s after the host's tab
-  crashed and the third friend was back in at 1.0 s; the looted kits matched bot for bot; the ring mid-close was
-  within 0.03 s of where the host's would have been.
+- The first full run caught a split brain on the tests' local transport: in the rejoin test only the guest's own
+  link drops and the host is still there, but a BroadcastChannel lets any page listen on a code, so the guest (now
+  an heir) "claimed" it and made itself host beside the real one. Over PeerJS the broker refuses a taken id, which
+  is the whole of the heir's safety. The local hosting now asks the channel first whether a host still answers
+  there, and treats a yes as the broker's refusal.
+- While a named heir takes over, the others retry every `wait` second rather than every `rejoin.retry` seconds.
+- Host migration's four phases are done. Measured over the internet (the e2e `p2p` section, the host's tab closing
+  mid-match): the heir held the code 0.42 s later and the third friend was back in at 1.8 s. In the battle royale
+  case the looted kits matched bot for bot, and the ring mid-close was within 0.03 s of where the host's would have
+  been.
 - Checks: `tools/checks/mode-restore.ts` (a ring rebuilt from the seed where a guest saw it, waiting or mid-close,
   early and late, runs in step with the host's to the end: twelve cases, exact), and the e2e `migrate` section's
   battle royale (a trio against two bot squads on mixed difficulty; the host's tab crashes mid-close with most bots

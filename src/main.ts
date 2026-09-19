@@ -1567,7 +1567,8 @@ function getBackIn(d: Duel): void {
     const retry = () => {
       if (settled) return;
       settled = true;
-      setTimeout(attempt, netCfg.rejoin.retry * 1000);
+      // a friend taking the match over is there within a second or two: try again sooner than for a host coming back
+      setTimeout(attempt, (d.heir !== null && d.heir !== d.id ? netCfg.migrate.wait : netCfg.rejoin.retry) * 1000);
     };
     const cancel = joinMatch(
       seat.code,

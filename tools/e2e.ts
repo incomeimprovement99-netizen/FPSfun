@@ -3412,7 +3412,8 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
     await ev(host, "(() => { const r = window.__range.duel().ring; if (r.state === 'waiting') r.timeLeft = Math.min(r.timeLeft, 1); })()");
     await host.waitForFunction("window.__range.duel().view.state === 'closing'", { polling: 200, timeout: 10000 });
   } catch {
-    check(`${label}: the three drop and the host names an heir once the bots are down`, false);
+    const why = await ev<unknown>(host, "(() => { const d = window.__range.duel(); return d ? { phase: d.phase, heir: d.heir, over: d.brOver, bots: d.bots.map((x) => [x.landed, x.bot.alive, x.bot.aboard, x.bot.dropping]) } : null; })()").catch(() => null);
+    check(`${label}: the three drop and the host names an heir once the bots are down`, false, JSON.stringify(why));
     await close();
     return;
   }

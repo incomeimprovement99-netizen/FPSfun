@@ -434,6 +434,8 @@ interface Envelope {
   m: NetMsg;
   /** the connection is gone, with no goodbye (abandon: what a real connection dropping looks like from the other end) */
   cut?: boolean;
+  /** is anyone hosting this code? ("ask"), and the host's answer ("here"): the local transport's stand-in for the broker refusing a taken id */
+  probe?: "ask" | "here";
 }
 /**
  * The tests' network: ?jitter=N delays every message on the local transport
@@ -662,7 +664,12 @@ export function hostMatch(
     const ch = new BroadcastChannel(`${PREFIX}${code}`);
     localCh = ch;
     const known = new Set<string>();
-    ch.addEventListener("message", (e: MessageEvent<Envelope>) => {
+    const listen = () => ch.addEventListener("message", (e: MessageEvent<Envelope>) => {
+      // a page asking whether this code is taken (a match being taken over): it is
+      if (!cancelled && e.data.to === "host" && e.data.probe === "ask") {
+        ch.postMessage({ from: "host", to: e.data.from, m: { t: "bye" }, probe: "here" } satisfies Envelope);
+        return;
+      }
       if (cancelled || e.data.to !== "host" || e.data.m.t !== "hello" || known.has(e.data.from)) return;
       if (e.data.m.seat) {
         known.add(e.data.from);
@@ -676,7 +683,35 @@ export function hostMatch(
       link.send({ t: "welcome", id, players, br, opts, key: keyOf(id) });
       onLink(link, id);
     });
-    onCode(code);
+    if (!resume) {
+      listen();
+      onCode(code);
+      return handle;
+    }
+    // Taking a match over: a BroadcastChannel lets any page listen on a
+    // code, so ask first whether a host still answers on it (one whose only
+    // trouble was this page's connection). If one does, the code is taken,
+    // as the broker would say, and this page keeps trying to get back in.
+    const me = `probe${Math.random().toString(36).slice(2, 8)}`;
+    const tryClaim = () => {
+      if (cancelled) return;
+      let taken = false;
+      const hear = (e: MessageEvent<Envelope>) => {
+        if (e.data.to === me && e.data.probe === "here") taken = true;
+      };
+      ch.addEventListener("message", hear);
+      ch.postMessage({ from: me, to: "host", m: { t: "bye" }, probe: "ask" } satisfies Envelope);
+      setTimeout(() => {
+        ch.removeEventListener("message", hear);
+        if (cancelled) return;
+        if (!taken) {
+          listen();
+          onCode(code);
+        } else if (performance.now() < claimUntil) setTimeout(tryClaim, 1000);
+        else onError("Could not take the match's code over.");
+      }, 400);
+    };
+    tryClaim();
     return handle;
   }
   const peerOpts = peerOptions();
