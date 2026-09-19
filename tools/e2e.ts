@@ -2316,13 +2316,39 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await sleep(5400);
   const healed = await ev<number>(page, "window.__range.duel().health");
   check("kits: MEDIC's FIELD HEAL gives 60 health over 5 s", Math.abs(healed - 90) < 2.5, healed.toFixed(1));
+  await ev(page, "window.__range.clearKitStuff()");
+  // WARD: a wall in front of you stops a bot's line to you, and HARD SHELL gives the shield back out of a fight
+  await ev(page, `window.__range.pickAbility("ward")`);
+  const ward0 = await ev<{ walls: number; sees: boolean } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; if (!b) return null; d.holdFire = true; b.update = () => []; const p = r.player.pos; b.pos.set(p.x, p.y, p.z - 8); b.dummy.group.position.copy(b.pos); r.player.yaw = 0; r.player.pitch = 0; b.lastSeen = { pos: p.clone(), at: b.clock, id: 0 }; d.shield = 10; return { walls: r.wallCount(), sees: b.sees(p) }; })()`
+  ).catch(() => null);
+  await ev(page, "window.__range.useAbility()");
+  await sleep(300);
+  const walled = await ev<{ walls: number; sees: boolean; left: number; name: string }>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; return { walls: r.wallCount(), sees: b.sees(r.player.pos), left: r.abilities.wallLeft(r.gameTime()), name: r.hud.last.ability?.name ?? "" }; })()`
+  );
+  check("kits: WARD's WALL stands in front of you and takes the bot's line to you away, then waits out its cooldown", !!ward0 && ward0.sees && walled.walls === (ward0.walls ?? 0) + 1 && !walled.sees && walled.left > 12 && walled.name === "WALL", JSON.stringify({ ward0, walled }));
+  // the shield comes back after the quiet, and the ultimate puts up its horseshoe
+  const shield0 = await ev<number>(page, "window.__range.duel().shield");
+  await sleep(7000);
+  const shield1 = await ev<number>(page, "window.__range.duel().shield");
+  await ev(page, "(() => { const r = window.__range; r.abilities.ult = 1; r.useUltimate(); })()");
+  await sleep(300);
+  const bastion = await ev<number>(page, "window.__range.wallCount()");
+  check("kits: WARD's HARD SHELL gives the shield back once nothing has hurt you, and BASTION puts up its horseshoe", shield1 > shield0 + 5 && bastion === walled.walls + 3, JSON.stringify({ shield0, shield1, walls: walled.walls, bastion }));
+  await ev(page, `window.__range.pickAbility("smoke")`);
+
+  await ev(page, "window.__range.clearKitStuff()");
   // a bot's own ultimate: a RUNNER bot with a full meter and someone in front of it goes quicker for its seconds
   const botUlt = await ev<{ base: number; speed: number } | null>(
     page,
-    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; if (!b) return null; b.ability = "jolt"; b.ultAt = 0; const p = r.player.pos; b.pos.set(p.x, p.y, p.z - 8); b.dummy.group.position.copy(b.pos); r.player.yaw = 180; return { base: b.diff.speed, speed: b.speedNow }; })()`
+    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; if (!b) return null; delete b.update; b.ability = "jolt"; b.ultAt = 0; b.lastSeen = { pos: r.player.pos.clone(), at: b.clock, id: 0 }; const p = r.player.pos; b.pos.set(p.x, p.y, p.z - 8); b.dummy.group.position.copy(b.pos); r.player.yaw = 180; return { base: b.diff.speed, speed: b.speedNow }; })()`
   );
   await sleep(900);
   const botAfter = await ev<{ base: number; speed: number } | null>(page, "(() => { const b = window.__range.duel().bots[0]; return b ? { base: b.diff.speed, speed: b.speedNow } : null; })()");
+  await ev(page, "window.__range.clearKitStuff()");
   // HOOK: a line at what you look at pulls you to it, and its ultimate puts up a zipline
   await ev(page, `window.__range.pickAbility("hook")`);
   await sleep(200);
@@ -2338,11 +2364,12 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
     if (pulled.speed > 6) break;
   }
   check("kits: HOOK's STRONG ARMS gives half again the climb, and GRAPPLE pulls you at what you look at, then waits out its cooldown", Math.abs(climb - 1.5) < 1e-9 && pulled.speed > 6 && pulled.left > 8 && pulled.name === "GRAPPLE", JSON.stringify({ climb, pulled }));
+  await ev(page, "window.__range.clearKitStuff()");
   // SMOKE: a canister blinds a bot through it, your own cloud shows an enemy standing in it, and SCREEN throws three
   await ev(page, `window.__range.pickAbility("smoke")`);
   const smoke = await ev<{ before: boolean; id: number } | null>(
     page,
-    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; if (!b) return null; d.holdFire = true; b.update = () => []; const p = r.player.pos; b.pos.set(p.x, p.y, p.z - 8); b.dummy.group.position.copy(b.pos); r.player.yaw = 180; r.player.pitch = -11.3; b.lastSeen = { pos: r.player.pos.clone(), at: b.clock, id: 0 }; return { before: b.sees(r.player.pos), id: b.remote.id }; })()`
+    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; if (!b) return null; d.holdFire = true; b.update = () => []; const p = r.player.pos; b.pos.set(p.x, p.y, p.z - 8); b.dummy.group.position.copy(b.pos); r.player.yaw = 0; r.player.pitch = -11.3; b.lastSeen = { pos: r.player.pos.clone(), at: b.clock, id: 0 }; return { before: b.sees(r.player.pos), id: b.remote.id }; })()`
   ).catch(() => null);
   const smoke0 = await ev<number>(page, "window.__range.smokeCount()");
   await ev(page, "window.__range.useAbility()");

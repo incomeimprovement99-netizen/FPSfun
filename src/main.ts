@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { WALLS, clearWalls, putWall, stepWalls } from "./game/walls";
 import { SMOKES, clearSmoke, smokeAt, stepSmoke, throwSmoke } from "./game/smoke";
 import playerCfg from "./config/player.json";
 import { resolveWeapon, weaponClass, weaponIds, weaponName } from "./game/weapons";
@@ -2529,6 +2530,31 @@ function kitSight(): { reveal(at: THREE.Vector3, fwd: THREE.Vector3 | null, rang
   return d && typeof d.reveal === "function" && d.shown instanceof Set ? (d as never) : null;
 }
 
+/** when something last hurt this player (WARD's HARD SHELL waits this out) */
+let lastHurtAt = -Infinity;
+
+/** where WARD's wall goes: a few metres in front of you on the ground, square to the way you face */
+function wallSpot(): { x: number; y: number; z: number; deg: number } {
+  const yaw = player.yaw;
+  const r = yaw * DEG;
+  const reach = KITS.ward.tactical.reach;
+  const fx = -Math.sin(r);
+  const fz = -Math.cos(r);
+  const ahead = Math.max(1.2, Math.min(reach, solidHit(player.pos.clone().setY(player.pos.y + 1), new THREE.Vector3(fx, 0, fz), reach) - 0.4));
+  return { x: player.pos.x + fx * ahead, y: player.pos.y, z: player.pos.z + fz * ahead, deg: yaw };
+}
+
+/** WARD's ultimate: a horseshoe of walls round a point, open the way you came from */
+function putBastion(at: THREE.Vector3, yaw: number, now: number): void {
+  const u = KITS.ward.ult;
+  for (let i = 0; i < u.count; i++) {
+    // spread across the way you face: the middle one ahead, the others round the sides
+    const deg = yaw + (i - (u.count - 1) / 2) * (120 / Math.max(1, u.count));
+    const r = deg * DEG;
+    putWall(scene, at.x - Math.sin(r) * u.radius, at.y, at.z - Math.cos(r) * u.radius, deg, now, u.seconds);
+  }
+}
+
 /** where a throw of this reach lands: what you look at, or the far end of it */
 function aimPoint(reach: number): THREE.Vector3 {
   const eye = camera.position.clone();
@@ -2577,6 +2603,13 @@ function useUltimate(now: number): void {
     abilities.fill();
     audio.jolt(1);
     duel?.localFx("ult", at, undefined, 1);
+  } else if (abilities.picked === "ward") {
+    const u = KITS.ward.ult;
+    putBastion(player.pos.clone(), player.yaw, now);
+    audio.clatter(player.pos);
+    duel?.localFx("ult", player.pos.clone(), new THREE.Vector3(player.yaw, 0, 0), 6);
+    hud.notice(`${u.name}: ${u.count} WALLS`, now, 1.6);
+    return;
   } else if (abilities.picked === "smoke") {
     const u = KITS.smoke.ult;
     const from = camera.position.clone();
@@ -2625,6 +2658,21 @@ function useAbility(now: number): void {
   if (!abilities.enabled) return;
   if (!abilities.picked) {
     hud.notice(abilities.choosing ? `PICK AN ABILITY FIRST: ${keyLabel("pickAbility1")} JOLT, ${keyLabel("pickAbility2")} TRIAGE` : "NO ABILITY IN THIS MATCH", now, 1.4);
+    return;
+  }
+  // WARD's tactical: a wall on the ground in front of you
+  if (abilities.picked === "ward") {
+    if (player.dropping || (duel instanceof Duel && (duel.downed || !duel.alive))) return;
+    const left = abilities.wallLeft(now);
+    if (left > 0) {
+      hud.notice(`WALL: BACK IN ${left.toFixed(1)} S`, now, 0.6);
+      return;
+    }
+    if (!abilities.tryWall(now)) return;
+    const spot = wallSpot();
+    putWall(scene, spot.x, spot.y, spot.z, spot.deg, now);
+    audio.clatter(new THREE.Vector3(spot.x, spot.y, spot.z));
+    duel?.localFx("wall", new THREE.Vector3(spot.x, spot.y, spot.z), new THREE.Vector3(spot.deg, 0, 0));
     return;
   }
   // SMOKE's tactical: a canister at what you look at, and a cloud where it lands
@@ -3192,6 +3240,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   if (d instanceof Duel) d.onHandover = (m, from) => onHandover(d, m, from);
   d.onHurt = () => {
     stopEmote();
+    lastHurtAt = gameTime;
     hud.hurt(gameTime);
     audio.hurt(d.shield > 0);
     input.pad.rumble(0.6, 0.3, 120);
@@ -3224,6 +3273,16 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       return;
     }
     // someone else's canister, or their screen of three: the same clouds here
+    if (k === "wall" && a && b) {
+      putWall(scene, a.x, a.y, a.z, b.x, gameTime);
+      audio.clatter(a);
+      return;
+    }
+    if (k === "ult" && n === 6 && a && b) {
+      putBastion(a, b.x, gameTime);
+      audio.clatter(a);
+      return;
+    }
     if (k === "smoke" && a && b) {
       throwSmoke(scene, a, b, gameTime);
       audio.throwNoise("bounce", b);
@@ -3612,6 +3671,7 @@ function endMatch(reason: string): void {
   // any zipline HOOK put up, and any cloud SMOKE left, go with the match
   clearZiplines();
   clearSmoke();
+  clearWalls();
   voiceStop();
   matchGuns = null;
   flushTally();
@@ -4669,6 +4729,7 @@ function step(): void {
       else if (input.pressedNow("pickAbility3")) pickAbility("scout", now);
       else if (input.pressedNow("pickAbility4")) pickAbility("hook", now);
       else if (input.pressedNow("pickAbility5")) pickAbility("smoke", now);
+      else if (input.pressedNow("pickAbility6")) pickAbility("ward", now);
     }
     // F: the ability; Z: the ultimate
     if (input.pressedNow("ability") && !knockedOut) useAbility(now);
@@ -4778,6 +4839,13 @@ function step(): void {
   player.climbBoost = abilities.enabled && abilities.picked === "hook" ? KITS.hook.climbSpace : 1;
   stepZiplines(gameTime);
   stepSmokeKit(gameTime, dt);
+  stepWalls(gameTime);
+  // WARD's HARD SHELL: shield back once nothing has hurt you for a while
+  {
+    const regen = abilities.shieldRegen;
+    const d = duel as unknown as { shield?: number; shieldMax?: number; alive?: boolean } | null;
+    if (regen > 0 && d && typeof d.shield === "number" && typeof d.shieldMax === "number" && d.alive !== false && gameTime - lastHurtAt >= KITS.ward.quiet) d.shield = Math.min(d.shieldMax, d.shield + regen * dt);
+  }
   {
     const dealt = duel instanceof Duel ? duel.damageDealt : 0;
     abilities.chargeUlt(duel ? dt : 0, Math.max(0, dealt - ultDamageSeen));
@@ -5664,7 +5732,8 @@ function step(): void {
             const c = abilities.charge(now);
             const k = kitOf(abilities.picked!);
             const ult = { name: k.ult, key: keyLabel("ultimate"), k: abilities.ult, live: abilities.picked === "jolt" ? Math.max(0, overdriveUntil - now) : regen ? Math.max(0, regen.until - now) : 0 };
-            if (abilities.picked === "smoke") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.smoke.tactical.cooldown, left: abilities.canisterLeft(now), passive: false, icon: "cloud" as const, ult };
+            if (abilities.picked === "ward") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.ward.tactical.cooldown, left: abilities.wallLeft(now), passive: false, icon: "wall" as const, ult };
+    if (abilities.picked === "smoke") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.smoke.tactical.cooldown, left: abilities.canisterLeft(now), passive: false, icon: "cloud" as const, ult };
     if (abilities.picked === "hook") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.hook.tactical.cooldown, left: abilities.grappleLeft(now), passive: false, icon: "hook" as const, ult };
     if (abilities.picked === "scout") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.scout.tactical.cooldown, left: abilities.pulseLeft(now), passive: false, icon: "eye" as const, ult };
     if (abilities.picked === "triage") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.medic.tactical.cooldown, left: abilities.patchLeft(now), passive: false, icon: "cross" as const, ult };
@@ -5675,7 +5744,7 @@ function step(): void {
     abilityCard:
       abilities.enabled && (abilities.choosing || (!duel && !abilities.picked))
         ? {
-            options: (["jolt", "triage", "scout", "hook", "smoke"] as const).map((id, i) => ({ key: keyLabel((["pickAbility1", "pickAbility2", "pickAbility3", "pickAbility4", "pickAbility5"] as const)[i]), name: kitOf(id).kit, blurb: kitOf(id).blurb, picked: abilities.picked === id })),
+            options: (["jolt", "triage", "scout", "hook", "smoke", "ward"] as const).map((id, i) => ({ key: keyLabel((["pickAbility1", "pickAbility2", "pickAbility3", "pickAbility4", "pickAbility5", "pickAbility6"] as const)[i]), name: kitOf(id).kit, blurb: kitOf(id).blurb, picked: abilities.picked === id })),
             age: now - abilities.offeredAt,
             compact: !duel || !abilities.choosing || now - abilities.offeredAt > 6,
           }
@@ -5858,6 +5927,14 @@ initWelcome();
   ziplineCount: () => ZIPLINES.length,
   /** the clouds standing now (the checks count them) */
   smokeCount: () => SMOKES.length,
+  /** the walls WARD put up, standing now (the checks count them) */
+  wallCount: () => WALLS.length,
+  /** the checks: everything the kits have put up (walls, clouds, ziplines) taken away between them */
+  clearKitStuff: () => {
+    clearWalls();
+    clearSmoke();
+    clearZiplines();
+  },
   /** where each cloud stands (the checks look) */
   smokeSpots: () => SMOKES.map((c) => ({ x: c.at.x, y: c.at.y, z: c.at.z, r: c.r })),
   gameTime: () => gameTime,

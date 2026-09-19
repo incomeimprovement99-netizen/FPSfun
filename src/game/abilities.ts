@@ -25,8 +25,8 @@ export interface KitInfo {
   blurb: string;
 }
 
-export type AbilityId = "jolt" | "triage" | "scout" | "hook" | "smoke";
-export const ABILITY_IDS: AbilityId[] = ["jolt", "triage", "scout", "hook", "smoke"];
+export type AbilityId = "jolt" | "triage" | "scout" | "hook" | "smoke" | "ward";
+export const ABILITY_IDS: AbilityId[] = ["jolt", "triage", "scout", "hook", "smoke", "ward"];
 /** the kits a bot takes: the two it can play (SCOUT's is all sight, which a bot's own eyes already do) */
 export const BOT_ABILITY_IDS: AbilityId[] = ["jolt", "triage"];
 
@@ -41,6 +41,7 @@ export const ABILITIES: Record<AbilityId, AbilityInfo> = {
   scout: { id: "scout", name: kits.scout.tactical.name, blurb: `every enemy within ${kits.scout.tactical.range} m in front of you shown for ${kits.scout.tactical.seconds} s` },
   hook: { id: "hook", name: kits.hook.tactical.name, blurb: `a line at what you look at within ${kits.hook.tactical.range} m, and a pull to it` },
   smoke: { id: "smoke", name: kits.smoke.tactical.name, blurb: `a cloud ${kits.smoke.radius * 2} m across that nobody sees through, for ${kits.smoke.seconds} s` },
+  ward: { id: "ward", name: kits.ward.tactical.name, blurb: `a wall ${kits.ward.width} m wide in front of you, for ${kits.ward.tactical.seconds} s` },
 };
 export const JOLT = cfg.jolt;
 
@@ -49,6 +50,11 @@ export function kitOf(id: AbilityId): KitInfo {
   if (id === "jolt") {
     const u = kits.runner.ult;
     return { kit: kits.runner.name, tactical: cfg.jolt.name, passive: kits.runner.passive, ult: u.name, blurb: `${cfg.jolt.name}: ${JOLT.blurb}. ${kits.runner.passive}: no stun from a hard landing. ${u.name}: ${u.seconds} s ${Math.round((u.speed - 1) * 100)}% faster, JOLT refilled` };
+  }
+  if (id === "ward") {
+    const t = kits.ward.tactical;
+    const u = kits.ward.ult;
+    return { kit: kits.ward.name, tactical: t.name, passive: kits.ward.passive, ult: u.name, blurb: `${t.name}: a wall ${kits.ward.width} m wide in front of you for ${t.seconds} s, every ${t.cooldown} s. ${kits.ward.passive}: ${kits.ward.regen} shield a second after ${kits.ward.quiet} s without damage. ${u.name}: ${u.count} of them in a horseshoe round you for ${u.seconds} s` };
   }
   if (id === "smoke") {
     const t = kits.smoke.tactical;
@@ -117,6 +123,24 @@ export class Abilities {
   private pulseAt = -Infinity;
   private grappleAt = -Infinity;
   private canisterAt = -Infinity;
+  private wallAt = -Infinity;
+
+  /** WARD's WALL, if it is ready: starts its cooldown and says yes */
+  tryWall(now: number): boolean {
+    if (!this.enabled || this.picked !== "ward" || now < this.wallAt) return false;
+    this.wallAt = now + KITS.ward.tactical.cooldown;
+    return true;
+  }
+
+  /** seconds until WALL is back (0: ready) */
+  wallLeft(now: number): number {
+    return Math.max(0, this.wallAt - now);
+  }
+
+  /** WARD's HARD SHELL: the shield it gives back a second, or 0 for another kit */
+  get shieldRegen(): number {
+    return this.enabled && this.picked === "ward" ? KITS.ward.regen : 0;
+  }
 
   /** SMOKE's CANISTER, if it is ready: starts its cooldown and says yes */
   tryCanister(now: number): boolean {
@@ -208,6 +232,7 @@ export class Abilities {
     this.pulseAt = -Infinity;
     this.grappleAt = -Infinity;
     this.canisterAt = -Infinity;
+    this.wallAt = -Infinity;
     this.fill();
   }
 

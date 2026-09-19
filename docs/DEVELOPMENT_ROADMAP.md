@@ -1934,3 +1934,22 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   go when its seconds are up, and three of them block three lines), `tools/checks/kits.ts` (CANISTER is SMOKE's, its
   cooldown, and its card's numbers), and the e2e `bots` section (a canister between you and a bot: it cannot see you
   and THERMAL shows it; SCREEN throws three).
+
+## Milestone 120 — Ability kits, phase 5: WARD, and the six kits done ✅
+2026-09-19 (Phase 15). `walls.ts` (new), `abilities.ts`, `main.ts`, `hud.ts`, `src/config/kits.json`,
+`src/config/binds.json` (`pickAbility6`: 0), `tools/checks/walls.ts` (new), `tools/checks/kits.ts`, `tools/e2e.ts`.
+- The sixth kit, all cover held. **WARD**: WALL (F), a wall 4.2 m wide and 2.4 m tall up on the ground a few metres
+  in front of you for 14 s, every 16 s; HARD SHELL, 5 shield a second once nothing has hurt you for 6 s; BASTION (Z),
+  three of them in a horseshoe round you for 22 s.
+- A wall put up in play is a real solid (`RANGE_SOLIDS`), so everything that already asks the world a question gets
+  the right answer: bullets stop at it, bodies walk into it, bots path round it, and a figure behind it is out of
+  sight. A wall at an angle takes the box round it, as every other solid is square to the world.
+- It goes up on every page (the one who used it, and the others through its effect), and comes down when its time is
+  up or the match ends.
+- With it the plan's six kits are done: RUNNER, MEDIC, SCOUT, HOOK, SMOKE and WARD, each with a tactical, a passive
+  and an ultimate, and the bots play RUNNER and MEDIC in full.
+- Checks: `tools/checks/walls.ts` (nine: a wall stops a shot through where it stands, one past its end or over its
+  top goes on, its solid is in the world once and goes with it, a wall turned 45 degrees has the box round it, and
+  the horseshoe's three stand for their longer time), `tools/checks/kits.ts` (WALL is WARD's, its cooldown, its
+  card), and the e2e `bots` section (a wall takes the bot's line to you away; the shield comes back out of a fight;
+  BASTION puts up three).

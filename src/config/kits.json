@@ -40,6 +40,18 @@
     "puffs": 8,
     "ult": { "name": "SCREEN", "count": 3, "spread": 9 }
   },
+  "_ward": "WARD: its tactical, a wall width by height metres put up on the ground a few metres in front of you (thick through), standing seconds and stopping what any wall stops: bullets, bodies, sight. Its passive, HARD SHELL, gives shield back at regen a second once you have taken nothing for quiet seconds. Its ultimate, BASTION, puts up ultCount of them in a horseshoe round you, ultSeconds long, so a squad has cover where there was none.",
+  "ward": {
+    "name": "WARD",
+    "passive": "HARD SHELL",
+    "width": 4.2,
+    "height": 2.4,
+    "thick": 0.35,
+    "tactical": { "name": "WALL", "reach": 4, "seconds": 14, "cooldown": 16 },
+    "regen": 5,
+    "quiet": 6,
+    "ult": { "name": "BASTION", "count": 3, "radius": 3.6, "seconds": 22 }
+  },
   "_medic": "MEDIC: TRIAGE's faster heals as its passive; its tactical, PATCH, gives back health over seconds (not past full), every cooldown seconds; its ultimate, FIELD HEAL, gives health over seconds to you and every team or squad mate within radius metres of you, each page healing its own player.",
   "medic": {
     "name": "MEDIC",

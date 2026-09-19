@@ -230,7 +230,7 @@ them (for 6 s from the last hit) and only while your eye has a clear line to
 their chest, so a bar never gives away someone behind cover; a team mate's
 green plate always shows.
 
-**Kits.** Pick a kit with 5, 6, 7, 8 or 9 when the card comes up: at each countdown
+**Kits.** Pick a kit with 5 to 0 when the card comes up: at each countdown
 in the arena, the modes and the bots, or when you land in a battle royale.
 Each kit has a tactical (F), a passive that is always on, and an **ultimate**
 (Z) whose meter (the gold ring beside the ability) fills over about two and a
@@ -249,7 +249,11 @@ zipline up to 45 m from where you stand to where you look, which anyone can
 ride for 90 s. **SMOKE**: CANISTER, a cloud 11 m across at what you look at
 within 30 m that stands 18 s and nobody sees through (bullets still go
 through it), every 14 s; THERMAL, an enemy standing in your own smoke is
-shown to you; SCREEN, three of them in a line across your view. JOLT (F) is a 10 m dash the way you are moving, over
+shown to you; SCREEN, three of them in a line across your view. **WARD**:
+WALL, a 4.2 m wall up on the ground in front of you for 14 s that stops
+bullets, bodies and sight like any other wall, every 16 s; HARD SHELL, 5
+shield a second once nothing has hurt you for 6 s; BASTION, three of them in
+a horseshoe round you for 22 s. JOLT (F) is a 10 m dash the way you are moving, over
 0.14 s on an ease-out (most of the distance in the first half), leaving you
 at 400 hu/s so a sprint, slide or jump carries it on; it has **two charges**,
 and a spent one comes back 4 s after the one before it (8 s for both). The
@@ -307,7 +311,7 @@ defaults puts `binds.json` back.
 | 1, 2 | weapon slot | Q, Mouse 5 | swap weapon |
 | 3 | holster (move 15% faster) | 4 | heal: a tap is the quick heal, hold for the wheel of every heal |
 | G | a grenade in hand (again: the next kind); fire throws, aim puts it away | F | your kit's tactical (JOLT, PATCH) |
-| 5 to 9 | pick RUNNER, MEDIC, SCOUT, HOOK or SMOKE when the card is up | Z | your kit's ultimate, when its meter is full |
+| 5 to 0 | pick RUNNER, MEDIC, SCOUT, HOOK, SMOKE or WARD when the card is up | Z | your kit's ultimate, when its meter is full |
 | B | fire mode (where a gun has two) | | |
 | Middle mouse | ping, for the squad (twice quickly: an enemy there) | M | the full map |
 | U | magazine level | O | cycle optic |
