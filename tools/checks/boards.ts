@@ -7,6 +7,8 @@
 //
 // Run on its own: npx tsx tools/checks/boards.ts.
 import { readFileSync } from "node:fs";
+// @ts-expect-error: a plain JavaScript module of the server's
+import { nextBoardValue } from "../../server/game/boardrules.mjs";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -26,6 +28,18 @@ const ids = list ? [...list[1].matchAll(/id: "([^"]+)"/g)].map((x) => x[1]) : []
 check("the game's board list is where the check looks for it", ids.length > 0);
 const missing = ids.filter((id) => !server.has(id));
 check("every board the game posts to is one the server keeps", missing.length === 0, missing.join(", ") || `${ids.length} boards`);
+
+// What a post may change (server/game/boardrules.mjs): a forged total of
+// wins moves a name one win, not to the top; a time is the best, over 5 s.
+{
+  const wins = (prev: number | undefined, v: number) => nextBoardValue(false, prev, v);
+  check("a wins post of 99,999 from nobody counts as one win", wins(undefined, 99999) === 1);
+  check("and from a name at 12, as 13", wins(12, 99999) === 13);
+  check("an honest post of the next total counts it", wins(12, 13) === 13 && wins(undefined, 1) === 1);
+  check("a total that went down changes nothing", wins(12, 3) === 12);
+  const time = (prev: number | undefined, v: number) => nextBoardValue(true, prev, v);
+  check("a course time keeps the best, and a time under 5 s or out of range is refused", time(40, 38) === 38 && time(40, 45) === 40 && time(undefined, 4) === null && time(undefined, -1) === null && wins(undefined, Number.NaN) === null);
+}
 
 console.log(fails === 0 ? "\nBOARDS PASS" : `\nBOARDS FAIL (${fails})`);
 export const boardsFails = fails;

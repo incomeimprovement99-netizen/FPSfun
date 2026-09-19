@@ -126,7 +126,7 @@ function pack(src = ROOT): { tgz: string; version: string } {
   try {
     cpSync(join(src, "dist"), join(stage, "site"), { recursive: true });
     mkdirSync(join(stage, "server"));
-    for (const f of ["serve.mjs", "package.json", "package-lock.json", "ecosystem.config.cjs", "setup.sh"]) {
+    for (const f of ["serve.mjs", "boardrules.mjs", "package.json", "package-lock.json", "ecosystem.config.cjs", "setup.sh"]) {
       cpSync(join(src, "server", "game", f), join(stage, "server", f));
     }
     const tgz = join(tmpdir(), `range-release-${Date.now()}.tgz`);

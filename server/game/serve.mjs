@@ -31,6 +31,7 @@
 //   BOARD_FILE    where the boards are kept, default boards.json next to this file
 //   ACCOUNT_FILE  where the accounts are kept, default accounts.json next to this file
 //   VERSION       shown on /health, default the build stamp in dist/version.txt
+import { nextBoardValue } from "./boardrules.mjs";
 import express from "express";
 import { ExpressPeerServer } from "peer";
 import { createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
@@ -158,15 +159,16 @@ app.post("/api/board/submit", express.json({ limit: "2kb" }), (req, res) => {
   if (typeof name !== "string" || !NAME.test(name)) return res.status(400).json({ error: "bad name" });
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1e5) return res.status(400).json({ error: "bad value" });
   const lower = LOWER_IS_BETTER.test(board);
-  // no course is run in under 5 s: a smaller time is a mistake or a forgery
-  if (lower && value < 5) return res.status(400).json({ error: "bad value" });
   const entries = (boards[board] ??= []);
   const mine = entries.find((e) => e.name === name);
+  // what the board keeps: a time's best, or wins one more at most (boardrules.mjs)
+  const kept = nextBoardValue(lower, mine?.value, value);
+  if (kept === null) return res.status(400).json({ error: "bad value" });
   if (mine) {
-    if (!(lower ? value < mine.value : value > mine.value)) return res.json({ ok: true, rank: entries.indexOf(mine) + 1 });
-    mine.value = value;
+    if (kept === mine.value) return res.json({ ok: true, rank: entries.indexOf(mine) + 1 });
+    mine.value = kept;
     mine.at = new Date().toISOString();
-  } else entries.push({ name, value, at: new Date().toISOString() });
+  } else entries.push({ name, value: kept, at: new Date().toISOString() });
   entries.sort((a, b) => (lower ? a.value - b.value : b.value - a.value));
   entries.length = Math.min(entries.length, MAX_ENTRIES);
   boardsDirty = true;

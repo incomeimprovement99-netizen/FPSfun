@@ -1229,3 +1229,15 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/loot-tiers.ts` (the bins a match and their spread, a bin's contents the same for the same bin
   and different bin to bin, the floor's density unchanged), the e2e `loot` section (hold E at a bin: it opens, what
   it held round it, never in the reach list), and the snapshot `br-bins`.
+
+## Milestone 84 — A wins board counts wins, and the README says eight ✅
+2026-09-19 (Phase 15). `server/game/boardrules.mjs` (new), `server/game/serve.mjs`, `tools/deploy-server.ts`,
+`tools/checks/boards.ts`, `README.md`.
+- A wins board took whatever total a post said, up to 100,000, so one forged post put anyone at the top. The game
+  posts its running total after every win, so the server now counts posts instead: a post raises a name's wins by
+  one at most over what the board has, and the per-address rate limit bounds how fast. Course times keep the best,
+  over 5 s. (The bundled secret the old list worried about is never read by this server.)
+- The README said "two or three players" and "the 1v1 tab" from before matches took eight: it says up to eight, and
+  the Friends tab.
+- Checks: `tools/checks/boards.ts` (a forged 99,999 counts as one win, an honest next total counts, a lower total
+  changes nothing, a time keeps its best and a time under 5 s is refused).

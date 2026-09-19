@@ -81,7 +81,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 11. **Plant and defuse:** 2 to 3 days, built from the Crown carry, the Control capture and the round clock.
 12. **Vault and keycard (#35):** about 2 days, after doors.
 13. **Voice chat:** about a day. It sits low because most groups already talk elsewhere.
-14. **The leaderboard secret behind the server:** 4 to 6 hours. It is the one credential still in the bundle (`leaderboard.ts:40`).
+14. ~~**The leaderboard secret behind the server**~~ Done, as the real weakness (Milestone 84): the server never read the secret; a wins board now counts posts, not totals.
 15. **Ability kits and ultimates:** 4 to 6 days, once bins, doors and the traversal have settled.
 
 LOD and draw distance run alongside the list above, per `docs/PLAN_LOD_DRAW_DISTANCE.md`, once the map expansion has landed. Just below the fifteen: the two missing boards, the README wording, the rest of accessibility and the dust storm. Low value for this group: gas mask, contracts, cash, UAV, the vehicle and localisation.
