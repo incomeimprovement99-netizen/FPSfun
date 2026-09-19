@@ -2868,6 +2868,24 @@ async function main(): Promise<void> {
     await sleep(500);
     const ls = await ev<{ hidden: boolean; status: string; fill: string }>(page, `(() => { const e = document.getElementById("loading"); return { hidden: e.hidden, status: document.getElementById("loadingStatus").textContent, fill: document.getElementById("loadingFill").style.width }; })()`);
     check("the loading screen counts the world in and goes once it is", inWorld && ls.hidden && /\d+ OF \d+/.test(ls.status) && ls.fill === "100%", JSON.stringify(ls));
+    // A test page must never take the real locks: headless Chrome has a real,
+    // invisible window, and pointer lock pinned the owner's cursor inside it
+    // (a small square in a monitor's corner) while Keyboard Lock held the keys.
+    // A Play button or a click on the game locks; on a test page that is pretend only.
+    {
+      const lp = await open(browser, "?norender");
+      const read = "({ game: window.__range.input.locked, pointer: !!document.pointerLockElement, full: !!document.fullscreenElement })";
+      // asked for by the game itself, as a match that connects does: refused, as a real browser refuses it
+      await ev(lp, "window.__range.input.lock(true)");
+      await sleep(300);
+      const asked = await ev<{ game: boolean; pointer: boolean; full: boolean }>(lp, read);
+      // asked for by a button, as Play does: the game is in, and still nothing is taken from the machine
+      await ev(lp, "window.__range.input.lock()");
+      await sleep(500);
+      const lk = await ev<{ game: boolean; pointer: boolean; full: boolean }>(lp, read);
+      check("a test page: a lock the game asks for by itself is refused; one from a button counts as locked, yet the browser holds no pointer lock and no fullscreen", !asked.game && lk.game && !lk.pointer && !lk.full, JSON.stringify({ asked, clicked: lk }));
+      await lp.close();
+    }
     check("frames are drawing", f.calls > 0, `${f.calls} draw calls`);
     check("no page errors on load", errors.length === 0, errors.slice(0, 3).join(" | "));
     // smaller downloads (tools/compress-assets.ts): the surfaces and the props' maps come as WebP, and none is missing

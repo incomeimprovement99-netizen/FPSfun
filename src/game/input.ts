@@ -141,8 +141,32 @@ export class Input {
   /** the browser refused the pointer lock (too soon after Esc, or not allowed here) */
   onLockRefused: (() => void) | null = null;
 
+  /**
+   * A page driven by a test tool (puppeteer sets navigator.webdriver) never
+   * takes the real locks. Headless Chrome still has a real, invisible window,
+   * and pointer lock pins the OS cursor inside it: the owner's mouse was held
+   * in a small square in a corner of one monitor, and fullscreen's Keyboard
+   * Lock held the keys, for as long as e2e, snap or the benchmark ran. The
+   * game is told it is locked and nothing is asked of the browser.
+   */
+  private readonly automated = typeof navigator !== "undefined" && navigator.webdriver === true;
+  private fakeLock = false;
+
   /** `quiet`: a lock the game asks for by itself; a refusal is not reported */
   async lock(quiet = false): Promise<void> {
+    if (this.automated) {
+      // A lock the game asks for by itself (a match connecting, the return
+      // after Esc) is refused, as a real browser refuses one with no click
+      // behind it; a test tool's scripted calls all count as clicks, so the
+      // browser's own check cannot tell the two apart here.
+      if (quiet) return;
+      if (!this.locked) {
+        this.fakeLock = true;
+        this.locked = true;
+        this.onLockChange?.(true);
+      }
+      return;
+    }
     // Chrome never lets a page cancel Ctrl+W, Ctrl+T or Ctrl+N (crouch plus
     // forward, armour, stock): preventDefault on the keydown is ignored. The one
     // way round it is fullscreen with Keyboard Lock, which hands those keys to
@@ -179,6 +203,15 @@ export class Input {
   }
 
   unlock(): void {
+    if (this.fakeLock) {
+      this.fakeLock = false;
+      this.locked = false;
+      this.padPlaying = false;
+      this.down.clear();
+      this.mouseDown = [false, false, false, false, false];
+      this.onLockChange?.(false);
+      return;
+    }
     if (document.pointerLockElement) document.exitPointerLock();
   }
 

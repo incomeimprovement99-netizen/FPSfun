@@ -72,6 +72,11 @@ export class DpiCalibrator {
     const el = this.el as HTMLElement & {
       requestPointerLock: (o?: { unadjustedMovement?: boolean }) => Promise<void> | void;
     };
+    // a page a test tool drives never takes the real lock (input.ts says why)
+    if (navigator.webdriver === true) {
+      this.onFail?.({ reason: "no-pointer-lock" });
+      return;
+    }
     let ok = true;
     try {
       await el.requestPointerLock({ unadjustedMovement: true });

@@ -4,14 +4,18 @@
 // off, so frames are not capped at the monitor and the number measured is how
 // many frames the machine can actually produce. The page runs its normal
 // game loop; we time requestAnimationFrame intervals from inside it, and read
-// the draw calls of the last frame and the page's own CPU time per frame.
+// each frame's draw calls and triangles over every pass (the shadow map, the
+// scene, ambient occlusion and bloom), averaged over the run.
 //
 // BENCH_MERGE=both runs every preset with the static-mesh merge on and off
 // (?nomerge), so the merge's effect is measured rather than assumed.
 //
 // BENCH_SPOT picks where the camera stands: "range" (the default, the firing
 // range as the page opens), or "br", the battle royale map's worst view, from
-// the Mast's roof across the whole of Outskirts, with every place in frame.
+// the Mast's roof across the whole of Outskirts, with every place in frame,
+// or "brmatch", a real solo battle royale on seed 42 dropped onto the hub,
+// standing in the middle of it once landed: the loot on the floor and the
+// eleven bots are in the frame, which the empty map leaves out.
 //
 // Run: npm run bench        (needs `npm run dev` already running)
 import puppeteer from "puppeteer";
@@ -26,6 +30,14 @@ const SPOT = process.env.BENCH_SPOT ?? "range";
 const SPOTS: Record<string, string> = {
   range: "",
   br: `(() => { const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(0, 28.2, 500, 45, -8); })()`,
+  brmatch: `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "hub" });
+    for (let i = 0; i < 400 && r.duel()?.phase !== "fight"; i++) await new Promise((ok) => setTimeout(ok, 100));
+    const d = r.duel(); if (d) d.holdFire = true;
+    r.player.teleport(0, 0, 530, 0, -2); })()`,
+};
+/** spots that need the page told something before it loads: a straight drop, and none of the real mouse */
+const BEFORE: Record<string, string> = {
+  brmatch: `window.__straightDrop = true; for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`,
 };
 
 async function main(): Promise<void> {
@@ -48,6 +60,9 @@ async function main(): Promise<void> {
         const page = await browser.newPage();
         await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
         await page.evaluateOnNewDocument((v: string) => localStorage.setItem("range.quality", v), preset);
+        // one hour for every run (a battle royale draws its own from the seed otherwise)
+        await page.evaluateOnNewDocument(() => localStorage.setItem("range.sky.br", "mine"));
+        if (BEFORE[SPOT]) await page.evaluateOnNewDocument(BEFORE[SPOT]);
         await page.goto(PAGE_URL + (merge ? "" : "?nomerge"), { waitUntil: "domcontentloaded", timeout: 60000 });
         await page.waitForFunction("Boolean(window.__range)", { timeout: 60000 });
         await page.waitForFunction("window.__range.loaded()", { timeout: 60000 });
@@ -62,12 +77,15 @@ async function main(): Promise<void> {
           const dbg = gl && gl.getExtension("WEBGL_debug_renderer_info");
           const gpu = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : "unknown";
           const times = [];
+          let calls = 0, tris = 0, n = 0;
           await new Promise((done) => {
             let prev = 0;
             const end = performance.now() + ${SECONDS} * 1000;
             function tick(t) {
               if (prev) times.push(t - prev);
               prev = t;
+              const c = window.__range.frameCost();
+              calls += c.calls; tris += c.triangles; n++;
               if (t < end) requestAnimationFrame(tick); else done();
             }
             requestAnimationFrame(tick);
@@ -79,14 +97,18 @@ async function main(): Promise<void> {
             frames: times.length,
             med: times[Math.floor(times.length / 2)],
             p95: times[Math.floor(times.length * 0.95)],
-            calls: r.drawCalls(),
+            p99: times[Math.floor(times.length * 0.99)],
+            calls: Math.round(calls / Math.max(1, n)),
+            tris: Math.round(tris / Math.max(1, n)),
+            bots: r.duel()?.bots?.length ?? 0,
             merged: r.merged,
           };
-        })()`)) as { gpu: string; frames: number; med: number; p95: number; calls: number; merged: { meshes: number; after: number } | null };
+        })()`)) as { gpu: string; frames: number; med: number; p95: number; p99: number; calls: number; tris: number; bots: number; merged: { meshes: number; after: number } | null };
         const label = `${preset}${MERGE.length > 1 ? (merge ? " merged" : " unmerged") : ""}${SPOT !== "range" ? ` @${SPOT}` : ""}`;
         console.log(
           `${label.padEnd(22)} ${(1000 / out.med).toFixed(0).padStart(5)} fps median   ` +
-            `${out.med.toFixed(2)} ms   p95 ${out.p95.toFixed(2)} ms   ${String(out.calls).padStart(4)} draw calls` +
+            `${out.med.toFixed(2)} ms   p95 ${out.p95.toFixed(2)}   p99 ${out.p99.toFixed(2)} ms   ${String(out.calls).padStart(5)} draw calls   ${(out.tris / 1000).toFixed(0).padStart(5)}k triangles` +
+            (SPOT === "brmatch" ? `   ${out.bots} bots` : "") +
             (out.merged ? `   (static meshes ${out.merged.meshes} -> ${out.merged.after})` : "") +
             `   GPU: ${out.gpu}`
         );

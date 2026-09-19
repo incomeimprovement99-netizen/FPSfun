@@ -22,6 +22,22 @@ The headline: **the map is not the biggest cost. Loot guns and bot figures are**
 
 **The measurements are wrong.** `drawCalls()` reads `renderer.info.render.calls`, which resets on every render call. With post-processing on, it reports only the last pass, so only the Competitive numbers are real. `BENCH_SPOT=br` moves the camera over an empty map, with no match, bots or loot.
 
+## The first measurement, and what it changes
+
+Step A below was built first, the same day. `npm run bench` now counts every pass of a frame, draw calls and triangles averaged over the run, and reports the 99th percentile. `BENCH_SPOT=brmatch` plays a real solo battle royale on seed 42, dropped on the hub. Measured at d488c63's map, 1920x1080, on this machine:
+
+| Where | Preset | fps median | p99 frame | Draw calls | Triangles |
+|---|---|---|---|---|---|
+| Range | Competitive | 556 | 3.0 ms | 479 | 689k |
+| Range | High | 263 | 5.7 ms | 1,649 | 3.68M |
+| BR, empty, from the Mast's roof | Competitive | 132 | 11.8 ms | 1,238 | 2.85M |
+| BR, empty, from the Mast's roof | High | 143 | 9.5 ms | 2,551 | 6.58M |
+| BR match at the hub, 9 bots | Competitive | 100 | 16.3 ms | 1,366 | 2.72M |
+| BR match at the hub, 9 bots | Balanced | 175 | 8.6 ms | 1,384 | 2.72M |
+| BR match at the hub, 9 bots | High | 88 | 19.8 ms | 2,773 | 6.63M |
+
+**What this changes: the world, not the loot, is the first target.** The empty map already costs 1,238 draw calls and 2.85M triangles, about fifteen times the map's own 186k triangles. The loot and bots in view at the hub add only about 130 calls. So something across the whole merged world is drawn from everywhere, twice or more per frame: the range, the arenas and the battle royale map share merged groups with no culling, and the shadow pass comes on top. **Step F (cells) moves ahead of C and D**, after a short investigation. That investigation lists the draw calls by mesh at the `br` spot to find what the 2.85M triangles are. The Competitive preset at the hub, 100 fps median with a 16 ms p99, is the number to beat.
+
 ## Options, best gain per hour first
 
 1. **Fix the measurements.** Everything else is judged by them.
@@ -59,7 +75,7 @@ A new `tools/checks/render-budget.ts` in verify builds the map headless and asse
 
 | Step | Work | Hours | Test |
 |---|---|---|---|
-| A | Benchmark: every pass counted, triangles, percentiles, the `brmatch` spot | 2-3 | A baseline on all three presets at `br`, `brmatch` and `range` |
+| A | ~~Benchmark: every pass counted, triangles, percentiles, the `brmatch` spot~~ done, baseline above | 2-3 | A baseline on all three presets at `br`, `brmatch` and `range` |
 | B | `render-budget.ts` at today's numbers | 2 | Verify passes; a budget one lower fails |
 | C | Loot LOD: merged guns, instanced boxes and plates | 4-6 | Merged-gun check; `brmatch` draw calls drop by hundreds |
 | D | Figure LOD: bounds, animation stride, far gun, 60 m shadows | 3-4 | Stride check; the bot and knockdown checks still pass; High benchmark |

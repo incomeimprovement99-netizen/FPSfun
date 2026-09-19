@@ -1014,3 +1014,19 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   as its weight within 1.5 points over 20,000 seeds, forty seeds in a row see at least five hours), and the e2e `br`
   (the seed's hour, the setting keeping yours, yours back after) and `squad` (host and guest under the same sky)
   sections. `npm run snap` keeps your own hour so two runs compare.
+
+## Milestone 70 — The test tools let go of the mouse, and the benchmark counts the whole frame ✅
+2026-09-18 (Phase 15). `input.ts`, `dpi-calibrate.ts`, `main.ts`, `tools/bench.ts`, `tools/e2e.ts`.
+- The owner's mouse was held in a small square in a corner of one monitor, and the keys taken, while e2e, snap or
+  the benchmark ran: headless Chrome keeps a real, invisible window, and the game's lock took raw pointer lock (the
+  OS pins the cursor inside that window) and fullscreen with Keyboard Lock. Under a test tool (`navigator.webdriver`)
+  the lock is now pretend: a button's lock counts, one the game asks for by itself is refused as a real browser
+  refuses it, and the browser is asked for nothing. The DPI calibration refuses there.
+- The draw-call counter was reset by every render call, so with post-processing on it counted one pass. It is now
+  reset once a frame, and `__range.frameCost()` gives the whole frame's draw calls and triangles.
+- `npm run bench` reports the 99th percentile and triangles, averaged over the run, and `BENCH_SPOT=brmatch` plays a
+  real match on seed 42 at the hub through `__range.startBr({ seed, poi })`. The baseline is in
+  `docs/PLAN_LOD_DRAW_DISTANCE.md`: the empty map is already 1,238 draw calls and 2.85M triangles on Competitive, so
+  the world's merge, not the loot, is the first target.
+- Checks: the e2e `page` section (a lock the game asks for itself is refused; a button's counts, and the browser holds
+  no pointer lock and no fullscreen).

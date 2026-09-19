@@ -518,6 +518,12 @@ if (!gl) {
   throw new Error("WebGL 2 is not available");
 }
 const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, context: gl, antialias: true, powerPreference: "high-performance" });
+// The counters are reset once a frame by hand, not on every render call: with
+// post-processing a frame is several passes, and the automatic reset left
+// only the last pass counted (the benchmark reported a bloom pass as a frame).
+renderer.info.autoReset = false;
+/** the whole of the last frame drawn: every pass, the shadow map's included */
+let frameCost = { calls: 0, triangles: 0 };
 renderer.setPixelRatio(Math.min(quality.maxPixelRatio, window.devicePixelRatio));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = quality.shadows !== "off";
@@ -2659,7 +2665,7 @@ function startMode(kind: ModeKind): void {
   duelButtons();
 }
 /** the battle royale against bots, on Outskirts */
-function startBr(): void {
+function startBr(seed = newSeed(), poi?: string): void {
   if (duel) return;
   hosting?.cancel();
   hosting = null;
@@ -2668,7 +2674,7 @@ function startBr(): void {
   for (const c of courses) c.leave();
   const diff = brDifficulty();
   const bots = brBotCount();
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br"), seed: newSeed(), start: brStart(), team: brTeamId(), ship: !straightDrop(), rules: brRulesId(), gulag: !noGulag() });
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, poi, abilities: abilitySetting("br"), seed, start: brStart(), team: brTeamId(), ship: !straightDrop(), rules: brRulesId(), gulag: !noGulag() });
   duel = d;
   wireMatch(d, "br");
   brHour(d);
@@ -4287,7 +4293,9 @@ function step(): void {
       }
     }
   }
+  renderer.info.reset();
   if (!NO_RENDER) pipeline.render(now);
+  frameCost = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
   for (const o of hiddenForReplay) o.visible = true;
   const shown = loadout.display;
   // context prompts: a zipline in reach, or a ladder you are facing
@@ -4699,7 +4707,11 @@ initWelcome();
       }
     });
   },
-  drawCalls: () => renderer.info.render.calls,
+  drawCalls: () => frameCost.calls,
+  /** the last frame's draw calls and triangles over every pass (tools/bench.ts) */
+  frameCost: () => ({ ...frameCost }),
+  /** a solo battle royale on a given seed and place, so the benchmark measures the same match every run */
+  startBr: (o?: { seed?: number; poi?: string }) => startBr(o?.seed, o?.poi),
   techLog,
   /** drive the player from a script instead of the keyboard (null to stop) */
   setScript: (s: MoveInput | null, hook: ((now: number, dt: number) => void) | null = null) => {
