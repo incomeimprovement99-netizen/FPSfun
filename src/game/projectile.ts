@@ -311,7 +311,7 @@ export class ProjectileSystem {
   }
 }
 
-function falloff(w: ResolvedWeapon, dist: number): number {
+export function falloff(w: ResolvedWeapon, dist: number): number {
   const d = w.damage;
   if (dist <= d.nearDist) return d.near;
   if (dist <= d.farDist) return lerp(d.near, d.far, (dist - d.nearDist) / (d.farDist - d.nearDist));

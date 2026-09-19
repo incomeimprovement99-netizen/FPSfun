@@ -1060,3 +1060,25 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   `tools/checks/loot-tiers.ts` (every site holds loot, never the Hot Zone, the places' loot unmoved by the sites, a
   site's rarity lean); a throw from fifteen points of every pad lands on sand with no slide into another pad; all
   376 one-way bot links walked twelve times; all thirteen ropes ridden both ways.
+
+## Milestone 72 — The gap pass's bugs: a guest speaks only for itself, the bots' gun, the first ring, death boxes ✅
+2026-09-19 (Phase 15). `duel.ts`, `bots.ts`, `brmatch.ts`, `modematch.ts`, `loot.ts`, `projectile.ts`,
+`server/game/serve.mjs`, `tools/checks/bot-fire.ts` (new), `tools/checks/boards.ts` (new).
+- The first items of the second AAA gap pass (docs/NEXT_STEPS.md), each a bug or close to one.
+- A guest speaks only for itself: the host took a message's sender from the message, so a guest could send another
+  player's goodbye (and drop them), their down, or a hit dressed as a bot's. The host now takes the sender from the
+  link it came in on.
+- The free-for-all wins board existed in the game and not on the server, so every win was posted into an error and
+  the board never showed a row. The server keeps it, and a check fails if the two lists ever differ again.
+- A bot's gun plays by the players' rules: it empties its magazine and reloads for the gun's reload time (it used to
+  fire for ever, about two and a half times a player's damage over a fight with an R-99), its rounds take the
+  players' damage falloff, and a crouched or sliding target is hit as a crouched body, in the battle royale and the
+  modes alike, so crouching behind a waist-high box protects you from a bot as it does from a player. A reloading bot
+  shows it: its figure plays the reload.
+- The first ring's wait starts once the dropship has flown its line. It was set before there was a ship, and the ride
+  and the dive ate 12 to 25 s of it.
+- A bot's death box holds what it looted: its gun at the grade it found with its magazine, its fittings and hop-up,
+  its frags, and its heals (never fewer than a box always held). It used to be a rare gun whatever the bot had.
+- Checks: `tools/checks/bot-fire.ts` (a bot's shots over 20 s against a player's with four guns, the reload, the
+  falloff rule, the crouched body, the death box), `tools/checks/boards.ts`, and e2e: a forged goodbye in the 1v1v1
+  leaves both guests in, and the ring's clock holds while the ship flies.

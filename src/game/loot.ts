@@ -241,6 +241,47 @@ export function tierOf(place: LootPlace, index: number): PlaceTier {
   return ((cfg.places as Record<string, PlaceTier>)[id] ?? cfg.defaultTier) as PlaceTier;
 }
 
+/** what a bot had on it when it went down, as bots.ts keeps it (a type only: loot.ts does not load the bots) */
+export interface DeadBotKit {
+  gunId: string | null;
+  gun: number;
+  mag: number;
+  mods: Record<string, { id: string; rank: number }>;
+  cells: number;
+  syringes: number;
+  frags: number;
+}
+
+/**
+ * A bot's death box, from what it looted: its gun at the grade it found
+ * (with its magazine), every fitting and hop-up it took, its frags, two
+ * stacks of its gun's ammo, and its heals (never fewer than loot.json's
+ * deathBox, so a box is always worth the walk). It used to be a rare gun and
+ * the same heals whatever the bot had picked up, so killing a bot that had
+ * looted a legendary handed you a rare. `fallbackGun` is the gun a bot held
+ * without looting one (a match that starts with loadouts); null when it had
+ * none.
+ */
+export function deathBoxOf(kit: DeadBotKit | null, fallbackGun: string | null): LootItem[] {
+  const items: LootItem[] = [];
+  const grade = (rank: number): Rarity => RARITY_ORDER[Math.max(0, Math.min(3, rank - 1))];
+  const gun = kit?.gunId ?? fallbackGun;
+  if (gun) {
+    items.push({ kind: "weapon", id: gun, n: 1, rarity: kit?.gunId ? grade(kit.gun) : "rare", mag: kit?.mag || undefined });
+    const type = ammoTypeOf(gun);
+    if (type !== "energy") items.push({ kind: "ammo", id: type, n: cfg.deathBox.stacks * STACK[type], rarity: "common" });
+  }
+  if (kit) {
+    const magRarity = (Object.entries(cfg.magLevel) as Array<[Rarity, number]>).find(([, lv]) => lv === kit.mag)?.[0];
+    if (kit.mag > 0 && magRarity) items.push({ kind: "attach", id: `mag:${kit.mag}`, n: 1, rarity: magRarity });
+    for (const [slot, m] of Object.entries(kit.mods)) items.push({ kind: slot === "hopup" ? "hopup" : "attach", id: m.id, n: 1, rarity: grade(m.rank) });
+    if (kit.frags > 0) items.push({ kind: "grenade", id: "frag", n: kit.frags, rarity: "rare" });
+  }
+  items.push({ kind: "heal", id: "cell", n: Math.max(cfg.deathBox.cells, kit?.cells ?? 0), rarity: "common" });
+  items.push({ kind: "heal", id: "syringe", n: Math.max(cfg.deathBox.syringes, kit?.syringes ?? 0), rarity: "common" });
+  return items;
+}
+
 /**
  * The Hot Zone for a match: one place, off the seed alone. It runs on its own
  * stream so a guest works it out from the welcome's seed without the host

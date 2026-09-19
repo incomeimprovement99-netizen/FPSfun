@@ -69,7 +69,7 @@ import { Throwables, blastDamage, throwCode } from "./throwables";
 import { lockedHopupFor } from "./attachments";
 import { weaponName } from "./weapons";
 import { savedLoadout, type LoadoutDef } from "./loadouts";
-import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, hitsBody, tierFor, type BotSense } from "./bots";
+import { Bot, BODY_TOP, BOT_NAMES, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense } from "./bots";
 import botsCfg from "../config/bots.json";
 import { RANGE_SOLIDS } from "./range";
 /**
@@ -136,7 +136,7 @@ import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
 import brmapCfg from "../config/brmap.json";
-import { LootField, LOOT, kittedAttach, seeded, type LootItem, type LootKind, type Rarity } from "./loot";
+import { LootField, LOOT, deathBoxOf, kittedAttach, seeded, type LootItem, type LootKind, type Rarity } from "./loot";
 import { ammoTypeOf, STACK } from "./ammo";
 
 /** how high the drop starts */
@@ -1183,16 +1183,11 @@ export class BrMatch extends Duel {
     r.alive = false;
     const mine = by === this.id;
     if (mine) this.kills++;
-    // its death box: its gun (if it had found it), two stacks of its ammo, a couple of heals
+    // its death box: what it had looted (loot.ts deathBoxOf), or its gun and the basics
     if (this.lootField && this.role === "host") {
-      const w = r.avatarWeapon;
-      const items: LootItem[] = [];
-      if (this.botArmed(b, wallClock())) items.push({ kind: "weapon", id: w, n: 1, rarity: "rare" });
-      const type = ammoTypeOf(w);
-      if (type !== "energy") items.push({ kind: "ammo", id: type, n: LOOT.deathBox.stacks * (type === "sniper" ? 28 : type === "shotgun" ? 20 : 60), rarity: "common" });
-      items.push({ kind: "heal", id: "cell", n: LOOT.deathBox.cells, rarity: "common" });
-      items.push({ kind: "heal", id: "syringe", n: LOOT.deathBox.syringes, rarity: "common" });
-      this.dropBox(items, b.bot.pos.clone());
+      const armed = this.botArmed(b, wallClock());
+      const kit = b.bot.lootKit;
+      this.dropBox(deathBoxOf(kit.gunId ? kit : null, armed ? r.avatarWeapon : null), b.bot.pos.clone());
     }
     const who = by === -1 ? "THE RING" : by === this.id ? this.myName || "YOU" : (this.remotes.get(by)?.name ?? this.bots.find((x) => x.bot.remote.id === by)?.bot.remote.name ?? "SOMEONE");
     this.onFeed?.(`${who} knocked ${r.name}`, mine, !mine);
@@ -1942,8 +1937,12 @@ export class BrMatch extends Duel {
       this.addPod(at, warning);
       this.broadcast({ t: "pod", at: [at.x, at.y, at.z], lands: warning });
     }
-    // the ring: a tick hurts everyone outside it (the guests hurt themselves)
-    const tick = ring.update(dt);
+    // The ring: a tick hurts everyone outside it (the guests hurt themselves).
+    // Its first wait starts once the dropship has flown its line: round one's
+    // wait was set before there was a ship, and the ride and the dive ate 12
+    // to 25 s of it, which left about 25 s to loot before the first close.
+    const shipFlying = this.shipLine !== null && (!this.ship || !this.ship.gone(now));
+    const tick = shipFlying ? false : ring.update(dt);
     this.view = { phase: ring.phase, state: ring.state, timeLeft: Math.max(0, ring.timeLeft), current: { ...ring.current }, next: { ...ring.next } };
     if (tick && this.phase === "fight") {
       if (this.alive && !this.gulag && ring.outside(local.x, local.z)) this.hurt(ring.damage, -1);
@@ -1977,12 +1976,12 @@ export class BrMatch extends Duel {
     }
 
     // the humans a bot can go after: the host, and the guests where they last were
-    const humans: Array<{ id: number; feet: THREE.Vector3 }> = [];
-    if (this.alive && !this.gulagIds.has(this.id)) humans.push({ id: this.id, feet });
+    const humans: Array<{ id: number; feet: THREE.Vector3; low: boolean }> = [];
+    if (this.alive && !this.gulagIds.has(this.id)) humans.push({ id: this.id, feet, low: local.crouch });
     for (const r of this.remotes.values()) {
       if (r.id >= Duel.BOT_ID || !r.alive) continue;
       const last = r.samples[r.samples.length - 1];
-      if (last) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z) });
+      if (last) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z), low: last.stance === "crouch" || last.stance === "slide" });
     }
 
     // Resurgence: the bots whose wait is over come back
@@ -2029,7 +2028,7 @@ export class BrMatch extends Duel {
         const human = humans.find((h) => h.id === sense.targetId);
         if (!human) continue;
         let dealt = 0;
-        for (const s of shots) if (hitsBody(s.from, s.dir, human.feet)) dealt += s.damage;
+        for (const s of shots) if (hitsBody(s.from, s.dir, human.feet, human.low ? CROUCH_TOP : BODY_TOP)) dealt += s.damage;
         if (dealt <= 0) continue;
         this.noteDamage(bot.remote.id, dealt);
         const dist = Math.round(bot.pos.distanceTo(human.feet) * 10) / 10;
@@ -2093,7 +2092,7 @@ export class BrMatch extends Duel {
   }
 
   /** what a bot can see and where it should go */
-  private sense(b: BrBot, humans: Array<{ id: number; feet: THREE.Vector3 }>): BotSense {
+  private sense(b: BrBot, humans: Array<{ id: number; feet: THREE.Vector3; low: boolean }>): BotSense {
     const bot = b.bot;
     // the nearest enemy in sight: a human, or another bot
     let target: THREE.Vector3 | null = null;

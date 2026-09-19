@@ -23,7 +23,8 @@
 import * as THREE from "three";
 import { Dummy } from "./dummy";
 import { RANGE_SOLIDS } from "./range";
-import { solidHit, type ProjectileSystem } from "./projectile";
+import { falloff, solidHit, type ProjectileSystem } from "./projectile";
+import moveCfg from "../config/movement.json";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import { OPERATORS } from "./operators";
 import { ARENA_BOT_SPAWNS, ARENA_BOUNDS, ARENA_CENTER, ARENA_SPAWNS, ZONE_RADIUS, arenaMap, type ArenaMapId } from "./arena";
@@ -547,6 +548,8 @@ export class Bot {
   private seenAt = -Infinity;
   private sawLast = false;
   private nextShotAt = 0;
+  /** its magazine: a bot reloads as a player does */
+  private readonly mag = new BotMag();
   private slideDir = 0;
   private slideUntil = 0;
   private strafePhase = Math.random() * 10;
@@ -1237,7 +1240,7 @@ export class Bot {
       pitch: aimPitch,
       moveDir,
       ads: target && this.knife === null && !this.healing ? 0.85 : 0,
-      act: this.healing ? "heal" : null,
+      act: this.healing ? "heal" : this.mag.reloading(now) ? "reload" : null,
       healItem: this.healing?.item,
     });
     this.dummy.update(now, dt);
@@ -1284,9 +1287,10 @@ export class Bot {
       }
       return shots;
     }
-    if (target && sense.canShoot && !this.holdingFire && !this.healing && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
+    if (target && sense.canShoot && !this.holdingFire && !this.healing && this.mag.ready(now, this.weapon) && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
       const interval = Math.max(this.weapon.shotInterval, this.weapon.semiAuto ? 0.25 : 0) / this.diff.fireScale;
       this.nextShotAt = now + interval;
+      this.mag.fired(now, this.weapon, interval);
       if (now >= this.nextErrAt) {
         this.nextErrAt = now + 0.25;
         const e = aimError(tier, now - this.seenAt, Math.hypot(target.x - this.pos.x, target.z - this.pos.z));
@@ -1306,7 +1310,8 @@ export class Bot {
         }
         this.projectiles.fire(from, pd, this.weapon, true);
         if (p === 0) this.dummy.kick();
-        shots.push({ from, dir: pd, damage: this.weapon.damage.near, weapon: this.weapon.id });
+        // the damage a player's round does at that range, not always the near value
+        shots.push({ from, dir: pd, damage: falloff(this.weapon, from.distanceTo(target)), weapon: this.weapon.id });
       }
     }
     return shots;
@@ -1318,10 +1323,53 @@ export class Bot {
   }
 }
 
-/** does a ray from `from` along `dir` cross a body (a capsule 0.3 to 1.7 m up, 0.45 m wide) at `feet` before a wall */
-export function hitsBody(from: THREE.Vector3, dir: THREE.Vector3, feet: THREE.Vector3): boolean {
+/**
+ * A bot's magazine. A bot used to fire at its gun's rate for ever, so an R-99
+ * bot outdamaged a player holding the same gun about two and a half times
+ * over a fight: it never reloaded. Now it empties the magazine and reloads
+ * for the gun's reload time, and a gun it has just picked up comes loaded.
+ * Pure, so the checks can fire it.
+ */
+export class BotMag {
+  private left = 0;
+  private of = "";
+  private until = 0;
+
+  /** can it fire now: loaded, and not reloading (a new gun is loaded) */
+  ready(now: number, w: { id: string; clipSize: number }): boolean {
+    if (this.of !== w.id) {
+      this.of = w.id;
+      this.left = w.clipSize;
+      this.until = 0;
+    }
+    return now >= this.until;
+  }
+
+  /** one shot gone; the last one starts the reload, after the shot's own interval */
+  fired(now: number, w: { clipSize: number; reloadTime: number }, interval: number): void {
+    if (--this.left <= 0) {
+      this.left = w.clipSize;
+      this.until = now + interval + w.reloadTime;
+    }
+  }
+
+  reloading(now: number): boolean {
+    return now < this.until;
+  }
+}
+
+/** the top of a body's capsule standing, and crouched (as the hull's crouch is to its stand) */
+export const BODY_TOP = 1.7;
+export const CROUCH_TOP = (BODY_TOP * moveCfg.crouchHeight) / moveCfg.standHeight;
+
+/**
+ * Does a ray from `from` along `dir` cross a body (a capsule 0.3 m up to
+ * `top`, 0.45 m wide) at `feet` before a wall. A crouched target is lower: a
+ * player crouched behind a waist-high box used to be hit as if standing.
+ */
+export function hitsBody(from: THREE.Vector3, dir: THREE.Vector3, feet: THREE.Vector3, top = BODY_TOP): boolean {
   const a = feet.clone().setY(feet.y + 0.3);
-  const b = feet.clone().setY(feet.y + 1.7);
+  const b = feet.clone().setY(feet.y + top);
   // closest approach between the ray and the segment ab
   const seg = b.clone().sub(a);
   const w0 = from.clone().sub(a);

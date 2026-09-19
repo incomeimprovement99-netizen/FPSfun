@@ -698,9 +698,11 @@ export class Duel implements MatchLike {
     // a message still in flight when the match ended changes nothing
     if (this.ended) return;
     const now = wallClock();
-    // who it is from: a guest's own messages arrive on its link; a relayed
-    // one carries the sender's id
-    const from = "from" in m && typeof m.from === "number" ? m.from : via;
+    // Who it is from. On the host, always the link it came in on: a guest
+    // never sends a `from`, and one it wrote itself would let it drop another
+    // player (a forged bye), down them, or pass a hit off as a bot's. A guest
+    // hears only the host, whose relayed messages carry the sender's id.
+    const from = this.role === "host" ? via : "from" in m && typeof m.from === "number" ? m.from : via;
     if (from === this.id) return;
     // the host only listens to links it still holds; a guest it dropped for
     // silence must not come back as a figure with no link behind it

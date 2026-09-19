@@ -24,7 +24,7 @@
 // Gun Run and Crown are every player for themselves.
 import * as THREE from "three";
 import { Throwables, blastDamage, throwCode } from "./throwables";
-import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, hitsBody, tierFor, type BotSense } from "./bots";
+import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP, hitsBody, tierFor, type BotSense } from "./bots";
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Duel, HEALTH_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
@@ -354,16 +354,16 @@ export class ArenaMode extends Duel {
   }
 
   /** everyone in the fight as the host knows them: this player, the guests where they last were, the bots */
-  private fighters(): Array<{ id: number; x: number; z: number; y: number; alive: boolean }> {
-    const out: Array<{ id: number; x: number; z: number; y: number; alive: boolean }> = [];
+  private fighters(): Array<{ id: number; x: number; z: number; y: number; alive: boolean; low: boolean }> {
+    const out: Array<{ id: number; x: number; z: number; y: number; alive: boolean; low: boolean }> = [];
     const me = this.lastLocal;
-    if (me) out.push({ id: this.id, x: me.x, y: me.y, z: me.z, alive: this.alive });
+    if (me) out.push({ id: this.id, x: me.x, y: me.y, z: me.z, alive: this.alive, low: me.crouch });
     // a guest's remotes include the host's bots (the host's own are in this.bots)
     for (const r of this.remotes.values()) {
       const s = r.samples[r.samples.length - 1];
-      if (s) out.push({ id: r.id, x: s.x, y: s.y, z: s.z, alive: r.alive });
+      if (s) out.push({ id: r.id, x: s.x, y: s.y, z: s.z, alive: r.alive, low: s.stance === "crouch" || s.stance === "slide" });
     }
-    for (const b of this.bots) out.push({ id: b.bot.remote.id, x: b.bot.pos.x, y: b.bot.pos.y, z: b.bot.pos.z, alive: b.bot.alive });
+    for (const b of this.bots) out.push({ id: b.bot.remote.id, x: b.bot.pos.x, y: b.bot.pos.y, z: b.bot.pos.z, alive: b.bot.alive, low: false });
     return out;
   }
 
@@ -1011,7 +1011,7 @@ export class ArenaMode extends Duel {
       if (!f || !f.alive) return;
       const at = new THREE.Vector3(f.x, f.y, f.z);
       let dealt = 0;
-      for (const s of shots) if (melee ? s.from.distanceTo(at.clone().setY(at.y + 1.2)) < 2.1 : hitsBody(s.from, s.dir, at)) dealt += s.damage;
+      for (const s of shots) if (melee ? s.from.distanceTo(at.clone().setY(at.y + 1.2)) < 2.1 : hitsBody(s.from, s.dir, at, f.low ? CROUCH_TOP : BODY_TOP)) dealt += s.damage;
       if (dealt <= 0) return;
       const dist = Math.round(bot.pos.distanceTo(at) * 10) / 10;
       if (targetId === this.id) this.takeHit(dealt, bot.remote.id, false, shots[0].weapon, dist);

@@ -1521,6 +1521,15 @@ async function tripleTest(browser: Browser, query: string, tag = "1v1v1", pages3
   const g2Net = await ev<NetSeen | null>(g2, NET_PROBE(0));
   const hostOk = !hostNet ? wants[0] === "full" : hostNet.on1 === (wants[1] === "deltas") && hostNet.on2 === (wants[2] === "deltas") && hostNet.refused === 0 && hostNet.unexpected === 0;
   check(`${tag}: the state packets went in the form each guest reads (${wants.slice(1).join(", ")})`, hostOk && netAsWanted(g1Net, wants[1]) && netAsWanted(g2Net, wants[2]), JSON.stringify({ hostNet, g1Net, g2Net }));
+  // A guest cannot speak for another: guest 1 sends a goodbye that says it
+  // is from guest 2, and the host must not drop guest 2. (Only a host of this
+  // build: an older one still believes a guest's own "from".)
+  if (!at(0).base) {
+    await ev(g1, `window.__range.duel().links.get(0)?.send({ t: "bye", from: 2 })`);
+    await sleep(800);
+    const kept = await ev<number>(host, "window.__range.duel() ? window.__range.duel().avatars.length : -1");
+    check(`${tag}: a guest cannot forge another's goodbye: the host keeps both`, kept === 2, `${kept} figures on the host`);
+  }
   // a guest leaves: the match carries on as a 1v1 for the other two
   await ev(g1, "window.__range.duel().leave()");
   await host.waitForFunction("window.__range.duel() !== null && window.__range.duel().avatars.length === 1", { polling: 200, timeout: 10000 }).then(() => true, () => false);
@@ -2418,6 +2427,13 @@ async function shipTest(browser: Browser, query: string, squadQuery: string): Pr
   await sleep(150);
   const shut = await ev<{ aboard: boolean; doorsIn: number }>(page, `(() => { const R = window.__range; return { aboard: R.shipState().aboard, doorsIn: R.ship().doorsIn(performance.now() / 1000) }; })()`);
   check("the ship: the jump is refused while the doors are shut", shut.aboard && shut.doorsIn > 0, JSON.stringify(shut));
+  // The first ring's wait starts once the ship has flown its line: the ride
+  // used to eat into round one's wait, leaving about 25 s to loot.
+  const clock = async () => ev<{ left: number; flying: boolean }>(page, `(() => { const d = window.__range.duel(); return { left: d.view ? d.view.timeLeft : -1, flying: !d.ship.gone(performance.now() / 1000) }; })()`);
+  const c0 = await clock();
+  await sleep(1500);
+  const c1 = await clock();
+  check("the ship: the first ring's clock waits while the ship flies", c0.flying && c1.flying && c0.left > 0 && Math.abs(c0.left - c1.left) < 0.05, JSON.stringify({ c0, c1 }));
   const out = await page.waitForFunction("!window.__range.shipState().aboard", { polling: 50, timeout: 6000 }).then(() => true, () => false);
   const left = await ev<{ dropping: boolean; map: boolean; along: number; inside: boolean }>(
     page,

@@ -1,0 +1,32 @@
+// The leaderboards: every board the game posts to and reads is one the
+// server keeps (server/game/serve.mjs's BOARD_IDS).
+//
+// The free-for-all wins board was added to the game and never to the
+// server, so every win was posted into a 400 and the board never showed a
+// row. Nothing noticed, because nothing compared the two lists.
+//
+// Run on its own: npx tsx tools/checks/boards.ts.
+import { readFileSync } from "node:fs";
+
+let fails = 0;
+function check(label: string, cond: boolean, detail = ""): void {
+  if (!cond) fails++;
+  console.log(`${cond ? "  ok  " : "FAIL  "}${label}${detail ? ` (${detail})` : ""}`);
+}
+
+console.log("The leaderboards, the game's and the server's");
+const src = readFileSync(process.env.SERVE_PATH ?? new URL("../../server/game/serve.mjs", import.meta.url), "utf8");
+const m = /const BOARD_IDS = new Set\(\[([^\]]*)\]\)/.exec(src);
+const server = new Set(m ? [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]) : []);
+check("the server's board list is where the check looks for it", server.size > 0);
+// read as text: leaderboard.ts needs Vite's env to load
+const client = readFileSync(new URL("../../src/game/leaderboard.ts", import.meta.url), "utf8");
+const list = /export const BOARDS[^=]*= \[([\s\S]*?)\n\];/.exec(client);
+const ids = list ? [...list[1].matchAll(/id: "([^"]+)"/g)].map((x) => x[1]) : [];
+check("the game's board list is where the check looks for it", ids.length > 0);
+const missing = ids.filter((id) => !server.has(id));
+check("every board the game posts to is one the server keeps", missing.length === 0, missing.join(", ") || `${ids.length} boards`);
+
+console.log(fails === 0 ? "\nBOARDS PASS" : `\nBOARDS FAIL (${fails})`);
+export const boardsFails = fails;
+if (process.argv[1]?.endsWith("boards.ts")) process.exit(fails === 0 ? 0 : 1);
