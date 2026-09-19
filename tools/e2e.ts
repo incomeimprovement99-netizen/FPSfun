@@ -1083,6 +1083,12 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   await sleep(1500);
   const seen = await ev<{ figures: number; bots: number; humans: number }>(guest, `(() => { const d = window.__range.duel(); const rs = [...d.remotes.values()]; return { figures: d.avatars.filter((a) => a.group.visible).length, bots: rs.filter((r) => r.id >= 100).length, humans: rs.filter((r) => r.id < 100).length }; })()`);
   check("squad: the guest sees the host and the four bots the host runs", seen.bots === 4 && seen.humans === 1 && seen.figures >= 4, JSON.stringify(seen));
+  // a bot of a duo knocked with its mate up: down on the guest's screen too, crawling, and back up when its mate picks it up
+  const knocked = await ev<number>(host, `(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.bot.alive && !x.bot.aboard && d.bots.some((o) => o !== x && o.team === x.team && o.bot.alive && !o.bot.aboard)); if (!b) return -1; d.onHitOther(b.bot.remote.id, 999, false, d.id); return b.down ? b.bot.remote.id : -1; })()`);
+  const downSeen = knocked >= 0 && (await guest.waitForFunction(`(() => { const r = window.__range.duel().remotes.get(${knocked}); const s = r?.samples[r.samples.length - 1]; return !!r && r.downed && r.alive && s?.stance === "downed"; })()`, { polling: 100, timeout: 4000 }).then(() => true, () => false));
+  await ev(host, `(() => { const d = window.__range.duel(); const a = d.bots.find((x) => x.bot.remote.id === ${knocked}); const m = a && d.bots.find((o) => o !== a && o.team === a.team && o.bot.alive && !o.down); if (a && m) d.reviveBot(a, m); })()`);
+  const upSeen = downSeen && (await guest.waitForFunction(`(() => { const r = window.__range.duel().remotes.get(${knocked}); const s = r?.samples[r.samples.length - 1]; return !!r && !r.downed && s?.stance !== "downed"; })()`, { polling: 100, timeout: 4000 }).then(() => true, () => false));
+  check("squad: a duo's bot knocked with its mate up shows down on the guest's screen, and up again once revived", downSeen && upSeen, JSON.stringify({ knocked, downSeen, upSeen }));
   // abilities are on in a squad by default: the guest picks JOLT on landing and the host sees it
   await ev(guest, `window.__range.pickAbility("jolt")`);
   await ev(guest, "window.__range.useAbility()");
@@ -3176,8 +3182,53 @@ async function botSquadsTest(browser: Browser, query: string): Promise<void> {
   // is not every sample: measured 60 to 100 per cent out of a fight with the
   // squad following its first bot, and nearer 37 without.
   check("bot squads: each squad out of a fight keeps together (within 25 m, most of the time)", samples >= 8 && together / samples >= 0.55, `${together} of ${samples} squad samples together`);
+  await botKnockSteps(page);
   await ev(page, "window.__range.duel()?.leave()");
   await page.close();
+}
+
+/**
+ * A trio's bot knocked with its squad up goes down, not out; a mate picks it
+ * up; one left to bleed dies of it; and a squad with nobody standing takes
+ * its downed with it. The host is left out of the bots' sight (the Gulag's
+ * list) so nothing breaks a revive off, and the other squad is taken out
+ * first so nobody else does either.
+ */
+async function botKnockSteps(page: Page): Promise<void> {
+  const state = `(() => { const d = window.__range.duel(); return d.bots.map((b) => ({ id: b.bot.remote.id, team: b.team, alive: b.bot.remote.alive, down: !!b.down, standing: b.bot.alive && !b.down, hp: b.bot.dummy.health })); })()`;
+  type Row = { id: number; team: number; alive: boolean; down: boolean; standing: boolean; hp: number };
+  const hit = (id: number) => ev(page, `(() => { const d = window.__range.duel(); d.onHitOther(${id}, 999, false, d.id); })()`);
+  await ev(page, "(() => { const d = window.__range.duel(); d.gulagIds.add(d.id); })()");
+  let rows = await ev<Row[]>(page, state);
+  const team = rows.find((r) => r.standing && rows.filter((o) => o.team === r.team && o.standing).length === 3)?.team;
+  if (team === undefined) {
+    check("bot knocks: a trio of bots all standing to test on", false, JSON.stringify(rows));
+    return;
+  }
+  // the other squads out: every one of theirs hit until gone
+  for (let k = 0; k < 8; k++) for (const r of (await ev<Row[]>(page, state)).filter((o) => o.team !== team && o.alive)) await hit(r.id);
+  rows = await ev<Row[]>(page, state);
+  const mine = rows.filter((r) => r.team === team);
+  const [a, b, c] = mine.map((r) => r.id);
+  await hit(a);
+  const downed = (await ev<Row[]>(page, state)).find((r) => r.id === a);
+  check("bot knocks: a trio's bot knocked with its squad up is down, not out", !!downed && downed.alive && downed.down, JSON.stringify(downed));
+  // a mate beside it, nothing in sight: it kneels and picks it up in the revive's 5 s
+  await ev(page, `(() => { const d = window.__range.duel(); const bs = d.bots; const A = bs.find((x) => x.bot.remote.id === ${a}); const B = bs.find((x) => x.bot.remote.id === ${b}); A.bot.pos.copy(B.bot.pos).add(new window.__range.THREE.Vector3(1, 0, 0)); })()`);
+  const up = await page.waitForFunction(`(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${a}); return !b.down && b.bot.alive && b.bot.remote.alive; })()`, { polling: 200, timeout: 20000 }).then(() => true, () => false);
+  const back = (await ev<Row[]>(page, state)).find((r) => r.id === a);
+  check("bot knocks: a squad mate out of a fight walks over and revives it, back up on 20 health", up && !!back && back.hp > 0 && back.hp <= 25, JSON.stringify(back));
+  // down again, left to bleed: the bleed-out ends it (its clock cut short here)
+  await hit(a);
+  await ev(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${a}); if (b.down) b.down.bleed = 0.3; })()`);
+  const bled = await page.waitForFunction(`!window.__range.duel().bots.find((x) => x.bot.remote.id === ${a}).bot.remote.alive`, { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  check("bot knocks: a bot left down bleeds out", bled);
+  // one down and the last standing gone: the squad is out, its downed with it
+  await hit(b);
+  const bDown = (await ev<Row[]>(page, state)).find((r) => r.id === b);
+  await hit(c);
+  const after = (await ev<Row[]>(page, state)).filter((r) => r.team === team);
+  check("bot knocks: with nobody of the squad standing, its downed go with it", !!bDown?.down && after.every((r) => !r.alive), JSON.stringify({ bDown, after }));
 }
 
 /** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */

@@ -584,6 +584,17 @@ export class Bot {
   private strafeSign = 1;
   /** crouched while it fires, and when it next thinks about it */
   crouching = false;
+  /**
+   * Down, not out (a battle royale squad's bot): when it went down, or null.
+   * It stays hittable (its figure's health is the bleed-out pool), crawls
+   * toward the goal it is given, and does nothing else until it is picked up
+   * or finished.
+   */
+  downedAt: number | null = null;
+  /** how fast it crawls while down, m/s */
+  private crawlSpeed = 0;
+  /** on one knee over a downed squad mate: holds still, crouched */
+  kneel = false;
   private crouchNext = 0;
   /** a spot out of the target's sight to heal behind, and until when it keeps to it */
   cover: { spot: THREE.Vector3; crouch: boolean; via: THREE.Vector3 | null; until: number; best: number; bestAt: number } | null = null;
@@ -692,6 +703,8 @@ export class Bot {
     this.heard = null;
     this.cover = null;
     this.crouching = false;
+    this.downedAt = null;
+    this.kneel = false;
     this.dodgeUntil = -Infinity;
     this.frags = GRENADE.count;
     this.nextThrowAt = 0;
@@ -881,6 +894,53 @@ export class Bot {
     return !this.dummy.knocked;
   }
 
+  get downed(): boolean {
+    return this.downedAt !== null;
+  }
+
+  /** knocked with a squad mate still up: on the floor with `pool` to bleed through, crawling at `crawl` m/s */
+  goDown(now: number, pool: number, crawl: number): void {
+    this.dummy.reset();
+    this.dummy.health = pool;
+    this.dummy.shield = 0;
+    this.downedAt = now;
+    this.crawlSpeed = crawl;
+    this.healing = null;
+    this.crouching = false;
+    this.kneel = false;
+    this.aimSet = false;
+  }
+
+  /** picked up: standing again with `health` and no shield */
+  standUp(health: number): void {
+    this.downedAt = null;
+    this.dummy.health = health;
+    this.dummy.shield = 0;
+  }
+
+  /** down: toward the goal (its squad) on hands and knees, stopping short of it */
+  private crawl(now: number, dt: number, goal: THREE.Vector3 | null): void {
+    let speed = 0;
+    if (goal) {
+      const dx = goal.x - this.pos.x;
+      const dz = goal.z - this.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 1.2) {
+        const step = Math.min(d - 1.2, this.crawlSpeed * dt);
+        const nx = this.pos.x + (dx / d) * step;
+        const nz = this.pos.z + (dz / d) * step;
+        if (!this.blocked(nx, nz)) {
+          this.pos.set(nx, this.groundAt(nx, nz), nz);
+          speed = this.crawlSpeed;
+        }
+        this.dummy.group.rotation.set(0, Math.atan2(dx, dz), 0);
+      }
+    }
+    this.dummy.group.position.copy(this.pos);
+    this.dummy.setPose({ speed, stance: "downed", pitch: 0 });
+    this.dummy.update(now, dt);
+  }
+
   /** its feet, for the others' aim and the ring */
   get feet(): THREE.Vector3 {
     return this.pos;
@@ -1030,6 +1090,10 @@ export class Bot {
     this.clock = now;
     if (!this.alive) {
       this.dummy.update(now, dt);
+      return [];
+    }
+    if (this.downedAt !== null) {
+      this.crawl(now, dt, sense.goal);
       return [];
     }
     if (this.dropping) {
@@ -1208,7 +1272,7 @@ export class Bot {
         }
         this.headwaySince = now;
       }
-      const step = this.diff.speed * dt * (this.healing ? HEAL_WALK : 1) * (this.crouching ? 0.6 : 1);
+      const step = this.diff.speed * dt * (this.healing ? HEAL_WALK : 1) * (this.crouching ? botsCfg.squads.crouchWalk : 1);
       let nx = this.pos.x + want.x * step;
       let nz = this.pos.z + want.y * step;
       if (this.blocked(nx, nz)) {
@@ -1253,8 +1317,8 @@ export class Bot {
     const fwdZ = Math.cos(ry);
     const moveDir = moving ? Math.atan2(want.x * -fwdZ + want.y * fwdX, want.x * fwdX + want.y * fwdZ) : 0;
     this.dummy.setPose({
-      speed: moving ? this.diff.speed * (this.healing ? HEAL_WALK : 1) * (this.crouching ? 0.6 : 1) : 0,
-      stance: this.crouching ? "crouch" : "stand",
+      speed: moving ? this.diff.speed * (this.healing ? HEAL_WALK : 1) * (this.crouching ? botsCfg.squads.crouchWalk : 1) : 0,
+      stance: this.crouching || this.kneel ? "crouch" : "stand",
       pitch: aimPitch,
       moveDir,
       ads: target && this.knife === null && !this.healing ? 0.85 : 0,

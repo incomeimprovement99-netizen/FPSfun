@@ -2981,8 +2981,8 @@ const brDifficulty = (): BotDifficulty => asDifficulty(botDifficulty.value);
 const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
-  // a match that ran to its end keeps the group: its links, handed back open
-  if (duel instanceof Duel && duel.phase === "matchEnd") {
+  // a match that ran to its end keeps the group: its links, handed back open (leaving closed them)
+  if (duel instanceof Duel && duel.phase === "matchEnd" && !duel.left) {
     const { guests, host } = duel.takeLinks();
     if (duel.role === "host" && guests.size) keepParty({ guests });
     else if (duel.role === "guest" && host) keepParty({ host });
@@ -4362,17 +4362,20 @@ function step(): void {
           hopProgress(e.weapon, r.amount);
         }
       }
+      const wasDowned = remote.downed;
       duel.localHit(remote, r.amount, r.headshot, e.weapon, e.distance);
       stats.hits++;
       stats.damage += r.amount;
       if (r.headshot) stats.headshots++;
       const color = onShield ? `#${ARMOR_COLOR[2].toString(16).padStart(6, "0")}` : "#ff4a3d";
-      const knock = wasAlive && remote.health <= 0;
+      // (a squad's bot knocked goes down with a fresh bleed-out pool, so its health says nothing)
+      const knock = wasAlive && (remote.health <= 0 || (remote.downed && !wasDowned));
       hud.addDamage(r.point, r.amount, r.headshot ? "#ffd23c" : color, r.headshot || knock, now, remote);
-      // A bot's knock is its death, and so is a human's once the hit left
-      // them out (solo, a 1v1): that is a kill, marked and heard as one. A
-      // knock a squad mate can still revive is a knock.
-      const kill = knock && (remote.id >= Duel.BOT_ID || !remote.alive || !(duel instanceof BrMatch) || duel.team.size === 1);
+      // A bot's knock is its death unless it went down (a duo's or a trio's
+      // bot with a mate up), and a human's is once the hit left them out
+      // (solo, a 1v1): that is a kill, marked and heard as one. A knock a
+      // squad mate can still revive is a knock.
+      const kill = knock && (remote.id >= Duel.BOT_ID ? !remote.downed : !remote.alive || !(duel instanceof BrMatch) || duel.team.size === 1);
       hud.hitMarker(now, r.headshot, kill ? "kill" : knock ? "knock" : "hit");
       if (kill) {
         killStreak = gameTime - lastKillAt <= hudCfg.killMarker.streak ? killStreak + 1 : 0;

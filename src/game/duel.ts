@@ -453,7 +453,10 @@ export class Duel implements MatchLike {
     } else if (opts.link) {
       this.hostLink = opts.link;
       opts.link.onMessage = (m) => this.receive(m, 0);
-      opts.link.onClose = () => this.finish("The host left the match.");
+      opts.link.onClose = () => {
+        this.left = true;
+        this.finish("The host left the match.");
+      };
       // the others are known once their state arrives; the host is id 0
       this.remote(0);
     }
@@ -1235,6 +1238,12 @@ export class Duel implements MatchLike {
             else if (m.op === "stop") this.revivedBy = null;
           } else if (vec3(m.at)) this.respawnHere(new THREE.Vector3(...m.at), m.bx === 1);
         } else if (this.role === "host") this.links.get(m.to)?.send({ ...m, from });
+        else if (m.t === "rev" && m.op === "done" && m.to >= Duel.BOT_ID) {
+          // a bot picked up by its squad (the host's bots): the feed says so here too
+          const r = this.remotes.get(m.to);
+          if (r) r.downed = false;
+          this.onFeed?.(`${this.nameOf(from) ?? "A BOT"} revived ${this.nameOf(m.to) ?? "A BOT"}`, false, false);
+        }
         break;
       }
       case "mark":
@@ -1549,8 +1558,12 @@ export class Duel implements MatchLike {
     return { guests, host };
   }
 
+  /** this player left, or a guest's host did (not the match running out): nothing to keep together after it */
+  left = false;
+
   /** leave: tell the others, remove the figures */
   leave(): void {
+    this.left = true;
     for (const l of this.links.values()) l.close();
     this.hostLink?.close();
     this.dispose();

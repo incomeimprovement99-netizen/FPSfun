@@ -381,6 +381,10 @@ interface BrBot {
   landedAt?: { x: number; z: number };
   /** Resurgence: dead, and on its way back */
   redeploy: Redeploy | null;
+  /** down, not out (duos and trios): who knocked it, and the seconds of bleed-out left */
+  down: { by: number; bleed: number } | null;
+  /** its revive of a downed squad mate so far, s (0 while it is not reviving) */
+  reviving: number;
 }
 
 /** a care package or a loadout crate: called, on its way down, or landed */
@@ -629,7 +633,7 @@ export class BrMatch extends Duel {
         const node = this.nearestNode(spawn.x, spawn.z);
         // it comes down from the sky, so it lands somewhere with no roof over it
         const dropTo = openGround(spawn.x, spawn.z);
-        this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false, team: squad, slot: i % this.team.size, dropTo, jumpAt: Infinity, redeploy: null });
+        this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false, team: squad, slot: i % this.team.size, dropTo, jumpAt: Infinity, redeploy: null, down: null, reviving: 0 });
       }
       this.ring = new Ring(start, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases);
       this.view = { phase: 0, state: "waiting", timeLeft: this.phases[0].wait, current: { ...this.ring.current }, next: { ...this.ring.next } };
@@ -1205,10 +1209,118 @@ export class BrMatch extends Duel {
     return true;
   }
 
+  /** a name for the feed: whoever `by` is (a human, a bot, or -1 for the ring) */
+  private whoDid(by: number): string {
+    return by === -1 ? "THE RING" : by === this.id ? this.myName || "YOU" : (this.remotes.get(by)?.name ?? this.bots.find((x) => x.bot.remote.id === by)?.bot.remote.name ?? "SOMEONE");
+  }
+
+  /** a squad's bot can be knocked (not killed) while one of its squad still stands; in solo, and against friends in solo, a knock is the end */
+  private canKnockBot(b: BrBot): boolean {
+    return this.team.size > 1 && !this.soloFriends && this.bots.some((o) => o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.aboard);
+  }
+
+  /**
+   * A bot of a duo or a trio knocked with a mate still up: on the floor, as
+   * a player would be. It bleeds out on the players' clock, crawls toward its
+   * squad, can be finished off, and a mate out of a fight walks over and
+   * picks it up. Before this every bot's knock was its death, so a bot squad
+   * was three solos walking together.
+   */
+  private knockBot(b: BrBot, by: number): void {
+    const bot = b.bot;
+    const r = bot.remote;
+    b.down = { by, bleed: squadCfg.bleedOut[0] * this.team.bleed };
+    bot.goDown(wallClock(), squadCfg.bleedHealth, bot.diff.speed * SQUADS.crouchWalk * squadCfg.crawl);
+    r.health = bot.dummy.health;
+    r.shield = 0;
+    r.downed = true;
+    this.onFeed?.(`${this.whoDid(by)} knocked ${r.name}`, by === this.id, by !== this.id);
+    // the bots after it turn to whoever is still up
+    for (const o of this.bots) o.bot.forget(r.id);
+    this.broadcast({ t: "dnd", from: r.id, by });
+    this.onKnockSeen?.(r.id, by);
+    if (by === this.id) this.onNotice?.(`${r.name} KNOCKED`);
+    this.cutBotWaits(by, "knock");
+  }
+
+  /** a downed bot picked up by `by`, one of its squad */
+  private reviveBot(o: BrBot, by: BrBot): void {
+    o.down = null;
+    o.bot.standUp(squadCfg.reviveHealth);
+    o.bot.remote.health = o.bot.dummy.health;
+    o.bot.remote.shield = 0;
+    o.bot.remote.downed = false;
+    this.onFeed?.(`${by.bot.remote.name} revived ${o.bot.remote.name}`, false, false);
+    this.broadcast({ t: "rev", op: "done", to: o.bot.remote.id, from: by.bot.remote.id });
+  }
+
+  /**
+   * The host, each frame: a downed bot's bleed-out runs, and a standing bot
+   * with nothing in sight goes to a downed mate within reach of its squad
+   * and kneels over it for the revive's 5 s. A target, or the ring pushing
+   * it on, breaks the revive off and it starts over.
+   */
+  private botCare(b: BrBot, sense: BotSense, dt: number): void {
+    const bot = b.bot;
+    bot.kneel = false;
+    if (b.down) {
+      b.down.bleed -= dt;
+      if (b.down.bleed <= 0) this.finishDowned(b);
+      return;
+    }
+    if (!bot.alive || bot.dropping || this.team.size < 2 || sense.target || sense.urgent) {
+      b.reviving = 0;
+      return;
+    }
+    let mate: BrBot | null = null;
+    let best: number = SQUADS.reviveRange;
+    for (const o of this.bots) {
+      if (o === b || o.team !== b.team || !o.down) continue;
+      const d = o.bot.pos.distanceTo(bot.pos);
+      if (d < best) {
+        best = d;
+        mate = o;
+      }
+    }
+    if (!mate) {
+      b.reviving = 0;
+      return;
+    }
+    if (best > squadCfg.reviveReach * 0.8) {
+      sense.goal = mate.bot.pos.clone();
+      b.reviving = 0;
+      return;
+    }
+    sense.goal = null;
+    bot.kneel = true;
+    b.reviving += dt;
+    if (b.reviving >= squadCfg.reviveTime) {
+      b.reviving = 0;
+      bot.kneel = false;
+      this.reviveBot(mate, b);
+    }
+  }
+
+  /** a downed bot's end without a last shot (bled out, or its squad gone): on its knocker */
+  private finishDowned(b: BrBot): void {
+    const by = b.down?.by ?? -1;
+    b.bot.dummy.fallDown();
+    this.botDown(b, by);
+  }
+
   /** a bot went down, knocked by `by` (a human id, a bot id, or -1 for the ring) */
   private botDown(b: BrBot, by: number): void {
     const r = b.bot.remote;
     if (!r.alive) return;
+    if (!b.down && this.canKnockBot(b)) {
+      this.knockBot(b, by);
+      return;
+    }
+    b.down = null;
+    b.reviving = 0;
+    b.bot.downedAt = null;
+    b.bot.kneel = false;
+    r.downed = false;
     r.alive = false;
     const mine = by === this.id;
     if (mine) this.kills++;
@@ -1218,12 +1330,14 @@ export class BrMatch extends Duel {
       const kit = b.bot.lootKit;
       this.dropBox(deathBoxOf(kit.gunId ? kit : null, armed ? r.avatarWeapon : null), b.bot.pos.clone());
     }
-    const who = by === -1 ? "THE RING" : by === this.id ? this.myName || "YOU" : (this.remotes.get(by)?.name ?? this.bots.find((x) => x.bot.remote.id === by)?.bot.remote.name ?? "SOMEONE");
-    // a bot's knock is its death: the feed says eliminated
+    const who = this.whoDid(by);
+    // the end of it: the feed says eliminated
     this.onFeed?.(`${who} eliminated ${r.name}`, mine, !mine);
     for (const o of this.bots) o.bot.forget(r.id);
     this.broadcast({ t: "down", from: r.id, by });
     this.onKnockSeen?.(r.id, by);
+    // nobody of its squad left standing: its downed are finished with it, as a squad of players is
+    if (this.team.size > 1 && !this.bots.some((o) => o.team === b.team && o.bot.alive && !o.down)) for (const o of this.bots) if (o.team === b.team && o.down) this.finishDowned(o);
     const left = this.aliveCount;
     // the last of a bot squad: the squad is wiped (duos and trios; in solo every death is one)
     const wiped = this.team.size > 1 && !this.bots.some((o) => o.team === b.team && o.bot.alive);
@@ -1260,7 +1374,7 @@ export class BrMatch extends Duel {
       if (!b.redeploy.tick(dt)) continue;
       b.redeploy = null;
       // a mate still coming down from its own redeploy is up: it is alive and on its way
-      const mates = this.bots.filter((o) => o !== b && o.team === b.team && o.bot.alive);
+      const mates = this.bots.filter((o) => o !== b && o.team === b.team && o.bot.alive && !o.down);
       if (this.team.size > 1 && mates.length === 0) continue;
       const near = mates.length ? mates[Math.floor(Math.random() * mates.length)].bot.pos : null;
       const at = this.redeploySpot(near);
@@ -2123,7 +2237,8 @@ export class BrMatch extends Duel {
     for (const b of this.bots) {
       const bot = b.bot;
       const wasAlive = bot.alive;
-      const sense = bot.alive && !bot.dropping ? this.sense(b, humans) : { target: null, targetId: -1, goal: null, canShoot: false };
+      const sense: BotSense = bot.alive && !bot.dropping ? this.sense(b, humans) : { target: null, targetId: -1, goal: null, canShoot: false };
+      this.botCare(b, sense, dt);
       // still searching: it walks the map and does not shoot
       if (b.armedAt > now) sense.canShoot = false;
       const shots = bot.update(now, dt, sense);
@@ -2167,7 +2282,7 @@ export class BrMatch extends Duel {
         const other = this.bots.find((x) => x.bot.remote.id === sense.targetId);
         if (!other || !other.bot.alive) continue;
         for (const s of shots) {
-          if (!hitsBody(s.from, s.dir, other.bot.pos)) continue;
+          if (!hitsBody(s.from, s.dir, other.bot.pos, other.down ? CROUCH_TOP : BODY_TOP)) continue;
           this.noteDamage(bot.remote.id, s.damage);
           other.bot.dummy.hit(now, "body", s.damage, 1, 1, other.bot.pos.clone().setY(other.bot.pos.y + 1.2));
           other.bot.remote.health = other.bot.dummy.health;
@@ -2204,7 +2319,8 @@ export class BrMatch extends Duel {
           op: bot.remote.avatarOp,
           name: bot.remote.name,
           ready: true,
-          st: bot.dropping ? 3 : bot.crouching ? 1 : 0,
+          st: b.down ? 7 : bot.dropping ? 3 : bot.crouching || bot.kneel ? 1 : 0,
+          dn: b.down ? 1 : 0,
           sp: bot.alive && !bot.dropping ? Math.round(bot.diff.speed * 10) : 0,
         });
       }
@@ -2214,6 +2330,12 @@ export class BrMatch extends Duel {
   /** what a bot can see and where it should go */
   private sense(b: BrBot, humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue; down: boolean }>): BotSense {
     const bot = b.bot;
+    // down: no fighting, only a crawl toward the nearest of its squad still standing
+    if (b.down) {
+      let near: BrBot | null = null;
+      for (const o of this.bots) if (o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.dropping && (!near || o.bot.pos.distanceTo(bot.pos) < near.bot.pos.distanceTo(bot.pos))) near = o;
+      return { target: null, targetId: -1, goal: near ? near.bot.pos.clone() : null, canShoot: false };
+    }
     // the nearest enemy in sight: a human, or another bot
     let target: THREE.Vector3 | null = null;
     let targetId = -1;
@@ -2233,7 +2355,7 @@ export class BrMatch extends Duel {
       // its own squad is not a target: in duos and trios the bots land in
       // twos and threes, and they used to shoot each other on the way down
       if (o === b || o.team === b.team || !o.bot.alive || o.bot.dropping) continue;
-      const d = bot.pos.distanceTo(o.bot.pos);
+      const d = bot.pos.distanceTo(o.bot.pos) * (o.down ? SQUADS.downedFar : 1);
       if (d < best && bot.sees(o.bot.pos)) {
         best = d;
         target = o.bot.pos;
@@ -2241,7 +2363,7 @@ export class BrMatch extends Duel {
       }
     }
     // A squad acts as one: what one bot sees, its mates close by go to look at.
-    const mates = this.team.size > 1 ? this.bots.filter((o) => o !== b && o.team === b.team && o.bot.alive && !o.bot.dropping) : [];
+    const mates = this.team.size > 1 ? this.bots.filter((o) => o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.dropping) : [];
     if (target && targetId >= 0) {
       const now = wallClock();
       for (const m of mates) {
@@ -2430,6 +2552,7 @@ export class BrMatch extends Duel {
 
   override leave(): void {
     if (this.ended) return;
+    this.left = true;
     const placed = this.placement;
     for (const l of this.links.values()) l.close();
     this.hostLink?.close();

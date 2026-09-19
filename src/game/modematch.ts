@@ -1243,6 +1243,7 @@ export class ArenaMode extends Duel {
 
   override leave(): void {
     if (this.ended) return;
+    this.left = true;
     for (const l of this.links.values()) l.close();
     this.hostLink?.close();
     this.dispose();

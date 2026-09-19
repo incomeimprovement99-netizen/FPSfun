@@ -1287,3 +1287,26 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   Play again with 2 and the guest told the group is together, and the host's click puts both into Gun Run as host and
   player 1 with no new code).
 
+## Milestone 88 — Knocked bots, and their squads pick them up ✅
+2026-09-19 (Phase 15). `bots.ts`, `brmatch.ts`, `duel.ts`, `main.ts`, `src/config/bots.json`.
+- In duos and trios every bot's knock was its death, so a bot squad was three solos walking together and the
+  knock, the thirst and the revive that decide a squad fight never happened against bots. A bot knocked with a mate
+  still standing now goes down as a player does: on the floor with the players' bleed-out pool (squad.json), crawling
+  toward its nearest standing mate, doing nothing else. Its bleed-out runs on the players' clock (a trio's 90 s, a
+  duo's half). A standing mate with nothing in sight, and no ring pushing it on, walks to it within 60 m, kneels and
+  picks it up after the revive's 5 s, on 20 health and no shield; a target breaks the revive off. The last of a squad
+  standing going down takes the downed with it.
+- The kill is the finish, the bleed-out or the wipe, credited to whoever knocked it when nobody fired the last shot.
+  Your hit marker says knock for a bot that went down and kill for one that died (a bot's health refills to its
+  bleed-out pool when it goes down, so the host reads the bot's downed flag, not its health). Enemy bots weigh a
+  downed bot as further off, as they do a downed player, and only its low body takes their shots.
+- The guests see it: the bots' state packets carry the downed stance and flag, the knock is the players' own knock
+  message, and a revive is the players' revive message, which a guest shows in the feed.
+- The crouched walk of a bot (0.6 of its speed, a literal until now) is in bots.json with the revive range.
+- Checks: the e2e `botsquads` section (a trio's bot knocked with its squad up is down, a mate revives it on 20 health,
+  one left to bleed dies of it, and with the last standing gone the downed go too), and the `squad` section (a duo's
+  bot knocked shows down on the guest's screen, and up again once revived).
+- The group (Milestone 87): a player who clicks Leave on the end screen, or a guest whose host left there, was kept
+  in a group over links already closed, and a host so kept could not make a new match. Leaving, either way, now keeps
+  nothing; the `squad` section's second match, made after the first was left on its end screen, caught it.
+
