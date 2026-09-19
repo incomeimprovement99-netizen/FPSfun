@@ -22,9 +22,9 @@ import { withoutUndefined } from "./wire";
 
 /** everything that goes over the link; see duel.ts for the meanings */
 export type NetMsg =
-  | { t: "hello"; v: number }
+  | { t: "hello"; v: number; seat?: { id: number; key: string } }
   /** host to a guest on connect: its id and how many will play; a battle royale says so, with its drop */
-  | { t: "welcome"; id: number; players: number; br?: BrWelcome; opts?: MatchOpts }
+  | { t: "welcome"; id: number; players: number; br?: BrWelcome; opts?: MatchOpts; key?: string; back?: boolean }
   | {
       t: "s";
       from?: number;
@@ -235,6 +235,8 @@ export interface Link {
   readonly role: "host" | "guest";
   send(m: NetMsg): void;
   close(): void;
+  /** drop it without a goodbye, as a lost connection does (the other end holds the seat; the tests' dropped connection) */
+  abandon?(): void;
   onMessage: ((m: NetMsg) => void) | null;
   onClose: (() => void) | null;
 }
@@ -294,6 +296,13 @@ class PeerLink implements Link {
       if (this.ownsPeer) this.peer.destroy();
     }, 100);
   }
+  abandon(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.conn.close();
+    if (this.ownsPeer) setTimeout(() => this.peer.destroy(), 0);
+    this.onClose?.();
+  }
 }
 
 /** a link between two tabs of one browser: an envelope addressed by name */
@@ -301,6 +310,8 @@ interface Envelope {
   from: string;
   to: string;
   m: NetMsg;
+  /** the connection is gone, with no goodbye (abandon: what a real connection dropping looks like from the other end) */
+  cut?: boolean;
 }
 class LocalLink implements Link {
   onMessage: ((m: NetMsg) => void) | null = null;
@@ -317,11 +328,18 @@ class LocalLink implements Link {
   ) {
     this.handler = (e: MessageEvent<Envelope>) => {
       if (this.closed || e.data.to !== this.me || e.data.from !== this.peer) return;
-      // the other end's own goodbye closes the link; one the host relays for
+      if (e.data.cut) {
+        this.shut();
+        this.onClose?.();
+        return;
+      }
+      // The other end's own goodbye closes the link; one the host relays for
       // another player (it carries their id) does not: a friend leaving a
-      // lobby of three used to close every other guest's link with it
-      if (e.data.m.t === "bye" && typeof (e.data.m as { from?: number }).from !== "number") this.onClose?.();
+      // lobby of three used to close every other guest's link with it. The
+      // goodbye is delivered first, so the match hears a leave (a goodbye)
+      // before the close, and does not take it for a lost connection.
       this.onMessage?.(e.data.m);
+      if (e.data.m.t === "bye" && typeof (e.data.m as { from?: number }).from !== "number") this.onClose?.();
     };
     ch.addEventListener("message", this.handler);
   }
@@ -331,6 +349,15 @@ class LocalLink implements Link {
   close(): void {
     if (this.closed) return;
     this.send({ t: "bye" });
+    this.shut();
+  }
+  abandon(): void {
+    if (this.closed) return;
+    this.ch.postMessage({ from: this.me, to: this.peer, m: { t: "bye" }, cut: true } satisfies Envelope);
+    this.shut();
+    this.onClose?.();
+  }
+  private shut(): void {
     this.closed = true;
     this.ch.removeEventListener("message", this.handler);
     if (this.ownsChannel) this.ch.close();
@@ -344,6 +371,10 @@ export interface HostHandle {
   release(id: number): void;
   /** no more guests: the match started with whoever is in (the links already made stay) */
   stopAccepting(): void;
+  /** the key the welcome gives the guest in seat `id`, made on first asking (a rejoin shows it) */
+  keyOf(id: number): string;
+  /** a guest back for seat `id` with its key: true if the match took them back on this link (main sets it) */
+  onRejoin: ((link: Link, id: number) => boolean) | null;
 }
 
 const useLocal = (): boolean => new URLSearchParams(location.search).get("net") === "local";
@@ -411,22 +442,64 @@ export function hostMatch(
     return id;
   };
   const release = (id: number) => void taken.delete(id);
+  let peer: Peer | null = null;
+  // each seat's key: a guest back after a dropped connection shows it to take the same seat again
+  const keys = new Map<number, string>();
+  const keyOf = (id: number): string => {
+    let k = keys.get(id);
+    if (!k) {
+      k = makeCode() + makeCode();
+      keys.set(id, k);
+    }
+    return k;
+  };
+  const handle: HostHandle = {
+    get code() {
+      return code;
+    },
+    cancel: () => {
+      cancelled = true;
+      peer?.destroy();
+      localCh?.close();
+    },
+    release,
+    stopAccepting,
+    keyOf,
+    onRejoin: null,
+  };
+  /** a hello asking for a seat back: the seat's own key, and the match taking them. True if it is handled (taken back or refused) */
+  const rejoin = (link: Link, m: NetMsg): boolean => {
+    if (m.t !== "hello" || !m.seat) return false;
+    const { id, key } = m.seat;
+    if (typeof id !== "number" || keys.get(id) !== key || !handle.onRejoin?.(link, id)) {
+      link.close();
+      return true;
+    }
+    link.send({ t: "welcome", id, players, br, opts, key, back: true });
+    return true;
+  };
+  let localCh: BroadcastChannel | null = null;
   if (useLocal()) {
     const ch = new BroadcastChannel(`${PREFIX}${code}`);
+    localCh = ch;
     const known = new Set<string>();
     ch.addEventListener("message", (e: MessageEvent<Envelope>) => {
       if (cancelled || e.data.to !== "host" || e.data.m.t !== "hello" || known.has(e.data.from)) return;
+      if (e.data.m.seat) {
+        known.add(e.data.from);
+        rejoin(new LocalLink("host", ch, "host", e.data.from, false), e.data.m);
+        return;
+      }
       if (full()) return;
       known.add(e.data.from);
       const id = claim();
       const link = new LocalLink("host", ch, "host", e.data.from, false);
-      link.send({ t: "welcome", id, players, br, opts });
+      link.send({ t: "welcome", id, players, br, opts, key: keyOf(id) });
       onLink(link, id);
     });
     onCode(code);
-    return { code, cancel: () => ((cancelled = true), ch.close()), release, stopAccepting };
+    return handle;
   }
-  let peer: Peer | null = null;
   const peerOpts = peerOptions();
   const start = async (attempt: number) => {
     const o = await peerOpts;
@@ -436,23 +509,33 @@ export function hostMatch(
     p.on("open", () => !cancelled && onCode(code));
     p.on("connection", (conn) => {
       conn.on("open", () => {
-        // a full or cancelled match lets the connection open and then closes
-        // it, so the guest hears "turned away"; closing before it opens left
-        // the guest with no answer at all
-        if (cancelled || full()) {
+        // a cancelled match lets the connection open and then closes it, so
+        // the guest hears "turned away"; closing before it opens left the
+        // guest with no answer at all
+        if (cancelled) {
           setTimeout(() => conn.close(), 250);
           return;
         }
-        const id = claim();
+        // The guest's hello says whether it is new or back for its seat, so
+        // the welcome waits for it. A full match still takes a guest back.
         const link = new PeerLink("host", p, conn, false);
-        link.send({ t: "welcome", id, players, br, opts });
-        onLink(link, id);
+        link.onMessage = (m) => {
+          link.onMessage = null;
+          if (rejoin(link, m)) return;
+          if (full()) {
+            setTimeout(() => conn.close(), 250);
+            return;
+          }
+          const id = claim();
+          link.send({ t: "welcome", id, players, br, opts, key: keyOf(id) });
+          onLink(link, id);
+        };
       });
     });
-    // a broker blip while a place is still open: register the code again, or
-    // the next friend gets "no match with that code" while we show it
+    // a broker blip: register the code again, or the next friend (or one
+    // coming back after a dropped connection) gets "no match with that code"
     p.on("disconnected", () => {
-      if (!cancelled && !p.destroyed && !full()) p.reconnect();
+      if (!cancelled && !p.destroyed) p.reconnect();
     });
     p.on("error", (err: { type?: string }) => {
       // once someone is in, a broker hiccup does not touch the direct connections
@@ -466,21 +549,17 @@ export function hostMatch(
     });
   };
   void start(0);
-  return {
-    get code() {
-      return code;
-    },
-    cancel: () => {
-      cancelled = true;
-      peer?.destroy();
-    },
-    release,
-    stopAccepting,
-  };
+  return handle;
 }
 
 /** join a match by its code; `onLink` gets the link once the host has said welcome */
-export function joinMatch(rawCode: string, onLink: (l: Link, welcome: { id: number; players: number; br?: BrWelcome; opts?: MatchOpts }) => void, onError: (msg: string) => void): () => void {
+export function joinMatch(
+  rawCode: string,
+  onLink: (l: Link, welcome: { id: number; players: number; br?: BrWelcome; opts?: MatchOpts; key?: string; back?: boolean }) => void,
+  onError: (msg: string) => void,
+  /** back for a seat after a dropped connection: its id and the key the welcome gave */
+  seat?: { id: number; key: string }
+): () => void {
   const code = normaliseCode(rawCode);
   if (code.length !== 5) {
     onError("A match code is 5 letters and numbers.");
@@ -495,11 +574,11 @@ export function joinMatch(rawCode: string, onLink: (l: Link, welcome: { id: numb
     link.onMessage = (m) => {
       if (!joined && m.t === "welcome") {
         joined = true;
-        onLink(link, { id: m.id, players: m.players, br: m.br, opts: m.opts });
+        onLink(link, { id: m.id, players: m.players, br: m.br, opts: m.opts, key: m.key, back: m.back });
       }
       inner?.(m);
     };
-    link.send({ t: "hello", v: 2 });
+    link.send({ t: "hello", v: 2, seat });
     // no host answers: say so rather than sitting there
     const timer = setTimeout(() => {
       if (!joined) onError("No match with that code (no host answered).");
@@ -539,10 +618,10 @@ export function joinMatch(rawCode: string, onLink: (l: Link, welcome: { id: numb
           if (!done && m.t === "welcome") {
             done = true;
             clearTimeout(timer);
-            onLink(link, { id: m.id, players: m.players, br: m.br, opts: m.opts });
+            onLink(link, { id: m.id, players: m.players, br: m.br, opts: m.opts, key: m.key, back: m.back });
           }
         };
-        link.send({ t: "hello", v: 2 });
+        link.send({ t: "hello", v: 2, seat });
       });
       conn.on("close", () => fail(opened ? "The host turned the connection away (the match is full, or over)." : JOIN_TIMEOUT));
       // ICE failing shows up only as an error on the connection (PeerJS sends

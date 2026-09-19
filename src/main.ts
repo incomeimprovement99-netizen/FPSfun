@@ -11,6 +11,7 @@ import { HU, MOVE } from "./game/movement";
 import { installSky } from "./game/materials";
 import { Renderer, VM_LAYER } from "./game/render";
 import vmCfg from "./config/viewmodel.json";
+import netCfg from "./config/net.json";
 import { Course } from "./game/course";
 import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
@@ -1355,6 +1356,50 @@ let hosting: HostHandle | null = null;
  * starts the next match on them.
  */
 let party: { guests: Map<number, Link> } | { host: Link } | null = null;
+/** a guest's seat: the code, the id and the key the welcome gave, to get back in on after a dropped connection */
+let mySeat: { code: string; id: number; key: string } | null = null;
+
+/**
+ * A guest whose connection to the host dropped mid-match: the match keeps
+ * running here, and the same code is tried again with the seat's key every
+ * net.json rejoin.retry seconds until the host takes us back or the match
+ * gives up (its own clock, rejoin.hold).
+ */
+function getBackIn(d: Duel): void {
+  const seat = mySeat;
+  if (!seat) return;
+  const attempt = () => {
+    if (duel !== d || d.reconnectUntil === null) return;
+    hud.notice("CONNECTION LOST: GETTING BACK IN", gameTime, netCfg.rejoin.retry);
+    let settled = false;
+    const retry = () => {
+      if (settled) return;
+      settled = true;
+      setTimeout(attempt, netCfg.rejoin.retry * 1000);
+    };
+    const cancel = joinMatch(
+      seat.code,
+      (link, w) => {
+        settled = true;
+        if (duel !== d || !w.back || w.id !== seat.id) {
+          link.close();
+          return;
+        }
+        d.swapHost(link);
+        hud.notice("BACK IN", gameTime, 2);
+      },
+      () => retry(),
+      { id: seat.id, key: seat.key }
+    );
+    // an attempt that hears nothing either way is given up and tried again
+    setTimeout(() => {
+      if (settled) return;
+      cancel();
+      retry();
+    }, 8000);
+  };
+  attempt();
+}
 let cancelJoin: (() => void) | null = null;
 /** knocked in a match: the controller gets no keys until the next round */
 const NO_INPUT: MoveInput = { held: () => false, pressedNow: () => false };
@@ -1580,6 +1625,7 @@ function keepParty(p: { guests: Map<number, Link> } | { host: Link }): void {
       if (m.t !== "welcome" || typeof m.id !== "number" || typeof m.players !== "number") return;
       party = null;
       p.host.onClose = null;
+      if (mySeat && m.key) mySeat = { ...mySeat, id: m.id, key: m.key };
       startDuel(p.host, m.players, m.id, 1, m.br, m.opts);
     };
     p.host.onClose = () => leaveParty("The host left the group.");
@@ -1617,7 +1663,7 @@ function playAgain(): void {
   // ids afresh, 1 up: a friend who left the group leaves no gap
   links.forEach((l, i) => {
     l.onClose = null;
-    l.send({ t: "welcome", id: i + 1, players, br: hostBr ?? undefined, opts: hostOpts ?? undefined });
+    l.send({ t: "welcome", id: i + 1, players, br: hostBr ?? undefined, opts: hostOpts ?? undefined, key: hosting?.keyOf(i + 1) });
   });
   links.forEach((l, i) => startDuel(l, players, 0, i + 1));
 }
@@ -2663,6 +2709,8 @@ const noGulag = (): boolean => (window as unknown as { __noGulag?: boolean }).__
 /** the callbacks every kind of match gets */
 function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRespawn = () => respawnForMatch(d);
+  // a guest with a seat key (a host that gives one) gets back in after a dropped connection
+  if (d instanceof Duel && d.role === "guest" && mySeat) d.onHostLost = () => getBackIn(d);
   d.onHurt = () => {
     stopEmote();
     hud.hurt(gameTime);
@@ -3138,6 +3186,8 @@ duelHostBtn.addEventListener("click", () => {
     hostBr ?? undefined,
     hostOpts ?? undefined
   );
+  // a guest back after a dropped connection: the match takes them back on their held seat
+  hosting.onRejoin = (link, id) => (duel instanceof Duel && duel.role === "host" ? duel.rejoin(link, id) : false);
   duelButtons();
   // the lobby is the arena itself: in at once, run around, the code on the
   // HUD; the match starts when the others arrive and everyone is in
@@ -3153,7 +3203,16 @@ duelJoinBtn.addEventListener("click", () => {
   hosting = null;
   cancelJoin?.();
   setDuelStatus("Joining...", "live");
-  cancelJoin = joinMatch(duelCode.value, (link, w) => startDuel(link, w.players, w.id, 1, w.br, w.opts), (err) => setDuelStatusText(err, "bad"));
+  const code = duelCode.value;
+  cancelJoin = joinMatch(
+    code,
+    (link, w) => {
+      // the seat's key, for getting back in if the connection drops
+      mySeat = w.key ? { code, id: w.id, key: w.key } : null;
+      startDuel(link, w.players, w.id, 1, w.br, w.opts);
+    },
+    (err) => setDuelStatusText(err, "bad")
+  );
 });
 // the Flick drill button: to the pad, facing downrange, the countdown starts once you are in
 $("goDrill").addEventListener("click", () => {

@@ -2940,6 +2940,65 @@ async function emoteTest(browser: Browser, query: string, duelQuery: string): Pr
 }
 
 /**
+ * Getting back in: a guest whose connection drops mid-match (no goodbye)
+ * keeps playing, the host holds the seat, and the guest is back on it with
+ * the same code and the seat's key; a seat nobody comes back for is given up,
+ * and so is a guest that cannot get back.
+ */
+async function rejoinTest(browser: Browser, query: string): Promise<void> {
+  const host = await open(browser, query);
+  const guest = await open(browser, query);
+  await ev(host, brRow("duo", 2));
+  await ev(host, `(() => { document.getElementById("brSides").value = "together"; document.getElementById("duelMode").value = "br"; document.getElementById("duelPlayers").value = "2"; document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+    for (const p of [host, guest]) await pressPlay(p);
+    for (const p of [host, guest]) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 45000 });
+  } catch {
+    check("getting back in: the match starts", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  await ev(host, "window.__range.duel().holdFire = true");
+  // the guest's connection drops: the host holds the seat and takes the guest back on it (over two tabs that is at once)
+  await ev(host, "(() => { const d = window.__range.duel(); const take = d.rejoin.bind(d); window.__backs = []; d.rejoin = (l, id) => { const held = d.held.has(id); const ok = take(l, id); window.__backs.push({ id, held, ok }); return ok; }; })()");
+  await ev(guest, "(() => { window.__match = window.__range.duel(); window.__range.duel().dropHostLink(); })()");
+  const back = await guest.waitForFunction("window.__range.duel()?.reconnectUntil === null", { polling: 200, timeout: 20000 }).then(() => true, () => false);
+  const backs = await ev<Array<{ id: number; held: boolean; ok: boolean }>>(host, "window.__backs");
+  const same = await ev<{ same: boolean; phase: string }>(guest, "({ same: window.__range.duel() === window.__match, phase: window.__range.duel()?.phase })");
+  check("getting back in: a dropped connection holds the guest's seat, the guest's match keeps going, and it is taken back on that seat", backs.length === 1 && backs[0].id === 1 && backs[0].held && backs[0].ok && same.same && same.phase === "fight", JSON.stringify({ backs, same }));
+  await ev(host, "(() => { const d = window.__range.duel(); delete d.rejoin; })()");
+  const seat = await ev<{ linked: boolean; held: boolean }>(host, "(() => { const d = window.__range.duel(); return { linked: d.links.has(1), held: d.held.has(1) }; })()");
+  // traffic both ways again: the guest's state reaches the host, the host's ring reaches the guest
+  const t0 = await ev<number>(host, "window.__range.duel().remotes.get(1).samples.length");
+  await sleep(1500);
+  const flow = await Promise.all([
+    ev<number>(host, "window.__range.duel().remotes.get(1).lastHeard"),
+    ev<number>(guest, "performance.now() / 1000 - window.__range.duel().remotes.get(0).lastHeard"),
+  ]);
+  const hostNow = await ev<number>(host, "performance.now() / 1000");
+  check("getting back in: the guest is back on its own seat, and the two hear each other again", back && seat.linked && !seat.held && hostNow - flow[0] < 1.5 && flow[1] < 1.5, JSON.stringify({ back, seat, t0, sinceGuest: hostNow - flow[0], sinceHost: flow[1] }));
+  // a seat nobody comes back for: the host gives it up once the hold is over
+  // (the host turns the guest's attempts away, so it cannot get back this time)
+  await ev(host, "(() => { window.__range.duel().rejoin = () => false; })()");
+  await ev(guest, "window.__range.duel().dropHostLink()");
+  await host.waitForFunction("window.__range.duel().held.has(1)", { polling: 50, timeout: 4000 }).catch(() => undefined);
+  await ev(host, "(() => { const d = window.__range.duel(); d.held.set(1, performance.now() / 1000 - 1); })()");
+  const gone = await host.waitForFunction("!window.__range.duel().held.has(1) && !window.__range.duel().links.has(1)", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  // and a guest that cannot get back is out once its own clock runs out
+  await ev(guest, "(() => { const d = window.__range.duel(); if (d && d.reconnectUntil !== null) d.reconnectUntil = performance.now() / 1000 - 1; })()");
+  const out = await guest.waitForFunction("window.__range.duel() === null", { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  const said = await ev<string>(guest, `document.getElementById("duelStatus").textContent`);
+  check("getting back in: a seat nobody comes back for is given up, and a guest that cannot get back is out", gone && out && /Lost the connection/.test(said), JSON.stringify({ gone, out, said }));
+  await host.close();
+  await guest.close();
+}
+
+/**
  * Squads of friends: four friends in duos, split, are two duos against each
  * other and the bots. Each duo's first leads it down; a friend of the other
  * duo is an enemy (a plate, the damage, the map); a player down whose mate is
@@ -3745,6 +3804,8 @@ async function main(): Promise<void> {
       await brSoloTest(browser, "?net=local&norender");
       console.log("\nSquads of friends: two duos against each other");
       await brSquadsTest(browser, "?net=local&norender");
+      console.log("\nGetting back in after a dropped connection");
+      await rejoinTest(browser, "?net=local&norender");
     }
 
     if (want("squad")) {
@@ -3756,6 +3817,10 @@ async function main(): Promise<void> {
       console.log("\n1v1 over peer to peer (the public broker)");
       const ran = await duelTest(browser, "?norender", "p2p");
       if (!ran) console.log("  --  skipped: the broker or the internet was not reachable");
+      else {
+        console.log("\nGetting back in after a dropped connection, over peer to peer");
+        await rejoinTest(browser, "?norender");
+      }
     }
 
     // An older build against this one, over the real peer to peer path:

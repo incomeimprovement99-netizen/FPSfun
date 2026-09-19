@@ -74,6 +74,13 @@ name, your best times and your stats live in this browser's localStorage.
    after the match screen.
 5. Esc, Friends tab, **Leave match** to stop.
 
+**A dropped connection is not the end.** In a battle royale or any of the
+modes, a friend whose connection drops (not one who leaves) keeps playing on
+their own screen while the game tries the same code again every 3 s; the host
+holds their place, their figure where it stood, for 60 s and takes them back
+on it. A seat nobody comes back for is let go after that. A 1v1 still ends
+when either of you goes.
+
 **Up to eight people.** The player count on the Friends tab goes to 8: two is
 the warehouse arena, three the triangle, and four or more play the warehouse,
 which has a spawn each. Every mode below can be played this way, with bots

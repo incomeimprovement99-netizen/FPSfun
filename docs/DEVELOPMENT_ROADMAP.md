@@ -1355,3 +1355,26 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   your duo, the last of a duo knocked taking its downed mate out, and the host's duo winning with the other placed
   third of three).
 
+## Milestone 91 — Getting back in after a dropped connection ✅
+2026-09-19 (Phase 15). `link.ts`, `duel.ts`, `main.ts`, `src/config/net.json`.
+- A guest whose connection dropped was out of the match for good, and the host saw them leave: one bad second of
+  Wi-Fi ended a battle royale for a friend. Now a close with no goodbye first (a leave always says goodbye) is a
+  dropped connection, and both ends treat it as one. The host holds the seat, figure and all, for net.json's
+  rejoin.hold (60 s); the guest's match keeps running on its own screen while the page tries the same code again
+  every rejoin.retry (3 s) with the seat's key; the host takes it back on the same seat, and both ends' state
+  streams start over from whole states. A seat nobody comes back for is let go as if they had left; a guest that
+  cannot get back is out with "Lost the connection to the host". A 1v1 does not hold: it ends as before.
+- The welcome gives each guest a key for its seat (the host's handle makes one per seat), so nobody else can take a
+  held seat by claiming its number. The host now reads a guest's hello before it welcomes them (a hello says whether
+  they are new or back), and a full match still takes a guest back on its own seat. The host's code re-registers
+  with the broker after a blip even once the match is full, so a guest can still find it.
+- A connection that goes quiet for 10 s is treated the same way, from either end: the guest drops it without a
+  goodbye and gets back in, the host holds the seat.
+- The local transport's goodbye is delivered before its close now, so a match hears a leave as a leave; a dropped
+  connection there is its own signal, which is how the tests drop one.
+- An older host's welcome has no key, and its guests play as before (no retry). An older guest never tries to come
+  back, so its held seat is let go when the hold runs out.
+- Checks: the e2e `brsolo` section over two tabs and the `p2p` section over the internet (a dropped guest keeps its
+  match and is taken back on its held seat, the two hear each other again within a second, a seat nobody comes back
+  for is given up, and a guest that cannot get back is out).
+

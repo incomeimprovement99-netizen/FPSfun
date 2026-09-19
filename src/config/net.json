@@ -19,5 +19,7 @@
     "sentHistory": 64,
     "appliedHistory": 64
   },
-  "ackHz": 5
+  "ackHz": 5,
+  "_rejoin": "A guest whose connection drops mid-match (not one who leaves: a leave says goodbye) keeps their match running and tries the same code again every `retry` seconds; the host holds their seat, figure and all, for `hold` seconds and takes them back on it. The welcome gave each guest a key for their seat, so nobody else can take it. Ours, after how long every current battle royale holds a reconnecting player's place (a minute or two); a 1v1 does not hold, it ends as before.",
+  "rejoin": { "hold": 60, "retry": 3 }
 }

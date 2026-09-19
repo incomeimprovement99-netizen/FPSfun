@@ -28,6 +28,7 @@
 // their bots through the same broadcast and get the same choice for free.
 import * as THREE from "three";
 import squadCfg from "../config/squad.json";
+import netCfg from "../config/net.json";
 import { Dummy, actFromCode, stanceCode, stanceFromCode, type FigureAct, type FigureStance } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
@@ -362,6 +363,12 @@ export class Duel implements MatchLike {
   protected lastSummary: MatchSummary | null = null;
   /** the host: how many have arrived, for the panel */
   onRoster: ((connected: number, players: number) => void) | null = null;
+  /** a guest: the connection to the host dropped mid-match; main tries the code again with the seat's key (swapHost takes the new link) */
+  onHostLost: (() => void) | null = null;
+  /** the host: seats held for guests whose connection dropped, until when (net.json rejoin.hold) */
+  readonly held = new Map<number, number>();
+  /** a guest: trying to get back to the host until this time, or null while connected */
+  reconnectUntil: number | null = null;
   /** the host: a guest left before round 1, so their place can be taken again */
   onSlotFree: ((id: number) => void) | null = null;
   onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3, n?: number) => void) | null = null;
@@ -453,10 +460,7 @@ export class Duel implements MatchLike {
     } else if (opts.link) {
       this.hostLink = opts.link;
       opts.link.onMessage = (m) => this.receive(m, 0);
-      opts.link.onClose = () => {
-        this.left = true;
-        this.finish("The host left the match.");
-      };
+      opts.link.onClose = () => this.hostDropped();
       // the others are known once their state arrives; the host is id 0
       this.remote(0);
     }
@@ -502,9 +506,96 @@ export class Duel implements MatchLike {
     if (this.role !== "host" || this.ended) return;
     this.links.set(id, link);
     link.onMessage = (m) => this.receive(m, id);
-    link.onClose = () => this.guestLeft(id);
+    // a close with no goodbye first is a dropped connection: the seat is held (a leave says goodbye)
+    link.onClose = () => this.guestDropped(id);
     this.remote(id).link = link;
     this.onRoster?.(this.links.size, this.players);
+  }
+
+  /** a match that holds a dropped player's seat: under way, and not a 1v1 (which ends when one of the two goes) */
+  private holdsSeats(): boolean {
+    return !this.ended && this.mode !== "duel" && this.phase !== "waiting" && this.phase !== "matchEnd";
+  }
+
+  /**
+   * The host: a guest's connection dropped without a goodbye. Their seat, and
+   * their figure where it stood, are held for net.json's rejoin.hold seconds
+   * for them to come back on (rejoin); after that they are gone, as if they
+   * had left.
+   */
+  protected guestDropped(id: number): void {
+    const link = this.links.get(id);
+    if (!link) return;
+    if (!this.holdsSeats()) {
+      this.guestLeft(id);
+      return;
+    }
+    this.links.delete(id);
+    this.sync.forgetPeer(id);
+    this.pingOf.delete(id);
+    link.onMessage = null;
+    link.onClose = null;
+    link.abandon?.();
+    this.held.set(id, wallClock() + netCfg.rejoin.hold);
+    const r = this.remotes.get(id);
+    this.onFeed?.(`${r?.name ?? "A player"} lost the connection: their place is held for ${netCfg.rejoin.hold} s`, false);
+    this.onRoster?.(this.links.size, this.players);
+  }
+
+  /** the host: a guest back for its held seat on a new link. False if there is no seat held for it */
+  rejoin(link: Link, id: number): boolean {
+    if (this.role !== "host" || this.ended || !this.held.has(id)) return false;
+    this.held.delete(id);
+    this.links.set(id, link);
+    link.onMessage = (m) => this.receive(m, id);
+    link.onClose = () => this.guestDropped(id);
+    const r = this.remote(id);
+    r.link = link;
+    r.lastHeard = wallClock();
+    // their streams start over from whole states, both ways
+    this.sync.forgetPeer(id);
+    this.onFeed?.(`${r.name} is back`, false);
+    this.onRoster?.(this.links.size, this.players);
+    return true;
+  }
+
+  /** a guest: the host's link closed with no goodbye. Mid-match, keep playing and let main try to get back; otherwise it is over */
+  private hostDropped(): void {
+    if (this.ended || this.reconnectUntil !== null) return;
+    const link = this.hostLink;
+    if (link) {
+      link.onMessage = null;
+      link.onClose = null;
+    }
+    if (!this.holdsSeats() || !this.onHostLost) {
+      this.left = true;
+      this.finish("The host left the match.");
+      return;
+    }
+    this.hostLink = null;
+    this.reconnectUntil = wallClock() + netCfg.rejoin.hold;
+    this.onFeed?.("Lost the connection to the host: getting back in...", false);
+    this.onHostLost();
+  }
+
+  /** a guest: back in, on a new link to the host */
+  swapHost(link: Link): void {
+    if (this.ended || this.role !== "guest") {
+      link.close();
+      return;
+    }
+    this.hostLink = link;
+    link.onMessage = (m) => this.receive(m, 0);
+    link.onClose = () => this.hostDropped();
+    this.reconnectUntil = null;
+    this.remote(0).lastHeard = wallClock();
+    this.sync.forgetPeer(0);
+    this.onFeed?.("Back in the match", false);
+  }
+
+  /** the tests: this guest's connection to the host drops, as a real one does, with no goodbye */
+  dropHostLink(): void {
+    this.hostLink?.abandon?.();
   }
 
   /**
@@ -789,7 +880,10 @@ export class Duel implements MatchLike {
       }
       if (m.t === "bye") {
         if (this.role === "host") this.guestLeft(from);
-        else if (from === 0) this.finish("The host left the match.");
+        else if (from === 0) {
+          this.left = true;
+          this.finish("The host left the match.");
+        }
         else this.playerGone(from, `${known?.name ?? "A player"} left the match.`);
         return;
       }
@@ -938,13 +1032,18 @@ export class Duel implements MatchLike {
   protected guestLeft(id: number): void {
     const link = this.links.get(id);
     if (!link) return; // already handled (a bye and a close both arrive)
-    const r = this.remotes.get(id);
     this.links.delete(id);
     this.sync.forgetPeer(id);
     this.pingOf.delete(id);
     link.onMessage = null;
     link.onClose = null;
     link.close();
+    this.seatGone(id, "left the match");
+  }
+
+  /** the host: a player gone for good (left, or their held seat ran out): the others told, the match goes on or ends */
+  private seatGone(id: number, how: string): void {
+    const r = this.remotes.get(id);
     // tell the other guest, then carry on if one is left; a 1v1 is over (a
     // battle royale goes on for whoever is left in the squad)
     this.relay({ t: "bye" }, id);
@@ -952,7 +1051,7 @@ export class Duel implements MatchLike {
       this.finish(`${r?.name ?? "Your opponent"} left the match.`);
       return;
     }
-    this.playerGone(id, `${r?.name ?? "A player"} left the match.`);
+    this.playerGone(id, `${r?.name ?? "A player"} ${how}.`);
     this.ping = null;
     if (this.phase === "fight" && this.mode === "duel") this.checkLastStanding(wallClock());
     // before round 1 a 1v1v1 waits for everyone: without a free place it
@@ -1333,14 +1432,36 @@ export class Duel implements MatchLike {
     this.lastClock = now;
     this.myName = local.name;
     if (this.ended) return;
+    // the host: a held seat nobody came back for is gone
+    for (const [id, until] of [...this.held]) {
+      if (now < until && this.holdsSeats()) continue;
+      this.held.delete(id);
+      this.seatGone(id, "did not come back");
+      if (this.ended) return;
+    }
+    // a guest getting back in: out of time is out of the match
+    if (this.reconnectUntil !== null && now > this.reconnectUntil) {
+      this.reconnectUntil = null;
+      this.left = true;
+      this.finish("Lost the connection to the host.");
+      return;
+    }
     for (const r of [...this.remotes.values()]) {
       if (now - r.lastHeard > SILENCE_LIMIT && !(r.id >= Duel.BOT_ID && this.phase === "matchEnd")) {
         if (this.role === "guest" && r.id === 0) {
-          this.finish("Lost the connection to the host.");
-          return;
+          // a connection gone quiet is a dropped one: drop it and get back in (the timer above ends it)
+          if (this.reconnectUntil !== null) continue;
+          if (this.hostLink) this.hostLink.onClose = null;
+          this.hostLink?.abandon?.();
+          this.hostDropped();
+          if (this.ended) return;
+          continue;
         }
-        if (this.role === "host") this.guestLeft(r.id);
-        else this.playerGone(r.id, `Lost ${r.name}.`);
+        if (this.role === "host") {
+          // a held seat is the hold's to end
+          if (this.held.has(r.id)) continue;
+          this.guestDropped(r.id);
+        } else this.playerGone(r.id, `Lost ${r.name}.`);
         if (this.ended) return;
       }
     }
