@@ -187,6 +187,12 @@ const NAV_PROBE = String.raw`(() => {
   const bad = [];
   map.nodes.forEach((n, i) => {
     if (!reachable(n.x, n.z)) bad.push({ kind: "node-cut-off", i, x: Math.round(n.x), z: Math.round(n.z - 500) });
+    // a node on a crest, a deck or a roof says so, and the flood has to stand
+    // there: a bot sent to it counts as arrived only on that floor
+    else if (n.y !== undefined) {
+      const k = Math.round((n.x - X0) / C) * N + Math.round((n.z - Z0) / C);
+      if (Math.abs(best[k] - n.y) > 1) bad.push({ kind: "node-wrong-floor", i, y: n.y, flood: +best[k].toFixed(2) });
+    }
     for (const j of n.links) {
       if (!map.nodes[j]) { bad.push({ kind: "link-missing", i, j }); continue; }
       if (!map.nodes[j].links.includes(i)) bad.push({ kind: "link-one-way", i, j });

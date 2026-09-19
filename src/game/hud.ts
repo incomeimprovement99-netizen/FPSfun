@@ -1664,6 +1664,16 @@ export class Hud {
     if (br) {
       this.drawRings(s, toX, toZ, scale, u);
       this.drawMapIcons(s, toX, toZ, u, 0);
+      // the sites between the places: named, smaller and dimmer, so the nine
+      // big places still read first and a squad can call "the Crossing"; a
+      // dark backing, because four of them sit on the pale shading of a mesa
+      for (const p of br.sites ?? []) {
+        c.font = this.font(600, 10 * u);
+        const w = c.measureText(p.name).width + 8 * u;
+        c.fillStyle = "rgba(0,0,0,0.55)";
+        c.fillRect(toX(p.x) - w / 2, toZ(p.z) - 16 * u, w, 13 * u);
+        this.text(p.name, toX(p.x), toZ(p.z) - 6 * u, 600, 10 * u, "rgba(255,255,255,0.8)", "center");
+      }
       for (const p of br.pois) {
         const mine = br.dropping && p.name === br.poi;
         this.text(p.name, toX(p.x), toZ(p.z) - 10 * u, 700, (mine ? 18 : 14) * u, mine ? "#ffd23c" : WHITE, "center");

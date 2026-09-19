@@ -36,6 +36,8 @@ const RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3
  * lays down exactly its tier's spot count and the counts are comparable).
  */
 const places: LootPlace[] = lootCfg.placeOrder.map((id, i) => ({ id, x: (i % 3) * 300 - 300, z: 5000 + Math.floor(i / 3) * 300 - 300 }));
+/** the eight small sites between them (br.ts's sites), on open ground of their own well clear of the places */
+const sites: LootPlace[] = Array.from({ length: 8 }, (_, i) => ({ id: `site${i}`, x: (i % 4) * 200 - 300, z: 6500 + Math.floor(i / 4) * 200, radius: 18 }));
 const bounds = { minX: -2000, maxX: 2000, minZ: 3000, maxZ: 7000 };
 const SEEDS = 80;
 const seeds = Array.from({ length: SEEDS }, (_, i) => i * 7919 + 13);
@@ -60,7 +62,7 @@ function normalised(w: Record<Rarity, number>): Record<Rarity, number> {
 const field = new LootField(null);
 const matches: Array<{ seed: number; hot: number; takes: Take[]; kitted: LootItem[] }> = [];
 for (const seed of seeds) {
-  field.generate(seed, places, bounds);
+  field.generate(seed, places, bounds, sites);
   const hot = field.hotZone?.index ?? -1;
   const takes: Take[] = places.map((p, i) => ({ tier: i === hot ? "hot" : tierOf(p, i), items: [] }));
   const kitted: LootItem[] = [];
@@ -80,8 +82,8 @@ console.log(`Loot tiers, the Hot Zone and the typed spots (src/game/loot.ts, src
 
 // ------------------------------------------------------------------ tiers
 {
-  const pool: Record<PlaceTier, LootItem[]> = { low: [], mid: [], high: [], hot: [] };
-  const counts: Record<PlaceTier, number[]> = { low: [], mid: [], high: [], hot: [] };
+  const pool: Record<PlaceTier, LootItem[]> = { low: [], mid: [], high: [], site: [], hot: [] };
+  const counts: Record<PlaceTier, number[]> = { low: [], mid: [], high: [], site: [], hot: [] };
   for (const m of matches) {
     for (const t of m.takes) {
       pool[t.tier].push(...t.items);
@@ -178,9 +180,10 @@ console.log(`Loot tiers, the Hot Zone and the typed spots (src/game/loot.ts, src
 
 // ------------------------------------------------------------------ the rarity mix
 {
-  const pool: Record<PlaceTier, LootItem[]> = { low: [], mid: [], high: [], hot: [] };
+  const pool: Record<PlaceTier, LootItem[]> = { low: [], mid: [], high: [], site: [], hot: [] };
   for (const m of matches) for (const t of m.takes) pool[t.tier].push(...t.items.filter(rolled));
   for (const tier of Object.keys(pool) as PlaceTier[]) {
+    if (!pool[tier].length) continue;
     const want = normalised(rarityWeights(tier));
     let worst: Rarity = "common";
     let off = 0;
@@ -243,6 +246,44 @@ console.log(`Loot tiers, the Hot Zone and the typed spots (src/game/loot.ts, src
   check("a spot is never empty", Math.min(...sizes) > 0, `smallest ${Math.min(...sizes)}, largest ${Math.max(...sizes)} items`);
 }
 
+// ---------------------------------------------------------------- the sites
+//
+// The small places between the big ones: each lays its own tier's spots, is
+// never the Hot Zone, leans a little richer than a mid place, and adding
+// them moved nothing of the nine places' own rolls or the Hot Zone.
+{
+  const siteTier = lootCfg.siteTier as PlaceTier;
+  const near = (d: { pos: { x: number; z: number } }, p: LootPlace) => Math.hypot(d.pos.x - p.x, d.pos.z - p.z) <= (p.radius ?? 18) + 1;
+  const items: LootItem[] = [];
+  let everyHas = true;
+  let neverHot = true;
+  let unmoved = true;
+  const plain = new LootField(null);
+  for (const seed of seeds) {
+    field.generate(seed, places, bounds, sites);
+    plain.generate(seed, places, bounds);
+    if ((field.hotZone?.id ?? "").startsWith("site")) neverHot = false;
+    if (field.hotZone?.id !== plain.hotZone?.id) unmoved = false;
+    // the nine places' items, the same with or without the sites
+    const key = (f: LootField) => [...f.drops.values()].filter((d) => places.some((p) => Math.hypot(d.pos.x - p.x, d.pos.z - p.z) <= 40)).map((d) => `${d.item.kind}:${d.item.id}:${d.pos.x.toFixed(2)}`).join("|");
+    if (key(field) !== key(plain)) unmoved = false;
+    for (const s of sites) {
+      const here = [...field.drops.values()].filter((d) => near(d, s));
+      if (!here.length) everyHas = false;
+      items.push(...here.map((d) => d.item));
+    }
+  }
+  check("every site holds loot, match after match", everyHas);
+  check("a site is never the Hot Zone, and adding the sites moved neither the Hot Zone nor the places' own loot", neverHot && unmoved);
+  const want = normalised(rarityWeights(siteTier));
+  const got = items.filter(rolled);
+  check(
+    "a site's loot leans between a mid place's and a high place's",
+    Math.abs(share(got, "epic") - want.epic) < 0.03 && Math.abs(share(got, "legendary") - want.legendary) < 0.03,
+    `epic ${share(got, "epic").toFixed(3)} want ${want.epic.toFixed(3)}, legendary ${share(got, "legendary").toFixed(3)} want ${want.legendary.toFixed(3)}`,
+  );
+}
+
 // ---------------------------------------------------------------- density
 //
 // What the whole floor holds, by kind, over every seed. The move to typed
@@ -257,7 +298,7 @@ console.log("Loot density");
   const tally: Record<string, number> = { weapon: 0, ammo: 0, heal: 0, attach: 0, helmet: 0, hopup: 0, grenade: 0, mag: 0 };
   let total = 0;
   for (const seed of seeds) {
-    field.generate(seed, places, bounds);
+    field.generate(seed, places, bounds, sites);
     for (const d of field.drops.values()) {
       total++;
       tally[d.item.kind] = (tally[d.item.kind] ?? 0) + 1;

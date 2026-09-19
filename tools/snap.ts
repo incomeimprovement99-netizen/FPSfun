@@ -231,6 +231,38 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-site-crossing",
+    note: "the Crossing from the road north of it: the broken bridge on its abutments, the pump house across the road",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(8, 0, 500 + (100), 110, 2); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
+    name: "br-site-table",
+    note: "Table Station on the mesa, from below its west side: the relay house and the dish",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(80, 0, 500 + (-20), -63, 10); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
+    name: "br-site-sump",
+    note: "the Sump from its own mesa top: four tanks, the catwalks between them, the pump house",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(-156, 5.1, 500 + (182), 90, 4); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
+    name: "br-site-motorpool",
+    note: "Motor Pool from the hub side: the workshop, the truck hulks and the canopy",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(40, 0, 500 + (40), -135, 5); })()`, 0],
+      [gameSeconds(1), 300],
+    ],
+  },
+  {
     name: "control",
     note: "Control: the A B C strip and the scores, zone A taken, the zones in the arena",
     steps: [

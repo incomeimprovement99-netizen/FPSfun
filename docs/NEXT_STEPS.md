@@ -46,6 +46,8 @@ Working the list from the top down. Each of these has a check that fails if the 
 
 - **A sky per match**, the rest of **#26** — done: each battle royale draws its hour from its seed, weighted, the same for the whole squad; a setting keeps your own.
 
+- **#13 a rotation network, #15 connective tissue (the micro-POIs), #19 the nav graph, and the rest of #12 and #17** — done in the map expansion's stages 4 to 6: four compounds with a fourth building each, eight sites between the places with loot of their own, thirteen ziplines onto roofs and decks, eight pads, seven balloons, six beacons, and a bot graph of 113 nodes. Bots still walk only: riding the traversal (typed edges) is open.
+
 ## Re-ranked, 2026-09-18
 
 The list was checked item by item against the code at 9bd9b9f, with the map expansion's last two stages building.
@@ -70,9 +72,9 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 2. **Supply bins and chests (#11):** 1 to 1.5 days. The sounds are loaded, and the micro-POIs leave room for a chest.
 3. **Doors (#10), with bots opening them:** about 2.5 days, in one change, so doors never trap bots on the new graph.
 4. **Host migration and rejoin:** 3 to 4 days. One person's bad connection ending an eight-player match is the failure a group of friends hits most.
-5. **Bots on the ziplines, pads, balloons and the Mast (#19 typed edges, #20):** 1 to 1.5 days. Needs the stage 6 graph.
+5. **Bots on the ziplines, pads, balloons and the Mast (#19 typed edges, #20):** 1 to 1.5 days. The graph it needs has landed (Milestone 71).
 6. ~~**A sky per match from its seed:** about 2 hours.~~ Done (Milestone 69).
-7. **Resurgence's smaller play area:** 3 to 4 hours. It was only waiting for the map to settle.
+7. **Resurgence's smaller play area:** 3 to 4 hours. It was only waiting for the map to settle, which it now has.
 8. **Sprays and banner cards:** about a day. The other half of the emotes item, on the same message and wheel.
 9. **Weapon finishes and unlocks:** 2 to 2.5 days. XP unlocks nothing yet.
 10. **Custom match rules:** about a day. Weapons allowed, rounds and friendly fire, carried in the match options.
@@ -83,6 +85,41 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 15. **Ability kits and ultimates:** 4 to 6 days, once bins, doors and the traversal have settled.
 
 LOD and draw distance run alongside the list above, per `docs/PLAN_LOD_DRAW_DISTANCE.md`, once the map expansion has landed. Just below the fifteen: the two missing boards, the README wording, the rest of accessibility and the dust storm. Low value for this group: gas mask, contracts, cash, UAV, the vehicle and localisation.
+
+## The AAA gap, second pass, 2026-09-18
+
+Three read-only passes over the code, after the map expansion (Milestone 71), against Apex, Warzone, Fortnite, PUBG, Valorant, CS2 and The Finals: gameplay and the map, feel and presentation, online and meta. Every claim was checked against the code. None of the items below was on the list above. They are merged and ranked by value per hour for eight friends. **Bug** marks something broken today.
+
+**First: bugs and cheap fixes (about a day)**
+1. **Bug: a guest can post as anyone.** The host takes `from` from the guest's own message (`duel.ts:703`), so a forged `bye`, `down` or `hit` from a bot's id goes through. The host sets `from` to the link it arrived on. 1 h.
+2. **Bug: the free-for-all wins board does not exist on the server.** `ffa:wins` is posted and read, and the server answers 400. Add it, and a check that every client board is one the server knows. 0.5 h.
+3. **Bug: in a solo battle royale, friends cannot hurt each other**, and two humans left alive both "win". `friendly()` treats every human as a mate in any battle royale (`duel.ts:476`); the match ends when the bots are gone. Solo is everyone against everyone, placements by elimination. 3-5 h.
+4. **Bots have an unfair gun:** they never reload, they take no damage falloff, and a crouched player behind cover is hit as if standing. A magazine and a reload, the players' falloff, and the crouched hitbox. 3 h.
+5. **The first ring's wait predates the dropship:** the ride and the dive eat 12 to 25 s of round 1's 45 s. Start round 1's wait when the ship has gone. 1 h.
+6. **A bot's death box throws away what it looted:** build it from the bot's own kit. 1.5 h.
+7. **The host alt-tabs and the match runs at one frame a second for everyone:** a hidden tab's timer is throttled. When hidden, a Worker timer drives the simulation and the network at 30 Hz; e2e gains a section with throttling on. 3-4 h.
+
+**Then: feel, what a player notices in ten minutes (about three days)**
+8. **Other players' guns show no muzzle flash** (removed from every third-person gun), so a shooter at range is invisible; the bots' own sight model assumes the flash is there. A pooled 35 ms flash at the muzzle, never under 6 px. 2 h (plus 1 h for a pooled sprite layer in `fx.ts`, which 9, 10 and 13 need).
+9. **Bullets hitting the world show and sound like nothing in a match** (the impact only reaches the range's spray wall). Holes, a puff, a surface sound, remote rounds too. 4-5 h.
+10. **Kills do not confirm, and the feed is wrong:** one hit marker for everything, bot deaths reported as knocks, nobody else's eliminations in the feed. A kill marker and a rising chime, a structured feed, "SQUAD WIPED". 4 h.
+11. **Gunfire fades far too fast for 165 m sightlines** (every voice on one curve, -31 dB at 100 m), and the voice cap drops near footsteps before far gunfire. A distance per voice kind, a far echo, priorities. 2-3 h.
+12. **Your own gunfire squashes enemy footsteps** through one master compressor: your gun gets its own bus. 2 h.
+13. **Tracers are 4 cm dots from your eye:** a stretched streak from the muzzle, blended onto the real path. 3 h.
+14. **A downed figure looks like a crouching live one:** low and crawling, the knockback clip played. 2-3 h.
+15. **Damage numbers pile up in a spray:** one per target, adding while hits keep coming. 1.5 h. **No low-ammo warning:** LOW AMMO, RELOAD and a rising click. 1 h. **Figures float on Competitive and Balanced** (static shadows): a contact shadow under each. 1.5 h.
+16. **Explosions are a ball and a ring:** shake (off with reduced motion), smoke, a scorch, ringing ears inside 6 m. 3 h. **The gun shares the world's FOV** and warps on a slide: its own camera. 4-6 h. **Gunshots are all synthesis:** recorded CC0 layers under it. 5-6 h.
+
+**Then: eight friends playing each other (about a week)**
+17. **Friends split into sides in team deathmatch and Control** (every human is team 0 today). 4-5 h.
+18. **The lobby:** start with who is here, a roster with ready and ping per player, a kick. 4-5 h.
+19. **The group stays together between matches:** a party that owns the links, so the next match needs no new code. 1-1.5 days; rejoin (below) and handing the host over build on it.
+20. **Battle royale squads of friends** (duos and trios against each other): the list above assumed this needs a real server, but the 1v1v1 and free-for-all already trust the host the same way. A squad table in the welcome, and every squad rule keyed by it. 2.5-3 days, after 3.
+21. **Rejoin a match in the same tab** (a 60 s held seat), **the delta packets on an unordered channel with a loss simulator**, **interpolation on the sender's clock**, **an eight-player rehearsal**, **hit sanity checks on the receiver**, **a shared end-of-match table and a tally for the night**, **hand the host over before a match by ping**. 1 day, 5-6 h, 4-6 h, 6-8 h, 5-7 h, 5-6 h and 4-6 h.
+
+**Bots, after that:** bot squads that move and fight together (5-6 h); the bots' sight cues wired in (crouching and walking hide you, a front cone) (2-3 h); running from the ring along the graph, not a straight line through the Table and the cliffs (3-4 h); knocked bots and revives in duos and trios (5-6 h); an ammo carry cap (1.5 h).
+
+**Corrected:** item 14 of the re-rank (the leaderboard secret) is worth less than it looked: our own server never reads the secret. The real weakness is that it accepts any score up to 100,000 from anyone.
 
 ## The ranked list
 

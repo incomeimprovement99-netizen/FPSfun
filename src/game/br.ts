@@ -6,13 +6,21 @@
 //                           seven-storey tower you can climb inside, the one
 //                           landmark seen from everywhere), containers, a gate
 //                           on each side
-//   NORTH YARD   (0, -165)  a container yard: rows, some stacked, a hut
-//   SOUTH DEPOT  (0, 165)   three open sheds on pillars, low walls
+//   NORTH YARD   (0, -165)  a container yard you can walk through with a
+//                           catwalk over it, a four-storey silo block between
+//                           two silos, a warehouse
+//   SOUTH DEPOT  (0, 165)   three walled bays, a loading building, an office,
+//                           a portal crane over the yard
 //   EAST RIDGE   (165, 0)   a stepped mesa with a room inside it, a bunker on
 //                           its roof, a lit chimney, two ramps the bots can
-//                           walk, a zipline down toward the hub
+//                           walk, a zipline up to the Table Station
 //   WEST TOWN    (-165, 0)  six houses in alleys, a water tower you can climb
 //                           and ride out of, a clocktower in a churchyard
+//
+// In each corner between them, 104 m out along both axes, a walled compound:
+// a farm with a barn and a wind pump, a store with a billboard, stock pens
+// and a works with tanks and a flare stack, each with four buildings, a
+// covered yard and a wall that makes it two rooms.
 //
 // The ground has a shape of its own (see "the landforms"): a bowl of berms
 // round the hub, a ridge, a mesa, a dry wash and two mounds round that, and a
@@ -66,6 +74,12 @@ export interface Site {
 export interface GraphNode {
   x: number;
   z: number;
+  /**
+   * The floor the node stands on (0 on the sand; a crest, a deck, the
+   * edge's shelf above it). Left out where the bots can also reach a floor
+   * over the node, since a flood of the map keeps only the higher of the two.
+   */
+  y?: number;
   /** the POI this node belongs to, if any */
   poi?: string;
   links: number[];
@@ -261,6 +275,26 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   const earth = flat(0xa89473, 1, 0);
   const scarp = flat(0x6d5f47, 1, 0);
   const gravel = recolour(ground, 0x8d8b80);
+  // The ground plan's own, laid flat on the sand like the roads: a dirt track,
+  // and the dark of an oil stain or a wet braid down the wash's bed.
+  const dirt = recolour(ground, 0x8c7456);
+  const stain = recolour(ground, 0x4b453d);
+  // All of it lies a centimetre over the sand, and the roads over the aprons
+  // and tracks where they cross. A centimetre is nothing to the depth buffer
+  // from the drop, 150 m up with the near plane at 2 cm, so each layer is
+  // pulled toward the eye by a polygon offset instead, a step more for each
+  // one that lies over another: aprons and the bed, then tracks, then roads,
+  // then stains. The offset is in depth steps, so it holds at any height.
+  for (const [m, units] of [
+    [gravel, -2],
+    [dirt, -4],
+    [road, -6],
+    [stain, -8],
+  ] as const) {
+    m.polygonOffset = true;
+    m.polygonOffsetFactor = -1;
+    m.polygonOffsetUnits = units;
+  }
 
   // the ground: one big textured plane, and the roads laid on it
   const g = new THREE.PlaneGeometry(BR_HALF * 2, BR_HALF * 2);
@@ -271,16 +305,17 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   root.add(floor);
-  const strip = (x0: number, z0: number, x1: number, z1: number, w: number) => {
+  /** a flat strip w wide from (x0, z0) to (x1, z1), laid on ground `y` high: a road, or in another material an apron, a track or a bed */
+  const strip = (x0: number, z0: number, x1: number, z1: number, w: number, mat: THREE.Material = road, y = 0) => {
     const len = Math.hypot(x1 - x0, z1 - z0);
     const rg = new THREE.PlaneGeometry(w, len);
     const ruv = rg.attributes.uv as THREE.BufferAttribute;
     for (let i = 0; i < ruv.count; i++) ruv.setXY(i, ruv.getX(i) * (w / 4), ruv.getY(i) * (len / 4));
     ruv.needsUpdate = true;
-    const m = new THREE.Mesh(rg, road);
+    const m = new THREE.Mesh(rg, mat);
     m.rotation.x = -Math.PI / 2;
     m.rotation.z = -Math.atan2(x1 - x0, z1 - z0);
-    m.position.set((x0 + x1) / 2, 0.01, (z0 + z1) / 2);
+    m.position.set((x0 + x1) / 2, y + 0.01, (z0 + z1) / 2);
     m.receiveShadow = true;
     root.add(m);
   };
@@ -360,7 +395,6 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     box,
     slab,
     root,
-    zip: (a, b, fa, fb) => zipline(root, a, b, fa, fb),
     mats: { wall: wallMat, floor: concrete, trim, crate, steel: post },
   };
   /** a place's own helpers: the same, in its colours, so every building it puts up is tinted */
@@ -391,9 +425,8 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   // The runs stop 40 m out along the rim and leave the four corners open, as
   // ways in between the berms. They cannot run on: two berms 16 to 24 m
   // thick would meet in each corner, over the roadside culverts at
-  // (62, -62) and (-62, -62) and the ruin at (62, 62). A rope off the hub
-  // wants an open corner too: a rider comes down the last of it with their
-  // feet a metre or two off the ground.
+  // (62, -62) and (-62, -62) and the ruin at (62, 62), where the Relay and
+  // the Motor Pool stand now.
   //
   // A wall along the middle of each crest makes the rim a firing line, with
   // cover from inside the bowl or out. 12 m, or 8 on the west berm, whose
@@ -453,9 +486,8 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   // pass. It steps up from the hub's side, the north and the south, and
   // drops to the East Ridge as a sheer 8 m cliff: it is taken from the map
   // and held against the ridge. The cliff is at x 124, 19 m short of the
-  // ridge's first step, because the north-east compound's zipline comes down
-  // from (118, -118) to (139, 26) just east of it: 10 m further east, its
-  // riders would be hanging into the north run's crest.
+  // ridge's first step: the north-east compound's rope came down just east
+  // of it when the mesa went in, and the gap is the ridge's own ground now.
   terrace(74, 124, -64, -14, 8, { sheer: ["e"] });
   terrace(74, 124, 14, 64, 8, { sheer: ["e"] });
 
@@ -496,25 +528,13 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     [34, 117.6, 3.2, 1.8, 2.8],
     [53, 114.2, 3, 2, 2.6],
   ]) slab(w, h, d, x, 0, z, rock);
-  // the bed is gravel, either side of the road, so it reads as a riverbed from the air
-  for (const x of [-38, 38]) {
-    const bed = new THREE.PlaneGeometry(68, 8);
-    const buv = bed.attributes.uv as THREE.BufferAttribute;
-    for (let i = 0; i < buv.count; i++) buv.setXY(i, buv.getX(i) * 17, buv.getY(i) * 2);
-    buv.needsUpdate = true;
-    const m = new THREE.Mesh(bed, gravel);
-    m.rotation.x = -Math.PI / 2;
-    m.position.set(x, 0.01, 116);
-    m.receiveShadow = true;
-    root.add(m);
-  }
+  // (The bed's gravel is laid with the rest of the ground plan, after the sites.)
 
   // THE KNUCKLES: two mounds west of the hub, not a ridge, so the west stays
   // the quick way round and is still broken up: you go round one as easily
   // as over it. The saddle between them carries the west road. They stand
-  // at x -144 to -108 because two ziplines cross the ground just east of
-  // them, the north-west compound's to West Town and the water tower's out
-  // of it, and a mound under either rope would knock its riders off.
+  // at x -144 to -108 because the water tower's rope crosses the ground just
+  // east of the south one, and a mound under it would knock its riders off.
   terrace(-144, -108, -70, -38, 5.5);
   terrace(-144, -108, 38, 70, 4);
 
@@ -590,6 +610,12 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   // The top of the Mast's lattice, set when the hub is built: its balloon
   // (see the jump towers below) flies from there and not from the sand.
   let mastTop = 0;
+  // The rotation network's two ends, recorded as the places are built and
+  // tied together in one table after the sites (see "the rotation network"):
+  // each jump tower's rope anchor and pad, and the height of every roof or
+  // deck a rope comes down on.
+  const towerAt: Record<string, { anchor: THREE.Vector3; floor: number }> = {};
+  const deckAt: Record<string, number> = {};
 
   // ---------------------------------------------------------------- THE HUB
   {
@@ -638,6 +664,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     const { roof } = building(here, { x: 0, z: 0, w: 18, d: 16, storeys: 7, storeyH: 4, openGround: true, windows: ["e", "w"], stairs: true, roofAccess: true, parapet: true });
     box(0.9, 12, 0.9, 0, roof, 0, mast, false);
     mastTop = roof + 12;
+    deckAt.mast = roof;
     // four stays from the lattice to the roof, their feet clear of the stair's hole
     for (const [sx, sz] of [
       [-1, -1],
@@ -771,15 +798,16 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
 
     // the yard's warehouse: two floors, four ways in, and a stair on to its roof
     building(here, { x: 24, z: cz - 18, w: 18, d: 14, storeys: 2, storeyH: 3.6, doors: ["s", "w"], windows: ["n", "e"], stairs: true, roofAccess: true });
-    crateStair(here, 13, cz - 12, 7.2, -1);
+    // Crates up its east face as well, a player's quick way on to the roof.
+    // They stood on the west face, a metre in front of the west door, which
+    // opened into the slot behind them: no bot ever came through it.
+    crateStair(here, 35, cz - 12, 7.2, -1);
     box(1.6, 1.4, 1.6, 21, 0, cz - 13.5, crate);
     box(1.6, 1.4, 1.6, 3, 0, cz + 14, crate);
     box(1.6, 1.4, 1.6, -9, 0, cz - 14, crate);
     // Its ramp runs south down the west face: east of it are the yard's
-    // containers and a beacon. Its rope runs down through the Notch's defile,
-    // corner to corner, and comes down beyond it: the line it had, to
-    // (-18, -73), now runs into the ridge's west crest.
-    jumpTower(here, -26, cz + 6, new THREE.Vector3(28, 2.2, cz + 92), { face: "w", foot: "s" });
+    // containers and a beacon.
+    towerAt.north = jumpTower(here, -26, cz + 6, { face: "w", foot: "s" }, 6);
   }
 
   // How far South Depot reaches, for placeAt: out to the loading building's
@@ -826,8 +854,12 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     }
     // The office's stair goes on to its roof now: at 9 m deep that is two
     // flights of 0.36 m treads, the same as West Town's houses, which the
-    // bots climb.
-    building(here, { x: 26, z: cz + 12, w: 11, d: 9, storeys: 2, storeyH: 3.4, doors: ["w"], windows: ["n", "s", "e"], stairs: true, roofAccess: true, balcony: true });
+    // bots climb. Its door is on the north, onto the yard and the crane. On
+    // the west it opened 0.8 m from the east bay's wall, with a pillar of that
+    // bay's canopy in front of it: a gap a body cannot get through. It stands
+    // 10 cm east of where it did, so its west wall and the east shed's east
+    // wall, which touch for 2 m, are not in one plane and do not flicker.
+    deckAt.office = building(here, { x: 26.1, z: cz + 12, w: 11, d: 9, storeys: 2, storeyH: 3.4, doors: ["n"], windows: ["n", "s", "e"], stairs: true, roofAccess: true, balcony: true }).roof;
     crateStair(here, 33, cz + 6, 6.8, -1);
 
     // THE LOADING BUILDING: three storeys on the west side of the yard, what
@@ -872,13 +904,10 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     // the depot's name along the girder, facing the hub
     bigSign("SOUTH DEPOT", 0, top + 1.2, cr.z - 1.56, Math.PI, 2.8);
 
-    // Its ramp runs north up the east face and its rope comes down on the
-    // wash's north bank: the way out of the depot is over the wash. It stood
-    // at (-28, cz - 6), where the crane's west leg and the loading building's
-    // north door are now, and moved west and north clear of both and of the
-    // balloon's mast.
-    const bank = groundTop(-21, cz - 64);
-    jumpTower(here, -40, cz - 13, new THREE.Vector3(-21, bank + 2.2, cz - 64), { face: "e", foot: "n" }, 6, bank);
+    // Its ramp runs north up the east face. It stood at (-28, cz - 6), where
+    // the crane's west leg and the loading building's north door are now, and
+    // moved west and north clear of both and of the balloon's mast.
+    towerAt.south = jumpTower(here, -40, cz - 13, { face: "e", foot: "n" }, 6);
   }
 
   // ---------------------------------------------------------------- EAST RIDGE
@@ -954,10 +983,9 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     }
     // The rope hangs 2.4 m over the terrace. At 1.6 m, as it was, a rider's
     // feet start under the terrace's top and the terrace itself knocks them
-    // off: it was never ridden from this end. It comes down between the
-    // crate by the road at (87.6, -5.8) and the containers north of it; at
-    // (88, -6) a rider met that crate a metre short of the end.
-    zipline(root, new THREE.Vector3(cx - 1, top + 2.4, -4), new THREE.Vector3(88, 1.6, -3), top, 0);
+    // off: it was never ridden from this end. Where it goes is the rotation
+    // network's business, after the sites.
+    towerAt.ridge = { anchor: new THREE.Vector3(cx - 1, top + 2.4, -4), floor: top };
     box(1.6, 1.4, 1.6, cx - 24, 0, 8, crate);
     box(1.6, 1.4, 1.6, cx + 3, 0, 26, crate);
     root.add(textPanel("EAST RIDGE", cx, 3.4, -28, 0, 6, 1.4));
@@ -1011,7 +1039,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     // and both floors take loot. The block is 10 m wide to fit the ground
     // it has: east of the south-east house's crate stack and clear of its
     // balcony, clear of the drop point at (-143, 12), and short of where the
-    // north-west farm's rope comes down at (-131, 28).
+    // north-west farm's rope came down, at (-131, 28), when it was built.
     const tank = building(here, { x: cx + 27, z: 20.5, w: 10, d: 15, storeys: 3, storeyH: 3.4, doors: ["e", "s"], windows: ["n", "w"], roofAccess: true });
     box(6, 3.5, 6, cx + 25.4, tank.roof, 16.4, steelA);
     // Off the roof, out of town: a place needs a way out that is not a run
@@ -1026,7 +1054,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
       [cx - 4, 26],
     ]) box(6, 1.1, 0.8, x, 0, z, concrete);
     // its ramp runs north up the east face: west of it is the churchyard, south the houses' crate stairs
-    jumpTower(here, cx + 6, -26, new THREE.Vector3(cx + 92, 2.2, -18), { face: "e", foot: "n" });
+    towerAt.west = jumpTower(here, cx + 6, -26, { face: "e", foot: "n" }, 6);
 
     // THE CLOCKTOWER: the town's silhouette, four storeys and a square spire
     // on four posts, 26 m to its tip. A square spire against the sky is a
@@ -1097,23 +1125,31 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   // ------------------------------------------------------- the four compounds
   // The corners between the five places were 100 m of empty sand you crossed
   // with nothing to use. Each diagonal now holds a small walled compound: three
-  // or four rooms, a watch platform, and a zipline pointing at the nearest big
-  // place, so a rotation has somewhere to stop.
+  // or four rooms, a watch platform, and a zipline off it, so a rotation has
+  // somewhere to stop. Where each rope goes is the rotation network's, after
+  // the sites.
   //
-  // `zip` is where that rope comes down, by the big place it points at. With
-  // the platforms at 6 m the ropes hang lower than they did, and a rider hangs
-  // 2.1 m under the rope and is knocked off by anything the body touches, so
-  // each end was picked for a line clear of everything in both directions:
-  // north-west's and south-west's used to run into a roadside container stack
-  // and a ruin, and any line from south-east's platform to the depot's north
-  // side crosses its own two-storey room, so it comes down on the east side.
-  // South-west's comes down where the wash's south bank now stands, so it
-  // lands on the bank's crest, 3.5 m up: its end is set on groundTop.
-  const COMPOUNDS: Array<{ id: string; name: string; x: number; z: number; zip: [number, number] }> = [
-    { id: "nw", name: "NORTHWEST FARM", x: -104, z: -104, zip: [-131, 28] },
-    { id: "ne", name: "NORTHEAST STORE", x: 104, z: -104, zip: [139, 26] },
-    { id: "sw", name: "SOUTHWEST PENS", x: -104, z: 104, zip: [26, 132] },
-    { id: "se", name: "SOUTHEAST WORKS", x: 104, z: 104, zip: [38, 188] },
+  // Each was three buildings in a 52 m yard with a third of it built on, and
+  // the four were the same yard: from inside one, nothing said which. Each
+  // has four more things now, and no two put them in the same place: a
+  // fourth building, two storeys with a stair on to its roof; a covered yard,
+  // a roof on six posts with pallets under it; a 2 m wall that makes the open
+  // ground two rooms with one gate between them; and one thing of its own
+  // that says which compound it is from across its quarter of the map. Each
+  // compound's own block follows the loop. They are all in the shared
+  // concrete and not a tint of their own: the tints are for the five big
+  // places, and four more would double the map's merge groups for a
+  // difference the fog has taken by 120 m.
+  //
+  // `gate` is a way out through the back wall (the compound's own z, so the
+  // pens' gate is 1.5 m north of its middle to 2 m south of it). `nameX` moves
+  // the name along the north wall off the middle, where one fourth building
+  // stands in front of it.
+  const COMPOUNDS: Array<{ id: string; name: string; x: number; z: number; gate?: [number, number]; nameX?: number }> = [
+    { id: "nw", name: "NORTHWEST FARM", x: -104, z: -104 },
+    { id: "ne", name: "NORTHEAST STORE", x: 104, z: -104 },
+    { id: "sw", name: "SOUTHWEST PENS", x: -104, z: 104, gate: [-1.5, 2] },
+    { id: "se", name: "SOUTHEAST WORKS", x: 104, z: 104, nameX: -9 },
   ];
   for (const c of COMPOUNDS) {
     // a wall round three sides, open toward the middle of the map
@@ -1121,23 +1157,292 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     const gapSide = c.x < 0 ? 1 : -1;
     box(W * 2, 2.6, 1, c.x, 0, c.z - W, wallMat);
     box(W * 2, 2.6, 1, c.x, 0, c.z + W, wallMat);
-    box(1, 2.6, W * 2, c.x + gapSide * -W, 0, c.z, wallMat);
-    // the rooms
+    const [g0, g1] = c.gate ?? [W, W];
+    for (const [a, b] of [
+      [-W, g0],
+      [g1, W],
+    ]) if (b > a) box(1, 2.6, b - a, c.x + gapSide * -W, 0, c.z + (a + b) / 2, wallMat);
+    // the rooms: the big room north of the middle, the east room and the west room south of it
     building(poi, { x: c.x - 8, z: c.z - 8, w: 13, d: 11, storeys: 2, storeyH: 3.4, doors: ["s"], windows: ["n", "e", "w"], stairs: true, balcony: true });
     building(poi, { x: c.x + 9, z: c.z + 7, w: 11, d: 9, storeys: 1, storeyH: 3.4, doors: ["n", "w"], windows: ["s", "e"] });
     building(poi, { x: c.x - 10, z: c.z + 10, w: 9, d: 8, storeys: 1, storeyH: 3.4, doors: ["e"], windows: ["n", "s"] });
     crateStair(poi, c.x - 1, c.z - 8, 6.8, 1);
-    // A watch platform with the zipline off it toward the nearest big place.
-    // Its ramp runs south down its east face and stops short of the low cover
-    // there: west of it is the big room, north of it the compound's wall.
-    const foot = groundTop(c.zip[0], c.zip[1]);
-    jumpTower(poi, c.x + 14, c.z - 14, new THREE.Vector3(c.zip[0], foot + 2.2, c.zip[1]), { face: "e", foot: "s" }, 6, foot);
+    // A watch platform with a zipline off it. Its ramp runs south down its
+    // east face and stops short of the low cover there: west of it is the big
+    // room, north of it the compound's wall.
+    towerAt[c.id] = jumpTower(poi, c.x + 14, c.z - 14, { face: "e", foot: "s" }, 6);
     for (const [ox, oz] of [
       [-2, 16],
       [16, -2],
       [-16, -2],
-    ]) box(4, 1.2, 1, c.x + ox, 0, c.z + oz, concrete);
-    root.add(textPanel(c.name, c.x, 3.2, c.z - W + 0.6, 0, 7, 1.4));
+    ]) {
+      // at the works, the tank yard's wall runs 2 m south of the east block,
+      // and the foot of the platform's ramp would be a slot between them
+      if (c.id === "se" && ox === 16) continue;
+      box(4, 1.2, 1, c.x + ox, 0, c.z + oz, concrete);
+    }
+    root.add(textPanel(c.name, c.x + (c.nameX ?? 0), 3.2, c.z - W + 0.6, 0, 7, 1.4));
+  }
+
+  /**
+   * A compound's fourth building: two storeys and a stair on to the roof, the
+   * first roof in any compound a bot can stand on. Its doors face the yard;
+   * the stair runs up the east side, so a door is never put there. It is
+   * 10 m deep, a metre more than West Town's houses. With the roof stair its
+   * two flights share the depth, and at 9 m their treads are 0.36 m for a
+   * 0.43 m rise: each is a step, but half a metre of flight rises 0.58 m,
+   * more than one, and the bots' walk (tested on a half-metre grid) only
+   * gets up that by working across the flight. At 10 m a tread is 0.44 m
+   * and half a metre of flight rises 0.48 m. (Compound-local: x east, z
+   * south of the compound's middle.)
+   */
+  const fourth = (c: { x: number; z: number }, x: number, z: number, doors: Side[], windows: Side[]): void => {
+    building(poi, { x: c.x + x, z: c.z + z, w: 10, d: 10, storeys: 2, storeyH: 3.4, doors, windows, roofAccess: true });
+  };
+  /**
+   * A covered yard: a roof on six posts at 4.5 m, clear of a jump, open all
+   * round, with its middle posts along its long sides, and pallets under it
+   * to fight between. A pallet stack is at most 1.9 m, so there is 2.6 m over
+   * it to the roof and loot can land on it. `timber` posts are for the farm
+   * buildings; the rest are steel. (POI-local: x and z are the roof's middle.)
+   */
+  const coveredYard = (x: number, z: number, w: number, d: number, timber: boolean, pallets: Array<[number, number, number]>): void => {
+    slab(w, 0.5, d, x, 4.5, z, roofMat);
+    const long = w >= d;
+    for (const a of [-1, 0, 1]) {
+      for (const b of [-1, 1]) {
+        const px = x + (long ? a : b) * (w / 2 - 0.25);
+        const pz = z + (long ? b : a) * (d / 2 - 0.25);
+        if (timber) box(0.5, 4.5, 0.5, px, 0, pz, crate);
+        else slab(0.5, 4.5, 0.5, px, 0, pz, roofMat);
+      }
+    }
+    for (const [px, pz, h] of pallets) box(1.2, h, 1, px, 0, pz, crate);
+  };
+  /** a compound's 2 m inner wall, between its extents: a jump and a mantle for a player, a wall for a bot */
+  const yardWall = (x0: number, x1: number, z0: number, z1: number): void => {
+    slab(x1 - x0, 2, z1 - z0, (x0 + x1) / 2, 0, (z0 + z1) / 2, wallMat);
+  };
+
+  // THE FARM (north-west). Its fourth building is the farmhouse, in the
+  // north-west corner with the compound's walls for its back; its covered
+  // yard is the barn, in the south-east; and a wall along the east room's
+  // north face, out to either side of the compound, makes a house yard and a
+  // barnyard, with its gate at the west end. The east room's two doors, one
+  // each side of the wall, are the other way through. Its own things are the
+  // barn's round roof and a wind pump in the field outside its west wall.
+  {
+    const c = COMPOUNDS[0];
+    fourth(c, -20.5, -20.6, ["s"], ["e", "n", "w"]);
+    const bx = c.x + 16;
+    const bz = c.z + 19;
+    coveredYard(bx, bz, 16, 12, true, [
+      [bx - 4.5, bz - 1, 1.1],
+      [bx + 3.5, bz + 1.5, 1.6],
+      [bx - 3, bz + 3.2, 1.9],
+    ]);
+    // The barn's roof is a Dutch barn's, a half-round vault along it, drawn
+    // over the flat roof and squashed to 3.5 m high. It is solid as a stack
+    // of slabs whose tops sit on the curve or at most 25 cm over it. Drawn
+    // and not solid, anyone landing on the barn from the drop would sink into
+    // it and see out of it unseen (a mesh is not drawn from inside), and loot
+    // that landed on the roof would be inside it.
+    const vault = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 16, 16, 1, false, 0, Math.PI), roofMat);
+    vault.rotation.z = Math.PI / 2;
+    vault.scale.set(3.5 / 6, 1, 1);
+    vault.position.set(bx, 5, bz);
+    vault.castShadow = true;
+    vault.receiveShadow = true;
+    root.add(vault);
+    for (let k = 1; k <= 14; k++) {
+      const top = 0.25 * k;
+      // as far out either side as the vault stands at least a step under this one's top
+      const half = 6 * Math.sqrt(1 - ((top - 0.25) / 3.5) ** 2);
+      solid(bx - 8, bx + 8, bz - half, bz + half, 5, 5 + top);
+    }
+    // the wall and its gate
+    yardWall(c.x - 25.5, c.x - 22, c.z + 2.3, c.z + 2.7);
+    yardWall(c.x - 18.5, c.x + 3.5, c.z + 2.3, c.z + 2.7);
+    yardWall(c.x + 14.5, c.x + 26, c.z + 2.3, c.z + 2.7);
+    // THE WIND PUMP: a fan on a lattice tower, 15 m to the top of its fan,
+    // 8 m out from the west wall. The farm's mark from across the west of the
+    // map, and something to stand behind in a field with nothing in it. The
+    // tower's legs lean in, which boxes cannot follow, so it is all for show
+    // but its feet: the bottom 2 m of each leg is a post you walk into.
+    const wx = c.x - 34;
+    const wz = c.z - 6;
+    const leg = (sx: number, sz: number, y: number): THREE.Vector3 => {
+      const r = 1.8 - (1.35 * y) / 12;
+      return new THREE.Vector3(wx + sx * r, y, wz + sz * r);
+    };
+    const corners = [
+      [-1, -1],
+      [1, -1],
+      [1, 1],
+      [-1, 1],
+    ];
+    corners.forEach(([sx, sz], i) => {
+      const [nx, nz] = corners[(i + 1) % 4];
+      strut(leg(sx, sz, 0), leg(sx, sz, 12), 0.2, roofMat);
+      // a girt round the tower at 6 m, and a brace across each face under it
+      strut(leg(sx, sz, 6), leg(nx, nz, 6), 0.12, roofMat);
+      strut(leg(sx, sz, 0), leg(nx, nz, 6), 0.1, roofMat);
+      const mid = (1.8 + 1.575) / 2;
+      solid(wx + sx * mid - 0.22, wx + sx * mid + 0.22, wz + sz * mid - 0.22, wz + sz * mid + 0.22, 0, 2);
+    });
+    // The head: the pump's gearbox, a fan of six blades turned to the middle
+    // of the map on a shaft, and the vane behind that keeps it turned there.
+    // The shaft holds the fan 1.3 m out, clear of the legs, which splay out
+    // under the head and would stand in the lower blade's way.
+    slab(0.9, 0.9, 0.9, wx, 12, wz, roofMat, false);
+    const face = new THREE.Vector3(1, 0, 1).normalize();
+    const up = new THREE.Vector3(0, 1, 0);
+    const side = new THREE.Vector3().crossVectors(up, face);
+    const head = new THREE.Vector3(wx, 12.6, wz);
+    const hub = head.clone().addScaledVector(face, 1.3);
+    strut(head, hub, 0.14, roofMat);
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2;
+      const out = up.clone().multiplyScalar(Math.cos(a)).addScaledVector(side, Math.sin(a));
+      const blade = new THREE.Mesh(slabGeo(0.55, 2.1, 0.05), roofMat);
+      blade.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(out, face), out, face));
+      blade.position.copy(hub).addScaledVector(out, 1.35);
+      blade.castShadow = true;
+      blade.receiveShadow = true;
+      root.add(blade);
+    }
+    const tail = head.clone().addScaledVector(face, -2.6);
+    strut(head, tail, 0.1, roofMat);
+    const vane = new THREE.Mesh(slabGeo(0.05, 1.2, 1.8), trim);
+    vane.rotation.y = Math.atan2(face.x, face.z);
+    vane.position.copy(tail);
+    vane.castShadow = true;
+    vane.receiveShadow = true;
+    root.add(vane);
+  }
+
+  // THE STORE (north-east). Its fourth building is the stock room, against
+  // the south wall; its covered yard is a loading shed in the north-west
+  // corner, on the open side; and a wall along the east room's north face
+  // makes a loading yard of the north half and a stock yard of the south,
+  // with its gate at the east end. Its own thing is a
+  // billboard over the big room's roof.
+  {
+    const c = COMPOUNDS[1];
+    fourth(c, 8, 20.6, ["n", "w"], ["e"]);
+    coveredYard(c.x - 18, c.z - 20.4, 16, 10, false, [
+      [c.x - 22.5, c.z - 21, 1.6],
+      [c.x - 14.5, c.z - 22.5, 1.1],
+      [c.x - 17, c.z - 18.5, 1.9],
+    ]);
+    yardWall(c.x - 26, c.x + 3.5, c.z + 2.3, c.z + 2.7);
+    yardWall(c.x + 14.5, c.x + 18, c.z + 2.3, c.z + 2.7);
+    yardWall(c.x + 21.5, c.x + 25.5, c.z + 2.3, c.z + 2.7);
+    // THE BILLBOARD: a blank board 12 by 4 m on two posts, its top 9 m over
+    // the big room's roof, turned to face the hub. A blank board is a shape,
+    // and a shape is what reads at 200 m. The posts are solid, since the
+    // crates climb to that roof; the board is turned, so it cannot be, and it
+    // is 5 m over the roof, out of anyone's reach. The posts run on up inside
+    // it to 13.8 m: stopped under it at 11.8, their tops were somewhere loot
+    // could land (anything up to 12 m takes it) and be lost inside the board.
+    // The lit strip along its foot is the orange the shelf's line is lit in,
+    // so it adds no draw.
+    const roofY = 6.8;
+    const bx = c.x - 8;
+    const bz = c.z - 8;
+    const turn = -Math.PI / 4;
+    const along = new THREE.Vector3(Math.cos(turn), 0, -Math.sin(turn));
+    const toward = new THREE.Vector3(Math.sin(turn), 0, Math.cos(turn));
+    for (const s of [-1, 1]) slab(0.35, 7, 0.35, bx + along.x * 4 * s, roofY, bz + along.z * 4 * s, roofMat);
+    slab(12, 4, 0.5, bx, roofY + 5, bz, trim, false).rotation.y = turn;
+    const strip = new THREE.Mesh(slabGeo(11.6, 0.2, 0.1), emissive(PAL.orange, 1.2));
+    strip.rotation.y = turn;
+    strip.position.set(bx + toward.x * 0.3, roofY + 5.3, bz + toward.z * 0.3);
+    root.add(strip);
+  }
+
+  // THE PENS (south-west). Its fourth building stands in the south-east
+  // corner, on the open side; its covered yard is a shearing shed in the
+  // south-west corner; and a wall from the north wall to the south wall,
+  // through the east room, makes a back yard and a front yard, with its gate
+  // near the north wall. The east room's two doors, one each side of it, are
+  // the other way through. Its own thing is the pens.
+  {
+    const c = COMPOUNDS[2];
+    fourth(c, 20.5, 20.6, ["n", "w"], ["e", "n"]);
+    coveredYard(c.x - 17.3, c.z + 20.3, 16, 10, true, [
+      [c.x - 21.5, c.z + 20, 1.9],
+      [c.x - 13, c.z + 22, 1.1],
+      [c.x - 15.5, c.z + 18, 1.6],
+    ]);
+    yardWall(c.x + 1.3, c.x + 1.7, c.z - 25.5, c.z - 21);
+    yardWall(c.x + 1.3, c.x + 1.7, c.z - 17.5, c.z + 2.3);
+    yardWall(c.x + 1.3, c.x + 3.5, c.z + 2.3, c.z + 2.7);
+    yardWall(c.x + 3.3, c.x + 3.7, c.z + 11.5, c.z + 25.5);
+    // THE PENS: four stock pens 8 by 10 m outside the west wall, a lane
+    // between them and the wall, and the gate through the wall into the lane.
+    // Twelve board fences 1.2 m high: a crouch hides behind one, a stand
+    // shoots over it and vaults it, and a bot goes round by the gates. The
+    // south-west quarter of the map had no cover at all, and this is 40 m of
+    // it. Two wings close the lane off from the field at either end, so the
+    // pens are the compound's back yard: a bot gets in by the gate in the
+    // wall, a player over any fence.
+    const px0 = c.x - 37;
+    const px1 = c.x - 29;
+    const fence = (x0: number, x1: number, z0: number, z1: number): void => {
+      box(x1 - x0, 1.2, z1 - z0, (x0 + x1) / 2, 0, (z0 + z1) / 2, crate);
+    };
+    fence(px0 - 0.1, px0 + 0.1, c.z - 20, c.z + 20);
+    for (const z of [-20, -10, 0, 10, 20]) fence(px0, px1, c.z + z - 0.1, c.z + z + 0.1);
+    // each pen's east side, with a gate into the lane at the end nearest the next pen
+    for (const [a, b] of [
+      [-20, -13],
+      [-7, 0],
+      [0, 7],
+      [13, 20],
+    ]) fence(px1 - 0.1, px1 + 0.1, c.z + a, c.z + b);
+    for (const z of [-20, 20]) fence(px1, c.x - 26.5, c.z + z - 0.1, c.z + z + 0.1);
+  }
+
+  // THE WORKS (south-east). Its fourth building is the works office, against
+  // the north wall; its covered yard is a loading shed on the open side, off
+  // the big room; and its 2 m wall is a blast wall round the tank yard in the
+  // east of it, with one gate. Its own things are four tanks in that yard and
+  // a flare stack 16 m high with a flame on it. Everything tall stands east:
+  // the rope off its platform crosses the compound to the south-west, low
+  // over the south wall, and a rider is knocked off by anything the body
+  // meets.
+  {
+    const c = COMPOUNDS[3];
+    fourth(c, 4, -20.6, ["s"], ["e", "n", "w"]);
+    coveredYard(c.x - 21.5, c.z - 4, 11, 16, false, [
+      [c.x - 23.5, c.z - 8.5, 1.9],
+      [c.x - 21, c.z + 0.5, 1.1],
+      [c.x - 19.5, c.z - 6.5, 1.6],
+    ]);
+    yardWall(c.x + 16, c.x + 25.5, c.z - 0.2, c.z + 0.2);
+    yardWall(c.x + 16, c.x + 16.4, c.z + 0.2, c.z + 12);
+    yardWall(c.x + 16, c.x + 16.4, c.z + 15.5, c.z + 25.5);
+    // The tanks are drawn round and made solid as roundSolid's five boxes, as
+    // the silos are. Solid to the top of the cone, so a body or an item that
+    // lands on one stands on the cone and not inside it; the cone is a
+    // storage tank's shallow one, so nothing stands more than a hand over it.
+    for (const tz of [3.5, 8.5, 13.5, 18.5]) {
+      drum(c.x + 22.6, c.z + tz, 2, 0, 6, concrete, { mat: roofMat, h: 0.3 });
+      roundSolid(c.x + 22.6, c.z + tz, 2, 0, 6.3);
+    }
+    // THE FLARE STACK, in the yard's south-east corner: a thin line 16 m up
+    // with a flame on it, a different mark from the ridge's chimney, which is
+    // a stepped mass, and the depot's crane, which is a frame.
+    const fx = c.x + 22.6;
+    const fz = c.z + 23.5;
+    slab(2, 1, 2, fx, 0, fz, concrete);
+    drum(fx, fz, 0.45, 1, 14.4, roofMat);
+    roundSolid(fx, fz, 0.45, 1, 15.4);
+    slab(1.3, 0.3, 1.3, fx, 15.4, fz, trim, false);
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.6, 8), emissive(0xffc21a, 1.4));
+    flame.position.set(fx, 16.5, fz);
+    root.add(flame);
   }
 
   // ------------------------------------------------------------ the roadside
@@ -1145,7 +1450,12 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   // so anyone on a roof could watch you the whole way. These are small stops
   // on the roads: a ruin with two walls and a roof, a culvert to run through,
   // a stack of containers. None is a POI (no loot spot of its own) — they are
-  // there so the ground between places is not one flat plane of sand.
+  // there so the ground between places is not one flat plane of sand. Kind 3
+  // is a stop with nothing built here: the ruin at (62, 62) and the culvert
+  // at (-62, -62) are gone, and the Motor Pool and the Relay stand there now
+  // (see the sites below). They stay in the table because it is the ring's
+  // list of roadside cover too (src/config/ring.json's attractors, which
+  // tools/checks/ring-place.ts holds to it), and a site is still cover.
   {
     const spots: Array<[number, number, number]> = [
       [0, -86, 0],
@@ -1154,14 +1464,15 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
       [-86, 0, 0],
       [62, -62, 1],
       [-62, 62, 2],
-      [62, 62, 0],
-      [-62, -62, 1],
+      [62, 62, 3],
+      [-62, -62, 3],
       [0, -130, 2],
       [0, 130, 0],
       [130, 0, 1],
       [-130, 0, 2],
     ];
     for (const [x, z, kind] of spots) {
+      if (kind === 3) continue;
       if (kind === 0) {
         // a ruin: two standing walls and half a roof to shelter under
         box(12, 4, 0.6, x, 0, z - 4, wallMat);
@@ -1184,6 +1495,426 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     }
   }
 
+  // ---------------------------------------------------------------- the sites
+  // Eight small places between the big ones (see Site): a name and a sign, a
+  // building or two with loot in it, somewhere to hold, and a dirt track to
+  // the nearest road, so that from the drop you can see something is there.
+  // They are not pois: everything that picks one (the squad's drop, the bots'
+  // drops, tools/e2e.ts's count of nine) means a big place, and a site there
+  // would be a landing and spread the bots across seventeen. The field's
+  // twenty cover spots were not enough to make the ground between the places
+  // worth crossing; these are what makes it.
+  //
+  // Every building in them is one or two storeys, stands on groundTop, and
+  // has 2.5 m clear in front of every doorway. None with a stair has a door
+  // on its east side: brpoi.ts runs the stair up the east wall, and a door
+  // there opens on to the flight.
+  const siteSpots: Array<{ id: string; name: string; x: number; z: number }> = [];
+  /** ground the field's rocks and cover clusters leave alone: the sites' yards, POI-local */
+  const keepClear: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }> = [];
+  const clearOf = (x0: number, x1: number, z0: number, z1: number): boolean =>
+    keepClear.every((r) => x1 < r.minX || x0 > r.maxX || z1 < r.minZ || z0 > r.maxZ);
+  /** a site's name and where it is, and the ground it takes up as [x0, x1, z0, z1] rectangles */
+  const site = (id: string, name: string, x: number, z: number, yards: Array<[number, number, number, number]>): void => {
+    siteSpots.push({ id, name, x, z });
+    for (const [minX, maxX, minZ, maxZ] of yards) keepClear.push({ minX, maxX, minZ, maxZ });
+  };
+  /** a site's name board, on a wall and facing (fx, fz): the name the arrival card gives it */
+  const siteSign = (text: string, x: number, y: number, z: number, fx: number, fz: number): void => {
+    root.add(textPanel(text, x, y, z, Math.atan2(fx, fz), 6, 1.4));
+  };
+  /**
+   * A dirt track from (x0, z0) to (x1, z1), laid on the ground as it is.
+   * One flat strip would be buried in the first tier it met, so where it
+   * climbs a terrace it is a strip on each tier's top, cut wherever groundTop
+   * changes along its middle line.
+   */
+  const track = (x0: number, z0: number, x1: number, z1: number, w = 4, mat: THREE.Material = dirt): void => {
+    const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.25));
+    const at = (t: number): [number, number] => [x0 + (x1 - x0) * t, z0 + (z1 - z0) * t];
+    let from = 0;
+    let h = groundTop(...at(0.5 / n));
+    for (let k = 1; k <= n; k++) {
+      const next = k < n ? groundTop(...at((k + 0.5) / n)) : NaN;
+      if (next === h) continue;
+      strip(...at(from), ...at(k / n), w, mat, h);
+      from = k / n;
+      h = next;
+    }
+  };
+  /** a truck left to rot: an 8 m trailer along x or z and its cab at the + or - end */
+  const hulk = (x: number, z: number, alongX: boolean, cab: 1 | -1, mat: THREE.Material): void => {
+    if (alongX) {
+      box(8, 2.8, 2.6, x, 0, z, mat);
+      box(2.4, 3, 2.6, x + cab * 5.2, 0, z, roofMat);
+    } else {
+      box(2.6, 2.8, 8, x, 0, z, mat);
+      box(2.6, 3, 2.4, x, 0, z + cab * 5.2, roofMat);
+    }
+  };
+  /**
+   * Steps up to the end of a trailer lying along x, from the sand to its
+   * 2.8 m deck, running away from it (dir -1 west, 1 east). A trailer is a
+   * player's climb and never a bot's step, so without these the bots only
+   * ever walked the gaps between them. Five 0.47 m steps, each under the
+   * bots' 0.56 m.
+   */
+  const trailerSteps = (endX: number, z: number, dir: 1 | -1): void => {
+    for (let k = 1; k <= 5; k++) slab(1, (2.8 * k) / 6, 2.6, endX + dir * (5.5 - k), 0, z, concrete);
+  };
+
+  // THE NOTCH: the north defile made a checkpoint. A guard block at each end
+  // of the pass, backed on to the defile's walls, and between them a chicane
+  // of low walls and a wrecked flatbed under a barrier lifted open. The
+  // blocks stand at the pass's ends because the ledges against its walls
+  // fill the middle, and off the diagonal: the North Yard's rope ran
+  // through the pass corner to corner when they went in.
+  //
+  // On the east crest, 6 m up, a post with a stair to its roof at 9.4 m: the
+  // best-held ground in the north half. The bots reach it up the ridge's
+  // stepped east end and along the crest. Its doors face the crest's open
+  // ground and the defile, since its stair has the east wall.
+  {
+    building(poi, { x: -10, z: -105, w: 8, d: 7, storeys: 1, storeyH: 3.4, doors: ["e"], windows: ["n", "s"] });
+    building(poi, { x: 10, z: -135, w: 8, d: 7, storeys: 1, storeyH: 3.4, doors: ["w"], windows: ["n", "s"] });
+    // the barrier: a post, and its boom lifted to seventy degrees, for show
+    box(0.5, 1.2, 0.5, -6, 0, -126, concrete);
+    strut(new THREE.Vector3(-6, 1.1, -126), new THREE.Vector3(-6 + 7 * Math.cos(1.22), 1.1 + 7 * Math.sin(1.22), -126), 0.16, trim);
+    // Six low walls staggered across the road, each 1.4 m or more from the
+    // next thing. The last two stand east of the road's middle: the hub's
+    // north pad throws you down between z -102 and -106 (where on the pad you
+    // stepped moves it), and a wall across the middle there is what you
+    // landed on.
+    for (const [x, z] of [
+      [-1.5, -122],
+      [1.5, -118],
+      [1.5, -114],
+      [-0.5, -109],
+      [5.5, -105.5],
+      [5.5, -102],
+    ]) slab(5, 1.2, 0.6, x, 0, z, concrete);
+    box(7, 2.4, 2.6, -6, 0, -113, steelB);
+    const y = groundTop(24, -120);
+    deckAt.notch = building(poi, { x: 24, z: -120, y, w: 10, d: 8, storeys: 1, storeyH: 3.4, doors: ["s", "w"], windows: ["n", "e"], roofAccess: true }).roof;
+    // its name over the defile, on the parapet's face
+    siteSign("THE NOTCH", 18.74, y + 3.4 + 0.45, -120, -1, 0);
+    site("notch", "THE NOTCH", 0, -120, [
+      [-15, -5, -110, -100],
+      [5, 15, -140, -130],
+      [18, 30, -125, -115],
+    ]);
+  }
+
+  // THE TABLE STATION: a relay station on the east mesa's crest, 8 m up, the
+  // highest small place on the map: from there you overlook the east road,
+  // both east compounds and the ridge. Its ground floor at 8 m and its first
+  // floor at 11.4 are both under the 12 m that loot lands on, so it is
+  // looted top to bottom; its roof at 14.8 holds nothing, which is right for
+  // a deck to ride out from. The bots come up the mesa's stepped north,
+  // south and west faces; the east face is the 8 m cliff, so it is taken
+  // from the map and held against the ridge. A chain-link fence closes the
+  // crest's north and west, with a gate in the west run.
+  {
+    const here = ctxOf(TINT.east);
+    const x = 112;
+    const z = -36;
+    const y = groundTop(x, z);
+    const st = building(here, { x, z, y, w: 13, d: 13, storeys: 2, storeyH: 3.4, doors: ["w", "s"], windows: ["n", "e"], stairs: true, roofAccess: true });
+    deckAt.table = st.roof;
+    // The dish mast, 10 m over the roof in its north-west corner, clear of
+    // the stair's hole down the east side. Solid: its top is out of reach,
+    // and a mast you could walk through would hide whoever stood in it.
+    box(0.5, 10, 0.5, x - 4.5, st.roof, z - 4.5, mast);
+    const dish = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 0.35, 0.6, 16), roofMat);
+    dish.position.set(x - 4.5, st.roof + 8.6, z - 4.5);
+    // turned to the hub and tipped up to the sky
+    dish.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(-x, 40, -z).normalize());
+    dish.castShadow = true;
+    dish.receiveShadow = true;
+    root.add(dish);
+    for (const fx of [99, 109, 119]) slab(10, 2, 0.3, fx, y, -47.5, roofMat);
+    slab(0.3, 2, 10, 94, y, -42.35, roofMat);
+    slab(0.3, 2, 5.35, 94, y, -31.675, roofMat);
+    // the gate's leaf, swung open outward
+    slab(3, 2, 0.3, 92.35, y, -37.2, roofMat);
+    siteSign("TABLE STATION", x - 6.76, y + 3.4 + 1.7, z, -1, 0);
+    site("table", "TABLE STATION", x, z, [[88, 124, -50, -26]]);
+  }
+
+  // THE CROSSING, where the south road fords the wash. The road's pass is
+  // flat sand 28 m wide, so the old bridge beside it stands on abutments of
+  // its own: a stepped ramp up to 3.5 m at each end, and a deck on piers at
+  // 4 m, half a metre over them, a step a bot takes. A 3.4 m span of the
+  // deck is broken out and lies in the bed below as three steps: a player
+  // clears the gap at a sprint and a bot never will, so the bridge is a high
+  // road the bots can stand on either end of, over a low road through the
+  // channel under it. Two ropes come down on the deck, from the Mast and
+  // from South Depot's tower; its rails stop short of the broken span.
+  //
+  // Across the road a pump house stands in the mouth of the east channel,
+  // its first floor and roof looking along the wash both ways, on the
+  // pass's sand where the field had a rock and a crate.
+  {
+    const here = ctxOf(TINT.south);
+    terrace(-15, -9, 97, 108, 3.5, { sheer: ["s", "e", "w"], mat: concrete });
+    terrace(-15, -9, 124, 135, 3.5, { sheer: ["n", "e", "w"], mat: concrete });
+    const deck = 3.6;
+    deckAt.crossing = deck + 0.4;
+    slab(6, 0.4, 10, -12, deck, 113, concrete);
+    slab(6, 0.4, 2.6, -12, deck, 122.7, concrete);
+    // piers flush with the abutments, so there is no slot behind them
+    for (const px of [-14, -10]) {
+      slab(2, deck, 2.5, px, 0, 109.25, concrete);
+      slab(2, deck, 2.5, px, 0, 122.75, concrete);
+    }
+    for (const px of [-14.9, -9.1]) slab(0.2, 1, 8, px, deck + 0.4, 112, TINT.south.trim);
+    // the fallen span, 2.1 m under the deck at its highest
+    for (let k = 0; k < 3; k++) slab(5, 0.5 * (k + 1), 1.4, -12, 0, 118.4 + 1.4 * k, concrete);
+    building(here, { x: 10, z: 116, w: 8, d: 10, storeys: 2, storeyH: 3.4, doors: ["w"], windows: ["n", "e", "w"], stairs: true, roofAccess: true });
+    siteSign("THE CROSSING", 10, 5.1, 121.26, 0, 1);
+    site("crossing", "THE CROSSING", 0, 116, [
+      [-16, -8, 96, 136],
+      [5, 15, 110, 122],
+    ]);
+  }
+
+  // THE WELL, in the west saddle between the knuckles: a walled yard south
+  // of the road, open on the east, with a farmhouse, a byre and the well in
+  // it, and across the road a fuel canopy, a flat plate on thin legs, which
+  // nothing else on the map is the shape of. Two ropes come down on the
+  // farmhouse's roof, from the Mast and from West Town's tower, and the
+  // water tower's passes south of it overhead. Flat ground throughout,
+  // so the bots walk all of it.
+  {
+    const here = ctxOf(TINT.west);
+    const wall = TINT.west.wall;
+    // the road side's wall, with a 3 m gate, and the back and west walls
+    slab(17, 2.6, 0.8, -112.5, 0, 6, wall);
+    slab(8, 2.6, 0.8, -97, 0, 6, wall);
+    slab(28, 2.6, 0.8, -107, 0, 32, wall);
+    slab(0.8, 2.6, 26.8, -121, 0, 19, wall);
+    deckAt.well = building(here, { x: -114.6, z: 14, w: 12, d: 10, storeys: 2, storeyH: 3.4, doors: ["s"], windows: ["n", "e", "w"], roofAccess: true }).roof;
+    building(here, { x: -100, z: 24, w: 9, d: 7, storeys: 1, storeyH: 3.2, doors: ["n"], windows: ["s"] });
+    // the well head and its gibbet, whose arm is for show
+    box(2.6, 1.2, 2.6, -106, 0, 13, concrete);
+    box(0.3, 2.4, 0.3, -106, 1.2, 11.95, crate);
+    box(1.3, 0.2, 0.2, -105.5, 3.4, 11.95, crate, false);
+    // a hay stack and two runs of cover, all 2.5 m or more from a door
+    box(1.6, 1.4, 1.6, -112, 0, 28, crate);
+    box(1.6, 1.4, 1.6, -110.3, 0, 28, crate);
+    box(1.6, 1.4, 1.6, -111.15, 1.4, 28, crate);
+    coverWall(here, -97, 13, 4, 0.8);
+    coverWall(here, -108, 25, 0.8, 4);
+    // The fuel canopy, on six posts, and its two pumps, 4.5 m off the road;
+    // crates up its west side put a player on top.
+    for (const px of [-113.25, -106.5, -99.75]) for (const pz of [-16.75, -8.25]) box(0.5, 4.5, 0.5, px, 0, pz, post);
+    slab(14, 0.5, 9, -106.5, 4.5, -12.5, roofMat);
+    for (const px of [-109.5, -103.5]) slab(0.8, 1.6, 1.2, px, 0, -12.5, TINT.west.trim);
+    crateStair(here, -115, -16.5, 4.5, 1);
+    siteSign("THE WELL", -112.5, 1.5, 5.54, 0, -1);
+    site("well", "THE WELL", -107, 8, [[-122, -92, -22, 33]]);
+  }
+
+  // HIGHPOINT: the only high ground in the outer north-east, a mesa of ten
+  // half-metre tiers north-east of the loop road's corner, and a two-storey
+  // block on top whose floors at 8.4 m and roof at 11.8 all take loot. The
+  // mesa stands off the corner, so the corner's node and the road stay on
+  // the sand and the loop is not a climb; a track runs from the corner up
+  // the mesa's south face to the block's door. Its top is 19.5 m square on
+  // 1.25 m treads, which is what fits a 14 m block in 42 m of ground.
+  {
+    terrace(154, 196, -196, -154, 5, { tread: 1.25 });
+    const x = 175;
+    const z = -175;
+    const y = groundTop(x, z);
+    const hp = building(poi, { x, z, y, w: 14, d: 12, storeys: 2, storeyH: 3.4, doors: ["w", "s"], windows: ["n", "e"], stairs: true, roofAccess: true });
+    deckAt.highpoint = hp.roof;
+    // A crane's hook with a lamp on it, off a post in the roof's north-west
+    // corner. The post is solid; the jib, the cable and the lamp are for show.
+    const top = hp.roof + 4;
+    slab(0.4, 4, 0.4, x - 5.5, hp.roof, z - 4.5, roofMat);
+    strut(new THREE.Vector3(x - 5.5, top, z - 4.5), new THREE.Vector3(x - 9, top, z - 4.5), 0.25, trim);
+    strut(new THREE.Vector3(x - 9, top, z - 4.5), new THREE.Vector3(x - 9, top - 2.2, z - 4.5), 0.05, roofMat);
+    const lamp = new THREE.Mesh(gateLampGeo, gateLamp);
+    lamp.position.set(x - 9, top - 2.8, z - 4.5);
+    root.add(lamp);
+    siteSign("HIGHPOINT", x, y + 3.4 + 1.7, z + 6.26, 0, 1);
+    site("highpoint", "HIGHPOINT", 170, -170, [[152, 198, -198, -152]]);
+  }
+
+  // THE SUMP: the south-west corner's mesa, the mirror of Highpoint's, and a
+  // tank farm on it. Four tanks 7 m across and 8 m tall stand in a square
+  // with 2 m alleys between them, and a cross of catwalks runs down the
+  // alleys at 8 m, reached by six half-metre steps from the mesa's top. The
+  // tanks are solid as roundSolid's boxes to their tops at 13 m, over the
+  // 12 m that loot lands on, so nothing is dropped where nobody can reach it.
+  // A one-storey pump house at the front has a stair on to its roof.
+  {
+    terrace(-198, -152, 152, 198, 5);
+    const cx = -175;
+    const cz = 175;
+    const y = groundTop(cx, cz);
+    for (const [u, v] of [
+      [-10, 1],
+      [-1, 1],
+      [-10, 10],
+      [-1, 10],
+    ]) {
+      drum(cx + u, cz + v, 3.5, y, 7.6, concrete, { mat: roofMat, h: 0.4 });
+      roundSolid(cx + u, cz + v, 3.5, y, y + 8);
+    }
+    // the catwalks, their tops 3 m over the mesa, down the two alleys
+    const walk = y + 3;
+    slab(17.5, 0.4, 2, cx - 4.75, walk - 0.4, cz + 5.5, roofMat);
+    slab(2, 0.4, 16, cx - 5.5, walk - 0.4, cz + 5.5, roofMat);
+    // rails where a catwalk runs out past the tanks, clear of where the two cross
+    for (const s of [-1, 1]) {
+      slab(8.5, 0.9, 0.08, cx - 0.25, walk, cz + 5.5 + s * 0.96, roofMat);
+      slab(0.08, 0.9, 7, cx - 5.5 + s * 0.96, walk, cz + 10, roofMat);
+    }
+    // the steps up, east from the catwalk's end
+    for (let k = 0; k < 6; k++) slab(1, 3 - 0.5 * k, 2, cx + 4.5 + k, y, cz + 5.5, concrete);
+    deckAt.sump = building(poi, { x: cx + 8.5, z: cz - 8.5, y, w: 10, d: 9, storeys: 1, storeyH: 3.4, doors: ["n", "w"], windows: ["s", "e"], roofAccess: true }).roof;
+    siteSign("THE SUMP", cx + 8.5, y + 3.4 + 0.45, cz - 13.26, 0, -1);
+    site("sump", "THE SUMP", -172, 172, [[-199, -151, 151, 199]]);
+  }
+
+  // THE MOTOR POOL, where the roadside ruin was: an open workshop with a
+  // roller door on the west, six trucks left to rot round it (one inside,
+  // one jack-knifed across the track in), and a fuel canopy by the north
+  // wall. Two trailers have steps up to them, so the bots stand on trucks
+  // and not only in the gaps between them, and one of those is against the
+  // workshop's south wall: from its deck the roof is a jump and a mantle.
+  // It is 14 m clear of the bowl's berms and 8 m clear of the works.
+  {
+    slab(16, 4.6, 0.4, 62, 0, 56.2, wallMat);
+    slab(16, 4.6, 0.4, 62, 0, 67.8, wallMat);
+    slab(0.4, 4.6, 12, 69.8, 0, 62, wallMat);
+    for (const z of [58, 66]) slab(0.4, 4.6, 4, 54.2, 0, z, wallMat);
+    slab(16, 0.5, 12, 62, 4.6, 62, roofMat);
+    hulk(64, 64.5, true, -1, steelA);
+    // jack-knifed: the trailer across the track, the cab folded against its end
+    box(2.6, 2.8, 8, 36, 0, 63, steelB);
+    box(2.4, 3, 2.6, 38.5, 0, 67.2, roofMat);
+    hulk(50, 52, true, 1, steelC);
+    trailerSteps(46, 52, -1);
+    hulk(74, 64, false, 1, steelA);
+    hulk(62, 69.3, true, 1, steelB);
+    trailerSteps(58, 69.3, -1);
+    hulk(48, 72, false, 1, steelC);
+    for (const px of [65.75, 70, 74.25]) for (const pz of [47.25, 52.75]) box(0.5, 4.5, 0.5, px, 0, pz, post);
+    slab(9, 0.5, 6, 70, 4.5, 50, roofMat);
+    box(2.4, 1.2, 0.8, 70, 0, 50, trim);
+    // crates up the canopy's east side, a player's way on to its deck
+    crateStair(poi, 75.4, 47.5, 4.5, 1);
+    siteSign("MOTOR POOL", 62, 3.2, 55.94, 0, -1);
+    site("motorpool", "MOTOR POOL", 60, 60, [[30, 78, 44, 79]]);
+  }
+
+  // THE RELAY, where the roadside culvert was: a pad of six half-metre tiers
+  // with three open-ended containers on it in a horseshoe open to the east,
+  // and a lattice mast in the middle, 20 m to a red lamp that marks the
+  // north-west of the bowl from anywhere round it. The mast is solid, since
+  // anyone can stand beside it; its stays are for show.
+  {
+    terrace(-76, -48, -76, -48, 3, { tread: 1.5 });
+    const y = groundTop(-62, -62);
+    /** a container with its ends open, 2.4 m clear inside, so loot lands in it and a body stands up in it */
+    const shell = (x: number, z: number, alongX: boolean, mat: THREE.Material): void => {
+      if (alongX) {
+        box(6, 0.2, 2.6, x, y + 2.4, z, mat);
+        for (const s of [-1, 1]) box(6, 2.4, 0.15, x, y, z + s * 1.225, mat);
+      } else {
+        box(2.6, 0.2, 6, x, y + 2.4, z, mat);
+        for (const s of [-1, 1]) box(0.15, 2.4, 6, x + s * 1.225, y, z, mat);
+      }
+    };
+    shell(-66.5, -62, false, steelA);
+    deckAt.relay = y + 2.6;
+    shell(-61, -66.3, true, steelB);
+    shell(-61, -57.7, true, steelC);
+    box(1, 20, 1, -60, y, -62, mast);
+    for (const [fx, fz] of [
+      [-63.5, -64.3],
+      [-63.5, -59.7],
+      [-56.5, -64.3],
+      [-56.5, -59.7],
+    ]) strut(new THREE.Vector3(-60, y + 14, -62), new THREE.Vector3(fx, y, fz), 0.1, roofMat);
+    const lamp = new THREE.Mesh(gateLampGeo, gateLamp);
+    lamp.position.set(-60, y + 20.6, -62);
+    root.add(lamp);
+    siteSign("THE RELAY", -67.86, y + 1.3, -62, -1, 0);
+    site("relay", "THE RELAY", -62, -62, [[-78, -46, -78, -46]]);
+  }
+
+  // THE GROUND PLAN. For the seconds of the drop you look straight down, so
+  // this is the picture of Outskirts that everybody sees, and it was a tan
+  // square with a cross and a diamond on it. Now each place stands on a
+  // gravel apron, each site is joined to a road by a dirt track, the wash
+  // has a bed with dark braids down it, and there are oil stains where the
+  // fuel was. All of it is flat strips in four materials, a merged draw
+  // apiece; the polygon offsets where the materials are made keep it off the
+  // sand and in order.
+  {
+    for (const [x, z, s] of [
+      [0, 0, 70],
+      [0, -165, 70],
+      [0, 165, 70],
+      [165, 0, 70],
+      [-165, 0, 70],
+      ...COMPOUNDS.map((c) => [c.x, c.z, 56]),
+    ]) strip(x, z - s / 2, x, z + s / 2, s, gravel);
+    // Each track joins its site to a road, so none runs to nowhere. The
+    // Motor Pool and the Relay are nearer a spoke than the loop road, and
+    // the Relay's passes the north berm's end with half a metre to spare.
+    track(24, -115.6, 24, -100);
+    track(24, -100, 4, -94);
+    track(112, -29.2, 112, -4);
+    track(-1, 90, -12, 97.2);
+    track(-12, 97.2, -12, 107.9);
+    track(-12, 124.1, -12, 134.8);
+    track(-12, 134.8, -1, 142);
+    track(-102.5, 7, -104, -8);
+    track(150, -151, 173, -151);
+    track(175, -149, 175, -168.6);
+    track(-150, 149, -164.5, 149);
+    track(-166.5, 147, -166.5, 161.6);
+    track(53.8, 62, 4, 62);
+    track(-55.3, -63, -48, -63);
+    track(-47.9, -63, -4, -86);
+    // the wash's bed, wandering a little from bank to bank, and a braid of
+    // darker, wetter gravel down each side of the road
+    for (const s of [-1, 1]) {
+      strip(s * 72, 116.4, s * 53, 115.6, 7, gravel);
+      strip(s * 53, 115.6, s * 34, 116.4, 7.6, gravel);
+      strip(s * 34, 116.4, s * 14, 116, 7, gravel);
+    }
+    for (const [x0, z0, x1, z1] of [
+      [-72, 114.2, -43, 117.6],
+      [-43, 117.6, -14, 114.8],
+      [14, 117.4, 43, 114.4],
+      [43, 114.4, 72, 117.6],
+    ]) strip(x0, z0, x1, z1, 1.1, stain);
+    // stains: under both fuel canopies, between the Sump's tanks, on the
+    // depot's dock and on the workshop's floor
+    const blot = new THREE.CircleGeometry(1, 14);
+    for (const [x, z, r, sx] of [
+      [-106.5, -12.5, 2.6, 1.5],
+      [70, 50, 2.2, 1.4],
+      [-180.5, 174.5, 1.1, 1],
+      [-170.5, 175.5, 1.8, 1.3],
+      [-21.5, 168, 2, 1.3],
+      [62, 60, 2.2, 1.6],
+    ]) {
+      const m = new THREE.Mesh(blot, stain);
+      m.rotation.x = -Math.PI / 2;
+      m.scale.set(r * sx, r, 1);
+      m.position.set(x, groundTop(x, z) + 0.01, z);
+      m.receiveShadow = true;
+      root.add(m);
+    }
+  }
+
   // ---------------------------------------------------------------- the field
   // cover clusters along the spokes, and rocks in the open
   const rnd = lcg(7);
@@ -1197,6 +1928,8 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
       const side = rnd() < 0.5 ? -7 : 7;
       const x = dx * d + (dz ? side : 0);
       const z = dz * d + (dx ? side : 0);
+      // two stood where a site is now, one in the Crossing's pump house and one in the Well's yard
+      if (!clearOf(x - 1.6, x + 3.4, z - 1.2, z + 2)) continue;
       box(3.2, 1.7, 2.4, x, 0, z, rock);
       box(1.6, 1.4, 1.6, x + 2.6, 0, z + 1.2, crate);
     }
@@ -1224,34 +1957,107 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     // on groundTop, so a change to the test can never leave one half-buried.
     const clear = LANDFORMS.every((l) => x + w / 2 + 1 < l.minX || x - w / 2 - 1 > l.maxX || z + d / 2 + 1 < l.minZ || z - d / 2 - 1 > l.maxZ);
     const inBed = Math.abs(x) < 73 && Math.abs(z - 116) < 5;
-    if (Math.abs(x) > 196 || Math.abs(z) > 196 || !clear || inBed) continue;
+    if (Math.abs(x) > 196 || Math.abs(z) > 196 || !clear || inBed || !clearOf(x - w / 2 - 1, x + w / 2 + 1, z - d / 2 - 1, z + d / 2 + 1)) continue;
     box(w, h, d, x, groundTop(x, z), z, rock);
   }
 
-  // ---------------------------------------------------------------- jump towers, beacons, launch pads
-  // A jump tower at each outer place: a mast and a balloon; ride it up and
-  // drop again. The Mast carries a fifth over the hub, flown from the top of
-  // its lattice: the third number is the height a tower's mast stands on.
-  // A respawn beacon at each outer place: a squat box with an antenna and a
-  // green light. A launch pad on each road out of the hub, thrown outward.
+  // ---------------------------------------------------------------- the rotation network
+  // The ropes. There were nine, and every one ran from a place out to bare
+  // sand: they were ways out and never ways anywhere, and nothing but a run
+  // across the open went from one place to the next. Each now ties a place
+  // to another place, and every end is somewhere to stand: a jump tower's
+  // pad, a roof, a deck. A rope is ridden the way you look, so each is a way
+  // there and a way back.
+  //
+  // A rope's end is 2.2 m over the floor it comes down on, where the hands
+  // (2.13 m over the feet, reaching 2.41 m) take it from a stand; over a roof
+  // with a parapet it is 3.3 m, so a rider's feet clear the 0.9 m parapet on
+  // the way off and on, and 3.5 or 4 m where the rope climbs to the roof and
+  // meets the parapet lower down its length. A rider is knocked off by
+  // anything the body touches, so every line here was ridden both ways
+  // against the map's boxes before it went in.
+  //
+  // Four more run out from the Mast's roof, one over each side, to a place in
+  // the band round the bowl. With them the Mast is a way into the middle of
+  // the map from the Notch, the Table, the Crossing and the Well, not only a
+  // tower to be shot off: from the roof you are 13 to 24 m over any of them,
+  // and from any of them the roof is one ride.
+  const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+  const mastRope = (x: number, z: number) => ({ anchor: V(x, deckAt.mast + 3.3, z), floor: deckAt.mast });
+  const ropes: Array<[{ anchor: THREE.Vector3; floor: number }, THREE.Vector3, number]> = [
+    // North Yard's pad to the Notch's blockhouse roof, over the defile
+    [towerAt.north, V(24, deckAt.notch + 3.3, -120), deckAt.notch],
+    // South Depot's pad to the Crossing's deck, over the wash's south bank
+    [towerAt.south, V(-12, deckAt.crossing + 2.2, 114.5), deckAt.crossing],
+    // West Town's pad to the Well's farmhouse roof, down the saddle
+    [towerAt.west, V(-117, deckAt.well + 3.3, 14), deckAt.well],
+    // the farm's platform to the Relay's west container
+    [towerAt.nw, V(-66.5, deckAt.relay + 2.2, -61.5), deckAt.relay],
+    // the store's platform up to Highpoint's roof
+    [towerAt.ne, V(175, deckAt.highpoint + 3.5, -175), deckAt.highpoint],
+    // the pens' platform up to the Sump's pump house roof
+    [towerAt.sw, V(-166.5, deckAt.sump + 3.3, 166.5), deckAt.sump],
+    // The works' platform to the depot office's roof. It was meant for the
+    // Motor Pool, but every line from this platform toward it crosses the
+    // works office's roof with a rider's feet a metre under it; south-west is the
+    // one way out of the works that nothing stands in.
+    [towerAt.se, V(25, deckAt.office + 3.3, 178), deckAt.office],
+    // the ridge's bunker terrace up to the Table Station's roof, over the cliff
+    [towerAt.ridge, V(114, deckAt.table + 4, -38), deckAt.table],
+    // the Mast's four
+    [mastRope(0, -5.5), V(21.5, deckAt.notch + 3.3, -119), deckAt.notch],
+    [mastRope(6.5, -2.5), V(109.5, deckAt.table + 3.3, -35), deckAt.table],
+    [mastRope(0, 5.5), V(-12, deckAt.crossing + 2.2, 111), deckAt.crossing],
+    [mastRope(-6.5, 0), V(-114, deckAt.well + 3.3, 15.5), deckAt.well],
+  ];
+  for (const [from, to, floor] of ropes) zipline(root, from.anchor, to, from.floor, floor);
+
+  // A balloon at each outer place: a mast and a balloon; ride it up and drop
+  // again. The Mast carries one over the hub, flown from the top of its
+  // lattice, and Highpoint and the Sump one each beside them, so the outer
+  // corners have a way back into the fight too: the third number is the
+  // height a tower's mast stands on. (The jump towers' pads are not in this
+  // list: riding a tower here is a balloon ride, and they have no balloon.)
+  // A respawn beacon at each outer place and at the Crossing and the Table
+  // Station, so the south and east halves of the map are not a long walk from
+  // one: a squat box with an antenna and a green light. A launch pad on each
+  // road out of the hub, thrown outward, and one on each road back in,
+  // thrown toward it, where the road runs on flat sand: a pad only throws
+  // someone standing on the sand.
   const towerSpots: Array<[number, number, number]> = [
     [28, -150, 0],
     [-30, 150, 0],
     [140, 34, 0],
     [-192, 30, 0],
     [0, 0, mastTop],
+    [130, -170, 0],
+    [-130, 170, 0],
   ];
   const beaconSpots: Array<[number, number]> = [
     [-24, -150],
-    [32, 182],
+    // clear of the depot office's south-east corner, which it stood inside
+    [33.3, 183.3],
     [188, -34],
     [-140, -26],
+    [18, 116],
+    [99, -40],
   ];
+  // A throw carries about 34 m, so an outward pad lands you near 104 m. Each
+  // inward pad stands at 99 (the west one at 101, so its throw is high
+  // enough by the roadside stop's 4 m wall at -92), 3 m across the road: BEHIND where the outward
+  // throw comes down, so the slide after landing carries you away from it,
+  // and its own throw lands you past the outward pad at 70 the same way. At
+  // 104 it stood where you land, and a step onto the outward pad 1.3 m off
+  // its middle came down within reach of it and was thrown straight back.
   const padSpots: Array<[number, number, number, number]> = [
     [0, -70, 0, -1],
     [0, 70, 0, 1],
     [70, 0, 1, 0],
     [-70, 0, -1, 0],
+    [3, -99, 0, 1],
+    [-3, 99, 0, -1],
+    [99, 3, -1, 0],
+    [-101, -3, 1, 0],
   ];
   const balloonMat = new THREE.MeshStandardMaterial({ color: 0xd8452f, roughness: 0.6, emissive: 0x401208, emissiveIntensity: 0.4 });
   for (const [x, z, foot] of towerSpots) {
@@ -1263,10 +2069,12 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   }
   const beaconGlow = emissive(0x7ddc8a, 2.2);
   for (const [x, z] of beaconSpots) {
-    box(1.6, 1.2, 1.6, x, 0, z, concrete);
-    box(0.12, 2.6, 0.12, x, 1.2, z, mast, false);
+    // the Table Station's stands on the mesa, 8 m up
+    const y = groundTop(x, z);
+    box(1.6, 1.2, 1.6, x, y, z, concrete);
+    box(0.12, 2.6, 0.12, x, y + 1.2, z, mast, false);
     const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), beaconGlow);
-    lamp.position.set(x, 3.9, z);
+    lamp.position.set(x, y + 3.9, z);
     root.add(lamp);
   }
   const padMat = emissive(0xffc21a, 1.4);
@@ -1305,13 +2113,14 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     { id: "west", name: "WEST TOWN", ...P(-165, 0), radius: westReach, drops: [P(-143, 12), P(-186, -14), P(-160, 30)] },
     // the four compounds: smaller places to drop, and the reason the corners are worth crossing
     { id: "nw", name: "NORTHWEST FARM", ...P(-104, -104), drops: [P(-112, -112), P(-92, -96), P(-114, -92)] },
-    { id: "ne", name: "NORTHEAST STORE", ...P(104, -104), drops: [P(112, -112), P(92, -96), P(114, -88)] },
+    // its third drop was (114, -88), a body's width inside where the stock room's north wall now stands
+    { id: "ne", name: "NORTHEAST STORE", ...P(104, -104), drops: [P(112, -112), P(92, -96), P(114, -90.5)] },
     { id: "sw", name: "SOUTHWEST PENS", ...P(-104, 104), drops: [P(-112, 112), P(-92, 96), P(-114, 92)] },
     { id: "se", name: "SOUTHEAST WORKS", ...P(104, 104), drops: [P(112, 112), P(92, 96), P(114, 92)] },
   ];
-  // The small places between the big ones (see Site), each added here as
-  // { id, name, ...P(x, z) } by whatever builds it.
-  const sites: Site[] = [];
+  // The small places between the big ones (see Site), as the sites block
+  // above recorded them.
+  const sites: Site[] = siteSpots.map((s) => ({ id: s.id, name: s.name, ...P(s.x, s.z) }));
   const placeAt = (x: number, z: number): Poi | Site | null => {
     let best: Poi | Site | null = null;
     let bestD = Infinity;
@@ -1368,25 +2177,366 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     nodes[a].links.push(b);
     nodes[b].links.push(a);
   };
+  // THE GRAPH OVER THE MAP AS IT IS. The nineteen nodes above were laid on
+  // flat sand with a hub, four roads and a loop, and the map has since grown
+  // berms, a ridge, a mesa, a wash, the sites, a chicane in the Notch and a
+  // shelf round the edge. What follows is appended to them and never
+  // renumbers them: tools/e2e.ts floods from node 5 and names nodes by index.
+  //
+  // A bot walks straight at its next node and, meeting a wall, slides along
+  // it at right angles to the way it wants to go (src/game/bots.ts). A wall
+  // square across the line and wider than a few metres is therefore a trap:
+  // the slide leans back into the wall as the bot gets off the line, and it
+  // rocks there until the ring moves it. Eleven of the old twenty-two links
+  // ran into one (the ruins on the north and west roads, the chicane, the
+  // depot's sheds, West Town's street, the ridge's undercroft wall), so those
+  // eleven now go by way of a node or two set where the walk is clear, and
+  // every link below was walked both ways by a copy of the bots' own walk,
+  // six times each with its random slides, before it went in.
+  //
+  // A node's `y` is the floor it stands on. It is left out where there is a
+  // floor over the node that the bots can also reach (the Mast's hall, a
+  // building's ground floor): tools/e2e.ts's flood keeps only the highest
+  // floor it finds in each half-metre cell, so it could never confirm a
+  // lower one there. No node stands straight over another: a bot walks
+  // straight, so it could never climb a switchback stair from the one to
+  // the other, and the Mast's floors and the hub's roofs have no node.
+  /** a node appended to the graph, POI-local, and its index */
+  const add = (x: number, z: number, y: number | null, poi?: string): number => {
+    const n: GraphNode = { ...P(x, z), poi, links: [] };
+    if (y !== null) n.y = y;
+    return nodes.push(n) - 1;
+  };
+
+  // the hub: the Mast's open hall, where the four gate lanes cross
+  const mastHall = add(0, 0, null, "hub");
+  // The bowl's crests, one on each run of each berm, on the hub side of its
+  // wall: from there the wall is cover and the bowl is the field of fire.
+  // They make a ring round the hub, across each road's pass and round each
+  // open corner, and each is a walk up the stepped face from a gate.
+  const crestNE = add(26, -52.2, 4, "hub");
+  const crestNW = add(-26, -52.2, 4, "hub");
+  const crestEN = add(50, -26, 3, "hub");
+  const crestES = add(50, 26, 3, "hub");
+  const crestSE = add(26, 49.3, 2.5, "hub");
+  const crestSW = add(-26, 49.3, 2.5, "hub");
+  const crestWS = add(-54.3, 26, 5, "hub");
+  const crestWN = add(-54.3, -26, 5, "hub");
+  // The north road. Its node (5) is boxed in by the ruin south of it and the
+  // chicane north of it, so two nodes either side of it on the road are the
+  // ways past both. The pass through the defile runs up the east lane
+  // between the chicane and the ledges, round the rock at (7, -115), and
+  // the west lane is the way on to North Yard.
+  const roadNE = add(11, -97, 0);
+  const roadNW = add(-11, -97, 0);
+  const notchPass = add(6.5, -121, 0);
+  const notchRock = add(11, -117, 0);
+  const notchLane = add(-8, -116, 0);
+  // the Notch's crests, 6 m up: the west one open, the east one south of the blockhouse
+  const notchWest = add(-40, -120, 6);
+  const notchEast = add(24, -112.5, 6);
+  // North Yard: the lane between the container rows at their west gap, the
+  // gap to the north, and the silo block's and the warehouse's ground
+  // floors by their south doors
+  const yardLane = add(-4, -160, 0, "north");
+  const yardNorth = add(-4, -184, 0, "north");
+  const siloDoor = add(-28.5, -162.5, 0, "north");
+  const siloFloor = add(-28.5, -170, null, "north");
+  const houseDoor = add(24, -171, 0, "north");
+  const houseFloor = add(24, -181, null, "north");
+  // The Table: the mesa's pass, the crests either side of it, and the
+  // Station, whose ground floor is reached by its south door from the face.
+  const mesaPass = add(110, 0, 0);
+  const tableTop = add(101, -31, 8);
+  const tableFace = add(112, -25, 6);
+  const tableFloor = add(112, -34, null);
+  const mesaSouth = add(112, 36, 8);
+  // the east road round the container stack and the culvert
+  const eastStack = add(79, -4, 0);
+  const eastCulvert = add(130, -9, 0);
+  // East Ridge: the north ramp's head on the terrace, and the south ramp's
+  // foot and head and the undercroft's south door, the way to node 18
+  const ridgeTop = add(161, -8, 8, "east");
+  const rampFoot = add(157, 37, 0, "east");
+  const rampHead = add(157, 18, 4, "east");
+  const ridgeDoor = add(170, 17.5, 4, "east");
+  // The wash: the road's pass through it, the channel either side, the
+  // north bank's crest, and the Crossing's deck with the way on to its
+  // north abutment. The pump house stands in the mouth of the east channel,
+  // so that is reached from its north side.
+  const washPass = add(0, 116, 0);
+  const channelWest = add(-34, 118, 0);
+  const channelEast = add(40, 114, 0);
+  const bankWest = add(-40, 102, 3.5);
+  const crossingDeck = add(-12, 112, 4);
+  const abutment = add(-8, 95, 0);
+  const pumpNorth = add(7, 108, 0);
+  const ruinSouth = add(8, 127, 0);
+  // South Depot: the lane west of the east bay, the gap between the middle
+  // shed and the middle bay that node 10 is reached by, and the loading
+  // building's ground floor by its north door
+  const depotEast = add(20, 149.5, 0, "south");
+  const depotGap = add(0, 152, 0, "south");
+  const depotWest = add(-21.5, 152, 0, "south");
+  const loadingDoor = add(-32, 155, 0, "south");
+  const loadingFloor = add(-31, 166, null, "south");
+  // The west: the saddle between the knuckles, the Well's yard through its
+  // gate, both knuckles' tops, the water tower block's ground floor by its
+  // east door, and West Town's street, reached along its north side past
+  // the container stack on the road and the wall across its east end.
+  const saddle = add(-116, -3.5, 0);
+  const wellGate = add(-103, 3, 0);
+  const wellYard = add(-102.5, 16, 0);
+  const knuckleNorth = add(-126, -54, 5.5);
+  const knuckleSouth = add(-126, 54, 4);
+  const knuckleEast = add(-88, -32, 0);
+  const westRuin = add(-84, -7.5, 0);
+  const towerDoor = add(-128, 20.5, 0, "west");
+  const towerFloor = add(-138, 22, null, "west");
+  const street = add(-165, -2.4, 0, "west");
+  const streetWest = add(-189, -2, 0, "west");
+  const streetEast = add(-141, -2, 0, "west");
+  // The edge's shelf, on its top tier 2.5 m up: the first way round the map
+  // that is not the loop road. Where two shelves meet, the corner node is on
+  // one shelf's lowest tier, since the corner itself is sand and the other
+  // shelf's end is a 2.5 m face.
+  const edgeN = add(0, -214.4, 2.5);
+  const edgeNE = add(150, -214.4, 2.5);
+  const cornerNE = add(201.6, -196, 0.5);
+  const edgeEN = add(214.4, -150, 2.5);
+  const edgeE = add(214.4, 0, 2.5);
+  const edgeES = add(214.4, 150, 2.5);
+  const cornerSE = add(196, 201.6, 0.5);
+  const edgeSE = add(150, 214.4, 2.5);
+  const edgeS = add(0, 214.4, 2.5);
+  const edgeSW = add(-150, 214.4, 2.5);
+  const cornerSW = add(-201.6, 196, 0.5);
+  const edgeWS = add(-214.4, 150, 2.5);
+  const edgeW = add(-214.4, 0, 2.5);
+  const edgeWN = add(-214.4, -150, 2.5);
+  const cornerNW = add(-196, -201.6, 0.5);
+  const edgeNW = add(-150, -214.4, 2.5);
+  // the sites: Highpoint's top, the Sump's top and its steps up to the
+  // catwalk, the Motor Pool's workshop by its roller door, the Relay's pad
+  const highpoint = add(175, -166.5, 5);
+  const sump = add(-164, 175, 5);
+  const sumpSteps = add(-163, 180.5, 5);
+  const sumpCatwalk = add(-176, 180.5, 8);
+  const workshop = add(62, 61, 0);
+  const workshopDoor = add(47, 62, 0);
+  const relay = add(-57.5, -62, 3);
+  // The compounds. Each is open on the side toward the middle of the map and
+  // walled on the others, so each has a node in its yard on the open side,
+  // the way in on that side, and one outside the corner of its wall toward
+  // the loop, the way round it.
+  const farmYard = add(-96, -110, 0, "nw");
+  const farmIn = add(-82, -108, 0, "nw");
+  const farmEast = add(-72, -99, 0);
+  const farmCorner = add(-76, -132, 0);
+  const storeYard = add(84, -110, 0, "ne");
+  const storeIn = add(61, -83, 0);
+  const storeCorner = add(76, -132, 0);
+  const pensYard = add(-84, 110, 0, "sw");
+  const pensIn = add(-76, 83, 0);
+  const pensCorner = add(-76, 132, 0);
+  const worksYard = add(84, 86, 0, "se");
+  const worksIn = add(76, 80, 0);
+  const worksCorner = add(76, 132, 0);
+
+  // The old links a bot walks as they are.
   for (const gate of [1, 2, 3, 4]) link(0, gate);
-  link(1, 5);
   link(2, 6);
-  link(3, 7);
-  link(4, 8);
-  link(5, 9);
-  link(6, 10);
   link(7, 11);
-  link(8, 12);
   link(9, 13);
   link(13, 11);
   link(11, 14);
-  link(14, 10);
-  link(10, 15);
-  link(15, 12);
-  link(12, 16);
   link(16, 9);
   link(11, 17);
-  link(17, 18);
+  // The eleven that walked into a wall, each by its way round.
+  for (const [a, b] of [
+    // 1-5 and 5-9: the north road past its ruin, the chicane and the yard
+    [1, roadNW],
+    [roadNW, 5],
+    [5, roadNE],
+    [roadNE, notchRock],
+    [notchRock, notchPass],
+    [notchPass, notchLane],
+    [notchLane, yardLane],
+    [yardLane, 9],
+    // 3-7 and 4-8: round the east road's containers and the west road's ruin
+    [3, eastStack],
+    [eastStack, 7],
+    [4, westRuin],
+    [westRuin, 8],
+    // 6-10, 14-10 and 10-15: round the depot's sheds, into the middle bay from its north end
+    [6, washPass],
+    [washPass, ruinSouth],
+    [ruinSouth, depotEast],
+    [depotEast, depotGap],
+    [depotGap, 10],
+    [depotGap, 14],
+    [depotGap, depotWest],
+    [depotWest, loadingDoor],
+    [loadingDoor, 15],
+    // 8-12, 15-12 and 12-16: along West Town's street and out of either end
+    [8, saddle],
+    [saddle, street],
+    [street, 12],
+    [street, streetWest],
+    [streetWest, 15],
+    [street, streetEast],
+    [streetEast, 16],
+    // 17-18: node 18 is in the undercroft, and the north ramp comes up on to
+    // its roof; the way in is the south ramp and the south door
+    [17, ridgeTop],
+    [11, rampFoot],
+    [14, rampFoot],
+    [rampFoot, rampHead],
+    [rampHead, ridgeDoor],
+    [ridgeDoor, 18],
+  ]) link(a, b);
+  // The hub: the Mast's hall to the courtyard and every gate, and the ring
+  // of crests, each to its neighbours and to the gate it looks down on.
+  for (const n of [0, 1, 2, 3, 4]) link(mastHall, n);
+  const ring = [crestNW, crestNE, crestEN, crestES, crestSE, crestSW, crestWS, crestWN];
+  ring.forEach((c, i) => link(c, ring[(i + 1) % ring.length]));
+  for (const [c, gate] of [
+    [crestNW, 1],
+    [crestNE, 1],
+    [crestEN, 3],
+    [crestES, 3],
+    [crestSE, 2],
+    [crestSW, 2],
+    [crestWS, 4],
+    [crestWN, 4],
+  ]) link(c, gate);
+  for (const [a, b] of [
+    // the north: the Notch's crests off the road, and North Yard's buildings
+    [roadNW, notchWest],
+    [roadNE, notchEast],
+    [crestNW, roadNW],
+    [crestNE, roadNE],
+    [siloFloor, siloDoor],
+    [siloDoor, 9],
+    [siloDoor, yardLane],
+    [siloDoor, 16],
+    [houseFloor, houseDoor],
+    [houseDoor, 9],
+    [houseDoor, yardLane],
+    [edgeN, yardNorth],
+    [yardNorth, yardLane],
+    // the east: the mesa's pass and crests, the Table Station, round the culvert
+    [mesaPass, 7],
+    [mesaPass, eastCulvert],
+    [eastCulvert, 11],
+    [mesaPass, tableTop],
+    [mesaPass, tableFace],
+    [tableTop, tableFace],
+    [tableFace, tableFloor],
+    [mesaPass, mesaSouth],
+    [mesaSouth, crestES],
+    // the south: the wash, its banks, the Crossing's deck
+    [washPass, channelWest],
+    [washPass, pumpNorth],
+    [pumpNorth, channelEast],
+    [pumpNorth, 6],
+    [pumpNorth, crestSE],
+    [washPass, bankWest],
+    [bankWest, channelWest],
+    [bankWest, abutment],
+    [bankWest, crestSW],
+    [abutment, 6],
+    [crossingDeck, abutment],
+    [loadingFloor, loadingDoor],
+    // the west: the Well, the knuckles, the water tower block
+    [saddle, wellGate],
+    [wellGate, wellYard],
+    [saddle, knuckleNorth],
+    [saddle, knuckleSouth],
+    [knuckleNorth, knuckleEast],
+    [knuckleEast, saddle],
+    [knuckleEast, crestWN],
+    [knuckleNorth, 16],
+    [knuckleSouth, 15],
+    [towerFloor, towerDoor],
+    [towerDoor, saddle],
+    [towerDoor, streetEast],
+    [street, edgeW],
+    // the sites
+    [highpoint, 13],
+    [highpoint, edgeNE],
+    [sump, 15],
+    [sump, edgeSW],
+    [sump, sumpSteps],
+    [sumpSteps, sumpCatwalk],
+    [workshop, workshopDoor],
+    [workshopDoor, crestSE],
+    [workshopDoor, 6],
+    [relay, crestWN],
+    [relay, roadNW],
+  ]) link(a, b);
+  // The edge's shelf, all the way round, and down off it to the loop at
+  // every corner and to the four places at the ends of the roads.
+  const shelf = [edgeN, edgeNE, cornerNE, edgeEN, edgeE, edgeES, cornerSE, edgeSE, edgeS, edgeSW, cornerSW, edgeWS, edgeW, edgeWN, cornerNW, edgeNW];
+  shelf.forEach((e, i) => link(e, shelf[(i + 1) % shelf.length]));
+  for (const [e, n] of [
+    [edgeNE, 13],
+    [edgeEN, 13],
+    [edgeES, 14],
+    [edgeSE, 14],
+    [edgeSW, 15],
+    [edgeWS, 15],
+    [edgeWN, 16],
+    [edgeNW, 16],
+    [edgeS, 10],
+    [edgeE, 17],
+    [edgeE, rampFoot],
+  ]) link(e, n);
+  // The compounds, each into its yard, round its wall to the loop, and out
+  // on the diagonals: the north road to the farm and on to the saddle, the
+  // north road to the store and on to the mesa's pass, the pass to the
+  // works and on to the wash, and the wash to the pens and on to the west
+  // road. Before these a rotation went through the hub or all the way round
+  // the loop, which is why the bots' traffic looked the same every match.
+  for (const [a, b] of [
+    [farmYard, farmIn],
+    [farmIn, farmCorner],
+    [farmCorner, 16],
+    [farmCorner, notchWest],
+    [farmYard, farmEast],
+    [farmEast, relay],
+    [farmEast, roadNW],
+    [farmEast, notchWest],
+    [farmEast, knuckleEast],
+    [storeYard, roadNE],
+    [storeYard, storeCorner],
+    [storeCorner, 13],
+    [storeCorner, notchEast],
+    [storeCorner, highpoint],
+    [storeYard, storeIn],
+    [storeIn, mesaPass],
+    [storeIn, 7],
+    [storeIn, notchEast],
+    [storeIn, crestEN],
+    [worksYard, worksIn],
+    [worksIn, mesaPass],
+    [worksIn, 7],
+    [worksIn, crestES],
+    [worksIn, mesaSouth],
+    [worksYard, pumpNorth],
+    [worksYard, channelEast],
+    [worksYard, worksCorner],
+    [worksCorner, 14],
+    [worksYard, workshopDoor],
+    [pensYard, washPass],
+    [pensYard, pensCorner],
+    [pensCorner, 15],
+    [pensCorner, sump],
+    [pensYard, pensIn],
+    [pensIn, 8],
+    [pensIn, crestWS],
+    [pensIn, crestSW],
+  ]) link(a, b);
 
   return {
     root,

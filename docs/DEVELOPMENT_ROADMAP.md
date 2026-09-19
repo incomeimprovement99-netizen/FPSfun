@@ -1030,3 +1030,33 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   the world's merge, not the loot, is the first target.
 - Checks: the e2e `page` section (a lock the game asks for itself is refused; a button's counts, and the browser holds
   no pointer lock and no fullscreen).
+
+## Milestone 71 — Outskirts finished: the compounds, eight sites, a rotation network and a bot graph ✅
+2026-09-18 (Phase 15). `br.ts`, `brpoi.ts`, `brmatch.ts`, `loot.ts`, `src/config/loot.json`, `tools/e2e.ts`,
+`tools/checks/loot-tiers.ts`.
+- The rest of the map expansion, stages 4 to 6 and an audit, each stage checked by node copies of the e2e flood,
+  the bots' own walk and the zipline rules before the suite ran.
+- The four corner compounds each gained a fourth building and an identity: the farm's Dutch barn and wind pump, the
+  store's loading shed and stock room, the pens' walled runs, the works' tank yard and flare stack.
+- Eight sites between the big places, each 15 to 30 m across: the Notch (guard blocks, a chicane, a crest post in
+  the defile), Table Station (a relay house and dish on the mesa), the Crossing (a broken bridge and a pump house on
+  the wash), the Well (a walled farmyard and a fuel canopy), Highpoint and the Sump (mesas off two corners, one with
+  a crane house, one with four tanks and catwalks between them), Motor Pool (a workshop and truck hulks) and the
+  Relay (containers round a 23 m mast). A ground plan of gravel, dirt tracks and the wash's bed reads from the drop.
+- The rotation network: thirteen ziplines that land on roofs and decks, not sand (every place out to a site, four
+  spokes off the Mast's roof), eight launch pads (four new ones inward), seven balloons and six beacons.
+- The bot graph grew from 19 nodes to 113 (188 links): a ring of berm crests round the hub, a shelf round the map's
+  edge, the diagonals through the compounds, and every site. A node on a crest or a deck carries its floor, and a
+  bot counts as arrived only on it; a bot no longer turns straight back to the node it came from while there is
+  another way on.
+- Each site carries loot of its own tier (four spots, leaning a little richer than a mid place), laid after
+  everything else so the places, the Hot Zone and the field draw what they drew before; the field's loose spots went
+  from 20 to 2 to pay for them, and the floor stays inside its density targets (973 items and 244 guns a match).
+- Fixed on the way: the north pad's throw came down on a chicane wall, a beacon stood inside the depot office, the
+  inward pads stood where the outward throw lands (a step onto one off its middle threw you straight back; they
+  stand behind the landing now, at 99, the west one at 101 to clear a roadside wall), and eleven of the old graph's
+  twenty-two links were walls a bot's slide could not get round.
+- Checks: the e2e nav flood now also fails a node whose declared floor the flood does not stand on;
+  `tools/checks/loot-tiers.ts` (every site holds loot, never the Hot Zone, the places' loot unmoved by the sites, a
+  site's rarity lean); a throw from fifteen points of every pad lands on sand with no slide into another pad; all
+  376 one-way bot links walked twelve times; all thirteen ropes ridden both ways.

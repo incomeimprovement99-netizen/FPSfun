@@ -499,7 +499,7 @@ export class LootField {
    * hot tier and keeps the kitted gun. The same on every browser for the same
    * seed.
    */
-  generate(seed: number, places: LootPlace[], bounds: { minX: number; maxX: number; minZ: number; maxZ: number }): void {
+  generate(seed: number, places: LootPlace[], bounds: { minX: number; maxX: number; minZ: number; maxZ: number }, sites: LootPlace[] = []): void {
     this.clear();
     const rnd = seeded(seed);
     this.hotZone = pickHotZone(seed, places);
@@ -541,6 +541,7 @@ export class LootField {
       if (hot) hotSpots = spots;
       fill(spots, tier);
     }
+
     const field: THREE.Vector3[] = [];
     for (let i = 0; i < cfg.fieldSpots; i++) trySpot(field, bounds.minX + 20 + rnd() * (bounds.maxX - bounds.minX - 40), bounds.minZ + 20 + rnd() * (bounds.maxZ - bounds.minZ - 40));
     fill(field, cfg.fieldTier as PlaceTier);
@@ -551,6 +552,22 @@ export class LootField {
     if (hotSpots.length && rnd() < cfg.hotZone.kittedChance) {
       const at = hotSpots[Math.floor(rnd() * hotSpots.length)];
       this.add(kittedGun(rnd), at.clone().add(new THREE.Vector3((rnd() - 0.5) * 1.2, 0, (rnd() - 0.5) * 1.2)));
+    }
+    // The small sites between the places, last: their own tier, out to their
+    // own reach (they are small, so no floor on it), and never the Hot Zone.
+    // Rolled after everything else so the places, the field and the kitted
+    // gun draw exactly what they drew before there were sites.
+    const siteTier = cfg.siteTier as PlaceTier;
+    for (const p of sites) {
+      const spots: THREE.Vector3[] = [];
+      let tries = 0;
+      const reach = Math.max(6, p.radius ?? 18);
+      while (spots.length < cfg.tiers[siteTier].spots && tries++ < 200) {
+        const a = rnd() * Math.PI * 2;
+        const r = 2 + rnd() * (reach - 2);
+        trySpotAnyFloor(spots, p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
+      }
+      fill(spots, siteTier);
     }
   }
 

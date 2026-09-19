@@ -1,7 +1,7 @@
 {
   "_note": "Battle royale loot (ours: Apex's loot tables are not published). Spots per place and what each spot holds, rarity weights, and what each rarity holds. Care-package guns per Season 30: the Kraber, the 30-30 and the L-STAR (docs/RESEARCH_PHASE_11.md sections 10, 11, 15). Ammo amounts are one stack of the type, from src/config/ammo.json.",
   "_density": "The owner's note, 2026-09-16: 'there needs to be much less open space and more loot, like guns available'. The places now have buildings with floors and rooms to put loot IN (src/game/brpoi.ts), so a place carries a lot of spots (its tier's) and a spot holds about three items. The field keeps fewer, so the reason to go indoors is the loot: a landing that finds nothing is the complaint this fixes. The old single spotsPerPoi and itemsPerSpot are gone: a place's spot count is its tier's now, and a spot's contents are its kind's.",
-  "fieldSpots": 20,
+  "fieldSpots": 2,
   "rarity": {
     "common": 48,
     "rare": 33,
@@ -43,6 +43,15 @@
         "legendary": 2.4
       }
     },
+    "site": {
+      "spots": 4,
+      "rarity": {
+        "common": 0.9,
+        "rare": 1.05,
+        "epic": 1.25,
+        "legendary": 1.25
+      }
+    },
     "hot": {
       "spots": 54,
       "rarity": {
@@ -65,6 +74,8 @@
     "sw": "low",
     "se": "low"
   },
+  "_sites": "The small places between the big ones (br.ts's sites: the Notch, Table Station, the Crossing, the Well, Highpoint, the Sump, Motor Pool, the Relay). Each is its own tier, 'site': four spots, about eleven items, leaning a little richer than a mid place, so a detour through one is worth a gun or a kit piece and a fight over it is short. They are laid after the nine places, so the Hot Zone and the places' own rolls are what they were, and never the Hot Zone: a site is 15 to 30 m across and a Hot Zone there would be a drop spot for the whole lobby. They are paid for out of the field: the loose spots on open sand went from 20 to 2, because the sites now fill the ground between the places that the field's scatter stood in for, and the floor stays inside densityTargets.",
+  "siteTier": "site",
   "_placeOrder": "brmatch.ts hands the loot its places with their ids, so the tier is read by id; this list, the order of the pois array in src/game/br.ts, is for a place that arrives without one (a test, or an older caller), whose tier is read by its position. A place added there belongs here too.",
   "placeOrder": [
     "hub",
@@ -122,6 +133,7 @@
       "weight": {
         "low": 58,
         "mid": 58,
+        "site": 58,
         "high": 59,
         "hot": 62
       },
@@ -159,6 +171,7 @@
       "weight": {
         "low": 24,
         "mid": 23,
+        "site": 23,
         "high": 21,
         "hot": 19
       },
@@ -196,6 +209,7 @@
       "weight": {
         "low": 16,
         "mid": 17,
+        "site": 17,
         "high": 20,
         "hot": 23
       },
@@ -233,6 +247,7 @@
       "weight": {
         "low": 16,
         "mid": 16,
+        "site": 16,
         "high": 16,
         "hot": 14
       },
@@ -270,6 +285,7 @@
       "weight": {
         "low": 14,
         "mid": 14,
+        "site": 14,
         "high": 12,
         "hot": 10
       },

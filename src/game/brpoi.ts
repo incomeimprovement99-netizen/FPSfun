@@ -31,8 +31,6 @@ export interface PoiCtx {
    */
   slab: BoxMaker;
   root: THREE.Group;
-  /** a rideable zipline between two POI-local points */
-  zip: (a: THREE.Vector3, b: THREE.Vector3, floorA: number, floorB: number) => void;
   mats: {
     wall: THREE.Material;
     floor: THREE.Material;
@@ -290,10 +288,11 @@ export type RampSide = { face: "e" | "w"; foot: "n" | "s" } | { face: "n" | "s";
  * only be ridden toward it, never away. The pad is 6 m now and a ramp of
  * half-metre tiers climbs to it, which a bot can walk as well as a player.
  *
- * `toFloor` is the ground under the rope's far end, for a rope that comes
- * down on raised ground: its post stands there, not on the sand beneath.
+ * It does not hang its own rope. It returns where the rope is tied and the
+ * pad's top, and br.ts's rotation network ties every rope on the map in one
+ * table, since where a rope comes down is a place built later in the file.
  */
-export function jumpTower(ctx: PoiCtx, x: number, z: number, to: THREE.Vector3, ramp: RampSide, height = 6, toFloor = 0): void {
+export function jumpTower(ctx: PoiCtx, x: number, z: number, ramp: RampSide, height = 6): { anchor: THREE.Vector3; floor: number } {
   const { box, slab, mats } = ctx;
   box(2.4, height, 2.4, x, 0, z, mats.steel);
   slab(4, 0.4, 4, x, height, z, mats.trim);
@@ -318,7 +317,7 @@ export function jumpTower(ctx: PoiCtx, x: number, z: number, to: THREE.Vector3, 
   // reach 2.41 m, so it is in reach from the pad; and hanging from it your
   // feet are within a step of the pad's top, so the pad does not knock you
   // off the moment you set off, which a rope 1.2 m over it would.
-  ctx.zip(new THREE.Vector3(x, height + 2.2, z), to, height + 0.4, toFloor);
+  return { anchor: new THREE.Vector3(x, height + 2.2, z), floor: height + 0.4 };
 }
 
 /**

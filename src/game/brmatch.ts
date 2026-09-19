@@ -135,6 +135,7 @@ import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
+import brmapCfg from "../config/brmap.json";
 import { LootField, LOOT, kittedAttach, seeded, type LootItem, type LootKind, type Rarity } from "./loot";
 import { ammoTypeOf, STACK } from "./ammo";
 
@@ -330,6 +331,8 @@ export interface BrHud {
   placement: number | null;
   survived: number;
   pois: Array<{ name: string; x: number; z: number }>;
+  /** the small sites between the places, named smaller on the map */
+  sites: Array<{ name: string; x: number; z: number }>;
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   /** how many share a squad (1 solo, 2 duos, 3 trios), how many squads are still up, and how many there were: the card's placement is out of those */
   team: number;
@@ -540,7 +543,12 @@ export class BrMatch extends Duel {
     this.startLoot = opts.start !== "loadout";
     if (this.startLoot) {
       this.lootField = new LootField(scene);
-      this.lootField.generate(this.seed, map.pois.map((p) => ({ x: p.x, z: p.z, id: p.id, radius: p.radius })), BR_BOUNDS_WORLD);
+      this.lootField.generate(
+        this.seed,
+        map.pois.map((p) => ({ x: p.x, z: p.z, id: p.id, radius: p.radius })),
+        BR_BOUNDS_WORLD,
+        map.sites.map((s) => ({ x: s.x, z: s.z, id: s.id, radius: brmapCfg.siteRadius }))
+      );
     }
     if (this.role === "host") {
       // The bots take the OTHER places: where the squad drops is the squad's.
@@ -2129,11 +2137,19 @@ export class BrMatch extends Duel {
       goal = pod;
     } else {
       const here = nodes[b.goal];
-      if (Math.hypot(here.x - bot.pos.x, here.z - bot.pos.z) < 3) {
-        // arrived: a linked node inside the next ring, at random
+      // arrived at it, and on its floor: a node on a deck or a crest is not
+      // reached by standing under it (a node without a floor is on the sand
+      // or on whatever the bot stands on)
+      if (Math.hypot(here.x - bot.pos.x, here.z - bot.pos.z) < 3 && Math.abs((here.y ?? bot.pos.y) - bot.pos.y) < 2.5) {
+        // a linked node inside the next ring, at random, but not straight back
+        // to the one it came from while there is another way on
+        const from = b.node;
         b.node = b.goal;
-        const options = here.links.filter((i) => Math.hypot(nodes[i].x - ring.next.cx, nodes[i].z - ring.next.cz) <= ring.next.r + 20);
-        const pick = options.length ? options[Math.floor(Math.random() * options.length)] : here.links[Math.floor(Math.random() * here.links.length)];
+        const inRing = here.links.filter((i) => Math.hypot(nodes[i].x - ring.next.cx, nodes[i].z - ring.next.cz) <= ring.next.r + 20);
+        const onward = (list: number[]) => (list.length > 1 ? list.filter((i) => i !== from) : list);
+        const options = onward(inRing);
+        const all = onward(here.links);
+        const pick = options.length ? options[Math.floor(Math.random() * options.length)] : all[Math.floor(Math.random() * all.length)];
         b.goal = pick ?? b.goal;
       }
       const g = nodes[b.goal];
@@ -2170,6 +2186,7 @@ export class BrMatch extends Duel {
       placement: this.phase === "matchEnd" ? this.placement : null,
       survived: now - this.startedAt,
       pois: this.map.pois.map((p) => ({ name: p.name, x: p.x, z: p.z })),
+      sites: this.map.sites.map((p) => ({ name: p.name, x: p.x, z: p.z })),
       bounds: { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HALF, minZ: BR_CENTER.z - BR_HALF, maxZ: BR_CENTER.z + BR_HALF },
       team: this.team.size,
       squads: this.squadsAlive,
