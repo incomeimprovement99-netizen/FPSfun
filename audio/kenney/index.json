@@ -1,0 +1,106 @@
+{
+ "step_concrete": [
+  "step_concrete_0.ogg",
+  "step_concrete_1.ogg",
+  "step_concrete_2.ogg",
+  "step_concrete_3.ogg",
+  "step_concrete_4.ogg"
+ ],
+ "step_grass": [
+  "step_grass_0.ogg",
+  "step_grass_1.ogg",
+  "step_grass_2.ogg",
+  "step_grass_3.ogg",
+  "step_grass_4.ogg"
+ ],
+ "land": [
+  "land_0.ogg",
+  "land_1.ogg",
+  "land_2.ogg"
+ ],
+ "bodyfall": [
+  "bodyfall_0.ogg",
+  "bodyfall_1.ogg",
+  "bodyfall_2.ogg"
+ ],
+ "punch": [
+  "punch_0.ogg",
+  "punch_1.ogg",
+  "punch_2.ogg"
+ ],
+ "mag_out": [
+  "mag_out_0.ogg",
+  "mag_out_1.ogg",
+  "mag_out_2.ogg"
+ ],
+ "mag_in": [
+  "mag_in_0.ogg",
+  "mag_in_1.ogg",
+  "mag_in_2.ogg"
+ ],
+ "bolt": [
+  "bolt_0.ogg",
+  "bolt_1.ogg"
+ ],
+ "clatter": [
+  "clatter_0.ogg",
+  "clatter_1.ogg",
+  "clatter_2.ogg"
+ ],
+ "explosion": [
+  "explosion_0.ogg",
+  "explosion_1.ogg",
+  "explosion_2.ogg",
+  "explosion_3.ogg"
+ ],
+ "click": [
+  "click_0.ogg",
+  "click_1.ogg",
+  "click_2.ogg"
+ ],
+ "confirm": [
+  "confirm_0.ogg",
+  "confirm_1.ogg"
+ ],
+ "error": [
+  "error_0.ogg"
+ ],
+ "door_open": [
+  "door_open_0.ogg",
+  "door_open_1.ogg"
+ ],
+ "door_close": [
+  "door_close_0.ogg",
+  "door_close_1.ogg"
+ ],
+ "door_kick": [
+  "door_kick_0.ogg",
+  "door_kick_1.ogg"
+ ],
+ "bin_open": [
+  "bin_open_0.ogg",
+  "bin_open_1.ogg"
+ ],
+ "bin_close": [
+  "bin_close_0.ogg",
+  "bin_close_1.ogg"
+ ],
+ "pickup": [
+  "pickup_0.ogg",
+  "pickup_1.ogg"
+ ],
+ "beacon": [
+  "beacon_0.ogg",
+  "beacon_1.ogg"
+ ],
+ "horn": [
+  "horn_0.ogg"
+ ],
+ "ping": [
+  "ping_0.ogg",
+  "ping_1.ogg"
+ ],
+ "zip_ride": [
+  "zip_ride_0.ogg"
+ ]
+}

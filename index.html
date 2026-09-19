@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%23d4712a%22/%3E%3Ccircle cx=%228%22 cy=%228%22 r=%222%22 fill=%22%23fff%22/%3E%3C/svg%3E" />
+    <meta charset="UTF-8" />
+    <!-- The HUD's faces, self-hosted (npm run fonts, SIL OFL 1.1). They used
+         to come from fonts.googleapis.com, which is a third-party request on
+         the first frame: it held the menu on a slow connection, failed
+         outright offline, and the reflow when it landed late moved the HUD
+         mid-fight. The files are 95 KB in public/fonts. -->
+    <link rel="preload" href="fonts/display-700.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="fonts/ui-600.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="fonts/fonts.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Range</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0d10; color: #e6e6e6; font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+      #app { position: fixed; inset: 0; }
+      canvas { display: block; }
+      #hud { position: fixed; inset: 0; pointer-events: none; }
+      #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(6, 8, 10, 0.82); z-index: 10; }
+      /* the loading screen (src/ui/loading.ts): over everything until the world is in */
+      #loading { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: radial-gradient(ellipse at center, #171c23 0%, #0b0d10 72%); transition: opacity .35s ease; }
+      #loading.done { opacity: 0; pointer-events: none; }
+      #loading .brand { padding: 0; }
+      #loading .bar { width: min(420px, 80vw); height: 6px; background: #1d232b; border-radius: 3px; overflow: hidden; }
+      #loading .fill { height: 100%; width: 0%; background: linear-gradient(90deg, #d4712a, #ffd23c); transition: width .2s ease; }
+      #loading .status { color: #9aa4ad; font-family: "Rajdhani", "Segoe UI", sans-serif; font-size: 14px; font-weight: 700; letter-spacing: .14em; }
+      #loading .tip { color: #c8d0d8; font-size: 15px; max-width: min(520px, 86vw); min-height: 2.8em; text-align: center; line-height: 1.4; }
+      #overlay.hidden { display: none; }
+      .panel { width: 520px; max-width: 92vw; max-height: 94vh; overflow-y: auto; box-sizing: border-box; background: #14181d; border: 1px solid #2a323b; border-radius: 6px; padding: 22px 26px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+      .panel h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: .04em; text-transform: uppercase; color: #f0f0f0; }
+      .panel .sub { color: #8b96a3; font-size: 13px; margin-bottom: 18px; }
+      .row { display: grid; grid-template-columns: 1fr 140px; align-items: center; gap: 12px; margin: 8px 0; font-size: 14px; }
+      .row label { color: #c8d0d8; }
+      .row .hint { color: #7d8895; font-size: 12px; }
+      .row input { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 7px 9px; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
+      .row input:focus, .row select:focus { outline: none; border-color: #d43a2f; }
+      .row .vols { display: flex; gap: 8px; }
+      .rangebox { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 12px 0 4px; padding: 10px 12px; background: rgba(255,255,255,0.04); border: 1px solid #2a3139; border-radius: 6px; font-size: 13px; color: #c8d0d8; }
+      .rangebox select { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 4px 6px; border-radius: 4px; margin-left: 4px; }
+      .rangebox button { padding: 5px 12px; }
+      .row .vols input { width: 33%; padding: 0; accent-color: #d43a2f; }
+      .row select { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 7px 9px; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
+      .opticAdsBox { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+      .bindRow select.padBind { background: #0d1014; border: 1px solid #333c46; color: #f2f2f2; padding: 4px 6px; border-radius: 4px; font-size: 13px; min-width: 220px; }
+      .opticAds { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #9aa4ad; white-space: nowrap; }
+      .row .opticAds input { width: 64px; padding: 5px 6px; }
+      .derived { margin: 14px 0 6px; padding: 10px 12px; background: #0d1014; border-radius: 4px; font-size: 13px; color: #b9c2cc; line-height: 1.5; }
+      .derived b { color: #fff; }
+      button#play { width: 100%; margin-top: 14px; padding: 12px; font-size: 15px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; background: #d43a2f; border: 0; color: #fff; border-radius: 4px; cursor: pointer; }
+      button#play:hover { background: #e8483c; }
+      .calib { margin-top: 6px; }
+      .calib button { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 7px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+      .calib button:hover { border-color: #56636f; }
+      .calib button.ghost { background: transparent; color: #8b96a3; }
+      .calibBody { margin-top: 10px; padding: 12px; background: #0d1014; border-radius: 4px; }
+      .calibMsg { font-size: 12px; color: #b9c2cc; line-height: 1.5; margin: 8px 0 10px; }
+      .calibMsg.live { color: #ffd27a; font-variant-numeric: tabular-nums; }
+      .calibMsg.good { color: #7ddc8a; }
+      .keys { margin-top: 14px; font-size: 12px; color: #7d8895; line-height: 1.6; }
+      .duel { margin-top: 14px; padding: 12px; background: #0d1014; border: 1px solid #2a323b; border-radius: 4px; }
+      .duelTitle { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #ffd23c; margin-bottom: 8px; }
+      .duelRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .duelRow button { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 7px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+      .duelRow button:hover { border-color: #56636f; }
+      .duelRow button.ghost { background: transparent; color: #ff8a7a; border-color: #5a3a38; }
+      .duelRow .or { color: #7d8895; font-size: 12px; }
+      .duelRow input { width: 90px; background: #14181d; border: 1px solid #333c46; color: #fff; padding: 7px 9px; border-radius: 4px; font-size: 15px; letter-spacing: .2em; text-transform: uppercase; font-weight: 700; }
+      .calibMsg.bad { color: #ff8a7a; }
+      .calibMsg .code { font-size: 18px; letter-spacing: .2em; color: #ffd23c; }
+      .menu { width: 780px; max-width: 94vw; max-height: 94vh; overflow-y: auto; box-sizing: border-box; background: #14181d; border: 1px solid #2a323b; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+      .brand { display: flex; align-items: baseline; gap: 10px; padding: 18px 24px 10px; font-family: "Rajdhani", "Segoe UI", sans-serif; }
+      .brand .logo { font-weight: 700; font-size: 30px; letter-spacing: .08em; color: #e2742b; }
+      .brand .title { font-weight: 700; font-size: 24px; letter-spacing: .14em; color: #f0f0f0; }
+      .brand .beta { font-size: 11px; font-weight: 700; letter-spacing: .12em; color: #101214; background: #ffd23c; padding: 1px 6px; border-radius: 3px; }
+      .brand .loadoutChip { margin-left: auto; font-size: 14px; color: #9aa4ad; }
+      .brand .loadoutChip b { color: #fff; }
+      .tabs { display: flex; gap: 2px; padding: 0 20px; border-bottom: 1px solid #2a323b; }
+      .tabs button { background: transparent; border: 0; color: #9aa4ad; font: 600 14px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .1em; text-transform: uppercase; padding: 10px 14px; cursor: pointer; border-bottom: 2px solid transparent; }
+      .tabs button:hover { color: #fff; }
+      .tabs button.on { color: #fff; border-bottom-color: #d43a2f; }
+      .menu section { padding: 16px 24px 22px; }
+      .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .mode { text-align: left; background: #0d1014; border: 1px solid #2a323b; border-radius: 6px; padding: 14px 16px; color: #c8d0d8; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+      .mode:hover { border-color: #d4712a; }
+      .mode b { font: 700 18px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .06em; color: #fff; text-transform: uppercase; }
+      .mode span { font-size: 12px; color: #8b96a3; }
+      .hintLine { margin-top: 10px; font-size: 12px; color: #7d8895; text-align: center; }
+      .hintLine.warn { color: #ffd27a; }
+      .welcome { margin: 0 0 12px; padding: 14px 16px; background: #10151a; border: 1px solid #2f5a3c; border-radius: 6px; font-size: 13px; line-height: 1.55; color: #c8d0d8; }
+      .welcome h2 { margin: 0 0 6px; font: 700 18px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #7ddc8a; }
+      .welcome ol { margin: 0 0 10px; padding-left: 20px; }
+      .welcome li { margin: 0 0 5px; }
+      .welcome b { color: #fff; }
+      .welcome kbd { background: #222932; border: 1px solid #3a4450; border-radius: 3px; padding: 0 5px; margin-right: 2px; color: #dfe5eb; font-family: inherit; }
+      .welcome button { background: #2f7a45; border: 0; color: #fff; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-weight: 600; letter-spacing: .04em; }
+      .welcome button:hover { background: #3a9155; }
+      .welcomeWarn { margin: 14px 24px 0; padding: 9px 11px; font-size: 13px; line-height: 1.5; background: #3a2a12; border: 1px solid #8a6420; border-radius: 4px; color: #ffd27a; }
+      .welcomeWarn b { color: #fff; }
+      .bindHead { display: flex; align-items: flex-start; gap: 12px; font-size: 12px; color: #8b96a3; line-height: 1.5; margin-bottom: 8px; }
+      .bindHead span { flex: 1; }
+      .bindHead kbd { background: #222932; border: 1px solid #3a4450; border-radius: 3px; padding: 0 5px; color: #dfe5eb; font-family: inherit; }
+      .bindHead button { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+      .bindTable { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; }
+      .bindGroup { grid-column: 1 / -1; margin: 10px 0 2px; font: 700 13px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #ffd23c; }
+      .bindRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid #1f262d; font-size: 13px; color: #b9c2cc; }
+      .bindKeys { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+      .bindKey { background: #222932; border: 1px solid #3a4450; border-radius: 3px; padding: 1px 7px; color: #dfe5eb; font-size: 12px; cursor: pointer; min-width: 22px; }
+      .bindKey:hover { border-color: #d43a2f; }
+      .bindKey.add { color: #7d8895; }
+      .bindKey.waiting { background: #3a2a12; border-color: #ffd27a; color: #ffd27a; }
+      .invite { display: flex; gap: 6px; margin-top: 8px; }
+      .invite input { flex: 1; min-width: 0; background: #0d1014; border: 1px solid #333c46; color: #9fe0ff; padding: 5px 7px; border-radius: 4px; font-size: 12px; }
+      .invite button { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+      .rules { font-size: 13px; color: #b9c2cc; line-height: 1.6; padding-left: 18px; margin: 14px 0 0; }
+      .rules b { color: #fff; }
+      .loadouts { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
+      .lolist { display: flex; flex-direction: column; gap: 4px; }
+      .lolist .group { font-size: 11px; letter-spacing: .12em; color: #7d8895; margin: 6px 0 2px; }
+      .lolist button { text-align: left; background: #0d1014; border: 1px solid #2a323b; color: #c8d0d8; padding: 7px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+      .lolist button.on { border-color: #d43a2f; color: #fff; }
+      .lolist button small { display: block; color: #7d8895; font-size: 11px; }
+      .lohead { margin: 12px 0 6px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: #ffd23c; }
+      .lohead .hint { text-transform: none; letter-spacing: 0; color: #7d8895; }
+      .lolocked { font-size: 12px; color: #9aa4ad; margin: 4px 0 8px; }
+      .lolocked button, .lolocked select { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+      .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+      .cards button { background: #0d1014; border: 1px solid #2a323b; border-radius: 5px; padding: 8px; color: #c8d0d8; cursor: pointer; text-align: left; font-size: 12px; }
+      .cards button.on { border-color: #d43a2f; color: #fff; }
+      .cards button:disabled { cursor: default; opacity: 0.55; }
+      .cards button:disabled.on { opacity: 1; }
+      .cards .sw { display: flex; gap: 3px; margin-bottom: 6px; }
+      .cards .sw i { width: 16px; height: 16px; border-radius: 3px; display: inline-block; }
+      .cards b { display: block; font-size: 13px; }
+      .duelRow select { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 7px 8px; border-radius: 4px; font-size: 13px; }
+      .statsBody { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+      .statcard { background: #0d1014; border: 1px solid #2a323b; border-radius: 6px; padding: 12px 14px; }
+      .statcard h4 { margin: 0 0 8px; font: 700 15px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #ffd23c; }
+      .statcard .big { font: 700 30px "Rajdhani", "Segoe UI", sans-serif; color: #fff; line-height: 1; }
+      .statcard .big small { font-size: 13px; color: #8b96a3; font-weight: 600; margin-left: 6px; letter-spacing: .05em; }
+      .statcard table { width: 100%; border-collapse: collapse; font-size: 12px; color: #b9c2cc; margin-top: 6px; }
+      .statcard td { padding: 3px 0; border-bottom: 1px solid #1f262d; }
+      .statcard td:last-child { text-align: right; color: #fff; }
+      .statcard .empty { font-size: 12px; color: #7d8895; }
+      .statcard.wide { grid-column: 1 / -1; }
+      .statcard .techlist { display: flex; flex-wrap: wrap; gap: 6px; }
+      .statcard .techlist span { background: #14181d; border: 1px solid #2a323b; border-radius: 3px; padding: 2px 7px; font-size: 12px; color: #c8d0d8; }
+      .statcard .techlist span b { color: #7ddc8a; }
+      .statcard .techlist span.miss b { color: #ff9f43; }
+      .statcard tr.me td { color: #7ddc8a; font-weight: 600; }
+      .boardPick { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 4px 6px; border-radius: 4px; font: 500 12px "Segoe UI", system-ui, sans-serif; letter-spacing: 0; text-transform: none; }
+      .keytable { width: 100%; border-collapse: collapse; font-size: 13px; color: #b9c2cc; }
+      .keytable td { padding: 5px 6px; border-bottom: 1px solid #1f262d; }
+      .keytable kbd { background: #222932; border: 1px solid #3a4450; border-radius: 3px; padding: 0 5px; color: #dfe5eb; font-family: inherit; }
+      .perf { display: flex; align-items: flex-start; gap: 10px; }
+      .perf #perfLine { flex: 1; }
+      .tip { position: relative; outline: none; }
+      .tipIcon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: #d4712a; color: #fff; font-weight: 700; font-size: 13px; cursor: help; font-family: Georgia, serif; font-style: italic; }
+      /* The card is fixed to the right of the screen so it is never clipped by the
+         panel. Hovering the card itself keeps it open, and it lingers half a second
+         so the mouse can travel from the icon to it. */
+      .tip .card { position: fixed; right: 18px; top: 18px; width: min(560px, 92vw); max-height: calc(100vh - 36px); overflow-y: auto; box-sizing: border-box; background: #14181d; border: 1px solid #3a4450; border-radius: 6px; padding: 16px 20px; box-shadow: 0 20px 60px rgba(0,0,0,.7); font-size: 13px; line-height: 1.55; color: #c8d0d8; z-index: 20; visibility: hidden; opacity: 0; transition: opacity .12s, visibility 0s .5s; }
+      .tip:hover .card, .tip:focus-within .card { visibility: visible; opacity: 1; transition-delay: 0s; }
+      .card h3 { margin: 0 0 8px; font-size: 15px; color: #fff; letter-spacing: .03em; }
+      .card .why { color: #8b96a3; margin: 0 0 10px; }
+      .card ol { padding-left: 20px; margin: 0; }
+      .card ol ol { margin-top: 6px; }
+      .card li { margin: 0 0 8px; }
+      .card b { color: #fff; }
+      .card i { color: #ffd27a; font-style: normal; }
+      .card code { display: inline-block; background: #0d1014; border: 1px solid #333c46; border-radius: 3px; padding: 4px 6px; margin: 4px 0; font-size: 12px; color: #9fe0ff; word-break: break-all; user-select: all; }
+      .card button { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+      .keys kbd { background: #222932; border: 1px solid #3a4450; border-radius: 3px; padding: 0 5px; color: #dfe5eb; font-family: inherit; }
+    </style>
+    <script type="module" crossorigin src="./assets/index-DD7Ki4vU.js"></script>
+  </head>
+  <body>
+    <div id="loading" role="status" aria-live="polite">
+      <div class="brand"><span class="logo">B00G</span><span class="title">RANGE</span></div>
+      <div class="bar"><div class="fill" id="loadingFill"></div></div>
+      <div class="status" id="loadingStatus">LOADING THE WORLD</div>
+      <div class="tip" id="loadingTip"></div>
+    </div>
+    <div id="app"></div>
+    <canvas id="hud"></canvas>
+    <div id="overlay">
+      <div class="menu">
+        <header class="brand">
+          <span class="logo">B00G</span><span class="title">RANGE</span><span class="beta">BETA</span>
+          <span class="loadoutChip" id="loadoutChip"></span>
+        </header>
+        <nav class="tabs" id="tabs">
+          <button type="button" data-tab="play" class="on">Play</button>
+          <button type="button" data-tab="duel">Friends</button>
+          <button type="button" data-tab="loadouts">Loadouts</button>
+          <button type="button" data-tab="stats">Stats</button>
+          <button type="button" data-tab="settings">Settings</button>
+          <button type="button" data-tab="controls">Controls</button>
+        </nav>
+
+        <div class="welcomeWarn" id="welcomeWarn" hidden></div>
+
+        <section data-panel="play">
+          <div class="welcome" id="welcome" hidden>
+          <h2>Welcome to the range</h2>
+          <ol>
+            <li><b>Pick a mode below</b> (Firing Range is the place to start). The game takes over your mouse; <kbd>Esc</kbd> gives it back and brings this menu up.</li>
+            <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move, <kbd>Space</kbd> jump, <kbd>Shift</kbd> sprint, <kbd>Ctrl</kbd> crouch and slide, left click fire, right click aim, <kbd>R</kbd> reload, <kbd>1</kbd> <kbd>2</kbd> weapons. Everything else is on the Controls tab.</li>
+            <li><b>Playing a friend?</b> The 1v1 tab, <b>Create match</b>, and send them the invite link it copies. Opening the link joins your match.</li>
+            <li>A controller works too: plug it in and press <b>Start</b>.</li>
+          </ol>
+          <button type="button" id="welcomeOk">Got it</button>
+          </div>
+          <div class="modes">
+            <button type="button" class="mode" id="goRange"><b>Firing Range</b><span>Guns, dummies, targets, ladders, ziplines and the wallbounce wall.</span></button>
+            <button type="button" class="mode" id="goTour"><b>Guided tour</b><span id="tourBlurb">Every move and key the range teaches, a step at a time: slide, mantle, climb, superglide, shoot, heal, JOLT, a grenade.</span></button>
+            <button type="button" class="mode" id="goRun"><b>The Run (Basic)</b><span id="runBest">Seven rooms, one technique each, twenty pop-ups.</span></button>
+            <button type="button" class="mode" id="goRunAdvanced"><b>The Run (Advanced)</b><span id="runAdvancedBest">Nine rooms, 200 m, the techniques chained. Thirty pop-ups.</span></button>
+            <button type="button" class="mode" id="goDuel"><b>1v1 and 1v1v1</b><span>Friends, a code, an arena. First to 3, with the circle.</span></button>
+            <button type="button" class="mode" id="goBots"><b>Arena, Bots</b><span id="botsBlurb">The 1v1 rules against 1 or 2 bots. Pick the difficulty on the 1v1 tab.</span></button>
+            <button type="button" class="mode" id="goArena"><b>Arena, alone</b><span>Walk the 1v1 map by yourself to learn it.</span></button>
+            <button type="button" class="mode" id="goBr"><b>Battle Royale, Bots</b><span id="brBlurb">Trios: drop onto Outskirts against three squads of three bots, the ring closes, last squad standing. Size, bots and difficulty on the Friends tab.</span></button>
+            <button type="button" class="mode" id="goGunRun"><b>Gun Run, Bots</b><span>Every kill is the next gun; a knife kill at the end wins. Against bots in the arena.</span></button>
+            <button type="button" class="mode" id="goTdm"><b>Team Deathmatch, Bots</b><span>You and three bots against four, respawns, first team to 30.</span></button>
+            <button type="button" class="mode" id="goCrown"><b>Crown, Bots</b><span>The crown appears 20 s into a round: take it, hold it 30 s. First to 3 rounds.</span></button>
+            <button type="button" class="mode" id="goControl"><b>Control, Bots</b><span>Five a side over three zones, A B C: a point a second for each one your team holds, first to 500. You respawn on your zones.</span></button>
+            <button type="button" class="mode" id="goFfa"><b>Free-for-all, Bots</b><span>Everyone for themselves in the arena, respawns, first to 20 kills or the most at 10 minutes.</span></button>
+          </div>
+          <div class="rangebox">
+            <b>The range</b>
+            <label>Dummies <select id="dummyMode"><option value="stand">Stand</option><option value="strafe">Strafe</option><option value="crouch">Strafe and crouch</option><option value="random">Random</option></select></label>
+            <label>Speed <select id="dummySpeed"><option value="0.6">Slow</option><option value="1" selected>Normal</option><option value="1.4">Fast</option></select></label>
+            <label>Shoot back <select id="dummyShoot"><option value="off">Off</option><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option></select></label>
+            <button type="button" id="goDrill" title="thirty figures one at a time, 5 to 30 m out; the pad by the firing line starts it too">Flick drill</button>
+          </div>
+          <button id="play" type="button">Play</button>
+          <div class="hintLine">Any of these can be played with friends and bots: the <b>Friends</b> tab, pick the mode, Create match.</div>
+          <div class="hintLine" id="playHint">Esc brings you back here, and Esc again goes straight back in. Everything you set is remembered.</div>
+        </section>
+
+        <section data-panel="duel" hidden>
+          <div class="duel">
+            <div class="duelTitle">Play with friends: any mode, with bots</div>
+            <div class="duelRow">
+              <select id="duelMode" title="what to play"><option value="arena">Arena: 1v1 / 1v1v1</option><option value="gunrun">Gun Run: every kill the next gun</option><option value="tdm">Team deathmatch: together against the bots</option><option value="crown">Crown: take it, hold it</option><option value="control">Control: three zones, five a side</option><option value="ffa">Free-for-all: everyone for themselves</option><option value="br">Battle royale: a squad against the bots</option></select>
+              <select id="duelPlayers" title="how many people (not counting bots). Two is the 1v1 arena, three the triangle, more the warehouse with a spawn each"><option value="2">2 players</option><option value="3">3 players</option><option value="4">4 players</option><option value="5">5 players</option><option value="6">6 players</option><option value="7">7 players</option><option value="8">8 players</option></select>
+              <select id="duelAbilities" title="JOLT (a 10 m dash, every 3 s) or TRIAGE (heals twice as fast), picked at the countdown or the landing"><option value="0">Abilities off</option><option value="1">Abilities on</option></select>
+              <select id="ruleGuns" title="custom rules: the guns this match allows, by category; anyone holding another is handed that class's guns, and so are the bots (the 1v1s and the arena modes; a battle royale's guns are what you find, and Gun Run has its ladder)"><option value="any">Any guns</option><option value="ar">Assault rifles only</option><option value="smg">SMGs only</option><option value="lmg">LMGs only</option><option value="shotgun">Shotguns only</option><option value="sniper">Snipers and marksmen only</option><option value="pistol">Pistols only</option></select>
+              <select id="ruleRounds" title="custom rules: rounds to win the 1v1"><option value="1">First to 1</option><option value="2">First to 2</option><option value="3" selected>First to 3</option><option value="4">First to 4</option><option value="5">First to 5</option><option value="7">First to 7</option></select>
+              <select id="ruleFF" title="custom rules: whether squad mates and team mates can hurt each other"><option value="off">Friendly fire off</option><option value="on">Friendly fire on</option></select>
+              <button id="duelHost" type="button">Create match</button>
+              <span class="or">or</span>
+              <input id="duelCode" placeholder="CODE" maxlength="5" autocomplete="off" spellcheck="false" />
+              <button id="duelJoin" type="button">Join</button>
+              <button id="duelStartNow" type="button" hidden title="start with the friends who are in: the empty places are not waited for, and the code takes nobody else">Start with those in</button>
+              <button id="duelAgain" type="button" hidden title="another match with the same friends, on what the boxes above say now: nobody needs a new code">Play again</button>
+              <button id="duelLeave" type="button" class="ghost" hidden>Leave match</button>
+            </div>
+            <div id="duelRoster" class="calibMsg" hidden></div>
+            <div id="voiceList" class="calibMsg" hidden title="voice chat: who you can hear in this match, and a mute for each"></div>
+            <div id="tonight" class="calibMsg" hidden title="every match this group has played since the code was made: Play again keeps adding to it, a new code starts it over"></div>
+            <div id="duelStatus" class="calibMsg">One of you makes a match and sends the invite link; the others open it. Arena: first to 3 rounds against each other. Battle royale: the same squad drops onto Outskirts together against the bots set below.</div>
+          </div>
+          <div class="duel" style="margin-top:10px">
+            <div class="duelTitle">Arena, Bots</div>
+            <div class="duelRow">
+              <select id="botCount" title="bots in the Arena Bots match"><option value="1">1 bot</option><option value="2">2 bots</option><option value="3">3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option></select>
+              <select id="botDifficulty" title="Easy: slow to react, loose aim, stands and shoots. Normal: strafes, dodges some hits, throws a frag at a camper, heals behind cover. Hard: quick and accurate, always dodges, crouches in fights, hears your shots. Elite: all of that sharper, and it pre-aims where it lost you. Mixed: each bot its own tier."><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option><option value="elite">Elite</option><option value="mixed">Mixed (each bot its own)</option></select>
+              <select id="botAbilities" title="JOLT or TRIAGE for you and the bots, picked at each countdown"><option value="0">Abilities off</option><option value="1">Abilities on</option></select>
+              <span class="or">then Play tab, Arena Bots. Easy bots are slow and miss; hard ones sprint and land most of a mag.</span>
+            </div>
+          </div>
+          <div class="duel" style="margin-top:10px">
+            <div class="duelTitle">Modes: Gun Run, Team Deathmatch, Crown</div>
+            <div class="duelRow">
+              <select id="modeBots" title="the bots you face, in every mode, with friends or alone. In a team mode your side is filled with ally bots to match"><option value="0">No bots</option><option value="1">1 bot</option><option value="2">2 bots</option><option value="3" selected>3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option><option value="6">6 bots</option><option value="7">7 bots</option><option value="8">8 bots</option></select>
+              <select id="modeSides" title="team deathmatch and Control with friends: all of you on one side against the bots, or split into two sides against each other (bots fill whichever side is short)"><option value="together">Friends: one side</option><option value="split">Friends: split sides</option></select>
+              <select id="gunRunList" title="Gun Run's guns: ten, or every gun in the game, then the knife"><option value="short">Gun Run: 10 guns</option><option value="full">Gun Run: every gun (29)</option></select>
+              <select id="botWeapon" title="what the bots carry (not Gun Run, which hands out its own ladder)"><option value="">Bot guns: mixed</option></select>
+              <select id="arenaMap" title="the arena a mode or a friends' 1v1 is played on: the warehouse, one of the three new maps, or the one drawn for the mode you pick"></select>
+              <span class="or">the difficulty and abilities above. Then the Play tab (alone), or pick the mode in the first box up there and Create match (with friends).</span>
+            </div>
+          </div>
+          <div class="duel" style="margin-top:10px">
+            <div class="duelTitle">Battle Royale, Bots</div>
+            <div class="duelRow">
+              <select id="brTeam" title="Solo: nobody to pick you up, so a knock is an elimination. Duos: a squad of two, and half the bleed-out because only one person can ever come. Trios: the classic squad of three and the full bleed-out. The bots are grouped the same way, so a solo match is a lobby of singles and not a trio match with gaps in it. With friends, the host's size is everyone's"><option value="solo">Solo</option><option value="duo">Duos</option><option value="trio" selected>Trios</option></select>
+              <select id="brRules" title="Battle royale: one life, and your squad's banners are the only way back. Resurgence: the dead redeploy from the sky after a wait (15 s early, longer as the ring closes) that your side's kills cut, until the fifth ring, when every death is final; a squad all dead at once is out, and the ring runs faster. With friends, the host's choice is everyone's"><option value="br">Battle royale</option><option value="resurgence">Resurgence</option></select>
+              <select id="brSides" title="With friends in duos or trios: all of you one squad against the bots, or squads of that size against each other and the bots (players 1 and 2 one duo, 3 and 4 the next, in the order you joined). In solo everyone is on their own either way."><option value="together">Friends: one squad</option><option value="split">Friends: squads against each other</option></select>
+              <select id="brBots" title="the bots you face. Every count offered is whole squads of bots at the size beside it; you, and any friends, are a squad of your own"><option value="2">2 bots</option><option value="3">3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option><option value="6">6 bots</option><option value="7">7 bots</option><option value="8">8 bots</option><option value="9" selected>9 bots</option><option value="10">10 bots</option><option value="11">11 bots</option></select>
+              <select id="brAbilities" title="JOLT or TRIAGE, picked when you land; on by default"><option value="1">Abilities on</option><option value="0">Abilities off</option></select>
+              <select id="brStart" title="land with nothing and loot the floor, death boxes and care packages (the battle royale's own way), or land with your loadout"><option value="loot">Land with nothing, loot</option><option value="loadout">Land with your loadout</option></select>
+              <span class="or" id="brLobby">Ten in the match: you, and three squads of three. Friends who join are on your side. The difficulty is set above. Then Play tab, Battle Royale: the ring closes six times, 4 heals, M is the map.</span>
+            </div>
+          </div>
+          <ul class="rules">
+            <li>1v1: three lanes. 1v1v1: a triangle, a corner each. First to 3 rounds, blue shields and 100 health.</li>
+            <li><b>Gun Run</b>: one kill moves you to the next gun; after the last gun comes the knife (melee, 100 a hit, 300 to the head), and a knife kill wins. Dying to a melee costs a level. 10 minutes, then the highest level wins. Health and shields come back 4 s after the last hit. <b>Team deathmatch</b>: you and your friends, filled out with bots to four, against four bots; respawns; first team to 30, or ahead at 10 minutes. <b>Crown</b>: rounds; 20 s in the crown appears in the middle, walk over it to take it, and 30 s holding it without going down takes the round (so does being the last one up). First to 3. All three play in the 1v1 arena.</li>
+            <li>20 s into a round the circle in the middle goes live. Stand in it alone for 10 s to take the round. The last one standing takes it at any time.</li>
+            <li>Abilities (a setting per match; the battle royale has them on): pick <b>JOLT</b> (a 10 m dash the way you are moving, every 3 s, key F) or <b>TRIAGE</b> (every heal twice as fast) with 5 or 6 when the card comes up: at each countdown, or when you land. In the range, 5 and 6 pick one any time to try it.</li>
+            <li><b>Battle royale</b>: pick Solo, Duos or Trios above and the bots come in whole squads of that size; you and your friends are one side whatever the size, and the host's size is everyone's. In Solo a knock is the end; in Duos the bleed-out is half a trio's. Landing with nothing, three care packages and two loadout crates come down as the rings close: a package is called before it arrives, marked on both maps, and worth fighting over for a while after it lands; stand on a crate a moment and it hands you the loadout you built, with ammo, once each, so a squad mate taking theirs costs you nothing. From the fourth ring, <b>Storm Surge</b>: if more are alive than the ring allows, whoever has dealt the least damage starts taking it wherever they stand, unless they have dealt some in the last 20 s.</li>
+            <li>You play with your selected loadout: <b id="duelLoadout"></b>. Change it on the Loadouts tab any time; weapons swap straight away.</li>
+            <li>It connects your browser straight to your friends'. Most home internet works; some school, work or phone networks block it. With three, the host's connection carries the match.</li>
+          </ul>
+        </section>
+
+        <section data-panel="loadouts" hidden>
+          <div class="loadouts">
+            <div class="lolist" id="loadoutList"></div>
+            <div class="loedit">
+              <div class="row"><label>Name</label><input id="loadoutName" maxlength="24" /></div>
+              <div class="lolocked" id="loadoutLocked">Default loadouts cannot be changed. <button type="button" id="copyLoadout">Copy to a custom slot</button> <select id="copyTarget"></select></div>
+              <div class="lohead">Operator</div>
+              <div class="cards" id="operatorCards"></div>
+              <div class="row"><label>Slot 1 <div class="hint">key 1</div></label><select id="slot0"></select></div>
+              <div class="row"><label>Slot 2 <div class="hint">key 2</div></label><select id="slot1"></select></div>
+              <div class="lohead">Heirloom <span class="hint">held when holstered, swung with V</span></div>
+              <div class="cards" id="heirloomCards"></div>
+            </div>
+          </div>
+        </section>
+
+        <section data-panel="settings" hidden>
+          <div class="row"><label>Mouse DPI <div class="hint">stored on the mouse, so measure it</div></label><input id="dpi" type="number" min="100" max="32000" step="50" /></div>
+          <div class="calib">
+            <button id="calibStart" type="button">Measure my DPI</button>
+            <div class="calibBody" id="calibBody" hidden>
+              <div class="row"><label>Swipe distance <div class="hint">measure it on your desk or pad</div></label><input id="calibCm" type="number" min="2" max="100" step="1" value="10" /></div>
+              <div class="calibMsg" id="calibMsg">Hold the left mouse button, drag the mouse exactly that far in a straight line, then release.</div>
+              <button id="calibGo" type="button">Start measuring</button>
+              <button id="calibCancel" type="button" class="ghost">Cancel</button>
+            </div>
+          </div>
+          <div class="row"><label>Mouse sensitivity <div class="hint">in-game value</div></label><input id="sens" type="number" min="0.05" max="20" step="0.05" /></div>
+          <div class="row"><label>ADS sensitivity multiplier <div class="hint">1.0 = default</div></label><input id="ads" type="number" min="0.1" max="3" step="0.05" /></div>
+          <div class="row"><label>FOV scale <div class="hint">1.0 = 70, 1.571 = 110</div></label><input id="fov" type="number" min="1" max="1.571" step="0.01" /></div>
+          <div class="row"><label>ADS per optic <div class="hint">on top of the multiplier above, by the optic's zoom (a variable optic uses the zoom it is on); 1.0 = the same as the rest</div></label><div id="opticAdsBox" class="opticAdsBox"></div></div>
+          <div class="row"><label>Aim down sights <div class="hint">hold the button, or press once to aim and again to stop</div></label><select id="adsMode"><option value="hold">Hold</option><option value="toggle">Toggle</option></select></div>
+          <div class="row"><label>Crouch <div class="hint">hold, or press once to crouch and again to stand (a jump or a sprint stands you up)</div></label><select id="crouchMode"><option value="hold">Hold</option><option value="toggle">Toggle</option></select></div>
+          <div class="derived" id="derived"></div>
+          <div class="row"><label>Sprint <div class="hint">toggle is the default</div></label><select id="sprintMode"><option value="toggle">Toggle (press once)</option><option value="hold">Hold</option></select></div>
+          <div class="row"><label>Sprint view shake <div class="hint">the game's own setting; Normal is its default</div></label><select id="sprintShake"><option value="normal">Normal</option><option value="minimal">Minimal</option><option value="off">Off</option></select></div>
+          <div class="row"><label>Camera <div class="hint">X switches in game; hold Alt in third person to look round your character</div></label><select id="cameraMode"><option value="first">First person</option><option value="third">Third person</option></select></div>
+          <div class="row"><label>Volume <div class="hint">master, effects, and the hit sounds; every sound is made by the game</div></label><span class="vols"><input id="volMaster" type="range" min="0" max="100" step="1" title="master" /><input id="volFx" type="range" min="0" max="100" step="1" title="effects" /><input id="volHits" type="range" min="0" max="100" step="1" title="hit sounds" /></span></div>
+          <div class="row"><label>Voice chat <div class="hint">how loud your friends are; hold Caps Lock to talk (the Controls tab rebinds it), and mute one on the Friends tab</div></label><input id="volVoice" type="range" min="0" max="100" step="1" title="voice chat" /></div>
+          <div class="row"><label>Ammo in the range <div class="hint">matches always count it: two stacks per gun, energy guns refill a magazine every 18 s while idle</div></label><select id="rangeAmmo"><option value="endless">Endless</option><option value="counted">Counted, like a match</option></select></div>
+          <div class="row"><label>Mantle boost cue <div class="hint">a ring on the crosshair while a superglide's window is open, as Season 27's option</div></label><select id="mantleCue"><option value="1">On</option><option value="0">Off</option></select></div>
+          <div class="row"><label>Figures <div class="hint">the other players and the bots: a motion-captured mannequin (Quaternius, CC0), rifles at the shoulder with both hands on them, or our robots (lighter to draw). For figures made from then on: the next match</div></label><select id="figureStyle"><option value="mannequin">Mannequins (motion-captured)</option><option value="robot">Robots</option></select></div>
+          <div class="row"><label>Aim bot <div class="hint">the view is steered onto the nearest enemy you can see. It works in a match with friends too, and it cannot be hidden: everyone else sees a red bar and the word AIM BOT over you, at any range, through walls</div></label><select id="aimbotMode"><option value="0">Off</option><option value="1">On (practice)</option></select></div>
+          <div class="row"><label>JOLT distance <div class="hint">how far the dash goes, metres (the game's is 10)</div></label><input id="dashDistance" type="number" min="2" max="30" step="0.5" /></div>
+          <div class="row"><label>JOLT time <div class="hint">how long the dash takes, seconds: shorter is faster and snappier (the game's is 0.14)</div></label><input id="dashTime" type="number" min="0.05" max="0.6" step="0.01" /></div>
+          <div class="row"><label>JOLT charges <div class="hint">how many dashes you hold, and the seconds each takes to come back</div></label><span class="pair"><input id="dashCharges" type="number" min="1" max="4" step="1" /><input id="dashRecharge" type="number" min="1" max="30" step="0.5" /></span></div>
+          <div class="row"><label>Killcam <div class="hint">eliminated: the last 4 s from your killer's eyes, then the death recap; Space skips</div></label><select id="killcamMode"><option value="1">On</option><option value="0">Off (the recap only)</option></select></div>
+          <div class="row"><label>Fullscreen while playing <div class="hint">keeps Ctrl + W (crouch walking) from closing the tab</div></label><select id="fullscreen"><option value="1">On</option><option value="0">Off</option></select></div>
+          <div class="row"><label>Graphics <div class="hint">Competitive is the fastest and lowest latency</div></label><select id="quality"></select></div>
+          <div class="row"><label>Time of day <div class="hint">the hour the sky, the sun and the fog are set to; it changes at once, no reload</div></label><select id="skyHour"></select></div>
+          <div class="row"><label>Banner card <div class="hint">the card the others see: on the recap of anyone you eliminate, and on the champion screen when you win</div></label><span class="pair"><select id="bannerIcon"></select><select id="bannerFrame"></select><select id="bannerTitle"></select></span></div>
+          <div class="row"><label>Spray <div class="hint">yours, painted on the wall you look at with the spray key (8); everyone in the match sees it</div></label><select id="sprayPick"></select></div>
+          <div class="row"><label>Battle royale sky <div class="hint">each match drawn at its own hour, the same for the whole squad, or always the time of day above</div></label><select id="skyBr"><option value="match">The match's hour</option><option value="mine">Always my time of day</option></select></div>
+          <div class="lohead">Accessibility <span class="hint">both apply at once and are kept</span></div>
+          <div class="row"><label>Colour vision and HUD size <div class="hint">moves enemy and ally colours (pings, the kill feed, name plates, the damage arcs) to a pair you can tell apart; the HUD scale makes every part of it bigger or smaller</div></label><span class="pair"><select id="accVision"></select><select id="accHudScale"></select></span></div>
+          <div class="lohead">Crosshair <span class="hint">the default is the game's own; every change applies at once and is kept</span></div>
+          <div class="row"><label>Style and colour <div class="hint">green and magenta, or yellow and cyan, stay apart for red-green colour blindness</div></label><span class="pair"><select id="xhStyle"></select><select id="xhColor"></select></span></div>
+          <div class="row"><label>Size, thickness, gap <div class="hint">line length (1 is the game's), line width in pixels, and extra space round the middle</div></label><span class="pair"><input id="xhSize" type="number" min="0.3" max="3" step="0.1" /><input id="xhThick" type="number" min="1" max="5" step="0.5" /><input id="xhGap" type="number" min="0" max="20" step="1" /></span></div>
+          <div class="row"><label>Dot, outline, spread <div class="hint">a centre dot; a dark edge so it reads on a bright sky; the gap opening with the gun's spread</div></label><span class="pair"><select id="xhDot"><option value="1">Dot</option><option value="0">No dot</option></select><select id="xhOutline"><option value="0">No outline</option><option value="1">Outline</option></select><select id="xhDynamic"><option value="1">Moves with spread</option><option value="0">Fixed</option></select></span></div>
+          <div class="row"><label>Opacity <div class="hint">0.2 to 1</div></label><span class="pair"><input id="xhOpacity" type="number" min="0.2" max="1" step="0.05" /><canvas id="xhPreview" width="96" height="96" style="background:#6f7d86;border-radius:4px;vertical-align:middle"></canvas><button id="xhReset" type="button">Reset</button></span></div>
+          <div class="lohead">Controller <span class="hint">plug one in and press Start. Left stick move, right stick look, RT fire, LT aim, A jump, B crouch, X reload, Y swap, L3 sprint, R3 melee, LB holster, RB zoom, d-pad optic / mag / slots, Back ghost</span></div>
+          <div class="row"><label>Look sensitivity <div class="hint">1 to 8 like the game; 3 is 180 deg/s of yaw</div></label><select id="padLook"></select></div>
+          <div class="row"><label>ADS sensitivity <div class="hint">1 to 8; 3 scales with the zoom like the mouse</div></label><select id="padAds"></select></div>
+          <div class="row"><label>Response curve</label><select id="padCurve"><option value="classic">Classic</option><option value="linear">Linear</option></select></div>
+          <div class="row"><label>Deadzone <div class="hint">percent of the stick; 12 is the game's default</div></label><input id="padDeadzone" type="number" min="0" max="30" step="1" /></div>
+          <div class="row"><label>Auto sprint <div class="hint">push the stick forward to sprint; off, click it (L3)</div></label><select id="padAutoSprint"><option value="1">On</option><option value="0">Off</option></select></div>
+          <div class="row"><label>Rumble <div class="hint">on shots and hits taken</div></label><select id="padRumble"><option value="1">On</option><option value="0">Off</option></select></div>
+          <div class="row"><label>Advanced look <div class="hint">the game's custom look controls: degrees a second at full stick (hip and aimed), and an extra turn at the stick's edge that ramps in</div></label><select id="padAdvanced"><option value="0">Off</option><option value="1">On</option></select></div>
+          <div class="row"><label></label><div id="padAdvancedBox" class="opticAdsBox" hidden></div></div>
+          <div class="row"><label>Aim assist <div class="hint">the stick slows on a target, and the view follows 40% of its movement while you move; never on the mouse</div></label><select id="padAimAssist"><option value="1">On</option><option value="0">Off</option></select></div>
+        <div class="derived perf">
+          <span id="perfLine">Measuring your display…</span>
+          <span class="tip" tabindex="0">
+            <span class="tipIcon">i</span>
+            <div class="card">
+              <h3>Getting past <span id="perfHz">60</span> fps, step by step</h3>
+              <p class="why">A browser only draws when the screen can show a new frame, so your display's refresh rate is the ceiling. On this PC the game itself runs at 800+ fps on Competitive, so the cap is the screen and the browser, not the game.</p>
+              <ol>
+                <li><b>Set your monitor to its top refresh rate.</b> Windows: Settings, System, Display, Advanced display, <i>Choose a refresh rate</i>. Pick the highest number (144, 165, 240 Hz). If only 60 is offered, the cable or port is the limit: use DisplayPort (or HDMI 2.0 or newer) and plug it into the graphics card, not the motherboard.</li>
+                <li><b>Fully restart Chrome</b> so it picks up the new rate: close every window, and if Chrome stays in the system tray, right-click it there and choose Exit. Come back here and this box shows the new number.</li>
+                <li><b>Turn off Energy Saver.</b> Chrome: Settings, Performance, <i>Energy Saver</i> off. It can cap pages at 30 fps.</li>
+                <li><b>Check hardware acceleration is on.</b> Chrome: Settings, System, <i>Use graphics acceleration when available</i> on, then Relaunch. The address <code>chrome://gpu</code> should say WebGL is hardware accelerated.</li>
+                <li><b>Laptops and PCs with two GPUs:</b> Windows Settings, System, Display, Graphics, add Chrome, Options, <i>High performance</i>, so it runs on the graphics card.</li>
+                <li><b>Optional: go past the refresh rate.</b> Like turning V-Sync off in a game: more frames and lower latency, with some screen tearing.
+                  <ol type="a">
+                    <li>Right-click the desktop, New, Shortcut.</li>
+                    <li>Paste this as the location (it is a separate Chrome profile, so your normal Chrome and its settings are untouched):<br />
+                      <code id="flagsTarget">"C:\Program Files\Google\Chrome\Application\chrome.exe" --user-data-dir="C:\ChromeUncapped" --disable-frame-rate-limit --disable-gpu-vsync http://localhost:5173</code>
+                      <button type="button" id="copyFlags">Copy</button></li>
+                    <li>Name it <i>Chrome Uncapped</i> and open it. It opens this page.</li>
+                    <li>Check the FPS counter, top right in game: it should now go past your refresh rate.</li>
+                  </ol>
+                </li>
+                <li><b>Still stuck?</b> In the GPU driver, set V-Sync to off or application controlled. AMD Software: Gaming, Graphics, <i>Wait for Vertical Refresh</i>. NVIDIA Control Panel: Manage 3D settings, <i>Vertical sync</i>.</li>
+              </ol>
+            </div>
+          </span>
+        </div>
+        </section>
+
+        <section data-panel="stats" hidden>
+          <div class="row"><label>Your name <div class="hint">shown to the people you play, and on the boards; kept in this browser</div></label><input id="profileName" maxlength="16" autocomplete="off" spellcheck="false" /></div>
+          <div class="row accountBox" id="accountBox"><label>Account <div class="hint">optional, on the game's own server: your settings, keys, loadouts and stats in every browser you sign in on</div></label>
+            <span id="accountSignedOut" hidden><input id="accountName" maxlength="16" placeholder="name" autocomplete="username" spellcheck="false" /> <input id="accountPass" type="password" maxlength="128" placeholder="password (8 or more)" autocomplete="current-password" /> <button type="button" id="accountSignIn">Sign in</button> <button type="button" id="accountSignUp">Sign up</button></span>
+            <span id="accountSignedIn" hidden><b id="accountWho"></b> <button type="button" id="accountSync">Sync now</button> <button type="button" id="accountSignOut">Sign out</button></span>
+          </div>
+          <div class="hintLine" id="accountStatus"></div>
+          <div id="statsBody" class="statsBody"></div>
+          <div class="hintLine" id="statsOnline"></div>
+        </section>
+
+        <section data-panel="controls" hidden>
+          <div class="bindHead"><span>Click a key to change it. Scroll down is forward (tap-strafing) and scroll up is jump (superjumps) by default. <kbd>Esc</kbd> is always the menu.</span><button type="button" id="bindsReset">Reset to defaults</button></div>
+          <div class="bindTable" id="bindTable"></div>
+          <div class="hintLine" id="bindsNote">Your keys are kept in this browser.</div>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>
