@@ -219,6 +219,17 @@ async function brTest(browser: Browser, query: string): Promise<void> {
     `(() => { const d = window.__range.duel(); const h = d.hud().br; const p = window.__range.player.pos; return { y: p.y, phase: d.phase, dropping: h.dropping, poi: h.poi, alive: h.alive, bounds: p.z > 280 && p.z < 720 }; })()`
   );
   check("the drop starts high over one of the nine places, six in the match", drop.y > 40 && drop.dropping && /HUB|YARD|DEPOT|RIDGE|TOWN|FARM|STORE|PENS|WORKS/.test(drop.poi) && drop.alive === 6 && drop.bounds, JSON.stringify(drop));
+  // the match's own hour, from its seed; "always my time of day" keeps yours, and back
+  const sky = await ev<{ id: string; want: string; mine: string; back: string }>(
+    page,
+    `(() => { const R = window.__range; const want = R.sky.matchFor(R.duel().seed); const id = R.sky.id; const sel = document.getElementById("skyBr");
+      // your own hour, one the match did not draw, so keeping it shows
+      localStorage.setItem("range.sky.hour", R.sky.ids.find((h) => h !== want));
+      sel.value = "mine"; sel.dispatchEvent(new Event("change")); const mine = R.sky.id;
+      sel.value = "match"; sel.dispatchEvent(new Event("change")); return { id, want, mine, back: R.sky.id }; })()`
+  );
+  const own = await ev<string>(page, `localStorage.getItem("range.sky.hour")`);
+  check("the sky: the match is played at its seed's hour; 'always my time of day' keeps yours", sky.id === sky.want && sky.mine === own && own !== sky.want && sky.back === sky.want, JSON.stringify({ ...sky, own }));
   const early = await ev<number>(page, `(() => { const d = window.__range.duel(); const now = performance.now() / 1000; return d.bots.filter((b) => b.armedAt <= now).length; })()`);
   check("landing: nobody's gun works while the drop is still coming down", early === 0, `${early} armed`);
   // the skydive's two states in the page: after its first moments the drop's
@@ -444,6 +455,9 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   await ev(page, "window.__range.duel().leave()");
   await sleep(300);
   check("leaving ends the battle royale", (await ev<boolean>(page, "window.__range.duel() === null")));
+  check("and the sky is your own hour again", (await ev<string>(page, "window.__range.sky.id")) === own, await ev<string>(page, "window.__range.sky.id"));
+  // the pages share one browser's storage: no later page starts on this hour
+  await ev(page, `localStorage.removeItem("range.sky.hour")`);
   await page.close();
 }
 
@@ -1035,6 +1049,10 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   const dropped = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel().phase === "countdown" && window.__range.player.pos.y > 30`, { polling: 200, timeout: 15000 }).then(() => true, () => false)));
   check("squad: everyone in, both drop from the sky", dropped[0] && dropped[1], JSON.stringify(dropped));
   const landed = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false)));
+  // the host's seed is the guest's, so the squad plays under one sky
+  const skies = await Promise.all([host, guest].map((p) => ev<string>(p, "window.__range.sky.id")));
+  const skyWant = await ev<string>(host, "window.__range.sky.matchFor(window.__range.duel().seed)");
+  check("squad: host and guest play under the same sky, the match's own", skies[0] === skyWant && skies[1] === skyWant, JSON.stringify({ skies, skyWant }));
   check("squad: the fight starts on both when the host lands", landed[0] && landed[1]);
   await sleep(1500);
   const seen = await ev<{ figures: number; bots: number; humans: number }>(guest, `(() => { const d = window.__range.duel(); const rs = [...d.remotes.values()]; return { figures: d.avatars.filter((a) => a.group.visible).length, bots: rs.filter((r) => r.id >= 100).length, humans: rs.filter((r) => r.id < 100).length }; })()`);

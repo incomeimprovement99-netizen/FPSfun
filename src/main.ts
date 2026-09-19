@@ -19,7 +19,7 @@ import AUDIO_CFG from "./config/audio.json";
 import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier, type FigurePose } from "./game/dummy";
 import { buildRange, skyFollow, setShadowRegion, setHour, getSun, RANGE_BOUNDS, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
-import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, type Hour } from "./game/sky";
+import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, matchHour, loadBrSky, saveBrSky, type Hour } from "./game/sky";
 import { buildBrMap, BR_BOUNDS, BR_CENTER } from "./game/br";
 import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
 import { SHIP, surfaceUnder, type ShipRun } from "./game/dropship";
@@ -634,6 +634,18 @@ skySel.addEventListener("change", () => {
   saveHour(skySel.value);
   applyHour(hourFor(skySel.value));
 });
+// A battle royale plays at its own hour, drawn from the match seed, unless
+// the owner keeps theirs. Changing it mid-match applies at once.
+const skyBrSel = $<HTMLSelectElement>("skyBr");
+skyBrSel.value = loadBrSky();
+skyBrSel.addEventListener("change", () => {
+  saveBrSky(skyBrSel.value === "mine" ? "mine" : "match");
+  if (duel instanceof BrMatch) brHour(duel);
+});
+/** the sky a battle royale is played under: the match's hour, or the owner's own */
+function brHour(d: BrMatch): void {
+  applyHour(loadBrSky() === "match" ? matchHour(d.seed) : loadHour());
+}
 const perfLine = $("perfLine");
 void measureRefresh().then((hz) => {
   const r = Math.round(hz);
@@ -2571,9 +2583,11 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
     // the squad size is the host's for everyone (an older host sends none: the default size)
-    d = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), rules: squad.rules, gulag: !noGulag() });
+    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), rules: squad.rules, gulag: !noGulag() });
+    d = br;
     duel = d;
     wireMatch(d, "br");
+    brHour(br);
   } else {
     // three is still the triangle, the only map with three corners; two play
     // on the host's pick
@@ -2657,6 +2671,7 @@ function startBr(): void {
   const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, abilities: abilitySetting("br"), seed: newSeed(), start: brStart(), team: brTeamId(), ship: !straightDrop(), rules: brRulesId(), gulag: !noGulag() });
   duel = d;
   wireMatch(d, "br");
+  brHour(d);
   // the drop starts on the first frame in the game (respawnForMatch, from the countdown)
   setDuelStatus(`Battle royale on Outskirts, ${d.team.label.toLowerCase()}: you and ${bots} bots, ${diff}. Dropping onto ${d.poi.name}.`, "good");
   duelButtons();
@@ -2712,6 +2727,8 @@ function endMatch(reason: string): void {
   }
   if (wasBr) {
     setRegion("range");
+    // the owner's own hour again, if the match had its own
+    if (hour.id !== loadHour().id) applyHour(loadHour());
     // your loadout back (a loot game left you with what you found, or nothing)
     for (let i = 0; i < loadout.slots.length; i++) if (loadout.slots[i].empty) loadout.give(i, [loadouts.current.slot1, loadouts.current.slot2][i]);
     applyLoadout(loadouts.current);
@@ -4467,6 +4484,8 @@ initWelcome();
       return hour.id;
     },
     ids: HOUR_IDS,
+    /** the hour a battle royale on this seed is played at */
+    matchFor: (seed: number) => matchHour(seed).id,
     set: (id: string) => {
       saveHour(id);
       applyHour(hourFor(id));

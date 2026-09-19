@@ -626,6 +626,8 @@ async function main(): Promise<void> {
         if (m.type() === "error") errors.push(m.text());
       });
       await page.evaluateOnNewDocument(() => localStorage.setItem("range.welcomed", "1"));
+      // a battle royale's own hour comes from a random seed: pictures keep one hour, so two runs compare
+      await page.evaluateOnNewDocument(() => localStorage.setItem("range.sky.br", "mine"));
       if (!sc.ship) await page.evaluateOnNewDocument("window.__straightDrop = true");
       // the real mouse reaches a pointer-locked headless page: none of it here, or whoever moves it turns the picture
       await page.evaluateOnNewDocument(`for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`);

@@ -44,6 +44,8 @@ Working the list from the top down. Each of these has a check that fails if the 
 - **#22 the Ring Console** — done: the ring works out its whole chain of six circles at the start, from the match seed, in the order the rounds would have drawn them, so it closes onto the same circles as before and every browser knows the chain. Four consoles stand by four of the places on clear ground, from the seed; a 7.5 s hold at one puts the circle after next on the squad's map, dashed cyan, and pays 100 EVO; a console reboots when the ring closes. A scan is one effect message saying which console and which circle. `tools/checks/ring-console.ts` runs two hundred rings against their plans and checks the placement; the e2e `console` section scans alone and as a squad.
 - **#51 delta-compressed state packets** — done: each player is sent as its difference from a state the other end acknowledged, in centimetres and tenths of a degree, with a keyframe every two seconds, and a frame's states to one peer go in one packet. Measured over the real peer to peer path, the host's upload to a guest in a battle royale squad with eleven bots fell from 34.8 to 7.3 kB/s, and in a 1v1 from 8.1 to 5.7 kB/s running. An older build gets the full packets and plays on; an e2e section plays one against this build. Distance bands and a byte budget were left out (the budget never bites at today's sizes). The cap of eight was not raised: a guest's movement still reaches the others as one packet per relay, and that wants batching and a real eight-player test first.
 
+- **A sky per match**, the rest of **#26** — done: each battle royale draws its hour from its seed, weighted, the same for the whole squad; a setting keeps your own.
+
 ## Re-ranked, 2026-09-18
 
 The list was checked item by item against the code at 9bd9b9f, with the map expansion's last two stages building.
@@ -58,7 +60,6 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 **Partly done:**
 - **#31:** the map is merged; only instancing the repeated props is left, and it goes with `docs/PLAN_LOD_DRAW_DISTANCE.md`.
 - **#40:** the `br:damage` and `br:kills` boards are missing.
-- **#26:** a match does not yet pick its hour from the seed.
 - **#50:** the dust storm and lit windows are left.
 - **#20:** doors, bins and riding the traversal are left.
 - **#42:** the README still says "two or three players" in places.
@@ -70,7 +71,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 3. **Doors (#10), with bots opening them:** about 2.5 days, in one change, so doors never trap bots on the new graph.
 4. **Host migration and rejoin:** 3 to 4 days. One person's bad connection ending an eight-player match is the failure a group of friends hits most.
 5. **Bots on the ziplines, pads, balloons and the Mast (#19 typed edges, #20):** 1 to 1.5 days. Needs the stage 6 graph.
-6. **A sky per match from its seed:** about 2 hours.
+6. ~~**A sky per match from its seed:** about 2 hours.~~ Done (Milestone 69).
 7. **Resurgence's smaller play area:** 3 to 4 hours. It was only waiting for the map to settle.
 8. **Sprays and banner cards:** about a day. The other half of the emotes item, on the same message and wheel.
 9. **Weapon finishes and unlocks:** 2 to 2.5 days. XP unlocks nothing yet.

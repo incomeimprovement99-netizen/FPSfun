@@ -1002,3 +1002,15 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   radian in a frame) and the e2e `emote` section (yours, the camera, a step ending it, a 1v1 host's on the guest's
   screen); three `npm run snap` pictures.
 
+## Milestone 69 — A battle royale at its own hour ✅
+2026-09-18 (Phase 15). `sky.ts`, `main.ts`, `brmatch.ts`, `index.html`, `src/config/sky.json`.
+- Each battle royale draws its hour of the day from the match seed, weighted in `sky.json`: the afternoon most often,
+  dusk and moonlight least, because a 165 m sightline in low light is a different game, good now and then and tiring
+  every time. Every browser has the seed, so a squad plays under one sky with nothing new on the network, and the
+  hash is salted so the loot, the ring and the ship draw exactly what they drew before.
+- A setting, Battle royale sky, keeps your own time of day instead; changing it mid-match applies at once. Leaving
+  the match puts your own hour back.
+- Checks: `tools/checks/sky-hours.ts` (the same seed is the same hour, only weighted hours come up and each as often
+  as its weight within 1.5 points over 20,000 seeds, forty seeds in a row see at least five hours), and the e2e `br`
+  (the seed's hour, the setting keeping yours, yours back after) and `squad` (host and guest under the same sky)
+  sections. `npm run snap` keeps your own hour so two runs compare.

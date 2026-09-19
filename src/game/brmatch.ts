@@ -461,7 +461,8 @@ export class BrMatch extends Duel {
   /** a guest: the squads still up, as the host's ring packet last said (a guest runs no bots to count) */
   private squadsSeen: number;
   /** the match seed: the floor's loot, and the loadout crates every browser works out for itself */
-  private readonly seed: number;
+  /** the match seed: the loot, the ring, the ship and the hour are all drawn from it */
+  readonly seed: number;
   /** the dropship's line, from the seed and the squad's place (null: the drop goes straight onto the place, which the tests ask for) */
   readonly shipLine: ShipLine | null;
   /** this browser's flight along the line, from the start of its drop */

@@ -6,6 +6,8 @@
   "_light": "the DIRECTIONAL LIGHT's colour, which is not the same thing as the sun disk drawn in the dome: the disk is what you see when you look at the sun, the light is what falls on the world. They were the same value at first and that quietly changed how the range had always been lit, because the range's light was fff2dc and its disk fff0d0. An hour with no light colour uses its disk colour.",
   "_fog": "near and far in metres. The battle royale scales both up because its map is 440 m across and the range is 80 m.",
   "default": "afternoon",
+  "_match": "A battle royale draws its own hour from the match seed, so a squad plays the same match under the same light and the next match can be another hour. weights is how often each comes up; night and dusk are rarer because a 165 m sightline in low light is a different game, which is good now and then and tiring every time. The setting 'Battle royale sky' can keep your own hour instead.",
+  "match": { "weights": { "morning": 2, "noon": 2, "afternoon": 3, "goldenHour": 2, "overcast": 2, "dusk": 1, "night": 1 } },
   "order": ["morning", "noon", "afternoon", "goldenHour", "overcast", "dusk", "night"],
   "hours": {
     "morning": {

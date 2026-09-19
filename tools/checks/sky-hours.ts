@@ -8,7 +8,7 @@
 //
 // Run on its own: npx tsx tools/checks/sky-hours.ts. Also runs inside
 // npm run verify.
-import { DEFAULT_HOUR, HOURS, HOUR_IDS, hourFor } from "../../src/game/sky";
+import { DEFAULT_HOUR, HOURS, HOUR_IDS, hourFor, matchHour } from "../../src/game/sky";
 import skyCfg from "../../src/config/sky.json";
 
 let fails = 0;
@@ -90,6 +90,31 @@ check("an unknown hour falls back to the default", hourFor("nineteen-eighty-four
 const fetched = new Set(["sky.hdr", "sky-noon.hdr", "sky-morning.hdr", "sky-afternoon.hdr", "sky-dusk.hdr", "sky-overcast.hdr", "sky-night.hdr"]);
 const missing = ids.filter((id) => !fetched.has(HOURS[id].hdr));
 check("every hour's sky is one npm run assets downloads", missing.length === 0, missing.join(", ") || `${new Set(ids.map((i) => HOURS[i].hdr)).size} distinct files`);
+
+// A battle royale's own hour, from its seed: the same seed is the same hour
+// on every browser, only hours with a weight come up, and over many seeds
+// each comes up about as often as its weight says.
+{
+  const weights = skyCfg.match.weights as Record<string, number>;
+  const total = Object.values(weights).reduce((a, b) => a + b, 0);
+  let same = true;
+  const seen: Record<string, number> = {};
+  const N = 20000;
+  for (let i = 0; i < N; i++) {
+    const seed = (Math.imul(i, 2654435761) ^ 0x1234) >>> 0;
+    const a = matchHour(seed).id;
+    if (matchHour(seed).id !== a) same = false;
+    seen[a] = (seen[a] ?? 0) + 1;
+  }
+  check("a match's hour is the same for the same seed", same);
+  check("only an hour with a weight comes up, and every one of them does", Object.keys(seen).every((id) => (weights[id] ?? 0) > 0) && Object.keys(weights).every((id) => !(weights[id] > 0) || (seen[id] ?? 0) > 0), JSON.stringify(seen));
+  const off = Object.keys(weights).map((id) => Math.abs((seen[id] ?? 0) / N - weights[id] / total));
+  check("each comes up as often as its weight says (within 1.5 points)", Math.max(...off) < 0.015, `worst ${(Math.max(...off) * 100).toFixed(2)} points`);
+  // consecutive seeds (newSeed() hands out any number) still spread across the hours
+  const run = new Set(Array.from({ length: 40 }, (_, i) => matchHour(1000 + i).id));
+  check("forty seeds in a row see at least five different hours", run.size >= 5, `${run.size}`);
+  check("the match weights carry their note", Boolean((skyCfg as Record<string, unknown>)._match));
+}
 
 check("the config carries its own notes", Boolean(skyCfg._note && skyCfg._hdr && skyCfg._colors && skyCfg._sun && skyCfg._fog));
 
