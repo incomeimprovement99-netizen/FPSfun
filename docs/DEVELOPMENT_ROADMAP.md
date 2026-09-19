@@ -1160,3 +1160,12 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/bot-walk.ts` builds the real map in node: from all 113 nodes, along the graph's own links, to
   the node nearest each of the 21 places a ring closes toward (the longest 11 steps); the cone's front, back and
   close-by rules.
+
+## Milestone 79 — Bot squads act as squads ✅
+2026-09-19 (Phase 15). `brmatch.ts`, `src/config/bots.json`, `tools/e2e.ts`.
+- In duos and trios each bot picked its own next node, so a squad scattered on landing. A squad now follows its first
+  bot, the others closing in to their own places 4 m round it when they drift past 12 m; a bot that sees someone
+  tells its mates within 80 m, who go to look; and a downed human counts as three times as far off, so a bot turns
+  to whoever is still up rather than finishing the one on the floor.
+- Checks: the e2e `botsquads` section: in trios with six bots, each squad's members are within 25 m of each other in
+  27 of 30 samples over 30 s after landing (15 of 30 with the following turned off).

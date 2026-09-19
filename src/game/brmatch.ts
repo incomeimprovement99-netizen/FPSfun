@@ -137,6 +137,8 @@ import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
 import brmapCfg from "../config/brmap.json";
+/** bot squads acting as squads (bots.json squads) */
+const SQUADS = botsCfg.squads;
 import { LootField, LOOT, deathBoxOf, kittedAttach, seeded, type LootItem, type LootKind, type Rarity } from "./loot";
 import { ammoTypeOf, STACK } from "./ammo";
 
@@ -2050,13 +2052,13 @@ export class BrMatch extends Duel {
     // what each is doing, for the bots' eyes: a runner is seen further out, a
     // crouched body nearer, and anyone who has just fired gives themselves away
     const firing = (id: number) => now - (this.shotAt.get(id) ?? -Infinity) < 0.5;
-    const humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue }> = [];
-    if (this.alive && !this.gulagIds.has(this.id)) humans.push({ id: this.id, feet, low: local.crouch, cue: { speed: local.speed, crouched: local.crouch, firing: firing(this.id) } });
+    const humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue; down: boolean }> = [];
+    if (this.alive && !this.gulagIds.has(this.id)) humans.push({ id: this.id, feet, low: local.crouch, cue: { speed: local.speed, crouched: local.crouch, firing: firing(this.id) }, down: this.downed });
     for (const r of this.remotes.values()) {
       if (r.id >= Duel.BOT_ID || !r.alive) continue;
       const last = r.samples[r.samples.length - 1];
       const low = !!last && (last.stance === "crouch" || last.stance === "slide");
-      if (last) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z), low, cue: { speed: last.speed, crouched: low, firing: firing(r.id) } });
+      if (last) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z), low, cue: { speed: last.speed, crouched: low, firing: firing(r.id) }, down: r.downed });
     }
 
     // Resurgence: the bots whose wait is over come back
@@ -2167,7 +2169,7 @@ export class BrMatch extends Duel {
   }
 
   /** what a bot can see and where it should go */
-  private sense(b: BrBot, humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue }>): BotSense {
+  private sense(b: BrBot, humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue; down: boolean }>): BotSense {
     const bot = b.bot;
     // the nearest enemy in sight: a human, or another bot
     let target: THREE.Vector3 | null = null;
@@ -2175,7 +2177,8 @@ export class BrMatch extends Duel {
     let best = Infinity;
     if (this.phase === "fight") {
       for (const h of humans) {
-        const d = bot.pos.distanceTo(h.feet);
+        // a downed human counts as further off: a bot turns to whoever is still up
+        const d = bot.pos.distanceTo(h.feet) * (h.down ? SQUADS.downedFar : 1);
         if (d < best && bot.sees(h.feet, h.cue)) {
           best = d;
           target = h.feet;
@@ -2192,6 +2195,15 @@ export class BrMatch extends Duel {
         best = d;
         target = o.bot.pos;
         targetId = o.bot.remote.id;
+      }
+    }
+    // A squad acts as one: what one bot sees, its mates close by go to look at.
+    const mates = this.team.size > 1 ? this.bots.filter((o) => o !== b && o.team === b.team && o.bot.alive && !o.bot.dropping) : [];
+    if (target && targetId >= 0) {
+      const now = wallClock();
+      for (const m of mates) {
+        if (m.bot.pos.distanceTo(bot.pos) > SQUADS.share) continue;
+        if (!m.bot.lastSeen || now - m.bot.lastSeen.at > 1) m.bot.lastSeen = { pos: target.clone(), at: now, id: targetId };
       }
     }
     // the walk: to the next ring's centre when outside it (or when it is
@@ -2242,6 +2254,12 @@ export class BrMatch extends Duel {
       }
       const g = nodes[b.goal];
       goal = new THREE.Vector3(g.x, 0, g.z);
+      // the squad follows its first bot: the others close in when they drift off, each at its own place round it
+      const lead = [b, ...mates].reduce((a, o) => (o.slot < a.slot ? o : a));
+      if (lead !== b && bot.pos.distanceTo(lead.bot.pos) > SQUADS.follow) {
+        const a = (b.slot / this.team.size) * Math.PI * 2;
+        goal = new THREE.Vector3(lead.bot.pos.x + Math.cos(a) * SQUADS.spread, 0, lead.bot.pos.z + Math.sin(a) * SQUADS.spread);
+      }
     }
     return { target, targetId, goal, canShoot: this.phase === "fight" && !this.holdFire, urgent: hurry };
   }

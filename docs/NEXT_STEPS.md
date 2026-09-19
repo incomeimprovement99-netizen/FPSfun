@@ -117,7 +117,7 @@ Three read-only passes over the code, after the map expansion (Milestone 71), ag
 20. **Battle royale squads of friends** (duos and trios against each other): the list above assumed this needs a real server, but the 1v1v1 and free-for-all already trust the host the same way. A squad table in the welcome, and every squad rule keyed by it. 2.5-3 days, after 3.
 21. **Rejoin a match in the same tab** (a 60 s held seat), **the delta packets on an unordered channel with a loss simulator**, **interpolation on the sender's clock**, **an eight-player rehearsal**, **hit sanity checks on the receiver**, **a shared end-of-match table and a tally for the night**, **hand the host over before a match by ping**. 1 day, 5-6 h, 4-6 h, 6-8 h, 5-7 h, 5-6 h and 4-6 h.
 
-**Bots, after that:** bot squads that move and fight together (5-6 h); ~~the bots' sight cues wired in (crouching and walking hide you, a front cone)~~ and ~~running from the ring along the graph~~ done (Milestone 78); knocked bots and revives in duos and trios (5-6 h); an ammo carry cap (1.5 h).
+**Bots, after that:** ~~bot squads that move and fight together~~ done (Milestone 79); ~~the bots' sight cues wired in (crouching and walking hide you, a front cone)~~ and ~~running from the ring along the graph~~ done (Milestone 78); knocked bots and revives in duos and trios (5-6 h); an ammo carry cap (1.5 h).
 
 **Corrected:** item 14 of the re-rank (the leaderboard secret) is worth less than it looked: our own server never reads the secret. The real weakness is that it accepts any score up to 100,000 from anyone.
 

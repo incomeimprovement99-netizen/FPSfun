@@ -3080,6 +3080,41 @@ async function lobbyShortTest(browser: Browser, query: string): Promise<void> {
   for (const p of pages) await p.close();
 }
 
+/**
+ * Bot squads act as squads: in trios a squad follows its first bot, so its
+ * members stay together after landing rather than each wandering off along
+ * the graph on its own.
+ */
+async function botSquadsTest(browser: Browser, query: string): Promise<void> {
+  const page = await open(browser, query);
+  await ev(page, brRow("trio", 6));
+  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+  const fought = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false);
+  if (!fought) {
+    check("bot squads: the match starts", false);
+    await page.close();
+    return;
+  }
+  // nobody fights: this is about where they walk
+  await ev(page, "(() => { const d = window.__range.duel(); d.holdFire = true; window.__range.player.teleport(0, 60, 500, 0); })()");
+  // wait for them all down and walking
+  await page.waitForFunction("window.__range.duel().bots.every((b) => b.landed)", { polling: 250, timeout: 30000 }).catch(() => undefined);
+  let together = 0;
+  let samples = 0;
+  for (let i = 0; i < 15; i++) {
+    await sleep(2000);
+    const spread = await ev<number[]>(page, `(() => { const d = window.__range.duel(); const by = new Map(); for (const b of d.bots) { if (!b.bot.alive) continue; if (!by.has(b.team)) by.set(b.team, []); by.get(b.team).push(b.bot.pos); }
+      return [...by.values()].map((ps) => { let m = 0; for (const a of ps) for (const c of ps) m = Math.max(m, Math.hypot(a.x - c.x, a.z - c.z)); return m; }); })()`);
+    for (const m of spread) {
+      samples++;
+      if (m < 25) together++;
+    }
+  }
+  check("bot squads: each squad keeps together after landing (within 25 m, most of the time)", samples > 0 && together / samples >= 0.8, `${together} of ${samples} squad samples together`);
+  await ev(page, "window.__range.duel()?.leave()");
+  await page.close();
+}
+
 /** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
@@ -3501,6 +3536,11 @@ async function main(): Promise<void> {
     if (want("hidden")) {
       console.log("\nA hidden host: the match runs on at 30 Hz from a worker, not at the background tab's one frame a second");
       await hiddenHostTest(browser, "?net=local&norender");
+    }
+
+    if (want("botsquads")) {
+      console.log("\nBot squads: a trio of bots keeps together");
+      await botSquadsTest(browser, "?norender");
     }
 
     if (want("brsolo")) {
