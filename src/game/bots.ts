@@ -1068,6 +1068,26 @@ export class Bot {
     return this.looter.kit;
   }
 
+  /** the heals and frags it still carries (host migration: the heir's snapshot) */
+  get carried(): { cell: number; syringe: number; frags: number } {
+    return { cell: this.kit.cell, syringe: this.kit.syringe, frags: this.frags };
+  }
+
+  /**
+   * Its kit as the host had it (host migration): what it has found, what it
+   * still carries, and its gun and shield tier put on, as a bot that had
+   * looted them. Its health and shield are the caller's to set after.
+   */
+  restoreKit(kit: BotKit, carried: { cell: number; syringe: number; frags: number }): void {
+    Object.assign(this.looter.kit, kit, { mods: { ...kit.mods } });
+    this.lootStarted = true;
+    this.kit.cell = carried.cell;
+    this.kit.syringe = carried.syringe;
+    this.frags = carried.frags;
+    this.setArmor(kit.armor);
+    this.refit();
+  }
+
   /** a bot that loots and has not found a gun yet holds its fire */
   get holdingFire(): boolean {
     return this.lootSource !== null && this.knife === null && !this.looter.armed;

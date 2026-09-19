@@ -518,6 +518,13 @@ export class LootField {
    */
   hotZone: HotZone | null = null;
   private nextKey = 1;
+  /** the next key a new item gets (host migration: the heir's snapshot carries the host's) */
+  get keyNext(): number {
+    return this.nextKey;
+  }
+  set keyNext(n: number) {
+    this.nextKey = Math.max(this.nextKey, Math.floor(n));
+  }
   private beamGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6, 1, true);
   private boxGeo = new THREE.BoxGeometry(0.34, 0.2, 0.34);
   /** a gun's ring on the floor and a death box, shared by every one (not one geometry each) */

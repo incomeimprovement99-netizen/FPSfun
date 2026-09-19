@@ -182,6 +182,29 @@ export class Ring {
     return best;
   }
 
+  /**
+   * The ring as a guest last saw it (host migration): its round, its state
+   * and its clock. Where it stands follows from the plan, which every browser
+   * draws alike from the seed: waiting, it is where the last round closed to;
+   * closing, it is that far along from there to the next.
+   */
+  restore(v: { phase: number; state: RingState; timeLeft: number }, start: Circle): void {
+    const n = this.phases.length;
+    this.phase = Math.max(0, Math.min(n, Math.round(v.phase)));
+    this.state = this.phase >= n ? "closed" : v.state === "closed" ? "waiting" : v.state;
+    this.timeLeft = Math.max(0, v.timeLeft);
+    this.from = { ...(this.phase > 0 ? this.plan[this.phase - 1] : start) };
+    Object.assign(this.next, this.plan[Math.min(this.phase, n - 1)]);
+    Object.assign(this.current, this.from);
+    if (this.state === "closing") {
+      const p = this.phases[this.phase];
+      const k = Math.max(0, Math.min(1, 1 - this.timeLeft / p.close));
+      this.current.cx = this.from.cx + (this.next.cx - this.from.cx) * k;
+      this.current.cz = this.from.cz + (this.next.cz - this.from.cz) * k;
+      this.current.r = this.from.r + (this.next.r - this.from.r) * k;
+    }
+  }
+
   /** the live phase's damage per tick; the last phase's once everything has closed */
   get damage(): number {
     return this.phases[Math.min(this.phase, this.phases.length - 1)].damage;

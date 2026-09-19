@@ -1756,3 +1756,28 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   (three), on mixed difficulty so each bot draws its own tier (the same bots, each with its tier and team, run by
   the new host and heard from on the other guest's screen; three zones on the new host). Both took over in 0.05 s
   and had the third player back in at 1.05 s.
+
+## Milestone 113 — Host migration, phase 4: the battle royale ✅
+2026-09-19 (Phase 15). `brmatch.ts`, `ring.ts`, `bots.ts`, `loot.ts`, `tools/checks/mode-restore.ts`,
+`tools/e2e.ts`.
+- A battle royale with friends now outlives its host, from the moment every bot is off the ship and down on the map
+  until the match is decided. (A bot aboard or gliding in sends nothing a guest could put it back from, so the host
+  names no heir until they are down.)
+- The heir's snapshot carries each bot's tier, squad, waypoints, the kit it has looted (gun, magazine, mods, armour)
+  and the heals and frags it still carries, and whether it is up, down (who knocked it and the bleed-out left) or
+  waiting to redeploy; the damage record the Storm Surge ranks on and its clock; the care packages called; the
+  placings; and the loot field's next key.
+- The ring is not in it. Every browser draws the ring's plan from the seed, and a guest's view says the round, the
+  state and the clock, so `Ring.restore` puts it where it was, waiting or part way through a close. The heir makes
+  each bot again where it last saw its figure, with its kit and health (`Bot.restoreKit`), and the figure gives way
+  to it. Bots are made in one place (`makeBot`) for the host at the start and for the heir.
+- What is not carried: a bot's memory of where it last saw someone (it looks again) and its current loot target (it
+  picks the next).
+- Host migration's four phases are done. Measured in the e2e: the heir held the code 0.1 s after the host's tab
+  crashed and the third friend was back in at 1.0 s; the looted kits matched bot for bot; the ring mid-close was
+  within 0.03 s of where the host's would have been.
+- Checks: `tools/checks/mode-restore.ts` (a ring rebuilt from the seed where a guest saw it, waiting or mid-close,
+  early and late, runs in step with the host's to the end: twelve cases, exact), and the e2e `migrate` section's
+  battle royale (a trio against two bot squads on mixed difficulty; the host's tab crashes mid-close with most bots
+  armed; the same bots with their tiers, squads and kits, the ring where it was, and the third friend back in
+  hearing the bots).

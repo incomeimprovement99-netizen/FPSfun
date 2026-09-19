@@ -3378,6 +3378,95 @@ async function migrateTest(browser: Browser, query: string, label = "host migrat
 }
 
 /**
+ * Host migration in a battle royale (phase 4): three friends as a trio
+ * against bot squads, down on the map. The host's tab crashes; the heir
+ * takes the match over. The same bots, each with its tier, squad and kit,
+ * run on from where the heir last saw them; the ring is where it was on its
+ * seeded plan; the third friend is back in and sees the bots move.
+ */
+async function brMigrateTest(browser: Browser, query: string, label = "host migration (battle royale)"): Promise<void> {
+  const host = await open(browser, query);
+  const b = await open(browser, query);
+  const c = await open(browser, query);
+  const pages = [host, b, c];
+  const close = async () => {
+    for (const p of pages) if (!p.isClosed()) await p.close();
+  };
+  await ev(host, brRow("trio", 6));
+  await ev(host, `(() => { document.getElementById("brSides").value = "together"; document.getElementById("botDifficulty").value = "mixed"; document.getElementById("duelMode").value = "br"; document.getElementById("duelPlayers").value = "3"; document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    for (const p of [b, c]) {
+      await ev(p, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+      await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+    }
+    await host.waitForFunction("window.__range.duel()?.connected === 2", { polling: 200, timeout: 30000 });
+    for (const p of pages) await pressPlay(p);
+    for (const p of pages) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 60000 });
+    await ev(host, "window.__range.duel().holdFire = true");
+    // every bot down on the map, and the heir named with a snapshot to take over from
+    await host.waitForFunction("window.__range.duel().heir !== null", { polling: 250, timeout: 60000 });
+    // most of the bots with a gun they found, and the ring closing: the state worth carrying over
+    await host.waitForFunction("window.__range.duel().bots.filter((x) => x.bot.lootKit.gunId).length >= 4", { polling: 500, timeout: 60000 });
+    await ev(host, "(() => { const r = window.__range.duel().ring; if (r.state === 'waiting') r.timeLeft = Math.min(r.timeLeft, 1); })()");
+    await host.waitForFunction("window.__range.duel().view.state === 'closing'", { polling: 200, timeout: 10000 });
+  } catch {
+    check(`${label}: the three drop and the host names an heir once the bots are down`, false);
+    await close();
+    return;
+  }
+  const heirId = await ev<number | null>(host, "window.__range.duel().heir");
+  const ids = await Promise.all([b, c].map((p) => ev<number>(p, "window.__range.duel().id")));
+  const heir = ids[0] === heirId ? b : c;
+  const other = heir === b ? c : b;
+  const kitsOf = "window.__range.duel().bots.map((x) => [x.bot.index, x.bot.lootKit.gunId, x.bot.lootKit.armor].join(':')).sort()";
+  // a snapshot made after the bots are as they will be read: let one more go out
+  await sleep(1300);
+  const roster = await ev<string[]>(host, "window.__range.duel().botRoster");
+  const kits = await ev<string[]>(host, kitsOf);
+  const ring = await ev<{ phase: number; state: string; timeLeft: number }>(host, "(() => { const v = window.__range.duel().view; return { phase: v.phase, state: v.state, timeLeft: v.timeLeft }; })()");
+  const ringAt = Date.now();
+  for (const p of [heir, other]) await ev(p, "window.__match = window.__range.duel()");
+  await ev(host, "(() => { const d = window.__range.duel(); for (const l of d.links.values()) { l.onClose = null; l.abandon?.(); } d.leave = () => undefined; })()");
+  await host.close();
+  const t0 = Date.now();
+  const took = await heir.waitForFunction("window.__range.duel()?.role === 'host'", { polling: 100, timeout: 30000 }).then(() => true, () => false);
+  const tookIn = (Date.now() - t0) / 1000;
+  const back = await other.waitForFunction(`window.__range.duel()?.hostId === ${heirId} && window.__range.duel().reconnectUntil === null`, { polling: 100, timeout: 30000 }).then(() => true, () => false);
+  const backIn = (Date.now() - t0) / 1000;
+  const same = await Promise.all([heir, other].map((p) => ev<boolean>(p, "window.__range.duel() === window.__match")));
+  check(`${label}: the heir takes the match over and the third friend is back in on its seat`, took && back && same.every(Boolean), JSON.stringify({ took, back, same, tookIn, backIn }));
+  if (!took) {
+    await close();
+    return;
+  }
+  await ev(heir, "window.__range.duel().holdFire = true");
+  await sleep(1500);
+  const after = await ev<{ roster: string[]; kits: string[]; figures: number; ring: { phase: number; state: string; timeLeft: number }; hasRing: boolean; phase: string }>(
+    heir,
+    `(() => { const d = window.__range.duel(); const v = d.view; return { roster: d.botRoster, kits: ${kitsOf}, figures: [...d.remotes.keys()].filter((id) => id >= 100).length, ring: { phase: v.phase, state: v.state, timeLeft: v.timeLeft }, hasRing: !!d.ring, phase: d.phase }; })()`
+  );
+  const kitSame = after.kits.filter((k, i) => k === kits[i]).length;
+  check(
+    `${label}: the same bots, each with its tier and squad and (nearly all) the kit it had looted, run by the new host`,
+    roster.length === 6 && after.roster.join() === roster.join() && after.figures === 0 && kitSame >= kits.length - 1 && kits.filter((k) => k.split(":")[1]).length >= 4 && after.phase === "fight",
+    JSON.stringify({ roster, after: after.roster, kits, afterKits: after.kits, figures: after.figures })
+  );
+  const expected = ring.timeLeft - (Date.now() - ringAt) / 1000;
+  check(
+    `${label}: the ring is where it was on its plan, its clock running on`,
+    after.hasRing && after.ring.phase === ring.phase && after.ring.state === "closing" && ring.state === "closing" && Math.abs(after.ring.timeLeft - expected) < 2.5,
+    JSON.stringify({ before: ring, after: after.ring, expected })
+  );
+  const botFlow = await ev<number>(other, "Math.max(...[...window.__range.duel().remotes.values()].filter((r) => r.id >= 100 && r.alive).map((r) => performance.now() / 1000 - r.lastHeard))");
+  const otherRing = await ev<number>(other, "window.__range.duel().view.phase");
+  // (a bot standing still is sent only as a keyframe, every 2 s)
+  check(`${label}: the third friend hears from the bots and follows the new host's ring`, botFlow < 3 && otherRing === ring.phase, JSON.stringify({ botFlow, otherRing }));
+  await close();
+}
+
+/**
  * Getting back in: a guest whose connection drops mid-match (no goodbye)
  * keeps playing, the host holds the seat, and the guest is back on it with
  * the same code and the seat's key; a seat nobody comes back for is given up,
@@ -4286,6 +4375,8 @@ async function main(): Promise<void> {
       await migrateTest(browser, "?net=local&norender", "host migration (tdm)", "tdm", 6);
       console.log("\nHost migration in Control, with bots");
       await migrateTest(browser, "?net=local&norender", "host migration (control)", "control", 3);
+      console.log("\nHost migration in a battle royale");
+      await brMigrateTest(browser, "?net=local&norender");
     }
 
     if (want("squad")) {

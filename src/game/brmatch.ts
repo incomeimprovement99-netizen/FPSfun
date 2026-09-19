@@ -74,7 +74,7 @@ import { Throwables, blastDamage, throwCode } from "./throwables";
 import { lockedHopupFor } from "./attachments";
 import { weaponName } from "./weapons";
 import { savedLoadout, type LoadoutDef } from "./loadouts";
-import { Bot, BODY_TOP, BOT_NAMES, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense, type SightCue } from "./bots";
+import { Bot, BODY_TOP, BOT_NAMES, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense, type SightCue, BOT_TIERS, type BotKit, type BotTier } from "./bots";
 import botsCfg from "../config/bots.json";
 import { RANGE_SOLIDS } from "./range";
 /**
@@ -376,6 +376,66 @@ export interface BrHud {
   gulag: { phase: string; clock: number; opponent: string; capMe: number; capThem: number; capture: number } | null;
 }
 
+/** the heir's snapshot of a battle royale (BrMatch.snapshotMode); times are seconds from when it was made, null for never */
+interface BrSnap {
+  b: Array<{
+    i: number;
+    t: number;
+    tm: number;
+    sl: number;
+    n: number;
+    g: number;
+    ar: number | null;
+    as: boolean;
+    al: boolean;
+    k: BotKit;
+    c: { cell: number; syringe: number; frags: number };
+    rd: number;
+    dn: [number, number] | null;
+    rv: number;
+    dt: [number, number];
+  }>;
+  dl: Array<[number, number, number]>;
+  sa: number | null;
+  ss: number | null;
+  pc: number;
+  ps: number;
+  pp: number[];
+  pl: Array<[number, number]>;
+  nk: number;
+}
+
+/** a snapshot as it came over the wire: its well formed parts only, or null (PeerJS packs an absent value as null) */
+function readBrSnap(v: unknown): BrSnap | null {
+  if (!v || typeof v !== "object") return null;
+  const o = v as Record<string, unknown>;
+  const num = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
+  const numOrNull = (x: unknown): x is number | null => x === null || x === undefined || num(x);
+  const b = (Array.isArray(o.b) ? o.b : []).filter((r): r is BrSnap["b"][number] => {
+    if (!r || typeof r !== "object") return false;
+    const x = r as Record<string, unknown>;
+    const k = x.k as Record<string, unknown> | null;
+    const c = x.c as Record<string, unknown> | null;
+    return num(x.i) && x.i >= 0 && x.i < 64 && num(x.t) && num(x.tm) && num(x.sl) && num(x.n) && num(x.g) && numOrNull(x.ar) && typeof x.as === "boolean" && typeof x.al === "boolean"
+      && !!k && typeof k === "object" && (k.gunId === null || typeof k.gunId === "string") && num(k.gun) && num(k.mag) && num(k.armor) && !!k.mods && typeof k.mods === "object"
+      && !!c && num(c.cell) && num(c.syringe) && num(c.frags) && num(x.rd) && (x.dn === null || x.dn === undefined || (Array.isArray(x.dn) && x.dn.length === 2 && x.dn.every(num))) && num(x.rv)
+      && Array.isArray(x.dt) && x.dt.length === 2 && x.dt.every(num);
+  }).map((r) => ({ ...r, ar: r.ar ?? null, dn: r.dn ?? null }));
+  const triples = (Array.isArray(o.dl) ? o.dl : []).filter((r): r is [number, number, number] => Array.isArray(r) && r.length === 3 && r.every(num));
+  const pairs = (Array.isArray(o.pl) ? o.pl : []).filter((r): r is [number, number] => Array.isArray(r) && r.length === 2 && r.every(num));
+  return {
+    b,
+    dl: triples,
+    sa: num(o.sa) ? o.sa : null,
+    ss: num(o.ss) ? o.ss : null,
+    pc: num(o.pc) ? o.pc : 0,
+    ps: num(o.ps) ? o.ps : 0,
+    pp: (Array.isArray(o.pp) ? o.pp : []).filter(num),
+    pl: pairs,
+    nk: num(o.nk) ? o.nk : 1,
+  };
+}
+
 interface BrBot {
   bot: Bot;
   node: number;
@@ -465,7 +525,7 @@ interface RingView {
 export class BrMatch extends Duel {
   private bots: BrBot[] = [];
   /** the host's ring; a guest mirrors it in `view` */
-  private readonly ring: Ring | null;
+  private ring: Ring | null;
   private view: RingView;
   private guestTick = 0;
   private aliveSeen: number;
@@ -611,46 +671,7 @@ export class BrMatch extends Duel {
         const clear = clearGround(drop.x + Math.cos(a) * r, drop.z + Math.sin(a) * r);
         const spawn = { x: clear.x, z: clear.z, yaw: rng() * 360 };
         // each its own tier: "mixed" draws one per bot
-        const bot = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty, rng)], spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], BOT_NAMES[i % BOT_NAMES.length]);
-        // Its eyes are the battle royale's. A bot nobody tells keeps the arena's
-        // 55 to 70 m, which was right for a 40 m room and blind on a map
-        // 440 m across (bots.ts sightRange, src/config/bots.json sight).
-        bot.sightMode = "br";
-        // With loot on it lands with nothing and LOOTS for its kit, rather than
-        // waiting out a timer and being handed one: a bot that landed somewhere
-        // rich is really better armed than one that landed in a field. It
-        // holds its fire until it has found a gun (bot.holdingFire).
-        if (this.startLoot) {
-          bot.dummy.setGunVisible(false);
-          const field = this.lootField;
-          if (field) {
-            bot.lootSource = {
-              // Only what is on the bot's own floor. A bot cannot jump or
-              // climb, so an item on the floor above can be a metre away across
-              // the ground and still out of reach for ever: it stood under one,
-              // gave it up, picked the next one up there, and never moved.
-              near: (at, r) => [...field.drops.values()].filter((d) => d.item.kind !== "box" && Math.abs(d.pos.y - at.y) <= BOT_LOOT_FLOOR && d.pos.distanceTo(at) <= r),
-              take: (key) => {
-                const it = field.remove(key);
-                // the squad's fields drop an item only on this message, so
-                // without it a bot's pickups would stay on every other screen
-                if (it) this.broadcast({ t: "loot", op: "gone", key, by: bot.remote.id });
-                return it;
-              },
-            };
-          }
-        }
-        bot.setAbilities(this.abilities, rng);
-        // a bot's JOLT: drawn here and sent to the squad
-        bot.onJolt = (a, b) => {
-          this.onRemoteFx?.("jolt", bot.remote.id, a, b);
-          this.broadcast({ t: "fx", from: bot.remote.id, k: "jolt", a: [a.x, a.y, a.z], b: [b.x, b.y, b.z] });
-        };
-        // a bot's finished heal: the recap's "healed recently", here and on the squad's screens
-        bot.onHealed = (item) => {
-          this.onHealSeen?.(bot.remote.id, item);
-          this.broadcast({ t: "fx", from: bot.remote.id, k: "heal", n: HEAL_CODES.indexOf(item) });
-        };
+        const bot = this.makeBot(i, tierFor(difficulty, rng), spawn, rng);
         const node = this.nearestNode(spawn.x, spawn.z);
         // it comes down from the sky, so it lands somewhere with no roof over it
         const dropTo = openGround(spawn.x, spawn.z);
@@ -674,6 +695,53 @@ export class BrMatch extends Duel {
       scene.add(model.group);
       this.consoles.push({ ...spot, usedPhase: -1, model });
     }
+  }
+
+  /** one of the match's bots: the host's, at the start, or the heir's, in place of the figure it saw (host migration) */
+  private makeBot(i: number, tier: BotTier, spawn: Spawn, rng: () => number = Math.random): Bot {
+    const scene = this.scene;
+    const projectiles = this.projectiles;
+    const bot = new Bot(i, scene, projectiles, DIFFICULTY[tier], spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], BOT_NAMES[i % BOT_NAMES.length]);
+    // Its eyes are the battle royale's. A bot nobody tells keeps the arena's
+    // 55 to 70 m, which was right for a 40 m room and blind on a map
+    // 440 m across (bots.ts sightRange, src/config/bots.json sight).
+    bot.sightMode = "br";
+    // With loot on it lands with nothing and LOOTS for its kit, rather than
+    // waiting out a timer and being handed one: a bot that landed somewhere
+    // rich is really better armed than one that landed in a field. It
+    // holds its fire until it has found a gun (bot.holdingFire).
+    if (this.startLoot) {
+      bot.dummy.setGunVisible(false);
+      const field = this.lootField;
+      if (field) {
+        bot.lootSource = {
+          // Only what is on the bot's own floor. A bot cannot jump or
+          // climb, so an item on the floor above can be a metre away across
+          // the ground and still out of reach for ever: it stood under one,
+          // gave it up, picked the next one up there, and never moved.
+          near: (at, r) => [...field.drops.values()].filter((d) => d.item.kind !== "box" && Math.abs(d.pos.y - at.y) <= BOT_LOOT_FLOOR && d.pos.distanceTo(at) <= r),
+          take: (key) => {
+            const it = field.remove(key);
+            // the squad's fields drop an item only on this message, so
+            // without it a bot's pickups would stay on every other screen
+            if (it) this.broadcast({ t: "loot", op: "gone", key, by: bot.remote.id });
+            return it;
+          },
+        };
+      }
+    }
+    bot.setAbilities(this.abilities, rng);
+    // a bot's JOLT: drawn here and sent to the squad
+    bot.onJolt = (a, b) => {
+      this.onRemoteFx?.("jolt", bot.remote.id, a, b);
+      this.broadcast({ t: "fx", from: bot.remote.id, k: "jolt", a: [a.x, a.y, a.z], b: [b.x, b.y, b.z] });
+    };
+    // a bot's finished heal: the recap's "healed recently", here and on the squad's screens
+    bot.onHealed = (item) => {
+      this.onHealSeen?.(bot.remote.id, item);
+      this.broadcast({ t: "fx", from: bot.remote.id, k: "heal", n: HEAL_CODES.indexOf(item) });
+    };
+    return bot;
   }
 
   /** the round the ring is on (0-based; the host's, or what its last packet said) */
@@ -1799,6 +1867,117 @@ export class BrMatch extends Duel {
     const at = this.redeploySpot(mates.length ? mates[Math.floor(Math.random() * mates.length)] : null);
     this.redeployKit = true;
     this.respawnHere(new THREE.Vector3(at.x, 0, at.z));
+  }
+
+  // ------------------------------------------------------------ host migration
+
+  /**
+   * Host migration (docs/PLAN_HOST_MIGRATION.md): once every bot is off the
+   * ship and down on the map (a bot aboard or gliding in sends nothing a
+   * guest could put it back from), until the match is decided.
+   */
+  protected override canMigrate(): boolean {
+    return this.phase === "fight" && !this.brOver && this.bots.every((b) => !b.bot.aboard && (b.landed || !b.bot.alive));
+  }
+
+  /**
+   * What only the host has, for the heir: each bot's tier, squad, waypoints,
+   * kit and what it still carries, whether it is up, down (who knocked it,
+   * the bleed-out left) or waiting to redeploy; the damage the surge ranks
+   * on and its clock; the care packages called; the placings; and the loot
+   * field's next key. The ring is not in it: every browser draws its plan
+   * from the seed, and a guest's view says where along it the ring is.
+   */
+  protected override snapshotMode(now: number): BrSnap {
+    const t = (v: number): number | null => (Number.isFinite(v) ? v - now : null);
+    return {
+      b: this.bots.map((b) => ({
+        i: b.bot.index,
+        t: Math.max(0, BOT_TIERS.indexOf(b.bot.diff.name as BotTier)),
+        tm: b.team,
+        sl: b.slot,
+        n: b.node,
+        g: b.goal,
+        ar: t(b.armedAt),
+        as: !!b.armedShown,
+        al: b.bot.alive,
+        k: { ...b.bot.lootKit, mods: { ...b.bot.lootKit.mods } },
+        c: b.bot.carried,
+        rd: b.redeploy ? b.redeploy.left : -1,
+        dn: b.down ? [b.down.by, b.down.bleed] : null,
+        rv: b.reviving,
+        dt: [b.dropTo.x, b.dropTo.z],
+      })),
+      dl: [...this.dealt].map(([id, d]) => [id, d.total, Number.isFinite(d.at) ? d.at - now : -1e6]),
+      sa: t(this.surgeAt),
+      ss: t(this.surgeSince),
+      pc: this.podCount,
+      ps: this.podSeq,
+      pp: [...this.podPhases],
+      pl: [...this.placedAt],
+      nk: this.lootField?.keyNext ?? 1,
+    };
+  }
+
+  /**
+   * The heir, now the host: the ring from its seeded plan where this page
+   * last saw it, and each bot made again where this page last saw its figure
+   * (which then gives way to it, so nothing jumps), with its kit, its health
+   * and whatever it was in the middle of: down and bleeding, or waiting to
+   * redeploy. Then the surge's record, the packages, the placings and the
+   * loot keys as the host had them.
+   */
+  protected override restoreAsHost(now: number, _oldHost: number, mode: unknown): void {
+    const ring = new Ring(this.area, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases);
+    ring.restore(this.view, this.area);
+    this.ring = ring;
+    const s = readBrSnap(mode);
+    if (!s) return;
+    const rt = (v: number | null): number => (v === null ? Infinity : now + v);
+    for (const row of s.b) {
+      const id = Duel.BOT_ID + row.i;
+      if (this.bots.some((b) => b.bot.index === row.i)) continue;
+      const r = this.remotes.get(id);
+      const last = r?.samples[r.samples.length - 1];
+      const spawn: Spawn = last ? { x: last.x, z: last.z, yaw: last.yaw } : { x: row.dt[0], z: row.dt[1], yaw: 0 };
+      const bot = this.makeBot(row.i, BOT_TIERS[row.t] ?? "normal", spawn);
+      if (last) bot.pos.y = last.y;
+      bot.restoreKit(row.k, row.c);
+      if (!this.startLoot || row.as) bot.dummy.setGunVisible(true);
+      const b: BrBot = { bot, node: row.n, goal: row.g, armedAt: rt(row.ar), armedShown: row.as, landed: true, team: row.tm, slot: row.sl, dropTo: { x: row.dt[0], z: row.dt[1] }, jumpAt: Infinity, redeploy: row.rd >= 0 ? new Redeploy(id, row.rd) : null, down: null, reviving: row.rv };
+      if (r) {
+        bot.dummy.health = r.health;
+        bot.dummy.shield = Math.min(r.shield, bot.dummy.shieldMax);
+      }
+      bot.remote.shieldMax = bot.dummy.shieldMax;
+      bot.remote.health = bot.dummy.health;
+      bot.remote.shield = bot.dummy.shield;
+      if (!row.al) {
+        bot.dummy.fallDown(false);
+        bot.remote.alive = false;
+      } else if (row.dn) {
+        bot.goDown(now, r?.health ?? squadCfg.bleedHealth, bot.diff.speed * SQUADS.crouchWalk * squadCfg.crawl);
+        b.down = { by: row.dn[0], bleed: row.dn[1] };
+      }
+      this.bots.push(b);
+      this.dropFigure(id);
+    }
+    this.dealt.clear();
+    for (const [id, total, ago] of s.dl) this.dealt.set(id, { total, at: now + ago });
+    this.surgeAt = rt(s.sa);
+    this.surgeSince = rt(s.ss);
+    this.podCount = Math.max(this.podCount, s.pc);
+    this.podSeq = Math.max(this.podSeq, s.ps);
+    for (const ph of s.pp) this.podPhases.add(ph);
+    for (const [side, place] of s.pl) this.placedAt.set(side, place);
+    if (this.lootField) this.lootField.keyNext = s.nk;
+    this.botSendNext = 0;
+    this.ringSendNext = 0;
+  }
+
+  /** the bots as the host runs them: index, tier and squad (the tests) */
+  get botRoster(): string[] {
+    return this.bots.map((b) => `${b.bot.index}:${b.bot.diff.name}:${b.team}`).sort();
   }
 
   // ------------------------------------------------------------ Storm Surge

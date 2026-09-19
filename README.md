@@ -81,14 +81,15 @@ holds their place, their figure where it stood, for 60 s and takes them back
 on it. A seat nobody comes back for is let go after that. A 1v1 still ends
 when either of you goes.
 
-**The match outlives its host** (every arena mode, bots and all; the battle
-royale is next). The host names one friend its heir. If the host's connection drops, or
+**The match outlives its host**, in every mode with friends but the 1v1. The
+host names one friend its heir. If the host's connection drops, or
 the host leaves mid-match, the heir takes the match over on the same code, and
 everyone else is back in on their own seats within a few seconds, with the
 score and the clock as they were. The bots carry on where they stood, each with
-its own tier and team, and so do the crown and Control's zones. Nobody types a
-code. The battle royale still ends with its host for now
-(docs/PLAN_HOST_MIGRATION.md).
+its own tier and team, and so do the crown and Control's zones. In a battle
+royale the bots keep the kit they looted, the ring carries on along its plan
+mid-close, and the Storm Surge, the care packages and the placings are as they
+were. Nobody types a code (docs/PLAN_HOST_MIGRATION.md).
 
 **The host checks every hit.** Your own browser decides your hits, which is
 what keeps a hit where you saw it at any ping; the host now holds each one up

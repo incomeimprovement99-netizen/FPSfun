@@ -90,7 +90,7 @@ The hardest part is that ids are baked in: 0 is the host everywhere. The cheapes
 - The time between the last snapshot and the takeover is lost. That is about a second of bot movement, and any ring tick in that second is replayed from its seeded plan.
 - Bots stand where the guests last saw them. The heir moves each bot to its last replicated state, not to the snapshot's position, so nothing jumps on the others' screens.
 
-## As built (phases 1 and 2)
+## As built (all four phases, Milestones 110 to 113)
 
 Two things came out differently from the design above, both simpler or safer:
 
@@ -98,9 +98,15 @@ Two things came out differently from the design above, both simpler or safer:
   at the same time tries to get back in as a guest. Whichever lands first wins. A host that is still there (only the
   heir's connection dropped) keeps its code, so the heir can never split the match. This replaces the `hostId` check
   in Risks below.
-- **The snapshot is only the seats.** In Free-for-all and Gun Run, a guest's own copy already holds the ladder, the
-  clock, the phase and the winner (the `mode` and `round` messages), so `restoreAsHost` rebuilds from that. The
-  snapshot grows with each later phase, by what that phase's mode keeps only on the host.
+- **The snapshot is only what no guest has.** In Free-for-all and Gun Run, a guest's own copy already holds the
+  ladder, the clock, the phase and the winner (the `mode` and `round` messages), so the snapshot is the seats.
+  The arena modes add each bot's tier, team, gun, respawn and waypoint, the crown's appearance and Control's next
+  bonus. The battle royale adds the bots' kits and states, the surge's record, the packages, the placings and the
+  loot keys. The ring is never sent: `Ring.restore` puts the seeded plan where a guest's view says it is.
+- **The battle royale migrates once every bot is down on the map.** Before that, a bot aboard or gliding in sends
+  nothing a guest could put it back from, so the host names no heir.
+- **The fresh-code fallback was not needed.** Over the public broker, a closed or crashed tab's registration was
+  gone by the time the heir asked (0.4 s). The `claim` retry covers a broker slower to notice.
 
 ## Phases
 
