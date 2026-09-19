@@ -491,6 +491,22 @@ async function brLootTest(browser: Browser, query: string): Promise<void> {
     `(() => { const r = window.__range; const d = r.duel(); return { empty: r.loadout.slots.every((s) => s.empty), kit: r.kit.total, field: d.lootField ? d.lootField.count : 0, light: r.loadout.ammo.stock.light, weapon: r.hud.last?.weaponName ?? "", botsArmed: d.bots.filter((b) => b.armedShown).length, looted: d.bots.filter((b) => b.armedShown && b.bot.lootKit.gunId !== null && b.bot.lootKit.taken > 0).length, sight: d.bots.map((b) => Math.round(b.bot.sight)) }; })()`
   );
   check("loot: you land with nothing (two empty slots, fists, no heals, no ammo) on a floor of items", start.empty && start.kit === 0 && start.light === 0 && start.field > 100 && start.weapon === "FISTS", JSON.stringify(start));
+  // A supply bin: go to one, hold E, and it opens, what it held thrown out round
+  // it; it is never in the reach list, and it is gone for whoever comes next.
+  const bin = await ev<{ key: number; x: number; y: number; z: number; n: number } | null>(page, `(() => { const f = window.__range.duel().lootField; const all = [...f.drops.values()].filter((d) => d.item.kind === "bin" && d.item.id === "closed"); const b = all[0]; return b ? { key: b.key, x: b.pos.x, y: b.pos.y, z: b.pos.z, n: f.drops.size } : null; })()`);
+  if (!bin) check("bins: the match has supply bins", false);
+  else {
+    await ev(page, `(() => { const r = window.__range; r.player.teleport(${bin.x} - 0.8, ${bin.y}, ${bin.z}, 90, -30); })()`);
+    await sleep(400);
+    const rows = await ev<number[] | null>(page, `window.__range.brPlay.hud?.reach?.rows?.map((r) => r.key) ?? null`);
+    const listed = rows === null || rows.includes(bin.key);
+    // held, never pressed again: a press on each frame would take what the bin throws out
+    await ev(page, `window.__range.setScript({ held: (a) => a === "interact", pressedNow: () => false })`);
+    await sleep(1200);
+    await ev(page, "window.__range.setScript(null)");
+    const after = await ev<{ closed: boolean; open: boolean; round: number }>(page, `(() => { const f = window.__range.duel().lootField; const at = (d, r) => Math.hypot(d.pos.x - ${bin.x}, d.pos.z - ${bin.z}) < r; const ds = [...f.drops.values()]; return { closed: f.drops.has(${bin.key}), open: ds.some((d) => d.item.kind === "bin" && d.item.id === "open" && at(d, 0.2)), round: ds.filter((d) => d.item.kind !== "bin" && Math.abs(Math.hypot(d.pos.x - ${bin.x}, d.pos.z - ${bin.z}) - 1.1) < 0.15).length }; })()`);
+    check("bins: hold E at a supply bin and it opens, what it held thrown out round it (and it is not in the reach list)", !listed && !after.closed && after.open && after.round >= 3, JSON.stringify({ listed, ...after }));
+  }
   // A bot lands with nothing and LOOTS its gun off the floor, so one that came
   // down a few seconds before you may already have one. What must never
   // happen is a bot holding a gun it did not find.

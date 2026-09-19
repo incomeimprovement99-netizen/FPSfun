@@ -30,7 +30,21 @@ import { optionsFor, SLOTS, type Attachments } from "./attachments";
 import { BACKPACKS, KNOCK_SHIELDS, type BackTier, type KnockTier } from "./kit";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
-export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade" | "backpack" | "knockdown";
+export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade" | "backpack" | "knockdown" | "bin";
+
+/** supply bins (loot.json bins): where they may stand, how often, and what one throws out */
+export const BINS = cfg.bins;
+
+/** a supply bin, closed (id "closed", to be opened) or open (id "open", spent): not an item anyone carries */
+export const isBin = (it: { kind: string }): boolean => it.kind === "bin";
+
+/** what a bin throws out when it opens: its tier's rolls, from the match seed and the bin's own key */
+export function binContents(seed: number, key: number): LootItem[] {
+  const rnd = seeded(((seed ^ Math.imul(key + 1, 2654435761)) >>> 0) || 1);
+  const out: LootItem[] = [];
+  for (let i = 0; i < BINS.spots; i++) out.push(...rollSpot(rnd, BINS.tier as PlaceTier));
+  return out;
+}
 
 export interface LootItem {
   kind: LootKind;
@@ -473,6 +487,20 @@ export class LootField {
       plate.rotation.x = -Math.PI / 2;
       plate.position.y = 0.02;
       g.add(plate);
+    } else if (it.kind === "bin") {
+      // a supply bin: a squat crate with a lit seam; open, its lid stands up behind it
+      const open = it.id === "open";
+      const body = new THREE.Mesh(this.crateGeo, this.mat("bin", () => new THREE.MeshStandardMaterial({ color: 0x33434a, emissive: 0x3fd0c8, emissiveIntensity: 0.3, roughness: 0.55, metalness: 0.3 })));
+      body.scale.set(1.2, open ? 0.8 : 0.9, 0.8);
+      body.position.y = 0.25;
+      g.add(body);
+      const lid = new THREE.Mesh(this.crateGeo, this.mat("binlid", () => new THREE.MeshStandardMaterial({ color: 0x26343a, roughness: 0.6, metalness: 0.3 })));
+      lid.scale.set(1.25, 0.12, 0.85);
+      if (open) {
+        lid.rotation.x = -1.3;
+        lid.position.set(0, 0.7, -0.4);
+      } else lid.position.y = 0.52;
+      g.add(lid);
     } else if (it.kind === "box") {
       const crate = new THREE.Mesh(this.crateGeo, this.mat("deathbox", () => new THREE.MeshStandardMaterial({ color: 0x2b2f35, emissive: 0xff5a3a, emissiveIntensity: 0.25, roughness: 0.6 })));
       crate.position.y = 0.28;
@@ -566,6 +594,8 @@ export class LootField {
       }
     };
     let hotSpots: THREE.Vector3[] = [];
+    /** each place's and site's spots, for the supply bins placed last */
+    const binSpots: Array<{ spots: THREE.Vector3[]; n: number }> = [];
     for (let i = 0; i < places.length; i++) {
       const p = places[i];
       const hot = this.hotZone?.index === i;
@@ -580,6 +610,7 @@ export class LootField {
         trySpotAnyFloor(spots, p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
       }
       if (hot) hotSpots = spots;
+      binSpots.push({ spots, n: BINS.perPlace });
       fill(spots, tier);
     }
 
@@ -609,6 +640,18 @@ export class LootField {
         trySpotAnyFloor(spots, p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
       }
       fill(spots, siteTier);
+      binSpots.push({ spots, n: BINS.perSite });
+    }
+    // Supply bins, last of all and on a stream of their own, so everything
+    // above draws what it drew before: beside the first spots of each place
+    // and site, each there with the chance, from the seed.
+    const binRnd = seeded((seed ^ 0x51b1a5e5) >>> 0);
+    for (const { spots, n } of binSpots) {
+      for (let i = 0; i < Math.min(n, spots.length); i++) {
+        if (binRnd() >= BINS.chance) continue;
+        const at = spots[i].clone().add(new THREE.Vector3(1.1, 0, 0.3));
+        this.add({ kind: "bin", id: "closed", n: 1, rarity: "rare" }, at);
+      }
     }
   }
 

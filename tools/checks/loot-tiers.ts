@@ -10,7 +10,7 @@
 //
 // Run on its own: npx tsx tools/checks/loot-tiers.ts
 import lootCfg from "../../src/config/loot.json";
-import { LootField, pickHotZone, rarityWeights, rollSpot, seeded, tierOf, type LootItem, type LootPlace, type PlaceTier, type Rarity } from "../../src/game/loot";
+import { LootField, binContents, pickHotZone, rarityWeights, rollSpot, seeded, tierOf, type LootItem, type LootPlace, type PlaceTier, type Rarity } from "../../src/game/loot";
 import { optionsFor, SLOTS } from "../../src/game/attachments";
 import { weaponMods } from "../../src/game/weapons";
 import { AmmoPouch, STACK, ammoCap, ammoTypeOf } from "../../src/game/ammo";
@@ -301,6 +301,8 @@ console.log("Loot density");
   for (const seed of seeds) {
     field.generate(seed, places, bounds, sites);
     for (const d of field.drops.values()) {
+      // a supply bin is a container, not an item on the floor
+      if (d.item.kind === "bin") continue;
       total++;
       tally[d.item.kind] = (tally[d.item.kind] ?? 0) + 1;
       if (d.item.kind === "attach" && String(d.item.id).startsWith("mag")) tally.mag++;
@@ -316,6 +318,26 @@ console.log("Loot density");
   // of: it went to 1.8 magazines per gun, and a floor reads as junk long
   // before that.
   check("and fewer magazines than guns", tally.mag < tally.weapon, `${per(tally.mag).toFixed(1)} against ${per(tally.weapon).toFixed(1)}`);
+}
+
+// ---------------------------------------------------------------- supply bins
+// A place has a spot or two for a bin and a site one, each there with the
+// chance from the seed: rich one match, thin the next. A bin opened throws
+// out its tier's rolls, the same for the same bin in the same match.
+{
+  const B = lootCfg.bins;
+  const counts: number[] = [];
+  for (const seed of seeds) {
+    field.generate(seed, places, bounds, sites);
+    counts.push([...field.drops.values()].filter((d) => d.item.kind === "bin").length);
+  }
+  const most = places.length * B.perPlace + sites.length * B.perSite;
+  const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
+  check(`bins: about ${Math.round(most * B.chance)} a match of ${most} spots, and not the same number every match`, Math.abs(mean - most * B.chance) < most * 0.08 && new Set(counts).size > 3, `${mean.toFixed(1)} a match, ${Math.min(...counts)} to ${Math.max(...counts)}`);
+  const a = binContents(seeds[0], 41);
+  const b = binContents(seeds[0], 41);
+  const c = binContents(seeds[0], 42);
+  check("a bin's contents are the same for the same bin and match, and differ bin to bin", JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a) !== JSON.stringify(c) && a.length >= B.spots, `${a.length} items`);
 }
 
 // ---------------------------------------------------------------- what you can carry

@@ -414,6 +414,20 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-bins",
+    note: "supply bins: one closed (its lit seam) and one opened (lid up, what it held round it)",
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [untilFightLong, 400],
+      [
+        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("jolt"); const f = d.lootField; const bins = [...f.drops.values()].filter((x) => x.item.kind === "bin");
+          const a = bins[0]; if (!a) return; d.takeLoot(a.key);
+          const p = a.pos; r.player.teleport(p.x - 3.2, p.y, p.z + 1.2, 110, -22); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
+        900,
+      ],
+    ],
+  },
+  {
     name: "br-loot",
     note: "a battle royale with nothing: fists, the floor's items (a gun, a purple beam, heals, ammo), the TAKE prompt",
     steps: [

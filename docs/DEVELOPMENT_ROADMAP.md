@@ -1214,3 +1214,18 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/resurgence.ts` (the area the same for a seed and leaning toward each of the four over many,
   the hub and its place inside, every round's circle inside the last), and the e2e `resurgence` section (the first
   circle is the area, and everyone drops inside it).
+
+## Milestone 83 — Supply bins ✅
+2026-09-19 (Phase 15). `loot.ts`, `brmatch.ts`, `brplay.ts`, `audio.ts`, `main.ts`, `src/config/loot.json`.
+- There were no containers: every item lay loose, seen from outside a building and taken in silence. Each place
+  has two spots for a supply bin and each site one, each there with a 70 per cent chance from the match seed, so a
+  place is rich one match and thin the next (about 18 bins a match, 13 to 25). A closed bin hums (heard to 40 m);
+  hold E for 0.7 s to open it, heard across the place; it throws out two rolls of the high tier round it and stands
+  open for the rest of the match.
+- Opening rides on the loot's own messages: whoever takes the closed bin first opens it, and the host puts down an
+  open one and the contents, from the seed and the bin's key. Bins are placed last, on a random stream of their own,
+  so the places, the field, the Hot Zone and the sites draw exactly what they drew before; a bin is never counted as
+  floor loot nor offered in the reach list.
+- Checks: `tools/checks/loot-tiers.ts` (the bins a match and their spread, a bin's contents the same for the same bin
+  and different bin to bin, the floor's density unchanged), the e2e `loot` section (hold E at a bin: it opens, what
+  it held round it, never in the reach list), and the snapshot `br-bins`.

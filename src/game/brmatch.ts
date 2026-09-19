@@ -139,7 +139,7 @@ import { HEAL_CODES } from "./recap";
 import brmapCfg from "../config/brmap.json";
 /** bot squads acting as squads (bots.json squads) */
 const SQUADS = botsCfg.squads;
-import { LootField, LOOT, deathBoxOf, kittedAttach, seeded, type LootItem, type LootKind, type Rarity } from "./loot";
+import { LootField, LOOT, binContents, deathBoxOf, isBin, kittedAttach, seeded, type LootItem, type LootKind, type Rarity } from "./loot";
 import { ammoTypeOf, STACK } from "./ammo";
 
 /** how high the drop starts */
@@ -410,7 +410,7 @@ const PUFF_GEO = new THREE.SphereGeometry(brCfg.pod.trail.radius, 8, 6);
 
 const BR_BOUNDS_WORLD = { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HALF, minZ: BR_CENTER.z - BR_HALF, maxZ: BR_CENTER.z + BR_HALF };
 const RARITIES = ["common", "rare", "epic", "legendary"];
-const KINDS = ["weapon", "ammo", "heal", "attach", "hopup", "helmet", "banner", "box", "grenade"];
+const KINDS = ["weapon", "ammo", "heal", "attach", "hopup", "helmet", "banner", "box", "grenade", "bin"];
 
 /** a loot item from another browser, checked field by field */
 function wireItem(x: unknown): LootItem | null {
@@ -858,11 +858,28 @@ export class BrMatch extends Duel {
     const f = this.lootField;
     if (!f) return;
     if (this.role === "host") {
+      const pos = f.drops.get(key)?.pos.clone();
       const it = f.remove(key);
       if (!it) return;
       this.onLootTaken?.(it);
       this.broadcast({ t: "loot", op: "gone", key, by: this.id });
+      if (pos && isBin(it) && it.id === "closed") this.spillBin(pos, key);
     } else if (f.drops.has(key)) this.hostLink?.send({ t: "loot", op: "take", key });
+  }
+
+  /**
+   * The host: a supply bin was opened (taken first by whoever held E at it).
+   * An open one stands in its place for the rest of the match, and what was
+   * in it is thrown out round it, from the seed and the bin's own key.
+   */
+  private spillBin(at: THREE.Vector3, key: number): void {
+    this.dropLoot({ kind: "bin", id: "open", n: 1, rarity: "rare" }, at);
+    this.onBinOpened?.(at);
+    const items = binContents(this.seed, key);
+    items.forEach((it, i) => {
+      const a = (i / Math.max(1, items.length)) * Math.PI * 2 + 0.4;
+      this.dropLoot(it, at.clone().add(new THREE.Vector3(Math.cos(a) * 1.1, 0, Math.sin(a) * 1.1)));
+    });
   }
 
   /** put an item down (a swapped gun, a death box's contents): the host keys it and tells the squad */
@@ -1624,6 +1641,9 @@ export class BrMatch extends Duel {
     return this.team.size > 1 && super.squadUp();
   }
 
+  /** a supply bin opened at `at` (its lid and its sound), on every browser */
+  onBinOpened: ((at: THREE.Vector3) => void) | null = null;
+
   /** where the match is played: the whole map, or Resurgence's quarter of it */
   readonly area: { cx: number; cz: number; r: number };
 
@@ -1803,8 +1823,10 @@ export class BrMatch extends Duel {
       const at = Array.isArray(m.at) && m.at.length === 3 && m.at.every((v) => typeof v === "number" && Number.isFinite(v)) ? new THREE.Vector3(...m.at) : null;
       if (this.role === "host") {
         if (m.op === "take" && f.drops.has(key)) {
-          f.remove(key);
+          const pos = f.drops.get(key)!.pos.clone();
+          const it = f.remove(key);
           this.broadcast({ t: "loot", op: "gone", key, by: from });
+          if (it && isBin(it) && it.id === "closed") this.spillBin(pos, key);
         } else if (m.op === "drop" && at) {
           const it = wireItem(m.item);
           if (it) this.dropLoot(it, at);
@@ -1815,6 +1837,8 @@ export class BrMatch extends Duel {
       } else if (m.op === "add" && at) {
         const it = wireItem(m.item);
         if (it) f.add(it, at, key);
+        // a bin opened somewhere: heard across the place
+        if (it && isBin(it) && it.id === "open") this.onBinOpened?.(at);
       }
       return;
     }

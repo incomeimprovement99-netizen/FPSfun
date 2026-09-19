@@ -21,7 +21,7 @@ import type { Dummy } from "./dummy";
 import type { Action } from "./input";
 import type { MoveInput, Player } from "./player";
 import { solidHit } from "./projectile";
-import { lootLabel, type LootItem, type LootDrop, type Rarity } from "./loot";
+import { BINS, lootLabel, type LootItem, type LootDrop, type Rarity } from "./loot";
 import { DROP_HEIGHT } from "./brmatch";
 import squad from "../config/squad.json";
 import hudCfg from "../config/hud.json";
@@ -154,7 +154,7 @@ export function nothingToGain(item: LootItem, carry: CarryState | null): boolean
 export function reachRows(drops: Iterable<ReachDrop>, at: { x: number; y: number; z: number }, carry: CarryState | null): ReachRow[] {
   const rows: ReachRow[] = [];
   for (const d of drops) {
-    if (d.item.kind === "box") continue;
+    if (d.item.kind === "box" || d.item.kind === "bin") continue;
     if (Math.abs(d.pos.y - at.y) > LOOTING.floorGap) continue;
     const dist = Math.hypot(d.pos.x - at.x, d.pos.z - at.z);
     if (dist > LOOTING.reach) continue;
@@ -197,7 +197,7 @@ export class BrPlay {
   markers: Marker[] = [];
   /** a squad mate's banner you carry to a beacon */
   carried: { owner: number; name: string; until: number } | null = null;
-  private hold: { kind: "revive" | "beacon" | "box" | "console"; target: number; label: string; start: number; need: number } | null = null;
+  private hold: { kind: "revive" | "beacon" | "box" | "console" | "bin"; target: number; label: string; start: number; need: number } | null = null;
   /** interact went down at a squad mate's banner, and when (a tap takes it, a hold respawns them) */
   private eDownAt: number | null = null;
   private padAt = -Infinity;
@@ -445,6 +445,8 @@ export class BrPlay {
     const beacon = this.carried ? match.mapInfo.beacons.find((b) => Math.hypot(p.x - b.x, p.z - b.z) < squad.beaconReach) : undefined;
     // a Ring Console at your feet
     const rc = player.onGround ? match.consoleNear(p, CONSOLE.reach) : null;
+    // a closed supply bin within reach, on your floor
+    const bin = player.onGround && match.lootField ? [...match.lootField.drops.values()].find((d) => d.item.kind === "bin" && d.item.id === "closed" && Math.hypot(d.pos.x - p.x, d.pos.z - p.z) < LOOTING.reach && Math.abs(d.pos.y - p.y) < LOOTING.floorGap) : undefined;
     if (mate) {
       out.prompt = { key: `HOLD ${key}`, text: `REVIVE ${mate.name}` };
       this.runHold("revive", mate.id, `REVIVING ${mate.name}`, REVIVE_TIME, holdingE, now, match, () => {
@@ -502,6 +504,12 @@ export class BrPlay {
           this.deps.onScan?.();
         });
       }
+    } else if (bin) {
+      // a supply bin: hold to open it (whoever is first gets it open), and what was in it comes out round it
+      out.prompt = { key: `HOLD ${key}`, text: "OPEN THE SUPPLY BIN" };
+      this.runHold("bin", bin.key, "OPENING THE SUPPLY BIN", BINS.hold, holdingE, now, match, () => {
+        match.takeLoot(bin.key);
+      });
     } else {
       this.cancelHold(match);
       // on the tower's own floor: the Mast's balloon is on its roof, not in the hall 28 m under it
@@ -618,7 +626,7 @@ export class BrPlay {
   }
 
   /** a hold-E action: started, kept going, given up, or done */
-  private runHold(kind: "revive" | "beacon" | "box" | "console", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void): void {
+  private runHold(kind: "revive" | "beacon" | "box" | "console" | "bin", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void): void {
     if (!holding) {
       this.cancelHold(match);
       return;
