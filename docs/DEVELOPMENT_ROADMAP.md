@@ -1535,7 +1535,7 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   ground. It keeps its footprint and height, so the box it collides with still fits it (it never reaches more than
   4% past its box, and its corners sit inside it) and nothing a bot or a test walks changed. The random is fixed by
   the rock's place and the facet grid, so every load makes the same rocks and the seams between faces stay shut.
-- About 190 triangles a rock against the bevelled box's 300, merged with the rest of the map.
+- 160 triangles a rock against the bevelled box's 300, merged with the rest of the map.
 - They take a lighter tint of the same stone than the mesas and the scarp: the rock set is dark, and on the tint the
   cliffs use, a boulder on the sand read as a black lump.
 - Made rather than fetched: no model or licence to carry. Cliffs and vegetation are still to do.
