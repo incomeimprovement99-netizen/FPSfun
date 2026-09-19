@@ -2909,6 +2909,15 @@ async function emoteTest(browser: Browser, query: string, duelQuery: string): Pr
   await ev(host, "(() => { const p = window.__range.player.eyePosition(); window.__range.duel().localShot(p, new window.__range.THREE.Vector3(0, -1, -1).normalize(), 'rspn101'); })()");
   const marked = await guest.waitForFunction(`window.__range.impacts() > ${i0}`, { polling: 50, timeout: 3000 }).then(() => true, () => false);
   check("impacts: another player's round into the floor is marked where it lands", marked, `${i0} before`);
+  // the host sprays the nearest wall it can turn to: the guest sees the host's spray
+  let sprayed = false;
+  for (let yaw = 0; yaw < 360 && !sprayed; yaw += 20) {
+    await ev(host, `(() => { const p = window.__range.player; p.yaw = ${yaw}; p.pitch = -8; })()`);
+    await sleep(60);
+    sprayed = await ev<boolean>(host, "window.__range.spray()");
+  }
+  const seenSpray = sprayed && (await guest.waitForFunction("window.__range.sprays().owners.includes(0)", { polling: 100, timeout: 4000 }).then(() => true, () => false));
+  check("sprays: the host sprays the wall in front of it, and the guest sees the host's spray there", seenSpray, JSON.stringify({ sprayed }));
   await ev(host, "window.__range.emote(0)");
   const seen = await guest.waitForFunction("window.__range.duel().remotes.get(0)?.avatar.emoting === 0", { polling: 100, timeout: 4000 }).then(() => true, () => false);
   await ev(host, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: (a) => a === "forward" })`);

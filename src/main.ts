@@ -14,7 +14,7 @@ import { Course } from "./game/course";
 import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset } from "./game/quality";
-import { ProjectileSystem, solidHit } from "./game/projectile";
+import { lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import AUDIO_CFG from "./config/audio.json";
 import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier, type FigurePose } from "./game/dummy";
@@ -87,6 +87,7 @@ import { Progress, levelFor, type Award } from "./game/progress";
 import { HUD_SCALES, P, VISION_MODES, access, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
 import { LoadingScreen } from "./ui/loading";
 import { setMuzzleViewer } from "./game/muzzle";
+import { SPRAYS, SprayLayer } from "./game/sprays";
 import { ImpactLayer, IMPACTS, blastShakeDeg } from "./game/impacts";
 import { EMOTES, EMOTE_STOP } from "./game/emotes";
 import emotesCfg from "./config/emotes.json";
@@ -891,6 +892,52 @@ const abilities = new Abilities();
 abilities.enabled = true; // the range lets you practise either
 /** short-lived world effects: JOLT streaks (fx.ts) */
 const fx = new FxLayer(scene);
+// everyone's sprays on the walls (sprays.ts)
+const sprays = new SprayLayer(scene);
+let sprayReadyAt = 0;
+const sprayPick = $<HTMLSelectElement>("sprayPick");
+SPRAYS.list.forEach((sp, i) => {
+  const o = document.createElement("option");
+  o.value = String(i);
+  o.textContent = sp.name;
+  sprayPick.appendChild(o);
+});
+try {
+  sprayPick.value = localStorage.getItem("range.spray") ?? "0";
+} catch {
+  /* ignore */
+}
+sprayPick.addEventListener("change", () => {
+  try {
+    localStorage.setItem("range.spray", sprayPick.value);
+  } catch {
+    /* kept for this visit */
+  }
+});
+/**
+ * Your spray on the wall you look at, within reach, for everyone in the
+ * match: found with the level's own ray test (the face it hits is the wall's
+ * facing), and sent as one effect.
+ */
+function doSpray(now: number): boolean {
+  if (now < sprayReadyAt) return false;
+  const eye = player.eyePosition();
+  // the way you face, from your own angles (the camera is a frame behind a turn)
+  const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(player.orientationAt(player.yaw, player.pitch, 0, 0));
+  const t = solidHit(eye, dir, SPRAYS.range);
+  if (!Number.isFinite(t) || t > SPRAYS.range) {
+    hud.notice("NOTHING TO SPRAY ON", now, 0.8);
+    return false;
+  }
+  const at = eye.clone().addScaledVector(dir, t);
+  const normal = lastSolidNormal.clone();
+  const idx = Math.max(0, Math.min(SPRAYS.list.length - 1, Number(sprayPick.value) || 0));
+  sprays.place(duel?.id ?? 0, at, normal, idx, now);
+  duel?.localFx("spray", at, normal, idx);
+  audio.spray(at);
+  sprayReadyAt = now + SPRAYS.cooldown;
+  return true;
+}
 // bullet holes and dust where rounds hit the level, anyone's (impacts.ts)
 const impacts = new ImpactLayer(scene);
 /** a round into the level: marked, and heard close by (the ground in the battle royale is dirt) */
@@ -2475,6 +2522,12 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     }
     // a squad mate scanned a Ring Console: the circle after next is on our map too
     // someone's emote: their figure plays it (or stops)
+    // someone's spray, where they put it
+    if (k === "spray" && a && b && typeof n === "number") {
+      sprays.place(from, a, b, n, gameTime);
+      audio.spray(a);
+      return;
+    }
     if (k === "emote" && typeof n === "number") {
       figureById(from)?.emote(n === EMOTE_STOP ? null : n);
       return;
@@ -2810,8 +2863,9 @@ function endMatch(reason: string): void {
   const wasGunRun = duel instanceof ArenaMode && duel.modeKind === "gunrun";
   duel?.dispose();
   duel = null;
-  // the match's bullet holes go with it
+  // the match's bullet holes and sprays go with it
   impacts.clear();
+  sprays.clear();
   // and out of a battle royale nothing limits the ammo you carry
   loadout.ammo.packTier = null;
   // back in the range: either ability to practise, nothing picked; ammo as Settings says
@@ -3615,6 +3669,8 @@ function step(): void {
       healHeldAt = -1;
     }
     // 7: hold for the emote wheel (move to one, let go); a tap plays the last one again
+    // 8: your spray on the wall you look at
+    if (input.pressedNow("spray")) doSpray(now);
     if (input.pressedNow("emote")) {
       emoteHeldAt = now;
       emoteVec.x = emoteVec.y = 0;
@@ -4274,6 +4330,7 @@ function step(): void {
   drill.target.update(now, dt);
   for (const d of galleryFigs) d.update(now, dt);
   fx.update(now);
+  sprays.update(gameTime);
   impacts.update(gameTime, dt);
   // the menu stops a run's clock (a minute on the Settings tab was a minute
   // on the time); a test script drives the course without the menu
@@ -4905,6 +4962,9 @@ initWelcome();
   frames: () => framesRun,
   /** the live rounds' tracers (projectile.ts) */
   tracers: () => projectiles.tracers,
+  /** sprays: put yours up, and whose are up */
+  spray: () => doSpray(gameTime),
+  sprays: () => ({ count: sprays.count, owners: sprays.owners() }),
   /** bullet impacts marked on the level since the page opened */
   impacts: () => impacts.count,
   /** blasts marked on the level (scorch and smoke) since the page opened */

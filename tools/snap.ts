@@ -428,6 +428,13 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "spray",
+    note: "a spray on the wall in front of you: the icon cut out of a painted disc, its drips",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; r.player.teleport(-20, 0, 12, 90, -6); for (let yaw = 0; yaw < 360; yaw += 15) { r.player.yaw = yaw; await new Promise((ok) => setTimeout(ok, 80)); if (r.spray()) break; } })()`, 1200],
+    ],
+  },
+  {
     name: "br-loot",
     note: "a battle royale with nothing: fists, the floor's items (a gun, a purple beam, heals, ammo), the TAKE prompt",
     steps: [

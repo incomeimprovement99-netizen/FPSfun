@@ -733,6 +733,13 @@ export class GameAudio {
     if (!this.sample(v.input, v.t, open ? "bin_open" : "bin_close", 0.7)) this.tone(v.input, v.t, 0.12, "square", 300, 180, 0.18);
   }
 
+  /** a spray can: a short hiss where it was used */
+  spray(at: Vec | null): void {
+    const v = this.voice(at, 0.5, "fx", 1, 0.2);
+    if (!v) return;
+    this.noise(v.input, v.t, 0.4, "highpass", 5200, 0.7, 0.16, 0.02);
+  }
+
   /** a closed supply bin nearby: a low electric hum, so you find it by ear before you see it */
   binHum(at: Vec): void {
     const v = this.voice(at, 0.5, "fx", 0, 0.2, 4);

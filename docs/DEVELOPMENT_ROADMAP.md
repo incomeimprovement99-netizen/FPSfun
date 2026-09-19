@@ -1241,3 +1241,15 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   the Friends tab.
 - Checks: `tools/checks/boards.ts` (a forged 99,999 counts as one win, an honest next total counts, a lower total
   changes nothing, a time keeps its best and a time under 5 s is refused).
+
+## Milestone 85 — Sprays ✅
+2026-09-19 (Phase 15). `sprays.ts` (new), `main.ts`, `audio.ts`, `binds.ts`, `index.html`, `src/config/sprays.json`,
+`src/config/binds.json`.
+- The second half of "emotes, sprays, banner cards and quips". A tap of 8 paints your spray on the wall you look at,
+  within 5 m, with a hiss; everyone in the match sees it where you put it, through one effect message. One each: a
+  new one replaces your last, and it fades after two minutes. Eight to pick from in Settings (a skull, a crown, a
+  trophy, crossed swords, a target, a frag, an eye, a parachute), each the HUD's own credited icon cut out of a
+  painted disc in its colour, with drips: no new asset.
+- It aims from your own view angles, not the camera, which is a frame behind a turn.
+- Checks: the e2e `emote` section (the host sprays the wall in front of it and the guest sees the host's spray there),
+  and the snapshot `spray`.

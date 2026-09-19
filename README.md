@@ -210,6 +210,7 @@ defaults puts `binds.json` back.
 | Space, scroll up | jump (scroll makes superjumps and bunny hops easy); off the dropship | Ctrl, C | crouch, slide (see Ctrl + W under limits; toggle in Settings); break off from the jumpmaster |
 | Scroll down | forward, one tap per notch, for tap-strafing | E | interact: a zipline, an item; hold: a revive, a beacon, skip a tour step; down with a gold knockdown shield, hold to self-revive |
 | Enter, then 1 to 6 | quick chat: a line (GG, Nice shot!, Thanks!, On my way, Wait for me, Rematch?) to everyone in the match, in their kill feed | 7 | emotes: hold for the wheel (wave, cheer, over there, salute, shrug, dance), move to one and let go; a tap plays the last again. Your view steps round in front to watch, everyone sees it, and a step ends it |
+| 8 | your spray on the wall you look at (within 5 m): everyone in the match sees it, a new one replaces your last, and it fades after two minutes; pick yours in Settings | | |
 | Left mouse | fire | Right mouse | aim down sights (toggle in Settings) |
 | R | reload; hold with a full magazine to inspect the gun (Inspect can have a key of its own) | V | melee (heirloom or fist) |
 | 1, 2 | weapon slot | Q, Mouse 5 | swap weapon |

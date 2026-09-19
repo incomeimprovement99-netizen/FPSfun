@@ -1,0 +1,17 @@
+{
+  "_note": "Sprays (src/game/sprays.ts): a tap of the spray key paints yours on the wall you look at, within range metres, size metres across, and everyone in the match sees it. One each: a new one replaces your last, and it fades after life seconds. cooldown seconds between two. The art is the game-icons.net set the HUD already credits (public/icons/ATTRIBUTION.md, CC BY 3.0), each in its colour on a painted disc.",
+  "range": 5,
+  "size": 0.9,
+  "life": 120,
+  "cooldown": 3,
+  "list": [
+    { "id": "skull", "name": "Skull", "icon": "skull", "color": "#ff4b3e" },
+    { "id": "crown", "name": "Crown", "icon": "crown", "color": "#ffd23c" },
+    { "id": "trophy", "name": "Trophy", "icon": "trophy", "color": "#f0b429" },
+    { "id": "swords", "name": "Crossed swords", "icon": "swords", "color": "#9fe0ff" },
+    { "id": "target", "name": "Target", "icon": "target", "color": "#ff7a3d" },
+    { "id": "frag", "name": "Frag", "icon": "frag", "color": "#7ddc8a" },
+    { "id": "eye", "name": "Watching", "icon": "eye", "color": "#c28bff" },
+    { "id": "parachute", "name": "Dropping in", "icon": "parachute", "color": "#ffffff" }
+  ]
+}
