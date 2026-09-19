@@ -30,7 +30,7 @@
 import * as THREE from "three";
 import { pack, unpack } from "peerjs-js-binarypack";
 import netCfg from "../../src/config/net.json";
-import { Duel, type LocalState } from "../../src/game/duel";
+import { Duel, type HeirSnapshot, type LocalState } from "../../src/game/duel";
 import type { DeltaMsg, DeltaPart, Link, NetMsg, StateMsg } from "../../src/net/link";
 import { type PlayerState, STATE_PROTOCOL, StateIn, StateOut, applyDiff, dequantise, diff, quantise, stateMsg, stateOf } from "../../src/net/state";
 import { StateSync } from "../../src/net/statesync";
@@ -964,6 +964,109 @@ const scene = new THREE.Scene();
   wire.drain();
   check("host id 3: the host's goodbye ends the guest's match", why === "The host left the match." && guest.left, why);
   guest.dispose();
+}
+
+{
+  // Host migration (docs/PLAN_HOST_MIGRATION.md): three in an arena match
+  // whose host state a guest holds (what Free-for-all and Gun Run are; the
+  // stand-in says so). The host names guest 1 its heir and sends it the
+  // seats; the host's connection goes with no goodbye; guest 1 takes the
+  // match over (main does that once the broker gives it the code), and guest
+  // 2 comes back to it with its seat, seeing guest 1 as its host.
+  class Migrating extends Duel {
+    protected override canMigrate(): boolean {
+      return true;
+    }
+  }
+  const wire = new Wire();
+  const [h1, g1] = wire.pair(0, 1);
+  const [h2, g2] = wire.pair(0, 2);
+  const opts = { players: 3, mode: "arena" as const };
+  const host = new Migrating(scene, projectiles, { ...opts, myId: 0, link: h1, guestId: 1 });
+  host.addGuest(h2, 2);
+  host.seatKeys = (ids) => ids.map((id) => [id, `KEY${id}`] as [number, string]);
+  const a = new Migrating(scene, projectiles, { ...opts, myId: 1, link: g1 });
+  const b = new Migrating(scene, projectiles, { ...opts, myId: 2, link: g2 });
+  let f = run(wire, [
+    { d: host, id: 0 },
+    { d: a, id: 1 },
+    { d: b, id: 2 },
+  ], [], 0, 180);
+  check("migration: the match is under way and the host names guest 1 its heir, to both", host.phase !== "waiting" && host.heir === 1 && a.heir === 1 && b.heir === 1, `${host.phase}, heir ${host.heir} ${a.heir} ${b.heir}`);
+  const snaps = wire.log.filter((c) => c.t === "heir" && (c.m as { op?: string }).op === "snap");
+  check("migration: only the heir is sent the seats' keys", snaps.length > 0 && snaps.every((c) => c.to === 1) && JSON.stringify((snaps[snaps.length - 1].m as { keys?: unknown }).keys) === JSON.stringify([[1, "KEY1"], [2, "KEY2"]]), `${snaps.length} snapshots`);
+  let taking: { keys: Array<[number, string]> } | null = null;
+  let aBack = 0;
+  let bBack = 0;
+  a.onTakeOver = (snap) => (taking = snap);
+  a.onHostLost = () => aBack++;
+  b.onHostLost = () => bBack++;
+  // the host's tab is gone: no goodbye, the links just close
+  h1.onMessage = null;
+  h2.onMessage = null;
+  g1.onClose?.();
+  g2.onClose?.();
+  check("migration: the heir asks for the code and, meanwhile, to get back in; the other only gets back in", !!taking && aBack === 1 && bBack === 1 && a.role === "guest" && a.reconnectUntil !== null && b.reconnectUntil !== null);
+  // main has the code: the heir is the host
+  a.takeOver(taking as unknown as HeirSnapshot);
+  check("migration: the heir is the host, holding guest 2's seat, and the old host is gone from it", a.role === "host" && a.hostId === 1 && a.reconnectUntil === null && !inside(a).remotes.has(0) && inside(a).remotes.has(2));
+  // guest 2's retry reaches it with its seat's key
+  const [n1, n2] = wire.pair(1, 2);
+  const tookBack = a.rejoin(n1, 2);
+  b.swapHost(n2, 1);
+  f = run(wire, [
+    { d: a, id: 1 },
+    { d: b, id: 2 },
+  ], [], f, 240);
+  check("migration: guest 2 is back on its seat, with guest 1 its host and the old host's figure gone", tookBack && b.hostId === 1 && b.role === "guest" && b.reconnectUntil === null && !inside(b).remotes.has(0));
+  check("migration: the two see each other move again, in deltas", lag(a, 2, f - 1) < 0.01 && lag(b, 1, f - 1) < 0.01 && a.sync.speaksDeltas(2) && b.sync.speaksDeltas(1), `${(lag(b, 1, f - 1) * 100).toFixed(2)} cm`);
+  check("migration: the match goes on, no end on either page", !a.left && !b.left && a.phase === host.phase);
+  // and the new host names its own heir: guest 2, who said it can
+  check("migration: the new host names guest 2 its heir", a.heir === 2 && b.heir === 2, `${a.heir} ${b.heir}`);
+  host.dispose();
+  a.dispose();
+  b.dispose();
+}
+
+{
+  // the host leaving mid-match (a goodbye) hands it on the same way; with
+  // migration impossible (a plain Duel: its rounds are the host's) the
+  // goodbye still ends it
+  class Migrating extends Duel {
+    protected override canMigrate(): boolean {
+      return true;
+    }
+  }
+  for (const can of [true, false]) {
+    const wire = new Wire();
+    const [h1, g1] = wire.pair(0, 1);
+    const [h2, g2] = wire.pair(0, 2);
+    const K = can ? Migrating : Duel;
+    const opts = { players: 3, mode: "arena" as const };
+    const host = new K(scene, projectiles, { ...opts, myId: 0, link: h1, guestId: 1 });
+    host.addGuest(h2, 2);
+    const a = new K(scene, projectiles, { ...opts, myId: 1, link: g1 });
+    const b = new K(scene, projectiles, { ...opts, myId: 2, link: g2 });
+    let took = false;
+    const ends: string[] = [];
+    a.onTakeOver = () => (took = true);
+    a.onHostLost = () => undefined;
+    b.onHostLost = () => undefined;
+    a.onEnd = (r) => ends.push(r);
+    b.onEnd = (r) => ends.push(r);
+    run(wire, [
+      { d: host, id: 0 },
+      { d: a, id: 1 },
+      { d: b, id: 2 },
+    ], [], 0, 180);
+    host.leave();
+    wire.drain();
+    if (can) check("migration: the host's goodbye mid-match goes to the heir, and nobody's match ends", took && ends.length === 0 && b.reconnectUntil !== null, JSON.stringify(ends));
+    else check("migration: a match that cannot migrate still ends with the host's goodbye", !took && ends.length === 2 && ends.every((e) => e === "The host left the match."), JSON.stringify(ends));
+    host.dispose();
+    a.dispose();
+    b.dispose();
+  }
 }
 
 // put back what the Duel checks borrowed

@@ -81,6 +81,13 @@ holds their place, their figure where it stood, for 60 s and takes them back
 on it. A seat nobody comes back for is let go after that. A 1v1 still ends
 when either of you goes.
 
+**The match outlives its host** (Free-for-all and Gun Run with friends, so
+far). The host names one friend its heir. If the host's connection drops, or
+the host leaves mid-match, the heir takes the match over on the same code, and
+everyone else is back in on their own seats within a few seconds, with the
+score and the clock as they were. Nobody types a code. The other modes and the
+battle royale still end with their host for now (docs/PLAN_HOST_MIGRATION.md).
+
 **The host checks every hit.** Your own browser decides your hits, which is
 what keeps a hit where you saw it at any ping; the host now holds each one up
 to what the gun can do (no more than one of its rounds, only after a shot, from

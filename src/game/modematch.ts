@@ -753,6 +753,26 @@ export class ArenaMode extends Duel {
     });
   }
 
+  /**
+   * Host migration: a match whose host state is all in a guest's copy of it
+   * (the ladder's rows, the teams, the clock, the winner). Free-for-all and
+   * Gun Run among friends; bots, the crown and Control's zones live only on
+   * the host, and wait for the snapshot that carries them.
+   */
+  protected override canMigrate(): boolean {
+    return (this.modeKind === "ffa" || this.modeKind === "gunrun") && this.bots.length === 0;
+  }
+
+  /** the heir, now the host: the clock from what the last "mode" said, the old host off the board as a leaver is, and everyone told the state at once */
+  protected override restoreAsHost(now: number, oldHost: number): void {
+    this.ladder.remove(oldHost);
+    this.roundWins.delete(oldHost);
+    const left = this.leftSeen === null ? null : Math.max(0, this.leftSeen - (now - this.leftAt));
+    if (left !== null && this.phase === "fight") this.timeEndsAt = now + left;
+    this.leftSeen = null;
+    this.modeSendNext = 0;
+  }
+
   /** a guest: the host's state */
   protected override onExtra(m: NetMsg, _from: number): void {
     if (m.t !== "mode" || this.role === "host") return;

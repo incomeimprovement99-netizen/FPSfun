@@ -3290,6 +3290,83 @@ async function emoteTest(browser: Browser, query: string, duelQuery: string): Pr
 }
 
 /**
+ * Host migration (docs/PLAN_HOST_MIGRATION.md): three friends in a
+ * Free-for-all with no bots. The host names an heir; the host's tab crashes
+ * (its links cut with no goodbye, then the tab closed); the heir takes the
+ * match over on the same code and the third page comes back to it on its
+ * seat. The match goes on: the same match on both pages, the score and the
+ * clock carried over, and the two hearing each other.
+ */
+async function migrateTest(browser: Browser, query: string, label = "host migration"): Promise<void> {
+  const host = await open(browser, query);
+  const b = await open(browser, query);
+  const c = await open(browser, query);
+  const pages = [host, b, c];
+  const close = async () => {
+    for (const p of pages) if (!p.isClosed()) await p.close();
+  };
+  await ev(host, `(() => { document.getElementById("duelMode").value = "ffa"; document.getElementById("modeBots").value = "0"; document.getElementById("duelPlayers").value = "3"; document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    for (const p of [b, c]) {
+      await ev(p, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+      await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+    }
+    await host.waitForFunction("window.__range.duel()?.connected === 2", { polling: 200, timeout: 30000 });
+    for (const p of pages) await pressPlay(p);
+    for (const p of pages) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 45000 });
+  } catch {
+    check(`${label}: the three start a Free-for-all`, false);
+    await close();
+    return;
+  }
+  // the heir, named to everyone
+  const named = await Promise.all(pages.map((p) => p.waitForFunction("window.__range.duel().heir !== null", { polling: 200, timeout: 8000 }).then(() => true, () => false)));
+  const heirId = await ev<number | null>(host, "window.__range.duel().heir");
+  const ids = await Promise.all([b, c].map((p) => ev<number>(p, "window.__range.duel().id")));
+  const heir = ids[0] === heirId ? b : c;
+  const other = heir === b ? c : b;
+  const otherId = heir === b ? ids[1] : ids[0];
+  const seen = await Promise.all([heir, other].map((p) => ev<number | null>(p, "window.__range.duel().heir")));
+  check(`${label}: the host names the lowest guest its heir, and both guests know it`, named.every(Boolean) && heirId === Math.min(...ids) && seen.every((h) => h === heirId), JSON.stringify({ heirId, ids, seen }));
+  // a score to carry over: three kills for the other guest, which the host tells everyone
+  await ev(host, `(() => { const d = window.__range.duel(); d.ladder.row(${otherId}).kills = 3; d.modeSendNext = 0; })()`);
+  await heir.waitForFunction(`window.__range.duel().ladder.row(${otherId}).kills === 3`, { polling: 100, timeout: 4000 }).catch(() => undefined);
+  const before = await ev<number>(host, "window.__range.duel().clockLeft(performance.now() / 1000)");
+  const beforeAt = Date.now();
+  for (const p of [heir, other]) await ev(p, "window.__match = window.__range.duel()");
+  // the host's tab crashes: every link cut with no goodbye, then the tab is gone
+  await ev(host, "(() => { const d = window.__range.duel(); for (const l of d.links.values()) { l.onClose = null; l.abandon?.(); } d.leave = () => undefined; })()");
+  await host.close();
+  const t0 = Date.now();
+  const took = await heir.waitForFunction("window.__range.duel()?.role === 'host'", { polling: 100, timeout: 30000 }).then(() => true, () => false);
+  const tookIn = (Date.now() - t0) / 1000;
+  const back = await other.waitForFunction(`window.__range.duel()?.hostId === ${heirId} && window.__range.duel().reconnectUntil === null`, { polling: 100, timeout: 30000 }).then(() => true, () => false);
+  const backIn = (Date.now() - t0) / 1000;
+  const same = await Promise.all([heir, other].map((p) => ev<boolean>(p, "window.__range.duel() === window.__match")));
+  check(`${label}: the heir takes the match over and the other guest is back in on its seat, with the heir as its host`, took && back && same.every(Boolean), JSON.stringify({ took, back, same, tookIn, backIn }));
+  // the match goes on: the phase, the score and the clock carried over, the two hearing each other
+  await sleep(1500);
+  const after = await ev<{ phase: string; kills: number; left: number; linked: boolean; held: boolean; oldGone: boolean }>(heir, `(() => { const d = window.__range.duel(); return { phase: d.phase, kills: d.ladder.row(${otherId}).kills, left: d.clockLeft(performance.now() / 1000), linked: d.links.has(${otherId}), held: d.held.has(${otherId}), oldGone: !d.remotes.has(0) }; })()`);
+  const expected = before - (Date.now() - beforeAt) / 1000;
+  const flow = await Promise.all([
+    ev<number>(heir, `performance.now() / 1000 - window.__range.duel().remotes.get(${otherId}).lastHeard`),
+    ev<number>(other, `performance.now() / 1000 - window.__range.duel().remotes.get(${heirId}).lastHeard`),
+  ]);
+  const otherView = await ev<{ phase: string; kills: number; oldGone: boolean }>(other, `(() => { const d = window.__range.duel(); return { phase: d.phase, kills: d.ladder.row(${otherId}).kills, oldGone: !d.remotes.has(0) }; })()`);
+  check(
+    `${label}: the match goes on, its score and clock carried over, the old host gone and the two hearing each other`,
+    after.phase === "fight" && otherView.phase === "fight" && after.kills === 3 && otherView.kills === 3 && Math.abs(after.left - expected) < 2 && after.linked && !after.held && after.oldGone && otherView.oldGone && flow[0] < 1.5 && flow[1] < 1.5,
+    JSON.stringify({ after, otherView, expected, flow })
+  );
+  // and the new host names its own heir: the last guest
+  const next = await heir.waitForFunction(`window.__range.duel().heir === ${otherId}`, { polling: 200, timeout: 5000 }).then(() => true, () => false);
+  check(`${label}: the new host names the other guest its heir`, next);
+  await close();
+}
+
+/**
  * Getting back in: a guest whose connection drops mid-match (no goodbye)
  * keeps playing, the host holds the seat, and the guest is back on it with
  * the same code and the seat's key; a seat nobody comes back for is given up,
@@ -4191,6 +4268,11 @@ async function main(): Promise<void> {
       await rejoinTest(browser, "?net=local&norender");
     }
 
+    if (want("migrate")) {
+      console.log("\nHost migration: the host's tab crashes and a friend takes the match over");
+      await migrateTest(browser, "?net=local&norender");
+    }
+
     if (want("squad")) {
       console.log("\nBattle royale as a squad (two tabs, the local transport)");
       await brSquadTest(browser, "?net=local&norender");
@@ -4203,6 +4285,8 @@ async function main(): Promise<void> {
       else {
         console.log("\nGetting back in after a dropped connection, over peer to peer");
         await rejoinTest(browser, "?norender");
+        console.log("\nHost migration, over peer to peer");
+        await migrateTest(browser, "?norender", "host migration (p2p)");
         console.log("\nHanding the host over, over peer to peer");
         await handoverTest(browser, "?norender");
         console.log("\nVoice chat, over peer to peer");

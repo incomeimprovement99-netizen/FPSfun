@@ -62,6 +62,15 @@ export const HEALTH_MAX = 100;
 const DEG = Math.PI / 180;
 /** nothing from a player for this long and they are gone */
 const SILENCE_LIMIT = 10;
+/** host migration is on (net.json migrate.on; ?migrate=0 in the address turns it off, for comparison) */
+const MIGRATE = netCfg.migrate.on && (typeof location === "undefined" || new URLSearchParams(location.search).get("migrate") !== "0");
+
+/** what the heir holds to take a match over (link.ts "heir" snap): each seat's key and everyone's ids, and when it came */
+export interface HeirSnapshot {
+  keys: Array<[number, string]>;
+  ids: number[];
+  at: number;
+}
 /**
  * The most humans in one match. The star topology puts every packet through
  * the host, which also runs the bots, so this is a friends-and-bots ceiling
@@ -392,6 +401,21 @@ export class Duel implements MatchLike {
   onHandover: ((m: Extract<NetMsg, { t: "host" }>, from: number) => void) | null = null;
   /** a guest: the connection to the host dropped mid-match; main tries the code again with the seat's key (swapHost takes the new link) */
   onHostLost: (() => void) | null = null;
+  /**
+   * Host migration (docs/PLAN_HOST_MIGRATION.md). The host: the guests that
+   * said they can take the match over, the one it named, and when it next
+   * tells them. A guest: who the host named and when, and (the heir itself)
+   * the host's last snapshot.
+   */
+  private heirCan = new Set<number>();
+  private heirNamed: number | null = null;
+  private heirSendNext = 0;
+  private heirSeen: { id: number; at: number } | null = null;
+  private heirSnap: HeirSnapshot | null = null;
+  /** the host: each seat's key, from the hosting (main sets it; the heir's snapshot carries them) */
+  seatKeys: ((ids: number[]) => Array<[number, string]>) | null = null;
+  /** the heir: the host is gone; main registers the match's code again, and calls takeOver once it has it */
+  onTakeOver: ((snap: HeirSnapshot, oldHost: number) => void) | null = null;
   /** the host: seats held for guests whose connection dropped, until when (net.json rejoin.hold) */
   readonly held = new Map<number, number>();
   /** a guest: trying to get back to the host until this time, or null while connected */
@@ -491,6 +515,7 @@ export class Duel implements MatchLike {
       opts.link.onClose = () => this.hostDropped();
       // the others are known once their state arrives; the host at once
       this.remote(this.hostId);
+      if (MIGRATE) opts.link.send({ t: "heir", op: "can" });
     }
     // The first spawn is the caller's to do (onRespawn is not set yet); every
     // later round calls onRespawn itself.
@@ -611,6 +636,18 @@ export class Duel implements MatchLike {
       link.onMessage = null;
       link.onClose = null;
     }
+    // The heir: main asks the broker for the match's code, and takes the
+    // match over (takeOver) only once it has it. Until then it also tries to
+    // get back in as a guest, as the others do: a host that is still there
+    // (only this page's connection dropped) keeps the code, and its match.
+    if (this.holdsSeats() && this.canTakeOver(wallClock()) && this.heirSnap && this.onHostLost) {
+      this.hostLink = null;
+      this.reconnectUntil = wallClock() + netCfg.rejoin.hold;
+      this.onFeed?.("The host is gone: taking the match over...", false);
+      this.onTakeOver?.(this.heirSnap, this.hostId);
+      this.onHostLost();
+      return;
+    }
     if (!this.holdsSeats() || !this.onHostLost) {
       this.left = true;
       this.finish("The host left the match.");
@@ -618,15 +655,90 @@ export class Duel implements MatchLike {
     }
     this.hostLink = null;
     this.reconnectUntil = wallClock() + netCfg.rejoin.hold;
-    this.onFeed?.("Lost the connection to the host: getting back in...", false);
+    this.onFeed?.(this.heirLive(wallClock()) ? "The host is gone: moving to the new host..." : "Lost the connection to the host: getting back in...", false);
     this.onHostLost();
   }
 
-  /** a guest: back in, on a new link to the host */
-  swapHost(link: Link): void {
+  /** a guest: the host named an heir lately (so the match will go on after the host) */
+  private heirLive(now: number): boolean {
+    return MIGRATE && !!this.heirSeen && now - this.heirSeen.at < netCfg.migrate.fresh;
+  }
+
+  /** a guest: this page is the heir, with a recent snapshot and someone to take it for */
+  private canTakeOver(now: number): boolean {
+    return MIGRATE && !!this.onTakeOver && !!this.heirSnap && now - this.heirSnap.at < netCfg.migrate.fresh && this.heirSeen?.id === this.id;
+  }
+
+  /** a match whose host state a guest's own copy holds (the snapshot adds only the seats): the modes override it as they are made to */
+  protected canMigrate(): boolean {
+    return false;
+  }
+
+  /** the heir, now the host: the mode's host state rebuilt from what this page had as a guest (`oldHost` has gone) */
+  protected restoreAsHost(_now: number, _oldHost: number): void {
+    /* the base match's phase, round and scores are already every guest's */
+  }
+
+  /**
+   * The heir takes the match over: this page is the host from here. The
+   * others' seats are held for them to come back on (their retries find the
+   * code main registers again), with their figures where they stood; the old
+   * host is gone. The hit check starts empty, which only makes its first
+   * second lenient.
+   */
+  takeOver(snap: HeirSnapshot): void {
+    if (this.role === "host" || this.ended) return;
+    const old = this.hostId;
+    const now = wallClock();
+    this.role = "host";
+    this.hostId = this.id;
+    this.hostLink = null;
+    this.reconnectUntil = null;
+    this.heirSnap = null;
+    this.heirSeen = null;
+    this.sync.forgetPeer(old);
+    for (const id of snap.ids) {
+      if (id === this.id || id === old || id >= Duel.BOT_ID) continue;
+      this.held.set(id, now + netCfg.rejoin.hold);
+      // their streams start over from whole states when they are back
+      this.sync.forgetPeer(id);
+    }
+    this.playerGone(old, `${this.remotes.get(old)?.name ?? "The host"} left: you are the host now`);
+    this.restoreAsHost(now, old);
+    this.onFeed?.("The host is gone: you are the host now", false);
+  }
+
+  /** the host: its heir named to everyone, and the heir sent what it needs to take over, now and then */
+  private sendHeir(now: number): void {
+    this.heirSendNext = now + netCfg.migrate.snapshot;
+    if (!MIGRATE || !this.canMigrate() || !this.holdsSeats()) return;
+    let heir: number | null = null;
+    for (const id of this.links.keys()) if (this.heirCan.has(id) && (heir === null || id < heir)) heir = id;
+    this.heirNamed = heir;
+    if (heir === null) return;
+    const ids = [this.id, ...this.links.keys(), ...this.held.keys()];
+    const keys = this.seatKeys?.(ids.filter((id) => id !== this.id)) ?? [];
+    for (const [id, l] of this.links) l.send(id === heir ? { t: "heir", op: "snap", keys, ids } : { t: "heir", op: "is", id: heir });
+  }
+
+  /** the host's heir, or null (the tests) */
+  get heir(): number | null {
+    return this.role === "host" ? this.heirNamed : (this.heirSeen?.id ?? null);
+  }
+
+  /** a guest: back in, on a new link to the host (another page, when the host was taken over: `host` is its id) */
+  swapHost(link: Link, host?: number): void {
     if (this.ended || this.role !== "guest") {
       link.close();
       return;
+    }
+    if (typeof host === "number" && host !== this.hostId && host >= 0 && host < Duel.BOT_ID) {
+      const old = this.hostId;
+      this.sync.forgetPeer(old);
+      this.hostId = host;
+      this.heirSeen = null;
+      this.heirSnap = null;
+      this.playerGone(old, `${this.remotes.get(old)?.name ?? "The host"} left: ${this.remotes.get(host)?.name ?? "a friend"} is the host now`);
     }
     this.hostLink = link;
     link.onMessage = (m) => this.receive(m, this.hostId);
@@ -634,6 +746,7 @@ export class Duel implements MatchLike {
     this.reconnectUntil = null;
     this.remote(this.hostId).lastHeard = wallClock();
     this.sync.forgetPeer(this.hostId);
+    if (MIGRATE) link.send({ t: "heir", op: "can" });
     this.onFeed?.("Back in the match", false);
   }
 
@@ -945,6 +1058,21 @@ export class Duel implements MatchLike {
       return;
     }
     // a goodbye or a stray message from someone unknown makes no figure
+    // host migration: who can take over, who will, and what the heir holds
+    if (m.t === "heir") {
+      if (this.role === "host") {
+        if (m.op === "can") this.heirCan.add(from);
+      } else if (from === this.hostId) {
+        if (m.op === "is" && typeof m.id === "number") this.heirSeen = { id: m.id, at: now };
+        else if (m.op === "snap" && Array.isArray(m.keys) && Array.isArray(m.ids)) {
+          const keys = m.keys.filter((k): k is [number, string] => Array.isArray(k) && typeof k[0] === "number" && typeof k[1] === "string" && k[1].length < 40);
+          const ids = m.ids.filter((id): id is number => typeof id === "number" && id >= 0 && id < Duel.BOT_ID);
+          this.heirSnap = { keys, ids, at: now };
+          this.heirSeen = { id: this.id, at: now };
+        }
+      }
+      return;
+    }
     // voice chat's roster, from the host
     if (m.t === "voice") {
       if (this.role !== "guest" || from !== this.hostId || !Array.isArray(m.peers)) return;
@@ -972,6 +1100,11 @@ export class Duel implements MatchLike {
       if (m.t === "bye") {
         if (this.role === "host") this.guestLeft(from);
         else if (from === this.hostId) {
+          // a host leaving mid-match hands it to its heir, as a dropped one does
+          if (this.heirLive(now) && this.holdsSeats() && this.onHostLost) {
+            this.hostDropped();
+            return;
+          }
           this.left = true;
           this.finish("The host left the match.");
         }
@@ -1664,6 +1797,7 @@ export class Duel implements MatchLike {
     if (this.role === "host" && this.phase === "waiting" && this.everyoneReady()) this.enter("countdown", now, COUNTDOWN);
     if (this.role === "host") this.tick(now, dt, local);
     if (this.ended) return;
+    if (this.role === "host" && now >= this.heirSendNext) this.sendHeir(now);
     if (this.role === "host" && this.mode === "duel" && this.phase !== "waiting" && now >= this.phaseEndsAt) {
       if (this.phase === "countdown") {
         this.enter("fight", now, 0);

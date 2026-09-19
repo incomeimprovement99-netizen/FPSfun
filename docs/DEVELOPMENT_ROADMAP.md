@@ -1709,3 +1709,31 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/net-delta.ts` runs real matches hosted by id 2 and id 3 (the roles, the relay in deltas both
   ways, no figure of guest 0 for itself, pings answered, a host gone quiet noticed by both guests, the host's goodbye
   ending the guest's match).
+
+## Milestone 111 — Host migration, phase 2: the match outlives its host ✅
+2026-09-19 (Phase 15). `duel.ts`, `modematch.ts`, `link.ts`, `main.ts`, `src/config/net.json` (`migrate`),
+`tools/checks/net-delta.ts`, `tools/e2e.ts`.
+- A guest of this build tells the host it can take the match over. The host names the lowest such guest its heir,
+  tells everyone every second who that is, and sends the heir alone what no guest's copy of the match holds: each
+  seat's key and who is in. In Free-for-all and Gun Run among friends that is all of it: the ladder, the clock, the
+  winner and the phase are already every guest's.
+- When the host's connection drops, or the host leaves mid-match (its goodbye is handed on, not the end), the heir
+  asks the broker for the match's own code and, meanwhile, tries to get back in as a guest like everyone else. It
+  becomes the host only once the code is its own. If only the heir's connection dropped, the host is still there,
+  keeps the code, and the heir is simply back in. So one page's blip can never split the match in two.
+- Having the code, the heir takes over: its role and `hostId` change, the others' seats are held with their figures
+  where they stood, the old host is off the board, and the clock goes on from what the last update said. The
+  others' existing retries (Milestone 91) find it on the same code with their seats' keys, and the welcome back
+  names the new host, so each guest's figure of its host changes to the heir. The new host then names its own heir.
+- Measured over the public broker, three tabs, the host's tab crashing: the heir held the code 0.41 s later and the
+  third player was back in on their seat at 1.7 s. On the first run that took 7 s: the others' first retry went out
+  before the heir held the code and waited out a whole timeout, so now they give a named heir `wait` (1 s) first.
+- `net.json migrate`: `snapshot` 1 s, `claim` 20 s (how long the heir asks for a code the broker still holds for a
+  crashed host), `fresh` 4 s, `wait` 1 s. `?migrate=0` turns it off for comparison.
+- Left: the modes with bots, the crown and Control (phase 3), and the battle royale (phase 4).
+- Checks: `tools/checks/net-delta.ts` (ten: the heir named to both guests, only the heir sent the keys, a host gone
+  with no goodbye sends the heir for the code and the other back in, the takeover holds the other's seat and drops
+  the old host, the other back on its seat with the heir as its host, deltas both ways again, the match going on,
+  the next heir named, a goodbye handed on, and a match that cannot migrate still ending), and the e2e `migrate`
+  section (three pages in a Free-for-all; the host's tab crashes; the heir is the host and the third page is back on
+  its seat, the same match on both, three kills and the clock carried over), also run over the internet in `p2p`.

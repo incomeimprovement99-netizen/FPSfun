@@ -45,7 +45,7 @@ import { mergeStatic } from "./game/staticmerge";
 import { opticInfo } from "./game/optics";
 import { opticName, hopupName } from "./config/names";
 import type { ResolvedWeapon } from "./game/weapons";
-import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike } from "./game/duel";
+import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, type HeirSnapshot } from "./game/duel";
 import { BotMatch } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
@@ -1577,8 +1577,13 @@ function getBackIn(d: Duel): void {
           link.close();
           return;
         }
-        d.swapHost(link);
-        hud.notice("BACK IN", gameTime, 2);
+        d.swapHost(link, w.host);
+        // the heir's own try for the code is not wanted now
+        if (hosting && d.role === "guest") {
+          hosting.cancel();
+          hosting = null;
+        }
+        hud.notice(typeof w.host === "number" && w.host !== 0 ? "BACK IN: A FRIEND IS THE HOST NOW" : "BACK IN", gameTime, 2);
       },
       () => retry(),
       { id: seat.id, key: seat.key }
@@ -1590,8 +1595,52 @@ function getBackIn(d: Duel): void {
       retry();
     }, 8000);
   };
-  attempt();
+  // a friend is taking the match over (host migration): give it a moment to hold the code before the first try
+  if (d.heir !== null && d.heir !== d.id) setTimeout(attempt, netCfg.migrate.wait * 1000);
+  else attempt();
 }
+/**
+ * The heir, now the host of a match whose host went (Duel.takeOver has run):
+ * the match's own code registered again, answering the others' retries with
+ * their held seats. Nobody new comes in.
+ */
+function takeOverHosting(d: Duel, snap: HeirSnapshot): void {
+  const seat = mySeat;
+  const joined = joinedWith;
+  if (!seat || !joined) return;
+  hosting?.cancel();
+  const h = hostMatch(
+    d.players,
+    // (the local link says the code is ours before hostMatch has returned)
+    (code) => queueMicrotask(() => {
+      // back in as a guest first (the host was there after all), or out: let the code go
+      if (duel !== d || d.role !== "guest" || d.reconnectUntil === null) {
+        h.cancel();
+        if (hosting === h) hosting = null;
+        return;
+      }
+      d.takeOver(snap);
+      mySeat = null;
+      hostBr = joined.br ?? null;
+      hostOpts = joined.opts ?? null;
+      hud.notice("THE HOST IS GONE: YOU ARE THE HOST NOW", gameTime, 3);
+      setDuelStatusText(`You are the host now, on the same code (${code}): the others are coming back.`);
+      duelButtons();
+    }),
+    (link) => link.close(),
+    () => {
+      // the code stayed taken: this page goes on trying to get back in as a guest
+      if (hosting === h) hosting = null;
+    },
+    joined.br,
+    joined.opts,
+    { code: seat.code, keys: snap.keys, host: d.id, claim: netCfg.migrate.claim }
+  );
+  hosting = h;
+  h.onRejoin = (link, id) => (duel === d && d.role === "host" ? d.rejoin(link, id) : false);
+}
+/** what this page's welcome into a match said, for taking it over (host migration) */
+let joinedWith: { players: number; br?: BrWelcome; opts?: MatchOpts } | null = null;
 let cancelJoin: (() => void) | null = null;
 /** knocked in a match: the controller gets no keys until the next round */
 const NO_INPUT: MoveInput = { held: () => false, pressedNow: () => false };
@@ -2908,6 +2957,11 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRespawn = () => respawnForMatch(d);
   // a guest with a seat key (a host that gives one) gets back in after a dropped connection
   if (d instanceof Duel && d.role === "guest" && mySeat) d.onHostLost = () => getBackIn(d);
+  // host migration: the host's heir is sent each seat's key; the heir takes the code over when the host goes
+  if (d instanceof Duel) {
+    d.seatKeys = (ids) => (hosting ? ids.map((id) => [id, (hosting as HostHandle).keyOf(id)] as [number, string]) : []);
+    if (d.role === "guest" && mySeat) d.onTakeOver = (snap) => takeOverHosting(d, snap);
+  }
   // the lobby's host handover
   if (d instanceof Duel) d.onHandover = (m, from) => onHandover(d, m, from);
   d.onHurt = () => {
@@ -3457,6 +3511,7 @@ function joinCode(code: string): void {
     (link, w) => {
       // the seat's key, for getting back in if the connection drops
       mySeat = w.key ? { code, id: w.id, key: w.key } : null;
+      joinedWith = { players: w.players, br: w.br, opts: w.opts };
       startDuel(link, w.players, w.id, 1, w.br, w.opts);
     },
     (err) => setDuelStatusText(err, "bad")

@@ -90,6 +90,18 @@ The hardest part is that ids are baked in: 0 is the host everywhere. The cheapes
 - The time between the last snapshot and the takeover is lost. That is about a second of bot movement, and any ring tick in that second is replayed from its seeded plan.
 - Bots stand where the guests last saw them. The heir moves each bot to its last replicated state, not to the snapshot's position, so nothing jumps on the others' screens.
 
+## As built (phases 1 and 2)
+
+Two things came out differently from the design above, both simpler or safer:
+
+- **The heir takes over only once it holds the code.** On losing the host, the heir asks the broker for the code and
+  at the same time tries to get back in as a guest. Whichever lands first wins. A host that is still there (only the
+  heir's connection dropped) keeps its code, so the heir can never split the match. This replaces the `hostId` check
+  in Risks below.
+- **The snapshot is only the seats.** In Free-for-all and Gun Run, a guest's own copy already holds the ladder, the
+  clock, the phase and the winner (the `mode` and `round` messages), so `restoreAsHost` rebuilds from that. The
+  snapshot grows with each later phase, by what that phase's mode keeps only on the host.
+
 ## Phases
 
 1. **Host id and role as fields.**

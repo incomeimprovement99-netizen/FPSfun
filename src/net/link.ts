@@ -29,7 +29,7 @@ const FAST = netCfgFast.fast;
 export type NetMsg =
   | { t: "hello"; v: number; seat?: { id: number; key: string } }
   /** host to a guest on connect: its id and how many will play; a battle royale says so, with its drop */
-  | { t: "welcome"; id: number; players: number; br?: BrWelcome; opts?: MatchOpts; key?: string; back?: boolean }
+  | { t: "welcome"; id: number; players: number; br?: BrWelcome; opts?: MatchOpts; key?: string; back?: boolean; host?: number }
   | {
       t: "s";
       from?: number;
@@ -143,7 +143,14 @@ export type NetMsg =
    * (with the match it made), that guest answers with its new `code`, and the
    * host tells everyone else to `move` there.
    */
-  | { t: "host"; op: "take" | "code" | "move"; players?: number; br?: BrWelcome; opts?: MatchOpts; code?: string };
+  | { t: "host"; op: "take" | "code" | "move"; players?: number; br?: BrWelcome; opts?: MatchOpts; code?: string }
+  /**
+   * Host migration (net.json migrate): a guest that can take the match over
+   * says so ("can"); the host names its heir to everyone ("is", with its id),
+   * and sends the heir what no guest's copy of the match has ("snap": each
+   * seat's key, and everyone's ids).
+   */
+  | { t: "heir"; op: "can" | "is" | "snap"; id?: number; keys?: Array<[number, string]>; ids?: number[] };
 
 /**
  * A message without its undefined fields, so nothing packs as null. It lives
@@ -534,6 +541,16 @@ export interface HostHandle {
   onRejoin: ((link: Link, id: number) => boolean) | null;
 }
 
+/** a match a guest is taking over from a host that dropped: its own code again, its seats and their keys, and the new host's id */
+export interface HostResume {
+  code: string;
+  keys: Array<[number, string]>;
+  /** the new host's id, for the welcome back (the guests' figure of their host) */
+  host: number;
+  /** seconds to keep trying for the code while the broker lets go of the old host's registration */
+  claim: number;
+}
+
 const useLocal = (): boolean => new URLSearchParams(location.search).get("net") === "local";
 
 /**
@@ -583,11 +600,15 @@ export function hostMatch(
   /** a battle royale: what the welcome tells each guest */
   br?: BrWelcome,
   /** the host's settings, for every guest */
-  opts?: MatchOpts
+  opts?: MatchOpts,
+  /** taking a match over (host migration): its code, not a new one, and only its own seats */
+  resume?: HostResume
 ): HostHandle {
-  let code = makeCode();
+  let code = resume?.code ?? makeCode();
   let cancelled = false;
-  let closed = false;
+  // a match taken over is under way: nobody new, only the seats coming back
+  let closed = !!resume;
+  const claimUntil = performance.now() + (resume?.claim ?? 0) * 1000;
   const taken = new Set<number>();
   const full = () => closed || taken.size >= players - 1;
   const stopAccepting = () => void (closed = true);
@@ -601,7 +622,8 @@ export function hostMatch(
   const release = (id: number) => void taken.delete(id);
   let peer: Peer | null = null;
   // each seat's key: a guest back after a dropped connection shows it to take the same seat again
-  const keys = new Map<number, string>();
+  const keys = new Map<number, string>(resume?.keys ?? []);
+  for (const [id] of resume?.keys ?? []) taken.add(id);
   const keyOf = (id: number): string => {
     let k = keys.get(id);
     if (!k) {
@@ -632,7 +654,7 @@ export function hostMatch(
       link.close();
       return true;
     }
-    link.send({ t: "welcome", id, players, br, opts, key, back: true });
+    link.send({ t: "welcome", id, players, br, opts, key, back: true, host: resume?.host });
     return true;
   };
   let localCh: BroadcastChannel | null = null;
@@ -695,6 +717,15 @@ export function hostMatch(
       if (!cancelled && !p.destroyed) p.reconnect();
     });
     p.on("error", (err: { type?: string }) => {
+      // Taking a match over: the broker still has the old host on this code
+      // until it notices that connection is gone. Keep asking for the same
+      // code, not another, for as long as resume.claim allows.
+      if (resume && err.type === "unavailable-id" && !cancelled) {
+        p.destroy();
+        if (performance.now() < claimUntil) setTimeout(() => void start(attempt + 1), 1000);
+        else onError("Could not take the match's code over.");
+        return;
+      }
       // once someone is in, a broker hiccup does not touch the direct connections
       if (cancelled || taken.size > 0) return;
       if (err.type === "unavailable-id" && attempt < 3) {
@@ -712,7 +743,7 @@ export function hostMatch(
 /** join a match by its code; `onLink` gets the link once the host has said welcome */
 export function joinMatch(
   rawCode: string,
-  onLink: (l: Link, welcome: { id: number; players: number; br?: BrWelcome; opts?: MatchOpts; key?: string; back?: boolean }) => void,
+  onLink: (l: Link, welcome: { id: number; players: number; br?: BrWelcome; opts?: MatchOpts; key?: string; back?: boolean; host?: number }) => void,
   onError: (msg: string) => void,
   /** back for a seat after a dropped connection: its id and the key the welcome gave */
   seat?: { id: number; key: string }
@@ -731,7 +762,7 @@ export function joinMatch(
     link.onMessage = (m) => {
       if (!joined && m.t === "welcome") {
         joined = true;
-        onLink(link, { id: m.id, players: m.players, br: m.br, opts: m.opts, key: m.key, back: m.back });
+        onLink(link, { id: m.id, players: m.players, br: m.br, opts: m.opts, key: m.key, back: m.back, host: m.host });
       }
       inner?.(m);
     };
@@ -775,7 +806,7 @@ export function joinMatch(
           if (!done && m.t === "welcome") {
             done = true;
             clearTimeout(timer);
-            onLink(link, { id: m.id, players: m.players, br: m.br, opts: m.opts, key: m.key, back: m.back });
+            onLink(link, { id: m.id, players: m.players, br: m.br, opts: m.opts, key: m.key, back: m.back, host: m.host });
           }
         };
         link.send({ t: "hello", v: 2, seat });
