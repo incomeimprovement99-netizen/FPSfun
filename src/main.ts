@@ -1432,6 +1432,18 @@ let voice: Voice | null = null;
 let voiceGroupKey = "";
 let voiceTalking = false;
 let hudVoice: { me: boolean; talking: string[] } | null = null;
+/** the Settings tab's voice volume, 0 to 1 (remembered) */
+let voiceVolume = voiceCfg.volume;
+try {
+  const v = Number(localStorage.getItem("range.voiceVolume"));
+  if (localStorage.getItem("range.voiceVolume") !== null && Number.isFinite(v) && v >= 0 && v <= 1) voiceVolume = v;
+} catch {
+  /* ignore */
+}
+/** players muted this session, by name (ids change when a group plays again; a name does not) */
+const mutedNames = new Set<string>();
+/** who this page can hear now, for the Friends tab's mute list: PeerJS id to name */
+let voiceNames = new Map<string, string>();
 /** whom this page may talk to: its squad or team (anyone it is allied with), or everyone where nobody is (a lobby, a 1v1, a free-for-all); in a battle royale, its squad only */
 function hearsVoice(d: Duel, id: number): boolean {
   if (d instanceof BrMatch) return d.isAlly(id);
@@ -1445,6 +1457,7 @@ function voiceFrame(): void {
     if (peer) {
       voice = voices.get(peer) ?? new Voice(peer);
       voices.set(peer, voice);
+      voice.setVolume(voiceVolume);
     }
   }
   if (!d || !voice) {
@@ -1462,7 +1475,10 @@ function voiceFrame(): void {
   if (key !== voiceGroupKey) {
     voiceGroupKey = key;
     voice.setGroup(ids);
+    // a muted name stays muted under its new id
+    for (const [pid, name] of names) voice.setMuted(pid, mutedNames.has(name));
   }
+  voiceNames = names;
   // push to talk, held (the script's key in the tests)
   const want = ids.length > 0 && (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("voice") : input.held("voice"));
   if (want !== voiceTalking) {
@@ -1476,6 +1492,45 @@ function voiceFrame(): void {
   for (const [pid, level] of voice.levels()) if (level > voiceCfg.talking) talking.push(names.get(pid) ?? "?");
   hudVoice = { me: voice.live, talking };
 }
+/** the Friends tab's list of who you can hear, each with a mute (redrawn with the roster) */
+let voiceListKey = "";
+function renderVoiceList(): void {
+  const el = $("voiceList");
+  const rows = voice ? [...voiceNames.entries()] : [];
+  const key = JSON.stringify(rows.map(([pid, name]) => [pid, name, voice?.isMuted(pid)]));
+  if (key === voiceListKey) return;
+  voiceListKey = key;
+  el.hidden = !rows.length;
+  el.innerHTML =
+    `<div class="rosterRow"><b>VOICE</b> · hold Caps Lock to talk</div>` +
+    rows.map(([pid, name]) => `<div class="rosterRow"><b>${escapeHtml(name)}</b> <button type="button" class="ghost" data-mute="${escapeHtml(pid)}">${voice?.isMuted(pid) ? "Unmute" : "Mute"}</button></div>`).join("");
+}
+$("voiceList").addEventListener("click", (e) => {
+  const pid = (e.target as HTMLElement).getAttribute("data-mute");
+  if (!pid || !voice) return;
+  const on = !voice.isMuted(pid);
+  voice.setMuted(pid, on);
+  const name = voiceNames.get(pid);
+  if (name) {
+    if (on) mutedNames.add(name);
+    else mutedNames.delete(name);
+  }
+  renderVoiceList();
+});
+{
+  const el = $<HTMLInputElement>("volVoice");
+  el.value = String(Math.round(voiceVolume * 100));
+  el.addEventListener("input", () => {
+    voiceVolume = Math.max(0, Math.min(1, Number(el.value) / 100));
+    voice?.setVolume(voiceVolume);
+    try {
+      localStorage.setItem("range.voiceVolume", String(voiceVolume));
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 /** out of the match: every call ended and the microphone let go */
 function voiceStop(): void {
   voice?.stop();
@@ -3957,6 +4012,7 @@ function step(): void {
   if (performance.now() - rosterAt > 500) {
     rosterAt = performance.now();
     renderRoster();
+    renderVoiceList();
     // a rematch in the same match (the arena, the modes): the last one goes on the tally as the next begins
     if (tallyPending && duel && duel.phase !== "matchEnd") flushTally();
   }
@@ -5317,7 +5373,7 @@ initWelcome();
   /** the gun's own camera's vertical FOV against the world's */
   gunFov: () => ({ gun: vmCamera.fov, world: camera.fov }),
   /** voice chat as this page has it: sending, the loudest each player it hears is now, and the group (tools/e2e.ts) */
-  voiceState: () => ({ live: voice?.live ?? false, levels: voice ? Object.fromEntries(voice.levels()) : {}, group: voiceGroupKey, denied: voice?.denied ?? false }),
+  voiceState: () => ({ live: voice?.live ?? false, levels: voice ? Object.fromEntries(voice.levels()) : {}, group: voiceGroupKey, denied: voice?.denied ?? false, muted: [...voiceNames.keys()].filter((p) => voice?.isMuted(p)) }),
   /** a melee swing, as the key starts one (tools/e2e.ts: kicking a door in) */
   swing: (): boolean => {
     if (gameTime < meleeReadyAt || loadout.swapping) return false;

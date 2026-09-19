@@ -108,7 +108,9 @@ your squad hears you in a battle royale, your team in the team modes, and
 everyone in a lobby, a 1v1 or a free-for-all. Who is talking shows at the
 bottom left. The browser asks for the microphone the first time you press
 the key, not before, and nothing is sent while the key is up. Voices go
-straight between the players, not through the host.
+straight between the players, not through the host. How loud they are is
+on the Settings tab; during a match the Friends tab lists who you can hear,
+with a Mute for each (it holds for the night, by name).
 
 **Handing the host over.** In the lobby the host's list of who is in has a
 **Make host** button by each friend. A friend with a better connection takes

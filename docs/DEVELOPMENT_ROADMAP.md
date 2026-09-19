@@ -1622,5 +1622,13 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   says so once. On the local transport (the tests' two tabs) there is no voice.
 - Checks: the e2e `p2p` section over the internet, with Chrome's fake microphone (a tone): the guest holds the key
   and the host hears it (a peak of 0.59), and a moment after it is let go the host hears nothing.
-- Left: a volume slider and a per-player mute in Settings (the volume is voice.json's for now).
+- A volume slider and a per-player mute came next (Milestone 105).
+
+## Milestone 105 — Voice chat's volume and mute ✅
+2026-09-19 (Phase 15). `voice.ts`, `main.ts`, `index.html`, `tools/e2e.ts`.
+- The Settings tab has a Voice chat volume, remembered. During a match the Friends tab lists who you can hear, each
+  with a Mute: a muted player plays at nothing and shows no talking mark, and their call stays up so unmuting is at
+  once. A mute is kept by name for the night, since ids change when a group plays again or someone comes back.
+- Checks: the e2e `p2p` section (the host mutes the guest on the Friends tab, the guest talks, and the host hears
+  nothing; the button reads Unmute).
 

@@ -70,7 +70,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 **The next rounds, in order:**
 1. **Materials and rocks on the map (#7, #8):** the materials are done (Milestone 81); the rock meshes (Poly Haven boulders in place of box rocks) are left. about a day. Already fetched; each place gets its palette, and real rocks replace box cover.
 2. ~~**Supply bins and chests (#11)**~~ Done (Milestone 83).
-3. **Doors (#10), with bots opening them:** about 2.5 days, in one change, so doors never trap bots on the new graph.
+3. ~~**Doors (#10), with bots opening them**~~ Done (Milestones 97, 98): 64 doors, E, bots open them, two swings kick one in.
 4. **Host migration and rejoin:** 3 to 4 days. One person's bad connection ending an eight-player match is the failure a group of friends hits most.
 5. **Bots on the ziplines, pads, balloons and the Mast (#19 typed edges, #20):** 1 to 1.5 days. The graph it needs has landed (Milestone 71).
 6. ~~**A sky per match from its seed:** about 2 hours.~~ Done (Milestone 69).
@@ -80,7 +80,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 10. **Custom match rules:** about a day. Weapons allowed, rounds and friendly fire, carried in the match options.
 11. **Plant and defuse:** 2 to 3 days, built from the Crown carry, the Control capture and the round clock.
 12. **Vault and keycard (#35):** about 2 days, after doors.
-13. ~~**Voice chat:**~~ Done (Milestone 104): push to talk, your squad or team, peer to peer. A volume slider and a per-player mute in Settings are left.
+13. ~~**Voice chat:**~~ Done (Milestones 104, 105): push to talk, your squad or team, peer to peer, a volume on the Settings tab and a mute per player on the Friends tab.
 14. ~~**The leaderboard secret behind the server**~~ Done, as the real weakness (Milestone 84): the server never read the secret; a wins board now counts posts, not totals.
 15. **Ability kits and ultimates:** 4 to 6 days, once bins, doors and the traversal have settled.
 

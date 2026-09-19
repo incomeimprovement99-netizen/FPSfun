@@ -39,6 +39,8 @@ export class Voice {
   volume = cfg.volume;
   /** the player said no to the microphone (or there is none): the key does nothing, and says so once */
   denied = false;
+  /** players this page does not want to hear (PeerJS ids): their voice plays at nothing and shows no mark */
+  private muted = new Set<string>();
 
   constructor(private readonly peer: Peer) {
     peer.on("call", (call) => this.answer(call));
@@ -91,7 +93,7 @@ export class Voice {
     const out = new Map<string, number>();
     const buf = new Uint8Array(256);
     for (const [id, h] of this.heard) {
-      if (!h.analyser) continue;
+      if (!h.analyser || this.muted.has(id)) continue;
       h.analyser.getByteTimeDomainData(buf);
       let peak = 0;
       for (const v of buf) peak = Math.max(peak, Math.abs(v - 128) / 128);
@@ -153,7 +155,7 @@ export class Voice {
     if (old) this.dropHeard(call.peer, old);
     const audio = new Audio();
     audio.srcObject = stream;
-    audio.volume = Math.max(0, Math.min(1, this.volume));
+    audio.volume = this.muted.has(call.peer) ? 0 : Math.max(0, Math.min(1, this.volume));
     void audio.play().catch(() => undefined);
     let analyser: AnalyserNode | null = null;
     try {
@@ -177,6 +179,18 @@ export class Voice {
   /** the volume every voice plays at (the Settings tab's) */
   setVolume(v: number): void {
     this.volume = v;
-    for (const h of this.heard.values()) h.audio.volume = Math.max(0, Math.min(1, v));
+    for (const [id, h] of this.heard) h.audio.volume = this.muted.has(id) ? 0 : Math.max(0, Math.min(1, v));
+  }
+
+  /** one player muted (or not): they play at nothing and show no mark, and their call stays up so unmuting is at once */
+  setMuted(id: string, on: boolean): void {
+    if (on) this.muted.add(id);
+    else this.muted.delete(id);
+    const h = this.heard.get(id);
+    if (h) h.audio.volume = on ? 0 : Math.max(0, Math.min(1, this.volume));
+  }
+
+  isMuted(id: string): boolean {
+    return this.muted.has(id);
   }
 }

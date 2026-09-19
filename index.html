@@ -254,6 +254,7 @@
               <button id="duelLeave" type="button" class="ghost" hidden>Leave match</button>
             </div>
             <div id="duelRoster" class="calibMsg" hidden></div>
+            <div id="voiceList" class="calibMsg" hidden title="voice chat: who you can hear in this match, and a mute for each"></div>
             <div id="tonight" class="calibMsg" hidden title="every match this group has played since the code was made: Play again keeps adding to it, a new code starts it over"></div>
             <div id="duelStatus" class="calibMsg">One of you makes a match and sends the invite link; the others open it. Arena: first to 3 rounds against each other. Battle royale: the same squad drops onto Outskirts together against the bots set below.</div>
           </div>
@@ -338,6 +339,7 @@
           <div class="row"><label>Sprint view shake <div class="hint">the game's own setting; Normal is its default</div></label><select id="sprintShake"><option value="normal">Normal</option><option value="minimal">Minimal</option><option value="off">Off</option></select></div>
           <div class="row"><label>Camera <div class="hint">X switches in game; hold Alt in third person to look round your character</div></label><select id="cameraMode"><option value="first">First person</option><option value="third">Third person</option></select></div>
           <div class="row"><label>Volume <div class="hint">master, effects, and the hit sounds; every sound is made by the game</div></label><span class="vols"><input id="volMaster" type="range" min="0" max="100" step="1" title="master" /><input id="volFx" type="range" min="0" max="100" step="1" title="effects" /><input id="volHits" type="range" min="0" max="100" step="1" title="hit sounds" /></span></div>
+          <div class="row"><label>Voice chat <div class="hint">how loud your friends are; hold Caps Lock to talk (the Controls tab rebinds it), and mute one on the Friends tab</div></label><input id="volVoice" type="range" min="0" max="100" step="1" title="voice chat" /></div>
           <div class="row"><label>Ammo in the range <div class="hint">matches always count it: two stacks per gun, energy guns refill a magazine every 18 s while idle</div></label><select id="rangeAmmo"><option value="endless">Endless</option><option value="counted">Counted, like a match</option></select></div>
           <div class="row"><label>Mantle boost cue <div class="hint">a ring on the crosshair while a superglide's window is open, as Season 27's option</div></label><select id="mantleCue"><option value="1">On</option><option value="0">Off</option></select></div>
           <div class="row"><label>Figures <div class="hint">the other players and the bots: a motion-captured mannequin (Quaternius, CC0), rifles at the shoulder with both hands on them, or our robots (lighter to draw). For figures made from then on: the next match</div></label><select id="figureStyle"><option value="mannequin">Mannequins (motion-captured)</option><option value="robot">Robots</option></select></div>

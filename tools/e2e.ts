@@ -1099,6 +1099,24 @@ async function voiceTest(browser: Browser, query: string): Promise<void> {
   }
   const off = await ev<boolean>(guest, "window.__range.voiceState().live");
   check("voice: the guest holds the key and the host hears them; let go, it goes quiet", grouped.every(Boolean) && live && peak > 0.05 && after < 0.02 && !off, JSON.stringify({ grouped, live, peak: +peak.toFixed(3), after: +after.toFixed(3), off }));
+  // the host mutes the guest on the Friends tab: the guest talks, and the host hears nothing
+  const muteClicked = await host
+    .waitForSelector("#voiceList [data-mute]", { timeout: 5000 })
+    .then(async () => {
+      await ev(host, `document.querySelector("#voiceList [data-mute]").click()`);
+      return true;
+    }, () => false);
+  await ev(guest, `window.__range.setScript({ held: (a) => a === "voice", pressedNow: () => false })`);
+  let mutedPeak = 0;
+  for (let i = 0; i < 20; i++) {
+    const s = await ev<{ levels: Record<string, number> }>(host, "window.__range.voiceState()");
+    mutedPeak = Math.max(mutedPeak, ...Object.values(s.levels), 0);
+    await sleep(150);
+  }
+  await ev(guest, "window.__range.setScript(null)");
+  const mutedList = await ev<string[]>(host, "window.__range.voiceState().muted");
+  const button = await ev<string>(host, `document.querySelector("#voiceList [data-mute]")?.textContent ?? ""`);
+  check("voice: muted on the Friends tab, the guest talks and the host hears nothing", muteClicked && mutedList.length === 1 && mutedPeak === 0 && button === "Unmute", JSON.stringify({ muteClicked, mutedList, mutedPeak, button }));
   await host.close();
   await guest.close();
 }
