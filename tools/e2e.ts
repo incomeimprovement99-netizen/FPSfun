@@ -40,7 +40,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  */
 const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
 
-async function open(browser: Browser, query: string, base = BASE): Promise<Page> {
+async function open(browser: Browser, query: string, base = BASE, init?: string): Promise<Page> {
   const page = await browser.newPage();
   await page.setViewport({ width: 800, height: 450, deviceScaleFactor: 1 });
   page.on("pageerror", (e) => errors.push(`pageerror: ${String((e as Error).message ?? e)}`));
@@ -56,6 +56,7 @@ async function open(browser: Browser, query: string, base = BASE): Promise<Page>
   // and no Gulag, for the same reason: the checks of a plain death are about the death (gulagTest turns it back on)
   await page.evaluateOnNewDocument("window.__noGulag = true");
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
+  if (init) await page.evaluateOnNewDocument(init);
   // a base with a query of its own (OLD_URL=https://the.site/?broker=public) keeps it
   const url = base.includes("?") && query.startsWith("?") ? `${base}&${query.slice(1)}` : base + query;
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -2856,7 +2857,110 @@ async function emoteTest(browser: Browser, query: string, duelQuery: string): Pr
   await guest.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, squad, p2p, mixed) */
+/**
+ * Solo with friends: everyone against everyone. Friends in a solo battle
+ * royale could not hurt each other, and two left alive both "won" when the
+ * bots were gone. The host knocks the guest (in solo a knock is the end), the
+ * match goes on, and once the bots are gone the host has won and the guest
+ * placed last of the seven sides.
+ */
+async function brSoloTest(browser: Browser, query: string): Promise<void> {
+  const host = await open(browser, query);
+  const guest = await open(browser, query);
+  await ev(host, brRow("solo", 5));
+  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelHost").click(); })()`);
+  let code = "";
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check("solo with a friend: both connect", false, code || "no code");
+    await host.close();
+    await guest.close();
+    return;
+  }
+  for (const p of [host, guest]) await pressPlay(p);
+  const landed = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false)));
+  if (!landed.every(Boolean)) {
+    check("solo with a friend: both land", false, JSON.stringify(landed));
+    await host.close();
+    await guest.close();
+    return;
+  }
+  await ev(host, "window.__range.duel().holdFire = true");
+  const sides = await Promise.all([host, guest].map((p, i) => ev<{ team: string; ally: boolean }>(p, `({ team: window.__range.duel().team.id, ally: window.__range.duel().isAlly(${i === 0 ? 1 : 0}) })`)));
+  check("solo with a friend: both play solo, and the other human is an opponent, not a mate", sides.every((x) => x.team === "solo" && !x.ally), JSON.stringify(sides));
+  // the host knocks the guest: in solo that is the end of them
+  await ev(host, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id === 1); d.localHit(r, 250, true); })()`);
+  const out = await guest.waitForFunction("!window.__range.duel().alive", { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  check("solo with a friend: the host's shots hurt the guest, and the knock is the end", out);
+  await sleep(1000);
+  const going = await ev<string>(host, "window.__range.duel().phase");
+  check("solo with a friend: the match goes on for the host", going === "fight", going);
+  // the bots go: one side is left, the host's
+  await ev(host, `(() => { const d = window.__range.duel(); for (const b of d.bots) if (b.bot.alive) d.onHitOther(b.bot.remote.id, 999, true, d.id); })()`);
+  const ends = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel()?.phase === "matchEnd"`, { polling: 100, timeout: 8000 }).then(() => true, () => false)));
+  const placed = await Promise.all([host, guest].map((p) => ev<{ p: number | null; of: number } | null>(p, "(() => { const d = window.__range.duel(); return d ? { p: d.placement, of: d.squadsTotal } : null; })()")));
+  check("solo with a friend: the host wins, and the guest placed last of the seven sides", ends.every(Boolean) && placed[0]?.p === 1 && placed[1]?.p === 7 && placed[1]?.of === 7, JSON.stringify({ ends, placed }));
+  await host.close();
+  await guest.close();
+}
+
+/**
+ * A host whose tab is hidden (alt-tabbed to paste the invite) keeps the
+ * match running. Chrome slows a background tab's timers to about one a
+ * second, and the loop ran on one, so the host's bots, ring and state
+ * packets went out at one frame a second. Headless Chrome here is launched
+ * with that throttling off, so the host's page does it itself: it reports the
+ * tab hidden and slows its own timers to a second, as Chrome would. The
+ * worker the game ticks from while hidden is not slowed.
+ */
+const FAKE_HIDDEN = `(() => {
+  window.__hidden = false;
+  Object.defineProperty(document, "hidden", { get: () => window.__hidden, configurable: true });
+  Object.defineProperty(document, "visibilityState", { get: () => (window.__hidden ? "hidden" : "visible"), configurable: true });
+  const st = window.setTimeout.bind(window);
+  window.setTimeout = (fn, ms, ...a) => st(fn, window.__hidden ? Math.max(1000, ms || 0) : ms, ...a);
+})()`;
+async function hiddenHostTest(browser: Browser, query: string): Promise<void> {
+  const host = await open(browser, query, BASE, FAKE_HIDDEN);
+  const guest = await open(browser, query);
+  await ev(host, `document.getElementById("duelHost").click()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check("a hidden host: the 1v1 connects", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  await sleep(1000);
+  await ev(host, `(() => { window.__hidden = true; document.dispatchEvent(new Event("visibilitychange")); })()`);
+  await sleep(500);
+  const rate = async (): Promise<number> => {
+    const f0 = await ev<number>(host, "window.__range.frames()");
+    await sleep(3000);
+    return ((await ev<number>(host, "window.__range.frames()")) - f0) / 3;
+  };
+  const perSecond = await rate();
+  check("a hidden host: the match keeps running at 30 frames a second, not one", perSecond >= 20 && perSecond <= 45, `${perSecond.toFixed(1)} frames a second while hidden`);
+  // the old way, for the proof that this measures what it says: the same
+  // page with no worker falls back to its own (slowed) timer
+  await ev(host, `(() => { window.__hidden = false; document.dispatchEvent(new Event("visibilitychange")); window.Worker = undefined; window.__hidden = true; document.dispatchEvent(new Event("visibilitychange")); })()`);
+  await sleep(1500);
+  const slowed = await rate();
+  check("and without the worker it would have crawled at the background tab's pace", slowed <= 2, `${slowed.toFixed(1)} frames a second on the page's own timer`);
+  await ev(host, `(() => { window.__hidden = false; document.dispatchEvent(new Event("visibilitychange")); })()`);
+  await host.close();
+  await guest.close();
+}
+
+/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -3270,6 +3374,16 @@ async function main(): Promise<void> {
       await modesFriendsTest(browser, "?net=local&norender");
       await friendsModesTest(browser, "?net=local&norender");
       await lobbyTest(browser, "?net=local&norender");
+    }
+
+    if (want("hidden")) {
+      console.log("\nA hidden host: the match runs on at 30 Hz from a worker, not at the background tab's one frame a second");
+      await hiddenHostTest(browser, "?net=local&norender");
+    }
+
+    if (want("brsolo")) {
+      console.log("\nSolo with a friend: everyone against everyone, each placed on their own");
+      await brSoloTest(browser, "?net=local&norender");
     }
 
     if (want("squad")) {

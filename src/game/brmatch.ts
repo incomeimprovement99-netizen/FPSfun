@@ -1203,7 +1203,8 @@ export class BrMatch extends Duel {
       // the killer's squad: a kill cuts the wait of its own dead
       this.cutBotWaits(by, "kill");
     }
-    if (this.bots.every((x) => !x.bot.alive && !x.redeploy) && this.humansAlive > 0) this.endBr(true);
+    if (this.soloFriends) this.judgeSolo();
+    else if (this.bots.every((x) => !x.bot.alive && !x.redeploy) && this.humansAlive > 0) this.endBr(true);
   }
 
   /** Resurgence: a knock or a kill by a bot cuts the wait of its squad's dead */
@@ -1242,7 +1243,8 @@ export class BrMatch extends Duel {
       this.onFeed?.(`${b.bot.remote.name} redeployed`, false, true);
     }
     // nobody left to fight and nobody coming back: the squad has won
-    if (this.phase === "fight" && this.humansAlive > 0 && this.bots.every((x) => !x.bot.alive && !x.redeploy)) this.endBr(true);
+    if (this.soloFriends) this.judgeSolo();
+    else if (this.phase === "fight" && this.humansAlive > 0 && this.bots.every((x) => !x.bot.alive && !x.redeploy)) this.endBr(true);
   }
 
   /** where a redeploy comes down: 8 m or more from a squad mate who is up, else anywhere well inside the ring, on open ground */
@@ -1320,7 +1322,8 @@ export class BrMatch extends Duel {
     else this.gulagIds.delete(id);
     if (id === this.id) this.localFx("gulag", undefined, undefined, n);
     // a loss, yours or a squad mate's: the squad is judged again now that nobody of it is in there
-    if (n === 0 && this.role === "host" && !this.brOver && this.phase === "fight" && this.sideOut) this.endBr(false);
+    if (this.soloFriends) this.judgeSolo();
+    else if (n === 0 && this.role === "host" && !this.brOver && this.phase === "fight" && this.sideOut) this.endBr(false);
   }
 
   /** a squad mate's Gulag, heard (their "gulag" effect) */
@@ -1610,10 +1613,64 @@ export class BrMatch extends Duel {
     return `LANDED  ·  LAST ${this.team.size === 1 ? "ONE" : "SQUAD"} STANDING WINS`;
   }
 
+  /**
+   * Solo is everyone against everyone. Duel's rule puts every human on one
+   * side in any battle royale, so friends in a solo match could not hurt each
+   * other and two left alive both "won" when the bots were gone.
+   */
+  protected override friendly(id: number): boolean {
+    return this.team.size > 1 && super.friendly(id);
+  }
+
+  /** solo with friends: each human is their own side, placed on their own */
+  private get soloFriends(): boolean {
+    return this.team.size === 1 && this.players > 1;
+  }
+
+  /** the host: where each human finished, noted as they went out (solo with friends) */
+  private placedAt = new Map<number, number>();
+
+  /**
+   * The host, solo with friends: note who is out and where they placed, and
+   * end the match once one side is left. A human in the Gulag is still in
+   * it; one who comes back (the Gulag won, a redeploy) loses the placing.
+   */
+  private judgeSolo(): void {
+    if (!this.soloFriends || this.role !== "host" || this.brOver || this.phase !== "fight") return;
+    const humans = [this.id, ...[...this.remotes.values()].filter((r) => r.id < Duel.BOT_ID).map((r) => r.id)];
+    const up = (id: number): boolean => {
+      if (this.gulagIds.has(id)) return true;
+      if (id === this.id) return this.alive && !this.downed;
+      const r = this.remotes.get(id);
+      return !!r && r.alive && !r.downed;
+    };
+    const standing = humans.filter(up);
+    const botSides = this.botSquadsAlive + new Set(this.bots.filter((b) => !b.bot.alive && b.redeploy).map((b) => b.team)).size;
+    for (const id of humans) {
+      if (up(id)) this.placedAt.delete(id);
+      // out now: behind every side still standing
+      else if (!this.placedAt.has(id)) this.placedAt.set(id, standing.length + botSides + 1);
+    }
+    if (standing.length + botSides > 1) return;
+    // one side left: a human wins, or a bot squad did and every human is placed
+    this.brOver = true;
+    const winner = standing.length === 1 && botSides === 0 ? standing[0] : -1;
+    for (const id of humans) {
+      const won = id === winner;
+      const placement = won ? 1 : Math.max(2, this.placedAt.get(id) ?? 2);
+      if (id === this.id) {
+        this.brOver = false;
+        this.finishBr(won, placement);
+      } else this.links.get(id)?.send({ t: "brend", won, placement });
+    }
+    this.brOver = true;
+  }
+
   /** a squad mate gone (left, or silent): with nobody of the squad still up, it is over */
   protected override playerGone(id: number, notice: string): void {
     super.playerGone(id, notice);
-    if (this.role === "host" && !this.brOver && this.phase === "fight" && this.sideOut) this.endBr(false);
+    if (this.soloFriends) this.judgeSolo();
+    else if (this.role === "host" && !this.brOver && this.phase === "fight" && this.sideOut) this.endBr(false);
   }
 
   /** the match ends for this side: once the result is in, say the result (the host's goodbye follows it) */
@@ -1630,7 +1687,7 @@ export class BrMatch extends Duel {
    */
   private placedText(p: number): string {
     const solo = this.team.size === 1;
-    if (p === 1) return solo && this.players === 1 ? "You won the battle royale." : "The squad won the battle royale.";
+    if (p === 1) return solo ? "You won the battle royale." : "The squad won the battle royale.";
     return solo ? `You placed #${p} of ${this.squadsTotal}.` : `The squad placed #${p} of ${this.squadsTotal} squads.`;
   }
 
@@ -1647,7 +1704,8 @@ export class BrMatch extends Duel {
     }
     // a bot's knock of one of yours cuts its squad's waits (Resurgence)
     if (_by >= Duel.BOT_ID) this.cutBotWaits(_by, (_id === this.id ? this.downed : !!this.remotes.get(_id)?.downed) ? "knock" : "kill");
-    if (this.role === "host" && this.sideOut) this.endBr(false);
+    if (this.soloFriends) this.judgeSolo();
+    else if (this.role === "host" && this.sideOut) this.endBr(false);
   }
 
   /** the remote's name for the feed, bots included on the host */

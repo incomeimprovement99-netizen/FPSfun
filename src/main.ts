@@ -1176,7 +1176,8 @@ function onEliminated(d: MatchLike, by: number): void {
     for (const [item, n] of Object.entries(kit.items)) if (n > 0) items.push({ kind: "heal", id: item, n, rarity: "common" });
     if (armor.helmet) items.push({ kind: "helmet", id: armor.helmet, n: 1, rarity: "legendary" });
     for (const [g, n] of Object.entries(ordnance.counts)) if (n > 0) items.push({ kind: "grenade", id: g, n, rarity: "rare" });
-    if (d.players > 1) items.push({ kind: "banner", id: "banner", n: 1, rarity: "common", owner: d.id, ownerName: profile.profile.name });
+    // a banner only where there is a squad to carry it: in solo the others are opponents
+    if (d.players > 1 && d.team.size > 1) items.push({ kind: "banner", id: "banner", n: 1, rarity: "common", owner: d.id, ownerName: profile.profile.name });
     d.dropBox(items, player.pos.clone());
   }
   recap = dlog.recap(t, by, (id) => d.nameFor(id), (id) => d.vitalsFor(id));
@@ -3278,7 +3279,10 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, show:
  * first few), so the console and the tests still see it.
  */
 let frameErrors = 0;
+/** frames run since the page opened (the suite counts them while the tab is hidden) */
+let framesRun = 0;
 function frame(): void {
+  framesRun++;
   try {
     step();
   } catch (e) {
@@ -4294,7 +4298,7 @@ function step(): void {
     }
   }
   renderer.info.reset();
-  if (!NO_RENDER) pipeline.render(now);
+  if (!NO_RENDER && !document.hidden) pipeline.render(now);
   frameCost = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
   for (const o of hiddenForReplay) o.visible = true;
   const shown = loadout.display;
@@ -4444,12 +4448,43 @@ function step(): void {
  * Next frame. A hidden tab gets no animation frames at all, which in a 1v1
  * would freeze you for the other player (and stop the host's round clock), so
  * in the background the loop carries on on a timer instead.
+ *
+ * Not the page's own timer: Chrome slows a background tab's timers to about
+ * one a second, and a host who alt-tabbed (to paste the invite, to answer a
+ * message) ran the whole match, its bots, its ring and every state packet,
+ * at one frame a second for everyone. A worker's timer is not slowed, so a
+ * small worker ticks at 30 Hz while the tab is hidden, and nothing is drawn
+ * that nobody can see.
  */
 let rafId = 0;
 let timerId = 0;
+const HIDDEN_HZ = 30;
+let hiddenTicker: Worker | null = null;
+function tickWhileHidden(on: boolean): void {
+  if (!on) {
+    hiddenTicker?.terminate();
+    hiddenTicker = null;
+    return;
+  }
+  if (hiddenTicker) return;
+  try {
+    const src = `let t = 0; onmessage = (e) => { clearInterval(t); if (e.data > 0) t = setInterval(() => postMessage(0), e.data); };`;
+    hiddenTicker = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+    hiddenTicker.onmessage = () => {
+      if (document.hidden) frame();
+    };
+    hiddenTicker.postMessage(1000 / HIDDEN_HZ);
+  } catch {
+    // no workers (a locked-down browser): the page's timer, slowed or not
+    hiddenTicker = null;
+    timerId = window.setTimeout(frame, 16);
+  }
+}
 function schedule(): void {
-  if (document.hidden) timerId = window.setTimeout(frame, 16);
-  else rafId = requestAnimationFrame(frame);
+  if (document.hidden) {
+    // the worker drives frames while hidden; the timer only stands in without one
+    if (!hiddenTicker) timerId = window.setTimeout(frame, 16);
+  } else rafId = requestAnimationFrame(frame);
 }
 // A frame already asked for with the other method never arrives (a hidden
 // tab's animation frame) or arrives late, so switch over the moment the tab is
@@ -4457,8 +4492,10 @@ function schedule(): void {
 document.addEventListener("visibilitychange", () => {
   cancelAnimationFrame(rafId);
   clearTimeout(timerId);
+  tickWhileHidden(document.hidden);
   schedule();
 });
+tickWhileHidden(document.hidden);
 schedule();
 
 // ---------- first visit, invite links ----------
@@ -4708,6 +4745,8 @@ initWelcome();
     });
   },
   drawCalls: () => frameCost.calls,
+  /** frames run since the page opened */
+  frames: () => framesRun,
   /** the last frame's draw calls and triangles over every pass (tools/bench.ts) */
   frameCost: () => ({ ...frameCost }),
   /** a solo battle royale on a given seed and place, so the benchmark measures the same match every run */
