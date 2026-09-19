@@ -121,9 +121,12 @@ async function main(): Promise<void> {
       check("both sides connect over the internet", false, await ev<string>(guest, `document.getElementById("duelStatus").textContent`));
       return;
     }
-    // round 1 waits for everyone to click Play; a scripted page cannot take a
-    // pointer lock, so a fake controller's Start stands in for the click
+    // round 1 waits for everyone to click Play. Host and Join take a page in
+    // by themselves (the lock under a test tool is pretend, input.ts); a page
+    // still on the menu presses a fake controller's Start for the click, and
+    // one already in does not, or Start would open its menu
     for (const p of [host, guest]) {
+      if (await ev<boolean>(p, "window.__range.input.playing")) continue;
       await ev(p, `(() => {
         const btn = () => ({ pressed: false, touched: false, value: 0 });
         const pad = { index: 0, id: "fake pad", connected: true, mapping: "standard", timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, btn) };
