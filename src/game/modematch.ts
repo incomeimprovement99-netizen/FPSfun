@@ -22,6 +22,7 @@
 // team, filled out with bots to the team size, against a team of bots. Team
 // mates cannot hurt each other and their bullets pass through each other.
 // Gun Run and Crown are every player for themselves.
+import { senderStamp } from "../net/state";
 import * as THREE from "three";
 import { Throwables, blastDamage, throwCode } from "./throwables";
 import { Bot, BOT_NAMES, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP, hitsBody, tierFor, type BotSense } from "./bots";
@@ -1106,6 +1107,7 @@ export class ArenaMode extends Duel {
       this.broadcast({
         t: "s",
         from: bot.remote.id,
+        tm: senderStamp(),
         x: bot.pos.x,
         y: bot.pos.y,
         z: bot.pos.z,

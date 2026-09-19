@@ -98,6 +98,13 @@ export interface PlayerState {
   ad?: number;
   ac?: number;
   bot?: number;
+  /** the sender's clock when it made this state: milliseconds, the low 16 bits (senderStamp) */
+  tm?: number;
+}
+
+/** the sender's clock for a state: performance time in milliseconds, the low 16 bits (the receiver unwraps it) */
+export function senderStamp(): number {
+  return Math.round(performance.now()) & 0xffff;
 }
 
 /**
@@ -111,8 +118,13 @@ export type Quant = Record<string, number | string>;
 
 /** the twelve a state always has, so a keyframe missing one of them is malformed */
 const REQ_KEYS = ["x", "y", "z", "aw", "ap", "cr", "hp", "sh", "al", "w", "op", "nm"] as const;
-/** the eight that come and go; their order IS the clear mask's bit order and cannot be shuffled */
-const OPT_KEYS = ["rd", "st", "sp", "sm", "dn", "ad", "ac", "bt"] as const;
+/**
+ * The ones that come and go; their order IS the clear mask's bit order and
+ * cannot be shuffled, only added to at the end. `tm` (the sender's clock) came
+ * last: an older build ignores a key it does not know, and it is never
+ * cleared, so it never sets a bit an older build would misread.
+ */
+const OPT_KEYS = ["rd", "st", "sp", "sm", "dn", "ad", "ac", "bt", "tm"] as const;
 /** the three that are text; everything else is a finite number */
 const STR_KEYS = new Set<string>(["w", "op", "nm"]);
 /**
@@ -165,6 +177,7 @@ export function quantise(s: PlayerState): Quant {
   if (!absent(s.ad)) q.ad = Math.round(wireNum(s.ad));
   if (!absent(s.ac)) q.ac = Math.round(wireNum(s.ac));
   if (!absent(s.bot)) q.bt = Math.round(wireNum(s.bot));
+  if (!absent(s.tm)) q.tm = Math.round(wireNum(s.tm)) & 0xffff;
   return q;
 }
 
@@ -192,6 +205,7 @@ export function dequantise(q: Quant): PlayerState {
   if (!absent(q.ad)) s.ad = wireNum(q.ad);
   if (!absent(q.ac)) s.ac = wireNum(q.ac);
   if (!absent(q.bt)) s.bot = wireNum(q.bt);
+  if (!absent(q.tm)) s.tm = wireNum(q.tm);
   return s;
 }
 
@@ -341,8 +355,9 @@ export class StateOut {
       const { d, c } = diff(base, q);
       // A player standing still, not shooting, not turning: there is nothing
       // to say, so say nothing. The keyframe timer is the heartbeat that
-      // keeps duel.ts from calling them silent and dropping them.
-      if (c === 0 && Object.keys(d).length === 0) return null;
+      // keeps duel.ts from calling them silent and dropping them. The clock
+      // changes every tick and is not news on its own.
+      if (c === 0 && Object.keys(d).every((k) => k === "tm")) return null;
       part = { f: subject, q: seq, b: this.acked, c: c === 0 ? undefined : c, d };
     }
     this.seq = seq;
@@ -488,6 +503,7 @@ export function stateOf(m: StateMsg): PlayerState {
   if (!absent(raw.ad)) s.ad = wireNum(raw.ad);
   if (!absent(raw.ac)) s.ac = wireNum(raw.ac);
   if (!absent(raw.bot)) s.bot = wireNum(raw.bot);
+  if (!absent(raw.tm)) s.tm = wireNum(raw.tm);
   return s;
 }
 
@@ -516,5 +532,6 @@ export function stateMsg(s: PlayerState, from?: number): StateMsg {
     ad: s.ad,
     ac: s.ac,
     bot: s.bot,
+    tm: s.tm,
   } as StateMsg);
 }

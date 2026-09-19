@@ -911,6 +911,27 @@ const scene = new THREE.Scene();
 }
 
 // put back what the Duel checks borrowed
+// ------------------------------------------------------------ the sender's clock
+// A state carries its sender's clock (16 bits of milliseconds). It has to
+// come through a keyframe and a difference, wrap without harm, and never make
+// a player standing still cost a packet between keyframes.
+{
+  const still: PlayerState = { ...sample(0, 0), tm: 65530 };
+  const q = quantise(still);
+  check("the sender's clock survives the codec", dequantise(q).tm === 65530);
+  check("and wraps at 16 bits", quantise({ ...still, tm: 65536 + 7 }).tm === 7);
+  const out = new StateOut();
+  const inn = new StateIn();
+  const k = out.encode(still, 0);
+  const got = k ? inn.decode(k) : null;
+  out.ack(inn.ackSeq);
+  const next = out.encode({ ...still, tm: 12 }, 0.05);
+  check("a player standing still costs nothing between keyframes, though the clock moved", !!got && got.tm === 65530 && next === null);
+  const moved = out.encode({ ...still, x: still.x + 1, tm: 45 }, 0.1);
+  const after = moved ? inn.decode(moved) : null;
+  check("a state that moved carries the clock with it", !!after && after.tm === 45 && Math.abs(after.x - (still.x + 1)) < 0.01);
+}
+
 perf.now = realNow;
 console.warn = warn;
 if (!hadDocument) delete g.document;

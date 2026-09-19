@@ -936,6 +936,49 @@ async function friendsModesTest(browser: Browser, query: string): Promise<void> 
   }
 }
 
+/**
+ * A friend's figure over a jittery connection. Arrival times bunch and gap as
+ * the network jitters, and a figure placed by when its states arrived runs,
+ * stalls and lurches though its player ran at one speed; placed by when they
+ * were sent, it runs as the player did. Two tabs, 60 ms of jitter on every
+ * message, the guest running a steady circle, and the host measuring how even
+ * the guest's figure's speed is from frame to frame, placed each way.
+ */
+async function jitterTest(browser: Browser, query: string): Promise<void> {
+  const host = await open(browser, query);
+  const guest = await open(browser, query);
+  await ev(host, `(() => { document.getElementById("duelMode").value = "arena"; document.getElementById("duelPlayers").value = "2"; document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check("jitter: the two connect", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  // the guest runs a circle at one speed: forward held, turning at a steady rate
+  await ev(guest, `(() => { window.__range.setScript({ held: (a) => a === "forward", pressedNow: () => false }); setInterval(() => { window.__range.player.yaw += 1.5; }, 16); })()`);
+  await sleep(1500);
+  // how even the figure's speed is, frame to frame, over 2.5 s: the spread of it over its mean
+  // measured in the game's own frame: after each update of the match, where the figure stands
+  await host.bringToFront();
+  const measure = `new Promise((done) => { const d = window.__range.duel(); const r = d.remotes.get(1); const pts = []; const t0 = performance.now(); const up = d.update.bind(d); d.update = (l) => { const at = performance.now(); up(l); const g = r.avatar.group.position; pts.push([at, g.x, g.z]); if (performance.now() - t0 > 2500 && !pts.done) { pts.done = true; d.update = up; const v = []; for (let i = 1; i < pts.length; i++) { const dt = (pts[i][0] - pts[i - 1][0]) / 1000; if (dt > 0.004) v.push(Math.hypot(pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2]) / dt); } const m = v.reduce((a, b) => a + b, 0) / v.length; const sd = Math.sqrt(v.reduce((a, b) => a + (b - m) * (b - m), 0) / v.length); const ss = r.samples.slice(-40); const sv = []; for (let i = 1; i < ss.length; i++) { const dt = ss[i].at - ss[i - 1].at; if (dt > 0) sv.push(Math.hypot(ss[i].x - ss[i - 1].x, ss[i].z - ss[i - 1].z) / dt); } const sm = sv.reduce((a, b) => a + b, 0) / sv.length; const ssd = Math.sqrt(sv.reduce((a, b) => a + (b - sm) * (b - sm), 0) / sv.length); done({ frames: v.length, mean: m, spread: sd / m, sampleSpread: ssd / sm, stalls: v.filter((x) => x < m * 0.2).length }); } }; })`;
+  const bySent = await ev<{ frames: number; mean: number; spread: number }>(host, measure);
+  await ev(host, "window.__range.duel().senderClock = false");
+  await sleep(800);
+  const byArrival = await ev<{ frames: number; mean: number; spread: number }>(host, measure);
+  check(
+    "jitter: placed by when its states were sent, a friend running at one speed moves at one speed through 60 ms of jitter (and far more evenly than placed by arrival)",
+    bySent.frames > 60 && bySent.mean > 3 && bySent.spread < 0.25 && bySent.spread < byArrival.spread * 0.6,
+    JSON.stringify({ bySent, byArrival })
+  );
+  await host.close();
+  await guest.close();
+}
+
 /** a lobby bigger than three: everyone gets their own spawn, nobody stacks */
 async function lobbyTest(browser: Browser, query: string): Promise<void> {
   const pages: Page[] = [];
@@ -3725,6 +3768,8 @@ async function main(): Promise<void> {
     if (want("duel")) {
       console.log("\n1v1 over the local transport (two tabs)");
       await duelTest(browser, "?net=local&norender", "local");
+      console.log("\nA friend's figure over a jittery connection");
+      await jitterTest(browser, "?net=local&norender&jitter=60");
     }
 
     if (want("emote")) {

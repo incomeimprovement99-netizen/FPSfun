@@ -62,6 +62,7 @@
 //                    The host ranks everyone, because every hit on a bot
 //                    comes to it, and the ring packet carries the line, so a
 //                    guest takes its own tick the way it takes the ring's.
+import { senderStamp } from "../net/state";
 import * as THREE from "three";
 import squadCfg from "../config/squad.json";
 import brCfg from "../config/br.json";
@@ -2356,6 +2357,7 @@ export class BrMatch extends Duel {
         this.broadcast({
           t: "s",
           from: bot.remote.id,
+          tm: senderStamp(),
           x: bot.pos.x,
           y: bot.pos.y,
           z: bot.pos.z,

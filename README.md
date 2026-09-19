@@ -87,6 +87,13 @@ to what the gun can do (no more than one of its rounds, only after a shot, from
 about where you stand, no faster than it fires) and drops any that could not
 have happened.
 
+**Friends move smoothly on a shaky connection.** Each state a player sends
+carries their own clock, and their figure on your screen is placed by when
+the states were sent, not when they arrived, so a friend running at one speed
+moves at one speed however the connection bunches and gaps. How far behind the
+figure is drawn grows with the connection's jitter (100 ms on a good one, up to
+300 ms), so it never stalls waiting for the next state.
+
 **Up to eight people.** The player count on the Friends tab goes to 8: two is
 the warehouse arena, three the triangle, and four or more play the warehouse,
 which has a spawn each. Every mode below can be played this way, with bots

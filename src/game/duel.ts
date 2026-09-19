@@ -33,7 +33,7 @@ import { Dummy, actFromCode, stanceCode, stanceFromCode, type FigureAct, type Fi
 import type { ProjectileSystem } from "./projectile";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import type { AckMsg, DeltaMsg, DeltaPart, Link, NetMsg, RoundPhase, StateMsg } from "../net/link";
-import { stateMsg, stateOf, type PlayerState } from "../net/state";
+import { senderStamp, stateMsg, stateOf, type PlayerState } from "../net/state";
 import { StateSync } from "../net/statesync";
 import { HitCheck } from "../net/hitcheck";
 import { ARENA_BOUNDS, ARENA_CENTER, ARENA_LOBBY_SPAWNS, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, TRI_CENTER, TRI_SPAWNS, ZONE_RADIUS, arenaMap, mapFor, type ArenaMapId } from "./arena";
@@ -46,7 +46,8 @@ import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
 
 const SEND_HZ = 30;
-const INTERP_DELAY = 0.1;
+/** the least a friend's figure is drawn behind (net.json buffer: it grows with the connection's jitter) */
+const INTERP_DELAY = netCfg.buffer.min;
 export const ROUNDS_TO_WIN = 3;
 const COUNTDOWN = 3;
 const ROUND_END = 3;
@@ -158,6 +159,10 @@ export interface Remote {
   avatarOp: string;
   avatars: Map<string, Dummy>;
   samples: Sample[];
+  /** the sender's clock against ours: its unwrapped time, and the smallest gap seen between the two (placeByClock) */
+  clock?: { last: number; sent: number; gap: number; heard: number };
+  /** the jitter buffer: the worst recent lateness of their states, the usual gap between two, and the delay the figure is drawn at */
+  buffer?: { late: number; spacing: number; delay: number };
   health: number;
   shield: number;
   /** their armour's size (a battle royale's shield core), from their state packets */
@@ -996,6 +1001,47 @@ export class Duel implements MatchLike {
     this.applyState(m, from, now);
   }
 
+  /** place figures by when their states were sent (net.json senderClock); a switch for the tests' comparison */
+  senderClock = netCfg.senderClock.on && new URLSearchParams(typeof location === "undefined" ? "" : location.search).get("senderclock") !== "0";
+
+  /**
+   * When a state was made, on our clock: the sender's own stamp (16 bits of
+   * milliseconds, unwrapped here) plus the smallest gap seen between its clock
+   * and ours, which is the least delayed state's. That gap creeps up slowly so
+   * one lucky early state does not pin it. A state with no stamp (an older
+   * build) is placed by when it arrived, as before, and so is everything after
+   * a long silence or a jump in the stamps.
+   */
+  private placeByClock(r: Remote, tm: number | undefined, now: number): number {
+    if (!this.senderClock || typeof tm !== "number" || !Number.isFinite(tm)) return now;
+    const c = r.clock;
+    let step = c ? (tm - c.last) & 0xffff : 0;
+    if (step > 0x8000) step -= 0x10000;
+    if (!c || now - c.heard > 5 || Math.abs(step) > 5000) {
+      r.clock = { last: tm, sent: 0, gap: now, heard: now };
+      return now;
+    }
+    c.last = tm;
+    c.sent += step / 1000;
+    c.gap = Math.min(c.gap + netCfg.senderClock.creep * (now - c.heard), now - c.sent);
+    c.heard = now;
+    return Math.min(now, c.sent + c.gap);
+  }
+
+  /**
+   * The jitter buffer: how late this state arrived against when it was made,
+   * and the gap since the last one. The figure is drawn far enough behind to
+   * have a state on each side of the moment it shows, so it never stalls
+   * waiting for the next one to come in.
+   */
+  private noteLateness(r: Remote, at: number, now: number): void {
+    const B = netCfg.buffer;
+    const b = (r.buffer ??= { late: 0, spacing: 1 / SEND_HZ, delay: INTERP_DELAY });
+    const prev = r.samples[r.samples.length - 1];
+    if (prev && at > prev.at && at - prev.at < 0.5) b.spacing += (at - prev.at - b.spacing) * 0.1;
+    b.late = Math.max(now - at, b.late * B.keep);
+  }
+
   /** one player's state: their figure moves and shows what they are doing, and the host passes it on */
   private applyState(m: StateMsg, from: number, now: number): void {
     if (!wellFormed(m)) return;
@@ -1004,7 +1050,9 @@ export class Duel implements MatchLike {
     // an older build sends no stance: its crouch flag stands in
     const stance = typeof m.st === "number" ? stanceFromCode(m.st) : m.crouch ? "crouch" : "stand";
     const ac = typeof m.ac === "number" && Number.isFinite(m.ac) ? m.ac : 0;
-    r.samples.push({ at: now, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), healItem: ac >= 10 ? HEAL_CODES[ac - 10] : undefined });
+    const at = this.placeByClock(r, m.tm, now);
+    this.noteLateness(r, at, now);
+    r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), healItem: ac >= 10 ? HEAL_CODES[ac - 10] : undefined });
     if (r.samples.length > 30) r.samples.shift();
     // Their own numbers lag our hits by a round trip, so a packet can only
     // ever LOWER what we already predicted; a respawn (alive again) resets.
@@ -1573,6 +1621,7 @@ export class Duel implements MatchLike {
         dn: this.downed ? (this.kdUp ? 2 : 1) : 0,
         ad: local.ads ? Math.round(local.ads * 10) : undefined,
         ac: local.act || undefined,
+        tm: senderStamp(),
       });
     }
     if (now >= this.pingNext) {
@@ -1596,7 +1645,16 @@ export class Duel implements MatchLike {
       return;
     }
     r.avatar.group.visible = true;
-    const t = now - INTERP_DELAY;
+    // the delay eases toward what the connection needs, so the figure never jumps when it changes
+    const B = netCfg.buffer;
+    const buf = r.buffer;
+    let delay = INTERP_DELAY;
+    if (buf) {
+      const want = Math.max(B.min, Math.min(B.max, buf.late + buf.spacing + 0.01));
+      buf.delay += (want - buf.delay) * Math.min(1, dt * B.ease);
+      delay = buf.delay;
+    }
+    const t = now - delay;
     let a = s[0];
     let b = s[s.length - 1];
     for (let i = 0; i < s.length - 1; i++) {

@@ -63,6 +63,8 @@ export type NetMsg =
       ac?: number;
       /** the practice aim bot is on: everyone sees a red mark over them for it */
       bot?: number;
+      /** the sender's clock when it made this state: milliseconds, the low 16 bits (state.ts senderStamp) */
+      tm?: number;
     }
   /**
    * The same states, delta compressed (src/net/state.ts), one part per
@@ -313,10 +315,19 @@ interface Envelope {
   /** the connection is gone, with no goodbye (abandon: what a real connection dropping looks like from the other end) */
   cut?: boolean;
 }
+/**
+ * The tests' network: ?jitter=N delays every message on the local transport
+ * by up to N ms at random, in order (a reliable, ordered channel holds a late
+ * message's followers back behind it, which is what bunches arrivals).
+ */
+const JITTER_MS = Number(new URLSearchParams(typeof location === "undefined" ? "" : location.search).get("jitter")) || 0;
+
 class LocalLink implements Link {
   onMessage: ((m: NetMsg) => void) | null = null;
   onClose: (() => void) | null = null;
   private closed = false;
+  /** with jitter, when the last message goes out: none may overtake it */
+  private lastOut = 0;
   private readonly handler: (e: MessageEvent<Envelope>) => void;
   constructor(
     readonly role: "host" | "guest",
@@ -344,7 +355,18 @@ class LocalLink implements Link {
     ch.addEventListener("message", this.handler);
   }
   send(m: NetMsg): void {
-    if (!this.closed) this.ch.postMessage({ from: this.me, to: this.peer, m } satisfies Envelope);
+    if (this.closed) return;
+    const env = { from: this.me, to: this.peer, m } satisfies Envelope;
+    if (!JITTER_MS) {
+      this.ch.postMessage(env);
+      return;
+    }
+    const now = performance.now();
+    const at = Math.max(this.lastOut, now + Math.random() * JITTER_MS);
+    this.lastOut = at;
+    setTimeout(() => {
+      if (!this.closed) this.ch.postMessage(env);
+    }, at - now);
   }
   close(): void {
     if (this.closed) return;

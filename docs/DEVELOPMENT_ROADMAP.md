@@ -1415,3 +1415,28 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: the e2e `brsolo` section (after the battle royale both screens show the same table of the two, one played
   and the one win for the winner, and Play again keeps it).
 
+## Milestone 94 — Figures placed on the sender's clock, with a jitter buffer ✅
+2026-09-19 (Phase 15). `state.ts`, `link.ts`, `duel.ts`, `brmatch.ts`, `modematch.ts`, `src/config/net.json`.
+- A friend's figure was placed by when their states ARRIVED, 100 ms behind. Arrivals bunch and gap as a connection
+  jitters, so a friend running at one speed ran, stalled and lurched on your screen. Each state now carries its
+  sender's clock (the low 16 bits of its milliseconds, unwrapped by the receiver), and the figure is placed by when
+  the states were sent: each sender's clock is mapped onto ours through the smallest gap seen between the two (the
+  least delayed state), creeping up 2 ms a second so one lucky state does not pin it. The host's bots carry the
+  host's clock; a relayed state keeps its sender's.
+- A jitter buffer: how far behind a figure is drawn follows how late its states have been arriving lately plus the
+  gap between two, between 100 ms (what it always was) and 300 ms, eased so the figure never jumps when it changes.
+  On a good connection nothing changes.
+- The stamp rides only on a state that is sent anyway: a player standing still still costs nothing between
+  keyframes. It is the delta format's ninth optional field, added at the end of the list (an older build ignores a
+  key it does not know, and it is never cleared, so it never sets a mask bit an older build would misread). Measured
+  with tools/net-cost.ts: a battle royale squad's host upload 6.5 kB/s on the wire before, 6.4 after; the guest's
+  1.3 kB/s of messages before, 1.4 after.
+- The local transport takes `?jitter=N` (up to N ms on each message, in order, as a reliable channel delivers), and
+  `?senderclock=0` places figures by arrival again, for comparison.
+- Checks: `tools/checks/net-delta.ts` (the clock survives the codec and wraps at 16 bits, a still player costs
+  nothing though the clock moved, a moving one carries it), and the e2e `duel` section: two tabs with 60 ms of jitter,
+  the guest running a steady circle, the host measuring its figure's speed frame to frame. Placed by send time the
+  spread is 0.13 of the mean, as even as the guest's own states (0.12); placed by arrival it is 0.55. The first
+  version of the measurement stamped each frame after the match's update rather than before, whose own few
+  milliseconds on a 6.6 ms frame read as unevenness that was not on screen.
+
