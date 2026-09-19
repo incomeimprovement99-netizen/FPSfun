@@ -19,6 +19,7 @@
 // med shelf, a bench, an ordnance crate, an ammo crate, so a room reads as a
 // room instead of coming out four shield cells and nothing else.
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
 import { weaponMods, weaponName, type AmmoType } from "./weapons";
@@ -440,6 +441,72 @@ function floorAt(x: number, z: number): number | null {
   return spots.length ? spots[0] : null;
 }
 
+/**
+ * A gun on the floor as one mesh: every part of its display model baked into
+ * one geometry with its colour in the vertices, made once a gun. The display
+ * model is 11 to 15 meshes, each its own draw call, and a rich place put 40
+ * to 60 guns in draw distance (docs/PLAN_LOD_DRAW_DISTANCE.md step C). The
+ * parts keep their shapes; what is lost is each part's own shine, which on
+ * the floor at 0.3 m tall nobody reads.
+ */
+const floorGuns = new Map<string, THREE.BufferGeometry>();
+const floorGunMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.45 });
+function floorGun(id: string): THREE.BufferGeometry {
+  const hit = floorGuns.get(id);
+  if (hit) return hit;
+  const root = displayGunModel(id).root;
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const parts: THREE.BufferGeometry[] = [];
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || m.name === "muzzleflash" || !m.visible) return;
+    const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshStandardMaterial;
+    if (mat.transparent) return;
+    const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()) as THREE.BufferGeometry;
+    for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal") g.deleteAttribute(name);
+    if (!g.getAttribute("normal")) g.computeVertexNormals();
+    g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
+    const c = (mat.color ?? new THREE.Color(0x888888)).clone();
+    if (mat.emissive) c.add(mat.emissive.clone().multiplyScalar(mat.emissiveIntensity ?? 1));
+    const n = g.getAttribute("position").count;
+    const col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) col.set([c.r, c.g, c.b], i * 3);
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    parts.push(g);
+  });
+  const merged = (parts.length ? mergeGeometries(parts) : null) ?? new THREE.BoxGeometry(0.6, 0.12, 0.08);
+  for (const p of parts) p.dispose();
+  floorGuns.set(id, merged);
+  return merged;
+}
+
+/**
+ * One kind of small loot shape, every copy of it in draw distance in one draw
+ * call (an item's box, a gun's ring, a rare one's beam). Refilled each frame
+ * with the items near enough to draw; it follows no single item.
+ */
+class Batch {
+  readonly mesh: THREE.InstancedMesh;
+  n = 0;
+  constructor(geo: THREE.BufferGeometry, mat: THREE.Material, parent: THREE.Object3D, cap: number) {
+    this.mesh = new THREE.InstancedMesh(geo, mat, cap);
+    this.mesh.count = 0;
+    // its copies move every frame and are all near the camera: its own bounds would be stale
+    this.mesh.frustumCulled = false;
+    parent.add(this.mesh);
+  }
+  put(m: THREE.Matrix4): void {
+    if (this.n >= this.mesh.instanceMatrix.count) return;
+    this.mesh.setMatrixAt(this.n++, m);
+  }
+  close(): void {
+    this.mesh.count = this.n;
+    this.mesh.instanceMatrix.needsUpdate = true;
+    this.n = 0;
+  }
+}
+
 export class LootField {
   readonly group = new THREE.Group();
   drops = new Map<number, LootDrop>();
@@ -457,6 +524,18 @@ export class LootField {
   private ringGeo = new THREE.RingGeometry(0.34, 0.42, 20);
   private crateGeo = new THREE.BoxGeometry(0.9, 0.55, 0.6);
   private mats = new Map<string, THREE.Material>();
+  /** the instanced shapes, by the material key they draw with */
+  private batches = new Map<string, Batch>();
+  private batch(key: string, geo: THREE.BufferGeometry, make: () => THREE.Material): Batch {
+    let b = this.batches.get(key);
+    if (!b) this.batches.set(key, (b = new Batch(geo, this.mat(key, make), this.group, cfg.batchCap)));
+    return b;
+  }
+  private readonly tmpM = new THREE.Matrix4();
+  private readonly tmpQ = new THREE.Quaternion();
+  private readonly tmpE = new THREE.Euler();
+  private readonly tmpP = new THREE.Vector3();
+  private readonly unit = new THREE.Vector3(1, 1, 1);
 
   /** no scene: nothing drawn (tools/verify.ts, in Node) */
   constructor(scene: THREE.Scene | null) {
@@ -476,17 +555,12 @@ export class LootField {
   private visual(it: LootItem): THREE.Object3D {
     const g = new THREE.Group();
     if (this.headless) return g;
-    const colour = hexOf(it.rarity);
     if (it.kind === "weapon") {
-      const m = displayGunModel(it.id).root.clone(true);
-      for (const c of [...m.children]) if (c.name === "muzzleflash") m.remove(c);
+      // one mesh, one draw call (floorGun); its ring on the floor is drawn with every other ring (update)
+      const m = new THREE.Mesh(floorGun(it.id), floorGunMat);
       m.rotation.set(0, Math.PI / 2, Math.PI / 2);
       m.position.y = 0.06;
       g.add(m);
-      const plate = new THREE.Mesh(this.ringGeo, this.mat(`ring${colour}`, () => new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide })));
-      plate.rotation.x = -Math.PI / 2;
-      plate.position.y = 0.02;
-      g.add(plate);
     } else if (it.kind === "bin") {
       // a supply bin: a squat crate with a lit seam; open, its lid stands up behind it
       const open = it.id === "open";
@@ -505,18 +579,32 @@ export class LootField {
       const crate = new THREE.Mesh(this.crateGeo, this.mat("deathbox", () => new THREE.MeshStandardMaterial({ color: 0x2b2f35, emissive: 0xff5a3a, emissiveIntensity: 0.25, roughness: 0.6 })));
       crate.position.y = 0.28;
       g.add(crate);
-    } else {
+    }
+    // an item's box, a gun's ring and a rare one's beam are drawn in batches (update), not here
+    return g;
+  }
+
+  /** the batched shapes of an item near enough to draw: its box, a gun's ring, a rare one's beam */
+  private drawBatched(d: LootDrop, now: number): void {
+    const it = d.item;
+    const colour = hexOf(it.rarity);
+    const p = this.tmpP;
+    if (it.kind === "weapon") {
+      p.set(d.pos.x, d.pos.y + 0.02, d.pos.z);
+      this.tmpQ.setFromEuler(this.tmpE.set(-Math.PI / 2, 0, 0));
+      this.batch(`ring${colour}`, this.ringGeo, () => new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
+    } else if (it.kind !== "bin" && it.kind !== "box") {
       const col = it.kind === "banner" ? 0x7ddc8a : colour;
-      const b = new THREE.Mesh(this.boxGeo, this.mat(`box${col}`, () => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.5 })));
-      b.position.y = 0.12;
-      g.add(b);
+      p.set(d.pos.x, d.pos.y + 0.12, d.pos.z);
+      // the items turn slowly
+      this.tmpQ.setFromEuler(this.tmpE.set(0, now * 0.8 + d.key, 0));
+      this.batch(`box${col}`, this.boxGeo, () => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.5 })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
     }
     if (it.rarity === "epic" || it.rarity === "legendary" || it.kind === "banner") {
-      const beam = new THREE.Mesh(this.beamGeo, this.mat(`beam${colour}`, () => new THREE.MeshBasicMaterial({ color: it.kind === "banner" ? 0x7ddc8a : colour, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })));
-      beam.position.y = 1.2;
-      g.add(beam);
+      p.set(d.pos.x, d.pos.y + 1.2, d.pos.z);
+      this.tmpQ.identity();
+      this.batch(`beam${colour}`, this.beamGeo, () => new THREE.MeshBasicMaterial({ color: it.kind === "banner" ? 0x7ddc8a : colour, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
     }
-    return g;
   }
 
   /** an item into the world at `pos`: with a given key (from the seed or the host), or the next free one */
@@ -556,6 +644,8 @@ export class LootField {
   dispose(): void {
     this.clear();
     this.group.removeFromParent();
+    for (const b of this.batches.values()) b.mesh.dispose();
+    this.batches.clear();
     for (const g of [this.beamGeo, this.boxGeo, this.ringGeo, this.crateGeo]) g.dispose();
     for (const m of this.mats.values()) m.dispose();
     this.mats.clear();
@@ -681,14 +771,18 @@ export class LootField {
     return best;
   }
 
-  /** draw only what is near; the items turn slowly */
+  /** draw only what is near; the items turn slowly (their boxes, in the batches) */
   update(cam: THREE.Vector3, now: number): void {
+    if (this.headless) return;
     const far2 = cfg.drawDistance * cfg.drawDistance;
     for (const d of this.drops.values()) {
       const v = d.pos.distanceToSquared(cam) < far2;
       d.obj.visible = v;
-      if (v && d.item.kind !== "box" && d.item.kind !== "weapon") d.obj.rotation.y = now * 0.8 + d.key;
+      if (!v) continue;
+      if (d.item.kind === "bin") d.obj.rotation.y = now * 0.8 + d.key;
+      this.drawBatched(d, now);
     }
+    for (const b of this.batches.values()) b.close();
   }
 
   get count(): number {

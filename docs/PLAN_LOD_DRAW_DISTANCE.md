@@ -114,7 +114,7 @@ A new `tools/checks/render-budget.ts` in verify builds the map headless and asse
 |---|---|---|---|
 | A | ~~Benchmark: every pass counted, triangles, percentiles, the `brmatch` spot~~ done, baseline above | 2-3 | A baseline on all three presets at `br`, `brmatch` and `range` |
 | B | `render-budget.ts` at today's numbers | 2 | Verify passes; a budget one lower fails |
-| C | Loot LOD: merged guns, instanced boxes and plates | 4-6 | Merged-gun check; `brmatch` draw calls drop by hundreds |
+| C | ~~Loot LOD: merged guns, instanced boxes and plates~~ done (Milestone 101): `brmatch` Competitive 864 draw calls to about 280, 192 fps to 278-333 | 4-6 | Merged-gun check; `brmatch` draw calls drop by hundreds |
 | D | Figure LOD: bounds, animation stride, far gun, 60 m shadows | 3-4 | Stride check; the bot and knockdown checks still pass; High benchmark |
 | E | Far plane and fog per preset | 1-2 | The sky-hours check; a map-corner benchmark |
 | F | ~~Cells in mergeStatic, regions apart, indexed bevels~~ done without the cells (measured worse), with the double merge fixed and each side drawn only from itself: see above | 4-6 | The cell and region assertions; `br` and `range` benchmarks |

@@ -1563,3 +1563,17 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: the benchmark before and after at all three spots and presets; the door snapshot (the lighting, and the
   one-mesh door); the e2e walk of the map and every section, unchanged.
 
+## Milestone 101 — Loot drawn in batches ✅
+2026-09-19 (Phase 15). `loot.ts`, `src/config/loot.json`.
+- Step C of the LOD plan. With the map drawn once, what was left of a match's draw calls was the loot: every item's
+  box, every gun's ring on the floor and every rare item's beam its own mesh, and every gun on the floor a full copy
+  of its display model, 11 to 15 meshes. A box, a ring and a beam are now copies of one instanced mesh per material
+  (a rarity's colour), refilled each frame with the items inside the 70 m draw distance, so each kind is one draw
+  call however many there are. A gun on the floor is one mesh: its display model's parts baked into one geometry
+  with their colours in the vertices, made once a gun. The parts keep their shapes; each part's own shine is gone,
+  which on the floor at 0.3 m tall nobody reads. The floor guns cast no shadow, as the display models did not.
+- In a match at the hub (the benchmark's `brmatch`, 9 bots): Competitive 864 draw calls to about 280 and 192 fps to
+  278-333 median (bots and loot move from run to run), Balanced about 333, High 1,885 calls to 709 and 105 fps to 179.
+- Checks: the e2e `loot` and `br` sections, unchanged; the `br-loot` snapshot (boxes, rings, beams and floor guns all
+  drawn); the benchmark before and after.
+
