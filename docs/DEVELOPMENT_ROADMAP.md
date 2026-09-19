@@ -1898,3 +1898,18 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   in front of it goes from 6.6 to 8.25 m/s).
 - The threat highlight is drawn in one place, per frame, from the optic's range, and it wrote over a scan's glow: the
   match now says which figures are shown (`Duel.shown`) and that one place takes the brighter of the two.
+
+## Milestone 118 — Ability kits, phase 3: HOOK ✅
+2026-09-19 (Phase 15). `abilities.ts`, `traversal.ts`, `player.ts`, `main.ts`, `hud.ts`, `src/config/kits.json`,
+`src/config/binds.json` (`pickAbility4`: 8), `tools/checks/kits.ts`, `tools/e2e.ts`.
+- A fourth kit, all movement. **HOOK**: GRAPPLE (F), a line at whatever you look at within 30 m and a pull to it at
+  24 m/s with a little lift, every 10 s; STRONG ARMS, half again as much climb space, so a climb reaches higher;
+  ZIP LINE (Z), a zipline from where you stand to where you look, up to 45 m, for 90 s.
+- A line that finds nothing in reach costs no cooldown, and says so.
+- The zipline goes up on every page: the one who used it, and the others through its effect, so anyone can ride it,
+  and it comes down when its time is up or the match ends. `traversal.ts deployZipline` puts a rope in the world and
+  its line in `ZIPLINES`, which is what the ride reads, and hands back the way to take it down again.
+- The grapple's line is drawn with the dash's streak, and the others see it through a `grap` effect.
+- Checks: `tools/checks/kits.ts` (GRAPPLE is HOOK's, its cooldown, a miss costing nothing, and its card's numbers),
+  and the e2e `bots` section (the climb passive at 1.5, a grapple that pulls you at 23.8 m/s and then waits out its
+  cooldown; a ZIP LINE put up in play that comes down with the match).

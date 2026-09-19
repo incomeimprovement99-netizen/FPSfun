@@ -25,8 +25,8 @@ export interface KitInfo {
   blurb: string;
 }
 
-export type AbilityId = "jolt" | "triage" | "scout";
-export const ABILITY_IDS: AbilityId[] = ["jolt", "triage", "scout"];
+export type AbilityId = "jolt" | "triage" | "scout" | "hook";
+export const ABILITY_IDS: AbilityId[] = ["jolt", "triage", "scout", "hook"];
 /** the kits a bot takes: the two it can play (SCOUT's is all sight, which a bot's own eyes already do) */
 export const BOT_ABILITY_IDS: AbilityId[] = ["jolt", "triage"];
 
@@ -39,6 +39,7 @@ export const ABILITIES: Record<AbilityId, AbilityInfo> = {
   jolt: { id: "jolt", name: cfg.jolt.name, blurb: cfg.jolt.blurb },
   triage: { id: "triage", name: cfg.triage.name, blurb: cfg.triage.blurb },
   scout: { id: "scout", name: kits.scout.tactical.name, blurb: `every enemy within ${kits.scout.tactical.range} m in front of you shown for ${kits.scout.tactical.seconds} s` },
+  hook: { id: "hook", name: kits.hook.tactical.name, blurb: `a line at what you look at within ${kits.hook.tactical.range} m, and a pull to it` },
 };
 export const JOLT = cfg.jolt;
 
@@ -47,6 +48,11 @@ export function kitOf(id: AbilityId): KitInfo {
   if (id === "jolt") {
     const u = kits.runner.ult;
     return { kit: kits.runner.name, tactical: cfg.jolt.name, passive: kits.runner.passive, ult: u.name, blurb: `${cfg.jolt.name}: ${JOLT.blurb}. ${kits.runner.passive}: no stun from a hard landing. ${u.name}: ${u.seconds} s ${Math.round((u.speed - 1) * 100)}% faster, JOLT refilled` };
+  }
+  if (id === "hook") {
+    const t = kits.hook.tactical;
+    const u = kits.hook.ult;
+    return { kit: kits.hook.name, tactical: t.name, passive: kits.hook.passive, ult: u.name, blurb: `${t.name}: a line at what you look at within ${t.range} m and a pull to it, every ${t.cooldown} s. ${kits.hook.passive}: half again as much climb. ${u.name}: a zipline up to ${u.length} m long, for anyone, for ${u.seconds} s` };
   }
   if (id === "scout") {
     const t = kits.scout.tactical;
@@ -100,9 +106,27 @@ export class Abilities {
   offeredAt = -Infinity;
   /** the ultimate's meter, 0 to 1 (kits.json ultimate): kept through deaths, emptied by a new match */
   ult = 0;
-  /** MEDIC's PATCH and SCOUT's PULSE: when each can go again */
+  /** MEDIC's PATCH, SCOUT's PULSE and HOOK's GRAPPLE: when each can go again */
   private patchAt = -Infinity;
   private pulseAt = -Infinity;
+  private grappleAt = -Infinity;
+
+  /** HOOK's GRAPPLE, if it is ready: starts its cooldown and says yes */
+  tryGrapple(now: number): boolean {
+    if (!this.enabled || this.picked !== "hook" || now < this.grappleAt) return false;
+    this.grappleAt = now + KITS.hook.tactical.cooldown;
+    return true;
+  }
+
+  /** seconds until GRAPPLE is back (0: ready) */
+  grappleLeft(now: number): number {
+    return Math.max(0, this.grappleAt - now);
+  }
+
+  /** a grapple that found nothing: no cooldown for a line thrown at the sky */
+  refundGrapple(): void {
+    this.grappleAt = -Infinity;
+  }
 
   /** SCOUT's PULSE, if it is ready: starts its cooldown and says yes */
   tryPulse(now: number): boolean {
@@ -163,6 +187,7 @@ export class Abilities {
     this.ult = 0;
     this.patchAt = -Infinity;
     this.pulseAt = -Infinity;
+    this.grappleAt = -Infinity;
     this.fill();
   }
 

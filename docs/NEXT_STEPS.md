@@ -82,7 +82,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 12. ~~**Vault and keycard (#35)**~~ Done (Milestone 115): the Well's sealed vault, THE WARDEN and his keycard, two bins and a mythic gun.
 13. ~~**Voice chat:**~~ Done (Milestones 104, 105): push to talk, your squad or team, peer to peer, a volume on the Settings tab and a mute per player on the Friends tab.
 14. ~~**The leaderboard secret behind the server**~~ Done, as the real weakness (Milestone 84): the server never read the secret; a wins board now counts posts, not totals.
-15. **Ability kits and ultimates:** 4 to 6 days, once bins, doors and the traversal have settled. Planned in `docs/PLAN_ABILITY_KITS.md`; phase 1 (the ultimate, RUNNER and MEDIC) is Milestone 116, and phase 2 (SCOUT, and the bots' ultimates) is Milestone 117. HOOK, SMOKE and WARD are left.
+15. **Ability kits and ultimates:** 4 to 6 days, once bins, doors and the traversal have settled. Planned in `docs/PLAN_ABILITY_KITS.md`; phase 1 (the ultimate, RUNNER and MEDIC) is Milestone 116, and phase 2 (SCOUT, and the bots' ultimates) is Milestone 117. Phase 3 (HOOK) is Milestone 118. SMOKE and WARD are left.
 
 LOD and draw distance run alongside the list above, per `docs/PLAN_LOD_DRAW_DISTANCE.md`, once the map expansion has landed. Just below the fifteen: the two missing boards, the README wording, the rest of accessibility and the dust storm. Low value for this group: gas mask, contracts, cash, UAV, the vehicle and localisation.
 

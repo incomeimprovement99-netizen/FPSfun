@@ -14,6 +14,29 @@ export interface Zipline {
 export const ZIPLINES: Zipline[] = [];
 
 /**
+ * A zipline put up during a match (HOOK's ultimate, kits.json): its rope in
+ * the world and its line in ZIPLINES, so it is ridden like any other. The
+ * function it returns takes it down again.
+ */
+export function deployZipline(parent: THREE.Object3D, a: THREE.Vector3, b: THREE.Vector3): () => void {
+  const line: Zipline = { a: a.clone(), b: b.clone() };
+  ZIPLINES.push(line);
+  const mid = a.clone().add(b).multiplyScalar(0.5);
+  const len = a.distanceTo(b);
+  const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len, 6), new THREE.MeshBasicMaterial({ color: 0xffc21a }));
+  rope.position.copy(mid);
+  rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+  parent.add(rope);
+  return () => {
+    const i = ZIPLINES.indexOf(line);
+    if (i >= 0) ZIPLINES.splice(i, 1);
+    rope.removeFromParent();
+    rope.geometry.dispose();
+    (rope.material as THREE.Material).dispose();
+  };
+}
+
+/**
  * A ladder. In Apex a ladder is not its own mechanic: it is rungs on a wall
  * you climb with the ordinary wall climb, put where a climb reaches the top.
  * It is a sign that says "climb here". So a ladder is just a face of a solid,

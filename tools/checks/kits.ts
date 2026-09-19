@@ -60,9 +60,22 @@ console.log("Ability kits");
   check("a bot takes one of the two kits it can play, never SCOUT (its whole kit is sight, which a bot's eyes already are)", BOT_ABILITY_IDS.length === 2 && !BOT_ABILITY_IDS.includes("scout"), BOT_ABILITY_IDS.join(","));
 }
 {
+  const a = new Abilities();
+  a.reset(true);
+  a.pick("scout");
+  check("GRAPPLE is HOOK's: SCOUT cannot use it", !a.tryGrapple(0));
+  a.pick("hook");
+  const cd = KITS.hook.tactical.cooldown;
+  check(`HOOK's GRAPPLE goes, then is back ${cd} s later and not before`, a.tryGrapple(2) && !a.tryGrapple(2 + cd - 0.1) && Math.abs(a.grappleLeft(2) - cd) < 1e-9 && a.tryGrapple(2 + cd));
+  a.refundGrapple();
+  check("a line that found nothing costs no cooldown", a.grappleLeft(2 + cd) === 0 && a.tryGrapple(2 + cd));
+}
+{
   const r = kitOf("jolt");
   const m = kitOf("triage");
   const sc = kitOf("scout");
+  const hk = kitOf("hook");
+  check("HOOK's card names its grapple, its arms and its zipline, with their numbers", hk.kit === KITS.hook.name && hk.tactical === KITS.hook.tactical.name && hk.passive === KITS.hook.passive && hk.ult === KITS.hook.ult.name && hk.blurb.includes(`${KITS.hook.tactical.range} m`) && hk.blurb.includes(`${KITS.hook.ult.length} m`), hk.blurb);
   check("SCOUT's card names its pulse, its ears and its sweep, with their numbers", sc.kit === KITS.scout.name && sc.tactical === KITS.scout.tactical.name && sc.passive === KITS.scout.passive && sc.ult === KITS.scout.ult.name && sc.blurb.includes(`${KITS.scout.tactical.range} m`) && sc.blurb.includes(`${KITS.scout.ult.range} m`), sc.blurb);
   check("the card names each kit with its tactical, passive and ultimate", r.kit === KITS.runner.name && r.tactical === "JOLT" && r.ult === KITS.runner.ult.name && m.kit === KITS.medic.name && m.tactical === KITS.medic.tactical.name && m.passive === "TRIAGE" && m.ult === KITS.medic.ult.name, `${r.blurb} | ${m.blurb}`);
   check("and its blurb carries the numbers it plays by", r.blurb.includes(`${KITS.runner.ult.seconds} s`) && r.blurb.includes(`${JOLT.distance} m`) && m.blurb.includes(`${KITS.medic.tactical.health} health`) && m.blurb.includes(`${KITS.medic.ult.radius} m`));

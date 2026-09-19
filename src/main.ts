@@ -40,7 +40,7 @@ import { ViewModel } from "./game/viewmodel";
 import { GameAudio } from "./game/audio";
 import { Hud, type HudState } from "./game/hud";
 import { DpiCalibrator, snapDpi } from "./game/dpi-calibrate";
-import { ZIPLINES, ladderAhead } from "./game/traversal";
+import { ZIPLINES, ladderAhead, deployZipline } from "./game/traversal";
 import { mergeStatic } from "./game/staticmerge";
 import { opticInfo } from "./game/optics";
 import { opticName, hopupName } from "./config/names";
@@ -2492,6 +2492,32 @@ function stepRegen(now: number, dt: number): void {
   if (!d || typeof d.health !== "number" || d.alive === false || d.downed === true) return;
   d.health = Math.min(HEALTH_MAX, d.health + regen.perSec * dt);
 }
+/**
+ * HOOK's ultimate: a zipline put up in play, on every page (the one who used
+ * it, and the others through its effect). They come down when their time is up
+ * or the match ends.
+ */
+let ziplines: Array<{ until: number; take: () => void }> = [];
+function putUpZipline(from: THREE.Vector3, to: THREE.Vector3, now: number): void {
+  const a = from.clone().setY(from.y - 0.4);
+  const take = deployZipline(scene, a, to.clone());
+  ziplines.push({ until: now + KITS.hook.ult.seconds, take });
+  audio.beacon(a);
+}
+function stepZiplines(now: number): void {
+  if (!ziplines.length) return;
+  const keep: typeof ziplines = [];
+  for (const z of ziplines) {
+    if (now < z.until) keep.push(z);
+    else z.take();
+  }
+  ziplines = keep;
+}
+/** the match is over: every zipline anyone put up comes down */
+function clearZiplines(): void {
+  for (const z of ziplines) z.take();
+  ziplines = [];
+}
 /** RUNNER's OVERDRIVE: every move speed up until this time (game clock) */
 let overdriveUntil = -Infinity;
 /** the damage this player had dealt last frame, for the ultimate's meter */
@@ -2522,6 +2548,16 @@ function useUltimate(now: number): void {
     abilities.fill();
     audio.jolt(1);
     duel?.localFx("ult", at, undefined, 1);
+  } else if (abilities.picked === "hook") {
+    const u = KITS.hook.ult;
+    const eye = camera.position.clone();
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const reach = Math.min(u.length, solidHit(eye, fwd, u.length));
+    const to = eye.clone().addScaledVector(fwd, Math.max(6, reach - 0.5));
+    putUpZipline(eye, to, now);
+    duel?.localFx("ult", eye, to, 4);
+    hud.notice(`${u.name}: RIDE IT`, now, 1.6);
+    return;
   } else if (abilities.picked === "scout") {
     const u = KITS.scout.ult;
     const n = duel instanceof Duel ? duel.reveal(player.pos, null, u.range, 360, u.seconds) : 0;
@@ -2546,6 +2582,34 @@ function useAbility(now: number): void {
   if (!abilities.enabled) return;
   if (!abilities.picked) {
     hud.notice(abilities.choosing ? `PICK AN ABILITY FIRST: ${keyLabel("pickAbility1")} JOLT, ${keyLabel("pickAbility2")} TRIAGE` : "NO ABILITY IN THIS MATCH", now, 1.4);
+    return;
+  }
+  // HOOK's tactical: GRAPPLE, a line at what you look at and a pull to it
+  if (abilities.picked === "hook") {
+    if (player.dropping || (duel instanceof Duel && (duel.downed || !duel.alive))) return;
+    const left = abilities.grappleLeft(now);
+    if (left > 0) {
+      hud.notice(`GRAPPLE: BACK IN ${left.toFixed(1)} S`, now, 0.6);
+      return;
+    }
+    if (!abilities.tryGrapple(now)) return;
+    const t = KITS.hook.tactical;
+    const eye = camera.position.clone();
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const hit = solidHit(eye, fwd, t.range);
+    if (!Number.isFinite(hit) || hit >= t.range) {
+      // nothing in reach: the line comes back and so does the cooldown
+      abilities.refundGrapple();
+      hud.notice("GRAPPLE: NOTHING IN REACH", now, 0.8);
+      return;
+    }
+    const to = eye.clone().addScaledVector(fwd, hit);
+    const pull = to.clone().sub(player.pos).normalize();
+    player.impulse(pull.x * t.speed, Math.max(pull.y, 0) * t.speed + t.lift * t.speed, pull.z * t.speed);
+    fx.jolt(player.pos.clone(), to, now);
+    audio.zipOn(player.pos);
+    duel?.localFx("grap", player.pos.clone(), to);
+    if (input.pad.active) input.pad.rumble(0.3, 0.5, 100);
     return;
   }
   // SCOUT's tactical: PULSE, the enemies in front shown
@@ -3090,6 +3154,16 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       }
       return;
     }
+    // someone else's GRAPPLE: the line where it went; their ZIP LINE: the same rope here
+    if (k === "grap" && a && b) {
+      fx.jolt(a, b, gameTime);
+      audio.zipOn(a);
+      return;
+    }
+    if (k === "ult" && n === 4 && a && b) {
+      putUpZipline(a, b, gameTime);
+      return;
+    }
     if (k === "ult" || k === "patch") return;
     // a quick chat line: its number, said in the feed under their name
     if (k === "chat" && typeof n === "number") {
@@ -3463,6 +3537,8 @@ const brDifficulty = (): BotDifficulty => asDifficulty(botDifficulty.value);
 const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
+  // any zipline HOOK put up comes down with the match
+  clearZiplines();
   voiceStop();
   matchGuns = null;
   flushTally();
@@ -4518,6 +4594,7 @@ function step(): void {
       if (input.pressedNow("pickAbility1")) pickAbility("jolt", now);
       else if (input.pressedNow("pickAbility2")) pickAbility("triage", now);
       else if (input.pressedNow("pickAbility3")) pickAbility("scout", now);
+      else if (input.pressedNow("pickAbility4")) pickAbility("hook", now);
     }
     // F: the ability; Z: the ultimate
     if (input.pressedNow("ability") && !knockedOut) useAbility(now);
@@ -4624,6 +4701,8 @@ function step(): void {
   player.holsterBoost = (holster === "away" ? MOVE.holsterBoost : 1) * (gameTime < overdriveUntil ? KITS.runner.ult.speed : 1);
   // the kit: RUNNER's passive, the ultimate's meter (time, and the damage dealt since last frame), MEDIC's heals over time
   player.sureFooting = abilities.enabled && abilities.picked === "jolt";
+  player.climbBoost = abilities.enabled && abilities.picked === "hook" ? KITS.hook.climbSpace : 1;
+  stepZiplines(gameTime);
   {
     const dealt = duel instanceof Duel ? duel.damageDealt : 0;
     abilities.chargeUlt(duel ? dt : 0, Math.max(0, dealt - ultDamageSeen));
@@ -5510,7 +5589,8 @@ function step(): void {
             const c = abilities.charge(now);
             const k = kitOf(abilities.picked!);
             const ult = { name: k.ult, key: keyLabel("ultimate"), k: abilities.ult, live: abilities.picked === "jolt" ? Math.max(0, overdriveUntil - now) : regen ? Math.max(0, regen.until - now) : 0 };
-            if (abilities.picked === "scout") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.scout.tactical.cooldown, left: abilities.pulseLeft(now), passive: false, icon: "eye" as const, ult };
+            if (abilities.picked === "hook") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.hook.tactical.cooldown, left: abilities.grappleLeft(now), passive: false, icon: "hook" as const, ult };
+    if (abilities.picked === "scout") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.scout.tactical.cooldown, left: abilities.pulseLeft(now), passive: false, icon: "eye" as const, ult };
     if (abilities.picked === "triage") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.medic.tactical.cooldown, left: abilities.patchLeft(now), passive: false, icon: "cross" as const, ult };
             return { name: ABILITIES[abilities.picked!].name, key: keyLabel("ability"), cooldown: c.recharge, left: c.charges > 0 ? 0 : c.nextIn, passive: false, charges: c.charges, max: c.max, nextIn: c.nextIn, icon: "dash" as const, ult };
           })()
@@ -5519,7 +5599,7 @@ function step(): void {
     abilityCard:
       abilities.enabled && (abilities.choosing || (!duel && !abilities.picked))
         ? {
-            options: (["jolt", "triage", "scout"] as const).map((id, i) => ({ key: keyLabel(i === 0 ? "pickAbility1" : i === 1 ? "pickAbility2" : "pickAbility3"), name: kitOf(id).kit, blurb: kitOf(id).blurb, picked: abilities.picked === id })),
+            options: (["jolt", "triage", "scout", "hook"] as const).map((id, i) => ({ key: keyLabel((["pickAbility1", "pickAbility2", "pickAbility3", "pickAbility4"] as const)[i]), name: kitOf(id).kit, blurb: kitOf(id).blurb, picked: abilities.picked === id })),
             age: now - abilities.offeredAt,
             compact: !duel || !abilities.choosing || now - abilities.offeredAt > 6,
           }
@@ -5698,6 +5778,8 @@ initWelcome();
   useAbility: () => useAbility(gameTime),
   useUltimate: () => useUltimate(gameTime),
   fxCount: () => fx.count,
+  /** the ziplines in the world now, HOOK's put up among them (the checks count them) */
+  ziplineCount: () => ZIPLINES.length,
   gameTime: () => gameTime,
   /** the killcam and the recap (tools/e2e.ts) */
   killcamState: () => ({ active: killcam.active, killer: killcam.killerName, weapon: killcam.killerWeapon, progress: killcam.progress, frames: recorder.frames.length, span: recorder.span, shots: recorder.shots.length }),

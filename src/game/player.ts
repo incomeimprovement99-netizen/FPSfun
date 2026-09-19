@@ -115,6 +115,8 @@ export class Player {
   holsterBoost = 1;
   /** RUNNER's SURE FOOTING (kits.json): a hard landing does not stun */
   sureFooting = false;
+  /** HOOK's STRONG ARMS (kits.json): the climb space, times this */
+  climbBoost = 1;
   /**
    * Healing: you move this much of your speed (Season 30: 40% slower) and
    * cannot sprint. 1 when not healing.
@@ -947,7 +949,7 @@ export class Player {
     const inputInto = wl > 0 ? -(wx * n.nx + wz * n.nz) : 0;
     const velInto = -(this.vel.x * n.nx + this.vel.z * n.nz);
     if (inputInto <= 0.05 && velInto <= 0.05) return;
-    if (this.pos.y >= this.climbBaseline + MOVE.climbSpaceHeight) return;
+    if (this.pos.y >= this.climbBaseline + MOVE.climbSpaceHeight * this.climbBoost) return;
     const same = this.lastAttachNormal && this.lastAttachNormal.nx === n.nx && this.lastAttachNormal.nz === n.nz;
     if (same && this.pos.y >= this.lastAttachY - 1e-4) return;
     this.climbing = true;

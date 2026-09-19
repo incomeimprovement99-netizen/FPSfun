@@ -210,8 +210,8 @@ export interface HudState {
     charges?: number;
     max?: number;
     nextIn?: number;
-    /** the square's icon: a dash's chevrons, a heal's cross, or a scan's eye */
-    icon?: "dash" | "cross" | "eye";
+    /** the square's icon: a dash's chevrons, a heal's cross, a scan's eye, or a grapple's hook */
+    icon?: "dash" | "cross" | "eye" | "hook";
     /** the kit's ultimate: its name and key, the meter (0..1), and the seconds it still runs once used */
     ult?: { name: string; key: string; k: number; live: number };
   } | null;
@@ -2087,7 +2087,16 @@ export class Hud {
     c.strokeStyle = ready ? "#8fd8ff" : "rgba(143,216,255,0.45)";
     c.fillStyle = c.strokeStyle;
     c.lineWidth = 4 * u;
-    if (a.icon === "eye") {
+    if (a.icon === "hook") {
+      // a hook: a line with a curl at its end
+      c.beginPath();
+      c.moveTo(-12 * u, -12 * u);
+      c.lineTo(2 * u, 2 * u);
+      c.stroke();
+      c.beginPath();
+      c.arc(4 * u, 8 * u, 6 * u, -Math.PI / 2, Math.PI * 0.75);
+      c.stroke();
+    } else if (a.icon === "eye") {
       // a scan: two rings out from a dot
       c.beginPath();
       c.arc(0, 0, 3.5 * u, 0, Math.PI * 2);

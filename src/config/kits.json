@@ -18,6 +18,14 @@
     "hearing": 45,
     "ult": { "name": "SWEEP", "range": 60, "seconds": 6 }
   },
+  "_hook": "HOOK: GRAPPLE, its tactical, throws a line at whatever you look at within range metres and pulls you to it at speed (a little of the pull is upward, lift, so a wall's foot does not drag you into the ground), every cooldown seconds. Its passive, STRONG ARMS, is climbSpace times as much climb space (movement.json climbSpaceHeight), so a climb reaches higher. Its ultimate, ZIP LINE, puts up a zipline from where you stand to where you look, up to length metres, that anyone can ride for seconds.",
+  "hook": {
+    "name": "HOOK",
+    "passive": "STRONG ARMS",
+    "climbSpace": 1.5,
+    "tactical": { "name": "GRAPPLE", "range": 30, "speed": 24, "lift": 0.35, "cooldown": 10 },
+    "ult": { "name": "ZIP LINE", "length": 45, "seconds": 90 }
+  },
   "_medic": "MEDIC: TRIAGE's faster heals as its passive; its tactical, PATCH, gives back health over seconds (not past full), every cooldown seconds; its ultimate, FIELD HEAL, gives health over seconds to you and every team or squad mate within radius metres of you, each page healing its own player.",
   "medic": {
     "name": "MEDIC",

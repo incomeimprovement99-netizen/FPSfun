@@ -2323,6 +2323,32 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   );
   await sleep(900);
   const botAfter = await ev<{ base: number; speed: number } | null>(page, "(() => { const b = window.__range.duel().bots[0]; return b ? { base: b.diff.speed, speed: b.speedNow } : null; })()");
+  // HOOK: a line at what you look at pulls you to it, and its ultimate puts up a zipline
+  await ev(page, `window.__range.pickAbility("hook")`);
+  await sleep(200);
+  const climb = await ev<number>(page, "window.__range.player.climbBoost");
+  // a wall to take hold of: each way round until the line finds one (a miss costs no cooldown)
+  let pulled = { speed: 0, left: 0, name: "", said: "" };
+  for (const yaw of [0, 90, 180, 270]) {
+    await ev(page, `(() => { const p = window.__range.player; p.yaw = ${yaw}; p.pitch = 0; p.vel.set(0, 0, 0); })()`);
+    await sleep(150);
+    await ev(page, "window.__range.useAbility()");
+    await sleep(150);
+    pulled = await ev<{ speed: number; left: number; name: string; said: string }>(page, "(() => { const r = window.__range; return { speed: r.player.speed, left: r.abilities.grappleLeft(r.gameTime()), name: r.hud.last.ability?.name ?? '', said: r.hud.noticeNow }; })()");
+    if (pulled.speed > 6) break;
+  }
+  check("kits: HOOK's STRONG ARMS gives half again the climb, and GRAPPLE pulls you at what you look at, then waits out its cooldown", Math.abs(climb - 1.5) < 1e-9 && pulled.speed > 6 && pulled.left > 8 && pulled.name === "GRAPPLE", JSON.stringify({ climb, pulled }));
+  const zip0 = await ev<number>(page, "window.__range.ziplineCount()");
+  await ev(page, "(() => { const r = window.__range; r.abilities.ult = 1; r.useUltimate(); })()");
+  await sleep(200);
+  const zip1 = await ev<number>(page, "window.__range.ziplineCount()");
+  await ev(page, "window.__range.duel().leave()");
+  await sleep(300);
+  const zip2 = await ev<number>(page, "window.__range.ziplineCount()");
+  check("kits: HOOK's ZIP LINE puts a rope up in play, and it comes down with the match", zip1 === zip0 + 1 && zip2 === zip0, JSON.stringify({ zip0, zip1, zip2 }));
+  await ev(page, `(() => { const s = document.getElementById("botAbilities"); s.value = "1"; s.dispatchEvent(new Event("change")); window.__range.startBots(); })()`);
+  await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 20000 }).catch(() => undefined);
+  await ev(page, "(() => { const d = window.__range.duel(); if (d) d.holdFire = true; })()");
   check("kits: a bot with a full meter and someone to fight uses its own ultimate (RUNNER: it moves faster)", !!botUlt && botUlt.speed === botUlt.base && !!botAfter && botAfter.speed > botAfter.base * 1.2, JSON.stringify({ botUlt, botAfter }));
   await ev(page, "window.__range.duel().leave()");
   await ev(page, `(() => { const s = document.getElementById("botAbilities"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
