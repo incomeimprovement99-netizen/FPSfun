@@ -103,6 +103,13 @@ filling in — the bot count you pick is the side you **face**, and a team mode
 fills your side to match. The **Bot guns** box gives every bot the same gun if
 you want a shotgun-only night.
 
+**Voice chat.** Hold **Caps Lock** to talk (rebind it on the Controls tab):
+your squad hears you in a battle royale, your team in the team modes, and
+everyone in a lobby, a 1v1 or a free-for-all. Who is talking shows at the
+bottom left. The browser asks for the microphone the first time you press
+the key, not before, and nothing is sent while the key is up. Voices go
+straight between the players, not through the host.
+
 **Handing the host over.** In the lobby the host's list of who is in has a
 **Make host** button by each friend. A friend with a better connection takes
 over: their page opens a new code for the same match, and everyone, the old

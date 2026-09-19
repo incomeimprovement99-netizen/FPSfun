@@ -13,6 +13,9 @@ import { Renderer, VM_LAYER } from "./game/render";
 import vmCfg from "./config/viewmodel.json";
 import netCfg from "./config/net.json";
 import doorsCfg from "./config/doors.json";
+import voiceCfg from "./config/voice.json";
+import { Voice } from "./net/voice";
+import type Peer from "peerjs";
 import { Course } from "./game/course";
 import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
@@ -1419,6 +1422,69 @@ let hosting: HostHandle | null = null;
  * starts the next match on them.
  */
 let party: { guests: Map<number, Link> } | { host: Link } | null = null;
+/**
+ * Voice chat (src/net/voice.ts): one per PeerJS peer, which outlives a match
+ * when the group plays again; who this page talks to is worked out each frame
+ * from the host's roster, and the key is push to talk.
+ */
+const voices = new WeakMap<Peer, Voice>();
+let voice: Voice | null = null;
+let voiceGroupKey = "";
+let voiceTalking = false;
+let hudVoice: { me: boolean; talking: string[] } | null = null;
+/** whom this page may talk to: its squad or team (anyone it is allied with), or everyone where nobody is (a lobby, a 1v1, a free-for-all); in a battle royale, its squad only */
+function hearsVoice(d: Duel, id: number): boolean {
+  if (d instanceof BrMatch) return d.isAlly(id);
+  const allies = [...d.voicePeers.keys()].some((o) => o !== d.id && d.isAlly(o));
+  return allies ? d.isAlly(id) : true;
+}
+function voiceFrame(): void {
+  const d = duel instanceof Duel ? duel : null;
+  if (d && !voice) {
+    const peer = d.anyLink()?.voicePeer?.();
+    if (peer) {
+      voice = voices.get(peer) ?? new Voice(peer);
+      voices.set(peer, voice);
+    }
+  }
+  if (!d || !voice) {
+    hudVoice = null;
+    return;
+  }
+  const ids: string[] = [];
+  const names = new Map<string, string>();
+  for (const [id, pid] of d.voicePeers) {
+    if (id === d.id || !hearsVoice(d, id)) continue;
+    ids.push(pid);
+    names.set(pid, d.nameFor(id));
+  }
+  const key = [...ids].sort().join(",");
+  if (key !== voiceGroupKey) {
+    voiceGroupKey = key;
+    voice.setGroup(ids);
+  }
+  // push to talk, held (the script's key in the tests)
+  const want = ids.length > 0 && (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("voice") : input.held("voice"));
+  if (want !== voiceTalking) {
+    voiceTalking = want;
+    const v = voice;
+    void v.setTalking(want).then(() => {
+      if (want && v.denied) hud.notice("NO MICROPHONE: VOICE CHAT CANNOT SEND", gameTime, 2);
+    });
+  }
+  const talking: string[] = [];
+  for (const [pid, level] of voice.levels()) if (level > voiceCfg.talking) talking.push(names.get(pid) ?? "?");
+  hudVoice = { me: voice.live, talking };
+}
+/** out of the match: every call ended and the microphone let go */
+function voiceStop(): void {
+  voice?.stop();
+  voice = null;
+  voiceGroupKey = "";
+  voiceTalking = false;
+  hudVoice = null;
+}
+
 /** a guest's seat: the code, the id and the key the welcome gave, to get back in on after a dropped connection */
 let mySeat: { code: string; id: number; key: string } | null = null;
 
@@ -3146,6 +3212,7 @@ const brDifficulty = (): BotDifficulty => asDifficulty(botDifficulty.value);
 const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
+  voiceStop();
   flushTally();
   // a match that ran to its end keeps the group: its links, handed back open (leaving closed them)
   if (duel instanceof Duel && duel.phase === "matchEnd" && !duel.left) {
@@ -3908,6 +3975,7 @@ function step(): void {
   frameHook?.(now, dt);
   // the map's doors swing to where they are (any of them, in a match or not)
   brMap.doors.update(dt);
+  voiceFrame();
   // The controller: read once here so every key check below sees it. Start
   // toggles the menu; with a pad in use no pointer lock is needed to play.
   const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, opticAdsMult()) - 1) * loadout.active.state.adsFrac;
@@ -5081,6 +5149,7 @@ function step(): void {
     banner: duel instanceof BrMatch ? brPlay.hud.banner : null,
     downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null, kd: kd.max > 0 ? { hp: kd.hp, max: kd.max, up: kd.up, key: keyLabel("fire") } : null, self: kd.canSelfRevive ? { key: keyLabel("interact"), progress: kd.selfProgress(gameTime) } : null } : null,
     spectating: watch && watchMate ? { name: watchMate.name, first: watchMate.id < Duel.BOT_ID && spectateFirst } : null,
+    voice: hudVoice,
     trainer: trainer.hud(now),
     mantleCue: trainer.cue && mantleCueOn,
     killcam: killcam.active ? { name: killcam.killerName, weapon: killcam.killerWeapon ? weaponName(killcam.killerWeapon) : "", progress: killcam.progress, left: killcam.left, skipKey: keyLabel("jump") } : null,
@@ -5247,6 +5316,8 @@ initWelcome();
   viewModelVisible: () => viewModel.group.visible,
   /** the gun's own camera's vertical FOV against the world's */
   gunFov: () => ({ gun: vmCamera.fov, world: camera.fov }),
+  /** voice chat as this page has it: sending, the loudest each player it hears is now, and the group (tools/e2e.ts) */
+  voiceState: () => ({ live: voice?.live ?? false, levels: voice ? Object.fromEntries(voice.levels()) : {}, group: voiceGroupKey, denied: voice?.denied ?? false }),
   /** a melee swing, as the key starts one (tools/e2e.ts: kicking a door in) */
   swing: (): boolean => {
     if (gameTime < meleeReadyAt || loadout.swapping) return false;

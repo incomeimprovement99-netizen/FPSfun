@@ -80,7 +80,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 10. **Custom match rules:** about a day. Weapons allowed, rounds and friendly fire, carried in the match options.
 11. **Plant and defuse:** 2 to 3 days, built from the Crown carry, the Control capture and the round clock.
 12. **Vault and keycard (#35):** about 2 days, after doors.
-13. **Voice chat:** about a day. It sits low because most groups already talk elsewhere.
+13. ~~**Voice chat:**~~ Done (Milestone 104): push to talk, your squad or team, peer to peer. A volume slider and a per-player mute in Settings are left.
 14. ~~**The leaderboard secret behind the server**~~ Done, as the real weakness (Milestone 84): the server never read the secret; a wins board now counts posts, not totals.
 15. **Ability kits and ultimates:** 4 to 6 days, once bins, doors and the traversal have settled.
 

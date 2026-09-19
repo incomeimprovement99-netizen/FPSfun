@@ -128,5 +128,8 @@
   ],
   "spray": [
     "Digit8"
+  ],
+  "voice": [
+    "CapsLock"
   ]
 }

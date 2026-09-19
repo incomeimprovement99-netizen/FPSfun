@@ -373,6 +373,9 @@ export class Duel implements MatchLike {
   protected lastSummary: MatchSummary | null = null;
   /** the host: how many have arrived, for the panel */
   onRoster: ((connected: number, players: number) => void) | null = null;
+  /** voice chat: each player's PeerJS id (the host's own, and every guest's), for voice.ts's calls */
+  readonly voicePeers = new Map<number, string>();
+
   /** the lobby's host handover (link.ts "host"): main runs it; only while waiting, and a guest only hears it from the host */
   onHandover: ((m: Extract<NetMsg, { t: "host" }>, from: number) => void) | null = null;
   /** a guest: the connection to the host dropped mid-match; main tries the code again with the seat's key (swapHost takes the new link) */
@@ -522,6 +525,21 @@ export class Duel implements MatchLike {
     link.onClose = () => this.guestDropped(id);
     this.remote(id).link = link;
     this.onRoster?.(this.links.size, this.players);
+    this.sendVoiceRoster();
+  }
+
+  /** the host: everyone's PeerJS id to everyone, for voice chat (on the local transport there are none) */
+  protected sendVoiceRoster(): void {
+    if (this.role !== "host") return;
+    this.voicePeers.clear();
+    for (const [id, l] of this.links) {
+      const ids = l.peerIds?.();
+      if (!ids) continue;
+      this.voicePeers.set(this.id, ids.mine);
+      this.voicePeers.set(id, ids.theirs);
+    }
+    const peers = [...this.voicePeers.entries()];
+    if (peers.length) for (const l of this.links.values()) l.send({ t: "voice", peers });
   }
 
   /** a match that holds a dropped player's seat: under way, and not a 1v1 (which ends when one of the two goes) */
@@ -568,6 +586,7 @@ export class Duel implements MatchLike {
     this.sync.forgetPeer(id);
     this.onFeed?.(`${r.name} is back`, false);
     this.onRoster?.(this.links.size, this.players);
+    this.sendVoiceRoster();
     return true;
   }
 
@@ -603,6 +622,11 @@ export class Duel implements MatchLike {
     this.remote(0).lastHeard = wallClock();
     this.sync.forgetPeer(0);
     this.onFeed?.("Back in the match", false);
+  }
+
+  /** a link of this match (the host's first guest's, a guest's to the host): its PeerJS peer carries voice chat */
+  anyLink(): Link | null {
+    return this.role === "host" ? (this.links.values().next().value ?? null) : this.hostLink;
   }
 
   /** a message to one player: theirs from the host, the host's from a guest */
@@ -903,6 +927,13 @@ export class Duel implements MatchLike {
       return;
     }
     // a goodbye or a stray message from someone unknown makes no figure
+    // voice chat's roster, from the host
+    if (m.t === "voice") {
+      if (this.role !== "guest" || from !== 0 || !Array.isArray(m.peers)) return;
+      this.voicePeers.clear();
+      for (const p of m.peers) if (Array.isArray(p) && typeof p[0] === "number" && typeof p[1] === "string" && p[1].length < 80) this.voicePeers.set(p[0], p[1]);
+      return;
+    }
     // the host handed over, or is being handed it (main runs the rest)
     if (m.t === "host") {
       if (this.phase === "waiting" && (this.role === "host" || from === 0)) this.onHandover?.(m, from);
@@ -1133,6 +1164,7 @@ export class Duel implements MatchLike {
   /** the host: a player gone for good (left, or their held seat ran out): the others told, the match goes on or ends */
   private seatGone(id: number, how: string): void {
     const r = this.remotes.get(id);
+    this.sendVoiceRoster();
     // tell the other guest, then carry on if one is left; a 1v1 is over (a
     // battle royale goes on for whoever is left in the squad)
     this.relay({ t: "bye" }, id);

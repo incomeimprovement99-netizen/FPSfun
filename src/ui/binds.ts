@@ -90,6 +90,7 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
       ["ping", "Ping (enemy, item, place) for the squad"],
       ["emote", "Emote wheel (hold, move to one, let go)"],
       ["spray", "Spray (on the wall you look at)"],
+      ["voice", "Push to talk (your squad, your team, or everyone)"],
     ],
   },
   {

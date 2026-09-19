@@ -1059,6 +1059,51 @@ async function jitterTest(browser: Browser, query: string, lossy = false): Promi
 }
 
 /**
+ * Voice chat over the internet: the guest holds the key and the host hears
+ * it (Chrome's fake microphone is a tone); let go, it goes quiet.
+ */
+async function voiceTest(browser: Browser, query: string): Promise<void> {
+  const host = await open(browser, query);
+  const guest = await open(browser, query);
+  await ev(host, `document.getElementById("duelHost").click()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+    // both in the game, so the key counts
+    for (const p of [host, guest]) await pressPlay(p);
+  } catch {
+    check("voice: the two connect", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  const grouped = await Promise.all([host, guest].map((p) => p.waitForFunction("window.__range.voiceState().group !== ''", { polling: 200, timeout: 8000 }).then(() => true, () => false)));
+  await ev(guest, `window.__range.setScript({ held: (a) => a === "voice", pressedNow: () => false })`);
+  const live = await guest.waitForFunction("window.__range.voiceState().live", { polling: 100, timeout: 8000 }).then(() => true, () => false);
+  // the loudest the host hears the guest over a few seconds (the tone comes and goes)
+  let peak = 0;
+  for (let i = 0; i < 40 && peak < 0.05; i++) {
+    const s = await ev<{ levels: Record<string, number> }>(host, "window.__range.voiceState()");
+    peak = Math.max(peak, ...Object.values(s.levels), 0);
+    await sleep(150);
+  }
+  await ev(guest, "window.__range.setScript(null)");
+  await sleep(2500);
+  let after = 0;
+  for (let i = 0; i < 8; i++) {
+    const s = await ev<{ levels: Record<string, number> }>(host, "window.__range.voiceState()");
+    after = Math.max(after, ...Object.values(s.levels), 0);
+    await sleep(150);
+  }
+  const off = await ev<boolean>(guest, "window.__range.voiceState().live");
+  check("voice: the guest holds the key and the host hears them; let go, it goes quiet", grouped.every(Boolean) && live && peak > 0.05 && after < 0.02 && !off, JSON.stringify({ grouped, live, peak: +peak.toFixed(3), after: +after.toFixed(3), off }));
+  await host.close();
+  await guest.close();
+}
+
+/**
  * Handing the host over in the lobby: the host picks a friend on its roster,
  * that friend opens a new code for the same match, and all three are in it
  * with the friend hosting, nobody typing a code.
@@ -3593,6 +3638,9 @@ async function main(): Promise<void> {
       "--disable-background-timer-throttling",
       "--disable-backgrounding-occluded-windows",
       "--disable-renderer-backgrounding",
+      // voice chat: a fake microphone (a tone), allowed without a prompt
+      "--use-fake-device-for-media-stream",
+      "--use-fake-ui-for-media-stream",
     ],
   });
   try {
@@ -4043,6 +4091,8 @@ async function main(): Promise<void> {
         await rejoinTest(browser, "?norender");
         console.log("\nHanding the host over, over peer to peer");
         await handoverTest(browser, "?norender");
+        console.log("\nVoice chat, over peer to peer");
+        await voiceTest(browser, "?norender");
       }
     }
 

@@ -1,0 +1,6 @@
+{
+  "_note": "Voice chat (src/net/voice.ts). Push to talk (the `voice` key, Caps Lock by default), peer to peer between the players who may hear each other: your squad in a battle royale, your team in the team modes, everyone otherwise. volume is how loud a voice plays (0 to 1; the Settings tab changes it). levelHold is how much of a voice's loudness the talking mark keeps from one frame to the next, so a word is one mark and not a flicker; talking is the loudness (0 to 1) over which a player shows as talking. Ours.",
+  "volume": 0.9,
+  "levelHold": 0.9,
+  "talking": 0.04
+}

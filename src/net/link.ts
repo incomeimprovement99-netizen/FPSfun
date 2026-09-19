@@ -136,6 +136,8 @@ export type NetMsg =
   | { t: "bye"; from?: number }
   /** the host took this guest out of the lobby */
   | { t: "kick" }
+  /** voice chat: each player's PeerJS id, from the host, so the players can call each other (voice.ts) */
+  | { t: "voice"; peers: Array<[number, string]> }
   /**
    * Handing the host over, in the lobby: the host asks a guest to `take` it
    * (with the match it made), that guest answers with its new `code`, and the
@@ -253,6 +255,10 @@ export interface Link {
   sendFast?(m: NetMsg): void;
   /** the unordered channel: open, and how many messages went each way on it (the tests) */
   fastStats?(): { open: boolean; sent: number; got: number };
+  /** this page's own PeerJS peer (voice chat calls on it); none on the local transport */
+  voicePeer?(): Peer;
+  /** the PeerJS ids at each end: this page's, and the other end's */
+  peerIds?(): { mine: string; theirs: string };
   close(): void;
   /** drop it without a goodbye, as a lost connection does (the other end holds the seat; the tests' dropped connection) */
   abandon?(): void;
@@ -375,6 +381,12 @@ class PeerLink implements Link {
   }
   fastStats(): { open: boolean; sent: number; got: number } {
     return { open: this.fastHeard && this.fast?.readyState === "open", sent: this.fastSent, got: this.fastGot };
+  }
+  voicePeer(): Peer {
+    return this.peer;
+  }
+  peerIds(): { mine: string; theirs: string } {
+    return { mine: this.peer.id, theirs: this.conn.peer };
   }
   send(m: NetMsg): void {
     if (!this.closed && this.conn.open) this.conn.send(withoutUndefined(m));

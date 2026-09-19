@@ -238,6 +238,8 @@ export interface HudState {
   } | null;
   /** out, watching a squad mate (or a bot): whose eyes, and first person or not */
   spectating?: { name: string; first: boolean } | null;
+  /** voice chat: you are talking, and who else is */
+  voice?: { me: boolean; talking: string[] } | null;
 }
 
 /** map canvas pixels per metre */
@@ -599,6 +601,11 @@ export class Hud {
     }
     if (s.banner) {
       this.text(`${s.banner.name}'S BANNER  ·  ${Math.ceil(s.banner.left)} S  ·  TAKE IT TO A RESPAWN BEACON`, cx, this.h - 150 * u, 700, 15 * u, "#7ddc8a", "center");
+    }
+    if (s.voice && (s.voice.me || s.voice.talking.length)) {
+      // who is talking: you first, then the others, down the left above the vitals
+      const rows = [...(s.voice.me ? ["YOU"] : []), ...s.voice.talking];
+      rows.forEach((name, i) => this.text(`● ${name}`, 24 * u, this.h - (190 + i * 17) * u, 700, 13 * u, "#7ddc8a", "left"));
     }
     if (s.spectating) {
       c.fillStyle = PANEL;

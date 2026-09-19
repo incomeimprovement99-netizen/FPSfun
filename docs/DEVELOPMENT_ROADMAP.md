@@ -1606,3 +1606,21 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   79.8 kB/s (0.64 Mbit/s) with it on, about 19 to about 11.5 kB/s a guest; everyone still saw all seven others. The
   host's match update was 1.9 and 2.1 ms median.
 
+## Milestone 104 — Voice chat ✅
+2026-09-19 (Phase 15). `voice.ts` (new), `link.ts`, `duel.ts`, `main.ts`, `hud.ts`, `src/config/voice.json`,
+`src/config/binds.json`, `src/ui/binds.ts`.
+- Eight friends had quick chat lines and nothing else. Hold Caps Lock (the `voice` key) to talk: your squad hears
+  you in a battle royale, your team in the team modes (anyone you are allied with), and everyone in a lobby, a 1v1
+  or a free-for-all. Who is talking shows at the bottom left, you first.
+- Peer to peer between the players, not through the host: the host already carries every state in the match, and
+  voice through it would multiply its upload by the lobby again. The host sends everyone each player's PeerJS id
+  (the `voice` message, again whenever someone arrives, leaves or comes back), and each page calls the ones it may
+  talk to with PeerJS's media calls, on the same broker and relays as the game's own connection; a page that never
+  talks answers receiving only. A call from outside the group is turned away.
+- The microphone is asked for on the first press of the key, not before, with the browser's echo cancelling, noise
+  suppression and gain; while the key is up its track is off and nothing is sent. No microphone, or a no, and the key
+  says so once. On the local transport (the tests' two tabs) there is no voice.
+- Checks: the e2e `p2p` section over the internet, with Chrome's fake microphone (a tone): the guest holds the key
+  and the host hears it (a peak of 0.59), and a moment after it is let go the host hears nothing.
+- Left: a volume slider and a per-player mute in Settings (the volume is voice.json's for now).
+
