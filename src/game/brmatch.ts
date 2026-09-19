@@ -249,6 +249,12 @@ const SURGE_MAX = Math.max(...brCfg.surge.damage);
  * as a package replaced the package's.
  */
 const POD_MARK = -1000;
+/** the vault's marker, for the keycard's holder */
+const VAULT_MARK = -900;
+const VAULT = brCfg.vault;
+/** the vault's news, by the code the host sends it as */
+const vaultSays = (code: 0 | 1 | 2, _opener = ""): string =>
+  code === 0 ? `${VAULT.guardName} IS DOWN  ·  THE VAULT KEYCARD IS IN HIS BOX` : code === 1 ? "THE VAULT KEYCARD IS ON THE FLOOR" : "THE VAULT IS OPEN";
 
 /**
  * How many may still be alive in this ring phase before Storm Surge starts.
@@ -394,7 +400,10 @@ interface BrSnap {
     dn: [number, number] | null;
     rv: number;
     dt: [number, number];
+    gd: [number, number] | null;
   }>;
+  kh: number;
+  vs: boolean;
   dl: Array<[number, number, number]>;
   sa: number | null;
   ss: number | null;
@@ -420,7 +429,10 @@ function readBrSnap(v: unknown): BrSnap | null {
       && !!k && typeof k === "object" && (k.gunId === null || typeof k.gunId === "string") && num(k.gun) && num(k.mag) && num(k.armor) && !!k.mods && typeof k.mods === "object"
       && !!c && num(c.cell) && num(c.syringe) && num(c.frags) && num(x.rd) && (x.dn === null || x.dn === undefined || (Array.isArray(x.dn) && x.dn.length === 2 && x.dn.every(num))) && num(x.rv)
       && Array.isArray(x.dt) && x.dt.length === 2 && x.dt.every(num);
-  }).map((r) => ({ ...r, ar: r.ar ?? null, dn: r.dn ?? null }));
+  }).map((r) => {
+    const g = (r as { gd?: unknown }).gd;
+    return { ...r, ar: r.ar ?? null, dn: r.dn ?? null, gd: Array.isArray(g) && g.length === 2 && g.every(num) ? (g as [number, number]) : null };
+  });
   const triples = (Array.isArray(o.dl) ? o.dl : []).filter((r): r is [number, number, number] => Array.isArray(r) && r.length === 3 && r.every(num));
   const pairs = (Array.isArray(o.pl) ? o.pl : []).filter((r): r is [number, number] => Array.isArray(r) && r.length === 2 && r.every(num));
   return {
@@ -433,6 +445,8 @@ function readBrSnap(v: unknown): BrSnap | null {
     pp: (Array.isArray(o.pp) ? o.pp : []).filter(num),
     pl: pairs,
     nk: num(o.nk) ? o.nk : 1,
+    kh: num(o.kh) ? o.kh : -1,
+    vs: o.vs === true,
   };
 }
 
@@ -461,6 +475,8 @@ interface BrBot {
   down: { by: number; bleed: number } | null;
   /** its revive of a downed squad mate so far, s (0 while it is not reviving) */
   reviving: number;
+  /** the vault's guard: where it stands (world space). On no side, in no squad, never on the ship, and not counted among those left */
+  guard?: { x: number; z: number };
 }
 
 /** a care package or a loadout crate: called, on its way down, or landed */
@@ -490,7 +506,7 @@ const PUFF_GEO = new THREE.SphereGeometry(brCfg.pod.trail.radius, 8, 6);
 
 const BR_BOUNDS_WORLD = { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HALF, minZ: BR_CENTER.z - BR_HALF, maxZ: BR_CENTER.z + BR_HALF };
 const RARITIES = ["common", "rare", "epic", "legendary"];
-const KINDS = ["weapon", "ammo", "heal", "attach", "hopup", "helmet", "banner", "box", "grenade", "bin"];
+const KINDS = ["weapon", "ammo", "heal", "attach", "hopup", "helmet", "banner", "box", "grenade", "bin", "keycard"];
 
 /** a loot item from another browser, checked field by field */
 function wireItem(x: unknown): LootItem | null {
@@ -506,6 +522,7 @@ function wireItem(x: unknown): LootItem | null {
     for (const [k, v] of Object.entries(o.attach as Record<string, unknown>)) if (typeof v === "string" && v.length < 40) a[k] = v;
     it.attach = a;
   }
+  if (o.mythic === true) it.mythic = true;
   if (typeof o.owner === "number") it.owner = o.owner;
   if (typeof o.ownerName === "string") it.ownerName = o.ownerName.replace(/[\p{Cc}<>&"'`]/gu, "").slice(0, 16);
   if (typeof o.pod === "number" && Number.isFinite(o.pod)) it.pod = Math.floor(o.pod);
@@ -597,7 +614,7 @@ export class BrMatch extends Duel {
     private readonly map: BrMap,
     difficulty: BotDifficulty,
     botCount: number,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean; rules?: string; gulag?: boolean; split?: boolean },
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean; rules?: string; gulag?: boolean; split?: boolean; vault?: boolean },
     rng: () => number = Math.random
   ) {
     super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br", abilities: opts.abilities ?? true });
@@ -618,6 +635,7 @@ export class BrMatch extends Duel {
     const spokes = map.pois.filter((p) => ["north", "south", "east", "west"].includes(p.id));
     const area = this.rules === "resurgence" ? resurgenceArea(this.seed, BR_CENTER, spokes) : full;
     this.area = area;
+    this.vaultAllowed = opts.vault !== false;
     // every door shut, as a match starts
     map.doors.reset();
     // the squad drops on one place: the host's pick, told to the guests; in
@@ -677,6 +695,7 @@ export class BrMatch extends Duel {
         const dropTo = openGround(spawn.x, spawn.z);
         this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false, team: squad, slot: i % this.team.size, dropTo, jumpAt: Infinity, redeploy: null, down: null, reviving: 0 });
       }
+      if (this.vaultOn) this.makeGuard(this.botCount);
       this.ring = new Ring(start, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases);
       this.view = { phase: 0, state: "waiting", timeLeft: this.phases[0].wait, current: { ...this.ring.current }, next: { ...this.ring.next } };
     } else {
@@ -695,13 +714,15 @@ export class BrMatch extends Duel {
       scene.add(model.group);
       this.consoles.push({ ...spot, usedPhase: -1, model });
     }
+    // the vault, locked on every page until its keycard opens it
+    if (this.vaultOn) map.doors.lock(map.vault.door);
   }
 
   /** one of the match's bots: the host's, at the start, or the heir's, in place of the figure it saw (host migration) */
-  private makeBot(i: number, tier: BotTier, spawn: Spawn, rng: () => number = Math.random): Bot {
+  private makeBot(i: number, tier: BotTier, spawn: Spawn, rng: () => number = Math.random, name = BOT_NAMES[i % BOT_NAMES.length]): Bot {
     const scene = this.scene;
     const projectiles = this.projectiles;
-    const bot = new Bot(i, scene, projectiles, DIFFICULTY[tier], spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], BOT_NAMES[i % BOT_NAMES.length]);
+    const bot = new Bot(i, scene, projectiles, DIFFICULTY[tier], spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], name);
     // Its eyes are the battle royale's. A bot nobody tells keeps the arena's
     // 55 to 70 m, which was right for a 40 m room and blind on a map
     // 440 m across (bots.ts sightRange, src/config/bots.json sight).
@@ -899,7 +920,7 @@ export class BrMatch extends Duel {
     if (this.role !== "host") return this.aliveSeen;
     let n = this.alive ? 1 : 0;
     for (const r of this.remotes.values()) if (r.alive) n++;
-    for (const b of this.bots) if (b.bot.alive) n++;
+    for (const b of this.bots) if (b.bot.alive && !b.guard) n++;
     return n;
   }
   /** the squad still standing: up and not down (all of it down is the squad out) */
@@ -911,7 +932,7 @@ export class BrMatch extends Duel {
   /** the bot squads with someone still up (the host's: it runs the bots) */
   private get botSquadsAlive(): number {
     const teams = new Set<number>();
-    for (const b of this.bots) if (b.bot.alive) teams.add(b.team);
+    for (const b of this.bots) if (b.bot.alive && !b.guard) teams.add(b.team);
     return teams.size;
   }
   /** squads still in it: the humans', and every bot squad with someone up (in solo everyone is their own); a guest has the host's count */
@@ -958,6 +979,7 @@ export class BrMatch extends Duel {
       const pos = f.drops.get(key)?.pos.clone();
       const it = f.remove(key);
       if (!it) return;
+      if (it.kind === "keycard") this.keyHolder = this.id;
       this.onLootTaken?.(it);
       this.broadcast({ t: "loot", op: "gone", key, by: this.id });
       if (pos && isBin(it) && it.id === "closed") this.spillBin(pos, key);
@@ -1256,8 +1278,16 @@ export class BrMatch extends Duel {
   }
 
   /** the host: a door opened or shut for everyone; a door is not shut on anybody standing in it. True if it is as asked */
-  private hostDoor(i: number, open: boolean): boolean {
+  private hostDoor(i: number, open: boolean, by = this.id): boolean {
     const doors = this.map.doors;
+    if (open && doors.isLocked(i)) {
+      if (by !== this.keyHolder) return false;
+      // the keycard opens the vault, and is used up doing it
+      doors.unlock(i);
+      this.keyHolder = null;
+      this.vaultOpened();
+      this.vaultNews(2);
+    }
     if (!open && !doors.canClose(i, this.bodies())) return false;
     if (doors.set(i, open)) this.broadcast({ t: "door", i, open });
     return true;
@@ -1472,6 +1502,8 @@ export class BrMatch extends Duel {
    * to the bots, and a bot wanting the other side of the map walked it.
    */
   private botTraversal(b: BrBot, sense: BotSense): void {
+    // the vault's guard keeps its post
+    if (b.guard) return;
     const bot = b.bot;
     if (bot.travel) return;
     // A squad goes as one: its first bot takes a pad or a rope where it will,
@@ -1536,7 +1568,10 @@ export class BrMatch extends Duel {
     if (this.lootField && this.role === "host") {
       const armed = this.botArmed(b, wallClock());
       const kit = b.bot.lootKit;
-      this.dropBox(deathBoxOf(kit.gunId ? kit : null, armed ? r.avatarWeapon : null), b.bot.pos.clone());
+      const items = deathBoxOf(kit.gunId ? kit : null, armed ? r.avatarWeapon : null);
+      if (b.guard) items.push({ kind: "keycard", id: "vault", n: 1, rarity: "legendary" });
+      this.dropBox(items, b.bot.pos.clone());
+      if (b.guard) this.vaultNews(0);
     }
     const who = this.whoDid(by);
     // the end of it: the feed says eliminated
@@ -1554,12 +1589,12 @@ export class BrMatch extends Duel {
     if (this.rules === "resurgence") {
       // it comes back if its squad has someone up (a bot on its own always does, while the rules are on)
       const up = this.bots.filter((o) => o.team === b.team && o.bot.alive).length;
-      if (comesBack(this.ringPhase, this.team.size, up)) b.redeploy = new Redeploy(r.id, redeployWait(this.ringPhase));
+      if (!b.guard && comesBack(this.ringPhase, this.team.size, up)) b.redeploy = new Redeploy(r.id, redeployWait(this.ringPhase));
       // the killer's squad: a kill cuts the wait of its own dead
       this.cutBotWaits(by, "kill");
     }
     if (this.manySides) this.judgeSides();
-    else if (this.bots.every((x) => !x.bot.alive && !x.redeploy) && this.humansAlive > 0) this.endBr(true);
+    else if (this.bots.every((x) => x.guard || (!x.bot.alive && !x.redeploy)) && this.humansAlive > 0) this.endBr(true);
   }
 
   /** Resurgence: a knock or a kill by a bot cuts the wait of its squad's dead */
@@ -1599,7 +1634,7 @@ export class BrMatch extends Duel {
     }
     // nobody left to fight and nobody coming back: the squad has won
     if (this.manySides) this.judgeSides();
-    else if (this.phase === "fight" && this.humansAlive > 0 && this.bots.every((x) => !x.bot.alive && !x.redeploy)) this.endBr(true);
+    else if (this.phase === "fight" && this.humansAlive > 0 && this.bots.every((x) => x.guard || (!x.bot.alive && !x.redeploy))) this.endBr(true);
   }
 
   /** where a redeploy comes down: 8 m or more from a squad mate who is up, else anywhere well inside the ring, on open ground */
@@ -1907,7 +1942,10 @@ export class BrMatch extends Duel {
         dn: b.down ? [b.down.by, b.down.bleed] : null,
         rv: b.reviving,
         dt: [b.dropTo.x, b.dropTo.z],
+        gd: b.guard ? [b.guard.x, b.guard.z] : null,
       })),
+      kh: this.keyHolder ?? -1,
+      vs: this.vaultStocked,
       dl: [...this.dealt].map(([id, d]) => [id, d.total, Number.isFinite(d.at) ? d.at - now : -1e6]),
       sa: t(this.surgeAt),
       ss: t(this.surgeSince),
@@ -1940,11 +1978,11 @@ export class BrMatch extends Duel {
       const r = this.remotes.get(id);
       const last = r?.samples[r.samples.length - 1];
       const spawn: Spawn = last ? { x: last.x, z: last.z, yaw: last.yaw } : { x: row.dt[0], z: row.dt[1], yaw: 0 };
-      const bot = this.makeBot(row.i, BOT_TIERS[row.t] ?? "normal", spawn);
+      const bot = this.makeBot(row.i, BOT_TIERS[row.t] ?? "normal", spawn, Math.random, row.gd ? VAULT.guardName : undefined);
       if (last) bot.pos.y = last.y;
       bot.restoreKit(row.k, row.c);
       if (!this.startLoot || row.as) bot.dummy.setGunVisible(true);
-      const b: BrBot = { bot, node: row.n, goal: row.g, armedAt: rt(row.ar), armedShown: row.as, landed: true, team: row.tm, slot: row.sl, dropTo: { x: row.dt[0], z: row.dt[1] }, jumpAt: Infinity, redeploy: row.rd >= 0 ? new Redeploy(id, row.rd) : null, down: null, reviving: row.rv };
+      const b: BrBot = { bot, node: row.n, goal: row.g, armedAt: rt(row.ar), armedShown: row.as, landed: true, team: row.tm, slot: row.sl, dropTo: { x: row.dt[0], z: row.dt[1] }, jumpAt: Infinity, redeploy: row.rd >= 0 ? new Redeploy(id, row.rd) : null, down: null, reviving: row.rv, guard: row.gd ? { x: row.gd[0], z: row.gd[1] } : undefined };
       if (r) {
         bot.dummy.health = r.health;
         bot.dummy.shield = Math.min(r.shield, bot.dummy.shieldMax);
@@ -1971,8 +2009,129 @@ export class BrMatch extends Duel {
     for (const ph of s.pp) this.podPhases.add(ph);
     for (const [side, place] of s.pl) this.placedAt.set(side, place);
     if (this.lootField) this.lootField.keyNext = s.nk;
+    this.keyHolder = s.kh >= 0 ? s.kh : null;
+    this.vaultStocked = s.vs;
     this.botSendNext = 0;
     this.ringSendNext = 0;
+  }
+
+  // ------------------------------------------------------------ the vault
+
+  /** the vault is in this match (on, and inside Resurgence's area when that is the rules) */
+  get vaultOn(): boolean {
+    const v = this.map.vault;
+    return VAULT.on && this.vaultAllowed && v.door >= 0 && Math.hypot(v.x - this.area.cx, v.z - this.area.cz) <= this.area.r * 0.9;
+  }
+
+  /** the vault for the tests and the HUD: its door, where it is, whether it is still locked */
+  get vault(): { door: number; x: number; z: number; locked: boolean } | null {
+    if (!this.vaultOn) return null;
+    const v = this.map.vault;
+    return { door: v.door, x: v.x, z: v.z, locked: this.map.doors.isLocked(v.door) };
+  }
+
+  /** the vault in this match at all (the tests turn it off where they count the bots) */
+  private vaultAllowed = true;
+  /** the host: who holds the vault keycard (a player's id), or null */
+  private keyHolder: number | null = null;
+  /** this player holds the vault keycard (the page sets it when it takes one) */
+  myKey = false;
+  private vaultStocked = false;
+  private vaultMarkAt = 0;
+
+  /** the host: the vault's guard, at its post with its gun, its armour and a few heals */
+  private makeGuard(i: number): void {
+    const v = this.map.vault;
+    const spawn: Spawn = { x: v.post.x, z: v.post.z, yaw: 180 };
+    const bot = this.makeBot(i, VAULT.guardTier as BotTier, spawn, Math.random, VAULT.guardName);
+    bot.restoreKit({ gunId: VAULT.guardGun, gun: 3, mag: 3, mods: {}, armor: 3, cells: 2, syringes: 2, frags: 1, taken: 0 }, { cell: 2, syringe: 2, frags: 1 });
+    bot.dummy.setGunVisible(true);
+    const node = this.nearestNode(spawn.x, spawn.z);
+    this.bots.push({ bot, node, goal: node, armedAt: 0, armedShown: true, landed: true, team: -1, slot: 0, dropTo: { x: spawn.x, z: spawn.z }, jumpAt: Infinity, redeploy: null, down: null, reviving: 0, guard: { x: spawn.x, z: spawn.z } });
+  }
+
+  /** the guard: whoever comes within its range and in its sight, else back to its post */
+  private guardSense(b: BrBot, humans: Array<{ id: number; feet: THREE.Vector3; cue: SightCue; down: boolean }>): BotSense {
+    const bot = b.bot;
+    const post = new THREE.Vector3(b.guard!.x, bot.pos.y, b.guard!.z);
+    let target: THREE.Vector3 | null = null;
+    let targetId = -1;
+    let best = VAULT.guardRange;
+    if (this.phase === "fight") {
+      for (const h of humans) {
+        const d = h.feet.distanceTo(post);
+        if (!h.down && d < best && bot.sees(h.feet, h.cue)) {
+          best = d;
+          target = h.feet;
+          targetId = h.id;
+        }
+      }
+      for (const o of this.bots) {
+        if (o === b || !o.bot.alive || o.down || o.bot.dropping) continue;
+        const d = o.bot.pos.distanceTo(post);
+        if (d < best && bot.sees(o.bot.pos)) {
+          best = d;
+          target = o.bot.pos;
+          targetId = o.bot.remote.id;
+        }
+      }
+    }
+    return { target, targetId, goal: post, canShoot: this.phase === "fight" && !this.holdFire, urgent: true };
+  }
+
+  /** the vault's news on every screen: here, and to the others as an effect they turn back into the words (0 the guard is down, 1 the keycard is on the floor, 2 the vault is open) */
+  private vaultNews(code: 0 | 1 | 2, opener = ""): void {
+    this.onNotice?.(vaultSays(code, opener));
+    this.broadcast({ t: "fx", k: "vault", n: code });
+  }
+
+  /** a guest: the host's vault news (the mode's own effect, not drawn) */
+  protected override onFx(k: string, _from: number, n: number | undefined): boolean {
+    if (k !== "vault") return false;
+    if (this.role !== "host" && (n === 0 || n === 1 || n === 2)) this.onNotice?.(vaultSays(n));
+    return true;
+  }
+
+  /** the vault door unlocked (here, or the host said): the card that did it is spent */
+  private vaultOpened(): void {
+    if (this.myKey) this.onNotice?.("THE KEYCARD OPENED THE VAULT");
+    this.myKey = false;
+  }
+
+  /**
+   * Every frame. The host stocks the vault as the fight starts (two supply
+   * bins and a mythic gun on its floor) and drops a keycard where its holder
+   * fell; the holder's page keeps the way to the vault marked.
+   */
+  private stepVault(now: number, local: LocalState): void {
+    if (!this.vaultOn) return;
+    const v = this.map.vault;
+    if (this.role === "host" && !this.vaultStocked && this.phase === "fight" && this.lootField) {
+      this.vaultStocked = true;
+      const gun = LOOT.carePackage[Math.floor(Math.random() * LOOT.carePackage.length)];
+      const hop = lockedHopupFor(gun);
+      const attach = { ...kittedAttach(gun), ...(hop ? { hopup: hop } : {}) };
+      this.dropLoot({ kind: "weapon", id: gun, n: 1, rarity: "legendary", mag: 4, attach, mythic: true }, new THREE.Vector3(v.x, v.y, v.z + 1.2));
+      for (const dx of [-2.6, 2.6]) this.dropLoot({ kind: "bin", id: "closed", n: 1, rarity: "common" }, new THREE.Vector3(v.x + dx, v.y, v.z + 1.6));
+    }
+    // a holder who is gone drops the keycard where they fell (the host's own, a guest's last state)
+    if (this.role === "host" && this.keyHolder !== null) {
+      const id = this.keyHolder;
+      const gone = id === this.id ? !this.alive : !this.remotes.get(id)?.alive;
+      if (gone) {
+        const at = id === this.id ? new THREE.Vector3(local.x, local.y, local.z) : this.whereIs(id);
+        this.keyHolder = null;
+        if (at) {
+          this.dropLoot({ kind: "keycard", id: "vault", n: 1, rarity: "legendary" }, at);
+          this.vaultNews(1);
+        }
+      }
+    }
+    if (this.myKey && !this.alive) this.myKey = false;
+    if (this.myKey && now >= this.vaultMarkAt) {
+      this.vaultMarkAt = now + VAULT.markEvery;
+      this.onMark?.("go", VAULT_MARK, new THREE.Vector3(v.x, v.y, v.z), "THE VAULT", -1);
+    }
   }
 
   /** the bots as the host runs them: index, tier and squad (the tests) */
@@ -2289,12 +2448,19 @@ export class BrMatch extends Duel {
           if (at && at.distanceTo(d.centre) <= doorsCfg.kickReach + 1.5) this.hostKick(d.i);
           return;
         }
-        if (!near || !this.hostDoor(d.i, m.open)) this.links.get(from)?.send({ t: "door", i: d.i, open: d.open, b: d.broken ? 1 : undefined });
+        if (!near || !this.hostDoor(d.i, m.open, from)) this.links.get(from)?.send({ t: "door", i: d.i, open: d.open, b: d.broken ? 1 : undefined });
       } else {
         this.doorAsked.delete(d.i);
         if (m.b === 1) doors.breakDoor(d.i);
         else if (m.k === 1) doors.kickHeard(d.i);
-        else doors.set(d.i, m.open);
+        else {
+          // the host opened a locked one (the vault): it was unlocked there
+          if (m.open && doors.isLocked(d.i)) {
+            doors.unlock(d.i);
+            this.vaultOpened();
+          }
+          doors.set(d.i, m.open);
+        }
       }
       return;
     }
@@ -2307,6 +2473,7 @@ export class BrMatch extends Duel {
         if (m.op === "take" && f.drops.has(key)) {
           const pos = f.drops.get(key)!.pos.clone();
           const it = f.remove(key);
+          if (it?.kind === "keycard") this.keyHolder = from;
           this.broadcast({ t: "loot", op: "gone", key, by: from });
           if (it && isBin(it) && it.id === "closed") this.spillBin(pos, key);
         } else if (m.op === "drop" && at) {
@@ -2366,6 +2533,7 @@ export class BrMatch extends Duel {
     super.update(local);
     if (this.ended) return;
     const now = wallClock();
+    this.stepVault(now, local);
     if (this.phase === "matchEnd" && now >= this.endAt) {
       // over: the links stay open, for the group's next match (main's endMatch takes them)
       this.finish(this.placement ? this.placedText(this.placement) : "The battle royale is over.");
@@ -2451,7 +2619,7 @@ export class BrMatch extends Duel {
     const run = this.ship;
     const late = new Map<number, number>();
     for (const b of this.bots) {
-      if (!b.bot.alive) continue;
+      if (!b.bot.alive || b.guard) continue;
       if (run) {
         if (!late.has(b.team)) late.set(b.team, Math.random() * SHIP.botJitter);
         b.bot.boardShip();
@@ -2715,6 +2883,7 @@ export class BrMatch extends Duel {
   /** what a bot can see and where it should go */
   private sense(b: BrBot, humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue; down: boolean }>): BotSense {
     const bot = b.bot;
+    if (b.guard) return this.guardSense(b, humans);
     // down: no fighting, only a crawl toward the nearest of its squad still standing
     if (b.down) {
       let near: BrBot | null = null;
@@ -2951,6 +3120,7 @@ export class BrMatch extends Duel {
   }
 
   override dispose(): void {
+    this.map.doors.unlock(this.map.vault.door);
     this.map.doors.reset();
     this.dropShipModel();
     this.gulagBot?.dispose();

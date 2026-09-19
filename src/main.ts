@@ -2897,6 +2897,12 @@ function applyLoot(it: LootItem): void {
       if (d) d.shieldMax = armor.shieldMax;
       audio.shieldBreak();
       break;
+    case "keycard":
+      // the vault's keycard: the way to the vault is marked while you hold it (brmatch.ts stepVault)
+      if (duel instanceof BrMatch) duel.myKey = true;
+      hud.notice("VAULT KEYCARD  ·  THE VAULT IS AT THE WELL", gameTime, 3);
+      audio.pickup?.();
+      break;
     case "banner":
       // your own (back from your box after a Deathbox Respawn): nothing to carry
       if (d && it.owner === d.id) return;
@@ -2953,6 +2959,8 @@ const leashAt = new THREE.Vector3();
 const straightDrop = (): boolean => (window as unknown as { __straightDrop?: boolean }).__straightDrop === true;
 /** the tests' other switch: no Gulag, for the checks of what a plain death does (the Gulag's own section turns it back on) */
 const noGulag = (): boolean => (window as unknown as { __noGulag?: boolean }).__noGulag === true;
+/** and no vault (its guard is a bot more on the map), for the checks that count the bots; the vault's own section turns it back on */
+const noVault = (): boolean => (window as unknown as { __noVault?: boolean }).__noVault === true;
 /** the callbacks every kind of match gets */
 function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRespawn = () => respawnForMatch(d);
@@ -3224,7 +3232,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
     // the squad size is the host's for everyone (an older host sends none: the default size)
-    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), rules: squad.rules, gulag: !noGulag(), split: squad.split === true });
+    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), rules: squad.rules, gulag: !noGulag(), split: squad.split === true, vault: !noVault() });
     d = br;
     duel = d;
     wireMatch(d, "br");
@@ -3313,7 +3321,7 @@ function startBr(seed = newSeed(), poi?: string): void {
   for (const c of courses) c.leave();
   const diff = brDifficulty();
   const bots = brBotCount();
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, poi, abilities: abilitySetting("br"), seed, start: brStart(), team: brTeamId(), ship: !straightDrop(), rules: brRulesId(), gulag: !noGulag() });
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, poi, abilities: abilitySetting("br"), seed, start: brStart(), team: brTeamId(), ship: !straightDrop(), rules: brRulesId(), gulag: !noGulag(), vault: !noVault() });
   duel = d;
   wireMatch(d, "br");
   brHour(d);

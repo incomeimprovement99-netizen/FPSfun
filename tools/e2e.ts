@@ -55,6 +55,8 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
   await page.evaluateOnNewDocument("window.__straightDrop = true");
   // and no Gulag, for the same reason: the checks of a plain death are about the death (gulagTest turns it back on)
   await page.evaluateOnNewDocument("window.__noGulag = true");
+  // and no vault: its guard is a bot more, and most checks count the bots (vaultTest turns it back on)
+  await page.evaluateOnNewDocument("window.__noVault = true");
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
   if (init) await page.evaluateOnNewDocument(init);
   // a base with a query of its own (OLD_URL=https://the.site/?broker=public) keeps it
@@ -221,6 +223,65 @@ const brRow = (team: "solo" | "duo" | "trio", bots: number): string =>
  * Doors: a shut door stops you, E opens the one you look at and you walk
  * through, and a bot that walks into a shut door opens it.
  */
+/**
+ * The vault (br.json vault): the Well's small building, sealed, its door
+ * locked. Its guard stands at its post on no side and is not counted among
+ * those left; the vault is stocked with two supply bins and a mythic gun as
+ * the fight starts; the door will not open without the keycard, which is in
+ * the guard's death box; its holder is shown the way and opens the door,
+ * which uses the card.
+ */
+async function vaultTest(browser: Browser, query: string): Promise<void> {
+  const page = await open(browser, query);
+  await ev(page, brRow("solo", 5));
+  await ev(page, `(() => { window.__noVault = false; document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); })()`);
+  const fought = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false);
+  if (!fought) {
+    check("vault: the match starts", false);
+    await page.close();
+    return;
+  }
+  await ev(page, "(() => { const d = window.__range.duel(); d.holdFire = true; window.__notices = []; const say = d.onNotice; d.onNotice = (t) => { window.__notices.push(t); say?.(t); }; })()");
+  await sleep(1500);
+  const g = await ev<{ name: string; tier: string; team: number; at: number; alive: boolean; aboard: boolean; left: number; bots: number; vault: { door: number; x: number; z: number; locked: boolean } | null } | null>(
+    page,
+    "(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.guard); if (!b) return null; return { name: b.bot.remote.name, tier: b.bot.diff.name, team: b.team, at: Math.hypot(b.bot.pos.x - b.guard.x, b.bot.pos.z - b.guard.z), alive: b.bot.alive, aboard: b.bot.aboard, left: d.aliveCount, bots: d.bots.filter((x) => !x.guard).length, vault: d.vault }; })()"
+  );
+  check("vault: its guard, THE WARDEN, elite and on no side, stands at his post (not on the ship), and is not counted among those left", !!g && g.name === "THE WARDEN" && g.tier === "elite" && g.team === -1 && g.at < 2 && g.alive && !g.aboard && g.left === 1 + g.bots && !!g.vault?.locked, JSON.stringify(g));
+  const stock = await ev<{ mythic: string[]; bins: number }>(
+    page,
+    "(() => { const d = window.__range.duel(); const v = d.vault; const near = [...d.lootField.drops.values()].filter((x) => Math.hypot(x.pos.x - v.x, x.pos.z - v.z) < 4.5); return { mythic: near.filter((x) => x.item.kind === 'weapon' && x.item.mythic).map((x) => x.item.id + ':' + x.item.mag), bins: near.filter((x) => x.item.kind === 'bin' && x.item.id === 'closed').length }; })()"
+  );
+  check("vault: stocked as the fight starts: a mythic gun at gold mag and two supply bins inside", stock.mythic.length === 1 && stock.mythic[0].endsWith(":4") && stock.bins === 2, JSON.stringify(stock));
+  // at the door without the card: it says so, and the door stays shut
+  await ev(page, "(() => { const d = window.__range.duel(); const door = window.__range.brMap.doors.list[d.vault.door]; window.__range.player.teleport(door.centre.x, door.centre.y - 1.3, door.centre.z - 2.2, 180, 0); })()");
+  await sleep(500);
+  const lockedPrompt = await ev<string>(page, "window.__range.brPlay.hud?.prompt?.text ?? ''");
+  await ev(page, `window.__range.setScript({ held: () => false, pressedNow: (a) => a === "interact" })`);
+  await sleep(300);
+  await ev(page, "window.__range.setScript(null)");
+  await ev(page, "(() => { const d = window.__range.duel(); d.useDoor(d.vault.door, true); })()");
+  await sleep(300);
+  const shut = await ev<{ open: boolean; locked: boolean; kicked: string | null }>(page, "(() => { const d = window.__range.duel(); const ds = window.__range.brMap.doors; return { open: ds.list[d.vault.door].open, locked: d.vault.locked, kicked: ds.kick(d.vault.door) }; })()");
+  check("vault: without the keycard the door says so, stays shut to interact and cannot be kicked in", /LOCKED/.test(lockedPrompt) && !shut.open && shut.locked && shut.kicked === null, JSON.stringify({ lockedPrompt, shut }));
+  // the guard down: his death box holds the keycard
+  await ev(page, "(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.guard); d.botDown(b, d.id); })()");
+  await sleep(400);
+  const card = await ev<{ key: number | null; said: boolean; left: number }>(page, "(() => { const d = window.__range.duel(); const k = [...d.lootField.drops.values()].find((x) => x.item.kind === 'keycard'); return { key: k ? k.key : null, said: window.__notices.some((t) => t.includes('KEYCARD IS IN HIS BOX')), left: d.aliveCount }; })()");
+  check("vault: the guard down, his death box holds the vault keycard, and everyone is told", card.key !== null && card.said, JSON.stringify(card));
+  // taken: the holder is shown the way, and the door offers to open
+  await ev(page, `window.__range.duel().takeLoot(${card.key ?? -1})`);
+  await sleep(700);
+  const held = await ev<{ mine: boolean; mark: boolean; prompt: string }>(page, "(() => { const d = window.__range.duel(); return { mine: d.myKey, mark: window.__range.brPlay.markers.some((m) => m.label === 'THE VAULT'), prompt: window.__range.brPlay.hud?.prompt?.text ?? '' }; })()");
+  check("vault: holding the keycard, the way to the vault is marked and the door offers to open", held.mine && held.mark && /OPEN THE VAULT/.test(held.prompt), JSON.stringify(held));
+  await ev(page, `window.__range.setScript({ held: () => false, pressedNow: (a) => a === "interact" })`);
+  const opened = await page.waitForFunction("(() => { const d = window.__range.duel(); return !d.vault.locked && window.__range.brMap.doors.list[d.vault.door].open; })()", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  await ev(page, "window.__range.setScript(null)");
+  const after = await ev<{ mine: boolean; said: boolean }>(page, "({ mine: window.__range.duel().myKey, said: window.__notices.some((t) => t === 'THE VAULT IS OPEN') })");
+  check("vault: interact with the keycard opens the vault, which uses the card", opened && !after.mine && after.said, JSON.stringify({ opened, after }));
+  await page.close();
+}
+
 async function doorTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
   await ev(page, brRow("solo", 5));
@@ -4389,6 +4450,8 @@ async function main(): Promise<void> {
       await brTest(browser, "?norender");
       console.log("\nDoors");
       await doorTest(browser, "?norender");
+      console.log("\nThe vault");
+      await vaultTest(browser, "?norender");
     }
 
     if (want("loot")) {

@@ -150,6 +150,8 @@ export class Doors {
   set(i: number, open: boolean): boolean {
     const d = this.list[i];
     if (!d || d.open === open || d.broken) return false;
+    // a locked door (the vault's) opens only once it is unlocked
+    if (open && this.locked.has(i)) return false;
     d.open = open;
     Object.assign(d.solid, open ? d.opened : d.closed);
     this.onChange?.(d, open ? "open" : "close");
@@ -159,7 +161,7 @@ export class Doors {
   /** a melee hit on shut door `i`: "kick" while it holds, "break" as it goes, null for an open or broken one */
   kick(i: number): "kick" | "break" | null {
     const d = this.list[i];
-    if (!d || d.open || d.broken) return null;
+    if (!d || d.open || d.broken || this.locked.has(i)) return null;
     d.hits++;
     if (d.hits < cfg.kicks) {
       this.onChange?.(d, "kick");
@@ -195,7 +197,21 @@ export class Doors {
   /** every door as the host says: open the listed ones, close the rest (the ring packet's door list) */
   setOpen(open: readonly number[]): void {
     const want = new Set(open);
+    // the host has a locked door open: it was unlocked there
+    for (const i of want) this.locked.delete(i);
     for (const d of this.list) this.set(d.i, want.has(d.i));
+  }
+
+  /** doors that hold until a key opens them (the vault's); a match locks its own and lets them go at its end */
+  private locked = new Set<number>();
+  lock(i: number): void {
+    if (this.list[i]) this.locked.add(i);
+  }
+  unlock(i: number): void {
+    this.locked.delete(i);
+  }
+  isLocked(i: number): boolean {
+    return this.locked.has(i);
   }
 
   /** the open doors, for the ring packet */
@@ -250,7 +266,8 @@ export class Doors {
   /** a closed door a body at `p` has walked into (a bot's), or null */
   closedAt(p: { x: number; y: number; z: number }, reach: number): Door | null {
     for (const d of this.list) {
-      if (d.open) continue;
+      // a locked door is no way through for a bot
+      if (d.open || this.locked.has(d.i)) continue;
       if (Math.abs(p.y - (d.centre.y - (d.closed.top - d.closed.base) / 2)) > 1.5) continue;
       if (Math.hypot(p.x - d.centre.x, p.z - d.centre.z) < reach) return d;
     }

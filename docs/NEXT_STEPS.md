@@ -79,7 +79,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 9. ~~**Weapon finishes and unlocks**~~ Done (Milestone 108): eight finishes opened by level, chosen gun by gun, and seen by the others (Milestone 109).
 10. ~~**Custom match rules**~~ Done (Milestone 106): guns by class, rounds to win, friendly fire, carried in the match options.
 11. ~~**Plant and defuse**~~ Done (Milestone 114): Search, first to seven, one life a round, bots that attack and defend.
-12. **Vault and keycard (#35):** about 2 days, after doors.
+12. ~~**Vault and keycard (#35)**~~ Done (Milestone 115): the Well's sealed vault, THE WARDEN and his keycard, two bins and a mythic gun.
 13. ~~**Voice chat:**~~ Done (Milestones 104, 105): push to talk, your squad or team, peer to peer, a volume on the Settings tab and a mute per player on the Friends tab.
 14. ~~**The leaderboard secret behind the server**~~ Done, as the real weakness (Milestone 84): the server never read the secret; a wins board now counts posts, not totals.
 15. **Ability kits and ultimates:** 4 to 6 days, once bins, doors and the traversal have settled.

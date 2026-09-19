@@ -528,8 +528,10 @@ export class BrPlay {
       } else if (door && !player.zipPrompt) {
         // a door you look at: a tap opens or shuts it
         this.stopTaking();
-        out.prompt = { key, text: door.open ? "SHUT THE DOOR" : "OPEN THE DOOR" };
-        if (input.pressedNow("interact")) match.useDoor(door.i, !door.open);
+        // the vault's door: locked, and only the keycard opens it
+        const locked = match.doors.isLocked(door.i);
+        out.prompt = locked ? (match.myKey ? { key, text: "OPEN THE VAULT (USES THE KEYCARD)" } : { key: "", text: "LOCKED  ·  THE VAULT KEYCARD OPENS IT" }) : { key, text: door.open ? "SHUT THE DOOR" : "OPEN THE DOOR" };
+        if (input.pressedNow("interact") && (!locked || match.myKey)) match.useDoor(door.i, !door.open);
       } else if (!player.zipPrompt) {
         this.lootHere(now, match, input, p, eye, fwd, key, carry, out);
       } else this.stopTaking();

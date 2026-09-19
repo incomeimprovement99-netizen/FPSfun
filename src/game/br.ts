@@ -29,6 +29,7 @@
 // Everything is boxes on RANGE_SOLIDS like the rest of the world, so the
 // player, the bots and the bullets see it the same way. Bots walk a graph of
 // nodes (POI centres, gates, road bends) laid out here as well.
+import brCfg from "../config/br.json";
 import { DOORWAYS, Doors } from "./doors";
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
@@ -108,6 +109,8 @@ export interface BrMap {
   pads: Array<{ x: number; z: number; dx: number; dz: number }>;
   /** a door in every ground-floor doorway (doors.ts) */
   doors: Doors;
+  /** the vault: its door's index, the room's middle and floor, and where its guard stands (world space) */
+  vault: { door: number; x: number; z: number; y: number; post: { x: number; z: number } };
 }
 
 /** a small deterministic random, so the field's rocks land in the same places every load */
@@ -1551,6 +1554,9 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     }
   }
 
+  /** the vault's door (the Well's yard, below): its index among the doorways */
+  let vaultDoor = -1;
+
   // ---------------------------------------------------------------- the sites
   // Eight small places between the big ones (see Site): a name and a sign, a
   // building or two with loot in it, somewhere to hold, and a dirt track to
@@ -1750,7 +1756,12 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     slab(28, 2.6, 0.8, -107, 0, 32, wall);
     slab(0.8, 2.6, 26.8, -121, 0, 19, wall);
     deckAt.well = building(here, { x: -114.6, z: 14, w: 12, d: 10, storeys: 2, storeyH: 3.4, doors: ["s"], windows: ["n", "e", "w"], roofAccess: true }).roof;
-    building(here, { x: -100, z: 24, w: 9, d: 7, storeys: 1, storeyH: 3.2, doors: ["n"], windows: ["s"] });
+    // The vault: sealed (no window to climb through), its one door locked
+    // until someone brings the keycard from its guard (brmatch.ts). Its door
+    // keeps its place in the build order, so every door's index is as it was.
+    vaultDoor = DOORWAYS.length;
+    building(here, { x: -100, z: 24, w: 9, d: 7, storeys: 1, storeyH: 3.2, doors: ["n"], windows: [] });
+    root.add(textPanel("VAULT", -97, 1.9, 20.28, Math.atan2(0, -1), 2.6, 0.8));
     // the well head and its gibbet, whose arm is for show
     box(2.6, 1.2, 2.6, -106, 0, 13, concrete);
     box(0.3, 2.4, 0.3, -106, 1.2, 11.95, crate);
@@ -2605,6 +2616,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     beacons: beaconSpots.map(([x, z]) => P(x, z)),
     pads: padSpots.map(([x, z, dx, dz]) => ({ ...P(x, z), dx, dz })),
     doors: new Doors(root, { x: BR_X, z: BR_Z }, DOORWAYS),
+    vault: { door: vaultDoor, ...P(-100, 24), y: groundTop(-100, 24), post: P(-100, 20.5 - brCfg.vault.post) },
   };
 }
 

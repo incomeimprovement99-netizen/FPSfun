@@ -1825,3 +1825,32 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   defenders; after round six you defend, and the bots attack a site and plant on their own; you defuse it), and with
   a friend (the guest holds E on site B, both screens show its bar, the host plants the bomb for it, and the guest
   sees it).
+
+## Milestone 115 — The vault, its keycard and its guard ✅
+2026-09-19 (Phase 15). `br.ts`, `doors.ts`, `loot.ts`, `brmatch.ts`, `brplay.ts`, `main.ts`, `src/config/br.json`
+(`vault`), `tools/e2e.ts`.
+- Nothing on the map was locked, guarded or unique. Now the small building in the Well's yard is the vault: sealed
+  (its window wall is solid), its one door locked, VAULT on the wall beside it. It is the same building in the same
+  build order, so every door's index, which the door packets carry, is as it was.
+- `Doors` can lock a door: it will not open, cannot be kicked in, and no bot takes it for a way through. The host
+  opens it only for whoever holds the keycard, and the opening uses the card. A guest that hears the host open a
+  locked door (the door message, or the ring packet's open list) unlocks it there.
+- Its guard, THE WARDEN, is an elite bot made by the host after the squads' bots: on no side (team -1), at his post
+  3.5 m in front of the door with a purple rifle, armour and a few heals. He fights whatever comes within 30 m of
+  his post and walks back to it. He is left out of those counted as left, the bot squads, the ship, the pads and
+  ropes, redeploys, and every check that decides the match, so he never holds a match open.
+- His death box holds the `keycard` (a new loot kind; an older build does not see it). The host knows who took it,
+  and drops it where its holder falls. The holder's page marks the way to the vault, renewed every 5 s, and the
+  door's prompt changes from LOCKED to OPEN THE VAULT. The news (the guard is down, the keycard is on the floor, the
+  vault is open) goes to every screen as a small effect a guest turns back into words.
+- As the fight starts the host stocks the vault: two supply bins and a mythic gun, a care-package gun at gold mag
+  with every attachment and its hop-up unlocked. Mythic is a flag on a legendary item, drawn and named in red, so an
+  older build sees a legendary.
+- Host migration carries the guard's post, the keycard's holder and whether the vault is stocked.
+- The vault is off in Resurgence when its smaller area leaves the Well out. The tests turn it off (`__noVault`)
+  where they count the bots, as they turn off the Gulag, and its own section turns it back on: the first run of the
+  battle royale checks with the vault in counted the Warden three times over.
+- Checks: the e2e `br` section's vault (the Warden elite, on no side, at his post, not on the ship, not counted; the
+  mythic gun at gold mag and two bins inside; without the card the door says LOCKED, stays shut and cannot be kicked;
+  the Warden down, his box holds the keycard and everyone is told; holding it, the way is marked and the door offers
+  to open; E opens it and the card is used).

@@ -31,7 +31,7 @@ import { optionsFor, SLOTS, type Attachments } from "./attachments";
 import { BACKPACKS, KNOCK_SHIELDS, type BackTier, type KnockTier } from "./kit";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
-export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade" | "backpack" | "knockdown" | "bin";
+export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade" | "backpack" | "knockdown" | "bin" | "keycard";
 
 /** supply bins (loot.json bins): where they may stand, how often, and what one throws out */
 export const BINS = cfg.bins;
@@ -56,6 +56,8 @@ export interface LootItem {
   /** a dropped gun keeps its fittings */
   mag?: number;
   attach?: Attachments;
+  /** the vault's gun: a legendary drawn red and called mythic (an older build sees a legendary) */
+  mythic?: boolean;
   /** a banner: whose, and their name */
   owner?: number;
   ownerName?: string;
@@ -119,11 +121,16 @@ const ATTACH_LABEL: Record<string, string> = {
 };
 const MAG_NAMES = ["", "white mag", "blue mag", "purple mag", "gold mag"];
 
+/** the vault's mythic red (its gun and its keycard) */
+const MYTHIC_RED = 0xff3b3b;
+
 /** what an item is called on the prompt */
 export function lootLabel(it: LootItem): string {
   switch (it.kind) {
     case "weapon":
-      return weaponName(it.id).toUpperCase();
+      return `${it.mythic ? "MYTHIC " : ""}${weaponName(it.id).toUpperCase()}`;
+    case "keycard":
+      return "VAULT KEYCARD";
     case "ammo":
       return `${it.id.toUpperCase()} AMMO x${it.n}`;
     case "heal":
@@ -594,7 +601,8 @@ export class LootField {
   /** the batched shapes of an item near enough to draw: its box, a gun's ring, a rare one's beam */
   private drawBatched(d: LootDrop, now: number): void {
     const it = d.item;
-    const colour = hexOf(it.rarity);
+    // the vault's gun and its keycard: mythic red
+    const colour = it.mythic || it.kind === "keycard" ? MYTHIC_RED : hexOf(it.rarity);
     const p = this.tmpP;
     if (it.kind === "weapon") {
       p.set(d.pos.x, d.pos.y + 0.02, d.pos.z);
@@ -607,7 +615,7 @@ export class LootField {
       this.tmpQ.setFromEuler(this.tmpE.set(0, now * 0.8 + d.key, 0));
       this.batch(`box${col}`, this.boxGeo, () => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.5 })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
     }
-    if (it.rarity === "epic" || it.rarity === "legendary" || it.kind === "banner") {
+    if (it.rarity === "epic" || it.rarity === "legendary" || it.kind === "banner" || it.kind === "keycard") {
       p.set(d.pos.x, d.pos.y + 1.2, d.pos.z);
       this.tmpQ.identity();
       this.batch(`beam${colour}`, this.beamGeo, () => new THREE.MeshBasicMaterial({ color: it.kind === "banner" ? 0x7ddc8a : colour, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
