@@ -1593,3 +1593,16 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   guest the players far from it less often (interest management) is the next saving; the rehearsal is how to
   measure it.
 
+## Milestone 103 — Interest management ✅
+2026-09-19 (Phase 15). `duel.ts`, `src/config/net.json`, `tools/rehearsal.ts`.
+- What the rehearsal pointed at. The host passed every guest every other player's and bot's state at the full 30 a
+  second wherever they were. Now a subject within 90 m of a guest still goes at the full rate; beyond that, at 15 a
+  second; beyond 200 m, at 10. A far figure is drawn from fewer states, which the jitter buffer takes in its stride
+  (Milestone 95: a gap of 100 ms). Only the delta packets are thinned; a guest's own state to the host, and the full
+  packets an older build reads, are not. `?interest=0` in the host's address sends everything at the full rate.
+- The rehearsal gains `REHEARSAL_SPREAD=1` (each duo to a place of its own after landing: in one place everyone is
+  near everyone, and nothing is saved) and `REHEARSAL_QUERY` (more for the address).
+- Measured, eight players spread over four places, 30 s: the host's upload 131.6 kB/s (1.05 Mbit/s) with it off,
+  79.8 kB/s (0.64 Mbit/s) with it on, about 19 to about 11.5 kB/s a guest; everyone still saw all seven others. The
+  host's match update was 1.9 and 2.1 ms median.
+

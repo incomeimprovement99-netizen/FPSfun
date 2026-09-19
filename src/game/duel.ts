@@ -802,6 +802,7 @@ export class Duel implements MatchLike {
     for (const [to, link] of this.stateTargets()) {
       if (to === subject || to === except) continue;
       if (this.sync.speaksDeltas(to)) {
+        if (!this.interested(to, subject, now)) continue;
         state ??= stateOf(m);
         const part = this.sync.encode(to, subject, state, now);
         if (!part) continue;
@@ -815,6 +816,25 @@ export class Duel implements MatchLike {
         link.send(full);
       }
     }
+  }
+
+  /** the host's interest management (net.json interest): when each subject's state last went to each guest */
+  private sentAt = new Map<number, number>();
+  private readonly interestOn = new URLSearchParams(typeof location === "undefined" ? "" : location.search).get("interest") !== "0";
+
+  /** the host: whether `subject`'s state is due to go to guest `to` now (always, near; less often, far) */
+  private interested(to: number, subject: number, now: number): boolean {
+    if (this.role !== "host" || !this.interestOn) return true;
+    const a = this.whereIs(to);
+    const b = this.whereIs(subject);
+    if (!a || !b) return true;
+    const I = netCfg.interest;
+    const d = Math.hypot(a.x - b.x, a.z - b.z);
+    if (d < I.near) return true;
+    const key = to * 4096 + subject;
+    if (now - (this.sentAt.get(key) ?? -Infinity) < 1 / (d > I.far ? I.farHz : I.midHz)) return false;
+    this.sentAt.set(key, now);
+    return true;
   }
 
   /** who a state goes to: the host's guests, or a guest's host */

@@ -15,12 +15,18 @@
 //   SHOT_URL             the build (default http://localhost:5173/)
 //   PLAYERS=8            how many pages
 //   REHEARSAL_SECONDS=60 how long it is measured for
+//   REHEARSAL_SPREAD=1   each duo to a place of its own after landing
+//   REHEARSAL_QUERY=...  more for every page's address (interest=0: the host sends everything at the full rate)
 import puppeteer, { type Browser, type Page } from "puppeteer";
 
 const BASE = process.env.SHOT_URL ?? "http://localhost:5173/";
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const PLAYERS = Math.max(2, Math.min(8, Number(process.env.PLAYERS ?? 8)));
 const SECONDS = Number(process.env.REHEARSAL_SECONDS ?? 60);
+/** REHEARSAL_SPREAD=1: each duo to a place of its own after landing (in one place everyone is near everyone) */
+const SPREAD = process.env.REHEARSAL_SPREAD === "1";
+/** REHEARSAL_QUERY: more for the address (?interest=0 for the host's full rate, say) */
+const QUERY = process.env.REHEARSAL_QUERY ?? "";
 
 const errors: string[] = [];
 let fails = 0;
@@ -39,7 +45,7 @@ async function open(browser: Browser, i: number): Promise<Page> {
     if (m.type() === "error") errors.push(`page ${i} console: ${m.text()}`);
   });
   await page.evaluateOnNewDocument("window.__straightDrop = true; window.__noGulag = true");
-  await page.goto(`${BASE}?norender&broker=public`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.goto(`${BASE}?norender&broker=public${QUERY ? `&${QUERY}` : ""}`, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("!!window.__range", { timeout: 60000 });
   return page;
 }
@@ -97,6 +103,11 @@ async function main(): Promise<void> {
     check(`all ${PLAYERS} land`, landed.every(Boolean), JSON.stringify(landed));
     if (!landed.every(Boolean)) return;
     await ev(host, "window.__range.duel().holdFire = true");
+    if (SPREAD) {
+      // duo k to the k-th of four places: the hub, north yard, south depot, east ridge
+      const places = [[0, 500], [0, 340], [0, 660], [160, 500]];
+      for (const p of pages) await ev(p, `(() => { const d = window.__range.duel(); const [x, z] = ${JSON.stringify(places)}[Math.floor(d.id / 2) % 4]; window.__range.player.teleport(x + (d.id % 2) * 3, 0, z, 0, 0); })()`);
+    }
     // the guests run circles and look about: every number in a state changes every tick
     for (const p of pages.slice(1)) await ev(p, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: () => false }, (now, dt) => { const pl = window.__range.player; pl.yaw += 70 * dt; pl.pitch = 10 * Math.sin(now * 1.3); })`);
     await sleep(8000);
