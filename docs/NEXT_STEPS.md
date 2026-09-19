@@ -108,10 +108,10 @@ Three read-only passes over the code, after the map expansion (Milestone 71), ag
 13. ~~**Tracers are 4 cm dots from your eye:**~~ Done (Milestones 74, 75). a stretched streak from the muzzle, blended onto the real path. 3 h.
 14. ~~**A downed figure looks like a crouching live one:**~~ Done (Milestones 74, 75). low and crawling, the knockback clip played. 2-3 h.
 15. ~~**Damage numbers pile up in a spray:**~~ Done (Milestone 74): one per target, adding while hits keep coming. 1.5 h. ~~**No low-ammo warning:**~~ Done: LOW AMMO, RELOAD and a rising click. 1 h. ~~**Figures float on Competitive and Balanced**~~ Done (Milestone 75) (static shadows): a contact shadow under each. 1.5 h.
-16. **Explosions are a ball and a ring:** shake (off with reduced motion), smoke, a scorch, ringing ears inside 6 m. 3 h. **The gun shares the world's FOV** and warps on a slide: its own camera. 4-6 h. **Gunshots are all synthesis:** recorded CC0 layers under it. 5-6 h.
+16. ~~**Explosions are a ball and a ring:**~~ Done (Milestone 76): shake (off with reduced motion), smoke, a scorch, ringing ears inside 6 m. 3 h. **The gun shares the world's FOV** and warps on a slide: its own camera. 4-6 h. **Gunshots are all synthesis:** recorded CC0 layers under it. 5-6 h.
 
 **Then: eight friends playing each other (about a week)**
-17. **Friends split into sides in team deathmatch and Control** (every human is team 0 today). 4-5 h.
+17. ~~**Friends split into sides in team deathmatch and Control**~~ Done (Milestone 76) (every human is team 0 today). 4-5 h.
 18. **The lobby:** start with who is here, a roster with ready and ping per player, a kick. 4-5 h.
 19. **The group stays together between matches:** a party that owns the links, so the next match needs no new code. 1-1.5 days; rejoin (below) and handing the host over build on it.
 20. **Battle royale squads of friends** (duos and trios against each other): the list above assumed this needs a real server, but the 1v1v1 and free-for-all already trust the host the same way. A squad table in the welcome, and every squad rule keyed by it. 2.5-3 days, after 3.

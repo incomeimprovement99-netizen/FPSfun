@@ -8,6 +8,7 @@
 import hudCfg from "../../src/config/hud.json";
 import audioCfg from "../../src/config/audio.json";
 import { MUZZLE, flashSize } from "../../src/game/muzzle";
+import { blastShakeDeg } from "../../src/game/impacts";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -25,6 +26,13 @@ console.log("Muzzle flashes, damage numbers, the low-ammo line");
   check("a flash lasts about two frames at 60 fps", MUZZLE.life >= 0.02 && MUZZLE.life <= 0.06, `${MUZZLE.life} s`);
   check("damage numbers stack within a spray's gaps, and pop briefly", hudCfg.damageNumbers.stack >= 0.3 && hudCfg.damageNumbers.stack <= 1.2 && hudCfg.damageNumbers.pop <= 0.15);
   check("the low-ammo line comes before the click, and short magazines are left alone", hudCfg.lowAmmo.warn >= hudCfg.lowAmmo.click && hudCfg.lowAmmo.minClip >= 4);
+}
+
+// A blast's shake: full at its heart, nothing past its radius.
+{
+  const B = hudCfg.blasts;
+  check("a blast shakes the view hardest at its heart, and not at all past its radius", blastShakeDeg(0) === B.shakeDeg && blastShakeDeg(B.shakeRadius) === 0 && blastShakeDeg(B.shakeRadius / 2) < B.shakeDeg / 2, `${blastShakeDeg(0)} deg at 0 m, ${blastShakeDeg(B.shakeRadius / 2).toFixed(2)} at ${B.shakeRadius / 2} m`);
+  check("your ears ring only close to one", B.ringRadius < B.shakeRadius / 2 && B.ringTime <= 2.5);
 }
 
 // How far a sound carries: the panner's own inverse-distance law (ref /

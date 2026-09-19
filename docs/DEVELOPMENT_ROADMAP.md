@@ -1121,3 +1121,16 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - On the presets whose shadow map is drawn once, every figure has a soft contact shadow at its feet, so a moving
   figure no longer floats; hidden once it falls.
 - Checks: e2e: a tracer in flight is a streak a metre or more long; snapshots `tracers`, `br-downed-3p`.
+
+## Milestone 76 — Blasts you feel, and friends split into sides ✅
+2026-09-19 (Phase 15). `impacts.ts`, `audio.ts`, `main.ts`, `modematch.ts`, `net/link.ts`, `index.html`,
+`src/config/hud.json`, `tools/checks/feel.ts`.
+- A grenade going off is felt: within 20 m the view shakes by up to 1.2 degrees, falling off with the square of the
+  distance and dying away in 0.4 s (the screen-shake setting scales it, and Off turns it off); within 6 m the world is
+  muffled and your ears ring for up to 1.5 s; a scorch stays on the ground and a column of smoke rises for 3 s. It
+  used to be a ball and a ring for half a second.
+- Team deathmatch and Control with friends can split them into two sides ("Friends: split sides" in the Modes row):
+  the humans alternate sides and bots fill whichever side is short; every human used to be on one side, so a group
+  could never fight each other in a team mode. The split travels in the welcome.
+- Checks: `tools/checks/feel.ts` (the shake's falloff, the ringing's reach), e2e: a frag leaves its scorch and smoke,
+  and two friends split in team deathmatch are opponents whose hits land.

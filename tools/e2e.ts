@@ -1858,12 +1858,15 @@ async function throwTest(browser: Browser, query: string): Promise<void> {
   check("throwables: the HUD names the one in hand", /STAR/.test(lowered), lowered);
   await ev(page, "(() => { window.__range.ordnance.readied = null; window.__range.input.locked = false; })()");
   // a frag at its feet: the full 100 (its 75 shield, then 25 health)
+  const blasts0 = await ev<number>(page, "window.__range.blasts()");
   await ev(page, `(() => { const r = window.__range; const b = r.duel().bots[0]; r.throwAt("frag", new r.THREE.Vector3(b.pos.x, 0.3, b.pos.z + 0.6), new r.THREE.Vector3(0, 0, 0)); })()`);
   await sleep(3500);
   const pre = await ev<number>(page, "(() => { const a = window.__range.duel().avatars[0]; return a.health + a.shield; })()");
   await sleep(1100);
   const post = await ev<{ hp: number; sh: number }>(page, "(() => { const a = window.__range.duel().avatars[0]; return { hp: a.health, sh: a.shield }; })()");
   check("throwables: nothing before the 4 s fuse; then a frag at its feet takes 100 (75 shield, 25 health)", pre === 175 && post.sh === 0 && post.hp === 75, JSON.stringify({ pre, ...post }));
+  const blasts1 = await ev<number>(page, "window.__range.blasts()");
+  check("throwables: the blast leaves a scorch and a column of smoke", blasts1 === blasts0 + 1, `${blasts0} -> ${blasts1}`);
   // thermite under it: 4 a tick, twice a second
   await ev(page, `(() => { const r = window.__range; const b = r.duel().bots[0]; r.throwAt("thermite", new r.THREE.Vector3(b.pos.x, 0.3, b.pos.z + 0.4), new r.THREE.Vector3(0, -2, -0.5)); })()`);
   await sleep(2100);
@@ -3000,6 +3003,38 @@ async function hiddenHostTest(browser: Browser, query: string): Promise<void> {
   await guest.close();
 }
 
+/**
+ * Team deathmatch with the friends split: two humans on two sides, no bots,
+ * so it is their own 1v1 as teams. Every human used to be on one side, so a
+ * group of friends could never fight each other in a team mode.
+ */
+async function modesSplitTest(browser: Browser, query: string): Promise<void> {
+  const host = await open(browser, query);
+  const guest = await open(browser, query);
+  await ev(host, `(() => { document.getElementById("duelMode").value = "tdm"; document.getElementById("modeBots").value = "0"; document.getElementById("modeSides").value = "split"; document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check("split sides: both connect", false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  for (const p of [host, guest]) await pressPlay(p);
+  const live = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 20000 }).then(() => true, () => false)));
+  const sides = await Promise.all([host, guest].map((p, i) => ev<{ split: boolean; mine: number; other: number; ally: boolean; bots: number }>(p, `(() => { const d = window.__range.duel(); return { split: d.split, mine: d.teamFor(d.id), other: d.teamFor(${i === 0 ? 1 : 0}), ally: d.isAlly(${i === 0 ? 1 : 0}), bots: d.avatars.length - 1 }; })()`)));
+  check("split sides: the two friends are on two sides, opponents, and no bots were asked for", live.every(Boolean) && sides.every((x) => x.split && x.mine !== x.other && !x.ally), JSON.stringify(sides));
+  const hp0 = await ev<number>(guest, "window.__range.duel().health + window.__range.duel().shield");
+  await ev(host, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id === 1); d.localHit(r, 30, false); })()`);
+  const hurt = await guest.waitForFunction(`window.__range.duel().health + window.__range.duel().shield < ${hp0}`, { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  check("split sides: the host's hit on the other side lands", hurt);
+  await host.close();
+  await guest.close();
+}
+
 /** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
@@ -3412,6 +3447,7 @@ async function main(): Promise<void> {
       await arenaMapsTest(browser, "?norender");
       console.log("\nGun Run with a friend (two tabs, the local transport)");
       await modesFriendsTest(browser, "?net=local&norender");
+      await modesSplitTest(browser, "?net=local&norender");
       await friendsModesTest(browser, "?net=local&norender");
       await lobbyTest(browser, "?net=local&norender");
     }

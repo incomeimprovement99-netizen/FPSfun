@@ -217,6 +217,8 @@ export interface ModeWelcome {
   botWeapon?: string | null;
   /** the arena the mode is played on; unset is the warehouse */
   map?: string;
+  /** team modes: the friends split into two sides against each other (unset: all on one side) */
+  split?: boolean;
 }
 
 export type RoundPhase = "waiting" | "countdown" | "fight" | "roundEnd" | "matchEnd";

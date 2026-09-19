@@ -87,7 +87,7 @@ import { Progress, levelFor, type Award } from "./game/progress";
 import { HUD_SCALES, P, VISION_MODES, access, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
 import { LoadingScreen } from "./ui/loading";
 import { setMuzzleViewer } from "./game/muzzle";
-import { ImpactLayer, IMPACTS } from "./game/impacts";
+import { ImpactLayer, IMPACTS, blastShakeDeg } from "./game/impacts";
 import { EMOTES, EMOTE_STOP } from "./game/emotes";
 import emotesCfg from "./config/emotes.json";
 
@@ -2147,10 +2147,38 @@ const throwables = new Throwables(scene, {
     }
   },
   onSound: (kind, at, what) => {
-    if (kind === "blast") audio.blast(what === "arcstar" ? "arcstar" : "frag", at);
+    if (kind === "blast") {
+      audio.blast(what === "arcstar" ? "arcstar" : "frag", at);
+      feelBlast(at);
+    }
     else audio.throwNoise(kind, at);
   },
 });
+/** the highest floor under a point, at or below it: where a blast's scorch lies */
+function floorUnder(at: THREE.Vector3): number {
+  let y = 0;
+  for (const s of RANGE_SOLIDS) if (at.x >= s.minX && at.x <= s.maxX && at.z >= s.minZ && at.z <= s.maxZ && s.top <= at.y + 0.3 && s.top > y) y = s.top;
+  return y;
+}
+/** a blast's shake, how hard and since when (hud.json blasts) */
+let blastShake = 0;
+let blastShakeAt = -Infinity;
+/**
+ * A grenade gone off, felt: the view shakes within its radius (falling off
+ * with the square of the distance; the screen-shake setting scales it, and
+ * Off turns it off), your ears ring close to it, and it leaves a scorch and a
+ * column of smoke. It used to be a ball and a ring for half a second.
+ */
+function feelBlast(at: THREE.Vector3): void {
+  const B = hudCfg.blasts;
+  const d = at.distanceTo(player.eyePosition());
+  if (d < B.shakeRadius) {
+    blastShake = Math.max(gameTime - blastShakeAt < B.shakeTime ? blastShake : 0, blastShakeDeg(d));
+    blastShakeAt = gameTime;
+  }
+  if (d < B.ringRadius) audio.ringing(B.ringTime * (1 - d / B.ringRadius / 2), B.ringHz);
+  impacts.blast(at, floorUnder(at), gameTime);
+}
 /** the afterburn: out of the fire, the rest of the burn lands a bit at a time */
 function updateAfterburns(now: number): void {
   for (const [key, b] of afterburns) {
@@ -2596,7 +2624,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   const modeOpts = myId === 0 ? hostOpts?.mode : opts?.mode;
   if (modeOpts && isModeKind(modeOpts.kind)) {
     const diff: BotDifficulty = asDifficulty(modeOpts.difficulty);
-    d = new ArenaMode(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, kind: modeOpts.kind, bots: modeOpts.bots, difficulty: diff, botWeapon: modeOpts.botWeapon ?? null, list: modeOpts.list === "full" ? "full" : "short", map: arenaFromWire(modeOpts.map) });
+    d = new ArenaMode(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, kind: modeOpts.kind, bots: modeOpts.bots, difficulty: diff, botWeapon: modeOpts.botWeapon ?? null, list: modeOpts.list === "full" ? "full" : "short", map: arenaFromWire(modeOpts.map), split: modeOpts.split === true });
     duel = d;
     // the walls of the map this match is on, which is not always the warehouse now
     player.setBounds(d.arenaBounds);
@@ -2780,7 +2808,7 @@ duelHostBtn.addEventListener("click", () => {
   const mk = duelModeKind();
   hostOpts = {
     abilities: abilitySetting(duelKind()),
-    mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList(), botWeapon: botWeaponChoice(), map: arenaMapChoice(mk, 8) } : undefined,
+    mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList(), botWeapon: botWeaponChoice(), map: arenaMapChoice(mk, 8), split: $<HTMLSelectElement>("modeSides").value === "split" } : undefined,
     map: arenaMapChoice("duel", 2),
   };
   setDuelStatus("Making a match...", "live");
@@ -3831,6 +3859,12 @@ function step(): void {
   // a sideways JOLT leans the view into it
   const jr = joltRoll(gameTime);
   if (jr !== 0) camera.quaternion.multiply(tmpQ.setFromAxisAngle(FORWARD_AXIS, -jr * DEG));
+  // a blast close by shakes the view, dying away; the aim is not moved (hud.json blasts)
+  {
+    const t = gameTime - blastShakeAt;
+    const k = t < hudCfg.blasts.shakeTime ? blastShake * (1 - t / hudCfg.blasts.shakeTime) * SPRINT_SHAKE[sprintShakeMode] : 0;
+    if (k > 0) camera.quaternion.multiply(tmpQ.setFromEuler(new THREE.Euler((Math.random() - 0.5) * 2 * k * DEG, (Math.random() - 0.5) * 2 * k * DEG, 0)));
+  }
   // the shots leave from the eye whichever camera is on
   eye.copy(camera.position);
   aimYaw = player.yaw;
@@ -4796,6 +4830,8 @@ initWelcome();
   tracers: () => projectiles.tracers,
   /** bullet impacts marked on the level since the page opened */
   impacts: () => impacts.count,
+  /** blasts marked on the level (scorch and smoke) since the page opened */
+  blasts: () => impacts.blasts,
   /** a round from the gun in hand along a direction, through the bullets' own path (tools/snap.ts) */
   fireRound: (dir: [number, number, number]) => {
     const w = loadout.active.weapon;

@@ -104,6 +104,12 @@ export interface ArenaModeOpts {
   botWeapon?: string | null;
   /** Gun Run's list */
   list?: "short" | "full";
+  /**
+   * Team modes: the friends split into two sides against each other, the
+   * humans alternating, and bots filling whichever side is short. Unset, every
+   * human is on one side against the bots.
+   */
+  split?: boolean;
   /** the arena (src/game/arena.ts ARENA_MAPS); none is the warehouse, as it always was */
   map?: ArenaMapId | null;
 }
@@ -182,6 +188,8 @@ export class ArenaMode extends Duel {
   private bots: ModeBot[] = [];
   /** team by id (team deathmatch); everyone is team 0 on their own otherwise */
   private teamOf = new Map<number, 0 | 1>();
+  /** team modes: the friends are on two sides (the host's choice) */
+  readonly split: boolean;
   /** Control's zones and scores (the host's; a guest mirrors it in `controlView`), and the zones drawn in the arena */
   private control: Control | null = null;
   private controlView: { v: number[]; owner: number[]; score: [number, number]; bonus: number; bonusLeft: number; lockTeam: number; lockLeft: number } | null = null;
@@ -217,8 +225,10 @@ export class ArenaMode extends Duel {
     this.list = opts.list === "full" ? "full" : "short";
     this.ladder = new GunLadder(gunList(this.list));
     const tdm = teamMode(this.modeKind);
-    // the humans: team 0 in team deathmatch
-    for (let id = 0; id < this.players; id++) this.teamOf.set(id, 0);
+    // the humans: team 0 in a team mode, or alternating when the friends are split
+    const split = tdm && !!opts.split && this.players > 1;
+    this.split = split;
+    for (let id = 0; id < this.players; id++) this.teamOf.set(id, split ? ((id % 2) as 0 | 1) : 0);
     this.crownModel = makeCrown();
     this.crownModel.visible = false;
     scene.add(this.crownModel);
@@ -228,8 +238,18 @@ export class ArenaMode extends Duel {
     // your side with ally bots so the sides are even, which is what "3 bots"
     // means when there are two of you: three against you, one beside you.
     const enemies = Math.max(tdm ? 1 : 0, Math.min(MODES.maxBots, opts.bots));
-    const allies = tdm ? Math.max(0, enemies - this.players) : 0;
-    for (let i = 0; i < allies + enemies; i++) {
+    let allies = tdm ? Math.max(0, enemies - this.players) : 0;
+    let foes = enemies;
+    if (split) {
+      // Split: the bots even the two sides up. The side size is the larger
+      // side of humans, or half of everyone if the bots asked for take it past.
+      const h0 = Math.ceil(this.players / 2);
+      const h1 = Math.floor(this.players / 2);
+      const side = Math.max(h0, Math.ceil((this.players + Math.min(MODES.maxBots, opts.bots)) / 2));
+      allies = side - h0;
+      foes = side - h1;
+    }
+    for (let i = 0; i < allies + foes; i++) {
       const team: 0 | 1 = tdm && i >= allies ? 1 : 0;
       const id = Duel.BOT_ID + i;
       const gun = this.modeKind === "gunrun" ? this.ladder.guns[0] : (opts.botWeapon || BOT_WEAPONS[i % BOT_WEAPONS.length]);

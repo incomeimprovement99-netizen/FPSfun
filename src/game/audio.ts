@@ -41,6 +41,8 @@ export class GameAudio {
   private master: GainNode | null = null;
   private fxBus: GainNode | null = null;
   private hitBus: GainNode | null = null;
+  /** the world's low-pass, open until a blast close by muffles it */
+  private muffle: BiquadFilterNode | null = null;
   /** your own gun: its own bus and compressor, joined after the master one (audio.json ownGun) */
   private ownBus: GainNode | null = null;
   private reverbSend: GainNode | null = null;
@@ -142,7 +144,11 @@ export class GameAudio {
         comp.release.value = 0.18;
         comp.connect(ctx.destination);
         this.master = ctx.createGain();
-        this.master.connect(comp);
+        // wide open, until a blast close by muffles the world (ringing())
+        this.muffle = ctx.createBiquadFilter();
+        this.muffle.type = "lowpass";
+        this.muffle.frequency.value = 20000;
+        this.master.connect(this.muffle).connect(comp);
         this.fxBus = ctx.createGain();
         this.fxBus.connect(this.master);
         this.hitBus = ctx.createGain();
@@ -484,6 +490,22 @@ export class GameAudio {
     if (!v) return;
     this.tone(v.input, v.t, 0.03, "square", 900, 900, 0.12);
     this.noise(v.input, v.t, 0.02, "highpass", 4000, 1, 0.1);
+  }
+
+  /**
+   * A blast close by: the world muffled to `hz` and a thin high ring over it,
+   * opening back up over `seconds`.
+   */
+  ringing(seconds: number, hz: number): void {
+    const ctx = this.ensure();
+    if (!ctx || !this.muffle) return;
+    const t = ctx.currentTime;
+    const f = this.muffle.frequency;
+    f.cancelScheduledValues(t);
+    f.setValueAtTime(hz, t);
+    f.exponentialRampToValueAtTime(20000, t + seconds);
+    const v = this.voice(null, seconds, "hit", 2, 0);
+    if (v) this.tone(v.input, v.t, seconds, "sine", 3400, 3300, 0.035, 0.05);
   }
 
   /**
