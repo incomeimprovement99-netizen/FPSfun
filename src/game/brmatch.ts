@@ -1877,7 +1877,8 @@ export class BrMatch extends Duel {
     if (this.ended) return;
     const now = wallClock();
     if (this.phase === "matchEnd" && now >= this.endAt) {
-      this.leave();
+      // over: the links stay open, for the group's next match (main's endMatch takes them)
+      this.finish(this.placement ? this.placedText(this.placement) : "The battle royale is over.");
       return;
     }
     // the ship flies on every browser, on its own clock

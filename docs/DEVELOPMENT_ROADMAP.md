@@ -1269,3 +1269,21 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   cone rightly does not see (the check now says what the bot saw when it fails, which is how this was found); it
   stands the player in front of it. The bot-squads check asks for 55 per cent out of a fight (60 to 100 measured,
   nearer 37 with following off).
+
+## Milestone 87 — The group stays together, and one table at the end ✅
+2026-09-19 (Phase 15). `duel.ts`, `brmatch.ts`, `hud.ts`, `main.ts`, `index.html`.
+- A match used to end by closing every connection, so a night of eight friends meant a new code for all eight after
+  every battle royale. A match that runs to its end now hands its links back (`Duel.takeLinks`), open and with
+  nothing of the old match listening: the host keeps its friends', a guest its link to the host. The host's Friends
+  tab offers **Play again with N**; it reads the tab as it stands (the settings code a new match uses, now one
+  function), gives the friends fresh ids from 1 so one who left leaves no gap, and sends each the same welcome a new
+  code would. A guest waiting in the group starts on that welcome. **Leave the group** closes the links; a host that
+  leaves tells everyone, and the last friend leaving ends the group.
+- The host's code stops taking new people while the group waits, so a stranger with the old code cannot slip in.
+- A finished battle royale no longer leaves the match to end it (which closed the links); it finishes in place.
+- The end screen with friends carries one table: every player's kills, damage and place, sent by the host as one
+  effect message when the match ends.
+- Checks: the e2e `brsolo` section (the end table lists both, then both are back in the range with the host offered
+  Play again with 2 and the guest told the group is together, and the host's click puts both into Gun Run as host and
+  player 1 with no new code).
+

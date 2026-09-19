@@ -2980,6 +2980,19 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
   const ends = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel()?.phase === "matchEnd"`, { polling: 100, timeout: 8000 }).then(() => true, () => false)));
   const placed = await Promise.all([host, guest].map((p) => ev<{ p: number | null; of: number } | null>(p, "(() => { const d = window.__range.duel(); return d ? { p: d.placement, of: d.squadsTotal } : null; })()")));
   check("solo with a friend: the host wins, and the guest placed last of the seven sides", ends.every(Boolean) && placed[0]?.p === 1 && placed[1]?.p === 7 && placed[1]?.of === 7, JSON.stringify({ ends, placed }));
+  // one table at the end, both lines on it
+  const table = await host.waitForFunction("(window.__range.hud.last?.summary?.table ?? []).length === 2", { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  const rows = await ev(host, "window.__range.hud.last?.summary?.table ?? null");
+  check("the end table: the host's card lists both players, placed", table, JSON.stringify(rows));
+  // the group stays together: once the end screen is over nobody needs a new code for the next match
+  const back = await Promise.all([host, guest].map((p) => p.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 30000 }).then(() => true, () => false)));
+  const offer = await ev<{ shown: boolean; text: string }>(host, `(() => { const b = document.getElementById("duelAgain"); return { shown: !b.hidden, text: b.textContent }; })()`);
+  const told = await ev<string>(guest, `document.getElementById("duelStatus").textContent`);
+  check("the group: back in the range, the host is offered Play again with both, and the guest told the group is still together", back.every(Boolean) && offer.shown && offer.text.includes("2") && told.includes("still together"), JSON.stringify({ back, offer, told }));
+  await ev(host, `(() => { document.getElementById("duelMode").value = "gunrun"; document.getElementById("duelMode").dispatchEvent(new Event("change")); document.getElementById("duelAgain").click(); })()`);
+  const again = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel()?.modeKind === "gunrun"`, { polling: 200, timeout: 15000 }).then(() => true, () => false)));
+  const who = await Promise.all([host, guest].map((p) => ev<{ role: string; id: number } | null>(p, "(() => { const d = window.__range.duel(); return d ? { role: d.role, id: d.id } : null; })()")));
+  check("the group: the host's Play again puts both straight into Gun Run, on the links they had", again.every(Boolean) && who[0]?.role === "host" && who[1]?.role === "guest" && who[1]?.id === 1, JSON.stringify({ again, who }));
   await host.close();
   await guest.close();
 }

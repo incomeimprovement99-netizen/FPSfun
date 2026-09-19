@@ -233,6 +233,13 @@ window.addEventListener(
   },
   { capture: true }
 );
+/**
+ * The end of a match with friends: each player sends their line (kills,
+ * damage, place; deaths as the count) as an effect when their match ends,
+ * and everyone's card shows one table of all of them. It used to show your
+ * own numbers alone.
+ */
+const endTable = new Map<number, { name: string; kills: number; damage: number; place: number }>();
 /** the last match's result, for the summary card while it shows */
 let lastSummary: { at: number; kind: string; s: MatchSummary; a: Award; xpBefore: number } | null = null;
 /**
@@ -268,6 +275,7 @@ function summaryView(): HudState["summary"] {
     rows,
     xp: L.a.gained,
     lines: L.a.completed.map((c) => `CHALLENGE: ${c.label.toUpperCase()}  +${c.xp}`),
+    table: [{ name: profile.profile.name || "YOU", kills: s.kills, damage: s.damage, place: s.placement ?? (s.won ? 1 : 2), you: true }, ...[...endTable.values()].map((r) => ({ ...r, you: false }))].sort((a, b) => a.place - b.place || b.kills - a.kills || b.damage - a.damage),
     level: lv.level,
     bar: lv.need ? lv.into / lv.need : 1,
     levelUp: L.a.levelAfter > L.a.levelBefore && t >= 1,
@@ -1297,6 +1305,14 @@ const threatTargets = [...dummies, ...courseEnemies];
 // ---------- matches: 1v1, 1v1v1 (src/game/duel.ts, src/net/link.ts), bots (src/game/bots.ts) ----------
 let duel: MatchLike | null = null;
 let hosting: HostHandle | null = null;
+/**
+ * The group between matches. A match used to end by dropping every
+ * connection, so the next one needed a new code for all eight. Now a match
+ * that ended (not one left) hands its links back: the host keeps its
+ * friends' (by id), a guest its link to the host, and the host's Play again
+ * starts the next match on them.
+ */
+let party: { guests: Map<number, Link> } | { host: Link } | null = null;
 let cancelJoin: (() => void) | null = null;
 /** knocked in a match: the controller gets no keys until the next round */
 const NO_INPUT: MoveInput = { held: () => false, pressedNow: () => false };
@@ -1506,8 +1522,66 @@ function setDuelStatusText(text: string, cls = ""): void {
   duelStatus.className = `calibMsg ${cls}`;
   duelStatus.textContent = text;
 }
+/** the group kept at a match's end: listening for its next match (a guest) or its members leaving (the host) */
+function keepParty(p: { guests: Map<number, Link> } | { host: Link }): void {
+  party = p;
+  if ("guests" in p) {
+    for (const [id, l] of p.guests)
+      l.onClose = () => {
+        p.guests.delete(id);
+        if (!p.guests.size) leaveParty("Everyone else left the group.");
+        else duelButtons();
+      };
+  } else {
+    p.host.onMessage = (m) => {
+      // the host's next match: the welcome again, on the same link
+      if (m.t !== "welcome" || typeof m.id !== "number" || typeof m.players !== "number") return;
+      party = null;
+      p.host.onClose = null;
+      startDuel(p.host, m.players, m.id, 1, m.br, m.opts);
+    };
+    p.host.onClose = () => leaveParty("The host left the group.");
+  }
+  duelButtons();
+}
+
+/** out of the group: its links closed, and the host's code gone */
+function leaveParty(reason: string): void {
+  const p = party;
+  party = null;
+  if (p && "guests" in p) {
+    for (const l of p.guests.values()) {
+      l.onClose = null;
+      l.close();
+    }
+    hosting?.cancel();
+    hosting = null;
+  } else if (p) {
+    p.host.onClose = null;
+    p.host.onMessage = null;
+    p.host.close();
+  }
+  setDuelStatusText(reason);
+  duelButtons();
+}
+
+/** the host: the group's next match, on what the Friends tab says now, over the links it already has */
+function playAgain(): void {
+  if (duel || !party || !("guests" in party)) return;
+  const links = [...party.guests.entries()].sort((a, b) => a[0] - b[0]).map(([, l]) => l);
+  party = null;
+  readHostSettings();
+  const players = links.length + 1;
+  // ids afresh, 1 up: a friend who left the group leaves no gap
+  links.forEach((l, i) => {
+    l.onClose = null;
+    l.send({ t: "welcome", id: i + 1, players, br: hostBr ?? undefined, opts: hostOpts ?? undefined });
+  });
+  links.forEach((l, i) => startDuel(l, players, 0, i + 1));
+}
+
 function duelButtons(): void {
-  const busy = duel !== null || hosting !== null;
+  const busy = duel !== null || hosting !== null || party !== null;
   duelHostBtn.hidden = busy;
   duelJoinBtn.hidden = busy;
   duelCode.hidden = busy;
@@ -1517,10 +1591,17 @@ function duelButtons(): void {
   const d = duel instanceof Duel ? duel : null;
   const short = !!d && !!hosting && d.role === "host" && d.phase === "waiting" && d.mode !== "duel" && d.connected >= 1 && d.connected < d.players - 1;
   duelStartNowBtn.hidden = !short;
+  // the host of a kept group: another match on the same links
+  const again = !duel && party !== null && "guests" in party;
+  duelAgainBtn.hidden = !again;
+  if (again && party && "guests" in party) duelAgainBtn.textContent = `Play again with ${party.guests.size + 1}`;
+  duelLeaveBtn.textContent = !duel && party ? "Leave the group" : "Leave match";
   renderRoster();
   if (short && d) duelStartNowBtn.textContent = `Start with ${d.connected + 1}`;
 }
 const duelStartNowBtn = $<HTMLButtonElement>("duelStartNow");
+const duelAgainBtn = $<HTMLButtonElement>("duelAgain");
+duelAgainBtn.addEventListener("click", () => playAgain());
 /**
  * The host's lobby: each friend in, whether they have clicked Play, their
  * ping, and a button to take them out. The status line only said "3 of 7
@@ -2561,6 +2642,11 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     }
     // a squad mate scanned a Ring Console: the circle after next is on our map too
     // someone's emote: their figure plays it (or stops)
+    // someone's line for the end table
+    if (k === "sum" && a && duel) {
+      endTable.set(from, { name: duel.nameFor(from) ?? `PLAYER ${from + 1}`, kills: Math.max(0, Math.round(a.x)), damage: Math.max(0, a.y), place: Math.max(0, Math.round(a.z)) });
+      return;
+    }
     // someone's banner card
     if (k === "banner" && typeof n === "number") {
       remoteBanners.set(from, n);
@@ -2723,7 +2809,10 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     };
   }
   d.streak = profile.match(kind).streak;
+  endTable.clear();
   d.onMatchEnd = (s) => {
+    // your line for everyone's end table (the others' arrive as theirs end)
+    d.localFx("sum", new THREE.Vector3(s.kills, Math.round(s.damage), s.placement ?? (s.won ? 1 : 2)), undefined, s.deaths);
     profile.recordMatch(kind, s);
     // what the match earned: XP, a level, any challenge it finished
     const award = progress.award(kind as MatchKind, s);
@@ -2892,6 +2981,12 @@ const brDifficulty = (): BotDifficulty => asDifficulty(botDifficulty.value);
 const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
+  // a match that ran to its end keeps the group: its links, handed back open
+  if (duel instanceof Duel && duel.phase === "matchEnd") {
+    const { guests, host } = duel.takeLinks();
+    if (duel.role === "host" && guests.size) keepParty({ guests });
+    else if (duel.role === "guest" && host) keepParty({ host });
+  }
   // a loadout picked during the last fight comes on now; the range's heal kit is full again
   if (pendingSlots) {
     pendingSlots.forEach((id, i) => loadout.setWeaponId(i, id));
@@ -2937,12 +3032,29 @@ function endMatch(reason: string): void {
     applyLoadout(loadouts.current);
     brPlay.reset();
   }
-  hosting?.cancel();
-  hosting = null;
+  // the host's code stays open behind a kept group (no new friends join it); otherwise it goes
+  if (party && "guests" in party) hosting?.stopAccepting();
+  else {
+    hosting?.cancel();
+    hosting = null;
+  }
   hud.notice(reason.toUpperCase(), gameTime, 3);
-  setDuelStatusText(reason);
+  const together = !party ? "" : "guests" in party ? " Your group is still here: pick the next match above and Play again." : " Your group is still together: the host starts the next match.";
+  setDuelStatusText(reason + together);
   duelButtons();
   goTo("range");
+}
+/** what the host's match will be, from the Friends tab as it stands: read when a match is made, and again for the group's next one */
+function readHostSettings(): void {
+  // a battle royale squad: the place, the bots, the difficulty and the squad
+  // size are fixed now so every guest is told the same
+  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId(), rules: brRulesId() } : null;
+  const mk = duelModeKind();
+  hostOpts = {
+    abilities: abilitySetting(duelKind()),
+    mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList(), botWeapon: botWeaponChoice(), map: arenaMapChoice(mk, 8), split: $<HTMLSelectElement>("modeSides").value === "split" } : undefined,
+    map: arenaMapChoice("duel", 2),
+  };
 }
 /** this page's address with ?join=CODE: opening it joins that match (other flags, like ?net=local, ride along) */
 function inviteLink(code: string): string {
@@ -2954,15 +3066,7 @@ duelHostBtn.addEventListener("click", () => {
   if (duel || hosting) return;
   cancelJoin?.();
   const players = Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
-  // a battle royale squad: the place, the bots, the difficulty and the squad
-  // size are fixed now so every guest is told the same
-  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId(), rules: brRulesId() } : null;
-  const mk = duelModeKind();
-  hostOpts = {
-    abilities: abilitySetting(duelKind()),
-    mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList(), botWeapon: botWeaponChoice(), map: arenaMapChoice(mk, 8), split: $<HTMLSelectElement>("modeSides").value === "split" } : undefined,
-    map: arenaMapChoice("duel", 2),
-  };
+  readHostSettings();
   setDuelStatus("Making a match...", "live");
   hosting = hostMatch(
     players,
@@ -2989,7 +3093,7 @@ duelHostBtn.addEventListener("click", () => {
       duelButtons();
     },
     hostBr ?? undefined,
-    hostOpts
+    hostOpts ?? undefined
   );
   duelButtons();
   // the lobby is the arena itself: in at once, run around, the code on the
@@ -3027,6 +3131,7 @@ duelCode.addEventListener("keydown", (e) => {
 });
 duelLeaveBtn.addEventListener("click", () => {
   if (duel) duel.leave();
+  else if (party) leaveParty("You left the group.");
   else if (hosting) {
     hosting.cancel();
     hosting = null;

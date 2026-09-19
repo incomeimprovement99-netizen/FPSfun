@@ -81,6 +81,14 @@ filling in — the bot count you pick is the side you **face**, and a team mode
 fills your side to match. The **Bot guns** box gives every bot the same gun if
 you want a shotgun-only night.
 
+**The group stays together.** When a battle royale ends (or any match runs to
+its end screen and closes), nobody is sent back to swap codes: the host's
+Friends tab shows **Play again with N**. Pick the next mode and settings on
+the tab and click it, and everyone goes straight into the new match on the
+connections they already have. **Leave the group** drops out; if the host
+leaves, everyone is told. The end screen of a match with friends carries one
+table of everybody: kills, damage and where each placed.
+
 **Three players**: pick "3 players" before Create match; both friends open
 the same link; it starts once all three have clicked Play. The map is a
 triangle with a corner each. A guest leaving before round 1 frees their

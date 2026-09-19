@@ -1528,6 +1528,27 @@ export class Duel implements MatchLike {
     this.onEnd?.(reason);
   }
 
+  /**
+   * The match is over and the group stays together: its links, handed back
+   * open, with nothing of this match left listening on them (the host's,
+   * by guest id; a guest's, its link to the host).
+   */
+  takeLinks(): { guests: Map<number, Link>; host: Link | null } {
+    const guests = new Map(this.links);
+    for (const l of guests.values()) {
+      l.onMessage = null;
+      l.onClose = null;
+    }
+    const host = this.hostLink;
+    if (host) {
+      host.onMessage = null;
+      host.onClose = null;
+    }
+    this.links.clear();
+    this.hostLink = null;
+    return { guests, host };
+  }
+
   /** leave: tell the others, remove the figures */
   leave(): void {
     for (const l of this.links.values()) l.close();

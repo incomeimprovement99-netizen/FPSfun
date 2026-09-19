@@ -132,6 +132,8 @@ export interface HudState {
     bar: number;
     levelUp: boolean;
     alpha: number;
+    /** everyone in the match, as each sent it at the end: you among them */
+    table?: Array<{ name: string; kills: number; damage: number; place: number; you: boolean }>;
   } | null;
   /** 0..1: the gun's wind-up, charge, aimed charge, choke or burst charge (a ring round the crosshair) */
   gunCharge?: number;
@@ -1356,6 +1358,26 @@ export class Hud {
     c.fillStyle = "#ffd23c";
     c.fillRect(x + 24 * u, ry + 4 * u, bw * Math.max(0, Math.min(1, m.bar)), 8 * u);
     this.text(m.levelUp ? `LEVEL ${m.level}  ·  LEVEL UP` : `LEVEL ${m.level}`, this.w / 2, ry + 32 * u, 700, 14 * u, m.levelUp ? "#ffd23c" : DIM, "center");
+    // everyone's line, under the card: a match with friends ends on one table, not on your numbers alone
+    const t = m.table ?? [];
+    if (t.length > 1) {
+      const ty = y + h + 10 * u;
+      const th = (30 + t.length * 22) * u;
+      c.fillStyle = "rgba(10,13,16,0.86)";
+      c.fillRect(x, ty, w, th);
+      this.text("PLAYER", x + 24 * u, ty + 20 * u, 700, 12 * u, DIM);
+      this.text("KILLS", x + w * 0.62, ty + 20 * u, 700, 12 * u, DIM, "right");
+      this.text("DAMAGE", x + w * 0.82, ty + 20 * u, 700, 12 * u, DIM, "right");
+      this.text("PLACE", x + w - 24 * u, ty + 20 * u, 700, 12 * u, DIM, "right");
+      t.forEach((r, i) => {
+        const yy = ty + (42 + i * 22) * u;
+        const col = r.you ? "#ffd23c" : WHITE;
+        this.text(r.name, x + 24 * u, yy, 700, 14 * u, col);
+        this.text(String(r.kills), x + w * 0.62, yy, 700, 14 * u, col, "right");
+        this.text(String(Math.round(r.damage)), x + w * 0.82, yy, 700, 14 * u, col, "right");
+        this.text(r.place > 0 ? `#${r.place}` : "-", x + w - 24 * u, yy, 700, 14 * u, col, "right");
+      });
+    }
     c.restore();
   }
 
