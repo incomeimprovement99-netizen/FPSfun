@@ -32,19 +32,25 @@
 // zipline.
 import * as THREE from "three";
 import cfg from "../config/throwables.json";
+import paintCfg from "../config/paint.json";
 import squad from "../config/squad.json";
 import { RANGE_SOLIDS } from "./range";
 import { solidHit } from "./projectile";
 
-export type ThrowKind = "frag" | "arcstar" | "thermite" | "shockwave" | "rift";
+export type ThrowKind = "frag" | "arcstar" | "thermite" | "shockwave" | "rift" | "speedpaint" | "jumppaint";
 /**
  * The order is the wire's: throwCode is the index, so the two charges go on
  * the end and an older build's 0, 1 and 2 still mean what they always meant.
  */
-export const THROW_KINDS: ThrowKind[] = ["frag", "arcstar", "thermite", "shockwave", "rift"];
+export const THROW_KINDS: ThrowKind[] = ["frag", "arcstar", "thermite", "shockwave", "rift", "speedpaint", "jumppaint"];
 /** the two that move people instead of hurting them */
 export type MobilityKind = "shockwave" | "rift";
 export const MOBILITY_KINDS: MobilityKind[] = ["shockwave", "rift"];
+/** the two that paint the ground instead of landing on it (src/config/paint.json) */
+export type PaintKind = "speed" | "jump";
+export const PAINT_KINDS: ThrowKind[] = ["speedpaint", "jumppaint"];
+export const isPaintThrow = (x: unknown): x is ThrowKind => x === "speedpaint" || x === "jumppaint";
+export const PAINT = paintCfg;
 export const THROWABLES = cfg;
 /** the roads' launch pads, borrowed whole: a shockwave charge is one of these you carry */
 export const PAD_LAUNCH = squad.pad;
@@ -238,6 +244,26 @@ export interface Rift {
   mesh: THREE.Object3D | null;
 }
 
+/**
+ * A patch of paint (src/config/paint.json): where it struck, which way the
+ * surface it stuck to faces, and what it does to whoever stands in it. A
+ * floor patch is a disc on the ground; a wall patch faces out of the wall and
+ * is there for a climb rather than a run.
+ */
+export interface Paint {
+  owner: number;
+  mine: boolean;
+  kind: PaintKind;
+  at: THREE.Vector3;
+  /** the surface's normal: up for a floor, out of the wall for a wall */
+  normal: THREE.Vector3;
+  radius: number;
+  /** a wall patch boosts a climb, a floor patch a run */
+  wall: boolean;
+  until: number;
+  mesh: THREE.Object3D | null;
+}
+
 /** anyone a charge could move: the match's id for them, where their feet are, and whether they are down */
 export interface Mover {
   id: number;
@@ -251,6 +277,42 @@ function facing(vel: THREE.Vector3, or: THREE.Vector3): THREE.Vector3 {
   if (flat.lengthSq() < 1e-6) flat.copy(or).setY(0);
   if (flat.lengthSq() < 1e-6) flat.set(0, 0, 1);
   return flat.normalize();
+}
+
+/**
+ * Paint where a bomb struck. `normal` is the face it stuck to, so a patch on
+ * a wall knows it is on a wall: a wall patch is no use underfoot and a floor
+ * patch is no use to a climb, and neither pretends otherwise.
+ */
+export function makePaint(owner: number, mine: boolean, kind: PaintKind, at: THREE.Vector3, normal: THREE.Vector3, now: number): Paint {
+  const wall = Math.abs(normal.y) < 0.5;
+  return {
+    owner,
+    mine,
+    kind,
+    at: at.clone(),
+    normal: normal.clone().normalize(),
+    radius: wall ? paintCfg.radius.wall : paintCfg.radius.floor,
+    wall,
+    until: now + paintCfg.life.seconds,
+    mesh: null,
+  };
+}
+
+/**
+ * The paint under a pair of feet: the newest patch they are standing in, or
+ * null. Only floor patches count, and only within a boot's height of the
+ * ground the patch is on, so paint on a roof is not paint in the room below.
+ */
+export function paintUnder(paints: Paint[], feet: THREE.Vector3): Paint | null {
+  let best: Paint | null = null;
+  for (const p of paints) {
+    if (p.wall) continue;
+    if (Math.abs(feet.y - p.at.y) > 1.2) continue;
+    if (Math.hypot(feet.x - p.at.x, feet.z - p.at.z) > p.radius) continue;
+    if (!best || p.until > best.until) best = p;
+  }
+  return best;
 }
 
 /** a shockwave charge planted at `at`, facing `face`, from a landing at `now` */
@@ -324,6 +386,8 @@ export interface ThrowEvents {
    * wants to ping it on the map, name it in the HUD or give it its own noise.
    */
   onDeploy?: (kind: MobilityKind, what: Shockwave | Rift) => void;
+  /** paint went down (src/config/paint.json): the page can sound it or mark it */
+  onPaint?: (p: Paint) => void;
 }
 
 /** the arc a throw takes from `from` with `vel`, until it touches something (the preview) */
@@ -355,6 +419,8 @@ export class Throwables {
   /** the charges lying about: pads to stand on and rifts to walk into */
   pads: Shockwave[] = [];
   rifts: Rift[] = [];
+  /** the paint on the floors and walls (src/config/paint.json) */
+  paints: Paint[] = [];
   private flashes: Array<{ obj: THREE.Mesh; ring: THREE.Mesh; born: number; life: number; size: number }> = [];
   private readonly mats: Record<ThrowKind, THREE.Material>;
   private readonly blink = new THREE.MeshBasicMaterial({ color: 0xff3020 });
@@ -374,7 +440,11 @@ export class Throwables {
       // the roads' pads are amber and the charge that copies them is amber too,
       // so a player reads it as the same thing without being told
       shockwave: new THREE.MeshStandardMaterial({ color: 0xffc21a, emissive: 0xc07800, emissiveIntensity: 1.1, roughness: 0.4, metalness: 0.5 }),
-      rift: new THREE.MeshStandardMaterial({ color: 0xc9a6ff, emissive: 0x7a3cff, emissiveIntensity: 1.3, roughness: 0.3, metalness: 0.4 }),
+          rift: new THREE.MeshStandardMaterial({ color: 0xc9a6ff, emissive: 0x7a3cff, emissiveIntensity: 1.3, roughness: 0.3, metalness: 0.4 }),
+      // orange for speed and blue for jump, the way Empulse reads them, and
+      // the same two colours on the bomb in the air and the paint on the floor
+      speedpaint: new THREE.MeshStandardMaterial({ color: 0xff8a2a, emissive: 0xc04000, emissiveIntensity: 1.2, roughness: 0.5, metalness: 0.2 }),
+      jumppaint: new THREE.MeshStandardMaterial({ color: 0x4ab8ff, emissive: 0x0060c0, emissiveIntensity: 1.2, roughness: 0.5, metalness: 0.2 }),
     };
     this.arc = new THREE.InstancedMesh(new THREE.SphereGeometry(0.028, 8, 6), new THREE.MeshBasicMaterial({ color: 0xfff2a8, transparent: true, opacity: 0.9, depthTest: false }), ARC_DOTS);
     this.arc.renderOrder = 10;
@@ -564,6 +634,10 @@ export class Throwables {
               this.events.onSound("stick", t.pos, t.kind);
             } else if (t.kind === "thermite") {
               this.ignite(t, now);
+            } else if (isPaintThrow(t.kind)) {
+              // a paint bomb that hits a body bursts under them: it is paint,
+              // not a weapon, and the floor is what it was aimed at
+              this.splat(t, now, new THREE.Vector3(0, 1, 0), tg.feet.y);
             } else if (t.kind === "shockwave" || t.kind === "rift") {
               // a charge that hits someone sets up on them, which is a fair
               // thing to do to a person standing where you wanted a pad
@@ -578,12 +652,16 @@ export class Throwables {
         if (t.stuck || t.done) break;
         // the world, an axis at a time: the axis that runs into something is the one that bounces
         let touched = false;
+        // the face it struck, from the axis that stopped it: a floor and a
+        // wall take paint differently
+        const normal = new THREE.Vector3();
         for (const axis of ["x", "y", "z"] as const) {
           const before = t.pos[axis];
           t.pos[axis] += t.vel[axis] * h;
           if (!solidAt(t.pos.x, t.pos.y, t.pos.z)) continue;
           t.pos[axis] = before;
           touched = true;
+          normal[axis] = t.vel[axis] > 0 ? -1 : 1;
           if (t.kind === "frag") {
             const speed = Math.abs(t.vel[axis]);
             t.vel[axis] *= -c.frag.bounce;
@@ -603,6 +681,7 @@ export class Throwables {
           t.fuseAt = now + c.arcstar.fuse;
           this.events.onSound("stick", t.pos, t.kind);
         } else if (touched && t.kind === "thermite") this.ignite(t, now);
+        else if (touched && isPaintThrow(t.kind)) this.splat(t, now, normal);
         else if (touched && (t.kind === "shockwave" || t.kind === "rift")) this.deploy(t, now);
       }
     }
@@ -643,6 +722,40 @@ export class Throwables {
       this.events.onSound("stick", ground, t.kind);
       this.events.onDeploy?.("rift", r);
     }
+  }
+
+  /**
+   * A paint bomb strikes: the paint goes on the face it hit, the bomb is
+   * gone, and anyone can use it from now on. `floorY` puts a patch thrown at
+   * a body on the ground under them rather than in the air at their chest.
+   */
+  private splat(t: Thrown, now: number, normal: THREE.Vector3, floorY?: number): void {
+    t.done = true;
+    const kind: PaintKind = t.kind === "jumppaint" ? "jump" : "speed";
+    const at = t.pos.clone();
+    if (floorY !== undefined) at.y = floorY;
+    else if (normal.y > 0.5) at.y = Math.max(0, at.y - R);
+    const p = makePaint(t.owner, t.mine, kind, at, normal.lengthSq() > 0 ? normal : new THREE.Vector3(0, 1, 0), now);
+    p.mesh = this.paintMesh(p);
+    this.group.add(p.mesh);
+    this.paints.push(p);
+    this.events.onSound("stick", at, t.kind);
+    this.events.onPaint?.(p);
+  }
+
+  /** the paint on the ground: a disc lying on the face it stuck to, its colour its kind */
+  private paintMesh(p: Paint): THREE.Object3D {
+    const disc = new THREE.Mesh(geo().disc, this.mats[p.kind === "jump" ? "jumppaint" : "speedpaint"]);
+    disc.scale.set(p.radius, 1, p.radius);
+    const g = new THREE.Group();
+    g.add(disc);
+    g.position.copy(p.at).addScaledVector(p.normal, 0.02);
+    // a disc lies flat by default, so a wall patch is tipped onto the wall
+    if (p.wall) {
+      const up = new THREE.Vector3(0, 1, 0);
+      g.quaternion.setFromUnitVectors(up, p.normal);
+    }
+    return g;
   }
 
   /** a planted shockwave: a plate the size of its reach with a chevron pointing the way it throws */
@@ -703,6 +816,19 @@ export class Throwables {
     this.rifts = this.rifts.filter((r) => {
       if (now >= r.until) r.mesh?.removeFromParent();
       return now < r.until;
+    });
+    // paint dries: it fades over its last seconds so nobody is surprised by a
+    // patch that was carrying them a moment ago
+    for (const p of this.paints) {
+      const mat = (p.mesh?.children[0] as THREE.Mesh | undefined)?.material as THREE.Material | undefined;
+      if (!mat) continue;
+      const left = p.until - now;
+      mat.transparent = true;
+      mat.opacity = Math.min(1, Math.max(0, left / paintCfg.life.fade));
+    }
+    this.paints = this.paints.filter((p) => {
+      if (now >= p.until) p.mesh?.removeFromParent();
+      return now < p.until;
     });
   }
 
@@ -806,7 +932,7 @@ export class Throwables {
  * range has no count (`endless`).
  */
 export class Ordnance {
-  counts: Record<ThrowKind, number> = { frag: 0, arcstar: 0, thermite: 0, shockwave: 0, rift: 0 };
+  counts: Record<ThrowKind, number> = { frag: 0, arcstar: 0, thermite: 0, shockwave: 0, rift: 0, speedpaint: 0, jumppaint: 0 };
   endless = true;
   /** the one in hand, and when its pin was out (ready to throw), or null */
   readied: { kind: ThrowKind; readyAt: number } | null = null;
@@ -829,12 +955,13 @@ export class Ordnance {
 
   /** how many of a kind you can carry: the charges carry their own number, everything else the shared one */
   static stackOf(k: ThrowKind): number {
+    if (isPaintThrow(k)) return paintCfg.throw.stack;
     return k === "shockwave" ? cfg.shockwave.stack : k === "rift" ? cfg.rift.stack : cfg.stack;
   }
 
   /** seconds until another of this kind can be readied (0: now) */
   cooldownLeft(k: ThrowKind, now: number): number {
-    const gap = k === "shockwave" ? cfg.shockwave.cooldown : k === "rift" ? cfg.rift.cooldown : 0;
+    const gap = isPaintThrow(k) ? paintCfg.throw.cooldown : k === "shockwave" ? cfg.shockwave.cooldown : k === "rift" ? cfg.rift.cooldown : 0;
     const last = this.thrownAt[k];
     return last === undefined ? 0 : Math.max(0, last + gap - now);
   }

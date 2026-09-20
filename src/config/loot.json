@@ -1,6 +1,15 @@
 {
   "_bins": "Supply bins (src/game/loot.ts, brmatch.ts, brplay.ts). Ours, after Apex's: a place has perPlace spots for one and a site perSite, each there with chance from the match seed, so a place is rich one match and thin the next. A closed bin hums (heard to humHear metres) and is opened by holding E for hold seconds, loud enough to be heard at openHear; it throws out spots rolls of the tier table, the first to open it takes nothing but gets first pick, and it stays open for the match.",
-  "bins": { "perPlace": 2, "perSite": 1, "chance": 0.7, "spots": 2, "tier": "high", "hold": 0.7, "humHear": 40, "openHear": 70 },
+  "bins": {
+    "perPlace": 2,
+    "perSite": 1,
+    "chance": 0.7,
+    "spots": 2,
+    "tier": "high",
+    "hold": 0.7,
+    "humHear": 40,
+    "openHear": 70
+  },
   "_note": "Battle royale loot (ours: Apex's loot tables are not published). Spots per place and what each spot holds, rarity weights, and what each rarity holds. Care-package guns per Season 30: the Kraber, the 30-30 and the L-STAR (docs/RESEARCH_PHASE_11.md sections 10, 11, 15). Ammo amounts are one stack of the type, from src/config/ammo.json.",
   "_density": "The owner's note, 2026-09-16: 'there needs to be much less open space and more loot, like guns available'. The places now have buildings with floors and rooms to put loot IN (src/game/brpoi.ts), so a place carries a lot of spots (its tier's) and a spot holds about three items. The field keeps fewer, so the reason to go indoors is the loot: a landing that finds nothing is the complaint this fixes. The old single spotsPerPoi and itemsPerSpot are gone: a place's spot count is its tier's now, and a spot's contents are its kind's.",
   "fieldSpots": 2,
@@ -394,7 +403,10 @@
     "arcstar",
     "thermite",
     "shockwave",
-    "rift"
+    "rift",
+    "speedpaint",
+    "speedpaint",
+    "jumppaint"
   ],
   "weapons": {
     "common": [

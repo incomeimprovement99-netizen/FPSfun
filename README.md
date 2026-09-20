@@ -902,6 +902,18 @@ so Competitive really does less work rather than only seeing less far: a third
 fewer triangles than Balanced from the map's corner, with the boxed rock the map
 already drew standing in beyond 126 m.
 
+**PAINT: the chain.** Two bombs in the grenade slots (G cycles to them, or
+pick them up in a battle royale) that splash a patch of paint over whatever
+they land on. **Orange** makes you faster and gets you there faster while your
+feet are on it; **blue** sends a jump that leaves from it half again as high.
+The point is not the patch, it is what you carry off it: the speed boost
+decays over 1.2 s after you leave, so a run over the orange into a slide into a
+jump into a lurch is one movement instead of four, and the speed readout turns
+the colour of what you are carrying. Anybody can use anybody's paint, it lasts
+25 s, and it changes nothing about the movement when none is down: every Apex
+number in `docs/MOVEMENT_AUDIT.md` is measured with a bare floor. Empulse's
+P.A.I.N.T. bombs are where the idea comes from.
+
 **Frame rate is capped by your screen, not the game.** A browser draws only
 when the display can show a frame, so a 60 Hz monitor means 60 fps. The game
 itself runs at 800+ fps on the Competitive preset on the owner's RX 9070 XT.

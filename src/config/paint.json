@@ -1,0 +1,31 @@
+{
+  "_note": "PAINT, the movement chain's own throwable (docs/PLAN_MOVEMENT_CHAIN.md, src/game/throwables.ts). A bomb that splashes a patch of paint over whatever it lands on: orange speeds you up, blue sends you higher. The point is not the patch, it is what you carry off it: a boost decays over `carry` seconds after you leave rather than ending with the ground, so a run over the orange into a slide into a jump into a lurch is one movement instead of four. Empulse does this with P.A.I.N.T. bombs; Apex gets the same feeling out of slide, jump and lurch alone, and this gives our chain something to spend. The numbers are ours, tuned so that a chain beats a straight run by about a third over 40 m and so that nothing exceeds the lurch speed cap (1200 hu/s), which is where Apex's air control stops.",
+  "radius": {
+    "_note": "How far the paint reaches from where the bomb struck, metres. A patch is wide enough to be hit at a run without being aimed at, and small enough that a squad has to choose where the rotation goes.",
+    "floor": 3.6,
+    "wall": 2.6
+  },
+  "life": {
+    "_note": "Seconds the paint lasts before it dries, and the seconds of it that are spent fading out. A patch outlives a fight in the open and not a rotation across the map.",
+    "seconds": 25,
+    "fade": 3
+  },
+  "speed": {
+    "_note": "Orange. `mul` multiplies your top speed and your slide's entry boost while your feet are on it; `accel` multiplies how fast you get there, because a boost you have to walk up to is not a boost. `carry` is how long it takes to decay to nothing once you leave, and it is the whole mechanic: it is what a jump off the end of the patch keeps.",
+    "mul": 1.35,
+    "accel": 1.5,
+    "carry": 1.2
+  },
+  "jump": {
+    "_note": "Blue. A jump that leaves from it goes `mul` times as high, and a climb started from it starts at `climb` times its speed. `grace` is how long after leaving the paint a jump still counts, so the boost is there for the jump you meant rather than the frame you managed. Landing on blue does nothing: it is a boost you take, not a trampoline, which keeps Apex's jump and fatigue rules exactly as they are.",
+    "mul": 1.6,
+    "climb": 1.35,
+    "grace": 0.12
+  },
+  "throw": {
+    "_note": "How it is carried and thrown: how many fit in a slot, how fast it leaves the hand (a little slower than a frag, because it is thrown at the ground in front of you), and how it behaves when it hits. It sticks where it lands rather than rolling, so a patch goes where it was aimed.",
+    "stack": 2,
+    "speed": 16,
+    "cooldown": 6
+  }
+}

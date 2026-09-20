@@ -159,6 +159,17 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "paint",
+    note: "PAINT down the range: orange to run over, blue to jump from, and the speed readout in the colour of what you are carrying",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.input.locked = true; r.player.teleport(0, 0, 6, 180); })()`, 400],
+      [`(() => { const r = window.__range;
+        r.throwAt("speedpaint", new r.THREE.Vector3(0, 0.4, -2), new r.THREE.Vector3(0, -1, 0));
+        r.throwAt("jumppaint", new r.THREE.Vector3(4, 0.4, -7), new r.THREE.Vector3(0, -1, 0)); })()`, 900],
+      [`new Promise((ok) => { const r = window.__range; const t = setInterval(() => { const p = r.throwables.paints[0]; if (!p) return; clearInterval(t); r.player.teleport(p.at.x - 1, p.at.y, p.at.z + 5, 0, -16); ok(0); }, 100); setTimeout(() => { clearInterval(t); ok(0); }, 20000); })`, 600],
+    ],
+  },
+  {
     name: "intro-title",
     note: "the intro card: the name smashed in over the rain",
     steps: [[`(() => { for (let t = 0; t <= 1.1; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],

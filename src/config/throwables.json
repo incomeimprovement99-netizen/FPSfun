@@ -64,7 +64,9 @@
     "arcstar": 1,
     "thermite": 1,
     "shockwave": 0,
-    "rift": 0
+    "rift": 0,
+    "speedpaint": 1,
+    "jumppaint": 1
   },
   "stack": 2,
   "_ready": "seconds from the key to the pin out and ready to throw (ours)",

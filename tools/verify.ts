@@ -61,6 +61,7 @@ import { figLodFails } from "./checks/figlod";
 import { sceneryFails } from "./checks/scenery";
 import { renderBudgetFails } from "./checks/render-budget";
 import { introFails } from "./checks/intro";
+import { paintFails } from "./checks/paint";
 import { HU, MOVE, jumpVelocityFor, slideBreakEvenAngle, SLIDE_RAMP_ANGLE } from "../src/game/movement";
 import { Abilities, JOLT, abilityCode, abilityFromCode } from "../src/game/abilities";
 import itemsCfg from "../src/config/items.json";
@@ -1679,14 +1680,15 @@ console.log("Throwables (src/game/throwables.ts, src/config/throwables.json, Sea
   const o = new Ordnance();
   o.endless = false;
   o.fill("kit");
-  eq("the arena kit: one of each", `${o.counts.frag}/${o.counts.arcstar}/${o.counts.thermite}`, "1/1/1");
+  eq("the arena kit: one of each", `${o.counts.frag}/${o.counts.arcstar}/${o.counts.thermite}/${o.counts.speedpaint}/${o.counts.jumppaint}`, "1/1/1/1/1");
   eq("G readies the first you have", o.cycle(0), "frag");
   eq("again: the next", o.cycle(0), "arcstar");
-  eq("after the last, back to the gun", (o.cycle(0), o.cycle(0)), null);
+  eq("and round the kit, back to the gun at the end", [o.cycle(0), o.cycle(0), o.cycle(0), o.cycle(0)].join(","), "thermite,speedpaint,jumppaint,");
   o.cycle(0);
   eq("a throw spends one", (o.spend(), o.counts.frag), 0);
   eq("with none left G skips it", o.cycle(0), "arcstar");
   eq("a stack holds two", o.add("thermite", 5), 1);
+  eq("and a paint stack two as well", o.add("speedpaint", 5), 1);
 }
 
 console.log("");
@@ -1780,7 +1782,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + mobilityFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + throwStepsFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + resurgenceFails + gulagFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + searchFails + kitsFails + smokeFails + wallsFails + figLodFails + sceneryFails + renderBudgetFails + introFails;
+fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + mobilityFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + throwStepsFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + resurgenceFails + gulagFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + searchFails + kitsFails + smokeFails + wallsFails + figLodFails + sceneryFails + renderBudgetFails + introFails + paintFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

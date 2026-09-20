@@ -2132,3 +2132,25 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   rather than as it was ten milestones ago.
 - Checks: `npm run verify` (a loadout's gun starts on the red dot, the sight is really in the mod chain, a swap
   resets to it, a scoped gun is left alone).
+
+## Milestone 130 — PAINT: the movement chain ✅
+2026-09-20 (Phase 15). `src/config/paint.json` (new), `src/game/throwables.ts`, `src/game/player.ts`, `src/game/hud.ts`, `src/main.ts`, `src/config/names.ts`, `src/config/loot.json`, `src/config/throwables.json`, `tools/checks/paint.ts` (new), `tools/movesim.ts`, `tools/e2e.ts`, `tools/snap.ts`, `docs/PLAN_MOVEMENT_CHAIN.md`.
+- The first item of the new ranked list, and the owner's ask: *"the other shooter that had really good movement recently
+  was Empulse. They had like speed grenades / paint where you boosted speed and could chain movements together."*
+- Two bombs in the grenade slots that splash paint over whatever they hit, floor or wall: **orange** raises your top
+  speed by a third and your acceleration by half while you are on it, **blue** sends a jump that leaves from it 1.6
+  times as high. Both are ordinary throwables, so G reaches them, the arena kit gives one of each, the battle
+  royale's floor has them, and the ability kits are untouched.
+- **The carry is the mechanic.** The speed boost decays over 1.2 s after you leave the paint rather than ending with
+  it, so a run over the orange into a slide into a jump is one movement. Measured in the simulator, which drives the
+  real controller: a sprint on the paint is 1.33x a sprint, and a slide-jump off the end of a patch leaves at
+  337 hu/s against a 260 hu/s sprint. The jump boost is all or nothing inside a 0.12 s grace, so the jump you meant
+  counts and the one a second later does not.
+- Nothing changes with no paint down: an ordinary jump is still exactly 56 hu and every Apex rule in
+  `docs/MOVEMENT_AUDIT.md` still measures the same. The boosted speed stays far under the 1200 hu/s lurch cap, so
+  air control is Apex's.
+- The speed readout on the HUD turns the colour of the paint you are carrying, because a boost you cannot see is a
+  boost nobody chains.
+- Checks: `tools/checks/paint.ts` (17: the patch, the lookup through floors and walls, the decay, the grace, and
+  that the numbers are worth chaining), `tools/movesim.ts` (five, in the real controller), the e2e `throw` section
+  (the bomb paints, the boost carries, the HUD says so), and the snapshot `paint`.

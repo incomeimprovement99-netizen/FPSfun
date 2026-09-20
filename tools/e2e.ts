@@ -2611,10 +2611,41 @@ async function throwTest(browser: Browser, query: string): Promise<void> {
   const thrown = await ev<{ live: number; clip: number }>(page, "({ live: window.__range.throwables.live.filter((t) => t.mine && t.kind === 'frag').length, clip: window.__range.loadout.active.state.clip })");
   check("throwables: a click throws the grenade and the gun does not fire with it", thrown.live >= 1 && thrown.clip === clip0, JSON.stringify({ clip0, ...thrown }));
   await ev(page, "window.__range.input.locked = false");
+
   await ev(page, "window.__range.duel().leave()");
   await sleep(200);
   const range = await ev<{ endless: boolean; live: number }>(page, "({ endless: window.__range.ordnance.endless, live: window.__range.throwables.live.length + window.__range.throwables.fires.length })");
   check("throwables: back in the range, no count and nothing left burning", range.endless && range.live === 0, JSON.stringify(range));
+
+  // ---- PAINT: the patch, and what you carry off it (src/config/paint.json)
+  await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, -6, 180); r.throwAt("speedpaint", new r.THREE.Vector3(0, 0.4, -8), new r.THREE.Vector3(0, -1, 0)); })()`);
+  await sleep(600);
+  const splat = await ev<{ patches: number; kind: string | null; wall: boolean | null }>(
+    page,
+    `(() => { const p = window.__range.throwables.paints; return { patches: p.length, kind: p[0]?.kind ?? null, wall: p[0]?.wall ?? null }; })()`
+  );
+  check("paint: a bomb on the floor leaves a patch of the right colour", splat.patches === 1 && splat.kind === "speed" && splat.wall === false, JSON.stringify(splat));
+  // stand in it: the top speed rises, and it is still rising a moment after you leave
+  const boosted = await ev<{ on: number; off: number; away: number }>(
+    page,
+    `new Promise((ok) => { const r = window.__range; const p = r.throwables.paints[0]; r.player.teleport(p.at.x, p.at.y, p.at.z, 180);
+      setTimeout(() => { const t = r.gameTime(); const on2 = r.player.paintSpeed(t);
+        r.player.teleport(p.at.x, p.at.y, p.at.z + 12, 180); ok({ on: on2, off: r.player.paintSpeed(t + 0.2), away: r.player.paintSpeed(t + 3) }); }, 320); })`
+  );
+  check("paint: standing on the orange boosts you, and the boost carries off it before it fades", boosted.on > 1.2 && boosted.off > 1.2 && boosted.away === 1, JSON.stringify(boosted));
+  const boostSeen = await ev<string | null>(page, `window.__range.hud.last?.boost ?? null`);
+  check("paint: the HUD's speed readout says a boost is on", boostSeen === "speed", String(boostSeen));
+  // the blue: a jump that leaves from it goes higher than the same jump without it
+  const jumps = await ev<{ plain: number; painted: number }>(
+    page,
+    `(() => { const r = window.__range; const now = r.gameTime();
+      r.player.paintSpeedAt = -Infinity; r.player.paintJumpAt = -Infinity;
+      const plain = r.player.paintJump(now);
+      r.player.onPaint("jump", now);
+      return { plain, painted: r.player.paintJump(now) }; })()`
+  );
+  check("paint: a jump off the blue is higher, and an ordinary jump is untouched", jumps.plain === 1 && jumps.painted > 1.2, JSON.stringify(jumps));
+
   await page.close();
 
   // ---- a friend's arc star, over the local transport
@@ -3042,7 +3073,9 @@ async function readmeTvChecks(page: Page): Promise<void> {
     `${start.sections.length} sections, "${start.title}" is ${start.pages} page(s)`
   );
   const text = await ev<string>(page, "window.__range.readmeTv.pageText()");
-  check("README screen: the first page is the README's own text", /browser firing range/i.test(text), text.slice(0, 80).replace(/\n/g, " "));
+  // the words of the opening change as the game does; what has to hold is that
+  // the screen is showing THIS file rather than a placeholder
+  check("README screen: the first page is the README's own text", /browser (shooter|firing range)/i.test(text) && /Apex Legends/.test(text), text.slice(0, 80).replace(/\n/g, " "));
 
   // the right-hand PAGE arrow
   await shootAt(`window.__range.readmeTv.buttonAt("nextPage")`);

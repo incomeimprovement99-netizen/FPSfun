@@ -80,7 +80,7 @@ import hudCfg from "./config/hud.json";
 import { SuperglideTrainer } from "./game/trainer";
 import { BrPlay } from "./game/brplay";
 import { Tour, type TourCheck } from "./game/tour";
-import { Ordnance, Throwables, THROWABLES, arcSlowFor, blastDamage, isThrowKind, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
+import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
 import { loadMannequin, setFigureStyle } from "./game/mannequin";
 import { ArenaMode } from "./game/modematch";
@@ -3074,9 +3074,12 @@ function throwReadied(now: number): void {
   void now;
 }
 function throwVelocity(kind: ThrowKind, fwd: THREE.Vector3): THREE.Vector3 {
+  // a paint bomb is thrown at the ground in front of you, so it leaves the
+  // hand a little slower than a frag (src/config/paint.json)
+  const speed = isPaintThrow(kind) ? PAINT.throw.speed : (THROWABLES as unknown as Record<string, { speed: number }>)[kind].speed;
   return fwd
     .clone()
-    .multiplyScalar(THROWABLES[kind].speed)
+    .multiplyScalar(speed)
     .add(new THREE.Vector3(0, 2.2, 0))
     .addScaledVector(player.vel, 0.6);
 }
@@ -5407,6 +5410,12 @@ function step(): void {
   // throwables: their flights, fuses and fires; a blast's hits go the bullets' way
   impactSink = handleImpact;
   throwables.update(now, dt, throwTargets());
+  // the paint under your feet this frame: the boost itself is the player's,
+  // and it outlives the ground it came from (src/config/paint.json)
+  {
+    const p = player.onGround ? paintUnder(throwables.paints, player.pos) : null;
+    player.onPaint(p ? p.kind : null, now);
+  }
   // The carried charges move whoever is standing on or in them. Throws replay
   // on every client already, so every client has the same pads and the same
   // rifts and moves only its own player: an enemy is thrown and carried with
@@ -5742,6 +5751,7 @@ function step(): void {
     coneDeg: ws.spread.cone(),
     adsFrac: ws.adsFrac,
     thirdPerson,
+    boost: player.paintSpeed(now) > 1.001 ? "speed" : player.paintJump(now) > 1.001 ? "jump" : null,
     vFovDeg: camera.fov,
     stats,
     armorName: ARMOR_NAME[armorTier],

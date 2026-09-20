@@ -8,6 +8,7 @@
 // Run on its own: npx tsx tools/movesim.ts. Also runs inside npm run verify.
 import * as THREE from "three";
 import squadCfg from "../src/config/squad.json";
+import PAINT from "../src/config/paint.json";
 import { Player, type MoveInput } from "../src/game/player";
 import type { Action } from "../src/game/input";
 import { RANGE_SOLIDS } from "../src/game/range";
@@ -1741,6 +1742,53 @@ console.log("\nA launch pad's throw, and the crawl when down (src/game/brplay.ts
   plain.run(2);
   near("down: 65% of the crouch walk", c.speedHu / plain.speedHu, 0.65, 0.01);
 }
+
+// -------------------------------------------------------------- the chain
+// PAINT (src/config/paint.json, docs/PLAN_MOVEMENT_CHAIN.md). The point of it
+// is not the patch, it is the chain: what the boost is worth once the ground
+// that gave it is behind you. These run the real controller, so they say what
+// a player gets rather than what the numbers promise.
+console.log("\nPAINT: the chain");
+{
+  const plain = new Sim();
+  const paint = new Sim();
+  for (const s of [plain, paint]) {
+    s.in.hold("forward");
+    s.in.tap("sprint");
+  }
+  plain.run(1.6);
+  // the painted run keeps its feet on the orange the whole way
+  paint.run(1.6, () => paint.p.onPaint("speed", paint.t));
+  near("a sprint on the orange is the paint's multiple of a sprint", paint.speedHu / plain.speedHu, PAINT.speed.mul, 0.02);
+  // the chain: leave the paint, slide, jump. The speed that carries is what
+  // the mechanic exists for, so it is measured rather than assumed.
+  const chain = new Sim();
+  chain.in.hold("forward");
+  chain.in.tap("sprint");
+  chain.run(1.4, () => chain.p.onPaint("speed", chain.t));
+  const boosted = chain.speedHu;
+  chain.in.tap("crouch");
+  chain.run(0.18);
+  chain.in.tap("jump");
+  chain.run(0.02);
+  check("a slide and a jump straight off the paint leave with the boosted speed, not the sprint", chain.speedHu > 260 * 1.15, `${chain.speedHu.toFixed(0)} hu/s off a ${boosted.toFixed(0)} hu/s run`);
+  check("and nothing in the air goes over the lurch cap", chain.speedHu < 1200, `${chain.speedHu.toFixed(0)} hu/s`);
+  // the blue: the same jump, higher, and the ordinary jump unchanged
+  const low = new Sim();
+  low.in.tap("jump");
+  low.run(0.02);
+  let lowTop = 0;
+  low.run(1.2, () => (lowTop = Math.max(lowTop, low.p.pos.y)));
+  const high = new Sim();
+  high.p.onPaint("jump", high.t);
+  high.in.tap("jump");
+  high.run(0.02);
+  let highTop = 0;
+  high.run(1.2, () => (highTop = Math.max(highTop, high.p.pos.y)));
+  near("a jump off the blue is the paint's multiple of a jump", highTop / lowTop, PAINT.jump.mul, 0.03);
+  near("and a jump with no paint is still exactly 56 hu", lowTop / HU, 56, 0.05);
+}
+
 
 console.log(fails === 0 ? "\nMOVESIM PASS" : `\nMOVESIM FAIL (${fails})`);
 export const movesimFails = fails;

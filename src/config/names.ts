@@ -84,6 +84,8 @@ const THROW_NAMES: Record<string, string> = {
   frag: "FRAG GRENADE",
   arcstar: PUBLIC_BUILD ? "SPARK STAR" : "ARC STAR",
   thermite: "THERMITE",
+  speedpaint: "SPEED PAINT",
+  jumppaint: "JUMP PAINT",
 };
 export function throwName(kind: string): string {
   return THROW_NAMES[kind] ?? kind.toUpperCase();

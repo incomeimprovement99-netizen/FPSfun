@@ -145,6 +145,8 @@ export interface HudState {
   reloadProgress: number;
   coneDeg: number;
   adsFrac: number;
+  /** a paint boost is on (src/config/paint.json): the speed readout says so, because a boost you cannot see is a boost nobody chains */
+  boost?: "speed" | "jump" | null;
   /**
    * The camera is behind the shoulder. Aiming takes the crosshair away in
    * first person because the gun's own sights replace it, and in third person
@@ -2481,7 +2483,10 @@ export class Hud {
     const yHealth = this.h - 50 * u;
     // speed and stance, which movement players actually read
     const stanceColor = s.stance === "slide" ? "#ffd27a" : s.stance === "air" ? "#8fc7ff" : s.stance === "climb" ? "#7ddc8a" : WHITE;
-    this.text(`${s.speedHu.toFixed(0)}`, x0, yShield - 26 * u, 700, 34 * u, WHITE);
+    // the number goes the colour of the paint you are carrying, so a boost is
+    // something you can see spending itself
+    const speedColor = s.boost === "speed" ? "#ff9a3c" : s.boost === "jump" ? "#5cc0ff" : WHITE;
+    this.text(`${s.speedHu.toFixed(0)}`, x0, yShield - 26 * u, 700, 34 * u, speedColor);
     this.text(`HU/S   ${s.stance.toUpperCase()}${s.holstered ? "   HOLSTERED" : ""}`, x0 + 72 * u, yShield - 30 * u, 700, 15 * u, stanceColor);
     // shield: segmented in 25s like the game. Real values in a 1v1 (blue
     // shields, three segments); full purple bars otherwise.
