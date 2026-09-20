@@ -20,6 +20,7 @@
 // The far end of a forearm is a stub: the arm carries on past it in real life.
 // Its shape and how close to the eye it is allowed to come are in
 // src/config/viewmodel.json.
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import * as THREE from "three";
 import cfg from "../config/viewmodel.json";
 
@@ -216,12 +217,62 @@ export class Hand {
       m.receiveShadow = true;
     }
     if (mirrored) g.scale.x = -1;
+    // A hand is about thirty-five small parts, and none of them ever moves
+    // against another: what moves is the hand. So they are merged into one
+    // mesh per material, which takes the gun's pass from about 75 draw calls
+    // to about ten (docs/PLAN_LOD_DRAW_DISTANCE.md). The materials themselves
+    // are the shared ones, so Settings' arm colours still reach them.
+    mergeByMaterial(g);
   }
 
   /** the wrist position in the hand's PARENT space */
   wrist(out: THREE.Vector3): THREE.Vector3 {
     this.group.updateMatrix();
     return out.copy(this.wristLocal).applyMatrix4(this.group.matrix);
+  }
+}
+
+/**
+ * Every mesh under `group` merged into one mesh per material, in the group's
+ * own space. The parts have to be static against each other, which the hand's
+ * are: it is posed as a whole. Anything that is not a mesh (a marker, a light)
+ * is left where it is.
+ */
+export function mergeByMaterial(group: THREE.Group): void {
+  const byMat = new Map<THREE.Material, { mat: THREE.Material; parts: THREE.BufferGeometry[] }>();
+  const keep: THREE.Object3D[] = [];
+  const walk = (o: THREE.Object3D, parent: THREE.Matrix4): void => {
+    o.updateMatrix();
+    const at = new THREE.Matrix4().multiplyMatrices(parent, o.matrix);
+    const m = o as THREE.Mesh;
+    if (m.isMesh && !Array.isArray(m.material)) {
+      const g = m.geometry.clone();
+      g.applyMatrix4(at);
+      // the merge wants the same attributes on every part
+      for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal") g.deleteAttribute(name);
+      if (!g.getAttribute("normal")) g.computeVertexNormals();
+      const row = byMat.get(m.material) ?? { mat: m.material, parts: [] };
+      row.parts.push(g);
+      byMat.set(m.material, row);
+    } else if (!m.isMesh) keep.push(o);
+    for (const c of [...o.children]) walk(c, at);
+  };
+  for (const c of [...group.children]) walk(c, new THREE.Matrix4());
+  if (!byMat.size) return;
+  group.clear();
+  for (const o of keep) {
+    o.position.set(0, 0, 0);
+    o.rotation.set(0, 0, 0);
+    o.scale.set(1, 1, 1);
+  }
+  for (const { mat, parts } of byMat.values()) {
+    const merged = parts.length === 1 ? parts[0] : mergeGeometries(parts);
+    if (!merged) continue;
+    if (parts.length > 1) for (const g of parts) g.dispose();
+    const mesh = new THREE.Mesh(merged, mat);
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    group.add(mesh);
   }
 }
 

@@ -837,6 +837,12 @@ the figure's own boxes, not the animation. In a battle royale with ten bots
 round the hub that took High from 799 draw calls to 599, 2.39M triangles to
 1.99M, and 167 to 185 fps (`npm run bench BENCH_SPOT=brmatch`).
 
+**The hands in front of you are one mesh each.** A hand is about thirty-five
+small parts (fingers, knuckle pads, a cuff) and none of them ever moves against
+another: what moves is the hand. They are merged into one mesh per material
+when the hand is built, which took the range from 497 draw calls to 421, 400 to
+435 fps on Competitive and 227 to 256 on High.
+
 **Frame rate is capped by your screen, not the game.** A browser draws only
 when the display can show a frame, so a 60 Hz monitor means 60 fps. The game
 itself runs at 800+ fps on the Competitive preset on the owner's RX 9070 XT.

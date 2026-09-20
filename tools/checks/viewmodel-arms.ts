@@ -416,6 +416,31 @@ console.log("\nThe gun's own FOV");
   check("at the default setting it is exactly the world's FOV, so the gun looks as it was built", Math.abs(def - verticalFovFrom43(hipFov43(vmCfg.fovScale))) < 1e-9);
 }
 
+// ---------------------------------------------------------------- the hands, merged
+//
+// A hand is about thirty-five small parts and none of them moves against
+// another, so they are merged into one mesh per material when it is built
+// (arms.ts mergeByMaterial). That took the gun's pass from 497 draw calls to
+// 421 in the range. What has to hold: a few meshes, each its own material, the
+// same materials the settings colour, and a hand still the size of a hand
+// where it was built.
+{
+  const hand = new Hand(false);
+  const meshes: THREE.Mesh[] = [];
+  hand.group.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (m.isMesh) meshes.push(m);
+  });
+  const mats = new Set(meshes.map((m) => m.material as THREE.Material));
+  check("a hand is a handful of meshes, not thirty-five", meshes.length <= 8 && meshes.length > 0, `${meshes.length} meshes`);
+  check("one mesh per material, and the materials are the shared ones the settings colour", mats.size === meshes.length && [...mats].every((m) => (m as THREE.MeshStandardMaterial).isMeshStandardMaterial), `${mats.size} materials`);
+  const box = new THREE.Box3().setFromObject(hand.group);
+  const size = box.getSize(new THREE.Vector3());
+  check("and it is still the size of a hand, where it was built", size.x > 0.05 && size.x < 0.25 && size.y > 0.08 && size.y < 0.3 && size.z > 0.05 && size.z < 0.3, `${size.x.toFixed(3)} x ${size.y.toFixed(3)} x ${size.z.toFixed(3)} m`);
+  const wrist = hand.wrist(new THREE.Vector3());
+  check("the wrist is still where the forearm looks for it", Number.isFinite(wrist.x) && wrist.length() < 0.2, `${wrist.length().toFixed(3)} m from the hand's middle`);
+}
+
 console.log(fails === 0 ? "\nVIEWMODEL ARMS PASS" : `\nVIEWMODEL ARMS FAIL (${fails})`);
 export const viewmodelArmsFails = fails;
 if (process.argv[1]?.endsWith("viewmodel-arms.ts")) process.exit(fails === 0 ? 0 : 1);

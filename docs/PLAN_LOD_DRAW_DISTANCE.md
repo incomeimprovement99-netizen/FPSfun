@@ -73,7 +73,8 @@ bound by its draw calls, not its triangles.
 
 In a match what is left of the draw calls is now what the plan first suspected: the loot (its boxes, rings and
 beams, about 150 calls at the hub), the doors (one mesh each now, from two), and the gun's hands (about 75 calls of
-capsules and spheres in the gun's own pass). Steps C (loot) and D (figures) are next, and the hands after them.
+capsules and spheres in the gun's own pass). Steps C (loot), D (figures) and the hands are done: see Milestones 101, 121 and 122. The hands went from about
+seventy-five meshes to one per material, 497 draw calls to 421 in the range.
 
 ## Options, best gain per hour first
 

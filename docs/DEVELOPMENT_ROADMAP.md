@@ -1979,3 +1979,14 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/figlod.ts` (ten: the three bands, two far figures taking turns, off screen past 20 m and
   within it, the shadow and gun distances, and everything on before the page has said where it looks from), and the
   e2e `bots`, `br` and `squad` sections (155 checks) for the figures, knocks and revives.
+
+## Milestone 122 — The gun's hands in one mesh each ✅
+2026-09-20 (Phase 15). `arms.ts`, `tools/checks/viewmodel-arms.ts`.
+- The last of the draw calls the LOD plan named: the hands in front of you were about seventy-five meshes of
+  capsules and spheres in the gun's own pass, and none of them ever moves against another. Each hand is now merged
+  into one mesh per material as it is built (`mergeByMaterial`), keeping the shared materials, so Settings' arm
+  colours still reach them and the wrist is where the forearm looks for it.
+- Measured in the range against the build before it: **497 draw calls to 421** (the 76 the plan predicted),
+  Competitive 400 to 435 fps, High 227 to 256 fps.
+- Checks: `tools/checks/viewmodel-arms.ts` (a hand is four meshes, one per material, still hand-sized and with its
+  wrist where it was).
