@@ -380,6 +380,21 @@ async function doorTest(browser: Browser, query: string): Promise<void> {
   if (planned) await page.waitForFunction(`!window.__range.duel().bots.find((x) => x.bot.remote.id === ${planned.id})?.bot.travel`, { polling: 100, timeout: 20000 }).catch(() => undefined);
   const atPlan = planned ? await ev<number>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${planned.id}); return Math.hypot(b.bot.pos.x - ${planned.far[0]}, b.bot.pos.z - ${planned.far[2]}); })()`) : -1;
   check("traversal: a rope its route plans through is ridden, not walked round", rodePlan && atPlan >= 0 && atPlan < 5, JSON.stringify({ planned, rodePlan, at: +atPlan.toFixed(1) }));
+  // a jump tower: a bot at one with a long way to go rides it and glides for its goal
+  const tower = await ev<{ id: number; goal: number[]; x: number; z: number } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const t = r.brMap.towers[0]; if (!t) return null; const b = d.bots.find((x) => x.bot.alive && !x.down && !x.bot.travel && !x.bot.dropping); if (!b) return null;
+      b.bot.pos.set(t.x, t.y ?? 0, t.z); b.bot.dummy.group.position.copy(b.bot.pos); b.bot.travel = null;
+      const far = { x: t.x + 150, z: t.z + 60 }; const nodes = r.brMap.nodes; let best = 0, bd = Infinity; nodes.forEach((n, i) => { const dd = Math.hypot(n.x - far.x, n.z - far.z); if (dd < bd) { bd = dd; best = i; } });
+      b.node = best; b.goal = best; b.ropeTo = null;
+      for (const o of d.bots) if (o !== b) o.bot.pos.set(t.x + 220, 0, t.z + 220);
+      return { id: b.bot.remote.id, goal: [nodes[best].x, nodes[best].z], x: t.x, z: t.z }; })()`
+  );
+  const rode2 = !!tower && (await page.waitForFunction(`window.__range.duel().bots.find((x) => x.bot.remote.id === ${tower?.id ?? -1})?.bot.dropping === true`, { polling: 50, timeout: 4000 }).then(() => true, () => false));
+  const up = tower ? await ev<number>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${tower.id}); return b.bot.pos.y; })()`) : -1;
+  if (tower) await page.waitForFunction(`!window.__range.duel().bots.find((x) => x.bot.remote.id === ${tower.id})?.bot.dropping`, { polling: 200, timeout: 30000 }).catch(() => undefined);
+  const went = tower ? await ev<number>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${tower.id}); return Math.hypot(b.bot.pos.x - ${tower.x}, b.bot.pos.z - ${tower.z}); })()`) : -1;
+  check("traversal: a bot at a jump tower with a long way to go rides it and glides on", rode2 && up > 40 && went > 40, JSON.stringify({ tower, rode2, up: +up.toFixed(1), went: +went.toFixed(1) }));
   await ev(page, "window.__range.duel()?.leave()");
   await page.waitForFunction("window.__range.duel() === null", { polling: 100, timeout: 5000 }).catch(() => undefined);
   const afterOpen = await ev<number>(page, "window.__range.brMap.doors.openList().length");

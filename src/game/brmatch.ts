@@ -1544,6 +1544,21 @@ export class BrMatch extends Duel {
         }
       }
     }
+    // a jump tower (the balloon) when there is a long way to go: up and gliding
+    // for the goal, as a player rides one. Not while it has someone to fight.
+    if (!sense.target && sense.goal && !bot.travel && !bot.dropping && bot.pos.y < 1.2) {
+      const far = Math.hypot(sense.goal.x - bot.pos.x, sense.goal.z - bot.pos.z);
+      if (far >= SQUADS.towerGain) {
+        for (const t of this.map.towers) {
+          if (Math.hypot(bot.pos.x - t.x, bot.pos.z - t.z) > squadCfg.towerReach + 1.4) continue;
+          // a follower only takes one its lead is beyond, so a squad stays together
+          if (follower && lead && Math.hypot(lead.bot.pos.x - t.x, lead.bot.pos.z - t.z) < SQUADS.follow) continue;
+          bot.leaveShip(new THREE.Vector3(t.x, (t.y ?? 0) + DROP_HEIGHT * 0.75, t.z), { x: sense.goal.x, z: sense.goal.z });
+          this.onRemoteFx?.("tower", bot.remote.id, new THREE.Vector3(t.x, t.y ?? 0, t.z));
+          return;
+        }
+      }
+    }
     if (sense.target || !sense.goal) return;
     // a rope is a choice: a lead takes one only with its squad about it
     if (lead === b && this.bots.some((o) => o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.dropping && o.bot.pos.distanceTo(bot.pos) > SQUADS.follow)) return;

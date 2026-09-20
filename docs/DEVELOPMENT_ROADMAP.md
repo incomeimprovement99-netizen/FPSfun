@@ -2023,3 +2023,10 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/scenery.ts` (every rock has its box and a boxed stand-in, the scrub is in its three kinds
   and never on a road or in a place, and the faces lie along the four edges), and the snapshots `br-rocks` and the
   new `br-field`.
+## Milestone 125 — The bots ride the balloons ✅
+2026-09-20 (Phase 15). `brmatch.ts`, `src/config/bots.json` (`squads.towerGain`), `tools/e2e.ts`.
+- The last of the map's ways across it that the bots did not use. A bot standing at a jump tower with more than
+  110 m still to go rides the balloon and glides for its goal, the way a player does (`leaveShip`, the same glide
+  the drop uses); under that it walks, because the ride costs it the climb and the fall. Not while it has someone
+  to fight, and a follower only takes a tower its lead is already past, so a squad is not scattered by one.
+- Checks: the e2e `br` section (a bot at a tower with a long way to go is 67 m up and lands 78 m away).
