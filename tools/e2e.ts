@@ -40,6 +40,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  */
 const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
 
+/**
+ * A page for a check. The intro card is turned off on all of them but the
+ * intro's own (`introTest` opens its page itself): it is two and a half
+ * seconds of title over every page the suite opens, and the suite opens
+ * hundreds.
+ */
 async function open(browser: Browser, query: string, base = BASE, init?: string): Promise<Page> {
   const page = await browser.newPage();
   await page.setViewport({ width: 800, height: 450, deviceScaleFactor: 1 });
@@ -60,7 +66,8 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
   if (init) await page.evaluateOnNewDocument(init);
   // a base with a query of its own (OLD_URL=https://the.site/?broker=public) keeps it
-  const url = base.includes("?") && query.startsWith("?") ? `${base}&${query.slice(1)}` : base + query;
+  const q = query.includes("intro=on") ? query : query.startsWith("?") ? `${query}&nointro` : "?nointro";
+  const url = base.includes("?") ? `${base}&${q.slice(1)}` : base + q;
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
   return page;
@@ -4251,6 +4258,72 @@ async function botKnockSteps(page: Page): Promise<void> {
 }
 
 /** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
+/**
+ * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
+ * plays on the page's own clock and takes itself away, a key or a click takes
+ * the rest of it, the game underneath is never held up or blocked by it, one
+ * plays again as a match starts, and `?nointro` means none at all.
+ */
+async function introTest(browser: Browser): Promise<void> {
+  // the one page in the suite that opens with the card on
+  const page = await open(browser, "?intro=on");
+  await page.waitForFunction("window.__range.loaded()", { polling: 50, timeout: 60000 }).catch(() => undefined);
+  const up = await page
+    .waitForFunction(`(() => { const s = window.__range.intro.state(); return s.kind === "boot" && s.shown; })()`, { polling: 20, timeout: 20000 })
+    .then(() => true, () => false);
+  const early = await ev<{ at: number; beats: { title: number; shot: number; out: number; end: number }; text: string; clicks: boolean }>(
+    page,
+    `(() => { const s = window.__range.intro.state(); const c = document.getElementById("intro");
+      return { at: s.at, beats: s.beats, text: document.getElementById("introSay").textContent, clicks: getComputedStyle(c).pointerEvents !== "none" }; })()`
+  );
+  check("the page opens on the intro card, and it says the game's name for a reader too", up && /FULL POWER SURGE/.test(early.text), JSON.stringify({ up, text: early.text }));
+  check("the card takes no clicks: everything under it is still there to be used", !early.clicks);
+  // the menu underneath is live while the card plays: the card is a picture, not a gate
+  const live = await ev<boolean>(page, `(() => { const b = document.getElementById("goRange"); return !!b && !b.disabled; })()`);
+  check("the game underneath it is not held up: the menu is there and live while the card plays", live);
+  // the glass breaks and the card takes itself off the page, on its own clock
+  const gone = await page
+    .waitForFunction(`window.__range.intro.state().kind === null`, { polling: 50, timeout: 12000 })
+    .then(() => true, () => false);
+  const after = await ev<{ shown: boolean; played: number; say: string }>(page, `(() => ({ shown: window.__range.intro.state().shown, played: window.__range.intro.state().played, say: document.getElementById("introSay").textContent }))()`);
+  check("it ends by itself, takes the canvas off the page and stops saying its name", gone && !after.shown && after.say === "", JSON.stringify(after));
+  // a key takes the rest of it away
+  await ev(page, `(() => { window.__range.intro.play("boot"); return true; })()`);
+  await sleep(250);
+  const before = await ev<boolean>(page, `window.__range.intro.state().kind !== null`);
+  await page.keyboard.press("Space");
+  await sleep(120);
+  const skipped = await ev<{ kind: string | null; shown: boolean }>(page, `(() => { const s = window.__range.intro.state(); return { kind: s.kind, shown: s.shown }; })()`);
+  check("a key takes the rest of it: nobody watches a title card twice", before && skipped.kind === null && !skipped.shown, JSON.stringify(skipped));
+  // and one plays again as a match starts, the short one
+  const played = await ev<number>(page, `window.__range.intro.state().played`);
+  await ev(page, `window.__range.startBots()`);
+  await sleep(200);
+  const onMatch = await ev<{ kind: string | null; played: number; end: number; inGame: boolean }>(
+    page,
+    `(() => { const s = window.__range.intro.state(); return { kind: s.kind, played: s.played, end: s.beats.end, inGame: !!window.__range.duel() }; })()`
+  );
+  check("dropping into a match plays the short card, over a match that has already started", onMatch.kind === "match" && onMatch.played === played + 1 && onMatch.end < 2 && onMatch.inGame, JSON.stringify(onMatch));
+  await ev(page, `window.__range.intro.skip()`);
+  await toMenu(page);
+  // and for someone whose machine is set to less movement: a shorter card, no
+  // shake, no falling glass
+  await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+  await ev(page, `(() => { window.__range.intro.play("boot"); return true; })()`);
+  await sleep(150);
+  const quiet = await ev<{ reduced: boolean; end: number; kind: string | null }>(page, `(() => { const s = window.__range.intro.state(); return { reduced: s.reduced, end: s.beats.end, kind: s.kind }; })()`);
+  check("a machine asking for less movement gets a shorter card with no shake and no falling glass", quiet.reduced && quiet.kind === "boot" && quiet.end < 1.5, JSON.stringify(quiet));
+  await ev(page, `window.__range.intro.skip()`);
+  await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "no-preference" }]);
+  // and the tools' pages have none of it
+  const off = await open(browser, "?norender");
+  await sleep(600);
+  const none = await ev<{ kind: string | null; played: number }>(off, `(() => { const s = window.__range.intro.state(); return { kind: s.kind, played: s.played }; })()`);
+  check("?nointro means no card at all, which is how every other page in this suite opens", none.kind === null && none.played === 0, JSON.stringify(none));
+  await off.close();
+  await page.close();
+}
+
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -4606,6 +4679,11 @@ async function main(): Promise<void> {
       await jitterTest(browser, "?net=local&norender&jitter=60&loss=0.15", true);
       console.log("\nCustom rules");
       await rulesTest(browser, "?net=local&norender");
+    }
+
+    if (want("intro")) {
+      console.log("\nThe intro card: the name, the shot through the screen, and out of the way");
+      await introTest(browser);
     }
 
     if (want("emote")) {

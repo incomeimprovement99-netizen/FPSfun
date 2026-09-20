@@ -159,6 +159,21 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "intro-title",
+    note: "the intro card: the name smashed in over the rain",
+    steps: [[`(() => { for (let t = 0; t <= 0.9; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
+  },
+  {
+    name: "intro-crack",
+    note: "the intro card: the shot through the middle, the glass cracking out from the hole",
+    steps: [[`(() => { for (let t = 0; t <= 1.78; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
+  },
+  {
+    name: "intro-shards",
+    note: "the intro card: the pane letting go, the shards falling away into the game",
+    steps: [[`(() => { for (let t = 0; t <= 2.22; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
+  },
+  {
     name: "br-far",
     note: "the map's longest view, one corner across to the other: the far side fades into fog, and nothing ends at a seam in clear air",
     steps: [
@@ -774,7 +789,8 @@ async function main(): Promise<void> {
       if (!sc.ship) await page.evaluateOnNewDocument("window.__straightDrop = true");
       // the real mouse reaches a pointer-locked headless page: none of it here, or whoever moves it turns the picture
       await page.evaluateOnNewDocument(`for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`);
-      await page.goto(BASE + (sc.query ?? ""), { waitUntil: "domcontentloaded", timeout: 60000 });
+      const q = sc.query ? `${sc.query}&nointro` : "?nointro";
+      await page.goto(BASE.includes("?") ? `${BASE}&${q.slice(1)}` : BASE + q, { waitUntil: "domcontentloaded", timeout: 60000 });
       await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
       // the loading screen is over everything until the world is in
       await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 60000 });

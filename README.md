@@ -45,11 +45,17 @@ down its left side to jump there.
 1. Open the link above in **Chrome or Edge on a PC**. Firefox works without
    raw mouse input (acceleration can leak into the aim); Safari and phones
    are not supported.
-2. The menu is up, with a short welcome on a first visit (and a warning on a
+2. **B00G's FPS: FULL POWER SURGE.** The title card plays once the world is
+   in: green rain, the name smashed in over it, a shot through the middle of
+   the screen and the glass falling away into the game. It plays again, shorter,
+   as you drop into any match. A key or a click takes the rest of it, `?nointro`
+   in the address turns it off for good, and a machine set to less movement
+   gets a shorter one with no shake and no falling glass.
+3. The menu is up, with a short welcome on a first visit (and a warning on a
    phone, a tablet or Safari, which cannot play). **Play tab, Firing Range.**
    The browser locks the mouse and goes fullscreen (Settings can turn that
    off). **Esc** brings the menu back; **Play / Resume** goes back in.
-3. Everything else is a menu button: the guided tour (start here if you are
+4. Everything else is a menu button: the guided tour (start here if you are
    new: it walks you through every move and key), the two courses, the arena
    alone, the bots, the battle royale, Gun Run, team deathmatch, free-for-all,
    Crown, Control, Search, and the **Friends** tab, where any of them can be played
@@ -615,6 +621,18 @@ it trusts the game, so it is a board for friends, not a ranked ladder.
   `materials.ts`, `props.ts`): the static level is merged into one mesh per
   material, PBR textures and glTF props are CC0 and fetched by script, and
   three presets trade post-processing for frame rate.
+- **The intro card** (`src/ui/intro.ts`, `src/config/intro.json`): one 2D
+  canvas over the page for two and a half seconds. The rain is a column every
+  16 px, each falling at its own speed with its head lit and its tail left
+  behind by a frame that only half clears; the name lands from two and a half
+  times its size with a green and a cyan copy a few pixels either side; the
+  shot flashes, kicks the picture and runs thirteen cracks out of a bullet hole
+  with rings of glass between them; then the pane it drew is cut along those
+  cracks and each piece is thrown out of the hole, turned and dropped, so the
+  game shows through the gaps. The break and the rain are worked out from a
+  seed, which is what lets the checks and the snapshots see the player's
+  picture. It holds nothing up: the match starts underneath it, the canvas
+  takes no clicks, and it takes itself off the page when it is done.
 - **The README screen** (`src/game/readme.ts`, `readmetv.ts`): this file is
   bundled with the build (`README.md?raw`), parsed into sections and blocks,
   and laid out on a canvas by measuring the text, so it paginates itself and
@@ -766,11 +784,11 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run compress` | re-encode already fetched textures as WebP |
 | `npm run extract` | rebuild `data/weapons.json` from the reference sheet (read-only, outside the repo) |
 | `npm run compare-sources` | compare two reference trees on the numbers we use |
-| `npm run verify` | 1,100+ checks: weapon data, damage, recoil, sensitivity maths, and the whole movement simulation (every movement rule against its source number), plus the modules under `tools/checks/` (the hours of the day, the ring's placement, loot tiers, the pickup reach, the bots' senses, the view model's arms, the delta state packets, audio occlusion, what the world costs to draw), each of which also runs on its own with `npx tsx tools/checks/<name>.ts`. Must print VERIFY PASS. |
+| `npm run verify` | 1,100+ checks: weapon data, damage, recoil, sensitivity maths, and the whole movement simulation (every movement rule against its source number), plus the modules under `tools/checks/` (the hours of the day, the ring's placement, loot tiers, the pickup reach, the bots' senses, the view model's arms, the delta state packets, audio occlusion, what the world costs to draw, the intro card), each of which also runs on its own with `npx tsx tools/checks/<name>.ts`. Must print VERIFY PASS. |
 | `npm run rehearsal` | eight pages over the real peer-to-peer path in one battle royale, four duos of friends and three of bots, played for a minute: everyone connects, lands and sees the other seven, nothing logs an error, and it reports the host's upload to each guest and how long its match update takes. Needs `npm run dev`. `PLAYERS`, `REHEARSAL_SECONDS`, `REHEARSAL_SPREAD=1` (each duo to its own place), `REHEARSAL_QUERY` (e.g. `interest=0`) |
 | `npm run movesim` | the movement simulation alone: wiki timings, the wallbounce recipe, crouch kick, wallskip, every course gate, teleports |
-| `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course and its medals, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match with the killcam and the recap, the controller, the range's tools, the settings and the tour, throwables, the battle royale alone, with loot and as a squad (solo and duos, downs, revives, banners, pings, the care package's arrival, the loadout crate and Storm Surge, on a guest's screen too), Gun Run, team deathmatch, Crown and Control alone and Gun Run with a friend, the bot tiers, the controller's layout and presets, and the README screen paged by shooting its arrows. Needs `npm run dev`. Must print E2E PASS. `E2E_ONLY=page,br,...` runs only those sections (the file lists them); the whole run takes about twelve minutes. The `mixed` section plays an older build against this one over the internet, both ways round and as a 1v1v1 whose host relays between the two: serve a checkout from before a change to the state packets on a second port and name it in `OLD_URL` (or the deployed site, `https://fpsfun.duckdns.org/?broker=public`), with `OLD_NET=full` if that build is from before the delta packets. |
-| `npm run snap` | screenshots of named scenarios drawn for real (the HUD, the killcam, the figures, the loot, the modes, the README screen) into `shots/`; `SNAP=name,name` for some |
+| `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course and its medals, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match with the killcam and the recap, the controller, the range's tools, the settings and the tour, throwables, the battle royale alone, with loot and as a squad (solo and duos, downs, revives, banners, pings, the care package's arrival, the loadout crate and Storm Surge, on a guest's screen too), Gun Run, team deathmatch, Crown and Control alone and Gun Run with a friend, the bot tiers, the controller's layout and presets, the intro card (it plays, a key takes it away, it never holds the game up, and every other page in the suite opens without it), and the README screen paged by shooting its arrows. Needs `npm run dev`. Must print E2E PASS. `E2E_ONLY=page,br,...` runs only those sections (the file lists them); the whole run takes about twelve minutes. The `mixed` section plays an older build against this one over the internet, both ways round and as a 1v1v1 whose host relays between the two: serve a checkout from before a change to the state packets on a second port and name it in `OLD_URL` (or the deployed site, `https://fpsfun.duckdns.org/?broker=public`), with `OLD_NET=full` if that build is from before the delta packets. |
+| `npm run snap` | screenshots of named scenarios drawn for real (the HUD, the killcam, the figures, the loot, the modes, the intro card, the README screen) into `shots/`; `SNAP=name,name` for some |
 | `npm run slide-probe` | the slide and slide jump frame by frame in the simulation, as a page of curves beside the wiki's numbers |
 | `npx tsx tools/trim-glb.ts` | cut a .glb down to the animations named (how the mannequin's files were made) |
 | `npm run probe` | a scripted wallbounce at the practice wall in the real page, printing what the feed registered (needs `npm run dev`) |

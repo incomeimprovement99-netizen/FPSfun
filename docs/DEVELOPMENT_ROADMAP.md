@@ -2068,3 +2068,30 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   Milestone 100's doubled map, which only a profiler could see. The draw-distance arithmetic is checked preset by
   preset, and the e2e's `br` section reads the numbers back out of a real page (`__range.viewRange()`), so the
   wiring is checked as well as the maths.
+
+## Milestone 127 — B00G's FPS: Full Power Surge, the title card ✅
+2026-09-20 (Phase 15). `src/ui/intro.ts` (new), `src/config/intro.json` (new), `index.html`, `src/main.ts`, `tools/checks/intro.ts` (new), `tools/verify.ts`, `tools/e2e.ts`, `tools/snap.ts`, `tools/bench.ts`.
+- Asked for by the owner: a card at the door. Green rain falling at its own speed in every column, the game's name
+  smashed in over it from two and a half times its size with a green and a cyan copy a few pixels either side, and
+  then a shot through the middle of the screen: a flash, a kick, a bullet hole, thirteen cracks running out to the
+  edges with rings of glass between them, and the pane falling away in shards into the game behind it. Corner
+  brackets, scan lines and a sweeping refresh line round it off.
+- It plays when the page opens and again, shorter (1.5 s against 2.6 s), as you drop into any match. `wireMatch` is
+  the one door every match goes through, so nothing had to be wired mode by mode.
+- **It never gets in the way.** The canvas takes no pointer events, the match starts underneath it and nothing waits
+  on it, a key or a click takes the rest of it, `?nointro` turns it off, and it takes itself off the page when it is
+  done. The name is in the page as text as well, for a screen reader.
+- **Where it starts mattered.** Started with the page it ran its beats through the first seconds of loading, which
+  are one long stutter of models and textures being decoded: a card nobody sees. It now starts on the frame the
+  loading screen finishes, where the frames are steady. Measured over a card: 605 frames, 4.2 ms median, worst 17 ms.
+  Getting there meant warming the sound (the first noise a page makes costs 50 ms to build its graph, and that fell
+  on the frame of the shot) and the letters (a font is rasterised at the size it is drawn, so both ends of the smash
+  are drawn once where nobody looks), and drawing the crack's glow as a wide soft stroke rather than a canvas blur.
+- The break and the rain are worked out from a seed, so the same card draws the same picture: that is what makes the
+  snapshots worth comparing and the checks able to hold it.
+- Accessibility: `prefers-reduced-motion` gets a shorter card with no shake, no flash and no falling glass.
+- Checks: `tools/checks/intro.ts` (16: the beats in order, the match card the short one, the same seed breaking the
+  glass the same way, every crack starting at the hole and running off the pane, a shard for every crack, the rain
+  covering the width at its own speed per column), the e2e `intro` section (9, including the reduced-motion card and
+  that the menu underneath is live while the card plays), and three snapshots: `intro-title`, `intro-crack`,
+  `intro-shards`.

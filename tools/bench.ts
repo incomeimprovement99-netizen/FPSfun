@@ -86,7 +86,7 @@ async function main(): Promise<void> {
         // one hour for every run (a battle royale draws its own from the seed otherwise)
         await page.evaluateOnNewDocument(() => localStorage.setItem("range.sky.br", "mine"));
         if (BEFORE[SPOT]) await page.evaluateOnNewDocument(BEFORE[SPOT]);
-        await page.goto(PAGE_URL + (merge ? "" : "?nomerge"), { waitUntil: "domcontentloaded", timeout: 60000 });
+        await page.goto(PAGE_URL + (merge ? "?nointro" : "?nomerge&nointro"), { waitUntil: "domcontentloaded", timeout: 60000 });
         await page.waitForFunction("Boolean(window.__range)", { timeout: 60000 });
         await page.waitForFunction("window.__range.loaded()", { timeout: 60000 });
         await page.evaluate(`document.getElementById("overlay").classList.add("hidden")`);

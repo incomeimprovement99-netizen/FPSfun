@@ -1,0 +1,47 @@
+{
+  "_note": "The intro (src/ui/intro.ts): the title card the page opens on and the one that plays as you drop into a match. Black screen, green rain falling at a different speed in every column, the name smashed in over it, then a shot through the middle: the glass cracks from a bullet hole and falls away into the game. The two timelines are in seconds from the start and each beat is the moment it begins, so they read in order; `out` is when the shards start falling and `end` is when the card is gone. The boot one is the first impression and is allowed to take its time; the match one plays while a match is already starting underneath it, so it is short and never in the way. Every beat is skipped by a key or a click, and with `prefers-reduced-motion` the shake and the falling shards are dropped for a plain fade (`reduced`).",
+  "boot": {
+    "rain": 0,
+    "title": 0.45,
+    "shot": 1.5,
+    "out": 2.0,
+    "end": 2.6
+  },
+  "match": {
+    "rain": 0,
+    "title": 0.12,
+    "shot": 0.75,
+    "out": 1.05,
+    "end": 1.5
+  },
+  "reduced": {
+    "_note": "No shake, no shards: the card fades in, holds and fades out, and the crack is drawn without the flash.",
+    "end": 1.2
+  },
+  "text": {
+    "_note": "The card's own words. `mark` is the big line and `sub` the one under it, spaced out the way a game's title screen spaces it.",
+    "mark": "B00G's FPS",
+    "sub": "FULL POWER SURGE"
+  },
+  "rain": {
+    "_note": "The green rainfall. A column is `column` pixels wide, its glyphs `glyph` pixels tall, and it falls at somewhere between `slow` and `fast` glyphs a second, drawn afresh every `swap` seconds so the characters change as they fall. `trail` is how much of the last frame is kept (the tail behind each head), `head` how bright the leading glyph is and `dim` the rest.",
+    "column": 16,
+    "glyph": 18,
+    "slow": 6,
+    "fast": 26,
+    "swap": 0.07,
+    "trail": 0.82,
+    "head": "#d9ffe4",
+    "dim": "#25c65a"
+  },
+  "crack": {
+    "_note": "The shot through the screen. `rays` cracks run out from the hole, each wandering by up to `wander` radians and splitting into `branches` at most; `rings` are the rings of glass between them, the ones that make it read as a pane rather than a star. `hole` is the bullet hole's radius in pixels and `spread` how many seconds the cracks take to run to the edge. `shake` is the screen's kick in pixels at the moment of the shot.",
+    "rays": 13,
+    "wander": 0.22,
+    "branches": 2,
+    "rings": 3,
+    "hole": 13,
+    "spread": 0.35,
+    "shake": 26
+  }
+}

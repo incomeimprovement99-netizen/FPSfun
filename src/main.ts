@@ -98,6 +98,7 @@ import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReti
 import { Progress, levelFor, type Award } from "./game/progress";
 import { HUD_SCALES, P, VISION_MODES, access, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
 import { LoadingScreen } from "./ui/loading";
+import { Intro } from "./ui/intro";
 import { setMuzzleViewer } from "./game/muzzle";
 import { SPRAYS, SprayLayer } from "./game/sprays";
 import { BANNERS, BANNER_ICONS, bannerCode, bannerOf } from "./game/banners";
@@ -107,6 +108,23 @@ import emotesCfg from "./config/emotes.json";
 
 // the loading screen listens from here on: before any loader of the page's own has started
 const loadingScreen = new LoadingScreen();
+/**
+ * The intro card (src/ui/intro.ts): the page opens on it, and it plays again
+ * as you drop into a match. `?nointro` turns it off, which is what the
+ * benchmark and the screenshots pass: neither wants a title card in the frame.
+ */
+const intro = new Intro();
+const NO_INTRO = new URLSearchParams(location.search).has("nointro");
+/** the card that opens the game has been played (the frame loop starts it once the world is in) */
+let introShown = false;
+// a key or a click takes the rest of it: nobody wants a title card twice
+if (!NO_INTRO) for (const ev of ["keydown", "pointerdown"] as const) window.addEventListener(ev, () => intro.skip(), { capture: true });
+// the shot the card is built round, heard as well as seen. Nothing is heard on
+// the page's first card: a browser plays no sound until something is clicked,
+// which is exactly right, and by the time a match starts one has been.
+intro.onShot = () => audio.shot(0.72, 0.9);
+// the sound's graph built a card ahead of the shot rather than on its frame
+intro.onWarm = () => audio.unlock();
 
 const DEG = Math.PI / 180;
 /** slot 1 and slot 2. Keys 1 and 2 select, Q swaps. */
@@ -3256,6 +3274,9 @@ const noGulag = (): boolean => (window as unknown as { __noGulag?: boolean }).__
 const noVault = (): boolean => (window as unknown as { __noVault?: boolean }).__noVault === true;
 /** the callbacks every kind of match gets */
 function wireMatch(d: MatchLike, kind: MatchKind): void {
+  // dropping into a match: the short card, over the match already starting
+  // underneath it. Nothing waits for it (src/ui/intro.ts).
+  if (!NO_INTRO) void intro.play("match");
   d.onRespawn = () => respawnForMatch(d);
   // a guest with a seat key (a host that gives one) gets back in after a dropped connection
   if (d instanceof Duel && d.role === "guest" && mySeat) d.onHostLost = () => getBackIn(d);
@@ -5806,6 +5827,15 @@ function step(): void {
   input.endFrame();
   // the loading screen goes once the world is in and this frame is drawn
   loadingScreen.frame();
+  // and the card opens the game the moment it does. It waits for that rather
+  // than starting with the page, because the first seconds of a page are the
+  // models and textures coming in and being decoded, which is one long stutter
+  // on the main thread: a card played through that plays on a clock nobody can
+  // see. From here the frames are steady (src/ui/intro.ts).
+  if (!NO_INTRO && !introShown && loadingScreen.loaded) {
+    introShown = true;
+    void intro.play("boot");
+  }
   // CPU time for everything this frame did: simulation, render submission and
   // HUD. The GPU works on it after this, in parallel with the next frame.
   frameMs += (performance.now() - frameStart - frameMs) * 0.1;
@@ -5863,7 +5893,6 @@ document.addEventListener("visibilitychange", () => {
 });
 tickWhileHidden(document.hidden);
 schedule();
-
 // ---------- first visit, invite links ----------
 initWelcome();
 {
@@ -5959,6 +5988,13 @@ initWelcome();
   cameraPos: () => camera.position.toArray(),
   /** the loading screen has gone: everything asked for is in and a frame is drawn (the tools wait on it) */
   loaded: () => loadingScreen.loaded,
+  /** the intro card (tools/e2e.ts, tools/snap.ts): what it is doing, skip it, or hold it at one moment for a picture */
+  intro: {
+    state: () => intro.state(),
+    skip: () => intro.skip(),
+    play: (kind: "boot" | "match") => intro.play(kind),
+    freeze: (seconds: number) => intro.freeze(seconds),
+  },
   /** the dropship: this match's flight, and who you are linked to or following */
   ship: () => (duel instanceof BrMatch ? duel.ship : null),
   shipState: () => ({ aboard: player.aboard, linkedTo, following, leash: player.leash ? player.leash.toArray() : null }),
@@ -6191,3 +6227,4 @@ initWelcome();
     return n;
   },
 };
+
