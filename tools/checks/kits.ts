@@ -6,8 +6,10 @@
 // match; nothing fills it before a kit is picked. PATCH goes once a cooldown.
 //
 // Run on its own: npx tsx tools/checks/kits.ts.
-import { Abilities, BOT_ABILITY_IDS, JOLT, KITS, kitOf } from "../../src/game/abilities";
+import { Abilities, BOT_ABILITY, BOT_ABILITY_IDS, JOLT, KITS, kitOf } from "../../src/game/abilities";
 
+import * as THREE from "three";
+import { coverPlan } from "../../src/game/bots";
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
   if (!cond) fails++;
@@ -57,7 +59,7 @@ console.log("Ability kits");
   a.pick("scout");
   const cd = KITS.scout.tactical.cooldown;
   check(`SCOUT's PULSE goes, then is back ${cd} s later and not before`, a.tryPulse(5) && !a.tryPulse(5 + cd - 0.1) && Math.abs(a.pulseLeft(5) - cd) < 1e-9 && a.tryPulse(5 + cd));
-  check("a bot takes one of the two kits it can play, never SCOUT (its whole kit is sight, which a bot's eyes already are)", BOT_ABILITY_IDS.length === 2 && !BOT_ABILITY_IDS.includes("scout"), BOT_ABILITY_IDS.join(","));
+  check("a bot never takes SCOUT (its whole kit is sight, which a bot's eyes already are) or HOOK (a grapple is a route, not a button)", !BOT_ABILITY_IDS.includes("scout") && !BOT_ABILITY_IDS.includes("hook"), BOT_ABILITY_IDS.join(","));
 }
 {
   const a = new Abilities();
@@ -91,6 +93,31 @@ console.log("Ability kits");
   check("the card names each kit with its tactical, passive and ultimate", r.kit === KITS.runner.name && r.tactical === "JOLT" && r.ult === KITS.runner.ult.name && m.kit === KITS.medic.name && m.tactical === KITS.medic.tactical.name && m.passive === "TRIAGE" && m.ult === KITS.medic.ult.name, `${r.blurb} | ${m.blurb}`);
   check("and its blurb carries the numbers it plays by", r.blurb.includes(`${KITS.runner.ult.seconds} s`) && r.blurb.includes(`${JOLT.distance} m`) && m.blurb.includes(`${KITS.medic.tactical.health} health`) && m.blurb.includes(`${KITS.medic.ult.radius} m`));
 }
+
+// The kits a bot plays (src/game/bots.ts coverPlan, src/config/abilities.json
+// `bots`). RUNNER and MEDIC it has played since Milestone 117; SMOKE and WARD
+// are the readable half of two more: cover thrown between itself and whoever
+// is shooting it. What has to hold is that it is cover and not a fence.
+console.log("");
+console.log("The kits a bot plays");
+{
+  const self = new THREE.Vector3(0, 0, 0);
+  const near = new THREE.Vector3(0, 0, 12);
+  const hurt = BOT_ABILITY.coverAtHealth - 0.1;
+  const gap = BOT_ABILITY.coverGap + 1;
+  check("the bots take four kits now: the two that fight and the two that break a line of sight", BOT_ABILITY_IDS.length === 4 && BOT_ABILITY_IDS.includes("smoke") && BOT_ABILITY_IDS.includes("ward"), BOT_ABILITY_IDS.join(", "));
+  const smoke = coverPlan("smoke", self, near, hurt, gap);
+  const ward = coverPlan("ward", self, near, hurt, gap);
+  check("a hurt SMOKE bot puts a cloud between itself and whoever is shooting it", !!smoke && smoke.k === "smoke" && smoke.to.z > 0 && smoke.to.z < 12, smoke ? `${smoke.to.z.toFixed(1)} m along a 12 m line` : "none");
+  check("and a hurt WARD bot puts a wall up in front of itself, facing them", !!ward && ward.k === "wall" && ward.from.z > 0 && ward.from.z < 4 && Math.abs(ward.to.x) < 1, ward ? `${ward.from.z.toFixed(1)} m out, facing ${ward.to.x.toFixed(0)} deg` : "none");
+  check("neither does it while it is healthy", !coverPlan("smoke", self, near, 1, gap) && !coverPlan("ward", self, near, 1, gap), `under ${BOT_ABILITY.coverAtHealth * 100}% health`);
+  check("nor twice inside its gap, so a bot cannot fence itself in", !coverPlan("smoke", self, near, hurt, BOT_ABILITY.coverGap - 0.1), `${BOT_ABILITY.coverGap} s apart`);
+  check("nor at a range where cover is no use to anyone", !coverPlan("smoke", self, new THREE.Vector3(0, 0, BOT_ABILITY.coverRange + 5), hurt, gap) && !coverPlan("smoke", self, new THREE.Vector3(0, 0, 2), hurt, gap), `4 to ${BOT_ABILITY.coverRange} m`);
+  // the cloud is thrown toward them, so it is cover for both sides rather than a wall round itself
+  const far = coverPlan("smoke", self, new THREE.Vector3(0, 0, 40), hurt, gap);
+  check("the cloud goes toward them rather than over its own head", !!far && far.to.z >= 8, far ? `${far.to.z.toFixed(1)} m out` : "none");
+}
+
 
 console.log(fails === 0 ? "\nKITS PASS" : `\nKITS FAIL (${fails})`);
 export const kitsFails = fails;

@@ -272,10 +272,13 @@ at 400 hu/s so a sprint, slide or jump carries it on; it has **two charges**,
 and a spent one comes back 4 s after the one before it (8 s for both). The
 HUD shows a pip per charge; a sideways dash rolls the view into it, and a pad
 rumbles. A setting per kind of match turns abilities on or off (the battle
-royale's is on). Bots take one of the two kits they can play (RUNNER or MEDIC:
-SCOUT's whole kit is sight, which their eyes already are) and use all of it,
-ultimate included: with a full meter and someone to fight, a RUNNER bot goes
-quicker for 8 s and a MEDIC bot heals itself.
+royale's is on). Bots take one of the four kits they can play and use
+it: with a full meter and someone to fight, a RUNNER bot goes quicker for 8 s
+and a MEDIC bot heals itself, and, hurt with someone shooting at them from a
+sensible distance, a SMOKE bot throws a cloud between the two of you and a WARD
+bot puts a wall up in front of itself before moving. Not SCOUT, whose whole kit
+is sight their eyes already are, and not HOOK, whose grapple is a route to plan
+rather than a button to press.
 
 **The killcam and the death recap.** Eliminated, you see the last 4 s from
 your killer's eyes (Space skips; a setting turns it off), then a card: for

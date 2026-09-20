@@ -12,7 +12,17 @@
     "_exit": "you leave a dash at this speed the way it went (400 hu/s, 10 m/s, the slide cap; above the 260 sprint), so it carries into a slide or a jump; friction takes it down from there. The dash itself is an ease-out: 70% of the distance in the first half",
     "exitSpeedHu": 400,
     "_feel": "the view on a dash: the FOV kick in degrees, a roll toward the side you went (degrees, rising in rollIn s, back over rollOut s), a pad rumble (strong, weak, ms)",
-    "feel": { "fov": 8, "roll": 2.5, "rollIn": 0.06, "rollOut": 0.25, "rumble": [0.35, 0.6, 120] }
+    "feel": {
+      "fov": 8,
+      "roll": 2.5,
+      "rollIn": 0.06,
+      "rollOut": 0.25,
+      "rumble": [
+        0.35,
+        0.6,
+        120
+      ]
+    }
   },
   "triage": {
     "name": "TRIAGE",
@@ -20,8 +30,11 @@
     "healSpeed": 2
   },
   "bots": {
-    "_note": "ours: a JOLT bot jolts sideways when it has been hit in the last this many seconds; every bot heals when it has had no target for healAfter seconds",
+    "_note": "ours: a JOLT bot jolts sideways when it has been hit in the last `joltWhenHitWithin` seconds; every bot heals when it has had no target for `healAfter` seconds. A SMOKE bot throws a cloud between itself and whoever is shooting it once it is under `coverAtHealth` of its health, and a WARD bot puts a wall up in the same spot in the same case; neither does it more often than `coverGap` seconds, and neither does it at all further than `coverRange` metres, where a cloud or a wall is cover for the other side as much as for itself. A bot's cover is meant to make a fight read, not to make a bot unkillable: it breaks the line of sight it is already losing and then it moves.",
     "joltWhenHitWithin": 0.4,
-    "healAfter": 4
+    "healAfter": 4,
+    "coverAtHealth": 0.65,
+    "coverGap": 9,
+    "coverRange": 42
   }
 }

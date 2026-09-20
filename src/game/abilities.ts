@@ -27,8 +27,15 @@ export interface KitInfo {
 
 export type AbilityId = "jolt" | "triage" | "scout" | "hook" | "smoke" | "ward";
 export const ABILITY_IDS: AbilityId[] = ["jolt", "triage", "scout", "hook", "smoke", "ward"];
-/** the kits a bot takes: the two it can play (SCOUT's is all sight, which a bot's own eyes already do) */
-export const BOT_ABILITY_IDS: AbilityId[] = ["jolt", "triage"];
+/**
+ * The kits a bot takes. RUNNER jolts and MEDIC heals; SMOKE and WARD both
+ * break a line of sight they are losing, one with a cloud and one with a wall,
+ * which is the readable half of each kit from the other end of a fight. HOOK's
+ * grapple and SCOUT's sight are left out: a bot's eyes already see what SCOUT
+ * shows, and a grapple is a route a bot would have to plan rather than a thing
+ * it can use where it stands.
+ */
+export const BOT_ABILITY_IDS: AbilityId[] = ["jolt", "triage", "smoke", "ward"];
 
 export interface AbilityInfo {
   id: AbilityId;

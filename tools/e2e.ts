@@ -2314,7 +2314,7 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   const cardUp = await page.waitForFunction("window.__range.abilities.choosing === true", { polling: 100, timeout: 5000 }).then(() => true, () => false);
   check("bots with abilities: the card is up at the countdown", cardUp);
   const botAb = await ev<string[]>(page, "window.__range.duel().bots.map((b) => String(b.ability))");
-  check("bots with abilities: the bot has one too", botAb.every((a) => a === "jolt" || a === "triage"), botAb.join(","));
+  check("bots with abilities: the bot has one too, from the four a bot plays", botAb.every((a) => a === "jolt" || a === "triage" || a === "smoke" || a === "ward"), botAb.join(","));
   await ev(page, `window.__range.pickAbility("jolt")`);
   await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
   const p0 = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
@@ -2430,6 +2430,38 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await sleep(300);
   const screen = await ev<number>(page, "window.__range.smokeCount()");
   check("kits: SMOKE's SCREEN throws three clouds in a line", screen === smoked.clouds + 3, `${smoked.clouds} then ${screen}`);
+  // a bot's own kit: hurt it, stand where it can see you, and its SMOKE or its
+  // WARD goes up between the two of you (src/game/bots.ts coverPlan)
+  {
+    const put = await ev<{ kind: string; clouds: number; walls: number }>(
+      page,
+      `new Promise((ok) => { const r = window.__range; const d = r.duel(); const b = d.bots[0];
+        delete b.update;
+        d.holdFire = false;
+        b.ability = "smoke";
+        b.dummy.health = 40;
+        // it decides from where it is and where you are: stand 12 m off, in the open
+        r.player.teleport(b.pos.x, 0, b.pos.z + 12, 180);
+        const c0 = r.smokeCount(); const w0 = r.wallCount();
+        setTimeout(() => ok({ kind: "smoke", clouds: r.smokeCount() - c0, walls: r.wallCount() - w0 }), 1200); })`
+    );
+    check("kits: a hurt bot playing SMOKE puts a cloud up between the two of you", put.clouds >= 1, JSON.stringify(put));
+    await ev(page, "window.__range.clearKitStuff()");
+    // A hurt bot goes for cover the moment it is hurt, so by the time it would
+    // put a wall up it is usually behind something with nobody in sight. The
+    // decision itself is checked in tools/checks/kits.ts; what is checked here
+    // is the rest of the chain: that what a bot puts up reaches the world.
+    const wall = await ev<{ walls: number }>(
+      page,
+      `new Promise((ok) => { const r = window.__range; const b = r.duel().bots[0];
+        b.ability = "ward";
+        const w0 = r.wallCount();
+        b.putUp = { k: "wall", from: new r.THREE.Vector3(b.pos.x, b.pos.y, b.pos.z + 2), to: new r.THREE.Vector3(0, 0, 0) };
+        setTimeout(() => ok({ walls: r.wallCount() - w0 }), 600); })`
+    );
+    check("kits: and what a bot playing WARD puts up reaches the world as a wall", wall.walls >= 1, JSON.stringify(wall));
+    await ev(page, "window.__range.clearKitStuff()");
+  }
   await ev(page, `window.__range.pickAbility("hook")`);
   const zip0 = await ev<number>(page, "window.__range.ziplineCount()");
   await ev(page, "(() => { const r = window.__range; r.abilities.ult = 1; r.useUltimate(); })()");

@@ -539,6 +539,40 @@ const FLING_GRAVITY = moveCfg.gravity * 0.0254;
 /** a zipline rider's feet under their hands, m (the ropes in br.ts are hung for this) */
 const ZIP_HANG = 2.13;
 
+/**
+ * What a SMOKE or WARD bot puts up, or null for "not now". Hurt (under
+ * `coverAtHealth` of its health), with whoever is shooting it between 4 m and
+ * `coverRange` away, and not inside `coverGap` seconds of the last one: a
+ * cloud lands between the two of them, nearer its own end, and a wall goes up
+ * a couple of metres in front of it across that line. It is breaking a line of
+ * sight it is already losing, which is what those kits are for and what makes
+ * a fight read from the other end (src/config/abilities.json `bots`).
+ */
+export function coverPlan(
+  kind: "smoke" | "ward",
+  self: THREE.Vector3,
+  target: THREE.Vector3,
+  healthFrac: number,
+  sinceLast: number
+): { k: "smoke" | "wall"; from: THREE.Vector3; to: THREE.Vector3 } | null {
+  if (sinceLast < BOT_ABILITY.coverGap) return null;
+  if (healthFrac > BOT_ABILITY.coverAtHealth) return null;
+  const from = self.clone();
+  from.y += 1.2;
+  const away = target.clone().setY(from.y).sub(from);
+  const dist = away.length();
+  if (dist < 4 || dist > BOT_ABILITY.coverRange) return null;
+  away.multiplyScalar(1 / dist);
+  if (kind === "smoke") {
+    const to = from.clone().addScaledVector(away, Math.min(dist * 0.45, 9));
+    to.y = self.y;
+    return { k: "smoke", from, to };
+  }
+  const at = self.clone().addScaledVector(away, 2.2);
+  const deg = (Math.atan2(away.x, away.z) * 180) / Math.PI;
+  return { k: "wall", from: at, to: new THREE.Vector3(deg, 0, 0) };
+}
+
 export class Bot {
   readonly dummy: Dummy;
   readonly remote: Remote;
@@ -742,6 +776,35 @@ export class Bot {
   }
 
   /** a frag it threw this frame, once (the match shows it, sends it, and the blast is the match's) */
+  /**
+   * The cover it just put up (SMOKE's cloud or WARD's wall), for the match to
+   * raise as an effect the way it raises a thrown frag. One at a time, taken
+   * the frame it is made (src/config/abilities.json `bots`).
+   */
+  private putUp: { k: "smoke" | "wall"; from: THREE.Vector3; to: THREE.Vector3 } | null = null;
+  takePutUp(): { k: "smoke" | "wall"; from: THREE.Vector3; to: THREE.Vector3 } | null {
+    const c = this.putUp;
+    this.putUp = null;
+    return c;
+  }
+  /** when it last put cover up, so it does not fence itself in */
+  coverAt = -Infinity;
+
+  /**
+   * SMOKE and WARD, from a bot's side: hurt, with someone shooting at it from
+   * a distance where a cloud or a wall is worth anything, it puts one between
+   * the two of them and then moves. The decision is `coverPlan` below, which
+   * is free of the scene so the checks can ask it directly.
+   */
+  private stepCover(now: number, target: THREE.Vector3 | null): void {
+    if (this.ability !== "smoke" && this.ability !== "ward") return;
+    if (!this.alive || !target) return;
+    const put = coverPlan(this.ability, this.pos, target, this.dummy.health / HEALTH_MAX, now - this.coverAt);
+    if (!put) return;
+    this.coverAt = now;
+    this.putUp = put;
+  }
+
   takeThrow(): { kind: "frag"; from: THREE.Vector3; vel: THREE.Vector3 } | null {
     const t = this.thrown;
     this.thrown = null;
@@ -1314,6 +1377,8 @@ export class Bot {
     if (this.cover && (now > this.cover.until || (!this.healing && hurtFrac >= 0.95) || (this.kit.cell <= 0 && this.kit.syringe <= 0))) this.cover = null;
     this.stepHeal(now, sees);
     this.stepUlt(now, dt, !!target);
+    // SMOKE and WARD: cover between it and whoever is shooting it
+    this.stepCover(now, target);
     while (this.joltCharges < JOLT.charges && now >= this.joltRechargeAt) {
       this.joltCharges++;
       this.joltRechargeAt = this.joltCharges < JOLT.charges ? this.joltRechargeAt + JOLT.recharge : Infinity;
@@ -1886,6 +1951,9 @@ export class BotMatch implements MatchLike {
       // a frag: its flight is drawn by the page, which hands the blast back (botBlast)
       const th = b.takeThrow();
       if (th) this.onRemoteFx?.("throw", b.remote.id, th.from, th.vel, throwCode(th.kind));
+      // SMOKE's cloud or WARD's wall, raised the same way a thrown frag is
+      const put = b.takePutUp();
+      if (put) this.onRemoteFx?.(put.k, b.remote.id, put.from, put.to, 0);
       let d = 0;
       for (const s of shots) {
         this.onShotFired?.(b.remote.id, s.from, s.dir, s.weapon);

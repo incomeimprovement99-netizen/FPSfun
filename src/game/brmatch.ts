@@ -2841,6 +2841,12 @@ export class BrMatch extends Duel {
         this.onRemoteFx?.("throw", bot.remote.id, th.from, th.vel, throwCode(th.kind));
         this.broadcast({ t: "fx", from: bot.remote.id, k: "throw", a: [th.from.x, th.from.y, th.from.z], b: [th.vel.x, th.vel.y, th.vel.z], n: throwCode(th.kind) });
       }
+      // SMOKE's cloud or WARD's wall: drawn here and on every squad's screen
+      const put = bot.takePutUp();
+      if (put) {
+        this.onRemoteFx?.(put.k, bot.remote.id, put.from, put.to, 0);
+        this.broadcast({ t: "fx", from: bot.remote.id, k: put.k, a: [put.from.x, put.from.y, put.from.z], b: [put.to.x, put.to.y, put.to.z], n: 0 });
+      }
       // its own heals show on its plate
       if (bot.alive) {
         bot.remote.health = bot.dummy.health;

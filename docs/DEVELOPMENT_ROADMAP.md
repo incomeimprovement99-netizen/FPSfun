@@ -2201,3 +2201,18 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/intro.ts` (the pattern goes through at once, no two pellets in the same place, spread over
   the middle rather than heaped in it, local breaks, the same from the same seed, and the whole card under four
   seconds), and the three snapshots retaken on the new beats.
+
+## Milestone 134 — The bots play four kits ✅
+2026-09-20 (Phase 15). `src/game/bots.ts`, `src/game/abilities.ts`, `src/config/abilities.json`, `src/game/brmatch.ts`, `src/game/modematch.ts`, `tools/checks/kits.ts`, `tools/e2e.ts`, `README.md`.
+- Item 8 of the ranked list: six kits, and the bots played two of them. They play four now. **SMOKE and WARD's
+  cover** is the readable half of each from the other end of a fight: hurt (under 65% health), with whoever is
+  shooting them between 4 and 42 m away, a SMOKE bot throws a cloud between the two of you and a WARD bot puts a
+  wall up a couple of metres in front of itself, and then it moves. Nine seconds between one and the next, so a bot
+  breaks a line of sight it is already losing rather than fencing itself in.
+- Not SCOUT, whose whole kit is sight that a bot's eyes already have, and not HOOK, whose grapple is a route a bot
+  would have to plan rather than a thing it can use where it stands.
+- The decision is `coverPlan` in `bots.ts`, free of the scene, so the checks ask it directly; what a bot puts up
+  goes out through the same path a thrown frag does, so it is drawn on every screen in a match, not just the host's.
+- Checks: `tools/checks/kits.ts` (seven: what each kit puts up and where, and the three cases where it does not) and
+  the e2e `bots` section (a hurt SMOKE bot's cloud goes up in a real match, and what a WARD bot puts up reaches the
+  world).
