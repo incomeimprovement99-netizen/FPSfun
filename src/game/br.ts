@@ -119,6 +119,19 @@ export interface BrMap {
   doors: Doors;
   /** the vault: its door's index, the room's middle and floor, and where its guard stands (world space) */
   vault: { door: number; x: number; z: number; y: number; post: { x: number; z: number } };
+  /**
+   * The field's cover as real rock (props.ts): where each rock stands and the
+   * box it fills, the boxed shapes drawn in their place until the scans are
+   * in, and the scrub and cliff faces that carry no collider at all. In the
+   * map's own coordinates, because they are drawn under its root, which is
+   * what carries the map's place in the world.
+   */
+  scenery: {
+    rocks: Array<{ x: number; y: number; z: number; rot: number; fit: { w: number; h: number; d: number } }>;
+    boxed: THREE.Mesh[];
+    scrub: Array<{ x: number; y: number; z: number; rot: number; scale: number; kind: "trunk" | "branch" | "twigs" }>;
+    cliffs: Array<{ x: number; y: number; z: number; rot: number; scale: number }>;
+  };
 }
 
 /** a small deterministic random, so the field's rocks land in the same places every load */
@@ -137,6 +150,8 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   scene.add(root);
   // the buildings below record their doorways here, for the doors hung in them at the end
   DOORWAYS.length = 0;
+  /** the field's rocks, and the scrub and cliff faces that go on it (props.ts draws them as instances) */
+  const scenery: BrMap["scenery"] = { rocks: [], boxed: [], scrub: [], cliffs: [] };
 
   const solid = (minX: number, maxX: number, minZ: number, maxZ: number, base: number, top: number) =>
     RANGE_SOLIDS.push({ minX: minX + BR_X, maxX: maxX + BR_X, minZ: minZ + BR_Z, maxZ: maxZ + BR_Z, base, top });
@@ -186,6 +201,10 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     m.receiveShadow = true;
     root.add(m);
     solid(x - w / 2, x + w / 2, z - d / 2, z + d / 2, y, y + h);
+    // the same rock as a scan, once the models are in (props.ts placeInstanced):
+    // the box of collision is this one's, so movement is the same either way
+    scenery.rocks.push({ x, y, z, rot: Math.round(x * 31 + z * 17) % 360, fit: { w, h, d } });
+    scenery.boxed.push(m);
   };
   /**
    * A round thing's collision. There is nothing but boxes, so a cylinder of
@@ -2639,6 +2658,50 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     (nodes[b].ropes ??= []).push(a);
   }
 
+  // Dead scrub and branches on the open field: nothing to walk into (no
+  // collider), only something to look at and to break a bare plain up. Placed
+  // from the same little random the rocks use, clear of the roads and places.
+  {
+    const rnd = lcg(0x5eed11);
+    const kinds = ["trunk", "branch", "twigs"] as const;
+    for (let i = 0; i < 90; i++) {
+      const x = (rnd() * 2 - 1) * 198;
+      const z = (rnd() * 2 - 1) * 198;
+      const nearPoi = [
+        [0, 0, 50],
+        [0, -165, 38],
+        [0, 165, 38],
+        [165, 0, 38],
+        [-165, 0, 38],
+      ].some(([px, pz, r]) => Math.hypot(x - px, z - pz) < r);
+      const onRoad = (Math.abs(x) < 9 && Math.abs(z) < 172) || (Math.abs(z) < 9 && Math.abs(x) < 172);
+      if (nearPoi || onRoad || !clearOf(x - 2, x + 2, z - 2, z + 2)) continue;
+      const kind = kinds[Math.floor(rnd() * kinds.length)];
+      scenery.scrub.push({ x, y: groundTop(x, z), z, rot: rnd() * 360, scale: kind === "twigs" ? 1.3 + rnd() * 0.8 : 1.1 + rnd() * 0.9, kind });
+    }
+    // rock faces along the map's edge, against the cliff that walls it in:
+    // the wall is a flat band, and a scan every twenty metres gives it a face
+    for (const [ax, az, dx, dz] of [
+      [-200, -200, 1, 0],
+      [-200, 200, 1, 0],
+      [-200, -200, 0, 1],
+      [200, -200, 0, 1],
+    ] as const) {
+      // not on a beat: each face a different size, turned a little, set into
+      // the wall and a touch under the sand, so the edge reads as rock rather
+      // than as a row of slabs
+      const jog = lcg(0x0c11ff ^ Math.round(ax * 7 + az * 13 + dx * 3 + dz));
+      for (let t = 10; t < 390; t += 17 + jog() * 16) {
+        const into = 1.2 + jog() * 1.6;
+        const x = ax + dx * t + (dx ? 0 : ax < 0 ? into : -into);
+        const z = az + dz * t + (dz ? 0 : az < 0 ? into : -into);
+        if (!clearOf(x - 6, x + 6, z - 6, z + 6)) continue;
+        const face = dx ? (az < 0 ? 0 : 180) : ax < 0 ? 90 : 270;
+        scenery.cliffs.push({ x, y: groundTop(x, z) - 0.6, z, rot: face + (jog() * 16 - 8), scale: 2.4 + jog() * 2.2 });
+      }
+    }
+  }
+
   return {
     root,
     pois,
@@ -2651,6 +2714,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     pads: padSpots.map(([x, z, dx, dz]) => ({ ...P(x, z), dx, dz })),
     doors: new Doors(root, { x: BR_X, z: BR_Z }, DOORWAYS),
     vault: { door: vaultDoor, ...P(-100, 24), y: groundTop(-100, 24), post: P(-100, 20.5 - brCfg.vault.post) },
+    scenery,
   };
 }
 

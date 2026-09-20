@@ -37,7 +37,7 @@ import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
 import { SHIP, surfaceUnder, type ShipRun } from "./game/dropship";
 import { GULAG } from "./game/gulag";
 import brCfg from "./config/br.json";
-import { placeProps } from "./game/props";
+import { placeProps, placeInstanced, stepInstanced } from "./game/props";
 import { Target } from "./game/targets";
 import { ViewModel } from "./game/viewmodel";
 import { GameAudio } from "./game/audio";
@@ -762,6 +762,27 @@ $("copyFlags").addEventListener("click", () => {
 // CC0 props arrive asynchronously; their colliders are already in place. A
 // static shadow map has to be redrawn once they are in, or they cast nothing.
 void placeProps(scene, PROP_PLACEMENTS).then(() => {
+  renderer.shadowMap.needsUpdate = true;
+});
+
+// The battle royale's field, as rock rather than boxes: its rocks, its dead
+// scrub and the faces of the cliff that walls it in, each kind drawn as one
+// instanced mesh per mesh of its model. The colliders are the map's own boxes,
+// so movement is the same whether or not these arrive; the boxed shapes it
+// drew stay until they do (a checkout without `npm run models` looks as it
+// did). The scrub and the faces carry no collider at all: they are to look at.
+void placeInstanced(brMap.root, [
+  { prop: "namaqualand_boulder_04", at: brMap.scenery.rocks.filter((_, i) => i % 3 === 0), standIn: brMap.scenery.boxed.filter((_, i) => i % 3 === 0), far: 170 },
+  { prop: "namaqualand_boulder_06", at: brMap.scenery.rocks.filter((_, i) => i % 3 === 1), standIn: brMap.scenery.boxed.filter((_, i) => i % 3 === 1), far: 170 },
+  { prop: "namaqualand_boulders_01", at: brMap.scenery.rocks.filter((_, i) => i % 3 === 2), standIn: brMap.scenery.boxed.filter((_, i) => i % 3 === 2), far: 170 },
+  { prop: "dead_quiver_trunk", at: brMap.scenery.scrub.filter((s) => s.kind === "trunk"), shadows: false },
+  { prop: "dead_quiver_branch_02", at: brMap.scenery.scrub.filter((s) => s.kind === "branch"), shadows: false },
+  { prop: "dry_branches_medium_01", at: brMap.scenery.scrub.filter((s) => s.kind === "twigs"), shadows: false },
+  { prop: "rock_face_02", at: brMap.scenery.cliffs, shadows: false, far: 260 },
+]).then((drawn) => {
+  // every boulder kind in: the boxed rocks give way to them, and come back
+  // beyond the distance a scan is worth drawing (props.ts stepInstanced)
+  if (["namaqualand_boulder_04", "namaqualand_boulder_06", "namaqualand_boulders_01"].every((n) => drawn.includes(n as never))) for (const m of brMap.scenery.boxed) m.visible = false;
   renderer.shadowMap.needsUpdate = true;
 });
 
@@ -4470,6 +4491,8 @@ function frame(): void {
   camera.updateMatrixWorld();
   lodFrustum.setFromProjectionMatrix(lodMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
   setFigureView(camera.position, lodFrustum, framesRun);
+  // the field's rock and scrub: only the cells near enough to be worth drawing
+  stepInstanced(camera.position);
   try {
     step();
   } catch (e) {

@@ -2003,3 +2003,23 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   walking link, every one of the 113 nodes still reaches each of the 21 ring targets along the graph's own steps,
   and a route with a rope on it is one step where the walk round is three), and the e2e `br` section (a bot whose
   route plans through a rope rides it and lands 0.2 m from its far end).
+
+## Milestone 124 — The field in rock, scrub and cliff ✅
+2026-09-20 (Phase 15). `props.ts`, `br.ts`, `main.ts`, `tools/checks/scenery.ts` (new), `tools/snap.ts`.
+- The last of `docs/NEXT_STEPS.md` item 8, and the biggest "this looks like a game" jump left: the field's cover is
+  the Poly Haven rock scans already fetched (three boulder sets), the open ground carries dead quiver trunks,
+  branches and dry twigs, and the cliff that walls the map in has rock faces along its four edges, each a different
+  size and turn and set a little into the wall.
+- `props.ts placeInstanced` draws them: one instanced mesh per mesh of a model per cell of the map (64 m), each with
+  its own bounds, so what is behind you is culled. The scrub casts no shadow, the cliff faces none either, and
+  beyond a distance a cell is not drawn at all: 170 m for the rocks, 260 m for the faces, 150 m for the scrub.
+- A rock is cover, so it may never simply vanish: past its distance the boxed shape the map already drew comes back
+  in its place (`standIn`), which is a few hundred triangles instead of tens of thousands.
+- The colliders are the map's own boxes, untouched, so movement is exactly as tuned, and a checkout without
+  `npm run models` still gets the boxed rocks it always had.
+- Measured at High with the scans in view: the hub 278 to 256 fps. Drawn whole and always (no cells, no distance,
+  shadows on everything) the same view was 29.7M triangles against 9.2M; the cells and the stand-ins are what make
+  the scans affordable.
+- Checks: `tools/checks/scenery.ts` (every rock has its box and a boxed stand-in, the scrub is in its three kinds
+  and never on a road or in a place, and the faces lie along the four edges), and the snapshots `br-rocks` and the
+  new `br-field`.

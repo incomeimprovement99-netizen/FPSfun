@@ -837,6 +837,16 @@ the figure's own boxes, not the animation. In a battle royale with ten bots
 round the hub that took High from 799 draw calls to 599, 2.39M triangles to
 1.99M, and 167 to 185 fps (`npm run bench BENCH_SPOT=brmatch`).
 
+**The field is rock, scrub and cliff, not boxes.** The battle royale's cover
+is scanned rock (Poly Haven, CC0), its open ground has dead trees and branches
+scattered over it, and the cliff that walls the map in has rock faces along it.
+The colliders are the map's own boxes, unchanged, so movement is exactly as it
+was tuned: a rock is the same cover it always was. A scan is tens of thousands
+of triangles, so they are drawn as instances, grouped into cells of the map so
+the ones behind you are culled, with no shadows for the scrub, and beyond 170 m
+a rock falls back to the shape it stands in for. Without the models (a checkout
+without `npm run models`) the field looks as it did.
+
 **The hands in front of you are one mesh each.** A hand is about thirty-five
 small parts (fingers, knuckle pads, a cuff) and none of them ever moves against
 another: what moves is the hand. They are merged into one mesh per material

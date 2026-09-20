@@ -68,7 +68,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 - **#12 and #13:** their text describes the old hub tower and ziplines.
 
 **The next rounds, in order:**
-1. **Materials and rocks on the map (#7, #8):** the materials are done (Milestone 81); the rock meshes (Poly Haven boulders in place of box rocks) are left. about a day. Already fetched; each place gets its palette, and real rocks replace box cover.
+1. ~~**Materials and rocks on the map (#7, #8)**~~ Done: the materials (Milestone 81), the rock shapes (99), and the scans, scrub and cliff faces (124). Already fetched; each place gets its palette, and real rocks replace box cover.
 2. ~~**Supply bins and chests (#11)**~~ Done (Milestone 83).
 3. ~~**Doors (#10), with bots opening them**~~ Done (Milestones 97, 98): 64 doors, E, bots open them, two swings kick one in.
 4. ~~**Host migration and rejoin**~~ Done (Milestones 91, 110 to 113). 3 to 4 days. One person's bad connection ending an eight-player match is the failure a group of friends hits most. Rejoin is done (Milestone 91). Migration is planned in `docs/PLAN_HOST_MIGRATION.md`, in four phases; phase 1 (the host's id a field, not 0) is Milestone 110, and phase 2 (Free-for-all and Gun Run with friends outlive their host) is Milestone 111. Phase 3 (the arena modes with bots, the crown and Control) is Milestone 112, and phase 4 (the battle royale) is Milestone 113.

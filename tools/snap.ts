@@ -151,6 +151,14 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-field",
+    note: "the open field between the places: rock, dead scrub and the cliff face at the map's edge, none of it a box",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(-108, 4, 500 - 168, 0, -3); r.player.vel.set(0, 0, 0); })()`, 0],
+      [gameSeconds(1), 400],
+    ],
+  },
+  {
     name: "br-door",
     note: "a door in a doorway, shut: the panel, its handle, the frame round it",
     steps: [
