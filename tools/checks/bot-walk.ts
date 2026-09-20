@@ -54,8 +54,8 @@ console.log("A bot's way to the ring, and what it sees");
       while (at !== t.target && steps <= nodes.length) {
         const next = t.toward[at];
         if (next < 0) break;
-        // every step is one of the graph's own links
-        if (!nodes[at].links.includes(next)) stuck++;
+        // every step is one of the graph's own: a link to walk, or a rope to ride
+        if (!nodes[at].links.includes(next) && !(nodes[at].ropes ?? []).includes(next)) stuck++;
         at = next;
         steps++;
       }
@@ -63,7 +63,7 @@ console.log("A bot's way to the ring, and what it sees");
       longest = Math.max(longest, steps);
     });
   }
-  check(`from all ${nodes.length} nodes, along the graph's own links, to the node nearest each of the ${RING_ATTRACTORS.length} places a ring closes toward`, stuck === 0, `${stuck} stuck, the longest ${longest} steps`);
+  check(`from all ${nodes.length} nodes, along the graph's own steps (its links, and its ropes to ride), to the node nearest each of the ${RING_ATTRACTORS.length} places a ring closes toward`, stuck === 0, `${stuck} stuck, the longest ${longest} steps`);
 }
 {
   const min = botsCfg.sight.min;
@@ -71,6 +71,51 @@ console.log("A bot's way to the ring, and what it sees");
   check("a bot sees what is in front of it", inCone(0, 0, 60) && inCone(0, 30, 60));
   check("but not behind it, or far to its side, out of a fight", !inCone(0, 0, -60) && !inCone(0, 60, -5));
   check(`within ${min} m it notices you whichever way it faces`, inCone(0, 0, -(min - 1)));
+}
+
+// ---------------------------------------------------------------- the ropes as steps
+//
+// A zipline is a step on the graph, not a wall to walk round: each rope's two
+// ends are joined to the nodes nearest them as a rope link, the walk plans
+// through it, and a bot whose next step is one rides it rather than walking
+// the line (which would be a fall).
+{
+  const { ZIPLINES } = await import("../../src/game/traversal");
+  {
+    const z = ZIPLINES[0];
+    let best = Infinity;
+    let dy = 0;
+    if (z) for (const n of map.nodes) {
+      const d = Math.hypot(n.x - z.a.x, n.z - z.a.z);
+      if (d < best) { best = d; dy = Math.abs((n.y ?? z.a.y - 2.13) - (z.a.y - 2.13)); }
+    }
+    console.log(`  --  ${ZIPLINES.length} ropes; the first one's end is ${best.toFixed(1)} m from the nearest node (dy ${dy.toFixed(1)})`);
+  }
+  const withRopes = map.nodes.filter((n) => (n.ropes?.length ?? 0) > 0);
+  const pairs = withRopes.reduce((n, x) => n + (x.ropes?.length ?? 0), 0);
+  check("the map's ropes are on its graph, both ways round", withRopes.length >= 4 && pairs === withRopes.reduce((n, x) => n + (x.ropes?.length ?? 0), 0) && pairs % 2 === 0, `${withRopes.length} nodes, ${pairs} rope steps`);
+  check("a rope step is never also a walking link (a bot would walk off the anchor)", withRopes.every((n) => (n.ropes ?? []).every((j) => !n.links.includes(j))));
+  // the walk uses one: from a rope's far end the route home is shorter through it than round
+  const hops = (tree: { toward: Int32Array }, from: number): number => {
+    let n = 0;
+    let at = from;
+    while (at >= 0 && n < 500) {
+      const next = tree.toward[at];
+      if (next < 0) break;
+      at = next;
+      n++;
+    }
+    return n;
+  };
+  const withRope = withRopes[0];
+  const far = (withRope.ropes ?? [])[0];
+  const tree = navTree(map.nodes, map.nodes[far].x, map.nodes[far].z);
+  const through = hops(tree, map.nodes.indexOf(withRope));
+  // the same walk with the ropes taken off the graph
+  const plain = map.nodes.map((n) => ({ x: n.x, z: n.z, links: n.links }));
+  const plainTree = navTree(plain, plain[far].x, plain[far].z);
+  const around = hops(plainTree, map.nodes.indexOf(withRope));
+  check("a route that has a rope on it is shorter than the walk round", through === 1 && around > through, `${through} step through the rope, ${around} round`);
 }
 
 console.log(fails === 0 ? "\nBOT WALK PASS" : `\nBOT WALK FAIL (${fails})`);

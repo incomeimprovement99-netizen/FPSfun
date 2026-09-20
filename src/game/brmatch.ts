@@ -478,6 +478,8 @@ interface BrBot {
   reviving: number;
   /** the vault's guard: where it stands (world space). On no side, in no squad, never on the ship, and not counted among those left */
   guard?: { x: number; z: number };
+  /** the route's next step is a rope to here (br.ts node ropes): the bot rides rather than walks it */
+  ropeTo?: { x: number; z: number } | null;
 }
 
 /** a care package or a loadout crate: called, on its way down, or landed */
@@ -1507,7 +1509,7 @@ export class BrMatch extends Duel {
    * rideGain metres), rides it. Before this every rope and pad was scenery
    * to the bots, and a bot wanting the other side of the map walked it.
    */
-  private botTraversal(b: BrBot, sense: BotSense): void {
+  private botTraversal(b: BrBot, sense: BotSense, planned?: { x: number; z: number } | null): void {
     // the vault's guard keeps its post
     if (b.guard) return;
     const bot = b.bot;
@@ -1524,6 +1526,23 @@ export class BrMatch extends Duel {
       if (follower && lead && (lead.bot.pos.x - bot.pos.x) * p.dx + (lead.bot.pos.z - bot.pos.z) * p.dz < SQUADS.follow) continue;
       bot.fling(new THREE.Vector3(p.dx * P.speed, P.up, p.dz * P.speed));
       return;
+    }
+    // the route's next step is a rope's other end: ride it, whichever way the
+    // ring happens to lie (the graph chose this step for the distance it saves)
+    if (planned && !bot.travel) {
+      for (const z of ZIPLINES) {
+        for (const [end, far] of [
+          [z.a, z.b],
+          [z.b, z.a],
+        ] as const) {
+          if (Math.hypot(far.x - planned.x, far.z - planned.z) > SQUADS.ropeReach + 8) continue;
+          if (Math.hypot(bot.pos.x - end.x, bot.pos.z - end.z) > SQUADS.ropeReach) continue;
+          const feet = end.y - 2.13;
+          if (bot.pos.y < feet - 1.4 || bot.pos.y > feet + 0.6) continue;
+          bot.ride(end, far, moveCfg.ziplineSpeed * 0.0254);
+          return;
+        }
+      }
     }
     if (sense.target || !sense.goal) return;
     // a rope is a choice: a lead takes one only with its squad about it
@@ -2795,7 +2814,7 @@ export class BrMatch extends Duel {
       if (bot.alive && !b.down && !bot.dropping) {
         const door = this.map.doors.closedAt(bot.pos, doorsCfg.botReach);
         if (door) this.hostDoor(door.i, true);
-        this.botTraversal(b, sense);
+        this.botTraversal(b, sense, b.ropeTo);
       }
       // still searching: it walks the map and does not shoot
       if (b.armedAt > now) sense.canShoot = false;
@@ -2953,7 +2972,12 @@ export class BrMatch extends Duel {
       if (!inside && cur && Math.hypot(cur.x - bot.pos.x, cur.z - bot.pos.z) < 3 && Math.abs((cur.y ?? bot.pos.y) - bot.pos.y) < 2.5) {
         b.node = b.goal;
         const hop = this.hurryHop(ring.next.cx, ring.next.cz, b.node);
-        if (hop >= 0) b.goal = hop;
+        if (hop >= 0) {
+          b.goal = hop;
+          // a step the graph says is a rope: the bot rides it from this end
+          const here = nodes[b.node];
+          b.ropeTo = here?.ropes?.includes(hop) ? { x: nodes[hop].x, z: nodes[hop].z } : null;
+        }
       }
       const g = nodes[b.goal];
       // inside the circle, or at the node nearest its middle: straight in

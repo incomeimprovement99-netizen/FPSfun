@@ -72,7 +72,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 2. ~~**Supply bins and chests (#11)**~~ Done (Milestone 83).
 3. ~~**Doors (#10), with bots opening them**~~ Done (Milestones 97, 98): 64 doors, E, bots open them, two swings kick one in.
 4. ~~**Host migration and rejoin**~~ Done (Milestones 91, 110 to 113). 3 to 4 days. One person's bad connection ending an eight-player match is the failure a group of friends hits most. Rejoin is done (Milestone 91). Migration is planned in `docs/PLAN_HOST_MIGRATION.md`, in four phases; phase 1 (the host's id a field, not 0) is Milestone 110, and phase 2 (Free-for-all and Gun Run with friends outlive their host) is Milestone 111. Phase 3 (the arena modes with bots, the crown and Control) is Milestone 112, and phase 4 (the battle royale) is Milestone 113.
-5. ~~**Bots on the ziplines and pads**~~ Done (Milestone 107), taken as a player passing by would take them; the balloons and planned rope routes (typed edges on the graph) are left.
+5. ~~**Bots on the ziplines and pads**~~ Done (Milestone 107), taken as a player passing by would take them, and the planned rope routes (typed edges on the graph) are Milestone 123; the balloons are left.
 6. ~~**A sky per match from its seed:** about 2 hours.~~ Done (Milestone 69).
 7. ~~**Resurgence's smaller play area**~~ Done (Milestone 82).
 8. ~~**Sprays and banner cards**~~ Done (Milestones 85, 86).

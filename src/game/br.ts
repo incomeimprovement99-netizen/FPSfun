@@ -29,6 +29,8 @@
 // Everything is boxes on RANGE_SOLIDS like the rest of the world, so the
 // player, the bots and the bullets see it the same way. Bots walk a graph of
 // nodes (POI centres, gates, road bends) laid out here as well.
+/** how near a graph node has to be to a rope's end to be its foot (metres) */
+const ROPE_NODE_REACH = 22;
 import brCfg from "../config/br.json";
 import { DOORWAYS, Doors } from "./doors";
 import * as THREE from "three";
@@ -85,6 +87,12 @@ export interface GraphNode {
   /** the POI this node belongs to, if any */
   poi?: string;
   links: number[];
+  /**
+   * Nodes reached from this one by riding a zipline, not by walking (the
+   * rope's other end). A bot plans through these as it plans through a link,
+   * and rides rather than walks them: walking a rope's line would be a fall.
+   */
+  ropes?: number[];
 }
 
 export interface BrMap {
@@ -2604,6 +2612,32 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     [pensIn, crestWS],
     [pensIn, crestSW],
   ]) link(a, b);
+
+  // The ziplines as the bots' graph sees them: each rope's two ends joined to
+  // the nodes nearest them, as a rope link rather than a walking one. A bot's
+  // route to the ring can then plan through a rope instead of walking round
+  // the long way, which is what anyone does with a rope in front of them.
+  for (const z of ZIPLINES) {
+    const near = (p: THREE.Vector3): number => {
+      let best = -1;
+      let bestD = ROPE_NODE_REACH;
+      nodes.forEach((n, i) => {
+        if (!n.links.length) return;
+        const d = Math.hypot(n.x - p.x, n.z - p.z);
+        const dy = Math.abs((n.y ?? p.y) - (p.y - 2.13));
+        if (d < bestD && dy < 3.5) {
+          bestD = d;
+          best = i;
+        }
+      });
+      return best;
+    };
+    const a = near(z.a);
+    const b = near(z.b);
+    if (a < 0 || b < 0 || a === b) continue;
+    (nodes[a].ropes ??= []).push(b);
+    (nodes[b].ropes ??= []).push(a);
+  }
 
   return {
     root,

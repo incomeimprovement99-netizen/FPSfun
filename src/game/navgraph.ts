@@ -11,6 +11,8 @@ export interface NavNode {
   x: number;
   z: number;
   links: number[];
+  /** nodes reached by riding a rope from this one (br.ts): a step like any other, taken by riding */
+  ropes?: number[];
 }
 
 export interface NavTree {
@@ -36,6 +38,12 @@ export function navTree(nodes: readonly NavNode[], x: number, z: number): NavTre
   for (let q = 0; q < queue.length; q++) {
     const i = queue[q];
     for (const j of nodes[i].links) {
+      if (toward[j] !== -2) continue;
+      toward[j] = i;
+      queue.push(j);
+    }
+    // a rope is a step too: the walk plans through it, and the bot rides it
+    for (const j of nodes[i].ropes ?? []) {
       if (toward[j] !== -2) continue;
       toward[j] = i;
       queue.push(j);

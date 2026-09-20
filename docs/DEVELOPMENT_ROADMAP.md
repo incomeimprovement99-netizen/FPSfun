@@ -1990,3 +1990,16 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   Competitive 400 to 435 fps, High 227 to 256 fps.
 - Checks: `tools/checks/viewmodel-arms.ts` (a hand is four meshes, one per material, still hand-sized and with its
   wrist where it was).
+## Milestone 123 — The bots' planned rope routes ✅
+2026-09-20 (Phase 15). `br.ts`, `navgraph.ts`, `brmatch.ts`, `tools/checks/bot-walk.ts`, `tools/e2e.ts`.
+- Until now a bot took a rope only where its walk happened to bring it to one whose far end was nearer its goal
+  (Milestone 107). The ropes are now steps on the bots' graph: each zipline's two ends are joined to the nodes
+  nearest them (within 22 m and on their floor) as a **rope step**, kept apart from the walking links, because
+  walking a rope's line would be a fall.
+- The walk to the ring (`navgraph.ts`) plans through them like any other step, and a bot whose next step is a rope
+  rides it from that end whichever way the ring happens to lie: the graph chose that step for the distance it saves.
+  Five of the map's thirteen ropes have a node at both ends, which is six nodes and ten rope steps.
+- Checks: `tools/checks/bot-walk.ts` (the ropes are on the graph both ways round, a rope step is never also a
+  walking link, every one of the 113 nodes still reaches each of the 21 ring targets along the graph's own steps,
+  and a route with a rope on it is one step where the walk round is three), and the e2e `br` section (a bot whose
+  route plans through a rope rides it and lands 0.2 m from its far end).
