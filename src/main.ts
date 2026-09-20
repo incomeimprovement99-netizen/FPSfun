@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { setFigureView } from "./game/figlod";
 import { WALLS, clearWalls, putWall, stepWalls } from "./game/walls";
 import { SMOKES, clearSmoke, smokeAt, stepSmoke, throwSmoke } from "./game/smoke";
 import playerCfg from "./config/player.json";
@@ -4458,8 +4459,17 @@ let killStreak = 0;
 let lastKillAt = -Infinity;
 /** frames run since the page opened (the suite counts them while the tab is hidden) */
 let framesRun = 0;
+/** the frustum the figures' LOD tests against, rebuilt once a frame */
+const lodFrustum = new THREE.Frustum();
+const lodMatrix = new THREE.Matrix4();
+
 function frame(): void {
   framesRun++;
+  // where the figures are being looked at from this frame (figlod.ts): their
+  // animation, their shadows and their guns follow from it
+  camera.updateMatrixWorld();
+  lodFrustum.setFromProjectionMatrix(lodMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+  setFigureView(camera.position, lodFrustum, framesRun);
   try {
     step();
   } catch (e) {

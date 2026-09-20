@@ -13,6 +13,8 @@
 // The visual body sits inside the hit zones everywhere, so a round that
 // visibly lands on the robot always registers. The robot is our own design, a
 // generic range mannequin, and deliberately not any game's character.
+import { figureWork } from "./figlod";
+import { floorGun, floorGunMat } from "./loot";
 import type { Finish } from "./finishes";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -367,6 +369,8 @@ export class Dummy {
   readonly skin: OperatorSkin;
   /** the gun it holds, if armed */
   private gun: THREE.Object3D | null = null;
+  /** the weapon in its hands, by id (figure LOD swaps in the merged mesh of it at distance) */
+  private armedWith: string | null = null;
   /** the finish its gun wears (another player's, from their page): kept across a change of gun */
   private finish: Finish | null = null;
 
@@ -394,6 +398,7 @@ export class Dummy {
     // away from you rather than along the world axis.
     this.group.rotation.order = "YXZ";
     const armed = opts.armed ?? null;
+    this.armedWith = armed;
     const skin = opts.skin ?? OPERATORS[0];
     this.skin = skin;
     const { joint: jointMat, visor: visorMat, eye: eyeMat } = skinMaterials(skin);
@@ -829,6 +834,11 @@ export class Dummy {
   /** a different gun in its hands (Gun Run's next level): the same grip, the new model */
   setGun(id: string): void {
     this.mq?.setGun(id);
+    this.armedWith = id;
+    // the merged one belonged to the gun before it
+    this.farGun?.removeFromParent();
+    this.farGun = null;
+    this.lodFullGun = true;
     const old = this.gun;
     const parent = old?.parent;
     if (!old || !parent) {
@@ -1180,7 +1190,65 @@ export class Dummy {
       }
     }
     // the mannequin plays its clips for the same pose, with the same corrections on top
-    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, emote: emoting ? ep : null });
+    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, emote: emoting ? ep : null }, this.lodAnimate);
+  }
+
+  /**
+   * Figure LOD (figlod.ts, src/config/lod.json): what this figure owes at its
+   * distance from the camera. Its animation runs every frame up close, every
+   * second or fourth further out and not at all off screen and away; it casts
+   * a shadow only within `shadow` metres; and past `farGun` its gun is the one
+   * merged mesh, not the full model's eleven to fifteen. Called once a frame,
+   * before the pose.
+   */
+  private lodAnimate = true;
+  private lodShadow = true;
+  private lodFullGun = true;
+  private stepLod(): void {
+    const w = figureWork(this.group.position, this.lodSpread);
+    this.lodAnimate = w.animate;
+    if (w.shadow !== this.lodShadow) {
+      this.lodShadow = w.shadow;
+      this.setCastShadow(w.shadow);
+    }
+    if (w.fullGun !== this.lodFullGun) {
+      this.lodFullGun = w.fullGun;
+      this.showFarGun(!w.fullGun);
+    }
+  }
+
+  /** its own number, so the figures that skip frames do not all skip the same one */
+  private lodSpread = Math.floor(Math.random() * 4);
+
+  /** every mesh of the figure and its gun casts a shadow, or none does */
+  private setCastShadow(on: boolean): void {
+    this.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh && m.userData.shadowOff !== true) m.castShadow = on;
+    });
+  }
+
+  /**
+   * The gun at distance: one merged mesh (the same one the floor guns use) in
+   * place of the display model, made once per weapon and kept beside it.
+   */
+  private farGun: THREE.Mesh | null = null;
+  private showFarGun(on: boolean): void {
+    const id = this.armedWith;
+    // the rig holds its gun on the mannequin, the plain figure in its own slot
+    const root = this.mq?.gunRoot ?? this.gun;
+    if (!root || !id) return;
+    if (on && !this.farGun) {
+      const mesh = new THREE.Mesh(floorGun(id), floorGunMat);
+      mesh.castShadow = this.lodShadow;
+      mesh.userData.farGun = true;
+      root.add(mesh);
+      this.farGun = mesh;
+    }
+    if (this.farGun) this.farGun.visible = on;
+    // the full model's own meshes give way to it, except the muzzle's marker:
+    // a shot from a figure across the map still has to flash (muzzle.ts)
+    for (const o of root.children) if (o !== this.farGun && o.name !== "muzzle") o.visible = !on;
   }
 
   /** the heal item: a small canister held in front of the chest */
@@ -1378,6 +1446,8 @@ export class Dummy {
   }
 
   update(now: number, dt = 0): void {
+    // what this figure owes at its distance (figlod.ts): its animation, its shadow, its gun
+    this.stepLod();
     if (this.knocked && this.respawns && now >= this.respawnAt) this.reset();
     this.stepDropped(dt);
     // the mannequin plays its own death clip

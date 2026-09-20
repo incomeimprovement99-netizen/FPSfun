@@ -1953,3 +1953,29 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   the horseshoe's three stand for their longer time), `tools/checks/kits.ts` (WALL is WARD's, its cooldown, its
   card), and the e2e `bots` section (a wall takes the bot's line to you away; the shield comes back out of a fight;
   BASTION puts up three).
+
+## Milestone 121 — LOD step D: figures by distance ✅
+2026-09-19 (Phase 15). `figlod.ts` (new), `src/config/lod.json` (new), `dummy.ts`, `mannequin.ts`, `loot.ts`,
+`main.ts`, `tools/checks/figlod.ts` (new).
+- Step D of `docs/PLAN_LOD_DRAW_DISTANCE.md`, the last of the big ones: a battle royale's bots cost more than its
+  map, and every figure animated and cast a shadow every frame however far away it was.
+- The page says once a frame where it is looking from and what it can see; each figure asks what it owes at that
+  distance (`figlod.ts`): its animation every frame within 30 m, every second frame to 80 m, every fourth beyond,
+  and not at all off screen past 20 m. A figure that sits a frame out keeps the time and hands it to its mixer on the
+  next one it plays, so nothing drifts, and the frames are spread by each figure's own number so they do not all
+  animate on the same one.
+- A figure casts a shadow only within 60 m. Past 15 m its gun is the one merged mesh the floor guns already use
+  (`loot.ts floorGun`), in place of the full model's eleven to fifteen, on the rig's hand as well as the plain
+  figure's. The muzzle's marker stays visible through the swap, so a shot from across the map still flashes.
+- Nothing here changes what a bullet hits: the hit boxes come from the figure's own boxes, not from the animation.
+- Measured at `BENCH_SPOT=brmatch` (a solo battle royale on seed 42, ten bots round the hub), against the same spot
+  on the build before it: **High 167 to 185 fps, 799 to 599 draw calls, 2.39M to 1.99M triangles**; Competitive 278
+  to 286 fps (its shadows are drawn once, so the gain there is the animation's).
+- The first run showed no gain at all on Competitive: the merged gun was being put in the plain figure's gun slot,
+  while a rigged figure holds its gun on the mannequin. With both roots covered, High's draw calls fell by 200.
+- The plan's frustum culling for figures was left out: a skinned figure has no reliable bounds without computing
+  them, and a figure popping out of view is worse than the calls it saves. The off-screen animation skip gives most
+  of the same gain.
+- Checks: `tools/checks/figlod.ts` (ten: the three bands, two far figures taking turns, off screen past 20 m and
+  within it, the shadow and gun distances, and everything on before the page has said where it looks from), and the
+  e2e `bots`, `br` and `squad` sections (155 checks) for the figures, knocks and revives.

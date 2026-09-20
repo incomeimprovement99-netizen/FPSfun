@@ -413,7 +413,20 @@ export class MannequinFigure {
    * top (the strafe's hips and spine, the look pitch, a kick, a flinch, a
    * JOLT's lean). `armed`: it has a gun in hand.
    */
-  update(p: FigurePose, dt: number, armed: boolean, fx: MannequinImpulses): void {
+  /** the time of the frames it sat out (figlod.ts): given to the mixer when its turn comes, so nothing drifts */
+  private owed = 0;
+
+  /**
+   * Its pose this frame. `animate` false is a frame it sits out at distance
+   * (figlod.ts): the time is kept and handed over on the next one it plays.
+   */
+  update(p: FigurePose, dt: number, armed: boolean, fx: MannequinImpulses, animate = true): void {
+    if (!animate) {
+      this.owed += dt;
+      return;
+    }
+    dt += this.owed;
+    this.owed = 0;
     const speed = Math.max(0, p.speed);
     this.t += dt;
     // a landing from standing (or a walk): the impact's crouch from the landing clip, briefly

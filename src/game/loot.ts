@@ -457,8 +457,9 @@ function floorAt(x: number, z: number): number | null {
  * the floor at 0.3 m tall nobody reads.
  */
 const floorGuns = new Map<string, THREE.BufferGeometry>();
-const floorGunMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.45 });
-function floorGun(id: string): THREE.BufferGeometry {
+/** the merged guns' one material: their colours are in the vertices (figure LOD borrows it for a figure's far gun) */
+export const floorGunMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.45 });
+export function floorGun(id: string): THREE.BufferGeometry {
   const hit = floorGuns.get(id);
   if (hit) return hit;
   const root = displayGunModel(id).root;

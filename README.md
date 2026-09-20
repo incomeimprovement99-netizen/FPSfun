@@ -826,6 +826,17 @@ geometry (about 11 MB) is the next thing to compress.
 
 ## What it can't do, and the limits
 
+**Figures cost what they are worth on screen.** A battle royale's bots cost
+more than its map, so each figure's animation runs every frame within 30 m of
+you, every second frame out to 80 m, every fourth beyond that and not at all
+off screen past 20 m (the time it missed is handed over when its turn comes, so
+nothing drifts); a figure casts a shadow only within 60 m; and past 15 m its
+gun is the one merged mesh the floor guns use rather than the full model's
+eleven to fifteen. None of it changes what a bullet hits: hit boxes come from
+the figure's own boxes, not the animation. In a battle royale with ten bots
+round the hub that took High from 799 draw calls to 599, 2.39M triangles to
+1.99M, and 167 to 185 fps (`npm run bench BENCH_SPOT=brmatch`).
+
 **Frame rate is capped by your screen, not the game.** A browser draws only
 when the display can show a frame, so a 60 Hz monitor means 60 fps. The game
 itself runs at 800+ fps on the Competitive preset on the owner's RX 9070 XT.
