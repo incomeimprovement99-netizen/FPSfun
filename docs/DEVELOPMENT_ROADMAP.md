@@ -2154,3 +2154,22 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/paint.ts` (17: the patch, the lookup through floors and walls, the decay, the grace, and
   that the numbers are worth chaining), `tools/movesim.ts` (five, in the real controller), the e2e `throw` section
   (the bomb paints, the boost carries, the HUD says so), and the snapshot `paint`.
+
+## Milestone 131 — The camera that moves with the body ✅
+2026-09-20 (Phase 15). `src/config/player.json` (`feel`), `src/game/player.ts`, `src/main.ts`, `tools/checks/feel.ts`, `tools/e2e.ts`.
+- Step B of `docs/PLAN_MOVEMENT_CHAIN.md`, and the other half of what "buttery" means: the movement numbers were
+  already Apex's rule by rule, and what was missing was everything between the inputs.
+- Four pieces, all small on purpose: a **slide lean** of up to 5.5 degrees into the way the slide is carrying you,
+  in over 0.12 s and out over 0.25; a **landing roll** of up to 3.2 degrees by the sideways speed you came down
+  with, gone in a third of a second; a **lurch kick** of 2 degrees that settles in 0.18 s, so a tap-strafe has a
+  weight to it; and a **boost pull** while paint is carrying you, 1.4 degrees forward with the view 2.5% wider, so
+  speed reads on the screen and not only on the ground. The sprint's own settle was already eased rather than cut,
+  so it needed nothing.
+- **None of it moves the aim.** Every piece is applied to the camera's roll, pitch offset and field of view, never
+  to the player's yaw or pitch, and the e2e drives a real diagonal slide in a real page and checks both halves: the
+  camera leans to 98% of its full lean and comes back to nothing, and the angles the shot uses do not move by so
+  much as a floating-point step.
+- Settings' Sprint view shake is the switch: Normal is all of it, Minimal 40%, Off none. It already said what it
+  meant, so a second switch would have been a second thing to find.
+- Checks: `tools/checks/feel.ts` (six: every piece is the size of a camera move and not a stumble, and nothing
+  lasts long enough to be a state you live in) and the e2e `range` section (two, above).

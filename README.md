@@ -914,6 +914,14 @@ the colour of what you are carrying. Anybody can use anybody's paint, it lasts
 number in `docs/MOVEMENT_AUDIT.md` is measured with a bare floor. Empulse's
 P.A.I.N.T. bombs are where the idea comes from.
 
+**The camera moves with the body.** A slide leans the view into the way it is
+carrying you, a running landing rolls it, a lurch kicks it round a touch and
+settles, and a paint boost pulls it forward and opens it a little. None of it
+moves your aim: every piece is the camera's own roll, pitch offset and field of
+view, and the shot leaves along your own angles, so a round fired mid-slide
+goes exactly where the crosshair was. Settings' **Sprint view shake** is the
+switch for all of it: Normal is the lot, Minimal is 40%, Off is none.
+
 **Frame rate is capped by your screen, not the game.** A browser draws only
 when the display can show a frame, so a 60 Hz monitor means 60 fps. The game
 itself runs at 800+ fps on the Competitive preset on the owner's RX 9070 XT.

@@ -970,6 +970,9 @@ let sprintShake = 0;
 let strideT = 0;
 let sprintRoll = 0;
 const FORWARD_AXIS = new THREE.Vector3(0, 0, 1);
+/** the camera's own up and right, for the lurch kick and the boost's pull (src/config/player.json `feel`) */
+const UP_AXIS = new THREE.Vector3(0, 1, 0);
+const RIGHT_AXIS = new THREE.Vector3(1, 0, 0);
 const LS_SHAKE = "range.sprintShake";
 try {
   const sm = localStorage.getItem(LS_SHAKE);
@@ -1015,6 +1018,17 @@ let orbitPitch = 0;
 let orbiting = false;
 /** the tests hold the orbit without a key */
 let debugOrbitHold = false;
+/** the slide's lean and the paint boost's pull, eased frame to frame (src/config/player.json `feel`) */
+let slideLean = 0;
+let boostFeel = 0;
+/** which way a slide is carrying you, to the right of where you are looking, -1 to 1 */
+function slideLeanSide(): number {
+  const yawR = player.yaw * DEG;
+  const fx = -Math.sin(yawR);
+  const fz = -Math.cos(yawR);
+  const side = player.vel.x * -fz + player.vel.z * fx;
+  return side / 6;
+}
 /** the ears' facing, each frame */
 const earFwd = new THREE.Vector3();
 const earUp = new THREE.Vector3();
@@ -5112,6 +5126,42 @@ function step(): void {
   // a sideways JOLT leans the view into it
   const jr = joltRoll(gameTime);
   if (jr !== 0) camera.quaternion.multiply(tmpQ.setFromAxisAngle(FORWARD_AXIS, -jr * DEG));
+  // The camera moves with the body (src/config/player.json `feel`): a lean
+  // into a slide, a roll on a running landing, a kick out of a lurch, and a
+  // pull forward while a paint boost is on. None of it touches the aim: the
+  // shot leaves along the player's own angles, and these are the camera's
+  // roll, pitch offset and field of view only. All of it is scaled by the
+  // Sprint view shake setting, which is the switch for how much the view moves.
+  {
+    const f = playerCfg.feel;
+    const k = SPRINT_SHAKE[sprintShakeMode];
+    // the slide: lean into the way it is carrying you, in over `slideIn` and
+    // out over `slideOut`, so it arrives with the slide and leaves after it
+    const want = player.sliding ? Math.max(-1, Math.min(1, slideLeanSide())) : 0;
+    const ease = Math.min(1, dt / (Math.abs(want) > Math.abs(slideLean) ? f.slideIn : f.slideOut));
+    slideLean += (want - slideLean) * ease;
+    let roll = slideLean * f.slideRoll;
+    // a running landing rolls the view, by the sideways speed it came down with
+    const sinceLand = gameTime - player.landAt;
+    if (sinceLand >= 0 && sinceLand < f.landTime) {
+      const env = 1 - sinceLand / f.landTime;
+      roll += Math.max(-1, Math.min(1, player.landSide / 6)) * f.landRoll * env * env;
+    }
+    if (roll !== 0 && k > 0) camera.quaternion.multiply(tmpQ.setFromAxisAngle(FORWARD_AXIS, -roll * DEG * k));
+    // a lurch kicks the view round a touch and settles: a tap-strafe has weight
+    const sinceLurch = gameTime - player.lurchAt;
+    if (sinceLurch >= 0 && sinceLurch < f.lurchTime && k > 0) {
+      const env = Math.sin((1 - sinceLurch / f.lurchTime) * Math.PI);
+      camera.quaternion.multiply(tmpQ.setFromAxisAngle(UP_AXIS, -player.lurchSide * f.lurchKick * env * DEG * k));
+    }
+    // a paint boost pulls the view forward and opens it a little, so speed
+    // reads on the screen and not only on the ground under you
+    const boost = Math.max(0, Math.min(1, (player.paintSpeed(gameTime) - 1) / Math.max(0.001, PAINT.speed.mul - 1)));
+    boostFeel += (boost - boostFeel) * Math.min(1, dt / f.boostEase);
+    if (boostFeel > 0.001 && k > 0) {
+      camera.quaternion.multiply(tmpQ.setFromAxisAngle(RIGHT_AXIS, -f.boostPitch * boostFeel * DEG * k));
+    }
+  }
   // a blast close by shakes the view, dying away; the aim is not moved (hud.json blasts)
   {
     const t = gameTime - blastShakeAt;
@@ -5199,7 +5249,8 @@ function step(): void {
   // not: the sprint FOV kick that was here was ours, and Apex has none.
   // a JOLT: the view widens by its kick at once, and settles as the dash hands over to the run
   joltFov += ((player.jolting ? JOLT.feel.fov / hipV : 0) - joltFov) * Math.min(1, dt / (player.jolting ? JOLT.feel.rollIn : JOLT.feel.rollOut));
-  const speedFov = (player.slideFov + joltFov) * (1 - ws.adsFrac);
+  // and a paint boost opens it a touch too, the same way the slide does
+  const speedFov = (player.slideFov + joltFov + boostFeel * playerCfg.feel.boostFov * SPRINT_SHAKE[sprintShakeMode]) * (1 - ws.adsFrac);
   camera.fov = (hipV + (adsV - hipV) * ws.adsFrac) * (1 + speedFov);
   camera.updateProjectionMatrix();
   // the gun's FOV: the same blend at viewmodel.json's scale, not yours, and no slide or JOLT in it
@@ -6100,6 +6151,8 @@ initWelcome();
   jolt: () => ({ ...JOLT }),
   setJolt,
   /** the viewmodel's inspect and first draw (tools/e2e.ts) */
+  /** how the camera is moving with the body (tools/e2e.ts): the slide's lean, the boost's pull, and the angles the shot uses */
+  feelState: () => ({ lean: slideLean, boost: boostFeel, yaw: player.yaw, pitch: player.pitch, landSide: player.landSide, lurchSide: player.lurchSide }),
   /** a JOLT's view: the roll in degrees and the FOV fraction now (tools/e2e.ts) */
   joltFeel: () => ({ roll: joltRoll(gameTime), fov: joltFov }),
   vmState: () => ({ inspecting: gameTime - inspectAt < INSPECT_TIME, flourish: gameTime - flourishAt < FLOURISH_TIME, ...viewModel.shown }),

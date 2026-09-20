@@ -2873,6 +2873,34 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   const moved = await ev<number[]>(page, "window.__range.dummies.filter((d) => !d.rail).map((d) => d.group.position.x)");
   check("range: strafing dummies move off their marks", moved.some((x, i) => Math.abs(x - home[i]) > 0.3), moved.map((x, i) => (x - home[i]).toFixed(2)).join(","));
   await sel("dummyMode", "stand");
+
+  // ---- the camera that moves with the body (src/config/player.json `feel`)
+  // What matters is not that it leans, it is that leaning never moves the aim.
+  {
+    await ev(page, `(() => { const r = window.__range; r.input.locked = true; r.player.teleport(0, 0, 20, 0); })()`);
+    const before = await ev<{ yaw: number; pitch: number }>(page, `(() => { const s = window.__range.feelState(); return { yaw: s.yaw, pitch: s.pitch }; })()`);
+    await ev(page, `(() => { window.__lean = 0; window.__leanT = setInterval(() => { window.__lean = Math.max(window.__lean, Math.abs(window.__range.feelState().lean)); }, 25); return true; })()`);
+    await page.keyboard.down("KeyW");
+    await page.keyboard.down("KeyD");
+    await page.keyboard.down("ShiftLeft");
+    await sleep(700);
+    await page.keyboard.down("ControlLeft");
+    await sleep(500);
+    await page.keyboard.up("ControlLeft");
+    await page.keyboard.up("ShiftLeft");
+    await page.keyboard.up("KeyD");
+    await page.keyboard.up("KeyW");
+    await sleep(900);
+    const lean = await ev<{ leaned: number; yawMoved: number; pitchMoved: number; back: number }>(
+      page,
+      `(() => { const r = window.__range; clearInterval(window.__leanT); const s = r.feelState();
+        return { leaned: window.__lean, yawMoved: Math.abs(s.yaw - ${before.yaw}), pitchMoved: Math.abs(s.pitch - ${before.pitch}), back: Math.abs(s.lean) }; })()`
+    );
+    check("feel: a slide leans the camera, and the lean comes back to nothing after it", lean.leaned > 0.05 && lean.back < 0.05, JSON.stringify(lean));
+    check("feel: and it never moves the aim: the angles the shot uses are untouched", lean.yawMoved < 1e-9 && lean.pitchMoved < 1e-9, JSON.stringify({ yaw: lean.yawMoved, pitch: lean.pitchMoved }));
+    await ev(page, `window.__range.input.locked = false`);
+  }
+
   // shoot back: the nearest dummies fire and you have a shield in the range
   await ev(page, "window.__range.player.teleport(0, 0, 0, 0)");
   await sel("dummyShoot", "hard");
@@ -3075,7 +3103,7 @@ async function readmeTvChecks(page: Page): Promise<void> {
   const text = await ev<string>(page, "window.__range.readmeTv.pageText()");
   // the words of the opening change as the game does; what has to hold is that
   // the screen is showing THIS file rather than a placeholder
-  check("README screen: the first page is the README's own text", /browser (shooter|firing range)/i.test(text) && /Apex Legends/.test(text), text.slice(0, 80).replace(/\n/g, " "));
+  check("README screen: the first page is the README's own text", /browser (shooter|firing range)/i.test(text) && text.includes("Apex Legends"), text.slice(0, 80).replace(/\n/g, " "));
 
   // the right-hand PAGE arrow
   await shootAt(`window.__range.readmeTv.buttonAt("nextPage")`);
@@ -3244,15 +3272,22 @@ async function shipTest(browser: Browser, query: string, squadQuery: string): Pr
     page,
     `(() => { const R = window.__range; const run = R.ship(); if (!run) return []; const L = run.line; return R.duel().bots.map((b) => {
       const t = b.dropTo; const s = Math.max(0, Math.min(L.length, (t.x - L.ax) * L.dx + (t.z - L.az) * L.dz));
-      const at = b.landedAt ?? { x: Infinity, z: Infinity };
-      return { miss: Math.hypot(at.x - t.x, at.z - t.z), off: Math.hypot(t.x - (L.ax + L.dx * s), t.z - (L.az + L.dz * s)), y: b.bot.pos.y }; }); })()`
+      const at = b.landedAt;
+      const miss = at ? Math.hypot(at.x - t.x, at.z - t.z) : -1;
+      const off = Math.hypot(t.x - (L.ax + L.dx * s), t.z - (L.az + L.dz * s));
+      return { miss, off: Number.isFinite(off) ? off : -1, y: b.bot.pos.y }; }); })()`
   );
-  const inReach = bots.filter((b) => b.off < 140);
+  // a bot still in the air (miss -1) is not one that landed off its place
+  const inReach = bots.filter((b) => b.off >= 0 && b.off < 140 && b.miss >= 0);
   // Within 8 m: the landforms and the tall buildings stand in some glide
   // paths, and a bot that meets one slides along it and comes down beside it
   // (5.5 m once, beside a mound).
   check("the ship: every bot leaves it and lands", allOff && down && bots.length === 5, JSON.stringify({ allOff, down, bots: bots.length }));
-  check("the ship: a bot whose place is in a glide's reach lands on it", inReach.every((b) => b.miss < 8), JSON.stringify(bots.map((b) => [b.miss.toFixed(1), b.off.toFixed(0)])));
+  check(
+    "the ship: a bot whose place is in a glide's reach lands on it",
+    inReach.length > 0 && inReach.every((b) => b.miss < 8),
+    JSON.stringify(bots.map((b) => [b.miss < 0 ? "in the air" : b.miss.toFixed(1), b.off < 0 ? "?" : b.off.toFixed(0)]))
+  );
   await page.close();
 
   // ---- the end of the line: whoever is still aboard is put out

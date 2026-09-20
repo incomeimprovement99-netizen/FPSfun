@@ -10,6 +10,7 @@ import audioCfg from "../../src/config/audio.json";
 import { MUZZLE, flashSize } from "../../src/game/muzzle";
 import { blastShakeDeg } from "../../src/game/impacts";
 
+import playerCfg from "../../src/config/player.json";
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
   if (!cond) fails++;
@@ -46,6 +47,23 @@ console.log("Muzzle flashes, damage numbers, the low-ammo line");
   check("footsteps still fade fast (below -15 dB at 20 m)", db(R.default, 20) < -15, `${db(R.default, 20).toFixed(1)} dB`);
   check("a blast carries further than a gunshot", R.blast >= R.gun);
 }
+
+// The camera that moves with the body (src/config/player.json `feel`, applied
+// in src/main.ts). The pieces are the camera's own and a real page checks them
+// (the e2e's `range` section); what is checked here is that the numbers are
+// the size of a camera move rather than a stumble.
+console.log("");
+console.log("The camera that moves with the body");
+{
+  const f = playerCfg.feel;
+  check("a slide leans the view a few degrees, not a roll", f.slideRoll > 1 && f.slideRoll <= 8, `${f.slideRoll} deg`);
+  check("and it arrives with the slide and leaves after it", f.slideIn < f.slideOut && f.slideIn <= 0.2, `${f.slideIn} s in, ${f.slideOut} s out`);
+  check("a landing's roll is smaller than the slide's, and over in a third of a second", f.landRoll < f.slideRoll && f.landTime <= 0.4, `${f.landRoll} deg over ${f.landTime} s`);
+  check("a lurch kick is a nudge that settles, not a turn", f.lurchKick <= 3 && f.lurchTime <= 0.25, `${f.lurchKick} deg over ${f.lurchTime} s`);
+  check("a boost pulls the view forward and opens it a little", f.boostPitch > 0 && f.boostPitch <= 3 && f.boostFov > 0 && f.boostFov <= 0.06, `${f.boostPitch} deg, ${(f.boostFov * 100).toFixed(1)}% wider`);
+  check("nothing in it lasts long enough to be a state you live in", Math.max(f.slideOut, f.landTime, f.lurchTime, f.boostEase) <= 0.4, `the longest is ${Math.max(f.slideOut, f.landTime, f.lurchTime, f.boostEase)} s`);
+}
+
 
 console.log(fails === 0 ? "\nFEEL PASS" : `\nFEEL FAIL (${fails})`);
 export const feelFails = fails;

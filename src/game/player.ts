@@ -135,6 +135,17 @@ export class Player {
    */
   paintSpeedAt = -Infinity;
   paintJumpAt = -Infinity;
+  /**
+   * What the camera leans on (src/config/player.json `feel`, applied in
+   * main.ts). None of it touches the aim: these are things that happened, and
+   * the camera decides what to do about them.
+   */
+  lurchAt = -Infinity;
+  /** which way the last lurch turned: +1 to the right of where you were going */
+  lurchSide = 0;
+  /** the sideways speed at the last landing, m/s, and when it was */
+  landSide = 0;
+  landAt = -Infinity;
   /** Apex's default is press (toggle) sprint with a 3 s buffer */
   sprintMode: SprintMode = "toggle";
 
@@ -962,8 +973,14 @@ export class Player {
     const oz = this.vel.z;
     this.vel.x += f * (h * wx - this.vel.x);
     this.vel.z += f * (h * wz - this.vel.z);
-    const turned = Math.abs(Math.atan2(ox * this.vel.z - oz * this.vel.x, ox * this.vel.x + oz * this.vel.z)) / DEG;
+    const cross = ox * this.vel.z - oz * this.vel.x;
+    const turned = Math.abs(Math.atan2(cross, ox * this.vel.x + oz * this.vel.z)) / DEG;
     if (turned >= 1) this.tech("LURCH", `${Math.round(turned)} deg, ${Math.round((this.hSpeed() / h) * 100)}% speed`);
+    // the camera kicks with it (main.ts): which way, and how hard, from the turn itself
+    if (turned >= 1) {
+      this.lurchAt = now;
+      this.lurchSide = Math.sign(cross) * Math.min(1, turned / 60);
+    }
   }
 
   // ---------- climb ----------
@@ -1804,6 +1821,12 @@ export class Player {
   /** landing: fatigue timer, fall stun, slide on landing, camera dip */
   private land(now: number, impact: number): void {
     this.landedAt = now;
+    {
+      const { fx, fz } = this.look();
+      // the sideways part of the landing, to the right of where you are facing
+      this.landSide = this.vel.x * -fz + this.vel.z * fx;
+      this.landAt = now;
+    }
     if (this.climbing) {
       this.climbing = false;
       this.climbNormal = null;

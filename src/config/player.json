@@ -2,11 +2,36 @@
   "_note": "Copied by hand from the owner's game config on 2026-09-13 (read once, never written). DPI is not stored by the game; the owner types it in the site.",
   "mouseSensitivity": 0.4,
   "perScopeScalars": false,
-  "adsScalars": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+  "adsScalars": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
   "fovScale": 1.55,
   "invertPitch": false,
-  "resolution": { "width": 1920, "height": 1440 },
+  "resolution": {
+    "width": 1920,
+    "height": 1440
+  },
   "dpi": null,
   "_sprintMode": "Apex's default is 'toggle' (Press): one press of sprint arms it for 3 s, a running sprint stays on, and letting go of forward ends it. 'hold' sprints only while the key is held, matching the Hold option in Apex's settings.",
-  "sprintMode": "toggle"
+  "sprintMode": "toggle",
+  "_feel": "How the camera moves with the body (docs/PLAN_MOVEMENT_CHAIN.md step B, src/main.ts). None of this moves the aim: every piece is applied to the camera's own roll, pitch offset and field of view, never to the player's yaw or pitch, so a shot fired mid-slide goes exactly where the crosshair was. All of it is scaled by the 'Sprint view shake' setting, which is already the switch for how much the view moves: Normal is all of it, Minimal is 40%, Off is none. The numbers are ours, small on purpose: Apex's camera is always a fraction behind the body and always returning, and the moment any of this is noticed on its own it is too big.",
+  "feel": {
+    "slideRoll": 5.5,
+    "slideIn": 0.12,
+    "slideOut": 0.25,
+    "landRoll": 3.2,
+    "landTime": 0.32,
+    "lurchKick": 2.0,
+    "lurchTime": 0.18,
+    "boostPitch": 1.4,
+    "boostFov": 0.025,
+    "boostEase": 0.25
+  }
 }
