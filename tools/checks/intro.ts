@@ -13,7 +13,7 @@
 // takes it away, and it never holds the game up).
 //
 // Run on its own: npx tsx tools/checks/intro.ts.
-import { introBeats, crackPlan, rainColumns, stormPlan } from "../../src/ui/intro";
+import { introBeats, crackPlan, rainColumns, blastPlan } from "../../src/ui/intro";
 import INTRO_CFG from "../../src/config/intro.json";
 
 let fails = 0;
@@ -26,13 +26,14 @@ console.log("The intro card");
 {
   const boot = introBeats("boot");
   const match = introBeats("match");
-  const inOrder = (b: typeof boot): boolean => b.rain <= b.title && b.title < b.shot && b.shot < b.storm && b.storm < b.out && b.out < b.end;
-  check("the beats run in order: the rain, the name, the shot, the burst, the glass letting go, gone", inOrder(boot) && inOrder(match), `boot ${JSON.stringify(boot)}`);
+  const inOrder = (b: typeof boot): boolean => b.rain <= b.title && b.title < b.shot && b.shot < b.blast && b.blast < b.out && b.out < b.end;
+  check("the beats run in order: the rain, the name, the round, the shotgun, the glass letting go, gone", inOrder(boot) && inOrder(match), `boot ${JSON.stringify(boot)}`);
   check("the card that plays into a match is the short one, and neither outstays its welcome", match.end < boot.end / 2 && boot.end <= 7 && match.end <= 2.5, `${boot.end} s and ${match.end} s`);
   check("the name is up before the shot, and the shot has time to spread before the glass goes", boot.shot - boot.title > 0.5 && boot.out - boot.shot >= INTRO_CFG.crack.spread, `${(boot.shot - boot.title).toFixed(2)} s up, ${(boot.out - boot.shot).toFixed(2)} s spreading`);
-  check("there is a beat of quiet between the first shot and the burst", boot.storm - boot.shot >= 0.5 && match.storm - match.shot >= 0.2, `${(boot.storm - boot.shot).toFixed(2)} s, then the rest of the magazine`);
+  check("there is a beat of quiet between the round and the shotgun", boot.blast - boot.shot >= 0.4 && match.blast - match.shot >= 0.2, `${(boot.blast - boot.shot).toFixed(2)} s, then the blast`);
+  check("and the whole card is under four seconds", boot.end <= 4 && match.end <= 2, `${boot.end} s and ${match.end} s`);
   const quiet = introBeats("boot", true);
-  check("asking for less movement gives a shorter card, in order, with no burst in it", quiet.end < boot.end && quiet.rain <= quiet.title && quiet.title < quiet.shot && quiet.shot < quiet.out && quiet.out < quiet.end && quiet.storm >= quiet.end, `${quiet.end} s`);
+  check("asking for less movement gives a shorter card, in order, with no shotgun in it", quiet.end < boot.end && quiet.rain <= quiet.title && quiet.title < quiet.shot && quiet.shot < quiet.out && quiet.out < quiet.end && quiet.blast >= quiet.end, `${quiet.end} s`);
 }
 {
   const w = 1920;
@@ -65,13 +66,14 @@ console.log("The intro card");
   check("and each knows which way is out of the hole, to be thrown there", roundTheHole);
 }
 {
-  const boot = introBeats("boot");
-  const shots = stormPlan(1920, 1080, 4242, boot.storm, boot.out - 0.15);
-  const again = stormPlan(1920, 1080, 4242, boot.storm, boot.out - 0.15);
-  check("the burst is the rest of the magazine, in order, all of it between the beat and the fall", shots.length === INTRO_CFG.storm.shots && shots.every((x, i) => (i === 0 || x.at >= shots[i - 1].at) && x.at >= boot.storm - 0.2 && x.at <= boot.out), `${shots.length} rounds over ${(boot.out - boot.storm).toFixed(1)} s`);
-  check("no two rounds land in the same place, and none of them off the screen", new Set(shots.map((x) => `${Math.round(x.x)},${Math.round(x.y)}`)).size === shots.length && shots.every((x) => x.x > 0 && x.x < 1920 && x.y > 0 && x.y < 1080));
-  check("a round of the burst breaks the glass around itself, not across the whole pane", shots.every((x) => x.crack.rays.length === INTRO_CFG.storm.rays) && shots.every((x) => x.crack.rays.every((r) => Math.hypot(r.points[r.points.length - 1].x - x.x, r.points[r.points.length - 1].y - x.y) < Math.hypot(1920, 1080) * 0.25)), `${INTRO_CFG.storm.rays} cracks a round`);
-  check("and the same seed fires the same burst", JSON.stringify(shots) === JSON.stringify(again));
+  const pellets = blastPlan(1920, 1080, 4242);
+  const again = blastPlan(1920, 1080, 4242);
+  check("the shotgun puts its whole pattern through the pane at once", pellets.length === INTRO_CFG.blast.pellets, `${pellets.length} pellets`);
+  check("no two pellets go through the same place, and none of them off the screen", new Set(pellets.map((p) => `${Math.round(p.x)},${Math.round(p.y)}`)).size === pellets.length && pellets.every((p) => p.x > 0 && p.x < 1920 && p.y > 0 && p.y < 1080));
+  const mid = pellets.filter((p) => Math.hypot(p.x - 960, p.y - 540) < 300).length;
+  check("the pattern is spread over the middle of the screen rather than heaped in it", mid < pellets.length && mid > 0, `${mid} of ${pellets.length} within 300 px of the middle`);
+  check("a pellet breaks the glass around itself, not across the whole pane", pellets.every((p) => p.crack.rays.length === INTRO_CFG.blast.rays) && pellets.every((p) => p.crack.rays.every((r) => Math.hypot(r.points[r.points.length - 1].x - p.x, r.points[r.points.length - 1].y - p.y) < Math.hypot(1920, 1080) * 0.25)), `${INTRO_CFG.blast.rays} cracks a pellet`);
+  check("and the same seed fires the same pattern", JSON.stringify(pellets) === JSON.stringify(again));
 }
 {
   const cols = rainColumns(1920, 1080, 7);

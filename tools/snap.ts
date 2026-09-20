@@ -176,13 +176,13 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: "intro-crack",
-    note: "the intro card: the burst through the screen, holes and cracks all over the glass",
-    steps: [[`(() => { for (let t = 0; t <= 3.6; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
+    note: "the intro card: the shotgun through the screen, its whole pattern in the glass at once",
+    steps: [[`(() => { for (let t = 0; t <= 2.7; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
   },
   {
     name: "intro-shards",
     note: "the intro card: the pane letting go, the shards falling away into the game",
-    steps: [[`(() => { for (let t = 0; t <= 5.25; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
+    steps: [[`(() => { for (let t = 0; t <= 3.45; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
   },
   {
     name: "br-far",

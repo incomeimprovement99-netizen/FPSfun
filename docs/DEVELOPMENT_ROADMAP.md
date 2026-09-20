@@ -2185,3 +2185,19 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   better one.
 - Checks: `tools/movesim.ts` (holding jump into the end of a mantle superglides with the setting on, does nothing
   with it off, and leaves at a superglide's speed either way).
+
+## Milestone 133 — One shotgun instead of a strobe, and rain that says nothing ✅
+2026-09-20 (Phase 15). `src/ui/intro.ts`, `src/config/intro.json`, `tools/checks/intro.ts`, `tools/e2e.ts`, `tools/snap.ts`, `README.md`.
+- The owner's notes on the card, all three. **The rain opened by drawing the word "undefined"**: every column's
+  glyphs were only filled on the first swap, a twentieth of a second in, and until then each column held an empty
+  array whose missing character the canvas printed as a word. They are laid out with the columns now, and the draw
+  has a character to fall back on whatever happens.
+- **The eleven rounds are one shotgun.** A string of single rounds read as a strobe: one flash, then another, then
+  another. It is one blast now, fourteen pellets through the pane in the same instant with one flash and one kick,
+  each pellet its own hole and its own short cracks, so the first rifle round stays the break that carries the
+  glass and the shotgun is what finishes it.
+- **And the card is 1.8 s shorter**, 5.7 s to 3.9 (the match card 2.3 to 1.85), which is what the single blast
+  bought: the beats it used to spend on the burst are gone.
+- Checks: `tools/checks/intro.ts` (the pattern goes through at once, no two pellets in the same place, spread over
+  the middle rather than heaped in it, local breaks, the same from the same seed, and the whole card under four
+  seconds), and the three snapshots retaken on the new beats.

@@ -1,20 +1,20 @@
 {
-  "_note": "The intro (src/ui/intro.ts): the card the page opens on, which is also the loading screen now, and the shorter one that plays as you drop into a match. Black screen, green rain falling at a different speed in every column, the name smashed in over it, then a shot through the middle: the glass cracks from a bullet hole, a beat of quiet, and then the rest of the magazine goes through it before the pane lets go and falls away into the game. The beats are seconds from the start and each is the moment it begins, so they read in order; `storm` is the first of the burst, `out` is when the shards start falling and `end` is when the card is gone. The boot card is the first impression and holds on the rain until the world is in (`waitMost` seconds at the outside), so it covers the whole of loading rather than being shown after it; the match one plays over a match that is already starting underneath, so it is short and never in the way. Every beat is skipped by a key or a click, and with `prefers-reduced-motion` the shake, the flash and the falling shards are dropped for a plain fade (`reduced`).",
+  "_note": "The intro (src/ui/intro.ts): the card the page opens on, which is also the loading screen, and the shorter one that plays as you drop into a match. Black screen, green rain falling at a different speed in every column, the name smashed in over it, then a rifle round through the middle: the glass cracks from a bullet hole, a beat of quiet, and then one shotgun blast puts a spread of holes through the whole pane at once before it lets go and falls away into the game. The beats are seconds from the start and each is the moment it begins, so they read in order; `blast` is the shotgun, `out` is when the shards start falling and `end` is when the card is gone. The boot card holds on the rain until the world is in (`waitMost` seconds at the outside), so it covers loading rather than being shown after it; the match one plays over a match that is already starting underneath, so it is short and never in the way. Every beat is skipped by a key or a click, and with `prefers-reduced-motion` the shake, the flash and the falling shards are dropped for a plain fade (`reduced`).",
   "boot": {
     "rain": 0,
     "title": 0.5,
-    "shot": 1.9,
-    "storm": 2.75,
-    "out": 5.0,
-    "end": 5.7
+    "shot": 1.75,
+    "blast": 2.45,
+    "out": 3.1,
+    "end": 3.9
   },
   "match": {
     "rain": 0,
     "title": 0.12,
-    "shot": 0.75,
-    "storm": 1.05,
-    "out": 1.75,
-    "end": 2.3
+    "shot": 0.6,
+    "blast": 0.95,
+    "out": 1.35,
+    "end": 1.85
   },
   "reduced": {
     "_note": "No shake, no flash, no shards: the card fades in, holds, cracks once and fades out.",
@@ -50,14 +50,15 @@
     "_note": "The boot card holds on the rain and the name until the world is in, so the animation covers loading instead of following it. `waitMost` is the longest it will hold before it fires anyway, because a card that never ends is worse than a card that fires early.",
     "waitMost": 14
   },
-  "storm": {
-    "_note": "The burst after the first shot: `shots` more rounds through the pane between the `storm` beat and `out`, each its own hole (`hole` px) with `rays` short cracks off it, `reach` of the length the first shot's run, so the first one stays the break that carries the pane and these are the damage round it. They land anywhere inside `spread` of the middle. `kick` is the screen's shake for one of them, against the first shot's own.",
-    "shots": 11,
-    "rays": 6,
+  "blast": {
+    "_note": "The shotgun blast that finishes the pane: one flash, one kick, and `pellets` holes through the glass in the same instant, spread over `spread` of the screen from the middle, each with `rays` short cracks of `reach` of the first shot's length. One blast reads as a shotgun; a string of single rounds read as a strobe, which is what this replaced.",
+    "pellets": 14,
+    "rays": 5,
     "rings": 1,
-    "spread": 0.62,
-    "kick": 11,
-    "reach": 0.15,
-    "hole": 8
+    "spread": 0.72,
+    "reach": 0.13,
+    "hole": 7,
+    "kick": 22,
+    "flash": 0.14
   }
 }

@@ -4406,8 +4406,8 @@ async function introTest(browser: Browser): Promise<void> {
   await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
   await ev(page, `(() => { window.__range.intro.play("boot"); return true; })()`);
   await sleep(150);
-  const quiet = await ev<{ reduced: boolean; end: number; kind: string | null; storm: number }>(page, `(() => { const s = window.__range.intro.state(); return { reduced: s.reduced, end: s.beats.end, kind: s.kind, storm: s.beats.storm }; })()`);
-  check("a machine asking for less movement gets a shorter card with no shake and no falling glass", quiet.reduced && quiet.kind === "boot" && quiet.end < 2 && quiet.storm >= quiet.end, JSON.stringify(quiet));
+  const quiet = await ev<{ reduced: boolean; end: number; kind: string | null; blast: number }>(page, `(() => { const s = window.__range.intro.state(); return { reduced: s.reduced, end: s.beats.end, kind: s.kind, blast: s.beats.blast }; })()`);
+  check("a machine asking for less movement gets a shorter card with no shake and no falling glass", quiet.reduced && quiet.kind === "boot" && quiet.end < 2 && quiet.blast >= quiet.end, JSON.stringify(quiet));
   await ev(page, `window.__range.intro.skip()`);
   await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "no-preference" }]);
   // and the tools' pages have none of it

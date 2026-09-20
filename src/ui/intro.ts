@@ -30,8 +30,8 @@ export interface Beats {
   title: number;
   /** the shot: the flash, the kick, and the crack running out from the hole */
   shot: number;
-  /** after a beat of quiet, the rest of the magazine goes through the pane */
-  storm: number;
+  /** after a beat of quiet, one shotgun blast puts a spread of holes through the pane */
+  blast: number;
   /** the pane lets go and the shards start to fall */
   out: number;
   /** the card is gone */
@@ -52,8 +52,8 @@ export function introBeats(kind: IntroKind, reduced = false): Beats {
     rain: 0,
     title: b.title * 0.5,
     shot: end * 0.4,
-    // no burst either: one crack, and the card goes
-    storm: end,
+    // no blast either: one crack, and the card goes
+    blast: end,
     out: end * 0.75,
     end,
   };
@@ -175,34 +175,32 @@ export function crackPlan(
   return { rays, rings, shards, hole: { x: cx, y: cy, r: holeR } };
 }
 
-/** one round of the burst: when it lands, where, and the break it makes */
-export interface StormShot {
-  /** seconds into the card */
-  at: number;
+/** one pellet of the blast: where it went through, and the break it made */
+export interface Pellet {
   x: number;
   y: number;
   crack: Crack;
 }
 
 /**
- * The rest of the magazine, between the `storm` beat and the moment the pane
- * lets go: rounds landing across the middle of the screen, never twice in the
- * same place, each with a smaller break of its own. Deterministic in `seed`,
+ * The shotgun blast: a spread of pellets through the pane, all in the same
+ * instant, each with a small break of its own around it, so the first shot's
+ * long cracks stay the break that carries the glass. Deterministic in `seed`,
  * like everything else on the card.
  */
-export function stormPlan(w: number, h: number, seed: number, from: number, until: number): StormShot[] {
-  const cfg = INTRO_CFG.storm;
+export function blastPlan(w: number, h: number, seed: number): Pellet[] {
+  const cfg = INTRO_CFG.blast;
   const rnd = seeded(seed ^ 0x5f3a);
-  const shots: StormShot[] = [];
-  const gap = (until - from) / Math.max(1, cfg.shots);
-  for (let i = 0; i < cfg.shots; i++) {
-    // a burst is not a metronome: each round lands a little off its beat
-    const at = from + gap * (i + (rnd() - 0.4) * 0.5);
-    const x = w / 2 + (rnd() - 0.5) * w * cfg.spread;
-    const y = h / 2 + (rnd() - 0.5) * h * cfg.spread;
-    shots.push({ at, x, y, crack: crackPlan(w, h, seed + 5701 * (i + 1), x, y, cfg.rays, cfg.rings, cfg.reach, cfg.hole) });
+  const out: Pellet[] = [];
+  for (let i = 0; i < cfg.pellets; i++) {
+    // round the middle rather than square to the screen: a shot pattern, not a grid
+    const a = rnd() * Math.PI * 2;
+    const r = Math.sqrt(rnd());
+    const x = w / 2 + Math.cos(a) * r * w * 0.5 * cfg.spread;
+    const y = h / 2 + Math.sin(a) * r * h * 0.5 * cfg.spread;
+    out.push({ x, y, crack: crackPlan(w, h, seed + 5701 * (i + 1), x, y, cfg.rays, cfg.rings, cfg.reach, cfg.hole) });
   }
-  return shots.sort((a, b) => a.at - b.at);
+  return out;
 }
 
 /** one column of the rain: where it is, how fast it falls, and the glyphs in it */
@@ -291,9 +289,9 @@ export class Intro {
   private readonly say: HTMLElement | null;
   private cols: RainColumn[] = [];
   private crack: Crack | null = null;
-  private storm: StormShot[] = [];
-  /** rounds of the burst already fired, so each is heard once */
-  private stormSaid = 0;
+  private pellets: Pellet[] = [];
+  /** the blast has been heard (once, not once a pellet) */
+  private blastSaid = false;
   /** seconds this card has held on the rain waiting for the world to come in */
   waited = 0;
   private glyphs: string[][] = [];
@@ -336,7 +334,7 @@ export class Intro {
     this.at = 0;
     this.played++;
     this.shotSaid = false;
-    this.stormSaid = 0;
+    this.blastSaid = false;
     this.waited = 0;
     this.startedAt = performance.now();
     this.size();
@@ -431,8 +429,9 @@ export class Intro {
     this.spare.height = h;
     this.cols = rainColumns(w, h, this.seed);
     this.crack = crackPlan(w, h, this.seed);
-    this.storm = stormPlan(w, h, this.seed, this.beats.storm, this.beats.out - 0.15);
-    this.glyphs = this.cols.map(() => []);
+    this.pellets = blastPlan(w, h, this.seed);
+    this.glyphs = this.cols.map((_, i) => [GLYPHS[i % GLYPHS.length], GLYPHS[(i * 7 + 3) % GLYPHS.length], GLYPHS[(i * 13 + 5) % GLYPHS.length]]);
+    this.glyphAt = -1;
     this.ctx.fillStyle = "#000";
     this.ctx.fillRect(0, 0, w, h);
   }
@@ -473,12 +472,9 @@ export class Intro {
       ? 0
       : Math.max(0, 1 - (t - b.shot) / 0.3) *
         (t >= b.shot ? cfg.crack.shake : 0);
-    // and every round of the burst kicks the picture again
-    if (!this.reduced && t >= b.storm) {
-      for (const sh of this.storm) {
-        if (t < sh.at) break;
-        shake = Math.max(shake, Math.max(0, 1 - (t - sh.at) / 0.18) * cfg.storm.kick);
-      }
+    // and the shotgun kicks it again, once and hard
+    if (!this.reduced && t >= b.blast) {
+      shake = Math.max(shake, Math.max(0, 1 - (t - b.blast) / 0.22) * cfg.blast.kick);
     }
     const rnd = seeded(Math.floor(t * 120) + 7);
 
@@ -514,27 +510,25 @@ export class Intro {
     // the name, smashed in and held
     if (t >= b.title) this.drawTitle(ctx, t - b.title, w, h);
 
-    // the burst: the rest of the magazine through the pane, each round its own
-    // hole, its own flash and its own cracks running out
-    if (t >= b.storm && !this.reduced) {
-      for (let i = 0; i < this.storm.length; i++) {
-        const sh = this.storm[i];
-        if (t < sh.at) break;
-        if (this.stormSaid <= i && this.frozen === null) {
-          this.stormSaid = i + 1;
-          try {
-            this.onShot?.();
-          } catch {
-            /* a title card is never the thing that breaks the page */
-          }
+    // the shotgun: one flash, one kick, and every pellet through the glass in
+    // the same instant. A string of single rounds read as a strobe; a blast
+    // reads as a shotgun, which is what the card is about.
+    if (t >= b.blast && !this.reduced) {
+      if (!this.blastSaid && this.frozen === null) {
+        this.blastSaid = true;
+        try {
+          this.onShot?.();
+        } catch {
+          /* a title card is never the thing that breaks the page */
         }
-        const since = t - sh.at;
-        if (since < 0.07) {
-          ctx.fillStyle = `rgba(255, 255, 255, ${0.28 * (1 - since / 0.07)})`;
-          ctx.fillRect(0, 0, w, h);
-        }
-        this.drawCrack(ctx, Math.min(1, since / INTRO_CFG.crack.spread), sh.crack);
       }
+      const since = t - b.blast;
+      if (since < cfg.blast.flash) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.75 * (1 - since / cfg.blast.flash)})`;
+        ctx.fillRect(0, 0, w, h);
+      }
+      const grown = Math.min(1, since / (INTRO_CFG.crack.spread * 0.7));
+      for (const p of this.pellets) this.drawCrack(ctx, grown, p.crack);
     }
 
     // the shot: a flash that goes at once, then the crack running out
@@ -588,7 +582,7 @@ export class Intro {
         if (r < 0 || r > rows) continue;
         ctx.fillStyle = k === 0 ? cfg.head : cfg.dim;
         ctx.globalAlpha = k === 0 ? 1 : 0.55 - k * 0.15;
-        ctx.fillText(set[k] ?? set[0], col.x, r * cfg.glyph);
+        ctx.fillText(set[k] ?? set[0] ?? GLYPHS[(i + k) % GLYPHS.length], col.x, r * cfg.glyph);
       }
       ctx.globalAlpha = 1;
     });

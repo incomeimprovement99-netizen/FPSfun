@@ -52,9 +52,9 @@ down its left side to jump there.
    are not supported.
 2. **B00G's FPS: FULL POWER SURGE.** The title card is the loading screen:
    green rain, the name smashed in over it, and the line under the name filling
-   as the world comes in. When it is in, a shot goes through the middle of the
-   screen, a beat of quiet, then the rest of the magazine, and the glass falls
-   away in shards into the game. It plays again, shorter, as you drop into any
+   as the world comes in. When it is in, a round goes through the middle of the
+   screen, a beat of quiet, then one shotgun blast puts its whole pattern
+   through the pane at once, and the glass falls away in shards into the game. It plays again, shorter, as you drop into any
    match. A key or a click takes the rest of it, `?nointro` in the address turns
    it off for good, and a machine set to less movement gets a shorter one with
    no shake and no falling glass.
@@ -635,9 +635,9 @@ it trusts the game, so it is a board for friends, not a ranked ladder.
   behind by a frame that only half clears; the name lands from two and a half
   times its size with a green and a cyan copy a few pixels either side; the
   shot flashes, kicks the picture and runs thirteen cracks out of a bullet hole
-  with rings of glass between them; after a beat of quiet eleven more rounds go
-  through the pane, each its own hole and its own short cracks; then the pane it
-  drew is cut along the first break and each piece is thrown out of the hole,
+  with rings of glass between them; after a beat of quiet one shotgun blast puts
+  fourteen pellets through the pane in the same instant, each its own hole and
+  its own short cracks; then the pane it drew is cut along the first break and each piece is thrown out of the hole,
   turned and dropped, so the game shows through the gaps. The card holds on the
   rain at the moment of the shot until the world is in (14 s at the outside),
   which is why it covers loading rather than following it, and the line under
