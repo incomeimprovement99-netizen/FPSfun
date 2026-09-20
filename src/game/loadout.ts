@@ -7,7 +7,7 @@
 // makes redirecting mid-swap (changing your mind) fall out for free.
 import { resolveWeapon, weaponMods, type ResolvedWeapon } from "./weapons";
 import { WeaponState } from "./weapon-state";
-import { fireModeOf, modNames, optionsFor, SLOTS, type AttachSlot, type Attachments } from "./attachments";
+import { fireModeOf, modNames, optionsFor, startingOptic, SLOTS, type AttachSlot, type Attachments } from "./attachments";
 import { AMMO, AmmoPouch, fullEnergy, type EnergyStock } from "./ammo";
 import { opticInfo } from "./optics";
 import { opticName } from "../config/names";
@@ -52,8 +52,10 @@ export class Loadout {
 
   constructor(ids: string[]) {
     for (const id of ids) {
-      const weapon = resolveWeapon(id, 0);
-      const s: Slot = { id, magLevel: 0, attach: {}, weapon, state: new WeaponState(weapon), zoomAlt: false, altMode: false, energy: fullEnergy(weapon), empty: false };
+      // every gun out of a loadout wears a sight (attachments.ts startingOptic)
+      const attach: Attachments = { optic: startingOptic(weaponMods(id), id) };
+      const fitted = resolveWeapon(id, 0, modNames(attach));
+      const s: Slot = { id, magLevel: 0, attach, weapon: fitted, state: new WeaponState(fitted), zoomAlt: false, altMode: false, energy: fullEnergy(fitted), empty: false };
       this.slots.push(s);
       this.wireSupply(s);
     }
@@ -75,6 +77,12 @@ export class Loadout {
         return got;
       },
     };
+  }
+
+  /** the mods a slot's gun is built from (tools/verify.ts: a sight is fitted, not just recorded) */
+  chainOf(slotIndex: number): string[] {
+    const s = this.slots[slotIndex];
+    return s ? this.chain(s) : [];
   }
 
   /** the mod chain for a slot: its attachments, and its fire mode's mod when on the second one */
@@ -218,13 +226,15 @@ export class Loadout {
     const weapon = resolveWeapon(id, 0);
     s.id = id;
     s.magLevel = 0;
-    s.attach = {};
+    // a gun swapped into a loadout slot comes with a sight, like the rest
+    s.attach = { optic: startingOptic(weaponMods(id), id) };
     s.zoomAlt = false;
     s.altMode = false;
     s.weapon = weapon;
     s.state.setWeapon(weapon);
     s.energy = fullEnergy(weapon);
     s.empty = false;
+    this.rebuildSlot(s, false);
     // A swap in flight was timed from the weapons it started with. Changing
     // one of them mid-swap would leave the timer describing guns that are no
     // longer involved, so land it now.

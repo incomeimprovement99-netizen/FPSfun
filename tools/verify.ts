@@ -827,14 +827,20 @@ console.log("\nAttachments (every effect is a mod block in the reference data)")
   lo.cycleAttachment("laser");
   near("cycling an unavailable slot changes nothing", lo.active.weapon.spread.standHip, before, 1e-9);
 
-  // swapping the weapon in a slot resets its build
+  // a loadout's guns come out of it wearing a sight, and swapping the weapon
+  // in a slot resets its build back to that
   const lo2 = new Loadout(["rspn101", "wingman"]);
+  eq("a loadout's gun starts on the red dot, not on irons", lo2.active.attach.optic, "optic_cq_holosight");
+  eq("and it is really fitted, not just recorded", lo2.chainOf(0).includes("optic_cq_holosight"), true);
   lo2.cycleAttachment("optic");
   eq("optic fitted", lo2.active.attach.optic !== null && lo2.active.attach.optic !== undefined, true);
   lo2.setWeaponId(0, "vinson");
   eq("new weapon in the slot", lo2.active.weapon.id, "vinson");
-  eq("build reset with the weapon", lo2.active.attach.optic ?? null, null);
+  eq("build reset with the weapon, back to its red dot", lo2.active.attach.optic, "optic_cq_holosight");
   eq("mag level reset with the weapon", lo2.active.magLevel, 0);
+  // a gun with its own scope keeps it rather than being given a dot
+  const lo3 = new Loadout(["sniper"]);
+  eq("a gun with a scope of its own is left alone", lo3.active.attach.optic ?? null, null);
 }
 
 console.log("\nMovement (constants are engine defaults, in Hammer units)");

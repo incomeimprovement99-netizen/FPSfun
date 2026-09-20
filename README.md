@@ -1,11 +1,16 @@
 # B00G Range (beta)
 
-A browser firing range that reproduces the feel of Apex Legends' movement and
-guns from published numbers, with two timed movement courses, a guided tour,
-bots, a battle royale with loot, Gun Run, team deathmatch, free-for-all,
-Control, Crown and Search (plant and defuse), and a 1v1 or 1v1v1 against friends by code. Own code, own art, nothing from the
-game's files. It runs in a browser tab and has no connection of any kind to the
-Apex install, the EA App, Steam or Easy Anti-Cheat.
+A browser shooter that reproduces the feel of Apex Legends' movement and guns
+from published numbers. A firing range with every tool in it, two timed
+movement courses and a guided tour; a battle royale on a 440 m map with loot,
+squads, the ring, the Gulag, Resurgence, doors, ziplines, balloons, a vault and
+a keycard; six ability kits with a tactical, a passive and an ultimate each;
+Gun Run, team deathmatch, free-for-all, Control, Crown and Search (plant and
+defuse); bots that loot, fight, ride the ropes and play the objective; and any
+of it with up to eight friends over a code, with host migration if the host's
+tab goes. Own code, own art, nothing from the game's files. It runs in a
+browser tab and has no connection of any kind to the Apex install, the EA App,
+Steam or Easy Anti-Cheat.
 
 **This page is in the game.** At the far end of the range, under a lit
 **B00G'S RANGE** sign, a 16 m screen shows this README: shoot the arrow plates
@@ -1008,6 +1013,7 @@ guns are built with their grips at the hand for that.
 | `docs/SERVER_GUIDE.md` | the game on its own server like Algonomics: a DuckDNS name, the Oracle firewall rules, one-time setup, `npm run deploy:server`, day to day, troubleshooting |
 | `docs/DEPLOY_GUIDE.md` | the static mirror: publish, play, update, troubleshoot |
 | `docs/DEVELOPMENT_ROADMAP.md` | a milestone for every feature shipped, newest last, with what it does and how it was tested |
+| `docs/updates/` | one file a working day (`YYYY-MM-DD.md`): what shipped that day, what it cost, what was found on the way and what is next. The diary beside the roadmap, for reading back a week later |
 | `docs/PHASE_14_PLAN_ESC_SHOTGUNS_PLATES_FFA_AND_THE_SPIN.md`, `docs/PHASE_14_ESC_SHOTGUNS_PLATES_FFA_AND_THE_SPIN.md` | phase 14's plan and its results: Esc as Resume, the shotguns' blast patterns, enemy plates only after a hit and in sight, free-for-all, and how the mannequin's upper-body spin was found and fixed |
 | `docs/PHASE_13_PLAN_THE_README_IN_THE_RANGE.md`, `docs/PHASE_13_THE_README_IN_THE_RANGE.md` | phase 13's plan and its results: the README on a screen in the range, paged by shooting it, and the public build's "Not R-301" gun names |
 | `docs/PHASE_12_PLAN_DASH_FIGURES_BOTS_AND_THE_APEX_PIECES.md`, `docs/PHASE_12_DASH_FIGURES_BOTS_AND_THE_APEX_PIECES.md` | phase 12's plan and its results |

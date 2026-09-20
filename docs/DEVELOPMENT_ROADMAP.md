@@ -2114,3 +2114,21 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/intro.ts` is 20 now (the burst in order, inside the beat, never twice in one place, local to
   its hole, the same from the same seed), the e2e `intro` section 11 (it stands in for the loading screen, and the
   shot waits for the world), and the three snapshots are retaken on the new beats.
+## Milestone 129 — The crosshair over the shoulder, a red dot on every loadout, and a diary ✅
+2026-09-20 (Phase 15). `src/game/hud.ts`, `src/game/loadout.ts`, `src/game/attachments.ts`, `src/main.ts`, `tools/verify.ts`, `README.md`, `docs/updates/` (new), `docs/NEXT_STEPS.md`, `docs/PLAN_MOVEMENT_CHAIN.md` (new).
+- **Aiming in third person kept the crosshair.** The crosshair goes when you aim, as it does in Apex, because the
+  gun's own sights replace it. Over the shoulder there are no sights on the screen to replace it with, so aiming
+  left nothing to aim with. It stays now whenever the camera is behind you.
+- **Every loadout's guns come with a red dot.** Nobody builds a class and leaves it on irons. A loadout's guns are
+  fitted with the 1x holo, or whatever 1x that gun can take, when the loadout is built and when a gun is swapped
+  into a slot; a gun with its own scope (the snipers) keeps it and a gun that takes no optic gets none. The floor
+  loot of a battle royale is untouched: what you find is still what you find.
+- **`docs/updates/`**, one file a working day: what shipped, what it cost, what was found on the way, what is next.
+  The diary beside the roadmap, because the roadmap says what a feature is and not what a day was.
+- **The ranked list against AAA, rewritten** (`docs/NEXT_STEPS.md`, "2026-09-20"): twenty items, with the three
+  things that still separate this from a shipped game named plainly (the feel between the inputs, the chain, and
+  recorded audio), and **`docs/PLAN_MOVEMENT_CHAIN.md`**, the plan for the first of them.
+- The README's opening, which is the first page of the screen in the firing range, now describes the game as it is
+  rather than as it was ten milestones ago.
+- Checks: `npm run verify` (a loadout's gun starts on the red dot, the sight is really in the mod chain, a swap
+  resets to it, a scoped gun is left alone).

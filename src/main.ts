@@ -5741,6 +5741,7 @@ function step(): void {
     reloadProgress: shown.state.reloadProgress(now),
     coneDeg: ws.spread.cone(),
     adsFrac: ws.adsFrac,
+    thirdPerson,
     vFovDeg: camera.fov,
     stats,
     armorName: ARMOR_NAME[armorTier],

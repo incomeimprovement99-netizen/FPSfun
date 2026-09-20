@@ -218,3 +218,34 @@ Every one is checked for licence. The repo already fetches ambientCG, Poly Haven
 - Google Fonts, self-hosted (SIL OFL 1.1) — a condensed display face plus a clean UI face for the HUD (Barlow Condensed / Teko / Rajdhani are the natural pairings for this style); self-host into public/fonts so the game makes no third-party request and works offline behind Caddy.
 - Lucide (ISC licence, permissive, attribution-free) — plain UI glyphs for the menus, settings tabs and the Friends lobby, where game-icons.net's illustrative style would be too heavy.
 - Avoid: Sketchfab's CC-BY knife and weapon models (account required and attribution obligations the repo already declined), CS:GO/Apex replica models of any kind (they carry Valve's and Respawn's designs regardless of the uploader's licence tag), and anything labelled CC0 by an AI-generation site with unclear provenance — the repo already made and recorded these calls in docs/RESULTS_1V1_BETA.md.
+
+## 2026-09-20: where it stands against AAA, and the next twenty
+
+**Written after Milestones 100 to 128** (the map expansion, the Gulag, Resurgence, Search, the vault, the six ability kits, host migration, the LOD and draw-distance work, and the title card). The earlier list above stands where it is not struck through; this is a fresh pass over what is left, ranked by what a group of eight friends would feel first, with Apex as the yardstick and Warzone, The Finals, Hyper Scape and Empulse where they do something Apex does not.
+
+**What no longer separates us from a shipped game.** The movement is measured against the Apex wiki rule by rule and simulated frame by frame (`docs/MOVEMENT_AUDIT.md`); the guns are the published numbers with attachments, hop-ups and per-optic ADS; the map is a built level with interiors, terrain, traversal and a vault; there are ten modes; bots loot, fight, open doors, ride ropes and play objectives; matches survive the host's tab closing; and the whole thing is checked by 1,100+ unit checks, an end-to-end suite in real browsers and a picture set.
+
+**What still does.** Three things, in order: **the feel between the inputs** (animation blending, camera, the moment-to-moment polish that makes Apex feel expensive), **the chain** (Apex, Titanfall and Empulse all reward stringing moves together, and we stop at the single move), and **the recorded audio** (every gun is synthesised).
+
+| # | Item | Why it is here | Effort |
+|---|---|---|---|
+| 1 | **Movement chain: paint, and the boost that survives the move** | Empulse's P.A.I.N.T. is the clearest version of what we are missing: a thrown bomb that paints a patch of floor or wall, orange for speed and blue for jump, and the boost carries for a moment after you leave it, so a slide into a jump into a lurch is one continuous thing instead of three. Apex gets the same feeling out of the interaction between slide, jump and lurch; Titanfall out of wall running. We have the parts and no reason to chain them | 2-3 days |
+| 2 | **Recorded gunshots under the synthesis** | Every shot in the game is made of oscillators. Real CC0 layers (a crack, a body, a tail, a mech click) mixed under what is there is the single biggest step in how the game sounds, and sound is half of what "AAA" means to a player | 1-2 days |
+| 3 | **Animation blending and the in-between poses** | The figures snap between stances: no lean into a turn, no weight shift out of a slide, no settle on landing. Apex's figures are always mid-transition. This is the biggest visual gap left now the map and the lighting are done | 2-3 days |
+| 4 | **Wallbounce proper, and the mantle boost** | Both are in the audit as "not implemented", and both are what an Apex player reaches for first when they try our movement. They depend on the jump-fatigue and mantle interactions we already model | 1 day |
+| 5 | **Sliding and landing camera work** | A slide has no camera lean, a hard landing no roll, a lurch no kick. Small, cheap, and it is most of what "silky" means when people say it about Apex | 4-6 h |
+| 6 | **A round timer and a match flow for the arena modes** | Modes end when a score is reached, with no clock, no intermission, no scoreboard between rounds. Every shipped shooter has this shape and it costs us nothing but UI | 1 day |
+| 7 | **Spectate after death** | Eight friends on a ten-minute battle royale: a bad landing is ten minutes of nothing. The killcam rig already flies a camera to another player | 1 day |
+| 8 | **Bots that use the kits** | Six kits, and the bots play two of them. A bot that throws a smoke, puts up a wall or grapples away is the difference between practice and a match | 1 day |
+| 9 | **Per-match variety: a hot zone, a dust storm, seeded chests** | The same map twice in an evening reads as the same match. Apex changes the ring, the hot zone and the loot; we change nothing but the drop | 1-2 days |
+| 10 | **The two missing boards, and a season of them** | Wins and course times are posted; kills, damage, placement and a weekly reset are not. Progression is what brings a group back on a Tuesday | 1 day |
+| 11 | **Ping wheel and squad comms** | One ping is in; Apex's wheel (enemy, looting here, going here, defending, need ammo) is what makes a squad legible without voice | 6-8 h |
+| 12 | **A real inventory screen** | Tab shows a list. Warzone, Apex and PUBG all give a grid with drag, drop and compare, and our loot system already carries everything it needs | 1 day |
+| 13 | **Hit registration under real latency** | We interpolate and reconcile, but nothing measures what a 120 ms player experiences against a 20 ms one. A lag-compensation pass with a test that fires from a delayed page would tell us where we stand | 1-2 days |
+| 14 | **Accessibility: colourblind palettes, subtitles for the important sounds, a hold/toggle for everything** | Half of it is done piecemeal. Shipped games treat it as a tab | 1 day |
+| 15 | **Weapon inspect, finishers and the rest of the flourish** | We have finishes and an heirloom; an inspect animation and a kill-effect pass are the cheap end of what makes a gun feel owned | 1 day |
+| 16 | **Map two** | One map is one map. A second arena-sized level for the small modes would double the hours before anything repeats | 3-4 days |
+| 17 | **Anti-cheat's honest version: server-authoritative damage** | The host decides damage. For friends this is fine and it is documented, but it is the one architectural line between this and a public game | 3-5 days |
+| 18 | **Replays** | The killcam records 8 seconds. Keeping a whole match and letting it be watched is how a group argues about a fight afterwards | 2-3 days |
+| 19 | **Mobile and controller-only play** | The controller is supported; a phone is not, and a phone is where a friend without a PC is | 3-5 days |
+| 20 | **A tutorial that is not the tour** | The tour teaches movement. Nothing teaches the battle royale's own rules: the ring, the Gulag, bins, crafting, the vault | 1 day |

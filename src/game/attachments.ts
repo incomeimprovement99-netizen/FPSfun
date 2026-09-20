@@ -92,6 +92,19 @@ export function fireModeOf(id: string): { mod: string; base: string; alt: string
 }
 
 /** what this weapon can actually take, "none" first (`id` lets a switch hop-up find the gun it belongs to) */
+/**
+ * The sight a gun comes out of a loadout wearing. Nobody builds a class and
+ * leaves it on irons, and a red dot is the one optic that suits every gun and
+ * every range, so a loadout's guns start with the holo (the 1x red dot) or,
+ * failing that, whatever 1x the gun can take. A gun with its own scope built
+ * in (the snipers) keeps it, and a gun that takes no optic at all gets none.
+ */
+export function startingOptic(mods: Record<string, unknown>, id = ""): string | null {
+  const want = ["optic_cq_holosight", "optic_cq_hcog_classic", "optic_cq_threat", "optic_cq_holosight_variable"];
+  const has = new Set(optionsFor("optic", mods, id).map((o) => o.mod));
+  return want.find((m) => has.has(m)) ?? null;
+}
+
 export function optionsFor(slot: AttachSlot, mods: Record<string, unknown>, id = ""): AttachOption[] {
   const out: AttachOption[] = [];
   for (const o of CANDIDATES[slot]) {

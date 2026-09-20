@@ -145,6 +145,12 @@ export interface HudState {
   reloadProgress: number;
   coneDeg: number;
   adsFrac: number;
+  /**
+   * The camera is behind the shoulder. Aiming takes the crosshair away in
+   * first person because the gun's own sights replace it, and in third person
+   * there are no sights on the screen to replace it with, so it stays.
+   */
+  thirdPerson?: boolean;
   vFovDeg: number;
   stats: { shots: number; hits: number; headshots: number; damage: number; knocks: number; lastTtk: number | null };
   armorName: string;
@@ -1481,8 +1487,10 @@ export class Hud {
     c.shadowBlur = 2;
     // Hipfire only, as in Apex: the crosshair is gone as soon as you start to
     // aim, and the sights (irons, reticle or scope) are the aim point. Hit
-    // markers still show while aiming.
-    const hip = s.holstered ? 0.35 : Math.max(0, 1 - s.adsFrac / 0.3);
+    // markers still show while aiming. Over the shoulder is the exception:
+    // the sights are off to one side of the screen there and the shot goes
+    // where the crosshair is, so aiming keeps it.
+    const hip = s.holstered ? 0.35 : s.thirdPerson ? 1 : Math.max(0, 1 - s.adsFrac / 0.3);
     if (hip > 0 && s.reticle) {
       c.shadowBlur = 0;
       drawCrosshair2d(c, cx, cy, gap, u, hip, s.reticle);
