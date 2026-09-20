@@ -70,8 +70,13 @@ console.log("The intro card");
   const again = blastPlan(1920, 1080, 4242);
   check("the shotgun puts its whole pattern through the pane at once", pellets.length === INTRO_CFG.blast.pellets, `${pellets.length} pellets`);
   check("no two pellets go through the same place, and none of them off the screen", new Set(pellets.map((p) => `${Math.round(p.x)},${Math.round(p.y)}`)).size === pellets.length && pellets.every((p) => p.x > 0 && p.x < 1920 && p.y > 0 && p.y < 1080));
-  const mid = pellets.filter((p) => Math.hypot(p.x - 960, p.y - 540) < 300).length;
-  check("the pattern is spread over the middle of the screen rather than heaped in it", mid < pellets.length && mid > 0, `${mid} of ${pellets.length} within 300 px of the middle`);
+  const mid = pellets.filter((p) => Math.hypot(p.x - 960, p.y - 540) < 260).length;
+  const wide = pellets.filter((p) => Math.hypot(p.x - 960, p.y - 540) > 500).length;
+  check("the pattern keeps off the middle, where the name and the rifle round's own hole are", mid === 0, `${mid} of ${pellets.length} within 260 px of the middle`);
+  check("and it is thrown out across the pane rather than heaped anywhere", wide >= pellets.length / 2, `${wide} of ${pellets.length} past 500 px`);
+  const pelletReach = Math.max(...pellets.map((p) => Math.max(...p.crack.rays.map((r) => Math.hypot(r.points[r.points.length - 1].x - p.x, r.points[r.points.length - 1].y - p.y)))));
+  const shotReach = Math.max(...crackPlan(1920, 1080, 4242).rays.map((r) => Math.hypot(r.points[r.points.length - 1].x - 960, r.points[r.points.length - 1].y - 540)));
+  check("a pellet's cracks are far shorter than the rifle round's, so the first shot stays the break", pelletReach < shotReach / 4, `${pelletReach.toFixed(0)} px against ${shotReach.toFixed(0)}`);
   check("a pellet breaks the glass around itself, not across the whole pane", pellets.every((p) => p.crack.rays.length === INTRO_CFG.blast.rays) && pellets.every((p) => p.crack.rays.every((r) => Math.hypot(r.points[r.points.length - 1].x - p.x, r.points[r.points.length - 1].y - p.y) < Math.hypot(1920, 1080) * 0.25)), `${INTRO_CFG.blast.rays} cracks a pellet`);
   check("and the same seed fires the same pattern", JSON.stringify(pellets) === JSON.stringify(again));
 }

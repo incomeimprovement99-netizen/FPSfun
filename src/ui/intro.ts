@@ -193,9 +193,12 @@ export function blastPlan(w: number, h: number, seed: number): Pellet[] {
   const rnd = seeded(seed ^ 0x5f3a);
   const out: Pellet[] = [];
   for (let i = 0; i < cfg.pellets; i++) {
-    // round the middle rather than square to the screen: a shot pattern, not a grid
-    const a = rnd() * Math.PI * 2;
-    const r = Math.sqrt(rnd());
+    // Round the middle rather than square to the screen: a shot pattern, not a
+    // grid. `keepOut` is what keeps the pattern off the name in the centre,
+    // where the rifle round's own hole already is, and it is what makes the
+    // blast read as a spread rather than a second shot at the same spot.
+    const a = i * 2.399963 + rnd() * 0.9;
+    const r = cfg.keepOut + (1 - cfg.keepOut) * Math.sqrt(rnd());
     const x = w / 2 + Math.cos(a) * r * w * 0.5 * cfg.spread;
     const y = h / 2 + Math.sin(a) * r * h * 0.5 * cfg.spread;
     out.push({ x, y, crack: crackPlan(w, h, seed + 5701 * (i + 1), x, y, cfg.rays, cfg.rings, cfg.reach, cfg.hole) });

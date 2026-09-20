@@ -51,14 +51,15 @@
     "waitMost": 14
   },
   "blast": {
-    "_note": "The shotgun blast that finishes the pane: one flash, one kick, and `pellets` holes through the glass in the same instant, spread over `spread` of the screen from the middle, each with `rays` short cracks of `reach` of the first shot's length. One blast reads as a shotgun; a string of single rounds read as a strobe, which is what this replaced.",
-    "pellets": 14,
-    "rays": 5,
+    "_note": "The shotgun blast that finishes the pane: one flash, one kick, and `pellets` holes through the glass in the same instant, thrown out over `spread` of the screen and never into the middle (`keepOut` of the way out, so the pattern is round the name rather than over it, and the rifle round's own hole stays the one in the centre). Each pellet is a smaller hole than the rifle round's with `rays` short cracks at `reach` of its length, so the first shot stays the break that carries the pane. One blast reads as a shotgun; a string of single rounds read as a strobe, which is what this replaced.",
+    "pellets": 18,
+    "rays": 4,
     "rings": 1,
-    "spread": 0.72,
-    "reach": 0.13,
-    "hole": 7,
+    "spread": 0.95,
+    "reach": 0.075,
+    "hole": 5,
     "kick": 22,
-    "flash": 0.14
+    "flash": 0.14,
+    "keepOut": 0.42
   }
 }

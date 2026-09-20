@@ -639,8 +639,9 @@ it trusts the game, so it is a board for friends, not a ranked ladder.
   times its size with a green and a cyan copy a few pixels either side; the
   shot flashes, kicks the picture and runs thirteen cracks out of a bullet hole
   with rings of glass between them; after a beat of quiet one shotgun blast puts
-  fourteen pellets through the pane in the same instant, each its own hole and
-  its own short cracks; then the pane it drew is cut along the first break and each piece is thrown out of the hole,
+  eighteen pellets through the pane in the same instant, thrown out across it
+  and clear of the name in the middle, each its own small hole with short
+  cracks of its own; then the pane it drew is cut along the first break and each piece is thrown out of the hole,
   turned and dropped, so the game shows through the gaps. The card holds on the
   rain at the moment of the shot until the world is in (14 s at the outside),
   which is why it covers loading rather than following it, and the line under

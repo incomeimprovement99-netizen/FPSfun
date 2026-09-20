@@ -2216,3 +2216,13 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/kits.ts` (seven: what each kit puts up and where, and the three cases where it does not) and
   the e2e `bots` section (a hurt SMOKE bot's cloud goes up in a real match, and what a WARD bot puts up reaches the
   world).
+
+## Milestone 135 — The shotgun's pattern, out across the pane ✅
+2026-09-20 (Phase 15). `src/config/intro.json`, `src/ui/intro.ts`, `tools/checks/intro.ts`, `tools/snap.ts`, `README.md`.
+- The owner's note on Milestone 133: the blast was heaped in the middle of the screen, over the name, and each
+  pellet broke the glass nearly as hard as the rifle round had. The pattern is eighteen pellets now, thrown out
+  over 95% of the screen with the middle 42% of that kept clear, so it lands round the name rather than on it and
+  the rifle round's own hole stays the one in the centre. Each pellet is a smaller hole (5 px against 13) with four
+  short cracks at 7.5% of the first shot's length: 202 px against 2,618.
+- Checks: `tools/checks/intro.ts` (the pattern keeps off the middle, is thrown out across the pane, and a pellet's
+  cracks are under a quarter of the rifle round's), and the two snapshots retaken.
