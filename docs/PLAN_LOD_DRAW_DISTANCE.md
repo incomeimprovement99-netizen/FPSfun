@@ -76,6 +76,69 @@ beams, about 150 calls at the hub), the doors (one mesh each now, from two), and
 capsules and spheres in the gun's own pass). Steps C (loot), D (figures) and the hands are done: see Milestones 101, 121 and 122. The hands went from about
 seventy-five meshes to one per material, 497 draw calls to 421 in the range.
 
+## Steps E and B, as built (2026-09-19, Milestone 126)
+
+**The far plane was the pop.** The camera saw 400 m, the battle royale's fog ran 140 to 680 m, and the map's
+corners are 622 m apart, so a ridge in clear air ended at a seam that moved with you. It is now a **draw distance
+per preset** (`src/game/quality.ts`): Competitive 460 m, Balanced 620 m, High 760 m. The pure `drawRange()` takes a
+region's own fog and a preset and gives back the three numbers that follow from them:
+
+- the fog ends at the nearer of the region's far and the preset's draw distance, so Competitive on the open map
+  fogs out at 460 m and draws nothing past it;
+- the near end keeps its proportion, so the fall-off is the same shape on every preset rather than a wall;
+- the camera's far plane sits 60 m beyond the fog's end, so what is cut off is already fogged to nothing.
+
+A region whose own fog is shorter than the preset draws keeps its own fog: the firing range still ends at 290 m on
+High, because that is the range, not a budget.
+
+**The benchmark was measuring the map under the range's fog.** Nothing on the `br` or `brmatch` spots starts a
+match, and the fog and shadow box follow the part of the world you are *playing* in, so every number ever taken on
+the map was taken with the range's 55 to 290 m fog over it. The spots now say which region they are in
+(`__range.setRegion`), which makes them a little slower and a lot more honest, and there is a new
+`BENCH_SPOT=brcorner`: one corner of the map, 36 m up, looking diagonally across the whole of it. That is the
+longest sightline in the game and the view step E was written for.
+
+**What it costs, and what the preset now buys.** Measured at 1920x1080 on this machine, twelve-second runs, the
+map empty. "Before" is the old state put back on this build (the fog 140 to 680 m and the far plane pinned at
+400 m), so the two sides differ only in how far the world is drawn:
+
+| View | Preset | Fog, far plane | Draw calls | Triangles | fps median |
+|---|---|---|---|---|---|
+| The corner, diagonally across | Competitive | 140-680, 400 → 95-460, 520 | 145 → 155 | 391k → 391k | 455 → 417 |
+| The corner | Balanced | 140-680, 400 → 128-620, 680 | 165 → 176 | 539k → 598k | 455 → 435 |
+| The corner | High | 140-680, 400 → 140-680, 740 | 479 → 503 | 2.54M → 2.77M | 233 → 270 |
+| The Mast's roof | Competitive | as above | 326 → 350 | 1.638M → 1.644M | 313 → 357 |
+| The Mast's roof | Balanced | as above | 344 → 368 | 1.638M → 1.644M | 526 → 345 |
+| The Mast's roof | High | as above | 664 → 700 | 2.880M → 2.888M | 333 → 200 |
+
+The counters are the honest columns. **The fps column is not: repeats of the same configuration on this GPU came
+back anywhere from 417 to 667 at the corner and 200 to 526 from the roof**, a spread wider than anything the change
+does, because the frame here is well under three milliseconds and the card's clocks move more than the work does.
+What the change costs is about ten more draw calls and, on Balanced, 60k more triangles: the price of never cutting
+the world off in clear air.
+
+**Drawing further has to mean drawing more, or the preset is only fog.** The map is merged into meshes that span the
+whole of it, so nothing in it is culled by how far you asked to see: on its own, step E moved the fog and the far
+plane and left the work identical. So the distances the field's scenery is drawn to (`quality.ts sceneryFar`: a
+rock's scan to 170 m, a cliff face to 260, a dead branch to 150, all tuned on Balanced) are now scaled by the
+preset, which is what makes Competitive cheaper than Balanced at the same view: 598k triangles to 391k at the
+corner, a third of them gone, with the boxed rock the map already drew standing in beyond 126 m.
+
+**What the picture found.** The corner view was worth a snapshot (`br-far`), and the snapshot came back with a
+black sky. The dome is the range's to build, so Milestone 100's region split attached it to the range's side of the
+world and hid it on the map; the fog still took the dome's colour, so the ground faded into haze and nothing read as
+broken from inside a match. It stays on the scene now, like the sun, and the e2e's `br` section checks it is there
+and drawn while the map's side is the one being shown.
+
+**Step B, the budget.** `tools/checks/render-budget.ts` builds the battle royale map in node (the document stub
+`bot-walk.ts` uses), merges its static meshes as the page does, and holds the result to a budget: 190 meshes
+after the merge (125 today, from 3,496), 330k triangles (237k today), and the merge has to take the count *down* by
+at least three times. That
+last one is the check that would have caught Milestone 100's doubled map, where every static mesh of the map went
+into its merged group twice and nothing but a profiler could see it. The field's scenery is held to a few hundred
+copies, and the draw-distance arithmetic above is asserted exactly, preset by preset. The e2e's `br` section reads
+the numbers back out of a real page (`__range.viewRange()`), so the wiring is checked as well as the maths.
+
 ## Options, best gain per hour first
 
 1. **Fix the measurements.** Everything else is judged by them.
@@ -114,10 +177,10 @@ A new `tools/checks/render-budget.ts` in verify builds the map headless and asse
 | Step | Work | Hours | Test |
 |---|---|---|---|
 | A | ~~Benchmark: every pass counted, triangles, percentiles, the `brmatch` spot~~ done, baseline above | 2-3 | A baseline on all three presets at `br`, `brmatch` and `range` |
-| B | `render-budget.ts` at today's numbers | 2 | Verify passes; a budget one lower fails |
+| B | ~~`render-budget.ts` at today's numbers~~ done (Milestone 126): twelve checks over the built map and the draw-distance arithmetic | 2 | Verify passes; a budget one lower fails |
 | C | ~~Loot LOD: merged guns, instanced boxes and plates~~ done (Milestone 101): `brmatch` Competitive 864 draw calls to about 280, 192 fps to 278-333 | 4-6 | Merged-gun check; `brmatch` draw calls drop by hundreds |
 | D | ~~Figure LOD: animation stride, far gun, 60 m shadows~~ done (Milestone 121): `brmatch` High 799 draw calls to 599, 2.39M triangles to 1.99M, 167 to 185 fps. The bounds and frustum culling were left out: a skinned figure has no reliable bounds without computing them, and a figure popping out of view is worse than the calls it saves | 3-4 | `tools/checks/figlod.ts`; the bot, knockdown and squad checks still pass; High benchmark |
-| E | Far plane and fog per preset | 1-2 | The sky-hours check; a map-corner benchmark |
+| E | ~~Far plane and fog per preset~~ done (Milestone 126): a draw distance per preset, the fog ending where it stops and the far plane beyond that; see below | 1-2 | The sky-hours check; a map-corner benchmark |
 | F | ~~Cells in mergeStatic, regions apart, indexed bevels~~ done without the cells (measured worse), with the double merge fixed and each side drawn only from itself: see above | 4-6 | The cell and region assertions; `br` and `range` benchmarks |
 | G | A shadow box that follows the player on High | 2-3 | High benchmark; snap comparison |
 | H | Dynamic resolution, then building the map per mode | 3-4 each | Percentiles; loading-screen timing |

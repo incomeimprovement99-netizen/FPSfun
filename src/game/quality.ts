@@ -38,6 +38,36 @@ export interface Quality {
    * v-sync off.
    */
   lowLatency: boolean;
+  /**
+   * How far this preset draws, metres. The fog ends here and the camera's far
+   * plane sits a little beyond it, so nothing is ever clipped in clear air:
+   * what goes out of the world goes out inside the fog. Competitive draws
+   * least (it is the preset for frames), High the most.
+   */
+  drawDistance: number;
+}
+
+/**
+ * The fog and the far plane for a part of the world at a preset: the region's
+ * own fog, shortened to what the preset draws, with the near end kept in
+ * proportion, and the far plane `beyond` metres past the fog's end.
+ */
+export function drawRange(regionFog: { near: number; far: number }, q: { drawDistance: number }, beyond = 60): { near: number; far: number; camFar: number } {
+  const far = Math.min(regionFog.far, q.drawDistance);
+  const k = far / regionFog.far;
+  return { near: Math.max(20, regionFog.near * k), far, camFar: far + beyond };
+}
+
+/**
+ * A distance something is drawn to, scaled by the preset. The distances in the
+ * world were tuned on Balanced (a rock's scan is worth drawing to 170 m, a
+ * cliff face to 260, a dead branch to 150), so Balanced is 1 and the other two
+ * are its ratio: without this the draw distance would only move the fog, since
+ * the map itself is merged into meshes that span the whole of it and nothing
+ * culls by how far you asked to see.
+ */
+export function sceneryFar(base: number, q: { drawDistance: number }): number {
+  return Math.round((base * q.drawDistance) / 620);
 }
 
 export const PRESETS: Record<Preset, Quality> = {
@@ -53,6 +83,7 @@ export const PRESETS: Record<Preset, Quality> = {
     pointLights: false,
     maxPixelRatio: 1,
     lowLatency: true,
+    drawDistance: 460,
   },
   balanced: {
     preset: "balanced",
@@ -66,6 +97,7 @@ export const PRESETS: Record<Preset, Quality> = {
     pointLights: false,
     maxPixelRatio: 1.5,
     lowLatency: false,
+    drawDistance: 620,
   },
   high: {
     preset: "high",
@@ -79,6 +111,7 @@ export const PRESETS: Record<Preset, Quality> = {
     pointLights: true,
     maxPixelRatio: 2,
     lowLatency: false,
+    drawDistance: 760,
   },
 };
 

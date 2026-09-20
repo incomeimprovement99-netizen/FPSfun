@@ -84,7 +84,7 @@ The list was checked item by item against the code at 9bd9b9f, with the map expa
 14. ~~**The leaderboard secret behind the server**~~ Done, as the real weakness (Milestone 84): the server never read the secret; a wins board now counts posts, not totals.
 15. **Ability kits and ultimates:** 4 to 6 days, once bins, doors and the traversal have settled. Planned in `docs/PLAN_ABILITY_KITS.md`; phase 1 (the ultimate, RUNNER and MEDIC) is Milestone 116, and phase 2 (SCOUT, and the bots' ultimates) is Milestone 117. Phase 3 (HOOK) is Milestone 118. Phase 4 (SMOKE) is Milestone 119 and phase 5 (WARD) is Milestone 120: the six kits are done.
 
-LOD and draw distance run alongside the list above, per `docs/PLAN_LOD_DRAW_DISTANCE.md`, once the map expansion has landed. Just below the fifteen: the two missing boards, the README wording, the rest of accessibility and the dust storm. Low value for this group: gas mask, contracts, cash, UAV, the vehicle and localisation.
+LOD and draw distance ran alongside the list above, per `docs/PLAN_LOD_DRAW_DISTANCE.md`, and are done bar the last three ideas in it (a shadow box that follows the player on High, dynamic resolution, and building the map only when a match starts): steps A and F are Milestone 100, the loot C is 101, the figures D is 121, the gun's hands 122, and the draw distance per preset with the budget the checks hold you to is 126. Just below the fifteen: the two missing boards, the README wording, the rest of accessibility and the dust storm. Low value for this group: gas mask, contracts, cash, UAV, the vehicle and localisation.
 
 ## The AAA gap, second pass, 2026-09-18
 

@@ -378,7 +378,7 @@ The Settings tab, all remembered in this browser:
 | Sprint | press (the game's default: press once, it arms for 3 s and runs while you hold forward) or hold |
 | Sprint view shake | Normal or Minimal, the game's setting |
 | Fullscreen while playing | on by default: fullscreen with Keyboard Lock, which hands Ctrl+W to the game in Chrome and Edge |
-| Graphics | Competitive (straight to the screen with MSAA, fastest), Balanced, High (post-processing, shadows, bloom) |
+| Graphics | Competitive (straight to the screen with MSAA, fastest, and the shortest draw distance), Balanced, High (post-processing, shadows, bloom, and the longest view) |
 | Figures | the motion-captured mannequin (the default) or our robots (lighter to draw); for figures made from then on |
 | Killcam | on (the replay, then the recap) or off (the recap only) |
 | Volume | master, effects, hits |
@@ -766,7 +766,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run compress` | re-encode already fetched textures as WebP |
 | `npm run extract` | rebuild `data/weapons.json` from the reference sheet (read-only, outside the repo) |
 | `npm run compare-sources` | compare two reference trees on the numbers we use |
-| `npm run verify` | 1,100+ checks: weapon data, damage, recoil, sensitivity maths, and the whole movement simulation (every movement rule against its source number), plus the modules under `tools/checks/` (the hours of the day, the ring's placement, loot tiers, the pickup reach, the bots' senses, the view model's arms, the delta state packets, audio occlusion), each of which also runs on its own with `npx tsx tools/checks/<name>.ts`. Must print VERIFY PASS. |
+| `npm run verify` | 1,100+ checks: weapon data, damage, recoil, sensitivity maths, and the whole movement simulation (every movement rule against its source number), plus the modules under `tools/checks/` (the hours of the day, the ring's placement, loot tiers, the pickup reach, the bots' senses, the view model's arms, the delta state packets, audio occlusion, what the world costs to draw), each of which also runs on its own with `npx tsx tools/checks/<name>.ts`. Must print VERIFY PASS. |
 | `npm run rehearsal` | eight pages over the real peer-to-peer path in one battle royale, four duos of friends and three of bots, played for a minute: everyone connects, lands and sees the other seven, nothing logs an error, and it reports the host's upload to each guest and how long its match update takes. Needs `npm run dev`. `PLAYERS`, `REHEARSAL_SECONDS`, `REHEARSAL_SPREAD=1` (each duo to its own place), `REHEARSAL_QUERY` (e.g. `interest=0`) |
 | `npm run movesim` | the movement simulation alone: wiki timings, the wallbounce recipe, crouch kick, wallskip, every course gate, teleports |
 | `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course and its medals, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match with the killcam and the recap, the controller, the range's tools, the settings and the tour, throwables, the battle royale alone, with loot and as a squad (solo and duos, downs, revives, banners, pings, the care package's arrival, the loadout crate and Storm Surge, on a guest's screen too), Gun Run, team deathmatch, Crown and Control alone and Gun Run with a friend, the bot tiers, the controller's layout and presets, and the README screen paged by shooting its arrows. Needs `npm run dev`. Must print E2E PASS. `E2E_ONLY=page,br,...` runs only those sections (the file lists them); the whole run takes about twelve minutes. The `mixed` section plays an older build against this one over the internet, both ways round and as a 1v1v1 whose host relays between the two: serve a checkout from before a change to the state packets on a second port and name it in `OLD_URL` (or the deployed site, `https://fpsfun.duckdns.org/?broker=public`), with `OLD_NET=full` if that build is from before the delta packets. |
@@ -775,7 +775,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npx tsx tools/trim-glb.ts` | cut a .glb down to the animations named (how the mannequin's files were made) |
 | `npm run probe` | a scripted wallbounce at the practice wall in the real page, printing what the feed registered (needs `npm run dev`) |
 | `npm run measure` | what each technique reaches on the real controller (needs `npm run dev`) |
-| `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`): the median, 95th and 99th percentile frame, and each frame's draw calls and triangles over every pass. `BENCH_SPOT=br` measures from the Mast's roof across the whole battle royale map, `BENCH_SPOT=brmatch` inside a real match on seed 42 at the hub, bots and loot in view. The test tools never take your mouse or keyboard: under them the game's lock is pretend |
+| `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`): the median, 95th and 99th percentile frame, and each frame's draw calls and triangles over every pass. `BENCH_SPOT=br` measures from the Mast's roof across the whole battle royale map, `BENCH_SPOT=brcorner` from one corner of it looking diagonally across the lot (the longest sightline there is), `BENCH_SPOT=brmatch` inside a real match on seed 42 at the hub, bots and loot in view. The test tools never take your mouse or keyboard: under them the game's lock is pretend |
 | `npm run shot` | screenshots of every view into `shots/` (needs `npm run dev`) |
 | `npm run rules` | nothing in the repo references the game's install or its files |
 | `npm run deploy` | `build:beta`, then publish `dist/` as the `gh-pages` branch (the static mirror) |
@@ -852,6 +852,26 @@ small parts (fingers, knuckle pads, a cuff) and none of them ever moves against
 another: what moves is the hand. They are merged into one mesh per material
 when the hand is built, which took the range from 497 draw calls to 421, 400 to
 435 fps on Competitive and 227 to 256 on High.
+
+**The sky is over the whole world.** The dome is built with the firing range
+and follows the camera, and for nineteen milestones the battle royale was drawn
+without it: the range and the map are drawn one side at a time (each would
+otherwise draw the other through the fog), and the dome went with the range.
+The fog still took its colour, so the ground faded into haze and only a picture
+taken against the horizon showed the black above it.
+
+**How far you see is part of the preset.** The open map's fog reaches 680 m and
+its corners are 622 m apart, so the distance the world is drawn to is worth
+frames: Competitive draws 460 m, Balanced 620, High 760. The fog ends exactly
+where the preset stops drawing and keeps the same shape of fall-off, and the
+camera's own far plane sits 60 m past the fog, so what is cut away is already
+fogged to nothing. It used to be a flat 400 m with the fog reaching 680, which
+put a seam in clear air that moved with you. A place whose own fog is shorter
+keeps it: the firing range still ends at 290 m on every preset. The distances
+the field's rock, scrub and cliff faces are drawn to follow the preset as well,
+so Competitive really does less work rather than only seeing less far: a third
+fewer triangles than Balanced from the map's corner, with the boxed rock the map
+already drew standing in beyond 126 m.
 
 **Frame rate is capped by your screen, not the game.** A browser draws only
 when the display can show a frame, so a 60 Hz monitor means 60 fps. The game

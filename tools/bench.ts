@@ -10,12 +10,22 @@
 // BENCH_MERGE=both runs every preset with the static-mesh merge on and off
 // (?nomerge), so the merge's effect is measured rather than assumed.
 //
+// A spot on the battle royale map says so (setRegion), because nothing there
+// starts a match: without it the map was measured under the range's short fog,
+// which flattered every number taken on it before 2026-09-19.
+//
 // BENCH_SPOT picks where the camera stands: "range" (the default, the firing
 // range as the page opens), or "br", the battle royale map's worst view, from
 // the Mast's roof across the whole of Outskirts, with every place in frame,
 // or "brmatch", a real solo battle royale on seed 42 dropped onto the hub,
 // standing in the middle of it once landed: the loot on the floor and the
 // eleven bots are in the frame, which the empty map leaves out.
+// "brcorner" is the map's longest sightline, one corner to the other, where a
+// preset's draw distance shows most.
+//
+// BENCH_EVAL is one more expression run on the page once the spot is set, for
+// a comparison against something the build no longer does (the old fixed far
+// plane, say).
 //
 // Run: npm run bench        (needs `npm run dev` already running)
 import puppeteer from "puppeteer";
@@ -29,7 +39,18 @@ const SPOT = process.env.BENCH_SPOT ?? "range";
 /** where each spot puts the camera: x, y, z, yaw, pitch (the BR map's world coordinates) */
 const SPOTS: Record<string, string> = {
   range: "",
-  br: `(() => { const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(0, 28.2, 500, 45, -8); })()`,
+  br: `(() => { const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(0, 28.2, 500, 45, -8); r.setRegion("br"); })()`,
+  // the longest sightline there is: one corner of the map looking diagonally
+  // across to the other, 622 m away, which is where the old fixed far plane
+  // cut the world off in clear air (docs/PLAN_LOD_DRAW_DISTANCE.md step E)
+  brcorner: `(() => { const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 });
+    // nothing to stand on above the corner, so the camera is put back where it
+    // belongs each frame: the view is the same in every sample, which is what a
+    // benchmark wants anyway
+    const hold = () => r.player.teleport(-196, 36, 304, -135, -4);
+    hold();
+    setInterval(hold, 50);
+    r.setRegion("br"); })()`,
   // (the lock is what a click on the menu's button takes: the match waits for everyone in the game, this page included,
   // and without it this spot measured the range's edge with the match still waiting)
   brmatch: `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "hub" }); r.input.lock();
@@ -70,6 +91,9 @@ async function main(): Promise<void> {
         await page.waitForFunction("window.__range.loaded()", { timeout: 60000 });
         await page.evaluate(`document.getElementById("overlay").classList.add("hidden")`);
         if (SPOTS[SPOT]) await page.evaluate(SPOTS[SPOT]);
+        // anything else this measurement wants said to the page, for a
+        // comparison the build itself does not offer (BENCH_EVAL)
+        if (process.env.BENCH_EVAL) await page.evaluate(process.env.BENCH_EVAL);
         // settle: textures, props, first shadow render, shader compiles
         await new Promise((r) => setTimeout(r, 3000));
         // Sent as a string: tsx wraps named functions in a __name helper that

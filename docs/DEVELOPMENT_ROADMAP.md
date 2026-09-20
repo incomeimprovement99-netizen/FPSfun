@@ -2023,6 +2023,7 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/scenery.ts` (every rock has its box and a boxed stand-in, the scrub is in its three kinds
   and never on a road or in a place, and the faces lie along the four edges), and the snapshots `br-rocks` and the
   new `br-field`.
+
 ## Milestone 125 — The bots ride the balloons ✅
 2026-09-20 (Phase 15). `brmatch.ts`, `src/config/bots.json` (`squads.towerGain`), `tools/e2e.ts`.
 - The last of the map's ways across it that the bots did not use. A bot standing at a jump tower with more than
@@ -2030,3 +2031,40 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   the drop uses); under that it walks, because the ride costs it the climb and the fall. Not while it has someone
   to fight, and a follower only takes a tower its lead is already past, so a squad is not scattered by one.
 - Checks: the e2e `br` section (a bot at a tower with a long way to go is 67 m up and lands 78 m away).
+
+## Milestone 126 — LOD steps B and E: a draw distance per preset, a budget to draw inside, and a sky over the map ✅
+2026-09-20 (Phase 15). `src/game/quality.ts`, `src/main.ts`, `tools/bench.ts`, `tools/snap.ts`, `tools/checks/render-budget.ts` (new), `tools/verify.ts`, `tools/e2e.ts`.
+- The last two steps of `docs/PLAN_LOD_DRAW_DISTANCE.md`. **Step E:** the camera's far plane was a flat 400 m while
+  the open map's fog ran to 680 m and its corners are 622 m apart, so a ridge in clear air was cut off at a seam
+  that travelled with you. There is now a draw distance per preset (Competitive 460 m, Balanced 620, High 760): the
+  fog ends where the preset stops drawing, its near end keeps its proportion so the fall-off keeps its shape, and
+  the far plane sits 60 m past the fog's end, where everything is already fogged to nothing.
+- A region whose own fog is shorter than the preset draws keeps its own fog, so the firing range still ends at
+  290 m on High. The maths is one pure function, `drawRange()`, which is why it can be asserted exactly.
+- **Drawing further has to mean drawing more.** The map is merged into meshes that span the whole of it, so nothing
+  in it is culled by how far you asked to see: on its own the draw distance moved the fog and left the work
+  identical. The distances the field's scenery is drawn to (a rock's scan 170 m, a cliff face 260, a dead branch
+  150, tuned on Balanced) now scale with the preset, which is what makes Competitive cheaper than Balanced at the
+  same view: 598k triangles to 391k from the map's corner, with the boxed rock standing in beyond 126 m.
+- The cost of never clipping in clear air, from that corner: about ten more draw calls a preset, and 60k more
+  triangles on Balanced. The frame rates are not worth quoting at this view (repeats of one configuration came back
+  between 417 and 667 fps, a spread wider than the change); the table in the plan says so and gives the counters.
+- **The battle royale had no sky.** The new picture of the map's corner came back with the world under pure black.
+  The sky dome is built by the range, so the region split of Milestone 100 put it on the range's side of the world
+  and hid it the moment you were on the map. The fog still took its colour, so the ground faded into haze and
+  nothing looked broken until something was photographed against the horizon. The dome stays on the scene now, as
+  the sun and the fill light already did, and it follows the camera wherever it goes. Live since Milestone 100,
+  which is nineteen milestones of battle royale played under a black sky.
+- Checks: `tools/checks/render-budget.ts` (twelve), the e2e `br` section (the draw distance read back out of a page,
+  and the sky over the map), and a new snapshot `br-far`, the view the whole thing was written for.
+- **The benchmark had been measuring the map under the range's fog.** Nothing on the `br` and `brmatch` spots starts
+  a match, and the fog and the shadow box follow the region you are playing in, so every number ever taken on the
+  map was taken with a 290 m fog over it. The spots now set the region themselves, and a new `BENCH_SPOT=brcorner`
+  stands 36 m over one corner looking diagonally across the whole map: the longest sightline in the game.
+- **Step B:** `tools/checks/render-budget.ts` builds the map in node, merges its static meshes as the page does, and
+  holds it to a budget: 190 meshes after the merge (125 today, from 3,496 before it), 330k triangles (237k today),
+  the field's scenery a few hundred copies, and the merge has to take the mesh count down by at least three times.
+  That last one is what would have caught
+  Milestone 100's doubled map, which only a profiler could see. The draw-distance arithmetic is checked preset by
+  preset, and the e2e's `br` section reads the numbers back out of a real page (`__range.viewRange()`), so the
+  wiring is checked as well as the maths.

@@ -25,7 +25,7 @@ import type Peer from "peerjs";
 import { Course } from "./game/course";
 import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
-import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset } from "./game/quality";
+import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRange, sceneryFar } from "./game/quality";
 import { lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import AUDIO_CFG from "./config/audio.json";
 import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
@@ -627,7 +627,10 @@ renderer.toneMappingExposure = 1.05;
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.02, 400);
+/** the fog of each part of the world, before the preset's draw distance shortens it (quality.ts drawRange) */
+const RANGE_FOG = { near: 55, far: 290 };
+const BR_FOG = { near: 140, far: 680 };
+const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.02, drawRange(RANGE_FOG, quality).camFar);
 scene.add(camera);
 // the gun's own camera, at the world camera's place, drawn after it at its own FOV (render.ts)
 const vmCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.02, 20);
@@ -649,18 +652,18 @@ brMap.doors.onChange = (d, what) => audio.door(d.centre, what === "break" || wha
 function setRegion(region: "range" | "br"): void {
   const fog = scene.fog as THREE.Fog | null;
   audio.setSpace(region === "br" ? "outdoor" : "indoor");
-  if (region === "br") {
-    setShadowRegion(BR_CENTER, 230);
-    if (fog) {
-      fog.near = 140;
-      fog.far = 680;
-    }
-  } else {
-    setShadowRegion(new THREE.Vector3(-10, 0, 12), 135);
-    if (fog) {
-      fog.near = 55;
-      fog.far = 290;
-    }
+  // the region's own fog, shortened to what the preset draws; the far plane
+  // sits beyond the fog's end, so nothing is ever cut off in clear air
+  const want = drawRange(region === "br" ? BR_FOG : RANGE_FOG, quality);
+  if (region === "br") setShadowRegion(BR_CENTER, 230);
+  else setShadowRegion(new THREE.Vector3(-10, 0, 12), 135);
+  if (fog) {
+    fog.near = want.near;
+    fog.far = want.far;
+  }
+  if (camera.far !== want.camFar) {
+    camera.far = want.camFar;
+    camera.updateProjectionMatrix();
   }
   renderer.shadowMap.needsUpdate = true;
 }
@@ -771,14 +774,17 @@ void placeProps(scene, PROP_PLACEMENTS).then(() => {
 // so movement is the same whether or not these arrive; the boxed shapes it
 // drew stay until they do (a checkout without `npm run models` looks as it
 // did). The scrub and the faces carry no collider at all: they are to look at.
+// how far each kind is drawn, the tuned distance scaled by the preset's draw
+// distance (quality.ts sceneryFar): the preset that sees further sees more
+const far = (base: number): number => sceneryFar(base, quality);
 void placeInstanced(brMap.root, [
-  { prop: "namaqualand_boulder_04", at: brMap.scenery.rocks.filter((_, i) => i % 3 === 0), standIn: brMap.scenery.boxed.filter((_, i) => i % 3 === 0), far: 170 },
-  { prop: "namaqualand_boulder_06", at: brMap.scenery.rocks.filter((_, i) => i % 3 === 1), standIn: brMap.scenery.boxed.filter((_, i) => i % 3 === 1), far: 170 },
-  { prop: "namaqualand_boulders_01", at: brMap.scenery.rocks.filter((_, i) => i % 3 === 2), standIn: brMap.scenery.boxed.filter((_, i) => i % 3 === 2), far: 170 },
-  { prop: "dead_quiver_trunk", at: brMap.scenery.scrub.filter((s) => s.kind === "trunk"), shadows: false },
-  { prop: "dead_quiver_branch_02", at: brMap.scenery.scrub.filter((s) => s.kind === "branch"), shadows: false },
-  { prop: "dry_branches_medium_01", at: brMap.scenery.scrub.filter((s) => s.kind === "twigs"), shadows: false },
-  { prop: "rock_face_02", at: brMap.scenery.cliffs, shadows: false, far: 260 },
+  { prop: "namaqualand_boulder_04", at: brMap.scenery.rocks.filter((_, i) => i % 3 === 0), standIn: brMap.scenery.boxed.filter((_, i) => i % 3 === 0), far: far(170) },
+  { prop: "namaqualand_boulder_06", at: brMap.scenery.rocks.filter((_, i) => i % 3 === 1), standIn: brMap.scenery.boxed.filter((_, i) => i % 3 === 1), far: far(170) },
+  { prop: "namaqualand_boulders_01", at: brMap.scenery.rocks.filter((_, i) => i % 3 === 2), standIn: brMap.scenery.boxed.filter((_, i) => i % 3 === 2), far: far(170) },
+  { prop: "dead_quiver_trunk", at: brMap.scenery.scrub.filter((s) => s.kind === "trunk"), shadows: false, far: far(150) },
+  { prop: "dead_quiver_branch_02", at: brMap.scenery.scrub.filter((s) => s.kind === "branch"), shadows: false, far: far(150) },
+  { prop: "dry_branches_medium_01", at: brMap.scenery.scrub.filter((s) => s.kind === "twigs"), shadows: false, far: far(150) },
+  { prop: "rock_face_02", at: brMap.scenery.cliffs, shadows: false, far: far(260) },
 ]).then((drawn) => {
   // every boulder kind in: the boxed rocks give way to them, and come back
   // beyond the distance a scan is worth drawing (props.ts stepInstanced)
@@ -3997,6 +4003,12 @@ scene.add(rangeSide, brSide);
       const target = (o as THREE.DirectionalLight).target;
       if (target) lit.add(target);
     }
+    // The sky dome is the range's to build but everyone's to stand under, and
+    // it follows the camera wherever it goes (skyFollow). Hidden with the
+    // range, the battle royale was played under a black sky: the fog still
+    // took the dome's colour, so the ground faded into nothing and only a
+    // picture of the horizon showed it.
+    if (o.name === "sky") lit.add(o);
   });
   const onRangeSide = [...rangeRoots, ...courses.map((c) => c.root), arena.root, triArena.root, ...targets.map((t) => t.group), ...dummies.map((d) => d.group)];
   for (const o of onRangeSide) if (!lit.has(o)) rangeSide.attach(o);
@@ -6097,6 +6109,15 @@ initWelcome();
   renderer,
   sun: getSun,
   quality,
+  /** the part of the world the fog and the shadows are set for (tools/bench.ts: a spot on the map wants the map's fog, not the range's) */
+  setRegion,
+  /** the sky dome: where it hangs and whether it is drawn (tools/e2e.ts; on the range's side of the world it was hidden on the map) */
+  skyDome: () => {
+    const d = scene.getObjectByName("sky");
+    return { there: !!d, visible: !!d?.visible, under: d?.parent?.name ?? "", shown: sideShown };
+  },
+  /** how far this preset draws where you stand now: the fog's two ends and the camera's far plane (tools/e2e.ts) */
+  viewRange: () => ({ near: (scene.fog as THREE.Fog | null)?.near ?? 0, far: (scene.fog as THREE.Fog | null)?.far ?? 0, camFar: camera.far, draws: quality.drawDistance }),
   /** back to the menu, whichever way in was used (tools/e2e.ts) */
   toMenu: () => {
     input.padPlaying = false;

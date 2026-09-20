@@ -455,6 +455,16 @@ async function brTest(browser: Browser, query: string): Promise<void> {
     `(() => { const m = window.__range.brMap; return { pois: m.pois.length, zips: window.__range.ziplines.filter((z) => z.a.z > 280 && z.a.z < 720).length, towers: m.towers.length, pads: m.pads.length }; })()`
   );
   check("the map: nine places, ziplines off them, jump towers and launch pads", shape.pois === 9 && shape.zips >= 8 && shape.towers >= 3 && shape.pads >= 2, JSON.stringify(shape));
+  // how far the open map is drawn: the fog ends where this preset draws, and
+  // the camera's far plane sits beyond it. It used to be a fixed 400 m while
+  // the fog reached 680, so a ridge in clear air was cut off at the seam.
+  // the sky is the range's to build and everyone's to stand under: it sat on
+  // the range's side of the world, so the battle royale was played under a
+  // black sky from Milestone 100 until a picture of the map's corner showed it
+  const dome = await ev<{ there: boolean; visible: boolean; under: string; shown: string }>(page, "window.__range.skyDome()");
+  check("the sky is over the battle royale too, not left behind with the range", dome.there && dome.visible && dome.under !== "range-side" && dome.shown !== "range", JSON.stringify(dome));
+  const view = await ev<{ near: number; far: number; camFar: number; draws: number }>(page, "window.__range.viewRange()");
+  check("the open map is drawn as far as the preset says, and the far plane is beyond the fog", view.far === Math.min(680, view.draws) && view.camFar > view.far && view.near > 20, JSON.stringify(view));
   await navChecks(page);
   check("landing: no bot drops on your place, so the nearest is a long way off", landing.nearest > 60, `${landing.nearest.toFixed(0)} m to the nearest bot at ${landing.poi}`);
 

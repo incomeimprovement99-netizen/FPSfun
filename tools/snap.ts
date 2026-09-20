@@ -159,6 +159,14 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-far",
+    note: "the map's longest view, one corner across to the other: the far side fades into fog, and nothing ends at a seam in clear air",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.setRegion("br"); const hold = () => { r.player.teleport(-196, 36, 500 - 196, -135, -4); r.player.vel.set(0, 0, 0); }; hold(); setInterval(hold, 50); })()`, 0],
+      [gameSeconds(1), 400],
+    ],
+  },
+  {
     name: "br-door",
     note: "a door in a doorway, shut: the panel, its handle, the frame round it",
     steps: [
