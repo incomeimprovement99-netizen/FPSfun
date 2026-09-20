@@ -89,6 +89,22 @@ export class LoadingScreen {
     else if (t > CFG.maxSeconds) this.finish();
   }
 
+  /**
+   * Off the page now, with its own reckoning left running. The intro card
+   * (src/ui/intro.ts) covers the whole of loading, so the bar and the tip
+   * under it would only be something to read through a title screen; what
+   * this screen knows is still worth having, and the card draws the fraction
+   * as the line under the name.
+   */
+  hide(): void {
+    if (this.el) this.el.hidden = true;
+  }
+
+  /** how much of what was asked for is in, 0 to 1 (the intro card draws it) */
+  get fraction(): number {
+    return this.itemsTotal > 0 ? this.itemsLoaded / this.itemsTotal : 0;
+  }
+
   private finish(): void {
     this.loaded = true;
     if (!this.el) return;

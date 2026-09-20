@@ -161,17 +161,17 @@ export const SCENARIOS: Scenario[] = [
   {
     name: "intro-title",
     note: "the intro card: the name smashed in over the rain",
-    steps: [[`(() => { for (let t = 0; t <= 0.9; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
+    steps: [[`(() => { for (let t = 0; t <= 1.1; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
   },
   {
     name: "intro-crack",
-    note: "the intro card: the shot through the middle, the glass cracking out from the hole",
-    steps: [[`(() => { for (let t = 0; t <= 1.78; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
+    note: "the intro card: the burst through the screen, holes and cracks all over the glass",
+    steps: [[`(() => { for (let t = 0; t <= 3.6; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
   },
   {
     name: "intro-shards",
     note: "the intro card: the pane letting go, the shards falling away into the game",
-    steps: [[`(() => { for (let t = 0; t <= 2.22; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
+    steps: [[`(() => { for (let t = 0; t <= 5.25; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
   },
   {
     name: "br-far",

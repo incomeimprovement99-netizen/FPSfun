@@ -2095,3 +2095,22 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   covering the width at its own speed per column), the e2e `intro` section (9, including the reduced-motion card and
   that the menu underneath is live while the card plays), and three snapshots: `intro-title`, `intro-crack`,
   `intro-shards`.
+
+## Milestone 128 — The card is the loading screen, and the rest of the magazine ✅
+2026-09-20 (Phase 15). `src/ui/intro.ts`, `src/config/intro.json`, `src/ui/loading.ts`, `src/main.ts`, `tools/checks/intro.ts`, `tools/e2e.ts`, `tools/snap.ts`.
+- The owner's notes on Milestone 127, in order. **The loading screen is gone from under it**: the card starts on the
+  first drawn frame, the bar, the brand and the tip step off the page, and how much of the world is in is drawn as
+  the line under the name. The card then holds at the moment of the shot, rain still falling, until the world is in
+  (14 s at the outside), so the animation covers loading instead of playing after it.
+- **Three seconds longer, and a burst.** 2.6 s to 5.7 s: the name lands at 0.5, the first round goes through at 1.9,
+  a beat of quiet, and from 2.75 the rest of the magazine, eleven rounds over two and a bit seconds, each its own
+  hole with six short cracks of its own and its own kick of the picture. The pane lets go at 5.0 and the shards
+  carry every hole and crack down with them.
+- The card into a match keeps its proportions at 2.3 s: a shot, a beat, three rounds, gone.
+- Performance, which the owner asked about: the card's own frames are 4.2 ms median and 4.8 ms at the 95th over
+  1,018 of them, the burst costing nothing measurable. The hitches left in a first load (one of about 120 ms) are
+  the world's models and textures being decoded while the card holds, which is work that used to happen under a
+  static bar instead.
+- Checks: `tools/checks/intro.ts` is 20 now (the burst in order, inside the beat, never twice in one place, local to
+  its hole, the same from the same seed), the e2e `intro` section 11 (it stands in for the loading screen, and the
+  shot waits for the world), and the three snapshots are retaken on the new beats.

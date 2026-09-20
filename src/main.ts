@@ -123,8 +123,17 @@ if (!NO_INTRO) for (const ev of ["keydown", "pointerdown"] as const) window.addE
 // the page's first card: a browser plays no sound until something is clicked,
 // which is exactly right, and by the time a match starts one has been.
 intro.onShot = () => audio.shot(0.72, 0.9);
-// the sound's graph built a card ahead of the shot rather than on its frame
-intro.onWarm = () => audio.unlock();
+// the sound's graph, and the shot's own voice in it, built a card ahead of the
+// shot rather than on its frame: a first noise costs about 30 ms to put
+// together, and that landed on the one frame of the card that has to be sharp
+intro.onWarm = () => {
+  audio.unlock();
+  audio.shot(1, 0);
+};
+// the card is the loading screen: it holds on the rain until the world is in,
+// and draws how much of it is as the line under the name
+intro.ready = () => loadingScreen.loaded;
+intro.progress = () => loadingScreen.fraction;
 
 const DEG = Math.PI / 180;
 /** slot 1 and slot 2. Keys 1 and 2 select, Q swaps. */
@@ -5832,8 +5841,9 @@ function step(): void {
   // models and textures coming in and being decoded, which is one long stutter
   // on the main thread: a card played through that plays on a clock nobody can
   // see. From here the frames are steady (src/ui/intro.ts).
-  if (!NO_INTRO && !introShown && loadingScreen.loaded) {
+  if (!NO_INTRO && !introShown) {
     introShown = true;
+    loadingScreen.hide();
     void intro.play("boot");
   }
   // CPU time for everything this frame did: simulation, render submission and

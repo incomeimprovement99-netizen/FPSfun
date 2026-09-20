@@ -30,6 +30,8 @@ export interface Beats {
   title: number;
   /** the shot: the flash, the kick, and the crack running out from the hole */
   shot: number;
+  /** after a beat of quiet, the rest of the magazine goes through the pane */
+  storm: number;
   /** the pane lets go and the shards start to fall */
   out: number;
   /** the card is gone */
@@ -49,7 +51,9 @@ export function introBeats(kind: IntroKind, reduced = false): Beats {
   return {
     rain: 0,
     title: b.title * 0.5,
-    shot: end * 0.45,
+    shot: end * 0.4,
+    // no burst either: one crack, and the card goes
+    storm: end,
     out: end * 0.75,
     end,
   };
@@ -99,23 +103,27 @@ export function crackPlan(
   seed: number,
   cx = w / 2,
   cy = h / 2,
+  rayCount = INTRO_CFG.crack.rays,
+  ringCount = INTRO_CFG.crack.rings,
+  reachScale = 1,
+  holeR = INTRO_CFG.crack.hole,
 ): Crack {
   const cfg = INTRO_CFG.crack;
   const rnd = seeded(seed);
   const reachOut = Math.hypot(w, h);
   const rays: Ray[] = [];
-  const turn = (Math.PI * 2) / cfg.rays;
-  for (let i = 0; i < cfg.rays; i++) {
+  const turn = (Math.PI * 2) / rayCount;
+  for (let i = 0; i < rayCount; i++) {
     // spaced round the hole but never evenly: an even star reads as a cartoon
     let a = i * turn + (rnd() - 0.5) * turn * 0.8;
-    const reach = 0.75 + rnd() * 0.45;
+    const reach = (0.75 + rnd() * 0.45) * reachScale;
     const steps = 5;
     const points: Array<{ x: number; y: number }> = [
-      { x: cx + Math.cos(a) * cfg.hole, y: cy + Math.sin(a) * cfg.hole },
+      { x: cx + Math.cos(a) * holeR, y: cy + Math.sin(a) * holeR },
     ];
     for (let s = 1; s <= steps; s++) {
       a += (rnd() - 0.5) * cfg.wander;
-      const d = cfg.hole + (reachOut * reach * s) / steps;
+      const d = holeR + (reachOut * reach * s) / steps;
       points.push({ x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d });
     }
     rays.push({ points, reach });
@@ -123,8 +131,8 @@ export function crackPlan(
   // the rings: the same fraction along every ray, joined up. Glass breaks in
   // these as much as in the rays, and without them the middle is a starburst.
   const rings: Array<Array<{ x: number; y: number }>> = [];
-  for (let r = 1; r <= cfg.rings; r++) {
-    const at = (r / (cfg.rings + 1)) * 0.8;
+  for (let r = 1; r <= ringCount; r++) {
+    const at = (r / (ringCount + 1)) * 0.8;
     rings.push(
       rays.map((ray) => {
         const f = at * (ray.points.length - 1);
@@ -164,7 +172,37 @@ export function crackPlan(
       drift: (rnd2() - 0.5) * 160,
     };
   });
-  return { rays, rings, shards, hole: { x: cx, y: cy, r: cfg.hole } };
+  return { rays, rings, shards, hole: { x: cx, y: cy, r: holeR } };
+}
+
+/** one round of the burst: when it lands, where, and the break it makes */
+export interface StormShot {
+  /** seconds into the card */
+  at: number;
+  x: number;
+  y: number;
+  crack: Crack;
+}
+
+/**
+ * The rest of the magazine, between the `storm` beat and the moment the pane
+ * lets go: rounds landing across the middle of the screen, never twice in the
+ * same place, each with a smaller break of its own. Deterministic in `seed`,
+ * like everything else on the card.
+ */
+export function stormPlan(w: number, h: number, seed: number, from: number, until: number): StormShot[] {
+  const cfg = INTRO_CFG.storm;
+  const rnd = seeded(seed ^ 0x5f3a);
+  const shots: StormShot[] = [];
+  const gap = (until - from) / Math.max(1, cfg.shots);
+  for (let i = 0; i < cfg.shots; i++) {
+    // a burst is not a metronome: each round lands a little off its beat
+    const at = from + gap * (i + (rnd() - 0.4) * 0.5);
+    const x = w / 2 + (rnd() - 0.5) * w * cfg.spread;
+    const y = h / 2 + (rnd() - 0.5) * h * cfg.spread;
+    shots.push({ at, x, y, crack: crackPlan(w, h, seed + 5701 * (i + 1), x, y, cfg.rays, cfg.rings, cfg.reach, cfg.hole) });
+  }
+  return shots.sort((a, b) => a.at - b.at);
 }
 
 /** one column of the rain: where it is, how fast it falls, and the glyphs in it */
@@ -237,6 +275,14 @@ export class Intro {
    * the frame of the shot, the one frame of the card that has to land.
    */
   onWarm: (() => void) | null = null;
+  /**
+   * Whether the world is in, and how much of it is, from whoever is loading it
+   * (src/ui/loading.ts). The card is the loading screen now: it holds on the
+   * rain and the name until this says yes, and draws the fraction as the line
+   * under the name, so the wait is the animation instead of a bar under it.
+   */
+  ready: (() => boolean) | null = null;
+  progress: (() => number) | null = null;
   private shotSaid = false;
   /** held at one moment, for a picture (tools/snap.ts) */
   private frozen: number | null = null;
@@ -245,6 +291,11 @@ export class Intro {
   private readonly say: HTMLElement | null;
   private cols: RainColumn[] = [];
   private crack: Crack | null = null;
+  private storm: StormShot[] = [];
+  /** rounds of the burst already fired, so each is heard once */
+  private stormSaid = 0;
+  /** seconds this card has held on the rain waiting for the world to come in */
+  waited = 0;
   private glyphs: string[][] = [];
   private glyphAt = 0;
   private startedAt = 0;
@@ -285,6 +336,8 @@ export class Intro {
     this.at = 0;
     this.played++;
     this.shotSaid = false;
+    this.stormSaid = 0;
+    this.waited = 0;
     this.startedAt = performance.now();
     this.size();
     try {
@@ -337,6 +390,7 @@ export class Intro {
     played: number;
     reduced: boolean;
     shown: boolean;
+    waited: number;
   } {
     return {
       kind: this.kind,
@@ -345,6 +399,7 @@ export class Intro {
       played: this.played,
       reduced: this.reduced,
       shown: !!this.canvas && !this.canvas.hidden,
+      waited: this.waited,
     };
   }
 
@@ -376,6 +431,7 @@ export class Intro {
     this.spare.height = h;
     this.cols = rainColumns(w, h, this.seed);
     this.crack = crackPlan(w, h, this.seed);
+    this.storm = stormPlan(w, h, this.seed, this.beats.storm, this.beats.out - 0.15);
     this.glyphs = this.cols.map(() => []);
     this.ctx.fillStyle = "#000";
     this.ctx.fillRect(0, 0, w, h);
@@ -383,8 +439,20 @@ export class Intro {
 
   private frame = (): void => {
     if (!this.kind) return;
-    if (this.frozen === null)
+    if (this.frozen === null) {
       this.at = (performance.now() - this.startedAt) / 1000;
+      // The card covers loading rather than following it: at the moment of the
+      // shot it holds, rain still falling and the name still up, until the
+      // world is in. `waitMost` is the outside of that, because a card that
+      // never fires is worse than one that fires early.
+      const waitOn = this.kind === "boot" && this.ready !== null && !this.ready() && this.waited < INTRO_CFG.wait.waitMost;
+      if (waitOn && this.at > this.beats.shot) {
+        const held = this.at - this.beats.shot;
+        this.waited += held;
+        this.startedAt += held * 1000;
+        this.at = this.beats.shot;
+      }
+    }
     this.draw();
     if (this.at >= this.beats.end) {
       this.stop();
@@ -401,10 +469,17 @@ export class Intro {
     const t = this.at;
     const b = this.beats;
     const cfg = INTRO_CFG;
-    const shake = this.reduced
+    let shake = this.reduced
       ? 0
       : Math.max(0, 1 - (t - b.shot) / 0.3) *
         (t >= b.shot ? cfg.crack.shake : 0);
+    // and every round of the burst kicks the picture again
+    if (!this.reduced && t >= b.storm) {
+      for (const sh of this.storm) {
+        if (t < sh.at) break;
+        shake = Math.max(shake, Math.max(0, 1 - (t - sh.at) / 0.18) * cfg.storm.kick);
+      }
+    }
     const rnd = seeded(Math.floor(t * 120) + 7);
 
     // once the glass lets go, what falls is the picture as it stood: the pane
@@ -438,6 +513,29 @@ export class Intro {
 
     // the name, smashed in and held
     if (t >= b.title) this.drawTitle(ctx, t - b.title, w, h);
+
+    // the burst: the rest of the magazine through the pane, each round its own
+    // hole, its own flash and its own cracks running out
+    if (t >= b.storm && !this.reduced) {
+      for (let i = 0; i < this.storm.length; i++) {
+        const sh = this.storm[i];
+        if (t < sh.at) break;
+        if (this.stormSaid <= i && this.frozen === null) {
+          this.stormSaid = i + 1;
+          try {
+            this.onShot?.();
+          } catch {
+            /* a title card is never the thing that breaks the page */
+          }
+        }
+        const since = t - sh.at;
+        if (since < 0.07) {
+          ctx.fillStyle = `rgba(255, 255, 255, ${0.28 * (1 - since / 0.07)})`;
+          ctx.fillRect(0, 0, w, h);
+        }
+        this.drawCrack(ctx, Math.min(1, since / INTRO_CFG.crack.spread), sh.crack);
+      }
+    }
 
     // the shot: a flash that goes at once, then the crack running out
     if (t >= b.shot) {
@@ -588,19 +686,26 @@ export class Intro {
     }
     ctx.fillStyle = "#37e07a";
     ctx.fillText(txt.sub, 0, mark * 0.42);
-    // the line under it, drawn out from the middle as the name lands
-    ctx.fillStyle = "rgba(55, 224, 122, 0.8)";
-    ctx.fillRect(
-      (-mark * 2.1 * k) / 2,
-      mark * 0.72,
-      mark * 2.1 * k,
-      Math.max(1, Math.round(mark * 0.018)),
-    );
+    // The line under it is drawn out from the middle as the name lands, and it
+    // is the loading bar as well: the card stands in for the loading screen,
+    // so how much of the world is in shows here, as a brighter length over the
+    // dim full width. Nothing else on the card says it, and nothing needs to.
+    const full = mark * 2.1 * k;
+    const line = Math.max(1, Math.round(mark * 0.018));
+    ctx.fillStyle = "rgba(55, 224, 122, 0.28)";
+    ctx.fillRect(-full / 2, mark * 0.72, full, line);
+    const got = this.progress ? Math.min(1, Math.max(0, this.progress())) : 1;
+    ctx.fillStyle = "rgba(55, 224, 122, 0.9)";
+    ctx.fillRect(-full / 2, mark * 0.72, full * got, line);
     ctx.restore();
   }
 
-  private drawCrack(ctx: CanvasRenderingContext2D, k: number): void {
-    const cr = this.crack;
+  private drawCrack(
+    ctx: CanvasRenderingContext2D,
+    k: number,
+    which?: Crack,
+  ): void {
+    const cr = which ?? this.crack;
     if (!cr) return;
     const grown = easeOut(k);
     ctx.save();

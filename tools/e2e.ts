@@ -4267,7 +4267,6 @@ async function botKnockSteps(page: Page): Promise<void> {
 async function introTest(browser: Browser): Promise<void> {
   // the one page in the suite that opens with the card on
   const page = await open(browser, "?intro=on");
-  await page.waitForFunction("window.__range.loaded()", { polling: 50, timeout: 60000 }).catch(() => undefined);
   const up = await page
     .waitForFunction(`(() => { const s = window.__range.intro.state(); return s.kind === "boot" && s.shown; })()`, { polling: 20, timeout: 20000 })
     .then(() => true, () => false);
@@ -4277,13 +4276,28 @@ async function introTest(browser: Browser): Promise<void> {
       return { at: s.at, beats: s.beats, text: document.getElementById("introSay").textContent, clicks: getComputedStyle(c).pointerEvents !== "none" }; })()`
   );
   check("the page opens on the intro card, and it says the game's name for a reader too", up && /FULL POWER SURGE/.test(early.text), JSON.stringify({ up, text: early.text }));
+  // the card is the loading screen now: the bar and the tip are off the page
+  // while it plays, and the fraction is the line under the name instead
+  const cover = await ev<{ loadingHidden: boolean; at: number; shot: number; loaded: boolean }>(
+    page,
+    `(() => { const l = document.getElementById("loading"); const s = window.__range.intro.state(); return { loadingHidden: !!l && l.hidden, at: s.at, shot: s.beats.shot, loaded: window.__range.loaded() }; })()`
+  );
+  check("it stands in for the loading screen, which is off the page while it plays", cover.loadingHidden, JSON.stringify(cover));
+  // and it waits on the rain for the world rather than firing into a page that is still loading
+  const held = await ev<{ waited: number; at: number; loaded: boolean }>(
+    page,
+    `new Promise((ok) => { const R = window.__range; const t0 = performance.now();
+      const step = () => { const s = R.intro.state(); if (s.kind === null || s.at > s.beats.shot + 0.05 || performance.now() - t0 > 20000) ok({ waited: s.waited, at: s.at, loaded: R.loaded() }); else requestAnimationFrame(step); };
+      step(); })`
+  );
+  check("the shot waits for the world to be in, so the card covers loading instead of following it", held.loaded, JSON.stringify(held));
   check("the card takes no clicks: everything under it is still there to be used", !early.clicks);
   // the menu underneath is live while the card plays: the card is a picture, not a gate
   const live = await ev<boolean>(page, `(() => { const b = document.getElementById("goRange"); return !!b && !b.disabled; })()`);
   check("the game underneath it is not held up: the menu is there and live while the card plays", live);
   // the glass breaks and the card takes itself off the page, on its own clock
   const gone = await page
-    .waitForFunction(`window.__range.intro.state().kind === null`, { polling: 50, timeout: 12000 })
+    .waitForFunction(`window.__range.intro.state().kind === null`, { polling: 50, timeout: 20000 })
     .then(() => true, () => false);
   const after = await ev<{ shown: boolean; played: number; say: string }>(page, `(() => ({ shown: window.__range.intro.state().shown, played: window.__range.intro.state().played, say: document.getElementById("introSay").textContent }))()`);
   check("it ends by itself, takes the canvas off the page and stops saying its name", gone && !after.shown && after.say === "", JSON.stringify(after));
@@ -4303,7 +4317,7 @@ async function introTest(browser: Browser): Promise<void> {
     page,
     `(() => { const s = window.__range.intro.state(); return { kind: s.kind, played: s.played, end: s.beats.end, inGame: !!window.__range.duel() }; })()`
   );
-  check("dropping into a match plays the short card, over a match that has already started", onMatch.kind === "match" && onMatch.played === played + 1 && onMatch.end < 2 && onMatch.inGame, JSON.stringify(onMatch));
+  check("dropping into a match plays the short card, over a match that has already started", onMatch.kind === "match" && onMatch.played === played + 1 && onMatch.end < 2.5 && onMatch.inGame, JSON.stringify(onMatch));
   await ev(page, `window.__range.intro.skip()`);
   await toMenu(page);
   // and for someone whose machine is set to less movement: a shorter card, no
@@ -4311,8 +4325,8 @@ async function introTest(browser: Browser): Promise<void> {
   await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
   await ev(page, `(() => { window.__range.intro.play("boot"); return true; })()`);
   await sleep(150);
-  const quiet = await ev<{ reduced: boolean; end: number; kind: string | null }>(page, `(() => { const s = window.__range.intro.state(); return { reduced: s.reduced, end: s.beats.end, kind: s.kind }; })()`);
-  check("a machine asking for less movement gets a shorter card with no shake and no falling glass", quiet.reduced && quiet.kind === "boot" && quiet.end < 1.5, JSON.stringify(quiet));
+  const quiet = await ev<{ reduced: boolean; end: number; kind: string | null; storm: number }>(page, `(() => { const s = window.__range.intro.state(); return { reduced: s.reduced, end: s.beats.end, kind: s.kind, storm: s.beats.storm }; })()`);
+  check("a machine asking for less movement gets a shorter card with no shake and no falling glass", quiet.reduced && quiet.kind === "boot" && quiet.end < 2 && quiet.storm >= quiet.end, JSON.stringify(quiet));
   await ev(page, `window.__range.intro.skip()`);
   await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "no-preference" }]);
   // and the tools' pages have none of it

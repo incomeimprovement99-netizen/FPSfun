@@ -45,12 +45,14 @@ down its left side to jump there.
 1. Open the link above in **Chrome or Edge on a PC**. Firefox works without
    raw mouse input (acceleration can leak into the aim); Safari and phones
    are not supported.
-2. **B00G's FPS: FULL POWER SURGE.** The title card plays once the world is
-   in: green rain, the name smashed in over it, a shot through the middle of
-   the screen and the glass falling away into the game. It plays again, shorter,
-   as you drop into any match. A key or a click takes the rest of it, `?nointro`
-   in the address turns it off for good, and a machine set to less movement
-   gets a shorter one with no shake and no falling glass.
+2. **B00G's FPS: FULL POWER SURGE.** The title card is the loading screen:
+   green rain, the name smashed in over it, and the line under the name filling
+   as the world comes in. When it is in, a shot goes through the middle of the
+   screen, a beat of quiet, then the rest of the magazine, and the glass falls
+   away in shards into the game. It plays again, shorter, as you drop into any
+   match. A key or a click takes the rest of it, `?nointro` in the address turns
+   it off for good, and a machine set to less movement gets a shorter one with
+   no shake and no falling glass.
 3. The menu is up, with a short welcome on a first visit (and a warning on a
    phone, a tablet or Safari, which cannot play). **Play tab, Firing Range.**
    The browser locks the mouse and goes fullscreen (Settings can turn that
@@ -622,14 +624,18 @@ it trusts the game, so it is a board for friends, not a ranked ladder.
   material, PBR textures and glTF props are CC0 and fetched by script, and
   three presets trade post-processing for frame rate.
 - **The intro card** (`src/ui/intro.ts`, `src/config/intro.json`): one 2D
-  canvas over the page for two and a half seconds. The rain is a column every
+  canvas over the page, and the loading screen while it is there. The rain is a column every
   16 px, each falling at its own speed with its head lit and its tail left
   behind by a frame that only half clears; the name lands from two and a half
   times its size with a green and a cyan copy a few pixels either side; the
   shot flashes, kicks the picture and runs thirteen cracks out of a bullet hole
-  with rings of glass between them; then the pane it drew is cut along those
-  cracks and each piece is thrown out of the hole, turned and dropped, so the
-  game shows through the gaps. The break and the rain are worked out from a
+  with rings of glass between them; after a beat of quiet eleven more rounds go
+  through the pane, each its own hole and its own short cracks; then the pane it
+  drew is cut along the first break and each piece is thrown out of the hole,
+  turned and dropped, so the game shows through the gaps. The card holds on the
+  rain at the moment of the shot until the world is in (14 s at the outside),
+  which is why it covers loading rather than following it, and the line under
+  the name is how much of the world has arrived. The break and the rain are worked out from a
   seed, which is what lets the checks and the snapshots see the player's
   picture. It holds nothing up: the match starts underneath it, the canvas
   takes no clicks, and it takes itself off the page when it is done.
