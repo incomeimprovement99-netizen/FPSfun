@@ -776,6 +776,23 @@ console.log("\nMantle and superglide (wiki: Mantle, Superglide)");
   s2.frame();
   check("superglide fires in the last 0.15 s", s2.p.superglidedAt >= startedAt, s2.p.stance);
 
+  // the mantle boost (Apex's own setting): holding jump through the end of the
+  // mantle superglides for you, and with it off the same input does nothing
+  {
+    const held = approach();
+    held.p.mantleBoost = true;
+    held.in.hold("jump");
+    held.run((frames + 4) * DT);
+    check("the mantle boost: holding jump into the end of a mantle superglides", held.p.superglidedAt > -Infinity, held.p.stance);
+    const plain = approach();
+    plain.in.hold("jump");
+    plain.run((frames + 4) * DT);
+    check("and with the setting off, holding jump is not a superglide", plain.p.superglidedAt === -Infinity);
+    // what it hands you is the same superglide, not a better one
+    const speeds = [held.speedHu];
+    check("the boosted superglide leaves at a superglide's speed, not more", speeds[0] > 330 && speeds[0] < 420, `${speeds[0].toFixed(0)} hu/s`);
+  }
+
   // the trainer and the cue (trainer.ts): the same superglide scored, a late crouch called a miss
   {
     const tr = new SuperglideTrainer();

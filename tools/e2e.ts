@@ -2825,6 +2825,19 @@ async function finishTest(browser: Browser, query: string): Promise<void> {
   const diag = await ev(t, "({ step: window.__range.tour.stepId, playing: window.__range.input.playing, locked: window.__range.input.locked, active: window.__range.input.pad.active, interact: window.__range.input.held('interact'), skip: window.__range.hud.last?.tour?.skip })");
   await ev(t, padSet(2, false));
   check("tour: a step can be skipped by holding interact (the superglide)", skipped, JSON.stringify(diag));
+  // the mantle boost's row on Settings: off by default, and the switch reaches
+  // the movement (the superglide it hands you is checked in the simulator)
+  {
+    const row = await ev<{ there: boolean; value: string; player: boolean }>(
+      t,
+      `(() => { const el = document.getElementById("mantleBoost"); return { there: !!el, value: el ? el.value : "", player: window.__range.player.mantleBoost }; })()`
+    );
+    await ev(t, `(() => { const el = document.getElementById("mantleBoost"); el.value = "on"; el.dispatchEvent(new Event("change")); })()`);
+    const on = await ev<boolean>(t, "window.__range.player.mantleBoost");
+    await ev(t, `(() => { const el = document.getElementById("mantleBoost"); el.value = "off"; el.dispatchEvent(new Event("change")); })()`);
+    const off = await ev<boolean>(t, "window.__range.player.mantleBoost");
+    check("settings: the mantle boost is off by default and its switch reaches the movement", row.there && row.value === "off" && !row.player && on && !off, JSON.stringify({ ...row, on, off }));
+  }
   // shoot: from the firing line, six metres from a dummy and facing it, a burst with the trigger
   await ev(t, "window.__range.player.teleport(0, 0, -2, 0)");
   await sleep(300);

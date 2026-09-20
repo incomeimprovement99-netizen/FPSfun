@@ -944,6 +944,25 @@ sprintSel.addEventListener("change", () => {
     /* ignore */
   }
 });
+// The mantle boost, Apex's own setting: with it on, holding jump through the
+// end of a mantle superglides for you. Off by default here, because the window
+// is what the trainer and the crosshair cue exist to teach.
+const LS_MANTLE_BOOST = "range.mantleBoost";
+try {
+  player.mantleBoost = localStorage.getItem(LS_MANTLE_BOOST) === "on";
+} catch {
+  /* ignore */
+}
+const mantleBoostSel = $<HTMLSelectElement>("mantleBoost");
+mantleBoostSel.value = player.mantleBoost ? "on" : "off";
+mantleBoostSel.addEventListener("change", () => {
+  player.mantleBoost = mantleBoostSel.value === "on";
+  try {
+    localStorage.setItem(LS_MANTLE_BOOST, player.mantleBoost ? "on" : "off");
+  } catch {
+    /* ignore */
+  }
+});
 // Fullscreen while playing, on by default: it is what lets Ctrl-crouch plus W
 // reach the game instead of closing the tab (Input.lock).
 const LS_FULLSCREEN = "range.fullscreen";

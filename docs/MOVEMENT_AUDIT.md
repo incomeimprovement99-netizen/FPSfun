@@ -88,6 +88,26 @@ inside `npm run verify`).
 
 ## Not implemented
 
-Wallbounce proper (the jump-fatigue and no-mantle interactions it depends on),
-mantle boost (the official superglide setting), controller-only climbing
-behaviour, zip lines, jump pads, legend abilities.
+**Updated 2026-09-20.** Everything this section used to list has since been
+built, so what is left is the short version:
+
+- **Wallbounce**: built, with the wiki's own dismount numbers (258 hu/s away
+  from the wall, 350 to 484 hu/s total out of the green zone), the jump-fatigue
+  and no-mantle interactions it depends on, and the basic sprint-slide-jump
+  version it is taught as. `tools/movesim.ts` drives both.
+- **Mantle boost**: built as the game's own setting of that name (Settings,
+  off by default): holding jump through the end of a mantle superglides for
+  you, instead of asking for a crouch exactly one frame after the jump. Off,
+  the one-frame window is the real one, which is what the trainer and the
+  crosshair cue are there to teach.
+- **Zip lines, jump pads and legend abilities**: all built (traversal.ts, the
+  roads' pads and balloons, and six ability kits with a tactical, a passive and
+  an ultimate each).
+- **Still not ours**: controller-only climbing behaviour, and the parts of the
+  slide friction curve, the lurch formula and the mantle bucket durations that
+  are not published (listed above under "Still approximated, and why").
+
+What has been added beyond Apex, on purpose and marked as ours: **PAINT**
+(`docs/PLAN_MOVEMENT_CHAIN.md`, Empulse's idea), which gives the chain
+something to spend, and the camera that moves with the body, neither of which
+changes an Apex number when no paint is down.

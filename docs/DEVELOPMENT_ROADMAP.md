@@ -2173,3 +2173,15 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   meant, so a second switch would have been a second thing to find.
 - Checks: `tools/checks/feel.ts` (six: every piece is the size of a camera move and not a stumble, and nothing
   lasts long enough to be a state you live in) and the e2e `range` section (two, above).
+## Milestone 132 — The mantle boost, and an audit that tells the truth ✅
+2026-09-20 (Phase 15). `src/game/player.ts`, `src/main.ts`, `index.html`, `tools/movesim.ts`, `docs/MOVEMENT_AUDIT.md`, `README.md`.
+- Step C of `docs/PLAN_MOVEMENT_CHAIN.md`, half of which turned out to be built already. **The wallbounce is in**,
+  with the wiki's own dismount numbers, and has been since the map work; the audit's "not implemented" list was two
+  months stale and now says what is actually true.
+- **The mantle boost**, the game's own setting of that name, is new: with it on, holding jump through the end of a
+  mantle superglides for you. The real window is one frame after the jump, about seven milliseconds at 144 fps,
+  which is a wall rather than a skill for a lot of people. Off by default, because the window is what the superglide
+  trainer and the crosshair cue exist to teach, and what it hands you is the same superglide (400 hu/s), not a
+  better one.
+- Checks: `tools/movesim.ts` (holding jump into the end of a mantle superglides with the setting on, does nothing
+  with it off, and leaves at a superglide's speed either way).

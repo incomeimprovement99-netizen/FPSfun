@@ -148,6 +148,15 @@ export class Player {
   landAt = -Infinity;
   /** Apex's default is press (toggle) sprint with a 3 s buffer */
   sprintMode: SprintMode = "toggle";
+  /**
+   * The mantle boost, Apex's own setting of that name: with it on, holding
+   * jump through the end of a mantle superglides for you, instead of asking
+   * for a crouch exactly one frame after the jump. The timing is about seven
+   * milliseconds at 144 fps, which is a wall rather than a skill for a lot of
+   * people; off (the default here) the window is the real one, and the
+   * trainer and the crosshair cue are there to teach it.
+   */
+  mantleBoost = false;
 
   // ----- timers and states -----
   private height = MOVE.standHeight;
@@ -646,7 +655,7 @@ export class Player {
     if (this.mantle) {
       // sprinting during a mantle still opens the full superglide window
       if (input.pressedNow("sprint")) this.mantle.sprint = true;
-      this.checkSuperglide(now, jumpPressed, crouchPressed);
+      this.checkSuperglide(now, jumpPressed, crouchPressed, input.held("jump"));
       if (this.mantle) {
         this.stepMantle(now);
         this.updateHeights(dt);
@@ -1254,11 +1263,14 @@ export class Player {
    * of a mantle (0.01 s out of a walk). You get a slide boost and a jump at
    * once, in the air, where no ground friction takes it back.
    */
-  private checkSuperglide(now: number, jumpPressed: boolean, crouchPressed: boolean): void {
+  private checkSuperglide(now: number, jumpPressed: boolean, crouchPressed: boolean, jumpHeld = false): void {
     const mt = this.mantle!;
     const remaining = mt.started + mt.duration - now;
     const window = mt.sprint ? MOVE.superglideWindow : MOVE.superglideWalkWindow;
-    if (crouchPressed && this.sgJumpFrame === this.frame - 1 && remaining <= window + this.lastDt) {
+    // the mantle boost: holding jump into the end of the mantle is the input,
+    // and the frame it fires on is the one the window opens
+    const boosted = this.mantleBoost && (jumpHeld || jumpPressed) && remaining <= window;
+    if (boosted || (crouchPressed && this.sgJumpFrame === this.frame - 1 && remaining <= window + this.lastDt)) {
       const hb = this.holsterBoost;
       const base = (mt.sprint ? MOVE.sprintSpeed : MOVE.speed) * hb;
       const speed = Math.min(base + MOVE.slideSpeedBoost * hb, MOVE.slideSpeedBoostCap * hb);
@@ -1267,7 +1279,7 @@ export class Player {
       this.vel.set(mt.dirX * speed, 0, mt.dirZ * speed);
       this.launch(now, MOVE.superglideHeight);
       this.superglidedAt = now;
-      this.tech("SUPERGLIDE", `${Math.round(speed / HU)} hu/s`);
+      this.tech("SUPERGLIDE", `${Math.round(speed / HU)} hu/s${boosted ? " (mantle boost)" : ""}`);
       return;
     }
     // the misses, each with what to change

@@ -389,6 +389,7 @@ The Settings tab, all remembered in this browser:
 | ADS per optic | a multiplier for each zoom (1x, 2x, 3x, 4x, 6x, 8x, 10x) on top of the ADS one, like the game's; a variable optic uses the zoom it is on |
 | Aim down sights, Crouch | hold, or toggle (a press in, a press out) |
 | Sprint | press (the game's default: press once, it arms for 3 s and runs while you hold forward) or hold |
+| Mantle boost | the game's own setting: on, holding jump through the end of a mantle superglides for you; off (the default), the one-frame window is the real one and the trainer teaches it |
 | Sprint view shake | Normal or Minimal, the game's setting |
 | Fullscreen while playing | on by default: fullscreen with Keyboard Lock, which hands Ctrl+W to the game in Chrome and Edge |
 | Graphics | Competitive (straight to the screen with MSAA, fastest, and the shortest draw distance), Balanced, High (post-processing, shadows, bloom, and the longest view) |
