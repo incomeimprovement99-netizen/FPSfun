@@ -59,23 +59,29 @@ down its left side to jump there.
    it off for good, and a machine set to less movement gets a shorter one with
    no shake and no falling glass.
 3. The menu is up, with a short welcome on a first visit (and a warning on a
-   phone, a tablet or Safari, which cannot play). **Play tab, Firing Range.**
-   The browser locks the mouse and goes fullscreen (Settings can turn that
-   off). **Esc** brings the menu back; **Play / Resume** goes back in.
-4. Everything else is a menu button: the guided tour (start here if you are
-   new: it walks you through every move and key), the two courses, the arena
-   alone, the bots, the battle royale, Gun Run, team deathmatch, free-for-all,
-   Crown, Control, Search, and the **Friends** tab, where any of them can be played
-   with up to eight people and bots.
+   phone, a tablet or Safari, which cannot play). **The lobby is the Play
+   tab**: the modes down the left, and the one you pick opens its own options
+   on the right. Firing Range is the place to start. Press the green button;
+   the browser locks the mouse and goes fullscreen (Settings can turn that
+   off). **Esc** brings the menu back; **Resume** goes back in.
+4. Everything is in that one list: the guided tour (start here if you are new:
+   it walks you through every move and key), the two courses, the arena alone
+   or against bots, the battle royale, Gun Run, team deathmatch, free-for-all,
+   Crown, Control and Search. Whatever you pick, the panel beside it asks the
+   questions that mode actually has: which of the five arenas, how many bots
+   and how good they are, the squad size and the ring's pace for a battle
+   royale, whether you land with a loadout, whether the aim bot is on for
+   practice. Then **Start**, or **With friends**, which makes the match on
+   exactly those settings and copies an invite link.
 
 Nothing is installed and nothing is sent anywhere: settings, loadouts, your
 name, your best times and your stats live in this browser's localStorage.
 
 ## 1v1 a friend
 
-1. You: **Friends tab**, leave "2 players", **Create match**. A 5-letter code
-   appears with an **invite link**, copied to your clipboard. Send the link
-   (Discord, a text).
+1. You: **Play tab**, pick **1v1 and 1v1v1**, set the map and the rules beside
+   it, then **With friends**. A 5-letter code appears with an **invite link**,
+   copied to your clipboard. Send the link (Discord, a text).
 2. Friend: open the link (on a PC, in Chrome or Edge). It joins your match by
    itself. (Or: Friends tab, type the code, **Join**.)
 3. Both screens say connected. **Both click Play.** The HUD holds at
@@ -140,7 +146,7 @@ then Desert, Arctic, Forest, Crimson, Cobalt, and Gold at 25. Pick one for
 each gun beside its slot on the Loadouts tab; every gun keeps its own, and
 your friends see it on the gun in your figure's hands.
 
-**Custom rules.** Three boxes beside Create match: which guns the match
+**Custom rules.** Three boxes in the lobby, under the mode you picked: which guns the match
 allows (any, or one class: assault rifles, SMGs, LMGs, shotguns, snipers and
 marksmen, pistols; anyone holding another is handed that class's guns, and
 so are the bots), how many rounds win the 1v1 (first to 1 up to 7), and
@@ -155,8 +161,8 @@ host included, moves to it by themselves; nobody types a code.
 
 **The group stays together.** When a battle royale ends (or any match runs to
 its end screen and closes), nobody is sent back to swap codes: the host's
-Friends tab shows **Play again with N**. Pick the next mode and settings on
-the tab and click it, and everyone goes straight into the new match on the
+Friends tab shows **Play again with N**. Pick the next mode and its settings
+in the lobby and click it, and everyone goes straight into the new match on the
 connections they already have. **Leave the group** drops out; if the host
 leaves, everyone is told. The end screen of a match with friends carries one
 table of everybody: kills, damage and where each placed. And the Friends tab keeps **Tonight**: every
@@ -170,8 +176,8 @@ triangle with a corner each. A guest leaving before round 1 frees their
 place (the link works again); during the match it drops it to a 1v1; the
 host leaving ends it.
 
-**Other modes with friends**: the first box on the Friends tab picks what to
-play before Create match: the arena 1v1 / 1v1v1, Gun Run, team deathmatch
+**Other modes with friends**: pick the mode in the lobby and press With
+friends, which carries it across: the arena 1v1 / 1v1v1, Gun Run, team deathmatch
 (you and your friends against the bots), Crown, Control, free-for-all,
 Search, or the battle royale as a squad. The host's choice (and the bots, their difficulty, Gun Run's list and
 whether abilities are on) goes to everyone who joins.

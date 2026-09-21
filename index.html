@@ -89,6 +89,42 @@
       .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
       .mode { text-align: left; background: #0d1014; border: 1px solid #2a323b; border-radius: 6px; padding: 14px 16px; color: #c8d0d8; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
       .mode:hover { border-color: #d4712a; }
+      /* The lobby: the modes down one side, the mode you picked set up on the
+         other. One place to choose what to play, what map, how many bots and
+         how good they are, and one green button to start it, alone or with
+         friends. */
+      .lobby { display: grid; grid-template-columns: 236px 1fr; gap: 12px; align-items: start; }
+      .lobby .modes { display: flex; flex-direction: column; gap: 4px; max-height: 58vh; overflow-y: auto; padding-right: 2px; }
+      .lobby .mode { padding: 8px 11px; gap: 0; border-radius: 4px; }
+      .lobby .mode b { font-size: 15px; }
+      .lobby .mode span { display: none; }
+      .lobby .mode.on { border-color: #d4712a; background: #1a2027; box-shadow: inset 3px 0 0 #d4712a; }
+      .setup { background: #0d1014; border: 1px solid #2a323b; border-radius: 6px; padding: 13px 15px; }
+      .setupName { font: 700 21px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .06em; color: #fff; text-transform: uppercase; }
+      .setupLine { font-size: 12px; color: #8b96a3; margin: 1px 0 11px; line-height: 1.45; }
+      .setupOptions { display: flex; flex-wrap: wrap; gap: 9px 10px; align-items: flex-end; }
+      /* the groups are a way of saying which options a mode obeys, not a row
+         each: `contents` lets the ones it does show flow together */
+      .setupGroup { display: contents; }
+      /* and a box that says display outranks the browser's own rule for
+         [hidden], so the hiding has to be said here */
+      .setupGroup[hidden] { display: none; }
+      .setupGroup label { display: flex; flex-direction: column; gap: 2px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #6f7a86; }
+      .setupGroup select { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 6px 7px; border-radius: 4px; font-size: 12px; max-width: 200px; }
+      .setupGroup button { align-self: flex-end; background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 6px 11px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+      .setupGroup button:hover { border-color: #56636f; }
+      /* a group's note goes under the boxes rather than between them, wherever
+         in the order its own group happens to be */
+      .setupNote { font-size: 11px; color: #7d8895; line-height: 1.5; flex-basis: 100%; order: 1; }
+      .setupGo { display: flex; gap: 8px; margin: 12px 0 6px; }
+      .setupGo button { flex: 1; background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 10px 12px; border-radius: 4px; font: 700 15px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+      .setupGo button:hover { border-color: #56636f; }
+      .setupGo button.go { background: #2f5a3c; border-color: #3f7a51; color: #eafff0; }
+      .setupGo button.go:hover { background: #38684a; }
+      @media (max-width: 720px) {
+        .lobby { grid-template-columns: 1fr; }
+        .lobby .modes { max-height: 30vh; }
+      }
       .mode b { font: 700 18px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .06em; color: #fff; text-transform: uppercase; }
       .mode span { font-size: 12px; color: #8b96a3; }
       .hintLine { margin-top: 10px; font-size: 12px; color: #7d8895; text-align: center; }
@@ -211,38 +247,54 @@
           <div class="welcome" id="welcome" hidden>
           <h2>Welcome to the range</h2>
           <ol>
-            <li><b>Pick a mode below</b> (Firing Range is the place to start). The game takes over your mouse; <kbd>Esc</kbd> gives it back and brings this menu up.</li>
+            <li><b>Pick a mode on the left</b> (Firing Range is the place to start), set it up on the right, and press the green button. The game takes over your mouse; <kbd>Esc</kbd> gives it back and brings this menu up.</li>
             <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move, <kbd>Space</kbd> jump, <kbd>Shift</kbd> sprint, <kbd>Ctrl</kbd> crouch and slide, left click fire, right click aim, <kbd>R</kbd> reload, <kbd>1</kbd> <kbd>2</kbd> weapons. Everything else is on the Controls tab.</li>
-            <li><b>Playing a friend?</b> The 1v1 tab, <b>Create match</b>, and send them the invite link it copies. Opening the link joins your match.</li>
+            <li><b>Playing a friend?</b> Pick the mode, set it up, then <b>With friends</b>: it makes the match and copies the invite link. Opening the link joins it.</li>
             <li>A controller works too: plug it in and press <b>Start</b>.</li>
           </ol>
           <button type="button" id="welcomeOk">Got it</button>
           </div>
-          <div class="modes">
-            <button type="button" class="mode" id="goRange"><b>Firing Range</b><span>Guns, dummies, targets, ladders, ziplines and the wallbounce wall.</span></button>
-            <button type="button" class="mode" id="goTour"><b>Guided tour</b><span id="tourBlurb">Every move and key the range teaches, a step at a time: slide, mantle, climb, superglide, shoot, heal, JOLT, a grenade.</span></button>
-            <button type="button" class="mode" id="goRun"><b>The Run (Basic)</b><span id="runBest">Seven rooms, one technique each, twenty pop-ups.</span></button>
-            <button type="button" class="mode" id="goRunAdvanced"><b>The Run (Advanced)</b><span id="runAdvancedBest">Nine rooms, 200 m, the techniques chained. Thirty pop-ups.</span></button>
-            <button type="button" class="mode" id="goDuel"><b>1v1 and 1v1v1</b><span>Friends, a code, an arena. First to 3, with the circle.</span></button>
-            <button type="button" class="mode" id="goBots"><b>Arena, Bots</b><span id="botsBlurb">The 1v1 rules against 1 or 2 bots. Pick the difficulty on the 1v1 tab.</span></button>
-            <button type="button" class="mode" id="goArena"><b>Arena, alone</b><span>Walk the 1v1 map by yourself to learn it.</span></button>
-            <button type="button" class="mode" id="goBr"><b>Battle Royale, Bots</b><span id="brBlurb">Trios: drop onto Outskirts against three squads of three bots, the ring closes, last squad standing. Size, bots and difficulty on the Friends tab.</span></button>
-            <button type="button" class="mode" id="goGunRun"><b>Gun Run, Bots</b><span>Every kill is the next gun; a knife kill at the end wins. Against bots in the arena.</span></button>
-            <button type="button" class="mode" id="goTdm"><b>Team Deathmatch, Bots</b><span>You and three bots against four, respawns, first team to 30.</span></button>
-            <button type="button" class="mode" id="goCrown"><b>Crown, Bots</b><span>The crown appears 20 s into a round: take it, hold it 30 s. First to 3 rounds.</span></button>
-            <button type="button" class="mode" id="goControl"><b>Control, Bots</b><span>Five a side over three zones, A B C: a point a second for each one your team holds, first to 500. You respawn on your zones.</span></button>
-            <button type="button" class="mode" id="goFfa"><b>Free-for-all, Bots</b><span>Everyone for themselves in the arena, respawns, first to 20 kills or the most at 10 minutes.</span></button>
-            <button type="button" class="mode" id="goSearch"><b>Search, Bots</b><span>Plant and defuse, one life a round: hold E on site A or B to plant, beside the bomb to defuse. Sides swap after 6 rounds; first to 7.</span></button>
+          <div class="lobby">
+            <div class="modes">
+              <button type="button" class="mode" id="goRange" data-mode="range"><b>Firing Range</b><span>Guns, dummies, targets, ladders, ziplines and the wallbounce wall.</span></button>
+              <button type="button" class="mode" id="goTour" data-mode="tour"><b>Guided tour</b><span id="tourBlurb">Every move and key the range teaches, a step at a time: slide, mantle, climb, superglide, shoot, heal, JOLT, a grenade.</span></button>
+              <button type="button" class="mode" id="goRun" data-mode="run"><b>The Run (Basic)</b><span id="runBest">Seven rooms, one technique each, twenty pop-ups.</span></button>
+              <button type="button" class="mode" id="goRunAdvanced" data-mode="runAdvanced"><b>The Run (Advanced)</b><span id="runAdvancedBest">Nine rooms, 200 m, the techniques chained. Thirty pop-ups.</span></button>
+              <button type="button" class="mode" id="goArena" data-mode="arena"><b>Walk the arena</b><span>The 1v1 map by yourself, to learn it.</span></button>
+              <button type="button" class="mode" id="goDuel" data-mode="duel"><b>1v1 and 1v1v1</b><span>You against a friend, or two. First to 3 rounds, with the circle.</span></button>
+              <button type="button" class="mode" id="goBots" data-mode="bots"><b>Arena, Bots</b><span id="botsBlurb">The 1v1 rules against bots, alone or with friends.</span></button>
+              <button type="button" class="mode" id="goBr" data-mode="br"><b>Battle Royale</b><span id="brBlurb">Trios: drop onto Outskirts against three squads of three bots, the ring closes, last squad standing.</span></button>
+              <button type="button" class="mode" id="goGunRun" data-mode="gunrun"><b>Gun Run</b><span>Every kill is the next gun; a knife kill at the end wins.</span></button>
+              <button type="button" class="mode" id="goTdm" data-mode="tdm"><b>Team Deathmatch</b><span>Four a side, respawns, first team to 30.</span></button>
+              <button type="button" class="mode" id="goCrown" data-mode="crown"><b>Crown</b><span>The crown appears 20 s in: take it, hold it 30 s. First to 3 rounds.</span></button>
+              <button type="button" class="mode" id="goControl" data-mode="control"><b>Control</b><span>Five a side over three zones, A B C. A point a second for each, first to 500.</span></button>
+              <button type="button" class="mode" id="goFfa" data-mode="ffa"><b>Free-for-all</b><span>Everyone for themselves, respawns, first to 20 kills.</span></button>
+              <button type="button" class="mode" id="goSearch" data-mode="search"><b>Search</b><span>Plant and defuse, one life a round. Sides swap after 6; first to 7.</span></button>
+            </div>
+            <div class="setup">
+              <div class="setupName" id="setupName">Firing Range</div>
+              <div class="setupLine" id="setupLine"></div>
+            <div class="setupOptions">
+            <div class="setupGroup" data-group="range" hidden><label>Dummies <select id="dummyMode"><option value="stand">Stand</option><option value="strafe">Strafe</option><option value="crouch">Strafe and crouch</option><option value="random">Random</option></select></label><label>Speed <select id="dummySpeed"><option value="0.6">Slow</option><option value="1" selected>Normal</option><option value="1.4">Fast</option></select></label><label>Shoot back <select id="dummyShoot"><option value="off">Off</option><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option></select></label><button type="button" id="goDrill" title="thirty figures one at a time, 5 to 30 m out; the pad by the firing line starts it too">Flick drill</button></div>
+            <div class="setupGroup" data-group="map" hidden><label>Map <select id="arenaMap" title="the arena a mode or a friends' 1v1 is played on: the warehouse, one of the three new maps, or the one drawn for the mode you pick"></select></label></div>
+            <div class="setupGroup" data-group="arenabots" hidden><label>Bots <select id="botCount" title="bots in the Arena Bots match"><option value="1">1 bot</option><option value="2">2 bots</option><option value="3">3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option></select></label></div>
+            <div class="setupGroup" data-group="modebots" hidden><label>Bots <select id="modeBots" title="the bots you face, in every mode, with friends or alone. In a team mode your side is filled with ally bots to match"><option value="0">No bots</option><option value="1">1 bot</option><option value="2">2 bots</option><option value="3" selected>3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option><option value="6">6 bots</option><option value="7">7 bots</option><option value="8">8 bots</option></select></label><label>Friends <select id="modeSides" title="team deathmatch and Control with friends: all of you on one side against the bots, or split into two sides against each other (bots fill whichever side is short)"><option value="together">Friends: one side</option><option value="split">Friends: split sides</option></select></label><label>Bot guns <select id="botWeapon" title="what the bots carry (not Gun Run, which hands out its own ladder)"><option value="">Bot guns: mixed</option></select></label></div>
+            <div class="setupGroup" data-group="gunrun" hidden><label>Ladder <select id="gunRunList" title="Gun Run's guns: ten, or every gun in the game, then the knife"><option value="short">Gun Run: 10 guns</option><option value="full">Gun Run: every gun (29)</option></select></label></div>
+            <div class="setupGroup" data-group="br" hidden><label>Squad <select id="brTeam" title="Solo: nobody to pick you up, so a knock is an elimination. Duos: a squad of two, and half the bleed-out because only one person can ever come. Trios: the classic squad of three and the full bleed-out. The bots are grouped the same way, so a solo match is a lobby of singles and not a trio match with gaps in it. With friends, the host's size is everyone's"><option value="solo">Solo</option><option value="duo">Duos</option><option value="trio" selected>Trios</option></select></label><label>Rules <select id="brRules" title="Battle royale: one life, and your squad's banners are the only way back. Resurgence: the dead redeploy from the sky after a wait (15 s early, longer as the ring closes) that your side's kills cut, until the fifth ring, when every death is final; a squad all dead at once is out, and the ring runs faster. With friends, the host's choice is everyone's"><option value="br">Battle royale</option><option value="resurgence">Resurgence</option></select></label><label>Friends <select id="brSides" title="With friends in duos or trios: all of you one squad against the bots, or squads of that size against each other and the bots (players 1 and 2 one duo, 3 and 4 the next, in the order you joined). In solo everyone is on their own either way."><option value="together">Friends: one squad</option><option value="split">Friends: squads against each other</option></select></label><label>Bots <select id="brBots" title="the bots you face. Every count offered is whole squads of bots at the size beside it; you, and any friends, are a squad of your own"><option value="2">2 bots</option><option value="3">3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option><option value="6">6 bots</option><option value="7">7 bots</option><option value="8">8 bots</option><option value="9" selected>9 bots</option><option value="10">10 bots</option><option value="11">11 bots</option></select></label><label>Ring <select id="brPace" title="how fast the ring pulls in: the same circles and the same damage, a longer or a shorter match. Slow is a looting match, fast is about twelve minutes. With friends, the host's choice is everyone's"><option value="slow">Slow</option><option value="normal" selected>Normal</option><option value="fast">Fast</option></select></label><label>Abilities <select id="brAbilities" title="JOLT or TRIAGE, picked when you land; on by default"><option value="1">Abilities on</option><option value="0">Abilities off</option></select></label><label>Land with <select id="brStart" title="land with nothing and loot the floor, death boxes and care packages (the battle royale's own way), or land with your loadout"><option value="loot">Land with nothing, loot</option><option value="loadout">Land with your loadout</option></select></label><div class="setupNote"><span class="or" id="brLobby">Ten in the match: you, and three squads of three. Friends who join are on your side. The difficulty is set above. Then Play tab, Battle Royale: the ring closes six times, 4 heals, M is the map.</span></div></div>
+            <div class="setupGroup" data-group="difficulty" hidden><label>Difficulty <select id="botDifficulty" title="Easy: slow to react, loose aim, stands and shoots. Normal: strafes, dodges some hits, throws a frag at a camper, heals behind cover. Hard: quick and accurate, always dodges, crouches in fights, hears your shots. Elite: all of that sharper, and it pre-aims where it lost you. Mixed: each bot its own tier."><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option><option value="elite">Elite</option><option value="mixed">Mixed (each bot its own)</option></select></label></div>
+<div class="setupGroup" data-group="abilities" hidden><label>Abilities <select id="botAbilities" title="JOLT or TRIAGE for you and the bots, picked at each countdown"><option value="0">Abilities off</option><option value="1">Abilities on</option></select></label></div>
+            <div class="setupGroup" data-group="rules" hidden><label>Guns <select id="ruleGuns" title="custom rules: the guns this match allows, by category; anyone holding another is handed that class's guns, and so are the bots (the 1v1s and the arena modes; a battle royale's guns are what you find, and Gun Run has its ladder)"><option value="any">Any guns</option><option value="ar">Assault rifles only</option><option value="smg">SMGs only</option><option value="lmg">LMGs only</option><option value="shotgun">Shotguns only</option><option value="sniper">Snipers and marksmen only</option><option value="pistol">Pistols only</option></select></label><label>Friendly fire <select id="ruleFF" title="custom rules: whether squad mates and team mates can hurt each other"><option value="off">Friendly fire off</option><option value="on">Friendly fire on</option></select></label></div>
+            <div class="setupGroup" data-group="rounds" hidden><label>Rounds <select id="ruleRounds" title="custom rules: rounds to win the 1v1"><option value="1">First to 1</option><option value="2">First to 2</option><option value="3" selected>First to 3</option><option value="4">First to 4</option><option value="5">First to 5</option><option value="7">First to 7</option></select></label></div>
+            <div class="setupGroup" data-group="train" hidden><label>Aim bot <select id="aimbotLobby" title="the view is steered onto the nearest enemy you can see: practice only, and it cannot be hidden, because everyone else sees a red bar and the word AIM BOT over you, through walls. The same switch is on the Settings tab"><option value="0">Off</option><option value="1">On (practice)</option></select></label></div>
+            </div>
+              <div class="setupGo">
+                <button type="button" id="startMode" class="go">Start</button>
+                <button type="button" id="playFriends" title="makes the match on these settings and copies the invite link: send it to your friends and they join this same match, on this same map, against these same bots">With friends</button>
+              </div>
+              <div class="setupNote" id="setupFriends"></div>
+            </div>
           </div>
-          <div class="rangebox">
-            <b>The range</b>
-            <label>Dummies <select id="dummyMode"><option value="stand">Stand</option><option value="strafe">Strafe</option><option value="crouch">Strafe and crouch</option><option value="random">Random</option></select></label>
-            <label>Speed <select id="dummySpeed"><option value="0.6">Slow</option><option value="1" selected>Normal</option><option value="1.4">Fast</option></select></label>
-            <label>Shoot back <select id="dummyShoot"><option value="off">Off</option><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option></select></label>
-            <button type="button" id="goDrill" title="thirty figures one at a time, 5 to 30 m out; the pad by the firing line starts it too">Flick drill</button>
-          </div>
-          <button id="play" type="button">Play</button>
-          <div class="hintLine">Any of these can be played with friends and bots: the <b>Friends</b> tab, pick the mode, Create match.</div>
+          <button id="play" type="button" hidden>Resume</button>
           <div class="hintLine" id="playHint">Esc brings you back here, and Esc again goes straight back in. Everything you set is remembered.</div>
         </section>
 
@@ -253,9 +305,6 @@
               <select id="duelMode" title="what to play"><option value="arena">Arena: 1v1 / 1v1v1</option><option value="gunrun">Gun Run: every kill the next gun</option><option value="tdm">Team deathmatch: together against the bots</option><option value="crown">Crown: take it, hold it</option><option value="control">Control: three zones, five a side</option><option value="ffa">Free-for-all: everyone for themselves</option><option value="search">Search: plant and defuse, one life a round</option><option value="br">Battle royale: a squad against the bots</option></select>
               <select id="duelPlayers" title="how many people (not counting bots). Two is the 1v1 arena, three the triangle, more the warehouse with a spawn each"><option value="2">2 players</option><option value="3">3 players</option><option value="4">4 players</option><option value="5">5 players</option><option value="6">6 players</option><option value="7">7 players</option><option value="8">8 players</option></select>
               <select id="duelAbilities" title="JOLT (a 10 m dash, every 3 s) or TRIAGE (heals twice as fast), picked at the countdown or the landing"><option value="0">Abilities off</option><option value="1">Abilities on</option></select>
-              <select id="ruleGuns" title="custom rules: the guns this match allows, by category; anyone holding another is handed that class's guns, and so are the bots (the 1v1s and the arena modes; a battle royale's guns are what you find, and Gun Run has its ladder)"><option value="any">Any guns</option><option value="ar">Assault rifles only</option><option value="smg">SMGs only</option><option value="lmg">LMGs only</option><option value="shotgun">Shotguns only</option><option value="sniper">Snipers and marksmen only</option><option value="pistol">Pistols only</option></select>
-              <select id="ruleRounds" title="custom rules: rounds to win the 1v1"><option value="1">First to 1</option><option value="2">First to 2</option><option value="3" selected>First to 3</option><option value="4">First to 4</option><option value="5">First to 5</option><option value="7">First to 7</option></select>
-              <select id="ruleFF" title="custom rules: whether squad mates and team mates can hurt each other"><option value="off">Friendly fire off</option><option value="on">Friendly fire on</option></select>
               <button id="duelHost" type="button">Create match</button>
               <span class="or">or</span>
               <input id="duelCode" placeholder="CODE" maxlength="5" autocomplete="off" spellcheck="false" />
@@ -268,38 +317,6 @@
             <div id="voiceList" class="calibMsg" hidden title="voice chat: who you can hear in this match, and a mute for each"></div>
             <div id="tonight" class="calibMsg" hidden title="every match this group has played since the code was made: Play again keeps adding to it, a new code starts it over"></div>
             <div id="duelStatus" class="calibMsg">One of you makes a match and sends the invite link; the others open it. Arena: first to 3 rounds against each other. Battle royale: the same squad drops onto Outskirts together against the bots set below.</div>
-          </div>
-          <div class="duel" style="margin-top:10px">
-            <div class="duelTitle">Arena, Bots</div>
-            <div class="duelRow">
-              <select id="botCount" title="bots in the Arena Bots match"><option value="1">1 bot</option><option value="2">2 bots</option><option value="3">3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option></select>
-              <select id="botDifficulty" title="Easy: slow to react, loose aim, stands and shoots. Normal: strafes, dodges some hits, throws a frag at a camper, heals behind cover. Hard: quick and accurate, always dodges, crouches in fights, hears your shots. Elite: all of that sharper, and it pre-aims where it lost you. Mixed: each bot its own tier."><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option><option value="elite">Elite</option><option value="mixed">Mixed (each bot its own)</option></select>
-              <select id="botAbilities" title="JOLT or TRIAGE for you and the bots, picked at each countdown"><option value="0">Abilities off</option><option value="1">Abilities on</option></select>
-              <span class="or">then Play tab, Arena Bots. Easy bots are slow and miss; hard ones sprint and land most of a mag.</span>
-            </div>
-          </div>
-          <div class="duel" style="margin-top:10px">
-            <div class="duelTitle">Modes: Gun Run, Team Deathmatch, Crown</div>
-            <div class="duelRow">
-              <select id="modeBots" title="the bots you face, in every mode, with friends or alone. In a team mode your side is filled with ally bots to match"><option value="0">No bots</option><option value="1">1 bot</option><option value="2">2 bots</option><option value="3" selected>3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option><option value="6">6 bots</option><option value="7">7 bots</option><option value="8">8 bots</option></select>
-              <select id="modeSides" title="team deathmatch and Control with friends: all of you on one side against the bots, or split into two sides against each other (bots fill whichever side is short)"><option value="together">Friends: one side</option><option value="split">Friends: split sides</option></select>
-              <select id="gunRunList" title="Gun Run's guns: ten, or every gun in the game, then the knife"><option value="short">Gun Run: 10 guns</option><option value="full">Gun Run: every gun (29)</option></select>
-              <select id="botWeapon" title="what the bots carry (not Gun Run, which hands out its own ladder)"><option value="">Bot guns: mixed</option></select>
-              <select id="arenaMap" title="the arena a mode or a friends' 1v1 is played on: the warehouse, one of the three new maps, or the one drawn for the mode you pick"></select>
-              <span class="or">the difficulty and abilities above. Then the Play tab (alone), or pick the mode in the first box up there and Create match (with friends).</span>
-            </div>
-          </div>
-          <div class="duel" style="margin-top:10px">
-            <div class="duelTitle">Battle Royale, Bots</div>
-            <div class="duelRow">
-              <select id="brTeam" title="Solo: nobody to pick you up, so a knock is an elimination. Duos: a squad of two, and half the bleed-out because only one person can ever come. Trios: the classic squad of three and the full bleed-out. The bots are grouped the same way, so a solo match is a lobby of singles and not a trio match with gaps in it. With friends, the host's size is everyone's"><option value="solo">Solo</option><option value="duo">Duos</option><option value="trio" selected>Trios</option></select>
-              <select id="brRules" title="Battle royale: one life, and your squad's banners are the only way back. Resurgence: the dead redeploy from the sky after a wait (15 s early, longer as the ring closes) that your side's kills cut, until the fifth ring, when every death is final; a squad all dead at once is out, and the ring runs faster. With friends, the host's choice is everyone's"><option value="br">Battle royale</option><option value="resurgence">Resurgence</option></select>
-              <select id="brSides" title="With friends in duos or trios: all of you one squad against the bots, or squads of that size against each other and the bots (players 1 and 2 one duo, 3 and 4 the next, in the order you joined). In solo everyone is on their own either way."><option value="together">Friends: one squad</option><option value="split">Friends: squads against each other</option></select>
-              <select id="brBots" title="the bots you face. Every count offered is whole squads of bots at the size beside it; you, and any friends, are a squad of your own"><option value="2">2 bots</option><option value="3">3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option><option value="6">6 bots</option><option value="7">7 bots</option><option value="8">8 bots</option><option value="9" selected>9 bots</option><option value="10">10 bots</option><option value="11">11 bots</option></select>
-              <select id="brAbilities" title="JOLT or TRIAGE, picked when you land; on by default"><option value="1">Abilities on</option><option value="0">Abilities off</option></select>
-              <select id="brStart" title="land with nothing and loot the floor, death boxes and care packages (the battle royale's own way), or land with your loadout"><option value="loot">Land with nothing, loot</option><option value="loadout">Land with your loadout</option></select>
-              <span class="or" id="brLobby">Ten in the match: you, and three squads of three. Friends who join are on your side. The difficulty is set above. Then Play tab, Battle Royale: the ring closes six times, 4 heals, M is the map.</span>
-            </div>
           </div>
           <ul class="rules">
             <li>1v1: three lanes. 1v1v1: a triangle, a corner each. First to 3 rounds, blue shields and 100 health.</li>

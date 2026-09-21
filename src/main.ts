@@ -63,6 +63,7 @@ import { Loadouts, type LoadoutDef } from "./game/loadouts";
 import { operatorById, OPERATORS } from "./game/operators";
 import { setArmColors } from "./game/arms";
 import { Menu, brRulesId, brTeamId, type Mode } from "./ui/menu";
+import { friendsModeFor } from "./ui/lobby";
 import type { ImpactEvent } from "./game/projectile";
 import { INSPECT_TIME, FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
 import { Abilities, ABILITIES, JOLT, JOLT_DEFAULTS, KITS, kitOf, setJolt, type AbilityId } from "./game/abilities";
@@ -1863,9 +1864,10 @@ const botWeaponChoice = (): string | null => botWeaponSel.value || null;
 // yesterday; "picked for the mode" uses the map each mode was drawn for.
 const arenaMapSel = $<HTMLSelectElement>("arenaMap");
 for (const [value, label] of [
-  ["warehouse", "Map: the warehouse"],
-  ["auto", "Map: picked for the mode"],
-  ...ARENA_MAPS.filter((m) => m.plan).map((m) => [m.id, `Map: ${m.name.replace(/^THE /, "the ").toLowerCase()}`]),
+  // the box wears the word MAP in the lobby, so the options do not repeat it
+  ["warehouse", "The warehouse"],
+  ["auto", "Picked for the mode"],
+  ...ARENA_MAPS.filter((m) => m.plan).map((m) => [m.id, `${m.name[0]}${m.name.slice(1).toLowerCase()}`]),
 ] as Array<[string, string]>) {
   const o = document.createElement("option");
   o.value = value;
@@ -2131,12 +2133,16 @@ function boardShip(d: BrMatch, run: ShipRun): void {
   player.yaw = run.yaw;
   player.pitch = -12;
   player.board(at.x, at.y + SHIP.seat, at.z);
-  mapOpen = true;
+  // the ride is the ride: the map no longer covers the first thing anyone sees
+  // of a match (src/config/squad.json dive.mapOnBoard). The minimap and the
+  // notice below say where the ship is; M opens the big one.
+  mapOpen = squadCfg.dive.mapOnBoard;
   following = null;
   // the first of your squad leads it down (the host, unless the friends are split into squads)
   linkedTo = d.jumpmaster();
   const master = d.isJumpmaster();
   hud.notice(master ? "YOU ARE THE JUMPMASTER: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(linkedTo)} IS THE JUMPMASTER` : `THE SHIP PASSES ${d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
+  if (!squadCfg.dive.mapOnBoard) window.setTimeout(() => hud.notice("M IS THE MAP  ·  SPACE JUMPS", gameTime, 2.5), 3200);
 }
 
 /** off the ship, into the skydive where it is; the jumpmaster's jump takes the linked squad with them */
@@ -3707,7 +3713,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
     // the squad size is the host's for everyone (an older host sends none: the default size)
-    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), rules: squad.rules, gulag: !noGulag(), split: squad.split === true, vault: !noVault() });
+    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), rules: squad.rules, pace: squad.pace, gulag: !noGulag(), split: squad.split === true, vault: !noVault() });
     d = br;
     duel = d;
     wireMatch(d, "br");
@@ -3796,7 +3802,7 @@ function startBr(seed = newSeed(), poi?: string): void {
   for (const c of courses) c.leave();
   const diff = brDifficulty();
   const bots = brBotCount();
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, poi, abilities: abilitySetting("br"), seed, start: brStart(), team: brTeamId(), ship: !straightDrop(), rules: brRulesId(), gulag: !noGulag(), vault: !noVault() });
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, poi, abilities: abilitySetting("br"), seed, start: brStart(), team: brTeamId(), ship: !straightDrop(), rules: brRulesId(), pace: brPace(), gulag: !noGulag(), vault: !noVault() });
   duel = d;
   wireMatch(d, "br");
   brHour(d);
@@ -3819,6 +3825,25 @@ brStartSel.addEventListener("change", () => {
   }
 });
 const brStart = (): "loot" | "loadout" => (brStartSel.value === "loadout" ? "loadout" : "loot");
+
+// How fast the ring pulls in: the lobby's box, kept between visits. It is the
+// length of a match rather than its difficulty (src/game/ring.ts ringPace),
+// and the host's is everyone's, so it travels in the welcome packet.
+const brPaceSel = $<HTMLSelectElement>("brPace");
+try {
+  const v = localStorage.getItem("range.br.pace");
+  if (v === "slow" || v === "normal" || v === "fast") brPaceSel.value = v;
+} catch {
+  /* storage off: the normal pace */
+}
+brPaceSel.addEventListener("change", () => {
+  try {
+    localStorage.setItem("range.br.pace", brPaceSel.value);
+  } catch {
+    /* ignore */
+  }
+});
+const brPace = (): string => brPaceSel.value || "normal";
 const newSeed = (): number => Math.floor(Math.random() * 2 ** 31);
 const brDifficulty = (): BotDifficulty => asDifficulty(botDifficulty.value);
 const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
@@ -3900,7 +3925,7 @@ function endMatch(reason: string): void {
 function readHostSettings(): void {
   // a battle royale squad: the place, the bots, the difficulty and the squad
   // size are fixed now so every guest is told the same
-  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId(), rules: brRulesId(), split: $<HTMLSelectElement>("brSides").value === "split" } : null;
+  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId(), rules: brRulesId(), pace: brPace(), split: $<HTMLSelectElement>("brSides").value === "split" } : null;
   const mk = duelModeKind();
   // the custom rules (the Rules row), for everyone
   const guns = $<HTMLSelectElement>("ruleGuns").value;
@@ -4288,6 +4313,18 @@ const menu = new Menu(loadouts, profile, {
     readSettings();
     void input.lock();
   },
+  // The panel's With friends button. The mode the lobby is on becomes the
+  // friends' match's mode, which is the translation the player used to have to
+  // do themselves: pick Battle Royale on one tab, then find it again under
+  // another name in a box on the tab called 1v1.
+  onFriends: (mode) => {
+    const want = friendsModeFor(mode);
+    if (!want) return;
+    duelMode.value = want;
+    duelMode.dispatchEvent(new Event("change"));
+    menu.show("duel");
+    duelHostBtn.click();
+  },
 });
 // the Stats tab's level card follows every award
 progress.onChange = () => {
@@ -4512,6 +4549,7 @@ input.onLockChange = (locked) => {
     // the first time in, the button stops saying Play: there is now a game to
     // resume, and the welcome has done its job
     playBtn.textContent = "Resume";
+    playBtn.hidden = false;
     dismissWelcome();
     playHint.classList.remove("warn");
     playHint.textContent = PLAY_HINT;

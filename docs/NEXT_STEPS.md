@@ -249,3 +249,27 @@ Every one is checked for licence. The repo already fetches ambientCG, Poly Haven
 | 18 | **Replays** | The killcam records 8 seconds. Keeping a whole match and letting it be watched is how a group argues about a fight afterwards | 2-3 days |
 | 19 | **Mobile and controller-only play** | The controller is supported; a phone is not, and a phone is where a friend without a PC is | 3-5 days |
 | 20 | **A tutorial that is not the tour** | The tour teaches movement. Nothing teaches the battle royale's own rules: the ring, the Gulag, bins, crafting, the vault | 1 day |
+
+## 2026-09-21: the owner's list, and what is left of it
+
+The owner asked for six things in one message: a lobby that is one place rather than two tabs, the same for
+the battle royale's own settings, no map thrown over the screen on the way out of the dropship, a better
+looking dropship, clothes and masks on the characters, more free assets so it stops reading as Roblox, and
+four named visual bugs (the spray, tracers that do not start at the muzzle, guns held wrong with a hand
+floating, and stocks through backs).
+
+**Done (Milestone 144).** The lobby, every battle royale setting in it, the ring's pace as a new setting, and
+the map no longer covering the ride down. The map picker was already there with five arenas; it was on the
+wrong tab, which is the same as not being there.
+
+**What is left, in the order it is worth doing.**
+
+| # | Item | Why it is here | Effort |
+|---|---|---|---|
+| 1 | **The way a figure holds a gun** | The animation library is a pistol library, so every long gun hangs off the chest at one hand-authored point. That point sits *inboard* of the shoulder, and since a stock is behind the grip, the stock ends up beside the neck: guns through people, exactly as reported. The support hand reaches a handguard it sometimes cannot reach, which is the floating hand | 1 day |
+| 2 | **Tracers from the muzzle, every time** | The round leaves the eye and the tracer is drawn from the gun, which is right; but the muzzle is read off whichever flash marker is attached and visible, and when that returns nothing the tracer falls back to the eye. It has to be measured per shot per figure rather than reasoned about | half a day |
+| 3 | **The spray, seen rather than computed** | The pattern is simulated and checked; what is not checked is what it looks like leaving the barrel. Needs a side-by-side of the first ten rounds against the recoil plot | half a day |
+| 4 | **Clothes, shades and masks on the operators** | The figures are a bare mannequin in a colour. Quaternius's own modular characters and the CC0 accessory sets would put a vest, a mask and shades on each, which is most of the distance between this and a shipped look | 2 days |
+| 5 | **The dropship** | It is a box with a light. A real hull, a lit interior, the doors open, the squad in the bay | 1 day |
+| 6 | **A second battle royale map, or a second half of this one** | The lobby now has a map picker with five arenas in it and exactly one battle royale. That asymmetry is the honest gap: the arenas have a choice, the big mode does not | 3-4 days |
+| 7 | **More CC0 in the world itself** | The material and prop pipeline is proven and credited. What is on the map is a fraction of what is free | ongoing |

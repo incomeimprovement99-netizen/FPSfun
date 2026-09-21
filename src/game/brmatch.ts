@@ -124,7 +124,7 @@ const BOT_LOOT_FLOOR = botsCfg.loot.floor;
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { navTree, type NavTree } from "./navgraph";
-import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, type Circle, type RingPhase } from "./ring";
+import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, ringPace, type Circle, type RingPhase } from "./ring";
 import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, resurgenceArea, secondsToFinal, type BrRules } from "./resurgence";
 import { GULAG, Gulag, gulagFor, type GulagEvent } from "./gulag";
 import { arenaMap } from "./arena";
@@ -624,7 +624,7 @@ export class BrMatch extends Duel {
     private readonly map: BrMap,
     difficulty: BotDifficulty,
     botCount: number,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean; rules?: string; gulag?: boolean; split?: boolean; vault?: boolean },
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean; rules?: string; pace?: string; gulag?: boolean; split?: boolean; vault?: boolean },
     rng: () => number = Math.random
   ) {
     super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br", abilities: opts.abilities ?? true });
@@ -663,7 +663,10 @@ export class BrMatch extends Duel {
     // the tests of the plain death switch it off; a real match always has it
     this.gulagOn = opts.gulag !== false;
     // the ring's clock that goes with the rules, its circles shrunk to the area
-    this.phases = this.rules === "resurgence" ? resurgencePhases(RING_PHASES, area.r / full.r) : RING_PHASES;
+    // the pace is the lobby's own setting, applied on top: Resurgence's
+    // faster clock is a rule of the mode, this is how long a match should be
+    const paced = ringPace(RING_PHASES, opts.pace ?? "normal");
+    this.phases = this.rules === "resurgence" ? resurgencePhases(paced, area.r / full.r) : paced;
     // the floor's loot, from the host's seed (the welcome carries it), unless the squad lands with its loadouts
     this.startLoot = opts.start !== "loadout";
     if (this.startLoot) {

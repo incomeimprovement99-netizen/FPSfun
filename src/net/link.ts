@@ -196,6 +196,8 @@ export interface BrWelcome {
   seed?: number;
   /** land with nothing and loot (the default), or with your loadout */
   start?: "loot" | "loadout";
+  /** how fast the ring pulls in (src/config/ring.json pace): the host's, for everyone, since a guest on another clock would be outside a ring nobody else can see. An older host sends none, which is the normal pace */
+  pace?: string;
   /**
    * solo, duo or trio (src/config/br.json teams): the host's, for everyone,
    * because a guest that ran its own size would bleed out on another clock or

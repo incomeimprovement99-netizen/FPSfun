@@ -53,6 +53,16 @@ const holdLab = `(async () => { ${hideMenu}; const r = window.__range; await r.l
 
 export const SCENARIOS: Scenario[] = [
   {
+    name: "lobby",
+    note: "the lobby: the modes down one side, the picked mode set up on the other, one green button to start it",
+    steps: [[`(() => { const m = window.__range.menu; m.show("play"); m.pickMode("bots"); document.getElementById("welcomeOk").click(); })()`, 500]],
+  },
+  {
+    name: "lobby-br",
+    note: "the same panel on the battle royale: squad size, rules, bots, the ring's pace, what you land with",
+    steps: [[`(() => { const m = window.__range.menu; m.show("play"); m.pickMode("br"); document.getElementById("welcomeOk").click(); })()`, 500]],
+  },
+  {
     name: "loading",
     note: "the loading screen, held part way: the name, the bar, the count and a tip",
     steps: [[`(() => { const e = document.getElementById("loading"); e.hidden = false; e.classList.remove("done"); document.getElementById("loadingFill").style.width = "42%"; document.getElementById("loadingStatus").textContent = "LOADING THE WORLD  ·  21 OF 50"; })()`, 400]],
@@ -77,7 +87,7 @@ export const SCENARIOS: Scenario[] = [
     name: "arena-middle",
     note: "the 1v1 arena's new middle building over the capture circle, from a spawn: two storeys, the roof, the ziplines onto it",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); })()`, 600],
+      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
       [`(() => { const r = window.__range; r.player.teleport(90, 0, -58, 180, 6); })()`, 0],
       [gameSeconds(1), 250],
     ],
@@ -86,7 +96,7 @@ export const SCENARIOS: Scenario[] = [
     name: "arena-vault",
     note: "the Vault, the small two-storey arena for 1v1 and free-for-all, from a spawn at one end",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); })()`, 600],
+      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
       [`(() => { const r = window.__range; r.player.setBounds({ minX: -86, maxX: -58, minZ: -64, maxZ: -32 }); r.player.teleport(-72, 0, -60.5, 180, 4); })()`, 0],
       [gameSeconds(1), 250],
     ],
@@ -95,7 +105,7 @@ export const SCENARIOS: Scenario[] = [
     name: "arena-crossing",
     note: "the Crossing, the wide symmetric team arena, from one team's end",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); })()`, 600],
+      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
       [`(() => { const r = window.__range; r.player.setBounds({ minX: -125, maxX: -67, minZ: -1, maxZ: 69 }); r.player.teleport(-96, 0, 2.5, 180, 4); })()`, 0],
       [gameSeconds(1), 250],
     ],
@@ -104,7 +114,7 @@ export const SCENARIOS: Scenario[] = [
     name: "arena-ringworks",
     note: "the Ringworks, the open-sky free-for-all arena, from a spawn on its edge",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); })()`, 600],
+      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
       [`(() => { const r = window.__range; r.player.setBounds({ minX: -95, maxX: -49, minZ: 89, maxZ: 135 }); r.player.teleport(-72, 0, 93, 180, 4); })()`, 0],
       [gameSeconds(1), 250],
     ],
@@ -113,7 +123,7 @@ export const SCENARIOS: Scenario[] = [
     name: "arena-middle-roof",
     note: "the middle building from the side, at roof height: the two storeys, the roof lip and the ziplines",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); })()`, 600],
+      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
       [`(() => { const r = window.__range; r.setThirdPerson(true); r.player.teleport(90 - 15.5, 4.2, -48, -90, -2); })()`, 0],
       [gameSeconds(1), 250],
     ],
@@ -340,7 +350,7 @@ export const SCENARIOS: Scenario[] = [
     name: "control",
     note: "Control: the A B C strip and the scores, zone A taken, the zones in the arena",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goControl").click(); })()`, 0],
+      [`(() => { ${hideMenu}; document.getElementById("goControl").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFight, 100],
       [`(() => { const d = window.__range.duel(); d.holdFire = true; const z = d.hud().mode.control.zones[0].at; window.__range.player.teleport(z.x + 3, 0, z.z - 9, 180, -8); })()`, 0],
       [gameSeconds(1.5), 100],
@@ -501,7 +511,7 @@ export const SCENARIOS: Scenario[] = [
     name: "br-impacts",
     note: "a burst into the hub's north berm: bullet holes on its face, the dust off it",
     steps: [
-      [`(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [`(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
       [`(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("jolt"); r.input.locked = true; r.player.teleport(24, 0, 500 - 36, 0, 6);
         for (let i = 0; i < 14; i++) setTimeout(() => r.fireRound([(Math.random() - 0.5) * 0.12, 0.02 + (Math.random() - 0.5) * 0.1, -1]), i * 30); })()`, 520],
@@ -511,7 +521,7 @@ export const SCENARIOS: Scenario[] = [
     name: "br-bins",
     note: "supply bins: one closed (its lit seam) and one opened (lid up, what it held round it)",
     steps: [
-      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
       [
         `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("jolt"); const f = d.lootField; const bins = [...f.drops.values()].filter((x) => x.item.kind === "bin");
@@ -532,7 +542,7 @@ export const SCENARIOS: Scenario[] = [
     name: "br-loot",
     note: "a battle royale with nothing: fists, the floor's items (a gun, a purple beam, heals, ammo), the TAKE prompt",
     steps: [
-      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
       [
         `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("jolt"); const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, -28); const f = d.lootField; const V = (x, z) => new r.THREE.Vector3(s.x + x, 0, s.z + z);
@@ -550,7 +560,7 @@ export const SCENARIOS: Scenario[] = [
     name: "br-downed",
     note: "down, not out: the bleed-out clock and the crawl, a squad mate's ping on screen",
     steps: [
-      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
       [
         `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("triage"); const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, 0); d.downed = true; d.bleedUntil = performance.now() / 1000 + 71.4; r.brPlay.addMarker("go", new r.THREE.Vector3(s.x + 6, 0, s.z - 30), "GOING HERE", 1, -1, r.gameTime()); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
@@ -562,7 +572,7 @@ export const SCENARIOS: Scenario[] = [
     name: "br-downed-3p",
     note: "down, seen in third person: the figure low and bent into a crawl, not a crouch",
     steps: [
-      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
       [
         `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("triage"); const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, 0); d.downed = true; d.bleedUntil = performance.now() / 1000 + 71.4; r.setThirdPerson(true); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
@@ -574,7 +584,7 @@ export const SCENARIOS: Scenario[] = [
     name: "br-map-icons",
     note: "the full map: jump towers, respawn beacons, a care package falling, pings, the rings",
     steps: [
-      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
       [
         `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("jolt"); const p = r.player.pos; d.addPod(new r.THREE.Vector3(p.x + 40, 0, p.z - 30), 30); r.brPlay.addMarker("enemy", new r.THREE.Vector3(p.x - 30, 0, p.z - 50), "ENEMY", 0, -1, r.gameTime()); r.brPlay.addMarker("loot", new r.THREE.Vector3(p.x + 15, 0, p.z + 20), "LOOT", 0, -1, r.gameTime()); r.setScript({ held: () => false, pressedNow: () => false }); r.setMapOpen(true); })()`,
@@ -586,7 +596,7 @@ export const SCENARIOS: Scenario[] = [
     name: "br-skydive",
     note: "the skydive after the map steps aside: the dive readout between glide and dive, the height, the hint",
     steps: [
-      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 300],
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 300],
       [`(() => { const r = window.__range; r.player.pitch = -10; r.setScript({ held: () => false, pressedNow: () => false }); })()`, 0],
       [gameSeconds(2.8), 0],
       [`(() => { window.__range.player.pitch = -52; })()`, 400],
@@ -596,7 +606,7 @@ export const SCENARIOS: Scenario[] = [
     name: "br-fullmap",
     note: "the full map after landing: the landforms shaded as steps, the places, the consoles, the rings",
     steps: [
-      [`(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [`(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
       [`(() => { const r = window.__range; r.duel().holdFire = true; r.setScript({ held: () => false, pressedNow: () => false }); r.setMapOpen(true); })()`, 700],
     ],
@@ -605,7 +615,7 @@ export const SCENARIOS: Scenario[] = [
     name: "br-gulag",
     note: "the Gulag: in its room on the fight's two guns, the bot at the far end, the countdown held",
     steps: [
-      [`(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [`(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [gameSeconds(0.5), 0],
       [`(() => { const p = window.__range.player.pos; window.__range.player.teleport(p.x, 0.5, p.z, 0, -4); })()`, 0],
       [untilFight, 300],
@@ -617,7 +627,7 @@ export const SCENARIOS: Scenario[] = [
     name: "br-resurgence",
     note: "Resurgence, out and waiting: the redeploy countdown, and the clock to final deaths under the ring's",
     steps: [
-      [`(() => { const r = document.getElementById("brRules"); r.value = "resurgence"; r.dispatchEvent(new Event("change")); document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 0],
+      [`(() => { const r = document.getElementById("brRules"); r.value = "resurgence"; r.dispatchEvent(new Event("change")); document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       // put down on the ground rather than waiting out the drop, which a software renderer takes minutes over
       [gameSeconds(0.5), 0],
       [`(() => { const p = window.__range.player.pos; window.__range.player.teleport(p.x, 0.5, p.z, 0, -4); })()`, 0],
@@ -632,7 +642,7 @@ export const SCENARIOS: Scenario[] = [
     note: "aboard the dropship with the map closed: the chase camera behind the ship, the panel with the jump key and the clock",
     ship: true,
     steps: [
-      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 300],
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 300],
       [gameSeconds(0.5), 0],
       // the ship runs on the wall clock and a software renderer is slow: pin it 6 s into the flight
       [`(() => { const r = window.__range; r.setScript({ held: () => false, pressedNow: () => false }); r.player.pitch = -14; r.player.yaw += 18; r.setMapOpen(false); r.ship().startAt = performance.now() / 1000 - 6; })()`, 500],
@@ -643,7 +653,7 @@ export const SCENARIOS: Scenario[] = [
     note: "aboard the dropship with the map up: the line flown and still to fly, the squad's place on it, the keys",
     ship: true,
     steps: [
-      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); })()`, 300],
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 300],
       [gameSeconds(0.5), 0],
       [`(() => { const r = window.__range; r.setScript({ held: () => false, pressedNow: () => false }); r.ship().startAt = performance.now() / 1000 - 7; })()`, 500],
     ],
@@ -776,7 +786,7 @@ export const SCENARIOS: Scenario[] = [
     name: "tour",
     note: "the guided tour: the step, what to do and the keys, the marker to walk to",
     steps: [
-      [`(() => { document.getElementById("goTour").click(); ${hideMenu}; })()`, 600],
+      [`(() => { document.getElementById("goTour").click(); document.getElementById("startMode").click(); ${hideMenu}; })()`, 600],
       [`(() => { window.__range.player.teleport(0, 0, -8, 0); })()`, 500],
       [`(() => { window.__range.player.teleport(2, 0, -2, 20); })()`, 600],
     ],

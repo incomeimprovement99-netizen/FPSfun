@@ -2334,3 +2334,36 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
 - Checks: `tools/checks/access.ts` (10 more: the sides are the screen's sides whichever way you face, the distance
   bands are words, a run is one line, off is off, and the important list is the short one) and the e2e `throw`
   section (a door and a gunshot in a real page are written down from opposite sides, and off writes nothing).
+
+## Milestone 144 — One place to start a match ✅
+
+The Play tab was fourteen buttons and nothing else. Every choice those buttons obeyed (which map, how many
+bots, how good they were, the squad size, what the ring does) lived on a tab called **1v1**, in three boxes
+that had nothing to do with each other. Playing a battle royale with a friend meant opening the 1v1 tab,
+changing a box that said "Arena: 1v1 / 1v1v1" to the battle royale, scrolling past two boxes that were about
+something else to the one that was not, and only then making the match. The owner said it plainly: "having to
+pick the 1v1 tab and then change to BR to play with a friend is kind of bad."
+
+- **The lobby.** The modes are a list down one side. Picking one opens that mode's own options beside it, and
+  only that mode's: the arena asks which of the five maps, how many bots and how good; the battle royale asks
+  the squad size, the rules, the bot squads, the ring's pace and what you land with; the range asks about its
+  dummies; the courses ask nothing, because they are one button each. Then one green button starts it.
+- **With friends is the same panel.** The button next to it makes the match on exactly those settings and
+  copies the invite link, translating the mode across on the way (the thing the player used to do by hand).
+  A 1v1 is the one mode that has no green button, because there is nobody to play.
+- **The ring has a pace** (`src/config/ring.json` `pace`): slow, normal or fast, multiplying every wait and
+  close while the circles and the damage stay where they are, so a fast match is a shorter one and not a
+  harder one. It travels in the host's welcome packet, because a guest on another clock would be standing
+  outside a ring nobody else can see. Resurgence's own faster clock multiplies on top.
+- **Boarding the dropship no longer throws the map over the screen.** The first thing anyone saw of a match
+  was a map with the ship, the sky and the island behind it (`src/config/squad.json` `dive.mapOnBoard`). The
+  minimap and the ship's own line say where it is going, and M opens the big one. A redeploy straight into
+  the sky keeps its two-second glance.
+- Nothing moved but the controls themselves: every box kept its id, so what reads it is unchanged, and the
+  page is checked against the table that says which mode obeys what.
+- Checks: `tools/checks/lobby.ts` (26: every mode has a card, every option a mode names has a group on the
+  page, no group is shown that nothing reads, every mode that can be played with friends names one the
+  Friends box offers, and the pace moves clocks without moving circles) and the e2e `panel` section (a card
+  picks rather than starts, each mode shows its own options in a real page, the setup survives a reload, the
+  green button starts what the panel is set to, the pace reaches the live ring, and With friends carries the
+  mode across).

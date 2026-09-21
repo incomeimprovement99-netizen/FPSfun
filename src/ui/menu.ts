@@ -7,6 +7,7 @@ import { OPERATORS } from "../game/operators";
 import { HEIRLOOMS } from "../game/heirlooms";
 import { Stats, type MatchKind, type MatchStats } from "../game/stats";
 import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
+import { LOBBY_MODES, lobbyMode, setupFor, friendsModeFor } from "./lobby";
 
 export type Mode = "range" | "run" | "runAdvanced" | "duel" | "arena" | "bots" | "br" | "gunrun" | "tdm" | "crown" | "control" | "ffa" | "search" | "tour";
 export type Tab = "play" | "duel" | "loadouts" | "stats" | "settings" | "controls";
@@ -20,6 +21,8 @@ export interface MenuOptions {
   onApply: (def: LoadoutDef) => void;
   /** a mode button: go there and play */
   onGo: (mode: Mode) => void;
+  /** the panel's With friends button: make a match on these settings and copy the invite */
+  onFriends?: (mode: Mode) => void;
   /** this session's numbers per gun, for the Stats tab */
   sessionGuns?: () => Array<{ name: string; shots: number; hits: number; heads: number; damage: number }>;
   /** the account level and the active challenges (src/game/progress.ts), for the Stats tab */
@@ -45,6 +48,8 @@ const word = (n: number): string => COUNT_WORDS[n] ?? String(n);
  */
 /** the battle royale's rules, the row's choice, kept between visits: the host's goes in the welcome */
 const BR_RULES_KEY = "range.brRules.v1";
+/** the lobby's mode, so the panel opens where it was left */
+const LOBBY_KEY = "range.lobby.mode";
 export function brRulesId(): string {
   const sel = document.getElementById("brRules") as HTMLSelectElement | null;
   if (sel?.value) return sel.value === "resurgence" ? "resurgence" : "br";
@@ -62,6 +67,8 @@ export function brTeamId(): string {
 
 export class Menu {
   tab: Tab = "play";
+  /** the mode the lobby is set up for, kept between visits */
+  picked: Mode = "range";
   /** the online board the Stats tab shows, and what it last fetched (kept 20 s) */
   private boardPick = BOARDS[0].id;
   private boardCache = new Map<string, { at: number; entries: BoardEntry[] }>();
@@ -82,20 +89,39 @@ export class Menu {
       this.renderStats();
     });
     this.renderStats();
-    $("goRange").addEventListener("click", () => o.onGo("range"));
-    $("goTour").addEventListener("click", () => o.onGo("tour"));
-    $("goRun").addEventListener("click", () => o.onGo("run"));
-    $("goRunAdvanced").addEventListener("click", () => o.onGo("runAdvanced"));
-    $("goDuel").addEventListener("click", () => this.show("duel"));
-    $("goArena").addEventListener("click", () => o.onGo("arena"));
-    $("goBots").addEventListener("click", () => o.onGo("bots"));
-    $("goBr").addEventListener("click", () => o.onGo("br"));
-    $("goGunRun").addEventListener("click", () => o.onGo("gunrun"));
-    $("goTdm").addEventListener("click", () => o.onGo("tdm"));
-    $("goCrown").addEventListener("click", () => o.onGo("crown"));
-    $("goControl").addEventListener("click", () => o.onGo("control"));
-    $("goFfa").addEventListener("click", () => o.onGo("ffa"));
-    $("goSearch").addEventListener("click", () => o.onGo("search"));
+    // The lobby: a card picks the mode and opens that mode's own options, and
+    // the green button starts it. A card used to start the match on the spot,
+    // on whatever the last visit had left in three boxes on another tab, which
+    // is how a battle royale with a friend came to need the tab marked 1v1.
+    for (const m of LOBBY_MODES) {
+      const card = $<HTMLButtonElement>(m.go);
+      card.addEventListener("click", () => this.pickMode(m.id));
+      // a second click on the card you are already on starts it, so the fast
+      // way in is still one gesture for anyone who knows what they want
+      card.addEventListener("dblclick", () => (m.solo ? o.onGo(m.id) : o.onFriends?.(m.id)));
+    }
+    $("startMode").addEventListener("click", () => {
+      const m = lobbyMode(this.picked);
+      if (m?.solo) o.onGo(this.picked);
+      else o.onFriends?.(this.picked);
+    });
+    $("playFriends").addEventListener("click", () => o.onFriends?.(this.picked));
+    // the aim bot, mirrored from the Settings tab: a practice helper belongs
+    // with the rest of a match's setup. Settings still keeps the stored one.
+    const aimLobby = $<HTMLSelectElement>("aimbotLobby");
+    aimLobby.addEventListener("change", () => {
+      const real = document.getElementById("aimbotMode") as HTMLSelectElement | null;
+      if (!real) return;
+      real.value = aimLobby.value;
+      real.dispatchEvent(new Event("change"));
+    });
+    let opened = "range";
+    try {
+      opened = localStorage.getItem(LOBBY_KEY) || "range";
+    } catch {
+      /* storage off: the range */
+    }
+    this.pickMode(lobbyMode(opened) ? (opened as Mode) : "range");
 
     // The battle royale's lobby row: the squad size, and a bot count that
     // goes with it. The first render reads the stored count itself: the
@@ -162,6 +188,56 @@ export class Menu {
   }
 
   /**
+   * Pick a mode: the card lights up, the panel becomes that mode's own, and
+   * the choice is remembered. Nothing starts.
+   */
+  pickMode(id: Mode): void {
+    if (!lobbyMode(id)) return;
+    this.picked = id;
+    try {
+      localStorage.setItem(LOBBY_KEY, id);
+    } catch {
+      /* storage off: it holds for the visit */
+    }
+    this.renderSetup();
+  }
+
+  /**
+   * The panel: the mode's name, its own line, and only the options it obeys.
+   * The line is read off the card rather than written twice, because the cards
+   * are what the game keeps up to date (the Run's best times, the battle
+   * royale's lobby size) and a second copy of it would go stale.
+   */
+  renderSetup(): void {
+    const m = lobbyMode(this.picked);
+    if (!m) return;
+    for (const card of document.querySelectorAll<HTMLElement>(".lobby .mode")) {
+      card.classList.toggle("on", card.dataset.mode === m.id);
+    }
+    $("setupName").textContent = m.name;
+    const card = document.getElementById(m.go);
+    $("setupLine").textContent = card?.querySelector("span")?.textContent ?? m.card;
+    const needs = setupFor(m.id);
+    for (const g of document.querySelectorAll<HTMLElement>(".setupGroup")) {
+      g.hidden = !needs.includes(g.dataset.group as never);
+    }
+    const start = $<HTMLButtonElement>("startMode");
+    const friends = $<HTMLButtonElement>("playFriends");
+    const shared = friendsModeFor(m.id);
+    start.hidden = !m.solo;
+    start.textContent = needs.length ? `Start ${m.name}` : "Start";
+    friends.hidden = !shared;
+    // with friends is the only way into a 1v1, so there it wears the colour
+    friends.classList.toggle("go", !m.solo);
+    $("setupFriends").textContent = shared
+      ? "With friends makes the match on these settings and copies the invite link: everyone who opens it plays this map, these bots and these rules."
+      : "On your own. Every mode from the arena down can be played with friends instead.";
+    // the aim bot's switch follows the one on the Settings tab
+    const real = document.getElementById("aimbotMode") as HTMLSelectElement | null;
+    if (real) $<HTMLSelectElement>("aimbotLobby").value = real.value;
+  }
+
+  /**
    * The battle royale's row: the squad size, the bot counts that make whole
    * bot squads at that size, and one line saying what the lobby comes to.
    * The counts are the size's (src/config/br.json), so picking Trios cannot
@@ -190,11 +266,12 @@ export class Menu {
     const squads = botSquads(pick, t.size);
     const theirs = `${word(squads)} squad${squads === 1 ? "" : "s"} of ${word(t.size)}`;
     const lobby = t.size === 1 ? `${word(players)} in the match, one life each` : `${word(players)} in the match: you, and ${theirs}`;
-    $("brLobby").textContent = `${lobby[0].toUpperCase()}${lobby.slice(1)}. Friends who join are on your side. The difficulty is set above. Then Play tab, Battle Royale: the ring closes six times, 4 heals, M is the map.`;
+    $("brLobby").textContent = `${lobby[0].toUpperCase()}${lobby.slice(1)}. Friends who join are on your side. The ring closes six times, there are 4 heals, and M is the map.`;
     $("brBlurb").textContent =
       t.size === 1
-        ? `Solo: drop onto Outskirts with ${word(pick)} bots, one life each, the ring closes, last one standing. Size, bots and difficulty on the Friends tab.`
-        : `${t.label}: drop onto Outskirts against ${theirs} bots, the ring closes, last squad standing. Size, bots and difficulty on the Friends tab.`;
+        ? `Solo: drop onto Outskirts with ${word(pick)} bots, one life each, the ring closes, last one standing.`
+        : `${t.label}: drop onto Outskirts against ${theirs} bots, the ring closes, last squad standing.`;
+    if (this.picked === "br") this.renderSetup();
   }
 
   /** the Stats tab: matches, courses, tech, from the profile */
@@ -322,6 +399,8 @@ export class Menu {
   setRunBest(basic: number | null, advanced: number | null): void {
     $("runBest").textContent = basic !== null ? `Seven rooms, one technique each. Your best: ${basic.toFixed(2)} s.` : "Seven rooms, one technique each, twenty pop-ups.";
     $("runAdvancedBest").textContent = advanced !== null ? `Nine rooms, 200 m, the techniques chained. Your best: ${advanced.toFixed(2)} s.` : "Nine rooms, 200 m, the techniques chained. Thirty pop-ups.";
+    // the panel shows the card's line, so a new best time has to reach it
+    if (this.picked === "run" || this.picked === "runAdvanced") this.renderSetup();
   }
 
   private editCurrent(patch: Partial<LoadoutDef>): void {

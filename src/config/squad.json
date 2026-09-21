@@ -44,7 +44,9 @@
     "glideSpeed": 14,
     "diveSpeed": 5,
     "botFall": 22,
-    "mapSeconds": 2.5
+    "mapSeconds": 2.5,
+    "_mapOnBoard": "whether boarding the dropship throws the full map up over everything. It used to, and the first thing anyone saw of a match was a map: the ship, the sky, the island and the squad were all behind it. Now the ride is the ride, the minimap and the ship's own line say where it is going, and M opens the map when you want it (src/main.ts boardShip).",
+    "mapOnBoard": false
   },
   "_ship": "The dropship (src/game/dropship.ts). It flies a straight line across the map at `height` metres and `speed` m/s; the line passes within `pass` metres of the squad's place and comes in from the side that leaves most of the line before it. It is at least minLine metres long (tries angles until one is), so a place near a corner does not get a line that clips the corner in a second. It appears doorsIn seconds short of the edge, so the doors open as it crosses into the map. From 140 m a glide carries about 160 m, so any place within that of the line can be reached, and a dive is on the ground in under 5 s. seat is where a rider's feet are against the ship's middle (inside the hull, which hides them); jumpers leave `exit` metres under it. The camera rides chase metres behind and chaseUp above. A squad follows its jumpmaster (the host) down: each follower is held back metres behind and side metres to one side of the jumpmaster, closing at gain per second, until C breaks it off or the jumpmaster is release metres off the ground. A bot squad leaves the ship as it passes nearest its place, within botJitter seconds of each other squad, each bot botGap seconds after the last. Ours throughout: Apex's ship is a minute's flight over a map ten times this size.",
   "ship": {

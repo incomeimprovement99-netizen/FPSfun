@@ -53,6 +53,12 @@
     "candidates": 8,
     "falloff": 25
   },
+  "_pace": "How fast the ring pulls in, the lobby's own setting (src/ui/lobby.ts, the panel's \"Ring\" box). It multiplies every round's wait and close, so the circles and the damage are the same match at any pace and only the clock moves: `slow` is a long looting match, `fast` is the twelve-minute one. Resurgence's own scale (src/config/abilities-resurgence, resurgence.ts ringScale) multiplies on top of whichever is picked.",
+  "pace": {
+    "slow": 1.4,
+    "normal": 1,
+    "fast": 0.7
+  },
   "_attractors": "Where the fights should end, in map-local metres (add the bounds centre for world space), each with a pull weight. The five big places from br.ts's poi list pull hardest, the four corner compounds next, and the twelve roadside stops (br.ts's ruins, culverts and container stacks) least: they are cover on the way, not somewhere to hold. tools/checks/ring-place.ts fails if these drift from br.ts.",
   "attractors": [
     {

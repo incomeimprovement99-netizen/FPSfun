@@ -11,6 +11,7 @@
 //      and the public broker are reachable (skipped, not failed, otherwise).
 //
 // Run: npm run e2e        (needs `npm run dev` already running)
+import { LOBBY_MODES, setupFor } from "../src/ui/lobby";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import modesCfg from "../src/config/modes.json";
 import brCfg from "../src/config/br.json";
@@ -241,7 +242,7 @@ const brRow = (team: "solo" | "duo" | "trio", bots: number): string =>
 async function vaultTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
   await ev(page, brRow("solo", 5));
-  await ev(page, `(() => { window.__noVault = false; document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); })()`);
+  await ev(page, `(() => { window.__noVault = false; document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   const fought = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false);
   if (!fought) {
     check("vault: the match starts", false);
@@ -292,7 +293,7 @@ async function vaultTest(browser: Browser, query: string): Promise<void> {
 async function doorTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
   await ev(page, brRow("solo", 5));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   // on the ship, before anyone has landed: every door shut
   await page.waitForFunction(`window.__range.duel()?.phase === "countdown"`, { polling: 100, timeout: 20000 }).catch(() => undefined);
   const openAtStart = await ev<number>(page, "window.__range.brMap.doors.openList().length");
@@ -412,7 +413,7 @@ async function doorTest(browser: Browser, query: string): Promise<void> {
 async function brTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
   await ev(page, brRow("solo", 5));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   await sleep(400);
   const drop = await ev<{ y: number; phase: string; dropping: boolean; poi: string; alive: number; bounds: boolean }>(
     page,
@@ -624,7 +625,7 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   // eliminated by the ring: no killcam (nobody to watch), a recap that says so
   const ringPage = await open(browser, query);
   await ev(ringPage, brRow("solo", 3));
-  await ev(ringPage, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+  await ev(ringPage, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   await ringPage.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 });
   await ev(ringPage, "(() => { window.__range.player.teleport(215, 0, 715, 0); const d = window.__range.duel(); d.shield = 0; d.health = 1; })()");
   const ringOut = await ringPage.waitForFunction("!window.__range.duel()?.alive", { polling: 200, timeout: 8000 }).then(() => true, () => false);
@@ -684,7 +685,7 @@ async function brLootTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
   // trios, the default size: the three bots are one squad of three
   await ev(page, brRow("trio", 3));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); })()`);
+  await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 });
   await sleep(300);
   await ev(page, `(() => { window.__range.duel().holdFire = true; window.__range.pickAbility("jolt"); })()`);
@@ -838,7 +839,9 @@ async function brLootTest(browser: Browser, query: string): Promise<void> {
 /** a mode alone from the Play tab's button: in the game (the pad's Start), the fight on */
 async function startModePage(browser: Browser, query: string, button: string, setup = ""): Promise<Page> {
   const page = await open(browser, query);
-  await ev(page, `(() => { ${setup}; document.getElementById("${button}").click(); })()`);
+  // the card picks the mode and the panel's own button starts it (the lobby,
+  // src/ui/lobby.ts); the settings are set first, since the panel reads them
+  await ev(page, `(() => { ${setup}; document.getElementById("${button}").click(); document.getElementById("startMode")?.click(); })()`);
   await pressPlay(page);
   await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 20000 }).catch(() => undefined);
   await ev(page, "(() => { const d = window.__range.duel(); if (d) d.holdFire = true; })()");
@@ -1000,7 +1003,7 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   {
     const a = await open(browser, query);
     await pressPlay(a);
-    await ev(a, `document.getElementById("goArena").click()`);
+    await ev(a, `document.getElementById("goArena").click(); document.getElementById("startMode").click()`);
     await sleep(800);
     const built = await ev<{ zips: number; slab: boolean }>(
       a,
@@ -1174,7 +1177,7 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   const mq = await open(browser, query);
   await ev(mq, `(() => { const s = document.getElementById("figureStyle"); const def = s.value; s.value = "mannequin"; s.dispatchEvent(new Event("change")); window.__mqDefault = def; return window.__range.loadMannequin(); })()`);
   check("figures: the mannequin is the default figure", (await ev<string>(mq, "window.__mqDefault")) === "mannequin");
-  await ev(mq, `(() => { document.getElementById("modeBots").value = "2"; document.getElementById("goCrown").click(); })()`);
+  await ev(mq, `(() => { document.getElementById("modeBots").value = "2"; document.getElementById("goCrown").click(); document.getElementById("startMode").click(); })()`);
   await pressPlay(mq);
   await mq.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 20000 }).catch(() => undefined);
   await sleep(800);
@@ -2881,7 +2884,7 @@ async function finishTest(browser: Browser, query: string): Promise<void> {
 
   // ---- the guided tour, every step, from the Play tab
   const t = await open(browser, query);
-  await ev(t, `document.getElementById("goTour").click()`);
+  await ev(t, `document.getElementById("goTour").click(); document.getElementById("startMode").click()`);
   await pressPlay(t);
   const step = () => ev<string | null>(t, "window.__range.tour.stepId");
   check("tour: the Play tab's button starts it at MOVE", (await step()) === "move", String(await step()));
@@ -3350,7 +3353,7 @@ async function shipTest(browser: Browser, query: string, squadQuery: string): Pr
   const page = await open(browser, query);
   await ev(page, "window.__straightDrop = false");
   await ev(page, brRow("solo", 5));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   await sleep(400);
   // the bots hold their fire: this is about the ride, and an idle rider on the ground is easy prey
   await ev(page, "window.__range.duel().holdFire = true");
@@ -3365,7 +3368,15 @@ async function shipTest(browser: Browser, query: string, squadQuery: string): Pr
         hidden: d.bots.filter((b) => b.bot.aboard && !b.bot.dummy.group.visible).length, bots: d.bots.length,
         edge: [edge(L.ax, L.az), edge(L.bx, L.bz)], off, ahead: along >= L.length / 2 - 30, hands: R.viewModelVisible() }; })()`
   );
-  check("the ship: the battle royale starts aboard it, at its height, the map up, the doors still shut", on.aboard && Math.abs(on.y - 138.4) < 0.6 && on.map && on.hud && on.doorsIn > 0, JSON.stringify(on));
+  // the map used to be thrown up over all of this, so the first thing anyone
+  // saw of a match was a map with the ship, the sky and the island behind it
+  check("the ship: the battle royale starts aboard it, at its height, the ride in view, the doors still shut", on.aboard && Math.abs(on.y - 138.4) < 0.6 && !on.map && on.hud && on.doorsIn > 0, JSON.stringify(on));
+  await ev(page, `window.__range.setMapOpen(true)`);
+  // hud.last is the frame that has been drawn, so the map opens on the next one
+  await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+  const byHand = await ev<boolean>(page, `!!window.__range.hud.last.mapOpen`);
+  await ev(page, `window.__range.setMapOpen(false)`);
+  check("the ship: and the map is there for the asking, rather than in the way", byHand);
   check("the ship: the five bots ride it too, out of sight", on.bots === 5 && on.hidden === 5, `${on.hidden} of ${on.bots} hidden aboard`);
   check("the ship: its line crosses the map edge to edge, over the squad's place, with the place ahead", on.edge.every((e) => e < 0.05) && on.off <= 30.01 && on.ahead, JSON.stringify({ edge: on.edge, off: on.off, ahead: on.ahead }));
   check("the ship: no hands in the view aboard", !on.hands);
@@ -3423,7 +3434,7 @@ async function shipTest(browser: Browser, query: string, squadQuery: string): Pr
   const late = await open(browser, query);
   await ev(late, "window.__straightDrop = false");
   await ev(late, brRow("solo", 2));
-  await ev(late, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+  await ev(late, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   await sleep(400);
   await ev(late, "window.__range.ship().startAt -= 60");
   const put = await late.waitForFunction("!window.__range.shipState().aboard", { polling: 50, timeout: 3000 }).then(() => true, () => false);
@@ -3490,7 +3501,7 @@ async function shipTest(browser: Browser, query: string, squadQuery: string): Pr
 async function consoleTest(browser: Browser, query: string, squadQuery: string): Promise<void> {
   const page = await open(browser, query);
   await ev(page, brRow("solo", 3));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   await sleep(400);
   await ev(page, "window.__range.duel().holdFire = true");
   const fight = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 30000 }).then(() => true, () => false);
@@ -3568,7 +3579,7 @@ async function resurgenceTest(browser: Browser, query: string, squadQuery: strin
   const page = await open(browser, query);
   await ev(page, brRow("solo", 3));
   await ev(page, brRules("resurgence"));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); })()`);
+  await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   await sleep(400);
   await ev(page, "window.__range.duel().holdFire = true");
   const fight = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 30000 }).then(() => true, () => false);
@@ -3680,7 +3691,7 @@ async function gulagTest(browser: Browser, query: string, squadQuery: string): P
     const page = await open(browser, query);
     await ev(page, "window.__noGulag = false");
     await ev(page, brRow("solo", 3));
-    await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+    await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
     await sleep(400);
     await ev(page, "window.__range.duel().holdFire = true");
     await page.waitForFunction(`window.__range.duel()?.phase === "fight" && !window.__range.player.dropping`, { polling: 200, timeout: 30000 }).catch(() => undefined);
@@ -4396,7 +4407,7 @@ async function lobbyShortTest(browser: Browser, query: string): Promise<void> {
 async function botSquadsTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
   await ev(page, brRow("trio", 6));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); })()`);
+  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   const fought = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false);
   if (!fought) {
     check("bot squads: the match starts", false);
@@ -4475,7 +4486,7 @@ async function botKnockSteps(page: Page): Promise<void> {
   check("bot knocks: with nobody of the squad standing, its downed go with it", !!bDown?.down && after.every((r) => !r.alive), JSON.stringify({ bDown, after }));
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
+/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
 /**
  * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
  * plays on the page's own clock and takes itself away, a key or a click takes
@@ -4553,6 +4564,66 @@ async function introTest(browser: Browser): Promise<void> {
   const none = await ev<{ kind: string | null; played: number }>(off, `(() => { const s = window.__range.intro.state(); return { kind: s.kind, played: s.played }; })()`);
   check("?nointro means no card at all, which is how every other page in this suite opens", none.kind === null && none.played === 0, JSON.stringify(none));
   await off.close();
+  await page.close();
+}
+
+/**
+ * The lobby (src/ui/lobby.ts, the Play tab's panel). What has to hold: a card
+ * picks a mode rather than starting one, the panel then shows that mode's own
+ * options and none of anyone else's, the green button starts it, the choice
+ * survives a reload, and With friends carries the mode across to a friends'
+ * match, which is the translation this whole panel exists to remove.
+ */
+async function lobbyPanelTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&nointro");
+  await page.waitForFunction("!!window.__range && !!window.__range.menu", { polling: 100, timeout: 30000 });
+  const shown = async (): Promise<string[]> =>
+    await ev<string[]>(page, `[...document.querySelectorAll(".setupGroup")].filter((g) => !g.hidden).map((g) => g.dataset.group)`);
+  const pick = async (id: string): Promise<void> => {
+    await ev(page, `document.getElementById("${LOBBY_MODES.find((m) => m.id === id)!.go}").click()`);
+  };
+
+  await pick("br");
+  const afterPick = await ev<{ mode: string; started: boolean }>(page, `({ mode: window.__range.menu.picked, started: !!window.__range.duel() })`);
+  check("a card picks the mode and does not start it", afterPick.mode === "br" && !afterPick.started, JSON.stringify(afterPick));
+  for (const id of ["range", "br", "bots", "gunrun", "run"]) {
+    await pick(id);
+    const on = await shown();
+    const want = [...setupFor(id)].sort().join(",");
+    check(`${id}: the panel shows its own options and nobody else's`, on.slice().sort().join(",") === want, on.join(", ") || "none");
+  }
+  const brOnly = await ev<{ ring: boolean; squad: boolean; map: boolean; dummies: boolean }>(
+    page,
+    `(() => { const vis = (id) => { const e = document.getElementById(id); return !!e && !!e.closest(".setupGroup") && !e.closest(".setupGroup").hidden; };
+      return { ring: vis("brPace"), squad: vis("brTeam"), map: vis("arenaMap"), dummies: vis("dummyMode") }; })()`
+  );
+  check("the battle royale is set up where it is played: squad, bots, the ring's pace", brOnly.ring === false && brOnly.squad === false);
+  await pick("br");
+  const brBoxes = await ev<{ ring: string; squad: string; bots: string; start: string }>(
+    page,
+    `(() => { const v = (id) => document.getElementById(id).value; return { ring: v("brPace"), squad: v("brTeam"), bots: v("brBots"), start: v("brStart") }; })()`
+  );
+  check("and every one of those boxes is on the panel with a value", !!brBoxes.ring && !!brBoxes.squad && !!brBoxes.bots && !!brBoxes.start, JSON.stringify(brBoxes));
+
+  // the ring's pace is a match setting, so it has to reach the match
+  await ev(page, `(() => { const s = document.getElementById("brPace"); s.value = "fast"; s.dispatchEvent(new Event("change")); })()`);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForFunction("!!window.__range && !!window.__range.menu", { polling: 100, timeout: 30000 });
+  const kept = await ev<{ mode: string; pace: string }>(page, `({ mode: window.__range.menu.picked, pace: document.getElementById("brPace").value })`);
+  check("the mode and its setup are still there on the next visit", kept.mode === "br" && kept.pace === "fast", JSON.stringify(kept));
+
+  await ev(page, `document.getElementById("startMode").click()`);
+  const started = await page.waitForFunction("!!window.__range.duel()", { polling: 100, timeout: 30000 }).then(() => true, () => false);
+  const ring = await ev<{ phases: number; wait: number }>(page, `(() => { const p = window.__range.duel().phases; return { phases: p.length, wait: p[0].wait }; })()`);
+  check("the panel's own button starts the match it is set up for", started, `${ring.phases} rounds`);
+  check("and the pace the panel was set to is the pace the ring runs at", ring.wait < 45, `${ring.wait} s before the first close, against 45 at the normal pace`);
+  await ev(page, "window.__range.toMenu()");
+
+  await ev(page, `document.getElementById("goBots").click(); document.getElementById("playFriends").click()`);
+  await sleep(600);
+  const friends = await ev<{ tab: string; mode: string }>(page, `({ tab: window.__range.menu.tab, mode: document.getElementById("duelMode").value })`);
+  check("With friends carries the mode across, which nobody should have to do by hand", friends.mode === "arena" && friends.tab === "duel", JSON.stringify(friends));
+  await ev(page, `(() => { const b = document.getElementById("duelLeave"); if (b && !b.hidden) b.click(); })()`);
   await page.close();
 }
 
@@ -4652,7 +4723,10 @@ async function main(): Promise<void> {
 
     console.log("\nThe first visit");
     check("a first visit shows the welcome", await ev<boolean>(page, `!document.getElementById("welcome").hidden`));
-    check("the menu button says Play before anything has started", (await ev<string>(page, `document.getElementById("play").textContent`)) === "Play");
+    // the panel's own button is the way in now; Resume is not offered until
+    // there is a game to resume, because two Play buttons is one too many
+    const buttons = await ev<{ start: string; resume: boolean }>(page, `({ start: document.getElementById("startMode").textContent, resume: !document.getElementById("play").hidden })`);
+    check("the panel's button says what it starts, and nothing says Resume before anything has started", /^Start /.test(buttons.start) && !buttons.resume, JSON.stringify(buttons));
     const probs = await ev<Record<string, string | null>>(
       page,
       `(() => { const f = window.__range.deviceProblem; return {
@@ -4817,7 +4891,7 @@ async function main(): Promise<void> {
     }
 
     console.log("\nThird person");
-    await ev(page, `document.getElementById("goRange").click()`);
+    await ev(page, `document.getElementById("goRange").click(); document.getElementById("startMode").click()`);
     await ev(page, "window.__range.setThirdPerson(true)");
     await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
     const tp = await ev<{ dist: number; fig: boolean; vm: boolean }>(page, `(() => { const p = window.__range.player; const c = window.__range.camera; const e = p.eyePosition(); return { dist: Math.hypot(c.position.x - e.x, c.position.y - e.y, c.position.z - e.z), fig: window.__range.selfFigureVisible(), vm: window.__range.viewModelVisible() }; })()`);
@@ -4888,13 +4962,13 @@ async function main(): Promise<void> {
     const after = await ev<{ name: string; slot1: string; w: string }>(page, `({ name: window.__range.loadouts.current.name, slot1: window.__range.loadouts.current.slot1, w: window.__range.loadout.slots[0].weapon.id })`);
     check("after a reload the loadout and its edit are remembered", after.name === "Test Kit" && after.slot1 === "wingman" && after.w === "wingman", JSON.stringify(after));
     // the menu's The Run button puts you at the course start, facing the line
-    await ev(page, `document.getElementById("goRun").click()`);
+    await ev(page, `document.getElementById("goRun").click(); document.getElementById("startMode").click()`);
     const at = await ev<{ x: number; z: number; yaw: number }>(page, `({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, yaw: window.__range.player.yaw })`);
     check("The Run button: at the course start facing the start line", Math.abs(at.x + 21.5) < 0.5 && Math.abs(at.z - 10.2) < 0.5 && at.yaw === 180, JSON.stringify(at));
-    await ev(page, `document.getElementById("goRunAdvanced").click()`);
+    await ev(page, `document.getElementById("goRunAdvanced").click(); document.getElementById("startMode").click()`);
     const adv = await ev<{ x: number; z: number; yaw: number }>(page, `({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, yaw: window.__range.player.yaw })`);
     check("The Run (Advanced) button: at the advanced course start", Math.abs(adv.x - 21.5) < 0.5 && Math.abs(adv.z - 10.2) < 0.5 && adv.yaw === 180, JSON.stringify(adv));
-    await ev(page, `document.getElementById("goArena").click()`);
+    await ev(page, `document.getElementById("goArena").click(); document.getElementById("startMode").click()`);
     const ar = await ev<{ x: number; z: number }>(page, `({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })`);
     check("Arena alone: at the arena's first spawn", Math.abs(ar.x - 90) < 0.5 && Math.abs(ar.z + 69) < 0.5, JSON.stringify(ar));
     // put the default back for the 1v1 pages
@@ -4954,6 +5028,10 @@ async function main(): Promise<void> {
       await padTest(browser, "?norender");
     }
 
+    if (want("panel")) {
+      console.log("\nThe lobby");
+      await lobbyPanelTest(browser);
+    }
     if (want("range")) {
       console.log("\nThe range's tooling");
       await rangeTest(browser, "?norender");

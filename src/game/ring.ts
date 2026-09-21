@@ -38,6 +38,25 @@ export const RING_PHASES: readonly RingPhase[] = cfg.phases;
 /** seconds between damage ticks outside */
 export const RING_TICK = cfg.tick;
 
+/** how fast the ring pulls in, the lobby's setting: the multiplier on every wait and close */
+export const RING_PACE: Readonly<Record<string, number>> = cfg.pace;
+
+/** the paces the lobby offers, slowest first */
+export type RingPace = "slow" | "normal" | "fast";
+
+/**
+ * The same match at a different clock. Only the waits and the closes move:
+ * the circles are where they were and a tick outside hurts the same, so a
+ * fast match is not a harder one, it is a shorter one. That matters because
+ * the radii are what the map was built around, and scaling those would move
+ * every fight somewhere the cover was not placed for it.
+ */
+export function ringPace(phases: readonly RingPhase[], pace: string): RingPhase[] {
+  const mul = RING_PACE[pace] ?? 1;
+  if (mul === 1) return phases.map((p) => ({ ...p }));
+  return phases.map((p) => ({ ...p, wait: Math.round(p.wait * mul), close: Math.round(p.close * mul) }));
+}
+
 /** the square the ring lives in: the map's centre and half its side, world space */
 export const RING_BOUNDS = cfg.bounds;
 
