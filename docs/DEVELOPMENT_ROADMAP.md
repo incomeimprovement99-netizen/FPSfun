@@ -2686,3 +2686,25 @@ seeing without my naming it.
   is said in the clear mask rather than by leaving the field out, and an outfit we do not have is dropped),
   and the e2e `duel` section, where the guest arrives in a tracksuit and the host has to draw it. The look
   is `outfit-wardrobe`, `outfit-wardrobe-2`, `outfit-builds` and `loadout-wear`.
+
+## Milestone 160 — The body measured up the spine, not across it ✅
+
+The second half of the measuring Milestone 159 started. The limbs got a profile off the model; the body was
+still one box with three numbers I had typed in by eye, and it showed.
+
+- **The spine bone leans back.** A vertex 45 cm up the chest lands 18 cm behind that bone's own axis. Every
+  garment on the bone leans with it, so a single box centred on an average of the body is wrong in three
+  ways at once, and the measurements say by how much: 360 mm wide at a waist that is 249, 220 mm deep at a
+  chest that is 300, and its middle 90 mm behind where the collar's middle actually is.
+- **So the body is six bands now** (`outfits.json` `fit.body`), each with its width, its depth and where its
+  middle sits front to back, measured off the model by `tools/checks/body.ts`. The middle runs from +20 mm
+  at the hips to -69 mm at the collar: 89 mm of lean, written down.
+- **And the jacket follows them.** It is a tube of rectangular sections up the bone rather than a box: seven
+  rings, four corners each, capped at the hem and the collar so it is not open at either end. The ghillie's
+  strips hang off the same bands, so they sit on the body rather than around an average of it.
+- Checks: `tools/checks/body.ts` gained three (the config holds six bands; the jacket clears the body at
+  every one of them on the leanest build, worst case 24.8 mm; and the lean is there at all, 89 mm, which is
+  the thing one box could not hold). The look is `outfit-close` and `outfit-shapes`.
+- `fit.torso` and `fit.torsoAt` are gone from the code with it. The kit in `gear.ts` never used them: it
+  has its own numbers in `gear.json` and hangs off the upper spine bone. Measuring the kit against these
+  bands the way the clothes now are is the next one of these.

@@ -243,6 +243,34 @@ for (const [bone, r] of Object.entries(MEASURED)) {
     const l = list.slice().sort((a, b) => a - b);
     return l.length ? l[Math.floor(l.length * f)] : 0;
   };
+  // The body up the spine bone, band by band, the way the limbs are measured
+  // along theirs: how wide it is, how deep, and where its middle sits. One box
+  // cannot hold a body that leans; six bands can. The span is the jacket's own
+  // (outfits.json pieces.jacket), in the bone's own units.
+  const SPINE = 0.265;
+  const lo = -0.26 * SPINE;
+  const hi = 1.62 * SPINE;
+  const BANDS = 6;
+  const band = (i: number): { at: number; w: number; d: number; mid: number } => {
+    const y = lo + ((hi - lo) * i) / (BANDS - 1);
+    let half = 0.05;
+    let inn: Array<[number, number, number]> = [];
+    while (inn.length < 12 && half < 0.3) {
+      inn = torso.filter(([, , vy]) => Math.abs(vy - y) <= half);
+      half += 0.03;
+    }
+    const f = pct(inn.map(([, z]) => z), 0.97);
+    const b = -pct(inn.map(([, z]) => -z), 0.97);
+    return { at: y / SPINE, w: pct(inn.map(([x]) => x), 0.97) * 2, d: f - b, mid: (f + b) / 2 };
+  };
+  const bands = Array.from({ length: BANDS }, (_, i) => band(i));
+  const r3 = (n: number): number => Math.round(n * 1000) / 1000;
+  if (process.env.BODY_SPREAD) {
+    console.log(`
+  the body up the spine, to paste into outfits.json fit.body:
+  ${JSON.stringify({ from: -0.26, to: 1.62, w: bands.map((b) => r3(b.w)), d: bands.map((b) => r3(b.d)), mid: bands.map((b) => r3(b.mid)) })}
+`);
+  }
   // the chest and shoulders, not the hips: the top two thirds of the body
   const up = torso.filter(([, , y]) => y > -0.05);
   const halfW = pct(up.map(([x]) => x), 0.97);
@@ -274,20 +302,35 @@ for (const [bone, r] of Object.entries(MEASURED)) {
       console.log(`      ${name}: ${l.length}, z ${(zs[0] * 1000).toFixed(0)} .. ${(zs[zs.length - 1] * 1000).toFixed(0)} (mid ${(zs[Math.floor(zs.length / 2)] * 1000).toFixed(0)}), y ${(ys[0] * 1000).toFixed(0)} .. ${(ys[ys.length - 1] * 1000).toFixed(0)}`);
     }
   }
-  const t = outfitCfg.fit.torso;
-  const at = outfitCfg.fit.torsoAt as number[];
   check("the body is measurable across the shoulders", halfW > 0.1 && halfW < 0.35, `${(halfW * 2000).toFixed(0)} mm across, ${((front - back) * 1000).toFixed(0)} deep, middle ${(((front + back) / 2) * 1000).toFixed(0)} mm in front of the spine bone`);
-  check("outfits.json says the body is as wide as it is", t.w / 2 >= halfW - 0.004 && t.w / 2 <= halfW + 0.05, `config ${(t.w * 1000).toFixed(0)} mm against a measured ${(halfW * 2000).toFixed(0)}`);
-  // How DEEP it is is not checked here, and the reason is worth writing down.
-  // The spine bone leans back: a vertex 45 cm up the chest lands 18 cm behind
-  // the bone's own axis, so the front and back of the body measured in that
-  // frame are the lean as much as the body. The garment leans with the bone,
-  // which is why one box tuned by eye (fit.torsoAt) looks right in the middle
-  // of the chest and leaves the top of the shoulders outside it. The fix is
-  // the same one the limbs got: a profile up the bone, a centre and a
-  // half-depth per band, and a garment built to follow it. That is ranked in
-  // docs/ASSET_GAP.md; until then these two numbers are printed, not checked.
-  console.log(`      (the body in the spine bone's own frame: ${((front - back) * 1000).toFixed(0)} mm deep, middle ${(((front + back) / 2) * 1000).toFixed(0)} mm, against a config ${(t.d * 1000).toFixed(0)} mm at ${(at[2] * 1000).toFixed(0)} mm; the bone leans, so these are not the same measurement)`);
+  // What the jacket is actually built on now: the bands, checked the way the
+  // limbs are. A body that leans cannot be held by one box, so the garment is
+  // a tube of rectangular sections up the bone, and what matters is that no
+  // band of it is inside the body at the leanest build.
+  const cfg = (outfitCfg.fit as unknown as { body: { from: number; to: number; w: number[]; d: number[]; mid: number[] } }).body;
+  const jacket = (outfitCfg.pieces as Record<string, { over: number }>).jacket;
+  const lean = Math.min(...Object.values(outfitCfg.builds).map((b) => b.cloth));
+  check("outfits.json holds the body's own shape up the spine", cfg && cfg.w.length === BANDS && cfg.d.length === BANDS && cfg.mid.length === BANDS, `${cfg?.w.length ?? 0} bands`);
+  let worstW = 9;
+  let worstD = 9;
+  let where = "";
+  for (let i = 0; i < BANDS; i++) {
+    const b = bands[i];
+    const gw = cfg.w[i] / 2 + jacket.over * lean - b.w / 2;
+    const gd = cfg.d[i] / 2 + jacket.over * lean - (b.d / 2 + Math.abs(cfg.mid[i] - b.mid));
+    if (gw < worstW) {
+      worstW = gw;
+      where = `band ${i} of ${BANDS}`;
+    }
+    worstD = Math.min(worstD, gd);
+  }
+  check("and the jacket clears the body at every band of it, on the leanest build", worstW >= 0.002 && worstD >= 0.002, `${(Math.min(worstW, worstD) * 1000).toFixed(1)} mm at its worst, ${where}`);
+  check("the body leans, which is the thing one box could not hold", Math.abs(cfg.mid[0] - cfg.mid[BANDS - 1]) > 0.04, `${((cfg.mid[0] - cfg.mid[BANDS - 1]) * 1000).toFixed(0)} mm from the hips to the collar`);
+
+  // the kit (gear.json) is not on these bands and never was: it has its own
+  // numbers on the upper spine bone. This says what it would have to clear if
+  // it were measured the same way, which is the next of these.
+  if (process.env.BODY_SPREAD) console.log(`      (the chest the kit hangs on: ${((front - back) * 1000).toFixed(0)} mm deep, middle running ${(cfg.mid[0] * 1000).toFixed(0)} to ${(cfg.mid[BANDS - 1] * 1000).toFixed(0)} mm)`);
 }
 
 // and the thing an eye sees: at the leanest build, does the cloth still clear?

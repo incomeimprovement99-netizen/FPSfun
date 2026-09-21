@@ -170,9 +170,10 @@ function rags(bone: string, from: number, to: number, over: number, count: numbe
     const f = (i + 0.5) / count;
     const a = f * Math.PI * 2 * 3.7;
     const t = from + (to - from) * f;
-    const r = (bone === "spine_01" ? FIT.torso.w * 0.46 : bodyAt(bone, t)) + over;
+    const band = bone === "spine_01" ? bodyBand(t) : null;
+    const r = (band ? (band.w + band.d) / 4 : bodyAt(bone, t)) + over;
     const strip = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), mat);
-    strip.position.set(Math.sin(a) * r, t * len - size[1] * 0.35, Math.cos(a) * r + (bone === "spine_01" ? FIT.torsoAt[2] : 0));
+    strip.position.set(Math.sin(a) * r, t * len - size[1] * 0.35, Math.cos(a) * r + (band ? band.mid : 0));
     strip.rotation.set(0.25 + (i % 3) * 0.12, a, (i % 2 ? 0.2 : -0.2));
     strip.castShadow = true;
     g.add(strip);
@@ -213,14 +214,68 @@ function hood(m: OutfitMats): THREE.Group {
   return g;
 }
 
-/** the torso's own shell: a box along the spine, a little wider at the shoulders */
+/** the body up the spine, band by band, measured off the model (tools/checks/body.ts) */
+const BODY = FIT.body as { from: number; to: number; w: number[]; d: number[]; mid: number[] };
+
+/** the body's width, depth and middle a fraction of the way up the spine bone */
+function bodyBand(t: number): { w: number; d: number; mid: number } {
+  const n = BODY.w.length;
+  const f = Math.max(0, Math.min(1, (t - BODY.from) / (BODY.to - BODY.from))) * (n - 1);
+  const i = Math.min(n - 2, Math.floor(f));
+  const k = f - i;
+  const at = (a: number[]): number => a[i] + (a[i + 1] - a[i]) * k;
+  return { w: at(BODY.w), d: at(BODY.d), mid: at(BODY.mid) };
+}
+
+/**
+ * The body's own shell: a tube of rectangular sections up the spine, one per
+ * band, rather than the single box this used to be.
+ *
+ * The reason is the same as the limbs': the spine bone LEANS BACK, so a
+ * garment built on its axis leans with it. The body's middle drifts from
+ * +20 mm at the hips to -69 mm at the shoulders, and one box centred on an
+ * average of that is too wide at the waist, too shallow at the chest and 90 mm
+ * out at the collar, which is where the tops of the shoulders used to stand
+ * outside their own jacket.
+ */
 function torso(from: number, to: number, over: number, mat: THREE.Material, shoulders = 1): THREE.Mesh {
   const len = BONE_LEN.spine_01;
-  const h = Math.max(0.05, (to - from) * len);
-  const g = new THREE.BoxGeometry(FIT.torso.w * shoulders + over * 2, h, FIT.torso.d + over * 2);
-  // the spine bone runs up the BACK, so a garment centred on it sits behind
-  // the body: the chest's own middle is measured off the rig (fit.torsoAt)
-  g.translate(FIT.torsoAt[0], from * len + h / 2 + FIT.torsoAt[1], FIT.torsoAt[2]);
+  const steps = 7;
+  const ring: number[][] = [];
+  for (let i = 0; i < steps; i++) {
+    const t = from + ((to - from) * i) / (steps - 1);
+    const b = bodyBand(t);
+    const hw = (b.w * shoulders) / 2 + over;
+    const hd = b.d / 2 + over;
+    const y = t * len;
+    // where the body's middle actually is at this height, measured, which is
+    // what the old single offset (fit.torsoAt) was standing in for
+    const z = b.mid;
+    // four corners, the same way round at every band
+    ring.push([-hw, y, z - hd, hw, y, z - hd, hw, y, z + hd, -hw, y, z + hd]);
+  }
+  const pos: number[] = [];
+  const idx: number[] = [];
+  for (const r of ring) for (let c = 0; c < 4; c++) pos.push(r[c * 3], r[c * 3 + 1], r[c * 3 + 2]);
+  for (let i = 0; i < steps - 1; i++) {
+    for (let c = 0; c < 4; c++) {
+      const a = i * 4 + c;
+      const b = i * 4 + ((c + 1) % 4);
+      idx.push(a, b + 4, b, a, a + 4, b + 4);
+    }
+  }
+  // the ends, so a jacket is not open at the hem and the collar
+  const base = ring.length * 4;
+  pos.push(0, ring[0][1], ring[0][2] + (ring[0][8] - ring[0][2]) / 2);
+  pos.push(0, ring[steps - 1][1], ring[steps - 1][2] + (ring[steps - 1][8] - ring[steps - 1][2]) / 2);
+  for (let c = 0; c < 4; c++) {
+    idx.push(base, ((c + 1) % 4), c);
+    idx.push(base + 1, (steps - 1) * 4 + c, (steps - 1) * 4 + ((c + 1) % 4));
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
   const m = new THREE.Mesh(g, mat);
   m.castShadow = true;
   return m;

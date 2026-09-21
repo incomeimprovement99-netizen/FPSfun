@@ -13,9 +13,15 @@
       "thigh": [0.096, 0.097, 0.102, 0.099, 0.088, 0.08],
       "calf": [0.061, 0.089, 0.104, 0.098, 0.076, 0.056]
     },
-    "torso": { "w": 0.36, "d": 0.22, "h": 0.46 },
-    "_torsoAt": "the chest's middle in the spine bone's own frame, metres: the bone runs up the back, and a garment centred on it sits behind the body (measured off the rig: the collarbones are 0.09 to 0.11 in front of it)",
-    "torsoAt": [0, 0, 0.048]
+    "_body": "the body up the spine bone, band by band, the way the limbs are measured along theirs: six bands from `from` to `to` of the bone's length, each with the body's width, its depth and where its middle sits front to back. Measured off the model by tools/checks/body.ts. The spine bone leans back, so the middle drifts from +20 mm at the hips to -69 mm at the shoulders; one box on that axis is too wide at the waist, too shallow at the chest and 90 mm out at the collar, which is where the body used to stand out of its own jacket.",
+    "body": {
+      "from": -0.26,
+      "to": 1.62,
+      "w": [0.274, 0.269, 0.249, 0.326, 0.353, 0.336],
+      "d": [0.219, 0.204, 0.229, 0.271, 0.3, 0.248],
+      "mid": [0.02, 0.027, 0.009, -0.027, -0.044, -0.069]
+    },
+    "_gone": "torso and torsoAt were one box and one offset for the whole body, typed in by eye. They are replaced by `body` above, measured band by band, and nothing reads them any more."
   },
   "_builds": "How heavy-set a figure is. The body underneath is one mannequin and one set of hit boxes, and that does not change: what changes is how thick the CLOTHES on it are and how wide across the shoulders they sit, which is what reads as build at any distance. Keeping the hit boxes identical is the point rather than a shortcut: a game where a bigger-looking character is easier to hit is a game where nobody picks them.",
   "builds": {
