@@ -68,7 +68,9 @@ down its left side to jump there.
    it walks you through every move and key), the two courses, the arena alone
    or against bots, the battle royale, Gun Run, team deathmatch, free-for-all,
    Crown, Control and Search. Whatever you pick, the panel beside it asks the
-   questions that mode actually has: which of the five arenas, how many bots
+   questions that mode actually has: which of the five arenas (their cover is
+   dressed in CC0 crates, barriers and racks standing in the exact space the
+   collision box does, so what you hide behind is what you see), how many bots
    and how good they are, the squad size and the ring's pace for a battle
    royale, whether you land with a loadout, whether the aim bot is on for
    practice. Then **Start**, or **With friends**, which makes the match on
