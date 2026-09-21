@@ -2253,3 +2253,12 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   that I could verify, and picking one is a judgement by ear rather than by licence, so it waits on the owner.
 - Checks: `tools/checks/feel.ts` (the layer is under the shot and not the shot, every class has a rate, and a
   heavier gun's action is slower than a lighter one's).
+
+## Milestone 138 — A card in the gap between rounds ✅
+2026-09-20 (Phase 15). `src/game/hud.ts`, `src/game/duel.ts`, `src/game/modematch.ts`, `tools/e2e.ts`, `docs/NEXT_STEPS.md`.
+- What was actually missing from item 6 of the ranked list, once the list was checked against the code: the modes
+  have a clock and a round-end intermission already, and what that gap showed was a banner saying ROUND WON and
+  nothing else. It carries a card now: every player in the round just played, your side first with your own row
+  lit, and what they did (kills and deaths).
+- Checks: the e2e `modes` section (the gap between Crown's rounds carries a row per player with both columns
+  filled, and your own row among them).

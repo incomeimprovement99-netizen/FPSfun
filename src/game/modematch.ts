@@ -1586,7 +1586,7 @@ export class ArenaMode extends Duel {
       them: 0,
       youWonRound: decided && this.phase === "roundEnd" ? this.lastWinner === this.id || (this.modeKind === "search" && this.lastWinner === TEAM_WIN(myTeam)) : base.youWonRound,
       youWonMatch: this.phase === "matchEnd" ? won : null,
-      players: rows.map((r) => ({ name: r.name, score: this.modeKind === "crown" ? r.wins : this.modeKind === "gunrun" ? r.level : r.kills, alive: r.alive, you: r.you })),
+      players: rows.map((r) => ({ name: r.name, score: this.modeKind === "crown" ? r.wins : this.modeKind === "gunrun" ? r.level : r.kills, alive: r.alive, you: r.you, kills: r.kills, deaths: r.deaths, ally: r.ally || r.you })),
       mode,
     };
   }

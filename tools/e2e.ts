@@ -1047,6 +1047,12 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await sleep(900);
   const c2 = await ev<{ phase: string; wins: number; round: number }>(c, "(() => { const d = window.__range.duel(); return { phase: d.phase, wins: d.hud().mode.crown.wins, round: d.round }; })()");
   check("crown: 30 s holding it takes the round", c2.phase === "roundEnd" && c2.wins === 1, JSON.stringify(c2));
+  // the gap between rounds says what happened in the one just played
+  const card = await ev<{ rows: Array<{ name: string; kills: number | null; deaths: number | null; you: boolean }> } | null>(
+    c,
+    `(() => { const p = window.__range.hud.last?.duel?.players ?? null; return p ? { rows: p.map((r) => ({ name: r.name, kills: r.kills ?? null, deaths: r.deaths ?? null, you: r.you })) } : null; })()`
+  );
+  check("crown: the gap between rounds carries a card of who did what", !!card && card.rows.length > 1 && card.rows.every((r) => r.kills !== null && r.deaths !== null) && card.rows.some((r) => r.you), JSON.stringify(card));
   const r2 = await c.waitForFunction("window.__range.duel().phase === 'fight' && window.__range.duel().round === 2", { polling: 200, timeout: 12000 }).then(() => true, () => false);
   check("crown: round 2 starts with the crown waiting again", r2 && (await ev<string>(c, "window.__range.duel().hud().mode.crown.phase")) === "waiting");
   await ev(c, "window.__range.duel()?.leave()");

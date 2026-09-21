@@ -202,7 +202,7 @@ export interface DuelHud {
   youWonMatch: boolean | null;
   zone: { live: boolean; startsIn: number; you: number; them: number; need: number };
   /** every player: name, score, alive; you first */
-  players: Array<{ name: string; score: number; alive: boolean; you: boolean }>;
+  players: Array<{ name: string; score: number; alive: boolean; you: boolean; kills?: number; deaths?: number; ally?: boolean }>;
   /** the message while the host waits for the rest to arrive */
   waiting: string | null;
   /** at the end of a match: the numbers for the card (streak from the profile) */

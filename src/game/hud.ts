@@ -574,6 +574,41 @@ export class Hud {
   }
 
   /**
+   * The card in the gap between rounds: who did what in the one just played.
+   * A shipped shooter uses this moment to tell you why you lost, and we were
+   * showing a banner and nothing else (docs/NEXT_STEPS.md item 6). Your side
+   * is listed first with your own row lit; the columns are what the mode
+   * counts, kills and deaths.
+   */
+  private roundCard(d: NonNullable<HudState["duel"]>, u: number, cx: number): void {
+    const rows = d.players.filter((p) => p.kills !== undefined).slice(0, 8);
+    if (!rows.length) return;
+    const c = this.ctx;
+    const w = 420 * u;
+    const rowH = 26 * u;
+    const top = this.h * 0.46;
+    const h = rowH * (rows.length + 1) + 16 * u;
+    c.fillStyle = "rgba(10, 13, 16, 0.82)";
+    c.fillRect(cx - w / 2, top, w, h);
+    c.strokeStyle = "rgba(255,255,255,0.12)";
+    c.lineWidth = 1;
+    c.strokeRect(cx - w / 2, top, w, h);
+    const x0 = cx - w / 2 + 16 * u;
+    let y = top + 22 * u;
+    this.text("THE ROUND", x0, y, 700, 13 * u, DIM);
+    this.text("KILLS", cx + w / 2 - 92 * u, y, 700, 11 * u, DIM, "right");
+    this.text("DEATHS", cx + w / 2 - 16 * u, y, 700, 11 * u, DIM, "right");
+    y += 10 * u;
+    for (const p of rows) {
+      y += rowH;
+      const col = p.you ? "#ffd23c" : p.ally ? "#7ddc8a" : WHITE;
+      this.text(p.name, x0, y, p.you ? 700 : 600, 15 * u, col);
+      this.text(`${p.kills ?? 0}`, cx + w / 2 - 92 * u, y, 700, 15 * u, col, "right");
+      this.text(`${p.deaths ?? 0}`, cx + w / 2 - 16 * u, y, 600, 15 * u, DIM, "right");
+    }
+  }
+
+  /**
    * The squad's overlays: down (the bleed-out clock, a red edge, who is
    * reviving you), a revive or beacon hold's bar, the banner you carry, and
    * whose eyes you are watching through.
@@ -970,6 +1005,7 @@ export class Hud {
     } else if (d.phase === "roundEnd" && d.youWonRound !== null) {
       const winner = d.players.find((p) => !p.you && p.alive && d.players.length > 2 && !d.youWonRound);
       this.text(d.youWonRound ? "ROUND WON" : winner ? `${winner.name} TAKES THE ROUND` : "ROUND LOST", cx, this.h * 0.38, 700, 56 * u, d.youWonRound ? "#7ddc8a" : RED, "center");
+      this.roundCard(d, u, cx);
     } else if (d.phase === "matchEnd" && d.youWonMatch !== null) {
       this.text(d.youWonMatch ? "YOU WIN THE MATCH" : "YOU LOST THE MATCH", cx, this.h * 0.36, 700, 60 * u, d.youWonMatch ? "#ffd23c" : RED, "center");
       this.text(`${d.you} - ${d.them}   rematch in ${Math.ceil(d.left)}`, cx, this.h * 0.36 + 44 * u, 700, 22 * u, WHITE, "center");

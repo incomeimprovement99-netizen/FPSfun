@@ -11,7 +11,7 @@ import { MUZZLE, flashSize } from "../../src/game/muzzle";
 import { blastShakeDeg } from "../../src/game/impacts";
 
 import playerCfg from "../../src/config/player.json";
-import audioCfg from "../../src/config/audio.json";
+
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
   if (!cond) fails++;
