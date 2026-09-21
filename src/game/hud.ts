@@ -204,6 +204,8 @@ export interface HudState {
   healWheel?: { items: Array<{ id: string; name: string; count: number }>; pick: string | null } | null;
   /** the emote wheel (7, held): the emotes round it and the one the mouse points at */
   emoteWheel?: { items: string[]; pick: number | null } | null;
+  /** the ping wheel (the ping key, held): what a mark would mean, and the one the mouse points at */
+  pingWheel?: { items: string[]; pick: number | null } | null;
   /** nameplates over the other players and the bots */
   plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean; aimbot?: boolean }>;
   /** real shield and health (a 1v1); the bars are decorative without it */
@@ -2313,6 +2315,7 @@ export class Hud {
       this.drawOrdnance(s, u, 384 * u, this.h - 52 * u);
       this.drawHealWheel(s, u);
     this.drawEmoteWheel(s, u);
+    this.drawPingWheel(s, u);
       return;
     }
     const x = 34 * u + 350 * u;
@@ -2363,6 +2366,35 @@ export class Hud {
   }
 
   /** the heal wheel: the five heals round the crosshair, the one pointed at lit, a count on each */
+  /** the ping wheel: what a mark would mean, six round the middle */
+  private drawPingWheel(s: HudState, u: number): void {
+    const w = s.pingWheel;
+    if (!w) return;
+    const c = this.ctx;
+    const cx = this.w / 2;
+    const cy = this.h / 2;
+    const R = 130 * u;
+    c.fillStyle = "rgba(0,0,0,0.35)";
+    c.beginPath();
+    c.arc(cx, cy, R + 56 * u, 0, Math.PI * 2);
+    c.fill();
+    w.items.forEach((name, i) => {
+      const a = (i / w.items.length) * Math.PI * 2;
+      const x = cx + Math.sin(a) * R;
+      const y = cy - Math.cos(a) * R;
+      const on = w.pick === i;
+      c.fillStyle = on ? "rgba(90,190,255,0.3)" : "rgba(8,10,12,0.75)";
+      c.beginPath();
+      c.arc(x, y, 44 * u, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = on ? "#5abeff" : "rgba(255,255,255,0.25)";
+      c.lineWidth = 2 * u;
+      c.stroke();
+      for (const [j, line] of name.split(" ").entries()) this.text(line, x, y + (j - (name.split(" ").length - 1) / 2) * 13 * u + 4 * u, 700, 11 * u, on ? "#5abeff" : WHITE, "center");
+    });
+    this.text("MOVE TO WHAT YOU MEAN, LET GO TO MARK IT", cx, cy + R + 76 * u, 700, 13 * u, DIM, "center");
+  }
+
   /** the emote wheel: six round the middle, the one pointed at lit */
   private drawEmoteWheel(s: HudState, u: number): void {
     const w = s.emoteWheel;

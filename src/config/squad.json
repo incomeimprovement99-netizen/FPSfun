@@ -106,5 +106,17 @@
     ],
     "resetAfter": 180,
     "tapTime": 0.3
+  },
+  "_pingWheel": "Apex's ping wheel (src/game/brplay.ts PING_INTENTS, src/main.ts): a tap of the ping key marks what you are looking at, and HOLDING it opens a wheel of what the mark MEANS. A squad without voice is legible or it is not, and one mark that says only 'here' is not. The lives are how long each stays up: a plan outlives a warning, because a warning is about this second and a plan is about the next minute.",
+  "pingWheel": {
+    "openAfter": 0.2,
+    "life": {
+      "go": 12,
+      "defend": 20,
+      "attack": 14,
+      "ammo": 16,
+      "watch": 14,
+      "enemy": 6
+    }
   }
 }

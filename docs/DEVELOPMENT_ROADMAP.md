@@ -2274,3 +2274,18 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   a match can produce (60 kills, 20,000 damage).
 - Checks: `tools/checks/boards.ts` (the new rule keeps the best, ignores a worse match and refuses a forgery, and
   every board the game posts to is one the server keeps).
+
+## Milestone 140 — The ping wheel ✅
+2026-09-20 (Phase 15). `src/game/brplay.ts`, `src/main.ts`, `src/game/hud.ts`, `src/config/squad.json`, `tools/checks/pingwheel.ts` (new), `tools/verify.ts`, `tools/e2e.ts`, `README.md`.
+- Item 11 of the ranked list. One ping marked a place, an enemy or an item, and said nothing about why. **Holding**
+  the ping key now opens Apex's wheel: going here, attacking here, watching here, enemy here, need ammo, defending
+  here. A tap still does what it always did, so nothing anyone has learned changes.
+- **A plan outlives a warning**: an enemy call stays up 6 s, attacking and watching 14, ammo 16, defending 20. A
+  mark about this second and a mark about the next minute are not the same thing and should not live the same
+  length of time.
+- The marks go out through `sendMark`, which already carried a label, so a squad mate sees the words you chose
+  without a new message on the wire.
+- Checks: `tools/checks/pingwheel.ts` (12: the wheel says what a squad has to say, in words rather than symbols,
+  every slice can be picked and the middle picks none, and every intent has a life with a plan outliving a
+  warning) and the e2e `squad` section (the real middle button held opens it, and what it marked reaches the host
+  in the words it was marked with).

@@ -1709,6 +1709,30 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   await ev(guest, `(() => { const r = window.__range; const d = r.duel(); d.sendMark("go", r.player.pos.clone(), "GOING HERE"); })()`);
   const pinged = await host.waitForFunction("window.__range.brPlay.markers.some((m) => m.from === 1 && m.k === 'go')", { polling: 100, timeout: 4000 }).then(() => true, () => false);
   check("squad: the guest's ping reaches the host", pinged);
+  // and the wheel: holding the ping key says what the mark MEANS, and that
+  // reaches the host too (src/game/brplay.ts PING_INTENTS)
+  {
+    await ev(guest, "window.__range.input.locked = true");
+    await guest.mouse.down({ button: "middle" });
+    await sleep(450);
+    const wheel = await ev<{ open: boolean; items: number; pick: number | null }>(
+      guest,
+      `(() => { const w = window.__range.hud.last?.pingWheel ?? null; return { open: !!w, items: w ? w.items.length : 0, pick: w ? w.pick : null }; })()`
+    );
+    await guest.mouse.up({ button: "middle" });
+    await sleep(150);
+    check("squad: holding the ping key opens the wheel of what a mark means", wheel.open && wheel.items === 6, JSON.stringify(wheel));
+    const sent = await ev<{ label: string | null }>(
+      guest,
+      `new Promise((ok) => { const r = window.__range; const d = r.duel();
+        // the wheel's own marking path, at the slice DEFENDING HERE sits in
+        const label = r.brPlay.pingIntent(d, r.player.pos.clone(), new r.THREE.Vector3(0, 0, -1), r.gameTime(), d.id, 5);
+        r.input.locked = false;
+        setTimeout(() => ok({ label }), 100); })`
+    );
+    const seen = await host.waitForFunction(`window.__range.brPlay.markers.some((m) => m.from === 1 && m.label === "DEFENDING HERE")`, { polling: 100, timeout: 4000 }).then(() => true, () => false);
+    check("squad: what the wheel marked reaches the host, in the words it was marked with", sent.label === "DEFENDING HERE" && seen, JSON.stringify({ ...sent, seen }));
+  }
   // the ring hurts a guest outside it on the guest's own clock (it used to tick about once a minute)
   const g0 = await ev<number>(guest, "(() => { const d = window.__range.duel(); window.__range.player.teleport(215, 0, 715, 0); return d.shield + d.health; })()");
   await sleep(3400);

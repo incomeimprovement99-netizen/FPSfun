@@ -78,7 +78,7 @@ import { Aimbot } from "./game/aimbot";
 import { blastOffsets } from "./game/blast";
 import hudCfg from "./config/hud.json";
 import { SuperglideTrainer } from "./game/trainer";
-import { BrPlay } from "./game/brplay";
+import { BrPlay, PING_INTENTS, pingPickAt } from "./game/brplay";
 import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
@@ -2497,6 +2497,11 @@ let wheelPick: HealItem | null = null;
 let emoteWheelOpen = false;
 const emoteVec = { x: 0, y: 0 };
 let emotePick: number | null = null;
+/** the ping wheel (src/game/brplay.ts PING_INTENTS): held open, where the mouse points, and what it picked */
+let pingHeldAt = -1;
+let pingWheelOpen = false;
+const pingVec = { x: 0, y: 0 };
+let pingPick: number | null = null;
 let emoteHeldAt = -1;
 /** your emote playing (emotes.ts): which, and until when; your view steps back to watch it */
 let emoting: { index: number; until: number } | null = null;
@@ -4735,15 +4740,36 @@ function step(): void {
         fireLockedToRelease = true;
       }
     }
-    // the middle mouse button (RB): a ping for the squad; twice quickly, an enemy there
+    // The middle mouse button (RB): a TAP pings what you are looking at, twice
+    // quickly an enemy there, and HOLDING it opens the wheel of what the mark
+    // means (src/game/brplay.ts PING_INTENTS). A squad without voice is
+    // legible or it is not, and "here" on its own is not.
     if (input.pressedNow("ping") && duel instanceof BrMatch && duel.alive) {
-      const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-      if (now - lastPingAt < PING_DOUBLE) {
-        brPlay.pingEnemy(duel, camera.position.clone(), f, now, duel.id);
-        lastPingAt = -Infinity;
-      } else {
-        // (a first tap that already marked an enemy is not turned into a plain "enemy here" by a second)
-        lastPingAt = brPlay.ping(duel, camera.position.clone(), f, now, duel.id) === "enemy" ? -Infinity : now;
+      pingHeldAt = now;
+      pingVec.x = pingVec.y = 0;
+      pingPick = null;
+    }
+    if (pingHeldAt >= 0 && input.held("ping") && !pingWheelOpen && now - pingHeldAt >= squadCfg.pingWheel.openAfter) pingWheelOpen = true;
+    if (pingHeldAt >= 0 && !input.held("ping")) {
+      const held = pingWheelOpen;
+      const pick = pingPick;
+      pingWheelOpen = false;
+      pingHeldAt = -1;
+      if (duel instanceof BrMatch && duel.alive) {
+        const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+        if (held) {
+          // the wheel: what it picked, or nothing if it pointed nowhere
+          if (pick !== null) {
+            hud.notice(brPlay.pingIntent(duel, camera.position.clone(), f, now, duel.id, pick), now, 1.4);
+            lastPingAt = -Infinity;
+          }
+        } else if (now - lastPingAt < PING_DOUBLE) {
+          brPlay.pingEnemy(duel, camera.position.clone(), f, now, duel.id);
+          lastPingAt = -Infinity;
+        } else {
+          // (a first tap that already marked an enemy is not turned into a plain "enemy here" by a second)
+          lastPingAt = brPlay.ping(duel, camera.position.clone(), f, now, duel.id) === "enemy" ? -Infinity : now;
+        }
       }
     }
 
@@ -4890,6 +4916,15 @@ function step(): void {
         const a = (Math.atan2(wheelVec.x, -wheelVec.y) + Math.PI * 2) % (Math.PI * 2);
         wheelPick = HEAL_ORDER[Math.round(a / ((Math.PI * 2) / HEAL_ORDER.length)) % HEAL_ORDER.length];
       }
+      m.dx = 0;
+      m.dy = 0;
+    }
+    if (pingWheelOpen) {
+      // the ping wheel: the mouse's direction picks, as the emote wheel's does
+      pingVec.x = Math.max(-200, Math.min(200, pingVec.x + m.dx));
+      pingVec.y = Math.max(-200, Math.min(200, pingVec.y + m.dy));
+      const at = pingPickAt(pingVec.x, pingVec.y);
+      if (at !== null) pingPick = at;
       m.dx = 0;
       m.dy = 0;
     }
@@ -5912,6 +5947,7 @@ function step(): void {
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
     banner: duel instanceof BrMatch ? brPlay.hud.banner : null,
     downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null, kd: kd.max > 0 ? { hp: kd.hp, max: kd.max, up: kd.up, key: keyLabel("fire") } : null, self: kd.canSelfRevive ? { key: keyLabel("interact"), progress: kd.selfProgress(gameTime) } : null } : null,
+    pingWheel: pingWheelOpen ? { items: PING_INTENTS.map((x) => x.label), pick: pingPick } : null,
     spectating: watch ? { name: watchName || watchMate?.name || "SOMEONE", first: !!watchMate && watchMate.id < Duel.BOT_ID && spectateFirst, of: duel ? duel.spectateList().length : 1, at: watchIndex + 1 } : null,
     voice: hudVoice,
     trainer: trainer.hud(now),

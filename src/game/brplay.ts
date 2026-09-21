@@ -195,6 +195,29 @@ const BANNER_LIFE = squad.bannerLife;
 const PAD_SPEED = squad.pad.speed;
 const PAD_UP = squad.pad.up;
 
+/**
+ * The ping wheel (src/config/squad.json `pingWheel`). A tap marks what you are
+ * looking at; holding the key opens this, and what you pick says what the mark
+ * MEANS. Apex's wheel is the reason a squad without voice is legible: "going
+ * here" and "defending here" are different plans, and a mark that says only
+ * "here" is neither. The order is the wheel's, clockwise from the top.
+ */
+export const PING_INTENTS: ReadonlyArray<{ id: "go" | "defend" | "attack" | "ammo" | "watch" | "enemy"; label: string; marker: "enemy" | "loot" | "go" }> = [
+  { id: "go", label: "GOING HERE", marker: "go" },
+  { id: "attack", label: "ATTACKING HERE", marker: "go" },
+  { id: "watch", label: "WATCHING HERE", marker: "go" },
+  { id: "enemy", label: "ENEMY HERE", marker: "enemy" },
+  { id: "ammo", label: "NEED AMMO", marker: "loot" },
+  { id: "defend", label: "DEFENDING HERE", marker: "go" },
+];
+
+/** the slice of the wheel a direction points at (the same maths as the emote and heal wheels) */
+export function pingPickAt(dx: number, dy: number, deadzone = 40): number | null {
+  if (Math.hypot(dx, dy) <= deadzone) return null;
+  const a = (Math.atan2(dx, -dy) + Math.PI * 2) % (Math.PI * 2);
+  return Math.round(a / ((Math.PI * 2) / PING_INTENTS.length)) % PING_INTENTS.length;
+}
+
 export class BrPlay {
   markers: Marker[] = [];
   /** a squad mate's banner you carry to a beacon */
@@ -301,7 +324,11 @@ export class BrPlay {
     this.markers = this.markers.filter((m) => m.from !== from || m.k !== kind);
     // an "enemy here" right after a place ping is the double tap: it replaces that place ping (on every screen)
     if (kind === "enemy" && target === -1) this.markers = this.markers.filter((m) => !(m.from === from && m.k === "go" && m.until - squad.pingLife.go > now - 0.6));
-    this.markers.push({ k: kind, at: at.clone(), label, from, until: now + squad.pingLife[kind], target });
+    // an intent's own life when the wheel chose one (its label says which),
+    // else the kind's: a plan outlives a warning (src/config/squad.json)
+    const intent = PING_INTENTS.find((x) => x.label === label);
+    const life = intent ? (squad.pingWheel.life as Record<string, number>)[intent.id] : squad.pingLife[kind];
+    this.markers.push({ k: kind, at: at.clone(), label, from, until: now + life, target });
     this.deps.sound("ping");
   }
 
@@ -313,6 +340,25 @@ export class BrPlay {
     const at = eye.clone().addScaledVector(fwd, Number.isFinite(t) ? t : 60);
     this.addMarker("enemy", at, "ENEMY HERE", myId, -1, now);
     match.sendMark("enemy", at, "ENEMY HERE");
+  }
+
+  /**
+   * A ping with a meaning, from the wheel: the same place a plain ping would
+   * mark, said as what you mean by it. An "enemy here" still marks the figure
+   * under the crosshair when there is one, because that is the mark a squad
+   * acts on fastest.
+   */
+  pingIntent(match: BrMatch, eye: THREE.Vector3, fwd: THREE.Vector3, now: number, myId: number, which: number): string {
+    const it = PING_INTENTS[((which % PING_INTENTS.length) + PING_INTENTS.length) % PING_INTENTS.length];
+    if (it.id === "enemy") {
+      this.pingEnemy(match, eye, fwd, now, myId);
+      return it.label;
+    }
+    const wall = solidHit(eye, fwd, 300);
+    const at = eye.clone().addScaledVector(fwd, Math.min(wall, 300));
+    this.addMarker(it.marker, at, it.label, myId, -1, now);
+    match.sendMark(it.marker, at, it.label);
+    return it.label;
   }
 
   /**
