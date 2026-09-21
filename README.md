@@ -397,6 +397,7 @@ The Settings tab, all remembered in this browser:
 | Sprint view shake | Normal or Minimal, the game's setting |
 | Fullscreen while playing | on by default: fullscreen with Keyboard Lock, which hands Ctrl+W to the game in Chrome and Edge |
 | Graphics | Competitive (straight to the screen with MSAA, fastest, and the shortest draw distance), Balanced, High (post-processing, shadows, bloom, and the longest view) |
+| Sound captions | off, the ones that mean someone is near you, or everything: what you would have heard, written down with which way it came from and roughly how far ("DOOR  LEFT  NEAR") |
 | Figures | the motion-captured mannequin (the default) or our robots (lighter to draw); for figures made from then on |
 | Killcam | on (the replay, then the recap) or off (the recap only) |
 | Volume | master, effects, hits |

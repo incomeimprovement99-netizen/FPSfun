@@ -2688,6 +2688,30 @@ async function throwTest(browser: Browser, query: string): Promise<void> {
 
   await ev(page, "window.__range.duel().leave()");
   await sleep(200);
+  // Sound captions: what you would have heard, written down (src/game/captions.ts)
+  {
+    const caps = await ev<{ lines: Array<{ text: string; where: string; range: string }>; mode: string }>(
+      page,
+      `new Promise((ok) => { const r = window.__range; const sel = document.getElementById("accCaptions");
+        sel.value = "important"; sel.dispatchEvent(new Event("change"));
+        const me = r.player.pos;
+        // a door heard away to one side, and a gun the other way
+        r.audio.door({ x: me.x - 20, y: me.y, z: me.z }, "open");
+        r.audio.gun("rspn101", { x: me.x + 60, y: me.y, z: me.z }, 1);
+        setTimeout(() => ok({ lines: r.hud.last?.captions ?? [], mode: sel.value }), 300); })`
+    );
+    const door = caps.lines.find((l) => l.text === "DOOR");
+    const gun = caps.lines.find((l) => l.text === "GUNFIRE");
+    check("captions: a door and a gunshot are written down with which way they came from and how far", !!door && !!gun && door.where !== gun.where && !!door.range && !!gun.range, JSON.stringify(caps));
+    const off = await ev<number>(
+      page,
+      `new Promise((ok) => { const r = window.__range; const sel = document.getElementById("accCaptions");
+        sel.value = "off"; sel.dispatchEvent(new Event("change"));
+        r.audio.door({ x: r.player.pos.x - 5, y: r.player.pos.y, z: r.player.pos.z }, "open");
+        setTimeout(() => ok((r.hud.last?.captions ?? []).length), 250); })`
+    );
+    check("captions: off writes nothing down at all", off === 0, `${off} lines`);
+  }
   // Tab, held: what you are carrying, in one place (src/game/hud.ts drawInventory)
   {
     await ev(page, "window.__range.input.locked = true");

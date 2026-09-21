@@ -2316,3 +2316,21 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   drop names it a moment after it says where you are landing.
 - Checks: the e2e `loot` section (the match kitted one of the places out, the name is a place's own, and the guns
   lying in it came built).
+## Milestone 143 — Captions for the sounds that matter ✅
+2026-09-20 (Phase 15). `src/game/captions.ts` (new), `src/config/captions.json` (new), `src/game/audio.ts`, `src/game/hud.ts`, `src/main.ts`, `index.html`, `tools/checks/access.ts`, `tools/e2e.ts`, `README.md`.
+- Item 14 of the ranked list, whose colourblind palettes and HUD scale were already done (four vision modes, six
+  scales). What was left is the half nothing covered: **a player who cannot hear is playing a different game**. A
+  door two rooms away, a reload behind a wall, a zipline over the roof: none of it is on the screen anywhere.
+- The sounds worth acting on are written down as they play, in the words a player would use, with which way they
+  came from and roughly how far: "DOOR  LEFT  NEAR". The direction is measured off where you are looking rather
+  than off north, because a caption is read while looking at something and a compass bearing would have to be
+  translated by the person reading it: turn round and the same sound swaps sides.
+- Three settings: off, the ones that mean somebody is near you (footsteps, doors, bins, gunfire, blasts, reloads,
+  heals, revives, ziplines, knocks), or everything the game can caption. A run of footsteps is one line that stays
+  up rather than eight that scroll, and a line goes after four seconds.
+- The mixer only says what it played and where from (`audio.onCue`); the words, the direction and the list are the
+  captions', and the drawing is the HUD's, which is what lets the checks ask the questions that matter without a
+  browser.
+- Checks: `tools/checks/access.ts` (10 more: the sides are the screen's sides whichever way you face, the distance
+  bands are words, a run is one line, off is off, and the important list is the short one) and the e2e `throw`
+  section (a door and a gunshot in a real page are written down from opposite sides, and off writes nothing).

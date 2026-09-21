@@ -50,6 +50,18 @@ export class GameAudio {
   private voices = 0;
   private loops = new Map<string, Loop>();
   private lis: Vec = { x: 0, y: 0, z: 0 };
+  /** which way the ears face, kept for the captions (src/game/captions.ts) */
+  private lisFwd: Vec = { x: 0, y: 0, z: -1 };
+  /**
+   * A sound worth writing down played (src/game/captions.ts). The page decides
+   * what to do with it; this only says what was played and where from, because
+   * the words and the wording belong to the captions and not to the mixer.
+   */
+  onCue: ((id: string, at: Vec | null, fwd: Vec, ear: Vec) => void) | null = null;
+  /** tell whoever is captioning: called by the sounds themselves, never by the voice pool */
+  private cue(id: string, at: Vec | null): void {
+    this.onCue?.(id, at, this.lisFwd, this.lis);
+  }
   private space: "indoor" | "outdoor" = "indoor";
   /** 0..1 each; Settings */
   volumes = { master: 0.8, effects: 1, hits: 1 };
@@ -273,6 +285,7 @@ export class GameAudio {
   /** the camera, every frame: where the ears are and which way they face */
   setListener(pos: Vec, fwd: Vec, up: Vec): void {
     this.lis = { x: pos.x, y: pos.y, z: pos.z };
+    this.lisFwd = { x: fwd.x, y: fwd.y, z: fwd.z };
     const ctx = this.ctx;
     if (!ctx) return;
     const l = ctx.listener;
@@ -409,6 +422,7 @@ export class GameAudio {
    * far ones arrive late and dull, the near ones crack.
    */
   gun(id: string, at: Vec | null = null, level = 1): void {
+    this.cue("gun", at);
     const cls = this.gunClass(id);
     const k = cfg.classes[cls];
     const D = cfg.distance;
@@ -447,6 +461,7 @@ export class GameAudio {
 
   /** a grenade going off: a frag's deep boom, an arc star's crackling snap */
   blast(kind: "frag" | "arcstar", at: Vec): void {
+    this.cue("blast", at);
     const v = this.voice(at, 1.6, "fx", 2, 1.4, cfg.distance.ref.blast);
     if (!v) return;
     if (kind === "frag") {
@@ -563,6 +578,7 @@ export class GameAudio {
 
   /** the old reload click (the heal-done chime uses its own now) */
   reload(): void {
+    this.cue("reload", null);
     this.reloadStep("in");
   }
 
@@ -622,6 +638,7 @@ export class GameAudio {
   }
   /** a knock: a low descending stinger */
   knock(): void {
+    this.cue("knock", null);
     const v = this.voice(null, 0.6, "hit", 2, 0.3);
     if (!v) return;
     this.tone(v.input, v.t, 0.25, "triangle", 520, 390, 0.25);
@@ -640,6 +657,7 @@ export class GameAudio {
 
   /** a footstep: yours (no `at`) or someone's; quieter crouched, louder sprinting */
   footstep(surface: Surface, at: Vec | null = null, loud = 1): void {
+    this.cue("step", at);
     // (long enough for the recorded steps, the grass ones about 0.8 s)
     // someone else's step near you is never dropped for the voice cap: it is the information
     const near = !!at && Math.hypot(at.x - this.lis.x, at.y - this.lis.y, at.z - this.lis.z) <= cfg.distance.stepsNear;
@@ -671,6 +689,7 @@ export class GameAudio {
 
   /** a landing, by how hard: a thud and grit */
   land(impact01: number, surface: Surface): void {
+    this.cue("land", null);
     const v = this.voice(null, 0.3, "fx", 1, 0.3);
     if (!v) return;
     const k = Math.max(0.2, Math.min(1, impact01));
@@ -728,6 +747,7 @@ export class GameAudio {
    * cannot do a hinge.
    */
   door(at: Vec, kind: "open" | "close" | "kick"): void {
+    this.cue("door", at);
     const v = this.voice(at, kind === "kick" ? 0.9 : 0.55, "fx", 0, kind === "kick" ? 0.7 : 0.45);
     if (!v) return;
     const name = kind === "open" ? "door_open" : kind === "close" ? "door_close" : "door_kick";
@@ -738,6 +758,7 @@ export class GameAudio {
 
   /** a supply bin's lid, the same tell as a door but shorter */
   bin(at: Vec, open: boolean): void {
+    this.cue("bin", at);
     // an opening carries across a place (loot.json bins openHear): somebody got there first
     const v = this.voice(at, 0.5, "fx", open ? 1 : 0, 0.4, open ? 12 : cfg.distance.ref.default);
     if (!v) return;

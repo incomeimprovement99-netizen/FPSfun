@@ -1,0 +1,34 @@
+{
+  "_note": "Captions for the sounds that matter (src/game/captions.ts, Settings: \"Sound captions\"). Half of this game is listening: a door two rooms away, a reload behind a wall, a zipline over the roof. None of it is on the screen, so a player who cannot hear it is playing a different game. These are the sounds worth acting on, in the words a player would use for them, with which way they came from and roughly how far. `important` is the shorter list, the ones that mean somebody is near you; the longer one is every sound the game can caption. `cone` is how wide a sound counts as straight ahead or straight behind in degrees, `range` the bands in metres (what a player can act on, not what a tape measure says), `life` how long a line stays, `repeat` the window in which the same sound from the same side keeps its line rather than adding another (a run of footsteps is one line, not eight), and `most` how many lines are up at once.",
+  "words": {
+    "gun": "GUNFIRE",
+    "blast": "EXPLOSION",
+    "step": "FOOTSTEPS",
+    "land": "SOMEONE LANDED",
+    "door": "DOOR",
+    "bin": "SUPPLY BIN",
+    "reload": "RELOAD",
+    "heal": "HEALING",
+    "revive": "REVIVE",
+    "zip": "ZIPLINE",
+    "pickup": "PICKUP",
+    "beacon": "BEACON",
+    "horn": "DROPSHIP",
+    "ring": "THE RING",
+    "package": "CARE PACKAGE",
+    "knock": "KNOCKDOWN",
+    "hit": "HIT"
+  },
+  "important": ["gun", "blast", "step", "land", "door", "bin", "reload", "heal", "revive", "zip", "knock"],
+  "cone": {
+    "ahead": 45,
+    "behind": 45
+  },
+  "range": {
+    "close": 12,
+    "near": 40
+  },
+  "life": 4,
+  "repeat": 1.2,
+  "most": 5
+}

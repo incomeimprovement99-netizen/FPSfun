@@ -204,6 +204,8 @@ export interface HudState {
   healWheel?: { items: Array<{ id: string; name: string; count: number }>; pick: string | null } | null;
   /** the emote wheel (7, held): the emotes round it and the one the mouse points at */
   emoteWheel?: { items: string[]; pick: number | null } | null;
+  /** sound captions (src/game/captions.ts): what was heard, which way and how far */
+  captions?: Array<{ text: string; where: string; range: string }> | null;
   /** the ping wheel (the ping key, held): what a mark would mean, and the one the mouse points at */
   pingWheel?: { items: string[]; pick: number | null } | null;
   /**
@@ -2343,6 +2345,7 @@ export class Hud {
     this.drawEmoteWheel(s, u);
     this.drawPingWheel(s, u);
     this.drawInventory(s, u);
+    this.drawCaptions(s, u);
       return;
     }
     const x = 34 * u + 350 * u;
@@ -2393,6 +2396,31 @@ export class Hud {
   }
 
   /** the heal wheel: the five heals round the crosshair, the one pointed at lit, a count on each */
+  /**
+   * The captions, down the left above the vitals: what was heard, which way it
+   * came from and roughly how far. Read left to right the way a line of text
+   * is read, because that is what it is.
+   */
+  private drawCaptions(s: HudState, u: number): void {
+    const lines = s.captions;
+    if (!lines || !lines.length) return;
+    const c = this.ctx;
+    const x = 34 * u;
+    let y = this.h - 150 * u - lines.length * 22 * u;
+    for (const l of lines) {
+      const where = l.where ? `  ${l.where}` : "";
+      const range = l.range ? `  ${l.range}` : "";
+      c.fillStyle = "rgba(8, 10, 13, 0.6)";
+      const text = `${l.text}${where}${range}`;
+      c.font = `700 ${13 * u}px Rajdhani, sans-serif`;
+      const w = c.measureText(text).width + 16 * u;
+      c.fillRect(x - 6 * u, y - 14 * u, w, 20 * u);
+      this.text(l.text, x, y, 700, 13 * u, WHITE);
+      if (l.where) this.text(`${l.where}${range}`, x + c.measureText(l.text).width + 10 * u, y, 600, 12 * u, DIM);
+      y += 22 * u;
+    }
+  }
+
   /** the ping wheel: what a mark would mean, six round the middle */
   private drawPingWheel(s: HudState, u: number): void {
     const w = s.pingWheel;

@@ -79,6 +79,7 @@ import { blastOffsets } from "./game/blast";
 import hudCfg from "./config/hud.json";
 import { SuperglideTrainer } from "./game/trainer";
 import { BrPlay, PING_INTENTS, pingPickAt } from "./game/brplay";
+import { Captions, howFar, whereFrom } from "./game/captions";
 import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
@@ -206,6 +207,27 @@ const settings = loadSettings();
 // Accessibility (src/game/palette.ts): colour vision and the HUD scale, before
 // the first frame so the HUD never draws once in the wrong colours
 loadAccess();
+// and the captions (src/game/captions.ts): what you would have heard
+const captions = new Captions();
+{
+  const sel = document.getElementById("accCaptions") as HTMLSelectElement;
+  try {
+    const saved = localStorage.getItem("range.captions");
+    if (saved === "off" || saved === "important" || saved === "all") captions.mode = saved;
+  } catch {
+    /* ignore */
+  }
+  sel.value = captions.mode;
+  sel.addEventListener("change", () => {
+    captions.mode = sel.value === "all" ? "all" : sel.value === "important" ? "important" : "off";
+    captions.clear();
+    try {
+      localStorage.setItem("range.captions", captions.mode);
+    } catch {
+      /* ignore */
+    }
+  });
+}
 {
   const vision = document.getElementById("accVision") as HTMLSelectElement;
   const scale = document.getElementById("accHudScale") as HTMLSelectElement;
@@ -1068,6 +1090,17 @@ const audio = new GameAudio();
   const from = new THREE.Vector3();
   const dir = new THREE.Vector3();
   const side = new THREE.Vector3();
+// every sound worth writing down, written down (src/game/captions.ts): the
+// wording and the direction are the captions', the sound is the mixer's
+audio.onCue = (id, at, fwd, ear) => {
+  if (!at) {
+    captions.heard(id, gameTime, "", "");
+    return;
+  }
+  const dx = at.x - ear.x;
+  const dz = at.z - ear.z;
+  captions.heard(id, gameTime, whereFrom(dx, dz, fwd.x, fwd.z), howFar(Math.hypot(dx, dz)));
+};
   audio.setOccluder((ear, at) => {
     from.set(ear.x, ear.y, ear.z);
     dir.set(at.x - ear.x, at.y - ear.y, at.z - ear.z);
@@ -5984,6 +6017,7 @@ function step(): void {
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
     banner: duel instanceof BrMatch ? brPlay.hud.banner : null,
     downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null, kd: kd.max > 0 ? { hp: kd.hp, max: kd.max, up: kd.up, key: keyLabel("fire") } : null, self: kd.canSelfRevive ? { key: keyLabel("interact"), progress: kd.selfProgress(gameTime) } : null } : null,
+    captions: captions.mode === "off" ? null : captions.live(gameTime).map((l) => ({ text: l.text, where: l.where, range: l.range })),
     pingWheel: pingWheelOpen ? { items: PING_INTENTS.map((x) => x.label), pick: pingPick } : null,
     spectating: watch ? { name: watchName || watchMate?.name || "SOMEONE", first: !!watchMate && watchMate.id < Duel.BOT_ID && spectateFirst, of: duel ? duel.spectateList().length : 1, at: watchIndex + 1 } : null,
     voice: hudVoice,

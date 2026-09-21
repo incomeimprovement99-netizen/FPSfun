@@ -4,6 +4,7 @@
 // Run on its own: npx tsx tools/checks/access.ts. Also runs inside npm run verify.
 import { HUD_SCALES, P, VISION_MODES, access, setHudScale, setVision } from "../../src/game/palette";
 
+import { CAPTION_IDS, CAPTION_WORDS, Captions, howFar, whereFrom } from "../../src/game/captions";
 let fails = 0;
 function check(label: string, ok: boolean, detail = ""): void {
   if (!ok) fails++;
@@ -55,6 +56,43 @@ setHudScale(1.25);
 check("an offered scale is taken", access.hudScale === 1.25);
 setHudScale(4);
 check("a scale that is not on offer is the default, never a HUD off the screen", access.hudScale === 1);
+
+// Captions for the sounds that matter (src/game/captions.ts). What has to
+// hold: a sound behind you says behind and one to your left says left,
+// whichever way you happen to be facing; the distance bands are words a
+// player can act on; a run of footsteps is one line rather than eight; and the
+// important list is the short one, the sounds that mean somebody is near you.
+console.log("");
+console.log("Sound captions");
+{
+  // facing -z, which is what yaw 0 means in this game
+  check("a sound in front says ahead, and one behind says behind", whereFrom(0, -10, 0, -1) === "AHEAD" && whereFrom(0, 10, 0, -1) === "BEHIND");
+  check("and the sides are the sides of the screen, not of the map", whereFrom(-10, 0, 0, -1) === "LEFT" && whereFrom(10, 0, 0, -1) === "RIGHT");
+  check("turn round and the same sound swaps sides", whereFrom(10, 0, 0, 1) === "LEFT" && whereFrom(-10, 0, 0, 1) === "RIGHT");
+  check("how far off it was, in words rather than metres", howFar(5) === "CLOSE" && howFar(25) === "NEAR" && howFar(120) === "FAR");
+  const caps = new Captions();
+  caps.mode = "important";
+  caps.heard("step", 10, "LEFT", "CLOSE");
+  caps.heard("step", 10.3, "LEFT", "CLOSE");
+  caps.heard("step", 10.6, "LEFT", "CLOSE");
+  check("a run of footsteps is one line that stays up, not one line a step", caps.live(10.7).length === 1, caps.live(10.7).length + " line(s)");
+  caps.heard("door", 11, "RIGHT", "NEAR");
+  check("a different sound is its own line", caps.live(11).length === 2);
+  check("and the lines go when they are old", caps.live(30).length === 0);
+  const quiet = new Captions();
+  quiet.mode = "off";
+  quiet.heard("gun", 1, "AHEAD", "FAR");
+  check("off means off: nothing is written down at all", quiet.live(1).length === 0);
+  const all = new Captions();
+  all.mode = "all";
+  all.heard("pickup", 1, "AHEAD", "CLOSE");
+  const only = new Captions();
+  only.mode = "important";
+  only.heard("pickup", 1, "AHEAD", "CLOSE");
+  check("the important list is the short one: a pickup is captioned only on everything", all.live(1).length === 1 && only.live(1).length === 0);
+  check("every sound the game cues has a word for it", ["gun", "blast", "step", "land", "door", "bin", "reload", "knock"].every((id) => !!CAPTION_WORDS[id]), CAPTION_IDS.length + " sounds");
+}
+
 
 console.log(fails === 0 ? "\nACCESS PASS" : "\nACCESS FAIL (" + fails + ")");
 export const accessFails = fails;
