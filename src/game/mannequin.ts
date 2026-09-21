@@ -28,6 +28,7 @@ import { displayGunModel } from "./gunmodels";
 import { LOWER as CARRY, REACH, gripAt, reachFraction, stockBehind } from "./hold";
 import type { OperatorSkin } from "./operators";
 import { buildGear, type GearPiece } from "./gear";
+import { buildOutfit, outfitMaterials } from "./outfit";
 import type { FigurePose } from "./dummy";
 import type { EmotePose } from "./emotes";
 
@@ -261,6 +262,24 @@ export class MannequinFigure {
   private wearGear(skin: OperatorSkin): void {
     this.root.updateMatrixWorld(true);
     const rootQ = this.root.getWorldQuaternion(new THREE.Quaternion());
+    // the clothes first, then the kit on top of them (src/game/outfit.ts).
+    // A sleeve hangs on the arm bone and turns with it, so it is added raw;
+    // what goes on a face is authored the way a person would describe it and
+    // gets the same rest-frame holder the kit does.
+    const mats = outfitMaterials(skin.outfit, skin.visor, skin.eye);
+    for (const worn of buildOutfit(skin.outfit, mats, skin.face ?? [])) {
+      const bone = this.bones[worn.bone];
+      if (!bone) continue;
+      if (!worn.aligned) {
+        bone.add(worn.group);
+        continue;
+      }
+      const holder = new THREE.Group();
+      holder.name = `wearMount:${worn.id}`;
+      holder.quaternion.copy(bone.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(rootQ));
+      holder.add(worn.group);
+      bone.add(holder);
+    }
     for (const piece of buildGear(skin)) {
       const bone = this.bones[piece.bone];
       if (!bone) continue;

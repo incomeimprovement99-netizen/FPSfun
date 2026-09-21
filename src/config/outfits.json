@@ -1,0 +1,82 @@
+{
+  "_note": "What an operator wears, as clothing rather than as kit (src/game/outfit.ts). The kit in gear.json is the hard stuff strapped on top: plates, a helmet, a mask. This is the clothes under it, and it is what makes one figure a soldier and another a man in a t-shirt. Every piece is a shell along a bone, and every bone in this rig points along its own +y with a measured length (thigh 0.400 m, calf 0.429, upper arm 0.274, forearm 0.273), so a sleeve is a tube from 0 to a fraction of that length and nothing has to be rigged or weighted. Sizes are metres on a figure 1.8 m tall; colours are hex strings.",
+  "fit": {
+    "_note": "the body's own thicknesses, which the clothes sit just outside of",
+    "arm": 0.062,
+    "forearm": 0.052,
+    "thigh": 0.088,
+    "calf": 0.068,
+    "torso": { "w": 0.36, "d": 0.22, "h": 0.46 },
+    "_torsoAt": "the chest's middle in the spine bone's own frame, metres: the bone runs up the back, and a garment centred on it sits behind the body (measured off the rig: the collarbones are 0.09 to 0.11 in front of it)",
+    "torsoAt": [0, 0, 0.048]
+  },
+  "_pieces": "each piece: the bone it hangs on, how far along that bone it starts and ends as a fraction of the bone's length, and how much thicker than the body it is",
+  "pieces": {
+    "shirt": { "bone": "spine_01", "from": -0.14, "to": 1.5, "over": 0.02 },
+    "jacket": { "bone": "spine_01", "from": -0.26, "to": 1.62, "over": 0.035 },
+    "sleeveShort": { "bone": "upperarm", "from": -0.16, "to": 0.55, "over": 0.028 },
+    "sleeveLong": { "bone": "upperarm", "from": -0.16, "to": 1.0, "over": 0.022 },
+    "cuff": { "bone": "lowerarm", "from": 0.0, "to": 0.92, "over": 0.02 },
+    "shorts": { "bone": "thigh", "from": -0.05, "to": 0.62, "over": 0.036 },
+    "trouserThigh": { "bone": "thigh", "from": -0.05, "to": 1.0, "over": 0.026 },
+    "trouserCalf": { "bone": "calf", "from": 0.0, "to": 0.95, "over": 0.024 },
+    "boot": { "bone": "calf", "from": 0.62, "to": 1.06, "over": 0.048 }
+  },
+  "_head": "the things that cover a face, in the head bone's rest frame: x its right, y up it, z in front of it. A wrap is a shell round the skull with a tail down the back; goggles are two round lenses on a strap; a full mask covers the whole face, where the gas mask in gear.json covers the nose and mouth.",
+  "head": {
+    "wrap": { "at": [0, 0.075, -0.005], "radius": 0.128, "squash": 1.02, "tail": [0.17, 0.22, 0.06], "tailAt": [0, -0.055, -0.115] },
+    "goggles": { "at": [0, 0.1, 0.068], "lens": 0.048, "gap": 0.058, "strap": [0.235, 0.036, 0.022] },
+    "fullMask": { "at": [0, 0.072, 0.05], "size": [0.168, 0.2, 0.12], "lens": [0.132, 0.055, 0.03], "filter": { "r": 0.034, "len": 0.06, "at": [0, -0.062, 0.06] } }
+  },
+  "_sets": "The outfits: what each wears, and in what colours. `cloth` is the main garment, `trim` the second colour, `boots` the footwear. An operator names one of these (src/game/operators.ts), and the kit in gear.json goes on top of it.",
+  "sets": {
+    "fatigues": {
+      "name": "FATIGUES",
+      "blurb": "field uniform, sleeves down, boots",
+      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot"],
+      "cloth": "#5b5f43",
+      "trim": "#3c4030",
+      "boots": "#241f1a"
+    },
+    "plainclothes": {
+      "name": "PLAIN CLOTHES",
+      "blurb": "a t-shirt and shorts, and nothing to say who sent you",
+      "wears": ["shirt", "sleeveShort", "shorts", "boot"],
+      "cloth": "#c9c4b6",
+      "trim": "#7d8a99",
+      "boots": "#3a332c"
+    },
+    "irregular": {
+      "name": "IRREGULAR",
+      "blurb": "a head wrap, loose clothes over a chest rig, no uniform at all",
+      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot"],
+      "cloth": "#8a7d63",
+      "trim": "#4d4638",
+      "boots": "#33291f"
+    },
+    "urban": {
+      "name": "URBAN",
+      "blurb": "dark layers, long sleeves, a covered face",
+      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot"],
+      "cloth": "#2e3238",
+      "trim": "#1b1e22",
+      "boots": "#17181a"
+    },
+    "arctic": {
+      "name": "ARCTIC",
+      "blurb": "a white overlayer over everything, goggles against the glare",
+      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot"],
+      "cloth": "#dde3e8",
+      "trim": "#93a3b1",
+      "boots": "#4a5158"
+    },
+    "desert": {
+      "name": "DESERT",
+      "blurb": "sand fatigues, sleeves rolled, a wrap against the dust",
+      "wears": ["shirt", "sleeveShort", "trouserThigh", "trouserCalf", "boot"],
+      "cloth": "#c2ab7e",
+      "trim": "#8a7449",
+      "boots": "#5c4a32"
+    }
+  }
+}

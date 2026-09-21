@@ -369,6 +369,24 @@ export const SCENARIOS: Scenario[] = [
     steps: [[`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -18); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }], 1.7, 90); })()`, 0], [gameSeconds(1.2), 100]],
   },
   {
+    name: "outfits",
+    note: "the five operators in their clothes and kit, close and from the front: fatigues, urban, desert, arctic, irregular",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
+        r.figureLab([0, 1, 2, 3, 4].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" })), 3.6, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.2), 100],
+    ],
+  },
+  {
+    name: "outfit-close",
+    note: "one operator head to knee: the wrap, the goggles, the sleeves, the trousers and the boots under the kit",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -10);
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }], 1.6, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.2), 100],
+    ],
+  },
+  {
     name: "gear-lineup",
     note: "the five operators in their kit, close and from the front: the vest, the pack, the helmet, the shades, the gas mask, the hood",
     steps: [

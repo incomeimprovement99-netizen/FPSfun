@@ -2613,3 +2613,34 @@ making it not, and all three were the camera rather than the body.
   measured.
 - Checks: four in `tools/movesim.ts` (the feet step in one frame, the view does not, it does catch up, and
   the body is where it always was) and three in `tools/checks/feel.ts` for the dip.
+
+## Milestone 157 — The operators get dressed properly ✅
+
+Milestone 146 put kit on them: plates, helmets, masks, packs. This is the clothes under it, which is the
+part that says who somebody is. A man in fatigues and a man in a t-shirt read as two different people before
+you see a single piece of their kit, and ours were all the same bare body in a different colour.
+
+- **Six outfits** (`src/config/outfits.json`): FATIGUES (field uniform, sleeves down, boots), PLAIN CLOTHES
+  (a t-shirt and shorts), IRREGULAR (a head wrap and loose clothes over a chest rig, no uniform at all),
+  URBAN (dark layers, a covered face), ARCTIC (white over everything, goggles against the glare) and DESERT
+  (sand fatigues, sleeves rolled). One each, so five operators are five silhouettes.
+- **Three more things for a face**: a head wrap with a tail, goggles (two round lenses on a strap, which read
+  as goggles where the shades' flat bar reads as shades), and a full-face mask, on top of the gas mask and
+  shades the kit already had.
+- **Why it is cheap**: every bone in this rig points along its own +y with a measured length (thigh 0.400 m,
+  calf 0.429, upper arm 0.274, forearm 0.273, measured off the rig). So a sleeve is a tube from 0 to a
+  fraction of that length hung on the bone, and it moves with the arm without being rigged or weighted.
+  A garment that bends at a joint is a different kind of asset and a different pipeline.
+- One measurement worth keeping: the spine bone runs up the **back**, so a garment centred on it sits behind
+  the body. The chest's own middle is 4.8 cm in front of it, measured off the rig.
+- Checks: `tools/checks/outfit.ts` (40: every piece stays on the bone it hangs from except the torso, which
+  has to cover hips to neck instead; cloth is thicker than the limb inside it and not by a barrel; a sleeve
+  starts above the shoulder so no bare arm shows; shorts are shorter than trousers; what comes in pairs comes
+  in pairs; and no two operators wear the same thing). The look is `outfits` and `outfit-close`.
+
+## Milestone 158 — The asset gap, written down ✅
+
+`docs/ASSET_GAP.md`: what we have against what a shipped battle royale has, per category, with what each
+difference actually costs a player, and ten ranked next steps. The ranking is by what a player notices per
+hour of work, which puts more outfits and body variety above a second map, and puts bespoke characters,
+facial animation and a voice cast on the "deliberately not doing this" list with the reason why.

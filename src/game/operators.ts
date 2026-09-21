@@ -4,6 +4,7 @@
 // All five are the range robot (our own design, dummy.ts) in a distinct
 // scheme with its own add-ons, not any game's character.
 import * as THREE from "three";
+import type { OutfitId } from "./outfit";
 
 export interface OperatorSkin {
   id: string;
@@ -27,6 +28,9 @@ export interface OperatorSkin {
    * wears a different set: at 80 m the helmet, the hood and the gas mask are
    * what tells you which of them is coming.
    */
+  /** the clothes under the kit (src/game/outfit.ts): which set, and what it has on its face */
+  outfit: OutfitId;
+  face?: Array<"wrap" | "goggles" | "fullMask">;
   extras: {
     crest?: boolean;
     antenna?: boolean;
@@ -56,6 +60,7 @@ export interface OperatorSkin {
 export const OPERATORS: OperatorSkin[] = [
   {
     id: "vanguard",
+    outfit: "fatigues",
     name: "Vanguard",
     blurb: "Range grey with safety orange. The original.",
     shell: 0x9aa2aa, head: 0xa9b0b7, accent: 0xd4712a, joint: 0x24282d, visor: 0x0d1013, eye: 0x39d7ee,
@@ -64,6 +69,8 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "nightshade",
+    outfit: "urban",
+    face: ["fullMask"],
     name: "Nightshade",
     blurb: "Matte black, violet trim, a blade crest.",
     shell: 0x2c2f36, head: 0x353841, accent: 0x9b4dff, joint: 0x15171a, visor: 0x1a0f24, eye: 0xff3bd4,
@@ -72,6 +79,8 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "sandstorm",
+    outfit: "desert",
+    face: ["wrap"],
     name: "Sandstorm",
     blurb: "Desert tan, olive webbing, brimmed hood and face guard.",
     shell: 0xb59a72, head: 0xc2a67c, accent: 0x5d6b3a, joint: 0x3a3226, visor: 0x1c140c, eye: 0xffb23c,
@@ -80,6 +89,8 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "frost",
+    outfit: "arctic",
+    face: ["goggles"],
     name: "Frost",
     blurb: "Arctic white with cobalt, heavy shoulder armour.",
     shell: 0xdfe7ee, head: 0xeef3f7, accent: 0x3b8bff, joint: 0x5c6b78, visor: 0x0c1a2a, eye: 0x7fe8ff,
@@ -88,6 +99,8 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "inferno",
+    outfit: "irregular",
+    face: ["wrap", "goggles"],
     name: "Inferno",
     blurb: "Scorched red and black, an antenna and shoulder plates.",
     shell: 0x3a1f1c, head: 0x4a2622, accent: 0xff3b1f, joint: 0x1a1210, visor: 0x2a0a06, eye: 0xffd23c,
