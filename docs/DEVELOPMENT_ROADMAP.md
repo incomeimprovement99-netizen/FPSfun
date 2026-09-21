@@ -2367,3 +2367,54 @@ pick the 1v1 tab and then change to BR to play with a friend is kind of bad."
   picks rather than starts, each mode shows its own options in a real page, the setup survives a reload, the
   green button starts what the panel is set to, the pace reaches the live ring, and With friends carries the
   mode across).
+## Milestone 145 — The way a figure holds a gun, and where its shots come from ✅
+
+Four things the owner reported were one thing: nobody had ever measured what a figure does with a gun. Two of
+them turned out to be worse than reported.
+
+- **No figure in the game has ever had a muzzle.** A figure's gun looks for a marker called "muzzleflash",
+  which is the name the **first-person** view model gives its own flash. Figures clone the display model, a
+  separate build the view model never touches, so the marker was never there and the code quietly gave up.
+  Every bot and every friend has therefore fired without a muzzle flash, and every one of their tracers was
+  drawn from the middle of their chest instead of the end of the barrel. The muzzle is a point the model
+  already knows, so it is passed in and the marker goes there; the marker is now what the game asks for
+  (`muzzleOf`), because a muzzle is a place and a flash is a picture that may be out between shots.
+- **Stocks through chests.** The animation library is a pistol library: it has no rifle clips, so a long gun
+  is hung off the chest at a point we choose and both arms are reached onto it. That point was five
+  centimetres *inboard* of the shoulder, and a stock is behind the grip, so on every rifle the stock ended up
+  beside the neck. It now hangs in the shoulder pocket, outboard of the joint where the torso is not, and a
+  gun too long for that is pushed forward until it clears: 22 cm for an SMG, 27 for the longest gun in the
+  game (`src/config/figure.json`).
+- **The floating hand.** The support hand reached for the handguard whether or not the arm was long enough.
+  On the LMGs it was 65 cm away from a 55 cm arm, so the hand stopped short and hung in the air. It now
+  slides back along the gun until it has hold of it, which is what a person does: the handguard on an SMG,
+  a quarter of the way back on a rifle, half on an LMG.
+- Every number about the hold is now in `src/config/figure.json` rather than in the middle of the rigging.
+- Checks: `tools/checks/hold.ts` (20: a longer gun never hangs closer in, no gun's stock is deeper in the
+  body than a stock goes, an absurd gun stops at the limit, and a slid hand lands exactly within reach rather
+  than short of it) and the e2e `hold` section, which measures every length of gun in a real page: the muzzle
+  is at the end of the barrel and out in front of the figure, both hands are on the gun, and a bot's gun has
+  a muzzle too.
+
+## Milestone 146 — The operators get dressed ✅
+
+"Focus on putting clothes/skins on characters that we play as and like make shades / gas masks and stuff to
+hide out our character models to make them look more like AAA games." The figures were a bare mannequin in a
+flat colour. What you recognise about a soldier at 80 m is a silhouette made of a helmet, a vest, a mask and a
+pack, and a smooth body in grey has no silhouette but its own.
+
+- **Ten pieces of kit** (`src/game/gear.ts`, `src/config/gear.json`): a plate carrier with shoulder webbing
+  and magazine pouches, a daypack with a roll on top, a helmet with a rear lip and side rails, shades on a
+  strap, a gas mask with a snout, a filter can and lenses, a soft hood that stands off the back of the head,
+  a cap peak, shoulder plates, thigh pouches and knee pads.
+- **A different kit each**, so the five operators are told apart by their outline before their colour:
+  Vanguard in a carrier and shades, Nightshade hooded and masked, Sandstorm in a gas mask and a peaked cap
+  with a pack, Frost helmeted with plates, Inferno masked and helmeted.
+- **Built, not downloaded.** A prop can be a scan; a garment has to be rigged and weighted to the body that
+  wears it, which is a different pipeline. Hard kit does not deform: a plate carrier is strapped to a chest,
+  so it hangs off the chest bone and is right. The one soft piece, the hood, is shaped to stand off the head
+  rather than lie on it, which is how a hood behaves and also why it does not have to bend.
+- **Both figure styles wear it.** Each piece names the bone it hangs from, so the mannequin hangs it on that
+  bone and the robot, whose parts are baked in the figure's own space, moves it to where that bone would be.
+- The colours come from the operator's own: the webbing its darkest, the plates a step off its shell, and the
+  trim its accent, so two operators in the same kit are still told apart across a street.

@@ -1,0 +1,66 @@
+{
+  "_note": "The kit an operator wears (src/game/gear.ts). The figures were a bare mannequin in a flat colour, which is the single biggest reason they read as a toy rather than a soldier: a shipped shooter's character is a silhouette made of a helmet, a vest, a mask and a pack, and it is that outline you recognise at 80 m, not a face. Every piece here is built from boxes and cylinders in the operator's own colours rather than downloaded, because a rigged, weighted garment is a different kind of asset from a prop and the shape is what does the work. Sizes are metres on a figure 1.8 m tall. `at` is where the piece sits on the bone it hangs from, measured in that bone’s REST pose: x its right, y up it, z in front of it. From there the piece turns with the bone, so a helmet leans when the head leans into the sights and the eyes it covers lean with it.",
+  "vest": {
+    "_note": "a plate carrier: a front plate, a back plate and the webbing between them, on the upper spine",
+    "at": [0, 0.02, 0.0],
+    "plate": [0.3, 0.34, 0.07],
+    "gap": 0.1,
+    "shoulder": [0.075, 0.1, 0.055],
+    "pouch": [0.085, 0.09, 0.05],
+    "pouches": 3
+  },
+  "pack": {
+    "_note": "a daypack high on the back, with a roll on top: the outline that says somebody is carrying something",
+    "at": [0, 0.02, -0.11],
+    "size": [0.26, 0.3, 0.14],
+    "roll": 0.055
+  },
+  "helmet": {
+    "_note": "a shell over the crown with a short rear lip, and a rail down each side",
+    "at": [0, 0.115, 0.005],
+    "radius": 0.108,
+    "squash": 0.86,
+    "lip": [0.19, 0.045, 0.055],
+    "rail": [0.012, 0.03, 0.17]
+  },
+  "shades": {
+    "_note": "one dark bar across the eyes, on its own strap. A visor reads at any distance; two lenses do not",
+    "at": [0, 0.085, 0.09],
+    "size": [0.19, 0.045, 0.03],
+    "strap": [0.215, 0.022, 0.02]
+  },
+  "mask": {
+    "_note": "a gas mask: a snout over the nose and mouth, a filter can on the cheek, and the straps round the back",
+    "at": [0, 0.05, 0.085],
+    "snout": [0.14, 0.11, 0.075],
+    "filter": { "r": 0.042, "len": 0.075, "at": [0.085, -0.02, 0.045] },
+    "strap": [0.185, 0.03, 0.02]
+  },
+  "hood": {
+    "_note": "a soft hood standing off the back of the head, open at the front",
+    "at": [0, 0.09, -0.03],
+    "radius": 0.135,
+    "squash": 1.08,
+    "cut": 0.55
+  },
+  "brim": {
+    "_note": "a cap peak over the eyes",
+    "at": [0, 0.105, 0.075],
+    "size": [0.2, 0.018, 0.1]
+  },
+  "shoulders": {
+    "_note": "hard plates over the deltoids, on the upper arms",
+    "at": [0, -0.01, 0],
+    "size": [0.11, 0.075, 0.12]
+  },
+  "pouches": {
+    "_note": "a drop pouch on the right thigh and a holster on the left",
+    "at": [0, -0.16, 0.035],
+    "size": [0.1, 0.14, 0.06]
+  },
+  "knees": {
+    "_note": "knee pads on the shins, just under the joint",
+    "at": [0, 0.01, 0.055],
+    "size": [0.1, 0.1, 0.05]
+  }
+}

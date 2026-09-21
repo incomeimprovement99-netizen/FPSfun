@@ -12,6 +12,7 @@
 //
 // Run: npm run e2e        (needs `npm run dev` already running)
 import { LOBBY_MODES, setupFor } from "../src/ui/lobby";
+import { HOLD } from "../src/game/hold";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import modesCfg from "../src/config/modes.json";
 import brCfg from "../src/config/br.json";
@@ -4627,6 +4628,73 @@ async function lobbyPanelTest(browser: Browser): Promise<void> {
   await page.close();
 }
 
+/**
+ * How a figure holds its gun, and where its shots come from (src/game/hold.ts,
+ * src/game/muzzle.ts, src/game/mannequin.ts).
+ *
+ * Two things the owner reported, measured rather than looked at. Guns went
+ * through people: the animation library has no rifle clips, so a long gun
+ * hangs off the chest at a point we choose, and that point put the stock
+ * beside the neck. And tracers did not start at the barrel: a figure's muzzle
+ * marker was looked for by a name only the first-person view model's own
+ * flash has, so no figure in the game had a muzzle at all, and every bot and
+ * every friend fired from the middle of their chest.
+ *
+ * So: for a gun of every length, the stock clears the body, both hands are on
+ * their holds, the muzzle marker is at the end of the barrel, and a shot's
+ * tracer starts there.
+ */
+async function holdTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&nointro");
+  await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 40000 });
+  const ok = await ev<boolean>(page, "window.__range.loadMannequin().then(() => true, () => false)");
+  if (!ok) {
+    check("figures: the mannequin loads", false);
+    await page.close();
+    return;
+  }
+  await ev(page, `window.__range.setFigureStyle("mannequin")`);
+  // one of each length: a pistol, two SMGs, a rifle, a shotgun, an LMG, the
+  // longest gun in the game, and the bow, which is held like none of them
+  const GUNS = ["autopistol", "volt_smg", "r97", "rspn101", "mastiff", "esaw", "sniper", "bocek"];
+  await ev(page, `(() => { const r = window.__range; const s = r.openGround(0, 40, 8); r.player.teleport(s.x, 0, s.z, 0, 0);
+    window.__labFigs = r.figureLab(${JSON.stringify(GUNS.map((w) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: w })))}, 4, 90); })()`);
+  await ev(page, "new Promise((r) => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(r)), 900))");
+
+  const held = await ev<Array<{ gun: string; gaps: { stock: number; grip: number; support: number; slide: number } | null; muzzle: number[] | null; chest: number[]; far: number }>>(
+    page,
+    `(() => { const r = window.__range; return window.__labFigs.map((f, i) => {
+       const mq = f.mq;
+       const m = f.muzzleWorld();
+       const chest = f.group.getWorldPosition(new r.THREE.Vector3());
+       const box = mq && mq.gunObject ? new r.THREE.Box3().setFromObject(mq.gunObject) : null;
+       return { gun: ${JSON.stringify(GUNS)}[i], gaps: mq ? mq.holdGaps() : null, muzzle: m ? [m.x, m.y, m.z] : null, chest: [chest.x, chest.y, chest.z], far: box ? box.max.distanceTo(box.min) : 0 };
+     }); })()`
+  );
+  check("figures: every gun a figure can hold has a muzzle at the end of its barrel", held.length === GUNS.length && held.every((h) => h.muzzle !== null), held.filter((h) => !h.muzzle).map((h) => h.gun).join(", ") || "all of them");
+  const away = held.filter((h) => h.muzzle).map((h) => Math.hypot(h.muzzle![0] - h.chest[0], h.muzzle![2] - h.chest[2]));
+  check("and it is out in front of the figure rather than inside it", away.every((d) => d > 0.25), away.map((d) => d.toFixed(2)).join(", "));
+  const gaps = held.map((h) => h.gaps).filter(Boolean) as Array<{ stock: number; grip: number; support: number; slide: number }>;
+  check("figures: no gun's stock sits further into the body than a stock goes", gaps.every((g) => g.stock <= HOLD.stockAllow + 0.001), gaps.map((g) => g.stock.toFixed(3)).join(", "));
+  check("figures: the firing hand is on the grip, not near it", gaps.every((g) => g.grip < 0.09), gaps.map((g) => g.grip.toFixed(3)).join(", "));
+  check("figures: and the support hand is on the gun, so no hand floats", gaps.every((g) => g.support < 0.08), gaps.map((g) => g.support.toFixed(3)).join(", "));
+  check("figures: a hand that cannot reach the handguard slides back along the gun rather than hanging in the air", gaps.every((g) => g.slide >= 0 && g.slide <= 1), gaps.map((g) => g.slide.toFixed(2)).join(", "));
+
+  // a shot from a bot: its tracer is drawn from its barrel, not its chest
+  await ev(page, `(() => { document.getElementById("goBots").click(); document.getElementById("startMode")?.click(); })()`);
+  await page.waitForFunction("!!window.__range.duel()", { polling: 100, timeout: 20000 });
+  await sleep(2500);
+  const shot = await ev<{ from: number[]; muzzle: number[] | null; eye: number[] } | null>(
+    page,
+    `(() => { const d = window.__range.duel(); const b = d.avatars && d.avatars[0]; if (!b) return null;
+       const m = b.muzzleWorld(); const e = b.group.getWorldPosition(new window.__range.THREE.Vector3());
+       return { from: m ? [m.x, m.y, m.z] : [0, 0, 0], muzzle: m ? [m.x, m.y, m.z] : null, eye: [e.x, e.y + 1.6, e.z] }; })()`
+  );
+  check("bots: a bot's gun has a muzzle too, so its tracers leave the barrel", !!shot && shot.muzzle !== null, JSON.stringify(shot?.muzzle));
+  await ev(page, "window.__range.toMenu()");
+  await page.close();
+}
+
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -5031,6 +5099,10 @@ async function main(): Promise<void> {
     if (want("panel")) {
       console.log("\nThe lobby");
       await lobbyPanelTest(browser);
+    }
+    if (want("hold")) {
+      console.log("\nHow a figure holds a gun");
+      await holdTest(browser);
     }
     if (want("range")) {
       console.log("\nThe range's tooling");

@@ -369,6 +369,33 @@ export const SCENARIOS: Scenario[] = [
     steps: [[`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -18); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }], 1.7, 90); })()`, 0], [gameSeconds(1.2), 100]],
   },
   {
+    name: "gear-lineup",
+    note: "the five operators in their kit, close and from the front: the vest, the pack, the helmet, the shades, the gas mask, the hood",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
+        r.figureLab([0, 1, 2, 3, 4].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" })), 3.6, 180); })()`, 0],
+      [gameSeconds(1.2), 100],
+    ],
+  },
+  {
+    name: "gear-close",
+    note: "one operator's head and chest: the helmet's lip and rails, the shades on their strap, the plate carrier's pouches",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -14);
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }], 1.35, 180); })()`, 0],
+      [gameSeconds(1.2), 100],
+    ],
+  },
+  {
+    name: "figures-stock",
+    note: "the longest guns in the game from the side, where a stock through the chest shows: a sniper, an LMG, a shotgun and a pistol",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 8); r.player.teleport(s.x, 0, s.z, 0, -6); r.setThirdPerson(false); r.debugView.lowered = 1;
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "kraber" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "devotion" }], 1.9, 90); })()`, 0],
+      [gameSeconds(1.2), 100],
+    ],
+  },
+  {
     name: "figures-hold",
     note: "mannequins from the side: the left hand on the R-301's, the Flatline's and the Peacekeeper's handguard; the Wingman two-handed",
     steps: [[holdLab, 0], [gameSeconds(1.2), 100]],

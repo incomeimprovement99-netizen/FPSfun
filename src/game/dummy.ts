@@ -19,7 +19,8 @@ import type { Finish } from "./finishes";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { displayGunModel, applyFinishTo } from "./gunmodels";
-import { MUZZLE, fitMuzzle, showFlash } from "./muzzle";
+import { buildGear } from "./gear";
+import { MUZZLE, fitMuzzle, muzzleOf, showFlash } from "./muzzle";
 import { ammoTypeOf } from "./ammo";
 import { OPERATORS, skinMaterials, type OperatorSkin } from "./operators";
 import { MannequinFigure, useMannequin } from "./mannequin";
@@ -558,7 +559,31 @@ export class Dummy {
       shin.push(foot);
     }
 
-    // the operator's add-ons
+    // The operator's kit (src/game/gear.ts), the same pieces the mannequin
+    // wears, dropped into the parts they belong to. The robot's own parts are
+    // built in the figure's space rather than a bone's, so each piece is moved
+    // to the anchor its bone would have been at.
+    {
+      const anchor: Record<string, { at: THREE.Vector3; into: THREE.Object3D[]; flip?: boolean }> = {
+        Head: { at: v(0, H - 0.15, 0), into: P.head },
+        spine_03: { at: v(0, CHEST_Y - 0.05, 0), into: P.torso },
+        pelvis: { at: v(0, PELVIS_Y, 0), into: P.torso },
+        upperarm_r: { at: v(0.235, 1.45, 0), into: P.armR },
+        upperarm_l: { at: v(-0.235, 1.45, 0), into: P.armL },
+        thigh_r: { at: v(0.098, PELVIS_Y, 0), into: P.thighR },
+        thigh_l: { at: v(-0.098, PELVIS_Y, 0), into: P.thighL },
+        calf_r: { at: v(0.108, 0.49, 0), into: P.shinR },
+        calf_l: { at: v(-0.108, 0.49, 0), into: P.shinL },
+      };
+      for (const piece of buildGear(skin)) {
+        const a = anchor[piece.bone];
+        if (!a) continue;
+        piece.group.position.add(a.at);
+        a.into.push(piece.group);
+      }
+    }
+
+    // the robot's own add-ons, which are its and not a person's kit
     const ex = skin.extras;
     if (ex.crest) {
       const crest = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.09, 0.2), A);
@@ -607,7 +632,7 @@ export class Dummy {
       gun.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
       });
-      this.flashSprite = fitMuzzle(gun, ammoTypeOf(armed) === "energy");
+      this.flashSprite = fitMuzzle(gun, ammoTypeOf(armed) === "energy", m.muzzle);
       gun.rotation.y = Math.PI;
       gun.position.set(0.07, 1.33 - m.grip.u, 0.45 - m.grip.f);
       this.gun = gun;
@@ -850,7 +875,7 @@ export class Dummy {
     gun.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
     });
-    this.flashSprite = fitMuzzle(gun, ammoTypeOf(id) === "energy");
+    this.flashSprite = fitMuzzle(gun, ammoTypeOf(id) === "energy", m.muzzle);
     gun.rotation.copy(old.rotation);
     // where the grip goes, in the arms' frame (the chest) for a rigged figure
     gun.position.set(0.07, 1.33 - m.grip.u, 0.45 - m.grip.f);
@@ -881,8 +906,10 @@ export class Dummy {
 
   /** the muzzle of the gun this figure shows, in the world: where its tracers start (null with no gun) */
   muzzleWorld(): THREE.Vector3 | null {
-    for (const s of [this.mq?.flash ?? null, this.flashSprite]) {
-      const m = s?.parent;
+    // the marker on whichever gun is being shown, not the flash sprite on it:
+    // the muzzle is a place, and the flash is a picture that may not have been
+    // drawn (a check with no browser under it) or may be out between shots
+    for (const m of [muzzleOf(this.mq?.gunRoot ?? null), muzzleOf(this.gun)]) {
       if (!m) continue;
       let shown = true;
       for (let o: THREE.Object3D | null = m; o; o = o.parent) if (!o.visible) shown = false;

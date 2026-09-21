@@ -60,19 +60,33 @@ function material(kind: "ballistic" | "energy"): THREE.SpriteMaterial {
 }
 
 /**
- * Take the display model's flash out of a third-person gun and leave a
- * marker at the muzzle with a sprite on it, unlit. Null when the model has no
- * flash to take the place of.
+ * Put a marker at the end of a third-person gun's barrel, with an unlit flash
+ * sprite on it. Everything a figure's gun does at the muzzle hangs off this
+ * marker: the flash when it fires, and where its tracers are drawn from.
+ *
+ * It used to look for a child called "muzzleflash" and give up when it found
+ * none, which was always. That name belongs to the FIRST-PERSON view model's
+ * own flash (src/game/viewmodel.ts), and a figure clones the display model,
+ * which is a separate build the view model never touches (gunmodels.ts
+ * displayGunModel). So no figure in the game has ever had a muzzle: no bot and
+ * no friend has flashed when they fired, and every one of their tracers was
+ * drawn from the middle of their chest instead of the end of the barrel. The
+ * muzzle is a point the model already knows (`GunModel.muzzle`), so it is
+ * passed in and the marker goes there.
  */
-export function fitMuzzle(gun: THREE.Object3D, energy: boolean): THREE.Sprite | null {
-  const f = gun.children.find((c) => c.name === "muzzleflash");
-  if (!f) return null;
+export function fitMuzzle(gun: THREE.Object3D, energy: boolean, muzzle: THREE.Vector3): THREE.Sprite | null {
+  // a view model's flash, if this happens to be a clone of one: it is the
+  // first-person copy's and has no business on a figure
+  const stray = gun.children.find((c) => c.name === "muzzleflash");
+  if (stray) gun.remove(stray);
   const marker = new THREE.Object3D();
   marker.name = "muzzle";
-  marker.position.copy(f.position);
-  marker.quaternion.copy(f.quaternion);
-  gun.remove(f);
+  marker.position.copy(muzzle);
   gun.add(marker);
+  // the checks build figures with no browser under them: the marker is where
+  // the shots come from and costs nothing, the flash is a picture and needs a
+  // canvas that can actually paint one
+  if (!canPaint()) return null;
   const s = new THREE.Sprite(material(energy ? "energy" : "ballistic"));
   s.name = "muzzle-flash";
   s.visible = false;
@@ -108,4 +122,20 @@ export function showFlash(s: THREE.Sprite, lit: boolean, spin: number): void {
 /** the world-space size a flash is drawn at, seen from `dist` metres (the checks) */
 export function flashSize(dist: number, pxPerRad: number): number {
   return Math.max(MUZZLE.size, (dist * MUZZLE.minPx) / pxPerRad);
+}
+
+/** is there a canvas here that can draw a flash on itself (a check has a stub that cannot) */
+function canPaint(): boolean {
+  if (typeof document === "undefined") return false;
+  try {
+    const g = document.createElement("canvas").getContext("2d");
+    return !!g && typeof g.createRadialGradient === "function";
+  } catch {
+    return false;
+  }
+}
+
+/** where a third-person gun's shots come from: the marker fitMuzzle left on it */
+export function muzzleOf(gun: THREE.Object3D | null): THREE.Object3D | null {
+  return gun?.children.find((c) => c.name === "muzzle") ?? null;
 }

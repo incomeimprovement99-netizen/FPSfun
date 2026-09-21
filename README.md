@@ -302,8 +302,14 @@ Shots go from your eye to what the crosshair is on, so they land where it
 says. **The figures** (other players, bots, your own) are a motion-captured
 mannequin by default (Quaternius's CC0 clips: walk, jog, sprint, crouch, the
 aim, the reload, the heal, the slide, the climb, the landing, a stagger, a
-death). A long gun is held at the shoulder with both hands on it (an IK to
-its grip and handguard), lowered and canted across the body in a sprint.
+death). A long gun is held in the shoulder pocket with both hands on it
+(an IK to its grip and handguard), lowered and canted across the body in a
+sprint. How far in front of the shoulder it hangs is the gun's own business:
+a stock sits behind the grip, so a longer gun hangs further out, far enough
+that no stock ends up inside anybody. And when a handguard is further away
+than the arm is long (the LMGs), the support hand slides back along the gun
+until it has hold of it, rather than reaching at nothing. Their shots leave
+the end of the barrel, which is also where their muzzle flashes are.
 The legs go the way the figure moves while its body stays on its aim, and
 standing still its feet stay planted as it turns, then step round. Down,
 nobody holds a gun: figures crawl, and your view shows your hands on the

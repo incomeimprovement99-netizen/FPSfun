@@ -45,6 +45,8 @@ import { ringConsoleFails } from "./checks/ring-console";
 import { emotesFails } from "./checks/emotes";
 import { boardsFails } from "./checks/boards";
 import { lobbyFails } from "./checks/lobby";
+import { holdFails } from "./checks/hold";
+import { gearFails } from "./checks/gear";
 import { botFireFails } from "./checks/bot-fire";
 import { feelFails } from "./checks/feel";
 import { botWalkFails } from "./checks/bot-walk";
@@ -1784,7 +1786,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + mobilityFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + throwStepsFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + resurgenceFails + gulagFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + searchFails + kitsFails + smokeFails + wallsFails + figLodFails + sceneryFails + renderBudgetFails + introFails + paintFails + pingWheelFails + lobbyFails;
+fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + mobilityFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + throwStepsFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + resurgenceFails + gulagFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + searchFails + kitsFails + smokeFails + wallsFails + figLodFails + sceneryFails + renderBudgetFails + introFails + paintFails + pingWheelFails + lobbyFails + holdFails + gearFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);
