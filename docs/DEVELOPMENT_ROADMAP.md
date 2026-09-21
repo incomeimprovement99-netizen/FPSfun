@@ -2768,3 +2768,32 @@ one player's page.
 - Checks: `tools/checks/kits.ts` (every knob moves, comes back, is held to its range, and a value that is
   not a number at all falls back to the config's own), and the e2e `duel` section's rules test for the two
   above. The look is `ability-numbers`.
+
+## Milestone 163 — Nobody's eyes, and a dirt bike ✅
+
+The owner: "the default loadouts should always have full wearables / skins like we made. Should always have
+a mask and some kind of eye wear or a helmet and / or covering their face completely. Do a dirt bike one and
+they should all have the dark shade on the glasses so you can't see their eyes."
+
+- **Every loadout the game ships is dressed outright**, rather than inheriting whatever its operator wears:
+  an outfit, a build and a face each. Assault goggles, Close Quarters a full mask, Marksman goggles, Heavy
+  and Sidearms a wrap and goggles, and a sixth, **Dirt Bike**, in the motocross kit.
+- **MOTOCROSS**, the eleventh outfit: a jersey and pants in blue and orange, boots, and a helmet with a
+  peak, a chin bar and a dark visor band. The helmet is built against the head **measured off the model**
+  (`tools/checks/body.ts` now reports it: 173 mm across, -9 to 256 mm up the Head bone, a face that reaches
+  106 mm forward), not against a guess. It covers a face by itself, so the set wears nothing else on its own.
+- **A sixth operator, Redline**, comes in it: dirt bike blue and orange, lean, helmet and visor.
+- **Every operator's eyes are covered.** Vanguard had nothing over its eyes but the kit's flat shades bar,
+  and Sandstorm only a head wrap, which leaves them. Both wear goggles now, and Vanguard's kit bar is gone
+  so the two do not fight.
+- **The glass is dark everywhere**, in the clothes and in the kit: a quarter of the operator's visor colour,
+  its glow cut from 0.12 to 0.012, and every lens **backed** with flat black so nothing reads through it
+  under a bright sky. A gas mask that used to light up violet is now a dark pair of lenses.
+- **And a thing nobody had noticed.** Every figure lineup in `tools/snap.ts` was shot with `turnDeg 180`,
+  which is a figure's OWN facing, not the camera's: every wardrobe picture ever taken was of their backs.
+  Ten of them now say 0, and `figureLab` says which is which in its own comment.
+- Checks: `tools/checks/outfit.ts` (every operator and every shipped loadout covers its eyes, with a wrap on
+  its own not counting; the glass is dark by luminance; the goggles and the helmet are backed),
+  `tools/checks/gear.ts` (headgear is counted across the kit AND the clothes, so a helmeted operator does
+  not need the kit's shades as well), `tools/checks/body.ts` (the head). The look is `face-close`,
+  `operators-faces` and `outfit-wardrobe`.

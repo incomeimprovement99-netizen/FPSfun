@@ -87,6 +87,20 @@
       "collar": [0.3, 0.09, 0.26],
       "collarAt": [0, -0.135, -0.02]
     },
+    "_mxHelmet": "a motocross helmet: a shell round the whole skull, a dark visor band where the eyes are, a chin bar across the jaw and a peak over the brow. It covers a face on its own, which is why the set that wears it needs nothing else on its own. Every number is against the head measured off the model by tools/checks/body.ts: 173 mm across, -9 to 256 mm up the Head bone, and a face that reaches 106 mm forward of it.",
+    "mxHelmet": {
+      "at": [0, 0.12, -0.005],
+      "shell": [0.106, 0.147, 0.126],
+      "peak": [0.28, 0.028, 0.15],
+      "peakAt": [0, 0.185, 0.1],
+      "peakTilt": -0.34,
+      "visor": [0.2, 0.062, 0.03],
+      "visorAt": [0, 0.13, 0.112],
+      "chin": [0.185, 0.07, 0.055],
+      "chinAt": [0, 0.022, 0.108],
+      "vent": [0.07, 0.022, 0.035],
+      "ventAt": [0, 0.0, 0.125]
+    },
     "wrap": { "at": [0, 0.075, -0.005], "radius": 0.128, "squash": 1.02, "tail": [0.17, 0.22, 0.06], "tailAt": [0, -0.055, -0.115] },
     "goggles": { "at": [0, 0.1, 0.068], "lens": 0.048, "gap": 0.058, "strap": [0.235, 0.036, 0.022] },
     "fullMask": { "at": [0, 0.072, 0.05], "size": [0.168, 0.2, 0.12], "lens": [0.132, 0.055, 0.03], "filter": { "r": 0.034, "len": 0.06, "at": [0, -0.062, 0.06] } }
@@ -174,6 +188,15 @@
       "cloth": "#c2ab7e",
       "trim": "#8a7449",
       "boots": "#5c4a32"
+    },
+    "motocross": {
+      "name": "MOTOCROSS",
+      "blurb": "a dirt bike jersey and pants, boots, and a helmet with a peak and a chin bar",
+      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot"],
+      "head": ["mxHelmet"],
+      "cloth": "#1f6fd0",
+      "trim": "#ff7a18",
+      "boots": "#171a1f"
     }
   }
 }

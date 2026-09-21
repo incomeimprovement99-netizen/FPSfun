@@ -14,6 +14,7 @@
 //
 // Run on its own: npx tsx tools/checks/gear.ts.
 import { GEAR_IDS, buildGear, gearMaterials, wears, type GearBone } from "../../src/game/gear";
+import outfitCfg from "../../src/config/outfits.json";
 import { OPERATORS } from "../../src/game/operators";
 import gearCfg from "../../src/config/gear.json";
 
@@ -28,13 +29,20 @@ const RIG: readonly GearBone[] = ["Head", "spine_03", "pelvis", "upperarm_l", "u
 
 console.log("The operators' kit");
 {
-  const kits = OPERATORS.map((o) => ({ id: o.id, wears: GEAR_IDS.filter((g) => wears(o, g)) }));
-  for (const k of kits) check(`${k.id} is wearing something`, k.wears.length >= 3, k.wears.join(", ") || "nothing");
+  // What an operator has on comes from two places now: the kit here, and the
+  // clothes in outfit.ts, which carry their own headgear (a hood, a motocross
+  // helmet) and what is on the face. So both are counted: an operator in a
+  // full-face helmet does not also need the kit's shades, and one whose
+  // goggles are part of its outfit should not wear the kit's flat bar over
+  // them.
+  const dressed = (o: (typeof OPERATORS)[number]): string[] => [...(o.face ?? []), ...((((outfitCfg.sets as Record<string, { head?: string[] }>)[o.outfit] ?? {}).head ?? []) as string[])];
+  const kits = OPERATORS.map((o) => ({ id: o.id, wears: GEAR_IDS.filter((g) => wears(o, g)), worn: dressed(o) }));
+  for (const k of kits) check(`${k.id} is wearing something`, k.wears.length + k.worn.length >= 3, [...k.wears, ...k.worn].join(", ") || "nothing");
   const sets = kits.map((k) => k.wears.slice().sort().join("+"));
   check("no two operators wear the same kit: you can tell them apart by their outline", new Set(sets).size === sets.length, `${new Set(sets).size} of ${sets.length}`);
   const worn = new Set(kits.flatMap((k) => k.wears));
   check("and every piece that exists is worn by somebody", GEAR_IDS.every((g) => worn.has(g)), GEAR_IDS.filter((g) => !worn.has(g)).join(", ") || "all of them");
-  const heads = kits.map((k) => k.wears.filter((g) => ["helmet", "hood", "brim", "mask", "shades"].includes(g)).length);
+  const heads = kits.map((k) => k.wears.filter((g) => ["helmet", "hood", "brim", "mask", "shades"].includes(g)).length + k.worn.length);
   check("every one of them has something on its head, which is what reads first at range", heads.every((n) => n > 0), heads.join(", "));
 }
 {

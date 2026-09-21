@@ -6588,6 +6588,12 @@ initWelcome();
    * The figure lab (tools/snap.ts): figures in a row `dist` metres in front of
    * you, facing you, one per pose ("dead" knocks it out); none clears it.
    */
+  /**
+   * Figures in a line in front of the player, for a snapshot. `turnDeg` turns
+   * them from facing the way the player faces: 0 is toward the camera (a
+   * figure's own rest facing is the player's, which is why 180 is its BACK,
+   * and why every wardrobe shot was of backs until somebody looked).
+   */
   figureLab: (poses: Array<FigurePose & { dead?: boolean; weapon?: string; look?: string }> = [], dist = 4, turnDeg = 0) => {
     for (const lf of labFigs) lf.f.dispose();
     labFigs.length = 0;

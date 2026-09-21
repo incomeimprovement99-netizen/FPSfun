@@ -71,7 +71,10 @@ export function gearMaterials(s: OperatorSkin): GearMats {
     // outline is the whole point
     hard: new THREE.MeshStandardMaterial({ color: shade(s.shell, 0.34), roughness: 0.6, metalness: 0.25 }),
     trim: new THREE.MeshStandardMaterial({ color: s.accent, roughness: 0.5, metalness: 0.3 }),
-    glass: new THREE.MeshStandardMaterial({ color: s.visor, roughness: 0.12, metalness: 0.8, emissive: s.eye, emissiveIntensity: 0.12 }),
+    // Dark, like the outfit's (outfit.ts outfitMaterials): a quarter of the
+    // visor colour and next to no glow, so a gas mask's lenses and a pair of
+    // shades hide the eyes behind them rather than lighting them up.
+    glass: new THREE.MeshStandardMaterial({ color: shade(s.visor, 0.25), roughness: 0.16, metalness: 0.85, emissive: s.eye, emissiveIntensity: 0.012 }),
   };
 }
 

@@ -289,16 +289,30 @@ export interface OutfitMats {
   glass: THREE.MeshStandardMaterial;
 }
 
-/** an outfit's colours, with the operator's own accent for the glass it wears */
+/**
+ * An outfit's colours.
+ *
+ * The glass is DARK, on every operator: a quarter of the visor colour, so the
+ * operator's own tint is still in it, and no glow behind it. A lens you can
+ * see a face through is a lens that is not doing anything, and every figure in
+ * this game should read as somebody who does not want to be recognised. The
+ * lenses are backed as well (`lensBack` below), because a dark transparent
+ * material still shows what is behind it under a bright sky.
+ */
 export function outfitMaterials(id: OutfitId, visor: number, eye: number): OutfitMats {
   const s = outfitCfg.sets[id];
+  const dark = new THREE.Color(visor).multiplyScalar(0.25).getHex();
   return {
     cloth: new THREE.MeshStandardMaterial({ color: hex(s.cloth), roughness: 0.94, metalness: 0.02 }),
     trim: new THREE.MeshStandardMaterial({ color: hex(s.trim), roughness: 0.9, metalness: 0.05 }),
     boots: new THREE.MeshStandardMaterial({ color: hex(s.boots), roughness: 0.75, metalness: 0.08 }),
-    glass: new THREE.MeshStandardMaterial({ color: visor, roughness: 0.14, metalness: 0.8, emissive: eye, emissiveIntensity: 0.1 }),
+    // eye is kept for the rim light on the lens edge, at a tenth of what it was
+    glass: new THREE.MeshStandardMaterial({ color: dark, roughness: 0.18, metalness: 0.85, emissive: eye, emissiveIntensity: 0.01 }),
   };
 }
+
+/** what sits immediately behind a lens: flat black, so no face reads through it */
+const lensBack = (): THREE.MeshStandardMaterial => new THREE.MeshStandardMaterial({ color: 0x06080a, roughness: 0.95, metalness: 0 });
 
 /** a head wrap: a shell round the skull with a tail down the back */
 function wrap(m: OutfitMats): THREE.Group {
@@ -321,11 +335,17 @@ function wrap(m: OutfitMats): THREE.Group {
 function goggles(m: OutfitMats): THREE.Group {
   const c = HEAD.goggles;
   const g = new THREE.Group();
+  const back = lensBack();
   for (const side of [-1, 1]) {
     const lens = new THREE.Mesh(new THREE.CylinderGeometry(c.lens, c.lens, 0.022, 12), m.glass);
     lens.rotation.x = Math.PI / 2;
     lens.position.set(side * c.gap, 0, 0);
     g.add(lens);
+    // the eye behind it, blacked out
+    const blank = new THREE.Mesh(new THREE.CylinderGeometry(c.lens * 0.94, c.lens * 0.94, 0.008, 12), back);
+    blank.rotation.x = Math.PI / 2;
+    blank.position.set(side * c.gap, 0, -0.012);
+    g.add(blank);
     const rim = new THREE.Mesh(new THREE.TorusGeometry(c.lens, 0.009, 6, 14), m.trim);
     rim.position.set(side * c.gap, 0, 0.002);
     g.add(rim);
@@ -335,6 +355,48 @@ function goggles(m: OutfitMats): THREE.Group {
   const strap = new THREE.Mesh(new THREE.BoxGeometry(c.strap[0], c.strap[1], c.strap[2]), m.trim);
   strap.position.z = -0.06;
   g.add(strap);
+  g.position.set(c.at[0], c.at[1], c.at[2]);
+  return g;
+}
+
+/**
+ * A motocross helmet: a shell round the whole skull, a chin bar across the
+ * jaw, and a peak over the brow. It is the one piece of headgear here that
+ * covers a face by itself, which is why the set that wears it needs nothing
+ * else on its own.
+ */
+function mxHelmet(m: OutfitMats): THREE.Group {
+  const c = outfitCfg.head.mxHelmet;
+  const g = new THREE.Group();
+  // the shell: an ellipsoid round the measured head, a couple of centimetres
+  // proud of it everywhere (the head is 173 mm across and 265 mm tall in its
+  // own bone's frame, and its face reaches 106 mm forward)
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 14), m.cloth);
+  shell.scale.set(c.shell[0], c.shell[1], c.shell[2]);
+  shell.castShadow = true;
+  g.add(shell);
+  // the peak, which is the line that says dirt bike from any distance
+  const peak = new THREE.Mesh(new THREE.BoxGeometry(c.peak[0], c.peak[1], c.peak[2]), m.trim);
+  peak.position.set(c.peakAt[0], c.peakAt[1], c.peakAt[2]);
+  peak.rotation.x = c.peakTilt;
+  peak.castShadow = true;
+  g.add(peak);
+  // the visor band, where the eyes would be: dark, and backed, so there is
+  // nothing to read behind it
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(c.visor[0], c.visor[1], c.visor[2]), m.glass);
+  visor.position.set(c.visorAt[0], c.visorAt[1], c.visorAt[2]);
+  g.add(visor);
+  const blank = new THREE.Mesh(new THREE.BoxGeometry(c.visor[0] * 0.96, c.visor[1] * 0.92, 0.012), lensBack());
+  blank.position.set(c.visorAt[0], c.visorAt[1], c.visorAt[2] - c.visor[2] * 0.6);
+  g.add(blank);
+  // the chin bar across the jaw, and the vent in it
+  const chin = new THREE.Mesh(new THREE.BoxGeometry(c.chin[0], c.chin[1], c.chin[2]), m.cloth);
+  chin.position.set(c.chinAt[0], c.chinAt[1], c.chinAt[2]);
+  chin.castShadow = true;
+  g.add(chin);
+  const vent = new THREE.Mesh(new THREE.BoxGeometry(c.vent[0], c.vent[1], c.vent[2]), m.trim);
+  vent.position.set(c.ventAt[0], c.ventAt[1], c.ventAt[2]);
+  g.add(vent);
   g.position.set(c.at[0], c.at[1], c.at[2]);
   return g;
 }
@@ -349,12 +411,25 @@ function fullMask(m: OutfitMats): THREE.Group {
   const lens = new THREE.Mesh(new THREE.BoxGeometry(c.lens[0], c.lens[1], c.lens[2]), m.glass);
   lens.position.set(0, c.size[1] * 0.18, c.size[2] * 0.48);
   g.add(lens);
+  const blank = new THREE.Mesh(new THREE.BoxGeometry(c.lens[0] * 0.96, c.lens[1] * 0.9, 0.01), lensBack());
+  blank.position.set(0, c.size[1] * 0.18, c.size[2] * 0.48 - c.lens[2] * 0.6);
+  g.add(blank);
   const f = new THREE.Mesh(new THREE.CylinderGeometry(c.filter.r, c.filter.r, c.filter.len, 10), m.trim);
   f.rotation.x = Math.PI / 2;
   f.position.set(c.filter.at[0], c.filter.at[1], c.filter.at[2]);
   g.add(f);
   g.position.set(c.at[0], c.at[1], c.at[2]);
   return g;
+}
+
+/** everything that goes on a head, by name: a set's own and a player's choice both come through here */
+function headPiece(id: string, m: OutfitMats): THREE.Group | null {
+  if (id === "wrap") return wrap(m);
+  if (id === "goggles") return goggles(m);
+  if (id === "fullMask") return fullMask(m);
+  if (id === "hood") return hood(m);
+  if (id === "mxHelmet") return mxHelmet(m);
+  return null;
 }
 
 /** one mesh per material: a sleeve and its cuff are one thing to draw */
@@ -421,13 +496,16 @@ export function buildOutfit(id: OutfitId, mats: OutfitMats, face: FacePiece[] = 
   // what the SET puts on the head (a hood is part of a hoodie, not a choice),
   // and then what the player chose on top of it
   for (const h of (set as { head?: string[] }).head ?? []) {
-    if (h !== "hood") continue;
-    const g = hood(mats);
-    g.name = "wear:hood";
+    const g = headPiece(h, mats);
+    if (!g) continue;
+    g.name = `wear:${h}`;
     out.push({ id: h, bone: "Head", group: weld(g), aligned: true });
   }
   for (const f of face) {
-    const g = f === "wrap" ? wrap(mats) : f === "goggles" ? goggles(mats) : fullMask(mats);
+    // the set may already wear it (a motocross set brings its own goggles)
+    if (out.some((w) => w.id === f)) continue;
+    const g = headPiece(f, mats);
+    if (!g) continue;
     g.name = `wear:${f}`;
     out.push({ id: f, bone: "Head", group: weld(g), aligned: true });
   }

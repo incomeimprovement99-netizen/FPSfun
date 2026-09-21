@@ -373,7 +373,7 @@ export const SCENARIOS: Scenario[] = [
     note: "the five operators in their clothes and kit, close and from the front: fatigues, urban, desert, arctic, irregular",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab([0, 1, 2, 3, 4].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" })), 3.6, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab([0, 1, 2, 3, 4].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" })), 3.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -382,7 +382,7 @@ export const SCENARIOS: Scenario[] = [
     note: "one operator head to knee: the wrap, the goggles, the sleeves, the trousers and the boots under the kit",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -10);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }], 1.6, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }], 1.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -392,7 +392,7 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
         const sets = ["hoodie", "coveralls", "ghillie", "tracksuit", "fatigues"];
-        r.figureLab(sets.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101", look: o + "||" })), 3.6, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab(sets.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101", look: o + "||" })), 3.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -401,8 +401,8 @@ export const SCENARIOS: Scenario[] = [
     note: "the other five outfits: plain clothes, irregular, urban, arctic, desert",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        const sets = ["plainclothes", "irregular", "urban", "arctic", "desert"];
-        r.figureLab(sets.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101", look: o + "||" })), 3.6, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        const sets = ["plainclothes", "irregular", "urban", "arctic", "motocross"];
+        r.figureLab(sets.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101", look: o + "||" })), 3.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -411,7 +411,25 @@ export const SCENARIOS: Scenario[] = [
     note: "close: the three that change an outline rather than a colour, hoodie, ghillie and tracksuit, with the hood up, the strips hanging and the stripe down the arm",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -8);
-        r.figureLab(["hoodie", "ghillie", "tracksuit"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 2.2, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab(["hoodie", "ghillie", "tracksuit"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 2.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.2), 100],
+    ],
+  },
+  {
+    name: "operators-faces",
+    note: "the six operators head and shoulders: every one of them has its eyes covered, by goggles, a mask or a helmet",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 6);
+        r.figureLab([0, 1, 2, 3, 4, 5].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "" })), 2.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.2), 100],
+    ],
+  },
+  {
+    name: "face-close",
+    note: "close, from the front: the motocross helmet's peak and chin bar, and goggles with nothing readable behind the lens",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 8);
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "motocross||" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "" }], 1.45, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -420,7 +438,7 @@ export const SCENARIOS: Scenario[] = [
     note: "one outfit in all three builds, lean, regular and heavy: the clothes change, the body inside them does not",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab(["lean", "regular", "heavy"].map((b) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101", look: "coveralls|" + b + "|" })), 2.6, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab(["lean", "regular", "heavy"].map((b) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101", look: "coveralls|" + b + "|" })), 2.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -439,7 +457,7 @@ export const SCENARIOS: Scenario[] = [
     note: "the five operators in their kit, close and from the front: the vest, the pack, the helmet, the shades, the gas mask, the hood",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab([0, 1, 2, 3, 4].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" })), 3.6, 180); })()`, 0],
+        r.figureLab([0, 1, 2, 3, 4].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" })), 3.6, 0); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -448,7 +466,7 @@ export const SCENARIOS: Scenario[] = [
     note: "one operator's head and chest: the helmet's lip and rails, the shades on their strap, the plate carrier's pouches",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -14);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }], 1.35, 180); })()`, 0],
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }], 1.35, 0); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },

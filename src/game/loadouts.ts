@@ -20,12 +20,20 @@ export interface LoadoutDef {
   heirloom: string;
 }
 
+/**
+ * The loadouts everybody starts with. Each one is dressed outright rather than
+ * left to inherit its operator's set, and every one of them covers its face:
+ * goggles, a full mask, or a helmet. Nobody's eyes are visible, which is the
+ * owner's rule and a good one - a figure whose face you can read is a figure
+ * out of a different game from the one it is standing in.
+ */
 export const DEFAULT_LOADOUTS: readonly LoadoutDef[] = [
-  { name: "Assault", operator: "vanguard", slot1: "rspn101", slot2: "wingman", heirloom: "fists" },
-  { name: "Close Quarters", operator: "nightshade", slot1: "r97", slot2: "mastiff", heirloom: "karambit" },
-  { name: "Marksman", operator: "frost", slot1: "g2", slot2: "volt_smg", heirloom: "tanto" },
-  { name: "Heavy", operator: "inferno", slot1: "lmg", slot2: "shotgun", heirloom: "kukri" },
-  { name: "Sidearms", operator: "sandstorm", slot1: "semipistol", slot2: "g17", heirloom: "butterfly" },
+  { name: "Assault", operator: "vanguard", outfit: "fatigues", build: "regular", face: "goggles", slot1: "rspn101", slot2: "wingman", heirloom: "fists" },
+  { name: "Close Quarters", operator: "nightshade", outfit: "urban", build: "lean", face: "fullMask", slot1: "r97", slot2: "mastiff", heirloom: "karambit" },
+  { name: "Marksman", operator: "frost", outfit: "arctic", build: "heavy", face: "goggles", slot1: "g2", slot2: "volt_smg", heirloom: "tanto" },
+  { name: "Heavy", operator: "inferno", outfit: "irregular", build: "heavy", face: "wrap,goggles", slot1: "lmg", slot2: "shotgun", heirloom: "kukri" },
+  { name: "Sidearms", operator: "sandstorm", outfit: "desert", build: "regular", face: "wrap,goggles", slot1: "semipistol", slot2: "g17", heirloom: "butterfly" },
+  { name: "Dirt Bike", operator: "redline", outfit: "motocross", build: "lean", face: "", slot1: "car", slot2: "mastiff", heirloom: "kukri" },
 ];
 
 export type LoadoutRef = { kind: "default" | "custom"; index: number };
@@ -87,7 +95,9 @@ export class Loadouts {
         const custom = fresh.custom.map((f, i) => valid(s.custom?.[i], f));
         const sel = s.selected;
         const selected: LoadoutRef =
-          sel && (sel.kind === "default" || sel.kind === "custom") && Number.isInteger(sel.index) && sel.index >= 0 && sel.index < 5 ? sel : fresh.selected;
+          // (the bound is the list's own length: it was five, and adding a
+          // sixth default would otherwise make it unselectable after a reload)
+          sel && (sel.kind === "default" || sel.kind === "custom") && Number.isInteger(sel.index) && sel.index >= 0 && sel.index < DEFAULT_LOADOUTS.length ? sel : fresh.selected;
         return { selected, custom };
       }
       // carry over the two weapons picked before loadouts existed

@@ -67,9 +67,11 @@ export const OPERATORS: OperatorSkin[] = [
     outfit: "fatigues",
     name: "Vanguard",
     blurb: "Range grey with safety orange. The original.",
+    face: ["goggles"],
     shell: 0x9aa2aa, head: 0xa9b0b7, accent: 0xd4712a, joint: 0x24282d, visor: 0x0d1013, eye: 0x39d7ee,
     glove: 0x45403a, pad: 0x625a50, sleeve: 0x3a3e43, cuff: 0xc9772f,
-    extras: { vest: true, shades: true, pouches: true },
+    // the goggles are the outfit's, so the kit's flat shades bar would double up
+    extras: { vest: true, pouches: true },
   },
   {
     id: "nightshade",
@@ -86,7 +88,7 @@ export const OPERATORS: OperatorSkin[] = [
     id: "sandstorm",
     build: "regular",
     outfit: "desert",
-    face: ["wrap"],
+    face: ["wrap", "goggles"],
     name: "Sandstorm",
     blurb: "Desert tan, olive webbing, brimmed hood and face guard.",
     shell: 0xb59a72, head: 0xc2a67c, accent: 0x5d6b3a, joint: 0x3a3226, visor: 0x1c140c, eye: 0xffb23c,
@@ -114,6 +116,16 @@ export const OPERATORS: OperatorSkin[] = [
     shell: 0x3a1f1c, head: 0x4a2622, accent: 0xff3b1f, joint: 0x1a1210, visor: 0x2a0a06, eye: 0xffd23c,
     glove: 0x2d1c1a, pad: 0x6a2a1e, sleeve: 0x241816, cuff: 0xff3b1f,
     extras: { antenna: true, shoulders: true, mask: true, helmet: true, pack: true },
+  },
+  {
+    id: "redline",
+    build: "lean",
+    outfit: "motocross",
+    name: "Redline",
+    blurb: "Dirt bike blue and orange, a peaked helmet and goggles.",
+    shell: 0x24425f, head: 0x2d5078, accent: 0xff7a18, joint: 0x141b22, visor: 0x0a0f14, eye: 0xffa03c,
+    glove: 0x1b2833, pad: 0x2f4a66, sleeve: 0x1f3242, cuff: 0xff7a18,
+    extras: { pouches: true, knees: true },
   },
 ];
 

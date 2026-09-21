@@ -16,8 +16,10 @@
 // `outfit-close`.
 //
 // Run on its own: npx tsx tools/checks/outfit.ts.
-import { OUTFIT_IDS, buildOutfit, outfitInfo, outfitMaterials } from "../../src/game/outfit";
-import { OPERATORS } from "../../src/game/operators";
+import * as THREE from "three";
+import { OUTFIT_IDS, buildOutfit, outfitInfo, outfitMaterials, type OutfitId } from "../../src/game/outfit";
+import { DEFAULT_LOADOUTS } from "../../src/game/loadouts";
+import { OPERATORS, operatorById } from "../../src/game/operators";
 import outfitCfg from "../../src/config/outfits.json";
 
 let fails = 0;
@@ -81,10 +83,13 @@ console.log("What an operator wears");
     const pairs = built.filter((b) => b.bone.endsWith("_l")).length;
     const rights = built.filter((b) => b.bone.endsWith("_r")).length;
     check(`${id}: what comes in pairs comes in pairs`, pairs === rights, `${pairs} left, ${rights} right`);
-    // the three a player can choose, plus whatever the set puts there itself (a hood)
-    const own = ((outfitCfg.sets[id] as { head?: string[] }).head ?? []).length;
+    // the set's own head pieces, plus the three a player can choose, minus any
+    // the set already wears (a motocross set brings its own goggles)
+    const own = ((outfitCfg.sets[id] as { head?: string[] }).head ?? []) as string[];
+    const want = new Set([...own, "wrap", "goggles", "fullMask"]);
     const face = built.filter((b) => b.bone === "Head");
-    check(`${id}: what goes on a face is aligned to the face`, face.length === 3 + own && face.every((f) => f.aligned), `${face.length} pieces, ${own} of them the outfit's own`);
+    check(`${id}: what goes on a face is aligned to the face`, face.length === want.size && face.every((f) => f.aligned), `${face.length} pieces of ${want.size}: ${face.map((f) => f.id).join(" ")}`);
+    check(`${id}: and nothing is put on twice`, new Set(face.map((f) => f.id)).size === face.length, face.map((f) => f.id).join(" "));
     const limbs = built.filter((b) => b.bone !== "Head");
     check(`${id}: and what goes on a limb turns with the limb`, limbs.every((l) => !l.aligned));
   }
@@ -121,6 +126,46 @@ console.log("What an operator wears");
   }
   const shapes = OUTFIT_IDS.map((id) => (outfitCfg.sets[id].wears as string[]).slice().sort().join("+"));
   check("and the wardrobe is not ten of the same shape in ten colours", new Set(shapes).size >= 4, `${new Set(shapes).size} different sets of garments across ${shapes.length} outfits`);
+}
+
+{
+  // Nobody's eyes. The owner's rule, and a good one: a figure whose face you
+  // can read is a figure out of a different game from the one it is standing
+  // in. So every operator, and every loadout the game ships, has to be wearing
+  // something that covers the eyes - goggles, a full mask, or a helmet - and a
+  // head wrap on its own does not count, because a wrap leaves the eyes.
+  console.log("\nEvery figure's eyes are covered");
+  const COVERS = ["goggles", "fullMask", "mxHelmet"];
+  const eyesOf = (face: string[], outfit: string): string[] => [...face, ...(((outfitCfg.sets[outfit as OutfitId] as { head?: string[] }).head ?? []) as string[])];
+  for (const o of OPERATORS) {
+    const worn = eyesOf(o.face ?? [], o.outfit);
+    check(`${o.id}: something is over its eyes`, worn.some((w) => COVERS.includes(w)), worn.join(", ") || "nothing");
+  }
+  for (const d of DEFAULT_LOADOUTS) {
+    const face = (d.face ?? "").split(",").filter(Boolean);
+    const outfit = d.outfit ?? operatorById(d.operator).outfit;
+    const worn = face.length || d.face !== undefined ? eyesOf(face, outfit) : eyesOf(operatorById(d.operator).face ?? [], outfit);
+    check(`the "${d.name}" loadout is dressed and its eyes are covered`, !!d.outfit && !!d.build && worn.some((w) => COVERS.includes(w)), `${outfit}, ${d.build ?? "no build"}, ${worn.join(" ") || "nothing"}`);
+  }
+  check("and one of them is the dirt bike", DEFAULT_LOADOUTS.some((d) => d.outfit === "motocross"), DEFAULT_LOADOUTS.map((d) => d.outfit).join(", "));
+  // the lens itself: dark enough that there is nothing to read through it
+  const mats = outfitMaterials("motocross", 0x0a0f14, 0xffa03c);
+  const lum = mats.glass.color.r * 0.2126 + mats.glass.color.g * 0.7152 + mats.glass.color.b * 0.0722;
+  check("the glass is dark, so an eye behind it is not a thing you can see", lum < 0.03 && mats.glass.emissiveIntensity <= 0.02, `luminance ${lum.toFixed(3)}, glow ${mats.glass.emissiveIntensity}`);
+  // and it is backed: a lens with nothing behind it shows the face under a bright sky
+  const built = buildOutfit("motocross", mats, ["goggles"]);
+  const helmet = built.find((b) => b.id === "mxHelmet");
+  const lenses = built.find((b) => b.id === "goggles");
+  const black = (g: THREE.Object3D): boolean => {
+    let found = false;
+    g.traverse((c) => {
+      const m = (c as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+      if (m && !Array.isArray(m) && m.color && m.color.r + m.color.g + m.color.b < 0.12) found = true;
+    });
+    return found;
+  };
+  check("the goggles are backed, so no face reads through them", !!lenses && black(lenses.group));
+  check("and the helmet covers the face behind its own chin bar", !!helmet && black(helmet.group));
 }
 
 console.log(fails === 0 ? "\nOUTFIT PASS" : `\nOUTFIT FAIL (${fails})`);

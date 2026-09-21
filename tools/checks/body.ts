@@ -88,6 +88,7 @@ function boneOf(name: string): string | null {
   // the body itself: three spine bones and the two collarbones, all of which a
   // jacket has to cover, measured in the frame of the bone it hangs on
   if (n.startsWith("spine") || n.startsWith("pelvis") || n.startsWith("clavicle")) return "torso";
+  if (n === "head" || n.startsWith("head")) return "head";
   return null;
 }
 
@@ -111,7 +112,10 @@ const radii = new Map<string, number[]>();
 const torso: Array<[number, number, number]> = [];
 const clav: Array<[number, number, number]> = [];
 const byJoint = new Map<string, Array<[number, number, number]>>();
+/** the head, in the Head bone's own frame: what a helmet has to cover */
+const head: Array<[number, number, number]> = [];
 const spineJoint = skin!.joints.findIndex((j) => (nodes[j]?.name ?? "").toLowerCase().startsWith("spine_01"));
+const headJoint = skin!.joints.findIndex((j) => (nodes[j]?.name ?? "").toLowerCase() === "head");
 /** the same radii, kept with where along the bone they sit, so the taper can be seen */
 const alongs = new Map<string, Array<[number, number]>>();
 const LEN: Record<string, number> = { arm: 0.274, forearm: 0.273, thigh: 0.4, calf: 0.429 };
@@ -133,9 +137,13 @@ for (let i = 0; i < pos.length / 3; i++) {
   // collarbones, and at a half share the whole of it drops out. That is how a
   // jacket came to be measured off the shoulder caps alone.
   if (bestW <= (bone === "torso" ? 0.25 : 0.5)) continue;
-  m.fromArray(ibm, bone === "torso" ? spineJoint * 16 : best * 16);
+  m.fromArray(ibm, bone === "torso" ? spineJoint * 16 : bone === "head" ? headJoint * 16 : best * 16);
   v.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]).applyMatrix4(m);
   if (bone === "torso" && (nodes[skin!.joints[best]]?.name ?? "").toLowerCase().startsWith("clavicle")) clav.push([Math.abs(v.x), v.z, v.y]);
+  if (bone === "head") {
+    head.push([v.x, v.y, v.z]);
+    continue;
+  }
   if (bone === "torso" && process.env.BODY_SPREAD) {
     const nm = (nodes[skin!.joints[best]]?.name ?? "?").toLowerCase();
     const l = byJoint.get(nm) ?? [];
@@ -331,6 +339,29 @@ for (const [bone, r] of Object.entries(MEASURED)) {
   // numbers on the upper spine bone. This says what it would have to clear if
   // it were measured the same way, which is the next of these.
   if (process.env.BODY_SPREAD) console.log(`      (the chest the kit hangs on: ${((front - back) * 1000).toFixed(0)} mm deep, middle running ${(cfg.mid[0] * 1000).toFixed(0)} to ${(cfg.mid[BANDS - 1] * 1000).toFixed(0)} mm)`);
+}
+
+// The head, in its own bone's frame: what a helmet, a mask or a pair of
+// goggles has to cover, and where the face is. Everything that goes on a head
+// in outfit.ts is placed by hand against these numbers.
+{
+  const pct = (l: number[], f: number): number => {
+    const s = l.slice().sort((a, b) => a - b);
+    return s.length ? s[Math.floor(s.length * f)] : 0;
+  };
+  const xs = head.map(([x]) => Math.abs(x));
+  const ys = head.map(([, y]) => y);
+  const zs = head.map(([, , z]) => z);
+  const box = { halfW: pct(xs, 0.98), low: pct(ys, 0.02), high: pct(ys, 0.98), back: pct(zs, 0.02), front: pct(zs, 0.98) };
+  check("the head is measurable", head.length > 50 && box.halfW > 0.04 && box.high > box.low, `${head.length} vertices`);
+  check(
+    "and a helmet is placed against it",
+    box.front > 0 && box.high > 0.1,
+    `${(box.halfW * 2000).toFixed(0)} mm across, ${(box.low * 1000).toFixed(0)} to ${(box.high * 1000).toFixed(0)} mm up, ${(box.back * 1000).toFixed(0)} to ${(box.front * 1000).toFixed(0)} mm front to back`
+  );
+  // the face: the front half, at eye height and below
+  const faceZ = pct(head.filter(([, y]) => y > 0.02 && y < 0.14).map(([, , z]) => z), 0.98);
+  console.log(`      (the face reaches ${(faceZ * 1000).toFixed(0)} mm forward of the head bone, between 20 and 140 mm up)`);
 }
 
 // and the thing an eye sees: at the leanest build, does the cloth still clear?
