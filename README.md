@@ -557,7 +557,10 @@ in code, two free CC0 models) as the melee weapon when holstered.
 **What they wear.** Ten outfits (hoodie, coveralls, ghillie, tracksuit,
 fatigues, plain clothes, irregular, urban, arctic, desert), three builds (lean,
 regular, heavy) and a choice of face covering: a head wrap, goggles, a full
-mask, or a wrap and goggles. Each operator comes dressed; the Loadouts tab lets
+mask, or a wrap and goggles. The hoodie and the ghillie put a hood up, the
+ghillie hangs ragged strips off the body and legs, the tracksuit runs a stripe
+down each arm and leg: what an outfit's own description promises, it wears, and
+a check fails if it ever stops being true. Each operator comes dressed; the Loadouts tab lets
 you put something else on, per loadout, and the other players see it. A build
 changes how the clothes sit and nothing else: the body under them is one
 mannequin and one set of hit boxes, so nobody is a bigger target for how they

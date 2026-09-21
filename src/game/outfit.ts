@@ -88,7 +88,7 @@ export function faceList(s: string | undefined): FacePiece[] {
 
 const hex = (s: string): number => parseInt(s.replace("#", ""), 16);
 const FIT = outfitCfg.fit;
-const PIECES = outfitCfg.pieces as Record<string, { bone: string; from: number; to: number; over: number }>;
+const PIECES = outfitCfg.pieces as Record<string, { bone: string; from: number; to: number; over: number; kind?: string; strips?: number; size?: number[] }>;
 const HEAD = outfitCfg.head;
 
 /** the lengths of the bones a garment hangs on, metres, measured off the rig */
@@ -154,6 +154,63 @@ function tube(bone: string, from: number, to: number, over: number, mat: THREE.M
   const m = new THREE.Mesh(new THREE.LatheGeometry(pts, 10), mat);
   m.castShadow = true;
   return m;
+}
+
+/**
+ * Ragged strips hung off a bone, which is what a ghillie suit is: the point of
+ * it is that it breaks the outline, and an outline is the thing a player reads
+ * at eighty metres where a colour is not. Laid out by a fixed count rather
+ * than at random, so the same outfit is the same outfit on every screen.
+ */
+function rags(bone: string, from: number, to: number, over: number, count: number, size: number[], mat: THREE.Material): THREE.Group {
+  const len = BONE_LEN[bone] ?? 0.3;
+  const g = new THREE.Group();
+  for (let i = 0; i < count; i++) {
+    // a spiral rather than rings: rings read as a lampshade
+    const f = (i + 0.5) / count;
+    const a = f * Math.PI * 2 * 3.7;
+    const t = from + (to - from) * f;
+    const r = (bone === "spine_01" ? FIT.torso.w * 0.46 : bodyAt(bone, t)) + over;
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), mat);
+    strip.position.set(Math.sin(a) * r, t * len - size[1] * 0.35, Math.cos(a) * r + (bone === "spine_01" ? FIT.torsoAt[2] : 0));
+    strip.rotation.set(0.25 + (i % 3) * 0.12, a, (i % 2 ? 0.2 : -0.2));
+    strip.castShadow = true;
+    g.add(strip);
+  }
+  return g;
+}
+
+/** a band down the outside of a bone: two of them are what makes a tracksuit a tracksuit */
+function stripe(bone: string, from: number, to: number, over: number, size: number[], mat: THREE.Material, side: number): THREE.Mesh {
+  const len = BONE_LEN[bone] ?? 0.3;
+  const h = Math.max(0.04, (to - from) * len);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(size[0], h, size[2]), mat);
+  // on the outside of the limb, which is the side away from the body
+  m.position.set(side * (bodyAt(bone, (from + to) / 2) + over), from * len + h / 2, 0);
+  m.castShadow = true;
+  return m;
+}
+
+/** a hood standing off the back of the head, up rather than down */
+function hood(m: OutfitMats): THREE.Group {
+  const c = outfitCfg.head.hood;
+  const g = new THREE.Group();
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(c.radius, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.66), m.cloth);
+  shell.scale.y = c.squash;
+  shell.castShadow = true;
+  g.add(shell);
+  // the brow: the edge of a hood that is up, which is the whole of its shape
+  const brow = new THREE.Mesh(new THREE.BoxGeometry(c.brow[0], c.brow[1], c.brow[2]), m.cloth);
+  brow.position.set(c.browAt[0], c.browAt[1], c.browAt[2]);
+  brow.rotation.x = -0.35;
+  brow.castShadow = true;
+  g.add(brow);
+  const collar = new THREE.Mesh(new THREE.BoxGeometry(c.collar[0], c.collar[1], c.collar[2]), m.cloth);
+  collar.position.set(c.collarAt[0], c.collarAt[1], c.collarAt[2]);
+  collar.castShadow = true;
+  g.add(collar);
+  g.position.set(c.at[0], c.at[1], c.at[2]);
+  return g;
 }
 
 /** the torso's own shell: a box along the spine, a little wider at the shoulders */
@@ -289,17 +346,30 @@ export function buildOutfit(id: OutfitId, mats: OutfitMats, face: FacePiece[] = 
   for (const name of set.wears) {
     const p = PIECES[name];
     if (!p) continue;
-    const mat = name === "boot" ? mats.boots : name === "cuff" ? mats.trim : mats.cloth;
+    // a stripe and a set of rags are the trim colour: they are there to be
+    // seen against the cloth, which is the whole of their job
+    const mat = name === "boot" ? mats.boots : name === "cuff" || p.kind ? mats.trim : mats.cloth;
     const make = (bone: WearBone, side: "" | "_l" | "_r"): void => {
       const g = new THREE.Group();
       g.name = `wear:${name}${side}`;
-      g.add(p.bone === "spine_01" ? torso(p.from, p.to, p.over * b.cloth, mat, b.shoulders) : tube(p.bone, p.from, p.to, p.over * b.cloth, mat));
+      const over = p.over * b.cloth;
+      if (p.kind === "rags") g.add(rags(p.bone, p.from, p.to, over, p.strips ?? 12, p.size ?? [0.05, 0.16, 0.012], mat));
+      else if (p.kind === "stripe") g.add(stripe(p.bone, p.from, p.to, over, p.size ?? [0.026, 0, 0.016], mat, side === "_l" ? 1 : -1));
+      else g.add(p.bone === "spine_01" ? torso(p.from, p.to, over, mat, b.shoulders) : tube(p.bone, p.from, p.to, over, mat));
       out.push({ id: name, bone, group: weld(g), aligned: false });
     };
     if (SIDED.has(p.bone)) {
       make(`${p.bone}_l` as WearBone, "_l");
       make(`${p.bone}_r` as WearBone, "_r");
     } else make(p.bone as WearBone, "");
+  }
+  // what the SET puts on the head (a hood is part of a hoodie, not a choice),
+  // and then what the player chose on top of it
+  for (const h of (set as { head?: string[] }).head ?? []) {
+    if (h !== "hood") continue;
+    const g = hood(mats);
+    g.name = "wear:hood";
+    out.push({ id: h, bone: "Head", group: weld(g), aligned: true });
   }
   for (const f of face) {
     const g = f === "wrap" ? wrap(mats) : f === "goggles" ? goggles(mats) : fullMask(mats);

@@ -407,6 +407,15 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "outfit-shapes",
+    note: "close: the three that change an outline rather than a colour, hoodie, ghillie and tracksuit, with the hood up, the strips hanging and the stripe down the arm",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -8);
+        r.figureLab(["hoodie", "ghillie", "tracksuit"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 2.2, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.2), 100],
+    ],
+  },
+  {
     name: "outfit-builds",
     note: "one outfit in all three builds, lean, regular and heavy: the clothes change, the body inside them does not",
     steps: [

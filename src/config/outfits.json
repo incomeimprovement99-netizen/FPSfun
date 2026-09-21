@@ -24,6 +24,7 @@
     "heavy": { "name": "HEAVY", "cloth": 1.45, "shoulders": 1.1 }
   },
   "_pieces": "each piece: the bone it hangs on, how far along that bone it starts and ends as a fraction of the bone's length, and how much thicker than the body it is",
+  "_pieces": "a piece with no kind is a shell along its bone, turned along the body's own profile. 'rags' hangs strips off one, which is what breaks a silhouette rather than colouring it; 'stripe' runs a band down the outside of one, which is what a tracksuit is.",
   "pieces": {
     "shirt": { "bone": "spine_01", "from": -0.14, "to": 1.5, "over": 0.02 },
     "jacket": { "bone": "spine_01", "from": -0.26, "to": 1.62, "over": 0.035 },
@@ -33,10 +34,53 @@
     "shorts": { "bone": "thigh", "from": -0.05, "to": 0.62, "over": 0.036 },
     "trouserThigh": { "bone": "thigh", "from": -0.05, "to": 1.0, "over": 0.026 },
     "trouserCalf": { "bone": "calf", "from": 0.0, "to": 0.95, "over": 0.024 },
+    "rags": {
+      "bone": "spine_01",
+      "from": -0.2,
+      "to": 1.5,
+      "over": 0.05,
+      "kind": "rags",
+      "strips": 22,
+      "size": [0.055, 0.17, 0.014]
+    },
+    "ragsLeg": {
+      "bone": "thigh",
+      "from": 0.0,
+      "to": 0.95,
+      "over": 0.04,
+      "kind": "rags",
+      "strips": 10,
+      "size": [0.045, 0.14, 0.012]
+    },
+    "stripeArm": {
+      "bone": "upperarm",
+      "from": -0.14,
+      "to": 1.0,
+      "over": 0.026,
+      "kind": "stripe",
+      "size": [0.026, 0, 0.016]
+    },
+    "stripeLeg": {
+      "bone": "thigh",
+      "from": -0.02,
+      "to": 1.0,
+      "over": 0.03,
+      "kind": "stripe",
+      "size": [0.028, 0, 0.018]
+    },
     "boot": { "bone": "calf", "from": 0.62, "to": 1.06, "over": 0.048 }
   },
   "_head": "the things that cover a face, in the head bone's rest frame: x its right, y up it, z in front of it. A wrap is a shell round the skull with a tail down the back; goggles are two round lenses on a strap; a full mask covers the whole face, where the gas mask in gear.json covers the nose and mouth.",
   "head": {
+    "hood": {
+      "at": [0, 0.055, -0.03],
+      "radius": 0.152,
+      "squash": 1.12,
+      "brow": [0.29, 0.055, 0.03],
+      "browAt": [0, 0.1, 0.105],
+      "collar": [0.3, 0.09, 0.26],
+      "collarAt": [0, -0.135, -0.02]
+    },
     "wrap": { "at": [0, 0.075, -0.005], "radius": 0.128, "squash": 1.02, "tail": [0.17, 0.22, 0.06], "tailAt": [0, -0.055, -0.115] },
     "goggles": { "at": [0, 0.1, 0.068], "lens": 0.048, "gap": 0.058, "strap": [0.235, 0.036, 0.022] },
     "fullMask": { "at": [0, 0.072, 0.05], "size": [0.168, 0.2, 0.12], "lens": [0.132, 0.055, 0.03], "filter": { "r": 0.034, "len": 0.06, "at": [0, -0.062, 0.06] } }
@@ -47,6 +91,7 @@
       "name": "HOODIE",
       "blurb": "a hood up over a plain top, jeans, trainers",
       "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot"],
+      "head": ["hood"],
       "cloth": "#4a4f58",
       "trim": "#2b2f36",
       "boots": "#d8d4cc"
@@ -62,7 +107,8 @@
     "ghillie": {
       "name": "GHILLIE",
       "blurb": "ragged strips over everything, made to break a shape rather than to be worn",
-      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot"],
+      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot", "rags", "ragsLeg"],
+      "head": ["hood"],
       "cloth": "#4c5733",
       "trim": "#6d7448",
       "boots": "#2f2a1e"
@@ -70,7 +116,7 @@
     "tracksuit": {
       "name": "TRACKSUIT",
       "blurb": "a zip top and bottoms, two stripes, nothing tactical about it",
-      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot"],
+      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot", "stripeArm", "stripeLeg"],
       "cloth": "#1f2b4a",
       "trim": "#d9dde3",
       "boots": "#e6e3dd"

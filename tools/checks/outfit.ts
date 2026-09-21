@@ -81,8 +81,10 @@ console.log("What an operator wears");
     const pairs = built.filter((b) => b.bone.endsWith("_l")).length;
     const rights = built.filter((b) => b.bone.endsWith("_r")).length;
     check(`${id}: what comes in pairs comes in pairs`, pairs === rights, `${pairs} left, ${rights} right`);
+    // the three a player can choose, plus whatever the set puts there itself (a hood)
+    const own = ((outfitCfg.sets[id] as { head?: string[] }).head ?? []).length;
     const face = built.filter((b) => b.bone === "Head");
-    check(`${id}: what goes on a face is aligned to the face`, face.length === 3 && face.every((f) => f.aligned));
+    check(`${id}: what goes on a face is aligned to the face`, face.length === 3 + own && face.every((f) => f.aligned), `${face.length} pieces, ${own} of them the outfit's own`);
     const limbs = built.filter((b) => b.bone !== "Head");
     check(`${id}: and what goes on a limb turns with the limb`, limbs.every((l) => !l.aligned));
   }
@@ -93,6 +95,32 @@ console.log("What an operator wears");
   check("and no two of them wear the same outfit", worn.size === OPERATORS.length, `${worn.size} of ${OPERATORS.length}`);
   const faces = OPERATORS.filter((o) => (o.face ?? []).length > 0).length;
   check("most of them have something on their face: a wrap, goggles, a mask", faces >= OPERATORS.length - 2, `${faces} of ${OPERATORS.length}`);
+}
+
+{
+  // What the card says is what the figure wears. The picker shows a name and a
+  // line of description, and a player reads that line before they see the
+  // figure: "a hood up" with no hood on it, or "ragged strips" on a plain
+  // jacket, is the outfit lying to them in their own language.
+  const PROMISE: Array<[RegExp, string[]]> = [
+    [/\bhood\b/i, ["hood"]],
+    [/\brag(ged|s)\b/i, ["rags", "ragsLeg"]],
+    [/\bstripes?\b/i, ["stripeArm", "stripeLeg"]],
+    [/\bshorts\b/i, ["shorts"]],
+    [/\bboots\b/i, ["boot"]],
+    [/sleeves (down|long)|long sleeves/i, ["sleeveLong"]],
+    [/sleeves rolled|t-shirt/i, ["sleeveShort", "shirt"]],
+  ];
+  for (const id of OUTFIT_IDS) {
+    const set = outfitCfg.sets[id] as { blurb: string; wears: string[]; head?: string[] };
+    const has = new Set([...set.wears, ...(set.head ?? [])]);
+    for (const [says, needs] of PROMISE) {
+      if (!says.test(set.blurb)) continue;
+      check(`${id}: it says "${set.blurb}", so it wears ${needs.join(" and ")}`, needs.some((n) => has.has(n)), [...has].join(", "));
+    }
+  }
+  const shapes = OUTFIT_IDS.map((id) => (outfitCfg.sets[id].wears as string[]).slice().sort().join("+"));
+  check("and the wardrobe is not ten of the same shape in ten colours", new Set(shapes).size >= 4, `${new Set(shapes).size} different sets of garments across ${shapes.length} outfits`);
 }
 
 console.log(fails === 0 ? "\nOUTFIT PASS" : `\nOUTFIT FAIL (${fails})`);

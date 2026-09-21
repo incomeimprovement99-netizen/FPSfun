@@ -261,7 +261,6 @@ for (const [bone, r] of Object.entries(MEASURED)) {
   const spineRot = new THREE.Matrix4().fromArray(ibm, spineJoint * 16).setPosition(0, 0, 0);
   const fwd = toe >= 0 && ankle >= 0 ? originOf(toe).sub(originOf(ankle)).applyMatrix4(spineRot).normalize() : new THREE.Vector3(0, 0, -1);
   check("which way the body faces, measured off its own toes", Math.abs(fwd.z) > 0.7, `forward is ${fwd.z < 0 ? "-z" : "+z"} in the spine bone's frame (${fwd.x.toFixed(2)}, ${fwd.y.toFixed(2)}, ${fwd.z.toFixed(2)})`);
-  const facing = Math.sign(fwd.z) || -1;
   if (process.env.BODY_SPREAD) {
     const q = (l: number[], f: number) => (pct(l, f) * 1000).toFixed(0);
     for (const [tag, set] of [["all", torso], ["chest only", torso.filter(([, , y]) => y > 0.1)], ["clavicles", clav]] as const) {

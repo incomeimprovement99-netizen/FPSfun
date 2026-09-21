@@ -2672,6 +2672,15 @@ seeing without my naming it.
   radius: the sleeve is 84 mm across the shoulder and 61 mm at the elbow, the calf swells at the muscle and
   narrows at the ankle. The check fails if any garment in the wardrobe would touch the body at the leanest
   build, which is the eye's complaint written down.
+- **Three pieces that change an outline, not a colour.** The picker showed ten cards and three of them were
+  describing clothes that did not exist: HOODIE said "a hood up" and had none, GHILLIE said "ragged strips"
+  and was a plain green jacket, TRACKSUIT said "two stripes" and had none. So: a **hood** that stands up off
+  the back of the head with a brow and a collar, **ragged strips** hung in a spiral off the body and thighs
+  (by count, not at random, so an outfit looks the same on every screen), and a **stripe** down the outside
+  of each arm and leg. Five different sets of garments across the ten outfits now, where there were two.
+- **And a check that keeps the cards honest**: what an outfit's own description says it wears, it has to
+  wear. Hood, rags, stripes, shorts, boots, sleeves. A blurb rewritten to promise something new fails until
+  the something exists.
 - Checks: `tools/checks/body.ts` (21), `tools/checks/outfit.ts` (still 40+), the wire in
   `tools/checks/net-delta.ts` (8 more: the choice survives the codec, going back to the operator's own set
   is said in the clear mask rather than by leaving the field out, and an outfit we do not have is dropped),
