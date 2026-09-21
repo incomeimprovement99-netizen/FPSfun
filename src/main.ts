@@ -86,7 +86,7 @@ import { Captions, howFar, whereFrom } from "./game/captions";
 import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
-import { loadMannequin, setFigureStyle } from "./game/mannequin";
+import { loadMannequin, setFigureStyle, useMannequin } from "./game/mannequin";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
 import squadCfg from "./config/squad.json";
@@ -1590,6 +1590,94 @@ try {
 myTuning = tuningChanges() ?? {};
 showTuning();
 showDash();
+
+/**
+ * The Loadouts tab's figure: what you look like, while you are choosing it.
+ *
+ * We shipped a picker with eleven outfits, three builds and four ways to cover
+ * a face, and the only way to see any of it was to start a match and go third
+ * person. So the figure is drawn into a box in the panel: its own little scene
+ * and camera, rendered into that rectangle of the same canvas after the frame
+ * is finished. One renderer, one canvas, a scissor and a viewport.
+ */
+const previewScene = new THREE.Scene();
+const previewCam = new THREE.PerspectiveCamera(32, 0.7, 0.1, 12);
+{
+  // head to boots in a tall box: 32 degrees of vertical view at 3.15 m covers
+  // 1.8 m, which is the figure
+  previewCam.position.set(0, 1.12, 3.15);
+  previewCam.lookAt(0, 0.95, 0);
+  previewScene.add(new THREE.HemisphereLight(0xb9ccdd, 0x20262c, 1.5));
+  const key = new THREE.DirectionalLight(0xfff2e0, 2.1);
+  key.position.set(1.6, 2.4, 2.2);
+  previewScene.add(key);
+  const rim = new THREE.DirectionalLight(0x6fa8d6, 1.1);
+  rim.position.set(-2, 1.4, -1.8);
+  previewScene.add(rim);
+}
+let previewFig: Dummy | null = null;
+let previewKey = "";
+let previewTurn = 0;
+const previewBox = $("loPreview");
+function previewLoadout(now: number, dt: number): void {
+  const def = loadouts.current;
+  // the weapon in hand too: it is a loadout, not just an outfit
+  // useMannequin() is in the key so the figure is built again once the
+  // mannequin has finished loading, rather than staying the robot
+  const key = `${def.operator}|${lookCode(def)}|${def.slot1}|${useMannequin()}`;
+  if (key !== previewKey) {
+    previewKey = key;
+    previewFig?.dispose();
+    previewScene.remove(previewFig?.group ?? new THREE.Object3D());
+    previewFig = new Dummy(0, 0, 0, { armed: def.slot1, respawn: false, skin: operatorWearing(def.operator, lookCode(def)), rig: true, noBase: true });
+    previewFig.group.position.set(0, 0, 0);
+    previewScene.add(previewFig.group);
+  }
+  if (!previewFig) return;
+  // turning, so the back of a ghillie suit is as visible as the front of it
+  previewTurn += dt * 0.5;
+  previewFig.group.rotation.y = Math.PI + Math.sin(previewTurn) * 0.9;
+  previewFig.setPose({ speed: 0, stance: "stand", pitch: 0 });
+  previewFig.update(now, dt);
+}
+/** the panel's box, in the canvas's own pixels, or null when it is not on screen */
+function previewRect(): { x: number; y: number; w: number; h: number } | null {
+  if (!previewBox.isConnected || previewBox.offsetParent === null) return null;
+  const r = previewBox.getBoundingClientRect();
+  if (r.width < 40 || r.height < 40) return null;
+  const dpr = renderer.getPixelRatio();
+  const h = renderer.domElement.height;
+  return { x: Math.round(r.left * dpr), y: Math.round(h - r.bottom * dpr), w: Math.round(r.width * dpr), h: Math.round(r.height * dpr) };
+}
+/**
+ * Its own renderer, on its own canvas inside the box.
+ *
+ * The first try drew the figure into a corner of the GAME's canvas with a
+ * scissor, which is the cheap way to do this and would have worked in a game
+ * whose menu was drawn in the same canvas. This menu is HTML sitting on top of
+ * it, so the panel covered the figure exactly: the draw was happening, and the
+ * picture was behind the page.
+ */
+let previewDraws = 0;
+const previewRenderer = new THREE.WebGLRenderer({ canvas: $<HTMLCanvasElement>("loCanvas"), antialias: true });
+previewRenderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+previewRenderer.setClearColor(0x0a0e13, 1);
+previewRenderer.shadowMap.enabled = false;
+let previewSize = "";
+function drawPreview(): void {
+  const box = previewRect();
+  if (!box || !previewFig) return;
+  const w = Math.round(box.w / previewRenderer.getPixelRatio());
+  const h = Math.round(box.h / previewRenderer.getPixelRatio());
+  if (`${w}x${h}` !== previewSize) {
+    previewSize = `${w}x${h}`;
+    previewRenderer.setSize(w, h, false);
+    previewCam.aspect = w / h;
+    previewCam.updateProjectionMatrix();
+  }
+  previewDraws++;
+  previewRenderer.render(previewScene, previewCam);
+}
 
 // the killcam can be turned off (Settings); the recap still shows
 const killcamSel = $<HTMLSelectElement>("killcamMode");
@@ -4479,20 +4567,20 @@ progress.onChange = () => {
  * and not choosable, and the gun's own choice picked.
  */
 function renderFinishes(): void {
-  const level = progress.level.level;
+  // every finish, to everybody: there is no level on them any more
   for (const i of [0, 1]) {
     const gun = $<HTMLSelectElement>(`slot${i}`).value;
     const sel = $<HTMLSelectElement>(`finish${i}`);
-    sel.innerHTML = FINISHES.map((f) => `<option value="${f.id}"${f.level > level ? " disabled" : ""}>${f.label}${f.level > level ? ` (level ${f.level})` : ""}</option>`).join("");
-    sel.value = finishFor(gun, level).id;
+    sel.innerHTML = FINISHES.map((f) => `<option value="${f.id}">${f.label}</option>`).join("");
+    sel.value = finishFor(gun).id;
   }
 }
 for (const i of [0, 1]) {
   $<HTMLSelectElement>(`finish${i}`).addEventListener("change", (e) => {
     const gun = $<HTMLSelectElement>(`slot${i}`).value;
-    chooseFinish(gun, (e.target as HTMLSelectElement).value, progress.level.level);
+    chooseFinish(gun, (e.target as HTMLSelectElement).value);
     // on the gun at once (the menu is up: the frame that keeps the gun in hand in its finish is not running)
-    applyFinish(gunModel(gun), finishFor(gun, progress.level.level));
+    applyFinish(gunModel(gun), finishFor(gun));
     renderFinishes();
   });
   // a different gun in the slot: its own finish
@@ -5945,10 +6033,10 @@ function step(): void {
     drawn = dw;
   }
   viewModel.setWeapon(drawn);
-  // the gun in hand in its finish (the Loadouts tab's choice for it, if your level allows it),
-  // and the match told which, on a change and now and then for anyone who arrives late
+  // the gun in hand in its finish (the Loadouts tab's choice for it), and the
+  // match told which, on a change and now and then for anyone who arrives late
   {
-    const f = finishFor(drawn.id, progress.level.level);
+    const f = finishFor(drawn.id);
     const m = gunModel(drawn.id);
     if (m.root.userData.finish !== f.id) applyFinish(m, f);
     const key = `${drawn.id}:${f.id}`;
@@ -6129,6 +6217,11 @@ function step(): void {
     gunLayer();
     lightsOnGun();
     showSide();
+    // the Loadouts tab's figure, when that panel is the one on screen
+    if (previewRect()) {
+      previewLoadout(now, dt);
+      drawPreview();
+    }
     pipeline.render(now);
   }
   frameCost = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
@@ -6719,6 +6812,8 @@ initWelcome();
     });
     return out;
   },
+  /** the Loadouts tab's figure: is it built, and where is it being drawn (tools/e2e.ts) */
+  previewState: () => ({ key: previewKey, has: !!previewFig, rect: previewRect(), kids: previewScene.children.length, draws: previewDraws, vis: previewFig?.group.visible, at: previewFig?.group.position.toArray() }),
   /** frames run since the page opened */
   frames: () => framesRun,
   /** the live rounds' tracers (projectile.ts) */

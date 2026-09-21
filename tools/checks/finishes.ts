@@ -17,15 +17,16 @@ function check(label: string, cond: boolean, detail = ""): void {
 console.log("Weapon finishes");
 {
   const ids = FINISHES.map((f) => f.id);
-  check("the factory paint first, open from level 1", FINISHES[0].id === "factory" && FINISHES[0].level === 1);
-  check("every finish its own id, and they open in order of level", new Set(ids).size === ids.length && FINISHES.every((f, i) => i === 0 || f.level >= FINISHES[i - 1].level), FINISHES.map((f) => `${f.id}@${f.level}`).join(", "));
+  check("the factory paint is first in the list", FINISHES[0].id === "factory" && FINISHES[0].level === 1);
+  check("every finish its own id, and the list runs from plain to fancy", new Set(ids).size === ids.length && FINISHES.every((f, i) => i === 0 || f.level >= FINISHES[i - 1].level), FINISHES.map((f) => `${f.id}@${f.level}`).join(", "));
   check("every finish after the factory's paints something", FINISHES.slice(1).every((f) => f.body !== undefined || f.accent !== undefined));
+  // No levels on them any anymore: the owner asked for the grind to come off a
+  // paint job. `level` is kept in the data as the order the list is shown in.
   const top = FINISHES[FINISHES.length - 1];
-  check(`at level 1 only the factory paint is open; at ${top.level} all ${FINISHES.length} are`, unlocked(1).length === 1 && unlocked(top.level).length === FINISHES.length);
-  check("a finish above your level is not taken", !chooseFinish("r97", top.id, 1) && finishFor("r97", 1).id === "factory");
-  check("one within it is, and the gun wears it", chooseFinish("r97", top.id, top.level) && finishFor("r97", top.level).id === top.id);
-  check("and a level that no longer allows it falls back to the factory paint", finishFor("r97", 1).id === "factory");
-  check("each gun keeps its own", finishFor("rspn101", top.level).id === "factory");
+  check(`every finish is open to everybody, all ${FINISHES.length} of them`, unlocked().length === FINISHES.length);
+  check("the last one in the list can be taken from the first minute", chooseFinish("r97", top.id) && finishFor("r97").id === top.id);
+  check("a finish that does not exist is not taken", !chooseFinish("r97", "no-such-paint") && finishFor("r97").id === top.id);
+  check("each gun keeps its own", finishFor("rspn101").id === "factory");
 }
 
 console.log(fails === 0 ? "\nFINISHES PASS" : `\nFINISHES FAIL (${fails})`);

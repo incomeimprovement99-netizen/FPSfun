@@ -170,7 +170,13 @@
       .invite button { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
       .rules { font-size: 13px; color: #b9c2cc; line-height: 1.6; padding-left: 18px; margin: 14px 0 0; }
       .rules b { color: #fff; }
-      .loadouts { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
+      .loadouts { display: grid; grid-template-columns: 200px 1fr 224px; gap: 16px; }
+      /* the figure: a hole in the panel that the renderer draws into (main.ts drawPreview) */
+      .loview { position: relative; }
+      .loviewBox { position: sticky; top: 0; height: 330px; border: 1px solid #23303d; border-radius: 6px; background: #0a0e13; overflow: hidden; }
+      .loviewBox > canvas { display: block; width: 100%; height: 100%; }
+      .loviewBox > span { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #6f7a86; }
+      @media (max-width: 1000px) { .loadouts { grid-template-columns: 200px 1fr; } .loview { display: none; } }
       .lolist { display: flex; flex-direction: column; gap: 4px; }
       .lolist .group { font-size: 11px; letter-spacing: .12em; color: #7d8895; margin: 6px 0 2px; }
       .lolist button { text-align: left; background: #0d1014; border: 1px solid #2a323b; color: #c8d0d8; padding: 7px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; }
@@ -365,10 +371,13 @@
                   <option value="fullMask">Full mask</option>
                   <option value="wrap,goggles">Wrap and goggles</option>
                 </select></div>
-              <div class="row"><label>Slot 1 <div class="hint">key 1</div></label><select id="slot0"></select><select id="finish0" title="this gun's finish: every gun keeps its own, and a new one opens every few levels"></select></div>
-              <div class="row"><label>Slot 2 <div class="hint">key 2</div></label><select id="slot1"></select><select id="finish1" title="this gun's finish: every gun keeps its own, and a new one opens every few levels"></select></div>
+              <div class="row"><label>Slot 1 <div class="hint">key 1</div></label><select id="slot0"></select><select id="finish0" title="this gun's finish: every gun keeps its own, and every finish is there from the start"></select></div>
+              <div class="row"><label>Slot 2 <div class="hint">key 2</div></label><select id="slot1"></select><select id="finish1" title="this gun's finish: every gun keeps its own, and every finish is there from the start"></select></div>
               <div class="lohead">Heirloom <span class="hint">held when holstered, swung with V</span></div>
               <div class="cards" id="heirloomCards"></div>
+            </div>
+            <div class="loview">
+              <div class="loviewBox" id="loPreview"><canvas id="loCanvas"></canvas><span>What you look like</span></div>
             </div>
           </div>
         </section>

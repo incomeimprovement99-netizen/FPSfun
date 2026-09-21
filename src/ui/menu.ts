@@ -2,6 +2,7 @@
 // editor. Settings and the 1v1 box keep their own wiring in main.ts; this
 // owns navigation, loadouts and the battle royale's lobby row.
 import { DEFAULT_LOADOUTS, type LoadoutDef, type LoadoutRef, type Loadouts } from "../game/loadouts";
+import { loadMannequin } from "../game/mannequin";
 import { botSquads, saveTeamId, savedTeamId, teamFor } from "../game/brmatch";
 import { OPERATORS, operatorById } from "../game/operators";
 import { BUILD_IDS, OUTFIT_IDS, buildName, outfitInfo } from "../game/outfit";
@@ -393,6 +394,9 @@ export class Menu {
   show(tab: Tab): void {
     this.tab = tab;
     if (tab === "stats") this.renderStats();
+    // the figure in the Loadouts panel is the mannequin: ask for it now, so it
+    // is there by the time somebody has read the cards
+    if (tab === "loadouts") void loadMannequin();
     for (const b of document.querySelectorAll<HTMLButtonElement>("#tabs button")) b.classList.toggle("on", b.dataset.tab === tab);
     for (const p of document.querySelectorAll<HTMLElement>("[data-panel]")) p.hidden = p.dataset.panel !== tab;
   }
