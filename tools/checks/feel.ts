@@ -94,6 +94,11 @@ console.log("The lean in the air");
   check("it arrives faster than it leaves, as every lean in this file does", f.airIn < f.airOut, `${f.airIn} s in, ${f.airOut} s out`);
   check("and both are quick enough to belong to the jump they are part of", f.airIn < 0.3 && f.airOut < 0.4, `${f.airIn} / ${f.airOut} s`);
   check("the whole of a chain's roll stays inside what a view can take", f.slideRoll + f.airRoll + f.landRoll < 14, `${(f.slideRoll + f.airRoll + f.landRoll).toFixed(1)} degrees if every one of them peaked at once`);
+  // the landing's dip: a drop used to arrive with a roll and nothing else, so
+  // it read as a stop rather than an impact
+  check("a landing dips the view as well as rolling it", f.landDip > 0, `${(f.landDip * 100).toFixed(0)} cm at a full-speed fall`);
+  check("and the dip is a dip rather than a drop through the floor", f.landDip < 0.25, `${(f.landDip * 100).toFixed(0)} cm`);
+  check("it comes back over about as long as the roll it lands with", f.landDipTime > f.landTime * 0.6 && f.landDipTime < f.landTime * 3, `${f.landDipTime} s against the roll's ${f.landTime}`);
 }
 
 

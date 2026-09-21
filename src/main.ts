@@ -5408,6 +5408,17 @@ function step(): void {
     const airEase = Math.min(1, dt / (Math.abs(airWant) > Math.abs(airLean) ? f.airIn : f.airOut));
     airLean += (airWant - airLean) * airEase;
     roll += airLean * f.airRoll;
+    // and it dips, by how hard it came down: a landing used to arrive with a
+    // roll and nothing else, so a drop of any height read as a stop rather
+    // than an impact. The camera only, as everything else in this block is.
+    {
+      const since = gameTime - player.landAt;
+      if (since >= 0 && since < f.landDipTime && k > 0) {
+        const hard = Math.max(0, Math.min(1, player.landingSpeed / 9));
+        const env = Math.sin((1 - since / f.landDipTime) * Math.PI * 0.9);
+        camera.position.y -= f.landDip * hard * env * k;
+      }
+    }
     // a running landing rolls the view, by the sideways speed it came down with
     const sinceLand = gameTime - player.landAt;
     if (sinceLand >= 0 && sinceLand < f.landTime) {

@@ -2591,3 +2591,25 @@ The fourth of the five movement items, and a correction to the fifth.
   and it is what makes air strafing work at all. Loosening it would not make a superglide feel better, it
   would make every jump in the game float. What is actually true is that the glide's *exit* is exact and its
   feel is the camera's, which is Milestone 153's air lean, already done.
+
+## Milestone 156 — The view over a step, the mantle's path, and a landing that lands ✅
+
+"Ensure the movement is super smooth and not janky at all, this is the core mechanic." Three things were
+making it not, and all three were the camera rather than the body.
+
+- **Every step in the game was a jolt.** Walking onto a kerb moves the feet by up to the step height (0.56 m)
+  in one frame, and the camera sat on the feet, so a staircase was a stutter per step and a kerb was a flick.
+  The view keeps its height for a moment and closes the gap over 0.12 s (`stepSmoothTime`), which is what
+  every game in this family does and is the single biggest thing between this and smooth. Measured in a real
+  page: the feet jump 0.44 m in a frame and the eye moves 0.098 m. The feet, the collision and the hit boxes
+  are untouched.
+- **A mantle had three corners in it.** Its path was two linear ramps: the climb started at full speed and
+  stopped dead at 65% through, and the reach forward began dead at 35%, so one mantle carried three jolts you
+  could see. Both parts are smoothstepped now, which has zero slope at each end.
+- **A landing arrived with a roll and nothing else**, so a drop of any height read as a stop rather than an
+  impact. It dips the camera now by how hard it came down, 11 cm at a full-speed fall, back over 0.3 s.
+- **And one thing deliberately left alone**: the crouch's view drop is a *measured* timing (0.1 s to
+  0.635 m), so easing it would have been smoother and wrong. The smoothing here is on the parts nobody
+  measured.
+- Checks: four in `tools/movesim.ts` (the feet step in one frame, the view does not, it does catch up, and
+  the body is where it always was) and three in `tools/checks/feel.ts` for the dip.

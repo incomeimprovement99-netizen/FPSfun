@@ -1822,6 +1822,35 @@ console.log("\nPAINT: the chain");
 // checked is that they are off when they are off, that each does what it
 // says, and that neither hands out free height: a double jump is spent until
 // you touch something, and a wall cannot be climbed by bouncing on it.
+console.log("\nThe view over a step");
+{
+  // Walking onto a kerb moves the feet by the step height in one frame. The
+  // camera sat on the feet, so every step in the game was a jolt and a
+  // staircase was a stutter per step (src/config/movement.json
+  // stepSmoothTime). The feet still step; the view catches up.
+  const step = new Sim([{ minX: 2, maxX: 20, minZ: -12, maxZ: 12, top: 0.4 }]);
+  step.p.pos.set(0, 0, 0);
+  step.p.yaw = yawFacing(1, 0);
+  step.in.hold("forward");
+  let feetJump = 0;
+  let eyeJump = 0;
+  let lastFeet = step.p.pos.y;
+  let lastEye = step.p.eyePosition().y;
+  for (let i = 0; i < 120; i++) {
+    step.run(1 / 60);
+    const f = step.p.pos.y;
+    const e = step.p.eyePosition().y;
+    feetJump = Math.max(feetJump, Math.abs(f - lastFeet));
+    eyeJump = Math.max(eyeJump, Math.abs(e - lastEye));
+    lastFeet = f;
+    lastEye = e;
+  }
+  check("the feet step up in one frame, as they must", feetJump > 0.3, `${feetJump.toFixed(3)} m`);
+  check("and the view does not: it catches up over a moment instead", eyeJump < feetJump / 3, `${eyeJump.toFixed(3)} m against the feet's ${feetJump.toFixed(3)}`);
+  check("but it does catch up, and ends on the feet", Math.abs(step.p.eyePosition().y - (step.p.pos.y + 1.5)) < 0.25, `eye ${step.p.eyePosition().y.toFixed(2)} m over feet ${step.p.pos.y.toFixed(2)}`);
+  check("and the step itself is unchanged: the body is where it always was", step.p.pos.y > 0.39, `${step.p.pos.y.toFixed(2)} m up`);
+}
+
 console.log("\nA slide that steers");
 {
   // A slide could only be nudged: the wish added acceleration along itself,

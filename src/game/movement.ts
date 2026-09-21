@@ -16,6 +16,9 @@ export const MOVE = {
   eyeStand: m(raw.standHeight - raw.eyeFromTop),
   eyeCrouch: m(raw.crouchHeight - raw.eyeFromTop),
 
+  /** how long the view takes to catch up with the feet after a step, seconds */
+  stepSmoothTime: raw.stepSmoothTime,
+
   /** how fast a slide can be steered, radians a second */
   slideTurn: (raw.slideTurn * Math.PI) / 180,
 

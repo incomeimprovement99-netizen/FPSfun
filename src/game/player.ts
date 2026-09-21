@@ -446,6 +446,8 @@ export class Player {
   teleport(x: number, y: number, z: number, yaw: number, pitch = 0): void {
     this.pos.set(x, y, z);
     this.vel.set(0, 0, 0);
+    // the view arrives with the body: a step's catch-up is about a step
+    this.stepSmooth = 0;
     this.yaw = yaw;
     this.pitch = pitch;
     this.aboard = false;
@@ -1338,15 +1340,29 @@ export class Player {
     const t = Math.min(1, (now - mt.started) / mt.duration);
     // Absolute interpolation from the START pose, so the result does not
     // depend on framerate.
-    const up = Math.min(1, t / 0.65);
-    const fwd = Math.max(0, Math.min(1, (t - 0.35) / 0.65));
+    //
+    // Both parts are eased rather than linear. A linear ramp starts and stops
+    // with a corner in it: the climb began at full speed and stopped dead at
+    // t = 0.65, and the reach forward began dead at t = 0.35, so one mantle
+    // carried three jolts you could see in the camera. Smoothstep has zero
+    // slope at both ends, which is the whole of the difference between a
+    // mantle that glides and one that snaps.
+    const ease = (x: number): number => x * x * (3 - 2 * x);
+    const up = ease(Math.min(1, t / 0.65));
+    const fwd = ease(Math.max(0, Math.min(1, (t - 0.35) / 0.65)));
     this.pos.y = mt.fromY + (mt.toY - mt.fromY) * up;
     this.pos.x = mt.fromX + (mt.toX - mt.fromX) * fwd;
     this.pos.z = mt.fromZ + (mt.toZ - mt.fromZ) * fwd;
     if (t >= 1) this.finishMantle(now);
   }
 
+  /** the view sits on the feet again: a teleport, a respawn, the end of a mantle */
+  private clearStepSmooth(): void {
+    this.stepSmooth = 0;
+  }
+
   private finishMantle(now: number): void {
+    this.clearStepSmooth();
     const mt = this.mantle!;
     this.pos.set(mt.toX, mt.toY, mt.toZ);
     // Some of the speed you arrived with comes out on top, along the way you
@@ -1929,6 +1945,9 @@ export class Player {
     const ceiling = this.onGround ? feetY + MOVE.stepHeight : feetY;
     const ground = this.groundUnder(this.pos.x, this.pos.z, r, Math.max(ceiling, this.pos.y));
     if (this.pos.y <= ground + 1e-4) {
+      // a step UP while already on the ground is a step, not a landing: the
+      // view keeps its height for a moment and catches up
+      if (!wasAir && ground > this.pos.y) this.stepped(ground - this.pos.y);
       this.pos.y = ground;
       const impact = Math.max(0, -this.vel.y);
       if (this.vel.y < 0) this.vel.y = 0;
@@ -1940,6 +1959,7 @@ export class Player {
       this.wallRun = null;
     } else if (wasOnGround && this.vel.y <= 0 && this.pos.y - ground <= MOVE.stepHeight) {
       // Step down, so a staircase or ramp does not make you briefly airborne.
+      this.stepped(ground - this.pos.y);
       this.pos.y = ground;
       this.vel.y = 0;
       this.onGround = true;
@@ -2038,13 +2058,40 @@ export class Player {
    * down: a slide that had physically started on the first frame looked like
    * it was still thinking about it.
    */
+  /**
+   * How far the view is behind the feet, metres, after a step up or down.
+   *
+   * Walking onto a kerb or up a stair moves the feet by up to the step height
+   * in a single frame. The camera sat on the feet, so every step was a jolt:
+   * a staircase was a stutter per step. The view keeps its old height for a
+   * moment and closes the gap, which is what every game in this family does
+   * and is most of the difference between this and smooth.
+   */
+  private stepSmooth = 0;
+
+  /** the feet moved by a step rather than by falling: the view catches up over a moment */
+  private stepped(by: number): void {
+    if (Math.abs(by) < 1e-5) return;
+    this.stepSmooth = Math.max(-MOVE.stepHeight, Math.min(MOVE.stepHeight, this.stepSmooth + by));
+  }
+
   private updateHeights(dt: number): void {
+    // the view closing on the feet after a step, at a steady rate so it takes
+    // the same time from any height and never crawls the last centimetre
+    if (this.stepSmooth !== 0) {
+      const step = (MOVE.stepHeight / MOVE.stepSmoothTime) * dt;
+      this.stepSmooth = this.stepSmooth > 0 ? Math.max(0, this.stepSmooth - step) : Math.min(0, this.stepSmooth + step);
+    }
     // The hull follows the crouch STATE (instant on a slide, crouchDelay after
     // the press when standing, instant on standing up). The view follows the
     // crouch ANIMATION: a slide drops it at once; a standing crouch lowers it
     // over the crouchDelay the state takes to arrive, so both land together.
     const stateDown = this.crouched || this.sliding;
     const animDown = stateDown || (this.crouchHeld && this.onGround && !this.mantle);
+    // A straight ramp on purpose: the crouch's view drop is a MEASURED timing
+    // (the wiki's 0.1 s to 0.635 m, checked in tools/movesim.ts), and easing
+    // it would be smoother and wrong. The smoothing this game does is on the
+    // parts nobody measured: the mantle's path, the camera's leans.
     const approach = (v: number, target: number, full: number, time: number) => {
       const step = (full / time) * dt;
       return v < target ? Math.min(target, v + step) : Math.max(target, v - step);
@@ -2061,9 +2108,17 @@ export class Player {
   private readonly eulerTmp = new THREE.Euler(0, 0, 0, "YXZ");
   private readonly quatOut = new THREE.Quaternion();
 
-  /** the eye position; the returned vector is reused, so copy it */
+  /**
+   * The eye position; the returned vector is reused, so copy it.
+   *
+   * `stepSmooth` is how far the view is still behind the feet after a step
+   * (movement.json stepSmoothTime). The shot leaves from here as well as the
+   * camera, which is the point: a round has to come from where you are
+   * looking, and for the tenth of a second after a kerb that is a centimetre
+   * or two below the feet.
+   */
   eyePosition(): THREE.Vector3 {
-    return this.eyeOut.set(this.pos.x, this.pos.y + this.eye, this.pos.z);
+    return this.eyeOut.set(this.pos.x, this.pos.y + this.eye - this.stepSmooth, this.pos.z);
   }
 
   /** the view rotation; the returned quaternion is reused, so copy it */
