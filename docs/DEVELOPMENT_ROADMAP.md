@@ -2238,3 +2238,18 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   where you are in the list ("2 of 6").
 - Checks: the e2e `brsolo` section (out of a solo battle royale with six still standing, the HUD names the first of
   them and a click moves you along).
+
+## Milestone 137 — A recorded action under every shot ✅
+2026-09-20 (Phase 15). `src/config/audio.json` (`recorded`), `src/game/audio.ts`, `tools/fetch-sounds.ts`, `tools/checks/feel.ts`, `README.md`.
+- The first half of item 2 on the ranked list, and the owner's own next step: every gun in the game was made of
+  oscillators. A gun's attack is a mechanism as much as a crack, and the mechanism is the part no filter and no
+  envelope gets right, so a CC0 take of a metal action (Kenney, four takes) is now mixed under the attack of every
+  shot, quietly, at a rate per class: an SMG's action is quick and bright at 1.5, an LMG's slow and heavy at 0.9.
+- The crack, the body and the tail stay synthesised, and the layer is at half the class's own level: it is there to
+  be felt on the attack rather than heard as a second sound. Far-off gunfire skips it, as it skips the crack, since
+  the air takes both.
+- A checkout that has not run `npm run sounds` plays nothing extra and sounds exactly as it did.
+- **What is left of the item**: recorded cracks per weapon class. There is no CC0 gunshot set with a stable address
+  that I could verify, and picking one is a judgement by ear rather than by licence, so it waits on the owner.
+- Checks: `tools/checks/feel.ts` (the layer is under the shot and not the shot, every class has a rate, and a
+  heavier gun's action is slower than a lighter one's).

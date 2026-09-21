@@ -11,6 +11,7 @@ import { MUZZLE, flashSize } from "../../src/game/muzzle";
 import { blastShakeDeg } from "../../src/game/impacts";
 
 import playerCfg from "../../src/config/player.json";
+import audioCfg from "../../src/config/audio.json";
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
   if (!cond) fails++;
@@ -62,6 +63,21 @@ console.log("The camera that moves with the body");
   check("a lurch kick is a nudge that settles, not a turn", f.lurchKick <= 3 && f.lurchTime <= 0.25, `${f.lurchKick} deg over ${f.lurchTime} s`);
   check("a boost pulls the view forward and opens it a little", f.boostPitch > 0 && f.boostPitch <= 3 && f.boostFov > 0 && f.boostFov <= 0.06, `${f.boostPitch} deg, ${(f.boostFov * 100).toFixed(1)}% wider`);
   check("nothing in it lasts long enough to be a state you live in", Math.max(f.slideOut, f.landTime, f.lurchTime, f.boostEase) <= 0.4, `the longest is ${Math.max(f.slideOut, f.landTime, f.lurchTime, f.boostEase)} s`);
+}
+
+
+// The recorded layer under a synthesised shot (src/config/audio.json
+// `recorded`, src/game/audio.ts gun). What has to hold: it is a layer and not
+// the sound, every class has a rate for it, and a heavier gun's action is
+// slower than a lighter one's, which is the whole reason it is per class.
+console.log("");
+console.log("The recorded layer under the guns");
+{
+  const r = audioCfg.recorded as { level: number; rate: Record<string, number> };
+  const classes = Object.keys(audioCfg.classes as Record<string, unknown>);
+  check("the layer is under the shot, not the shot", r.level > 0 && r.level <= 0.6, `${r.level} of the class's own level`);
+  check("every class of gun has a rate for it", classes.every((c) => typeof r.rate[c] === "number"), classes.join(", "));
+  check("and a heavier gun's action is slower than a lighter one's", r.rate.smg > r.rate.rifle && r.rate.rifle > r.rate.lmg && r.rate.lmg >= r.rate.sniper, `smg ${r.rate.smg}, rifle ${r.rate.rifle}, lmg ${r.rate.lmg}, sniper ${r.rate.sniper}`);
 }
 
 

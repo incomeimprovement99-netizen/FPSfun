@@ -409,7 +409,8 @@ export class GameAudio {
    * far ones arrive late and dull, the near ones crack.
    */
   gun(id: string, at: Vec | null = null, level = 1): void {
-    const k = cfg.classes[this.gunClass(id)];
+    const cls = this.gunClass(id);
+    const k = cfg.classes[cls];
     const D = cfg.distance;
     const far0 = at ? Math.hypot(at.x - this.lis.x, at.y - this.lis.y, at.z - this.lis.z) : 0;
     // a gun carries (ref 20 m, not a footstep's 3); your own on its own bus; far gunfire is dropped first
@@ -424,6 +425,16 @@ export class GameAudio {
     if (far) {
       const echo = D.farEcho[0] + Math.random() * (D.farEcho[1] - D.farEcho[0]);
       this.noise(v.input, v.t + echo, k.tail * 0.8, "lowpass", D.farEchoHz, 0.6, 0.35 * L, 0.01, 180);
+    }
+    // A recorded layer under the attack: a real metal action, quietly, at the
+    // class's own rate (src/config/audio.json `recorded`). The crack, the body
+    // and the tail below are still synthesis; this is the part of a gun that
+    // no envelope gets right, and it is the first recorded thing in the shot.
+    // Nothing is played without the files, and the gun sounds as it did.
+    if (!far) {
+      const r = cfg.recorded;
+      const rate = (r.rate as Record<string, number>)[cls] ?? 1;
+      this.sample(v.input, v.t, "gun_mech", r.level * L, rate * jitter);
     }
     // the body: a band of noise with the class's colour
     this.noise(v.input, v.t, k.thumpTime * 1.4, "bandpass", k.band * jitter, k.bandQ, 0.8 * L, 0.001);

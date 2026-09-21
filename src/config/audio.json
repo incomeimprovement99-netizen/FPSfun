@@ -1,8 +1,25 @@
 {
   "_distance": "How far each kind of sound carries (src/game/audio.ts voice()). Ours, after Apex's mix: every voice used one curve (level halving by 3 m), so a gun at 100 m was 31 dB down and a fight across the map was silent, while footsteps are meant to fade fast. ref is the distance in metres a kind is heard at full level; a gun at 20 m is 14 dB down at 100 m and 23 at 300. Past farFrom metres a gunshot loses its crack and gains an echo farEcho seconds later (the first to the last of the range), low-passed at farEchoHz. Footsteps within stepsNear metres are never dropped for the voice cap; gunfire past gunLow is dropped first.",
-  "distance": { "ref": { "default": 3, "gun": 20, "blast": 25 }, "farFrom": 80, "farEcho": [0.18, 0.35], "farEchoHz": 700, "stepsNear": 20, "gunLow": 150 },
+  "distance": {
+    "ref": {
+      "default": 3,
+      "gun": 20,
+      "blast": 25
+    },
+    "farFrom": 80,
+    "farEcho": [
+      0.18,
+      0.35
+    ],
+    "farEchoHz": 700,
+    "stepsNear": 20,
+    "gunLow": 150
+  },
   "_ownGun": "Your own gun goes to a bus of its own with its own compressor (threshold dB, ratio), joined after the master one: through the one master compressor every shot of yours pushed enemy footsteps down.",
-  "ownGun": { "threshold": -18, "ratio": 6 },
+  "ownGun": {
+    "threshold": -18,
+    "ratio": 6
+  },
   "_note": "All sound is synthesised (Web Audio), none recorded or copied. These are ours: how each class of gun is voiced, how sound fades with distance, the footstep cadence. Distances in metres; frequencies in Hz; times in seconds.",
   "speedOfSound": 343,
   "delayFrom": 25,
@@ -10,28 +27,158 @@
   "maxDistance": 320,
   "maxVoices": 56,
   "_occlusion": "Sound through walls. Ours: Apex does not publish its numbers, and the shape here is the standard game-audio one, an obstruction ray from the ear to the source that lowers the level and takes the top off the sound. Without it a gunfight two rooms away is as bright and as loud as one in front of you, which is the single biggest reason a player cannot tell where a fight is. rays is how many lines are traced (one to the source, two offset, so a source half behind a pillar is half blocked rather than all or nothing). gain and lowpass are what a fully blocked source keeps. reverbBoost is how much more of it goes to the room, because a sound you hear through a wall is mostly its reflections. cacheMs is how long a result is reused for a source within a metre, since footsteps fire many times a second from nearly the same place.",
-  "occlusion": { "rays": 3, "spread": 0.6, "gain": 0.34, "lowpass": 900, "reverbBoost": 1.5, "cacheMs": 140 },
+  "occlusion": {
+    "rays": 3,
+    "spread": 0.6,
+    "gain": 0.34,
+    "lowpass": 900,
+    "reverbBoost": 1.5,
+    "cacheMs": 140
+  },
   "_vertical": "A source well above or below you is filtered differently, because the head does almost nothing to tell up from down and a stereo panner does nothing at all. A small shelf is not realism, it is the cue that tells you the fight is upstairs. from is the height difference in metres where it starts, tilt is how far the top end moves at a full storey.",
-  "vertical": { "from": 2.5, "tilt": 0.42 },
-  "reverb": { "seconds": 1.6, "indoor": 0.3, "outdoor": 0.1 },
-  "footsteps": { "walkStride": 0.75, "sprintStride": 1.05, "crouchStride": 0.55, "hearOthersTo": 45, "ownLevel": 0.175, "othersLevel": 0.45 },
+  "vertical": {
+    "from": 2.5,
+    "tilt": 0.42
+  },
+  "reverb": {
+    "seconds": 1.6,
+    "indoor": 0.3,
+    "outdoor": 0.1
+  },
+  "footsteps": {
+    "walkStride": 0.75,
+    "sprintStride": 1.05,
+    "crouchStride": 0.55,
+    "hearOthersTo": 45,
+    "ownLevel": 0.175,
+    "othersLevel": 0.45
+  },
   "classes": {
-    "pistol": { "thump": 170, "thumpEnd": 60, "thumpTime": 0.09, "band": 1800, "bandQ": 0.8, "crack": 0.045, "tail": 0.35, "level": 0.8 },
-    "smg": { "thump": 150, "thumpEnd": 55, "thumpTime": 0.07, "band": 2100, "bandQ": 0.9, "crack": 0.035, "tail": 0.28, "level": 0.72 },
-    "rifle": { "thump": 125, "thumpEnd": 48, "thumpTime": 0.1, "band": 1500, "bandQ": 0.7, "crack": 0.05, "tail": 0.45, "level": 0.85 },
-    "lmg": { "thump": 105, "thumpEnd": 42, "thumpTime": 0.12, "band": 1200, "bandQ": 0.6, "crack": 0.055, "tail": 0.55, "level": 0.9 },
-    "marksman": { "thump": 95, "thumpEnd": 38, "thumpTime": 0.15, "band": 1300, "bandQ": 0.6, "crack": 0.07, "tail": 0.8, "level": 0.95 },
-    "sniper": { "thump": 70, "thumpEnd": 30, "thumpTime": 0.22, "band": 1000, "bandQ": 0.5, "crack": 0.09, "tail": 1.2, "level": 1 },
-    "shotgun": { "thump": 85, "thumpEnd": 35, "thumpTime": 0.16, "band": 900, "bandQ": 0.5, "crack": 0.06, "tail": 0.7, "level": 1 }
+    "pistol": {
+      "thump": 170,
+      "thumpEnd": 60,
+      "thumpTime": 0.09,
+      "band": 1800,
+      "bandQ": 0.8,
+      "crack": 0.045,
+      "tail": 0.35,
+      "level": 0.8
+    },
+    "smg": {
+      "thump": 150,
+      "thumpEnd": 55,
+      "thumpTime": 0.07,
+      "band": 2100,
+      "bandQ": 0.9,
+      "crack": 0.035,
+      "tail": 0.28,
+      "level": 0.72
+    },
+    "rifle": {
+      "thump": 125,
+      "thumpEnd": 48,
+      "thumpTime": 0.1,
+      "band": 1500,
+      "bandQ": 0.7,
+      "crack": 0.05,
+      "tail": 0.45,
+      "level": 0.85
+    },
+    "lmg": {
+      "thump": 105,
+      "thumpEnd": 42,
+      "thumpTime": 0.12,
+      "band": 1200,
+      "bandQ": 0.6,
+      "crack": 0.055,
+      "tail": 0.55,
+      "level": 0.9
+    },
+    "marksman": {
+      "thump": 95,
+      "thumpEnd": 38,
+      "thumpTime": 0.15,
+      "band": 1300,
+      "bandQ": 0.6,
+      "crack": 0.07,
+      "tail": 0.8,
+      "level": 0.95
+    },
+    "sniper": {
+      "thump": 70,
+      "thumpEnd": 30,
+      "thumpTime": 0.22,
+      "band": 1000,
+      "bandQ": 0.5,
+      "crack": 0.09,
+      "tail": 1.2,
+      "level": 1
+    },
+    "shotgun": {
+      "thump": 85,
+      "thumpEnd": 35,
+      "thumpTime": 0.16,
+      "band": 900,
+      "bandQ": 0.5,
+      "crack": 0.06,
+      "tail": 0.7,
+      "level": 1
+    }
   },
   "guns": {
-    "semipistol": "pistol", "g17": "pistol", "wingman": "pistol", "autopistol": "pistol", "shotgun_pistol": "shotgun",
-    "r97": "smg", "alternator_smg": "smg", "car": "smg", "volt_smg": "smg", "pdw": "smg",
-    "rspn101": "rifle", "vinson": "rifle", "hemlok": "rifle", "energy_ar": "rifle", "nemesis": "rifle",
-    "lmg": "lmg", "esaw": "lmg", "dragon_lmg": "lmg", "lstar": "lmg",
-    "g2": "marksman", "doubletake": "marksman", "3030": "marksman", "bocek": "marksman",
-    "dmr": "sniper", "sniper": "sniper", "sentinel": "sniper", "defender": "sniper",
-    "shotgun": "shotgun", "mastiff": "shotgun", "energy_shotgun": "shotgun"
+    "semipistol": "pistol",
+    "g17": "pistol",
+    "wingman": "pistol",
+    "autopistol": "pistol",
+    "shotgun_pistol": "shotgun",
+    "r97": "smg",
+    "alternator_smg": "smg",
+    "car": "smg",
+    "volt_smg": "smg",
+    "pdw": "smg",
+    "rspn101": "rifle",
+    "vinson": "rifle",
+    "hemlok": "rifle",
+    "energy_ar": "rifle",
+    "nemesis": "rifle",
+    "lmg": "lmg",
+    "esaw": "lmg",
+    "dragon_lmg": "lmg",
+    "lstar": "lmg",
+    "g2": "marksman",
+    "doubletake": "marksman",
+    "3030": "marksman",
+    "bocek": "marksman",
+    "dmr": "sniper",
+    "sniper": "sniper",
+    "sentinel": "sniper",
+    "defender": "sniper",
+    "shotgun": "shotgun",
+    "mastiff": "shotgun",
+    "energy_shotgun": "shotgun"
   },
-  "energy": ["energy_ar", "esaw", "lstar", "volt_smg", "energy_shotgun", "doubletake", "defender", "nemesis", "sentinel"]
+  "energy": [
+    "energy_ar",
+    "esaw",
+    "lstar",
+    "volt_smg",
+    "energy_shotgun",
+    "doubletake",
+    "defender",
+    "nemesis",
+    "sentinel"
+  ],
+  "_recorded": "A recorded layer under the synthesised shot (src/game/audio.ts gun, tools/fetch-sounds.ts). Every gun in the game is made of oscillators, which is most of what stops it sounding like a game you bought: a real gun's attack is a mechanism as much as a crack, and a mechanism is the one part of it that no filter and no envelope gets right. So a CC0 take of a metal action is mixed under the attack, quietly, at a rate per class (a pistol's action is quicker and brighter than an LMG's), and the crack, the body and the tail stay synthesised. `level` is how loud the layer is against the class's own level, and it is deliberately low: the layer is there to be felt on the attack rather than heard as a second sound. Without the files (a checkout that has not run `npm run sounds`) nothing is played and the gun sounds exactly as it did.",
+  "recorded": {
+    "level": 0.5,
+    "rate": {
+      "pistol": 1.35,
+      "smg": 1.5,
+      "rifle": 1.15,
+      "lmg": 0.9,
+      "sniper": 0.85,
+      "shotgun": 0.95,
+      "marksman": 1.0
+    }
+  }
 }

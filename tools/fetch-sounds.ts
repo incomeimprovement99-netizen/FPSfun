@@ -3,7 +3,9 @@
 // permitted; credited anyway) into public/audio/kenney. The game layers them
 // over its synthesis (src/game/audio.ts): footsteps, landings and body falls,
 // a punch, the magazine and the bolt, a frag's crunch, and the menu's clicks.
-// The guns stay synthesised, each by its class. Without these files every
+// The guns are synthesised, each by its class, with one recorded layer under
+// the attack (`gun_mech`): the action, which is the part of a shot synthesis
+// gets least right. Without these files every
 // sound is the synthesis alone, so a checkout that has not run this still
 // sounds complete.
 //
@@ -29,6 +31,10 @@ const PICK: Record<string, { pack: (typeof PACKS)[number]; files: string[] }> = 
   mag_out: { pack: "impact-sounds", files: [0, 1, 2].map((i) => `impactPlate_light_00${i}`) },
   mag_in: { pack: "impact-sounds", files: [0, 1, 2].map((i) => `impactMetal_light_00${i}`) },
   bolt: { pack: "impact-sounds", files: [0, 1].map((i) => `impactMetal_medium_00${i}`) },
+  // the gun's action, under the synthesised shot (src/game/audio.ts gun): a
+  // real metal mechanism is the part of a gunshot that synthesis gets least
+  // right, and the one a player hears as "a gun" rather than "a noise"
+  gun_mech: { pack: "impact-sounds", files: [0, 1, 2, 3].map((i) => `impactPlate_light_00${i}`) },
   clatter: { pack: "impact-sounds", files: [0, 1, 2].map((i) => `impactMetal_light_00${i + 2}`) },
   explosion: { pack: "sci-fi-sounds", files: [0, 1, 2, 3].map((i) => `explosionCrunch_00${i}`) },
   click: { pack: "interface-sounds", files: ["click_001", "click_002", "click_003"] },

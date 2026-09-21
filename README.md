@@ -621,7 +621,9 @@ it trusts the game, so it is a board for friends, not a ranked ladder.
   (`recap.ts`) keeps the life's hits and heals each way.
 - **Sound** (`src/game/audio.ts`, `soundscape.ts`) is synthesised: positional
   (HRTF), dulled and delayed with distance, a gun class per weapon, footsteps
-  by surface, the reload in parts, the match's cues.
+  by surface, the reload in parts, the match's cues. CC0 recordings are layered
+  under it where synthesis is weakest, including the gun's own action under
+  every shot.
 - **Figures** (`src/game/dummy.ts`) are either merged into a few meshes (the
   range's dummies) or, for anything that moves, built as jointed parts about
   their pivots (pelvis, torso, head, arms with the gun, thighs, shins) and
@@ -987,7 +989,11 @@ per machine).
 
 **Sound is mostly synthesised.** Every gun and cue is made in the browser;
 Kenney's CC0 recordings are layered under the footsteps, landings, falls,
-punches, reloads, a frag's crunch and the menu's clicks (`npm run sounds`).
+punches, reloads, a frag's crunch, the menu's clicks and, under every shot,
+the gun's own metal action, which is the part of a gunshot synthesis gets
+least right (`npm run sounds`). The crack, the body and the tail of a shot are
+still made in the browser: recorded cracks per weapon class are the next step
+and want a CC0 set chosen by ear.
 A player who only ever presses Start on a controller gets none at all
 (browsers start audio only after a click or a key).
 
