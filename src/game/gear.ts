@@ -20,6 +20,7 @@
 // The pieces name a bone each (`GearPiece.bone`), so the same kit fits the
 // mannequin and, where the bones line up, anything else rigged like a person.
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import gearCfg from "../config/gear.json";
 import type { OperatorSkin } from "./operators";
 
@@ -194,12 +195,52 @@ const BUILD: Record<GearId, (m: GearMats) => { bone: GearBone; group: THREE.Grou
   },
 };
 
+/**
+ * Squash a piece into one mesh per material. A plate carrier is seven boxes
+ * and a helmet four, and a lobby of twelve figures wearing five pieces each
+ * would be six hundred things to draw for what the eye reads as five. They
+ * are welded into their own local space, so the piece still hangs off its
+ * bone and still turns with it.
+ */
+function weld(group: THREE.Group): THREE.Group {
+  const byMat = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  const keep: THREE.Object3D[] = [];
+  for (const child of [...group.children]) {
+    const m = child as THREE.Mesh;
+    if (!m.isMesh || Array.isArray(m.material)) {
+      keep.push(child);
+      continue;
+    }
+    const g = m.geometry.clone();
+    m.updateMatrix();
+    g.applyMatrix4(m.matrix);
+    const list = byMat.get(m.material as THREE.Material) ?? [];
+    list.push(g);
+    byMat.set(m.material as THREE.Material, list);
+  }
+  const out = new THREE.Group();
+  out.name = group.name;
+  out.position.copy(group.position);
+  out.quaternion.copy(group.quaternion);
+  for (const child of keep) out.add(child);
+  for (const [mat, list] of byMat) {
+    const merged = list.length === 1 ? list[0] : mergeGeometries(list);
+    if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, mat);
+    mesh.castShadow = true;
+    out.add(mesh);
+  }
+  return out;
+}
+
 /** the pieces this operator wears, built and ready to hang on its bones */
 export function buildGear(skin: OperatorSkin, mats = gearMaterials(skin)): GearPiece[] {
   const out: GearPiece[] = [];
   for (const id of GEAR_IDS) {
     if (!wears(skin, id)) continue;
-    const { bone, group } = BUILD[id](mats);
+    const built = BUILD[id](mats);
+    const bone = built.bone;
+    const group = weld(built.group);
     group.name = `gear:${id}`;
     out.push({ id, bone, group });
     // the pieces that come in pairs are built once and mirrored onto the other side

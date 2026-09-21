@@ -51,6 +51,10 @@ console.log("The operators' kit");
   }
   const named = built.flatMap((b) => b.pieces).every((p) => p.group.name.startsWith("gear:"));
   check("every piece is named, so a snapshot and a check can find it", named);
+  // a plate carrier is seven boxes and a helmet four: welded per material,
+  // a lobby of twelve figures is not six hundred things to draw
+  const meshes = built.flatMap((b) => b.pieces).map((p) => p.group.children.filter((c) => (c as { isMesh?: boolean }).isMesh).length);
+  check("and is welded into one mesh per material rather than left as its boxes", Math.max(...meshes) <= 4, `${Math.max(...meshes)} at the most, ${meshes.reduce((a, b) => a + b, 0)} across all five operators`);
 }
 {
   // sizes: a person, not a cartoon. A head is about 22 cm across and a chest about 32.
