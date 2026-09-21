@@ -63,6 +63,14 @@ const FPS = 144;
 const DT = 1 / FPS;
 
 class Sim {
+  /**
+   * Frames a second for THIS simulation. Everything in this file runs at 144
+   * unless it says otherwise, because that is where the numbers were measured;
+   * the section at the end runs the same inputs at 30 and 60 and asks whether
+   * the player ends up in the same place, which is the question "does this
+   * game feel the same on a laptop" written down.
+   */
+  fps = FPS;
   p = new Player({ minX: -500, maxX: 500, minZ: -500, maxZ: 500 });
   in = new Script();
   t = 1000;
@@ -79,16 +87,17 @@ class Sim {
   }
   /** advance n frames, calling `each` before every frame */
   run(seconds: number, each?: (frame: number) => void): void {
-    const n = Math.round(seconds * FPS);
+    const dt = 1 / this.fps;
+    const n = Math.round(seconds * this.fps);
     for (let i = 0; i < n; i++) {
       each?.(i);
-      this.t += DT;
-      this.p.update(DT, this.t, this.in, this.ads, 1, false);
+      this.t += dt;
+      this.p.update(dt, this.t, this.in, this.ads, 1, false);
       this.in.endFrame();
     }
   }
   frame(each?: () => void): void {
-    this.run(DT, each);
+    this.run(1 / this.fps, each);
   }
   /** run until a condition holds or time runs out; returns seconds taken */
   until(cond: () => boolean, max = 5): number {
@@ -1934,6 +1943,74 @@ console.log("\nThe two extra moves (off by default)");
   again.run(0.02);
   const secondFlight = apexOver(again, 1.2);
   check("so the next jump has its double jump again", secondFlight > plainApex + 0.3, `${secondFlight.toFixed(2)} m`);
+}
+
+// -------------------------------------------- the same run at any frame rate
+//
+// Every number above is measured at 144 frames a second, which is this
+// machine. A player on a 60 Hz laptop integrates the same movement in frames
+// four times longer, and if the result is not the same they are playing a
+// different game: a jump that carries further, a sprint that arrives sooner, a
+// slide that turns harder. That is the most expensive kind of jank, because
+// nobody who has it can see it.
+//
+// So: the same scripted inputs at 30, 60 and 144, and the spread between them.
+//
+// What is checked tightly is SPEED, because speed compounds: a move that
+// carries 2 hu/s more at 30 frames a second is a different move, and it was
+// the slide that did it (10.6 cm and 2.1 hu/s out, before slideDecay solved
+// the friction in closed form instead of stepping it once a frame).
+//
+// Position is checked to a few centimetres and no tighter, and the reason is
+// worth writing down rather than tuning away: the position is advanced by
+// `velocity x dt` once a frame, so at 30 frames a second each step is a
+// 23 cm-long guess at where the speed was during it. Removing that needs the
+// step to be trapezoidal or substepped, which would move every measured
+// number in this file for under a centimetre of gain. A few centimetres after
+// two seconds is not a thing a player can feel; two hu/s is.
+console.log("\nThe same run at 30, 60 and 144 frames a second");
+{
+  interface Run {
+    name: string;
+    seconds: number;
+    drive: (s: Sim) => void;
+    tol: number;
+  }
+  const RUNS: Run[] = [
+    { name: "a sprint down a straight", seconds: 2.5, tol: 0.02, drive: (s) => { s.in.hold("forward"); s.in.tap("sprint"); } },
+    { name: "a walk from a standing start", seconds: 0.6, tol: 0.02, drive: (s) => s.in.hold("forward") },
+    { name: "a jump, and where it lands", seconds: 1.6, tol: 0.02, drive: (s) => { s.in.hold("forward"); s.in.tap("sprint"); s.in.tap("jump"); } },
+    { name: "a strafe in the air", seconds: 1.4, tol: 0.04, drive: (s) => { s.in.hold("forward"); s.in.hold("right"); s.in.tap("sprint"); s.in.tap("jump"); } },
+    { name: "a slide", seconds: 2, tol: 0.04, drive: (s) => { s.in.hold("forward"); s.in.tap("sprint"); } },
+    { name: "a turn on the spot into a run", seconds: 1.2, tol: 0.02, drive: (s) => { s.in.hold("forward"); s.in.hold("left"); } },
+  ];
+  for (const r of RUNS) {
+    const at = (fps: number): { x: number; z: number; y: number; v: number } => {
+      const s = new Sim();
+      s.fps = fps;
+      s.p.teleport(0, 0, 0, 0, 0);
+      r.drive(s);
+      // the slide needs the crouch held once it is up to speed, which is a
+      // thing that happens partway through rather than at the start
+      if (r.name === "a slide") {
+        s.run(1);
+        s.in.hold("crouch");
+        s.run(r.seconds - 1);
+      } else s.run(r.seconds);
+      return { x: s.p.pos.x, z: s.p.pos.z, y: s.p.pos.y, v: s.speedHu };
+    };
+    const fast = at(144);
+    for (const fps of [30, 60]) {
+      const slow = at(fps);
+      const off = Math.hypot(slow.x - fast.x, slow.z - fast.z);
+      const dv = Math.abs(slow.v - fast.v);
+      check(
+        `${r.name}: the same at ${fps} fps as at 144`,
+        off <= r.tol && dv <= 1 && Math.abs(slow.y - fast.y) <= 0.05,
+        `${(off * 100).toFixed(1)} cm apart, ${dv.toFixed(1)} hu/s of speed, ${((slow.y - fast.y) * 100).toFixed(1)} cm of height`
+      );
+    }
+  }
 }
 
 console.log(fails === 0 ? "\nMOVESIM PASS" : `\nMOVESIM FAIL (${fails})`);

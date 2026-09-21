@@ -20,7 +20,7 @@
 //           ways off, and the interact limits.
 import * as THREE from "three";
 import type { Action } from "./input";
-import { HU, MOVE, jumpVelocityFor, slideFriction, EXTRA } from "./movement";
+import { HU, MOVE, jumpVelocityFor, slideDecay, EXTRA } from "./movement";
 import { RANGE_SOLIDS, type Solid } from "./range";
 import { ZIPLINES, type Zipline } from "./traversal";
 import squadCfg from "../config/squad.json";
@@ -1791,13 +1791,17 @@ export class Player {
       this.endSlide();
       return;
     }
-    // Fitted to the wiki's two measured slide timings (movement.json).
-    let decel = slideFriction(h);
+    // Fitted to the wiki's two measured slide timings (movement.json), and
+    // taken as the closed form of that decay rather than one Euler step of it,
+    // so a slide is the same slide at 30 frames a second as at 144 (movesim,
+    // "the same run at 30, 60 and 144"). Pushing against it is a flat rate,
+    // where one step and the closed form are the same thing.
+    let stopping = false;
     if (wl > 0) {
       const dot = (this.vel.x / h) * wx + (this.vel.z / h) * wz;
-      if (dot < -0.3) decel = MOVE.slideWantToStopDecel;
+      if (dot < -0.3) stopping = true;
     }
-    const next = Math.max(0, h - decel * dt);
+    const next = stopping ? Math.max(0, h - MOVE.slideWantToStopDecel * dt) : slideDecay(h, dt);
     const k = next / h;
     this.vel.x *= k;
     this.vel.z *= k;

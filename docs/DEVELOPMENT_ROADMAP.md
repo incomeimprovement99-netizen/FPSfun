@@ -2708,3 +2708,26 @@ still one box with three numbers I had typed in by eye, and it showed.
 - `fit.torso` and `fit.torsoAt` are gone from the code with it. The kit in `gear.ts` never used them: it
   has its own numbers in `gear.json` and hangs off the upper spine bone. Measuring the kit against these
   bands the way the clothes now are is the next one of these.
+
+## Milestone 161 — The same movement on a laptop as on a desktop ✅
+
+Every movement number in this game was measured at 144 frames a second, because that is the machine it was
+written on. Nobody had asked what the same inputs do at 30 or 60, and that is the most expensive kind of
+jank: the player who has it cannot see it, because they have never seen the other one.
+
+- **`tools/movesim.ts` runs at any frame rate now**, and a new section runs six scripted runs (a sprint, a
+  walk from standing, a jump, an air strafe, a slide, a turn into a run) at 30, 60 and 144 and compares
+  where the player ends up and how fast they are going.
+- **The slide was the one that was really wrong**: 10.6 cm further along and **2.1 hu/s faster** at 30 frames
+  a second than at 144. Its friction depends on its own speed (`dv/dt = -(a + b(v - c))`), so the speed decays
+  exponentially, and taking the rate off once a frame is Euler's method on that: wrong by an amount that
+  depends on the frame length.
+- **`slideDecay()` solves it instead** (`src/game/movement.ts`): the exponential above the knee, the straight
+  line below it, and the crossing solved rather than stepped over. The spread fell to 3.4 cm and 0.5 hu/s,
+  and every measured slide timing in the file still passes, because the closed form IS what the small steps
+  were converging to.
+- **What is left is the position step, and it is named rather than tuned away.** Position advances by
+  `velocity x dt` once a frame, so at 30 fps each step is a 23 cm-long guess at where the speed was during
+  it: about 3 cm of spread after two seconds. Removing it needs a trapezoidal or substepped position, which
+  would move every measured number in the file for under a centimetre of gain. Speed is checked to 1 hu/s
+  because speed compounds; position is checked to 4 cm because a player cannot feel it.
