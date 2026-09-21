@@ -1589,6 +1589,10 @@ async function rulesTest(browser: Browser, query: string): Promise<void> {
     JSON.stringify(tuned)
   );
   check("rules: and leaving the match gives the guest its own numbers back, not the game's", !!mine && mine.charges === 3 && mine.distance === 8, JSON.stringify(mine));
+  // Put the store back, because every page in this browser shares it: a
+  // tuning left behind here is three dashes on every page opened after it,
+  // and the checks that come later count on the game's own two.
+  for (const p of [hostTuned, guestPlain]) await ev(p, `localStorage.removeItem("range.abilityTune.v1")`);
   await hostTuned.close();
   await guestPlain.close();
 }
