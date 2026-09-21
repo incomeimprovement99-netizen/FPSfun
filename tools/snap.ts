@@ -170,6 +170,14 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "inventory",
+    note: "the pack held open on Tab: both guns with the build in hand, the heals, the grenades, the ammo and the armour",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.input.locked = true; r.player.teleport(0, 0, 6, 0); })()`, 300],
+      ["(() => { window.__range.input.down.add('Tab'); })()", 500],
+    ],
+  },
+  {
     name: "intro-title",
     note: "the intro card: the name smashed in over the rain",
     steps: [[`(() => { for (let t = 0; t <= 1.1; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],

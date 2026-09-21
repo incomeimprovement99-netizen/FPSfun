@@ -2289,3 +2289,19 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   every slice can be picked and the middle picks none, and every intent has a life with a plan outliving a
   warning) and the e2e `squad` section (the real middle button held opens it, and what it marked reaches the host
   in the words it was marked with).
+## Milestone 141 — The pack, held open on Tab ✅
+2026-09-20 (Phase 15). `src/config/binds.json`, `src/game/hud.ts`, `src/main.ts`, `tools/e2e.ts`, `tools/snap.ts`, `README.md`.
+- Item 12 of the ranked list, whose premise was wrong in the same way two others were: it said "Tab shows a list",
+  and Tab showed nothing at all. What a player had was one HUD row of heals and grenades, and no way to see the
+  other gun's ammo, the build on the gun in hand, or what armour they were wearing without taking it off.
+- **Hold Tab** now for everything at once: both guns with what is in the magazine and the ammo behind it, the build
+  on the one in hand, the heals, the grenades, the ammo by kind and the shield and helmet. Read only on purpose:
+  dropping and swapping are done where the item is, and what a player needs mid-match is the answer to "what have
+  I got".
+- Checks: the e2e `throw` section (holding Tab shows both guns, the build in hand and the ammo; letting go puts it
+  away) and the snapshot `inventory`.
+- Found by the suite while this was in it: the ping wheel moved the ping from the press to the release, and the
+  controller's double tap stopped meaning "enemy here" whenever the first tap had already marked a figure. That
+  refusal was deliberate once (a precise mark should not be replaced by a vague one) and is wrong: a player who
+  taps twice has said what they mean, and which of the two marks they get should not depend on whether a bot
+  happened to be under the crosshair. A double tap always means an enemy now.

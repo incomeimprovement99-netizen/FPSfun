@@ -2677,6 +2677,24 @@ async function throwTest(browser: Browser, query: string): Promise<void> {
 
   await ev(page, "window.__range.duel().leave()");
   await sleep(200);
+  // Tab, held: what you are carrying, in one place (src/game/hud.ts drawInventory)
+  {
+    await ev(page, "window.__range.input.locked = true");
+    await page.keyboard.down("Tab");
+    await sleep(250);
+    const inv = await ev<{ guns: number; inHand: string | null; attach: number; ammo: number; armor: string } | null>(
+      page,
+      `(() => { const i = window.__range.hud.last?.inventory ?? null; if (!i) return null;
+        const hand = i.guns.find((g) => g.inHand) ?? null;
+        return { guns: i.guns.length, inHand: hand ? hand.name : null, attach: hand ? hand.attach.length : 0, ammo: i.ammo.length, armor: i.armor }; })()`
+    );
+    await page.keyboard.up("Tab");
+    await sleep(200);
+    const closed = await ev<boolean>(page, "(window.__range.hud.last?.inventory ?? null) === null");
+    check("the pack: holding Tab shows both guns, the build in hand and what ammo you have", !!inv && inv.guns === 2 && !!inv.inHand && inv.attach >= 1 && /SHIELD/.test(inv.armor), JSON.stringify(inv));
+    check("and letting go puts it away", closed);
+    await ev(page, "window.__range.input.locked = false");
+  }
   const range = await ev<{ endless: boolean; live: number }>(page, "({ endless: window.__range.ordnance.endless, live: window.__range.throwables.live.length + window.__range.throwables.fires.length })");
   check("throwables: back in the range, no count and nothing left burning", range.endless && range.live === 0, JSON.stringify(range));
 

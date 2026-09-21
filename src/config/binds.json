@@ -95,6 +95,9 @@
   "map": [
     "KeyM"
   ],
+  "inventory": [
+    "Tab"
+  ],
   "ability": [
     "KeyF"
   ],

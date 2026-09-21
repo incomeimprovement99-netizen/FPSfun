@@ -330,6 +330,7 @@ defaults puts `binds.json` back.
 | 5 to 0 | pick RUNNER, MEDIC, SCOUT, HOOK, SMOKE or WARD when the card is up | Z | your kit's ultimate, when its meter is full |
 | B | fire mode (where a gun has two) | | |
 | Middle mouse | ping, for the squad (twice quickly: an enemy there) | M | the full map |
+| Tab (hold) | what you are carrying: both guns with the build in hand, the heals, the grenades, the ammo by kind and the armour | | |
 | U | magazine level | O | cycle optic |
 | J, N, H | barrel, stock, laser | L | hop-up |
 | Z | variable optic zoom | T | dummy armour tier |

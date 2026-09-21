@@ -4767,8 +4767,8 @@ function step(): void {
           brPlay.pingEnemy(duel, camera.position.clone(), f, now, duel.id);
           lastPingAt = -Infinity;
         } else {
-          // (a first tap that already marked an enemy is not turned into a plain "enemy here" by a second)
-          lastPingAt = brPlay.ping(duel, camera.position.clone(), f, now, duel.id) === "enemy" ? -Infinity : now;
+          brPlay.ping(duel, camera.position.clone(), f, now, duel.id);
+          lastPingAt = now;
         }
       }
     }
@@ -5920,6 +5920,37 @@ function step(): void {
     ship: player.aboard && duel instanceof BrMatch && duel.ship ? shipHud(duel, duel.ship) : null,
     heal: heal && vitalsTarget() ? { item: HEAL_ITEMS[heal.item].name, progress: Math.min(1, (now - heal.startedAt) / heal.duration) } : null,
     kit: (duel && duel.alive) || (!duel && rangeCombat.on && rangeCombat.alive) ? { ...kit.items } : null,
+    // Tab, held: everything you are carrying in one place (hud.ts
+    // drawInventory). Read only on purpose: what a player needs mid-match is
+    // the answer to "what have I got", and dropping and swapping are done
+    // where the item is.
+    inventory: input.held("inventory")
+      ? {
+          guns: loadout.slots.map((sl, i) => ({
+            name: weaponName(sl.weapon.id),
+            clip: sl.state.clip,
+            size: sl.weapon.clipSize,
+            ammo: sl.energy ? `${sl.energy.rounds} energy` : `${loadout.ammo.stock[ammoTypeOf(sl.id)] ?? 0} ${ammoTypeOf(sl.id)}`,
+            attach:
+              i === loadout.activeIndex
+                ? loadout
+                    .attachLabels()
+                    .filter((a) => a.available && !/none|iron/i.test(a.label))
+                    .map((a) => a.label)
+                : [],
+            inHand: i === loadout.activeIndex,
+          })),
+          heals: HEAL_ORDER.filter((k) => (kit.items[k] ?? 0) > 0).map((k) => ({ name: HEAL_ITEMS[k].name, n: kit.items[k] })),
+          nades: Object.entries(ordnance.counts)
+            .filter(([, n]) => n > 0)
+            .map(([k, n]) => ({ name: throwName(k), n })),
+          ammo: Object.entries(loadout.ammo.stock)
+            .filter(([, n]) => n > 0)
+            .map(([k, n]) => ({ name: k.toUpperCase(), n })),
+          armor: armorTier === 0 ? "NO SHIELD" : `${ARMOR_NAME[armorTier].toUpperCase()} SHIELD`,
+          helmet: armor.helmet ? `${armor.helmet.toUpperCase()} HELMET` : "NO HELMET",
+        }
+      : null,
     damageDirs: duel ? damageDirs() : undefined,
     reticle,
     summary: summaryView(),

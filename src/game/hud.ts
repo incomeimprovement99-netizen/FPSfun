@@ -206,6 +206,20 @@ export interface HudState {
   emoteWheel?: { items: string[]; pick: number | null } | null;
   /** the ping wheel (the ping key, held): what a mark would mean, and the one the mouse points at */
   pingWheel?: { items: string[]; pick: number | null } | null;
+  /**
+   * What you are carrying, held open on Tab: the two guns with their builds,
+   * the pack, the grenades, the ammo by kind and the armour. A battle royale
+   * hands you a dozen decisions a minute and the HUD could only answer them
+   * one line at a time.
+   */
+  inventory?: {
+    guns: Array<{ name: string; clip: number; size: number; ammo: string; attach: string[]; inHand: boolean }>;
+    heals: Array<{ name: string; n: number }>;
+    nades: Array<{ name: string; n: number }>;
+    ammo: Array<{ name: string; n: number }>;
+    armor: string;
+    helmet: string;
+  } | null;
   /** nameplates over the other players and the bots */
   plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean; aimbot?: boolean }>;
   /** real shield and health (a 1v1); the bars are decorative without it */
@@ -2316,6 +2330,7 @@ export class Hud {
       this.drawHealWheel(s, u);
     this.drawEmoteWheel(s, u);
     this.drawPingWheel(s, u);
+    this.drawInventory(s, u);
       return;
     }
     const x = 34 * u + 350 * u;
@@ -2393,6 +2408,52 @@ export class Hud {
       for (const [j, line] of name.split(" ").entries()) this.text(line, x, y + (j - (name.split(" ").length - 1) / 2) * 13 * u + 4 * u, 700, 11 * u, on ? "#5abeff" : WHITE, "center");
     });
     this.text("MOVE TO WHAT YOU MEAN, LET GO TO MARK IT", cx, cy + R + 76 * u, 700, 13 * u, DIM, "center");
+  }
+
+  /**
+   * The pack, held open on Tab: what you have, in one place. Read only, which
+   * is the honest half of an inventory screen: dropping and swapping are done
+   * where the item is, and what a player needs mid-match is the answer to
+   * "what have I got".
+   */
+  private drawInventory(s: HudState, u: number): void {
+    const inv = s.inventory;
+    if (!inv) return;
+    const c = this.ctx;
+    const w = Math.min(this.w * 0.8, 760 * u);
+    const h = Math.min(this.h * 0.8, 460 * u);
+    const x0 = (this.w - w) / 2;
+    const y0 = (this.h - h) / 2;
+    c.fillStyle = "rgba(8, 10, 13, 0.9)";
+    c.fillRect(x0, y0, w, h);
+    c.strokeStyle = "rgba(255,255,255,0.14)";
+    c.lineWidth = 1;
+    c.strokeRect(x0, y0, w, h);
+    this.text("WHAT YOU ARE CARRYING", x0 + 24 * u, y0 + 34 * u, 700, 18 * u, WHITE);
+    this.text(`${inv.armor}   ·   ${inv.helmet}`, x0 + w - 24 * u, y0 + 34 * u, 700, 14 * u, DIM, "right");
+    let y = y0 + 74 * u;
+    for (const g of inv.guns) {
+      this.text(g.name, x0 + 24 * u, y, 700, 17 * u, g.inHand ? "#ffd23c" : WHITE);
+      this.text(`${g.clip} / ${g.size}   ${g.ammo}`, x0 + w - 24 * u, y, 700, 15 * u, g.inHand ? "#ffd23c" : DIM, "right");
+      y += 20 * u;
+      this.text(g.attach.length ? g.attach.join("  ·  ") : "no attachments", x0 + 24 * u, y, 600, 12 * u, DIM);
+      y += 30 * u;
+    }
+    const col = (title: string, rows: Array<{ name: string; n: number }>, cx: number) => {
+      let yy = y + 10 * u;
+      this.text(title, cx, yy, 700, 12 * u, DIM);
+      yy += 22 * u;
+      if (!rows.length) this.text("nothing", cx, yy, 600, 13 * u, "rgba(154,164,173,0.5)");
+      for (const r of rows) {
+        this.text(r.name, cx, yy, 600, 13 * u, WHITE);
+        this.text(`x${r.n}`, cx + 150 * u, yy, 700, 13 * u, DIM, "right");
+        yy += 19 * u;
+      }
+    };
+    col("HEALS", inv.heals, x0 + 24 * u);
+    col("GRENADES", inv.nades, x0 + 24 * u + 200 * u);
+    col("AMMO", inv.ammo, x0 + 24 * u + 400 * u);
+    this.text("HOLD TAB", this.w / 2, y0 + h - 18 * u, 700, 12 * u, DIM, "center");
   }
 
   /** the emote wheel: six round the middle, the one pointed at lit */
