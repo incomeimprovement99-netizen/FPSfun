@@ -1322,6 +1322,20 @@ async function friendsModesTest(browser: Browser, query: string): Promise<void> 
  * message, the guest running a steady circle, and the host measuring how even
  * the guest's figure's speed is from frame to frame, placed each way.
  */
+/** how evenly a figure moved: over the frames, and over the states behind them */
+interface Smoothness {
+  frames: number;
+  mean: number;
+  /** standard deviation over the mean: one frozen frame in 390 moves this a long way */
+  spread: number;
+  /** what a typical frame did, against the middle one: robust to a stall */
+  mad: number;
+  /** and what a bad one did */
+  p95: number;
+  sampleSpread: number;
+  stalls: number;
+}
+
 async function jitterTest(browser: Browser, query: string, lossy = false): Promise<void> {
   const host = await open(browser, query);
   const guest = await open(browser, query);
@@ -1343,15 +1357,30 @@ async function jitterTest(browser: Browser, query: string, lossy = false): Promi
   // how even the figure's speed is, frame to frame, over 2.5 s: the spread of it over its mean
   // measured in the game's own frame: after each update of the match, where the figure stands
   await host.bringToFront();
-  const measure = `new Promise((done) => { const d = window.__range.duel(); const r = d.remotes.get(1); const pts = []; const t0 = performance.now(); const up = d.update.bind(d); d.update = (l) => { const at = performance.now(); up(l); const g = r.avatar.group.position; pts.push([at, g.x, g.z]); if (performance.now() - t0 > 2500 && !pts.done) { pts.done = true; d.update = up; const v = []; for (let i = 1; i < pts.length; i++) { const dt = (pts[i][0] - pts[i - 1][0]) / 1000; if (dt > 0.004) v.push(Math.hypot(pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2]) / dt); } const m = v.reduce((a, b) => a + b, 0) / v.length; const sd = Math.sqrt(v.reduce((a, b) => a + (b - m) * (b - m), 0) / v.length); const ss = r.samples.slice(-40); const sv = []; for (let i = 1; i < ss.length; i++) { const dt = ss[i].at - ss[i - 1].at; if (dt > 0) sv.push(Math.hypot(ss[i].x - ss[i - 1].x, ss[i].z - ss[i - 1].z) / dt); } const sm = sv.reduce((a, b) => a + b, 0) / sv.length; const ssd = Math.sqrt(sv.reduce((a, b) => a + (b - sm) * (b - sm), 0) / sv.length); done({ frames: v.length, mean: m, spread: sd / m, sampleSpread: ssd / sm, stalls: v.filter((x) => x < m * 0.2).length }); } }; })`;
-  const bySent = await ev<{ frames: number; mean: number; spread: number }>(host, measure);
+  const measure = `new Promise((done) => { const d = window.__range.duel(); const r = d.remotes.get(1); const pts = []; const t0 = performance.now(); const up = d.update.bind(d); d.update = (l) => { const at = performance.now(); up(l); const g = r.avatar.group.position; pts.push([at, g.x, g.z]); if (performance.now() - t0 > 2500 && !pts.done) { pts.done = true; d.update = up; const v = []; for (let i = 1; i < pts.length; i++) { const dt = (pts[i][0] - pts[i - 1][0]) / 1000; if (dt > 0.004) v.push(Math.hypot(pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2]) / dt); } const m = v.reduce((a, b) => a + b, 0) / v.length; const sd = Math.sqrt(v.reduce((a, b) => a + (b - m) * (b - m), 0) / v.length); const ss = r.samples.slice(-40); const sv = []; for (let i = 1; i < ss.length; i++) { const dt = ss[i].at - ss[i - 1].at; if (dt > 0) sv.push(Math.hypot(ss[i].x - ss[i - 1].x, ss[i].z - ss[i - 1].z) / dt); } const sm = sv.reduce((a, b) => a + b, 0) / sv.length; const ssd = Math.sqrt(sv.reduce((a, b) => a + (b - sm) * (b - sm), 0) / sv.length); const sorted = v.slice().sort((a, b) => a - b); const med = sorted[Math.floor(sorted.length / 2)]; const devs = v.map((x) => Math.abs(x - med)).sort((a, b) => a - b); const mad = devs[Math.floor(devs.length / 2)] / med; const p95 = devs[Math.floor(devs.length * 0.95)] / med; done({ frames: v.length, mean: m, spread: sd / m, mad, p95, sampleSpread: ssd / sm, stalls: v.filter((x) => x < m * 0.2).length }); } }; })`;
+  const bySent = await ev<Smoothness>(host, measure);
   await ev(host, "window.__range.duel().senderClock = false");
   await sleep(800);
-  const byArrival = await ev<{ frames: number; mean: number; spread: number }>(host, measure);
+  const byArrival = await ev<Smoothness>(host, measure);
   if (lossy) {
-    // a sixth of the state packets lost and the rest out of order: the figure still runs as the player did
+    // A sixth of the state packets lost and the rest out of order: the figure
+    // still runs as the player did.
+    //
+    // Measured by the MIDDLE frame rather than the mean one, and the reason is
+    // worth stating. Over 390 frames, one frame where the buffer had nothing
+    // new to show moves the standard deviation more than the other 389 put
+    // together: the same build measured 0.11, 0.32, 0.34 and 0.56 on four runs
+    // against a 0.30 bar, so the check was reporting which run it was, not
+    // whether the movement was smooth. The median absolute deviation says what
+    // a typical frame did, the 95th says what a bad one did, and `stalls`
+    // counts the frames that genuinely froze, which is the thing a player
+    // sees. All three have to hold, so a real stutter still fails.
     const fast = await ev<{ sent: number; got: number } | null>(guest, "window.__range.duel()?.linkFor(0)?.fastStats?.() ?? null");
-    check("loss: with 15% of the state packets lost and the rest out of order, a friend running at one speed still moves at one speed", bySent.frames > 60 && bySent.mean > 3 && bySent.spread < 0.3, JSON.stringify({ bySent, fast }));
+    check(
+      "loss: with 15% of the state packets lost and the rest out of order, a friend running at one speed still moves at one speed",
+      bySent.frames > 60 && bySent.mean > 3 && bySent.mad < 0.12 && bySent.p95 < 0.55 && bySent.stalls <= 3 && bySent.sampleSpread < 0.2,
+      JSON.stringify({ bySent, fast })
+    );
   } else
     check(
       "jitter: placed by when its states were sent, a friend running at one speed moves at one speed through 60 ms of jitter (and far more evenly than placed by arrival)",
