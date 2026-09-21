@@ -21,8 +21,8 @@
 // and anything less leaves the box alone.
 //
 // A plan is numbers and no three.js (plan.ts), so this is too.
-import type { Placement, PropName } from "../props";
-import type { PlanBox } from "./plan";
+import type { Placement, PropName } from "./props";
+import type { PlanBox } from "./arenas/plan";
 
 /** a prop and the size it is modelled at, metres */
 interface Dress {
@@ -133,7 +133,8 @@ export function dressBox(b: PlanBox, seed: number): Placement[] {
   // the wardrobe is walked from a different place for each box, so two boxes
   // of the same shape are not the same stack of crates twice over
   for (let k = 0; k < WARDROBE.length; k++) {
-    const w = WARDROBE[(k + seed) % WARDROBE.length];
+    // the seed is a box's own place on a map and may be negative
+    const w = WARDROBE[(((k + seed) % WARDROBE.length) + WARDROBE.length) % WARDROBE.length];
     const f = fit(w, b);
     if (f && (!best || score(f) > score(best))) best = f;
   }
@@ -148,7 +149,7 @@ export function dressBox(b: PlanBox, seed: number): Placement[] {
     for (let i = 0; i < across; i++) {
       const off = across === 1 ? 0 : -along / 2 + step / 2 + i * ((along - step) / (across - 1));
       // a half turn on every other one, so a run of crates is not a comb
-      const turn = (seed + i + row) % 2 ? 180 : 0;
+      const turn = Math.abs(seed + i + row) % 2 ? 180 : 0;
       out.push({
         prop: d.prop,
         x: b.x + (alongX ? off : 0),

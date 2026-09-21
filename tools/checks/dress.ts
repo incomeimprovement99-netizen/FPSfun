@@ -14,7 +14,7 @@
 // Run on its own: npx tsx tools/checks/dress.ts.
 import { ARENA_PLANS } from "../../src/game/arenas/index";
 import { allBoxes, solidsOf, type PlanBox } from "../../src/game/arenas/plan";
-import { COVER, MOST, dressBox, dressPlan } from "../../src/game/arenas/dress";
+import { COVER, MOST, dressBox, dressPlan } from "../../src/game/dress";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {

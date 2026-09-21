@@ -36,6 +36,8 @@ import { DOORWAYS, Doors } from "./doors";
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
 import { building, coverWall, crateStair, jumpTower, type BoxMaker, type PoiCtx, type Side } from "./brpoi";
+import { dressBox } from "./dress";
+import { placeProps, type Placement } from "./props";
 import { PAL, bevel, flat, emissive, rockGeometry, textPanel } from "./geo";
 import { type MatName, material } from "./materials";
 import { ZIPLINES } from "./traversal";
@@ -192,6 +194,25 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     root.add(m);
     if (isSolid) solid(x - w / 2, x + w / 2, z - d / 2, z + d / 2, y, y + h);
     return m;
+  };
+  /**
+   * A crate: the same collision a box of this size would have, with a real
+   * crate drawn in its place rather than a planked cube (src/game/dress.ts,
+   * the same wardrobe the arenas wear). Where the wardrobe has nothing that
+   * fills the space it falls back to the box, because a crate short of the
+   * box it stands in would be cover you can see over and not shoot over.
+   */
+  const crates: Placement[] = [];
+  const crateAt = (w: number, h: number, d: number, x: number, y: number, z: number): void => {
+    const put = dressBox({ x, z, w, d, h, y, mat: "crate" }, Math.round(x * 7 + z * 13));
+    if (!put.length) {
+      // nothing in the wardrobe fills it: the planked box stays, because a
+      // crate short of its collision is cover you can see over and not shoot over
+      box(w, h, d, x, y, z, crate);
+      return;
+    }
+    crates.push(...put);
+    solid(x - w / 2, x + w / 2, z - d / 2, z + d / 2, y, y + h);
   };
   /** a rock the size of a box (geo.ts rockGeometry), on the same box of collision a crate that size would have */
   const rockAt = (w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material): void => {
@@ -847,7 +868,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     // makes the row's three middle roofs one catwalk over the yard. The
     // planks are 2.4 m up, so the gaps under them are still ways through.
     for (let i = 0; i < 5; i++) slab(4, 0.5 * (i + 1), 1.6, 0, 0, cz - 7.5 - 1.3 - 0.8 - 1.6 * (4 - i), concrete);
-    for (const s of [-1, 1]) box(2, 0.2, 2.6, s * 4, 2.4, cz - 7.5, crate);
+    for (const s of [-1, 1]) crateAt(2, 0.2, 2.6, s * 4, 2.4, cz - 7.5)
 
     // THE SILO BLOCK, the yard's silhouette: a grain elevator of four
     // storeys with a round head on its roof and a silo either side of it,
@@ -888,9 +909,9 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     // They stood on the west face, a metre in front of the west door, which
     // opened into the slot behind them: no bot ever came through it.
     crateStair(here, 35, cz - 12, 7.2, -1);
-    box(1.6, 1.4, 1.6, 21, 0, cz - 13.5, crate);
-    box(1.6, 1.4, 1.6, 3, 0, cz + 14, crate);
-    box(1.6, 1.4, 1.6, -9, 0, cz - 14, crate);
+    crateAt(1.6, 1.4, 1.6, 21, 0, cz - 13.5)
+    crateAt(1.6, 1.4, 1.6, 3, 0, cz + 14)
+    crateAt(1.6, 1.4, 1.6, -9, 0, cz - 14)
     // Its ramp runs south down the west face: east of it are the yard's
     // containers and a beacon.
     towerAt.north = jumpTower(here, -26, cz + 6, { face: "w", foot: "s" }, 6);
@@ -913,9 +934,9 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
         [x + 2.5, cz + 11],
       ]) box(0.8, 5, 0.8, px, 0, pz, concrete);
       box(7, 0.6, 24, x, 5, cz, roofMat);
-      box(1.6, 1.4, 1.6, x + 1.5, 0, cz - 4, crate);
-      box(1.6, 1.4, 1.6, x - 1.8, 0, cz + 5, crate);
-      box(1.6, 1.4, 1.6, x - 1.8, 1.4, cz + 5, crate);
+      crateAt(1.6, 1.4, 1.6, x + 1.5, 0, cz - 4)
+      crateAt(1.6, 1.4, 1.6, x - 1.8, 0, cz + 5)
+      crateAt(1.6, 1.4, 1.6, x - 1.8, 1.4, cz + 5)
       // THE BAYS. A canopy with nothing under it is cover from above and
       // nothing to fight round, so each has walls down both sides now, up to
       // the roof and flush with its edges. The outer two are closed at the
@@ -1029,8 +1050,8 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     // roof is 3.5 m over the terrace, past the 2.03 m mantle, and loot lands
     // on it (anything up to 12 m takes loot); from the crates it is a jump
     // and a short mantle.
-    box(1.6, 1.4, 1.6, cx - 0.9, top, 7, crate);
-    box(1.6, 2.8, 1.6, cx + 0.7, top, 7, crate);
+    crateAt(1.6, 1.4, 1.6, cx - 0.9, top, 7)
+    crateAt(1.6, 2.8, 1.6, cx + 0.7, top, 7)
     // THE STACK: a chimney off the undercroft, tapering to a red lamp 31 m
     // up, the east of the map's landmark as the Mast is the middle's. It is a
     // thin vertical where the Mast is a mass, so the two never read as each
@@ -1072,8 +1093,8 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     // off: it was never ridden from this end. Where it goes is the rotation
     // network's business, after the sites.
     towerAt.ridge = { anchor: new THREE.Vector3(cx - 1, top + 2.4, -4), floor: top };
-    box(1.6, 1.4, 1.6, cx - 24, 0, 8, crate);
-    box(1.6, 1.4, 1.6, cx + 3, 0, 26, crate);
+    crateAt(1.6, 1.4, 1.6, cx - 24, 0, 8)
+    crateAt(1.6, 1.4, 1.6, cx + 3, 0, 26)
     root.add(textPanel("EAST RIDGE", cx, 3.4, -28, 0, 6, 1.4));
   }
 
@@ -1299,11 +1320,11 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
       for (const b of [-1, 1]) {
         const px = x + (long ? a : b) * (w / 2 - 0.25);
         const pz = z + (long ? b : a) * (d / 2 - 0.25);
-        if (timber) box(0.5, 4.5, 0.5, px, 0, pz, crate);
+        if (timber) crateAt(0.5, 4.5, 0.5, px, 0, pz)
         else slab(0.5, 4.5, 0.5, px, 0, pz, roofMat);
       }
     }
-    for (const [px, pz, h] of pallets) box(1.2, h, 1, px, 0, pz, crate);
+    for (const [px, pz, h] of pallets) crateAt(1.2, h, 1, px, 0, pz)
   };
   /** a compound's 2 m inner wall, between its extents: a jump and a mantle for a player, a wall for a bot */
   const yardWall = (x0: number, x1: number, z0: number, z1: number): void => {
@@ -1476,7 +1497,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     const px0 = c.x - 37;
     const px1 = c.x - 29;
     const fence = (x0: number, x1: number, z0: number, z1: number): void => {
-      box(x1 - x0, 1.2, z1 - z0, (x0 + x1) / 2, 0, (z0 + z1) / 2, crate);
+      crateAt(x1 - x0, 1.2, z1 - z0, (x0 + x1) / 2, 0, (z0 + z1) / 2)
     };
     fence(px0 - 0.1, px0 + 0.1, c.z - 20, c.z + 20);
     for (const z of [-20, -10, 0, 10, 20]) fence(px0, px1, c.z + z - 0.1, c.z + z + 0.1);
@@ -1564,19 +1585,19 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
         box(12, 4, 0.6, x, 0, z - 4, wallMat);
         box(0.6, 4, 9, x - 6, 0, z, wallMat);
         box(9, 0.4, 7, x - 1.5, 4, z - 1, roofMat);
-        box(1.6, 1.4, 1.6, x + 4, 0, z + 2, crate);
+        crateAt(1.6, 1.4, 1.6, x + 4, 0, z + 2)
       } else if (kind === 1) {
         // a culvert: a covered run you can cross the road inside
         box(0.6, 2.6, 14, x - 2.2, 0, z, concrete);
         box(0.6, 2.6, 14, x + 2.2, 0, z, concrete);
         box(5, 0.5, 14, x, 2.6, z, concrete);
-        box(1.6, 1.4, 1.6, x, 0, z + 5, crate);
+        crateAt(1.6, 1.4, 1.6, x, 0, z + 5)
       } else {
         // a container stack with a gap to shoot through
         box(6, 2.6, 2.6, x, 0, z, steelA);
         box(6, 2.6, 2.6, x + 1.5, 0, z + 3.4, steelB);
         box(6, 2.6, 2.6, x, 2.6, z, steelC);
-        box(1.6, 1.4, 1.6, x - 4, 0, z + 1, crate);
+        crateAt(1.6, 1.4, 1.6, x - 4, 0, z + 1)
       }
     }
   }
@@ -1791,12 +1812,12 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     root.add(textPanel("VAULT", -97, 1.9, 20.28, Math.atan2(0, -1), 2.6, 0.8));
     // the well head and its gibbet, whose arm is for show
     box(2.6, 1.2, 2.6, -106, 0, 13, concrete);
-    box(0.3, 2.4, 0.3, -106, 1.2, 11.95, crate);
+    crateAt(0.3, 2.4, 0.3, -106, 1.2, 11.95)
     box(1.3, 0.2, 0.2, -105.5, 3.4, 11.95, crate, false);
     // a hay stack and two runs of cover, all 2.5 m or more from a door
-    box(1.6, 1.4, 1.6, -112, 0, 28, crate);
-    box(1.6, 1.4, 1.6, -110.3, 0, 28, crate);
-    box(1.6, 1.4, 1.6, -111.15, 1.4, 28, crate);
+    crateAt(1.6, 1.4, 1.6, -112, 0, 28)
+    crateAt(1.6, 1.4, 1.6, -110.3, 0, 28)
+    crateAt(1.6, 1.4, 1.6, -111.15, 1.4, 28)
     coverWall(here, -97, 13, 4, 0.8);
     coverWall(here, -108, 25, 0.8, 4);
     // The fuel canopy, on six posts, and its two pumps, 4.5 m off the road;
@@ -2025,7 +2046,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
       // two stood where a site is now, one in the Crossing's pump house and one in the Well's yard
       if (!clearOf(x - 1.6, x + 3.4, z - 1.2, z + 2)) continue;
       rockAt(3.2, 1.7, 2.4, x, 0, z, boulder);
-      box(1.6, 1.4, 1.6, x + 2.6, 0, z + 1.2, crate);
+      crateAt(1.6, 1.4, 1.6, x + 2.6, 0, z + 1.2)
     }
   }
   for (let i = 0; i < 40; i++) {
@@ -2701,6 +2722,10 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
       }
     }
   }
+
+  // the crates: real ones, drawn where their boxes were (dress.ts). The map
+  // does not wait for them, and their collision went in as it was built.
+  void placeProps(root, crates);
 
   return {
     root,

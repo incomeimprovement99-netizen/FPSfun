@@ -13,7 +13,7 @@
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "../range";
 import { placeProps } from "../props";
-import { dressPlan } from "./dress";
+import { dressPlan } from "../dress";
 import { PAL, bevel, emissive, flat, graffitiTexture, textPanel, worldTiledMaterial } from "../geo";
 import { material } from "../materials";
 import { warehouseRoof } from "../warehouse";
