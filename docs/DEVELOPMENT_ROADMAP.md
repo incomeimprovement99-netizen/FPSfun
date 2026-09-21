@@ -2502,3 +2502,39 @@ The battle royale map and the range both carry modelled and scanned CC0 props; t
 - Checks: `tools/checks/dress.ts` (20: nothing but cover is dressed, no prop stands outside the box it
   stands in for, every dressed box is filled on all three axes, no prop brings a collider of its own, a box
   wears the same thing every time, and the map's collision is untouched).
+
+## Milestone 152 — The owner's list of the 21st ✅
+
+Seven things, in one message, after playing the build.
+
+- **"B00G's Range"**, with the apostrophe: the brand on the menu and the page's own title. The intro card
+  keeps the words it was asked for, "B00G's FPS: FULL POWER SURGE".
+- **Thirty bots and more, in any mode.** Twelve was a cap nobody chose: there were twelve bot names, and a
+  thirteenth bot would have been a second BOT ASH. Past the list a bot takes a number, the way a squad with
+  two Smiths does, and the cap is now what the frame rate carries (48). The Arena Bots match was worse than
+  the cap: its box offered five and the code made one or two whatever it said. Every mode's picker goes to
+  36 now, the battle royale's to 45, and past the spawns a map has they are stepped out around them in a
+  grid so thirty bots do not start inside each other.
+- **The kit card fits.** It laid every option out in one row of two: with two kits that was a card, with six
+  it was six tiles across a 620 px box running off the screen with a sentence in each too long to read. It
+  is a grid now, as many columns as fit, and each tile says what the kit *gives* you: the tactical on its
+  key, the ultimate, the passive. Which also answers the owner's question: JOLT was never renamed. It is
+  RUNNER's tactical, and the card now says so.
+- **The callouts we never built** (`src/game/callouts.ts`). The battle royale names its places; the arenas
+  named nothing, so in seven of the game's modes "he is over there" was all anybody could say. The ground
+  you stand on is now named under the compass and said when it changes, and being on top of something is
+  said as a roof, because that is the one thing that changes where everybody has to look. Worked out from
+  where you stand rather than hand-written, so every map has them and none can go stale.
+- **The 1v1 maps have a pitched roof.** Walls and a flat lid is a box; walls and two slopes is a building.
+  It is stepped, because this engine collides against axis-aligned boxes and nothing else, so the steps are
+  both what is drawn and what stops a bullet: a drawn slope over a flat collider would be a ceiling you
+  could see into and not shoot into.
+- **Picking a mode ends the match you are in.** It used to refuse and send you to a tab to resign from it
+  first, and that tab was called 1v1 and no longer exists. And **Esc, Esc goes back in**: Chrome blocks a
+  pointer lock for about a second after the Esc that let the mouse go and only grants one inside a real
+  gesture, so the old retry-on-a-timer was refused in silence. A refused resume is now remembered and taken
+  by the next thing the player does, and the hint says so.
+- **The movement.** See the day's update for the full call-out: what is in, what we changed, what is next.
+  In short, a **double jump** and a **wall run** now exist and are **off** unless the lobby's Movement box
+  asks for them, because everything else in this game's movement is measured against Apex and these two are
+  ours.

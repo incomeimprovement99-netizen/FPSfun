@@ -146,7 +146,7 @@ export function buildArena(scene: THREE.Scene): ArenaHandles {
   box(1, WALL_H, HZ * 2 + 2, HX + 0.5, 0, 0, wallMat);
   box(HX * 2, WALL_H, 1, 0, 0, -HZ - 0.5, wallMat);
   box(HX * 2, WALL_H, 1, 0, 0, HZ + 0.5, wallMat);
-  warehouseRoof(root, { x0: -HX - 1, x1: HX + 1, z0: -HZ - 1, z1: HZ + 1, y: WALL_H, skylightEvery: 4, girders: [-6, 6], lights: [-12, 0, 12], solid });
+  warehouseRoof(root, { x0: -HX - 1, x1: HX + 1, z0: -HZ - 1, z1: HZ + 1, y: WALL_H, gable: ARENA_GABLE, skylightEvery: 4, girders: [-6, 6], lights: [-12, 0, 12], solid });
 
   // the lanes: two 3 m walls on each side of the middle, with an orange cap
   // so their tops read as somewhere you can stand
@@ -361,7 +361,7 @@ export function buildTriArena(scene: THREE.Scene): ArenaHandles {
   box(1, WALL_H, TRI_H * 2 + 2, TRI_H + 0.5, 0, 0, wallMat);
   box(TRI_H * 2, WALL_H, 1, 0, 0, -TRI_H - 0.5, wallMat);
   box(TRI_H * 2, WALL_H, 1, 0, 0, TRI_H + 0.5, wallMat);
-  warehouseRoof(root, { x0: -TRI_H - 1, x1: TRI_H + 1, z0: -TRI_H - 1, z1: TRI_H + 1, y: WALL_H, skylightEvery: 4, girders: [-8, 8], lights: [-12, 0, 12], solid });
+  warehouseRoof(root, { x0: -TRI_H - 1, x1: TRI_H + 1, z0: -TRI_H - 1, z1: TRI_H + 1, y: WALL_H, gable: ARENA_GABLE, skylightEvery: 4, girders: [-8, 8], lights: [-12, 0, 12], solid });
 
   // the spokes: between each pair of spawns, along the bisector, staggered
   // 1.6 m blocks from 6 m out to 16 m out, 3 m tall with an orange cap
@@ -511,6 +511,15 @@ const TRIANGLE_MAP: ArenaMapInfo = {
 };
 
 /** every arena there is, in the order a menu should offer them */
+/**
+ * The pitch on an arena's roof: how far the ridge stands above the eaves and
+ * in how many steps each side. A building with a flat lid is a box; two
+ * slopes and it is a building, which is what the owner asked for. Stepped
+ * because the engine collides against axis-aligned boxes, so the steps are
+ * both what is drawn and what stops a bullet (warehouse.ts gable).
+ */
+export const ARENA_GABLE = { rise: 3.2, steps: 7 };
+
 export const ARENA_MAPS: ArenaMapInfo[] = [WAREHOUSE_MAP, TRIANGLE_MAP, ...PLAN_MAPS];
 
 /** a map by id, falling back to the warehouse so a stale saved id can never leave a match without an arena */

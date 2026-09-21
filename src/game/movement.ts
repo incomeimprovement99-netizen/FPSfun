@@ -159,6 +159,26 @@ export const MOVE = {
 } as const;
 
 /**
+ * The two moves this game does not have by default (src/config/movement.json
+ * `extra`): a double jump and a wall run. Kept apart from MOVE because
+ * everything in MOVE is Apex's, measured against the wiki and the reference
+ * files, and these two are ours. A match turns them on; off, nothing here is
+ * read.
+ */
+export const EXTRA = {
+  doubleJump: { height: m(raw.extra.doubleJump.height), grace: raw.extra.doubleJump.grace },
+  wallRun: {
+    seconds: raw.extra.wallRun.seconds,
+    fall: raw.extra.wallRun.fall,
+    minSpeed: m(raw.extra.wallRun.minSpeed),
+    out: m(raw.extra.wallRun.out),
+    up: m(raw.extra.wallRun.up),
+    cooldown: raw.extra.wallRun.cooldown,
+    hold: m(raw.extra.wallRun.hold),
+  },
+} as const;
+
+/**
  * Slide friction at a given speed: a gentle constant, plus a fast shed of any
  * speed above 350 hu/s. Fitted to the two wiki timings (movement.json).
  */

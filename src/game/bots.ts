@@ -247,6 +247,23 @@ export function clearLob(from: THREE.Vector3, to: THREE.Vector3, flight: number)
 /** what bots carry, one per bot in order */
 export const BOT_WEAPONS = ["rspn101", "r97", "vinson", "wingman", "hemlok", "energy_ar", "lmg", "energy_shotgun", "volt_smg", "car", "g2", "sentinel"];
 export const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM", "BOT NOVA", "BOT FLUX", "BOT STEEL", "BOT NEON", "BOT SOLAR", "BOT RAPID", "BOT SWIFT", "BOT ONYX", "BOT DUNE"];
+
+/**
+ * The name of the nth bot in a match. Twelve names were the cap on how many
+ * bots a match could hold, because a thirteenth would have been a second BOT
+ * ASH and two of those in a kill feed is a bug report. Past the list they take
+ * a number, the way a squad with two Smiths does, and the count can be as high
+ * as the machine will carry: the owner asked for thirty and more, to stress
+ * the game and to have something always shooting.
+ */
+export function botName(i: number): string {
+  const round = Math.floor(i / BOT_NAMES.length);
+  const base = BOT_NAMES[i % BOT_NAMES.length];
+  return round === 0 ? base : `${base} ${round + 1}`;
+}
+
+/** how many bots a match may hold at most: a limit of the frame rate, not of the names */
+export const MOST_BOTS = 48;
 const RADIUS = MOVE.radius;
 /** a bot healing walks at this fraction of its speed (ours) */
 const HEAL_WALK = 0.45;
@@ -712,7 +729,7 @@ export class Bot {
     projectiles.addDummy(this.dummy);
     this.remote = {
       id,
-      name: name ?? BOT_NAMES[index % BOT_NAMES.length],
+      name: name ?? botName(index),
       avatar: this.dummy,
       avatarWeapon: wid,
       avatarOp: skin.id,
@@ -1766,14 +1783,29 @@ export class BotMatch implements MatchLike {
     this.center = drawn ? new THREE.Vector3(drawn.center.x, 0, drawn.center.z) : ARENA_CENTER;
     this.spawn = drawn ? drawn.spawns[0] : ARENA_SPAWNS.host;
     const homes = drawn ? drawn.spawns.slice(1) : ARENA_BOT_SPAWNS;
-    // up to five, as every other mode's bot count now goes to eight: the
-    // three arena bot spawns are cycled and pushed apart past the third
-    const n = Math.max(1, Math.min(5, count));
+    // As many as the frame rate carries (bots.ts MOST_BOTS). The owner asked
+    // for thirty and more, to stress the game and to have something always
+    // shooting, so the spawns are cycled and each lap round them is stepped
+    // out in a grid rather than along one diagonal, which past the fourth lap
+    // walked bots into a wall.
+    const n = Math.max(1, Math.min(MOST_BOTS, count));
     this.players = n + 1;
+    const wall = this.arenaBounds;
     for (let i = 0; i < n; i++) {
       const home = homes[i % homes.length];
       const lap = Math.floor(i / homes.length);
-      const spawn = lap === 0 ? home : { x: home.x + lap * 3.5, z: home.z + lap * 3.5, yaw: home.yaw };
+      const step = 3.2;
+      const ring = Math.ceil(lap / 3);
+      const dx = ((lap % 3) - 1) * step;
+      const dz = ring * step * (lap % 2 ? 1 : -1);
+      const spawn =
+        lap === 0
+          ? home
+          : {
+              x: Math.max(wall.minX + 2, Math.min(wall.maxX - 2, home.x + dx)),
+              z: Math.max(wall.minZ + 2, Math.min(wall.maxZ - 2, home.z + dz)),
+              yaw: home.yaw,
+            };
       const b = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty)], spawn);
       b.setAbilities(abilities);
       b.onJolt = (a, to) => this.onRemoteFx?.("jolt", b.remote.id, a, to);

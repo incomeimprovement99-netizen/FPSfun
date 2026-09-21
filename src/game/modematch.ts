@@ -26,7 +26,7 @@ import type { Seen } from "./reveal";
 import { senderStamp } from "../net/state";
 import * as THREE from "three";
 import { Throwables, blastDamage, throwCode } from "./throwables";
-import { Bot, BOT_NAMES, BOT_TIERS, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP, hitsBody, tierFor, type BotSense, type BotTier } from "./bots";
+import { Bot, botName, BOT_TIERS, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP, hitsBody, tierFor, type BotSense, type BotTier } from "./bots";
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Duel, HEALTH_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
@@ -319,7 +319,7 @@ export class ArenaMode extends Duel {
     const tdm = teamMode(this.modeKind);
     const id = Duel.BOT_ID + i;
     {
-      const bot = new Bot(i, scene, projectiles, DIFFICULTY[tier], spawn, id, gun, BOT_NAMES[i % BOT_NAMES.length]);
+      const bot = new Bot(i, scene, projectiles, DIFFICULTY[tier], spawn, id, gun, botName(i));
       // Gun Run is guns and the knife: no frags
       bot.grenadesAllowed = this.modeKind !== "gunrun";
       bot.setAbilities(this.abilities);
@@ -409,6 +409,11 @@ export class ArenaMode extends Duel {
       const order = S.order;
       const i = id < Duel.BOT_ID ? id : this.players + (id - Duel.BOT_ID);
       p = order[i % order.length];
+      // more bodies than points: each lap round the list steps out in a grid
+      // from the point it shares, so thirty bots do not start inside each
+      // other (the owner's stress test asks for thirty and more)
+      const lap = Math.floor(i / order.length);
+      if (lap > 0) p = [p[0] + ((lap % 3) - 1) * 2.6, p[1] + Math.ceil(lap / 3) * 2.6 * (lap % 2 ? 1 : -1)];
     }
     const w = this.world(p);
     return { x: w.x, z: w.z, yaw: yawToMiddle(p[0], p[1]) };

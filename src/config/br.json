@@ -10,7 +10,12 @@
         3,
         5,
         7,
-        11
+        11,
+        15,
+        21,
+        29,
+        35,
+        47
       ],
       "defaultBots": 11,
       "bleed": 0
@@ -24,7 +29,12 @@
         4,
         6,
         8,
-        10
+        10,
+        14,
+        20,
+        28,
+        34,
+        46
       ],
       "defaultBots": 10,
       "bleed": 0.5
@@ -36,7 +46,13 @@
       "bots": [
         3,
         6,
-        9
+        9,
+        12,
+        18,
+        24,
+        30,
+        36,
+        45
       ],
       "defaultBots": 9,
       "bleed": 1
@@ -46,7 +62,15 @@
   "defaultTeam": "trio",
   "_pod": "The care package's arrival (item 32). It used to appear at 120 m with a dim beam, fall in silence and print one line of text. Now it is called first: a notice and a ping name the place it is coming down on, `announce` seconds before it appears, so everyone can start moving. It falls under a canopy trailing smoke, thumps down in a ring of dust, and stays lit and marked for `contest` seconds, which is the window the fight over it happens in. `height` is where it comes in from, unchanged. The fall time itself is loot.json's podFall, which the package already had. `phases` are the ring phases, counted from 0, whose close calls one, and `inset` is how far from the next circle's centre it can land as a fraction of that circle's radius: both were written into the code as rounds 2 to 4 and 0.6 before they came here. Apex announces its packages 4:05 before the ring closes and lands them 2:30 before (docs/RESEARCH_PHASE_11.md section 15); ours is that shape scaled to a ten-minute match, and every number below is ours.",
   "_vault": "The vault (ours; Apex's vaults open with a vault key found on the map): the small building in the Well's yard, sealed, its one door locked. Its guard, guardName, a bot of guardTier on its own side, stands guardRange metres from the door and fights whoever comes within that; it carries guardGun and the vault keycard, which its death box drops. Whoever holds the keycard opens the vault door with interact, which uses the card. Inside: two supply bins and a mythic gun from the care package's list, at gold mag with every attachment, drawn red. A keycard's holder is shown the way to the vault, a marker renewed every markEvery seconds; a holder who is killed drops it where they fell. Off in Resurgence when its smaller area leaves the Well out.",
-  "vault": { "on": true, "guardName": "THE WARDEN", "guardTier": "elite", "guardGun": "rspn101", "guardRange": 30, "post": 3.5, "markEvery": 5 },
+  "vault": {
+    "on": true,
+    "guardName": "THE WARDEN",
+    "guardTier": "elite",
+    "guardGun": "rspn101",
+    "guardRange": 30,
+    "post": 3.5,
+    "markEvery": 5
+  },
   "pod": {
     "phases": [
       1,
@@ -143,7 +167,10 @@
     "endPhase": 4,
     "ringScale": 0.6,
     "_area": "Resurgence is played on a quarter of Outskirts, as Apex plays it on a part of a map: the first circle is radius metres across the hub, leaning lean metres toward one of the four big places round it (from the match seed), which takes in the hub, that place and the two compounds beside it. The squad and the bots drop on places inside it, and every round's circle shrinks with it.",
-    "area": { "radius": 130, "lean": 55 },
+    "area": {
+      "radius": 130,
+      "lean": 55
+    },
     "spread": 30,
     "kit": [
       "semipistol",

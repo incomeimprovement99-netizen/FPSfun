@@ -529,6 +529,14 @@ fire never moves the page. It is this file, bundled at build time, so the
 screen can never say something the README does not (the public build swaps in
 the codenames first).
 
+**Movement, beyond Apex's.** The lobby's **Movement** box has one more setting
+than "Apex movement": *plus double jump and wall run*. Off by default, and
+off is the default for a reason, because everything else in this game's
+movement is measured against a source and these two are ours. On, you get one
+more jump in the air (once until you touch ground, a wall or a rope) and a run
+along any wall you are already moving along, which you leave with a kick that
+throws you off it and up.
+
 **The range's tools**: the spray wall (a mag from the mark 20 m out leaves
 your hits in white beside the gun's own pattern in gold, scaled to the
 distance: the pattern is a dozen magazines averaged, drawn for the way you are

@@ -39,7 +39,7 @@ export type SetupGroup =
   | "rounds"
   /** the squad size, the rules, the bots, the ring's pace, what you land with */
   | "br"
-  /** the practice helpers: the aim bot */
+  /** the practice helpers: the aim bot, and the movement this match runs */
   | "train";
 
 export interface LobbyMode {

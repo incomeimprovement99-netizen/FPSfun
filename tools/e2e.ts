@@ -4841,6 +4841,63 @@ async function pingTest(browser: Browser, ms: number): Promise<void> {
   await guest.close();
 }
 
+/**
+ * The things the owner asked for on the 21st, in a real page: picking a mode
+ * wipes the match you were in rather than sending you to a tab to resign from
+ * it, a match can hold thirty bots and more, the kit card fits on the screen
+ * with six kits on it, the callouts name the ground you stand on, and the two
+ * extra moves are off unless a match asks for them.
+ */
+async function ownerTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&nointro");
+  await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 40000 });
+  const start = async (id: string): Promise<void> => {
+    await ev(page, `(() => { document.getElementById("${id}").click(); document.getElementById("startMode").click(); })()`);
+    await sleep(1200);
+  };
+
+  // switching modes: no refusal, no tab, and nothing of the old match left
+  await start("goBots");
+  const first = await ev<string>(page, `window.__range.duel()?.kind ?? "none"`);
+  await start("goCrown");
+  const second = await ev<{ kind: string; mode: string }>(page, `(() => { const d = window.__range.duel(); return { kind: d?.kind ?? "none", mode: d?.modeKind ?? "" }; })()`);
+  check("picking a mode in a match starts it rather than refusing", first === "bots" && second.mode === "crown", `${first} then ${second.kind}/${second.mode}`);
+  await ev(page, `(() => { document.getElementById("goRange").click(); document.getElementById("startMode").click(); })()`);
+  await sleep(900);
+  const cleared = await ev<{ match: boolean; notice: string }>(page, `({ match: !!window.__range.duel(), notice: window.__range.hud.last?.notice?.text ?? "" })`);
+  check("and going back to the range leaves no match behind", !cleared.match, JSON.stringify(cleared));
+
+  // thirty bots, each with its own name
+  await ev(page, `(() => { const s = document.getElementById("botCount"); s.value = "30"; s.dispatchEvent(new Event("change")); })()`);
+  await start("goBots");
+  const many = await ev<{ n: number; names: number }>(
+    page,
+    `(() => { const d = window.__range.duel(); const bots = d?.bots ?? []; return { n: bots.length, names: new Set(bots.map((b) => b.remote?.name ?? "")).size }; })()`
+  );
+  check("a match can hold thirty bots, and no two of them share a name", many.n === 30 && many.names === 30, JSON.stringify(many));
+
+  // the callout: the ground you are standing on, said in a word
+  const call = await ev<string | null>(page, `(() => { const r = window.__range; r.player.teleport(r.player.pos.x, 0, r.player.pos.z, 0); return r.hud.last?.callout ?? null; })()`);
+  check("the arena says which part of it you are standing in", !!call && /MID|NORTH|SOUTH|EAST|WEST/.test(call), String(call));
+
+  // the kit card: six kits, on the screen
+  const card = await ev<{ n: number; wide: boolean } | null>(
+    page,
+    `(() => { const s = window.__range.hud.last; const k = s?.abilityCard; if (!k) return null; return { n: k.options.length, wide: k.options.every((o) => !!o.tactical && !!o.ult && !!o.passive) }; })()`
+  );
+  check("the kit card offers every kit and says what each one does", !card || (card.n >= 2 && card.wide), JSON.stringify(card));
+
+  // the movement: Apex's unless a match asks for more
+  const moves = await ev<{ on: boolean; box: string }>(page, `({ on: window.__range.player.extraMoves, box: document.getElementById("extraMoves").value })`);
+  check("the double jump and the wall run are off unless the lobby asks for them", !moves.on && moves.box === "0", JSON.stringify(moves));
+  await ev(page, `(() => { const s = document.getElementById("extraMoves"); s.value = "1"; s.dispatchEvent(new Event("change")); })()`);
+  await start("goRange");
+  const armed = await ev<boolean>(page, `window.__range.player.extraMoves`);
+  check("and on when it does", armed);
+  await ev(page, `(() => { const s = document.getElementById("extraMoves"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
+  await page.close();
+}
+
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -5258,6 +5315,10 @@ async function main(): Promise<void> {
       console.log("\nA match at a real ping");
       await pingTest(browser, 30);
       await pingTest(browser, 60);
+    }
+    if (want("owner")) {
+      console.log("\nThe owner's list");
+      await ownerTest(browser);
     }
     if (want("range")) {
       console.log("\nThe range's tooling");

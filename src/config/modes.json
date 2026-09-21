@@ -135,8 +135,8 @@
   "countdown": 3,
   "roundEnd": 4,
   "matchEnd": 10,
-  "_bots": "bots added to a mode with no teams (Gun Run, Crown, free-for-all) by the host's setting; team deathmatch and Control fill both teams to teamSize",
-  "maxBots": 5,
+  "_bots": "bots added to a mode with no teams (Gun Run, Crown, free-for-all) by the host's setting; team deathmatch and Control fill both teams to teamSize. The cap is what the frame rate will carry rather than what the arena was drawn for: the owner asked to be able to put thirty and more in a match, to stress the game and to have something always shooting. Past the spawns a map has, they are stepped out around them in a grid.",
+  "maxBots": 36,
   "_spawns": "arena coordinates (the 1v1 arena's centre is 0, 0; team A's end is -z, team B's +z), each facing up the map toward the middle",
   "spawns": {
     "a": [

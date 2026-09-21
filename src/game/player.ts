@@ -20,7 +20,7 @@
 //           ways off, and the interact limits.
 import * as THREE from "three";
 import type { Action } from "./input";
-import { HU, MOVE, jumpVelocityFor, slideFriction } from "./movement";
+import { HU, MOVE, jumpVelocityFor, slideFriction, EXTRA } from "./movement";
 import { RANGE_SOLIDS, type Solid } from "./range";
 import { ZIPLINES, type Zipline } from "./traversal";
 import squadCfg from "../config/squad.json";
@@ -105,6 +105,22 @@ export class Player {
   yaw = 0; // degrees, positive = left
   pitch = 0; // degrees, positive = up
   onGround = true;
+  /**
+   * The two moves this game does not have by default: a double jump and a
+   * wall run (src/config/movement.json `extra`). Both change how every fight
+   * reads, so neither is on unless a match asks for it, and a match asks for
+   * it in the lobby. Off, not a line of either runs.
+   */
+  extraMoves = false;
+  /** the double jump has not been spent since the last ground, wall or rope */
+  private airJumpLeft = true;
+  /** while running a wall: which wall, when it started, and when the last one ended */
+  private wallRun: { nx: number; nz: number; since: number } | null = null;
+  private wallRunEndedAt = -Infinity;
+  /** what the HUD says about it (main.ts) */
+  get onWall(): boolean {
+    return this.wallRun !== null;
+  }
   crouchHeld = false;
   crouched = false; // the actual crouched STATE, which lags the key
   sprinting = false;
@@ -737,10 +753,15 @@ export class Player {
     const coyote = !this.onGround && now - this.lastGroundAt <= MOVE.jumpGracePeriod;
     if (jumpPressed) {
       if (this.climbing) this.climbJump(now, wx, wz, wl, crouchPressed);
+      else if (this.wallRun) this.kickOffWall(now);
       else if (this.onGround || coyote) this.doJump(now, !this.onGround);
+      else if (this.extraMoves && this.airJumpLeft && now - this.lastGroundAt > EXTRA.doubleJump.grace) this.doubleJump(now);
       // a jump pressed in the air at a wall you are not on: say why not
       else if (!this.mantle) this.explainNoAttach(wx, wz, wl);
     }
+
+    // ----- the wall run -----
+    if (this.extraMoves) this.stepWallRun(now, dt);
 
     // ----- climb -----
     if (!this.climbing) this.tryAttach(now, wx, wz, wl);
@@ -855,7 +876,78 @@ export class Player {
 
   // ---------- jump ----------
 
+  /**
+   * The second jump, in the air, once until you touch ground, a wall or a
+   * rope again. It is a jump from a standstill vertically: it replaces what
+   * is left of the fall rather than adding to it, so it always feels like the
+   * same jump however far you have dropped, which is what every game with one
+   * does.
+   */
+  private doubleJump(now: number): void {
+    this.airJumpLeft = false;
+    this.vel.y = Math.sqrt(2 * MOVE.gravity * EXTRA.doubleJump.height);
+    this.lastJumpAt = now;
+    this.tech("DOUBLE JUMP", `${EXTRA.doubleJump.height} hu`, true);
+  }
+
+  /**
+   * A run along a wall. You have to be in the air, moving along the wall
+   * rather than into it, and fast enough that it is a run and not a lean.
+   * While it holds, gravity is a quarter and the wall keeps you at arm's
+   * length; it ends on a jump (which throws you off and along), on the clock,
+   * on hitting the ground, or on the wall running out.
+   *
+   * The cooldown is what stops a wall being a ladder: you cannot come back to
+   * the same wall immediately, so height is won by moving along the building
+   * rather than by bouncing in place.
+   */
+  private stepWallRun(now: number, dt: number): void {
+    const W = EXTRA.wallRun;
+    if (this.wallRun) {
+      const spent = now - this.wallRun.since;
+      const still = this.wallNear(MOVE.climbAttachReach);
+      const along = Math.hypot(this.vel.x, this.vel.z);
+      if (this.onGround || this.climbing || spent > W.seconds || !still || along < W.minSpeed * 0.5) {
+        this.wallRun = null;
+        this.wallRunEndedAt = now;
+        return;
+      }
+      // a quarter of gravity, and the wall holds you against it
+      this.vel.y += MOVE.gravity * (1 - W.fall) * dt;
+      this.vel.x -= this.wallRun.nx * W.hold;
+      this.vel.z -= this.wallRun.nz * W.hold;
+      return;
+    }
+    if (this.onGround || this.climbing || this.mantle || now - this.wallRunEndedAt < W.cooldown) return;
+    const n = this.wallNear(MOVE.climbAttachReach);
+    if (!n) return;
+    // moving ALONG it, not into it: the part of the velocity in the wall's
+    // plane is what a run is made of
+    const along = Math.abs(this.vel.x * -n.nz + this.vel.z * n.nx);
+    if (along < W.minSpeed) return;
+    this.wallRun = { nx: n.nx, nz: n.nz, since: now };
+    this.airJumpLeft = true;
+    this.tech("WALL RUN", `${Math.round(along)} hu/s along it`, true);
+  }
+
+  /** off the wall: up and away from it, and the double jump comes back with it */
+  private kickOffWall(now: number): void {
+    const W = EXTRA.wallRun;
+    const n = this.wallRun;
+    this.wallRun = null;
+    this.wallRunEndedAt = now;
+    if (!n) return;
+    this.vel.x += n.nx * W.out;
+    this.vel.z += n.nz * W.out;
+    this.vel.y = Math.max(this.vel.y, Math.sqrt(2 * MOVE.gravity * W.up));
+    this.airJumpLeft = true;
+    this.lastJumpAt = now;
+    this.tech("WALL KICK", `${W.out} hu off it`, true);
+  }
+
   private doJump(now: number, coyote: boolean): void {
+    // leaving the ground arms the double jump, for the matches that have one
+    this.airJumpLeft = true;
     let height = this.sliding ? MOVE.slideJumpHeight : MOVE.jumpHeight;
 
     // Jump fatigue: only while the fatigue state is on, and never for a coyote
@@ -1799,6 +1891,9 @@ export class Player {
       if (wasAir) this.land(now, impact);
       this.onGround = true;
       this.lastGroundAt = now;
+      // the ground gives the double jump back, as a wall and a rope do
+      this.airJumpLeft = true;
+      this.wallRun = null;
     } else if (wasOnGround && this.vel.y <= 0 && this.pos.y - ground <= MOVE.stepHeight) {
       // Step down, so a staircase or ramp does not make you briefly airborne.
       this.pos.y = ground;

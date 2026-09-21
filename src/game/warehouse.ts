@@ -25,6 +25,19 @@ export interface RoofSpec {
   /** light strips at these x on each solid bay */
   lights?: number[];
   lightColor?: number;
+  /**
+   * A pitched roof instead of a flat one: it climbs `rise` metres from the
+   * eaves to a ridge down the middle, in `steps` steps each side. The owner
+   * asked for it, and the shape of a building is the first thing that says it
+   * is one: walls and a flat lid is a box, walls and two slopes is a house.
+   *
+   * It is stepped because this engine collides against axis-aligned boxes and
+   * nothing else. A drawn slope over a flat collider would be a ceiling you
+   * could see into and not shoot into, so the steps ARE the roof: each one is
+   * drawn and collided at the same height, and with enough of them the eye
+   * reads a slope while the game still knows exactly where the ceiling is.
+   */
+  gable?: { rise: number; steps: number };
   /** adds the collider; given in the parent's coordinates */
   solid: (minX: number, maxX: number, minZ: number, maxZ: number, base: number, top: number) => void;
 }
@@ -44,6 +57,18 @@ export function warehouseRoof(parent: THREE.Object3D, r: RoofSpec): void {
   });
   const W = r.x1 - r.x0;
   const cx = (r.x0 + r.x1) / 2;
+  // the pitch: how high this strip of roof sits above the eaves, and how tall
+  // the step under it is. A flat roof is one step of no rise.
+  const gable = r.gable && r.gable.steps > 0 && r.gable.rise > 0 ? r.gable : null;
+  const bands = gable ? gable.steps : 1;
+  const bandW = W / (bands * 2);
+  /** the underside of the roof over a point, and the band it belongs to */
+  const lift = (x: number): number => {
+    if (!gable) return 0;
+    const from = Math.abs(x - cx) / (W / 2); // 0 at the ridge, 1 at the eaves
+    const step = Math.min(bands - 1, Math.floor((1 - from) * bands));
+    return (step / Math.max(1, bands - 1)) * gable.rise;
+  };
   const every = r.skylightEvery ?? 3;
   const lights = r.lights ?? [cx - W * 0.25, cx + W * 0.25];
   const glassGeos: THREE.BufferGeometry[] = [];
@@ -57,11 +82,28 @@ export function warehouseRoof(parent: THREE.Object3D, r: RoofSpec): void {
       glassGeos.push(g);
       continue;
     }
-    const p = new THREE.Mesh(new THREE.BoxGeometry(W, 0.1, d), panelMat);
-    p.position.set(cx, r.y + 0.05, z + d / 2);
-    p.castShadow = false;
-    p.receiveShadow = false;
-    parent.add(p);
+    // the bay, in bands across the width: flat is one band, a gable is a run
+    // of them stepping up to the ridge and down again
+    for (let b = 0; b < bands * 2; b++) {
+      const bx = r.x0 + bandW * (b + 0.5);
+      const y = r.y + lift(bx);
+      const p = new THREE.Mesh(new THREE.BoxGeometry(bandW + 0.02, 0.1, d), panelMat);
+      p.position.set(bx, y + 0.05, z + d / 2);
+      p.castShadow = false;
+      p.receiveShadow = false;
+      parent.add(p);
+      // the riser between this band and the one outside it, so the ceiling is
+      // closed rather than a flight of floating shelves
+      if (gable && b > 0) {
+        const below = r.y + lift(r.x0 + bandW * (b - 0.5));
+        const h = Math.abs(y - below);
+        if (h > 1e-3) {
+          const wall = new THREE.Mesh(new THREE.BoxGeometry(0.12, h, d), panelMat);
+          wall.position.set(r.x0 + bandW * b, Math.min(y, below) + h / 2, z + d / 2);
+          parent.add(wall);
+        }
+      }
+    }
     if (d > 1) {
       for (const x of lights) {
         const l = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.05, Math.min(1.6, d - 0.6)), lamp);
@@ -89,5 +131,14 @@ export function warehouseRoof(parent: THREE.Object3D, r: RoofSpec): void {
     g.castShadow = true;
     parent.add(g);
   }
-  r.solid(r.x0, r.x1, r.z0, r.z1, r.y, r.y + 0.5);
+  // the collider follows the same steps, so the ceiling is where it looks
+  if (!gable) {
+    r.solid(r.x0, r.x1, r.z0, r.z1, r.y, r.y + 0.5);
+  } else {
+    for (let b = 0; b < bands * 2; b++) {
+      const x0 = r.x0 + bandW * b;
+      const y = r.y + lift(x0 + bandW / 2);
+      r.solid(x0, x0 + bandW, r.z0, r.z1, y, y + 0.5 + gable.rise);
+    }
+  }
 }

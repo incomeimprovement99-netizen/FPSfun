@@ -75,7 +75,7 @@ import { Throwables, blastDamage, throwCode } from "./throwables";
 import { lockedHopupFor } from "./attachments";
 import { weaponName } from "./weapons";
 import { savedLoadout, type LoadoutDef } from "./loadouts";
-import { Bot, BODY_TOP, BOT_NAMES, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense, type SightCue, BOT_TIERS, type BotKit, type BotTier } from "./bots";
+import { Bot, BODY_TOP, BOT_NAMES, MOST_BOTS, botName, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense, type SightCue, BOT_TIERS, type BotKit, type BotTier } from "./bots";
 import botsCfg from "../config/bots.json";
 import { RANGE_SOLIDS } from "./range";
 /**
@@ -629,7 +629,7 @@ export class BrMatch extends Duel {
   ) {
     super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br", abilities: opts.abilities ?? true });
     this.difficulty = difficulty;
-    this.botCount = Math.max(1, Math.min(BOT_NAMES.length, botCount));
+    this.botCount = Math.max(1, Math.min(MOST_BOTS, botCount));
     // The squad size is the host's for everyone: a guest that ran its own
     // would revive in a lobby where nobody else believes in revives. Alone
     // there is no host and no welcome packet, so the lobby row's own choice
@@ -732,7 +732,7 @@ export class BrMatch extends Duel {
   }
 
   /** one of the match's bots: the host's, at the start, or the heir's, in place of the figure it saw (host migration) */
-  private makeBot(i: number, tier: BotTier, spawn: Spawn, rng: () => number = Math.random, name = BOT_NAMES[i % BOT_NAMES.length]): Bot {
+  private makeBot(i: number, tier: BotTier, spawn: Spawn, rng: () => number = Math.random, name = botName(i)): Bot {
     const scene = this.scene;
     const projectiles = this.projectiles;
     const bot = new Bot(i, scene, projectiles, DIFFICULTY[tier], spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], name);

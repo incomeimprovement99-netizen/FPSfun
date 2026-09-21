@@ -242,7 +242,14 @@ export interface HudState {
     ult?: { name: string; key: string; k: number; live: number };
   } | null;
   /** the ability card: the two options with their keys; compact is the one-line form */
-  abilityCard?: { options: Array<{ key: string; name: string; blurb: string; picked: boolean }>; age: number; compact: boolean } | null;
+  /**
+   * Where you are standing, in the words a squad uses (src/game/callouts.ts).
+   * The battle royale has named places; the arenas had nothing, so "he is
+   * over there" was all anybody could say. Under the compass, because that is
+   * where you look to say where you are.
+   */
+  callout?: string | null;
+  abilityCard?: { options: Array<{ key: string; name: string; blurb: string; tactical: string; ult: string; passive: string; picked: boolean }>; age: number; compact: boolean } | null;
   /** the killcam is playing: whose eyes, their gun, how far through, the skip key */
   killcam?: { name: string; weapon: string; progress: number; left: number; skipKey: string } | null;
   /** the death recap, after the killcam: how long it has been up, the close key */
@@ -456,6 +463,7 @@ export class Hud {
     this.drawMinimap(s, u);
     this.drawStats(s, u);
     this.drawCompass(s, u);
+    this.drawCallout(s, u);
     this.drawFps(s, u);
     this.drawVitals(s, u);
     this.drawWeapons(s, u);
@@ -2300,40 +2308,69 @@ export class Hud {
    * the two options side by side with their keys. Compact: one line over the
    * ability square, for when it has been up a while or you are in the range.
    */
+  /**
+   * The card you pick a kit from. It used to lay every option out in one row
+   * of two: with two kits that was a card, and with six it was six tiles
+   * across a 620 px box, running off the card and off the screen, with a
+   * sentence in each too long to read. It is a grid now, as many columns as
+   * fit and as many rows as it takes, and each tile says what the kit gives
+   * you rather than only what it is called: the tactical on its key, the
+   * ultimate, and the passive that is always on.
+   */
   private drawAbilityCard(s: HudState, u: number): void {
     const k = s.abilityCard;
-    if (!k) return;
+    if (!k || !k.options.length) return;
     const c = this.ctx;
     if (k.compact) {
       const line = k.options.map((o) => `[${o.key}] ${o.name}`).join("   ");
       this.text(`ABILITY   ${line}`, 384 * u, this.h - 150 * u, 700, 14 * u, "#8fd8ff");
       return;
     }
+    const n = k.options.length;
+    // the grid: never more than three across, and never wider than the screen
+    const cols = Math.min(3, Math.max(1, Math.min(n, Math.floor((this.w * 0.92) / (300 * u)))));
+    const rows = Math.ceil(n / cols);
+    const tw = Math.min(300 * u, (this.w * 0.92) / cols);
+    const th = 104 * u;
+    const pad = 10 * u;
+    const head = 32 * u;
+    const w = cols * tw + pad * 2;
+    const h = rows * th + head + pad;
     const cx = this.w / 2;
-    const w = 620 * u;
-    const h = 128 * u;
-    const y0 = this.h * 0.7;
+    const y0 = Math.max(60 * u, this.h * 0.78 - h);
     // slides up over the first quarter second
     const rise = Math.max(0, 1 - k.age / 0.25) * 30 * u;
     c.save();
     c.globalAlpha = Math.min(1, k.age / 0.2);
-    c.fillStyle = "rgba(8,10,12,0.82)";
+    c.fillStyle = "rgba(8,10,12,0.86)";
     c.fillRect(cx - w / 2, y0 + rise, w, h);
     c.fillStyle = "#8fd8ff";
     c.fillRect(cx - w / 2, y0 + rise, w, 3 * u);
-    this.text("CHOOSE YOUR ABILITY", cx, y0 + rise + 24 * u, 700, 15 * u, "#8fd8ff", "center");
-    const bw = (w - 36 * u) / 2;
+    this.text("CHOOSE YOUR KIT", cx, y0 + rise + 22 * u, 700, 15 * u, "#8fd8ff", "center");
     k.options.forEach((o, i) => {
-      const bx = cx - w / 2 + 12 * u + i * (bw + 12 * u);
-      const by = y0 + rise + 36 * u;
-      c.fillStyle = o.picked ? "rgba(143,216,255,0.18)" : "rgba(255,255,255,0.06)";
-      c.fillRect(bx, by, bw, h - 48 * u);
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const bx = cx - w / 2 + pad + col * tw;
+      const by = y0 + rise + head + row * th;
+      c.fillStyle = o.picked ? "rgba(143,216,255,0.18)" : "rgba(255,255,255,0.05)";
+      c.fillRect(bx + 2 * u, by + 2 * u, tw - 4 * u, th - 4 * u);
+      // the key you press, in a chip
       c.fillStyle = "#f2f2f2";
-      c.fillRect(bx + 10 * u, by + 12 * u, 30 * u, 30 * u);
-      this.text(o.key, bx + 25 * u, by + 34 * u, 700, 18 * u, "#101214", "center");
-      this.text(o.name, bx + 52 * u, by + 34 * u, 700, 26 * u, o.picked ? "#8fd8ff" : WHITE);
-      this.text(o.blurb, bx + 10 * u, by + 64 * u, 600, 14 * u, DIM);
+      c.fillRect(bx + 10 * u, by + 10 * u, 26 * u, 26 * u);
+      this.text(o.key, bx + 23 * u, by + 29 * u, 700, 16 * u, "#101214", "center");
+      this.text(o.name, bx + 44 * u, by + 30 * u, 700, 21 * u, o.picked ? "#8fd8ff" : WHITE);
+      // what it gives you: the two you press and the one that is always on
+      const line = (label: string, value: string, dy: number): void => {
+        this.text(label, bx + 12 * u, by + dy, 700, 11 * u, "#6f7a86");
+        this.text(value, bx + 62 * u, by + dy, 600, 12 * u, DIM);
+      };
+      line("TACTICAL", o.tactical, 54 * u);
+      line("ULTIMATE", o.ult, 70 * u);
+      line("PASSIVE", o.passive, 86 * u);
     });
+    // and the whole sentence for the one under the cursor, under the grid
+    const picked = k.options.find((o) => o.picked);
+    if (picked) this.text(picked.blurb, cx, y0 + rise + h + 16 * u, 600, 13 * u, DIM, "center");
     c.restore();
   }
 
@@ -2577,6 +2614,12 @@ export class Hud {
   }
 
   // ------------------------------------------------------------ top
+
+  /** the ground you are on, under the compass: "MID", "EAST ROOF" */
+  private drawCallout(s: HudState, u: number): void {
+    if (!s.callout) return;
+    this.text(s.callout, this.w / 2, 60 * u, 700, 12 * u, "rgba(154,164,173,0.75)", "center");
+  }
 
   private drawCompass(s: HudState, u: number): void {
     const c = this.ctx;

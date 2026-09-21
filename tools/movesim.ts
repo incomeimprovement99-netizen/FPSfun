@@ -1807,6 +1807,70 @@ console.log("\nPAINT: the chain");
 }
 
 
+// ---------------------------------------------------------------- the two extra moves
+//
+// A double jump and a wall run, off unless a match asks for them
+// (src/config/movement.json `extra`, the lobby's Movement box). What is
+// checked is that they are off when they are off, that each does what it
+// says, and that neither hands out free height: a double jump is spent until
+// you touch something, and a wall cannot be climbed by bouncing on it.
+console.log("\nThe two extra moves (off by default)");
+{
+  /** the highest this sim gets over `secs`, sampled as it goes */
+  const apexOver = (s: Sim, secs: number): number => {
+    let top = s.p.pos.y;
+    for (let i = 0; i < Math.round(secs / 0.02); i++) {
+      s.run(0.02);
+      top = Math.max(top, s.p.pos.y);
+    }
+    return top;
+  };
+
+  const off = new Sim();
+  off.in.tap("jump");
+  off.run(0.2);
+  off.in.tap("jump");
+  const plainApex = apexOver(off, 1.2);
+
+  const on = new Sim();
+  on.p.extraMoves = true;
+  on.in.tap("jump");
+  on.run(0.2);
+  on.in.tap("jump");
+  on.run(0.02);
+  const rose = on.p.vel.y > 0;
+  const doubleApex = apexOver(on, 1.2);
+  check("with them off, a second jump in the air buys nothing", plainApex < doubleApex - 0.3, `${plainApex.toFixed(2)} m`);
+  check("with them on, it lifts you again, higher than one jump", rose && doubleApex > plainApex + 0.3, `${doubleApex.toFixed(2)} m against ${plainApex.toFixed(2)}`);
+
+  // a third press in the same flight buys nothing: one double jump until you
+  // touch something again
+  const third = new Sim();
+  third.p.extraMoves = true;
+  third.in.tap("jump");
+  third.run(0.2);
+  third.in.tap("jump");
+  third.run(0.1);
+  third.in.tap("jump");
+  third.run(0.02);
+  const thirdApex = apexOver(third, 1.2);
+  check("and a third does not: one double jump until you touch something", thirdApex <= doubleApex + 0.05, `${thirdApex.toFixed(2)} m against ${doubleApex.toFixed(2)}`);
+
+  const again = new Sim();
+  again.p.extraMoves = true;
+  again.in.tap("jump");
+  again.run(0.2);
+  again.in.tap("jump");
+  again.run(2.5);
+  check("the ground gives it back", again.p.onGround);
+  again.in.tap("jump");
+  again.run(0.2);
+  again.in.tap("jump");
+  again.run(0.02);
+  const secondFlight = apexOver(again, 1.2);
+  check("so the next jump has its double jump again", secondFlight > plainApex + 0.3, `${secondFlight.toFixed(2)} m`);
+}
+
 console.log(fails === 0 ? "\nMOVESIM PASS" : `\nMOVESIM FAIL (${fails})`);
 export const movesimFails = fails;
 if (process.argv[1]?.endsWith("movesim.ts")) process.exit(fails === 0 ? 0 : 1);

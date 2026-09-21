@@ -1,6 +1,24 @@
 {
   "_note": "Movement constants in HAMMER UNITS (1 hu = 1 inch = 0.0254 m), which is how the engine stores them. src/game/movement.ts converts once. Sources and confidence are in docs/FIDELITY.md; almost all of these are engine defaults rather than estimates.",
 
+  "_extra": "Movement this game does not have by default, and did not want by default: a double jump and a wall run. The owner asked for both after playing a round of Crown, and both change how every fight reads, so they are OFF here and turned on per match in the lobby (the Movement box). Everything else in this file is Apex's, measured; these two are ours, and are kept apart from it for that reason.",
+  "extra": {
+    "_doubleJump": "one more jump while in the air, at `height` hu against the ground jump's 56, once until you touch ground, a wall or a rope again. `grace` is how long after leaving the ground it is refused, so a mistimed ground jump does not eat it.",
+    "doubleJump": {
+      "height": 44,
+      "grace": 0.12
+    },
+    "_wallRun": "a run along a wall you are moving along in the air: it holds you against the wall for up to `seconds`, falling at `fall` of gravity (a bit over half, so a run carries you along and lifts you a little rather than walking you up the side of a building), and you leave it with a jump that throws you `out` hu off the wall and `up` hu up. `minSpeed` is how fast you have to be going along the wall to start one, so walking into a wall does not stick you to it (a walk is 173 hu/s and a sprint 260, and what is left of either in the air after a jump is less, so this sits under a walk), and `cooldown` is how long before the same wall takes you again, which is what stops a wall being a ladder.",
+    "wallRun": {
+      "seconds": 1.2,
+      "fall": 0.55,
+      "minSpeed": 150,
+      "out": 210,
+      "up": 46,
+      "cooldown": 0.35,
+      "hold": 0.45
+    }
+  },
   "_hull": "Collision capsule. Standing height is the medium-legend value; every legend crouches to the same height.",
   "standHeight": 72,
   "crouchHeight": 47,

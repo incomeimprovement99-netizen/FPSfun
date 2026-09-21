@@ -13,7 +13,7 @@
 // Run on its own: npx tsx tools/checks/br-rules.ts. Also belongs inside npm
 // run verify.
 import { TEAMS, teamFor, savedTeamId, botSquads, squadsInMatch, humanSides, sideOfHuman, surgeAllowed, surgeVictims, surgeDamage, surgeNotice, loadoutPodAt, loadoutItems, DROP_HEIGHT, type SurgeView } from "../../src/game/brmatch";
-import { BOT_NAMES } from "../../src/game/bots";
+import { BOT_NAMES, MOST_BOTS } from "../../src/game/bots";
 import { DEFAULT_LOADOUTS } from "../../src/game/loadouts";
 import { kittedAttach } from "../../src/game/loot";
 import { ammoTypeOf, STACK } from "../../src/game/ammo";
@@ -46,9 +46,12 @@ let ragged = "";
 for (const t of TEAMS) for (const n of t.bots) if (n % t.size !== 0) ragged = `${t.id} ${n}`;
 check("every bot count offered is whole squads of bots", !ragged, ragged || TEAMS.map((t) => `${t.id}: ${t.bots.join("/")}`).join("  "));
 
-// the match takes at most one bot per name (brmatch.ts clamps to it)
+// the match takes as many bots as the frame rate will carry, not as many as
+// there are names: past the list a bot takes a number (bots.ts botName), the
+// way a squad with two Smiths does, because twelve names were a cap on the
+// match and the owner wanted thirty and more to stress it
 const most = Math.max(...TEAMS.flatMap((t) => t.bots));
-check("no size offers more bots than the match can field", TEAMS.every((t) => t.bots.every((n) => n >= 1)) && most <= BOT_NAMES.length, `${most} of ${BOT_NAMES.length}`);
+check("no size offers more bots than the match can field", TEAMS.every((t) => t.bots.every((n) => n >= 1)) && most <= MOST_BOTS, `${most} of ${BOT_NAMES.length}`);
 
 check(
   "each size opens on a count it offers",

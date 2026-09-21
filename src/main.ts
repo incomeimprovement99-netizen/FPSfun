@@ -49,7 +49,7 @@ import { opticInfo } from "./game/optics";
 import { opticName, hopupName } from "./config/names";
 import type { ResolvedWeapon } from "./game/weapons";
 import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, type HeirSnapshot } from "./game/duel";
-import { BotMatch } from "./game/bots";
+import { BotMatch, MOST_BOTS } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
 import { submitScore } from "./game/leaderboard";
@@ -64,6 +64,7 @@ import { operatorById, OPERATORS } from "./game/operators";
 import { setArmColors } from "./game/arms";
 import { Menu, brRulesId, brTeamId, type Mode } from "./ui/menu";
 import { friendsModeFor } from "./ui/lobby";
+import { calloutAt, calloutLine } from "./game/callouts";
 import type { ImpactEvent } from "./game/projectile";
 import { INSPECT_TIME, FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
 import { Abilities, ABILITIES, JOLT, JOLT_DEFAULTS, KITS, kitOf, setJolt, type AbilityId } from "./game/abilities";
@@ -3358,6 +3359,9 @@ let mapOpen = false;
 let dropMapUntil = 0;
 /** the battle royale place you are in, and when its name was last shown (the arrival card) */
 let placeHere: string | null = null;
+/** the callout for the ground you are on, and the last one said (arenas) */
+let calloutNow: string | null = null;
+let calloutWas: string | null = null;
 const placeShownAt = new Map<string, number>();
 /** on the ship in a squad: the jumpmaster (the host) you are linked to, whose jump takes you with them */
 let linkedTo: number | null = null;
@@ -3753,14 +3757,16 @@ function startBots(): void {
   cancelJoin = null;
   for (const c of courses) c.leave();
   const diff = asDifficulty(botDifficulty.value);
-  const count = Number(botCount.value) === 2 ? 2 : 1;
+  // the count the picker says, which it did not use to be: the box offered
+  // five and the match made one or two whatever it said
+  const count = Math.max(1, Math.min(MOST_BOTS, Number(botCount.value) || 1));
   // the Map picker covers the 1v1 against bots too; the warehouse is still the default
   const d = new BotMatch(scene, projectiles, diff, count, abilitySetting("bots"), arenaMapChoice("duel", 2));
   duel = d;
   player.setBounds(d.arenaBounds);
   wireMatch(d, `bots:${diff}`);
   respawnForMatch(d);
-  setDuelStatus(`Against ${Number(botCount.value) === 2 ? "two bots" : "a bot"}, ${diff}. First to 3 rounds.`, "good");
+  setDuelStatus(`Against ${count === 1 ? "a bot" : `${count} bots`}, ${diff}. First to 3 rounds.`, "good");
   duelButtons();
 }
 /** what a mode is played to, for the status line */
@@ -3844,9 +3850,33 @@ brPaceSel.addEventListener("change", () => {
   }
 });
 const brPace = (): string => brPaceSel.value || "normal";
+
+// The movement this match runs (src/config/movement.json `extra`): Apex's, or
+// Apex's plus a double jump and a wall run. Off by default, because both
+// change how every fight reads and the rest of the movement in this game is
+// measured against a source. Remembered between visits, and applied whenever
+// a match or the range starts.
+const extraMovesSel = $<HTMLSelectElement>("extraMoves");
+try {
+  if (localStorage.getItem("range.move.extra") === "1") extraMovesSel.value = "1";
+} catch {
+  /* storage off: Apex's */
+}
+const applyExtraMoves = (): void => {
+  player.extraMoves = extraMovesSel.value === "1";
+};
+extraMovesSel.addEventListener("change", () => {
+  try {
+    localStorage.setItem("range.move.extra", extraMovesSel.value);
+  } catch {
+    /* ignore */
+  }
+  applyExtraMoves();
+});
+applyExtraMoves();
 const newSeed = (): number => Math.floor(Math.random() * 2 ** 31);
 const brDifficulty = (): BotDifficulty => asDifficulty(botDifficulty.value);
-const brBotCount = (): number => Math.max(1, Math.min(11, Number(brBots.value) || 11));
+const brBotCount = (): number => Math.max(1, Math.min(MOST_BOTS, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
   // any zipline HOOK put up, and any cloud SMOKE left, go with the match
@@ -4259,12 +4289,16 @@ function applyLoadout(def: LoadoutDef): void {
 /** go somewhere to play, from the menu: the range, the course start, or the arena alone */
 function goTo(mode: Mode): void {
   if (mode === "duel") return;
-  // In a match the arena and your spawn are the match's; every jump elsewhere
-  // (the arena button included, which would put a guest on the host's spawn)
-  // waits until you leave it.
+  applyExtraMoves();
+  // In a match the arena and your spawn are the match's, so a jump elsewhere
+  // has to end it first. It used to refuse and send you to a tab to resign
+  // from the match by hand, which the owner rightly called bad: picking a
+  // mode is a decision, and the game's job is to carry it out. So the old
+  // match is left (the friends in it are told, as if you had pressed Leave),
+  // everything it owned is cleared, and the mode you picked starts.
   if (duel) {
-    hud.notice("LEAVE THE MATCH FIRST (1V1 TAB)", gameTime, 2);
-    return;
+    duel.leave();
+    if (duel) endMatch("You left for another mode.");
   }
   if (mode === "bots") {
     startBots();
@@ -4388,18 +4422,40 @@ $("play").addEventListener("click", () => resumeFromMenu());
  *
  * A key being rebound eats Esc first (it cancels that capture, and its
  * listener stops the event), and Esc in a text field leaves the field rather
- * than resuming. Chrome blocks a pointer lock for about a second after the Esc
- * that let the mouse go, which is exactly when this is pressed, so a refused
- * one is tried again quietly once that is over, unless the menu is being used
- * in the meantime.
+ * than resuming.
+ *
+ * The hard part is Chrome. It blocks a pointer lock for about a second after
+ * the Esc that let the mouse go, which is exactly when this is pressed, and it
+ * only grants one from inside a real gesture. A retry on a timer is not a
+ * gesture, so the old one asked for the lock from a setTimeout and Chrome
+ * refused it in silence: Esc, Esc did nothing, which is what the owner kept
+ * hitting. So a refused resume is remembered instead, and taken the next time
+ * the player does anything at all: another Esc, any key, a click. That is a
+ * gesture, and by then the second is up.
  */
-let escRelock: ReturnType<typeof setTimeout> | null = null;
+let wantResume = false;
 const dropRelock = (): void => {
-  if (escRelock === null) return;
-  clearTimeout(escRelock);
-  escRelock = null;
+  wantResume = false;
 };
 overlay.addEventListener("pointerdown", dropRelock, true);
+/**
+ * The next gesture after a refused resume takes it. Bound once, on the window,
+ * so it catches a key or a click anywhere: the menu is up, and anything the
+ * player does with it is a sign they are still trying to get back in.
+ */
+const takeResume = (e: Event): void => {
+  if (!wantResume || input.locked || calibrating || overlay.classList.contains("hidden")) return;
+  // a field being typed in, or a click on a control, is the player using the
+  // menu rather than asking to leave it
+  const el = document.activeElement as HTMLElement | null;
+  if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+  const on = e.target as HTMLElement | null;
+  if (e.type === "pointerdown" && on && on.closest("button, select, input, a, .tabs")) return;
+  wantResume = false;
+  void input.lock(true);
+};
+window.addEventListener("keydown", takeResume, true);
+window.addEventListener("pointerdown", takeResume, true);
 /** Esc presses on the menu (tools/e2e.ts) */
 let menuEscapes = 0;
 window.addEventListener("keydown", (e) => {
@@ -4411,12 +4467,14 @@ window.addEventListener("keydown", (e) => {
   }
   e.preventDefault();
   menuEscapes++;
-  dropRelock();
+  wantResume = false;
   resumeFromMenu();
-  escRelock = setTimeout(() => {
-    escRelock = null;
-    if (!input.locked && !calibrating && !overlay.classList.contains("hidden")) void input.lock(true);
-  }, 1100);
+  // refused (Chrome's cooldown after the Esc that let the mouse go): the next
+  // thing the player does takes it, and the hint says so
+  if (!input.locked) {
+    wantResume = true;
+    playHint.textContent = "Press any key or click to go back in (the browser makes you wait a moment after Esc).";
+  }
 });
 let courseHinted = false;
 let padWasActive = false;
@@ -5223,6 +5281,29 @@ function step(): void {
   } else if (!duel) {
     placeHere = null;
     placeShownAt.clear();
+  }
+  // The arenas' own callouts. Worked out from where you stand rather than
+  // hand-written, so every map has them, the three drawn ones included, and
+  // a roof is said as a roof because that is the thing worth saying.
+  {
+    const b = duel && "arenaBounds" in duel ? (duel as { arenaBounds: { minX: number; maxX: number; minZ: number; maxZ: number } }).arenaBounds : null;
+    if (b && duel && !(duel instanceof BrMatch)) {
+      const cx = (b.minX + b.maxX) / 2;
+      const cz = (b.minZ + b.maxZ) / 2;
+      const call = calloutAt(player.pos.x - cx, player.pos.z - cz, player.pos.y, (b.maxX - b.minX) / 2, (b.maxZ - b.minZ) / 2);
+      calloutNow = call.name;
+      if (call.name !== calloutWas) {
+        // said when it changes, but not the first time it is worked out: at
+        // the start of a match everyone is being put on their spawn, and a
+        // line about it would be the first thing they read
+        const first = calloutWas === null;
+        calloutWas = call.name;
+        if (!first && player.onGround && duel.phase === "fight") hud.notice(calloutLine(call), now, 1.2);
+      }
+    } else if (!b) {
+      calloutNow = null;
+      calloutWas = null;
+    }
   }
   player.update(dt, now, knockedOut ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
   // a slide counts as crouched for the spread model: the cone tightens
@@ -6085,11 +6166,12 @@ function step(): void {
     abilityCard:
       abilities.enabled && (abilities.choosing || (!duel && !abilities.picked))
         ? {
-            options: (["jolt", "triage", "scout", "hook", "smoke", "ward"] as const).map((id, i) => ({ key: keyLabel((["pickAbility1", "pickAbility2", "pickAbility3", "pickAbility4", "pickAbility5", "pickAbility6"] as const)[i]), name: kitOf(id).kit, blurb: kitOf(id).blurb, picked: abilities.picked === id })),
+            options: (["jolt", "triage", "scout", "hook", "smoke", "ward"] as const).map((id, i) => { const k = kitOf(id); return { key: keyLabel((["pickAbility1", "pickAbility2", "pickAbility3", "pickAbility4", "pickAbility5", "pickAbility6"] as const)[i]), name: k.kit, blurb: k.blurb, tactical: k.tactical, ult: k.ult, passive: k.passive, picked: abilities.picked === id }; }),
             age: now - abilities.offeredAt,
             compact: !duel || !abilities.choosing || now - abilities.offeredAt > 6,
           }
         : null,
+    callout: calloutNow,
     plates: duel ? (lastPlates = platesNow(duel, now)) : (lastPlates = []),
     stance: player.stance,
     speedMs: player.speed,
