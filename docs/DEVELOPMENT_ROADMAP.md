@@ -2438,3 +2438,28 @@ metres, and from the ground it read as a crate with a light on it.
   bay and draws back in, and the whole fuselage stays under 250 triangles). The three of those that matter
   are invisible in a screenshot until the frame where they are not: a hole in the hull is a hole you see the
   ship's inside through, and this is a ship you sit inside and then fall out of the back of.
+
+## Milestone 148 — The spray, measured against what the range draws of it ✅
+
+"The gun spray seems off visually right now." The pattern itself is simulated and checked frame by frame,
+but nothing had ever checked the claim the range makes about it: the spray wall draws a gold line of where
+the gun sends a magazine and white marks where your rounds went, and if those two disagree the wall is
+lying to whoever is standing at the mark trying to learn the gun. They disagreed, for two reasons.
+
+- **The wall drew the aimed pattern whether or not you were aiming.** Its reference was generated with the
+  gun aimed in, always. Hip-fired, your rounds carry a 2.5-degree cone the line knows nothing about, so the
+  marks could never follow it: 69 cm out at 20 m, measured. It now draws the pattern of the way you are
+  actually firing.
+- **The recoil spring only ran between frames, not between the shots of a frame.** At 144 fps that is one
+  shot a frame and makes no difference; at 25 it is four or five shots stacked on each other with no
+  recovery in between, so the pattern a burst drew depended on the machine it was fired on. The spring is
+  now advanced from one shot to the next inside the frame, and the frame's own update advances only what is
+  left.
+- **And the line is a path with a band round it**, not a row of dots to land on. The reference is a dozen
+  magazines averaged, with how far they wandered from each other drawn as a ring at each point, plus the
+  gun's own cone. A dot you are asked to land on is a promise the gun cannot keep; a corridor you are asked
+  to stay inside is one it can.
+- Checked in a real page (the e2e `spray` section): stand on the mark, hold the trigger for a magazine with
+  the mouse still, and every round has to land along the drawn path and inside the drawn band. It also
+  needed one small opening: the trigger now reads a scripted input the way the crouch, the interact and the
+  movement already did, so a magazine can be asked for without a fake gamepad.

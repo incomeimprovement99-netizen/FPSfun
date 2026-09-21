@@ -170,15 +170,31 @@ export class RangeCombat {
 
 export const SPRAY = cfg.sprayWall;
 
+/** one shot of a gun's pattern: where it goes, and how far it wanders from one magazine to the next */
+export interface SprayPattern {
+  pitch: number;
+  yaw: number;
+  /** degrees the pattern itself moves between magazines, on top of the cone */
+  spread: number;
+}
+
 export class SprayWall {
   readonly group = new THREE.Group();
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly tex: THREE.CanvasTexture;
   private lastHitAt = -Infinity;
-  private refs = new Map<string, Array<{ pitch: number; yaw: number }>>();
+  private refs = new Map<string, SprayPattern[]>();
   /** hits drawn since the last clear (tests) */
   marks = 0;
+  /**
+   * Every mark since the last clear, in board coordinates, with the reference
+   * pattern the board drew beside them (tools/e2e.ts). The wall's whole job is
+   * to show where a magazine goes against where the gun would send it, and
+   * that is a claim about two sets of numbers: nothing else in the game can
+   * check that what it draws is where the rounds actually went.
+   */
+  shown: { hits: Array<{ u: number; v: number }>; want: Array<{ u: number; v: number }>; cone: number; band: number[] } = { hits: [], want: [], cone: 0, band: [] };
 
   constructor(scene: THREE.Scene) {
     const W = SPRAY.width;
@@ -234,9 +250,10 @@ export class SprayWall {
     }
     c.fillStyle = "#9aa4ad";
     c.font = "bold 18px Segoe UI, sans-serif";
-    c.fillText("SPRAY WALL  ·  20 m from the yellow mark  ·  white: your hits  ·  gold: the gun with no compensation  ·  Y clears", 12, 24);
+    c.fillText("SPRAY WALL  ·  20 m from the yellow mark  ·  white: your hits  ·  gold: the gun with no compensation, its rings the spread  ·  Y clears", 12, 24);
     this.tex.needsUpdate = true;
     this.marks = 0;
+    this.shown = { hits: [], want: [], cone: 0, band: [] };
   }
 
   /**
@@ -244,27 +261,45 @@ export class SprayWall {
    * angles from the first, from a WeaponState held on the trigger (aimed in)
    * for a whole magazine. Cached per gun as fitted.
    */
-  reference(w: ResolvedWeapon): Array<{ pitch: number; yaw: number }> {
-    const key = `${w.id}|${w.magLevel}|${w.clipSize}|${w.shotInterval}`;
+  reference(w: ResolvedWeapon, ads = true): SprayPattern[] {
+    const key = `${w.id}|${w.magLevel}|${w.clipSize}|${w.shotInterval}|${ads ? "ads" : "hip"}`;
     const hit = this.refs.get(key);
     if (hit) return hit;
-    const st = new WeaponState(w);
-    const out: Array<{ pitch: number; yaw: number }> = [];
-    let perm = { p: 0, y: 0 };
-    let t = 50;
-    const dt = 1 / 144;
-    // aim in first, then hold
-    for (let i = 0; i < 90; i++) st.update(dt, (t += dt), false, true, "stand", "still", false, false, () => 0.5);
-    let r = 0.37;
-    const rnd = () => ((r = (r * 9301 + 49297) % 233280), r / 233280);
-    for (let i = 0; i < 144 * 12 && out.length < w.clipSize; i++) {
-      for (const s of st.update(dt, (t += dt), true, true, "stand", "still", false, false, rnd)) {
-        out.push({ pitch: perm.p + s.kick.preSoftPitchUp, yaw: perm.y + s.kick.preSoftYawLeft });
-        perm = { p: perm.p + s.kick.permPitchUp, y: perm.y + s.kick.permYawLeft };
+    // The gun fired a dozen times over, each with its own dice. A single run
+    // would be one of the patterns the gun can draw rather than the pattern it
+    // draws, and standing at the mark you would be asked to land your rounds
+    // on somebody else's dice. So: the average of the runs is the path, and
+    // how far they wandered from it is the width of the band round it.
+    const RUNS = 12;
+    const runs: Array<Array<{ pitch: number; yaw: number }>> = [];
+    for (let run = 0; run < RUNS; run++) {
+      const st = new WeaponState(w);
+      const out: Array<{ pitch: number; yaw: number }> = [];
+      let perm = { p: 0, y: 0 };
+      let t = 50;
+      const dt = 1 / 144;
+      // aim in first, then hold
+      for (let i = 0; i < 90; i++) st.update(dt, (t += dt), false, ads, "stand", "still", false, false, () => 0.5);
+      let r = 0.37 + run * 0.061;
+      const rnd = () => ((r = (r * 9301 + 49297) % 233280), r / 233280);
+      for (let i = 0; i < 144 * 12 && out.length < w.clipSize; i++) {
+        for (const s of st.update(dt, (t += dt), true, ads, "stand", "still", false, false, rnd)) {
+          out.push({ pitch: perm.p + s.kick.preSoftPitchUp, yaw: perm.y + s.kick.preSoftYawLeft });
+          perm = { p: perm.p + s.kick.permPitchUp, y: perm.y + s.kick.permYawLeft };
+        }
       }
+      runs.push(out);
     }
-    this.refs.set(key, out);
-    return out;
+    const shots = Math.min(...runs.map((r) => r.length));
+    const band: SprayPattern[] = [];
+    for (let i = 0; i < shots; i++) {
+      const pitch = runs.reduce((a, r) => a + r[i].pitch, 0) / RUNS;
+      const yaw = runs.reduce((a, r) => a + r[i].yaw, 0) / RUNS;
+      const spread = Math.max(...runs.map((r) => Math.hypot(r[i].pitch - pitch, r[i].yaw - yaw)));
+      band.push({ pitch, yaw, spread });
+    }
+    this.refs.set(key, band);
+    return band;
   }
 
   /**
@@ -272,7 +307,15 @@ export class SprayWall {
    * for 1.2 s) also draws the gun's own pattern from there. `dist` is how far
    * the shot flew.
    */
-  hit(p: THREE.Vector3, w: ResolvedWeapon, now: number, dist: number): boolean {
+  /**
+   * A round into the board. `ads` is whether you were aiming when it left,
+   * because the pattern the board draws beside your marks has to be the
+   * pattern of the way you are actually firing: drawn aimed while you spray
+   * from the hip, the line is a line your rounds can never follow, and
+   * standing at the mark trying to learn the gun you would conclude the gun
+   * was lying to you. Which is what the owner saw.
+   */
+  hit(p: THREE.Vector3, w: ResolvedWeapon, now: number, dist: number, ads = true): boolean {
     const at = this.uv(p);
     if (!at) return false;
     const c = this.ctx;
@@ -281,11 +324,20 @@ export class SprayWall {
     if (now - this.lastHitAt > SPRAY.stringGap) {
       // the pattern from this first hit: an angle is dist * tan(angle) metres on the wall
       const pxPerM = W / SPRAY.width;
+      // and how far a round can be off that path: the gun's own cone, plus
+      // how far the pattern itself wanders from one magazine to the next. A
+      // dot you are asked to land on is a promise the gun cannot keep; a band
+      // you are asked to stay inside is one it can.
+      const cone = ads ? w.spread.standAds : w.spread.standHip;
+      const conePx = Math.tan(((cone / 2) * Math.PI) / 180) * dist * pxPerM;
+      this.shown.cone = conePx / W;
       c.fillStyle = "rgba(255,210,60,0.85)";
       let prev: { x: number; y: number } | null = null;
+      this.shown = { hits: [], want: [], cone: this.shown.cone, band: [] };
       for (const r of this.reference(w)) {
         const x = at.u * W - Math.tan((r.yaw * Math.PI) / 180) * dist * pxPerM;
         const y = at.v * H - Math.tan((r.pitch * Math.PI) / 180) * dist * pxPerM;
+        this.shown.want.push({ u: x / W, v: y / H });
         if (prev) {
           c.strokeStyle = "rgba(255,210,60,0.35)";
           c.beginPath();
@@ -293,6 +345,18 @@ export class SprayWall {
           c.lineTo(x, y);
           c.stroke();
         }
+        const bandPx = conePx + Math.tan(((r.spread * Math.PI) / 180)) * dist * pxPerM;
+        if (bandPx > 2) {
+          // an outline rather than a fill: twenty filled circles over each
+          // other are a smear, and what is wanted is the edge of the corridor
+          c.strokeStyle = "rgba(255,210,60,0.13)";
+          c.lineWidth = 1.5;
+          c.beginPath();
+          c.arc(x, y, bandPx, 0, Math.PI * 2);
+          c.stroke();
+        }
+        this.shown.band.push(bandPx / W);
+        c.fillStyle = "rgba(255,210,60,0.85)";
         c.beginPath();
         c.arc(x, y, 3, 0, Math.PI * 2);
         c.fill();
@@ -300,6 +364,7 @@ export class SprayWall {
       }
     }
     this.lastHitAt = now;
+    this.shown.hits.push({ u: at.u, v: at.v });
     c.fillStyle = "#ffffff";
     c.beginPath();
     c.arc(at.u * W, at.v * H, 4, 0, Math.PI * 2);

@@ -528,7 +528,11 @@ screen can never say something the README does not (the public build swaps in
 the codenames first).
 
 **The range's tools**: the spray wall (a mag from the mark 20 m out leaves
-your hits beside the gun's own pattern, scaled to the distance), the flick
+your hits in white beside the gun's own pattern in gold, scaled to the
+distance: the pattern is a dozen magazines averaged, drawn for the way you are
+actually firing, aimed or from the hip, and each of its points carries a ring
+of how far a round can be off it, the gun's cone and the pattern's own wander
+together. Your rounds belong inside the corridor, not on the dots), the flick
 drill (thirty figures one at a time in a 60-degree cone, a clock, your best on
 the Stats tab and the online board; the pad by the firing line or the Play
 tab's button starts it), the superglide trainer (every mantle draws a bar of

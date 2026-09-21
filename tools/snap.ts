@@ -503,14 +503,13 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: "spray-wall",
-    note: "the spray wall after a burst from the mark: your hits and the gun's own pattern",
+    note: "the spray wall after a magazine from the mark, aimed in: the white marks, the gold path the gun walks and the band round it",
     steps: [
-      [fakePad, 800],
-      [padButton(9, true), 400],
-      [padButton(9, false), 400],
-      [`(() => { const p = window.__range.player; p.teleport(13.45, 0, -64, -90); p.pitch = 1.2; window.__range.sprayWall.clear(); })()`, 300],
-      [padButton(7, true), 900],
-      [padButton(7, false), 700],
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.teleport(13.45, 0, -64, -90); r.player.pitch = 1.2; r.sprayWall.clear();
+        r.setScript({ held: (a) => a === "fire" || a === "ads", pressedNow: () => false }); })()`, 0],
+      // hold until the magazine is out, then let go and look at the board
+      [`(() => new Promise((done) => { const r = window.__range; const t = setInterval(() => { if (r.loadout.active.state.clip <= 0 || r.sprayWall.marks >= 18) { clearInterval(t); r.setScript(null); done(); } }, 60); }))()`, 400],
+      [`(() => { const r = window.__range; r.player.teleport(29, 1.4, -64, -90); r.player.pitch = -4; })()`, 400],
     ],
   },
   {

@@ -332,6 +332,8 @@ export class WeaponState {
     }
 
     const shots: ShotRequest[] = [];
+    /** how much of this frame the recoil spring has already been advanced by */
+    let spent = 0;
     const semi = this.w.semiAuto;
     const burst = this.w.burstCount > 1;
     const burstDelay = m.burstCharge ? m.burstCharge.delayFrom + (m.burstCharge.delayTo - m.burstCharge.delayFrom) * this.burstCharge : this.w.burstDelay;
@@ -384,6 +386,16 @@ export class WeaponState {
       // Wingman shots 83 ms apart, two Kraber shots 0.2 s apart).
       if (fresh || this.nextShotAt < now - interval || m.chargeShot) this.nextShotAt = Math.max(this.nextShotAt, now);
       while (this.nextShotAt <= now && this.clip > 0 && (!burst || this.burstLeft > 0)) {
+        // The spring runs between the shots of a frame, not only between
+        // frames. At 144 fps that is one shot a frame and it makes no
+        // difference; at 25 it is four or five stacked on top of each other
+        // with no recovery in between, and the pattern a burst draws then
+        // depends on the machine it was fired on rather than on the gun.
+        const gap = Math.max(0, Math.min(dt - spent, this.nextShotAt - (now - dt + spent)));
+        if (gap > 0) {
+          this.kick.update(gap, this.adsFrac > 0.5, now - dt + spent + gap);
+          spent += gap;
+        }
         this.clip--;
         this.shotsFired++;
         this.lastShotAt = now;
@@ -424,7 +436,7 @@ export class WeaponState {
     }
 
     this.spread.update(dt, now, stance, motion, this.adsFrac);
-    this.kick.update(dt, this.adsFrac > 0.5, now);
+    this.kick.update(Math.max(0, dt - spent), this.adsFrac > 0.5, now);
     return shots;
   }
 }

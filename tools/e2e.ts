@@ -4695,6 +4695,74 @@ async function holdTest(browser: Browser): Promise<void> {
   await page.close();
 }
 
+/**
+ * The spray, measured against what the range draws of it (src/game/rangetools.ts
+ * SprayWall, src/game/recoil.ts).
+ *
+ * The owner said the spray looks off. The pattern itself is simulated and
+ * checked frame by frame, but nothing has ever checked the claim the range
+ * makes about it: the wall draws a gold line of where the gun sends a
+ * magazine and white marks where your rounds went, and if those two disagree
+ * the gun is lying to whoever is standing at the mark trying to learn it.
+ *
+ * So: stand on the mark, hold the trigger for a magazine with the mouse
+ * still, and compare where the rounds landed with the line the wall drew.
+ */
+async function sprayTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&nointro");
+  await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 40000 });
+  await ev(page, `(() => { const r = window.__range; r.player.teleport(13.45, 0, -64, -90); r.player.pitch = 1.2; r.sprayWall.clear(); })()`);
+  // aimed in and holding the trigger, with nothing else touching the view
+  await ev(page, `(() => { const r = window.__range; r.setScript({ held: (a) => a === "fire" || a === "ads", pressedNow: () => false }); })()`);
+  const fired = await page
+    .waitForFunction(`window.__range.sprayWall.shown.hits.length >= 12`, { polling: 100, timeout: 20000 })
+    .then(() => true, () => false);
+  await ev(page, `window.__range.setScript(null)`);
+  const board = await ev<{ hits: Array<{ u: number; v: number }>; want: Array<{ u: number; v: number }>; marks: number; cone: number; band: number[] }>(
+    page,
+    `(() => { const w = window.__range.sprayWall; return { hits: w.shown.hits, want: w.shown.want, marks: w.marks, cone: w.shown.cone, band: w.shown.band }; })()`
+  );
+  check("spray: a magazine held on the wall lands on the wall", fired && board.hits.length >= 12, `${board.hits.length} of ${board.marks} marks on the board`);
+  check("spray: and the wall drew the gun's own pattern beside them", board.want.length >= board.hits.length, `${board.want.length} drawn`);
+  if (board.hits.length >= 12 && board.want.length >= board.hits.length) {
+    // the wall is 5 m across and 3.5 m high, so a board unit is metres/5 and
+    // metres/3.5: a miss of 0.04 across is 20 cm at 20 m, which is a hit or a
+    // miss on a head
+    // How far each round landed from the LINE the wall drew, not from the dot
+    // with its own number on it: the gold line is the path the gun walks, and
+    // a round is thrown into a cone around wherever on that path the gun had
+    // got to. Asking a round to land on its own dot would be asking the random
+    // part of the kick not to exist.
+    const near = (h: { u: number; v: number }): number => {
+      let best = Infinity;
+      for (let i = 0; i < board.want.length - 1; i++) {
+        const a = board.want[i];
+        const b = board.want[i + 1];
+        const vx = (b.u - a.u) * 5;
+        const vy = (b.v - a.v) * 3.5;
+        const wx = (h.u - a.u) * 5;
+        const wy = (h.v - a.v) * 3.5;
+        const len = vx * vx + vy * vy;
+        const t = len < 1e-9 ? 0 : Math.max(0, Math.min(1, (wx * vx + wy * vy) / len));
+        best = Math.min(best, Math.hypot(wx - vx * t, wy - vy * t));
+      }
+      return best;
+    };
+    const off = board.hits.map(near);
+    const worst = Math.max(...off);
+    const mid = off.slice().sort((a, b) => a - b)[Math.floor(off.length / 2)];
+    // the band the wall draws round the path: the gun's cone plus how far the
+    // pattern itself wanders from one magazine to the next
+    const ring = Math.max(...board.band) * 5;
+    const inside = off.filter((d) => d <= ring).length;
+    check("spray: the rounds land along the line the wall draws, inside the band it draws round it", inside >= off.length - 1, `${inside} of ${off.length} inside a ${(ring * 100).toFixed(0)} cm band, ${(mid * 100).toFixed(0)} cm off the line in the middle, ${(worst * 100).toFixed(0)} at worst`);
+    // and the pattern climbs: a gun that does not climb is not a gun
+    const climb = (board.hits[board.hits.length - 1].v - board.hits[0].v) * 3.5;
+    check("spray: and it climbs up the wall as the magazine goes on", climb < -0.3, `${(-climb * 100).toFixed(0)} cm up over ${board.hits.length} rounds`);
+  }
+  await page.close();
+}
+
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -5103,6 +5171,10 @@ async function main(): Promise<void> {
     if (want("hold")) {
       console.log("\nHow a figure holds a gun");
       await holdTest(browser);
+    }
+    if (want("spray")) {
+      console.log("\nThe spray, against what the range draws of it");
+      await sprayTest(browser);
     }
     if (want("range")) {
       console.log("\nThe range's tooling");

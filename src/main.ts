@@ -5096,7 +5096,10 @@ function step(): void {
 
   // A weapon being raised, lowered or holstered cannot fire or aim.
   // In a 1v1, firing is held during the countdown and after a round is decided.
-  const trigger = input.playing && input.held("fire") && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && !downedNow && !ordnance.readied && !fireLockedToRelease;
+  // the trigger, from the script when a test is driving (as the crouch, the
+  // interact and the movement already do): a magazine held on the spray wall
+  // is a thing worth being able to ask for without a fake pad
+  const trigger = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire")) && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && !downedNow && !ordnance.readied && !fireLockedToRelease;
   // a burst fires on without the trigger: knocked, or the round decided, it stops
   if (knockedOut || (duel && !duel.canFire)) ws.cancelBurst();
   // knocked in a 1v1: no aiming either
@@ -5523,7 +5526,7 @@ function step(): void {
     // a round into the spray wall (the range only)
     if (!duel && !e.dummy && !e.target && e.distance > 1) {
       const w = e.weapon === loadout.active.weapon.id ? loadout.active.weapon : e.weapon && e.weapon !== "melee" ? resolveWeapon(e.weapon, 0) : null;
-      if (w) sprayWall.hit(e.point, w, now, e.distance);
+      if (w) sprayWall.hit(e.point, w, now, e.distance, ws.adsFrac > 0.5);
       return;
     }
     // the flick drill's figure: counted, and the next one is up at once
