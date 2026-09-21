@@ -340,6 +340,16 @@
               <div class="lolocked" id="loadoutLocked">Default loadouts cannot be changed. <button type="button" id="copyLoadout">Copy to a custom slot</button> <select id="copyTarget"></select></div>
               <div class="lohead">Operator</div>
               <div class="cards" id="operatorCards"></div>
+              <div class="lohead">What they wear <span class="hint">the clothes under the kit; the body and its hit boxes never change</span></div>
+              <div class="cards" id="outfitCards"></div>
+              <div class="row"><label>Build <div class="hint">how heavy-set the clothes sit, not the body</div></label><select id="opBuild"></select>
+                <label>Face <div class="hint">over the kit's own shades and gas mask</div></label><select id="opFace">
+                  <option value="">The operator's own</option>
+                  <option value="wrap">Head wrap</option>
+                  <option value="goggles">Goggles</option>
+                  <option value="fullMask">Full mask</option>
+                  <option value="wrap,goggles">Wrap and goggles</option>
+                </select></div>
               <div class="row"><label>Slot 1 <div class="hint">key 1</div></label><select id="slot0"></select><select id="finish0" title="this gun's finish: every gun keeps its own, and a new one opens every few levels"></select></div>
               <div class="row"><label>Slot 2 <div class="hint">key 2</div></label><select id="slot1"></select><select id="finish1" title="this gun's finish: every gun keeps its own, and a new one opens every few levels"></select></div>
               <div class="lohead">Heirloom <span class="hint">held when holstered, swung with V</span></div>

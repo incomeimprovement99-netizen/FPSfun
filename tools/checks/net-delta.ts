@@ -32,6 +32,8 @@ import { pack, unpack } from "peerjs-js-binarypack";
 import netCfg from "../../src/config/net.json";
 import { Duel, type HeirSnapshot, type LocalState } from "../../src/game/duel";
 import type { DeltaMsg, DeltaPart, Link, NetMsg, StateMsg } from "../../src/net/link";
+import { operatorById, operatorWearing } from "../../src/game/operators";
+import { lookCode, readLook } from "../../src/game/outfit";
 import { type PlayerState, STATE_PROTOCOL, StateIn, StateOut, applyDiff, dequantise, diff, quantise, stateMsg, stateOf } from "../../src/net/state";
 import { StateSync } from "../../src/net/statesync";
 import { withoutUndefined } from "../../src/net/wire";
@@ -177,12 +179,14 @@ check("an ack goes a few times a second, and history outlasts the round trip it 
   check("aiming that has not changed is LEFT OUT, and clears nothing", unchanged.d.ad === undefined && unchanged.c === 0);
   // The mask's bits are the wire's, so the order of OPT_KEYS in state.ts is
   // load bearing: shuffling it would clear the wrong field on an older build.
-  const bits = ["ready", "st", "sp", "shm", "dn", "ad", "ac", "bot"].map((k, i) => {
-    const before = quantise({ ...sample(0, 0), [k]: 1 } as PlayerState);
+  // (with a value each field can actually hold: the clothes are text, the rest numbers)
+  const OPT: Array<[string, number | string]> = [["ready", 1], ["st", 1], ["sp", 1], ["shm", 1], ["dn", 1], ["ad", 1], ["ac", 1], ["bot", 1], ["tm", 1], ["lk", "urban|heavy|goggles"]];
+  const bits = OPT.map(([k, v], i) => {
+    const before = quantise({ ...sample(0, 0), [k]: v } as unknown as PlayerState);
     const after = quantise({ ...sample(0, 0), [k]: undefined } as PlayerState);
     return diff(before, after).c === 1 << i;
   });
-  check("each optional field clears its own bit and nobody else's", bits.every(Boolean), `${bits.filter(Boolean).length} of 8`);
+  check("each optional field clears its own bit and nobody else's", bits.every(Boolean), `${bits.filter(Boolean).length} of ${OPT.length}`);
   check("applied: zero arrives as zero, gone as gone, unchanged keeps what it had", applyDiff(aiming, toZero.d, toZero.c)?.ad === 0 && applyDiff(aiming, toGone.d, toGone.c)?.ad === undefined && applyDiff(aiming, unchanged.d, unchanged.c)?.ad === 5);
   // a sender whose own state has a null in it (an old peer's packet relayed through stateOf) means absent, never zero
   const nullish = quantise({ ...sample(0, 0), ad: null, ac: null, ready: null } as unknown as PlayerState);
@@ -1089,6 +1093,31 @@ const scene = new THREE.Scene();
   const moved = out.encode({ ...still, x: still.x + 1, tm: 45 }, 0.1);
   const after = moved ? inn.decode(moved) : null;
   check("a state that moved carries the clock with it", !!after && after.tm === 45 && Math.abs(after.x - (still.x + 1)) < 0.01);
+}
+
+// ------------------------------------------------------- what they are wearing
+//
+// The clothes ride BESIDE the operator id rather than inside it, so a build
+// that has never heard of them still draws the right operator. What is checked
+// here is that the choice survives the codec, that going back to the
+// operator's own set is said in the mask rather than by leaving the field out
+// (or the other side would keep the old clothes forever), and that a look we
+// do not recognise is dropped rather than handed to the builder.
+{
+  const dressed: PlayerState = { ...sample(0, 0), lk: "urban|heavy|wrap,goggles" };
+  check("a choice of clothes survives the codec", dequantise(quantise(dressed)).lk === "urban|heavy|wrap,goggles");
+  check("and a full packet carries it", stateOf(stateMsg(dressed)).lk === "urban|heavy|wrap,goggles");
+  const plain = quantise({ ...dressed, lk: undefined });
+  const back = diff(quantise(dressed), plain);
+  check("back to the operator's own set is CLEARED in the mask, not left out", back.d.lk === undefined && back.c === 512, `mask ${back.c}`);
+  check("and applying that takes the clothes off", applyDiff(quantise(dressed), back.d, back.c)?.lk === undefined);
+  const nonsense = readLook("no-such-outfit|enormous|hat,goggles");
+  check("a look with things we do not have keeps only what we do", nonsense.outfit === undefined && nonsense.build === undefined && JSON.stringify(nonsense.face) === '["goggles"]');
+  check("nothing chosen is nothing sent", lookCode({ outfit: "", build: "", face: "" }) === "" && lookCode({}) === "" && JSON.stringify(readLook(undefined)) === "{}");
+  const skin = operatorWearing("vanguard", lookCode({ outfit: "tracksuit", build: "heavy", face: "goggles" }));
+  check("and an operator wearing one keeps its own colours", skin.id === "vanguard" && skin.outfit === "tracksuit" && skin.build === "heavy" && JSON.stringify(skin.face) === '["goggles"]', `${skin.outfit} / ${skin.build}`);
+  const bare = operatorWearing("vanguard", "");
+  check("while an operator nobody dressed is the operator itself", bare === operatorById("vanguard"));
 }
 
 perf.now = realNow;

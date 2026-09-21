@@ -36,6 +36,14 @@ export interface WornPiece {
 }
 
 export type OutfitId = keyof typeof outfitCfg.sets;
+/** what can go on a face, over whatever the kit already puts there */
+export type FacePiece = "wrap" | "goggles" | "fullMask";
+const FACE_IDS: FacePiece[] = ["wrap", "goggles", "fullMask"];
+export type BuildId = keyof typeof outfitCfg.builds;
+
+/** every build there is, and what each is called */
+export const BUILD_IDS = Object.keys(outfitCfg.builds) as BuildId[];
+export const buildName = (id: BuildId): string => outfitCfg.builds[id].name;
 
 /** every outfit there is, in the order the pickers show them */
 export const OUTFIT_IDS = Object.keys(outfitCfg.sets) as OutfitId[];
@@ -44,6 +52,38 @@ export const OUTFIT_IDS = Object.keys(outfitCfg.sets) as OutfitId[];
 export function outfitInfo(id: OutfitId): { name: string; blurb: string } {
   const s = outfitCfg.sets[id];
   return { name: s.name, blurb: s.blurb };
+}
+
+/**
+ * A player's own choice of clothes as one short string, for the wire and for
+ * storage: "urban|heavy|wrap,goggles", and "" when they have not chosen and
+ * the operator's own set stands. It rides BESIDE the operator id rather than
+ * inside it, so a build that has never heard of clothes still draws the right
+ * operator instead of falling back to the first one.
+ */
+export function lookCode(l: { outfit?: string; build?: string; face?: string }): string {
+  const code = `${l.outfit ?? ""}|${l.build ?? ""}|${l.face ?? ""}`;
+  return code === "||" ? "" : code;
+}
+
+/** a look back off the wire, with anything we do not recognise dropped rather than trusted */
+export function readLook(code: string | undefined): { outfit?: OutfitId; build?: BuildId; face?: FacePiece[] } {
+  if (typeof code !== "string" || !code) return {};
+  const [o, b, f] = code.split("|");
+  const out: { outfit?: OutfitId; build?: BuildId; face?: FacePiece[] } = {};
+  if (OUTFIT_IDS.includes(o as OutfitId)) out.outfit = o as OutfitId;
+  if (BUILD_IDS.includes(b as BuildId)) out.build = b as BuildId;
+  const face = faceList(f);
+  if (face.length) out.face = face;
+  return out;
+}
+
+/** "wrap,goggles" as the pieces it names, each at most once */
+export function faceList(s: string | undefined): FacePiece[] {
+  if (!s) return [];
+  const seen = new Set<FacePiece>();
+  for (const part of s.split(",")) if (FACE_IDS.includes(part as FacePiece)) seen.add(part as FacePiece);
+  return [...seen];
 }
 
 const hex = (s: string): number => parseInt(s.replace("#", ""), 16);
@@ -60,7 +100,7 @@ const BONE_LEN: Record<string, number> = {
   calf: 0.429,
 };
 
-/** how thick the body is at each bone, metres */
+/** how thick the body is at each bone, metres: the widest it gets */
 const BODY_R: Record<string, number> = {
   upperarm: FIT.arm,
   lowerarm: FIT.forearm,
@@ -68,30 +108,59 @@ const BODY_R: Record<string, number> = {
   calf: FIT.calf,
 };
 
+/**
+ * How thick the body is ALONG each bone, measured off the model itself
+ * (tools/checks/body.ts): six samples from the start of the bone to its end.
+ * A limb is not a cylinder. The arm is 84 mm across the shoulder and 61 mm at
+ * the elbow; the calf is 61 mm at the knee, 104 mm at the muscle and 54 mm at
+ * the ankle. A garment built on one number is inside the body at the wide end
+ * or a barrel at the narrow one, and the first is what ours were: the sleeves
+ * sat 84 mm inside a 84 mm arm and the bare body came through them in stripes.
+ */
+const PROFILE = FIT.profile as Record<string, number[]>;
+
+/** the body's radius a fraction of the way along a bone, between the samples */
+function bodyAt(bone: string, t: number): number {
+  const p = PROFILE[bone];
+  if (!p || !p.length) return BODY_R[bone] ?? 0.07;
+  const at = Math.max(0, Math.min(1, t)) * (p.length - 1);
+  const i = Math.min(p.length - 2, Math.floor(at));
+  return p[i] + (p[i + 1] - p[i]) * (at - i);
+}
+
 /** the pieces that come in pairs, and the bones they go on */
 const SIDED = new Set(["upperarm", "lowerarm", "thigh", "calf"]);
 
 /**
- * A tube along a bone: from `from` to `to` as fractions of the bone's own
- * length, at the body's thickness there plus the garment's own. Eight sides,
- * because a limb read as round at four and costs nothing at eight.
+ * A garment along a bone: from `from` to `to` as fractions of the bone's own
+ * length, following the body's own shape there plus the garment's thickness.
+ * It is turned rather than extruded, which is what lets it narrow at the
+ * elbow and swell at the calf; ten sides, because a limb read as round at
+ * eight and costs almost nothing at ten.
  */
 function tube(bone: string, from: number, to: number, over: number, mat: THREE.Material): THREE.Mesh {
   const len = BONE_LEN[bone] ?? 0.3;
-  const r = (BODY_R[bone] ?? 0.07) + over;
-  const h = Math.max(0.02, (to - from) * len);
-  const g = new THREE.CylinderGeometry(r, r * 1.02, h, 8, 1, false);
-  g.translate(0, from * len + h / 2, 0);
-  const m = new THREE.Mesh(g, mat);
+  const steps = 8;
+  const y0 = from * len;
+  const y1 = Math.max(y0 + 0.02, to * len);
+  // a hair of radius at each end closes it off: an open tube on a limb shows
+  // its own inside at the cuff, which reads as a hole rather than as cloth
+  const pts = [new THREE.Vector2(0.002, y0)];
+  for (let i = 0; i <= steps; i++) {
+    const f = i / steps;
+    pts.push(new THREE.Vector2(bodyAt(bone, from + (to - from) * f) + over, y0 + (y1 - y0) * f));
+  }
+  pts.push(new THREE.Vector2(0.002, y1));
+  const m = new THREE.Mesh(new THREE.LatheGeometry(pts, 10), mat);
   m.castShadow = true;
   return m;
 }
 
 /** the torso's own shell: a box along the spine, a little wider at the shoulders */
-function torso(from: number, to: number, over: number, mat: THREE.Material): THREE.Mesh {
+function torso(from: number, to: number, over: number, mat: THREE.Material, shoulders = 1): THREE.Mesh {
   const len = BONE_LEN.spine_01;
   const h = Math.max(0.05, (to - from) * len);
-  const g = new THREE.BoxGeometry(FIT.torso.w + over * 2, h, FIT.torso.d + over * 2);
+  const g = new THREE.BoxGeometry(FIT.torso.w * shoulders + over * 2, h, FIT.torso.d + over * 2);
   // the spine bone runs up the BACK, so a garment centred on it sits behind
   // the body: the chest's own middle is measured off the rig (fit.torsoAt)
   g.translate(FIT.torsoAt[0], from * len + h / 2 + FIT.torsoAt[1], FIT.torsoAt[2]);
@@ -211,8 +280,11 @@ function weld(group: THREE.Group): THREE.Group {
  * on top of the set's own clothes, which is the operator's choice rather than
  * the outfit's: a wrap, goggles, a full mask, or nothing.
  */
-export function buildOutfit(id: OutfitId, mats: OutfitMats, face: Array<"wrap" | "goggles" | "fullMask"> = []): WornPiece[] {
+export function buildOutfit(id: OutfitId, mats: OutfitMats, face: FacePiece[] = [], build: BuildId = "regular"): WornPiece[] {
   const set = outfitCfg.sets[id];
+  // how heavy-set this one is: thicker cloth and wider shoulders, and the
+  // body and its hit boxes exactly as they were (outfits.json builds)
+  const b = outfitCfg.builds[build] ?? outfitCfg.builds.regular;
   const out: WornPiece[] = [];
   for (const name of set.wears) {
     const p = PIECES[name];
@@ -221,7 +293,7 @@ export function buildOutfit(id: OutfitId, mats: OutfitMats, face: Array<"wrap" |
     const make = (bone: WearBone, side: "" | "_l" | "_r"): void => {
       const g = new THREE.Group();
       g.name = `wear:${name}${side}`;
-      g.add(p.bone === "spine_01" ? torso(p.from, p.to, p.over, mat) : tube(p.bone, p.from, p.to, p.over, mat));
+      g.add(p.bone === "spine_01" ? torso(p.from, p.to, p.over * b.cloth, mat, b.shoulders) : tube(p.bone, p.from, p.to, p.over * b.cloth, mat));
       out.push({ id: name, bone, group: weld(g), aligned: false });
     };
     if (SIDED.has(p.bone)) {

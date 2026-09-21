@@ -267,7 +267,7 @@ export class MannequinFigure {
     // what goes on a face is authored the way a person would describe it and
     // gets the same rest-frame holder the kit does.
     const mats = outfitMaterials(skin.outfit, skin.visor, skin.eye);
-    for (const worn of buildOutfit(skin.outfit, mats, skin.face ?? [])) {
+    for (const worn of buildOutfit(skin.outfit, mats, skin.face ?? [], skin.build ?? "regular")) {
       const bone = this.bones[worn.bone];
       if (!bone) continue;
       if (!worn.aligned) {

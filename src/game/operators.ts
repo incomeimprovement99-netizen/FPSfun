@@ -4,7 +4,8 @@
 // All five are the range robot (our own design, dummy.ts) in a distinct
 // scheme with its own add-ons, not any game's character.
 import * as THREE from "three";
-import type { OutfitId } from "./outfit";
+import { readLook } from "./outfit";
+import type { BuildId, FacePiece, OutfitId } from "./outfit";
 
 export interface OperatorSkin {
   id: string;
@@ -30,7 +31,9 @@ export interface OperatorSkin {
    */
   /** the clothes under the kit (src/game/outfit.ts): which set, and what it has on its face */
   outfit: OutfitId;
-  face?: Array<"wrap" | "goggles" | "fullMask">;
+  /** how heavy-set it looks: the clothes, never the body or its hit boxes */
+  build?: BuildId;
+  face?: FacePiece[];
   extras: {
     crest?: boolean;
     antenna?: boolean;
@@ -60,6 +63,7 @@ export interface OperatorSkin {
 export const OPERATORS: OperatorSkin[] = [
   {
     id: "vanguard",
+    build: "regular",
     outfit: "fatigues",
     name: "Vanguard",
     blurb: "Range grey with safety orange. The original.",
@@ -69,6 +73,7 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "nightshade",
+    build: "lean",
     outfit: "urban",
     face: ["fullMask"],
     name: "Nightshade",
@@ -79,6 +84,7 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "sandstorm",
+    build: "regular",
     outfit: "desert",
     face: ["wrap"],
     name: "Sandstorm",
@@ -89,6 +95,7 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "frost",
+    build: "heavy",
     outfit: "arctic",
     face: ["goggles"],
     name: "Frost",
@@ -99,6 +106,7 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "inferno",
+    build: "heavy",
     outfit: "irregular",
     face: ["wrap", "goggles"],
     name: "Inferno",
@@ -111,6 +119,19 @@ export const OPERATORS: OperatorSkin[] = [
 
 export function operatorById(id: string | undefined): OperatorSkin {
   return OPERATORS.find((o) => o.id === id) ?? OPERATORS[0];
+}
+
+/**
+ * An operator wearing what a player chose for it (outfit.ts lookCode), which
+ * is how two people on the same operator turn up as two people. Only the
+ * clothes move: the colours, the kit and the body are the operator's own, and
+ * so are its hit boxes.
+ */
+export function operatorWearing(id: string | undefined, look: string | undefined): OperatorSkin {
+  const base = operatorById(id);
+  const worn = readLook(look);
+  if (worn.outfit === undefined && worn.build === undefined && worn.face === undefined) return base;
+  return { ...base, ...worn };
 }
 
 interface SkinMats {

@@ -2644,3 +2644,36 @@ you see a single piece of their kit, and ours were all the same bare body in a d
 difference actually costs a player, and ten ranked next steps. The ranking is by what a player notices per
 hour of work, which puts more outfits and body variety above a second map, and puts bespoke characters,
 facial animation and a voice cast on the "deliberately not doing this" list with the reason why.
+
+## Milestone 159 — A wardrobe you can choose from, and a body measured off the model ✅
+
+Milestone 157 dressed the five operators. This lets a **player** dress, and fixes something the eye had been
+seeing without my naming it.
+
+- **Ten outfits** instead of six: HOODIE, COVERALLS, GHILLIE and TRACKSUIT join the five the operators wear
+  and PLAIN CLOTHES. A set is about ten lines of `src/config/outfits.json`.
+- **Three builds**: LEAN, REGULAR, HEAVY. They scale the **cloth** and the shoulders of the garment, 0.72 to
+  1.45, and nothing else. The body underneath is one mannequin and one set of hit boxes, and that does not
+  change: a heavy operator is not a bigger target, which is a thing a shooter must not get wrong.
+- **A picker on the Loadouts tab**: the outfit as cards, the build and what goes on the face (a wrap,
+  goggles, a full mask, or a wrap and goggles) as two selects, kept per loadout and stored with it.
+- **It crosses the wire.** The choice rides beside the operator id as one short string, `lk`
+  ("urban|heavy|wrap,goggles"), so a friend sees what you chose. It is beside the id rather than inside it
+  on purpose: a build that has never heard of clothes ignores the field and still draws the right operator,
+  where a look packed into the id would have fallen back to the first one. Anything in it we do not
+  recognise is dropped rather than handed to the builder.
+- **The body, measured** (`tools/checks/body.ts`). The fit table said the upper arm was 62 mm thick. It is
+  84 mm at the shoulder. Every sleeve in the game was inside the arm it covered, and the bare body came
+  through it in stripes on the lean and regular builds: a defect you could see in a screenshot and nothing
+  could state. The check now reads the mannequin's own .glb, puts every vertex of the skinned mesh in the
+  frame of the bone that owns it, and measures how far out it sits from that bone's axis. Six samples per
+  bone, each the widest the body gets in the stretch it governs, went into `fit.profile`.
+- **So a garment follows the body.** `tube()` turns a lathe along that profile instead of extruding one
+  radius: the sleeve is 84 mm across the shoulder and 61 mm at the elbow, the calf swells at the muscle and
+  narrows at the ankle. The check fails if any garment in the wardrobe would touch the body at the leanest
+  build, which is the eye's complaint written down.
+- Checks: `tools/checks/body.ts` (21), `tools/checks/outfit.ts` (still 40+), the wire in
+  `tools/checks/net-delta.ts` (8 more: the choice survives the codec, going back to the operator's own set
+  is said in the clear mask rather than by leaving the field out, and an outfit we do not have is dropped),
+  and the e2e `duel` section, where the guest arrives in a tracksuit and the host has to draw it. The look
+  is `outfit-wardrobe`, `outfit-wardrobe-2`, `outfit-builds` and `loadout-wear`.

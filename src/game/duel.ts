@@ -39,7 +39,7 @@ import { StateSync } from "../net/statesync";
 import { HitCheck } from "../net/hitcheck";
 import { ARENA_BOUNDS, ARENA_CENTER, ARENA_LOBBY_SPAWNS, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, TRI_CENTER, TRI_SPAWNS, ZONE_RADIUS, arenaMap, mapFor, type ArenaMapId } from "./arena";
 import type { Bounds } from "./player";
-import { operatorById } from "./operators";
+import { operatorWearing } from "./operators";
 import type { MatchSummary } from "./stats";
 import type { BrHud } from "./brmatch";
 import type { ModeHud } from "./modematch";
@@ -169,6 +169,8 @@ export interface Remote {
   avatar: Dummy;
   avatarWeapon: string;
   avatarOp: string;
+  /** what they chose to wear, when they chose (outfit.ts lookCode); a bot never does */
+  avatarLook?: string;
   avatars: Map<string, Dummy>;
   samples: Sample[];
   /** the sender's clock against ours: its unwrapped time, and the smallest gap seen between the two (placeByClock) */
@@ -222,6 +224,8 @@ export interface LocalState {
   crouch: boolean;
   weapon: string;
   operator: string;
+  /** their own choice of clothes over the operator's set, or "" (outfit.ts lookCode) */
+  look?: string;
   name: string;
   /** in the game (not on the menu) */
   ready: boolean;
@@ -953,11 +957,14 @@ export class Duel implements MatchLike {
     return r;
   }
 
-  private makeAvatar(r: Remote, weapon: string, op: string): Dummy {
-    const key = `${weapon}|${op}`;
+  private makeAvatar(r: Remote, weapon: string, op: string, look?: string): Dummy {
+    // A player who chose their own clothes is a different figure to build, so
+    // the look is part of the key. Without one the key is what it always was,
+    // which is what the host's bots pre-seed their own avatar under.
+    const key = look ? `${weapon}|${op}|${look}` : `${weapon}|${op}`;
     let d = r.avatars.get(key);
     if (!d) {
-      d = new Dummy(0, 0, 0, { armed: weapon, respawn: false, skin: operatorById(op), rig: true, noBase: true });
+      d = new Dummy(0, 0, 0, { armed: weapon, respawn: false, skin: operatorWearing(op, look), rig: true, noBase: true });
       // Its own health is not the truth, the other player's is; a huge pool
       // means its hit() reports full damage and never knocks it by itself.
       // Blue shields like the player's, so hits read in the shield colour.
@@ -972,14 +979,15 @@ export class Duel implements MatchLike {
     this.projectiles.addDummy(d);
     r.avatarWeapon = weapon;
     r.avatarOp = op;
+    r.avatarLook = look;
     return d;
   }
 
   /** the other figure when a player changes weapon or operator */
-  private setAvatarLook(r: Remote, weapon: string, op: string): void {
-    if (weapon === r.avatarWeapon && op === r.avatarOp) return;
+  private setAvatarLook(r: Remote, weapon: string, op: string, look?: string): void {
+    if (weapon === r.avatarWeapon && op === r.avatarOp && (look ?? "") === (r.avatarLook ?? "")) return;
     const old = r.avatar;
-    const next = this.makeAvatar(r, weapon, op);
+    const next = this.makeAvatar(r, weapon, op, look);
     next.group.position.copy(old.group.position);
     next.group.rotation.copy(old.group.rotation);
     next.group.scale.copy(old.group.scale);
@@ -1368,7 +1376,7 @@ export class Duel implements MatchLike {
     r.avatar.setKnockShield(r.downed && m.dn === 2);
     // back in (a respawn): the lockout's "alive since"
     if (m.alive && !r.alive) this.noteBack(from);
-    this.setAvatarLook(r, m.w, m.op);
+    this.setAvatarLook(r, m.w, m.op, typeof m.lk === "string" ? m.lk : undefined);
     if (!m.alive && r.alive) r.avatar.fallDown();
     r.alive = m.alive;
     r.avatar.health = 1e9;
@@ -1912,6 +1920,7 @@ export class Duel implements MatchLike {
         sh: this.shield,
         alive: this.alive,
         op: local.operator,
+        lk: local.look || undefined,
         name: this.myName,
         bot: local.aimbot ? 1 : undefined,
         ready: this.ready,

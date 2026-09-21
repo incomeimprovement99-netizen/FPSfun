@@ -52,6 +52,8 @@ export type NetMsg =
       alive: boolean;
       /** operator look, so the other side draws the right figure */
       op: string;
+      /** what they chose to wear over the operator's own set (outfit.ts lookCode) */
+      lk?: string;
       /** the player's name, for the scoreboard */
       name: string;
       /** in the game (not on the menu): the host waits for everyone before round 1 */

@@ -387,6 +387,40 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "outfit-wardrobe",
+    note: "all ten outfits on one line, so no two of them read the same: hoodie, coveralls, ghillie, tracksuit, fatigues, plain clothes, irregular, urban, arctic, desert",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
+        const sets = ["hoodie", "coveralls", "ghillie", "tracksuit", "fatigues"];
+        r.figureLab(sets.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101", look: o + "||" })), 3.6, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.2), 100],
+    ],
+  },
+  {
+    name: "outfit-wardrobe-2",
+    note: "the other five outfits: plain clothes, irregular, urban, arctic, desert",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
+        const sets = ["plainclothes", "irregular", "urban", "arctic", "desert"];
+        r.figureLab(sets.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101", look: o + "||" })), 3.6, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.2), 100],
+    ],
+  },
+  {
+    name: "outfit-builds",
+    note: "one outfit in all three builds, lean, regular and heavy: the clothes change, the body inside them does not",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
+        r.figureLab(["lean", "regular", "heavy"].map((b) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101", look: "coveralls|" + b + "|" })), 2.6, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.2), 100],
+    ],
+  },
+  {
+    name: "loadout-wear",
+    note: "the Loadouts tab: the outfit cards, the build and what is on the face, under the operator row",
+    steps: [[`(() => { document.querySelector('[data-tab="loadouts"]').click(); document.getElementById("copyLoadout")?.click(); })()`, 700]],
+  },
+  {
     name: "gear-lineup",
     note: "the five operators in their kit, close and from the front: the vest, the pack, the helmet, the shades, the gas mask, the hood",
     steps: [

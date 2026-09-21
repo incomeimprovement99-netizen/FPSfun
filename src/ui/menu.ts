@@ -3,7 +3,8 @@
 // owns navigation, loadouts and the battle royale's lobby row.
 import { DEFAULT_LOADOUTS, type LoadoutDef, type LoadoutRef, type Loadouts } from "../game/loadouts";
 import { botSquads, saveTeamId, savedTeamId, teamFor } from "../game/brmatch";
-import { OPERATORS } from "../game/operators";
+import { OPERATORS, operatorById } from "../game/operators";
+import { BUILD_IDS, OUTFIT_IDS, buildName, outfitInfo } from "../game/outfit";
 import { HEIRLOOMS } from "../game/heirlooms";
 import { Stats, type MatchKind, type MatchStats } from "../game/stats";
 import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
@@ -464,6 +465,42 @@ export class Menu {
       b.addEventListener("click", () => this.editCurrent({ operator: op.id }));
       ops.appendChild(b);
     }
+    // What they wear, under the kit (src/game/outfit.ts). The operator's own
+    // set is the default; picking one here overrides it for this loadout, so
+    // two players on the same operator can look like two people.
+    const worn = $("outfitCards");
+    worn.innerHTML = "";
+    for (const id of OUTFIT_IDS) {
+      const info = outfitInfo(id);
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = id === (cur.outfit ?? operatorById(cur.operator).outfit) ? "on" : "";
+      b.disabled = !editable;
+      b.title = info.blurb;
+      b.innerHTML = `<b>${esc(info.name)}</b>${esc(info.blurb)}`;
+      b.addEventListener("click", () => this.editCurrent({ outfit: id }));
+      worn.appendChild(b);
+    }
+    const buildSel = $<HTMLSelectElement>("opBuild");
+    if (!buildSel.options.length) {
+      for (const id of BUILD_IDS) {
+        const o = document.createElement("option");
+        o.value = id;
+        o.textContent = buildName(id);
+        buildSel.appendChild(o);
+      }
+      buildSel.addEventListener("change", () => this.editCurrent({ build: buildSel.value }));
+    }
+    buildSel.value = cur.build ?? operatorById(cur.operator).build ?? "regular";
+    buildSel.disabled = !editable;
+    const faceSel = $<HTMLSelectElement>("opFace");
+    if (!faceSel.dataset.wired) {
+      faceSel.dataset.wired = "1";
+      faceSel.addEventListener("change", () => this.editCurrent({ face: faceSel.value }));
+    }
+    faceSel.value = cur.face ?? (operatorById(cur.operator).face ?? []).join(",");
+    faceSel.disabled = !editable;
+
     const hl = $("heirloomCards");
     hl.innerHTML = "";
     for (const h of HEIRLOOMS) {

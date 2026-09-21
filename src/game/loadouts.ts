@@ -3,11 +3,18 @@
 // loadout is an operator look, two weapons and an heirloom.
 import { weaponIds } from "./weapons";
 import { OPERATORS } from "./operators";
+import { BUILD_IDS, OUTFIT_IDS, faceList } from "./outfit";
+import type { BuildId, OutfitId } from "./outfit";
 import { HEIRLOOMS } from "./heirlooms";
 
 export interface LoadoutDef {
   name: string;
   operator: string;
+  /** the clothes under the kit, and how they sit (src/game/outfit.ts) */
+  outfit?: string;
+  build?: string;
+  /** what is on the face, over the kit's own: "", "wrap", "goggles", "fullMask", or two of them */
+  face?: string;
   slot1: string;
   slot2: string;
   heirloom: string;
@@ -39,6 +46,12 @@ function valid(d: Partial<LoadoutDef> | undefined, fallback: LoadoutDef): Loadou
     slot1: d?.slot1 && ids.includes(d.slot1) ? d.slot1 : fallback.slot1,
     slot2: d?.slot2 && ids.includes(d.slot2) ? d.slot2 : fallback.slot2,
     heirloom: HEIRLOOMS.some((h) => h.id === d?.heirloom) ? d!.heirloom! : fallback.heirloom,
+    // What they chose to wear, if they chose: an id we no longer have (an
+    // outfit renamed between releases) falls back to the operator's own set
+    // rather than to nothing, which would be a naked figure.
+    outfit: OUTFIT_IDS.includes(d?.outfit as OutfitId) ? d!.outfit : fallback.outfit,
+    build: BUILD_IDS.includes(d?.build as BuildId) ? d!.build : fallback.build,
+    face: typeof d?.face === "string" ? faceList(d.face).join(",") : fallback.face,
   };
 }
 

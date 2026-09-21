@@ -1976,9 +1976,19 @@ function netAsWanted(n: NetSeen | null, want: NetWant): boolean {
   return want === "deltas" ? n.on && n.applied > 0 && n.sent > 0 && n.refused === 0 && n.unexpected === 0 : !n.on && n.applied === 0 && n.sent === 0 && n.unexpected === 0;
 }
 
+/**
+ * A loadout wearing clothes the operator would not choose for itself: the
+ * guest arrives in a tracksuit with goggles and a head wrap, and the host has
+ * to draw that rather than the operator's own fatigues (src/game/outfit.ts).
+ */
+const WORN_LOADOUT = `localStorage.setItem("range.loadouts.v1", JSON.stringify({
+  selected: { kind: "custom", index: 0 },
+  custom: [{ name: "Worn", operator: "vanguard", slot1: "rspn101", slot2: "wingman", heirloom: "fists", outfit: "tracksuit", build: "heavy", face: "goggles,wrap" }],
+}))`;
+
 async function duelTest(browser: Browser, query: string, label: string, bases: [string, string] = [BASE, BASE], want: NetWant = "deltas"): Promise<boolean> {
   const host = await open(browser, query, bases[0]);
-  const guest = await open(browser, query, bases[1]);
+  const guest = await open(browser, query, bases[1], WORN_LOADOUT);
   // clicks through script, not the mouse: a background page gets no
   // animation frames, which puppeteer's mouse click waits on
   await ev(host, `document.getElementById("duelHost").click()`);
@@ -2024,6 +2034,23 @@ async function duelTest(browser: Browser, query: string, label: string, bases: [
   check(`${label}: the host sees the guest at the guest spawn (arena, far end)`, seen.visible && Math.abs(seen.x - 90) < 0.5 && Math.abs(seen.z + 11) < 0.5, `${seen.x.toFixed(1)}, ${seen.z.toFixed(1)}`);
   const seen2 = await ev<{ x: number; z: number }>(guest, `(() => { const g = window.__range.duel().avatars[0].group; return { x: g.position.x, z: g.position.z }; })()`);
   check(`${label}: and the guest sees the host at the host spawn`, Math.abs(seen2.x - 90) < 0.5 && Math.abs(seen2.z + 69) < 0.5, `${seen2.x.toFixed(1)}, ${seen2.z.toFixed(1)}`);
+
+  // What the guest chose to wear crosses the wire beside the operator id, so
+  // the host draws the tracksuit, the goggles and the wrap. An older build on
+  // either side has never heard of the field: it ignores it and dresses the
+  // operator in its own set, which is why the strong check only runs when both
+  // sides are this build. Either way the figure is dressed, never bare.
+  // (the figure's rig is a model load: wait for it rather than assume the frame)
+  await host.waitForFunction(`window.__range.figureWear("opponent").length >= 6`, { polling: 200, timeout: 15000 }).catch(() => null);
+  const worn = await ev<string[]>(host, `window.__range.figureWear("opponent")`);
+  check(`${label}: the other figure is dressed`, worn.length >= 6, worn.join(" "));
+  if (bases[0] === BASE && bases[1] === BASE) {
+    check(
+      `${label}: and wears what the guest chose, goggles and wrap and all`,
+      worn.includes("goggles") && worn.includes("wrap") && worn.includes("jacket") && worn.includes("boot_l") && worn.includes("boot_r"),
+      worn.join(" ")
+    );
+  }
 
   // nobody has clicked Play: the host holds at "waiting" (the countdown used
   // to start the moment the guest connected, with both still on the menu)

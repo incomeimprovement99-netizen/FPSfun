@@ -2,13 +2,26 @@
   "_note": "What an operator wears, as clothing rather than as kit (src/game/outfit.ts). The kit in gear.json is the hard stuff strapped on top: plates, a helmet, a mask. This is the clothes under it, and it is what makes one figure a soldier and another a man in a t-shirt. Every piece is a shell along a bone, and every bone in this rig points along its own +y with a measured length (thigh 0.400 m, calf 0.429, upper arm 0.274, forearm 0.273), so a sleeve is a tube from 0 to a fraction of that length and nothing has to be rigged or weighted. Sizes are metres on a figure 1.8 m tall; colours are hex strings.",
   "fit": {
     "_note": "the body's own thicknesses, which the clothes sit just outside of",
-    "arm": 0.062,
-    "forearm": 0.052,
-    "thigh": 0.088,
-    "calf": 0.068,
+    "arm": 0.08,
+    "forearm": 0.065,
+    "thigh": 0.096,
+    "calf": 0.09,
+    "_profile": "how thick the body is along each bone: metres from the bone's own axis, six samples from the start of the bone to its end. Measured off the model by tools/checks/body.ts, which checks these numbers against it. A limb is not a cylinder, and a garment built on one number is either inside the body at the wide end (the arm is 84 mm at the shoulder) or a barrel at the narrow one (61 mm at the elbow).",
+    "profile": {
+      "arm": [0.084, 0.084, 0.079, 0.072, 0.062, 0.061],
+      "forearm": [0.059, 0.073, 0.073, 0.069, 0.054, 0.049],
+      "thigh": [0.096, 0.097, 0.102, 0.099, 0.088, 0.08],
+      "calf": [0.061, 0.089, 0.104, 0.098, 0.076, 0.056]
+    },
     "torso": { "w": 0.36, "d": 0.22, "h": 0.46 },
     "_torsoAt": "the chest's middle in the spine bone's own frame, metres: the bone runs up the back, and a garment centred on it sits behind the body (measured off the rig: the collarbones are 0.09 to 0.11 in front of it)",
     "torsoAt": [0, 0, 0.048]
+  },
+  "_builds": "How heavy-set a figure is. The body underneath is one mannequin and one set of hit boxes, and that does not change: what changes is how thick the CLOTHES on it are and how wide across the shoulders they sit, which is what reads as build at any distance. Keeping the hit boxes identical is the point rather than a shortcut: a game where a bigger-looking character is easier to hit is a game where nobody picks them.",
+  "builds": {
+    "lean": { "name": "LEAN", "cloth": 0.72, "shoulders": 0.93 },
+    "regular": { "name": "REGULAR", "cloth": 1.0, "shoulders": 1.0 },
+    "heavy": { "name": "HEAVY", "cloth": 1.45, "shoulders": 1.1 }
   },
   "_pieces": "each piece: the bone it hangs on, how far along that bone it starts and ends as a fraction of the bone's length, and how much thicker than the body it is",
   "pieces": {
@@ -30,6 +43,38 @@
   },
   "_sets": "The outfits: what each wears, and in what colours. `cloth` is the main garment, `trim` the second colour, `boots` the footwear. An operator names one of these (src/game/operators.ts), and the kit in gear.json goes on top of it.",
   "sets": {
+    "hoodie": {
+      "name": "HOODIE",
+      "blurb": "a hood up over a plain top, jeans, trainers",
+      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot"],
+      "cloth": "#4a4f58",
+      "trim": "#2b2f36",
+      "boots": "#d8d4cc"
+    },
+    "coveralls": {
+      "name": "COVERALLS",
+      "blurb": "one piece from collar to ankle, the way a working man dresses",
+      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot"],
+      "cloth": "#9a5f2c",
+      "trim": "#6e4420",
+      "boots": "#2a2320"
+    },
+    "ghillie": {
+      "name": "GHILLIE",
+      "blurb": "ragged strips over everything, made to break a shape rather than to be worn",
+      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot"],
+      "cloth": "#4c5733",
+      "trim": "#6d7448",
+      "boots": "#2f2a1e"
+    },
+    "tracksuit": {
+      "name": "TRACKSUIT",
+      "blurb": "a zip top and bottoms, two stripes, nothing tactical about it",
+      "wears": ["jacket", "sleeveLong", "cuff", "trouserThigh", "trouserCalf", "boot"],
+      "cloth": "#1f2b4a",
+      "trim": "#d9dde3",
+      "boots": "#e6e3dd"
+    },
     "fatigues": {
       "name": "FATIGUES",
       "blurb": "field uniform, sleeves down, boots",

@@ -554,6 +554,17 @@ tries scored), and the per-gun session numbers on the Stats tab.
 Five operator looks (the other player sees yours), seven heirlooms (four built
 in code, two free CC0 models) as the melee weapon when holstered.
 
+**What they wear.** Ten outfits (hoodie, coveralls, ghillie, tracksuit,
+fatigues, plain clothes, irregular, urban, arctic, desert), three builds (lean,
+regular, heavy) and a choice of face covering: a head wrap, goggles, a full
+mask, or a wrap and goggles. Each operator comes dressed; the Loadouts tab lets
+you put something else on, per loadout, and the other players see it. A build
+changes how the clothes sit and nothing else: the body under them is one
+mannequin and one set of hit boxes, so nobody is a bigger target for how they
+look. Every garment is turned along a profile measured off the model itself
+(`tools/checks/body.ts`), which is why a sleeve narrows at the elbow and a
+trouser leg swells at the calf.
+
 The **Stats** tab keeps your name and every result in this browser: matches
 (won, lost, K/D, rounds, damage, accuracy, win streak) per mode and per bot
 difficulty, best time and the top ten runs per course, and every piece of
@@ -765,6 +776,7 @@ src/game/
   gunmodels.ts             the 28 gun models, built in code
   heirlooms.ts             the seven melee weapons
   operators.ts             the five character looks
+  outfit.ts                the ten outfits, the builds and the face pieces
   hud.ts                   the HUD canvas
   audio.ts                 synthesised sounds
   render.ts                the render pipeline and post-processing

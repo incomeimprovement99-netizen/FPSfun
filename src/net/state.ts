@@ -69,6 +69,8 @@ const STR_SANE = 256;
 /** what the game itself allows, clipped here so both ends hold the same baseline */
 const NAME_MAX = 16;
 const ID_MAX = 32;
+/** an outfit choice: three ids and their separators (outfit.ts lookCode) */
+const LOOK_MAX = 48;
 
 /**
  * One player's state, as duel.ts has always sent it: the payload of the "s"
@@ -90,6 +92,8 @@ export interface PlayerState {
   alive: boolean;
   op: string;
   name: string;
+  /** what they chose to wear, when it is not the operator's own set (outfit.ts lookCode) */
+  lk?: string;
   ready?: boolean;
   st?: number;
   sp?: number;
@@ -124,9 +128,9 @@ const REQ_KEYS = ["x", "y", "z", "aw", "ap", "cr", "hp", "sh", "al", "w", "op", 
  * last: an older build ignores a key it does not know, and it is never
  * cleared, so it never sets a bit an older build would misread.
  */
-const OPT_KEYS = ["rd", "st", "sp", "sm", "dn", "ad", "ac", "bt", "tm"] as const;
-/** the three that are text; everything else is a finite number */
-const STR_KEYS = new Set<string>(["w", "op", "nm"]);
+const OPT_KEYS = ["rd", "st", "sp", "sm", "dn", "ad", "ac", "bt", "tm", "lk"] as const;
+/** the ones that are text; everything else is a finite number */
+const STR_KEYS = new Set<string>(["w", "op", "nm", "lk"]);
 /**
  * The five sent as a difference from the baseline rather than outright. They
  * are the ones that change every tick and the ones with the widest range: a
@@ -178,6 +182,7 @@ export function quantise(s: PlayerState): Quant {
   if (!absent(s.ac)) q.ac = Math.round(wireNum(s.ac));
   if (!absent(s.bot)) q.bt = Math.round(wireNum(s.bot));
   if (!absent(s.tm)) q.tm = Math.round(wireNum(s.tm)) & 0xffff;
+  if (!absent(s.lk)) q.lk = clip(wireStr(s.lk), LOOK_MAX);
   return q;
 }
 
@@ -206,6 +211,7 @@ export function dequantise(q: Quant): PlayerState {
   if (!absent(q.ac)) s.ac = wireNum(q.ac);
   if (!absent(q.bt)) s.bot = wireNum(q.bt);
   if (!absent(q.tm)) s.tm = wireNum(q.tm);
+  if (!absent(q.lk)) s.lk = clip(wireStr(q.lk), LOOK_MAX);
   return s;
 }
 
@@ -273,7 +279,7 @@ export function applyDiff(base: Quant, d: Record<string, unknown>, clear: number
     const v = d[k];
     if (absent(v)) continue;
     if (!fits(k, v)) return null;
-    out[k] = v as number;
+    out[k] = v as number | string;
   }
   return out;
 }
@@ -504,6 +510,7 @@ export function stateOf(m: StateMsg): PlayerState {
   if (!absent(raw.ac)) s.ac = wireNum(raw.ac);
   if (!absent(raw.bot)) s.bot = wireNum(raw.bot);
   if (!absent(raw.tm)) s.tm = wireNum(raw.tm);
+  if (!absent(raw.lk)) s.lk = clip(wireStr(raw.lk), LOOK_MAX);
   return s;
 }
 
@@ -523,6 +530,7 @@ export function stateMsg(s: PlayerState, from?: number): StateMsg {
     sh: s.sh,
     alive: s.alive,
     op: s.op,
+    lk: s.lk,
     name: s.name,
     ready: s.ready,
     st: s.st,

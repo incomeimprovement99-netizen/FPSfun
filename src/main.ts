@@ -60,7 +60,8 @@ import { applySavedBinds, initBindsUi } from "./ui/binds";
 import type { MoveInput } from "./game/player";
 import { buildArena, buildTriArena, ARENA_BOUNDS, ARENA_HANDLES, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
 import { Loadouts, type LoadoutDef } from "./game/loadouts";
-import { operatorById, OPERATORS } from "./game/operators";
+import { operatorById, operatorWearing, OPERATORS } from "./game/operators";
+import { lookCode } from "./game/outfit";
 import { setArmColors } from "./game/arms";
 import { Menu, brRulesId, brTeamId, type Mode } from "./ui/menu";
 import { friendsModeFor } from "./ui/lobby";
@@ -4677,7 +4678,7 @@ function localAct(): number {
   return 0;
 }
 
-function selfFigure(now: number, dt: number, weaponId: string, op: string, show: boolean, knocked: boolean, downed: boolean): void {
+function selfFigure(now: number, dt: number, weaponId: string, op: string, look: string, show: boolean, knocked: boolean, downed: boolean): void {
   if (!show) {
     if (selfFig) {
       selfFig.group.visible = false;
@@ -4685,10 +4686,10 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, show:
     }
     return;
   }
-  const key = `${weaponId}|${op}`;
+  const key = `${weaponId}|${op}|${look}`;
   if (!selfFig || selfFigKey !== key) {
     selfFig?.dispose();
-    selfFig = new Dummy(0, 0, 0, { armed: weaponId, respawn: false, skin: operatorById(op), rig: true, noBase: true });
+    selfFig = new Dummy(0, 0, 0, { armed: weaponId, respawn: false, skin: operatorWearing(op, look), rig: true, noBase: true });
     selfFig.group.name = "self";
     scene.add(selfFig.group);
     selfFigKey = key;
@@ -5895,7 +5896,7 @@ function step(): void {
   // in the skydive the hands are put away, out of the view of the ground you are steering onto
   viewModel.group.visible = killcam.active || (!third && !knockedOut && !player.dropping && !player.aboard);
   if (killcam.active && killcam.firedThisFrame) viewModel.onShot();
-  selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, third && !killcam.active, knockedOut, downedNow);
+  selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, lookCode(loadouts.current), third && !killcam.active, knockedOut, downedNow);
   for (const lf of labFigs) {
     lf.f.setPose(lf.pose);
     // a knocked-out one stands a moment first (it drops the gun it held)
@@ -5914,6 +5915,7 @@ function step(): void {
     crouch: player.crouched || player.sliding,
     weapon: emptyHand ? "" : onScreen.weapon.id,
     operator: loadouts.current.operator,
+    look: lookCode(loadouts.current),
     name: profile.profile.name,
     ready: input.playing,
     stance: downedNow ? "downed" : player.stance,
@@ -6476,7 +6478,7 @@ initWelcome();
    * The figure lab (tools/snap.ts): figures in a row `dist` metres in front of
    * you, facing you, one per pose ("dead" knocks it out); none clears it.
    */
-  figureLab: (poses: Array<FigurePose & { dead?: boolean; weapon?: string }> = [], dist = 4, turnDeg = 0) => {
+  figureLab: (poses: Array<FigurePose & { dead?: boolean; weapon?: string; look?: string }> = [], dist = 4, turnDeg = 0) => {
     for (const lf of labFigs) lf.f.dispose();
     labFigs.length = 0;
     const yawR = player.yaw * DEG;
@@ -6484,7 +6486,10 @@ initWelcome();
     const fz = -Math.cos(yawR);
     poses.forEach((p, i) => {
       const side = (i - (poses.length - 1) / 2) * 1.3;
-      const f = new Dummy(0, 0, 0, { armed: p.weapon ?? "rspn101", respawn: false, rig: true, noBase: true, skin: OPERATORS[i % OPERATORS.length] });
+      // `look` dresses the figure in something other than its operator's own
+      // set, which is how the wardrobe snapshot shows all ten of them
+      const op = OPERATORS[i % OPERATORS.length];
+      const f = new Dummy(0, 0, 0, { armed: p.weapon ?? "rspn101", respawn: false, rig: true, noBase: true, skin: p.look ? operatorWearing(op.id, p.look) : op });
       f.group.position.set(player.pos.x + fx * dist + fz * side, player.pos.y, player.pos.z + fz * dist - fx * side);
       f.group.rotation.y = yawR + turnDeg * DEG;
       scene.add(f.group);
@@ -6578,6 +6583,23 @@ initWelcome();
       if (!o.userData?.prop || (name && o.userData.prop !== name)) return;
       const p = o.getWorldPosition(new THREE.Vector3());
       out.push({ x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) });
+    });
+    return out;
+  },
+  /**
+   * What a figure is wearing (outfit.ts), by the group it stands in: "self" is
+   * your own third-person figure, "opponent" the first other player's. This is
+   * how a test can see that a look chosen on one page arrived on another.
+   */
+  figureWear: (which = "self") => {
+    let out: string[] = [];
+    scene.traverse((o) => {
+      if (out.length || !(o.name === which || o.name.startsWith(`${which}:`))) return;
+      const worn: string[] = [];
+      o.traverse((c) => {
+        if (c.name.startsWith("wear:")) worn.push(c.name.slice(5));
+      });
+      out = worn.sort();
     });
     return out;
   },
