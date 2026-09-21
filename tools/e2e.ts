@@ -2040,16 +2040,20 @@ async function duelTest(browser: Browser, query: string, label: string, bases: [
   // either side has never heard of the field: it ignores it and dresses the
   // operator in its own set, which is why the strong check only runs when both
   // sides are this build. Either way the figure is dressed, never bare.
-  // (the figure's rig is a model load: wait for it rather than assume the frame)
-  await host.waitForFunction(`window.__range.figureWear("opponent").length >= 6`, { polling: 200, timeout: 15000 }).catch(() => null);
-  const worn = await ev<string[]>(host, `window.__range.figureWear("opponent")`);
-  check(`${label}: the other figure is dressed`, worn.length >= 6, worn.join(" "));
-  if (bases[0] === BASE && bases[1] === BASE) {
-    check(
-      `${label}: and wears what the guest chose, goggles and wrap and all`,
-      worn.includes("goggles") && worn.includes("wrap") && worn.includes("jacket") && worn.includes("boot_l") && worn.includes("boot_r"),
-      worn.join(" ")
-    );
+  // (asked of THIS build only: an older one has no such handle, and in a mixed
+  // run the page doing the looking can be the older one)
+  if (bases[0] === BASE) {
+    // (the figure's rig is a model load: wait for it rather than assume the frame)
+    await host.waitForFunction(`window.__range.figureWear("opponent").length >= 6`, { polling: 200, timeout: 15000 }).catch(() => null);
+    const worn = await ev<string[]>(host, `window.__range.figureWear("opponent")`);
+    check(`${label}: the other figure is dressed`, worn.length >= 6, worn.join(" "));
+    if (bases[1] === BASE) {
+      check(
+        `${label}: and wears what the guest chose, goggles and wrap and all`,
+        worn.includes("goggles") && worn.includes("wrap") && worn.includes("jacket") && worn.includes("boot_l") && worn.includes("boot_r"),
+        worn.join(" ")
+      );
+    }
   }
 
   // nobody has clicked Play: the host holds at "waiting" (the countdown used
