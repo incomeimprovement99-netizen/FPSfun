@@ -539,12 +539,18 @@ Playing never needs one, and a static mirror has no server to sign in to.
 
 **Online boards** come with the game's own server (`server/game/serve.mjs`,
 [Deploy](#deploy)): every course run and every win is posted under the
-player's name, the Stats tab shows the top 15 of each board with you
-highlighted, and the HUD says your place after a run or a win. The game
+player's name, along with **the best single match anyone has had** (most kills
+and most damage in one match, the two boards that reward a good night rather
+than a long one). The Stats tab shows the top 15 of each board with you
+highlighted, and the HUD says your place after a run, a win, or a match in the
+top ten for kills or damage. The game
 finds the board by itself (`/net.json`); a static mirror has none and
 everything stays local. `server/leaderboard/` is the same boards as a
 Cloudflare Worker, for a build made with `VITE_LEADERBOARD_URL`. Either way
-it trusts the game, so it is a board for friends, not a ranked ladder.
+it trusts the game, so it is a board for friends, not a ranked ladder: a wins
+board counts the posts rather than the total anyone claims, and a best-of-a-
+match board takes nothing above what a match can produce (60 kills, 20,000
+damage).
 
 ## How it works
 

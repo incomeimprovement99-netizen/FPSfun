@@ -15,7 +15,11 @@ export interface BoardEntry {
 }
 
 /** the boards the game posts to, in the order the Stats tab offers them */
-export const BOARDS: ReadonlyArray<{ id: string; label: string; unit: "s" | "wins" }> = [
+export const BOARDS: ReadonlyArray<{ id: string; label: string; unit: "s" | "wins" | "kills" | "damage" }> = [
+  // What a match was worth, not how many you have played: the best single
+  // match anyone has had. Wins reward turning up, these reward a good night.
+  { id: "match:kills", label: "Most kills in a match", unit: "kills" },
+  { id: "match:damage", label: "Most damage in a match", unit: "damage" },
   { id: "course:basic", label: "The Run (Basic)", unit: "s" },
   { id: "course:advanced", label: "The Run (Advanced)", unit: "s" },
   { id: "course:drill", label: "Flick drill (30 targets)", unit: "s" },

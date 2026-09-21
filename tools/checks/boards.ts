@@ -8,7 +8,7 @@
 // Run on its own: npx tsx tools/checks/boards.ts.
 import { readFileSync } from "node:fs";
 // @ts-expect-error: a plain JavaScript module of the server's
-import { nextBoardValue } from "../../server/game/boardrules.mjs";
+import { BEST_OF, nextBoardValue } from "../../server/game/boardrules.mjs";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -39,6 +39,12 @@ check("every board the game posts to is one the server keeps", missing.length ==
   check("a total that went down changes nothing", wins(12, 3) === 12);
   const time = (prev: number | undefined, v: number) => nextBoardValue(true, prev, v);
   check("a course time keeps the best, and a time under 5 s or out of range is refused", time(40, 38) === 38 && time(40, 45) === 40 && time(undefined, 4) === null && time(undefined, -1) === null && wins(undefined, Number.NaN) === null);
+  // the best of one match, which cannot be counted post by post the way a
+  // total can, so it is bounded by what a match can produce instead
+  const best = (prev: number | undefined, v: number, board = "match:kills") => nextBoardValue(false, prev, v, board);
+  check("a best-of-a-match board keeps the best rather than counting posts", best(undefined, 12) === 12 && best(12, 17) === 17, `${best(undefined, 12)}, then ${best(12, 17)}`);
+  check("and a worse match changes nothing", best(17, 3) === 17);
+  check("a forged match above anything a match can produce is refused", best(17, 999) === null && best(undefined, 19999, "match:damage") === 19999, `kills cap ${BEST_OF["match:kills"]}, damage cap ${BEST_OF["match:damage"]}`);
 }
 
 console.log(fails === 0 ? "\nBOARDS PASS" : `\nBOARDS FAIL (${fails})`);

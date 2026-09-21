@@ -3611,6 +3611,16 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       void submitScore(`${kind}:wins`, profile.profile.name, profile.match(kind).won).then((rank) => {
         if (rank !== null) hud.notice(`#${rank} FOR WINS ON THE ONLINE BOARD`, gameTime, 3);
       });
+    // and what this match itself was worth: the two boards that reward a good
+    // night rather than a long one (src/game/leaderboard.ts BOARDS)
+    if (s.kills > 0)
+      void submitScore("match:kills", profile.profile.name, s.kills).then((rank) => {
+        if (rank !== null && rank <= 10) hud.notice(`#${rank} FOR KILLS IN A MATCH`, gameTime, 3);
+      });
+    if (s.damage >= 100)
+      void submitScore("match:damage", profile.profile.name, Math.round(s.damage)).then((rank) => {
+        if (rank !== null && rank <= 10) hud.notice(`#${rank} FOR DAMAGE IN A MATCH`, gameTime, 3);
+      });
   };
 }
 /** the others' effects as they arrived, for the tests */

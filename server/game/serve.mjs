@@ -94,7 +94,7 @@ app.get("/net.json", (req, res) => {
 // the browser is the only witness, so these are boards between friends, not
 // ranked play (that needs the game server of NEXT_STEPS).
 const BOARD_FILE = resolve(process.env.BOARD_FILE ?? join(here, "boards.json"));
-const BOARD_IDS = new Set(["course:basic", "course:advanced", "course:drill", "duel:wins", "triple:wins", "br:wins", "gunrun:wins", "tdm:wins", "crown:wins", "control:wins", "ffa:wins", "bots:easy:wins", "bots:normal:wins", "bots:hard:wins", "bots:elite:wins", "bots:mixed:wins"]);
+const BOARD_IDS = new Set(["course:basic", "course:advanced", "course:drill", "duel:wins", "triple:wins", "br:wins", "gunrun:wins", "tdm:wins", "crown:wins", "control:wins", "ffa:wins", "bots:easy:wins", "bots:normal:wins", "bots:hard:wins", "bots:elite:wins", "bots:mixed:wins", "match:kills", "match:damage"]);
 const LOWER_IS_BETTER = /^course:/;
 const NAME = /^[A-Za-z0-9_ .-]{1,16}$/;
 const MAX_ENTRIES = 100;
@@ -162,7 +162,7 @@ app.post("/api/board/submit", express.json({ limit: "2kb" }), (req, res) => {
   const entries = (boards[board] ??= []);
   const mine = entries.find((e) => e.name === name);
   // what the board keeps: a time's best, or wins one more at most (boardrules.mjs)
-  const kept = nextBoardValue(lower, mine?.value, value);
+  const kept = nextBoardValue(lower, mine?.value, value, board);
   if (kept === null) return res.status(400).json({ error: "bad value" });
   if (mine) {
     if (kept === mine.value) return res.json({ ok: true, rank: entries.indexOf(mine) + 1 });

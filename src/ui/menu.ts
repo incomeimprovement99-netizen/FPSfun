@@ -300,11 +300,12 @@ export class Menu {
     const now = document.getElementById("onlineCard");
     if (!now) return;
     const me = this.stats.profile.name;
-    const fmt = (v: number) => (pick.unit === "s" ? `${v.toFixed(2)} s` : `${v} ${v === 1 ? "win" : "wins"}`);
+    const fmt = (v: number) =>
+      pick.unit === "s" ? `${v.toFixed(2)} s` : pick.unit === "kills" ? `${v} ${v === 1 ? "kill" : "kills"}` : pick.unit === "damage" ? `${v} damage` : `${v} ${v === 1 ? "win" : "wins"}`;
     const rows = entries
       .map((e, i) => `<tr${e.name === me ? ' class="me"' : ""}><td>${i + 1}. ${esc(e.name)}</td><td>${fmt(e.value)} <span style="color:#7d8895">${esc(new Date(e.at).toLocaleDateString())}</span></td></tr>`)
       .join("");
-    now.innerHTML = `${head}${rows ? `<table>${rows}</table>` : `<div class="empty">Nobody on this board yet. ${pick.unit === "s" ? "Finish a run" : "Win a match"} and you are first.</div>`}`;
+    now.innerHTML = `${head}${rows ? `<table>${rows}</table>` : `<div class="empty">Nobody on this board yet. ${pick.unit === "s" ? "Finish a run" : pick.unit === "wins" ? "Win a match" : "Play a match"} and you are first.</div>`}`;
     now.querySelector<HTMLSelectElement>("#boardPick")?.addEventListener("change", (e) => {
       this.boardPick = (e.target as HTMLSelectElement).value;
       void this.renderOnline();

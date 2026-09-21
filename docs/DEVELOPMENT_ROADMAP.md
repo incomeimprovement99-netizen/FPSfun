@@ -2262,3 +2262,15 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   lit, and what they did (kills and deaths).
 - Checks: the e2e `modes` section (the gap between Crown's rounds carries a row per player with both columns
   filled, and your own row among them).
+## Milestone 139 — The two missing boards ✅
+2026-09-20 (Phase 15). `src/game/leaderboard.ts`, `src/main.ts`, `src/ui/menu.ts`, `server/game/serve.mjs`, `server/game/boardrules.mjs`, `tools/checks/boards.ts`, `README.md`.
+- Item 10 of the ranked list. Fifteen boards, and every one of them counted how much you had played: course times
+  and win totals. The two that were missing are the two that reward a good night rather than a long one, **most
+  kills in a match** and **most damage in a match**, posted from the match's own summary the moment it ends, with
+  the HUD saying so for a top ten.
+- **They needed a rule of their own.** A wins board is safe because the server counts the posts rather than
+  trusting the total (a forged 99,999 moves a name one win). A personal best cannot be counted that way, so it is
+  bounded instead: the server keeps the higher of what it has and what was posted, and refuses anything above what
+  a match can produce (60 kills, 20,000 damage).
+- Checks: `tools/checks/boards.ts` (the new rule keeps the best, ignores a worse match and refuses a forgery, and
+  every board the game posts to is one the server keeps).
