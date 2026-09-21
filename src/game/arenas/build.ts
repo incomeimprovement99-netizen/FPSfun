@@ -12,6 +12,8 @@
 // its canvas textures, and the geometry it works from lives in plan.ts.
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "../range";
+import { placeProps } from "../props";
+import { dressPlan } from "./dress";
 import { PAL, bevel, emissive, flat, graffitiTexture, textPanel, worldTiledMaterial } from "../geo";
 import { material } from "../materials";
 import { warehouseRoof } from "../warehouse";
@@ -79,13 +81,24 @@ export function buildPlan(scene: THREE.Scene, plan: ArenaPlan, zoneRadius: numbe
   root.add(floor);
 
   const trim = flat(PAL.orange, 0.55, 0.25);
-  for (const b of allBoxes(plan) as PlanBox[]) {
+  // The cover a CC0 prop stands in for (dress.ts): its solid is registered
+  // below exactly as before, and only its grey block goes undrawn. A prop is
+  // only allowed to take a box's place when it fills it, so the cover is the
+  // same cover to shoot over and hide behind.
+  // dressed against the same list the meshes are drawn from, so an index is
+  // the same box in both: allBoxes puts the shell in front of the plan's own
+  const boxes = allBoxes(plan) as PlanBox[];
+  const worn = dressPlan(boxes);
+  void placeProps(root, worn.props);
+  for (const [i, b] of boxes.entries()) {
     const y = b.y ?? 0;
-    const m = new THREE.Mesh(bevel(b.w, b.h, b.d, 0.05), mats[b.mat]);
-    m.position.set(b.x, y + b.h / 2, b.z);
-    m.castShadow = true;
-    m.receiveShadow = true;
-    root.add(m);
+    if (!worn.instead.has(i)) {
+      const m = new THREE.Mesh(bevel(b.w, b.h, b.d, 0.05), mats[b.mat]);
+      m.position.set(b.x, y + b.h / 2, b.z);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      root.add(m);
+    }
     if (b.solid !== false) solid(b.x - b.w / 2, b.x + b.w / 2, b.z - b.d / 2, b.z + b.d / 2, y, y + b.h);
     // an orange cap says "this is a surface, stand on it", the same signal
     // the warehouse's lane walls carry

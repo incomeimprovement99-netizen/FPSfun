@@ -6463,6 +6463,16 @@ initWelcome();
     });
   },
   drawCalls: () => frameCost.calls,
+  /** how many of a named prop are in the world, and where (tools/e2e.ts, tools/snap.ts) */
+  propsNamed: (name: string) => {
+    const out: Array<{ x: number; y: number; z: number }> = [];
+    scene.traverse((o) => {
+      if (!o.userData?.prop || (name && o.userData.prop !== name)) return;
+      const p = o.getWorldPosition(new THREE.Vector3());
+      out.push({ x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) });
+    });
+    return out;
+  },
   /** frames run since the page opened */
   frames: () => framesRun,
   /** the live rounds' tracers (projectile.ts) */

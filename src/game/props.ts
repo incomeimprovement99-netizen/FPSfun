@@ -41,6 +41,13 @@ export interface Placement {
   /** yaw in degrees */
   rot?: number;
   scale?: number;
+  /**
+   * Scaled to a size rather than by a factor: x, y, z separately. A crate or a
+   * rack comes in sizes and stretches without looking wrong, which is what
+   * lets one stand in for a cover box exactly (src/game/arenas/dress.ts). A
+   * drum or a scanned rock does not, and never gets one of these.
+   */
+  scale3?: { x: number; y: number; z: number };
   /** add an axis-aligned collider of this footprint */
   solid?: { w: number; h: number; d: number };
 }
@@ -187,7 +194,8 @@ export async function placeInstanced(scene: THREE.Object3D, spreads: PropSpread[
 }
 
 export async function placeProps(
-  scene: THREE.Scene,
+  /** what the props are added to: the scene, or a map's own group (the arenas) */
+  scene: THREE.Object3D,
   placements: Placement[]
 ): Promise<void> {
   const byProp = new Map<PropName, Placement[]>();
@@ -200,12 +208,24 @@ export async function placeProps(
     [...byProp.entries()].map(async ([name, list]) => {
       const src = await load(name);
       if (!src) return;
+      // the size the model is, measured once per prop rather than per copy
+      const size = new THREE.Box3().setFromObject(src).getSize(new THREE.Vector3());
       for (const p of list) {
         const o = src.clone(true);
         o.position.set(p.x, p.y ?? 0, p.z);
         o.rotation.y = ((p.rot ?? 0) * Math.PI) / 180;
-        const s = p.scale ?? 1;
-        o.scale.setScalar(s);
+        if (p.scale3) {
+          // stretched to a size: the yaw is a quarter turn or none, so x and z
+          // swap with it rather than shearing
+          const turned = Math.round(((p.rot ?? 0) % 360) / 90) % 2 !== 0;
+          o.scale.set(
+            (turned ? p.scale3.z : p.scale3.x) / Math.max(1e-3, size.x),
+            p.scale3.y / Math.max(1e-3, size.y),
+            (turned ? p.scale3.x : p.scale3.z) / Math.max(1e-3, size.z)
+          );
+        } else o.scale.setScalar(p.scale ?? 1);
+        // so a test can count what actually got placed
+        o.userData.prop = name;
         scene.add(o);
       }
     })

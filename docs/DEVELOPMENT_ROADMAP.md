@@ -2480,3 +2480,25 @@ had never been measured.
 - **And the buffer is the gap between states rather than more**: it is checked against the gap it is
   covering, not against a constant, because a test page rendering at fifteen frames a second sends states
   that slowly and the delay it needs is the machine's as much as the network's.
+
+## Milestone 150 — The arenas stop being boxes ✅
+
+"There has to be more free assets we can use to make things look less like roblox overall." Seven of the
+game's modes are played in the arenas, and every piece of cover in them was a grey box with a texture on it.
+The battle royale map and the range both carry modelled and scanned CC0 props; the arenas carried none.
+
+- **A prop stands in for the box** (`src/game/arenas/dress.ts`): the box's mesh is not drawn, and a stack of
+  crates, a run of barriers, a rack or a generator is drawn in the same space. 20 of the Crossing's 48 cover
+  boxes, 16 of the Ringworks' 36, 14 of the Vault's 24.
+- **The collider never moves.** The solid comes from the plan exactly as before, and the check proves the
+  map's collision is identical before and after dressing. That is the whole safety of it: the cover is the
+  same cover, the same height to shoot over and the same width to hide behind, and the bots' walk is the
+  walk that was checked.
+- **Which means a prop may only take a box it fills.** A crate two thirds the height of the box it replaced
+  would be cover you could see over but not shoot over, and one narrower than its box would be a bullet
+  stopping in mid air. A prop that comes in sizes (a crate, a barrier, a rack) is stretched to the box
+  exactly, within the proportions a thing of that kind plausibly has; one that does not (a drum) has to fit
+  as it is. Where nothing fits, the box stays a box, and about half of them do.
+- Checks: `tools/checks/dress.ts` (20: nothing but cover is dressed, no prop stands outside the box it
+  stands in for, every dressed box is filled on all three axes, no prop brings a collider of its own, a box
+  wears the same thing every time, and the map's collision is untouched).
