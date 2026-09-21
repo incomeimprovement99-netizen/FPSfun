@@ -2226,3 +2226,15 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   short cracks at 7.5% of the first shot's length: 202 px against 2,618.
 - Checks: `tools/checks/intro.ts` (the pattern keeps off the middle, is thrown out across the pane, and a pellet's
   cracks are under a quarter of the rifle round's), and the two snapshots retaken.
+## Milestone 136 — Out, and watching whoever is left ✅
+2026-09-20 (Phase 15). `src/game/duel.ts`, `src/game/brmatch.ts`, `src/game/modematch.ts`, `src/game/bots.ts`, `src/game/hud.ts`, `src/main.ts`, `tools/e2e.ts`, `README.md`.
+- Item 7 of the ranked list. Being out of a battle royale already put you behind somebody's shoulder, but it was
+  whoever the match picked, it changed under you as people died, and there was no way to look at anyone else. Eight
+  friends on a ten minute match means a bad landing is ten minutes of nothing.
+- A match now offers a **list** of everyone worth watching (`spectateList`), friends first and then the rest in the
+  order of how near they were to where you fell, bots included, each with a name. The page keeps its place in it,
+  so you stay with whoever you chose until they are out; **fire takes the next and aim the one before**, the
+  third-person key still swaps between their eyes and just behind them, and the HUD says whose view you are in and
+  where you are in the list ("2 of 6").
+- Checks: the e2e `brsolo` section (out of a solo battle royale with six still standing, the HUD names the first of
+  them and a click moves you along).

@@ -3151,6 +3151,14 @@ brPlay.carrying = () => {
 };
 /** first person when you watch a squad mate (X switches to behind them) */
 let spectateFirst = true;
+/**
+ * Out with others still standing: who you are watching. The page keeps its
+ * place in the match's list (duel.spectateList) rather than being handed
+ * whoever is first every frame, so you stay with the one you picked until
+ * they are out; fire takes the next and aim the one before.
+ */
+let watchIndex = 0;
+let watchName = "";
 
 /**
  * An item you took: a gun into an empty slot or in place of the one in hand
@@ -5124,9 +5132,28 @@ function step(): void {
   // would move the crosshair off what you were aiming at. Dropping the eye
   // keeps the aim exactly where it was.
   camera.position.y += player.viewDip;
-  // knocked in a match: on the floor until the round ends, or, with others
-  // still standing (a 1v1v1), watching one of them from behind
-  const watch = knockedOut && duel ? duel.spectateTarget() : null;
+  // Out of a match with others still standing: you watch one of them, and you
+  // choose which. The list is the match's (squad first, then the rest); this
+  // keeps a place in it, moves on when whoever you are watching goes out, and
+  // says nothing at all while you are still up.
+  let watch: Dummy | null = null;
+  if (knockedOut && duel) {
+    const list = duel.spectateList();
+    if (list.length) {
+      if (input.playing && input.pressedNow("fire")) watchIndex++;
+      if (input.playing && input.pressedNow("ads")) watchIndex--;
+      watchIndex = ((watchIndex % list.length) + list.length) % list.length;
+      const pick = list[watchIndex];
+      watch = pick.figure;
+      watchName = pick.name;
+    } else {
+      watch = duel.spectateTarget();
+      watchName = "";
+    }
+  } else {
+    watchIndex = 0;
+    watchName = "";
+  }
   if (knockedOut && !watch) camera.position.y -= 1.0;
   // Sprint view shake, as the game's setting of that name: the eye bobs with
   // each stride and the view rolls a touch. Normal is the game's default;
@@ -5875,7 +5902,7 @@ function step(): void {
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
     banner: duel instanceof BrMatch ? brPlay.hud.banner : null,
     downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null, kd: kd.max > 0 ? { hp: kd.hp, max: kd.max, up: kd.up, key: keyLabel("fire") } : null, self: kd.canSelfRevive ? { key: keyLabel("interact"), progress: kd.selfProgress(gameTime) } : null } : null,
-    spectating: watch && watchMate ? { name: watchMate.name, first: watchMate.id < Duel.BOT_ID && spectateFirst } : null,
+    spectating: watch ? { name: watchName || watchMate?.name || "SOMEONE", first: !!watchMate && watchMate.id < Duel.BOT_ID && spectateFirst, of: duel ? duel.spectateList().length : 1, at: watchIndex + 1 } : null,
     voice: hudVoice,
     trainer: trainer.hud(now),
     mantleCue: trainer.cue && mantleCueOn,

@@ -3142,22 +3142,35 @@ export class BrMatch extends Duel {
     return b ? b.bot.pos : super.whereIs(id);
   }
 
-  /** out with others still up: a squad mate first, else the nearest bot */
+  /** out with others still up: a squad mate first, then whoever is nearest */
   override spectateTarget(): Dummy | null {
-    if (this.alive || this.phase !== "fight") return null;
-    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && this.friendly(r.id) && r.alive && r.samples.length) return r.avatar;
-    let best: Dummy | null = null;
-    let bd = Infinity;
-    const me = this.lastLocal;
-    for (const a of this.avatars) {
-      if (a.knocked || !a.group.visible || !me) continue;
-      const d = Math.hypot(a.group.position.x - me.x, a.group.position.z - me.z);
-      if (d < bd) {
-        bd = d;
-        best = a;
-      }
+    return this.spectateList()[0]?.figure ?? null;
+  }
+
+  /**
+   * Out of a battle royale: your squad first (their eyes are the ones worth
+   * borrowing), then everyone else still standing in the order of how near
+   * they were to where you fell, bots included. A ten minute match with a bad
+   * landing in it is ten minutes of nothing otherwise.
+   */
+  override spectateList(): Array<{ figure: Dummy; name: string; friend: boolean }> {
+    if (this.alive || this.phase !== "fight") return [];
+    const out: Array<{ figure: Dummy; name: string; friend: boolean }> = [];
+    for (const r of this.remotes.values()) {
+      if (r.id >= Duel.BOT_ID || !this.friendly(r.id) || !r.alive || !r.samples.length) continue;
+      out.push({ figure: r.avatar, name: this.nameOf(r.id) ?? `PLAYER ${r.id + 1}`, friend: true });
     }
-    return best;
+    const me = this.lastLocal;
+    const rest: Array<{ figure: Dummy; name: string; friend: boolean; d: number }> = [];
+    for (const a of this.avatars) {
+      if (a.knocked || !a.group.visible) continue;
+      if (out.some((o) => o.figure === a)) continue;
+      const r = this.remoteOf(a);
+      const d = me ? Math.hypot(a.group.position.x - me.x, a.group.position.z - me.z) : 0;
+      rest.push({ figure: a, name: (r && this.nameOf(r.id)) || "SOMEONE", friend: false, d });
+    }
+    rest.sort((a, b) => a.d - b.d);
+    return [...out, ...rest.map(({ figure, name, friend }) => ({ figure, name, friend }))];
   }
 
   override leave(): void {

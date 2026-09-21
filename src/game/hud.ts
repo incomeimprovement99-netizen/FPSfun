@@ -258,7 +258,7 @@ export interface HudState {
     self?: { key: string; progress: number | null } | null;
   } | null;
   /** out, watching a squad mate (or a bot): whose eyes, and first person or not */
-  spectating?: { name: string; first: boolean } | null;
+  spectating?: { name: string; first: boolean; of?: number; at?: number } | null;
   /** voice chat: you are talking, and who else is */
   voice?: { me: boolean; talking: string[] } | null;
 }
@@ -636,7 +636,8 @@ export class Hud {
       c.fillStyle = PANEL;
       c.fillRect(cx - 190 * u, this.h - 132 * u, 380 * u, 44 * u);
       this.text(`WATCHING ${s.spectating.name}`, cx, this.h - 106 * u, 700, 18 * u, WHITE, "center");
-      this.text(s.spectating.first ? "THEIR EYES  ·  THIRD PERSON KEY: BEHIND THEM" : "BEHIND THEM  ·  THIRD PERSON KEY: THEIR EYES", cx, this.h - 92 * u, 600, 11 * u, DIM, "center");
+      const more = (s.spectating.of ?? 1) > 1 ? `  ·  FIRE: NEXT, AIM: BACK  (${s.spectating.at ?? 1} OF ${s.spectating.of})` : "";
+      this.text((s.spectating.first ? "THEIR EYES  ·  THIRD PERSON KEY: BEHIND THEM" : "BEHIND THEM  ·  THIRD PERSON KEY: THEIR EYES") + more, cx, this.h - 92 * u, 600, 11 * u, DIM, "center");
     }
   }
 

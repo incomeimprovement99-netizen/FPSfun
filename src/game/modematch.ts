@@ -1608,10 +1608,18 @@ export class ArenaMode extends Duel {
 
   /** Crown: out for the round, watch someone still up (a player first, then a bot) */
   override spectateTarget(): Dummy | null {
-    if (this.alive || this.phase !== "fight" || this.respawns) return null;
-    const human = super.spectateTarget();
-    if (human) return human;
-    return this.bots.find((b) => b.bot.alive)?.bot.dummy ?? null;
+    return this.spectateList()[0]?.figure ?? null;
+  }
+
+  /** out of a round: the others still up, your own side first, then the bots */
+  override spectateList(): Array<{ figure: Dummy; name: string; friend: boolean }> {
+    if (this.alive || this.phase !== "fight" || this.respawns) return [];
+    const out = super.spectateList();
+    for (const b of this.bots) {
+      if (!b.bot.alive) continue;
+      out.push({ figure: b.bot.dummy, name: b.bot.remote.name || "BOT", friend: this.isFriend(b.bot.remote.id) });
+    }
+    return out.sort((a, b) => Number(b.friend) - Number(a.friend));
   }
 
   /** a bot of this match where it stands, for the hit check */

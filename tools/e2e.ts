@@ -2523,8 +2523,9 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   check("recap: its side: the damage and hits it landed", !!row && row.taken.damage > 0 && row.taken.hits > 0, JSON.stringify(row?.taken));
   check("recap: its gun and the distance", !!row && row.guns.length > 0 && /R-301|CARBINE/i.test(row.guns[0].name) && (row.guns[0].near ?? 0) > 1, JSON.stringify(row?.guns));
   check("recap: what it had left (75 + 100 less your 35)", !!row?.left && row.left.shield + row.left.health === 140, JSON.stringify(row?.left));
-  // the bot heals when it has had nobody to shoot for a while: your next life's recap would say so
   await ev(page, "window.__range.closeRecap()");
+  // the bot heals when it has had nobody to shoot for a while: your next life's recap would say so
+
   check("recap: it closes", (await ev<unknown>(page, "window.__range.recap()")) === null);
   await ev(page, "window.__range.duel().leave()");
   await page.close();
@@ -4112,6 +4113,27 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
   await sleep(1000);
   const going = await ev<string>(host, "window.__range.duel().phase");
   check("solo with a friend: the match goes on for the host", going === "fight", going);
+  // and the guest, out of it, watches whoever is left rather than a black
+  // screen: their squad first, then the nearest, and they choose which
+  // (docs/NEXT_STEPS.md item 7)
+  {
+    await ev(guest, "window.__range.skipKillcam()");
+    await ev(guest, "window.__range.closeRecap()");
+    await sleep(500);
+    const spec = await ev<{ name: string; of: number; at: number; list: string[] } | null>(
+      guest,
+      `(() => { const r = window.__range; const s = r.hud.last?.spectating ?? null; const d = r.duel();
+        return s ? { name: s.name, of: s.of ?? 1, at: s.at ?? 1, list: d.spectateList().map((x) => x.name) } : { name: "", of: 0, at: 0, list: d ? d.spectateList().map((x) => x.name) : [] }; })()`
+    );
+    check("out of a battle royale: you watch one of those still standing, and the HUD says whose eyes", !!spec && spec.list.length > 1 && spec.name === spec.list[0], JSON.stringify(spec));
+    await ev(guest, "(() => { window.__range.input.locked = true; })()");
+    await guest.mouse.down();
+    await guest.mouse.up();
+    await sleep(300);
+    const next = await ev<{ name: string; at: number } | null>(guest, `(() => { const s = window.__range.hud.last?.spectating ?? null; return s ? { name: s.name, at: s.at ?? 1 } : null; })()`);
+    check("out of a battle royale: a click moves you along the list of who is left", !!next && !!spec && next.name !== spec.name, JSON.stringify({ was: spec?.name, now: next?.name }));
+    await ev(guest, "(() => { window.__range.input.locked = false; })()");
+  }
   // the bots go: one side is left, the host's
   await ev(host, `(() => { const d = window.__range.duel(); for (const b of d.bots) if (b.bot.alive) d.onHitOther(b.bot.remote.id, 999, true, d.id); })()`);
   const ends = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel()?.phase === "matchEnd"`, { polling: 100, timeout: 8000 }).then(() => true, () => false)));

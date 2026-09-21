@@ -2028,9 +2028,14 @@ export class BotMatch implements MatchLike {
     return b ? { shield: b.dummy.shield, health: b.dummy.health } : null;
   }
 
-  /** against bots there is nobody to watch: the round ends when you go down */
+  /** down against bots: the bots still standing are what there is to watch */
   spectateTarget(): Dummy | null {
-    return null;
+    return this.spectateList()[0]?.figure ?? null;
+  }
+
+  spectateList(): Array<{ figure: Dummy; name: string; friend: boolean }> {
+    if (this.alive || this.phase !== "fight") return [];
+    return this.bots.filter((b) => b.alive).map((b) => ({ figure: b.dummy, name: b.remote.name || "BOT", friend: false }));
   }
 
   leave(): void {

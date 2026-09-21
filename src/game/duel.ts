@@ -271,6 +271,12 @@ export interface MatchLike {
   streak: number;
   /** knocked with others still standing: a figure to watch, or null */
   spectateTarget(): Dummy | null;
+  /**
+   * Out, with others still standing: everyone worth watching, friends first.
+   * The page keeps its place in this list, so you stay with whoever you chose
+   * until they are out rather than being handed somebody new every frame.
+   */
+  spectateList(): Array<{ figure: Dummy; name: string; friend: boolean }>;
   /** JOLT and TRIAGE are on in this match (the host's setting) */
   readonly abilities: boolean;
   /** this player's id in the match (the recap's "you") */
@@ -2050,9 +2056,23 @@ export class Duel implements MatchLike {
 
   /** knocked in a 1v1v1 with two still up: watch one of them until the round ends */
   spectateTarget(): Dummy | null {
-    if (this.alive || this.phase !== "fight") return null;
-    for (const r of this.remotes.values()) if (r.alive && r.samples.length) return r.avatar;
-    return null;
+    return this.spectateList()[0]?.figure ?? null;
+  }
+
+  /**
+   * Everyone still standing that you could watch, friends first and then the
+   * rest, each with a name for the HUD to say. A match with bots adds them in
+   * its own override, because who is worth watching is the match's business.
+   */
+  spectateList(): Array<{ figure: Dummy; name: string; friend: boolean }> {
+    if (this.alive || this.phase !== "fight") return [];
+    const out: Array<{ figure: Dummy; name: string; friend: boolean }> = [];
+    for (const r of this.remotes.values()) {
+      if (!r.alive || !r.samples.length) continue;
+      out.push({ figure: r.avatar, name: this.nameOf(r.id) ?? `PLAYER ${r.id + 1}`, friend: this.isFriend(r.id) });
+    }
+    out.sort((a, b) => Number(b.friend) - Number(a.friend));
+    return out;
   }
 
   protected finish(reason: string): void {
