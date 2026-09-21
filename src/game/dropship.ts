@@ -16,6 +16,7 @@
 //
 // The numbers are in src/config/squad.json `ship`.
 import * as THREE from "three";
+import { loft } from "./hull";
 import squadCfg from "../config/squad.json";
 import { seeded } from "./loot";
 import { RANGE_SOLIDS } from "./range";
@@ -230,50 +231,132 @@ export class ShipRun {
 export function buildShip(): { group: THREE.Group; setDoors(open: boolean): void } {
   const g = new THREE.Group();
   g.name = "dropship";
-  const hull = new THREE.MeshStandardMaterial({ color: 0x4a525c, roughness: 0.55, metalness: 0.35 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x2a2f36, roughness: 0.7, metalness: 0.3 });
+  const hull = new THREE.MeshStandardMaterial({ color: 0x555d68, roughness: 0.52, metalness: 0.45 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x272c33, roughness: 0.72, metalness: 0.35 });
   const accent = new THREE.MeshStandardMaterial({ color: 0xff7a1a, roughness: 0.5 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0x1d3446, emissive: 0x2a6f9a, emissiveIntensity: 0.6, roughness: 0.2 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x1d3446, emissive: 0x2a6f9a, emissiveIntensity: 0.6, roughness: 0.15, metalness: 0.4 });
   const glow = new THREE.MeshStandardMaterial({ color: 0xffb060, emissive: 0xffa040, emissiveIntensity: 2.2 });
-  const box = (w: number, h: number, d: number, x: number, y: number, z: number, m: THREE.Material): THREE.Mesh => {
+  const bay = new THREE.MeshStandardMaterial({ color: 0x3a4149, roughness: 0.85, metalness: 0.1, side: THREE.DoubleSide });
+  const bayLight = new THREE.MeshStandardMaterial({ color: 0xbfe6ff, emissive: 0x7fd4ff, emissiveIntensity: 1.6 });
+  const box = (w: number, h: number, d: number, x: number, y: number, z: number, m: THREE.Material, into: THREE.Object3D = g): THREE.Mesh => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
     mesh.position.set(x, y, z);
-    g.add(mesh);
+    into.add(mesh);
     return mesh;
   };
-  // the hull, closed on every side: the riders are in it
-  box(4.4, 3.8, 26, 0, 0, 0, hull);
-  box(3.2, 2.8, 5, 0, -0.3, -15.5, hull);
-  box(2.4, 0.9, 2.6, 0, 0.9, -15.4, glass);
-  box(4.5, 0.5, 20, 0, 0.7, -1, accent);
-  // wings and the four engines under them, glowing at the back
-  box(34, 0.45, 6, 0, 0.4, -1, dark);
-  for (const x of [-13, -7.5, 7.5, 13]) {
-    const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 4.2, 12), hull);
-    pod.rotation.x = Math.PI / 2;
-    pod.position.set(x, -0.5, -1.5);
-    g.add(pod);
-    const fire = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.2, 12), glow);
-    fire.rotation.x = Math.PI / 2;
-    fire.position.set(x, -0.5, 0.7);
-    g.add(fire);
+
+  // The hull, as a shape rather than a box (src/game/hull.ts): a sharp nose,
+  // the section deepest over the bay, drawn back in at the tail. The nose is
+  // at -z, the ramp at +z, and every station is closed, because a rider sits
+  // inside this and then falls out of the back of it.
+  const body = new THREE.Mesh(
+    loft(
+      [
+        { z: -18, w: 0.35, h: 0.3, y: -0.35, round: 0.95 },
+        { z: -15.5, w: 1.5, h: 1.25, y: -0.35, round: 0.85 },
+        { z: -12, w: 2.2, h: 1.75, y: -0.2, round: 0.7 },
+        { z: -6, w: 2.45, h: 1.95, y: 0, round: 0.5 },
+        { z: 4, w: 2.45, h: 1.95, y: 0, round: 0.45 },
+        { z: 10, w: 2.15, h: 1.8, y: 0.1, round: 0.5 },
+        { z: 13.4, w: 1.9, h: 1.7, y: 0.15, round: 0.55 },
+      ],
+      12
+    ),
+    hull
+  );
+  body.castShadow = true;
+  g.add(body);
+
+  // the canopy: two flats over the nose, dark from outside and lit from within
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.85, 3.4), glass);
+  canopy.position.set(0, 0.95, -12.6);
+  canopy.rotation.x = -0.22;
+  g.add(canopy);
+  box(1.05, 0.5, 1.6, 0, 1.25, -14.6, glass);
+
+  // panel lines and a spine, which is most of what says "built" rather than
+  // "extruded" on a hull this size
+  box(4.5, 0.12, 24, 0, 1.75, -1, dark);
+  box(0.5, 0.35, 21, 0, 2.05, 0, dark);
+  for (const side of [-1, 1]) {
+    box(0.14, 1.9, 19, side * 2.42, 0, -1, dark);
+    box(0.2, 0.5, 2.4, side * 2.4, 0.5, -9.5, accent);
   }
-  // the tail: a fin and the tailplane
-  box(0.5, 5.5, 4.5, 0, 3.4, 11.5, dark);
-  box(0.6, 1.2, 3, 0, 6.2, 11.8, accent);
-  box(12, 0.35, 3.2, 0, 1.2, 12, dark);
+  box(4.6, 0.4, 0.5, 0, 0.6, 6.2, accent);
+
+  // the bay: a floor, benches down each side and a strip light, seen the whole
+  // way down because the ramp is open from the moment the doors are
+  const inner = new THREE.Group();
+  g.add(inner);
+  box(3.6, 0.18, 16, 0, -1.55, 4, bay, inner);
+  for (const side of [-1, 1]) {
+    box(0.7, 0.16, 12, side * 1.5, -0.95, 4, bay, inner);
+    box(0.16, 0.9, 12, side * 1.85, -1.1, 4, bay, inner);
+  }
+  box(2.6, 0.1, 15, 0, 1.55, 4, bayLight, inner);
+
+  // wings, swept back, on pylons, with a nacelle under each
+  for (const side of [-1, 1]) {
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(11, 0.42, 5.2), hull);
+    wing.position.set(side * 7.6, 0.55, 0.5);
+    wing.rotation.y = side * 0.16;
+    wing.castShadow = true;
+    g.add(wing);
+    box(2.6, 0.24, 3.4, side * 12.4, 0.45, 1.6, dark);
+    for (const x of [4.6, 9.8]) {
+      const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.8, 5, 12), hull);
+      pod.rotation.x = Math.PI / 2;
+      pod.position.set(side * x, -0.25, -0.6);
+      pod.castShadow = true;
+      g.add(pod);
+      // the intake ring at the front and the fire at the back
+      const lip = new THREE.Mesh(new THREE.TorusGeometry(0.92, 0.12, 6, 14), dark);
+      lip.position.set(side * x, -0.25, -3.1);
+      g.add(lip);
+      const fire = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.5, 0.5, 12), glow);
+      fire.rotation.x = Math.PI / 2;
+      fire.position.set(side * x, -0.25, 2.1);
+      g.add(fire);
+    }
+    // wingtip navigation light: red to port, green to starboard, as an
+    // aircraft carries them, so which way it is going is readable at night
+    const nav = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshStandardMaterial({ color: side < 0 ? 0xff2020 : 0x20ff40, emissive: side < 0 ? 0xff2020 : 0x20ff40, emissiveIntensity: 2.4 }));
+    nav.position.set(side * 13.5, 0.5, 3.4);
+    g.add(nav);
+  }
+
+  // twin canted tail fins and the tailplane between them
+  for (const side of [-1, 1]) {
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.35, 4.4, 3.6), hull);
+    fin.position.set(side * 1.7, 3.2, 11.2);
+    fin.rotation.z = side * 0.28;
+    fin.castShadow = true;
+    g.add(fin);
+    box(0.45, 0.9, 1.6, side * 2.35, 5.1, 11.6, accent);
+  }
+  box(7.5, 0.3, 2.8, 0, 1.5, 12, dark);
+
   // the ramp, down at the back once the doors open
-  const ramp = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.3, 4), dark);
+  const ramp = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.28, 4.2), dark);
   const hinge = new THREE.Group();
-  hinge.position.set(0, -1.8, 13);
-  ramp.position.set(0, 0, 2);
+  hinge.position.set(0, -1.62, 13.3);
+  ramp.position.set(0, 0, 2.1);
   hinge.add(ramp);
   g.add(hinge);
+  // the door over it, which lifts as the ramp comes down
+  const door = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.6, 0.22), hull);
+  const doorHinge = new THREE.Group();
+  doorHinge.position.set(0, 1.5, 13.3);
+  door.position.set(0, -1.3, 0);
+  doorHinge.add(door);
+  g.add(doorHinge);
+
   // the jump light over the ramp
   const lightMat = new THREE.MeshStandardMaterial({ color: 0xff3030, emissive: 0xff2020, emissiveIntensity: 2.5 });
-  box(1.2, 0.5, 0.5, 0, 1.6, 13.1, lightMat);
+  box(1.2, 0.4, 0.4, 0, 1.75, 13.5, lightMat);
   const setDoors = (open: boolean): void => {
-    hinge.rotation.x = open ? -0.45 : 0;
+    hinge.rotation.x = open ? -0.5 : 0;
+    doorHinge.rotation.x = open ? 1.5 : 0;
     const c = open ? 0x30ff60 : 0xff3030;
     lightMat.color.setHex(c);
     lightMat.emissive.setHex(c);

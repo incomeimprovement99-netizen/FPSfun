@@ -2418,3 +2418,23 @@ pack, and a smooth body in grey has no silhouette but its own.
   bone and the robot, whose parts are baked in the figure's own space, moves it to where that bone would be.
 - The colours come from the operator's own: the webbing its darkest, the plates a step off its shell, and the
   trim its accent, so two operators in the same kit are still told apart across a street.
+
+## Milestone 147 — The dropship, as a shape ✅
+
+"Make the ship actually look better." It was fifteen boxes, the biggest of them a slab 4.4 by 3.8 by 26
+metres, and from the ground it read as a crate with a light on it.
+
+- **A lofted hull** (`src/game/hull.ts`): a run of seven cross-sections with the skin stretched over them,
+  a point at the nose, the section deepest over the bay, drawn back in at the tail. Each station slides
+  between the rectangle it would be and the ellipse inside it, which is how a fuselage gets a flat floor,
+  flat flanks and a rounded spine out of one kind of geometry. 168 triangles for the whole fuselage.
+- **The bay you ride in**: a floor, a bench down each side and a strip light, seen the whole way down the
+  ship because the ramp is open from the moment the doors are, with a door that lifts as the ramp drops.
+- **Four nacelles on two swept wings**, each with an intake ring at the front and its fire at the back;
+  twin canted tail fins; panel lines and a spine along the hull; and navigation lights, red to port and
+  green to starboard, as an aircraft carries them, so which way it is going reads at any hour.
+- Checks: `tools/checks/hull.ts` (15: a hull is closed, every triangle faces outwards, the rounding is what
+  it says at both ends and halfway between, the nose is a point rather than a wall, the section grows to the
+  bay and draws back in, and the whole fuselage stays under 250 triangles). The three of those that matter
+  are invisible in a screenshot until the frame where they are not: a hole in the hull is a hole you see the
+  ship's inside through, and this is a ship you sit inside and then fall out of the back of.
