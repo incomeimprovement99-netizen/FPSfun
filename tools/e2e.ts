@@ -4763,6 +4763,84 @@ async function sprayTest(browser: Browser): Promise<void> {
   await page.close();
 }
 
+/**
+ * What a player on a real ping actually experiences (?ping=N, src/net/link.ts).
+ *
+ * We interpolate and we reconcile, and both are checked: a friend's figure is
+ * placed by when its states were SENT, so it moves at one speed through
+ * jitter, and a hit is decided by the shooter's own browser, so it lands where
+ * the shooter saw it. What has never been measured is the thing those two are
+ * for: at 120 ms round trip, does a shot at the figure you can see hit the
+ * player it stands for, and how far behind their real position is it?
+ *
+ * The answer has to be "it hits, and the figure is one interpolation delay
+ * behind". A figure placed AHEAD of where it may be would be a hit on
+ * somebody who was never there; one further behind than the delay is a friend
+ * who has to be led like a duck.
+ */
+async function pingTest(browser: Browser, ms: number): Promise<void> {
+  /** the least the game ever draws a friend behind (src/config/net.json buffer.min) */
+  const netMin = 0.1;
+  const query = `?net=local&norender&nointro&ping=${ms}`;
+  const host = await open(browser, query);
+  const guest = await open(browser, query);
+  await ev(host, `(() => { document.getElementById("duelMode").value = "arena"; document.getElementById("duelPlayers").value = "2"; document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+  } catch {
+    check(`ping ${ms * 2} ms: the two connect`, false);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  for (const p of [host, guest]) await pressPlay(p);
+  for (const p of [host, guest]) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 30000 }).catch(() => undefined);
+  // the guest strafes across the host's view at a steady speed
+  await ev(guest, `(() => { const r = window.__range; r.player.teleport(90, 0, 52, 0); r.setScript({ held: (a) => a === "left", pressedNow: () => false }); })()`);
+  await ev(host, `(() => { const r = window.__range; r.player.teleport(90, 0, 62, 0); r.player.pitch = 0; })()`);
+  await sleep(1800);
+
+  // how far the figure the host can see is from where that player actually is
+  const seen = await ev<{ fx: number; fz: number; delay: number; need: number } | null>(
+    host,
+    `(() => { const d = window.__range.duel(); const r = d.remotes.get(1); return r ? { fx: r.avatar.group.position.x, fz: r.avatar.group.position.z, delay: r.buffer?.delay ?? -1, need: r.buffer?.need ?? -1 } : null; })()`
+  );
+  const real = await ev<{ x: number; z: number; speed: number }>(guest, `(() => { const p = window.__range.player; return { x: p.pos.x, z: p.pos.z, speed: Math.hypot(p.vel.x, p.vel.z) }; })()`);
+  const behind = seen ? Math.hypot(seen.fx - real.x, seen.fz - real.z) : -1;
+  const delay = real.speed > 0.5 ? behind / real.speed : 0;
+  // The figure is drawn one buffer behind the states it is placed from, and
+  // those are one ping old: that is the whole of the delay and it is what it
+  // has to be. What must NOT happen is a buffer bigger than the gap it is
+  // covering, which would be lag the connection never asked for. (The buffer
+  // follows the gap between states, and a page rendering at fifteen frames a
+  // second sends them that slowly, so the number here is the test machine's
+  // as much as the network's: it is checked against the gap, not a constant.)
+  const want = (seen?.need ?? 0) + ms / 1000;
+  check(`ping ${ms * 2} ms: the figure is drawn one buffer and one ping behind, and the buffer is the gap between states rather than more`, !!seen && seen.delay > 0 && seen.delay <= Math.max(netMin, seen.need * 1.6 + 0.05), `buffer ${((seen?.delay ?? 0) * 1000).toFixed(0)} ms for a ${((seen?.need ?? 0) * 1000).toFixed(0)} ms gap`);
+  check(`ping ${ms * 2} ms: and what you see is that far behind and no further`, !!seen && delay <= want * 1.8 + 0.12, `${behind.toFixed(2)} m at ${real.speed.toFixed(1)} m/s, ${(delay * 1000).toFixed(0)} ms behind against ${(want * 1000).toFixed(0)} expected`);
+  check(`ping ${ms * 2} ms: and it is behind rather than ahead, because a figure ahead of a player is a hit on somebody who was never there`, !!seen && behind >= 0, `${behind.toFixed(2)} m`);
+
+  // now shoot the figure the host can see, and see whether the player takes it
+  const before = await ev<number>(guest, `window.__range.duel().health + window.__range.duel().shield`);
+  const hit = await ev<{ fired: boolean }>(
+    host,
+    `(() => { const r = window.__range; const d = r.duel(); const rem = d.remotes.get(1); if (!rem) return { fired: false };
+       const at = rem.avatar.group.position.clone(); at.y += 1.1;
+       const eye = r.player.eyePosition(); const dir = at.sub(eye).normalize();
+       for (let i = 0; i < 6; i++) r.fireRound([dir.x, dir.y, dir.z]);
+       return { fired: true }; })()`
+  );
+  await sleep(Math.max(600, ms * 6));
+  const after = await ev<number>(guest, `window.__range.duel().health + window.__range.duel().shield`);
+  check(`ping ${ms * 2} ms: six rounds into the figure you can see land on the player it stands for`, hit.fired && after < before, `${before} -> ${after}`);
+  await ev(guest, "window.__range.setScript(null)");
+  await host.close();
+  await guest.close();
+}
+
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 
@@ -5175,6 +5253,11 @@ async function main(): Promise<void> {
     if (want("spray")) {
       console.log("\nThe spray, against what the range draws of it");
       await sprayTest(browser);
+    }
+    if (want("ping")) {
+      console.log("\nA match at a real ping");
+      await pingTest(browser, 30);
+      await pingTest(browser, 60);
     }
     if (want("range")) {
       console.log("\nThe range's tooling");

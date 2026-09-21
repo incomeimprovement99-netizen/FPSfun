@@ -445,6 +445,15 @@ interface Envelope {
  * message's followers back behind it, which is what bunches arrivals).
  */
 const JITTER_MS = Number(new URLSearchParams(typeof location === "undefined" ? "" : location.search).get("jitter")) || 0;
+/**
+ * ?ping=N: a fixed one-way delay on every message, in milliseconds, so a test
+ * can play a match at a real ping rather than at none. Jitter is the spread
+ * around a ping; this is the ping itself, and the two add up. A player on the
+ * other side of a country is 30 to 60 ms one way, one on the other side of an
+ * ocean 80 to 120: what the game does at those numbers is the whole question
+ * of whether a hit lands where it was seen.
+ */
+const PING_MS = Math.max(0, Number(new URLSearchParams(typeof location === "undefined" ? "" : location.search).get("ping")) || 0);
 /** ?loss=P: the local transport's unordered channel drops P of its messages and delivers the rest out of order (net.json fast) */
 const LOSS = Math.max(0, Math.min(0.9, Number(new URLSearchParams(typeof location === "undefined" ? "" : location.search).get("loss")) || 0));
 
@@ -486,12 +495,12 @@ class LocalLink implements Link {
   send(m: NetMsg): void {
     if (this.closed) return;
     const env = { from: this.me, to: this.peer, m } satisfies Envelope;
-    if (!JITTER_MS) {
+    if (!JITTER_MS && !PING_MS) {
       this.ch.postMessage(env);
       return;
     }
     const now = performance.now();
-    const at = Math.max(this.lastOut, now + Math.random() * JITTER_MS);
+    const at = Math.max(this.lastOut, now + PING_MS + Math.random() * JITTER_MS);
     this.lastOut = at;
     setTimeout(() => {
       if (!this.closed) this.ch.postMessage(env);

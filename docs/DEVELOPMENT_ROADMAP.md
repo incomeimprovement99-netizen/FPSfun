@@ -2463,3 +2463,20 @@ lying to whoever is standing at the mark trying to learn the gun. They disagreed
   the mouse still, and every round has to land along the drawn path and inside the drawn band. It also
   needed one small opening: the trigger now reads a scripted input the way the crouch, the interact and the
   movement already did, so a magazine can be asked for without a fake gamepad.
+## Milestone 149 — What a player on a real ping actually experiences ✅
+
+The gap analysis put it plainly: "we interpolate and reconcile, but nothing measures what a 120 ms player
+experiences against". Both halves were built and both were checked in isolation; the thing they are *for*
+had never been measured.
+
+- **`?ping=N`** (`src/net/link.ts`): a fixed one-way delay on the test transport. Jitter is the spread
+  around a ping; this is the ping itself, and the two add up. A player across a country is 30 to 60 ms one
+  way, one across an ocean 80 to 120.
+- **Measured at 60 ms and 120 ms round trip**, with one player strafing across the other's view: six rounds
+  into the figure you can see land on the player it stands for, every time. That is what "the shooter's own
+  browser decides the hit" buys, and it is now a number rather than a claim.
+- **The figure is behind, never ahead.** A figure drawn ahead of where a player may be is a hit on somebody
+  who was never there; the check fails if it ever leads.
+- **And the buffer is the gap between states rather than more**: it is checked against the gap it is
+  covering, not against a constant, because a test page rendering at fifteen frames a second sends states
+  that slowly and the delay it needs is the machine's as much as the network's.
