@@ -66,6 +66,37 @@ fix is Settings, General, Danger Zone, **Change visibility** to public. The
 public branch only holds the built site; the source stays wherever you keep
 it (see section 7 if you want the source private too).
 
+### When Pages emails you that a build failed
+
+**Pushing is not publishing.** `npm run deploy` pushes the built site to the
+`gh-pages` branch; GitHub then builds that branch itself, and that build can
+fail on its own. When it does, Pages keeps serving the **last build that
+worked** and emails you, so from this end the push looks fine and the site is
+quietly a version behind.
+
+`npm run deploy` now checks. It reads the entry script's own hash out of the
+build it just pushed, asks the live site for that exact file, and waits up to
+five minutes. It ends with either
+
+    == LIVE: <site> is serving this build (assets/index-XXXX.js)
+
+or
+
+    == NOT LIVE: <site> is still serving an older build after five minutes.
+
+**If it says NOT LIVE**, nothing is lost and nothing is broken: the branch has
+the right build and the game server (`npm run fps deploy`) is a separate thing
+that is unaffected. What to do, in order:
+
+1. **Wait and run `npm run deploy` again.** Pages builds ten times an hour at
+   most, and a day of shipping reaches that. Deploying Pages once per session
+   rather than once per change avoids it.
+2. **Look at the reason.** Only the repo's owner can see it: Settings, Pages,
+   where a failed build is shown with its error. That message names the cause;
+   nothing else here can.
+3. The game server is the one people play on, and it is deployed separately. A
+   stuck Pages build never stops a release, it only delays the mirror.
+
 ## 4. Play a 1v1 with a friend
 
 1. Both of you on **Chrome or Edge on a PC** (Firefox works without raw
