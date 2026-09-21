@@ -81,6 +81,22 @@ console.log("The recorded layer under the guns");
 }
 
 
+console.log("");
+console.log("The lean in the air");
+{
+  // The slide leans and the landing rolls; between them the view used to sit
+  // flat, so a jump out of a slide dropped the lean as it left the ground and
+  // picked it up again when it came down. The air is the middle of every
+  // chain in this game, and it was the one part that did not move.
+  const f = playerCfg.feel as unknown as Record<string, number>;
+  check("the air has a lean of its own", typeof f.airRoll === "number" && f.airRoll > 0, `${f.airRoll} degrees at full steer`);
+  check("and it is smaller than the slide's, because in the air you steer rather than carve", f.airRoll < f.slideRoll, `${f.airRoll} against ${f.slideRoll}`);
+  check("it arrives faster than it leaves, as every lean in this file does", f.airIn < f.airOut, `${f.airIn} s in, ${f.airOut} s out`);
+  check("and both are quick enough to belong to the jump they are part of", f.airIn < 0.3 && f.airOut < 0.4, `${f.airIn} / ${f.airOut} s`);
+  check("the whole of a chain's roll stays inside what a view can take", f.slideRoll + f.airRoll + f.landRoll < 14, `${(f.slideRoll + f.airRoll + f.landRoll).toFixed(1)} degrees if every one of them peaked at once`);
+}
+
+
 console.log(fails === 0 ? "\nFEEL PASS" : `\nFEEL FAIL (${fails})`);
 export const feelFails = fails;
 if (process.argv[1]?.endsWith("feel.ts")) process.exit(fails === 0 ? 0 : 1);

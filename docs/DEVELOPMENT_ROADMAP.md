@@ -2538,3 +2538,22 @@ Seven things, in one message, after playing the build.
   In short, a **double jump** and a **wall run** now exist and are **off** unless the lobby's Movement box
   asks for them, because everything else in this game's movement is measured against Apex and these two are
   ours.
+
+## Milestone 153 — The lean in the air ✅
+
+The first of the five movement items written up in the day's update, done the same day.
+
+A slide leans the camera into the way it carries you and a landing rolls it by the speed it came down with.
+Between them the view sat flat: a jump out of a slide dropped the lean the moment it left the ground and
+picked it up again when it came down, which made the middle of every chain the one part that did not move
+with the body.
+
+- **The air has a lean of its own** (`src/config/player.json` `feel.airRoll`): 2.4 degrees at full steer,
+  in over 0.16 s and out over 0.22. It follows the **wish** rather than the velocity, because in the air you
+  are steering and not being carried, and it is smaller than the slide's for the same reason.
+- It reads the input the movement itself reads, which is also what let it be measured: a scripted jump and
+  strafe in a real page leans to 0.68 of full at the diagonal and returns to nothing on the ground.
+- Checks: five more in `tools/checks/feel.ts` (the air has a lean, it is smaller than the slide's, it
+  arrives faster than it leaves, both are quick enough to belong to the jump they are part of, and the whole
+  of a chain's roll stays inside what a view can take: 11.1 degrees if slide, air and landing all peaked at
+  once).

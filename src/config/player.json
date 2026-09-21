@@ -32,6 +32,10 @@
     "lurchTime": 0.18,
     "boostPitch": 1.4,
     "boostFov": 0.025,
-    "boostEase": 0.25
+    "boostEase": 0.25,
+    "_airRoll": "The lean while you are in the air and strafing, degrees at full sideways speed. The slide leans and the landing rolls, and between them the air was still: a jump out of a slide dropped the lean the moment it left the ground and the view sat flat until it came down, which is the one part of a chain that did not move with the body. `airIn` and `airOut` are how fast it arrives and leaves, seconds. It is smaller than the slide's, because in the air you are steering and not carving.",
+    "airRoll": 2.4,
+    "airIn": 0.16,
+    "airOut": 0.22
   }
 }

@@ -1063,6 +1063,8 @@ let orbiting = false;
 let debugOrbitHold = false;
 /** the slide's lean and the paint boost's pull, eased frame to frame (src/config/player.json `feel`) */
 let slideLean = 0;
+/** the lean while steering in the air (player.json feel.airRoll) */
+let airLean = 0;
 let boostFeel = 0;
 /** which way a slide is carrying you, to the right of where you are looking, -1 to 1 */
 function slideLeanSide(): number {
@@ -5393,6 +5395,19 @@ function step(): void {
     const ease = Math.min(1, dt / (Math.abs(want) > Math.abs(slideLean) ? f.slideIn : f.slideOut));
     slideLean += (want - slideLean) * ease;
     let roll = slideLean * f.slideRoll;
+    // The air, which was the one part of a chain that did not move with the
+    // body: a jump out of a slide dropped the lean as it left the ground and
+    // the view sat flat until it landed. In the air you lean into the way you
+    // are steering rather than the way you are carried, so this follows the
+    // wish and not the velocity, and it is smaller than the slide's.
+    // the same input the movement itself reads, so what the camera leans
+    // into is what the body is doing (a test drives the game through it too)
+    const wish = !player.onGround && !player.climbing ? player.moveDir(scriptInput ?? input) : null;
+    const yawR = player.yaw * DEG;
+    const airWant = wish ? Math.max(-1, Math.min(1, wish.x * -Math.cos(yawR) - wish.z * -Math.sin(yawR))) : 0;
+    const airEase = Math.min(1, dt / (Math.abs(airWant) > Math.abs(airLean) ? f.airIn : f.airOut));
+    airLean += (airWant - airLean) * airEase;
+    roll += airLean * f.airRoll;
     // a running landing rolls the view, by the sideways speed it came down with
     const sinceLand = gameTime - player.landAt;
     if (sinceLand >= 0 && sinceLand < f.landTime) {
@@ -6438,7 +6453,7 @@ initWelcome();
   setJolt,
   /** the viewmodel's inspect and first draw (tools/e2e.ts) */
   /** how the camera is moving with the body (tools/e2e.ts): the slide's lean, the boost's pull, and the angles the shot uses */
-  feelState: () => ({ lean: slideLean, boost: boostFeel, yaw: player.yaw, pitch: player.pitch, landSide: player.landSide, lurchSide: player.lurchSide }),
+  feelState: () => ({ lean: slideLean, air: airLean, boost: boostFeel, yaw: player.yaw, pitch: player.pitch, landSide: player.landSide, lurchSide: player.lurchSide }),
   /** a JOLT's view: the roll in degrees and the FOV fraction now (tools/e2e.ts) */
   joltFeel: () => ({ roll: joltRoll(gameTime), fov: joltFov }),
   vmState: () => ({ inspecting: gameTime - inspectAt < INSPECT_TIME, flourish: gameTime - flourishAt < FLOURISH_TIME, ...viewModel.shown }),
