@@ -430,6 +430,11 @@ export const SCENARIOS: Scenario[] = [
     steps: [[`(() => { document.querySelector('[data-tab="loadouts"]').click(); document.getElementById("copyLoadout")?.click(); })()`, 700]],
   },
   {
+    name: "ability-numbers",
+    note: "the lobby's ability numbers: every kit's dashes, ranges and cooldowns, set where the match is made",
+    steps: [[`(() => { document.querySelector('[data-tab="play"]').click(); document.getElementById("goBots").click(); for (const d of document.querySelectorAll(".tune")) d.open = true; document.querySelector('[data-group="abilities"] .tune')?.scrollIntoView(); })()`, 700]],
+  },
+  {
     name: "gear-lineup",
     note: "the five operators in their kit, close and from the front: the vest, the pack, the helmet, the shades, the gas mask, the hood",
     steps: [

@@ -68,7 +68,7 @@ import { friendsModeFor } from "./ui/lobby";
 import { calloutAt, calloutLine } from "./game/callouts";
 import type { ImpactEvent } from "./game/projectile";
 import { INSPECT_TIME, FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
-import { Abilities, ABILITIES, JOLT, JOLT_DEFAULTS, KITS, kitOf, setJolt, type AbilityId } from "./game/abilities";
+import { Abilities, ABILITIES, ABILITY_IDS, ABILITY_KNOBS, JOLT, JOLT_DEFAULTS, KITS, kitOf, setJolt, tuneAbilities, tuningChanges, type AbilityId } from "./game/abilities";
 import { currentBinds, type Action } from "./game/input";
 import { bindName } from "./ui/binds";
 import { FxLayer } from "./game/fx";
@@ -1500,6 +1500,96 @@ for (const [key, el] of Object.entries(dashInputs)) {
     }
   });
 }
+
+/**
+ * The ability numbers, as the match that is being made will have them.
+ *
+ * This is the lobby's, not Settings': what a dash is worth is a property of
+ * the game being played, the way the gun class and the rounds to win are, so
+ * two friends setting up a 1v1 can agree six dashes and a short recharge where
+ * they pick the mode. The host's numbers go out in the welcome (MatchRules
+ * `abil`) and are everyone's; the bots read the same objects, so they play by
+ * them too. An older build has never heard of the field and plays its own.
+ *
+ * The four dash boxes in Settings write the same store, because they are the
+ * same four numbers and two places that disagree would be worse than either.
+ */
+const LS_TUNE = "range.abilityTune.v1";
+let myTuning: Record<string, Record<string, number>> = {};
+function saveTuning(): void {
+  try {
+    const changed = tuningChanges();
+    if (changed) localStorage.setItem(LS_TUNE, JSON.stringify(changed));
+    else localStorage.removeItem(LS_TUNE);
+  } catch {
+    /* ignore */
+  }
+  myTuning = tuningChanges() ?? {};
+}
+/** the panel, in the lobby's Abilities group and in the Friends row that makes a match */
+function showTuning(): void {
+  for (const grid of document.querySelectorAll<HTMLElement>(".tuneGrid")) {
+    grid.innerHTML = "";
+    for (const id of ABILITY_IDS) {
+      const box = document.createElement("div");
+      box.className = "tuneKit";
+      const name = document.createElement("b");
+      name.textContent = kitOf(id).kit;
+      box.appendChild(name);
+      for (const k of ABILITY_KNOBS[id]) {
+        const row = document.createElement("label");
+        row.className = "tuneKnob";
+        const label = document.createElement("span");
+        label.textContent = k.label;
+        const input = document.createElement("input");
+        input.type = "number";
+        input.min = String(k.min);
+        input.max = String(k.max);
+        input.step = String(k.step);
+        input.value = String(k.read());
+        input.dataset.ability = id;
+        input.dataset.knob = k.id;
+        input.addEventListener("change", () => {
+          k.write(Number(input.value));
+          // a charge count only takes effect on the next fill
+          abilities.fill();
+          saveTuning();
+          showTuning();
+          showDash();
+        });
+        row.append(label, input);
+        if (k.unit) {
+          const unit = document.createElement("span");
+          unit.textContent = k.unit;
+          row.appendChild(unit);
+        }
+        box.appendChild(row);
+      }
+      grid.appendChild(box);
+    }
+  }
+}
+for (const b of document.querySelectorAll<HTMLButtonElement>(".tuneReset")) {
+  b.addEventListener("click", () => {
+    tuneAbilities({});
+    abilities.fill();
+    saveTuning();
+    showTuning();
+    showDash();
+  });
+}
+try {
+  const raw = localStorage.getItem(LS_TUNE);
+  // the dash's own four moved in here; a page that only has the old store keeps them
+  const old = localStorage.getItem(LS_DASH);
+  const start = raw ? (JSON.parse(raw) as Record<string, Record<string, number>>) : old ? { jolt: JSON.parse(old) as Record<string, number> } : {};
+  tuneAbilities(start);
+} catch {
+  /* ignore */
+}
+myTuning = tuningChanges() ?? {};
+showTuning();
+showDash();
 
 // the killcam can be turned off (Settings); the recap still shows
 const killcamSel = $<HTMLSelectElement>("killcamMode");
@@ -3888,6 +3978,11 @@ function endMatch(reason: string): void {
   clearWalls();
   voiceStop();
   matchGuns = null;
+  // the host's ability numbers went with the match: back to this page's own
+  tuneAbilities(myTuning);
+  abilities.fill();
+  showTuning();
+  showDash();
   flushTally();
   // a match that ran to its end keeps the group: its links, handed back open (leaving closed them)
   if (duel instanceof Duel && duel.phase === "matchEnd" && !duel.left) {
@@ -3962,7 +4057,9 @@ function readHostSettings(): void {
   const mk = duelModeKind();
   // the custom rules (the Rules row), for everyone
   const guns = $<HTMLSelectElement>("ruleGuns").value;
-  const rules: MatchRules = { guns: guns in rulesCfg.classes ? guns : "any", rounds: Number($<HTMLSelectElement>("ruleRounds").value) || 3, ff: $<HTMLSelectElement>("ruleFF").value === "on" };
+  // and the ability numbers as the panel has them: only what is not the
+  // config's own, so a match that changed nothing carries nothing
+  const rules: MatchRules = { guns: guns in rulesCfg.classes ? guns : "any", rounds: Number($<HTMLSelectElement>("ruleRounds").value) || 3, ff: $<HTMLSelectElement>("ruleFF").value === "on", abil: tuningChanges() };
   // a class of guns arms the bots with its first, unless the Bot guns box already picked one
   const classGun = rules.guns !== "any" ? rulesCfg.classes[rules.guns as keyof typeof rulesCfg.classes].guns[0] : null;
   hostOpts = {
@@ -3978,6 +4075,14 @@ let matchGuns: keyof typeof rulesCfg.classes | null = null;
 /** a match's custom rules, as the host set them (this page's, or the welcome's): rounds, friendly fire, guns */
 function applyRules(d: Duel, r: MatchRules | undefined): void {
   matchGuns = null;
+  // The ability numbers: the host's, or this page's own when there is no host
+  // to say (a match on your own, or an older host that sends none). Always set
+  // from a whole tuning rather than laid over the last match's, so leaving a
+  // match with six dashes in it does not leave six dashes behind.
+  tuneAbilities(r?.abil ?? myTuning);
+  abilities.fill();
+  showTuning();
+  showDash();
   if (!r) return;
   if (typeof r.rounds === "number" && rulesCfg.rounds.includes(r.rounds)) d.roundsToWin = r.rounds;
   d.friendlyFire = r.ff === true;
@@ -6464,6 +6569,11 @@ initWelcome();
   aimbot,
   jolt: () => ({ ...JOLT }),
   setJolt,
+  /** every kit's live numbers, and the ones this match is playing by (tools/e2e.ts) */
+  kits: KITS,
+  tuning: () => tuningChanges(),
+  /** leave the match the way the button does (tools/e2e.ts) */
+  leaveMatch: () => duelLeaveBtn.click(),
   /** the viewmodel's inspect and first draw (tools/e2e.ts) */
   /** how the camera is moving with the body (tools/e2e.ts): the slide's lean, the boost's pull, and the angles the shot uses */
   feelState: () => ({ lean: slideLean, air: airLean, boost: boostFeel, yaw: player.yaw, pitch: player.pitch, landSide: player.landSide, lurchSide: player.lurchSide }),

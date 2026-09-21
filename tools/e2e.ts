@@ -1553,6 +1553,44 @@ async function rulesTest(browser: Browser, query: string): Promise<void> {
   check("rules: friendly fire on: the host's round hurts its team mate", ally && hurt, JSON.stringify({ ally, before, hurt }));
   await h2.close();
   await g2.close();
+
+  // The ability numbers the host set, on the guest's page (abilities.ts
+  // ABILITY_KNOBS, carried in the welcome as MatchRules.abil). Six dashes and
+  // a twelve-metre one is nothing like the game's own two and ten, so if the
+  // guest is playing by its own numbers this says so.
+  //
+  // Both pages are given their OWN numbers, and they differ: two tabs of one
+  // browser share a localStorage, so a guest opened with none would simply
+  // read the host's and prove nothing. The guest's own are three dashes of
+  // eight metres, which is what it has to be back on once the match is over.
+  const tune = (t: string) => `localStorage.setItem("range.abilityTune.v1", JSON.stringify(${t}))`;
+  const hostTuned = await open(browser, query, BASE, tune(`{ jolt: { charges: 6, distance: 12 }, smoke: { radius: 9 } }`));
+  const guestPlain = await open(browser, query, BASE, tune(`{ jolt: { charges: 3, distance: 8 } }`));
+  await ev(hostTuned, `(() => { ${set("duelMode", "arena")}; ${set("duelPlayers", "2")}; document.getElementById("duelHost").click(); })()`);
+  let tuned: { charges: number; distance: number; radius: number } | null = null;
+  let mine: { charges: number; distance: number } | null = null;
+  try {
+    await hostTuned.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(hostTuned, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guestPlain, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [hostTuned, guestPlain]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+    await sleep(600);
+    tuned = await ev(guestPlain, `(() => { const r = window.__range; return { charges: r.jolt().charges, distance: r.jolt().distance, radius: r.kits.smoke.radius }; })()`);
+    // and when the match is over, the guest has its own numbers back
+    await ev(guestPlain, `window.__range.leaveMatch()`);
+    await guestPlain.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 10000 });
+    mine = await ev(guestPlain, `(() => { const r = window.__range; return { charges: r.jolt().charges, distance: r.jolt().distance }; })()`);
+  } catch {
+    /* reported by the checks below */
+  }
+  check(
+    "rules: the host's ability numbers are the match's: the guest gets six dashes of twelve metres and a nine metre cloud",
+    !!tuned && tuned.charges === 6 && tuned.distance === 12 && tuned.radius === 9,
+    JSON.stringify(tuned)
+  );
+  check("rules: and leaving the match gives the guest its own numbers back, not the game's", !!mine && mine.charges === 3 && mine.distance === 8, JSON.stringify(mine));
+  await hostTuned.close();
+  await guestPlain.close();
 }
 
 /** a lobby bigger than three: everyone gets their own spawn, nobody stacks */

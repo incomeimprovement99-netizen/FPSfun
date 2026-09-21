@@ -250,6 +250,13 @@ export interface MatchRules {
   guns?: string;
   rounds?: number;
   ff?: boolean;
+  /**
+   * The ability numbers this match plays by (abilities.ts ABILITY_KNOBS),
+   * by ability and knob: { jolt: { charges: 6 }, smoke: { radius: 9 } }. Only
+   * what the host changed is sent, so most matches carry nothing. An older
+   * build has never heard of the field and plays its own numbers.
+   */
+  abil?: Record<string, Record<string, number>>;
 }
 
 /** what a guest needs to play the host's arena mode */

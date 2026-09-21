@@ -2740,3 +2740,31 @@ jank: the player who has it cannot see it, because they have never seen the othe
   sub-frame landing for the jump), which would move every measured number in the file for under a centimetre
   of gain. Speed is checked to 1 hu/s because speed compounds; position is checked to 4 cm because a player
   cannot feel it.
+
+## Milestone 162 — The ability numbers belong to the match ✅
+
+The owner: "ensure that the number of dashes is configurable and stuff like that for each of the abilities
+that we can choose from when we are creating a 1v1 for example (or ffa with a buddy and bots)". He is right
+about where it belongs. What a dash is worth is a property of the game being played, the way the gun class
+and the rounds to win already are, so it goes where the match is made rather than in a menu that belongs to
+one player's page.
+
+- **Nineteen numbers across the six kits** (`ABILITY_KNOBS` in `src/game/abilities.ts`): RUNNER's **dashes**,
+  how far a dash goes, how long one takes and how often one comes back; MEDIC's patch, its time and its
+  cooldown; SCOUT's pulse range, how long it shows them and its cooldown; HOOK's grapple range, pull speed
+  and cooldown; SMOKE's cloud radius, how long it lasts and its cooldown; WARD's wall width, life and
+  cooldown. Each knob says its own range, and a value is held to it.
+- **The dash goes to six charges**, up from a cap of four, because that is the one the owner named. The HUD
+  draws a pip each across the ability square and thins them to fit.
+- **It is in two places, one store**: the Friends row where a match with friends is made, and the lobby's
+  own Abilities panel for a match on your own. The four dash boxes in Settings write the same store, because
+  they are the same four numbers and two places that disagreed would be worse than either.
+- **The host's are everyone's.** They ride in the welcome as `MatchRules.abil`, and only what the host
+  changed is sent, so most matches carry nothing at all. A build that has never heard of the field plays its
+  own numbers rather than breaking. The bots read the same objects, so they play by them too.
+- **And they are the match's, not the page's**: leaving gives you your own numbers back. Checked with two
+  pages that each have their own: the host's six dashes of twelve metres and nine-metre cloud are what the
+  guest plays by, and its own three dashes of eight metres are what it has back when it leaves.
+- Checks: `tools/checks/kits.ts` (every knob moves, comes back, is held to its range, and a value that is
+  not a number at all falls back to the config's own), and the e2e `duel` section's rules test for the two
+  above. The look is `ability-numbers`.

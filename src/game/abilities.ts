@@ -96,12 +96,131 @@ export function setJolt(v: Partial<{ distance: number; duration: number; charges
   const clamp = (x: number, lo: number, hi: number, fallback: number): number => (Number.isFinite(x) ? Math.max(lo, Math.min(hi, x)) : fallback);
   if (v.distance !== undefined) JOLT.distance = clamp(v.distance, 2, 30, JOLT.distance);
   if (v.duration !== undefined) JOLT.duration = clamp(v.duration, 0.05, 0.6, JOLT.duration);
-  if (v.charges !== undefined) JOLT.charges = Math.round(clamp(v.charges, 1, 4, JOLT.charges));
+  // up to six, which is what the lobby's own knob offers; the HUD draws a pip
+  // each across the ability square and thins them to fit
+  if (v.charges !== undefined) JOLT.charges = Math.round(clamp(v.charges, 1, 6, JOLT.charges));
   if (v.recharge !== undefined) JOLT.recharge = clamp(v.recharge, 1, 30, JOLT.recharge);
   const each = JOLT.charges > 1 ? `, ${JOLT.charges} charges, one back every ${JOLT.recharge} s` : `, back every ${JOLT.recharge} s`;
   JOLT.blurb = `dash ${JOLT.distance} m the way you are moving${each}`;
   ABILITIES.jolt.blurb = JOLT.blurb;
 }
+/**
+ * One number a match can set on an ability.
+ *
+ * The lobby that makes the match sets these, not Settings: what a dash is
+ * worth is a property of the game being played, the way the gun class and the
+ * rounds to win are, and two friends setting up a 1v1 should be able to agree
+ * six dashes and a short recharge without either of them going into a menu
+ * that belongs to their page. The host's numbers travel in the welcome.
+ *
+ * `write` puts the value straight into the config object every reader holds,
+ * the way setJolt already did for the dash, so the player, the bots, the HUD
+ * and the card all change at once.
+ */
+export interface AbilityKnob {
+  id: string;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  /** what it is measured in, for the label after the box */
+  unit: string;
+  read(): number;
+  write(v: number): void;
+}
+
+const K = kits;
+const num = (v: unknown, lo: number, hi: number, step: number, fallback: number): number => {
+  const x = typeof v === "number" ? v : Number(v);
+  if (!Number.isFinite(x)) return fallback;
+  return Math.max(lo, Math.min(hi, Math.round(x / step) * step));
+};
+
+/** every number a match may set, per ability, and how far it may be set */
+export const ABILITY_KNOBS: Record<AbilityId, AbilityKnob[]> = {
+  jolt: [
+    { id: "charges", label: "Dashes", min: 1, max: 6, step: 1, unit: "", read: () => JOLT.charges, write: (v) => setJolt({ charges: v }) },
+    { id: "distance", label: "Dash goes", min: 2, max: 30, step: 0.5, unit: "m", read: () => JOLT.distance, write: (v) => setJolt({ distance: v }) },
+    { id: "recharge", label: "One back every", min: 1, max: 30, step: 0.5, unit: "s", read: () => JOLT.recharge, write: (v) => setJolt({ recharge: v }) },
+    { id: "duration", label: "Dash takes", min: 0.05, max: 0.6, step: 0.01, unit: "s", read: () => JOLT.duration, write: (v) => setJolt({ duration: v }) },
+  ],
+  triage: [
+    { id: "health", label: "Patch heals", min: 5, max: 100, step: 5, unit: "hp", read: () => K.medic.tactical.health, write: (v) => (K.medic.tactical.health = v) },
+    { id: "seconds", label: "Patch takes", min: 0.5, max: 10, step: 0.5, unit: "s", read: () => K.medic.tactical.seconds, write: (v) => (K.medic.tactical.seconds = v) },
+    { id: "cooldown", label: "Cooldown", min: 2, max: 60, step: 1, unit: "s", read: () => K.medic.tactical.cooldown, write: (v) => (K.medic.tactical.cooldown = v) },
+  ],
+  scout: [
+    { id: "range", label: "Pulse reaches", min: 10, max: 120, step: 5, unit: "m", read: () => K.scout.tactical.range, write: (v) => (K.scout.tactical.range = v) },
+    { id: "seconds", label: "Shows them for", min: 0.5, max: 10, step: 0.5, unit: "s", read: () => K.scout.tactical.seconds, write: (v) => (K.scout.tactical.seconds = v) },
+    { id: "cooldown", label: "Cooldown", min: 2, max: 60, step: 1, unit: "s", read: () => K.scout.tactical.cooldown, write: (v) => (K.scout.tactical.cooldown = v) },
+  ],
+  hook: [
+    { id: "range", label: "Grapple reaches", min: 10, max: 80, step: 5, unit: "m", read: () => K.hook.tactical.range, write: (v) => (K.hook.tactical.range = v) },
+    { id: "speed", label: "Pull speed", min: 8, max: 60, step: 1, unit: "m/s", read: () => K.hook.tactical.speed, write: (v) => (K.hook.tactical.speed = v) },
+    { id: "cooldown", label: "Cooldown", min: 2, max: 60, step: 1, unit: "s", read: () => K.hook.tactical.cooldown, write: (v) => (K.hook.tactical.cooldown = v) },
+  ],
+  smoke: [
+    { id: "radius", label: "Cloud radius", min: 2, max: 15, step: 0.5, unit: "m", read: () => K.smoke.radius, write: (v) => (K.smoke.radius = v) },
+    { id: "seconds", label: "Cloud lasts", min: 2, max: 60, step: 1, unit: "s", read: () => K.smoke.seconds, write: (v) => (K.smoke.seconds = v) },
+    { id: "cooldown", label: "Cooldown", min: 2, max: 60, step: 1, unit: "s", read: () => K.smoke.tactical.cooldown, write: (v) => (K.smoke.tactical.cooldown = v) },
+  ],
+  ward: [
+    { id: "width", label: "Wall width", min: 2, max: 12, step: 0.2, unit: "m", read: () => K.ward.width, write: (v) => (K.ward.width = v) },
+    { id: "seconds", label: "Wall lasts", min: 2, max: 60, step: 1, unit: "s", read: () => K.ward.tactical.seconds, write: (v) => (K.ward.tactical.seconds = v) },
+    { id: "cooldown", label: "Cooldown", min: 2, max: 60, step: 1, unit: "s", read: () => K.ward.tactical.cooldown, write: (v) => (K.ward.tactical.cooldown = v) },
+  ],
+};
+
+/** what every ability's numbers are right now */
+export function abilityTuning(): Record<string, Record<string, number>> {
+  const out: Record<string, Record<string, number>> = {};
+  for (const id of ABILITY_IDS) {
+    out[id] = {};
+    for (const k of ABILITY_KNOBS[id]) out[id][k.id] = k.read();
+  }
+  return out;
+}
+
+/**
+ * What the config ships, captured before anything can write over it, so "back
+ * to the defaults" is the file rather than whatever was loaded first. Named
+ * for what it is rather than "defaults", because main.ts already has an
+ * ABILITY_DEFAULTS and it means something else: whether abilities are on.
+ */
+export const ABILITY_SHIPPED: Record<string, Record<string, number>> = abilityTuning();
+
+/**
+ * Set every ability's numbers: the defaults, with `t` laid over the top. It
+ * always starts from the defaults, so a knob that is no longer named goes back
+ * rather than keeping the last match's value. Anything in `t` we do not
+ * recognise, or cannot hold, is dropped rather than trusted: it may have come
+ * off the wire.
+ */
+export function tuneAbilities(t: unknown): void {
+  const given = t && typeof t === "object" ? (t as Record<string, unknown>) : {};
+  for (const id of ABILITY_IDS) {
+    const mine = given[id] && typeof given[id] === "object" ? (given[id] as Record<string, unknown>) : {};
+    for (const k of ABILITY_KNOBS[id]) {
+      const d = ABILITY_SHIPPED[id][k.id];
+      k.write(k.id in mine ? num(mine[k.id], k.min, k.max, k.step, d) : d);
+    }
+  }
+}
+
+/** only what a match has changed, for the welcome; nothing when it is all as it ships */
+export function tuningChanges(): Record<string, Record<string, number>> | undefined {
+  const now = abilityTuning();
+  const out: Record<string, Record<string, number>> = {};
+  for (const id of Object.keys(now)) {
+    for (const key of Object.keys(now[id])) {
+      if (now[id][key] === ABILITY_SHIPPED[id][key]) continue;
+      out[id] = out[id] ?? {};
+      out[id][key] = now[id][key];
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 export const TRIAGE = cfg.triage;
 export const BOT_ABILITY = cfg.bots;
 

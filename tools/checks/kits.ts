@@ -6,7 +6,7 @@
 // match; nothing fills it before a kit is picked. PATCH goes once a cooldown.
 //
 // Run on its own: npx tsx tools/checks/kits.ts.
-import { Abilities, BOT_ABILITY, BOT_ABILITY_IDS, JOLT, KITS, kitOf } from "../../src/game/abilities";
+import { Abilities, ABILITY_IDS, ABILITY_KNOBS, ABILITY_SHIPPED, BOT_ABILITY, BOT_ABILITY_IDS, JOLT, KITS, kitOf, tuneAbilities, tuningChanges, type AbilityId } from "../../src/game/abilities";
 
 import * as THREE from "three";
 import { coverPlan } from "../../src/game/bots";
@@ -118,6 +118,48 @@ console.log("The kits a bot plays");
   check("the cloud goes toward them rather than over its own head", !!far && far.to.z >= 8, far ? `${far.to.z.toFixed(1)} m out` : "none");
 }
 
+
+{
+  // The numbers a match may set on an ability (abilities.ts ABILITY_KNOBS).
+  // They are set where a match is made rather than in Settings, and the host's
+  // travel to everyone, so what is checked is that each one can be moved, that
+  // it comes back, and that nothing off the wire can push a kit somewhere the
+  // game cannot hold.
+  console.log("\nThe numbers a match can set on an ability");
+  const ids = Object.keys(ABILITY_KNOBS) as AbilityId[];
+  check("every ability has numbers a match can set", ids.length === ABILITY_IDS.length && ids.every((id) => ABILITY_KNOBS[id].length >= 3), ids.map((id) => `${id}:${ABILITY_KNOBS[id].length}`).join(" "));
+  check("the dash's is the number of dashes, which is the one the owner asked for", ABILITY_KNOBS.jolt.some((k) => k.id === "charges" && k.max >= 4), `up to ${ABILITY_KNOBS.jolt.find((k) => k.id === "charges")?.max}`);
+  for (const id of ids) {
+    for (const k of ABILITY_KNOBS[id]) {
+      const shipped = ABILITY_SHIPPED[id][k.id];
+      check(`${id}.${k.id}: what it ships as is inside what it may be set to`, shipped >= k.min && shipped <= k.max, `${shipped} in ${k.min}..${k.max}`);
+    }
+  }
+  // each one, set and read back
+  let moved = 0;
+  for (const id of ids) {
+    for (const k of ABILITY_KNOBS[id]) {
+      tuneAbilities({ [id]: { [k.id]: k.max } });
+      if (Math.abs(k.read() - k.max) < 1e-6) moved++;
+    }
+  }
+  const total = ids.reduce((n, id) => n + ABILITY_KNOBS[id].length, 0);
+  check("every one of them moves when a match sets it", moved === total, `${moved} of ${total}`);
+  tuneAbilities({});
+  check("and they all go back when it does not", tuningChanges() === undefined);
+  // what comes off the wire is not trusted
+  tuneAbilities({ jolt: { charges: 999 }, smoke: { radius: -40 }, nope: { x: 1 }, ward: { width: "wide" } } as unknown);
+  const j = ABILITY_KNOBS.jolt.find((k) => k.id === "charges")!;
+  const r = ABILITY_KNOBS.smoke.find((k) => k.id === "radius")!;
+  const w = ABILITY_KNOBS.ward.find((k) => k.id === "width")!;
+  check("a number off the wire is held to what the knob allows", j.read() === j.max && r.read() === r.min, `${j.read()} dashes, ${r.read()} m of cloud`);
+  check("and one that is not a number at all is the config's own", w.read() === ABILITY_SHIPPED.ward.width, `${w.read()} m`);
+  tuneAbilities({});
+  check("a match that changes nothing sends nothing", tuningChanges() === undefined);
+  tuneAbilities({ jolt: { charges: 5 } });
+  check("and one that changes one thing sends one thing", JSON.stringify(tuningChanges()) === '{"jolt":{"charges":5}}', JSON.stringify(tuningChanges()));
+  tuneAbilities({});
+}
 
 console.log(fails === 0 ? "\nKITS PASS" : `\nKITS FAIL (${fails})`);
 export const kitsFails = fails;
