@@ -353,6 +353,13 @@ export interface BrHud {
     outside: boolean;
     damage: number;
   };
+  /**
+   * The hot zone: the place this match kitted out (loot.ts pickHotZone). It
+   * was drawn from the seed and filled with built guns from the first match
+   * the loot field existed, and nothing ever showed it, so it was a secret the
+   * game kept from everyone in it. The map draws it and the drop says its name.
+   */
+  hot: { name: string; x: number; z: number; radius: number } | null;
   /** where you finished once it is over (1 = the win) */
   placement: number | null;
   survived: number;
@@ -3053,6 +3060,14 @@ export class BrMatch extends Duel {
 
   // ------------------------------------------------------------ the HUD
 
+  /** the hot zone this match drew, with the place's name on it (null before the loot is laid out) */
+  hotZone(): { name: string; x: number; z: number; radius: number } | null {
+    const h = this.lootField?.hotZone ?? null;
+    if (!h) return null;
+    const poi = this.map.pois.find((p) => p.id === h.id);
+    return { name: poi?.name ?? h.id.toUpperCase(), x: h.x, z: h.z, radius: h.radius };
+  }
+
   override hud(): DuelHud {
     const base = super.hud();
     const now = wallClock();
@@ -3064,6 +3079,7 @@ export class BrMatch extends Duel {
       kills: this.kills,
       dropping: this.phase === "countdown",
       poi: this.poi.name,
+      hot: this.hotZone(),
       ring: {
         phase: Math.min(v.phase + 1, RING_PHASES.length),
         phases: RING_PHASES.length,

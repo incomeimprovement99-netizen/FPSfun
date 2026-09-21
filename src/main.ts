@@ -2215,6 +2215,12 @@ function respawnForMatch(d: MatchLike): void {
         mapOpen = false;
         dropMapUntil = gameTime + squadCfg.dive.mapSeconds;
         hud.notice(d.redeploying ? "REDEPLOYED: BACK INTO THE FIGHT" : `DROPPING INTO ${d.poi.name}`, gameTime, 3);
+        // and the hot zone, so the match's own decision is one everybody has:
+        // kitted guns in one named place, and everyone told where
+        if (!d.redeploying) {
+          const hot = d.hotZone();
+          if (hot) window.setTimeout(() => hud.notice(`HOT ZONE: ${hot.name.toUpperCase()}  ·  KITTED GUNS, AND EVERYONE KNOWS`, gameTime, 4), 1200);
+        }
       }
     }
   } else player.teleport(sp.x, 0, sp.z, openYaw(sp.x, sp.z, sp.yaw));

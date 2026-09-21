@@ -2305,3 +2305,14 @@ research: [`RESEARCH_PHASE_12.md`](./RESEARCH_PHASE_12.md).
   refusal was deliberate once (a precise mark should not be replaced by a vague one) and is wrong: a player who
   taps twice has said what they mean, and which of the two marks they get should not depend on whether a bot
   happened to be under the crosshair. A double tap always means an enemy now.
+
+## Milestone 142 — The hot zone, where anyone can see it ✅
+2026-09-20 (Phase 15). `src/game/brmatch.ts`, `src/game/hud.ts`, `src/main.ts`, `tools/e2e.ts`, `README.md`.
+- Part of item 9 of the ranked list, and another one the code had half-built: every match has drawn a **hot zone**
+  from its seed since the loot field existed, one of the nine places filled with guns that come built (nineteen of
+  them in the match the check runs). Nothing ever showed it. A hot zone nobody can see is not a decision, it is a
+  secret the match keeps from everyone in it.
+- The match now carries it in its HUD packet, so a guest has it too; **the map rings it in dashed gold** and the
+  drop names it a moment after it says where you are landing.
+- Checks: the e2e `loot` section (the match kitted one of the places out, the name is a place's own, and the guns
+  lying in it came built).

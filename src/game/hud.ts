@@ -1725,6 +1725,18 @@ export class Hud {
     c.beginPath();
     c.arc(toX(br.ring.current.cx), toZ(br.ring.current.cz), Math.max(0.5, br.ring.current.r * scale), 0, Math.PI * 2);
     c.stroke();
+    // the hot zone: the place this match kitted out. Gold, dashed, and named,
+    // because a hot zone nobody can see is a secret rather than a decision.
+    if (br.hot) {
+      c.save();
+      c.setLineDash([6 * u, 5 * u]);
+      c.strokeStyle = "rgba(255,210,60,0.9)";
+      c.lineWidth = 2 * u;
+      c.beginPath();
+      c.arc(toX(br.hot.x), toZ(br.hot.z), Math.max(1, br.hot.radius * scale), 0, Math.PI * 2);
+      c.stroke();
+      c.restore();
+    }
   }
 
   /**

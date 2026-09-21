@@ -461,8 +461,7 @@ async function brTest(browser: Browser, query: string): Promise<void> {
     page,
     `(() => { const m = window.__range.brMap; return { pois: m.pois.length, zips: window.__range.ziplines.filter((z) => z.a.z > 280 && z.a.z < 720).length, towers: m.towers.length, pads: m.pads.length }; })()`
   );
-  check("the map: nine places, ziplines off them, jump towers and launch pads", shape.pois === 9 && shape.zips >= 8 && shape.towers >= 3 && shape.pads >= 2, JSON.stringify(shape));
-  // how far the open map is drawn: the fog ends where this preset draws, and
+  check("the map: nine places, ziplines off them, jump towers and launch pads", shape.pois === 9 && shape.zips >= 8 && shape.towers >= 3 && shape.pads >= 2, JSON.stringify(shape));  // how far the open map is drawn: the fog ends where this preset draws, and
   // the camera's far plane sits beyond it. It used to be a fixed 400 m while
   // the fog reached 680, so a ridge in clear air was cut off at the seam.
   // the sky is the range's to build and everyone's to stand under: it sat on
@@ -694,6 +693,18 @@ async function brLootTest(browser: Browser, query: string): Promise<void> {
     `(() => { const r = window.__range; const d = r.duel(); return { empty: r.loadout.slots.every((s) => s.empty), kit: r.kit.total, field: d.lootField ? d.lootField.count : 0, light: r.loadout.ammo.stock.light, weapon: r.hud.last?.weaponName ?? "", botsArmed: d.bots.filter((b) => b.armedShown).length, looted: d.bots.filter((b) => b.armedShown && b.bot.lootKit.gunId !== null && b.bot.lootKit.taken > 0).length, sight: d.bots.map((b) => Math.round(b.bot.sight)) }; })()`
   );
   check("loot: you land with nothing (two empty slots, fists, no heals, no ammo) on a floor of items", start.empty && start.kit === 0 && start.light === 0 && start.field > 100 && start.weapon === "FISTS", JSON.stringify(start));
+  // the hot zone: the place this match kitted out, which nothing showed before
+  const hot = await ev<{ name: string; x: number; z: number; radius: number; poi: boolean; kitted: number } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const h = d.hud().br.hot; if (!h) return null;
+      const poi = r.brMap.pois.some((p) => p.name === h.name);
+      // the guns lying in it that came built, which is what makes it hot
+      const drops = d.lootField ? [...d.lootField.drops.values()] : [];
+      const near = drops.filter((x) => x.item.kind === "weapon" && Math.hypot(x.pos.x - h.x, x.pos.z - h.z) < h.radius);
+      const kitted = near.filter((x) => (x.item.attach && Object.keys(x.item.attach).length > 0) || (x.item.mag ?? 0) > 0).length;
+      return { name: h.name, x: h.x, z: h.z, radius: h.radius, poi, kitted }; })()`
+  );
+  check("the hot zone: this match kitted one of the places out, and the map can say which", !!hot && hot.poi && hot.radius > 10 && hot.kitted >= 1, JSON.stringify(hot));
   // A supply bin: go to one, hold E, and it opens, what it held thrown out round
   // it; it is never in the reach list, and it is gone for whoever comes next.
   const bin = await ev<{ key: number; x: number; y: number; z: number; n: number } | null>(page, `(() => { const f = window.__range.duel().lootField; const all = [...f.drops.values()].filter((d) => d.item.kind === "bin" && d.item.id === "closed"); const b = all[0]; return b ? { key: b.key, x: b.pos.x, y: b.pos.y, z: b.pos.z, n: f.drops.size } : null; })()`);
