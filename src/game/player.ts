@@ -1786,8 +1786,34 @@ export class Player {
     this.vel.x *= k;
     this.vel.z *= k;
     if (wl > 0) {
-      this.vel.x += wx * MOVE.slideAccel * dt;
-      this.vel.z += wz * MOVE.slideAccel * dt;
+      // The wish's push, along the line you are travelling only: pushing
+      // forward in a slide keeps your speed up, and the turning is the
+      // steer's job below. Both at once turned a slide at twice the rate the
+      // steer is capped at, which made the cap a number that meant nothing.
+      const sp0 = Math.hypot(this.vel.x, this.vel.z);
+      if (sp0 > 1e-4) {
+        const along = (this.vel.x / sp0) * wx + (this.vel.z / sp0) * wz;
+        this.vel.x += (this.vel.x / sp0) * along * MOVE.slideAccel * dt;
+        this.vel.z += (this.vel.z / sp0) * along * MOVE.slideAccel * dt;
+      }
+      // And a steer: the speed you have, turned toward the way you are
+      // asking, at up to slideTurn a second. Acceleration along the wish on
+      // its own is a drift over the length of a slide rather than a turn, so
+      // a slide held its line and corners were taken by ending it. Turning
+      // the vector keeps the speed, which is what carving is.
+      const sp = Math.hypot(this.vel.x, this.vel.z);
+      if (sp > 1e-4) {
+        const cur = Math.atan2(this.vel.z, this.vel.x);
+        const want = Math.atan2(wz, wx);
+        let d = want - cur;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        const most = MOVE.slideTurn * dt;
+        const turn = Math.max(-most, Math.min(most, d));
+        const a = cur + turn;
+        this.vel.x = Math.cos(a) * sp;
+        this.vel.z = Math.sin(a) * sp;
+      }
     }
     // g*sin(theta), where sin(theta) is the rate of height change over the
     // speed. descentRate is positive going down and negative going up.

@@ -16,6 +16,9 @@ export const MOVE = {
   eyeStand: m(raw.standHeight - raw.eyeFromTop),
   eyeCrouch: m(raw.crouchHeight - raw.eyeFromTop),
 
+  /** how fast a slide can be steered, radians a second */
+  slideTurn: (raw.slideTurn * Math.PI) / 180,
+
   /** how much of the speed you arrive at a ledge with comes out on top of it */
   mantleCarry: raw.mantleCarry,
 

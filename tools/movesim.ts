@@ -19,6 +19,8 @@ import { ADVANCED_COURSE, GLIDE, STRAFE, SUPERJUMP, DROP, ZIP } from "../src/gam
 import { SuperglideTrainer } from "../src/game/trainer";
 
 let fails = 0;
+/** the slide's steer, degrees a second (src/config/movement.json slideTurn) */
+const MOVE_TURN = 55;
 const hu = (m: number) => m / HU;
 function near(label: string, got: number, want: number, tol: number): void {
   const ok = Math.abs(got - want) <= tol;
@@ -1820,6 +1822,34 @@ console.log("\nPAINT: the chain");
 // checked is that they are off when they are off, that each does what it
 // says, and that neither hands out free height: a double jump is spent until
 // you touch something, and a wall cannot be climbed by bouncing on it.
+console.log("\nA slide that steers");
+{
+  // A slide could only be nudged: the wish added acceleration along itself,
+  // which over the length of a slide is a drift rather than a turn, so a
+  // slide held its line and corners were taken by ending it. The steer turns
+  // the speed you already have (src/config/movement.json slideTurn).
+  const carve = new Sim();
+  carve.in.hold("forward");
+  carve.in.tap("sprint");
+  carve.run(1.0);
+  const before = Math.atan2(carve.p.vel.z, carve.p.vel.x);
+  const speedBefore = hu(Math.hypot(carve.p.vel.x, carve.p.vel.z));
+  // crouch HELD: a slide ends the moment the crouch is let go
+  carve.in.hold("crouch");
+  carve.run(0.05);
+  carve.in.hold("right");
+  carve.run(0.3);
+  const stillSliding = carve.p.sliding;
+  const after = Math.atan2(carve.p.vel.z, carve.p.vel.x);
+  let turned = ((after - before) * 180) / Math.PI;
+  while (turned > 180) turned -= 360;
+  while (turned < -180) turned += 360;
+  check("a slide can be steered", stillSliding && Math.abs(turned) > 6, `${turned.toFixed(0)} degrees over 0.3 s, still sliding: ${stillSliding}`);
+  check("and no faster than the turn rate allows", Math.abs(turned) <= MOVE_TURN * 0.3 + 2, `${Math.abs(turned).toFixed(0)} against ${(MOVE_TURN * 0.3).toFixed(0)} the most`);
+  const speedAfter = hu(Math.hypot(carve.p.vel.x, carve.p.vel.z));
+  check("the steer turns the speed you have rather than spending it", speedAfter > speedBefore * 0.55, `${speedAfter.toFixed(0)} hu/s of ${speedBefore.toFixed(0)} after half a second of slide`);
+}
+
 console.log("\nThe two extra moves (off by default)");
 {
   /** the highest this sim gets over `secs`, sampled as it goes */

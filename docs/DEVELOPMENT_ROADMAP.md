@@ -2574,3 +2574,20 @@ The second and third of the five movement items from the day's update.
 - Checks: two more in `tools/movesim.ts` (you come out of a mantle moving, and never faster than you
   arrived), and the wall run measured in a real page: on the wall for the whole run, and gone the frame
   after you steer off it.
+
+## Milestone 155 — A slide that steers ✅
+
+The fourth of the five movement items, and a correction to the fifth.
+
+- **A slide could only be nudged.** Holding a direction added acceleration along itself, which over the
+  length of a slide is a drift rather than a turn: a slide held its line, and corners were taken by ending
+  it. It steers now, turning the speed you already have toward the way you are asking at up to 55 degrees a
+  second (`src/config/movement.json` `slideTurn`), and the wish's push is applied along your line of travel
+  only, because both at once turned a slide at twice the rate the cap says and made the cap a number that
+  meant nothing. Measured: 16 degrees over 0.3 s against a cap of 16.5, still sliding, with the speed kept.
+- **The fifth item was wrong, and is withdrawn.** "Air control off a superglide" assumed the half second
+  after a glide was loose. It is not: the air move is the Source-family accelerate (add toward the wish, up
+  to a 60 hu projected cap, at 500 hu/s²), which is what Apex, Titanfall and every game in the family do,
+  and it is what makes air strafing work at all. Loosening it would not make a superglide feel better, it
+  would make every jump in the game float. What is actually true is that the glide's *exit* is exact and its
+  feel is the camera's, which is Milestone 153's air lean, already done.

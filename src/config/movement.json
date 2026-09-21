@@ -1,6 +1,8 @@
 {
   "_note": "Movement constants in HAMMER UNITS (1 hu = 1 inch = 0.0254 m), which is how the engine stores them. src/game/movement.ts converts once. Sources and confidence are in docs/FIDELITY.md; almost all of these are engine defaults rather than estimates.",
 
+  "_slideTurn": "How fast a slide can be steered, degrees a second, turning the velocity you already have rather than adding to it. A slide could only be nudged before: the wish added acceleration along itself, which over a short slide is a drift rather than a turn, so a slide held its line and you took corners by ending it. Turning the vector keeps the speed, which is what carving is.",
+  "slideTurn": 55,
   "_mantleCarry": "How much of the speed you arrived at a ledge with comes out on top of it, 0 to 1, along the way you were facing. A mantle used to spend all of it: you arrived on the ledge standing still and had to build the speed again, which made a run of ledges read as a series of climbs rather than one movement. Capped at a sprint, so a slide into a ledge does not launch you off the top of it.",
   "mantleCarry": 0.55,
   "_extra": "Movement this game does not have by default, and did not want by default: a double jump and a wall run. The owner asked for both after playing a round of Crown, and both change how every fight reads, so they are OFF here and turned on per match in the lobby (the Movement box). Everything else in this file is Apex's, measured; these two are ours, and are kept apart from it for that reason.",
