@@ -1313,6 +1313,12 @@ console.log("\nThe course is completable");
   ledge.in.tap("jump");
   ledge.until(() => ledge.p.onGround && ledge.p.pos.y > 1.3, 3);
   check("the 1.4 m ledge is mantled", ledge.p.pos.y > 1.35, `feet ${ledge.p.pos.y.toFixed(2)} m`);
+  // and you arrive on it moving: a mantle used to spend every bit of the
+  // speed you reached the ledge with, so a run of ledges read as a series of
+  // climbs rather than one movement (src/config/movement.json mantleCarry)
+  const onTop = hu(Math.hypot(ledge.p.vel.x, ledge.p.vel.z));
+  check("and you come out of it moving, not standing still", onTop > 100, `${onTop.toFixed(0)} hu/s on the ledge`);
+  check("but never faster than you arrived", onTop <= hu(MOVE.sprintSpeed) + 1, `${onTop.toFixed(0)} against a sprint's ${hu(MOVE.sprintSpeed).toFixed(0)}`);
 
   // GAP: from the right platform, over a 3 m gap, onto the offset left one
   const START = { minX: 5, maxX: 12, minZ: 80.5, maxZ: 85, top: 1.4 };

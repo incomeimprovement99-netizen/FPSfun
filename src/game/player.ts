@@ -60,6 +60,8 @@ interface Mantle {
   /** direction you were facing, which a superglide launches you along */
   dirX: number;
   dirZ: number;
+  /** how fast you were going when you reached the ledge, for the exit to carry */
+  entry: number;
 }
 
 interface WallNormal {
@@ -761,7 +763,7 @@ export class Player {
     }
 
     // ----- the wall run -----
-    if (this.extraMoves) this.stepWallRun(now, dt);
+    if (this.extraMoves) this.stepWallRun(now, dt, wx, wz);
 
     // ----- climb -----
     if (!this.climbing) this.tryAttach(now, wx, wz, wl);
@@ -901,13 +903,21 @@ export class Player {
    * the same wall immediately, so height is won by moving along the building
    * rather than by bouncing in place.
    */
-  private stepWallRun(now: number, dt: number): void {
+  private stepWallRun(now: number, dt: number, wx: number, wz: number): void {
     const W = EXTRA.wallRun;
     if (this.wallRun) {
       const spent = now - this.wallRun.since;
       const still = this.wallNear(MOVE.climbAttachReach);
-      const along = Math.hypot(this.vel.x, this.vel.z);
-      if (this.onGround || this.climbing || spent > W.seconds || !still || along < W.minSpeed * 0.5) {
+      // along the wall, not through the air: turning away from a wall is how
+      // you say you are done with it, and a run that ends because you steered
+      // off it reads as your decision rather than a clock you cannot see
+      const along = Math.abs(this.vel.x * -this.wallRun.nz + this.vel.z * this.wallRun.nx);
+      const sameWall = !!still && still.nx === this.wallRun.nx && still.nz === this.wallRun.nz;
+      // steering away from the wall is how you say you are done with it: a run
+      // that ends because you turned off it is your decision, and one that
+      // ends on a clock is a rule the player cannot see
+      const awayWish = wx * this.wallRun.nx + wz * this.wallRun.nz;
+      if (this.onGround || this.climbing || spent > W.seconds || !sameWall || along < W.minSpeed * 0.5 || awayWish > 0.5) {
         this.wallRun = null;
         this.wallRunEndedAt = now;
         return;
@@ -1316,6 +1326,7 @@ export class Player {
       sprint: this.sprinting || this.hSpeed() > MOVE.speed * 1.02,
       dirX: fx,
       dirZ: fz,
+      entry: this.hSpeed(),
     };
     this.vel.set(0, 0, 0);
     this.endSlide();
@@ -1338,6 +1349,13 @@ export class Player {
   private finishMantle(now: number): void {
     const mt = this.mantle!;
     this.pos.set(mt.toX, mt.toY, mt.toZ);
+    // Some of the speed you arrived with comes out on top, along the way you
+    // were facing. It used to be none: you reached the ledge standing still
+    // and built it again, which made a run of ledges read as a series of
+    // climbs rather than one movement. Capped at a sprint, so a slide into a
+    // ledge does not throw you off the far side of it.
+    const carry = Math.min(mt.entry, MOVE.sprintSpeed) * MOVE.mantleCarry;
+    this.vel.set(mt.dirX * carry, 0, mt.dirZ * carry);
     this.mantle = null;
     // a jump pressed in this mantle's window must not count for the next one
     this.sgJumpFrame = -10;

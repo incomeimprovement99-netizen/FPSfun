@@ -2557,3 +2557,20 @@ with the body.
   arrives faster than it leaves, both are quick enough to belong to the jump they are part of, and the whole
   of a chain's roll stays inside what a view can take: 11.1 degrees if slide, air and landing all peaked at
   once).
+
+## Milestone 154 — Momentum through a mantle, and a wall run that ends when you leave it ✅
+
+The second and third of the five movement items from the day's update.
+
+- **A mantle used to spend every bit of the speed you arrived with.** You reached the ledge standing still
+  and built it again, which made a run of ledges read as a series of climbs rather than one movement.
+  `mantleCarry` (0.55) now brings that fraction out on top along the way you were facing, capped at a
+  sprint so a slide into a ledge does not throw you off the far side of it. Measured: 221 hu/s on the ledge
+  against a sprint's 260, where it used to be nothing.
+- **The wall run ended on a clock.** It still has one, as a backstop, but what ends it now is the wall: you
+  steer off it and it lets go. A run that ends because you turned away is your decision; one that ends on a
+  timer is a rule the player cannot see. It also has to be the *same* wall it started on, and the speed it
+  measures is the speed along the wall rather than through the air.
+- Checks: two more in `tools/movesim.ts` (you come out of a mantle moving, and never faster than you
+  arrived), and the wall run measured in a real page: on the wall for the whole run, and gone the frame
+  after you steer off it.

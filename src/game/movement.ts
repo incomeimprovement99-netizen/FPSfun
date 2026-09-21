@@ -16,6 +16,9 @@ export const MOVE = {
   eyeStand: m(raw.standHeight - raw.eyeFromTop),
   eyeCrouch: m(raw.crouchHeight - raw.eyeFromTop),
 
+  /** how much of the speed you arrive at a ledge with comes out on top of it */
+  mantleCarry: raw.mantleCarry,
+
   // ground, accelerate-to-target in three bands
   speed: m(raw.speed),
   sprintSpeed: m(raw.sprintSpeed),
