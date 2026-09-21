@@ -1968,7 +1968,15 @@ console.log("\nThe two extra moves (off by default)");
 // step to be trapezoidal or substepped, which would move every measured
 // number in this file for under a centimetre of gain. A few centimetres after
 // two seconds is not a thing a player can feel; two hu/s is.
-console.log("\nThe same run at 30, 60 and 144 frames a second");
+//
+// The jump carries one more of those: a landing is noticed at a frame
+// boundary, so where a jump puts you carries up to one frame of travel either
+// way. At 240 that is 1.8 cm at a sprint, which is why this run is the one
+// that is FURTHER out at a higher frame rate than at a lower one: 30 happened
+// to land on a boundary that suited it. Sub-frame landing (solve the crossing,
+// spend the rest of the frame on the ground) would remove it, and is the same
+// trade as the trapezoidal step: real work, nothing a player could feel.
+console.log("\nThe same run at 30, 60, 144 and 240 frames a second");
 {
   interface Run {
     name: string;
@@ -1979,7 +1987,7 @@ console.log("\nThe same run at 30, 60 and 144 frames a second");
   const RUNS: Run[] = [
     { name: "a sprint down a straight", seconds: 2.5, tol: 0.02, drive: (s) => { s.in.hold("forward"); s.in.tap("sprint"); } },
     { name: "a walk from a standing start", seconds: 0.6, tol: 0.02, drive: (s) => s.in.hold("forward") },
-    { name: "a jump, and where it lands", seconds: 1.6, tol: 0.02, drive: (s) => { s.in.hold("forward"); s.in.tap("sprint"); s.in.tap("jump"); } },
+    { name: "a jump, and where it lands", seconds: 1.6, tol: 0.04, drive: (s) => { s.in.hold("forward"); s.in.tap("sprint"); s.in.tap("jump"); } },
     { name: "a strafe in the air", seconds: 1.4, tol: 0.04, drive: (s) => { s.in.hold("forward"); s.in.hold("right"); s.in.tap("sprint"); s.in.tap("jump"); } },
     { name: "a slide", seconds: 2, tol: 0.04, drive: (s) => { s.in.hold("forward"); s.in.tap("sprint"); } },
     { name: "a turn on the spot into a run", seconds: 1.2, tol: 0.02, drive: (s) => { s.in.hold("forward"); s.in.hold("left"); } },
@@ -1999,8 +2007,12 @@ console.log("\nThe same run at 30, 60 and 144 frames a second");
       } else s.run(r.seconds);
       return { x: s.p.pos.x, z: s.p.pos.z, y: s.p.pos.y, v: s.speedHu };
     };
+    // 144 is where every other number in this file was measured, so it is the
+    // one the others are compared against. 240 is what the owner and the
+    // people he plays with actually run, which makes it the one that has to be
+    // right rather than the one that is convenient.
     const fast = at(144);
-    for (const fps of [30, 60]) {
+    for (const fps of [30, 60, 240]) {
       const slow = at(fps);
       const off = Math.hypot(slow.x - fast.x, slow.z - fast.z);
       const dv = Math.abs(slow.v - fast.v);

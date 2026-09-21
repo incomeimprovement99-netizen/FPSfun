@@ -2716,8 +2716,11 @@ written on. Nobody had asked what the same inputs do at 30 or 60, and that is th
 jank: the player who has it cannot see it, because they have never seen the other one.
 
 - **`tools/movesim.ts` runs at any frame rate now**, and a new section runs six scripted runs (a sprint, a
-  walk from standing, a jump, an air strafe, a slide, a turn into a run) at 30, 60 and 144 and compares
-  where the player ends up and how fast they are going.
+  walk from standing, a jump, an air strafe, a slide, a turn into a run) at 30, 60, 144 and **240** and
+  compares where the player ends up and how fast they are going. 240 is there because it is what the owner
+  and the people he plays with actually run, which makes it the rate that has to be right rather than the
+  one that is convenient; 144 is the rate every other number in the file was measured at, so it is what the
+  others are compared against.
 - **The slide was the one that was really wrong**: 10.6 cm further along and **2.1 hu/s faster** at 30 frames
   a second than at 144. Its friction depends on its own speed (`dv/dt = -(a + b(v - c))`), so the speed decays
   exponentially, and taking the rate off once a frame is Euler's method on that: wrong by an amount that
@@ -2726,8 +2729,14 @@ jank: the player who has it cannot see it, because they have never seen the othe
   line below it, and the crossing solved rather than stepped over. The spread fell to 3.4 cm and 0.5 hu/s,
   and every measured slide timing in the file still passes, because the closed form IS what the small steps
   were converging to.
+- **At 240 everything is tighter than at 144**, which is what convergence looks like: the slide is 0.4 cm
+  out, the sprint 0.2, the turn 0.5. The one exception is where a jump lands, 2.0 cm, and it is instructive:
+  a landing is noticed at a frame boundary, so a jump carries up to one frame of travel either way, and at
+  240 one frame at a sprint is 1.8 cm. 30 fps scored better on that row by landing on a boundary that suited
+  it, which is luck rather than quality.
 - **What is left is the position step, and it is named rather than tuned away.** Position advances by
   `velocity x dt` once a frame, so at 30 fps each step is a 23 cm-long guess at where the speed was during
-  it: about 3 cm of spread after two seconds. Removing it needs a trapezoidal or substepped position, which
-  would move every measured number in the file for under a centimetre of gain. Speed is checked to 1 hu/s
-  because speed compounds; position is checked to 4 cm because a player cannot feel it.
+  it: about 3 cm of spread after two seconds. Removing it needs a trapezoidal or substepped position (and
+  sub-frame landing for the jump), which would move every measured number in the file for under a centimetre
+  of gain. Speed is checked to 1 hu/s because speed compounds; position is checked to 4 cm because a player
+  cannot feel it.
