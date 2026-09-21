@@ -29,6 +29,7 @@ import { LOWER as CARRY, REACH, gripAt, reachFraction, stockBehind } from "./hol
 import type { OperatorSkin } from "./operators";
 import { buildGear, type GearPiece } from "./gear";
 import { buildOutfit, outfitMaterials } from "./outfit";
+import outfitCfg from "../config/outfits.json";
 import type { FigurePose } from "./dummy";
 import type { EmotePose } from "./emotes";
 
@@ -57,6 +58,23 @@ interface Template {
 let template: Template | null = null;
 let loading: Promise<void> | null = null;
 
+/**
+ * The outfits that are a real asset: a whole clothed figure, mesh and
+ * textures, rather than shells built on bones. Quaternius's CC0 Modular
+ * Character Outfits, on the same universal humanoid rig as everything else
+ * here (tools/fetch-characters.ts).
+ */
+const REAL_OUTFITS = Object.values(outfitCfg.sets)
+  .map((s) => (s as { character?: string }).character)
+  .filter((c): c is string => typeof c === "string");
+const characters = new Map<string, THREE.Object3D>();
+
+/** the clothed figure an outfit is, if it is one of those */
+export function characterFor(outfit: string): THREE.Object3D | null {
+  const c = (outfitCfg.sets as Record<string, { character?: string }>)[outfit]?.character;
+  return c ? (characters.get(c) ?? null) : null;
+}
+
 /** the bones below the waist: the locomotion layer's */
 const LOWER = /^(root|pelvis|thigh_|calf_|foot_|ball_)/;
 
@@ -64,8 +82,32 @@ const LOWER = /^(root|pelvis|thigh_|calf_|foot_|ball_)/;
 export function loadMannequin(): Promise<void> {
   if (loading) return loading;
   const loader = new GLTFLoader();
-  loading = Promise.all([loader.loadAsync("models/mannequin/mannequin.glb"), loader.loadAsync("models/mannequin/mannequin-more.glb")])
-    .then(([main, more]) => {
+  // The body is a different file from the clips.
+  //
+  // mannequin.glb is Quaternius's Universal Animation Library: a grey
+  // untextured mannequin and the motion. The body is their Universal Base
+  // Characters, built on the SAME universal humanoid rig - the Unreal
+  // mannequin's own bone names, pelvis / spine_01..03 / clavicle_l /
+  // upperarm_l / calf_l / ball_l - so the clips drive it without retargeting,
+  // and the clothes hang on the bones they already hang on. It has real
+  // topology, a face, and base colour, normal and roughness maps, which is
+  // what the grey mannequin never had.
+  loading = Promise.all([
+    loader.loadAsync("models/mannequin/mannequin.glb"),
+    loader.loadAsync("models/mannequin/mannequin-more.glb"),
+    loader.loadAsync("models/body/Superhero_Male_FullBody.gltf").catch(() => null),
+    // and the outfits that are real assets rather than shells on bones: a
+    // whole clothed figure each, on the same rig (outfits.json `character`)
+    Promise.all(
+      REAL_OUTFITS.map((n) =>
+        loader
+          .loadAsync(`models/outfits/${n}.gltf`)
+          .then((g) => [n, g.scene] as const)
+          .catch(() => null)
+      )
+    ),
+  ])
+    .then(([main, more, bodyFile, dressed]) => {
       const clips = new Map<string, THREE.AnimationClip>();
       for (const c of [...main.animations, ...more.animations]) {
         const lower = c.tracks.filter((t) => LOWER.test(t.name.split(".")[0]));
@@ -74,8 +116,10 @@ export function loadMannequin(): Promise<void> {
         clips.set(`upper:${c.name}`, new THREE.AnimationClip(`upper:${c.name}`, c.duration, upper));
         clips.set(`full:${c.name}`, c);
       }
+      // the body if it loaded, the grey mannequin if it did not
+      const body = bodyFile?.scene ?? main.scene;
       // the right hand in the aim pose: sample the clip onto a copy once
-      const probe = cloneSkinned(main.scene);
+      const probe = cloneSkinned(body);
       const mixer = new THREE.AnimationMixer(probe);
       mixer.clipAction(clips.get("full:Pistol_Aim_Neutral")!).play();
       mixer.update(0);
@@ -83,7 +127,8 @@ export function loadMannequin(): Promise<void> {
       const hand = probe.getObjectByName("hand_r")!;
       const chest = probe.getObjectByName("spine_03")!;
       const shoulder = probe.getObjectByName("upperarm_r")!;
-      template = { scene: main.scene, clips, handAim: hand.matrixWorld.clone(), chestAim: chest.matrixWorld.clone(), shoulderR: new THREE.Vector3().setFromMatrixPosition(shoulder.matrixWorld) };
+      for (const d of dressed) if (d) characters.set(d[0], d[1]);
+      template = { scene: body, clips, handAim: hand.matrixWorld.clone(), chestAim: chest.matrixWorld.clone(), shoulderR: new THREE.Vector3().setFromMatrixPosition(shoulder.matrixWorld) };
     })
     .catch((e) => {
       console.warn("the mannequin did not load; the figures stay robots", e);
@@ -225,7 +270,10 @@ export class MannequinFigure {
 
   constructor(skin: OperatorSkin, gunId: string | null) {
     const t = template!;
-    this.root = cloneSkinned(t.scene);
+    // an outfit that IS a figure replaces the body: its clothes are its mesh
+    const dressed = characterFor(skin.outfit);
+    this.root = cloneSkinned(dressed ?? t.scene);
+    this.realOutfit = !!dressed;
     this.root.name = "mannequin";
     this.mixer = new THREE.AnimationMixer(this.root);
     this.root.traverse((o) => {
@@ -252,6 +300,8 @@ export class MannequinFigure {
 
   /** what it is wearing, so a check and a snapshot can name the pieces */
   readonly gear: GearPiece[] = [];
+  /** its clothes are its own mesh, so none are built for it */
+  private realOutfit = false;
 
   /**
    * Put the operator's kit on: each piece onto the bone it hangs from, so it
@@ -267,7 +317,9 @@ export class MannequinFigure {
     // what goes on a face is authored the way a person would describe it and
     // gets the same rest-frame holder the kit does.
     const mats = outfitMaterials(skin.outfit, skin.visor, skin.eye);
-    for (const worn of buildOutfit(skin.outfit, mats, skin.face ?? [], skin.build ?? "regular")) {
+    // a real outfit brings its own clothes; only what goes on the face is ours
+    const built = this.realOutfit ? buildOutfit(skin.outfit, mats, skin.face ?? [], skin.build ?? "regular").filter((w) => w.bone === "Head") : buildOutfit(skin.outfit, mats, skin.face ?? [], skin.build ?? "regular");
+    for (const worn of built) {
       const bone = this.bones[worn.bone];
       if (!bone) continue;
       if (!worn.aligned) {

@@ -16,6 +16,11 @@ public/tex/*
 public/models/*
 !public/models/heirlooms/
 !public/models/mannequin/
+# the bodies and the clothed figures: fetched by npm run characters, but kept,
+# because what a figure IS now lives in them (src/game/mannequin.ts)
+!public/models/body/
+!public/models/body/hair/
+!public/models/outfits/
 public/audio/*
 !public/audio/ATTRIBUTION.md
 # the self-hosted HUD faces (npm run fonts): OFL, fetched not kept

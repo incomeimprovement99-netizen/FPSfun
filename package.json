@@ -19,6 +19,7 @@
     "shot": "tsx tools/shot.ts",
     "compare-sources": "tsx tools/compare-sources.ts",
     "models": "tsx tools/fetch-models.ts",
+    "characters": "tsx tools/fetch-characters.ts",
     "compress": "tsx tools/compress-assets.ts",
     "sounds": "tsx tools/fetch-sounds.ts",
     "fonts": "tsx tools/fetch-fonts.ts",

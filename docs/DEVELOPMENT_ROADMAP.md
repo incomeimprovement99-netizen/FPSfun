@@ -2799,3 +2799,32 @@ they should all have the dark shade on the glasses so you can't see their eyes."
   `tools/checks/gear.ts` (headgear is counted across the kit AND the clothes, so a helmeted operator does
   not need the kit's shades as well), `tools/checks/body.ts` (the head). The look is `face-close`,
   `operators-faces` and `outfit-wardrobe`.
+
+## Milestone 164 — Real bodies and real clothes ✅
+
+The owner, on the wardrobe: "the clothes look rediculasly bad lol are you just making shit up or are you
+ripping free assets? bc this looks like you are just putting together roblox shapes and calling it a day".
+
+He was right, and the answer was the first one: every garment was built in code out of a lathed tube per
+limb, a box-section tube for the body and a squashed sphere for the motocross helmet. Nothing was ripped and
+nothing was an asset. It reads as Roblox because it is boxes.
+
+- **The body is a real body now.** Quaternius's **Universal Base Characters** (CC0): real topology, a face,
+  base colour, normal and roughness maps. It is built on the **same universal humanoid rig** as the
+  Universal Animation Library our clips already come from - the Unreal mannequin's own bone names, `pelvis`,
+  `spine_01..03`, `clavicle_l`, `upperarm_l`, `calf_l`, `ball_l` - so the clips drive it with no retargeting
+  and the clothes hang on the bones the outfit system already measures against.
+- **Four outfits are real assets**: RANGER and WORKWEAR, male and female, from Quaternius's **Modular
+  Character Outfits** (CC0). An outfit with a `character` in `outfits.json` replaces the figure's own mesh,
+  because its clothes ARE its mesh; the game builds no garments for it and only puts what the player chose
+  on its face.
+- **`npm run characters`** (`tools/fetch-characters.ts`) fetches both packs through itch.io's own free
+  download flow - the page for a CSRF token, a POST for a signed download-page URL, a POST to that page's
+  file endpoint for the storage URL, no account - then pulls out what is used and re-encodes 108 MB of 2k
+  and 4k PNGs into 8.9 MB of 1k WebP, pointing every `.gltf` at the new files.
+- The fetched assets are **kept in git**, unlike the props and textures, for the reason the mannequin is:
+  what a figure IS now lives in them.
+- **A claim I got wrong and should not have made**: I told the owner these packs needed a manual download
+  and that he would have to fetch them. He asked how the mannequin got there if he never did that, which was
+  the right question. itch.io's free flow is three plain requests and an earlier session had clearly used
+  it. The tool now records exactly how, so nobody has to guess again.

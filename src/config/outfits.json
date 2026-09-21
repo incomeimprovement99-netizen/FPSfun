@@ -106,6 +106,7 @@
     "fullMask": { "at": [0, 0.072, 0.05], "size": [0.168, 0.2, 0.12], "lens": [0.132, 0.055, 0.03], "filter": { "r": 0.034, "len": 0.06, "at": [0, -0.062, 0.06] } }
   },
   "_sets": "The outfits: what each wears, and in what colours. `cloth` is the main garment, `trim` the second colour, `boots` the footwear. An operator names one of these (src/game/operators.ts), and the kit in gear.json goes on top of it.",
+"_realSets": "A set with `character` is a real asset: a whole clothed figure, mesh and textures, from Quaternius's CC0 Modular Character Outfits (public/models/outfits, tools/fetch-characters.ts). The game swaps the figure's own mesh for it and builds no garments of its own, because its clothes ARE the mesh. Everything without `character` is built in code out of shells on bones, which is cheap, fits any rig and looks like what it is.",
   "sets": {
     "hoodie": {
       "name": "HOODIE",
@@ -188,6 +189,42 @@
       "cloth": "#c2ab7e",
       "trim": "#8a7449",
       "boots": "#5c4a32"
+    },
+    "ranger": {
+      "name": "RANGER",
+      "blurb": "a hooded coat over layered leathers, boots and a shoulder guard",
+      "character": "Male_Ranger",
+      "wears": [],
+      "cloth": "#4a4433",
+      "trim": "#2f2a20",
+      "boots": "#241f18"
+    },
+    "peasant": {
+      "name": "WORKWEAR",
+      "blurb": "a plain shirt, sleeves pushed up, and working trousers",
+      "character": "Male_Peasant",
+      "wears": [],
+      "cloth": "#6b5f4a",
+      "trim": "#463d30",
+      "boots": "#2b241c"
+    },
+    "rangerF": {
+      "name": "RANGER (F)",
+      "blurb": "the hooded coat and leathers, on the other build",
+      "character": "Female_Ranger",
+      "wears": [],
+      "cloth": "#4a4433",
+      "trim": "#2f2a20",
+      "boots": "#241f18"
+    },
+    "peasantF": {
+      "name": "WORKWEAR (F)",
+      "blurb": "the shirt and working trousers, on the other build",
+      "character": "Female_Peasant",
+      "wears": [],
+      "cloth": "#6b5f4a",
+      "trim": "#463d30",
+      "boots": "#2b241c"
     },
     "motocross": {
       "name": "MOTOCROSS",

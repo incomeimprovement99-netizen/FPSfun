@@ -41,13 +41,22 @@ const PIECES = outfitCfg.pieces as Record<string, { bone: string; from: number; 
 console.log("What an operator wears");
 {
   check("there are outfits to wear", OUTFIT_IDS.length >= 4, OUTFIT_IDS.join(", "));
+  // An outfit is one of two kinds. A REAL one is an asset: a whole clothed
+  // figure, mesh and textures, which the game puts on in place of the body
+  // (outfits.json `character`, public/models/outfits). A BUILT one is shells
+  // on bones, made here out of tubes and boxes. The rules below are the built
+  // ones' rules: a real one has no garment list to check, because its clothes
+  // are its mesh, and what it looks like is the asset's business.
+  const real = (id: OutfitId): boolean => typeof (outfitCfg.sets[id] as { character?: string }).character === "string";
+  const BUILT = OUTFIT_IDS.filter((id) => !real(id));
+  check("and some of them are real assets rather than shells on bones", OUTFIT_IDS.length - BUILT.length >= 4, `${OUTFIT_IDS.length - BUILT.length} real, ${BUILT.length} built in code`);
   const names = OUTFIT_IDS.map((id) => outfitInfo(id).name);
-  check("each has a name a person would use", names.every((n) => /^[A-Z ]{4,16}$/.test(n)), names.join(" / "));
+  check("each has a name a person would use", names.every((n) => /^[A-Z() ]{4,16}$/.test(n)), names.join(" / "));
   check("and a line saying what it is", OUTFIT_IDS.every((id) => outfitInfo(id).blurb.length > 12));
-  const sets = OUTFIT_IDS.map((id) => (outfitCfg.sets[id].wears as string[]).slice().sort().join("+"));
-  const colours = OUTFIT_IDS.map((id) => outfitCfg.sets[id].cloth);
+  const sets = BUILT.map((id) => (outfitCfg.sets[id].wears as string[]).slice().sort().join("+"));
+  const colours = BUILT.map((id) => outfitCfg.sets[id].cloth);
   check("no two outfits are the same clothes in the same colour", new Set(sets.map((s, i) => `${s}|${colours[i]}`)).size === sets.length);
-  check("every outfit covers the legs and the body, which is what being dressed is", OUTFIT_IDS.every((id) => {
+  check("every outfit covers the legs and the body, which is what being dressed is", BUILT.every((id) => {
     const w = outfitCfg.sets[id].wears as string[];
     return w.some((p) => PIECES[p]?.bone === "spine_01") && w.some((p) => PIECES[p]?.bone === "thigh");
   }));
@@ -116,7 +125,9 @@ console.log("What an operator wears");
     [/sleeves (down|long)|long sleeves/i, ["sleeveLong"]],
     [/sleeves rolled|t-shirt/i, ["sleeveShort", "shirt"]],
   ];
-  for (const id of OUTFIT_IDS) {
+  // built ones only: a real outfit's card describes the asset, and what the
+  // asset is wearing is not a list this file can read
+  for (const id of OUTFIT_IDS.filter((x) => !(outfitCfg.sets[x] as { character?: string }).character)) {
     const set = outfitCfg.sets[id] as { blurb: string; wears: string[]; head?: string[] };
     const has = new Set([...set.wears, ...(set.head ?? [])]);
     for (const [says, needs] of PROMISE) {
