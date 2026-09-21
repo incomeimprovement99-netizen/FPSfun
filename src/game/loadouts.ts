@@ -33,7 +33,7 @@ export const DEFAULT_LOADOUTS: readonly LoadoutDef[] = [
   { name: "Marksman", operator: "frost", outfit: "arctic", build: "heavy", face: "goggles", slot1: "g2", slot2: "volt_smg", heirloom: "tanto" },
   { name: "Heavy", operator: "inferno", outfit: "irregular", build: "heavy", face: "wrap,goggles", slot1: "lmg", slot2: "shotgun", heirloom: "kukri" },
   { name: "Sidearms", operator: "sandstorm", outfit: "desert", build: "regular", face: "wrap,goggles", slot1: "semipistol", slot2: "g17", heirloom: "butterfly" },
-  { name: "Dirt Bike", operator: "redline", outfit: "motocross", build: "lean", face: "", slot1: "car", slot2: "mastiff", heirloom: "kukri" },
+  { name: "Dirt Bike", operator: "scrambler", outfit: "motocross", build: "lean", face: "", slot1: "car", slot2: "mastiff", heirloom: "kukri" },
 ];
 
 export type LoadoutRef = { kind: "default" | "custom"; index: number };

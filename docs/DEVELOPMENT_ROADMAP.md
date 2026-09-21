@@ -2782,7 +2782,9 @@ they should all have the dark shade on the glasses so you can't see their eyes."
   peak, a chin bar and a dark visor band. The helmet is built against the head **measured off the model**
   (`tools/checks/body.ts` now reports it: 173 mm across, -9 to 256 mm up the Head bone, a face that reaches
   106 mm forward), not against a guess. It covers a face by itself, so the set wears nothing else on its own.
-- **A sixth operator, Redline**, comes in it: dirt bike blue and orange, lean, helmet and visor.
+- **A sixth operator, Scrambler**, comes in it: dirt bike blue and orange, lean, helmet and visor. (It was
+  called Redline for an hour, until the public build's own check pointed out that Redline is a real game's
+  hop-up and this build may not say it.)
 - **Every operator's eyes are covered.** Vanguard had nothing over its eyes but the kit's flat shades bar,
   and Sandstorm only a head wrap, which leaves them. Both wear goggles now, and Vanguard's kit bar is gone
   so the two do not fight.
