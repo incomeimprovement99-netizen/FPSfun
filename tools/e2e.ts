@@ -2054,7 +2054,7 @@ function netAsWanted(n: NetSeen | null, want: NetWant): boolean {
  */
 const WORN_LOADOUT = `localStorage.setItem("range.loadouts.v1", JSON.stringify({
   selected: { kind: "custom", index: 0 },
-  custom: [{ name: "Worn", operator: "vanguard", slot1: "rspn101", slot2: "wingman", heirloom: "fists", outfit: "tracksuit", build: "heavy", face: "goggles,wrap" }],
+  custom: [{ name: "Worn", operator: "vanguard", slot1: "rspn101", slot2: "wingman", heirloom: "fists", outfit: "shirtsleeves", build: "heavy", face: "" }],
 }))`;
 
 async function duelTest(browser: Browser, query: string, label: string, bases: [string, string] = [BASE, BASE], want: NetWant = "deltas"): Promise<boolean> {
@@ -2117,11 +2117,15 @@ async function duelTest(browser: Browser, query: string, label: string, bases: [
     // (the figure's rig is a model load: wait for it rather than assume the frame)
     await host.waitForFunction(`window.__range.figureWear("opponent").length >= 6`, { polling: 200, timeout: 15000 }).catch(() => null);
     const worn = await ev<string[]>(host, `window.__range.figureWear("opponent")`);
-    check(`${label}: the other figure is dressed`, worn.length >= 6, worn.join(" "));
+    check(`${label}: the other figure is dressed`, worn.length >= 4, worn.join(" "));
     if (bases[1] === BASE) {
+      // The guest is in SHIRTSLEEVES, which is the pack's peasant shirt and
+      // trousers; the default loadout is in the ranger's coat. So the host
+      // seeing peasant parts is the host seeing the guest's own choice, and
+      // not what it would draw for anybody.
       check(
-        `${label}: and wears what the guest chose, goggles and wrap and all`,
-        worn.includes("goggles") && worn.includes("wrap") && worn.includes("jacket") && worn.includes("boot_l") && worn.includes("boot_r"),
+        `${label}: and wears the published cloth the guest chose, not the default`,
+        worn.some((w) => w.includes("Peasant_Body")) && worn.some((w) => w.includes("Peasant_Legs")) && !worn.some((w) => w.includes("Ranger_Body")),
         worn.join(" ")
       );
     }
