@@ -118,24 +118,8 @@ export function loadMannequin(): Promise<void> {
     loader.loadAsync("models/body/Superhero_Male_FullBody.gltf").catch(() => null),
     // and the outfits that are real assets rather than shells on bones: a
     // whole clothed figure each, on the same rig (outfits.json `character`)
-    Promise.all(
-      REAL_OUTFITS.map((n) =>
-        loader
-          .loadAsync(`models/outfits/${n}.gltf`)
-          .then((g) => [n, g.scene] as const)
-          .catch(() => null)
-      )
-    ),
-    Promise.all(
-      PART_NAMES.map((n) =>
-        loader
-          .loadAsync(`models/outfits/parts/${n}.gltf`)
-          .then((g) => [n, skinnedIn(g.scene)] as const)
-          .catch(() => null)
-      )
-    ),
   ])
-    .then(([main, more, bodyFile, dressed, pieces]) => {
+    .then(([main, more, bodyFile]) => {
       const clips = new Map<string, THREE.AnimationClip>();
       for (const c of [...main.animations, ...more.animations]) {
         const lower = c.tracks.filter((t) => LOWER.test(t.name.split(".")[0]));
@@ -155,8 +139,31 @@ export function loadMannequin(): Promise<void> {
       const hand = probe.getObjectByName("hand_r")!;
       const chest = probe.getObjectByName("spine_03")!;
       const shoulder = probe.getObjectByName("upperarm_r")!;
-      for (const d of dressed) if (d) characters.set(d[0], d[1]);
-      for (const p of pieces) if (p && p[1]) parts.set(p[0], p[1]);
+      // The clothes load on their own clock, AFTER this promise settles.
+      //
+      // They were in the same Promise.all, and that made every figure in the
+      // game wait for 15 MB of garments before it could stop being a robot:
+      // the e2e's mannequin checks started finding no spine_03 on the figure,
+      // which is what "the body has not loaded yet" looks like from outside.
+      // A figure built before its clothes arrive is a figure in its body,
+      // which is the same thing that happens on a slow connection anyway.
+      void Promise.all([
+        ...REAL_OUTFITS.map((n) =>
+          loader
+            .loadAsync(`models/outfits/${n}.gltf`)
+            .then((g) => characters.set(n, g.scene))
+            .catch(() => null)
+        ),
+        ...PART_NAMES.map((n) =>
+          loader
+            .loadAsync(`models/outfits/parts/${n}.gltf`)
+            .then((g) => {
+              const m = skinnedIn(g.scene);
+              if (m) parts.set(n, m);
+            })
+            .catch(() => null)
+        ),
+      ]);
       template = { scene: body, clips, handAim: hand.matrixWorld.clone(), chestAim: chest.matrixWorld.clone(), shoulderR: new THREE.Vector3().setFromMatrixPosition(shoulder.matrixWorld) };
     })
     .catch((e) => {

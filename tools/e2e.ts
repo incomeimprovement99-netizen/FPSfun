@@ -5253,14 +5253,22 @@ async function main(): Promise<void> {
 
     console.log("\nWeapon finishes");
     {
-      const before = await ev<{ locked: boolean; carbon: boolean; gun: string }>(page, `(() => { const s = document.getElementById("finish0"); const o = (v) => [...s.options].find((x) => x.value === v); return { locked: !!o("gold")?.disabled, carbon: !!o("carbon")?.disabled, gun: document.getElementById("slot0").value }; })()`);
-      // the level reached, Gold chosen for the first slot's gun
-      await ev(page, `(() => { const p = window.__range.progress; p.s.xp = 1e7; p.onChange?.(); const sel = document.getElementById("finish0"); sel.value = "gold"; sel.dispatchEvent(new Event("change")); })()`);
+      // No levels on a paint job any more: the owner asked for the grind to
+      // come off them, so a page at level 1 can pick the last one in the list.
+      const before = await ev<{ any: boolean; count: number; gun: string }>(
+        page,
+        `(() => { const s = document.getElementById("finish0"); return { any: [...s.options].some((x) => x.disabled), count: s.options.length, gun: document.getElementById("slot0").value }; })()`
+      );
+      await ev(page, `(() => { const sel = document.getElementById("finish0"); sel.value = "gold"; sel.dispatchEvent(new Event("change")); })()`);
       await sleep(400);
       const worn = await ev<{ finish: string }>(page, `window.__range.gunFinish(${JSON.stringify(before.gun)})`);
       const shown = await ev<string>(page, `document.getElementById("finish0").value`);
       const drawn = await ev<string>(page, "window.__range.loadout.active.id");
-      check("finishes: at level 1 Gold and Carbon are locked; at the level for it Gold is chosen for the first slot's gun, and that gun wears it in hand", before.locked && before.carbon && shown === "gold" && drawn === before.gun && worn.finish === "gold", JSON.stringify({ before, shown, worn, drawn }));
+      check(
+        "finishes: every one of them is open from the first minute, and Gold picked for the first slot's gun is worn in hand",
+        !before.any && before.count >= 8 && shown === "gold" && drawn === before.gun && worn.finish === "gold",
+        JSON.stringify({ before, shown, worn, drawn })
+      );
     }
 
     console.log("\nThird person");
