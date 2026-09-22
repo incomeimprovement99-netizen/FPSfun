@@ -83,6 +83,39 @@ function skinnedIn(o: THREE.Object3D): THREE.SkinnedMesh | null {
   return found;
 }
 
+/**
+ * The bodies. There are two in the pack, a heavier and a lighter build of the
+ * same rig, and a garment is cut for one of them: the ranger's coat shaped for
+ * the second sits wrong on the first. So an outfit names the body its clothes
+ * were made for, and the figure is built on that one.
+ *
+ * The skeleton is identical either way, which is the part that matters for a
+ * shooter: the hit boxes are built from the bones, so nobody is a bigger or a
+ * smaller target for the body their clothes came on.
+ */
+const bodies = new Map<string, THREE.Object3D>();
+const bodyLoads = new Map<string, Promise<unknown>>();
+const DEFAULT_BODY = "Superhero_Male_FullBody";
+
+/** the body an outfit's clothes were cut for */
+export function bodyOf(outfit: string): string {
+  return ((outfitCfg.sets as Record<string, { body?: string }>)[outfit]?.body ?? DEFAULT_BODY) as string;
+}
+
+/** fetch a body, once */
+export function loadBody(name: string): Promise<unknown> {
+  const had = bodyLoads.get(name);
+  if (had) return had;
+  const job = new GLTFLoader()
+    .loadAsync(`models/body/${name}.gltf`)
+    .then((g) => {
+      bodies.set(name, g.scene);
+    })
+    .catch(() => null);
+  bodyLoads.set(name, job);
+  return job;
+}
+
 /** what an outfit is made of, or nothing when it is built in code */
 export function partsOf(outfit: string): string[] {
   return (((outfitCfg.sets as Record<string, { parts?: string[] }>)[outfit]?.parts ?? []) as string[]).slice();
@@ -154,10 +187,11 @@ export function loadMannequin(): Promise<void> {
       // anyway and has the same skeleton, so figures start there, and every
       // figure built after the body arrives is the real one.
       void loader
-        .loadAsync("models/body/Superhero_Male_FullBody.gltf")
+        .loadAsync(`models/body/${DEFAULT_BODY}.gltf`)
         .then((b) => {
           if (!template) return;
           template.scene = b.scene;
+          bodies.set(DEFAULT_BODY, b.scene);
           // the hand's aim pose is sampled off whatever the body is
           const p2 = cloneSkinned(b.scene);
           const m2 = new THREE.AnimationMixer(p2);
@@ -312,7 +346,12 @@ export class MannequinFigure {
 
   constructor(skin: OperatorSkin, gunId: string | null) {
     const t = template!;
-    this.root = cloneSkinned(t.scene);
+    // the body this outfit's clothes were cut for, if it is here; the one the
+    // template holds otherwise, and the next figure gets it right
+    const want = bodyOf(skin.outfit);
+    const body = bodies.get(want);
+    if (!body) void loadBody(want);
+    this.root = cloneSkinned(body ?? t.scene);
     this.root.name = "mannequin";
     this.mixer = new THREE.AnimationMixer(this.root);
     this.root.traverse((o) => {
@@ -416,7 +455,14 @@ export class MannequinFigure {
       holder.add(worn.group);
       bone.add(holder);
     }
-    for (const piece of buildGear(skin)) {
+    // The kit is OURS, built in code out of boxes, and on a figure wearing
+    // real cloth it is exactly what the owner spotted: our shapes stacked on
+    // top of somebody's asset. The pack already brings a hood and a shoulder
+    // guard of its own, and a plate carrier of boxes over a ranger's coat
+    // reads as what it is. So a real-cloth outfit wears no kit at all; what
+    // stays is the face, because nothing in the pack covers a pair of eyes and
+    // the rule is that everybody's are covered.
+    for (const piece of partsOf(skin.outfit).length ? [] : buildGear(skin)) {
       const bone = this.bones[piece.bone];
       if (!bone) continue;
       // Each piece is authored the way a person would describe it: so far up

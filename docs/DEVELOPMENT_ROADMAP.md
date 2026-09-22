@@ -2849,3 +2849,25 @@ ships the **parts** those figures are made of, which is what it is actually for.
 - Checks: `tools/checks/outfit.ts` knows both kinds of real outfit and does not look for a garment list on
   either; it also checks that a mixed set covers a body, arms and legs, and that its parts are all the same
   build so nothing is two sizes. The look is `outfit-real`.
+
+## Milestone 166 — Our boxes come off the real clothes ✅
+
+The owner, once the real assets were in: "do we take away our extra stuff that is on the models now thats
+just sitting above the new assets we implemented?" Yes, and it turned out two things were wrong rather than
+one.
+
+- **The kit comes off.** A figure wearing real cloth wears no kit at all: the plate carrier, the pack, the
+  helmet, the pouches and the knee pads are ours, built out of boxes, and stacking them on somebody's asset
+  is exactly what he spotted. The pack already brings a hood and a shoulder guard of its own.
+- **What stays is the face**, because nothing in the pack covers a pair of eyes and the rule is that
+  everybody's are covered.
+- **And the face pieces did not fit.** They were authored against the grey mannequin's head, and the real
+  head is a different head: **159 mm across against 172, 3 to 194 mm up the bone against -9 to 256, and its
+  eyes at y 69 against y 99**. Everything we put on a face was placed 30 to 60 mm too high, which is why the
+  motocross helmet floated above the head with its peak in the air. Every head piece - the goggles, the
+  wrap, the full mask, the hood and the helmet - is re-placed against the measured head, and the
+  measurements are written into `outfits.json` beside them.
+- **An outfit also names the body its clothes were cut for.** The four "(F)" sets were wearing garments
+  shaped for the second body on the first one. The skeleton is identical either way, which is the part that
+  matters: hit boxes are built from the bones, so nobody is a bigger or a smaller target for the body their
+  clothes came on.

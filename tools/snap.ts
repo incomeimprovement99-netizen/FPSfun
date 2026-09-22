@@ -426,10 +426,10 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: "face-close",
-    note: "close, from the front: the motocross helmet's peak and chin bar, and goggles with nothing readable behind the lens",
+    note: "close, from the front: goggles on a real-cloth figure, and the code-built motocross helmet beside it, to see whether our head pieces still sit on a real head",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 8);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "motocross||" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "" }], 1.45, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "ranger||goggles" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "motocross||" }], 1.45, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
