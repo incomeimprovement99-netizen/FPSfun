@@ -28,7 +28,7 @@ import { displayGunModel } from "./gunmodels";
 import { LOWER as CARRY, REACH, gripAt, reachFraction, stockBehind } from "./hold";
 import type { OperatorSkin } from "./operators";
 import { buildGear, type GearPiece } from "./gear";
-import { buildOutfit, outfitMaterials } from "./outfit";
+import { OUR_GEOMETRY, buildOutfit, outfitMaterials } from "./outfit";
 import outfitCfg from "../config/outfits.json";
 import type { FigurePose } from "./dummy";
 import type { EmotePose } from "./emotes";
@@ -114,6 +114,12 @@ export function loadBody(name: string): Promise<unknown> {
     .catch(() => null);
   bodyLoads.set(name, job);
   return job;
+}
+
+/** the colour an outfit paints its garments, or null for the asset's own */
+export function tintOf(outfit: string): number | null {
+  const t = (outfitCfg.sets as Record<string, { tint?: string }>)[outfit]?.tint;
+  return typeof t === "string" ? parseInt(t.replace("#", ""), 16) : null;
 }
 
 /** what an outfit is made of, or nothing when it is built in code */
@@ -392,14 +398,20 @@ export class MannequinFigure {
    * The body underneath is hidden where a garment covers it, because two
    * surfaces in the same place fight each other in the depth buffer.
    */
-  private wearParts(names: string[]): void {
+  private wearParts(names: string[], tint: number | null = null): void {
     for (const n of names) {
       const src = parts.get(n);
       // already on, or not here yet
       if (!src || this.worn.some((w) => w.name === `wear:${n}`)) continue;
       const bones = src.skeleton.bones.map((b) => this.bones[b.name]);
       if (bones.some((b) => !b)) continue;
-      const mesh = new THREE.SkinnedMesh(src.geometry, src.material);
+      // The garment in this outfit's own colour. The pack ships one texture
+      // atlas per set, so a tint multiplied into it is how the same coat
+      // becomes desert tan on one outfit and night black on another: real
+      // cloth, our palette, and no second download.
+      const mat = (src.material as THREE.MeshStandardMaterial).clone();
+      if (tint !== null) mat.color.setHex(tint);
+      const mesh = new THREE.SkinnedMesh(src.geometry, mat);
       mesh.bind(new THREE.Skeleton(bones as THREE.Bone[], src.skeleton.boneInverses), src.bindMatrix);
       mesh.castShadow = true;
       mesh.frustumCulled = false;
@@ -434,8 +446,9 @@ export class MannequinFigure {
     // page in the game waiting for clothes nobody asked for.
     const want = partsOf(skin.outfit);
     if (want.length) {
-      this.wearParts(want);
-      if (this.worn.length < want.length) void loadOutfit(skin.outfit).then(() => this.wearParts(want));
+      const tint = tintOf(skin.outfit);
+      this.wearParts(want, tint);
+      if (this.worn.length < want.length) void loadOutfit(skin.outfit).then(() => this.wearParts(want, tint));
     }
     const mats = outfitMaterials(skin.outfit, skin.visor, skin.eye);
     // a real outfit brings its own clothes; only what goes on the face is ours
@@ -462,7 +475,7 @@ export class MannequinFigure {
     // reads as what it is. So a real-cloth outfit wears no kit at all; what
     // stays is the face, because nothing in the pack covers a pair of eyes and
     // the rule is that everybody's are covered.
-    for (const piece of partsOf(skin.outfit).length ? [] : buildGear(skin)) {
+    for (const piece of !OUR_GEOMETRY() || partsOf(skin.outfit).length ? [] : buildGear(skin)) {
       const bone = this.bones[piece.bone];
       if (!bone) continue;
       // Each piece is authored the way a person would describe it: so far up

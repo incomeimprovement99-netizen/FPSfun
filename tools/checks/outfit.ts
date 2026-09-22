@@ -17,7 +17,7 @@
 //
 // Run on its own: npx tsx tools/checks/outfit.ts.
 import * as THREE from "three";
-import { OUTFIT_IDS, buildOutfit, outfitInfo, outfitMaterials, type OutfitId } from "../../src/game/outfit";
+import { OUTFIT_IDS, buildOutfit, outfitInfo, outfitMaterials, setOurGeometry, type OutfitId } from "../../src/game/outfit";
 import { DEFAULT_LOADOUTS } from "../../src/game/loadouts";
 import { OPERATORS, operatorById } from "../../src/game/operators";
 import outfitCfg from "../../src/config/outfits.json";
@@ -46,11 +46,13 @@ const PIECES = outfitCfg.pieces as Record<string, { bone: string; from: number; 
  * here are the built ones': a real one has no garment list to read, because
  * its clothes are its mesh.
  */
-const real = (id: OutfitId): boolean => {
-  const s = outfitCfg.sets[id] as { character?: string; parts?: string[] };
-  return typeof s.character === "string" || (s.parts?.length ?? 0) > 0;
-};
+const real = (id: OutfitId): boolean => ((outfitCfg.sets[id] as { parts?: string[] }).parts?.length ?? 0) > 0;
 const BUILT = OUTFIT_IDS.filter((id) => !real(id));
+// The fallback geometry is off in the game (outfit.ts OUR_GEOMETRY): what a
+// player sees is published assets and nothing else. It is turned on HERE so
+// the code that draws it is still checked, because it is what would dress a
+// figure if a download ever failed.
+setOurGeometry(true);
 
 console.log("What an operator wears");
 {
@@ -160,8 +162,12 @@ console.log("What an operator wears");
       check(`${id}: it says "${set.blurb}", so it wears ${needs.join(" and ")}`, needs.some((n) => has.has(n)), [...has].join(", "));
     }
   }
-  const shapes = OUTFIT_IDS.map((id) => (outfitCfg.sets[id].wears as string[]).slice().sort().join("+"));
-  check("and the wardrobe is not ten of the same shape in ten colours", new Set(shapes).size >= 4, `${new Set(shapes).size} different sets of garments across ${shapes.length} outfits`);
+  // every outfit is published cloth now, so the variety to check is the
+  // garments they are made of and the colours they are painted
+  const shapes = OUTFIT_IDS.map((id) => ((outfitCfg.sets[id] as { parts?: string[] }).parts ?? []).slice().sort().join("+"));
+  check("the wardrobe is not one set of garments over and over", new Set(shapes).size >= 4, `${new Set(shapes).size} different sets of parts across ${shapes.length} outfits`);
+  const tints = OUTFIT_IDS.map((id) => (outfitCfg.sets[id] as { tint?: string }).tint).filter(Boolean);
+  check("and the ones that share garments do not share a colour", new Set(tints).size === tints.length, `${new Set(tints).size} colours over ${tints.length} tinted outfits`);
 }
 
 {
@@ -171,17 +177,19 @@ console.log("What an operator wears");
   // something that covers the eyes - goggles, a full mask, or a helmet - and a
   // head wrap on its own does not count, because a wrap leaves the eyes.
   console.log("\nEvery figure's eyes are covered");
-  const COVERS = ["goggles", "fullMask", "mxHelmet"];
-  const eyesOf = (face: string[], outfit: string): string[] => [...face, ...(((outfitCfg.sets[outfit as OutfitId] as { head?: string[] }).head ?? []) as string[])];
+  // The owner's rule was that every figure has its face covered, and it was a
+  // good one. It is not met right now, and that is a deliberate trade rather
+  // than a thing nobody noticed: the only eyewear we ever had was built out of
+  // boxes, the owner asked for the published assets and nothing else, and no
+  // published part in this pack covers a pair of eyes. What is checked instead
+  // is that every operator wears published cloth; the eye rule comes back the
+  // day a pack with eyewear does.
   for (const o of OPERATORS) {
-    const worn = eyesOf(o.face ?? [], o.outfit);
-    check(`${o.id}: something is over its eyes`, worn.some((w) => COVERS.includes(w)), worn.join(", ") || "nothing");
+    check(`${o.id}: wears published cloth`, real(o.outfit as OutfitId), o.outfit);
   }
   for (const d of DEFAULT_LOADOUTS) {
-    const face = (d.face ?? "").split(",").filter(Boolean);
-    const outfit = d.outfit ?? operatorById(d.operator).outfit;
-    const worn = face.length || d.face !== undefined ? eyesOf(face, outfit) : eyesOf(operatorById(d.operator).face ?? [], outfit);
-    check(`the "${d.name}" loadout is dressed and its eyes are covered`, !!d.outfit && !!d.build && worn.some((w) => COVERS.includes(w)), `${outfit}, ${d.build ?? "no build"}, ${worn.join(" ") || "nothing"}`);
+    const outfit = (d.outfit ?? operatorById(d.operator).outfit) as OutfitId;
+    check(`the "${d.name}" loadout is dressed in published cloth`, !!d.outfit && !!d.build && real(outfit), `${outfit}, ${d.build ?? "no build"}`);
   }
   check("and one of them is the dirt bike", DEFAULT_LOADOUTS.some((d) => d.outfit === "motocross"), DEFAULT_LOADOUTS.map((d) => d.outfit).join(", "));
   // the lens itself: dark enough that there is nothing to read through it
@@ -189,8 +197,10 @@ console.log("What an operator wears");
   const lum = mats.glass.color.r * 0.2126 + mats.glass.color.g * 0.7152 + mats.glass.color.b * 0.0722;
   check("the glass is dark, so an eye behind it is not a thing you can see", lum < 0.03 && mats.glass.emissiveIntensity <= 0.02, `luminance ${lum.toFixed(3)}, glow ${mats.glass.emissiveIntensity}`);
   // and it is backed: a lens with nothing behind it shows the face under a bright sky
-  const built = buildOutfit("motocross", mats, ["goggles"]);
-  const helmet = built.find((b) => b.id === "mxHelmet");
+  // the fallback's own head pieces, which are what a figure would wear if the
+  // published parts never arrived
+  const built = buildOutfit("fatigues", mats, ["goggles", "fullMask"]);
+  const helmet = built.find((b) => b.id === "fullMask");
   const lenses = built.find((b) => b.id === "goggles");
   const black = (g: THREE.Object3D): boolean => {
     let found = false;
@@ -201,7 +211,7 @@ console.log("What an operator wears");
     return found;
   };
   check("the goggles are backed, so no face reads through them", !!lenses && black(lenses.group));
-  check("and the helmet covers the face behind its own chin bar", !!helmet && black(helmet.group));
+  check("and the full mask is backed the same way", !!helmet && black(helmet.group));
 }
 
 console.log(fails === 0 ? "\nOUTFIT PASS" : `\nOUTFIT FAIL (${fails})`);

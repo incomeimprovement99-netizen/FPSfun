@@ -349,159 +349,156 @@
     "hoodie": {
       "name": "HOODIE",
       "blurb": "a hood up over a plain top, jeans, trainers",
-      "wears": [
-        "jacket",
-        "sleeveLong",
-        "cuff",
-        "trouserThigh",
-        "trouserCalf",
-        "boot"
-      ],
-      "head": [
-        "hood"
-      ],
+      "wears": [],
       "cloth": "#4a4f58",
       "trim": "#2b2f36",
-      "boots": "#d8d4cc"
+      "boots": "#d8d4cc",
+      "parts": [
+        "Male_Peasant_Body",
+        "Male_Peasant_Arms",
+        "Male_Peasant_Legs",
+        "Male_Ranger_Feet_Boots",
+        "Male_Ranger_Head_Hood"
+      ],
+      "tint": "#4a4f58"
     },
     "coveralls": {
       "name": "COVERALLS",
       "blurb": "one piece from collar to ankle, the way a working man dresses",
-      "wears": [
-        "jacket",
-        "sleeveLong",
-        "cuff",
-        "trouserThigh",
-        "trouserCalf",
-        "boot"
-      ],
+      "wears": [],
       "cloth": "#9a5f2c",
       "trim": "#6e4420",
-      "boots": "#2a2320"
+      "boots": "#2a2320",
+      "parts": [
+        "Male_Peasant_Body",
+        "Male_Peasant_Arms",
+        "Male_Peasant_Legs",
+        "Male_Peasant_Feet"
+      ],
+      "tint": "#c96a1e"
     },
     "ghillie": {
       "name": "GHILLIE",
       "blurb": "ragged strips over everything, made to break a shape rather than to be worn",
-      "wears": [
-        "jacket",
-        "sleeveLong",
-        "cuff",
-        "trouserThigh",
-        "trouserCalf",
-        "boot",
-        "rags",
-        "ragsLeg"
-      ],
-      "head": [
-        "hood"
-      ],
+      "wears": [],
       "cloth": "#4c5733",
       "trim": "#6d7448",
-      "boots": "#2f2a1e"
+      "boots": "#2f2a1e",
+      "parts": [
+        "Male_Peasant_Body",
+        "Male_Peasant_Arms",
+        "Male_Peasant_Legs",
+        "Male_Ranger_Feet_Boots",
+        "Male_Ranger_Head_Hood"
+      ],
+      "tint": "#4f5a34"
     },
     "tracksuit": {
       "name": "TRACKSUIT",
       "blurb": "a zip top and bottoms, two stripes, nothing tactical about it",
-      "wears": [
-        "jacket",
-        "sleeveLong",
-        "cuff",
-        "trouserThigh",
-        "trouserCalf",
-        "boot",
-        "stripeArm",
-        "stripeLeg"
-      ],
+      "wears": [],
       "cloth": "#1f2b4a",
       "trim": "#d9dde3",
-      "boots": "#e6e3dd"
+      "boots": "#e6e3dd",
+      "parts": [
+        "Male_Peasant_Body",
+        "Male_Peasant_Arms",
+        "Male_Peasant_Legs",
+        "Male_Peasant_Feet"
+      ],
+      "tint": "#1f3f7a"
     },
     "fatigues": {
       "name": "FATIGUES",
       "blurb": "field uniform, sleeves down, boots",
-      "wears": [
-        "jacket",
-        "sleeveLong",
-        "cuff",
-        "trouserThigh",
-        "trouserCalf",
-        "boot"
-      ],
+      "wears": [],
       "cloth": "#5b5f43",
       "trim": "#3c4030",
-      "boots": "#241f1a"
+      "boots": "#241f1a",
+      "parts": [
+        "Male_Ranger_Body",
+        "Male_Ranger_Arms",
+        "Male_Ranger_Legs",
+        "Male_Ranger_Feet_Boots"
+      ],
+      "tint": "#5b5f43"
     },
     "plainclothes": {
       "name": "PLAIN CLOTHES",
-      "blurb": "a t-shirt and shorts, and nothing to say who sent you",
-      "wears": [
-        "shirt",
-        "sleeveShort",
-        "shorts",
-        "boot"
-      ],
+      "blurb": "a plain shirt and working trousers, and nothing to say who sent you",
+      "wears": [],
       "cloth": "#c9c4b6",
       "trim": "#7d8a99",
-      "boots": "#3a332c"
+      "boots": "#3a332c",
+      "parts": [
+        "Male_Peasant_Body",
+        "Male_Peasant_Arms",
+        "Male_Peasant_Legs",
+        "Male_Peasant_Feet"
+      ],
+      "tint": "#c9c4b6"
     },
     "irregular": {
       "name": "IRREGULAR",
       "blurb": "a head wrap, loose clothes over a chest rig, no uniform at all",
-      "wears": [
-        "jacket",
-        "sleeveLong",
-        "cuff",
-        "trouserThigh",
-        "trouserCalf",
-        "boot"
-      ],
+      "wears": [],
       "cloth": "#8a7d63",
       "trim": "#4d4638",
-      "boots": "#33291f"
+      "boots": "#33291f",
+      "parts": [
+        "Male_Peasant_Body",
+        "Male_Peasant_Arms",
+        "Male_Peasant_Legs",
+        "Male_Ranger_Feet_Boots",
+        "Male_Ranger_Head_Hood"
+      ],
+      "tint": "#6d5a3f"
     },
     "urban": {
       "name": "URBAN",
       "blurb": "dark layers, long sleeves, a covered face",
-      "wears": [
-        "jacket",
-        "sleeveLong",
-        "cuff",
-        "trouserThigh",
-        "trouserCalf",
-        "boot"
-      ],
+      "wears": [],
       "cloth": "#2e3238",
       "trim": "#1b1e22",
-      "boots": "#17181a"
+      "boots": "#17181a",
+      "parts": [
+        "Male_Ranger_Body",
+        "Male_Ranger_Arms",
+        "Male_Ranger_Legs",
+        "Male_Ranger_Feet_Boots",
+        "Male_Ranger_Acc_Pauldron"
+      ],
+      "tint": "#23262b"
     },
     "arctic": {
       "name": "ARCTIC",
       "blurb": "a white overlayer over everything, goggles against the glare",
-      "wears": [
-        "jacket",
-        "sleeveLong",
-        "cuff",
-        "trouserThigh",
-        "trouserCalf",
-        "boot"
-      ],
+      "wears": [],
       "cloth": "#dde3e8",
       "trim": "#93a3b1",
-      "boots": "#4a5158"
+      "boots": "#4a5158",
+      "parts": [
+        "Male_Ranger_Body",
+        "Male_Ranger_Arms",
+        "Male_Ranger_Legs",
+        "Male_Ranger_Feet_Boots"
+      ],
+      "tint": "#dde3e8"
     },
     "desert": {
       "name": "DESERT",
       "blurb": "sand fatigues, sleeves rolled, a wrap against the dust",
-      "wears": [
-        "shirt",
-        "sleeveShort",
-        "trouserThigh",
-        "trouserCalf",
-        "boot"
-      ],
+      "wears": [],
       "cloth": "#c2ab7e",
       "trim": "#8a7449",
-      "boots": "#5c4a32"
+      "boots": "#5c4a32",
+      "parts": [
+        "Male_Peasant_Body",
+        "Male_Peasant_Arms",
+        "Male_Peasant_Legs",
+        "Male_Peasant_Feet"
+      ],
+      "tint": "#c2ab7e"
     },
     "ranger": {
       "name": "RANGER",
@@ -643,21 +640,19 @@
     },
     "motocross": {
       "name": "MOTOCROSS",
-      "blurb": "a dirt bike jersey and pants, boots, and a helmet with a peak and a chin bar",
-      "wears": [
-        "jacket",
-        "sleeveLong",
-        "cuff",
-        "trouserThigh",
-        "trouserCalf",
-        "boot"
-      ],
-      "head": [
-        "mxHelmet"
-      ],
+      "blurb": "dirt bike blue over boots and heavy trousers",
+      "wears": [],
+      "head": [],
       "cloth": "#1f6fd0",
       "trim": "#ff7a18",
-      "boots": "#171a1f"
+      "boots": "#171a1f",
+      "parts": [
+        "Male_Ranger_Body",
+        "Male_Ranger_Arms",
+        "Male_Ranger_Legs",
+        "Male_Ranger_Feet_Boots"
+      ],
+      "tint": "#1f6fd0"
     }
   }
 }

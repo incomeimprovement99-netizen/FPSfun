@@ -18,6 +18,28 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import outfitCfg from "../config/outfits.json";
 
+/**
+ * Our own geometry, off.
+ *
+ * Everything this file can build - a sleeve as a lathed tube, a jacket as a
+ * box-section tube, a helmet as a squashed sphere - is ours, made of
+ * primitives, and it looks like it. The owner's words on seeing it beside the
+ * published assets: "feature flag off the custom pixal shit that we built and
+ * just do the published assets... i still see shit that looks horrible and
+ * can't see the base skin".
+ *
+ * So the default is the published assets and nothing else. The code stays,
+ * because it is what dresses a figure on a rig no pack covers and it is the
+ * fallback if a download ever fails, but it is not what anybody sees.
+ * `?ourgeometry=1` in the URL brings it back for a comparison.
+ */
+let ourGeometry = typeof location !== "undefined" && new URLSearchParams(location.search).get("ourgeometry") === "1";
+export const OUR_GEOMETRY = (): boolean => ourGeometry;
+/** the checks turn it on to exercise the fallback; nothing else should */
+export function setOurGeometry(on: boolean): void {
+  ourGeometry = on;
+}
+
 /** the bones a garment can hang on, in the mannequin's rig */
 export type WearBone = "spine_01" | "upperarm_l" | "upperarm_r" | "lowerarm_l" | "lowerarm_r" | "thigh_l" | "thigh_r" | "calf_l" | "calf_r" | "Head";
 
@@ -468,6 +490,8 @@ function weld(group: THREE.Group): THREE.Group {
  * the outfit's: a wrap, goggles, a full mask, or nothing.
  */
 export function buildOutfit(id: OutfitId, mats: OutfitMats, face: FacePiece[] = [], build: BuildId = "regular"): WornPiece[] {
+  // the published assets only, unless somebody asked to see ours
+  if (!ourGeometry) return [];
   const set = outfitCfg.sets[id];
   // how heavy-set this one is: thicker cloth and wider shoulders, and the
   // body and its hit boxes exactly as they were (outfits.json builds)
