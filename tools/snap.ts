@@ -435,10 +435,10 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: "outfit-real",
-    note: "the outfits that are real assets rather than shells on bones: ranger and workwear, male and female, beside a code-built one",
+    note: "real assets against a code-built one: a whole ranger, then three mixed from parts of two sets, then the tubes-and-boxes FATIGUES on the right",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab(["ranger", "peasant", "rangerF", "peasantF", "fatigues"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab(["ranger", "scout_leathers", "hooded", "shirtsleeves", "fatigues"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },

@@ -2828,3 +2828,24 @@ nothing was an asset. It reads as Roblox because it is boxes.
   and that he would have to fetch them. He asked how the mannequin got there if he never did that, which was
   the right question. itch.io's free flow is three plain requests and an earlier session had clearly used
   it. The tool now records exactly how, so nobody has to guess again.
+
+## Milestone 165 — Nine outfits made of real cloth ✅
+
+Milestone 164 put four real outfits in by swapping the whole figure for a clothed one. That is the blunt
+way to use a modular pack, and it caps out at however many assembled figures the pack ships. The pack also
+ships the **parts** those figures are made of, which is what it is actually for.
+
+- **Garment parts are rebound, not hung.** Each part (a body, arms, legs, feet, a hood, a shoulder guard)
+  is a skinned mesh on the same universal rig, so it is rebound to *this* figure's bones and then moves
+  exactly as the body does. No bone to hang it from, no piece that fails to bend at a knee - the thing the
+  code-built shells could never do.
+- **Five outfits mixed from two sets**: SCOUT (a ranger's coat and shoulder guard over working trousers),
+  HOODED (the hood up over a plain shirt with ranger legs), SHIRTSLEEVES (a worker's shirt and trousers, no
+  coat), and SCOUT and HOODED again on the other build. None of them ships in the pack; all of them are
+  real cloth.
+- **The skin underneath goes** where a full set covers it, because two surfaces in the same place fight
+  each other in the depth buffer. The face and eyes stay, which is what the player's face covering goes on.
+- Nine real outfits now against eleven built in code, and the built ones are the ones to replace next.
+- Checks: `tools/checks/outfit.ts` knows both kinds of real outfit and does not look for a garment list on
+  either; it also checks that a mixed set covers a body, arms and legs, and that its parts are all the same
+  build so nothing is two sizes. The look is `outfit-real`.

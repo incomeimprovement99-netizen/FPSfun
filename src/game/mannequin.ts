@@ -69,6 +69,26 @@ const REAL_OUTFITS = Object.values(outfitCfg.sets)
   .filter((c): c is string => typeof c === "string");
 const characters = new Map<string, THREE.Object3D>();
 
+/**
+ * The garment PARTS: a body, arms, legs, feet, a hood, a shoulder guard, each
+ * its own skinned mesh on the same rig. This is what a modular outfit pack is
+ * for - a ranger's legs under a peasant's shirt is an outfit that neither
+ * shipped - and it is how an outfit gets to be a real asset without being a
+ * whole second figure.
+ */
+const PART_NAMES = [...new Set(Object.values(outfitCfg.sets).flatMap((s) => ((s as { parts?: string[] }).parts ?? []) as string[]))];
+const parts = new Map<string, THREE.SkinnedMesh>();
+
+/** the first skinned mesh in a loaded file, which is what a part is */
+function skinnedIn(o: THREE.Object3D): THREE.SkinnedMesh | null {
+  let found: THREE.SkinnedMesh | null = null;
+  o.traverse((c) => {
+    const m = c as THREE.SkinnedMesh;
+    if (!found && m.isSkinnedMesh) found = m;
+  });
+  return found;
+}
+
 /** the clothed figure an outfit is, if it is one of those */
 export function characterFor(outfit: string): THREE.Object3D | null {
   const c = (outfitCfg.sets as Record<string, { character?: string }>)[outfit]?.character;
@@ -106,8 +126,16 @@ export function loadMannequin(): Promise<void> {
           .catch(() => null)
       )
     ),
+    Promise.all(
+      PART_NAMES.map((n) =>
+        loader
+          .loadAsync(`models/outfits/parts/${n}.gltf`)
+          .then((g) => [n, skinnedIn(g.scene)] as const)
+          .catch(() => null)
+      )
+    ),
   ])
-    .then(([main, more, bodyFile, dressed]) => {
+    .then(([main, more, bodyFile, dressed, pieces]) => {
       const clips = new Map<string, THREE.AnimationClip>();
       for (const c of [...main.animations, ...more.animations]) {
         const lower = c.tracks.filter((t) => LOWER.test(t.name.split(".")[0]));
@@ -128,6 +156,7 @@ export function loadMannequin(): Promise<void> {
       const chest = probe.getObjectByName("spine_03")!;
       const shoulder = probe.getObjectByName("upperarm_r")!;
       for (const d of dressed) if (d) characters.set(d[0], d[1]);
+      for (const p of pieces) if (p && p[1]) parts.set(p[0], p[1]);
       template = { scene: body, clips, handAim: hand.matrixWorld.clone(), chestAim: chest.matrixWorld.clone(), shoulderR: new THREE.Vector3().setFromMatrixPosition(shoulder.matrixWorld) };
     })
     .catch((e) => {
@@ -309,6 +338,39 @@ export class MannequinFigure {
    * bone turns when the head turns; a vest on the upper spine leans when the
    * spine leans; and nothing has to deform, because none of it would.
    */
+  /**
+   * Put real garment meshes on: each one is skinned to the same rig, so it is
+   * rebound to THIS figure's bones and then moves with it exactly as the body
+   * does - no bone to hang it from, no piece that fails to bend at a knee.
+   * The body underneath is hidden where a garment covers it, because two
+   * surfaces in the same place fight each other in the depth buffer.
+   */
+  private wearParts(names: string[]): void {
+    for (const n of names) {
+      const src = parts.get(n);
+      if (!src) continue;
+      const bones = src.skeleton.bones.map((b) => this.bones[b.name]);
+      if (bones.some((b) => !b)) continue;
+      const mesh = new THREE.SkinnedMesh(src.geometry, src.material);
+      mesh.bind(new THREE.Skeleton(bones as THREE.Bone[], src.skeleton.boneInverses), src.bindMatrix);
+      mesh.castShadow = true;
+      mesh.frustumCulled = false;
+      mesh.name = `wear:${n}`;
+      this.root.add(mesh);
+      this.worn.push(mesh);
+    }
+    // the skin under the clothes: a full set covers it, so it goes
+    if (this.worn.length >= 3) {
+      this.root.traverse((o) => {
+        const m = o as THREE.SkinnedMesh;
+        if (m.isSkinnedMesh && !m.name.startsWith("wear:") && m.name !== "Face" && !/face|eye|head/i.test(m.name)) m.visible = false;
+      });
+    }
+  }
+
+  /** the garment meshes this figure is wearing */
+  private worn: THREE.SkinnedMesh[] = [];
+
   private wearGear(skin: OperatorSkin): void {
     this.root.updateMatrixWorld(true);
     const rootQ = this.root.getWorldQuaternion(new THREE.Quaternion());
@@ -316,9 +378,12 @@ export class MannequinFigure {
     // A sleeve hangs on the arm bone and turns with it, so it is added raw;
     // what goes on a face is authored the way a person would describe it and
     // gets the same rest-frame holder the kit does.
+    // real garment parts, if this outfit is made of them
+    this.wearParts(((outfitCfg.sets as Record<string, { parts?: string[] }>)[skin.outfit]?.parts ?? []) as string[]);
     const mats = outfitMaterials(skin.outfit, skin.visor, skin.eye);
     // a real outfit brings its own clothes; only what goes on the face is ours
-    const built = this.realOutfit ? buildOutfit(skin.outfit, mats, skin.face ?? [], skin.build ?? "regular").filter((w) => w.bone === "Head") : buildOutfit(skin.outfit, mats, skin.face ?? [], skin.build ?? "regular");
+    const all = buildOutfit(skin.outfit, mats, skin.face ?? [], skin.build ?? "regular");
+    const built = this.realOutfit || this.worn.length ? all.filter((w) => w.bone === "Head") : all;
     for (const worn of built) {
       const bone = this.bones[worn.bone];
       if (!bone) continue;

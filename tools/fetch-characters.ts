@@ -49,6 +49,9 @@ const PACKS: Pack[] = [
     upload: 16289385,
     take: [
       { match: /Outfits\/(Male|Female)_(Ranger|Peasant)\.(gltf|bin)$/, into: "outfits" },
+      // and the parts they are made of, which is what the pack is FOR: a
+      // ranger's legs under a peasant's shirt is an outfit neither ships
+      { match: /Modular Parts\/(Male|Female)_(Ranger|Peasant)_[^/]*\.(gltf|bin)$/, into: "outfits/parts" },
       { match: /Textures\/(Ranger|Peasant|Base)\/[^/]*\.png$/, into: "outfits" },
     ],
   },
@@ -75,7 +78,7 @@ function itchZip(slug: string, upload: number): Buffer {
 
 /** every fetched PNG to a 1k WebP, and every .gltf pointed at it */
 async function shrink(): Promise<void> {
-  for (const dir of ["body", "body/hair", "outfits"].map((d) => resolve(OUT, d))) {
+  for (const dir of ["body", "body/hair", "outfits", "outfits/parts"].map((d) => resolve(OUT, d))) {
     if (!existsSync(dir)) continue;
     // the two files a body asks for by a name the pack does not ship
     for (const [from, to] of [
@@ -101,7 +104,12 @@ async function shrink(): Promise<void> {
       if (!f.endsWith(".gltf")) continue;
       const p = join(dir, f);
       const before = readFileSync(p, "utf8");
-      const after = before.replace(/"uri"\s*:\s*"([^"]+)\.png"/gi, (_m, a: string) => `"uri":"${a}.webp"`);
+      // a part lives one folder down from the textures it shares with the
+      // whole figures, so its uris point back up
+      const up = dir.endsWith("parts") ? "../" : "";
+      const after = before
+        .replace(/"uri"\s*:\s*"([^"]+)\.png"/gi, (_m, a: string) => `"uri":"${up}${a.replace(/^\.\.\//, "")}.webp"`)
+        .replace(/"uri"\s*:\s*"(?!\.\.\/)(T_[^"]+)\.webp"/gi, (_m, a: string) => `"uri":"${up}${a}.webp"`);
       if (after !== before) writeFileSync(p, after);
     }
     if (saved > 0) console.log(`  ${dir.split(/[\/]/).pop()}: ${(saved / 1e6).toFixed(1)} MB saved as WebP`);

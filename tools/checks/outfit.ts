@@ -38,6 +38,20 @@ const BODY_R: Record<string, number> = {
 };
 const PIECES = outfitCfg.pieces as Record<string, { bone: string; from: number; to: number; over: number }>;
 
+/**
+ * An outfit is one of two kinds. A REAL one is an asset: a whole clothed
+ * figure that replaces the body, or garment meshes rebound to this figure's
+ * bones (outfits.json `character` / `parts`, public/models/outfits). A BUILT
+ * one is shells on bones, made in code out of tubes and boxes. Most rules
+ * here are the built ones': a real one has no garment list to read, because
+ * its clothes are its mesh.
+ */
+const real = (id: OutfitId): boolean => {
+  const s = outfitCfg.sets[id] as { character?: string; parts?: string[] };
+  return typeof s.character === "string" || (s.parts?.length ?? 0) > 0;
+};
+const BUILT = OUTFIT_IDS.filter((id) => !real(id));
+
 console.log("What an operator wears");
 {
   check("there are outfits to wear", OUTFIT_IDS.length >= 4, OUTFIT_IDS.join(", "));
@@ -47,9 +61,20 @@ console.log("What an operator wears");
   // on bones, made here out of tubes and boxes. The rules below are the built
   // ones' rules: a real one has no garment list to check, because its clothes
   // are its mesh, and what it looks like is the asset's business.
-  const real = (id: OutfitId): boolean => typeof (outfitCfg.sets[id] as { character?: string }).character === "string";
-  const BUILT = OUTFIT_IDS.filter((id) => !real(id));
   check("and some of them are real assets rather than shells on bones", OUTFIT_IDS.length - BUILT.length >= 4, `${OUTFIT_IDS.length - BUILT.length} real, ${BUILT.length} built in code`);
+  // the mixed ones are the point of a modular pack: parts from two sets make
+  // an outfit neither of them shipped
+  const mixed = OUTFIT_IDS.filter((id) => {
+    const ps = ((outfitCfg.sets[id] as { parts?: string[] }).parts ?? []) as string[];
+    return new Set(ps.map((n) => n.split("_")[1])).size > 1;
+  });
+  check("and some of the real ones are parts of two sets mixed", mixed.length >= 2, mixed.join(", "));
+  for (const id of OUTFIT_IDS) {
+    const ps = ((outfitCfg.sets[id] as { parts?: string[] }).parts ?? []) as string[];
+    if (!ps.length) continue;
+    check(`${id}: its parts cover a body, arms and legs`, ["Body", "Arms", "Legs"].every((k) => ps.some((n) => n.includes(k))), ps.join(" "));
+    check(`${id}: and they are all the same build, so nothing is two sizes`, new Set(ps.map((n) => n.split("_")[0])).size === 1, ps.join(" "));
+  }
   const names = OUTFIT_IDS.map((id) => outfitInfo(id).name);
   check("each has a name a person would use", names.every((n) => /^[A-Z() ]{4,16}$/.test(n)), names.join(" / "));
   check("and a line saying what it is", OUTFIT_IDS.every((id) => outfitInfo(id).blurb.length > 12));
@@ -127,7 +152,7 @@ console.log("What an operator wears");
   ];
   // built ones only: a real outfit's card describes the asset, and what the
   // asset is wearing is not a list this file can read
-  for (const id of OUTFIT_IDS.filter((x) => !(outfitCfg.sets[x] as { character?: string }).character)) {
+  for (const id of BUILT) {
     const set = outfitCfg.sets[id] as { blurb: string; wears: string[]; head?: string[] };
     const has = new Set([...set.wears, ...(set.head ?? [])]);
     for (const [says, needs] of PROMISE) {

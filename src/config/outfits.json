@@ -226,6 +226,51 @@
       "trim": "#463d30",
       "boots": "#2b241c"
     },
+    "scout_leathers": {
+      "name": "SCOUT",
+      "blurb": "a ranger's coat and shoulder guard over working trousers and boots",
+      "parts": ["Male_Ranger_Body", "Male_Ranger_Arms", "Male_Peasant_Legs", "Male_Ranger_Feet_Boots", "Male_Ranger_Acc_Pauldron"],
+      "wears": [],
+      "cloth": "#4a4433",
+      "trim": "#2f2a20",
+      "boots": "#241f18"
+    },
+    "hooded": {
+      "name": "HOODED",
+      "blurb": "the hood up over a plain shirt, ranger legs, heavy boots",
+      "parts": ["Male_Peasant_Body", "Male_Peasant_Arms", "Male_Ranger_Legs", "Male_Ranger_Feet_Boots", "Male_Ranger_Head_Hood"],
+      "wears": [],
+      "cloth": "#6b5f4a",
+      "trim": "#463d30",
+      "boots": "#2b241c"
+    },
+    "shirtsleeves": {
+      "name": "SHIRTSLEEVES",
+      "blurb": "a worker's shirt and trousers, no coat, boots on",
+      "parts": ["Male_Peasant_Body", "Male_Peasant_Arms", "Male_Peasant_Legs", "Male_Ranger_Feet_Boots"],
+      "wears": [],
+      "cloth": "#6b5f4a",
+      "trim": "#463d30",
+      "boots": "#2b241c"
+    },
+    "scout_f": {
+      "name": "SCOUT (F)",
+      "blurb": "the ranger's coat and shoulder guards over working trousers",
+      "parts": ["Female_Ranger_Body", "Female_Ranger_Arms", "Female_Peasant_Legs", "Female_Ranger_Feet", "Female_Ranger_Acc_Pauldrons"],
+      "wears": [],
+      "cloth": "#4a4433",
+      "trim": "#2f2a20",
+      "boots": "#241f18"
+    },
+    "hooded_f": {
+      "name": "HOODED (F)",
+      "blurb": "the hood up over a shirt, ranger legs and boots",
+      "parts": ["Female_Peasant_Body", "Female_Peasant_Arms", "Female_Ranger_Legs", "Female_Ranger_Feet", "Female_Ranger_Head_Hood"],
+      "wears": [],
+      "cloth": "#6b5f4a",
+      "trim": "#463d30",
+      "boots": "#2b241c"
+    },
     "motocross": {
       "name": "MOTOCROSS",
       "blurb": "a dirt bike jersey and pants, boots, and a helmet with a peak and a chin bar",
