@@ -74,6 +74,8 @@
       .duelRow input { width: 90px; background: #14181d; border: 1px solid #333c46; color: #fff; padding: 7px 9px; border-radius: 4px; font-size: 15px; letter-spacing: .2em; text-transform: uppercase; font-weight: 700; }
       .calibMsg.bad { color: #ff8a7a; }
       .calibMsg .code { font-size: 18px; letter-spacing: .2em; color: #ffd23c; }
+      /* the panel is wider when a tab needs it: the Loadouts tab has three
+         columns and was a long thin scroll at 780 */
       .menu { width: 780px; max-width: 94vw; max-height: 94vh; overflow-y: auto; box-sizing: border-box; background: #14181d; border: 1px solid #2a323b; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
       .brand { display: flex; align-items: baseline; gap: 10px; padding: 18px 24px 10px; font-family: "Rajdhani", "Segoe UI", sans-serif; }
       .brand .logo { font-weight: 700; font-size: 30px; letter-spacing: .08em; color: #e2742b; }
@@ -170,13 +172,18 @@
       .invite button { background: #222932; border: 1px solid #3a4450; color: #dfe5eb; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
       .rules { font-size: 13px; color: #b9c2cc; line-height: 1.6; padding-left: 18px; margin: 14px 0 0; }
       .rules b { color: #fff; }
-      .loadouts { display: grid; grid-template-columns: 200px 1fr 224px; gap: 16px; }
+      /* wider, and the figure is a column of its own that does not scroll away */
+      .menu:has(section[data-panel="loadouts"]:not([hidden])) { width: 1120px; }
+      .loadouts { display: grid; grid-template-columns: 190px minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
       /* the figure: a hole in the panel that the renderer draws into (main.ts drawPreview) */
       .loview { position: relative; }
-      .loviewBox { position: sticky; top: 0; height: 330px; border: 1px solid #23303d; border-radius: 6px; background: #0a0e13; overflow: hidden; }
+      .loviewBox { position: sticky; top: 0; height: 430px; border: 1px solid #23303d; border-radius: 6px; background: #0a0e13; overflow: hidden; cursor: grab; touch-action: none; }
+      .loviewBox:active { cursor: grabbing; }
       .loviewBox > canvas { display: block; width: 100%; height: 100%; }
       .loviewBox > span { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #6f7a86; }
-      @media (max-width: 1000px) { .loadouts { grid-template-columns: 200px 1fr; } .loview { display: none; } }
+      @media (max-width: 1100px) { .loadouts { grid-template-columns: 190px minmax(0, 1fr); } .loview { display: none; } }
+      /* the cards were one long column in a narrow middle: they fit across it now */
+      .loedit .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 8px; }
       .lolist { display: flex; flex-direction: column; gap: 4px; }
       .lolist .group { font-size: 11px; letter-spacing: .12em; color: #7d8895; margin: 6px 0 2px; }
       .lolist button { text-align: left; background: #0d1014; border: 1px solid #2a323b; color: #c8d0d8; padding: 7px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; }
@@ -377,7 +384,7 @@
               <div class="cards" id="heirloomCards"></div>
             </div>
             <div class="loview">
-              <div class="loviewBox" id="loPreview"><canvas id="loCanvas"></canvas><span>What you look like</span></div>
+              <div class="loviewBox" id="loPreview" title="drag to turn, scroll to zoom"><canvas id="loCanvas"></canvas><span>Drag to turn &middot; scroll to zoom</span></div>
             </div>
           </div>
         </section>

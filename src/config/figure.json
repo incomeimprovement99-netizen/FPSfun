@@ -2,9 +2,9 @@
   "_note": "How a figure holds a gun (src/game/hold.ts, src/game/mannequin.ts). The animation library is a pistol library: it has no rifle clips, so a long gun is not held by the clips at all. It is hung off the chest and both arms are reached onto it, which means every number about where it hangs is one of ours and belongs here rather than buried in the code. The old ones put the grip five centimetres INWARD of the shoulder, and since a rifle's stock is behind its grip, the stock ended up beside the neck and through the chest, which is what the owner saw. A stock belongs in the shoulder pocket, which is outboard of the neck, and a gun long enough to reach past that has to sit further forward.",
   "hold": {
     "_out": "how far outboard of the shoulder joint the grip sits, metres: the shoulder pocket, not the collarbone",
-    "out": 0.03,
+    "out": 0.055,
     "_drop": "how far below the shoulder joint the grip sits, metres",
-    "drop": 0.1,
+    "drop": 0.115,
     "_forward": "how far in front of the shoulder the grip sits at rest, metres, before any gun that needs more",
     "forward": 0.22,
     "_stockAllow": "how far behind the shoulder joint a stock may sit, metres. A stock IS in the shoulder, and the gun hangs outboard of the joint where the torso is not, so the butt passes BESIDE the chest rather than through it: this is what lets it be 18 cm and not zero. Past it the gun is pushed forward until it clears, which is why a sniper stands with its hands further out than an SMG.",

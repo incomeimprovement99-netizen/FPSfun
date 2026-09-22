@@ -6,6 +6,7 @@ import { OPERATORS } from "./operators";
 import { BUILD_IDS, OUTFIT_IDS, faceList } from "./outfit";
 import type { BuildId, OutfitId } from "./outfit";
 import { HEIRLOOMS } from "./heirlooms";
+import outfitCfg from "../config/outfits.json";
 
 export interface LoadoutDef {
   name: string;
@@ -46,6 +47,23 @@ interface Store {
 const KEY = "range.loadouts.v1";
 const OLD_SLOTS = "range.slots.v1";
 
+/**
+ * A dressed slot, picked at random but spread out: the shuffle is seeded by
+ * the slot's own number so two slots never start in the same clothes, and a
+ * browser that has never seen this game gets six people rather than six of
+ * one person.
+ */
+const spread = <T>(list: readonly T[], i: number): T => list[(i * 7 + 3) % list.length];
+const pickOutfit = (i: number): string => spread(DRESSED, i + Math.floor(Math.random() * DRESSED.length));
+const pickHeirloom = (i: number): string => spread(HEIRLOOMS, i + Math.floor(Math.random() * HEIRLOOMS.length)).id;
+
+/**
+ * The outfits a slot may be given: the ones that are real cloth. An outfit
+ * from before the published assets went in - or one that has since been
+ * renamed - is not kept, because what it named is gone.
+ */
+const DRESSED = OUTFIT_IDS.filter((id) => ((outfitCfg.sets as Record<string, { parts?: string[] }>)[id]?.parts?.length ?? 0) > 0);
+
 function valid(d: Partial<LoadoutDef> | undefined, fallback: LoadoutDef): LoadoutDef {
   const ids = weaponIds();
   return {
@@ -57,7 +75,10 @@ function valid(d: Partial<LoadoutDef> | undefined, fallback: LoadoutDef): Loadou
     // What they chose to wear, if they chose: an id we no longer have (an
     // outfit renamed between releases) falls back to the operator's own set
     // rather than to nothing, which would be a naked figure.
-    outfit: OUTFIT_IDS.includes(d?.outfit as OutfitId) ? d!.outfit : fallback.outfit,
+    // A stored outfit that is not one of the dressed ones is an old skin: the
+    // owner asked that none of those survive, so the slot is given a new one
+    // rather than the fallback's, which would make every stale slot identical.
+    outfit: DRESSED.includes(d?.outfit as OutfitId) ? d!.outfit : fallback.outfit,
     build: BUILD_IDS.includes(d?.build as BuildId) ? d!.build : fallback.build,
     face: typeof d?.face === "string" ? faceList(d.face).join(",") : fallback.face,
   };
@@ -84,9 +105,12 @@ export class Loadouts {
   }
 
   private load(): Store {
+    // A custom slot arrives dressed, each in a different outfit with a
+    // different melee weapon, rather than six copies of the defaults. Somebody
+    // who never opens this tab still gets six characters instead of one.
     const fresh: Store = {
       selected: { kind: "default", index: 0 },
-      custom: DEFAULT_LOADOUTS.map((d, i) => ({ ...d, name: `Custom ${i + 1}` })),
+      custom: DEFAULT_LOADOUTS.map((d, i) => ({ ...d, name: `Custom ${i + 1}`, outfit: pickOutfit(i), heirloom: pickHeirloom(i) })),
     };
     try {
       const raw = localStorage.getItem(KEY);

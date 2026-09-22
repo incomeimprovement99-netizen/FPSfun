@@ -434,6 +434,16 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "loadout-front",
+    note: "the Loadouts panel: the figure facing you, in plain clothes, head and all",
+    steps: [[`(() => { document.querySelector('[data-tab="loadouts"]').click(); document.getElementById("copyLoadout")?.click(); [...document.querySelectorAll("#outfitCards button")].find((b) => b.textContent.includes("PLAIN CLOTHES"))?.click(); window.__range.previewTurn(0); })()`, 2500]],
+  },
+  {
+    name: "loadout-back",
+    note: "the same figure turned half round: the back of the same clothes",
+    steps: [[`(() => { document.querySelector('[data-tab="loadouts"]').click(); document.getElementById("copyLoadout")?.click(); [...document.querySelectorAll("#outfitCards button")].find((b) => b.textContent.includes("PLAIN CLOTHES"))?.click(); window.__range.previewTurn(Math.PI); })()`, 2500]],
+  },
+  {
     name: "outfit-real",
     note: "five outfits in their own colours: arctic white, urban black, desert tan, orange coveralls, ghillie green, all on published cloth",
     steps: [

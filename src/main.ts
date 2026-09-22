@@ -1607,6 +1607,34 @@ const previewCam = new THREE.PerspectiveCamera(32, 0.7, 0.1, 12);
   // 1.8 m, which is the figure
   previewCam.position.set(0, 1.12, 3.15);
   previewCam.lookAt(0, 0.95, 0);
+  // head to boots at 1, the head alone at 0.35
+  const box = $("loPreview");
+  box.addEventListener("pointerdown", (e) => {
+    previewDrag = { x: e.clientX, from: previewTurn };
+    box.setPointerCapture(e.pointerId);
+  });
+  box.addEventListener("pointermove", (e) => {
+    if (!previewDrag) return;
+    previewTurn = previewDrag.from + ((e.clientX - previewDrag.x) / 140) * Math.PI;
+    previewHeldAt = gameTime;
+  });
+  for (const end of ["pointerup", "pointercancel"] as const) {
+    box.addEventListener(end, () => {
+      previewDrag = null;
+      previewHeldAt = gameTime;
+    });
+  }
+  box.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
+      previewZoom = Math.max(0.32, Math.min(1.25, previewZoom + (e.deltaY > 0 ? 0.1 : -0.1)));
+      const y = 0.95 + (1 - previewZoom) * 0.55;
+      previewCam.position.set(0, y + 0.17, 0.5 + 2.65 * previewZoom);
+      previewCam.lookAt(0, y, 0);
+    },
+    { passive: false }
+  );
   previewScene.add(new THREE.HemisphereLight(0xb9ccdd, 0x20262c, 1.5));
   const key = new THREE.DirectionalLight(0xfff2e0, 2.1);
   key.position.set(1.6, 2.4, 2.2);
@@ -1618,6 +1646,11 @@ const previewCam = new THREE.PerspectiveCamera(32, 0.7, 0.1, 12);
 let previewFig: Dummy | null = null;
 let previewKey = "";
 let previewTurn = 0;
+/** the pointer's x when a drag began, and where the turn was then */
+let previewDrag: { x: number; from: number } | null = null;
+let previewHeldAt = -Infinity;
+/** how far back the camera sits: the wheel moves it between these */
+let previewZoom = 1;
 const previewBox = $("loPreview");
 function previewLoadout(now: number, dt: number): void {
   const def = loadouts.current;
@@ -1634,10 +1667,19 @@ function previewLoadout(now: number, dt: number): void {
     previewScene.add(previewFig.group);
   }
   if (!previewFig) return;
-  // turning, so the back of a ghillie suit is as visible as the front of it
-  previewTurn += dt * 0.5;
-  previewFig.group.rotation.y = Math.PI + Math.sin(previewTurn) * 0.9;
-  previewFig.setPose({ speed: 0, stance: "stand", pitch: 0 });
+  // Facing you, and turning slowly so the back of a coat is as visible as the
+  // front. It used to sit at Math.PI, which is a figure's own facing and
+  // therefore its BACK: the panel showed the back of everybody's head until
+  // somebody looked. Drag it to turn it by hand; it picks the slow turn back
+  // up a few seconds after you let go.
+  if (previewDrag === null) {
+    if (gameTime - previewHeldAt > 3) previewTurn += dt * 0.35;
+  }
+  previewFig.group.rotation.y = previewTurn;
+  // the gun in its hands too: it is a loadout, not an outfit. `ads` brings the
+  // weapon up into the hold rather than leaving it at rest, which is the pose
+  // a player pictures when they picture their loadout.
+  previewFig.setPose({ speed: 0, stance: "stand", pitch: 0, ads: 1 });
   previewFig.update(now, dt);
 }
 /** the panel's box, in the canvas's own pixels, or null when it is not on screen */
@@ -6813,7 +6855,13 @@ initWelcome();
     return out;
   },
   /** the Loadouts tab's figure: is it built, and where is it being drawn (tools/e2e.ts) */
+  previewFigure: () => previewFig,
   previewState: () => ({ key: previewKey, has: !!previewFig, rect: previewRect(), kids: previewScene.children.length, draws: previewDraws, vis: previewFig?.group.visible, at: previewFig?.group.position.toArray() }),
+  /** turn the Loadouts figure to a known angle (tools/snap.ts, tools/e2e.ts) */
+  previewTurn: (rad: number) => {
+    previewTurn = rad;
+    previewHeldAt = Infinity;
+  },
   /** frames run since the page opened */
   frames: () => framesRun,
   /** the live rounds' tracers (projectile.ts) */

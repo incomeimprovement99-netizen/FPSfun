@@ -2802,11 +2802,23 @@ export class Hud {
         this.text(line, right, top - 30 * u - i * 16 * u, 600, 12 * u, empty ? "#5d666f" : "#b9c2cc", "right");
       });
     }
+    // The reload bar is in the middle of the screen, under the reticle, and
+    // faint. It was tucked under the ammo count in the corner, which is the
+    // one place your eyes are not during a reload: you are looking at whoever
+    // made you reload. Faint, because it sits over the fight - enough to read
+    // at a glance, not enough to hide anybody.
     if (s.reloading) {
-      c.fillStyle = "rgba(255,255,255,0.25)";
-      c.fillRect(right - 250 * u, bottom + 4 * u, 250 * u, 4 * u);
-      c.fillStyle = "#ffd27a";
-      c.fillRect(right - 250 * u, bottom + 4 * u, 250 * u * Math.max(0, Math.min(1, s.reloadProgress)), 4 * u);
+      const w = 180 * u;
+      const x = Math.round((this.w - w) / 2);
+      const y = Math.round(this.h / 2 + 46 * u);
+      const done = Math.max(0, Math.min(1, s.reloadProgress));
+      c.fillStyle = "rgba(0,0,0,0.28)";
+      c.fillRect(x - 1, y - 1, w + 2, 5 * u + 2);
+      c.fillStyle = "rgba(255,255,255,0.18)";
+      c.fillRect(x, y, w, 5 * u);
+      c.fillStyle = "rgba(255,210,122,0.72)";
+      c.fillRect(x, y, w * done, 5 * u);
+      this.text("RELOADING", x + w / 2, y - 6 * u, 600, 10 * u, "rgba(230,236,242,0.5)", "center");
     }
   }
 

@@ -455,13 +455,11 @@ export class MannequinFigure {
       this.root.add(mesh);
       this.worn.push(mesh);
     }
-    // the skin under the clothes: a full set covers it, so it goes
-    if (this.worn.length >= 3) {
-      this.root.traverse((o) => {
-        const m = o as THREE.SkinnedMesh;
-        if (m.isSkinnedMesh && !m.name.startsWith("wear:") && m.name !== "Face" && !/face|eye|head/i.test(m.name)) m.visible = false;
-      });
-    }
+    // The body stays. Hiding it was wrong twice over: the garments in this
+    // pack are cut to layer OVER the base body (its own assembled figures
+    // include it), and the body is one mesh - head, hands and all - so hiding
+    // it took the head with it. That is why the figure in the Loadouts panel
+    // had no head.
   }
 
   /** the outfit's atlas arrived after the clothes went on: put it on them */
