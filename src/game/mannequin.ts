@@ -116,6 +116,39 @@ export function loadBody(name: string): Promise<unknown> {
   return job;
 }
 
+/**
+ * An outfit's own recoloured atlas (tools/tint-outfits.ts), loaded once.
+ *
+ * Multiplying a colour into the material was the first try and it could only
+ * darken, so every outfit stayed in the atlas's own brown-green family and
+ * ARCTIC's white came out as a pale coat. The colour lives in the picture now:
+ * the artist's folds and seams as luminance, the outfit's colour over them.
+ */
+const tintMaps = new Map<string, THREE.Texture | null>();
+const tintLoads = new Map<string, Promise<unknown>>();
+function tintMap(outfit: string): THREE.Texture | null {
+  return tintMaps.get(outfit) ?? null;
+}
+
+/** fetch an outfit's own atlas, once */
+export function loadTint(outfit: string): Promise<unknown> {
+  const had = tintLoads.get(outfit);
+  if (had) return had;
+  const job = new THREE.TextureLoader()
+    .loadAsync(`models/outfits/tints/${outfit}.webp`)
+    .then((t) => {
+      t.flipY = false;
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.needsUpdate = true;
+      tintMaps.set(outfit, t);
+    })
+    .catch(() => {
+      tintMaps.set(outfit, null);
+    });
+  tintLoads.set(outfit, job);
+  return job;
+}
+
 /** the colour an outfit paints its garments, or null for the asset's own */
 export function tintOf(outfit: string): number | null {
   const t = (outfitCfg.sets as Record<string, { tint?: string }>)[outfit]?.tint;
@@ -398,7 +431,7 @@ export class MannequinFigure {
    * The body underneath is hidden where a garment covers it, because two
    * surfaces in the same place fight each other in the depth buffer.
    */
-  private wearParts(names: string[], tint: number | null = null): void {
+  private wearParts(names: string[], tint: number | null = null, outfit = ""): void {
     for (const n of names) {
       const src = parts.get(n);
       // already on, or not here yet
@@ -410,7 +443,10 @@ export class MannequinFigure {
       // becomes desert tan on one outfit and night black on another: real
       // cloth, our palette, and no second download.
       const mat = (src.material as THREE.MeshStandardMaterial).clone();
-      if (tint !== null) mat.color.setHex(tint);
+      // its own atlas if one is made for it; the multiply is the fallback
+      const map = outfit ? tintMap(outfit) : null;
+      if (map) mat.map = map;
+      else if (tint !== null) mat.color.setHex(tint);
       const mesh = new THREE.SkinnedMesh(src.geometry, mat);
       mesh.bind(new THREE.Skeleton(bones as THREE.Bone[], src.skeleton.boneInverses), src.bindMatrix);
       mesh.castShadow = true;
@@ -425,6 +461,18 @@ export class MannequinFigure {
         const m = o as THREE.SkinnedMesh;
         if (m.isSkinnedMesh && !m.name.startsWith("wear:") && m.name !== "Face" && !/face|eye|head/i.test(m.name)) m.visible = false;
       });
+    }
+  }
+
+  /** the outfit's atlas arrived after the clothes went on: put it on them */
+  private redressParts(outfit: string): void {
+    const map = tintMap(outfit);
+    if (!map) return;
+    for (const w of this.worn) {
+      const m = w.material as THREE.MeshStandardMaterial;
+      m.map = map;
+      m.color.setHex(0xffffff);
+      m.needsUpdate = true;
     }
   }
 
@@ -447,8 +495,17 @@ export class MannequinFigure {
     const want = partsOf(skin.outfit);
     if (want.length) {
       const tint = tintOf(skin.outfit);
-      this.wearParts(want, tint);
-      if (this.worn.length < want.length) void loadOutfit(skin.outfit).then(() => this.wearParts(want, tint));
+      this.wearParts(want, tint, skin.outfit);
+      // The parts and the outfit's own atlas both arrive late on a cold page,
+      // and BOTH are asked for here. The first try only started the atlas
+      // inside the dressing loop, which a cold page never reaches because the
+      // parts are not in yet: every figure wore the multiply instead and the
+      // recoloured atlases were never seen.
+      const outfit = skin.outfit;
+      void Promise.all([loadOutfit(outfit), loadTint(outfit)]).then(() => {
+        this.wearParts(want, tint, outfit);
+        this.redressParts(outfit);
+      });
     }
     const mats = outfitMaterials(skin.outfit, skin.visor, skin.eye);
     // a real outfit brings its own clothes; only what goes on the face is ours

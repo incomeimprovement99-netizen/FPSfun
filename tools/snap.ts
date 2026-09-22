@@ -435,10 +435,10 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: "outfit-real",
-    note: "real assets against a code-built one: a whole ranger, then three mixed from parts of two sets, then the tubes-and-boxes FATIGUES on the right",
+    note: "five outfits in their own colours: arctic white, urban black, desert tan, orange coveralls, ghillie green, all on published cloth",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab(["ranger", "scout_leathers", "hooded", "shirtsleeves", "fatigues"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab(["arctic", "urban", "desert", "coveralls", "ghillie"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },

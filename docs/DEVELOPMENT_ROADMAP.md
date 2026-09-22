@@ -2871,3 +2871,26 @@ one.
   shaped for the second body on the first one. The skeleton is identical either way, which is the part that
   matters: hit boxes are built from the bones, so nobody is a bigger or a smaller target for the body their
   clothes came on.
+
+## Milestone 167 — Published assets only, and each outfit its own colour ✅
+
+The owner, on the live build: "feature flag off the custom pixal shit that we built and just do the
+published assets... i still see shit that looks horrible and can't see the base skin."
+
+- **Our geometry is off.** `buildOutfit` returns nothing unless `?ourgeometry=1` asks for it, and a figure in
+  published cloth wears no kit of ours either. The code stays as the fallback if a download fails and as
+  what would dress a rig no pack covers, and the checks switch it on so it is still tested. Nobody sees it.
+- **All twenty outfits are published cloth.** The nine that were tubes and boxes are the pack's own garments;
+  the two with no published equivalent (a motocross helmet, a pair of shorts) are dressed in what the pack
+  does have rather than kept as boxes.
+- **Each outfit has its own recoloured atlas** (`tools/tint-outfits.ts`, `npm run tints`). Multiplying a
+  colour into the material was the first attempt and it could only darken: every outfit stayed in the
+  atlas's brown-green family and ARCTIC's white came out as a pale coat. The colour goes into the picture
+  now - the artist's folds and seams as luminance, the outfit's colour scaled into each channel - so arctic
+  is pale, urban is near black, coveralls are orange and the dirt bike is blue. Eleven atlases, 484 KB.
+- Two things went wrong on the way and both are worth keeping: `.tint()` after `.greyscale()` does not
+  colourise (it wrote eleven identical grey atlases), and the atlas load was started inside the dressing
+  loop, which a cold page never reaches because the parts are not in yet - so every figure wore the multiply
+  and the recoloured atlases were never seen.
+- **One rule is no longer met**, deliberately and in writing: "everybody's eyes are covered". The only
+  eyewear we had was built out of boxes and this pack has none. It comes back with a pack that has some.
