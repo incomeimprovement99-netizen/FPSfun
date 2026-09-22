@@ -193,7 +193,7 @@
     "ranger": {
       "name": "RANGER",
       "blurb": "a hooded coat over layered leathers, boots and a shoulder guard",
-      "character": "Male_Ranger",
+      "parts": ["Male_Ranger_Body", "Male_Ranger_Arms", "Male_Ranger_Legs", "Male_Ranger_Feet_Boots", "Male_Ranger_Head_Hood", "Male_Ranger_Acc_Pauldron"],
       "wears": [],
       "cloth": "#4a4433",
       "trim": "#2f2a20",
@@ -202,7 +202,7 @@
     "peasant": {
       "name": "WORKWEAR",
       "blurb": "a plain shirt, sleeves pushed up, and working trousers",
-      "character": "Male_Peasant",
+      "parts": ["Male_Peasant_Body", "Male_Peasant_Arms", "Male_Peasant_Legs", "Male_Peasant_Feet"],
       "wears": [],
       "cloth": "#6b5f4a",
       "trim": "#463d30",
@@ -211,7 +211,7 @@
     "rangerF": {
       "name": "RANGER (F)",
       "blurb": "the hooded coat and leathers, on the other build",
-      "character": "Female_Ranger",
+      "parts": ["Female_Ranger_Body", "Female_Ranger_Arms", "Female_Ranger_Legs", "Female_Ranger_Feet", "Female_Ranger_Head_Hood", "Female_Ranger_Acc_Pauldrons"],
       "wears": [],
       "cloth": "#4a4433",
       "trim": "#2f2a20",
@@ -220,7 +220,7 @@
     "peasantF": {
       "name": "WORKWEAR (F)",
       "blurb": "the shirt and working trousers, on the other build",
-      "character": "Female_Peasant",
+      "parts": ["Female_Peasant_Body", "Female_Peasant_Arms", "Female_Peasant_Legs", "Female_Peasant_Feet"],
       "wears": [],
       "cloth": "#6b5f4a",
       "trim": "#463d30",

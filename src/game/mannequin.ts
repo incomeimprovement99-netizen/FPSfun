@@ -59,25 +59,19 @@ let template: Template | null = null;
 let loading: Promise<void> | null = null;
 
 /**
- * The outfits that are a real asset: a whole clothed figure, mesh and
- * textures, rather than shells built on bones. Quaternius's CC0 Modular
- * Character Outfits, on the same universal humanoid rig as everything else
- * here (tools/fetch-characters.ts).
- */
-const REAL_OUTFITS = Object.values(outfitCfg.sets)
-  .map((s) => (s as { character?: string }).character)
-  .filter((c): c is string => typeof c === "string");
-const characters = new Map<string, THREE.Object3D>();
-
-/**
  * The garment PARTS: a body, arms, legs, feet, a hood, a shoulder guard, each
- * its own skinned mesh on the same rig. This is what a modular outfit pack is
- * for - a ranger's legs under a peasant's shirt is an outfit that neither
- * shipped - and it is how an outfit gets to be a real asset without being a
+ * its own skinned mesh on the same universal rig. This is what a modular
+ * outfit pack is for - a ranger's legs under a peasant's shirt is an outfit
+ * neither set shipped - and it is how an outfit is real cloth without being a
  * whole second figure.
+ *
+ * They load ON DEMAND. Loading them all beside the body put 15 MB on every
+ * page whether anything wore them or not, and the e2e felt it twice: a mode
+ * test and a Resurgence test each found a match that had not started yet. A
+ * figure now asks for what its own outfit needs.
  */
-const PART_NAMES = [...new Set(Object.values(outfitCfg.sets).flatMap((s) => ((s as { parts?: string[] }).parts ?? []) as string[]))];
 const parts = new Map<string, THREE.SkinnedMesh>();
+const partLoads = new Map<string, Promise<unknown>>();
 
 /** the first skinned mesh in a loaded file, which is what a part is */
 function skinnedIn(o: THREE.Object3D): THREE.SkinnedMesh | null {
@@ -89,11 +83,31 @@ function skinnedIn(o: THREE.Object3D): THREE.SkinnedMesh | null {
   return found;
 }
 
-/** the clothed figure an outfit is, if it is one of those */
-export function characterFor(outfit: string): THREE.Object3D | null {
-  const c = (outfitCfg.sets as Record<string, { character?: string }>)[outfit]?.character;
-  return c ? (characters.get(c) ?? null) : null;
+/** what an outfit is made of, or nothing when it is built in code */
+export function partsOf(outfit: string): string[] {
+  return (((outfitCfg.sets as Record<string, { parts?: string[] }>)[outfit]?.parts ?? []) as string[]).slice();
 }
+
+/** fetch an outfit's parts, once each; resolves when they are all in or given up on */
+export function loadOutfit(outfit: string): Promise<unknown> {
+  const loader = new GLTFLoader();
+  return Promise.all(
+    partsOf(outfit).map((n) => {
+      const had = partLoads.get(n);
+      if (had) return had;
+      const job = loader
+        .loadAsync(`models/outfits/parts/${n}.gltf`)
+        .then((g) => {
+          const m = skinnedIn(g.scene);
+          if (m) parts.set(n, m);
+        })
+        .catch(() => null);
+      partLoads.set(n, job);
+      return job;
+    })
+  );
+}
+
 
 /** the bones below the waist: the locomotion layer's */
 const LOWER = /^(root|pelvis|thigh_|calf_|foot_|ball_)/;
@@ -112,14 +126,8 @@ export function loadMannequin(): Promise<void> {
   // and the clothes hang on the bones they already hang on. It has real
   // topology, a face, and base colour, normal and roughness maps, which is
   // what the grey mannequin never had.
-  loading = Promise.all([
-    loader.loadAsync("models/mannequin/mannequin.glb"),
-    loader.loadAsync("models/mannequin/mannequin-more.glb"),
-    loader.loadAsync("models/body/Superhero_Male_FullBody.gltf").catch(() => null),
-    // and the outfits that are real assets rather than shells on bones: a
-    // whole clothed figure each, on the same rig (outfits.json `character`)
-  ])
-    .then(([main, more, bodyFile]) => {
+  loading = Promise.all([loader.loadAsync("models/mannequin/mannequin.glb"), loader.loadAsync("models/mannequin/mannequin-more.glb")])
+    .then(([main, more]) => {
       const clips = new Map<string, THREE.AnimationClip>();
       for (const c of [...main.animations, ...more.animations]) {
         const lower = c.tracks.filter((t) => LOWER.test(t.name.split(".")[0]));
@@ -128,10 +136,8 @@ export function loadMannequin(): Promise<void> {
         clips.set(`upper:${c.name}`, new THREE.AnimationClip(`upper:${c.name}`, c.duration, upper));
         clips.set(`full:${c.name}`, c);
       }
-      // the body if it loaded, the grey mannequin if it did not
-      const body = bodyFile?.scene ?? main.scene;
       // the right hand in the aim pose: sample the clip onto a copy once
-      const probe = cloneSkinned(body);
+      const probe = cloneSkinned(main.scene);
       const mixer = new THREE.AnimationMixer(probe);
       mixer.clipAction(clips.get("full:Pistol_Aim_Neutral")!).play();
       mixer.update(0);
@@ -139,32 +145,32 @@ export function loadMannequin(): Promise<void> {
       const hand = probe.getObjectByName("hand_r")!;
       const chest = probe.getObjectByName("spine_03")!;
       const shoulder = probe.getObjectByName("upperarm_r")!;
-      // The clothes load on their own clock, AFTER this promise settles.
+      // The real body is an UPGRADE, not a gate.
       //
-      // They were in the same Promise.all, and that made every figure in the
-      // game wait for 15 MB of garments before it could stop being a robot:
-      // the e2e's mannequin checks started finding no spine_03 on the figure,
-      // which is what "the body has not loaded yet" looks like from outside.
-      // A figure built before its clothes arrive is a figure in its body,
-      // which is the same thing that happens on a slow connection anyway.
-      void Promise.all([
-        ...REAL_OUTFITS.map((n) =>
-          loader
-            .loadAsync(`models/outfits/${n}.gltf`)
-            .then((g) => characters.set(n, g.scene))
-            .catch(() => null)
-        ),
-        ...PART_NAMES.map((n) =>
-          loader
-            .loadAsync(`models/outfits/parts/${n}.gltf`)
-            .then((g) => {
-              const m = skinnedIn(g.scene);
-              if (m) parts.set(n, m);
-            })
-            .catch(() => null)
-        ),
-      ]);
-      template = { scene: body, clips, handAim: hand.matrixWorld.clone(), chestAim: chest.matrixWorld.clone(), shoulderR: new THREE.Vector3().setFromMatrixPosition(shoulder.matrixWorld) };
+      // It was in the promise above, and that delayed the moment a figure
+      // could stop being a robot by however long 3 MB of body and textures
+      // takes. The e2e saw that as a bot with no spine_03 on it: it was still
+      // a robot when the check ran. The grey mannequin is 4.4 MB we load
+      // anyway and has the same skeleton, so figures start there, and every
+      // figure built after the body arrives is the real one.
+      void loader
+        .loadAsync("models/body/Superhero_Male_FullBody.gltf")
+        .then((b) => {
+          if (!template) return;
+          template.scene = b.scene;
+          // the hand's aim pose is sampled off whatever the body is
+          const p2 = cloneSkinned(b.scene);
+          const m2 = new THREE.AnimationMixer(p2);
+          m2.clipAction(clips.get("full:Pistol_Aim_Neutral")!).play();
+          m2.update(0);
+          p2.updateMatrixWorld(true);
+          template.handAim = p2.getObjectByName("hand_r")!.matrixWorld.clone();
+          template.chestAim = p2.getObjectByName("spine_03")!.matrixWorld.clone();
+          template.shoulderR = new THREE.Vector3().setFromMatrixPosition(p2.getObjectByName("upperarm_r")!.matrixWorld);
+        })
+        .catch(() => null);
+
+      template = { scene: main.scene, clips, handAim: hand.matrixWorld.clone(), chestAim: chest.matrixWorld.clone(), shoulderR: new THREE.Vector3().setFromMatrixPosition(shoulder.matrixWorld) };
     })
     .catch((e) => {
       console.warn("the mannequin did not load; the figures stay robots", e);
@@ -306,10 +312,7 @@ export class MannequinFigure {
 
   constructor(skin: OperatorSkin, gunId: string | null) {
     const t = template!;
-    // an outfit that IS a figure replaces the body: its clothes are its mesh
-    const dressed = characterFor(skin.outfit);
-    this.root = cloneSkinned(dressed ?? t.scene);
-    this.realOutfit = !!dressed;
+    this.root = cloneSkinned(t.scene);
     this.root.name = "mannequin";
     this.mixer = new THREE.AnimationMixer(this.root);
     this.root.traverse((o) => {
@@ -336,8 +339,6 @@ export class MannequinFigure {
 
   /** what it is wearing, so a check and a snapshot can name the pieces */
   readonly gear: GearPiece[] = [];
-  /** its clothes are its own mesh, so none are built for it */
-  private realOutfit = false;
 
   /**
    * Put the operator's kit on: each piece onto the bone it hangs from, so it
@@ -355,7 +356,8 @@ export class MannequinFigure {
   private wearParts(names: string[]): void {
     for (const n of names) {
       const src = parts.get(n);
-      if (!src) continue;
+      // already on, or not here yet
+      if (!src || this.worn.some((w) => w.name === `wear:${n}`)) continue;
       const bones = src.skeleton.bones.map((b) => this.bones[b.name]);
       if (bones.some((b) => !b)) continue;
       const mesh = new THREE.SkinnedMesh(src.geometry, src.material);
@@ -386,11 +388,21 @@ export class MannequinFigure {
     // what goes on a face is authored the way a person would describe it and
     // gets the same rest-frame holder the kit does.
     // real garment parts, if this outfit is made of them
-    this.wearParts(((outfitCfg.sets as Record<string, { parts?: string[] }>)[skin.outfit]?.parts ?? []) as string[]);
+    // Real garment meshes, if this outfit is made of them. They are fetched
+    // on demand, so a figure built before they land wears what is there and
+    // puts the rest on when it arrives - which is one frame later on this
+    // machine and a second on a bad connection, either way better than every
+    // page in the game waiting for clothes nobody asked for.
+    const want = partsOf(skin.outfit);
+    if (want.length) {
+      this.wearParts(want);
+      if (this.worn.length < want.length) void loadOutfit(skin.outfit).then(() => this.wearParts(want));
+    }
     const mats = outfitMaterials(skin.outfit, skin.visor, skin.eye);
     // a real outfit brings its own clothes; only what goes on the face is ours
     const all = buildOutfit(skin.outfit, mats, skin.face ?? [], skin.build ?? "regular");
-    const built = this.realOutfit || this.worn.length ? all.filter((w) => w.bone === "Head") : all;
+    // a figure in real cloth wears only what the player put on its face
+    const built = partsOf(skin.outfit).length ? all.filter((w) => w.bone === "Head") : all;
     for (const worn of built) {
       const bone = this.bones[worn.bone];
       if (!bone) continue;

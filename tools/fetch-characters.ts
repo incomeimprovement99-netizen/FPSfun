@@ -48,7 +48,6 @@ const PACKS: Pack[] = [
     slug: "modular-character-outfits-fantasy",
     upload: 16289385,
     take: [
-      { match: /Outfits\/(Male|Female)_(Ranger|Peasant)\.(gltf|bin)$/, into: "outfits" },
       // and the parts they are made of, which is what the pack is FOR: a
       // ranger's legs under a peasant's shirt is an outfit neither ships
       { match: /Modular Parts\/(Male|Female)_(Ranger|Peasant)_[^/]*\.(gltf|bin)$/, into: "outfits/parts" },
