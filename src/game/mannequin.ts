@@ -130,10 +130,23 @@ function tintMap(outfit: string): THREE.Texture | null {
   return tintMaps.get(outfit) ?? null;
 }
 
-/** fetch an outfit's own atlas, once */
+/**
+ * Fetch an outfit's own atlas, once, and only when it has one.
+ *
+ * Nine of the twenty outfits wear the pack's own colours and have no
+ * recoloured atlas made for them. Asking for one anyway was a 404 each, which
+ * the catch swallowed and the console did not: the e2e's "no page errors"
+ * check is what noticed.
+ */
 export function loadTint(outfit: string): Promise<unknown> {
   const had = tintLoads.get(outfit);
   if (had) return had;
+  if (tintOf(outfit) === null) {
+    const none = Promise.resolve(null);
+    tintLoads.set(outfit, none);
+    tintMaps.set(outfit, null);
+    return none;
+  }
   const job = new THREE.TextureLoader()
     .loadAsync(`models/outfits/tints/${outfit}.webp`)
     .then((t) => {
