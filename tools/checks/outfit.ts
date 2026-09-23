@@ -16,6 +16,8 @@
 // `outfit-close`.
 //
 // Run on its own: npx tsx tools/checks/outfit.ts.
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import * as THREE from "three";
 import { OUTFIT_IDS, buildOutfit, outfitInfo, outfitMaterials, setOurGeometry, type OutfitId } from "../../src/game/outfit";
 import { DEFAULT_LOADOUTS } from "../../src/game/loadouts";
@@ -166,6 +168,30 @@ console.log("What an operator wears");
   // garments they are made of and the colours they are painted
   const shapes = OUTFIT_IDS.map((id) => ((outfitCfg.sets[id] as { parts?: string[] }).parts ?? []).slice().sort().join("+"));
   check("the wardrobe is not one set of garments over and over", new Set(shapes).size >= 4, `${new Set(shapes).size} different sets of parts across ${shapes.length} outfits`);
+  // A silhouette is what a player reads first, well before a colour reaches
+  // them. Two outfits in the same parts on the same body are the same person
+  // in different paint at any range that matters, so the pair that a player
+  // can tell apart is (body, parts) and every one of them is its own.
+  const outlines = OUTFIT_IDS.map((id) => {
+    const set = outfitCfg.sets[id] as { parts?: string[]; body?: string };
+    return `${set.body ?? "Superhero_Male_FullBody"}|${(set.parts ?? []).slice().sort().join("+")}`;
+  });
+  check("no two outfits are the same outline", new Set(outlines).size === outlines.length, `${new Set(outlines).size} outlines across ${outlines.length} outfits`);
+  // Every named file is on disk. A part that is not there is a figure with a
+  // bare chest and nothing in the console but a 404.
+  const missing: string[] = [];
+  for (const id of OUTFIT_IDS) {
+    const set = outfitCfg.sets[id] as { parts?: string[]; hair?: string[] };
+    for (const n of set.parts ?? []) if (!existsSync(resolve(process.cwd(), `public/models/outfits/parts/${n}.gltf`))) missing.push(`${id}: ${n}`);
+    for (const n of set.hair ?? []) if (!existsSync(resolve(process.cwd(), `public/models/body/hair/${n}.gltf`))) missing.push(`${id}: ${n}`);
+  }
+  check("every garment and hairstyle an outfit names is on disk", missing.length === 0, missing.join(", "));
+  // Nobody is bald. Four hairstyles came down with the bodies and went unworn
+  // for weeks, which is the kind of thing a count catches and an eye does not.
+  const bald = OUTFIT_IDS.filter((id) => !((outfitCfg.sets[id] as { hair?: string[] }).hair ?? []).length);
+  check("every outfit has hair on its head", bald.length === 0, bald.join(", "));
+  const hairCols = OUTFIT_IDS.map((id) => (outfitCfg.sets[id] as { hairColor?: string }).hairColor);
+  check("and a colour to paint it, because the pack ships it grey", hairCols.every((c) => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c)), `${hairCols.filter(Boolean).length} of ${hairCols.length}`);
   const tints = OUTFIT_IDS.map((id) => (outfitCfg.sets[id] as { tint?: string }).tint).filter(Boolean);
   check("and the ones that share garments do not share a colour", new Set(tints).size === tints.length, `${new Set(tints).size} colours over ${tints.length} tinted outfits`);
 }

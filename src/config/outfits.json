@@ -344,20 +344,20 @@
     "_measured": "Every number here is against the body the game now draws (public/models/body), measured by tools/checks/body.ts: the head is 159 mm across, runs 3 to 194 mm up the Head bone, reaches 124 mm forward, and its eyes are at y 69. The grey mannequin's head was 62 mm taller with its eyes 30 mm higher, which is where these numbers used to be and why a helmet floated above the head."
   },
   "_sets": "The outfits: what each wears, and in what colours. `cloth` is the main garment, `trim` the second colour, `boots` the footwear. An operator names one of these (src/game/operators.ts), and the kit in gear.json goes on top of it.",
-  "_realSets": "A set with `character` is a real asset: a whole clothed figure, mesh and textures, from Quaternius's CC0 Modular Character Outfits (public/models/outfits, tools/fetch-characters.ts). The game swaps the figure's own mesh for it and builds no garments of its own, because its clothes ARE the mesh. Everything without `character` is built in code out of shells on bones, which is cheap, fits any rig and looks like what it is. A set's `hair` is one or two of the four rigged head meshes in public/models/body/hair, worn on the same skeleton as everything else and left in the pack's own colour: hair is not painted by the outfit's tint. A hood only clears a buzz cut, so anything with Ranger_Head_Hood gets that one; the long style is for the sets cut for the lighter body. The pack's hair textures are greyscale masks, mean 143 of 255 measured off the webp, because the pack expects the engine to colour them; `hairColor` is that colour, multiplied through the mask. Without it every figure has white hair.",
+  "_realSets": "A set with `character` is a real asset: a whole clothed figure, mesh and textures, from Quaternius's CC0 Modular Character Outfits (public/models/outfits, tools/fetch-characters.ts). The game swaps the figure's own mesh for it and builds no garments of its own, because its clothes ARE the mesh. Everything without `character` is built in code out of shells on bones, which is cheap, fits any rig and looks like what it is. A set's `hair` is one or two of the four rigged head meshes in public/models/body/hair, worn on the same skeleton as everything else and left in the pack's own colour: hair is not painted by the outfit's tint. A hood only clears a buzz cut, so anything with Ranger_Head_Hood gets that one; the long style is for the sets cut for the lighter body. The pack's hair textures are greyscale masks, mean 143 of 255 measured off the webp, because the pack expects the engine to colour them; `hairColor` is that colour, multiplied through the mask. Without it every figure has white hair. The wardrobe's variety comes out of mixing the two sets rather than recolouring one: a body from one and legs from the other, hood on or off, plate on the shoulder or not. Sixteen combinations of the male parts and four of the female, every one of them a different outline, which is what a player reads at eighty metres before any colour reaches them. The sets cut for the lighter body wear the MALE garments on it. The pack's female tops are corsets with bare shoulders and a low neckline, which is the asset rather than a fault, and it is not what an operator in a shooter wears: the male pieces are full coverage and bind to the same 65 joints, so they hang on either body.",
   "sets": {
     "hoodie": {
       "name": "HOODIE",
-      "blurb": "a hood up over a plain top, jeans, trainers",
+      "blurb": "a hood up over a plain top, hard trousers, trainers",
       "wears": [],
       "cloth": "#4a4f58",
       "trim": "#2b2f36",
       "boots": "#d8d4cc",
       "parts": [
         "Male_Peasant_Body",
-        "Male_Peasant_Arms",
-        "Male_Peasant_Legs",
-        "Male_Ranger_Feet_Boots",
+        "Male_Ranger_Arms",
+        "Male_Ranger_Legs",
+        "Male_Peasant_Feet",
         "Male_Ranger_Head_Hood"
       ],
       "tint": "#4a4f58",
@@ -368,7 +368,7 @@
     },
     "coveralls": {
       "name": "COVERALLS",
-      "blurb": "one piece from collar to ankle, the way a working man dresses",
+      "blurb": "one piece from collar to ankle, the way a working man dresses, over heavy boots",
       "wears": [],
       "cloth": "#9a5f2c",
       "trim": "#6e4420",
@@ -377,7 +377,7 @@
         "Male_Peasant_Body",
         "Male_Peasant_Arms",
         "Male_Peasant_Legs",
-        "Male_Peasant_Feet"
+        "Male_Ranger_Feet_Boots"
       ],
       "tint": "#c96a1e",
       "hair": [
@@ -394,10 +394,10 @@
       "trim": "#6d7448",
       "boots": "#2f2a1e",
       "parts": [
-        "Male_Peasant_Body",
+        "Male_Ranger_Body",
         "Male_Peasant_Arms",
         "Male_Peasant_Legs",
-        "Male_Ranger_Feet_Boots",
+        "Male_Peasant_Feet",
         "Male_Ranger_Head_Hood"
       ],
       "tint": "#4f5a34",
@@ -416,7 +416,7 @@
       "boots": "#e6e3dd",
       "parts": [
         "Male_Peasant_Body",
-        "Male_Peasant_Arms",
+        "Male_Ranger_Arms",
         "Male_Peasant_Legs",
         "Male_Peasant_Feet"
       ],
@@ -428,7 +428,7 @@
     },
     "fatigues": {
       "name": "FATIGUES",
-      "blurb": "field uniform, sleeves down, boots",
+      "blurb": "the full heavy cut in olive, and soft shoes instead of boots",
       "wears": [],
       "cloth": "#5b5f43",
       "trim": "#3c4030",
@@ -437,7 +437,7 @@
         "Male_Ranger_Body",
         "Male_Ranger_Arms",
         "Male_Ranger_Legs",
-        "Male_Ranger_Feet_Boots"
+        "Male_Peasant_Feet"
       ],
       "tint": "#5b5f43",
       "hair": [
@@ -447,7 +447,7 @@
     },
     "plainclothes": {
       "name": "PLAIN CLOTHES",
-      "blurb": "a plain shirt and working trousers, and nothing to say who sent you",
+      "blurb": "a shirt over hard-wearing trousers, and shoes you could run in",
       "wears": [],
       "cloth": "#c9c4b6",
       "trim": "#7d8a99",
@@ -455,7 +455,7 @@
       "parts": [
         "Male_Peasant_Body",
         "Male_Peasant_Arms",
-        "Male_Peasant_Legs",
+        "Male_Ranger_Legs",
         "Male_Peasant_Feet"
       ],
       "tint": "#c9c4b6",
@@ -466,15 +466,15 @@
     },
     "irregular": {
       "name": "IRREGULAR",
-      "blurb": "a head wrap, loose clothes over a chest rig, no uniform at all",
+      "blurb": "no uniform anywhere on him, and every piece of it chosen to be worn hard",
       "wears": [],
       "cloth": "#8a7d63",
       "trim": "#4d4638",
       "boots": "#33291f",
       "parts": [
         "Male_Peasant_Body",
-        "Male_Peasant_Arms",
-        "Male_Peasant_Legs",
+        "Male_Ranger_Arms",
+        "Male_Ranger_Legs",
         "Male_Ranger_Feet_Boots",
         "Male_Ranger_Head_Hood"
       ],
@@ -487,7 +487,7 @@
     },
     "urban": {
       "name": "URBAN",
-      "blurb": "dark layers, long sleeves, a covered face",
+      "blurb": "black on black with a shoulder plate, cut for a street rather than a field",
       "wears": [],
       "cloth": "#2e3238",
       "trim": "#1b1e22",
@@ -495,7 +495,7 @@
       "parts": [
         "Male_Ranger_Body",
         "Male_Ranger_Arms",
-        "Male_Ranger_Legs",
+        "Male_Peasant_Legs",
         "Male_Ranger_Feet_Boots",
         "Male_Ranger_Acc_Pauldron"
       ],
@@ -507,15 +507,15 @@
     },
     "arctic": {
       "name": "ARCTIC",
-      "blurb": "a white overlayer over everything, goggles against the glare",
+      "blurb": "a white shell over light sleeves, and boots that grip",
       "wears": [],
       "cloth": "#dde3e8",
       "trim": "#93a3b1",
       "boots": "#4a5158",
       "parts": [
         "Male_Ranger_Body",
-        "Male_Ranger_Arms",
-        "Male_Ranger_Legs",
+        "Male_Peasant_Arms",
+        "Male_Peasant_Legs",
         "Male_Ranger_Feet_Boots"
       ],
       "tint": "#dde3e8",
@@ -527,7 +527,7 @@
     },
     "desert": {
       "name": "DESERT",
-      "blurb": "sand fatigues, sleeves rolled, a wrap against the dust",
+      "blurb": "loose sleeves against the sun, heavy legs and boots for the ground",
       "wears": [],
       "cloth": "#c2ab7e",
       "trim": "#8a7449",
@@ -535,8 +535,8 @@
       "parts": [
         "Male_Peasant_Body",
         "Male_Peasant_Arms",
-        "Male_Peasant_Legs",
-        "Male_Peasant_Feet"
+        "Male_Ranger_Legs",
+        "Male_Ranger_Feet_Boots"
       ],
       "tint": "#c2ab7e",
       "hair": [
@@ -547,7 +547,7 @@
     },
     "ranger": {
       "name": "RANGER",
-      "blurb": "a hooded coat over layered leathers, boots and a shoulder guard",
+      "blurb": "everything the set has: hood up, plate on the shoulder, boots to the knee",
       "parts": [
         "Male_Ranger_Body",
         "Male_Ranger_Arms",
@@ -567,7 +567,7 @@
     },
     "peasant": {
       "name": "WORKWEAR",
-      "blurb": "a plain shirt, sleeves pushed up, and working trousers",
+      "blurb": "a plain shirt, plain trousers and soft shoes, and nothing on top of them",
       "parts": [
         "Male_Peasant_Body",
         "Male_Peasant_Arms",
@@ -586,15 +586,15 @@
     },
     "rangerF": {
       "name": "RANGER (F)",
-      "blurb": "the hooded coat and leathers, on the other build",
+      "blurb": "everything the set has: hood up, plate on the shoulder, boots to the knee",
       "body": "Superhero_Female_FullBody",
       "parts": [
-        "Female_Ranger_Body",
-        "Female_Ranger_Arms",
-        "Female_Ranger_Legs",
-        "Female_Ranger_Feet",
-        "Female_Ranger_Head_Hood",
-        "Female_Ranger_Acc_Pauldrons"
+        "Male_Ranger_Body",
+        "Male_Ranger_Arms",
+        "Male_Ranger_Legs",
+        "Male_Ranger_Feet_Boots",
+        "Male_Ranger_Head_Hood",
+        "Male_Ranger_Acc_Pauldron"
       ],
       "wears": [],
       "cloth": "#4a4433",
@@ -607,13 +607,13 @@
     },
     "peasantF": {
       "name": "WORKWEAR (F)",
-      "blurb": "the shirt and working trousers, on the other build",
+      "blurb": "a plain shirt, plain trousers and soft shoes",
       "body": "Superhero_Female_FullBody",
       "parts": [
-        "Female_Peasant_Body",
-        "Female_Peasant_Arms",
-        "Female_Peasant_Legs",
-        "Female_Peasant_Feet"
+        "Male_Peasant_Body",
+        "Male_Peasant_Arms",
+        "Male_Peasant_Legs",
+        "Male_Peasant_Feet"
       ],
       "wears": [],
       "cloth": "#6b5f4a",
@@ -626,12 +626,12 @@
     },
     "scout_leathers": {
       "name": "SCOUT",
-      "blurb": "a ranger's coat and shoulder guard over working trousers and boots",
+      "blurb": "a plate at one shoulder over leathers, and light legs to move in",
       "parts": [
         "Male_Ranger_Body",
         "Male_Ranger_Arms",
         "Male_Peasant_Legs",
-        "Male_Ranger_Feet_Boots",
+        "Male_Peasant_Feet",
         "Male_Ranger_Acc_Pauldron"
       ],
       "wears": [],
@@ -645,12 +645,12 @@
     },
     "hooded": {
       "name": "HOODED",
-      "blurb": "the hood up over a plain shirt, ranger legs, heavy boots",
+      "blurb": "hooded and quiet, a heavy body over light arms",
       "parts": [
-        "Male_Peasant_Body",
+        "Male_Ranger_Body",
         "Male_Peasant_Arms",
         "Male_Ranger_Legs",
-        "Male_Ranger_Feet_Boots",
+        "Male_Peasant_Feet",
         "Male_Ranger_Head_Hood"
       ],
       "wears": [],
@@ -664,10 +664,10 @@
     },
     "shirtsleeves": {
       "name": "SHIRTSLEEVES",
-      "blurb": "a worker's shirt and trousers, no coat, boots on",
+      "blurb": "sleeves rolled, light trousers, boots: dressed for work rather than a fight",
       "parts": [
         "Male_Peasant_Body",
-        "Male_Peasant_Arms",
+        "Male_Ranger_Arms",
         "Male_Peasant_Legs",
         "Male_Ranger_Feet_Boots"
       ],
@@ -682,14 +682,14 @@
     },
     "scout_f": {
       "name": "SCOUT (F)",
-      "blurb": "the ranger's coat and shoulder guards over working trousers",
+      "blurb": "a plate at one shoulder over leathers, and light legs to move in",
       "body": "Superhero_Female_FullBody",
       "parts": [
-        "Female_Ranger_Body",
-        "Female_Ranger_Arms",
-        "Female_Peasant_Legs",
-        "Female_Ranger_Feet",
-        "Female_Ranger_Acc_Pauldrons"
+        "Male_Ranger_Body",
+        "Male_Ranger_Arms",
+        "Male_Peasant_Legs",
+        "Male_Peasant_Feet",
+        "Male_Ranger_Acc_Pauldron"
       ],
       "wears": [],
       "cloth": "#4a4433",
@@ -702,14 +702,14 @@
     },
     "hooded_f": {
       "name": "HOODED (F)",
-      "blurb": "the hood up over a shirt, ranger legs and boots",
+      "blurb": "hooded, light on top and heavy below",
       "body": "Superhero_Female_FullBody",
       "parts": [
-        "Female_Peasant_Body",
-        "Female_Peasant_Arms",
-        "Female_Ranger_Legs",
-        "Female_Ranger_Feet",
-        "Female_Ranger_Head_Hood"
+        "Male_Peasant_Body",
+        "Male_Peasant_Arms",
+        "Male_Ranger_Legs",
+        "Male_Ranger_Feet_Boots",
+        "Male_Ranger_Head_Hood"
       ],
       "wears": [],
       "cloth": "#6b5f4a",
@@ -722,7 +722,7 @@
     },
     "motocross": {
       "name": "MOTOCROSS",
-      "blurb": "dirt bike blue over boots and heavy trousers",
+      "blurb": "armoured across the chest and down the legs, sleeves cut light for air",
       "wears": [],
       "head": [],
       "cloth": "#1f6fd0",
@@ -730,7 +730,7 @@
       "boots": "#171a1f",
       "parts": [
         "Male_Ranger_Body",
-        "Male_Ranger_Arms",
+        "Male_Peasant_Arms",
         "Male_Ranger_Legs",
         "Male_Ranger_Feet_Boots"
       ],

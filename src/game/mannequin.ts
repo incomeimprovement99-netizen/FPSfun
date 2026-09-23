@@ -201,8 +201,22 @@ export function loadBody(name: string): Promise<unknown> {
  */
 const tintMaps = new Map<string, THREE.Texture | null>();
 const tintLoads = new Map<string, Promise<unknown>>();
-function tintMap(outfit: string): THREE.Texture | null {
-  return tintMaps.get(outfit) ?? null;
+
+/**
+ * The pack a garment came out of, which decides which atlas reads its UVs.
+ *
+ * An outfit borrows from both sets now - a ranger's body over a peasant's
+ * legs is a different outline from either, and outlines are what the wardrobe
+ * is short of - and the two sets lay their UVs out differently. One atlas per
+ * outfit put a peasant shirt in a ranger's seams.
+ */
+function packOf(part: string): string | null {
+  return part.includes("Ranger") ? "Ranger" : part.includes("Peasant") ? "Peasant" : null;
+}
+
+function tintMap(outfit: string, part: string): THREE.Texture | null {
+  const pack = packOf(part);
+  return pack ? (tintMaps.get(`${outfit}_${pack}`) ?? null) : null;
 }
 
 /**
@@ -216,23 +230,28 @@ function tintMap(outfit: string): THREE.Texture | null {
 export function loadTint(outfit: string): Promise<unknown> {
   const had = tintLoads.get(outfit);
   if (had) return had;
-  if (tintOf(outfit) === null) {
+  const packs = [...new Set(partsOf(outfit).map(packOf))].filter((p): p is string => !!p);
+  if (tintOf(outfit) === null || !packs.length) {
     const none = Promise.resolve(null);
     tintLoads.set(outfit, none);
-    tintMaps.set(outfit, null);
     return none;
   }
-  const job = new THREE.TextureLoader()
-    .loadAsync(`models/outfits/tints/${outfit}.webp`)
-    .then((t) => {
-      t.flipY = false;
-      t.colorSpace = THREE.SRGBColorSpace;
-      t.needsUpdate = true;
-      tintMaps.set(outfit, t);
+  const job = Promise.all(
+    packs.map((pack) => {
+      const key = `${outfit}_${pack}`;
+      return new THREE.TextureLoader()
+        .loadAsync(`models/outfits/tints/${key}.webp`)
+        .then((t) => {
+          t.flipY = false;
+          t.colorSpace = THREE.SRGBColorSpace;
+          t.needsUpdate = true;
+          tintMaps.set(key, t);
+        })
+        .catch(() => {
+          tintMaps.set(key, null);
+        });
     })
-    .catch(() => {
-      tintMaps.set(outfit, null);
-    });
+  );
   tintLoads.set(outfit, job);
   return job;
 }
@@ -570,7 +589,7 @@ export class MannequinFigure {
         // its own atlas if one is made for it; the multiply is the fallback.
         // Hair is exempt: it is worn like a garment but it is not one, and an
         // outfit's colour on it would give every figure in olive olive hair.
-        const map = outfit && !hair ? tintMap(outfit) : null;
+        const map = outfit && !hair ? tintMap(outfit, n) : null;
         if (map) mat.map = map;
         else if (tint !== null && !hair) mat.color.setHex(tint);
         if (hair && outfit) mat.color.setHex(hairTintOf(outfit));
@@ -587,10 +606,13 @@ export class MannequinFigure {
 
   /** the outfit's atlas arrived after the clothes went on: put it on them */
   private redressParts(outfit: string): void {
-    const map = tintMap(outfit);
-    if (!map) return;
     for (const w of this.worn) {
       if (w.name.startsWith("wear:Hair_")) continue;
+      // the mesh carries the part it came from, which is what says whose
+      // atlas reads its UVs
+      const part = w.name.replace(/^wear:/, "").replace(/#\d+$/, "");
+      const map = tintMap(outfit, part);
+      if (!map) continue;
       const m = w.material as THREE.MeshStandardMaterial;
       m.map = map;
       m.color.setHex(0xffffff);

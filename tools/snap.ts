@@ -498,6 +498,42 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "wardrobe-a",
+    note: "five of the wardrobe side by side: peasant, coveralls, plainclothes, desert, tracksuit",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab(["peasant", "coveralls", "plainclothes", "desert", "tracksuit"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
+    name: "wardrobe-b",
+    note: "five of the wardrobe side by side: shirtsleeves, hoodie, irregular, ghillie, arctic",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab(["shirtsleeves", "hoodie", "irregular", "ghillie", "arctic"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
+    name: "wardrobe-c",
+    note: "five of the wardrobe side by side: hooded, motocross, scout_leathers, urban, fatigues",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab(["hooded", "motocross", "scout_leathers", "urban", "fatigues"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
+    name: "wardrobe-d",
+    note: "five of the wardrobe side by side: ranger, peasantF, hooded_f, scout_f, rangerF",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab(["ranger", "peasantF", "hooded_f", "scout_f", "rangerF"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
     name: "outfit-real",
     note: "five outfits in their own colours: arctic white, urban black, desert tan, orange coveralls, ghillie green, all on published cloth",
     steps: [
