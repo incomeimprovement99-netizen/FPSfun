@@ -56,6 +56,12 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(`console: ${m.text()}`);
   });
+  // A 404 reaches the console as "Failed to load resource" and nothing else:
+  // no URL, so nobody can act on it. The response carries the URL, so the
+  // failure says which file was missing.
+  page.on("response", (r) => {
+    if (r.status() >= 400) errors.push(`${r.status()}: ${r.url().replace(/^https?:\/\/[^/]+\//, "")}`);
+  });
   // The battle royale drops straight onto the squad's place in every test but
   // the ship's own (shipTest), which turns it back off: the checks after a
   // landing are about the landing, and a ride across the map would add half a
