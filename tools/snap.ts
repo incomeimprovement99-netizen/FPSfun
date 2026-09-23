@@ -444,10 +444,55 @@ export const SCENARIOS: Scenario[] = [
     steps: [[`(() => { document.querySelector('[data-tab="loadouts"]').click(); document.getElementById("copyLoadout")?.click(); [...document.querySelectorAll("#outfitCards button")].find((b) => b.textContent.includes("PLAIN CLOTHES"))?.click(); window.__range.previewTurn(Math.PI); })()`, 2500]],
   },
   {
+    name: "skin-one-back",
+    note: "the same coat on both bodies from behind: the slimmer one it was cut for, and the bulky one we have",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -2);
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "rangerF||" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "ranger||" }], 2.0, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
+    name: "skin-audit-front",
+    note: "close, from the front: four outfits on the body, to see where cloth stops and skin starts",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab(["fatigues", "plainclothes", "ranger", "urban"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 2.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
+    name: "skin-audit-back",
+    note: "the same four from behind",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab(["fatigues", "plainclothes", "ranger", "urban"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 2.6, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
+    name: "skin-close-front",
+    note: "one figure filling the frame from the front: where the cloth meets the skin at the neck, the wrists and the waist",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "ranger||" }], 1.9, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
+    name: "skin-close-back",
+    note: "the same one figure from behind, close",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "ranger||" }], 1.9, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
     name: "outfit-real",
     note: "five outfits in their own colours: arctic white, urban black, desert tan, orange coveralls, ghillie green, all on published cloth",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
         r.figureLab(["arctic", "urban", "desert", "coveralls", "ghillie"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],

@@ -70,17 +70,44 @@ let loading: Promise<void> | null = null;
  * test and a Resurgence test each found a match that had not started yet. A
  * figure now asks for what its own outfit needs.
  */
-const parts = new Map<string, THREE.SkinnedMesh>();
+const parts = new Map<string, THREE.SkinnedMesh[]>();
 const partLoads = new Map<string, Promise<unknown>>();
 
-/** the first skinned mesh in a loaded file, which is what a part is */
-function skinnedIn(o: THREE.Object3D): THREE.SkinnedMesh | null {
-  let found: THREE.SkinnedMesh | null = null;
+/**
+ * EVERY skinned mesh in a loaded part, not the first one.
+ *
+ * A ranger's body is three meshes - the coat and two belts - and taking only
+ * the first of them put a belt on a bare chest. That is the "the clothes
+ * aren't fully covering the body" the owner saw.
+ */
+function skinnedIn(o: THREE.Object3D): THREE.SkinnedMesh[] {
+  const found: THREE.SkinnedMesh[] = [];
   o.traverse((c) => {
     const m = c as THREE.SkinnedMesh;
-    if (!found && m.isSkinnedMesh) found = m;
+    if (m.isSkinnedMesh) found.push(m);
   });
   return found;
+}
+
+/**
+ * A garment sits exactly on the skin it was modelled over, so the body shows
+ * through wherever the two meet. Pushing the cloth out along its own normals
+ * by a few millimetres puts it outside the skin everywhere at once, which is
+ * what a shell offset is for. Done once per part, on the geometry every
+ * figure wearing it shares.
+ */
+const OVER_CLOTH = 0.022;
+function inflate(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  const out = g.clone();
+  if (!out.attributes.normal) out.computeVertexNormals();
+  const p = out.attributes.position as THREE.BufferAttribute;
+  const n = out.attributes.normal as THREE.BufferAttribute;
+  for (let i = 0; i < p.count; i++) {
+    p.setXYZ(i, p.getX(i) + n.getX(i) * OVER_CLOTH, p.getY(i) + n.getY(i) * OVER_CLOTH, p.getZ(i) + n.getZ(i) * OVER_CLOTH);
+  }
+  p.needsUpdate = true;
+  out.computeBoundingSphere();
+  return out;
 }
 
 /**
@@ -102,6 +129,53 @@ export function bodyOf(outfit: string): string {
   return ((outfitCfg.sets as Record<string, { body?: string }>)[outfit]?.body ?? DEFAULT_BODY) as string;
 }
 
+/**
+ * How much narrower the body is made before a garment goes over it.
+ *
+ * The clothes in this pack are cut for the pack's Regular build; the free tier
+ * ships the Superhero one, which is 424 mm across the shoulders against the
+ * Regular's. The coat closes on the slimmer body and gapes on the bulky one -
+ * a bare back with a collar and a belt, which is what the owner saw. Narrowing
+ * the BODY (not the skeleton, so nothing about the hit boxes or the animation
+ * changes) puts it back inside the cloth.
+ */
+/**
+ * Narrowed by HEIGHT, not uniformly. This build's bulk is in the traps and
+ * the lats: a tenth off everywhere still left a bare upper back inside a coat
+ * that closed at the waist. So the legs keep their width, the hips lose a
+ * little, and the chest and shoulders lose a fifth - which is roughly the
+ * difference between the build the clothes were cut for and the one we have.
+ */
+const SLIM_LOW = 1.0;
+const SLIM_HIGH = 0.71;
+const SLIM_FROM = 0.9;
+const SLIM_TO = 1.3;
+function slim(o: THREE.Object3D): void {
+  o.traverse((c) => {
+    const m = c as THREE.SkinnedMesh;
+    if (!m.isSkinnedMesh) return;
+    const g = m.geometry.clone();
+    const p = g.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i);
+      const y = p.getY(i);
+      // The TORSO only. In the bind pose the arms are out at shoulder height,
+      // so narrowing everything at that height dragged the hands in off their
+      // own wrist bones and the skinning stretched them into fans. Anything
+      // more than a hand's width from the middle is an arm and is left alone.
+      const arm = Math.max(0, Math.min(1, (Math.abs(x) - 0.19) / 0.09));
+      const t = Math.max(0, Math.min(1, (y - SLIM_FROM) / (SLIM_TO - SLIM_FROM)));
+      const ease = t * t * (3 - 2 * t) * (1 - arm * arm * (3 - 2 * arm));
+      const k = SLIM_LOW + (SLIM_HIGH - SLIM_LOW) * ease;
+      p.setXYZ(i, x * k, y, p.getZ(i) * k);
+    }
+    p.needsUpdate = true;
+    g.computeVertexNormals();
+    g.computeBoundingSphere();
+    m.geometry = g;
+  });
+}
+
 /** fetch a body, once */
 export function loadBody(name: string): Promise<unknown> {
   const had = bodyLoads.get(name);
@@ -109,6 +183,7 @@ export function loadBody(name: string): Promise<unknown> {
   const job = new GLTFLoader()
     .loadAsync(`models/body/${name}.gltf`)
     .then((g) => {
+      slim(g.scene);
       bodies.set(name, g.scene);
     })
     .catch(() => null);
@@ -183,8 +258,9 @@ export function loadOutfit(outfit: string): Promise<unknown> {
       const job = loader
         .loadAsync(`models/outfits/parts/${n}.gltf`)
         .then((g) => {
-          const m = skinnedIn(g.scene);
-          if (m) parts.set(n, m);
+          const found = skinnedIn(g.scene);
+          for (const m of found) m.geometry = inflate(m.geometry);
+          if (found.length) parts.set(n, found);
         })
         .catch(() => null);
       partLoads.set(n, job);
@@ -242,6 +318,7 @@ export function loadMannequin(): Promise<void> {
         .loadAsync(`models/body/${DEFAULT_BODY}.gltf`)
         .then((b) => {
           if (!template) return;
+          slim(b.scene);
           template.scene = b.scene;
           bodies.set(DEFAULT_BODY, b.scene);
           // the hand's aim pose is sampled off whatever the body is
@@ -446,33 +523,27 @@ export class MannequinFigure {
    */
   private wearParts(names: string[], tint: number | null = null, outfit = ""): void {
     for (const n of names) {
-      const src = parts.get(n);
+      const srcs = parts.get(n);
       // already on, or not here yet
-      if (!src || this.worn.some((w) => w.name === `wear:${n}`)) continue;
-      const bones = src.skeleton.bones.map((b) => this.bones[b.name]);
-      if (bones.some((b) => !b)) continue;
-      // The garment in this outfit's own colour. The pack ships one texture
-      // atlas per set, so a tint multiplied into it is how the same coat
-      // becomes desert tan on one outfit and night black on another: real
-      // cloth, our palette, and no second download.
-      const mat = (src.material as THREE.MeshStandardMaterial).clone();
-      // its own atlas if one is made for it; the multiply is the fallback
-      const map = outfit ? tintMap(outfit) : null;
-      if (map) mat.map = map;
-      else if (tint !== null) mat.color.setHex(tint);
-      const mesh = new THREE.SkinnedMesh(src.geometry, mat);
-      mesh.bind(new THREE.Skeleton(bones as THREE.Bone[], src.skeleton.boneInverses), src.bindMatrix);
-      mesh.castShadow = true;
-      mesh.frustumCulled = false;
-      mesh.name = `wear:${n}`;
-      this.root.add(mesh);
-      this.worn.push(mesh);
+      if (!srcs || this.worn.some((w) => w.name.startsWith(`wear:${n}`))) continue;
+      for (let k = 0; k < srcs.length; k++) {
+        const src = srcs[k];
+        const bones = src.skeleton.bones.map((b) => this.bones[b.name]);
+        if (bones.some((b) => !b)) continue;
+        const mat = (src.material as THREE.MeshStandardMaterial).clone();
+        // its own atlas if one is made for it; the multiply is the fallback
+        const map = outfit ? tintMap(outfit) : null;
+        if (map) mat.map = map;
+        else if (tint !== null) mat.color.setHex(tint);
+        const mesh = new THREE.SkinnedMesh(src.geometry, mat);
+        mesh.bind(new THREE.Skeleton(bones as THREE.Bone[], src.skeleton.boneInverses), src.bindMatrix);
+        mesh.castShadow = true;
+        mesh.frustumCulled = false;
+        mesh.name = k === 0 ? `wear:${n}` : `wear:${n}#${k}`;
+        this.root.add(mesh);
+        this.worn.push(mesh);
+      }
     }
-    // The body stays. Hiding it was wrong twice over: the garments in this
-    // pack are cut to layer OVER the base body (its own assembled figures
-    // include it), and the body is one mesh - head, hands and all - so hiding
-    // it took the head with it. That is why the figure in the Loadouts panel
-    // had no head.
   }
 
   /** the outfit's atlas arrived after the clothes went on: put it on them */

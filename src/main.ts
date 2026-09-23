@@ -865,6 +865,7 @@ for (const rail of TARGET_RAILS) {
 for (const d of dummies) scene.add(d.group);
 
 const viewModel = new ViewModel();
+let snapNoGun = false;
 vmCamera.add(viewModel.group);
 /**
  * Everything of the gun on the gun's layer, every frame (a new gun or optic
@@ -6129,7 +6130,9 @@ function step(): void {
   // killcam the gun in view is your killer's, and it kicks when they fire
   // out (knocked in a round, eliminated): no gun and no hands at all, except the killer's in the killcam;
   // in the skydive the hands are put away, out of the view of the ground you are steering onto
-  viewModel.group.visible = killcam.active || (!third && !knockedOut && !player.dropping && !player.aboard);
+  // a snapshot of a figure wants the whole figure: the gun in your own hands
+  // covers the half of it nearest the camera (tools/snap.ts)
+  viewModel.group.visible = !snapNoGun && (killcam.active || (!third && !knockedOut && !player.dropping && !player.aboard));
   if (killcam.active && killcam.firedThisFrame) viewModel.onShot();
   selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, lookCode(loadouts.current), third && !killcam.active, knockedOut, downedNow);
   for (const lf of labFigs) {
@@ -6592,6 +6595,10 @@ initWelcome();
   setThirdPerson,
   selfFigureVisible: () => selfFig?.group.visible ?? false,
   viewModelVisible: () => viewModel.group.visible,
+  /** put the gun in your own hands away so a snapshot sees the whole figure (tools/snap.ts) */
+  hideViewModel: (on: boolean) => {
+    snapNoGun = on;
+  },
   /** the gun's own camera's vertical FOV against the world's */
   gunFov: () => ({ gun: vmCamera.fov, world: camera.fov }),
   /** the finish a gun model wears now (tools/e2e.ts) */
