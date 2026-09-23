@@ -248,18 +248,53 @@ export function partsOf(outfit: string): string[] {
   return (((outfitCfg.sets as Record<string, { parts?: string[] }>)[outfit]?.parts ?? []) as string[]).slice();
 }
 
+/**
+ * The hair an outfit wears. It is fetched and worn exactly like a garment,
+ * because it is one: the pack rigs each style to the same 65 joints, so a
+ * hairstyle binds to the figure's own skeleton and turns with the head.
+ *
+ * What it is NOT is tinted. A garment gets the outfit's colour; hair keeps
+ * the colour the pack gave it, or every figure in an olive outfit would have
+ * olive hair.
+ */
+export function hairOf(outfit: string): string[] {
+  return (((outfitCfg.sets as Record<string, { hair?: string[] }>)[outfit]?.hair ?? []) as string[]).slice();
+}
+
+/**
+ * The colour hair is painted. The pack ships its hair as a greyscale mask,
+ * mean 143 of 255 measured off the webp, and leaves the colouring to the
+ * engine; without this every figure is white haired.
+ */
+export function hairTintOf(outfit: string): number {
+  const t = (outfitCfg.sets as Record<string, { hairColor?: string }>)[outfit]?.hairColor;
+  return typeof t === "string" ? parseInt(t.replace("#", ""), 16) : 0x3a2c20;
+}
+
+/** hair lives beside the bodies it belongs to, a garment in its own folder */
+function partUrl(name: string): string {
+  return name.startsWith("Hair_") ? `models/body/hair/${name}.gltf` : `models/outfits/parts/${name}.gltf`;
+}
+
 /** fetch an outfit's parts, once each; resolves when they are all in or given up on */
 export function loadOutfit(outfit: string): Promise<unknown> {
   const loader = new GLTFLoader();
   return Promise.all(
-    partsOf(outfit).map((n) => {
+    [...partsOf(outfit), ...hairOf(outfit)].map((n) => {
       const had = partLoads.get(n);
       if (had) return had;
       const job = loader
-        .loadAsync(`models/outfits/parts/${n}.gltf`)
+        .loadAsync(partUrl(n))
         .then((g) => {
           const found = skinnedIn(g.scene);
-          for (const m of found) m.geometry = inflate(m.geometry);
+          // Only the layer against the skin is pushed out. The shell exists so
+          // cloth and skin stop fighting over the same pixels, and a piece
+          // that was never against the skin does not need it: a pauldron sits
+          // on the coat and lifted clear of the shoulder when it got one, a
+          // hood sits on the head, and hair sits on the scalp. Measured off
+          // the parts: the pauldron spans y 1437..1575 mm against the sleeve's
+          // 1380..1530, so it is already 45 mm proud before anything moves it.
+          if (/_(Body|Arms|Legs|Feet)(_|$)/.test(n)) for (const m of found) m.geometry = inflate(m.geometry);
           if (found.length) parts.set(n, found);
         })
         .catch(() => null);
@@ -526,15 +561,19 @@ export class MannequinFigure {
       const srcs = parts.get(n);
       // already on, or not here yet
       if (!srcs || this.worn.some((w) => w.name.startsWith(`wear:${n}`))) continue;
+      const hair = n.startsWith("Hair_");
       for (let k = 0; k < srcs.length; k++) {
         const src = srcs[k];
         const bones = src.skeleton.bones.map((b) => this.bones[b.name]);
         if (bones.some((b) => !b)) continue;
         const mat = (src.material as THREE.MeshStandardMaterial).clone();
-        // its own atlas if one is made for it; the multiply is the fallback
-        const map = outfit ? tintMap(outfit) : null;
+        // its own atlas if one is made for it; the multiply is the fallback.
+        // Hair is exempt: it is worn like a garment but it is not one, and an
+        // outfit's colour on it would give every figure in olive olive hair.
+        const map = outfit && !hair ? tintMap(outfit) : null;
         if (map) mat.map = map;
-        else if (tint !== null) mat.color.setHex(tint);
+        else if (tint !== null && !hair) mat.color.setHex(tint);
+        if (hair && outfit) mat.color.setHex(hairTintOf(outfit));
         const mesh = new THREE.SkinnedMesh(src.geometry, mat);
         mesh.bind(new THREE.Skeleton(bones as THREE.Bone[], src.skeleton.boneInverses), src.bindMatrix);
         mesh.castShadow = true;
@@ -551,6 +590,7 @@ export class MannequinFigure {
     const map = tintMap(outfit);
     if (!map) return;
     for (const w of this.worn) {
+      if (w.name.startsWith("wear:Hair_")) continue;
       const m = w.material as THREE.MeshStandardMaterial;
       m.map = map;
       m.color.setHex(0xffffff);
@@ -574,7 +614,8 @@ export class MannequinFigure {
     // puts the rest on when it arrives - which is one frame later on this
     // machine and a second on a bad connection, either way better than every
     // page in the game waiting for clothes nobody asked for.
-    const want = partsOf(skin.outfit);
+    // the hair goes on with the clothes: same skeleton, same fetch, same wear
+    const want = [...partsOf(skin.outfit), ...hairOf(skin.outfit)];
     if (want.length) {
       const tint = tintOf(skin.outfit);
       this.wearParts(want, tint, skin.outfit);

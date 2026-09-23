@@ -1,7 +1,8 @@
 # Skins: where we are, counted
 
-**Written 2026-09-22**, the day the published assets went in and our own geometry came out. The owner asked
-where the skins stand. This counts what is there rather than remembering it, says what each gap costs a
+**Written 2026-09-22**, the day the published assets went in and our own geometry came out; **rewritten the
+same evening** after the clothes were caught not covering the body and after the free asset pool was
+searched to the bottom. This counts what is there rather than remembering it, says what each gap costs a
 player, and ranks what to do.
 
 ## What exists
@@ -10,46 +11,86 @@ player, and ranks what to do.
 |---|---|---|
 | Outfits | **20** | every one of them published cloth; none built in code |
 | Distinct garment combinations | **12** | see the lopsided part below |
-| Source sets behind them | **2** | Quaternius's Ranger and Peasant (CC0), 20 parts in all |
+| Source sets behind them | **2** | Quaternius's Ranger and Peasant (CC0), 40 part files in all |
 | Bodies | **2** | one heavier, one lighter, same skeleton and so the same hit boxes |
+| Hair and beards on disk | **4** | buzzed, parted, long, a beard. **None of them worn by anything** |
 | Recoloured atlases | **11** | one per outfit that asks for a colour, 484 KB |
 | Operators | **6** | each in its own outfit |
 | Loadouts shipped dressed | **6 default + 6 custom** | customs arrive in different clothes with different melee weapons |
 | Heirlooms | **10** | |
 | Gun finishes | **8** | all open from the first minute, no levels |
 
+## The two faults that made the clothes fail to cover the body
+
+Both are fixed; both are worth writing down because neither was visible from the code.
+
+**A garment file holds more than one mesh.** The Ranger body file is a coat plus two belts. We wore the
+first skinned mesh we found and dropped the rest, so a figure turned up in a belt on a bare chest. Every
+skinned mesh in the file is worn now.
+
+**The cloth is cut for a body we do not have.** The garments reference `T_Regular_Male_*`: they were
+modelled on the pack's **Regular** proportions. The free tier of Universal Base Characters ships only
+**Superhero**, measured at 424 mm across the shoulders against the mannequin's 384. A coat cut for Regular
+does not close on Superhero, and no amount of code makes it. The torso is narrowed towards the shoulders
+now so the cloth meets, and the garment sits on a 22 mm shell above the skin so the two surfaces stop
+fighting over the same pixels. The narrowing is kept off the arms: in the bind pose they lie out at
+shoulder height, and scaling them in dragged the hands off their own wrist bones and fanned them out.
+
+## The free asset pool, searched
+
+The owner's instruction was that free assets are a gold mine next to modelling our own. They are, and here
+is the whole mine as of today.
+
+| Source | What is free | Verdict |
+|---|---|---|
+| **Quaternius, Universal Base Characters** | 2 bodies, 5 hairstyles | **taken, all of it.** The other 6 bodies, including the **Regular** the clothes are cut for, and 20 hairstyles, are $19.99 |
+| **Quaternius, Modular Character Outfits** | Ranger and Peasant only | **taken, all of it.** The other outfits, 82 modular parts, are $20 |
+| **Mixamo (Adobe)** | **108 rigged characters**, free for unlimited commercial use, no attribution, no royalty | **the gold mine.** Swat, Swat Guy, Gas Mask, Vanguard, Exo Gray and Exo Red, Alien Soldier, Prisoner in coveralls, and about sixty men and women in t-shirts, jackets and jeans. The public list endpoint answers without a login; the **export** endpoint does not. One Adobe token unlocks all 108 |
+| **Sketchfab, CC0 and downloadable** | museum scans | nothing rigged and human. Searched for soldier, swat, military uniform, tactical vest, hoodie, camouflage |
+| **itch.io, CC0 characters** | KayKit and the low-poly packs | fantasy or blocky, each on its own rig, and a step down from what we already have |
+| **Poly Pizza** | mirrors Quaternius and Kenney | nothing we do not have |
+| **ambientCG, Poly Haven** | CC0 **textures**: fabric, leather, canvas | no garments, but real cloth for the ones we own |
+
+The conclusion is short: **the free clothing is exhausted and the free bodies are exhausted.** What is left
+free and untouched is Mixamo, and it is the largest of the lot.
+
 ## The gap, and what it costs
 
-**1. Three shapes wearing twenty names.** Twelve of the twenty outfits are one of three silhouettes: six
-share the peasant's full set, three share the hooded mix, three share the ranger's. Colour tells them
-apart and shape does not, so at eighty metres - the distance most of this game is played at - COVERALLS,
-TRACKSUIT, PLAIN CLOTHES, DESERT and WORKWEAR are the same person in different paint. A silhouette is what
-a player reads first, and we have three of them.
+**1. Three shapes wearing twenty names.** Twelve of the twenty outfits are one of three silhouettes. Colour
+tells them apart and shape does not, so at eighty metres COVERALLS, TRACKSUIT, PLAIN CLOTHES, DESERT and
+WORKWEAR are the same person in different paint. A silhouette is what a player reads first.
 
-**2. The cut is fantasy, and the names are not.** Every garment is a ranger's coat or a peasant's shirt.
-MOTOCROSS is a ranger's coat in blue; TRACKSUIT is a peasant's shirt in navy; FATIGUES is a ranger's coat
-in olive. The cards promise a military, a sports and a dirt bike look that the meshes cannot give. This is
-the honest cost of the only CC0 clothing that fits our rig.
+**2. The cut is fantasy, and the names are not.** MOTOCROSS is a ranger's coat in blue; FATIGUES is a
+ranger's coat in olive. The cards promise a military, a sports and a dirt bike look the meshes cannot give.
 
-**3. Nothing covers a pair of eyes.** The pack has one hood and no eyewear. The owner's rule - every figure
-has its face covered - is not met, and cannot be met with what is on disk.
+**3. Nothing covers a pair of eyes.** The pack has one hood and no eyewear.
 
-**4. Bare hands on every figure.** The base body's hands are skin, and they are the only skin left now that
-the clothes are real. They read as pale blobs at the end of every sleeve.
+**4. Every figure is bald.** Four hair meshes and a beard sit on disk, rigged to the Head bone, worn by
+nobody. This is free content already downloaded.
 
-**5. The second body is barely used.** Four outfits are cut for it and a player cannot choose it: the body
-comes with the outfit rather than being a thing you pick. The parts exist for both.
+**5. Bare hands on every figure.** The only skin left now that the clothes are real.
+
+**6. The second body is barely used.** Four outfits are cut for it and a player cannot choose it.
 
 ## Ranked
 
-| # | Step | Why | Effort |
+| # | Step | Why | Cost |
 |---|---|---|---|
-| 1 | **A second clothing pack, rigged to the Unreal mannequin** | Fixes gaps 1, 2 and 3 at once, and it is the only thing that does. Our rig uses the Unreal mannequin's bone names, so any CC0 asset built for that skeleton drops in with no retargeting - a much larger pool than the one author we have used. The CC0 modern kits that exist are mostly on Sketchfab, whose downloads need an account token, unlike itch.io which `npm run characters` already drives. | 1 day once a pack is in hand |
-| 2 | **Let a player pick the body** | The second body is on disk, rigged, textured and already used by four outfits. A row in the picker beside Build, and every outfit can be worn on either. Hit boxes do not move: they are built from the bones, and the bones are identical. | half a day |
-| 3 | **Gloves** | The last bare skin, on every figure, in every screenshot. One CC0 glove mesh per hand bone. | half a day |
-| 4 | **Rename what the meshes cannot deliver** | Until a modern pack lands, MOTOCROSS, TRACKSUIT and FATIGUES describe clothes nobody is wearing. Either the names follow the cloth or the cards stop promising. Cheap, and it stops the wardrobe lying. | an hour |
-| 5 | **Mix the parts harder** | Twelve combinations out of twenty parts is not the most the pack can give. A body from one set, legs from the other, a hood on or off, a pauldron or not: two dozen combinations are reachable without another download, and each is a different outline. | half a day |
-| 6 | **Per-outfit heirloom and finish suggestions** | A loadout is an outfit, a gun, a finish and a melee weapon, and nothing ties them together. A suggested pairing per outfit would make a loadout feel authored. | half a day |
+| 1 | **Wear the hair** | Gap 4. Four rigged CC0 meshes are already downloaded and unused, and a bald head is the first thing an eye goes to on a figure. Nothing to fetch, nothing to model. | an hour |
+| 2 | **Unstick the pauldron** | The Ranger's shoulder plate floats off the shoulder in a close shot: it is cut for the narrower body like everything else, and the torso narrowing moved the shoulder out from under it. | an hour |
+| 3 | **Mix the parts harder** | Gap 1. Twelve combinations out of forty part files is not the most the pack can give. A body from one set, legs from the other, hood on or off, pauldron or not: two dozen outlines are reachable with no download at all. | half a day |
+| 4 | **A Mixamo importer, finished and waiting for a token** | Gap 1, 2 and 3 at once, and it is the only free thing that does all three. The list endpoint is already proven to answer anonymously, so everything but the last request can be built and tested now. Mixamo's bones map one for one onto ours (`mixamorig:Hips` is `pelvis`, `Spine1` is `spine_02`, `LeftArm` is `upperarm_l`), so a renamed mesh hangs on the skeleton we already have, and Mixamo's proportions are closer to the Regular the clothes want than the Superhero we have. | a day, then one paste from the owner |
+| 5 | **Let a player pick the body** | Gap 6. On disk, rigged, textured, already used by four outfits. Hit boxes do not move: they come from the bones and the bones are identical. | half a day |
+| 6 | **Real cloth instead of flat colour** | The eleven recoloured atlases are the one base colour multiplied by a hex. CC0 fabric, canvas and leather from ambientCG would make an outfit read as a material rather than as paint. Free and scriptable. | half a day |
+| 7 | **Gloves** | Gap 5, and there is no free glove that fits this rig. Waits on step 4 or on money. | blocked |
+
+## The two things only the owner can decide
+
+- **A Mixamo token.** Log in at mixamo.com, and the bearer token in any request the page makes unlocks the
+  export endpoint for all 108 characters. This is the single largest free win available to the project.
+- **$40.** $19.99 for the other six Quaternius bodies, including the **Regular** the garments are actually
+  cut for, which ends the fit problem at its root rather than working around it; and $20 for the other 82
+  modular garment parts. Both CC0, both from the author whose rig we already use.
 
 **What is deliberately not here.** Building our own garments again: the owner saw what that looks like and
 the answer was no. Anything we put on a figure from now on is an asset somebody modelled.

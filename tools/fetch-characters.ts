@@ -103,9 +103,9 @@ async function shrink(): Promise<void> {
       if (!f.endsWith(".gltf")) continue;
       const p = join(dir, f);
       const before = readFileSync(p, "utf8");
-      // a part lives one folder down from the textures it shares with the
-      // whole figures, so its uris point back up
-      const up = dir.endsWith("parts") ? "../" : "";
+      // a part and a hairstyle each live one folder down from the textures
+      // they share with the whole figures, so their uris point back up
+      const up = /(parts|hair)$/.test(dir) ? "../" : "";
       const after = before
         .replace(/"uri"\s*:\s*"([^"]+)\.png"/gi, (_m, a: string) => `"uri":"${up}${a.replace(/^\.\.\//, "")}.webp"`)
         .replace(/"uri"\s*:\s*"(?!\.\.\/)(T_[^"]+)\.webp"/gi, (_m, a: string) => `"uri":"${up}${a}.webp"`);

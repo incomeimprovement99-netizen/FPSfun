@@ -344,7 +344,7 @@
     "_measured": "Every number here is against the body the game now draws (public/models/body), measured by tools/checks/body.ts: the head is 159 mm across, runs 3 to 194 mm up the Head bone, reaches 124 mm forward, and its eyes are at y 69. The grey mannequin's head was 62 mm taller with its eyes 30 mm higher, which is where these numbers used to be and why a helmet floated above the head."
   },
   "_sets": "The outfits: what each wears, and in what colours. `cloth` is the main garment, `trim` the second colour, `boots` the footwear. An operator names one of these (src/game/operators.ts), and the kit in gear.json goes on top of it.",
-  "_realSets": "A set with `character` is a real asset: a whole clothed figure, mesh and textures, from Quaternius's CC0 Modular Character Outfits (public/models/outfits, tools/fetch-characters.ts). The game swaps the figure's own mesh for it and builds no garments of its own, because its clothes ARE the mesh. Everything without `character` is built in code out of shells on bones, which is cheap, fits any rig and looks like what it is.",
+  "_realSets": "A set with `character` is a real asset: a whole clothed figure, mesh and textures, from Quaternius's CC0 Modular Character Outfits (public/models/outfits, tools/fetch-characters.ts). The game swaps the figure's own mesh for it and builds no garments of its own, because its clothes ARE the mesh. Everything without `character` is built in code out of shells on bones, which is cheap, fits any rig and looks like what it is. A set's `hair` is one or two of the four rigged head meshes in public/models/body/hair, worn on the same skeleton as everything else and left in the pack's own colour: hair is not painted by the outfit's tint. A hood only clears a buzz cut, so anything with Ranger_Head_Hood gets that one; the long style is for the sets cut for the lighter body. The pack's hair textures are greyscale masks, mean 143 of 255 measured off the webp, because the pack expects the engine to colour them; `hairColor` is that colour, multiplied through the mask. Without it every figure has white hair.",
   "sets": {
     "hoodie": {
       "name": "HOODIE",
@@ -360,7 +360,11 @@
         "Male_Ranger_Feet_Boots",
         "Male_Ranger_Head_Hood"
       ],
-      "tint": "#4a4f58"
+      "tint": "#4a4f58",
+      "hair": [
+        "Hair_Buzzed"
+      ],
+      "hairColor": "#241b16"
     },
     "coveralls": {
       "name": "COVERALLS",
@@ -375,7 +379,12 @@
         "Male_Peasant_Legs",
         "Male_Peasant_Feet"
       ],
-      "tint": "#c96a1e"
+      "tint": "#c96a1e",
+      "hair": [
+        "Hair_SimpleParted",
+        "Hair_Beard"
+      ],
+      "hairColor": "#4a3426"
     },
     "ghillie": {
       "name": "GHILLIE",
@@ -391,7 +400,12 @@
         "Male_Ranger_Feet_Boots",
         "Male_Ranger_Head_Hood"
       ],
-      "tint": "#4f5a34"
+      "tint": "#4f5a34",
+      "hair": [
+        "Hair_Buzzed",
+        "Hair_Beard"
+      ],
+      "hairColor": "#2e2119"
     },
     "tracksuit": {
       "name": "TRACKSUIT",
@@ -406,7 +420,11 @@
         "Male_Peasant_Legs",
         "Male_Peasant_Feet"
       ],
-      "tint": "#1f3f7a"
+      "tint": "#1f3f7a",
+      "hair": [
+        "Hair_SimpleParted"
+      ],
+      "hairColor": "#1b1512"
     },
     "fatigues": {
       "name": "FATIGUES",
@@ -421,7 +439,11 @@
         "Male_Ranger_Legs",
         "Male_Ranger_Feet_Boots"
       ],
-      "tint": "#5b5f43"
+      "tint": "#5b5f43",
+      "hair": [
+        "Hair_Buzzed"
+      ],
+      "hairColor": "#3a2c20"
     },
     "plainclothes": {
       "name": "PLAIN CLOTHES",
@@ -436,7 +458,11 @@
         "Male_Peasant_Legs",
         "Male_Peasant_Feet"
       ],
-      "tint": "#c9c4b6"
+      "tint": "#c9c4b6",
+      "hair": [
+        "Hair_SimpleParted"
+      ],
+      "hairColor": "#4a3426"
     },
     "irregular": {
       "name": "IRREGULAR",
@@ -452,7 +478,12 @@
         "Male_Ranger_Feet_Boots",
         "Male_Ranger_Head_Hood"
       ],
-      "tint": "#6d5a3f"
+      "tint": "#6d5a3f",
+      "hair": [
+        "Hair_Buzzed",
+        "Hair_Beard"
+      ],
+      "hairColor": "#1b1512"
     },
     "urban": {
       "name": "URBAN",
@@ -468,7 +499,11 @@
         "Male_Ranger_Feet_Boots",
         "Male_Ranger_Acc_Pauldron"
       ],
-      "tint": "#23262b"
+      "tint": "#23262b",
+      "hair": [
+        "Hair_Buzzed"
+      ],
+      "hairColor": "#241b16"
     },
     "arctic": {
       "name": "ARCTIC",
@@ -483,7 +518,12 @@
         "Male_Ranger_Legs",
         "Male_Ranger_Feet_Boots"
       ],
-      "tint": "#dde3e8"
+      "tint": "#dde3e8",
+      "hair": [
+        "Hair_Buzzed",
+        "Hair_Beard"
+      ],
+      "hairColor": "#6b6560"
     },
     "desert": {
       "name": "DESERT",
@@ -498,7 +538,12 @@
         "Male_Peasant_Legs",
         "Male_Peasant_Feet"
       ],
-      "tint": "#c2ab7e"
+      "tint": "#c2ab7e",
+      "hair": [
+        "Hair_SimpleParted",
+        "Hair_Beard"
+      ],
+      "hairColor": "#2e2119"
     },
     "ranger": {
       "name": "RANGER",
@@ -514,7 +559,11 @@
       "wears": [],
       "cloth": "#4a4433",
       "trim": "#2f2a20",
-      "boots": "#241f18"
+      "boots": "#241f18",
+      "hair": [
+        "Hair_Buzzed"
+      ],
+      "hairColor": "#3a2c20"
     },
     "peasant": {
       "name": "WORKWEAR",
@@ -528,7 +577,12 @@
       "wears": [],
       "cloth": "#6b5f4a",
       "trim": "#463d30",
-      "boots": "#2b241c"
+      "boots": "#2b241c",
+      "hair": [
+        "Hair_SimpleParted",
+        "Hair_Beard"
+      ],
+      "hairColor": "#7a5c3a"
     },
     "rangerF": {
       "name": "RANGER (F)",
@@ -545,7 +599,11 @@
       "wears": [],
       "cloth": "#4a4433",
       "trim": "#2f2a20",
-      "boots": "#241f18"
+      "boots": "#241f18",
+      "hair": [
+        "Hair_Long"
+      ],
+      "hairColor": "#5a2f1d"
     },
     "peasantF": {
       "name": "WORKWEAR (F)",
@@ -560,7 +618,11 @@
       "wears": [],
       "cloth": "#6b5f4a",
       "trim": "#463d30",
-      "boots": "#2b241c"
+      "boots": "#2b241c",
+      "hair": [
+        "Hair_Long"
+      ],
+      "hairColor": "#7a5c3a"
     },
     "scout_leathers": {
       "name": "SCOUT",
@@ -575,7 +637,11 @@
       "wears": [],
       "cloth": "#4a4433",
       "trim": "#2f2a20",
-      "boots": "#241f18"
+      "boots": "#241f18",
+      "hair": [
+        "Hair_SimpleParted"
+      ],
+      "hairColor": "#4a3426"
     },
     "hooded": {
       "name": "HOODED",
@@ -590,7 +656,11 @@
       "wears": [],
       "cloth": "#6b5f4a",
       "trim": "#463d30",
-      "boots": "#2b241c"
+      "boots": "#2b241c",
+      "hair": [
+        "Hair_Buzzed"
+      ],
+      "hairColor": "#1b1512"
     },
     "shirtsleeves": {
       "name": "SHIRTSLEEVES",
@@ -604,7 +674,11 @@
       "wears": [],
       "cloth": "#6b5f4a",
       "trim": "#463d30",
-      "boots": "#2b241c"
+      "boots": "#2b241c",
+      "hair": [
+        "Hair_SimpleParted"
+      ],
+      "hairColor": "#2e2119"
     },
     "scout_f": {
       "name": "SCOUT (F)",
@@ -620,7 +694,11 @@
       "wears": [],
       "cloth": "#4a4433",
       "trim": "#2f2a20",
-      "boots": "#241f18"
+      "boots": "#241f18",
+      "hair": [
+        "Hair_Long"
+      ],
+      "hairColor": "#2e2119"
     },
     "hooded_f": {
       "name": "HOODED (F)",
@@ -636,7 +714,11 @@
       "wears": [],
       "cloth": "#6b5f4a",
       "trim": "#463d30",
-      "boots": "#2b241c"
+      "boots": "#2b241c",
+      "hair": [
+        "Hair_Long"
+      ],
+      "hairColor": "#1b1512"
     },
     "motocross": {
       "name": "MOTOCROSS",
@@ -652,7 +734,12 @@
         "Male_Ranger_Legs",
         "Male_Ranger_Feet_Boots"
       ],
-      "tint": "#1f6fd0"
+      "tint": "#1f6fd0",
+      "hair": [
+        "Hair_Buzzed",
+        "Hair_Beard"
+      ],
+      "hairColor": "#241b16"
     }
   }
 }

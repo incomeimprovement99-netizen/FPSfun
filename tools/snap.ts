@@ -489,6 +489,15 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "hair-close",
+    note: "four bare heads close up: the hairstyles and the beard, in the colour the pack gave them",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 4);
+        r.figureLab(["plainclothes", "peasant", "peasantF", "motocross"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 1.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
     name: "outfit-real",
     note: "five outfits in their own colours: arctic white, urban black, desert tan, orange coveralls, ghillie green, all on published cloth",
     steps: [
