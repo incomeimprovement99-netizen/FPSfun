@@ -72,17 +72,26 @@ nobody. This is free content already downloaded.
 
 **6. The second body is barely used.** Four outfits are cut for it and a player cannot choose it.
 
-## Ranked
+## Ranked, and what happened to each
 
-| # | Step | Why | Cost |
+| # | Step | Why | State |
 |---|---|---|---|
-| 1 | **Wear the hair** | Gap 4. Four rigged CC0 meshes are already downloaded and unused, and a bald head is the first thing an eye goes to on a figure. Nothing to fetch, nothing to model. | an hour |
-| 2 | **Unstick the pauldron** | The Ranger's shoulder plate floats off the shoulder in a close shot: it is cut for the narrower body like everything else, and the torso narrowing moved the shoulder out from under it. | an hour |
-| 3 | **Mix the parts harder** | Gap 1. Twelve combinations out of forty part files is not the most the pack can give. A body from one set, legs from the other, hood on or off, pauldron or not: two dozen outlines are reachable with no download at all. | half a day |
-| 4 | **A Mixamo importer, finished and waiting for a token** | Gap 1, 2 and 3 at once, and it is the only free thing that does all three. The list endpoint is already proven to answer anonymously, so everything but the last request can be built and tested now. Mixamo's bones map one for one onto ours (`mixamorig:Hips` is `pelvis`, `Spine1` is `spine_02`, `LeftArm` is `upperarm_l`), so a renamed mesh hangs on the skeleton we already have, and Mixamo's proportions are closer to the Regular the clothes want than the Superhero we have. | a day, then one paste from the owner |
-| 5 | **Let a player pick the body** | Gap 6. On disk, rigged, textured, already used by four outfits. Hit boxes do not move: they come from the bones and the bones are identical. | half a day |
-| 6 | **Real cloth instead of flat colour** | The eleven recoloured atlases are the one base colour multiplied by a hex. CC0 fabric, canvas and leather from ambientCG would make an outfit read as a material rather than as paint. Free and scriptable. | half a day |
-| 7 | **Gloves** | Gap 5, and there is no free glove that fits this rig. Waits on step 4 or on money. | blocked |
+| 1 | **Wear the hair** | Gap 4. Four rigged CC0 meshes already downloaded and unused, and a bald head is the first thing an eye goes to. | **done.** Each outfit names a hairstyle and a colour; the pack ships its hair as a grey mask, mean 143 of 255, so without a colour every figure was white haired |
+| 2 | **Unstick the pauldron** | It floated off the shoulder in a close shot. | **done.** The 22 mm shell is for the layer against the skin only: a pauldron sits on the coat and a hood on the head, and both were being lifted clear |
+| 3 | **Mix the parts harder** | Gap 1. Twelve outlines out of forty part files is not the most the pack can give. | **done.** Twenty outfits, twenty outlines, held there by a check. The female sets wear the male garments, because the pack's female tops are corsets. The recoloured atlases went to one per outfit and pack, since the two packs lay their UVs out differently |
+| 4 | **A Mixamo importer** | Gaps 1, 2 and 3 at once, and the only free thing that does all three. | **half done.** `npm run mixamo` lists the catalogue and writes it to `assets/mixamo/catalogue.json`; the list endpoint answers without a login. The export is wired and waits on `MIXAMO_TOKEN`. The FBX converter is deliberately unwritten: a converter written against a file nobody has yet is a converter that does not work |
+| 5 | **Let a player pick the body** | Gap 6. On disk, rigged, textured, already used by four outfits. | **next.** See below: the `build` control it would sit beside is dead, and they are the same job |
+| 6 | **Real cloth instead of flat colour** | The atlases are one base colour multiplied by a hex. CC0 fabric and leather from ambientCG would make an outfit read as a material. | not started, free and scriptable |
+| 7 | **Gloves** | Gap 5, and there is no free glove that fits this rig. | blocked on step 4 or on money |
+
+### The dead control
+
+`build` - LEAN, REGULAR, HEAVY - is in the loadout, saved, sent over the wire,
+and does nothing. It was a thickness multiplier on the garments we built in
+code, and those are off. On published cloth the garment IS the silhouette, so
+making it mean something again means scaling the garment geometry per build
+and caching it per part and build, the way the bodies are cached. That is the
+same job as letting a player pick a body, and they should ship together.
 
 ## The two things only the owner can decide
 

@@ -554,19 +554,27 @@ tries scored), and the per-gun session numbers on the Stats tab.
 Five operator looks (the other player sees yours), seven heirlooms (four built
 in code, two free CC0 models) as the melee weapon when holstered.
 
-**What they wear.** Ten outfits (hoodie, coveralls, ghillie, tracksuit,
-fatigues, plain clothes, irregular, urban, arctic, desert), three builds (lean,
-regular, heavy) and a choice of face covering: a head wrap, goggles, a full
-mask, or a wrap and goggles. The hoodie and the ghillie put a hood up, the
-ghillie hangs ragged strips off the body and legs, the tracksuit runs a stripe
-down each arm and leg: what an outfit's own description promises, it wears, and
-a check fails if it ever stops being true. Each operator comes dressed; the Loadouts tab lets
-you put something else on, per loadout, and the other players see it. A build
-changes how the clothes sit and nothing else: the body under them is one
-mannequin and one set of hit boxes, so nobody is a bigger target for how they
-look. Every garment is turned along a profile measured off the model itself
-(`tools/checks/body.ts`), which is why a sleeve narrows at the elbow and a
-trouser leg swells at the calf.
+**What they wear.** Twenty outfits, every one of them published cloth: a CC0
+modular garment pack rigged to the same universal humanoid skeleton the bodies
+and the animations use, so a coat hangs on the bones without retargeting.
+Forty part files allow sixty-four combinations per body and the wardrobe takes
+twenty of them - a body from one set over legs from the other, hood up or
+down, a plate on one shoulder or not - so no two outfits are the same outline,
+which is what a player reads at range before any colour reaches them. A check
+fails if two ever become the same. Each outfit is painted by its own
+recoloured atlas rather than by a colour multiplied into the material, which
+could only darken and kept every outfit in the same brown-green family.
+Everybody has hair, from four styles and a beard that came with the bodies,
+in a colour the outfit names: the pack ships its hair as a greyscale mask and
+leaves the colouring to the engine.
+
+Each operator comes dressed; the Loadouts tab lets you put something else on,
+per loadout, with a figure you can turn and zoom, and the other players see
+it. The body under the clothes is one skeleton and one set of hit boxes
+whatever anyone is wearing, so nobody is a bigger target for how they look.
+
+Where the clothes came from, what the free pool still holds and what is
+missing is counted in `docs/SKIN_GAP.md`.
 
 The **Stats** tab keeps your name and every result in this browser: matches
 (won, lost, K/D, rounds, damage, accuracy, win streak) per mode and per bot
@@ -779,7 +787,7 @@ src/game/
   gunmodels.ts             the 28 gun models, built in code
   heirlooms.ts             the seven melee weapons
   operators.ts             the five character looks
-  outfit.ts                the ten outfits, the builds and the face pieces
+  outfit.ts                the wardrobe, the builds and the face pieces
   hud.ts                   the HUD canvas
   audio.ts                 synthesised sounds
   render.ts                the render pipeline and post-processing

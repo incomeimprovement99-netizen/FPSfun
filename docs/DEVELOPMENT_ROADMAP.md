@@ -2894,3 +2894,40 @@ published assets... i still see shit that looks horrible and can't see the base 
   and the recoloured atlases were never seen.
 - **One rule is no longer met**, deliberately and in writing: "everybody's eyes are covered". The only
   eyewear we had was built out of boxes and this pack has none. It comes back with a pack that has some.
+
+## Milestone 168 — The clothes cover the body, and the free pool is searched to the bottom ✅
+
+The owner, on the live build: "THE CLOTHES AREN'T FULLY COVERING THE BODY AND SHIT, EXHAUST OUR OPTIONS
+FOR FREE ASSETS, THAT IS A GOLD MINE COMPARED TO MAKING NEW ONES."
+
+**Two faults, neither visible from the code.** A garment file holds more than one skinned mesh - the Ranger
+body is a coat plus two belts - and we wore the first and dropped the rest, so a figure turned up in a belt
+on a bare chest. And the cloth is cut for a body we do not have: the garments reference `T_Regular_Male_*`,
+while the free tier ships only Superhero, measured at 424 mm across the shoulders against the mannequin's
+384. A coat cut for one does not close on the other. The torso is narrowed towards the shoulders so the
+cloth meets, and a garment sits on a 22 mm shell above the skin. The narrowing is kept off the arms: in the
+bind pose they lie out at shoulder height, and scaling them in dragged the hands off their wrist bones and
+fanned them out.
+
+**Nobody is bald.** Four hairstyles and a beard came down with the bodies weeks ago and were worn by
+nobody. They are rigged to the same 65 joints, so they go on by the same path a garment does. The pack
+ships its hair as a greyscale mask, mean 143 of 255 measured off the webp, and leaves the colouring to the
+engine, so each outfit names a hair colour too.
+
+**Twenty outfits, twenty outlines.** The wardrobe was twelve shapes wearing twenty names. The forty part
+files allow sixty-four combinations per body, so every outfit takes its own: a body from one set, legs from
+the other, hood up or down, a plate on the shoulder or not. The sets cut for the lighter body wear the male
+garments, because the pack's female tops are corsets with bare shoulders. Mixing the packs broke the
+recoloured atlases, which were one per outfit and are now one per outfit and pack, since the two packs lay
+their UVs out differently.
+
+**The free pool, searched.** Both Quaternius free tiers are fully taken; the rest of both packs is $40.
+Sketchfab's CC0 downloadable rigged humans are museum scans. itch's CC0 character packs are fantasy or
+blocky, each on its own rig. What is left is **Mixamo**: 108 rigged characters, free for unlimited
+commercial use, including the swat, gas mask, coveralls and sixty-odd men and women in modern clothes this
+game has been asking for. `npm run mixamo` lists them without a login and writes the catalogue; the export
+needs one Adobe bearer token. `docs/SKIN_GAP.md` has the whole table.
+
+**Checks.** Every garment and hairstyle an outfit names is on disk; every outfit has hair and a colour for
+it; no two outfits are the same body in the same parts. Snapshots got easier to take: the gun in your own
+hands can be put away for a shot, and there are close front and back scenarios and four wardrobe lineups.

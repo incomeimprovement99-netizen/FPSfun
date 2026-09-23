@@ -30,3 +30,8 @@ public/fonts/*
 public/icons/*
 !public/icons/ATTRIBUTION.md
 shots/
+
+# Mixamo: the catalogue is kept because it is the record of what is there;
+# the FBX downloads are not (tools/fetch-mixamo.ts)
+assets/mixamo/*
+!assets/mixamo/catalogue.json
