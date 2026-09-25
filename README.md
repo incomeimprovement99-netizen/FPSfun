@@ -554,11 +554,11 @@ tries scored), and the per-gun session numbers on the Stats tab.
 Five operator looks (the other player sees yours), seven heirlooms (four built
 in code, two free CC0 models) as the melee weapon when holstered.
 
-**What they wear.** Twenty outfits, every one of them published cloth: a CC0
+**What they wear.** Sixteen outfits, every one of them published cloth: a CC0
 modular garment pack rigged to the same universal humanoid skeleton the bodies
 and the animations use, so a coat hangs on the bones without retargeting.
 Forty part files allow sixty-four combinations per body and the wardrobe takes
-twenty of them - a body from one set over legs from the other, hood up or
+sixteen of them - a body from one set over legs from the other, hood up or
 down, a plate on one shoulder or not - so no two outfits are the same outline,
 which is what a player reads at range before any colour reaches them. A check
 fails if two ever become the same. Each outfit is painted by its own
@@ -569,9 +569,13 @@ in a colour the outfit names: the pack ships its hair as a greyscale mask and
 leaves the colouring to the engine.
 
 Each operator comes dressed; the Loadouts tab lets you put something else on,
-per loadout, with a figure you can turn and zoom, and the other players see
-it. The body under the clothes is one skeleton and one set of hit boxes
-whatever anyone is wearing, so nobody is a bigger target for how they look.
+pick one of two bodies and a build (how broad across the chest), per loadout,
+with a figure you can turn and zoom, and the other players see it. Every
+choice is the same 65-joint skeleton and so the same hit boxes, so nobody is a
+bigger target for how they look. The body under the clothes is shaped to fit
+the cloth (the free garments are cut for a slimmer body than the free one)
+and wears a dark undersuit where the clothes always cover it, so a seam
+between two pieces reads as fabric rather than skin.
 
 Where the clothes came from, what the free pool still holds and what is
 missing is counted in `docs/SKIN_GAP.md`.

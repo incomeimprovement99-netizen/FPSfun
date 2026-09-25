@@ -2931,3 +2931,26 @@ needs one Adobe bearer token. `docs/SKIN_GAP.md` has the whole table.
 **Checks.** Every garment and hairstyle an outfit names is on disk; every outfit has hair and a colour for
 it; no two outfits are the same body in the same parts. Snapshots got easier to take: the gun in your own
 hands can be put away for a shot, and there are close front and back scenarios and four wardrobe lineups.
+
+## Milestone 169 — A body to pick, a build that means something, and seams that stop showing skin ✅
+
+Next on the ranked list in `docs/SKIN_GAP.md` was letting a player pick the body. Beside it sat a dead
+control: LEAN, REGULAR and HEAVY were saved and sent over the wire and changed nothing, because they
+thickened the garments we built in code and those are off.
+
+- **Body.** A row in the Loadouts tab. Every garment binds to either body, so the pick is free of the
+  outfit. It goes over the wire as a fourth field on the look, which a page from before it reads past. The
+  four "(F)" outfits were the same clothes on the lighter body and are gone; a loadout that stored one is
+  given the matching outfit on that body. Hair follows the body too, so there are no beards on the lighter
+  one.
+- **Build.** The chest's width, applied to the body and to the cloth over it by the same amount, so the fit
+  holds at every build. The skeleton does not change and neither does a hit box.
+- **Four faults found on the way**, each in a snapshot and each measured: every head 29% too narrow (the
+  cloth-fit narrowing never eased back out above the shoulders); one black face per lineup (bodies painted
+  in the operator's shell colour, a multiply over the skin texture); the back of every shoulder through its
+  sleeve (the upper arm is 101 to 104 mm from the bone, the sleeves 60 to 69, so it is brought in around its
+  bone to 0.8 and `tools/checks/body.ts` measures it against every sleeve); and skin at every seam, which no
+  shaping closes because each piece was cut against a different outline. The body wears a dark undersuit
+  under the clothes, so a seam reads as fabric.
+- The torso and arm numbers and the shell moved out of the code into `outfits.json` `fit` with the
+  measurements beside them.

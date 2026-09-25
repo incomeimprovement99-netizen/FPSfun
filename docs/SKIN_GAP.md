@@ -9,7 +9,7 @@ player, and ranks what to do.
 
 | | Count | Notes |
 |---|---|---|
-| Outfits | **20** | every one of them published cloth; none built in code |
+| Outfits | **16** | every one of them published cloth and its own outline, on either of two bodies |
 | Distinct garment combinations | **12** | see the lopsided part below |
 | Source sets behind them | **2** | Quaternius's Ranger and Peasant (CC0), 40 part files in all |
 | Bodies | **2** | one heavier, one lighter, same skeleton and so the same hit boxes |
@@ -80,18 +80,25 @@ nobody. This is free content already downloaded.
 | 2 | **Unstick the pauldron** | It floated off the shoulder in a close shot. | **done.** The 22 mm shell is for the layer against the skin only: a pauldron sits on the coat and a hood on the head, and both were being lifted clear |
 | 3 | **Mix the parts harder** | Gap 1. Twelve outlines out of forty part files is not the most the pack can give. | **done.** Twenty outfits, twenty outlines, held there by a check. The female sets wear the male garments, because the pack's female tops are corsets. The recoloured atlases went to one per outfit and pack, since the two packs lay their UVs out differently |
 | 4 | **A Mixamo importer** | Gaps 1, 2 and 3 at once, and the only free thing that does all three. | **half done.** `npm run mixamo` lists the catalogue and writes it to `assets/mixamo/catalogue.json`; the list endpoint answers without a login. The export is wired and waits on `MIXAMO_TOKEN`. The FBX converter is deliberately unwritten: a converter written against a file nobody has yet is a converter that does not work |
-| 5 | **Let a player pick the body** | Gap 6. On disk, rigged, textured, already used by four outfits. | **next.** See below: the `build` control it would sit beside is dead, and they are the same job |
+| 5 | **Let a player pick the body** | Gap 6. On disk, rigged, textured, already used by four outfits. | **done.** A Body row in the Loadouts tab, sent with the look as a fourth field old pages ignore. The four "(F)" outfits were the same clothes on the other body and are gone, migrated. Hair follows the body: no beards on the lighter one. And `build` means something again: the chest's width, body and cloth together |
 | 6 | **Real cloth instead of flat colour** | The atlases are one base colour multiplied by a hex. CC0 fabric and leather from ambientCG would make an outfit read as a material. | not started, free and scriptable |
 | 7 | **Gloves** | Gap 5, and there is no free glove that fits this rig. | blocked on step 4 or on money |
 
-### The dead control
+### What doing step 5 found
 
-`build` - LEAN, REGULAR, HEAVY - is in the loadout, saved, sent over the wire,
-and does nothing. It was a thickness multiplier on the garments we built in
-code, and those are off. On published cloth the garment IS the silhouette, so
-making it mean something again means scaling the garment geometry per build
-and caching it per part and build, the way the bodies are cached. That is the
-same job as letting a player pick a body, and they should ship together.
+Four faults, each found in a snapshot and measured before it was fixed:
+
+- **Every head was 29% narrow.** The narrowing that makes the cloth close held its full strength above
+  the shoulders. It eases back out now, above the shoulder line measured off each body.
+- **One black face in every lineup.** Each figure painted its body in the operator's shell colour, a
+  leftover from the grey mannequin; over a skin texture that is a multiply, and a near-black shell made a
+  black, glossy face. Only the untextured mannequin is painted now.
+- **The upper arm is thicker than every sleeve.** 101 to 104 mm out from the bone through the deltoid
+  against sleeves cut for 60 to 69. Brought in around its own bone to 0.8, eased out at the elbow, and a
+  check measures it against every sleeve.
+- **Seams show skin whatever the shape.** Each garment piece was cut against a body we do not have. The body
+  wears a dark undersuit under the clothes, so a seam reads as fabric; face, neck, forearms and hands stay
+  skin.
 
 ## The two things only the owner can decide
 
