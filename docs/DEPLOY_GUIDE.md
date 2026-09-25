@@ -29,9 +29,13 @@ introduces the two.
 
 ## 1. Prerequisites (already true on this PC)
 
-- Node 20 or 22, `npm install` done, `npm run assets`, `npm run models` and
-  `npm run sounds` done (the CC0 textures, props and recorded sounds are not
-  in git; `dist/` needs them). The first two leave their textures as WebP.
+- Node 20 or 22, `npm install` done, `npm run assets`, `npm run models`,
+  `npm run sounds` and `npm run guns` done (the CC0 textures, props, recorded
+  sounds and gunshots are not in git; `dist/` needs them). The first two leave
+  their textures as WebP. `npm run guns` fetches a 194 MB archive once, into
+  the temp folder, and writes 2.4 MB of takes; a release from a worktree that
+  has never run it ships the synthesised shots instead, so run it in
+  `apex-range` as well as in the worktree.
 - Git with the credential manager signed in to GitHub as the repo owner
   (it is: the `main` push below used it).
 - The repo exists and `origin` points at it:

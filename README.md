@@ -857,7 +857,8 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run check` | typecheck only |
 | `npm run assets` | fetch the CC0 textures into `public/tex` (as WebP) |
 | `npm run models` | fetch the CC0 props into `public/models` (their maps as WebP) |
-| `npm run sounds` | fetch Kenney's CC0 recorded sounds into `public/audio/kenney` |
+| `npm run sounds` | fetch Kenney's CC0 recorded sounds and the metal and gravel footsteps into `public/audio/kenney` |
+| `npm run guns` | fetch The Free Firearm Sound Library (CC0) and write recorded gunshots per class into `public/audio/guns` |
 | `npm run fonts` | fetch the HUD's two faces from Google Fonts and self-host them into `public/fonts` (SIL OFL 1.1, latin only, 110 KB). The game makes no third-party font request and works offline. |
 | `npm run icons` | fetch the HUD's 45 icons into `public/icons`: Lucide (ISC) for the interface, game-icons.net (CC BY 3.0, credited by author) for ammo, magazines, grenades, armour and a parachute |
 | `npm run compress` | re-encode already fetched textures as WebP |
@@ -910,8 +911,9 @@ a hash, so a plain reload is enough).
 `dist/` is a static site and would work on Netlify, Cloudflare Pages or any
 web host. It must be served over HTTPS (browsers only allow peer connections
 and raw mouse input on secure pages). Paths are relative, so it works from a
-sub-folder. Run `npm run assets`, `npm run models` and `npm run sounds` before
-building, or the textures, props and recorded sounds will be missing. The
+sub-folder. Run `npm run assets`, `npm run models`, `npm run sounds` and
+`npm run guns` before building, or the textures, props, recorded sounds and
+gunshots will be missing. The
 source (which holds the reference data with the real names) is not what is
 served: only `dist/` goes to a host.
 
@@ -1048,13 +1050,16 @@ localStorage: another browser or device starts fresh, and clearing site data
 clears them. Signed in, they sync to the account (the graphics preset stays
 per machine).
 
-**Sound is mostly synthesised.** Every gun and cue is made in the browser;
-Kenney's CC0 recordings are layered under the footsteps, landings, falls,
-punches, reloads, a frag's crunch, the menu's clicks and, under every shot,
-the gun's own metal action, which is the part of a gunshot synthesis gets
-least right (`npm run sounds`). The crack, the body and the tail of a shot are
-still made in the browser: recorded cracks per weapon class are the next step
-and want a CC0 set chosen by ear.
+**Gunshots are recorded.** Every class of gun (pistol, SMG, rifle, LMG,
+marksman, sniper, shotgun) fires takes of real guns from The Free Firearm
+Sound Library, CC0: a Walther PPQ and a 1911, an AR-15 and an AK-47, a Mosin
+Nagant, a Benelli Nova and more, recorded near and at mid distance, so a shot
+far off is a far recording rather than a near one turned down (`npm run
+guns`). Footsteps are recorded on concrete, grass, gravel and metal, and
+Kenney's CC0 recordings cover landings, falls, punches, reloads, a frag's
+crunch and the menu's clicks (`npm run sounds`). What is still made in the
+browser is everything else, and all of it, shots included, if the files have
+not been fetched.
 A player who only ever presses Start on a controller gets none at all
 (browsers start audio only after a click or a key).
 

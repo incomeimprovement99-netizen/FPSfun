@@ -3004,3 +3004,30 @@ read as two grey pipes: on screen every second of every match, and the largest s
 - `realArms()` for the tests, an e2e check in the `page` section, six snapshot scenarios (`fp-arms`, `-ads`,
   `-reload`, `-holstered`, `-zip`, `-down`), and `tools/shot-tile.ts` to crop and tile snapshots. The three
   numbers that shape it are in `viewmodel.json` `realArms`.
+
+## Milestone 171 — Real guns, and steps on metal and gravel ✅
+
+Phase 17, item 17.2. See `docs/PHASE_17_PLAN_FEEL_ANIMATION_AND_THE_WORLD.md`.
+
+Every shot in the game was synthesised: a filtered thump, a band of noise and a crack per weapon class, with
+a recorded metal action quietly under it. Half of a shooter's feel is how a shot sounds, and a noise burst
+has no mechanism, no room and no tail.
+
+- **Recorded gunshots per class**, from The Free Firearm Sound Library (CC0, 24 real firearms recorded by
+  Still North Media): Walther PPQ, 1911 and Bersa for pistols; Carl Gustav M45 and PPSh for SMGs; AR-15 and
+  AK-47 for rifles; the AK and a Marlin .30-30 for LMGs; SKS and a Winchester 1894 for marksman rifles; Mosin
+  Nagant, Savage 10 and Tikka T3 for snipers; Benelli Nova, Winchester Model 12 and a Charles Daly for
+  shotguns. Each has near takes and mid-distance takes, and a shot past 80 m plays a mid-distance one.
+- `npm run guns` (`tools/fetch-guns.ts`) fetches the 194 MB archive once, unpacks it with the system's tar,
+  finds each shot by its onset (the level gate with a 0.4 s refractory period: waiting for quiet first
+  missed every mid-distance shot, whose noise floor never goes quiet), and writes 51 takes: near at 32 kHz,
+  far at 16 kHz since the air has taken the top off a distant shot anyway, 2.4 MB in all. Every near take's
+  report lands within 2.3 ms of its start, measured, so no trigger pull is late.
+- When a class has takes the recording is the shot; the synthesised body is not layered under it. The far
+  echo and an energy weapon's whine still are. A voice lives as long as its longest take, so no take is cut
+  off with a click. Without the files the synthesis plays exactly as before.
+- **Footsteps on metal and gravel**, from congusbongus's OpenGameArt pack (metal CC-BY 3.0 by Eelke, credited;
+  gravel CC0), fetched by `npm run sounds`. Metal was the concrete step pitched up; the outdoor ground was
+  the grass step.
+- An e2e check in the `bots` section: every class has near and far takes and a shot plays one. The deploy
+  guide and the README say to run `npm run guns`.

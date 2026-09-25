@@ -2453,6 +2453,9 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   // the recorded CC0 samples (npm run sounds) load and are layered in (a checkout without them is the synthesis alone)
   const rec = await ev<{ loaded: number; played: number; files: boolean }>(page, "(async () => { const a = window.__range.audio; a.land(1, 'concrete'); a.punch(null); return { loaded: a.sampleCount, played: a.samplesPlayed, files: (await fetch('audio/kenney/index.json')).ok }; })()");
   check("sound: the recorded samples are loaded and layered into the fight's sounds", !rec.files || (rec.loaded >= 10 && rec.played > 0), JSON.stringify(rec));
+  // recorded gunshots (npm run guns): every class has near and far takes, and a shot plays one
+  const guns = await ev<{ files: boolean; classes: string[]; missing: string[]; before: number; after: number }>(page, `(async () => { const a = window.__range.audio; const files = (await fetch("audio/guns/index.json")).ok; const classes = ["pistol", "smg", "rifle", "lmg", "marksman", "sniper", "shotgun"]; const missing = classes.flatMap((c) => [\`shot_\${c}\`, \`shot_\${c}_far\`]).filter((n) => !a.samples.has(n)); const before = a.samplesPlayed; a.gun("rspn101"); return { files, classes, missing, before, after: a.samplesPlayed }; })()`);
+  check("sound: every gun class has recorded shots near and far, and a shot plays one", !guns.files || (guns.missing.length === 0 && guns.after > guns.before), JSON.stringify({ files: guns.files, missing: guns.missing, played: guns.after - guns.before }));
   // knock it: a hit through its dummy, then the match is told
   await ev(page, `(() => { const d = window.__range.duel(); const a = d.avatars[0]; const pt = { clone() { return this; } }; a.hit(0, "body", 500, 1, 1, pt); d.localHit(d.remoteOf(a), 500, false); })()`);
   const won = await page.waitForFunction("window.__range.duel().hud().you === 1", { polling: 200, timeout: 5000 }).then(() => true, () => false);

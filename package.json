@@ -37,7 +37,8 @@
     "live": "tsx tools/live-check.ts",
     "snap": "tsx tools/snap.ts",
     "slide-probe": "tsx tools/slide-probe.ts",
-    "mixamo": "tsx tools/fetch-mixamo.ts"
+    "mixamo": "tsx tools/fetch-mixamo.ts",
+    "guns": "tsx tools/fetch-guns.ts"
   },
   "dependencies": {
     "peerjs": "^1.5.4",

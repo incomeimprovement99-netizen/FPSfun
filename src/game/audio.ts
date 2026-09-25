@@ -202,29 +202,35 @@ export class GameAudio {
     return this.ctx;
   }
 
-  /** the recorded samples (public/audio/kenney/index.json lists them); missing, the synthesis plays alone */
+  /**
+   * The recorded samples: Kenney's (public/audio/kenney, `npm run sounds`) and
+   * the gunshots (public/audio/guns, `npm run guns`), each folder listing its
+   * own in an index.json. Missing, the synthesis plays alone.
+   */
   private loadSamples(ctx: AudioContext): void {
     if (this.samplesAsked) return;
     this.samplesAsked = true;
-    void fetch("audio/kenney/index.json")
-      .then((r) => (r.ok ? r.json() : null))
-      .then(async (index: Record<string, string[]> | null) => {
-        if (!index || typeof index !== "object") return;
-        for (const [name, files] of Object.entries(index)) {
-          if (!Array.isArray(files)) continue;
-          const takes: AudioBuffer[] = [];
-          for (const f of files) {
-            try {
-              const data = await (await fetch(`audio/kenney/${f}`)).arrayBuffer();
-              takes.push(await ctx.decodeAudioData(data));
-            } catch {
-              /* a take that will not decode is skipped */
+    for (const dir of ["audio/kenney", "audio/guns"]) {
+      void fetch(`${dir}/index.json`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then(async (index: Record<string, string[]> | null) => {
+          if (!index || typeof index !== "object") return;
+          for (const [name, files] of Object.entries(index)) {
+            if (!Array.isArray(files)) continue;
+            const takes: AudioBuffer[] = [];
+            for (const f of files) {
+              try {
+                const data = await (await fetch(`${dir}/${f}`)).arrayBuffer();
+                takes.push(await ctx.decodeAudioData(data));
+              } catch {
+                /* a take that will not decode is skipped */
+              }
             }
+            if (takes.length) this.samples.set(name, takes);
           }
-          if (takes.length) this.samples.set(name, takes);
-        }
-      })
-      .catch(() => undefined);
+        })
+        .catch(() => undefined);
+    }
   }
 
   /** how many recorded sounds are loaded (tests) */
@@ -427,12 +433,31 @@ export class GameAudio {
     const k = cfg.classes[cls];
     const D = cfg.distance;
     const far0 = at ? Math.hypot(at.x - this.lis.x, at.y - this.lis.y, at.z - this.lis.z) : 0;
-    // a gun carries (ref 20 m, not a footstep's 3); your own on its own bus; far gunfire is dropped first
-    const v = at ? this.voice(at, k.tail + 0.6, "fx", far0 > D.gunLow ? 0 : 1, 1, D.ref.gun) : this.voice(null, k.tail + 0.2, "own", 2);
+    // a gun carries (ref 20 m, not a footstep's 3); your own on its own bus; far gunfire is dropped first.
+    // A recorded take can run longer than the synthesised tail, and the voice
+    // has to outlive it or the take is cut off with a click.
+    const takes = this.samples.get(`shot_${cls}`);
+    const life = Math.max(k.tail, takes ? Math.max(...takes.map((b) => b.duration)) : 0);
+    const v = at ? this.voice(at, life + 0.6, "fx", far0 > D.gunLow ? 0 : 1, 1, D.ref.gun) : this.voice(null, life + 0.2, "own", 2);
     if (!v) return;
     const L = k.level * level;
     const jitter = 0.94 + Math.random() * 0.12;
     const far = v.dist > D.farFrom;
+    // A recorded shot, when this class has them (tools/fetch-guns.ts): near,
+    // or the mid-distance take for a far one. It is the shot, so the
+    // synthesised crack, body and tail are not layered under it; the far
+    // echo and an energy gun's whine still are, since no recording has them.
+    const S = cfg.shots;
+    const recorded =
+      (far && this.sample(v.input, v.t, `shot_${cls}_far`, S.level * S.far * L)) || this.sample(v.input, v.t, `shot_${cls}`, S.level * L);
+    if (recorded) {
+      if (far) {
+        const echo = D.farEcho[0] + Math.random() * (D.farEcho[1] - D.farEcho[0]);
+        this.noise(v.input, v.t + echo, k.tail * 0.8, "lowpass", D.farEchoHz, 0.6, 0.35 * L, 0.01, 180);
+      }
+      if (cfg.energy.includes(id)) this.tone(v.input, v.t, 0.09, "sawtooth", 1900 * jitter, 380, 0.16 * L, 0.001);
+      return;
+    }
     // the crack: a very short bright burst (gone far off: the air takes it)
     if (!far) this.noise(v.input, v.t, k.crack, "highpass", 3200 * jitter, 0.7, 0.55 * L, 0.0008);
     // far off, the shot comes back off the land a moment later, low
@@ -667,7 +692,11 @@ export class GameAudio {
     // halved on the owner's ear (2026-09-15): steps were louder than the room
     const L = (at ? cfg.footsteps.othersLevel : cfg.footsteps.ownLevel) * loud;
     // a recorded step (concrete, or grass for dirt; metal is the concrete step pitched up under the ring)
-    this.sample(v.input, v.t, surface === "dirt" ? "step_grass" : "step_concrete", 1.1 * L, surface === "metal" ? 1.25 : 1);
+    // A metal floor has its own recorded steps now, and so does the ground
+    // outdoors (gravel); without them, the concrete step pitched up and the
+    // grass step stand in, as they did before.
+    const own = surface === "metal" ? "step_metal" : surface === "dirt" ? "step_gravel" : "step_concrete";
+    if (!this.sample(v.input, v.t, own, 1.1 * L)) this.sample(v.input, v.t, surface === "dirt" ? "step_grass" : "step_concrete", 1.1 * L, surface === "metal" ? 1.25 : 1);
     if (surface === "metal") {
       this.noise(v.input, v.t, 0.05, "bandpass", 2400 * j, 1.2, 0.35 * L);
       this.tone(v.input, v.t, 0.14, "sine", 880 * j, 860 * j, 0.1 * L);

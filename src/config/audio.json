@@ -20,7 +20,7 @@
     "threshold": -18,
     "ratio": 6
   },
-  "_note": "All sound is synthesised (Web Audio), none recorded or copied. These are ours: how each class of gun is voiced, how sound fades with distance, the footstep cadence. Distances in metres; frequencies in Hz; times in seconds.",
+  "_note": "How each class of gun is voiced, how sound fades with distance, the footstep cadence. Gunshots are recorded takes of real guns where they are fetched (`npm run guns`) and synthesised where they are not; everything else is synthesis with recorded layers from `npm run sounds`. Distances in metres; frequencies in Hz; times in seconds.",
   "speedOfSound": 343,
   "delayFrom": 25,
   "airAbsorb": 70,
@@ -180,5 +180,10 @@
       "shotgun": 0.95,
       "marksman": 1.0
     }
+  },
+  "_shots": "Recorded gunshots (tools/fetch-guns.ts): The Free Firearm Sound Library, 24 real firearms, CC0. Each class has takes recorded near and at mid distance; a shot past `distance.farFrom` plays a mid-distance take. When a class has takes, the recording is the shot and the synthesised crack, body, thump and tail are not played: layered under a real report they only muddied it. `level` is the recording's loudness against the class's own `level`; `far` scales the mid-distance takes, which were recorded further off and are quieter for it. Without the files the synthesis plays exactly as before.",
+  "shots": {
+    "level": 0.9,
+    "far": 1.1
   }
 }
