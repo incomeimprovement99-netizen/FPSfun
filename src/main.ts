@@ -6119,6 +6119,8 @@ function step(): void {
     // in the killcam the gun is the killer's, held as they held it
     adsFrac: debugView.ads ?? (killcam.active ? killcam.killerAds : ws.adsFrac),
     moveSpeed: player.speed,
+    // sideways against the view, + right: the gun rolls into a strafe
+    strafe: player.vel.x * Math.cos(player.yaw * DEG) - player.vel.z * Math.sin(player.yaw * DEG),
     onGround: player.onGround,
     raise: swapP,
     sprinting: player.sprinting,

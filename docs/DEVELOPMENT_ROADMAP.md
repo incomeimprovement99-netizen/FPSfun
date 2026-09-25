@@ -3056,3 +3056,15 @@ Universal Animation Library downloads hold 86 clips, on our rig, and 61 were sit
 - Checks: every clip emote names a clip the fetch provides; the extras arrive (e2e `page`); snapshots
   `motion-acts`, `motion-slide`, `motion-air`, `motion-emotes`. The athletic jump's threshold and a throw's
   length on screen are in `figure.json`.
+
+## Milestone 173 — The gun leans into a strafe ✅
+
+Phase 17, item 17.4. See `docs/PHASE_17_PLAN_FEEL_ANIMATION_AND_THE_WORLD.md`.
+
+The viewmodel already swung the gun down and away through a swap, dropped it forward into a mantle, dipped
+it on a landing and pumped it through a sprint; reading it for this item showed those were there. What
+nothing in it answered was a strafe: the body stepped sideways and the gun stayed rigid in the frame.
+
+- The gun rolls toward the way you step and slides a little the other way, full at sprint speed sideways,
+  eased over 0.12 s, and mostly held still when aiming (`viewmodel.json` `strafe`).
+- The view model frame carries the sideways speed against the view (`strafe`).

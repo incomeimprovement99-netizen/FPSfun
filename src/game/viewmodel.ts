@@ -39,6 +39,8 @@ export interface VMFrame {
   dt: number;
   adsFrac: number;
   moveSpeed: number;
+  /** sideways speed against the view, m/s, + to the right: what the gun rolls into */
+  strafe?: number;
   onGround: boolean;
   /** 0..1 through a weapon swap, 1 when settled */
   raise: number;
@@ -393,6 +395,8 @@ export class ViewModel {
   private cylTarget = 0;
   private bobT = 0;
   private sprintAmt = 0;
+  /** -1..1 into a strafe, eased (viewmodel.json strafe) */
+  private strafeAmt = 0;
   private slideAmt = 0;
   private climbAmt = 0;
   private mantleAmt = 0;
@@ -720,6 +724,14 @@ export class ViewModel {
     ry += this.kick * 0.012 * this.kickYaw;
     rz += this.kick * 0.02 * this.kickRoll;
 
+    // into a strafe: the gun rolls toward the way you step and slides a
+    // little the other way, eased, and mostly held still in the sights
+    const S = armCfg.strafe;
+    const wantStrafe = f.onGround ? clamp((f.strafe ?? 0) / 6.6, -1, 1) : 0;
+    this.strafeAmt += (wantStrafe - this.strafeAmt) * Math.min(1, dt / S.ease);
+    const st = this.strafeAmt * (1 - ads * S.ads);
+    rz -= S.roll * st;
+    p.x -= S.shift * st;
     // landing: the gun drops and the muzzle dips with the camera
     p.y += f.landDip * 0.5;
     rx += f.landDip * 1.5;

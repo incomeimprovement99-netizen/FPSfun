@@ -69,5 +69,12 @@
     "upper": 0.6,
     "down": 0.6,
     "twist": 0.5
+  },
+  "_strafe": "The gun into a strafe (src/game/viewmodel.ts): it rolls toward the way you are moving and slides a little the other way, as held hands do when the body steps sideways. Full at sprint speed sideways, eased in and out over `ease` s, and mostly gone when aiming, since a gun that rolls in the sights is a gun you cannot aim. `roll` is radians, `shift` metres in the gun's own space. Before this nothing in the gun answered a strafe at all.",
+  "strafe": {
+    "roll": 0.075,
+    "shift": 0.014,
+    "ease": 0.12,
+    "ads": 0.85
   }
 }
