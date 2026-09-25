@@ -3514,6 +3514,9 @@ async function shipTest(browser: Browser, query: string, squadQuery: string): Pr
   check("the ship: the five bots ride it too, out of sight", on.bots === 5 && on.hidden === 5, `${on.hidden} of ${on.bots} hidden aboard`);
   check("the ship: its line crosses the map edge to edge, over the squad's place, with the place ahead", on.edge.every((e) => e < 0.05) && on.off <= 30.01 && on.ahead, JSON.stringify({ edge: on.edge, off: on.off, ahead: on.ahead }));
   check("the ship: no hands in the view aboard", !on.hands);
+  // the match's voice says the drop, and the drop theme is on (announcer.ts, audio.ts music)
+  const voiced = await ev<{ spoken: string[]; music: { on: boolean } }>(page, "(() => ({ spoken: window.__range.spoken(), music: window.__range.music() }))()");
+  check("the ship: the announcer says the drop and the drop theme plays", voiced.spoken.includes("drop") && voiced.music.on, JSON.stringify(voiced));
   // the ship carries you: two readings of where you are a second apart
   const pace = await ev<number>(page, `new Promise((ok) => { const R = window.__range; const a = R.player.pos.clone(); const t0 = performance.now(); setTimeout(() => { const b = R.player.pos; ok(Math.hypot(b.x - a.x, b.z - a.z) / ((performance.now() - t0) / 1000)); }, 500); })`);
   check("the ship: it carries you along its line at 26 m/s", Math.abs(pace - 26) < 4, `${pace.toFixed(1)} m/s`);
@@ -3557,6 +3560,10 @@ async function shipTest(browser: Browser, query: string, squadQuery: string): Pr
   // paths, and a bot that meets one slides along it and comes down beside it
   // (5.5 m once, beside a mound).
   check("the ship: every bot leaves it and lands", allOff && down && bots.length === 5, JSON.stringify({ allOff, down, bots: bots.length }));
+  // down on the ground, the drop theme fades: the fight has its own sounds
+  const onFoot = await page.waitForFunction("(() => { const p = window.__range.player; return !p.dropping && !p.aboard && p.onGround; })()", { polling: 250, timeout: 40000 }).then(() => true, () => false);
+  const quiet = await ev<{ on: boolean }>(page, "window.__range.music()");
+  check("the ship: landed, the drop theme is off", onFoot && !quiet.on, JSON.stringify({ onFoot, quiet }));
   check(
     "the ship: a bot whose place is in a glide's reach lands on it",
     inReach.length > 0 && inReach.every((b) => b.miss < 8),
@@ -4594,6 +4601,7 @@ async function botKnockSteps(page: Page): Promise<void> {
     check("bot knocks: a trio of bots all standing to test on", false, JSON.stringify(rows));
     return;
   }
+  await finisherSteps(page, team);
   // the other squads out: every one of theirs hit until gone
   for (let k = 0; k < 8; k++) for (const r of (await ev<Row[]>(page, state)).filter((o) => o.team !== team && o.alive)) await hit(r.id);
   rows = await ev<Row[]>(page, state);
@@ -4618,6 +4626,58 @@ async function botKnockSteps(page: Page): Promise<void> {
   await hit(c);
   const after = (await ev<Row[]>(page, state)).filter((r) => r.team === team);
   check("bot knocks: with nobody of the squad standing, its downed go with it", !!bDown?.down && after.every((r) => !r.alive), JSON.stringify({ bDown, after }));
+}
+
+/**
+ * Finishers (src/game/finisher.ts) on a real knocked bot of a squad other
+ * than `keep` (the one botKnockSteps goes on to use): the prompt offers it,
+ * the key's path starts it, both figures play it, it ends in the kill and a
+ * full shield, and on a second one a hit breaks it off with the bot still down.
+ */
+async function finisherSteps(page: Page, keep: number): Promise<void> {
+  type Bot = { id: number; team: number; standing: boolean; down: boolean; alive: boolean; x: number; y: number; z: number };
+  const bots = () => ev<Bot[]>(page, `window.__range.duel().bots.map((b) => ({ id: b.bot.remote.id, team: b.team, standing: b.bot.alive && !b.down, down: !!b.down, alive: b.bot.remote.alive, x: b.bot.pos.x, y: b.bot.pos.y, z: b.bot.pos.z }))`);
+  const all = await bots();
+  const team = all.find((r) => r.team !== keep && r.standing && all.filter((o) => o.team === r.team && o.standing).length === 3)?.team;
+  if (team === undefined) {
+    check("finisher: a second trio standing to test on", false, JSON.stringify(all));
+    return;
+  }
+  const [x, y, z] = all.filter((r) => r.team === team).map((r) => r.id);
+  // knocked (its mates up, so down, not out), frozen where it fell, and you a metre off it facing it
+  const knockAndStand = async (id: number): Promise<void> => {
+    await ev(page, `(() => { const d = window.__range.duel(); d.onHitOther(${id}, 999, false, d.id); })()`);
+    await ev(page, `(() => { const R = window.__range; const b = R.duel().bots.find((o) => o.bot.remote.id === ${id}); b.bot.crawlSpeed = 0; const p = b.bot.pos; R.player.teleport(p.x + 1, p.y + 0.05, p.z, 90, 0); })()`);
+    await page.waitForFunction("window.__range.player.onGround", { polling: 50, timeout: 3000 }).catch(() => undefined);
+  };
+  await knockAndStand(x);
+  const offered = await ev<number | null>(page, "window.__range.finisher.target()");
+  check("finisher: a knocked enemy in front of you is offered", offered === x, `${offered} (want ${x})`);
+  await ev(page, "(() => { const d = window.__range.duel(); d.shield = 0; })()");
+  const started = await ev<boolean>(page, "window.__range.finisher.start()");
+  await sleep(300);
+  const during = await ev<{ on: boolean; act: number; victimAct: boolean; third: boolean }>(page, "(() => { const s = window.__range.finisher.state(); return { ...s, third: window.__range.debugView?.third ?? null }; })()");
+  check("finisher: it starts, your figure plays it for everyone and the one knocked takes it", started && during.on && during.act === 7 && during.victimAct, JSON.stringify(during));
+  const ended = await page.waitForFunction("!window.__range.finisher.state().on", { polling: 100, timeout: 5000 }).then(() => true, () => false);
+  const after = await ev<{ alive: boolean; done: number; shield: number; max: number }>(
+    page,
+    `(() => { const d = window.__range.duel(); const b = d.bots.find((o) => o.bot.remote.id === ${x}); return { alive: b.bot.remote.alive, done: window.__range.finisher.state().done, shield: d.shield, max: d.shieldMax }; })()`
+  );
+  check("finisher: it ends in the kill and your shield back to full", ended && !after.alive && after.done === 1 && after.max > 0 && after.shield === after.max, JSON.stringify(after));
+  await sleep(300);
+  const said = await ev<string[]>(page, "window.__range.spoken()");
+  check("finisher: and you say so", said.includes("finish"), JSON.stringify(said));
+  // the second: a hit on you part way through breaks it off, and they are still down
+  await knockAndStand(y);
+  const again = await ev<boolean>(page, "window.__range.finisher.start()");
+  await sleep(400);
+  await ev(page, `(() => { const d = window.__range.duel(); d.takeHit(10, ${z}, false, "r97", 5); })()`);
+  await sleep(200);
+  const broken = await ev<{ on: boolean; alive: boolean; down: boolean; done: number }>(
+    page,
+    `(() => { const d = window.__range.duel(); const b = d.bots.find((o) => o.bot.remote.id === ${y}); return { on: window.__range.finisher.state().on, alive: b.bot.remote.alive, down: !!b.down, done: window.__range.finisher.state().done }; })()`
+  );
+  check("finisher: a hit on you breaks it off, and the one you were finishing is still down", again && !broken.on && broken.alive && broken.down && broken.done === 1, JSON.stringify(broken));
 }
 
 /** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */

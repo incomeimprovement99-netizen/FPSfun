@@ -1,0 +1,17 @@
+{
+  "_note": "Finishers (src/game/finisher.ts, docs/AAA_GAP.md step 6): press melee over a knocked enemy in front of you and finish them the way Apex does. reach is how close (metres, from your feet to theirs) and cone how far off your facing they may be (degrees either side); rise is the most they may be above or below you. seconds is how long it takes, the whole of which you are open to being shot; the kill lands at the end, through the melee's own path (damage, to a downed pool that is never more than 100). Taking any damage breaks it off, as Apex's does. A finish brings your shield back to full (shieldBack), Apex's reward. blows are the moments the two hits are heard, seconds in. The camera steps out to watch it: yaw degrees round from behind you, pitch degrees, back metres. rate plays the hook and the cross (the free library's Melee_Hook and Punch_Cross) at that speed, and knockRate the one finished's Hit_Knockback. Ours: Apex does not publish its numbers; its finishers run three to five seconds, and ours is shorter because it is one animation, not a scene.",
+  "reach": 2.0,
+  "cone": 55,
+  "rise": 1.2,
+  "seconds": 2.2,
+  "damage": 250,
+  "shieldBack": true,
+  "blows": [0.55, 1.35],
+  "camera": {
+    "yaw": 125,
+    "pitch": -12,
+    "back": 3.0
+  },
+  "rate": 1.0,
+  "knockRate": 0.8
+}

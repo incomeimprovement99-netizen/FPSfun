@@ -53,6 +53,8 @@
 | 17.13 | Battle royale ammo | Much more ammo with a spawn gun, and much bigger stacks on the floor | `tools/checks` loot density; e2e `loot` |
 | 17.14 | A gap document against Apex, Warzone and Hyper Scape | What each does that we do not, from the code and the configs, ranked by what a player feels, with the next steps it implies; those steps then worked | `docs/AAA_GAP.md`; milestones |
 | 17.15 | A bug hunt, and whether the tests catch bugs | Every bug fixed in the last month set against whether a test would have caught it; the tests that pass without testing anything; the bugs that turn up | `docs/TEST_AUDIT.md`; fixes with checks |
+| 17.16 | Finishers (`docs/AAA_GAP.md` step 6) | Melee over a knocked enemy in front of you: you crouch over them and throw a hook and a cross, they take it and go back, your camera steps out to watch; the kill at the end and your shield back to full; any hit on you breaks it off | `tools/checks/finisher.ts`; e2e `botsquads` on a real knocked bot, proven by putting the bugs back; snapshots `motion-finisher-hook`, `-cross` |
+| 17.17 | Voice callouts, an announcer and a drop theme (`docs/AAA_GAP.md` step 7) | The browser's speech synthesis in two voices, yours and the match's, on the moments the big games voice; a CC0 track from boarding to landing | `tools/checks/announcer.ts`; e2e `ship` and `botsquads`; listening |
 
 ## The decisions
 
@@ -61,6 +63,7 @@
 | Replace the viewmodel's animation or dress it? | Dress it. The viewmodel's hand placement is tuned and tested (grip, handguard, magazine, trolley, fists, crawl); the real arms follow the gloves it already places, so none of that work is thrown away and the drawn arms remain the fallback. |
 | Bare hands or gloves? | Whatever the outfit's arms garment has: the Ranger arms come gloved, the Peasant arms bare. |
 | Replace the BR buildings' collision? | No. The kit is what is seen; the boxes stay the physics, so bots' nav, loot spots and doors keep working. |
+| A buy station and cash (`docs/AAA_GAP.md` step 5)? | Not built. The owner, 2026-09-25: "I don't want the buy station, no point." |
 | Spend money? | Not in this phase. Everything suggested as paid gets a search for a free equivalent first (17.8), and anything still only paid goes to the owner as a choice. |
 
 ## How it is proven

@@ -60,7 +60,10 @@ caught by a person reading a picture, and would be missed by anyone who did not.
 3. **Three checks flake, and flaking has become normal.** BR host migration fails about one run in two; the
    bot tier checks fail in a full batch and pass alone, with the same numbers every time, which is a
    deterministic interaction rather than chance; and on 2026-09-25 the dropship's "a bot whose place is in
-   a glide's reach lands on it" failed in the full batch and passed alone twice. Every release since has shipped "with the known flakes",
+   a glide's reach lands on it" failed in the full batch and passed alone twice. And on the same day, run
+   alone eight times, the bot squads' "each squad out of a fight keeps together" measured 13 to 40 of 40
+   against a limit of 22, failing three times, with or without that day's changes, after passing 40 of 40
+   in every full batch on record. Every release since has shipped "with the known flakes",
    which is how a real failure gets waved through.
 4. **Nothing gates a release but discipline.** `npm run deploy` and `npm run fps deploy` build and ship
    without running verify; the live check runs after the ship.
@@ -85,7 +88,7 @@ caught by a person reading a picture, and would be missed by anyone who did not.
 | 1 | Pictures that assert | **done.** A scenario can carry `magentaMax`; `npm run fit` runs four lineups of all sixteen outfits, front and back, with the clothed body painted flat magenta (`mannequin.ts setFitDebug`), and counts it. Today: 0.009 to 0.037% of the frame. **Proven**: with the body's narrowing turned off the back lineup measures 0.144% and fails. A first limit of 0.2% did not fail it; the limit is 0.06% because of that |
 | 2 | No vacuous passes | **done.** The recorded-sound and gunshot checks fail when their files are missing |
 | 3 | A gate before a deploy | **done.** `tools/release-gate.ts`: both deploys run verify and rules and check the recorded sounds are on disk before building anything, and stop on a failure (`RELEASE_GATE=off` to skip, said in the commit) |
-| 4 | The flaky checks | open: Phase 17 item 17.9 |
+| 4 | The flaky checks | open: Phase 17 item 17.9. Four now: BR host migration, the bot tiers, the dropship's glide, and bot squads keeping together |
 | 5 | Behaviour beside config | open |
 
 Also this day: the scenery-culling bug (Milestone 177) came with a check that was proven the same way, by

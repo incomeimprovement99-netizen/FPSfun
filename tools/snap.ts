@@ -609,6 +609,24 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "motion-finisher-hook",
+    note: "a finisher (finisher.ts) a moment in, the hook landing: the one finishing and the one knocked, side by side, as the acts play them",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["Melee_Hook", "Punch_Cross", "Hit_Knockback"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, act: "finish", look: "fatigues||" }, { speed: 0, stance: "downed", pitch: 0, ads: 0, act: "finished", look: "combat||" }], 2.6, 90); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(0.45), 100],
+    ],
+  },
+  {
+    name: "motion-finisher-cross",
+    note: "a finisher (finisher.ts) later, the cross: the one finishing and the one knocked, side by side, as the acts play them",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["Melee_Hook", "Punch_Cross", "Hit_Knockback"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, act: "finish", look: "fatigues||" }, { speed: 0, stance: "downed", pitch: 0, ads: 0, act: "finished", look: "combat||" }], 2.6, 90); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
     name: "motion-slide",
     note: "two figures going into a slide: its way in, a moment after it starts, and the loop it settles into",
     steps: [

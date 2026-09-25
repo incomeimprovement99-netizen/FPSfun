@@ -3190,3 +3190,57 @@ suites found five, because every snapshot passed whenever the page threw no erro
 - **A release gate.** `tools/release-gate.ts`: both deploys run verify and rules and check the recorded
   sounds are on disk before building, and stop on a failure.
 - `CLAUDE.md`'s release steps add `npm run fit`, and say a new check is proven by putting the bug back.
+
+## Milestone 181 — Finishers ✅
+
+Phase 17 item 17.16, `docs/AAA_GAP.md` step 6. See `docs/PHASE_17_PLAN_FEEL_ANIMATION_AND_THE_WORLD.md`.
+
+A knocked enemy in front of you and the melee key: instead of a swing, a finisher. You turn to face them and
+crouch over them, and throw a hook and then a cross from the hips up; they stay down through both, and on
+the last blow they go back. Your camera steps out to the side to watch, and every key is held until it
+ends. At the end they are dead and your shield is full again, Apex's reward. Any damage you take breaks it
+off with them still down, so finishing someone in the open is a risk, as it is in Apex. The prompt names
+them: `V  FINISH <name>`.
+
+- `src/game/finisher.ts` picks who can be finished: in reach on the flat, inside a cone of your facing (not
+  your look, so nobody has to aim at the floor to be offered it), not a floor above or below.
+- Two new figure acts, `finish` and `finished`, ride the state packet as codes 7 and 8. The old codes keep
+  their places, so a page from before reads the new ones as nothing rather than as a reload.
+- The kill goes to the figure the way a bullet's hit does, its own `hit()` and then the match's `localHit`
+  named a melee, so the feed, the credit and the host's bots need nothing new. The first version sent it
+  as a swing's ray, and the proof run caught that ray passing over a figure on the floor.
+- Every number is in `src/config/finisher.json`: reach 2 m, cone 55 degrees, 2.2 s, the two blows' moments,
+  the camera.
+- The first snapshot had a standing figure punching a metre over a knocked head, and the knocked figure
+  flat on its back from the first frame. The finisher crouches now, and the knockback waits for the
+  last blow.
+
+Checked by `tools/checks/finisher.ts` (12) and by the e2e's bot squads section on a real knocked bot: it is
+offered, it starts and both figures play it, it ends in the kill and a full shield, and a hit breaks it off.
+Proven: with the shield reward and the break-off taken out, both of those checks fail.
+
+## Milestone 182 — Voice callouts, an announcer, and a drop theme ✅
+
+Phase 17 item 17.17, `docs/AAA_GAP.md` step 7.
+
+The game said everything in captions and effects. Now it speaks, through the browser's own speech
+synthesis in two voices. Free recorded voice lines are scarce and never match each other; a set voice
+reading short lines is consistent and costs nothing to download.
+
+- **Yours**, the way an Apex legend talks: "Enemy knocked!", "Enemy down!", "I'm down!", "Teammate down!",
+  "Enemy spotted!" on an enemy ping (yours or a squad mate's), "Back up." after a revive, and a line after
+  a finisher.
+- **The match's**, the way Warzone's announcer does it: the drop, the ring closing, the final ring, stepping
+  outside it, three squads and two squads left, a squad wiped, the win and the loss.
+- `src/game/announcer.ts`: `cues` compares the battle royale's HUD this frame with last frame's and names the
+  lines the change calls for, which is pure and checked. The speaker says one line at a time, the most
+  important first, each no more often than its cooldown. A line that waited too long is dropped rather
+  than said late, and one more important cuts a lesser one off. All of it is in `src/config/announcer.json`,
+  with two or three wordings a line so it does not repeat word for word.
+- **The drop theme**: "Battle Theme A" by cynicmusic, CC0, from OpenGameArt. It plays from boarding the
+  dropship to landing and then fades, streamed rather than decoded whole. `npm run sounds` fetches it
+  (`tools/fetch-music.ts`), and the release gate checks it is on disk.
+- Settings has a Voice slider and a Music slider; all the way down is off.
+
+Checked by `tools/checks/announcer.ts` (16, proven by making the ring line repeat every frame) and by the
+e2e: aboard the ship the drop is said and the theme is on, landed it is off, and a finisher is spoken.

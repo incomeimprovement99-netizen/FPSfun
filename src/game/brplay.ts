@@ -179,6 +179,8 @@ interface Deps {
   keyLabel: (a: Action) => string;
   notice: (text: string) => void;
   sound: (kind: "ping" | "tower" | "pad" | "revive") => void;
+  /** an enemy ping, yours or a squad mate's: someone says so (announcer.ts) */
+  onEnemyPing?: () => void;
   /** a revive of yours finished (EVO) */
   onRevive?: () => void;
   /** a Deathbox Respawn's beam: on at a place, or off */
@@ -334,6 +336,7 @@ export class BrPlay {
     const life = intent ? (squad.pingWheel.life as Record<string, number>)[intent.id] : squad.pingLife[kind];
     this.markers.push({ k: kind, at: at.clone(), label, from, until: now + life, target });
     this.deps.sound("ping");
+    if (kind === "enemy") this.deps.onEnemyPing?.();
   }
 
   /** an enemy ping where you look (the double tap): "ENEMY HERE", whatever is there */

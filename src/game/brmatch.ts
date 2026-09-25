@@ -1634,7 +1634,10 @@ export class BrMatch extends Duel {
     const left = this.aliveCount;
     // the last of a bot squad: the squad is wiped (duos and trios; in solo every death is one)
     const wiped = this.team.size > 1 && !this.bots.some((o) => o.team === b.team && o.bot.alive);
-    if (wiped) this.onNotice?.(`SQUAD WIPED  ·  ${this.squadsAlive} SQUADS LEFT`);
+    if (wiped) {
+      this.onNotice?.(`SQUAD WIPED  ·  ${this.squadsAlive} SQUADS LEFT`);
+      this.onWiped?.();
+    }
     else this.onNotice?.(mine ? `${r.name} DOWN  ·  ${left} LEFT` : `${left} LEFT`);
     if (this.rules === "resurgence") {
       // it comes back if its squad has someone up (a bot on its own always does, while the rules are on)
@@ -2285,6 +2288,8 @@ export class BrMatch extends Duel {
 
   /** a supply bin opened at `at` (its lid and its sound), on every browser */
   onBinOpened: ((at: THREE.Vector3) => void) | null = null;
+  /** a squad of bots wiped out, the last of it by anyone (announcer.ts) */
+  onWiped: (() => void) | null = null;
 
   /** where the match is played: the whole map, or Resurgence's quarter of it */
   readonly area: { cx: number; cz: number; r: number };

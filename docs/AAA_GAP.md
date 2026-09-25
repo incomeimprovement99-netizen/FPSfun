@@ -75,7 +75,7 @@ Ranked by how much of a match each changes against its cost, and free before pai
 | 2 | **Terrain and vegetation** | 1 | The stepped ridges as a sloped heightfield; trees, rocks, scrub and grass from the free nature kits across the sand | 2 days |
 | 3 | **Set dressing and a landmark per place** | 1 | Vehicles, barriers, fences, lights and cover in every street; one thing per place you could name from the dropship, which also breaks the wheel | a day a place |
 | 4 | **Weapon fusion** | 3 | Hyper Scape's: picking up the gun you already hold upgrades it a tier (a better magazine, then a better hop, then gold) instead of being a duplicate. All the tiers and attachments exist already; this is a rule on pickup | half a day |
-| 5 | **A buy station and cash** | 3 | Warzone's: cash from kills and from the floor; a buy station per place selling a loadout drop, a self-revive, a UAV (the map pings enemies for a few seconds), and a squad mate back | 2 days |
+| 5 | ~~**A buy station and cash**~~ (dropped by the owner, 2026-09-25) | 3 | Warzone's: cash from kills and from the floor; a buy station per place selling a loadout drop, a self-revive, a UAV (the map pings enemies for a few seconds), and a squad mate back | 2 days |
 | 6 | **Finishers** | 5 | Hold melee over a knocked enemy: both figures play the free library's clips for it (a hook, a knockback, a fall), the camera pulls out to third person, the finish gives shield | 1 day |
 | 7 | **Voice callouts and an announcer, and a drop theme** | 4 | CC0 voice lines are scarce; the browser's own speech synthesis reads short lines ("ring closing", "enemy spotted", "squad wiped") in a set voice for the announcer, and a CC0 track plays over the drop | 1 day |
 | 8 | **Rifle, strafe and backpedal clips** | 2 | Search every free source again (the owner's rule); if none, the owner's Mixamo token, whose library has all of them free | a day once found |
@@ -84,6 +84,9 @@ Ranked by how much of a match each changes against its cost, and free before pai
 | 11 | **Ranked and a season** | 7 | A rating per mode and a weekly board reset on the game's own server | 2 days |
 | 12 | **Whole-match replays** | 9 | Every snapshot the killcam already takes, kept for the match and played back | 2 to 3 days |
 | 13 | **Server-authoritative damage** | 8 | The game server already relays every packet; checking hits there is the anti-cheat line | 3 to 5 days |
+
+**State, 2026-09-25:** steps 1 to 4 shipped (Milestones 176 to 179), step 5 dropped by the owner, step 6 is
+Milestone 181 and step 7 Milestone 182.
 
 Steps 1 to 3 are also Phase 17's items 17.5 to 17.7, and step 8 is 17.8, so this is the order Phase 17 now
 works in: the world first, then the three loops (fusion, the buy station, finishers), then voice, then the

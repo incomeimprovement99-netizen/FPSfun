@@ -22,7 +22,7 @@
     "characters": "tsx tools/fetch-characters.ts && tsx tools/tint-outfits.ts",
     "tints": "tsx tools/tint-outfits.ts",
     "compress": "tsx tools/compress-assets.ts",
-    "sounds": "tsx tools/fetch-sounds.ts",
+    "sounds": "tsx tools/fetch-sounds.ts && tsx tools/fetch-music.ts",
     "fonts": "tsx tools/fetch-fonts.ts",
     "icons": "tsx tools/fetch-icons.ts",
     "boardcheck": "tsx tools/board-check.ts",

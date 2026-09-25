@@ -50,7 +50,10 @@ import { mergeStatic } from "./game/staticmerge";
 import { opticInfo } from "./game/optics";
 import { opticName, hopupName } from "./config/names";
 import type { ResolvedWeapon } from "./game/weapons";
-import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, type HeirSnapshot } from "./game/duel";
+import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, type HeirSnapshot, type Remote } from "./game/duel";
+import finCfg from "./config/finisher.json";
+import { finishTarget, yawToward, blowsBy } from "./game/finisher";
+import { Announcer, cues, type Watch } from "./game/announcer";
 import { BotMatch, MOST_BOTS } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
@@ -1113,6 +1116,9 @@ const earUp = new THREE.Vector3();
 let aimYaw = 0;
 let aimPitch = 0;
 const audio = new GameAudio();
+/** the callouts and the match's voice (announcer.ts); what it last saw of the match, for what changed */
+const announcer = new Announcer();
+let watchWas: Watch | null = null;
 // How much of the world stands between the ear and a sound. Three lines
 // rather than one, spread across the source, so a figure half behind a pillar
 // is half blocked instead of all or nothing, which is what a single ray gives
@@ -1409,6 +1415,8 @@ const realNow = (): number => performance.now() / 1000;
     ["volMaster", "master"],
     ["volFx", "effects"],
     ["volHits", "hits"],
+    ["volVoice", "voice"],
+    ["volMusic", "music"],
   ] as const;
   for (const [id, key] of vol) {
     const el = $<HTMLInputElement>(id);
@@ -3428,6 +3436,7 @@ function throwVelocity(kind: ThrowKind, fwd: THREE.Vector3): THREE.Vector3 {
 
 /** the battle royale from your side: E, the pads, pings (brplay.ts) */
 const brPlay = new BrPlay({
+  onEnemyPing: () => announcer.say("spotted", realNow()),
   keyLabel: (a) => keyLabel(a),
   notice: (t) => hud.notice(t, gameTime, 2),
   sound: (k) => (k === "ping" ? audio.hitTier("white") : k === "revive" ? audio.healDone() : audio.whoosh()),
@@ -3856,8 +3865,10 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   if (d instanceof Duel && !(d instanceof BrMatch)) d.onMark = (k, _from, _at, _label, target) => void (k === "scan" && target >= 0 && d.revealOne(target, KITS.scout.tactical.seconds));
   if (d instanceof BrMatch) {
     d.onBinOpened = (at) => audio.bin(at, true);
+    d.onWiped = () => announcer.say("wiped", realNow());
     d.onKnockSeen = (victim, by) => {
       evoForKnock(victim, by);
+      if (d.isFriend(victim)) announcer.say("mateDown", realNow());
       // Resurgence: a knock by your side cuts your wait to come back
       if (d instanceof BrMatch) {
         const cut = d.sideKill(victim, by);
@@ -3919,11 +3930,13 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     };
     d.onDowned = () => {
       hud.notice("DOWN: A SQUAD MATE CAN REVIVE YOU", gameTime, 2.5);
+      announcer.say("down", realNow());
       audio.knock();
       heal = null;
     };
     d.onRevived = () => {
       hud.notice("REVIVED", gameTime, 1.5);
+      announcer.say("revived", realNow());
       audio.healDone();
     };
   }
@@ -4956,6 +4969,74 @@ const MELEE_DAMAGE = 30;
 const MELEE_RANGE = 1.8;
 let meleeReadyAt = 0;
 let meleeHitAt = Infinity;
+/**
+ * A finisher running (finisher.ts): who, since when, how much of you there
+ * was when it began (a hit breaks it off), and how many blows have been heard.
+ */
+let finisher: { r: Remote; at: number; vitals: number; blows: number } | null = null;
+/** finishes this match, for the tests and the recap */
+let finishesDone = 0;
+
+/** the knocked enemy you could finish from where you stand, or null */
+function finishable(): Remote | null {
+  const d = duel;
+  if (!(d instanceof Duel) || d.phase !== "fight" || !d.alive || d.downed || !player.onGround || player.aboard || finisher) return null;
+  const list: Array<{ at: THREE.Vector3; item: Remote }> = [];
+  for (const a of d.avatars) {
+    const r = d.remoteOf(a);
+    if (r && r.alive && r.downed && !d.isAlly(r.id) && a.group.visible) list.push({ at: a.group.position, item: r });
+  }
+  return finishTarget(player.pos, player.yaw, list);
+}
+
+/** start finishing `r`: you turn to them, the keys and the camera are the finisher's until it ends */
+function startFinisher(r: Remote, now: number): void {
+  const d = duel as Duel;
+  stopEmote();
+  heal = null;
+  finisher = { r, at: now, vitals: d.health + d.shield, blows: 0 };
+  player.yaw = yawToward(player.pos, r.avatar.group.position);
+  r.avatar.finishing = true;
+  meleeReadyAt = now + finCfg.seconds;
+}
+
+/** the finisher's frame: its blows heard, a hit or a lost target ending it, and at the end the kill */
+function updateFinisher(now: number): void {
+  if (!finisher) return;
+  const f = finisher;
+  const d = duel;
+  const a = f.r.avatar;
+  const end = (why: string): void => {
+    a.finishing = false;
+    finisher = null;
+    if (why) hud.notice(why, now, 1.2);
+  };
+  // gone from under you: revived, bled out, finished by someone else, or you were
+  if (!(d instanceof Duel) || !d.alive || d.downed || !f.r.alive || !f.r.downed) return end("");
+  // any damage breaks it off, as Apex's does: finishing in the open is a risk
+  if (d.health + d.shield < f.vitals - 0.5) return end("FINISHER BROKEN");
+  const t = now - f.at;
+  const n = blowsBy(t);
+  while (f.blows < n) {
+    f.blows++;
+    audio.punch(a.group.position);
+  }
+  if (t < finCfg.seconds) return;
+  // The kill, the way a bullet's hit reaches a figure: its own hit() and
+  // then the match's localHit, named a melee, so the feed, the credit and the
+  // host's bots need nothing new. Not a swing's ray: a figure on the floor
+  // has hit zones a ray from the eye can pass over, and a finisher that
+  // played to the end has to end in the kill.
+  a.finishing = false;
+  a.hit(now, "body", finCfg.damage, 1, 1, a.group.position.clone().add(new THREE.Vector3(0, 0.45, 0)));
+  d.localHit(f.r, finCfg.damage, false, "melee", player.pos.distanceTo(a.group.position));
+  hud.hitMarker(now, false, "kill");
+  if (finCfg.shieldBack && d.shieldMax > 0) d.shield = d.shieldMax;
+  finishesDone++;
+  finisher = null;
+  announcer.say("finish", realNow());
+  hud.notice(`FINISHED ${f.r.name}`, now, 1.6);
+}
 const zoomFov43 = (w: ResolvedWeapon): number => w.zoomFov43 + ((w.zoomToggleFov43 ?? w.zoomFov43) - w.zoomFov43) * zoomBlend;
 const rnd = () => Math.random();
 const tmpDir = new THREE.Vector3();
@@ -4969,6 +5050,7 @@ const labFigs: Array<{ f: Dummy; pose: FigurePose; dead: boolean; at: number }> 
 let selfFigKey = "";
 /** what your hands are doing, for your figure on the others' screens and in third person */
 function localAct(): number {
+  if (finisher) return actCode("finish");
   if (heal) return actCode("heal", Math.max(0, HEAL_CODES.indexOf(heal.item)));
   // a throw and a swing are short, and win over anything else the hands were doing
   if (gameTime - thrownAt < figureCfg.throwShown) return actCode("throw");
@@ -5122,7 +5204,8 @@ function step(): void {
   // an empty slot (a battle royale's start): fists
   const emptyHand = loadout.active.empty;
 
-  if (input.playing) {
+  // a finisher holds every key until it ends (it is broken off by a hit, not by a key)
+  if (input.playing && !finisher) {
     // Holster. While the gun is away, fire, aim, reload or any weapon key
     // brings it back up instead of doing its usual job.
     const drawKey =
@@ -5276,7 +5359,10 @@ function step(): void {
     }
     // V: melee, with the heirloom (or a fist). Apex's melee does 30 anywhere
     // it lands, at arm's length.
-    if (input.pressedNow("melee") && now >= meleeReadyAt && !loadout.swapping && !downedNow && (!duel || duel.canFire)) {
+    // over a knocked enemy it is a finisher instead
+    const toFinish = input.pressedNow("melee") && now >= meleeReadyAt && !downedNow ? finishable() : null;
+    if (toFinish) startFinisher(toFinish, now);
+    else if (input.pressedNow("melee") && now >= meleeReadyAt && !loadout.swapping && !downedNow && (!duel || duel.canFire)) {
       meleeReadyAt = now + MELEE_COOLDOWN;
       swungAt = now;
       viewModel.melee();
@@ -5464,7 +5550,7 @@ function step(): void {
   // the trigger, from the script when a test is driving (as the crouch, the
   // interact and the movement already do): a magazine held on the spray wall
   // is a thing worth being able to ask for without a fake pad
-  const trigger = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire")) && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && !downedNow && !ordnance.readied && !fireLockedToRelease;
+  const trigger = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire")) && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && !downedNow && !ordnance.readied && !fireLockedToRelease && !finisher;
   // a burst fires on without the trigger: knocked, or the round decided, it stops
   if (knockedOut || (duel && !duel.canFire)) ws.cancelBurst();
   // knocked in a 1v1: no aiming either
@@ -5475,7 +5561,7 @@ function step(): void {
     else if (input.pressedNow("sprint")) adsLatch = false;
   } else adsLatch = false;
   const adsIn = settings.adsToggle ? adsLatch : input.held("ads");
-  const adsHeld = input.playing && adsIn && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow && !ordnance.readied;
+  const adsHeld = input.playing && adsIn && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow && !ordnance.readied && !finisher;
   // inspect: hold reload with a full magazine; anything that uses the gun ends it
   {
     const slot = loadout.active;
@@ -5612,7 +5698,7 @@ function step(): void {
       calloutWas = null;
     }
   }
-  player.update(dt, now, knockedOut ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
+  player.update(dt, now, knockedOut || finisher ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
   // a slide counts as crouched for the spread model: the cone tightens
   const crouched = player.crouched || player.sliding;
   const stance = !player.onGround ? "air" : crouched ? "crouch" : "stand";
@@ -5756,7 +5842,7 @@ function step(): void {
   aimYaw = player.yaw;
   aimPitch = player.pitch;
   // an emote steps your view back to watch it, whichever camera you play in
-  const third = (thirdPerson || !!emoting) && !watch;
+  const third = (thirdPerson || !!emoting || !!finisher) && !watch;
   if (third) {
     // Behind the right shoulder, looking where you look; orbiting, round the
     // figure's chest from wherever the orbit angles put it. A wall behind
@@ -5764,8 +5850,13 @@ function step(): void {
     // and the shot goes from the eye to that point, so it lands on the
     // crosshair rather than parallel to it.
     // an emote: the camera comes round in front of you to watch it
-    const orbitNow = orbiting || !!emoting;
-    if (emoting) {
+    const orbitNow = orbiting || !!emoting || !!finisher;
+    if (finisher) {
+      // a finisher: out to the side, over both of you
+      const ease = 1 - Math.exp(-5 * dt);
+      orbitYaw += (finCfg.camera.yaw - orbitYaw) * ease;
+      orbitPitch += (finCfg.camera.pitch - orbitPitch) * ease;
+    } else if (emoting) {
       const ease = 1 - Math.exp(-4 * dt);
       orbitYaw += (160 - orbitYaw) * ease;
       orbitPitch += (-6 - orbitPitch) * ease;
@@ -5784,7 +5875,7 @@ function step(): void {
       const side = Math.min(0.45, Math.max(0, solidHit(pivot, right, 0.45) - 0.1));
       pivot.addScaledVector(right, side).y += 0.1;
     }
-    let dist = orbitNow ? (emoting ? emotesCfg.camera.back : 3.2) : 2.4 - 0.9 * ws.adsFrac;
+    let dist = orbitNow ? (finisher ? finCfg.camera.back : emoting ? emotesCfg.camera.back : 3.2) : 2.4 - 0.9 * ws.adsFrac;
     const wall = solidHit(pivot, back, dist);
     if (wall < dist) dist = Math.max(0.25, wall - 0.15);
     camera.position.copy(pivot).addScaledVector(back, dist);
@@ -6003,6 +6094,7 @@ function step(): void {
       }
       if (knock) {
         hud.notice(kill ? "ELIMINATED" : "KNOCKED DOWN", now, 0.8);
+        announcer.say(kill ? "kill" : "knock", realNow());
         stats.knocks++;
         audio.knock();
         if (e.dummy) audio.bodyFall(e.dummy.group.position);
@@ -6075,6 +6167,7 @@ function step(): void {
     previewNextAt = 0;
     throwables.preview(null, null);
   }
+  updateFinisher(now);
   // the melee swing lands a third of the way through
   if (now >= meleeHitAt) {
     meleeHitAt = Infinity;
@@ -6344,7 +6437,9 @@ function step(): void {
   const shown = loadout.display;
   // context prompts: a zipline in reach, or a ladder you are facing
   let prompt: { key: string; text: string } | null = null;
-  if (duel instanceof BrMatch && brPlay.hud.prompt) prompt = brPlay.hud.prompt;
+  const canFinish = !finisher && input.playing ? finishable() : null;
+  if (canFinish) prompt = { key: keyLabel("melee"), text: `FINISH ${canFinish.name}` };
+  else if (duel instanceof BrMatch && brPlay.hud.prompt) prompt = brPlay.hud.prompt;
   else if (player.zipPrompt) prompt = { key: "E", text: "RIDE ZIPLINE" };
   else if (!duel && drill.state === "idle" && drill.onPad(player.pos)) prompt = { key: keyLabel("interact"), text: "START THE FLICK DRILL" };
   else if (player.onGround && ladderAhead(player.pos.x, player.pos.y, player.pos.z, player.yaw)) {
@@ -6353,6 +6448,20 @@ function step(): void {
   const optic = viewModel.opticFitted;
   const aimNow = debugView.ads ?? ws.adsFrac;
   const duelHud = duel ? duel.hud() : null;
+  // The announcer and the drop theme: the match's voice says what changed
+  // since last frame, and the theme plays from boarding to landing.
+  {
+    const b = duelHud?.br;
+    const dropping = duel instanceof BrMatch && (player.aboard || player.dropping);
+    if (b) {
+      const w: Watch = { dropping, ringPhase: b.ring.phase, ringPhases: b.ring.phases, closing: b.ring.closing, outside: b.ring.outside, squads: b.squads, team: b.team, placement: b.placement };
+      for (const line of cues(watchWas, w)) announcer.say(line, realNow());
+      watchWas = w;
+    } else watchWas = null;
+    audio.music(dropping);
+    announcer.level = audio.volumes.master * audio.volumes.voice;
+    announcer.update(realNow());
+  }
   sounds.update({
     now,
     dt,
@@ -6687,6 +6796,20 @@ initWelcome();
   gunFinish: (id: string) => ({ finish: gunModel(id).root.userData.finish ?? "factory" }),
   /** voice chat as this page has it: sending, the loudest each player it hears is now, and the group (tools/e2e.ts) */
   voiceState: () => ({ live: voice?.live ?? false, levels: voice ? Object.fromEntries(voice.levels()) : {}, group: voiceGroupKey, denied: voice?.denied ?? false, muted: [...voiceNames.keys()].filter((p) => voice?.isMuted(p)) }),
+  /** the callouts said so far, oldest first, and the drop theme (tools/e2e.ts) */
+  spoken: () => announcer.spoken.map((s) => s.line),
+  music: () => ({ ...audio.musicState }),
+  /** finishers (tools/e2e.ts): who could be finished now, start one as the key would, and one running */
+  finisher: {
+    target: () => finishable()?.id ?? null,
+    start: (): boolean => {
+      const r = finishable();
+      if (!r) return false;
+      startFinisher(r, gameTime);
+      return true;
+    },
+    state: () => ({ on: !!finisher, target: finisher?.r.id ?? null, act: localAct(), done: finishesDone, victimAct: finisher ? finisher.r.avatar.finishing : false }),
+  },
   /** a melee swing, as the key starts one (tools/e2e.ts: kicking a door in) */
   swing: (): boolean => {
     if (gameTime < meleeReadyAt || loadout.swapping) return false;

@@ -1,0 +1,30 @@
+{
+  "_note": "Voice callouts and the announcer (src/game/announcer.ts, docs/AAA_GAP.md step 7). Spoken by the browser's own speech synthesis, because free recorded voice lines are scarce and a set voice reading short lines is what an announcer is. Each line has who says it (`self` is your character, the way an Apex legend says 'enemy knocked'; `announcer` is the match's voice, Warzone's), a priority (a higher one goes ahead of a lower one waiting, and cuts one of lower priority off mid-word), its own cooldown in seconds (a spray of knocks is one 'enemy knocked', not four), and the words: one is picked at random each time so it does not repeat word for word. gap is the least time between the end of one line and the start of the next (a line is taken to last lead seconds plus perWord a word, at its voice's rate), stale how long a waiting line may wait before it is dropped (a line about a knock ten seconds ago is noise), queue how many may wait. Each voice has a rate, a pitch and the names of the system voices to prefer, first match wins, else the first English one. Ours.",
+  "gap": 0.25,
+  "lead": 0.35,
+  "perWord": 0.3,
+  "stale": 3.0,
+  "queue": 2,
+  "voices": {
+    "self": { "rate": 1.12, "pitch": 1.0, "prefer": ["Google US English", "Microsoft Guy", "Microsoft Aria", "Samantha", "Alex"] },
+    "announcer": { "rate": 1.0, "pitch": 0.8, "prefer": ["Google UK English Male", "Microsoft Ryan", "Microsoft David", "Daniel", "Microsoft George"] }
+  },
+  "lines": {
+    "knock": { "by": "self", "priority": 2, "cooldown": 4, "say": ["Enemy knocked!", "Knocked one!", "One's down!"] },
+    "kill": { "by": "self", "priority": 2, "cooldown": 4, "say": ["Enemy down!", "Got one!", "Took one out!"] },
+    "finish": { "by": "self", "priority": 3, "cooldown": 2, "say": ["Finished.", "Stay down.", "That's for my squad."] },
+    "down": { "by": "self", "priority": 4, "cooldown": 6, "say": ["I'm down!", "I'm knocked, help!", "Down, I need a revive!"] },
+    "revived": { "by": "self", "priority": 1, "cooldown": 6, "say": ["Back up.", "Thanks, I'm up."] },
+    "mateDown": { "by": "self", "priority": 3, "cooldown": 5, "say": ["Teammate down!", "They got one of ours!"] },
+    "spotted": { "by": "self", "priority": 2, "cooldown": 3, "say": ["Enemy spotted!", "Enemy here!", "Contact!"] },
+    "wiped": { "by": "announcer", "priority": 3, "cooldown": 3, "say": ["Squad wiped.", "Squad eliminated."] },
+    "drop": { "by": "announcer", "priority": 2, "cooldown": 30, "say": ["Get ready to drop.", "Drop when ready."] },
+    "ringClosing": { "by": "announcer", "priority": 3, "cooldown": 20, "say": ["The ring is closing.", "Ring closing. Move."] },
+    "finalRing": { "by": "announcer", "priority": 4, "cooldown": 20, "say": ["Final ring.", "This is the final ring."] },
+    "outside": { "by": "announcer", "priority": 3, "cooldown": 25, "say": ["You are outside the ring.", "Get in the ring."] },
+    "squads3": { "by": "announcer", "priority": 3, "cooldown": 30, "say": ["Three squads remain."] },
+    "squads2": { "by": "announcer", "priority": 4, "cooldown": 30, "say": ["Two squads left. Final fight."] },
+    "won": { "by": "announcer", "priority": 5, "cooldown": 10, "say": ["You are the last squad standing.", "Victory. Last squad standing."] },
+    "lost": { "by": "announcer", "priority": 5, "cooldown": 10, "say": ["Your squad has been eliminated.", "You have been eliminated."] }
+  }
+}

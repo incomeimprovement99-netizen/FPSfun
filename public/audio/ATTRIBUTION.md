@@ -22,5 +22,8 @@ recorded by Ben Jaszczak, Brian Nelson, Kevin Heras and Matthew Nanney and relea
 reserved, may be used without royalty or credit". Credited anyway. Re-fetch with `npm run guns`
 (tools/fetch-guns.ts), which writes public/audio/guns.
 
-They are layered over the game's own synthesis (src/game/audio.ts); the guns are synthesised. Re-fetch with
-`npm run sounds` (tools/fetch-sounds.ts); the files are gitignored.
+The drop theme is **Battle Theme A** by cynicmusic (opengameart.org/content/battle-theme-a), CC0, fetched
+into public/audio/music by tools/fetch-music.ts as part of `npm run sounds`.
+
+They are layered over the game's own synthesis (src/game/audio.ts), which plays alone where a file is missing.
+Re-fetch with `npm run sounds` (tools/fetch-sounds.ts) and `npm run guns`; the files are gitignored.

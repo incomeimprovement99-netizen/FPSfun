@@ -192,7 +192,7 @@ export interface DummyOptions {
 /** what a rigged figure is doing, from the player it stands for */
 export type FigureStance = "stand" | "crouch" | "slide" | "air" | "climb" | "mantle" | "zip" | "downed";
 /** what its hands are busy with: a reload, a swap, a heal, a throw, a melee swing, a revive, or holding interact on something */
-export type FigureAct = "reload" | "swap" | "heal" | "throw" | "melee" | "revive" | "interact" | null;
+export type FigureAct = "reload" | "swap" | "heal" | "throw" | "melee" | "revive" | "interact" | "finish" | "finished" | null;
 export interface FigurePose {
   /** horizontal speed, m/s */
   speed: number;
@@ -210,11 +210,11 @@ export interface FigurePose {
 }
 /**
  * What the hands are doing, as one small number for the network: 0 nothing,
- * 1 reload, 2 swap, 3 throw, 4 melee, 5 revive, 6 interact, 10 + a heal's
- * code. A page from before 3 to 6 existed reads them as nothing, so a figure
+ * 1 reload, 2 swap, 3 throw, 4 melee, 5 revive, 6 interact, 7 finishing
+ * someone (finisher.ts), 8 being finished, 10 + a heal's code. A page from before 3 to 6 existed reads them as nothing, so a figure
  * on an old page just does not play the new motion.
  */
-const ACT_CODES: FigureAct[] = [null, "reload", "swap", "throw", "melee", "revive", "interact"];
+const ACT_CODES: FigureAct[] = [null, "reload", "swap", "throw", "melee", "revive", "interact", "finish", "finished"];
 export const actCode = (a: FigureAct, healCode = 0): number => (a === "heal" ? 10 + healCode : Math.max(0, ACT_CODES.indexOf(a)));
 export const actFromCode = (c: number | undefined): FigureAct => (c !== undefined && c >= 10 ? "heal" : c !== undefined && c > 0 && c < ACT_CODES.length ? ACT_CODES[c] : null);
 
@@ -826,8 +826,15 @@ export class Dummy {
   }
 
   /** a rigged figure: what it should be doing, from the player or bot it stands for */
+  /**
+   * Being finished on this page (main.ts): whatever the network or a bot's
+   * own code says the figure is doing, it takes the blow. The one finishing
+   * says so in its own state, but the one finished does not know yet.
+   */
+  finishing = false;
+
   setPose(p: FigurePose): void {
-    this.pose = p;
+    this.pose = this.finishing ? { ...p, act: "finished" } : p;
   }
 
   /** an emote playing (emotes.ts): which, and how far in */

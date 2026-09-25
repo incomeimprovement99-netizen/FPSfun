@@ -32,6 +32,7 @@ import { OUR_GEOMETRY, buildOutfit, outfitMaterials } from "./outfit";
 import outfitCfg from "../config/outfits.json";
 import vmCfg from "../config/viewmodel.json";
 import figureCfg from "../config/figure.json";
+import finCfg from "../config/finisher.json";
 import type { FigurePose } from "./dummy";
 import type { EmotePose } from "./emotes";
 
@@ -760,6 +761,8 @@ export class MannequinFigure {
   /** the stance and the hands' act last frame, when a slide began and when its way out ends, and which swing a melee is on */
   private lastStance = "";
   private lastAct: FigurePose["act"] = null;
+  /** when the act began, on this figure's clock: a finisher is two blows in order */
+  private actAt = 0;
   private slideAt = -Infinity;
   private slideExitUntil = -Infinity;
   private meleeSwing = 0;
@@ -1260,11 +1263,13 @@ export class MannequinFigure {
     // off the gun: it goes away for the moment, and with it the rifle's
     // two-handed hold, whose reach onto the gun ran after the clip and pulled
     // both arms straight back onto it.
-    if (act === "throw" || act === "melee" || act === "revive" || act === "interact") armed = false;
+    if (act === "throw" || act === "melee" || act === "revive" || act === "interact" || act === "finish" || act === "finished") armed = false;
     if (act !== this.lastAct) {
       if (act === "melee") this.meleeSwing = (this.meleeSwing + 1) % MELEE_SWINGS.length;
       this.lastAct = act;
+      this.actAt = this.t;
     }
+    let lowerOnce = false;
     // the legs
     let lower = "Idle_Loop";
     let lowerRate = 1;
@@ -1327,12 +1332,32 @@ export class MannequinFigure {
       lowerRate = 1;
       full = true;
     }
+    // A finisher. The one finishing crouches over the one on the floor and
+    // throws a hook, then a cross, from the hips up: standing, the same blows
+    // went a metre over a downed head (the snapshot motion-finisher-hook).
+    // The one finished stays down, crawling pose and all, until the last
+    // blow lands, and only then goes back.
+    const finishing = act === "finish" && p.stance !== "air";
+    if (finishing) lower = "Crouch_Idle_Loop";
+    if (act === "finished" && hasClip("Hit_Knockback") && this.t - this.actAt >= finCfg.blows[finCfg.blows.length - 1]) {
+      lower = "Hit_Knockback";
+      lowerRate = finCfg.knockRate;
+      full = true;
+      lowerOnce = true;
+    }
     // the hands: a full-body clip takes them too; otherwise the gun's pose, or the arms' swing
     let upper = lower;
     let upperRate = lowerRate;
     let once = false;
     if (!full) {
-      if (p.act === "heal") {
+      if (finishing) {
+        // without the extra clips the jab stands in for both blows
+        const hook = hasClip("Melee_Hook") ? "Melee_Hook" : "Punch_Jab";
+        const cross = hasClip("Punch_Cross") ? "Punch_Cross" : "Punch_Jab";
+        upper = this.t - this.actAt < clipSeconds(hook) / finCfg.rate ? hook : cross;
+        upperRate = finCfg.rate;
+        once = true;
+      } else if (p.act === "heal") {
         upper = "Consume";
         upperRate = 1;
       } else if (this.t < this.headUntil && hasClip("Hit_Head") && p.stance !== "downed") {
@@ -1369,7 +1394,7 @@ export class MannequinFigure {
         upperRate = 1;
       }
     }
-    this.play("lower", lower, lowerRate);
+    this.play("lower", lower, lowerRate, 0.18, lowerOnce);
     this.play("upper", upper, upperRate, 0.15, once);
     // no gun in the hand for a heal, or down (the figure says armed = false then)
     if (this.gun) this.gun.visible = this.gunShown && armed && p.act !== "heal" && !this.dead;
@@ -1389,7 +1414,7 @@ export class MannequinFigure {
     // see. At 45 degrees a knocked figure at 30 m read as a live one
     // crouching, which is the one thing a knock has to not look like: bent to
     // about 70 and sunk (below), it is low and plainly out of the fight.
-    if (p.stance === "downed") {
+    if (p.stance === "downed" && !full) {
       if (b.spine_01) turnBone(b.spine_01, fig, new THREE.Vector3(1, 0, 0), 0.7);
       if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), 0.5);
       if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), -0.95);

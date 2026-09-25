@@ -64,7 +64,7 @@ export class GameAudio {
   }
   private space: "indoor" | "outdoor" = "indoor";
   /** 0..1 each; Settings */
-  volumes = { master: 0.8, effects: 1, hits: 1 };
+  volumes = { master: 0.8, effects: 1, hits: 1, voice: 0.8, music: 0.6 };
   /** sounds played (tests) */
   played = 0;
   /** the recorded samples by name, every take of each (loaded once the audio starts) */
@@ -113,7 +113,7 @@ export class GameAudio {
       const raw = localStorage.getItem(LS);
       if (raw) {
         const v = JSON.parse(raw) as Partial<Record<keyof GameAudio["volumes"], unknown>>;
-        for (const k of ["master", "effects", "hits"] as const) {
+        for (const k of ["master", "effects", "hits", "voice", "music"] as const) {
           const n = Number(v[k]);
           if (Number.isFinite(n) && n >= 0 && n <= 1) this.volumes[k] = n;
         }
@@ -141,6 +141,50 @@ export class GameAudio {
     this.hitBus.gain.setTargetAtTime(this.volumes.hits, t, 0.02);
     // your own gun skips the master gain (it joins after the master compressor), so the sliders reach it here
     this.ownBus?.gain.setTargetAtTime(0.5 * this.volumes.master * this.volumes.effects, t, 0.02);
+    if (this.musicState.on) this.musicBus?.gain.setTargetAtTime(this.volumes.music * cfg.music.level, t, 0.02);
+  }
+
+  /** the drop theme's element and its gain, made the first time it plays */
+  private musicEl: HTMLAudioElement | null = null;
+  private musicBus: GainNode | null = null;
+  /** the drop theme (tests): playing, and whether its file was missing */
+  readonly musicState = { on: false, missing: false };
+
+  /**
+   * The drop theme (audio.json music): faded in as you board, out as you
+   * land. Streamed from a media element rather than decoded whole, because
+   * three minutes of it decoded is some sixty megabytes held for a drop.
+   * Missing (a checkout without `npm run sounds`), the drop is silent as it was.
+   */
+  music(on: boolean): void {
+    if (on === this.musicState.on) return;
+    this.musicState.on = on;
+    const ctx = on ? this.ensure() : this.ctx;
+    if (!ctx || !this.master) return;
+    if (on && !this.musicEl) {
+      const el = new Audio("audio/music/drop.mp3");
+      el.loop = true;
+      el.addEventListener("error", () => (this.musicState.missing = true));
+      const bus = ctx.createGain();
+      bus.gain.value = 0;
+      ctx.createMediaElementSource(el).connect(bus).connect(this.master);
+      this.musicEl = el;
+      this.musicBus = bus;
+    }
+    const el = this.musicEl;
+    const bus = this.musicBus;
+    if (!el || !bus) return;
+    const t = ctx.currentTime;
+    bus.gain.cancelScheduledValues(t);
+    if (on) {
+      el.currentTime = 0;
+      void el.play().catch(() => undefined);
+      bus.gain.setTargetAtTime(this.volumes.music * cfg.music.level, t, cfg.music.fadeIn / 3);
+    } else {
+      bus.gain.setTargetAtTime(0, t, cfg.music.fadeOut / 3);
+      // paused once it has faded, unless a new drop wanted it back first
+      setTimeout(() => void (this.musicState.on || el.pause()), cfg.music.fadeOut * 1000);
+    }
   }
 
   private ensure(): AudioContext | null {

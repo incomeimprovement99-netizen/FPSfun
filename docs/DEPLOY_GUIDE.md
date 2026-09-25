@@ -33,9 +33,9 @@ introduces the two.
   `npm run sounds` and `npm run guns` done (the CC0 textures, props, recorded
   sounds and gunshots are not in git; `dist/` needs them). The first two leave
   their textures as WebP. `npm run guns` fetches a 194 MB archive once, into
-  the temp folder, and writes 2.4 MB of takes; a release from a worktree that
-  has never run it ships the synthesised shots instead, so run it in
-  `apex-range` as well as in the worktree.
+  the temp folder, and writes 2.4 MB of takes; `npm run sounds` also fetches
+  the 3.3 MB drop theme into `public/audio/music`. Run both in `apex-range` as
+  well as in the worktree: the release gate refuses to build without them.
 - Git with the credential manager signed in to GitHub as the repo owner
   (it is: the `main` push below used it).
 - The repo exists and `origin` points at it:

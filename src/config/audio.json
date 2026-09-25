@@ -194,5 +194,11 @@
     "thumpHz": 72,
     "thumpTime": 0.3,
     "thumpLevel": 0.9
+  },
+  "_music": "The drop theme (docs/AAA_GAP.md step 7): 'Battle Theme A' by cynicmusic, CC0, from OpenGameArt, fetched by `npm run sounds` into public/audio/music. It plays from boarding the dropship until you land, the way the big games score the drop and then leave the fight to its own sounds. level is its loudness under the music slider (Settings); fadeIn and fadeOut are seconds. Ours.",
+  "music": {
+    "level": 0.55,
+    "fadeIn": 1.5,
+    "fadeOut": 3.0
   }
 }
