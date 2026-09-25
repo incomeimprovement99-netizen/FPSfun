@@ -70,9 +70,36 @@
         -0.069
       ]
     },
-    "_gone": "torso and torsoAt were one box and one offset for the whole body, typed in by eye. They are replaced by `body` above, measured band by band, and nothing reads them any more."
+    "_gone": "torso and torsoAt were one box and one offset for the whole body, typed in by eye. They are replaced by `body` above, measured band by band, and nothing reads them any more.",
+    "_torso": "How the body under published cloth is narrowed so the cloth closes on it, per body, in metres up the bind pose. The garments are cut for the pack's Regular build and the free tier ships Superhero, so the chest is brought in towards `chest` between `from` and `to`, and eased back out to nothing between `neck` and `head` so the head keeps its own width and the hair and hood still fit it. Anything further than `armFrom` from the middle is an arm, out at shoulder height in the bind pose, and is left alone by `armTo`. Measured by width bands off each body (|x| < 0.19): the male's shoulders top out at y 1.50 (half-width 189 mm) and the neck is 105 mm at 1.55; the female's shoulders top out at 1.45 and the neck is 63 mm at 1.50. The female body wears the male garments and is already narrower than the body they were cut for, so it is not brought in at all. A build's `shoulders` multiplies both this and the garments over it by the same amount, so the fit between them holds. The ease-out starts above the shoulder line, not at it: starting at 1.48 on the male let the tops of the traps back out from under the coat and showed skin at the shoulder blades from behind. The male's neck is narrowest (70 mm) at 1.60, which is where the narrowing is gone. `upperArm` brings the upper arm in around its own bone, fully to 60% of the way to the elbow and back to nothing at it, so the forearm and hand do not move. Measured around upperarm_l, 95th-percentile radius in fifths from shoulder to elbow: the male body 101 / 102 / 104 / 90 / 73 mm, the Ranger sleeve 66 / 63 / 60 / 58 / 54, the Peasant sleeve 69 / 67 / 66 / 64 / 62. With the 22 mm shell the sleeve is still 15 to 20 mm short through the deltoid, which showed as skin at the back of every shoulder; 0.8 puts 104 at 83.",
+    "torso": {
+      "Superhero_Male_FullBody": {
+        "from": 0.9,
+        "to": 1.3,
+        "neck": 1.52,
+        "head": 1.6,
+        "chest": 0.71,
+        "armFrom": 0.19,
+        "armTo": 0.28,
+        "upperArm": 0.8
+      },
+      "Superhero_Female_FullBody": {
+        "from": 0.9,
+        "to": 1.3,
+        "neck": 1.47,
+        "head": 1.55,
+        "chest": 1.0,
+        "armFrom": 0.19,
+        "armTo": 0.28,
+        "upperArm": 1.0
+      }
+    },
+    "_undersuit": "The colour the body's skin is taken to where the clothes always cover it, as a multiply over the skin texture. The garments are cut for a body the free tier does not ship, and every seam between two pieces - the armhole, the back of the knee, the ankle - was cut against a different outline, so after the body is shaped some skin still shows through at the seams. A dark undersuit makes a seam read as fabric or shadow instead. What stays skin is decided by the skin weights: the head, the neck, the forearms (the peasant sleeves stop short of the wrist) and the hands.",
+    "undersuit": "#1c1d1f",
+    "_overCloth": "How far, in metres, the layer of a published garment against the skin is pushed out along its own normals. A garment sits exactly on the skin it was modelled over, so without it the two surfaces fight over the same pixels. tools/checks/body.ts checks the narrowed upper arm still fits inside every sleeve with it.",
+    "overCloth": 0.022
   },
-  "_builds": "How heavy-set a figure is. The body underneath is one mannequin and one set of hit boxes, and that does not change: what changes is how thick the CLOTHES on it are and how wide across the shoulders they sit, which is what reads as build at any distance. Keeping the hit boxes identical is the point rather than a shortcut: a game where a bigger-looking character is easier to hit is a game where nobody picks them.",
+  "_builds": "How heavy-set a figure is. The skeleton underneath, and so every hit box, is the same whatever the build: a game where a bigger-looking character is easier to hit is a game where nobody picks them. On published cloth `shoulders` is the width of the chest, body and garments together by the same amount, eased in up the torso and out again at the neck, so the fit between the cloth and the body holds at every build (src/game/mannequin.ts shapeTorso). The arms, the legs and the head keep their size. `cloth` is the thickness of the garments built in code, which only the fallback wears.",
   "builds": {
     "lean": {
       "name": "LEAN",

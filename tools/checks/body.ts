@@ -390,6 +390,86 @@ for (const [name, p] of Object.entries(PIECES)) {
   }
   check(`${name}: the body does not come through it, even on the leanest build`, worst >= 0.002, `${(worst * 1000).toFixed(1)} mm of clearance, ${(at * 100).toFixed(0)}% along the bone`);
 }
+
+// The published cloth on the published body. The sleeves are cut for a body
+// the free tier does not ship, and the upper arm under them is brought in
+// around its own bone (outfits.json fit.torso upperArm). This measures both off
+// the files and checks the arm, brought in, fits inside every sleeve with the
+// shell every garment sits on, through the part of the arm that is fully
+// brought in: the shoulder three fifths.
+{
+  const SZ: Record<number, number> = { 5121: 1, 5123: 2, 5125: 4, 5126: 4 };
+  const NC: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
+  const armRadii = (path: string, side: string): number[] => {
+    const gl = JSON.parse(readFileSync(path, "utf8"));
+    const buf = readFileSync(resolve(path, "..", gl.buffers[0].uri));
+    const rd = (i: number): number[] => {
+      const a = gl.accessors[i];
+      const bv = gl.bufferViews[a.bufferView];
+      const n = NC[a.type];
+      const cs = SZ[a.componentType];
+      const stride = bv.byteStride || cs * n;
+      const base = (bv.byteOffset || 0) + (a.byteOffset || 0);
+      const out: number[] = [];
+      for (let k = 0; k < a.count; k++)
+        for (let c = 0; c < n; c++) {
+          const o = base + k * stride + c * cs;
+          out.push(a.componentType === 5126 ? buf.readFloatLE(o) : cs === 4 ? buf.readUInt32LE(o) : cs === 2 ? buf.readUInt16LE(o) : buf.readUInt8(o));
+        }
+      return out;
+    };
+    const slices: number[][] = [[], [], [], [], []];
+    for (const node of gl.nodes) {
+      if (node.skin === undefined || node.mesh === undefined) continue;
+      const sk = gl.skins[node.skin];
+      const names: string[] = sk.joints.map((j: number) => gl.nodes[j].name);
+      const ibm = rd(sk.inverseBindMatrices);
+      const at = (nm: string): THREE.Vector3 => new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(ibm.slice(names.indexOf(nm) * 16, names.indexOf(nm) * 16 + 16)).invert());
+      const ua = names.indexOf(`upperarm_${side}`);
+      if (ua < 0) continue;
+      const a0 = at(`upperarm_${side}`);
+      const ax = at(`lowerarm_${side}`).sub(a0);
+      const len = ax.length();
+      ax.normalize();
+      for (const prim of gl.meshes[node.mesh].primitives) {
+        const P = rd(prim.attributes.POSITION);
+        const J = rd(prim.attributes.JOINTS_0);
+        const W = rd(prim.attributes.WEIGHTS_0);
+        for (let v = 0; v < P.length / 3; v++) {
+          let w = 0;
+          for (let c = 0; c < 4; c++) if (J[v * 4 + c] === ua) w += W[v * 4 + c];
+          if (w < 0.5) continue;
+          const d = new THREE.Vector3(P[v * 3], P[v * 3 + 1], P[v * 3 + 2]).sub(a0);
+          const t = d.dot(ax) / len;
+          if (t < 0 || t > 1) continue;
+          slices[Math.min(4, Math.floor(t * 5))].push(d.sub(ax.clone().multiplyScalar(d.dot(ax))).length());
+        }
+      }
+    }
+    // the 95th percentile, so one stray vertex in a fold does not decide it
+    return slices.map((xs) => (xs.length ? [...xs].sort((x, y) => x - y)[Math.floor((xs.length - 1) * 0.95)] : 0));
+  };
+  const torso = outfitCfg.fit.torso as Record<string, { upperArm?: number }>;
+  const shell = outfitCfg.fit.overCloth as number;
+  const sets = outfitCfg.sets as Record<string, { parts?: string[]; body?: string }>;
+  const worn = new Map<string, Set<string>>();
+  for (const set of Object.values(sets)) {
+    const body = set.body ?? "Superhero_Male_FullBody";
+    if (!worn.has(body)) worn.set(body, new Set());
+    for (const part of set.parts ?? []) if (/_Arms$/.test(part)) worn.get(body)!.add(part);
+  }
+  for (const [body, arms] of worn) {
+    const k = torso[body]?.upperArm ?? 1;
+    const skin = armRadii(resolve(process.cwd(), `public/models/body/${body}.gltf`), "l");
+    for (const part of arms) {
+      const sleeve = armRadii(resolve(process.cwd(), `public/models/outfits/parts/${part}.gltf`), "l");
+      const over = Math.max(...[0, 1, 2].map((i) => skin[i] * k - (sleeve[i] + shell)));
+      const arm = skin.slice(0, 3).map((r) => Math.round(r * k * 1000)).join("/");
+      const cloth = sleeve.slice(0, 3).map((r) => Math.round((r + shell) * 1000)).join("/");
+      check(`${part} on ${body}: the upper arm, brought in to ${k}, is inside the sleeve at the shoulder`, over <= 0.004, `${(over * 1000).toFixed(0)} mm over at worst; arm ${arm} mm against sleeve and shell ${cloth}`);
+    }
+  }
+}
 console.log(fails === 0 ? "\nBODY PASS" : `\nBODY FAIL (${fails})`);
 export const bodyFails = fails;
 if (process.argv[1]?.endsWith("body.ts")) process.exit(fails === 0 ? 0 : 1);

@@ -534,6 +534,33 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "builds-front",
+    note: "the same outfit in lean, regular and heavy from the front: the build is the chest's width, and the head keeps its own",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -3);
+        r.figureLab(["lean", "regular", "heavy"].map((b) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "fatigues|" + b + "|" })), 2.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
+    name: "builds-back",
+    note: "the same three from behind: whatever the build, the coat still closes",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -3);
+        r.figureLab(["lean", "regular", "heavy"].map((b) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "fatigues|" + b + "|" })), 2.2, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
+    name: "head-close",
+    note: "two faces at arm's length, one that reads right and one that did not: fatigues and peasant, regular build",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 8);
+        r.figureLab(["fatigues", "peasant"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "|regular|" })), 0.9, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.6), 100],
+    ],
+  },
+  {
     name: "outfit-real",
     note: "five outfits in their own colours: arctic white, urban black, desert tan, orange coveralls, ghillie green, all on published cloth",
     steps: [

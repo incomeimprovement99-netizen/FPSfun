@@ -96,7 +96,7 @@ function skinnedIn(o: THREE.Object3D): THREE.SkinnedMesh[] {
  * what a shell offset is for. Done once per part, on the geometry every
  * figure wearing it shares.
  */
-const OVER_CLOTH = 0.022;
+const OVER_CLOTH = outfitCfg.fit.overCloth as number;
 function inflate(g: THREE.BufferGeometry): THREE.BufferGeometry {
   const out = g.clone();
   if (!out.attributes.normal) out.computeVertexNormals();
@@ -130,50 +130,210 @@ export function bodyOf(outfit: string): string {
 }
 
 /**
- * How much narrower the body is made before a garment goes over it.
+ * How a torso is shaped: the body brought in so the cloth closes on it, and
+ * the build a player picked, both as one width factor that eases in up the
+ * chest and back out at the neck.
  *
  * The clothes in this pack are cut for the pack's Regular build; the free tier
- * ships the Superhero one, which is 424 mm across the shoulders against the
- * Regular's. The coat closes on the slimmer body and gapes on the bulky one -
- * a bare back with a collar and a belt, which is what the owner saw. Narrowing
- * the BODY (not the skeleton, so nothing about the hit boxes or the animation
- * changes) puts it back inside the cloth.
+ * ships the Superhero one, 424 mm across the shoulders, and a coat cut for the
+ * slimmer body gapes on it - a bare back with a collar and a belt, which is
+ * what the owner saw. Narrowing the BODY (not the skeleton, so nothing about
+ * the hit boxes or the animation changes) puts it back inside the cloth.
+ *
+ * By HEIGHT, not uniformly: this build's bulk is in the traps and the lats,
+ * and a tenth off everywhere still left a bare upper back inside a coat that
+ * closed at the waist. And eased back OUT above the shoulders: the first cut
+ * held the full narrowing all the way up, so the head was 29% narrower than
+ * the skull the hair and the hood were made for. The numbers are per body and
+ * measured (outfits.json fit.torso).
  */
+interface Torso {
+  from: number;
+  to: number;
+  neck: number;
+  head: number;
+  chest: number;
+  armFrom: number;
+  armTo: number;
+  upperArm?: number;
+}
+const TORSO = outfitCfg.fit.torso as Record<string, Torso>;
+
+/** a build's width across the chest, 1 for the one the clothes were cut to */
+function buildWidth(build: string): number {
+  const b = (outfitCfg.builds as Record<string, { shoulders: number }>)[build];
+  return b ? b.shoulders : 1;
+}
+
+const smooth = (a: number, b: number, v: number): number => {
+  const t = Math.max(0, Math.min(1, (v - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
+/** the bones that make a vertex part of an arm rather than the torso */
+const ARM_BONE = /^(upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)_/;
+
 /**
- * Narrowed by HEIGHT, not uniformly. This build's bulk is in the traps and
- * the lats: a tenth off everywhere still left a bare upper back inside a coat
- * that closed at the waist. So the legs keep their width, the hips lose a
- * little, and the chest and shoulders lose a fifth - which is roughly the
- * difference between the build the clothes were cut for and the one we have.
+ * A copy of `g` with its torso brought to `target` of its width and depth.
+ * The body gets its measured narrowing times the build; a garment gets the
+ * build alone, and so the two move together and the fit between them holds.
+ *
+ * What counts as the torso is decided by the skin weights: a vertex is arm
+ * in the proportion the arm bones move it. The first cut decided by distance
+ * from the middle, and at armpit height that caught the lats as well, which
+ * kept their full width and showed as skin at the back of every armpit.
  */
-const SLIM_LOW = 1.0;
-const SLIM_HIGH = 0.71;
-const SLIM_FROM = 0.9;
-const SLIM_TO = 1.3;
-function slim(o: THREE.Object3D): void {
-  o.traverse((c) => {
-    const m = c as THREE.SkinnedMesh;
-    if (!m.isSkinnedMesh) return;
-    const g = m.geometry.clone();
-    const p = g.attributes.position as THREE.BufferAttribute;
+function shapeTorso(g: THREE.BufferGeometry, t: Torso, target: number, bones: string[]): THREE.BufferGeometry {
+  if (target === 1) return g;
+  const out = g.clone();
+  const p = out.attributes.position as THREE.BufferAttribute;
+  const si = out.attributes.skinIndex as THREE.BufferAttribute | undefined;
+  const sw = out.attributes.skinWeight as THREE.BufferAttribute | undefined;
+  const isArm = bones.map((b) => ARM_BONE.test(b));
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i);
+    const y = p.getY(i);
+    // Arms are left alone. In the bind pose they are out at shoulder height,
+    // so narrowing them dragged the hands in off their own wrist bones and
+    // the skinning stretched them into fans.
+    let arm = 0;
+    if (si && sw) {
+      arm = (isArm[si.getX(i)] ? sw.getX(i) : 0) + (isArm[si.getY(i)] ? sw.getY(i) : 0) + (isArm[si.getZ(i)] ? sw.getZ(i) : 0) + (isArm[si.getW(i)] ? sw.getW(i) : 0);
+    } else arm = smooth(t.armFrom, t.armTo, Math.abs(x));
+    const ease = smooth(t.from, t.to, y) * (1 - smooth(t.neck, t.head, y)) * (1 - Math.min(1, arm));
+    const k = 1 + (target - 1) * ease;
+    p.setXYZ(i, x * k, y, p.getZ(i) * k);
+  }
+  p.needsUpdate = true;
+  out.computeVertexNormals();
+  out.computeBoundingSphere();
+  return out;
+}
+
+/**
+ * A copy of `g` with each upper arm brought in around its own bone to `k` of
+ * its thickness: fully for the first 60% of the way to the elbow, and back to
+ * nothing at it, so the forearm and the hand stay where the clips put them.
+ * The free body's upper arm is 101 to 104 mm out from the bone through the
+ * deltoid and the sleeves are cut for 60 to 69 (outfits.json fit.torso), so
+ * the back of every shoulder showed through the top of the sleeve.
+ */
+function shapeUpperArms(g: THREE.BufferGeometry, skeleton: THREE.Skeleton, k: number): THREE.BufferGeometry {
+  if (k === 1) return g;
+  const out = g.clone();
+  const p = out.attributes.position as THREE.BufferAttribute;
+  const si = out.attributes.skinIndex as THREE.BufferAttribute | undefined;
+  const sw = out.attributes.skinWeight as THREE.BufferAttribute | undefined;
+  if (!si || !sw) return g;
+  const names = skeleton.bones.map((b) => b.name);
+  const rest = (name: string): THREE.Vector3 | null => {
+    const i = names.indexOf(name);
+    return i < 0 ? null : new THREE.Vector3().setFromMatrixPosition(skeleton.boneInverses[i].clone().invert());
+  };
+  const v = new THREE.Vector3();
+  for (const side of ["l", "r"]) {
+    const ua = names.indexOf(`upperarm_${side}`);
+    const a = rest(`upperarm_${side}`);
+    const b = rest(`lowerarm_${side}`);
+    if (ua < 0 || !a || !b) continue;
+    const axis = b.clone().sub(a);
+    const len = axis.length();
+    axis.normalize();
     for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i);
-      const y = p.getY(i);
-      // The TORSO only. In the bind pose the arms are out at shoulder height,
-      // so narrowing everything at that height dragged the hands in off their
-      // own wrist bones and the skinning stretched them into fans. Anything
-      // more than a hand's width from the middle is an arm and is left alone.
-      const arm = Math.max(0, Math.min(1, (Math.abs(x) - 0.19) / 0.09));
-      const t = Math.max(0, Math.min(1, (y - SLIM_FROM) / (SLIM_TO - SLIM_FROM)));
-      const ease = t * t * (3 - 2 * t) * (1 - arm * arm * (3 - 2 * arm));
-      const k = SLIM_LOW + (SLIM_HIGH - SLIM_LOW) * ease;
-      p.setXYZ(i, x * k, y, p.getZ(i) * k);
+      let w = 0;
+      if (si.getX(i) === ua) w += sw.getX(i);
+      if (si.getY(i) === ua) w += sw.getY(i);
+      if (si.getZ(i) === ua) w += sw.getZ(i);
+      if (si.getW(i) === ua) w += sw.getW(i);
+      if (w <= 0) continue;
+      v.set(p.getX(i), p.getY(i), p.getZ(i)).sub(a);
+      const along = v.dot(axis);
+      const s = 1 + (k - 1) * Math.min(1, w) * (1 - smooth(0.6, 1, along / len));
+      // the offset from the bone's own line is what is brought in; the
+      // position along the bone is kept, so the arm is no shorter
+      const px = a.x + axis.x * along + (v.x - axis.x * along) * s;
+      const py = a.y + axis.y * along + (v.y - axis.y * along) * s;
+      const pz = a.z + axis.z * along + (v.z - axis.z * along) * s;
+      p.setXYZ(i, px, py, pz);
     }
-    p.needsUpdate = true;
-    g.computeVertexNormals();
-    g.computeBoundingSphere();
-    m.geometry = g;
-  });
+  }
+  p.needsUpdate = true;
+  out.computeVertexNormals();
+  out.computeBoundingSphere();
+  return out;
+}
+
+/** the bones whose skin is seen through any outfit: face, neck, forearms, hands */
+const SKIN_BONE = /^(head|neck_|lowerarm_|hand_|thumb_|index_|middle_|ring_|pinky_)/i;
+const UNDERSUIT = new THREE.Color(outfitCfg.fit.undersuit as string);
+
+/**
+ * A copy of `g` with a vertex colour that keeps the skin where it is seen and
+ * takes it to the undersuit's colour where the clothes always cover it.
+ *
+ * Shaping the body closes the big gaps; it cannot close every seam, because
+ * each garment piece was cut against a body we do not have and each seam
+ * against a different outline. A seam that shows a dark undersuit reads as
+ * fabric or shadow; one that shows skin reads as a hole in the clothes.
+ */
+function undersuit(g: THREE.BufferGeometry, bones: string[]): THREE.BufferGeometry {
+  const si = g.attributes.skinIndex as THREE.BufferAttribute | undefined;
+  const sw = g.attributes.skinWeight as THREE.BufferAttribute | undefined;
+  if (!si || !sw) return g;
+  const out = g.clone();
+  const skin = bones.map((b) => SKIN_BONE.test(b));
+  const n = out.attributes.position.count;
+  const col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const s = Math.min(1, (skin[si.getX(i)] ? sw.getX(i) : 0) + (skin[si.getY(i)] ? sw.getY(i) : 0) + (skin[si.getZ(i)] ? sw.getZ(i) : 0) + (skin[si.getW(i)] ? sw.getW(i) : 0));
+    // eased, so the change sits under a collar or a cuff rather than on show
+    const e = s * s * (3 - 2 * s);
+    col[i * 3] = UNDERSUIT.r + (1 - UNDERSUIT.r) * e;
+    col[i * 3 + 1] = UNDERSUIT.g + (1 - UNDERSUIT.g) * e;
+    col[i * 3 + 2] = UNDERSUIT.b + (1 - UNDERSUIT.b) * e;
+  }
+  out.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  return out;
+}
+
+/** a body in a build, made once from the body as it was loaded */
+const shaped = new Map<string, THREE.Object3D>();
+function bodyFor(name: string, build: string): THREE.Object3D | null {
+  const key = `${name}|${build}`;
+  const had = shaped.get(key);
+  if (had) return had;
+  const raw = bodies.get(name);
+  const t = TORSO[name];
+  if (!raw) return null;
+  const out = cloneSkinned(raw);
+  if (t) {
+    const target = t.chest * buildWidth(build);
+    out.traverse((c) => {
+      const m = c as THREE.SkinnedMesh;
+      if (!m.isSkinnedMesh) return;
+      m.geometry = shapeTorso(m.geometry, t, target, m.skeleton.bones.map((x) => x.name));
+      m.geometry = shapeUpperArms(m.geometry, m.skeleton, t.upperArm ?? 1);
+      // the skin itself, not the eyes or the brows that share its skeleton
+      if ((m.material as THREE.Material).name.startsWith("MI_Superhero")) m.geometry = undersuit(m.geometry, m.skeleton.bones.map((x) => x.name));
+    });
+  }
+  shaped.set(key, out);
+  return out;
+}
+
+/** a garment mesh's geometry for a build on a body, made once */
+const garmentShapes = new Map<string, THREE.BufferGeometry>();
+function garmentFor(src: THREE.SkinnedMesh, key: string, body: string, build: string): THREE.BufferGeometry {
+  const t = TORSO[body];
+  const w = buildWidth(build);
+  if (!t || w === 1) return src.geometry;
+  const k = `${key}|${body}|${build}`;
+  let g = garmentShapes.get(k);
+  if (!g) {
+    g = shapeTorso(src.geometry, t, w, src.skeleton.bones.map((x) => x.name));
+    garmentShapes.set(k, g);
+  }
+  return g;
 }
 
 /** fetch a body, once */
@@ -183,7 +343,6 @@ export function loadBody(name: string): Promise<unknown> {
   const job = new GLTFLoader()
     .loadAsync(`models/body/${name}.gltf`)
     .then((g) => {
-      slim(g.scene);
       bodies.set(name, g.scene);
     })
     .catch(() => null);
@@ -372,9 +531,8 @@ export function loadMannequin(): Promise<void> {
         .loadAsync(`models/body/${DEFAULT_BODY}.gltf`)
         .then((b) => {
           if (!template) return;
-          slim(b.scene);
-          template.scene = b.scene;
           bodies.set(DEFAULT_BODY, b.scene);
+          template.scene = bodyFor(DEFAULT_BODY, "regular") ?? b.scene;
           // the hand's aim pose is sampled off whatever the body is
           const p2 = cloneSkinned(b.scene);
           const m2 = new THREE.AnimationMixer(p2);
@@ -532,7 +690,7 @@ export class MannequinFigure {
     // the body this outfit's clothes were cut for, if it is here; the one the
     // template holds otherwise, and the next figure gets it right
     const want = bodyOf(skin.outfit);
-    const body = bodies.get(want);
+    const body = bodyFor(want, skin.build ?? "regular");
     if (!body) void loadBody(want);
     this.root = cloneSkinned(body ?? t.scene);
     this.root.name = "mannequin";
@@ -543,14 +701,28 @@ export class MannequinFigure {
       if (m.isSkinnedMesh) {
         m.castShadow = true;
         m.frustumCulled = false;
-        // its own materials, in the operator's colours: the body the shell's, the joints the accent's
+        // its own materials, so a hit can flash this figure and not every one.
+        // The grey mannequin is untextured and takes the operator's colours:
+        // the body the shell's, the joints the accent's. A real body is NOT
+        // painted. Its colour is a multiply over the skin texture, so an
+        // operator with a near-black shell got a black, glossy face that
+        // followed the contour of the head, one figure in every lineup.
         const src = m.material as THREE.MeshStandardMaterial;
         const mat = src.clone();
-        if (src.name === "M_Joints") {
-          mat.color.setHex(skin.accent);
-          this.joints = mat;
-        } else mat.color.setHex(skin.shell);
-        mat.roughness = 0.55;
+        if (!src.map) {
+          if (src.name === "M_Joints") {
+            mat.color.setHex(skin.accent);
+            this.joints = mat;
+          } else mat.color.setHex(skin.shell);
+          mat.roughness = 0.55;
+        } else if (src.name.startsWith("MI_Hair")) {
+          // the eyebrows are on the body and read the same grey hair mask,
+          // so they take the same colour as the hair or they are white
+          mat.color.setHex(hairTintOf(skin.outfit));
+        } else if (src.name.startsWith("MI_Superhero") && m.geometry.attributes.color) {
+          // the undersuit is a vertex colour over the skin (undersuit())
+          mat.vertexColors = true;
+        }
         this.mats.push(mat);
         m.material = mat;
       }
@@ -575,7 +747,8 @@ export class MannequinFigure {
    * The body underneath is hidden where a garment covers it, because two
    * surfaces in the same place fight each other in the depth buffer.
    */
-  private wearParts(names: string[], tint: number | null = null, outfit = ""): void {
+  private wearParts(names: string[], tint: number | null = null, outfit = "", build = "regular"): void {
+    const body = bodyOf(outfit);
     for (const n of names) {
       const srcs = parts.get(n);
       // already on, or not here yet
@@ -593,7 +766,9 @@ export class MannequinFigure {
         if (map) mat.map = map;
         else if (tint !== null && !hair) mat.color.setHex(tint);
         if (hair && outfit) mat.color.setHex(hairTintOf(outfit));
-        const mesh = new THREE.SkinnedMesh(src.geometry, mat);
+        // hair sits on the head, which no build changes
+        const geo = hair ? src.geometry : garmentFor(src, `${n}#${k}`, body, build);
+        const mesh = new THREE.SkinnedMesh(geo, mat);
         mesh.bind(new THREE.Skeleton(bones as THREE.Bone[], src.skeleton.boneInverses), src.bindMatrix);
         mesh.castShadow = true;
         mesh.frustumCulled = false;
@@ -640,15 +815,16 @@ export class MannequinFigure {
     const want = [...partsOf(skin.outfit), ...hairOf(skin.outfit)];
     if (want.length) {
       const tint = tintOf(skin.outfit);
-      this.wearParts(want, tint, skin.outfit);
+      this.wearParts(want, tint, skin.outfit, skin.build ?? "regular");
       // The parts and the outfit's own atlas both arrive late on a cold page,
       // and BOTH are asked for here. The first try only started the atlas
       // inside the dressing loop, which a cold page never reaches because the
       // parts are not in yet: every figure wore the multiply instead and the
       // recoloured atlases were never seen.
       const outfit = skin.outfit;
+      const build = skin.build ?? "regular";
       void Promise.all([loadOutfit(outfit), loadTint(outfit)]).then(() => {
-        this.wearParts(want, tint, outfit);
+        this.wearParts(want, tint, outfit, build);
         this.redressParts(outfit);
       });
     }
