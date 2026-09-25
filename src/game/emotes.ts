@@ -17,6 +17,8 @@ export interface EmoteDef {
   id: string;
   name: string;
   seconds: number;
+  /** a recorded clip the figure plays whole, in place of a pose (emotes.json) */
+  clip?: string;
 }
 export const EMOTES: readonly EmoteDef[] = cfg.list;
 /** the network's code for "stopped": past the list */
@@ -48,6 +50,8 @@ export interface EmotePose {
   /** the hips swung round, and the whole body bounced up, metres */
   hipSway: number;
   bounce: number;
+  /** an emote made of a recorded clip (a dance, a nod) names it; the figure plays it whole instead of the pose */
+  clip?: string;
 }
 
 const ZERO: EmotePose = { weight: 0, rRaise: 0, rForward: 0, rElbow: 0, rElbowF: 0, lRaise: 0, lForward: 0, lElbow: 0, lElbowF: 0, spineTwist: 0, spineLean: 0, spineSide: 0, headNod: 0, headTilt: 0, hipSway: 0, bounce: 0 };
@@ -67,7 +71,7 @@ export function emotePose(index: number, t: number): EmotePose {
   const def = emoteAt(index);
   if (!def || t < 0 || t >= def.seconds) return { ...ZERO };
   const w = smooth(t / cfg.blendIn) * smooth((def.seconds - t) / cfg.blendOut);
-  const p: EmotePose = { ...ZERO, weight: w };
+  const p: EmotePose = { ...ZERO, weight: w, clip: def.clip };
   const s = Math.sin;
   switch (def.id) {
     case "wave":
@@ -122,6 +126,6 @@ export function emotePose(index: number, t: number): EmotePose {
       break;
   }
   // everything eased in and out together
-  for (const k of Object.keys(p) as Array<keyof EmotePose>) if (k !== "weight") p[k] *= w;
+  for (const k of Object.keys(p) as Array<keyof EmotePose>) if (k !== "weight" && k !== "clip") (p[k] as number) *= w;
   return p;
 }

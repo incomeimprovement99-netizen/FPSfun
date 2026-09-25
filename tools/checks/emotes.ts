@@ -6,6 +6,8 @@
 // rig would fold the wrong way), and each emote something different.
 //
 // Run on its own: npx tsx tools/checks/emotes.ts.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import cfg from "../../src/config/emotes.json";
 import { EMOTES, emoteAt, emotePose, type EmotePose } from "../../src/game/emotes";
 import { BANNERS, bannerCode, bannerOf } from "../../src/game/banners";
@@ -16,11 +18,18 @@ function check(label: string, cond: boolean, detail = ""): void {
   console.log(`${cond ? "  ok  " : "FAIL  "}${label}${detail ? ` (${detail})` : ""}`);
 }
 
-const angles = (p: EmotePose) => Object.entries(p).filter(([k]) => k !== "weight" && k !== "bounce").map(([, v]) => v as number);
+const angles = (p: EmotePose) => Object.entries(p).filter(([k]) => k !== "weight" && k !== "bounce" && k !== "clip").map(([, v]) => v as number);
 
 console.log("The emotes");
 {
-  check(`six of them, each named and timed (${EMOTES.map((e) => e.name).join(", ")})`, EMOTES.length === 6 && EMOTES.every((e) => e.name && e.seconds >= 1.5 && e.seconds <= 6));
+  check(`at least six, each named and timed (${EMOTES.map((e) => e.name).join(", ")})`, EMOTES.length >= 6 && EMOTES.every((e) => e.name && e.seconds >= 1.5 && e.seconds <= 6));
+  // An emote made of a recorded clip is played whole by the figure; its pose
+  // here is only what shows until the clip has loaded, and may be nothing.
+  // What has to be true of it is that the clip is one the game fetches.
+  const fetched = readFileSync(resolve(process.cwd(), "tools/fetch-clips.ts"), "utf8");
+  const clipped = EMOTES.filter((e) => e.clip);
+  const words = new Set(fetched.split(/[^A-Za-z0-9_]+/));
+  check("every emote made of a clip names one tools/fetch-clips.ts puts in the game", clipped.every((e) => words.has(e.clip!)), clipped.map((e) => `${e.name}: ${e.clip}`).join(", "));
   check("an index off the list is no emote", emoteAt(-1) === null && emoteAt(EMOTES.length) === null && emoteAt(null) === null);
   let bad = 0;
   let snaps = 0;
@@ -42,7 +51,7 @@ console.log("The emotes");
       moved = Math.max(moved, ...a.map(Math.abs));
       prev = p;
     }
-    if (moved < 0.3) still++;
+    if (moved < 0.3 && !def.clip) still++;
     const mid = emotePose(i, def.seconds / 2);
     if (Math.abs(mid.weight - 1) > 1e-9) bad++;
   }
@@ -50,7 +59,7 @@ console.log("The emotes");
   check(`eased in over ${cfg.blendIn} s and out over ${cfg.blendOut} s: no jump between two frames at 60 fps`, snaps === 0, `${snaps} jumps`);
   check("every one moves the body (none is a figure standing still)", still === 0, `${still} barely move`);
   // different from each other at their fullest
-  const sig = EMOTES.map((e, i) => angles(emotePose(i, e.seconds / 2)).map((v) => v.toFixed(1)).join(","));
+  const sig = EMOTES.map((e, i) => e.clip ?? angles(emotePose(i, e.seconds / 2)).map((v) => v.toFixed(1)).join(","));
   check("and no two the same", new Set(sig).size === EMOTES.length);
 }
 

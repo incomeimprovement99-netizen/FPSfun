@@ -191,8 +191,8 @@ export interface DummyOptions {
 
 /** what a rigged figure is doing, from the player it stands for */
 export type FigureStance = "stand" | "crouch" | "slide" | "air" | "climb" | "mantle" | "zip" | "downed";
-/** what its hands are busy with */
-export type FigureAct = "reload" | "swap" | "heal" | null;
+/** what its hands are busy with: a reload, a swap, a heal, a throw, a melee swing, a revive, or holding interact on something */
+export type FigureAct = "reload" | "swap" | "heal" | "throw" | "melee" | "revive" | "interact" | null;
 export interface FigurePose {
   /** horizontal speed, m/s */
   speed: number;
@@ -208,9 +208,15 @@ export interface FigurePose {
   /** a heal's item, for what it holds */
   healItem?: string;
 }
-/** what the hands are doing, as one small number for the network: 0 nothing, 1 reload, 2 swap, 10 + a heal's code */
-export const actCode = (a: FigureAct, healCode = 0): number => (a === "reload" ? 1 : a === "swap" ? 2 : a === "heal" ? 10 + healCode : 0);
-export const actFromCode = (c: number | undefined): FigureAct => (c === 1 ? "reload" : c === 2 ? "swap" : c !== undefined && c >= 10 ? "heal" : null);
+/**
+ * What the hands are doing, as one small number for the network: 0 nothing,
+ * 1 reload, 2 swap, 3 throw, 4 melee, 5 revive, 6 interact, 10 + a heal's
+ * code. A page from before 3 to 6 existed reads them as nothing, so a figure
+ * on an old page just does not play the new motion.
+ */
+const ACT_CODES: FigureAct[] = [null, "reload", "swap", "throw", "melee", "revive", "interact"];
+export const actCode = (a: FigureAct, healCode = 0): number => (a === "heal" ? 10 + healCode : Math.max(0, ACT_CODES.indexOf(a)));
+export const actFromCode = (c: number | undefined): FigureAct => (c !== undefined && c >= 10 ? "heal" : c !== undefined && c > 0 && c < ACT_CODES.length ? ACT_CODES[c] : null);
 
 /** a heal item's colour in the hand: shields blue, health red, the phoenix gold */
 const HEAL_COLOUR: Record<string, number> = { cell: 0x3b8bff, battery: 0x3b8bff, syringe: 0xe84a4a, medkit: 0xe84a4a, phoenix: 0xffa000 };
@@ -344,6 +350,8 @@ export class Dummy {
   private idleT = 0;
   /** when its shield last broke, on idleT's clock (the mannequin staggers) */
   private staggerAt = -Infinity;
+  /** when the head was last hit, on the figure's clock */
+  private headAt = -Infinity;
   /** short-lived motions: a shot's kick, a hit's flinch, a JOLT's lean (1 at their start, decaying) */
   private kickAmt = 0;
   private flinchAmt = 0;
@@ -1217,7 +1225,7 @@ export class Dummy {
       }
     }
     // the mannequin plays its clips for the same pose, with the same corrections on top
-    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, emote: emoting ? ep : null }, this.lodAnimate);
+    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null }, this.lodAnimate);
   }
 
   /**
@@ -1461,6 +1469,8 @@ export class Dummy {
     // a flinch on every hit, a stagger when the shield breaks
     this.flinchAmt = Math.min(1.5, this.flinchAmt + (broke ? 1.3 : 0.5));
     if (broke) this.staggerAt = this.idleT;
+    // a headshot snaps the head back (mannequin.ts Hit_Head), so a player sees which shots were the head
+    if (zone === "head") this.headAt = this.idleT;
     if (knocked) {
       this.knocked = true;
       this.respawnAt = now + RESPAWN_S;

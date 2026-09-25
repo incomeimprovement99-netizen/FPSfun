@@ -3031,3 +3031,28 @@ has no mechanism, no room and no tail.
   the grass step.
 - An e2e check in the `bots` section: every class has near and far takes and a shot plays one. The deploy
   guide and the README say to run `npm run guns`.
+
+## Milestone 172 — Figures that throw, swing, kneel, reach and dance ✅
+
+Phase 17, item 17.3. See `docs/PHASE_17_PLAN_FEEL_ANIMATION_AND_THE_WORLD.md`.
+
+Every other player is watching the third-person figures, and they had 25 clips: a slide cut straight into
+its loop and out of it, and a throw, a melee, a revive or a hand on a bin had no motion at all. The two free
+Universal Animation Library downloads hold 86 clips, on our rig, and 61 were sitting unused.
+
+- **Twelve more clips**, trimmed out of the free libraries by `npm run clips` (`tools/fetch-clips.ts`, which
+  is now the record of every clip the game ships and regenerates the two original files byte for byte).
+  They load after the figures are up, in two extra files, so 2.1 MB of them never holds a page up; until
+  they arrive a figure plays what it did before.
+- **A slide with a way in and a way out** (`Slide_Start`, `Slide_Exit`). **A throw** overhand. **Three melee
+  swings** in turn (a jab, a cross, a hook) instead of one punch over and over. **Kneeling over a revive.**
+  **A reach** while holding interact on a bin, a box or a console. **A headshot** snaps the head back.
+  **A fast jump** tucks the legs; a standing hop does not.
+- The hands' act on the wire grew from reload, swap and heal to throw, melee, revive and interact, as codes
+  3 to 6 that an older page reads as nothing. A throw, a swing, a revive or a reach puts the gun away for the
+  moment: the rifle's two-handed hold ran after the clip and pulled both arms straight back onto the gun.
+- **Emotes can be clips.** The dance is the real dance now, and YES (a nod) and ARMS FOLDED join the wheel,
+  on the end of the list so an older page reads nothing for them.
+- Checks: every clip emote names a clip the fetch provides; the extras arrive (e2e `page`); snapshots
+  `motion-acts`, `motion-slide`, `motion-air`, `motion-emotes`. The athletic jump's threshold and a throw's
+  length on screen are in `figure.json`.

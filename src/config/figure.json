@@ -23,5 +23,9 @@
     "grip": 12,
     "support": 10,
     "lower": 8
-  }
+  },
+  "_throwShown": "How long, s, a figure shows a grenade throw after it leaves the hand (src/main.ts localAct): the overhand throw clip is 1.1 s and plays at 1.3x, so this is its arm coming over and through, and a throw reads on other players' screens as a throw rather than a gun lowered for a moment.",
+  "throwShown": 0.7,
+  "_athleticJump": "Horizontal speed, m/s, above which a figure in the air plays the athletic jump (the free library's NinjaJump_Idle_Loop, legs tucked) instead of the plain one. Sprint is 6.6 m/s (260 hu/s), so this is faster than a sprint: a slide jump, a pad, a hop chain, not a jump from a standing start or a walk.",
+  "athleticJump": 7.2
 }

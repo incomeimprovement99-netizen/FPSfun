@@ -14,6 +14,7 @@ import { HU, MOVE } from "./game/movement";
 import { installSky } from "./game/materials";
 import { Renderer, VM_LAYER } from "./game/render";
 import vmCfg from "./config/viewmodel.json";
+import figureCfg from "./config/figure.json";
 import netCfg from "./config/net.json";
 import doorsCfg from "./config/doors.json";
 import voiceCfg from "./config/voice.json";
@@ -86,7 +87,7 @@ import { Captions, howFar, whereFrom } from "./game/captions";
 import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
-import { loadMannequin, setFigureStyle, useMannequin } from "./game/mannequin";
+import { hasClip, loadMannequin, setFigureStyle, useMannequin } from "./game/mannequin";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
 import squadCfg from "./config/squad.json";
@@ -3367,9 +3368,13 @@ function updateAfterburns(now: number): void {
 let previewNextAt = 0;
 const THROWABLES_ANY = (): boolean => ordnance.endless || Object.values(ordnance.counts).some((n) => n > 0);
 /** throw what is readied, the way you look, a little up, with some of your own speed */
+/** when the last grenade left the hand and the last melee swing began, for your figure's motion */
+let thrownAt = -Infinity;
+let swungAt = -Infinity;
 function throwReadied(now: number): void {
   const kind = ordnance.spend(now);
   if (!kind) return;
+  thrownAt = now;
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
   const from = player.eyePosition().addScaledVector(fwd, 0.45).addScaledVector(right, 0.18).add(new THREE.Vector3(0, -0.12, 0));
@@ -4910,6 +4915,11 @@ let selfFigKey = "";
 /** what your hands are doing, for your figure on the others' screens and in third person */
 function localAct(): number {
   if (heal) return actCode("heal", Math.max(0, HEAL_CODES.indexOf(heal.item)));
+  // a throw and a swing are short, and win over anything else the hands were doing
+  if (gameTime - thrownAt < figureCfg.throwShown) return actCode("throw");
+  if (gameTime - swungAt < MELEE_TIME) return actCode("melee");
+  const held = brPlay.holdKind;
+  if (held) return actCode(held);
   if (loadout.swapping) return actCode("swap");
   if (loadout.active.state.reloading) return actCode("reload");
   return 0;
@@ -5094,6 +5104,7 @@ function step(): void {
     const handsOut = emptyHand || holster === "away";
     if (handsOut && !downedNow && !knockedOut && !player.aboard && !ordnance.readied && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
       meleeReadyAt = now + MELEE_COOLDOWN;
+      swungAt = now;
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
     }
@@ -5212,6 +5223,7 @@ function step(): void {
     // it lands, at arm's length.
     if (input.pressedNow("melee") && now >= meleeReadyAt && !loadout.swapping && !downedNow && (!duel || duel.canFire)) {
       meleeReadyAt = now + MELEE_COOLDOWN;
+      swungAt = now;
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
     }
@@ -6759,6 +6771,8 @@ initWelcome();
     return labFigs.map((l) => l.f);
   },
   loadMannequin,
+  /** a figure clip is in: the extras (a slide's way in and out, a throw, emotes) load after the figures (tools/e2e.ts) */
+  hasClip,
   setFigureStyle,
   /** open ground near x, z: nothing standing on the floor within `clear` metres (tools/e2e.ts) */
   openGround: (x: number, z: number, clear = 5): { x: number; z: number } | null => {

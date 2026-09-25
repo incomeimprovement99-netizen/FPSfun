@@ -566,6 +566,42 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "motion-acts",
+    note: "four figures a moment into what their hands are doing: a grenade thrown overhand, a melee swing, kneeling over a revive, reaching to open something",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab(["throw", "melee", "revive", "interact"].map((a) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, act: a, look: "fatigues||" })), 2.8, 60); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(0.35), 100],
+    ],
+  },
+  {
+    name: "motion-slide",
+    note: "two figures going into a slide: its way in, a moment after it starts, and the loop it settles into",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab([{ speed: 7, stance: "slide", pitch: 0, ads: 0, look: "urban||" }], 2.4, 90); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(0.25), 100],
+    ],
+  },
+  {
+    name: "motion-air",
+    note: "two figures in the air: a standing hop, and a fast jump out of a slide with the legs tucked",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab([2, 8].map((v) => ({ speed: v, stance: "air", pitch: 0, ads: 0, look: "plainclothes||" })), 2.4, 90); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(0.6), 100],
+    ],
+  },
+  {
+    name: "motion-emotes",
+    note: "the three emotes that are recorded clips: the dance, a nod, arms folded",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        const figs = r.figureLab(["hoodie", "tracksuit", "irregular"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, look: o + "||" })), 2.6, 0); figs.forEach((f, i) => f.emote(5 + i)); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(1.2), 100],
+    ],
+  },
+  {
     name: "outfit-real",
     note: "five outfits in their own colours: arctic white, urban black, desert tan, orange coveralls, ghillie green, all on published cloth",
     steps: [

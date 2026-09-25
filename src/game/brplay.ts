@@ -223,6 +223,10 @@ export class BrPlay {
   /** a squad mate's banner you carry to a beacon */
   carried: { owner: number; name: string; until: number } | null = null;
   private hold: { kind: "revive" | "beacon" | "box" | "console" | "bin"; target: number; label: string; start: number; need: number } | null = null;
+  /** what the player is holding interact on, for their figure: a revive, something else, or nothing */
+  get holdKind(): "revive" | "interact" | null {
+    return this.hold ? (this.hold.kind === "revive" ? "revive" : "interact") : null;
+  }
   /** interact went down at a squad mate's banner, and when (a tap takes it, a hold respawns them) */
   private eDownAt: number | null = null;
   private padAt = -Infinity;

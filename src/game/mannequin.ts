@@ -31,6 +31,7 @@ import { buildGear, type GearPiece } from "./gear";
 import { OUR_GEOMETRY, buildOutfit, outfitMaterials } from "./outfit";
 import outfitCfg from "../config/outfits.json";
 import vmCfg from "../config/viewmodel.json";
+import figureCfg from "../config/figure.json";
 import type { FigurePose } from "./dummy";
 import type { EmotePose } from "./emotes";
 
@@ -502,6 +503,33 @@ export function loadOutfit(outfit: string): Promise<unknown> {
 /** the bones below the waist: the locomotion layer's */
 const LOWER = /^(root|pelvis|thigh_|calf_|foot_|ball_)/;
 
+/** clips into the map three ways: the legs', the rest of the body's, and whole */
+function addClips(clips: Map<string, THREE.AnimationClip>, list: THREE.AnimationClip[]): void {
+  for (const c of list) {
+    const lower = c.tracks.filter((t) => LOWER.test(t.name.split(".")[0]));
+    const upper = c.tracks.filter((t) => !LOWER.test(t.name.split(".")[0]));
+    clips.set(`lower:${c.name}`, new THREE.AnimationClip(`lower:${c.name}`, c.duration, lower));
+    clips.set(`upper:${c.name}`, new THREE.AnimationClip(`upper:${c.name}`, c.duration, upper));
+    clips.set(`full:${c.name}`, c);
+  }
+}
+
+/** a clip is in (the extras arrive after the figures do) */
+export function hasClip(name: string): boolean {
+  return !!template?.clips.has(`full:${name}`);
+}
+
+/** a clip's length, s, or 0 when it is not in */
+function clipSeconds(name: string): number {
+  return template?.clips.get(`full:${name}`)?.duration ?? 0;
+}
+
+/** horizontal speed, m/s, above which a jump is the athletic one (figure.json) */
+const ATHLETIC_JUMP = figureCfg.athleticJump;
+
+/** the melee swings, in the order a string of them goes through */
+const MELEE_SWINGS = ["Punch_Jab", "Punch_Cross", "Melee_Hook"];
+
 /** load the two files once; figures made after it is in use it */
 export function loadMannequin(): Promise<void> {
   if (loading) return loading;
@@ -519,13 +547,16 @@ export function loadMannequin(): Promise<void> {
   loading = Promise.all([loader.loadAsync("models/mannequin/mannequin.glb"), loader.loadAsync("models/mannequin/mannequin-more.glb")])
     .then(([main, more]) => {
       const clips = new Map<string, THREE.AnimationClip>();
-      for (const c of [...main.animations, ...more.animations]) {
-        const lower = c.tracks.filter((t) => LOWER.test(t.name.split(".")[0]));
-        const upper = c.tracks.filter((t) => !LOWER.test(t.name.split(".")[0]));
-        clips.set(`lower:${c.name}`, new THREE.AnimationClip(`lower:${c.name}`, c.duration, lower));
-        clips.set(`upper:${c.name}`, new THREE.AnimationClip(`upper:${c.name}`, c.duration, upper));
-        clips.set(`full:${c.name}`, c);
-      }
+      addClips(clips, [...main.animations, ...more.animations]);
+      // The clips a figure only plays now and then (a slide's way in and out,
+      // a throw, a revive, an emote) come after it is up, so they never hold a
+      // page up; until they are in, whatever would play them plays what it
+      // did before (hasClip). tools/fetch-clips.ts says which are which.
+      for (const extra of ["models/mannequin/mannequin-extra-1.glb", "models/mannequin/mannequin-extra-2.glb"])
+        void loader
+          .loadAsync(extra)
+          .then((g) => addClips(clips, g.animations))
+          .catch(() => null);
       // the right hand in the aim pose: sample the clip onto a copy once
       const probe = cloneSkinned(main.scene);
       const mixer = new THREE.AnimationMixer(probe);
@@ -598,6 +629,8 @@ export interface MannequinImpulses {
   land?: number;
   /** when the shield last broke, on the figure's clock (a stagger) */
   stagger?: number;
+  /** when the head was last hit, on the figure's clock */
+  headHit?: number;
   /** an emote in progress (emotes.ts): its angles, already eased */
   emote?: EmotePose | null;
 }
@@ -692,6 +725,14 @@ export class MannequinFigure {
   private gripW = 0;
   /** 0..1 the long gun lowered and canted across the body (a sprint, a swap) */
   private lowered = 0;
+  /** the stance and the hands' act last frame, when a slide began and when its way out ends, and which swing a melee is on */
+  private lastStance = "";
+  private lastAct: FigurePose["act"] = null;
+  private slideAt = -Infinity;
+  private slideExitUntil = -Infinity;
+  private meleeSwing = 0;
+  private headSeen = -Infinity;
+  private headUntil = -Infinity;
   /** the figure's own clock, and when a landing's clip and a stagger's end */
   private t = 0;
   private landUntil = -Infinity;
@@ -1158,6 +1199,11 @@ export class MannequinFigure {
     const air = p.stance === "air";
     if (this.wasAir && !air && (fx.land ?? 0) > 0.4 && speed < 2.6 && p.stance === "stand") this.landUntil = this.t + 0.32;
     this.wasAir = air;
+    // the head was hit: the head snaps back, once
+    if (fx.headHit !== undefined && fx.headHit !== this.headSeen && Number.isFinite(fx.headHit)) {
+      this.headSeen = fx.headHit;
+      this.headUntil = this.t + 0.35;
+    }
     // the shield broke: the stagger clip on the upper body, once
     if (fx.stagger !== undefined && fx.stagger !== this.staggerSeen && Number.isFinite(fx.stagger)) {
       this.staggerSeen = fx.stagger;
@@ -1165,6 +1211,25 @@ export class MannequinFigure {
     }
     const back = speed > 0.3 && Math.abs(p.moveDir ?? 0) > 1.9;
     const dirSign = back ? -1 : 1;
+    // A slide has a way in and a way out (the free library's Slide_Start and
+    // Slide_Exit, once they have loaded): it used to cut straight into its
+    // loop and straight out of it, which every other player saw as a pop.
+    if (p.stance !== this.lastStance) {
+      if (p.stance === "slide") this.slideAt = this.t;
+      else if (this.lastStance === "slide" && hasClip("Slide_Exit")) this.slideExitUntil = this.t + clipSeconds("Slide_Exit") * 0.6;
+      this.lastStance = p.stance;
+    }
+    // a new melee picks the next of the three swings, so a string of them is not one punch over and over
+    const act = p.act ?? null;
+    // A throw, a swing, a revive and a reach for something take the hands
+    // off the gun: it goes away for the moment, and with it the rifle's
+    // two-handed hold, whose reach onto the gun ran after the clip and pulled
+    // both arms straight back onto it.
+    if (act === "throw" || act === "melee" || act === "revive" || act === "interact") armed = false;
+    if (act !== this.lastAct) {
+      if (act === "melee") this.meleeSwing = (this.meleeSwing + 1) % MELEE_SWINGS.length;
+      this.lastAct = act;
+    }
     // the legs
     let lower = "Idle_Loop";
     let lowerRate = 1;
@@ -1175,11 +1240,12 @@ export class MannequinFigure {
         lowerRate = speed > 0.3 ? (speed / 2.2) * dirSign : 1;
         break;
       case "slide":
-        lower = "Slide_Loop";
+        lower = hasClip("Slide_Start") && this.t - this.slideAt < clipSeconds("Slide_Start") ? "Slide_Start" : "Slide_Loop";
         full = true;
         break;
       case "air":
-        lower = "Jump_Loop";
+        // a fast jump (out of a sprint, a slide, a pad) tucks its legs like an athlete's; a standing hop does not
+        lower = speed > ATHLETIC_JUMP && hasClip("NinjaJump_Idle_Loop") ? "NinjaJump_Idle_Loop" : "Jump_Loop";
         break;
       case "climb":
       case "mantle":
@@ -1195,7 +1261,14 @@ export class MannequinFigure {
         lowerRate = Math.max(0.2, speed / 2);
         break;
       default:
-        if (this.t < this.landUntil) {
+        if (act === "revive" && hasClip("Fixing_Kneeling")) {
+          // on one knee over the one being brought back
+          lower = "Fixing_Kneeling";
+          full = true;
+        } else if (this.t < this.slideExitUntil && speed > 0.3) {
+          lower = "Slide_Exit";
+          full = true;
+        } else if (this.t < this.landUntil) {
           lower = "Jump_Land";
           lowerRate = 2.2;
         } else if (speed > 6.2) {
@@ -1209,9 +1282,16 @@ export class MannequinFigure {
           lowerRate = (speed / 1.6) * dirSign;
         }
     }
-    // an emote: the gun put away, the arms hanging from the legs' clip, and the pose on top (below)
+    // an emote: the gun put away, the arms hanging from the legs' clip, and the pose on top (below);
+    // one made of a clip (a dance, a nod) is that clip, whole, instead of a pose
     const em = fx.emote && fx.emote.weight > 0.02 ? fx.emote : null;
     if (em) armed = false;
+    const emClip = em?.clip && hasClip(em.clip) ? em.clip : null;
+    if (emClip && p.stance !== "air" && p.stance !== "slide") {
+      lower = emClip;
+      lowerRate = 1;
+      full = true;
+    }
     // the hands: a full-body clip takes them too; otherwise the gun's pose, or the arms' swing
     let upper = lower;
     let upperRate = lowerRate;
@@ -1220,10 +1300,26 @@ export class MannequinFigure {
       if (p.act === "heal") {
         upper = "Consume";
         upperRate = 1;
+      } else if (this.t < this.headUntil && hasClip("Hit_Head") && p.stance !== "downed") {
+        upper = "Hit_Head";
+        upperRate = 1.3;
+        once = true;
       } else if (this.t < this.staggerUntil && p.stance !== "downed") {
         upper = "Hit_Chest";
         upperRate = 1.1;
         once = true;
+      } else if (act === "throw" && hasClip("OverhandThrow") && p.stance !== "downed") {
+        upper = "OverhandThrow";
+        upperRate = 1.3;
+        once = true;
+      } else if (act === "melee" && p.stance !== "downed") {
+        // a jab, a cross or a hook, whichever of them has loaded
+        upper = [MELEE_SWINGS[this.meleeSwing], "Punch_Jab"].find((c) => hasClip(c))!;
+        upperRate = 1.4;
+        once = true;
+      } else if (act === "interact" && hasClip("Interact") && p.stance !== "downed") {
+        upper = "Interact";
+        upperRate = 1;
       } else if (!armed || p.stance === "downed") {
         upper = lower;
       } else if (p.act === "reload") {
@@ -1272,8 +1368,9 @@ export class MannequinFigure {
     // The emote, on top of everything: the arms raised and swung in figure
     // space (+x is the figure's left, +z its front), the forearms bent at the
     // elbow, the spine and the head turned, the hips swung. Each angle arrives
-    // eased, so the figure goes into it and comes out of it smoothly.
-    if (em) {
+    // eased, so the figure goes into it and comes out of it smoothly. An
+    // emote playing its own clip is the clip, with nothing on top.
+    if (em && !(emClip && lower === emClip)) {
       const X = new THREE.Vector3(1, 0, 0);
       const Z = new THREE.Vector3(0, 0, 1);
       if (b.pelvis) turnBone(b.pelvis, fig, Y, em.hipSway);

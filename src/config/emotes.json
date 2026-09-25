@@ -29,7 +29,20 @@
     {
       "id": "dance",
       "name": "DANCE",
-      "seconds": 4.0
+      "seconds": 4.0,
+      "clip": "Dance_Loop"
+    },
+    {
+      "id": "nod",
+      "name": "YES",
+      "seconds": 1.8,
+      "clip": "Yes"
+    },
+    {
+      "id": "arms",
+      "name": "ARMS FOLDED",
+      "seconds": 3.0,
+      "clip": "Idle_FoldArms_Loop"
     }
   ],
   "blendIn": 0.4,
@@ -38,5 +51,6 @@
   "camera": {
     "back": 3.0,
     "up": 0.3
-  }
+  },
+  "_clip": "An emote with `clip` is a recorded clip from the free Universal Animation Library (tools/fetch-clips.ts), played whole on the figure instead of a pose made of angles; until the clip has loaded, the pose plays (the dance has one) or the figure stands. The list's order is its index on the wire, so new emotes go on the end, where a page that does not know them reads nothing."
 }
