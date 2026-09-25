@@ -3146,3 +3146,17 @@ Phase 17 item 17.6, `docs/AAA_GAP.md` step 2. See `docs/PHASE_17_PLAN_FEEL_ANIMA
   the stored middle, and checks the nearest cell to you is drawn and none past its distance, and that
   nothing of the battle royale is drawn from the range. With the old line put back, both fail.
 - `render-budget.ts` holds the growth between 300 and 1,500 pieces with the trees in the dozens.
+
+## Milestone 178 — Streets with something on them ✅
+
+Phase 17 item 17.7, `docs/AAA_GAP.md` step 3, a first pass. See `docs/PHASE_17_PLAN_FEEL_ANIMATION_AND_THE_WORLD.md`.
+
+- A bollard either side of every doorway, a step out from the wall, so a doorway reads as a way in; manhole
+  covers down the lanes and drains at the kerbs of both roads, so a road reads as a street rather than a
+  dark strip on the sand. All from the city kit, all through the same dressing list and instanced drawing
+  (1,876 pieces, 154k triangles, inside the check's 200k).
+- **What this pass is not.** Vehicles want a free set that matches a textured world: Quaternius's free cars
+  are flat-coloured low poly and would read as toys beside scanned rock. And each place already has a thing
+  you can name from the dropship (the Hub's mast, North Yard's silos, East Ridge's tower, West Town's clock),
+  so the landmark half of this step was already done; making the nine places less alike is the second map's
+  job (`docs/AAA_GAP.md` step 10).

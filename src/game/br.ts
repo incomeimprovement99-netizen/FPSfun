@@ -2787,6 +2787,23 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
         if (rnd() < 0.5) put("pebble", ax === 0 ? side * (10.2 + rnd() * 1.5) : ax + rnd() * 5, ax === 0 ? az + rnd() * 5 : side * (10.2 + rnd() * 1.5), 0.3, 1 + rnd() * 1.2);
       }
     }
+    // the roads themselves: a manhole cover now and then down the middle of
+    // a lane, and a drain at the kerb (the city kit's), so a road reads as a
+    // street rather than a dark strip laid on the sand
+    for (let t = -160; t <= 160; t += 22) {
+      for (const [ax, az] of [
+        [t, 0],
+        [0, t],
+      ] as const) {
+        if (Math.abs(t) < 20) continue;
+        const lane = rnd() < 0.5 ? -2.6 : 2.6;
+        const [mx, mz] = ax === 0 ? [lane, az] : [ax, lane];
+        if (clearOf(mx - 0.6, mx + 0.6, mz - 0.6, mz + 0.6)) DRESSING.push({ piece: "Prop_ManholeCover", x: mx, y: groundTop(mx, mz) + 0.02, z: mz, yaw: 0, sx: 1, sy: 1 });
+        const kerb = rnd() < 0.5 ? -7.6 : 7.6;
+        const [dx, dz] = ax === 0 ? [kerb, az + 11] : [ax + 11, kerb];
+        if (clearOf(dx - 0.4, dx + 0.4, dz - 0.4, dz + 0.4)) DRESSING.push({ piece: "Prop_Drain", x: dx, y: groundTop(dx, dz) + 0.02, z: dz, yaw: 0, sx: 1, sy: 1 });
+      }
+    }
     // and the open field between: a bush or a tuft here and there, not a lawn
     for (let i = 0; i < 160; i++) {
       const x = (rnd() * 2 - 1) * 190;

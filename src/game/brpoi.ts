@@ -72,10 +72,15 @@ function dressBuilding(o: BuildingOpts, t: number, base: number, storeys: number
       // was 521k triangles, two and a half maps (tools/checks/render-budget.ts).
       DRESSING.push({ piece: "Cornice_Metal_Center", x, y: roof - 1, z, yaw, sx, sy: 1 });
     }
-    // a frame on the ground floor's doorway, if this side has one
+    // a frame on the ground floor's doorway, if this side has one, and a
+    // bollard either side of it a step out: a doorway reads as a way in
     if (doors.includes(s.side) && !o.openGround) {
       const [x, z] = s.at(0);
       DRESSING.push({ piece: "DoorFrame_Trim", x, y: base, z, yaw, sx: DOOR_FRAME_SX, sy: DOOR_FRAME_SY });
+      for (const v of [-BOLLARD_SPREAD, BOLLARD_SPREAD]) {
+        const [bx, bz] = s.at(v);
+        DRESSING.push({ piece: "Prop_Bollard", x: bx + s.out[0] * BOLLARD_OUT, y: base, z: bz + s.out[1] * BOLLARD_OUT, yaw, sx: 1, sy: 1 });
+      }
     }
   }
   // a column up each corner, a storey at a time, capped at the roof
@@ -101,6 +106,10 @@ function dressBuilding(o: BuildingOpts, t: number, base: number, storeys: number
     DRESSING.push({ piece: "Prop_ACUnit", x: o.x - w / 2 + 1 + fx * Math.max(0.5, w / 2 - 2), y: roof, z: o.z - d / 2 + 1.2 + fz * Math.max(0.5, d - 2.4), yaw: (seed % 4) * (Math.PI / 2), sx: 1, sy: 1 });
   }
 }
+
+/** the bollards by a doorway: how far either side of its middle, and how far out from the wall, metres */
+const BOLLARD_SPREAD = 1.9;
+const BOLLARD_OUT = 1.1;
 
 /** the kit's door frame is two metres by three: stretched to go round our 2.4 m by 2.6 m doorway */
 const DOOR_FRAME_SX = 1.35;
