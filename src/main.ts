@@ -89,6 +89,8 @@ import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
 import { hasClip, loadMannequin, setFigureStyle, useMannequin } from "./game/mannequin";
+import { dressKit } from "./game/kitdress";
+import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
 import squadCfg from "./config/squad.json";
@@ -848,6 +850,14 @@ void placeInstanced(brMap.root, [
   renderer.shadowMap.needsUpdate = true;
 });
 
+// The battle royale's buildings dressed from the kit (kitdress.ts): cornices,
+// corner columns, floor bands, door frames and roof units, drawn once the
+// pieces are in. The boxes underneath are the collision either way.
+void dressKit(brMap.root, DRESSING).then((n) => {
+  kitDressed = n;
+  renderer.shadowMap.needsUpdate = true;
+});
+
 // Static dummies down the lanes, plus one on each moving rail. Distances are
 // true because the player spawns on the firing line at z = 0.
 const dummies: Dummy[] = [
@@ -870,6 +880,8 @@ for (const d of dummies) scene.add(d.group);
 
 const viewModel = new ViewModel();
 let snapNoGun = false;
+/** kit pieces drawn on the battle royale's buildings (kitdress.ts) */
+let kitDressed = 0;
 vmCamera.add(viewModel.group);
 /**
  * Everything of the gun on the gun's layer, every frame (a new gun or optic
@@ -6623,6 +6635,8 @@ initWelcome();
   setThirdPerson,
   selfFigureVisible: () => selfFig?.group.visible ?? false,
   viewModelVisible: () => viewModel.group.visible,
+  /** how many kit pieces dress the battle royale's buildings (kitdress.ts), 0 until they are in */
+  kitDressed: () => kitDressed,
   /** the first-person arms are the player's own rather than the drawn gloves */
   realArms: () => viewModel.realArms,
   /** put the gun in your own hands away so a snapshot sees the whole figure (tools/snap.ts) */

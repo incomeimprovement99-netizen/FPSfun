@@ -21,6 +21,8 @@ public/models/*
 !public/models/body/
 !public/models/body/hair/
 !public/models/outfits/
+# the world kit (npm run kits): kept, so a release never depends on a fetch having been run
+!public/models/kit/
 public/audio/*
 !public/audio/ATTRIBUTION.md
 # the self-hosted HUD faces (npm run fonts): OFL, fetched not kept

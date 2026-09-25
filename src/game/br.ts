@@ -35,7 +35,7 @@ import brCfg from "../config/br.json";
 import { DOORWAYS, Doors } from "./doors";
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
-import { building, coverWall, crateStair, jumpTower, type BoxMaker, type PoiCtx, type Side } from "./brpoi";
+import { DRESSING, building, coverWall, crateStair, jumpTower, type BoxMaker, type PoiCtx, type Side } from "./brpoi";
 import { dressBox } from "./dress";
 import { placeProps, type Placement } from "./props";
 import { PAL, bevel, flat, emissive, rockGeometry, textPanel } from "./geo";
@@ -152,6 +152,8 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   scene.add(root);
   // the buildings below record their doorways here, for the doors hung in them at the end
   DOORWAYS.length = 0;
+  // and their kit dressing (brpoi.ts), drawn once the kit is in (kitdress.ts)
+  DRESSING.length = 0;
   /** the field's rocks, and the scrub and cliff faces that go on it (props.ts draws them as instances) */
   const scenery: BrMap["scenery"] = { rocks: [], boxed: [], scrub: [], cliffs: [] };
 

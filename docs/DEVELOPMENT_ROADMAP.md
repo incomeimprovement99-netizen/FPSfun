@@ -3105,3 +3105,24 @@ lot more per stack on the ground. I don't want ppl running out of ammo."
 - A check in `verify` reads the kit from the config rather than holding the old 120, and holds the floor of
   150 a stack and four stacks. The e2e loadout crate check expected a fixed amount on top of what you had;
   a full pouch has no room, so it now expects what fits.
+
+## Milestone 176 — The battle royale's buildings dressed from a kit ✅
+
+Phase 17 item 17.5, `docs/AAA_GAP.md` step 1. See `docs/PHASE_17_PLAN_FEEL_ANIMATION_AND_THE_WORLD.md`.
+
+The buildings already wore real CC0 textures. What made them read as boxes is that nothing on them was
+modelled: no roofline, no corners, no frame round a door, nothing on a roof.
+
+- **Quaternius's Downtown City MegaKit** (CC0, free tier), fetched by `npm run kits` (`tools/fetch-kits.ts`,
+  through the itch flow now shared with the characters in `tools/itch.ts`) and kept in git.
+- Every building records its dressing as it is built (`brpoi.ts` `DRESSING`, beside `DOORWAYS`): a metal
+  cornice under each roofline, a brick column up each corner, a storey at a time with a cap, a frame on each
+  doorway, and an AC unit or two on the roof. A side is split into the kit's two metre modules and each is
+  stretched a little, so any wall ends on a whole piece.
+- `kitdress.ts` draws each kind of piece as one instanced mesh, after the map is up: 1,701 pieces in six
+  draws per mesh. Nothing collides; the buildings are the boxes they were, and bots, doors and loot see
+  only those.
+- **The budget caught the first version.** A moulded cornice and a brick band at every floor line came to
+  521k triangles, two and a half maps. The band is gone and the cornice is the kit's 30-triangle metal one:
+  127k. `render-budget.ts` measures the dressing off the files and holds it under 200k; the e2e checks it
+  is drawn.

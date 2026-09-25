@@ -13,6 +13,8 @@
 // pop this was written to end.
 //
 // Run on its own: npx tsx tools/checks/render-budget.ts.
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import * as THREE from "three";
 
 const g = globalThis as unknown as Record<string, unknown>;
@@ -76,6 +78,23 @@ console.log("What the world costs to draw");
 {
   // what the field's scenery costs if every cell of it were drawn at once
   const sc = map.scenery;
+  // the kit dressed onto the buildings (brpoi.ts DRESSING, kitdress.ts): drawn
+  // instanced, one mesh per kind of piece, so what it costs is the count of kinds
+  const { DRESSING } = await import("../../src/game/brpoi");
+  const kinds = new Set(DRESSING.map((x) => x.piece)).size;
+  // what the dressing adds to a frame's triangles, each kind's count times its own (measured off the files)
+  let dressTris = 0;
+  const perKind = new Map<string, number>();
+  for (const x of DRESSING) perKind.set(x.piece, (perKind.get(x.piece) ?? 0) + 1);
+  for (const [piece, n] of perKind) {
+    const path = resolve(process.cwd(), `public/models/kit/city/${piece}.gltf`);
+    if (!existsSync(path)) continue;
+    const g = JSON.parse(readFileSync(path, "utf8"));
+    const tris = (g.meshes as Array<{ primitives: Array<{ indices?: number }> }>).reduce((t, m) => t + m.primitives.reduce((u, pr) => u + (pr.indices !== undefined ? g.accessors[pr.indices].count / 3 : 0), 0), 0);
+    dressTris += tris * n;
+  }
+  check("and all of it together costs less than the map itself", dressTris < 200_000, `${Math.round(dressTris / 1000)}k triangles: ${[...perKind].map(([k, n]) => `${k} x${n}`).join(", ")}`);
+  check("the buildings are dressed from the kit: hundreds of pieces in a handful of kinds", DRESSING.length > 200 && DRESSING.length < 4000 && kinds <= 12, `${DRESSING.length} pieces, ${kinds} kinds`);
   check("the field's scenery is a few hundred copies, not thousands", sc.rocks.length + sc.scrub.length + sc.cliffs.length < 400, `${sc.rocks.length} rocks, ${sc.scrub.length} scrub, ${sc.cliffs.length} faces`);
 }
 {

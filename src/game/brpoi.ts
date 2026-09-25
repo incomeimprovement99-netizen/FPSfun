@@ -18,6 +18,94 @@
 import { DOORWAYS } from "./doors";
 import * as THREE from "three";
 
+/**
+ * A piece of the building kit put on a building (kitdress.ts): which piece,
+ * where, turned how, stretched how. The buildings are collision boxes and
+ * stay that way; these are what makes one read as a building rather than a
+ * box. Nothing here collides with anything.
+ */
+export interface Dressing {
+  /** the kit piece, public/models/kit/city/<piece>.gltf */
+  piece: string;
+  x: number;
+  y: number;
+  z: number;
+  /** radians about y: the piece's own -z is turned to face out of the wall */
+  yaw: number;
+  /** stretch along the wall, and up it */
+  sx: number;
+  sy: number;
+}
+/** every building's dressing, map-local like DOORWAYS, drawn once the kit is in */
+export const DRESSING: Dressing[] = [];
+
+/** the turn that points a kit piece's own -z along (dx, dz), out of a wall */
+const faceOut = (dx: number, dz: number): number => Math.atan2(-dx, -dz);
+
+/**
+ * Dress a building's outline with the kit: a cornice along each roofline, a
+ * column up each corner with a cap, a frame on each doorway, and an AC unit
+ * or two on the roof. The kit is laid out in two
+ * metre modules; a side is split into as many as fit and each is stretched a
+ * little to close the gap, so a wall of any length ends on a whole piece.
+ */
+function dressBuilding(o: BuildingOpts, t: number, base: number, storeys: number, h: number, roof: number, doors: Side[]): void {
+  const w = o.w;
+  const d = o.d;
+  const sides: Array<{ side: Side; len: number; out: [number, number]; at: (v: number) => [number, number] }> = [
+    { side: "s", len: w, out: [0, 1], at: (v) => [o.x + v, o.z + d / 2 + t / 2] },
+    { side: "n", len: w, out: [0, -1], at: (v) => [o.x - v, o.z - d / 2 - t / 2] },
+    { side: "e", len: d, out: [1, 0], at: (v) => [o.x + w / 2 + t / 2, o.z - v] },
+    { side: "w", len: d, out: [-1, 0], at: (v) => [o.x - w / 2 - t / 2, o.z + v] },
+  ];
+  for (const s of sides) {
+    const yaw = faceOut(s.out[0], s.out[1]);
+    const n = Math.max(1, Math.round(s.len / 2));
+    const sx = s.len / (2 * n);
+    for (let i = 0; i < n; i++) {
+      const v = -s.len / 2 + (i + 0.5) * (s.len / n);
+      const [x, z] = s.at(v);
+      // The cornice: a metre deep under the roof's edge, standing out from
+      // the wall. The metal one is 30 triangles against the moulded trim's
+      // 112, and there are a thousand of them round the map's rooflines; with
+      // the moulded one and a brick band at every floor line the dressing
+      // was 521k triangles, two and a half maps (tools/checks/render-budget.ts).
+      DRESSING.push({ piece: "Cornice_Metal_Center", x, y: roof - 1, z, yaw, sx, sy: 1 });
+    }
+    // a frame on the ground floor's doorway, if this side has one
+    if (doors.includes(s.side) && !o.openGround) {
+      const [x, z] = s.at(0);
+      DRESSING.push({ piece: "DoorFrame_Trim", x, y: base, z, yaw, sx: DOOR_FRAME_SX, sy: DOOR_FRAME_SY });
+    }
+  }
+  // a column up each corner, a storey at a time, capped at the roof
+  for (const [cx, cz] of [
+    [1, 1],
+    [1, -1],
+    [-1, -1],
+    [-1, 1],
+  ] as const) {
+    const x = o.x + cx * (w / 2 + t / 2);
+    const z = o.z + cz * (d / 2 + t / 2);
+    // the column's own corner is its -x, -z: turned to face out of this corner
+    const yaw = faceOut(cx, cz) - Math.PI / 4;
+    for (let k = 0; k < storeys; k++) DRESSING.push({ piece: k === 0 ? "Brick_CornerColumn_Bottom" : "Brick_CornerColumn_Center", x, y: base + k * h, z, yaw, sx: 1, sy: h / 3 });
+    DRESSING.push({ piece: "Brick_CornerColumn_CapShort", x, y: roof - 2.8, z, yaw, sx: 1, sy: 1 });
+  }
+  // an AC unit or two on the roof, clear of the stair side (east) and the edges
+  const seed = Math.abs(Math.round(o.x * 13 + o.z * 7));
+  const units = w * d > 90 ? 2 : 1;
+  for (let k = 0; k < units; k++) {
+    const fx = ((seed * (k + 3)) % 100) / 100;
+    const fz = ((seed * (k + 7)) % 100) / 100;
+    DRESSING.push({ piece: "Prop_ACUnit", x: o.x - w / 2 + 1 + fx * Math.max(0.5, w / 2 - 2), y: roof, z: o.z - d / 2 + 1.2 + fz * Math.max(0.5, d - 2.4), yaw: (seed % 4) * (Math.PI / 2), sx: 1, sy: 1 });
+  }
+}
+
+/** the kit's door frame is two metres by three: stretched to go round our 2.4 m by 2.6 m doorway */
+const DOOR_FRAME_SX = 1.35;
+const DOOR_FRAME_SY = 1;
+
 /** a box maker in POI-local coordinates: size, then where its base sits */
 export type BoxMaker = (w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material, isSolid?: boolean) => THREE.Mesh;
 
@@ -256,6 +344,8 @@ export function building(ctx: PoiCtx, o: BuildingOpts): { roof: number; floors: 
       slab(bw, 0.9, 0.2, o.x + dx, y, o.z + dz + (dz > 0 ? bd / 2 : -bd / 2), mats.trim);
     }
   }
+
+  dressBuilding(o, t, base, storeys, h, roof, doors);
 
   if (o.parapet ?? true) {
     for (const [bw, bd, dx, dz] of [

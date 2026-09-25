@@ -5310,6 +5310,9 @@ async function main(): Promise<void> {
     const extras = ["Slide_Start", "Slide_Exit", "OverhandThrow", "Melee_Hook", "Punch_Cross", "Hit_Head", "NinjaJump_Idle_Loop", "Fixing_Kneeling", "Interact", "Dance_Loop", "Yes", "Idle_FoldArms_Loop"];
     const clipsIn = await ev<string[]>(page, `new Promise((ok) => { const want = ${JSON.stringify(extras)}; const t0 = performance.now(); const w = () => { const miss = want.filter((c) => !window.__range.hasClip(c)); if (!miss.length || performance.now() - t0 > 10000) ok(miss); else setTimeout(w, 100); }; w(); })`);
     check("the extra clips (a slide's way in and out, a throw, three swings, a revive, emotes) load after the figures", clipsIn.length === 0, clipsIn.length ? `missing ${clipsIn.join(", ")}` : `${extras.length} clips`);
+    // the battle royale's buildings dressed from the kit (kitdress.ts), drawn once the pieces are in
+    const dressed = await ev<number>(page, `new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.kitDressed() > 0 || performance.now() - t0 > 15000 ? ok(window.__range.kitDressed()) : setTimeout(w, 200)); w(); })`);
+    check("the battle royale's buildings are dressed from the kit: cornices, corner columns, bands, door frames, roof units", dressed > 200, `${dressed} pieces`);
     // the gun has its own camera: the FOV setting widens the world, not the gun
     const fovAt = async (v: string) => {
       await ev(page, `(() => { const f = document.getElementById("fov"); f.value = "${v}"; f.dispatchEvent(new Event("input")); })()`);
