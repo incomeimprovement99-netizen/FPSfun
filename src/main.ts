@@ -39,7 +39,7 @@ import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
 import { SHIP, surfaceUnder, type ShipRun } from "./game/dropship";
 import { GULAG } from "./game/gulag";
 import brCfg from "./config/br.json";
-import { placeProps, placeInstanced, stepInstanced } from "./game/props";
+import { instancedDrawn, placeProps, placeInstanced, stepInstanced } from "./game/props";
 import { Target } from "./game/targets";
 import { ViewModel } from "./game/viewmodel";
 import { GameAudio } from "./game/audio";
@@ -843,7 +843,17 @@ void placeInstanced(brMap.root, [
   { prop: "dead_quiver_branch_02", at: brMap.scenery.scrub.filter((s) => s.kind === "branch"), shadows: false, far: far(150) },
   { prop: "dry_branches_medium_01", at: brMap.scenery.scrub.filter((s) => s.kind === "twigs"), shadows: false, far: far(150) },
   { prop: "rock_face_02", at: brMap.scenery.cliffs, shadows: false, far: far(260) },
+  // what grows on the sand, from the world kit (br.ts flora): dead trees seen from a way off, the small things only close;
+  // the kit's green grass and bushes are tinted to the dry straw and olive of this ground
+  { prop: "kit/nature/DeadTree_1", at: brMap.scenery.flora.filter((f) => f.kind === "tree1"), far: far(220) },
+  { prop: "kit/nature/DeadTree_2", at: brMap.scenery.flora.filter((f) => f.kind === "tree2"), far: far(220) },
+  { prop: "kit/nature/DeadTree_3", at: brMap.scenery.flora.filter((f) => f.kind === "tree3"), far: far(220) },
+  { prop: "kit/nature/Bush_Common", at: brMap.scenery.flora.filter((f) => f.kind === "bush"), shadows: false, far: far(110), tint: 0xb8a878 },
+  { prop: "kit/nature/Grass_Wispy_Short", at: brMap.scenery.flora.filter((f) => f.kind === "grass"), shadows: false, far: far(70), tint: 0xe0c890 },
+  { prop: "kit/nature/Grass_Wispy_Tall", at: brMap.scenery.flora.filter((f) => f.kind === "grassTall"), shadows: false, far: far(80), tint: 0xd8bc80 },
+  { prop: "kit/nature/Pebble_Round_1", at: brMap.scenery.flora.filter((f) => f.kind === "pebble"), shadows: false, far: far(50) },
 ]).then((drawn) => {
+  sceneryDrawn = drawn;
   // every boulder kind in: the boxed rocks give way to them, and come back
   // beyond the distance a scan is worth drawing (props.ts stepInstanced)
   if (["namaqualand_boulder_04", "namaqualand_boulder_06", "namaqualand_boulders_01"].every((n) => drawn.includes(n as never))) for (const m of brMap.scenery.boxed) m.visible = false;
@@ -882,6 +892,8 @@ const viewModel = new ViewModel();
 let snapNoGun = false;
 /** kit pieces drawn on the battle royale's buildings (kitdress.ts) */
 let kitDressed = 0;
+/** the field's scenery that is drawn (props.ts placeInstanced), for the tests */
+let sceneryDrawn: string[] = [];
 vmCamera.add(viewModel.group);
 /**
  * Everything of the gun on the gun's layer, every frame (a new gun or optic
@@ -6637,6 +6649,10 @@ initWelcome();
   viewModelVisible: () => viewModel.group.visible,
   /** how many kit pieces dress the battle royale's buildings (kitdress.ts), 0 until they are in */
   kitDressed: () => kitDressed,
+  /** which of the field's scenery props are drawn: rocks, scrub, cliff faces, and what grows (br.ts flora) */
+  sceneryDrawn: () => sceneryDrawn.slice(),
+  /** how many cells of the field's scenery are drawn where you stand, of how many (props.ts) */
+  sceneryCells: () => instancedDrawn(camera.position),
   /** the first-person arms are the player's own rather than the drawn gloves */
   realArms: () => viewModel.realArms,
   /** put the gun in your own hands away so a snapshot sees the whole figure (tools/snap.ts) */

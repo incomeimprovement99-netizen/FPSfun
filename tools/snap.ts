@@ -161,6 +161,14 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "br-flora",
+    note: "toward North Yard down its road: the dead trees round the place, the dry grass at the verges and the scrub on the field",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.hideViewModel(true); r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(24, 3, 500 - 92, 20, -2); r.player.vel.set(0, 0, 0); })()`, 0],
+      [gameSeconds(2), 400],
+    ],
+  },
+  {
     name: "br-field",
     note: "the open field between the places: rock, dead scrub and the cliff face at the map's edge, none of it a box",
     steps: [

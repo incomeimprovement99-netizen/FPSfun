@@ -3126,3 +3126,23 @@ modelled: no roofline, no corners, no frame round a door, nothing on a roof.
   521k triangles, two and a half maps. The band is gone and the cornice is the kit's 30-triangle metal one:
   127k. `render-budget.ts` measures the dressing off the files and holds it under 200k; the e2e checks it
   is drawn.
+
+## Milestone 177 — Something grows on the sand, and the field's rocks were never showing ✅
+
+Phase 17 item 17.6, `docs/AAA_GAP.md` step 2. See `docs/PHASE_17_PLAN_FEEL_ANIMATION_AND_THE_WORLD.md`.
+
+- **Vegetation from the Stylized Nature MegaKit** (CC0): 35 dead trees in a loose ring round each place and
+  along the roads, where they break a long sightline without walling it off; dry grass and bushes where the
+  places meet the sand and at the verges; pebbles on the road shoulders; a tuft or a bush here and there on
+  the open field. The kit's greens are tinted to straw and olive for this ground. Nothing collides. 433
+  pieces, drawn by the same cell-and-distance instancing as the rocks (`br.ts` flora, `props.ts` now takes
+  a kit path and a tint).
+- **A bug found on the way, there since Phase 15.** Each cell of instanced scenery stored its middle in the
+  map's own space and was measured against the camera in the world's, and the battle royale's map sits
+  500 m off the world's origin. So the cells drawn were the ones 500 m from wherever you stood: in the
+  battle royale the field's rock scans showed their boxes nearly everywhere, the cliff faces were missing,
+  and 60 cells of it were drawn in the firing range, out of sight. The middle is stored in world space now.
+- **A test that catches it, proven.** The e2e works out each cell's place from its mesh's own bounds, not
+  the stored middle, and checks the nearest cell to you is drawn and none past its distance, and that
+  nothing of the battle royale is drawn from the range. With the old line put back, both fail.
+- `render-budget.ts` holds the growth between 300 and 1,500 pieces with the trees in the dozens.

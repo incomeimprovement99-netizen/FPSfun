@@ -42,6 +42,7 @@ Counted from Phases 16 and 17 (2026-09-21 to 25), every bug fixed, and who or wh
 | The test handle dropping the mode card's words | a snapshot | no |
 | An e2e check that assumed the pouch always had room | the e2e | yes |
 | A verify check holding a stale number (120 rounds) | verify | yes |
+| The field's scenery culled in the wrong space since Phase 15: the rock scans showed their boxes nearly everywhere in the battle royale, drew in the range 500 m away, and none of the new vegetation showed | a snapshot of new vegetation that was not there | yes now (e2e `page`), and **proven**: with the old line put back, both checks fail |
 
 **The pattern is plain.** Of twenty-three bugs, the owner found six, snapshots found eleven, and the
 automated suites found five. Almost nothing visual was caught by an assertion: the snapshot tool reports

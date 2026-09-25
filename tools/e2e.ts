@@ -5313,6 +5313,22 @@ async function main(): Promise<void> {
     // the battle royale's buildings dressed from the kit (kitdress.ts), drawn once the pieces are in
     const dressed = await ev<number>(page, `new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.kitDressed() > 0 || performance.now() - t0 > 15000 ? ok(window.__range.kitDressed()) : setTimeout(w, 200)); w(); })`);
     check("the battle royale's buildings are dressed from the kit: cornices, corner columns, bands, door frames, roof units", dressed > 200, `${dressed} pieces`);
+    // The field's scenery is drawn near you and not far off (props.ts). Its
+    // cells were once measured in the map's own space against a camera in the
+    // world's, 500 m apart, so the rock scans showed boxes nearly everywhere
+    // and nothing that grows showed at all, with every other check green.
+    const kitGrowth = await ev<string[]>(page, `new Promise((ok) => { const t0 = performance.now(); const w = () => { const d = window.__range.sceneryDrawn(); if (d.some((n) => n.startsWith("kit/nature/")) || performance.now() - t0 > 15000) ok(d); else setTimeout(w, 200); }; w(); })`);
+    check("what grows on the sand is drawn: dead trees, bushes, grass, pebbles from the kit", ["DeadTree_1", "Bush_Common", "Grass_Wispy_Short"].every((n) => kitGrowth.includes(`kit/nature/${n}`)), kitGrowth.filter((n) => n.startsWith("kit/")).join(", "));
+    const cellsAt = async (x: number, z: number) => {
+      await ev(page, `(() => { const r = window.__range; r.player.setBounds({ minX: -400, maxX: 400, minZ: -400, maxZ: 800 }); r.player.teleport(${x}, 3, ${z}, 0, 0); r.player.vel.set(0, 0, 0); })()`);
+      await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+      return ev<{ drawn: number; of: number; nearestDrawn: boolean; nearest: number; tooFar: number }>(page, "window.__range.sceneryCells()");
+    };
+    const inBr = await cellsAt(0, 500 - 90);
+    const inRange = await cellsAt(0, 6);
+    check("the field's scenery is drawn where you stand in the battle royale: the nearest cell is drawn, none past its distance", inBr.nearestDrawn && inBr.tooFar === 0 && inBr.drawn > 0, JSON.stringify(inBr));
+    check("and none of it is drawn from the range, 500 m off", inRange.drawn === 0, JSON.stringify(inRange));
+    await ev(page, "window.__range.player.teleport(0, 0, 6, 0)");
     // the gun has its own camera: the FOV setting widens the world, not the gun
     const fovAt = async (v: string) => {
       await ev(page, `(() => { const f = document.getElementById("fov"); f.value = "${v}"; f.dispatchEvent(new Event("input")); })()`);

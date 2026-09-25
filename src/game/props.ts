@@ -31,7 +31,9 @@ export type PropName =
   | "rock_face_02"
   | "dead_quiver_trunk"
   | "dead_quiver_branch_02"
-  | "dry_branches_medium_01";
+  | "dry_branches_medium_01"
+  // the world kit's vegetation (npm run kits, public/models/kit/nature)
+  | `kit/nature/${string}`;
 
 export interface Placement {
   prop: PropName;
@@ -59,7 +61,8 @@ function load(name: PropName): Promise<THREE.Object3D | null> {
   const hit = cache.get(name);
   if (hit) return hit;
   const p = loader
-    .loadAsync(`models/${name}/${name}.gltf`)
+    // a kit piece is a file in the kit's folder; a fetched model has a folder of its own
+    .loadAsync(name.startsWith("kit/") ? `models/${name}.gltf` : `models/${name}/${name}.gltf`)
     .then((g) => {
       const root = g.scene;
       root.traverse((o) => {
@@ -104,6 +107,32 @@ export function stepInstanced(at: THREE.Vector3): void {
   }
 }
 
+/**
+ * How many cells of instances are drawn from `at`, of how many, and whether
+ * the nearest is drawn and none is drawn past its distance (tools/e2e.ts).
+ * Where a cell is comes from its mesh's own bounds in the world, not from the
+ * middle it was stored with, so a middle stored in the wrong space shows here.
+ */
+export function instancedDrawn(at: THREE.Vector3): { drawn: number; of: number; nearestDrawn: boolean; nearest: number; tooFar: number } {
+  let nearest = Infinity;
+  let nearestDrawn = false;
+  let tooFar = 0;
+  const c3 = new THREE.Vector3();
+  for (const c of cellsPut) {
+    const s = c.mesh.boundingSphere;
+    if (!s) continue;
+    c3.copy(s.center).applyMatrix4(c.mesh.matrixWorld);
+    const d = Math.hypot(c3.x - at.x, c3.z - at.z);
+    if (d < nearest) {
+      nearest = d;
+      nearestDrawn = c.mesh.visible;
+    }
+    // a cell is a 64 m square, so its middle can be that much further than its nearest copy
+    if (c.mesh.visible && d > c.far + CELL) tooFar++;
+  }
+  return { drawn: cellsPut.filter((c) => c.mesh.visible).length, of: cellsPut.length, nearestDrawn, nearest: Math.round(nearest), tooFar };
+}
+
 /** every cell gone (a map rebuilt) */
 export function clearInstanced(): void {
   for (const c of cellsPut) c.mesh.removeFromParent();
@@ -119,6 +148,8 @@ export interface PropSpread {
   far?: number;
   /** the shape each copy stands in for (the map's boxed rock), drawn again beyond `far` */
   standIn?: THREE.Object3D[];
+  /** a colour multiplied into its materials: the kit's green grass and bushes turned to what grows on this sand */
+  tint?: number;
   /** where each copy goes: the ground under it, its yaw in degrees, and either a scale or a box to fit */
   at: Array<{ x: number; y: number; z: number; rot?: number; scale?: number; fit?: { w: number; h: number; d: number } }>;
 }
@@ -135,7 +166,7 @@ export interface PropSpread {
 export async function placeInstanced(scene: THREE.Object3D, spreads: PropSpread[]): Promise<PropName[]> {
   const done: PropName[] = [];
   await Promise.all(
-    spreads.map(async ({ prop, at, shadows, far, standIn }) => {
+    spreads.map(async ({ prop, at, shadows, far, standIn, tint }) => {
       if (!at.length) return;
       const src = await load(prop);
       if (!src) return;
@@ -166,9 +197,15 @@ export async function placeInstanced(scene: THREE.Object3D, spreads: PropSpread[
         cells.set(key, cell);
       });
       for (const m of meshes) {
+        let material = m.material as THREE.Material;
+        if (tint !== undefined) {
+          const t = (material as THREE.MeshStandardMaterial).clone();
+          t.color.multiply(new THREE.Color(tint));
+          material = t;
+        }
         for (const cell of cells.values()) {
           const list = cell.at;
-          const im = new THREE.InstancedMesh(m.geometry, m.material, list.length);
+          const im = new THREE.InstancedMesh(m.geometry, material, list.length);
           im.castShadow = shadows !== false;
           im.receiveShadow = true;
           list.forEach((p, i) => {
@@ -183,8 +220,17 @@ export async function placeInstanced(scene: THREE.Object3D, spreads: PropSpread[
           im.instanceMatrix.needsUpdate = true;
           im.computeBoundingSphere();
           scene.add(im);
+          // The cell's middle in WORLD space: the camera it is measured against
+          // is. The copies are placed in the space of what they hang under (the
+          // battle royale's are under the map's root, 500 m off the world's
+          // origin), and measuring a local middle against a world camera drew
+          // the cells 500 m from where you stood: the field's rock scans showed
+          // their boxes nearly everywhere from the day they went in, and none of
+          // what grows on the sand showed at all.
           const mid = list.reduce((a, p) => ({ x: a.x + p.x / list.length, z: a.z + p.z / list.length }), { x: 0, z: 0 });
-          cellsPut.push({ mesh: im, x: mid.x, z: mid.z, far: far ?? 150, standIn: cell.standIn });
+          scene.updateWorldMatrix(true, false);
+          const w = scene.localToWorld(new THREE.Vector3(mid.x, 0, mid.z));
+          cellsPut.push({ mesh: im, x: w.x, z: w.z, far: far ?? 150, standIn: cell.standIn });
         }
       }
       done.push(prop);

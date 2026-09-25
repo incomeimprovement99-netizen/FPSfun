@@ -133,8 +133,13 @@ export interface BrMap {
     boxed: THREE.Mesh[];
     scrub: Array<{ x: number; y: number; z: number; rot: number; scale: number; kind: "trunk" | "branch" | "twigs" }>;
     cliffs: Array<{ x: number; y: number; z: number; rot: number; scale: number }>;
+    /** what grows on the sand, from the world kit (npm run kits): dead trees, bushes, dry grass, pebbles */
+    flora: Array<{ x: number; y: number; z: number; rot: number; scale: number; kind: FloraKind }>;
   };
 }
+
+/** the kinds of growth on the field, each one piece of the nature kit */
+export type FloraKind = "tree1" | "tree2" | "tree3" | "bush" | "grass" | "grassTall" | "pebble";
 
 /** a small deterministic random, so the field's rocks land in the same places every load */
 function lcg(seed: number): () => number {
@@ -155,7 +160,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   // and their kit dressing (brpoi.ts), drawn once the kit is in (kitdress.ts)
   DRESSING.length = 0;
   /** the field's rocks, and the scrub and cliff faces that go on it (props.ts draws them as instances) */
-  const scenery: BrMap["scenery"] = { rocks: [], boxed: [], scrub: [], cliffs: [] };
+  const scenery: BrMap["scenery"] = { rocks: [], boxed: [], scrub: [], cliffs: [], flora: [] };
 
   const solid = (minX: number, maxX: number, minZ: number, maxZ: number, base: number, top: number) =>
     RANGE_SOLIDS.push({ minX: minX + BR_X, maxX: maxX + BR_X, minZ: minZ + BR_Z, maxZ: maxZ + BR_Z, base, top });
@@ -2722,6 +2727,71 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
         const face = dx ? (az < 0 ? 0 : 180) : ax < 0 ? 90 : 270;
         scenery.cliffs.push({ x, y: groundTop(x, z) - 0.6, z, rot: face + (jog() * 16 - 8), scale: 2.4 + jog() * 2.2 });
       }
+    }
+  }
+
+  // What grows on the sand (docs/AAA_GAP.md step 2). From the dropship the
+  // field was a flat tan disc with the places on it and nothing between them.
+  // Dead trees ring each place and stand along the roads, where they break
+  // up a long sightline without walling it off; dry grass and bushes gather
+  // where the ground is walked, round the places and at the roadsides, and
+  // pebbles lie along the roads. Like the scrub, nothing here collides: it is
+  // to look at, and to look past.
+  {
+    const rnd = lcg(0xf10a);
+    const places: Array<[number, number, number]> = [
+      [0, 0, 50],
+      [0, -165, 38],
+      [0, 165, 38],
+      [165, 0, 38],
+      [-165, 0, 38],
+      [-104, -104, 30],
+      [104, -104, 30],
+      [-104, 104, 30],
+      [104, 104, 30],
+    ];
+    const onRoad = (x: number, z: number): boolean => (Math.abs(x) < 10 && Math.abs(z) < 174) || (Math.abs(z) < 10 && Math.abs(x) < 174);
+    const inPlace = (x: number, z: number, pad = 0): boolean => places.some(([px, pz, r]) => Math.hypot(x - px, z - pz) < r + pad);
+    const inMap = (x: number, z: number): boolean => Math.abs(x) < 192 && Math.abs(z) < 192;
+    const put = (kind: FloraKind, x: number, z: number, clear: number, scale: number): void => {
+      if (!inMap(x, z) || onRoad(x, z) || inPlace(x, z) || !clearOf(x - clear, x + clear, z - clear, z + clear)) return;
+      scenery.flora.push({ x, y: groundTop(x, z), z, rot: rnd() * 360, scale, kind });
+    };
+    const trees: FloraKind[] = ["tree1", "tree2", "tree3"];
+    for (const [px, pz, r] of places) {
+      // a loose ring of dead trees just outside the place
+      for (let i = 0; i < 5; i++) {
+        const a = rnd() * Math.PI * 2;
+        const d = r + 8 + rnd() * 22;
+        put(trees[Math.floor(rnd() * 3)], px + Math.cos(a) * d, pz + Math.sin(a) * d, 3, 0.8 + rnd() * 0.5);
+      }
+      // grass and bushes where the place's ground meets the sand
+      for (let i = 0; i < 34; i++) {
+        const a = rnd() * Math.PI * 2;
+        const d = r + 2 + rnd() * 30;
+        const k = rnd();
+        put(k < 0.55 ? "grass" : k < 0.8 ? "grassTall" : "bush", px + Math.cos(a) * d, pz + Math.sin(a) * d, 0.8, 0.8 + rnd() * 0.6);
+      }
+    }
+    // along both roads: a dead tree now and then, grass at the verge, pebbles on the shoulder
+    for (let t = -170; t <= 170; t += 6) {
+      for (const [ax, az] of [
+        [t, 0],
+        [0, t],
+      ] as const) {
+        const side = rnd() < 0.5 ? -1 : 1;
+        const off = 12 + rnd() * 6;
+        const [x, z] = ax === 0 ? [side * off, az] : [ax, side * off];
+        if (rnd() < 0.12) put(trees[Math.floor(rnd() * 3)], x + (rnd() - 0.5) * 6, z + (rnd() - 0.5) * 6, 3, 0.8 + rnd() * 0.4);
+        if (rnd() < 0.7) put(rnd() < 0.7 ? "grass" : "grassTall", ax === 0 ? side * (10.5 + rnd() * 3) : ax + rnd() * 4, ax === 0 ? az + rnd() * 4 : side * (10.5 + rnd() * 3), 0.6, 0.8 + rnd() * 0.5);
+        if (rnd() < 0.5) put("pebble", ax === 0 ? side * (10.2 + rnd() * 1.5) : ax + rnd() * 5, ax === 0 ? az + rnd() * 5 : side * (10.2 + rnd() * 1.5), 0.3, 1 + rnd() * 1.2);
+      }
+    }
+    // and the open field between: a bush or a tuft here and there, not a lawn
+    for (let i = 0; i < 160; i++) {
+      const x = (rnd() * 2 - 1) * 190;
+      const z = (rnd() * 2 - 1) * 190;
+      put(rnd() < 0.3 ? "bush" : "grass", x, z, 0.8, 0.7 + rnd() * 0.6);
     }
   }
 
