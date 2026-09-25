@@ -117,6 +117,20 @@
       "shoulders": 1.1
     }
   },
+  "_bodies": "The two bodies a player can pick, each the same 65-joint skeleton and so the same hit boxes. Every garment binds to either one, so the body is a choice of its own rather than something an outfit decides; an outfit's `body` is only what it wears when nobody has chosen. A body's `hair` swaps what an outfit names for what suits that body: an outfit's hair was chosen for the male body, so on the lighter one the beard goes and the short styles become the long one. null drops it.",
+  "bodies": {
+    "Superhero_Male_FullBody": {
+      "name": "MALE"
+    },
+    "Superhero_Female_FullBody": {
+      "name": "FEMALE",
+      "hair": {
+        "Hair_Buzzed": "Hair_Long",
+        "Hair_SimpleParted": "Hair_Long",
+        "Hair_Beard": null
+      }
+    }
+  },
   "_pieces": "a piece with no kind is a shell along its bone, turned along the body's own profile. 'rags' hangs strips off one, which is what breaks a silhouette rather than colouring it; 'stripe' runs a band down the outside of one, which is what a tracksuit is.",
   "pieces": {
     "shirt": {
@@ -371,7 +385,7 @@
     "_measured": "Every number here is against the body the game now draws (public/models/body), measured by tools/checks/body.ts: the head is 159 mm across, runs 3 to 194 mm up the Head bone, reaches 124 mm forward, and its eyes are at y 69. The grey mannequin's head was 62 mm taller with its eyes 30 mm higher, which is where these numbers used to be and why a helmet floated above the head."
   },
   "_sets": "The outfits: what each wears, and in what colours. `cloth` is the main garment, `trim` the second colour, `boots` the footwear. An operator names one of these (src/game/operators.ts), and the kit in gear.json goes on top of it.",
-  "_realSets": "A set with `character` is a real asset: a whole clothed figure, mesh and textures, from Quaternius's CC0 Modular Character Outfits (public/models/outfits, tools/fetch-characters.ts). The game swaps the figure's own mesh for it and builds no garments of its own, because its clothes ARE the mesh. Everything without `character` is built in code out of shells on bones, which is cheap, fits any rig and looks like what it is. A set's `hair` is one or two of the four rigged head meshes in public/models/body/hair, worn on the same skeleton as everything else and left in the pack's own colour: hair is not painted by the outfit's tint. A hood only clears a buzz cut, so anything with Ranger_Head_Hood gets that one; the long style is for the sets cut for the lighter body. The pack's hair textures are greyscale masks, mean 143 of 255 measured off the webp, because the pack expects the engine to colour them; `hairColor` is that colour, multiplied through the mask. Without it every figure has white hair. The wardrobe's variety comes out of mixing the two sets rather than recolouring one: a body from one and legs from the other, hood on or off, plate on the shoulder or not. Sixteen combinations of the male parts and four of the female, every one of them a different outline, which is what a player reads at eighty metres before any colour reaches them. The sets cut for the lighter body wear the MALE garments on it. The pack's female tops are corsets with bare shoulders and a low neckline, which is the asset rather than a fault, and it is not what an operator in a shooter wears: the male pieces are full coverage and bind to the same 65 joints, so they hang on either body.",
+  "_realSets": "A set with `character` is a real asset: a whole clothed figure, mesh and textures, from Quaternius's CC0 Modular Character Outfits (public/models/outfits, tools/fetch-characters.ts). The game swaps the figure's own mesh for it and builds no garments of its own, because its clothes ARE the mesh. Everything without `character` is built in code out of shells on bones, which is cheap, fits any rig and looks like what it is. A set's `hair` is one or two of the four rigged head meshes in public/models/body/hair, worn on the same skeleton as everything else and left in the pack's own colour: hair is not painted by the outfit's tint. A hood only clears a buzz cut, so anything with Ranger_Head_Hood gets that one; the long style is for the sets cut for the lighter body. The pack's hair textures are greyscale masks, mean 143 of 255 measured off the webp, because the pack expects the engine to colour them; `hairColor` is that colour, multiplied through the mask. Without it every figure has white hair. The wardrobe's variety comes out of mixing the two sets rather than recolouring one: a body from one and legs from the other, hood on or off, plate on the shoulder or not. Sixteen combinations of the male parts and four of the female, every one of them a different outline, which is what a player reads at eighty metres before any colour reaches them. The sets cut for the lighter body wear the MALE garments on it. The pack's female tops are corsets with bare shoulders and a low neckline, which is the asset rather than a fault, and it is not what an operator in a shooter wears: the male pieces are full coverage and bind to the same 65 joints, so they hang on either body. There were four more, RANGER (F), WORKWEAR (F), SCOUT (F) and HOODED (F), which were an outfit on the other body. The body is a choice of its own now (`bodies`), so those were the same clothes twice in the picker; a loadout that stored one gets the matching outfit on the lighter body (src/game/loadouts.ts).",
   "sets": {
     "hoodie": {
       "name": "HOODIE",
@@ -611,46 +625,6 @@
       ],
       "hairColor": "#7a5c3a"
     },
-    "rangerF": {
-      "name": "RANGER (F)",
-      "blurb": "everything the set has: hood up, plate on the shoulder, boots to the knee",
-      "body": "Superhero_Female_FullBody",
-      "parts": [
-        "Male_Ranger_Body",
-        "Male_Ranger_Arms",
-        "Male_Ranger_Legs",
-        "Male_Ranger_Feet_Boots",
-        "Male_Ranger_Head_Hood",
-        "Male_Ranger_Acc_Pauldron"
-      ],
-      "wears": [],
-      "cloth": "#4a4433",
-      "trim": "#2f2a20",
-      "boots": "#241f18",
-      "hair": [
-        "Hair_Long"
-      ],
-      "hairColor": "#5a2f1d"
-    },
-    "peasantF": {
-      "name": "WORKWEAR (F)",
-      "blurb": "a plain shirt, plain trousers and soft shoes",
-      "body": "Superhero_Female_FullBody",
-      "parts": [
-        "Male_Peasant_Body",
-        "Male_Peasant_Arms",
-        "Male_Peasant_Legs",
-        "Male_Peasant_Feet"
-      ],
-      "wears": [],
-      "cloth": "#6b5f4a",
-      "trim": "#463d30",
-      "boots": "#2b241c",
-      "hair": [
-        "Hair_Long"
-      ],
-      "hairColor": "#7a5c3a"
-    },
     "scout_leathers": {
       "name": "SCOUT",
       "blurb": "a plate at one shoulder over leathers, and light legs to move in",
@@ -706,46 +680,6 @@
         "Hair_SimpleParted"
       ],
       "hairColor": "#2e2119"
-    },
-    "scout_f": {
-      "name": "SCOUT (F)",
-      "blurb": "a plate at one shoulder over leathers, and light legs to move in",
-      "body": "Superhero_Female_FullBody",
-      "parts": [
-        "Male_Ranger_Body",
-        "Male_Ranger_Arms",
-        "Male_Peasant_Legs",
-        "Male_Peasant_Feet",
-        "Male_Ranger_Acc_Pauldron"
-      ],
-      "wears": [],
-      "cloth": "#4a4433",
-      "trim": "#2f2a20",
-      "boots": "#241f18",
-      "hair": [
-        "Hair_Long"
-      ],
-      "hairColor": "#2e2119"
-    },
-    "hooded_f": {
-      "name": "HOODED (F)",
-      "blurb": "hooded, light on top and heavy below",
-      "body": "Superhero_Female_FullBody",
-      "parts": [
-        "Male_Peasant_Body",
-        "Male_Peasant_Arms",
-        "Male_Ranger_Legs",
-        "Male_Ranger_Feet_Boots",
-        "Male_Ranger_Head_Hood"
-      ],
-      "wears": [],
-      "cloth": "#6b5f4a",
-      "trim": "#463d30",
-      "boots": "#2b241c",
-      "hair": [
-        "Hair_Long"
-      ],
-      "hairColor": "#1b1512"
     },
     "motocross": {
       "name": "MOTOCROSS",

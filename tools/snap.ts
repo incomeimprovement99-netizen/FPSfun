@@ -444,11 +444,16 @@ export const SCENARIOS: Scenario[] = [
     steps: [[`(() => { document.querySelector('[data-tab="loadouts"]').click(); document.getElementById("copyLoadout")?.click(); [...document.querySelectorAll("#outfitCards button")].find((b) => b.textContent.includes("PLAIN CLOTHES"))?.click(); window.__range.previewTurn(Math.PI); })()`, 2500]],
   },
   {
+    name: "loadout-body",
+    note: "the Loadouts panel with the other body picked: the same outfit, the same skeleton, a different figure",
+    steps: [[`(() => { document.querySelector('[data-tab="loadouts"]').click(); document.getElementById("copyLoadout")?.click(); const b = document.getElementById("opBody"); b.value = "Superhero_Female_FullBody"; b.dispatchEvent(new Event("change")); b.scrollIntoView({ block: "center" }); window.__range.previewTurn(0); })()`, 3000]],
+  },
+  {
     name: "skin-one-back",
     note: "the same coat on both bodies from behind: the slimmer one it was cut for, and the bulky one we have",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -2);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "rangerF||" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "ranger||" }], 2.0, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "ranger|||Superhero_Female_FullBody" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "ranger||" }], 2.0, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.6), 100],
     ],
   },
@@ -493,7 +498,7 @@ export const SCENARIOS: Scenario[] = [
     note: "four bare heads close up: the hairstyles and the beard, in the colour the pack gave them",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 4);
-        r.figureLab(["plainclothes", "peasant", "peasantF", "motocross"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 1.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab(["plainclothes", "peasant", "peasant|||Superhero_Female_FullBody", "motocross"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o.includes("|") ? o : o + "||" })), 1.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.6), 100],
     ],
   },
@@ -526,10 +531,10 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: "wardrobe-d",
-    note: "five of the wardrobe side by side: ranger, peasantF, hooded_f, scout_f, rangerF",
+    note: "the last outfit, and four on the lighter body: ranger, then peasant, hoodie, scout leathers and ranger on it",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab(["ranger", "peasantF", "hooded_f", "scout_f", "rangerF"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab(["ranger||", "peasant|||F", "hoodie|||F", "scout_leathers|||F", "ranger|||F"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o.replace("|F", "|Superhero_Female_FullBody") })), 3.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.6), 100],
     ],
   },

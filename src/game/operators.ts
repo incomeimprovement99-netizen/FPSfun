@@ -34,6 +34,8 @@ export interface OperatorSkin {
   /** how heavy-set it looks: the clothes, never the body or its hit boxes */
   build?: BuildId;
   face?: FacePiece[];
+  /** which of the two bodies, when a player picked one; the outfit's own otherwise */
+  body?: string;
   extras: {
     crest?: boolean;
     antenna?: boolean;
@@ -142,7 +144,7 @@ export function operatorById(id: string | undefined): OperatorSkin {
 export function operatorWearing(id: string | undefined, look: string | undefined): OperatorSkin {
   const base = operatorById(id);
   const worn = readLook(look);
-  if (worn.outfit === undefined && worn.build === undefined && worn.face === undefined) return base;
+  if (worn.outfit === undefined && worn.build === undefined && worn.face === undefined && worn.body === undefined) return base;
   return { ...base, ...worn };
 }
 

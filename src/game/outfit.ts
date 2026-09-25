@@ -66,6 +66,9 @@ export type BuildId = keyof typeof outfitCfg.builds;
 /** every build there is, and what each is called */
 export const BUILD_IDS = Object.keys(outfitCfg.builds) as BuildId[];
 export const buildName = (id: BuildId): string => outfitCfg.builds[id].name;
+export type BodyId = keyof typeof outfitCfg.bodies;
+export const BODY_IDS = Object.keys(outfitCfg.bodies) as BodyId[];
+export const bodyName = (id: BodyId): string => outfitCfg.bodies[id].name;
 
 /** every outfit there is, in the order the pickers show them */
 export const OUTFIT_IDS = Object.keys(outfitCfg.sets) as OutfitId[];
@@ -83,16 +86,19 @@ export function outfitInfo(id: OutfitId): { name: string; blurb: string } {
  * inside it, so a build that has never heard of clothes still draws the right
  * operator instead of falling back to the first one.
  */
-export function lookCode(l: { outfit?: string; build?: string; face?: string }): string {
-  const code = `${l.outfit ?? ""}|${l.build ?? ""}|${l.face ?? ""}`;
+export function lookCode(l: { outfit?: string; build?: string; face?: string; body?: string }): string {
+  // the body goes last, so a page from before it existed reads the first
+  // three fields as it always did and ignores the fourth
+  const code = `${l.outfit ?? ""}|${l.build ?? ""}|${l.face ?? ""}${l.body ? `|${l.body}` : ""}`;
   return code === "||" ? "" : code;
 }
 
 /** a look back off the wire, with anything we do not recognise dropped rather than trusted */
-export function readLook(code: string | undefined): { outfit?: OutfitId; build?: BuildId; face?: FacePiece[] } {
+export function readLook(code: string | undefined): { outfit?: OutfitId; build?: BuildId; face?: FacePiece[]; body?: BodyId } {
   if (typeof code !== "string" || !code) return {};
-  const [o, b, f] = code.split("|");
-  const out: { outfit?: OutfitId; build?: BuildId; face?: FacePiece[] } = {};
+  const [o, b, f, y] = code.split("|");
+  const out: { outfit?: OutfitId; build?: BuildId; face?: FacePiece[]; body?: BodyId } = {};
+  if (BODY_IDS.includes(y as BodyId)) out.body = y as BodyId;
   if (OUTFIT_IDS.includes(o as OutfitId)) out.outfit = o as OutfitId;
   if (BUILD_IDS.includes(b as BuildId)) out.build = b as BuildId;
   const face = faceList(f);

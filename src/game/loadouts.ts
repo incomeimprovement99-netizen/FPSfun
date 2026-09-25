@@ -3,10 +3,17 @@
 // loadout is an operator look, two weapons and an heirloom.
 import { weaponIds } from "./weapons";
 import { OPERATORS } from "./operators";
-import { BUILD_IDS, OUTFIT_IDS, faceList } from "./outfit";
-import type { BuildId, OutfitId } from "./outfit";
+import { BODY_IDS, BUILD_IDS, OUTFIT_IDS, faceList } from "./outfit";
+import type { BodyId, BuildId, OutfitId } from "./outfit";
 import { HEIRLOOMS } from "./heirlooms";
 import outfitCfg from "../config/outfits.json";
+
+/**
+ * Four outfits used to be an outfit on the lighter body. The body is its own
+ * pick now, so they went, and a loadout that stored one of them is given the
+ * same clothes on that body rather than a stranger's.
+ */
+const ON_THE_OTHER_BODY: Record<string, string> = { rangerF: "ranger", peasantF: "peasant", scout_f: "scout_leathers", hooded_f: "hoodie" };
 
 export interface LoadoutDef {
   name: string;
@@ -14,6 +21,8 @@ export interface LoadoutDef {
   /** the clothes under the kit, and how they sit (src/game/outfit.ts) */
   outfit?: string;
   build?: string;
+  /** which body, when one was picked (outfits.json bodies) */
+  body?: string;
   /** what is on the face, over the kit's own: "", "wrap", "goggles", "fullMask", or two of them */
   face?: string;
   slot1: string;
@@ -64,7 +73,8 @@ const pickHeirloom = (i: number): string => spread(HEIRLOOMS, i + Math.floor(Mat
  */
 const DRESSED = OUTFIT_IDS.filter((id) => ((outfitCfg.sets as Record<string, { parts?: string[] }>)[id]?.parts?.length ?? 0) > 0);
 
-function valid(d: Partial<LoadoutDef> | undefined, fallback: LoadoutDef): LoadoutDef {
+/** a stored loadout made safe to use: anything unknown falls back (exported for tools/checks/outfit.ts) */
+export function valid(d: Partial<LoadoutDef> | undefined, fallback: LoadoutDef): LoadoutDef {
   const ids = weaponIds();
   return {
     name: typeof d?.name === "string" && d.name.trim() ? d.name.trim().slice(0, 24) : fallback.name,
@@ -78,8 +88,9 @@ function valid(d: Partial<LoadoutDef> | undefined, fallback: LoadoutDef): Loadou
     // A stored outfit that is not one of the dressed ones is an old skin: the
     // owner asked that none of those survive, so the slot is given a new one
     // rather than the fallback's, which would make every stale slot identical.
-    outfit: DRESSED.includes(d?.outfit as OutfitId) ? d!.outfit : fallback.outfit,
+    outfit: DRESSED.includes(d?.outfit as OutfitId) ? d!.outfit : (ON_THE_OTHER_BODY[d?.outfit ?? ""] ?? fallback.outfit),
     build: BUILD_IDS.includes(d?.build as BuildId) ? d!.build : fallback.build,
+    body: BODY_IDS.includes(d?.body as BodyId) ? d!.body : ON_THE_OTHER_BODY[d?.outfit ?? ""] ? "Superhero_Female_FullBody" : fallback.body,
     face: typeof d?.face === "string" ? faceList(d.face).join(",") : fallback.face,
   };
 }

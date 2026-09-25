@@ -19,8 +19,8 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import * as THREE from "three";
-import { OUTFIT_IDS, buildOutfit, outfitInfo, outfitMaterials, setOurGeometry, type OutfitId } from "../../src/game/outfit";
-import { DEFAULT_LOADOUTS } from "../../src/game/loadouts";
+import { OUTFIT_IDS, buildOutfit, lookCode, outfitInfo, outfitMaterials, readLook, setOurGeometry, type OutfitId } from "../../src/game/outfit";
+import { DEFAULT_LOADOUTS, valid } from "../../src/game/loadouts";
 import { OPERATORS, operatorById } from "../../src/game/operators";
 import outfitCfg from "../../src/config/outfits.json";
 
@@ -238,6 +238,24 @@ console.log("What an operator wears");
   };
   check("the goggles are backed, so no face reads through them", !!lenses && black(lenses.group));
   check("and the full mask is backed the same way", !!helmet && black(helmet.group));
+}
+
+{
+  // The body is a pick of its own, carried as a fourth field on the look so a
+  // page from before it existed reads the first three as it always did.
+  const F = "Superhero_Female_FullBody";
+  const code = lookCode({ outfit: "ranger", build: "heavy", face: "", body: F });
+  const back = readLook(code);
+  check("the body goes over the wire and comes back", back.body === F && back.outfit === "ranger" && back.build === "heavy", code);
+  const old = readLook("ranger|heavy|");
+  check("and a look from before the body existed still reads, with no body in it", old.outfit === "ranger" && old.body === undefined, JSON.stringify(old));
+  check("a body we do not have is dropped rather than trusted", readLook("ranger|heavy||Nobody").body === undefined);
+  // four outfits were the same clothes on the other body; a loadout that
+  // stored one keeps the clothes and gets the body
+  const moved = valid({ ...DEFAULT_LOADOUTS[0], outfit: "rangerF", body: undefined }, DEFAULT_LOADOUTS[0]);
+  check("a loadout that wore RANGER (F) wears the ranger on the lighter body", moved.outfit === "ranger" && moved.body === F, `${moved.outfit} on ${moved.body}`);
+  const kept = valid({ ...DEFAULT_LOADOUTS[0], outfit: "ranger", body: F }, DEFAULT_LOADOUTS[0]);
+  check("and a body somebody picked is kept", kept.body === F, `${kept.body}`);
 }
 
 console.log(fails === 0 ? "\nOUTFIT PASS" : `\nOUTFIT FAIL (${fails})`);

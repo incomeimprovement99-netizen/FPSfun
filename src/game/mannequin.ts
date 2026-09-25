@@ -124,8 +124,13 @@ const bodies = new Map<string, THREE.Object3D>();
 const bodyLoads = new Map<string, Promise<unknown>>();
 const DEFAULT_BODY = "Superhero_Male_FullBody";
 
-/** the body an outfit's clothes were cut for */
-export function bodyOf(outfit: string): string {
+/**
+ * The body a figure is built on: the one its player picked, or the one its
+ * outfit names, or the default. Every garment binds to either body, so the
+ * pick is free rather than tied to the clothes.
+ */
+export function bodyOf(outfit: string, picked?: string): string {
+  if (picked && picked in (outfitCfg.bodies as Record<string, unknown>)) return picked;
   return ((outfitCfg.sets as Record<string, { body?: string }>)[outfit]?.body ?? DEFAULT_BODY) as string;
 }
 
@@ -435,8 +440,17 @@ export function partsOf(outfit: string): string[] {
  * the colour the pack gave it, or every figure in an olive outfit would have
  * olive hair.
  */
-export function hairOf(outfit: string): string[] {
-  return (((outfitCfg.sets as Record<string, { hair?: string[] }>)[outfit]?.hair ?? []) as string[]).slice();
+export function hairOf(outfit: string, picked?: string): string[] {
+  const named = ((outfitCfg.sets as Record<string, { hair?: string[] }>)[outfit]?.hair ?? []) as string[];
+  // an outfit's hair was chosen for the male body; a body can swap it
+  const swap = (outfitCfg.bodies as Record<string, { hair?: Record<string, string | null> }>)[bodyOf(outfit, picked)]?.hair;
+  if (!swap) return named.slice();
+  const out: string[] = [];
+  for (const h of named) {
+    const to = h in swap ? swap[h] : h;
+    if (to && !out.includes(to)) out.push(to);
+  }
+  return out;
 }
 
 /**
@@ -458,7 +472,8 @@ function partUrl(name: string): string {
 export function loadOutfit(outfit: string): Promise<unknown> {
   const loader = new GLTFLoader();
   return Promise.all(
-    [...partsOf(outfit), ...hairOf(outfit)].map((n) => {
+    // the hair for every body, since which one wears the outfit is a pick
+    [...new Set([...partsOf(outfit), ...Object.keys(outfitCfg.bodies).flatMap((b) => hairOf(outfit, b))])].map((n) => {
       const had = partLoads.get(n);
       if (had) return had;
       const job = loader
@@ -689,7 +704,7 @@ export class MannequinFigure {
     const t = template!;
     // the body this outfit's clothes were cut for, if it is here; the one the
     // template holds otherwise, and the next figure gets it right
-    const want = bodyOf(skin.outfit);
+    const want = bodyOf(skin.outfit, skin.body);
     const body = bodyFor(want, skin.build ?? "regular");
     if (!body) void loadBody(want);
     this.root = cloneSkinned(body ?? t.scene);
@@ -747,8 +762,8 @@ export class MannequinFigure {
    * The body underneath is hidden where a garment covers it, because two
    * surfaces in the same place fight each other in the depth buffer.
    */
-  private wearParts(names: string[], tint: number | null = null, outfit = "", build = "regular"): void {
-    const body = bodyOf(outfit);
+  private wearParts(names: string[], tint: number | null = null, outfit = "", build = "regular", picked?: string): void {
+    const body = bodyOf(outfit, picked);
     for (const n of names) {
       const srcs = parts.get(n);
       // already on, or not here yet
@@ -812,10 +827,10 @@ export class MannequinFigure {
     // machine and a second on a bad connection, either way better than every
     // page in the game waiting for clothes nobody asked for.
     // the hair goes on with the clothes: same skeleton, same fetch, same wear
-    const want = [...partsOf(skin.outfit), ...hairOf(skin.outfit)];
+    const want = [...partsOf(skin.outfit), ...hairOf(skin.outfit, skin.body)];
     if (want.length) {
       const tint = tintOf(skin.outfit);
-      this.wearParts(want, tint, skin.outfit, skin.build ?? "regular");
+      this.wearParts(want, tint, skin.outfit, skin.build ?? "regular", skin.body);
       // The parts and the outfit's own atlas both arrive late on a cold page,
       // and BOTH are asked for here. The first try only started the atlas
       // inside the dressing loop, which a cold page never reaches because the
@@ -823,8 +838,9 @@ export class MannequinFigure {
       // recoloured atlases were never seen.
       const outfit = skin.outfit;
       const build = skin.build ?? "regular";
+      const picked = skin.body;
       void Promise.all([loadOutfit(outfit), loadTint(outfit)]).then(() => {
-        this.wearParts(want, tint, outfit, build);
+        this.wearParts(want, tint, outfit, build, picked);
         this.redressParts(outfit);
       });
     }

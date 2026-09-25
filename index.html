@@ -368,9 +368,10 @@
               <div class="lolocked" id="loadoutLocked">Default loadouts cannot be changed. <button type="button" id="copyLoadout">Copy to a custom slot</button> <select id="copyTarget"></select></div>
               <div class="lohead">Operator</div>
               <div class="cards" id="operatorCards"></div>
-              <div class="lohead">What they wear <span class="hint">the clothes under the kit; the body and its hit boxes never change</span></div>
+              <div class="lohead">What they wear <span class="hint">the clothes under the kit, and the body under them; the hit boxes never change</span></div>
               <div class="cards" id="outfitCards"></div>
-              <div class="row"><label>Build <div class="hint">how heavy-set the clothes sit, not the body</div></label><select id="opBuild"></select>
+              <div class="row"><label>Body <div class="hint">the same skeleton and hit boxes either way</div></label><select id="opBody"></select>
+                <label>Build <div class="hint">how broad across the chest; the hit boxes never change</div></label><select id="opBuild"></select>
                 <label>Face <div class="hint">over the kit's own shades and gas mask</div></label><select id="opFace">
                   <option value="">The operator's own</option>
                   <option value="wrap">Head wrap</option>

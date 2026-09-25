@@ -2,10 +2,10 @@
 // editor. Settings and the 1v1 box keep their own wiring in main.ts; this
 // owns navigation, loadouts and the battle royale's lobby row.
 import { DEFAULT_LOADOUTS, type LoadoutDef, type LoadoutRef, type Loadouts } from "../game/loadouts";
-import { loadMannequin } from "../game/mannequin";
+import { bodyOf, loadMannequin } from "../game/mannequin";
 import { botSquads, saveTeamId, savedTeamId, teamFor } from "../game/brmatch";
 import { OPERATORS, operatorById } from "../game/operators";
-import { BUILD_IDS, OUTFIT_IDS, buildName, outfitInfo } from "../game/outfit";
+import { BODY_IDS, BUILD_IDS, OUTFIT_IDS, bodyName, buildName, outfitInfo } from "../game/outfit";
 import { HEIRLOOMS } from "../game/heirlooms";
 import { Stats, type MatchKind, type MatchStats } from "../game/stats";
 import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
@@ -497,6 +497,18 @@ export class Menu {
     }
     buildSel.value = cur.build ?? operatorById(cur.operator).build ?? "regular";
     buildSel.disabled = !editable;
+    const bodySel = $<HTMLSelectElement>("opBody");
+    if (!bodySel.options.length) {
+      for (const id of BODY_IDS) {
+        const o = document.createElement("option");
+        o.value = id;
+        o.textContent = bodyName(id);
+        bodySel.appendChild(o);
+      }
+      bodySel.addEventListener("change", () => this.editCurrent({ body: bodySel.value }));
+    }
+    bodySel.value = bodyOf(cur.outfit ?? operatorById(cur.operator).outfit, cur.body);
+    bodySel.disabled = !editable;
     const faceSel = $<HTMLSelectElement>("opFace");
     if (!faceSel.dataset.wired) {
       faceSel.dataset.wired = "1";
