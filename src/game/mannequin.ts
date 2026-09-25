@@ -514,6 +514,38 @@ function addClips(clips: Map<string, THREE.AnimationClip>, list: THREE.Animation
   }
 }
 
+// ------------------------------------------------------------ the fit test
+
+/**
+ * The fit test's paint (tools/snap.ts `magentaMax`, docs/TEST_AUDIT.md). The
+ * body where clothes always cover it (the undersuit, undersuit()) is drawn
+ * flat, unlit magenta, and the rest of it (face, neck, forearms, hands) not at
+ * all, so every magenta pixel in a picture is body showing through clothes,
+ * counted rather than looked for. It is how the bare backs and the shoulders
+ * through the sleeves were found by eye, made into something a check can fail.
+ */
+let fitDebug = false;
+const bodyMeshes = new Set<THREE.SkinnedMesh>();
+let fitMat: THREE.MeshBasicMaterial | null = null;
+function fitMaterial(): THREE.MeshBasicMaterial {
+  if (!fitMat) {
+    fitMat = new THREE.MeshBasicMaterial({ vertexColors: true, fog: false });
+    fitMat.toneMapped = false;
+    fitMat.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <color_fragment>",
+        ["#include <color_fragment>", "  if (vColor.r > 0.5) discard;", "  diffuseColor = vec4(1.0, 0.0, 1.0, 1.0);"].join(String.fromCharCode(10))
+      );
+    };
+  }
+  return fitMat;
+}
+/** paint every figure's clothed body magenta (on) or put their own material back (off) */
+export function setFitDebug(on: boolean): void {
+  fitDebug = on;
+  for (const m of bodyMeshes) m.material = on ? fitMaterial() : (m.userData.ownMaterial as THREE.Material);
+}
+
 /** a clip is in (the extras arrive after the figures do) */
 export function hasClip(name: string): boolean {
   return !!template?.clips.has(`full:${name}`);
@@ -779,9 +811,12 @@ export class MannequinFigure {
         } else if (src.name.startsWith("MI_Superhero") && m.geometry.attributes.color) {
           // the undersuit is a vertex colour over the skin (undersuit())
           mat.vertexColors = true;
+          bodyMeshes.add(m);
+          if (fitDebug) m.material = fitMaterial();
         }
         this.mats.push(mat);
-        m.material = mat;
+        if (!(fitDebug && bodyMeshes.has(m))) m.material = mat;
+        m.userData.ownMaterial = mat;
       }
     });
     this.wearGear(skin);
@@ -1429,6 +1464,7 @@ export class MannequinFigure {
   }
 
   dispose(): void {
+    this.root.traverse((o) => bodyMeshes.delete(o as THREE.SkinnedMesh));
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.root);
     this.root.removeFromParent();

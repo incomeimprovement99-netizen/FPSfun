@@ -77,3 +77,16 @@ caught by a person reading a picture, and would be missed by anyone who did not.
 | 3 | **A gate before a deploy.** Both deploys run `verify` and `rules` first and stop on a failure | the cheapest guard there is, and the one most likely to be skipped at the end of a long day |
 | 4 | **The two flaky checks fixed at their cause** (Phase 17 item 17.9) | a suite with known flakes teaches everyone to ignore red |
 | 5 | **Behaviour next to config.** Where a check reads a number from config, a companion checks the game uses it (the intro's drawn flash, not only its setting) | a check that cannot fail when the feature breaks is not a test of the feature |
+
+## What was done, 2026-09-25
+
+| # | Fix | State |
+|---|---|---|
+| 1 | Pictures that assert | **done.** A scenario can carry `magentaMax`; `npm run fit` runs four lineups of all sixteen outfits, front and back, with the clothed body painted flat magenta (`mannequin.ts setFitDebug`), and counts it. Today: 0.009 to 0.037% of the frame. **Proven**: with the body's narrowing turned off the back lineup measures 0.144% and fails. A first limit of 0.2% did not fail it; the limit is 0.06% because of that |
+| 2 | No vacuous passes | **done.** The recorded-sound and gunshot checks fail when their files are missing |
+| 3 | A gate before a deploy | **done.** `tools/release-gate.ts`: both deploys run verify and rules and check the recorded sounds are on disk before building anything, and stop on a failure (`RELEASE_GATE=off` to skip, said in the commit) |
+| 4 | The flaky checks | open: Phase 17 item 17.9 |
+| 5 | Behaviour beside config | open |
+
+Also this day: the scenery-culling bug (Milestone 177) came with a check that was proven the same way, by
+putting the bug back and watching the check fail.

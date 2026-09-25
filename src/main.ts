@@ -88,7 +88,7 @@ import { Captions, howFar, whereFrom } from "./game/captions";
 import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
-import { hasClip, loadMannequin, setFigureStyle, useMannequin } from "./game/mannequin";
+import { hasClip, loadMannequin, setFigureStyle, setFitDebug, useMannequin } from "./game/mannequin";
 import { dressKit } from "./game/kitdress";
 import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
@@ -6667,6 +6667,8 @@ initWelcome();
   viewModelVisible: () => viewModel.group.visible,
   /** how many kit pieces dress the battle royale's buildings (kitdress.ts), 0 until they are in */
   kitDressed: () => kitDressed,
+  /** the fit test: every figure's clothed body painted flat magenta, so a picture can count what shows through (mannequin.ts) */
+  fitDebug: (on: boolean) => setFitDebug(on),
   /** how many guns have been fused into one already carried (br.json fusion) */
   fused: () => fusedCount,
   /** which of the field's scenery props are drawn: rocks, scrub, cliff faces, and what grows (br.ts flora) */

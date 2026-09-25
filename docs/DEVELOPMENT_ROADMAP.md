@@ -3172,3 +3172,21 @@ the HUD says what it gave (`br.json` `fusion`). The Gulag's pair is always two d
 Resurgence landing starts with empty slots, so neither kit can fuse by accident. The e2e `br` section checks
 a fused R-301 keeps both slots, goes up a magazine, takes the optic and the ammo. README's battle royale
 section says so, and the ammo stacks from Milestone 175.
+
+## Milestone 180 — Tests that catch bugs, and a gate on the deploys ✅
+
+Phase 17 item 17.15. See `docs/TEST_AUDIT.md`.
+
+The audit counted this week's bugs: of twenty-three, the owner found six, snapshots found eleven and the
+suites found five, because every snapshot passed whenever the page threw no error. Three of its five fixes:
+
+- **Pictures that assert.** A snapshot scenario can carry `magentaMax`. `npm run fit` shoots all sixteen
+  outfits front and back with the clothed body painted flat, unlit magenta (`mannequin.ts setFitDebug`:
+  the undersuit region only, so face and hands do not count) and counts it. Today 0.009 to 0.037% of the
+  frame; with the body's narrowing turned off, the back lineup is 0.144% and fails. A first limit of 0.2%
+  passed that, so the limit is 0.06%: a check has to fail on the bug it is for, and this one was made to.
+- **No vacuous passes.** The recorded-sound and gunshot checks failed open when their files were missing;
+  they fail now.
+- **A release gate.** `tools/release-gate.ts`: both deploys run verify and rules and check the recorded
+  sounds are on disk before building, and stop on a failure.
+- `CLAUDE.md`'s release steps add `npm run fit`, and say a new check is proven by putting the bug back.

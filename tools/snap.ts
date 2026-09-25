@@ -10,6 +10,7 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer, { type Page } from "puppeteer";
+import sharp from "sharp";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const OUT = resolve(HERE, "..", "shots");
@@ -27,9 +28,24 @@ interface Scenario {
   steps: Array<[string, number]>;
   /** a battle royale starts on the dropship (the rest drop straight in, as the e2e does) */
   ship?: boolean;
+  /**
+   * The picture asserts something: at most this share of the frame may be
+   * the fit test's magenta, which is body showing through clothes
+   * (mannequin.ts setFitDebug). A scenario without it only proves the page
+   * threw no error, which is what every picture used to prove.
+   */
+  magentaMax?: number;
 }
 
 const hideMenu = `document.getElementById("overlay").classList.add("hidden")`;
+/**
+ * The fit test's limit: the share of a lineup's frame that may be body showing
+ * through clothes. The wardrobe measures 0.009 to 0.037% today; with the
+ * body's narrowing turned off (the bare backs the owner reported) the back
+ * lineup measures 0.144%. A first limit of 0.2% passed that, which is a test
+ * that cannot catch the bug it is for; 0.06% fails it with room to spare.
+ */
+const MAGENTA_MAX = 0.0006;
 /** a fake controller whose Start plays (a scripted page gets no pointer lock), and its trigger */
 const fakePad = `(() => { const btn = () => ({ pressed: false, touched: false, value: 0 }); const pad = { index: 0, id: "fake pad", connected: true, mapping: "standard", timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, btn) }; window.__pad = pad; navigator.getGamepads = () => [pad]; })()`;
 const padButton = (i: number, on: boolean) => `(() => { window.__pad.buttons[${i}].pressed = ${on}; window.__pad.buttons[${i}].value = ${on ? 1 : 0}; })()`;
@@ -620,6 +636,50 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "fit-front-a",
+    note: "the fit test from the front: all sixteen outfits' clothed body painted magenta, counted (first eight)",
+    magentaMax: MAGENTA_MAX,
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab(["peasant", "coveralls", "plainclothes", "desert", "tracksuit", "shirtsleeves", "hoodie", "irregular"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(2.5), 100],
+      ["window.__range.fitDebug(true)", 400],
+    ],
+  },
+  {
+    name: "fit-front-b",
+    note: "the fit test from the front: all sixteen outfits' clothed body painted magenta, counted (second eight)",
+    magentaMax: MAGENTA_MAX,
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab(["ghillie", "arctic", "hooded", "motocross", "scout_leathers", "urban", "fatigues", "ranger"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(2.5), 100],
+      ["window.__range.fitDebug(true)", 400],
+    ],
+  },
+  {
+    name: "fit-back-a",
+    note: "the fit test from behind (first eight)",
+    magentaMax: MAGENTA_MAX,
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab(["peasant", "coveralls", "plainclothes", "desert", "tracksuit", "shirtsleeves", "hoodie", "irregular"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(2.5), 100],
+      ["window.__range.fitDebug(true)", 400],
+    ],
+  },
+  {
+    name: "fit-back-b",
+    note: "the fit test from behind (second eight)",
+    magentaMax: MAGENTA_MAX,
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+        r.figureLab(["ghillie", "arctic", "hooded", "motocross", "scout_leathers", "urban", "fatigues", "ranger"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+      [gameSeconds(2.5), 100],
+      ["window.__range.fitDebug(true)", 400],
+    ],
+  },
+  {
     name: "outfit-real",
     note: "five outfits in their own colours: arctic white, urban black, desert tan, orange coveralls, ghillie green, all on published cloth",
     steps: [
@@ -1186,7 +1246,18 @@ async function main(): Promise<void> {
         await ev(page, expr);
         await sleep(wait);
       }
-      await page.screenshot({ path: resolve(OUT, `${sc.name}.png`) });
+      const shot = resolve(OUT, `${sc.name}.png`);
+      await page.screenshot({ path: shot });
+      if (sc.magentaMax !== undefined) {
+        // every pixel that is the fit test's flat magenta is body through clothes
+        const { data, info } = await sharp(shot).raw().toBuffer({ resolveWithObject: true });
+        let n = 0;
+        for (let i = 0; i < data.length; i += info.channels) if (data[i] > 200 && data[i + 1] < 70 && data[i + 2] > 200) n++;
+        const share = n / (info.width * info.height);
+        const fits = share <= sc.magentaMax;
+        if (!fits) errors.push(`body through the clothes: ${(share * 100).toFixed(3)}% of the frame, over ${(sc.magentaMax * 100).toFixed(3)}%`);
+        console.log(`        fit test: ${n} pixels of body through the clothes, ${(share * 100).toFixed(3)}% of the frame (at most ${(sc.magentaMax * 100).toFixed(3)}%)`);
+      }
       const ok = errors.length === 0;
       if (!ok) bad++;
       console.log(`${ok ? "  ok  " : "FAIL  "}${sc.name.padEnd(22)} ${sc.note}${ok ? "" : `: ${errors.slice(0, 3).join(" | ")}`}`);
@@ -1199,4 +1270,5 @@ async function main(): Promise<void> {
   process.exit(bad ? 1 : 0);
 }
 
-if (process.argv[1]?.endsWith("snap.ts")) void main();
+// run directly, or from a wrapper that picks the scenarios (tools/fit.ts)
+if (process.argv[1]?.endsWith("snap.ts") || process.env.SNAP_RUN === "1") void main();

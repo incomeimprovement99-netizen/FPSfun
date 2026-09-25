@@ -16,6 +16,7 @@
 // too, with what to do about it.
 //
 // Run: npm run deploy
+import { releaseGate } from "./release-gate";
 import { execSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -27,6 +28,7 @@ const sh = (cmd: string, cwd = ROOT) => execSync(cmd, { cwd, stdio: "inherit" })
 const out = (cmd: string, cwd = ROOT) => execSync(cmd, { cwd, encoding: "utf8" }).trim();
 
 const remote = out("git remote get-url origin");
+releaseGate(ROOT);
 console.log(`\n== building the public beta for ${remote}`);
 sh("npm run build:beta");
 if (!existsSync(join(ROOT, "dist", "index.html"))) throw new Error("no dist/index.html: the build failed");

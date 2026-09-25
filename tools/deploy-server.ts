@@ -31,6 +31,7 @@
 //   RANGE_KEY      path to the ssh private key (optional if ssh already knows it)
 //   RANGE_DOMAIN   the game's hostname, e.g. fpsfun.duckdns.org
 //   DUCKDNS_TOKEN  optional, for `dns`: the token at the top of duckdns.org
+import { releaseGate } from "./release-gate";
 import { execFileSync, execSync, spawn, spawnSync } from "node:child_process";
 import { lookup } from "node:dns/promises";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
@@ -336,6 +337,7 @@ async function main(): Promise<void> {
     }
   } else if (verb === "deploy") {
     needHost();
+    releaseGate(ROOT);
     // the last commit, built from a clean copy; `deploy local` ships this folder as it is, uncommitted edits and all
     const local = process.argv[3] === "local";
     if (!local) {
