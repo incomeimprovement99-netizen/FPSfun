@@ -47,9 +47,10 @@ const KITS = [
     dir: "glTF",
     out: "nature",
     pieces: [
-      ..."DeadTree_1 DeadTree_2 DeadTree_3 TwistedTree_1 TwistedTree_3 Pine_1 Pine_3 CommonTree_1 CommonTree_3".split(" "),
-      ..."Bush_Common Rock_Medium_1 Rock_Medium_2 Rock_Medium_3 Pebble_Round_1 Pebble_Round_3 Pebble_Square_2".split(" "),
-      ..."Grass_Common_Short Grass_Wispy_Short Grass_Wispy_Tall Fern_1 Plant_7".split(" "),
+      // what suits a desert: dead trees, a dry bush, wispy grass and pebbles (the
+      // green trees, pines and the kit's rocks are left: the field's rocks are
+      // Poly Haven's scans, and nothing green grows on this sand)
+      ..."DeadTree_1 DeadTree_2 DeadTree_3 Bush_Common Grass_Wispy_Short Grass_Wispy_Tall Pebble_Round_1".split(" "),
     ],
   },
 ];
