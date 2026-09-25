@@ -185,5 +185,14 @@
   "shots": {
     "level": 0.9,
     "far": 1.1
+  },
+  "_intro": "The title card's two shots (src/ui/intro.ts): a rifle round through the pane, then a shotgun blast. They sounded the same, a short synthesised crack each. The round plays a recorded rifle take; the blast plays a recorded 12 gauge take slowed to `blastRate`, deeper, as the owner asked ('more like a 12 gauge'), with a low sine thump from `thumpHz` down to half of it over `thumpTime` s under it, the chest hit a shotgun has and a rifle does not. Without the files both fall back to synthesis, the blast pitched down.",
+  "intro": {
+    "roundLevel": 0.8,
+    "blastLevel": 1.0,
+    "blastRate": 0.82,
+    "thumpHz": 72,
+    "thumpTime": 0.3,
+    "thumpLevel": 0.9
   }
 }

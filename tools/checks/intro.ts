@@ -95,6 +95,20 @@ console.log("The intro card");
   check("the card says what the game is called", INTRO_CFG.text.mark.length > 3 && INTRO_CFG.text.sub.length > 3, `${INTRO_CFG.text.mark}: ${INTRO_CFG.text.sub}`);
 }
 
+{
+  // Every kind of match gets its own card: the mode's name big. A mode added
+  // later without one would play the boot card's words, which says nothing
+  // about what is starting. The kinds are stats.ts MatchKind's (every bot
+  // difficulty is one card) and Resurgence, a battle royale's rules.
+  const kinds = ["duel", "triple", "bots", "br", "resurgence", "gunrun", "tdm", "crown", "control", "ffa", "search"];
+  const modes = INTRO_CFG.modes as Record<string, { name: string; sub: string }>;
+  const missing = kinds.filter((k) => !modes[k] || modes[k].name.length < 3 || modes[k].sub.length < 3);
+  check("every kind of match has its own card, its name and a line under it", missing.length === 0, missing.length ? `missing ${missing.join(", ")}` : `${kinds.length} cards`);
+  check("and no two modes share a name", new Set(Object.values(modes).map((m) => m.name)).size === Object.keys(modes).length);
+  // the flashes the owner asked be halved: the shot's 0.9 and the blast's 0.75
+  check("the shot's and the blast's flashes are half as bright as they were", INTRO_CFG.crack.flash <= 0.45 && INTRO_CFG.blast.flashAlpha <= 0.375, `${INTRO_CFG.crack.flash}, ${INTRO_CFG.blast.flashAlpha}`);
+}
+
 console.log(fails === 0 ? "\nINTRO PASS" : `\nINTRO FAIL (${fails})`);
 export const introFails = fails;
 if (process.argv[1]?.endsWith("intro.ts")) process.exit(fails === 0 ? 0 : 1);

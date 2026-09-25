@@ -37,21 +37,22 @@
     "dim": "#25c65a"
   },
   "crack": {
-    "_note": "The first shot through the screen. `rays` cracks run out from the hole, each wandering by up to `wander` radians; `rings` are the rings of glass between them, the ones that make it read as a pane rather than a star. `hole` is the bullet hole's radius in pixels and `spread` how many seconds the cracks take to run to the edge. `shake` is the screen's kick in pixels at the moment of the shot.",
+    "_note": "The first shot through the screen. `rays` cracks run out from the hole, each wandering by up to `wander` radians; `rings` are the rings of glass between them, the ones that make it read as a pane rather than a star. `hole` is the bullet hole's radius in pixels and `spread` how many seconds the cracks take to run to the edge. `shake` is the screen's kick in pixels at the moment of the shot. `flash` is how white the screen goes at the shot, 0..1: 0.45, half of the 0.9 it was, because the owner found the flashes too bright.",
     "rays": 13,
     "wander": 0.22,
     "branches": 2,
     "rings": 3,
     "hole": 13,
     "spread": 0.35,
-    "shake": 26
+    "shake": 26,
+    "flash": 0.45
   },
   "wait": {
     "_note": "The boot card holds on the rain and the name until the world is in, so the animation covers loading instead of following it. `waitMost` is the longest it will hold before it fires anyway, because a card that never ends is worse than a card that fires early.",
     "waitMost": 14
   },
   "blast": {
-    "_note": "The shotgun blast that finishes the pane: one flash, one kick, and `pellets` holes through the glass in the same instant, thrown out over `spread` of the screen and never into the middle (`keepOut` of the way out, so the pattern is round the name rather than over it, and the rifle round's own hole stays the one in the centre). Each pellet is a smaller hole than the rifle round's with `rays` short cracks at `reach` of its length, so the first shot stays the break that carries the pane. One blast reads as a shotgun; a string of single rounds read as a strobe, which is what this replaced.",
+    "_note": "The shotgun blast that finishes the pane: one flash, one kick, and `pellets` holes through the glass in the same instant, thrown out over `spread` of the screen and never into the middle (`keepOut` of the way out, so the pattern is round the name rather than over it, and the rifle round's own hole stays the one in the centre). Each pellet is a smaller hole than the rifle round's with `rays` short cracks at `reach` of its length, so the first shot stays the break that carries the pane. One blast reads as a shotgun; a string of single rounds read as a strobe, which is what this replaced. `flashAlpha` is how white the blast turns the screen, 0..1, and `flash` how long it lasts, s: 0.375, half of the 0.75 it was.",
     "pellets": 18,
     "rays": 4,
     "rings": 1,
@@ -60,6 +61,54 @@
     "hole": 5,
     "kick": 22,
     "flash": 0.14,
-    "keepOut": 0.42
+    "keepOut": 0.42,
+    "flashAlpha": 0.375
+  },
+  "_modes": "The card that plays as a match starts is the same animation with the mode's own words: `name` is the big line, the mode's name, and `sub` the line under it. The game's own name goes small above them, so every card is still ours. The key is the kind of match (src/game/stats.ts MatchKind; every bot difficulty is `bots`), and a battle royale on Resurgence rules is `resurgence`. A kind not listed plays the boot card's words.",
+  "modes": {
+    "br": {
+      "name": "BATTLE ROYALE",
+      "sub": "LAST SQUAD STANDING"
+    },
+    "resurgence": {
+      "name": "RESURGENCE",
+      "sub": "FALL AND COME BACK"
+    },
+    "duel": {
+      "name": "1V1",
+      "sub": "ONE ROUND AT A TIME"
+    },
+    "triple": {
+      "name": "1V1V1",
+      "sub": "THREE WAYS, ONE WINNER"
+    },
+    "bots": {
+      "name": "VS BOTS",
+      "sub": "PROVE IT ON THEM FIRST"
+    },
+    "gunrun": {
+      "name": "GUN RUN",
+      "sub": "EVERY KILL A NEW GUN"
+    },
+    "tdm": {
+      "name": "TEAM DEATHMATCH",
+      "sub": "FIRST TEAM TO THE SCORE"
+    },
+    "ffa": {
+      "name": "FREE FOR ALL",
+      "sub": "EVERYONE IS THE ENEMY"
+    },
+    "crown": {
+      "name": "CROWN",
+      "sub": "TAKE IT AND HOLD IT"
+    },
+    "control": {
+      "name": "CONTROL",
+      "sub": "HOLD THE ZONES"
+    },
+    "search": {
+      "name": "SEARCH",
+      "sub": "PLANT IT OR STOP IT"
+    }
   }
 }

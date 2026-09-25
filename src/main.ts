@@ -15,6 +15,7 @@ import { installSky } from "./game/materials";
 import { Renderer, VM_LAYER } from "./game/render";
 import vmCfg from "./config/viewmodel.json";
 import figureCfg from "./config/figure.json";
+import introCfg from "./config/intro.json";
 import netCfg from "./config/net.json";
 import doorsCfg from "./config/doors.json";
 import voiceCfg from "./config/voice.json";
@@ -127,7 +128,9 @@ if (!NO_INTRO) for (const ev of ["keydown", "pointerdown"] as const) window.addE
 // the shot the card is built round, heard as well as seen. Nothing is heard on
 // the page's first card: a browser plays no sound until something is clicked,
 // which is exactly right, and by the time a match starts one has been.
-intro.onShot = () => audio.shot(0.72, 0.9);
+intro.onShot = () => audio.introShot(0.9);
+// and the blast that finishes the pane is a 12 gauge, not a second rifle round
+intro.onBlast = () => audio.introBlast(0.9);
 // the sound's graph, and the shot's own voice in it, built a card ahead of the
 // shot rather than on its frame: a first noise costs about 30 ms to put
 // together, and that landed on the one frame of the card that has to be sharp
@@ -3608,11 +3611,21 @@ const straightDrop = (): boolean => (window as unknown as { __straightDrop?: boo
 const noGulag = (): boolean => (window as unknown as { __noGulag?: boolean }).__noGulag === true;
 /** and no vault (its guard is a bot more on the map), for the checks that count the bots; the vault's own section turns it back on */
 const noVault = (): boolean => (window as unknown as { __noVault?: boolean }).__noVault === true;
+/**
+ * The words on a match's card: the mode's name and its line (intro.json
+ * modes). Every bot difficulty is one card, and a battle royale on
+ * Resurgence rules is its own.
+ */
+function modeWords(d: MatchLike, kind: MatchKind): { name: string; sub: string } | undefined {
+  const key = kind.startsWith("bots:") ? "bots" : d instanceof BrMatch && d.rules === "resurgence" ? "resurgence" : kind;
+  return (introCfg.modes as Record<string, { name: string; sub: string }>)[key];
+}
+
 /** the callbacks every kind of match gets */
 function wireMatch(d: MatchLike, kind: MatchKind): void {
   // dropping into a match: the short card, over the match already starting
   // underneath it. Nothing waits for it (src/ui/intro.ts).
-  if (!NO_INTRO) void intro.play("match");
+  if (!NO_INTRO) void intro.play("match", modeWords(d, kind));
   d.onRespawn = () => respawnForMatch(d);
   // a guest with a seat key (a host that gives one) gets back in after a dropped connection
   if (d instanceof Duel && d.role === "guest" && mySeat) d.onHostLost = () => getBackIn(d);
@@ -6642,7 +6655,7 @@ initWelcome();
   intro: {
     state: () => intro.state(),
     skip: () => intro.skip(),
-    play: (kind: "boot" | "match") => intro.play(kind),
+    play: (kind: "boot" | "match", words?: { name: string; sub: string }) => intro.play(kind, words),
     freeze: (seconds: number) => intro.freeze(seconds),
   },
   /** the dropship: this match's flight, and who you are linked to or following */

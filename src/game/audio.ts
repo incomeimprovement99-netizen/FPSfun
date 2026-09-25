@@ -521,6 +521,24 @@ export class GameAudio {
   }
 
   /** the old call: a gunshot with a pitch and a volume, for anything not yet named */
+  /** the title card's rifle round: a recorded rifle take, or the synthesised shot without one */
+  introShot(volume = 1): void {
+    const v = this.voice(null, 0.9, "fx", 2);
+    if (!v) return;
+    if (this.sample(v.input, v.t, "shot_rifle", cfg.intro.roundLevel * volume)) return;
+    this.noise(v.input, v.t, 0.08, "bandpass", 1400 * 0.72, 0.7, 0.9 * volume);
+    this.tone(v.input, v.t, 0.1, "sine", 140 * 0.72, 50, 0.7 * volume);
+  }
+
+  /** the title card's blast: a 12 gauge, slowed and deep, with the thump in the chest a rifle does not have */
+  introBlast(volume = 1): void {
+    const I = cfg.intro;
+    const v = this.voice(null, 1.6, "fx", 2);
+    if (!v) return;
+    if (!this.sample(v.input, v.t, "shot_shotgun", I.blastLevel * volume, I.blastRate)) this.noise(v.input, v.t, 0.16, "bandpass", 700, 0.6, 0.9 * volume);
+    this.tone(v.input, v.t, I.thumpTime, "sine", I.thumpHz, I.thumpHz / 2, I.thumpLevel * volume, 0.002);
+  }
+
   shot(pitch = 1, volume = 1): void {
     const v = this.voice(null, 0.4, "fx", 2);
     if (!v) return;

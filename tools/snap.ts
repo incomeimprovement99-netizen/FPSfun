@@ -203,6 +203,16 @@ export const SCENARIOS: Scenario[] = [
     steps: [[`(() => { for (let t = 0; t <= 3.45; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
   },
   {
+    name: "intro-mode",
+    note: "a match's card: the same animation, the mode's name big (BATTLE ROYALE), its line under it, the game's name small over it",
+    steps: [[`(() => { const i = window.__range.intro; void i.play("match", { name: "TEAM DEATHMATCH", sub: "FIRST TEAM TO THE SCORE" }); for (let t = 0; t <= 0.5; t += 1 / 60) i.freeze(t); })()`, 350]],
+  },
+  {
+    name: "intro-flash",
+    note: "the card at the frame of its shot: the flash, at half the brightness it was",
+    steps: [[`(() => { for (let t = 0; t <= 1.77; t += 1 / 60) window.__range.intro.freeze(t); })()`, 350]],
+  },
+  {
     name: "br-far",
     note: "the map's longest view, one corner across to the other: the far side fades into fog, and nothing ends at a seam in clear air",
     steps: [

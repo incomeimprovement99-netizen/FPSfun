@@ -285,6 +285,10 @@ export class Intro {
   ready: (() => boolean) | null = null;
   progress: (() => number) | null = null;
   private shotSaid = false;
+  /** the words on the card now: the big line, the one under it, and the small one over it (a mode's card) */
+  private words: { mark: string; sub: string; over: string } = { mark: INTRO_CFG.text.mark, sub: INTRO_CFG.text.sub, over: "" };
+  /** the blast's own sound: a 12 gauge, not a second rifle round (falls back to onShot) */
+  onBlast?: () => void;
   /** held at one moment, for a picture (tools/snap.ts) */
   private frozen: number | null = null;
   private readonly canvas: HTMLCanvasElement | null;
@@ -329,8 +333,10 @@ export class Intro {
    * simply does not wait, which is what the match start does: the match is
    * already running underneath.
    */
-  play(kind: IntroKind): Promise<void> {
+  play(kind: IntroKind, words?: { name: string; sub: string }): Promise<void> {
     if (this.kind) this.stop();
+    // a mode's card: its name big and its line under it, the game's name small over them
+    this.words = words ? { mark: words.name, sub: words.sub, over: INTRO_CFG.text.mark } : { mark: INTRO_CFG.text.mark, sub: INTRO_CFG.text.sub, over: "" };
     if (!this.canvas || !this.ctx) return Promise.resolve();
     this.kind = kind;
     this.beats = introBeats(kind, this.reduced);
@@ -352,7 +358,7 @@ export class Intro {
     this.canvas.hidden = false;
     // the name, for anyone who is listening rather than looking
     if (this.say)
-      this.say.textContent = `${INTRO_CFG.text.mark}: ${INTRO_CFG.text.sub}`;
+      this.say.textContent = this.words.over ? `${this.words.over}. ${this.words.mark}: ${this.words.sub}` : `${this.words.mark}: ${this.words.sub}`;
     return new Promise<void>((resolve) => {
       this.done = resolve;
       this.frame();
@@ -520,14 +526,14 @@ export class Intro {
       if (!this.blastSaid && this.frozen === null) {
         this.blastSaid = true;
         try {
-          this.onShot?.();
+          (this.onBlast ?? this.onShot)?.();
         } catch {
           /* a title card is never the thing that breaks the page */
         }
       }
       const since = t - b.blast;
       if (since < cfg.blast.flash) {
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.75 * (1 - since / cfg.blast.flash)})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${cfg.blast.flashAlpha * (1 - since / cfg.blast.flash)})`;
         ctx.fillRect(0, 0, w, h);
       }
       const grown = Math.min(1, since / (INTRO_CFG.crack.spread * 0.7));
@@ -546,7 +552,7 @@ export class Intro {
       }
       const since = t - b.shot;
       if (!this.reduced && since < 0.14) {
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.9 * (1 - since / 0.14)})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${cfg.crack.flash * (1 - since / 0.14)})`;
         ctx.fillRect(0, 0, w, h);
       }
       this.drawCrack(ctx, Math.min(1, since / cfg.crack.spread));
@@ -647,12 +653,17 @@ export class Intro {
     w: number,
     h: number,
   ): void {
-    const txt = INTRO_CFG.text;
+    const txt = this.words;
     // it lands in a fifth of a second, from far too big, and settles
     const k = easeOut(since / 0.2);
     const scale = this.reduced ? 1 : 2.6 - 1.6 * k;
     const alpha = Math.min(1, since / (this.reduced ? 0.35 : 0.08));
-    const mark = Math.round(Math.min(w * 0.115, h * 0.2));
+    // A mode's name can be longer than the game's (TEAM DEATHMATCH): the big
+    // line is sized down to fit nine tenths of the width rather than run off it.
+    let mark = Math.round(Math.min(w * 0.115, h * 0.2));
+    ctx.font = `700 ${mark}px "Rajdhani", "Segoe UI", sans-serif`;
+    const across = ctx.measureText(txt.mark).width * 1.04;
+    if (across > w * 0.9) mark = Math.floor((mark * w * 0.9) / across);
     const sub = Math.round(mark * 0.3);
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -683,6 +694,11 @@ export class Intro {
     }
     ctx.fillStyle = "#37e07a";
     ctx.fillText(txt.sub, 0, mark * 0.42);
+    // a mode's card: the game's own name, small, over the mode's
+    if (txt.over) {
+      ctx.fillStyle = "rgba(242, 255, 246, 0.8)";
+      ctx.fillText(txt.over, 0, -mark * 0.98);
+    }
     // The line under it is drawn out from the middle as the name lands, and it
     // is the loading bar as well: the card stands in for the loading screen,
     // so how much of the world is in shows here, as a brighter length over the

@@ -3068,3 +3068,24 @@ nothing in it answered was a strafe: the body stepped sideways and the gun staye
 - The gun rolls toward the way you step and slides a little the other way, full at sprint speed sideways,
   eased over 0.12 s, and mostly held still when aiming (`viewmodel.json` `strafe`).
 - The view model frame carries the sideways speed against the view (`strafe`).
+
+## Milestone 174 — A card for every mode, half the flash, and a 12 gauge ✅
+
+Phase 17, items 17.10 to 17.12. See `docs/PHASE_17_PLAN_FEEL_ANIMATION_AND_THE_WORLD.md`.
+
+The owner: "we want a unique animation screen for each different game mode, they can be the same as the
+intro, but the text should change and the name of the mode should be prominent, and make the flashes of
+light only like half as bright, and the second gunshot should sound more like a shotgun, so like a bit
+deeper like a 12 gauge."
+
+- **A card per mode.** The card that plays as a match starts is the intro's animation with the mode's own
+  words: BATTLE ROYALE, RESURGENCE, 1V1, 1V1V1, VS BOTS, GUN RUN, TEAM DEATHMATCH, FREE FOR ALL, CROWN,
+  CONTROL and SEARCH, each large with its own line under it and the game's name small above. A long name
+  is sized down to fit nine tenths of the screen. The words are in `intro.json` `modes`, and a check fails
+  if a kind of match has no card.
+- **Half the flash.** The shot's flash went from 0.9 to 0.45 and the blast's from 0.75 to 0.375, both now
+  in `intro.json` rather than written into the drawing.
+- **A 12 gauge.** Both of the card's shots used one short synthesised crack. The first is now a recorded
+  rifle take; the blast has its own sound, a recorded 12 gauge take slowed to 0.82 with a low thump from
+  72 Hz under it (`audio.json` `intro`).
+- Snapshots `intro-mode` (the longest name, TEAM DEATHMATCH) and `intro-flash` (the frame of the shot).
