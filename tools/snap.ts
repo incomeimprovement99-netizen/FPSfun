@@ -702,6 +702,59 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "fp-arms",
+    note: "the R-301 in the player's own arms: the published body's hands and the outfit's own sleeves, not drawn gloves",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "rspn101"); })()`, 0],
+      [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(window.__range.realArms()) : setTimeout(w, 100)); w(); }))()`, 1200],
+    ],
+  },
+  {
+    name: "fp-arms-ads",
+    note: "aiming down the sights in the player's own arms",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "rspn101"); Object.assign(r.debugView, { ads: 1 }); })()`, 0],
+      [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(true) : setTimeout(w, 100)); w(); }))()`, 300],
+      [`(() => true)()`, 1200],
+    ],
+  },
+  {
+    name: "fp-arms-reload",
+    note: "a magazine reload half done: the support hand down at the magazine",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "rspn101"); Object.assign(r.debugView, { reload: 0.4 }); })()`, 0],
+      [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(true) : setTimeout(w, 100)); w(); }))()`, 300],
+      [`(() => true)()`, 1200],
+    ],
+  },
+  {
+    name: "fp-arms-holstered",
+    note: "the empty hands while holstered, two loose fists",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "rspn101"); Object.assign(r.debugView, { lowered: 1 }); })()`, 0],
+      [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(true) : setTimeout(w, 100)); w(); }))()`, 300],
+      [`(() => true)()`, 1200],
+    ],
+  },
+  {
+    name: "fp-arms-zip",
+    note: "on a zipline: the left hand up on the trolley",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "rspn101"); Object.assign(r.debugView, { onZip: true }); })()`, 0],
+      [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(true) : setTimeout(w, 100)); w(); }))()`, 300],
+      [`(() => true)()`, 1200],
+    ],
+  },
+  {
+    name: "fp-arms-down",
+    note: "knocked down: the hands low on the floor",
+    steps: [
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "rspn101"); Object.assign(r.debugView, { downed: true }); })()`, 0],
+      [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(true) : setTimeout(w, 100)); w(); }))()`, 300],
+      [`(() => true)()`, 1200],
+    ],
+  },
+  {
     name: "gun-nemesis",
     note: "the Nemesis in hand",
     steps: [[`(() => { ${hideMenu}; window.__range.loadout.setWeaponId(0, "nemesis"); })()`, 1200]],

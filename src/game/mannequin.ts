@@ -30,6 +30,7 @@ import type { OperatorSkin } from "./operators";
 import { buildGear, type GearPiece } from "./gear";
 import { OUR_GEOMETRY, buildOutfit, outfitMaterials } from "./outfit";
 import outfitCfg from "../config/outfits.json";
+import vmCfg from "../config/viewmodel.json";
 import type { FigurePose } from "./dummy";
 import type { EmotePose } from "./emotes";
 
@@ -1341,4 +1342,183 @@ export class MannequinFigure {
       if (m.isSkinnedMesh) m.skeleton.dispose();
     });
   }
+}
+
+// ------------------------------------------------------------ first-person arms
+
+/**
+ * The bones a first-person arm is made of: the forearm, the hand and the
+ * fingers, and the end of the upper arm nearest the elbow (FP_UPPER). The
+ * rest of the upper arm is left off. Run back to a shoulder by the eye it was
+ * a wall of deltoid across the middle of the screen; run on down the drawn
+ * forearm's line it swept up both edges of the frame past the eye; and cut
+ * right at the elbow, the cut showed.
+ */
+const ARM_PART = /^(lowerarm|hand|thumb|index|middle|ring|pinky)_/;
+/** how much of the upper arm a first-person arm keeps, from the elbow, as a share of its length (viewmodel.json realArms) */
+const FP_UPPER = vmCfg.realArms.upper;
+
+/**
+ * A copy of `g` keeping only the triangles an arm owns: every corner
+ * weighted at least half to the arm's own bones. What is left is the arm and
+ * the hand, cut off at the shoulder, well out of the frame.
+ */
+function armOnly(g: THREE.BufferGeometry, skeleton: THREE.Skeleton): THREE.BufferGeometry {
+  const si = g.attributes.skinIndex as THREE.BufferAttribute | undefined;
+  const sw = g.attributes.skinWeight as THREE.BufferAttribute | undefined;
+  if (!si || !sw) return g;
+  const bones = skeleton.bones.map((b) => b.name);
+  const arm = bones.map((b) => ARM_PART.test(b));
+  const upper = bones.map((b) => /^upperarm_/.test(b));
+  // each side's elbow and upper-arm length at rest, in the mesh's own space
+  const rest = (name: string): THREE.Vector3 | null => {
+    const i = bones.indexOf(name);
+    return i < 0 ? null : new THREE.Vector3().setFromMatrixPosition(skeleton.boneInverses[i].clone().invert());
+  };
+  const sides = (["l", "r"] as const).map((s) => {
+    const e = rest(`lowerarm_${s}`);
+    const sh = rest(`upperarm_${s}`);
+    return e && sh ? { elbow: e, reach: e.distanceTo(sh) * FP_UPPER } : null;
+  });
+  const n = g.attributes.position.count;
+  const on = new Uint8Array(n);
+  const p = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    const w = (arm[si.getX(i)] ? sw.getX(i) : 0) + (arm[si.getY(i)] ? sw.getY(i) : 0) + (arm[si.getZ(i)] ? sw.getZ(i) : 0) + (arm[si.getW(i)] ? sw.getW(i) : 0);
+    const u = (upper[si.getX(i)] ? sw.getX(i) : 0) + (upper[si.getY(i)] ? sw.getY(i) : 0) + (upper[si.getZ(i)] ? sw.getZ(i) : 0) + (upper[si.getW(i)] ? sw.getW(i) : 0);
+    let near = false;
+    if (u >= 0.5) {
+      p.fromBufferAttribute(g.attributes.position as THREE.BufferAttribute, i);
+      near = sides.some((sd) => !!sd && p.distanceTo(sd.elbow) < sd.reach);
+    }
+    on[i] = w >= 0.5 || near ? 1 : 0;
+  }
+  const src = g.index ? (g.index.array as ArrayLike<number>) : Array.from({ length: n }, (_, i) => i);
+  const keep: number[] = [];
+  for (let t = 0; t + 2 < src.length; t += 3) if (on[src[t]] && on[src[t + 1]] && on[src[t + 2]]) keep.push(src[t], src[t + 1], src[t + 2]);
+  const out = g.clone();
+  out.setIndex(keep);
+  return out;
+}
+
+const armBodies = new Map<string, THREE.BufferGeometry>();
+
+/** the arms a first-person view is built from, and the clip pose their fingers take */
+export interface ArmRig {
+  root: THREE.Object3D;
+  bones: Record<string, THREE.Bone>;
+  /** every finger bone's turn in a hand closed round a grip, bone name to local rotation */
+  grip: Map<string, THREE.Quaternion>;
+  /** the same for a closed fist, for the empty hands while holstered */
+  fist: Map<string, THREE.Quaternion>;
+  /** the body, build and outfit it was built for, so a change of look rebuilds it */
+  key: string;
+}
+
+/** a pose's finger turns, sampled off a clip at one moment */
+function fingersFrom(rig: THREE.Object3D, clip: THREE.AnimationClip | undefined, at: number): Map<string, THREE.Quaternion> {
+  const out = new Map<string, THREE.Quaternion>();
+  if (!clip) return out;
+  const mixer = new THREE.AnimationMixer(rig);
+  const a = mixer.clipAction(clip);
+  a.play();
+  mixer.setTime(at);
+  rig.traverse((o) => {
+    if ((o as THREE.Bone).isBone && /^(thumb|index|middle|ring|pinky)_/.test(o.name)) out.set(o.name, o.quaternion.clone());
+  });
+  a.stop();
+  mixer.uncacheRoot(rig);
+  return out;
+}
+
+/**
+ * The player's own arms, for the first-person view: the published body cut
+ * down to its arms and hands, in the body and build the loadout picked, with
+ * the outfit's own sleeves on them in the outfit's own colour. Null until the
+ * body and the clips are in, and the viewmodel keeps its drawn arms till then.
+ */
+export function buildArmRig(skin: OperatorSkin): ArmRig | null {
+  if (!template) return null;
+  const name = bodyOf(skin.outfit, skin.body);
+  const build = skin.build ?? "regular";
+  const body = bodyFor(name, build);
+  if (!body) {
+    void loadBody(name);
+    return null;
+  }
+  const root = cloneSkinned(body);
+  const bones: Record<string, THREE.Bone> = {};
+  root.traverse((o) => {
+    if ((o as THREE.Bone).isBone) bones[o.name] = o as THREE.Bone;
+  });
+  const keepers: THREE.SkinnedMesh[] = [];
+  root.traverse((o) => {
+    const m = o as THREE.SkinnedMesh;
+    if (!m.isSkinnedMesh) return;
+    const mat = (m.material as THREE.MeshStandardMaterial).clone();
+    if (!mat.name.startsWith("MI_Superhero")) {
+      // the brows and the eyes: no part of an arm
+      m.visible = false;
+      return;
+    }
+    const key = `${name}|${build}|${m.name}`;
+    let g = armBodies.get(key);
+    if (!g) {
+      g = armOnly(m.geometry, m.skeleton);
+      armBodies.set(key, g);
+    }
+    m.geometry = g;
+    if (g.attributes.color) mat.vertexColors = true;
+    m.material = mat;
+    m.frustumCulled = false;
+    m.castShadow = false;
+    keepers.push(m);
+  });
+  // the outfit's own sleeves, fetched with the outfit and painted by it
+  const sleeves = partsOf(skin.outfit).filter((n) => /_Arms$/.test(n));
+  void loadOutfit(skin.outfit);
+  void loadTint(skin.outfit);
+  for (const n of sleeves) {
+    const srcs = parts.get(n);
+    if (!srcs) continue;
+    for (let k = 0; k < srcs.length; k++) {
+      const src = srcs[k];
+      const bs = src.skeleton.bones.map((b) => bones[b.name]);
+      if (bs.some((b) => !b)) continue;
+      const mat = (src.material as THREE.MeshStandardMaterial).clone();
+      const map = tintMap(skin.outfit, n);
+      if (map) mat.map = map;
+      else {
+        const tint = tintOf(skin.outfit);
+        if (tint !== null) mat.color.setHex(tint);
+      }
+      const gk = `${name}|${build}|${n}#${k}`;
+      let g = armBodies.get(gk);
+      if (!g) {
+        g = armOnly(garmentFor(src, `${n}#${k}`, name, build), src.skeleton);
+        armBodies.set(gk, g);
+      }
+      const mesh = new THREE.SkinnedMesh(g, mat);
+      mesh.bind(new THREE.Skeleton(bs as THREE.Bone[], src.skeleton.boneInverses), src.bindMatrix);
+      mesh.frustumCulled = false;
+      mesh.castShadow = false;
+      mesh.name = `sleeve:${n}`;
+      root.add(mesh);
+    }
+  }
+  const t = template;
+  // The fingers are the clips' own. The two-handed pistol aim closes the
+  // hands round a grip; a jab, a third of the way in, is a closed fist.
+  const grip = fingersFrom(cloneSkinned(body), t.clips.get("full:Pistol_Aim_Neutral"), 0);
+  const fist = fingersFrom(cloneSkinned(body), t.clips.get("full:Punch_Jab"), 0.3);
+  const ready = sleeves.every((n) => parts.has(n)) && (tintOf(skin.outfit) === null || sleeves.every((n) => tintMap(skin.outfit, n)));
+  return { root, bones, grip, fist, key: `${name}|${build}|${skin.outfit}|${ready ? "dressed" : "bare"}` };
+}
+
+/** what a rig built now for this look would be keyed, so the viewmodel knows when to rebuild */
+export function armRigKey(skin: OperatorSkin): string {
+  const name = bodyOf(skin.outfit, skin.body);
+  const sleeves = partsOf(skin.outfit).filter((n) => /_Arms$/.test(n));
+  const ready = sleeves.every((n) => parts.has(n)) && (tintOf(skin.outfit) === null || sleeves.every((n) => tintMap(skin.outfit, n)));
+  return `${name}|${skin.build ?? "regular"}|${skin.outfit}|${ready ? "dressed" : "bare"}`;
 }

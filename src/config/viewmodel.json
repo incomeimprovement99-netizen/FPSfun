@@ -63,5 +63,11 @@
   "_maxLength": "the longest a forearm may be, viewmodel metres, whatever the pose and the guard between them ask for. A real one here runs about 0.24 to 0.95. This is the last word: the elbow is drawn in along the arm until it fits, because an elbow is off the bottom of the frame anyway and a metres-long sleeve across the screen is not a thing any pose should be able to produce.",
   "maxLength": 1.0,
   "_sleeveCap": "the radius the sleeve narrows to at the elbow, viewmodel metres, closed over with a dome of the same radius. The old end was a flat 0.06 disc at full width, which is invisible while the arm runs off the bottom of the frame and a dark plate across the screen the moment a pose swings it round.",
-  "sleeveCap": 0.022
+  "sleeveCap": 0.022,
+  "_realArms": "The player's own arms in the first-person view (src/game/fparms.ts): the published body's arms, posed onto the drawn gloves. `upper` is how much of the upper arm is drawn, from the elbow, as a share of its length: all of it brought the deltoid up the screen in slabs, cut at the elbow the cut showed. `down` is how far the upper arm turns from the forearm's line toward straight down in the view, which is the shortest way out of the frame; along the forearm's line it swept past the eye. `twist` is how much of the wrist's turn the forearm takes, the rest staying at the wrist: a hand rolled over on a handguard wrung whichever joint took all of it.",
+  "realArms": {
+    "upper": 0.6,
+    "down": 0.6,
+    "twist": 0.5
+  }
 }

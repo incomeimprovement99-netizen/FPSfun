@@ -4521,6 +4521,7 @@ function applyLoadout(def: LoadoutDef): void {
     loadout.setWeaponId(1, def.slot2);
   }
   setArmColors(operatorById(def.operator));
+  viewModel.setLook(operatorWearing(def.operator, lookCode(def)));
   viewModel.setHeirloom(def.heirloom);
   refreshDerived();
 }
@@ -6595,6 +6596,8 @@ initWelcome();
   setThirdPerson,
   selfFigureVisible: () => selfFig?.group.visible ?? false,
   viewModelVisible: () => viewModel.group.visible,
+  /** the first-person arms are the player's own rather than the drawn gloves */
+  realArms: () => viewModel.realArms,
   /** put the gun in your own hands away so a snapshot sees the whole figure (tools/snap.ts) */
   hideViewModel: (on: boolean) => {
     snapNoGun = on;

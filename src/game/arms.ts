@@ -100,6 +100,14 @@ function block(w: number, h: number, d: number, r: number, mat: THREE.Material):
 }
 
 /**
+ * The glove's own landmarks, right hand, in its own space: where the forearm
+ * attaches, and the middle finger's knuckle. The real arms line a real hand
+ * up with these (fparms.ts), so they are named here rather than copied.
+ */
+export const GLOVE_WRIST = new THREE.Vector3(0.024, -0.052, 0.034);
+export const GLOVE_MIDDLE_KNUCKLE = new THREE.Vector3(0.041, 0.011, -0.024);
+
+/**
  * A right hand at the origin. The back of the hand faces +x, the fingers
  * reach forward (-z) and curl round toward -x, the thumb lies along the -x
  * side. Gripping, the fingers close round a bar about 4 cm across at the
@@ -108,7 +116,7 @@ function block(w: number, h: number, d: number, r: number, mat: THREE.Material):
 export class Hand {
   readonly group = new THREE.Group();
   /** where the forearm attaches, in hand space */
-  private readonly wristLocal = v(0.024, -0.052, 0.034);
+  private readonly wristLocal = GLOVE_WRIST.clone();
 
   constructor(mirrored: boolean, fist = false) {
     const M = armMaterials();

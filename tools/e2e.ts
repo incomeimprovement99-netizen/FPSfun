@@ -5296,6 +5296,11 @@ async function main(): Promise<void> {
     await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
     const fp = await ev<{ dist: number; fig: boolean; vm: boolean }>(page, `(() => { const p = window.__range.player; const c = window.__range.camera; const e = p.eyePosition(); return { dist: Math.hypot(c.position.x - e.x, c.position.y - e.y, c.position.z - e.z), fig: window.__range.selfFigureVisible(), vm: window.__range.viewModelVisible() }; })()`);
     check("back in first person: the camera is at the eye and the gun is back", fp.dist < 0.1 && !fp.fig && fp.vm, JSON.stringify(fp));
+    // The arms in your own view are the published body's, in your outfit's
+    // sleeves, not the drawn gloves (src/game/fparms.ts). They come in once the
+    // body has; a figure is already on screen above, so the body is here.
+    const real = await ev<boolean>(page, `new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(window.__range.realArms()) : setTimeout(w, 100)); w(); })`);
+    check("your own arms in first person are the real body's, not drawn gloves", real);
     // the gun has its own camera: the FOV setting widens the world, not the gun
     const fovAt = async (v: string) => {
       await ev(page, `(() => { const f = document.getElementById("fov"); f.value = "${v}"; f.dispatchEvent(new Event("input")); })()`);

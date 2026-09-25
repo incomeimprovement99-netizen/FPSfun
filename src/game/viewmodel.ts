@@ -22,6 +22,8 @@ import * as THREE from "three";
 import type { ResolvedWeapon } from "./weapons";
 import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels";
 import { Forearm, Hand } from "./arms";
+import { FpArms } from "./fparms";
+import type { OperatorSkin } from "./operators";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
 import armCfg from "../config/viewmodel.json";
@@ -349,6 +351,10 @@ export class ViewModel {
 
   // On a zipline the left hand holds the trolley overhead.
   private readonly zipRig = new THREE.Group();
+  /** the player's own arms, posed onto the drawn gloves once they are in (fparms.ts) */
+  private readonly real = new FpArms();
+  /** whether the drawn gloves and forearms are showing, so they are hidden or shown once rather than every frame */
+  private drawnShown = true;
   private readonly zipHand = new Hand(true);
   private readonly zipArm = new Forearm();
   private readonly zipElbow = new THREE.Vector3();
@@ -443,6 +449,7 @@ export class ViewModel {
     this.zipRig.visible = false;
     this.zipArm.group.visible = false;
     this.group.add(this.zipRig, this.zipArm.group);
+    this.group.add(this.real.group);
   }
 
   /** show this weapon; cheap to call every frame */
@@ -823,6 +830,41 @@ export class ViewModel {
     shoulderAnchor(this.armEndL, this.armFamily, "left", ads).applyMatrix4(this.poseInv);
     this.rightArm.set(this.right.wrist(this.tmp), this.armEndR, this.armView);
     this.leftArm.set(this.left.wrist(this.tmp), this.armEndL, this.armView);
+    this.poseReal();
+  }
+
+  /** the look the first-person arms wear: the body, the build and the outfit's sleeves */
+  setLook(skin: OperatorSkin): void {
+    this.real.setLook(skin);
+  }
+
+  /** the real arms are drawn rather than the gloves (tools/e2e.ts, tools/snap.ts) */
+  get realArms(): boolean {
+    return this.real.ready;
+  }
+
+  /**
+   * The real arms onto whichever gloves are out this frame: the gun's grip
+   * and handguard, the zipline trolley, or the empty fists. The gloves are
+   * still placed, because that is where every animation says the hands go;
+   * they are just not drawn once the real arms are in.
+   */
+  private poseReal(): void {
+    this.real.refresh();
+    const ready = this.real.ready;
+    if (ready !== !this.drawnShown) {
+      this.drawnShown = !ready;
+      const drawn = [this.right, this.left, this.fistR, this.fistL, this.zipHand].map((h) => h.group);
+      const arms = [this.rightArm, this.leftArm, this.fistArmR, this.fistArmL, this.zipArm].map((a) => a.group);
+      for (const g of [...drawn, ...arms]) for (const c of g.children) c.visible = !ready;
+    }
+    if (!ready) return;
+    const gun = this.holder.visible;
+    if (gun) this.real.pose("r", this.right, this.rightArm, "grip");
+    else if (this.fists.visible) this.real.pose("r", this.fistR, this.fistArmR, "fist");
+    if (this.zipRig.visible && !this.left.group.visible) this.real.pose("l", this.zipHand, this.zipArm, "grip");
+    else if (gun && this.left.group.visible) this.real.pose("l", this.left, this.leftArm, "grip");
+    else if (this.fists.visible) this.real.pose("l", this.fistL, this.fistArmL, "fist");
   }
 
   /**

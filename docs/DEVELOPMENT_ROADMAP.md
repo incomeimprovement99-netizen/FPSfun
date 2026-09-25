@@ -2647,6 +2647,8 @@ facial animation and a voice cast on the "deliberately not doing this" list with
 
 ## Milestone 159 — A wardrobe you can choose from, and a body measured off the model ✅
 
+Phase 16. See `docs/PHASE_16_PLAN_REAL_CLOTH_AND_THE_BODY.md` and `docs/PHASE_16_REAL_CLOTH_AND_THE_BODY.md`.
+
 Milestone 157 dressed the five operators. This lets a **player** dress, and fixes something the eye had been
 seeing without my naming it.
 
@@ -2689,6 +2691,8 @@ seeing without my naming it.
 
 ## Milestone 160 — The body measured up the spine, not across it ✅
 
+Phase 16. See `docs/PHASE_16_PLAN_REAL_CLOTH_AND_THE_BODY.md` and `docs/PHASE_16_REAL_CLOTH_AND_THE_BODY.md`.
+
 The second half of the measuring Milestone 159 started. The limbs got a profile off the model; the body was
 still one box with three numbers I had typed in by eye, and it showed.
 
@@ -2710,6 +2714,8 @@ still one box with three numbers I had typed in by eye, and it showed.
   bands the way the clothes now are is the next one of these.
 
 ## Milestone 161 — The same movement on a laptop as on a desktop ✅
+
+Phase 16. See `docs/PHASE_16_PLAN_REAL_CLOTH_AND_THE_BODY.md` and `docs/PHASE_16_REAL_CLOTH_AND_THE_BODY.md`.
 
 Every movement number in this game was measured at 144 frames a second, because that is the machine it was
 written on. Nobody had asked what the same inputs do at 30 or 60, and that is the most expensive kind of
@@ -2743,6 +2749,8 @@ jank: the player who has it cannot see it, because they have never seen the othe
 
 ## Milestone 162 — The ability numbers belong to the match ✅
 
+Phase 16. See `docs/PHASE_16_PLAN_REAL_CLOTH_AND_THE_BODY.md` and `docs/PHASE_16_REAL_CLOTH_AND_THE_BODY.md`.
+
 The owner: "ensure that the number of dashes is configurable and stuff like that for each of the abilities
 that we can choose from when we are creating a 1v1 for example (or ffa with a buddy and bots)". He is right
 about where it belongs. What a dash is worth is a property of the game being played, the way the gun class
@@ -2770,6 +2778,8 @@ one player's page.
   above. The look is `ability-numbers`.
 
 ## Milestone 163 — Nobody's eyes, and a dirt bike ✅
+
+Phase 16. See `docs/PHASE_16_PLAN_REAL_CLOTH_AND_THE_BODY.md` and `docs/PHASE_16_REAL_CLOTH_AND_THE_BODY.md`.
 
 The owner: "the default loadouts should always have full wearables / skins like we made. Should always have
 a mask and some kind of eye wear or a helmet and / or covering their face completely. Do a dirt bike one and
@@ -2802,6 +2812,8 @@ they should all have the dark shade on the glasses so you can't see their eyes."
 
 ## Milestone 164 — Real bodies and real clothes ✅
 
+Phase 16. See `docs/PHASE_16_PLAN_REAL_CLOTH_AND_THE_BODY.md` and `docs/PHASE_16_REAL_CLOTH_AND_THE_BODY.md`.
+
 The owner, on the wardrobe: "the clothes look rediculasly bad lol are you just making shit up or are you
 ripping free assets? bc this looks like you are just putting together roblox shapes and calling it a day".
 
@@ -2831,6 +2843,8 @@ nothing was an asset. It reads as Roblox because it is boxes.
 
 ## Milestone 165 — Nine outfits made of real cloth ✅
 
+Phase 16. See `docs/PHASE_16_PLAN_REAL_CLOTH_AND_THE_BODY.md` and `docs/PHASE_16_REAL_CLOTH_AND_THE_BODY.md`.
+
 Milestone 164 put four real outfits in by swapping the whole figure for a clothed one. That is the blunt
 way to use a modular pack, and it caps out at however many assembled figures the pack ships. The pack also
 ships the **parts** those figures are made of, which is what it is actually for.
@@ -2851,6 +2865,8 @@ ships the **parts** those figures are made of, which is what it is actually for.
   build so nothing is two sizes. The look is `outfit-real`.
 
 ## Milestone 166 — Our boxes come off the real clothes ✅
+
+Phase 16. See `docs/PHASE_16_PLAN_REAL_CLOTH_AND_THE_BODY.md` and `docs/PHASE_16_REAL_CLOTH_AND_THE_BODY.md`.
 
 The owner, once the real assets were in: "do we take away our extra stuff that is on the models now thats
 just sitting above the new assets we implemented?" Yes, and it turned out two things were wrong rather than
@@ -2874,6 +2890,8 @@ one.
 
 ## Milestone 167 — Published assets only, and each outfit its own colour ✅
 
+Phase 16. See `docs/PHASE_16_PLAN_REAL_CLOTH_AND_THE_BODY.md` and `docs/PHASE_16_REAL_CLOTH_AND_THE_BODY.md`.
+
 The owner, on the live build: "feature flag off the custom pixal shit that we built and just do the
 published assets... i still see shit that looks horrible and can't see the base skin."
 
@@ -2896,6 +2914,8 @@ published assets... i still see shit that looks horrible and can't see the base 
   eyewear we had was built out of boxes and this pack has none. It comes back with a pack that has some.
 
 ## Milestone 168 — The clothes cover the body, and the free pool is searched to the bottom ✅
+
+Phase 16. See `docs/PHASE_16_PLAN_REAL_CLOTH_AND_THE_BODY.md` and `docs/PHASE_16_REAL_CLOTH_AND_THE_BODY.md`.
 
 The owner, on the live build: "THE CLOTHES AREN'T FULLY COVERING THE BODY AND SHIT, EXHAUST OUR OPTIONS
 FOR FREE ASSETS, THAT IS A GOLD MINE COMPARED TO MAKING NEW ONES."
@@ -2934,6 +2954,8 @@ hands can be put away for a shot, and there are close front and back scenarios a
 
 ## Milestone 169 — A body to pick, a build that means something, and seams that stop showing skin ✅
 
+Phase 16. See `docs/PHASE_16_PLAN_REAL_CLOTH_AND_THE_BODY.md` and `docs/PHASE_16_REAL_CLOTH_AND_THE_BODY.md`.
+
 Next on the ranked list in `docs/SKIN_GAP.md` was letting a player pick the body. Beside it sat a dead
 control: LEAN, REGULAR and HEAVY were saved and sent over the wire and changed nothing, because they
 thickened the garments we built in code and those are off.
@@ -2954,3 +2976,31 @@ thickened the garments we built in code and those are off.
   under the clothes, so a seam reads as fabric.
 - The torso and arm numbers and the shell moved out of the code into `outfits.json` `fit` with the
   measurements beside them.
+
+## Milestone 170 — Your own arms in your own view ✅
+
+Phase 17, item 17.1. See `docs/PHASE_17_PLAN_FEEL_ANIMATION_AND_THE_WORLD.md`.
+
+The first-person hands were a glove of capsules and a sleeve that was a cylinder, which from behind the gun
+read as two grey pipes: on screen every second of every match, and the largest single "cheap game" tell in
+`docs/FEEL_GAP.md`.
+
+- **The arms are the published body's**, cut down to the arm (`mannequin.ts buildArmRig`), in the body and
+  build the loadout picked, wearing the outfit's own sleeves in the outfit's own colour; a Ranger arm comes
+  gloved, a Peasant arm bare. The fingers are the clips' own: the two-handed pistol aim for a grip, a jab
+  a third of the way in for a fist.
+- **None of the viewmodel's animation changed.** It still decides where every hand goes: the grip, the
+  handguard, the magazine in a reload, the zipline trolley, the holstered fists, the crawl. A real arm is
+  posed onto each glove every frame (`fparms.ts`), and the gloves are no longer drawn. Until the body is in,
+  the drawn arms show, so nothing is ever empty-handed.
+- **Found on the way, all in snapshots.** A shoulder run back to where a real one is put a wall of deltoid
+  across the screen; the arm continued along the forearm's line swept up both edges past the eye; cut at
+  the elbow the cut showed in frame. The upper arm is now 60% drawn and turned down, the shortest way out
+  of the frame. The support glove is drawn 15% bigger than the grip hand, and sizing the shared rig per arm
+  compounded into the bones until a forearm was five times its size; each arm is sized at its own upper arm
+  now. A left hand's frame built as the mirror of the right's was a reflection, not a rotation, and the arm
+  came out a ribbon to the horizon. The wrist's twist is split between the wrist and the forearm, which is
+  where a real arm puts it.
+- `realArms()` for the tests, an e2e check in the `page` section, six snapshot scenarios (`fp-arms`, `-ads`,
+  `-reload`, `-holstered`, `-zip`, `-down`), and `tools/shot-tile.ts` to crop and tile snapshots. The three
+  numbers that shape it are in `viewmodel.json` `realArms`.
