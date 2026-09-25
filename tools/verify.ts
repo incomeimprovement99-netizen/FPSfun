@@ -7,6 +7,7 @@ import squadJson from "../src/config/squad.json";
 import { cmPer360, degPerCount, hipFov43, verticalFovFrom43, adsSensScale } from "../src/game/sens";
 import { ViewKick, tuning } from "../src/game/recoil";
 import { Loadout } from "../src/game/loadout";
+import { AMMO } from "../src/game/ammo";
 import { WeaponState } from "../src/game/weapon-state";
 import { AimAssist } from "../src/game/aimassist";
 import { Ring, RING_PHASES, RING_TICK } from "../src/game/ring";
@@ -1252,7 +1253,9 @@ console.log("Ammo (src/config/ammo.json, Season 30)");
   lo.ammo.infinite = false;
   lo.ammo.kit(lo.slots.map((s) => s.weapon));
   lo.refillEnergy();
-  eq("R-301: two stacks of light", lo.reserve(lo.slots[0]), 120);
+  // the kit is ammo.json's own, which the owner raised so nobody runs out: whatever it is, it is that many stacks
+  eq(`R-301: ${AMMO.kitStacks} stacks of light (${AMMO.stacks.light} a stack)`, lo.reserve(lo.slots[0]), AMMO.kitStacks * AMMO.stacks.light);
+  eq(`and it is well over what it used to be, so nobody runs out (${AMMO.stacks.light} a stack, ${AMMO.kitStacks} stacks)`, AMMO.stacks.light >= 150 && AMMO.kitStacks >= 4, true);
   eq("HAVOC: its own three magazines", lo.reserve(lo.slots[1]), 54);
   const st = lo.slots[0].state;
   st.clip = 0;

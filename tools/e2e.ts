@@ -534,9 +534,11 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   // here), both guns kitted a magazine up, into your two slots, with ammo.
   const pickedBefore = await ev<{ kind: string; index: number }>(page, "window.__range.loadouts.selected");
   const cratePos = (await ev<{ x: number; z: number } | null>(page, "window.__range.openGround(window.__range.player.pos.x, window.__range.player.pos.z, 3)")) ?? { x: 0, z: 500 };
-  const ammo0 = await ev<Record<string, number>>(
+  // what you had, and how much more of each would fit: a crate can only hand
+  // over what the pouch has room for, and a spawn kit can already fill it
+  const { stock: ammo0, room: room0 } = await ev<{ stock: Record<string, number>; room: Record<string, number> }>(
     page,
-    `(() => { const r = window.__range; r.loadouts.select({ kind: "default", index: 3 }); r.player.teleport(${cratePos.x}, 0, ${cratePos.z}, 0); r.duel().addPod(new r.THREE.Vector3(${cratePos.x}, 0, ${cratePos.z}), 0.2, "loadout"); return { ...r.loadout.ammo.stock }; })()`
+    `(() => { const r = window.__range; r.loadouts.select({ kind: "default", index: 3 }); r.player.teleport(${cratePos.x}, 0, ${cratePos.z}, 0); r.duel().addPod(new r.THREE.Vector3(${cratePos.x}, 0, ${cratePos.z}), 0.2, "loadout"); const a = r.loadout.ammo; return { stock: { ...a.stock }, room: Object.fromEntries(Object.keys(a.stock).map((t) => [t, a.room(t)])) }; })()`
   );
   await sleep(1300);
   const claiming = await ev<{ hold: { label: string; progress: number } | null; crate: number | null }>(page, "({ hold: window.__range.hud.last?.brHold ?? null, crate: window.__range.duel().hud().br.crate })");
@@ -548,11 +550,11 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   );
   const types = [...new Set(got.want.map((id) => (ammoCfg.types as Record<string, string>)[id] ?? "light"))].filter((t) => t !== "energy");
   const stacks = ammoCfg.stacks as Record<string, number>;
-  const ammoOk = types.every((t) => got.ammo[t] - ammo0[t] === (t === "arrows" ? stacks.arrows : stacks[t] * brCfg.loadoutPod.stacks));
+  const ammoOk = types.every((t) => got.ammo[t] - ammo0[t] === Math.min(room0[t], t === "arrows" ? stacks.arrows : stacks[t] * brCfg.loadoutPod.stacks));
   check(
     "loadout crate: it hands you your saved loadout's two guns, kitted and a magazine up, with their ammo",
     got.ids.join() === got.want.join() && got.empty.every((e) => !e) && got.mags.every((m) => m === brCfg.loadoutPod.mag) && got.fitted.every((n) => n > 0) && ammoOk,
-    JSON.stringify({ ...got, before: ammo0, types })
+    JSON.stringify({ ...got, before: ammo0, room: room0, types })
   );
   await ev(page, `window.__range.loadout.give(0, "r97")`);
   await sleep(2800);

@@ -3089,3 +3089,19 @@ deeper like a 12 gauge."
   rifle take; the blast has its own sound, a recorded 12 gauge take slowed to 0.82 with a low thump from
   72 Hz under it (`audio.json` `intro`).
 - Snapshots `intro-mode` (the longest name, TEAM DEATHMATCH) and `intro-flash` (the frame of the shot).
+
+## Milestone 175 — Nobody runs out of ammo ✅
+
+Phase 17, item 17.13. See `docs/PHASE_17_PLAN_FEEL_ANIMATION_AND_THE_WORLD.md`.
+
+The owner: "make battle royale when we spawn in with guns have way more ammo and the ammo stacks should be a
+lot more per stack on the ground. I don't want ppl running out of ammo."
+
+- **A stack is about two and a half times what it was**: 150 light, 150 heavy, 60 sniper, 48 shotgun rounds,
+  against Apex's 60 / 60 / 28 / 20. One stack is one pickup on the floor, and four of them are what you can
+  carry, so both went up together (`ammo.json` `stacks`).
+- **A spawn with guns starts with four stacks** of each gun's ammo, a full pouch: 600 light rounds against
+  120 (`ammo.json` `kitStacks`). The same kit is what a 1v1 or a bot match gives each life.
+- A check in `verify` reads the kit from the config rather than holding the old 120, and holds the floor of
+  150 a stack and four stacks. The e2e loadout crate check expected a fixed amount on top of what you had;
+  a full pouch has no room, so it now expects what fits.
