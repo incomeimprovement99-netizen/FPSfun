@@ -3160,3 +3160,15 @@ Phase 17 item 17.7, `docs/AAA_GAP.md` step 3, a first pass. See `docs/PHASE_17_P
   you can name from the dropship (the Hub's mast, North Yard's silos, East Ridge's tower, West Town's clock),
   so the landmark half of this step was already done; making the nine places less alike is the second map's
   job (`docs/AAA_GAP.md` step 10).
+
+## Milestone 179 — Weapon fusion ✅
+
+Phase 17, `docs/AAA_GAP.md` step 4 (Hyper Scape's). See `docs/PHASE_17_PLAN_FEEL_ANIMATION_AND_THE_WORLD.md`.
+
+The battle royale had no reason to pick up a gun you already carry except to swap one copy for another. Now
+the gun you carry, found again, fuses into yours: its magazine goes up a level (to gold), any attachment
+slot it has empty takes the found copy's, and a stack of its ammo comes with it; the copy is used up and
+the HUD says what it gave (`br.json` `fusion`). The Gulag's pair is always two different guns and a
+Resurgence landing starts with empty slots, so neither kit can fuse by accident. The e2e `br` section checks
+a fused R-301 keeps both slots, goes up a magazine, takes the optic and the ammo. README's battle royale
+section says so, and the ammo stacks from Milestone 175.

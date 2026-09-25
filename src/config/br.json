@@ -207,5 +207,11 @@
       "semipistol"
     ],
     "kitStacks": 2
+  },
+  "_fusion": "Weapon fusion (Hyper Scape's, docs/AAA_GAP.md step 4): walking onto the gun you already carry does not give you a second copy to juggle; it fuses into the one you have. Its magazine goes up a level (to `maxMag`, gold), any attachment slot it has empty is filled from the copy you found, and `ammoStacks` stacks of its ammo come with it. The copy is used up. A player with two of the same gun is a player who found a better one, not a spare.",
+  "fusion": {
+    "on": true,
+    "maxMag": 4,
+    "ammoStacks": 1
   }
 }

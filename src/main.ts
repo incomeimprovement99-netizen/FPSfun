@@ -892,6 +892,8 @@ const viewModel = new ViewModel();
 let snapNoGun = false;
 /** kit pieces drawn on the battle royale's buildings (kitdress.ts) */
 let kitDressed = 0;
+/** guns fused this page (br.json fusion), for the tests */
+let fusedCount = 0;
 /** the field's scenery that is drawn (props.ts placeInstanced), for the tests */
 let sceneryDrawn: string[] = [];
 vmCamera.add(viewModel.group);
@@ -3488,6 +3490,22 @@ function applyLoot(it: LootItem): void {
     case "bin":
       return;
     case "weapon": {
+      // Fusion (br.json fusion): the gun you already carry, found again, is
+      // not a spare to juggle but a better copy of the one you have
+      const twin = brCfg.fusion.on && d instanceof BrMatch ? loadout.slots.findIndex((s) => !s.empty && s.id === it.id) : -1;
+      if (twin >= 0) {
+        const s = loadout.slots[twin];
+        const level = Math.min(brCfg.fusion.maxMag, Math.max(s.magLevel, it.mag ?? 0) + 1);
+        const magUp = loadout.fitMag(twin, level);
+        const filled = Object.entries(it.attach ?? {}).filter(([slot, mod]) => mod && !(s.attach as Record<string, string | undefined>)[slot] && loadout.fitAttachment(twin, slot as Parameters<typeof loadout.fitAttachment>[1], mod as string)).length;
+        const type = s.weapon.ammoType;
+        const rounds = type === "energy" || type === "arrows" ? 0 : loadout.ammo.add(type, STACK[type] * brCfg.fusion.ammoStacks);
+        hud.notice(`${label} FUSED${magUp ? `  ·  MAG LEVEL ${s.magLevel}` : ""}${filled ? `  ·  ${filled} ATTACHMENT${filled > 1 ? "S" : ""}` : ""}${rounds ? `  ·  +${rounds} ROUNDS` : ""}`, gameTime, 1.8);
+        fusedCount++;
+        audio.reloadStep("bolt");
+        audio.swap();
+        break;
+      }
       const empty = loadout.emptySlot;
       const into = empty >= 0 ? empty : loadout.activeIndex;
       if (empty >= 0) {
@@ -6649,6 +6667,8 @@ initWelcome();
   viewModelVisible: () => viewModel.group.visible,
   /** how many kit pieces dress the battle royale's buildings (kitdress.ts), 0 until they are in */
   kitDressed: () => kitDressed,
+  /** how many guns have been fused into one already carried (br.json fusion) */
+  fused: () => fusedCount,
   /** which of the field's scenery props are drawn: rocks, scrub, cliff faces, and what grows (br.ts flora) */
   sceneryDrawn: () => sceneryDrawn.slice(),
   /** how many cells of the field's scenery are drawn where you stand, of how many (props.ts) */

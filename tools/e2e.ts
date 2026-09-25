@@ -623,6 +623,21 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   await ev(page, `window.__range.hitThrough(${ids[0]}, 100)`);
   const unlocked = await ev<{ lock: unknown; hop: string | null }>(page, "({ lock: window.__range.loadout.active.hopLock ?? null, hop: window.__range.loadout.active.attach.hopup ?? null })");
   check("and once the damage is done it unlocks, fitted", unlocked.lock === null && unlocked.hop === "hopup_executioner", JSON.stringify(unlocked));
+  // Fusion (br.json fusion): the R-301 you carry, found again, is a better R-301, not a second one
+  const fuse0 = await ev<{ ids: string[]; mag: number; light: number; fused: number }>(
+    page,
+    `(() => { const r = window.__range; const l = r.loadout; l.give(l.activeIndex, "rspn101", 0, {}); l.ammo.stock.light = 0; return { ids: l.slots.map((s) => s.id), mag: l.active.magLevel, light: l.ammo.stock.light, fused: r.fused() }; })()`
+  );
+  await ev(page, `window.__range.applyLoot({ kind: "weapon", id: "rspn101", n: 1, rarity: "rare", mag: 0, attach: { optic: "optic_cq_hcog_classic" } })`);
+  const fuse1 = await ev<{ ids: string[]; mag: number; light: number; fused: number; optic: string | null }>(
+    page,
+    `(() => { const r = window.__range; const l = r.loadout; return { ids: l.slots.map((s) => s.id), mag: l.active.magLevel, light: l.ammo.stock.light, fused: r.fused(), optic: l.active.attach.optic ?? null }; })()`
+  );
+  check(
+    "fusion: picking up the gun you carry makes it better (a magazine level, the attachment it lacked, a stack of ammo) instead of a second copy",
+    fuse1.ids.join() === fuse0.ids.join() && fuse1.mag === fuse0.mag + 1 && fuse1.light > fuse0.light && fuse1.fused === fuse0.fused + 1 && fuse1.optic === "optic_cq_hcog_classic",
+    JSON.stringify({ before: fuse0, after: fuse1 })
+  );
   // (Executioner's shield done coming back before the ring's damage is measured)
   await page.waitForFunction("!window.__range.kdState().exec", { polling: 100, timeout: 8000 }).catch(() => undefined);
   // outside the ring: a corner of the map is outside ring 1
