@@ -49,6 +49,8 @@ export interface GameProfile {
   identity: { title: string; accent: string; accent2: string; sky: string };
   /** the game's own versions of lists the legacy game keeps in its configs; absent: the legacy game's own */
   lists?: { botWeapons: string[]; loadouts: string[][]; gulagGuns: string[] };
+  /** each gun's tuning over its legacy numbers (multipliers; headshotDamage outright) */
+  tuning?: Record<string, { damage: number; fireRate: number; recoil: number; mag?: number; headshotDamage?: number }>;
 }
 
 const PROFILES: Record<GameId, GameProfile> = { legacy, speedkills };

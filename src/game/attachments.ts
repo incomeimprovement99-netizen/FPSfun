@@ -1,3 +1,4 @@
+import { IS_SK, PROFILE } from "./game";
 import { hopupName, opticName } from "../config/names";
 import mechCfg from "../config/weapon-mechanics.json";
 
@@ -100,6 +101,8 @@ export function fireModeOf(id: string): { mod: string; base: string; alt: string
  * in (the snipers) keeps it, and a gun that takes no optic at all gets none.
  */
 export function startingOptic(mods: Record<string, unknown>, id = ""): string | null {
+  // SpeedKills: every gun wears the one optic its profile gives it, always (attachments are off there)
+  if (IS_SK) return PROFILE.weapons[id]?.optic ?? null;
   const want = ["optic_cq_holosight", "optic_cq_hcog_classic", "optic_cq_threat", "optic_cq_holosight_variable"];
   const has = new Set(optionsFor("optic", mods, id).map((o) => o.mod));
   return want.find((m) => has.has(m)) ?? null;

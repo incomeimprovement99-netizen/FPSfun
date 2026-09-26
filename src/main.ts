@@ -2558,7 +2558,8 @@ function respawnForMatch(d: MatchLike): void {
   // full magazines, settled spread and recoil, gun out, a full heal kit, and
   // the match's ammo: counted, two stacks of each gun's, full energy stockpiles
   for (const sl of loadout.slots) sl.state.setWeapon(sl.weapon);
-  loadout.ammo.infinite = false;
+  // SpeedKills: infinite reserve in every match (the owner's rule); the legacy game counts it
+  loadout.ammo.infinite = IS_SK;
   loadout.ammo.kit(loadout.slots.map((sl) => sl.weapon));
   loadout.refillEnergy();
   holster = "out";
@@ -5376,7 +5377,15 @@ function step(): void {
     }
     // Attachments on the weapon in hand. Digits 1 and 2 are weapon slots, so
     // these get their own keys.
-    if (!loadout.swapping && !knockedOut) {
+    if (IS_SK && !loadout.swapping && !knockedOut) {
+      // SpeedKills has no attachments: out of a match, the magazine key steps
+      // the gun in hand through its fusion levels, so each can be tried
+      if (!duel && input.pressedNow("magLevel")) {
+        const next = ((loadout.active.fusion ?? 0) + 1) % (PROFILE.fusion.levels + 1);
+        loadout.setFusion(loadout.activeIndex, next);
+        hud.notice(`${loadout.active.weapon.name}  ·  FUSION LEVEL ${next}`, now, 1.2);
+      }
+    } else if (!loadout.swapping && !knockedOut) {
       if (input.pressedNow("magLevel")) loadout.setMagLevel((loadout.active.magLevel + 1) % 5);
       if (input.pressedNow("optic")) loadout.cycleAttachment("optic");
       if (input.pressedNow("barrel")) loadout.cycleAttachment("barrel");

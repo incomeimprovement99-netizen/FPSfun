@@ -32,7 +32,8 @@ export interface HitClaim {
 function gunOf(id: string): ResolvedWeapon | null {
   if (!id || !GUNS.has(id)) return null;
   try {
-    return resolveWeapon(id);
+    // the most it can be: SpeedKills' top fusion level (the legacy game has none, and ignores it)
+    return resolveWeapon(id, 0, [], 5);
   } catch {
     return null;
   }

@@ -372,5 +372,60 @@
       "shotgun",
       "g2"
     ]
+  },
+  "_tuning": "Each gun's SpeedKills tuning over its legacy numbers, as multipliers: damage (every range), fireRate, and recoil (the kick's pitch and yaw, base and random), and mag (the magazine, before fusion: USSO's 18 became 27, since at its damage a kill took 25 rounds and a reload, 3.1 s, and a fused magazine then took the reload away, a jump the TTK check rightly refused). headshotDamage, where given, is a headshot's damage outright. Set from a measured table (tools/checks/ttk.ts): at 80% of rounds on target against 150 (100 health, 50 shield), the rifles, SMGs and NOVA kill in 1.3 to 1.8 s at close range (the owner's longer, Hyper Scape-like fights; the legacy numbers were about 0.9 s), the shotguns in 0.8 to 1.4 and the marksman guns in 1.2 to 2.4. Each pair keeps its identity: PANDA slower and steadier than ZEPHYR; USSO the fastest gun and the hardest to hold (recoil 1.6), ANAKIN the easiest (0.6). BOOG's headshot is 450: a kill through full health, full shield and an ARMOR hack's 60% cut, at any level, as the owner asked.",
+  "tuning": {
+    "vinson": {
+      "damage": 0.75,
+      "fireRate": 0.85,
+      "recoil": 0.85
+    },
+    "rspn101": {
+      "damage": 0.62,
+      "fireRate": 1.0,
+      "recoil": 0.8
+    },
+    "alternator_smg": {
+      "damage": 0.72,
+      "fireRate": 1.0,
+      "recoil": 0.6
+    },
+    "r97": {
+      "damage": 0.65,
+      "fireRate": 1.0,
+      "recoil": 1.6,
+      "mag": 1.5
+    },
+    "mastiff": {
+      "damage": 1.0,
+      "fireRate": 0.91,
+      "recoil": 1.0
+    },
+    "shotgun": {
+      "damage": 1.0,
+      "fireRate": 1.0,
+      "recoil": 1.0
+    },
+    "3030": {
+      "damage": 1.0,
+      "fireRate": 1.0,
+      "recoil": 1.0
+    },
+    "g2": {
+      "damage": 0.85,
+      "fireRate": 1.0,
+      "recoil": 0.9
+    },
+    "sentinel": {
+      "damage": 1.0,
+      "fireRate": 1.0,
+      "recoil": 1.0,
+      "headshotDamage": 450
+    },
+    "lstar": {
+      "damage": 0.7,
+      "fireRate": 1.0,
+      "recoil": 0.9
+    }
   }
 }

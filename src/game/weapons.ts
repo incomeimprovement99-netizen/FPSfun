@@ -290,7 +290,44 @@ function applyMod(stats: Record<string, number | string>, mod: Record<string, nu
  *   through `magLevel` because the reference data defines some mag steps in a
  *   base file that another level never overrides.
  */
-export function resolveWeapon(id: string, magLevel = 0, attach: string[] = []): ResolvedWeapon {
+/**
+ * A gun, ready to fire: its data, its magazine level and attachments, and on
+ * a SpeedKills page its own tuning and its fusion level (0 as found, to 5,
+ * src/config/games/speedkills.json). The legacy game never applies either,
+ * so every existing caller gets exactly what it always did.
+ */
+export function resolveWeapon(id: string, magLevel = 0, attach: string[] = [], fusion = 0): ResolvedWeapon {
+  const r = resolveBase(id, magLevel, attach);
+  return IS_SK ? speedkillsTuned(r, fusion) : r;
+}
+
+/** SpeedKills' tuning and fusion over a resolved gun */
+function speedkillsTuned(r: ResolvedWeapon, fusion: number): ResolvedWeapon {
+  const t = PROFILE.tuning?.[r.id];
+  const rows = PROFILE.fusion.gun;
+  const f = rows[Math.max(0, Math.min(rows.length - 1, Math.round(fusion)))] ?? { mag: 1, reload: 1, damage: 1, recoil: 1 };
+  const dmg = (t?.damage ?? 1) * f.damage;
+  const kick = (t?.recoil ?? 1) * f.recoil;
+  const rate = t?.fireRate ?? 1;
+  const d = r.damage;
+  const damage = { ...d, near: d.near * dmg, far: d.far * dmg, veryFar: d.veryFar * dmg };
+  // a headshot's damage outright (BOOG): the multiplier that gives it from the near damage
+  if (t?.headshotDamage && damage.near > 0) damage.headshot = t.headshotDamage / damage.near;
+  const vk = r.viewkick;
+  return {
+    ...r,
+    name: PROFILE.weapons[r.id]?.name ?? r.name,
+    damage,
+    fireRate: r.fireRate * rate,
+    shotInterval: r.shotInterval / rate,
+    clipSize: Math.max(1, Math.round(r.clipSize * (t?.mag ?? 1) * f.mag)),
+    reloadTime: r.reloadTime * f.reload,
+    reloadEmptyTime: r.reloadEmptyTime * f.reload,
+    viewkick: { ...vk, pitchBase: vk.pitchBase * kick, pitchRandom: vk.pitchRandom * kick, yawBase: vk.yawBase * kick, yawRandom: vk.yawRandom * kick },
+  };
+}
+
+function resolveBase(id: string, magLevel: number, attach: string[]): ResolvedWeapon {
   const w = DATA.weapons[id];
   if (!w) throw new Error(`unknown weapon ${id}`);
   const s: Record<string, number | string> = { ...w.stats };
