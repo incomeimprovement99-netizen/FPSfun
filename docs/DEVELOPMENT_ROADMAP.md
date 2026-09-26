@@ -3635,6 +3635,7 @@ starts over forgets the old time rather than hold it against the new one.
 the down leaves the player out, and a later-stamped one brings them back. The first fails on the old code.
 The duel, triple and squad e2e sections pass.
 
-Of plan section 12's items, 1, 2, 3, 4, 7, 8, 9, 10, 12, 13 and 14 are now done. Still open: 5 (a reviver is
-credited before the revive is confirmed) and 6 (the legacy game's box-respawn lockouts counted separately on
-each browser).
+Of plan section 12's items, 1, 2, 3, 4, 7, 8, 12, 13 and 14 are now done. 9 and 10 are settled for SpeedKills
+only: its hacks sit on their own buttons and keys (Milestone 192), while the legacy kit's card can still pick
+two of six on a pad and its ultimate still shares Z with the zoom. Still open: 5 (a reviver is credited before
+the revive is confirmed) and 6 (the legacy game's box-respawn lockouts counted separately on each browser).
