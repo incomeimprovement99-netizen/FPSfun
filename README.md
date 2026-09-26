@@ -1223,7 +1223,9 @@ guns are built with their grips at the hand for that.
 Textures and props: ambientCG and Poly Haven (CC0). Heirloom models: Katana by
 CreativeTrio and Dagger by Quaternius, via Poly Pizza (CC0). The mannequin and
 its motion-captured clips: Quaternius's Universal Animation Library 1 and 2
-(CC0). Recorded sounds: Kenney's Impact, Sci-Fi and Interface Sounds (CC0). Bot
+(CC0). Recorded sounds: Kenney's Impact, Sci-Fi and Interface Sounds (CC0). Music:
+"Battle Theme A" by cynicmusic (CC0), the drop; SpeedKills' city under a match,
+"Scifi City - Ambient Loop" by TinyWorlds (CC0), both from OpenGameArt. Bot
 difficulty modelled on Counter-Strike 2's shipped bot profile and Valve's
 published Team Fortress 2 bot code. Fonts: Rajdhani and Barlow Condensed
 (Google Fonts, SIL OFL 1.1), self-hosted by `npm run fonts` so the game makes

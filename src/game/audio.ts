@@ -142,6 +142,7 @@ export class GameAudio {
     // your own gun skips the master gain (it joins after the master compressor), so the sliders reach it here
     this.ownBus?.gain.setTargetAtTime(0.5 * this.volumes.master * this.volumes.effects, t, 0.02);
     if (this.musicState.on) this.musicBus?.gain.setTargetAtTime(this.volumes.music * cfg.music.level, t, 0.02);
+    if (this.ambienceState.on) this.ambBus?.gain.setTargetAtTime(this.volumes.effects * cfg.ambience.level, t, 0.02);
   }
 
   /** the drop theme's element and its gain, made the first time it plays */
@@ -149,6 +150,40 @@ export class GameAudio {
   private musicBus: GainNode | null = null;
   /** the drop theme (tests): playing, and whether its file was missing */
   readonly musicState = { on: false, missing: false };
+  /** SpeedKills' city ambience: a loop of its own, on its own bus */
+  private ambEl: HTMLAudioElement | null = null;
+  private ambBus: GainNode | null = null;
+  readonly ambienceState = { on: false, missing: false };
+
+  /** the city under a SpeedKills match (audio.json ambience): faded in and out, on the effects volume */
+  ambience(on: boolean): void {
+    if (on === this.ambienceState.on) return;
+    this.ambienceState.on = on;
+    const ctx = on ? this.ensure() : this.ctx;
+    if (!ctx || !this.master) return;
+    if (on && !this.ambEl) {
+      const el = new Audio("audio/music/city.mp3");
+      el.loop = true;
+      el.addEventListener("error", () => (this.ambienceState.missing = true));
+      const bus = ctx.createGain();
+      bus.gain.value = 0;
+      ctx.createMediaElementSource(el).connect(bus).connect(this.master);
+      this.ambEl = el;
+      this.ambBus = bus;
+    }
+    const el = this.ambEl;
+    const bus = this.ambBus;
+    if (!el || !bus) return;
+    const t = ctx.currentTime;
+    bus.gain.cancelScheduledValues(t);
+    if (on) {
+      void el.play().catch(() => undefined);
+      bus.gain.setTargetAtTime(this.volumes.effects * cfg.ambience.level, t, cfg.ambience.fadeIn / 3);
+    } else {
+      bus.gain.setTargetAtTime(0, t, cfg.ambience.fadeOut / 3);
+      setTimeout(() => void (this.ambienceState.on || el.pause()), cfg.ambience.fadeOut * 1000);
+    }
+  }
 
   /**
    * The drop theme (audio.json music): faded in as you board, out as you

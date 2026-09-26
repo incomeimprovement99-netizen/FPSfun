@@ -3584,3 +3584,12 @@ Still open from the release runs: the battle royale host migration's setup faile
 batch. Five of six bots had landed but not armed themselves before the ring closed. It passes alone and on a
 throttled CPU, so it is not reproduced yet, and its failure now says which step it stopped at and what each
 bot held.
+
+## Milestone 200 — The city has a sound ✅
+
+Stage P, audio. SpeedKills' matches were silent between shots. "Scifi City - Ambient Loop" by TinyWorlds
+(CC0, OpenGameArt) now plays under every SpeedKills match on the ground, faded in and out, and gives way to
+the drop theme in the air. It rides the effects volume at a low share (audio.json `ambience`), so steps and
+shots stay on top. `npm run sounds` fetches it with the drop theme, the release gate refuses a build without
+it, and the README credits it. The e2e holds that it plays in an arena match and that its file is there; it
+fails with the file moved away.

@@ -200,5 +200,11 @@
     "level": 0.55,
     "fadeIn": 1.5,
     "fadeOut": 3.0
+  },
+  "_ambience": "SpeedKills' city under everything in a match (audio.ts ambience): 'Scifi City - Ambient Loop' (busy_cyberworld) by TinyWorlds, CC0, from OpenGameArt, fetched by `npm run sounds` into public/audio/music as city.mp3. It plays in a match on the ground and gives way to the drop theme in the air; it rides the effects volume, since it is the world's sound rather than a score. level is its share of that, low so steps and shots stay on top; the fades are seconds.",
+  "ambience": {
+    "level": 0.3,
+    "fadeIn": 2.5,
+    "fadeOut": 2.0
   }
 }

@@ -4809,6 +4809,10 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await sleep(500);
   const where = await ev<{ x: number; z: number; phase: string | null }>(arena, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, phase: window.__range.duel()?.phase ?? null })");
   check("speedkills: an arena match is fought in NEON BLOCK, the city's crossing", where.x > 74 && where.x < 118 && where.z > 94 && where.z < 142, JSON.stringify(where));
+  // the city under it: the ambience on, and its file found (audio.json ambience)
+  await sleep(1500);
+  const amb = await ev<{ on: boolean; missing: boolean }>(arena, "({ ...window.__range.audio.ambienceState })");
+  check("speedkills: the city's ambience plays under a match, and its file is there", amb.on && !amb.missing, JSON.stringify(amb));
   await arena.close();
   await speedkillsBrTest(browser);
   await speedkillsGhostTest(browser);

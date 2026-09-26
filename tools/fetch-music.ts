@@ -11,7 +11,11 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const OUT = join(resolve(fileURLToPath(new URL(".", import.meta.url)), ".."), "public", "audio", "music");
-const TRACKS = [{ url: "https://opengameart.org/sites/default/files/battleThemeA.mp3", out: "drop.mp3" }];
+const TRACKS = [
+  { url: "https://opengameart.org/sites/default/files/battleThemeA.mp3", out: "drop.mp3" },
+  // SpeedKills' city ambience: "Scifi City - Ambient Loop" by TinyWorlds, CC0 (opengameart.org/content/scifi-city-ambient-loop)
+  { url: "https://opengameart.org/sites/default/files/busy_cyberworld_0.mp3", out: "city.mp3" },
+];
 
 async function main(): Promise<void> {
   mkdirSync(OUT, { recursive: true });

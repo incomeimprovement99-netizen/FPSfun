@@ -7111,6 +7111,8 @@ function step(): void {
       watchWas = w;
     } else watchWas = null;
     audio.music(dropping);
+    // SpeedKills: the city under a match, on the ground (the drop has its theme)
+    audio.ambience(IS_SK && !!duel && !dropping && !player.aboard);
     announcer.level = audio.volumes.master * audio.volumes.voice;
     announcer.update(realNow());
   }

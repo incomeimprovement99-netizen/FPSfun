@@ -14,7 +14,7 @@ export function releaseGate(root: string): void {
     return;
   }
   console.log("\n== release gate: verify, rules, and the recorded sounds on disk");
-  const missing = ["public/audio/kenney/index.json", "public/audio/guns/index.json", "public/audio/music/drop.mp3"].filter((f) => !existsSync(join(root, f)));
+  const missing = ["public/audio/kenney/index.json", "public/audio/guns/index.json", "public/audio/music/drop.mp3", "public/audio/music/city.mp3"].filter((f) => !existsSync(join(root, f)));
   if (missing.length) throw new Error(`release gate: ${missing.join(" and ")} missing: run npm run sounds and npm run guns here first, or the release ships synthesised sound`);
   for (const cmd of ["npm run verify", "npm run rules"]) {
     try {
