@@ -1295,7 +1295,12 @@ export class Duel implements MatchLike {
         }
         this.onKnockSeen?.(from, m.by);
         this.outWithSquad();
-        if (from < Duel.BOT_ID) this.noteDeath(from);
+        if (from < Duel.BOT_ID) {
+          this.noteDeath(from);
+          // their own count, where they sent it (an older build does not)
+          const b = this.boxDeaths.get(from);
+          if (b && typeof m.bn === "number" && Number.isInteger(m.bn) && m.bn > 0 && m.bn < 100) b.n = m.bn;
+        }
         if (from < Duel.BOT_ID) this.onSomeoneDown(from, m.by, m.m === 1);
         break;
       // the state packets, round, zone, ping, pong, bye, hello and welcome
@@ -1660,8 +1665,10 @@ export class Duel implements MatchLike {
     this.onEliminated?.(from);
     const who = from === -1 ? "THE RING" : (this.nameOf(from) ?? "SOMEONE");
     this.onFeed?.(how === "bled out" ? `${this.myName || "YOU"} bled out` : `${who} eliminated ${this.myName || "YOU"}`, false);
-    this.broadcast({ t: "down", by: from, m: this.lastHitMelee ? 1 : undefined, tm: senderStamp() });
+    // this player's own count of their deaths goes with it: the Deathbox Respawn lockout grows with it, and
+    // each squad mate counted only the downs it heard, so one missed made its lockout shorter (plan 12, item 6)
     this.noteDeath(this.id);
+    this.broadcast({ t: "down", by: from, m: this.lastHitMelee ? 1 : undefined, tm: senderStamp(), bn: this.boxDeaths.get(this.id)?.n });
     if (this.role === "host" && this.mode === "duel") this.checkLastStanding(wallClock());
     this.onSomeoneDown(this.id, from, this.lastHitMelee);
   }

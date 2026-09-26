@@ -3706,3 +3706,12 @@ each browser; SpeedKills has no lockout).
 - **Live:** the e2e sends a bot up a tower in a real match and it walks the stairs to the roof (11.8 of 12.2 m).
   It stayed on the street until a climb came before looting and walked right onto its waypoints.
 - The hurry toward the final sector aims at the nearest node on the ground now, not one up a tower's stairs.
+
+## Milestone 208 — One count of a player's deaths ✅
+
+Plan section 12, item 6, the last of its races. The legacy game's Deathbox Respawn lockout grows with a
+player's deaths, and each squad mate counted only the downs it heard. So one lost message gave a squad mate a
+shorter lockout than the player's own, and a respawn the player's page would refuse. A player's "down" now
+carries their own count, noted before it is sent, and squad mates take it. An older build sends none and is
+read as before. `net-delta.ts` loses the guest's first down on the wire: the host counted 1 against the
+guest's 2 on the old code, and 2 on the new.

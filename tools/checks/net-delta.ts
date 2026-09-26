@@ -1152,6 +1152,36 @@ const scene = new THREE.Scene();
   void f;
 }
 
+{
+  // The Deathbox Respawn lockout (plan section 12, item 6): it grows with a
+  // player's deaths, and each squad mate counted only the downs it heard. The
+  // guest's first down is lost on the way; the second still says how many.
+  const wire = new Wire();
+  const [h, gl] = wire.pair(0, 1);
+  const host = new Duel(scene, projectiles, { players: 2, myId: 0, link: h, guestId: 1 });
+  const guest = new Duel(scene, projectiles, { players: 2, myId: 1, link: gl });
+  const duels = [
+    { d: host, id: 0 },
+    { d: guest, id: 1 },
+  ];
+  let f = run(wire, duels, [], 0, 60);
+  const die = (): void => (guest as unknown as { eliminate(from: number, how: string): void }).eliminate(0, "finished");
+  let lost = 0;
+  wire.drop = (c) => c.from === 1 && c.t === "down" && lost++ === 0;
+  die();
+  wire.drain();
+  wire.drop = null;
+  f = run(wire, duels, [], f, 30);
+  // back up (a respawn), and out again
+  (guest as unknown as { alive: boolean }).alive = true;
+  f = run(wire, duels, [], f, 30);
+  die();
+  wire.drain();
+  const deaths = (d: Duel, id: number) => (d as unknown as { boxDeaths: Map<number, { n: number }> }).boxDeaths.get(id)?.n ?? 0;
+  check("a squad mate that missed a player's down still counts their deaths as they do", lost === 1 && deaths(host, 1) === 2 && deaths(guest, 1) === 2, `the guest counts ${deaths(guest, 1)}, the host ${deaths(host, 1)}`);
+  void f;
+}
+
 perf.now = realNow;
 console.warn = warn;
 if (!hadDocument) delete g.document;

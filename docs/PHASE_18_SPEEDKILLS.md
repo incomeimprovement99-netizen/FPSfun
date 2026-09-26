@@ -53,8 +53,7 @@ Alongside: every multiplayer race the plan's recon found, bar one legacy item, f
 
 ## Still open
 
-- **Plan section 12, item 6:** the legacy game's box-respawn lockouts are counted separately on each browser.
-  SpeedKills has no lockout.
+- **Plan section 12** is done, all fourteen items (item 6, the last, in Milestone 208; 9 and 10 for SpeedKills).
 - **The battle royale host migration's setup** failed twice in the full second batch and never alone or
   throttled. Its failure now says which step it stopped at and what each bot held.
 - **Bots on the roofs** (Milestone 207): done for the low towers; the tall ones are a match's worth of stairs.
