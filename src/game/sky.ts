@@ -188,6 +188,26 @@ export function saveBrSky(v: "match" | "mine"): void {
 }
 
 const HOUR_KEY = "range.sky.hour";
+/** SpeedKills keeps its own: its hours are not the legacy game's, and switching game should not trade them */
+const SK_HOUR_KEY = "range.sky.hour.sk";
+
+/** SpeedKills' chosen hour, one of `skies`, or `fallback` (its neon night) */
+export function loadSkHour(skies: string[], fallback: string): Hour {
+  try {
+    const id = localStorage.getItem(SK_HOUR_KEY);
+    return hourFor(id && skies.includes(id) ? id : fallback);
+  } catch {
+    return hourFor(fallback);
+  }
+}
+
+export function saveSkHour(id: string): void {
+  try {
+    localStorage.setItem(SK_HOUR_KEY, id);
+  } catch {
+    // kept for this visit only
+  }
+}
 
 /** the owner's chosen hour, kept the way the graphics preset is */
 export function loadHour(): Hour {

@@ -147,12 +147,14 @@
   "ziplines": 4,
   "jumpTowers": 6,
   "beacons": 4,
-  "_skyline": "The city past the edge, never reached and never solid: count towers between from and to metres from the middle, the tallest tallest metres over 30.",
+  "_skyline": "The city past the edge, never reached and never solid: count towers between from and to metres from the middle, the tallest tallest metres over 30. glyphs great holo shapes hang over it at glyphHeight metres and up to half as much again, in the districts' colours, so the city glows to the horizon at night (Hyper Scape's skyline had its holograms).",
   "skyline": {
     "count": 56,
     "from": 300,
     "to": 460,
-    "tallest": 130
+    "tallest": 130,
+    "glyphs": 12,
+    "glyphHeight": 90
   },
   "_signs": "Holo signs on towers of minStoreys and more (two on the tallest), w by h metres, lit at signGlow, each a brand of ours, some of them the owner's friends'. beaconLights puts a red warning light on that many of the tallest roofs; cornerNeon is how thick the neon up a tower's corners is, metres.",
   "sign": {
@@ -337,5 +339,10 @@
       -30,
       30
     ]
+  },
+  "_lampPools": "The pool of light under each street lamp (city.ts), radius metres across the road at opacity: the streets lit at night, where they read as dark gaps between the towers. One instanced mesh for all of them.",
+  "lampPools": {
+    "radius": 5,
+    "opacity": 0.08
   }
 }

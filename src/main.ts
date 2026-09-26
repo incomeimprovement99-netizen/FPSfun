@@ -34,7 +34,7 @@ import AUDIO_CFG from "./config/audio.json";
 import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier, type FigurePose } from "./game/dummy";
 import { buildRange, skyFollow, setShadowRegion, setHour, getSun, RANGE_BOUNDS, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
-import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, matchHour, loadBrSky, saveBrSky, type Hour } from "./game/sky";
+import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, matchHour, loadBrSky, saveBrSky, loadSkHour, saveSkHour, type Hour } from "./game/sky";
 import { buildBrMap, BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
 import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
 import { SHIP, surfaceUnder, type ShipRun } from "./game/dropship";
@@ -776,8 +776,9 @@ const rangeRoots = scene.children.filter((o) => !beforeRange.has(o) && o !== are
 // applied before the first frame so the menu's background is already the
 // right hour, and applying it is four shader colours, the sun and the fog:
 // nothing is rebuilt, so changing it mid-game costs a frame.
-// SpeedKills is always its own hour: a neon city at night (speedkills.json identity.sky)
-const gameHour = (): Hour => (IS_SK ? hourFor(PROFILE.identity.sky) : loadHour());
+// SpeedKills offers its own hours (speedkills.json identity.skies): the neon night by default, golden hour the other
+const SK_SKIES = PROFILE.identity.skies ?? [PROFILE.identity.sky];
+const gameHour = (): Hour => (IS_SK ? loadSkHour(SK_SKIES, PROFILE.identity.sky) : loadHour());
 let hour = gameHour();
 function applyHour(h: Hour): void {
   hour = h;
@@ -823,7 +824,7 @@ qualitySel.addEventListener("change", () => {
 // one shader with four colour uniforms, the sun is one light, and the
 // environment map is reloaded in the background.
 const skySel = $<HTMLSelectElement>("skyHour");
-for (const id of HOUR_IDS) {
+for (const id of IS_SK ? SK_SKIES.filter((s) => s in HOURS) : HOUR_IDS) {
   const o = document.createElement("option");
   o.value = id;
   o.textContent = HOURS[id].label;
@@ -831,7 +832,8 @@ for (const id of HOUR_IDS) {
 }
 skySel.value = hour.id;
 skySel.addEventListener("change", () => {
-  saveHour(skySel.value);
+  if (IS_SK) saveSkHour(skySel.value);
+  else saveHour(skySel.value);
   applyHour(hourFor(skySel.value));
 });
 // A battle royale plays at its own hour, drawn from the match seed, unless

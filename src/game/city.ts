@@ -989,6 +989,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
 
   // ---------------------------------------------------------------- streetlights
   const lamp = neon(0xe8f6ff);
+  const lampAt: Array<[number, number]> = [];
   for (const sx of STREETS) {
     for (const sz of STREETS) {
       for (const [ox, oz] of [
@@ -997,8 +998,21 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       ] as const) {
         slab(0.25, 6, 0.25, sx + ox, 0, sz + oz, metal);
         deco(1.4, 0.12, 0.3, sx + ox, 6, sz + oz, lamp);
+        lampAt.push([sx + ox, sz + oz]);
       }
     }
+  }
+  // the light each throws on the road (city.json lampPools), one instanced mesh for all of them
+  {
+    const pool = new THREE.InstancedMesh(
+      new THREE.CircleGeometry(C.lampPools.radius, 24).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0xe8f6ff, transparent: true, opacity: C.lampPools.opacity, blending: THREE.AdditiveBlending, depthWrite: false }),
+      lampAt.length,
+    );
+    const m4 = new THREE.Matrix4();
+    lampAt.forEach(([x, z], i) => pool.setMatrixAt(i, m4.makeTranslation(x, 0.04, z)));
+    pool.renderOrder = 1;
+    root.add(pool);
   }
 
   // ---------------------------------------------------------------- the skyline
@@ -1011,6 +1025,22 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const w = 18 + rnd() * 26;
     deco(w, h, w, Math.cos(a) * r, 0, Math.sin(a) * r, skyMats[i % skyMats.length]);
     if (rnd() < 0.5) deco(0.3, h, 0.3, Math.cos(a) * r - w / 2, 0, Math.sin(a) * r - w / 2, neon(SECTORS[i % SECTORS.length].accent));
+  }
+  // holo glyphs hanging over it in the districts' colours (city.json skyline.glyphs): the city glows to the horizon
+  {
+    const shapes = [new THREE.TorusGeometry(16, 0.7, 6, 48), new THREE.OctahedronGeometry(13, 0), new THREE.TorusKnotGeometry(10, 0.6, 72, 6)];
+    const wire = new Map<number, THREE.MeshBasicMaterial>();
+    for (let i = 0; i < C.skyline.glyphs; i++) {
+      const col = SECTORS[1 + (i % (SECTORS.length - 1))].accent;
+      let mat = wire.get(col);
+      if (!mat) wire.set(col, (mat = new THREE.MeshBasicMaterial({ color: col, wireframe: i % 3 === 1, toneMapped: false })));
+      const a = (i / C.skyline.glyphs) * Math.PI * 2 + 0.26;
+      const r = C.skyline.from + 30 + rnd() * (C.skyline.to - C.skyline.from);
+      const g = new THREE.Mesh(shapes[i % shapes.length], mat);
+      g.position.set(Math.cos(a) * r, C.skyline.glyphHeight * (1 + rnd() * 0.5), Math.sin(a) * r);
+      g.rotation.set(rnd() * Math.PI, rnd() * Math.PI, 0);
+      root.add(g);
+    }
   }
 
   // ---------------------------------------------------------------- the ground past the edge

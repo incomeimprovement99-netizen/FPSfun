@@ -3871,3 +3871,24 @@ Phase 19, step 7.
     faced a wall 2 m away.
   - The restore's finish now waits up to 15 s of real time rather than 6. On a loaded machine the 3 s of game
     time it takes ran past 6 s. How fast a restore goes is still checked by the step before it.
+
+## Milestone 216 — The night made beautiful, and golden hour as a setting ✅
+
+Phase 19, step 8.
+
+- **SpeedKills' own neon night** (sky.json `neonNight`). The old moonlight's grey-blue fog washed the far towers
+  into flat silhouettes. The new hour is darker: a dimmer moon, a black zenith and a deep violet horizon that
+  the fog takes too. The far city goes dark and violet, and its windows and neon carry the picture. The first
+  violet was too strong from the air, and the snapshots were used to bring it down.
+- **Golden hour as a setting.** Time of day in SpeedKills offers its own two hours: the neon night (the default,
+  the owner's call) and golden hour, Hyper Scape's light. The choice is kept apart from the legacy game's hour.
+- **Holo glyphs over the skyline** (city.json `skyline.glyphs`): twelve great rings, crystals and knots in the
+  districts' colours hang past the edge, so the city glows to the horizon.
+- **Lit streets** (city.json `lampPools`): a soft pool of light on the road under every street lamp, all in one
+  instanced mesh.
+- **Checked:**
+  - The sky check now knows an hour outside the legacy menu is SpeedKills' own. It checks that SpeedKills' hours
+    are real hours and that the neon night is darker than the moonlight it replaced.
+  - A new e2e check picks golden hour in a real SpeedKills page and sees it lit brighter at once and kept.
+  - The city's budget: 219k triangles.
+  - Snapshots from the air, a street and the Spire.

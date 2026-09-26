@@ -5059,6 +5059,12 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
     await page.close();
     return;
   }
+  // its sky (speedkills.json identity.skies): the neon night it starts at, and golden hour the one other, applied at once
+  const sky = await ev<{ options: string[]; start: string; night: number; golden: number; kept: string | null }>(
+    page,
+    `(() => { const s = document.getElementById("skyHour"); const sc = window.__range.scene; const start = s.value; const night = sc.environmentIntensity; s.value = "goldenHour"; s.dispatchEvent(new Event("change")); const golden = sc.environmentIntensity; const kept = localStorage.getItem("range.sky.hour.sk"); s.value = start; s.dispatchEvent(new Event("change")); return { options: [...s.options].map((o) => o.value), start, night, golden, kept }; })()`,
+  );
+  check("speedkills: its sky is the neon night, with golden hour the one other, applied at once and kept as its own", sky.options.join(",") === "neonNight,goldenHour" && sky.start === "neonNight" && sky.golden > sky.night && sky.kept === "goldenHour", JSON.stringify(sky));
   const start = await ev<{ players: number; bots: number; pois: string[]; loot: number; health: number; shield: number; shieldMax: number }>(
     page,
     `(() => { const d = window.__range.duel(); return { players: d.players, bots: d.bots.length, teams: d.bots.map((x) => x.team + (x.guard ? "g" : "")).join(","), pois: window.__range.brMap.pois.map((p) => p.name), loot: d.lootField ? d.lootField.drops.size : -1, health: d.health, shield: d.shield, shieldMax: d.shieldMax }; })()`

@@ -10,6 +10,7 @@
 // npm run verify.
 import { DEFAULT_HOUR, HOURS, HOUR_IDS, hourFor, matchHour } from "../../src/game/sky";
 import skyCfg from "../../src/config/sky.json";
+import skCfg from "../../src/config/games/speedkills.json";
 
 let fails = 0;
 function check(label: string, ok: boolean, detail = ""): void {
@@ -19,13 +20,15 @@ function check(label: string, ok: boolean, detail = ""): void {
 
 console.log("\nThe hours of the day");
 
-const ids = Object.keys(HOURS);
+// the legacy game's hours are the menu's order; an hour outside it is SpeedKills' own (speedkills.json identity.skies)
+const skOwn = Object.keys(HOURS).filter((id) => !skyCfg.order.includes(id));
+const ids = Object.keys(HOURS).filter((id) => skyCfg.order.includes(id));
 check("seven hours, from morning to moonlight", ids.length === 7, ids.join(", "));
 
 check(
-  "the menu's order lists every hour and invents none",
-  HOUR_IDS.length === ids.length && HOUR_IDS.every((id) => id in HOURS),
-  `${HOUR_IDS.length} listed, ${ids.length} defined`
+  "the menu's order lists every hour and invents none, and an hour outside it is SpeedKills' own",
+  HOUR_IDS.length === ids.length && HOUR_IDS.every((id) => id in HOURS) && skOwn.every((id) => (skCfg.identity.skies ?? []).includes(id)),
+  `${HOUR_IDS.length} listed, ${ids.length} defined, SpeedKills' own: ${skOwn.join(", ") || "none"}`
 );
 
 check("the default is one of them", DEFAULT_HOUR in HOURS, DEFAULT_HOUR);
@@ -84,6 +87,13 @@ check(
 
 // An unknown id has to land somewhere: a saved setting from an older build,
 // or a hand-typed one, must not leave the scene with no sky at all.
+{
+  // SpeedKills' hours (speedkills.json identity.skies): real hours, its own among them, and it starts on one of them
+  const skies = skCfg.identity.skies ?? [];
+  check("SpeedKills' hours are real ones, and it starts at one of them (its neon night)", skies.length >= 2 && skies.every((id) => id in HOURS) && skies.includes(skCfg.identity.sky) && skCfg.identity.sky === "neonNight", skies.join(", "));
+  const n = HOURS.neonNight;
+  check("the neon night is darker than the moonlight it replaced, its lit things carrying the picture", !!n && n.intensity < HOURS.night.intensity && n.env <= HOURS.night.env, n ? `${n.intensity} / ${n.env}` : "none");
+}
 check("an unknown hour falls back to the default", hourFor("nineteen-eighty-four").id === DEFAULT_HOUR && hourFor(null).id === DEFAULT_HOUR);
 
 // Every hour names a sky file, and the fetch script has to actually fetch it.
