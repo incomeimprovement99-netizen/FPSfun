@@ -20,6 +20,8 @@ export interface MenuOptions {
   onRendered?: () => void;
   weaponIds: string[];
   weaponName: (id: string) => string;
+  /** a gun with its class where the game has one (SpeedKills: "USSO (Fast SMG)"), else its name */
+  weaponLabel: (id: string) => string;
   /** the selected loadout changed, or was edited: apply it */
   onApply: (def: LoadoutDef) => void;
   /** a mode button: go there and play */
@@ -171,7 +173,7 @@ export class Menu {
       for (const w of sorted) {
         const opt = document.createElement("option");
         opt.value = w;
-        opt.textContent = o.weaponName(w);
+        opt.textContent = o.weaponLabel(w);
         sel.appendChild(opt);
       }
       sel.addEventListener("change", () => this.editCurrent(i === 0 ? { slot1: sel.value } : { slot2: sel.value }));
@@ -442,7 +444,10 @@ export class Menu {
         const b = document.createElement("button");
         b.type = "button";
         b.className = sel.kind === kind && sel.index === index ? "on" : "";
-        b.innerHTML = `${esc(d.name)}<small>${esc(this.o.weaponName(d.slot1))} / ${esc(this.o.weaponName(d.slot2))}</small>`;
+        // with their classes a loadout's two guns take a line each
+        const l1 = this.o.weaponLabel(d.slot1);
+        const l2 = this.o.weaponLabel(d.slot2);
+        b.innerHTML = l1 !== this.o.weaponName(d.slot1) ? `${esc(d.name)}<small>${esc(l1)}<br>${esc(l2)}</small>` : `${esc(d.name)}<small>${esc(l1)} / ${esc(l2)}</small>`;
         b.addEventListener("click", () => this.select({ kind, index }));
         list.appendChild(b);
       });
@@ -534,7 +539,9 @@ export class Menu {
 
     const opName = OPERATORS.find((x) => x.id === cur.operator)?.name ?? "";
     $("loadoutChip").innerHTML = `Loadout <b>${esc(cur.name)}</b> &middot; ${esc(opName)}`;
-    $("duelLoadout").textContent = `${cur.name} (${this.o.weaponName(cur.slot1)}, ${this.o.weaponName(cur.slot2)})`;
+    const l1 = this.o.weaponLabel(cur.slot1);
+    // (no brackets inside brackets: "USSO (Fast SMG)" already has its own)
+    $("duelLoadout").textContent = l1 !== this.o.weaponName(cur.slot1) ? `${cur.name}: ${l1} and ${this.o.weaponLabel(cur.slot2)}` : `${cur.name} (${l1}, ${this.o.weaponLabel(cur.slot2)})`;
   }
 }
 

@@ -31,7 +31,9 @@ export interface GameProfile {
   /** the roster in families, each with its label */
   families: Record<string, { label: string; guns: string[] }>;
   /** a gun's own name, its role in its pair and its fixed optic, where the game gives them */
-  weapons: Record<string, { name: string; role: string; optic: string }>;
+  weapons: Record<string, { name: string; role: string; optic: string; kind?: string }>;
+  /** the classes of guns outside the roster (the Run's pistols) */
+  otherKinds?: Record<string, string>;
   /** the attachment slots in play (none: fusion is the upgrade) */
   attachments: string[];
   ammo: "infinite" | "typed" | string;
@@ -50,7 +52,7 @@ export interface GameProfile {
   botNames?: Record<string, string>;
   identity: { title: string; accent: string; accent2: string; sky: string; skies?: string[] };
   /** the game's own versions of lists the legacy game keeps in its configs; absent: the legacy game's own */
-  lists?: { botWeapons: string[]; loadouts: string[][]; gulagGuns: string[] };
+  lists?: { botWeapons: string[]; loadouts: string[][]; gulagGuns: string[]; loadoutNames?: string[]; botRename?: Record<string, string> };
   /** the battle royale's floor: spots a sector by tier, the chances of a gun and a hack core, their fusion odds */
   loot?: { spots: Record<string, number>; gunChance: number; hackChance: number; gunOdds: Record<string, number[]>; hackOdds: Record<string, number[]>; maxFloor?: number; restock?: LootRestock; carePackage?: CarePackage };
   /** how a fight feels (speedkills.json feel): the aimed enemy's outline, the speed streaks */

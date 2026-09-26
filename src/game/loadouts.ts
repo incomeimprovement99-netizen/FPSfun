@@ -48,7 +48,9 @@ export const DEFAULT_LOADOUTS: readonly LoadoutDef[] = [
 ].map((d, i) => {
   // SpeedKills: the same six, carrying its own guns
   const pair = IS_SK ? PROFILE.lists?.loadouts[i] : undefined;
-  return pair ? { ...d, slot1: pair[0], slot2: pair[1] } : d;
+  // and a name that fits the pair (Phase 20 A7)
+  const name = IS_SK ? (PROFILE.lists?.loadoutNames?.[i] ?? d.name) : d.name;
+  return pair ? { ...d, name, slot1: pair[0], slot2: pair[1] } : d;
 });
 
 export type LoadoutRef = { kind: "default" | "custom"; index: number };

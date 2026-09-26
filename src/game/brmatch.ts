@@ -78,7 +78,7 @@ import squadCfg from "../config/squad.json";
 import brCfg from "../config/br.json";
 import { Throwables, blastDamage, throwCode } from "./throwables";
 import { lockedHopupFor } from "./attachments";
-import { weaponName } from "./weapons";
+import { weaponLabel } from "./weapons";
 import { savedLoadout, type LoadoutDef } from "./loadouts";
 import { Bot, BODY_TOP, BOT_NAMES, MOST_BOTS, botName, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense, type SightCue, WIRE_TIERS, type BotKit, type BotTier } from "./bots";
 import botsCfg from "../config/bots.json";
@@ -1365,7 +1365,7 @@ export class BrMatch extends Duel {
     on.claimed.add(this.id);
     const def = savedLoadout();
     const items = loadoutItems(def);
-    this.onNotice?.(`${def.name.toUpperCase()}  ·  ${weaponName(def.slot1).toUpperCase()} + ${weaponName(def.slot2).toUpperCase()}`);
+    this.onNotice?.(`${def.name.toUpperCase()}  ·  ${weaponLabel(def.slot1).toUpperCase()} + ${weaponLabel(def.slot2).toUpperCase()}`);
     if (this.onLoadoutDrop) this.onLoadoutDrop(items, def);
     else if (!this.links.size && !this.hostLink) {
       // alone, with nothing listening: the crate pops them out at your feet

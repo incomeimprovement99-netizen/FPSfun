@@ -4141,3 +4141,26 @@ outlines on all of it).
     games, since 18 September; fixed in SpeedKills).
 - **Checked:** a new e2e check reads the boxes the HUD drew in a real match and holds the layout to all of
   that, with nothing overlapping.
+
+## Milestone 227 — Every gun named with its class ✅
+
+Phase 20, A7 (the owner: "USSO (Fast SMG)", so a beginner can see what each gun is).
+
+- **Each SpeedKills gun has a two-word class** (speedkills.json `kind`), read off its numbers. Each pair reads
+  Heavy or Steady against Fast or Auto: PANDA Heavy Rifle, ZEPHYR Fast Rifle, ANAKIN Steady SMG, USSO Fast
+  SMG, BIGANTLER Heavy Shotgun, RIPTIDE Auto Shotgun, HELIX Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper,
+  NOVA Energy LMG. The Run's pistols are Pistol.
+- **`weaponLabel` names a gun with its class wherever there is room:**
+  - the loot prompts and the reach list;
+  - pickup notices and the range's fusion notice;
+  - the Tab inventory, the killcam and the recap;
+  - the loadout pickers (wider in SpeedKills) and the loadout list, one line a gun;
+  - the bot-gun picker and the loadout crate.
+
+  The HUD's slots show the class after the name in a smaller gold or grey tone. The kill feed names no gun, as
+  before, and legacy shows bare names.
+- **A fix:** the FUSED notice for a gun or a hack was written over by the bare name straight after.
+- **Renamed:**
+  - SpeedKills' default loadouts get names that fit their guns: Sidearms is Skirmisher, Dirt Bike is Long Shot.
+  - The bot called NOVA is BOT NEXUS, beside the gun NOVA.
+- **Checked:** a new e2e check for the label and the loadout picker.

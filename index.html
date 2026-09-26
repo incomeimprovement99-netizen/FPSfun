@@ -119,6 +119,8 @@
       [data-game="speedkills"] .lobby .modes { max-height: 70vh; }
       [data-game="speedkills"] body { background: #06070d; }
       [data-game="speedkills"] #overlay { background: radial-gradient(ellipse at 30% 20%, rgba(32, 224, 255, 0.10), transparent 55%), radial-gradient(ellipse at 80% 90%, rgba(255, 46, 154, 0.10), transparent 55%), rgba(4, 5, 12, 0.88); }
+      /* a gun with its class ("USSO (Fast SMG)") needs a wider picker than a bare name (Phase 20 A7) */
+      [data-game="speedkills"] .row.gunPick { grid-template-columns: 1fr 230px 140px; }
       [data-game="speedkills"] .menu { background: #0b0e18; border-color: #1d2a44; box-shadow: 0 0 0 1px rgba(32, 224, 255, 0.12), 0 20px 70px rgba(0, 0, 0, .7); }
       [data-game="speedkills"] .brand .logo { color: #20e0ff; text-shadow: 0 0 14px rgba(32, 224, 255, .55); font-style: italic; }
       [data-game="speedkills"] .brand .title { color: #ff2e9a; text-shadow: 0 0 14px rgba(255, 46, 154, .5); font-style: italic; }
@@ -433,8 +435,8 @@
                   <option value="fullMask">Full mask</option>
                   <option value="wrap,goggles">Wrap and goggles</option>
                 </select></div>
-              <div class="row"><label>Slot 1 <div class="hint">key 1</div></label><select id="slot0"></select><select id="finish0" title="this gun's finish: every gun keeps its own, and every finish is there from the start"></select></div>
-              <div class="row"><label>Slot 2 <div class="hint">key 2</div></label><select id="slot1"></select><select id="finish1" title="this gun's finish: every gun keeps its own, and every finish is there from the start"></select></div>
+              <div class="row gunPick"><label>Slot 1 <div class="hint">key 1</div></label><select id="slot0"></select><select id="finish0" title="this gun's finish: every gun keeps its own, and every finish is there from the start"></select></div>
+              <div class="row gunPick"><label>Slot 2 <div class="hint">key 2</div></label><select id="slot1"></select><select id="finish1" title="this gun's finish: every gun keeps its own, and every finish is there from the start"></select></div>
               <div class="lohead">Heirloom <span class="hint">held when holstered, swung with V</span></div>
               <div class="cards" id="heirloomCards"></div>
             </div>

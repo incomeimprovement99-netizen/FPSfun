@@ -260,7 +260,8 @@ export function clearLob(from: THREE.Vector3, to: THREE.Vector3, flight: number)
 }
 /** what bots carry, one per bot in order */
 export const BOT_WEAPONS: string[] = IS_SK && PROFILE.lists ? [...PROFILE.lists.botWeapons] : ["rspn101", "r97", "vinson", "wingman", "hemlok", "energy_ar", "lmg", "energy_shotgun", "volt_smg", "car", "g2", "sentinel"];
-export const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM", "BOT NOVA", "BOT FLUX", "BOT STEEL", "BOT NEON", "BOT SOLAR", "BOT RAPID", "BOT SWIFT", "BOT ONYX", "BOT DUNE"];
+// SpeedKills renames a bot whose name is a gun's (speedkills.json lists.botRename: BOT NOVA beside the gun NOVA)
+export const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM", "BOT NOVA", "BOT FLUX", "BOT STEEL", "BOT NEON", "BOT SOLAR", "BOT RAPID", "BOT SWIFT", "BOT ONYX", "BOT DUNE"].map((n) => (IS_SK ? (PROFILE.lists?.botRename?.[n] ?? n) : n));
 
 /**
  * The name of the nth bot in a match. Twelve names were the cap on how many

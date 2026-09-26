@@ -4,7 +4,7 @@ import { WALLS, clearWalls, putWall, stepWalls } from "./game/walls";
 import { SMOKES, clearSmoke, smokeAt, stepSmoke, throwSmoke } from "./game/smoke";
 import playerCfg from "./config/player.json";
 import { GAME, LS_GAME, PROFILE, GAME_IDS, IS_SK, type GameId } from "./game/game";
-import { resolveWeapon, weaponClass, weaponIds, weaponName } from "./game/weapons";
+import { resolveWeapon, weaponClass, weaponIds, weaponKind, weaponLabel, weaponName } from "./game/weapons";
 import { adsSensScale, cmPer360, degPerCount, gunFov, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
 import { Input } from "./game/input";
 import { padButtons, type PadSettings } from "./game/gamepad";
@@ -2197,7 +2197,7 @@ const botWeaponSel = $<HTMLSelectElement>("botWeapon");
 for (const id of weaponIds()) {
   const o = document.createElement("option");
   o.value = id;
-  o.textContent = `Bot guns: ${weaponName(id)}`;
+  o.textContent = IS_SK ? weaponLabel(id) : `Bot guns: ${weaponName(id)}`;
   botWeaponSel.appendChild(o);
 }
 try {
@@ -4137,7 +4137,8 @@ function applyLoot(it: LootItem): void {
       hud.notice(what === "fused" ? `${hackDef(it.id)?.name ?? it.id} FUSED  ·  LEVEL ${held?.level ?? 0}` : what === "maxed" ? `${hackDef(it.id)?.name ?? it.id}: ALREADY AT ITS TOP LEVEL` : `${hackDef(it.id)?.name ?? it.id} HACK`, gameTime, 1.6);
       if (what === "maxed") putBack(it);
       audio.reloadStep("bolt");
-      break;
+      // its notice is the one to see: after the switch a picked-up item's bare name was written over it (Phase 20 A7)
+      return;
     }
     case "weapon": {
       // SpeedKills' fusion: the gun you carry, found again, goes up a level
@@ -4157,7 +4158,8 @@ function applyLoot(it: LootItem): void {
             hud.notice(`${label}: ALREADY AT ITS TOP LEVEL`, gameTime, 1.4);
             putBack(it);
           }
-          break;
+          // (as the hack's: the FUSED notice was written over by the bare name after the switch)
+          return;
         }
         const empty = loadout.emptySlot;
         if (empty >= 0) {
@@ -5381,6 +5383,7 @@ const menu = new Menu(loadouts, profile, {
   progress: () => ({ ...progress.level, xp: progress.xp, done: progress.done, challenges: progress.challenges }),
   weaponIds: weaponIds(),
   weaponName,
+  weaponLabel,
   onApply: applyLoadout,
   sessionGuns: () => [...gunSession.entries()].map(([id, r]) => ({ name: weaponName(id), ...r })),
   onGo: (mode) => {
@@ -6087,7 +6090,7 @@ function step(): void {
       if (!duel && input.pressedNow("magLevel")) {
         const next = ((loadout.active.fusion ?? 0) + 1) % (PROFILE.fusion.levels + 1);
         loadout.setFusion(loadout.activeIndex, next);
-        hud.notice(`${loadout.active.weapon.name}  ·  FUSION LEVEL ${next}`, now, 1.2);
+        hud.notice(`${weaponLabel(loadout.active.id).toUpperCase()}  ·  FUSION LEVEL ${next}`, now, 1.2);
       }
     } else if (!loadout.swapping && !knockedOut) {
       if (input.pressedNow("magLevel")) loadout.setMagLevel((loadout.active.magLevel + 1) % 5);
@@ -7285,6 +7288,7 @@ function step(): void {
     // name/ammo follow the INCOMING weapon during a swap; cone/ADS stay with
     // the gun actually in hand
     weaponName: shown.empty ? "FISTS" : shown.weapon.name,
+    weaponKind: shown.empty ? null : weaponKind(shown.id),
     hopLock: !shown.empty && shown.hopLock ? { name: hopupName(shown.hopLock.mod), have: shown.hopLock.have, need: shown.hopLock.need } : null,
     unarmed: shown.empty,
     magLevel: shown.magLevel,
@@ -7292,6 +7296,7 @@ function step(): void {
     slot: loadout.displayIndex + 1,
     slotCount: loadout.slots.length,
     otherName: loadout.slots[loadout.nextIndex].empty ? "EMPTY" : loadout.slots[loadout.nextIndex].weapon.name,
+    otherKind: loadout.slots[loadout.nextIndex].empty ? null : weaponKind(loadout.slots[loadout.nextIndex].id),
     swapping: loadout.swapping,
     fireMode: loadout.fireModeLabel(),
     reserve: loadout.reserve(),
@@ -7347,7 +7352,7 @@ function step(): void {
     inventory: input.held("inventory")
       ? {
           guns: loadout.slots.map((sl, i) => ({
-            name: weaponName(sl.weapon.id),
+            name: weaponLabel(sl.weapon.id),
             clip: sl.state.clip,
             size: sl.weapon.clipSize,
             ammo: sl.energy ? `${sl.energy.rounds} energy` : `${loadout.ammo.stock[ammoTypeOf(sl.id)] ?? 0} ${ammoTypeOf(sl.id)}`,
@@ -7404,7 +7409,7 @@ function step(): void {
     voice: hudVoice,
     trainer: trainer.hud(now),
     mantleCue: trainer.cue && mantleCueOn,
-    killcam: killcam.active ? { name: killcam.killerName, weapon: killcam.killerWeapon ? weaponName(killcam.killerWeapon) : "", progress: killcam.progress, left: killcam.left, skipKey: keyLabel("jump") } : null,
+    killcam: killcam.active ? { name: killcam.killerName, weapon: killcam.killerWeapon ? weaponLabel(killcam.killerWeapon) : "", progress: killcam.progress, left: killcam.left, skipKey: keyLabel("jump") } : null,
     recap: recap && !killcam.active ? { ...recap, age: now - recapShownAt, closeKey: keyLabel("jump"), killerCard: bannerOf(remoteBanners.get(recap.killerId) ?? botBanner(recap.killerId)) } : null,
     myCard: bannerOf(myBanner()),
     sectors: duel instanceof BrMatch && duel.decay ? skSectorsHud(duel) : null,

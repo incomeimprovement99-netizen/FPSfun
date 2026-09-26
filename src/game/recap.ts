@@ -10,7 +10,7 @@
 // 10 s before the kill, and what they had left.
 import { PHOENIX_NAME } from "../config/names";
 import cfg from "../config/killcam.json";
-import { weaponName } from "./weapons";
+import { weaponLabel } from "./weapons";
 import { causeName, EDGE_ID, RING_ID } from "./causes";
 
 export interface HitEntry {
@@ -110,7 +110,7 @@ export class DamageLog {
       const guns = new Map<string, { name: string; hits: number; damage: number; near: number | null; far: number | null }>();
       for (const h of theirs) {
         const key = h.weapon || "?";
-        const g = guns.get(key) ?? { name: h.weapon === "melee" ? "MELEE" : h.weapon ? weaponName(h.weapon).toUpperCase() : "UNKNOWN GUN", hits: 0, damage: 0, near: null, far: null };
+        const g = guns.get(key) ?? { name: h.weapon === "melee" ? "MELEE" : h.weapon ? weaponLabel(h.weapon).toUpperCase() : "UNKNOWN GUN", hits: 0, damage: 0, near: null, far: null };
         g.hits++;
         g.damage += h.amount;
         if (h.dist !== null) {

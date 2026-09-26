@@ -98,6 +98,8 @@ interface TechEntry {
 
 export interface HudState {
   weaponName: string;
+  /** SpeedKills: the gun's class beside its name (speedkills.json kind; Phase 20 A7) */
+  weaponKind?: string | null;
   /** the gun's locked hop-up and its progress (a battle royale, Seasons 29 and 30) */
   hopLock?: { name: string; have: number; need: number } | null;
   magLevel: number;
@@ -106,6 +108,7 @@ export interface HudState {
   slot: number;
   slotCount: number;
   otherName: string;
+  otherKind?: string | null;
   swapping: boolean;
   fireMode: string;
   attachLines: string[];
@@ -3067,10 +3070,18 @@ export class Hud {
       c.font = this.font(700, L.slots.levelFont * u);
       const lvW = lvText ? c.measureText(lvText).width + 6 * u : 0;
       const label = names[i].toUpperCase();
+      // the gun's class after its name in a second, smaller tone (Phase 20 A7): gold on the lit slot, where grey
+      // did not read
+      const kind = (s.slot === 1 ? [s.weaponKind, s.otherKind] : [s.otherKind, s.weaponKind])[i];
+      const kindText = hasGun && kind ? kind.toUpperCase() : "";
       c.font = this.font(700, L.slots.nameFont * u);
+      const nameW = c.measureText(label).width;
+      c.font = this.font(700, L.slots.kindFont * u);
+      const kindW = kindText ? c.measureText(kindText).width + 6 * u : 0;
       const room = sw - 26 * u - 8 * u - (lvText ? pipsW + lvW + 8 * u : 0);
-      const fit = Math.min(1, room / Math.max(1, c.measureText(label).width));
+      const fit = Math.min(1, room / Math.max(1, nameW + kindW));
       this.text(label, sx + 26 * u, y + sh / 2 + 6.5 * u, 700, L.slots.nameFont * u * fit, active ? WHITE : DIM);
+      if (kindText) this.text(kindText, sx + 26 * u + (nameW + 6 * u) * fit, y + sh / 2 + 6.5 * u, 700, L.slots.kindFont * u * fit, active ? "#ffd23c" : DIM);
       if (lvText && lv !== undefined) {
         const px0 = sx + sw - 8 * u - lvW - pipsW;
         for (let k = 0; k < n; k++) this.bar(px0 + k * (L.slots.pipW + L.slots.pipGap) * u, y + sh / 2 - 2 * u, L.slots.pipW * u, L.slots.pipH * u, k < lv ? 1 : 0, "rgba(255,255,255,0.18)", "#3cf2ff", u * 0.67);

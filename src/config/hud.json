@@ -273,7 +273,7 @@
       "You never run out of ammo. Reload and keep moving."
     ]
   },
-  "_layouts": "SpeedKills' bottom HUD (Phase 20 A6; src/game/hud.ts drawVitalsSk, drawHacksSk, drawWeaponsSk), in HUD pixels at 1080p times the HUD scale, and times a fit factor when the two sides would meet on a narrow screen. The owner's ask: everything on the bottom edge; the health bar twice the legacy 12 thick and a little longer than 330; the two hacks right of the health, lower and further right than the legacy square at 384, H-134, and bigger than its 58; the ammo count at 88, 1.52 times the legacy 58; the two guns with their fusion pips and level left of the count, digitsBox leaving room for a three-digit magazine; and a dark outline under every text and round every bar (text: lineWidth is the font size times text, kept between min and max; bars: bar). Legacy sizes measured off the live HUD at 1920x1080 by the Phase 20 diagnosis. Ours.",
+  "_layouts": "SpeedKills' bottom HUD (Phase 20 A6; src/game/hud.ts drawVitalsSk, drawHacksSk, drawWeaponsSk), in HUD pixels at 1080p times the HUD scale, and times a fit factor when the two sides would meet on a narrow screen. The owner's ask: everything on the bottom edge; the health bar twice the legacy 12 thick and a little longer than 330; the two hacks right of the health, lower and further right than the legacy square at 384, H-134, and bigger than its 58; the ammo count at 88, 1.52 times the legacy 58; the two guns with their fusion pips and level left of the count, digitsBox leaving room for a three-digit magazine; and a dark outline under every text and round every bar (text: lineWidth is the font size times text, kept between min and max; bars: bar). Legacy sizes measured off the live HUD at 1920x1080 by the Phase 20 diagnosis. Ours. The slots are 300 wide and carry the gun's class after its name in kindFont (Phase 20 A7).",
   "layouts": {
     "speedkills": {
       "margin": {
@@ -317,11 +317,12 @@
       },
       "slots": {
         "dx": 12,
-        "w": 250,
+        "w": 300,
         "h": 30,
         "gap": 4,
         "numFont": 16,
         "nameFont": 18,
+        "kindFont": 12,
         "pipW": 10,
         "pipH": 4,
         "pipGap": 3,

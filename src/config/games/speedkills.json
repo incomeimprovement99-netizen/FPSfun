@@ -63,52 +63,62 @@
     "vinson": {
       "name": "PANDA",
       "role": "hard",
-      "optic": "optic_cq_hcog_bruiser"
+      "optic": "optic_cq_hcog_bruiser",
+      "kind": "Heavy Rifle"
     },
     "rspn101": {
       "name": "ZEPHYR",
       "role": "fast",
-      "optic": "optic_cq_hcog_bruiser"
+      "optic": "optic_cq_hcog_bruiser",
+      "kind": "Fast Rifle"
     },
     "alternator_smg": {
       "name": "ANAKIN",
       "role": "hard",
-      "optic": "optic_cq_holosight"
+      "optic": "optic_cq_holosight",
+      "kind": "Steady SMG"
     },
     "r97": {
       "name": "USSO",
       "role": "fast",
-      "optic": "optic_cq_holosight"
+      "optic": "optic_cq_holosight",
+      "kind": "Fast SMG"
     },
     "mastiff": {
       "name": "BIGANTLER",
       "role": "hard",
-      "optic": "optic_cq_holosight"
+      "optic": "optic_cq_holosight",
+      "kind": "Heavy Shotgun"
     },
     "shotgun": {
       "name": "RIPTIDE",
       "role": "fast",
-      "optic": "optic_cq_holosight"
+      "optic": "optic_cq_holosight",
+      "kind": "Auto Shotgun"
     },
     "3030": {
       "name": "HELIX",
       "role": "hard",
-      "optic": "optic_ranged_hcog"
+      "optic": "optic_ranged_hcog",
+      "kind": "Heavy Marksman"
     },
     "g2": {
       "name": "PULSAR",
       "role": "fast",
-      "optic": "optic_ranged_hcog"
+      "optic": "optic_ranged_hcog",
+      "kind": "Fast Marksman"
     },
     "sentinel": {
       "name": "BOOG",
       "role": "hard",
-      "optic": "optic_sniper"
+      "optic": "optic_sniper",
+      "kind": "Sniper"
     },
     "lstar": {
       "name": "NOVA",
       "role": "fast",
-      "optic": "optic_cq_hcog_bruiser"
+      "optic": "optic_cq_hcog_bruiser",
+      "kind": "Energy LMG"
     }
   },
   "attachments": [],
@@ -337,7 +347,7 @@
       "goldenHour"
     ]
   },
-  "_lists": "The lists the legacy game keeps in its own configs, in SpeedKills' guns: what the bots carry (every gun, in turn), the six default loadouts' two guns (the order of the legacy defaults: Assault, Close Quarters, Marksman, Heavy, Sidearms, Dirt Bike), and the Gulag's pool, from which the two fighters' shared pair is drawn.",
+  "_lists": "The lists the legacy game keeps in its own configs, in SpeedKills' guns: what the bots carry (every gun, in turn), the six default loadouts' two guns (the order of the legacy defaults: Assault, Close Quarters, Marksman, Heavy, Sidearms, Dirt Bike), and the Gulag's pool, from which the two fighters' shared pair is drawn. loadoutNames are the six defaults' names in SpeedKills (Phase 20 A7): the legacy Sidearms and Dirt Bike no longer fit guns that are HELIX with USSO and BOOG with ANAKIN. botRename renames the bots whose names are a gun's (BOT NOVA beside the gun NOVA).",
   "lists": {
     "botWeapons": [
       "rspn101",
@@ -384,7 +394,18 @@
       "vinson",
       "shotgun",
       "g2"
-    ]
+    ],
+    "loadoutNames": [
+      "Assault",
+      "Close Quarters",
+      "Marksman",
+      "Heavy",
+      "Skirmisher",
+      "Long Shot"
+    ],
+    "botRename": {
+      "BOT NOVA": "BOT NEXUS"
+    }
   },
   "_tuning": "Each gun's SpeedKills tuning over its legacy numbers, as multipliers: damage (every range), fireRate, and recoil (the kick's pitch and yaw, base and random), and mag (the magazine, before fusion: USSO's 18 became 27, since at its damage a kill took 25 rounds and a reload, 3.1 s, and a fused magazine then took the reload away, a jump the TTK check rightly refused). headshotDamage, where given, is a headshot's damage outright. Set from a measured table (tools/checks/ttk.ts): at 80% of rounds on target against 150 (100 health, 50 shield), the rifles, SMGs and NOVA kill in 1.3 to 1.8 s at close range (the owner's longer, Hyper Scape-like fights; the legacy numbers were about 0.9 s), the shotguns in 0.8 to 1.4 and the marksman guns in 1.2 to 2.4. Each pair keeps its identity: PANDA slower and steadier than ZEPHYR; USSO the fastest gun and the hardest to hold (recoil 1.6), ANAKIN the easiest (0.6). BOOG's headshot is 450: a kill through full health, full shield and an ARMOR hack's 60% cut, at any level, as the owner asked.",
   "tuning": {
@@ -528,5 +549,10 @@
   "_viewmodel": "The first-person gun (src/game/viewmodel.ts). reloadAds is how much of a reload's own roll and slide is gone while aiming, as viewmodel.json strafe.ads does for a strafe: 0.85 leaves 15%. At full size a reload in the sights rolled the gun 22 degrees at its peak and 5 to 7 at its ends, where the support hand is still on the handguard, and the 2x window swung onto it: 152 to 621 pixels of arm in the sight picture at 1280x720 on PANDA, ZEPHYR and NOVA (measured by the Phase 20 A3 diagnosis; 0.6 still left 172, 0.85 none). Ours, not a published number.",
   "viewmodel": {
     "reloadAds": 0.85
+  },
+  "_kinds": "kind is each gun's two-word class, shown beside its name wherever there is room (USSO (Fast SMG)), so a beginner knows what a gun is (the owner, Phase 20 A7). Each pair reads Heavy or Steady against Fast or Auto, from its numbers (resolved at fusion 0; tools/checks/ttk.ts): PANDA 61% more a round than ZEPHYR and 37% slower; ANAKIN's recoil multiplier the lowest, 0.6; USSO the fastest gun at 18 a second; RIPTIDE full auto; HELIX 51 a shot against PULSAR's 28 at 4.1 a second; NOVA cools instead of reloading. otherKinds classes the guns the Run lends that are not in the roster.",
+  "otherKinds": {
+    "p2020": "Pistol",
+    "glock": "Pistol"
   }
 }

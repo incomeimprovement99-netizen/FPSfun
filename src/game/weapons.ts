@@ -245,6 +245,18 @@ export function weaponName(id: string): string {
   if (sk) return sk;
   return displayName(id, DATA.weapons[id]?.name ?? id);
 }
+/** SpeedKills: a gun's two-word class (speedkills.json kind), or null (the legacy game names no class) */
+export function weaponKind(id: string): string | null {
+  return IS_SK ? (PROFILE.weapons[id]?.kind ?? PROFILE.otherKinds?.[id] ?? null) : null;
+}
+/**
+ * A gun as a beginner reads it, "USSO (Fast SMG)" (the owner, Phase 20 A7), where there is room for it; the bare
+ * name, weaponName, stays for the tight spots, and is all the legacy game shows
+ */
+export function weaponLabel(id: string): string {
+  const k = weaponKind(id);
+  return k ? `${weaponName(id)} (${k})` : weaponName(id);
+}
 /** this weapon's Mods block, keyed by mod name, for attachment discovery */
 export function weaponMods(id: string): Record<string, Record<string, number | string>> {
   return DATA.weapons[id]?.mods ?? {};

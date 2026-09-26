@@ -24,7 +24,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
-import { weaponMods, weaponName, type AmmoType } from "./weapons";
+import { weaponLabel, weaponMods, type AmmoType } from "./weapons";
 import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName, throwName } from "../config/names";
 import { RANGE_SOLIDS } from "./range";
@@ -132,7 +132,7 @@ const MYTHIC_RED = 0xff3b3b;
 export function lootLabel(it: LootItem): string {
   switch (it.kind) {
     case "weapon":
-      return `${it.mythic ? "MYTHIC " : ""}${weaponName(it.id).toUpperCase()}`;
+      return `${it.mythic ? "MYTHIC " : ""}${weaponLabel(it.id).toUpperCase()}`;
     case "keycard":
       return "VAULT KEYCARD";
     case "hack":

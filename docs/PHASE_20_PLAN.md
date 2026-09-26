@@ -201,6 +201,8 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
     setup menus, pickup notices, the kill feed, the recap and the tour.
 - **Done when:** an e2e check reads the menus and the HUD and finds no gun named without its class.
 
+*Done (Milestone 227).*
+
 ### A8. The loot card: this gun against yours
 
 - **The owner:** looking at a gun on the floor shows what it is and compares it with your current gun: level,
