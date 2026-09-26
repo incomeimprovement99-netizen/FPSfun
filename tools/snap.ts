@@ -193,6 +193,15 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "sk-highway",
+    note: "SpeedKills' rooftop highway from its deck, six storeys up: the lit rails running away between the downtown's towers and the mid-rise roofs, the frames under it, a pad's beam beside it",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -250, maxX: 250, minZ: 250, maxZ: 750 }); r.player.teleport(-60, 24.1, 393, 270, -4); })()`, 0],
+      [gameSeconds(1.5), 600],
+    ],
+  },
+  {
     name: "sk-city-midrise",
     note: "SpeedKills' mid-rise ring from a roof: blocks of buildings wall to wall round courtyards, their roofs stepping a storey or two, the downtown's towers behind",
     query: "?game=speedkills",

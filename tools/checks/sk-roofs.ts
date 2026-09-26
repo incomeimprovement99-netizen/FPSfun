@@ -22,7 +22,7 @@ if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS:
 const warn = console.warn;
 console.warn = () => undefined;
 const { IS_SK } = await import("../../src/game/game");
-const { buildCityMap, ROOF_ROUTES, CONCOURSE } = await import("../../src/game/city");
+const { buildCityMap, ROOF_ROUTES, CONCOURSE, HIGHWAY } = await import("../../src/game/city");
 const { botWalk } = await import("../../src/game/botbody");
 const cityCfg = (await import("../../src/config/city.json")).default;
 const map = buildCityMap(new THREE.Scene());
@@ -102,6 +102,18 @@ check("a bot walks every low tower's route from the street to its roof", stuck.l
     if (!w.ok || Math.abs(w.y - b.y) > 0.3) cross.push(`bridge ${n}: ${w.ok ? `arrived at ${w.y.toFixed(2)}` : `blocked at ${w.at}`}`);
   }
   check("and every bridge of the concourse crossed, podium to podium, at the one height", CONCOURSE.bridges.length >= 8 && cross.length === 0, cross.length ? cross.slice(0, 3).join("; ") : `${CONCOURSE.bridges.length} bridges`);
+}
+
+// The rooftop highway (Phase 19 step 7): walked all the way round its loop, corner to corner, on its deck
+{
+  const legs: string[] = [];
+  for (let k = 0; k < HIGHWAY.length; k++) {
+    const a = HIGHWAY[k];
+    const b = HIGHWAY[(k + 1) % HIGHWAY.length];
+    const w = walk(a.x, a.z, a.y, b.x, b.z);
+    if (!w.ok || Math.abs(w.y - b.y) > 0.3) legs.push(`side ${k}: ${w.ok ? `arrived at ${w.y.toFixed(2)}` : `blocked at ${w.at}`}`);
+  }
+  check("the rooftop highway is walked all the way round, corner to corner, on its deck", HIGHWAY.length === 4 && legs.length === 0, legs.length ? legs.join("; ") : `4 sides at ${HIGHWAY[0]?.y} m`);
 }
 
 console.log(fails === 0 ? "\nSK ROOFS PASS" : `\nSK ROOFS FAIL (${fails})`);

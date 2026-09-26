@@ -3848,3 +3848,26 @@ Phase 19, step 5, second half.
 - **Checked:** a new e2e check takes 70% of the centre's loot away in a real match and watches it come back
   (59 to 71 items). With the restock switched off it fails (59 stays 59), which proves it. Also checked:
   verify and the SpeedKills e2e.
+
+## Milestone 215 — The rooftop highway ✅
+
+Phase 19, step 7.
+
+- **A walkable loop six storeys up** (city.json `highway`). It is a 5 m deck at 24 m over the street between the
+  downtown and the mid-rise ring, 860 m round, among the mid-rise roofs and under the downtown's towers. It is
+  the fast way round the city, above the fights in the streets.
+  - It has railed edges, lit cyan on top and gold under the lip. The inner rails stop short of the corners so
+    the turn stays open.
+  - It stands on portal frames at the kerbs, so the street's middle, where the bots walk, stays clear.
+  - Eight jump pads in the road throw you up onto it.
+- **Checked:**
+  - The roofs' check walks the whole loop, corner to corner, on the deck. With the inner rails run the full
+    length, the old way, it fails at all four corners, which proves it.
+  - A new e2e check rides a road pad from 0 to 24 m in a real match.
+  - The city's budget: 211k triangles, 330 merged meshes.
+  - A new snapshot, `sk-highway`.
+- **Two e2e checks made steadier:**
+  - The ghost's first walk turns until it has room. It walked forward from wherever the drop put it, and one run
+    faced a wall 2 m away.
+  - The restore's finish now waits up to 15 s of real time rather than 6. On a loaded machine the 3 s of game
+    time it takes ran past 6 s. How fast a restore goes is still checked by the step before it.

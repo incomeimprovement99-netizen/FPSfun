@@ -4878,10 +4878,15 @@ async function speedkillsGhostTest(browser: Browser): Promise<void> {
   check("speedkills ghost: no knockdown: at zero the guest is out, and a ghost (its squad mate is up)", !g1.alive && !g1.downed && g1.ghost, JSON.stringify(g1));
   // the ghost moves
   const p0 = await ev<{ x: number; z: number }>(guest, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
-  await ev(guest, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: () => false })`);
-  await sleep(1500);
-  await ev(guest, "window.__range.setScript(null)");
-  const p1 = await ev<{ x: number; z: number }>(guest, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+  // forward, turning to each side in turn: where the squad lands is the drop's, and one run faced a wall 2 m off
+  let p1 = p0;
+  for (const yaw of [0, 90, 180, 270]) {
+    await ev(guest, `(() => { window.__range.player.yaw = ${yaw}; window.__range.setScript({ held: (a) => a === "forward", pressedNow: () => false }); })()`);
+    await sleep(1500);
+    await ev(guest, "window.__range.setScript(null)");
+    p1 = await ev<{ x: number; z: number }>(guest, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+    if (Math.hypot(p1.x - p0.x, p1.z - p0.z) > 3) break;
+  }
   check("speedkills ghost: a ghost moves", Math.hypot(p1.x - p0.x, p1.z - p0.z) > 3, `${Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(1)} m`);
   // a respawn that comes from an opponent (a bot, id 100) is not the squad's to give: it is ignored
   // (plan section 12, item 7: it was taken from anyone)
@@ -4905,7 +4910,9 @@ async function speedkillsGhostTest(browser: Browser): Promise<void> {
   check("speedkills ghost: with the ghost away, 5 s of holding is not enough (a third as fast)", !early);
   // the ghost comes to the one restoring it: the rest goes at full speed
   await ev(guest, `window.__range.player.teleport(${box.x + 2}, ${box.y}, ${box.z}, 0)`);
-  const back = await guest.waitForFunction("window.__range.duel().alive", { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  // the rest is about 3 s of the game's time; a loaded machine stretches that past 6 s of real time (a run beside the
+  // release e2e failed it with the restore still going), and how fast it goes is the check above's to say
+  const back = await guest.waitForFunction("window.__range.duel().alive", { polling: 100, timeout: 15000 }).then(() => true, () => false);
   await ev(host, "window.__range.setScript(null)");
   const g2 = await ev<{ hp: number; restores: number }>(guest, "({ hp: window.__range.duel().health, restores: window.__range.duel().restores })");
   check("speedkills ghost: with the ghost beside them, the host finishes the restore, and the guest stands up whole", back && g2.hp === 100 && g2.restores === 1, JSON.stringify(g2));
@@ -5097,8 +5104,11 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
     return { from: pad.y, to: at.y, x: at.x, z: at.z };
   };
   await ev(page, "window.__range.duel().holdFire = true");
-  const street = await padRide("(q) => (q.y ?? 0) < 1 && Math.hypot(q.x, q.z - 500) > 60");
+  // a podium's pad stands on the pavement (a kerb up); the highway's stand in the road
+  const street = await padRide("(q) => (q.y ?? 0) > 0.1 && (q.y ?? 0) < 1 && Math.hypot(q.x, q.z - 500) > 60");
   check("speedkills city: a street's jump pad throws you onto its podium, a storey or two up", !!street && street.to > street.from + 3.5, JSON.stringify(street));
+  const highway = await padRide("(q) => (q.y ?? 0) === 0 && q.over > 20");
+  check("speedkills city: a pad in the road throws you onto the rooftop highway, six storeys up", !!highway && Math.abs(highway.to - 24) < 0.5, JSON.stringify(highway));
   const terrace = await padRide("(q) => (q.y ?? 0) > 3 && Math.hypot(q.x, q.z - 500) > 60");
   check("speedkills city: a terrace's jump pad throws you onto a tower's roof", !!terrace && terrace.to > terrace.from + 10, JSON.stringify(terrace));
   check("speedkills br: a bot sent up a low tower walks its stairs to the roof", !!climb && roofed && !!top && top.y > climb.roofY - 0.5, JSON.stringify({ climb, top }));

@@ -74,6 +74,8 @@ export const STREETS: readonly number[] = BLOCKS.slice(0, -1).map((b, i) => (b[1
 
 /** each low tower's way up as graph nodes, door to roof, and the street node it hangs off (-1: none in reach); the checks walk them */
 export const ROOF_ROUTES: Array<{ street: number; nodes: number[]; storeys: number }> = [];
+/** the rooftop highway's four corners in order round its loop (world metres, its deck's height), for the checks that walk it */
+export const HIGHWAY: Array<{ x: number; z: number; y: number }> = [];
 /**
  * The centre's concourse (world metres), for the checks that walk it: each
  * podium's public stair as a walk from the pavement to its top step and onto
@@ -878,6 +880,54 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         CONCOURSE.bridges.push(alongX ? { a: W(from - 1.5, at), b: W(to + 1.5, at), y } : { a: W(at, from - 1.5), b: W(at, to + 1.5), y });
       }
     }
+  }
+
+  // ---------------------------------------------------------------- the rooftop highway
+  // A loop over the street round the core, six storeys up (city.json highway): the fast way round, above the
+  // streets' fights and among the mid-rise roofs. Frames at the kerbs hold it, so the street's middle, where
+  // the bots walk, stays clear; pads up onto it from the street.
+  {
+    const Hw = C.highway;
+    const L = Math.abs(STREETS[Hw.street]);
+    const y = Hw.height;
+    const hw = Hw.width / 2;
+    const span = 2 * L + Hw.width;
+    const k = neon(0x20e0ff);
+    const gold = neon(0xffd070);
+    for (const s of [-1, 1]) {
+      // the deck along x at z = s L, and along z at x = s L (the corners shared)
+      slab(span, 0.5, Hw.width, 0, y - 0.5, s * L, metal);
+      slab(Hw.width, 0.5, span - 2 * Hw.width, s * L, y - 0.5, 0, metal);
+      for (const e of [-1, 1]) {
+        // rails on both edges, lit on top and under the deck's lip; the inner ones stop short of the corners,
+        // where they would wall off the turn onto the next side
+        const len = e === s ? span : span - 2 * Hw.width;
+        slab(len, Hw.rail, 0.12, 0, y, s * L + e * (hw - 0.06), trimDark);
+        deco(len, 0.08, 0.08, 0, y + Hw.rail, s * L + e * (hw - 0.06), k);
+        deco(len, 0.1, 0.1, 0, y - 0.55, s * L + e * hw, gold);
+        slab(0.12, Hw.rail, len, s * L + e * (hw - 0.06), y, 0, trimDark);
+        deco(0.08, 0.08, len, s * L + e * (hw - 0.06), y + Hw.rail, 0, k);
+        deco(0.1, 0.1, len, s * L + e * hw, y - 0.55, 0, gold);
+      }
+      // the frames: a pillar on each kerb and a beam under the deck
+      for (const a of Hw.frames) {
+        for (const [px, pz, alongX] of [
+          [a, s * L, true],
+          [s * L, a, false],
+        ] as const) {
+          for (const e of [-1, 1]) slab(1, y - 1.1, 1, alongX ? px : px + e * 6.4, 0, alongX ? pz + e * 6.4 : pz, concrete);
+          slab(alongX ? 1 : 13.8, 0.6, alongX ? 13.8 : 1, px, y - 1.1, pz, concrete);
+        }
+      }
+      // the pads up from the street, off the deck's outer edge
+      for (const a of Hw.pads) {
+        padOnto(a, s * (L + hw), 0, s, 0, y);
+        padOnto(s * (L + hw), a, s, 0, 0, y);
+      }
+    }
+    HIGHWAY.length = 0;
+    // its corners in order round the loop, for the checks that walk it
+    HIGHWAY.push(...[W(-L, -L), W(L, -L), W(L, L), W(-L, L)].map((p) => ({ ...p, y })));
   }
 
   // ---------------------------------------------------------------- skybridges

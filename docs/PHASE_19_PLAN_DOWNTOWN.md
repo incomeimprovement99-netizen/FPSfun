@@ -71,7 +71,7 @@ unavailable). The old steps 5 to 9 follow these as 7 to 11.
    no gun. The pads stay as the fast way. *Done 2026-09-26 (Milestone 212), before step 5 while its research
    ran.*
 7. **The rooftop highway:** an elevated track looping the downtown's roofs, walkable, with pads onto it: a fast
-   way across the city above the streets.
+   way across the city above the streets. *Done 2026-09-26 (Milestone 215).*
 8. **Atmosphere and readability:** the night made beautiful rather than murky (a glowing horizon, haze with the
    districts' colours in it, lit streets, hologram glyphs over the skyline), and a golden-hour sky as a setting,
    the owner's night staying the default.

@@ -319,5 +319,23 @@
     "stairRise": 0.5,
     "stairRun": 0.9,
     "stairWidth": 3
+  },
+  "_highway": "The rooftop highway (city.ts, Phase 19 step 7): a walkable deck of width metres at height metres (six storeys, among the mid-rise roofs and under the downtown's), looping the core over the street between the downtown and the mid-rise ring (street is its index in the city's streets, counted from the west or north), a fast way round the city above the fights in the streets. It stands on portal frames at the kerbs, clear of the street's middle the bots walk, at frames metres along each side; jump pads throw you up onto it from the street at pads metres along each side, and its rail is rail metres high. Ours, after Hyper Scape's elevated walks and the owner's ask for verticality.",
+  "highway": {
+    "street": 1,
+    "height": 24,
+    "width": 5,
+    "rail": 1.0,
+    "frames": [
+      -90,
+      -50,
+      0,
+      50,
+      90
+    ],
+    "pads": [
+      -30,
+      30
+    ]
   }
 }
