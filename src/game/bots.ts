@@ -1579,28 +1579,36 @@ export class Bot {
         }
         this.headwaySince = now;
       }
-      const step = this.speedNow * dt * (this.healing ? HEAL_WALK : 1) * (this.crouching ? botsCfg.squads.crouchWalk : 1);
-      let nx = this.pos.x + want.x * step;
-      let nz = this.pos.z + want.y * step;
-      if (this.blocked(nx, nz)) {
-        if (now > this.slideUntil) {
-          this.slideDir = Math.random() < 0.5 ? 1 : -1;
-          this.slideUntil = now + 0.6;
-        }
-        const along = new THREE.Vector2(-want.y * this.slideDir, want.x * this.slideDir);
-        nx = this.pos.x + along.x * step;
-        nz = this.pos.z + along.y * step;
+      const move = this.speedNow * dt * (this.healing ? HEAL_WALK : 1) * (this.crouching ? botsCfg.squads.crouchWalk : 1);
+      // In pieces no longer than bots.json maxStep: a slow frame (dt runs to 0.1 s) made one step of half
+      // a metre, which a wall or a box's corner stopped whole where small steps slide round it; under a
+      // CPU throttle a squad's follower stood pinned to a wall for the rest of the match
+      // (tools/e2e.ts E2E_THROTTLE, the squads check: 20 of 40 together, and 40 of 40 with this).
+      const parts = Math.max(1, Math.ceil(move / botsCfg.maxStep));
+      const step = move / parts;
+      for (let k = 0; k < parts; k++) {
+        let nx = this.pos.x + want.x * step;
+        let nz = this.pos.z + want.y * step;
         if (this.blocked(nx, nz)) {
-          this.slideDir = -this.slideDir;
-          nx = this.pos.x - along.x * step;
-          nz = this.pos.z - along.y * step;
+          if (now > this.slideUntil) {
+            this.slideDir = Math.random() < 0.5 ? 1 : -1;
+            this.slideUntil = now + 0.6;
+          }
+          const along = new THREE.Vector2(-want.y * this.slideDir, want.x * this.slideDir);
+          nx = this.pos.x + along.x * step;
+          nz = this.pos.z + along.y * step;
+          if (this.blocked(nx, nz)) {
+            this.slideDir = -this.slideDir;
+            nx = this.pos.x - along.x * step;
+            nz = this.pos.z - along.y * step;
+          }
         }
+        if (!this.blocked(nx, nz)) {
+          this.pos.x = nx;
+          this.pos.z = nz;
+        }
+        this.pos.y = this.groundAt(this.pos.x, this.pos.z);
       }
-      if (!this.blocked(nx, nz)) {
-        this.pos.x = nx;
-        this.pos.z = nz;
-      }
-      this.pos.y = this.groundAt(this.pos.x, this.pos.z);
     }
     // face the target when seen; an elite bot hunting keeps facing where it lost you; else the way it walks
     const faceAt = target ?? (tier.preAim && hunting ? hunting : null);

@@ -73,6 +73,10 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
   await page.evaluateOnNewDocument("window.__noVault = true");
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
   if (init) await page.evaluateOnNewDocument(init);
+  // E2E_THROTTLE=4 runs every page on a quarter of the CPU: what a machine busy with other runs does to a
+  // page, on demand, so a check that only fails in the release run can be made to fail alone
+  const throttle = Number(process.env.E2E_THROTTLE ?? 0);
+  if (throttle > 1) await (await page.createCDPSession()).send("Emulation.setCPUThrottlingRate", { rate: throttle });
   // a base with a query of its own (OLD_URL=https://the.site/?broker=public) keeps it
   const q0 = query.includes("intro=on") ? query : query.startsWith("?") ? `${query}&nointro` : "?nointro";
   // The suite is the legacy game's regression net (docs/PHASE_18_PLAN_SPEEDKILLS.md section 9): a page is
@@ -282,6 +286,13 @@ async function vaultTest(browser: Browser, query: string): Promise<void> {
   await sleep(300);
   const shut = await ev<{ open: boolean; locked: boolean; kicked: string | null }>(page, "(() => { const d = window.__range.duel(); const ds = window.__range.brMap.doors; return { open: ds.list[d.vault.door].open, locked: d.vault.locked, kicked: ds.kick(d.vault.door) }; })()");
   check("vault: without the keycard the door says so, stays shut to interact and cannot be kicked in", /LOCKED/.test(lockedPrompt) && !shut.open && shut.locked && shut.kicked === null, JSON.stringify({ lockedPrompt, shut }));
+  // one of its bins just inside the shut door, 2.7 m from you and within a bin's 3 m reach: the door is
+  // between, so it is not offered (a seed that stood a bin there once offered it through the door)
+  const through = await ev<string>(
+    page,
+    `new Promise((ok) => { const d = window.__range.duel(); const v = d.vault; const door = window.__range.brMap.doors.list[v.door]; const b = [...d.lootField.drops.values()].find((x) => x.item.kind === "bin" && x.item.id === "closed" && Math.hypot(x.pos.x - v.x, x.pos.z - v.z) < 4.5); const was = b.pos.clone(); b.pos.set(door.centre.x, b.pos.y, door.centre.z + 0.5); setTimeout(() => { const said = window.__range.brPlay.hud?.prompt?.text ?? ""; b.pos.copy(was); ok(said); }, 400); })`
+  );
+  check("vault: a bin just inside its shut door is not offered through it", !/SUPPLY BIN/.test(through), through);
   // the guard down: his death box holds the keycard
   await ev(page, "(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.guard); d.botDown(b, d.id); })()");
   await sleep(400);
@@ -4847,6 +4858,104 @@ async function speedkillsGhostTest(browser: Browser): Promise<void> {
   await close();
 }
 
+/**
+ * SpeedKills' tour, its eight steps (tour.ts SK_STEPS), each done for real in
+ * the range: a walk, a double jump, a wall run along the range's right-hand
+ * wall and a climb up a ladder's wall, a hit, both hacks on their keys, the
+ * fusion key, a hit from the top of a platform, five seconds in the ring, and
+ * the walk to the echo.
+ */
+async function speedkillsTourTest(browser: Browser): Promise<void> {
+  const t = await open(browser, "?game=speedkills");
+  await ev(t, `document.getElementById("goTour").click(); document.getElementById("startMode").click()`);
+  await pressPlay(t);
+  const step = () => ev<string | null>(t, "window.__range.tour.stepId");
+  check("sk tour: it starts at MOVE", (await step()) === "move", String(await step()));
+  const ORDER = ["move", "moves", "shoot", "hacks", "fusion", "high", "zone", "dying"];
+  const stepTo = async (id: string, timeout = 6000) => {
+    const next = ORDER[ORDER.indexOf(id) + 1] ?? null;
+    return t.waitForFunction(`window.__range.tour.stepId === ${JSON.stringify(next)}`, { polling: 50, timeout }).then(() => true, () => false);
+  };
+  // keys held from now on, and `presses`: milliseconds after the start at which a key is pressed once (a
+  // jump, then a second in the air). By the clock, not by frame: a headless page runs at hundreds of frames
+  // a second, and a second jump twenty frames on came inside the coyote grace, a ground jump again
+  const script = (held: string[], presses: Record<string, number[]> = {}) =>
+    `(() => { const K = ${JSON.stringify(held)}; const P = ${JSON.stringify(presses)}; const t0 = performance.now(); let f = 0; const gone = new Set(); let due = new Set();
+      window.__range.setScript({ held: (a) => K.includes(a), pressedNow: (a) => (K.includes(a) && f <= 1) || due.has(a) }, () => { f++; const t = performance.now() - t0; due = new Set(); for (const [a, list] of Object.entries(P)) for (const ms of list) if (t >= ms && !gone.has(a + ms)) { gone.add(a + ms); due.add(a); } }); })()`;
+  const stop = () => ev(t, "window.__range.setScript(null)");
+  const tp = (x: number, y: number, z: number, yaw: number, pitch = 0) => ev(t, `window.__range.player.teleport(${x}, ${y}, ${z}, ${yaw}, ${pitch})`);
+  await tp(0, 0, -8, 0);
+  check("sk tour: MOVE done at the marker", await stepTo("move"));
+  // a double jump in the open
+  await tp(0, 0, -12, 0);
+  await ev(t, script([], { jump: [30, 450] }));
+  await sleep(1200);
+  await stop();
+  // a wall run: sprinting along the right-hand wall (its face at x 33.49, the body 0.41 m round, a wall
+  // counted within 4 hu of it), then a jump. Up to three runs, as a player would try again: the take-off
+  // is a matter of frames, and a machine busy with another run has fewer of them
+  for (let i = 0; i < 3; i++) {
+    await tp(33.03, 0, -24, 0);
+    await ev(t, script(["forward", "sprint"], { jump: [600 + i * 150] }));
+    await sleep(1400);
+    await stop();
+    await sleep(400);
+    if (await ev<boolean>(t, `window.__range.tour.seen.tech.some((x) => x === "WALL RUN" || x === "WALL KICK")`)) break;
+  }
+  // a climb: into the ladder's wall (x 16 to 16.5 at z -46), forward, a jump at it
+  await tp(15, 0, -46, -90);
+  await ev(t, `(() => { const K = ["forward"]; let f = 0; window.__range.setScript({ held: (a) => K.includes(a), pressedNow: (a) => (K.includes(a) && f <= 1) || (a === "jump" && f % 20 === 0) }, () => { f++; }); })()`);
+  const moved = await stepTo("moves", 8000);
+  await stop();
+  check("sk tour: DOUBLE JUMP, WALL RUN and CLIMB, all three done for real", moved, JSON.stringify(await ev(t, "({ step: window.__range.tour.stepId, seen: window.__range.tour.seen, extra: window.__range.player.extraMoves })")));
+  await sleep(800);
+  // shoot: six metres from a figure, facing it, a burst with the trigger
+  const aimAt = (fromX: number, fromY: number, fromZ: number) =>
+    `(() => { const r = window.__range; const d = r.dummies.filter((x) => x.group.visible && !x.knocked).sort((a, b) => Math.hypot(a.group.position.x - ${fromX}, a.group.position.z - ${fromZ}) - Math.hypot(b.group.position.x - ${fromX}, b.group.position.z - ${fromZ}))[0]; const p = d.group.position; const dx = p.x - ${fromX}, dz = p.z - ${fromZ}; const yaw = Math.atan2(-dx, -dz) * 180 / Math.PI; const pitch = Math.atan2(p.y + 1.3 - (${fromY} + 1.6), Math.hypot(dx, dz)) * 180 / Math.PI; r.player.teleport(${fromX}, ${fromY}, ${fromZ}, yaw, pitch); return { x: p.x, y: p.y, z: p.z }; })()`;
+  await tp(0, 0, -2, 0);
+  await sleep(300);
+  await ev(t, `(() => { const r = window.__range; const d = r.dummies.find((x) => x.group.visible && !x.knocked); const p = d.group.position; const yaw = Math.atan2(0, -6) * 180 / Math.PI; r.player.teleport(p.x, 0, p.z + 6, 0, -5); })()`);
+  await sleep(300);
+  await ev(t, padSet(7, true));
+  const shot = await stepTo("shoot", 3000);
+  await ev(t, padSet(7, false));
+  check("sk tour: SHOOT done with a real hit", shot, JSON.stringify(await ev(t, "window.__range.stats()")));
+  // the two hacks, on their own keys (F the move, G the tool)
+  await ev(t, "window.__range.input.locked = true");
+  await t.keyboard.press("KeyF");
+  await sleep(600);
+  await t.keyboard.press("KeyG");
+  check("sk tour: HACKS done with both keys", await stepTo("hacks", 4000), JSON.stringify(await ev(t, "window.__range.sk.state()")));
+  // fusion: the range's fusion key, once the hand is free (a key the gun takes waits out a swap)
+  await t.waitForFunction("!window.__range.loadout.swapping", { polling: 50, timeout: 3000 }).catch(() => undefined);
+  // (the fusion key reads the keyboard itself, not the movement script)
+  await t.keyboard.press("KeyU");
+  const fused = await stepTo("fusion", 3000);
+  check("sk tour: FUSION done with the fusion key", fused, JSON.stringify(await ev(t, "({ step: window.__range.tour.stepId, fusion: window.__range.loadout.active.fusion, swapping: window.__range.loadout.swapping, playing: window.__range.input.playing, locked: window.__range.input.locked, id: window.__range.loadout.active.id })")));
+  // high ground: on the left platform (4.6 m), at the figure that stands up there (main.ts dummies)
+  await sleep(1500);
+  // (the trigger pulled and let go every 120 ms: a pull of this gun is one shot)
+  const target = await ev(t, aimAt(-24, 4.7, -33));
+  await sleep(300);
+  await ev(t, aimAt(-24, 4.7, -33));
+  await ev(t, `window.__range.setScript({ held: (a) => a === "fire" && Math.floor(performance.now() / 120) % 2 === 0, pressedNow: () => false }, null)`);
+  const high = await stepTo("high", 4000);
+  await stop();
+  void target;
+  check("sk tour: HIGH GROUND done with a hit from 4.6 m up", high, JSON.stringify(await ev(t, "({ y: window.__range.player.pos.y, stats: window.__range.stats(), dropping: window.__range.player.dropping, aboard: window.__range.player.aboard, empty: window.__range.loadout.active.empty, clip: window.__range.loadout.active.state.clip, swapping: window.__range.loadout.swapping, reloading: window.__range.loadout.active.state.reloading, hud: window.__range.hud.last && { heal: window.__range.hud.last.heal, holster: window.__range.hud.last.holster } })")));
+  // the ring: five seconds in it
+  await tp(6, 0, -14, 0);
+  // (five seconds of the game's time: a slow page runs fewer of them to the wall's second)
+  const g0 = await ev<number>(t, "window.__range.gameTime()");
+  await t.waitForFunction(`window.__range.tour.stepId === "dying" || window.__range.gameTime() - ${g0} > 7`, { polling: 100, timeout: 40000 }).catch(() => undefined);
+  check("sk tour: DECAY AND THE ZONE done after five seconds in the ring", (await step()) === "dying", JSON.stringify(await ev(t, "({ step: window.__range.tour.stepId, pos: [window.__range.player.pos.x, window.__range.player.pos.y, window.__range.player.pos.z], tour: window.__range.hud.last && window.__range.hud.last.tour, t: window.__range.gameTime() })")));
+  // the echo, and the tour is over and remembered
+  await tp(-6, 0, -20, 0);
+  const finished = await t.waitForFunction("window.__range.tour.stepId === null && localStorage.getItem('range.tour.done') === '1'", { polling: 100, timeout: 5000 }).then(() => true, () => false);
+  check("sk tour: DYING done at the echo, and the tour is complete (remembered)", finished, String(await step()));
+  await t.close();
+}
+
 /** a SpeedKills battle royale in the city: it starts, 30 in it, bots on the streets, loot on the floors */
 async function speedkillsBrTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?norender&game=speedkills");
@@ -4959,7 +5068,7 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   await page.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
+/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, sktour, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
 /**
  * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
  * plays on the page's own clock and takes itself away, a key or a click takes
@@ -5899,6 +6008,11 @@ async function main(): Promise<void> {
     if (want("speedkills")) {
       console.log("\nSpeedKills: the front door, the guns, fusion and the hacks");
       await speedkillsTest(browser);
+    }
+
+    if (want("sktour")) {
+      console.log("\nSpeedKills' tour: eight steps, each done for real in the range");
+      await speedkillsTourTest(browser);
     }
 
     if (want("botsquads")) {

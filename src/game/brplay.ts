@@ -500,8 +500,15 @@ export class BrPlay {
     const beacon = this.carried ? match.mapInfo.beacons.find((b) => Math.hypot(p.x - b.x, p.z - b.z) < squad.beaconReach) : undefined;
     // a Ring Console at your feet
     const rc = player.onGround ? match.consoleNear(p, CONSOLE.reach) : null;
-    // a closed supply bin within reach, on your floor
-    const bin = player.onGround && match.lootField ? [...match.lootField.drops.values()].find((d) => d.item.kind === "bin" && d.item.id === "closed" && Math.hypot(d.pos.x - p.x, d.pos.z - p.z) < LOOTING.reach && Math.abs(d.pos.y - p.y) < LOOTING.floorGap) : undefined;
+    // a closed supply bin within reach, on your floor, and nothing solid between you and it: a bin just
+    // inside the vault was offered through its locked door (the release run's vault checks, on a seed
+    // that stood one by the door). The line may stop at the bin's own box, 0.6 m short of its middle.
+    const clearTo = (at: THREE.Vector3): boolean => {
+      const dir = new THREE.Vector3(at.x - eye.x, at.y + 0.4 - eye.y, at.z - eye.z);
+      const len = dir.length();
+      return len < 0.6 || solidHit(eye, dir.divideScalar(len), len) >= len - 0.6;
+    };
+    const bin = player.onGround && match.lootField ? [...match.lootField.drops.values()].find((d) => d.item.kind === "bin" && d.item.id === "closed" && Math.hypot(d.pos.x - p.x, d.pos.z - p.z) < LOOTING.reach && Math.abs(d.pos.y - p.y) < LOOTING.floorGap && clearTo(d.pos)) : undefined;
     if (mate) {
       out.prompt = { key: `HOLD ${key}`, text: `REVIVE ${mate.name}` };
       this.runHold("revive", mate.id, `REVIVING ${mate.name}`, REVIVE_TIME, holdingE, now, match, () => {

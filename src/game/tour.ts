@@ -7,7 +7,16 @@
 // flags (sprinting, sliding, a mantle, a climb), the tech feed (a
 // superglide), the gun (a hit, a reload, a swap), a heal, the ability, a
 // throw. Nothing here moves you: the tour only watches.
+//
+// SpeedKills has its own eight (docs/PHASE_18_PLAN_SPEEDKILLS.md section
+// 7.13): move; double jump, wall run and climb; shoot; the two hacks; fusion;
+// a fight from high ground; the capture zone; and what dying does. The last
+// three belong to a match, so the range stands in for them: the fusion key
+// in place of a copy on the floor, a ring to hold in place of the zone, a
+// squad mate's echo to walk to while the step says how the Gulag and the
+// ghost work.
 import * as THREE from "three";
+import { IS_SK } from "./game";
 
 export interface TourCheck {
   pos: THREE.Vector3;
@@ -23,6 +32,11 @@ export interface TourCheck {
   healing: boolean;
   joltUsed: boolean;
   thrown: number;
+  /** the game's clock (a step held for a time counts it) */
+  now: number;
+  /** SpeedKills: each hack slot's uses so far, and the gun in hand's fusion level */
+  hackUses: { mobility: number; utility: number };
+  fusion: number;
 }
 
 interface Step {
@@ -47,9 +61,17 @@ interface StepState {
   /** a tech name the feed reported during the step */
   tech: Set<string>;
   sprinted: boolean;
+  /** SpeedKills: the counters when the step began, a climb seen, and since when you have stood in the ring */
+  hacks0: { mobility: number; utility: number };
+  fusion0: number;
+  climbed: boolean;
+  inSince: number | null;
 }
 
-const STEPS: Step[] = [
+/** seconds in the capture ring for its step (a match's zone takes 45: this is a taste of it) */
+const RING_HOLD = 5;
+
+const LEGACY_STEPS: Step[] = [
   { id: "move", title: "MOVE", text: "Walk to the marker with {forward} {left} {back} {right}.", at: [0, -8], reach: 1.6, done: (_c, s) => s.there },
   { id: "sprint", title: "SPRINT", text: "Hold {sprint} and run to the next marker.", at: [-6, -13], reach: 1.8, done: (c, s) => s.there && (s.sprinted || c.sprinting) },
   { id: "slide", title: "SLIDE", text: "Sprint at the low rail and press {crouch} to slide under it.", at: [0, -22], reach: 3.5, done: (c) => c.sliding },
@@ -64,6 +86,49 @@ const STEPS: Step[] = [
   { id: "ability", title: "ABILITY", text: "Pick JOLT with {pickAbility1}, then press {ability} to dash.", done: (c) => c.joltUsed },
   { id: "grenade", title: "GRENADE", text: "Press {grenade} for a grenade (again for the next kind), {fire} throws it.", done: (c, s) => c.thrown > s.thrown0 },
 ];
+
+const SK_STEPS: Step[] = [
+  { id: "move", title: "MOVE", text: "Walk to the marker with {forward} {left} {back} {right}. The city is vertical: most of the game happens above the street.", at: [0, -8], reach: 1.6, done: (_c, s) => s.there },
+  {
+    id: "moves",
+    title: "DOUBLE JUMP, WALL RUN, CLIMB",
+    text: "Press {jump} twice for a double jump, jump at a wall and hold {forward} along it to wall run, and hold {forward} into a tall wall to climb it. Do all three.",
+    done: (c, s) => s.tech.has("DOUBLE JUMP") && (s.tech.has("WALL RUN") || s.tech.has("WALL KICK")) && (s.climbed || c.climbing),
+  },
+  { id: "shoot", title: "SHOOT", text: "Hit a target downrange with {fire}. {ads} aims. Ammo never runs out, the magazine does.", at: [0, -2], reach: 3, done: (c, s) => c.hits > s.hits0 },
+  {
+    id: "hacks",
+    title: "HACKS",
+    text: "You carry two hacks: a move on {ability} and a tool on {grenade}. Use each once. Each has its own cooldown, shown by its icon.",
+    done: (c, s) => c.hackUses.mobility > s.hacks0.mobility && c.hackUses.utility > s.hacks0.utility,
+  },
+  {
+    id: "fusion",
+    title: "FUSION",
+    text: "In a match, picking up a copy of your gun or hack fuses it a level: more damage and a bigger magazine for a gun, a shorter cooldown for a hack, to level 5. Here, press {magLevel} to fuse your gun.",
+    done: (c, s) => c.fusion > s.fusion0,
+  },
+  { id: "high", title: "HIGH GROUND", text: "Get up high, a double jump or a climb onto something, and hit a target from there. In the city whoever is above sees the other first.", done: (c, s) => c.pos.y >= 2.5 && c.hits > s.hits0 },
+  {
+    id: "zone",
+    title: "DECAY AND THE ZONE",
+    text: `The city decays sector by sector, and standing in the decay hurts. At the end a capture zone opens in the last sector: a squad alone in it for 45 s wins. Stand in the ring for ${RING_HOLD} s.`,
+    at: [6, -14],
+    reach: 2.2,
+    done: (c, s) => s.inSince !== null && c.now - s.inSince >= RING_HOLD,
+  },
+  {
+    id: "dying",
+    title: "DYING",
+    text: "Your first death sends you to the Gulag: win the fight there and you drop back in. After that you are a ghost: fast, unseen, with no gun. Stay near your squad mate at your echo and they restore you in 5 s (three times slower if you wander), twice a match. Walk to the echo at the marker.",
+    at: [-6, -20],
+    reach: 1.8,
+    done: (_c, s) => s.there,
+  },
+];
+
+/** the game's own tour */
+const STEPS: Step[] = IS_SK ? SK_STEPS : LEGACY_STEPS;
 
 export interface TourHud {
   step: number;
@@ -82,7 +147,7 @@ const SKIP_HOLD = 1.2;
 
 export class Tour {
   private index = -1;
-  private state: StepState = { hits0: 0, thrown0: 0, there: false, tech: new Set(), sprinted: false };
+  private state: StepState = { hits0: 0, thrown0: 0, there: false, tech: new Set(), sprinted: false, hacks0: { mobility: 0, utility: 0 }, fusion0: 0, climbed: false, inSince: null };
   private skipFrom = -Infinity;
   private doneAt = -Infinity;
   readonly group = new THREE.Group();
@@ -132,13 +197,18 @@ export class Tour {
     this.group.visible = false;
   }
 
+  /** what the step in hand has seen so far (the tests say which move is missing) */
+  get seen(): { tech: string[]; climbed: boolean; sprinted: boolean } {
+    return { tech: [...this.state.tech], climbed: this.state.climbed, sprinted: this.state.sprinted };
+  }
+
   /** a line from the tech feed (the superglide step listens for its name) */
   onTech(name: string): void {
     if (this.active) this.state.tech.add(name.toUpperCase());
   }
 
   private begin(c: TourCheck): void {
-    this.state = { hits0: c.hits, thrown0: c.thrown, there: false, tech: new Set(), sprinted: false };
+    this.state = { hits0: c.hits, thrown0: c.thrown, there: false, tech: new Set(), sprinted: false, hacks0: { ...c.hackUses }, fusion0: c.fusion, climbed: false, inSince: null };
     if (STEPS[this.index]?.id === "heal") {
       this.vitals.shield = 25;
       this.vitals.health = 100;
@@ -163,10 +233,14 @@ export class Tour {
 
   /** one frame: the marker, the check, the skip hold; `keys` fills in the key names */
   update(now: number, c: TourCheck, skipHeld: boolean, keys: (action: string) => string): TourHud | null {
-    if (!this.active) return now - this.doneAt < 5 ? { step: STEPS.length, of: STEPS.length, title: "TOUR COMPLETE", text: "That is everything the range teaches. The Run (Basic) puts it together against the clock.", marker: null, skip: 0, done: true } : null;
+    if (!this.active) return now - this.doneAt < 5 ? { step: STEPS.length, of: STEPS.length, title: "TOUR COMPLETE", text: IS_SK ? "That is the game. PLAY, then Battle Royale: drop on the Spire if you want the fight." : "That is everything the range teaches. The Run (Basic) puts it together against the clock.", marker: null, skip: 0, done: true } : null;
     const step = STEPS[this.index];
     const s = this.state;
     if (c.sprinting) s.sprinted = true;
+    if (c.climbing) s.climbed = true;
+    // the ring's hold: from when you stepped in, reset if you step out
+    if (step.at && Math.hypot(c.pos.x - step.at[0], c.pos.z - step.at[1]) <= (step.reach ?? 1.6)) s.inSince ??= c.now;
+    else s.inSince = null;
     if (this.lending && !c.healing) this.lending = false;
     let marker: THREE.Vector3 | null = null;
     if (step.at) {
@@ -197,3 +271,4 @@ export class Tour {
 }
 
 export const TOUR_STEPS = STEPS.map((s) => s.id);
+export { LEGACY_STEPS, SK_STEPS };

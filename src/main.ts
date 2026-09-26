@@ -3367,6 +3367,8 @@ function resetHacks(): void {
 }
 
 /** fire a slot's hack, if it is ready */
+/** SpeedKills: each hack slot's uses this page, for the tour */
+const hackUses = { mobility: 0, utility: 0 };
 function useHack(slot: HackSlot, now: number): void {
   const d = duel;
   if (d instanceof Duel && (!d.alive || !d.canFire)) return;
@@ -3383,6 +3385,7 @@ function useHack(slot: HackSlot, now: number): void {
   }
   const id = hacks.use(slot, now);
   if (!id) return;
+  hackUses[slot]++;
   const eye = camera.position.clone();
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
   const name = hackDef(id)?.name ?? id;
@@ -3395,6 +3398,7 @@ function useHack(slot: HackSlot, now: number): void {
       const from = player.pos.clone();
       if (!player.jolt(flat.x, flat.z, H.dash.distance, H.dash.seconds, H.dash.exitSpeed)) {
         hacks.refund(slot);
+        hackUses[slot]--;
         return;
       }
       const reach = Math.max(0, Math.min(H.dash.distance, solidHit(from.clone().setY(from.y + 1), flat, H.dash.distance) - MOVE.radius));
@@ -3424,6 +3428,7 @@ function useHack(slot: HackSlot, now: number): void {
       const hit = solidHit(eye, fwd, H.grapple.range);
       if (!Number.isFinite(hit) || hit >= H.grapple.range) {
         hacks.refund(slot);
+        hackUses[slot]--;
         hud.notice("GRAPPLE: NOTHING IN REACH", now, 0.8);
         return;
       }
@@ -3749,6 +3754,9 @@ function tourCheck(now: number): TourCheck {
     healing: heal !== null,
     joltUsed: now - joltedAt < 0.5,
     thrown: throwsMade,
+    now,
+    hackUses,
+    fusion: loadout.active.fusion ?? 0,
   };
 }
 tour.onStep = (title) => {

@@ -254,5 +254,7 @@
     ],
     "healBelow": 0.5,
     "dashWhenHitWithin": 1.0
-  }
+  },
+  "_maxStep": "Metres: the longest single step a bot's walk is made of in one go (bots.ts). A frame's walk longer than this (a slow frame: dt runs to 0.1 s, and 0.1 s at 6.6 m/s is 0.66 m) is walked in pieces, each with its own wall check and slide, as a quick frame would have walked it. 0.2 m is a quick frame's step at the fastest tier's pace and 30 fps.",
+  "maxStep": 0.2
 }

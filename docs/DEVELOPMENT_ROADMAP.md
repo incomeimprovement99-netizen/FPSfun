@@ -3500,3 +3500,37 @@ Stage K. `src/game/hiddenskip.ts`, `tools/profile-frame.ts`, `tools/checks/city-
 - **The squads test** sampled on the wall's clock, so a page slowed by a busy machine had walked less far.
   The release run saw 6 of 40 squads together where a run alone saw 40 of 40. It samples on the game's
   clock now, and a failure says where each bot of a squad stood, with its height.
+
+## Milestone 195 — SpeedKills' tour, eight steps ✅
+
+Stage O. `src/game/tour.ts` (`SK_STEPS`).
+
+- **The steps:** move; a double jump, a wall run and a climb; shoot; both hacks on their keys; fusion; a hit
+  from high ground; five seconds in a capture ring; the walk to a squad mate's echo. Each says what the match
+  does, since the last three belong to a match and the range stands in for them.
+- **Checked** by a new e2e section, `sktour`, which does every step for real in the range: a wall run along
+  the range's right-hand wall, a climb up a ladder's wall, F and G for the hacks, U for fusion, a hit on the
+  figure that stands on the left platform.
+- **Found on the way** (all in the test, none in the game): a second jump pressed twenty frames on came inside
+  the coyote grace on a fast headless page, so presses are timed by the clock now; the fusion key reads the
+  keyboard, not the movement script; a slow page runs fewer game seconds than the wall, so the ring's five
+  seconds are waited on the game's clock.
+
+## Milestone 196 — What the release run found ✅
+
+The release run on the stage K build failed six checks in its second batch. Two were real bugs, both
+fixed and proven; two were timing, and pass alone.
+
+- **A supply bin offered through a shut door.** The bin prompt measured reach without asking what was in
+  the way, so on a seed that stood a vault bin by the door, a player outside the locked vault was offered its
+  bin (and the vault's three checks failed on the prompt). A bin now needs a clear line to it. The vault test
+  puts one of its bins just inside the door and checks it is not offered: it fails with the old code and
+  passes with the new.
+- **Bots stranded when frames ran slow.** A frame's step is capped at 0.1 s, and a bot walked a slow frame
+  as one step of up to 0.66 m, which a wall or a box's corner stopped whole where small steps slide round it.
+  Under load a squad's follower stood pinned to a wall for the rest of the match. The e2e can now throttle
+  the CPU (`E2E_THROTTLE=6`), which made the squads check fail alone, 20 and 21 of 40 together. A bot's walk
+  is now taken in pieces of at most 0.2 m (bots.json `maxStep`), and the same throttled runs gave 36 of 36
+  and 40 of 40.
+- **Timing, passing alone:** Resurgence's 5 s off a wait read 6.5 s on the loaded machine (5.7 alone), and the
+  battle royale host migration's heir, both rerun alone and passing.
