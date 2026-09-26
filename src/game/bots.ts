@@ -20,8 +20,8 @@
 //
 // The rounds are the 1v1's: countdown, fight, last standing or the circle,
 // first to 3. Two bots do not shoot each other: they are both after you.
-import { solidsIn } from "./solidgrid";
-const BOT_NEAR: import("./range").Solid[] = [];
+
+import { botBlocked, botGroundAt } from "./botbody";
 import { IS_SK, PROFILE } from "./game";
 import hackCfg from "../config/hacks.json";
 import { cooldownOf } from "./hacks";
@@ -36,7 +36,7 @@ import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import { OPERATORS } from "./operators";
 import { ARENA_BOT_SPAWNS, ARENA_BOUNDS, ARENA_CENTER, ARENA_SPAWNS, ZONE_RADIUS, arenaMap, type ArenaMapId } from "./arena";
 import type { Bounds } from "./player";
-import { HU, MOVE } from "./movement";
+import { HU } from "./movement";
 import type { RoundPhase } from "../net/link";
 import type { MatchSummary, BotDifficulty } from "./stats";
 import { BOT_ABILITY, BOT_ABILITY_IDS, JOLT, KITS, TRIAGE, type AbilityId } from "./abilities";
@@ -278,7 +278,7 @@ export function botName(i: number): string {
 
 /** how many bots a match may hold at most: a limit of the frame rate, not of the names */
 export const MOST_BOTS = 48;
-const RADIUS = MOVE.radius;
+
 /** a bot healing walks at this fraction of its speed (ours) */
 const HEAL_WALK = 0.45;
 /** a drop from the sky: terminal speed, m/s */
@@ -296,6 +296,8 @@ export interface BotSense {
   goal: THREE.Vector3 | null;
   /** the goal comes first (the ring closing on it): no hunting, no going to look at a shot */
   urgent?: boolean;
+  /** walk right onto the goal, not to within reach of it (a stair's waypoints: SpeedKills' climbs) */
+  exact?: boolean;
   canShoot: boolean;
 }
 
@@ -1202,23 +1204,12 @@ export class Bot {
 
   /** the ground under the feet, stepping up onto anything within reach */
   private groundAt(x: number, z: number): number {
-    let best = 0;
-    for (const s of solidsIn(x - RADIUS, x + RADIUS, z - RADIUS, z + RADIUS, BOT_NEAR)) {
-      if (x + RADIUS > s.minX && x - RADIUS < s.maxX && z + RADIUS > s.minZ && z - RADIUS < s.maxZ) {
-        if (s.top <= this.pos.y + MOVE.stepHeight + 1e-4 && s.top > best) best = s.top;
-      }
-    }
-    return best;
+    return botGroundAt(x, z, this.pos.y);
   }
 
   /** would the body overlap a wall at this spot */
   private blocked(x: number, z: number): boolean {
-    for (const s of solidsIn(x - RADIUS, x + RADIUS, z - RADIUS, z + RADIUS, BOT_NEAR)) {
-      if (x + RADIUS > s.minX && x - RADIUS < s.maxX && z + RADIUS > s.minZ && z - RADIUS < s.maxZ) {
-        if (s.top > this.pos.y + MOVE.stepHeight + 1e-4 && s.base < this.pos.y + MOVE.standHeight - 1e-4) return true;
-      }
-    }
-    return false;
+    return botBlocked(x, z, this.pos.y);
   }
 
   /**
@@ -1540,7 +1531,7 @@ export class Bot {
       const advance = td > keep + 1 ? 1 : td < keep - 1 ? -0.6 : 0;
       want = want.multiplyScalar(advance).addScaledVector(side, strafe * tier.strafe);
       if (want.length() > 1e-3) want.normalize();
-    } else if (dist < (this.cover ? 0.6 : 1.5) || (this.cover && !sees)) want.set(0, 0);
+    } else if (dist < (this.cover ? 0.6 : sense.exact && !target ? 0.3 : 1.5) || (this.cover && !sees)) want.set(0, 0);
     // standing over a drop, rummaging through it: it does not walk while it does that
     if (this.looter.holding) want.set(0, 0);
     // a crouch now and then while it fires (by tier), never while it walks to cover or heals

@@ -173,6 +173,8 @@ export interface BuildingOpts {
    * gives a tread you would call a stair.
    */
   stairs?: boolean;
+  /** the door the bots' way up starts from (the returned route); the first door when not said */
+  routeDoor?: Side;
   /** one more flight, up through a hole in the roof: the roof is somewhere to walk to (implies stairs) */
   roofAccess?: boolean;
   /** the ground storey is an open hall on four corner columns rather than walled rooms */
@@ -216,7 +218,14 @@ const MIN_TREAD = 0.25;
  * A building with an inside. Returns the roof height and the interior floor
  * heights, so a caller can put loot on them.
  */
-export function building(ctx: PoiCtx, o: BuildingOpts): { roof: number; floors: number[] } {
+/** a point on a building's way up, world space: its floor's height as y */
+export interface RoutePoint {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export function building(ctx: PoiCtx, o: BuildingOpts): { roof: number; floors: number[]; route: RoutePoint[] } {
   const { box, slab, mats } = ctx;
   const w = o.w;
   const d = o.d;
@@ -370,7 +379,43 @@ export function building(ctx: PoiCtx, o: BuildingOpts): { roof: number; floors: 
     ] as const) piece(bw, 0.9, bd, o.x + dx, roof, o.z + dz, mats.trim);
   }
 
-  return { roof, floors };
+  // The way up, for the bots (city.ts puts it on the graph). From outside a
+  // door (not the east one, which the stairs run along) to the roof: in, then
+  // for each flight along the west side to its end wall, along that to its
+  // foot (hard against the wall and partly on the first step: from the side
+  // the second step is in the way, a body being 0.82 m across and a tread well
+  // under that), up the flight's axis to its top step, and off it sideways
+  // to the west onto the floor beside the hole (straight on, the next
+  // flight's top step leaves half a metre, under a body). Each flight starts
+  // at the other end from the one below, so its foot is never over the hole
+  // the last one came up through. tools/checks/sk-roofs.ts walks every one
+  // with a bot's own rules.
+  const route: RoutePoint[] = [];
+  const door = o.routeDoor ?? doors[0];
+  if (door && door !== "e" && flights > 0) {
+    const out = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] }[door];
+    const dx = door === "w" ? -w / 2 : 0;
+    const dz = door === "s" ? d / 2 : door === "n" ? -d / 2 : 0;
+    route.push({ x: o.x + dx + out[0] * 1.5, y: base, z: o.z + dz + out[1] * 1.5 });
+    route.push({ x: o.x + dx - out[0] * 1.5, y: base, z: o.z + dz - out[1] * 1.5 });
+    const flightX = o.x + w / 2 - t - 1.5;
+    // west of the hole by a body's half and a little: the floor beside the stairs
+    const sideX = o.x + inner.w / 2 - HOLE_W - 0.5;
+    for (let s = 0; s < flights; s++) {
+      const end = endOf(s);
+      const y = base + s * h;
+      // hard against the end wall: a body's half and a little, 0.45 m
+      const wallZ = o.z + end * (inner.d / 2 - 0.45);
+      route.push({ x: sideX, y, z: wallZ });
+      route.push({ x: flightX, y, z: wallZ });
+      // the top step, level with the floor above, and off it to the west
+      const topZ = o.z + end * (inner.d / 2 - lead - (steps - 1) * run);
+      route.push({ x: flightX, y: y + h, z: topZ });
+      route.push({ x: sideX, y: y + h, z: topZ });
+    }
+  }
+
+  return { roof, floors, route };
 }
 
 /** a stack of crates that climbs `to` metres, at (x, z): the way onto a roof without stairs */

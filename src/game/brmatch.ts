@@ -128,6 +128,7 @@ const BOT_LOOT_FLOOR = botsCfg.loot.floor;
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { navTree, type NavTree } from "./navgraph";
+import { ROOF_ROUTES } from "./city";
 import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, ringPace, type Circle, type RingPhase } from "./ring";
 import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, resurgenceArea, secondsToFinal, type BrRules } from "./resurgence";
 import { GULAG, Gulag, gulagFor, type GulagEvent } from "./gulag";
@@ -501,6 +502,8 @@ interface BrBot {
   guard?: { x: number; z: number };
   /** the route's next step is a rope to here (br.ts node ropes): the bot rides rather than walks it */
   ropeTo?: { x: number; z: number } | null;
+  /** SpeedKills: taking the high ground, a low tower's roof node, and holding it until (bots.json skRoofs) */
+  climb?: { roof: number; holdUntil: number | null } | null;
 }
 
 /** a care package or a loadout crate: called, on its way down, or landed */
@@ -3188,6 +3191,8 @@ export class BrMatch extends Duel {
     // is a free gold gun rather than an event
     const pod = this.podToContest(bot.pos);
     if (hurry) {
+      // (a climb is given up: the decay comes first)
+      b.climb = null;
       // Along the graph to the node nearest the circle's middle, then straight
       // in: a straight line at the middle from anywhere crossed the Table,
       // the Notch's defile and the edge cliffs, which the graph's tested
@@ -3210,6 +3215,22 @@ export class BrMatch extends Duel {
       goal = inside || !g || (b.goal === b.node && this.hurryHop(ring.next.cx, ring.next.cz, b.node) < 0) ? new THREE.Vector3(ring.next.cx, 0, ring.next.cz) : new THREE.Vector3(g.x, 0, g.z);
     } else if (pod) {
       goal = pod;
+    } else if (b.climb) {
+      // SpeedKills: up a low tower's stairs, a node at a time, then the roof held a while
+      const c = b.climb;
+      const cur = nodes[b.goal];
+      if (cur && Math.hypot(cur.x - bot.pos.x, cur.z - bot.pos.z) < 1.2 && Math.abs((cur.y ?? bot.pos.y) - bot.pos.y) < 1) {
+        b.node = b.goal;
+        if (b.node === c.roof) c.holdUntil ??= wallClock() + botsCfg.skRoofs.hold;
+        else {
+          const hop = this.climbTree(c.roof).toward[b.node];
+          if (hop >= 0) b.goal = hop;
+          else b.climb = null;
+        }
+      }
+      if (c.holdUntil !== null && wallClock() >= c.holdUntil) b.climb = null;
+      const g = nodes[b.goal];
+      goal = new THREE.Vector3(g.x, 0, g.z);
     } else {
       const here = nodes[b.goal];
       // arrived at it, and on its floor: a node on a deck or a crest is not
@@ -3226,6 +3247,14 @@ export class BrMatch extends Duel {
         const all = onward(here.links);
         const pick = options.length ? options[Math.floor(Math.random() * options.length)] : all[Math.floor(Math.random() * all.length)];
         b.goal = pick ?? b.goal;
+        // SpeedKills: now and then, the high ground instead (bots.json skRoofs)
+        const roof = this.decay ? this.roofFor(b) : -1;
+        if (roof >= 0) {
+          b.climb = { roof, holdUntil: null };
+          const hop = this.climbTree(roof).toward[b.node];
+          if (hop >= 0) b.goal = hop;
+          else b.climb = null;
+        }
       }
       const g = nodes[b.goal];
       goal = new THREE.Vector3(g.x, 0, g.z);
@@ -3240,7 +3269,40 @@ export class BrMatch extends Duel {
         goal = new THREE.Vector3(lead.bot.pos.x + Math.cos(a) * SQUADS.spread, 0, lead.bot.pos.z + Math.sin(a) * SQUADS.spread);
       }
     }
-    return { target, targetId, goal, canShoot: this.phase === "fight" && !this.holdFire, urgent: hurry };
+    // (a climb is a purpose, as the ring is: it comes before a loot spot or a hunt, and after someone in sight)
+    return { target, targetId, goal, canShoot: this.phase === "fight" && !this.holdFire, urgent: hurry || !!b.climb, exact: !!b.climb };
+  }
+
+  /** SpeedKills: the steps toward each low tower's roof, by roof node, worked out once each */
+  private climbTrees = new Map<number, NavTree>();
+  private climbTree(roof: number): NavTree {
+    let t = this.climbTrees.get(roof);
+    if (!t) {
+      t = navTree(this.map.nodes, 0, 0, { target: roof });
+      this.climbTrees.set(roof, t);
+    }
+    return t;
+  }
+
+  /** SpeedKills: a roof for this bot to take, by its tier's chance, within reach, and none already holding it; -1 for none */
+  private roofFor(b: BrBot): number {
+    const chance = (botsCfg.skRoofs.chance as Record<string, number>)[b.bot.diff.name] ?? 0;
+    if (!(Math.random() < chance)) return -1;
+    const nodes = this.map.nodes;
+    let best = -1;
+    let bestD = botsCfg.skRoofs.reach;
+    for (const r of ROOF_ROUTES) {
+      if (r.street < 0) continue;
+      const roof = r.nodes[r.nodes.length - 1];
+      if (this.bots.some((o) => o !== b && o.climb?.roof === roof)) continue;
+      const n = nodes[roof];
+      const dd = Math.hypot(n.x - b.bot.pos.x, n.z - b.bot.pos.z);
+      if (dd < bestD) {
+        bestD = dd;
+        best = roof;
+      }
+    }
+    return best;
   }
 
   /** the next step along the graph from each node toward the node nearest a circle's middle, worked out once per circle (navgraph.ts) */
@@ -3249,7 +3311,8 @@ export class BrMatch extends Duel {
   /** from node `from`, the next node on the graph toward the node nearest (cx, cz): -1 at it (walk straight in from there) */
   private hurryHop(cx: number, cz: number, from: number): number {
     const key = `${cx.toFixed(1)},${cz.toFixed(1)}`;
-    if (!this.hurryTree || this.hurryTree.key !== key) this.hurryTree = { key, tree: navTree(this.map.nodes, cx, cz) };
+    // (SpeedKills: the node nearest on the ground, not one up a tower's stairs)
+    if (!this.hurryTree || this.hurryTree.key !== key) this.hurryTree = { key, tree: navTree(this.map.nodes, cx, cz, { ground: !!this.decay }) };
     const t = this.hurryTree.tree;
     if (from < 0 || from >= t.toward.length || from === t.target) return -1;
     const step = t.toward[from];

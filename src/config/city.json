@@ -178,5 +178,10 @@
     "NOVA LINE"
   ],
   "beaconLights": 12,
-  "cornerNeon": 0.3
+  "cornerNeon": 0.3,
+  "_botRoofs": "The bots' way onto the roofs (city.ts, brpoi.ts building route): a tower of up to maxStoreys storeys has its stairs on the graph, from outside its door to its roof, joined to the nearest street node within reach metres. A tall tower's climb is a match's worth of stairs for a bot, so only the low ones: the roofs a fight is had from. tools/checks/sk-roofs.ts walks every one with a bot's own rules.",
+  "botRoofs": {
+    "maxStoreys": 4,
+    "reach": 40
+  }
 }

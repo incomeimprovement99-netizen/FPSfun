@@ -61,7 +61,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   - A squad mate restores you at your echo in 5 s, three times slower if you
     wander more than 12 m away. Two restores a match.
 - **Bots** in five tiers (Beginner, Casual, Skilled, Advanced, Extreme), on a
-  player's health, with Heal and Dash by tier.
+  player's health, with Heal and Dash by tier. The better ones now and then
+  take the high ground: up a low tower's stairs to its roof, held a while.
 - **Arenas** in the city: NEON BLOCK, a crossing with four decks a storey up
   and skybridges between them, for 1v1, FFA, team deathmatch and Control.
 - **A controller** with an outer deadzone, a curve strength, per-optic ADS and

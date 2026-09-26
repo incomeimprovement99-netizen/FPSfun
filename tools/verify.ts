@@ -1825,7 +1825,7 @@ fails += movesimFails;
 {
   const { spawnSync } = await import("node:child_process");
   // and everything else that reads SpeedKills' numbers as it loads: the guns' time to kill
-  for (const tool of ["tools/sk-movesim.ts", "tools/checks/ttk.ts", "tools/checks/city-budget.ts"]) {
+  for (const tool of ["tools/sk-movesim.ts", "tools/checks/ttk.ts", "tools/checks/city-budget.ts", "tools/checks/sk-roofs.ts"]) {
     const r = spawnSync(`npx tsx ${tool}`, { shell: true, encoding: "utf8", env: { ...process.env, GAME: "speedkills" } });
     process.stdout.write(r.stdout ?? "");
     if (r.status !== 0) fails++;

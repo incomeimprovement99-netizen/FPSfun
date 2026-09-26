@@ -55,7 +55,7 @@ import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, t
 import finCfg from "./config/finisher.json";
 import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
-import { buildCityMap, cityDecay, SECTORS } from "./game/city";
+import { buildCityMap, cityDecay, SECTORS, ROOF_ROUTES } from "./game/city";
 import DECAY_CFG from "./config/decay.json";
 import { Hacks, HACK, HACK_DEFS, hackDef, hackSlotOf, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
 import { BotMatch, MOST_BOTS } from "./game/bots";
@@ -7803,6 +7803,8 @@ initWelcome();
   startBr: (o?: { seed?: number; poi?: string }) => startBr(o?.seed, o?.poi),
   techLog,
   /** drive the player from a script instead of the keyboard (null to stop) */
+  /** SpeedKills' low towers' ways up as graph nodes (city.ts), for the tests */
+  roofRoutes: () => ROOF_ROUTES,
   setScript: (s: MoveInput | null, hook: ((now: number, dt: number) => void) | null = null) => {
     scriptInput = s;
     frameHook = hook;

@@ -3678,3 +3678,31 @@ a bleed-out in the same frame as the revive's end, cannot be staged reliably, so
 
 Of plan section 12 only item 6 is still open (the legacy game's box-respawn lockouts counted separately on
 each browser; SpeedKills has no lockout).
+
+## Milestone 207 — Bots take the high ground ✅
+
+`src/game/botbody.ts`, `tools/checks/sk-roofs.ts`, city.ts `ROOF_ROUTES`, brmatch.ts `climb`.
+
+- **The way up on the graph.** SpeedKills' bots never left the streets: the city's graph had no nodes inside
+  its towers. The building generator now returns each tower's way up as waypoints:
+  - from outside a door, in, then for each flight along the west side to its end wall;
+  - along the wall to the flight's foot, hard against the wall and partly on the first step (from the side,
+    the second step is in the way: a body is 0.82 m across);
+  - up the axis to the top step, and off it sideways onto the floor beside the hole.
+
+  The city puts the low towers' routes (up to 4 storeys, city.json `botRoofs`) on the graph. Each runs from a
+  door on its block's edge straight out to its street, then along the street to a crossing a bot can walk to.
+- **The choice.** In SpeedKills a bot arriving at a street node now and then takes the high ground, by its
+  tier's chance (bots.json `skRoofs`; never a beginner). It walks the stairs to the nearest free roof within
+  120 m and holds it 25 s. A climb comes before looting or a hunt, but gives way to someone in sight and to the
+  decay. A climbing bot walks right onto each waypoint, not to within 1.5 m of it.
+- **Checked** by `sk-roofs.ts`, which walks every route with a bot's own rules. Those rules now live in
+  `botbody.ts`, which the bots, the city and the check share. It found four real faults on the way:
+  - the step-off point sat where the next flight leaves half a metre;
+  - doors on the side between a block's two towers;
+  - the nearest crossing as the crow flies was behind a block;
+  - **overlapping towers.** A block's split direction was drawn per tower, not once per block, so two towers
+    could stand inside each other. That is fixed for the whole city; putting it back fails three routes.
+- **Live:** the e2e sends a bot up a tower in a real match and it walks the stairs to the roof (11.8 of 12.2 m).
+  It stayed on the street until a climb came before looting and walked right onto its waypoints.
+- The hurry toward the final sector aims at the nearest node on the ground now, not one up a tower's stairs.

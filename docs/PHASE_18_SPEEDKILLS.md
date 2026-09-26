@@ -57,8 +57,7 @@ Alongside: every multiplayer race the plan's recon found, bar one legacy item, f
   SpeedKills has no lockout.
 - **The battle royale host migration's setup** failed twice in the full second batch and never alone or
   throttled. Its failure now says which step it stopped at and what each bot held.
-- **Bots stay on the streets:** the city's nav graph has no nodes on the roofs, so a bot on a roof is one that
-  landed there. A roof graph is the next thing for the city's vertical fights.
+- **Bots on the roofs** (Milestone 207): done for the low towers; the tall ones are a match's worth of stairs.
 - **The guns' look:** SpeedKills uses the legacy models. The free CC0 options and the one paid pack found are in
   `docs/SPEEDKILLS_ASSETS.md`; the look is the owner's call.
 - **Tuning in play:** the capture hold (45 s), the ghost's sight (25 m), the five non-friend gun names and the

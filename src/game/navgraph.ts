@@ -10,6 +10,8 @@
 export interface NavNode {
   x: number;
   z: number;
+  /** the floor it is on, where not the ground (a deck, a crest, a tower's storey) */
+  y?: number;
   links: number[];
   /** nodes reached by riding a rope from this one (br.ts): a step like any other, taken by riding */
   ropes?: number[];
@@ -22,16 +24,20 @@ export interface NavTree {
   toward: Int32Array;
 }
 
-export function navTree(nodes: readonly NavNode[], x: number, z: number): NavTree {
-  let target = 0;
+export function navTree(nodes: readonly NavNode[], x: number, z: number, o: { ground?: boolean; target?: number } = {}): NavTree {
+  // `target`: that node itself. `ground`: the nearest on the ground only, since
+  // a node up a tower's stairs can be the nearest across and is a storey up
+  // (SpeedKills' city, whose low towers' stairs are on the graph)
+  let target = o.target ?? 0;
   let best = Infinity;
-  nodes.forEach((n, i) => {
-    const d = Math.hypot(n.x - x, n.z - z);
-    if (n.links.length && d < best) {
-      best = d;
-      target = i;
-    }
-  });
+  if (o.target === undefined)
+    nodes.forEach((n, i) => {
+      const d = Math.hypot(n.x - x, n.z - z);
+      if (n.links.length && d < best && !(o.ground && (n.y ?? 0) > 1.5)) {
+        best = d;
+        target = i;
+      }
+    });
   const toward = new Int32Array(nodes.length).fill(-2);
   toward[target] = -1;
   const queue = [target];

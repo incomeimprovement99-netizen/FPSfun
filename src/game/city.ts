@@ -23,7 +23,8 @@
 // black metal (tools/fetch-assets.ts), with emissive neon strips of our own.
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
-import { building, DRESSING, type BoxMaker, type PoiCtx, type Side } from "./brpoi";
+import { botWalk } from "./botbody";
+import { building, DRESSING, type BoxMaker, type PoiCtx, type Side, type RoutePoint } from "./brpoi";
 import { DOORWAYS, Doors } from "./doors";
 import { material, tileBox, type MatName } from "./materials";
 import { emissive, flat } from "./geo";
@@ -68,6 +69,9 @@ function seeded(seed: number): () => number {
 export const BLOCKS: ReadonlyArray<readonly [number, number]> = cityCfg.blocks as Array<[number, number]>;
 /** the streets' middles, along one axis */
 export const STREETS: readonly number[] = BLOCKS.slice(0, -1).map((b, i) => (b[1] + BLOCKS[i + 1][0]) / 2);
+
+/** each low tower's way up as graph nodes, door to roof, and the street node it hangs off (-1: none in reach); the checks walk them */
+export const ROOF_ROUTES: Array<{ street: number; nodes: number[]; storeys: number }> = [];
 
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
@@ -143,7 +147,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   root.add(ground);
 
   // ---------------------------------------------------------------- blocks
-  type Tower = { x: number; z: number; w: number; d: number; roof: number; storeys: number; sector: string };
+  /** a tower, and the street its way up comes off: the side its route's door is on, and that street's line (local) */
+  type Tower = { x: number; z: number; w: number; d: number; roof: number; storeys: number; sector: string; route: RoutePoint[]; street: { side: Side; line: number } | null };
   const towers: Tower[] = [];
   const plazas: Array<{ x: number; z: number }> = [];
   const PAVE_H = C.kerb;
@@ -185,9 +190,11 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       const old = sec.id === "w";
       const lots = ring <= 1 ? 1 + (rnd() < 0.5 ? 1 : 0) : 2;
       const span = { w: x1 - x0 - 6, d: z1 - z0 - 6 };
+      // which way the block splits, once for the block: drawn for each tower, one could take the full width
+      // and the other the full depth, and the two stood inside each other (found walking the bots' roof routes)
+      const alongX = rnd() < 0.5;
       for (let i = 0; i < lots; i++) {
         const half = lots === 2;
-        const alongX = rnd() < 0.5;
         const w = half && alongX ? span.w / 2 - 2 : span.w;
         const d = half && !alongX ? span.d / 2 - 2 : span.d;
         const ox = half && alongX ? (i === 0 ? -1 : 1) * (span.w / 4 + 1) : 0;
@@ -197,7 +204,11 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         const storeys = Math.round(lo + rnd() * (hi - lo));
         const mat = old ? brick : ring <= 1 && rnd() < 0.35 ? glass : night[Math.floor(rnd() * night.length)];
         const doors: Side[] = (["n", "s", "e", "w"] as Side[]).filter(() => rnd() < 0.55);
-        towers.push(tower({ x: cx + ox, z: cz + oz, w: bw, d: bd, storeys, sector: sec, mat, accent: sec.accent, doors: doors.length ? doors : ["s"] }));
+        // a low tower (the bots' roofs, city.json botRoofs) always has a door onto its block's edge: the
+        // north one, or the south for the second tower of a block split north and south
+        const edgeDoor: Side = half && !alongX && i === 1 ? "s" : "n";
+        if (storeys <= C.botRoofs.maxStoreys && !doors.includes(edgeDoor)) doors.push(edgeDoor);
+        towers.push(tower({ x: cx + ox, z: cz + oz, w: bw, d: bd, storeys, sector: sec, mat, accent: sec.accent, doors: doors.length ? doors : ["s"], block: { x0, x1, z0, z1 } }));
       }
     });
   });
@@ -207,9 +218,29 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
    * reach) in the city's materials, with neon up its corners and round its
    * roof. Returns where it stands and how high its roof is.
    */
-  function tower(o: { x: number; z: number; w: number; d: number; storeys: number; sector: Sector; mat: THREE.Material; accent: number; doors: Side[] }): Tower {
+  function tower(o: { x: number; z: number; w: number; d: number; storeys: number; sector: Sector; mat: THREE.Material; accent: number; doors: Side[]; block?: { x0: number; x1: number; z0: number; z1: number } }): Tower {
+    // The way up starts at the door nearest its block's edge: a block holds two
+    // towers, and a door on the side between them opens onto the other's wall.
+    // (Not the east one, which the stairs run along.) Its street is the line
+    // beyond that edge, the graph's own (city streets, or the edge road).
+    let street: Tower["street"] = null;
+    let routeDoor: Side | undefined;
+    if (o.block) {
+      const b = o.block;
+      const gap: Record<Side, number> = { n: o.z - o.d / 2 - b.z0, s: b.z1 - (o.z + o.d / 2), w: o.x - o.w / 2 - b.x0, e: b.x1 - (o.x + o.w / 2) };
+      const lines = [-BR_HALF + 7, ...STREETS, BR_HALF - 7];
+      for (const sd of o.doors) {
+        // a door onto the block's edge (its margin is 3 m), not onto the other tower of the block
+        if (sd === "e" || gap[sd] > 4) continue;
+        if (routeDoor && gap[sd] >= gap[routeDoor]) continue;
+        const line = sd === "s" ? Math.min(...lines.filter((v) => v > b.z1)) : sd === "n" ? Math.max(...lines.filter((v) => v < b.z0)) : Math.max(...lines.filter((v) => v < b.x0));
+        if (!Number.isFinite(line)) continue;
+        routeDoor = sd;
+        street = { side: sd, line };
+      }
+    }
     const ctx: PoiCtx = { box: slab, slab, root, mats: { wall: o.mat, floor: concrete, trim: trimDark, crate: metal, steel: metal } };
-    const { roof } = building(ctx, {
+    const { roof, route } = building(ctx, {
       x: o.x,
       z: o.z,
       y: PAVE_H,
@@ -223,6 +254,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       roofAccess: true,
       parapet: true,
       dress: "roof",
+      routeDoor,
     });
     const k = neon(o.accent);
     // neon up the four corners and round the roof: a district reads by its colour from anywhere
@@ -242,7 +274,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       deco(o.w + 0.1, 0.1, 0.1, o.x, y, o.z - o.d / 2 - 0.05, k);
       deco(o.w + 0.1, 0.1, 0.1, o.x, y, o.z + o.d / 2 + 0.05, k);
     }
-    return { x: o.x, z: o.z, w: o.w, d: o.d, roof, storeys: o.storeys, sector: o.sector.id };
+    return { x: o.x, z: o.z, w: o.w, d: o.d, roof, storeys: o.storeys, sector: o.sector.id, route: street ? route : [], street };
   }
 
   // ---------------------------------------------------------------- skybridges
@@ -459,6 +491,43 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       if (onStreetJ && j + 1 < line.length) link(at(i, j), at(i, j + 1));
     }
   }
+  ROOF_ROUTES.length = 0;
+  // The low towers' stairs, door to roof, on the graph (city.json botRoofs): a bot
+  // wandering past takes one now and then, and a fight has someone above it.
+  const streetNodes = nodes.length;
+  for (const t of towers) {
+    if (t.storeys > C.botRoofs.maxStoreys || t.route.length < 2) continue;
+    const first = nodes.length;
+    t.route.forEach((r, k) => {
+      nodes.push({ ...P(r.x, r.z), y: r.y, poi: sectorAt(r.x, r.z)?.id, links: [] });
+      if (k > 0) link(first + k - 1, first + k);
+    });
+    // Straight out of the door to its street's middle, then along the street to the nearer
+    // crossing a bot walks to (the nearest crossing as the crow flies was behind a block).
+    const door = t.route[0];
+    const st = t.street!;
+    const sx = st.side === "w" ? st.line : door.x;
+    const sz = st.side === "w" ? door.z : st.line;
+    const onStreet = nodes.length;
+    nodes.push({ ...P(sx, sz), y: 0, poi: sectorAt(sx, sz)?.id, links: [] });
+    link(onStreet, first);
+    let best = -1;
+    let bestD = C.botRoofs.reach;
+    const S = nodes[onStreet];
+    for (let i = 0; i < streetNodes; i++) {
+      const n = nodes[i];
+      // a crossing on this same street
+      if (Math.abs(st.side === "w" ? n.x - S.x : n.z - S.z) > 0.5) continue;
+      const dd = Math.hypot(n.x - S.x, n.z - S.z);
+      if (dd < bestD && botWalk(S.x, S.z, 0, n.x, n.z).ok) {
+        bestD = dd;
+        best = i;
+      }
+    }
+    if (best >= 0) link(best, onStreet);
+    ROOF_ROUTES.push({ street: best, nodes: [onStreet, ...t.route.map((_, k) => first + k)], storeys: t.storeys });
+  }
+
   // the jump towers in the plazas, the launch pads at the crossings, the beacons
   const towerSpots = plazas.slice(0, C.jumpTowers).map((p) => ({ ...P(p.x, p.z), y: PAVE_H }));
   const pads: BrMap["pads"] = [];
