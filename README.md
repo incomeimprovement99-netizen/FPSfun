@@ -39,6 +39,18 @@ Game) or `?game=legacy`, and everything below this section describes it.
 - **The battle royale:** thirty players in a 500 m neon city at night, nine
   sectors. The centre, THE SPIRE, is the biggest and the hottest drop, and
   half the bot squads land there.
+  - The centre is one raised district, after Hyper Scape's Red Tiger: nine
+    podiums at one height, joined by lit bridges over the streets, each with a
+    public stair up. The Spire rises from it in tiers. Its loot is the best,
+    and it comes back as it is taken.
+  - Round it, mid-rise blocks of buildings you enter from the street and climb
+    by their stairs, with loot on every floor. A player who lands with nothing
+    can reach the roofs without a pad.
+  - Every district has a landmark: a ringed holo tower, a round lit tower,
+    silos, a nave, a stadium, garden terraces, cranes, a station on stilts.
+  - A rooftop highway loops the core six storeys up, and gold jump pads on
+    every block throw you onto the roofs.
+  - Streets with parked cars for cover, zebra crossings and lit pavements.
   - The dropship starts off the map and flies 6 s before its doors open.
   - Sectors decay in four waves of two toward a final one; standing in the
     decay hurts.
@@ -63,6 +75,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
 - **Bots** in five tiers (Beginner, Casual, Skilled, Advanced, Extreme), on a
   player's health, with Heal and Dash by tier. The better ones now and then
   take the high ground: up a low tower's stairs to its roof, held a while.
+  They climb the centre's stairs, cross its bridges and ride its jump pads,
+  and once the capture zone opens the squads near it go for it, up the Spire
+  if that is where it is.
+- **The fight's feel:** the enemy under your crosshair is outlined in red, and
+  streaks at the screen's edge show when you are going faster than a sprint.
 - **Arenas** in the city: NEON BLOCK, a crossing with four decks a storey up
   and skybridges between them, for 1v1, FFA, team deathmatch and Control.
 - **A controller** with an outer deadzone, a curve strength, per-optic ADS and
