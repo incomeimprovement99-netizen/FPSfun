@@ -124,6 +124,7 @@ const BOT_LOOT_FLOOR = botsCfg.loot.floor;
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { navTree, type NavTree } from "./navgraph";
+import { solidHit } from "./projectile";
 import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, ringPace, type Circle, type RingPhase } from "./ring";
 import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, resurgenceArea, secondsToFinal, type BrRules } from "./resurgence";
 import { GULAG, Gulag, gulagFor, type GulagEvent } from "./gulag";
@@ -3047,7 +3048,27 @@ export class BrMatch extends Duel {
       const lead = [b, ...mates].reduce((a, o) => (o.slot < a.slot ? o : a));
       if (lead !== b && bot.pos.distanceTo(lead.bot.pos) > SQUADS.follow) {
         const a = (b.slot / this.team.size) * Math.PI * 2;
-        goal = new THREE.Vector3(lead.bot.pos.x + Math.cos(a) * SQUADS.spread, 0, lead.bot.pos.z + Math.sin(a) * SQUADS.spread);
+        const spot = new THREE.Vector3(lead.bot.pos.x + Math.cos(a) * SQUADS.spread, 0, lead.bot.pos.z + Math.sin(a) * SQUADS.spread);
+        // Straight at the lead only with the lead in plain sight on its own
+        // level. A straight walk from anywhere else climbed a stair run onto
+        // the Hub's first floor, where the graph has no node, and the bot
+        // pressed against the wall between it and its lead for the rest of
+        // the match (the squads' test caught the squad 90 m apart). The graph's
+        // links are tested walks, so off the straight line it takes those.
+        if (this.inSight(bot.pos, lead.bot.pos)) goal = spot;
+        else {
+          const cur = nodes[b.goal];
+          if (cur && Math.hypot(cur.x - bot.pos.x, cur.z - bot.pos.z) < 3 && Math.abs((cur.y ?? bot.pos.y) - bot.pos.y) < 2.5) {
+            b.node = b.goal;
+            const hop = this.hopToward(lead.bot.pos.x, lead.bot.pos.z, b.node);
+            if (hop >= 0) {
+              b.goal = hop;
+              b.ropeTo = nodes[b.node]?.ropes?.includes(hop) ? { x: nodes[hop].x, z: nodes[hop].z } : null;
+            }
+          }
+          const g = nodes[b.goal];
+          goal = g ? new THREE.Vector3(g.x, 0, g.z) : spot;
+        }
       }
     }
     return { target, targetId, goal, canShoot: this.phase === "fight" && !this.holdFire, urgent: hurry };
@@ -3055,6 +3076,33 @@ export class BrMatch extends Duel {
 
   /** the next step along the graph from each node toward the node nearest a circle's middle, worked out once per circle (navgraph.ts) */
   private hurryTree: { key: string; tree: NavTree } | null = null;
+
+  /** a follower's lead is in plain sight from it, on its own level: nothing solid between their chests */
+  private inSight(from: THREE.Vector3, to: THREE.Vector3): boolean {
+    if (Math.abs(to.y - from.y) > SQUADS.followLevel) return false;
+    const a = from.clone().setY(from.y + 1.2);
+    const d = to.clone().setY(to.y + 1.2).sub(a);
+    const len = d.length();
+    return len < 1e-3 || solidHit(a, d.divideScalar(len), len) >= len;
+  }
+
+  /** the graph's trees toward the leads the followers are after, by the square the lead is in, a few kept */
+  private leadTrees = new Map<string, NavTree>();
+
+  /** from node `from`, the next node on the graph toward the node nearest (x, z): -1 at it */
+  private hopToward(x: number, z: number, from: number): number {
+    const c = SQUADS.followCell;
+    const key = `${Math.round(x / c)},${Math.round(z / c)}`;
+    let t = this.leadTrees.get(key);
+    if (!t) {
+      if (this.leadTrees.size > 32) this.leadTrees.clear();
+      t = navTree(this.map.nodes, x, z);
+      this.leadTrees.set(key, t);
+    }
+    if (from < 0 || from >= t.toward.length || from === t.target) return -1;
+    const step = t.toward[from];
+    return step === -2 ? -1 : step;
+  }
 
   /** from node `from`, the next node on the graph toward the node nearest (cx, cz): -1 at it (walk straight in from there) */
   private hurryHop(cx: number, cz: number, from: number): number {
