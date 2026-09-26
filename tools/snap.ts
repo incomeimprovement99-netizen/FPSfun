@@ -280,6 +280,25 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "sk-loadout-loot",
+    note: "SpeedKills after landing with your loadout (Phase 20 A1): your loadout's gun in hand at level 0, a gun lying on the street in front of you, and E's prompt to take it",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
+      [untilFightLong, 0],
+      [
+        // The nearest gun lying in the open at street level, looked at from 2 m, as brLootTest's E does. The ring's
+        // clock is held and the first wave's sectors passed over: a slow renderer's landing ran into the decay,
+        // whose red wash hid the floor.
+        `(() => { ${hideMenu}; const r = window.__range; const d = r.duel(); d.holdFire = true; d.ring.timeLeft = 1e6; const early = new Set(d.decay?.waves[0] ?? []); const p = r.player.pos; const off = (x) => Math.hypot(x.pos.x - p.x, x.pos.z - p.z);
+          const pick = [...d.lootField.drops.values()].filter((x) => x.item.kind === "weapon" && x.pos.y < 0.3 && !early.has(r.brMap.placeAt(x.pos.x, x.pos.z)?.id)).sort((a, b) => off(a) - off(b)).find((x) => { const g = r.openGround(x.pos.x, x.pos.z + 2, 1.5); return !!g && Math.hypot(g.x - x.pos.x, g.z - x.pos.z - 2) < 0.01; });
+          if (pick) r.player.teleport(pick.pos.x, 0, pick.pos.z + 2, 0, -36); })()`,
+        0,
+      ],
+      [gameSeconds(1.2), 400],
+    ],
+  },
+  {
     name: "inspect-mid",
     note: "the weapon inspect held at its first turn: the owner reports the arm stub ends up in the camera",
     steps: [

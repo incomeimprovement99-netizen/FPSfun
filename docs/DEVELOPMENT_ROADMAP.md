@@ -3987,3 +3987,57 @@ Phase 19, step 11, second half.
   - The lab's storey climb presses jump for the next frame or two, counted in frames. 30 ms of real time was
     often over before the next frame at the 35 ms a frame a loaded machine draws.
   - The pad check's bot is put back as it was afterwards: its fire, its sight and the ring.
+
+## Milestone 221 — Loot after "land with your loadout" ✅
+
+Phase 20, Part A, item A1 (`docs/PHASE_20_PLAN.md`).
+
+- **The owner:** "i can't loot anything so i can't fusion anything together, can't change my guns ... i did do
+  the 'land with your loadout'".
+- **The cause:** one flag did two jobs. `startLoot` decided what you land holding, and also whether the floor had
+  any loot at all. A loadout start built no loot field, so there was nothing to pick up, fuse or swap, no death
+  box, and no echo to restore a ghost at.
+- **The fix:** SpeedKills' floor has its loot in both starts (brmatch.ts). The start decides only what you land
+  holding. The bots still land as the start says: unarmed and looting in a loot start, armed in a loadout start.
+- **What a floor in a loadout start brought with it, fixed with it:**
+  - Every landing in a loadout start (the drop, a Resurgence redeploy) is your loadout, fresh and at level 0.
+    What you carried is in your death box: keeping it as well put a second copy of each gun on the floor, and
+    a level tried on the range's fusion key rode into the match.
+  - A ghost restored at its box starts from nothing, whatever the start. Taking the box's copies onto the same
+    guns still in hand fused each one a level for the price of a death.
+  - Your death box keeps each gun's fusion level; it put every gun down at level 0, in the loot start too. It
+    holds only your guns: a loadout start's ammo kit and grenades went down beside them as clutter.
+  - A care package holds SpeedKills loot (speedkills.json `loot.carePackage`): one gun at level 3 to 5 and two
+    different hack cores at 2 to 4, starting where the Spire's floor stops (3 for a gun, 2 for a hack core). It
+    held the legacy game's gun, a gold helmet, batteries and a phoenix.
+  - No loadout crates in SpeedKills: a crate swapped your fused guns for level-0 copies of your loadout.
+  - A bot's death box is its gun at its level and nothing else. It added legacy ammo, cells and syringes.
+- **Legacy is unchanged.** Every change is gated on SpeedKills, and the legacy loadout start keeps its bare
+  floor.
+- **Checked:**
+  - A new e2e check (`speedkillsStartsTest`, in the `speedkills` section) plays both starts through the game's
+    own E key:
+    - the floor has its loot (930 to 981 items over the runs) and the Spire is the hot zone;
+    - you land with nothing, or with your loadout at level 0 after level 3 was set on the range;
+    - the bots loot, or land armed;
+    - a copy of a gun you carry fuses it a level;
+    - another gun swaps in at its level, and the one in hand goes down at its own;
+    - your death box holds your guns at their levels, and nothing else.
+  - In the loadout start it also checks 24 care packages (SpeedKills guns and hack cores at the package's
+    levels), that a round's close calls no crate, and that a bot's box holds only its gun at level 0.
+  - The ghost test now runs in both starts. The restored guest must hold the guns it died with, at their levels.
+  - Each check fails with its bug put back:
+    - without the floor, the loadout start has no drops (-1) and the ghost has no echo;
+    - without the fresh loadout, you land at level 3;
+    - without the box's level, it holds `r97:0,rspn101:0` for a held `r97:1,rspn101:1`;
+    - with the restore not starting from nothing, the guest comes back a level up on each gun (`rspn101` 2 to
+      3, `r97` 0 to 1);
+    - with the legacy package, crate and bot box back, those checks fail and list the legacy items;
+    - with the clutter back, the box lists light ammo and five grenades.
+  - Verify, rules, the `speedkills` section (77 ok), and the legacy `loot` and `br` sections (78 ok). The legacy
+    sections whose matches land with a loadout, `ship`, `console` and `gulag`, pass unchanged (38 ok).
+  - A new snapshot, `sk-loadout-loot`: landed with the loadout, ZEPHYR in hand at level 0, a PANDA on a zebra
+    crossing in NEON ROW and E's prompt to take it.
+- **Not changed, noted:** a loadout start now lays out and draws the same floor as a loot start (about 960
+  items), so its frame rate is a loot start's. A SpeedKills Resurgence redeploy in a loot start still hands a
+  legacy pistol and heals (br.json `resurgence.kit`), as before.

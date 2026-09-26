@@ -63,6 +63,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
 - **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to
   level 5: +2% damage and +10% magazine a level for a gun, a shorter cooldown
   for a hack. The HUD shows each gun's level as pips.
+- **Loot:** guns and hack cores on every floor, whichever start you pick.
+  "Land with your loadout" changes only what you land holding: your two guns
+  at level 0 rather than nothing, and the bots land armed. Your death box
+  keeps each gun's level. A care package holds a gun at level 3 to 5 and two
+  hack cores at 2 to 4. There are no loadout crates.
 - **Ten hacks, two carried:** a move on F or LB (Dash, Slam, Leap, Grapple)
   and a tool on G or D-pad right (Heal, Armor, Wall, Invisibility, Reveal,
   Mine). Pick them in a match's setup under PLAY, or find them on the floor.

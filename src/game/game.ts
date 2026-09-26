@@ -52,7 +52,7 @@ export interface GameProfile {
   /** the game's own versions of lists the legacy game keeps in its configs; absent: the legacy game's own */
   lists?: { botWeapons: string[]; loadouts: string[][]; gulagGuns: string[] };
   /** the battle royale's floor: spots a sector by tier, the chances of a gun and a hack core, their fusion odds */
-  loot?: { spots: Record<string, number>; gunChance: number; hackChance: number; gunOdds: Record<string, number[]>; hackOdds: Record<string, number[]>; maxFloor?: number; restock?: LootRestock };
+  loot?: { spots: Record<string, number>; gunChance: number; hackChance: number; gunOdds: Record<string, number[]>; hackOdds: Record<string, number[]>; maxFloor?: number; restock?: LootRestock; carePackage?: CarePackage };
   /** how a fight feels (speedkills.json feel): the aimed enemy's outline, the speed streaks */
   feel?: { outline: { color: string; width: number; perMetre: number; range: number }; streaks: { from: number; full: number; opacity: number } };
   /** the dropship over squad.json's (doorsIn: the seconds before a jump is allowed) */
@@ -67,6 +67,14 @@ export interface LootRestock {
   below: number;
   batch: number;
   near: number;
+}
+
+/** what a care package holds (speedkills.json loot.carePackage): how many guns and hack cores, and their level odds, one number a level */
+export interface CarePackage {
+  guns: number;
+  gunOdds: number[];
+  hacks: number;
+  hackOdds: number[];
 }
 
 const PROFILES: Record<GameId, GameProfile> = { legacy, speedkills };

@@ -102,6 +102,8 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
 - **Done when:** an e2e check in both start modes finds loot on the floor, picks up a copy of the held gun (its
   level goes up), and picks up a different gun (it swaps in).
 
+*Done (Milestone 221).*
+
 ### A2. Damage numbers show long decimals
 
 - **The owner:** each shot shows "33.66666666666666".

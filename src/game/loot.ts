@@ -291,11 +291,20 @@ export interface DeadBotKit {
  * looted a legendary handed you a rare. `fallbackGun` is the gun a bot held
  * without looting one (a match that starts with loadouts); null when it had
  * none.
+ *
+ * SpeedKills' box is its gun at the level it had fused it to, and nothing
+ * else: its floor is guns and hack cores, and the legacy ammo, cells and
+ * syringes a box added are nothing a SpeedKills player can use.
  */
 export function deathBoxOf(kit: DeadBotKit | null, fallbackGun: string | null): LootItem[] {
   const items: LootItem[] = [];
   const grade = (rank: number): Rarity => RARITY_ORDER[Math.max(0, Math.min(3, rank - 1))];
   const gun = kit?.gunId ?? fallbackGun;
+  if (IS_SK) {
+    // a looting bot's rank is its gun's fusion level plus one (bots.ts put); a gun it landed with is level 0
+    const level = kit?.gunId ? Math.max(0, Math.min(PROFILE.fusion.levels, kit.gun - 1)) : 0;
+    return gun ? [{ kind: "weapon", id: gun, n: 1, rarity: levelRarity(level), fusion: level }] : [];
+  }
   if (gun) {
     items.push({ kind: "weapon", id: gun, n: 1, rarity: kit?.gunId ? grade(kit.gun) : "rare", mag: kit?.mag || undefined });
     const type = ammoTypeOf(gun);
@@ -389,6 +398,35 @@ function levelFrom(rnd: () => number, odds: number[]): number {
 }
 /** a level's colour on the floor: 0 white, 1 blue, 2 purple, 3 and up gold */
 const LEVEL_RARITY: Rarity[] = ["common", "rare", "epic", "legendary"];
+/** SpeedKills: the colour a gun or hack core of `level` is drawn in, wherever it is put down */
+export const levelRarity = (level: number): Rarity => LEVEL_RARITY[Math.max(0, Math.min(3, Math.round(level)))];
+
+/**
+ * SpeedKills' care package (speedkills.json loot.carePackage): guns and hack
+ * cores only, as its floor is, each a different one, at levels the floor
+ * seldom or never gives. The host's alone to roll: its items go to the squad
+ * as any drop's do.
+ */
+export function speedkillsPackage(rnd: () => number): LootItem[] {
+  const P = PROFILE.loot?.carePackage;
+  if (!P) return [];
+  // levelFrom falls back to 0 when a roll runs past the odds; a package never holds less than its lowest level
+  const level = (odds: number[]) => Math.max(levelFrom(rnd, odds), odds.findIndex((p) => p > 0));
+  const out: LootItem[] = [];
+  const guns = [...PROFILE.roster];
+  for (let i = 0; i < P.guns && guns.length; i++) {
+    const id = guns.splice(Math.floor(rnd() * guns.length), 1)[0];
+    const lv = level(P.gunOdds);
+    out.push({ kind: "weapon", id, n: 1, rarity: levelRarity(lv), fusion: lv });
+  }
+  const hacks = [...HACK_IDS];
+  for (let i = 0; i < P.hacks && hacks.length; i++) {
+    const id = hacks.splice(Math.floor(rnd() * hacks.length), 1)[0];
+    const lv = level(P.hackOdds);
+    out.push({ kind: "hack", id, n: lv, rarity: levelRarity(lv) });
+  }
+  return out;
+}
 
 /**
  * SpeedKills' spot: a gun, a hack core, or both, and nothing else (the

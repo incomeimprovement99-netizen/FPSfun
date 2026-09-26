@@ -19,6 +19,7 @@ import brCfg from "../src/config/br.json";
 import ringCfg from "../src/config/ring.json";
 import ammoCfg from "../src/config/ammo.json";
 import lootCfg from "../src/config/loot.json";
+import skCfg from "../src/config/games/speedkills.json";
 
 /** the arena modes' spawns (arena coordinates) */
 const MODE_SPAWNS = [...modesCfg.spawns.a, ...modesCfg.spawns.b, ...modesCfg.spawns.mid];
@@ -4842,16 +4843,151 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   check("speedkills: in the lab, the storey block is climbed to its top (4 m)", topped, JSON.stringify(await ev(lab, "({ y: window.__range.player.pos.y, z: window.__range.player.pos.z })")));
   await lab.close();
   await speedkillsBrTest(browser);
-  await speedkillsGhostTest(browser);
+  await speedkillsStartsTest(browser);
+  await speedkillsGhostTest(browser, "loot");
+  await speedkillsGhostTest(browser, "loadout");
+}
+
+/**
+ * SpeedKills' two starts (Phase 20 A1): the owner landed with a loadout and
+ * could not loot, fuse or change a gun, because that start built no floor.
+ * In both, through the game's own E: the floor has its loot, a copy of a gun
+ * you carry fuses it, a gun you do not carry swaps in and the one in hand
+ * goes down at its level, and your death box keeps each gun's level. What
+ * the start does decide: you land with nothing, or with your loadout at
+ * level 0 (a level tried on the range's key stays in the range), and the
+ * bots loot or land armed. The loadout pass also checks what the floor can
+ * now hold in SpeedKills: a care package of its own loot, no loadout crate,
+ * and a bot's box with its gun and nothing of the legacy game's.
+ */
+async function speedkillsStartsTest(browser: Browser): Promise<void> {
+  type Slot = { id: string; empty: boolean; fusion: number };
+  type Here = { slots: Slot[]; active: number; fused: number; down: string[] };
+  for (const start of ["loot", "loadout"] as const) {
+    const page = await open(browser, "?norender&game=speedkills");
+    await ev(page, "window.__range.sk.setFusion(0, 3)");
+    await ev(page, brRow("solo", 9));
+    await ev(page, `(() => { document.getElementById("brStart").value = "${start}"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
+    const fought = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 60000 }).then(() => true, () => false);
+    if (!fought) {
+      check(`sk ${start} start: a match starts in the city`, false);
+      await page.close();
+      continue;
+    }
+    await ev(page, "window.__range.duel().holdFire = true");
+    const land = await ev<{ drops: number; hot: string | null; slots: Slot[]; want: string[]; bots: number; looting: number }>(
+      page,
+      `(() => { const r = window.__range; const d = r.duel(); const c = r.loadouts.current; return { drops: d.lootField ? d.lootField.drops.size : -1, hot: d.hotZone()?.name ?? null, slots: r.loadout.slots.map((s) => ({ id: s.id, empty: s.empty, fusion: s.fusion ?? 0 })), want: [c.slot1, c.slot2], bots: d.bots.length, looting: d.bots.filter((b) => b.bot.lootSource !== null).length }; })()`,
+    );
+    check(`sk ${start} start: the floor has its loot, the Spire its hot zone`, land.drops > 150 && land.hot === "THE SPIRE", JSON.stringify({ drops: land.drops, hot: land.hot }));
+    check(
+      start === "loot" ? "sk loot start: you land with nothing" : "sk loadout start: you land with your loadout's two guns at level 0",
+      start === "loot" ? land.slots.every((s) => s.empty) : land.slots.every((s, i) => !s.empty && s.id === land.want[i] && s.fusion === 0),
+      JSON.stringify(land.slots),
+    );
+    check(`sk ${start} start: the bots ${start === "loot" ? "loot their guns off the floor" : "land with theirs and do not loot"}`, start === "loot" ? land.looting === land.bots : land.looting === 0, `${land.looting} of ${land.bots} looting`);
+    // without a floor nothing below can be placed or taken: the checks above have already failed
+    if (land.drops < 0) {
+      await page.close();
+      continue;
+    }
+    // brLootTest's place and take, through the game's own E: open ground, the item 1.6 m ahead, looked at from 45 degrees down
+    const S = (await ev<{ x: number; z: number } | null>(page, "window.__range.openGround(window.__range.player.pos.x, window.__range.player.pos.z)")) ?? { x: 0, z: 500 };
+    const clear = `(() => { const f = window.__range.duel().lootField; for (const k of [...f.drops.keys()]) { const x = f.drops.get(k); if (x && Math.hypot(x.pos.x - ${S.x}, x.pos.z - ${S.z}) < 6) f.remove(k); } })()`;
+    const settle = () => page.waitForFunction("!window.__range.loadout.swapping", { polling: 50, timeout: 5000 }).catch(() => undefined);
+    const take = async (item: string): Promise<void> => {
+      await ev(page, `(() => { const r = window.__range; r.player.teleport(${S.x}, 0, ${S.z}, 0, -45); ${clear}; r.duel().lootField.add(${item}, new r.THREE.Vector3(${S.x}, 0, ${S.z} - 1.6)); })()`);
+      await sleep(150);
+      await ev(page, `window.__range.setScript({ held: () => false, pressedNow: (a) => a === "interact" })`);
+      await sleep(250);
+      await ev(page, "window.__range.setScript(null)");
+      await sleep(900);
+      await settle();
+    };
+    const here = `(() => { const r = window.__range; const l = r.loadout; const f = r.duel().lootField; return { slots: l.slots.map((s) => ({ id: s.id, empty: s.empty, fusion: s.fusion ?? 0 })), active: l.activeIndex, fused: r.fused(), down: [...f.drops.values()].filter((x) => x.item.kind === "weapon" && Math.hypot(x.pos.x - ${S.x}, x.pos.z - ${S.z}) < 3).map((x) => x.item.id + ":" + (x.item.fusion ?? 0)) }; })()`;
+    // a loot start's two guns come off the floor first, so both starts fuse and swap with both slots full
+    if (start === "loot") {
+      await take(`{ kind: "weapon", id: "r97", n: 1, rarity: "common", fusion: 0 }`);
+      await take(`{ kind: "weapon", id: "vinson", n: 1, rarity: "common", fusion: 0 }`);
+    }
+    const a = await ev<Here>(page, here);
+    await take(`{ kind: "weapon", id: "${a.slots[0].id}", n: 1, rarity: "common", fusion: 0 }`);
+    const b = await ev<Here>(page, here);
+    check(
+      `sk ${start} start: E on a floor copy of a gun you carry fuses it up a level`,
+      a.slots.every((s) => !s.empty) && b.slots[0].id === a.slots[0].id && b.slots[0].fusion === a.slots[0].fusion + 1 && b.slots[1].fusion === a.slots[1].fusion && b.fused === a.fused + 1 && b.down.length === 0,
+      JSON.stringify({ a, b }),
+    );
+    const other = skCfg.roster.find((g) => !b.slots.some((s) => s.id === g)) ?? "g2";
+    const was = b.slots[b.active];
+    await take(`{ kind: "weapon", id: "${other}", n: 1, rarity: "rare", fusion: 1 }`);
+    const c = await ev<Here>(page, here);
+    check(
+      `sk ${start} start: E on a gun you do not carry swaps it in at its level, and the one in hand goes down at its own`,
+      c.slots[b.active].id === other && c.slots[b.active].fusion === 1 && c.slots[1 - b.active].id === b.slots[1 - b.active].id && c.down.includes(`${was.id}:${was.fusion}`),
+      JSON.stringify({ other, was, c }),
+    );
+    if (start === "loadout") {
+      // What else the floor brings now that a loadout start has one. A care package: SpeedKills' own guns and
+      // hack cores at its levels (speedkills.json loot.carePackage), never the legacy gun, helmet or heals.
+      const P = skCfg.loot.carePackage;
+      const lowest = (odds: number[]) => odds.findIndex((p) => p > 0);
+      const pods = await ev<Array<Array<{ kind: string; id: string; n: number; fusion?: number }>>>(page, "Array.from({ length: 24 }, () => window.__range.duel().podItems())");
+      const hackIds = skCfg.abilities.set.map((h) => h.id);
+      const podOk = pods.every(
+        (p) =>
+          p.length === P.guns + P.hacks &&
+          p.filter((it) => it.kind === "weapon").every((it) => skCfg.roster.includes(it.id) && (it.fusion ?? 0) >= lowest(P.gunOdds) && (it.fusion ?? 0) < P.gunOdds.length) &&
+          p.filter((it) => it.kind === "hack").every((it) => hackIds.includes(it.id) && it.n >= lowest(P.hackOdds) && it.n < P.hackOdds.length) &&
+          p.every((it) => it.kind === "weapon" || it.kind === "hack"),
+      );
+      check("sk: a care package holds SpeedKills guns and hack cores at the package's levels, nothing of the legacy game's", podOk, JSON.stringify(pods.slice(0, 3)));
+      // no loadout crate: a round's close that calls one in the legacy game calls none (it handed back level-0 copies)
+      const crates = await ev<number>(
+        page,
+        `(() => { const d = window.__range.duel(); const L = ${JSON.stringify(brCfg.loadoutPod.phases)}; d.view = { ...d.view, phase: L[0], state: "closing", timeLeft: 0 }; d.maybeCrate(); return d.pods.filter((p) => p.kind === "loadout").length; })()`,
+      );
+      check("sk: no loadout crate is called as a round closes", crates === 0, `${crates} called`);
+      // a bot's death box: its gun at its level, and none of the legacy ammo, cells or syringes
+      // (one past its landing grace, so it has its gun in hand: before that its box is rightly empty. What the
+      // box put down is every key the field handed out during the kill.)
+      await page.waitForFunction("window.__range.duel().bots.some((x) => x.armedShown && x.bot.alive && !x.down)", { polling: 200, timeout: 30000 }).catch(() => undefined);
+      const botBox = await ev<string[] | null>(
+        page,
+        `(() => { const d = window.__range.duel(); const f = d.lootField; const b = d.bots.find((x) => x.armedShown && x.bot.alive && !x.down); if (!b) return null; const k0 = f.keyNext; d.botDown(b, d.id);
+          const put = [...f.drops.values()].filter((x) => x.key >= k0); if (!put.some((x) => x.item.kind === "box")) return null;
+          return put.filter((x) => x.item.kind !== "box").map((x) => x.item.kind + ":" + x.item.id + ":" + (x.item.fusion ?? "-")); })()`,
+      );
+      check("sk: a bot's death box holds its gun at its level and nothing of the legacy game's", !!botBox && botBox.length === 1 && /^weapon:[a-z0-9_]+:0$/.test(botBox[0]), JSON.stringify(botBox));
+    }
+    // out, with the floor round you cleared first: the death box (a ghost is restored from it) keeps each gun's level
+    await ev(page, clear);
+    const held = await ev<string>(page, `window.__range.loadout.slots.filter((s) => !s.empty).map((s) => s.id + ":" + (s.fusion ?? 0)).sort().join()`);
+    // (the box's guns are the ones put down with it, by key, and near it: a restock can add guns meanwhile, far off)
+    const k0 = await ev<number>(page, "window.__range.duel().lootField.keyNext");
+    await ev(page, "window.__range.duel().takeHit(500, 100)");
+    await sleep(500);
+    const box = await ev<{ guns: string; other: string[] } | null>(
+      page,
+      `(() => { const ds = [...window.__range.duel().lootField.drops.values()].filter((x) => x.key >= ${k0}); const b = ds.find((x) => x.item.kind === "box"); if (!b) return null; const round = ds.filter((x) => x.item.kind !== "box" && x.pos.distanceTo(b.pos) < 4);
+        return { guns: round.filter((x) => x.item.kind === "weapon").map((x) => x.item.id + ":" + (x.item.fusion ?? 0)).sort().join(), other: round.filter((x) => x.item.kind !== "weapon").map((x) => x.item.kind + ":" + x.item.id) }; })()`,
+    );
+    // and nothing else: a loadout start's ammo kit and grenades went down with them, clutter on a floor of guns and hack cores
+    check(`sk ${start} start: your death box holds your guns at their levels, and nothing else`, !!box && box.guns === held && box.other.length === 0, JSON.stringify({ held, box }));
+    await page.close();
+  }
 }
 
 /**
  * SpeedKills' second life, over two real pages: the guest dies past its
  * Gulag and is a ghost; the ghost moves; the host restores it at its echo
  * (its death box), a third as fast while the ghost is away, full speed once
- * it follows; the guest stands up whole.
+ * it follows; the guest stands up whole, holding what it died with. Run in
+ * both starts: a loadout start has a floor and a box since Phase 20 A1, and
+ * a restore there must not fuse the box's guns onto the same guns in hand.
  */
-async function speedkillsGhostTest(browser: Browser): Promise<void> {
+async function speedkillsGhostTest(browser: Browser, start: "loot" | "loadout"): Promise<void> {
+  const tag = start === "loot" ? "speedkills ghost" : "speedkills ghost, loadout start";
   const q = "?net=local&norender&game=speedkills";
   const host = await open(browser, q);
   const guest = await open(browser, q);
@@ -4859,7 +4995,7 @@ async function speedkillsGhostTest(browser: Browser): Promise<void> {
     for (const p of [host, guest]) if (!p.isClosed()) await p.close();
   };
   await ev(host, brRow("duo", 8));
-  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelHost").click(); })()`);
+  await ev(host, `(() => { document.getElementById("brStart").value = "${start}"; document.getElementById("duelMode").value = "br"; document.getElementById("duelHost").click(); })()`);
   try {
     await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
     const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
@@ -4868,16 +5004,19 @@ async function speedkillsGhostTest(browser: Browser): Promise<void> {
     for (const p of [host, guest]) await pressPlay(p);
     for (const p of [host, guest]) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 60000 });
   } catch {
-    check("speedkills ghost: host and guest in one city match", false);
+    check(`${tag}: host and guest in one city match`, false);
     await close();
     return;
   }
   await ev(host, "window.__range.duel().holdFire = true");
+  // what the guest dies holding: in a loadout start its two guns, the first fused to 2 as though found twice
+  if (start === "loadout") await ev(guest, "window.__range.sk.setFusion(0, 2)");
+  const heldBefore = await ev<string>(guest, `window.__range.loadout.slots.filter((s) => !s.empty).map((s) => s.id + ":" + (s.fusion ?? 0)).sort().join()`);
   // the guest's Gulag already spent: this death makes a ghost
   await ev(guest, `(() => { const d = window.__range.duel(); d.gulagUsed = true; d.takeHit(500, 100); })()`);
   await sleep(800);
   const g1 = await ev<{ alive: boolean; downed: boolean; ghost: boolean }>(guest, "(() => { const d = window.__range.duel(); return { alive: d.alive, downed: d.downed, ghost: d.ghost }; })()");
-  check("speedkills ghost: no knockdown: at zero the guest is out, and a ghost (its squad mate is up)", !g1.alive && !g1.downed && g1.ghost, JSON.stringify(g1));
+  check(`${tag}: no knockdown: at zero the guest is out, and a ghost (its squad mate is up)`, !g1.alive && !g1.downed && g1.ghost, JSON.stringify(g1));
   // the ghost moves
   const p0 = await ev<{ x: number; z: number }>(guest, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
   // forward, turning to each side in turn: where the squad lands is the drop's, and one run faced a wall 2 m off
@@ -4889,15 +5028,15 @@ async function speedkillsGhostTest(browser: Browser): Promise<void> {
     p1 = await ev<{ x: number; z: number }>(guest, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
     if (Math.hypot(p1.x - p0.x, p1.z - p0.z) > 3) break;
   }
-  check("speedkills ghost: a ghost moves", Math.hypot(p1.x - p0.x, p1.z - p0.z) > 3, `${Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(1)} m`);
+  check(`${tag}: a ghost moves`, Math.hypot(p1.x - p0.x, p1.z - p0.z) > 3, `${Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(1)} m`);
   // a respawn that comes from an opponent (a bot, id 100) is not the squad's to give: it is ignored
   // (plan section 12, item 7: it was taken from anyone)
   const forged = await ev<{ alive: boolean }>(guest, `(() => { const d = window.__range.duel(); d.receiveSquad({ t: "respawn", to: d.id, at: [0, 0, 500] }, 100, 0); return { alive: d.alive }; })()`);
-  check("speedkills ghost: a respawn from an opponent is ignored; only the squad brings you back", !forged.alive, JSON.stringify(forged));
+  check(`${tag}: a respawn from an opponent is ignored; only the squad brings you back`, !forged.alive, JSON.stringify(forged));
   // its echo: the death box; the host beside it, the ghost sent far away
   const box = await host.waitForFunction("(() => { const d = [...window.__range.duel().lootField.drops.values()].find((x) => x.item.kind === 'banner' && x.item.owner === 1); return d ? { x: d.pos.x, y: d.pos.y, z: d.pos.z } : null; })()", { polling: 200, timeout: 6000 }).then((h) => h.jsonValue() as Promise<{ x: number; y: number; z: number }>, () => null);
   if (!box) {
-    check("speedkills ghost: the ghost's echo (its death box) is on the host's floor", false);
+    check(`${tag}: the ghost's echo (its death box) is on the host's floor`, false);
     await close();
     return;
   }
@@ -4905,11 +5044,11 @@ async function speedkillsGhostTest(browser: Browser): Promise<void> {
   await ev(host, `window.__range.player.teleport(${box.x + 1}, ${box.y}, ${box.z}, 90)`);
   await sleep(700);
   const far = await ev<string>(host, "JSON.stringify(window.__range.brPlay.hud.prompt)");
-  check("speedkills ghost: at the echo the prompt is RESTORE, and it says the ghost is away", /RESTORE/.test(far) && /AWAY/.test(far), far);
+  check(`${tag}: at the echo the prompt is RESTORE, and it says the ghost is away`, /RESTORE/.test(far) && /AWAY/.test(far), far);
   await ev(host, `window.__range.setScript({ held: (a) => a === "interact", pressedNow: () => false })`);
   await sleep(5500);
   const early = await ev<boolean>(guest, "window.__range.duel().alive");
-  check("speedkills ghost: with the ghost away, 5 s of holding is not enough (a third as fast)", !early);
+  check(`${tag}: with the ghost away, 5 s of holding is not enough (a third as fast)`, !early);
   // the ghost comes to the one restoring it: the rest goes at full speed
   await ev(guest, `window.__range.player.teleport(${box.x + 2}, ${box.y}, ${box.z}, 0)`);
   // the rest is about 3 s of the game's time; a loaded machine stretches that past 6 s of real time (a run beside the
@@ -4917,7 +5056,19 @@ async function speedkillsGhostTest(browser: Browser): Promise<void> {
   const back = await guest.waitForFunction("window.__range.duel().alive", { polling: 100, timeout: 15000 }).then(() => true, () => false);
   await ev(host, "window.__range.setScript(null)");
   const g2 = await ev<{ hp: number; restores: number }>(guest, "({ hp: window.__range.duel().health, restores: window.__range.duel().restores })");
-  check("speedkills ghost: with the ghost beside them, the host finishes the restore, and the guest stands up whole", back && g2.hp === 100 && g2.restores === 1, JSON.stringify(g2));
+  check(`${tag}: with the ghost beside them, the host finishes the restore, and the guest stands up whole`, back && g2.hp === 100 && g2.restores === 1, JSON.stringify(g2));
+  // What it stands up holding: its own guns back out of the box, at the levels it had. The box's copies taken
+  // onto the same guns still in hand fused each a level (a free fusion a death); or nothing came back at all.
+  const count = heldBefore ? heldBefore.split(",").length : 0;
+  await guest.waitForFunction(`window.__range.loadout.slots.filter((s) => !s.empty).length >= ${count}`, { polling: 100, timeout: 6000 }).catch(() => undefined);
+  await sleep(600);
+  const heldAfter = await ev<string>(guest, `window.__range.loadout.slots.filter((s) => !s.empty).map((s) => s.id + ":" + (s.fusion ?? 0)).sort().join()`);
+  // (the banner lies among the box's things, so the box is the one nearest it; the restore takes what lies within 1.3 m of the box)
+  const leftInBox = await ev<number>(
+    host,
+    `(() => { const ds = [...window.__range.duel().lootField.drops.values()]; const off = (x, p) => Math.hypot(x.pos.x - p.x, x.pos.z - p.z); const b = ds.filter((x) => x.item.kind === "box").sort((u, v) => off(u, ${JSON.stringify(box)}) - off(v, ${JSON.stringify(box)}))[0]; return b ? ds.filter((x) => x.item.kind === "weapon" && off(x, b.pos) < 1.3).length : -1; })()`,
+  );
+  check(`${tag}: the restored guest holds the guns it died with, at their levels, and none is left in the box`, heldAfter === heldBefore && leftInBox === 0, JSON.stringify({ heldBefore, heldAfter, leftInBox }));
   await close();
 }
 

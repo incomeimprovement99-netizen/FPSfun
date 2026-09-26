@@ -106,7 +106,7 @@ import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
 import squadCfg from "./config/squad.json";
-import { BINS, lootLabel, type LootItem } from "./game/loot";
+import { BINS, levelRarity, lootLabel, type LootItem } from "./game/loot";
 import type { AmmoType } from "./game/weapons";
 import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
@@ -1839,11 +1839,16 @@ function onEliminated(d: MatchLike, by: number): void {
   // a loot battle royale: your death box, with your banner for the squad (one: a Gulag lost is not a second)
   if (d instanceof BrMatch && d.lootField && !d.diedInGulag) {
     const items: LootItem[] = [];
-    for (const s of loadout.slots) if (!s.empty) items.push({ kind: "weapon", id: s.id, n: 1, rarity: "rare", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}) });
-    for (const [type, n] of Object.entries(loadout.ammo.stock)) if (n > 0 && type !== "energy") items.push({ kind: "ammo", id: type, n, rarity: "common" });
-    for (const [item, n] of Object.entries(kit.items)) if (n > 0) items.push({ kind: "heal", id: item, n, rarity: "common" });
-    if (armor.helmet) items.push({ kind: "helmet", id: armor.helmet, n: 1, rarity: "legendary" });
-    for (const [g, n] of Object.entries(ordnance.counts)) if (n > 0) items.push({ kind: "grenade", id: g, n, rarity: "rare" });
+    // SpeedKills: each gun at the level you fused it to (the box put every gun down at level 0)
+    for (const s of loadout.slots) if (!s.empty) items.push({ kind: "weapon", id: s.id, n: 1, rarity: IS_SK ? levelRarity(s.fusion ?? 0) : "rare", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}), ...(IS_SK ? { fusion: s.fusion ?? 0 } : {}) });
+    // SpeedKills' box is your guns: its reserve is endless, it has no heals or helmets, and its floor is guns
+    // and hack cores. A loadout start carries the match's ammo kit and grenades, which went down as clutter.
+    if (!IS_SK) {
+      for (const [type, n] of Object.entries(loadout.ammo.stock)) if (n > 0 && type !== "energy") items.push({ kind: "ammo", id: type, n, rarity: "common" });
+      for (const [item, n] of Object.entries(kit.items)) if (n > 0) items.push({ kind: "heal", id: item, n, rarity: "common" });
+      if (armor.helmet) items.push({ kind: "helmet", id: armor.helmet, n: 1, rarity: "legendary" });
+      for (const [g, n] of Object.entries(ordnance.counts)) if (n > 0) items.push({ kind: "grenade", id: g, n, rarity: "rare" });
+    }
     // a banner only where there is a squad to carry it: in solo the others are opponents
     if (d.players > 1 && d.team.size > 1) items.push({ kind: "banner", id: "banner", n: 1, rarity: "common", owner: d.id, ownerName: profile.profile.name });
     d.dropBox(items, player.pos.clone());
@@ -2614,6 +2619,11 @@ function respawnForMatch(d: MatchLike): void {
     pendingSlots.forEach((id, i) => loadout.setWeaponId(i, id));
     pendingSlots = null;
   }
+  // SpeedKills' loadout start (its floor has loot either way): every landing, the drop and a Resurgence
+  // redeploy, is your loadout, fresh and at fusion level 0. What you carried went into your death box:
+  // keeping it as well put a second copy of each gun on the floor, and a level tried on the range's
+  // fusion key rode into the match.
+  if (d instanceof BrMatch && d.lootField && !d.startLoot && !boxAt) [loadouts.current.slot1, loadouts.current.slot2].forEach((id, i) => loadout.give(i, id));
   // full magazines, settled spread and recoil, gun out, a full heal kit, and
   // the match's ammo: counted, two stacks of each gun's, full energy stockpiles
   for (const sl of loadout.slots) sl.state.setWeapon(sl.weapon);
@@ -2638,8 +2648,10 @@ function respawnForMatch(d: MatchLike): void {
   ordnance.readied = null;
   ordnance.fill(d instanceof ArenaMode && d.modeKind === "gunrun" ? "empty" : "kit");
   player.arcSlowUntil = 0;
-  // land with nothing and loot: fists, no heals, no ammo, no grenades
-  if (d instanceof BrMatch && d.startLoot) {
+  // land with nothing and loot: fists, no heals, no ammo, no grenades. A Deathbox Respawn (SpeedKills'
+  // restore) starts from nothing whatever the start: the box holds what you had, and taking it back onto
+  // the same guns still in hand fused each one a level for the price of a death.
+  if (d instanceof BrMatch && (d.startLoot || (IS_SK && boxAt))) {
     loadout.clearSlot(0);
     loadout.clearSlot(1);
     loadout.ammo.empty();
@@ -4099,7 +4111,7 @@ function applyLoot(it: LootItem): void {
           if (loadout.activeIndex !== empty) loadout.requestSwap(empty, gameTime);
         } else {
           const s = loadout.active;
-          putBack({ kind: "weapon", id: s.id, n: 1, rarity: (["common", "rare", "epic", "legendary"] as const)[Math.min(3, s.fusion ?? 0)], fusion: s.fusion ?? 0 });
+          putBack({ kind: "weapon", id: s.id, n: 1, rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0 });
           loadout.give(loadout.activeIndex, it.id, 0, {}, it.fusion ?? 0);
         }
         audio.swap();
@@ -4524,7 +4536,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
         .slice(0, loadout.slots.length)
         .forEach((g, i) => {
           const s = loadout.slots[i];
-          if (!s.empty) d.dropLoot({ kind: "weapon", id: s.id, n: 1, rarity: "common", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}) }, here);
+          // SpeedKills calls no crate (brmatch.ts maybeCrate), but a gun put down keeps its level wherever it is put down
+          if (!s.empty) d.dropLoot({ kind: "weapon", id: s.id, n: 1, rarity: "common", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}), ...(IS_SK ? { rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0 } : {}) }, here);
           loadout.give(i, g.id, g.mag ?? 0, (g.attach ?? {}) as Parameters<typeof loadout.give>[3]);
           // a hop-up earned with damage is earned here too, unless the crate fitted it (as applyLoot)
           const lockMod = lockedHopupFor(g.id);

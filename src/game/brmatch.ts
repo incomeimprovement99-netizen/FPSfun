@@ -155,7 +155,7 @@ import { HEAL_CODES } from "./recap";
 import brmapCfg from "../config/brmap.json";
 /** bot squads acting as squads (bots.json squads) */
 const SQUADS = botsCfg.squads;
-import { LootField, LOOT, binContents, deathBoxOf, isBin, kittedAttach, seeded, type LootItem, type LootKind, type Rarity } from "./loot";
+import { LootField, LOOT, binContents, deathBoxOf, isBin, kittedAttach, seeded, speedkillsPackage, type LootItem, type LootKind, type Rarity } from "./loot";
 import { ammoTypeOf, STACK } from "./ammo";
 
 /** how high the drop starts */
@@ -752,9 +752,12 @@ export class BrMatch extends Duel {
       this.decayCircle = { cx: BR_X + (f.minX + f.maxX) / 2, cz: BR_Z + (f.minZ + f.maxZ) / 2, r: Math.min(f.maxX - f.minX, f.maxZ - f.minZ) / 2 };
       map.ringWall.visible = false;
     }
-    // the floor's loot, from the host's seed (the welcome carries it), unless the squad lands with its loadouts
+    // The floor's loot, from the host's seed (the welcome carries it). The start decides only what you land
+    // holding: SpeedKills' floor has its loot either way, since fusing and changing guns is looting (the
+    // owner could not loot, fuse or swap a gun after landing with a loadout); the legacy game's loadout
+    // start keeps its bare floor.
     this.startLoot = opts.start !== "loadout";
-    if (this.startLoot) {
+    if (this.startLoot || IS_SK) {
       this.lootField = new LootField(scene);
       this.lootField.generate(
         this.seed,
@@ -833,10 +836,12 @@ export class BrMatch extends Duel {
     // 55 to 70 m, which was right for a 40 m room and blind on a map
     // 440 m across (bots.ts sightRange, src/config/bots.json sight).
     bot.sightMode = "br";
-    // With loot on it lands with nothing and LOOTS for its kit, rather than
-    // waiting out a timer and being handed one: a bot that landed somewhere
-    // rich is really better armed than one that landed in a field. It
-    // holds its fire until it has found a gun (bot.holdingFire).
+    // With a loot start it lands with nothing and LOOTS for its kit, rather
+    // than waiting out a timer and being handed one: a bot that landed
+    // somewhere rich is really better armed than one that landed in a field.
+    // It holds its fire until it has found a gun (bot.holdingFire). The start,
+    // not the floor, decides it: a SpeedKills loadout start has loot on its
+    // floor and still lands its bots armed.
     if (this.startLoot) {
       bot.dummy.setGunVisible(false);
       const field = this.lootField;
@@ -1059,8 +1064,9 @@ export class BrMatch extends Duel {
 
   // ------------------------------------------------------------ loot
 
-  /** the floor's loot, death boxes and care packages (null when the squad landed with its loadouts) */
+  /** the floor's loot, death boxes and care packages (null only in the legacy game's loadout start) */
   lootField: LootField | null = null;
+  /** true: you land with nothing (the bots land unarmed and loot); false: you land with your loadout and the bots with their guns */
   readonly startLoot: boolean;
   /** the item you asked for is yours (the host's own, or the host said so) */
   onLootTaken: ((item: LootItem) => void) | null = null;
@@ -1188,18 +1194,25 @@ export class BrMatch extends Duel {
     return best.name.toUpperCase();
   }
 
-  /** the host: what a care package holds (a care-package gun at gold, and the best of the rest) */
+  /** the host: what a care package holds (a care-package gun at gold, and the best of the rest; in SpeedKills, its own loot) */
   private podItems(): LootItem[] {
-    const gun = LOOT.carePackage[Math.floor(Math.random() * LOOT.carePackage.length)];
-    // a care-package gun comes with its hop-up unlocked
-    const hop = lockedHopupFor(gun);
-    const out: LootItem[] = [{ kind: "weapon", id: gun, n: 1, rarity: "legendary", mag: 4, ...(hop ? { attach: { hopup: hop } } : {}) }];
-    const extras: LootItem[] = [
-      { kind: "helmet", id: "gold", n: 1, rarity: "legendary" },
-      { kind: "heal", id: "phoenix", n: 1, rarity: "legendary" },
-      { kind: "heal", id: "battery", n: 2, rarity: "epic" },
-    ];
-    while (out.length < LOOT.carePackageContents) out.push(extras.splice(Math.floor(Math.random() * extras.length), 1)[0]);
+    const out: LootItem[] = [];
+    if (IS_SK && PROFILE.loot?.carePackage) {
+      // SpeedKills: its own guns and hack cores, fused past what its floor gives (speedkills.json
+      // loot.carePackage). The legacy gun, helmet, batteries and phoenix below are nothing it can use.
+      out.push(...speedkillsPackage(Math.random));
+    } else {
+      const gun = LOOT.carePackage[Math.floor(Math.random() * LOOT.carePackage.length)];
+      // a care-package gun comes with its hop-up unlocked
+      const hop = lockedHopupFor(gun);
+      out.push({ kind: "weapon", id: gun, n: 1, rarity: "legendary", mag: 4, ...(hop ? { attach: { hopup: hop } } : {}) });
+      const extras: LootItem[] = [
+        { kind: "helmet", id: "gold", n: 1, rarity: "legendary" },
+        { kind: "heal", id: "phoenix", n: 1, rarity: "legendary" },
+        { kind: "heal", id: "battery", n: 2, rarity: "epic" },
+      ];
+      while (out.length < LOOT.carePackageContents) out.push(extras.splice(Math.floor(Math.random() * extras.length), 1)[0]);
+    }
     // its number: each of the squad who loots from it gets the package's EVO once (Apex pays the squad)
     const n = ++this.podCount;
     return out.map((it) => ({ ...it, pod: n }));
@@ -1282,11 +1295,13 @@ export class BrMatch extends Duel {
    * Nothing about it goes over the wire. The host and the guests share the
    * match seed and see the same circle in the ring packet, so all of them
    * work the same spot out, and the claim below is each player's own anyway.
-   * Only a match that landed with nothing gets one, as with care packages: a
-   * squad that landed with its loadouts has nothing for it to hand over.
+   * Only a match with loot on its floor gets one, as with care packages: a
+   * legacy squad that landed with its loadouts has nothing for it to hand
+   * over. SpeedKills has none at all: the crate hands level-0 copies of your
+   * loadout for the guns you fused, which is fusion undone.
    */
   private maybeCrate(): void {
-    if (this.phase !== "fight" || !this.lootField) return;
+    if (IS_SK || this.phase !== "fight" || !this.lootField) return;
     const v = this.view;
     const L = brCfg.loadoutPod;
     if (v.state !== "closing" || this.cratePhases.has(v.phase) || !L.phases.includes(v.phase)) return;
