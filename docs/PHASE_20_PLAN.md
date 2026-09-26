@@ -190,6 +190,8 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
 
   Snapshots at 1080p and 1440p show it.
 
+*Done (Milestone 226).*
+
 ### A7. Every gun named with its class
 
 - **The owner:** "USSO (Fast SMG)" and so on, so a beginner can see what each gun is.

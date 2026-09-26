@@ -4976,6 +4976,27 @@ async function speedkillsEdgeTest(browser: Browser): Promise<void> {
     return;
   }
   await ev(page, `(() => { const d = window.__range.duel(); d.holdFire = true; window.__feed = []; const f = d.onFeed; d.onFeed = (t, a, b) => { window.__feed.push(t); f?.(t, a, b); }; })()`);
+  // The HUD as the owner laid it out (Phase 20 A6, hud.json layouts.speedkills), read off the boxes it drew in this
+  // match: all on the bottom edge, the health bar twice the legacy 12 thick, the ammo count 1.5 times the legacy 58,
+  // the hacks right of the health, the guns left of the ammo, nothing overlapping
+  const hud = await ev<{ b: Record<string, { x: number; y: number; w: number; h: number }>; W: number; H: number; u: number }>(
+    page,
+    "(() => { const h = window.__range.hud; return { b: JSON.parse(JSON.stringify(h.boxes)), W: innerWidth, H: innerHeight, u: innerHeight / 1080 }; })()",
+  );
+  {
+    const { b, W, H, u } = hud;
+    const need = ["health", "shield", "hack0", "hack1", "ammo", "slot0", "slot1"];
+    const all = need.every((k) => b[k]);
+    const inBand = Object.values(b).every((r) => r.y >= H - 125 * u && r.y + r.h <= H + 0.5 && r.x >= -0.5 && r.x + r.w <= W + 0.5);
+    const overlap = (p: { x: number; y: number; w: number; h: number }, q: { x: number; y: number; w: number; h: number }) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
+    const keys = Object.keys(b).filter((k) => k !== "healthNumber");
+    const clash = keys.flatMap((k, i) => keys.slice(i + 1).filter((k2) => overlap(b[k], b[k2])).map((k2) => `${k}/${k2}`));
+    check(
+      "sk hud: all on the bottom edge, health twice as thick, ammo half as big again, hacks right of the health, guns left of the ammo, nothing overlapping",
+      all && inBand && clash.length === 0 && b.health.h >= 2 * 12 * u - 0.01 && b.ammo.h / 0.66 >= 1.5 * 58 * u - 0.01 && b.hack0.x >= b.health.x + b.health.w && b.hack0.w > 58 * u && b.slot0.x + b.slot0.w <= b.ammo.x,
+      JSON.stringify({ all, inBand, clash, health: b.health, ammo: b.ammo, hack0: b.hack0, slot0: b.slot0 }),
+    );
+  }
   const e0 = await ev<{ city: { maxX: number }; margin: number }>(page, "window.__range.sk.edge()");
   const wait = (s: number) => page.waitForFunction(`window.__range.gameTime() - window.__t0 > ${s}`, { polling: 50, timeout: 30000 }).catch(() => undefined);
   const mark = () => ev(page, "window.__t0 = window.__range.gameTime()");

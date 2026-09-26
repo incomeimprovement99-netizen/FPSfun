@@ -4119,3 +4119,25 @@ Phase 20, A5 (the owner saw "the old BR map" from the ship and asked whether bot
 - **Checked:** a new e2e check that aboard, the city is the side drawn.
 - **Queued to Part B's frame-rate step:** the figures' skinned meshes skip frustum culling, about 324 draw
   calls and 980k triangles a frame for 27 bots.
+
+## Milestone 226 — The HUD on the bottom edge ✅
+
+Phase 20, A6 (the owner: everything compact on the bottom of the screen, gun names and levels left of the ammo,
+the abilities right of the health and bigger, the health bar twice as big, the ammo half as big again, and dark
+outlines on all of it).
+
+- **SpeedKills' bottom HUD** is laid out from hud.json `layouts.speedkills`; the legacy HUD draws as before.
+  - The shield's segments and a health bar twice the legacy thickness (12 to 24) and a little longer (330 to
+    360) run along the bottom left, with the number inside the bar.
+  - The two hacks sit right of the health, lower, and bigger (58 to 72).
+  - The ammo count is 88 high, 1.52 times the legacy 58. Beside it, the two guns show their fusion pips and
+    "LV n" (none for fists or an empty slot).
+  - The band is about 100 px tall at 1080p, where it was 150.
+  - A fit factor shrinks it on a screen too narrow for both sides, such as 4:3 at the largest HUD scale.
+- **A dark outline under every HUD text and round every bar,** so nothing is lost against a lit wall.
+- **Also:**
+  - The range's stats panel is hidden in a match.
+  - The ping and emote wheels, the inventory and the captions draw again while alive (they did not, in both
+    games, since 18 September; fixed in SpeedKills).
+- **Checked:** a new e2e check reads the boxes the HUD drew in a real match and holds the layout to all of
+  that, with nothing overlapping.
