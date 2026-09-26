@@ -1424,7 +1424,7 @@ export class BrMatch extends Duel {
 
   /** a squad's bot can be knocked (not killed) while one of its squad still stands; in solo, and against friends in solo, a knock is the end */
   private canKnockBot(b: BrBot): boolean {
-    return this.team.size > 1 && this.bots.some((o) => o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.aboard);
+    return !this.noKnocks && this.team.size > 1 && this.bots.some((o) => o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.aboard);
   }
 
   /**
@@ -1602,6 +1602,7 @@ export class BrMatch extends Duel {
 
   /** a bot went down, knocked by `by` (a human id, a bot id, or -1 for the ring) */
   private botDown(b: BrBot, by: number): void {
+    // (SpeedKills has no knockdowns: canKnockBot says no, and a bot at zero health is out)
     const r = b.bot.remote;
     if (!r.alive) return;
     if (!b.down && this.canKnockBot(b)) {
@@ -2813,9 +2814,11 @@ export class BrMatch extends Duel {
     // crouched body nearer, and anyone who has just fired gives themselves away
     const firing = (id: number) => now - (this.shotAt.get(id) ?? -Infinity) < 0.5;
     const humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue; down: boolean }> = [];
-    if (this.alive && !this.gulagIds.has(this.id)) humans.push({ id: this.id, feet, low: local.crouch, cue: { speed: local.speed, crouched: local.crouch, firing: firing(this.id) }, down: this.downed });
+    // a player under INVISIBILITY is not seen by the bots until it runs out or they fire (SpeedKills)
+    const unseen = (id: number) => (this.hiddenUntil.get(id) ?? -Infinity) > now && !firing(id);
+    if (this.alive && !this.gulagIds.has(this.id) && !unseen(this.id)) humans.push({ id: this.id, feet, low: local.crouch, cue: { speed: local.speed, crouched: local.crouch, firing: firing(this.id) }, down: this.downed });
     for (const r of this.remotes.values()) {
-      if (r.id >= Duel.BOT_ID || !r.alive) continue;
+      if (r.id >= Duel.BOT_ID || !r.alive || unseen(r.id)) continue;
       const last = r.samples[r.samples.length - 1];
       const low = !!last && (last.stance === "crouch" || last.stance === "slide");
       if (last) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z), low, cue: { speed: last.speed, crouched: low, firing: firing(r.id) }, down: r.downed });

@@ -3272,3 +3272,75 @@ royale of its own design, keeping everything built so far.
   but not decisive (a level-5 gun at most 15% quicker to kill on damage). Proven by planting a misspelt gun
   and an optic the gun cannot take: five checks fail.
 
+## Milestone 184 — SpeedKills is the front door ✅
+
+Phase 18, stages A and B. See `docs/PHASE_18_PLAN_SPEEDKILLS.md`.
+
+- **The switch, on.** A page with no word opens in SpeedKills. `?game=legacy` (or Settings, Game, which
+  reloads) opens the game frozen at `apex-era-final`. index.html's first script sets the look before
+  anything draws; the build carries its default (`DEFAULT_GAME`, SpeedKills).
+- **Friends on one game.** The host's game rides in invites and welcomes. A guest on the other game reloads
+  into the host's rather than playing guns the host's hit check refuses.
+- **The tests stay the legacy game's.** The e2e and the snapshots open `?game=legacy` unless a section asks
+  for SpeedKills (`E2E_GAME`, `SNAP_GAME`), so the whole suite remains the frozen game's regression net.
+- **The look.** A neon menu in two groups, PLAY (Battle Royale, 1v1, Arena bots, FFA, TDM, Control) and
+  TRAINING (Range, the two Runs, the Tour); the legacy game's other modes are hidden, never removed, since the
+  e2e clicks their cards. SpeedKills' title card in cyan and magenta, its own loading tips.
+- **The battle royale's size.** Up to 30 in a match (27 bots in nine squads of three with your squad), and
+  no knockdowns: `bleed: 0`.
+- **How it was done.** The plan said to move the legacy game's lists into its profile. Instead each place
+  that chooses branches on the switch, leaving the legacy lists where they were: the same guarantee that the
+  frozen game cannot change, at a fraction of the edit.
+
+## Milestone 185 — Movement for a city of roofs ✅
+
+Stage C. `src/config/movement.speedkills.json` is laid over `movement.json` before the movement numbers are
+built, on SpeedKills pages only, so the legacy game's measured Apex numbers are untouched by construction.
+
+- **Everyone's baseline:** double jump, wall run and wall kick, the slide and its tech, and auto-climb: run
+  at a wall too tall to mantle and you climb it without a jump.
+- **Hyper Scape's lightness:** gravity 690 hu/s squared (750), more air control, climbs at 300 hu/s (225) that
+  go 5.1 m above where they start (2.5), no fall stun, sprint 7 m/s (6.6).
+- **Measured**, by `tools/sk-movesim.ts` driving the real controller: a 4 m wall climbed with no jump; a
+  waist-high wall not climbed; a jump, a double jump and a climb reach a 9 m roof (two storeys); an 11 m
+  street crossed roof to roof; a 30 m drop with no stun. The two-storey climb stopped at 5.5 m until the
+  climb's attach offset was found to be the real limit, and a double jump now starts the climb's space afresh.
+
+## Milestone 186 — Ten guns, fusion, and nobody runs dry ✅
+
+Stages D and E.
+
+- **The ten:** PANDA and ZEPHYR (rifles), ANAKIN and USSO (SMGs), BIGANTLER and RIPTIDE (shotguns), HELIX and
+  PULSAR (marksman), BOOG (sniper) and NOVA (an energy gun that overheats), each with one fixed optic and no
+  attachments.
+- **Tuned to the owner's longer fights:** `tools/checks/ttk.ts` measures every gun at every fusion level
+  against 150 at 80% on target. The rifles, SMGs and NOVA kill in 1.3 to 1.8 s (the legacy numbers were about
+  0.9), the shotguns in 0.8 to 1.4, the marksman guns in 1.2 to 2.4. USSO is the fastest gun and the hardest
+  to hold (recoil 1.6x), ANAKIN the easiest (0.6x). BOOG's headshot is 450, a kill through full health, shield
+  and an ARMOR hack. USSO's magazine went to 27 when the check showed a fused magazine removing a reload.
+- **Fusion, the owner's numbers:** a gun on the floor is level 0; each of five fusions adds 2% damage and 10%
+  magazine (+10% and +50% at level 5; Hyper Scape's Ripper went 24 to 36 rounds, the same +50%), and 4% off
+  reload and recoil. In the range the magazine key steps a gun through its levels.
+- **Infinite reserve** in every SpeedKills match.
+- **Health:** 100 health and 50 shield for everyone. The shield starts back 4 s after the last hit and fills
+  in 3; health comes back at 4 a second after 8 s. No heals, no EVO, no armour to find.
+
+## Milestone 187 — Ten hacks ✅
+
+Stage F. `src/game/hacks.ts`, `src/config/hacks.json`.
+
+- **Two slots:** mobility (DASH, SLAM, LEAP, GRAPPLE) on F or a pad's LB, and utility (HEAL, ARMOR, WALL,
+  INVISIBILITY, REVEAL, MINE) on G or RB, the grenade key, since SpeedKills carries no grenades. Picked in the
+  lobby before a match; the legacy kits are off in SpeedKills.
+- **Hyper Scape's published numbers where it published them:** Teleport's cooldowns 12, 11, 10, 9, 7 s by
+  fusion level (our DASH), Invisibility's the same and 10 s long, Reveal 14 to 9 s marking everyone within
+  60 m all round for 6 s, Slam to about 10 s, Wall to 7 s, Armor 5 s, a Mine 50 damage. The rest are ours.
+- **What they do:** DASH a blink the way you look; SLAM up, a hang, down onto a spot hurting whoever is under
+  it; LEAP four storeys up then the skydive's glide; GRAPPLE a pull along a line; HEAL an area that heals you
+  and your squad; ARMOR 60% of a hit taken away while you are slower; WALL a barrier; INVISIBILITY unseen past
+  6 m and by the bots until you fire; REVEAL; MINE a mine that homes in on an enemy and goes off.
+- **Fusion:** a copy of a hack you hold raises it a level (a higher-level copy, to its level); another of the
+  slot swaps in and keeps the cooldown that was running, so swapping is never a free use.
+- **Checked:** `tools/checks/hacks.ts` (the rules and Hyper Scape's tables), the e2e's `speedkills` section
+  (each hack does what its card says in a real page), and the HUD's two squares in the snapshot `sk-hud`.
+

@@ -26,6 +26,7 @@
 // a delta packet to a peer that has said it reads them (src/net/statesync.ts),
 // the full packet to any other. The battle royale and the arena modes send
 // their bots through the same broadcast and get the same choice for free.
+import { IS_SK } from "./game";
 import { Revealed, type Seen } from "./reveal";
 import * as THREE from "three";
 import squadCfg from "../config/squad.json";
@@ -1543,9 +1544,21 @@ export class Duel implements MatchLike {
   }
 
   /** another player's bullet hit this player (in a battle royale the humans are a squad: only bots and the ring, -1, hurt) */
+  /** what reaches you of a hit: SpeedKills' ARMOR hack takes most of it away while it lasts (main.ts) */
+  incomingScale = 1;
+  /**
+   * No knockdowns: at zero health you are out (to the Gulag, then a ghost),
+   * whether a squad mate is up or not. SpeedKills' rule; the legacy game's
+   * squads go down first.
+   */
+  noKnocks = IS_SK;
+  /** players nearly unseen (SpeedKills' INVISIBILITY), until when on the page's wall clock: the bots do not see them */
+  readonly hiddenUntil = new Map<number, number>();
+
   protected takeHit(amount: number, from: number, head = false, weapon = "", dist: number | null = null): void {
     if (!this.alive || this.phase !== "fight") return;
     if (!this.friendlyFire && this.friendly(from)) return;
+    amount *= this.incomingScale;
     if (this.downed) {
       // the knockdown shield, raised and facing it, takes what it can
       if (this.downedBlock) amount = this.downedBlock(amount, from);
@@ -1564,7 +1577,7 @@ export class Duel implements MatchLike {
     this.onDamaged?.(from, amount, head, weapon, dist);
     if (this.health <= 0) {
       // a squad with someone still up: down, not out; alone, out
-      if (this.mode === "br" && this.squadUp()) this.goDown(from);
+      if (this.mode === "br" && !this.noKnocks && this.squadUp()) this.goDown(from);
       else this.eliminate(from, "knocked");
     }
   }

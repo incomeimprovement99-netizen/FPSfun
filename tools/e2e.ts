@@ -4699,6 +4699,73 @@ async function finisherSteps(page: Page, keep: number): Promise<void> {
   check("finisher: a hit on you breaks it off, and the one you were finishing is still down", again && !broken.on && broken.alive && broken.down && broken.done === 1, JSON.stringify(broken));
 }
 
+/**
+ * SpeedKills (docs/PHASE_18_PLAN_SPEEDKILLS.md), on a page that asks for it:
+ * the front door, the ten guns, fusion, the health model, and every hack doing
+ * what its card says. The rest of the suite is the legacy game's.
+ */
+async function speedkillsTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&game=speedkills");
+  const front = await ev<{ game: string; html: string; br: boolean; gunrun: boolean; tour: boolean; title: string }>(
+    page,
+    `(() => { const vis = (id) => getComputedStyle(document.getElementById(id)).display !== "none"; return { game: window.__range.sk.game(), html: document.documentElement.dataset.game, br: vis("goBr"), gunrun: vis("goGunRun"), tour: vis("goTour"), title: document.title }; })()`
+  );
+  check("speedkills: the page is SpeedKills, its menu PLAY and TRAINING (Gun Run hidden, not gone)", front.game === "speedkills" && front.html === "speedkills" && front.br && front.tour && !front.gunrun && front.title === "SpeedKills", JSON.stringify(front));
+  // the guns: ten of its own, named, the owner's friends among them
+  const guns = await ev<{ ids: number; names: string[] }>(page, `(() => { const r = window.__range; return { ids: r.weaponIds ? r.weaponIds().length : -1, names: r.loadout.slots.map((s) => s.weapon.name) }; })()`);
+  check("speedkills: a loadout's guns carry SpeedKills names", guns.names.every((n) => /^[A-Z]+$/.test(n)) && guns.names.every((n) => ["PANDA", "ZEPHYR", "ANAKIN", "USSO", "BIGANTLER", "RIPTIDE", "HELIX", "PULSAR", "BOOG", "NOVA"].includes(n)), JSON.stringify(guns));
+  // fusion: level 5 is half again the magazine
+  const fused = await ev<{ before: number; after: number; level: number }>(page, `(() => { const r = window.__range; const before = r.loadout.slots[0].weapon.clipSize; r.sk.setFusion(0, 5); return { before, after: r.loadout.slots[0].weapon.clipSize, level: r.sk.fusion()[0] }; })()`);
+  check("speedkills: fused to 5, a gun's magazine is half as big again", fused.level === 5 && Math.abs(fused.after / fused.before - 1.5) < 0.08, JSON.stringify(fused));
+  await ev(page, "window.__range.sk.setFusion(0, 0)");
+  // the hacks you picked, both ready
+  const held = await ev<Array<{ slot: string; held: { id: string } | null; left: number }>>(page, "window.__range.sk.hacks()");
+  check("speedkills: two hacks held, a mobility and a utility, both ready", held.length === 2 && held.every((h) => h.held && h.left === 0), JSON.stringify(held));
+  // into the range's open floor, facing down it
+  await ev(page, `(() => { document.getElementById("overlay").classList.add("hidden"); window.__range.player.teleport(0, 0, 150, 0); })()`);
+  await sleep(300);
+  const hack = async (id: string, slot: string, settle = 600) => {
+    await ev(page, `(() => { const r = window.__range; r.sk.setHack("${id}"); r.sk.use("${slot}"); })()`);
+    await sleep(settle);
+  };
+  // DASH: a blink the way you look
+  const z0 = await ev<number>(page, "window.__range.player.pos.z");
+  await hack("dash", "mobility", 500);
+  const z1 = await ev<number>(page, "window.__range.player.pos.z");
+  check("speedkills: DASH carries you about 8 m the way you look", z0 - z1 > 6 && z0 - z1 < 12, `${(z0 - z1).toFixed(1)} m`);
+  // LEAP: straight up four storeys, then a glide
+  await ev(page, `window.__range.player.teleport(0, 0, 150, 0)`);
+  await sleep(200);
+  let top = 0;
+  await ev(page, `(() => { const r = window.__range; r.sk.setHack("leap"); r.sk.use("mobility"); })()`);
+  let glide = false;
+  // up for about 1.4 s (the top of a 16 m throw), then the glide
+  for (let i = 0; i < 30 && !glide; i++) {
+    await sleep(100);
+    top = Math.max(top, await ev<number>(page, "window.__range.player.pos.y"));
+    glide = await ev<boolean>(page, "window.__range.player.dropping");
+  }
+  check("speedkills: LEAP throws you about four storeys up, then you glide", top > 12 && glide, `${top.toFixed(1)} m, gliding ${glide}`);
+  await page.waitForFunction("window.__range.player.onGround", { polling: 100, timeout: 20000 }).catch(() => undefined);
+  // HEAL: an area on the ground; ARMOR: slower while it lasts; INVISIBILITY; MINE
+  await hack("heal", "utility", 150);
+  const healed = await ev<{ healZones: number }>(page, "window.__range.sk.state()");
+  check("speedkills: HEAL puts a healing area down", healed.healZones >= 1, JSON.stringify(healed));
+  await hack("armor", "utility", 150);
+  const arm = await ev<{ armored: boolean; hackSlow: number }>(page, "window.__range.sk.state()");
+  check("speedkills: ARMOR is on, and you are slower under it", arm.armored && arm.hackSlow < 1, JSON.stringify(arm));
+  await hack("invis", "utility", 150);
+  const inv = await ev<{ invisible: boolean }>(page, "window.__range.sk.state()");
+  check("speedkills: INVISIBILITY is on", inv.invisible);
+  await hack("mine", "utility", 150);
+  const mine = await ev<{ mines: number }>(page, "window.__range.sk.state()");
+  check("speedkills: MINE puts a mine down", mine.mines >= 1, JSON.stringify(mine));
+  // a hack used is gone for its cooldown
+  const cool = await ev<number>(page, "window.__range.sk.hacks().find((h) => h.slot === 'utility').left");
+  check("speedkills: a hack just used is on its cooldown", cool > 1, `${cool.toFixed(1)} s`);
+  await page.close();
+}
+
 /** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
 /**
  * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
@@ -5634,6 +5701,11 @@ async function main(): Promise<void> {
     if (want("hidden")) {
       console.log("\nA hidden host: the match runs on at 30 Hz from a worker, not at the background tab's one frame a second");
       await hiddenHostTest(browser, "?net=local&norender");
+    }
+
+    if (want("speedkills")) {
+      console.log("\nSpeedKills: the front door, the guns, fusion and the hacks");
+      await speedkillsTest(browser);
     }
 
     if (want("botsquads")) {

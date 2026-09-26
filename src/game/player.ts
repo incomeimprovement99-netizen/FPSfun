@@ -147,6 +147,8 @@ export class Player {
    * cannot sprint. 1 when not healing.
    */
   healSlow = 1;
+  /** a SpeedKills hack's hold on your speed (ARMOR: slower while it lasts); 1 is none */
+  hackSlow = 1;
   /** an arc star's slow: this much of the speed until then (throwables.ts) */
   arcSlowUntil = 0;
   arcSlowScale = 1;
@@ -1735,7 +1737,7 @@ export class Player {
     const hb = this.holsterBoost;
     let target = (this.crouched ? MOVE.crouchSpeed : this.sprinting ? MOVE.sprintSpeed : MOVE.speed) * hb;
     target *= 1 + (adsMoveScale - 1) * adsFrac;
-    target *= this.healSlow;
+    target *= this.healSlow * this.hackSlow;
     if (now < this.arcSlowUntil) target *= this.arcSlowScale;
     // the orange: faster, and faster to get there (src/config/paint.json)
     const paint = this.paintSpeed(now);

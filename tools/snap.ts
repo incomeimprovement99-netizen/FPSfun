@@ -145,6 +145,15 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "sk-hud",
+    note: "SpeedKills in the range: the two hack squares with a cooldown running, the gun's own name, 100 health and 50 shield",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.teleport(0, 0, 150, 0); r.sk.setHack("slam"); r.sk.setHack("reveal"); r.sk.use("utility"); })()`, 0],
+      [gameSeconds(1.2), 250],
+    ],
+  },
+  {
     name: "inspect-mid",
     note: "the weapon inspect held at its first turn: the owner reports the arm stub ends up in the camera",
     steps: [

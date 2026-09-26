@@ -241,6 +241,12 @@ export interface HudState {
     /** the kit's ultimate: its name and key, the meter (0..1), and the seconds it still runs once used */
     ult?: { name: string; key: string; k: number; live: number };
   } | null;
+  /**
+   * SpeedKills' two hacks (src/game/hacks.ts), mobility then utility: the
+   * name, the key, how much of the cooldown is still to go (0 ready), the
+   * seconds left, and its fusion level against the most there is.
+   */
+  hacks?: Array<{ name: string; key: string; frac: number; left: number; level: number; maxLevel: number; slot: "mobility" | "utility" }> | null;
   /** the ability card: the two options with their keys; compact is the one-line form */
   /**
    * Where you are standing, in the words a squad uses (src/game/callouts.ts).
@@ -481,6 +487,7 @@ export class Hud {
     this.drawShip(s, u);
     this.drawKit(s, u);
     this.drawAbility(now, s, u);
+    this.drawHacks(s, u);
     this.drawAbilityCard(s, u);
     this.drawLobby(s, u);
     this.drawFeed(now, u);
@@ -2156,6 +2163,49 @@ export class Hud {
    * sweep for the cooldown and the seconds left, a bright edge when ready.
    * TRIAGE is passive: a cross and "HEALS x2".
    */
+  /**
+   * SpeedKills' hacks, bottom left beside the bars, where the ability square
+   * is in the legacy game: a square each, the mobility hack in cyan and the
+   * utility one in magenta, its name, its key, a dark sweep while it comes
+   * back with the seconds on it, and its fusion level as pips along the foot.
+   */
+  private drawHacks(s: HudState, u: number): void {
+    const list = s.hacks;
+    if (!list?.length) return;
+    const c = this.ctx;
+    const size = 58 * u;
+    const gap = 8 * u;
+    list.forEach((h, i) => {
+      const x = 384 * u + i * (size + gap);
+      const y = this.h - 76 * u - size;
+      const col = h.slot === "mobility" ? "32, 224, 255" : "255, 46, 154";
+      const ready = h.frac <= 0;
+      c.fillStyle = PANEL;
+      c.fillRect(x, y, size, size);
+      c.strokeStyle = `rgba(${col}, ${ready ? 0.95 : 0.4})`;
+      c.lineWidth = 2 * u;
+      c.strokeRect(x + u, y + u, size - 2 * u, size - 2 * u);
+      // the dark sweep while it comes back, from the top down
+      if (!ready) {
+        c.fillStyle = "rgba(0, 0, 0, 0.55)";
+        c.fillRect(x, y, size, size * h.frac);
+      }
+      c.textAlign = "center";
+      c.fillStyle = ready ? `rgb(${col})` : `rgba(${col}, 0.6)`;
+      c.font = `700 ${Math.round(11 * u)}px ${FONT}`;
+      c.fillText(h.name.length > 8 ? h.name.slice(0, 7) + "." : h.name, x + size / 2, y + 24 * u);
+      c.fillStyle = WHITE;
+      c.font = `700 ${Math.round((ready ? 12 : 15) * u)}px ${FONT}`;
+      c.fillText(ready ? h.key : h.left.toFixed(h.left < 10 ? 1 : 0), x + size / 2, y + 42 * u);
+      // the fusion level, as pips
+      for (let p = 0; p < h.maxLevel; p++) {
+        c.fillStyle = p < h.level ? `rgb(${col})` : "rgba(255,255,255,0.18)";
+        c.fillRect(x + 8 * u + p * ((size - 16 * u) / h.maxLevel), y + size - 8 * u, (size - 16 * u) / h.maxLevel - 2 * u, 3 * u);
+      }
+      c.textAlign = "left";
+    });
+  }
+
   private drawAbility(now: number, s: HudState, u: number): void {
     const a = s.ability;
     if (!a) return;

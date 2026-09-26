@@ -55,6 +55,7 @@ import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, t
 import finCfg from "./config/finisher.json";
 import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
+import { Hacks, HACK, HACK_DEFS, hackDef, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
 import { BotMatch, MOST_BOTS } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
@@ -493,6 +494,8 @@ const reticle: Reticle = loadReticle();
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+/** SpeedKills' health and shield, and how they come back; null in the legacy game */
+const SK_HEALTH = IS_SK ? PROFILE.health : null;
 // The game this page is (src/game/game.ts). index.html's first script set the
 // look from the same choice; this makes sure of it, and the Settings box
 // changes it with a reload, the way the graphics preset does, since the world
@@ -1200,7 +1203,7 @@ const SHIELD_TIER: Record<number, HitTier> = { 1: "white", 2: "blue", 3: "purple
 const hud = new Hud($<HTMLCanvasElement>("hud"));
 /** JOLT and TRIAGE (abilities.ts): the pick, the cooldown; the match (or the range) switches them on */
 const abilities = new Abilities();
-abilities.enabled = true; // the range lets you practise either
+abilities.enabled = !IS_SK; // the range lets you practise either (SpeedKills: its hacks instead, hacks.ts)
 /** short-lived world effects: JOLT streaks (fx.ts) */
 const fx = new FxLayer(scene);
 // everyone's sprays on the walls (sprays.ts)
@@ -2566,7 +2569,8 @@ function respawnForMatch(d: MatchLike): void {
   // the arena and the bots: the fixed kit and blue shields; a battle royale:
   // its start kit and a white shield core that levels with EVO
   const br = d instanceof BrMatch;
-  kit.fill(br ? "brStart" : "kit");
+  // SpeedKills carries no heals: health and shield come back on their own (speedkills.json health)
+  kit.fill(IS_SK ? "empty" : br ? "brStart" : "kit");
   // JOLT's two charges, both there for every life and every round
   abilities.fill();
   // no knockdown shield, no regen carried over from the last life
@@ -2587,8 +2591,10 @@ function respawnForMatch(d: MatchLike): void {
     ordnance.fill("empty");
   }
   armor.reset(br ? 1 : 2);
-  d.shieldMax = armor.shieldMax;
+  // SpeedKills: one shield for everyone, no EVO and no armour to find (speedkills.json health)
+  d.shieldMax = SK_HEALTH ? SK_HEALTH.shield : armor.shieldMax;
   d.shield = d.shieldMax;
+  if (SK_HEALTH) d.health = SK_HEALTH.health;
   heal = null;
   player.healSlow = 1;
   // A Deathbox Respawn, last (after the life's kit and armour above, so nothing of the box is cleared
@@ -2675,7 +2681,8 @@ const HEAL_ITEMS = HEALS;
  * the shield and says so.
  */
 function giveEvo(amount: number, why = ""): void {
-  if (!(duel instanceof BrMatch) || amount <= 0) return;
+  // SpeedKills has no EVO: the shield is the same for everyone all match
+  if (!(duel instanceof BrMatch) || amount <= 0 || IS_SK) return;
   const up = armor.addEvo(amount);
   if (why) hud.notice(`+${amount} EVO  ·  ${why}`, gameTime, 1.2);
   if (up !== null) {
@@ -3232,6 +3239,371 @@ const tour = new Tour(scene);
 /** throws made (the tour's grenade step) and whether a JOLT has gone this step */
 let throwsMade = 0;
 let joltedAt = -Infinity;
+
+// ---------------------------------------------------------------- SpeedKills' hacks
+// (hacks.ts holds what you carry; this is what each one does. The keys: the
+// mobility hack on the ability key, the utility hack on the grenade key,
+// since SpeedKills carries no grenades.)
+const hacks = new Hacks();
+const H = HACK;
+/** SLAM in flight: up, a moment's hang at the top, then down onto the spot */
+let skSlam: { phase: "up" | "hang" | "down"; at: number } | null = null;
+/** GRAPPLE pulling: where to, and until when at the most */
+let skPull: { to: THREE.Vector3; until: number } | null = null;
+/** LEAP rising: at the top it becomes a glide */
+let skLeap = false;
+let armorUntil = -Infinity;
+let invisUntil = -Infinity;
+/** HEAL's areas: yours and your squad's heal you while you stand in them */
+const healZones: Array<{ at: THREE.Vector3; until: number; mesh: THREE.Mesh }> = [];
+/** MINE's mines: yours hunt and hurt; everyone else's are drawn */
+const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Mesh; mine: boolean }> = [];
+/** others under INVISIBILITY, until when (the page's wall clock) */
+const unseenUntil = new Map<number, number>();
+
+function hackMesh(color: number, r: number, h: number): THREE.Mesh {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 28, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }));
+  scene.add(m);
+  return m;
+}
+
+/** the enemies near a spot: their record and their figure (bots and players both) */
+function enemiesNear(at: THREE.Vector3, r: number): Array<{ rem: Remote; fig: Dummy }> {
+  const d = duel;
+  if (!(d instanceof Duel)) return [];
+  const out: Array<{ rem: Remote; fig: Dummy }> = [];
+  for (const a of d.avatars) {
+    const rem = d.remoteOf(a);
+    if (!rem || !rem.alive || d.isAlly(rem.id) || !a.group.visible) continue;
+    if (a.group.position.distanceTo(at) <= r) out.push({ rem, fig: a });
+  }
+  return out;
+}
+
+/** a hack's damage on a figure, the way a bullet's reaches it: its own hit, then the match's */
+function hackHurt(rem: Remote, fig: Dummy, amount: number, what: string): void {
+  const d = duel;
+  if (!(d instanceof Duel)) return;
+  fig.hit(gameTime, "body", amount, 1, 1, fig.group.position.clone().add(new THREE.Vector3(0, 1, 0)));
+  d.localHit(rem, amount, false, what, player.pos.distanceTo(fig.group.position));
+  hud.hitMarker(gameTime, false, "hit");
+}
+
+/** the hacks you start a match with: your two picks, ready at once */
+function resetHacks(): void {
+  hacks.clear();
+  skSlam = null;
+  skPull = null;
+  skLeap = false;
+  armorUntil = invisUntil = -Infinity;
+  for (const z of healZones.splice(0)) scene.remove(z.mesh);
+  for (const m of mines.splice(0)) scene.remove(m.mesh);
+  if (!IS_SK) return;
+  const p = savedPicks();
+  hacks.set(p.mobility, 0);
+  hacks.set(p.utility, 0);
+}
+
+/** fire a slot's hack, if it is ready */
+function useHack(slot: HackSlot, now: number): void {
+  const d = duel;
+  if (d instanceof Duel && (!d.alive || !d.canFire)) return;
+  if (player.aboard) return;
+  const held = hacks.get(slot);
+  if (!held) {
+    hud.notice(`NO ${slot.toUpperCase()} HACK`, now, 0.8);
+    return;
+  }
+  const left = hacks.left(slot, now);
+  if (left > 0) {
+    hud.notice(`${hackDef(held.id)?.name ?? held.id}: BACK IN ${left.toFixed(1)} S`, now, 0.6);
+    return;
+  }
+  const id = hacks.use(slot, now);
+  if (!id) return;
+  const eye = camera.position.clone();
+  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  const name = hackDef(id)?.name ?? id;
+  switch (id) {
+    case "dash": {
+      // a blink the way you look, flat
+      const flat = fwd.clone().setY(0);
+      if (flat.lengthSq() < 1e-6) flat.set(0, 0, -1).applyQuaternion(camera.quaternion).setY(0);
+      flat.normalize();
+      const from = player.pos.clone();
+      if (!player.jolt(flat.x, flat.z, H.dash.distance, H.dash.seconds, H.dash.exitSpeed)) {
+        hacks.refund(slot);
+        return;
+      }
+      const reach = Math.max(0, Math.min(H.dash.distance, solidHit(from.clone().setY(from.y + 1), flat, H.dash.distance) - MOVE.radius));
+      const to = from.clone().addScaledVector(flat, reach);
+      if (thirdPerson) fx.jolt(from, to, now);
+      audio.jolt(1);
+      d?.localFx("jolt", from, to);
+      selfFig?.jolt();
+      joltedAt = gameTime;
+      break;
+    }
+    case "slam": {
+      player.impulse(0, H.slam.up, 0);
+      skSlam = { phase: "up", at: now };
+      audio.whoosh();
+      d?.localFx("sk", player.pos.clone(), undefined, 1);
+      break;
+    }
+    case "leap": {
+      player.impulse(player.vel.x * 0.3, Math.sqrt(2 * MOVE.gravity * H.leap.height), player.vel.z * 0.3);
+      skLeap = true;
+      audio.whoosh();
+      d?.localFx("sk", player.pos.clone(), undefined, 2);
+      break;
+    }
+    case "grapple": {
+      const hit = solidHit(eye, fwd, H.grapple.range);
+      if (!Number.isFinite(hit) || hit >= H.grapple.range) {
+        hacks.refund(slot);
+        hud.notice("GRAPPLE: NOTHING IN REACH", now, 0.8);
+        return;
+      }
+      const to = eye.clone().addScaledVector(fwd, Math.max(0, hit - 0.4));
+      skPull = { to, until: now + H.grapple.maxSeconds };
+      fx.jolt(player.pos.clone(), to, now);
+      audio.zipOn(player.pos);
+      d?.localFx("grap", player.pos.clone(), to);
+      break;
+    }
+    case "heal": {
+      const at = player.pos.clone();
+      const mesh = hackMesh(0x3dff9a, H.heal.radius, 0.6);
+      mesh.position.copy(at).setY(at.y + 0.3);
+      healZones.push({ at, until: now + H.heal.seconds, mesh });
+      audio.healDone();
+      d?.localFx("sk", at, undefined, 3);
+      break;
+    }
+    case "armor": {
+      armorUntil = now + H.armor.seconds;
+      audio.shieldBreak();
+      d?.localFx("sk", player.pos.clone(), undefined, 4);
+      break;
+    }
+    case "wall": {
+      const spot = wallSpot();
+      putWall(scene, spot.x, spot.y, spot.z, spot.deg, now);
+      audio.clatter(new THREE.Vector3(spot.x, spot.y, spot.z));
+      d?.localFx("wall", new THREE.Vector3(spot.x, spot.y, spot.z), new THREE.Vector3(spot.deg, 0, 0));
+      break;
+    }
+    case "invis": {
+      invisUntil = now + H.invis.seconds;
+      if (d instanceof Duel) d.hiddenUntil.set(d.id, realNow() + H.invis.seconds);
+      audio.whoosh();
+      d?.localFx("sk", player.pos.clone(), new THREE.Vector3(H.invis.seconds, 0, 0), 5);
+      break;
+    }
+    case "reveal": {
+      // all round, as Hyper Scape's Reveal marked everyone within its radius
+      const n = kitSight()?.reveal(player.pos, null, H.reveal.range, 360, H.reveal.seconds) ?? 0;
+      audio.pingTick();
+      hud.notice(n > 0 ? `REVEAL: ${n} ENEMY${n > 1 ? " CONTACTS" : ""}` : "REVEAL: NOBODY THERE", now, 1.4);
+      break;
+    }
+    case "mine": {
+      const to = aimPoint(H.mine.range);
+      const mesh = hackMesh(0xff2e9a, 0.35, 0.12);
+      mesh.position.copy(to).setY(to.y + 0.06);
+      mines.push({ at: to, armAt: now + H.mine.arm, until: now + H.mine.life, mesh, mine: true });
+      audio.throwNoise("bounce", to);
+      d?.localFx("sk", to, undefined, 6);
+      break;
+    }
+  }
+  hud.notice(name, now, 0.6);
+}
+
+/** the hacks' frame: slams, pulls, leaps, the heal areas, mines, armour and invisibility */
+function stepHacks(now: number, dt: number): void {
+  if (!IS_SK) return;
+  const d = duel;
+  // ARMOR: most of a hit taken away, and slower while it lasts
+  const armored = now < armorUntil;
+  if (d instanceof Duel) d.incomingScale = armored ? H.armor.damageScale : 1;
+  player.hackSlow = armored ? H.armor.speedScale : 1;
+  // INVISIBILITY ends when you fire
+  if (now < invisUntil && now - loadout.active.state.lastShotAt < 0.05) {
+    invisUntil = -Infinity;
+    if (d instanceof Duel) d.hiddenUntil.delete(d.id);
+    d?.localFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
+  }
+  // GRAPPLE: a pull along the line until you arrive, hit something, or it gives out
+  if (skPull) {
+    const to = skPull.to.clone().sub(player.pos);
+    const dist = to.length();
+    if (dist < H.grapple.arrive || now > skPull.until || player.climbing) skPull = null;
+    else {
+      to.multiplyScalar(H.grapple.speed / dist);
+      player.vel.set(to.x, to.y + 1.5, to.z);
+    }
+  }
+  // LEAP: at the top, a glide down (the skydive's glide)
+  if (skLeap && !player.onGround && player.vel.y <= 0) {
+    skLeap = false;
+    player.dropping = true;
+  } else if (skLeap && player.onGround && player.vel.y <= 0) skLeap = false;
+  // SLAM: up, a hang at the top, then down hard; on landing, whoever is under it
+  if (skSlam) {
+    if (skSlam.phase === "up" && player.vel.y <= 0) skSlam = { phase: "hang", at: now };
+    else if (skSlam.phase === "hang") {
+      player.vel.y = Math.max(player.vel.y, 0);
+      if (now - skSlam.at >= H.slam.hang) {
+        skSlam = { phase: "down", at: now };
+        player.vel.set(player.vel.x * 0.3, -H.slam.downSpeed, player.vel.z * 0.3);
+      }
+    } else if (skSlam.phase === "down" && player.onGround) {
+      const at = player.pos.clone();
+      for (const e of enemiesNear(at, H.slam.radius)) hackHurt(e.rem, e.fig, H.slam.damage, "slam");
+      audio.blast("arcstar", at);
+      fx.jolt(at.clone().setY(at.y + 3), at, now);
+      d?.localFx("sk", at, undefined, 7);
+      if (input.pad.active) input.pad.rumble(0.8, 0.8, 160);
+      skSlam = null;
+    } else if (skSlam.phase !== "down" && now - skSlam.at > 3) skSlam = null;
+  }
+  // HEAL's areas: standing in one heals you (health, then shield)
+  for (let i = healZones.length - 1; i >= 0; i--) {
+    const z = healZones[i];
+    if (now > z.until) {
+      scene.remove(z.mesh);
+      healZones.splice(i, 1);
+      continue;
+    }
+    const v = d as unknown as { health?: number; shield?: number; shieldMax?: number; alive?: boolean } | null;
+    if (v && typeof v.health === "number" && typeof v.shield === "number" && v.alive !== false && player.pos.distanceTo(z.at) <= H.heal.radius) {
+      const top = SK_HEALTH?.health ?? HEALTH_MAX;
+      let amt = H.heal.perSecond * dt;
+      const toHealth = Math.min(amt, top - v.health);
+      v.health += Math.max(0, toHealth);
+      amt -= Math.max(0, toHealth);
+      if (amt > 0 && typeof v.shieldMax === "number") v.shield = Math.min(v.shieldMax, v.shield + amt);
+    }
+  }
+  // MINE: armed after a moment; yours home in on the nearest enemy in reach and go off
+  for (let i = mines.length - 1; i >= 0; i--) {
+    const m = mines[i];
+    if (now > m.until) {
+      scene.remove(m.mesh);
+      mines.splice(i, 1);
+      continue;
+    }
+    m.mesh.rotation.y += dt * 3;
+    if (!m.mine || now < m.armAt) continue;
+    const near = enemiesNear(m.at, H.mine.trigger).sort((a, b) => a.fig.group.position.distanceTo(m.at) - b.fig.group.position.distanceTo(m.at))[0];
+    if (!near) continue;
+    const to = near.fig.group.position.clone().setY(near.fig.group.position.y + 0.8).sub(m.at);
+    const len = to.length();
+    if (len > 1) {
+      m.at.addScaledVector(to, Math.min(1, (H.mine.homeSpeed * dt) / len));
+      m.mesh.position.copy(m.at);
+      continue;
+    }
+    for (const e of enemiesNear(m.at, H.mine.radius)) hackHurt(e.rem, e.fig, H.mine.damage, "mine");
+    audio.blast("frag", m.at);
+    d?.localFx("sk", m.at.clone(), undefined, 8);
+    scene.remove(m.mesh);
+    mines.splice(i, 1);
+  }
+  // others under INVISIBILITY: nearly unseen, unless close
+  if (d instanceof Duel) {
+    const t = realNow();
+    for (const a of d.avatars) {
+      const r = d.remoteOf(a);
+      if (!r) continue;
+      const until = unseenUntil.get(r.id);
+      if (until === undefined) continue;
+      if (t > until) {
+        unseenUntil.delete(r.id);
+        continue;
+      }
+      if (a.group.position.distanceTo(player.pos) > H.invis.seenWithin) a.group.visible = false;
+    }
+  }
+}
+
+// the two hack boxes in the lobby: one of each slot, remembered, and the range takes them at once
+{
+  const picks = savedPicks();
+  for (const slot of ["mobility", "utility"] as const) {
+    const sel = $<HTMLSelectElement>(slot === "mobility" ? "hackMobility" : "hackUtility");
+    for (const h of HACK_DEFS.filter((x) => x.slot === slot)) {
+      const o = document.createElement("option");
+      o.value = h.id;
+      o.textContent = `${h.name}: ${h.blurb}`;
+      sel.appendChild(o);
+    }
+    sel.value = picks[slot];
+    sel.addEventListener("change", () => {
+      const now = savedPicks();
+      savePicks({ ...now, [slot]: sel.value as HackId });
+      if (!duel) resetHacks();
+    });
+  }
+}
+// the range starts with your picks too
+resetHacks();
+
+/** someone else's hack, as their page told everyone (the kinds by number: 1 slam, 2 leap, 3 heal, 4 armour, 5 invisibility, 6 a mine, 7 a slam's landing, 8 a mine going off) */
+function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: THREE.Vector3 | undefined): void {
+  const d = duel;
+  if (!a) return;
+  const friend = d instanceof Duel && d.isFriend(from);
+  switch (n) {
+    case 1:
+    case 2:
+      audio.whoosh();
+      break;
+    case 3: {
+      // a squad mate's HEAL heals you too; an enemy's is drawn and does nothing for you
+      const mesh = hackMesh(friend ? 0x3dff9a : 0xff5a5a, H.heal.radius, 0.6);
+      mesh.position.copy(a).setY(a.y + 0.3);
+      if (friend) healZones.push({ at: a.clone(), until: gameTime + H.heal.seconds, mesh });
+      else setTimeout(() => scene.remove(mesh), H.heal.seconds * 1000);
+      break;
+    }
+    case 4:
+      audio.shieldBreak();
+      break;
+    case 5: {
+      const secs = b ? b.x : 0;
+      if (secs > 0) unseenUntil.set(from, realNow() + secs);
+      else unseenUntil.delete(from);
+      // the host's bots stop seeing them too
+      if (d instanceof Duel) {
+        if (secs > 0) d.hiddenUntil.set(from, realNow() + secs);
+        else d.hiddenUntil.delete(from);
+      }
+      break;
+    }
+    case 6: {
+      const mesh = hackMesh(0xff2e9a, 0.35, 0.12);
+      mesh.position.copy(a).setY(a.y + 0.06);
+      mines.push({ at: a.clone(), armAt: Infinity, until: gameTime + H.mine.life, mesh, mine: false });
+      break;
+    }
+    case 7:
+    case 8: {
+      audio.blast(n === 7 ? "arcstar" : "frag", a);
+      // the mine that went off: its drawing goes
+      if (n === 8) {
+        const i = mines.findIndex((m) => !m.mine && m.at.distanceTo(a) < 6);
+        if (i >= 0) {
+          scene.remove(mines[i].mesh);
+          mines.splice(i, 1);
+        }
+      }
+      break;
+    }
+  }
+}
 function tourCheck(now: number): TourCheck {
   return {
     pos: player.pos,
@@ -3729,6 +4101,11 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRemoteFx = (k, from, a, b, n) => {
     remoteFxLog.push({ k, from });
     if (remoteFxLog.length > 20) remoteFxLog.shift();
+    // a SpeedKills hack of someone else's
+    if (k === "sk" && typeof n === "number") {
+      remoteHack(from, n, a, b);
+      return;
+    }
     // a MEDIC mate's FIELD HEAL: close enough, and it is health over time for this player too
     if (k === "ult" && n === 2 && a && d instanceof Duel && d.isFriend(from)) {
       if (player.pos.distanceTo(a) <= KITS.medic.ult.radius) {
@@ -3846,7 +4223,9 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     }
   };
   // abilities are the match's: on or off, nothing picked yet (the card comes at the countdown or the landing)
-  abilities.reset(d.abilities);
+  abilities.reset(d.abilities && !IS_SK);
+  // SpeedKills: your two picked hacks, ready
+  resetHacks();
   tour.stop();
   drill.stop();
   // the killcam's recording and the recap's log
@@ -4247,7 +4626,7 @@ function endMatch(reason: string): void {
   // and out of a battle royale nothing limits the ammo you carry
   loadout.ammo.packTier = null;
   // back in the range: either ability to practise, nothing picked; ammo as Settings says
-  abilities.reset(true);
+  abilities.reset(!IS_SK);
   loadout.ammo.infinite = !rangeAmmoCounted;
   killcam.stop();
   recap = null;
@@ -5287,8 +5666,11 @@ function step(): void {
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
     }
-    // G: a grenade in hand (again: the next kind you have; after the last, the gun again)
-    if (input.pressedNow("grenade") && !downedNow && !knockedOut && !player.aboard && !heal && holster === "out" && !loadout.swapping && (!duel || duel.alive)) {
+    // G: a grenade in hand (again: the next kind you have; after the last, the gun again).
+    // SpeedKills carries no grenades: G (a pad's RB) is the utility hack
+    if (IS_SK) {
+      if (input.pressedNow("grenade") && !knockedOut) useHack("utility", now);
+    } else if (input.pressedNow("grenade") && !downedNow && !knockedOut && !player.aboard && !heal && holster === "out" && !loadout.swapping && (!duel || duel.alive)) {
       const k = ordnance.cycle(now, downedNow);
       if (k) {
         hud.notice(`${throwName(k)}  ·  ${keyLabel("fire")} THROWS, ${keyLabel("ads")} PUTS IT AWAY`, now, 1.6);
@@ -5463,9 +5845,13 @@ function step(): void {
       else if (input.pressedNow("pickAbility5")) pickAbility("smoke", now);
       else if (input.pressedNow("pickAbility6")) pickAbility("ward", now);
     }
-    // F: the ability; Z: the ultimate
-    if (input.pressedNow("ability") && !knockedOut) useAbility(now);
-    if (input.pressedNow("ultimate") && !knockedOut) useUltimate(now);
+    // F: the ability; Z: the ultimate. SpeedKills: F (a pad's LB) is the mobility hack, and G (RB) the utility one, below
+    if (IS_SK) {
+      if (input.pressedNow("ability") && !knockedOut) useHack("mobility", now);
+    } else {
+      if (input.pressedNow("ability") && !knockedOut) useAbility(now);
+      if (input.pressedNow("ultimate") && !knockedOut) useUltimate(now);
+    }
     // K: race your best run's ghost, or not
     if (input.pressedNow("ghost")) {
       const course = activeCourse();
@@ -5581,6 +5967,17 @@ function step(): void {
   stepZiplines(gameTime);
   stepSmokeKit(gameTime, dt);
   stepWalls(gameTime);
+  stepHacks(gameTime, dt);
+  // SpeedKills: the shield comes back on its own a few seconds after the last
+  // hit, and then health, more slowly (speedkills.json health); nothing to carry
+  if (SK_HEALTH) {
+    const d = duel as unknown as { shield?: number; shieldMax?: number; health?: number; alive?: boolean } | null;
+    const quiet = gameTime - lastHurtAt;
+    if (d && typeof d.shield === "number" && typeof d.shieldMax === "number" && typeof d.health === "number" && d.alive !== false && !(d instanceof Duel && d.downed)) {
+      if (quiet >= SK_HEALTH.shieldDelay) d.shield = Math.min(d.shieldMax, d.shield + (d.shieldMax / SK_HEALTH.shieldFill) * dt);
+      if (quiet >= SK_HEALTH.healthDelay) d.health = Math.min(SK_HEALTH.health, d.health + SK_HEALTH.healthRegen * dt);
+    }
+  }
   // WARD's HARD SHELL: shield back once nothing has hurt you for a while
   {
     const regen = abilities.shieldRegen;
@@ -6647,6 +7044,13 @@ function step(): void {
     killcam: killcam.active ? { name: killcam.killerName, weapon: killcam.killerWeapon ? weaponName(killcam.killerWeapon) : "", progress: killcam.progress, left: killcam.left, skipKey: keyLabel("jump") } : null,
     recap: recap && !killcam.active ? { ...recap, age: now - recapShownAt, closeKey: keyLabel("jump"), killerCard: bannerOf(remoteBanners.get(recap.killerId) ?? botBanner(recap.killerId)) } : null,
     myCard: bannerOf(myBanner()),
+    hacks: IS_SK
+      ? (["mobility", "utility"] as const).flatMap((slot) => {
+          const h = hacks.get(slot);
+          if (!h) return [];
+          return [{ name: hackDef(h.id)?.name ?? h.id, key: keyLabel(slot === "mobility" ? "ability" : "grenade"), frac: hacks.fraction(slot, now), left: hacks.left(slot, now), level: h.level, maxLevel: HACK.fuseLevels, slot }];
+        })
+      : null,
     ability:
       abilities.enabled && abilities.picked
         ? (() => {
@@ -6848,6 +7252,17 @@ initWelcome();
   /** the callouts said so far, oldest first, and the drop theme (tools/e2e.ts) */
   spoken: () => announcer.spoken.map((s) => s.line),
   music: () => ({ ...audio.musicState }),
+  /** SpeedKills (tools/e2e.ts): the game, the hacks held and their use as the keys would, and what they are doing */
+  sk: {
+    game: () => GAME,
+    hacks: () => (["mobility", "utility"] as const).map((slot) => ({ slot, held: hacks.get(slot) ? { ...hacks.get(slot)! } : null, left: hacks.left(slot, gameTime) })),
+    setHack: (id: HackId, level = 0) => hacks.set(id, level),
+    take: (id: HackId, level = 0) => hacks.take(id, level, gameTime),
+    use: (slot: HackSlot) => useHack(slot, gameTime),
+    state: () => ({ armored: gameTime < armorUntil, invisible: gameTime < invisUntil, slam: skSlam?.phase ?? null, pulling: !!skPull, leap: skLeap, healZones: healZones.length, mines: mines.length, hackSlow: player.hackSlow, incoming: duel instanceof Duel ? duel.incomingScale : 1 }),
+    fusion: () => loadout.slots.map((sl) => sl.fusion ?? 0),
+    setFusion: (i: number, level: number) => loadout.setFusion(i, level),
+  },
   /** finishers (tools/e2e.ts): who could be finished now, start one as the key would, and one running */
   finisher: {
     target: () => finishable()?.id ?? null,

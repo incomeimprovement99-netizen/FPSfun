@@ -1,0 +1,101 @@
+{
+  "_note": "SpeedKills' ten hacks (src/game/hacks.ts, docs/PHASE_18_PLAN_SPEEDKILLS.md 7.7): one mobility and one utility, picked before the match; in the battle royale a copy found on the floor fuses (a level up, to fuseLevels) and another of the same slot swaps. `cooldowns` is seconds between uses at each fusion level, 0 to 4, where Hyper Scape's published numbers give them, measured as it was left: Teleport (our DASH) and Invisibility 12, 11, 10, 9, 7; Reveal 14 base and 9 maxed; Slam about 10 maxed; Wall 7 maxed. Where it published nothing (HEAL, ARMOR's cooldown, LEAP and GRAPPLE, which are ours), `cooldown` is ours and each level takes fuseStep of it off. Its other published numbers are used as they were: Invisibility lasts 10 s; Armor 5 s (after a patch cut it from 10; ours takes 60% of a hit away rather than all of it, as the owner chose); Reveal marks everyone within 60 m all round for 6 s; a Mine does 50. Sources: gamepur.com, pcgamesn.com, ggrecon.com and thegamer.com hack guides, 2020 and 2021. The keys: mobility on the ability key (F, a pad's LB), utility on the grenade key (G, a pad's RB), since SpeedKills carries no grenades.",
+  "fuseLevels": 4,
+  "fuseStep": 0.1,
+  "dash": {
+    "cooldown": 12,
+    "distance": 8,
+    "seconds": 0.14,
+    "exitSpeed": 9,
+    "cooldowns": [
+      12,
+      11,
+      10,
+      9,
+      7
+    ]
+  },
+  "slam": {
+    "cooldown": 14,
+    "up": 9,
+    "hang": 0.35,
+    "downSpeed": 38,
+    "radius": 5,
+    "damage": 45,
+    "cooldowns": [
+      14,
+      13,
+      12,
+      11,
+      10
+    ]
+  },
+  "leap": {
+    "cooldown": 16,
+    "height": 16,
+    "glideSeconds": 6
+  },
+  "grapple": {
+    "cooldown": 10,
+    "range": 35,
+    "speed": 26,
+    "arrive": 2,
+    "maxSeconds": 1.6
+  },
+  "heal": {
+    "cooldown": 22,
+    "radius": 5,
+    "seconds": 5,
+    "perSecond": 22
+  },
+  "armor": {
+    "cooldown": 20,
+    "seconds": 5,
+    "damageScale": 0.4,
+    "speedScale": 0.8
+  },
+  "wall": {
+    "cooldown": 11,
+    "cooldowns": [
+      11,
+      10,
+      9,
+      8,
+      7
+    ]
+  },
+  "invis": {
+    "cooldown": 12,
+    "seconds": 10,
+    "seenWithin": 6,
+    "cooldowns": [
+      12,
+      11,
+      10,
+      9,
+      7
+    ]
+  },
+  "reveal": {
+    "cooldown": 14,
+    "range": 60,
+    "seconds": 6,
+    "cooldowns": [
+      14,
+      13,
+      11,
+      10,
+      9
+    ]
+  },
+  "mine": {
+    "cooldown": 14,
+    "range": 18,
+    "arm": 1.0,
+    "trigger": 4.5,
+    "homeSpeed": 9,
+    "radius": 3.5,
+    "damage": 50,
+    "life": 45
+  }
+}
