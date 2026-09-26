@@ -219,6 +219,8 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
 - **Done when:** an e2e check aims at a floor gun in both modes and reads the card, and snapshots show both
   modes.
 
+*Done (Milestone 228).*
+
 ### A9. The hacks as Hyper Scape's were, from sources, Slam first
 
 - **The owner:** "the slam barely goes up, it went like 10x higher in hyperscape, make sure you look into that

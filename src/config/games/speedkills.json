@@ -22,40 +22,46 @@
       "guns": [
         "vinson",
         "rspn101"
-      ]
+      ],
+      "use": "steady at any range"
     },
     "smg": {
       "label": "SMGs",
       "guns": [
         "alternator_smg",
         "r97"
-      ]
+      ],
+      "use": "close range, fast fire"
     },
     "shotgun": {
       "label": "Shotguns",
       "guns": [
         "mastiff",
         "shotgun"
-      ]
+      ],
+      "use": "point blank, one or two shots"
     },
     "marksman": {
       "label": "Marksman",
       "guns": [
         "3030",
         "g2"
-      ]
+      ],
+      "use": "long range, hard single shots"
     },
     "sniper": {
       "label": "Sniper",
       "guns": [
         "sentinel"
-      ]
+      ],
+      "use": "longest range, a headshot kills"
     },
     "special": {
       "label": "Special",
       "guns": [
         "lstar"
-      ]
+      ],
+      "use": "never reloads, it cools instead"
     }
   },
   "_weapons": "Each gun's SpeedKills name, its role in its pair (hard or fast), and the one optic it always wears: attachments are off, fusion is the upgrade.",
@@ -554,5 +560,6 @@
   "otherKinds": {
     "p2020": "Pistol",
     "glock": "Pistol"
-  }
+  },
+  "_familiesUse": "use is a family's one line on the loot card's Full view (Phase 20 A8): what the gun is for, for a player who does not know yet."
 }

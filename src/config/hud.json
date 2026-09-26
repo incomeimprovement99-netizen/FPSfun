@@ -338,5 +338,13 @@
         "bar": 1.5
       }
     }
+  },
+  "_lootCard": "SpeedKills' loot card (Phase 20 A8; src/game/lootcard.ts, hud.ts drawLootCard): what a floor gun or hack core is, what taking it does and how it compares with what you carry. Full, the default, teaches a new player; Compact keeps the verdict and the numbers that decide a swap. ttkHit is the share of rounds on the body the time to kill assumes, against the game's health and shield at close range, reloads counted (the number tools/checks/ttk.ts measures the roster with); same is the ratio band inside which two numbers count as equal (no arrow); hideAds is how far aimed in the card steps aside; w is its width, in HUD pixels at 1080p. Ours.",
+  "lootCard": {
+    "default": "full",
+    "ttkHit": 0.8,
+    "same": 0.03,
+    "hideAds": 0.5,
+    "w": 420
   }
 }

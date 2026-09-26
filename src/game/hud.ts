@@ -27,6 +27,7 @@ import type { TourHud } from "./tour";
 import hudCfg from "../config/hud.json";
 import { damageText, poolText } from "./damagetext";
 import { IS_SK } from "./game";
+import type { LootCardView } from "./lootcard";
 /** SpeedKills' bottom HUD (hud.json layouts; Phase 20 A6); the legacy game draws its own, in code */
 type SkLayout = typeof hudCfg.layouts.speedkills;
 const SK_LAYOUT: SkLayout | null = IS_SK ? hudCfg.layouts.speedkills : null;
@@ -267,6 +268,8 @@ export interface HudState {
   capture?: { x: number; z: number; r: number; held: number; hold: number; state: "empty" | "yours" | "theirs" | "contested" } | null;
   /** the line over the battle royale's clock, when the game has its own words for it (SpeedKills' decay) */
   zoneLabel?: string | null;
+  /** SpeedKills: the floor item you look at against what you carry (Phase 20 A8; lootcard.ts) */
+  lootCard?: LootCardView | null;
   /** SpeedKills past the city's edge (Phase 20 A4): the seconds left, then how red the laser has made the screen */
   edge?: { left: number | null; strike: number | null } | null;
   /** the city and the wall round it, for the maps */
@@ -512,6 +515,7 @@ export class Hud {
     this.drawNotice(now, u);
     this.drawPrompt(s, u);
     this.drawReachList(u);
+    this.drawLootCard(s, u);
     this.drawTechFeed(now, u);
     this.drawPlates(now, camera, s, u);
     this.drawMarkers(now, camera, s, u);
@@ -1399,6 +1403,76 @@ export class Hud {
    * whichever item happened to be nearest the crosshair and you found out
    * what it was from the notice afterwards.
    */
+  /**
+   * The loot card (Phase 20 A8), right of the crosshair: the item, what E does with it, and its numbers set
+   * against yours, better in green and worse in red. Full teaches; Compact is the verdict and what decides a swap.
+   */
+  private drawLootCard(s: HudState, u: number): void {
+    const v = s.lootCard;
+    if (!v) return;
+    const c = this.ctx;
+    const full = v.mode === "full";
+    const w = (full ? hudCfg.lootCard.w : hudCfg.lootCard.w * 0.72) * u;
+    const pad = 14 * u;
+    const rowH = 20 * u;
+    // the notes wrapped to the card, a word at a time
+    c.font = this.font(600, 11 * u);
+    const noteLines: string[] = [];
+    for (const n of v.notes) {
+      let line = "";
+      for (const word of n.split(" ")) {
+        const next = line ? `${line} ${word}` : word;
+        if (line && c.measureText(next).width > w - 2 * pad) {
+          noteLines.push(line);
+          line = word;
+        } else line = next;
+      }
+      if (line) noteLines.push(line);
+    }
+    const noteH = 15 * u;
+    const lines = (v.sayMore ? 1 : 0) + (v.heads ? 1 : 0) + v.rows.length;
+    const h = pad * 2 + 30 * u + 22 * u + lines * rowH + (noteLines.length ? 10 * u + noteLines.length * noteH : 0);
+    const x = this.w / 2 + 70 * u;
+    const y = this.h * 0.42 - h / 2;
+    c.fillStyle = "rgba(8,10,16,0.82)";
+    c.fillRect(x, y, w, h);
+    const accent = v.verdict === "fuse" ? "#3cf2ff" : v.verdict === "max" ? DIM : v.verdict === "swap" ? "#ffd23c" : "#7ddc8a";
+    c.fillStyle = accent;
+    c.fillRect(x, y, 3 * u, h);
+    this.edge(x, y, w, h, u);
+    let yy = y + pad + 18 * u;
+    this.text(v.title, x + pad, yy, 700, 22 * u, WHITE);
+    this.text(v.sub, x + w - pad, yy, 700, 12 * u, DIM, "right");
+    yy += 24 * u;
+    this.text(v.say, x + pad, yy, 700, 15 * u, accent);
+    if (v.sayMore) {
+      yy += rowH;
+      this.text(v.sayMore, x + pad, yy, 600, 12 * u, DIM);
+    }
+    const colA = x + w * 0.52;
+    const colB = x + w - pad;
+    if (v.heads) {
+      yy += rowH + 2 * u;
+      this.text(v.heads[0], colA, yy, 700, 11 * u, DIM, "right");
+      this.text(v.heads[1], colB, yy, 700, 11 * u, DIM, "right");
+    }
+    for (const r of v.rows) {
+      yy += rowH;
+      this.text(r.label, x + pad, yy, 700, 12 * u, DIM);
+      this.text(r.have, colA, yy, 700, 14 * u, WHITE, "right");
+      const col = r.cmp > 0 ? "#7ddc8a" : r.cmp < 0 ? "#ff6b5e" : WHITE;
+      this.text(`${r.get}${r.cmp > 0 ? " +" : r.cmp < 0 ? " -" : ""}`, colB, yy, 700, 14 * u, col, "right");
+    }
+    if (noteLines.length) {
+      yy += 10 * u;
+      for (const n of noteLines) {
+        yy += noteH;
+        this.text(n, x + pad, yy, 600, 11 * u, DIM);
+      }
+    }
+    this.box("lootCard", x, y, w, h);
+  }
+
   private drawReachList(u: number): void {
     const rows = REACH.rows;
     if (rows.length < 2) return;

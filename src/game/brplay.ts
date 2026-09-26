@@ -15,6 +15,7 @@
 //                  cadence, skipping anything there is nothing to gain from
 //   the reach list what is at your feet is listed, nearest first, and you can
 //                  step the list rather than trust whatever is closest
+import { hackSlotOf } from "./hacks";
 import * as THREE from "three";
 import type { BrMatch } from "./brmatch";
 import type { Dummy } from "./dummy";
@@ -59,6 +60,12 @@ export interface ReachHud {
   pick: number;
   /** the key that steps the list, shown only when there is more than one row */
   cycleKey: string;
+  /**
+   * why the picked row is the one: stepped to with the cycle key, looked at, or merely the nearest. SpeedKills'
+   * loot card shows for the first two only (Phase 20 A8): running through the Spire's loot, the nearest changes
+   * every step
+   */
+  how?: "cycled" | "aimed" | "nearest";
 }
 
 /**
@@ -82,6 +89,8 @@ export interface CarryState {
    * would grey out a magazine that is an upgrade for your other gun.
    */
   mag?: number;
+  /** SpeedKills: the hack in each slot, by id (a hold leaves a core that would swap it) */
+  hacks?: Record<string, string | null>;
 }
 
 /** an item as the reach list needs it: no THREE objects, so a tool can build one */
@@ -305,6 +314,7 @@ export class BrPlay {
     REACH.rows = r.rows;
     REACH.pick = r.pick;
     REACH.cycleKey = r.cycleKey;
+    REACH.how = r.how;
   }
 
   /**
@@ -689,7 +699,7 @@ export class BrPlay {
     }
     const pick = this.pickOf(rows, eye, fwd, f);
     const row = rows.find((r) => r.key === pick) ?? rows[0];
-    out.reach = { rows, pick: row.key, cycleKey: many ? this.deps.keyLabel(CYCLE) : "" };
+    out.reach = { rows, pick: row.key, cycleKey: many ? this.deps.keyLabel(CYCLE) : "", how: this.pickHow(rows, eye, fwd, f) };
     // what a hold would still take: everything in reach bar the greyed rows
     const left = rows.filter((r) => !r.dim);
     out.prompt = { key: many && left.length > 1 ? `${key} / HOLD` : key, text: many && left.length > 1 ? `TAKE ${row.label}  ·  HOLD: TAKE ALL` : `TAKE ${row.label}` };
@@ -718,7 +728,16 @@ export class BrPlay {
     // A hold takes everything EXCEPT guns. Taking a gun is a choice about what
     // you carry, and with both slots full it puts the one in hand down, which
     // the next step of the hold would pick straight back up.
-    const next = left.find((r) => !this.inFlight(r.key, now) && !isGun(r.key));
+    // (nor a hack core of another hack in its slot: taking it swaps yours down, and the next step took that back,
+    // back and forth about fourteen times in three seconds; Phase 20 A8)
+    const swapsHack = (key: number): boolean => {
+      const it = f.drops.get(key)?.item;
+      if (it?.kind !== "hack" || !carry?.hacks) return false;
+      const slot = hackSlotOf(it.id);
+      const held = slot ? carry.hacks[slot] : null;
+      return !!held && held !== it.id;
+    };
+    const next = left.find((r) => !this.inFlight(r.key, now) && !isGun(r.key) && !swapsHack(r.key));
     if (next && holdDue(now, this.takeDownAt, this.lastTakeAt)) {
       this.take(match, next.key, now);
       this.lastTakeAt = now;
@@ -729,6 +748,13 @@ export class BrPlay {
       const progress = since < LOOTING.startAfter ? since / LOOTING.startAfter : Math.min(1, (now - this.lastTakeAt) / LOOTING.cadence);
       out.hold = { label: `TAKING EVERYTHING  ·  ${left.length} LEFT`, progress };
     }
+  }
+
+  /** why pickOf picks what it does (the loot card's cue) */
+  private pickHow(rows: ReachRow[], eye: THREE.Vector3, fwd: THREE.Vector3, f: NonNullable<BrMatch["lootField"]>): "cycled" | "aimed" | "nearest" {
+    if (this.picked !== null && rows.some((r) => r.key === this.picked)) return "cycled";
+    const aimed = f.nearest(eye, fwd);
+    return aimed && rows.some((r) => r.key === aimed.key) ? "aimed" : "nearest";
   }
 
   /** the row the prompt points at: your cycled one, else what you aim at, else the nearest */

@@ -5086,6 +5086,21 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
       await take(`{ kind: "weapon", id: "vinson", n: 1, rarity: "common", fusion: 0 }`);
     }
     const a = await ev<Here>(page, here);
+    // The loot card (Phase 20 A8), looked at before it is taken: a copy of the gun in slot 1 says it fuses, in Full
+    // with its numbers and in Compact as the short verdict; a gun you do not carry says it swaps for the one in hand
+    if (start === "loadout") {
+      const other = ["sentinel", "lstar", "3030", "mastiff"].find((id) => !a.slots.some((sl) => sl.id === id))!;
+      const card = await ev<{ full: { say: string; rows: unknown[]; notes: string[] } | null; compact: { say: string; rows: unknown[] } | null; swap: { say: string; rows: Array<{ label: string }> } | null }>(
+        page,
+        `(() => new Promise((ok) => { const r = window.__range; const put = (id) => { ${clear}; r.duel().lootField.add({ kind: "weapon", id, n: 1, rarity: "common", fusion: 0 }, new r.THREE.Vector3(${S.x}, 0, ${S.z} - 1.6)); }; r.player.teleport(${S.x}, 0, ${S.z}, 0, -45); put("${a.slots[0].id}");
+          setTimeout(() => { const full = r.lootCard(); r.setLootCard("compact"); setTimeout(() => { const compact = r.lootCard(); r.setLootCard("full"); put("${other}"); setTimeout(() => { const swap = r.lootCard(); ${clear}; ok({ full, compact, swap }); }, 350); }, 350); }, 350); }))()`,
+      );
+      check(
+        "sk loot card: a copy of your gun says it fuses (Full: its numbers and notes; Compact: the verdict alone), a gun you do not carry says it swaps for yours",
+        !!card.full && /^FUSES TO LEVEL \d/.test(card.full.say) && card.full.rows.length >= 4 && card.full.notes.length > 0 && !!card.compact && /^FUSE \d -> \d/.test(card.compact.say) && !!card.swap && /^SWAPS FOR YOUR /.test(card.swap.say) && card.swap.rows.some((r) => r.label === "TIME TO KILL"),
+        JSON.stringify(card).slice(0, 600),
+      );
+    }
     await take(`{ kind: "weapon", id: "${a.slots[0].id}", n: 1, rarity: "common", fusion: 0 }`);
     const b = await ev<Here>(page, here);
     check(

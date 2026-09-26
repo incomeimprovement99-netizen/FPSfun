@@ -4164,3 +4164,28 @@ Phase 20, A7 (the owner: "USSO (Fast SMG)", so a beginner can see what each gun 
   - SpeedKills' default loadouts get names that fit their guns: Sidearms is Skirmisher, Dirt Bike is Long Shot.
   - The bot called NOVA is BOT NEXUS, beside the gun NOVA.
 - **Checked:** a new e2e check for the label and the loadout picker.
+
+## Milestone 228 — The loot card ✅
+
+Phase 20, A8 (the owner: a UI for a gun on the floor that compares it with yours, in a verbose default that
+teaches and a compact one for experienced players).
+
+- **Looking at a floor gun or hack core** (aimed at, or stepped to with the cycle key) shows a card right of
+  the crosshair. It does not show for an item that is merely nearest as you run through, or while you aim in.
+  - **Its name, class and level.**
+  - **What E will do:** FUSES TO LEVEL n, GOES IN SLOT n, SWAPS FOR YOUR X, or NOTHING TO GAIN at the top
+    level.
+  - **Its numbers beside yours,** better in green and worse in red: time to kill, damage, fire rate, magazine
+    (your rounds left against its full), reload, and the headshot for a one-shot gun. A hack core shows its
+    cooldown.
+  - **Full** (the default) adds what the family is for, what fusion does and what the time to kill assumes.
+    **Compact** keeps the verdict and the numbers that decide a swap.
+- **The setting:** Loot card, Full or Compact, in Settings (SpeedKills only).
+- **How the card is built** (`src/game/lootcard.ts`, pure):
+  - The take decision mirrors the pickup's own: a copy fuses, an empty slot fills, the one in hand swaps.
+  - The time to kill is the roster check's formula (100 health + 50 shield, 8 in 10 rounds on the body, close
+    range).
+- **A fix:** holding E over a hack core of the other hack in your slot swapped the two back and forth, about 14
+  times in 3 s. The hold now leaves a core that would swap.
+- **Checked:** a new e2e check reads the card in a real match in both modes, for a copy of your gun and for
+  one you do not carry.

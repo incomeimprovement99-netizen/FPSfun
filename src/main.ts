@@ -98,7 +98,8 @@ import { Aimbot } from "./game/aimbot";
 import { blastOffsets } from "./game/blast";
 import hudCfg from "./config/hud.json";
 import { SuperglideTrainer } from "./game/trainer";
-import { BrPlay, PING_INTENTS, pingPickAt } from "./game/brplay";
+import { BrPlay, PING_INTENTS, pingPickAt, REACH } from "./game/brplay";
+import { LS_LOOT_CARD, lootCardView, type LootCardMode, type LootCardView } from "./game/lootcard";
 import { Captions, howFar, whereFrom } from "./game/captions";
 import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
@@ -4094,8 +4095,42 @@ brPlay.carrying = () => {
     healRoom: kit.room,
     ammoRoom: Object.fromEntries(held.map((s) => [ammoTypeOf(s.id), loadout.ammo.room(ammoTypeOf(s.id))])),
     mag: held.length ? Math.min(...held.map((s) => s.magLevel)) : 0,
+    hacks: IS_SK ? { mobility: hacks.get("mobility")?.id ?? null, utility: hacks.get("utility")?.id ?? null } : undefined,
   };
 };
+// ---------- SpeedKills' loot card (Phase 20 A8; lootcard.ts) ----------
+let lootCardMode: LootCardMode = (() => {
+  try {
+    const v = localStorage.getItem(LS_LOOT_CARD);
+    return v === "compact" || v === "full" ? v : (hudCfg.lootCard.default as LootCardMode);
+  } catch {
+    return hudCfg.lootCard.default as LootCardMode;
+  }
+})();
+/** the card for the floor item you look at or cycled to, or null (not aiming in, and not while merely nearest) */
+function lootCardNow(): LootCardView | null {
+  if (!IS_SK || !(duel instanceof BrMatch) || !duel.lootField) return null;
+  if (REACH.pick < 0 || (REACH.how !== "aimed" && REACH.how !== "cycled")) return null;
+  if (loadout.active.state.adsFrac >= hudCfg.lootCard.hideAds) return null;
+  const d = duel.lootField.drops.get(REACH.pick);
+  if (!d) return null;
+  const slots = loadout.slots.map((s) => ({ id: s.id, empty: s.empty, fusion: s.fusion ?? 0, clip: s.empty ? 0 : s.state.clip }));
+  return lootCardView(d.item, { slots, active: loadout.activeIndex, held: { mobility: hacks.get("mobility"), utility: hacks.get("utility") } }, lootCardMode);
+}
+{
+  const sel = document.getElementById("lootCardMode") as HTMLSelectElement | null;
+  if (sel) {
+    sel.value = lootCardMode;
+    sel.addEventListener("change", () => {
+      lootCardMode = sel.value === "compact" ? "compact" : "full";
+      try {
+        localStorage.setItem(LS_LOOT_CARD, lootCardMode);
+      } catch {
+        // kept for this visit only
+      }
+    });
+  }
+}
 /** first person when you watch a squad mate (X switches to behind them) */
 let spectateFirst = true;
 /**
@@ -7415,6 +7450,7 @@ function step(): void {
     sectors: duel instanceof BrMatch && duel.decay ? skSectorsHud(duel) : null,
     capture: duel instanceof BrMatch && duel.decay ? skCaptureHud(duel) : null,
     zoneLabel: duel instanceof BrMatch && duel.decay ? skZoneLabel(duel) : null,
+    lootCard: lootCardNow(),
     edge: IS_SK && duel instanceof BrMatch && (edge.since !== null || edge.struckAt !== null) ? { left: edge.left(gameTime), strike: edge.flood(gameTime) } : null,
     edgeZone: IS_SK && duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? { inner: BR_BOUNDS, outer: EDGE_BOUNDS } : null,
     hacks: IS_SK
@@ -7615,6 +7651,11 @@ initWelcome();
   /** the first-person arms are the player's own rather than the drawn gloves */
   realArms: () => viewModel.realArms,
   realArmsShown: () => viewModel.realArmsShown,
+  /** the loot card as the HUD draws it this frame, and its mode (Phase 20 A8) */
+  lootCard: () => lootCardNow(),
+  setLootCard: (m: LootCardMode) => (lootCardMode = m),
+  /** a gun as a beginner reads it, with its class (Phase 20 A7) */
+  weaponLabel,
   /** put the gun in your own hands away so a snapshot sees the whole figure (tools/snap.ts) */
   hideViewModel: (on: boolean) => {
     snapNoGun = on;
