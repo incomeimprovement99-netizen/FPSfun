@@ -3956,3 +3956,34 @@ Phase 19, step 11, first half.
     of it both ways (11 links, up to 8.18 m).
   - The street-link check: 252 links.
   - Verify, and the SpeedKills e2e (65 ok).
+
+## Milestone 220 — Bots ride the jump pads, and go for the capture zone ✅
+
+Phase 19, step 11, second half.
+
+- **The centre's jump pads are on the bots' graph** as one-way steps up. A pad's node says where its throw lands
+  you, and the landing lists the pads that throw to it. The plan to a place (navgraph.ts) follows those lists
+  back, as it follows a zipline.
+  - A bot never takes a pad while wandering: the roofs a pad reaches have parapets it cannot step off, and a
+    wanderer would be stranded there.
+  - It takes one on its way somewhere: the capture zone, a roof's climb.
+- **A bot rides a pad as a player does** (bots.ts `jumpPad`): straight up, then across once above the edge, at
+  the movement's own gravity. It is the same throw city.ts solves for a player's body, which is a bot's body
+  too.
+- **Once the capture zone opens, the squads in its sector go for it** (brmatch.ts `zoneTree`). They follow the
+  graph to the node nearest its middle, whatever its height. On the Spire that is the top tier: up a public
+  stair, across the bridges and up the tiers' pads, 4 pads to 68 m. They hold it there.
+- **Checked:**
+  - The roofs' check throws a bot from every one of the 14 pads on the graph, with the bot's physics, and sees
+    each land on the roof its node says.
+  - It finds the way from a street to the zone on the Spire goes up the tiers by the pads.
+  - A new e2e check stands a bot on the Spire's pad to its second tier: it is thrown up (to 51 m) and lands on
+    that roof (48.18 m). With the ride switched off it stays at 28 m, which proves it. The check runs early in
+    the fight with the ring held: half of all matches end away from the centre, the centre can go in an early
+    wave, and one run's bot fell straight through a Spire already dissolved.
+  - Another new e2e check: once the zone opens, a bot on a street in its sector takes the graph's way toward it.
+    With the bots' zone branch switched off it fails.
+- **Two e2e checks made steadier:**
+  - The lab's storey climb presses jump for the next frame or two, counted in frames. 30 ms of real time was
+    often over before the next frame at the 35 ms a frame a loaded machine draws.
+  - The pad check's bot is put back as it was afterwards: its fire, its sight and the ring.

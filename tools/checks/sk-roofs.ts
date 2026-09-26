@@ -23,7 +23,9 @@ const warn = console.warn;
 console.warn = () => undefined;
 const { IS_SK } = await import("../../src/game/game");
 const { buildCityMap, ROOF_ROUTES, CONCOURSE, HIGHWAY } = await import("../../src/game/city");
-const { botWalk } = await import("../../src/game/botbody");
+const { botWalk, botGroundAt } = await import("../../src/game/botbody");
+const { MOVE } = await import("../../src/game/movement");
+const { navTree } = await import("../../src/game/navgraph");
 const cityCfg = (await import("../../src/config/city.json")).default;
 const map = buildCityMap(new THREE.Scene());
 console.warn = warn;
@@ -156,6 +158,53 @@ check("a bot walks every low tower's route from the street to its roof", stuck.l
     CONCOURSE.spire.length === 4 && reached !== undefined && bad.length === 0,
     reached === undefined ? "no way there" : bad.length ? bad.slice(0, 3).join("; ") : `${path.length - 1} links, up to ${map.nodes[reached].y?.toFixed(2)} m`,
   );
+}
+
+// The centre's jump pads on the graph (Phase 19 step 11): each thrown as a bot is thrown (bots.ts jumpPad:
+// straight up, across once above the edge, the movement's gravity), landing on the roof its node says
+{
+  let n = 0;
+  const bad: string[] = [];
+  map.nodes.forEach((a, i) => {
+    if (!a.pad) return;
+    n++;
+    const to = map.nodes[a.pad.to];
+    const pos = { x: a.x, y: a.y ?? 0, z: a.z };
+    const vel = { x: 0, y: a.pad.up, z: 0 };
+    let carry: { vx: number; vz: number; over: number } | null = { vx: a.pad.dx, vz: a.pad.dz, over: a.pad.over };
+    const dt = 1 / 60;
+    for (let t = 0; t < 12; t += dt) {
+      if (carry && pos.y >= carry.over) {
+        vel.x = carry.vx;
+        vel.z = carry.vz;
+        carry = null;
+      }
+      pos.x += vel.x * dt;
+      pos.y += vel.y * dt;
+      pos.z += vel.z * dt;
+      vel.y -= MOVE.gravity * dt;
+      const ground = botGroundAt(pos.x, pos.z, pos.y);
+      if (vel.y < 0 && pos.y <= ground) {
+        pos.y = ground;
+        break;
+      }
+    }
+    if (Math.abs(pos.y - (to.y ?? 0)) > 0.3 || Math.hypot(pos.x - to.x, pos.z - to.z) > 3) bad.push(`pad ${i}: came down at ${pos.y.toFixed(2)} m, ${Math.hypot(pos.x - to.x, pos.z - to.z).toFixed(1)} m off, for ${(to.y ?? 0).toFixed(2)}`);
+  });
+  check("every jump pad on the bots' graph throws a bot onto the roof it leads to", n >= 8 && bad.length === 0, bad.length ? bad.slice(0, 3).join("; ") : `${n} pads`);
+  // and the capture zone on the Spire: the plan from a street crossing to the node nearest its middle goes up it
+  const t = navTree(map.nodes, map.pois.find((p) => p.id === "c")!.x, map.pois.find((p) => p.id === "c")!.z);
+  const from = map.nodes.findIndex((m) => (m.y ?? 0) < 0.5 && m.links.length >= 3);
+  let at = from;
+  let pads = 0;
+  for (let k = 0; k < 200 && at >= 0 && at !== t.target; k++) {
+    const next = t.toward[at];
+    if (next < 0) break;
+    if (map.nodes[at].pad?.to === next) pads++;
+    at = next;
+  }
+  const top = map.nodes[t.target];
+  check("a bot's way to a capture zone on the Spire goes up its tiers by the pads", at === t.target && pads >= 2 && (top.y ?? 0) > 40, `${pads} pads, to ${(top.y ?? 0).toFixed(1)} m`);
 }
 
 // The rooftop highway (Phase 19 step 7): walked all the way round its loop, corner to corner, on its deck

@@ -4834,7 +4834,9 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   const inLab = await ev<{ x: number; z: number }>(lab, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
   check("speedkills: the movement lab opens from TRAINING", inLab.x > 74 && inLab.x < 122 && inLab.z > -121 && inLab.z < -79, JSON.stringify(inLab));
   await ev(lab, "window.__range.player.teleport(83, 0, -111.2, 0)");
-  await ev(lab, `(() => { const t0 = performance.now(); window.__range.setScript({ held: (a) => a === "forward" || (a === "jump" && performance.now() - t0 < 120), pressedNow: (a) => a === "jump" && performance.now() - t0 < 30 }, null); })()`);
+  // the jump pressed for the next frame or two, counted in frames: 30 ms of real time was often over before the
+  // page's next frame at the 35 ms a frame a loaded machine draws, and the press was never seen
+  await ev(lab, `(() => { let press = true; requestAnimationFrame(() => requestAnimationFrame(() => { press = false; })); const t0 = performance.now(); window.__range.setScript({ held: (a) => a === "forward" || (a === "jump" && performance.now() - t0 < 120), pressedNow: (a) => a === "jump" && press }, null); })()`);
   const topped = await lab.waitForFunction("window.__range.player.pos.y > 3.9", { polling: 50, timeout: 6000 }).then(() => true, () => false);
   await ev(lab, "window.__range.setScript(null)");
   check("speedkills: in the lab, the storey block is climbed to its top (4 m)", topped, JSON.stringify(await ev(lab, "({ y: window.__range.player.pos.y, z: window.__range.player.pos.z })")));
@@ -5075,6 +5077,21 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   // and up on the roofs, where the fights are (speedkills.json loot maxFloor): it stopped at 12 m, under most of the city's roofs
   const high = await ev<{ over12: number; over24: number }>(page, "(() => { const ds = [...window.__range.duel().lootField.drops.values()]; return { over12: ds.filter((x) => x.pos.y > 12).length, over24: ds.filter((x) => x.pos.y > 24).length }; })()");
   check("speedkills br: loot on the roofs too, a dozen storeys and more up", high.over12 >= 40 && high.over24 >= 10, JSON.stringify(high));
+  // A bot whose way goes up a jump pad is thrown by it (city.ts, a graph node's `pad`; bots.ts jumpPad): one stood
+  // on the Spire's pad up to its second tier, its next step the tier's roof. Early in the fight with the ring held,
+  // before the first wave's 50 s warning is out: the centre goes early in some matches (half of them end
+  // elsewhere), and one run's bot fell through a Spire already dissolved. The bot is put back as it was after.
+  await page.waitForFunction("window.__range.duel().bots.some((b) => b.landed && b.bot.alive && !b.bot.dropping && !b.down && !b.guard)", { polling: 200, timeout: 30000 }).catch(() => undefined);
+  const rode = await ev<{ from: number; y: number; want: number; end: number; phase: string } | null>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const nodes = d.map.nodes; const i = nodes.findIndex((n) => n.pad && (n.y ?? 0) > 20 && (nodes[n.pad.to].y ?? 0) > (n.y ?? 0) + 10); const b = d.bots.find((x) => x.landed && x.bot.alive && !x.bot.dropping && !x.guard && !x.down); if (i < 0 || !b) return ok(null); const n = nodes[i];
+      const held = { fire: d.holdFire, ring: d.ring.timeLeft, sees: b.bot.sees }; d.holdFire = true; d.ring.timeLeft = 1e6; b.bot.sees = () => false; b.bot.pos.set(n.x, n.y, n.z); b.bot.dummy.group.position.copy(b.bot.pos); b.node = i; b.goal = n.pad.to;
+      const phase = r.sk.decay()?.states?.[n.poi]?.phase ?? "none";
+      // the highest it got, and where it is after: its way can go on from that roof (the next tier's pad stands
+      // 0.1 m from where this one lands you, and a bot on a roof's climb takes it within a frame)
+      let y = n.y; const want = nodes[n.pad.to].y; const t0 = performance.now(); const tick = () => { y = Math.max(y, b.bot.pos.y); if (performance.now() - t0 < 5000) return void setTimeout(tick, 30); d.holdFire = held.fire; d.ring.timeLeft = held.ring; b.bot.sees = held.sees; ok({ from: n.y, y, want, end: b.bot.pos.y, phase }); }; tick(); }))()`,
+  );
+  check("speedkills bots: a bot whose way goes up a jump pad is thrown onto the roof it leads to", !!rode && rode.y >= rode.want - 0.6 && rode.end >= rode.want - 0.6, JSON.stringify(rode));
   check("speedkills br: 100 health and 50 shield", start.health === 100 && start.shieldMax === 50, JSON.stringify(start));
   const spireBots = await ev<number>(page, `(() => { const d = window.__range.duel(); const m = window.__range.brMap; return d.bots.filter((b) => b.dropTo && m.placeAt(b.dropTo.x, b.dropTo.z)?.id === "c").length; })()`);
   check("speedkills br: the bots drop on the Spire the most (every other squad)", spireBots >= 12, `${spireBots} of 27`);
@@ -5216,6 +5233,20 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   const end = await ev<Decay>(page, "window.__range.sk.decay()");
   const gone = Object.entries(end.states).filter(([id, s]) => id !== end.plan.final && s.phase === "gone").length;
   check("speedkills decay: after four waves every sector but the final one is gone, and the capture zone opens there", gone === 8 && end.states[end.plan.final].phase === "live" && !!end.zone, JSON.stringify({ gone, final: end.plan.final, zone: end.zone }));
+  // The bots go for the zone once it is open (brmatch.ts zoneTree): one stood on a street of the final sector, 40 m
+  // and more from the zone, takes the graph's way to the node nearest its middle (up the Spire's stairs, bridges
+  // and pads when that is where it is). Three seconds on, its next node is a step along that way.
+  const toward = await ev<{ start: number; goal: number; path: number[] } | null>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const z = d.captureZone(); if (!z) return ok(null); const nodes = d.map.nodes; const fin = r.sk.decay().plan.final; const start = nodes.findIndex((n) => n.poi === fin && (n.y ?? 0) < 0.5 && n.links.length >= 2 && Math.hypot(n.x - z.x, n.z - z.z) > 40); const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping && !x.down && !x.guard); if (start < 0 || !b) return ok(null); const n = nodes[start];
+      const held = { fire: d.holdFire, sees: b.bot.sees }; d.holdFire = true; b.bot.sees = () => false; b.bot.pos.set(n.x, 0, n.z); b.bot.dummy.group.position.copy(b.bot.pos); b.node = start; b.goal = start; b.climb = null;
+      setTimeout(() => { const t = d.zoneNav?.tree; const path = []; for (let i = start; t && i >= 0 && path.length < 300; i = t.toward[i]) path.push(i); d.holdFire = held.fire; b.bot.sees = held.sees; ok({ start, goal: b.goal, path }); }, 3000); }))()`,
+  );
+  check(
+    "speedkills bots: once the capture zone opens, a bot in its sector takes the graph's way to it",
+    !!toward && toward.path.length > 1 && toward.path.indexOf(toward.goal) >= 1,
+    JSON.stringify(toward && { start: toward.start, goal: toward.goal, steps: toward.path.length - 1, along: toward.path.indexOf(toward.goal) }),
+  );
   // holding the zone alone wins: the bots kept out of it, you in it (dropped from above onto whatever floor
   // stands there: the Spire is solid to its tiers now), its meter near full
   const won = await ev<{ phase: string; placement: number | null }>(

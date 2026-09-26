@@ -177,6 +177,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
   CONCOURSE.bridges.length = 0;
   CONCOURSE.spire.length = 0;
+  /** where each jump pad lands you (local), by its index in pads: the graph's one-way steps up */
+  const padLands: Array<{ pad: number; x: number; z: number; y: number }> = [];
   /** the Spire's block, whose podium the concourse's graph marks */
   let spireKey = "";
   /** map-local to world (the graph's P, which is made further down) */
@@ -205,6 +207,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const t = vOver / g + Math.sqrt((2 * PAD_SOLVE.peakOver) / g);
     const vx = (d0 + PAD_SOLVE.landInside) / t;
     pads.push({ ...W(fx + nx * d0, fz + nz * d0), dx: -nx * vx, dz: -nz * vx, y: floor, up: v, over: overY });
+    padLands.push({ pad: pads.length - 1, x: fx - nx * PAD_SOLVE.landInside, z: fz - nz * PAD_SOLVE.landInside, y: roof });
   };
   BLOCKS.forEach(([x0, x1], bi) => {
     BLOCKS.forEach(([z0, z1], bj) => {
@@ -1353,6 +1356,42 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       walkLink(a, e);
       onPodium(a);
       onPodium(e);
+    }
+    // The centre's jump pads, one way up (the pad node's `pad`, its landing's `padFrom`): the podiums' and the
+    // Spire's tiers', so a bot going for the capture zone on the Spire goes up it as a player does. A pad joins
+    // the graph where a bot walks to it from a node on its floor within reach, and its landing links on to the
+    // nodes on its roof; the next tier's pad is one of them.
+    const REACH = 36;
+    const centre = (x: number, z: number): boolean => Math.abs(x) < 100 && Math.abs(z) < 100;
+    const padNode = new Map<number, number>();
+    for (const l of padLands) {
+      const p = pads[l.pad];
+      const px = p.x - BR_X;
+      const pz = p.z - BR_Z;
+      if (!centre(px, pz)) continue;
+      padNode.set(l.pad, add(px, pz, p.y ?? 0));
+    }
+    const landNode = new Map<number, number>();
+    for (const l of padLands) if (padNode.has(l.pad)) landNode.set(l.pad, add(l.x, l.z, l.y));
+    const near = (n: number, skip: number): number[] =>
+      nodes
+        .map((m, i) => ({ m, i }))
+        .filter(({ m, i }) => i !== n && i !== skip && Math.abs((m.y ?? 0) - (nodes[n].y ?? 0)) < 0.6 && Math.hypot(m.x - nodes[n].x, m.z - nodes[n].z) < REACH)
+        .sort((a, b) => Math.hypot(a.m.x - nodes[n].x, a.m.z - nodes[n].z) - Math.hypot(b.m.x - nodes[n].x, b.m.z - nodes[n].z))
+        .map(({ i }) => i);
+    for (const l of padLands) {
+      const pn = padNode.get(l.pad);
+      const ln = landNode.get(l.pad);
+      if (pn === undefined || ln === undefined) continue;
+      const p = pads[l.pad];
+      // onto the graph on its floor: the two nearest it walks to
+      let joined = 0;
+      for (const i of near(pn, ln)) if (joined < 2 && walkLink(pn, i)) joined++;
+      if (!joined) continue;
+      nodes[pn].pad = { to: ln, up: p.up ?? 0, dx: p.dx, dz: p.dz, over: p.over ?? 0 };
+      (nodes[ln].padFrom ??= []).push(pn);
+      // the landing, on to what stands on its roof (a podium's corners, the next tier's pad)
+      for (const i of near(ln, pn)) walkLink(ln, i);
     }
   }
 

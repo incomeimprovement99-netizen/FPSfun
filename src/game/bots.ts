@@ -36,7 +36,7 @@ import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import { OPERATORS } from "./operators";
 import { ARENA_BOT_SPAWNS, ARENA_BOUNDS, ARENA_CENTER, ARENA_SPAWNS, ZONE_RADIUS, arenaMap, type ArenaMapId } from "./arena";
 import type { Bounds } from "./player";
-import { HU } from "./movement";
+import { HU, MOVE } from "./movement";
 import type { RoundPhase } from "../net/link";
 import type { MatchSummary, BotDifficulty } from "./stats";
 import { BOT_ABILITY, BOT_ABILITY_IDS, JOLT, KITS, TRIAGE, type AbilityId } from "./abilities";
@@ -680,7 +680,11 @@ export class Bot {
    * under gravity until it lands), or riding a zipline from one end to the
    * other, hanging from it. It does nothing else meanwhile.
    */
-  travel: { kind: "fling"; vel: THREE.Vector3 } | { kind: "zip"; a: THREE.Vector3; b: THREE.Vector3; t: number; dur: number } | null = null;
+  travel:
+    | { kind: "fling"; vel: THREE.Vector3 }
+    | { kind: "zip"; a: THREE.Vector3; b: THREE.Vector3; t: number; dur: number }
+    | { kind: "pad"; vel: THREE.Vector3; carry: { vx: number; vz: number; over: number } | null }
+    | null = null;
   private crouchNext = 0;
   /** a spot out of the target's sight to heal behind, and until when it keeps to it */
   cover: { spot: THREE.Vector3; crouch: boolean; via: THREE.Vector3 | null; until: number; best: number; bestAt: number } | null = null;
@@ -1128,6 +1132,18 @@ export class Bot {
     this.crouching = false;
   }
 
+  /**
+   * Thrown by a jump pad (br.ts node pad): straight up at `up`, then across at
+   * (dx, dz) once above `over`, at the movement's own gravity. The throw is
+   * the one city.ts solved for a player's body, which is a bot's too.
+   */
+  jumpPad(p: { up: number; dx: number; dz: number; over: number }): void {
+    if (this.travel || this.dropping) return;
+    this.travel = { kind: "pad", vel: new THREE.Vector3(0, p.up, 0), carry: { vx: p.dx, vz: p.dz, over: p.over } };
+    this.healing = null;
+    this.crouching = false;
+  }
+
   /** onto a zipline from `a` (the rope where it takes it) to `b`, at the ride's own speed */
   ride(a: THREE.Vector3, b: THREE.Vector3, speed: number): void {
     if (this.travel || this.dropping) return;
@@ -1140,7 +1156,22 @@ export class Bot {
   private travelStep(now: number, dt: number): void {
     const tr = this.travel;
     if (!tr) return;
-    if (tr.kind === "fling") {
+    if (tr.kind === "pad") {
+      if (tr.carry && this.pos.y >= tr.carry.over) {
+        tr.vel.x = tr.carry.vx;
+        tr.vel.z = tr.carry.vz;
+        tr.carry = null;
+      }
+      this.pos.addScaledVector(tr.vel, dt);
+      tr.vel.y -= MOVE.gravity * dt;
+      const ground = botGroundAt(this.pos.x, this.pos.z, this.pos.y);
+      if (tr.vel.y < 0 && this.pos.y <= ground) {
+        this.pos.y = ground;
+        this.travel = null;
+      }
+      if (Math.hypot(tr.vel.x, tr.vel.z) > 0.1) this.dummy.group.rotation.set(0, Math.atan2(tr.vel.x, tr.vel.z), 0);
+      this.dummy.setPose({ speed: 0, stance: "air", pitch: -10 });
+    } else if (tr.kind === "fling") {
       this.pos.addScaledVector(tr.vel, dt);
       tr.vel.y -= FLING_GRAVITY * dt;
       const ground = this.groundAt(this.pos.x, this.pos.z);

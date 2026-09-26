@@ -96,6 +96,16 @@ export interface GraphNode {
    * and rides rather than walks them: walking a rope's line would be a fall.
    */
   ropes?: number[];
+  /**
+   * A jump pad stands here (city.ts padOnto) and throws you up to node `to`:
+   * straight up at `up` m/s, then across at (dx, dz) m/s once above `over`.
+   * One way: nothing walks back down it. A bot plans through it only on its
+   * way somewhere (navgraph.ts), never wandering, since the roofs a pad
+   * reaches have parapets it cannot step off.
+   */
+  pad?: { to: number; up: number; dx: number; dz: number; over: number };
+  /** the pads that throw to this node (their nodes): what a plan to here follows back */
+  padFrom?: number[];
 }
 
 export interface BrMap {

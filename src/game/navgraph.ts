@@ -15,6 +15,7 @@ export interface NavNode {
   links: number[];
   /** nodes reached by riding a rope from this one (br.ts): a step like any other, taken by riding */
   ropes?: number[];
+  padFrom?: number[];
 }
 
 export interface NavTree {
@@ -33,7 +34,8 @@ export function navTree(nodes: readonly NavNode[], x: number, z: number, o: { gr
   if (o.target === undefined)
     nodes.forEach((n, i) => {
       const d = Math.hypot(n.x - x, n.z - z);
-      if (n.links.length && d < best && !(o.ground && (n.y ?? 0) > 1.5)) {
+      // (a node only a pad reaches has no links of its own, and is somewhere to go all the same)
+      if ((n.links.length || n.padFrom?.length) && d < best && !(o.ground && (n.y ?? 0) > 1.5)) {
         best = d;
         target = i;
       }
@@ -50,6 +52,12 @@ export function navTree(nodes: readonly NavNode[], x: number, z: number, o: { gr
     }
     // a rope is a step too: the walk plans through it, and the bot rides it
     for (const j of nodes[i].ropes ?? []) {
+      if (toward[j] !== -2) continue;
+      toward[j] = i;
+      queue.push(j);
+    }
+    // and a jump pad's throw, one way: from its pad up to here
+    for (const j of nodes[i].padFrom ?? []) {
       if (toward[j] !== -2) continue;
       toward[j] = i;
       queue.push(j);

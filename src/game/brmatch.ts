@@ -1633,6 +1633,14 @@ export class BrMatch extends Duel {
       bot.fling(new THREE.Vector3(p.dx * P.speed, P.up, p.dz * P.speed));
       return;
     }
+    // the route's next step is a jump pad's throw (city.ts, a node's `pad`): stood on the pad, it is thrown
+    if (!bot.travel && !bot.dropping) {
+      const here = this.map.nodes[b.node];
+      if (here?.pad && here.pad.to === b.goal && Math.hypot(bot.pos.x - here.x, bot.pos.z - here.z) < 1.5 && Math.abs(bot.pos.y - (here.y ?? 0)) < 0.6) {
+        bot.jumpPad(here.pad);
+        return;
+      }
+    }
     // the route's next step is a rope's other end: ride it, whichever way the
     // ring happens to lie (the graph chose this step for the distance it saves)
     if (planned && !bot.travel) {
@@ -3199,6 +3207,7 @@ export class BrMatch extends Duel {
     // this nobody contests one but the squad, and a package nobody contests
     // is a free gold gun rather than an event
     const pod = this.podToContest(bot.pos);
+    const zone = this.decay && !hurry ? this.captureZone() : null;
     if (hurry) {
       // (a climb is given up: the decay comes first)
       b.climb = null;
@@ -3222,6 +3231,19 @@ export class BrMatch extends Duel {
       const g = nodes[b.goal];
       // inside the circle, or at the node nearest its middle: straight in
       goal = inside || !g || (b.goal === b.node && this.hurryHop(ring.next.cx, ring.next.cz, b.node) < 0) ? new THREE.Vector3(ring.next.cx, 0, ring.next.cz) : new THREE.Vector3(g.x, 0, g.z);
+    } else if (zone) {
+      // SpeedKills' capture zone, open: the squads go for it and hold it, along the graph to the node nearest its
+      // middle whatever its height, up the Spire's stairs, bridges and pads if that is where it is
+      b.climb = null;
+      const t = this.zoneTree(zone);
+      const cur = nodes[b.goal];
+      if (cur && Math.hypot(cur.x - bot.pos.x, cur.z - bot.pos.z) < 1.5 && Math.abs((cur.y ?? bot.pos.y) - bot.pos.y) < 1) {
+        b.node = b.goal;
+        const hop = b.node === t.target ? -1 : t.toward[b.node];
+        if (hop >= 0) b.goal = hop;
+      }
+      const g = nodes[b.goal];
+      goal = new THREE.Vector3(g.x, 0, g.z);
     } else if (pod) {
       goal = pod;
     } else if (b.climb) {
@@ -3283,6 +3305,13 @@ export class BrMatch extends Duel {
   }
 
   /** SpeedKills: the steps toward each low tower's roof, by roof node, worked out once each */
+  /** the way to the capture zone's node (navgraph.ts), made once it opens */
+  private zoneNav: { key: string; tree: NavTree } | null = null;
+  private zoneTree(z: { x: number; z: number }): NavTree {
+    const key = `${z.x.toFixed(1)},${z.z.toFixed(1)}`;
+    if (!this.zoneNav || this.zoneNav.key !== key) this.zoneNav = { key, tree: navTree(this.map.nodes, z.x, z.z) };
+    return this.zoneNav.tree;
+  }
   private climbTrees = new Map<number, NavTree>();
   private climbTree(roof: number): NavTree {
     let t = this.climbTrees.get(roof);

@@ -82,8 +82,15 @@ unavailable). The old steps 5 to 9 follow these as 7 to 11.
    snap to hand, hit feedback checked against Hyper Scape's weakest points (floaty guns). *The outline and the
    streaks are done (Milestone 218). Still to do: the weapons' snap and the hit feedback.*
 11. **Bots in the new city:** bots onto the podiums and terraces (the graph up the podium stairs), and the
-   capture zone contested by them when it opens on the Spire. *The concourse is on the graph (Milestone 219).
-   Still to do: bots riding the jump pads, and going for the zone.*
+   capture zone contested by them when it opens on the Spire. *Done 2026-09-26 (Milestones 219 and 220).*
+
+**Order kept, and where it was changed.** The steps went in their ranked order with two exceptions:
+- Step 6 went in before step 5, while the Red Tiger research for step 5 ran.
+- Step 11 went in before the second half of step 10. Without it the bots could not reach the new centre or
+  fight for the capture zone on the Spire, which breaks a match; the rest of step 10 (the weapons' snap to
+  hand, the hit feedback) is polish.
+
+That second half of step 10 is next, then the trees and planters from the free nature kit.
 
 Each step keeps the city's budget check, the bots' walk checks and the e2e passing, measures the frame rate,
 and ends with snapshots from the street, a roof and the air.
