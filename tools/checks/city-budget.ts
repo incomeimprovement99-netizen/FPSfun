@@ -58,9 +58,14 @@ function count(root: THREE.Object3D): { meshes: number; tris: number; lights: nu
 
 /**
  * Measured 2026-09-26: 14,852 meshes, 212 once merged, 180k triangles, no
- * lights. The budget is that with about a third over it.
+ * lights. The budget is that with about a third over it. Then, with the
+ * mid-rise ring's buildings entered by their stairs (Milestone 212): 12,771
+ * meshes, 321 once merged, 201k triangles. The merged count rose because
+ * a sector's buildings now use more of the facade materials, and the merge
+ * makes one mesh a sector a material (a sector dissolves on its own); the
+ * limit on it is that with a quarter over.
  */
-const BUDGET = { meshesBefore: 20_000, meshesAfter: 290, tris: 240_000, lights: 8 };
+const BUDGET = { meshesBefore: 20_000, meshesAfter: 400, tris: 240_000, lights: 8 };
 console.log("What the SpeedKills city costs to draw");
 check("this is SpeedKills (the city is its map)", IS_SK);
 {

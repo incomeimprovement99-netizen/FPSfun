@@ -231,7 +231,7 @@
     "standOff": 1.4,
     "landInside": 3
   },
-  "_perimeter": "The middle of the city (city.ts perimeterBlock), the blocks at ring `ring` from the Spire's: Hyper Scape's mid-rise blocks, buildings of depth metres deep standing wall to wall round the block's edge on a courtyard, each segment metres long, their heights storeys at random but never more than step storeys from the one beside (a storey is a climb, two a double jump and a climb, so you run and climb the roofs round the block). One side has a passage of passage metres into the courtyard. A pad on the street throws you onto the roofs, and one in the courtyard. Ours, after the screenshots of Neo Arcadia's blocks.",
+  "_perimeter": "The middle of the city (city.ts perimeterBlock), the blocks at ring `ring` from the Spire's: Hyper Scape's mid-rise blocks, buildings of depth metres deep standing wall to wall round the block's edge on a courtyard, each segment metres long, their heights storeys at random but never more than step storeys from the one beside (a storey is a climb, two a double jump and a climb, so you run and climb the roofs round the block). One side has a passage of passage metres into the courtyard. A pad on the street throws you onto the roofs, and one in the courtyard. Ours, after the screenshots of Neo Arcadia's blocks. Its buildings of at least enter.minSeg metres along the street and up to enter.maxStoreys storeys are entered (the taller are reached from their neighbours' roofs, and entering every one cost 200k triangles, measured by tools/checks/city-budget.ts), with a door on the street and one on the courtyard and stairs up every floor to the roof, the owner's ask: a player who lands with nothing climbs to the loot without a pad. Under 9 m deep a stair's treads get too shallow for the bots (brpoi.ts building).",
   "perimeter": {
     "ring": 2,
     "depth": [
@@ -247,7 +247,11 @@
       8
     ],
     "step": 2,
-    "passage": 5
+    "passage": 5,
+    "enter": {
+      "minSeg": 9,
+      "maxStoreys": 6
+    }
   },
   "_landmarks": "A landmark per district (city.ts landmark), on the block of it nearest the Spire, each a shape of its own so every district has a face to navigate by: Hyper Scape's districts each stood round a monument, and its criticism was that the rest looked alike. The block is given by its column and row in blocks (0 to 6, the Spire at 3, 3). Each is built to be climbed, with pads up it.",
   "landmarks": {

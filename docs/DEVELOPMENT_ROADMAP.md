@@ -3785,3 +3785,31 @@ Phase 19, step 4.
   round the tower, the windows had smeared into a band.
 - **Checked:** verify, the city's budget (8,033 meshes merged to 243, 144k triangles), the roofs' routes (11,
   walked), the SpeedKills e2e (60 ok), and new snapshots `sk-landmarks-n` and `sk-landmarks-s`.
+
+## Milestone 212 — Buildings you climb by their stairs ✅
+
+Phase 19, step 6 (the owner's ask: "city streets with buildings with staircases to get to the top and loot
+while you don't have loot").
+
+- **The mid-rise ring's buildings are entered.** Each one at least 9 m along the street and up to 6 storeys
+  (city.json `perimeter.enter`) has:
+  - a door on the street and one on the courtyard;
+  - a stair up every floor to the roof;
+  - loot on its floors.
+
+  So a player who lands with nothing can climb to the roofs without a pad. The taller buildings stay solid and
+  are reached from their neighbours' roofs. Hyper Scape let you into about a tenth of its buildings; this is
+  most of a block.
+- **The bots use them.** Each one with its door on the block's edge is on the bots' graph. The roof check now
+  walks 29 routes from the street to the roof, where it walked 14.
+- **Cost, measured.** Entering every building cost 200k more triangles (344k against a budget of 240k). Two
+  changes brought it to 201k:
+  - windows only on the faces with doors (a wall shared with the next building stays whole);
+  - no interiors over 6 storeys.
+
+  The merged mesh count rose to 321, because a sector's buildings use more of the facade materials. Its limit
+  is now 400, with the measurement written beside it.
+- **Checked:** verify, the city's budget, the roofs' routes (29), and the SpeedKills e2e (60 ok). Loot is now
+  spread onto the interior floors: 102 items over 12 m.
+- **Researched:** Red Tiger and the free asset kits (docs/PHASE_19_PLAN_DOWNTOWN.md). Nothing ahead needs
+  bought assets.

@@ -436,15 +436,20 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       const storeys = next();
       const mat = sec.id === "w" ? brick : night[Math.floor(rnd() * night.length)];
       const mid = at + seg / 2;
-      const t =
-        side === 0
-          ? mass(mid, az0 + dep / 2, seg, dep, PAVE_H, storeys, mat, sec.accent, sec.id)
-          : side === 1
-            ? mass(mid, az1 - dep / 2, seg, dep, PAVE_H, storeys, mat, sec.accent, sec.id)
-            : side === 2
-              ? mass(ax0 + dep / 2, mid, dep, seg, PAVE_H, storeys, mat, sec.accent, sec.id)
-              : mass(ax1 - dep / 2, mid, dep, seg, PAVE_H, storeys, mat, sec.accent, sec.id);
-      built.push(t);
+      const [x, z, w, d] = side === 0 ? [mid, az0 + dep / 2, seg, dep] : side === 1 ? [mid, az1 - dep / 2, seg, dep] : side === 2 ? [ax0 + dep / 2, mid, dep, seg] : [ax1 - dep / 2, mid, dep, seg];
+      // Entered from the street and climbed by its stairs (perimeter.enter), so a player who lands with nothing
+      // gets to the roofs and the loot on every floor without a pad. Its doors are on the street and the
+      // courtyard, never the walls it shares, and never its east wall, which its stairs run along.
+      if (seg >= Q.enter.minSeg && storeys <= Q.enter.maxStoreys) {
+        const doors: Side[] = side === 0 ? ["n", "s"] : side === 1 ? ["s", "n"] : ["w"];
+        // windows only where there is something to see: a wall shared with the next building stays whole (a window is five pieces a storey, a wall one)
+        const windows: Side[] = side === 0 || side === 1 ? ["n", "s"] : ["w", "e"];
+        const t = tower({ x, z, w, d, storeys, sector: sec, mat, accent: sec.accent, doors, windows, block: { x0, x1, z0, z1 } });
+        towers.push(t);
+        built.push(t);
+        return;
+      }
+      built.push(mass(x, z, w, d, PAVE_H, storeys, mat, sec.accent, sec.id));
     };
     run(0, ax0, ax1);
     run(1, ax0, ax1);
@@ -706,7 +711,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
    * reach) in the city's materials, with neon up its corners and round its
    * roof. Returns where it stands and how high its roof is.
    */
-  function tower(o: { x: number; z: number; w: number; d: number; storeys: number; sector: Sector; mat: THREE.Material; accent: number; doors: Side[]; block?: { x0: number; x1: number; z0: number; z1: number } }): Tower {
+  function tower(o: { x: number; z: number; w: number; d: number; storeys: number; sector: Sector; mat: THREE.Material; accent: number; doors: Side[]; windows?: Side[]; block?: { x0: number; x1: number; z0: number; z1: number } }): Tower {
     // The way up starts at the door nearest its block's edge: a block holds two
     // towers, and a door on the side between them opens onto the other's wall.
     // (Not the east one, which the stairs run along.) Its street is the line
@@ -737,7 +742,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       storeys: o.storeys,
       storeyH,
       doors: o.doors,
-      windows: ["n", "s", "e", "w"],
+      windows: o.windows ?? ["n", "s", "e", "w"],
       stairs: true,
       roofAccess: true,
       parapet: true,

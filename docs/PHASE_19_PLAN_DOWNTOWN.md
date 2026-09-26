@@ -68,7 +68,8 @@ unavailable). The old steps 5 to 9 follow these as 7 to 11.
    it.
 6. **Streets of buildings you climb by their stairs.** The mid-rise blocks entered from the street: a door, a
    stair up through every floor to the roof, loot on the floors and landings, so the way up needs no pad and
-   no gun. The pads stay as the fast way.
+   no gun. The pads stay as the fast way. *Done 2026-09-26 (Milestone 212), before step 5 while its research
+   ran.*
 7. **The rooftop highway:** an elevated track looping the downtown's roofs, walkable, with pads onto it: a fast
    way across the city above the streets.
 8. **Atmosphere and readability:** the night made beautiful rather than murky (a glowing horizon, haze with the
@@ -83,6 +84,42 @@ unavailable). The old steps 5 to 9 follow these as 7 to 11.
 
 Each step keeps the city's budget check, the bots' walk checks and the e2e passing, measures the frame rate,
 and ends with snapshots from the street, a roof and the air.
+
+## Red Tiger, and the buildings round it (research, 2026-09-26)
+
+Sourced:
+- **Red Tiger** stood "bang in the centre of the map": "a fancy-looking French-style selection of buildings",
+  "probably the busiest of all drop spots", with "fantastic loot" (Gfinity). It was climbed by its roofs and
+  jump platforms, and had rooms to hide in. In Season 3, weapons and hacks "quickly respawn at the Red Tiger
+  landmark" (patch notes). No source gives its size or how many floors it had.
+- **Its neighbours:** M.O.N.A., "the biggest building on the map"; Limelight, "a big cylindrical building
+  that's full of loot"; T-Loop; Throne Hall; Tora Garden, between Red Tiger and Throne Hall.
+- **The districts** each had "a central reference point called a landmark", with "lots of equipment as well as
+  enemies". You looted the buildings round a landmark first, then went to it (Ubisoft Montreal).
+- **Ordinary buildings:** "Most buildings are at least three stories, and stairways and jump pads ensure you
+  almost always have a means of accessing their rooftops" (GameSpot). Only about a tenth had interiors, marked
+  by orange barriers over their doors and windows, and those were "the same non-decorated rooms" (Gamereactor).
+  "Start from the tops of buildings and loot downwards" (Gfinity).
+
+What this means for us:
+- The centre should hold the best loot, and the most of it, restocked as the match goes.
+- Every building needs a way up that is not a pad.
+- More of ours can be entered than Hyper Scape's tenth, with rooms that differ from one another.
+
+## Free assets (research, 2026-09-26)
+
+All CC0, which allows a public web build:
+- Quaternius Modular Sci-Fi MegaKit (a free tier of walls, floors, doors, columns and props on a grid);
+- Quaternius Cyberpunk Game Kit (71 models: doors, loot boxes, street lights, terminals);
+- Kenney City Kit (Commercial) and City Kit (Roads);
+- Quaternius Cars Bundle and Kenney Car Kit;
+- the Quaternius Stylized Nature MegaKit (trees);
+- the ambientCG facade materials and all of Poly Haven.
+
+The two Sketchfab night-city models are CC-BY and need a credit. A paid store's "royalty free" licence usually
+forbids shipping the raw files, which a web build does. So nothing in steps 5 to 11 needs bought assets. The
+kits are for detail: props, doors, cars and trees, with a glowing underside for hover cars. The city's shapes
+stay built in code, where the checks can measure them.
 
 ## Sources
 
