@@ -7131,6 +7131,7 @@ function step(): void {
     hopLock: !shown.empty && shown.hopLock ? { name: hopupName(shown.hopLock.mod), have: shown.hopLock.have, need: shown.hopLock.need } : null,
     unarmed: shown.empty,
     magLevel: shown.magLevel,
+    fusion: IS_SK ? { levels: loadout.slots.map((sl) => sl.fusion ?? 0), max: PROFILE.fusion.levels } : null,
     slot: loadout.displayIndex + 1,
     slotCount: loadout.slots.length,
     otherName: loadout.slots[loadout.nextIndex].empty ? "EMPTY" : loadout.slots[loadout.nextIndex].weapon.name,
@@ -7141,10 +7142,13 @@ function step(): void {
     gunCharge: shown.state.chargeFrac(now),
     heat: shown.weapon.mech.overheat ? { heat: shown.state.heat, locked: shown.state.overheated } : null,
     spin: shown.weapon.spin ? shown.state.spin : null,
-    attachLines: loadout
-      .attachLabels()
-      .filter((a) => a.available)
-      .map((a) => `${ATTACH_KEY[a.slot]}  ${a.slot}   ${a.label}`),
+    // (SpeedKills has no attachments: its guns carry their own optic, and fusion is the upgrade)
+    attachLines: IS_SK
+      ? []
+      : loadout
+          .attachLabels()
+          .filter((a) => a.available)
+          .map((a) => `${ATTACH_KEY[a.slot]}  ${a.slot}   ${a.label}`),
     clip: shown.state.clip,
     clipSize: shown.weapon.clipSize,
     reloading: shown.state.reloading,

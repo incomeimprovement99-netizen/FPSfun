@@ -4788,6 +4788,11 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   // a hack used is gone for its cooldown
   const cool = await ev<number>(page, "window.__range.sk.hacks().find((h) => h.slot === 'utility').left");
   check("speedkills: a hack just used is on its cooldown", cool > 1, `${cool.toFixed(1)} s`);
+  // the gun panel: each slot's fusion (drawn as pips), and none of the legacy game's attachment lines
+  await ev(page, "window.__range.sk.setFusion(0, 3)");
+  await sleep(300);
+  const panel = await ev<{ fusion: { levels: number[]; max: number } | null; attach: number }>(page, "({ fusion: window.__range.hud.last?.fusion ?? null, attach: (window.__range.hud.last?.attachLines ?? []).length })");
+  check("speedkills: the gun panel carries each slot's fusion to level 5, and no attachment lines", panel.fusion?.levels[0] === 3 && panel.fusion.max === 5 && panel.attach === 0, JSON.stringify(panel));
   await page.close();
   await speedkillsBrTest(browser);
   await speedkillsGhostTest(browser);

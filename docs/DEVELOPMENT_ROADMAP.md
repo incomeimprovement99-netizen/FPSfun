@@ -3534,3 +3534,11 @@ fixed and proven; two were timing, and pass alone.
   and 40 of 40.
 - **Timing, passing alone:** Resurgence's 5 s off a wait read 6.5 s on the loaded machine (5.7 alone), and the
   battle royale host migration's heir, both rerun alone and passing.
+
+## Milestone 197 — The gun panel says its fusion ✅
+
+Stage P, first piece. In SpeedKills each gun slot on the HUD carries its fusion as five pips along its foot,
+lit to its level, as the hack squares show theirs, and the line over the slots reads FUSION 3/5 where the
+legacy game reads the magazine level. The legacy game's attachment lines are no longer drawn in SpeedKills,
+whose guns carry their own optic (the plan's HUD: the gun and its fusion level, nothing to sort). Checked by
+the e2e (the panel's levels and no attachment lines) and the snapshot `sk-hud`, now with slot 1 at level 3.

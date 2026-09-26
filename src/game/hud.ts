@@ -96,6 +96,8 @@ export interface HudState {
   /** the gun's locked hop-up and its progress (a battle royale, Seasons 29 and 30) */
   hopLock?: { name: string; have: number; need: number } | null;
   magLevel: number;
+  /** SpeedKills: each slot's fusion level (slot 1 first) and the most there is; null in the legacy game */
+  fusion?: { levels: number[]; max: number } | null;
   slot: number;
   slotCount: number;
   otherName: string;
@@ -2897,8 +2899,20 @@ export class Hud {
       this.ctx.font = this.font(700, 15 * u);
       const fit = Math.min(1, (slotW - 32 * u) / Math.max(1, this.ctx.measureText(label).width));
       this.text(label, x + 24 * u, top + 21 * u, 700, 15 * u * fit, active ? WHITE : DIM);
+      // SpeedKills: the gun's fusion as pips along the slot's foot, lit to its level (as the hacks show theirs)
+      const lv = s.fusion ? s.fusion.levels[i] : undefined;
+      if (s.fusion && lv !== undefined && names[i] !== "EMPTY") {
+        const n = s.fusion.max;
+        const pw = 10 * u;
+        const gap = 3 * u;
+        const x0 = x + slotW - 8 * u - n * pw - (n - 1) * gap;
+        for (let k = 0; k < n; k++) {
+          c.fillStyle = k < lv ? "#3cf2ff" : "rgba(255,255,255,0.18)";
+          c.fillRect(x0 + k * (pw + gap), top + 4 * u, pw, 3 * u);
+        }
+      }
     }
-    if (!s.unarmed) this.text(`${s.fireMode.toUpperCase()}  ·  MAG ${s.magLevel}`, right, top - 10 * u, 600, 13 * u, DIM, "right");
+    if (!s.unarmed) this.text(s.fusion ? `${s.fireMode.toUpperCase()}  ·  FUSION ${s.fusion.levels[s.slot - 1] ?? 0}/${s.fusion.max}` : `${s.fireMode.toUpperCase()}  ·  MAG ${s.magLevel}`, right, top - 10 * u, 600, 13 * u, DIM, "right");
     // a locked hop-up: a thin bar over the slots, filling with the damage done with the gun
     if (s.hopLock && !s.unarmed) {
       const w = 170 * u;
