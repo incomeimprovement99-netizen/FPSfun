@@ -25,6 +25,7 @@
 // strafe) sees the same inputs a keyboard gives. Auto sprint is a setting:
 // on, pushing the stick forward sprints; off, click the stick like the game.
 import type { Action } from "./input";
+import PAD from "../config/gamepad.json";
 
 export interface PadSettings {
   /** 1 to 8, like the game */
@@ -33,6 +34,10 @@ export interface PadSettings {
   curve: "classic" | "linear";
   /** inner deadzone, 0 to 0.3 */
   deadzone: number;
+  /** outer deadzone: the last share of the stick's travel counts as full, 0 to 0.3 */
+  outerDeadzone: number;
+  /** the Classic curve's power: 1 is as linear, higher is finer near the centre */
+  exponent: number;
   autoSprint: boolean;
   /** rumble on hits taken and shots fired */
   rumble: boolean;
@@ -58,7 +63,9 @@ export const PAD_DEFAULTS: PadSettings = {
   look: 3,
   ads: 3,
   curve: "classic",
-  deadzone: 0.12,
+  deadzone: PAD.defaults.deadzone,
+  outerDeadzone: PAD.defaults.outerDeadzone,
+  exponent: PAD.defaults.exponent,
   autoSprint: true,
   rumble: true,
   aimAssist: true,
@@ -74,18 +81,32 @@ export const PAD_DEFAULTS: PadSettings = {
 };
 
 /** the stick counts as at its edge (where the extra turn ramps in) from here */
-export const PAD_EDGE = 0.98;
+export const PAD_EDGE = PAD.edge;
+
+/** the stick's response: the curve's power on the deflection, keeping its sign */
+export function padCurve(s: Pick<PadSettings, "curve" | "exponent">, v: number): number {
+  return s.curve === "linear" ? v : Math.sign(v) * Math.pow(Math.abs(v), s.exponent);
+}
+
+/** an axis through the inner and outer deadzones: 0 inside the inner, 1 past the outer, linear between */
+export function padDeadzone(s: Pick<PadSettings, "deadzone" | "outerDeadzone">, v: number): number {
+  const a = Math.abs(v);
+  if (a <= s.deadzone) return 0;
+  const span = Math.max(1e-3, 1 - s.deadzone - s.outerDeadzone);
+  return Math.sign(v) * Math.min(1, (a - s.deadzone) / span);
+}
 
 /**
  * The advanced look's rate, degrees a second (yaw left, pitch up): the curve
  * times the speed for the aim (between hip and ADS by how far the aim is in),
  * plus the extra turn at the stick's edge, ramped in by how long it has been there.
  */
-export function advancedLookRate(s: PadSettings, rx: number, ry: number, adsFrac: number, edgeTime: number): { yawLeft: number; pitchUp: number } {
-  const curve = (v: number) => (s.curve === "linear" ? v : Math.sign(v) * Math.pow(Math.abs(v), 1.7));
+export function advancedLookRate(s: PadSettings, rx: number, ry: number, adsFrac: number, edgeTime: number, opticMult = 1): { yawLeft: number; pitchUp: number } {
+  const curve = (v: number) => padCurve(s, v);
   const a = Math.max(0, Math.min(1, adsFrac));
-  const yawSp = s.yaw + (s.adsYaw - s.yaw) * a;
-  const pitchSp = s.pitch + (s.adsPitch - s.pitch) * a;
+  // the per-optic ADS table (Settings) scales the aimed speeds, as it does the mouse's
+  const yawSp = s.yaw + (s.adsYaw * opticMult - s.yaw) * a;
+  const pitchSp = s.pitch + (s.adsPitch * opticMult - s.pitch) * a;
   const ramp = s.rampTime > 0 ? Math.max(0, Math.min(1, (edgeTime - s.rampDelay) / s.rampTime)) : edgeTime >= s.rampDelay ? 1 : 0;
   // the extra turn is a hipfire thing: it fades out as the aim comes in
   const extra = ramp * (1 - a);
@@ -144,7 +165,7 @@ export const PAD_PRESETS: Record<PadPreset, { name: string; changes: Partial<Rec
  * down that long.
  */
 export const PAD_HOLDS: Partial<Record<Action, Action>> = { swapWeapon: "holster", fireMode: "inspect" };
-export const HOLD_TIME = 0.3;
+export const HOLD_TIME = PAD.holdTime;
 /** the live map: the defaults with the player's changes (the Controls tab) */
 const BUTTON: Record<number, Action | "menu"> = { ...DEFAULT_PAD_BUTTONS };
 /** put a button map on; Start stays the menu, so a player can always get back to it */
@@ -162,8 +183,8 @@ export function padButtons(): Readonly<Record<number, Action | "menu">> {
   return BUTTON;
 }
 /** the stick as keys, above this deflection */
-const MOVE_THRESHOLD = 0.35;
-const TRIGGER_THRESHOLD = 0.35;
+const MOVE_THRESHOLD = PAD.moveThreshold;
+const TRIGGER_THRESHOLD = PAD.triggerThreshold;
 
 export class GamepadInput {
   settings: PadSettings = { ...PAD_DEFAULTS };
@@ -216,7 +237,7 @@ export class GamepadInput {
    * Read the pad once per frame. `dt` scales the look; the result is in
    * degrees for this frame (yaw left positive, pitch up positive).
    */
-  poll(now: number, dt: number, adsScale: number, adsFrac = 0): { yawLeft: number; pitchUp: number } {
+  poll(now: number, dt: number, adsScale: number, adsFrac = 0, opticMult = 1): { yawLeft: number; pitchUp: number } {
     const p = this.pad();
     this.pressed.clear();
     this.lookX = 0;
@@ -227,12 +248,7 @@ export class GamepadInput {
       return { yawLeft: 0, pitchUp: 0 };
     }
     const s = this.settings;
-    const dz = (v: number) => {
-      const a = Math.abs(v);
-      if (a <= s.deadzone) return 0;
-      const t = Math.min(1, (a - s.deadzone) / (1 - s.deadzone - 0.02));
-      return Math.sign(v) * t;
-    };
+    const dz = (v: number) => padDeadzone(s, v);
     const ax = p.axes;
     const mx = dz(ax[0] ?? 0);
     const my = dz(ax[1] ?? 0);
@@ -287,8 +303,9 @@ export class GamepadInput {
       }
     }
     // auto sprint: a forward push is a sprint press each time it starts
-    if (s.autoSprint && my < -0.8 && !(this.lastMove.y < -0.8)) this.pressed.add("sprint");
-    if (s.autoSprint && my < -0.8) next.add("sprint");
+    const sprintAt = -PAD.autoSprintAt;
+    if (s.autoSprint && my < sprintAt && !(this.lastMove.y < sprintAt)) this.pressed.add("sprint");
+    if (s.autoSprint && my < sprintAt) next.add("sprint");
     this.lastMove = { x: mx, y: my };
     this.down = next;
 
@@ -298,16 +315,16 @@ export class GamepadInput {
     // the advanced look: its own speeds, and the extra turn at the edge
     if (s.advanced) {
       this.edgeTime = Math.abs(rx) >= PAD_EDGE || Math.abs(ry) >= PAD_EDGE ? this.edgeTime + dt : 0;
-      const r = advancedLookRate(s, rx, ry, adsFrac, this.edgeTime);
+      const r = advancedLookRate(s, rx, ry, adsFrac, this.edgeTime, opticMult);
       this.lookX = r.yawLeft * dt;
       this.lookY = r.pitchUp * dt;
       return { yawLeft: this.lookX, pitchUp: this.lookY };
     }
     // look: the curve, then the speed for the level, scaled at ADS
-    const curve = (v: number) => (s.curve === "linear" ? v : Math.sign(v) * Math.pow(Math.abs(v), 1.7));
-    const yawSpeed = 60 * Math.max(1, Math.min(8, s.look));
-    const pitchSpeed = yawSpeed * (2 / 3);
-    const adsK = adsScale === 1 ? 1 : adsScale * (Math.max(1, Math.min(8, s.ads)) / 3);
+    const curve = (v: number) => padCurve(s, v);
+    const yawSpeed = PAD.yawPerLevel * Math.max(1, Math.min(8, s.look));
+    const pitchSpeed = yawSpeed * PAD.pitchShare;
+    const adsK = adsScale === 1 ? 1 : adsScale * (Math.max(1, Math.min(8, s.ads)) / PAD.adsBase);
     this.lookX = -curve(rx) * yawSpeed * adsK * dt;
     this.lookY = -curve(ry) * pitchSpeed * adsK * dt;
     return { yawLeft: this.lookX, pitchUp: this.lookY };

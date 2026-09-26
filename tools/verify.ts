@@ -9,7 +9,8 @@ import { ViewKick, tuning } from "../src/game/recoil";
 import { Loadout } from "../src/game/loadout";
 import { AMMO } from "../src/game/ammo";
 import { WeaponState } from "../src/game/weapon-state";
-import { AimAssist } from "../src/game/aimassist";
+import { AimAssist, falloff } from "../src/game/aimassist";
+import aaCfg from "../src/config/aimassist.json";
 import { Ring, RING_PHASES, RING_TICK } from "../src/game/ring";
 import { RANGE_SOLIDS } from "../src/game/range";
 import { Dummy, TURN_STEP_AT } from "../src/game/dummy";
@@ -92,7 +93,7 @@ import { medalFor, roomPars } from "../src/game/course";
 import { BASIC_COURSE } from "../src/game/courses/basic";
 import { ADVANCED_COURSE } from "../src/game/courses/advanced";
 import { opticZoom } from "../src/game/sens";
-import { PAD_DEFAULTS, advancedLookRate } from "../src/game/gamepad";
+import { PAD_DEFAULTS, advancedLookRate, padCurve, padDeadzone } from "../src/game/gamepad";
 import { withoutClashes } from "../src/ui/binds";
 import { withoutUndefined } from "../src/net/link";
 import modesCfg from "../src/config/modes.json";
@@ -643,8 +644,38 @@ console.log("\nAim assist (controller only, src/game/aimassist.ts)");
   RANGE_SOLIDS.push({ minX: -2, maxX: 2, minZ: -6, maxZ: -5, top: 3, base: 0 });
   eq("a wall between switches it off", aa.update({ ...input, targets: [fig(0, 1.6, -10)] }).target, null);
   RANGE_SOLIDS.pop();
+  // no snapping: a held target keeps the assist while in its zone, even with another nearer the reticle
+  const aaS = new AimAssist();
+  const held = fig(0.6, 1.6, -10);
+  const nearer = fig(0.05, 1.6, -10);
+  aaS.update({ ...input, targets: [held] });
+  eq("no snapping: a held target keeps the assist over a nearer one", aaS.update({ ...input, targets: [held, nearer] }).target, held);
+  eq("a fresh assist takes the nearer one", new AimAssist().update({ ...input, targets: [held, nearer] }).target, nearer);
+  // falloff: full strength near, none at the edge of its range
+  eq("full strength inside falloffStart", falloff(aaCfg.falloffStart), 1);
+  near("half way to maxRange, half strength", falloff((aaCfg.falloffStart + aaCfg.maxRange) / 2), 0.5, 1e-9);
+  eq("none at maxRange", falloff(aaCfg.maxRange), 0);
+  const far = fig(0, 1.6, -(aaCfg.falloffStart + aaCfg.maxRange) / 2);
+  const nearOne = fig(0, 1.6, -10);
+  eq("a far target slows the stick less than a near one", new AimAssist().update({ ...input, targets: [far] }).slow > new AimAssist().update({ ...input, targets: [nearOne] }).slow, true);
   aa.enabled = false;
   eq("off in the settings is off", aa.update(input).target, null);
+}
+
+console.log("\nThe controller's stick (src/game/gamepad.ts, src/config/gamepad.json)");
+{
+  const s = { ...PAD_DEFAULTS };
+  eq("inside the inner deadzone is nothing", padDeadzone(s, s.deadzone * 0.9), 0);
+  eq("past the outer deadzone is full", padDeadzone(s, 1 - s.outerDeadzone / 2), 1);
+  eq("and the same to the left", padDeadzone(s, -(1 - s.outerDeadzone / 2)), -1);
+  near("half way between them is half", padDeadzone(s, s.deadzone + (1 - s.deadzone - s.outerDeadzone) / 2), 0.5, 1e-9);
+  eq("a wider outer deadzone reaches full sooner", padDeadzone({ ...s, outerDeadzone: 0.2 }, 0.85), 1);
+  near("the Classic curve is the configured power", padCurve(s, 0.5), Math.pow(0.5, s.exponent), 1e-12);
+  eq("Linear is as the stick", padCurve({ ...s, curve: "linear" }, 0.5), 0.5);
+  eq("a higher power is finer near the centre", padCurve({ ...s, exponent: 2.5 }, 0.3) < padCurve(s, 0.3), true);
+  const adv = { ...s, advanced: true };
+  eq("the per-optic ADS table scales the advanced look's aimed speed", advancedLookRate(adv, 1, 0, 1, 0, 0.5).yawLeft, advancedLookRate(adv, 1, 0, 1, 0, 1).yawLeft * 0.5);
+  eq("and leaves the hipfire speed alone", advancedLookRate(adv, 1, 0, 0, 0, 0.5).yawLeft, advancedLookRate(adv, 1, 0, 0, 0, 1).yawLeft);
 }
 
 console.log("\nThe ring (src/game/ring.ts)");

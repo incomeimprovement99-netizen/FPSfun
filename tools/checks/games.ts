@@ -13,6 +13,7 @@ import { GAME, GAME_IDS, profileOf, resolveGame } from "../../src/game/game";
 import { weaponIds, weaponMods } from "../../src/game/weapons";
 import { optionsFor } from "../../src/game/attachments";
 import { ABILITY_IDS } from "../../src/game/abilities";
+import binds from "../../src/config/binds.json";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -83,6 +84,22 @@ console.log("The game switch and its profiles");
   const ttkCut = 1 - 1 / F[F.length - 1].damage;
   check("speedkills: a level-5 gun kills at most about 10% faster than one as found, on damage alone", ttkCut <= 0.1, `${(ttkCut * 100).toFixed(1)}%`);
   check("speedkills: the ghost's revive is slower away from the reviver, and has a radius to be near", sk.life.ghost && sk.life.awaySlowdown > 1 && sk.life.followRadius > 0 && sk.life.reviveSeconds > 0);
+}
+
+console.log("\nSpeedKills' keys");
+{
+  // The legacy kit's ultimate and its card's picks share keys with the zoom,
+  // the emote and the spray (plan section 12, items 9 and 10). SpeedKills turns
+  // the kit off (main.ts: abilities.enabled = !IS_SK), so those actions never
+  // fire there, and every key it does use must do one thing only.
+  const unused = new Set(["ultimate", "pickAbility1", "pickAbility2", "pickAbility3", "pickAbility4", "pickAbility5", "pickAbility6"]);
+  const byKey = new Map<string, string[]>();
+  for (const [action, keys] of Object.entries(binds as Record<string, unknown>)) {
+    if (action.startsWith("_") || unused.has(action)) continue;
+    for (const k of Array.isArray(keys) ? keys : [keys]) if (typeof k === "string") byKey.set(k, [...(byKey.get(k) ?? []), action]);
+  }
+  const shared = [...byKey].filter(([, a]) => a.length > 1).map(([k, a]) => `${k}: ${a.join(", ")}`);
+  check("speedkills: no key does two things", shared.length === 0, shared.join("; "));
 }
 
 console.log(fails === 0 ? "\nGAMES PASS" : `\nGAMES FAIL (${fails})`);

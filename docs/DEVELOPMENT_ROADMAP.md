@@ -3400,3 +3400,42 @@ Stage J. `src/game/decay.ts`, `src/config/decay.json`.
 - **Checked in a real match** by the e2e: the plan, the first wave decaying with 544 boxes held out, damage in
   it, eight sectors gone and the zone open, and 45 s alone winning. Snapshot `sk-decay`.
 
+## Milestone 191 — The Gulag, then a ghost that follows its squad ✅
+
+Stage I. `src/game/brmatch.ts`, `src/game/brplay.ts`, speedkills.json `life`.
+
+- **No knockdowns:** at zero a SpeedKills player is out.
+- **The Gulag first:** every first death goes to the Gulag until the capture zone opens (the legacy game stops
+  at the third ring).
+- **Then a ghost:** a later death with a squad mate up and a restore left. It moves at 1.35x, sees enemies
+  within 25 m, pings, and cannot shoot, pick up or use hacks. Enemies never see it; its squad sees a pale
+  figure where it is, and its body stays where it fell.
+- **The echo:** its death box. A squad mate holding interact there restores it in 5 s, a third as fast while
+  the ghost is more than 12 m from them (the owner's follow rule, said on the prompt). The hold fills at a
+  rate now, not by the time since it began. A restored player stands up at 100.
+- **Two restores a match**, the owner's number; after them a death is final and the squad is told.
+- **Checked** over two real pages by the e2e: the ghost moving, the prompt saying it is away, 5 s not enough
+  while it is, and the restore finishing once it comes over.
+
+## Milestone 192 — The controller, first class ✅
+
+Stage M. `src/game/gamepad.ts`, `src/config/gamepad.json`, `src/game/aimassist.ts`, `src/config/aimassist.json`.
+
+- **Every pad number in config:** the stick-as-keys and trigger thresholds, the hold time, the stick's edge,
+  the look speeds and the auto-sprint push, each with its note.
+- **An outer deadzone** (2% by default: a worn stick that never reads a full 1.0 still turns at full speed)
+  and a **curve strength** (the Classic curve's power, 1.7, from 1 to 3), both in Settings.
+- **Per-optic ADS** now scales the pad's advanced look too; the simple look already used the table.
+- **Aim assist:**
+  - rotation hip and aimed set apart (both 0.4 for now);
+  - strength full to 25 m and easing to none at 60 m, so a far target is the player's own aim;
+  - no snapping: it holds the target it has while that target is still in its zone, even if another comes
+    nearer the reticle.
+  - Still never through walls, never with no input, never on a mouse.
+- **Keys:** a check that no key does two things among the actions SpeedKills uses. The three legacy
+  collisions (ultimate and zoom on Z, kit picks 3 and 4 on the emote and spray keys) are legacy-only; the kit
+  is off in SpeedKills.
+- **The Controller heading** said an old layout; it now says the default one with the hacks on LB and D-pad
+  right.
+- **Proven** by putting each bug back: stickiness off and no falloff failed 4 checks; a second action on F
+  failed the key check.

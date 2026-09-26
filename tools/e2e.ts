@@ -3008,6 +3008,11 @@ async function finishTest(browser: Browser, query: string): Promise<void> {
   const adv = await ev<{ advanced: boolean; extraYaw: number; saved: boolean }>(page, `({ advanced: window.__range.input.pad.settings.advanced, extraYaw: window.__range.input.pad.settings.extraYaw, saved: (JSON.parse(localStorage.getItem("range.pad.v1") || "{}").extraYaw === 150) })`);
   check("advanced look: on, with the extra yaw set and remembered", adv.advanced && adv.extraYaw === 150 && adv.saved, JSON.stringify(adv));
   await ev(page, `(() => { const s = document.getElementById("padAdvanced"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
+  // ---- the stick's outer deadzone and curve strength: set, used, remembered, then put back
+  await ev(page, `(() => { for (const [id, v] of [["padOuterDeadzone", "10"], ["padExponent", "2.2"]]) { const i = document.getElementById(id); i.value = v; i.dispatchEvent(new Event("change")); } })()`);
+  const stick = await ev<{ outer: number; exp: number; saved: boolean }>(page, `({ outer: window.__range.input.pad.settings.outerDeadzone, exp: window.__range.input.pad.settings.exponent, saved: (() => { const p = JSON.parse(localStorage.getItem("range.pad.v1") || "{}"); return p.outerDeadzone === 0.1 && p.exponent === 2.2; })() })`);
+  check("controller: the outer deadzone and curve strength are set and remembered", Math.abs(stick.outer - 0.1) < 1e-9 && stick.exp === 2.2 && stick.saved, JSON.stringify(stick));
+  await ev(page, `(() => { for (const [id, v] of [["padOuterDeadzone", "2"], ["padExponent", "1.7"]]) { const i = document.getElementById(id); i.value = v; i.dispatchEvent(new Event("change")); } })()`);
   // ---- inspect: hold reload with a full magazine; firing ends it
   await sleep(2500);
   await ev(page, "(() => { const s = window.__range.loadout.active.state; s.clip = window.__range.loadout.active.weapon.clipSize; })()");

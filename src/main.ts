@@ -65,6 +65,7 @@ import { submitScore } from "./game/leaderboard";
 import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link, type MatchOpts, type MatchRules, type NetMsg } from "./net/link";
 import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
 import { AimAssist } from "./game/aimassist";
+import PAD_CFG from "./config/gamepad.json";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
 import type { MoveInput } from "./game/player";
 import { buildArena, buildTriArena, ARENA_BOUNDS, ARENA_HANDLES, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
@@ -5371,6 +5372,9 @@ try {
     if (typeof p.ads === "number" && p.ads >= 1 && p.ads <= 8) s.ads = p.ads;
     if (p.curve === "linear" || p.curve === "classic") s.curve = p.curve;
     if (typeof p.deadzone === "number" && p.deadzone >= 0 && p.deadzone <= 0.3) s.deadzone = p.deadzone;
+    const lim = PAD_CFG.limits;
+    if (typeof p.outerDeadzone === "number" && p.outerDeadzone >= lim.outerDeadzone[0] && p.outerDeadzone <= lim.outerDeadzone[1]) s.outerDeadzone = p.outerDeadzone;
+    if (typeof p.exponent === "number" && p.exponent >= lim.exponent[0] && p.exponent <= lim.exponent[1]) s.exponent = p.exponent;
     if (typeof p.autoSprint === "boolean") s.autoSprint = p.autoSprint;
     if (typeof p.rumble === "boolean") s.rumble = p.rumble;
     if (typeof p.aimAssist === "boolean") s.aimAssist = p.aimAssist;
@@ -5402,6 +5406,8 @@ try {
   }
   const curve = $<HTMLSelectElement>("padCurve");
   const dead = $<HTMLInputElement>("padDeadzone");
+  const outer = $<HTMLInputElement>("padOuterDeadzone");
+  const expo = $<HTMLInputElement>("padExponent");
   const auto = $<HTMLSelectElement>("padAutoSprint");
   const rumble = $<HTMLSelectElement>("padRumble");
   const assistSel = $<HTMLSelectElement>("padAimAssist");
@@ -5411,6 +5417,8 @@ try {
   ads.value = String(s.ads);
   curve.value = s.curve;
   dead.value = String(Math.round(s.deadzone * 100));
+  outer.value = String(Math.round(s.outerDeadzone * 100));
+  expo.value = String(s.exponent);
   auto.value = s.autoSprint ? "1" : "0";
   rumble.value = s.rumble ? "1" : "0";
   const save = () => {
@@ -5421,6 +5429,11 @@ try {
     // blank or unreadable field falls back to 12
     const dz = Number(dead.value);
     s.deadzone = Math.max(0, Math.min(0.3, (dead.value.trim() !== "" && Number.isFinite(dz) ? dz : 12) / 100));
+    const lim = PAD_CFG.limits;
+    const od = Number(outer.value);
+    s.outerDeadzone = outer.value.trim() !== "" && Number.isFinite(od) ? Math.max(lim.outerDeadzone[0], Math.min(lim.outerDeadzone[1], od / 100)) : PAD_CFG.defaults.outerDeadzone;
+    const ex = Number(expo.value);
+    s.exponent = expo.value.trim() !== "" && Number.isFinite(ex) ? Math.max(lim.exponent[0], Math.min(lim.exponent[1], ex)) : PAD_CFG.defaults.exponent;
     s.autoSprint = auto.value === "1";
     s.rumble = rumble.value === "1";
     s.aimAssist = assistSel.value === "1";
@@ -5431,7 +5444,7 @@ try {
       /* ignore */
     }
   };
-  for (const el of [look, ads, curve, dead, auto, rumble, assistSel]) el.addEventListener("change", save);
+  for (const el of [look, ads, curve, dead, outer, expo, auto, rumble, assistSel]) el.addEventListener("change", save);
   // the advanced look: on or off, and its numbers
   const adv = $<HTMLSelectElement>("padAdvanced");
   const nums: Array<[keyof PadSettings, number, number]> = [
@@ -5730,7 +5743,7 @@ function step(): void {
   // toggles the menu; with a pad in use no pointer lock is needed to play.
   const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, opticAdsMult()) - 1) * loadout.active.state.adsFrac;
   input.pad.cardOpen = abilities.choosing;
-  const padLook = input.pad.poll(wall, dt, padAdsScale, loadout.active.state.adsFrac);
+  const padLook = input.pad.poll(wall, dt, padAdsScale, loadout.active.state.adsFrac, opticAdsMult());
   if (input.pad.menuPressed) {
     if (input.locked) input.unlock();
     else if (!overlay.classList.contains("hidden")) {

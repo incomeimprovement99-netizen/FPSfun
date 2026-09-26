@@ -1,0 +1,33 @@
+{
+  "_note": "Controller numbers (src/game/gamepad.ts). The browser's Gamepad API gives each stick axis as -1..1 and each trigger as 0..1; the thresholds below are fractions of that travel. Where the legacy game publishes a value it is noted; the rest are ours.",
+
+  "_moveThreshold": "the left stick counts as a movement key past this deflection, so every movement rule sees what a keyboard gives",
+  "moveThreshold": 0.35,
+  "_triggerThreshold": "a trigger counts as pulled past this much of its travel",
+  "triggerThreshold": 0.35,
+  "_autoSprintAt": "with auto sprint on, a forward push past this sprints",
+  "autoSprintAt": 0.8,
+  "_holdTime": "seconds a button with a hold (Y: holster, D-pad left: inspect) must be down before the hold goes instead of the tap",
+  "holdTime": 0.3,
+  "_edge": "the right stick is at its edge from here, where the advanced look's extra turn ramps in",
+  "edge": 0.98,
+
+  "_look": "the simple look: yaw degrees a second per sensitivity level at full deflection (3 is 180, where the legacy game's ALC yaw defaults) and pitch as a share of yaw",
+  "yawPerLevel": 60,
+  "pitchShare": 0.6666666666666666,
+  "_adsBase": "the ADS level that leaves the zoom scaling alone (the mouse's own rule)",
+  "adsBase": 3,
+
+  "_defaults": "what a new player gets. deadzone and outerDeadzone are fractions of the stick; exponent is the Classic curve's power (1 is Linear, higher is finer near the centre). A stick rarely reaches a full 1.0 on the diagonal or when worn, so the outer deadzone treats the last 2% as full.",
+  "defaults": {
+    "deadzone": 0.12,
+    "outerDeadzone": 0.02,
+    "exponent": 1.7
+  },
+  "_limits": "what Settings accepts",
+  "limits": {
+    "deadzone": [0, 0.3],
+    "outerDeadzone": [0, 0.3],
+    "exponent": [1, 3]
+  }
+}
