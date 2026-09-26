@@ -3832,3 +3832,19 @@ Hyper Scape's Red Tiger was).
   of a stair, and the bridges now keep clear of the stairs.
 - **Also checked:** verify, the city's budget (204k triangles, 322 merged meshes), the SpeedKills e2e (60 ok),
   and a new snapshot `sk-concourse`.
+
+## Milestone 214 — The centre's loot comes back ✅
+
+Phase 19, step 5, second half.
+
+- **The hot zone restocks.** In Hyper Scape's third season, "weapons and hacks quickly respawn at the Red Tiger
+  landmark". Ours works like this (speedkills.json `loot.restock`):
+  - every 20 s of the fight, the host counts the guns and hack cores left in the centre;
+  - once fewer than 60% of what it started with remain, it rolls the hot tier again on up to 8 of the hot
+    spots that have nothing lying near them;
+  - it sends them as the loot drops it already sends, so a build from before this sees them too.
+
+  The centre stays worth fighting for all match, and the fights come to it.
+- **Checked:** a new e2e check takes 70% of the centre's loot away in a real match and watches it come back
+  (59 to 71 items). With the restock switched off it fails (59 stays 59), which proves it. Also checked:
+  verify and the SpeedKills e2e.

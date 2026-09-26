@@ -5140,6 +5140,15 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   );
   check("speedkills br: the floor is guns and hack cores, nothing else to sort", floor.kinds.every((k) => ["weapon", "hack", "bin", "box"].includes(k)) && floor.kinds.includes("hack"), JSON.stringify(floor.kinds));
   check("speedkills br: the Spire is the richest sector (the hot drop)", floor.spire > floor.other / 8 * 1.5, JSON.stringify({ spire: floor.spire, other: floor.other }));
+  // The centre's loot comes back (speedkills.json loot.restock, as Red Tiger's did): take most of the hot
+  // zone's guns and hack cores away, as a crowd landing there would, and the host puts some back.
+  const taken = await ev<{ stock: number; left: number }>(
+    page,
+    `(() => { const d = window.__range.duel(); const f = d.lootField; const held = f.hotHeld(); held.slice(0, Math.ceil(held.length * 0.7)).forEach((x) => f.remove(x.key)); d.restockAt = 0; return { stock: f.hotStock, left: f.hotHeld().length }; })()`,
+  );
+  await sleep(1500);
+  const back = await ev<number>(page, "window.__range.duel().lootField.hotHeld().length");
+  check("speedkills br: the centre's loot comes back once most of it is taken", taken.stock > 40 && back > taken.left, JSON.stringify({ ...taken, back }));
   check("speedkills br: some guns lie already fused", floor.levels[1] + floor.levels[2] + floor.levels[3] > 0, JSON.stringify(floor.levels));
   // picking up: a copy fuses, a higher copy takes you to its level, a hack core fuses its hack
   const fuse = await ev<{ first: number; second: number; third: number; hack: number }>(

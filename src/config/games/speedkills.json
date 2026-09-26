@@ -437,7 +437,7 @@
       "recoil": 0.9
     }
   },
-  "_loot": "The battle royale's floor (src/game/loot.ts): guns and hack cores, nothing else (the owner: loot is never homework). spots is how many places to find something each sector has: the centre, THE SPIRE, is the hot drop, the most and the best of it; the rest are the same. A spot holds a gun with gunChance and a hack core with hackChance (at least one of the two). A gun is found at fusion level 0, or higher by the tier's odds, one number a level (0, 1, 2, 3); a hack core the same way by hackOdds. A gun's colour on the floor is its level: 0 white, 1 blue, 2 purple, 3 gold. maxFloor is the highest floor a spot is put on, metres: the city's roofs run to 32 m in the mid-rise and 60 m on the downtown's lower towers, and the high ground is where the fights are (Hyper Scape: \"any floor lower than a rooftop might as well be lava\"), so the loot goes up there too.",
+  "_loot": "The battle royale's floor (src/game/loot.ts): guns and hack cores, nothing else (the owner: loot is never homework). spots is how many places to find something each sector has: the centre, THE SPIRE, is the hot drop, the most and the best of it; the rest are the same. A spot holds a gun with gunChance and a hack core with hackChance (at least one of the two). A gun is found at fusion level 0, or higher by the tier's odds, one number a level (0, 1, 2, 3); a hack core the same way by hackOdds. A gun's colour on the floor is its level: 0 white, 1 blue, 2 purple, 3 gold. maxFloor is the highest floor a spot is put on, metres: the city's roofs run to 32 m in the mid-rise and 60 m on the downtown's lower towers, and the high ground is where the fights are (Hyper Scape: \"any floor lower than a rooftop might as well be lava\"), so the loot goes up there too. restock is the centre's loot coming back, as Hyper Scape's Red Tiger's did in its third season (\"weapons and hacks quickly respawn at the Red Tiger landmark\"): every `every` seconds of the fight the host counts the guns and hack cores left in the hot zone, and when fewer than `below` of what it started with remain, puts a hot spot's roll back on up to `batch` of its spots with nothing within `near` metres. The centre stays worth fighting for all match, and the fights come to it.",
   "loot": {
     "spots": {
       "hot": 140,
@@ -473,7 +473,13 @@
         0.0
       ]
     },
-    "maxFloor": 60
+    "maxFloor": 60,
+    "restock": {
+      "every": 20,
+      "below": 0.6,
+      "batch": 8,
+      "near": 1.5
+    }
   },
   "_ship": "The dropship (dropship.ts), over squad.json's: doorsIn is the seconds of flight it appears short of the city's edge, which is when its doors open. The owner: the ship starts off the map and flies at least 5 s before anyone can jump, so the loading screen and the city finish behind it; at 26 m/s, 6 s is about 156 m out.",
   "ship": {

@@ -578,6 +578,9 @@ export class LootField {
    * which is also why a guest needs nothing sent to draw the same circle.
    */
   hotZone: HotZone | null = null;
+  /** the hot zone's spots, and how many guns and hack cores it started with: what a restock puts back to */
+  hotSpots: THREE.Vector3[] = [];
+  hotStock = 0;
   private nextKey = 1;
   /** the next key a new item gets (host migration: the heir's snapshot carries the host's) */
   get keyNext(): number {
@@ -697,6 +700,31 @@ export class LootField {
     return d.item;
   }
 
+  /** the guns and hack cores lying in the hot zone now */
+  hotHeld(): LootDrop[] {
+    const z = this.hotZone;
+    if (!z) return [];
+    return [...this.drops.values()].filter((d) => (d.item.kind === "weapon" || d.item.kind === "hack") && Math.hypot(d.pos.x - z.x, d.pos.z - z.z) <= z.radius);
+  }
+
+  /**
+   * The host's restock of the hot zone (speedkills.json loot.restock): when
+   * fewer than `below` of what it started with are left, the spots with
+   * nothing near are rolled again, up to `batch` of them. Says what to put
+   * down where; the caller keys and sends each (brmatch.ts dropLoot).
+   */
+  restockPlan(R: { below: number; batch: number; near: number }, rnd: () => number): Array<{ item: LootItem; at: THREE.Vector3 }> {
+    const held = this.hotHeld();
+    if (!this.hotStock || held.length >= R.below * this.hotStock) return [];
+    const empty = this.hotSpots.filter((s) => !held.some((d) => Math.hypot(d.pos.x - s.x, d.pos.z - s.z) < R.near && Math.abs(d.pos.y - s.y) < 1.5));
+    const out: Array<{ item: LootItem; at: THREE.Vector3 }> = [];
+    for (let i = 0; i < R.batch && empty.length; i++) {
+      const s = empty.splice(Math.floor(rnd() * empty.length), 1)[0];
+      for (const item of rollSpot(rnd, "hot")) out.push({ item, at: s.clone().add(new THREE.Vector3((rnd() - 0.5) * 1.2, 0, (rnd() - 0.5) * 1.2)) });
+    }
+    return out;
+  }
+
   /** the next key the host will hand out */
   get next(): number {
     return this.nextKey;
@@ -708,6 +736,8 @@ export class LootField {
     // the Hot Zone belongs to the floor that was cleared: generate() names the
     // next one, and nothing should be able to read the last match's circle
     this.hotZone = null;
+    this.hotSpots = [];
+    this.hotStock = 0;
   }
 
   /** done with the field (the match is over): the items, its shapes and its materials freed */
@@ -773,6 +803,10 @@ export class LootField {
       if (hot) hotSpots = spots;
       binSpots.push({ spots, n: BINS.perPlace });
       fill(spots, tier);
+      if (hot) {
+        this.hotSpots = spots.map((s) => s.clone());
+        this.hotStock = this.hotHeld().length;
+      }
     }
 
     const field: THREE.Vector3[] = [];

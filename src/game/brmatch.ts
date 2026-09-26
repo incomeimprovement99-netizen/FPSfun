@@ -1068,6 +1068,8 @@ export class BrMatch extends Duel {
   private podCount = 0;
   private podSeq = 0;
   private podPhases = new Set<number>();
+  /** when the host next counts the centre's loot for a restock (speedkills.json loot.restock), game seconds */
+  private restockAt = 0;
   /** the ring phases whose loadout crate has been called (on every browser, not just the host's) */
   private cratePhases = new Set<number>();
   /** standing in a loadout crate: which one, and since when */
@@ -2939,6 +2941,12 @@ export class BrMatch extends Duel {
         b.bot.remote.shieldMax = b.bot.dummy.shieldMax;
         b.bot.remote.shield = b.bot.dummy.shield;
       }
+    }
+    // The centre's loot coming back (speedkills.json loot.restock), the host's to roll and send, as a drop is
+    const RS = PROFILE.loot?.restock;
+    if (IS_SK && RS && this.role === "host" && this.lootField && this.phase === "fight" && now >= this.restockAt) {
+      this.restockAt = now + RS.every;
+      for (const { item, at } of this.lootField.restockPlan(RS, Math.random)) this.dropLoot(item, at);
     }
     // a care package inside the next ring as br.json's rounds close; the
     // squad is told the whole warning, announce and fall, so every screen
