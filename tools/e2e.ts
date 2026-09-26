@@ -3940,6 +3940,11 @@ async function gulagTest(browser: Browser, query: string, squadQuery: string): P
   const heard = await host.waitForFunction("window.__range.duel().gulagIds.has(1)", { polling: 100, timeout: 5000 }).then(() => true, () => false);
   const gIn = await guest.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.phase !== 'wait'", { polling: 100, timeout: (G.delay + 4) * 1000 }).then(() => true, () => false);
   check("the Gulag: a squad mate's trip reaches the host, and they go in", heard && gIn, JSON.stringify({ heard, gIn }));
+  // up in the Gulag's room is not up in the match: the host's only mate is in there, so a knock now would be out, not down
+  // (plan section 12, item 2: they counted as standing, and a knock went down to bleed out with nobody to come)
+  await sleep(1500);
+  const standing = await ev<boolean>(host, "window.__range.duel().squadUp()");
+  check("the Gulag: a squad mate in the Gulag is not one standing to revive you", standing === false, String(standing));
   // the host brings them back at a beacon meanwhile: that is their way back, and the trip is over
   await ev(host, `(() => { const r = window.__range; r.duel().sendRespawn(1, new r.THREE.Vector3(0, 0, 500)); })()`);
   const rescued = await guest.waitForFunction("!window.__range.duel().gulag && window.__range.duel().alive && window.__range.player.dropping", { polling: 100, timeout: 5000 }).then(() => true, () => false);

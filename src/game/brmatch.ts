@@ -1033,8 +1033,8 @@ export class BrMatch extends Duel {
   }
   /** the squad still standing: up and not down (all of it down is the squad out) */
   private get humansAlive(): number {
-    let n = this.alive && !this.downed ? 1 : 0;
-    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && r.alive && !r.downed) n++;
+    let n = this.alive && !this.downed && !this.gulag ? 1 : 0;
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && this.standing(r)) n++;
     return n;
   }
   /** the bot squads with someone still up (the host's: it runs the bots) */
@@ -1804,7 +1804,7 @@ export class BrMatch extends Duel {
   /** your side, besides you, still up: squad mates alive and not down */
   private get matesUp(): number {
     let n = 0;
-    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && this.friendly(r.id) && r.alive && !r.downed) n++;
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && this.friendly(r.id) && this.standing(r)) n++;
     return n;
   }
 
@@ -2400,7 +2400,20 @@ export class BrMatch extends Duel {
   /** solo: there is nobody to pick you up, so a knock is an elimination */
   protected override squadUp(): boolean {
     if (this.gulag) return false;
-    return this.team.size > 1 && super.squadUp();
+    if (this.team.size <= 1) return false;
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && this.friendly(r.id) && this.standing(r)) return true;
+    return false;
+  }
+
+  /**
+   * Up in the match: alive, not down, and not in the Gulag. A player in the
+   * Gulag's room is alive there, and was counted up by their squad: a knock
+   * with only them left went down to bleed out with nobody who could come
+   * (plan section 12, item 2). Their squad is still not out while they are in
+   * it, which the side's own count keeps (sideOut, gulagIds).
+   */
+  private standing(r: { id: number; alive: boolean; downed: boolean }): boolean {
+    return r.alive && !r.downed && !this.gulagIds.has(r.id);
   }
 
   /** a supply bin opened at `at` (its lid and its sound), on every browser */

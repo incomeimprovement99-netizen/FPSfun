@@ -3609,3 +3609,15 @@ Plan section 12, items 4, 7 and 8, the squad messages' races.
   games, so duos chosen in the legacy game made SpeedKills' next match a duo with the legacy count. The e2e
   caught it as 28 bots in what it expected to be trios, when the Gulag section ran first. Each game keeps its
   own now.
+
+## Milestone 202 — In the Gulag is not up in the match ✅
+
+Plan section 12, item 2. A player in the Gulag's room is alive there, and once their packets from it
+arrived their squad counted them as standing. So a knock with only them left went down to bleed out, with
+nobody who could come, and they counted towards the humans still up. "Standing" now leaves out anyone in the
+Gulag: for a knock, for the humans up, and for Resurgence's mates. Their squad is still not out while they are
+in it, which the side's own count keeps as before. One consequence is deliberate: the match is not won while
+your only survivor is fighting in the Gulag; it is won when they come back.
+
+The Gulag e2e reads the host's count with its only mate in the room. It passed on the old code when read at
+once, before the room's first packet; read 1.5 s later it fails on the old code and passes on the new.
