@@ -4988,7 +4988,8 @@ async function speedkillsEdgeTest(browser: Browser): Promise<void> {
   );
   {
     const { b, W, H, u } = hud;
-    const need = ["health", "shield", "hack0", "hack1", "ammo", "slot0", "slot1"];
+    // the hacks' boxes only where hacks are held (a page with none picked draws none)
+    const need = ["health", "shield", "ammo", "slot0", ...(b.hack0 ? ["hack0"] : [])];
     const all = need.every((k) => b[k]);
     const inBand = Object.values(b).every((r) => r.y >= H - 125 * u && r.y + r.h <= H + 0.5 && r.x >= -0.5 && r.x + r.w <= W + 0.5);
     const overlap = (p: { x: number; y: number; w: number; h: number }, q: { x: number; y: number; w: number; h: number }) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
@@ -4996,8 +4997,8 @@ async function speedkillsEdgeTest(browser: Browser): Promise<void> {
     const clash = keys.flatMap((k, i) => keys.slice(i + 1).filter((k2) => overlap(b[k], b[k2])).map((k2) => `${k}/${k2}`));
     check(
       "sk hud: all on the bottom edge, health twice as thick, ammo half as big again, hacks right of the health, guns left of the ammo, nothing overlapping",
-      all && inBand && clash.length === 0 && b.health.h >= 2 * 12 * u - 0.01 && b.ammo.h / 0.66 >= 1.5 * 58 * u - 0.01 && b.hack0.x >= b.health.x + b.health.w && b.hack0.w > 58 * u && b.slot0.x + b.slot0.w <= b.ammo.x,
-      JSON.stringify({ all, inBand, clash, health: b.health, ammo: b.ammo, hack0: b.hack0, slot0: b.slot0 }),
+      all && inBand && clash.length === 0 && b.health.h >= 2 * 12 * u - 0.01 && b.ammo.h / 0.66 >= 1.5 * 58 * u - 0.01 && (!b.hack0 || (b.hack0.x >= b.health.x + b.health.w && b.hack0.w > 58 * u)) && b.slot0.x + b.slot0.w <= b.ammo.x,
+      JSON.stringify({ all, have: Object.keys(b), inBand, clash, health: b.health, ammo: b.ammo, hack0: b.hack0, slot0: b.slot0 }),
     );
   }
   const e0 = await ev<{ city: { maxX: number }; margin: number }>(page, "window.__range.sk.edge()");
@@ -5419,6 +5420,9 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   check("speedkills br: a match in the city, its nine sectors the places, the Spire among them", start.pois.length === 9 && start.pois.includes("THE SPIRE"), JSON.stringify(start.pois));
   check("speedkills br: thirty in the match (27 bots in squads, with your squad of three)", start.bots === 27, JSON.stringify(start));
   check("speedkills br: loot on the city's floors", start.loot > 150, `${start.loot} items`);
+  // no smoke and no grenades in SpeedKills (Phase 20 A10): no bot rolls a legacy kit (SMOKE was 6 to 8 of 27), none carries a frag
+  const kits = await ev<{ kits: number; frags: number }>(page, "(() => { const d = window.__range.duel(); return { kits: d.bots.filter((b) => b.bot.ability).length, frags: d.bots.reduce((a, b) => a + b.bot.frags, 0) }; })()");
+  check("speedkills br: no bot carries a legacy kit (smoke) or a frag", kits.kits === 0 && kits.frags === 0, JSON.stringify(kits));
   // and up on the roofs, where the fights are (speedkills.json loot maxFloor): it stopped at 12 m, under most of the city's roofs
   const high = await ev<{ over12: number; over24: number }>(page, "(() => { const ds = [...window.__range.duel().lootField.drops.values()]; return { over12: ds.filter((x) => x.pos.y > 12).length, over24: ds.filter((x) => x.pos.y > 24).length }; })()");
   check("speedkills br: loot on the roofs too, a dozen storeys and more up", high.over12 >= 40 && high.over24 >= 10, JSON.stringify(high));

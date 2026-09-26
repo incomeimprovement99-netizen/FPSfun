@@ -250,6 +250,8 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
 - **Fix:** gone from SpeedKills' pickers, loot, keys, HUD and tour. Unchanged in legacy.
 - **Done when:** an e2e check finds no smoke anywhere in a SpeedKills page, and still finds it in a legacy one.
 
+*Done (Milestone 230).*
+
 ### A11. The main menu too narrow, and scrollbars in our colours
 
 - **The owner:** the main screen's menu is not wide enough and shows a horizontal scrollbar. All scrollbars

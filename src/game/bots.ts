@@ -698,7 +698,8 @@ export class Bot {
   private detour = new THREE.Vector2();
   private detourUntil = -Infinity;
   /** frags left, when it may throw the next, and one thrown this frame (for the match) */
-  frags: number = GRENADE.count;
+  /** frags left: SpeedKills carries no grenades, so a SpeedKills bot never has one to throw (Phase 20 A10) */
+  frags: number = IS_SK ? 0 : GRENADE.count;
   private nextThrowAt = 0;
   private thrown: { kind: "frag"; from: THREE.Vector3; vel: THREE.Vector3 } | null = null;
   /** the mode allows grenades (Gun Run does not) */
@@ -829,7 +830,7 @@ export class Bot {
     this.downedAt = null;
     this.kneel = false;
     this.dodgeUntil = -Infinity;
-    this.frags = GRENADE.count;
+    this.frags = IS_SK ? 0 : GRENADE.count;
     this.nextThrowAt = 0;
     this.thrown = null;
   }
@@ -984,7 +985,9 @@ export class Bot {
 
   /** a random ability when the match has them on; none otherwise */
   setAbilities(on: boolean, rng: () => number = Math.random): void {
-    this.ability = on ? BOT_ABILITY_IDS[Math.floor(rng() * BOT_ABILITY_IDS.length)] : null;
+    // Never in SpeedKills: its bots carry its hacks (bots.json skHacks), and the legacy SMOKE kit rolled here was
+    // the smoke grenade the owner took out of it (Phase 20 A10: 6 to 8 of 27 bots threw smoke)
+    this.ability = on && !IS_SK ? BOT_ABILITY_IDS[Math.floor(rng() * BOT_ABILITY_IDS.length)] : null;
     this.ultAt = Infinity;
   }
 

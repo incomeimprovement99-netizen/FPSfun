@@ -4216,3 +4216,16 @@ exactly how every hack worked, and do not fill gaps by assumption).
 - **Checked:** `tools/checks/hacks.ts` holds the tables, Slam's apex and Teleport's reach.
 - **Open for the owner:** Slam now out-climbs LEAP's 16 m; and Hyper Scape's other hacks (Shockwave, Ball,
   Magnet, Fortify) are not in the game.
+
+## Milestone 230 — No smoke and no grenades in SpeedKills ✅
+
+Phase 20, A10 (the owner: remove the smoke grenade from SpeedKills, keep it in the legacy game).
+
+- **The smoke came from the bots.** Each one rolled a random legacy kit, and 6 to 8 of 27 got SMOKE and threw it
+  when hurt. SpeedKills bots now take no legacy kit; they carry its hacks.
+- **The grenade kit also reached SpeedKills:** every life in an arena match or a loadout start was filled with
+  it, and bots carried two frags each. Both are gone.
+- **The menus:** the legacy Abilities pickers and the JOLT settings are hidden in SpeedKills. A smoke cloud
+  from an older build is not drawn.
+- The legacy game is unchanged.
+- **Checked:** a new e2e check that no SpeedKills bot carries a legacy kit or a frag.

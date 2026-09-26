@@ -2263,6 +2263,9 @@ const botAbilities = $<HTMLSelectElement>("botAbilities");
 const brAbilities = $<HTMLSelectElement>("brAbilities");
 const ABILITY_DEFAULTS: Record<"arena" | "bots" | "br", "0" | "1"> = { arena: "0", bots: "0", br: "1" };
 const abilitySetting = (kind: "arena" | "bots" | "br"): boolean => {
+  // the legacy kits are not SpeedKills' (its hacks are), and these keys are shared with the legacy menus: an "on"
+  // stored there must not bring SMOKE in (Phase 20 A10)
+  if (IS_SK) return false;
   try {
     const v = localStorage.getItem(`range.abilities.${kind}`);
     return (v === "0" || v === "1" ? v : ABILITY_DEFAULTS[kind]) === "1";
@@ -2660,7 +2663,8 @@ function respawnForMatch(d: MatchLike): void {
   // grenades: the match's kit each life (Gun Run is guns and the knife: none)
   ordnance.endless = false;
   ordnance.readied = null;
-  ordnance.fill(d instanceof ArenaMode && d.modeKind === "gunrun" ? "empty" : "kit");
+  // (SpeedKills carries none: G is its utility hack; Phase 20 A10)
+  ordnance.fill(IS_SK || (d instanceof ArenaMode && d.modeKind === "gunrun") ? "empty" : "kit");
   player.arcSlowUntil = 0;
   // land with nothing and loot: fists, no heals, no ammo, no grenades. A Deathbox Respawn (SpeedKills'
   // restore) starts from nothing whatever the start: the box holds what you had, and taking it back onto
@@ -4439,6 +4443,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRemoteFx = (k, from, a, b, n) => {
     remoteFxLog.push({ k, from });
     if (remoteFxLog.length > 20) remoteFxLog.shift();
+    // SpeedKills has no smoke (Phase 20 A10): a cloud from an older build's SMOKE bot is not drawn here either
+    if (IS_SK && (k === "smoke" || (k === "ult" && n === 5))) return;
     // someone else past the city's edge too long: the laser on them, on this screen too
     if (k === "edge" && a) {
       fx.laser(a, gameTime, EDGE);
@@ -7428,9 +7434,11 @@ function step(): void {
             inHand: i === loadout.activeIndex,
           })),
           heals: HEAL_ORDER.filter((k) => (kit.items[k] ?? 0) > 0).map((k) => ({ name: HEAL_ITEMS[k].name, n: kit.items[k] })),
-          nades: Object.entries(ordnance.counts)
-            .filter(([, n]) => n > 0)
-            .map(([k, n]) => ({ name: throwName(k), n })),
+          nades: IS_SK
+            ? []
+            : Object.entries(ordnance.counts)
+                .filter(([, n]) => n > 0)
+                .map(([k, n]) => ({ name: throwName(k), n })),
           ammo: Object.entries(loadout.ammo.stock)
             .filter(([, n]) => n > 0)
             .map(([k, n]) => ({ name: k.toUpperCase(), n })),
