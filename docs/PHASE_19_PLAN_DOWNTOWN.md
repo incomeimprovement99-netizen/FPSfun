@@ -144,3 +144,5 @@ stay built in code, where the checks can measure them.
 - https://www.pushsquare.com/news/2020/08/hands_on_hyper_scape_might_be_too_chaotic_for_its_own_good
 - https://techraptor.net/gaming/previews/hyper-scape-preview
 - https://hyperscape.fandom.com/wiki/Neo_Arcadia (press screenshots from its image host)
+
+**Closed 2026-09-26.** What is left, and what comes next, is in `docs/PHASE_20_PLAN.md`.
