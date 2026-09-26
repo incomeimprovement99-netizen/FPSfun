@@ -113,6 +113,14 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
   the recap, the death recap and the kill feed.
 - **Done when:** an e2e check lands several hits of a fractional-damage gun and finds only whole numbers on
   screen.
+- **On a closer look:** the fraction did not come from the guns, because every hit was rounded down as it landed
+  (`dummy.ts`). It came from SpeedKills bots' shield and health, which come back a sliver a frame: a hit that
+  finishes a part-healed bot reports what it had left. The stats panel's DAMAGE line was a second raw site. So
+  the "Done when" above could not fail as written (a fractional gun on a dummy read whole). The checks became a
+  drawn HUD frame with real fractions in every field, a finishing hit on a healed bot in a match, and, once
+  SpeedKills' hits stopped being rounded down (the decision above), USSO's rounds on a range dummy and a board.
+
+*Done (Milestone 222).*
 
 ### A3. The left arm covers the red dot when aiming
 

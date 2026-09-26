@@ -45,6 +45,7 @@ import { Target } from "./game/targets";
 import { ViewModel } from "./game/viewmodel";
 import { GameAudio } from "./game/audio";
 import { Hud, type HudState } from "./game/hud";
+import { damageText } from "./game/damagetext";
 import { DpiCalibrator, snapDpi } from "./game/dpi-calibrate";
 import { ZIPLINES, ladderAhead, deployZipline } from "./game/traversal";
 import { mergeStatic } from "./game/staticmerge";
@@ -400,7 +401,7 @@ function summaryView(): HudState["summary"] {
   const title = br ? (s.placement === 1 ? "CHAMPIONS" : `#${s.placement} OF ${s.players ?? "?"}`) : s.won ? "VICTORY" : "DEFEAT";
   const rows: Array<[string, string]> = [
     ["Kills", String(s.kills)],
-    ["Damage", String(Math.round(s.damage))],
+    ["Damage", damageText(s.damage)],
     ["Accuracy", s.shots ? `${Math.round((100 * s.hits) / s.shots)}%` : "-"],
   ];
   if (br) rows.push(["Survived", `${Math.floor((s.survived ?? 0) / 60)}:${String(Math.floor((s.survived ?? 0) % 60)).padStart(2, "0")}`]);
@@ -7490,6 +7491,8 @@ initWelcome();
   },
   debugView,
   dummies,
+  /** the range's boards and flippers (tools/e2e.ts: what a round on one deals) */
+  targets,
   course: courseBasic,
   courseAdvanced,
   merged,

@@ -25,6 +25,7 @@ import type { TrainerHud } from "./trainer";
 import type { ModeHud } from "./modematch";
 import type { TourHud } from "./tour";
 import hudCfg from "../config/hud.json";
+import { damageText, poolText } from "./damagetext";
 /** damage numbers: the window a spray at one target adds to one number, and the pop as it grows (hud.json) */
 const NUMBERS = hudCfg.damageNumbers;
 const LOW_AMMO = hudCfg.lowAmmo;
@@ -365,7 +366,7 @@ export class Hud {
   addDamage(world: THREE.Vector3, amount: number, color: string, big: boolean, now: number, key?: object): void {
     const grow = (n: DamageNumber): void => {
       n.amount += amount;
-      n.text = String(n.amount);
+      n.text = damageText(n.amount);
       n.world = world;
       n.last = now;
       n.pop = now;
@@ -384,7 +385,7 @@ export class Hud {
       }
       if (!key && now - n.born > 0.05) break;
     }
-    this.numbers.push({ world, text: String(amount), color, born: now, big, amount, key, last: now, pop: now });
+    this.numbers.push({ world, text: damageText(amount), color, born: now, big, amount, key, last: now, pop: now });
     if (this.numbers.length > 40) this.numbers.shift();
   }
 
@@ -864,7 +865,7 @@ export class Hud {
     this.text(r.byRing ? "ELIMINATED BY THE RING" : `ELIMINATED BY ${r.killerName}`, x0 + 22 * u, y0 + 62 * u, 700, 28 * u, r.byRing ? "#ff9a4a" : WHITE);
     // their card, over the recap's top right edge
     if (!r.byRing && r.killerCard) this.drawCard(r.killerCard, r.killerName, x0 + w - 232 * u, y0 - 66 * u, 220 * u, 58 * u, u);
-    this.text(`YOU DEALT ${Math.round(r.totalDealt)}  ·  TOOK ${Math.round(r.totalTaken)}`, x0 + w - 22 * u, y0 + 62 * u, 700, 15 * u, DIM, "right");
+    this.text(`YOU DEALT ${damageText(r.totalDealt)}  ·  TOOK ${damageText(r.totalTaken)}`, x0 + w - 22 * u, y0 + 62 * u, 700, 15 * u, DIM, "right");
     if (!rows.length) this.text("Nobody hit you this life: it was the ring.", x0 + 22 * u, y0 + 110 * u, 600, 15 * u, DIM);
     rows.forEach((row, i) => {
       const y = y0 + 88 * u + i * rowH;
@@ -882,7 +883,7 @@ export class Hud {
         c.fillRect(bx + 92 * u, yy - 10 * u, bw, 10 * u);
         c.fillStyle = col;
         c.fillRect(bx + 92 * u, yy - 10 * u, (bw * v.damage) / most, 10 * u);
-        this.text(`${Math.round(v.damage)}  ·  ${v.hits} HIT${v.hits === 1 ? "" : "S"}${v.heads ? `, ${v.heads} HEAD` : ""}`, bx + 100 * u + bw, yy, 700, 14 * u, WHITE);
+        this.text(`${damageText(v.damage)}  ·  ${v.hits} HIT${v.hits === 1 ? "" : "S"}${v.heads ? `, ${v.heads} HEAD` : ""}`, bx + 100 * u + bw, yy, 700, 14 * u, WHITE);
       };
       line(y + 50 * u, "YOU → THEM", row.dealt, "#7ddc8a");
       line(y + 72 * u, "THEM → YOU", row.taken, RED);
@@ -892,7 +893,7 @@ export class Hud {
       this.text(guns, bx, y + 96 * u, 600, 13 * u, "#c8d0d8");
       const right: string[] = [];
       if (row.healed) right.push(`HEALED ${row.healed.ago.toFixed(1)} S BEFORE (${row.healed.item})`);
-      if (row.left) right.push(`LEFT: ${Math.round(row.left.shield)} SHIELD · ${Math.round(row.left.health)} HEALTH`);
+      if (row.left) right.push(`LEFT: ${poolText(row.left.shield)} SHIELD · ${poolText(row.left.health)} HEALTH`);
       right.forEach((t, j) => this.text(t, x0 + w - 24 * u, y + 24 * u + j * 18 * u, 700, 12 * u, j === 0 && row.healed ? "#ffd23c" : DIM, "right"));
     });
     this.text(`${r.closeKey} CLOSES`, x0 + w - 22 * u, y0 + h - 12 * u, 600, 12 * u, DIM, "right");
@@ -981,7 +982,7 @@ export class Hud {
     const k = d.mode?.kind;
     row(0, k === "gunrun" ? "LEVEL REACHED" : k === "tdm" ? "TEAM SCORE" : "ROUNDS", k === "gunrun" ? `${sm.roundsWon + 1}` : `${sm.roundsWon} - ${sm.roundsLost}`);
     row(1, "KILLS / DEATHS", `${sm.kills} / ${sm.deaths}   K/D ${sm.deaths ? (sm.kills / sm.deaths).toFixed(2) : sm.kills.toFixed(2)}`);
-    row(2, "DAMAGE", `${Math.round(sm.damage)}`);
+    row(2, "DAMAGE", damageText(sm.damage));
     row(3, "ACCURACY", sm.shots ? `${Math.round((100 * sm.hits) / sm.shots)}%  (${sm.hits} of ${sm.shots})` : "-");
     row(4, "STREAK", `${sm.streak} win${sm.streak === 1 ? "" : "s"} in a row`);
   }
@@ -1528,7 +1529,7 @@ export class Hud {
         const col = r.you ? "#ffd23c" : WHITE;
         this.text(r.name, x + 24 * u, yy, 700, 14 * u, col);
         this.text(String(r.kills), x + w * 0.62, yy, 700, 14 * u, col, "right");
-        this.text(String(Math.round(r.damage)), x + w * 0.82, yy, 700, 14 * u, col, "right");
+        this.text(damageText(r.damage), x + w * 0.82, yy, 700, 14 * u, col, "right");
         this.text(r.place > 0 ? `#${r.place}` : "-", x + w - 24 * u, yy, 700, 14 * u, col, "right");
       });
     }
@@ -2717,7 +2718,7 @@ export class Hud {
     const lh = 19 * u;
     const lines: Array<[string, string]> = [
       ["ACCURACY", `${acc}%  ${s.stats.hits}/${s.stats.shots}`],
-      ["DAMAGE", `${s.stats.damage}   HS ${s.stats.headshots}`],
+      ["DAMAGE", `${damageText(s.stats.damage)}   HS ${s.stats.headshots}`],
       ["KNOCKS", `${s.stats.knocks}   TTK ${s.stats.lastTtk === null ? "-" : s.stats.lastTtk.toFixed(2)}`],
       ["DUMMY", `${s.armorName.toUpperCase()}  (T)`],
       ["SENS", `${s.cm360.toFixed(1)} cm/360  FOV ${s.hipFov.toFixed(0)}`],
@@ -2843,7 +2844,7 @@ export class Hud {
     c.fillRect(x0, yHealth, barW, 12 * u);
     c.fillStyle = hp < 0.3 ? RED : WHITE;
     c.fillRect(x0, yHealth, barW * hp, 12 * u);
-    this.text(v ? `${Math.ceil(v.health)}` : "100", x0 + barW + 10 * u, yHealth + 11 * u, 700, 15 * u, WHITE);
+    this.text(v ? poolText(v.health) : "100", x0 + barW + 10 * u, yHealth + 11 * u, 700, 15 * u, WHITE);
   }
 
   // ------------------------------------------------------------ bottom-right

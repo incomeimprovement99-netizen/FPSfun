@@ -4041,3 +4041,25 @@ Phase 20, Part A, item A1 (`docs/PHASE_20_PLAN.md`).
 - **Not changed, noted:** a loadout start now lays out and draws the same floor as a loot start (about 960
   items), so its frame rate is a loot start's. A SpeedKills Resurgence redeploy in a loot start still hands a
   legacy pistol and heals (br.json `resurgence.kit`), as before.
+
+## Milestone 222 — Whole numbers on screen ✅
+
+Phase 20, A2 (the owner saw "33.66666666666666" over a bot).
+
+- **Every damage, health and shield number is whole:**
+  - the floating damage numbers and their spray totals;
+  - the stats panel's DAMAGE;
+  - the health readout;
+  - the recaps and the end table;
+  - the range's boards.
+
+  They all go through `src/game/damagetext.ts`: a hit reads at least 1, and a pool reads what is left, rounded
+  up. The fraction came from SpeedKills bots' shield and health, which come back a sliver a frame, so a hit that
+  finishes a part-healed bot reported what it had left.
+- **SpeedKills hits land at their tuned value.** Each hit was rounded down as it landed, which cut USSO's 7.8 to
+  7 (10% off its time to kill) and made RIPTIDE's fusion add nothing. The legacy game keeps whole points.
+  `tools/checks/ttk.ts` lands every gun on a figure to hold this.
+- **Checked:** new e2e checks for:
+  - a HUD frame drawn with fractions in every field;
+  - a finishing hit on a healed bot;
+  - three 11.16 rounds reading 33 while keeping 33.48 underneath.

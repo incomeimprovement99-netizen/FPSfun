@@ -299,6 +299,22 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "sk-damage-numbers",
+    note: "SpeedKills in the range (Phase 20 A2): USSO's rounds finish a dummy left on 33.667 health, the owner's case, and the number over it reads 34, as does the stats panel's DAMAGE; both read 33.666666666666664",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.sk.setFusion(0, 0); r.loadout.setWeaponId(0, "r97"); })()`, 1800],
+      [`(() => { const r = window.__range; const d = r.dummies.find((x) => x.distanceLabel === 25) ?? r.dummies[0]; window.__snapDummy = d; const p = d.group.position; r.player.teleport(p.x + 4, 0, p.z + 0.6, 80, -5); })()`, 0],
+      [gameSeconds(0.6), 0],
+      [
+        `new Promise((ok) => { const r = window.__range; const d = window.__snapDummy; d.shield = 0; d.health = 101 / 3; let n = 0;
+          const shot = () => { const p = d.group.position; const eye = r.player.eyePosition(); r.fireRound([p.x - eye.x, p.y + 1.25 - eye.y, p.z - eye.z]); if (++n < 6) setTimeout(shot, 80); else ok(0); }; shot(); })`,
+        0,
+      ],
+      [gameSeconds(0.25), 0],
+    ],
+  },
+  {
     name: "inspect-mid",
     note: "the weapon inspect held at its first turn: the owner reports the arm stub ends up in the camera",
     steps: [

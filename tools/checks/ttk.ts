@@ -10,6 +10,8 @@
 // Run on its own: GAME=speedkills npx tsx tools/checks/ttk.ts
 import { resolveWeapon, type ResolvedWeapon } from "../../src/game/weapons";
 import { GAME, PROFILE } from "../../src/game/game";
+import { Dummy } from "../../src/game/dummy";
+import * as THREE from "three";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -47,6 +49,40 @@ for (const [fam, f] of Object.entries(PROFILE.families)) {
   }
 }
 console.log(rows.map((r) => `        ${r}`).join("\n"));
+
+// The table is what a hit deals (Phase 20 A2). Every hit on a figure went through a Math.floor, so the table above
+// held for the tuned numbers and not for the game: USSO's 7.8 landed as 7 (10% off its time to kill), and RIPTIDE's
+// fusion, 7.0 to 7.7, added nothing at any level. A real figure with the game's 50 shield and 100 health takes
+// every gun's body rounds at every fusion level: each hit takes the round's tuned damage, and the figure goes
+// down on the round that arithmetic says. Bodies only: a head or a leg scales that same number.
+{
+  const off: string[] = [];
+  const late: string[] = [];
+  let pairs = 0;
+  for (const id of PROFILE.roster) {
+    for (let lv = 0; lv <= PROFILE.fusion.levels; lv++) {
+      const w = resolveWeapon(id, 0, [], lv);
+      const fig = new Dummy(0, 0, 0, { rig: true, noBase: true, respawn: false });
+      fig.shieldCap = PROFILE.health ? PROFILE.health.shield : 50;
+      fig.setTier(1);
+      const pool = fig.shield + fig.health;
+      const at = new THREE.Vector3();
+      const first = fig.hit(0, "body", w.damage.near, w.damage.headshot, w.damage.leg, at, w.damage.shieldScale, w.damage.unshieldedScale);
+      if (!first || Math.abs(first.amount - w.damage.near) > 1e-9) off.push(`${PROFILE.weapons[id].name} ${lv}: ${w.damage.near} landed as ${first?.amount}`);
+      let rounds = 1;
+      while (!fig.knocked && rounds < 1000) {
+        fig.hit(0, "body", w.damage.near, w.damage.headshot, w.damage.leg, at, w.damage.shieldScale, w.damage.unshieldedScale);
+        rounds++;
+      }
+      // the arithmetic's count, with a millionth of slack for the float in a product such as 15 x 1.1
+      const want = Math.ceil(pool / w.damage.near - 1e-6);
+      if (rounds !== want) late.push(`${PROFILE.weapons[id].name} ${lv}: ${rounds} rounds for ${want}`);
+      pairs++;
+    }
+  }
+  check(`every gun at every fusion level lands its tuned damage on a figure, not a whole number under it (${pairs} tried)`, off.length === 0, off.slice(0, 6).join("; "));
+  check("and the figure goes down on the round the arithmetic says, so the table above is what a player deals", late.length === 0, late.slice(0, 6).join("; "));
+}
 
 // the pairs: each one a real choice, not a trap
 for (const [fam, f] of Object.entries(PROFILE.families)) {

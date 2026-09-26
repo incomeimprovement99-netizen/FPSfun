@@ -26,6 +26,7 @@ import { OPERATORS, skinMaterials, type OperatorSkin } from "./operators";
 import { MannequinFigure, useMannequin } from "./mannequin";
 import { Outline } from "./outline";
 import { emoteAt, emotePose } from "./emotes";
+import { IS_SK } from "./game";
 
 export type Zone = "head" | "body" | "legs";
 export type ArmorTier = 0 | 1 | 2 | 3 | 4;
@@ -46,6 +47,13 @@ export interface HitReport {
 
 const HEALTH_MAX = 100;
 const RESPAWN_S = 1.2;
+/**
+ * The legacy game deals whole points: a hit is rounded down as it lands, as its reference numbers are.
+ * SpeedKills lands a hit at its tuned value (Phase 20 A2): rounding down cut USSO's 7.8 to 7, 10% off its
+ * time to kill, and made RIPTIDE's fusion (7.0 to 7.7) add nothing at any level. The HUD rounds what it
+ * shows (damagetext.ts); tools/checks/ttk.ts lands every gun on a figure to hold this.
+ */
+const WHOLE_HITS = !IS_SK;
 const FALL_S = 0.32;
 
 // human hull, metres (72 units tall)
@@ -1460,7 +1468,8 @@ export class Dummy {
     if (this.knocked) return null;
     const mult = zone === "head" ? headshotScale : zone === "legs" ? legScale : 1;
     // Hammerpoint: more against bare health (no shield up at all)
-    const amount = Math.floor(baseDamage * mult * (this.shield <= 0 ? unshieldedScale : 1) + 1e-6);
+    const raw = baseDamage * mult * (this.shield <= 0 ? unshieldedScale : 1);
+    const amount = WHOLE_HITS ? Math.floor(raw + 1e-6) : raw;
     if (this.oneHit) {
       this.health = 0;
       this.knocked = true;
@@ -1474,10 +1483,11 @@ export class Dummy {
     }
     // Disruptor: more against a shield; what breaks through goes on at the plain rate
     let remaining = amount;
-    const scaled = Math.floor(remaining * shieldScale + 1e-6);
+    const scaled = WHOLE_HITS ? Math.floor(remaining * shieldScale + 1e-6) : remaining * shieldScale;
     const toShield = Math.min(this.shield, scaled);
     this.shield -= toShield;
-    remaining = scaled > 0 ? Math.max(0, Math.round((scaled - toShield) / shieldScale)) : remaining;
+    const through = (scaled - toShield) / shieldScale;
+    remaining = scaled > 0 ? Math.max(0, WHOLE_HITS ? Math.round(through) : through) : remaining;
     const toHealth = Math.min(this.health, remaining);
     this.health -= toHealth;
     const broke = toShield > 0 && this.shield === 0;

@@ -4746,6 +4746,91 @@ async function finisherSteps(page: Page, keep: number): Promise<void> {
 }
 
 /**
+ * Phase 20 A2, the drawn frame: the owner saw "33.66666666666666" over a bot he finished. One HUD frame is drawn by
+ * hand from the last real state, with SpeedKills' real fractions in every damage, health and shield field (a
+ * tuned 11.16 round, a bot's part-refilled pool, a float's 42.00000000000001), and every string the HUD canvas
+ * draws is collected. None may carry a decimal but the readouts that are decimals on purpose.
+ */
+async function skWholeNumbers(page: Page): Promise<void> {
+  const got = await ev<{ bad: string[]; drawn: string[]; numbers: Array<{ amount: number; text: string }> }>(page, `(() => {
+    const r = window.__range; const h = r.hud; const base = h.last; const drawn = [];
+    const P = CanvasRenderingContext2D.prototype; const fill = P.fillText; const stroke = P.strokeText;
+    P.fillText = function (t, ...a) { if (this.canvas.id === "hud") drawn.push(String(t)); return fill.call(this, t, ...a); };
+    P.strokeText = function (t, ...a) { if (this.canvas.id === "hud") drawn.push(String(t)); return stroke.call(this, t, ...a); };
+    const was = h.enabled; const kept = h.numbers.length; let numbers = [];
+    h.enabled = true;
+    try {
+      const now = r.gameTime();
+      const at = r.camera.position.clone().addScaledVector(new r.THREE.Vector3(0, 0, -1).applyQuaternion(r.camera.quaternion), 6);
+      const key = {};
+      for (let i = 0; i < 3; i++) h.addDamage(at.clone(), 11.16, "#ff4a3d", false, now, key);
+      h.addDamage(at.clone().add(new r.THREE.Vector3(1.5, 0, 0)), 101 / 3, "#ff4a3d", true, now, {});
+      numbers = h.damageNumbers.slice(kept).map((n) => ({ amount: n.amount, text: n.text }));
+      const row = { id: 101, name: "BOT GRIM", killer: true, dealt: { damage: 40.66666666666667, hits: 3, heads: 0 }, taken: { damage: 531.16, hits: 3, heads: 0 }, guns: [{ name: "ZEPHYR", hits: 3, damage: 531.16, near: 12.34, far: 12.34 }], healed: null, left: { shield: 0.4, health: 0.3 } };
+      h.draw(now, r.camera, { ...base, killcam: null, course: null, drill: null, trainer: null, tour: null, hacks: null, ability: null,
+        stats: { ...base.stats, damage: 135.85606666673223, headshots: 4, lastTtk: null },
+        vitals: { ...(base.vitals ?? {}), shield: 18.84, shieldMax: 50, health: 42.00000000000001, healthMax: 100 },
+        recap: { killerId: 101, killerName: "BOT GRIM", byRing: false, rows: [row], totalTaken: 531.16, totalDealt: 40.66666666666667, at: now, age: 1, closeKey: "SPACE", killerCard: null },
+        summary: { title: "#10 OF 10", good: false, rows: [["Kills", "0"], ["Damage", "41"]], xp: 0, lines: [], level: 1, bar: 0, levelUp: false, alpha: 1, table: [{ name: "YOU", kills: 0, damage: 40.66666666666667, place: 10, you: true }, { name: "FRIEND", kills: 2, damage: 211.5, place: 3, you: false }] } });
+    } finally { h.enabled = was; h.last = base; h.numbers.length = kept; P.fillText = fill; P.strokeText = stroke; }
+    const legit = (t) => /ms frame$/.test(t) || /cm\\/360/.test(t) || /TTK \\d+\\.\\d\\d$/.test(t);
+    return { bad: drawn.filter((t) => /\\d\\.\\d/.test(t) && !legit(t)), drawn, numbers };
+  })()`);
+  const has = (t: string) => got.drawn.includes(t);
+  check("sk numbers: no damage, health or shield number the HUD draws has a decimal", got.bad.length === 0, JSON.stringify([...new Set(got.bad)]));
+  check("sk numbers: three 11.16s read 33 and keep 33.48 underneath; a finishing 33.667 reads 34", got.numbers[0]?.text === "33" && Math.abs(got.numbers[0].amount - 33.48) < 1e-9 && got.numbers[1]?.text === "34", JSON.stringify(got.numbers));
+  check("sk numbers: the stats panel's DAMAGE, the health, the recap and the end table read whole", has("136   HS 4") && has("42") && !has("43") && has("YOU DEALT 41  \·  TOOK 531") && has("LEFT: 1 SHIELD \· 1 HEALTH") && has("212"), JSON.stringify(got.drawn.filter((t) => /\d/.test(t))));
+}
+
+/**
+ * Phase 20 A2, through the bullets' own path: SpeedKills lands a round at its tuned damage. Every hit used to be
+ * rounded down as it landed (dummy.ts, projectile.ts), so USSO's 7.8 dealt 7 to a dummy and to a board: 10% off
+ * the time to kill the owner signed off. Six rounds on a range dummy take six times the tuned damage off and
+ * read as one whole number; one round on a board deals the same 7.8.
+ */
+async function skHitsLand(page: Page): Promise<void> {
+  await ev(page, `(() => { const r = window.__range; r.sk.setFusion(0, 0); r.loadout.setWeaponId(0, "r97"); })()`);
+  await sleep(1600);
+  const fireAt = (where: string) => ev(page, `(() => { const r = window.__range; const p = ${where}; const eye = r.player.eyePosition(); r.fireRound([p.x - eye.x, p.y - eye.y, p.z - eye.z]); })()`);
+  const tally = "(() => { const s = window.__range.stats(); return { hits: s.hits, damage: s.damage }; })()";
+  const gun = await ev<{ id: string; near: number; i: number } | null>(
+    page,
+    `(() => { const r = window.__range; const w = r.loadout.active.weapon; const d = r.dummies.find((x) => x.group.visible && !x.knocked); if (!d) return null; const p = d.group.position; r.player.teleport(p.x, 0, p.z + 6, 0, 0); return { id: w.id, near: w.damage.near, i: r.dummies.indexOf(d) }; })()`,
+  );
+  await sleep(300);
+  const s0 = await ev<{ hits: number; damage: number }>(page, tally);
+  for (let i = 0; i < 6 && gun; i++) {
+    await fireAt(`r.dummies[${gun.i}].group.position.clone().setY(r.dummies[${gun.i}].group.position.y + 1.25)`);
+    await sleep(90);
+  }
+  await sleep(500);
+  const s1 = await ev<{ hits: number; damage: number }>(page, tally);
+  const num = await ev<{ amount: number; text: string } | null>(page, "window.__range.hud.damageNumbers.at(-1) ?? null");
+  const hits = s1.hits - s0.hits;
+  const want = gun ? hits * gun.near : NaN;
+  check(
+    "sk hits: USSO's tuned 7.8 lands in full on a range dummy, six rounds taking six times it off, and the number over it reads whole",
+    !!gun && gun.id === "r97" && gun.near % 1 !== 0 && hits === 6 && !!num && Math.abs(num.amount - want) < 1e-6 && Math.abs(s1.damage - s0.damage - want) < 1e-6 && num.text === String(Math.round(want)),
+    JSON.stringify({ gun, hits, dealt: s1.damage - s0.damage, want, num }),
+  );
+  // a board: stood 8 m in front of its face, one round at its middle
+  const board = await ev<{ x: number; y: number; z: number } | null>(
+    page,
+    `(() => { const r = window.__range; const t = r.targets.find((x) => x.kind === "board"); if (!t) return null; const p = t.hitMeshes[0].getWorldPosition(new r.THREE.Vector3()); r.player.teleport(p.x, 0, p.z + 8, 0, 0); return { x: p.x, y: p.y, z: p.z }; })()`,
+  );
+  await sleep(300);
+  const b0 = await ev<{ hits: number; damage: number }>(page, tally);
+  if (board) await fireAt(`new r.THREE.Vector3(${board.x}, ${board.y}, ${board.z})`);
+  await sleep(500);
+  const b1 = await ev<{ hits: number; damage: number }>(page, tally);
+  check(
+    "sk hits: and one round on a board deals the same tuned 7.8, not 7",
+    !!board && !!gun && b1.hits - b0.hits === 1 && Math.abs(b1.damage - b0.damage - gun.near) < 1e-6,
+    JSON.stringify({ board, hits: b1.hits - b0.hits, dealt: b1.damage - b0.damage, near: gun?.near }),
+  );
+}
+
+/**
  * SpeedKills (docs/PHASE_18_PLAN_SPEEDKILLS.md), on a page that asks for it:
  * the front door, the ten guns, fusion, the health model, and every hack doing
  * what its card says. The rest of the suite is the legacy game's.
@@ -4814,6 +4899,8 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await sleep(300);
   const panel = await ev<{ fusion: { levels: number[]; max: number } | null; attach: number }>(page, "({ fusion: window.__range.hud.last?.fusion ?? null, attach: (window.__range.hud.last?.attachLines ?? []).length })");
   check("speedkills: the gun panel carries each slot's fusion to level 5, and no attachment lines", panel.fusion?.levels[0] === 3 && panel.fusion.max === 5 && panel.attach === 0, JSON.stringify(panel));
+  await skWholeNumbers(page);
+  await skHitsLand(page);
   await page.close();
   // an arena match in SpeedKills is fought in the city: NEON BLOCK (arenas/neonblock.ts), its bounds 74..118 by 94..142
   const arena = await open(browser, "?game=speedkills");
@@ -5305,6 +5392,19 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
       const wait = () => { if (r.gameTime() - t0 < 3) return setTimeout(wait, 50); d.holdFire = held; ok({ before, after: b.dummy.health, used: b.skUsed.heal }); }; wait(); }))()`
   );
   check("speedkills br: a hurt bot uses its Heal hack (health back within 3 s, before regeneration starts at 8)", healed.used >= 1 && healed.after >= healed.before + 25, JSON.stringify(healed));
+  // Phase 20 A2, the owner's case for real: that healed bot's health is a fraction (Heal gives perSecond x dt a
+  // frame). A hit through the bullets' own path that finishes it takes exactly what it had left, and reads whole.
+  // A third off first, in case the heal happened to stop on a whole number, so this cannot pass by luck.
+  const finish = await ev<{ left: number; n: { amount: number; text: string } | null } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const held = d.holdFire; d.holdFire = true;
+      const b = d.bots.find((x) => x.bot.alive && x.bot.skUsed.heal >= 1)?.bot; if (!b) { d.holdFire = held; return null; }
+      if ((b.dummy.health + b.dummy.shield) % 1 === 0) b.dummy.health -= 1 / 3;
+      const left = b.dummy.health + b.dummy.shield;
+      r.hitThrough(b.remote.id, 250); d.holdFire = held;
+      const n = r.hud.damageNumbers.at(-1); return { left, n: n ? { amount: n.amount, text: n.text } : null }; })()`,
+  );
+  check("speedkills numbers: a finishing hit on a bot part-way healed reads whole, and keeps what it took underneath", !!finish?.n && /^\d+$/.test(finish.n.text) && Math.abs(finish.n.amount - finish.left) < 1e-9, JSON.stringify(finish));
   // No material rebuilt every frame. three.js draws a see-through two-sided material twice, marking it
   // to be rebuilt before each pass, and glass that refracts has it draw the whole scene again: a
   // security light's glass did the first and a generator's window the second, 4 ms of a frame over the

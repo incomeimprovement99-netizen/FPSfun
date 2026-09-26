@@ -15,6 +15,7 @@
 // see is not the box you hit.
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { damageText } from "./damagetext";
 
 export const TARGET_BLUE = 0x2fa8ff;
 export const TARGET_RED = 0xff4436;
@@ -336,7 +337,7 @@ export class Target {
     this.panel.emissive.setHex(TARGET_HIT);
     this.panel.emissiveIntensity = 3.2;
     if (this.kind === "board") {
-      this.drawReadout(String(damage), head ? "#ffd23c" : "#eaf6ff");
+      this.drawReadout(damageText(damage), head ? "#ffd23c" : "#eaf6ff");
     } else {
       // fold flat, then pop back up
       this.downUntil = now + 1.1;
