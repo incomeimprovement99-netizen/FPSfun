@@ -81,7 +81,12 @@ export const HIGHWAY: Array<{ x: number; z: number; y: number }> = [];
  * podium's public stair as a walk from the pavement to its top step and onto
  * the podium, and each bridge as a walk from one podium to the next.
  */
-export const CONCOURSE: { stairs: Array<{ legs: Array<{ x: number; z: number }>; top: number }>; bridges: Array<{ a: { x: number; z: number }; b: { x: number; z: number }; y: number }> } = { stairs: [], bridges: [] };
+export const CONCOURSE: {
+  stairs: Array<{ legs: Array<{ x: number; z: number }>; top: number }>;
+  bridges: Array<{ a: { x: number; z: number }; b: { x: number; z: number }; y: number }>;
+  /** the graph's nodes on the Spire's podium (its promenade's corners), for the checks that find a way there */
+  spire: number[];
+} = { stairs: [], bridges: [], spire: [] };
 
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
@@ -171,6 +176,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   /** the public stairs' footprints (local): a bridge landing across one blocked it (the concourse check found it) */
   const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
   CONCOURSE.bridges.length = 0;
+  CONCOURSE.spire.length = 0;
+  /** the Spire's block, whose podium the concourse's graph marks */
+  let spireKey = "";
   /** map-local to world (the graph's P, which is made further down) */
   const W = (x: number, z: number) => ({ x: x + BR_X, z: z + BR_Z });
   /**
@@ -738,6 +746,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
 
   /** THE SPIRE (city.json spire): a podium over its block, tiers stepping in above it, a pad up each, a mast on top */
   function spireBlock(x0: number, x1: number, z0: number, z1: number, sec: Sector, key: string): void {
+    spireKey = key;
     const S = C.spire;
     const cx = (x0 + x1) / 2;
     const cz = (z0 + z1) / 2;
@@ -1140,6 +1149,64 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   root.add(ringWall);
   root.updateMatrixWorld(true);
 
+  // ---------------------------------------------------------------- street life (city.json streetLife)
+  // Parked cars along every stretch of kerb, cover at street level, lit front and back; zebra crossings at the
+  // junctions. Placed after every jump pad, which they keep clear of, and never in the street's middle, the
+  // bots' way; and before the graph, whose links are each walked past them.
+  {
+    const L = C.streetLife;
+    const bodies = L.colours.map((c) => flat(parseInt(c.slice(1), 16), 0.35, 0.55));
+    const glassDark = flat(0x0a0d14, 0.15, 0.8);
+    const head = neon(0xf2f4ff);
+    const tail = neon(0xff2a2a);
+    const nearPad = (x: number, z: number): boolean => pads.some((p) => Math.hypot(p.x - BR_X - x, p.z - BR_Z - z) < L.padClear);
+    const [cl, cw, ch] = L.car;
+    const [kl, kw, kh] = L.cabin;
+    const car = (x: number, z: number, alongX: boolean, facing: number): void => {
+      const body = bodies[Math.floor(rnd() * bodies.length)];
+      const [w, d] = alongX ? [cl, cw] : [cw, cl];
+      slab(w, ch, d, x, 0.25, z, body);
+      slab(alongX ? kl : kw, kh, alongX ? kw : kl, x - (alongX ? facing * 0.3 : 0), 0.25 + ch, z - (alongX ? 0 : facing * 0.3), glassDark);
+      // wheels' shadow under it: the body stands on its own dark sill
+      deco(w - 0.6, 0.25, d - 0.2, x, 0, z, trimDark);
+      for (const [end, mat] of [
+        [1, head],
+        [-1, tail],
+      ] as const) {
+        const e = end * facing;
+        if (alongX) deco(0.06, 0.18, cw - 0.5, x + (e * cl) / 2, 0.25 + ch * 0.55, z, mat);
+        else deco(cw - 0.5, 0.18, 0.06, x, 0.25 + ch * 0.55, z + (e * cl) / 2, mat);
+      }
+    };
+    for (const s of STREETS) {
+      for (const [b0, b1] of BLOCKS) {
+        for (const lane of [-1, 1]) {
+          for (const alongX of [true, false]) {
+            if (rnd() >= L.carChance) continue;
+            const a = b0 + 4 + cl / 2 + rnd() * (b1 - b0 - 8 - cl);
+            const [x, z] = alongX ? [a, s + lane * L.lane] : [s + lane * L.lane, a];
+            // and clear of a door's way in from the street: the bots cross the lane to it (sk-roofs walks it)
+            if (nearPad(x, z) || DOORWAYS.some((dw) => (alongX ? Math.abs(dw.x - x) < cl / 2 + 3 && Math.abs(dw.z - z) < 14 : Math.abs(dw.z - z) < cl / 2 + 3 && Math.abs(dw.x - x) < 14))) continue;
+            car(x, z, alongX, lane);
+          }
+        }
+      }
+    }
+    // zebra crossings on a junction's four sides, stripes lengthwise with the traffic
+    const paint = flat(0xd8dce4, 0.8, 0.0);
+    for (const sx of STREETS) {
+      for (const sz of STREETS) {
+        for (const e of [-1, 1]) {
+          for (let k = 0; k < L.stripes; k++) {
+            const across = -5.5 + (k * 11) / (L.stripes - 1);
+            deco(3, 0.02, 0.7, sx + e * 9, 0.01, sz + across, paint);
+            deco(0.7, 0.02, 3, sx + across, 0.01, sz + e * 9, paint);
+          }
+        }
+      }
+    }
+  }
+
   // ---------------------------------------------------------------- places, the graph, the traversal
   const P = (x: number, z: number) => ({ x: x + BR_X, z: z + BR_Z });
   const pois: Poi[] = SECTORS.map((s) => {
@@ -1220,6 +1287,75 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     ROOF_ROUTES.push({ street: best, nodes: [onStreet, ...t.route.map((_, k) => first + k)], storeys: t.storeys });
   }
 
+  // The concourse on the graph (Phase 19 step 11): each podium's promenade corners, linked round; each public
+  // stair from its street to its top step and onto its podium; each bridge between two podiums. A link is made
+  // only where a bot walks it both ways (botWalk), so the graph never sends one at a wall.
+  {
+    const add = (x: number, z: number, y: number): number => {
+      nodes.push({ ...P(x, z), y, poi: sectorAt(x, z)?.id, links: [] });
+      return nodes.length - 1;
+    };
+    const walkLink = (a: number, b: number): boolean => {
+      const A = nodes[a];
+      const B = nodes[b];
+      const ok = botWalk(A.x, A.z, A.y ?? 0, B.x, B.z).ok && botWalk(B.x, B.z, B.y ?? 0, A.x, A.z).ok;
+      if (ok) link(a, b);
+      return ok;
+    };
+    const corners = new Map<string, number[]>();
+    for (const [key, p] of podia) {
+      const i = C.concourse.promenade / 2;
+      const c = [add(p.x0 + i, p.z0 + i, p.top), add(p.x1 - i, p.z0 + i, p.top), add(p.x1 - i, p.z1 - i, p.top), add(p.x0 + i, p.z1 - i, p.top)];
+      for (let k = 0; k < 4; k++) walkLink(c[k], c[(k + 1) % 4]);
+      corners.set(key, c);
+      if (key === spireKey) CONCOURSE.spire.push(...c);
+    }
+    /** the podium a point (local) stands on, by its top */
+    const podOf = (x: number, z: number, y: number): string | undefined =>
+      [...podia].find(([, p]) => x >= p.x0 - 0.5 && x <= p.x1 + 0.5 && z >= p.z0 - 0.5 && z <= p.z1 + 0.5 && Math.abs(p.top - y) < 0.3)?.[0];
+    const onPodium = (n: number): void => {
+      const key = podOf(nodes[n].x - BR_X, nodes[n].z - BR_Z, nodes[n].y ?? 0);
+      for (const c of key ? (corners.get(key) ?? []) : []) walkLink(n, c);
+    };
+    for (const s of CONCOURSE.stairs) {
+      const [f, t, l] = s.legs.map((q) => ({ x: q.x - BR_X, z: q.z - BR_Z }));
+      const foot = add(f.x, f.z, PAVE_H);
+      const top = add(t.x, t.z, s.top);
+      const land = add(l.x, l.z, s.top);
+      walkLink(foot, top);
+      walkLink(top, land);
+      onPodium(land);
+      // the foot to its street: straight out to the nearer street's middle, then along it to the crossings either side
+      const lx = line.reduce((a, v) => (Math.abs(v - f.x) < Math.abs(a - f.x) ? v : a));
+      const lz = line.reduce((a, v) => (Math.abs(v - f.z) < Math.abs(a - f.z) ? v : a));
+      const alongX = Math.abs(lz - f.z) < Math.abs(lx - f.x);
+      const sp = add(alongX ? f.x : lx, alongX ? lz : f.z, 0);
+      walkLink(foot, sp);
+      const S = nodes[sp];
+      for (const dir of [-1, 1]) {
+        let best = -1;
+        let bestD = Infinity;
+        for (let i = 0; i < streetNodes; i++) {
+          const n = nodes[i];
+          if (Math.abs(alongX ? n.z - S.z : n.x - S.x) > 0.5) continue;
+          const d = (alongX ? n.x - S.x : n.z - S.z) * dir;
+          if (d > 0 && d < bestD) {
+            bestD = d;
+            best = i;
+          }
+        }
+        if (best >= 0) walkLink(sp, best);
+      }
+    }
+    for (const b of CONCOURSE.bridges) {
+      const a = add(b.a.x - BR_X, b.a.z - BR_Z, b.y);
+      const e = add(b.b.x - BR_X, b.b.z - BR_Z, b.y);
+      walkLink(a, e);
+      onPodium(a);
+      onPodium(e);
+    }
+  }
+
   // the jump towers in the plazas, the launch pads at the crossings, the beacons
   const towerSpots = plazas.slice(0, C.jumpTowers).map((p) => ({ ...P(p.x, p.z), y: PAVE_H }));
   STREETS.forEach((x, i) =>
@@ -1229,63 +1365,6 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       pads.push({ ...P(x + (along ? 3 : 0), z + (along ? 0 : 3)), dx: along ? 1 : 0, dz: along ? 0 : 1 });
     })
   );
-  // ---------------------------------------------------------------- street life (city.json streetLife)
-  // Parked cars along every stretch of kerb, cover at street level, lit front and back; zebra crossings at the
-  // junctions. Placed after every pad, which they keep clear of, and never in the street's middle, the bots' way.
-  {
-    const L = C.streetLife;
-    const bodies = L.colours.map((c) => flat(parseInt(c.slice(1), 16), 0.35, 0.55));
-    const glassDark = flat(0x0a0d14, 0.15, 0.8);
-    const head = neon(0xf2f4ff);
-    const tail = neon(0xff2a2a);
-    const nearPad = (x: number, z: number): boolean => pads.some((p) => Math.hypot(p.x - BR_X - x, p.z - BR_Z - z) < L.padClear);
-    const [cl, cw, ch] = L.car;
-    const [kl, kw, kh] = L.cabin;
-    const car = (x: number, z: number, alongX: boolean, facing: number): void => {
-      const body = bodies[Math.floor(rnd() * bodies.length)];
-      const [w, d] = alongX ? [cl, cw] : [cw, cl];
-      slab(w, ch, d, x, 0.25, z, body);
-      slab(alongX ? kl : kw, kh, alongX ? kw : kl, x - (alongX ? facing * 0.3 : 0), 0.25 + ch, z - (alongX ? 0 : facing * 0.3), glassDark);
-      // wheels' shadow under it: the body stands on its own dark sill
-      deco(w - 0.6, 0.25, d - 0.2, x, 0, z, trimDark);
-      for (const [end, mat] of [
-        [1, head],
-        [-1, tail],
-      ] as const) {
-        const e = end * facing;
-        if (alongX) deco(0.06, 0.18, cw - 0.5, x + (e * cl) / 2, 0.25 + ch * 0.55, z, mat);
-        else deco(cw - 0.5, 0.18, 0.06, x, 0.25 + ch * 0.55, z + (e * cl) / 2, mat);
-      }
-    };
-    for (const s of STREETS) {
-      for (const [b0, b1] of BLOCKS) {
-        for (const lane of [-1, 1]) {
-          for (const alongX of [true, false]) {
-            if (rnd() >= L.carChance) continue;
-            const a = b0 + 4 + cl / 2 + rnd() * (b1 - b0 - 8 - cl);
-            const [x, z] = alongX ? [a, s + lane * L.lane] : [s + lane * L.lane, a];
-            // and clear of a door's way in from the street: the bots cross the lane to it (sk-roofs walks it)
-            if (nearPad(x, z) || DOORWAYS.some((dw) => (alongX ? Math.abs(dw.x - x) < cl / 2 + 3 && Math.abs(dw.z - z) < 14 : Math.abs(dw.z - z) < cl / 2 + 3 && Math.abs(dw.x - x) < 14))) continue;
-            car(x, z, alongX, lane);
-          }
-        }
-      }
-    }
-    // zebra crossings on a junction's four sides, stripes lengthwise with the traffic
-    const paint = flat(0xd8dce4, 0.8, 0.0);
-    for (const sx of STREETS) {
-      for (const sz of STREETS) {
-        for (const e of [-1, 1]) {
-          for (let k = 0; k < L.stripes; k++) {
-            const across = -5.5 + (k * 11) / (L.stripes - 1);
-            deco(3, 0.02, 0.7, sx + e * 9, 0.01, sz + across, paint);
-            deco(0.7, 0.02, 3, sx + across, 0.01, sz + e * 9, paint);
-          }
-        }
-      }
-    }
-  }
-
   // A road's pad is a cyan plate. A jump pad is what Hyper Scape's were, readable from a street away: a gold
   // disc on its floor, a beam of light up to where it throws you, and gold rings on the beam, one overhead and
   // one at the roof it lands you on. None of it is solid, and none of it casts a shadow.

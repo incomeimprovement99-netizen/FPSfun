@@ -127,6 +127,37 @@ check("a bot walks every low tower's route from the street to its roof", stuck.l
   check("a bot walks every street link of the graph, both ways", legs > 50 && blocked.length === 0, blocked.length ? `${blocked.length}: ${blocked.slice(0, 3).join("; ")}` : `${legs} links`);
 }
 
+// The concourse on the bots' graph (Phase 19 step 11): from a street crossing, a way along the graph's links
+// to the Spire's podium, every link on it walked both ways with a bot's rules
+{
+  const from = map.nodes.findIndex((n) => (n.y ?? 0) < 0.5 && n.links.length >= 3);
+  const prev = new Map<number, number>([[from, -1]]);
+  const queue = [from];
+  while (queue.length) {
+    const i = queue.shift()!;
+    for (const j of map.nodes[i].links) {
+      if (prev.has(j)) continue;
+      prev.set(j, i);
+      queue.push(j);
+    }
+  }
+  const reached = CONCOURSE.spire.find((i) => prev.has(i));
+  const path: number[] = [];
+  for (let i = reached ?? -1; i >= 0; i = prev.get(i) ?? -1) path.unshift(i);
+  const bad: string[] = [];
+  for (let k = 1; k < path.length; k++) {
+    const a = map.nodes[path[k - 1]];
+    const b = map.nodes[path[k]];
+    const w = walk(a.x, a.z, a.y ?? 0, b.x, b.z);
+    if (!w.ok || Math.abs(w.y - (b.y ?? 0)) > 0.6) bad.push(`${path[k - 1]}-${path[k]}: ${w.ok ? `arrived at ${w.y.toFixed(2)}` : `blocked at ${w.at}`}`);
+  }
+  check(
+    "a bot's graph reaches the Spire's podium from the street, by a public stair and the bridges, every link walked",
+    CONCOURSE.spire.length === 4 && reached !== undefined && bad.length === 0,
+    reached === undefined ? "no way there" : bad.length ? bad.slice(0, 3).join("; ") : `${path.length - 1} links, up to ${map.nodes[reached].y?.toFixed(2)} m`,
+  );
+}
+
 // The rooftop highway (Phase 19 step 7): walked all the way round its loop, corner to corner, on its deck
 {
   const legs: string[] = [];

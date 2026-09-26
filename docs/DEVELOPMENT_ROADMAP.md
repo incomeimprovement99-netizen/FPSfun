@@ -3935,3 +3935,24 @@ Phase 19, step 10, first half (speedkills.json `feel`).
   - Going past a sprint shows the streaks.
   - A new snapshot, `sk-outline`: a bot in the street, outlined red.
 - **Not yet:** the weapons' snap to hand and the hit feedback, the rest of step 10.
+
+## Milestone 219 — The concourse on the bots' graph ✅
+
+Phase 19, step 11, first half.
+
+- **The bots' graph now has the centre's concourse on it:**
+  - every podium's promenade corners, linked round;
+  - every public stair, from its street's middle to the pavement at its foot, up to its top step and onto the
+    podium;
+  - every bridge between two podiums.
+
+  A link is made only where a bot walks it both ways with its own rules (botWalk), so the graph never sends one
+  at a wall. A bot wandering the centre now climbs to the podiums and crosses between them, the Spire's
+  included.
+- **The cars are parked before the graph is built,** so every link is walked past them. Parked after, one landed
+  across a stair's link to its street, and the street-link check caught it.
+- **Checked:**
+  - A new check finds a way along the graph from a street crossing to the Spire's podium and walks every link
+    of it both ways (11 links, up to 8.18 m).
+  - The street-link check: 252 links.
+  - Verify, and the SpeedKills e2e (65 ok).

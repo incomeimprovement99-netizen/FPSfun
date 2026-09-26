@@ -82,7 +82,8 @@ unavailable). The old steps 5 to 9 follow these as 7 to 11.
    snap to hand, hit feedback checked against Hyper Scape's weakest points (floaty guns). *The outline and the
    streaks are done (Milestone 218). Still to do: the weapons' snap and the hit feedback.*
 11. **Bots in the new city:** bots onto the podiums and terraces (the graph up the podium stairs), and the
-   capture zone contested by them when it opens on the Spire.
+   capture zone contested by them when it opens on the Spire. *The concourse is on the graph (Milestone 219).
+   Still to do: bots riding the jump pads, and going for the zone.*
 
 Each step keeps the city's budget check, the bots' walk checks and the e2e passing, measures the frame rate,
 and ends with snapshots from the street, a roof and the air.
