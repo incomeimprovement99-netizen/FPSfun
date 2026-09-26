@@ -2357,6 +2357,11 @@ async function tripleTest(browser: Browser, query: string, tag = "1v1v1", pages3
  */
 async function botTiersTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
+  // What an earlier section left in this browser's storage: these checks fail in a full batch and pass
+  // alone, the same way each time (docs/TEST_AUDIT.md), which is state carried over, not chance. Said with
+  // a failure, so the next one names it.
+  const carried = await ev<Record<string, string>>(page, "Object.fromEntries(Object.keys(localStorage).filter((k) => !/profile|progress|xp|stats|board|history|recap/i.test(k)).map((k) => [k, String(localStorage.getItem(k)).slice(0, 60)]))");
+  const where = () => ev<unknown>(page, "(() => { const d = window.__range.duel(); return { arena: d && 'arenaId' in d ? d.arenaId : null, camera: localStorage.getItem('range.camera') }; })()");
   await ev(page, `document.getElementById("overlay").classList.add("hidden")`);
   await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "elite"; window.__range.startBots(); })()`);
   await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
@@ -2382,13 +2387,13 @@ async function botTiersTest(browser: Browser, query: string): Promise<void> {
   // in front of it: a bot that has wandered off with its back to you does not see you (its view cone), which is the point
   await ev(page, "(() => { const r = window.__range; const b = r.duel().bots[0]; b.diff = { ...b.diff, keep: 6 }; const y = b.dummy.group.rotation.y; const s = r.openGround(b.pos.x + Math.sin(y) * 12, b.pos.z + Math.cos(y) * 12, 1.5); if (s) r.player.teleport(s.x, 0, s.z, 0); })()");
   const crouched = await page.waitForFunction("window.__range.duel().bots[0].crouching", { polling: 50, timeout: 12000 }).then(() => true, () => false);
-  check("tiers: the elite bot crouches while it fires", crouched, crouched ? "" : JSON.stringify(await ev(page, `(() => { const b = window.__range.duel().bots[0]; const p = window.__range.player.pos; const y = b.dummy.group.rotation.y; const dx = p.x - b.pos.x, dz = p.z - b.pos.z; return { sees: b.sees(p), seenAgo: b.lastSeen ? +(performance.now() / 1000 - b.lastSeen.at).toFixed(1) : null, facingDeg: Math.round(Math.acos(Math.max(-1, Math.min(1, (Math.sin(y) * dx + Math.cos(y) * dz) / Math.hypot(dx, dz)))) * 180 / Math.PI), d: +Math.hypot(dx, dz).toFixed(1), healing: !!b.healing, cover: !!b.cover }; })()`)));
+  check("tiers: the elite bot crouches while it fires", crouched, crouched ? "" : JSON.stringify({ ...(await ev<object>(page, `(() => { const b = window.__range.duel().bots[0]; const p = window.__range.player.pos; const y = b.dummy.group.rotation.y; const dx = p.x - b.pos.x, dz = p.z - b.pos.z; return { sees: b.sees(p), seenAgo: b.lastSeen ? +(performance.now() / 1000 - b.lastSeen.at).toFixed(1) : null, facingDeg: Math.round(Math.acos(Math.max(-1, Math.min(1, (Math.sin(y) * dx + Math.cos(y) * dz) / Math.hypot(dx, dz)))) * 180 / Math.PI), d: +Math.hypot(dx, dz).toFixed(1), healing: !!b.healing, cover: !!b.cover }; })()`)), where: await where(), carried }));
   const dodge = await ev<boolean>(page, `(() => { const b = window.__range.duel().bots[0]; const before = b.strafeSign; b.dummy.hit(0, "body", 5, 1, 1, b.pos.clone().setY(1.2)); return new Promise((r) => setTimeout(() => r(b.strafeSign !== before), 400)); })()`);
   check("tiers: hit, it reverses its strafe (hard and elite always dodge)", dodge);
   // low: it finds cover out of your sight and heals there
   await ev(page, `(() => { const b = window.__range.duel().bots[0]; b.diff = { ...b.diff, keep: 6 }; b.dummy.shield = 0; b.dummy.health = 30; })()`);
   const covered = await page.waitForFunction("!!window.__range.duel().bots[0].cover", { polling: 100, timeout: 6000 }).then(() => true, () => false);
-  check("tiers: low, it picks a spot out of your sight", covered);
+  check("tiers: low, it picks a spot out of your sight", covered, covered ? "" : JSON.stringify({ where: await where(), carried }));
   const healed = await page.waitForFunction("(() => { const b = window.__range.duel().bots[0]; return b.dummy.health + b.dummy.shield > 30 || !!b.healing; })()", { polling: 100, timeout: 12000 }).then(() => true, () => false);
   const hidden = await ev<boolean>(page, "(() => { const b = window.__range.duel().bots[0]; return !b.sees(window.__range.player.pos); })()");
   check("tiers: and heals there, out of your sight", healed && hidden, JSON.stringify({ healed, hidden }));
@@ -4103,26 +4108,37 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
   };
   await ev(host, brRow("trio", 6));
   await ev(host, `(() => { document.getElementById("brSides").value = "together"; document.getElementById("botDifficulty").value = "mixed"; document.getElementById("duelMode").value = "br"; document.getElementById("duelPlayers").value = "3"; document.getElementById("duelHost").click(); })()`);
+  // which of the waits below gave out, so a failure says where it stopped (docs/TEST_AUDIT.md: this check
+  // failed about one run in two for weeks with nothing to say which step it was)
+  let step = "the lobby";
   try {
     await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
     const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    step = "the friends joining";
     for (const p of [b, c]) {
       await ev(p, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
       await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
     }
     await host.waitForFunction("window.__range.duel()?.connected === 2", { polling: 200, timeout: 30000 });
+    step = "the fight starting";
     for (const p of pages) await pressPlay(p);
     for (const p of pages) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 60000 });
     await ev(host, "window.__range.duel().holdFire = true");
     // every bot down on the map, and the heir named with a snapshot to take over from
+    step = "an heir";
     await host.waitForFunction("window.__range.duel().heir !== null", { polling: 250, timeout: 60000 });
     // most of the bots with a gun they found, and the ring closing: the state worth carrying over
+    step = "four bots armed";
     await host.waitForFunction("window.__range.duel().bots.filter((x) => x.bot.lootKit.gunId).length >= 4", { polling: 500, timeout: 60000 });
+    step = "the ring closing";
     await ev(host, "(() => { const r = window.__range.duel().ring; if (r.state === 'waiting') r.timeLeft = Math.min(r.timeLeft, 1); })()");
     await host.waitForFunction("window.__range.duel().view.state === 'closing'", { polling: 200, timeout: 10000 });
   } catch {
-    const why = await ev<unknown>(host, "(() => { const d = window.__range.duel(); return d ? { phase: d.phase, heir: d.heir, over: d.brOver, bots: d.bots.map((x) => [x.landed, x.bot.alive, x.bot.aboard, x.bot.dropping]) } : null; })()").catch(() => null);
-    check(`${label}: the three drop and the host names an heir once the bots are down`, false, JSON.stringify(why));
+    const why = await ev<unknown>(
+      host,
+      "(() => { const d = window.__range.duel(); return d ? { phase: d.phase, heir: d.heir, over: d.brOver, ring: d.ring.state, view: d.view.state, armed: d.bots.filter((x) => x.bot.lootKit.gunId).length, bots: d.bots.map((x) => [x.landed, x.bot.alive, x.bot.aboard, x.bot.dropping, x.bot.lootKit.gunId ?? null]) } : null; })()"
+    ).catch(() => null);
+    check(`${label}: the three drop and the host names an heir once the bots are down`, false, `stopped at ${step}: ${JSON.stringify(why)}`);
     await close();
     return;
   }
