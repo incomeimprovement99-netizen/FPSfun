@@ -76,7 +76,8 @@ unavailable). The old steps 5 to 9 follow these as 7 to 11.
    districts' colours in it, lit streets, hologram glyphs over the skyline), and a golden-hour sky as a setting,
    the owner's night staying the default. *Done 2026-09-26 (Milestone 216).*
 9. **Street life:** parked cars, planters, trees, canopies, crossings, shop signs: cover at street level and a
-   city that looks lived in.
+   city that looks lived in. *Done 2026-09-26 (Milestone 217): cars, crossings and canopies. Trees and
+   planters wait for the free Quaternius nature kit.*
 10. **Feel in the fight:** a red outline on the enemy you aim at, speed streaks when running fast, weapons that
    snap to hand, hit feedback checked against Hyper Scape's weakest points (floaty guns).
 11. **Bots in the new city:** bots onto the podiums and terraces (the graph up the podium stairs), and the

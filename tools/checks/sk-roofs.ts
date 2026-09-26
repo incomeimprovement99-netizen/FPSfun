@@ -104,6 +104,29 @@ check("a bot walks every low tower's route from the street to its roof", stuck.l
   check("and every bridge of the concourse crossed, podium to podium, at the one height", CONCOURSE.bridges.length >= 8 && cross.length === 0, cross.length ? cross.slice(0, 3).join("; ") : `${CONCOURSE.bridges.length} bridges`);
 }
 
+// The streets (Phase 19 step 9 parks cars in them, solid): every link of the graph between two street-level
+// nodes walked, each way, with a bot's rules. A car across one is a bot pressed against it all match.
+{
+  const blocked: string[] = [];
+  let legs = 0;
+  map.nodes.forEach((a, i) => {
+    if ((a.y ?? 0) > 0.5) return;
+    for (const j of a.links) {
+      const b = map.nodes[j];
+      if (j < i || (b.y ?? 0) > 0.5) continue;
+      legs++;
+      for (const [p, q] of [
+        [a, b],
+        [b, a],
+      ]) {
+        const w = walk(p.x, p.z, p.y ?? 0, q.x, q.z);
+        if (!w.ok) blocked.push(`${i}-${j}: blocked at ${w.at}`);
+      }
+    }
+  });
+  check("a bot walks every street link of the graph, both ways", legs > 50 && blocked.length === 0, blocked.length ? `${blocked.length}: ${blocked.slice(0, 3).join("; ")}` : `${legs} links`);
+}
+
 // The rooftop highway (Phase 19 step 7): walked all the way round its loop, corner to corner, on its deck
 {
   const legs: string[] = [];

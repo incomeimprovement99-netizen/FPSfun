@@ -344,5 +344,32 @@
   "lampPools": {
     "radius": 5,
     "opacity": 0.08
+  },
+  "_streetLife": "The streets lived in (city.ts, Phase 19 step 9): parked cars in the lanes lane metres either side of a street's middle, carChance of a place for one taken on each stretch of kerb, every one cover at street level, lit white in front and red behind; a car is car metres long, wide and high, its cabin cabin. They keep padClear metres from any pad and leave the street's middle, where the bots walk, clear. Zebra crossings of stripes stripes at every junction's four sides. Canopies over the podiums' shopfronts, canopy metres deep at canopyAt metres up, solid, a ledge to stand on. Colours by eye, a night street's.",
+  "streetLife": {
+    "lane": 4.5,
+    "carChance": 0.55,
+    "car": [
+      4.4,
+      1.9,
+      1.1
+    ],
+    "cabin": [
+      2.4,
+      1.7,
+      0.75
+    ],
+    "padClear": 4,
+    "stripes": 6,
+    "canopy": 1.6,
+    "canopyAt": 3.6,
+    "colours": [
+      "#c8ccd4",
+      "#1a1d24",
+      "#7a1622",
+      "#1e3a6e",
+      "#e8e4d8",
+      "#3a3f48"
+    ]
   }
 }

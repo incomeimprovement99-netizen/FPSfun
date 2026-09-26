@@ -359,6 +359,15 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     deco(0.12, 0.12, pz1 - pz0 + 0.1, px0, podTop - 0.3, pcz, k);
     deco(0.12, 0.12, pz1 - pz0 + 0.1, px1, podTop - 0.3, pcz, k);
     podia.set(key, { x0: px0, x1: px1, z0: pz0, z1: pz1, top: podTop });
+    // canopies over its shopfronts but the plaza's (city.json streetLife): shelter on the pavement, and a ledge
+    {
+      const L = C.streetLife;
+      const cy = PAVE_H + L.canopyAt;
+      if (side !== 0) slab(px1 - px0 - 2, 0.15, L.canopy, pcx, cy, pz0 - L.canopy / 2, trimDark);
+      if (side !== 1) slab(px1 - px0 - 2, 0.15, L.canopy, pcx, cy, pz1 + L.canopy / 2, trimDark);
+      if (side !== 2) slab(L.canopy, 0.15, pz1 - pz0 - 2, px0 - L.canopy / 2, cy, pcz, trimDark);
+      if (side !== 3) slab(L.canopy, 0.15, pz1 - pz0 - 2, px1 + L.canopy / 2, cy, pcz, trimDark);
+    }
     // the public stair up onto it, along its face on the plaza side from one end: the way up with no pad
     const run = Math.ceil((podTop - PAVE_H) / K.stairRise);
     const rise = (podTop - PAVE_H) / run;
@@ -1220,6 +1229,63 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       pads.push({ ...P(x + (along ? 3 : 0), z + (along ? 0 : 3)), dx: along ? 1 : 0, dz: along ? 0 : 1 });
     })
   );
+  // ---------------------------------------------------------------- street life (city.json streetLife)
+  // Parked cars along every stretch of kerb, cover at street level, lit front and back; zebra crossings at the
+  // junctions. Placed after every pad, which they keep clear of, and never in the street's middle, the bots' way.
+  {
+    const L = C.streetLife;
+    const bodies = L.colours.map((c) => flat(parseInt(c.slice(1), 16), 0.35, 0.55));
+    const glassDark = flat(0x0a0d14, 0.15, 0.8);
+    const head = neon(0xf2f4ff);
+    const tail = neon(0xff2a2a);
+    const nearPad = (x: number, z: number): boolean => pads.some((p) => Math.hypot(p.x - BR_X - x, p.z - BR_Z - z) < L.padClear);
+    const [cl, cw, ch] = L.car;
+    const [kl, kw, kh] = L.cabin;
+    const car = (x: number, z: number, alongX: boolean, facing: number): void => {
+      const body = bodies[Math.floor(rnd() * bodies.length)];
+      const [w, d] = alongX ? [cl, cw] : [cw, cl];
+      slab(w, ch, d, x, 0.25, z, body);
+      slab(alongX ? kl : kw, kh, alongX ? kw : kl, x - (alongX ? facing * 0.3 : 0), 0.25 + ch, z - (alongX ? 0 : facing * 0.3), glassDark);
+      // wheels' shadow under it: the body stands on its own dark sill
+      deco(w - 0.6, 0.25, d - 0.2, x, 0, z, trimDark);
+      for (const [end, mat] of [
+        [1, head],
+        [-1, tail],
+      ] as const) {
+        const e = end * facing;
+        if (alongX) deco(0.06, 0.18, cw - 0.5, x + (e * cl) / 2, 0.25 + ch * 0.55, z, mat);
+        else deco(cw - 0.5, 0.18, 0.06, x, 0.25 + ch * 0.55, z + (e * cl) / 2, mat);
+      }
+    };
+    for (const s of STREETS) {
+      for (const [b0, b1] of BLOCKS) {
+        for (const lane of [-1, 1]) {
+          for (const alongX of [true, false]) {
+            if (rnd() >= L.carChance) continue;
+            const a = b0 + 4 + cl / 2 + rnd() * (b1 - b0 - 8 - cl);
+            const [x, z] = alongX ? [a, s + lane * L.lane] : [s + lane * L.lane, a];
+            // and clear of a door's way in from the street: the bots cross the lane to it (sk-roofs walks it)
+            if (nearPad(x, z) || DOORWAYS.some((dw) => (alongX ? Math.abs(dw.x - x) < cl / 2 + 3 && Math.abs(dw.z - z) < 14 : Math.abs(dw.z - z) < cl / 2 + 3 && Math.abs(dw.x - x) < 14))) continue;
+            car(x, z, alongX, lane);
+          }
+        }
+      }
+    }
+    // zebra crossings on a junction's four sides, stripes lengthwise with the traffic
+    const paint = flat(0xd8dce4, 0.8, 0.0);
+    for (const sx of STREETS) {
+      for (const sz of STREETS) {
+        for (const e of [-1, 1]) {
+          for (let k = 0; k < L.stripes; k++) {
+            const across = -5.5 + (k * 11) / (L.stripes - 1);
+            deco(3, 0.02, 0.7, sx + e * 9, 0.01, sz + across, paint);
+            deco(0.7, 0.02, 3, sx + across, 0.01, sz + e * 9, paint);
+          }
+        }
+      }
+    }
+  }
+
   // A road's pad is a cyan plate. A jump pad is what Hyper Scape's were, readable from a street away: a gold
   // disc on its floor, a beam of light up to where it throws you, and gold rings on the beam, one overhead and
   // one at the roof it lands you on. None of it is solid, and none of it casts a shadow.

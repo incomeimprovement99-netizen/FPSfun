@@ -3892,3 +3892,24 @@ Phase 19, step 8.
   - A new e2e check picks golden hour in a real SpeedKills page and sees it lit brighter at once and kept.
   - The city's budget: 219k triangles.
   - Snapshots from the air, a street and the Spire.
+
+## Milestone 217 — Street life ✅
+
+Phase 19, step 9 (city.json `streetLife`).
+
+- **Parked cars** on every stretch of kerb, in lanes 4.5 m either side of the street's middle. They are solid
+  cover at street level, lit white in front and red behind, in six night-street colours. They keep clear of
+  every pad and of every door's way in from the street, and they never stand in the street's middle, which is
+  the bots' way.
+- **Zebra crossings** on all four sides of every junction.
+- **Canopies** over the podiums' shopfronts, on the three sides that are not the plaza's. They are solid: a
+  ledge you can stand on at 3.6 m.
+- **Checked:**
+  - A new check walks every street link of the bots' graph both ways (229 links), with a bot's rules. With the
+    cars parked in the street's middle it fails on 130, which proves it.
+  - The SpeedKills e2e, 62 ok. One lab climb failed on the first run and passed on its rerun alone; it is in
+    the range, not the city.
+  - The city's budget: 234k triangles of 240k. The next detail has to pay for itself: stripes as planes, or
+    instancing.
+- **Not yet:** trees and planters, which wait for the free CC0 Quaternius nature kit
+  (docs/PHASE_19_PLAN_DOWNTOWN.md).
