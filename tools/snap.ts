@@ -202,6 +202,24 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "sk-landmarks-n",
+    note: "SpeedKills' landmarks to the north from high on the Spire: NEON ROW's holo tower ahead, THE GARDENS' terraces to its left, THE CIRCUIT's bowl to its right",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -250, maxX: 250, minZ: 250, maxZ: 750 }); r.player.teleport(0, 125, 470, 0, -24); })()`, 0],
+      [gameSeconds(1.5), 600],
+    ],
+  },
+  {
+    name: "sk-landmarks-s",
+    note: "SpeedKills' landmarks to the south from high on the Spire: HARBOR GLASS's Lantern ahead, SKYHAVEN's station to its right, THE YARDS' cranes to its left",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -250, maxX: 250, minZ: 250, maxZ: 750 }); r.player.teleport(0, 125, 530, 180, -24); })()`, 0],
+      [gameSeconds(1.5), 600],
+    ],
+  },
+  {
     name: "sk-city-roof",
     note: "SpeedKills' city from a Spire roof: what a player sees from the top of a tower",
     query: "?game=speedkills",

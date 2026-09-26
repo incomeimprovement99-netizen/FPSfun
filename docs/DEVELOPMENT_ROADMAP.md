@@ -3763,3 +3763,25 @@ Phase 19, step 3.
 - **Checked:** the city's budget (8,836 meshes merged to 240, 147k triangles, fewer than before: a solid
   building is cheaper than one with floors inside), the roofs' routes (12, walked), the SpeedKills e2e (47,
   with the new roof-loot check), and the snapshot `sk-city-midrise`.
+
+## Milestone 211 — A landmark in every district ✅
+
+Phase 19, step 4.
+
+- **Each of the eight outer districts has a landmark** on its block nearest the Spire, each a shape of its own
+  (city.json `landmarks`), so each district has a face you can navigate by. Hyper Scape's reviewers called its
+  districts samey:
+  - NEON ROW: a slim 16-storey tower ringed by three tilted holo rings, with screens at its foot;
+  - HARBOR GLASS: the Lantern, a ten-storey round tower of lit windows with its crown lit and a pad up each
+    side;
+  - THE STACKS: six silos joined by catwalks at 16 m;
+  - OLD TOWN: a nave with a steep roof, two bell towers and a rose window of light;
+  - THE CIRCUIT: a stadium bowl of stepped stands, a ring to run round its top and floodlight masts;
+  - THE GARDENS: five stepped garden terraces with trees on each;
+  - THE YARDS: two gantry cranes over stacked containers, with their beams walkable and a pad up to each;
+  - SKYHAVEN: a station raised on pillars, reached by stairs at both ends.
+- **Round towers:** the world's collision is boxes, so a round tower stands on a cross of two boxes that reaches
+  its rim where the pads throw you onto it. Its facade texture is tiled in metres like a box's; stretched once
+  round the tower, the windows had smeared into a band.
+- **Checked:** verify, the city's budget (8,033 meshes merged to 243, 144k triangles), the roofs' routes (11,
+  walked), the SpeedKills e2e (60 ok), and new snapshots `sk-landmarks-n` and `sk-landmarks-s`.

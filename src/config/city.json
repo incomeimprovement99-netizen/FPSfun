@@ -248,5 +248,64 @@
     ],
     "step": 2,
     "passage": 5
+  },
+  "_landmarks": "A landmark per district (city.ts landmark), on the block of it nearest the Spire, each a shape of its own so every district has a face to navigate by: Hyper Scape's districts each stood round a monument, and its criticism was that the rest looked alike. The block is given by its column and row in blocks (0 to 6, the Spire at 3, 3). Each is built to be climbed, with pads up it.",
+  "landmarks": {
+    "n": {
+      "kind": "holotower",
+      "block": [
+        3,
+        1
+      ]
+    },
+    "s": {
+      "kind": "lantern",
+      "block": [
+        3,
+        5
+      ]
+    },
+    "e": {
+      "kind": "silos",
+      "block": [
+        5,
+        3
+      ]
+    },
+    "w": {
+      "kind": "cathedral",
+      "block": [
+        1,
+        3
+      ]
+    },
+    "ne": {
+      "kind": "bowl",
+      "block": [
+        5,
+        1
+      ]
+    },
+    "nw": {
+      "kind": "terraces",
+      "block": [
+        1,
+        1
+      ]
+    },
+    "se": {
+      "kind": "gantry",
+      "block": [
+        5,
+        5
+      ]
+    },
+    "sw": {
+      "kind": "station",
+      "block": [
+        1,
+        5
+      ]
+    }
   }
 }

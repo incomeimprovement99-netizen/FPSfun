@@ -54,17 +54,31 @@ In this order, each built, checked, documented and committed before the next:
    industrial edge.
 4. **A landmark per district:** eight, each a different shape (a cylinder tower, a dome, silos, a stadium bowl,
    a hall, a garden terrace, a crane yard, a monorail station), so every district has a face and a name you can
-   navigate by (the thing Hyper Scape was criticised for lacking).
-5. **The rooftop highway:** an elevated track looping the downtown's roofs, walkable, with pads onto it: a fast
+   navigate by (the thing Hyper Scape was criticised for lacking). *Done 2026-09-26 (Milestone 211).*
+
+The owner re-ranked after step 4, calling the next two key: the centre must be the most detailed place on the
+map and big, as Hyper Scape's Red Tiger was, and the streets must be buildings you climb by their stairs, with
+loot inside, so a player who lands with nothing can reach the roofs without a pad. Before deciding any of it
+needs bought assets, the free ones are searched again (the players' models were found free after being called
+unavailable). The old steps 5 to 9 follow these as 7 to 11.
+
+5. **The centre as a district of its own (Red Tiger).** The Spire's block and the eight round it made one big,
+   dense complex: a lower concourse you walk inside, mezzanines and bridges between the towers, stairs as well
+   as pads between its levels, the most loot and the most detail on the map, and the capture zone's fight in
+   it.
+6. **Streets of buildings you climb by their stairs.** The mid-rise blocks entered from the street: a door, a
+   stair up through every floor to the roof, loot on the floors and landings, so the way up needs no pad and
+   no gun. The pads stay as the fast way.
+7. **The rooftop highway:** an elevated track looping the downtown's roofs, walkable, with pads onto it: a fast
    way across the city above the streets.
-6. **Atmosphere and readability:** the night made beautiful rather than murky (a glowing horizon, haze with the
+8. **Atmosphere and readability:** the night made beautiful rather than murky (a glowing horizon, haze with the
    districts' colours in it, lit streets, hologram glyphs over the skyline), and a golden-hour sky as a setting,
    the owner's night staying the default.
-7. **Street life:** parked cars, planters, trees, canopies, crossings, shop signs: cover at street level and a
+9. **Street life:** parked cars, planters, trees, canopies, crossings, shop signs: cover at street level and a
    city that looks lived in.
-8. **Feel in the fight:** a red outline on the enemy you aim at, speed streaks when running fast, weapons that
+10. **Feel in the fight:** a red outline on the enemy you aim at, speed streaks when running fast, weapons that
    snap to hand, hit feedback checked against Hyper Scape's weakest points (floaty guns).
-9. **Bots in the new city:** bots onto the podiums and terraces (the graph up the podium stairs), and the
+11. **Bots in the new city:** bots onto the podiums and terraces (the graph up the podium stairs), and the
    capture zone contested by them when it opens on the Spire.
 
 Each step keeps the city's budget check, the bots' walk checks and the e2e passing, measures the frame rate,

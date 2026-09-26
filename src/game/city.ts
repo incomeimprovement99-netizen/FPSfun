@@ -204,6 +204,12 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         spireBlock(x0, x1, z0, z1, sec);
         return;
       }
+      // a district's landmark on its block (city.json landmarks)
+      const lm = Object.values(C.landmarks).find((l) => l.block[0] === bi && l.block[1] === bj);
+      if (lm) {
+        landmark(lm.kind, x0, x1, z0, z1, sec);
+        return;
+      }
       // the downtown, from the centre out (city.json downtown), and the mid-rise blocks round it (perimeter)
       if (ring <= C.downtown.rings) {
         downtownBlock(x0, x1, z0, z1, sec, ring);
@@ -451,6 +457,209 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     // and one in the courtyard, onto the lowest building facing it from the north side's inner face
     const inner = built.filter((t) => Math.abs(t.z - (az1 - dep / 2)) < 0.5).sort((a, b) => a.roof - b.roof)[0];
     if (inner) padOnto(inner.x, inner.z - inner.d / 2, 0, -1, PAVE_H, inner.roof);
+  }
+
+  /**
+   * A drum: a cylinder you see, standing on a cross of two boxes you stand on
+   * and collide with (the world's collision is boxes; a cross is closer to a
+   * circle than a square, and its arms reach the rim).
+   */
+  function drum(r: number, h: number, x: number, y: number, z: number, mat: THREE.Material, rim: THREE.Material): void {
+    const cyl = new THREE.CylinderGeometry(r, r, h, 28);
+    // its texture tiled in metres, as a box's is: stretched once round, the facade's windows smeared into a band
+    const tile = tileOf.get(mat) ?? 0;
+    if (tile > 0) {
+      const uv = cyl.attributes.uv as THREE.BufferAttribute;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * 2 * Math.PI * r) / tile, (uv.getY(i) * h) / tile);
+    }
+    const m = new THREE.Mesh(cyl, mat);
+    m.position.set(x, y + h / 2, z);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    root.add(m);
+    solid(x - r, x + r, z - r * 0.62, z + r * 0.62, y, y + h);
+    solid(x - r * 0.62, x + r * 0.62, z - r, z + r, y, y + h);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(r + 0.05, 0.1, 6, 36), rim);
+    band.rotation.x = Math.PI / 2;
+    band.position.set(x, y + h, z);
+    root.add(band);
+  }
+
+  /** a district's landmark (city.json landmarks): one shape each, all of them climbed */
+  function landmark(kind: string, x0: number, x1: number, z0: number, z1: number, sec: Sector): void {
+    const cx = (x0 + x1) / 2;
+    const cz = (z0 + z1) / 2;
+    const k = neon(sec.accent);
+    const g = PAVE_H;
+    const S = storeyH;
+    if (kind === "holotower") {
+      // NEON ROW: a slim tower ringed by three great holo rings, a plaza of screens at its foot
+      const t = mass(cx, cz, 16, 16, g, 16, glass, sec.accent, sec.id);
+      for (const [i, y] of [22, 38, 52].entries()) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(15 + i * 2, 0.35, 8, 48), k);
+        ring.rotation.x = Math.PI / 2 + (i - 1) * 0.12;
+        ring.position.set(cx, g + y, cz);
+        root.add(ring);
+      }
+      for (const [dx, dz, w, d] of [
+        [-22, -22, 10, 1],
+        [22, 22, 10, 1],
+        [-22, 22, 1, 10],
+        [22, -22, 1, 10],
+      ] as const) {
+        slab(w, 8, d, cx + dx, g, cz + dz, trimDark);
+        deco(w === 1 ? 1.1 : w - 0.4, 6, d === 1 ? 1.1 : d - 0.4, cx + dx, g + 1, cz + dz, k);
+      }
+      const low = mass(cx - 14, cz + 14, 8, 8, g, 2, night[0], sec.accent, sec.id);
+      padOnto(cx - 18, cz + 14, -1, 0, g, low.roof);
+      padOnto(cx, cz - 8, 0, -1, g, t.roof);
+    } else if (kind === "lantern") {
+      // HARBOR GLASS: the Lantern, a glass drum of ten storeys on a plaza, its crown lit, pads up its sides
+      const r = 17;
+      drum(r, 10 * S, cx, g, cz, night[2], k);
+      for (let s = 2; s < 10; s += 2) {
+        const band = new THREE.Mesh(new THREE.TorusGeometry(r + 0.06, 0.12, 6, 40), k);
+        band.rotation.x = Math.PI / 2;
+        band.position.set(cx, g + s * S, cz);
+        root.add(band);
+      }
+      const top = g + 10 * S;
+      for (const [nx, nz] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ] as const) padOnto(cx + nx * r, cz + nz * r, nx, nz, g, top);
+      slab(3, 3, 3, cx, top, cz, metal);
+      deco(0.5, 16, 0.5, cx, top + 3, cz, k);
+    } else if (kind === "silos") {
+      // THE STACKS: silos joined by catwalks along their tops, the way across the district in the air
+      const spots: Array<[number, number, number]> = [
+        [-14, -14, 20],
+        [0, -14, 24],
+        [14, -14, 20],
+        [-14, 12, 16],
+        [0, 12, 20],
+        [14, 12, 24],
+      ];
+      for (const [dx, dz, h] of spots) drum(5.5, h, cx + dx, g, cz + dz, metal, k);
+      // catwalks at 16 m between neighbours, and a pad up to them
+      for (const [ax, az, bx, bz] of [
+        [-14, -14, 0, -14],
+        [0, -14, 14, -14],
+        [-14, 12, 0, 12],
+        [0, 12, 14, 12],
+        [0, -14, 0, 12],
+      ] as const) {
+        const len = Math.hypot(bx - ax, bz - az);
+        const along = ax !== bx;
+        slab(along ? len : 2.2, 0.3, along ? 2.2 : len, cx + (ax + bx) / 2, g + 16 - 0.3, cz + (az + bz) / 2, metal);
+        deco(along ? len : 0.08, 0.08, along ? 0.08 : len, cx + (ax + bx) / 2 + (along ? 0 : 1.1), g + 17, cz + (az + bz) / 2 + (along ? 1.1 : 0), k);
+      }
+      padOnto(cx - 14 - 5.5, cz - 14, -1, 0, g, g + 20);
+      padOnto(cx + 14 + 5.5, cz + 12, 1, 0, g, g + 24);
+    } else if (kind === "cathedral") {
+      // OLD TOWN: a long nave with a steep roof, two bell towers at its front, a rose of light over the door
+      const nave = mass(cx, cz + 4, 18, 40, g, 5, brick, sec.accent, sec.id);
+      const roofGeo = new THREE.CylinderGeometry(0.01, 12.7, 9, 4, 1);
+      const roof = new THREE.Mesh(roofGeo, trimDark);
+      roof.rotation.y = Math.PI / 4;
+      roof.scale.set(1, 1, 3.1);
+      roof.position.set(cx, nave.roof + 4.5, cz + 4);
+      root.add(roof);
+      const bells = [-7, 7].map((dx) => mass(cx + dx, cz - 20, 8, 8, g, 10, brick, sec.accent, sec.id));
+      const rose = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.3, 8, 32), k);
+      rose.position.set(cx, g + 14, cz - 16.05);
+      root.add(rose);
+      padOnto(cx - 9, cz + 10, -1, 0, g, nave.roof);
+      padOnto(cx + 7, cz - 24, 0, -1, g, bells[1].roof);
+    } else if (kind === "bowl") {
+      // THE CIRCUIT: a stadium bowl, four stands of steps round a field, their tops a ring to run
+      const field = 24;
+      const rows = 8;
+      for (const [nx, nz] of [
+        [0, -1],
+        [0, 1],
+        [-1, 0],
+        [1, 0],
+      ] as const) {
+        for (let i = 0; i < rows; i++) {
+          const off = field / 2 + i * 1.1 + 0.55;
+          const long = field + 2 * (i + 1) * 1.1;
+          const h = (i + 1) * 0.5;
+          if (nx === 0) slab(long, h, 1.1, cx, g, cz + nz * off, concrete);
+          else slab(1.1, h, long - 2.2, cx + nx * off, g, cz, concrete);
+        }
+      }
+      const edge = field / 2 + rows * 1.1;
+      deco(edge * 2, 0.1, 0.1, cx, g + rows * 0.5, cz - edge, k);
+      deco(edge * 2, 0.1, 0.1, cx, g + rows * 0.5, cz + edge, k);
+      deco(0.1, 0.1, edge * 2, cx - edge, g + rows * 0.5, cz, k);
+      deco(0.1, 0.1, edge * 2, cx + edge, g + rows * 0.5, cz, k);
+      // floodlight masts on the corners
+      for (const [sx, sz] of [
+        [-1, -1],
+        [1, -1],
+        [-1, 1],
+        [1, 1],
+      ] as const) {
+        slab(0.8, 22, 0.8, cx + sx * (edge + 1.5), g, cz + sz * (edge + 1.5), metal);
+        deco(3, 1.2, 3, cx + sx * (edge + 1.5), g + 22, cz + sz * (edge + 1.5), neon(0xe8f6ff));
+      }
+    } else if (kind === "terraces") {
+      // THE GARDENS: a stepped garden, a storey a tier, trees on every terrace
+      let w = 46;
+      let y = g;
+      for (let tier = 0; tier < 5; tier++) {
+        slab(w, S - 0.12, w, cx, y, cz, tier % 2 ? concrete : night[1]);
+        slab(w, 0.12, w, cx, y + S - 0.12, cz, concrete);
+        y += S;
+        deco(w + 0.1, 0.1, 0.1, cx, y - 0.3, cz - w / 2, k);
+        deco(w + 0.1, 0.1, 0.1, cx, y - 0.3, cz + w / 2, k);
+        const trees = tier < 4 ? 4 : 1;
+        for (let i = 0; i < trees; i++) {
+          const a = (i / trees) * Math.PI * 2 + tier;
+          const tx = cx + Math.cos(a) * (w / 2 - 3.5);
+          const tz = cz + Math.sin(a) * (w / 2 - 3.5);
+          slab(0.5, 2.5, 0.5, tx, y, tz, trimDark);
+          const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(1.8, 0), neon(0x5aff6a));
+          crown.position.set(tx, y + 3.4, tz);
+          root.add(crown);
+        }
+        w -= 8;
+      }
+      padOnto(cx, cz + 23, 0, 1, g, g + 2 * S);
+    } else if (kind === "gantry") {
+      // THE YARDS: two gantry cranes across the block over stacks of containers, their beams walkable
+      const cols = [0x2f5d7a, 0x7a3a2f, 0x3a6a3a, 0x7a6a2a].map((c) => flat(c, 0.55, 0.3));
+      for (let i = 0; i < 14; i++) {
+        const along = rnd() < 0.5;
+        const tiers = 1 + Math.floor(rnd() * 3);
+        const x = cx + (rnd() - 0.5) * 44;
+        const z = cz + (rnd() - 0.5) * 44;
+        for (let t = 0; t < tiers; t++) slab(along ? 12 : 2.5, 2.6, along ? 2.5 : 12, x, g + t * 2.6, z, cols[(i + t) % cols.length]);
+      }
+      for (const dz of [-12, 12]) {
+        for (const dx of [-24, 24]) slab(1.2, 20, 1.2, cx + dx, g, cz + dz, metal);
+        slab(49, 1.2, 3, cx, g + 20, cz + dz, metal);
+        deco(49, 0.1, 0.1, cx, g + 21.25, cz + dz - 1.45, k);
+        padOnto(cx - 24 - 0.6, cz + dz, -1, 0, g, g + 21.2);
+      }
+    } else if (kind === "station") {
+      // SKYHAVEN: a station raised on pillars, its platform a storey and a half up, stairs at both ends
+      const y = g + 6;
+      slab(44, 0.4, 14, cx, y - 0.4, cz, concrete);
+      for (const dx of [-18, -6, 6, 18]) for (const dz of [-5, 5]) slab(1, y - g - 0.4, 1, cx + dx, g, cz + dz, metal);
+      slab(46, 0.3, 16, cx, y + 7, cz, trimDark);
+      for (const dx of [-21, 21]) for (const dz of [-6.5, 6.5]) slab(0.6, 7, 0.6, cx + dx, y, cz + dz, metal);
+      deco(46, 0.12, 0.12, cx, y + 7, cz - 8, k);
+      deco(46, 0.12, 0.12, cx, y + 7, cz + 8, k);
+      for (const side of [-1, 1]) {
+        const steps = 12;
+        for (let i = 0; i < steps; i++) slab(3, (i + 1) * 0.5, 0.9, cx + side * 20, g, cz + side * (6.55 + (steps - i) * 0.9), concrete);
+      }
+      mass(cx, cz, 10, 6, y, 1, glass, sec.accent, sec.id);
+    }
   }
 
   /** THE SPIRE (city.json spire): a podium over its block, tiers stepping in above it, a pad up each, a mast on top */
