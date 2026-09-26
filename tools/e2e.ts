@@ -4858,6 +4858,10 @@ async function speedkillsGhostTest(browser: Browser): Promise<void> {
   await ev(guest, "window.__range.setScript(null)");
   const p1 = await ev<{ x: number; z: number }>(guest, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
   check("speedkills ghost: a ghost moves", Math.hypot(p1.x - p0.x, p1.z - p0.z) > 3, `${Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(1)} m`);
+  // a respawn that comes from an opponent (a bot, id 100) is not the squad's to give: it is ignored
+  // (plan section 12, item 7: it was taken from anyone)
+  const forged = await ev<{ alive: boolean }>(guest, `(() => { const d = window.__range.duel(); d.receiveSquad({ t: "respawn", to: d.id, at: [0, 0, 500] }, 100, 0); return { alive: d.alive }; })()`);
+  check("speedkills ghost: a respawn from an opponent is ignored; only the squad brings you back", !forged.alive, JSON.stringify(forged));
   // its echo: the death box; the host beside it, the ghost sent far away
   const box = await host.waitForFunction("(() => { const d = [...window.__range.duel().lootField.drops.values()].find((x) => x.item.kind === 'banner' && x.item.owner === 1); return d ? { x: d.pos.x, y: d.pos.y, z: d.pos.z } : null; })()", { polling: 200, timeout: 6000 }).then((h) => h.jsonValue() as Promise<{ x: number; y: number; z: number }>, () => null);
   if (!box) {
@@ -4993,7 +4997,7 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   }
   const start = await ev<{ players: number; bots: number; pois: string[]; loot: number; health: number; shield: number; shieldMax: number }>(
     page,
-    `(() => { const d = window.__range.duel(); return { players: d.players, bots: d.bots.length, pois: window.__range.brMap.pois.map((p) => p.name), loot: d.lootField ? d.lootField.drops.size : -1, health: d.health, shield: d.shield, shieldMax: d.shieldMax }; })()`
+    `(() => { const d = window.__range.duel(); return { players: d.players, bots: d.bots.length, teams: d.bots.map((x) => x.team + (x.guard ? "g" : "")).join(","), pois: window.__range.brMap.pois.map((p) => p.name), loot: d.lootField ? d.lootField.drops.size : -1, health: d.health, shield: d.shield, shieldMax: d.shieldMax }; })()`
   );
   check("speedkills br: a match in the city, its nine sectors the places, the Spire among them", start.pois.length === 9 && start.pois.includes("THE SPIRE"), JSON.stringify(start.pois));
   check("speedkills br: thirty in the match (27 bots in squads, with your squad of three)", start.bots === 27, JSON.stringify(start));

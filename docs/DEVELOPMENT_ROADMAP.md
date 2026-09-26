@@ -3593,3 +3593,19 @@ the drop theme in the air. It rides the effects volume at a low share (audio.jso
 shots stay on top. `npm run sounds` fetches it with the drop theme, the release gate refuses a build without
 it, and the README credits it. The e2e holds that it plays in an arena match and that its file is there; it
 fails with the file moved away.
+
+## Milestone 201 — Revives and respawns only from the squad ✅
+
+Plan section 12, items 4, 7 and 8, the squad messages' races.
+
+- **Item 7:** a respawn or a revive sent to you was acted on whoever sent it, an opponent included. Only a
+  squad mate's counts now, and a respawn only brings back someone who is out or in the Gulag (a beacon brings
+  you out of it). The ghost e2e sends one from an enemy bot and holds that it is ignored.
+- **Item 4:** with two squad mates reviving you, either one letting go stopped the revive for both. Each
+  reviver is kept on its own now, and the HUD names the first still at it.
+- **Item 8:** who was reviving you stayed set through your death, so a later knock began "being revived".
+  It is cleared when you are out.
+- **Found on the way:** the squad size and the battle royale's bot count were kept under one key for both
+  games, so duos chosen in the legacy game made SpeedKills' next match a duo with the legacy count. The e2e
+  caught it as 28 bots in what it expected to be trios, when the Gulag section ran first. Each game keeps its
+  own now.

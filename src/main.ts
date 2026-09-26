@@ -2260,15 +2260,17 @@ brAbilities.addEventListener("change", () => {
 });
 // choosing the battle royale on the friends' row shows its own setting (on unless you turned it off)
 duelMode.addEventListener("change", showAbilitySettings);
+/** the battle royale's bot count, each game its own (the menu keeps the same key, menu.ts BR_BOTS_KEY) */
+const BR_BOTS_STORE = IS_SK ? "range.br.bots.sk" : "range.br.bots";
 try {
-  const bb = localStorage.getItem("range.br.bots");
+  const bb = localStorage.getItem(BR_BOTS_STORE);
   if (bb && [...brBots.options].some((o) => o.value === bb)) brBots.value = bb;
 } catch {
   /* ignore */
 }
 brBots.addEventListener("change", () => {
   try {
-    localStorage.setItem("range.br.bots", brBots.value);
+    localStorage.setItem(BR_BOTS_STORE, brBots.value);
   } catch {
     /* ignore */
   }

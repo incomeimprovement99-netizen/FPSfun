@@ -181,8 +181,12 @@ export function teamFor(id: string | null | undefined): TeamMode {
   return TEAMS.find((t) => t.id === id) ?? TEAMS.find((t) => t.id === brCfg.defaultTeam) ?? TEAMS[TEAMS.length - 1];
 }
 
-/** where the lobby's squad size is kept in this browser (the menu writes it, a match alone reads it) */
-const TEAM_KEY = "range.br.team";
+/**
+ * where the lobby's squad size is kept in this browser (the menu writes it, a match alone reads it);
+ * each game its own, as the bots count is (menu.ts), or duos chosen in one were SpeedKills' too,
+ * with the other's bot count (the e2e caught 28 bots in a trio match after a legacy duo)
+ */
+const TEAM_KEY = IS_SK ? "range.br.team.sk" : "range.br.team";
 
 export function savedTeamId(): string {
   try {
@@ -1835,6 +1839,11 @@ export class BrMatch extends Duel {
       this.noteGulag(this.id, 1);
     }
     super.eliminate(from, how);
+  }
+
+  /** out, or up in the Gulag's room: a squad mate's beacon or box brings you back from either */
+  protected override canBeRespawned(): boolean {
+    return !this.alive || this.gulag !== null;
   }
 
   /** this player's last death was a Gulag lost: out, with the box of the first death the only one (main.ts onEliminated) */

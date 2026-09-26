@@ -473,8 +473,21 @@ export class Duel implements MatchLike {
   /** the knocks this life (the bleed-out shortens each time; the knockdown shield is per knock) */
   knockCount = 0;
   private downBy = -1;
-  /** the squad mate reviving you, while they are at it */
-  revivedBy: number | null = null;
+  /**
+   * The squad mates reviving you, while they are at it. Two can be at once,
+   * and one letting go leaves the other still holding (it cleared both; plan
+   * section 12, item 4). `revivedBy` is the first of them, for the HUD, and
+   * setting it replaces them all (null: nobody).
+   */
+  private revivers = new Set<number>();
+  get revivedBy(): number | null {
+    for (const id of this.revivers) return id;
+    return null;
+  }
+  set revivedBy(id: number | null) {
+    this.revivers.clear();
+    if (id !== null) this.revivers.add(id);
+  }
   /** bleed-out seconds for the first, second, third and later knocks */
   static readonly BLEED = squadCfg.bleedOut;
   /** the health a revive gives back */
@@ -1424,7 +1437,7 @@ export class Duel implements MatchLike {
 
   /** one of three is gone: their figure goes, the match carries on as a 1v1 */
   protected playerGone(id: number, notice: string): void {
-    if (this.revivedBy === id) this.revivedBy = null;
+    this.revivers.delete(id);
     if (this.dropFigure(id)) this.onNotice?.(notice.toUpperCase());
   }
 
@@ -1620,6 +1633,8 @@ export class Duel implements MatchLike {
     if (!this.alive) return;
     this.alive = false;
     this.downed = false;
+    // nobody is reviving someone who is out (it stayed set, and the next knock began "being revived"; item 8)
+    this.revivedBy = null;
     this.deaths++;
     this.onEliminated?.(from);
     const who = from === -1 ? "THE RING" : (this.nameOf(from) ?? "SOMEONE");
@@ -1635,6 +1650,11 @@ export class Duel implements MatchLike {
     const m: NetMsg = { t: "rev", to, op };
     if (this.role === "host") this.links.get(to)?.send({ ...m, from: this.id });
     else this.hostLink?.send(m);
+  }
+
+  /** a squad mate's respawn can bring this player back now: they are out (a battle royale adds its Gulag) */
+  protected canBeRespawned(): boolean {
+    return !this.alive;
   }
 
   /** a squad member's death: the Deathbox Respawn lockout grows (reset after long enough alive) */
@@ -1716,6 +1736,10 @@ export class Duel implements MatchLike {
       case "respawn": {
         if (!finite(m.to)) return;
         if (m.to === this.id) {
+          // Only a squad mate revives or respawns you, and a respawn only brings back someone who is out:
+          // either was taken from anyone at all, an opponent's included (plan section 12, item 7).
+          if (!this.friendly(from)) return;
+          if (m.t === "respawn" && !this.canBeRespawned()) return;
           if (m.t === "rev") {
             if (m.op === "done" && this.downed && this.alive) {
               this.downed = false;
@@ -1723,8 +1747,8 @@ export class Duel implements MatchLike {
               this.revivedBy = null;
               this.onRevived?.(from);
               this.onFeed?.(`${this.nameOf(from) ?? "A SQUAD MATE"} revived ${this.myName || "YOU"}`, true);
-            } else if (m.op === "start") this.revivedBy = from;
-            else if (m.op === "stop") this.revivedBy = null;
+            } else if (m.op === "start") this.revivers.add(from);
+            else if (m.op === "stop") this.revivers.delete(from);
           } else if (vec3(m.at)) this.respawnHere(new THREE.Vector3(...m.at), m.bx === 1);
         } else if (this.role === "host") this.links.get(m.to)?.send({ ...m, from });
         else if (m.t === "rev" && m.op === "done" && m.to >= Duel.BOT_ID) {
