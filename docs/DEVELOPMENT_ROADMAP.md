@@ -3542,3 +3542,30 @@ lit to its level, as the hack squares show theirs, and the line over the slots r
 legacy game reads the magazine level. The legacy game's attachment lines are no longer drawn in SpeedKills,
 whose guns carry their own optic (the plan's HUD: the gun and its fusion level, nothing to sort). Checked by
 the e2e (the panel's levels and no attachment lines) and the snapshot `sk-hud`, now with slot 1 at level 3.
+
+## Milestone 198 — NEON BLOCK, an arena from the city ✅
+
+Stage L. `src/game/arenas/neonblock.ts`; the builder's city look (`src/game/arenas/build.ts`).
+
+- **The map:** a street crossing cut out of the city at night, 44 m by 48.
+  - Four blocks, each a concrete deck a storey (4 m) up, with a lit tower on its outer corner. Each deck is
+    reached by a run of half-metre steps, so bots take them too.
+  - Skybridges across the north and south streets join the decks into a ring of high ground.
+  - Parked cars and barriers in the streets, lit kiosks across the ends of the long one, and alleys between
+    the blocks and the walls.
+- **In SpeedKills**, 1v1, bots, FFA, team deathmatch and Control are played there. The map picker starts on
+  "picked for the mode" and keeps its own choice; the legacy game's first option, the warehouse, was where
+  SpeedKills' bot matches landed until then.
+- **The look:** a plan can ask for `look: "city"`, which draws it in the city's own materials with their world
+  tiling (the facades' lit windows the size they are in the city). Caps are neon, and no legacy prop stands in
+  for the cover.
+- **Checked:** the arena checks walk it with a bot's rules. The first draft failed three of them, each a real
+  fault fixed:
+  - two spawns inside parked cars;
+  - the long street letting the two ends see each other (now kiosks, and the other spawns behind the blocks);
+  - a spawn a bot could not walk from.
+
+  The e2e holds that a SpeedKills bot match is fought there. It failed until the picker's default was fixed.
+  Snapshots `arena-neonblock` and `arena-neonblock-deck`.
+- **Also:** the utility hack's pick said "G / RB", but RB is ping on a controller; it says D-pad right. The
+  README has a SpeedKills section.

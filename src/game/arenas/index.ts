@@ -8,9 +8,10 @@
 import { CROSSING } from "./crossing";
 import { RINGWORKS } from "./ringworks";
 import { VAULT } from "./vault";
+import { NEONBLOCK } from "./neonblock";
 import { boundsOf, spawnsOf, teamSpawnsOf, type ArenaPlan, type PlanSpawn } from "./plan";
 
-export const ARENA_PLANS: ArenaPlan[] = [VAULT, CROSSING, RINGWORKS];
+export const ARENA_PLANS: ArenaPlan[] = [VAULT, CROSSING, RINGWORKS, NEONBLOCK];
 
 /** what a map looks like to a match, a menu or a mode: world coordinates, no meshes */
 export interface ArenaMapInfo {

@@ -4794,6 +4794,14 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   const panel = await ev<{ fusion: { levels: number[]; max: number } | null; attach: number }>(page, "({ fusion: window.__range.hud.last?.fusion ?? null, attach: (window.__range.hud.last?.attachLines ?? []).length })");
   check("speedkills: the gun panel carries each slot's fusion to level 5, and no attachment lines", panel.fusion?.levels[0] === 3 && panel.fusion.max === 5 && panel.attach === 0, JSON.stringify(panel));
   await page.close();
+  // an arena match in SpeedKills is fought in the city: NEON BLOCK (arenas/neonblock.ts), its bounds 74..118 by 94..142
+  const arena = await open(browser, "?game=speedkills");
+  await ev(arena, `(() => { document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
+  await arena.waitForFunction("window.__range.duel()?.phase === 'fight' || window.__range.duel()?.phase === 'countdown'", { polling: 200, timeout: 20000 }).catch(() => undefined);
+  await sleep(500);
+  const where = await ev<{ x: number; z: number; phase: string | null }>(arena, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, phase: window.__range.duel()?.phase ?? null })");
+  check("speedkills: an arena match is fought in NEON BLOCK, the city's crossing", where.x > 74 && where.x < 118 && where.z > 94 && where.z < 142, JSON.stringify(where));
+  await arena.close();
   await speedkillsBrTest(browser);
   await speedkillsGhostTest(browser);
 }

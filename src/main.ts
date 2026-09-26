@@ -2194,15 +2194,19 @@ for (const [value, label] of [
   o.textContent = label;
   arenaMapSel.appendChild(o);
 }
+// SpeedKills keeps its own choice, and starts on the map drawn for the mode, which is its city block
+// (arena.ts mapFor): the legacy game's first option, the warehouse, is not SpeedKills' place
+const LS_ARENA_MAP = IS_SK ? "range.sk.arenaMap" : "range.arenaMap";
+if (IS_SK) arenaMapSel.value = "auto";
 try {
-  const saved = localStorage.getItem("range.arenaMap") ?? "";
+  const saved = localStorage.getItem(LS_ARENA_MAP) ?? "";
   if (saved && [...arenaMapSel.options].some((o) => o.value === saved)) arenaMapSel.value = saved;
 } catch {
   /* ignore */
 }
 arenaMapSel.addEventListener("change", () => {
   try {
-    localStorage.setItem("range.arenaMap", arenaMapSel.value);
+    localStorage.setItem(LS_ARENA_MAP, arenaMapSel.value);
   } catch {
     /* ignore */
   }

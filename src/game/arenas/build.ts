@@ -15,7 +15,8 @@ import { RANGE_SOLIDS } from "../range";
 import { placeProps } from "../props";
 import { dressPlan } from "../dress";
 import { PAL, bevel, emissive, flat, graffitiTexture, textPanel, worldTiledMaterial } from "../geo";
-import { material } from "../materials";
+import { material, tileBox, type MatName } from "../materials";
+import cityCfg from "../../config/city.json";
 import { warehouseRoof } from "../warehouse";
 import { ZIPLINES } from "../traversal";
 import type { ArenaHandles } from "../arena";
@@ -48,8 +49,42 @@ function palette(): Record<MatKey, THREE.Material> {
     containerAlt: flat(0x7a3a2f, 0.6, 0.25),
     cover: flat(PAL.steelLight, 0.55, 0.12),
     steel: flat(PAL.steelDark, 0.55, 0.3),
+    neon: emissive(PAL.orange, 1.6),
   };
   return shared;
+}
+
+/**
+ * The city's look, for a plan drawn from SpeedKills' blocks: the same
+ * materials the city uses (city.ts), each with how many metres its texture
+ * covers, so a facade's windows are the size they are in the city.
+ */
+let cityShared: { mats: Record<MatKey, THREE.Material>; tile: Map<THREE.Material, number> } | null = null;
+function cityPalette(): { mats: Record<MatKey, THREE.Material>; tile: Map<THREE.Material, number> } {
+  if (cityShared) return cityShared;
+  const tile = new Map<THREE.Material, number>();
+  const tex = (name: MatName, t: number, o: { color?: number; roughness?: number; metalness?: number; glow?: number }): THREE.Material => {
+    const m = material(name, o);
+    tile.set(m, t);
+    return m;
+  };
+  const metal = tex("skMetal", 3, { color: 0x9098a8, roughness: 0.45, metalness: 0.7 });
+  cityShared = {
+    tile,
+    mats: {
+      wall: tex("skNight2", cityCfg.facadeTile, { color: 0xb8c4dc, roughness: 0.5, metalness: 0.35, glow: cityCfg.windowGlow }),
+      slab: tex("skConcrete", 4, { color: 0x6a6e76, roughness: 0.9, metalness: 0.02 }),
+      crate: tex("skConcrete", 4, { color: 0x4a4e56, roughness: 0.9, metalness: 0.02 }),
+      // parked cars: dark paint, one cold and one warm
+      container: flat(0x1c2638, 0.35, 0.6),
+      containerAlt: flat(0x3a1a2c, 0.35, 0.6),
+      cover: metal,
+      // a street's fixtures (a shelter, a kiosk): lighter than the trim, so one reads at night against the street
+      steel: tex("skMetal", 3, { color: 0xd0d8e8, roughness: 0.4, metalness: 0.6 }),
+      neon: emissive(0x3cf2ff, cityCfg.neonGlow),
+    },
+  };
+  return cityShared;
 }
 
 /**
@@ -58,7 +93,8 @@ function palette(): Record<MatKey, THREE.Material> {
  * up with everything else it already merges.
  */
 export function buildPlan(scene: THREE.Scene, plan: ArenaPlan, zoneRadius: number): ArenaHandles {
-  const mats = palette();
+  const city = plan.look === "city" ? cityPalette() : null;
+  const mats = city ? city.mats : palette();
   const root = new THREE.Group();
   root.name = `arena:${plan.id}`;
   root.position.set(plan.x, 0, plan.z);
@@ -69,7 +105,7 @@ export function buildPlan(scene: THREE.Scene, plan: ArenaPlan, zoneRadius: numbe
 
   // the floor: one plane, with its texture scaled by the map's real size so a
   // big arena does not get a stretched concrete slab
-  const floorMat = material("concrete", { color: plan.floorColor, roughness: 0.95, metalness: 0.02 });
+  const floorMat = city ? material("skStreet", { color: plan.floorColor, roughness: 0.95, metalness: 0.02 }) : material("concrete", { color: plan.floorColor, roughness: 0.95, metalness: 0.02 });
   const floorGeo = new THREE.PlaneGeometry(plan.halfX * 2, plan.halfZ * 2);
   const uv = floorGeo.attributes.uv as THREE.BufferAttribute;
   for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * (plan.halfX / 2), uv.getY(i) * (plan.halfZ / 2));
@@ -80,7 +116,8 @@ export function buildPlan(scene: THREE.Scene, plan: ArenaPlan, zoneRadius: numbe
   floor.receiveShadow = true;
   root.add(floor);
 
-  const trim = flat(PAL.orange, 0.55, 0.25);
+  // the cap that says "stand here": the warehouse's orange, the city's neon
+  const trim = city ? mats.neon : flat(PAL.orange, 0.55, 0.25);
   // The cover a CC0 prop stands in for (dress.ts): its solid is registered
   // below exactly as before, and only its grey block goes undrawn. A prop is
   // only allowed to take a box's place when it fills it, so the cover is the
@@ -88,12 +125,16 @@ export function buildPlan(scene: THREE.Scene, plan: ArenaPlan, zoneRadius: numbe
   // dressed against the same list the meshes are drawn from, so an index is
   // the same box in both: allBoxes puts the shell in front of the plan's own
   const boxes = allBoxes(plan) as PlanBox[];
-  const worn = dressPlan(boxes);
+  // (the city's cover is its own: no legacy prop stands in for a box there)
+  const worn = city ? { instead: new Set<number>(), props: [] as ReturnType<typeof dressPlan>["props"] } : dressPlan(boxes);
   void placeProps(root, worn.props);
   for (const [i, b] of boxes.entries()) {
     const y = b.y ?? 0;
     if (!worn.instead.has(i)) {
-      const m = new THREE.Mesh(bevel(b.w, b.h, b.d, 0.05), mats[b.mat]);
+      const t = city?.tile.get(mats[b.mat]) ?? 0;
+      const g = city ? new THREE.BoxGeometry(b.w, b.h, b.d) : bevel(b.w, b.h, b.d, 0.05);
+      if (t > 0) tileBox(g as THREE.BoxGeometry, t);
+      const m = new THREE.Mesh(g, mats[b.mat]);
       m.position.set(b.x, y + b.h / 2, b.z);
       m.castShadow = true;
       m.receiveShadow = true;

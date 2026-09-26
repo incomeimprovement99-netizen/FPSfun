@@ -27,6 +27,49 @@ playable as the **legacy** game throughout, and is frozen whole at the git tag
 (Chrome or Edge on a PC; the public build names the guns "Not R-301",
 "Not Kraber" and so on.)
 
+### SpeedKills, as it stands
+
+The site opens in SpeedKills. The legacy game is one setting away (Settings,
+Game) or `?game=legacy`, and everything below this section describes it.
+
+- **The menu:** PLAY (Battle Royale in solo, duos or trios; 1v1; bots; team
+  deathmatch; FFA; Control) and TRAINING (the range, the Run, the tour).
+- **The battle royale:** thirty players in a 500 m neon city at night, nine
+  sectors. The centre, THE SPIRE, is the biggest and the hottest drop, and
+  half the bot squads land there.
+  - The dropship starts off the map and flies 6 s before its doors open.
+  - Sectors decay in four waves of two toward a final one; standing in the
+    decay hurts.
+  - Then a 14 m capture zone opens: a squad alone in it for 45 s wins.
+  - A match runs 6 to 7 minutes.
+- **Movement for roofs:** double jump, wall run and kick, slide, and a climb
+  that goes up a storey (two with a double jump first).
+- **Ten guns**, five named for the owner's friends; BOOG, the sniper, kills
+  with one headshot. Ammo is infinite; the magazine is not.
+- **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to
+  level 5: +2% damage and +10% magazine a level for a gun, a shorter cooldown
+  for a hack. The HUD shows each gun's level as pips.
+- **Ten hacks, two carried:** a move on F or LB (Dash, Slam, Leap, Grapple)
+  and a tool on G or D-pad right (Heal, Armor, Wall, Invisibility, Reveal,
+  Mine). Pick them in a match's setup under PLAY, or find them on the floor.
+- **Health:** 100 health and a 50 shield, both coming back on their own.
+- **Dying:**
+  - Your first death is the Gulag, until the capture zone opens.
+  - After that you are a ghost: fast, unseen, no gun.
+  - A squad mate restores you at your echo in 5 s, three times slower if you
+    wander more than 12 m away. Two restores a match.
+- **Bots** in five tiers (Beginner, Casual, Skilled, Advanced, Extreme), on a
+  player's health, with Heal and Dash by tier.
+- **Arenas** in the city: NEON BLOCK, a crossing with four decks a storey up
+  and skybridges between them, for 1v1, FFA, team deathmatch and Control.
+- **A controller** with an outer deadzone, a curve strength, per-optic ADS and
+  aim assist that fades with distance and never snaps between targets.
+- **The tour:** eight steps, each done for real in the range.
+
+The plan, the gap analysis against Hyper Scape and every owner decision are in
+`docs/PHASE_18_PLAN_SPEEDKILLS.md`; each shipped piece is a Milestone in
+`docs/DEVELOPMENT_ROADMAP.md` (183 onward).
+
 ## Contents
 
 1. [Play it now](#play-it-now)

@@ -15,7 +15,7 @@
 //     steps no taller than that, which is what `stairs` is for.
 
 /** the materials a plan can ask for; build.ts decides what each one looks like */
-export type MatKey = "wall" | "slab" | "crate" | "container" | "containerAlt" | "cover" | "steel";
+export type MatKey = "wall" | "slab" | "crate" | "container" | "containerAlt" | "cover" | "steel" | "neon";
 
 export interface PlanBox {
   /** centre of the box on the floor plane, in arena coordinates */
@@ -82,6 +82,12 @@ export interface ArenaPlan {
   wallH: number;
   /** a warehouse roof on top, or open sky */
   roof: boolean;
+  /**
+   * How it is dressed: absent, the warehouse's painted concrete; "city",
+   * SpeedKills' night city (its facades, concrete and metal, neon for the
+   * caps and the strips), with no legacy props standing in for its cover.
+   */
+  look?: "city";
   /** the roof's light strips and girders, at these x */
   lights: number[];
   girders: number[];

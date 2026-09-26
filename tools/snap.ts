@@ -127,6 +127,26 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "arena-neonblock",
+    note: "SpeedKills' NEON BLOCK: a city crossing at night, from the south street's end: the decks, the skybridge, the cars",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
+      [`(() => { const r = window.__range; r.player.setBounds({ minX: 73, maxX: 119, minZ: 93, maxZ: 143 }); r.player.teleport(96, 0, 95.5, 180, 6); })()`, 0],
+      [gameSeconds(1), 250],
+    ],
+  },
+  {
+    name: "arena-neonblock-deck",
+    note: "NEON BLOCK from the south-west deck, a storey up, across the crossing to the far decks and their towers",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
+      [`(() => { const r = window.__range; r.player.setBounds({ minX: 73, maxX: 119, minZ: 93, maxZ: 143 }); r.player.teleport(85, 4.05, 107, 215, -4); })()`, 0],
+      [gameSeconds(1), 250],
+    ],
+  },
+  {
     name: "arena-ringworks",
     note: "the Ringworks, the open-sky free-for-all arena, from a spawn on its edge",
     steps: [

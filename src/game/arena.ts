@@ -23,6 +23,7 @@ import { warehouseRoof } from "./warehouse";
 import { ZIPLINES } from "./traversal";
 import { buildPlan } from "./arenas/build";
 import { PLAN_MAPS, type ArenaMapInfo } from "./arenas";
+import { IS_SK } from "./game";
 import type { Bounds } from "./player";
 
 export const ARENA_X = 90;
@@ -475,7 +476,7 @@ function arenaZip(root: THREE.Group, a: THREE.Vector3, b: THREE.Vector3, floorA:
 // choosing is duel.ts's arenaFor, and what a mode would pick if nobody says
 // otherwise is `mapFor`.
 
-export type ArenaMapId = "warehouse" | "triangle" | "vault" | "crossing" | "ringworks";
+export type ArenaMapId = "warehouse" | "triangle" | "vault" | "crossing" | "ringworks" | "neonblock";
 
 /** the 1v1 warehouse as the list sees it; its Control points are the ones in src/config/modes.json */
 const WAREHOUSE_MAP: ArenaMapInfo = {
@@ -535,6 +536,9 @@ export function arenaMap(id: string | null | undefined): ArenaMapInfo {
  * has to keep landing in the warehouse it lands in today.
  */
 export function mapFor(mode: string, players: number): ArenaMapId {
+  // SpeedKills fights its arenas in the city: a 1v1, everyone against everyone, teams and Control
+  // (plan section 7.14); three players keep the triangle, the only map with three corners
+  if (IS_SK && !(mode === "duel" && players === 3) && (mode === "duel" || mode === "ffa" || mode === "tdm" || mode === "control")) return "neonblock";
   // three players is still the triangle: it is the only map with three
   // corners and no fourth side to be caught from
   if (mode === "duel" && players === 3) return "triangle";

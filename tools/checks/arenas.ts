@@ -262,10 +262,10 @@ function meshCount(plan: ArenaPlan): number {
 
 // -------------------------------------------------------------- the maps
 
-check("three more arenas, so six modes are no longer one map", ARENA_PLANS.length === 3, ARENA_PLANS.map((p) => p.id).join(", "));
+check("four drawn arenas: three for the modes, and SpeedKills' city block", ARENA_PLANS.length === 4 && ARENA_PLANS.some((p) => p.id === "neonblock" && p.look === "city"), ARENA_PLANS.map((p) => p.id).join(", "));
 check(
-  "the menu's list holds the old two as well as the new three",
-  ARENA_MAPS.length === 5 && ARENA_MAPS[0].id === "warehouse" && ARENA_MAPS[1].id === "triangle",
+  "the menu's list holds the old two as well as the drawn four",
+  ARENA_MAPS.length === 6 && ARENA_MAPS[0].id === "warehouse" && ARENA_MAPS[1].id === "triangle",
   ARENA_MAPS.map((m) => m.id).join(", ")
 );
 check(
