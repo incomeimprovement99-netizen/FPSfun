@@ -20,6 +20,76 @@ an item says so.
 **Numbers:** where an item needs a number about Hyper Scape, the number comes from a source or a measurement
 and says which. Where there is neither, the owner is asked rather than a value invented.
 
+### Decisions taken for the owner (reversible)
+
+The diagnoses (2026-09-26) raised questions. Each was decided with the recommended option so the work does not
+stop; any of them can be reversed. Legacy stays untouched throughout, by the owner's rule.
+
+- **A1:**
+  - In a loadout start the bots still land armed.
+  - SpeedKills care packages hold SpeedKills loot, not legacy guns, batteries or a phoenix.
+  - Loadout crates are off in SpeedKills: they handed level-0 copies, against fusion.
+- **A2:**
+  - Damage is rounded for display only.
+  - SpeedKills stops rounding each hit down before it lands (dummy.ts). The rounding cut USSO 10% and made some
+    guns' fusion add nothing.
+- **A3:**
+  - Real arms that nothing posed are hidden; they showed in the 3x scope on HELIX and PULSAR.
+  - A reload while aiming keeps the sight steady (reloadAds 0.85), instead of leaving the sights.
+- **A4:**
+  - 38 m of grace, not 40, because the range's back wall stands 39 m north of the city.
+  - An out-of-bounds death goes to the Gulag like a ring death.
+  - The skyline moves out past the fence.
+- **A5:**
+  - SpeedKills draws the city from the ship's first frame.
+  - The stray range props join the range side.
+  - The ship flies above the skyline's tallest towers.
+  - The mannequins' frustum culling being off (about 324 draw calls and 980k triangles for 27 bots) becomes the
+    first lead of Part B step 1.
+- **A6:**
+  - The health bar is twice as thick and a little longer.
+  - Only the bottom HUD moves.
+  - The range's stats panel is hidden in a match.
+  - The ping and emote wheels and the captions are drawn again in SpeedKills.
+  - Gun levels show as pips and "LV n".
+  - The speed readout stays, smaller.
+- **A7:**
+  - The kinds: PANDA Heavy Rifle, ZEPHYR Fast Rifle, ANAKIN Steady SMG, USSO Fast SMG, BIGANTLER Heavy
+    Shotgun, RIPTIDE Auto Shotgun, HELIX Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper, NOVA Energy LMG.
+    The Run's pistols are Pistol.
+  - The kill feed names no gun, as today.
+  - The bot called NOVA is renamed in SpeedKills.
+  - SpeedKills' default loadouts get names that fit their guns.
+  - The FUSED notice is no longer overwritten.
+- **A8:**
+  - Full (the default) and Compact, no Off.
+  - The card shows for the item you look at or cycle to, and steps aside while aiming.
+  - The per-family lines are as proposed.
+  - The hack-core swap flip-flop is fixed.
+- **A9:**
+  - Slam's height is measured from footage. If that is impossible, the one sourced number (30 m, a player's
+    claim) is used and flagged.
+  - Every other hack takes the final published values, and their missing behaviours are built: the Mine seeks,
+    the Wall has 250 HP and at most 2, Reveal is a 50 degree cone, and Invisibility breaks on aiming and on a
+    hack.
+  - The owner's earlier choice for Armor stays: it takes 60% of damage off and you can still shoot. Its
+    duration and cooldowns follow Hyper Scape.
+  - Unpublished numbers (Teleport's distance) are measured from footage or left and flagged.
+- **A10:**
+  - SpeedKills bots lose every legacy kit (hacks only).
+  - The grenade kit leaves SpeedKills.
+  - The Frag spray stays; it is a spray.
+- **A11:**
+  - The menu grows with the screen: 1120, 1200, 1280 and 1400 px.
+  - Scrollbars have a cyan thumb that turns magenta under the mouse.
+  - The settings' control column is wider.
+- **A12:**
+  - The barrier stands 24 m down range.
+  - The TV hangs in it at three-quarter size.
+  - Signs point to The Run (Basic and Advanced) and a sign to the movement lab.
+  - The courses keep their old look for now.
+  - The hacks reset at a match's end.
+
 ### A1. Loot does not work after "land with your loadout"
 
 - **The owner:** "i can't loot anything so i can't fusion anything together, can't change my guns ... i did do
@@ -281,13 +351,16 @@ shows Phase 19 made the city slower, and nothing shows it did not.
 
 ### Ranked next steps (proposal)
 
-1. **A frame-rate number to trust.** The bench takes the median of several runs, and SpeedKills gets a floor
-   in fps per preset for its street and roof views, checked before a release. Smooth was the first thing
-   Hyper Scape was. A5 measures part of this.
+1. **A frame-rate number to trust, and the first lead.**
+   - The bench takes the median of several runs, run interleaved A/B since the owner may be using the PC.
+   - SpeedKills gets a floor in fps per preset for its street and roof views, checked before a release. Smooth
+     was the first thing Hyper Scape was.
+   - The first lead, from A5's diagnosis: every figure's skinned meshes skip frustum culling. That costs about
+     324 draw calls and 980k triangles a frame for 27 bots.
 2. **The guns' pace: the owner's call.** They draw in 0.6 s and aim in 0.31 s, from the legacy data, and no
    public source gives Hyper Scape's numbers. The rest of Phase 19's step 10 follows the decision.
-3. **The free Quaternius kits:** trees and planters on the streets, and props for the interiors, so the rooms
-   differ (Hyper Scape's reviewers called its rooms all the same).
+3. **The free Quaternius kits,** downloaded and added (already agreed): trees and planters on the streets, and
+   props for the interiors, so the rooms differ (Hyper Scape's reviewers called its rooms all the same).
 4. **Bots, further:**
    - the pads outside the centre and the highway on their graph;
    - a bot's whole walk to the capture zone checked end to end. Today the plan and the pad ride are checked,
