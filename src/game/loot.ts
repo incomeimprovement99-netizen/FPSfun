@@ -18,6 +18,8 @@
 // another. And a spot is a KIND, not a handful of separate dice: a gun rack, a
 // med shelf, a bench, an ordnance crate, an ammo crate, so a room reads as a
 // room instead of coming out four shield cells and nothing else.
+import { IS_SK, PROFILE } from "./game";
+import { HACK_IDS, hackDef, hackSlotOf } from "./hacks";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import cfg from "../config/loot.json";
@@ -31,7 +33,7 @@ import { optionsFor, SLOTS, type Attachments } from "./attachments";
 import { BACKPACKS, KNOCK_SHIELDS, type BackTier, type KnockTier } from "./kit";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
-export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade" | "backpack" | "knockdown" | "bin" | "keycard";
+export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade" | "backpack" | "knockdown" | "bin" | "keycard" | "hack";
 
 /** supply bins (loot.json bins): where they may stand, how often, and what one throws out */
 export const BINS = cfg.bins;
@@ -65,6 +67,8 @@ export interface LootItem {
   pod?: number;
   /** a gun's locked hop-up: the damage done with it so far */
   hop?: number;
+  /** SpeedKills: a gun's fusion level, 0 as found to 5 (a hack core's level is its n) */
+  fusion?: number;
 }
 
 export interface LootDrop {
@@ -131,6 +135,8 @@ export function lootLabel(it: LootItem): string {
       return `${it.mythic ? "MYTHIC " : ""}${weaponName(it.id).toUpperCase()}`;
     case "keycard":
       return "VAULT KEYCARD";
+    case "hack":
+      return `${hackDef(it.id)?.name ?? it.id.toUpperCase()} HACK${it.n > 0 ? `  ·  LEVEL ${it.n}` : ""}`;
     case "ammo":
       return `${it.id.toUpperCase()} AMMO x${it.n}`;
     case "heal":
@@ -259,6 +265,8 @@ const SPOT_KINDS = cfg.spotKinds as SpotKind[];
 
 /** the tier a place rolls on: its id's, or its place in loot.json's placeOrder when it arrives without one */
 export function tierOf(place: LootPlace, index: number): PlaceTier {
+  // SpeedKills: the centre is the hot drop, every other sector the same
+  if (IS_SK) return place.id === "c" ? "hot" : "mid";
   const id = place.id ?? cfg.placeOrder[index];
   return ((cfg.places as Record<string, PlaceTier>)[id] ?? cfg.defaultTier) as PlaceTier;
 }
@@ -312,6 +320,12 @@ export function deathBoxOf(kit: DeadBotKit | null, fallbackGun: string | null): 
  */
 export function pickHotZone(seed: number, places: LootPlace[]): HotZone | null {
   if (!places.length) return null;
+  // SpeedKills: always the centre, the owner's hottest drop (its sector's id is c)
+  if (IS_SK) {
+    const index = Math.max(0, places.findIndex((p) => p.id === "c"));
+    const p = places[index];
+    return { id: p.id ?? "c", index, x: p.x, z: p.z, radius: p.radius ?? cfg.hotZone.radius };
+  }
   const rnd = seeded(Math.imul(seed >>> 0 || 1, 2654435761) >>> 0);
   const index = Math.floor(rnd() * places.length) % places.length;
   const p = places[index];
@@ -364,7 +378,44 @@ function makeTiered(rarity: Rarity, kind: "backpack" | "knockdown"): LootItem {
   return { kind, id: pick, n: 1, rarity: (table[pick]?.rarity ?? "rare") as Rarity };
 }
 
+/** SpeedKills: a floor level for a found thing, from a tier's odds (one number a level) */
+function levelFrom(rnd: () => number, odds: number[]): number {
+  let r = rnd();
+  for (let i = 0; i < odds.length; i++) {
+    r -= odds[i];
+    if (r <= 0) return i;
+  }
+  return 0;
+}
+/** a level's colour on the floor: 0 white, 1 blue, 2 purple, 3 and up gold */
+const LEVEL_RARITY: Rarity[] = ["common", "rare", "epic", "legendary"];
+
+/**
+ * SpeedKills' spot: a gun, a hack core, or both, and nothing else (the
+ * owner: loot is never homework). What level each is found at is the tier's
+ * odds, the Spire's the best (speedkills.json loot).
+ */
+function speedkillsSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
+  const L = PROFILE.loot!;
+  const key = tier === "hot" ? "hot" : "mid";
+  const out: LootItem[] = [];
+  const gun = rnd() < L.gunChance;
+  const hack = rnd() < L.hackChance || !gun;
+  if (gun) {
+    const id = PROFILE.roster[Math.floor(rnd() * PROFILE.roster.length)];
+    const level = levelFrom(rnd, L.gunOdds[key]);
+    out.push({ kind: "weapon", id, n: 1, rarity: LEVEL_RARITY[Math.min(3, level)], fusion: level });
+  }
+  if (hack) {
+    const id = HACK_IDS[Math.floor(rnd() * HACK_IDS.length)];
+    const level = levelFrom(rnd, L.hackOdds[key]);
+    out.push({ kind: "hack", id, n: level, rarity: LEVEL_RARITY[Math.min(3, level)] });
+  }
+  return out;
+}
+
 export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
+  if (IS_SK && PROFILE.loot) return speedkillsSpot(rnd, tier);
   const total = SPOT_KINDS.reduce((a, s) => a + s.weight[tier], 0);
   let r = rnd() * total;
   let spot = SPOT_KINDS[SPOT_KINDS.length - 1];
@@ -610,7 +661,8 @@ export class LootField {
       this.tmpQ.setFromEuler(this.tmpE.set(-Math.PI / 2, 0, 0));
       this.batch(`ring${colour}`, this.ringGeo, () => new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
     } else if (it.kind !== "bin" && it.kind !== "box") {
-      const col = it.kind === "banner" ? 0x7ddc8a : colour;
+      // a hack core in its slot's colour (mobility cyan, utility magenta)
+      const col = it.kind === "banner" ? 0x7ddc8a : it.kind === "hack" ? (hackSlotOf(it.id) === "mobility" ? 0x20e0ff : 0xff2e9a) : colour;
       p.set(d.pos.x, d.pos.y + 0.12, d.pos.z);
       // the items turn slowly
       this.tmpQ.setFromEuler(this.tmpE.set(0, now * 0.8 + d.key, 0));
@@ -708,7 +760,8 @@ export class LootField {
       const tier: PlaceTier = hot ? "hot" : tierOf(p, i);
       const spots: THREE.Vector3[] = [];
       let tries = 0;
-      while (spots.length < cfg.tiers[tier].spots && tries++ < 400) {
+      const want = IS_SK && PROFILE.loot ? (PROFILE.loot.spots[tier] ?? PROFILE.loot.spots.mid) : cfg.tiers[tier].spots;
+      while (spots.length < want && tries++ < want * 12) {
         const a = rnd() * Math.PI * 2;
         // out to the place's own reach: West Town's clocktower is 34 m and more from its middle
         const reach = Math.max(cfg.placeReachMin, p.radius ?? 0);

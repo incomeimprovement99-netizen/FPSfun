@@ -4785,6 +4785,8 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   check("speedkills br: thirty in the match (27 bots in squads, with your squad of three)", start.bots === 27, JSON.stringify(start));
   check("speedkills br: loot on the city's floors", start.loot > 150, `${start.loot} items`);
   check("speedkills br: 100 health and 50 shield", start.health === 100 && start.shieldMax === 50, JSON.stringify(start));
+  const spireBots = await ev<number>(page, `(() => { const d = window.__range.duel(); const m = window.__range.brMap; return d.bots.filter((b) => b.dropTo && m.placeAt(b.dropTo.x, b.dropTo.z)?.id === "c").length; })()`);
+  check("speedkills br: the bots drop on the Spire the most (every other squad)", spireBots >= 12, `${spireBots} of 27`);
   // the bots land and walk the streets
   await page.waitForFunction("window.__range.duel().bots.every((b) => b.landed)", { polling: 500, timeout: 60000 }).catch(() => undefined);
   const before = await ev<number[][]>(page, "window.__range.duel().bots.map((b) => [b.bot.pos.x, b.bot.pos.z])");
@@ -4792,6 +4794,27 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   const after = await ev<number[][]>(page, "window.__range.duel().bots.map((b) => [b.bot.pos.x, b.bot.pos.z])");
   const moved = after.filter((p, i) => before[i] && Math.hypot(p[0] - before[i][0], p[1] - before[i][1]) > 3).length;
   check("speedkills br: the bots land and move through the city", moved >= 15, `${moved} of ${after.length} moved in 6 s`);
+  // the floor: guns and hack cores only, the Spire the richest
+  const floor = await ev<{ kinds: string[]; spire: number; other: number; levels: number[] }>(
+    page,
+    `(() => { const d = window.__range.duel(); const m = window.__range.brMap; const kinds = new Set(); let spire = 0, other = 0; const levels = [0, 0, 0, 0, 0, 0];
+      for (const x of d.lootField.drops.values()) { kinds.add(x.item.kind); const p = m.placeAt(x.pos.x, x.pos.z); if (p && p.id === "c") spire++; else other++; if (x.item.kind === "weapon") levels[x.item.fusion ?? 0]++; }
+      return { kinds: [...kinds], spire, other, levels }; })()`
+  );
+  check("speedkills br: the floor is guns and hack cores, nothing else to sort", floor.kinds.every((k) => ["weapon", "hack", "bin", "box"].includes(k)) && floor.kinds.includes("hack"), JSON.stringify(floor.kinds));
+  check("speedkills br: the Spire is the richest sector (the hot drop)", floor.spire > floor.other / 8 * 1.5, JSON.stringify({ spire: floor.spire, other: floor.other }));
+  check("speedkills br: some guns lie already fused", floor.levels[1] + floor.levels[2] + floor.levels[3] > 0, JSON.stringify(floor.levels));
+  // picking up: a copy fuses, a higher copy takes you to its level, a hack core fuses its hack
+  const fuse = await ev<{ first: number; second: number; third: number; hack: number }>(
+    page,
+    `(() => { const r = window.__range; const g = { kind: "weapon", id: "r97", n: 1, rarity: "common", fusion: 0 };
+      r.applyLoot({ ...g }); const i = r.loadout.slots.findIndex((s) => s.id === "r97"); const first = r.loadout.slots[i].fusion;
+      r.applyLoot({ ...g }); const second = r.loadout.slots[i].fusion;
+      r.applyLoot({ ...g, fusion: 4, rarity: "legendary" }); const third = r.loadout.slots[i].fusion;
+      const mob = r.sk.hacks()[0].held.id; r.applyLoot({ kind: "hack", id: mob, n: 0, rarity: "common" }); const hack = r.sk.hacks()[0].held.level;
+      return { first, second, third, hack }; })()`
+  );
+  check("speedkills br: a gun found is level 0, a copy fuses it to 1, a level-4 copy takes it to 4, a hack core fuses its hack", fuse.first === 0 && fuse.second === 1 && fuse.third === 4 && fuse.hack === 1, JSON.stringify(fuse));
   await ev(page, "window.__range.duel()?.leave()");
   await page.close();
 }

@@ -518,7 +518,8 @@ const PUFF_GEO = new THREE.SphereGeometry(brCfg.pod.trail.radius, 8, 6);
 
 const BR_BOUNDS_WORLD = { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HALF, minZ: BR_CENTER.z - BR_HALF, maxZ: BR_CENTER.z + BR_HALF };
 const RARITIES = ["common", "rare", "epic", "legendary"];
-const KINDS = ["weapon", "ammo", "heal", "attach", "hopup", "helmet", "banner", "box", "grenade", "bin", "keycard"];
+// every kind loot.ts can make: backpacks and knockdown shields were left out, so a dropped one sent over the wire was thrown away
+const KINDS = ["weapon", "ammo", "heal", "attach", "hopup", "helmet", "banner", "box", "grenade", "bin", "keycard", "backpack", "knockdown", "hack"];
 
 /** a loot item from another browser, checked field by field */
 function wireItem(x: unknown): LootItem | null {
@@ -539,6 +540,8 @@ function wireItem(x: unknown): LootItem | null {
   if (typeof o.ownerName === "string") it.ownerName = o.ownerName.replace(/[\p{Cc}<>&"'`]/gu, "").slice(0, 16);
   if (typeof o.pod === "number" && Number.isFinite(o.pod)) it.pod = Math.floor(o.pod);
   if (typeof o.hop === "number" && Number.isFinite(o.hop)) it.hop = Math.max(0, Math.min(10000, o.hop));
+  // SpeedKills: a gun's fusion level
+  if (typeof o.fusion === "number" && Number.isFinite(o.fusion)) it.fusion = Math.max(0, Math.min(5, Math.floor(o.fusion)));
   return it;
 }
 
@@ -685,7 +688,15 @@ export class BrMatch extends Duel {
       // The bots take the OTHER places: where the squad drops is the squad's.
       // Landing beside three of them with no gun was the whole of a match.
       const others = map.pois.filter((p) => p !== this.poi && this.inArea(p)).sort(() => rng() - 0.5);
-      const order = others.length ? others : [this.poi];
+      let order = others.length ? others : [this.poi];
+      // SpeedKills: the centre is the hottest drop, and the bots go there the
+      // most (the owner): every other bot squad drops on the Spire, the rest
+      // spread over the other sectors
+      if (IS_SK) {
+        const spire = map.pois.find((p) => p.id === "c");
+        const rest = order.filter((p) => p !== spire);
+        if (spire) order = rest.length ? rest.flatMap((p) => [spire, p]) : [spire];
+      }
       const apart = squadCfg.drop.apart;
       for (let i = 0; i < this.botCount; i++) {
         // A bot squad lands together: the place and the drop point belong to

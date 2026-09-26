@@ -425,7 +425,8 @@ export class BotLooter {
     const rank = RARITY_RANK[item.rarity] ?? 1;
     switch (item.kind) {
       case "weapon":
-        return rank > k.gun;
+        // SpeedKills: a copy of its own gun fuses it, as a player's does
+        return rank > k.gun || (IS_SK && item.id === k.gunId && k.gun < 6);
       case "attach": {
         // a gun first: fittings are no use with nothing to fit them to
         if (!k.gunId) return false;
@@ -456,6 +457,11 @@ export class BotLooter {
     const slot = item.id.split("_")[0];
     switch (item.kind) {
       case "weapon":
+        // SpeedKills: the same gun again is a level up (its rank is its fusion level plus one)
+        if (IS_SK && item.id === k.gunId) {
+          k.gun = Math.min(6, Math.max(k.gun + 1, rank));
+          break;
+        }
         k.gunId = item.id;
         k.gun = rank;
         k.mag = Math.max(k.mag, item.mag ?? 0);
@@ -1281,7 +1287,8 @@ export class Bot {
   private refit(): void {
     const k = this.looter.kit;
     if (!k.gunId) return;
-    this.weapon = resolveWeapon(k.gunId, k.mag, this.looter.modIds);
+    // SpeedKills: its gun at its fusion level (the kit's rank is the level plus one)
+    this.weapon = resolveWeapon(k.gunId, k.mag, this.looter.modIds, IS_SK ? Math.max(0, k.gun - 1) : 0);
     if (this.remote.avatarWeapon !== k.gunId) {
       this.remote.avatarWeapon = k.gunId;
       this.dummy.setGun(k.gunId);

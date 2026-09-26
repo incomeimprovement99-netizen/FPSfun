@@ -56,7 +56,7 @@ import finCfg from "./config/finisher.json";
 import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
 import { buildCityMap } from "./game/city";
-import { Hacks, HACK, HACK_DEFS, hackDef, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
+import { Hacks, HACK, HACK_DEFS, hackDef, hackSlotOf, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
 import { BotMatch, MOST_BOTS } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
@@ -3900,7 +3900,50 @@ function applyLoot(it: LootItem): void {
     // a supply bin: opening it is taking it, and what it held is on the floor now; nothing goes in the pack
     case "bin":
       return;
+    case "hack": {
+      // SpeedKills: a hack core fuses the hack you hold (a level up, or to its
+      // level) or swaps in for the other of its slot, which goes down where you stand
+      const had = hacks.get(hackSlotOf(it.id) ?? "mobility");
+      const what = hacks.take(it.id as HackId, it.n, gameTime);
+      if (what === "swapped" && had && had.id !== it.id) putBack({ kind: "hack", id: had.id, n: had.level, rarity: "common" });
+      const held = hacks.get(hackSlotOf(it.id) ?? "mobility");
+      hud.notice(what === "fused" ? `${hackDef(it.id)?.name ?? it.id} FUSED  ·  LEVEL ${held?.level ?? 0}` : what === "maxed" ? `${hackDef(it.id)?.name ?? it.id}: ALREADY AT ITS TOP LEVEL` : `${hackDef(it.id)?.name ?? it.id} HACK`, gameTime, 1.6);
+      if (what === "maxed") putBack(it);
+      audio.reloadStep("bolt");
+      break;
+    }
     case "weapon": {
+      // SpeedKills' fusion: the gun you carry, found again, goes up a level
+      // (a higher-level copy, to its level); a new one fills an empty slot or
+      // swaps with the one in hand, which goes down with its own level
+      if (IS_SK) {
+        const twin = loadout.slots.findIndex((s) => !s.empty && s.id === it.id);
+        if (twin >= 0) {
+          const s = loadout.slots[twin];
+          const to = Math.max((s.fusion ?? 0) + 1, it.fusion ?? 0);
+          if (loadout.fuse(twin, to)) {
+            hud.notice(`${label} FUSED  ·  LEVEL ${s.fusion}`, gameTime, 1.8);
+            fusedCount++;
+            audio.reloadStep("bolt");
+            audio.swap();
+          } else {
+            hud.notice(`${label}: ALREADY AT ITS TOP LEVEL`, gameTime, 1.4);
+            putBack(it);
+          }
+          break;
+        }
+        const empty = loadout.emptySlot;
+        if (empty >= 0) {
+          loadout.give(empty, it.id, 0, {}, it.fusion ?? 0);
+          if (loadout.activeIndex !== empty) loadout.requestSwap(empty, gameTime);
+        } else {
+          const s = loadout.active;
+          putBack({ kind: "weapon", id: s.id, n: 1, rarity: (["common", "rare", "epic", "legendary"] as const)[Math.min(3, s.fusion ?? 0)], fusion: s.fusion ?? 0 });
+          loadout.give(loadout.activeIndex, it.id, 0, {}, it.fusion ?? 0);
+        }
+        audio.swap();
+        break;
+      }
       // Fusion (br.json fusion): the gun you already carry, found again, is
       // not a spare to juggle but a better copy of the one you have
       const twin = brCfg.fusion.on && d instanceof BrMatch ? loadout.slots.findIndex((s) => !s.empty && s.id === it.id) : -1;
