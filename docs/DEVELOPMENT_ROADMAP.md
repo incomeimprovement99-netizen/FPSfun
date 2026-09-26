@@ -3244,3 +3244,31 @@ reading short lines is consistent and costs nothing to download.
 
 Checked by `tools/checks/announcer.ts` (16, proven by making the ring line repeat every frame) and by the
 e2e: aboard the ship the drop is said and the theme is on, landed it is off, and a finisher is spoken.
+
+## Milestone 183 — The Apex era frozen, and SpeedKills' first footing ✅
+
+Phase 18 item 18.1a. See `docs/PHASE_18_PLAN_SPEEDKILLS.md`.
+
+The owner turned the project toward **SpeedKills**, a fast, vertical, futuristic-city shooter and battle
+royale of its own design, keeping everything built so far.
+
+- **Frozen.** The whole game as it stood (Milestones 1 to 182) is the git tag `apex-era-final`, pushed and
+  deployed to both the game server and Pages through the release gate. Unfinished local work went to the
+  branch `wip/follower-graph`.
+- **Read before changing anything.** Four passes over the code (weapons and loot; abilities, movement and
+  input; the battle royale, life states and the network; maps, modes, UI and tests) are the basis of the plan,
+  which says what is reused, what changes, what is added, in which of twelve phases, and what is still the
+  owner's to decide. The passes also found fourteen bugs, eight of them states that can contradict each other.
+- **The switch.** `src/game/game.ts`: one game per page, `legacy` or `speedkills`, from the URL, then the
+  browser's last choice, then the build's default (`__DEFAULT_GAME__`, legacy). Nothing reads it yet, so the
+  legacy game is untouched by construction.
+- **The profiles.** `src/config/games/legacy.json` (the design as it froze) and `speedkills.json` (the first
+  version of the new one: twelve guns in pairs with their own names and fixed optics, no attachments,
+  universal ammo, fusion levels 1 to 5, seven abilities in a mobility and a utility slot, ghosts and a
+  follow-to-revive rule, the city map, five bot tiers).
+- **Checked.** `tools/checks/games.ts` (34 checks) holds every profile to naming only guns, optics,
+  abilities and maps that exist, legacy to the whole catalogue, and SpeedKills to the brief's shape: two guns
+  a family at most, a hard-hitter and a fast one in each pair, six to eight abilities, fusion that is better
+  but not decisive (a level-5 gun at most 15% quicker to kill on damage). Proven by planting a misspelt gun
+  and an optic the gun cannot take: five checks fail.
+

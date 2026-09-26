@@ -17,6 +17,12 @@ Steam or Easy Anti-Cheat.
 beside it to turn a page or step a section, or put a round on a section's name
 down its left side to jump there.
 
+**Where it is going: SpeedKills.** From 26 September 2026 the project is moving to
+SpeedKills, a fast, vertical, futuristic-city shooter and battle royale of its own
+design (`docs/PHASE_18_PLAN_SPEEDKILLS.md`). The game described here stays
+playable as the **legacy** game throughout, and is frozen whole at the git tag
+`apex-era-final`.
+
 **Play it: https://fpsfun.duckdns.org/**
 (Chrome or Edge on a PC; the public build names the guns "Not R-301",
 "Not Kraber" and so on.)

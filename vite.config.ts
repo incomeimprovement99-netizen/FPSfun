@@ -66,7 +66,8 @@ export default defineConfig(({ mode }) => {
   const beta = mode === "beta";
   return {
     base: "./",
-    define: { __PUBLIC_BUILD__: JSON.stringify(beta) },
+    // the game a page opens in when neither the URL nor the browser says (src/game/game.ts)
+    define: { __PUBLIC_BUILD__: JSON.stringify(beta), __DEFAULT_GAME__: JSON.stringify(process.env.DEFAULT_GAME ?? "legacy") },
     plugins: beta ? [scrubForPublic(), scrubReadme()] : [],
     build: { chunkSizeWarningLimit: 2000 },
   };

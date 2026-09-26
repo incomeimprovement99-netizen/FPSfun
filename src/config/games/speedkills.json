@@ -1,0 +1,79 @@
+{
+  "_note": "SpeedKills' profile (src/game/game.ts, docs/PHASE_18_PLAN_SPEEDKILLS.md section 6): what is in play and the design that differs from the legacy game. Selection and design only: the numbers that describe a thing (a gun's damage, a jump's height) stay in their own configs, and a gun here is a legacy gun (`from`) with its own name, family and fixed optic, tuned by overlays in Phase 20. Every id named here must exist (tools/checks/games.ts). A first version, to be tuned in play. Ours.",
+  "id": "speedkills",
+  "name": "SpeedKills",
+  "tagline": "Move fast. Aim true.",
+  "_roster": "About two guns per family, each pair answering 'why this one' at a glance (the brief, sections 10 and 11): a hard-hitter and a fast one. Six families; the sniper and the heavy have one gun each to start.",
+  "roster": ["vinson", "rspn101", "alternator_smg", "r97", "mastiff", "shotgun", "3030", "g2", "sentinel", "lmg", "wingman", "autopistol"],
+  "families": {
+    "rifle": { "label": "Rifles", "guns": ["vinson", "rspn101"] },
+    "smg": { "label": "SMGs", "guns": ["alternator_smg", "r97"] },
+    "shotgun": { "label": "Shotguns", "guns": ["mastiff", "shotgun"] },
+    "marksman": { "label": "Marksman", "guns": ["3030", "g2"] },
+    "sniper": { "label": "Sniper", "guns": ["sentinel"] },
+    "heavy": { "label": "Heavy", "guns": ["lmg"] },
+    "sidearm": { "label": "Sidearms", "guns": ["wingman", "autopistol"] }
+  },
+  "_weapons": "Each gun's SpeedKills name, its role in its pair (hard or fast), and the one optic it always wears (attachments are off in SpeedKills: fusion is the upgrade). The names are proposals for the owner (plan section 11).",
+  "weapons": {
+    "vinson": { "name": "ANVIL", "role": "hard", "optic": "optic_cq_hcog_bruiser" },
+    "rspn101": { "name": "RAZOR", "role": "fast", "optic": "optic_cq_hcog_bruiser" },
+    "alternator_smg": { "name": "HORNET", "role": "hard", "optic": "optic_cq_holosight" },
+    "r97": { "name": "BUZZSAW", "role": "fast", "optic": "optic_cq_holosight" },
+    "mastiff": { "name": "THUNDERCLAP", "role": "hard", "optic": "optic_cq_holosight" },
+    "shotgun": { "name": "SCATTER", "role": "fast", "optic": "optic_cq_holosight" },
+    "3030": { "name": "LONGSHOT", "role": "hard", "optic": "optic_ranged_hcog" },
+    "g2": { "name": "PIKE", "role": "fast", "optic": "optic_ranged_hcog" },
+    "sentinel": { "name": "LANCE", "role": "hard", "optic": "optic_sniper" },
+    "lmg": { "name": "TORRENT", "role": "hard", "optic": "optic_cq_hcog_bruiser" },
+    "wingman": { "name": "HAMMER", "role": "hard", "optic": "optic_cq_holosight" },
+    "autopistol": { "name": "STING", "role": "fast", "optic": "optic_cq_holosight" }
+  },
+  "attachments": [],
+  "_ammo": "One universal ammo for every gun, in generous stacks: the owner's rule is that nobody runs out (plan section 11, decision 4).",
+  "ammo": "universal",
+  "_fusion": "A duplicate raises a gun one level, 1 to 5; each level's multipliers against level 1. A level-5 gun is better, not decisive: the TTK check (Phase 20) holds its time to kill within about 15% of level 1's. A duplicate ability core lowers that ability's cooldown by cooldownStep a level, to abilityLevels.",
+  "fusion": {
+    "on": true,
+    "levels": 5,
+    "gun": [
+      { "mag": 1.0, "reload": 1.0, "damage": 1.0, "recoil": 1.0 },
+      { "mag": 1.15, "reload": 0.95, "damage": 1.03, "recoil": 0.95 },
+      { "mag": 1.3, "reload": 0.9, "damage": 1.06, "recoil": 0.9 },
+      { "mag": 1.45, "reload": 0.85, "damage": 1.09, "recoil": 0.85 },
+      { "mag": 1.6, "reload": 0.8, "damage": 1.12, "recoil": 0.8 }
+    ],
+    "abilityLevels": 4,
+    "cooldownStep": 0.1
+  },
+  "_abilities": "Seven abilities in two slots: pick one mobility and one utility before the match, and in the battle royale their cores on the floor fuse or swap (plan section 11, decision 1). `from` is the legacy ability each is built on (null: new). No passives and no ultimates: fewer things to learn and to read in a fight.",
+  "abilities": {
+    "slots": ["mobility", "utility"],
+    "passives": false,
+    "ultimates": false,
+    "set": [
+      { "id": "dash", "slot": "mobility", "from": "jolt", "name": "DASH", "blurb": "A short burst the way you are moving. Two charges." },
+      { "id": "grapple", "slot": "mobility", "from": "hook", "name": "GRAPPLE", "blurb": "A line that pulls you to a surface." },
+      { "id": "launch", "slot": "mobility", "from": null, "name": "LAUNCH", "blurb": "Straight up, about four storeys, then glide." },
+      { "id": "wall", "slot": "utility", "from": "ward", "name": "WALL", "blurb": "A barrier in front of you." },
+      { "id": "pulse", "slot": "utility", "from": "scout", "name": "PULSE", "blurb": "Shows enemies near you through walls, for a moment." },
+      { "id": "veil", "slot": "utility", "from": "smoke", "name": "VEIL", "blurb": "A cloud that breaks sight, both ways." },
+      { "id": "patch", "slot": "utility", "from": "triage", "name": "PATCH", "blurb": "Heal over a few seconds. A hit cancels it." }
+    ]
+  },
+  "_life": "The death lifecycle (plan section 5.8): no knockdowns; the first death goes to the Gulag, a later one makes a ghost, whom a squad mate revives at the ghost's echo point in reviveSeconds, awaySlowdown times as long while the ghost is further than followRadius metres from the reviver. A squad is out when none of it is alive or in the Gulag. In solo there is nobody to revive a ghost, so a second death is the end.",
+  "life": {
+    "knockdowns": false,
+    "gulag": true,
+    "ghost": true,
+    "reviveSeconds": 5,
+    "awaySlowdown": 3,
+    "followRadius": 12
+  },
+  "map": "city",
+  "hud": "speedkills",
+  "menu": "speedkills",
+  "_bots": "Five tiers, easiest first; the first three map onto the legacy tiers, and beginner and extreme are new (Phase 27).",
+  "bots": ["beginner", "casual", "skilled", "advanced", "extreme"],
+  "identity": { "title": "SpeedKills", "accent": "#20e0ff", "accent2": "#ff2e9a", "sky": "night" }
+}

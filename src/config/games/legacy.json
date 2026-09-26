@@ -1,0 +1,55 @@
+{
+  "_note": "The legacy game's profile (src/game/game.ts): the design as it stood at the git tag apex-era-final, Milestones 1 to 182. It says what is in play and how the game is shaped, for the switch to hand the rest of the code; the lists it replaces (loot.json's weapon tables, BOT_WEAPONS, the Gulag pairs and the rest, docs/PHASE_18_PLAN_SPEEDKILLS.md section 3.1) move here in Phase 18.1b, verbatim, so the legacy game plays exactly as it did. Every id named here must exist (tools/checks/games.ts).",
+  "id": "legacy",
+  "name": "B00G's Range",
+  "tagline": "FULL POWER SURGE",
+  "_roster": "Every gun in the catalogue, by the weapon data's own category.",
+  "roster": ["rspn101", "vinson", "hemlok", "energy_ar", "nemesis", "r97", "alternator_smg", "car", "volt_smg", "pdw", "lmg", "esaw", "dragon_lmg", "lstar", "shotgun", "mastiff", "energy_shotgun", "g2", "3030", "dmr", "doubletake", "sentinel", "sniper", "defender", "bocek", "semipistol", "autopistol", "wingman", "g17", "shotgun_pistol"],
+  "families": {
+    "ar": { "label": "Assault rifles", "guns": ["rspn101", "vinson", "hemlok", "energy_ar", "nemesis"] },
+    "smg": { "label": "SMGs", "guns": ["r97", "alternator_smg", "car", "volt_smg", "pdw"] },
+    "lmg": { "label": "LMGs", "guns": ["lmg", "esaw", "dragon_lmg", "lstar"] },
+    "shotgun": { "label": "Shotguns", "guns": ["shotgun", "mastiff", "energy_shotgun"] },
+    "sniper": { "label": "Snipers and marksmen", "guns": ["g2", "3030", "dmr", "doubletake", "sentinel", "sniper", "defender", "bocek"] },
+    "pistol": { "label": "Pistols", "guns": ["semipistol", "autopistol", "wingman", "g17", "shotgun_pistol"] }
+  },
+  "weapons": {},
+  "attachments": ["optic", "barrel", "stock", "laser", "hopup"],
+  "ammo": "typed",
+  "_fusion": "Milestone 179's fusion: a duplicate raises the magazine one level, to gold, fills empty attachment slots and brings ammo (br.json fusion). No damage levels.",
+  "fusion": {
+    "on": true,
+    "levels": 5,
+    "gun": [],
+    "abilityLevels": 0,
+    "cooldownStep": 0
+  },
+  "_abilities": "Six kits of a tactical, a passive and an ultimate (kits.json), one kit a player.",
+  "abilities": {
+    "slots": ["kit"],
+    "passives": true,
+    "ultimates": true,
+    "set": [
+      { "id": "jolt", "slot": "kit", "from": "jolt", "name": "RUNNER", "blurb": "JOLT, SURE FOOTING, OVERDRIVE" },
+      { "id": "hook", "slot": "kit", "from": "hook", "name": "HOOK", "blurb": "GRAPPLE, STRONG ARMS, ZIP LINE" },
+      { "id": "triage", "slot": "kit", "from": "triage", "name": "MEDIC", "blurb": "PATCH, TRIAGE, FIELD HEAL" },
+      { "id": "scout", "slot": "kit", "from": "scout", "name": "SCOUT", "blurb": "PULSE, SHARP EARS, SWEEP" },
+      { "id": "smoke", "slot": "kit", "from": "smoke", "name": "SMOKE", "blurb": "CANISTER, THERMAL, SCREEN" },
+      { "id": "ward", "slot": "kit", "from": "ward", "name": "WARD", "blurb": "WALL, HARD SHELL, BASTION" }
+    ]
+  },
+  "_life": "Knockdowns with a bleed-out and a squad revive, the Gulag for a first death before the fourth ring, Deathbox Respawn and beacons, Resurgence as its own rules (squad.json, br.json). No ghosts.",
+  "life": {
+    "knockdowns": true,
+    "gulag": true,
+    "ghost": false,
+    "reviveSeconds": 5,
+    "awaySlowdown": 1,
+    "followRadius": 0
+  },
+  "map": "outskirts",
+  "hud": "legacy",
+  "menu": "legacy",
+  "bots": ["easy", "normal", "hard", "elite"],
+  "identity": { "title": "B00G's Range", "accent": "#ff7a1a", "accent2": "#ffd23c", "sky": "afternoon" }
+}
