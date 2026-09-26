@@ -3664,3 +3664,17 @@ so the city loads behind it) was held only by the games check, on the config. A 
 rides it. The match starts aboard, 135 m off the city's edge, with the doors 5.8 s away. A jump held with them shut is refused,
 and taken as they open. The drop lands in the city: jumping the moment the doors open lands at its rim, 0.4 m
 inside the edge, so the check allows a metre (the player's bounds keep anyone from landing outside).
+
+## Milestone 206 — A revive is credited when it happens ✅
+
+Plan section 12, item 5. The reviver was credited the moment their hold ended: the "IS BACK UP" notice, the
+sound and the revive's EVO. That included a revive that never happened, when the mate bled out as the hold
+finished. The credit now waits for the revived player's own word that they are up, and is dropped if they
+are out instead or say nothing for three seconds (squad.json `reviveConfirm`).
+
+The squad e2e holds both ends: a real revive still credits the host, and a pending revive for a guest who is
+out credits nothing. The second fails when the rule is put back to crediting at once. The old race itself,
+a bleed-out in the same frame as the revive's end, cannot be staged reliably, so the rule is what is tested.
+
+Of plan section 12 only item 6 is still open (the legacy game's box-respawn lockouts counted separately on
+each browser; SpeedKills has no lockout).

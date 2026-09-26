@@ -191,6 +191,7 @@ interface Deps {
 
 /** seconds to hold for a revive and a beacon (Season 30), a banner's life, the pads (src/config/squad.json) */
 const REVIVE_TIME = squad.reviveTime;
+const REVIVE_CONFIRM = squad.reviveConfirm;
 const BOX = squad.boxRespawn;
 const BEACON_TIME = squad.beaconTime;
 const BANNER_LIFE = squad.bannerLife;
@@ -224,6 +225,14 @@ export class BrPlay {
   markers: Marker[] = [];
   /** a squad mate's banner you carry to a beacon */
   carried: { owner: number; name: string; until: number } | null = null;
+  /**
+   * A revive you finished, waiting for the one you revived to say they are
+   * up: the credit (the notice, the sound, the EVO) is given then, and not if
+   * they are out instead or say nothing for revive.confirm seconds. It was
+   * given the moment the hold ended, even to a revive that never happened (plan
+   * section 12, item 5).
+   */
+  private revived: { id: number; name: string; at: number } | null = null;
   private hold: { kind: "revive" | "beacon" | "box" | "console" | "bin"; target: number; label: string; start: number; need: number; filled: number; last: number } | null = null;
   /** what the player is holding interact on, for their figure: a revive, something else, or nothing */
   get holdKind(): "revive" | "interact" | null {
@@ -424,6 +433,16 @@ export class BrPlay {
     ctx: { alive: boolean; downed: boolean; playing: boolean; myId: number }
   ): BrPlayHud {
     const out: BrPlayHud = { prompt: null, hold: null, markers: [], banner: null, reach: { rows: [], pick: -1, cycleKey: "" } };
+    // a revive you finished: credited once they say they are up
+    if (this.revived) {
+      const up = match.memberStanding(this.revived.id);
+      if (up) {
+        this.deps.notice(`${this.revived.name} IS BACK UP`);
+        this.deps.sound("revive");
+        this.deps.onRevive?.();
+        this.revived = null;
+      } else if (up === null || !match.memberAlive(this.revived.id) || now - this.revived.at > REVIVE_CONFIRM) this.revived = null;
+    }
     this.markers = this.markers.filter((m) => now < m.until);
     for (const m of this.markers) {
       // an enemy ping follows its figure
@@ -513,9 +532,7 @@ export class BrPlay {
       out.prompt = { key: `HOLD ${key}`, text: `REVIVE ${mate.name}` };
       this.runHold("revive", mate.id, `REVIVING ${mate.name}`, REVIVE_TIME, holdingE, now, match, () => {
         match.sendRevive(mate.id, "done");
-        this.deps.notice(`${mate.name} IS BACK UP`);
-        this.deps.sound("revive");
-        this.deps.onRevive?.();
+        this.revived = { id: mate.id, name: mate.name, at: now };
       });
     } else if (boxDrop) {
       // a dead squad mate's death box: a tap takes the banner, a hold of 7 s respawns them on it

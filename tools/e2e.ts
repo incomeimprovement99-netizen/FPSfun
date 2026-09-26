@@ -1908,6 +1908,9 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   await ev(host, "window.__range.setScript(null)");
   const hp = await ev<number>(guest, "window.__range.duel().health");
   check("squad: after 5 s of E the guest is back up with 20 health", revived && hp === 20, `health ${hp}`);
+  // the reviver's credit comes once the guest has said they are up (plan section 12, item 5)
+  const credited = await host.waitForFunction("/IS BACK UP|REVIVE/.test(window.__range.hud.noticeText ?? '')", { polling: 50, timeout: 3000 }).then(() => true, () => false);
+  check("squad: the reviver is told the guest is back up, once the guest says so", credited, String(await ev(host, "window.__range.hud.noticeText")));
   // down again and finished off: out, the killcam, the banner for the squad (two cells on them first, for their box)
   await ev(guest, `window.__range.applyLoot({ kind: "heal", id: "cell", n: 2, rarity: "common" })`);
   await ev(guest, `(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()`);
@@ -1919,6 +1922,10 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   const guestOut = await ev<{ alive: boolean; phase: string }>(guest, "({ alive: window.__range.duel().alive, phase: window.__range.duel().phase })");
   const hostOn = await ev<string>(host, "window.__range.duel().phase");
   check("squad: finished while down: out, and the match goes on for the host", !guestOut.alive && guestOut.phase === "fight" && hostOn === "fight", JSON.stringify({ guestOut, hostOn }));
+  // a revive the host finished for a guest who is out instead (they died as it ended) earns nothing
+  const unearned = await ev<string>(host, `new Promise((ok) => { const r = window.__range; r.hud.noticeText = ""; r.brPlay.revived = { id: 1, name: "GHOSTLY", at: r.gameTime() }; setTimeout(() => ok(r.hud.noticeText ?? ""), 800); })`);
+  // (the credit is the notice and then the EVO for it, which says REVIVE)
+  check("squad: a revive whose mate is out instead is not credited", !/BACK UP|REVIVE/.test(unearned), unearned || "nothing said");
   const outFig = await ev<{ holding: boolean; knocked: boolean }>(host, "(() => { const a = window.__range.duel().remotes.get(1).avatar; return { holding: a.holdingGun, knocked: a.knocked }; })()");
   check("out: the host's figure of you is down and holds no gun", outFig.knocked && !outFig.holding, JSON.stringify(outFig));
   const banner = await host.waitForFunction("[...window.__range.duel().lootField.drops.values()].some((x) => x.item.kind === 'banner' && x.item.owner === 1)", { polling: 200, timeout: 4000 }).then(() => true, () => false);

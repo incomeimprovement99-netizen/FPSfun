@@ -11,6 +11,8 @@
   "reviveTime": 5,
   "reviveHealth": 20,
   "reviveReach": 2.4,
+  "_reviveConfirm": "Seconds a reviver waits for the one they revived to say they are up before the revive's credit (its notice, sound and EVO) is given (brplay.ts); no word by then, or word that they are out, and there is none. A state packet takes a tenth of a second; three is for a bad connection.",
+  "reviveConfirm": 3,
   "bannerLife": 90,
   "beaconTime": 5,
   "beaconReach": 2.8,

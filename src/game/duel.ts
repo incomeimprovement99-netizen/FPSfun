@@ -1691,6 +1691,12 @@ export class Duel implements MatchLike {
     const b = this.boxDeaths.get(id);
     if (b) b.backAt = wallClock();
   }
+  /** is this player standing: alive and not down, by their own last word? null when not known */
+  memberStanding(id: number): boolean | null {
+    const r = this.remotes.get(id);
+    return r ? r.alive && !r.downed : null;
+  }
+
   /** is this player in the match up (alive, maybe down)? null when not known */
   memberAlive(id: number): boolean | null {
     const r = this.remotes.get(id);
