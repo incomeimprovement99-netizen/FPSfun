@@ -5071,15 +5071,33 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   check("speedkills br: the bots land and move through the city", moved >= 15, `${moved} of ${after.length} moved in 6 s`);
   // the high ground: a bot sent up a low tower's stairs (bots.json skRoofs, city.ts ROOF_ROUTES) walks them to the
   // roof with its own movement. The match takes the choice by chance; the test makes it, and watches the walk.
+  // The bot is made blind for it: someone in sight comes before a climb, as it should, and one run's bot chased
+  // whoever it saw straight past its stair.
   const climb = await ev<{ id: number; roofY: number } | null>(
     page,
-    `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; window.__heldRing = d.ring.timeLeft; d.ring.timeLeft = 1e6; const early = new Set(d.decay.waves[0] ?? []); const route = r.roofRoutes().find((x) => x.street >= 0 && [x.street, ...x.nodes].every((i) => !early.has(d.map.nodes[i].poi))); if (!route) return null; const n = d.map.nodes; const roof = route.nodes[route.nodes.length - 1]; const b = d.bots.find((x) => x.bot.alive && !x.down && !x.bot.dropping); if (!b) return null; const s = n[route.street]; b.bot.pos.set(s.x, 0, s.z); b.node = route.street; b.goal = route.street; b.climb = { roof, holdUntil: null }; return { id: b.bot.remote.id, roofY: n[roof].y }; })()`
+    `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; window.__heldRing = d.ring.timeLeft; d.ring.timeLeft = 1e6; const early = new Set(d.decay.waves[0] ?? []); const route = r.roofRoutes().find((x) => x.street >= 0 && [x.street, ...x.nodes].every((i) => !early.has(d.map.nodes[i].poi))); if (!route) return null; const n = d.map.nodes; const roof = route.nodes[route.nodes.length - 1]; const b = d.bots.find((x) => x.bot.alive && !x.down && !x.bot.dropping); if (!b) return null; const s = n[route.street]; b.bot.pos.set(s.x, 0, s.z); b.node = route.street; b.goal = route.street; b.climb = { roof, holdUntil: null }; b.bot.sees = () => false; return { id: b.bot.remote.id, roofY: n[roof].y }; })()`
   );
   const g0 = await ev<number>(page, "window.__range.gameTime()");
   const roofed = climb
     ? await page.waitForFunction(`(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${climb.id}); return !!b && b.bot.pos.y > ${climb.roofY} - 0.5 || window.__range.gameTime() - ${g0} > 90; })()`, { polling: 250, timeout: 180000 }).then(() => true, () => false)
     : false;
   const top = climb ? await ev<{ y: number; goal: number; climb: unknown }>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${climb.id}); return { y: b.bot.pos.y, goal: b.goal, climb: b.climb }; })()`) : null;
+  // the downtown's jump pads (city.ts downtownBlock): one on the street throws you onto its podium, one on a
+  // podium's terrace up onto a tower's roof. Stood on, each lands you a storey or more up.
+  const padRide = async (pick: string): Promise<{ from: number; to: number; x: number; z: number } | null> => {
+    const pad = await ev<{ x: number; y: number; z: number } | null>(page, `(() => { const p = window.__range.duel().map.pads.filter((q) => q.up !== undefined).find(${pick}); return p ? { x: p.x, y: p.y ?? 0, z: p.z } : null; })()`);
+    if (!pad) return null;
+    await ev(page, `window.__range.player.teleport(${pad.x}, ${pad.y + 0.05}, ${pad.z}, 0)`);
+    const g0 = await ev<number>(page, "window.__range.gameTime()");
+    await page.waitForFunction(`window.__range.gameTime() - ${g0} > 4 && window.__range.player.onGround`, { polling: 100, timeout: 30000 }).catch(() => undefined);
+    const at = await ev<{ y: number; x: number; z: number }>(page, "({ y: window.__range.player.pos.y, x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+    return { from: pad.y, to: at.y, x: at.x, z: at.z };
+  };
+  await ev(page, "window.__range.duel().holdFire = true");
+  const street = await padRide("(q) => (q.y ?? 0) < 1 && Math.hypot(q.x, q.z - 500) > 60");
+  check("speedkills city: a street's jump pad throws you onto its podium, a storey or two up", !!street && street.to > street.from + 3.5, JSON.stringify(street));
+  const terrace = await padRide("(q) => (q.y ?? 0) > 3 && Math.hypot(q.x, q.z - 500) > 60");
+  check("speedkills city: a terrace's jump pad throws you onto a tower's roof", !!terrace && terrace.to > terrace.from + 10, JSON.stringify(terrace));
   check("speedkills br: a bot sent up a low tower walks its stairs to the roof", !!climb && roofed && !!top && top.y > climb.roofY - 0.5, JSON.stringify({ climb, top }));
   await ev(page, "(() => { const d = window.__range.duel(); d.holdFire = false; d.ring.timeLeft = window.__heldRing; })()");
   // the bots play by a player's health and carry their tier's hacks (bots.json skHacks)
@@ -5156,10 +5174,11 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   const end = await ev<Decay>(page, "window.__range.sk.decay()");
   const gone = Object.entries(end.states).filter(([id, s]) => id !== end.plan.final && s.phase === "gone").length;
   check("speedkills decay: after four waves every sector but the final one is gone, and the capture zone opens there", gone === 8 && end.states[end.plan.final].phase === "live" && !!end.zone, JSON.stringify({ gone, final: end.plan.final, zone: end.zone }));
-  // holding the zone alone wins: the bots kept out of it, you in it, its meter near full
+  // holding the zone alone wins: the bots kept out of it, you in it (dropped from above onto whatever floor
+  // stands there: the Spire is solid to its tiers now), its meter near full
   const won = await ev<{ phase: string; placement: number | null }>(
     page,
-    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); d.holdFire = true; for (const b of d.bots) if (b.bot.alive) { b.bot.pos.set(b.bot.pos.x + 400, b.bot.pos.y, b.bot.pos.z); } const z = d.captureZone(); d.health = 100; r.player.teleport(z.x, 0.3, z.z, 0);
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); d.holdFire = true; for (const b of d.bots) if (b.bot.alive) { b.bot.pos.set(b.bot.pos.x + 400, b.bot.pos.y, b.bot.pos.z); } const z = d.captureZone(); d.health = 100; r.player.teleport(z.x, 150, z.z, 0);
       d.capture.progress.set(d.sideOf(d.id), ${45} - 1.5); setTimeout(() => ok({ phase: d.phase, placement: d.placement }), 3500); }))()`
   );
   check("speedkills capture: a squad alone in the zone for 45 s wins the match outright", won.phase === "matchEnd" && won.placement === 1, JSON.stringify(won));

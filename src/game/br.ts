@@ -116,8 +116,14 @@ export interface BrMap {
   towers: Array<{ x: number; z: number; y: number }>;
   /** respawn beacons: bring back a squad mate whose banner you carry (world space) */
   beacons: Array<{ x: number; z: number }>;
-  /** launch pads on the roads: step on and be thrown along (dx, dz) and up (world space) */
-  pads: Array<{ x: number; z: number; dx: number; dz: number }>;
+  /**
+   * launch pads: step on and be thrown along (dx, dz) and up (world space). A
+   * jump pad (SpeedKills' city) stands on a floor `y` up and throws you `up`
+   * m/s straight up, and once you are above `over` (a roof's edge, world
+   * height) carries you across at (dx, dz) m/s onto it; the road's pads have
+   * none of these, and throw by squad.json pad.
+   */
+  pads: Array<{ x: number; z: number; dx: number; dz: number; y?: number; up?: number; over?: number }>;
   /** a door in every ground-floor doorway (doors.ts) */
   doors: Doors;
   /** the vault: its door's index, the room's middle and floor, and where its guard stands (world space) */

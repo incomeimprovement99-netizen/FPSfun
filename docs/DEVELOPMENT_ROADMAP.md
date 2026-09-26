@@ -3715,3 +3715,30 @@ shorter lockout than the player's own, and a respawn the player's page would ref
 carries their own count, noted before it is sent, and squad mates take it. An older build sends none and is
 read as before. `net-delta.ts` loses the guest's first down on the wire: the host counted 1 against the
 guest's 2 on the old code, and 2 on the new.
+
+## Milestone 209 — The downtown core, and jump pads you can read ✅
+
+Phase 19, steps 1 and 2 (`docs/PHASE_19_PLAN_DOWNTOWN.md`, which also holds the gap analysis against Hyper
+Scape, from its reviews and eight official screenshots).
+
+- **The core, rebuilt as a downtown.** The Spire's block and the eight round it were a building or two each on
+  wide empty streets. Each is now:
+  - a lit podium a storey or two high over most of the block, one side left an open plaza;
+  - two to four towers standing on the podium, split by canyons of 3 to 4.5 m that a double jump clears;
+  - roofs that step in storeys, with parapets, neon edges and plant rooms to take cover behind;
+  - a glowing shopfront band along the street.
+- **THE SPIRE in tiers:** a podium, three tiers stepping in 5 m at a time, a pad up each, and a mast. The
+  capture zone, when it opens there, is a king of the hill up its terraces.
+- **Jump pads on every block of the core.** One on the plaza throws you onto the podium; one on the terrace
+  throws you onto a tower's roof, up to 48 m. Hyper Scape had "jump pads on every city block" (PC Gamer).
+  - They throw straight up, and carry you over the roof's edge once you are above it.
+  - Timed as one arc, a fraction of a second off met the wall metres below the top. The pads' e2e caught it
+    three ways: a fixed nudge, the body's middle aimed at the face, and a crossing at the peak that needed 13 m.
+  - Their speed comes from the movement's own gravity, measured at 17.5 m/s², not the 19 m/s² first assumed.
+- **Pads you can read from a street away,** as Hyper Scape's were: a gold disc, a beam of light up to where the
+  pad throws you, and gold rings on it, one overhead and one at the roof it lands you on.
+- **Checked:**
+  - The e2e rides a street pad (0.2 to 8.2 m) and a terrace pad (8.2 to 56.2 m) in a real match.
+  - The capture test now drops the player onto the zone, since the Spire is solid to its tiers.
+  - The roof-climb check blinds its bot, which had chased someone in sight straight past its stair.
+  - The city's budget holds: 12,060 meshes merged, 164k triangles.

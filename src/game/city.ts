@@ -29,6 +29,8 @@ import { DOORWAYS, Doors } from "./doors";
 import { material, tileBox, type MatName } from "./materials";
 import { emissive, flat } from "./geo";
 import { ZIPLINES } from "./traversal";
+// (a jump pad throws to a height by the movement's own gravity: SpeedKills' is 17.5 m/s/s, its overlay's)
+import { MOVE } from "./movement";
 import { BR_X, BR_Z, BR_HALF, type BrMap, type GraphNode, type Poi, type Site } from "./br";
 import cityCfg from "../config/city.json";
 import { dissolvedTo, type SectorPhase } from "./decay";
@@ -153,6 +155,35 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   const plazas: Array<{ x: number; z: number }> = [];
   const PAVE_H = C.kerb;
   const storeyH = C.storey;
+  /** the jump pads on the podiums and the terraces (city.json downtown padUp), and the road's */
+  const pads: BrMap["pads"] = [];
+  /** map-local to world (the graph's P, which is made further down) */
+  const W = (x: number, z: number) => ({ x: x + BR_X, z: z + BR_Z });
+  /**
+   * A jump pad onto a roof, solved: the face it throws you over is at (fx, fz)
+   * with (nx, nz) pointing out of it toward the pad, its floor `floor` and the
+   * roof `roof`. It throws you straight up to peakOver above the roof, and
+   * once you are clear above the edge carries you across to land landInside
+   * past it. Timed as one throw, a fraction of a second off met the wall
+   * metres below the top (the pads' e2e caught it three ways); split, the push
+   * waits for the height. A fixed nudge either met the wall below its top or never
+   * got over the edge, and aiming the body's middle at the face met it 0.4 m
+   * short of the top (the pads' e2e caught both).
+   */
+  const PAD_SOLVE = C.padSolve;
+  const padOnto = (fx: number, fz: number, nx: number, nz: number, floor: number, roof: number): void => {
+    const g = MOVE.gravity;
+    const H = roof - floor;
+    const v = Math.sqrt(2 * g * (H + PAD_SOLVE.peakOver));
+    // the pad a body and a little off the face; straight up, then over the edge once above it
+    const d0 = MOVE.radius + PAD_SOLVE.standOff;
+    const overY = roof + PAD_SOLVE.clear;
+    // from there, up to the peak and down to the roof: the time the push has to carry you d0 + landInside
+    const vOver = Math.sqrt(Math.max(0, v * v - 2 * g * (H + PAD_SOLVE.clear)));
+    const t = vOver / g + Math.sqrt((2 * PAD_SOLVE.peakOver) / g);
+    const vx = (d0 + PAD_SOLVE.landInside) / t;
+    pads.push({ ...W(fx + nx * d0, fz + nz * d0), dx: -nx * vx, dz: -nz * vx, y: floor, up: v, over: overY });
+  };
   BLOCKS.forEach(([x0, x1], bi) => {
     BLOCKS.forEach(([z0, z1], bj) => {
       const cx = (x0 + x1) / 2;
@@ -168,11 +199,14 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       deco(0.12, 0.06, z1 - z0, x1 - 0.06, PAVE_H, cz, k);
       const ring = Math.max(Math.abs(bi - 3), Math.abs(bj - 3));
       const centre = bi === 3 && bj === 3;
-      // the heart of the Spire: a plaza with the megatower in it
+      // the heart: THE SPIRE, in tiers (city.json spire)
       if (centre) {
-        const t = tower({ x: cx, z: cz, w: 24, d: 24, storeys: C.megatower, sector: sec, mat: glass, accent: sec.accent, doors: ["n", "s", "e", "w"] });
-        towers.push(t);
-        plazas.push({ x: cx - 20, z: cz + 20 }, { x: cx + 20, z: cz - 20 });
+        spireBlock(x0, x1, z0, z1, sec);
+        return;
+      }
+      // the downtown, from the centre out (city.json downtown)
+      if (ring <= C.downtown.rings) {
+        downtownBlock(x0, x1, z0, z1, sec, ring);
         return;
       }
       // now and then a plaza instead of buildings: open ground to fight over, with cover
@@ -212,6 +246,178 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       }
     });
   });
+
+  /**
+   * A mass: a solid building of one box, a storey at a time tall, standing on
+   * `base`, its roof a floor with a parapet, neon on its edges and clutter to
+   * take cover behind. No inside: the downtown's are climbed, not entered.
+   */
+  function mass(x: number, z: number, w: number, d: number, base: number, storeys: number, mat: THREE.Material, accent: number, sector: string): Tower {
+    const h = storeys * storeyH;
+    // the walls, and a concrete cap: a facade's lit windows are for its sides, not the floor you stand on
+    slab(w, h - 0.12, d, x, base, z, mat);
+    slab(w, 0.12, d, x, base + h - 0.12, z, concrete);
+    const roof = base + h;
+    const k = neon(accent);
+    // the roof's parapet, knee high: cover on a roof, and nothing a climb catches on
+    slab(w, 0.7, 0.25, x, roof, z - d / 2 + 0.125, trimDark);
+    slab(w, 0.7, 0.25, x, roof, z + d / 2 - 0.125, trimDark);
+    slab(0.25, 0.7, d - 0.5, x - w / 2 + 0.125, roof, z, trimDark);
+    slab(0.25, 0.7, d - 0.5, x + w / 2 - 0.125, roof, z, trimDark);
+    deco(w + 0.1, 0.1, 0.1, x, roof + 0.7, z - d / 2, k);
+    deco(w + 0.1, 0.1, 0.1, x, roof + 0.7, z + d / 2, k);
+    deco(0.1, 0.1, d + 0.1, x - w / 2, roof + 0.7, z, k);
+    deco(0.1, 0.1, d + 0.1, x + w / 2, roof + 0.7, z, k);
+    // neon up the corners
+    for (const [sx, sz] of [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+    ] as const) deco(C.cornerNeon, h, C.cornerNeon, x + (sx * w) / 2, base, z + (sz * d) / 2, k);
+    // a band of light every few storeys
+    for (let s = C.bandEvery; s < storeys; s += C.bandEvery) {
+      deco(w + 0.12, 0.16, 0.12, x, base + s * storeyH, z - d / 2, k);
+      deco(w + 0.12, 0.16, 0.12, x, base + s * storeyH, z + d / 2, k);
+    }
+    // the roof's clutter: plant rooms and vents to fight round
+    const [cMin, cMax] = C.downtown.clutter;
+    const n = cMin + Math.floor(rnd() * (cMax - cMin + 1));
+    for (let i = 0; i < n; i++) {
+      const cw = 1.6 + rnd() * 2.4;
+      const cd = 1.2 + rnd() * 1.8;
+      const ch = 1.2 + rnd() * 1.4;
+      const ox = (rnd() - 0.5) * Math.max(0, w - cw - 2);
+      const oz = (rnd() - 0.5) * Math.max(0, d - cd - 2);
+      slab(cw, ch, cd, x + ox, roof, z + oz, metal);
+    }
+    const t: Tower = { x, z, w, d, roof, storeys, sector, route: [], street: null };
+    towers.push(t);
+    return t;
+  }
+
+  /**
+   * A downtown block (city.json downtown): a podium over most of it, one side
+   * left a plaza at street level, and two to four towers on the podium split
+   * by canyons a double jump clears. A jump pad on the plaza throws you onto
+   * the podium; one on the podium's terrace throws you up to a tower's roof.
+   */
+  function downtownBlock(x0: number, x1: number, z0: number, z1: number, sec: Sector, ring: number): void {
+    const D = C.downtown;
+    const m = D.margin;
+    let px0 = x0 + m;
+    let px1 = x1 - m;
+    let pz0 = z0 + m;
+    let pz1 = z1 - m;
+    const side = Math.floor(rnd() * 4);
+    // the open side: a plaza strip at street level, the podium set back from it
+    if (side === 0) pz0 += D.plazaStrip;
+    else if (side === 1) pz1 -= D.plazaStrip;
+    else if (side === 2) px0 += D.plazaStrip;
+    else px1 -= D.plazaStrip;
+    const podS = D.podium[0] + Math.floor(rnd() * (D.podium[1] - D.podium[0] + 1));
+    const podTop = PAVE_H + podS * storeyH;
+    const pcx = (px0 + px1) / 2;
+    const pcz = (pz0 + pz1) / 2;
+    const k = neon(sec.accent);
+    // the podium: lit floors over the street, a cap to walk on, and a shopfront's glow along its foot
+    const podMat = night[Math.floor(rnd() * night.length)];
+    slab(px1 - px0, podS * storeyH - 0.12, pz1 - pz0, pcx, PAVE_H, pcz, podMat);
+    slab(px1 - px0, 0.12, pz1 - pz0, pcx, podTop - 0.12, pcz, concrete);
+    const shop = neon(sec.accent);
+    deco(px1 - px0 + 0.06, 0.5, 0.06, pcx, PAVE_H + 3.1, pz0, shop);
+    deco(px1 - px0 + 0.06, 0.5, 0.06, pcx, PAVE_H + 3.1, pz1, shop);
+    deco(0.06, 0.5, pz1 - pz0 + 0.06, px0, PAVE_H + 3.1, pcz, shop);
+    deco(0.06, 0.5, pz1 - pz0 + 0.06, px1, PAVE_H + 3.1, pcz, shop);
+    deco(px1 - px0 + 0.1, 0.12, 0.12, pcx, podTop - 0.3, pz0, k);
+    deco(px1 - px0 + 0.1, 0.12, 0.12, pcx, podTop - 0.3, pz1, k);
+    deco(0.12, 0.12, pz1 - pz0 + 0.1, px0, podTop - 0.3, pcz, k);
+    deco(0.12, 0.12, pz1 - pz0 + 0.1, px1, podTop - 0.3, pcz, k);
+    // the plaza's pad, in front of the podium, throwing you up onto it
+    if (side === 0) padOnto(pcx, pz0, 0, -1, PAVE_H, podTop);
+    else if (side === 1) padOnto(pcx, pz1, 0, 1, PAVE_H, podTop);
+    else if (side === 2) padOnto(px0, pcz, -1, 0, PAVE_H, podTop);
+    else padOnto(px1, pcz, 1, 0, PAVE_H, podTop);
+    // the towers: a 2 by 2 split of the podium by two canyons, one cell left open as the terrace
+    const [lo, hi] = (D.towers as Record<string, number[]>)[String(ring)] ?? D.towers["1"];
+    const gap = D.canyon[0] + rnd() * (D.canyon[1] - D.canyon[0]);
+    const sx = px0 + (px1 - px0) * (0.38 + rnd() * 0.24);
+    const sz = pz0 + (pz1 - pz0) * (0.38 + rnd() * 0.24);
+    const cells: Array<[number, number, number, number]> = [
+      [px0, sx - gap / 2, pz0, sz - gap / 2],
+      [sx + gap / 2, px1, pz0, sz - gap / 2],
+      [px0, sx - gap / 2, sz + gap / 2, pz1],
+      [sx + gap / 2, px1, sz + gap / 2, pz1],
+    ];
+    const open = Math.floor(rnd() * 4);
+    let lowest: Tower | null = null;
+    cells.forEach(([a0, a1, b0, b1], i) => {
+      if (i === open) return;
+      // a ledge round each tower on the podium's edge, a body wide
+      const w = a1 - a0 - 1.6;
+      const d = b1 - b0 - 1.6;
+      if (w < 6 || d < 6) return;
+      const storeys = Math.round(lo + rnd() * (hi - lo));
+      const mat = rnd() < 0.3 ? glass : night[Math.floor(rnd() * night.length)];
+      const t = mass((a0 + a1) / 2, (b0 + b1) / 2, w, d, podTop, storeys, mat, sec.accent, sec.id);
+      if (!lowest || t.roof < lowest.roof) lowest = t;
+    });
+    // the terrace's pad, in the open cell, up to the lowest tower's roof
+    const [a0, a1, b0, b1] = cells[open];
+    const low = lowest as Tower | null;
+    if (low) {
+      // the lowest tower's face toward the open cell, at the middle of the cell's side of it
+      const tx = (a0 + a1) / 2;
+      const tz = (b0 + b1) / 2;
+      const byX = Math.abs(tx - low.x) / (low.w / 2) > Math.abs(tz - low.z) / (low.d / 2);
+      if (byX) {
+        const n = Math.sign(tx - low.x);
+        padOnto(low.x + (n * low.w) / 2, Math.max(low.z - low.d / 2 + 2, Math.min(low.z + low.d / 2 - 2, tz)), n, 0, podTop, low.roof);
+      } else {
+        const n = Math.sign(tz - low.z);
+        padOnto(Math.max(low.x - low.w / 2 + 2, Math.min(low.x + low.w / 2 - 2, tx)), low.z + (n * low.d) / 2, 0, n, podTop, low.roof);
+      }
+    }
+  }
+
+  /** THE SPIRE (city.json spire): a podium over its block, tiers stepping in above it, a pad up each, a mast on top */
+  function spireBlock(x0: number, x1: number, z0: number, z1: number, sec: Sector): void {
+    const S = C.spire;
+    const cx = (x0 + x1) / 2;
+    const cz = (z0 + z1) / 2;
+    const m = C.downtown.margin + 2;
+    let w = x1 - x0 - 2 * m;
+    let d = z1 - z0 - 2 * m;
+    const k = neon(sec.accent);
+    let base = PAVE_H;
+    slab(w, S.podium * storeyH - 0.12, d, cx, base, cz, glass);
+    slab(w, 0.12, d, cx, base + S.podium * storeyH - 0.12, cz, concrete);
+    base += S.podium * storeyH;
+    deco(w + 0.1, 0.14, 0.14, cx, base - 0.3, cz - d / 2, k);
+    deco(w + 0.1, 0.14, 0.14, cx, base - 0.3, cz + d / 2, k);
+    deco(0.14, 0.14, d + 0.1, cx - w / 2, base - 0.3, cz, k);
+    deco(0.14, 0.14, d + 0.1, cx + w / 2, base - 0.3, cz, k);
+    // the four pads onto the podium, one off each street
+    for (const [nx, nz] of [
+      [0, 1],
+      [0, -1],
+      [1, 0],
+      [-1, 0],
+    ] as const) padOnto(cx + (nx * w) / 2, cz + (nz * d) / 2, nx, nz, PAVE_H, base);
+    for (let tier = 0; tier < S.tiers; tier++) {
+      const floor = base;
+      w -= 2 * S.tierInset;
+      d -= 2 * S.tierInset;
+      const t = mass(cx, cz, w, d, base, S.tierStoreys, tier === S.tiers - 1 ? glass : night[tier % night.length], sec.accent, sec.id);
+      base = t.roof;
+      // a pad on the terrace below this tier, up its east face onto its roof
+      padOnto(cx + w / 2, cz, 1, 0, floor, t.roof);
+    }
+    // the mast
+    deco(0.6, S.mast, 0.6, cx, base, cz, k);
+    deco(2.2, 0.3, 2.2, cx, base + S.mast, cz, neon(0xff3050));
+    plazas.push({ x: cx - (x1 - x0) / 2 + 3, z: cz });
+  }
 
   /**
    * One building: brpoi.ts's shell (storeys, stairs, windows, a roof you can
@@ -530,7 +736,6 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
 
   // the jump towers in the plazas, the launch pads at the crossings, the beacons
   const towerSpots = plazas.slice(0, C.jumpTowers).map((p) => ({ ...P(p.x, p.z), y: PAVE_H }));
-  const pads: BrMap["pads"] = [];
   STREETS.forEach((x, i) =>
     STREETS.forEach((z, j) => {
       if ((i + j) % 2 !== 0) return;
@@ -538,7 +743,35 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       pads.push({ ...P(x + (along ? 3 : 0), z + (along ? 0 : 3)), dx: along ? 1 : 0, dz: along ? 0 : 1 });
     })
   );
-  for (const p of pads) deco(2.4, 0.08, 2.4, p.x - BR_X, 0.01, p.z - BR_Z, neon(0x20e0ff));
+  // A road's pad is a cyan plate. A jump pad is what Hyper Scape's were, readable from a street away: a gold
+  // disc on its floor, a beam of light up to where it throws you, and gold rings on the beam, one overhead and
+  // one at the roof it lands you on. None of it is solid, and none of it casts a shadow.
+  const gold = emissive(0xffc23c, 2.2);
+  const beamMat = new THREE.MeshBasicMaterial({ color: 0xffd070, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false });
+  const discGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.12, 24);
+  const ringGeo = new THREE.TorusGeometry(1.4, 0.16, 6, 28);
+  const put = (m: THREE.Mesh, x: number, y: number, z: number): void => {
+    m.position.set(x, y, z);
+    root.add(m);
+  };
+  for (const p of pads) {
+    const x = p.x - BR_X;
+    const z = p.z - BR_Z;
+    if (p.up === undefined) {
+      deco(2.4, 0.08, 2.4, x, 0.01, z, neon(0x20e0ff));
+      continue;
+    }
+    const y0 = p.y ?? 0;
+    const top = p.over ?? y0 + (p.up * p.up) / (2 * MOVE.gravity);
+    put(new THREE.Mesh(discGeo, gold), x, y0 + 0.07, z);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, top - y0 + 4, 10, 1, true), beamMat);
+    put(beam, x, (y0 + top + 4) / 2, z);
+    for (const ry of [y0 + 3.2, top]) {
+      const ring = new THREE.Mesh(ringGeo, gold);
+      ring.rotation.x = Math.PI / 2;
+      put(ring, x, ry, z);
+    }
+  }
   const beacons = plazas.slice(C.jumpTowers, C.jumpTowers + C.beacons).map((p) => P(p.x, p.z));
 
   // ---------------------------------------------------------------- the decay's hold on the city

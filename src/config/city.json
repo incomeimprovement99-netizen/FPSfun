@@ -183,5 +183,52 @@
   "botRoofs": {
     "maxStoreys": 4,
     "reach": 40
+  },
+  "_downtown": "The dense downtown (city.ts downtownBlock), from the centre out: the blocks within `rings` of the Spire's are built as a podium of podium storeys over most of the block (its roof a terrace a storey or two up), one side kept open as a plaza strip of plazaStrip metres, and two to four towers standing on the podium, split by canyons of canyon metres (a double jump's width) so their roofs step in storeys you can climb from one to the next. Tower heights are storeys above the podium, by ring. Every block has a jump pad on its plaza strip that throws you onto the podium, and every terrace a pad up to the next tower's roof (each pad's speed worked out from the height it has to clear and the movement's own gravity, 17.5 m/s/s in SpeedKills). margin is the pavement left round the podium. Ours, after Hyper Scape's Neo Arcadia: a concrete jungle cut by streets, rooftops as the high ground, a pad on every block.",
+  "downtown": {
+    "rings": 1,
+    "margin": 2.5,
+    "plazaStrip": 7,
+    "podium": [
+      1,
+      2
+    ],
+    "canyon": [
+      3,
+      4.5
+    ],
+    "towers": {
+      "0": [
+        14,
+        22
+      ],
+      "1": [
+        5,
+        14
+      ],
+      "2": [
+        3,
+        8
+      ]
+    },
+    "clutter": [
+      2,
+      4
+    ]
+  },
+  "_spire": "THE SPIRE, the centre block, as tiers: a podium over the block, then tiers each tierStoreys tall and tierInset metres in from the one below, their roofs terraces with a pad up to the next, and a mast on the top. The hero of the skyline and the hottest drop.",
+  "spire": {
+    "podium": 2,
+    "tiers": 3,
+    "tierStoreys": 5,
+    "tierInset": 5,
+    "mast": 30
+  },
+  "_padSolve": "A jump pad onto a roof (city.ts padOnto), in metres: it stands standOff past a body's radius from the face, throws you straight up to peakOver above the roof, and once you are clear above the edge carries you across to land landInside past it. Ours, so a pad lands you on the roof with no steering; holding forward in the air still carries you further.",
+  "padSolve": {
+    "peakOver": 3,
+    "clear": 1.2,
+    "standOff": 1.4,
+    "landInside": 3
   }
 }

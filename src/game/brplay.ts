@@ -233,6 +233,8 @@ export class BrPlay {
    * section 12, item 5).
    */
   private revived: { id: number; name: string; at: number } | null = null;
+  /** a jump pad's throw on its way up: the push over the roof's edge, given once above `over` */
+  private padCarry: { vx: number; vz: number; over: number } | null = null;
   private hold: { kind: "revive" | "beacon" | "box" | "console" | "bin"; target: number; label: string; start: number; need: number; filled: number; last: number } | null = null;
   /** what the player is holding interact on, for their figure: a revive, something else, or nothing */
   get holdKind(): "revive" | "interact" | null {
@@ -465,12 +467,25 @@ export class BrPlay {
       return out;
     }
     const p = player.pos;
+    // a jump pad's carry over the edge, once you are above it (and none if you came down first)
+    if (this.padCarry) {
+      if (player.onGround && now - this.padAt > 0.3) this.padCarry = null;
+      else if (p.y >= this.padCarry.over) {
+        player.vel.x = this.padCarry.vx;
+        player.vel.z = this.padCarry.vz;
+        this.padCarry = null;
+      }
+    }
     // launch pads: step on one and be thrown along the road and up
     if (!ctx.downed && player.onGround && now - this.padAt > 1) {
       for (const pad of match.mapInfo.pads) {
-        if (Math.hypot(p.x - pad.x, p.z - pad.z) < squad.pad.reach && p.y < 0.5) {
+        if (Math.hypot(p.x - pad.x, p.z - pad.z) < squad.pad.reach && Math.abs(p.y - (pad.y ?? 0)) < 0.5) {
           this.padAt = now;
-          player.impulse(pad.dx * PAD_SPEED, PAD_UP, pad.dz * PAD_SPEED);
+          // a jump pad throws straight up, and carries you over its roof's edge once you are above it; a road's along and up
+          if (pad.up !== undefined) {
+            player.impulse(pad.over === undefined ? pad.dx : 0, pad.up, pad.over === undefined ? pad.dz : 0);
+            this.padCarry = pad.over === undefined ? null : { vx: pad.dx, vz: pad.dz, over: pad.over };
+          } else player.impulse(pad.dx * PAD_SPEED, PAD_UP, pad.dz * PAD_SPEED);
           this.deps.sound("pad");
           break;
         }
