@@ -8,7 +8,7 @@
 // Gotcha that cost a retry: the per-asset `include` map must be followed
 // literally. The .bin is served from the 4k folder no matter which resolution
 // you ask for, so constructing URLs by string templating gives a 404.
-import { mkdirSync, writeFileSync, existsSync, appendFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { compressAssets } from "./compress-assets";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -104,8 +104,15 @@ async function main(): Promise<void> {
   }
 
   const att = resolve(HERE, "..", "public", "tex", "ATTRIBUTION.md");
-  if (existsSync(att)) appendFileSync(att, credits.join("\n") + "\n");
-  console.log(`\nappended model credits to ${att}`);
+  // this tool's own section of the file, put in place of the one before it rather than added after,
+  // so running it twice does not list every model twice (fetch-assets.ts keeps the section)
+  if (existsSync(att)) {
+    const had = readFileSync(att, "utf8").replace(/\r\n/g, "\n");
+    const at = had.indexOf("\n## Models");
+    const head = at >= 0 ? had.slice(0, at) : had.replace(/\n+$/, "");
+    writeFileSync(att, `${head}\n${credits.join("\n")}\n`);
+  }
+  console.log(`\nwrote the model credits into ${att}`);
   // smaller downloads: the maps as WebP, the .gltf files pointed at them
   const r = await compressAssets();
   console.log(`textures to WebP: ${(r.before / 1048576).toFixed(1)} MB -> ${(r.after / 1048576).toFixed(1)} MB`);

@@ -5,7 +5,7 @@
 //
 // Run: npm run assets
 // Downloaded files are gitignored; this script is the source of truth.
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { compressAssets } from "./compress-assets";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -214,7 +214,12 @@ async function main(): Promise<void> {
     "props are Poly Haven's (npm run models), the mannequin Quaternius's (CC0), and the recorded sounds Kenney's (CC0, public/audio/ATTRIBUTION.md) layered over the synthesis.",
     ""
   );
-  writeFileSync(join(OUT, "ATTRIBUTION.md"), lines.join("\n"));
+  // the models' credits are npm run models' own section of this file (fetch-models.ts): kept, not
+  // written over, or fetching textures after models loses them (it did, 2026-09-26)
+  const att = join(OUT, "ATTRIBUTION.md");
+  const had = existsSync(att) ? readFileSync(att, "utf8").replace(/\r\n/g, "\n") : "";
+  const models = had.indexOf("\n## Models");
+  writeFileSync(att, lines.join("\n") + (models >= 0 ? had.slice(models) : ""));
   console.log(`\nwrote ${join(OUT, "ATTRIBUTION.md")}`);
   if (!existsSync(join(OUT, "concrete", "color.jpg"))) {
     console.error("no textures present; the range will fall back to flat colours");
