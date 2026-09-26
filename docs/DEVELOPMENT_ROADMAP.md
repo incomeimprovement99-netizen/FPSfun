@@ -3661,6 +3661,6 @@ Plan section 7.13, practice is core. `src/game/arenas/movelab.ts`, a TRAINING ca
 
 The owner's rule for the ship (it starts off the city and flies at least five seconds before its doors open,
 so the city loads behind it) was held only by the games check, on the config. A new e2e section, `skship`,
-rides it. The match starts aboard, 385 m out, with the doors 5.8 s away. A jump held with them shut is refused,
+rides it. The match starts aboard, 135 m off the city's edge, with the doors 5.8 s away. A jump held with them shut is refused,
 and taken as they open. The drop lands in the city: jumping the moment the doors open lands at its rim, 0.4 m
 inside the edge, so the check allows a metre (the player's bounds keep anyone from landing outside).
