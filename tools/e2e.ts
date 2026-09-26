@@ -5003,6 +5003,38 @@ async function speedkillsTourTest(browser: Browser): Promise<void> {
   await t.close();
 }
 
+/**
+ * SpeedKills' dropship, ridden (the owner's rule, speedkills.json ship): it
+ * starts off the city and flies at least five seconds before its doors open,
+ * so the city loads behind it; the jump is refused until then, and the drop
+ * lands in the city. The city is the square 250 m either side of (0, 500).
+ */
+async function speedkillsShipTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&game=speedkills");
+  await ev(page, "window.__straightDrop = false");
+  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
+  await page.waitForFunction("window.__range.duel() && window.__range.shipState().aboard", { polling: 100, timeout: 20000 }).catch(() => undefined);
+  await ev(page, "window.__range.duel().holdFire = true");
+  const on = await ev<{ aboard: boolean; x: number; z: number; doorsIn: number }>(
+    page,
+    `(() => { const R = window.__range; return { aboard: R.shipState().aboard, x: R.player.pos.x, z: R.player.pos.z, doorsIn: R.ship().doorsIn(performance.now() / 1000) }; })()`
+  );
+  const outside = Math.abs(on.x) > 250 || Math.abs(on.z - 500) > 250;
+  check("sk ship: the match starts aboard, off the city, with the doors at least five seconds away", on.aboard && outside && on.doorsIn >= 5, JSON.stringify(on));
+  // the jump held from here: refused while the doors are shut, taken as they open
+  await ev(page, `window.__range.setScript({ held: (a) => a === "jump", pressedNow: (a) => a === "jump", playing: true, endFrame: () => {} })`);
+  await sleep(1500);
+  const shut = await ev<boolean>(page, "window.__range.shipState().aboard");
+  check("sk ship: a jump with the doors shut is refused", shut);
+  const left = await page.waitForFunction("!window.__range.shipState().aboard", { polling: 100, timeout: 15000 }).then(() => true, () => false);
+  await ev(page, "window.__range.setScript(null)");
+  check("sk ship: once the doors open, the jump takes you out", left);
+  const landed = await page.waitForFunction("!window.__range.player.dropping && !window.__range.shipState().aboard", { polling: 250, timeout: 60000 }).then(() => true, () => false);
+  const at = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+  check("sk ship: and the drop lands in the city", landed && Math.abs(at.x) <= 251 && Math.abs(at.z - 500) <= 251, JSON.stringify({ landed, ...at }));
+  await page.close();
+}
+
 /** a SpeedKills battle royale in the city: it starts, 30 in it, bots on the streets, loot on the floors */
 async function speedkillsBrTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?norender&game=speedkills");
@@ -5115,7 +5147,7 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   await page.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, sktour, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
+/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
 /**
  * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
  * plays on the page's own clock and takes itself away, a key or a click takes
@@ -6055,6 +6087,11 @@ async function main(): Promise<void> {
     if (want("speedkills")) {
       console.log("\nSpeedKills: the front door, the guns, fusion and the hacks");
       await speedkillsTest(browser);
+    }
+
+    if (want("skship")) {
+      console.log("\nSpeedKills' dropship, ridden: off the city, doors after five seconds, a landing in the city");
+      await speedkillsShipTest(browser);
     }
 
     if (want("sktour")) {
