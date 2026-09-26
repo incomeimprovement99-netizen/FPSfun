@@ -166,6 +166,8 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
   median of several bench runs, since single runs swing about 25%), and a snapshot from the ship shows only the
   city.
 
+*Done (Milestone 225).*
+
 ### A6. The HUD, compact at the bottom of the screen
 
 - **The owner:**

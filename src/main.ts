@@ -868,7 +868,12 @@ $("copyFlags").addEventListener("click", () => {
 });
 // CC0 props arrive asynchronously; their colliders are already in place. A
 // static shadow map has to be redrawn once they are in, or they cast nothing.
-void placeProps(scene, PROP_PLACEMENTS).then(() => {
+// Under a group of their own: they arrive after the range and city sides are split (showSide), and added
+// straight to the scene they were on neither side, drawn from the city too (Phase 20 A5)
+const rangeProps = new THREE.Group();
+rangeProps.name = "range-props";
+scene.add(rangeProps);
+void placeProps(rangeProps, PROP_PLACEMENTS).then(() => {
   renderer.shadowMap.needsUpdate = true;
 });
 
@@ -5204,13 +5209,23 @@ scene.add(rangeSide, brSide);
     if (o.name === "sky") lit.add(o);
   });
   const onRangeSide = [...rangeRoots, ...courses.map((c) => c.root), arena.root, triArena.root, ...targets.map((t) => t.group), ...dummies.map((d) => d.group)];
+  // SpeedKills (Phase 20 A5): the range's later arrivals too (its props, the README TV, the spray wall, the drill's
+  // pad), which were drawn from the city: 126 draw calls and 582k triangles whenever they were in view
+  if (IS_SK) onRangeSide.push(rangeProps, readmeTv.root, sprayWall.group, drill.pad);
   for (const o of onRangeSide) if (!lit.has(o)) rangeSide.attach(o);
 }
 brSide.attach(brMap.root);
 /** which side is drawn: the one the camera is on (the battle royale map starts 280 m south; the range side ends well short of it) */
 let sideShown: "range" | "br" | null = null;
+/** the side to draw: the one the camera is over, except on SpeedKills' ship and in the dive, where the city is what you fly to */
+function wantSide(): "range" | "br" {
+  // The ship starts 156 m short of the edge with the camera 38 m behind it (dropship.ts): on every line in from
+  // the north the camera hung over the range for 7.5 s, and the owner saw the range and its arenas, not the city
+  if (IS_SK && duel instanceof BrMatch && (player.aboard || player.dropping)) return "br";
+  return camera.position.z > 250 ? "br" : "range";
+}
 function showSide(): void {
-  const want = camera.position.z > 250 ? "br" : "range";
+  const want = wantSide();
   if (want === sideShown) return;
   sideShown = want;
   rangeSide.visible = want === "range";
@@ -5354,7 +5369,11 @@ function goTo(mode: Mode): void {
 
 // SpeedKills' movement lab: built once, in SpeedKills only (the legacy game has its courses);
 // its capture ring, which every plan draws, drawn too small to see
-if (IS_SK) buildPlan(scene, MOVELAB, 0.2);
+if (IS_SK) {
+  // on the range's side (Phase 20 A5): built after the split, it was drawn from the city too
+  const lab = buildPlan(scene, MOVELAB, 0.2);
+  rangeSide.attach(lab.root);
+}
 
 const menu = new Menu(loadouts, profile, {
   // the finish pickers follow the slots (hoisted: it runs once the pickers exist)
@@ -7685,6 +7704,8 @@ initWelcome();
   /** the killcam and the recap (tools/e2e.ts) */
   killcamState: () => ({ active: killcam.active, killer: killcam.killerName, weapon: killcam.killerWeapon, progress: killcam.progress, frames: recorder.frames.length, span: recorder.span, shots: recorder.shots.length }),
   recap: () => recap,
+  /** which side of the world is drawn, and which it should be (Phase 20 A5: the city from the ship's first frame) */
+  sides: () => ({ want: wantSide(), shown: sideShown }),
   skipKillcam: () => killcam.stop(),
   /** one of your hits on a match figure, through the same log and match calls a bullet makes (tools/e2e.ts) */
   landHit: (remoteId: number, amount: number, head: boolean, weapon: string, dist: number) => {

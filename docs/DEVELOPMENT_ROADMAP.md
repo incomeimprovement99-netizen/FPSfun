@@ -4100,3 +4100,22 @@ Phase 20, A4 (the owner: the edge was vague in the game).
 - **The skyline** stands out past the wall; its towers stood over the edge.
 - **Checked:** a new e2e test in a real match covers all of it: out and counting down, back in and stopped, the
   wall 38 m out, then the death by OUT OF BOUNDS, in the recap and the feed, to the Gulag.
+
+## Milestone 225 — Only the city from the dropship ✅
+
+Phase 20, A5 (the owner saw "the old BR map" from the ship and asked whether both maps are drawn at once).
+
+- **Both maps are never drawn together,** and the legacy map isn't built in SpeedKills at all. What showed was
+  the range side of the world: its 400 m sand ground, both courses and six arenas.
+  - The side drawn was picked by the camera's position alone.
+  - The ship starts 156 m short of the city with the camera behind it, so on every line in from the north (a
+    third of all lines) the range was drawn and the city hidden for the first 7.5 s.
+  - Aboard and in the dive, SpeedKills now draws the city.
+- **37 range objects sat on neither side,** drawn from everywhere: the props, the movement lab, the README TV,
+  the spray wall and the drill's pad. When in view they cost 126 draw calls and 582k triangles. They are on
+  the range's side now.
+- **The ship flies at 175 m,** clear of the skyline's 160 m towers. At 140 m the hull passed through a tower
+  top on about a third of lines.
+- **Checked:** a new e2e check that aboard, the city is the side drawn.
+- **Queued to Part B's frame-rate step:** the figures' skinned meshes skip frustum culling, about 324 draw
+  calls and 980k triangles a frame for 27 bots.

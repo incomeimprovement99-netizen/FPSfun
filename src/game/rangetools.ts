@@ -392,6 +392,8 @@ export interface DrillHud {
 const LS_DRILL = "range.drill.blink";
 
 export class FlickDrill {
+  /** the pad you start it from (main.ts puts it on the range's side) */
+  readonly pad: THREE.Mesh;
   state: "idle" | "countdown" | "running" | "done" = "idle";
   readonly target: Dummy;
   readonly total = cfg.drill.targets;
@@ -422,6 +424,7 @@ export class FlickDrill {
     pad.rotation.x = -Math.PI / 2;
     pad.position.set(cfg.drill.padX, 0.016, cfg.drill.padZ);
     scene.add(pad);
+    this.pad = pad;
   }
 
   /** standing on the pad, the drill not running: the prompt shows */

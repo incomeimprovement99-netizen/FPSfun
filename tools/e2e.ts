@@ -5339,6 +5339,10 @@ async function speedkillsShipTest(browser: Browser): Promise<void> {
   );
   const outside = Math.abs(on.x) > 250 || Math.abs(on.z - 500) > 250;
   check("sk ship: the match starts aboard, off the city, with the doors at least five seconds away", on.aboard && outside && on.doorsIn >= 5, JSON.stringify(on));
+  // aboard, the city is the side drawn, wherever the ship starts (Phase 20 A5: from the north the camera hung over
+  // the range for 7.5 s and the range and its arenas were drawn instead)
+  const side = await ev<{ want: string }>(page, "window.__range.sides()");
+  check("sk ship: aboard, the city is what is drawn, not the range", side.want === "br", JSON.stringify({ ...side, z: on.z }));
   // the jump held from here: refused while the doors are shut, taken as they open
   await ev(page, `window.__range.setScript({ held: (a) => a === "jump", pressedNow: (a) => a === "jump", playing: true, endFrame: () => {} })`);
   await sleep(1500);
