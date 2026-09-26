@@ -1195,19 +1195,25 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         }
       }
     }
-    // zebra crossings on a junction's four sides, stripes lengthwise with the traffic
-    const paint = flat(0xd8dce4, 0.8, 0.0);
+    // Zebra crossings on a junction's four sides, stripes lengthwise with the traffic. One instanced mesh of flat
+    // quads: as 864 boxes they were 10k of the city's triangles (city-budget.ts), for paint on a road.
+    const stripes: Array<[number, number, boolean]> = [];
     for (const sx of STREETS) {
       for (const sz of STREETS) {
         for (const e of [-1, 1]) {
           for (let k = 0; k < L.stripes; k++) {
             const across = -5.5 + (k * 11) / (L.stripes - 1);
-            deco(3, 0.02, 0.7, sx + e * 9, 0.01, sz + across, paint);
-            deco(0.7, 0.02, 3, sx + across, 0.01, sz + e * 9, paint);
+            stripes.push([sx + e * 9, sz + across, true], [sx + across, sz + e * 9, false]);
           }
         }
       }
     }
+    const zebra = new THREE.InstancedMesh(new THREE.PlaneGeometry(3, 0.7).rotateX(-Math.PI / 2), flat(0xd8dce4, 0.8, 0.0), stripes.length);
+    const m4 = new THREE.Matrix4();
+    const turn = new THREE.Matrix4().makeRotationY(Math.PI / 2);
+    stripes.forEach(([x, z, alongX], i) => zebra.setMatrixAt(i, m4.makeTranslation(x, 0.02, z).multiply(alongX ? new THREE.Matrix4() : turn)));
+    zebra.receiveShadow = true;
+    root.add(zebra);
   }
 
   // ---------------------------------------------------------------- places, the graph, the traversal
