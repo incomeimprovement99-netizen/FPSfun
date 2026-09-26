@@ -5198,6 +5198,20 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
     await push(0.05);
     await sleep(350);
   }
+  // The feel of a fight (speedkills.json feel): a bot stood in front of you is outlined while your crosshair is on
+  // it and not once you turn away; and going well past a sprint shows the speed streaks
+  const outline = await ev<{ on: number; off: number } | null>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping); if (!b) return ok(null); const upd = b.bot.update; b.bot.update = () => []; const p = r.player.pos; const eye = r.player.eyePosition(); b.bot.pos.set(p.x, p.y, p.z - 12); b.bot.dummy.group.position.copy(b.bot.pos); r.player.yaw = 0; r.player.pitch = Math.atan2(b.bot.pos.y + 1.2 - eye.y, 12) * 180 / Math.PI;
+      const lit = () => (b.bot.dummy.outline?.hulls ?? []).filter((h) => h.hull.visible).length;
+      setTimeout(() => { const on = lit(); r.player.yaw = 180; setTimeout(() => { const off = lit(); b.bot.update = upd; ok({ on, off }); }, 400); }, 400); }))()`,
+  );
+  check("speedkills feel: the enemy under your crosshair is outlined, and not once you look away", !!outline && outline.on > 0 && outline.off === 0, JSON.stringify(outline));
+  const streaks = await ev<number>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; let best = 0; const t0 = performance.now(); const tick = () => { r.player.vel.x = 18; best = Math.max(best, Number(document.getElementById("speedLines").style.opacity || 0)); if (performance.now() - t0 < 600) requestAnimationFrame(tick); else ok(best); }; tick(); }))()`,
+  );
+  check("speedkills feel: going well past a sprint shows the speed streaks", streaks > 0.2, String(streaks));
   await page.waitForFunction("window.__range.sk.decay()?.zone !== null", { polling: 200, timeout: 15000 }).catch(() => undefined);
   const end = await ev<Decay>(page, "window.__range.sk.decay()");
   const gone = Object.entries(end.states).filter(([id, s]) => id !== end.plan.final && s.phase === "gone").length;

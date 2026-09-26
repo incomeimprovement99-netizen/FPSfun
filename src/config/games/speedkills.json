@@ -489,5 +489,19 @@
   "ship": {
     "doorsIn": 6
   },
-  "_identity": "SpeedKills' face: its title and accents. skies are the hours SpeedKills offers in its Time of day setting, sky the one it starts at: the owner's neon night, and Hyper Scape's golden hour as the one other (the night stays the default, the owner's call)."
+  "_identity": "SpeedKills' face: its title and accents. skies are the hours SpeedKills offers in its Time of day setting, sky the one it starts at: the owner's neon night, and Hyper Scape's golden hour as the one other (the night stays the default, the owner's call).",
+  "_feel": "How a fight feels (Phase 19 step 10). outline: the enemy under your crosshair within range metres is outlined in color, width metres thick and perMetre more for every metre away so it holds its size on the screen (src/game/outline.ts; Hyper Scape's red outline, the thing that makes a figure one shape against a lit facade). streaks: lines at the screen's edge once you are going faster than from times the sprint's speed, full at full times it, at most opacity: the speed the movement gives you, shown (Hyper Scape's air and dash read as fast; ours read as a camera sliding). Ours, by eye.",
+  "feel": {
+    "outline": {
+      "color": "#ff2a3a",
+      "width": 0.02,
+      "perMetre": 0.0012,
+      "range": 150
+    },
+    "streaks": {
+      "from": 1.15,
+      "full": 1.9,
+      "opacity": 0.5
+    }
+  }
 }

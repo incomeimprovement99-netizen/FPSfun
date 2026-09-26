@@ -184,6 +184,18 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "sk-outline",
+    note: "SpeedKills' red outline on the enemy under the crosshair: a bot stood 6 m off in a street at night, against the lit facades",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 12000],
+      [
+        `(() => { ${hideMenu}; const r = window.__range; const d = r.duel(); d.holdFire = true; const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping); b.bot.update = () => []; r.player.teleport(36, 0, 560, 0, 0); const p = r.player.pos; b.bot.pos.set(p.x, p.y, p.z - 6); b.bot.dummy.group.position.copy(b.bot.pos); r.player.pitch = -5; })()`,
+        900,
+      ],
+    ],
+  },
+  {
     name: "sk-city-street",
     note: "SpeedKills' city at street level in the Spire: towers either side, lit windows, the kerb's neon, a skybridge overhead",
     query: "?game=speedkills",

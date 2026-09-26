@@ -3913,3 +3913,25 @@ Phase 19, step 9 (city.json `streetLife`).
     instancing.
 - **Not yet:** trees and planters, which wait for the free CC0 Quaternius nature kit
   (docs/PHASE_19_PLAN_DOWNTOWN.md).
+
+## Milestone 218 — The enemy outlined, and speed you can see ✅
+
+Phase 19, step 10, first half (speedkills.json `feel`).
+
+- **A red outline on the enemy under your crosshair** (src/game/outline.ts), after Hyper Scape's. In a city of
+  lit windows and neon, a figure against a busy facade is the hardest thing on the screen to read; the outline
+  makes it one shape again.
+  - It is an inverted hull: a copy of each of the figure's meshes, drawn back faces only and pushed out along its
+    normals. A skinned mesh's copy shares its skeleton.
+  - It works in every preset, including Competitive, which has no post-processing. It is depth tested like the
+    figure, so it never shows anyone through a wall.
+  - Its width grows with distance so it holds its size on the screen.
+  - It is rebuilt when a figure's meshes change, since a body and its outfit load in the background.
+- **Speed streaks.** Fine lines at the screen's edge show once you go past 1.15 times a sprint, and are full at
+  1.9 times (a slide, a dash, a pad). They sit over the world and under the HUD.
+- **Checked:**
+  - A new e2e check stands a bot in front of you: its outline is lit (11 hull pieces) while you aim at it, and
+    none once you turn away. With the outline switched off it fails, which proves it.
+  - Going past a sprint shows the streaks.
+  - A new snapshot, `sk-outline`: a bot in the street, outlined red.
+- **Not yet:** the weapons' snap to hand and the hit feedback, the rest of step 10.

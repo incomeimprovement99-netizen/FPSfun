@@ -1358,6 +1358,22 @@ const rangeTargets: Dummy[] = [...dummies, ...courseEnemies];
 // a copy: the projectile system adds and removes match figures in its own list
 const projectiles = new ProjectileSystem(scene, [...rangeTargets], targets, 0);
 const aimAssist = new AimAssist();
+/** the enemy outlined under the crosshair (speedkills.json feel.outline), and the ray that finds it */
+let outlined: Dummy | null = null;
+const outlineRay = new THREE.Raycaster();
+const outlineDir = new THREE.Vector3();
+/**
+ * The speed streaks (speedkills.json feel.streaks): fine lines round the
+ * screen's edge, clear in its middle, over the world and under the HUD.
+ */
+const speedLines = document.createElement("div");
+speedLines.id = "speedLines";
+speedLines.style.cssText =
+  "position:fixed;inset:0;pointer-events:none;opacity:0;" +
+  "background:repeating-conic-gradient(from 0deg at 50% 50%, rgba(220,240,255,0) 0deg 2.6deg, rgba(220,240,255,0.7) 2.6deg 2.9deg);" +
+  "-webkit-mask-image:radial-gradient(circle at 50% 50%, transparent 42%, black 80%);mask-image:radial-gradient(circle at 50% 50%, transparent 42%, black 80%)";
+// just before the HUD's canvas: both are fixed with no z-index, so the one later in the page is drawn over
+(document.getElementById("hud") ?? document.body.lastChild)?.before(speedLines);
 projectiles.listener = camera.position;
 projectiles.onWhiz = (p) => audio.whiz(p);
 projectiles.onVisualImpact = (at, normal) => markImpact(at, normal);
@@ -6162,6 +6178,32 @@ function step(): void {
       // through addAngles, so the pitch clamp is the one every other input uses
       if (aim) player.addAngles(aim.pitch - player.pitch, aim.yaw - player.yaw);
     }
+  }
+
+  // The enemy under the crosshair, outlined (speedkills.json feel.outline), and the speed streaks (feel.streaks)
+  if (IS_SK && PROFILE.feel) {
+    const O = PROFILE.feel.outline;
+    let aimed: Dummy | null = null;
+    let dist = 0;
+    if (duel && input.playing && !knockedOut) {
+      outlineRay.set(player.eyePosition(), outlineDir.set(0, 0, -1).applyQuaternion(player.orientationAt(player.yaw, player.pitch, 0, 0)));
+      outlineRay.far = O.range;
+      const foes = duel.avatars.filter((a) => !isAllyFigure(a) && a.group.visible);
+      const hit = foes.length ? outlineRay.intersectObjects(foes.flatMap((a) => a.hitMeshes), false)[0] : undefined;
+      if (hit) {
+        aimed = foes.find((a) => a.hitMeshes.includes(hit.object as THREE.Mesh)) ?? null;
+        dist = hit.distance;
+      }
+    }
+    if (outlined && outlined !== aimed) outlined.setOutline(false);
+    aimed?.setOutline(true, O.width + dist * O.perMetre, parseInt(O.color.slice(1), 16));
+    outlined = aimed;
+    const S = PROFILE.feel.streaks;
+    const over = player.speed / MOVE.sprintSpeed;
+    const k = input.playing ? Math.max(0, Math.min(1, (over - S.from) / (S.full - S.from))) : 0;
+    speedLines.style.opacity = (k * S.opacity).toFixed(3);
+    // a flicker, a few degrees a frame: still lines read as a pattern on the glass, not as speed
+    if (k > 0) speedLines.style.transform = `rotate(${((gameTime * 97) % 7).toFixed(2)}deg) scale(1.2)`;
   }
 
   // holster timing, from the weapon's own holster and deploy times

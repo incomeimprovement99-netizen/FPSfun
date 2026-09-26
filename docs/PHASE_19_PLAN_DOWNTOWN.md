@@ -79,7 +79,8 @@ unavailable). The old steps 5 to 9 follow these as 7 to 11.
    city that looks lived in. *Done 2026-09-26 (Milestone 217): cars, crossings and canopies. Trees and
    planters wait for the free Quaternius nature kit.*
 10. **Feel in the fight:** a red outline on the enemy you aim at, speed streaks when running fast, weapons that
-   snap to hand, hit feedback checked against Hyper Scape's weakest points (floaty guns).
+   snap to hand, hit feedback checked against Hyper Scape's weakest points (floaty guns). *The outline and the
+   streaks are done (Milestone 218). Still to do: the weapons' snap and the hit feedback.*
 11. **Bots in the new city:** bots onto the podiums and terraces (the graph up the podium stairs), and the
    capture zone contested by them when it opens on the Spire.
 

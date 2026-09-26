@@ -24,6 +24,7 @@ import { MUZZLE, fitMuzzle, muzzleOf, showFlash } from "./muzzle";
 import { ammoTypeOf } from "./ammo";
 import { OPERATORS, skinMaterials, type OperatorSkin } from "./operators";
 import { MannequinFigure, useMannequin } from "./mannequin";
+import { Outline } from "./outline";
 import { emoteAt, emotePose } from "./emotes";
 
 export type Zone = "head" | "body" | "legs";
@@ -321,6 +322,8 @@ export class Dummy {
   private rise = 1;
   /** 0..1 Digital Threat highlight */
   private threat = 0;
+  /** the red outline while aimed at (outline.ts), made the first time it is */
+  private outline: Outline | null = null;
   readonly oneHit: boolean;
   readonly respawns: boolean;
   private readonly plate: THREE.Mesh;
@@ -772,6 +775,13 @@ export class Dummy {
     this.group.rotation.x = 0;
   }
 
+  /** outlined (the enemy under the crosshair), `width` metres thick in `color` */
+  setOutline(on: boolean, width = 0.02, color = 0xff2a3a): void {
+    if (!on && !this.outline) return;
+    this.outline ??= new Outline(this.group, [this.hits], color);
+    this.outline.show(on, width);
+  }
+
   /**
    * Seen through a Digital Threat optic: the shell glows red. 0 is off; the
    * caller fades it with distance, as the data's fade range says.
@@ -806,6 +816,8 @@ export class Dummy {
    * while playing, like the 1v1 opponent's.
    */
   dispose(): void {
+    this.outline?.dispose();
+    this.outline = null;
     if (this.kdPane) {
       this.kdPane.geometry.dispose();
       (this.kdPane.material as THREE.Material).dispose();
