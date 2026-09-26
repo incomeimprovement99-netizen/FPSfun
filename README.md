@@ -879,7 +879,8 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npx tsx tools/trim-glb.ts` | cut a .glb down to the animations named (how the mannequin's files were made) |
 | `npm run probe` | a scripted wallbounce at the practice wall in the real page, printing what the feed registered (needs `npm run dev`) |
 | `npm run measure` | what each technique reaches on the real controller (needs `npm run dev`) |
-| `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`): the median, 95th and 99th percentile frame, and each frame's draw calls and triangles over every pass. `BENCH_SPOT=br` measures from the Mast's roof across the whole battle royale map, `BENCH_SPOT=brcorner` from one corner of it looking diagonally across the lot (the longest sightline there is), `BENCH_SPOT=brmatch` inside a real match on seed 42 at the hub, bots and loot in view. The test tools never take your mouse or keyboard: under them the game's lock is pretend |
+| `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`): the median, 95th and 99th percentile frame, and each frame's draw calls and triangles over every pass. `BENCH_SPOT=br` measures from the Mast's roof across the whole battle royale map, `BENCH_SPOT=brcorner` from one corner of it looking diagonally across the lot (the longest sightline there is), `BENCH_SPOT=brmatch` inside a real match on seed 42 at the hub, bots and loot in view. `BENCH_SPOT=skmatch` is SpeedKills' thirty in the city, in the street facing the Spire, and `BENCH_SPOT=skroof` the same match from 100 m over it. `BENCH_QUERY=&noskip` loads the page with a switch, here the old matrix walk, so a change is measured against what it replaced |
+| `npm run profile` | where a frame's CPU time goes, by function (needs `npm run dev`): a CPU profile of a battle royale (`PROFILE_SPOT=skmatch`, `skroof` or `brmatch`), the scene's objects by group and how many are hidden, and with `PROFILE_CALLERS=name` who calls a function. The test tools never take your mouse or keyboard: under them the game's lock is pretend |
 | `npm run shot` | screenshots of every view into `shots/` (needs `npm run dev`) |
 | `npm run rules` | nothing in the repo references the game's install or its files |
 | `npm run deploy` | `build:beta`, then publish `dist/` as the `gh-pages` branch (the static mirror) |
@@ -941,6 +942,24 @@ eleven to fifteen. None of it changes what a bullet hits: hit boxes come from
 the figure's own boxes, not the animation. In a battle royale with ten bots
 round the hub that took High from 799 draw calls to 599, 2.39M triangles to
 1.99M, and 167 to 185 fps (`npm run bench BENCH_SPOT=brmatch`).
+
+**Thirty in the city, measured and then made cheaper.** A CPU profile of a
+SpeedKills match (`npm run profile`) found three costs, none of them the
+city's triangles. three.js brought every object's matrix up to date every
+frame, hidden ones included, and two thirds of the scene was hidden (the
+range's figures and props, every figure's spare guns): a hidden object with
+children is now skipped until it is shown (`src/game/hiddenskip.ts`). Every bot
+cast a line of sight at everyone in range every frame: it now tries the
+nearest first and keeps each answer 0.1 s, under the quickest tier's reaction.
+And three.js draws a see-through two-sided material twice, rebuilding its
+shader before each pass: a security light's glass on every block did that
+hundreds of times a frame, 4 ms of 12 from over the Spire. Those are drawn in
+one pass now, and refracting glass is plain glass. On Competitive, Balanced and
+High the city went from 133, 118 and 71 fps to 200, 196 and 97 in the street,
+and from 96, 156 and 85 to 213, 208 and 102 over the Spire; the legacy match
+went from 250, 196 and 110 to 345, 312 and 149, its Balanced draw calls halved.
+`tools/checks/city-budget.ts` holds the city's meshes and triangles, and the
+e2e holds that no material in a match is the rebuilding kind.
 
 **The field is rock, scrub and cliff, not boxes.** The battle royale's cover
 is scanned rock (Poly Haven, CC0), its open ground has dead trees and branches

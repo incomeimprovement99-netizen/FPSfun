@@ -211,6 +211,7 @@ class MuzzleFlash {
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
+        forceSinglePass: true,
       });
       this.mats.push(m);
       return m;

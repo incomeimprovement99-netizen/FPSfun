@@ -45,7 +45,7 @@ export class FxLayer {
       },
       dispose: () => mat.dispose(),
     });
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true });
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.45, 24), ringMat);
     ring.rotation.x = -Math.PI / 2;
     ring.position.set(a.x, a.y + 0.05, a.z);

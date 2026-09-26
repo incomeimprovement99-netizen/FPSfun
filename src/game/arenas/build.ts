@@ -144,7 +144,7 @@ export function buildPlan(scene: THREE.Scene, plan: ArenaPlan, zoneRadius: numbe
   root.add(disc);
   const column = new THREE.Mesh(
     new THREE.CylinderGeometry(zoneRadius, zoneRadius, plan.wallH, 48, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xffd23c, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: 0xffd23c, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true })
   );
   column.position.set(plan.crown.x, plan.wallH / 2, plan.crown.z);
   column.visible = false;

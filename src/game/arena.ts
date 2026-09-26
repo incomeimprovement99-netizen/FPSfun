@@ -252,7 +252,7 @@ export function buildArena(scene: THREE.Scene): ArenaHandles {
   root.add(disc);
   const column = new THREE.Mesh(
     new THREE.CylinderGeometry(ZONE_RADIUS, ZONE_RADIUS, WALL_H, 48, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xffd23c, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: 0xffd23c, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true })
   );
   column.position.y = WALL_H / 2;
   column.visible = false;
@@ -417,7 +417,7 @@ export function buildTriArena(scene: THREE.Scene): ArenaHandles {
   root.add(disc);
   const column = new THREE.Mesh(
     new THREE.CylinderGeometry(ZONE_RADIUS, ZONE_RADIUS, WALL_H, 48, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xffd23c, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: 0xffd23c, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true })
   );
   column.position.y = WALL_H / 2;
   column.visible = false;

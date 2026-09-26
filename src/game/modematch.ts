@@ -690,9 +690,9 @@ export class ArenaMode extends Duel {
       const root = new THREE.Group();
       const w = this.world([site.x, site.z]);
       root.position.set(w.x, 0.03, w.z);
-      const ring = new THREE.Mesh(new THREE.RingGeometry(R - 0.2, R, 48), new THREE.MeshBasicMaterial({ color: 0xffa23c, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(R - 0.2, R, 48), new THREE.MeshBasicMaterial({ color: 0xffa23c, transparent: true, opacity: 0.9, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false }));
       ring.rotation.x = -Math.PI / 2;
-      const fill = new THREE.Mesh(new THREE.CircleGeometry(R - 0.2, 48), new THREE.MeshBasicMaterial({ color: 0xffa23c, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
+      const fill = new THREE.Mesh(new THREE.CircleGeometry(R - 0.2, 48), new THREE.MeshBasicMaterial({ color: 0xffa23c, transparent: true, opacity: 0.12, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false }));
       fill.rotation.x = -Math.PI / 2;
       fill.position.y = 0.01;
       root.add(ring, fill);
@@ -798,9 +798,9 @@ export class ArenaMode extends Duel {
       const root = new THREE.Group();
       const w = this.world([Number(x), Number(z)]);
       root.position.set(w.x, 0.03, w.z);
-      const ring = new THREE.Mesh(new THREE.RingGeometry(R - 0.18, R, 48), new THREE.MeshBasicMaterial({ color: 0xe8e8e8, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(R - 0.18, R, 48), new THREE.MeshBasicMaterial({ color: 0xe8e8e8, transparent: true, opacity: 0.85, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false }));
       ring.rotation.x = -Math.PI / 2;
-      const fill = new THREE.Mesh(new THREE.CircleGeometry(R - 0.2, 48), new THREE.MeshBasicMaterial({ color: 0xe8e8e8, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false }));
+      const fill = new THREE.Mesh(new THREE.CircleGeometry(R - 0.2, 48), new THREE.MeshBasicMaterial({ color: 0xe8e8e8, transparent: true, opacity: 0.18, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false }));
       fill.rotation.x = -Math.PI / 2;
       fill.position.y = 0.01;
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 6, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xe8e8e8, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));

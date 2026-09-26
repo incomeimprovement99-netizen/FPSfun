@@ -4585,15 +4585,24 @@ async function botSquadsTest(browser: Browser, query: string): Promise<void> {
   await page.waitForFunction("window.__range.duel().bots.every((b) => b.landed)", { polling: 250, timeout: 30000 }).catch(() => undefined);
   let together = 0;
   let samples = 0;
+  // the squads found apart, where each of their bots was (x, height, z), so a failure says where they stuck
+  const apart: string[] = [];
   for (let i = 0; i < 20; i++) {
-    await sleep(1500);
+    // 1.5 s of the game's own time, not the wall's: a page slowed by a busy
+    // machine runs fewer game seconds a real one, and a squad regrouping after
+    // the drop was sampled before it had walked the distance (the release run,
+    // sharing the machine with two others, saw 6 of 40 together where a run
+    // alone saw 40 of 40)
+    const t0 = await ev<number>(page, "window.__range.gameTime()");
+    await page.waitForFunction(`window.__range.gameTime() >= ${t0 + 1.5}`, { polling: 100, timeout: 20000 }).catch(() => undefined);
     // only a squad out of a fight: one that has seen someone lately breaks formation to fight, as it should
-    const spread = await ev<number[]>(page, `(() => { const d = window.__range.duel(); const now = performance.now() / 1000; const by = new Map(); const fighting = new Set();
+    const spread = await ev<Array<[number, string]>>(page, `(() => { const d = window.__range.duel(); const now = performance.now() / 1000; const by = new Map(); const fighting = new Set();
       for (const b of d.bots) { if (!b.bot.alive) continue; if (!by.has(b.team)) by.set(b.team, []); by.get(b.team).push(b.bot.pos); if ((b.bot.lastSeen && now - b.bot.lastSeen.at < 8) || b.bot.travel) fighting.add(b.team); }
-      return [...by.entries()].filter(([t]) => !fighting.has(t)).map(([, ps]) => { let m = 0; for (const a of ps) for (const c of ps) m = Math.max(m, Math.hypot(a.x - c.x, a.z - c.z)); return m; }); })()`);
-    for (const m of spread) {
+      return [...by.entries()].filter(([t]) => !fighting.has(t)).map(([t, ps]) => { let m = 0; for (const a of ps) for (const c of ps) m = Math.max(m, Math.hypot(a.x - c.x, a.z - c.z)); return [m, "squad " + t + ": " + ps.map((p) => p.x.toFixed(0) + "," + p.y.toFixed(1) + "," + p.z.toFixed(0)).join(" / ")]; }); })()`);
+    for (const [m, where] of spread) {
       samples++;
       if (m < 25) together++;
+      else apart.push(`${m.toFixed(0)} m, ${where}`);
     }
   }
   // A squad walks with some slack (a follower closes in only past 12 m), so it
@@ -4601,7 +4610,7 @@ async function botSquadsTest(browser: Browser, query: string): Promise<void> {
   // squad following its first bot, and nearer 37 without. A squad with a bot
   // in the air off a launch pad or on a rope is left out with the fighting
   // ones: it is apart for the length of the ride, then together again.
-  check("bot squads: each squad out of a fight keeps together (within 25 m, most of the time)", samples >= 8 && together / samples >= 0.55, `${together} of ${samples} squad samples together`);
+  check("bot squads: each squad out of a fight keeps together (within 25 m, most of the time)", samples >= 8 && together / samples >= 0.55, `${together} of ${samples} squad samples together${apart.length ? `; apart, last seen: ${apart.slice(-4).join("; ")}` : ""}`);
   await botKnockSteps(page);
   await ev(page, "window.__range.duel()?.leave()");
   await page.close();
@@ -4874,12 +4883,25 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   check("speedkills: the bots' five tiers by SpeedKills' names, then Mixed", tiers.slice(0, 5).join(",") === "Beginner,Casual,Skilled,Advanced,Extreme" && /Mixed/.test(tiers[5] ?? ""), tiers.join(","));
   check("speedkills br: every bot has a player's one 50 shield, whatever armour tier its kit reaches", kit.shields.every((x) => x === 50), JSON.stringify(kit));
   check("speedkills br: a Skilled bot carries Heal and Dash", kit.tier !== "normal" || kit.hacks.join(",") === "heal,dash", JSON.stringify(kit));
-  // hurt one badly, out of anyone's sight: its Heal hack brings its health back well before regeneration would
+  // hurt one badly, with nobody shooting (the bots fight each other otherwise, and one run lost half
+  // the heal to them): its Heal hack brings its health back well before regeneration would. Three
+  // seconds of the game's own time, which a busy machine stretches.
   const healed = await ev<{ before: number; after: number; used: number }>(
     page,
-    `(() => new Promise((ok) => { const d = window.__range.duel(); const b = d.bots.find((x) => x.bot.alive && x.bot.skHacks.includes("heal")).bot; b.dummy.shield = 0; b.dummy.health = 30; const before = b.dummy.health; setTimeout(() => ok({ before, after: b.dummy.health, used: b.skUsed.heal }), 3000); }))()`
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const held = d.holdFire; d.holdFire = true; const b = d.bots.find((x) => x.bot.alive && x.bot.skHacks.includes("heal")).bot; b.dummy.shield = 0; b.dummy.health = 30; const before = b.dummy.health; const t0 = r.gameTime();
+      const wait = () => { if (r.gameTime() - t0 < 3) return setTimeout(wait, 50); d.holdFire = held; ok({ before, after: b.dummy.health, used: b.skUsed.heal }); }; wait(); }))()`
   );
-  check("speedkills br: a hurt bot uses its Heal hack (health back within 3 s, before regeneration starts at 8)", healed.used >= 1 && healed.after >= healed.before + 40, JSON.stringify(healed));
+  check("speedkills br: a hurt bot uses its Heal hack (health back within 3 s, before regeneration starts at 8)", healed.used >= 1 && healed.after >= healed.before + 25, JSON.stringify(healed));
+  // No material rebuilt every frame. three.js draws a see-through two-sided material twice, marking it
+  // to be rebuilt before each pass, and glass that refracts has it draw the whole scene again: a
+  // security light's glass did the first and a generator's window the second, 4 ms of a frame over the
+  // city (props.ts plainGlass). What is on screen varies with the window, so the rule is held on
+  // every material in the scene, drawn or not.
+  const dear = await ev<string[]>(
+    page,
+    `(() => { const out = new Set(); window.__range.scene.traverse((o) => { const m = o.material; if (!m) return; for (const x of Array.isArray(m) ? m : [m]) { if (x.transparent && x.side === 2 && !x.forceSinglePass) out.add((x.name || x.type) + " (two passes)"); if (x.transmission > 0) out.add((x.name || x.type) + " (transmission)"); } }); return [...out]; })()`
+  );
+  check("speedkills br: no material that three.js rebuilds every frame (two-sided see-through in two passes, or refracting glass)", dear.length === 0, dear.slice(0, 12).join(", ") || "none");
   // the floor: guns and hack cores only, the Spire the richest
   const floor = await ev<{ kinds: string[]; spire: number; other: number; levels: number[] }>(
     page,

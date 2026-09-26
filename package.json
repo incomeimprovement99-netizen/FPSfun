@@ -40,7 +40,8 @@
     "mixamo": "tsx tools/fetch-mixamo.ts",
     "guns": "tsx tools/fetch-guns.ts",
     "clips": "tsx tools/fetch-clips.ts",
-    "fit": "tsx tools/fit.ts"
+    "fit": "tsx tools/fit.ts",
+    "profile": "tsx tools/profile-frame.ts"
   },
   "dependencies": {
     "peerjs": "^1.5.4",

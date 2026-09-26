@@ -197,7 +197,9 @@
     "far": {
       "from": 30,
       "perMetre": 0.006
-    }
+    },
+    "_recheck": "Seconds a battle royale bot keeps what one line of sight told it before casting it again (brmatch.ts sense). The ray is the dear half of seeing; thirty in the city cast it at everyone in range every frame, 0.74 ms of a 6.5 ms frame (tools/profile-frame.ts). 0.1 s is under the quickest tier's reaction (0.12 s), so no bot notices sooner or later than it would have; each bot's checks fall on its own moments, so the work is spread over the frames.",
+    "recheck": 0.1
   },
   "_loot": "A bot that lands with nothing loots like a player instead of waiting out a timer: it walks to the nearest thing on the floor it would rather have, inside `search` metres, and takes it once it is within `reach` and has spent `perItem` of its tier's botSearch (src/config/loot.json) rummaging, so an easy bot fumbles over every item and an elite one is quick. It looks again every `rescan` seconds, gives a spot up after `giveUp` seconds of not getting there (a wall in the way), stops after `window` of those botSearches or once its kit scores `enough`, and scores its kit by `score`, where a gun is worth most and armour next. There are no body shields on this map's floor (a player's shield EVOs instead), so kitting up stands in for them: every `armorPerItems` things it takes is worth a tier of shield up to `maxArmor`, and a helmet is worth the tier in `helmetTier` at once (those match the helmet armour in items.json to the dummy's shield tiers). That is what makes a bot that landed in a rich place better armed than one that landed in a field.",
   "loot": {

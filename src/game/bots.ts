@@ -1241,7 +1241,16 @@ export class Bot {
    * sprinting or firing one is picked up further out than a crouched one; with
    * none given it is read as a standing, still body.
    */
-  sees(target: THREE.Vector3, cue: SightCue = {}): boolean {
+  /** what each line of sight said and when, by who it was to (sees() with a key; bots.json sight.recheck) */
+  private sightSaid = new Map<number, { at: number; clear: boolean }>();
+
+  /**
+   * It can see `target` (feet): within its range for the cue, in front of it
+   * unless it is in a fight, and a clear line. With a `key` (who the target
+   * is) the line's answer is kept for sight.recheck seconds, the range and
+   * the facing still asked every time.
+   */
+  sees(target: THREE.Vector3, cue: SightCue = {}, key?: number): boolean {
     // the range first, because the line of sight is the expensive half
     const eye = this.pos.y + (this.crouching ? CROUCH_EYE : 1.4);
     const dx = target.x - this.pos.x;
@@ -1257,8 +1266,15 @@ export class Bot {
     const from = this.pos.clone().setY(eye);
     // a cloud of smoke in the way: it sees nothing through one (SMOKE's kit)
     if (this.inSmoke(from, new THREE.Vector3(target.x, target.y + 1.2, target.z))) return false;
+    if (key !== undefined) {
+      const said = this.sightSaid.get(key);
+      if (said && this.clock - said.at < SIGHT.recheck && this.clock >= said.at) return said.clear;
+    }
     const d = new THREE.Vector3(dx / len, dy / len, dz / len);
-    return solidHit(from, d, len) >= len;
+    const clear = solidHit(from, d, len) >= len;
+    // (the first answer's age is spread at random, so the bots' casts fall on different frames)
+    if (key !== undefined) this.sightSaid.set(key, { at: this.clock - (this.sightSaid.has(key) ? 0 : Math.random() * SIGHT.recheck), clear });
+    return clear;
   }
 
   /** a cloud of smoke between it and what it is looking at (SMOKE's kit): it sees nothing through one */

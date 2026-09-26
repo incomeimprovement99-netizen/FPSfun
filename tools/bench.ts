@@ -23,6 +23,17 @@
 // "brcorner" is the map's longest sightline, one corner to the other, where a
 // preset's draw distance shows most.
 //
+// The SpeedKills spots: "skmatch", a real battle royale of thirty in the
+// city on seed 42, standing in the street south of the Spire looking up at
+// it, with the Spire's drop (every other bot squad) around it; "skroof", the
+// same match from 100 m up over the Spire, the whole city and its neon in frame.
+// Every other spot is the legacy game's, and the page is told which (the
+// site opens in SpeedKills otherwise, and a legacy spot would measure the city).
+//
+// BENCH_QUERY is added to the page's address as it is, for a switch the page
+// reads as it loads: "&noskip" keeps hidden objects in the per-frame matrix
+// walk (src/game/hiddenskip.ts), so that change is measured, not assumed.
+//
 // BENCH_EVAL is one more expression run on the page once the spot is set, for
 // a comparison against something the build no longer does (the old fixed far
 // plane, say).
@@ -36,6 +47,14 @@ const PRESETS = (process.env.BENCH_PRESETS ?? "competitive,balanced,high").split
 const SECONDS = Number(process.env.BENCH_SECONDS ?? 4);
 const MERGE = process.env.BENCH_MERGE === "both" ? [true, false] : [true];
 const SPOT = process.env.BENCH_SPOT ?? "range";
+const GAME = SPOT.startsWith("sk") ? "speedkills" : "legacy";
+/** a SpeedKills match on seed 42, dropped on the Spire, fighting held, then the camera put at (x, y, z, yaw, pitch) and kept there */
+const skMatch = (x: number, y: number, z: number, yaw: number, pitch: number) => `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "c" }); r.input.lock();
+    for (let i = 0; i < 400 && r.duel()?.phase !== "fight"; i++) await new Promise((ok) => setTimeout(ok, 100));
+    const d = r.duel(); if (d) d.holdFire = true;
+    const hold = () => r.player.teleport(${x}, ${y}, ${z}, ${yaw}, ${pitch});
+    hold();
+    setInterval(hold, 50); })()`;
 /** where each spot puts the camera: x, y, z, yaw, pitch (the BR map's world coordinates) */
 const SPOTS: Record<string, string> = {
   range: "",
@@ -57,9 +76,14 @@ const SPOTS: Record<string, string> = {
     for (let i = 0; i < 400 && r.duel()?.phase !== "fight"; i++) await new Promise((ok) => setTimeout(ok, 100));
     const d = r.duel(); if (d) d.holdFire = true;
     r.player.teleport(0, 0, 530, 0, -2); })()`,
+  skmatch: skMatch(0, 0.3, 590, 0, 12),
+  skroof: skMatch(0, 100, 500, 30, -18),
 };
 /** spots that need the page told something before it loads: a straight drop, and none of the real mouse */
+const STRAIGHT_DROP = `window.__straightDrop = true; for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
 const BEFORE: Record<string, string> = {
+  skmatch: STRAIGHT_DROP,
+  skroof: STRAIGHT_DROP,
   brmatch: `window.__straightDrop = true; for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`,
 };
 
@@ -86,7 +110,7 @@ async function main(): Promise<void> {
         // one hour for every run (a battle royale draws its own from the seed otherwise)
         await page.evaluateOnNewDocument(() => localStorage.setItem("range.sky.br", "mine"));
         if (BEFORE[SPOT]) await page.evaluateOnNewDocument(BEFORE[SPOT]);
-        await page.goto(PAGE_URL + (merge ? "?nointro" : "?nomerge&nointro"), { waitUntil: "domcontentloaded", timeout: 60000 });
+        await page.goto(PAGE_URL + (merge ? "?nointro" : "?nomerge&nointro") + `&game=${GAME}` + (process.env.BENCH_QUERY ?? ""), { waitUntil: "domcontentloaded", timeout: 60000 });
         await page.waitForFunction("Boolean(window.__range)", { timeout: 60000 });
         await page.waitForFunction("window.__range.loaded()", { timeout: 60000 });
         await page.evaluate(`document.getElementById("overlay").classList.add("hidden")`);
@@ -134,7 +158,7 @@ async function main(): Promise<void> {
         console.log(
           `${label.padEnd(22)} ${(1000 / out.med).toFixed(0).padStart(5)} fps median   ` +
             `${out.med.toFixed(2)} ms   p95 ${out.p95.toFixed(2)}   p99 ${out.p99.toFixed(2)} ms   ${String(out.calls).padStart(5)} draw calls   ${(out.tris / 1000).toFixed(0).padStart(5)}k triangles` +
-            (SPOT === "brmatch" ? `   ${out.bots} bots` : "") +
+            (SPOT === "brmatch" || GAME === "speedkills" ? `   ${out.bots} bots` : "") +
             (out.merged ? `   (static meshes ${out.merged.meshes} -> ${out.merged.after})` : "") +
             `   GPU: ${out.gpu}`
         );

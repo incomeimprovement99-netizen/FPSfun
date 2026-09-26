@@ -1220,7 +1220,7 @@ export class BrMatch extends Duel {
           p.canopy.visible = false;
           p.hotUntil = now + cfg.contest;
           // the dust it throws up, and the thump for whoever is near enough to hear it
-          const dust = new THREE.Mesh(new THREE.RingGeometry(0.55, 1, 28), new THREE.MeshBasicMaterial({ color: 0xc9bda6, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
+          const dust = new THREE.Mesh(new THREE.RingGeometry(0.55, 1, 28), new THREE.MeshBasicMaterial({ color: 0xc9bda6, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
           dust.rotation.x = -Math.PI / 2;
           dust.position.set(p.at.x, p.at.y + 0.06, p.at.z);
           dust.userData.born = now;
@@ -3108,28 +3108,25 @@ export class BrMatch extends Duel {
     // the nearest enemy in sight: a human, or another bot
     let target: THREE.Vector3 | null = null;
     let targetId = -1;
-    let best = Infinity;
+    // everyone it might be after, nearest first, so the first it sees is the one: the lines of sight
+    // to anyone further are never cast (each is kept a moment, bots.json sight.recheck)
+    const near: Array<{ d: number; feet: THREE.Vector3; id: number; cue?: SightCue }> = [];
     if (this.phase === "fight") {
-      for (const h of humans) {
-        // a downed human counts as further off: a bot turns to whoever is still up
-        const d = bot.pos.distanceTo(h.feet) * (h.down ? SQUADS.downedFar : 1);
-        if (d < best && bot.sees(h.feet, h.cue)) {
-          best = d;
-          target = h.feet;
-          targetId = h.id;
-        }
-      }
+      // a downed human counts as further off: a bot turns to whoever is still up
+      for (const h of humans) near.push({ d: bot.pos.distanceTo(h.feet) * (h.down ? SQUADS.downedFar : 1), feet: h.feet, id: h.id, cue: h.cue });
     }
     for (const o of this.bots) {
       // its own squad is not a target: in duos and trios the bots land in
       // twos and threes, and they used to shoot each other on the way down
       if (o === b || o.team === b.team || !o.bot.alive || o.bot.dropping) continue;
-      const d = bot.pos.distanceTo(o.bot.pos) * (o.down ? SQUADS.downedFar : 1);
-      if (d < best && bot.sees(o.bot.pos)) {
-        best = d;
-        target = o.bot.pos;
-        targetId = o.bot.remote.id;
-      }
+      near.push({ d: bot.pos.distanceTo(o.bot.pos) * (o.down ? SQUADS.downedFar : 1), feet: o.bot.pos, id: o.bot.remote.id });
+    }
+    near.sort((x, y) => x.d - y.d);
+    for (const c of near) {
+      if (!bot.sees(c.feet, c.cue, c.id)) continue;
+      target = c.feet;
+      targetId = c.id;
+      break;
     }
     // A squad acts as one: what one bot sees, its mates close by go to look at.
     const mates = this.team.size > 1 ? this.bots.filter((o) => o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.dropping) : [];

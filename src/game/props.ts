@@ -57,6 +57,27 @@ export interface Placement {
 const loader = new GLTFLoader();
 const cache = new Map<PropName, Promise<THREE.Object3D | null>>();
 
+/**
+ * A prop's glass drawn the cheap way. three.js draws a see-through,
+ * two-sided material twice, back faces then front, and marks it to be
+ * rebuilt before each: with a security light's glass on every block of the
+ * city that was hundreds of shader rebuilds a frame, and from the Spire's roof
+ * 4 ms of a 12 ms frame (tools/profile-frame.ts, getParameters and
+ * getProgram). A lamp's glass is too small for the back-first order to show,
+ * so it is drawn in one pass. Glass that refracts (glTF transmission) makes
+ * three.js draw the whole scene again into a texture every frame one is in
+ * view; a generator's window does not need it, so it is plain see-through.
+ */
+export function plainGlass(mat: THREE.MeshPhysicalMaterial): void {
+  if (mat.transmission > 0) {
+    mat.transmission = 0;
+    mat.transparent = true;
+    mat.opacity = Math.min(mat.opacity, 0.45);
+    mat.depthWrite = false;
+  }
+  if (mat.transparent && mat.side === THREE.DoubleSide) mat.forceSinglePass = true;
+}
+
 function load(name: PropName): Promise<THREE.Object3D | null> {
   const hit = cache.get(name);
   if (hit) return hit;
@@ -70,6 +91,7 @@ function load(name: PropName): Promise<THREE.Object3D | null> {
         if (!m.isMesh) return;
         m.castShadow = true;
         m.receiveShadow = true;
+        for (const mat of Array.isArray(m.material) ? m.material : [m.material]) plainGlass(mat as THREE.MeshPhysicalMaterial);
       });
       return root as THREE.Object3D;
     })

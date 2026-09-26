@@ -3462,3 +3462,41 @@ Stage N, first part. `src/game/bots.ts`, `src/config/bots.json` (`beginner`, `sk
 - **Checked** by verify (the tiers, the wire, the draw) and the e2e in a real city match: 50 shield even at
   armour tier 4, a Skilled bot carrying Heal and Dash, and a hurt bot healing 30 to 96 in 3 s. Each was proven
   by putting the bug back (125 shield; no heal).
+
+## Milestone 194 — Thirty in the city, measured and made cheaper ✅
+
+Stage K. `src/game/hiddenskip.ts`, `tools/profile-frame.ts`, `tools/checks/city-budget.ts`, `tools/bench.ts`.
+
+- **Measured first.** The bench gained the SpeedKills spots `skmatch` (thirty in the city, in the street
+  facing the Spire) and `skroof` (100 m over it). It also names the game on every spot: the site opens in
+  SpeedKills now, and a legacy spot would have measured the city. A new CPU profiler (`npm run profile`)
+  says where a frame goes, by function, with the scene's objects by group and who calls what.
+- **What it found:** not the city's triangles (180k once merged, fewer than the legacy map), but three
+  costs.
+  - **Hidden objects walked every frame.** three.js updated every matrix every frame: 6,741 of 9,892
+    objects were hidden (the range, every figure's spare guns). A hidden subtree is now skipped until shown;
+    a hidden leaf, such as a hit box, still updates.
+  - **Line-of-sight rays.** Every bot cast one at everyone in range every frame. It now tries the nearest
+    first and keeps each answer 0.1 s (bots.json `sight.recheck`, under the quickest tier's 0.12 s
+    reaction).
+  - **Two-pass see-through materials.** three.js draws a see-through two-sided material twice and rebuilds
+    its shader before each pass. A security light's glass on every block cost 4 ms of 12 from over the
+    Spire. Glass is drawn in one pass now, refracting glass is plain, and so are our own rings, glows and
+    panes (one pass looks the same for a single colour or additive light).
+- **Result** (Competitive / Balanced / High, fps):
+
+  | Spot | Before | After |
+  |---|---|---|
+  | The street | 133 / 118 / 71 | 200 / 196 / 97 |
+  | Over the Spire | 96 / 156 / 85 | 213 / 208 / 102 |
+  | The legacy match | 250 / 196 / 110 | 345 / 312 / 149 |
+
+  The legacy match's Balanced draw calls were halved.
+- **Held by checks:**
+  - `city-budget.ts`: 14,852 meshes, 212 merged, 180k triangles, no lights, with a third of room; a doubled
+    city fails it.
+  - An e2e rule that no material in a match is the rebuilding kind; it found the last two, a muzzle flash
+    and a warehouse skylight.
+- **The squads test** sampled on the wall's clock, so a page slowed by a busy machine had walked less far.
+  The release run saw 6 of 40 squads together where a run alone saw 40 of 40. It samples on the game's
+  clock now, and a failure says where each bot of a squad stood, with its height.

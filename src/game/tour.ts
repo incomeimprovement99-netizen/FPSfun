@@ -95,7 +95,7 @@ export class Tour {
 
   constructor(scene: THREE.Scene) {
     this.group.name = "tour";
-    this.ring = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.85, 40), new THREE.MeshBasicMaterial({ color: 0x7ddc8a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+    this.ring = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.85, 40), new THREE.MeshBasicMaterial({ color: 0x7ddc8a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false }));
     this.ring.rotation.x = -Math.PI / 2;
     this.beam = new THREE.Mesh(
       new THREE.CylinderGeometry(0.08, 0.08, 6, 10, 1, true),

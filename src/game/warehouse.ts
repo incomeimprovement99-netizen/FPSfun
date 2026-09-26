@@ -54,6 +54,7 @@ export function warehouseRoof(parent: THREE.Object3D, r: RoofSpec): void {
     opacity: 0.35,
     depthWrite: false,
     side: THREE.DoubleSide,
+    forceSinglePass: true,
   });
   const W = r.x1 - r.x0;
   const cx = (r.x0 + r.x1) / 2;

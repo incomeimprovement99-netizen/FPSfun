@@ -2217,7 +2217,7 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
   // the ring wall: a unit cylinder, scaled to the live ring; it never merges
   const ringWall = new THREE.Mesh(
     new THREE.CylinderGeometry(1, 1, 120, 96, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true })
   );
   ringWall.position.y = 60;
   ringWall.userData.dynamic = true;

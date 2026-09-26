@@ -1343,7 +1343,7 @@ export class Dummy {
     if (!on && !this.kdPane) return;
     if (!this.kdPane) {
       const g = new THREE.CylinderGeometry(0.75, 0.75, 0.9, 16, 1, true, -0.9, 1.8);
-      const m = new THREE.MeshBasicMaterial({ color: 0x6fd3ff, transparent: true, opacity: 0.32, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+      const m = new THREE.MeshBasicMaterial({ color: 0x6fd3ff, transparent: true, opacity: 0.32, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false, blending: THREE.AdditiveBlending });
       this.kdPane = new THREE.Mesh(g, m);
       this.kdPane.position.set(0, 0.55, 0.05);
       this.group.add(this.kdPane);

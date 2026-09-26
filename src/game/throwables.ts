@@ -425,7 +425,7 @@ export class Throwables {
   private flashes: Array<{ obj: THREE.Mesh; ring: THREE.Mesh; born: number; life: number; size: number }> = [];
   private readonly mats: Record<ThrowKind, THREE.Material>;
   private readonly blink = new THREE.MeshBasicMaterial({ color: 0xff3020 });
-  private readonly flameMat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: flameTexture(), transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  private readonly flameMat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: flameTexture(), transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true });
   private readonly glowMat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: glowTexture(), transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false });
   /** the preview: dots along the arc and a ring where it lands */
   private readonly arc: THREE.InstancedMesh;
@@ -451,7 +451,7 @@ export class Throwables {
     this.arc.renderOrder = 10;
     this.arc.frustumCulled = false;
     this.arc.visible = false;
-    this.landing = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.45, 28), new THREE.MeshBasicMaterial({ color: 0xfff2a8, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthTest: false }));
+    this.landing = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.45, 28), new THREE.MeshBasicMaterial({ color: 0xfff2a8, transparent: true, opacity: 0.8, side: THREE.DoubleSide, forceSinglePass: true, depthTest: false }));
     this.landing.rotation.x = -Math.PI / 2;
     this.landing.renderOrder = 10;
     this.landing.visible = false;
@@ -875,7 +875,7 @@ export class Throwables {
   private flash(at: THREE.Vector3, radius: number, colour: number, now: number): void {
     const obj = new THREE.Mesh(geo().ball, new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
     obj.position.copy(at);
-    const ring = new THREE.Mesh(geo().ring, new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    const ring = new THREE.Mesh(geo().ring, new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
     ring.rotation.x = -Math.PI / 2;
     ring.position.set(at.x, Math.max(0.05, at.y - 0.05), at.z);
     this.group.add(obj, ring);

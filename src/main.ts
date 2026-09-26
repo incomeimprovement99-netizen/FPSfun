@@ -65,6 +65,7 @@ import { submitScore } from "./game/leaderboard";
 import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link, type MatchOpts, type MatchRules, type NetMsg } from "./net/link";
 import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
 import { AimAssist } from "./game/aimassist";
+import { skipHiddenSubtrees } from "./game/hiddenskip";
 import PAD_CFG from "./config/gamepad.json";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
 import type { MoveInput } from "./game/player";
@@ -2824,7 +2825,7 @@ function setBeam(key: number, at: THREE.Vector3 | null): void {
     beams.delete(key);
   }
   if (!at) return;
-  const obj = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 180, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0x5dff7a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  const obj = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 180, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0x5dff7a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
   obj.position.set(at.x, at.y + 90, at.z);
   scene.add(obj);
   beams.set(key, { obj, until: gameTime + squadCfg.boxRespawn.time + 1, hum: audio.beamHum(at, squadCfg.boxRespawn.time) });
@@ -3323,7 +3324,7 @@ function stepGhosts(): void {
 const unseenUntil = new Map<number, number>();
 
 function hackMesh(color: number, r: number, h: number): THREE.Mesh {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 28, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }));
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 28, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false }));
   scene.add(m);
   return m;
 }
@@ -5116,6 +5117,9 @@ function showSide(): void {
 // material they are a few dozen draw calls, which is CPU time back on every
 // frame (see staticmerge.ts). ?nomerge in the URL turns it off, so the
 // benchmark can measure both.
+// Hidden subtrees are left out of the per-frame matrix walk (hiddenskip.ts);
+// ?noskip keeps the old walk, so its effect is measured, as the merge's is.
+if (!new URLSearchParams(location.search).has("noskip")) skipHiddenSubtrees();
 const merged = new URLSearchParams(location.search).has("nomerge")
   ? null
   : mergeStatic(scene, [[...rangeRoots, ...courses.map((c) => c.root)], arena.root, triArena.root, brMap.root], [rangeSide, rangeSide, rangeSide, brSide]);
@@ -6253,7 +6257,7 @@ function step(): void {
   }
   // the pane in front of you while it is up
   if (kd.up && !kdPane) {
-    kdPane = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.9, 16, 1, true, -0.9, 1.8), new THREE.MeshBasicMaterial({ color: 0x6fd3ff, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+    kdPane = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.9, 16, 1, true, -0.9, 1.8), new THREE.MeshBasicMaterial({ color: 0x6fd3ff, transparent: true, opacity: 0.28, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     scene.add(kdPane);
   }
   if (kdPane) {

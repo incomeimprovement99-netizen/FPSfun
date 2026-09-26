@@ -408,7 +408,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   // ---------------------------------------------------------------- the ring's wall (the legacy ring's, until the decay replaces it)
   const ringWall = new THREE.Mesh(
     new THREE.CylinderGeometry(1, 1, 120, 96, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xff2e9a, transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: 0xff2e9a, transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true })
   );
   ringWall.position.y = 60;
   ringWall.userData.dynamic = true;
