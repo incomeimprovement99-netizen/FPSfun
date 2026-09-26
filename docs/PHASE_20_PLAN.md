@@ -1,11 +1,224 @@
-# Phase 20 plan: where Phase 19 left SpeedKills, and what comes next
+# Phase 20 plan: the owner's playtest fixes, then what comes next
 
-Written 2026-09-26 at the close of Phase 19 (`docs/PHASE_19_PLAN_DOWNTOWN.md`, Milestones 209 to 220). The
-ranked steps at the end are a proposal for the owner to confirm or reorder.
+Written 2026-09-26 at the close of Phase 19 (`docs/PHASE_19_PLAN_DOWNTOWN.md`, Milestones 209 to 220).
 
-## Where Phase 19 ended
+- **Part A** is the owner's feedback from playing the live build. All of it is done before the game is shared
+  with the owner's friends, in the order below.
+- **Part B** is the ranked next steps. They follow Part A.
 
-Live on fpsfun.duckdns.org and Pages:
+"The game" in this plan is SpeedKills. Nothing here changes the legacy game (B00G FPS, the BOOG range) unless
+an item says so.
+
+## Part A: the owner's playtest fixes (before sharing)
+
+**How each item is proven:**
+- Each fix gets a check that fails with the bug put back.
+- Each fix gets a snapshot where it shows on screen.
+- Each fix gets a roadmap Milestone and a diary line.
+- Part A ends with the full release run: the three e2e batches, `npm run fit`, and both deploys.
+
+**Numbers:** where an item needs a number about Hyper Scape, the number comes from a source or a measurement
+and says which. Where there is neither, the owner is asked rather than a value invented.
+
+### A1. Loot does not work after "land with your loadout"
+
+- **The owner:** "i can't loot anything so i can't fusion anything together, can't change my guns ... i did do
+  the 'land with your loadout'".
+- **Found:** `brmatch.ts:756`, `this.startLoot = opts.start !== "loadout"`. With a loadout start the floor gets
+  no loot at all, so nothing can be picked up, fused or swapped.
+- **Fix:** in SpeedKills the floor always has its loot. The loadout start changes only what you land holding.
+- **Also check** everything else that reads `startLoot`: the bots' arming (`botArmed`), their gun visibility,
+  the supply bins. Legacy keeps its behaviour.
+- **Done when:** an e2e check in both start modes finds loot on the floor, picks up a copy of the held gun (its
+  level goes up), and picks up a different gun (it swaps in).
+
+### A2. Damage numbers show long decimals
+
+- **The owner:** each shot shows "33.66666666666666".
+- **Found:** `hud.ts:387` writes `String(amount)`. SpeedKills' tuned damage is fractional, and a spray's summed
+  number is too.
+- **Fix:** whole numbers wherever damage is shown: the damage numbers, their spray totals, the range's stats,
+  the recap, the death recap and the kill feed.
+- **Done when:** an e2e check lands several hits of a fractional-damage gun and finds only whole numbers on
+  screen.
+
+### A3. The left arm covers the red dot when aiming
+
+- **The owner:** "the left arm is in the red dot and sight area".
+- **Where:** the first-person arms and the aim pose (`viewmodel.ts`, `fparms.ts`, `arms.ts`, `viewmodel.json`),
+  per gun and per optic.
+- **Fix:** measure it first. A snapshot aiming down the sights with every SpeedKills gun and every optic finds
+  which pairs show the arm inside the sight picture. Then fix the pose or the hand's grip for those.
+- **Done when:** a picture test, like `npm run fit`, counts the arm's pixels inside each optic's window while
+  aiming, and every one is 0.
+
+### A4. The map's edge: visible, a 40 m grace with a countdown, then a red laser
+
+- **The owner:** the edge is vague in the game (clear only on the minimap). Allow about 40 m out with a timer
+  saying you will be terminated in 5 s if you do not come back. If you test it, a big red laser zaps you: it
+  lights up your view so all you see is the red laser, and it tells you that you died out of bounds.
+- **Where:** today the battle royale's bounds are a hard wall (`main.ts` `player.setBounds(BR_BOUNDS)`).
+- **Fix:**
+  - The bounds become the map plus 40 m.
+  - The edge gets a boundary you can see in the world (a lit holographic fence on all four sides).
+  - Past the edge, the HUD says RETURN TO THE CITY and counts down from 5. Coming back cancels it.
+  - At 0, a red laser comes down on you, the screen floods red, and you die with the cause OUT OF BOUNDS (in the
+    kill feed and the death recap).
+  - Every screen in the match sees the laser.
+  - All of it is set in config with a note (the grace distance, the seconds, the laser's look).
+- **Done when:** an e2e check walks out and sees the countdown, walks back and sees it cancelled, walks out and
+  stays, and sees the death by OUT OF BOUNDS. Snapshots show the fence and the laser.
+
+### A5. The dropship shows other maps: is everything rendered at once?
+
+- **The owner:** from the dropship at the start they could see "the old BR map". Are both maps rendered, and
+  does that hurt performance?
+- **To find out first:** a snapshot from the ship at the start of a match, to see exactly what shows. The
+  legacy battle royale map itself is not built in SpeedKills (`main.ts`: the city OR the old map). The range,
+  the arenas and the tri arena are all in the scene, a few hundred metres away.
+- **Fix:** during a match only the city and its skyline are drawn. The range and the arenas are hidden in the
+  battle royale's region and shown again after it.
+- **Done when:** measured from the ship, the draw calls and frame rate before and after are written down (the
+  median of several bench runs, since single runs swing about 25%), and a snapshot from the ship shows only the
+  city.
+
+### A6. The HUD, compact at the bottom of the screen
+
+- **The owner:**
+  - Make it all compact on the lowest part of the monitor.
+  - Gun names and levels to the left of the current ammo count.
+  - The two abilities to the right of the health, moved slightly down and right.
+  - The Slam and Heal boxes (the hack boxes) bigger.
+  - The health bar about twice as big, the ammo at least 1.5 times as big.
+  - Slight black outlines on all UI so it is never hard to read.
+- **Where:** `hud.ts` (the canvas HUD) and `hud.json`.
+- **Fix:**
+  - The bottom band re-laid out as asked, with the sizes as config numbers.
+  - Every piece of HUD text and every bar gets a thin dark outline.
+  - Checked at the smallest and the largest HUD scale.
+- **Done when:** a HUD layout check reads each element's box and finds:
+  - the health bar at least 2x and the ammo at least 1.5x their old sizes;
+  - the gun names left of the ammo;
+  - the hacks right of the health;
+  - everything in the bottom band.
+
+  Snapshots at 1080p and 1440p show it.
+
+### A7. Every gun named with its class
+
+- **The owner:** "USSO (Fast SMG)" and so on, so a beginner can see what each gun is.
+- **Fix:**
+  - Each gun gets a short class in speedkills.json, with a note (Fast SMG, Steady SMG, Sniper, and so on).
+  - One helper names a gun everywhere a gun is named: the HUD slots, loot labels and prompts, the loadout and
+    setup menus, pickup notices, the kill feed, the recap and the tour.
+- **Done when:** an e2e check reads the menus and the HUD and finds no gun named without its class.
+
+### A8. The loot card: this gun against yours
+
+- **The owner:** looking at a gun on the floor shows what it is and compares it with your current gun: level,
+  stats, ammo count, "all that". There are two versions:
+  - the default, verbose, which helps a player learn;
+  - a compact one for experienced players, with just what a quick call needs.
+- **Fix:**
+  - A card when aiming at floor loot within reach: its name and class, its level, and its stats set beside the
+    gun it would replace, with better or worse marked. The stats are damage, fire rate, magazine, and time to
+    kill against a full 150.
+  - For a copy of your own gun, the card says FUSES TO LEVEL N.
+  - Hack cores get the same card.
+  - A setting, Loot card: Full (the default) or Compact.
+- **Done when:** an e2e check aims at a floor gun in both modes and reads the card, and snapshots show both
+  modes.
+
+### A9. The hacks as Hyper Scape's were, from sources, Slam first
+
+- **The owner:** "the slam barely goes up, it went like 10x higher in hyperscape, make sure you look into that
+  exactly and the other abilities so you know how they are supposed to work exactly instead of assuming or
+  filling in holes".
+- **Found:** Slam launches at 9 m/s (`hacks.json` slam.up). At SpeedKills' gravity of 17.5 m/s² that is a peak
+  of about 2.3 m.
+- **Fix:**
+  - First, research each hack: what it did, and every number the sources give. That means height, distance,
+    duration, radius, damage and the cooldown at each fusion level, from wikis, patch notes, guides and footage.
+  - Where there is no number, measure the footage where possible, for example a Slam's height against a
+    building of known storeys, and label it measured.
+  - Then tune each hack to the result, Slam first. Then Heal, Dash (Hyper Scape's Teleport), Invisibility,
+    Armor, Wall, Reveal and Mine. LEAP and GRAPPLE are ours, with their numbers kept.
+  - A table in the plan lists every hack number with its source, measurement or owner decision.
+- **Done when:** a hack check measures each hack in the movement simulator (Slam's peak, a dash's distance, a
+  heal's rate) and holds it to the table.
+
+### A10. No smoke grenade in SpeedKills
+
+- **The owner:** "remove the smoke grenade, i don't like it for this type of gameplay, keep it in boog fps,
+  legacy one".
+- **Found:** it is the legacy SMOKE kit (kits.json `smoke`, `main.ts` stepSmokeKit), still offered in
+  SpeedKills.
+- **Fix:** gone from SpeedKills' pickers, loot, keys, HUD and tour. Unchanged in legacy.
+- **Done when:** an e2e check finds no smoke anywhere in a SpeedKills page, and still finds it in a legacy one.
+
+### A11. The main menu too narrow, and scrollbars in our colours
+
+- **The owner:** the main screen's menu is not wide enough and shows a horizontal scrollbar. All scrollbars
+  should be our custom colours.
+- **Found:** `index.html`, `.menu { width: 780px; ... overflow-y: auto }`. A row wider than that makes the
+  horizontal bar. No scrollbar is styled anywhere.
+- **Fix:**
+  - A wider menu, with the wide row found and made to fit, so there is no horizontal scroll at any window size
+    from 1280 wide up.
+  - Every scrollbar in the page styled in SpeedKills' colours (`scrollbar-color` and `::-webkit-scrollbar`).
+- **Done when:** an e2e check finds the menu's scroll width no wider than its box at 1280, 1920 and 2560, and
+  every scrolling panel with the custom scrollbar. A snapshot shows it.
+
+### A12. After a match, a SpeedKills range
+
+- **The owner:** after winning the battle royale it goes back to the BOOG range (the legacy one). Redress it in
+  SpeedKills' style:
+  - keep what it has, but block it off about 20 m in, so it is a sandbox;
+  - guide the player to the two courses and to the TV that explains the README;
+  - the new abilities work there.
+
+  A quick reskin and a smaller area is fine for now.
+- **Where:** the range (`range.ts`), the return after a match (`main.ts`, setRegion "range"), the courses
+  (`course.ts`, `courses/`) and the TV (`readmetv.ts`).
+- **Fix:**
+  - In SpeedKills the range takes the city's night materials and neon.
+  - A lit barrier about 20 m in (a config number).
+  - Markers and signs to the two courses and to the TV.
+  - Both hacks usable there.
+- **Done when:** an e2e check after a match finds you in the SpeedKills range, can't go past the barrier, finds
+  the markers, and uses a hack. Snapshots show the reskinned range.
+
+### A13. Memory: SpeedKills and legacy kept apart (done)
+
+The owner's rule, saved in memory on 2026-09-26: everything is SpeedKills unless legacy is named.
+
+### Every point of the feedback, and the item that covers it
+
+| The owner said | Item |
+|---|---|
+| left arm in the red dot and sight area | A3 |
+| main menu not wide enough, a scroll bar at the bottom | A11 |
+| all scroll bars in our custom colours | A11 |
+| gun names with a quick description, "USSO (Fast SMG)" | A7 |
+| the slam barely goes up, 10x higher in Hyper Scape; look into the other abilities exactly, do not assume | A9 |
+| the slam and heal boxes bigger | A6 |
+| all compact at the bottom; gun names and levels left of the ammo; abilities right of the health, slightly down and right | A6 |
+| health bar twice as big, ammo at least 1.5x | A6 |
+| slight black outlines on all UI | A6 |
+| can't loot, can't fuse, can't change guns (after "land with your loadout") | A1 |
+| damage numbers with long decimals | A2 |
+| remove the smoke grenade, keep it in legacy | A10 |
+| memory distinguishes the two games; everything is the new one unless stated | A13 |
+| a loot UI comparing the floor gun with ours (level, stats, ammo), default verbose and compact | A8 |
+| after winning, back to the BOOG range: reskin, block it about 20 m in, guide to the two courses and the README TV | A12 |
+| the old map visible from the dropship; are both rendered, does it hurt performance | A5 |
+| the map's edge vague; 40 m out, a 5 s termination timer, a big red laser that fills your view, told you died out of bounds | A4 |
+
+## Part B: after the playtest fixes
+
+### Where Phase 19 ended
+
+Live on fpsfun.duckdns.org and Pages at e4971df:
 
 - **The downtown core:** podiums and towers split by canyons.
 - **Jump pads** with gold beams and rings, their throws solved from the movement's gravity.
@@ -25,7 +238,7 @@ Not done from Phase 19's list:
 - **The rest of step 10:** the guns' snap to hand. It needs the owner's decision; see step 2 below.
 - **Trees and planters** from the free Quaternius nature kit.
 
-## If something breaks, where to look
+### If something breaks, where to look
 
 | Symptom | Where it is made | What checks it |
 |---|---|---|
@@ -49,7 +262,7 @@ legacy supply bin. Three were made steadier in Phase 19:
 - the ghost's walk turns until it has room;
 - the restore's finish waits 15 s.
 
-## A measurement not to trust yet
+### A measurement not to trust yet
 
 Frame rate in SpeedKills' street facing the Spire (`BENCH_SPOT=skmatch`, Competitive, one run each, 26
 September):
@@ -66,13 +279,13 @@ September):
 Single runs swing by about 25%: the current code read 114 fps in one run and 169 in the next. Nothing here
 shows Phase 19 made the city slower, and nothing shows it did not.
 
-## Ranked next steps (proposal)
+### Ranked next steps (proposal)
 
 1. **A frame-rate number to trust.** The bench takes the median of several runs, and SpeedKills gets a floor
    in fps per preset for its street and roof views, checked before a release. Smooth was the first thing
-   Hyper Scape was.
+   Hyper Scape was. A5 measures part of this.
 2. **The guns' pace: the owner's call.** They draw in 0.6 s and aim in 0.31 s, from the legacy data, and no
-   public source gives Hyper Scape's numbers. The rest of step 10 follows the decision.
+   public source gives Hyper Scape's numbers. The rest of Phase 19's step 10 follows the decision.
 3. **The free Quaternius kits:** trees and planters on the streets, and props for the interiors, so the rooms
    differ (Hyper Scape's reviewers called its rooms all the same).
 4. **Bots, further:**
