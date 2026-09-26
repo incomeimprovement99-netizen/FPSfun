@@ -1120,6 +1120,38 @@ const scene = new THREE.Scene();
   check("while an operator nobody dressed is the operator itself", bare === operatorById("vanguard"));
 }
 
+{
+  // A late state (plan section 12, item 1): the fast channel keeps no order,
+  // so a state sent a moment before a player went out can arrive after their
+  // "down". It says alive; it must not stand them back up on the other's
+  // screen. A state stamped after the down (a real respawn) still does.
+  const wire = new Wire();
+  const [h, gl] = wire.pair(0, 1);
+  const host = new Duel(scene, projectiles, { players: 2, myId: 0, link: h, guestId: 1 });
+  const guest = new Duel(scene, projectiles, { players: 2, myId: 1, link: gl });
+  const duels = [
+    { d: host, id: 0 },
+    { d: guest, id: 1 },
+  ];
+  let f = run(wire, duels, [], 0, 60);
+  // one of the guest's own states, alive, as it went; then two more seconds of the match
+  const early = wire.log.filter((c) => c.from === 1 && c.t === "s").pop()?.m as StateMsg | undefined;
+  f = run(wire, duels, [], f, 120);
+  (guest as unknown as { eliminate(from: number, how: string): void }).eliminate(0, "finished");
+  wire.drain();
+  f = run(wire, duels, [], f, 10);
+  const seen = () => inside(host).remotes.get(1)?.alive;
+  const outFirst = seen() === false;
+  // the early state arrives now, late
+  if (early) h.onMessage?.(viaPeerJs({ ...early, alive: true }));
+  const afterLate = seen();
+  check("a state sent before a player went out, arriving after, does not stand them back up", !!early && outFirst && afterLate === false, JSON.stringify({ early: !!early, outFirst, afterLate }));
+  // and a state from after it (their next life) does
+  if (early) h.onMessage?.(viaPeerJs({ ...early, alive: true, tm: (Math.round(clockMs) + 500) & 0xffff }));
+  check("while one sent after it, a respawn, still does", seen() === true, String(seen()));
+  void f;
+}
+
 perf.now = realNow;
 console.warn = warn;
 if (!hadDocument) delete g.document;

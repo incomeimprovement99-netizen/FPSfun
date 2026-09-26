@@ -176,6 +176,13 @@ export interface Remote {
   samples: Sample[];
   /** the sender's clock against ours: its unwrapped time, and the smallest gap seen between the two (placeByClock) */
   clock?: { last: number; sent: number; gap: number; heard: number };
+  /**
+   * When they went out, on their own clock as clock.sent counts it (their
+   * "down" carries its stamp): a state sent before that which arrives after
+   * it is stale, and does not stand them back up (plan section 12, item 1).
+   * Undefined when unknown, or after their clock was started over.
+   */
+  outAtSent?: number;
   /** the jitter buffer: the worst recent wait from one state's time to the next one's arrival, and the delay the figure is drawn at */
   buffer?: { need: number; delay: number };
   health: number;
@@ -1269,6 +1276,12 @@ export class Duel implements MatchLike {
         r.alive = false;
         r.downed = false;
         r.avatar.fallDown();
+        // when, on their clock: their stamp unwrapped against the last state's (an older build sends none)
+        if (typeof m.tm === "number" && r.clock) {
+          let step = (m.tm - r.clock.last) & 0xffff;
+          if (step > 0x8000) step -= 0x10000;
+          r.outAtSent = r.clock.sent + step / 1000;
+        }
         {
           const by = m.by === this.id ? this.myName || "YOU" : m.by === -1 ? "THE RING" : (this.nameOf(m.by) ?? `PLAYER ${m.by + 1}`);
           const mine = m.by === this.id;
@@ -1334,6 +1347,8 @@ export class Duel implements MatchLike {
     if (step > 0x8000) step -= 0x10000;
     if (!c || now - c.heard > 5 || Math.abs(step) > 5000) {
       r.clock = { last: tm, sent: 0, gap: now, heard: now };
+      // a clock started over cannot be held against the old one's times
+      r.outAtSent = undefined;
       return now;
     }
     c.last = tm;
@@ -1367,12 +1382,18 @@ export class Duel implements MatchLike {
     const stance = typeof m.st === "number" ? stanceFromCode(m.st) : m.crouch ? "crouch" : "stand";
     const ac = typeof m.ac === "number" && Number.isFinite(m.ac) ? m.ac : 0;
     const at = this.placeByClock(r, m.tm, now);
+    // A state sent before they went out, arriving after (the fast channel keeps
+    // no order): it says alive, and is not. Their next real life starts later on
+    // their clock, so a respawn still stands them up. (Plan section 12, item 1.)
+    const sentAt = typeof m.tm === "number" && r.clock ? r.clock.sent : null;
+    const stale = m.alive && !r.alive && sentAt !== null && r.outAtSent !== undefined && sentAt <= r.outAtSent;
+    const alive = m.alive && !stale;
     this.noteLateness(r, at, now);
     r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), healItem: ac >= 10 ? HEAL_CODES[ac - 10] : undefined });
     if (r.samples.length > 30) r.samples.shift();
     // Their own numbers lag our hits by a round trip, so a packet can only
     // ever LOWER what we already predicted; a respawn (alive again) resets.
-    if (m.alive && !r.alive) {
+    if (alive && !r.alive) {
       r.avatar.reset();
       r.health = m.hp;
       r.shield = m.sh;
@@ -1388,13 +1409,13 @@ export class Duel implements MatchLike {
     if (typeof m.ready === "boolean") r.ready = m.ready;
     r.aimbot = m.bot === 1;
     if (typeof m.shm === "number" && Number.isFinite(m.shm) && m.shm >= 0 && m.shm <= 200) r.shieldMax = m.shm;
-    r.downed = m.alive && (m.dn === 1 || m.dn === 2);
+    r.downed = alive && (m.dn === 1 || m.dn === 2);
     r.avatar.setKnockShield(r.downed && m.dn === 2);
     // back in (a respawn): the lockout's "alive since"
-    if (m.alive && !r.alive) this.noteBack(from);
+    if (alive && !r.alive) this.noteBack(from);
     this.setAvatarLook(r, m.w, m.op, typeof m.lk === "string" ? m.lk : undefined);
-    if (!m.alive && r.alive) r.avatar.fallDown();
-    r.alive = m.alive;
+    if (!alive && r.alive) r.avatar.fallDown();
+    r.alive = alive;
     r.avatar.health = 1e9;
     r.avatar.shield = m.sh;
     this.relay(m, from);
@@ -1639,7 +1660,7 @@ export class Duel implements MatchLike {
     this.onEliminated?.(from);
     const who = from === -1 ? "THE RING" : (this.nameOf(from) ?? "SOMEONE");
     this.onFeed?.(how === "bled out" ? `${this.myName || "YOU"} bled out` : `${who} eliminated ${this.myName || "YOU"}`, false);
-    this.broadcast({ t: "down", by: from, m: this.lastHitMelee ? 1 : undefined });
+    this.broadcast({ t: "down", by: from, m: this.lastHitMelee ? 1 : undefined, tm: senderStamp() });
     this.noteDeath(this.id);
     if (this.role === "host" && this.mode === "duel") this.checkLastStanding(wallClock());
     this.onSomeoneDown(this.id, from, this.lastHitMelee);

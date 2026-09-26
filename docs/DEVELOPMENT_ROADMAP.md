@@ -3621,3 +3621,20 @@ your only survivor is fighting in the Gulag; it is won when they come back.
 
 The Gulag e2e reads the host's count with its only mate in the room. It passed on the old code when read at
 once, before the room's first packet; read 1.5 s later it fails on the old code and passes on the new.
+
+## Milestone 203 — A late packet does not bring the dead back ✅
+
+Plan section 12, item 1. State packets travel on the fast channel, which keeps no order, so one sent a
+moment before a player went out could arrive after their "down". It said alive, and stood them back up on
+everyone else's screen until their next packet. A "down" now carries the sender's clock stamp, the same one
+their states carry. A state stamped at or before it is stale and does not stand them up; their next life is
+stamped later, so a respawn still does. An older build sends no stamp and is read as before, and a clock that
+starts over forgets the old time rather than hold it against the new one.
+
+`tools/checks/net-delta.ts` plays it between two real Duels over the test wire: an early state replayed after
+the down leaves the player out, and a later-stamped one brings them back. The first fails on the old code.
+The duel, triple and squad e2e sections pass.
+
+Of plan section 12's items, 1, 2, 3, 4, 7, 8, 9, 10, 12, 13 and 14 are now done. Still open: 5 (a reviver is
+credited before the revive is confirmed) and 6 (the legacy game's box-respawn lockouts counted separately on
+each browser).
