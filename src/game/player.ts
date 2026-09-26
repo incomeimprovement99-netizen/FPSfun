@@ -18,10 +18,13 @@
 //   mantle  with the superglide window at the end of it.
 //   zip     ziplines: interact to ride where you look, a speed cap, three
 //           ways off, and the interact limits.
+import { solidsIn } from "./solidgrid";
+/** the grid's answer, reused (overlapping copies what it keeps out of it) */
+const NEAR: import("./range").Solid[] = [];
 import * as THREE from "three";
 import type { Action } from "./input";
 import { HU, MOVE, jumpVelocityFor, slideDecay, EXTRA } from "./movement";
-import { RANGE_SOLIDS, type Solid } from "./range";
+import type { Solid } from "./range";
 import { ZIPLINES, type Zipline } from "./traversal";
 import squadCfg from "../config/squad.json";
 import PAINT from "../config/paint.json";
@@ -546,7 +549,8 @@ export class Player {
   /** solids whose footprint the player's circle overlaps at this position */
   private overlapping(x: number, z: number, r: number): Solid[] {
     const out: Solid[] = [];
-    for (const s of RANGE_SOLIDS) {
+    // the boxes near (solidgrid.ts), not every box in the world
+    for (const s of solidsIn(x - r, x + r, z - r, z + r, NEAR)) {
       if (x + r > s.minX && x - r < s.maxX && z + r > s.minZ && z - r < s.maxZ) out.push(s);
     }
     return out;

@@ -31,6 +31,7 @@
 // nodes (POI centres, gates, road bends) laid out here as well.
 /** how near a graph node has to be to a rope's end to be its foot (metres) */
 const ROPE_NODE_REACH = 22;
+import { IS_SK } from "./game";
 import brCfg from "../config/br.json";
 import { DOORWAYS, Doors } from "./doors";
 import * as THREE from "three";
@@ -46,8 +47,8 @@ import cfg from "../config/brmap.json";
 
 export const BR_X = 0;
 export const BR_Z = 500;
-/** half the map's side */
-export const BR_HALF = 220;
+/** half the map's side: Outskirts' 440 m, or SpeedKills' 500 m city (city.ts) in the same square of the world */
+export const BR_HALF = IS_SK ? 250 : 220;
 export const BR_BOUNDS: Bounds = { minX: BR_X - BR_HALF, maxX: BR_X + BR_HALF, minZ: BR_Z - BR_HALF, maxZ: BR_Z + BR_HALF };
 export const BR_CENTER = new THREE.Vector3(BR_X, 0, BR_Z);
 

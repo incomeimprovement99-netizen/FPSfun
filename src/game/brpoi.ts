@@ -58,7 +58,8 @@ function dressBuilding(o: BuildingOpts, t: number, base: number, storeys: number
     { side: "e", len: d, out: [1, 0], at: (v) => [o.x + w / 2 + t / 2, o.z - v] },
     { side: "w", len: d, out: [-1, 0], at: (v) => [o.x - w / 2 - t / 2, o.z + v] },
   ];
-  for (const s of sides) {
+  // SpeedKills' city dresses its own buildings (city.ts: neon, not brick and cornices): the roof's units only
+  for (const s of o.dress === "roof" ? [] : sides) {
     const yaw = faceOut(s.out[0], s.out[1]);
     const n = Math.max(1, Math.round(s.len / 2));
     const sx = s.len / (2 * n);
@@ -84,12 +85,14 @@ function dressBuilding(o: BuildingOpts, t: number, base: number, storeys: number
     }
   }
   // a column up each corner, a storey at a time, capped at the roof
-  for (const [cx, cz] of [
-    [1, 1],
-    [1, -1],
-    [-1, -1],
-    [-1, 1],
-  ] as const) {
+  for (const [cx, cz] of o.dress === "roof"
+    ? []
+    : ([
+        [1, 1],
+        [1, -1],
+        [-1, -1],
+        [-1, 1],
+      ] as const)) {
     const x = o.x + cx * (w / 2 + t / 2);
     const z = o.z + cz * (d / 2 + t / 2);
     // the column's own corner is its -x, -z: turned to face out of this corner
@@ -180,6 +183,8 @@ export interface BuildingOpts {
   parapet?: boolean;
   /** wall thickness */
   t?: number;
+  /** the city kit's dressing (dressBuilding): all of it (the default), or only what stands on the roof */
+  dress?: "full" | "roof";
 }
 
 const DOOR_W = 2.4;

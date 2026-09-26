@@ -1,12 +1,14 @@
 // Projectiles with launch speed and scaled gravity, sub-stepped, swept
 // against dummy hit meshes with a raycast per step.
+import { solidsAlong } from "./solidgrid";
+const ALONG: import("./range").Solid[] = [];
 import * as THREE from "three";
 import tracerCfg from "../config/hud.json";
 import { viewer } from "./muzzle";
 import type { Dummy, HitReport, Zone } from "./dummy";
 import type { Target } from "./targets";
 import type { ResolvedWeapon } from "./weapons";
-import { RANGE_SOLIDS } from "./range";
+
 
 /**
  * Distance along a segment to the first solid box it enters, or Infinity.
@@ -25,7 +27,8 @@ export const lastSolidNormal = new THREE.Vector3(0, 1, 0);
 
 export function solidHit(p0: THREE.Vector3, dir: THREE.Vector3, len: number): number {
   let best = Infinity;
-  for (const s of RANGE_SOLIDS) {
+  // the boxes along the ray (solidgrid.ts), not every box in the world
+  for (const s of solidsAlong(p0, dir, len, ALONG)) {
     let t0 = 0;
     let t1 = len;
     let axis = -1;

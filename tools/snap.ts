@@ -145,6 +145,33 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "sk-city-air",
+    note: "SpeedKills' city from high over its edge, looking in at the Spire: the towers, the neon, the sectors' colours, the skyline past the edge",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -250, maxX: 250, minZ: 250, maxZ: 750 }); r.player.teleport(0, 150, 830, 0, -22); })()`, 0],
+      [gameSeconds(1.5), 600],
+    ],
+  },
+  {
+    name: "sk-city-street",
+    note: "SpeedKills' city at street level in the Spire: towers either side, lit windows, the kerb's neon, a skybridge overhead",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -250, maxX: 250, minZ: 250, maxZ: 750 }); r.player.teleport(36, 0, 560, 0, 12); })()`, 0],
+      [gameSeconds(1.5), 600],
+    ],
+  },
+  {
+    name: "sk-city-roof",
+    note: "SpeedKills' city from a Spire roof: what a player sees from the top of a tower",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -250, maxX: 250, minZ: 250, maxZ: 750 }); r.player.teleport(0, 76, 520, 30, -8); })()`, 0],
+      [gameSeconds(1.5), 600],
+    ],
+  },
+  {
     name: "sk-hud",
     note: "SpeedKills in the range: the two hack squares with a cooldown running, the gun's own name, 100 health and 50 shield",
     query: "?game=speedkills",

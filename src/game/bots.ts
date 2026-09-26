@@ -20,12 +20,14 @@
 //
 // The rounds are the 1v1's: countdown, fight, last standing or the circle,
 // first to 3. Two bots do not shoot each other: they are both after you.
+import { solidsIn } from "./solidgrid";
+const BOT_NEAR: import("./range").Solid[] = [];
 import { IS_SK, PROFILE } from "./game";
 import { smokeBlocks } from "./smoke";
 import { Revealed, type Seen } from "./reveal";
 import * as THREE from "three";
 import { Dummy } from "./dummy";
-import { RANGE_SOLIDS } from "./range";
+
 import { falloff, solidHit, type ProjectileSystem } from "./projectile";
 import moveCfg from "../config/movement.json";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
@@ -1128,7 +1130,7 @@ export class Bot {
   /** the ground under the feet, stepping up onto anything within reach */
   private groundAt(x: number, z: number): number {
     let best = 0;
-    for (const s of RANGE_SOLIDS) {
+    for (const s of solidsIn(x - RADIUS, x + RADIUS, z - RADIUS, z + RADIUS, BOT_NEAR)) {
       if (x + RADIUS > s.minX && x - RADIUS < s.maxX && z + RADIUS > s.minZ && z - RADIUS < s.maxZ) {
         if (s.top <= this.pos.y + MOVE.stepHeight + 1e-4 && s.top > best) best = s.top;
       }
@@ -1138,7 +1140,7 @@ export class Bot {
 
   /** would the body overlap a wall at this spot */
   private blocked(x: number, z: number): boolean {
-    for (const s of RANGE_SOLIDS) {
+    for (const s of solidsIn(x - RADIUS, x + RADIUS, z - RADIUS, z + RADIUS, BOT_NEAR)) {
       if (x + RADIUS > s.minX && x - RADIUS < s.maxX && z + RADIUS > s.minZ && z - RADIUS < s.maxZ) {
         if (s.top > this.pos.y + MOVE.stepHeight + 1e-4 && s.base < this.pos.y + MOVE.standHeight - 1e-4) return true;
       }

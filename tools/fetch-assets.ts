@@ -41,10 +41,28 @@ const MATERIALS: Array<{ id: string; as: string; note: string }> = [
   { id: "RoofingTiles003", as: "roof", note: "roofs that read as roofs from above" },
   { id: "WoodFloor051", as: "planks", note: "interior floors and crate stacks" },
   { id: "Metal046B", as: "steel", note: "containers, masts and zipline posts" },
+  // SpeedKills' city (docs/PHASE_18_PLAN_SPEEDKILLS.md 7.9): dark and neo-
+  // futuristic, as the owner asked. Six facades photographed at night, their
+  // windows lit, each with an emission map so the windows glow for real; dark
+  // glass for the core; brick for the old town; dark asphalt and pavement;
+  // black metal for trim; a dark concrete for floors and interiors.
+  { id: "Facade002", as: "skNight1", note: "SpeedKills: a night tower, lit windows" },
+  { id: "Facade007", as: "skNight2", note: "SpeedKills: a night tower, lit windows" },
+  { id: "Facade009", as: "skNight3", note: "SpeedKills: a night tower, lit windows" },
+  { id: "Facade011", as: "skNight4", note: "SpeedKills: a night tower, lit windows" },
+  { id: "Facade014", as: "skNight5", note: "SpeedKills: a dark grid tower, a few windows lit" },
+  { id: "Facade017", as: "skNight6", note: "SpeedKills: a night block, warm lit windows" },
+  { id: "Facade001", as: "skGlass", note: "SpeedKills: dark curtain glass" },
+  { id: "Facade020A", as: "skBrick", note: "SpeedKills: the old town's brick" },
+  { id: "Road012A", as: "skStreet", note: "SpeedKills: the streets, dark asphalt" },
+  { id: "Asphalt026C", as: "skPave", note: "SpeedKills: pavements and plazas" },
+  { id: "Metal029", as: "skMetal", note: "SpeedKills: black metal trim, walkways and rails" },
+  { id: "Concrete033", as: "skConcrete", note: "SpeedKills: floors, interiors and roofs" },
 ];
 
 /** the only maps we ship; the rest of each pack is discarded */
-const KEEP = ["Color", "Roughness", "NormalGL"] as const;
+// Emission only where a pack has it (the night facades' lit windows)
+const KEEP = ["Color", "Roughness", "NormalGL", "Emission"] as const;
 
 /**
  * A sky HDRI, also CC0 (Poly Haven). This is not decoration: metalness

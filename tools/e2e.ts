@@ -4764,6 +4764,36 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   const cool = await ev<number>(page, "window.__range.sk.hacks().find((h) => h.slot === 'utility').left");
   check("speedkills: a hack just used is on its cooldown", cool > 1, `${cool.toFixed(1)} s`);
   await page.close();
+  await speedkillsBrTest(browser);
+}
+
+/** a SpeedKills battle royale in the city: it starts, 30 in it, bots on the streets, loot on the floors */
+async function speedkillsBrTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&game=speedkills");
+  await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
+  const fought = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 60000 }).then(() => true, () => false);
+  if (!fought) {
+    check("speedkills br: a match starts in the city", false);
+    await page.close();
+    return;
+  }
+  const start = await ev<{ players: number; bots: number; pois: string[]; loot: number; health: number; shield: number; shieldMax: number }>(
+    page,
+    `(() => { const d = window.__range.duel(); return { players: d.players, bots: d.bots.length, pois: window.__range.brMap.pois.map((p) => p.name), loot: d.lootField ? d.lootField.drops.size : -1, health: d.health, shield: d.shield, shieldMax: d.shieldMax }; })()`
+  );
+  check("speedkills br: a match in the city, its nine sectors the places, the Spire among them", start.pois.length === 9 && start.pois.includes("THE SPIRE"), JSON.stringify(start.pois));
+  check("speedkills br: thirty in the match (27 bots in squads, with your squad of three)", start.bots === 27, JSON.stringify(start));
+  check("speedkills br: loot on the city's floors", start.loot > 150, `${start.loot} items`);
+  check("speedkills br: 100 health and 50 shield", start.health === 100 && start.shieldMax === 50, JSON.stringify(start));
+  // the bots land and walk the streets
+  await page.waitForFunction("window.__range.duel().bots.every((b) => b.landed)", { polling: 500, timeout: 60000 }).catch(() => undefined);
+  const before = await ev<number[][]>(page, "window.__range.duel().bots.map((b) => [b.bot.pos.x, b.bot.pos.z])");
+  await sleep(6000);
+  const after = await ev<number[][]>(page, "window.__range.duel().bots.map((b) => [b.bot.pos.x, b.bot.pos.z])");
+  const moved = after.filter((p, i) => before[i] && Math.hypot(p[0] - before[i][0], p[1] - before[i][1]) > 3).length;
+  check("speedkills br: the bots land and move through the city", moved >= 15, `${moved} of ${after.length} moved in 6 s`);
+  await ev(page, "window.__range.duel()?.leave()");
+  await page.close();
 }
 
 /** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */

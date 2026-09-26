@@ -1,0 +1,182 @@
+{
+  "_note": "SpeedKills' city (src/game/city.ts, docs/PHASE_18_PLAN_SPEEDKILLS.md 7.9): a 500 m square at night, map-local metres round its middle (the world's BR_X, BR_Z). seed builds the same city on every browser. The owner's layout: nine sectors, the centre the biggest (200 m) and the hottest drop. Ours otherwise.",
+  "seed": 20260926,
+  "_sectors": "The nine sectors, map-local (z grows south, as the maps are laid out): the centre, THE SPIRE, 200 m across; the eight round it each a district with its own neon accent, so where you are reads by colour from anywhere. The decay takes them away in waves (J), the centre most often last.",
+  "sectors": [
+    {
+      "id": "c",
+      "name": "THE SPIRE",
+      "minX": -100,
+      "maxX": 100,
+      "minZ": -100,
+      "maxZ": 100,
+      "accent": "#20e0ff"
+    },
+    {
+      "id": "n",
+      "name": "NEON ROW",
+      "minX": -100,
+      "maxX": 100,
+      "minZ": -250,
+      "maxZ": -100,
+      "accent": "#ff2e9a"
+    },
+    {
+      "id": "s",
+      "name": "HARBOR GLASS",
+      "minX": -100,
+      "maxX": 100,
+      "minZ": 100,
+      "maxZ": 250,
+      "accent": "#2effc0"
+    },
+    {
+      "id": "e",
+      "name": "THE STACKS",
+      "minX": 100,
+      "maxX": 250,
+      "minZ": -100,
+      "maxZ": 100,
+      "accent": "#9a5bff"
+    },
+    {
+      "id": "w",
+      "name": "OLD TOWN",
+      "minX": -250,
+      "maxX": -100,
+      "minZ": -100,
+      "maxZ": 100,
+      "accent": "#ffb020"
+    },
+    {
+      "id": "ne",
+      "name": "THE CIRCUIT",
+      "minX": 100,
+      "maxX": 250,
+      "minZ": -250,
+      "maxZ": -100,
+      "accent": "#ff3b3b"
+    },
+    {
+      "id": "nw",
+      "name": "THE GARDENS",
+      "minX": -250,
+      "maxX": -100,
+      "minZ": -250,
+      "maxZ": -100,
+      "accent": "#5aff6a"
+    },
+    {
+      "id": "se",
+      "name": "THE YARDS",
+      "minX": 100,
+      "maxX": 250,
+      "minZ": 100,
+      "maxZ": 250,
+      "accent": "#ff7a1a"
+    },
+    {
+      "id": "sw",
+      "name": "SKYHAVEN",
+      "minX": -250,
+      "maxX": -100,
+      "minZ": 100,
+      "maxZ": 250,
+      "accent": "#3b8bff"
+    }
+  ],
+  "_blocks": "The blocks along one axis, map-local metres; the 14 m between two is a street (six streets each way, 49 blocks). The centre sector's edges fall on block edges at 100, so a street never straddles two sectors.",
+  "blocks": [
+    [
+      -250,
+      -185
+    ],
+    [
+      -171,
+      -114
+    ],
+    [
+      -100,
+      -43
+    ],
+    [
+      -29,
+      29
+    ],
+    [
+      43,
+      100
+    ],
+    [
+      114,
+      171
+    ],
+    [
+      185,
+      250
+    ]
+  ],
+  "_build": "storey is floor to floor (4 m, the owner's storey, which movement.speedkills.json's double jump and climb are measured against); kerb is the pavement's height over the street (a step, under the 0.56 m a body steps up). heights are storeys, least and most, by how far a block is from the centre: the core's two rings of blocks, the middle ring, the edge. megatower is the Spire's own. plazaChance is how often a block is left an open plaza with cover. bandEvery puts a band of neon every so many storeys. bridgeFloors are the floors a skybridge crosses at between two core towers across a street. facadeTile is the metres a facade's texture covers (its windows the same size on every wall), windowGlow how bright the lit windows are, neonGlow the neon's.",
+  "storey": 4,
+  "kerb": 0.18,
+  "heights": {
+    "core": [
+      8,
+      16
+    ],
+    "middle": [
+      4,
+      8
+    ],
+    "edge": [
+      2,
+      4
+    ]
+  },
+  "megatower": 18,
+  "plazaChance": 0.12,
+  "bandEvery": 4,
+  "bridgeFloors": [
+    3,
+    6
+  ],
+  "facadeTile": 16,
+  "windowGlow": 1.4,
+  "neonGlow": 2.2,
+  "_traversal": "ziplines between the tallest roofs (pairs), jump towers and respawn beacons in the plazas; the launch pads stand at every other crossing.",
+  "ziplines": 4,
+  "jumpTowers": 6,
+  "beacons": 4,
+  "_skyline": "The city past the edge, never reached and never solid: count towers between from and to metres from the middle, the tallest tallest metres over 30.",
+  "skyline": {
+    "count": 56,
+    "from": 300,
+    "to": 460,
+    "tallest": 130
+  },
+  "_signs": "Holo signs on towers of minStoreys and more (two on the tallest), w by h metres, lit at signGlow, each a brand of ours, some of them the owner's friends'. beaconLights puts a red warning light on that many of the tallest roofs; cornerNeon is how thick the neon up a tower's corners is, metres.",
+  "sign": {
+    "w": 9,
+    "h": 3.4,
+    "minStoreys": 6
+  },
+  "signGlow": 1.8,
+  "brands": [
+    "SPEEDKILLS",
+    "USSO LABS",
+    "PANDA BANK",
+    "BIGANTLER",
+    "ANAKIN ARMS",
+    "B00G CORP",
+    "HYPERDRIVE",
+    "ZERO LAG",
+    "NEON NOODLE",
+    "GRID//7",
+    "SKYHAVEN",
+    "VOLT CAFE",
+    "NIGHTSHIFT",
+    "NOVA LINE"
+  ],
+  "beaconLights": 12,
+  "cornerNeon": 0.3
+}

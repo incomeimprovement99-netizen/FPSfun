@@ -21,6 +21,7 @@
 // a guest that makes a ring from the same seed knows the same chain.
 //
 // Pure logic, so tools/verify.ts can run a whole ring in a loop.
+import { IS_SK } from "./game";
 import cfg from "../config/ring.json";
 
 export interface RingPhase {
@@ -58,7 +59,7 @@ export function ringPace(phases: readonly RingPhase[], pace: string): RingPhase[
 }
 
 /** the square the ring lives in: the map's centre and half its side, world space */
-export const RING_BOUNDS = cfg.bounds;
+export const RING_BOUNDS = IS_SK ? { ...cfg.bounds, half: cfg.speedkills.half } : cfg.bounds;
 
 /** a place worth ending a match on, world space, with how hard it pulls */
 export interface Attractor {
@@ -68,7 +69,10 @@ export interface Attractor {
 }
 
 /** the map's places and roadside cover, config's map-local metres moved into world space */
-export const RING_ATTRACTORS: readonly Attractor[] = cfg.attractors.map((a) => ({
+// SpeedKills: the city's sectors, the centre pulling hardest (the owner's hot middle, where a match ends most)
+export const RING_ATTRACTORS: readonly Attractor[] = IS_SK
+  ? cfg.speedkills.attractors.map((a) => ({ x: a.x + cfg.bounds.centerX, z: a.z + cfg.bounds.centerZ, w: a.w }))
+  : cfg.attractors.map((a) => ({
   x: a.x + cfg.bounds.centerX,
   z: a.z + cfg.bounds.centerZ,
   w: a.w,
@@ -163,7 +167,7 @@ export class Ring {
    */
   private draw(inside: Circle, r: number): Circle {
     const room = Math.max(0, inside.r - r);
-    const reach = Math.max(0, cfg.bounds.half - r);
+    const reach = Math.max(0, RING_BOUNDS.half - r);
     const fits = (cx: number, cz: number): boolean =>
       Math.abs(cx - cfg.bounds.centerX) <= reach + 1e-9 && Math.abs(cz - cfg.bounds.centerZ) <= reach + 1e-9;
     let a = 0;

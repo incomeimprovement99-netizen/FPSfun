@@ -30,11 +30,12 @@
 // module says who a live charge would move and where to, and the caller does
 // the moving, because only the caller knows who is down and who is on a
 // zipline.
+import { solidsIn } from "./solidgrid";
+const THROW_NEAR: import("./range").Solid[] = [];
 import * as THREE from "three";
 import cfg from "../config/throwables.json";
 import paintCfg from "../config/paint.json";
 import squad from "../config/squad.json";
-import { RANGE_SOLIDS } from "./range";
 import { solidHit } from "./projectile";
 
 export type ThrowKind = "frag" | "arcstar" | "thermite" | "shockwave" | "rift" | "speedpaint" | "jumppaint";
@@ -164,7 +165,7 @@ export function arcSlowFor(damage: number): number {
 /** is a point inside something solid (or under the floor), a body's radius around it */
 function solidAt(x: number, y: number, z: number): boolean {
   if (y < R) return true;
-  for (const s of RANGE_SOLIDS) {
+  for (const s of solidsIn(x - R, x + R, z - R, z + R, THROW_NEAR)) {
     if (x > s.minX - R && x < s.maxX + R && z > s.minZ - R && z < s.maxZ + R && y > s.base - R && y < s.top + R) return true;
   }
   return false;

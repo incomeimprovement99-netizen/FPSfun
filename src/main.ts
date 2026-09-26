@@ -55,6 +55,7 @@ import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, t
 import finCfg from "./config/finisher.json";
 import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
+import { buildCityMap } from "./game/city";
 import { Hacks, HACK, HACK_DEFS, hackDef, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
 import { BotMatch, MOST_BOTS } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
@@ -731,7 +732,8 @@ buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadow
 const arena = buildArena(scene);
 const triArena = buildTriArena(scene);
 // the battle royale map, 500 m south (src/game/br.ts)
-const brMap = buildBrMap(scene);
+// SpeedKills' neon city, or the legacy game's Outskirts, in the same square of the world
+const brMap = IS_SK ? buildCityMap(scene) : buildBrMap(scene);
 // a door opening or shutting, heard where it hangs (whoever did it)
 brMap.doors.onChange = (d, what) => audio.door(d.centre, what === "break" || what === "kick" ? "kick" : what);
 /**
@@ -768,7 +770,9 @@ const rangeRoots = scene.children.filter((o) => !beforeRange.has(o) && o !== are
 // applied before the first frame so the menu's background is already the
 // right hour, and applying it is four shader colours, the sun and the fog:
 // nothing is rebuilt, so changing it mid-game costs a frame.
-let hour = loadHour();
+// SpeedKills is always its own hour: a neon city at night (speedkills.json identity.sky)
+const gameHour = (): Hour => (IS_SK ? hourFor(PROFILE.identity.sky) : loadHour());
+let hour = gameHour();
 function applyHour(h: Hour): void {
   hour = h;
   setHour(h, scene);
@@ -834,7 +838,7 @@ skyBrSel.addEventListener("change", () => {
 });
 /** the sky a battle royale is played under: the match's hour, or the owner's own */
 function brHour(d: BrMatch): void {
-  applyHour(loadBrSky() === "match" ? matchHour(d.seed) : loadHour());
+  applyHour(IS_SK ? gameHour() : loadBrSky() === "match" ? matchHour(d.seed) : loadHour());
 }
 const perfLine = $("perfLine");
 void measureRefresh().then((hz) => {
@@ -4642,7 +4646,7 @@ function endMatch(reason: string): void {
   if (wasBr) {
     setRegion("range");
     // the owner's own hour again, if the match had its own
-    if (hour.id !== loadHour().id) applyHour(loadHour());
+    if (hour.id !== gameHour().id) applyHour(gameHour());
     // your loadout back (a loot game left you with what you found, or nothing)
     for (let i = 0; i < loadout.slots.length; i++) if (loadout.slots[i].empty) loadout.give(i, [loadouts.current.slot1, loadouts.current.slot2][i]);
     applyLoadout(loadouts.current);
@@ -7462,6 +7466,8 @@ initWelcome();
   kd,
   armor,
   brMap,
+  /** the whole scene, for tools that look at what is drawn (the city's materials after the merge) */
+  scene,
   renderer,
   sun: getSun,
   quality,

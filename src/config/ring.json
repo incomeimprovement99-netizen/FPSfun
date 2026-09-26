@@ -166,5 +166,56 @@
       "z": 0,
       "w": 1
     }
-  ]
+  ],
+  "_speedkills": "SpeedKills' city (src/game/city.ts): the square is 500 m (half 250), and the places a match is drawn toward are its sectors' middles, map-local, the centre pulling hardest (w): the owner's hot middle, where a match ends most often. The sector decay (J) replaces the circle; until then the circle is drawn toward these.",
+  "speedkills": {
+    "half": 250,
+    "attractors": [
+      {
+        "x": 0,
+        "z": 0,
+        "w": 8
+      },
+      {
+        "x": 0,
+        "z": -175,
+        "w": 1
+      },
+      {
+        "x": 0,
+        "z": 175,
+        "w": 1
+      },
+      {
+        "x": 175,
+        "z": 0,
+        "w": 1
+      },
+      {
+        "x": -175,
+        "z": 0,
+        "w": 1
+      },
+      {
+        "x": 175,
+        "z": -175,
+        "w": 1
+      },
+      {
+        "x": -175,
+        "z": -175,
+        "w": 1
+      },
+      {
+        "x": 175,
+        "z": 175,
+        "w": 1
+      },
+      {
+        "x": -175,
+        "z": 175,
+        "w": 1
+      }
+    ]
+  }
 }

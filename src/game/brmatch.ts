@@ -647,7 +647,8 @@ export class BrMatch extends Duel {
     const spokes = map.pois.filter((p) => ["north", "south", "east", "west"].includes(p.id));
     const area = this.rules === "resurgence" ? resurgenceArea(this.seed, BR_CENTER, spokes) : full;
     this.area = area;
-    this.vaultAllowed = opts.vault !== false;
+    // no vault in SpeedKills' city: its loot is guns and hacks
+    this.vaultAllowed = opts.vault !== false && !IS_SK;
     // every door shut, as a match starts
     map.doors.reset();
     // the squad drops on one place: the host's pick, told to the guests; in

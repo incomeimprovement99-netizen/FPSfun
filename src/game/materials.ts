@@ -23,7 +23,22 @@ export type MatName =
   | "brick"
   | "roof"
   | "planks"
-  | "steel";
+  | "steel"
+  // SpeedKills' city (tools/fetch-assets.ts): night facades with lit
+  // windows, whose emission maps make the windows glow; glass, brick,
+  // streets, pavement, black metal and dark concrete
+  | "skNight1"
+  | "skNight2"
+  | "skNight3"
+  | "skNight4"
+  | "skNight5"
+  | "skNight6"
+  | "skGlass"
+  | "skBrick"
+  | "skStreet"
+  | "skPave"
+  | "skMetal"
+  | "skConcrete";
 
 const loader = new THREE.TextureLoader();
 const cache = new Map<string, THREE.MeshStandardMaterial>();
@@ -87,6 +102,8 @@ interface Opts {
   color?: number;
   roughness?: number;
   metalness?: number;
+  /** how bright a night facade's windows are (SpeedKills) */
+  glow?: number;
 }
 
 const FALLBACK: Record<MatName, number> = {
@@ -107,6 +124,18 @@ const FALLBACK: Record<MatName, number> = {
   roof: 0x5a5e62,
   planks: 0x8a6a44,
   steel: 0x7f8891,
+  skNight1: 0x1a2233,
+  skNight2: 0x161c28,
+  skNight3: 0x1b2030,
+  skNight4: 0x141a26,
+  skNight5: 0x121620,
+  skNight6: 0x1e1a22,
+  skGlass: 0x1a2432,
+  skBrick: 0x3a2a26,
+  skStreet: 0x1a1b1e,
+  skPave: 0x26282c,
+  skMetal: 0x121316,
+  skConcrete: 0x2c2e32,
 };
 
 /**
@@ -140,7 +169,7 @@ function load(name: MatName, map: string, srgb: boolean, onFail: () => void): TH
  * shows the texture twice. Materials are cached per (name, scale).
  */
 export function material(name: MatName, opts: Opts = {}): THREE.MeshStandardMaterial {
-  const key = `${name}:${opts.color ?? ""}:${opts.roughness ?? ""}:${opts.metalness ?? ""}`;
+  const key = `${name}:${opts.color ?? ""}:${opts.roughness ?? ""}:${opts.metalness ?? ""}:${opts.glow ?? ""}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
@@ -166,6 +195,16 @@ export function material(name: MatName, opts: Opts = {}): THREE.MeshStandardMate
   m.map = load(name, "color", true, fail);
   m.roughnessMap = load(name, "roughness", false, fail);
   m.normalMap = load(name, "normalgl", false, fail);
+  // a night facade's lit windows glow (their emission map); missing, they are only paint
+  if (name.startsWith("skNight")) {
+    m.emissive.setHex(0xffffff);
+    m.emissiveIntensity = opts.glow ?? 1.4;
+    m.emissiveMap = load(name, "emission", true, () => {
+      m.emissiveMap = null;
+      m.emissive.setHex(0x000000);
+      m.needsUpdate = true;
+    });
+  }
   cache.set(key, m);
   return m;
 }

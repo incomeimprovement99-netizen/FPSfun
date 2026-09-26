@@ -94,7 +94,8 @@ console.log("\nThe bounds and the cover points against src/game/br.ts");
 {
   const src = readFileSync(new URL("../../src/game/br.ts", import.meta.url), "utf8");
   const num = (name: string): number | null => {
-    const m = src.match(new RegExp(`export const ${name} = (-?[0-9.]+)`));
+    // the legacy value: a plain number, or the legacy side of SpeedKills' switch (BR_HALF = IS_SK ? 250 : 220)
+    const m = src.match(new RegExp(`export const ${name} = (?:IS_SK \\? -?[0-9.]+ : )?(-?[0-9.]+)`));
     return m ? Number(m[1]) : null;
   };
   check("bounds centre x matches BR_X", num("BR_X") === RING_BOUNDS.centerX, `br.ts ${num("BR_X")}, ring.json ${RING_BOUNDS.centerX}`);
