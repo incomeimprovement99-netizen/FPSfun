@@ -110,5 +110,13 @@
       "name": "SEARCH",
       "sub": "PLANT IT OR STOP IT"
     }
+  },
+  "_speedkills": "SpeedKills' own card (src/game/game.ts): its name as the big line, its line under it, and the rain in its two neon colours instead of the green.",
+  "speedkills": {
+    "mark": "SPEEDKILLS",
+    "sub": "MOVE FAST. AIM TRUE.",
+    "head": "#e8fbff",
+    "dim": "#20e0ff",
+    "alt": "#ff2e9a"
   }
 }

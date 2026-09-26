@@ -1,6 +1,7 @@
 // The menu: tabs (Play, 1v1, Loadouts, Settings, Controls) and the loadout
 // editor. Settings and the 1v1 box keep their own wiring in main.ts; this
 // owns navigation, loadouts and the battle royale's lobby row.
+import { IS_SK } from "../game/game";
 import { DEFAULT_LOADOUTS, type LoadoutDef, type LoadoutRef, type Loadouts } from "../game/loadouts";
 import { bodyOf, loadMannequin } from "../game/mannequin";
 import { botSquads, saveTeamId, savedTeamId, teamFor } from "../game/brmatch";
@@ -35,7 +36,8 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const hex = (c: number) => `#${c.toString(16).padStart(6, "0")}`;
 
 /** where main.ts keeps the bot count; the row writes it too, since it moves the count itself */
-const BR_BOTS_KEY = "range.br.bots";
+// each game its own: SpeedKills' counts are not the legacy game's
+const BR_BOTS_KEY = IS_SK ? "range.br.bots.sk" : "range.br.bots";
 const COUNT_WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
 const word = (n: number): string => COUNT_WORDS[n] ?? String(n);
 
@@ -156,7 +158,8 @@ export class Menu {
     } catch {
       /* ignore */
     }
-    this.renderBrRow(stored);
+    // nothing stored: the size's own default, not whatever the page's first option happens to be
+    this.renderBrRow(stored || teamFor(brTeam.value).defaultBots);
 
     // weapon pickers, sorted by name
     const sorted = o.weaponIds.slice().sort((a, b) => o.weaponName(a).localeCompare(o.weaponName(b)));

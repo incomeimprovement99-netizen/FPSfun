@@ -1784,6 +1784,14 @@ console.log("The death recap (src/game/recap.ts)");
 console.log("");
 console.log("Movement simulation (tools/movesim.ts)");
 fails += movesimFails;
+// SpeedKills' movement reads its numbers once, as the module loads, so it runs
+// in a process of its own with the game named (tools/sk-movesim.ts)
+{
+  const { spawnSync } = await import("node:child_process");
+  const r = spawnSync("npx tsx tools/sk-movesim.ts", { shell: true, encoding: "utf8", env: { ...process.env, GAME: "speedkills" } });
+  process.stdout.write(r.stdout ?? "");
+  if (r.status !== 0) fails++;
+}
 
 console.log("");
 console.log("Viewmodel roster");

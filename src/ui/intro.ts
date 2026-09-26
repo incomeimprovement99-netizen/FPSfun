@@ -19,6 +19,18 @@
 // seed, so the same seed draws the same crack: that is what lets the checks and
 // the snapshots see the picture the player sees.
 import INTRO_CFG from "../config/intro.json";
+import { IS_SK } from "../game/game";
+// SpeedKills' card: its own name and line, and the rain in its neon
+const TEXT = IS_SK ? INTRO_CFG.speedkills : INTRO_CFG.text;
+const RAIN_HEAD = IS_SK ? INTRO_CFG.speedkills.head : INTRO_CFG.rain.head;
+const RAIN_DIM = IS_SK ? INTRO_CFG.speedkills.dim : INTRO_CFG.rain.dim;
+/**
+ * The card's colours as r, g, b: the legacy card's greens, or SpeedKills'
+ * cyan with magenta for the split. One table so the two cards cannot drift.
+ */
+const C = IS_SK
+  ? { soft: "120, 235, 255", main: "32, 224, 255", split1: "255, 46, 154", split2: "32, 224, 255", white: "236, 252, 255", pale: "210, 245, 255", pale2: "170, 235, 255", pale3: "225, 248, 255" }
+  : { soft: "120, 255, 170", main: "55, 224, 122", split1: "0, 255, 130", split2: "0, 200, 255", white: "242, 255, 246", pale: "210, 255, 225", pale2: "180, 255, 210", pale3: "230, 255, 240" };
 
 export type IntroKind = "boot" | "match";
 
@@ -286,7 +298,7 @@ export class Intro {
   progress: (() => number) | null = null;
   private shotSaid = false;
   /** the words on the card now: the big line, the one under it, and the small one over it (a mode's card) */
-  private words: { mark: string; sub: string; over: string } = { mark: INTRO_CFG.text.mark, sub: INTRO_CFG.text.sub, over: "" };
+  private words: { mark: string; sub: string; over: string } = { mark: TEXT.mark, sub: TEXT.sub, over: "" };
   /** the blast's own sound: a 12 gauge, not a second rifle round (falls back to onShot) */
   onBlast?: () => void;
   /** held at one moment, for a picture (tools/snap.ts) */
@@ -336,7 +348,7 @@ export class Intro {
   play(kind: IntroKind, words?: { name: string; sub: string }): Promise<void> {
     if (this.kind) this.stop();
     // a mode's card: its name big and its line under it, the game's name small over them
-    this.words = words ? { mark: words.name, sub: words.sub, over: INTRO_CFG.text.mark } : { mark: INTRO_CFG.text.mark, sub: INTRO_CFG.text.sub, over: "" };
+    this.words = words ? { mark: words.name, sub: words.sub, over: TEXT.mark } : { mark: TEXT.mark, sub: TEXT.sub, over: "" };
     if (!this.canvas || !this.ctx) return Promise.resolve();
     this.kind = kind;
     this.beats = introBeats(kind, this.reduced);
@@ -589,7 +601,7 @@ export class Intro {
       for (let k = 0; k < 3; k++) {
         const r = row - k;
         if (r < 0 || r > rows) continue;
-        ctx.fillStyle = k === 0 ? cfg.head : cfg.dim;
+        ctx.fillStyle = k === 0 ? RAIN_HEAD : RAIN_DIM;
         ctx.globalAlpha = k === 0 ? 1 : 0.55 - k * 0.15;
         ctx.fillText(set[k] ?? set[0] ?? GLYPHS[(i + k) % GLYPHS.length], col.x, r * cfg.glyph);
       }
@@ -613,7 +625,7 @@ export class Intro {
     for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1);
     // one brighter line sweeping down, the way a screen refreshes
     const sweep = ((t * 0.55) % 1) * h;
-    ctx.fillStyle = "rgba(120, 255, 170, 0.05)";
+    ctx.fillStyle = `rgba(${C.soft}, 0.05)`;
     ctx.fillRect(0, sweep, w, Math.max(2, h * 0.02));
     const g = ctx.createRadialGradient(
       w / 2,
@@ -630,7 +642,7 @@ export class Intro {
     // the brackets: a corner of a frame at each corner, as a game's own UI draws them
     const m = Math.round(Math.min(w, h) * 0.045);
     const len = Math.round(Math.min(w, h) * 0.07);
-    ctx.strokeStyle = "rgba(55, 224, 122, 0.55)";
+    ctx.strokeStyle = `rgba(${C.main}, 0.55)`;
     ctx.lineWidth = Math.max(1.5, Math.round(Math.min(w, h) * 0.0035));
     for (const [cx, cy, sx, sy] of [
       [m, m, 1, 1],
@@ -680,11 +692,11 @@ export class Intro {
     // the same word three times, a hair apart in two colours: a screen that is
     // not quite holding its signal, which is the look the whole card is after
     const off = this.reduced ? 0 : Math.max(0, 1 - k) * 14 + 2;
-    ctx.fillStyle = "rgba(0, 255, 130, 0.55)";
+    ctx.fillStyle = `rgba(${C.split1}, 0.55)`;
     ctx.fillText(txt.mark, -off, -mark * 0.28);
-    ctx.fillStyle = "rgba(0, 200, 255, 0.45)";
+    ctx.fillStyle = `rgba(${C.split2}, 0.45)`;
     ctx.fillText(txt.mark, off, -mark * 0.28);
-    ctx.fillStyle = "#f2fff6";
+    ctx.fillStyle = `rgb(${C.white})`;
     ctx.fillText(txt.mark, 0, -mark * 0.28);
     ctx.font = `700 ${sub}px "Rajdhani", "Segoe UI", sans-serif`;
     try {
@@ -692,11 +704,11 @@ export class Intro {
     } catch {
       /* as above */
     }
-    ctx.fillStyle = "#37e07a";
+    ctx.fillStyle = `rgb(${C.main})`;
     ctx.fillText(txt.sub, 0, mark * 0.42);
     // a mode's card: the game's own name, small, over the mode's
     if (txt.over) {
-      ctx.fillStyle = "rgba(242, 255, 246, 0.8)";
+      ctx.fillStyle = `rgba(${C.white}, 0.8)`;
       ctx.fillText(txt.over, 0, -mark * 0.98);
     }
     // The line under it is drawn out from the middle as the name lands, and it
@@ -705,10 +717,10 @@ export class Intro {
     // dim full width. Nothing else on the card says it, and nothing needs to.
     const full = mark * 2.1 * k;
     const line = Math.max(1, Math.round(mark * 0.018));
-    ctx.fillStyle = "rgba(55, 224, 122, 0.28)";
+    ctx.fillStyle = `rgba(${C.main}, 0.28)`;
     ctx.fillRect(-full / 2, mark * 0.72, full, line);
     const got = this.progress ? Math.min(1, Math.max(0, this.progress())) : 1;
-    ctx.fillStyle = "rgba(55, 224, 122, 0.9)";
+    ctx.fillStyle = `rgba(${C.main}, 0.9)`;
     ctx.fillRect(-full / 2, mark * 0.72, full * got, line);
     ctx.restore();
   }
@@ -725,7 +737,7 @@ export class Intro {
     ctx.lineCap = "round";
     for (let pass = 0; pass < 2; pass++) {
       ctx.strokeStyle =
-        pass === 0 ? "rgba(120, 255, 170, 0.22)" : "rgba(210, 255, 225, 0.9)";
+        pass === 0 ? `rgba(${C.soft}, 0.22)` : `rgba(${C.pale}, 0.9)`;
       ctx.lineWidth = pass === 0 ? 7 : 2.2;
       for (const ray of cr.rays) {
         ctx.beginPath();
@@ -749,7 +761,7 @@ export class Intro {
       }
     }
     ctx.lineWidth = 1.2;
-    ctx.strokeStyle = "rgba(180, 255, 210, 0.5)";
+    ctx.strokeStyle = `rgba(${C.pale2}, 0.5)`;
     for (let r = 0; r < cr.rings.length; r++) {
       // the rings come in behind the rays that carry them
       if (grown < 0.3 + r * 0.2) continue;
@@ -769,8 +781,8 @@ export class Intro {
       cr.hole.r * 2.4,
     );
     g.addColorStop(0, "rgba(0, 0, 0, 0.95)");
-    g.addColorStop(0.55, "rgba(230, 255, 240, 0.75)");
-    g.addColorStop(1, "rgba(120, 255, 170, 0)");
+    g.addColorStop(0.55, `rgba(${C.pale3}, 0.75)`);
+    g.addColorStop(1, `rgba(${C.soft}, 0)`);
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(

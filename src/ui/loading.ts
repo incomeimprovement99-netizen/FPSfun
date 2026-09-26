@@ -11,10 +11,13 @@
 // happens, because a screen that never goes is worse than a grey wall.
 //
 // The numbers and the tips are in src/config/hud.json `loading`.
+import { IS_SK } from "../game/game";
 import * as THREE from "three";
 import hudCfg from "../config/hud.json";
 
 const CFG = hudCfg.loading;
+// SpeedKills teaches its own game on the loading screen
+const TIPS: string[] = IS_SK ? CFG.tipsSk : CFG.tips;
 
 export class LoadingScreen {
   /** everything asked for is in and the first frame is drawn (the tools wait on it) */
@@ -50,7 +53,7 @@ export class LoadingScreen {
       this.draw();
       onLoad?.();
     };
-    this.tipIndex = Math.floor(Math.random() * CFG.tips.length);
+    this.tipIndex = Math.floor(Math.random() * TIPS.length);
     this.showTip();
   }
 
@@ -69,7 +72,7 @@ export class LoadingScreen {
   }
 
   private showTip(): void {
-    if (this.tip && CFG.tips.length) this.tip.textContent = CFG.tips[this.tipIndex % CFG.tips.length];
+    if (this.tip && TIPS.length) this.tip.textContent = TIPS[this.tipIndex % TIPS.length];
   }
 
   /** every frame until it is gone: the first frame counts, the tips turn over, and it goes when it is time */

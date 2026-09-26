@@ -1,5 +1,6 @@
 // Typed access to data/weapons.json and resolution into the numbers the
 // simulation consumes. Everything gameplay-relevant comes from here.
+import { IS_SK, PROFILE } from "./game";
 import raw from "../../data/weapons.json";
 import { displayName, throwName } from "../config/names";
 import mechCfg from "../config/weapon-mechanics.json";
@@ -225,11 +226,23 @@ export function weaponClass(id: string): string {
   return c === "handgun" ? "pistol" : c;
 }
 
+/**
+ * The guns in play in this page's game (src/game/game.ts): the whole
+ * catalogue in the legacy game, SpeedKills' ten in SpeedKills. The pickers,
+ * a loadout's check and the network's hit check all follow it.
+ */
 export function weaponIds(): string[] {
+  return IS_SK ? [...PROFILE.roster] : Object.keys(DATA.weapons);
+}
+/** every gun the engine can make, whatever game is on */
+export function allWeaponIds(): string[] {
   return Object.keys(DATA.weapons);
 }
 export function weaponName(id: string): string {
   if (!DATA.weapons[id] && (id === "frag" || id === "arcstar" || id === "thermite")) return throwName(id);
+  // SpeedKills' guns carry their own names, the same in every build
+  const sk = IS_SK ? PROFILE.weapons[id]?.name : undefined;
+  if (sk) return sk;
   return displayName(id, DATA.weapons[id]?.name ?? id);
 }
 /** this weapon's Mods block, keyed by mod name, for attachment discovery */

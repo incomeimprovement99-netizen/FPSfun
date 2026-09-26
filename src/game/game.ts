@@ -34,15 +34,21 @@ export interface GameProfile {
   weapons: Record<string, { name: string; role: string; optic: string }>;
   /** the attachment slots in play (none: fusion is the upgrade) */
   attachments: string[];
-  ammo: "universal" | "typed" | string;
+  ammo: "infinite" | "typed" | string;
   fusion: { on: boolean; levels: number; gun: Array<{ mag: number; reload: number; damage: number; recoil: number }>; abilityLevels: number; cooldownStep: number };
   abilities: { slots: string[]; passives: boolean; ultimates: boolean; set: Array<{ id: string; slot: string; from: string | null; name: string; blurb: string }> };
-  life: { knockdowns: boolean; gulag: boolean; ghost: boolean; reviveSeconds: number; awaySlowdown: number; followRadius: number };
+  life: { knockdowns: boolean; gulag: boolean; ghost: boolean; reviveSeconds: number; awaySlowdown: number; followRadius: number; ghostRevives: number; ghostSight: number };
+  /** null: the legacy game's own health, shields, EVO and heals */
+  health: { health: number; shield: number; shieldDelay: number; shieldFill: number; healthDelay: number; healthRegen: number } | null;
+  /** the battle royale's size: most players, and how many to a squad by default */
+  match: { maxPlayers: number; team: number; teams?: Array<{ id: string; size: number; label: string; bots: number[]; defaultBots: number; bleed: number }> };
   map: string;
   hud: string;
   menu: string;
   bots: string[];
   identity: { title: string; accent: string; accent2: string; sky: string };
+  /** the game's own versions of lists the legacy game keeps in its configs; absent: the legacy game's own */
+  lists?: { botWeapons: string[]; loadouts: string[][]; gulagGuns: string[] };
 }
 
 const PROFILES: Record<GameId, GameProfile> = { legacy, speedkills };
@@ -51,7 +57,9 @@ const isGame = (v: unknown): v is GameId => typeof v === "string" && (GAME_IDS a
 
 /** the build's default: vite sets it (vite.config.ts); anywhere else (the node checks) it is legacy */
 function buildDefault(): GameId {
-  const d = typeof __DEFAULT_GAME__ !== "undefined" ? __DEFAULT_GAME__ : "legacy";
+  // a node tool may name its game (GAME=speedkills npx tsx tools/sk-movesim.ts); a page never has `process`
+  const env = typeof process !== "undefined" ? process.env?.GAME : undefined;
+  const d = env ?? (typeof __DEFAULT_GAME__ !== "undefined" ? __DEFAULT_GAME__ : "legacy");
   return isGame(d) ? d : "legacy";
 }
 
@@ -95,3 +103,6 @@ export function profileOf(id: GameId): GameProfile {
 
 /** this page's profile */
 export const PROFILE: GameProfile = profileOf(GAME);
+
+/** this page is SpeedKills: the one test most code needs */
+export const IS_SK: boolean = GAME === "speedkills";

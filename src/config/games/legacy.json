@@ -4,17 +4,108 @@
   "name": "B00G's Range",
   "tagline": "FULL POWER SURGE",
   "_roster": "Every gun in the catalogue, by the weapon data's own category.",
-  "roster": ["rspn101", "vinson", "hemlok", "energy_ar", "nemesis", "r97", "alternator_smg", "car", "volt_smg", "pdw", "lmg", "esaw", "dragon_lmg", "lstar", "shotgun", "mastiff", "energy_shotgun", "g2", "3030", "dmr", "doubletake", "sentinel", "sniper", "defender", "bocek", "semipistol", "autopistol", "wingman", "g17", "shotgun_pistol"],
+  "roster": [
+    "rspn101",
+    "vinson",
+    "hemlok",
+    "energy_ar",
+    "nemesis",
+    "r97",
+    "alternator_smg",
+    "car",
+    "volt_smg",
+    "pdw",
+    "lmg",
+    "esaw",
+    "dragon_lmg",
+    "lstar",
+    "shotgun",
+    "mastiff",
+    "energy_shotgun",
+    "g2",
+    "3030",
+    "dmr",
+    "doubletake",
+    "sentinel",
+    "sniper",
+    "defender",
+    "bocek",
+    "semipistol",
+    "autopistol",
+    "wingman",
+    "g17",
+    "shotgun_pistol"
+  ],
   "families": {
-    "ar": { "label": "Assault rifles", "guns": ["rspn101", "vinson", "hemlok", "energy_ar", "nemesis"] },
-    "smg": { "label": "SMGs", "guns": ["r97", "alternator_smg", "car", "volt_smg", "pdw"] },
-    "lmg": { "label": "LMGs", "guns": ["lmg", "esaw", "dragon_lmg", "lstar"] },
-    "shotgun": { "label": "Shotguns", "guns": ["shotgun", "mastiff", "energy_shotgun"] },
-    "sniper": { "label": "Snipers and marksmen", "guns": ["g2", "3030", "dmr", "doubletake", "sentinel", "sniper", "defender", "bocek"] },
-    "pistol": { "label": "Pistols", "guns": ["semipistol", "autopistol", "wingman", "g17", "shotgun_pistol"] }
+    "ar": {
+      "label": "Assault rifles",
+      "guns": [
+        "rspn101",
+        "vinson",
+        "hemlok",
+        "energy_ar",
+        "nemesis"
+      ]
+    },
+    "smg": {
+      "label": "SMGs",
+      "guns": [
+        "r97",
+        "alternator_smg",
+        "car",
+        "volt_smg",
+        "pdw"
+      ]
+    },
+    "lmg": {
+      "label": "LMGs",
+      "guns": [
+        "lmg",
+        "esaw",
+        "dragon_lmg",
+        "lstar"
+      ]
+    },
+    "shotgun": {
+      "label": "Shotguns",
+      "guns": [
+        "shotgun",
+        "mastiff",
+        "energy_shotgun"
+      ]
+    },
+    "sniper": {
+      "label": "Snipers and marksmen",
+      "guns": [
+        "g2",
+        "3030",
+        "dmr",
+        "doubletake",
+        "sentinel",
+        "sniper",
+        "defender",
+        "bocek"
+      ]
+    },
+    "pistol": {
+      "label": "Pistols",
+      "guns": [
+        "semipistol",
+        "autopistol",
+        "wingman",
+        "g17",
+        "shotgun_pistol"
+      ]
+    }
   },
   "weapons": {},
-  "attachments": ["optic", "barrel", "stock", "laser", "hopup"],
+  "attachments": [
+    "optic",
+    "barrel",
+    "stock",
+    "laser",
+    "hopup"
+  ],
   "ammo": "typed",
   "_fusion": "Milestone 179's fusion: a duplicate raises the magazine one level, to gold, fills empty attachment slots and brings ammo (br.json fusion). No damage levels.",
   "fusion": {
@@ -26,16 +117,54 @@
   },
   "_abilities": "Six kits of a tactical, a passive and an ultimate (kits.json), one kit a player.",
   "abilities": {
-    "slots": ["kit"],
+    "slots": [
+      "kit"
+    ],
     "passives": true,
     "ultimates": true,
     "set": [
-      { "id": "jolt", "slot": "kit", "from": "jolt", "name": "RUNNER", "blurb": "JOLT, SURE FOOTING, OVERDRIVE" },
-      { "id": "hook", "slot": "kit", "from": "hook", "name": "HOOK", "blurb": "GRAPPLE, STRONG ARMS, ZIP LINE" },
-      { "id": "triage", "slot": "kit", "from": "triage", "name": "MEDIC", "blurb": "PATCH, TRIAGE, FIELD HEAL" },
-      { "id": "scout", "slot": "kit", "from": "scout", "name": "SCOUT", "blurb": "PULSE, SHARP EARS, SWEEP" },
-      { "id": "smoke", "slot": "kit", "from": "smoke", "name": "SMOKE", "blurb": "CANISTER, THERMAL, SCREEN" },
-      { "id": "ward", "slot": "kit", "from": "ward", "name": "WARD", "blurb": "WALL, HARD SHELL, BASTION" }
+      {
+        "id": "jolt",
+        "slot": "kit",
+        "from": "jolt",
+        "name": "RUNNER",
+        "blurb": "JOLT, SURE FOOTING, OVERDRIVE"
+      },
+      {
+        "id": "hook",
+        "slot": "kit",
+        "from": "hook",
+        "name": "HOOK",
+        "blurb": "GRAPPLE, STRONG ARMS, ZIP LINE"
+      },
+      {
+        "id": "triage",
+        "slot": "kit",
+        "from": "triage",
+        "name": "MEDIC",
+        "blurb": "PATCH, TRIAGE, FIELD HEAL"
+      },
+      {
+        "id": "scout",
+        "slot": "kit",
+        "from": "scout",
+        "name": "SCOUT",
+        "blurb": "PULSE, SHARP EARS, SWEEP"
+      },
+      {
+        "id": "smoke",
+        "slot": "kit",
+        "from": "smoke",
+        "name": "SMOKE",
+        "blurb": "CANISTER, THERMAL, SCREEN"
+      },
+      {
+        "id": "ward",
+        "slot": "kit",
+        "from": "ward",
+        "name": "WARD",
+        "blurb": "WALL, HARD SHELL, BASTION"
+      }
     ]
   },
   "_life": "Knockdowns with a bleed-out and a squad revive, the Gulag for a first death before the fourth ring, Deathbox Respawn and beacons, Resurgence as its own rules (squad.json, br.json). No ghosts.",
@@ -45,11 +174,29 @@
     "ghost": false,
     "reviveSeconds": 5,
     "awaySlowdown": 1,
-    "followRadius": 0
+    "followRadius": 0,
+    "ghostRevives": 0,
+    "ghostSight": 0
   },
   "map": "outskirts",
   "hud": "legacy",
   "menu": "legacy",
-  "bots": ["easy", "normal", "hard", "elite"],
-  "identity": { "title": "B00G's Range", "accent": "#ff7a1a", "accent2": "#ffd23c", "sky": "afternoon" }
+  "bots": [
+    "easy",
+    "normal",
+    "hard",
+    "elite"
+  ],
+  "identity": {
+    "title": "B00G's Range",
+    "accent": "#ff7a1a",
+    "accent2": "#ffd23c",
+    "sky": "afternoon"
+  },
+  "health": null,
+  "_match": "Up to 12 in a battle royale (you, friends and bots), trios by default (br.json).",
+  "match": {
+    "maxPlayers": 12,
+    "team": 3
+  }
 }

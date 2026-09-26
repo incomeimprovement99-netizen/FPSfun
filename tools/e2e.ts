@@ -74,7 +74,10 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
   if (init) await page.evaluateOnNewDocument(init);
   // a base with a query of its own (OLD_URL=https://the.site/?broker=public) keeps it
-  const q = query.includes("intro=on") ? query : query.startsWith("?") ? `${query}&nointro` : "?nointro";
+  const q0 = query.includes("intro=on") ? query : query.startsWith("?") ? `${query}&nointro` : "?nointro";
+  // The suite is the legacy game's regression net (docs/PHASE_18_PLAN_SPEEDKILLS.md section 9): a page is
+  // legacy unless its query or E2E_GAME names a game, now that a page with no word opens in SpeedKills.
+  const q = q0.includes("game=") ? q0 : `${q0}&game=${process.env.E2E_GAME ?? "legacy"}`;
   const url = base.includes("?") ? `${base}&${q.slice(1)}` : base + q;
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });

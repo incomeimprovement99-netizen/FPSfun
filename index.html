@@ -13,6 +13,18 @@
     <link rel="stylesheet" href="fonts/fonts.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>B00G's Range</title>
+    <script>
+      // Which game this page is (src/game/game.ts decides the same way): set
+      // before anything draws, so the page never shows the other game's look
+      // first. The build fills in its default.
+      (function () {
+        var g = null;
+        try { g = new URLSearchParams(location.search).get("game") || localStorage.getItem("range.game"); } catch (e) {}
+        if (g !== "legacy" && g !== "speedkills") g = "__DEFAULT_GAME__";
+        document.documentElement.dataset.game = g;
+        if (g === "speedkills") document.title = "SpeedKills";
+      })();
+    </script>
     <style>
       html, body { margin: 0; height: 100%; background: #0b0d10; color: #e6e6e6; font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; }
       #app { position: fixed; inset: 0; }
@@ -97,6 +109,35 @@
          friends. */
       .lobby { display: grid; grid-template-columns: 236px 1fr; gap: 12px; align-items: start; }
       .lobby .modes { display: flex; flex-direction: column; gap: 4px; max-height: 58vh; overflow-y: auto; padding-right: 2px; }
+      /* SpeedKills (docs/PHASE_18_PLAN_SPEEDKILLS.md 7.1, 7.14): the neon look,
+         and the menu in two groups, PLAY and TRAINING. The legacy game's other
+         modes are hidden here, not removed: every card keeps its id. */
+      .modeHead { display: none; font: 700 12px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .18em; color: #20e0ff; margin: 6px 2px 0; }
+      [data-game="speedkills"] .modeHead { display: block; }
+      [data-game="speedkills"] .lobby .modes .mode:not([data-sk]) { display: none; }
+      [data-game="speedkills"] .lobby .modes > * { order: var(--sk, 99); }
+      [data-game="speedkills"] .lobby .modes { max-height: 70vh; }
+      [data-game="speedkills"] body { background: #06070d; }
+      [data-game="speedkills"] #overlay { background: radial-gradient(ellipse at 30% 20%, rgba(32, 224, 255, 0.10), transparent 55%), radial-gradient(ellipse at 80% 90%, rgba(255, 46, 154, 0.10), transparent 55%), rgba(4, 5, 12, 0.88); }
+      [data-game="speedkills"] .menu { background: #0b0e18; border-color: #1d2a44; box-shadow: 0 0 0 1px rgba(32, 224, 255, 0.12), 0 20px 70px rgba(0, 0, 0, .7); }
+      [data-game="speedkills"] .brand .logo { color: #20e0ff; text-shadow: 0 0 14px rgba(32, 224, 255, .55); font-style: italic; }
+      [data-game="speedkills"] .brand .title { color: #ff2e9a; text-shadow: 0 0 14px rgba(255, 46, 154, .5); font-style: italic; }
+      [data-game="speedkills"] .brand .beta { background: #ff2e9a; color: #fff; }
+      [data-game="speedkills"] .tabs { border-bottom-color: #1d2a44; }
+      [data-game="speedkills"] .tabs button.on { border-bottom-color: #20e0ff; }
+      [data-game="speedkills"] .mode { background: #0a0d16; border-color: #1d2a44; }
+      [data-game="speedkills"] .mode:hover, [data-game="speedkills"] .lobby .mode.on { border-color: #20e0ff; }
+      [data-game="speedkills"] .lobby .mode.on { background: #101628; box-shadow: inset 3px 0 0 #20e0ff; }
+      [data-game="speedkills"] .setup { background: #0a0d16; border-color: #1d2a44; }
+      [data-game="speedkills"] .setupGo button.go { background: #0f5a6e; border-color: #20e0ff; color: #e8fbff; }
+      [data-game="speedkills"] .setupGo button.go:hover { background: #137690; }
+      [data-game="speedkills"] #loading { background: radial-gradient(ellipse at center, #111a33 0%, #05060c 72%); }
+      [data-game="speedkills"] #loading .fill { background: linear-gradient(90deg, #20e0ff, #ff2e9a); }
+      [data-game="speedkills"] .duelTitle, [data-game="speedkills"] .bindGroup { color: #20e0ff; }
+      /* the game's name in its own look, swapped in by the game switch */
+      .skOnly { display: none; }
+      [data-game="speedkills"] .skOnly { display: inline; }
+      [data-game="speedkills"] .legacyOnly { display: none; }
       .lobby .mode { padding: 8px 11px; gap: 0; border-radius: 4px; }
       .lobby .mode b { font-size: 15px; }
       .lobby .mode span { display: none; }
@@ -246,7 +287,7 @@
     <canvas id="intro" hidden></canvas>
     <p id="introSay" class="sr" aria-live="polite"></p>
     <div id="loading" role="status" aria-live="polite">
-      <div class="brand"><span class="logo">B00G's</span><span class="title">RANGE</span></div>
+      <div class="brand"><span class="logo legacyOnly">B00G's</span><span class="title legacyOnly">RANGE</span><span class="logo skOnly">SPEED</span><span class="title skOnly">KILLS</span></div>
       <div class="bar"><div class="fill" id="loadingFill"></div></div>
       <div class="status" id="loadingStatus">LOADING THE WORLD</div>
       <div class="tip" id="loadingTip"></div>
@@ -256,7 +297,7 @@
     <div id="overlay">
       <div class="menu">
         <header class="brand">
-          <span class="logo">B00G's</span><span class="title">RANGE</span><span class="beta">BETA</span>
+          <span class="logo legacyOnly">B00G's</span><span class="title legacyOnly">RANGE</span><span class="logo skOnly">SPEED</span><span class="title skOnly">KILLS</span><span class="beta">BETA</span>
           <span class="loadoutChip" id="loadoutChip"></span>
         </header>
         <nav class="tabs" id="tabs">
@@ -283,19 +324,21 @@
           </div>
           <div class="lobby">
             <div class="modes">
-              <button type="button" class="mode" id="goRange" data-mode="range"><b>Firing Range</b><span>Guns, dummies, targets, ladders, ziplines and the wallbounce wall.</span></button>
-              <button type="button" class="mode" id="goTour" data-mode="tour"><b>Guided tour</b><span id="tourBlurb">Every move and key the range teaches, a step at a time: slide, mantle, climb, superglide, shoot, heal, JOLT, a grenade.</span></button>
-              <button type="button" class="mode" id="goRun" data-mode="run"><b>The Run (Basic)</b><span id="runBest">Seven rooms, one technique each, twenty pop-ups.</span></button>
-              <button type="button" class="mode" id="goRunAdvanced" data-mode="runAdvanced"><b>The Run (Advanced)</b><span id="runAdvancedBest">Nine rooms, 200 m, the techniques chained. Thirty pop-ups.</span></button>
+              <div class="modeHead" style="--sk: 0">PLAY</div>
+              <div class="modeHead" style="--sk: 10">TRAINING</div>
+              <button type="button" class="mode" id="goRange" data-mode="range" data-sk="training" style="--sk: 11"><b>Firing Range</b><span>Guns, dummies, targets, ladders, ziplines and the wallbounce wall.</span></button>
+              <button type="button" class="mode" id="goTour" data-mode="tour" data-sk="training" style="--sk: 14"><b>Guided tour</b><span id="tourBlurb">Every move and key the range teaches, a step at a time: slide, mantle, climb, superglide, shoot, heal, JOLT, a grenade.</span></button>
+              <button type="button" class="mode" id="goRun" data-mode="run" data-sk="training" style="--sk: 12"><b>The Run (Basic)</b><span id="runBest">Seven rooms, one technique each, twenty pop-ups.</span></button>
+              <button type="button" class="mode" id="goRunAdvanced" data-mode="runAdvanced" data-sk="training" style="--sk: 13"><b>The Run (Advanced)</b><span id="runAdvancedBest">Nine rooms, 200 m, the techniques chained. Thirty pop-ups.</span></button>
               <button type="button" class="mode" id="goArena" data-mode="arena"><b>Walk the arena</b><span>The 1v1 map by yourself, to learn it.</span></button>
-              <button type="button" class="mode" id="goDuel" data-mode="duel"><b>1v1 and 1v1v1</b><span>You against a friend, or two. First to 3 rounds, with the circle.</span></button>
-              <button type="button" class="mode" id="goBots" data-mode="bots"><b>Arena, Bots</b><span id="botsBlurb">The 1v1 rules against bots, alone or with friends.</span></button>
-              <button type="button" class="mode" id="goBr" data-mode="br"><b>Battle Royale</b><span id="brBlurb">Trios: drop onto Outskirts against three squads of three bots, the ring closes, last squad standing.</span></button>
+              <button type="button" class="mode" id="goDuel" data-mode="duel" data-sk="play" style="--sk: 2"><b>1v1 and 1v1v1</b><span>You against a friend, or two. First to 3 rounds, with the circle.</span></button>
+              <button type="button" class="mode" id="goBots" data-mode="bots" data-sk="play" style="--sk: 3"><b>Arena, Bots</b><span id="botsBlurb">The 1v1 rules against bots, alone or with friends.</span></button>
+              <button type="button" class="mode" id="goBr" data-mode="br" data-sk="play" style="--sk: 1"><b>Battle Royale</b><span id="brBlurb">Trios: drop onto Outskirts against three squads of three bots, the ring closes, last squad standing.</span></button>
               <button type="button" class="mode" id="goGunRun" data-mode="gunrun"><b>Gun Run</b><span>Every kill is the next gun; a knife kill at the end wins.</span></button>
-              <button type="button" class="mode" id="goTdm" data-mode="tdm"><b>Team Deathmatch</b><span>Four a side, respawns, first team to 30.</span></button>
+              <button type="button" class="mode" id="goTdm" data-mode="tdm" data-sk="play" style="--sk: 5"><b>Team Deathmatch</b><span>Four a side, respawns, first team to 30.</span></button>
               <button type="button" class="mode" id="goCrown" data-mode="crown"><b>Crown</b><span>The crown appears 20 s in: take it, hold it 30 s. First to 3 rounds.</span></button>
-              <button type="button" class="mode" id="goControl" data-mode="control"><b>Control</b><span>Five a side over three zones, A B C. A point a second for each, first to 500.</span></button>
-              <button type="button" class="mode" id="goFfa" data-mode="ffa"><b>Free-for-all</b><span>Everyone for themselves, respawns, first to 20 kills.</span></button>
+              <button type="button" class="mode" id="goControl" data-mode="control" data-sk="play" style="--sk: 6"><b>Control</b><span>Five a side over three zones, A B C. A point a second for each, first to 500.</span></button>
+              <button type="button" class="mode" id="goFfa" data-mode="ffa" data-sk="play" style="--sk: 4"><b>Free-for-all</b><span>Everyone for themselves, respawns, first to 20 kills.</span></button>
               <button type="button" class="mode" id="goSearch" data-mode="search"><b>Search</b><span>Plant and defuse, one life a round. Sides swap after 6; first to 7.</span></button>
             </div>
             <div class="setup">
@@ -312,7 +355,7 @@
 <div class="setupGroup" data-group="abilities" hidden><label>Abilities <select id="botAbilities" title="JOLT or TRIAGE for you and the bots, picked at each countdown"><option value="0">Abilities off</option><option value="1">Abilities on</option></select></label><div class="setupNote"><details class="tune"><summary>Ability numbers</summary><div class="tuneNote">What each ability is worth in this match: the host's numbers are everyone's. They apply to the bots too.</div><div class="tuneGrid"></div><button type="button" class="tuneReset">Back to the defaults</button></details></div></div>
             <div class="setupGroup" data-group="rules" hidden><label>Guns <select id="ruleGuns" title="custom rules: the guns this match allows, by category; anyone holding another is handed that class's guns, and so are the bots (the 1v1s and the arena modes; a battle royale's guns are what you find, and Gun Run has its ladder)"><option value="any">Any guns</option><option value="ar">Assault rifles only</option><option value="smg">SMGs only</option><option value="lmg">LMGs only</option><option value="shotgun">Shotguns only</option><option value="sniper">Snipers and marksmen only</option><option value="pistol">Pistols only</option></select></label><label>Friendly fire <select id="ruleFF" title="custom rules: whether squad mates and team mates can hurt each other"><option value="off">Friendly fire off</option><option value="on">Friendly fire on</option></select></label></div>
             <div class="setupGroup" data-group="rounds" hidden><label>Rounds <select id="ruleRounds" title="custom rules: rounds to win the 1v1"><option value="1">First to 1</option><option value="2">First to 2</option><option value="3" selected>First to 3</option><option value="4">First to 4</option><option value="5">First to 5</option><option value="7">First to 7</option></select></label></div>
-            <div class="setupGroup" data-group="train" hidden><label>Movement <select id="extraMoves" title="Off: the movement this game is built on and measured against its source (slide, mantle, climb, superglide, wallbounce, bunny hop, the JOLT dash, the speed and jump paint). On: a double jump and a wall run on top of it, which change how every fight reads and are off by default for that reason">
+            <div class="setupGroup legacyOnly" data-group="train" hidden><label>Movement <select id="extraMoves" title="Off: the movement this game is built on and measured against its source (slide, mantle, climb, superglide, wallbounce, bunny hop, the JOLT dash, the speed and jump paint). On: a double jump and a wall run on top of it, which change how every fight reads and are off by default for that reason">
                 <option value="0" selected>Standard movement</option>
                 <option value="1">Plus double jump and wall run</option>
               </select></label><label>Aim bot <select id="aimbotLobby" title="the view is steered onto the nearest enemy you can see: practice only, and it cannot be hidden, because everyone else sees a red bar and the word AIM BOT over you, through walls. The same switch is on the Settings tab"><option value="0">Off</option><option value="1">On (practice)</option></select></label></div>
@@ -391,6 +434,7 @@
         </section>
 
         <section data-panel="settings" hidden>
+          <div class="row"><label>Game <div class="hint">SpeedKills, or the legacy game as it was frozen; changing it reloads the page</div></label><select id="gameSel"><option value="speedkills">SpeedKills</option><option value="legacy">Legacy (B00G's Range)</option></select></div>
           <div class="row"><label>Mouse DPI <div class="hint">stored on the mouse, so measure it</div></label><input id="dpi" type="number" min="100" max="32000" step="50" /></div>
           <div class="calib">
             <button id="calibStart" type="button">Measure my DPI</button>

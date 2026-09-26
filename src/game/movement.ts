@@ -1,7 +1,25 @@
 // Movement constants converted from Hammer units to metres, once, here.
 // The raw values live in src/config/movement.json in the units the engine
 // stores them, so they can be checked against a source without arithmetic.
-import raw from "../config/movement.json";
+import base from "../config/movement.json";
+import skOverlay from "../config/movement.speedkills.json";
+import { IS_SK } from "./game";
+
+/** `over`'s keys laid onto `into`, object by object; a key `over` does not name keeps `into`'s value */
+function overlay<T>(into: T, over: Record<string, unknown>): T {
+  const out = { ...(into as Record<string, unknown>) };
+  for (const [k, v] of Object.entries(over)) {
+    if (k.startsWith("_")) continue;
+    const cur = out[k];
+    out[k] = v && typeof v === "object" && !Array.isArray(v) && cur && typeof cur === "object" ? overlay(cur, v as Record<string, unknown>) : v;
+  }
+  return out as T;
+}
+
+// A SpeedKills page moves by movement.json with SpeedKills' overlay on top
+// (src/config/movement.speedkills.json); the legacy game by movement.json
+// alone. Read once, here, because a page never changes game without a reload.
+const raw = IS_SK ? overlay(base, skOverlay) : base;
 
 /** metres per Hammer unit: 1 hu = 1 inch */
 export const HU = 0.0254;

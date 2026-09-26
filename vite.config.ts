@@ -64,11 +64,14 @@ function scrubForPublic(): Plugin {
 
 export default defineConfig(({ mode }) => {
   const beta = mode === "beta";
+  // the game a page opens in when neither its URL nor the browser says
+  // (src/game/game.ts); index.html's first script reads the same default
+  const defaultGame = process.env.DEFAULT_GAME === "legacy" ? "legacy" : "speedkills";
+  const gameInHtml = { name: "default-game", transformIndexHtml: (html: string) => html.replace("__DEFAULT_GAME__", defaultGame) };
   return {
     base: "./",
-    // the game a page opens in when neither the URL nor the browser says (src/game/game.ts)
-    define: { __PUBLIC_BUILD__: JSON.stringify(beta), __DEFAULT_GAME__: JSON.stringify(process.env.DEFAULT_GAME ?? "legacy") },
-    plugins: beta ? [scrubForPublic(), scrubReadme()] : [],
+    define: { __PUBLIC_BUILD__: JSON.stringify(beta), __DEFAULT_GAME__: JSON.stringify(defaultGame) },
+    plugins: beta ? [gameInHtml, scrubForPublic(), scrubReadme()] : [gameInHtml],
     build: { chunkSizeWarningLimit: 2000 },
   };
 });

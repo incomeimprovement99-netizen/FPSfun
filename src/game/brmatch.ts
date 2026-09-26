@@ -62,6 +62,7 @@
 //                    The host ranks everyone, because every hit on a bot
 //                    comes to it, and the ring packet carries the line, so a
 //                    guest takes its own tick the way it takes the ring's.
+import { IS_SK, PROFILE } from "./game";
 import type { Seen } from "./reveal";
 import moveCfg from "../config/movement.json";
 import { ZIPLINES } from "./traversal";
@@ -164,7 +165,8 @@ export interface TeamMode {
   bleed: number;
 }
 
-export const TEAMS: readonly TeamMode[] = brCfg.teams;
+// SpeedKills' own sizes: up to 30 in a match, and no knockdowns (bleed 0)
+export const TEAMS: readonly TeamMode[] = IS_SK && PROFILE.match.teams ? PROFILE.match.teams : brCfg.teams;
 
 /** the size a lobby or a welcome packet names, and the default when it names none we know */
 export function teamFor(id: string | null | undefined): TeamMode {

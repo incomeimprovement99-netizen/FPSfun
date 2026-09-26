@@ -231,6 +231,12 @@ export interface LootItemWire {
 
 /** the host's settings for the match, told to every guest in the welcome */
 export interface MatchOpts {
+  /**
+   * The host's game (src/game/game.ts): a guest on the other one reloads into
+   * the host's, because the two have different guns, and each side's hit
+   * check refuses a gun it does not know. An older host sends none: legacy.
+   */
+  game?: string;
   /** JOLT and TRIAGE are on (abilities.ts) */
   abilities: boolean;
   /** an arena mode (modematch.ts): which, how many bots and how good, Gun Run's list */

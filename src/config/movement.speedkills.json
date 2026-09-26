@@ -1,0 +1,29 @@
+{
+  "_note": "SpeedKills' movement (docs/PHASE_18_PLAN_SPEEDKILLS.md 7.2): laid over movement.json, key by key, before MOVE is built (src/game/movement.ts), on a SpeedKills page only; the legacy game reads movement.json alone. The aim is Hyper Scape's lightness on top of the measured model: a little less gravity and more steering in the air, so a double jump carries you onto a balcony; climbing that is quicker and goes a storey further (a climb may rise climbAttachOffset above where it began, 5.1 m where the legacy game allows 2.5, which measured as the real limit: a jump, a double jump and a climb stopped at 5.5 m until it moved) (the city's storeys are about 4 m, 157 hu); no fall stun, because a city of roofs is for dropping off; a slightly faster sprint. Everything not named here is movement.json's. Values in Hammer units as there. Ours, a first pass to be tuned in the movement lab.",
+  "sprintSpeed": 275,
+  "gravity": 690,
+  "airAcceleration": 650,
+  "airSpeed": 75,
+  "climbSpeed": 300,
+  "climbSpaceHeight": 220,
+  "climbAttachOffset": 200,
+  "climbAccel": 2000,
+  "mantleHeight": 90,
+  "fallstunMinHeight": 100000,
+  "fallstunMaxHeight": 100001,
+  "extra": {
+    "doubleJump": {
+      "height": 52,
+      "grace": 0.1
+    },
+    "wallRun": {
+      "seconds": 1.5,
+      "fall": 0.45,
+      "minSpeed": 140,
+      "out": 230,
+      "up": 56,
+      "cooldown": 0.3,
+      "hold": 0.45
+    }
+  }
+}

@@ -114,6 +114,12 @@ export class Player {
    * it in the lobby. Off, not a line of either runs.
    */
   extraMoves = false;
+  /**
+   * Run into a wall taller than a mantle and you climb it without a jump
+   * (SpeedKills, docs/PHASE_18_PLAN_SPEEDKILLS.md 7.2). Off in the legacy game,
+   * where a climb starts from a jump, as Apex's does.
+   */
+  autoClimb = false;
   /** the double jump has not been spent since the last ground, wall or rope */
   private airJumpLeft = true;
   /** while running a wall: which wall, when it started, and when the last one ended */
@@ -554,6 +560,21 @@ export class Player {
   }
 
   /** does the player's body intersect this solid vertically at feet height y */
+  /** a wall in reach that stands above a mantle's height: one to climb, not to step over (auto-climb) */
+  private tallWallAhead(): boolean {
+    const feet = this.pos.y;
+    const reach = MOVE.climbAttachReach;
+    for (const [dx, dz] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      for (const s of this.overlapping(this.pos.x + dx * reach, this.pos.z + dz * reach, MOVE.radius)) if (s.top > feet + MOVE.mantleHeight && this.blocks(s, feet, this.height)) return true;
+    }
+    return false;
+  }
+
   private blocks(s: Solid, feet: number, height: number): boolean {
     return s.top > feet + MOVE.stepHeight + 1e-4 && s.base < feet + height - 1e-4;
   }
@@ -891,6 +912,11 @@ export class Player {
     this.airJumpLeft = false;
     this.vel.y = Math.sqrt(2 * MOVE.gravity * EXTRA.doubleJump.height);
     this.lastJumpAt = now;
+    // SpeedKills: the second jump starts the climb's space afresh from here, so
+    // a jump, a double jump and a climb go a storey higher than a climb from
+    // the ground (the city's two-storey roof). The legacy game keeps Apex's
+    // rule, the space counted from where you left the ground.
+    if (this.autoClimb) this.climbBaseline = this.pos.y;
     this.tech("DOUBLE JUMP", `${EXTRA.doubleJump.height} hu`, true);
   }
 
@@ -1105,7 +1131,11 @@ export class Player {
    * drop below your previous attach point.
    */
   private tryAttach(now: number, wx: number, wz: number, wl: number): void {
-    if (this.onGround || this.climbing || this.mantle || this.sliding) return;
+    if (this.climbing || this.mantle || this.sliding) return;
+    // on the ground only for an auto-climb, and only up a wall too tall to mantle
+    if (this.onGround && !(this.autoClimb && this.tallWallAhead())) return;
+    // on the ground, the climb's space is measured from where you stand
+    if (this.onGround) this.climbBaseline = this.pos.y;
     const n = this.wallNear(MOVE.climbAttachReach);
     if (!n) return;
     const { fx, fz } = this.look();
@@ -1116,6 +1146,11 @@ export class Player {
     if (this.pos.y >= this.climbBaseline + MOVE.climbSpaceHeight * this.climbBoost) return;
     const same = this.lastAttachNormal && this.lastAttachNormal.nx === n.nx && this.lastAttachNormal.nz === n.nz;
     if (same && this.pos.y >= this.lastAttachY - 1e-4) return;
+    // off the ground into a climb: the climb's space is measured from here
+    if (this.onGround) {
+      if (inputInto < 0.5) return;
+      this.onGround = false;
+    }
     this.climbing = true;
     this.climbNormal = n;
     this.attachY = this.pos.y;

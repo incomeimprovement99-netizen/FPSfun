@@ -1,6 +1,7 @@
 // Loadouts, the way CoD does classes: five fixed defaults, five custom slots
 // you name and edit, and the game remembers which one you used last. A
 // loadout is an operator look, two weapons and an heirloom.
+import { IS_SK, PROFILE } from "./game";
 import { weaponIds } from "./weapons";
 import { OPERATORS } from "./operators";
 import { BODY_IDS, BUILD_IDS, OUTFIT_IDS, faceList } from "./outfit";
@@ -44,7 +45,11 @@ export const DEFAULT_LOADOUTS: readonly LoadoutDef[] = [
   { name: "Heavy", operator: "inferno", outfit: "irregular", build: "heavy", face: "wrap,goggles", slot1: "lmg", slot2: "shotgun", heirloom: "kukri" },
   { name: "Sidearms", operator: "sandstorm", outfit: "desert", build: "regular", face: "wrap,goggles", slot1: "semipistol", slot2: "g17", heirloom: "butterfly" },
   { name: "Dirt Bike", operator: "scrambler", outfit: "motocross", build: "lean", face: "", slot1: "car", slot2: "mastiff", heirloom: "kukri" },
-];
+].map((d, i) => {
+  // SpeedKills: the same six, carrying its own guns
+  const pair = IS_SK ? PROFILE.lists?.loadouts[i] : undefined;
+  return pair ? { ...d, slot1: pair[0], slot2: pair[1] } : d;
+});
 
 export type LoadoutRef = { kind: "default" | "custom"; index: number };
 
@@ -53,7 +58,8 @@ interface Store {
   custom: LoadoutDef[];
 }
 
-const KEY = "range.loadouts.v1";
+// each game keeps its own: SpeedKills' guns would not survive a legacy check of what a slot may hold, nor the other way round
+const KEY = IS_SK ? "range.loadouts.sk.v1" : "range.loadouts.v1";
 const OLD_SLOTS = "range.slots.v1";
 
 /**

@@ -20,6 +20,7 @@
 //
 // The rounds are the 1v1's: countdown, fight, last standing or the circle,
 // first to 3. Two bots do not shoot each other: they are both after you.
+import { IS_SK, PROFILE } from "./game";
 import { smokeBlocks } from "./smoke";
 import { Revealed, type Seen } from "./reveal";
 import * as THREE from "three";
@@ -245,7 +246,7 @@ export function clearLob(from: THREE.Vector3, to: THREE.Vector3, flight: number)
   return null;
 }
 /** what bots carry, one per bot in order */
-export const BOT_WEAPONS = ["rspn101", "r97", "vinson", "wingman", "hemlok", "energy_ar", "lmg", "energy_shotgun", "volt_smg", "car", "g2", "sentinel"];
+export const BOT_WEAPONS: string[] = IS_SK && PROFILE.lists ? [...PROFILE.lists.botWeapons] : ["rspn101", "r97", "vinson", "wingman", "hemlok", "energy_ar", "lmg", "energy_shotgun", "volt_smg", "car", "g2", "sentinel"];
 export const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM", "BOT NOVA", "BOT FLUX", "BOT STEEL", "BOT NEON", "BOT SOLAR", "BOT RAPID", "BOT SWIFT", "BOT ONYX", "BOT DUNE"];
 
 /**

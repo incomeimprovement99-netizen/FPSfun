@@ -101,9 +101,11 @@ Asked and answered on 2026-09-26. These are fixed unless the owner changes them.
 | Guns | **About 10, sci-fi originals**, two per family, built on the existing gun code and restyled. |
 | Gun names | **The owner's friends for five of them:** USSO (the fast, harder-to-control SMG), ANAKIN (the slower, easier SMG), BIGANTLER, PANDA, and BOOG (the sniper, where one headshot always kills). The rest get interesting futuristic names. |
 | Ammo | **Infinite reserve.** Reload forever; never pick ammo up. |
-| Fusion | Moderate. **+2.5% damage a level to +10% at level 5; magazine to +50% at level 5**, tiered evenly. Reload and recoil improve too. |
+| Fusion | **A gun on the floor is level 0; each of five fusions adds 2% damage and 10% magazine**, to +10% damage and +50% magazine at level 5. Reload and recoil improve too. |
 | Endgame | **A capture zone** in the final sector. Hold it with your squad to win, or be the last squad standing. |
-| Zone | **Sector decay.** The city is a grid of sectors that are announced, then decay in waves toward a final sector. |
+| Zone | **Sector decay.** The city is split into sectors drawn plainly on the map and in the world. They are announced, then decay in waves from the edges toward a final sector. |
+| Match length | **About 6 to 7 minutes for now**, to be adjusted later. |
+| The centre | **The middle sector is the biggest and the hottest drop:** the most loot and the best of it, where bots land most. The decay closes toward it more often than anywhere else, so landing there means less early rotating. |
 | Match size | **Up to 30 players, in trios by default**, with bots filling the empty seats. |
 | The city | **About 500 m square, neon night.** |
 | Time to kill | **Longer, Hyper Scape-like:** about 1.3 to 1.8 s at close range with good tracking. |
@@ -336,11 +338,12 @@ among the easiest), and every pattern stays a pattern: never random past its spr
 
 | Level | Damage | Magazine | Reload time | Recoil |
 |---|---|---|---|---|
-| 1 | 1.000 | 1.000 | 1.00 | 1.00 |
-| 2 | 1.025 | 1.125 | 0.95 | 0.95 |
-| 3 | 1.050 | 1.250 | 0.90 | 0.90 |
-| 4 | 1.075 | 1.375 | 0.85 | 0.85 |
-| 5 | 1.100 | 1.500 | 0.80 | 0.80 |
+| 0 (as found) | 1.00 | 1.0 | 1.00 | 1.00 |
+| 1 | 1.02 | 1.1 | 0.96 | 0.96 |
+| 2 | 1.04 | 1.2 | 0.92 | 0.92 |
+| 3 | 1.06 | 1.3 | 0.88 | 0.88 |
+| 4 | 1.08 | 1.4 | 0.84 | 0.84 |
+| 5 | 1.10 | 1.5 | 0.80 | 0.80 |
 
 - **BOOG** fuses its body damage and handling only; its headshot is already a kill.
 - **NOVA** fuses its heat capacity where others fuse the magazine.
@@ -460,13 +463,17 @@ walkways.
 
 ### 7.10 Decay and the capture zone
 
-**Sectors.** The city is a grid of about 100 m sectors (5 by 5).
+**Sectors.** Nine sectors, drawn plainly on the map (their borders and names) and in the world (a line of light along each border at street level):
+- **the centre**, 200 m square, the biggest; it is the hottest drop, with the most loot and the best of it, and bots land there most;
+- eight around it (north, north-east, east and so on), each with its own district accent.
 
 **The waves.**
-- A seeded plan picks the final sector and the order of decay: from the edges inward, district by district,
-  in six waves over about 12 to 14 minutes.
+- A seeded plan picks the final sector (the centre half the time, else one of the eight) and the order of
+  decay: the outer sectors in four waves of two, then whatever is left but the final sector.
+- **The match runs about 6 to 7 minutes:** the first wave about 60 s after the landing, then one every
+  60 s or so, with the capture zone opening at about 5 minutes.
 - Each wave is announced with its sectors marked on the map and in the world (a colour wash and a sound),
-  about 60 s ahead.
+  about 30 s ahead.
 
 **When a sector decays:**
 - Its buildings dissolve floor by floor from the bottom, over about 20 s.
@@ -669,7 +676,7 @@ These do not block the build. Each proceeds as written unless the owner says oth
   simplification of "loot is a gun and a hack".
 - **The five non-friend gun names:** ZEPHYR, RIPTIDE, HELIX, PULSAR, NOVA. Renamed in one config file.
 - **District names** (7.9): working names.
-- **Capture hold time** (about 45 s), **decay length** (about 12 to 14 minutes) and **ghost sight range**
-  (about 25 m): starting values, tuned in play.
+- **Capture hold time** (about 45 s) and **ghost sight range** (about 25 m): starting values, tuned in play.
+  The match length is the owner's: about 6 to 7 minutes.
 
-**Approval:** on the owner's go, work starts at stage A and continues through P.
+**Approved 2026-09-26**, with the numbers above. Work runs from stage A to P without stopping.

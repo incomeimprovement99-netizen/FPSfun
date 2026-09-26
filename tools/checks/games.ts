@@ -65,14 +65,22 @@ console.log("The game switch and its profiles");
   check("speedkills: each pair is a hard-hitter and a fast one", pairsDiffer);
   const names = sk.roster.map((g) => sk.weapons[g].name);
   check("speedkills: no two guns share a name", new Set(names).size === names.length);
-  check("speedkills: six to eight abilities, no passives, no ultimates", sk.abilities.set.length >= 6 && sk.abilities.set.length <= 8 && !sk.abilities.passives && !sk.abilities.ultimates, `${sk.abilities.set.length}`);
+  check("speedkills: the ten hacks the owner chose, no passives, no ultimates", sk.abilities.set.length === 10 && !sk.abilities.passives && !sk.abilities.ultimates, `${sk.abilities.set.length}`);
+  check("speedkills: ten guns, BOOG the sniper, USSO and ANAKIN the SMGs", sk.roster.length === 10 && sk.weapons.sentinel?.name === "BOOG" && sk.weapons.r97?.name === "USSO" && sk.weapons.alternator_smg?.name === "ANAKIN");
+  const L = sk.lists;
+  const listed = L ? [...L.botWeapons, ...L.loadouts.flat(), ...L.gulagGuns] : [];
+  check("speedkills: its lists (bots' guns, default loadouts, the Gulag's pool) hold only its own guns", !!L && listed.every((g) => sk.roster.includes(g)) && L.loadouts.length === 6 && L.loadouts.every((p) => p.length === 2 && p[0] !== p[1]), listed.filter((g) => !sk.roster.includes(g)).join(", "));
+  check("speedkills: every gun is carried by some bot", sk.roster.every((g) => L?.botWeapons.includes(g)));
+  check("speedkills: infinite ammo, 100 health and 50 shield, two ghost revives, 30 players", sk.ammo === "infinite" && sk.health?.health === 100 && sk.health?.shield === 50 && sk.life.ghostRevives === 2 && sk.match.maxPlayers === 30);
   check("speedkills: no attachments (fusion is the upgrade)", sk.attachments.length === 0);
   const F = sk.fusion.gun;
   const rising = F.every((l, i) => i === 0 || (l.mag >= F[i - 1].mag && l.damage >= F[i - 1].damage && l.reload <= F[i - 1].reload && l.recoil <= F[i - 1].recoil));
-  check("speedkills: fusion has a row per level, each at least as good as the last", F.length === sk.fusion.levels && rising && F[0].damage === 1 && F[0].mag === 1);
+  check("speedkills: fusion has a row for level 0 (as found) and each of its levels, each at least as good as the last", F.length === sk.fusion.levels + 1 && rising && F[0].damage === 1 && F[0].mag === 1);
+  // the owner's numbers: 2% damage and 10% magazine a fusion, +10% and +50% at the top
+  check("speedkills: each fusion adds 2% damage and 10% magazine, to +10% and +50%", F.every((l, i) => Math.abs(l.damage - (1 + 0.02 * i)) < 1e-9 && Math.abs(l.mag - (1 + 0.1 * i)) < 1e-9), JSON.stringify(F.map((l) => [l.damage, l.mag])));
   // better, not decisive: time to kill goes with 1/damage, so the top level's damage bonus bounds its advantage
   const ttkCut = 1 - 1 / F[F.length - 1].damage;
-  check("speedkills: a level-5 gun kills at most about 15% faster than level 1 on damage alone", ttkCut <= 0.15, `${(ttkCut * 100).toFixed(1)}%`);
+  check("speedkills: a level-5 gun kills at most about 10% faster than one as found, on damage alone", ttkCut <= 0.1, `${(ttkCut * 100).toFixed(1)}%`);
   check("speedkills: the ghost's revive is slower away from the reviver, and has a radius to be near", sk.life.ghost && sk.life.awaySlowdown > 1 && sk.life.followRadius > 0 && sk.life.reviveSeconds > 0);
 }
 

@@ -3,6 +3,7 @@ import { setFigureView } from "./game/figlod";
 import { WALLS, clearWalls, putWall, stepWalls } from "./game/walls";
 import { SMOKES, clearSmoke, smokeAt, stepSmoke, throwSmoke } from "./game/smoke";
 import playerCfg from "./config/player.json";
+import { GAME, LS_GAME, PROFILE, GAME_IDS, IS_SK, type GameId } from "./game/game";
 import { resolveWeapon, weaponClass, weaponIds, weaponName } from "./game/weapons";
 import { adsSensScale, cmPer360, degPerCount, gunFov, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
 import { Input } from "./game/input";
@@ -492,6 +493,30 @@ const reticle: Reticle = loadReticle();
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+// The game this page is (src/game/game.ts). index.html's first script set the
+// look from the same choice; this makes sure of it, and the Settings box
+// changes it with a reload, the way the graphics preset does, since the world
+// is built once for one game.
+document.documentElement.dataset.game = GAME;
+if (GAME === "speedkills") document.title = PROFILE.identity.title;
+{
+  const sel = $<HTMLSelectElement>("gameSel");
+  sel.value = GAME;
+  sel.addEventListener("change", () => switchGame(sel.value as GameId));
+}
+/** into the other game: remembered, the URL's own ?game= taken off (it would win), and the page reloaded */
+function switchGame(g: GameId, extra: Record<string, string> = {}): void {
+  if (!(GAME_IDS as readonly string[]).includes(g)) return;
+  try {
+    localStorage.setItem(LS_GAME, g);
+  } catch {
+    /* a private window: the URL below still carries it */
+  }
+  const q = new URLSearchParams(location.search);
+  q.set("game", g);
+  for (const [k, v] of Object.entries(extra)) q.set(k, v);
+  location.search = q.toString();
+}
 /**
  * The weapon the derived readout describes. Before the loadout exists this is
  * the default slot-1 weapon; afterwards it is whatever is in hand, with its
@@ -4160,7 +4185,9 @@ try {
   /* storage off: Apex's */
 }
 const applyExtraMoves = (): void => {
-  player.extraMoves = extraMovesSel.value === "1";
+  // SpeedKills: double jump, wall run and auto-climb are everyone's baseline (the owner's list), not a setting
+  player.extraMoves = IS_SK || extraMovesSel.value === "1";
+  player.autoClimb = IS_SK;
 };
 extraMovesSel.addEventListener("change", () => {
   try {
@@ -4267,6 +4294,7 @@ function readHostSettings(): void {
   // a class of guns arms the bots with its first, unless the Bot guns box already picked one
   const classGun = rules.guns !== "any" ? rulesCfg.classes[rules.guns as keyof typeof rulesCfg.classes].guns[0] : null;
   hostOpts = {
+    game: GAME,
     abilities: abilitySetting(duelKind()),
     mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList(), botWeapon: botWeaponChoice() ?? (mk !== "gunrun" ? classGun : null), map: arenaMapChoice(mk, 8), split: $<HTMLSelectElement>("modeSides").value === "split" } : undefined,
     map: arenaMapChoice("duel", 2),
@@ -4307,6 +4335,8 @@ function enforceGuns(): void {
 function inviteLink(code: string): string {
   const q = new URLSearchParams(location.search);
   q.set("join", code);
+  // the host's game rides along, so the friend opens the same one
+  q.set("game", GAME);
   return `${location.origin}${location.pathname}?${q.toString()}`;
 }
 duelHostBtn.addEventListener("click", () => {
@@ -4367,6 +4397,16 @@ function joinCode(code: string): void {
   cancelJoin = joinMatch(
     code,
     (link, w) => {
+      // The host plays the other game: this page reloads into it and joins
+      // again, rather than playing with guns the host's hit check refuses.
+      // An older host sends no game: it is legacy.
+      const hostGame = (w.opts?.game ?? "legacy") as GameId;
+      if (hostGame !== GAME && (GAME_IDS as readonly string[]).includes(hostGame)) {
+        link.close();
+        setDuelStatusText(`The host is playing ${hostGame === "speedkills" ? "SpeedKills" : "the legacy game"}: switching...`, "live");
+        switchGame(hostGame, { join: code });
+        return;
+      }
       // the seat's key, for getting back in if the connection drops
       mySeat = w.key ? { code, id: w.id, key: w.key } : null;
       joinedWith = { players: w.players, br: w.br, opts: w.opts };

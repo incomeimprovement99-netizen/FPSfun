@@ -15,6 +15,7 @@
 // This file is the Gulag's clock and rules, kept apart from the match so the
 // checks can run them; brmatch.ts runs the room and the bot, main.ts puts you
 // in it. The numbers are in src/config/br.json `gulag`.
+import { IS_SK, PROFILE } from "./game";
 import brCfg from "../config/br.json";
 
 export const GULAG = brCfg.gulag;
@@ -39,7 +40,7 @@ export class Gulag {
   decidedAt = Infinity;
 
   constructor(now: number, rng: () => number = Math.random) {
-    const pool = GULAG.guns;
+    const pool = IS_SK && PROFILE.lists ? PROFILE.lists.gulagGuns : GULAG.guns;
     const a = Math.floor(rng() * pool.length);
     let b = Math.floor(rng() * (pool.length - 1));
     if (b >= a) b++;
