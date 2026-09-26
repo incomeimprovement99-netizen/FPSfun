@@ -5,6 +5,7 @@
 // trust.
 //
 // Run on its own: npx tsx tools/checks/hacks.ts
+import { MOVE } from "../../src/game/movement";
 import { Hacks, HACK, HACK_DEFS, cooldownOf, hackSlotOf } from "../../src/game/hacks";
 
 let fails = 0;
@@ -20,8 +21,21 @@ console.log("SpeedKills' hacks");
   check("four mobility and six utility", HACK_DEFS.filter((h) => h.slot === "mobility").length === 4 && HACK_DEFS.filter((h) => h.slot === "utility").length === 6);
   check("every hack has its numbers and a cooldown", HACK_DEFS.every((h) => HACK[h.id] && HACK[h.id].cooldown > 0));
   check("DASH's cooldowns are Hyper Scape's Teleport's, 12 s to 7 s over four fusions", [0, 1, 2, 3, 4].map((l) => cooldownOf("dash", l)).join(",") === "12,11,10,9,7" && cooldownOf("dash", 9) === 7);
-  check("REVEAL is Hyper Scape's: 14 s to 9, everyone within 60 m for 6 s; a MINE does 50", cooldownOf("reveal", 0) === 14 && cooldownOf("reveal", 4) === 9 && HACK.reveal.range === 60 && HACK.reveal.seconds === 6 && HACK.mine.damage === 50);
-  check("a hack with no published table takes 10% a level off, to four levels", Math.abs(cooldownOf("heal", 4) - HACK.heal.cooldown * 0.6) < 1e-9);
+  // Phase 20 A9: Hyper Scape's final published numbers (hacks.json _note has the sources)
+  const table = (id: Parameters<typeof cooldownOf>[0]) => [0, 1, 2, 3, 4].map((l) => cooldownOf(id, l)).join(",");
+  const X = HACK as unknown as Record<string, Record<string, number | number[]>>;
+  check("the cooldowns are Hyper Scape's final tables: SLAM, WALL and REVEAL 12 to 7; HEAL, ARMOR, INVISIBILITY and MINE 14 to 9", ["slam", "wall", "reveal"].every((id) => table(id as never) === "12,11,10,9,7") && ["heal", "armor", "invis", "mine"].every((id) => table(id as never) === "14,13,12,11,9"), ["slam", "wall", "reveal", "heal", "armor", "invis", "mine"].map((id) => `${id} ${table(id as never)}`).join("; "));
+  check("REVEAL is a 50 degree cone out to 60 m for 8 s; INVISIBILITY 4 s; ARMOR 4 s; HEAL 4.4 a second for 9 s, 6.6 at the top", HACK.reveal.cone === 50 && HACK.reveal.range === 60 && HACK.reveal.seconds === 8 && HACK.invis.seconds === 4 && HACK.armor.seconds === 4 && HACK.heal.seconds === 9 && JSON.stringify(X.heal.perSeconds) === "[4.4,4.4,4.4,4.4,6.6]");
+  check("SLAM does 20 at every level and 30 at the top; a MINE 40 and 60, chasing for 8 s from 15 m, one at a time; at most 2 WALLS for 15 s", JSON.stringify(X.slam.damages) === "[20,20,20,20,30]" && JSON.stringify(X.mine.damages) === "[40,40,40,40,60]" && HACK.mine.chase === 8 && HACK.mine.trigger === 15 && HACK.mine.max === 1 && HACK.wall.max === 2 && HACK.wall.seconds === 15);
+  {
+    // measured off Hyper Scape's footage (hacks.json _note): SLAM's apex about 30 m, TELEPORT (our DASH) about 26 m
+    const g = MOVE.gravity;
+    const v = Math.sqrt(2 * g * HACK.slam.apex);
+    const peak = (v * v) / (2 * g);
+    check("SLAM rises to its measured apex, about 30 m (ours was 2.3 m, under a double jump)", Math.abs(peak - 30) < 0.01 && HACK.slam.apex >= 26 && HACK.slam.apex <= 36, `${peak.toFixed(1)} m at ${v.toFixed(1)} m/s`);
+    check("DASH reaches Hyper Scape's Teleport's measured 26 m (ours was 8)", HACK.dash.distance >= 23 && HACK.dash.distance <= 31, `${HACK.dash.distance} m`);
+  }
+  check("a hack with no published table takes 10% a level off, to four levels", Math.abs(cooldownOf("leap", 4) - HACK.leap.cooldown * 0.6) < 1e-9);
   check("every table falls level by level and ends at or below where it started", HACK_DEFS.every((h) => [0, 1, 2, 3].every((l) => cooldownOf(h.id, l + 1) <= cooldownOf(h.id, l))));
 
   const h = new Hacks();

@@ -4189,3 +4189,30 @@ teaches and a compact one for experienced players).
   times in 3 s. The hold now leaves a core that would swap.
 - **Checked:** a new e2e check reads the card in a real match in both modes, for a copy of your gun and for
   one you do not carry.
+
+## Milestone 229 — The hacks as Hyper Scape's were ✅
+
+Phase 20, A9 (the owner: the Slam barely goes up, it went about ten times higher in Hyper Scape; work out
+exactly how every hack worked, and do not fill gaps by assumption).
+
+- **Researched first.** Three source sweeps, merged and checked quote by quote: 71 of 72 numbers confirmed, one
+  refuted and dropped. Two numbers no source gives were measured off gameplay footage, against a training dummy
+  of known height and the floor's tiles, to about 15%. Our own config's note had six numbers wrong.
+- **SLAM rises about 30 m,** measured (26 to 36; one player's claim was also 30). Ours peaked at 2.3 m, under a
+  double jump. Cooldowns are 12/11/10/9/7, and damage is 20 at every level, 30 at the top.
+- **DASH is Hyper Scape's Teleport:** about 26 m, measured (23 to 31), the way you look, up included, as far as
+  the first wall, momentum kept. Ours was 8 m, flat only.
+- **HEAL** gives 4.4 health a second, 6.6 at the top, for 9 s, on 14/13/12/11/9.
+- **ARMOR** lasts 4 s on 14/13/12/11/9. It still takes 60% off a hit and lets you shoot, the owner's earlier
+  choice. Hyper Scape's made you invulnerable and unable to shoot.
+- **WALL** stands 15 s on 12/11/10/9/7, at most 2 up; a third takes the oldest down.
+- **INVISIBILITY** lasts 4 s on 14/13/12/11/9. It breaks on firing, and now also on aiming in or using another
+  hack.
+- **REVEAL** is a 50 degree cone out to 60 m for 8 s, on 12/11/10/9/7. It was 360 degrees for 6 s.
+- **MINE** does 40, 60 at the top, on 14/13/12/11/9. It is armed in 0.75 s and chases an enemy within 15 m for
+  up to 8 s. At most one is down.
+- **Kept as ours:** LEAP and GRAPPLE; Slam's hang, fall speed and radius; the Mine's chase speed and blast.
+  No source gives these.
+- **Checked:** `tools/checks/hacks.ts` holds the tables, Slam's apex and Teleport's reach.
+- **Open for the owner:** Slam now out-climbs LEAP's 16 m; and Hyper Scape's other hacks (Shockwave, Ball,
+  Magnet, Fortify) are not in the game.

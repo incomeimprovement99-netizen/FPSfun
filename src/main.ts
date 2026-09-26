@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { setFigureView } from "./game/figlod";
-import { WALLS, clearWalls, putWall, stepWalls } from "./game/walls";
+import { WALLS, clearWalls, putWall, stepWalls, type PutWall } from "./game/walls";
 import { SMOKES, clearSmoke, smokeAt, stepSmoke, throwSmoke } from "./game/smoke";
 import playerCfg from "./config/player.json";
 import { GAME, LS_GAME, PROFILE, GAME_IDS, IS_SK, type GameId } from "./game/game";
@@ -3330,7 +3330,7 @@ let joltedAt = -Infinity;
 const hacks = new Hacks();
 const H = HACK;
 /** SLAM in flight: up, a moment's hang at the top, then down onto the spot */
-let skSlam: { phase: "up" | "hang" | "down"; at: number } | null = null;
+let skSlam: { phase: "up" | "hang" | "down"; at: number; level?: number } | null = null;
 /** GRAPPLE pulling: where to, and until when at the most */
 let skPull: { to: THREE.Vector3; until: number } | null = null;
 /** LEAP rising: at the top it becomes a glide */
@@ -3338,9 +3338,11 @@ let skLeap = false;
 let armorUntil = -Infinity;
 let invisUntil = -Infinity;
 /** HEAL's areas: yours and your squad's heal you while you stand in them */
-const healZones: Array<{ at: THREE.Vector3; until: number; mesh: THREE.Mesh }> = [];
+const healZones: Array<{ at: THREE.Vector3; until: number; mesh: THREE.Mesh; rate: number }> = [];
 /** MINE's mines: yours hunt and hurt; everyone else's are drawn */
-const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Mesh; mine: boolean }> = [];
+const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Mesh; mine: boolean; damage?: number; chaseFrom?: number | null }> = [];
+/** your WALL hack's panels standing, oldest first (hacks.json wall.max) */
+const myWalls: PutWall[] = [];
 /** when a ghost next looks round it */
 let ghostSeeAt = 0;
 /** the squad's ghosts, drawn where they are: a pale figure per dead squad mate */
@@ -3439,23 +3441,32 @@ function useHack(slot: HackSlot, now: number): void {
   const id = hacks.use(slot, now);
   if (!id) return;
   hackUses[slot]++;
+  // another hack ends INVISIBILITY, as Hyper Scape's did (Phase 20 A9)
+  if (id !== "invis" && now < invisUntil) {
+    invisUntil = -Infinity;
+    if (d instanceof Duel) d.hiddenUntil.delete(d.id);
+    d?.localFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
+  }
   const eye = camera.position.clone();
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
   const name = hackDef(id)?.name ?? id;
   switch (id) {
     case "dash": {
-      // a blink the way you look, flat
-      const flat = fwd.clone().setY(0);
-      if (flat.lengthSq() < 1e-6) flat.set(0, 0, -1).applyQuaternion(camera.quaternion).setY(0);
-      flat.normalize();
+      // Hyper Scape's Teleport (Phase 20 A9): the way you look, up and down as well as along (footage: it followed
+      // the look straight up a facade), as far as hacks.json dash.distance or the first wall, your momentum kept
       const from = player.pos.clone();
-      if (!player.jolt(flat.x, flat.z, H.dash.distance, H.dash.seconds, H.dash.exitSpeed)) {
+      const eyeAt = player.eyePosition().clone();
+      const hit = solidHit(eyeAt, fwd, H.dash.distance);
+      const reach = Math.max(0, Math.min(H.dash.distance, (Number.isFinite(hit) ? hit : H.dash.distance) - MOVE.radius * 1.5));
+      if (reach < 1) {
         hacks.refund(slot);
         hackUses[slot]--;
         return;
       }
-      const reach = Math.max(0, Math.min(H.dash.distance, solidHit(from.clone().setY(from.y + 1), flat, H.dash.distance) - MOVE.radius));
-      const to = from.clone().addScaledVector(flat, reach);
+      const at = eyeAt.addScaledVector(fwd, reach);
+      const to = new THREE.Vector3(at.x, Math.max(0, at.y - (player.eyePosition().y - player.pos.y)), at.z);
+      player.teleport(to.x, to.y, to.z, player.yaw, player.pitch);
+      player.vel.set(player.vel.x, Math.max(0, player.vel.y), player.vel.z);
       if (thirdPerson) fx.jolt(from, to, now);
       audio.jolt(1);
       d?.localFx("jolt", from, to);
@@ -3464,8 +3475,9 @@ function useHack(slot: HackSlot, now: number): void {
       break;
     }
     case "slam": {
-      player.impulse(0, H.slam.up, 0);
-      skSlam = { phase: "up", at: now };
+      // to its apex (about 30 m, measured off Hyper Scape's footage; Phase 20 A9), a little of your momentum kept
+      player.impulse(player.vel.x * 0.15, Math.sqrt(2 * MOVE.gravity * H.slam.apex), player.vel.z * 0.15);
+      skSlam = { phase: "up", at: now, level: held.level };
       audio.whoosh();
       d?.localFx("sk", player.pos.clone(), undefined, 1);
       break;
@@ -3496,7 +3508,8 @@ function useHack(slot: HackSlot, now: number): void {
       const at = player.pos.clone();
       const mesh = hackMesh(0x3dff9a, H.heal.radius, 0.6);
       mesh.position.copy(at).setY(at.y + 0.3);
-      healZones.push({ at, until: now + H.heal.seconds, mesh });
+      const rates = (H.heal as unknown as { perSeconds?: number[] }).perSeconds;
+      healZones.push({ at, until: now + H.heal.seconds, mesh, rate: rates?.[held.level] ?? H.heal.perSecond });
       audio.healDone();
       d?.localFx("sk", at, undefined, 3);
       break;
@@ -3509,7 +3522,10 @@ function useHack(slot: HackSlot, now: number): void {
     }
     case "wall": {
       const spot = wallSpot();
-      putWall(scene, spot.x, spot.y, spot.z, spot.deg, now);
+      // at most hacks.json wall.max standing: a third takes the oldest down (Hyper Scape's cap)
+      for (let i = myWalls.length - 1; i >= 0; i--) if (myWalls[i].until <= now || !WALLS.includes(myWalls[i])) myWalls.splice(i, 1);
+      while (myWalls.length >= H.wall.max) myWalls.shift()!.until = now;
+      myWalls.push(putWall(scene, spot.x, spot.y, spot.z, spot.deg, now, H.wall.seconds));
       audio.clatter(new THREE.Vector3(spot.x, spot.y, spot.z));
       d?.localFx("wall", new THREE.Vector3(spot.x, spot.y, spot.z), new THREE.Vector3(spot.deg, 0, 0));
       break;
@@ -3522,8 +3538,8 @@ function useHack(slot: HackSlot, now: number): void {
       break;
     }
     case "reveal": {
-      // all round, as Hyper Scape's Reveal marked everyone within its radius
-      const n = kitSight()?.reveal(player.pos, null, H.reveal.range, 360, H.reveal.seconds) ?? 0;
+      // a cone the way you look, as Hyper Scape's final Reveal was (a 50 degree frustum out to 60 m; Phase 20 A9)
+      const n = kitSight()?.reveal(player.pos, fwd, H.reveal.range, H.reveal.cone, H.reveal.seconds) ?? 0;
       audio.pingTick();
       hud.notice(n > 0 ? `REVEAL: ${n} ENEMY${n > 1 ? " CONTACTS" : ""}` : "REVEAL: NOBODY THERE", now, 1.4);
       break;
@@ -3532,7 +3548,14 @@ function useHack(slot: HackSlot, now: number): void {
       const to = aimPoint(H.mine.range);
       const mesh = hackMesh(0xff2e9a, 0.35, 0.12);
       mesh.position.copy(to).setY(to.y + 0.06);
-      mines.push({ at: to, armAt: now + H.mine.arm, until: now + H.mine.life, mesh, mine: true });
+      // at most hacks.json mine.max of yours down: a new one takes the old one away (Hyper Scape's cap)
+      for (let i = mines.length - 1; i >= 0 && mines.filter((x) => x.mine).length >= H.mine.max; i--) {
+        if (!mines[i].mine) continue;
+        scene.remove(mines[i].mesh);
+        mines.splice(i, 1);
+      }
+      const dmgs = (H.mine as unknown as { damages?: number[] }).damages;
+      mines.push({ at: to, armAt: now + H.mine.arm, until: now + H.mine.life, mesh, mine: true, damage: dmgs?.[held.level] ?? H.mine.damage, chaseFrom: null });
       audio.throwNoise("bounce", to);
       d?.localFx("sk", to, undefined, 6);
       break;
@@ -3557,8 +3580,8 @@ function stepHacks(now: number, dt: number): void {
     kitSight()?.reveal(player.pos, null, PROFILE.life.ghostSight, 360, 0.7);
   }
   stepGhosts();
-  // INVISIBILITY ends when you fire
-  if (now < invisUntil && now - loadout.active.state.lastShotAt < 0.05) {
+  // INVISIBILITY ends when you fire, or aim in (Hyper Scape's rule; Phase 20 A9)
+  if (now < invisUntil && (now - loadout.active.state.lastShotAt < 0.05 || loadout.active.state.adsFrac > 0.1)) {
     invisUntil = -Infinity;
     if (d instanceof Duel) d.hiddenUntil.delete(d.id);
     d?.localFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
@@ -3580,16 +3603,17 @@ function stepHacks(now: number, dt: number): void {
   } else if (skLeap && player.onGround && player.vel.y <= 0) skLeap = false;
   // SLAM: up, a hang at the top, then down hard; on landing, whoever is under it
   if (skSlam) {
-    if (skSlam.phase === "up" && player.vel.y <= 0) skSlam = { phase: "hang", at: now };
+    if (skSlam.phase === "up" && player.vel.y <= 0) skSlam = { phase: "hang", at: now, level: skSlam.level };
     else if (skSlam.phase === "hang") {
       player.vel.y = Math.max(player.vel.y, 0);
       if (now - skSlam.at >= H.slam.hang) {
-        skSlam = { phase: "down", at: now };
+        skSlam = { phase: "down", at: now, level: skSlam.level };
         player.vel.set(player.vel.x * 0.3, -H.slam.downSpeed, player.vel.z * 0.3);
       }
     } else if (skSlam.phase === "down" && player.onGround) {
       const at = player.pos.clone();
-      for (const e of enemiesNear(at, H.slam.radius)) hackHurt(e.rem, e.fig, H.slam.damage, "slam");
+      const dmg = (H.slam as unknown as { damages?: number[] }).damages?.[skSlam.level ?? 0] ?? H.slam.damage;
+      for (const e of enemiesNear(at, H.slam.radius)) hackHurt(e.rem, e.fig, dmg, "slam");
       audio.blast("arcstar", at);
       fx.jolt(at.clone().setY(at.y + 3), at, now);
       d?.localFx("sk", at, undefined, 7);
@@ -3608,7 +3632,7 @@ function stepHacks(now: number, dt: number): void {
     const v = d as unknown as { health?: number; shield?: number; shieldMax?: number; alive?: boolean } | null;
     if (v && typeof v.health === "number" && typeof v.shield === "number" && v.alive !== false && player.pos.distanceTo(z.at) <= H.heal.radius) {
       const top = SK_HEALTH?.health ?? HEALTH_MAX;
-      let amt = H.heal.perSecond * dt;
+      let amt = z.rate * dt;
       const toHealth = Math.min(amt, top - v.health);
       v.health += Math.max(0, toHealth);
       amt -= Math.max(0, toHealth);
@@ -3627,14 +3651,16 @@ function stepHacks(now: number, dt: number): void {
     if (!m.mine || now < m.armAt) continue;
     const near = enemiesNear(m.at, H.mine.trigger).sort((a, b) => a.fig.group.position.distanceTo(m.at) - b.fig.group.position.distanceTo(m.at))[0];
     if (!near) continue;
+    // it chases for hacks.json mine.chase seconds at most, then goes off where it is
+    m.chaseFrom ??= now;
     const to = near.fig.group.position.clone().setY(near.fig.group.position.y + 0.8).sub(m.at);
     const len = to.length();
-    if (len > 1) {
+    if (len > 1 && now - m.chaseFrom < H.mine.chase) {
       m.at.addScaledVector(to, Math.min(1, (H.mine.homeSpeed * dt) / len));
       m.mesh.position.copy(m.at);
       continue;
     }
-    for (const e of enemiesNear(m.at, H.mine.radius)) hackHurt(e.rem, e.fig, H.mine.damage, "mine");
+    for (const e of enemiesNear(m.at, H.mine.radius)) hackHurt(e.rem, e.fig, m.damage ?? H.mine.damage, "mine");
     audio.blast("frag", m.at);
     d?.localFx("sk", m.at.clone(), undefined, 8);
     scene.remove(m.mesh);
@@ -3790,7 +3816,8 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       // a squad mate's HEAL heals you too; an enemy's is drawn and does nothing for you
       const mesh = hackMesh(friend ? 0x3dff9a : 0xff5a5a, H.heal.radius, 0.6);
       mesh.position.copy(a).setY(a.y + 0.3);
-      if (friend) healZones.push({ at: a.clone(), until: gameTime + H.heal.seconds, mesh });
+      // (a squad mate's area heals at the base rate: its fusion level does not travel)
+      if (friend) healZones.push({ at: a.clone(), until: gameTime + H.heal.seconds, mesh, rate: H.heal.perSecond });
       else setTimeout(() => scene.remove(mesh), H.heal.seconds * 1000);
       break;
     }
@@ -4443,7 +4470,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     }
     // someone else's canister, or their screen of three: the same clouds here
     if (k === "wall" && a && b) {
-      putWall(scene, a.x, a.y, a.z, b.x, gameTime);
+      putWall(scene, a.x, a.y, a.z, b.x, gameTime, IS_SK ? H.wall.seconds : undefined);
       audio.clatter(a);
       return;
     }

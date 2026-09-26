@@ -239,6 +239,8 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
 - **Done when:** a hack check measures each hack in the movement simulator (Slam's peak, a dash's distance, a
   heal's rate) and holds it to the table.
 
+*Done (Milestone 229).*
+
 ### A10. No smoke grenade in SpeedKills
 
 - **The owner:** "remove the smoke grenade, i don't like it for this type of gameplay, keep it in boog fps,

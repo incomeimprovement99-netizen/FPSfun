@@ -1,10 +1,10 @@
 {
-  "_note": "SpeedKills' ten hacks (src/game/hacks.ts, docs/PHASE_18_PLAN_SPEEDKILLS.md 7.7): one mobility and one utility, picked before the match; in the battle royale a copy found on the floor fuses (a level up, to fuseLevels) and another of the same slot swaps. `cooldowns` is seconds between uses at each fusion level, 0 to 4, where Hyper Scape's published numbers give them, measured as it was left: Teleport (our DASH) and Invisibility 12, 11, 10, 9, 7; Reveal 14 base and 9 maxed; Slam about 10 maxed; Wall 7 maxed. Where it published nothing (HEAL, ARMOR's cooldown, LEAP and GRAPPLE, which are ours), `cooldown` is ours and each level takes fuseStep of it off. Its other published numbers are used as they were: Invisibility lasts 10 s; Armor 5 s (after a patch cut it from 10; ours takes 60% of a hit away rather than all of it, as the owner chose); Reveal marks everyone within 60 m all round for 6 s; a Mine does 50. Sources: gamepur.com, pcgamesn.com, ggrecon.com and thegamer.com hack guides, 2020 and 2021. The keys: mobility on the ability key (F, a pad's LB), utility on the grenade key (G, a pad's RB), since SpeedKills carries no grenades.",
+  "_note": "SpeedKills' ten hacks (src/game/hacks.ts, main.ts useHack and stepHacks): one mobility and one utility, picked before the match; in the battle royale a copy found on the floor fuses (a level up, to fuseLevels) and another of the same slot swaps. Phase 20 A9, the owner: work exactly as Hyper Scape's did, from sources, not assumption. So `cooldowns` (seconds at fusion levels 0 to 4) and the other numbers are Hyper Scape's FINAL published values (patch notes to v3.1; checked word for word against their sources by the Phase 20 research, 71 of 72 quotes confirmed): Teleport (our DASH) 12/11/10/9/7; Slam 12/11/10/9/7, damage 20 at every level and 30 at the top; Heal 14/13/12/11/9, 4.4 health a second (6.6 at the top) for 9 s; Armor 14/13/12/11/9, 4 s; Wall 12/11/10/9/7, 15 s, at most 2; Invisibility 14/13/12/11/9, 4 s, broken by firing, aiming in or another hack; Reveal 12/11/10/9/7, a 50 degree cone out to 60 m for 8 s; Mine 14/13/12/11/9, damage 40 and 60 at the top, it chases an enemy within 15 m for up to 8 s, armed in 0.75 s, at most 1. No source published two numbers, so they were MEASURED off gameplay footage (Phase 20, against a training dummy of known height and the floor's tiles, credible to about 15%): Slam's apex, about 30 m above take-off (26 to 36; one player's claim was also 30), and Teleport's reach, about 26 m (23 to 31) the way you look, up included. Ours, kept: LEAP and GRAPPLE (no Hyper Scape counterpart); ARMOR takes 60% of a hit away and lets you shoot, the owner's earlier choice (Hyper Scape's made you invulnerable and unable to shoot); Slam's hang, fall speed and radius, and the Mine's chase speed and blast radius, which no source gives. Sources: the Hyper Scape Fandom wiki (via its API), Ubisoft's patch notes and news (Wayback copies), devtrackers.gg, pcgamesn.com, gamepur.com, thegamer.com, hotspawn.com; footage: YouTube S9OdObH8V9k (Slam) and 2ckLUqY2RdQ (Teleport). The keys: mobility on the ability key (F, a pad's LB), utility on the grenade key (G, a pad's RB), since SpeedKills carries no grenades.",
   "fuseLevels": 4,
   "fuseStep": 0.1,
   "dash": {
     "cooldown": 12,
-    "distance": 8,
+    "distance": 26,
     "seconds": 0.14,
     "exitSpeed": 9,
     "cooldowns": [
@@ -17,17 +17,24 @@
   },
   "slam": {
     "cooldown": 14,
-    "up": 9,
+    "apex": 30,
     "hang": 0.35,
     "downSpeed": 38,
     "radius": 5,
-    "damage": 45,
+    "damage": 20,
     "cooldowns": [
-      14,
-      13,
       12,
       11,
-      10
+      10,
+      9,
+      7
+    ],
+    "damages": [
+      20,
+      20,
+      20,
+      20,
+      30
     ]
   },
   "leap": {
@@ -43,59 +50,99 @@
     "maxSeconds": 1.6
   },
   "heal": {
-    "cooldown": 22,
+    "cooldown": 14,
     "radius": 5,
-    "seconds": 5,
-    "perSecond": 22
-  },
-  "armor": {
-    "cooldown": 20,
-    "seconds": 5,
-    "damageScale": 0.4,
-    "speedScale": 0.8
-  },
-  "wall": {
-    "cooldown": 11,
+    "seconds": 9,
+    "perSecond": 4.4,
+    "perSeconds": [
+      4.4,
+      4.4,
+      4.4,
+      4.4,
+      6.6
+    ],
     "cooldowns": [
+      14,
+      13,
+      12,
       11,
-      10,
-      9,
-      8,
-      7
+      9
     ]
   },
-  "invis": {
+  "armor": {
+    "cooldown": 14,
+    "seconds": 4,
+    "damageScale": 0.4,
+    "speedScale": 0.8,
+    "cooldowns": [
+      14,
+      13,
+      12,
+      11,
+      9
+    ]
+  },
+  "wall": {
     "cooldown": 12,
-    "seconds": 10,
-    "seenWithin": 6,
     "cooldowns": [
       12,
       11,
       10,
       9,
       7
-    ]
+    ],
+    "seconds": 15,
+    "max": 2
   },
-  "reveal": {
+  "invis": {
     "cooldown": 14,
-    "range": 60,
-    "seconds": 6,
+    "seconds": 4,
+    "seenWithin": 6,
     "cooldowns": [
       14,
       13,
+      12,
       11,
-      10,
       9
     ]
+  },
+  "reveal": {
+    "cooldown": 12,
+    "range": 60,
+    "seconds": 8,
+    "cooldowns": [
+      12,
+      11,
+      10,
+      9,
+      7
+    ],
+    "cone": 50
   },
   "mine": {
     "cooldown": 14,
     "range": 18,
-    "arm": 1.0,
-    "trigger": 4.5,
+    "arm": 0.75,
+    "trigger": 15,
     "homeSpeed": 9,
     "radius": 3.5,
-    "damage": 50,
-    "life": 45
+    "damage": 40,
+    "life": 30,
+    "damages": [
+      40,
+      40,
+      40,
+      40,
+      60
+    ],
+    "chase": 8,
+    "max": 1,
+    "cooldowns": [
+      14,
+      13,
+      12,
+      11,
+      9
+    ]
   }
 }
