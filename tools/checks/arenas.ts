@@ -18,6 +18,7 @@
 // Run on its own: npx tsx tools/checks/arenas.ts.
 import { MOVE } from "../../src/game/movement";
 import { PLAN_MAPS, ARENA_PLANS } from "../../src/game/arenas";
+import { MOVELAB } from "../../src/game/arenas/movelab";
 import { allBoxes, boundsOf, solidsOf, type ArenaPlan, type PlanSolid } from "../../src/game/arenas/plan";
 import { ARENA_BOUNDS, TRI_BOUNDS, ARENA_MAPS, mapFor } from "../../src/game/arena";
 import { RANGE_BOUNDS } from "../../src/game/range";
@@ -289,6 +290,8 @@ const rects = [
   { id: "triangle", ...TRI_BOUNDS },
   { id: "battle royale", ...BR_BOUNDS },
   ...ARENA_PLANS.map((p) => ({ id: p.id, ...boundsOf(p) })),
+  // SpeedKills' movement lab is no match's map, and still a place in the world
+  { id: MOVELAB.id, ...boundsOf(MOVELAB) },
 ];
 let clash = "";
 for (let i = 0; i < rects.length; i++) {

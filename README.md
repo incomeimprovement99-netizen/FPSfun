@@ -33,7 +33,9 @@ The site opens in SpeedKills. The legacy game is one setting away (Settings,
 Game) or `?game=legacy`, and everything below this section describes it.
 
 - **The menu:** PLAY (Battle Royale in solo, duos or trios; 1v1; bots; team
-  deathmatch; FFA; Control) and TRAINING (the range, the Run, the tour).
+  deathmatch; FFA; Control) and TRAINING (the range, the movement lab, the
+  Run, the tour). The lab has climbs of 2, 4 and 8 m, a long wall to run,
+  and gaps of 4 and 6 m a storey up.
 - **The battle royale:** thirty players in a 500 m neon city at night, nine
   sectors. The centre, THE SPIRE, is the biggest and the hottest drop, and
   half the bot squads land there.

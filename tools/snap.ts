@@ -127,6 +127,16 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "sk-lab",
+    note: "SpeedKills' movement lab from where you come in: the three climbs (2, 4 and 8 m), the long wall, the gaps a storey up",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; document.getElementById("goLab").click(); document.getElementById("startMode").click(); })()`, 600],
+      [`(() => { window.__range.player.teleport(98, 0, -83, 0, 8); })()`, 0],
+      [gameSeconds(1), 250],
+    ],
+  },
+  {
     name: "arena-neonblock",
     note: "SpeedKills' NEON BLOCK: a city crossing at night, from the south street's end: the decks, the skybridge, the cars",
     query: "?game=speedkills",

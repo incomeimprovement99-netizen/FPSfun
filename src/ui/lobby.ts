@@ -68,6 +68,7 @@ export interface LobbyMode {
 export const LOBBY_MODES: readonly LobbyMode[] = [
   { id: "range", go: "goRange", name: "Firing Range", card: "Guns, dummies, targets, ladders, ziplines and the wallbounce wall.", needs: ["range", "train"], solo: true, friends: null },
   { id: "tour", go: "goTour", name: "Guided tour", card: "Every move and key the range teaches, a step at a time.", needs: [], solo: true, friends: null },
+  { id: "lab", go: "goLab", name: "Movement lab", card: "SpeedKills: climb a storey, run the wall, clear the gaps.", needs: [], solo: true, friends: null },
   { id: "run", go: "goRun", name: "The Run (Basic)", card: "Seven rooms, one technique each, twenty pop-ups.", needs: [], solo: true, friends: null },
   { id: "runAdvanced", go: "goRunAdvanced", name: "The Run (Advanced)", card: "Nine rooms, 200 m, the techniques chained. Thirty pop-ups.", needs: [], solo: true, friends: null },
   { id: "arena", go: "goArena", name: "Walk the arena", card: "The 1v1 map by yourself, to learn it.", needs: ["map", "train"], solo: true, friends: null },

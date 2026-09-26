@@ -35,7 +35,8 @@ const inPanel = (id: string): boolean => play.includes(`id="${id}"`);
 console.log("The lobby");
 {
   check("every mode the lobby offers has a card on the page, and the card says which mode it is", LOBBY_MODES.every((m) => play.includes(`id="${m.go}"`) && play.includes(`data-mode="${m.id}"`)), `${LOBBY_MODES.length} modes`);
-  const cards = (play.match(/class="mode"/g) ?? []).length;
+  // (a card may carry more classes than "mode": SpeedKills' own ones are "mode skOnly")
+  const cards = (play.match(/class="mode(?: [^"]*)?"/g) ?? []).length;
   check("and there are no cards on the page the table does not know about", cards === LOBBY_MODES.length, `${cards} cards, ${LOBBY_MODES.length} modes`);
   const groups = Array.from(play.matchAll(/data-group="([a-z]+)"/g)).map((m) => m[1]);
   check("every option a mode obeys has a group of controls on the page", SETUP_GROUPS.every((g) => groups.includes(g)), SETUP_GROUPS.join(", "));

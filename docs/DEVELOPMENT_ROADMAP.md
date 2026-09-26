@@ -3639,3 +3639,20 @@ Of plan section 12's items, 1, 2, 3, 4, 7, 8, 12, 13 and 14 are now done. 9 and 
 only: its hacks sit on their own buttons and keys (Milestone 192), while the legacy kit's card can still pick
 two of six on a pad and its ultimate still shares Z with the zoom. Still open: 5 (a reviver is credited before
 the revive is confirmed) and 6 (the legacy game's box-respawn lockouts counted separately on each browser).
+
+## Milestone 204 — The movement lab ✅
+
+Plan section 7.13, practice is core. `src/game/arenas/movelab.ts`, a TRAINING card in SpeedKills.
+
+- **Three stations** in a walled night yard:
+  - blocks of 2, 4 and 8 m to climb (a mantle, a storey, two storeys with a double jump first);
+  - a 30 m wall to wall-run along either side, neon at a run's height;
+  - decks a storey up with a 4 m and a 6 m gap between them, and a stair to the first.
+- **Built by the arena builder** in the city's look, only in SpeedKills. It is no match's map, so it is not held
+  to the arenas' bot-route rules (its floors are exactly the ones a bot cannot reach), but the arena check still
+  holds it clear of every other place in the world.
+- **Checked:** the e2e opens it from TRAINING and climbs the storey block to its top for real; snapshot
+  `sk-lab`. The lobby check counted mode cards by an exact class and now allows a card with more classes.
+- **Found on the way:** the range's first-lock hint ("THE RUN: the two movement courses are through the lit
+  gates behind you") came up wherever you were first in play, the arenas and the lab included. It waits for the
+  range's spawn now.

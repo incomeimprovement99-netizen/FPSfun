@@ -4819,6 +4819,19 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   const amb = await ev<{ on: boolean; missing: boolean }>(arena, "({ ...window.__range.audio.ambienceState })");
   check("speedkills: the city's ambience plays under a match, and its file is there", amb.on && !amb.missing, JSON.stringify(amb));
   await arena.close();
+  // the movement lab, from TRAINING: in its bounds, and its storey block climbed for real (arenas/movelab.ts:
+  // the lab at x 74..122, z -121..-79; the 4 m block's south face at x 83, z -112)
+  const lab = await open(browser, "?game=speedkills");
+  await ev(lab, `(() => { document.getElementById("goLab").click(); document.getElementById("startMode").click(); })()`);
+  await sleep(800);
+  const inLab = await ev<{ x: number; z: number }>(lab, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+  check("speedkills: the movement lab opens from TRAINING", inLab.x > 74 && inLab.x < 122 && inLab.z > -121 && inLab.z < -79, JSON.stringify(inLab));
+  await ev(lab, "window.__range.player.teleport(83, 0, -111.2, 0)");
+  await ev(lab, `(() => { const t0 = performance.now(); window.__range.setScript({ held: (a) => a === "forward" || (a === "jump" && performance.now() - t0 < 120), pressedNow: (a) => a === "jump" && performance.now() - t0 < 30 }, null); })()`);
+  const topped = await lab.waitForFunction("window.__range.player.pos.y > 3.9", { polling: 50, timeout: 6000 }).then(() => true, () => false);
+  await ev(lab, "window.__range.setScript(null)");
+  check("speedkills: in the lab, the storey block is climbed to its top (4 m)", topped, JSON.stringify(await ev(lab, "({ y: window.__range.player.pos.y, z: window.__range.player.pos.z })")));
+  await lab.close();
   await speedkillsBrTest(browser);
   await speedkillsGhostTest(browser);
 }

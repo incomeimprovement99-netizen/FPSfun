@@ -65,6 +65,9 @@ import { submitScore } from "./game/leaderboard";
 import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link, type MatchOpts, type MatchRules, type NetMsg } from "./net/link";
 import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
 import { AimAssist } from "./game/aimassist";
+import { buildPlan } from "./game/arenas/build";
+import { boundsOf } from "./game/arenas/plan";
+import { MOVELAB } from "./game/arenas/movelab";
 import { skipHiddenSubtrees } from "./game/hiddenskip";
 import PAD_CFG from "./config/gamepad.json";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
@@ -5253,8 +5256,17 @@ function goTo(mode: Mode): void {
     player.setBounds(ARENA_BOUNDS);
     const sp = ARENA_SPAWNS.host;
     player.teleport(sp.x, 0, sp.z, sp.yaw);
+  } else if (mode === "lab") {
+    // SpeedKills' movement lab (arenas/movelab.ts), built with the page
+    player.setBounds(boundsOf(MOVELAB));
+    const sp = MOVELAB.spawns[0];
+    player.teleport(MOVELAB.x + sp.x, 0, MOVELAB.z + sp.z, sp.yaw);
   }
 }
+
+// SpeedKills' movement lab: built once, in SpeedKills only (the legacy game has its courses);
+// its capture ring, which every plan draws, drawn too small to see
+if (IS_SK) buildPlan(scene, MOVELAB, 0.2);
 
 const menu = new Menu(loadouts, profile, {
   // the finish pickers follow the slots (hoisted: it runs once the pickers exist)
@@ -5553,7 +5565,8 @@ input.onLockChange = (locked) => {
     menu.renderStats();
     account.sync();
   }
-  if (locked && !courseHinted) {
+  // (only standing at the range's spawn, where the gates are behind you: it came up in the arenas and the lab too)
+  if (locked && !courseHinted && !duel && Math.hypot(player.pos.x, player.pos.z) < 20) {
     courseHinted = true;
     hud.notice("THE RUN: the two movement courses are through the lit gates behind you", gameTime, 5);
   }
