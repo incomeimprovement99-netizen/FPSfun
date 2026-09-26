@@ -3344,3 +3344,59 @@ Stage F. `src/game/hacks.ts`, `src/config/hacks.json`.
 - **Checked:** `tools/checks/hacks.ts` (the rules and Hyper Scape's tables), the e2e's `speedkills` section
   (each hack does what its card says in a real page), and the HUD's two squares in the snapshot `sk-hud`.
 
+## Milestone 188 — The neon city ✅
+
+Stage H. `src/game/city.ts`, `src/config/city.json`. The owner: the battle royale is full of buildings,
+neo-futuristic and dark, from free assets.
+
+- **A 500 m city at night** in the square Outskirts stands in: nine sectors, the centre THE SPIRE the
+  biggest (200 m) with an 18-storey megatower on a plaza, eight districts round it each lit in its own neon
+  (Neon Row, Harbor Glass, The Stacks, Old Town, The Circuit, The Gardens, The Yards, Skyhaven).
+- **49 blocks** between 14 m streets: towers of 8 to 16 storeys in the core, mid-rises, low blocks at the
+  edge, every one 4 m storeys with stairs, windows you can vault and a roof you can reach; plazas with cover.
+- **Ways over:** skybridges between core towers at floors 3 and 6, ziplines between the tallest roofs,
+  launch pads at the crossings, jump towers in the plazas.
+- **The look, all CC0 or ours:** ambientCG's six night facades, whose emission maps light their windows;
+  dark glass, brick, asphalt, black metal and dark concrete; neon up every tower's corners, round its roof and
+  along every kerb; holo signs in our own brands (USSO LABS, PANDA BANK, BIGANTLER, B00G CORP and more); red
+  lights on the tallest roofs; a skyline past the edge. The sky is always night.
+- **The collision grid** (`src/game/solidgrid.ts`): an 8 m grid over the world's boxes, rebuilt when the list
+  changes, with doors and huge boxes on a list every query reads. The player, projectiles, bots and
+  throwables go through it; `tools/checks/solidgrid.ts` holds it to the brute force on the real map (none
+  missed in 4,500 queries, 97% of the list skipped), proven by breaking it (3,291 misses).
+- **Found on the way:** the building shell dressed every tower in the legacy kit's brick columns (the first
+  pictures showed them on every corner); it takes a `dress` option now.
+- **Checked** by the e2e (a match starts, nine sectors, 27 bots, loot on the floors, bots moving) and the
+  snapshots `sk-city-air`, `sk-city-street`, `sk-city-roof`.
+
+## Milestone 189 — Guns and hack cores on the floor ✅
+
+Stage G. SpeedKills' floor is guns and hack cores only (speedkills.json `loot`). A gun is found at fusion level
+0 or higher (its colour on the floor is its level); a copy fuses the gun you carry, a higher-level copy takes it
+to its level; a hack core fuses or swaps. The Spire is always the hot zone, twice the spots and the best odds,
+and every other bot squad drops there. Bots fuse their own guns. The wire's item check takes hack cores and
+fusion levels, and no longer drops backpacks and knockdown shields (a bug the recon found). Checked in a real
+match: 953 items, 204 of them in the Spire, 151 guns already fused, fusion 0 to 1 to 4 by pickup, 15 of 27 bots
+on the Spire.
+
+## Milestone 190 — The city decays, and a capture zone ends it ✅
+
+Stage J. `src/game/decay.ts`, `src/config/decay.json`.
+
+- **Hyper Scape's shape as it was left:** sectors phased out from the edges toward a final one. A seeded plan
+  picks the final sector (the Spire half the time) and takes the other eight in four waves of two, furthest
+  first. Each wave is a round of the ring, so every guest already has its clock.
+- **The warning:** the sector pulses magenta; the HUD says which and when; the announcer speaks.
+- **The decay:** a shader on every city material dissolves the sector from the ground up with a glowing
+  line, the ground left corrupted red; its boxes leave the collision list as the line passes, so upper floors
+  hang a moment and a player high in a tower has longer to get out. The city is whole again after a match.
+- **Damage** in a decaying or gone sector, for players and bots; bots run for the final sector once theirs is
+  warned.
+- **The endgame:** after the fourth wave a 14 m capture zone opens in the final sector. A squad alone in it
+  fills its meter, two at once neither, and 45 s wins outright (Hyper Scape's crown time, in Ubisoft's words).
+- **The owner's match length:** a 6 s dropship, four 70 s waves and the capture make 6 to 7 minutes.
+- **The dropship** now starts about 156 m off the city and flies 6 s before its doors open, so the city loads
+  behind it (the owner's rule, held by `tools/checks/games.ts`).
+- **Checked in a real match** by the e2e: the plan, the first wave decaying with 544 boxes held out, damage in
+  it, eight sectors gone and the zone open, and 45 s alone winning. Snapshot `sk-decay`.
+
