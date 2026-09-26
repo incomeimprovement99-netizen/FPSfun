@@ -202,6 +202,15 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "sk-concourse",
+    note: "SpeedKills' centre from over a corner of it: the podiums at one height, the lit bridges across the streets between them and the Spire's, the public stairs up",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -250, maxX: 250, minZ: 250, maxZ: 750 }); r.player.teleport(62, 34, 562, 45, -28); })()`, 0],
+      [gameSeconds(1.5), 600],
+    ],
+  },
+  {
     name: "sk-landmarks-n",
     note: "SpeedKills' landmarks to the north from high on the Spire: NEON ROW's holo tower ahead, THE GARDENS' terraces to its left, THE CIRCUIT's bowl to its right",
     query: "?game=speedkills",

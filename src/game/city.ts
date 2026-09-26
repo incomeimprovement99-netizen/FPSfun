@@ -74,6 +74,12 @@ export const STREETS: readonly number[] = BLOCKS.slice(0, -1).map((b, i) => (b[1
 
 /** each low tower's way up as graph nodes, door to roof, and the street node it hangs off (-1: none in reach); the checks walk them */
 export const ROOF_ROUTES: Array<{ street: number; nodes: number[]; storeys: number }> = [];
+/**
+ * The centre's concourse (world metres), for the checks that walk it: each
+ * podium's public stair as a walk from the pavement to its top step and onto
+ * the podium, and each bridge as a walk from one podium to the next.
+ */
+export const CONCOURSE: { stairs: Array<{ legs: Array<{ x: number; z: number }>; top: number }>; bridges: Array<{ a: { x: number; z: number }; b: { x: number; z: number }; y: number }> } = { stairs: [], bridges: [] };
 
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
@@ -157,6 +163,12 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   const storeyH = C.storey;
   /** the jump pads on the podiums and the terraces (city.json downtown padUp), and the road's */
   const pads: BrMap["pads"] = [];
+  /** the core's podiums by block ("i,j"), their tops: the concourse's bridges join them */
+  const podia = new Map<string, { x0: number; x1: number; z0: number; z1: number; top: number }>();
+  CONCOURSE.stairs.length = 0;
+  /** the public stairs' footprints (local): a bridge landing across one blocked it (the concourse check found it) */
+  const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
+  CONCOURSE.bridges.length = 0;
   /** map-local to world (the graph's P, which is made further down) */
   const W = (x: number, z: number) => ({ x: x + BR_X, z: z + BR_Z });
   /**
@@ -201,7 +213,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       const centre = bi === 3 && bj === 3;
       // the heart: THE SPIRE, in tiers (city.json spire)
       if (centre) {
-        spireBlock(x0, x1, z0, z1, sec);
+        spireBlock(x0, x1, z0, z1, sec, `${bi},${bj}`);
         return;
       }
       // a district's landmark on its block (city.json landmarks)
@@ -212,7 +224,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       }
       // the downtown, from the centre out (city.json downtown), and the mid-rise blocks round it (perimeter)
       if (ring <= C.downtown.rings) {
-        downtownBlock(x0, x1, z0, z1, sec, ring);
+        downtownBlock(x0, x1, z0, z1, sec, ring, `${bi},${bj}`);
         return;
       }
       if (ring === C.perimeter.ring) {
@@ -312,8 +324,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
    * by canyons a double jump clears. A jump pad on the plaza throws you onto
    * the podium; one on the podium's terrace throws you up to a tower's roof.
    */
-  function downtownBlock(x0: number, x1: number, z0: number, z1: number, sec: Sector, ring: number): void {
+  function downtownBlock(x0: number, x1: number, z0: number, z1: number, sec: Sector, ring: number, key: string): void {
     const D = C.downtown;
+    const K = C.concourse;
     const m = D.margin;
     let px0 = x0 + m;
     let px1 = x1 - m;
@@ -343,6 +356,47 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     deco(px1 - px0 + 0.1, 0.12, 0.12, pcx, podTop - 0.3, pz1, k);
     deco(0.12, 0.12, pz1 - pz0 + 0.1, px0, podTop - 0.3, pcz, k);
     deco(0.12, 0.12, pz1 - pz0 + 0.1, px1, podTop - 0.3, pcz, k);
+    podia.set(key, { x0: px0, x1: px1, z0: pz0, z1: pz1, top: podTop });
+    // the public stair up onto it, along its face on the plaza side from one end: the way up with no pad
+    const run = Math.ceil((podTop - PAVE_H) / K.stairRise);
+    const rise = (podTop - PAVE_H) / run;
+    for (let i = 0; i < run; i++) {
+      const h = (i + 1) * rise;
+      const a = (i + 0.5) * K.stairRun + 1;
+      if (side === 0) slab(K.stairRun, h, K.stairWidth, px0 + a, PAVE_H, pz0 - K.stairWidth / 2, concrete);
+      else if (side === 1) slab(K.stairRun, h, K.stairWidth, px0 + a, PAVE_H, pz1 + K.stairWidth / 2, concrete);
+      else if (side === 2) slab(K.stairWidth, h, K.stairRun, px0 - K.stairWidth / 2, PAVE_H, pz0 + a, concrete);
+      else slab(K.stairWidth, h, K.stairRun, px1 + K.stairWidth / 2, PAVE_H, pz0 + a, concrete);
+    }
+    // the walk up it, for the checks: from the pavement before its first step, along to its top one, onto the podium
+    const sw = K.stairWidth / 2;
+    const foot = 0.3;
+    const last = (run - 0.5) * K.stairRun + 1;
+    const walkUp =
+      side === 0
+        ? [W(px0 + foot, pz0 - sw), W(px0 + last, pz0 - sw), W(px0 + last, pz0 + 2)]
+        : side === 1
+          ? [W(px0 + foot, pz1 + sw), W(px0 + last, pz1 + sw), W(px0 + last, pz1 - 2)]
+          : side === 2
+            ? [W(px0 - sw, pz0 + foot), W(px0 - sw, pz0 + last), W(px0 + 2, pz0 + last)]
+            : [W(px1 + sw, pz0 + foot), W(px1 + sw, pz0 + last), W(px1 - 2, pz0 + last)];
+    CONCOURSE.stairs.push({ legs: walkUp, top: podTop });
+    // its edge lit, to read from the street as the way up
+    const len = run * K.stairRun;
+    const sw2 = K.stairWidth;
+    stairZones.push(
+      side === 0
+        ? { x0: px0 + 1, x1: px0 + 1 + len, z0: pz0 - sw2, z1: pz0 }
+        : side === 1
+          ? { x0: px0 + 1, x1: px0 + 1 + len, z0: pz1, z1: pz1 + sw2 }
+          : side === 2
+            ? { x0: px0 - sw2, x1: px0, z0: pz0 + 1, z1: pz0 + 1 + len }
+            : { x0: px1, x1: px1 + sw2, z0: pz0 + 1, z1: pz0 + 1 + len },
+    );
+    if (side === 0) deco(len, 0.08, 0.08, px0 + 1 + len / 2, PAVE_H + 0.3, pz0 - K.stairWidth, k);
+    else if (side === 1) deco(len, 0.08, 0.08, px0 + 1 + len / 2, PAVE_H + 0.3, pz1 + K.stairWidth, k);
+    else if (side === 2) deco(0.08, 0.08, len, px0 - K.stairWidth, PAVE_H + 0.3, pz0 + 1 + len / 2, k);
+    else deco(0.08, 0.08, len, px1 + K.stairWidth, PAVE_H + 0.3, pz0 + 1 + len / 2, k);
     // the plaza's pad, in front of the podium, throwing you up onto it
     if (side === 0) padOnto(pcx, pz0, 0, -1, PAVE_H, podTop);
     else if (side === 1) padOnto(pcx, pz1, 0, 1, PAVE_H, podTop);
@@ -363,13 +417,17 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     let lowest: Tower | null = null;
     cells.forEach(([a0, a1, b0, b1], i) => {
       if (i === open) return;
-      // a ledge round each tower on the podium's edge, a body wide
-      const w = a1 - a0 - 1.6;
-      const d = b1 - b0 - 1.6;
+      // a ledge a body wide along the canyons, and the promenade along the podium's edge, the walk to its bridges
+      const ia0 = a0 === px0 ? K.promenade : 0.8;
+      const ia1 = a1 === px1 ? K.promenade : 0.8;
+      const ib0 = b0 === pz0 ? K.promenade : 0.8;
+      const ib1 = b1 === pz1 ? K.promenade : 0.8;
+      const w = a1 - a0 - ia0 - ia1;
+      const d = b1 - b0 - ib0 - ib1;
       if (w < 6 || d < 6) return;
       const storeys = Math.round(lo + rnd() * (hi - lo));
       const mat = rnd() < 0.3 ? glass : night[Math.floor(rnd() * night.length)];
-      const t = mass((a0 + a1) / 2, (b0 + b1) / 2, w, d, podTop, storeys, mat, sec.accent, sec.id);
+      const t = mass((a0 + ia0 + a1 - ia1) / 2, (b0 + ib0 + b1 - ib1) / 2, w, d, podTop, storeys, mat, sec.accent, sec.id);
       if (!lowest || t.roof < lowest.roof) lowest = t;
     });
     // the terrace's pad, in the open cell, up to the lowest tower's roof
@@ -668,7 +726,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   }
 
   /** THE SPIRE (city.json spire): a podium over its block, tiers stepping in above it, a pad up each, a mast on top */
-  function spireBlock(x0: number, x1: number, z0: number, z1: number, sec: Sector): void {
+  function spireBlock(x0: number, x1: number, z0: number, z1: number, sec: Sector, key: string): void {
     const S = C.spire;
     const cx = (x0 + x1) / 2;
     const cz = (z0 + z1) / 2;
@@ -680,6 +738,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     slab(w, S.podium * storeyH - 0.12, d, cx, base, cz, glass);
     slab(w, 0.12, d, cx, base + S.podium * storeyH - 0.12, cz, concrete);
     base += S.podium * storeyH;
+    podia.set(key, { x0: cx - w / 2, x1: cx + w / 2, z0: cz - d / 2, z1: cz + d / 2, top: base });
     deco(w + 0.1, 0.14, 0.14, cx, base - 0.3, cz - d / 2, k);
     deco(w + 0.1, 0.14, 0.14, cx, base - 0.3, cz + d / 2, k);
     deco(0.14, 0.14, d + 0.1, cx - w / 2, base - 0.3, cz, k);
@@ -768,6 +827,57 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       deco(o.w + 0.1, 0.1, 0.1, o.x, y, o.z + o.d / 2 + 0.05, k);
     }
     return { x: o.x, z: o.z, w: o.w, d: o.d, roof, storeys: o.storeys, sector: o.sector.id, route: street ? route : [], street };
+  }
+
+  // ---------------------------------------------------------------- the concourse
+  // Bridges across every street between the core's podiums (and the Spire's), all at one height: the centre
+  // one raised district over its streets, as Red Tiger was. Each crosses where both podiums face each other,
+  // a third of the way along, or elsewhere where a jump pad's throw would hit it or it would land on a stair.
+  {
+    const K = C.concourse;
+    const underPad = (xa: number, xb: number, za: number, zb: number): boolean =>
+      pads.some((p) => p.x - BR_X > xa - 2.5 && p.x - BR_X < xb + 2.5 && p.z - BR_Z > za - 2.5 && p.z - BR_Z < zb + 2.5) ||
+      stairZones.some((s) => s.x1 > xa - 1 && s.x0 < xb + 1 && s.z1 > za - 1 && s.z0 < zb + 1);
+    for (const [key, a] of podia) {
+      const [i, j] = key.split(",").map(Number);
+      for (const [di, dj] of [
+        [1, 0],
+        [0, 1],
+      ] as const) {
+        const b = podia.get(`${i + di},${j + dj}`);
+        if (!b || Math.abs(a.top - b.top) > 0.05) continue;
+        const alongX = di === 1;
+        const lo = alongX ? Math.max(a.z0, b.z0) + K.bridge : Math.max(a.x0, b.x0) + K.bridge;
+        const hi = alongX ? Math.min(a.z1, b.z1) - K.bridge : Math.min(a.x1, b.x1) - K.bridge;
+        if (hi <= lo) continue;
+        const from = alongX ? a.x1 : a.z1;
+        const to = alongX ? b.x0 : b.z0;
+        const at = [1 / 3, 2 / 3, 1 / 2, 1 / 6, 5 / 6].map((t) => lo + (hi - lo) * t).find((c) =>
+          alongX ? !underPad(from, to, c - K.bridge / 2, c + K.bridge / 2) : !underPad(c - K.bridge / 2, c + K.bridge / 2, from, to),
+        );
+        if (at === undefined) continue;
+        const L = to - from;
+        const mid = (from + to) / 2;
+        const y = a.top;
+        const k = neon(0xffd070);
+        if (alongX) {
+          slab(L, 0.4, K.bridge, mid, y - 0.4, at, metal);
+          for (const s of [-1, 1]) {
+            slab(L, 1.0, 0.1, mid, y, at + (s * K.bridge) / 2, trimDark);
+            deco(L, 0.06, 0.06, mid, y + 1.02, at + (s * K.bridge) / 2, k);
+            deco(L, 0.06, 0.06, mid, y - 0.45, at + (s * K.bridge) / 2, k);
+          }
+        } else {
+          slab(K.bridge, 0.4, L, at, y - 0.4, mid, metal);
+          for (const s of [-1, 1]) {
+            slab(0.1, 1.0, L, at + (s * K.bridge) / 2, y, mid, trimDark);
+            deco(0.06, 0.06, L, at + (s * K.bridge) / 2, y + 1.02, mid, k);
+            deco(0.06, 0.06, L, at + (s * K.bridge) / 2, y - 0.45, mid, k);
+          }
+        }
+        CONCOURSE.bridges.push(alongX ? { a: W(from - 1.5, at), b: W(to + 1.5, at), y } : { a: W(at, from - 1.5), b: W(at, to + 1.5), y });
+      }
+    }
   }
 
   // ---------------------------------------------------------------- skybridges

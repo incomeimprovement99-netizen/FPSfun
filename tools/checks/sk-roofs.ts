@@ -22,7 +22,7 @@ if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS:
 const warn = console.warn;
 console.warn = () => undefined;
 const { IS_SK } = await import("../../src/game/game");
-const { buildCityMap, ROOF_ROUTES } = await import("../../src/game/city");
+const { buildCityMap, ROOF_ROUTES, CONCOURSE } = await import("../../src/game/city");
 const { botWalk } = await import("../../src/game/botbody");
 const cityCfg = (await import("../../src/config/city.json")).default;
 const map = buildCityMap(new THREE.Scene());
@@ -78,6 +78,31 @@ for (const line of stuck) {
 }
 if (stuck.length) console.log(`  (stuck legs by kind: ${[...kinds].map(([k, n]) => `${k} ${n}`).join(", ")})`);
 check("a bot walks every low tower's route from the street to its roof", stuck.length === 0 && walked > 0, stuck.length ? stuck.slice(0, 4).join("; ") : `${walked} routes, street to roof`);
+
+// The centre's concourse (Phase 19 step 5): every core podium climbed by its public stair from the pavement,
+// with a bot's rules, and every bridge crossed from one podium to the next. Without a pad or a gun.
+{
+  const up: string[] = [];
+  for (const [n, s] of CONCOURSE.stairs.entries()) {
+    let y = cityCfg.kerb;
+    for (let k = 1; k < s.legs.length; k++) {
+      const w = walk(s.legs[k - 1].x, s.legs[k - 1].z, y, s.legs[k].x, s.legs[k].z);
+      y = w.y;
+      if (!w.ok) {
+        up.push(`stair ${n}, leg ${k}: blocked at ${w.at}`);
+        break;
+      }
+    }
+    if (Math.abs(y - s.top) > 0.3 && !up.some((u) => u.startsWith(`stair ${n},`))) up.push(`stair ${n}: ended at ${y.toFixed(2)} m for a podium at ${s.top.toFixed(2)}`);
+  }
+  check("every core podium is climbed by its public stair from the pavement, no pad", CONCOURSE.stairs.length >= 8 && up.length === 0, up.length ? up.slice(0, 3).join("; ") : `${CONCOURSE.stairs.length} stairs`);
+  const cross: string[] = [];
+  for (const [n, b] of CONCOURSE.bridges.entries()) {
+    const w = walk(b.a.x, b.a.z, b.y, b.b.x, b.b.z);
+    if (!w.ok || Math.abs(w.y - b.y) > 0.3) cross.push(`bridge ${n}: ${w.ok ? `arrived at ${w.y.toFixed(2)}` : `blocked at ${w.at}`}`);
+  }
+  check("and every bridge of the concourse crossed, podium to podium, at the one height", CONCOURSE.bridges.length >= 8 && cross.length === 0, cross.length ? cross.slice(0, 3).join("; ") : `${CONCOURSE.bridges.length} bridges`);
+}
 
 console.log(fails === 0 ? "\nSK ROOFS PASS" : `\nSK ROOFS FAIL (${fails})`);
 export const skRoofsFails = fails;

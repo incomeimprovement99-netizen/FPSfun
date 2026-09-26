@@ -190,7 +190,7 @@
     "margin": 2.5,
     "plazaStrip": 7,
     "podium": [
-      1,
+      2,
       2
     ],
     "canyon": [
@@ -311,5 +311,13 @@
         5
       ]
     }
+  },
+  "_concourse": "The centre as one district (city.ts, Phase 19 step 5), after Hyper Scape's Red Tiger, the dense heart at the middle of its map with its best loot: the core's podiums are all the Spire's podium height (downtown.podium), so bridges of bridge metres wide cross every street between them and the Spire's, one raised concourse over the streets. Round each podium's edge the towers stand promenade metres back, a walk to the bridges. Every podium has a public stair on its plaza side, steps no taller than stairRise (under the 0.56 m a body steps up) and stairRun deep, stairWidth wide, so its concourse is reached with no pad and no gun.",
+  "concourse": {
+    "bridge": 4,
+    "promenade": 3,
+    "stairRise": 0.5,
+    "stairRun": 0.9,
+    "stairWidth": 3
   }
 }

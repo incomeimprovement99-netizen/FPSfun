@@ -65,7 +65,7 @@ unavailable). The old steps 5 to 9 follow these as 7 to 11.
 5. **The centre as a district of its own (Red Tiger).** The Spire's block and the eight round it made one big,
    dense complex: a lower concourse you walk inside, mezzanines and bridges between the towers, stairs as well
    as pads between its levels, the most loot and the most detail on the map, and the capture zone's fight in
-   it.
+   it. *The concourse is done (Milestone 213). Still to do: the loot restocking at the centre, as Red Tiger's did.*
 6. **Streets of buildings you climb by their stairs.** The mid-rise blocks entered from the street: a door, a
    stair up through every floor to the roof, loot on the floors and landings, so the way up needs no pad and
    no gun. The pads stay as the fast way. *Done 2026-09-26 (Milestone 212), before step 5 while its research

@@ -3813,3 +3813,22 @@ while you don't have loot").
   spread onto the interior floors: 102 items over 12 m.
 - **Researched:** Red Tiger and the free asset kits (docs/PHASE_19_PLAN_DOWNTOWN.md). Nothing ahead needs
   bought assets.
+
+## Milestone 213 — The centre as one district: the concourse ✅
+
+Phase 19, step 5, first half (the owner's ask: the centre the most detailed place on the map, and big, as
+Hyper Scape's Red Tiger was).
+
+- **One raised district over the streets.** The core's nine podiums are all the Spire's height now, and lit
+  bridges cross every street between them: 12 bridges, 4 m wide, railed, with a gold line along each (city.json
+  `concourse`).
+  - Each bridge crosses a third of the way along where two podiums face each other. It moves along if a jump
+    pad's throw would hit it or if it would land on a stair.
+  - The towers stand 3 m back from each podium's edge, a promenade round it that leads to the bridges.
+- **A public stair up every core podium,** on its plaza side, with steps of 0.5 m or less. The centre is
+  reached with no pad and no gun; the pads stay as the fast way up.
+- **Checked by walking it.** The roofs' check walks every stair from the pavement with a bot's rules, and
+  crosses every bridge from podium to podium. It failed first on a real fault, a bridge landing across the top
+  of a stair, and the bridges now keep clear of the stairs.
+- **Also checked:** verify, the city's budget (204k triangles, 322 merged meshes), the SpeedKills e2e (60 ok),
+  and a new snapshot `sk-concourse`.
