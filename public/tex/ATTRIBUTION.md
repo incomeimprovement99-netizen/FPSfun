@@ -25,6 +25,18 @@ Re-fetch with `npm run assets`. The image files are gitignored;
 | `roof/` | ambientCG RoofingTiles003 (CC0) | roofs that read as roofs from above |
 | `planks/` | ambientCG WoodFloor051 (CC0) | interior floors and crate stacks |
 | `steel/` | ambientCG Metal046B (CC0) | containers, masts and zipline posts |
+| `skNight1/` | ambientCG Facade002 (CC0) | SpeedKills: a night tower, lit windows |
+| `skNight2/` | ambientCG Facade007 (CC0) | SpeedKills: a night tower, lit windows |
+| `skNight3/` | ambientCG Facade009 (CC0) | SpeedKills: a night tower, lit windows |
+| `skNight4/` | ambientCG Facade011 (CC0) | SpeedKills: a night tower, lit windows |
+| `skNight5/` | ambientCG Facade014 (CC0) | SpeedKills: a dark grid tower, a few windows lit |
+| `skNight6/` | ambientCG Facade017 (CC0) | SpeedKills: a night block, warm lit windows |
+| `skGlass/` | ambientCG Facade001 (CC0) | SpeedKills: dark curtain glass |
+| `skBrick/` | ambientCG Facade020A (CC0) | SpeedKills: the old town's brick |
+| `skStreet/` | ambientCG Road012A (CC0) | SpeedKills: the streets, dark asphalt |
+| `skPave/` | ambientCG Asphalt026C (CC0) | SpeedKills: pavements and plazas |
+| `skMetal/` | ambientCG Metal029 (CC0) | SpeedKills: black metal trim, walkways and rails |
+| `skConcrete/` | ambientCG Concrete033 (CC0) | SpeedKills: floors, interiors and roofs |
 | `sky.hdr` | Poly Haven kloofendal_48d_partly_cloudy_puresky (CC0) | sky, reflections and ambient light |
 | `sky-noon.hdr` | Poly Haven kloofendal_43d_clear_puresky (CC0) | hard noon, short shadows |
 | `sky-morning.hdr` | Poly Haven qwantani_mid_morning_puresky (CC0) | mid morning, long soft shadows |
@@ -35,30 +47,3 @@ Re-fetch with `npm run assets`. The image files are gitignored;
 
 Poly Haven assets are also CC0 1.0. The level geometry is generated in code; the
 props are Poly Haven's (npm run models), the mannequin Quaternius's (CC0), and the recorded sounds Kenney's (CC0, public/audio/ATTRIBUTION.md) layered over the synthesis.
-
-## Models
-
-All from Poly Haven, **Creative Commons CC0 1.0 Universal**: commercial use
-permitted, attribution NOT required, redistribution permitted.
-
-| Folder | Source asset | Used for |
-|---|---|---|
-| `wooden_military_crate/` | Poly Haven wooden_military_crate (CC0) | stacked crates |
-| `Barrel_01/` | Poly Haven Barrel_01 (CC0) | drums |
-| `concrete_road_barrier/` | Poly Haven concrete_road_barrier (CC0) | lane barriers |
-| `plastic_crate_03/` | Poly Haven plastic_crate_03 (CC0) | small clutter |
-| `security_light/` | Poly Haven security_light (CC0) | floodlights on the walls |
-| `utility_box_01/` | Poly Haven utility_box_01 (CC0) | wall clutter |
-| `ammo_box/` | Poly Haven ammo_box (CC0) | beside the racks |
-| `steel_frame_shelves_01/` | Poly Haven steel_frame_shelves_01 (CC0) | rack shelving |
-| `portable_generator/` | Poly Haven portable_generator (CC0) | yard clutter |
-| `modular_chainlink_fence/` | Poly Haven modular_chainlink_fence (CC0) | perimeter |
-| `namaqualand_boulder_04/` | Poly Haven namaqualand_boulder_04 (CC0) | field cover, waist high |
-| `namaqualand_boulder_06/` | Poly Haven namaqualand_boulder_06 (CC0) | field cover, chest high |
-| `namaqualand_boulders_01/` | Poly Haven namaqualand_boulders_01 (CC0) | a cluster, for the bigger stops |
-| `namaqualand_rocks_01/` | Poly Haven namaqualand_rocks_01 (CC0) | scatter, ankle high, no collision |
-| `rock_face_02/` | Poly Haven rock_face_02 (CC0) | against the ridge and the mesas |
-| `sand_rocks_small_01/` | Poly Haven sand_rocks_small_01 (CC0) | roadside scatter |
-| `dead_quiver_trunk/` | Poly Haven dead_quiver_trunk (CC0) | dead tree, a silhouette in the open |
-| `dead_quiver_branch_02/` | Poly Haven dead_quiver_branch_02 (CC0) | scrub at the foot of the rocks |
-| `dry_branches_medium_01/` | Poly Haven dry_branches_medium_01 (CC0) | ground dressing near the places |
