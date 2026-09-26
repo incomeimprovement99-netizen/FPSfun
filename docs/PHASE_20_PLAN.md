@@ -132,6 +132,8 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
 - **Done when:** a picture test, like `npm run fit`, counts the arm's pixels inside each optic's window while
   aiming, and every one is 0.
 
+*Done (Milestone 223).*
+
 ### A4. The map's edge: visible, a 40 m grace with a countdown, then a red laser
 
 - **The owner:** the edge is vague in the game (clear only on the minimap). Allow about 40 m out with a timer
@@ -148,6 +150,8 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
   - All of it is set in config with a note (the grace distance, the seconds, the laser's look).
 - **Done when:** an e2e check walks out and sees the countdown, walks back and sees it cancelled, walks out and
   stays, and sees the death by OUT OF BOUNDS. Snapshots show the fence and the laser.
+
+*Done (Milestone 224).*
 
 ### A5. The dropship shows other maps: is everything rendered at once?
 

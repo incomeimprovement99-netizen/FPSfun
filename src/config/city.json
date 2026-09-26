@@ -147,14 +147,15 @@
   "ziplines": 4,
   "jumpTowers": 6,
   "beacons": 4,
-  "_skyline": "The city past the edge, never reached and never solid: count towers between from and to metres from the middle, the tallest tallest metres over 30. glyphs great holo shapes hang over it at glyphHeight metres and up to half as much again, in the districts' colours, so the city glows to the horizon at night (Hyper Scape's skyline had its holograms).",
+  "_skyline": "The city past the edge, never reached and never solid: count towers between from and to metres from the middle, the tallest tallest metres over 30. glyphs great holo shapes hang over it at glyphHeight metres and up to half as much again, in the districts' colours, so the city glows to the horizon at night (Hyper Scape's skyline had its holograms). clear is the metres every skyline tower keeps outside the edge's wall (Phase 20 A4: towers stood over the edge).",
   "skyline": {
     "count": 56,
     "from": 300,
     "to": 460,
     "tallest": 130,
     "glyphs": 12,
-    "glyphHeight": 90
+    "glyphHeight": 90,
+    "clear": 6
   },
   "_signs": "Holo signs on towers of minStoreys and more (two on the tallest), w by h metres, lit at signGlow, each a brand of ours, some of them the owner's friends'. beaconLights puts a red warning light on that many of the tallest roofs; cornerNeon is how thick the neon up a tower's corners is, metres.",
   "sign": {
@@ -371,5 +372,25 @@
       "#e8e4d8",
       "#3a3f48"
     ]
+  },
+  "_edge": "The city's edge (Phase 20 A4; src/game/edge.ts, city.ts, main.ts edgeFrame). margin: how far past the edge a body can go before a wall stops it, metres: the owner's about 40, held to 38 because the range's covered lane ends 39 to 40 m north of the city (its back wall at world z 210 to 211, measured off the range's solids in a match), which keeps a body a metre off it. countdown: the owner's 5 s outside before the laser; a step back in stops it and the next time out starts from 5 again. strike: seconds from the laser's hit to the death, the screen red meanwhile. gulag: an out-of-bounds first death goes to the Gulag as a ring death does. The laser stands laserSeconds on every screen, laserRadius metres at its core, from laserHeight up. fence: the lit fence on the four sides at the edge, height metres, a post every postGap m, opacity far and nearOpacity within nearAt m, its lines climbing scroll a second. Ours, by eye, except margin.",
+  "edge": {
+    "margin": 38,
+    "countdown": 5,
+    "strike": 1,
+    "gulag": true,
+    "laserSeconds": 2.5,
+    "laserRadius": 1.2,
+    "laserHeight": 260,
+    "laserColor": "#ff1a2e",
+    "fence": {
+      "height": 14,
+      "postGap": 20,
+      "color": "#ff2e4a",
+      "opacity": 0.16,
+      "nearOpacity": 0.45,
+      "nearAt": 12,
+      "scroll": 0.35
+    }
   }
 }

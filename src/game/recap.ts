@@ -11,6 +11,7 @@
 import { PHOENIX_NAME } from "../config/names";
 import cfg from "../config/killcam.json";
 import { weaponName } from "./weapons";
+import { causeName, EDGE_ID, RING_ID } from "./causes";
 
 export interface HitEntry {
   t: number;
@@ -52,6 +53,8 @@ export interface Recap {
   killerName: string;
   /** the ring, or no one we can name */
   byRing: boolean;
+  /** SpeedKills: past the city's edge too long (edge.ts) */
+  byEdge: boolean;
   rows: RecapRow[];
   /** everything you took, and dealt, this life */
   totalTaken: number;
@@ -133,8 +136,9 @@ export class DamageLog {
     const taken = this.hits.filter((h) => h.to === this.me);
     return {
       killerId,
-      killerName: killerId === -1 ? "THE RING" : nameOf(killerId),
-      byRing: killerId === -1,
+      killerName: causeName(killerId) ?? nameOf(killerId),
+      byRing: killerId === RING_ID,
+      byEdge: killerId === EDGE_ID,
       rows,
       totalTaken: sum(taken),
       totalDealt: sum(this.hits.filter((h) => h.from === this.me)),

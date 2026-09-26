@@ -630,6 +630,8 @@ export class Bot {
   dropTarget: { x: number; z: number } | null = null;
   /** which map it is on: how far it sees is the map's business (sightRange above) */
   sightMode: BotSightMode = "arena";
+  /** SpeedKills: the city a map bot keeps to (its edge a wall to it); null elsewhere */
+  fence: { minX: number; maxX: number; minZ: number; maxZ: number } | null = null;
   /**
    * The floor it loots off, or null for a bot that was handed its kit (every
    * arena mode). Setting it is the whole of the wiring: from its next frame
@@ -1240,6 +1242,9 @@ export class Bot {
 
   /** would the body overlap a wall at this spot */
   private blocked(x: number, z: number): boolean {
+    // SpeedKills: the city's edge is a wall to a bot (brmatch.ts sets it); a chase along it slides as along any wall
+    const f = this.fence;
+    if (f && (x < f.minX + MOVE.radius || x > f.maxX - MOVE.radius || z < f.minZ + MOVE.radius || z > f.maxZ - MOVE.radius)) return true;
     return botBlocked(x, z, this.pos.y);
   }
 

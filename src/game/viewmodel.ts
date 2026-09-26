@@ -27,6 +27,10 @@ import type { OperatorSkin } from "./operators";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
 import armCfg from "../config/viewmodel.json";
+import { IS_SK, PROFILE } from "./game";
+
+/** how much of a reload's pose is gone in the sights (speedkills.json viewmodel; the legacy game keeps all of it) */
+const RELOAD_ADS = PROFILE.viewmodel?.reloadAds ?? 0;
 
 /** a melee swing, seconds */
 export const MELEE_TIME = 0.38;
@@ -621,7 +625,9 @@ export class ViewModel {
 
     const ads = easeInOut(f.adsFrac);
     const reloadP = f.reloading ? f.reloadProgress : 0;
-    const reloadEnv = f.reloading ? smooth(0, 0.14, reloadP) * (1 - smooth(0.84, 1, reloadP)) : 0;
+    // In the sights the gun holds still for a reload, as it does for a strafe: rolled at full size, a 2x window
+    // swung onto the support hand still on the handguard (PANDA, ZEPHYR, NOVA; Phase 20 A3)
+    const reloadEnv = (f.reloading ? smooth(0, 0.14, reloadP) * (1 - smooth(0.84, 1, reloadP)) : 0) * (1 - ads * RELOAD_ADS);
 
     // ---- sprint blend; ADS and reloading both win over it
     const wantSprint = f.sprinting && f.adsFrac < 0.05 && !f.reloading ? 1 : 0;
@@ -856,6 +862,11 @@ export class ViewModel {
     return this.real.ready;
   }
 
+  /** the real arms drawn this frame at all (tools/e2e.ts: hidden behind a magnified scope, Phase 20 A3) */
+  get realArmsShown(): boolean {
+    return this.real.group.visible;
+  }
+
   /**
    * The real arms onto whichever gloves are out this frame: the gun's grip
    * and handguard, the zipline trolley, or the empty fists. The gloves are
@@ -873,6 +884,9 @@ export class ViewModel {
     }
     if (!ready) return;
     const gun = this.holder.visible;
+    // The arms are not under the holder: when a magnified scope hid the gun they stayed drawn where the last
+    // frame posed them, and the scope's narrower view blew the left arm up into its picture (HELIX, PULSAR)
+    this.real.group.visible = !IS_SK || gun || this.fists.visible || this.zipRig.visible;
     if (gun) this.real.pose("r", this.right, this.rightArm, "grip");
     else if (this.fists.visible) this.real.pose("r", this.fistR, this.fistArmR, "fist");
     if (this.zipRig.visible && !this.left.group.visible) this.real.pose("l", this.zipHand, this.zipArm, "grip");

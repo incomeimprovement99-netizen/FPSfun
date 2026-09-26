@@ -4063,3 +4063,40 @@ Phase 20, A2 (the owner saw "33.66666666666666" over a bot).
   - a HUD frame drawn with fractions in every field;
   - a finishing hit on a healed bot;
   - three 11.16 rounds reading 33 while keeping 33.48 underneath.
+
+## Milestone 223 — No arm in the sights ✅
+
+Phase 20, A3 (the owner: "the left arm is in the red dot and sight area"). Two faults were measured by the
+diagnosis at 1280x720:
+
+- **HELIX and PULSAR, the 3x scope.** Aimed past 0.9, the gun is hidden so the HUD's scope picture can take
+  over. The player's arms are not under the gun, so they stayed drawn, frozen, and the scope's narrow view blew
+  the left arm up into the picture: 23,800 to 29,200 pixels. Now the arms are hidden whenever nothing posed them.
+- **PANDA, ZEPHYR and NOVA, a reload in the sights.** At full size the reload rolled the gun, and the support
+  hand still on the handguard showed in the 2x window: 152 to 621 pixels. A reload while aiming now keeps 15% of
+  its roll (speedkills.json `viewmodel.reloadAds` 0.85), so the sight holds steady.
+- The four red-dot guns never showed the arm.
+- Both fixes are SpeedKills only.
+- **Checked:** a new e2e check: aimed through HELIX's scope the arms are hidden, and through USSO's red dot they
+  are drawn.
+
+## Milestone 224 — The city's edge: a fence, a countdown and a laser ✅
+
+Phase 20, A4 (the owner: the edge was vague in the game).
+
+- **A lit red fence on all four sides** of the city, with climbing lines, posts and a strip on the ground. It
+  brightens as you come within 12 m (city.json `edge.fence`).
+- **38 m of grace past the edge,** where a wall stops you. The owner said about 40; the range's back wall stands
+  39 m north of the city.
+- **The countdown.** Past the edge the HUD says RETURN TO THE CITY and counts down from 5, in game time, with a
+  red vignette. A step back in stops it.
+- **The laser.** At zero a red laser comes down on you and floods the screen red. You die OUT OF BOUNDS, in the
+  feed and the death recap, through a new cause id (`causes.ts`). Every screen in the match sees the laser.
+  - A non-player cause on another screen read "PLAYER 0"; it is named now.
+  - The death goes to the Gulag like a ring death (`edge.gulag`).
+  - Its box is left where you last stood in the city.
+- **The maps** shade the band red and line the edge.
+- **Bots** keep to the city: its edge is a wall to them.
+- **The skyline** stands out past the wall; its towers stood over the edge.
+- **Checked:** a new e2e test in a real match covers all of it: out and counting down, back in and stopped, the
+  wall 38 m out, then the death by OUT OF BOUNDS, in the recap and the feed, to the Gulag.

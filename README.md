@@ -55,6 +55,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   - Sectors decay in four waves of two toward a final one; standing in the
     decay hurts.
   - Then a 14 m capture zone opens: a squad alone in it for 45 s wins.
+  - A lit red fence marks the city's edge. Past it you have 5 s to come back before a laser comes down: OUT OF
+    BOUNDS.
   - A match runs 6 to 7 minutes.
 - **Movement for roofs:** double jump, wall run and kick, slide, and a climb
   that goes up a storey (two with a double jump first).

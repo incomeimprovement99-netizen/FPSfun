@@ -1044,8 +1044,12 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const r = C.skyline.from + rnd() * (C.skyline.to - C.skyline.from);
     const h = 30 + rnd() * C.skyline.tallest;
     const w = 18 + rnd() * 26;
-    deco(w, h, w, Math.cos(a) * r, 0, Math.sin(a) * r, skyMats[i % skyMats.length]);
-    if (rnd() < 0.5) deco(0.3, h, 0.3, Math.cos(a) * r - w / 2, 0, Math.sin(a) * r - w / 2, neon(SECTORS[i % SECTORS.length].accent));
+    // out past the edge's wall (Phase 20 A4: towers stood over the edge, and a player can now walk out to the
+    // wall), along the same ray, so every draw from the city's one random stream stays as it was
+    const k = Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a)));
+    const r2 = Math.max(r, (BR_HALF + C.edge.margin + C.skyline.clear + (w * Math.SQRT2) / 2) / k);
+    deco(w, h, w, Math.cos(a) * r2, 0, Math.sin(a) * r2, skyMats[i % skyMats.length]).name = "skyline";
+    if (rnd() < 0.5) deco(0.3, h, 0.3, Math.cos(a) * r2 - w / 2, 0, Math.sin(a) * r2 - w / 2, neon(SECTORS[i % SECTORS.length].accent));
   }
   // holo glyphs hanging over it in the districts' colours (city.json skyline.glyphs): the city glows to the horizon
   {
@@ -1139,6 +1143,70 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const k = neon(s.accent);
     deco(s.maxX - s.minX, 0.03, 0.3, (s.minX + s.maxX) / 2, 0.02, s.minZ + 0.15, k);
     deco(0.3, 0.03, s.maxZ - s.minZ, s.minX + 0.15, 0.02, (s.minZ + s.maxZ) / 2, k);
+  }
+
+  // ---------------------------------------------------------------- the edge's fence (city.json edge; Phase 20 A4)
+  // Lit lines climbing a red fence on all four sides, posts along it and a strip on the ground: the city's edge,
+  // plain in the world and not only on the minimap. Past it a countdown runs (edge.ts). Its materials opt out of
+  // the decay (userData.decay): the edge sectors dissolving would take the fence with them.
+  {
+    const F = C.edge.fence;
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 256;
+    const g = canvas.getContext("2d");
+    if (g) {
+      g.clearRect(0, 0, 256, 256);
+      g.fillStyle = "rgba(255,255,255,0.9)";
+      for (let y = 0; y < 256; y += 32) g.fillRect(0, y, 256, 3);
+      const foot = g.createLinearGradient(0, 256, 0, 180);
+      foot.addColorStop(0, "rgba(255,255,255,0.9)");
+      foot.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = foot;
+      g.fillRect(0, 180, 256, 76);
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set((BR_HALF * 2) / 8, F.height / 8);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(F.color), transparent: true, opacity: F.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, forceSinglePass: true });
+    mat.userData.decay = true;
+    for (const [x, z, turn] of [
+      [0, -BR_HALF, false],
+      [0, BR_HALF, false],
+      [-BR_HALF, 0, true],
+      [BR_HALF, 0, true],
+    ] as const) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(BR_HALF * 2, F.height), mat);
+      m.position.set(x, F.height / 2, z);
+      if (turn) m.rotation.y = Math.PI / 2;
+      m.name = "edgeFence";
+      m.userData.dynamic = true;
+      root.add(m);
+    }
+    const postMat = emissive(parseInt(F.color.slice(1), 16), C.neonGlow);
+    postMat.userData.decay = true;
+    const per = Math.round((BR_HALF * 2) / F.postGap);
+    const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.3, F.height, 0.3), postMat, per * 4);
+    const m4 = new THREE.Matrix4();
+    let n = 0;
+    for (let i = 0; i < per; i++) {
+      const t = -BR_HALF + i * F.postGap;
+      for (const [x, z] of [
+        [t, -BR_HALF],
+        [BR_HALF, t],
+        [-t, BR_HALF],
+        [-BR_HALF, -t],
+      ] as const) posts.setMatrixAt(n++, m4.makeTranslation(x, F.height / 2, z));
+    }
+    posts.name = "edgePosts";
+    root.add(posts);
+    for (const [w, d, x, z] of [
+      [BR_HALF * 2, 0.5, 0, -BR_HALF],
+      [BR_HALF * 2, 0.5, 0, BR_HALF],
+      [0.5, BR_HALF * 2, -BR_HALF, 0],
+      [0.5, BR_HALF * 2, BR_HALF, 0],
+    ] as const) deco(w, 0.04, d, x, 0.03, z, postMat);
+    FENCE = { mat, tex, base: F.opacity };
   }
 
   // ---------------------------------------------------------------- the ring's wall (the legacy ring's, until the decay replaces it)
@@ -1501,6 +1569,17 @@ const sectorContains = (s: Sector, x: number, z: number): boolean => x >= s.minX
  * whether it is warned), and the city's boxes by sector with the ones taken
  * out of the collision list so far.
  */
+/** the edge's fence (Phase 20 A4): its material and texture, which cityEdge brightens near you and scrolls */
+let FENCE: { mat: THREE.MeshBasicMaterial; tex: THREE.Texture; base: number } | null = null;
+
+/** the fence a frame on: its lines climb, and it brightens as you come within nearAt metres of it */
+export function cityEdge(now: number, near: number): void {
+  if (!FENCE) return;
+  const F = cityCfg.edge.fence;
+  FENCE.tex.offset.y = -((now * F.scroll) % 1);
+  FENCE.mat.opacity = F.opacity + (F.nearOpacity - F.opacity) * Math.max(0, 1 - near / F.nearAt);
+}
+
 const DECAY = {
   rect: SECTORS.map((s) => new THREE.Vector4(s.minX + BR_X, s.minZ + BR_Z, s.maxX + BR_X, s.maxZ + BR_Z)),
   level: { value: SECTORS.map(() => -1) },

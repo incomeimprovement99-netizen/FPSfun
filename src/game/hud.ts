@@ -260,6 +260,10 @@ export interface HudState {
   capture?: { x: number; z: number; r: number; held: number; hold: number; state: "empty" | "yours" | "theirs" | "contested" } | null;
   /** the line over the battle royale's clock, when the game has its own words for it (SpeedKills' decay) */
   zoneLabel?: string | null;
+  /** SpeedKills past the city's edge (Phase 20 A4): the seconds left, then how red the laser has made the screen */
+  edge?: { left: number | null; strike: number | null } | null;
+  /** the city and the wall round it, for the maps */
+  edgeZone?: { inner: { minX: number; maxX: number; minZ: number; maxZ: number }; outer: { minX: number; maxX: number; minZ: number; maxZ: number } } | null;
   /** the ability card: the two options with their keys; compact is the one-line form */
   /**
    * Where you are standing, in the words a squad uses (src/game/callouts.ts).
@@ -510,6 +514,8 @@ export class Hud {
     this.drawDrill(s, u);
     this.drawTrainer(s, u);
     this.drawSquad(now, s, u);
+    // over the rest of the HUD: past the edge nothing else matters
+    this.drawEdge(now, s, u);
     this.drawTour(camera, s, u);
   }
 
@@ -862,11 +868,11 @@ export class Hud {
     c.fillStyle = RED;
     c.fillRect(x0, y0, w, 4 * u);
     this.text("DEATH RECAP", x0 + 22 * u, y0 + 30 * u, 700, 14 * u, DIM);
-    this.text(r.byRing ? "ELIMINATED BY THE RING" : `ELIMINATED BY ${r.killerName}`, x0 + 22 * u, y0 + 62 * u, 700, 28 * u, r.byRing ? "#ff9a4a" : WHITE);
+    this.text(r.byEdge ? "TERMINATED: OUT OF BOUNDS" : r.byRing ? "ELIMINATED BY THE RING" : `ELIMINATED BY ${r.killerName}`, x0 + 22 * u, y0 + 62 * u, 700, 28 * u, r.byEdge ? "#ff3b4a" : r.byRing ? "#ff9a4a" : WHITE);
     // their card, over the recap's top right edge
-    if (!r.byRing && r.killerCard) this.drawCard(r.killerCard, r.killerName, x0 + w - 232 * u, y0 - 66 * u, 220 * u, 58 * u, u);
+    if (!r.byRing && !r.byEdge && r.killerCard) this.drawCard(r.killerCard, r.killerName, x0 + w - 232 * u, y0 - 66 * u, 220 * u, 58 * u, u);
     this.text(`YOU DEALT ${damageText(r.totalDealt)}  ·  TOOK ${damageText(r.totalTaken)}`, x0 + w - 22 * u, y0 + 62 * u, 700, 15 * u, DIM, "right");
-    if (!rows.length) this.text("Nobody hit you this life: it was the ring.", x0 + 22 * u, y0 + 110 * u, 600, 15 * u, DIM);
+    if (!rows.length) this.text(r.byEdge ? "You stayed past the city's edge: the laser came down." : "Nobody hit you this life: it was the ring.", x0 + 22 * u, y0 + 110 * u, 600, 15 * u, DIM);
     rows.forEach((row, i) => {
       const y = y0 + 88 * u + i * rowH;
       c.fillStyle = row.killer ? "rgba(255,75,62,0.1)" : "rgba(255,255,255,0.04)";
@@ -1730,6 +1736,37 @@ export class Hud {
   }
 
   /** the rings on a map: the live one orange, the next one white, and the one after dashed cyan when a Ring Console has shown it */
+  /**
+   * Past SpeedKills' edge (Phase 20 A4): a red vignette and the countdown in
+   * the middle of the screen, then, once the laser hits, the whole screen red
+   * (kept under full, so the laser's own column shows through).
+   */
+  private drawEdge(now: number, s: HudState, u: number): void {
+    const e = s.edge;
+    if (!e) return;
+    const c = this.ctx;
+    const cx = this.w / 2;
+    if (e.strike !== null) {
+      c.fillStyle = `rgba(255, 24, 48, ${0.3 + 0.45 * e.strike})`;
+      c.fillRect(0, 0, this.w, this.h);
+      return;
+    }
+    if (e.left === null) return;
+    const g = c.createRadialGradient(cx, this.h / 2, this.h * 0.3, cx, this.h / 2, this.h * 0.9);
+    g.addColorStop(0, "rgba(255,30,50,0)");
+    g.addColorStop(1, `rgba(255,30,50,${0.4 + 0.15 * Math.sin(now * 8)})`);
+    c.fillStyle = g;
+    c.fillRect(0, 0, this.w, this.h);
+    const pw = 460 * u;
+    const ph = 128 * u;
+    const y0 = this.h * 0.3 - ph / 2;
+    c.fillStyle = PANEL;
+    c.fillRect(cx - pw / 2, y0, pw, ph);
+    this.text("RETURN TO THE CITY", cx, y0 + 34 * u, 700, 28 * u, "#ff3b4a", "center");
+    this.text(`${Math.ceil(e.left)}`, cx, y0 + 96 * u, 700, 60 * u, e.left < 2 ? "#ff3b4a" : WHITE, "center");
+    this.text("OR BE TERMINATED", cx, y0 + 120 * u, 600, 13 * u, DIM, "center");
+  }
+
   private drawRings(s: HudState, toX: (x: number) => number, toZ: (z: number) => number, scale: number, u: number): void {
     const br = s.duel?.br;
     if (!br) return;
@@ -1758,6 +1795,18 @@ export class Hud {
         c.strokeRect(x0, z0, w, h);
         // the names where there is room for them (the big map)
         if (w > 60 * u) this.text(sec.phase === "gone" ? `${sec.name} · GONE` : sec.name, x0 + w / 2, z0 + h / 2, 700, Math.max(9, 11 * u), sec.phase === "gone" ? "rgba(255,120,160,0.8)" : `rgba(${rgb}, 0.9)`, "center");
+      }
+      // the band past the city's edge, red, and the edge itself lined (Phase 20 A4)
+      const ez = s.edgeZone;
+      if (ez) {
+        c.fillStyle = "rgba(255, 46, 74, 0.22)";
+        c.beginPath();
+        c.rect(toX(ez.outer.minX), toZ(ez.outer.minZ), toX(ez.outer.maxX) - toX(ez.outer.minX), toZ(ez.outer.maxZ) - toZ(ez.outer.minZ));
+        c.rect(toX(ez.inner.minX), toZ(ez.inner.minZ), toX(ez.inner.maxX) - toX(ez.inner.minX), toZ(ez.inner.maxZ) - toZ(ez.inner.minZ));
+        c.fill("evenodd");
+        c.strokeStyle = "rgba(255, 46, 74, 0.9)";
+        c.lineWidth = 2 * u;
+        c.strokeRect(toX(ez.inner.minX), toZ(ez.inner.minZ), toX(ez.inner.maxX) - toX(ez.inner.minX), toZ(ez.inner.maxZ) - toZ(ez.inner.minZ));
       }
       const cz = s.capture;
       if (cz) {
@@ -2193,7 +2242,7 @@ export class Hud {
       this.text(text, cx, 150 * u, 700, 15 * u, !sg.live ? "#ffd23c" : sg.safe ? DIM : "#ff5a4a", "center");
     }
     // outside: an orange vignette and the damage it costs
-    if (br.ring.outside && !br.dropping && !br.placement) {
+    if (br.ring.outside && !br.dropping && !br.placement && !s.edge) {
       const g = c.createRadialGradient(cx, this.h / 2, this.h * 0.35, cx, this.h / 2, this.h * 0.9);
       g.addColorStop(0, "rgba(255,110,20,0)");
       g.addColorStop(1, `rgba(255,110,20,${0.35 + 0.1 * Math.sin(now * 5)})`);

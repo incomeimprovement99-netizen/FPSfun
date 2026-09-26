@@ -523,5 +523,9 @@
       "full": 1.9,
       "opacity": 0.5
     }
+  },
+  "_viewmodel": "The first-person gun (src/game/viewmodel.ts). reloadAds is how much of a reload's own roll and slide is gone while aiming, as viewmodel.json strafe.ads does for a strafe: 0.85 leaves 15%. At full size a reload in the sights rolled the gun 22 degrees at its peak and 5 to 7 at its ends, where the support hand is still on the handguard, and the 2x window swung onto it: 152 to 621 pixels of arm in the sight picture at 1280x720 on PANDA, ZEPHYR and NOVA (measured by the Phase 20 A3 diagnosis; 0.6 still left 172, 0.85 none). Ours, not a published number.",
+  "viewmodel": {
+    "reloadAds": 0.85
   }
 }

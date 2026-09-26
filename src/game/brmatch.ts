@@ -68,6 +68,7 @@ import cityCfg from "../config/city.json";
 import { IS_SK, PROFILE } from "./game";
 import type { Seen } from "./reveal";
 import moveCfg from "../config/movement.json";
+import { MOVE } from "./movement";
 import { ZIPLINES } from "./traversal";
 import type { Doors } from "./doors";
 import doorsCfg from "../config/doors.json";
@@ -157,6 +158,8 @@ import brmapCfg from "../config/brmap.json";
 const SQUADS = botsCfg.squads;
 import { LootField, LOOT, binContents, deathBoxOf, isBin, kittedAttach, seeded, speedkillsPackage, type LootItem, type LootKind, type Rarity } from "./loot";
 import { ammoTypeOf, STACK } from "./ammo";
+import { causeName, EDGE_ID } from "./causes";
+import { EDGE } from "./edge";
 
 /** how high the drop starts */
 export const DROP_HEIGHT = 90;
@@ -619,10 +622,20 @@ export class BrMatch extends Duel {
   /** a spot the decay has reached (world space): a decaying or decayed sector; the legacy game's ring otherwise */
   lostAt(x: number, z: number): boolean {
     if (!this.decay) return false;
-    const id = sectorIdAt(x - BR_X, z - BR_Z);
+    // past the city's edge (SpeedKills' band, edge.ts) it is the sector beside you: the band has no decay of its own
+    const id = sectorIdAt(Math.max(-BR_HALF, Math.min(BR_HALF, x - BR_X)), Math.max(-BR_HALF, Math.min(BR_HALF, z - BR_Z)));
     if (!id) return true;
     const st = this.sectorStates()[id];
     return st.phase === "decaying" || st.phase === "gone";
+  }
+
+  /** SpeedKills: past the city's edge too long (edge.ts): the laser's kill, through any shield or ARMOR, never a knock */
+  outOfBounds(): void {
+    if (!this.alive || this.phase !== "fight") return;
+    this.shield = 0;
+    this.health = 0;
+    this.lastHitMelee = false;
+    this.eliminate(EDGE_ID, "knocked");
   }
 
   /** the capture zone's middle and reach (world space), or null before it opens or in the legacy game */
@@ -836,6 +849,8 @@ export class BrMatch extends Duel {
     // 55 to 70 m, which was right for a 40 m room and blind on a map
     // 440 m across (bots.ts sightRange, src/config/bots.json sight).
     bot.sightMode = "br";
+    // SpeedKills: the map's bots keep to the city; only a player strays past its edge (edge.ts)
+    if (IS_SK) bot.fence = BR_BOUNDS;
     // With a loot start it lands with nothing and LOOTS for its kit, rather
     // than waiting out a timer and being handed one: a bot that landed
     // somewhere rich is really better armed than one that landed in a field.
@@ -1527,7 +1542,7 @@ export class BrMatch extends Duel {
 
   /** a name for the feed: whoever `by` is (a human, a bot, or -1 for the ring) */
   private whoDid(by: number): string {
-    return by === -1 ? "THE RING" : by === this.id ? this.myName || "YOU" : (this.remotes.get(by)?.name ?? this.bots.find((x) => x.bot.remote.id === by)?.bot.remote.name ?? "SOMEONE");
+    return causeName(by) ?? (by === this.id ? this.myName || "YOU" : (this.remotes.get(by)?.name ?? this.bots.find((x) => x.bot.remote.id === by)?.bot.remote.name ?? "SOMEONE"));
   }
 
   /** a squad's bot can be knocked (not killed) while one of its squad still stands; in solo, and against friends in solo, a knock is the end */
@@ -1862,7 +1877,7 @@ export class BrMatch extends Duel {
     }
     if (this.rules === "resurgence" && comesBack(this.ringPhase, this.players, this.matesUp)) this.selfRedeploy = new Redeploy(this.id, redeployWait(this.ringPhase));
     // a first death, early, goes to the Gulag; decided before the squad is judged, so it is not out meanwhile
-    else if (this.gulagOn && this.phase === "fight" && gulagFor(this.rules, this.ringPhase, this.gulagUsed)) {
+    else if (this.gulagOn && this.phase === "fight" && gulagFor(this.rules, this.ringPhase, this.gulagUsed) && (from !== EDGE_ID || EDGE.gulag)) {
       this.gulag = new Gulag(wallClock());
       this.gulagUsed = true;
       this.noteGulag(this.id, 1);
@@ -3075,6 +3090,13 @@ export class BrMatch extends Duel {
       // still searching: it walks the map and does not shoot
       if (b.armedAt > now) sense.canShoot = false;
       const shots = bot.update(now, dt, sense);
+      // and held there, whatever moved it (a pad's throw, a chase along the edge); the ship carries riders outside before its doors open
+      if (IS_SK && bot.alive && !bot.aboard && !bot.dropping) {
+        const r = MOVE.radius;
+        bot.pos.x = Math.max(BR_BOUNDS.minX + r, Math.min(BR_BOUNDS.maxX - r, bot.pos.x));
+        bot.pos.z = Math.max(BR_BOUNDS.minZ + r, Math.min(BR_BOUNDS.maxZ - r, bot.pos.z));
+        bot.dummy.group.position.copy(bot.pos);
+      }
       if (wasAlive && !bot.alive && bot.remote.alive) this.botDown(b, this.id);
       // a frag: drawn here and on the squad's screens; the blast comes back through botBlast
       const th = bot.takeThrow();

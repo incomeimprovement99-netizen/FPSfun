@@ -20,6 +20,62 @@ export class FxLayer {
   constructor(private scene: THREE.Scene) {}
 
   /**
+   * SpeedKills' edge (Phase 20 A4): a red laser slamming down on `at` from
+   * the sky, a core and a wider glow, and a scorch spreading on the ground.
+   * Seen from inside it (the one it hit) its column fills the view. Drawn
+   * without fog so the whole city sees it, and without a light, which would
+   * recompile every material mid-match.
+   */
+  laser(at: THREE.Vector3, now: number, o: { laserSeconds: number; laserRadius: number; laserHeight: number; laserColor: string }): void {
+    const h = o.laserHeight;
+    const color = new THREE.Color(o.laserColor);
+    const column = (r: number, peak: number): void => {
+      // hung from its top, so growing its height brings it down from the sky
+      const geo = new THREE.CylinderGeometry(r, r, h, 20, 1, true).translate(0, -h / 2, 0);
+      const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: peak, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, toneMapped: false, forceSinglePass: true });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(at.x, at.y + h, at.z);
+      m.frustumCulled = false;
+      this.scene.add(m);
+      this.live.push({
+        obj: m,
+        born: now,
+        life: o.laserSeconds,
+        tick: (t) => {
+          m.scale.y = Math.min(1, t / 0.08);
+          const shimmer = 1 + 0.08 * Math.sin(t * 90);
+          m.scale.x = m.scale.z = shimmer;
+          mat.opacity = peak * (t > 0.8 ? (1 - t) / 0.2 : 1);
+        },
+        dispose: () => {
+          geo.dispose();
+          mat.dispose();
+        },
+      });
+    };
+    column(o.laserRadius, 0.95);
+    column(o.laserRadius * 2.4, 0.35);
+    const scorchMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true });
+    const scorch = new THREE.Mesh(new THREE.RingGeometry(0.4, o.laserRadius * 2, 32), scorchMat);
+    scorch.rotation.x = -Math.PI / 2;
+    scorch.position.set(at.x, at.y + 0.05, at.z);
+    this.scene.add(scorch);
+    this.live.push({
+      obj: scorch,
+      born: now,
+      life: o.laserSeconds,
+      tick: (t) => {
+        scorch.scale.setScalar(1 + t * 4);
+        scorchMat.opacity = 0.8 * (1 - t);
+      },
+      dispose: () => {
+        scorch.geometry.dispose();
+        scorchMat.dispose();
+      },
+    });
+  }
+
+  /**
    * A JOLT from `a` to `b` (feet positions): a pale blue streak at chest
    * height that thins and fades over 0.35 s, and a ring where it started.
    */

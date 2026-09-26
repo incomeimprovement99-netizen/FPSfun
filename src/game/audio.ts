@@ -582,6 +582,15 @@ export class GameAudio {
     }
   }
 
+  /** SpeedKills' edge laser coming down (Phase 20 A4): a falling shriek, a hiss, a thump */
+  laser(at: Vec): void {
+    const v = this.voice(at, 2.2, "fx", 2, 1.6, cfg.distance.ref.blast);
+    if (!v) return;
+    this.tone(v.input, v.t, 0.9, "sawtooth", 2400, 180, 0.3, 0.002);
+    this.noise(v.input, v.t, 0.7, "bandpass", 3200, 1.2, 0.5, 0.004);
+    this.tone(v.input, v.t + 0.12, 0.8, "sine", 70, 30, 1.1, 0.003);
+  }
+
   /** a thrown thing: a frag's bounce, an arc star's stick, thermite catching */
   throwNoise(kind: "bounce" | "stick" | "fire" | "pin", at: Vec | null): void {
     const v = this.voice(at, kind === "fire" ? 1.2 : 0.25, "fx", 1, 0.4);

@@ -4929,8 +4929,19 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await ev(lab, "window.__range.setScript(null)");
   check("speedkills: in the lab, the storey block is climbed to its top (4 m)", topped, JSON.stringify(await ev(lab, "({ y: window.__range.player.pos.y, z: window.__range.player.pos.z })")));
   await lab.close();
+  // The arms in the sights (Phase 20 A3): aimed through HELIX's 3x scope the gun is hidden for the scope picture,
+  // and the arms, which are not under the gun, stayed drawn frozen and filled the scope. With a red dot (USSO) the
+  // arms stay, as they should.
+  const sight = await open(browser, "?game=speedkills");
+  const arms = await ev<{ scoped: boolean; dot: boolean; ready: boolean }>(
+    sight,
+    `(async () => { const r = window.__range; await r.loadMannequin(); const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); const t0 = performance.now(); while (!r.realArms() && performance.now() - t0 < 8000) await wait(100); r.loadout.setWeaponId(0, "3030"); r.debugView.ads = 1; await wait(1200); const scoped = r.realArmsShown(); r.loadout.setWeaponId(0, "r97"); await wait(1200); const dot = r.realArmsShown(); r.debugView.ads = null; return { scoped, dot, ready: r.realArms() }; })()`,
+  );
+  check("speedkills sights: aimed through a 3x scope the frozen arms are hidden; through a red dot they stay", arms.ready && !arms.scoped && arms.dot, JSON.stringify(arms));
+  await sight.close();
   await speedkillsBrTest(browser);
   await speedkillsStartsTest(browser);
+  await speedkillsEdgeTest(browser);
   await speedkillsGhostTest(browser, "loot");
   await speedkillsGhostTest(browser, "loadout");
 }
@@ -4947,6 +4958,59 @@ async function speedkillsTest(browser: Browser): Promise<void> {
  * now hold in SpeedKills: a care package of its own loot, no loadout crate,
  * and a bot's box with its gun and nothing of the legacy game's.
  */
+/**
+ * SpeedKills' edge (Phase 20 A4): past the city's edge a countdown runs, a step back in stops it, and staying
+ * brings the laser and a death by OUT OF BOUNDS (to the Gulag, as a ring death goes). The wall stops a body
+ * edge.margin metres out.
+ */
+async function speedkillsEdgeTest(browser: Browser): Promise<void> {
+  // the Gulag back on (open() turns it off): where an out-of-bounds first death goes is part of the check
+  const page = await open(browser, "?norender&game=speedkills", BASE, "window.__noGulag = false");
+  await ev(page, brRow("solo", 9));
+  await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
+  const fought = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 60000 }).then(() => true, () => false);
+  const landed = fought && (await page.waitForFunction("window.__range.player.onGround && !window.__range.player.dropping && window.__range.sk.edge().armed", { polling: 100, timeout: 30000 }).then(() => true, () => false));
+  if (!landed) {
+    check("sk edge: a match starts and the player lands", false, JSON.stringify({ fought }));
+    await page.close();
+    return;
+  }
+  await ev(page, `(() => { const d = window.__range.duel(); d.holdFire = true; window.__feed = []; const f = d.onFeed; d.onFeed = (t, a, b) => { window.__feed.push(t); f?.(t, a, b); }; })()`);
+  const e0 = await ev<{ city: { maxX: number }; margin: number }>(page, "window.__range.sk.edge()");
+  const wait = (s: number) => page.waitForFunction(`window.__range.gameTime() - window.__t0 > ${s}`, { polling: 50, timeout: 30000 }).catch(() => undefined);
+  const mark = () => ev(page, "window.__t0 = window.__range.gameTime()");
+  // out, for a second and a half: the countdown runs
+  await ev(page, `window.__range.player.teleport(${e0.city.maxX + 12}, 0, 500, 90)`);
+  await mark();
+  await wait(1.5);
+  const out = await ev<{ out: boolean; left: number | null }>(page, "window.__range.sk.edge()");
+  check("sk edge: past the city's edge a countdown runs from 5", out.out && out.left !== null && out.left > 2.5 && out.left < 4.5, JSON.stringify(out));
+  // back in: it stops
+  await ev(page, `window.__range.player.teleport(${e0.city.maxX - 10}, 0, 500, 90)`);
+  await mark();
+  await wait(0.4);
+  const back = await ev<{ out: boolean; left: number | null; alive: boolean }>(page, "({ ...window.__range.sk.edge(), alive: window.__range.duel().alive })");
+  check("sk edge: a step back into the city stops the countdown", !back.out && back.left === null && back.alive, JSON.stringify(back));
+  // the wall: a body stops the margin out, however far it is pushed
+  await ev(page, `window.__range.player.teleport(${e0.city.maxX + e0.margin + 30}, 0, 500, 90)`);
+  await mark();
+  await wait(0.3);
+  const wallX = await ev<number>(page, "window.__range.player.pos.x");
+  check("sk edge: a wall stops a body the margin past the edge", wallX <= e0.city.maxX + e0.margin + 0.01 && wallX > e0.city.maxX + e0.margin - 1, `${wallX.toFixed(2)} for a wall at ${e0.city.maxX + e0.margin}`);
+  // stay out: the laser, and the death by OUT OF BOUNDS
+  const died = await page.waitForFunction("!window.__range.duel().alive", { polling: 100, timeout: 20000 }).then(() => true, () => false);
+  const end = await ev<{ byEdge: boolean | null; killer: string | null; feed: string[]; gulag: boolean; fx: number }>(
+    page,
+    "(() => { const r = window.__range; const rc = r.recap(); return { byEdge: rc ? rc.byEdge : null, killer: rc ? rc.killerName : null, feed: window.__feed, gulag: !!r.duel().gulag, fx: 0 }; })()",
+  );
+  check(
+    "sk edge: staying out, the laser comes down and the death is OUT OF BOUNDS, in the recap and the feed, to the Gulag",
+    died && end.byEdge === true && end.killer === "OUT OF BOUNDS" && end.feed.some((t) => /OUT OF BOUNDS/.test(t)) && end.gulag,
+    JSON.stringify({ died, ...end }),
+  );
+  await page.close();
+}
+
 async function speedkillsStartsTest(browser: Browser): Promise<void> {
   type Slot = { id: string; empty: boolean; fusion: number };
   type Here = { slots: Slot[]; active: number; fused: number; down: string[] };

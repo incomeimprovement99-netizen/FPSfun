@@ -46,6 +46,7 @@ import type { BrHud } from "./brmatch";
 import type { ModeHud } from "./modematch";
 import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
+import { causeName, EDGE_ID } from "./causes";
 
 const SEND_HZ = 30;
 /** the least a friend's figure is drawn behind (net.json buffer: it grows with the connection's jitter) */
@@ -1283,10 +1284,10 @@ export class Duel implements MatchLike {
           r.outAtSent = r.clock.sent + step / 1000;
         }
         {
-          const by = m.by === this.id ? this.myName || "YOU" : m.by === -1 ? "THE RING" : (this.nameOf(m.by) ?? `PLAYER ${m.by + 1}`);
+          const by = m.by === this.id ? this.myName || "YOU" : (causeName(m.by) ?? this.nameOf(m.by) ?? `PLAYER ${m.by + 1}`);
           const mine = m.by === this.id;
           // a `down` is the end of them (a knock is a `dnd`): the feed says so
-          this.onFeed?.(`${by} eliminated ${r.name}`, mine, !mine && this.mode !== "duel");
+          this.onFeed?.(m.by === EDGE_ID ? `${r.name} went OUT OF BOUNDS` : `${by} eliminated ${r.name}`, mine, !mine && this.mode !== "duel");
           if (mine) this.kills++;
         }
         if (this.role === "host") {
@@ -1663,8 +1664,8 @@ export class Duel implements MatchLike {
     this.revivedBy = null;
     this.deaths++;
     this.onEliminated?.(from);
-    const who = from === -1 ? "THE RING" : (this.nameOf(from) ?? "SOMEONE");
-    this.onFeed?.(how === "bled out" ? `${this.myName || "YOU"} bled out` : `${who} eliminated ${this.myName || "YOU"}`, false);
+    const who = causeName(from) ?? this.nameOf(from) ?? "SOMEONE";
+    this.onFeed?.(how === "bled out" ? `${this.myName || "YOU"} bled out` : from === EDGE_ID ? `${this.myName || "YOU"} went OUT OF BOUNDS` : `${who} eliminated ${this.myName || "YOU"}`, false);
     // this player's own count of their deaths goes with it: the Deathbox Respawn lockout grows with it, and
     // each squad mate counted only the downs it heard, so one missed made its lockout shorter (plan 12, item 6)
     this.noteDeath(this.id);
@@ -2130,7 +2131,8 @@ export class Duel implements MatchLike {
 
   nameFor(id: number): string {
     if (id === this.id) return this.myName || "YOU";
-    if (id === -1) return "THE RING";
+    const cause = causeName(id);
+    if (cause) return cause;
     return this.nameOf(id) ?? `PLAYER ${id + 1}`;
   }
 

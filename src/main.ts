@@ -56,7 +56,9 @@ import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, t
 import finCfg from "./config/finisher.json";
 import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
-import { buildCityMap, cityDecay, SECTORS, ROOF_ROUTES } from "./game/city";
+import { buildCityMap, cityDecay, cityEdge, SECTORS, ROOF_ROUTES } from "./game/city";
+import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
+import { EDGE_ID } from "./game/causes";
 import DECAY_CFG from "./config/decay.json";
 import { Hacks, HACK, HACK_DEFS, hackDef, hackSlotOf, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
 import { BotMatch, MOST_BOTS } from "./game/bots";
@@ -1852,8 +1854,10 @@ function onEliminated(d: MatchLike, by: number): void {
     }
     // a banner only where there is a squad to carry it: in solo the others are opponents
     if (d.players > 1 && d.team.size > 1) items.push({ kind: "banner", id: "banner", n: 1, rarity: "common", owner: d.id, ownerName: profile.profile.name });
-    d.dropBox(items, player.pos.clone());
+    // an out-of-bounds death leaves its box where you last stood in the city, so a restore is never out there
+    d.dropBox(items, by === EDGE_ID ? edgeInside.clone() : player.pos.clone());
   }
+  if (by === EDGE_ID) player.teleport(edgeInside.x, edgeInside.y, edgeInside.z, player.yaw);
   recap = dlog.recap(t, by, (id) => d.nameFor(id), (id) => d.vitalsFor(id));
   recapShownAt = gameTime;
   if (killcamOn && by >= 0 && by !== d.id) killcam.start(recorder, t, by, d.nameFor(by));
@@ -2575,6 +2579,9 @@ function shipHud(d: BrMatch, run: ShipRun): NonNullable<HudState["ship"]> {
 }
 
 function respawnForMatch(d: MatchLike): void {
+  // a new life counts the edge from its own landing
+  edgeArmed = false;
+  edge.reset();
   const sp = d.spawn;
   newLife(d);
   const boxAt = d instanceof BrMatch && d.respawnOnBox ? d.boxRespawnAt : null;
@@ -3671,8 +3678,49 @@ resetHacks();
 let decaySeen: Record<string, string> = {};
 let captureSaid = false;
 /** the decay's frame: the city dissolved where it has reached, and each change of a sector said */
+// ---------- SpeedKills' edge (Phase 20 A4; edge.ts) ----------
+const edge = new EdgeWatch();
+/** on your feet since the last drop: the drop (and a Gulag win's, a box respawn) stays in the city, and the edge counts from the landing */
+let edgeArmed = false;
+/** where you last stood in the city: an out-of-bounds death leaves its box there */
+const edgeInside = new THREE.Vector3(BR_X, 0, BR_Z);
+/** the wall a landed, living player stops at: the city and its margin; the city itself for the drop, a ghost and the dead */
+function edgeBounds(d: BrMatch): void {
+  if (!IS_SK || d.phase === "waiting" || (d.gulag && d.gulag.phase !== "wait")) return;
+  if (!edgeArmed && d.alive && player.onGround && !player.aboard && !player.dropping) edgeArmed = true;
+  player.setBounds(edgeArmed && d.alive && d.phase === "fight" ? EDGE_BOUNDS : BR_BOUNDS);
+}
+/** a frame past the edge or back: the countdown, the laser, and the death it brings */
+function edgeFrame(d: BrMatch, now: number): void {
+  const live = IS_SK && edgeArmed && d.phase === "fight" && d.alive && !(d.gulag && d.gulag.phase !== "wait") && !player.aboard;
+  if (!live) {
+    if (edge.since !== null || edge.struckAt !== null) edge.reset();
+    return;
+  }
+  const out = pastEdge(player.pos.x, player.pos.z);
+  if (!out && player.onGround) edgeInside.copy(player.pos);
+  const e = edge.step(now, out);
+  if (e === "out" || e === "tick") audio.countdown(false);
+  else if (e === "back") hud.notice("BACK IN THE CITY", now, 1);
+  else if (e === "strike") {
+    const at = player.pos.clone();
+    fx.laser(at, now, EDGE);
+    audio.laser(at);
+    // every other screen draws it too (onRemoteFx "edge"); this one drew its own
+    d.localFx("edge", at, undefined, 1);
+  } else if (e === "dead") d.outOfBounds();
+}
+/** the metres from you to the city's nearest edge, 0 at it or past it: how bright its fence is where you stand */
+function edgeNear(): number {
+  const b = BR_BOUNDS;
+  const p = player.pos;
+  if (pastEdge(p.x, p.z)) return 0;
+  return Math.min(p.x - b.minX, b.maxX - p.x, p.z - b.minZ, b.maxZ - p.z);
+}
+
 function stepDecay(now: number): void {
   if (!IS_SK) return;
+  cityEdge(now, edgeNear());
   const d = duel instanceof BrMatch && duel.decay ? duel : null;
   const states = d ? d.sectorStates() : null;
   cityDecay(states, now);
@@ -4322,6 +4370,12 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRemoteFx = (k, from, a, b, n) => {
     remoteFxLog.push({ k, from });
     if (remoteFxLog.length > 20) remoteFxLog.shift();
+    // someone else past the city's edge too long: the laser on them, on this screen too
+    if (k === "edge" && a) {
+      fx.laser(a, gameTime, EDGE);
+      audio.laser(a);
+      return;
+    }
     // a SpeedKills hack of someone else's
     if (k === "sk" && typeof n === "number") {
       remoteHack(from, n, a, b);
@@ -4447,6 +4501,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   abilities.reset(d.abilities && !IS_SK);
   // SpeedKills: your two picked hacks, ready
   resetHacks();
+  edge.reset();
+  edgeArmed = false;
   tour.stop();
   drill.stop();
   // the killcam's recording and the recap's log
@@ -6420,7 +6476,10 @@ function step(): void {
   }
   // SpeedKills: a ghost moves (knockedOut still holds its guns and hacks)
   const skGhostNow = duel instanceof BrMatch && duel.ghost;
-  player.update(dt, now, (knockedOut && !skGhostNow) || finisher ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
+  if (duel instanceof BrMatch) edgeBounds(duel);
+  // once the edge's laser has hit you, you stand in it
+  player.update(dt, now, (knockedOut && !skGhostNow) || finisher || edge.struckAt !== null ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
+  if (duel instanceof BrMatch) edgeFrame(duel, now);
   // a slide counts as crouched for the spread model: the cone tightens
   const crouched = player.crouched || player.sliding;
   const stance = !player.onGround ? "air" : crouched ? "crouch" : "stand";
@@ -7332,6 +7391,8 @@ function step(): void {
     sectors: duel instanceof BrMatch && duel.decay ? skSectorsHud(duel) : null,
     capture: duel instanceof BrMatch && duel.decay ? skCaptureHud(duel) : null,
     zoneLabel: duel instanceof BrMatch && duel.decay ? skZoneLabel(duel) : null,
+    edge: IS_SK && duel instanceof BrMatch && (edge.since !== null || edge.struckAt !== null) ? { left: edge.left(gameTime), strike: edge.flood(gameTime) } : null,
+    edgeZone: IS_SK && duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? { inner: BR_BOUNDS, outer: EDGE_BOUNDS } : null,
     hacks: IS_SK
       ? (["mobility", "utility"] as const).flatMap((slot) => {
           const h = hacks.get(slot);
@@ -7529,6 +7590,7 @@ initWelcome();
   sceneryCells: () => instancedDrawn(camera.position),
   /** the first-person arms are the player's own rather than the drawn gloves */
   realArms: () => viewModel.realArms,
+  realArmsShown: () => viewModel.realArmsShown,
   /** put the gun in your own hands away so a snapshot sees the whole figure (tools/snap.ts) */
   hideViewModel: (on: boolean) => {
     snapNoGun = on;
@@ -7551,6 +7613,9 @@ initWelcome();
     use: (slot: HackSlot) => useHack(slot, gameTime),
     state: () => ({ armored: gameTime < armorUntil, invisible: gameTime < invisUntil, slam: skSlam?.phase ?? null, pulling: !!skPull, leap: skLeap, healZones: healZones.length, mines: mines.length, hackSlow: player.hackSlow, incoming: duel instanceof Duel ? duel.incomingScale : 1 }),
     fusion: () => loadout.slots.map((sl) => sl.fusion ?? 0),
+    /** the city's edge as this page has it (Phase 20 A4): past it, the countdown, the laser */
+    edge: () => ({ out: edge.since !== null, since: edge.since, struckAt: edge.struckAt, left: edge.left(gameTime), armed: edgeArmed, inside: edgeInside.toArray(), city: { ...BR_BOUNDS }, wall: { ...EDGE_BOUNDS }, margin: EDGE.margin }),
+    laser: (x: number, z: number) => fx.laser(new THREE.Vector3(x, 0, z), gameTime, EDGE),
     /** the decay as this page has it: the plan, each sector's state, the boxes it holds out, the capture zone */
     decay: () => {
       const d = duel instanceof BrMatch && duel.decay ? duel : null;
