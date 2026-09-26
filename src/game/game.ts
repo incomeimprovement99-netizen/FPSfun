@@ -52,7 +52,7 @@ export interface GameProfile {
   /** the game's own versions of lists the legacy game keeps in its configs; absent: the legacy game's own */
   lists?: { botWeapons: string[]; loadouts: string[][]; gulagGuns: string[] };
   /** the battle royale's floor: spots a sector by tier, the chances of a gun and a hack core, their fusion odds */
-  loot?: { spots: Record<string, number>; gunChance: number; hackChance: number; gunOdds: Record<string, number[]>; hackOdds: Record<string, number[]> };
+  loot?: { spots: Record<string, number>; gunChance: number; hackChance: number; gunOdds: Record<string, number[]>; hackOdds: Record<string, number[]>; maxFloor?: number };
   /** the dropship over squad.json's (doorsIn: the seconds before a jump is allowed) */
   ship?: { doorsIn: number };
   /** each gun's tuning over its legacy numbers (multipliers; headshotDamage outright) */

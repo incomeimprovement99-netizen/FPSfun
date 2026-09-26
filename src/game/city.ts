@@ -204,9 +204,13 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         spireBlock(x0, x1, z0, z1, sec);
         return;
       }
-      // the downtown, from the centre out (city.json downtown)
+      // the downtown, from the centre out (city.json downtown), and the mid-rise blocks round it (perimeter)
       if (ring <= C.downtown.rings) {
         downtownBlock(x0, x1, z0, z1, sec, ring);
+        return;
+      }
+      if (ring === C.perimeter.ring) {
+        perimeterBlock(x0, x1, z0, z1, sec);
         return;
       }
       // now and then a plaza instead of buildings: open ground to fight over, with cover
@@ -378,6 +382,75 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         padOnto(Math.max(low.x - low.w / 2 + 2, Math.min(low.x + low.w / 2 - 2, tx)), low.z + (n * low.d) / 2, 0, n, podTop, low.roof);
       }
     }
+  }
+
+  /**
+   * A mid-rise block (city.json perimeter): buildings wall to wall round its
+   * edge on a courtyard, each a few storeys from its neighbour so the roofs
+   * run round the block, one passage in, a pad on the street onto the roofs
+   * and one in the courtyard.
+   */
+  function perimeterBlock(x0: number, x1: number, z0: number, z1: number, sec: Sector): void {
+    const Q = C.perimeter;
+    const m = C.downtown.margin;
+    const ax0 = x0 + m;
+    const ax1 = x1 - m;
+    const az0 = z0 + m;
+    const az1 = z1 - m;
+    const dep = Q.depth[0] + rnd() * (Q.depth[1] - Q.depth[0]);
+    const [lo, hi] = Q.storeys;
+    let prev = Math.round(lo + rnd() * (hi - lo));
+    const next = (): number => {
+      prev = Math.max(lo, Math.min(hi, prev + Math.round((rnd() * 2 - 1) * Q.step)));
+      return prev;
+    };
+    // one side has the passage into the courtyard: a gap in its run of buildings
+    const passSide = Math.floor(rnd() * 4);
+    const built: Tower[] = [];
+    // a side's run of buildings from a to b along it: n and s run the full width, e and w between them
+    const run = (side: number, a: number, b: number): void => {
+      const len = b - a;
+      const passAt = side === passSide ? a + len * (0.3 + rnd() * 0.4) : Infinity;
+      let at = a;
+      while (at < b - 4) {
+        let seg = Q.segment[0] + rnd() * (Q.segment[1] - Q.segment[0]);
+        if (b - (at + seg) < Q.segment[0]) seg = b - at;
+        // the passage: stop short of it, and start again past it
+        if (at < passAt && at + seg > passAt - Q.passage / 2) {
+          seg = passAt - Q.passage / 2 - at;
+          if (seg >= 4) put(side, at, seg);
+          at = passAt + Q.passage / 2;
+          continue;
+        }
+        put(side, at, seg);
+        at += seg;
+      }
+    };
+    const put = (side: number, at: number, seg: number): void => {
+      const storeys = next();
+      const mat = sec.id === "w" ? brick : night[Math.floor(rnd() * night.length)];
+      const mid = at + seg / 2;
+      const t =
+        side === 0
+          ? mass(mid, az0 + dep / 2, seg, dep, PAVE_H, storeys, mat, sec.accent, sec.id)
+          : side === 1
+            ? mass(mid, az1 - dep / 2, seg, dep, PAVE_H, storeys, mat, sec.accent, sec.id)
+            : side === 2
+              ? mass(ax0 + dep / 2, mid, dep, seg, PAVE_H, storeys, mat, sec.accent, sec.id)
+              : mass(ax1 - dep / 2, mid, dep, seg, PAVE_H, storeys, mat, sec.accent, sec.id);
+      built.push(t);
+    };
+    run(0, ax0, ax1);
+    run(1, ax0, ax1);
+    run(2, az0 + dep, az1 - dep);
+    run(3, az0 + dep, az1 - dep);
+    if (!built.length) return;
+    // a pad on the street, onto the lowest building of a side, from outside its outer face
+    const outer = built.filter((t) => Math.abs(t.z - (az0 + dep / 2)) < 0.5).sort((a, b) => a.roof - b.roof)[0];
+    if (outer) padOnto(outer.x, outer.z - outer.d / 2, 0, -1, PAVE_H, outer.roof);
+    // and one in the courtyard, onto the lowest building facing it from the north side's inner face
+    const inner = built.filter((t) => Math.abs(t.z - (az1 - dep / 2)) < 0.5).sort((a, b) => a.roof - b.roof)[0];
+    if (inner) padOnto(inner.x, inner.z - inner.d / 2, 0, -1, PAVE_H, inner.roof);
   }
 
   /** THE SPIRE (city.json spire): a podium over its block, tiers stepping in above it, a pad up each, a mast on top */

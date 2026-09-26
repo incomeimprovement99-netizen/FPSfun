@@ -193,6 +193,15 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "sk-city-midrise",
+    note: "SpeedKills' mid-rise ring from a roof: blocks of buildings wall to wall round courtyards, their roofs stepping a storey or two, the downtown's towers behind",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.setBounds({ minX: -250, maxX: 250, minZ: 250, maxZ: 750 }); r.player.teleport(-150, 40, 660, 45, -12); })()`, 0],
+      [gameSeconds(1), 250],
+    ],
+  },
+  {
     name: "sk-city-roof",
     note: "SpeedKills' city from a Spire roof: what a player sees from the top of a tower",
     query: "?game=speedkills",

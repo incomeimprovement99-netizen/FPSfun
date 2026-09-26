@@ -3742,3 +3742,24 @@ Scape, from its reviews and eight official screenshots).
   - The capture test now drops the player onto the zone, since the Spire is solid to its tiers.
   - The roof-climb check blinds its bot, which had chased someone in sight straight past its stair.
   - The city's budget holds: 12,060 meshes merged, 164k triangles.
+
+## Milestone 210 — The mid-rise ring, and loot on the roofs ✅
+
+Phase 19, step 3.
+
+- **The sixteen blocks round the core** are Hyper Scape's mid-rise blocks now (city.json `perimeter`), where
+  they were one or two towers on open pavement:
+  - buildings 9 to 12 m deep, standing wall to wall round the block's edge on a courtyard, with one passage in
+    from the street;
+  - heights of 3 to 8 storeys, each never more than two from its neighbour, so the roofs run round the block:
+    a storey is a climb, two a double jump and a climb;
+  - a pad on the street onto the lowest roof of the north side, and one in the courtyard.
+- **Loot on the roofs.** Loot was only ever put on floors up to 12 m, a number from the legacy map written into
+  the code, so the city's roofs (12 to 60 m) were bare and the high ground held nothing. The height is a game's
+  setting now: 60 m in SpeedKills, 12 in the legacy game. In a real match, 137 items are over 12 m and 84 over
+  24 m; before, there were none over 12 m.
+- **The edge ring** stays as low buildings you enter by their stairs. Those are the ones the bots climb, and
+  Hyper Scape had its enterable loot buildings too.
+- **Checked:** the city's budget (8,836 meshes merged to 240, 147k triangles, fewer than before: a solid
+  building is cheaper than one with floors inside), the roofs' routes (12, walked), the SpeedKills e2e (47,
+  with the new roof-loot check), and the snapshot `sk-city-midrise`.

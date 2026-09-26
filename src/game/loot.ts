@@ -479,11 +479,13 @@ export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
  * loot all went back outdoors, which is the opposite of what the buildings
  * are for.
  */
+const MAX_FLOOR = (IS_SK && PROFILE.loot?.maxFloor) || 12;
 function standingSpots(x: number, z: number): number[] {
   const here = RANGE_SOLIDS.filter((s) => x > s.minX - 0.3 && x < s.maxX + 0.3 && z > s.minZ - 0.3 && z < s.maxZ + 0.3);
   // a top is a floor only if it is wide enough to stand on: not a parapet, a wall's top or a stair's tread
   const floorTops = here.filter((s) => s.maxX - s.minX >= cfg.minSurface && s.maxZ - s.minZ >= cfg.minSurface).map((s) => s.top);
-  const tops = [0, ...floorTops].filter((y) => y <= 12);
+  // the highest floor loot is put on: the legacy map's roofs top out near 12 m; SpeedKills' city is its roofs
+  const tops = [0, ...floorTops].filter((y) => y <= MAX_FLOOR);
   const out: number[] = [];
   for (const y of new Set(tops)) {
     // room to stand: nothing occupying the 1.9 m above this surface

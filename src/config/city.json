@@ -230,5 +230,23 @@
     "clear": 1.2,
     "standOff": 1.4,
     "landInside": 3
+  },
+  "_perimeter": "The middle of the city (city.ts perimeterBlock), the blocks at ring `ring` from the Spire's: Hyper Scape's mid-rise blocks, buildings of depth metres deep standing wall to wall round the block's edge on a courtyard, each segment metres long, their heights storeys at random but never more than step storeys from the one beside (a storey is a climb, two a double jump and a climb, so you run and climb the roofs round the block). One side has a passage of passage metres into the courtyard. A pad on the street throws you onto the roofs, and one in the courtyard. Ours, after the screenshots of Neo Arcadia's blocks.",
+  "perimeter": {
+    "ring": 2,
+    "depth": [
+      9,
+      12
+    ],
+    "segment": [
+      9,
+      16
+    ],
+    "storeys": [
+      3,
+      8
+    ],
+    "step": 2,
+    "passage": 5
   }
 }
