@@ -1815,8 +1815,8 @@ killcamSel.addEventListener("change", () => {
 /** you are out: the recap is written now, and the killcam starts if there is a killer to watch */
 function onEliminated(d: MatchLike, by: number): void {
   const t = realNow();
-  // a loot battle royale: your death box, with your banner for the squad
-  if (d instanceof BrMatch && d.lootField) {
+  // a loot battle royale: your death box, with your banner for the squad (one: a Gulag lost is not a second)
+  if (d instanceof BrMatch && d.lootField && !d.diedInGulag) {
     const items: LootItem[] = [];
     for (const s of loadout.slots) if (!s.empty) items.push({ kind: "weapon", id: s.id, n: 1, rarity: "rare", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}) });
     for (const [type, n] of Object.entries(loadout.ammo.stock)) if (n > 0 && type !== "energy") items.push({ kind: "ammo", id: type, n, rarity: "common" });

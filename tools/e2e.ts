@@ -3900,9 +3900,17 @@ async function gulagTest(browser: Browser, query: string, squadQuery: string): P
   await ev(p2, "(() => { const g = window.__range.duel().gulag; g.overtimeAt = performance.now() / 1000; })()");
   const ot = await p2.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.phase === 'overtime' && window.__range.duel().hud().br.gulag.phase === 'overtime'", { polling: 100, timeout: 4000 }).then(() => true, () => false);
   await ev(p2, `(() => { const d = window.__range.duel(); const f = d.gulagFlag.position; d.gulagBot.pos.set(f.x, 0, f.z); d.gulagBot.dummy.group.position.set(f.x, 0, f.z); })()`);
+  // the feed from here on, and where the Gulag is, to look for a second death box in it afterwards
+  const flagAt = await ev<{ x: number; z: number }>(p2, `(() => { const d = window.__range.duel(); window.__gfeed = []; const f = d.onFeed; d.onFeed = (t, ...a) => { window.__gfeed.push(t); f?.(t, ...a); }; const p = d.gulagFlag.position; return { x: p.x, z: p.z }; })()`);
   const taking = await p2.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.capThem > 1", { polling: 100, timeout: 6000 }).then(() => true, () => false);
   const lost = await p2.waitForFunction(`window.__range.duel() === null || window.__range.duel().phase === "matchEnd"`, { polling: 100, timeout: (G.capture + 8) * 1000 }).then(() => true, () => false);
   check("the Gulag: past its clock, overtime's flag; the bot holds it alone, and you are out", ot && taking && lost, JSON.stringify({ ot, taking, lost }));
+  // lost, the trip is over and nothing else: no second box in the Gulag's room, and the feed names the one who won it
+  const after = await ev<{ feed: string[]; boxes: number }>(
+    p2,
+    `(() => { const d = window.__range.duel(); const drops = d && d.lootField ? [...d.lootField.drops.values()] : []; return { feed: window.__gfeed ?? [], boxes: drops.filter((x) => x.item.kind === "box" && Math.hypot(x.pos.x - ${flagAt.x}, x.pos.z - ${flagAt.z}) < 40).length }; })()`
+  );
+  check("the Gulag: a loss is not a second death: no box in the Gulag, and the feed names who won it, not an id", after.boxes === 0 && after.feed.some((l) => /won the Gulag/.test(l)) && !after.feed.some((l) => /PLAYER \d/.test(l)), JSON.stringify(after));
   await p2.close();
 
   // ---- a squad mate's trip reaches the host

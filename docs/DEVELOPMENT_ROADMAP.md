@@ -3569,3 +3569,18 @@ Stage L. `src/game/arenas/neonblock.ts`; the builder's city look (`src/game/aren
   Snapshots `arena-neonblock` and `arena-neonblock-deck`.
 - **Also:** the utility hack's pick said "G / RB", but RB is ping on a controller; it says D-pad right. The
   README has a SpeedKills section.
+
+## Milestone 199 — A Gulag lost is not a second death ✅
+
+Plan section 12, item 3. Losing the Gulag ran the whole elimination a second time. It sent the match a
+second "down", from the Gulag's bot, whose id (991) the other pages did not know, so their feed read "PLAYER
+991 eliminated" you. It also dropped a second death box, in the Gulag's room. The match had already counted
+the first death, and the Gulag's own note already tells everyone the trip is over. A loss now does only
+that: you are out, the one box is the first death's, and the feed names who won it ("GULAG BOT STEEL won the
+Gulag against" you). The Gulag e2e holds the feed and that no box lies in the Gulag's room (it fails on the old
+code's feed line).
+
+Still open from the release runs: the battle royale host migration's setup failed twice in the full second
+batch. Five of six bots had landed but not armed themselves before the ring closed. It passes alone and on a
+throttled CPU, so it is not reproduced yet, and its failure now says which step it stopped at and what each
+bot held.

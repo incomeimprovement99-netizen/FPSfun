@@ -1811,10 +1811,23 @@ export class BrMatch extends Duel {
    */
   protected override eliminate(from: number, how: "knocked" | "finished" | "bled out"): void {
     if (!this.alive) return;
-    // a death in the Gulag is the end of the trip: out for good
-    const inGulag = this.gulag !== null && this.gulag.phase !== "wait";
-    if (inGulag) this.gulag!.lost(wallClock());
-    else if (this.rules === "resurgence" && comesBack(this.ringPhase, this.players, this.matesUp)) this.selfRedeploy = new Redeploy(this.id, redeployWait(this.ringPhase));
+    // A death in the Gulag is the end of a trip the match has already counted:
+    // the first death went out, dropped its box and made its feed line. So
+    // nothing goes out again but the Gulag's own note (leaveGulag): no second
+    // "down", no second box in the Gulag's room, and the feed names whoever
+    // won it (it named the Gulag's bot by its id, PLAYER 991). Plan section
+    // 12, item 3.
+    if (this.gulag !== null && this.gulag.phase !== "wait") {
+      this.gulag.lost(wallClock());
+      this.diedInGulag = true;
+      this.alive = false;
+      this.downed = false;
+      this.onFeed?.(`${this.gulagBot?.remote.name ?? "THE GULAG"} won the Gulag against ${this.myName || "YOU"}`, false);
+      this.onEliminated?.(from);
+      this.leaveGulag(false);
+      return;
+    }
+    if (this.rules === "resurgence" && comesBack(this.ringPhase, this.players, this.matesUp)) this.selfRedeploy = new Redeploy(this.id, redeployWait(this.ringPhase));
     // a first death, early, goes to the Gulag; decided before the squad is judged, so it is not out meanwhile
     else if (this.gulagOn && this.phase === "fight" && gulagFor(this.rules, this.ringPhase, this.gulagUsed)) {
       this.gulag = new Gulag(wallClock());
@@ -1822,8 +1835,10 @@ export class BrMatch extends Duel {
       this.noteGulag(this.id, 1);
     }
     super.eliminate(from, how);
-    if (inGulag) this.leaveGulag(false);
   }
+
+  /** this player's last death was a Gulag lost: out, with the box of the first death the only one (main.ts onEliminated) */
+  diedInGulag = false;
 
   /**
    * A squad mate brought you back (a beacon, your death box) while you were on
