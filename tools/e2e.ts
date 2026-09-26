@@ -4865,6 +4865,21 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   const after = await ev<number[][]>(page, "window.__range.duel().bots.map((b) => [b.bot.pos.x, b.bot.pos.z])");
   const moved = after.filter((p, i) => before[i] && Math.hypot(p[0] - before[i][0], p[1] - before[i][1]) > 3).length;
   check("speedkills br: the bots land and move through the city", moved >= 15, `${moved} of ${after.length} moved in 6 s`);
+  // the bots play by a player's health and carry their tier's hacks (bots.json skHacks)
+  const kit = await ev<{ shields: number[]; hacks: string[]; tier: string }>(
+    page,
+    `(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.bot.alive && x.bot.diff.name === "normal") ?? d.bots.find((x) => x.bot.alive); const shields = [...new Set(d.bots.map((x) => x.bot.dummy.shieldMax))]; const t = b.bot.dummy.tier; b.bot.dummy.setTier(4); const kitted = b.bot.dummy.shieldMax; b.bot.dummy.setTier(t); return { shields: [...shields, kitted], hacks: [...b.bot.skHacks], tier: b.bot.diff.name }; })()`
+  );
+  const tiers = await ev<string[]>(page, `[...document.querySelectorAll("#botDifficulty option")].map((o) => o.textContent)`);
+  check("speedkills: the bots' five tiers by SpeedKills' names, then Mixed", tiers.slice(0, 5).join(",") === "Beginner,Casual,Skilled,Advanced,Extreme" && /Mixed/.test(tiers[5] ?? ""), tiers.join(","));
+  check("speedkills br: every bot has a player's one 50 shield, whatever armour tier its kit reaches", kit.shields.every((x) => x === 50), JSON.stringify(kit));
+  check("speedkills br: a Skilled bot carries Heal and Dash", kit.tier !== "normal" || kit.hacks.join(",") === "heal,dash", JSON.stringify(kit));
+  // hurt one badly, out of anyone's sight: its Heal hack brings its health back well before regeneration would
+  const healed = await ev<{ before: number; after: number; used: number }>(
+    page,
+    `(() => new Promise((ok) => { const d = window.__range.duel(); const b = d.bots.find((x) => x.bot.alive && x.bot.skHacks.includes("heal")).bot; b.dummy.shield = 0; b.dummy.health = 30; const before = b.dummy.health; setTimeout(() => ok({ before, after: b.dummy.health, used: b.skUsed.heal }), 3000); }))()`
+  );
+  check("speedkills br: a hurt bot uses its Heal hack (health back within 3 s, before regeneration starts at 8)", healed.used >= 1 && healed.after >= healed.before + 40, JSON.stringify(healed));
   // the floor: guns and hack cores only, the Spire the richest
   const floor = await ev<{ kinds: string[]; spire: number; other: number; levels: number[] }>(
     page,

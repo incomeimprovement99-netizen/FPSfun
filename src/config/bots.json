@@ -1,9 +1,39 @@
 {
-  "_squads": "Bot squads in duos and trios (brmatch.ts). Ours, after every battle royale's squads: a squad follows its first bot, the others keeping spread metres apart around it and closing in when further than follow metres; a bot that sees someone tells its mates within share metres, who go to look; a downed target counts downedFar times as far off, so a bot turns to whoever is still up. A squad's bot knocked while a mate stands is down, not out (src/config/squad.json's bleed-out, crawl and revive, as a player's): a mate with nothing in sight within reviveRange m walks over and picks it up. crouchWalk is a crouched bot's share of its tier's speed, which the crawl is a share of in turn. The traversal (brmatch.ts botTraversal): a bot within ropeReach m of a zipline's end, standing on the floor under it, takes the rope when its far end is at least rideGain m nearer where the bot is going; a launch pad throws any bot that steps on it, as it throws a player.",
-  "squads": { "follow": 12, "spread": 4, "share": 80, "downedFar": 3, "reviveRange": 60, "crouchWalk": 0.6, "ropeReach": 1.6, "rideGain": 30, "towerGain": 110 },
-  "_squads": "How a bot squad holds together and takes the map's ways across it: follow is how far a follower may be thrown from its lead, ropeReach how near a rope's end it has to stand, rideGain how much nearer the far end has to be, and towerGain how far its goal has to be before it rides a jump tower (a balloon costs it the climb and the fall, so it is only worth it for a long way).",
+  "_squads": "Bot squads in duos and trios (brmatch.ts). Ours, after every battle royale's squads: a squad follows its first bot, the others keeping spread metres apart around it and closing in when further than follow metres; a bot that sees someone tells its mates within share metres, who go to look; a downed target counts downedFar times as far off, so a bot turns to whoever is still up. A squad's bot knocked while a mate stands is down, not out (src/config/squad.json's bleed-out, crawl and revive, as a player's): a mate with nothing in sight within reviveRange m walks over and picks it up. crouchWalk is a crouched bot's share of its tier's speed, which the crawl is a share of in turn. The traversal (brmatch.ts botTraversal): a bot within ropeReach m of a zipline's end, standing on the floor under it, takes the rope when its far end is at least rideGain m nearer where the bot is going; a launch pad throws any bot that steps on it, as it throws a player. How a bot squad holds together and takes the map's ways across it: follow is how far a follower may be thrown from its lead, ropeReach how near a rope's end it has to stand, rideGain how much nearer the far end has to be, and towerGain how far its goal has to be before it rides a jump tower (a balloon costs it the climb and the fall, so it is only worth it for a long way).",
+  "squads": {
+    "follow": 12,
+    "spread": 4,
+    "share": 80,
+    "downedFar": 3,
+    "reviveRange": 60,
+    "crouchWalk": 0.6,
+    "ropeReach": 1.6,
+    "rideGain": 30,
+    "towerGain": 110
+  },
   "_note": "Bot difficulty tiers (src/game/bots.ts). The shape follows how Counter-Strike 2's shipped bot profile and Valve's published Team Fortress 2 bot code grade their bots (docs/RESEARCH_PHASE_12.md section 4): a reaction time to a newly seen enemy, an aim that re-settles on an interval (here, how far behind a moving target the aim lags), a starting aim error that shrinks while it keeps the target (errStart degrees, errDecay = the fraction of the extra error left after one second, errFloor what it settles to), where on the body it aims (height in m above the feet), the chance to dodge when shot, the chance to hear a shot within earshot, grenades, cover and a crouch while firing. Reaction and the error's start and decay are CS2's values where its tiers line up (Easy, Normal, Hard, Expert); the rest are ours, tuned so each tier plays differently rather than only aiming differently.",
   "tiers": {
+    "beginner": {
+      "speed": 3.6,
+      "reaction": 0.9,
+      "aimLag": 0.5,
+      "errStart": 20,
+      "errDecay": 0.8,
+      "errFloor": 8,
+      "aimHeight": 1.0,
+      "fireScale": 0.3,
+      "keep": 10,
+      "strafe": 0,
+      "strafeRate": 0,
+      "dodge": 0,
+      "hearing": 0.1,
+      "grenadeAfter": null,
+      "healAfter": 5,
+      "cover": true,
+      "crouchPeek": 0,
+      "preAim": false,
+      "jolt": false
+    },
     "easy": {
       "speed": 4.2,
       "reaction": 0.6,
@@ -91,6 +121,7 @@
   },
   "_mixed": "a battle royale's 'mixed' lobby: each bot's tier drawn with these weights",
   "mixed": {
+    "beginner": 0,
     "easy": 0.2,
     "normal": 0.45,
     "hard": 0.25,
@@ -130,12 +161,14 @@
   "sight": {
     "range": {
       "arena": {
+        "beginner": 50,
         "easy": 55,
         "normal": 60,
         "hard": 65,
         "elite": 70
       },
       "br": {
+        "beginner": 55,
         "easy": 60,
         "normal": 90,
         "hard": 130,
@@ -197,5 +230,27 @@
     "_floor": "how far above or below its feet, in metres, an item may be for a bot to go for it. A bot cannot jump or climb, so an item on the floor above can be a metre away across the ground and out of reach for ever: in a probe, one stood under loot on an upper floor for the whole 40 s, unarmed. A storey here is 3.4 m, so 1.2 keeps a bot to its own floor with room for a crate top. Ours.",
     "floor": 1.2
   },
-  "_arc": "grenade.arcSlack and arcTries: before a bot throws, it traces its lob against the world. The first arc it tries is the flight the throw has always used; if that would strike something more than arcSlack metres short of where it is aiming (a roof, a wall, the building over the circle), it tries the steeper lobs in arcTries, and if none lands within arcSlack across and arcRise up or down it keeps the frag for later: a frag on the roof right over your head is close across and a floor away. A probe of the tiers test caught an elite bot's frag going off 14 m from its target one run in two, into whatever stood in the arc's way. Ours."
+  "_arc": "grenade.arcSlack and arcTries: before a bot throws, it traces its lob against the world. The first arc it tries is the flight the throw has always used; if that would strike something more than arcSlack metres short of where it is aiming (a roof, a wall, the building over the circle), it tries the steeper lobs in arcTries, and if none lands within arcSlack across and arcRise up or down it keeps the frag for later: a frag on the roof right over your head is close across and a floor away. A probe of the tiers test caught an elite bot's frag going off 14 m from its target one run in two, into whatever stood in the arc's way. Ours.",
+  "_beginner": "SpeedKills' fifth tier, below easy (plan section 7.12, the owner's five): walks rather than strafes, reacts in 0.9 s, misses wide and settles loose, fires a third as often, and takes cover when hurt, so a new player can learn to fight one. Ours.",
+  "_skHacks": "SpeedKills: the hacks a bot carries by its tier, and when it uses them (bots.ts stepSk). Heal (hacks.json heal: health back over its seconds) once its health and shield are under healBelow of full; Dash (hacks.json dash: its distance over its seconds, across the line of fire, stopped by walls) when hit within dashWhenHitWithin seconds with a target in view. Cooldowns are the hacks' own at fusion level 0. A beginner uses none, so it can be learned on. Ours.",
+  "skHacks": {
+    "beginner": [],
+    "easy": [
+      "heal"
+    ],
+    "normal": [
+      "heal",
+      "dash"
+    ],
+    "hard": [
+      "heal",
+      "dash"
+    ],
+    "elite": [
+      "heal",
+      "dash"
+    ],
+    "healBelow": 0.5,
+    "dashWhenHitWithin": 1.0
+  }
 }

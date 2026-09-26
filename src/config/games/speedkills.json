@@ -312,14 +312,21 @@
   "map": "city",
   "hud": "speedkills",
   "menu": "speedkills",
-  "_bots": "Five tiers, easiest first; casual, skilled and advanced are the legacy easy, normal and hard, beginner and extreme are new.",
+  "_bots": "Five tiers, easiest first, by the code's ids; botNames is what SpeedKills calls each (Casual, Skilled and Advanced are the legacy Easy, Normal and Hard; Beginner and Extreme are the ends).",
   "bots": [
     "beginner",
-    "casual",
-    "skilled",
-    "advanced",
-    "extreme"
+    "easy",
+    "normal",
+    "hard",
+    "elite"
   ],
+  "botNames": {
+    "beginner": "Beginner",
+    "easy": "Casual",
+    "normal": "Skilled",
+    "hard": "Advanced",
+    "elite": "Extreme"
+  },
   "identity": {
     "title": "SpeedKills",
     "accent": "#20e0ff",

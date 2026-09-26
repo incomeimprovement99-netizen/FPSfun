@@ -79,7 +79,7 @@ import { Throwables, blastDamage, throwCode } from "./throwables";
 import { lockedHopupFor } from "./attachments";
 import { weaponName } from "./weapons";
 import { savedLoadout, type LoadoutDef } from "./loadouts";
-import { Bot, BODY_TOP, BOT_NAMES, MOST_BOTS, botName, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense, type SightCue, BOT_TIERS, type BotKit, type BotTier } from "./bots";
+import { Bot, BODY_TOP, BOT_NAMES, MOST_BOTS, botName, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense, type SightCue, WIRE_TIERS, type BotKit, type BotTier } from "./bots";
 import botsCfg from "../config/bots.json";
 import { RANGE_SOLIDS } from "./range";
 /**
@@ -2074,7 +2074,7 @@ export class BrMatch extends Duel {
     return {
       b: this.bots.map((b) => ({
         i: b.bot.index,
-        t: Math.max(0, BOT_TIERS.indexOf(b.bot.diff.name as BotTier)),
+        t: Math.max(0, WIRE_TIERS.indexOf(b.bot.diff.name as BotTier)),
         tm: b.team,
         sl: b.slot,
         n: b.node,
@@ -2124,7 +2124,7 @@ export class BrMatch extends Duel {
       const r = this.remotes.get(id);
       const last = r?.samples[r.samples.length - 1];
       const spawn: Spawn = last ? { x: last.x, z: last.z, yaw: last.yaw } : { x: row.dt[0], z: row.dt[1], yaw: 0 };
-      const bot = this.makeBot(row.i, BOT_TIERS[row.t] ?? "normal", spawn, Math.random, row.gd ? VAULT.guardName : undefined);
+      const bot = this.makeBot(row.i, WIRE_TIERS[row.t] ?? "normal", spawn, Math.random, row.gd ? VAULT.guardName : undefined);
       if (last) bot.pos.y = last.y;
       bot.restoreKit(row.k, row.c);
       if (!this.startLoot || row.as) bot.dummy.setGunVisible(true);

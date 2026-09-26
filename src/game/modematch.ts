@@ -26,7 +26,7 @@ import type { Seen } from "./reveal";
 import { senderStamp } from "../net/state";
 import * as THREE from "three";
 import { Throwables, blastDamage, throwCode } from "./throwables";
-import { Bot, botName, BOT_TIERS, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP, hitsBody, tierFor, type BotSense, type BotTier } from "./bots";
+import { Bot, botName, WIRE_TIERS, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP, hitsBody, tierFor, type BotSense, type BotTier } from "./bots";
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Duel, HEALTH_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
@@ -945,7 +945,7 @@ export class ArenaMode extends Duel {
 
   protected override snapshotMode(now: number): ArenaSnap {
     return {
-      b: this.bots.map((b) => [b.bot.index, Math.max(0, BOT_TIERS.indexOf(b.bot.diff.name as BotTier)), b.team, Number.isFinite(b.respawnAt) ? Math.max(0, b.respawnAt - now) : -1, b.goal, b.bot.remote.avatarWeapon]),
+      b: this.bots.map((b) => [b.bot.index, Math.max(0, WIRE_TIERS.indexOf(b.bot.diff.name as BotTier)), b.team, Number.isFinite(b.respawnAt) ? Math.max(0, b.respawnAt - now) : -1, b.goal, b.bot.remote.avatarWeapon]),
       ca: this.crown && this.crown.phase === "waiting" ? Math.max(0, this.crown.appearsIn - now) : -1,
       nb: this.control ? this.control.nextBonus - now : -1,
     };
@@ -970,7 +970,7 @@ export class ArenaMode extends Duel {
       const r = this.remotes.get(id);
       const last = r?.samples[r.samples.length - 1];
       const spawn: Spawn = last ? { x: last.x, z: last.z, yaw: last.yaw } : this.startSpawn(id, team);
-      const mb = this.makeBot(i, team, BOT_TIERS[tier] ?? "normal", gun || BOT_WEAPONS[i % BOT_WEAPONS.length], spawn);
+      const mb = this.makeBot(i, team, WIRE_TIERS[tier] ?? "normal", gun || BOT_WEAPONS[i % BOT_WEAPONS.length], spawn);
       mb.goal = goal;
       if (r) {
         mb.bot.dummy.health = r.health;

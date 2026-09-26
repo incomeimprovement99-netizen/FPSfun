@@ -528,6 +528,7 @@
   "pickupReach": 2.2,
   "_bots": "a bot lands unarmed and searches this long before it has its gun and a shield (ours)",
   "botSearch": {
+    "beginner": 40,
     "easy": 30,
     "normal": 18,
     "hard": 10,

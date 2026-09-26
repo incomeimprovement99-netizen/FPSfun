@@ -3439,3 +3439,26 @@ Stage M. `src/game/gamepad.ts`, `src/config/gamepad.json`, `src/game/aimassist.t
   right.
 - **Proven** by putting each bug back: stickiness off and no falloff failed 4 checks; a second action on F
   failed the key check.
+
+## Milestone 193 — Five bot tiers, on a player's health, with hacks ✅
+
+Stage N, first part. `src/game/bots.ts`, `src/config/bots.json` (`beginner`, `skHacks`).
+
+- **Five tiers,** named in SpeedKills as Beginner, Casual, Skilled, Advanced and Extreme (the code's
+  beginner, easy, normal, hard, elite).
+- **Beginner is new:** it walks, reacts in 0.9 s, misses wide, fires a third as often, takes cover when hurt,
+  and uses no hacks, so a new player can learn to fight one. It sits below Easy on every axis the checks hold
+  (aim, sight, looting time), and a mixed lobby never draws it.
+- **On the wire** the four older tiers keep their numbers and Beginner comes after them, so a page from
+  before it reads every bot right.
+- **A player's health for bots:** in SpeedKills a bot had the legacy armour tiers (up to 125 shield as it
+  looted) and healed only from items the city does not have. It now has the one 50 shield whatever its kit
+  says, and the same regeneration as a player.
+- **Bot hacks:** by tier, Casual has Heal, Skilled and up Heal and Dash. Heal fires under half health and
+  shield; Dash goes across the line of fire when hit with a target in view. Both use hacks.json's own numbers
+  and cooldowns.
+- **Found by the new checks:** a tier weighted 0 could still be drawn on a roll of exactly 0 (fixed); the bots
+  config had its `_squads` note twice, and the two notes are now one (plan bug 13).
+- **Checked** by verify (the tiers, the wire, the draw) and the e2e in a real city match: 50 shield even at
+  armour tier 4, a Skilled bot carrying Heal and Dash, and a hurt bot healing 30 to 96 in 3 s. Each was proven
+  by putting the bug back (125 shield; no heal).

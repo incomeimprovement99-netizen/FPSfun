@@ -46,6 +46,8 @@ export interface GameProfile {
   hud: string;
   menu: string;
   bots: string[];
+  /** what this game calls each bot tier (absent: the tier's own name) */
+  botNames?: Record<string, string>;
   identity: { title: string; accent: string; accent2: string; sky: string };
   /** the game's own versions of lists the legacy game keeps in its configs; absent: the legacy game's own */
   lists?: { botWeapons: string[]; loadouts: string[][]; gulagGuns: string[] };

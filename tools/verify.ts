@@ -15,7 +15,7 @@ import { Ring, RING_PHASES, RING_TICK } from "../src/game/ring";
 import { RANGE_SOLIDS } from "../src/game/range";
 import { Dummy, TURN_STEP_AT } from "../src/game/dummy";
 import * as THREE from "three";
-import { BOT_TIERS, DIFFICULTY, aimError, lobVelocity, tierFor } from "../src/game/bots";
+import { BOT_TIERS, WIRE_TIERS, DIFFICULTY, aimError, lobVelocity, tierFor } from "../src/game/bots";
 import throwablesCfg from "../src/config/throwables.json";
 import { MODELLED_IDS } from "../src/game/gunmodels";
 import { movesimFails } from "./movesim";
@@ -1630,8 +1630,11 @@ console.log("The battle royale's Season 29 and 30 pieces (squad.json, weapon-mec
 console.log("");
 console.log("Bot tiers (src/config/bots.json, docs/RESEARCH_PHASE_12.md section 4)");
 {
-  eq("four tiers", BOT_TIERS.join(" "), "easy normal hard elite");
-  eq("reaction to a new sighting, s (CS2's Easy, Normal, Hard, Expert)", BOT_TIERS.map((t) => DIFFICULTY[t].reaction).join(" "), "0.6 0.4 0.2 0.12");
+  eq("five tiers, easiest first (SpeedKills' Beginner below the four)", BOT_TIERS.join(" "), "beginner easy normal hard elite");
+  eq("reaction to a new sighting, s (ours for Beginner, then CS2's Easy, Normal, Hard, Expert)", BOT_TIERS.map((t) => DIFFICULTY[t].reaction).join(" "), "0.9 0.6 0.4 0.2 0.12");
+  eq("on the wire the four older tiers keep their numbers, Beginner after them", WIRE_TIERS.join(" "), "easy normal hard elite beginner");
+  eq("and every tier has a wire number", BOT_TIERS.every((t) => WIRE_TIERS.includes(t)), true);
+  eq("Beginner is never drawn for a mixed lobby", tierFor("mixed", () => 0), "easy");
   near("easy's aim error on a new sighting, deg", aimError(DIFFICULTY.easy, 0), 14, 1e-9);
   near("after 1 s it has lost 30% of the extra (decay 0.7)", aimError(DIFFICULTY.easy, 1), 5 + 9 * 0.7, 1e-9);
   near("and settles at its floor", aimError(DIFFICULTY.easy, 60), 5, 1e-6);

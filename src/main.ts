@@ -2110,6 +2110,28 @@ const duelPlayers = $<HTMLSelectElement>("duelPlayers");
 const duelMode = $<HTMLSelectElement>("duelMode");
 const botDifficulty = $<HTMLSelectElement>("botDifficulty");
 const botCount = $<HTMLSelectElement>("botCount");
+// SpeedKills: its five tiers by its own names (speedkills.json bots, botNames), Beginner first
+if (IS_SK) {
+  const names = PROFILE.botNames ?? {};
+  const tips: Record<string, string> = {
+    beginner: "walks, reacts slowly, misses wide, takes cover, uses no hacks: one to learn on",
+    easy: "slow to react, loose aim, heals with its Heal hack",
+    normal: "strafes, dodges, Heal and Dash",
+    hard: "quick and accurate, always dodges, crouches in fights, hears your shots",
+    elite: "all of that sharper, and it pre-aims where it lost you",
+  };
+  const mixed = botDifficulty.querySelector('option[value="mixed"]');
+  for (const id of PROFILE.bots) {
+    let o = botDifficulty.querySelector<HTMLOptionElement>(`option[value="${id}"]`);
+    if (!o) {
+      o = document.createElement("option");
+      o.value = id;
+    }
+    botDifficulty.insertBefore(o, mixed);
+    o.textContent = names[id] ?? id;
+  }
+  botDifficulty.title = PROFILE.bots.map((id) => `${names[id] ?? id}: ${tips[id] ?? ""}.`).join(" ") + " Mixed: each bot its own tier.";
+}
 const brBots = $<HTMLSelectElement>("brBots");
 const modeBots = $<HTMLSelectElement>("modeBots");
 const gunRunList = $<HTMLSelectElement>("gunRunList");

@@ -302,6 +302,8 @@ export class Dummy {
   health = HEALTH_MAX;
   shield = 0;
   shieldMax = 0;
+  /** a shield that is this whatever the armour tier (SpeedKills' one shield); null: the tier's */
+  shieldCap: number | null = null;
   tier: ArmorTier = 0;
   knocked = false;
   /** time of the FIRST hit on this dummy since it was last full, or null */
@@ -732,7 +734,7 @@ export class Dummy {
 
   setTier(t: ArmorTier): void {
     this.tier = t;
-    this.shieldMax = ARMOR_SHIELD[t];
+    this.shieldMax = this.shieldCap ?? ARMOR_SHIELD[t];
     this.shield = this.shieldMax;
     this.health = this.oneHit ? 1 : HEALTH_MAX;
     this.plate.visible = t !== 0;

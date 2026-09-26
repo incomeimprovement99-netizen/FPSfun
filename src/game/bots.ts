@@ -23,6 +23,8 @@
 import { solidsIn } from "./solidgrid";
 const BOT_NEAR: import("./range").Solid[] = [];
 import { IS_SK, PROFILE } from "./game";
+import hackCfg from "../config/hacks.json";
+import { cooldownOf } from "./hacks";
 import { smokeBlocks } from "./smoke";
 import { Revealed, type Seen } from "./reveal";
 import * as THREE from "three";
@@ -54,8 +56,15 @@ const ROUND_END = 3;
 const MATCH_END = 7;
 const wallClock = (): number => performance.now() / 1000;
 
-export type BotTier = "easy" | "normal" | "hard" | "elite";
-export const BOT_TIERS: BotTier[] = ["easy", "normal", "hard", "elite"];
+export type BotTier = "beginner" | "easy" | "normal" | "hard" | "elite";
+/** easiest first */
+export const BOT_TIERS: BotTier[] = ["beginner", "easy", "normal", "hard", "elite"];
+/**
+ * A tier as it goes over the wire, by its place here: the four older tiers
+ * keep the numbers they always had, so a page from before Beginner reads
+ * every bot's tier right, and Beginner comes last.
+ */
+export const WIRE_TIERS: readonly BotTier[] = ["easy", "normal", "hard", "elite", "beginner"];
 export interface Difficulty {
   name: BotTier;
   /** m/s on foot */
@@ -101,8 +110,10 @@ export function tierFor(d: BotDifficulty, rng: () => number = Math.random): BotT
   const k = asDifficulty(d);
   if (k !== "mixed") return k;
   const w = botsCfg.mixed as Record<BotTier, number>;
-  let r = rng() * BOT_TIERS.reduce((s, t) => s + w[t], 0);
+  let r = rng() * BOT_TIERS.reduce((s, t) => s + (w[t] > 0 ? w[t] : 0), 0);
   for (const t of BOT_TIERS) {
+    // a tier weighted 0 (or not weighted) is never drawn, even on a roll of exactly 0
+    if (!(w[t] > 0)) continue;
     r -= w[t];
     if (r <= 0) return t;
   }
@@ -686,6 +697,18 @@ export class Bot {
   /** JOLT or TRIAGE when the match has abilities on (abilities.ts) */
   ability: AbilityId | null = null;
   private joltLeft = 0;
+  /** metres a second of the dash in progress: JOLT's, or SpeedKills' Dash hack */
+  private joltSpeed = JOLT.distance / JOLT.duration;
+  /** SpeedKills: when its Heal and Dash hacks are next ready, and the heal running until */
+  private skHealAt = -Infinity;
+  private skDashAt = -Infinity;
+  private skHealUntil = -Infinity;
+  /** SpeedKills: the hacks its tier carries (bots.json skHacks) */
+  get skHacks(): readonly string[] {
+    return IS_SK ? ((botsCfg.skHacks as unknown as Record<string, string[]>)[this.diff.name] ?? []) : [];
+  }
+  /** SpeedKills: the hacks it has used this life, for the tests and the recap */
+  skUsed = { heal: 0, dash: 0 };
   /**
    * Its kit's ultimate (kits.json): when its meter is full (a bot's fills with
    * time alone), how long RUNNER's OVERDRIVE still has, and MEDIC's FIELD
@@ -732,6 +755,8 @@ export class Bot {
     this.weapon = resolveWeapon(wid, 2);
     const skin = OPERATORS[(index + 1) % OPERATORS.length];
     this.dummy = new Dummy(spawn.x, spawn.z, 0, { armed: wid, respawn: false, skin, rig: true, noBase: true });
+    // SpeedKills: a player's one shield (speedkills.json health), whatever armour tier the kit says
+    if (IS_SK && PROFILE.health) this.dummy.shieldCap = PROFILE.health.shield;
     this.dummy.setTier(2);
     this.dummy.group.name = `bot:${index}`;
     scene.add(this.dummy.group);
@@ -761,7 +786,7 @@ export class Bot {
     this.dummy.setTier(2);
     this.dummy.setThreat(0);
     this.remote.health = HEALTH_MAX;
-    this.remote.shield = SHIELD_MAX;
+    this.remote.shield = IS_SK ? this.dummy.shield : SHIELD_MAX;
     this.remote.alive = true;
     this.pos.set(this.spawn.x, 0, this.spawn.z);
     this.yaw = this.spawn.yaw;
@@ -773,9 +798,13 @@ export class Bot {
     this.aboard = false;
     this.dropTarget = null;
     this.joltLeft = 0;
+    this.joltSpeed = JOLT.distance / JOLT.duration;
     this.joltCharges = JOLT.charges;
     this.joltRechargeAt = Infinity;
     this.joltLastAt = -Infinity;
+    this.skHealAt = -Infinity;
+    this.skDashAt = -Infinity;
+    this.skHealUntil = -Infinity;
     this.lastHurtAt = -Infinity;
     this.lastTargetAt = -Infinity;
     this.healing = null;
@@ -976,10 +1005,48 @@ export class Bot {
     else if (d.health < HEALTH_MAX && this.kit.syringe > 0) this.healing = { item: "syringe", startedAt: now };
   }
 
+  /**
+   * SpeedKills: a player's health rules for a bot (speedkills.json health:
+   * the shield back after a quiet spell, then health), and its hacks by tier
+   * (bots.json skHacks): Heal when low, Dash across the line of fire when hit.
+   */
+  private stepSk(now: number, dt: number, target: THREE.Vector3 | null): void {
+    const d = this.dummy;
+    const H = PROFILE.health;
+    if (!H) return;
+    const quiet = now - this.lastHurtAt;
+    if (quiet >= H.shieldDelay) d.shield = Math.min(d.shieldMax, d.shield + (d.shieldMax / H.shieldFill) * dt);
+    if (quiet >= H.healthDelay) d.health = Math.min(H.health, d.health + H.healthRegen * dt);
+    const hacks = this.skHacks;
+    const S = botsCfg.skHacks;
+    if (now < this.skHealUntil) d.health = Math.min(H.health, d.health + hackCfg.heal.perSecond * dt);
+    const frac = (d.health + d.shield) / Math.max(1, H.health + d.shieldMax);
+    if (hacks.includes("heal") && now >= this.skHealAt && frac < S.healBelow && d.health < H.health) {
+      this.skHealUntil = now + hackCfg.heal.seconds;
+      this.skHealAt = now + cooldownOf("heal", 0);
+      this.skUsed.heal++;
+    }
+    if (hacks.includes("dash") && target && this.joltLeft <= 0 && now >= this.skDashAt && now - this.lastHurtAt < S.dashWhenHitWithin) {
+      const tx = target.x - this.pos.x;
+      const tz = target.z - this.pos.z;
+      const tl = Math.hypot(tx, tz) || 1;
+      const side = Math.random() < 0.5 ? 1 : -1;
+      this.joltDir.set((-tz / tl) * side, (tx / tl) * side);
+      this.joltSpeed = hackCfg.dash.distance / hackCfg.dash.seconds;
+      this.joltLeft = hackCfg.dash.seconds;
+      this.skDashAt = now + cooldownOf("dash", 0);
+      this.skUsed.dash++;
+      this.dummy.jolt();
+      this.joltFrom.copy(this.pos);
+    }
+    // what the match sends is what the bot has
+    this.prevVital = d.health + d.shield;
+  }
+
   /** a JOLT in progress: across its line of fire at the dash speed, stopped by walls */
   private stepJolt(dt: number): void {
     const use = Math.min(dt, this.joltLeft);
-    let left = (JOLT.distance / JOLT.duration) * use;
+    let left = this.joltSpeed * use;
     // in steps no longer than a quarter metre, so a thin wall stops it
     while (left > 1e-6) {
       const step = Math.min(0.25, left);
@@ -1410,6 +1477,7 @@ export class Bot {
       this.joltCharges++;
       this.joltRechargeAt = this.joltCharges < JOLT.charges ? this.joltRechargeAt + JOLT.recharge : Infinity;
     }
+    if (IS_SK) this.stepSk(now, dt, target);
     if (this.ability === "jolt" && tier.jolt && this.joltLeft <= 0 && target && this.joltCharges > 0 && now - this.joltLastAt >= JOLT.gap && now - this.lastHurtAt < BOT_ABILITY.joltWhenHitWithin) {
       const tx = target.x - this.pos.x;
       const tz = target.z - this.pos.z;
@@ -1417,6 +1485,7 @@ export class Bot {
       const side = Math.random() < 0.5 ? 1 : -1;
       this.joltDir.set((-tz / tl) * side, (tx / tl) * side);
       this.joltLeft = JOLT.duration;
+      this.joltSpeed = JOLT.distance / JOLT.duration;
       this.joltCharges--;
       if (!Number.isFinite(this.joltRechargeAt)) this.joltRechargeAt = now + JOLT.recharge;
       this.joltLastAt = now;
