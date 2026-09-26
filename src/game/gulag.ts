@@ -15,6 +15,7 @@
 // This file is the Gulag's clock and rules, kept apart from the match so the
 // checks can run them; brmatch.ts runs the room and the bot, main.ts puts you
 // in it. The numbers are in src/config/br.json `gulag`.
+import decayCfg from "../config/decay.json";
 import { IS_SK, PROFILE } from "./game";
 import brCfg from "../config/br.json";
 
@@ -110,5 +111,7 @@ export class Gulag {
 
 /** a first death goes to the Gulag: the rules have it, it is still early, and this player has not been */
 export function gulagFor(rules: string, ringPhase: number, used: boolean): boolean {
-  return GULAG.enabled && rules === "br" && !used && ringPhase < GULAG.untilPhase;
+  // SpeedKills: every first death goes to the Gulag, until the capture zone opens (the last round)
+  const until = IS_SK ? decayCfg.phases.length - 1 : GULAG.untilPhase;
+  return GULAG.enabled && rules === "br" && !used && ringPhase < until;
 }

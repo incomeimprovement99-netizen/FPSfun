@@ -2606,7 +2606,8 @@ function respawnForMatch(d: MatchLike): void {
   // again): 20 health, the shield back over a few seconds, and what is left in the box put on (the
   // box's items lie 0.9 m round its own spot, near the banner the mate held at)
   if (d instanceof BrMatch && boxAt) {
-    d.health = squadCfg.boxRespawn.health;
+    // SpeedKills: a restored ghost stands up whole (speedkills.json life)
+    d.health = IS_SK ? (PROFILE.life.restoreHealth ?? squadCfg.boxRespawn.health) : squadCfg.boxRespawn.health;
     d.shield = 0;
     boxRegen = { rate: d.shieldMax / squadCfg.boxRespawn.shieldRegen };
     const f = d.lootField;
@@ -3263,6 +3264,38 @@ let invisUntil = -Infinity;
 const healZones: Array<{ at: THREE.Vector3; until: number; mesh: THREE.Mesh }> = [];
 /** MINE's mines: yours hunt and hurt; everyone else's are drawn */
 const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Mesh; mine: boolean }> = [];
+/** when a ghost next looks round it */
+let ghostSeeAt = 0;
+/** the squad's ghosts, drawn where they are: a pale figure per dead squad mate */
+const ghostFigs = new Map<number, THREE.Mesh>();
+/** the squad's ghosts: a pale column where each dead squad mate is (enemies never see one) */
+function stepGhosts(): void {
+  const d = duel instanceof BrMatch && duel.decay ? duel : null;
+  const seen = new Set<number>();
+  if (d) {
+    for (const a of d.avatars) {
+      const r = d.remoteOf(a);
+      if (!r || r.alive || r.id >= Duel.BOT_ID || !d.isFriend(r.id)) continue;
+      const last = r.samples[r.samples.length - 1];
+      if (!last) continue;
+      seen.add(r.id);
+      let m = ghostFigs.get(r.id);
+      if (!m) {
+        m = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1.1, 4, 10), new THREE.MeshBasicMaterial({ color: 0x9fefff, transparent: true, opacity: 0.35, depthWrite: false }));
+        m.userData.dynamic = true;
+        scene.add(m);
+        ghostFigs.set(r.id, m);
+      }
+      m.position.set(last.x, last.y + 0.95, last.z);
+    }
+  }
+  for (const [id, m] of ghostFigs) {
+    if (seen.has(id)) continue;
+    scene.remove(m);
+    ghostFigs.delete(id);
+  }
+}
+
 /** others under INVISIBILITY, until when (the page's wall clock) */
 const unseenUntil = new Map<number, number>();
 
@@ -3433,7 +3466,15 @@ function stepHacks(now: number, dt: number): void {
   // ARMOR: most of a hit taken away, and slower while it lasts
   const armored = now < armorUntil;
   if (d instanceof Duel) d.incomingScale = armored ? H.armor.damageScale : 1;
-  player.hackSlow = armored ? H.armor.speedScale : 1;
+  // a ghost is quicker than anyone alive (speedkills.json life ghostSpeed)
+  const ghost = d instanceof BrMatch && d.ghost;
+  player.hackSlow = ghost ? (PROFILE.life.ghostSpeed ?? 1) : armored ? H.armor.speedScale : 1;
+  // a ghost sees the enemies near it, a moment at a time, and so does its squad through its marks
+  if (ghost && now >= ghostSeeAt) {
+    ghostSeeAt = now + 0.5;
+    kitSight()?.reveal(player.pos, null, PROFILE.life.ghostSight, 360, 0.7);
+  }
+  stepGhosts();
   // INVISIBILITY ends when you fire
   if (now < invisUntil && now - loadout.active.state.lastShotAt < 0.05) {
     invisUntil = -Infinity;
@@ -3650,6 +3691,10 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       mines.push({ at: a.clone(), armAt: Infinity, until: gameTime + H.mine.life, mesh, mine: false });
       break;
     }
+    case 9:
+      // that squad mate has had their two restores: their box is not offered again
+      if (d instanceof BrMatch) d.noRestores.add(from);
+      break;
     case 7:
     case 8: {
       audio.blast(n === 7 ? "arcstar" : "frag", a);
@@ -6249,7 +6294,9 @@ function step(): void {
       calloutWas = null;
     }
   }
-  player.update(dt, now, knockedOut || finisher ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
+  // SpeedKills: a ghost moves (knockedOut still holds its guns and hacks)
+  const skGhostNow = duel instanceof BrMatch && duel.ghost;
+  player.update(dt, now, (knockedOut && !skGhostNow) || finisher ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
   // a slide counts as crouched for the spread model: the cone tightens
   const crouched = player.crouched || player.sliding;
   const stance = !player.onGround ? "air" : crouched ? "crouch" : "stand";
@@ -6287,7 +6334,8 @@ function step(): void {
   // keeps a place in it, moves on when whoever you are watching goes out, and
   // says nothing at all while you are still up.
   let watch: Dummy | null = null;
-  if (knockedOut && duel) {
+  // a ghost looks through its own eyes rather than watching someone
+  if (knockedOut && duel && !(duel instanceof BrMatch && duel.ghost)) {
     const list = duel.spectateList();
     if (list.length) {
       if (input.playing && input.pressedNow("fire")) watchIndex++;
@@ -6304,7 +6352,7 @@ function step(): void {
     watchIndex = 0;
     watchName = "";
   }
-  if (knockedOut && !watch) camera.position.y -= 1.0;
+  if (knockedOut && !watch && !(duel instanceof BrMatch && duel.ghost)) camera.position.y -= 1.0;
   // Sprint view shake, as the game's setting of that name: the eye bobs with
   // each stride and the view rolls a touch. Normal is the game's default;
   // Minimal is its other option. Off is ours. The aim point is not moved: the
@@ -6989,7 +7037,9 @@ function step(): void {
   // context prompts: a zipline in reach, or a ladder you are facing
   let prompt: { key: string; text: string } | null = null;
   const canFinish = !finisher && input.playing ? finishable() : null;
-  if (canFinish) prompt = { key: keyLabel("melee"), text: `FINISH ${canFinish.name}` };
+  const ghostLine = duel instanceof BrMatch && duel.ghost ? `GHOST  ·  STAY WITH YOUR SQUAD: THEY RESTORE YOU AT YOUR ECHO  ·  ${PROFILE.life.ghostRevives - duel.restores} RESTORE${PROFILE.life.ghostRevives - duel.restores === 1 ? "" : "S"} LEFT` : null;
+  if (ghostLine) prompt = { key: "", text: ghostLine };
+  else if (canFinish) prompt = { key: keyLabel("melee"), text: `FINISH ${canFinish.name}` };
   else if (duel instanceof BrMatch && brPlay.hud.prompt) prompt = brPlay.hud.prompt;
   else if (player.zipPrompt) prompt = { key: "E", text: "RIDE ZIPLINE" };
   else if (!duel && drill.state === "idle" && drill.onPad(player.pos)) prompt = { key: keyLabel("interact"), text: "START THE FLICK DRILL" };

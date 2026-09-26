@@ -4765,6 +4765,72 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   check("speedkills: a hack just used is on its cooldown", cool > 1, `${cool.toFixed(1)} s`);
   await page.close();
   await speedkillsBrTest(browser);
+  await speedkillsGhostTest(browser);
+}
+
+/**
+ * SpeedKills' second life, over two real pages: the guest dies past its
+ * Gulag and is a ghost; the ghost moves; the host restores it at its echo
+ * (its death box), a third as fast while the ghost is away, full speed once
+ * it follows; the guest stands up whole.
+ */
+async function speedkillsGhostTest(browser: Browser): Promise<void> {
+  const q = "?net=local&norender&game=speedkills";
+  const host = await open(browser, q);
+  const guest = await open(browser, q);
+  const close = async () => {
+    for (const p of [host, guest]) if (!p.isClosed()) await p.close();
+  };
+  await ev(host, brRow("duo", 8));
+  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+    for (const p of [host, guest]) await pressPlay(p);
+    for (const p of [host, guest]) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 60000 });
+  } catch {
+    check("speedkills ghost: host and guest in one city match", false);
+    await close();
+    return;
+  }
+  await ev(host, "window.__range.duel().holdFire = true");
+  // the guest's Gulag already spent: this death makes a ghost
+  await ev(guest, `(() => { const d = window.__range.duel(); d.gulagUsed = true; d.takeHit(500, 100); })()`);
+  await sleep(800);
+  const g1 = await ev<{ alive: boolean; downed: boolean; ghost: boolean }>(guest, "(() => { const d = window.__range.duel(); return { alive: d.alive, downed: d.downed, ghost: d.ghost }; })()");
+  check("speedkills ghost: no knockdown: at zero the guest is out, and a ghost (its squad mate is up)", !g1.alive && !g1.downed && g1.ghost, JSON.stringify(g1));
+  // the ghost moves
+  const p0 = await ev<{ x: number; z: number }>(guest, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+  await ev(guest, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: () => false })`);
+  await sleep(1500);
+  await ev(guest, "window.__range.setScript(null)");
+  const p1 = await ev<{ x: number; z: number }>(guest, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+  check("speedkills ghost: a ghost moves", Math.hypot(p1.x - p0.x, p1.z - p0.z) > 3, `${Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(1)} m`);
+  // its echo: the death box; the host beside it, the ghost sent far away
+  const box = await host.waitForFunction("(() => { const d = [...window.__range.duel().lootField.drops.values()].find((x) => x.item.kind === 'banner' && x.item.owner === 1); return d ? { x: d.pos.x, y: d.pos.y, z: d.pos.z } : null; })()", { polling: 200, timeout: 6000 }).then((h) => h.jsonValue() as Promise<{ x: number; y: number; z: number }>, () => null);
+  if (!box) {
+    check("speedkills ghost: the ghost's echo (its death box) is on the host's floor", false);
+    await close();
+    return;
+  }
+  await ev(guest, `window.__range.player.teleport(${box.x + 40}, ${box.y}, ${box.z}, 0)`);
+  await ev(host, `window.__range.player.teleport(${box.x + 1}, ${box.y}, ${box.z}, 90)`);
+  await sleep(700);
+  const far = await ev<string>(host, "JSON.stringify(window.__range.brPlay.hud.prompt)");
+  check("speedkills ghost: at the echo the prompt is RESTORE, and it says the ghost is away", /RESTORE/.test(far) && /AWAY/.test(far), far);
+  await ev(host, `window.__range.setScript({ held: (a) => a === "interact", pressedNow: () => false })`);
+  await sleep(5500);
+  const early = await ev<boolean>(guest, "window.__range.duel().alive");
+  check("speedkills ghost: with the ghost away, 5 s of holding is not enough (a third as fast)", !early);
+  // the ghost comes to the one restoring it: the rest goes at full speed
+  await ev(guest, `window.__range.player.teleport(${box.x + 2}, ${box.y}, ${box.z}, 0)`);
+  const back = await guest.waitForFunction("window.__range.duel().alive", { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  await ev(host, "window.__range.setScript(null)");
+  const g2 = await ev<{ hp: number; restores: number }>(guest, "({ hp: window.__range.duel().health, restores: window.__range.duel().restores })");
+  check("speedkills ghost: with the ghost beside them, the host finishes the restore, and the guest stands up whole", back && g2.hp === 100 && g2.restores === 1, JSON.stringify(g2));
+  await close();
 }
 
 /** a SpeedKills battle royale in the city: it starts, 30 in it, bots on the streets, loot on the floors */

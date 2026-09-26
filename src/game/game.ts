@@ -37,7 +37,7 @@ export interface GameProfile {
   ammo: "infinite" | "typed" | string;
   fusion: { on: boolean; levels: number; gun: Array<{ mag: number; reload: number; damage: number; recoil: number }>; abilityLevels: number; cooldownStep: number };
   abilities: { slots: string[]; passives: boolean; ultimates: boolean; set: Array<{ id: string; slot: string; from: string | null; name: string; blurb: string }> };
-  life: { knockdowns: boolean; gulag: boolean; ghost: boolean; reviveSeconds: number; awaySlowdown: number; followRadius: number; ghostRevives: number; ghostSight: number };
+  life: { knockdowns: boolean; gulag: boolean; ghost: boolean; reviveSeconds: number; awaySlowdown: number; followRadius: number; ghostRevives: number; ghostSight: number; ghostSpeed?: number; restoreHealth?: number };
   /** null: the legacy game's own health, shields, EVO and heals */
   health: { health: number; shield: number; shieldDelay: number; shieldFill: number; healthDelay: number; healthRegen: number } | null;
   /** the battle royale's size: most players, and how many to a squad by default */

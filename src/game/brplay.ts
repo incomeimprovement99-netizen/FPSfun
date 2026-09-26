@@ -224,7 +224,7 @@ export class BrPlay {
   markers: Marker[] = [];
   /** a squad mate's banner you carry to a beacon */
   carried: { owner: number; name: string; until: number } | null = null;
-  private hold: { kind: "revive" | "beacon" | "box" | "console" | "bin"; target: number; label: string; start: number; need: number } | null = null;
+  private hold: { kind: "revive" | "beacon" | "box" | "console" | "bin"; target: number; label: string; start: number; need: number; filled: number; last: number } | null = null;
   /** what the player is holding interact on, for their figure: a revive, something else, or nothing */
   get holdKind(): "revive" | "interact" | null {
     return this.hold ? (this.hold.kind === "revive" ? "revive" : "interact") : null;
@@ -516,20 +516,30 @@ export class BrPlay {
       const owner = d.item.owner!;
       const name = d.item.ownerName ?? "A SQUAD MATE";
       const lock = match.boxLockout(owner);
-      out.prompt = lock > 0 ? { key, text: `TAKE ${name}'S BANNER  ·  RESPAWN HERE IN ${Math.ceil(lock)} S` } : { key: `${key} / HOLD`, text: `TAKE ${name}'S BANNER  ·  HOLD: RESPAWN ${name} HERE` };
+      // SpeedKills: this box is the ghost's echo; the restore is quicker with the ghost beside you
+      const sk = match.decay ? match.ghostNear(owner, p) : null;
+      const need = sk ? sk.need : BOX.time;
+      const rate = sk ? sk.rate : 1;
+      out.prompt = !Number.isFinite(lock)
+        ? { key, text: `${name} HAS NO RESTORES LEFT` }
+        : lock > 0
+          ? { key, text: `TAKE ${name}'S BANNER  ·  RESPAWN HERE IN ${Math.ceil(lock)} S` }
+          : sk
+            ? { key: `HOLD ${key}`, text: `RESTORE ${name}${sk.near ? "  ·  THEIR GHOST IS WITH YOU" : "  ·  THEIR GHOST IS AWAY: 3X SLOWER"}` }
+            : { key: `${key} / HOLD`, text: `TAKE ${name}'S BANNER  ·  HOLD: RESPAWN ${name} HERE` };
       if (holdingE) {
         if (this.eDownAt === null) this.eDownAt = now;
         if (lock <= 0 && now - this.eDownAt >= BOX.tapTime) {
           const at = d.pos.clone();
           const fresh = !this.hold || this.hold.kind !== "box";
-          this.runHold("box", owner, `RESPAWNING ${name}`, BOX.time, true, now, match, () => {
+          this.runHold("box", owner, sk ? `RESTORING ${name}${sk.near ? "" : "  ·  GHOST AWAY"}` : `RESPAWNING ${name}`, need, true, now, match, () => {
             match.sendRespawn(owner, at, true);
             this.deps.notice(`${name} IS BACK`);
             this.deps.beam?.(null);
             // (until their first packet says they are up, the box is not offered again)
             this.boxDone = { owner, at: now };
             this.eDownAt = null;
-          });
+          }, rate);
           if (fresh && this.hold?.kind === "box") this.deps.beam?.(at);
         }
       } else {
@@ -589,7 +599,7 @@ export class BrPlay {
         this.lootHere(now, match, input, p, eye, fwd, key, carry, out);
       } else this.stopTaking();
     }
-    if (this.hold) out.hold = { label: this.hold.label, progress: Math.min(1, (now - this.hold.start) / this.hold.need) };
+    if (this.hold) out.hold = { label: this.hold.label, progress: Math.min(1, this.hold.filled / this.hold.need) };
     // the key belonged to a revive, a beacon or a tower this frame, or there
     // is nothing at your feet: either way any hold at a spot is over
     if (!out.reach.rows.length) this.stopTaking();
@@ -691,17 +701,25 @@ export class BrPlay {
   }
 
   /** a hold-E action: started, kept going, given up, or done */
-  private runHold(kind: "revive" | "beacon" | "box" | "console" | "bin", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void): void {
+  /**
+   * A hold in progress: `rate` is how fast it fills (1 is real time), which
+   * can change as it goes (SpeedKills' restore, a third as fast while the
+   * ghost is away from you).
+   */
+  private runHold(kind: "revive" | "beacon" | "box" | "console" | "bin", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void, rate = 1): void {
     if (!holding) {
       this.cancelHold(match);
       return;
     }
     if (!this.hold || this.hold.kind !== kind || this.hold.target !== target) {
       this.cancelHold(match);
-      this.hold = { kind, target, label, start: now, need };
+      this.hold = { kind, target, label, start: now, need, filled: 0, last: now };
       if (kind === "revive") match.sendRevive(target, "start");
     }
-    if (now - this.hold.start >= need) {
+    this.hold.filled += Math.max(0, now - this.hold.last) * rate;
+    this.hold.last = now;
+    this.hold.label = label;
+    if (this.hold.filled >= need) {
       this.hold = null;
       done();
     }

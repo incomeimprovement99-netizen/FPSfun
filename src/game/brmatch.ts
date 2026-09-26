@@ -574,6 +574,35 @@ export class BrMatch extends Duel {
   /** the capture zone: which squad is in it alone (a human side, or 100 + a bot squad; -1 none), their seconds held, and whether it is open */
   capture: { holder: number; held: number; open: boolean; progress: Map<number, number> } = { holder: -1, held: 0, open: false, progress: new Map() };
 
+  /** SpeedKills: the restores this player has had this match (two at most) */
+  restores = 0;
+  /** SpeedKills: squad mates with no restores left: their boxes are not offered */
+  readonly noRestores = new Set<number>();
+
+  /**
+   * SpeedKills: this player is a ghost: out, with a squad mate still up, not
+   * in the Gulag, and a restore left (PROFILE.life). A ghost moves, pings and
+   * sees; it does not shoot, pick up or use hacks, and enemies do not see it.
+   */
+  get ghost(): boolean {
+    return !!this.decay && !this.alive && !this.gulag && this.phase === "fight" && this.restores < PROFILE.life.ghostRevives && this.humansAlive > 0;
+  }
+
+  /**
+   * SpeedKills' restore rule, for the squad mate holding interact at a
+   * ghost's echo (its death box): the full restore takes reviveSeconds, and
+   * fills at a third of the pace (awaySlowdown) while the ghost is further
+   * than followRadius from the one restoring it: stay with your teammate to
+   * be restored faster.
+   */
+  ghostNear(owner: number, from: THREE.Vector3): { near: boolean; rate: number; need: number } {
+    const L = PROFILE.life;
+    const r = this.remotes.get(owner);
+    const last = r?.samples[r.samples.length - 1];
+    const near = !!last && Math.hypot(last.x - from.x, last.z - from.z) <= L.followRadius && Math.abs(last.y - from.y) <= L.followRadius;
+    return { near, rate: near ? 1 : 1 / L.awaySlowdown, need: L.reviveSeconds };
+  }
+
   /** where every sector stands, from the ring as this page has it */
   sectorStates(): Record<string, { phase: SectorPhase; k: number }> {
     if (!this.decay) return {};
@@ -1801,6 +1830,12 @@ export class BrMatch extends Duel {
    * your way to the Gulag or in it: that is your way back, and the trip is over.
    */
   protected override respawnHere(at: THREE.Vector3, box = false): void {
+    // SpeedKills: a ghost has two restores a match; after them a death is final
+    if (this.decay && !this.gulag) {
+      if (this.restores >= PROFILE.life.ghostRevives) return;
+      this.restores++;
+      if (this.restores >= PROFILE.life.ghostRevives) this.localFx("sk", undefined, undefined, 9);
+    }
     if (this.gulag) {
       this.gulag = null;
       this.gulagBot?.dispose();

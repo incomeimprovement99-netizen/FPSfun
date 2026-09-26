@@ -240,7 +240,7 @@
       }
     ]
   },
-  "_life": "No knockdowns; the first death goes to the Gulag, a later one makes a ghost, revived by a squad mate at its echo marker in reviveSeconds, awaySlowdown times as long while the ghost is further than followRadius metres from the reviver; two ghost revives a match. A squad is out when none of it is alive or in the Gulag. In solo a second death is the end.",
+  "_life": "No knockdowns; the first death goes to the Gulag, a later one makes a ghost, revived by a squad mate at its echo marker in reviveSeconds, awaySlowdown times as long while the ghost is further than followRadius metres from the reviver; two ghost revives a match. A squad is out when none of it is alive or in the Gulag. In solo a second death is the end. A ghost moves at ghostSpeed times a player's pace and sees enemies within ghostSight metres; a restored player stands up on their echo with restoreHealth and their shield coming back.",
   "life": {
     "knockdowns": false,
     "gulag": true,
@@ -249,7 +249,9 @@
     "awaySlowdown": 3,
     "followRadius": 12,
     "ghostRevives": 2,
-    "ghostSight": 25
+    "ghostSight": 25,
+    "ghostSpeed": 1.35,
+    "restoreHealth": 100
   },
   "_health": "100 health and 50 shield. The shield starts back shieldDelay seconds after the last damage and fills in shieldFill; health comes back at healthRegen a second after healthDelay. No heal items, no armour loot.",
   "health": {

@@ -1658,6 +1658,8 @@ export class Duel implements MatchLike {
 
   /** seconds before a squad member can be respawned at their box (0: now) */
   boxLockout(id: number): number {
+    // SpeedKills: no lockout between restores, and none at all once a ghost has had its two
+    if (IS_SK) return (this as unknown as { noRestores?: Set<number> }).noRestores?.has(id) ? Infinity : 0;
     const b = this.boxDeaths.get(id);
     if (!b || b.n <= 0) return 0;
     const L = squadCfg.boxRespawn.lockout;
@@ -1996,7 +1998,8 @@ export class Duel implements MatchLike {
     const ahead = past && span > 1e-6 && span < 0.5 ? Math.min(t - b.at, B.extrapolate) / span : 0;
     const g = r.avatar.group;
     const kp = k + ahead;
-    g.position.set(a.x + (b.x - a.x) * kp, a.y + (b.y - a.y) * kp, a.z + (b.z - a.z) * kp);
+    // SpeedKills: a player out is a ghost that still moves; their body stays where it fell (main.ts draws the ghost for their squad)
+    if (!(IS_SK && !r.alive)) g.position.set(a.x + (b.x - a.x) * kp, a.y + (b.y - a.y) * kp, a.z + (b.z - a.z) * kp);
     let dy = b.yaw - a.yaw;
     dy = ((((dy + 180) % 360) + 360) % 360) - 180;
     // the figure faces +z; a player at yaw 0 looks down -z
