@@ -35,7 +35,7 @@ import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier, type FigurePose } from "./game/dummy";
 import { buildRange, skyFollow, setShadowRegion, setHour, getSun, RANGE_BOUNDS, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, matchHour, loadBrSky, saveBrSky, type Hour } from "./game/sky";
-import { buildBrMap, BR_BOUNDS, BR_CENTER } from "./game/br";
+import { buildBrMap, BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
 import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
 import { SHIP, surfaceUnder, type ShipRun } from "./game/dropship";
 import { GULAG } from "./game/gulag";
@@ -55,7 +55,8 @@ import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, t
 import finCfg from "./config/finisher.json";
 import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
-import { buildCityMap } from "./game/city";
+import { buildCityMap, cityDecay, SECTORS } from "./game/city";
+import DECAY_CFG from "./config/decay.json";
 import { Hacks, HACK, HACK_DEFS, hackDef, hackSlotOf, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
 import { BotMatch, MOST_BOTS } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
@@ -3555,6 +3556,62 @@ function stepHacks(now: number, dt: number): void {
 // the range starts with your picks too
 resetHacks();
 
+// ---------------------------------------------------------------- SpeedKills' decay and capture zone
+/** what the decay last had each sector as, so each change is said once */
+let decaySeen: Record<string, string> = {};
+let captureSaid = false;
+/** the decay's frame: the city dissolved where it has reached, and each change of a sector said */
+function stepDecay(now: number): void {
+  if (!IS_SK) return;
+  const d = duel instanceof BrMatch && duel.decay ? duel : null;
+  const states = d ? d.sectorStates() : null;
+  cityDecay(states, now);
+  if (!d || !states) {
+    decaySeen = {};
+    captureSaid = false;
+    return;
+  }
+  const warned: string[] = [];
+  const decaying: string[] = [];
+  for (const [id, st] of Object.entries(states)) {
+    if (decaySeen[id] === st.phase) continue;
+    decaySeen[id] = st.phase;
+    const name = brMap.pois.find((p) => p.id === id)?.name ?? id;
+    if (st.phase === "warning") warned.push(name);
+    else if (st.phase === "decaying") decaying.push(name);
+  }
+  if (warned.length) {
+    hud.notice(`DECAY INCOMING  ·  ${warned.join(", ")}`, now, 3);
+    announcer.say("ringClosing", realNow());
+  }
+  if (decaying.length) hud.notice(`DECAYING  ·  ${decaying.join(", ")}  ·  GET OUT`, now, 3);
+  if (d.captureZone() && !captureSaid) {
+    captureSaid = true;
+    const fin = brMap.pois.find((p) => p.id === d.decay!.final)?.name ?? "THE LAST SECTOR";
+    hud.notice(`THE CAPTURE ZONE IS OPEN  ·  ${fin}  ·  HOLD IT ${DECAY_CFG.capture.hold} S TO WIN`, now, 4);
+    announcer.say("finalRing", realNow());
+  }
+}
+
+function skSectorsHud(d: BrMatch): HudState["sectors"] {
+  const states = d.sectorStates();
+  return SECTORS.map((s) => ({ minX: s.minX + BR_X, minZ: s.minZ + BR_Z, maxX: s.maxX + BR_X, maxZ: s.maxZ + BR_Z, name: s.name, accent: s.accent, phase: states[s.id]?.phase ?? "live", k: states[s.id]?.k ?? 0, final: s.id === d.decay?.final }));
+}
+
+function skCaptureHud(d: BrMatch): HudState["capture"] {
+  const z = d.captureZone();
+  if (!z) return null;
+  const c = d.capture;
+  const mine = c.holder >= 0 && c.holder < 100 && c.holder === d.sideOf(d.id);
+  return { x: z.x, z: z.z, r: z.r, held: c.held, hold: DECAY_CFG.capture.hold, state: c.holder === -2 ? "contested" : c.holder === -1 ? "empty" : mine ? "yours" : "theirs" };
+}
+
+function skZoneLabel(d: BrMatch): string {
+  const states = d.sectorStates();
+  if (d.captureZone()) return "CAPTURE ZONE OPEN";
+  return Object.values(states).some((s) => s.phase === "decaying") ? "SECTORS DECAYING" : "SECTOR DECAY IN";
+}
+
 /** someone else's hack, as their page told everyone (the kinds by number: 1 slam, 2 leap, 3 heal, 4 armour, 5 invisibility, 6 a mine, 7 a slam's landing, 8 a mine going off) */
 function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: THREE.Vector3 | undefined): void {
   const d = duel;
@@ -6015,6 +6072,7 @@ function step(): void {
   stepSmokeKit(gameTime, dt);
   stepWalls(gameTime);
   stepHacks(gameTime, dt);
+  stepDecay(gameTime);
   // SpeedKills: the shield comes back on its own a few seconds after the last
   // hit, and then health, more slowly (speedkills.json health); nothing to carry
   if (SK_HEALTH) {
@@ -7091,6 +7149,9 @@ function step(): void {
     killcam: killcam.active ? { name: killcam.killerName, weapon: killcam.killerWeapon ? weaponName(killcam.killerWeapon) : "", progress: killcam.progress, left: killcam.left, skipKey: keyLabel("jump") } : null,
     recap: recap && !killcam.active ? { ...recap, age: now - recapShownAt, closeKey: keyLabel("jump"), killerCard: bannerOf(remoteBanners.get(recap.killerId) ?? botBanner(recap.killerId)) } : null,
     myCard: bannerOf(myBanner()),
+    sectors: duel instanceof BrMatch && duel.decay ? skSectorsHud(duel) : null,
+    capture: duel instanceof BrMatch && duel.decay ? skCaptureHud(duel) : null,
+    zoneLabel: duel instanceof BrMatch && duel.decay ? skZoneLabel(duel) : null,
     hacks: IS_SK
       ? (["mobility", "utility"] as const).flatMap((slot) => {
           const h = hacks.get(slot);
@@ -7308,6 +7369,12 @@ initWelcome();
     use: (slot: HackSlot) => useHack(slot, gameTime),
     state: () => ({ armored: gameTime < armorUntil, invisible: gameTime < invisUntil, slam: skSlam?.phase ?? null, pulling: !!skPull, leap: skLeap, healZones: healZones.length, mines: mines.length, hackSlow: player.hackSlow, incoming: duel instanceof Duel ? duel.incomingScale : 1 }),
     fusion: () => loadout.slots.map((sl) => sl.fusion ?? 0),
+    /** the decay as this page has it: the plan, each sector's state, the boxes it holds out, the capture zone */
+    decay: () => {
+      const d = duel instanceof BrMatch && duel.decay ? duel : null;
+      if (!d) return null;
+      return { plan: d.decay, states: d.sectorStates(), held: cityDecay(d.sectorStates(), gameTime), zone: d.captureZone(), capture: { holder: d.capture.holder, held: d.capture.held, open: d.capture.open } };
+    },
     setFusion: (i: number, level: number) => loadout.setFusion(i, level),
   },
   /** finishers (tools/e2e.ts): who could be finished now, start one as the key would, and one running */

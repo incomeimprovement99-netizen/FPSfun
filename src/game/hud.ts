@@ -247,6 +247,16 @@ export interface HudState {
    * seconds left, and its fusion level against the most there is.
    */
   hacks?: Array<{ name: string; key: string; frac: number; left: number; level: number; maxLevel: number; slot: "mobility" | "utility" }> | null;
+  /**
+   * SpeedKills' sectors on the maps (decay.ts): each one's rectangle (world
+   * space), name, colour, and where the decay has it; and the capture zone,
+   * once it is open: where, how wide, who holds it (yours, theirs, contested)
+   * and how far their meter is.
+   */
+  sectors?: Array<{ minX: number; minZ: number; maxX: number; maxZ: number; name: string; accent: number; phase: "live" | "warning" | "decaying" | "gone"; k: number; final: boolean }> | null;
+  capture?: { x: number; z: number; r: number; held: number; hold: number; state: "empty" | "yours" | "theirs" | "contested" } | null;
+  /** the line over the battle royale's clock, when the game has its own words for it (SpeedKills' decay) */
+  zoneLabel?: string | null;
   /** the ability card: the two options with their keys; compact is the one-line form */
   /**
    * Where you are standing, in the words a squad uses (src/game/callouts.ts).
@@ -1721,6 +1731,48 @@ export class Hud {
     const br = s.duel?.br;
     if (!br) return;
     const c = this.ctx;
+    // SpeedKills: the sectors instead of rings, each in its colour, the decay
+    // over them, and the capture zone once it opens
+    if (s.sectors?.length) {
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 180);
+      for (const sec of s.sectors) {
+        const x0 = toX(sec.minX);
+        const z0 = toZ(sec.minZ);
+        const w = toX(sec.maxX) - x0;
+        const h = toZ(sec.maxZ) - z0;
+        const rgb = `${(sec.accent >> 16) & 255}, ${(sec.accent >> 8) & 255}, ${sec.accent & 255}`;
+        c.fillStyle =
+          sec.phase === "gone"
+            ? "rgba(120, 10, 40, 0.62)"
+            : sec.phase === "decaying"
+              ? `rgba(255, 46, 154, ${0.25 + 0.35 * sec.k})`
+              : sec.phase === "warning"
+                ? `rgba(255, 46, 154, ${0.12 + 0.18 * pulse})`
+                : `rgba(${rgb}, 0.08)`;
+        c.fillRect(x0, z0, w, h);
+        c.strokeStyle = sec.final ? "rgba(255, 255, 255, 0.95)" : `rgba(${rgb}, 0.7)`;
+        c.lineWidth = (sec.final ? 2.5 : 1.2) * u;
+        c.strokeRect(x0, z0, w, h);
+        // the names where there is room for them (the big map)
+        if (w > 60 * u) this.text(sec.phase === "gone" ? `${sec.name} · GONE` : sec.name, x0 + w / 2, z0 + h / 2, 700, Math.max(9, 11 * u), sec.phase === "gone" ? "rgba(255,120,160,0.8)" : `rgba(${rgb}, 0.9)`, "center");
+      }
+      const cz = s.capture;
+      if (cz) {
+        const col = cz.state === "yours" ? "#2effc0" : cz.state === "theirs" ? "#ff3b3b" : cz.state === "contested" ? "#ffd23c" : "#ffffff";
+        c.strokeStyle = col;
+        c.lineWidth = 2.5 * u;
+        c.beginPath();
+        c.arc(toX(cz.x), toZ(cz.z), Math.max(3 * u, cz.r * scale), 0, Math.PI * 2);
+        c.stroke();
+        if (cz.held > 0) {
+          c.lineWidth = 5 * u;
+          c.beginPath();
+          c.arc(toX(cz.x), toZ(cz.z), Math.max(3 * u, cz.r * scale) + 4 * u, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * cz.held) / cz.hold);
+          c.stroke();
+        }
+      }
+      return;
+    }
     if (br.ring.ahead) {
       const a = br.ring.ahead;
       c.save();
@@ -2111,8 +2163,19 @@ export class Hud {
         this.text("EVERY KILL BY YOUR SIDE CUTS THE WAIT", cx, this.h * 0.36 + 26 * u, 600, 13 * u, DIM, "center");
       }
     }
-    this.text(ringDone ? "RING CLOSED" : br.ring.closing ? "RING CLOSING" : `RING ${br.ring.phase} CLOSES IN`, cx, 80 * u, 700, 13 * u, br.ring.closing ? "#ff7a1a" : DIM, "center");
-    this.text(ringDone ? "" : clock, cx, 108 * u, 700, 30 * u, br.ring.closing ? "#ff7a1a" : WHITE, "center");
+    this.text(s.zoneLabel ?? (ringDone ? "RING CLOSED" : br.ring.closing ? "RING CLOSING" : `RING ${br.ring.phase} CLOSES IN`), cx, 80 * u, 700, 13 * u, br.ring.closing ? "#ff2e9a" : DIM, "center");
+    this.text(ringDone ? "" : clock, cx, 108 * u, 700, 30 * u, br.ring.closing ? (s.zoneLabel ? "#ff2e9a" : "#ff7a1a") : WHITE, "center");
+    // SpeedKills' capture zone: its meter, under the clock
+    const cap = s.capture;
+    if (cap) {
+      const col = cap.state === "yours" ? "#2effc0" : cap.state === "theirs" ? "#ff3b3b" : cap.state === "contested" ? "#ffd23c" : "#e8fbff";
+      const say = cap.state === "yours" ? "HOLDING THE ZONE" : cap.state === "theirs" ? "ENEMIES HOLD THE ZONE" : cap.state === "contested" ? "ZONE CONTESTED" : "CAPTURE ZONE OPEN";
+      this.text(`${say}  ·  ${Math.ceil(cap.held)} / ${cap.hold} S`, cx, 196 * u, 700, 14 * u, col, "center");
+      c.fillStyle = "rgba(255,255,255,0.15)";
+      c.fillRect(cx - 110 * u, 204 * u, 220 * u, 5 * u);
+      c.fillStyle = col;
+      c.fillRect(cx - 110 * u, 204 * u, (220 * u * cap.held) / cap.hold, 5 * u);
+    }
     // in duos and trios the count that decides a placement is squads, so it sits under the alive count
     if (br.team > 1 && br.placement === null) this.text(`${br.squads} SQUAD${br.squads === 1 ? "" : "S"}`, cx - 120 * u, 132 * u, 700, 12 * u, DIM, "center");
     // Storm Surge under the panel: the countdown once it is called, then what
@@ -2133,7 +2196,7 @@ export class Hud {
       g.addColorStop(1, `rgba(255,110,20,${0.35 + 0.1 * Math.sin(now * 5)})`);
       c.fillStyle = g;
       c.fillRect(0, 0, this.w, this.h);
-      this.text(`OUTSIDE THE RING  ·  ${br.ring.damage} EVERY ${RING_TICK} S`, cx, this.h * 0.3, 700, 26 * u, "#ff9a4a", "center");
+      this.text(`${s.sectors?.length ? "IN THE DECAY" : "OUTSIDE THE RING"}  ·  ${br.ring.damage} EVERY ${RING_TICK} S`, cx, this.h * 0.3, 700, 26 * u, "#ff9a4a", "center");
     }
     // the heal in progress, and the kit
     if (s.heal) {

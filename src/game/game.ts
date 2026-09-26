@@ -51,6 +51,8 @@ export interface GameProfile {
   lists?: { botWeapons: string[]; loadouts: string[][]; gulagGuns: string[] };
   /** the battle royale's floor: spots a sector by tier, the chances of a gun and a hack core, their fusion odds */
   loot?: { spots: Record<string, number>; gunChance: number; hackChance: number; gunOdds: Record<string, number[]>; hackOdds: Record<string, number[]> };
+  /** the dropship over squad.json's (doorsIn: the seconds before a jump is allowed) */
+  ship?: { doorsIn: number };
   /** each gun's tuning over its legacy numbers (multipliers; headshotDamage outright) */
   tuning?: Record<string, { damage: number; fireRate: number; recoil: number; mag?: number; headshotDamage?: number }>;
 }

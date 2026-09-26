@@ -30,6 +30,8 @@ import { emissive, flat } from "./geo";
 import { ZIPLINES } from "./traversal";
 import { BR_X, BR_Z, BR_HALF, type BrMap, type GraphNode, type Poi, type Site } from "./br";
 import cityCfg from "../config/city.json";
+import { dissolvedTo, type SectorPhase } from "./decay";
+import type { Solid } from "./range";
 
 /** a sector of the city: its rectangle (map-local), its name, its neon */
 export interface Sector {
@@ -76,6 +78,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   DOORWAYS.length = 0;
   DRESSING.length = 0;
   const rnd = seeded(C.seed);
+  const firstSolid = RANGE_SOLIDS.length;
 
   const solid = (minX: number, maxX: number, minZ: number, maxZ: number, base: number, top: number) =>
     RANGE_SOLIDS.push({ minX: minX + BR_X, maxX: maxX + BR_X, minZ: minZ + BR_Z, maxZ: maxZ + BR_Z, base, top });
@@ -469,6 +472,18 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   for (const p of pads) deco(2.4, 0.08, 2.4, p.x - BR_X, 0.01, p.z - BR_Z, neon(0x20e0ff));
   const beacons = plazas.slice(C.jumpTowers, C.jumpTowers + C.beacons).map((p) => P(p.x, p.z));
 
+  // ---------------------------------------------------------------- the decay's hold on the city
+  // every box the city put in, by the sector it stands in, so a decaying
+  // sector's boxes can leave the collision list as it dissolves; and every
+  // material it drew with, taught to dissolve (cityDecay, below)
+  DECAY.solids = RANGE_SOLIDS.slice(firstSolid).map((s) => ({ s, sector: SECTORS.findIndex((x) => sectorContains(x, (s.minX + s.maxX) / 2 - BR_X, (s.minZ + s.maxZ) / 2 - BR_Z)) }));
+  const mats = new Set<THREE.Material>();
+  root.traverse((o) => {
+    const m = (o as THREE.Mesh).material;
+    if (m && !Array.isArray(m)) mats.add(m);
+  });
+  for (const m of mats) teachDecay(m);
+
   return {
     root,
     pois,
@@ -507,4 +522,111 @@ function zipline(root: THREE.Group, a: THREE.Vector3, b: THREE.Vector3, floorA: 
     root.add(post);
   }
   ZIPLINES.push({ a: new THREE.Vector3(a.x + BR_X, a.y, a.z + BR_Z), b: new THREE.Vector3(b.x + BR_X, b.y, b.z + BR_Z) });
+}
+
+const sectorContains = (s: Sector, x: number, z: number): boolean => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ;
+
+/**
+ * The decay's hold on the city: the shader's numbers every city material
+ * reads (each sector's rectangle in world space, how high it has dissolved,
+ * whether it is warned), and the city's boxes by sector with the ones taken
+ * out of the collision list so far.
+ */
+const DECAY = {
+  rect: SECTORS.map((s) => new THREE.Vector4(s.minX + BR_X, s.minZ + BR_Z, s.maxX + BR_X, s.maxZ + BR_Z)),
+  level: { value: SECTORS.map(() => -1) },
+  warn: { value: SECTORS.map(() => 0) },
+  time: { value: 0 },
+  solids: [] as Array<{ s: Solid; sector: number }>,
+  removed: new Set<Solid>(),
+};
+
+/**
+ * A material that dissolves where the decay has reached: under a decaying
+ * sector's line it is not drawn, a band just above the line glows magenta,
+ * and a warned sector's surfaces pulse. One patch, shared by every city
+ * material, so the whole city dissolves as one thing.
+ */
+function teachDecay(m: THREE.Material): void {
+  if (m.userData.decay) return;
+  m.userData.decay = true;
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (shader, r) => {
+    prev?.call(m, shader, r);
+    shader.uniforms.uSkRect = { value: DECAY.rect };
+    shader.uniforms.uSkLevel = DECAY.level;
+    shader.uniforms.uSkWarn = DECAY.warn;
+    shader.uniforms.uSkTime = DECAY.time;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vSkWorld;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvSkWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    const n = SECTORS.length;
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+varying vec3 vSkWorld;
+uniform vec4 uSkRect[${n}];
+uniform float uSkLevel[${n}];
+uniform float uSkWarn[${n}];
+uniform float uSkTime;
+vec3 skGlow = vec3(0.0);`
+      )
+      .replace(
+        "void main() {",
+        `void main() {
+  for (int i = 0; i < ${n}; i++) {
+    vec4 r = uSkRect[i];
+    if (vSkWorld.x < r.x || vSkWorld.x > r.z || vSkWorld.z < r.y || vSkWorld.z > r.w) continue;
+    float jag = fract(sin(dot(floor(vSkWorld.xz * 0.8), vec2(12.9898, 78.233))) * 43758.5453) * 1.4;
+    float line = uSkLevel[i] - jag;
+    // the ground stays, corrupted red: it is where you still stand while the decay hurts you
+    if (uSkLevel[i] >= 0.0 && vSkWorld.y <= 0.25) { skGlow += vec3(0.55, 0.02, 0.12); continue; }
+    if (uSkLevel[i] >= 0.0 && vSkWorld.y < line) discard;
+    if (uSkLevel[i] >= 0.0 && vSkWorld.y < line + 1.6) skGlow += vec3(1.0, 0.18, 0.6) * (1.0 - (vSkWorld.y - line) / 1.6) * 3.0;
+    if (uSkWarn[i] > 0.0) skGlow += vec3(1.0, 0.18, 0.6) * (0.25 + 0.25 * sin(uSkTime * 6.0)) * uSkWarn[i];
+  }`
+      )
+      .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += skGlow;");
+  };
+  m.customProgramCacheKey = () => "skdecay";
+  m.needsUpdate = true;
+}
+
+/**
+ * The city as the decay has it now (decay.ts sectorPhases, by sector id):
+ * a decaying sector dissolved up to its line, a gone one entirely, a warned
+ * one pulsing; the boxes under a line taken out of the collision list, and
+ * every box put back once nothing is decaying (a match over, the range).
+ * Returns how many boxes the decay holds out now, for the tests.
+ */
+export function cityDecay(states: Record<string, { phase: SectorPhase; k: number }> | null, now: number): number {
+  DECAY.time.value = now;
+  const levels = SECTORS.map((s) => {
+    const st = states?.[s.id];
+    if (!st || st.phase === "live" || st.phase === "warning") return -1;
+    return st.phase === "gone" ? dissolvedTo(1) + 100 : dissolvedTo(st.k);
+  });
+  SECTORS.forEach((s, i) => {
+    DECAY.level.value[i] = levels[i];
+    DECAY.warn.value[i] = states?.[s.id]?.phase === "warning" ? 1 : 0;
+  });
+  // the collision list: out below the lines, back where there is no line
+  let changed = false;
+  for (const { s, sector } of DECAY.solids) {
+    const out = sector >= 0 && levels[sector] >= 0 && s.base < levels[sector];
+    if (out && !DECAY.removed.has(s)) {
+      DECAY.removed.add(s);
+      changed = true;
+    } else if (!out && DECAY.removed.has(s)) {
+      DECAY.removed.delete(s);
+      RANGE_SOLIDS.push(s);
+    }
+  }
+  if (changed) {
+    let j = 0;
+    for (const s of RANGE_SOLIDS) if (!DECAY.removed.has(s)) RANGE_SOLIDS[j++] = s;
+    RANGE_SOLIDS.length = j;
+  }
+  return DECAY.removed.size;
 }

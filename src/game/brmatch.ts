@@ -62,6 +62,9 @@
 //                    The host ranks everyone, because every hit on a bot
 //                    comes to it, and the ring packet carries the line, so a
 //                    guest takes its own tick the way it takes the ring's.
+import { decayPlan, sectorPhases, captureOpens, sectorIdAt, type DecayPlan, type SectorPhase } from "./decay";
+import decayCfg from "../config/decay.json";
+import cityCfg from "../config/city.json";
 import { IS_SK, PROFILE } from "./game";
 import type { Seen } from "./reveal";
 import moveCfg from "../config/movement.json";
@@ -130,9 +133,14 @@ import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive,
 import { GULAG, Gulag, gulagFor, type GulagEvent } from "./gulag";
 import { arenaMap } from "./arena";
 
+/** a bot squad's key in the capture zone's reckoning, apart from the players' sides */
+const CAPTURE_BOT = 100;
+/** the city's sectors, map-local (city.json) */
+const SECTOR_BOXES = cityCfg.sectors;
+
 /** the Gulag's bot, apart from the match's (theirs start at Duel.BOT_ID) */
 const GULAG_BOT_ID = 990;
-import { BR_BOUNDS, BR_CENTER, BR_HALF, type BrMap, type Poi } from "./br";
+import { BR_BOUNDS, BR_CENTER, BR_HALF, BR_X, BR_Z, type BrMap, type Poi } from "./br";
 import { SHIP, ShipRun, buildShip, shipLine, type ShipLine } from "./dropship";
 import { buildConsole, consoleSpots } from "./ringconsole";
 
@@ -559,6 +567,33 @@ export class BrMatch extends Duel {
   /** the host's ring; a guest mirrors it in `view` */
   private ring: Ring | null;
   private view: RingView;
+  /** SpeedKills' decay (decay.ts): the final sector and the waves, from the seed; null in the legacy game */
+  decay: DecayPlan | null = null;
+  /** the final sector's circle, where every round closes to and the bots run */
+  private decayCircle: Circle | null = null;
+  /** the capture zone: which squad is in it alone (a human side, or 100 + a bot squad; -1 none), their seconds held, and whether it is open */
+  capture: { holder: number; held: number; open: boolean; progress: Map<number, number> } = { holder: -1, held: 0, open: false, progress: new Map() };
+
+  /** where every sector stands, from the ring as this page has it */
+  sectorStates(): Record<string, { phase: SectorPhase; k: number }> {
+    if (!this.decay) return {};
+    return sectorPhases(this.decay, this.view, (p) => this.phases[Math.min(p, this.phases.length - 1)].close);
+  }
+
+  /** a spot the decay has reached (world space): a decaying or decayed sector; the legacy game's ring otherwise */
+  lostAt(x: number, z: number): boolean {
+    if (!this.decay) return false;
+    const id = sectorIdAt(x - BR_X, z - BR_Z);
+    if (!id) return true;
+    const st = this.sectorStates()[id];
+    return st.phase === "decaying" || st.phase === "gone";
+  }
+
+  /** the capture zone's middle and reach (world space), or null before it opens or in the legacy game */
+  captureZone(): { x: number; z: number; r: number } | null {
+    if (!this.decay || !this.decayCircle || !captureOpens(this.decay, this.view.phase)) return null;
+    return { x: this.decayCircle.cx, z: this.decayCircle.cz, r: decayCfg.capture.radius };
+  }
   private guestTick = 0;
   private aliveSeen: number;
   private readonly startedAt: number;
@@ -673,6 +708,14 @@ export class BrMatch extends Duel {
     // faster clock is a rule of the mode, this is how long a match should be
     const paced = ringPace(RING_PHASES, opts.pace ?? "normal");
     this.phases = this.rules === "resurgence" ? resurgencePhases(paced, area.r / full.r) : paced;
+    // SpeedKills: the decay's waves are the rounds, and every round closes to the final sector's middle
+    if (IS_SK) {
+      this.decay = decayPlan(this.seed);
+      this.phases = decayCfg.phases.map((p) => ({ ...p }));
+      const f = SECTOR_BOXES.find((s) => s.id === this.decay!.final)!;
+      this.decayCircle = { cx: BR_X + (f.minX + f.maxX) / 2, cz: BR_Z + (f.minZ + f.maxZ) / 2, r: Math.min(f.maxX - f.minX, f.maxZ - f.minZ) / 2 };
+      map.ringWall.visible = false;
+    }
     // the floor's loot, from the host's seed (the welcome carries it), unless the squad lands with its loadouts
     this.startLoot = opts.start !== "loadout";
     if (this.startLoot) {
@@ -723,14 +766,14 @@ export class BrMatch extends Duel {
         this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false, team: squad, slot: i % this.team.size, dropTo, jumpAt: Infinity, redeploy: null, down: null, reviving: 0 });
       }
       if (this.vaultOn) this.makeGuard(this.botCount);
-      this.ring = new Ring(start, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases);
+      this.ring = new Ring(start, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases, this.decayCircle ?? undefined);
       this.view = { phase: 0, state: "waiting", timeLeft: this.phases[0].wait, current: { ...this.ring.current }, next: { ...this.ring.next } };
     } else {
       this.ring = null;
       this.view = { phase: 0, state: "waiting", timeLeft: this.phases[0].wait, current: start, next: start };
     }
     // the chain: the host's own, or the same one drawn here from the seed
-    this.ringPlan = this.ring ? this.ring.plan : new Ring(start, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases).plan;
+    this.ringPlan = this.ring ? this.ring.plan : new Ring(start, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases, this.decayCircle ?? undefined).plan;
     // the consoles, where the seed puts them, lit
     for (const spot of consoleSpots(this.seed, map.pois)) {
       const model = buildConsole();
@@ -2456,6 +2499,54 @@ export class BrMatch extends Duel {
     return this.remotes.get(id)?.name ?? this.bots.find((b) => b.bot.remote.id === id)?.bot.remote.name;
   }
 
+  /**
+   * SpeedKills' capture zone, on the host (decay.json capture): once every
+   * sector but the final one has gone, a squad alone in the zone fills its
+   * meter, two at once fill neither, and a meter full ends the match: a side
+   * of players wins it, or a bot squad does and everyone else is placed behind.
+   */
+  private updateCapture(dt: number, local: LocalState): void {
+    const zone = this.captureZone();
+    const c = this.capture;
+    c.open = !!zone;
+    if (!zone || this.role !== "host" || this.brOver || this.phase !== "fight") return;
+    const inside = (x: number, z: number): boolean => Math.hypot(x - zone.x, z - zone.z) <= zone.r;
+    const here = new Set<number>();
+    if (this.alive && !this.downed && !this.gulagIds.has(this.id) && inside(local.x, local.z)) here.add(this.sideOf(this.id));
+    for (const r of this.remotes.values()) {
+      if (r.id >= Duel.BOT_ID || !r.alive || r.downed) continue;
+      const last = r.samples[r.samples.length - 1];
+      if (last && inside(last.x, last.z)) here.add(this.sideOf(r.id));
+    }
+    for (const b of this.bots) if (b.bot.alive && !b.down && !b.bot.dropping && !b.guard && inside(b.bot.pos.x, b.bot.pos.z)) here.add(CAPTURE_BOT + b.team);
+    if (here.size !== 1) {
+      // empty, or contested: nobody's meter moves
+      c.holder = here.size > 1 ? -2 : -1;
+      c.held = 0;
+      return;
+    }
+    const key = [...here][0];
+    const held = (c.progress.get(key) ?? 0) + dt;
+    c.progress.set(key, held);
+    c.holder = key;
+    c.held = held;
+    if (held < decayCfg.capture.hold) return;
+    // a full meter: the match is theirs
+    if (key >= CAPTURE_BOT) {
+      this.onFeed?.("A SQUAD HELD THE CAPTURE ZONE", false, true);
+      this.endBr(false);
+      return;
+    }
+    const humans = [this.id, ...[...this.remotes.values()].filter((r) => r.id < Duel.BOT_ID).map((r) => r.id)];
+    for (const id of humans) {
+      const won = this.sideOf(id) === key;
+      const placement = won ? 1 : 2;
+      if (id === this.id) this.finishBr(won, placement);
+      else this.links.get(id)?.send({ t: "brend", won, placement });
+    }
+    this.brOver = true;
+  }
+
   /** the host: the squad's result, sent to everyone */
   private endBr(won: boolean): void {
     if (this.brOver) return;
@@ -2594,6 +2685,12 @@ export class BrMatch extends Duel {
           ? { startsIn: Math.max(0, sg[0]), live: sg[1] === 1, damage: Math.max(0, Math.min(SURGE_MAX, sg[2])), below: Math.max(0, Math.floor(sg[3])) }
           : null;
       this.setSurge(next, Array.isArray(m.sv) && m.sv.includes(this.id));
+      // SpeedKills' capture zone, as the host has it
+      if (Array.isArray(m.cp) && m.cp.length === 3 && m.cp.every((x) => typeof x === "number" && Number.isFinite(x))) {
+        this.capture.open = m.cp[0] === 1;
+        this.capture.holder = Math.round(m.cp[1]);
+        this.capture.held = Math.max(0, Math.min(decayCfg.capture.hold, m.cp[2]));
+      }
     } else if (m.t === "brend") this.finishBr(m.won, m.placement);
   }
 
@@ -2637,7 +2734,8 @@ export class BrMatch extends Duel {
       this.guestTick += frameDt;
       if (this.guestTick >= RING_TICK) {
         this.guestTick -= RING_TICK;
-        if (this.alive && !this.gulag && Math.hypot(local.x - cur.cx, local.z - cur.cz) > cur.r) this.hurt(RING_PHASES[Math.min(this.view.phase, RING_PHASES.length - 1)].damage, -1);
+        const outHere = this.decay ? this.lostAt(local.x, local.z) : Math.hypot(local.x - cur.cx, local.z - cur.cz) > cur.r;
+        if (this.alive && !this.gulag && outHere) this.hurt(this.phases[Math.min(this.view.phase, this.phases.length - 1)].damage, -1);
         // Storm Surge on the same clock, while the host's packet has this player below the line
         if (this.alive && !this.downed && !this.gulag && this.surge?.live && this.surgeMine) this.hurt(this.surge.damage, -1);
       }
@@ -2789,10 +2887,11 @@ export class BrMatch extends Duel {
     const tick = shipFlying ? false : ring.update(dt);
     this.view = { phase: ring.phase, state: ring.state, timeLeft: Math.max(0, ring.timeLeft), current: { ...ring.current }, next: { ...ring.next } };
     if (tick && this.phase === "fight") {
-      if (this.alive && !this.gulag && ring.outside(local.x, local.z)) this.hurt(ring.damage, -1);
+      const out = (x: number, z: number): boolean => (this.decay ? this.lostAt(x, z) : ring.outside(x, z));
+      if (this.alive && !this.gulag && out(local.x, local.z)) this.hurt(ring.damage, -1);
       for (const b of this.bots) {
         if (!b.bot.alive || b.bot.dropping) continue;
-        if (ring.outside(b.bot.pos.x, b.bot.pos.z)) {
+        if (out(b.bot.pos.x, b.bot.pos.z)) {
           b.bot.dummy.hit(now, "body", ring.damage, 1, 1, b.bot.pos);
           b.bot.remote.health = b.bot.dummy.health;
           b.bot.remote.shield = b.bot.dummy.shield;
@@ -2801,6 +2900,7 @@ export class BrMatch extends Duel {
       }
     }
     this.updateSurge(now, tick);
+    this.updateCapture(dt, local);
     if (now >= this.ringSendNext) {
       this.ringSendNext = now + 0.5;
       const s = this.surge;
@@ -2818,6 +2918,8 @@ export class BrMatch extends Duel {
         sv: s ? this.surgeHumans : undefined,
         dr: this.map.doors.openList(),
         db: this.map.doors.brokenList(),
+        // SpeedKills: the capture zone (open, who holds it alone, their seconds)
+        cp: this.decay ? [this.capture.open ? 1 : 0, this.capture.holder, Math.round(this.capture.held * 10) / 10] : undefined,
       });
     }
 
@@ -3007,8 +3109,10 @@ export class BrMatch extends Duel {
     // closing and this node will be left out), else along the graph
     const nodes = this.map.nodes;
     const ring = this.ring!;
-    const outsideNext = Math.hypot(bot.pos.x - ring.next.cx, bot.pos.z - ring.next.cz) > ring.next.r - 4;
-    const hurry = outsideNext && (ring.state === "closing" || ring.timeLeft < 25 || ring.outside(bot.pos.x, bot.pos.z));
+    // SpeedKills: a bot runs for the final sector once its own is warned, decaying or gone
+    const skSector = this.decay ? this.sectorStates()[sectorIdAt(bot.pos.x - BR_X, bot.pos.z - BR_Z) ?? ""] : null;
+    const outsideNext = this.decay ? !!skSector && skSector.phase !== "live" : Math.hypot(bot.pos.x - ring.next.cx, bot.pos.z - ring.next.cz) > ring.next.r - 4;
+    const hurry = this.decay ? outsideNext : outsideNext && (ring.state === "closing" || ring.timeLeft < 25 || ring.outside(bot.pos.x, bot.pos.z));
     let goal: THREE.Vector3 | null;
     // a package coming down near it is worth more than the next node: without
     // this nobody contests one but the squad, and a package nobody contests
@@ -3114,7 +3218,7 @@ export class BrMatch extends Duel {
         next: { ...v.next },
         ahead: this.ringAhead,
         // not in the Gulag's room: the ring cannot reach you there, so it does not warn you either
-        outside: local && !(this.gulag && this.gulag.phase !== "wait") ? Math.hypot(local.x - v.current.cx, local.z - v.current.cz) > v.current.r : false,
+        outside: local && !(this.gulag && this.gulag.phase !== "wait") ? (this.decay ? this.lostAt(local.x, local.z) : Math.hypot(local.x - v.current.cx, local.z - v.current.cz) > v.current.r) : false,
         damage: this.phases[Math.min(v.phase, this.phases.length - 1)].damage,
       },
       placement: this.phase === "matchEnd" ? this.placement : null,

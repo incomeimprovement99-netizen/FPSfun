@@ -71,6 +71,7 @@ console.log("The game switch and its profiles");
   const listed = L ? [...L.botWeapons, ...L.loadouts.flat(), ...L.gulagGuns] : [];
   check("speedkills: its lists (bots' guns, default loadouts, the Gulag's pool) hold only its own guns", !!L && listed.every((g) => sk.roster.includes(g)) && L.loadouts.length === 6 && L.loadouts.every((p) => p.length === 2 && p[0] !== p[1]), listed.filter((g) => !sk.roster.includes(g)).join(", "));
   check("speedkills: every gun is carried by some bot", sk.roster.every((g) => L?.botWeapons.includes(g)));
+  check("speedkills: the dropship flies at least 5 s before its doors open (the owner's rule)", (sk.ship?.doorsIn ?? 0) >= 5);
   check("speedkills: infinite ammo, 100 health and 50 shield, two ghost revives, 30 players", sk.ammo === "infinite" && sk.health?.health === 100 && sk.health?.shield === 50 && sk.life.ghostRevives === 2 && sk.match.maxPlayers === 30);
   check("speedkills: no attachments (fusion is the upgrade)", sk.attachments.length === 0);
   const F = sk.fusion.gun;

@@ -15,13 +15,15 @@
 // own start of the drop, which is within a round trip of everyone else's.
 //
 // The numbers are in src/config/squad.json `ship`.
+import { IS_SK, PROFILE } from "./game";
 import * as THREE from "three";
 import { loft } from "./hull";
 import squadCfg from "../config/squad.json";
 import { seeded } from "./loot";
 import { RANGE_SOLIDS } from "./range";
 
-export const SHIP = squadCfg.ship;
+// SpeedKills starts the ship further out, so a jump is never sooner than 5 s in (speedkills.json ship)
+export const SHIP = IS_SK && PROFILE.ship ? { ...squadCfg.ship, ...PROFILE.ship } : squadCfg.ship;
 const DIVE = squadCfg.dive;
 
 /** a straight line across the map, from the edge it enters to the edge it leaves */

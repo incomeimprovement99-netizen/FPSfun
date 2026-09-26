@@ -615,6 +615,8 @@ export class Duel implements MatchLike {
   }
   /** what a guest is told as the fight starts; the battle royale says who wins it, and a solo one says it differently */
   protected fightNotice(): string {
+    // SpeedKills' two ways to win: the capture zone, or the last squad
+    if (this.mode === "br" && IS_SK) return "LANDED  ·  HOLD THE CAPTURE ZONE, OR BE THE LAST SQUAD";
     return this.mode === "br" ? "LANDED  ·  LAST SQUAD STANDING WINS" : "FIGHT";
   }
   /** a name for the feed by id (the subclass adds the bots it runs) */

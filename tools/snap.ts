@@ -172,6 +172,18 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "sk-decay",
+    note: "SpeedKills' decay: a match started, the first wave pushed half way, the view from a roof of the Spire toward a sector dissolving from the ground up, its edge glowing",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
+      [`new Promise((ok) => { const w = () => (window.__range.duel()?.phase === "fight" ? ok(true) : setTimeout(w, 200)); w(); })`, 0],
+      [`new Promise((ok) => { const step = () => { const r = window.__range.duel().ring; if (r.state === "closing") return ok(true); r.timeLeft = Math.min(r.timeLeft, 0.05); setTimeout(step, 150); }; step(); })`, 0],
+      [`(() => { const R = window.__range; const d = R.duel(); d.ring.timeLeft = 10; ${hideMenu}; const st = R.sk.decay(); const id = st.plan.waves[0][0]; const p = R.brMap.pois.find((x) => x.id === id); const dx = p.x, dz = p.z - 500; const len = Math.hypot(dx, dz) || 1; R.player.teleport(dx / len * 60, 60, 500 + dz / len * 60, Math.atan2(-dx, -dz) * 180 / Math.PI, -14); })()`, 0],
+      [`(() => { window.__range.duel().ring.timeLeft = 10; })()`, 900],
+    ],
+  },
+  {
     name: "sk-hud",
     note: "SpeedKills in the range: the two hack squares with a cooldown running, the gun's own name, 100 health and 50 shield",
     query: "?game=speedkills",

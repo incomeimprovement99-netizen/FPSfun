@@ -1,0 +1,17 @@
+{
+  "_note": "SpeedKills' decay and endgame (src/game/decay.ts, docs/PHASE_18_PLAN_SPEEDKILLS.md 7.10). finalCentre is the odds the match ends in the centre, the Spire (the owner: the biggest, hottest sector, where landing means less early running); otherwise one of the eight. perWave sectors go in each wave, furthest from the final sector first, with jitter metres of randomness in the order so two matches with the same final sector differ. height is how tall a decaying sector's dissolve climbs to (the Spire's megatower is 72 m), bottom up, so the ground floors go first and a player high in a tower has longer to get out, as the owner's brief pictured it.",
+  "finalCentre": 0.5,
+  "perWave": 2,
+  "jitter": 40,
+  "height": 80,
+  "_phases": "The waves as the ring's rounds (ring.ts): wait is the warning, close the decay, damage what a tick does to anyone standing in a decaying or decayed sector. Four waves take eight sectors; the fifth round is the endgame, the capture zone's, whose wait is its length before the ring stops. With a dropship of about 40 s, four waves of 70 s and a capture of 45 s the match is 6 to 7 minutes, the owner's number.",
+  "phases": [
+    { "wait": 50, "close": 20, "radius": 70, "damage": 6 },
+    { "wait": 50, "close": 20, "radius": 70, "damage": 8 },
+    { "wait": 50, "close": 20, "radius": 70, "damage": 10 },
+    { "wait": 50, "close": 20, "radius": 70, "damage": 12 },
+    { "wait": 120, "close": 1, "radius": 70, "damage": 15 }
+  ],
+  "_capture": "The capture zone in the final sector, once every other sector is gone: a circle of radius metres at the sector's middle. A squad alone in it fills its meter; hold seconds of it wins the match outright (Hyper Scape's crown was held 45 s, in Ubisoft's own words at launch; the owner chose a zone for it). Two squads in it at once and neither fills.",
+  "capture": { "radius": 14, "hold": 45 }
+}

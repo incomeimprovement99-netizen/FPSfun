@@ -4815,6 +4815,38 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
       return { first, second, third, hack }; })()`
   );
   check("speedkills br: a gun found is level 0, a copy fuses it to 1, a level-4 copy takes it to 4, a hack core fuses its hack", fuse.first === 0 && fuse.second === 1 && fuse.third === 4 && fuse.hack === 1, JSON.stringify(fuse));
+  // the decay: the clock pushed on, a wave at a time
+  type Decay = { plan: { final: string; waves: string[][] }; states: Record<string, { phase: string; k: number }>; held: number; zone: { x: number; z: number; r: number } | null; capture: { holder: number; held: number; open: boolean } };
+  const decay0 = await ev<Decay>(page, "window.__range.sk.decay()");
+  check("speedkills decay: a plan of four waves of two toward a final sector, every sector live at the start", decay0.plan.waves.length === 4 && decay0.plan.waves.every((w) => w.length === 2) && Object.values(decay0.states).every((s) => s.phase === "live" || s.phase === "warning"), JSON.stringify(decay0.plan));
+  const push = (secs: number) => ev(page, `(() => { const r = window.__range.duel().ring; r.timeLeft = Math.min(r.timeLeft, ${secs}); })()`);
+  await push(0.05);
+  await sleep(1200);
+  const dec = await ev<Decay>(page, "window.__range.sk.decay()");
+  const first = decay0.plan.waves[0];
+  check("speedkills decay: the first wave's sectors decay, from the ground up, and their boxes leave the collision list", first.every((id) => dec.states[id].phase === "decaying") && dec.held > 0, JSON.stringify({ states: first.map((id) => dec.states[id]), held: dec.held }));
+  // standing in a decaying sector hurts
+  const hurt = await ev<{ before: number; after: number }>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const s = r.brMap.pois.find((p) => p.id === "${first[0]}"); r.player.teleport(s.x, 0.3, s.z, 0); const before = d.health + d.shield; setTimeout(() => ok({ before, after: d.health + d.shield }), 3500); }))()`
+  );
+  check("speedkills decay: standing in a decaying sector hurts", hurt.after < hurt.before, JSON.stringify(hurt));
+  // on through the waves to the endgame
+  for (let w = 0; w < 9; w++) {
+    await push(0.05);
+    await sleep(350);
+  }
+  await page.waitForFunction("window.__range.sk.decay()?.zone !== null", { polling: 200, timeout: 15000 }).catch(() => undefined);
+  const end = await ev<Decay>(page, "window.__range.sk.decay()");
+  const gone = Object.entries(end.states).filter(([id, s]) => id !== end.plan.final && s.phase === "gone").length;
+  check("speedkills decay: after four waves every sector but the final one is gone, and the capture zone opens there", gone === 8 && end.states[end.plan.final].phase === "live" && !!end.zone, JSON.stringify({ gone, final: end.plan.final, zone: end.zone }));
+  // holding the zone alone wins: the bots kept out of it, you in it, its meter near full
+  const won = await ev<{ phase: string; placement: number | null }>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); d.holdFire = true; for (const b of d.bots) if (b.bot.alive) { b.bot.pos.set(b.bot.pos.x + 400, b.bot.pos.y, b.bot.pos.z); } const z = d.captureZone(); d.health = 100; r.player.teleport(z.x, 0.3, z.z, 0);
+      d.capture.progress.set(d.sideOf(d.id), ${45} - 1.5); setTimeout(() => ok({ phase: d.phase, placement: d.placement }), 3500); }))()`
+  );
+  check("speedkills capture: a squad alone in the zone for 45 s wins the match outright", won.phase === "matchEnd" && won.placement === 1, JSON.stringify(won));
   await ev(page, "window.__range.duel()?.leave()");
   await page.close();
 }
