@@ -210,5 +210,7 @@ right in first person beat every variant; a measured reach table and proven modu
 4. **The owner's signature chain as a named route** in the centre, from the chimneys up to the Spire's crown.
 5. **The legacy host-migration e2e** ("four bots armed"): it passed in rel4's batch 2 but failed before; a
    diagnostic of the bots' looting under load, not a lower bar.
-6. **A frame-rate reading on a quiet machine**: one pair with the soldier's volumes following and not (84 and 81 fps
-   at high @skmatch) is inside the machine's swing; the second pair's run hung and was stopped.
+6. ~~A frame-rate reading on a quiet machine~~ done, after rel6 (the Sky Lobby in): a 30-player battle royale at high
+   @skmatch, three runs each way interleaved, the soldier's volumes following its bones against not: median 12.4 ms
+   (81 fps) against 12.7 ms (79 fps), inside the machine's swing, so following costs nothing measurable; no frame
+   over 50 ms in any run (worst 33 ms), about 1,800 draw calls and 4.0 to 4.2 million triangles.
