@@ -542,5 +542,7 @@
   "_packs": "backpackChance and knockdownChance: the chance a spot kind also holds a backpack or a knockdown shield (src/game/kit.ts, src/config/items.json). A backpack goes with the heals, on a med shelf, because what it does is carry more of them; a knockdown shield goes with the armour on an attachment bench, and now and then on a gun rack. The tier rolls on the place's rarity like everything else, so a gold one turns up where gold things do. A white one is never placed: Season 28 put the white backpack in the starter kit, and a white knockdown shield is what EVO gives you anyway. Ours.",
   "_surface": "A spot for loot has to be a surface you can stand on: a box's top counts only if it is at least minSurface metres across both ways. Without it loot landed on parapets, wall tops and stair treads, where a player sees it and cannot walk to it. A place's loot is laid from 4 m out to the place's own reach (src/config/brmap.json, br.ts's radius), never less than 34 m, so West Town's clocktower and water tower, 34 m and more from its middle, get their share.",
   "minSurface": 1.0,
-  "placeReachMin": 34
+  "placeReachMin": 34,
+  "_coreDetail": "SpeedKills: how near a hack core is drawn as the bought canister (paidweapons.json props hackcore, 2,382 triangles), in metres; beyond it, the box it was (12). A match lays about 477 cores and draws loot out to drawDistance, so the canister everywhere put six figures of triangles in view, which slowed the e2e's CPU drawing until a two-page check timed out (measured 2026-09-27: 477 cores, 13 supply bins, one bin within 70 m of a landing).",
+  "coreDetail": 22
 }

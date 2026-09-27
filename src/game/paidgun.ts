@@ -13,6 +13,7 @@
  */
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import cfg from "../config/paidweapons.json";
 import measuredCfg from "../config/paidmodels.json";
 import type { GunModel, PaidParts } from "./gunmodels";
@@ -33,7 +34,7 @@ export const IRONS_EYE: number = cfg.sights.ironsEye;
 export const DOT_EYE: number = cfg.sights.dotEye;
 /** how the parts move (paidweapons.json motion) */
 export const PAID_MOTION = cfg.motion;
-const PROPS = (cfg.props ?? {}) as Record<string, { model: string; skin: string; scale?: number }>;
+const PROPS = (cfg.props ?? {}) as Record<string, { model: string; skin: string; scale?: number; lid?: string; open?: number }>;
 const url = (p: string): string => `${p}?v=${cfg.version}`;
 
 const scenes = new Map<string, THREE.Object3D>();
@@ -123,6 +124,56 @@ export function paidGunMaterial(id: string, level = 0): THREE.Material | null {
   const g = GUNS[id];
   if (!g || !scenes.get(g.model)) return null;
   return skinMaterial(g.model.replace(/_\d+$/, ""), skinFor(id, level), tl);
+}
+
+const merged = new Map<string, THREE.BufferGeometry>();
+const tinted = new Map<string, THREE.MeshStandardMaterial>();
+
+/**
+ * A prop in one geometry and a material, to be drawn many times in one call (loot.ts batches the hack cores): its
+ * meshes merged in its own space at its scale, and its skin with its glow in `glow`'s colour; null when it is not in
+ */
+export function paidPropBatch(key: string, glow: number): { geo: THREE.BufferGeometry; mat: THREE.Material } | null {
+  const p = PROPS[key];
+  const src = p ? scenes.get(p.model) : undefined;
+  if (!p || !src) return null;
+  let geo = merged.get(key);
+  if (!geo) {
+    src.updateMatrixWorld(true);
+    const parts: THREE.BufferGeometry[] = [];
+    src.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const g = m.geometry.clone().applyMatrix4(m.matrixWorld);
+      for (const name of Object.keys(g.attributes)) if (!["position", "normal", "uv"].includes(name)) g.deleteAttribute(name);
+      parts.push(g.index ? g.toNonIndexed() : g);
+    });
+    geo = parts.length === 1 ? parts[0] : mergeGeometries(parts)!;
+    geo.scale(p.scale ?? 1, p.scale ?? 1, p.scale ?? 1);
+    merged.set(key, geo);
+  }
+  const mk = `${key}:${glow}`;
+  let mat = tinted.get(mk);
+  if (!mat) {
+    mat = skinMaterial(p.model.replace(/_\d+$/, ""), p.skin, tl).clone();
+    mat.emissive.setHex(glow);
+    mat.emissiveIntensity = 2.2;
+    tinted.set(mk, mat);
+  }
+  return { geo, mat };
+}
+
+/** a prop is in (its model loaded), without making a copy of it */
+export function paidPropReady(key: string): boolean {
+  const p = PROPS[key];
+  return !!p && scenes.has(p.model);
+}
+
+/** a prop's opening part (paidweapons.json props lid) turned open or shut, about its own hinge */
+export function setPropOpen(o: THREE.Object3D, key: string, open: boolean): void {
+  const p = PROPS[key];
+  const lid = p?.lid ? o.getObjectByName(p.lid) : undefined;
+  if (lid) lid.rotation.x = open ? (p.open ?? -1.5) : 0;
 }
 
 /** a prop from the pack (paidweapons.json props: the mine), in its skin, or null when it is not in */

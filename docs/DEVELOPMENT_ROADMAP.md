@@ -4958,3 +4958,30 @@ every tower in every picture of the centre.
   against each room's window openings, not the whole storey: nothing across any of the 41 rooms' windows.
 - **Checked:** `citykit.ts` (596k, 1,183k and 1,219k by preset); verify and rules; pictures from the air and the
   street.
+
+## Milestone 263 — Hack cores and supply bins from the bought pack
+
+The owner: "if there are any other assets that we can use for other things ... no custom ones that we made anymore
+... if there are replacements, replace them". An inventory of every bought pack against every gameplay object the game
+still built itself ranked these first, from the weapons pack already imported.
+
+- **Hack cores** (`paidweapons.json` props hackcore, `paidgun.ts` paidPropBatch, `loot.ts`). The second most common
+  thing on the floor was a spinning coloured box. Now it is the pack's canister, standing and turning, drawn 2.2 times
+  its size, glowing in its slot's colour (mobility cyan, utility magenta), over a ring on the floor in that colour, as a
+  gun has in its rarity's.
+  - A match lays about 477 cores, so the canister (2,382 triangles) is drawn within 22 m of the eye and the box beyond
+    (`loot.json` coreDetail). Everywhere, it slowed the e2e's CPU drawing until a two-page ghost check timed out.
+- **Supply bins** (props supplybin). They are now the pack's weapon case in skin C, three quarters of its size. Its
+  cover is a part of its own and swings open about its back edge once the bin is looted. It stands still; our crate
+  spun. A match has 13.
+- **Other players' mines** were fixed in Milestone 259.
+- **Still ours, by the inventory:**
+  - effects (beams, rings, tracers, the edge laser);
+  - the dropship's hull;
+  - the Gulag flag.
+- **Candidates in the city packs, left to the city agent's import:**
+  - the dropship's engine pods (High City's "fly engine");
+  - the ring consoles (Kyber City's electric box and control panel);
+  - doors, cars, fences.
+- **Checked:** the SpeedKills e2e section (its ghost restore, which the canister everywhere broke); verify; rules; a
+  picture of both on a street.

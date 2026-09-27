@@ -24,7 +24,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
-import { paidGunMaterial, paidProp } from "./paidgun";
+import { paidGunMaterial, paidProp, paidPropBatch, paidPropReady, setPropOpen } from "./paidgun";
 import { weaponLabel, weaponMods, type AmmoType } from "./weapons";
 import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName, throwName } from "../config/names";
@@ -36,6 +36,9 @@ import { optionsFor, SLOTS, type Attachments } from "./attachments";
 import { BACKPACKS, KNOCK_SHIELDS, type BackTier, type KnockTier } from "./kit";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
+/** within this of the eye, squared, a hack core is the bought canister; beyond, a box (loot.json coreDetail) */
+const CORE_DETAIL2 = cfg.coreDetail ** 2;
+
 export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade" | "backpack" | "knockdown" | "bin" | "keycard" | "hack";
 
 /** supply bins (loot.json bins): where they may stand, how often, and what one throws out */
@@ -696,6 +699,11 @@ export class LootField {
       m.rotation.set(0, Math.PI / 2, Math.PI / 2);
       m.position.y = 0.06;
       g.add(m);
+    } else if (it.kind === "bin" && IS_SK && paidPropReady("supplybin")) {
+      // SpeedKills: the pack's weapon case (paidgun.ts), its cover swung open once it is looted
+      const bought = paidProp("supplybin")!;
+      setPropOpen(bought, "supplybin", it.id === "open");
+      g.add(bought);
     } else if (it.kind === "bin") {
       // a supply bin: a squat crate with a lit seam; open, its lid stands up behind it
       const open = it.id === "open";
@@ -725,7 +733,7 @@ export class LootField {
   }
 
   /** the batched shapes of an item near enough to draw: its box, a gun's ring, a rare one's beam */
-  private drawBatched(d: LootDrop, now: number): void {
+  private drawBatched(d: LootDrop, now: number, near = true): void {
     const it = d.item;
     // the vault's gun and its keycard: mythic red
     const colour = it.mythic || it.kind === "keycard" ? MYTHIC_RED : hexOf(it.rarity);
@@ -737,10 +745,22 @@ export class LootField {
     } else if (it.kind !== "bin" && it.kind !== "box") {
       // a hack core in its slot's colour (mobility cyan, utility magenta)
       const col = it.kind === "banner" ? 0x7ddc8a : it.kind === "hack" ? (hackSlotOf(it.id) === "mobility" ? 0x20e0ff : 0xff2e9a) : colour;
-      p.set(d.pos.x, d.pos.y + 0.12, d.pos.z);
       // the items turn slowly
       this.tmpQ.setFromEuler(this.tmpE.set(0, now * 0.8 + d.key, 0));
-      this.batch(`box${col}`, this.boxGeo, () => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.5 })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
+      // SpeedKills: a hack core is the pack's canister standing, glowing in its slot's colour (paidgun.ts)
+      const core = it.kind === "hack" && IS_SK && near ? paidPropBatch("hackcore", col) : null;
+      if (core) {
+        p.set(d.pos.x, d.pos.y + 0.22 + 0.04 * Math.sin(now * 2 + d.key), d.pos.z);
+        this.batch(`core${col}`, core.geo, () => core.mat).put(this.tmpM.compose(p, this.tmpQ, this.unit));
+        // and a ring on the floor in the slot's colour, as a gun has in its rarity's: the canister's own glow is a few
+        // strips, which do not say mobility or utility from across a street
+        p.set(d.pos.x, d.pos.y + 0.02, d.pos.z);
+        this.tmpQ.setFromEuler(this.tmpE.set(-Math.PI / 2, 0, 0));
+        this.batch(`ring${col}`, this.ringGeo, () => new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
+      } else {
+        p.set(d.pos.x, d.pos.y + 0.12, d.pos.z);
+        this.batch(`box${col}`, this.boxGeo, () => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.5 })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
+      }
     }
     if (it.rarity === "epic" || it.rarity === "legendary" || it.kind === "banner" || it.kind === "keycard") {
       p.set(d.pos.x, d.pos.y + 1.2, d.pos.z);
@@ -953,8 +973,9 @@ export class LootField {
       const v = d.pos.distanceToSquared(cam) < far2;
       d.obj.visible = v;
       if (!v) continue;
-      if (d.item.kind === "bin") d.obj.rotation.y = now * 0.8 + d.key;
-      this.drawBatched(d, now);
+      // a bin of ours turns; the pack's case stands still, as a case does
+      if (d.item.kind === "bin" && !(IS_SK && paidPropReady("supplybin"))) d.obj.rotation.y = now * 0.8 + d.key;
+      this.drawBatched(d, now, d.pos.distanceToSquared(cam) < CORE_DETAIL2);
     }
     for (const b of this.batches.values()) b.close();
   }

@@ -118,7 +118,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
   hack's amber card over it, taps it, and the card breaks into pixels as the
   hack goes off, the gun dipping in the other hand. HEAL lays a glowing ring on
   the ground with arcs turning in it and "+" signs rising, and while it heals
-  you the view's edges glow green. The MINE
+  you the view's edges glow green. Hack cores on the floor are the pack's
+  canister, glowing in their slot's colour over a ring the same colour, and
+  supply bins are its weapon case, whose cover swings open once looted. The MINE
   hack's mine, death boxes, care packages and the med kit in a HEAL area are
   the pack's too.
 - **The centre, from the bought city kits:** on the game server the Spire
