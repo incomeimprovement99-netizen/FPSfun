@@ -198,7 +198,9 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
   // ------------------------------------------------ the towers' faces, storey by storey
   for (const t of towers) {
     const fam = familyAt(t.x, t.z);
-    const rows = D.rows[fam] as { bay: number; ground: string[]; mid: string[]; top: string[]; far?: string[]; farBay?: number; cornice?: string };
+    // its family's rows, or another of the family's styles (dress styles): neighbours of one family differ
+    const styles = [D.rows[fam], ...((D.styles as Record<string, unknown[]>)[fam] ?? [])];
+    const rows = pick(styles, kitHash(t.x, t.z, 90)) as { bay: number; ground: string[]; mid: string[]; top: string[]; far?: string[]; farBay?: number; cornice?: string };
     const spire = Math.abs(t.x) < 30 && Math.abs(t.z) < 30;
     for (const f of faces(t.x - t.w / 2, t.x + t.w / 2, t.z - t.d / 2, t.z + t.d / 2)) {
       const len = f.b - f.a;
@@ -277,7 +279,7 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
               if (wd) add(w, place(w, x, y, z, f.yaw, 1, STOREY / wd.h, 1, true), 2, "wire");
             } else if (kitHash(t.x, t.z, f.nx, f.nz, 6) < D.chance.pipe) {
               const [x, z] = onFace(f, col, D.outset + 0.2);
-              const p = D.pipes[0];
+              const p = pick(D.pipes, kitHash(t.x, t.z, f.nx, f.nz, 7));
               const pd = dims(p);
               if (pd) add(p, place(p, x, y, z, f.yaw, 1, STOREY / pd.h, 1, true), 2, "pipe");
             }
@@ -600,6 +602,13 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
     }
   }
 
+  // ------------------------------------------------ the Spire's machinery: Glass's pipes and machine over the city's boxes
+  for (const q of KIT_SITES.machinery) {
+    const id = q.kind === "stack" ? D.machinery.stack : D.machinery.machine;
+    const md = dims(id);
+    if (md) add(id, place(id, q.x, q.y, q.z, 0, (q.w * 1.04) / md.w, (q.h * 1.02) / md.h, (q.d * 1.04) / md.d, false), 1, "prop");
+  }
+
   // ------------------------------------------------ the centre's parked cars, each a van from High City, its box's size
   {
     const [cl, cw] = cityCfg.streetLife.car;
@@ -662,6 +671,60 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
               const [x, z] = onFace(f, u, D.outset);
               add(Mk.signal, place(Mk.signal, x, y0 + Mk.signalAt, z, f.yaw, 1, 1, 1, true), 1, "sign");
             }
+        }
+      }
+    }
+  }
+
+  // ------------------------------------------------ the streets: decals and sewer covers down them, traffic lights at the crossings
+  {
+    const St = D.streets;
+    const lines = cityCfg.blocks.slice(0, -1).map((b, i) => (b[1] + cityCfg.blocks[i + 1][0]) / 2).filter((s) => Math.abs(s) < C);
+    const clearAt = (x: number, z: number) =>
+      !nearPad(x, z, 3) && !KIT_SITES.openings.some((o) => x > o.x0 - 2 && x < o.x1 + 2 && z > o.z0 - 2 && z < o.z1 + 2) && !KIT_SITES.cars.some((c) => Math.hypot(c.x - x, c.z - z) < 3.5);
+    for (const s of lines) {
+      for (const alongX of [true, false]) {
+        for (let a = -C + 4; a < C - 4; a += St.every) {
+          // off the crossings: their zebras are the city's own
+          if (lines.some((q) => Math.abs(q - a) < 9)) continue;
+          const across = (kitHash(s, a, alongX ? 1 : 0, 100) - 0.5) * 8;
+          const [x, z] = alongX ? [a, s + across] : [s + across, a];
+          if (!clearAt(x, z)) continue;
+          const r = kitHash(s, a, alongX ? 1 : 0, 101);
+          if (r < St.decalChance) {
+            const id = pick(St.decals, kitHash(s, a, 102));
+            add(id, place(id, x, 0.03, z, alongX ? Math.PI / 2 : 0, 1, 1, 1, false), 1, "prop");
+          } else if (r < St.decalChance + St.sewerChance) {
+            const id = pick(St.sewers, kitHash(s, a, 103));
+            add(id, place(id, x, 0.02, z, 0, 1, 1, 1, false), 1, "prop");
+          }
+        }
+      }
+    }
+    // a traffic light at the two corners of each crossing round the Spire the city's lamps leave free
+    for (const sx of lines)
+      for (const sz of lines)
+        for (const [ox, oz] of [
+          [6.4, -6.4],
+          [-6.4, 6.4],
+        ] as const) {
+          const [x, z] = [sx + ox, sz + oz];
+          if (!clearAt(x, z)) continue;
+          const id = pick(St.lights, kitHash(x, z, 104));
+          // its arm out over the crossing
+          add(id, place(id, x, 0, z, Math.atan2(sx - x, sz - z), 1, 1, 1, false), 2, "lamp");
+        }
+    // string lights over a shop front here and there, under the podium's edge
+    for (const p of KIT_SITES.podia) {
+      if (!inCentre((p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2)) continue;
+      for (const f of faces(p.x0, p.x1, p.z0, p.z1)) {
+        for (let u = f.a + 5; u < f.b - 5; u += 9) {
+          const [fx, fz] = onFace(f, u, 1.5);
+          if (kitHash(u, f.at, 105) > St.garlandChance || nearPad(fx, fz, D.clear.pad + 2) || inStair(fx, fz, 2)) continue;
+          const gd = dims(St.garland);
+          if (!gd) continue;
+          const [x, z] = onFace(f, u, D.outset + 0.3);
+          add(St.garland, place(St.garland, x, cityCfg.kerb + STOREY + 0.2, z, f.yaw, 1, 1, 1, true), 2, "sign");
         }
       }
     }

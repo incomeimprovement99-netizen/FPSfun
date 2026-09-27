@@ -98,6 +98,18 @@ check("the skyline's towers each wear a lit building from the bundle", (byKind.g
     if ((o as THREE.Mesh).isMesh && m && STAND_INS.cars.includes(m)) carMeshes++;
   });
   const dressedCars = places.filter((p) => p.kind === "car").length;
+  // the Spire's machinery: one mesh each, in its own material
+  let machineMeshes = 0;
+  scene.traverse((o) => {
+    const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+    if ((o as THREE.Mesh).isMesh && m && STAND_INS.machinery.includes(m)) machineMeshes++;
+  });
+  const machinePieces = new Set([kit.dress.machinery.stack, kit.dress.machinery.machine]);
+  check(
+    "the Spire's machinery: each of its boxes wearing its Glass piece, and what the kit hides over them theirs alone",
+    KIT_SITES.machinery.length === 5 && machineMeshes === 5 && places.filter((p) => machinePieces.has(p.piece)).length === 5,
+    `${KIT_SITES.machinery.length} boxes, ${machineMeshes} meshes in their material`,
+  );
   check(
     "and what it hides over the centre's cars is theirs alone, every one of them wearing a van",
     KIT_SITES.cars.length > 0 && carMeshes === 5 * KIT_SITES.cars.length && dressedCars === KIT_SITES.cars.length,

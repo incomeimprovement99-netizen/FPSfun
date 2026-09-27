@@ -159,5 +159,9 @@ export async function dressCityKit(root: THREE.Object3D, places: KitPlace[], q: 
   const vans = new Set(kit.dress.cars);
   const parked = want.filter((p) => p.kind === "car" && vans.has(p.piece) && byId.has(p.piece)).length;
   if (KIT_SITES.cars.length && parked >= KIT_SITES.cars.length) for (const m of STAND_INS.cars) m.visible = false;
+  // and the Spire's machinery in its Glass pieces
+  const machines = new Set([kit.dress.machinery.stack, kit.dress.machinery.machine]);
+  const dressedMachines = want.filter((p) => machines.has(p.piece) && byId.has(p.piece)).length;
+  if (KIT_SITES.machinery.length && dressedMachines >= KIT_SITES.machinery.length) for (const m of STAND_INS.machinery) m.visible = false;
   return CITY_KIT.drawn;
 }

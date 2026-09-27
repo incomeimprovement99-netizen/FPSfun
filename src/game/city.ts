@@ -135,13 +135,15 @@ export const CONCOURSE: {
  * The materials of what the bought kit draws over and replaces (citykit.ts hides them once it has drawn over every one):
  * Neon Alley's stalls, a dark kiosk each, where the kit's food stand is open-fronted and would show the box inside it.
  */
-export const STAND_INS: { stalls: THREE.Material[]; cars: THREE.Material[] } = { stalls: [], cars: [] };
+export const STAND_INS: { stalls: THREE.Material[]; cars: THREE.Material[]; machinery: THREE.Material[] } = { stalls: [], cars: [], machinery: [] };
 export const KIT_SITES: {
   towers: Array<{ x: number; z: number; w: number; d: number; base: number; roof: number; storeys: number; lobby?: number; park?: number; floors?: number[]; sector: string; clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }> }>;
   /** the metro's stairwells in the street (map-local), which nothing may stand over */
   openings: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   /** the Sky Lobby's and the Sky Park's rooms: the tower's box, the storey's floor, and each face's window, along it from its middle */
   rooms: Array<{ x: number; z: number; w: number; d: number; y: number; at: { n: number; s: number; w: number; e: number } }>;
+  /** the Spire's machinery (city.json spire machinery): solid boxes the kit's Glass pieces dress, `kind` stack or machine */
+  machinery: Array<{ kind: "stack" | "machine"; x: number; z: number; y: number; w: number; h: number; d: number }>;
   /** openings in a tower's face the kit leaves bare (the Spire's drop's doors), map-local */
   doors: Array<{ x0: number; x1: number; z0: number; z1: number; y0: number; y1: number }>;
   /** the centre's parked cars (city.json streetLife): where each stands, which way along the street, which way it faces */
@@ -152,7 +154,7 @@ export const KIT_SITES: {
   stairs: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   skyline: Array<{ x: number; z: number; w: number; h: number }>;
   lamps: Array<[number, number]>;
-} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [], rooms: [], cars: [], doors: [] };
+} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [], rooms: [], cars: [], doors: [], machinery: [] };
 
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
@@ -283,7 +285,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   const podia = new Map<string, { x0: number; x1: number; z0: number; z1: number; top: number }>();
   CONCOURSE.stairs.length = 0;
   STAIR_CORES.length = 0;
-  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.openings.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = KIT_SITES.doors.length = 0;
+  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.openings.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = KIT_SITES.doors.length = KIT_SITES.machinery.length = 0;
   /** the public stairs' footprints (local): a bridge landing across one blocked it (the concourse check found it) */
   const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
   CONCOURSE.bridges.length = 0;
@@ -1183,6 +1185,32 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       // a pad on the terrace below this tier, up its east face onto its roof
       padOnto(cx + w / 2, cz, 1, 0, floor, t.roof);
     });
+    // the machinery (city.json spire machinery): pipe stacks at the top tier's terrace's corners and a machine on the
+    // crown deck, solid, in materials of their own the kit hides once it dresses them (flat() shares one a colour)
+    {
+      const Mc = S.machinery;
+      const body = flat(0x1a2030, 0.5, 0.5).clone();
+      STAND_INS.machinery = [body];
+      const terrace = tops[tops.length - 2];
+      const topW = C.downtown.margin * 0 + (x1 - x0 - 2 * m) - 2 * S.tierInset * (S.tiers.length - 1);
+      const [sw, sh, sd] = Mc.stacks.size;
+      for (const [ex, ez] of [
+        [-1, -1],
+        [1, -1],
+        [-1, 1],
+        [1, 1],
+      ] as const) {
+        const px = cx + ex * (topW / 2 - Mc.stacks.inset);
+        const pz = cz + ez * (topW / 2 - Mc.stacks.inset);
+        slab(sw, sh, sd, px, terrace, pz, body);
+        KIT_SITES.machinery.push({ kind: "stack", x: px, z: pz, y: terrace, w: sw, h: sh, d: sd });
+      }
+      const [mw, mh, md] = Mc.machine.size;
+      const mx = cx + Mc.machine.at[0];
+      const mz = cz + Mc.machine.at[1];
+      slab(mw, mh, md, mx, base, mz, body);
+      KIT_SITES.machinery.push({ kind: "machine", x: mx, z: mz, y: base, w: mw, h: mh, d: md });
+    }
     // the mast
     deco(0.6, S.mast, 0.6, cx, base, cz, k);
     deco(2.2, 0.3, 2.2, cx, base + S.mast, cz, neon(0xff3050));

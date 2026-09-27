@@ -5216,3 +5216,30 @@ The same rule as Milestone 270, carried up: the floors next to each deck open in
   against the plan's 20% (32.7% this morning).
 - **Checked:** `sk-stairs` (99 rooms; every core walked; the bots' graph up all 24), `sk-lobbies`, `citykit` (the
   bands on the new rooms: 618k, 1,219k and 1,255k by preset; Competitive has 2k of its 620k left), verify and rules.
+
+## Milestone 276 — More of the bought kit in use: a style per tower, the streets, the Spire's machinery
+
+The owner: "i am only seeing some assets looking like they are reused, i thought we had a boat load in the 5 that we
+bought?" Measured: the centre placed 124 of the 431 pieces imported (Glass 3 of 25, Kyber 12 of 85), each block's
+family wearing two to five wall modules, and 1,400 blank panels on the canyon faces. Now 172.
+
+- **A style per tower** (`citykit.json` dress styles). A second set of rows for High City (its wall b set, 10 m
+  bays), Kyber (its plain and variant walls, its 8 m windows between decks) and Cyber City (its deep window walls,
+  its classic windows between decks); each tower wears its family's first or second by a hash of where it stands,
+  so two neighbours of one family differ. Kyber's second is lighter at the street, which took the presets down
+  (544k, 1,160k and 1,263k, from 618k, 1,219k and 1,255k).
+- **Every neon sign, poster and TV** the packs gave in the lists; roof gear with High's domes and antenna sets, the
+  power and electric boxes; antenna masts; three pipe pieces for the wall runs, a piece a column; four more cable
+  bundles; street robots, bins and garbage.
+- **The streets** (`dress streets`): road decals and sewer covers down the centre's streets, clear of the stairwells,
+  the pads and the parked cars; a traffic light at the two corners of each crossing round the Spire the lamps leave
+  free; string lights over a shop front here and there.
+- **The Spire's machinery** (`city.json` spire machinery): the Glass pack's pipe stacks at the four corners of the top
+  tier's terrace and its machine on the crown deck, each over a solid box of the city's (cover on the capture zone's
+  last ground), in materials of their own the kit hides once it dresses them.
+- **Not yet:** the canyon faces still wear flat panels. Their family's modules pressed flat would cost about 120k
+  triangles, past Balanced's headroom; that waits on a bench. High City's wall tiles, meant for that, are modelled
+  lying down.
+- **Checked:** `citykit.ts` (the machinery's boxes each dressed and its material theirs alone; every piece measured;
+  nothing across a window or a door; the budgets); `sk-roofs` (a bot still up the Spire to its crown), `sk-drop`;
+  verify and rules; pictures from the street, the crown and the air.
