@@ -30,7 +30,7 @@ import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName, throwName } from "../config/names";
 import { RANGE_SOLIDS } from "./range";
 // the world's floor (floors.ts), named apart from this file's own floorAt, the lowest place loot can stand
-import { floorAt as worldFloor } from "./floors";
+import { floorAt as worldFloor, FLOORS } from "./floors";
 import { ammoTypeOf, STACK } from "./ammo";
 import { optionsFor, SLOTS, type Attachments } from "./attachments";
 import { BACKPACKS, KNOCK_SHIELDS, type BackTier, type KnockTier } from "./kit";
@@ -936,6 +936,21 @@ export class LootField {
         const at = spots[i].clone().add(new THREE.Vector3(1.1, 0, 0.3));
         this.add({ kind: "bin", id: "closed", n: 1, rarity: "rare" }, at);
       }
+    }
+    // The metro under SpeedKills' centre (floors.ts), after everything and on a stream of its own, so everything above
+    // draws what it drew before there was one: spots down every side of the tunnel on its floor, clear of its train
+    // and its stairs
+    const M = cfg.metro;
+    const metroRnd = seeded((seed ^ 0x7e1d3a95) >>> 0);
+    for (const f of FLOORS) {
+      const spots: THREE.Vector3[] = [];
+      for (let tries = 0; spots.length < M.perSide && tries < M.perSide * 20; tries++) {
+        const x = f.minX + 1.5 + metroRnd() * (f.maxX - f.minX - 3);
+        const z = f.minZ + 1.5 + metroRnd() * (f.maxZ - f.minZ - 3);
+        const blocked = RANGE_SOLIDS.some((s) => x > s.minX - 1 && x < s.maxX + 1 && z > s.minZ - 1 && z < s.maxZ + 1 && s.base < f.y + 1.9 && s.top > f.y + 0.05);
+        if (!blocked) spots.push(new THREE.Vector3(x, f.y + 0.01, z));
+      }
+      for (const s of spots) for (const item of rollSpot(metroRnd, M.tier as PlaceTier)) this.add(item, s.clone().add(new THREE.Vector3((metroRnd() - 0.5) * 0.8, 0, (metroRnd() - 0.5) * 0.8)));
     }
   }
 

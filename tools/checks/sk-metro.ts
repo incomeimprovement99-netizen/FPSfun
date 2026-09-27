@@ -29,7 +29,7 @@ const { throwPath } = await import("../../src/game/throwables");
 const { botGroundAt } = await import("../../src/game/botbody");
 const { surfaceUnder } = await import("../../src/game/dropship");
 const { RANGE_SOLIDS } = await import("../../src/game/range");
-buildCityMap(new THREE.Scene());
+const map = buildCityMap(new THREE.Scene());
 console.warn = warn;
 if (!hadDocument) delete g.document;
 
@@ -167,6 +167,31 @@ check("what a drop lands on over it is the street, and down in it the floor", Ma
   const end = path[path.length - 1];
   check("a grenade thrown down the tunnel flies and lands on its floor", path.length > 5 && end.distanceTo(from) > 4 && Math.abs(end.y - METRO.floor) < 0.3, `${path.length} steps, ${end.distanceTo(from).toFixed(1)} m, ends at ${end.y.toFixed(2)} m`);
 }
+// loot of its own down there, drawn after everything and on its own stream: the loot above is the same item for item
+// with the metro and without it (putting the tunnel's floor in the field's own spots moved every item after them)
+{
+  const { LootField } = await import("../../src/game/loot");
+  const { FLOORS } = await import("../../src/game/floors");
+  const bounds = { minX: BR_X - 250, maxX: BR_X + 250, minZ: BR_Z - 250, maxZ: BR_Z + 250 };
+  const places = map.pois.map((p: { x: number; z: number }) => ({ x: p.x, z: p.z, radius: 30 }));
+  const field = new LootField(null);
+  const above = (seed: number): { up: string[]; down: number } => {
+    field.generate(seed, places, bounds);
+    const all = [...field.drops.values()];
+    return { up: all.filter((d) => d.pos.y > -1).map((d) => `${d.item.kind}:${d.item.id}@${d.pos.x.toFixed(2)},${d.pos.y.toFixed(2)},${d.pos.z.toFixed(2)}`), down: all.filter((d) => d.pos.y < METRO.floor + 1).length };
+  };
+  const seeds = [7, 42, 1234];
+  const withMetro = seeds.map(above);
+  const saved = FLOORS.splice(0, FLOORS.length);
+  const without = seeds.map(above);
+  FLOORS.push(...saved);
+  check(
+    "the metro has loot of its own on its floor, and the loot above is the same item for item with the metro and without it",
+    withMetro.every((m) => m.down >= 8) && withMetro.every((m, i) => m.up.join("|") === without[i].up.join("|")),
+    withMetro.map((m, i) => `seed ${seeds[i]}: ${m.down} down there, ${m.up.length} above${m.up.join("|") === without[i].up.join("|") ? "" : " (moved)"}`).join("; "),
+  );
+}
+
 // the decay takes what stands above the street; the street's slab over the metro, and the metro, are under it
 check("the street's slab and the metro are under the street, where the decay never reaches", RANGE_SOLIDS.filter((q) => q.top <= 0.001 && q.base < 0).length >= 8);
 

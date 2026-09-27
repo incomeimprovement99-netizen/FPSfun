@@ -1780,9 +1780,10 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const edge = BLOCKS.find(([a, b]) => a < 0 && b > 0)!;
     const kerb = toward < 0 ? edge[0] : edge[1];
     const [sw, sd, sh] = Na.stall;
-    // their own materials, not the city's shared ones, so the kit can hide these alone
-    const body = flat(0x0c0e14, 0.6, 0.4);
-    const k = emissive(0x20e0ff, C.neonGlow);
+    // their own materials, so the kit can hide these alone: flat() and emissive() hand out one material a colour, and
+    // hiding theirs hid every parapet in the city and every cyan neon in the centre (Milestone 260 shipped it so)
+    const body = flat(0x0c0e14, 0.6, 0.4).clone();
+    const k = emissive(0x20e0ff, C.neonGlow).clone();
     STAND_INS.stalls = [body, k];
     for (const u of Na.stalls) {
       const z = kerb - toward * (Na.back + sd / 2);

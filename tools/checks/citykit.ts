@@ -25,7 +25,8 @@ const { cityKitPlaces, planeOf } = await import("../../src/game/citydress");
 const { PRESETS } = await import("../../src/game/quality");
 const { BR_X, BR_Z } = await import("../../src/game/br");
 const kit = (await import("../../src/config/citykit.json")).default;
-const map = buildCityMap(new THREE.Scene());
+const scene = new THREE.Scene();
+const map = buildCityMap(scene);
 console.warn = warn;
 if (!hadDocument) delete g.document;
 let fails = 0;
@@ -68,6 +69,23 @@ for (const t of towers) {
 check(`every face of the centre's ${towers.length} towers wears its facade at its first storey`, bare.length === 0, bare.slice(0, 4).join("; "));
 check("the centre's podiums wear shop fronts on their street floors", (byKind.get("shop") ?? 0) >= 40, `${byKind.get("shop") ?? 0} shop fronts`);
 check("the skyline's towers each wear a lit building from the bundle", (byKind.get("skyline") ?? 0) === KIT_SITES.skyline.length, `${byKind.get("skyline") ?? 0} of ${KIT_SITES.skyline.length}`);
+
+// what the kit hides once it has drawn over it (city.ts STAND_INS) is the stalls' alone: flat() and emissive() share a
+// material a colour, and hiding a shared one took every parapet in the city and the centre's cyan neon with it
+{
+  const { STAND_INS } = await import("../../src/game/city");
+  const users = new Map<THREE.Material, number>();
+  scene.traverse((o) => {
+    const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+    if ((o as THREE.Mesh).isMesh && m && STAND_INS.stalls.includes(m)) users.set(m, (users.get(m) ?? 0) + 1);
+  });
+  const stalls = KIT_SITES.stalls.length;
+  check(
+    "what the kit hides over the stalls is the stalls' own: each stand-in material on the stalls' meshes and nothing else",
+    STAND_INS.stalls.length === 2 && STAND_INS.stalls.every((m) => users.get(m) === stalls),
+    STAND_INS.stalls.map((m) => `${users.get(m) ?? 0} meshes`).join(", ") + ` for ${stalls} stalls`,
+  );
+}
 
 // Neon Alley (city.json neonAlley, the plan's 4.3.1): its stalls each a stand, signs up its towers, a web over it
 {

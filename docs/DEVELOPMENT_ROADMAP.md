@@ -4985,3 +4985,21 @@ still built itself ranked these first, from the weapons pack already imported.
   - doors, cars, fences.
 - **Checked:** the SpeedKills e2e section (its ghost restore, which the canister everywhere broke); verify; rules; a
   picture of both on a street.
+
+## Milestone 264 — The metro's own loot and dressing; the parapets and the centre's neon back
+
+- **A fault Milestone 260 shipped, fixed.** Neon Alley's stalls hid their dark kiosks once the kit dressed them, by
+  hiding the kiosks' materials. But `flat()` and `emissive()` hand out one material a colour, and the kiosks' were
+  the city's dark trim and the centre's cyan neon: on Balanced and High every parapet, rail and canopy in the city went
+  invisible (still solid), and every cyan neon in the centre went out. The stalls' materials are their own now, and
+  `citykit.ts` holds that each stand-in material is on the stalls' meshes and nothing else: with the shared one back,
+  919 meshes.
+- **Loot of its own down there** (`loot.json` metro). Four spots down each side of the tunnel, on its floor and clear
+  of the train and the stairs, at the small sites' tier, about 20 items a match. Drawn after everything and on a stream
+  of its own: `sk-metro.ts` holds that the loot above is the same item for item with the metro and without it, on three
+  seeds; with the tunnel's floor back among the field's spots, two of the three moved.
+- **Dressed** (`citykit.json` dress metro): posters glowing down both walls every 9 m, above the wall's line of light and
+  clear of the stairs and the parked trains; a signal lamp at each end of every side; bins here and there. From
+  Balanced up.
+- **Checked:** verify and rules; `citykit.ts` (596k, 1,208k and 1,245k by preset); pictures down the tunnel and along
+  Neon Alley.

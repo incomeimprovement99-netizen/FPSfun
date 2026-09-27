@@ -541,6 +541,59 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
     }
   }
 
+  // ------------------------------------------------ the metro: posters down its walls, signals at its ends, bins
+  {
+    const Mc = cityCfg.metro;
+    const Mk = D.metro;
+    const lines = Mc.streets.map((i) => streetLines[i]);
+    const half = Mc.width / 2;
+    const [lo, hi] = [Math.min(...lines), Math.max(...lines)];
+    const y0 = Mc.floor;
+    const T = Mc.train;
+    const trainLen = T.cars * T.length + (T.cars - 1) * T.gap;
+    /** a wall of the tunnel as a face: along x at z = at when alongX, looking toward `n` */
+    const wallFace = (alongX: boolean, at: number, n: number, a: number, b: number): Face =>
+      alongX ? { key: n > 0 ? "s" : "n", nx: 0, nz: n, yaw: n > 0 ? 0 : Math.PI, at, a, b } : { key: n > 0 ? "e" : "w", nx: n, nz: 0, yaw: n > 0 ? Math.PI / 2 : -Math.PI / 2, at, a, b };
+    for (const line of [lo, hi]) {
+      for (const alongX of [true, false]) {
+        const out = Math.sign(line);
+        const [a, b] = alongX ? [lo - half, hi + half] : [lo + half, hi - half];
+        const mid = (a + b) / 2;
+        // the outer wall looks in toward the centre, the inner out
+        for (const [at, n, inner] of [
+          [line + out * half, -out, false],
+          [line - out * half, out, true],
+        ] as const) {
+          // the inner wall runs between the corners, where the tunnel turns
+          const f = inner ? wallFace(alongX, at, n, lo + half, hi - half) : wallFace(alongX, at, n, a, b);
+          for (let u = f.a + 3; u <= f.b - 3; u += Mk.posterEvery) {
+            // not behind a stair (the outer lane's) or a parked train (the inner lane's)
+            const [px, pz] = onFace(f, u, 1);
+            if (!inner && KIT_SITES.openings.some((o) => px > o.x0 - 1.5 && px < o.x1 + 1.5 && pz > o.z0 - 3 && pz < o.z1 + 3)) continue;
+            if (inner && Math.abs(u - mid) < trainLen / 2 + 1.5) continue;
+            const id = pick(D.posters, kitHash(u, at, 60));
+            const pd = dims(id);
+            if (!pd) continue;
+            const [x, z] = onFace(f, u, D.outset + 0.02);
+            add(id, place(id, x, y0 + Mk.posterAt, z, f.yaw, Math.min(1, 3 / pd.w), Math.min(1, 2.2 / pd.h), 1, true), 1, "poster");
+            // a bin under one here and there
+            if (kitHash(u, at, 61) < Mk.binChance) {
+              const bid = pick(Mk.bins, kitHash(u, at, 62));
+              const [bx, bz] = onFace(f, u + 1.6, 0.5);
+              add(bid, place(bid, bx, y0, bz, f.yaw, 1, 1, 1, false), 1, "prop");
+            }
+          }
+          // a signal at each end of the side, up the outer wall
+          if (!inner)
+            for (const u of [f.a + 4, f.b - 4]) {
+              const [x, z] = onFace(f, u, D.outset);
+              add(Mk.signal, place(Mk.signal, x, y0 + Mk.signalAt, z, f.yaw, 1, 1, 1, true), 1, "sign");
+            }
+        }
+      }
+    }
+  }
+
   // ------------------------------------------------ the skyline: lit towers over the skyline's boxes, and two airships
   for (const b of KIT_SITES.skyline) {
     const id = pick(D.skyline, kitHash(b.x, b.z, 28));

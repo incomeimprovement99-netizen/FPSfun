@@ -87,6 +87,11 @@
   },
   "_sites": "The small places between the big ones (br.ts's sites: the Notch, Table Station, the Crossing, the Well, Highpoint, the Sump, Motor Pool, the Relay). Each is its own tier, 'site': four spots, about eleven items, leaning a little richer than a mid place, so a detour through one is worth a gun or a kit piece and a fight over it is short. They are laid after the nine places, so the Hot Zone and the places' own rolls are what they were, and never the Hot Zone: a site is 15 to 30 m across and a Hot Zone there would be a drop spot for the whole lobby. They are paid for out of the field: the loose spots on open sand went from 20 to 2, because the sites now fill the ground between the places that the field's scatter stood in for, and the floor stays inside densityTargets.",
   "siteTier": "site",
+  "_metro": "SpeedKills' metro under the centre (city.json metro, floors.ts FLOORS): `perSide` spots down each side of the tunnel, on its floor and clear of its train and stairs, rolled at `tier` (the small sites', which leans past common), last of all and on a stream of their own, so the loot above draws exactly what it drew before there was a metro (putting the tunnel's floor in the field's own spots moved every item after them: the e2e's vault caught a supply bin at its door).",
+  "metro": {
+    "perSide": 4,
+    "tier": "site"
+  },
   "_placeOrder": "brmatch.ts hands the loot its places with their ids, so the tier is read by id; this list, the order of the pois array in src/game/br.ts, is for a place that arrives without one (a test, or an older caller), whose tier is read by its position. A place added there belongs here too.",
   "placeOrder": [
     "hub",
