@@ -64,12 +64,14 @@
   "maxLength": 1.0,
   "_sleeveCap": "the radius the sleeve narrows to at the elbow, viewmodel metres, closed over with a dome of the same radius. The old end was a flat 0.06 disc at full width, which is invisible while the arm runs off the bottom of the frame and a dark plate across the screen the moment a pose swings it round.",
   "sleeveCap": 0.022,
-  "_realArms": "The player's own arms in the first-person view (src/game/fparms.ts): the published body's arms, posed onto the drawn gloves. `upper` is how much of the upper arm is drawn, from the elbow, as a share of its length: all of it brought the deltoid up the screen in slabs, cut at the elbow the cut showed. `down` is how far the upper arm turns from the forearm's line toward straight down in the view, which is the shortest way out of the frame; along the forearm's line it swept past the eye. `twist` is how much of the wrist's turn the forearm takes, the rest staying at the wrist: a hand rolled over on a handguard wrung whichever joint took all of it. `cutRadius` is how far the upper arm reaches out from its axis where it is cut (`upper` of the way up), measured off the bought soldier (0.069 m): half of it is kept off the gun camera's frame past that cut end (src/game/fparms.ts cutOffFrame), since with the forearm drawn the glove's size the elbow stopped in the lower middle of the frame and the upper arm's cut end hung under the gun. Drawn whole instead, the upper arm brought the armour skinned to it, stretched across the screen.",
+  "_realArms": "The player's own arms in the first-person view (src/game/fparms.ts): the published body's arms, posed onto the drawn gloves. `upper` is how much of the upper arm is drawn, from the elbow, as a share of its length: all of it brought the deltoid up the screen in slabs, cut at the elbow the cut showed. `down` is how far the upper arm turns from the forearm's line toward straight down in the view, which is the shortest way out of the frame; along the forearm's line it swept past the eye. `twist` is how much of the wrist's turn the forearm takes, the rest staying at the wrist: a hand rolled over on a handguard wrung whichever joint took all of it. `cutRadius` is how far the upper arm reaches out from its axis where it is cut, measured off the bought soldier (0.069 m at 0.6 of it): half of it is kept off the gun camera's frame past that cut end (src/game/fparms.ts cutOffFrame), since with the forearm drawn the glove's size the elbow stopped in the lower middle of the frame and the upper arm's cut end hung under the gun. `adsLean`: aimed, how far toward its lower corner a forearm always leans, 0 to 1 (hanging straight down, the two walled the gun in).",
   "realArms": {
     "upper": 0.6,
     "down": 0.6,
     "twist": 0.5,
-    "cutRadius": 0.069
+    "cutRadius": 0.069,
+    "forearmRadius": 0.04,
+    "adsLean": 0.8
   },
   "_strafe": "The gun into a strafe (src/game/viewmodel.ts): it rolls toward the way you are moving and slides a little the other way, as held hands do when the body steps sideways. Full at sprint speed sideways, eased in and out over `ease` s, and mostly gone when aiming, since a gun that rolls in the sights is a gun you cannot aim. `roll` is radians, `shift` metres in the gun's own space. Before this nothing in the gun answered a strafe at all.",
   "strafe": {

@@ -183,8 +183,11 @@ export interface HudState {
   course: CourseHud | null;
   /** a context prompt under the crosshair: key and what it does */
   prompt: { key: string; text: string } | null;
-  /** a magnified scope's full-screen picture, faded in with aim */
-  scope: { style: ReticleStyle; color: string; amount: number } | null;
+  /**
+   * a magnified scope's full-screen picture, faded in with aim; a signature gun's (gunfeel.json scope) powers on: `on`
+   * is how far through its boot it is, 0..1, and `charge` how far it has recharged since its last shot
+   */
+  scope: { style: ReticleStyle; color: string; amount: number; on?: number; charge?: number | null } | null;
   /** a match in progress (duel.ts DuelHud: the 1v1, the bots, the battle royale) */
   duel?: DuelHud | null;
   /** hosting a match and waiting in the arena: the code, and how many are still to come */
@@ -1367,7 +1370,52 @@ export class Hud {
     // strokes (a lens texture's strokes scaled up to this size are bars)
     c.shadowColor = sc.color;
     c.shadowBlur = 4 * u;
+    const on = sc.on ?? 1;
+    // a signature gun's scope powering on: the reticle drawn down to a scan line sweeping the picture
+    if (on < 1) {
+      c.save();
+      c.beginPath();
+      c.rect(cx - R, cy - R, 2 * R, 2 * R * on);
+      c.clip();
+    }
     drawReticle(c, sc.style, sc.color, cx, cy, sc.style === "sniper" || sc.style === "dsniper" ? R : R * 0.6, Math.max(1.5, 3 * u));
+    if (on < 1) {
+      c.restore();
+      const y = cy - R + 2 * R * on;
+      const half = Math.sqrt(Math.max(0, R * R - (y - cy) * (y - cy)));
+      c.shadowColor = "#7fe9ff";
+      c.shadowBlur = 12 * u;
+      c.strokeStyle = "rgba(127,233,255,0.9)";
+      c.lineWidth = 2 * u;
+      c.beginPath();
+      c.moveTo(cx - half, y);
+      c.lineTo(cx + half, y);
+      c.stroke();
+    }
+    if (sc.on !== undefined) {
+      // the signature scope's own ring inside the rim: four ticks, and the recharge filling it after a shot
+      const r2 = R * 0.965;
+      c.shadowBlur = 6 * u;
+      c.shadowColor = "#7fe9ff";
+      c.lineWidth = 2.5 * u;
+      c.strokeStyle = "rgba(127,233,255,0.22)";
+      c.beginPath();
+      c.arc(cx, cy, r2, 0, Math.PI * 2);
+      c.stroke();
+      const k = sc.charge ?? 1;
+      c.strokeStyle = k >= 1 ? "rgba(127,233,255,0.75)" : "rgba(255,190,90,0.85)";
+      c.beginPath();
+      c.arc(cx, cy, r2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k * on);
+      c.stroke();
+      c.lineWidth = 3 * u;
+      for (let i = 0; i < 4; i++) {
+        const a = (i * Math.PI) / 2;
+        c.beginPath();
+        c.moveTo(cx + Math.cos(a) * (r2 - 14 * u), cy + Math.sin(a) * (r2 - 14 * u));
+        c.lineTo(cx + Math.cos(a) * (r2 - 4 * u), cy + Math.sin(a) * (r2 - 4 * u));
+        c.stroke();
+      }
+    }
     c.restore();
   }
 

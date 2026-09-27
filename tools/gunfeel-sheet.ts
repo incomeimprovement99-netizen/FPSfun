@@ -1,5 +1,5 @@
 // Pictures of the signature guns in the hands (src/config/gunfeel.json): each held part way through its phase out and
-// in (a swap), just after a shot, and through a reload with its magazine phasing out and a new one in, so a look says
+// in (a swap), just after a shot, part way through an inspect's scan, and through a reload with its magazine phasing out and a new one in, so a look says
 // whether the phase reads and the gun stays where the eye can see it. Headless, never the real mouse or keyboard.
 //
 // Run: SHOT_URL=http://localhost:5196/ npx tsx tools/gunfeel-sheet.ts [out prefix] [ids...]
@@ -44,6 +44,10 @@ try {
     await wait(350);
     await page.screenshot({ path: `${OUT}-${id}-after.png` });
     await wait(900);
+    // an inspect: the scan passing along the gun as it turns
+    for (const t of [0.3, 0.45]) await hold(`r.debugView.inspect = ${t};`, `${id}-inspect${Math.round(t * 100)}`);
+    await page.evaluate("window.__range.debugView.inspect = null");
+    await wait(400);
     // the reload: the magazine going, gone, coming, seated
     for (const p of [0.22, 0.4, 0.56, 0.8]) await hold(`r.debugView.reload = ${p};`, `${id}-reload${Math.round(p * 100)}`);
     await page.evaluate("window.__range.debugView.reload = null");

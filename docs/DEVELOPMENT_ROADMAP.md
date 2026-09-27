@@ -4779,3 +4779,46 @@ The plan's second deck (`docs/CITY_BUNDLE_IMPLEMENTATION.md` 4.4 and 4.5), on th
   - `city-budget` 245k triangles; the kit 575k, 1,132k and 1,169k by preset.
   - Pictures from the terrace and from a room.
 - **Next:** the chimney stacks up to the lobby and the Sky Park, and the metro.
+
+## Milestone 257 — The arms out of the way, and the USSO and BOOG sharper still
+
+The owner (2026-09-27), at 1920 by 1080 and the widest FOV: the left arm "out of place and covering the weapons", the
+USSO "too far down, we can't even see the animations"; and more for the two signature guns, "as crisp as possible".
+`tools/pov-sheet.ts` now takes the owner's own view (1920 by 1080, FOV 1.571) standing, walking, sprinting, sliding,
+aimed, firing and reloading; every change here was judged on it.
+
+**The arms**
+- **The support hand is where the bought gun is held** (`paidweapons.json` support, `paidmodels.json` support, measured
+  by `tools/checks/paid-weapons.ts`). It had been where the procedural gun's handguard was: on the USSO over the top of
+  the bought gun and, aimed, beside its rear sight, a hand and forearm by the eye. Now it is under the front of the
+  USSO's receiver, ahead of the magazine on the rifle and the sniper, on BIGANTLER's pump and ahead of NOVA's drum,
+  22 mm above the measured underside.
+- **Both arms at the body's size** (`fparms.ts`). Sized to its glove, the support arm took the support glove's 1.15
+  and was 15% bigger than the arm on the trigger.
+- **A real forearm's thickness** (`viewmodel.json` realArms forearmRadius 0.04, `mannequin.ts` slimForearms). The
+  soldier's armoured forearm is 0.079 from its axis (measured on its own points as it loads); the length is kept.
+- **The whole upper arm** (`speedkills.json` viewmodel upperArm). With the hand far out on a long gun, forearm and 0.6
+  of the upper arm could not reach the frame's edge, and the stub's cut end stood at the bottom. Its points near the
+  shoulder are weighted to the arm alone (`mannequin.ts` armWeightsOnly), which stopped them stretching back to the
+  unposed collarbone across the screen; when the forearm cannot take it out, the upper arm turns down too.
+- **Aimed, the forearms lean out** (`viewmodel.json` realArms adsLean): hanging straight down, the two walled the
+  magazine in.
+- **Sights further from the eye** (`paidweapons.json` sights ironsEye 0.34, dotEye 0.16). At 0.26 the hands were 20 cm
+  from the eye; at a scope's 7 cm relief its rim filled most of the screen.
+- **The USSO higher and in** (`gunfeel.json` hip). It sat low in the right corner, half under the HUD's gun panel.
+
+**The USSO and BOOG** (`gunfeel.json`)
+- **Their shots throw light:** glowing cells for casings, shrinking as they fall, and on BOOG a shockwave ring off the
+  muzzle with a bigger, longer flash.
+- **BOOG's scope powers on:** a scan line draws the reticle down the picture over 0.2 s. A ring inside the rim fills
+  amber as the gun recharges after a shot and turns cyan when it is ready, with a ping (`hud.ts` drawScope).
+- **A scan along the gun:** two passes over an inspect, one when the gun fuses up in the hands.
+- **The glow stutters** in the last fifth of the magazine (a quarter on BOOG).
+- **Into the sights:** a pulse and a hum.
+- **The USSO racks its handle** after a reload from empty.
+- **Sounds for all of it** (`audio.ts` phase, recharge, ready, scanSweep, sightHum): digital blips climbing as a gun
+  phases in and falling as it goes, BOOG's rising recharge whine and ready ping, the scan's sweep.
+
+**Checked:** the e2e soldier section (both upper arms' cut ends off the frame at the hip and aimed on the USSO and
+BOOG, now aimed for real; BOOG part-charged after a shot and whole later; an inspect's scan); verify; rules; the
+owner's view of all the SpeedKills guns.

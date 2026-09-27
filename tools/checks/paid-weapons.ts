@@ -45,6 +45,12 @@ export interface Measured {
    * tube) behind its back end; irons: the top of the rear half, behind it
    */
   eye: { y: number; back: number; sight: "dot" | "scope" | "irons" };
+  /**
+   * where the support hand holds it (paidgun.ts support): z from paidweapons.json support, and the gun's underside
+   * there, within 20 mm along it and 30 mm of its centre line, not counting its magazine, trigger, drum, sights and
+   * the parts that move under it; absent for a family with none (the launcher's round)
+   */
+  support?: { y: number; z: number };
 }
 
 const SIGHTS = cfg.sights as { parts: string; ownScope: string[] };
@@ -58,11 +64,18 @@ async function measure(file: string): Promise<Measured> {
   // the pack's own sight parts (with their children), and its reticle dots
   const sight: THREE.Vector3[] = [];
   const dots: THREE.Vector3[] = [];
+  // the gun's body alone, for where the support hand holds it: not its magazine, trigger, drum, sights or moving parts
+  const bodyPts: THREE.Vector3[] = [];
+  const notBody = /^(Clip|Trigger|Drum|Grenade|Scope|FrontSight|RearSight|SightImage|Button|Bullet|Cover|Extruder)/;
   g.scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh || /^UCX_/.test(m.name)) return;
     let part = false;
-    for (let q: THREE.Object3D | null = m; q; q = q.parent) if (sightPart.test(q.name)) part = true;
+    let body = true;
+    for (let q: THREE.Object3D | null = m; q; q = q.parent) {
+      if (sightPart.test(q.name)) part = true;
+      if (notBody.test(q.name)) body = false;
+    }
     const dot = /Dot/i.test((m.material as THREE.Material).name);
     const p = m.geometry.getAttribute("position");
     for (let i = 0; i < p.count; i++) {
@@ -70,6 +83,7 @@ async function measure(file: string): Promise<Measured> {
       pts.push(v);
       if (part) sight.push(v);
       if (dot) dots.push(v);
+      if (body) bodyPts.push(v);
     }
   });
   const box = new THREE.Box3().setFromPoints(pts);
@@ -101,7 +115,13 @@ async function measure(file: string): Promise<Measured> {
     const axis = sightTop - upper.reduce((a, p) => Math.max(a, Math.abs(p.x)), 0);
     eye = { y: r(axis), back: r(backOf(pts.filter((p) => p.y > axis && isRear(p.z)))), sight: "scope" };
   } else eye = { y: r(sightTop), back: r(top.z), sight: "irons" };
-  return { length: r(len), muzzleEnd: end, muzzle: [r(tip.x), r(tip.y), r(tip.z)], sightTop: r(sightTop), sightZ: r(top.z), eye };
+  const out: Measured = { length: r(len), muzzleEnd: end, muzzle: [r(tip.x), r(tip.y), r(tip.z)], sightTop: r(sightTop), sightZ: r(top.z), eye };
+  const sz = (cfg.support as Record<string, number>)[family];
+  if (sz !== undefined) {
+    const under = bodyPts.filter((p) => Math.abs(p.z - sz) < 0.02 && Math.abs(p.x) < 0.03);
+    if (under.length) out.support = { y: r(under.reduce((a, p) => Math.min(a, p.y), Infinity)), z: sz };
+  }
+  return out;
 }
 
 const guns = cfg.guns as unknown as Record<string, { model: string }>;
@@ -140,6 +160,7 @@ for (const [name, entry] of Object.entries(table)) {
       Math.abs((want.eye?.y ?? NaN) - m.eye.y) < 0.002 &&
       Math.abs((want.eye?.back ?? NaN) - m.eye.back) < 0.002 &&
       want.eye?.sight === m.eye.sight &&
+      JSON.stringify(want.support ?? null) === JSON.stringify(m.support ?? null) &&
       want.muzzle.every((v, i) => Math.abs(v - m.muzzle[i]) < 0.002),
     `measured ${JSON.stringify(m)}`,
   );

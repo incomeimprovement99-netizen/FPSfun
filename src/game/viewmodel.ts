@@ -21,7 +21,7 @@
 import * as THREE from "three";
 import type { ResolvedWeapon } from "./weapons";
 import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels";
-import { openLenses, PAID_MOTION, setPaidLevel } from "./paidgun";
+import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
 import type { OperatorSkin } from "./operators";
@@ -81,6 +81,8 @@ export interface VMFrame {
   flourish?: number;
   /** 1 down, not out: no gun, the hands low on the floor, reaching in turn as you crawl */
   downed?: number;
+  /** how full the magazine is, 0..1: a signature gun's glow flickers when it is nearly out */
+  clipFrac?: number;
 }
 
 /** an inspect's length, s, and a first draw's flourish (ours: cosmetic, the gun is usable throughout) */
@@ -99,7 +101,26 @@ interface GunFeel {
   pulse: { glow: number; decay: number };
   charge?: { drained: number; ready: number };
   reload: { magOut: number[]; magIn: number[]; seat: number; snap: number; pulse: number; drop: number };
+  flash: FlashStyle;
+  shell: "cell";
+  rack?: number[];
+  scan: { inspect: number; fusion: number };
+  ads: number;
+  lowAmmo: number;
+  scope?: { boot: number };
+  hip?: number[];
 }
+
+/** a signature gun's muzzle flash (gunfeel.json flash) */
+interface FlashStyle {
+  color: string;
+  scale: number;
+  life: number;
+  ring: number;
+}
+
+/** what a signature gun has just done that has a sound (main.ts plays it): phased in or out, BOOG recharging or ready, a rack, a scan, into the sights */
+export type FeelSound = "in" | "out" | "recharge" | "ready" | "rack" | "scan" | "ads";
 const FEEL = feelCfg.guns as unknown as Record<string, GunFeel>;
 
 const smooth = (a: number, b: number, x: number): number => {
@@ -221,6 +242,12 @@ class MuzzleFlash {
   private readonly star: THREE.Mesh;
   private readonly mats: THREE.MeshBasicMaterial[] = [];
   private life = 0;
+  /** how long this flash lasts, s */
+  private span = 0.035;
+  /** a signature gun's shockwave: a ring off the muzzle, facing along the barrel, growing as it fades (gunfeel.json flash ring) */
+  private readonly ring: THREE.Mesh;
+  private readonly ringMat: THREE.MeshBasicMaterial;
+  private ringLife = 0;
 
   constructor() {
     const mk = (tex: THREE.Texture) => {
@@ -245,6 +272,10 @@ class MuzzleFlash {
       g.rotateZ(roll);
       this.group.add(new THREE.Mesh(g, mk(flameTex)));
     }
+    this.ringMat = new THREE.MeshBasicMaterial({ color: 0xc8faff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, forceSinglePass: true });
+    this.ring = new THREE.Mesh(new THREE.RingGeometry(0.018, 0.026, 40), this.ringMat);
+    this.ring.visible = false;
+    this.group.add(this.ring);
     // Named so a model cloned for a dummy's hands can strip it.
     this.group.name = "muzzleflash";
     // No muzzle light any more. It lit the floor on every shot, which read as
@@ -252,22 +283,39 @@ class MuzzleFlash {
     this.group.visible = false;
   }
 
-  fire(energy: boolean): void {
+  fire(energy: boolean, style?: FlashStyle): void {
     this.life = 1;
+    this.span = style?.life ?? 0.035;
     // Just over 1: bright enough to read, barely enough to bloom.
-    const c = energy ? new THREE.Color(0x7ff0ff).multiplyScalar(1.3) : new THREE.Color(0xffa24a).multiplyScalar(1.4);
+    const c = style ? new THREE.Color(style.color).multiplyScalar(1.4) : energy ? new THREE.Color(0x7ff0ff).multiplyScalar(1.3) : new THREE.Color(0xffa24a).multiplyScalar(1.4);
     for (const m of this.mats) m.color.copy(c);
     this.star.rotation.z = Math.random() * Math.PI * 2;
-    const s = 0.6 + Math.random() * 0.3;
+    const s = (0.6 + Math.random() * 0.3) * (style?.scale ?? 1);
     this.group.scale.set(s, s, 0.75 + Math.random() * 0.6);
     this.group.visible = true;
+    this.ringLife = style?.ring ? 1 : 0;
+    this.ring.visible = this.ringLife > 0;
+    this.ringMat.color.copy(c);
   }
 
   update(dt: number): void {
-    if (this.life <= 0) return;
-    this.life -= dt / 0.035;
+    if (this.ringLife > 0) {
+      // the shockwave: 0.14 s, widening sixfold as it goes
+      this.ringLife -= dt / 0.14;
+      const k = Math.max(0, this.ringLife);
+      this.ring.visible = k > 0;
+      this.ring.scale.setScalar(1 + (1 - k) * 5);
+      this.ringMat.opacity = k * k;
+    }
+    if (this.life <= 0) {
+      this.group.visible = this.ringLife > 0;
+      for (const c of this.group.children) if (c !== this.ring) c.visible = false;
+      return;
+    }
+    for (const c of this.group.children) if (c !== this.ring) c.visible = true;
+    this.life -= dt / this.span;
     const a = Math.max(0, this.life);
-    this.group.visible = a > 0;
+    this.group.visible = a > 0 || this.ringLife > 0;
     for (const m of this.mats) m.opacity = a;
   }
 }
@@ -279,6 +327,8 @@ interface Shell {
   vel: THREE.Vector3;
   spin: THREE.Vector3;
   life: number;
+  /** an energy cell shrinks away over its life */
+  cell: boolean;
 }
 
 /** spent casings, in viewmodel space, so they leave the gun and drop out of frame */
@@ -290,6 +340,9 @@ class Shells {
   private readonly hullGeo = new THREE.CylinderGeometry(0.0095, 0.0095, 0.032, 12);
   private readonly brass = new THREE.MeshStandardMaterial({ color: 0xc89a4a, metalness: 1, roughness: 0.28 });
   private readonly hull = new THREE.MeshStandardMaterial({ color: 0xb0281e, metalness: 0.05, roughness: 0.55 });
+  /** a signature gun's casing (gunfeel.json shell): a glowing cell, light rather than metal, that shrinks away as it falls */
+  private readonly cellGeo = new THREE.CapsuleGeometry(0.0034, 0.012, 3, 8).rotateX(Math.PI / 2);
+  private readonly cellMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x8ff2ff).multiplyScalar(1.5), toneMapped: false });
 
   constructor() {
     for (let i = 0; i < 18; i++) {
@@ -297,15 +350,17 @@ class Shells {
       mesh.visible = false;
       mesh.castShadow = false;
       this.group.add(mesh);
-      this.pool.push({ mesh, vel: new THREE.Vector3(), spin: new THREE.Vector3(), life: 0 });
+      this.pool.push({ mesh, vel: new THREE.Vector3(), spin: new THREE.Vector3(), life: 0, cell: false });
     }
   }
 
-  emit(at: THREE.Vector3, kind: "brass" | "hull", vel: THREE.Vector3): void {
+  emit(at: THREE.Vector3, kind: "brass" | "hull" | "cell", vel: THREE.Vector3): void {
     const s = this.pool[this.next];
     this.next = (this.next + 1) % this.pool.length;
-    s.mesh.geometry = kind === "hull" ? this.hullGeo : this.brassGeo;
-    s.mesh.material = kind === "hull" ? this.hull : this.brass;
+    s.mesh.geometry = kind === "hull" ? this.hullGeo : kind === "cell" ? this.cellGeo : this.brassGeo;
+    s.mesh.material = kind === "hull" ? this.hull : kind === "cell" ? this.cellMat : this.brass;
+    s.cell = kind === "cell";
+    s.mesh.scale.setScalar(1);
     s.mesh.position.copy(at);
     s.mesh.rotation.set(Math.PI / 2, 0, 0);
     s.vel.copy(vel);
@@ -323,6 +378,7 @@ class Shells {
       s.mesh.rotation.x += s.spin.x * dt;
       s.mesh.rotation.y += s.spin.y * dt;
       s.mesh.rotation.z += s.spin.z * dt;
+      if (s.cell) s.mesh.scale.setScalar(Math.max(0.05, s.life / 0.7));
       if (s.life <= 0) s.mesh.visible = false;
     }
   }
@@ -429,7 +485,18 @@ export class ViewModel {
   private pulse = 0;
   private lastPhase = 1;
   private lastReloadP = 0;
+  /** the reload running started with the magazine empty (the USSO racks its handle after the seat) */
+  private reloadEmpty = false;
+  private racked = false;
+  /** a fusion's scan: when it started, or -Infinity */
+  private scanAt = -Infinity;
+  /** BOOG's recharge: how far through it last frame, for the ready flash's sound */
+  private lastCharge = 2;
+  private lastAdsFeel = 0;
+  /** what a signature gun has just done that has a sound: main.ts plays it (audio.ts) */
+  onFeel: ((kind: FeelSound, seconds?: number) => void) | null = null;
   private readonly glowBase = new Map<THREE.Material, number>();
+  private readonly hipFeel = new THREE.Vector3();
   private cylAngle = 0;
   private cylTarget = 0;
   /** a bought launcher's drum (paidgun.ts parts): where it is, and the chamber it is turning to */
@@ -504,6 +571,7 @@ export class ViewModel {
     if (key === this.key) return;
     this.key = key;
     this.weapon = w;
+    const fresh = !this.model || this.model.id !== w.id;
     if (!this.model || this.model.id !== w.id) {
       // The optic comes off the old gun first. Models are cached per weapon, so
       // one left on would still be there on the way back, under the next one.
@@ -533,8 +601,15 @@ export class ViewModel {
     // no optic fitted: a scoped weapon (the Kraber) wears its own
     this.fitOptic(this.model, w.optic ?? w.integralOptic);
     setMagRarity(this.model, w.magLevel);
-    // a bought gun wears its fusion level (paidgun.ts)
-    if (this.model.root.userData.paid && this.model.root.userData.paidLevel !== (w.fusion ?? 0)) setPaidLevel(this.model, w.fusion ?? 0);
+    // a bought gun wears its fusion level (paidgun.ts); a signature gun fused up in the hands scans along its new skin
+    if (this.model.root.userData.paid && this.model.root.userData.paidLevel !== (w.fusion ?? 0)) {
+      if (this.feel && !fresh && (w.fusion ?? 0) > (this.model.root.userData.paidLevel as number)) {
+        this.scanAt = this.t;
+        this.pulse = Math.max(this.pulse, 1);
+        this.onFeel?.("scan", this.feel.scan.fusion);
+      }
+      setPaidLevel(this.model, w.fusion ?? 0);
+    }
     // a signature gun's skin, new or a new level's, onto the phase
     if (this.feel) this.phaseGun(this.model);
   }
@@ -591,7 +666,7 @@ export class ViewModel {
    * shot's pulse, a seat's, the gun coming whole; BOOG drains on a shot and builds back over the rechamber, flashing
    * as it is ready
    */
-  private feelFrame(m: GunModel, w: ResolvedWeapon, F: GunFeel, phase: number, reloadP: number, reloading: boolean, dt: number): void {
+  private feelFrame(m: GunModel, w: ResolvedWeapon, F: GunFeel, phase: number, reloadP: number, reloading: boolean, dt: number, f: VMFrame): void {
     this.pose.updateMatrix();
     m.root.updateWorldMatrix(true, true);
     const toWorld = (v: THREE.Vector3, o: THREE.Object3D) => this.tmp.copy(v).applyMatrix4(o.matrixWorld);
@@ -602,6 +677,35 @@ export class ViewModel {
     S.dir.value.copy(toWorld(this.gunFar, m.root)).sub(S.origin.value);
     S.len.value = Math.max(1e-4, S.dir.value.length());
     S.dir.value.normalize();
+    // the sounds of the phase: out as it starts to go, in as it starts to come
+    if (this.lastPhase >= 0.999 && phase < 0.999) this.onFeel?.("out");
+    else if (this.lastPhase <= 0.001 && phase > 0.001) this.onFeel?.("in");
+    // the scan: an inspect's passes, or a fusion's, a band along the whole gun
+    let scan = -1;
+    if (f.inspect !== undefined && f.inspect >= 0 && f.inspect < 1) scan = ((f.inspect * F.scan.inspect) % 1) * 1.3 - 0.15;
+    else if (this.t - this.scanAt < F.scan.fusion) scan = ((this.t - this.scanAt) / F.scan.fusion) * 1.3 - 0.15;
+    S.scan.value = scan;
+    // into the sights: a pulse and a hum
+    if (this.lastAdsFeel < 0.6 && f.adsFrac >= 0.6) {
+      this.pulse = Math.max(this.pulse, F.ads);
+      this.onFeel?.("ads");
+    }
+    this.lastAdsFeel = f.adsFrac;
+    // a reload from empty: the charging handle racked after the seat (the USSO's slider, in the bolt group)
+    if (reloading && this.lastReloadP === 0) {
+      this.reloadEmpty = f.clipEmpty;
+      this.racked = false;
+    }
+    if (reloading && F.rack && this.reloadEmpty && m.bolt) {
+      const u = (reloadP - F.rack[0]) / (F.rack[1] - F.rack[0]);
+      if (u > 0 && u < 1) {
+        m.bolt.position.z = this.boltBase.z + m.travel * Math.sin(Math.PI * u);
+        if (!this.racked) {
+          this.racked = true;
+          this.onFeel?.("rack");
+        }
+      }
+    }
     // the magazine: out as it drops and a new one in as it comes back, on a reload; else with the gun
     let mp = phase;
     if (reloading) {
@@ -631,8 +735,15 @@ export class ViewModel {
     this.lastPhase = phase;
     this.pulse *= Math.exp(-dt / F.pulse.decay);
     let g = 1 + F.pulse.glow * this.pulse;
+    // nearly out: the glow stutters, dropping out a few frames in a few, never while reloading
+    if (!reloading && f.clipFrac !== undefined && f.clipFrac < F.lowAmmo && !f.clipEmpty) {
+      const beat = Math.floor(this.t * 14);
+      if (((beat * 7919) % 5) < 2) g *= 0.25;
+    }
     if (F.charge) {
       const u = (this.t - this.lastShotAt) / Math.max(0.4, w.rechamberTime || w.shotInterval);
+      if (this.lastCharge < 1.03 && u >= 1.03) this.onFeel?.("ready");
+      this.lastCharge = u;
       if (u >= 0 && u < 1.3) {
         const drain = F.charge.drained + (1 - F.charge.drained) * smooth(0.12, 0.95, u);
         const ready = F.charge.ready * Math.max(0, 1 - Math.abs(u - 1.03) / 0.1);
@@ -665,10 +776,10 @@ export class ViewModel {
     // A bought gun is aimed down its own sights (paidgun.ts ownSight), never ours on top of them: the fitted optic lends
     // its zoom and, magnified, its picture over the screen, and is not drawn. The eye comes up the gun's own sight line,
     // the optic's eye relief behind a scope, or as far behind irons as on any gun
-    const own = m.root.userData.ownSight as { y: number; f: number; irons: boolean } | undefined;
+    const own = m.root.userData.ownSight as { y: number; f: number; irons: boolean; dot: boolean } | undefined;
     if (own) {
       m.railY = own.y - this.optic.lineH;
-      m.opticF = own.f - this.optic.backF + (own.irons ? this.optic.info.relief - ADS_EYE : 0);
+      m.opticF = own.f - this.optic.backF + (own.irons ? this.optic.info.relief - IRONS_EYE : own.dot ? this.optic.info.relief - DOT_EYE : 0);
     }
     this.optic.group.visible = !own;
     this.optic.group.position.set(0, m.railY, -m.opticF);
@@ -767,7 +878,8 @@ export class ViewModel {
     } else this.kickVel += 32 * m.kick * rateScale * adsScale;
     this.kickYaw = (Math.random() - 0.5) * 0.6;
     this.kickRoll = (Math.random() - 0.5) * 0.8;
-    this.flash.fire(m.energy);
+    this.flash.fire(m.energy, this.feel?.flash);
+    if (this.feel?.charge) this.onFeel?.("recharge", Math.max(0.4, w.rechamberTime || w.shotInterval));
     if (m.cycle === "cylinder") this.cylTarget += Math.PI / 3;
     // a bought launcher's drum turns a chamber a shot
     if (m.parts?.drum) this.drumTarget += m.parts.drumStep;
@@ -784,7 +896,7 @@ export class ViewModel {
     this.pose.updateMatrix();
     this.tmp.copy(m.port).applyMatrix4(this.pose.matrix);
     this.tmp2.set(1.3 + Math.random() * 0.5, 1.0 + Math.random() * 0.5, 0.35 + Math.random() * 0.3);
-    this.shells.emit(this.tmp, m.shell, this.tmp2);
+    this.shells.emit(this.tmp, this.feel?.shell ?? m.shell, this.tmp2);
   }
 
   /** a bow's draw, 0..1, and where the string hand sits undrawn */
@@ -866,7 +978,8 @@ export class ViewModel {
     // ---- base pose: hip, ADS (sight line on the eye), sprint. With an optic
     // the OPTIC's sight line comes to the eye, at that optic's eye relief;
     // without one, the irons do.
-    const hip = m.hip;
+    // a signature gun's own hip pose (gunfeel.json hip), else the gun's
+    const hip = this.feel?.hip ? this.hipFeel.copy(m.hip).add(this.tmp2.fromArray(this.feel.hip)) : m.hip;
     const o = this.optic;
     const adsPos = o
       ? this.tmp.set(0, -(m.railY + o.lineH), m.opticF + o.backF - o.info.relief)
@@ -1032,7 +1145,7 @@ export class ViewModel {
     this.animateAction(m, w, dt, f.clipEmpty && !f.reloading);
     this.animateReload(m, reloadP, f.reloading);
     this.animateParts(m, w, dt, ads, reloadP, f.reloading);
-    if (F) this.feelFrame(m, w, F, phase, reloadP, f.reloading, dt);
+    if (F) this.feelFrame(m, w, F, phase, reloadP, f.reloading, dt, f);
 
     // climbing or mantling: the support hand leaves the gun for the wall,
     // reaching up and pulling in a rhythm on a climb, flat on the ledge in a
@@ -1075,9 +1188,21 @@ export class ViewModel {
     this.real.view.ads = ads;
   }
 
+  /**
+   * A signature gun's scope picture (gunfeel.json scope, the HUD draws it): how long it powers on over, and how far the
+   * gun has recharged since its last shot, 0..1, or null for a gun with neither
+   */
+  get scopeFeel(): { boot: number; charge: number | null } | null {
+    const F = this.feel;
+    const w = this.weapon;
+    if (!F?.scope || !w) return null;
+    const u = F.charge ? Math.min(1, (this.t - this.lastShotAt) / Math.max(0.4, w.rechamberTime || w.shotInterval)) : null;
+    return { boot: F.scope.boot, charge: u };
+  }
+
   /** the signature gun's feel in hand (gunfeel.json), its phase and its magazine's, and whether it is drawn (the e2e soldier section) */
-  get feelState(): { gun: string | null; phase: number; mag: number; shown: boolean } {
-    return { gun: this.feel ? (this.model?.id ?? null) : null, phase: this.bodySweep.phase.value, mag: this.magSweep.phase.value, shown: this.holder.visible };
+  get feelState(): { gun: string | null; phase: number; mag: number; shown: boolean; scan: number; charge: number | null } {
+    return { gun: this.feel ? (this.model?.id ?? null) : null, phase: this.bodySweep.phase.value, mag: this.magSweep.phase.value, shown: this.holder.visible, scan: this.bodySweep.scan.value, charge: this.scopeFeel?.charge ?? null };
   }
 
   /** whether each real arm's upper arm's cut end is off the gun camera's frame (fparms.ts cutOffFrame; the e2e soldier section) */

@@ -97,7 +97,13 @@ Game) or `?game=legacy`, and everything below this section describes it.
   their own feel in the hands: they phase in and out of them on a swap, a
   cyan sweep with a digital edge, kick on their own spring (the USSO tight and
   buzzing, BOOG a heavy punch and a recharge you can see), and a reload phases
-  the magazine out and a new one in. The MINE
+  the magazine out and a new one in. Their shots throw light, not brass (glowing
+  cells, and BOOG a shockwave off the muzzle), BOOG's scope powers on with a scan
+  line and a ring round it fills as it recharges, their glow stutters when the
+  magazine is nearly out, and an inspect or a fusion runs a scan along the gun.
+  Every bought gun's support hand holds it where the bought model is held
+  (measured), and the soldier's first-person arms are drawn the glove's size and
+  a real forearm's thickness, whole to the shoulder. The MINE
   hack's mine, death boxes, care packages and the med kit in a HEAL area are
   the pack's too.
 - **The centre, from the bought city kits:** on the game server the Spire

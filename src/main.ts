@@ -956,6 +956,26 @@ for (const rail of TARGET_RAILS) {
 for (const d of dummies) scene.add(d.group);
 
 const viewModel = new ViewModel();
+/** when a signature gun's scope picture came up, for its power-on (gunfeel.json scope; hud.ts drawScope) */
+let scopeUpAt = -Infinity;
+function scopeState(optic: NonNullable<typeof viewModel.opticFitted>, aim: number, now: number): NonNullable<Parameters<typeof hud.draw>[2]["scope"]> {
+  const amount = Math.max(0, Math.min(1, (aim - 0.75) / 0.2));
+  const feel = viewModel.scopeFeel;
+  if (amount <= 0) scopeUpAt = -Infinity;
+  else if (!Number.isFinite(scopeUpAt)) scopeUpAt = now;
+  const base = { style: optic.info.reticle, color: optic.info.color, amount };
+  if (!feel) return base;
+  return { ...base, on: Math.min(1, (now - scopeUpAt) / feel.boot), charge: feel.charge };
+}
+// a signature gun's sounds (gunfeel.json): its phase in and out, BOOG's recharge and its ready ping, the USSO's rack, a scan, the sights
+viewModel.onFeel = (k, seconds) => {
+  if (k === "in" || k === "out") audio.phase(k);
+  else if (k === "recharge") audio.recharge(seconds ?? 1);
+  else if (k === "ready") audio.ready();
+  else if (k === "rack") audio.reloadStep("bolt");
+  else if (k === "scan") audio.scanSweep(seconds ?? 0.6);
+  else if (k === "ads") audio.sightHum();
+};
 let snapNoGun = false;
 /** kit pieces drawn on the battle royale's buildings (kitdress.ts) */
 let kitDressed = 0;
@@ -7294,6 +7314,7 @@ function step(): void {
     climbing: player.stance === "climb",
     mantling: player.stance === "mantle",
     clipEmpty: onScreen.state.clip <= 0,
+    clipFrac: onScreen.weapon.clipSize > 0 ? onScreen.state.clip / onScreen.weapon.clipSize : 1,
     vy: player.vel.y,
     reloading: debugView.reload !== null || onScreen.state.reloading,
     reloadProgress: debugView.reload ?? (onScreen.state.reloading ? onScreen.state.reloadProgress(now) : 0),
@@ -7672,9 +7693,7 @@ function step(): void {
     speedMs: player.speed,
     speedHu: player.speed / HU,
     prompt,
-    scope: optic && optic.info.overlay && !third
-      ? { style: optic.info.reticle, color: optic.info.color, amount: Math.max(0, Math.min(1, (aimNow - 0.75) / 0.2)) }
-      : null,
+    scope: optic && optic.info.overlay && !third ? scopeState(optic, aimNow, now) : null,
   });
   input.endFrame();
   // the loading screen goes once the world is in and this frame is drawn

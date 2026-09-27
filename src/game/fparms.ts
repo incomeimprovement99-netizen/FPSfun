@@ -27,6 +27,8 @@ const GLOVE_ACROSS = new THREE.Vector3(0, 1, 0);
 const TWIST = cfg.realArms.twist;
 /** how far the upper arm reaches out from its axis where it is cut, on the body (viewmodel.json realArms, measured off the soldier) */
 const CUT_RADIUS = cfg.realArms.cutRadius;
+/** how far toward its lower corner an aimed forearm always leans (viewmodel.json realArms adsLean) */
+const ADS_LEAN = cfg.realArms.adsLean;
 /** how much of the upper arm is drawn, from the elbow (mannequin.ts cuts it there) */
 const UPPER = FP_UPPER;
 const DOWN = cfg.realArms.down;
@@ -175,7 +177,10 @@ export class FpArms {
     // own upper arms. The rig's root keeps one scale: sizing it per arm, twice
     // a frame, compounded into the bones and grew a forearm to five times its
     // size in a few frames.
-    const body = S.restUnit * gm.getMaxScaleOnAxis();
+    // SpeedKills' soldier at the body's own size, both arms: sized to its glove, the support arm took the support
+    // glove's 1.15 (drawn bigger so a plain glove reads) and was 15% bigger than the arm on the trigger, a slab across
+    // the bottom of the owner's view at 1920 by 1080 (tools/pov-sheet.ts)
+    const body = S.restUnit * (IS_SK ? this.group.matrixWorld.getMaxScaleOnAxis() : gm.getMaxScaleOnAxis());
     // the hand's scale (SpeedKills' soldier only: the legacy game's arms stay as they were)
     const unit = IS_SK ? body * S.fit : body;
 
@@ -191,14 +196,14 @@ export class FpArms {
     // of the eye; the elbow where a forearm of this body's length ends
     const along = new THREE.Vector3(0, 1, 0).applyQuaternion(forearm.group.getWorldQuaternion(q1)).normalize();
     const down = new THREE.Vector3(0, -1, 0.35).transformDirection(this.group.matrixWorld);
-    if (IS_SK) this.cutOffFrame(side, wrist, along, down, S.foreLen * body, UPPER * S.upperLen * body, 0.5 * CUT_RADIUS * body);
+    const downBy = IS_SK ? this.cutOffFrame(side, wrist, along, down, S.foreLen * body, UPPER * S.upperLen * body, 0.5 * CUT_RADIUS * body) : DOWN;
     const elbow = wrist.clone().addScaledVector(along, S.foreLen * body);
     // The upper arm goes down in the view from the elbow, blended with the
     // forearm's own line: down is the shortest way out of the frame, so its
     // cut end is never seen. Run on along the forearm's line it swept up both
     // edges of the frame past the eye; run to a shoulder behind the eye it was
     // a wall of deltoid; cut short it ended in the frame.
-    const upDir = along.clone().lerp(down, DOWN).normalize().negate();
+    const upDir = along.clone().lerp(down, downBy).normalize().negate();
     const top = elbow.clone().addScaledVector(upDir, -S.upperLen * body);
     this.cutsOff[side] = this.offFrame(elbow.clone().addScaledVector(upDir, -UPPER * S.upperLen * body), 0.5 * CUT_RADIUS * body);
 
@@ -235,29 +240,37 @@ export class FpArms {
    * lower middle of the frame, and the upper arm's cut end hung in the picture under the gun (the owner: "the left is
    * clearly fucked up"). The frame is too tall (about 92 degrees) for a forearm the glove's size to take its elbow out
    * of it from a handguard, so the arm is turned until the cut end, and half its thickness, is past the frame's edge
-   * (all of it took the arm on toward the eye like a tube), a step at a time: at the hip toward the frame's lower corner on its own side (straight down, it stood under the gun
-   * like a post), in the sights down under the gun (to the side, the narrower frame's edge took the forearm across
-   * half the picture), and then on toward the eye as far as it takes. Worked in the gun camera's space: the
+   * (all of it took the arm on toward the eye like a tube), a step at a time: at the hip toward the frame's lower
+   * corner on its own side (straight down, it stood under the gun like a post), in the sights down and out at about 30
+   * degrees (straight down, the two walled the gun in; flat to the side, the narrower frame's edge took a forearm
+   * across half the picture), and then on toward the eye as far as it takes. Worked in the gun camera's space: the
    * viewmodel's group hangs off that camera, the eye at its origin.
    */
-  private cutOffFrame(side: "r" | "l", wrist: THREE.Vector3, along: THREE.Vector3, down: THREE.Vector3, fore: number, upper: number, radius: number): void {
+  private cutOffFrame(side: "r" | "l", wrist: THREE.Vector3, along: THREE.Vector3, down: THREE.Vector3, fore: number, upper: number, radius: number): number {
     const eye = this.group.parent;
-    if (!eye) return;
+    if (!eye) return DOWN;
     const x = side === "l" ? -1 : 1;
     const ads = this.view.ads;
     // first toward the frame's lower corner (at the hip) or down under the gun (aimed), which is how an arm reads;
     // then, only as far as it takes, on toward the eye, the one way a short arm can always leave the frame (all the
     // way, it came at the eye like a tube)
-    const corner = new THREE.Vector3(x, -0.9, 0.6).lerp(v2.set(0.25 * x, -1, 0.5), ads).transformDirection(eye.matrixWorld);
-    const eyeward = new THREE.Vector3(0.8 * x, -1, 1.1).lerp(v2.set(0.2 * x, -1, 0.9), ads).transformDirection(eye.matrixWorld);
+    const corner = new THREE.Vector3(x, -0.9, 0.6).lerp(v2.set(0.95 * x, -1, 0.45), ads).transformDirection(eye.matrixWorld);
+    const eyeward = new THREE.Vector3(0.8 * x, -0.9, 1.8).lerp(v2.set(0.4 * x, -1, 1.4), ads).transformDirection(eye.matrixWorld);
     const from = along.clone();
     const up = new THREE.Vector3();
-    for (let t = 0; t <= 2.0001; t += 0.05) {
+    // aimed, the arm leans out toward its corner however little it needs to: hanging straight down from the gun, the
+    // two forearms stood either side of the magazine and walled it in (tools/pov-sheet.ts at 1920 by 1080)
+    // and past the eye, the upper arm turning on down with it: a support hand far out on a long gun (the rifle's, the
+    // sniper's) leaves its elbow too near the middle for the forearm alone, and the stub's cut end stood at the bottom
+    let dw = DOWN;
+    for (let t = ADS_LEAN * ads; t <= 2.0001; t += 0.05) {
       if (t <= 1) along.copy(from).lerp(corner, t).normalize();
       else along.copy(corner).lerp(eyeward, t - 1).normalize();
-      up.copy(along).lerp(down, DOWN).normalize();
-      if (this.offFrame(v3.copy(wrist).addScaledVector(along, fore).addScaledVector(up, upper), radius)) return;
+      dw = t <= 1 ? DOWN : DOWN + (1 - DOWN) * (t - 1);
+      up.copy(along).lerp(down, dw).normalize();
+      if (this.offFrame(v3.copy(wrist).addScaledVector(along, fore).addScaledVector(up, upper), radius)) return dw;
     }
+    return dw;
   }
 
   /** a point (world), with this much round it, entirely outside the gun camera's frame, or behind the eye */

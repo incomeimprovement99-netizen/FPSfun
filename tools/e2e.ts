@@ -5070,6 +5070,47 @@ async function soldierTest(browser: Browser): Promise<void> {
       return { low, end, plain: r.gunFeel(), frames };
     })()`,
   );
+  // BOOG recharges after a shot (gunfeel.json charge; its scope's ring and its glow show it): part way just after it,
+  // whole a rechamber later; and an inspect runs a scan along it
+  const boog = await ev<{ after: number | null; later: number | null; scan: number }>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const gameWait = async (s) => {
+        const g0 = r.gameTime();
+        const t0 = performance.now();
+        while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
+      };
+      r.loadout.give(0, "sentinel");
+      r.loadout.requestSwap(0, r.gameTime());
+      let t0 = performance.now();
+      while (r.loadout.swapping && performance.now() - t0 < 30000) await wait(20);
+      await gameWait(0.3);
+      const clip0 = r.loadout.active.state.clip;
+      r.setScript({ held: (a) => a === "fire", pressedNow: () => false });
+      t0 = performance.now();
+      while (r.loadout.active.state.clip === clip0 && performance.now() - t0 < 20000) await wait(10);
+      r.setScript(null);
+      await gameWait(0.15);
+      const after = r.gunFeel().charge;
+      // whole again within the rechamber and a little (BOOG's is over two seconds)
+      const g1 = r.gameTime();
+      t0 = performance.now();
+      while (r.gunFeel().charge !== 1 && r.gameTime() - g1 < 6 && performance.now() - t0 < 30000) await wait(20);
+      const later = r.gunFeel().charge;
+      r.debugView.inspect = 0.1;
+      await gameWait(0.2);
+      const scan = r.gunFeel().scan;
+      r.debugView.inspect = null;
+      return { after, later, scan };
+    })()`,
+  );
+  check(
+    "soldier guns: BOOG recharges after a shot (part way just after it, whole later) and an inspect runs a scan along it",
+    boog.after !== null && boog.after > 0 && boog.after < 0.9 && boog.later === 1 && boog.scan > -0.5,
+    JSON.stringify(boog),
+  );
   check(
     "soldier guns: the USSO phases out of the hands and BOOG in, whole at the end and drawn; ZEPHYR has no phase",
     phased.low.r97 < 0.2 && phased.low.sentinel < 0.2 && phased.end.gun === "sentinel" && phased.end.phase === 1 && phased.end.shown && phased.plain.gun === null && phased.plain.phase === 1,

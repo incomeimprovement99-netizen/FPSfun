@@ -721,6 +721,54 @@ export class GameAudio {
     this.noise(v.input, v.t + 0.12, 0.03, "bandpass", 2600, 3, 0.2, 0.001);
   }
 
+  /**
+   * A signature gun phasing into the hands or out of them (gunfeel.json, the viewmodel's phase): a run of digital
+   * blips climbing (in) or falling (out), a noise sweep the same way, and coming in a low thump as it locks whole
+   */
+  phase(dir: "in" | "out"): void {
+    const v = this.voice(null, 0.5, "own", 2, 0.35);
+    if (!v) return;
+    const up = dir === "in";
+    for (let i = 0; i < 6; i++) {
+      const f = up ? 720 * Math.pow(1.21, i) : 1880 / Math.pow(1.21, i);
+      this.tone(v.input, v.t + i * 0.042, 0.032, "square", f, f * 1.03, 0.04, 0.002);
+    }
+    this.noise(v.input, v.t, 0.3, "bandpass", up ? 900 : 5200, 4, 0.09, 0.02, up ? 5200 : 900);
+    if (up) this.tone(v.input, v.t + 0.3, 0.14, "sine", 170, 80, 0.16, 0.004);
+  }
+
+  /** BOOG's recharge after a shot: a soft whine rising over `dur` */
+  recharge(dur: number): void {
+    const v = this.voice(null, dur + 0.1, "own", 1, 0.2);
+    if (!v) return;
+    this.tone(v.input, v.t + 0.08, dur, "sine", 240, 960, 0.05, dur * 0.7);
+    this.tone(v.input, v.t + 0.08, dur, "triangle", 480, 1920, 0.018, dur * 0.7);
+  }
+
+  /** BOOG ready again: a bright two-note ping */
+  ready(): void {
+    const v = this.voice(null, 0.3, "own", 2, 0.3);
+    if (!v) return;
+    this.tone(v.input, v.t, 0.09, "sine", 1760, 1760, 0.1, 0.002);
+    this.tone(v.input, v.t + 0.07, 0.16, "sine", 2640, 2640, 0.08, 0.002);
+  }
+
+  /** a scan along a gun (an inspect, a fusion): a soft sweep up over `dur` */
+  scanSweep(dur: number): void {
+    const v = this.voice(null, dur + 0.05, "own", 1, 0.3);
+    if (!v) return;
+    this.noise(v.input, v.t, dur, "bandpass", 1100, 6, 0.06, dur * 0.3, 4600);
+    this.tone(v.input, v.t, dur, "sine", 600, 1500, 0.025, dur * 0.3);
+  }
+
+  /** into the sights on a signature gun: a low hum and a tick */
+  sightHum(): void {
+    const v = this.voice(null, 0.2, "own", 1, 0.2);
+    if (!v) return;
+    this.tone(v.input, v.t, 0.14, "sine", 130, 210, 0.07, 0.01);
+    this.noise(v.input, v.t + 0.02, 0.025, "bandpass", 3400, 4, 0.08, 0.001);
+  }
+
   /** a charge building (HAVOC, Charge Rifle): a rising whine over `dur` */
   charge(dur: number): void {
     const v = this.voice(null, dur + 0.05, "fx", 2, 0.2);

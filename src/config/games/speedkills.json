@@ -558,9 +558,10 @@
       "opacity": 0.5
     }
   },
-  "_viewmodel": "The first-person gun (src/game/viewmodel.ts). reloadAds is how much of a reload's own roll and slide is gone while aiming, as viewmodel.json strafe.ads does for a strafe: 0.85 leaves 15%. At full size a reload in the sights rolled the gun 22 degrees at its peak and 5 to 7 at its ends, where the support hand is still on the handguard, and the 2x window swung onto it: 152 to 621 pixels of arm in the sight picture at 1280x720 on PANDA, ZEPHYR and NOVA (measured by the Phase 20 A3 diagnosis; 0.6 still left 172, 0.85 none). Ours, not a published number.",
+  "_viewmodel": "The first-person gun (src/game/viewmodel.ts). reloadAds is how much of a reload's own roll and slide is gone while aiming, as viewmodel.json strafe.ads does for a strafe: 0.85 leaves 15%. At full size a reload in the sights rolled the gun 22 degrees at its peak and 5 to 7 at its ends, where the support hand is still on the handguard, and the 2x window swung onto it: 152 to 621 pixels of arm in the sight picture at 1280x720 on PANDA, ZEPHYR and NOVA (measured by the Phase 20 A3 diagnosis; 0.6 still left 172, 0.85 none). Ours, not a published number. upperArm is how much of the soldier's upper arm the first-person arms draw, from the elbow (viewmodel.json realArms upper, 0.6, for the legacy game's bodies): all of it. With the support hand under a long gun's handguard (paidweapons.json support), forearm and 0.6 of the upper arm could not reach the frame's edge, and the stub's cut end stood at the bottom of the owner's view; its points near the shoulder are weighted to the arm alone (mannequin.ts armOnly), which the first-person rig never poses, so they no longer stretch.",
   "viewmodel": {
-    "reloadAds": 0.85
+    "reloadAds": 0.85,
+    "upperArm": 1
   },
   "_kinds": "kind is each gun's two-word class, shown beside its name wherever there is room (USSO (Fast SMG)), so a beginner knows what a gun is (the owner, Phase 20 A7). Each pair reads Heavy or Steady against Fast or Auto, from its numbers (resolved at fusion 0; tools/checks/ttk.ts): PANDA 61% more a round than ZEPHYR and 37% slower; ANAKIN's recoil multiplier the lowest, 0.6; USSO the fastest gun at 18 a second; RIPTIDE full auto; HELIX 51 a shot against PULSAR's 28 at 4.1 a second; NOVA cools instead of reloading. otherKinds classes the guns the Run lends that are not in the roster.",
   "otherKinds": {

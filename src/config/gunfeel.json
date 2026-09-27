@@ -10,7 +10,7 @@
     "ahead": 0.28,
     "scatter": 0.45
   },
-  "_guns": "Per gun. swap: the outgoing gun phases out over `out` of the swap and the incoming one in over `in` (the model changes at the swap's middle), and `move` is how much of the old drop out of the frame is kept (none would hide nothing from a player's eye; all of it would hide the phase); as it phases in it rises `rise` and unrolls `roll`. holster: the same over the holster's own fraction. kick: the recoil, a spring of its own (`spring` stiffness and `damp` damping, a shot adding `impulse` to its speed), moving the gun `back` and turning it `up`, `yaw` and `roll` a unit of it; buzz: a shake while firing, `amp` metres at `hz`. pulse: the glow jumps by `glow` times on a shot and falls back over `decay` s. charge (BOOG): over the rechamber the glow drains to `drained` and builds back, with a flash of `ready` as it is ready again. reload: the magazine drops `drop` (the plain reload's 0.32 took it out of the frame, and its phase with it) and phases out over `magOut`, the new one in over `magIn`, and it seats at `seat` with a snap of `snap` on the kick spring and a pulse.",
+  "_guns": "Per gun. swap: the outgoing gun phases out over `out` of the swap and the incoming one in over `in` (the model changes at the swap's middle), and `move` is how much of the old drop out of the frame is kept (none would hide nothing from a player's eye; all of it would hide the phase); as it phases in it rises `rise` and unrolls `roll`. holster: the same over the holster's own fraction. kick: the recoil, a spring of its own (`spring` stiffness and `damp` damping, a shot adding `impulse` to its speed), moving the gun `back` and turning it `up`, `yaw` and `roll` a unit of it; buzz: a shake while firing, `amp` metres at `hz`. pulse: the glow jumps by `glow` times on a shot and falls back over `decay` s. charge (BOOG): over the rechamber the glow drains to `drained` and builds back, with a flash of `ready` as it is ready again. reload: the magazine drops `drop` (the plain reload's 0.32 took it out of the frame, and its phase with it) and phases out over `magOut`, the new one in over `magIn`, and it seats at `seat` with a snap of `snap` on the kick spring and a pulse. flash: the muzzle's own flash, its colour, its size against the plain one, how long it lasts (s) and a shockwave ring off the muzzle (0 none, 1 BOOG's). shell: `cell`, a glowing energy casing that shrinks away as it falls, for brass. rack (USSO): on a reload from empty the charging handle goes back and forward over that share of it, after the seat. scan: a lit band passing along the whole gun, `inspect` passes over an inspect and `fusion` seconds when the gun fuses up. ads: the glow's pulse going into the sights. lowAmmo: below that share of the magazine the glow flickers, a tell that it is nearly out. scope (BOOG): its magnified picture powers on over `boot` s, a scan line drawing the reticle top to bottom, and a ring round the picture fills as the gun recharges. hip: moves the gun's hip pose (x right, y up, z back, metres before the view's scale): the USSO's sat low in the right corner at 1920 by 1080 and 110 degrees, half under the HUD's gun panel (the owner: too far down to see its animations).",
   "guns": {
     "r97": {
       "swap": {
@@ -62,7 +62,29 @@
         "snap": 9,
         "pulse": 1,
         "drop": 0.1
-      }
+      },
+      "flash": {
+        "color": "#9ff4ff",
+        "scale": 0.8,
+        "life": 0.03,
+        "ring": 0
+      },
+      "shell": "cell",
+      "rack": [
+        0.84,
+        0.96
+      ],
+      "scan": {
+        "inspect": 2,
+        "fusion": 0.6
+      },
+      "ads": 0.45,
+      "lowAmmo": 0.2,
+      "hip": [
+        -0.035,
+        0.055,
+        0.02
+      ]
     },
     "sentinel": {
       "swap": {
@@ -114,6 +136,22 @@
         "snap": 12,
         "pulse": 1.2,
         "drop": 0.1
+      },
+      "flash": {
+        "color": "#c8faff",
+        "scale": 1.7,
+        "life": 0.07,
+        "ring": 1
+      },
+      "shell": "cell",
+      "scan": {
+        "inspect": 2,
+        "fusion": 0.8
+      },
+      "ads": 0.7,
+      "lowAmmo": 0.26,
+      "scope": {
+        "boot": 0.2
       }
     }
   }

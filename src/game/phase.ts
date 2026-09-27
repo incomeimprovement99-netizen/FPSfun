@@ -31,6 +31,8 @@ export interface PhaseSweep {
   ahead: { value: number };
   scatter: { value: number };
   time: { value: number };
+  /** a scan: a lit band passing along the whole gun without taking any of it away (an inspect, a fusion), below 0 none */
+  scan: { value: number };
 }
 
 export function newSweep(o: { color: string; band: number; jag: number; cell: number; lines: number; ahead: number; scatter: number }): PhaseSweep {
@@ -47,6 +49,7 @@ export function newSweep(o: { color: string; band: number; jag: number; cell: nu
     ahead: { value: o.ahead },
     scatter: { value: o.scatter },
     time: { value: 0 },
+    scan: { value: -1 },
   };
 }
 
@@ -69,6 +72,7 @@ uniform float uPhaseLines;
 uniform float uPhaseAhead;
 uniform float uPhaseScatter;
 uniform float uPhaseTime;
+uniform float uPhaseScan;
 varying vec3 vPhasePos;
 float phaseHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
 `;
@@ -77,7 +81,7 @@ const FRAG_TEST = /* glsl */ `
 float phaseGlow = 0.0;
 bool phaseHolo = false;
 if (uPhase < 0.0001) discard;
-if (uPhase < 0.9999) {
+if (uPhase < 0.9999 || uPhaseScan > -0.5) {
   float s = dot(vPhasePos - uPhaseOrigin, uPhaseDir) / uPhaseLen;
   vec3 cell = floor(vPhasePos / (uPhaseCell * uPhaseLen));
   // the edge: the sweep's front, pushed back and forth by a cell at a time, so it steps like pixels
@@ -88,9 +92,11 @@ if (uPhase < 0.9999) {
     // (thin while the sweep has barely begun, so a gun that is nearly gone is not a cloud of cells)
     if (k <= 0.0 || phaseHash(cell + floor(uPhaseTime * 24.0)) > uPhaseScatter * k * min(1.0, uPhase * 6.0)) discard;
     phaseHolo = true;
-  } else {
+  } else if (uPhase < 0.9999) {
     phaseGlow = 1.0 - smoothstep(0.0, uPhaseBand, edge);
   }
+  // the scan: the same light as the edge, on a band passing along a whole gun
+  if (uPhaseScan > -0.5) phaseGlow = max(phaseGlow, 1.0 - smoothstep(0.0, uPhaseBand * 0.5, abs(s - uPhaseScan)));
   phaseGlow *= 0.6 + 0.4 * sin(s * uPhaseLines - uPhaseTime * 30.0);
 }
 `;
@@ -124,6 +130,7 @@ export function phasedMaterial(src: THREE.Material, sweep: PhaseSweep): THREE.Ma
       uPhaseAhead: sweep.ahead,
       uPhaseScatter: sweep.scatter,
       uPhaseTime: sweep.time,
+      uPhaseScan: sweep.scan,
     });
     shader.vertexShader = VERT_HEAD + shader.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>\n${VERT_BODY}`);
     shader.fragmentShader =

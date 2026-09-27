@@ -35,8 +35,7 @@ import figureCfg from "../config/figure.json";
 import finCfg from "../config/finisher.json";
 import type { FigurePose } from "./dummy";
 import type { EmotePose } from "./emotes";
-import { IS_SK } from "./game";
-import { GLOVE_MIDDLE_KNUCKLE, GLOVE_WRIST } from "./arms";
+import { IS_SK, PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
 
@@ -1645,14 +1644,15 @@ export class MannequinFigure {
  */
 const ARM_PART = /^(lowerarm|hand|thumb|index|middle|ring|pinky)_/;
 /** how much of the upper arm a first-person arm keeps, from the elbow, as a share of its length (viewmodel.json realArms) */
-export const FP_UPPER = vmCfg.realArms.upper;
+/** how much of the upper arm a first-person arm keeps: all of it for SpeedKills' soldier (speedkills.json viewmodel upperArm) */
+export const FP_UPPER: number = (IS_SK ? (PROFILE.viewmodel as { upperArm?: number } | undefined)?.upperArm : undefined) ?? vmCfg.realArms.upper;
 
 /**
  * A copy of `g` keeping only the triangles an arm owns: every corner
  * weighted at least half to the arm's own bones. What is left is the arm and
  * the hand, cut off at the shoulder, well out of the frame.
  */
-function armOnly(g: THREE.BufferGeometry, skeleton: THREE.Skeleton, slim = 1): THREE.BufferGeometry {
+function armOnly(g: THREE.BufferGeometry, skeleton: THREE.Skeleton, forearm = 0): THREE.BufferGeometry {
   const si = g.attributes.skinIndex as THREE.BufferAttribute | undefined;
   const sw = g.attributes.skinWeight as THREE.BufferAttribute | undefined;
   if (!si || !sw) return g;
@@ -1687,18 +1687,47 @@ function armOnly(g: THREE.BufferGeometry, skeleton: THREE.Skeleton, slim = 1): T
   for (let t = 0; t + 2 < src.length; t += 3) if (on[src[t]] && on[src[t + 1]] && on[src[t + 2]]) keep.push(src[t], src[t + 1], src[t + 2]);
   const out = g.clone();
   out.setIndex(keep);
-  if (slim < 1) slimForearms(out, skeleton, slim);
+  if (forearm > 0) {
+    armWeightsOnly(out, on, arm.map((a, i) => a || upper[i]));
+    slimForearms(out, skeleton, forearm);
+  }
   return out;
 }
 
 /**
- * The forearms drawn thinner, their length kept: every point skinned to a forearm drawn in toward the bone by `slim`,
- * by as much of its weight as the forearm has. SpeedKills' soldier (soldierArmRig): its armoured forearms are drawn
- * in proportion to the glove its hands are sized to (fparms.ts fit), since at the body's thickness they flanked the gun
- * in the sights and filled the picture (the owner, 2026-09-27: "the hands are huge"); shrunk whole, a forearm was too
- * short to take the arm out of the frame from a handguard and the upper arm's end hung under the gun.
+ * The kept points' weight all on the arm's own bones: a point near the shoulder is partly the collarbone's and the
+ * spine's, which the first-person rig never poses (fparms.ts poses the upper arm, the forearm and the hand), and drawn
+ * whole the upper arm's shoulder end stretched back to them across the screen. What was theirs goes to the arm bone
+ * the point is most on.
  */
-function slimForearms(g: THREE.BufferGeometry, skeleton: THREE.Skeleton, slim: number): void {
+function armWeightsOnly(g: THREE.BufferGeometry, on: Uint8Array, arm: boolean[]): void {
+  const si = g.attributes.skinIndex as THREE.BufferAttribute;
+  const sw = g.attributes.skinWeight as THREE.BufferAttribute;
+  for (let i = 0; i < on.length; i++) {
+    if (!on[i]) continue;
+    let best = -1;
+    let off = 0;
+    for (let k = 0; k < 4; k++) {
+      const w = sw.getComponent(i, k);
+      if (arm[si.getComponent(i, k)]) {
+        if (best < 0 || w > sw.getComponent(i, best)) best = k;
+      } else off += w;
+    }
+    if (best < 0 || off <= 0) continue;
+    for (let k = 0; k < 4; k++) if (!arm[si.getComponent(i, k)]) sw.setComponent(i, k, 0);
+    sw.setComponent(i, best, sw.getComponent(i, best) + off);
+  }
+  sw.needsUpdate = true;
+}
+
+/**
+ * The forearms drawn thinner, their length kept: every point skinned to a forearm drawn in toward the bone, by as much
+ * of its weight as the forearm has, so the forearm's median thickness is `radius` (viewmodel.json realArms
+ * forearmRadius), measured off this mesh's own points as it loads. SpeedKills' soldier (soldierArmRig): at its armoured
+ * thickness the two forearms walled the gun in the sights (the owner, 2026-09-27: "the hands are huge ... covering the
+ * weapons"); shrunk whole, a forearm was too short to take the arm out of the frame from a handguard.
+ */
+function slimForearms(g: THREE.BufferGeometry, skeleton: THREE.Skeleton, radius: number): void {
   const si = g.attributes.skinIndex as THREE.BufferAttribute;
   const sw = g.attributes.skinWeight as THREE.BufferAttribute;
   const pos = g.attributes.position as THREE.BufferAttribute;
@@ -1717,30 +1746,29 @@ function slimForearms(g: THREE.BufferGeometry, skeleton: THREE.Skeleton, slim: n
     const axis = wrist.clone().sub(elbow);
     const len = axis.length();
     axis.normalize();
-    for (let i = 0; i < pos.count; i++) {
+    const footOf = (v: THREE.Vector3) => foot.copy(elbow).addScaledVector(axis, Math.max(0, Math.min(len, v.clone().sub(elbow).dot(axis))));
+    const weight = (i: number) => {
       let w = 0;
       for (let k = 0; k < 4; k++) if (si.getComponent(i, k) === bone) w += sw.getComponent(i, k);
+      return w;
+    };
+    // its thickness now: the median distance from the bone of the points mostly on it
+    const r: number[] = [];
+    for (let i = 0; i < pos.count; i++) if (weight(i) >= 0.5) r.push(p.fromBufferAttribute(pos, i).distanceTo(footOf(p)));
+    if (!r.length) continue;
+    r.sort((a, b) => a - b);
+    const slim = Math.min(1, radius / r[Math.floor(r.length / 2)]);
+    for (let i = 0; i < pos.count; i++) {
+      const w = weight(i);
       if (w <= 0) continue;
       p.fromBufferAttribute(pos, i);
-      foot.copy(elbow).addScaledVector(axis, Math.max(0, Math.min(len, p.clone().sub(elbow).dot(axis))));
+      footOf(p);
       p.sub(foot).multiplyScalar(1 - (1 - slim) * w).add(foot);
       pos.setXYZ(i, p.x, p.y, p.z);
     }
   }
   pos.needsUpdate = true;
   g.computeVertexNormals();
-}
-
-/** the glove's wrist to middle knuckle over the soldier's, never over 1 (fparms.ts fit): how thin its forearms are drawn */
-function soldierSlim(skeleton: THREE.Skeleton): number {
-  const names = skeleton.bones.map((b) => b.name);
-  const at = (n: string) => {
-    const i = names.indexOf(n);
-    return i < 0 ? null : new THREE.Vector3().setFromMatrixPosition(skeleton.boneInverses[i].clone().invert());
-  };
-  const hand = at("hand_r");
-  const knuckle = at("middle_01_r");
-  return hand && knuckle ? Math.min(1, GLOVE_MIDDLE_KNUCKLE.distanceTo(GLOVE_WRIST) / hand.distanceTo(knuckle)) : 1;
 }
 
 const armBodies = new Map<string, THREE.BufferGeometry>();
@@ -1882,7 +1910,7 @@ function soldierArmRig(skin: OperatorSkin): ArmRig | null {
     const key = `soldier|${look.variant}|${[...look.off].sort().join(",")}|${m.name}`;
     let g = armBodies.get(key);
     if (!g) {
-      g = armOnly(m.geometry, m.skeleton, soldierSlim(m.skeleton));
+      g = armOnly(m.geometry, m.skeleton, vmCfg.realArms.forearmRadius);
       armBodies.set(key, g);
     }
     // a piece with nothing on the arm (a helmet, a vest) is left out rather than drawn empty

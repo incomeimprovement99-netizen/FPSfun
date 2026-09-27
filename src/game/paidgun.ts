@@ -25,8 +25,12 @@ const GUNS = cfg.guns as Record<string, Gun>;
 /** every model of each gun's family, measured (tools/checks/paid-weapons.ts writes it) */
 const MEASURED = measuredCfg.models as Record<
   string,
-  { measured: { length: number; muzzleEnd: number; muzzle: number[]; sightTop: number; sightZ: number; eye: { y: number; back: number; sight: string } } }
+  { measured: { length: number; muzzleEnd: number; muzzle: number[]; sightTop: number; sightZ: number; eye: { y: number; back: number; sight: string }; support?: { y: number; z: number } } }
 >;
+/** how far in front of the eye a bought gun's iron sights come when aimed (paidweapons.json sights) */
+export const IRONS_EYE: number = cfg.sights.ironsEye;
+/** and a bought scope's reticle dot (paidweapons.json sights) */
+export const DOT_EYE: number = cfg.sights.dotEye;
 /** how the parts move (paidweapons.json motion) */
 export const PAID_MOTION = cfg.motion;
 const PROPS = (cfg.props ?? {}) as Record<string, { model: string; skin: string; scale?: number }>;
@@ -191,7 +195,14 @@ export function dressPaid(m: GunModel, level = 0): boolean {
   const eye = new THREE.Vector3(0, size.eye.y, size.eye.back).applyMatrix4(place.matrix);
   m.sightY = m.railY = eye.y;
   m.rearF = m.opticF = -eye.z;
-  m.root.userData.ownSight = { y: eye.y, f: -eye.z, irons: size.eye.sight === "irons" };
+  m.root.userData.ownSight = { y: eye.y, f: -eye.z, irons: size.eye.sight === "irons", dot: size.eye.sight === "dot" };
+  // the support hand under the bought gun, where paidweapons.json support holds it (measured, paidmodels.json), 22 mm
+  // above the underside as the procedural hand sits over its handguard's: it was where the procedural handguard had
+  // been, on the USSO over the top of the bought gun and, aimed, beside the rear sight by the eye
+  if (size.support) {
+    const hold = new THREE.Vector3(0, size.support.y, size.support.z).applyMatrix4(place.matrix);
+    m.support = { ...m.support, f: -hold.z, u: hold.y + 0.022, x: 0 };
+  }
   // its moving parts into the procedural groups the animations move, kept where they are
   const mover = (re: RegExp, group: THREE.Group | null) => {
     if (!group) return;
