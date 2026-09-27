@@ -41,15 +41,18 @@
     "guns": "tsx tools/fetch-guns.ts",
     "clips": "tsx tools/fetch-clips.ts",
     "fit": "tsx tools/fit.ts",
-    "profile": "tsx tools/profile-frame.ts"
+    "profile": "tsx tools/profile-frame.ts",
+    "paid": "tsx tools/import-paid.ts"
   },
   "dependencies": {
     "peerjs": "^1.5.4",
     "three": "^0.170.0"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.5.0",
     "@types/node": "^26.5.1",
     "@types/three": "^0.170.0",
+    "fbx2gltf": "^0.9.7-p1",
     "puppeteer": "^25.10.0",
     "sharp": "^0.33.5",
     "tsx": "^4.19.0",
