@@ -4379,3 +4379,18 @@ Phase 21 (the overnight brief, S1 to S9), live on the game server at 5ee71b4.
   passed alone); `npm run fit`; the SpeedKills sections with the soldier; and the fallback with no paid files.
 - **Next:** the picker for the variants and colours (S6), and the bought guns (W2 to W8, under way).
 
+## Milestone 239 — The bought guns, live ✅
+
+Phase 21 (W1 to W6), live on the game server at 9915b25.
+
+- **Every SpeedKills gun wears its Sci-Fi Battle Weapons model** (Tirgames) when the files are on the server:
+  the mapping is `src/config/paidweapons.json`, one line a gun, and the owner can change any of them.
+- **The procedural gun stays underneath** as the skeleton the view model, the hold and the animations read; the
+  bought model is turned from the pack's +Z to the game's -Z, set on the grip, and the muzzle and sight line move to
+  its measured ones (`tools/checks/paid-weapons.ts`). Its magazine, slide and pump go in the procedural groups, so
+  a reload takes the real magazine out. Unity's collision hulls are never drawn; the scopes' reticles are the pack's.
+- **The fusion level shows:** the skin moves A, B, C and the glow brightens a step each level.
+- **Tested:** verify and rules; the three batches (the one failure, the legacy host migration, is the known open
+  item and also failed alone, before any of this work); `npm run fit`; the SpeedKills sections with the guns.
+- **Next:** floor guns wear a simplified bought model (970 items on the floor need one), the heals and cases.
+

@@ -161,8 +161,8 @@ right in first person beat every variant; a measured reach table and proven modu
 - [x] W3 and W4 (`src/game/paidgun.ts`): each SpeedKills gun wears its bought model in first and third person, its muzzle and sight line moved to the model's, its magazine, slide and pump in the procedural groups, fitted optics on its top
 - [x] W6 the fusion level shows: the skin moves A, B, C and the glow brightens each level
 - [x] W5 the guns in the soldiers' hands, checked in a picture
-- [~] W7 the pack's props imported (mines, med items, cases, ammo box, grenades); the MINE hack wears the pack's mine; the heals, cases and grenades next
-- [~] W8 ship the guns: the release gate was running at 9915b25
+- [x] W7 the pack's props imported; the MINE hack wears the pack's mine and death boxes its storage case (next: care packages as the weapon case, floor guns simplified)
+- [x] W8 the guns are live (9915b25, Milestone 239); open: the legacy host-migration e2e fails in the batch and alone (first seen at 540e676, before this work)
 - [x] 4.2 the reach harness (`tools/checks/reach.ts`, `src/config/reach.json`), and the modules' geometry in `docs/PHASE_21_LAYOUT.md`
 - [x] S9 the soldier is live (5ee71b4, Milestone 238): batches (failures passed alone), fit, fallback, both deploys
 - [x] 4.3 the modules proven (run gap, double gap, chimney: tools/checks/reach.ts)
