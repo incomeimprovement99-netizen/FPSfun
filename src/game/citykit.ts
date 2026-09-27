@@ -92,5 +92,9 @@ export async function dressCityKit(root: THREE.Object3D, places: KitPlace[], q: 
   const stands = new Set(kit.dress.alley.stands);
   const dressed = want.filter((p) => stands.has(p.piece) && byId.has(p.piece)).length;
   if (KIT_SITES.stalls.length && dressed >= KIT_SITES.stalls.length) for (const m of STAND_INS.stalls) m.visible = false;
+  // and every car in the centre wearing its van: the boxes under them go, their collision stays
+  const vans = new Set(kit.dress.cars);
+  const parked = want.filter((p) => p.kind === "car" && vans.has(p.piece) && byId.has(p.piece)).length;
+  if (KIT_SITES.cars.length && parked >= KIT_SITES.cars.length) for (const m of STAND_INS.cars) m.visible = false;
   return CITY_KIT.drawn;
 }

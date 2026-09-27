@@ -5003,3 +5003,21 @@ still built itself ranked these first, from the weapons pack already imported.
   Balanced up.
 - **Checked:** verify and rules; `citykit.ts` (596k, 1,208k and 1,245k by preset); pictures down the tunnel and along
   Neon Alley.
+
+## Milestone 265 — The centre's parked cars are High City's hover cars
+
+Step 4 (`docs/CITY_BUNDLE_IMPLEMENTATION.md` 4.4: "parked High City cars"). The centre's parked cars were the city's
+grey boxes, in every street picture.
+
+- **Each wears one of High City's hover cars** (`citykit.json` dress cars), stretched to the car's box: at 4.4 m long
+  the van-sized ones stand the box's 2.1 m with its cabin, where a sedan left the cabin's collision in the air over its
+  roof. Nine stand in the centre on seed 42; the rest of the city keeps its boxes.
+- **The boxes go, the collision stays.** The centre's cars are built in materials of their own (`city.ts` STAND_INS
+  cars, cloned: the city's are shared a colour), which the kit hides once every one wears its car. `citykit.ts` holds
+  that those materials are on the centre's cars' five meshes each and nothing else, and every car is dressed.
+- **Budgets, benched** (`citykit.json` budget): the bands, the metro's dressing and the cars took Balanced and High to
+  1,231k and 1,267k. Benched again kit on and off, interleaved, in the street and over the Spire on a shared machine:
+  Balanced medians about 7.5 ms with the kit and 8.3 without, High 14.2 and 13.6. Balanced's limit is 1,300k and High's
+  1,340k. The city's merged meshes went to 404 with the stand-ins' own materials (hidden, so not drawn); its limit is
+  420.
+- **Checked:** verify and rules; pictures of two cars in the street.

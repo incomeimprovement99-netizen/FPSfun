@@ -16,7 +16,7 @@ export interface KitPlace {
   /** the graphics tier from which it is drawn (quality.ts cityDetail) */
   tier: number;
   /** what it is, for the checks' clearances: facade and parapet stand flush, the rest stand out of a wall or stand free */
-  kind: "facade" | "flat" | "band" | "podium" | "shop" | "parapet" | "cornice" | "sign" | "blade" | "poster" | "ac" | "billboard" | "roof" | "antenna" | "lamp" | "cable" | "pipe" | "wire" | "prop" | "skyline" | "zeppelin";
+  kind: "facade" | "flat" | "band" | "car" | "podium" | "shop" | "parapet" | "cornice" | "sign" | "blade" | "poster" | "ac" | "billboard" | "roof" | "antenna" | "lamp" | "cable" | "pipe" | "wire" | "prop" | "skyline" | "zeppelin";
 }
 
 type Facing = "px" | "nx" | "pz" | "nz";
@@ -538,6 +538,20 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         // its arm out over the street
         add(D.lamp, place(D.lamp, lx, 0, kz, kz < alleyZ ? 0 : Math.PI, 1, 1, 1, false), 1, "lamp");
       }
+    }
+  }
+
+  // ------------------------------------------------ the centre's parked cars, each a van from High City, its box's size
+  {
+    const [cl, cw] = cityCfg.streetLife.car;
+    const tall = 0.25 + cityCfg.streetLife.car[2] + cityCfg.streetLife.cabin[2];
+    for (const c of KIT_SITES.cars) {
+      const id = pick(D.cars, kitHash(c.x, c.z, 70));
+      const cd = dims(id);
+      if (!cd) continue;
+      // standing, a van's length runs along x: a car along x keeps it, one along z turns
+      const yaw = c.alongX ? (c.facing > 0 ? 0 : Math.PI) : c.facing > 0 ? -Math.PI / 2 : Math.PI / 2;
+      add(id, place(id, c.x, 0, c.z, yaw, cl / cd.w, tall / cd.h, cw / cd.d, false), 1, "car");
     }
   }
 

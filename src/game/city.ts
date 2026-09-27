@@ -123,20 +123,22 @@ export const CONCOURSE: {
  * The materials of what the bought kit draws over and replaces (citykit.ts hides them once it has drawn over every one):
  * Neon Alley's stalls, a dark kiosk each, where the kit's food stand is open-fronted and would show the box inside it.
  */
-export const STAND_INS: { stalls: THREE.Material[] } = { stalls: [] };
+export const STAND_INS: { stalls: THREE.Material[]; cars: THREE.Material[] } = { stalls: [], cars: [] };
 export const KIT_SITES: {
   towers: Array<{ x: number; z: number; w: number; d: number; base: number; roof: number; storeys: number; lobby?: number; park?: number; sector: string; clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }> }>;
   /** the metro's stairwells in the street (map-local), which nothing may stand over */
   openings: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   /** the Sky Lobby's and the Sky Park's rooms: the tower's box, the storey's floor, and each face's window, along it from its middle */
   rooms: Array<{ x: number; z: number; w: number; d: number; y: number; at: { n: number; s: number; w: number; e: number } }>;
+  /** the centre's parked cars (city.json streetLife): where each stands, which way along the street, which way it faces */
+  cars: Array<{ x: number; z: number; alongX: boolean; facing: number }>;
   /** Neon Alley's stalls (city.json neonAlley): solid boxes, the kit's food stands over them, facing the street (yaw) */
   stalls: Array<{ x: number; z: number; w: number; d: number; h: number; yaw: number }>;
   podia: Array<{ key: string; x0: number; x1: number; z0: number; z1: number; top: number; plaza: number; spire: boolean }>;
   stairs: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   skyline: Array<{ x: number; z: number; w: number; h: number }>;
   lamps: Array<[number, number]>;
-} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [], rooms: [] };
+} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [], rooms: [], cars: [] };
 
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
@@ -266,7 +268,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   /** the core's podiums by block ("i,j"), their tops: the concourse's bridges join them */
   const podia = new Map<string, { x0: number; x1: number; z0: number; z1: number; top: number }>();
   CONCOURSE.stairs.length = 0;
-  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.openings.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = 0;
+  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.openings.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = 0;
   /** the public stairs' footprints (local): a bridge landing across one blocked it (the concourse check found it) */
   const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
   CONCOURSE.bridges.length = 0;
@@ -1806,16 +1808,24 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const nearPad = (x: number, z: number): boolean => pads.some((p) => Math.hypot(p.x - BR_X - x, p.z - BR_Z - z) < L.padClear);
     const [cl, cw, ch] = L.car;
     const [kl, kw, kh] = L.cabin;
+    // the centre's cars in materials of their own, which the kit hides once it has drawn a van over every one (city
+    // STAND_INS): flat() and emissive() share a material a colour, so the city's own would take the rest with them
+    const inCentre = (x: number, z: number) => sectorAt(x, z)?.id === "c";
+    const own = { bodies: bodies.map((m) => m.clone()), glass: glassDark.clone(), sill: trimDark.clone(), head: head.clone(), tail: tail.clone() };
+    STAND_INS.cars = [...own.bodies, own.glass, own.sill, own.head, own.tail];
     const car = (x: number, z: number, alongX: boolean, facing: number): void => {
-      const body = bodies[Math.floor(rnd() * bodies.length)];
+      const pick = Math.floor(rnd() * bodies.length);
+      const c = inCentre(x, z);
+      if (c) KIT_SITES.cars.push({ x, z, alongX, facing });
+      const body = c ? own.bodies[pick] : bodies[pick];
       const [w, d] = alongX ? [cl, cw] : [cw, cl];
       slab(w, ch, d, x, 0.25, z, body);
-      slab(alongX ? kl : kw, kh, alongX ? kw : kl, x - (alongX ? facing * 0.3 : 0), 0.25 + ch, z - (alongX ? 0 : facing * 0.3), glassDark);
+      slab(alongX ? kl : kw, kh, alongX ? kw : kl, x - (alongX ? facing * 0.3 : 0), 0.25 + ch, z - (alongX ? 0 : facing * 0.3), c ? own.glass : glassDark);
       // wheels' shadow under it: the body stands on its own dark sill
-      deco(w - 0.6, 0.25, d - 0.2, x, 0, z, trimDark);
+      deco(w - 0.6, 0.25, d - 0.2, x, 0, z, c ? own.sill : trimDark);
       for (const [end, mat] of [
-        [1, head],
-        [-1, tail],
+        [1, c ? own.head : head],
+        [-1, c ? own.tail : tail],
       ] as const) {
         const e = end * facing;
         if (alongX) deco(0.06, 0.18, cw - 0.5, x + (e * cl) / 2, 0.25 + ch * 0.55, z, mat);

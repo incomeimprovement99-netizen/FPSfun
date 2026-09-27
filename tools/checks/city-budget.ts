@@ -68,9 +68,11 @@ function count(root: THREE.Object3D): { meshes: number; tris: number; lights: nu
  * drawn leaner than a jump pad to get there (a jump pad's two gold rings on each were 22k triangles). Then, with Phase
  * 21's massing (the centre's towers 64 to 104 m, the Spire's crown at 140 m): 14,291 meshes, 392 once merged, 241k
  * triangles. A box costs the same at any height; the rise is the lobbies' open storey in 24 towers and their 28 window
- * pads, and a taller tower's light bands. The triangle limit is that with a twelfth over.
+ * pads, and a taller tower's light bands. The triangle limit is that with a twelfth over. Then with the metro, Neon
+ * Alley's stalls and the centre's cars in materials of their own (the kit hides them once it draws over them, and a
+ * hidden mesh is not drawn): 15,390 meshes, 404 once merged. The merged limit is 420.
  */
-const BUDGET = { meshesBefore: 20_000, meshesAfter: 400, tris: 260_000, lights: 8 };
+const BUDGET = { meshesBefore: 20_000, meshesAfter: 420, tris: 260_000, lights: 8 };
 console.log("What the SpeedKills city costs to draw");
 check("this is SpeedKills (the city is its map)", IS_SK);
 {

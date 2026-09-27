@@ -85,6 +85,18 @@ check("the skyline's towers each wear a lit building from the bundle", (byKind.g
     STAND_INS.stalls.length === 2 && STAND_INS.stalls.every((m) => users.get(m) === stalls),
     STAND_INS.stalls.map((m) => `${users.get(m) ?? 0} meshes`).join(", ") + ` for ${stalls} stalls`,
   );
+  // the centre's cars: five meshes a car (body, cabin, sill, head and tail lights), all in the centre's own materials
+  let carMeshes = 0;
+  scene.traverse((o) => {
+    const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+    if ((o as THREE.Mesh).isMesh && m && STAND_INS.cars.includes(m)) carMeshes++;
+  });
+  const dressedCars = places.filter((p) => p.kind === "car").length;
+  check(
+    "and what it hides over the centre's cars is theirs alone, every one of them wearing a van",
+    KIT_SITES.cars.length > 0 && carMeshes === 5 * KIT_SITES.cars.length && dressedCars === KIT_SITES.cars.length,
+    `${KIT_SITES.cars.length} cars, ${dressedCars} vans, ${carMeshes} meshes in their materials`,
+  );
 }
 
 // Neon Alley (city.json neonAlley, the plan's 4.3.1): its stalls each a stand, signs up its towers, a web over it
