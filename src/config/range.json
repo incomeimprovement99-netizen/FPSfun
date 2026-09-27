@@ -1,0 +1,26 @@
+{
+  "_note": "SpeedKills' range as a sandbox (docs/PHASE_20_PLAN.md A12; src/game/range.ts buildSandboxEdge). The owner: redress the range in SpeedKills' style and block it off about 20 m in. edgeZ is the lit barrier and the end of the player's bound, metres down range from the firing line (z 0, the spawn): 24, not 20, because at 20 the wallbounce wall (z -16 to -22) is cut in half, and at 24 every tour marker (the deepest at z -20) and the stairs' sixth step are inside (measured by the Phase 20 diagnosis). Bullets are not stopped: the lanes beyond are still shot at. The curtain is lit panels of opacity in color from bottom to top metres, with a gap under the README screen, which hangs in the barrier (readme-tv.json speedkills); posts are the x of its lit posts. Ours, by eye.",
+  "sandbox": {
+    "edgeZ": -24,
+    "curtain": {
+      "bottom": 0.4,
+      "top": 9.9,
+      "opacity": 0.3,
+      "color": "#3cf2ff",
+      "gap": {
+        "minX": -7.9,
+        "maxX": 7.9,
+        "bottom": 2.95
+      }
+    },
+    "posts": [
+      -33.3,
+      -18,
+      -7.95,
+      7.95,
+      18,
+      33.3
+    ],
+    "postColor": "#ff2e9a"
+  }
+}

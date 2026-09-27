@@ -33,7 +33,8 @@ import { lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import AUDIO_CFG from "./config/audio.json";
 import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier, type FigurePose } from "./game/dummy";
-import { buildRange, skyFollow, setShadowRegion, setHour, getSun, RANGE_BOUNDS, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
+import { buildRange, rangeBounds, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
+import rangeCfg from "./config/range.json";
 import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, matchHour, loadBrSky, saveBrSky, loadSkHour, saveSkHour, type Hour } from "./game/sky";
 import { buildBrMap, BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
 import { BrMatch, DROP_HEIGHT, teamFor } from "./game/brmatch";
@@ -737,7 +738,7 @@ const vmCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.inne
 vmCamera.layers.set(VM_LAYER);
 camera.add(vmCamera);
 const beforeRange = new Set(scene.children);
-buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize });
+buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize, look: IS_SK ? "city" : "warehouse", sandbox: IS_SK ? rangeCfg.sandbox : null });
 // the 1v1 arena, east of the range, and the 1v1v1 triangle north of it (src/game/arena.ts)
 const arena = buildArena(scene);
 const triArena = buildTriArena(scene);
@@ -1026,7 +1027,9 @@ const input = new Input(renderer.domElement);
 // the player's own keys (the Controls tab) on top of binds.json
 applySavedBinds();
 initBindsUi($("bindTable"), $("bindsNote"));
-const player = new Player(RANGE_BOUNDS);
+/** where a player may go in the range: in SpeedKills, the sandbox up to its lit edge (range.json; Phase 20 A12) */
+const RANGE_PLAY = rangeBounds(IS_SK ? rangeCfg.sandbox : null);
+const player = new Player(RANGE_PLAY);
 /** your name and every result, in this browser (src/game/stats.ts) */
 const profile = new Stats();
 // Spawn ON the firing line (z = 0) so the lane labels are the true distance
@@ -5010,6 +5013,14 @@ function endMatch(reason: string): void {
     hosting = null;
   }
   hud.notice(reason.toUpperCase(), gameTime, 3);
+  if (IS_SK) {
+    // the range gives back your two picks, ready, whatever the match left you holding (Phase 20 A12)
+    resetHacks();
+    // and says where to go in it once the match's own notice has been read
+    window.setTimeout(() => {
+      if (!duel) hud.notice(`THE RANGE  ·  THE RUN: TWO COURSES THROUGH THE LIT GATES BEHIND YOU  ·  THE MANUAL: THE SCREEN AHEAD  ·  HACKS ON ${keyLabel("ability")} AND ${keyLabel("grenade")}`, gameTime, 6);
+    }, 3200);
+  }
   const together = !party ? "" : "guests" in party ? " Your group is still here: pick the next match above and Play again." : " Your group is still together: the host starts the next match.";
   setDuelStatusText(reason + together);
   duelButtons();
@@ -5427,16 +5438,16 @@ function goTo(mode: Mode): void {
   }
   for (const c of courses) c.leave();
   if (mode === "tour") {
-    player.setBounds(RANGE_BOUNDS);
+    player.setBounds(RANGE_PLAY);
     player.teleport(0, 0, 0, 0);
     tour.start(tourCheck(gameTime));
     return;
   }
   if (mode === "range") {
-    player.setBounds(RANGE_BOUNDS);
+    player.setBounds(RANGE_PLAY);
     player.teleport(0, 0, 0, 0);
   } else if (mode === "run" || mode === "runAdvanced") {
-    player.setBounds(RANGE_BOUNDS);
+    player.setBounds(RANGE_PLAY);
     const sp = (mode === "run" ? courseBasic : courseAdvanced).startPose;
     player.teleport(sp.x, 0, sp.z, sp.yaw);
   } else if (mode === "arena") {

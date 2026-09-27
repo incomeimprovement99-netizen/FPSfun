@@ -175,6 +175,15 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    name: "sk-range",
+    note: "SpeedKills' range as its sandbox (Phase 20 A12): the city's night look, the lit edge 24 m down range with the README screen hung in it",
+    query: "?game=speedkills",
+    steps: [
+      [`(() => { ${hideMenu}; window.__range.player.teleport(0, 0, 4, 0, 4); })()`, 0],
+      [gameSeconds(1.5), 600],
+    ],
+  },
+  {
     name: "sk-city-air",
     note: "SpeedKills' city from high over its edge, looking in at the Spire: the towers, the neon, the sectors' colours, the skyline past the edge",
     query: "?game=speedkills",

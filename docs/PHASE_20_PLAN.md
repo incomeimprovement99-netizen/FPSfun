@@ -281,6 +281,8 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
 - **Done when:** an e2e check finds the menu's scroll width no wider than its box at 1280, 1920 and 2560, and
   every scrolling panel with the custom scrollbar. A snapshot shows it.
 
+*Done (Milestone 232).*
+
 ### A12. After a match, a SpeedKills range
 
 - **The owner:** after winning the battle royale it goes back to the BOOG range (the legacy one). Redress it in
@@ -299,6 +301,8 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
   - Both hacks usable there.
 - **Done when:** an e2e check after a match finds you in the SpeedKills range, can't go past the barrier, finds
   the markers, and uses a hack. Snapshots show the reskinned range.
+
+*Done (Milestone 233).*
 
 ### A13. Memory: SpeedKills and legacy kept apart (done)
 

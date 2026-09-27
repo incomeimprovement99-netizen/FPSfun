@@ -4246,3 +4246,40 @@ was sent to the lobby).
   - The outline check picks a bot that is not invisible.
   - The HUD layout check runs on a rendered page (a ?norender page draws no HUD, so it read nothing).
 - **Checked:** a new e2e section, `skfriends`, reproduced the bug and passes with the fix.
+
+## Milestone 232 — The menu fits, and the game's own scrollbars ✅
+
+Phase 20, A11 (the owner: the menu is not wide enough and shows a horizontal scrollbar; every scrollbar in the
+game's colours).
+
+- **The sideways scrollbar did not come from the menu's width.**
+  - The two hack pickers on the Play tab are selects as wide as their longest option, and together they made
+    the panel 844 px in a 778 px menu.
+  - The controller boxes pushed the Controls tab 210 px past the edge.
+  - Two SpeedKills rules make them give way.
+- **The menu grows with the screen:** 1120, 1200, 1280 and 1400 px at 1280, 1600, 1920 and 2560 wide, one width
+  for every tab. The settings' controls get the room to show their longer choices.
+- **Every scrollbar is SpeedKills':** a cyan thumb on the panels' night blue, magenta under the mouse.
+- **Checked:** a new e2e check opens every Play mode and every tab at 1024x576, 1280x720 and 1920x1080, and
+  finds none wider than the menu.
+
+## Milestone 233 — The range as SpeedKills' sandbox ✅
+
+Phase 20, A12 (the owner: after a match it went back to the legacy range; redress it in SpeedKills' style, block
+it off about 20 m in, and point to the courses and the README TV. A quick reskin was fine for now).
+
+- **In SpeedKills the range takes the city's night look:** its pavement and street, a dark steel palette and
+  magenta neon.
+- **A lit edge 24 m down range** (range.json `sandbox`): a cyan grid curtain between magenta posts, where your
+  bound ends.
+  - It is 24, not 20, because at 20 the wallbounce wall was cut in half; every tour marker is inside.
+  - Rounds pass through it to the lanes beyond.
+- **The README screen hangs in the edge** at three quarters of its size, readable from the spawn. It was 107 m
+  away (readme-tv.json `speedkills`).
+- **After a match** your two hacks are back and ready. A notice points to The Run's two courses through the lit
+  gates behind you, to the manual ahead, and to the hack keys.
+- **Checked:**
+  - A new e2e check: a body sent 40 m down range stops at the edge, where the three curtain panels stand.
+  - A new snapshot, `sk-range`.
+- **Left for later:** the floor's orange stripes and arrows and the screen's frame keep the legacy colours, and
+  the courses keep their old look.

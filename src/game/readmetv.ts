@@ -14,12 +14,14 @@
 import * as THREE from "three";
 import readmeMd from "../../README.md?raw";
 import cfg from "../config/readme-tv.json";
+import { IS_SK } from "./game";
 import { parseReadme, type Block, type Section } from "./readme";
 import type { Shootable } from "./projectile";
 
-const SCREEN = cfg.screen;
-const SIGN = cfg.sign;
-const BTN = cfg.buttons;
+// SpeedKills hangs it in its range's barrier, 24 m down range, at three quarters of the size (readme-tv.json speedkills)
+const SCREEN = IS_SK ? { ...cfg.screen, ...cfg.speedkills.screen } : cfg.screen;
+const SIGN = IS_SK ? { ...cfg.sign, ...cfg.speedkills.sign } : cfg.sign;
+const BTN = IS_SK ? { ...cfg.buttons, ...cfg.speedkills.buttons } : cfg.buttons;
 const L = cfg.layout;
 
 export type TvAction = "prevPage" | "nextPage" | "prevSection" | "nextSection";

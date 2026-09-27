@@ -4,6 +4,7 @@
 // stairs and a ramp, and a moving target rail.
 //
 // All geometry is generated here. Materials are CC0 (public/tex/ATTRIBUTION.md).
+import rangeCfg from "../config/range.json";
 import * as THREE from "three";
 import { material, tileBox } from "./materials";
 import { PAL, bevel, flat, emissive, hazardTexture, floorNumber, textPanel } from "./geo";
@@ -181,6 +182,64 @@ export interface RangeOptions {
   /** point lights cost every lit pixel; Competitive and Balanced drop them */
   pointLights: boolean;
   shadowSize: number;
+  /** SpeedKills: the city's night look, and the sandbox's edge (range.json; Phase 20 A12) */
+  look?: "warehouse" | "city";
+  sandbox?: typeof rangeCfg.sandbox | null;
+}
+
+/** where a player may go in the range: all of it, or in SpeedKills up to the sandbox's edge (range.json edgeZ) */
+export function rangeBounds(sandbox: { edgeZ: number } | null | undefined): Bounds {
+  return sandbox ? { ...RANGE_BOUNDS, minZ: sandbox.edgeZ } : RANGE_BOUNDS;
+}
+
+/**
+ * SpeedKills' sandbox edge (Phase 20 A12): a lit curtain across the range at edgeZ, posts and a kerb of neon,
+ * with a gap under the README screen that hangs in it. None of it is solid: the player's bound stops you
+ * (rangeBounds), and rounds still reach the lanes beyond.
+ */
+function buildSandboxEdge(scene: THREE.Scene, sb: typeof rangeCfg.sandbox): void {
+  const E = sb.edgeZ;
+  const C = sb.curtain;
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = 64;
+  const g = cv.getContext("2d");
+  if (g) {
+    g.clearRect(0, 0, 64, 64);
+    g.strokeStyle = "rgba(255,255,255,0.9)";
+    g.lineWidth = 2;
+    g.strokeRect(1, 1, 62, 62);
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(C.color), transparent: true, opacity: C.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, forceSinglePass: true });
+  const panelAt = (x0: number, x1: number, y0: number, y1: number): void => {
+    const w = x1 - x0;
+    const h = y1 - y0;
+    const t = tex.clone();
+    // a grid of 1.5 m cells, whatever the panel's size
+    t.repeat.set(w / 1.5, h / 1.5);
+    t.needsUpdate = true;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat.clone());
+    (m.material as THREE.MeshBasicMaterial).map = t;
+    m.position.set((x0 + x1) / 2, (y0 + y1) / 2, E - 0.02);
+    m.name = "sk-sandbox-curtain";
+    m.userData.dynamic = true;
+    scene.add(m);
+  };
+  const half = RANGE_BOUNDS.maxX - 0.5;
+  panelAt(-half, C.gap.minX, C.bottom, C.top);
+  panelAt(C.gap.maxX, half, C.bottom, C.top);
+  panelAt(C.gap.minX, C.gap.maxX, C.bottom, C.gap.bottom);
+  const neon = emissive(new THREE.Color(C.color).getHex(), 2.4);
+  const post = emissive(new THREE.Color(sb.postColor).getHex(), 2.4);
+  const bar = (w: number, h: number, d: number, x: number, y: number, z: number, m: THREE.Material): void => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    b.position.set(x, y, z);
+    scene.add(b);
+  };
+  bar(half * 2, 0.08, 0.08, 0, C.bottom, E - 0.04, neon);
+  bar(half * 2, 0.08, 0.08, 0, C.top - 0.08, E - 0.04, neon);
+  for (const x of sb.posts) bar(0.14, C.top - C.bottom, 0.14, x, (C.top + C.bottom) / 2, E - 0.1, post);
 }
 
 export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLights: true, shadowSize: 4096 }): void {
@@ -199,8 +258,10 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // These colours MULTIPLY the texture, whose own mid-grey is around 0.5, so
   // tinting at the final colour you want lands about half as bright as you
   // wanted. Both are set roughly a stop up from the target sand.
-  const concrete = material("concrete", { color: 0xe6d5b8, roughness: 0.95, metalness: 0.02 });
-  const ground = material("ground", { color: 0xcabfa8, roughness: 1, metalness: 0 });
+  // SpeedKills (Phase 20 A12): the city's own pavement and street under a night palette, and its neon for the glow
+  const city = opts.look === "city";
+  const concrete = city ? material("skPave", { color: 0x8a8e96, roughness: 0.9, metalness: 0.02 }) : material("concrete", { color: 0xe6d5b8, roughness: 0.95, metalness: 0.02 });
+  const ground = city ? material("skStreet", { color: 0x9aa0aa, roughness: 0.95, metalness: 0.02 }) : material("ground", { color: 0xcabfa8, roughness: 1, metalness: 0 });
   // METALNESS IS A PHYSICAL CLAIM, NOT A GLOSS DIAL. A metal has no diffuse
   // response at all: it shows only what it reflects. With a blue sky as the
   // only environment, the 0.72-metal roof reflected nothing but blue sky, so
@@ -210,11 +271,12 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   //
   // Painted structural steel is a dielectric with a thin metal flake at most.
   // These are the values for painted metal, not for a mirror.
-  const wall = flat(PAL.steel, 0.62, 0.08);
-  const catwalk = flat(PAL.steelLight, 0.55, 0.14);
-  const panel = flat(PAL.steelDark, 0.55, 0.12);
-  const trim = flat(PAL.orange, 0.55, 0.25);
-  const glow = emissive(PAL.cyan, 2.6);
+  const wall = city ? flat(0x252b3a, 0.7, 0.1) : flat(PAL.steel, 0.62, 0.08);
+  const catwalk = city ? flat(0x3a4256, 0.55, 0.2) : flat(PAL.steelLight, 0.55, 0.14);
+  const panel = city ? flat(0x161b27, 0.6, 0.12) : flat(PAL.steelDark, 0.55, 0.12);
+  const trim = city ? flat(0x0c0e14, 0.6, 0.4) : flat(PAL.orange, 0.55, 0.25);
+  const glow = city ? emissive(0xff2e9a, 2.6) : emissive(PAL.cyan, 2.6);
+  if (opts.sandbox) buildSandboxEdge(scene, opts.sandbox);
 
   // ---------- sky and fog ----------
   // An authored gradient dome, not the HDRI. The HDRI stays as

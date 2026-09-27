@@ -146,6 +146,28 @@
       .hackPicks select { background: #101628; border: 1px solid #20e0ff55; color: #e8fbff; padding: 6px 7px; border-radius: 4px; font-size: 13px; }
       [data-game="speedkills"] .skOnly { display: inline; }
       [data-game="speedkills"] .legacyOnly { display: none; }
+      /* SpeedKills' menu (Phase 20 A11): wider on a wider screen, and one width for every tab so Loadouts no longer
+         jumps (1280 wide: 1120, 1600: 1200, 1920: 1280, 2560: 1400, never more than 94% of a small screen) */
+      [data-game="speedkills"] .menu,
+      [data-game="speedkills"] .menu:has(section[data-panel="loadouts"]:not([hidden])) { width: min(94vw, calc(25vw + 800px), 1400px); }
+      /* a select is as wide as its longest option, and a hack's option is its name and its line: left alone the two
+         hack boxes made the Play panel 844 px in a 778 px menu, and every mode scrolled sideways */
+      [data-game="speedkills"] .hackPicks select { width: 100%; min-width: 0; }
+      /* each controller box lists every action; two plain 1fr columns grew to hold the longest, 210 px past the menu */
+      [data-game="speedkills"] .bindTable { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      /* the wider menu leaves room for the settings' controls, which truncated their longer choices */
+      [data-game="speedkills"] section[data-panel="settings"] .row, [data-game="speedkills"] section[data-panel="stats"] .row { grid-template-columns: minmax(0, 1fr) minmax(140px, 340px); }
+      /* the game's own scrollbars: the accent on the panels' night blue, not the system grey, and the second accent
+         under the mouse. Chromium draws these; the standard pair is only for browsers without them, because in
+         Chromium setting it switches these rules off */
+      [data-game="speedkills"] ::-webkit-scrollbar { width: 10px; height: 10px; }
+      [data-game="speedkills"] ::-webkit-scrollbar-track, [data-game="speedkills"] ::-webkit-scrollbar-corner { background: #0a0d16; }
+      [data-game="speedkills"] ::-webkit-scrollbar-thumb { background: #20e0ff; border: 2px solid #0a0d16; border-radius: 5px; }
+      [data-game="speedkills"] ::-webkit-scrollbar-thumb:hover, [data-game="speedkills"] ::-webkit-scrollbar-thumb:active { background: #ff2e9a; }
+      @supports not selector(::-webkit-scrollbar) {
+        [data-game="speedkills"] { scrollbar-color: #20e0ff #0a0d16; }
+        [data-game="speedkills"] * { scrollbar-width: thin; }
+      }
       /* a settings row that only SpeedKills has (Phase 20 A8: the loot card) */
       .skRow { display: none !important; }
       [data-game="speedkills"] .skRow { display: grid !important; }

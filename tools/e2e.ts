@@ -4964,6 +4964,32 @@ async function speedkillsTest(browser: Browser): Promise<void> {
       JSON.stringify({ all, have: Object.keys(b), inBand, clash, health: b.health, ammo: b.ammo, hack0: b.hack0, slot0: b.slot0 }),
     );
   }
+  // The range as SpeedKills' sandbox (Phase 20 A12): a body sent 40 m down range stops at the lit edge 24 m in,
+  // where the curtain stands, and the README screen hangs in it
+  const sb = await ev<{ z: number; curtains: number; tvZ: number | null }>(
+    sight,
+    `(() => new Promise((ok) => { const r = window.__range; r.player.teleport(0, 0, -40, 0); setTimeout(() => { const c = []; r.scene.traverse((o) => { if (o.name === "sk-sandbox-curtain") c.push(o); }); ok({ z: r.player.pos.z, curtains: c.length, tvZ: r.readmeTv ? r.readmeTv.root.children[0]?.position.z ?? null : null }); r.player.teleport(0, 0, 0, 0); }, 500); }))()`,
+  );
+  check("speedkills range: the sandbox stops you at its lit edge, 24 m down range, where the curtain stands", sb.z >= -24.5 && sb.z <= -22 && sb.curtains === 3, JSON.stringify(sb));
+  // The menu (Phase 20 A11): no tab and no Play mode wider than the menu, at three screen sizes (the hack pickers
+  // and the controller boxes pushed rows past its edge, and every mode scrolled sideways)
+  const wide: string[] = [];
+  for (const [w, h] of [[1024, 576], [1280, 720], [1920, 1080]]) {
+    await sight.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
+    await sleep(250);
+    wide.push(
+      ...(await ev<string[]>(
+        sight,
+        `(() => { const r = window.__range; const m = r.menu; const el = document.querySelector(".menu"); const out = []; const look = (state) => { el.scrollTop = 0; if (el.scrollWidth > el.clientWidth + 1) out.push("${w}x${h} " + state + " +" + (el.scrollWidth - el.clientWidth) + "px"); };
+          const modes = [...document.querySelectorAll(".lobby .modes .mode")].map((c) => c.dataset.mode).filter(Boolean);
+          for (const mode of modes) { m.show("play"); m.pickMode(mode); look("play:" + mode); }
+          for (const tab of ["duel", "loadouts", "stats", "settings", "controls"]) { try { m.show(tab); look(tab); } catch (e) {} }
+          m.show("play"); return out; })()`,
+      )),
+    );
+  }
+  await sight.setViewport({ width: 800, height: 450, deviceScaleFactor: 1 });
+  check("speedkills menu: from 1024x576 to 1920x1080 no tab and no Play mode is wider than the menu (no sideways scrollbar)", wide.length === 0, wide.slice(0, 6).join("; ") || "none");
   await sight.close();
   await speedkillsBrTest(browser);
   await speedkillsStartsTest(browser);
