@@ -62,6 +62,12 @@ Game) or `?game=legacy`, and everything below this section describes it.
   that goes up a storey (two with a double jump first). You sprint whenever you
   move forward, at 14 m/s, and a slide tops out a little above that; a jump and
   a double jump at a sprint clear 24 m, wider than any street.
+- **The soldier:** on the game server, every SpeedKills figure is the bought
+  Sci-Fi Modular Soldier, in four variants (VANGUARD, the full kit; BREACHER,
+  heavy and clean; RECON, light, the face showing; RUNNER, lean), each with its
+  own colours, and the game's animations carried over to its rig. The bought
+  files never enter git, so a copy without them (and the Pages build) shows the
+  figures of before.
 - **Ten guns**, five named for the owner's friends; BOOG, the sniper, kills
   with one headshot. Ammo is infinite; the magazine is not.
 - **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to

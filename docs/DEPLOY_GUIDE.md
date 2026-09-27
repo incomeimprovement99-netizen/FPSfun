@@ -54,6 +54,22 @@ public build, the real-name check), writes `dist/.nojekyll`, and force-pushes
 `dist/` as the `gh-pages` branch. It prints the URL at the end. About a
 minute.
 
+## 2b. The bought assets (the soldier, the guns)
+
+The owner's Unity Asset Store purchases (the Sci-Fi Modular Soldier, the Sci-Fi Battle Weapons) are licensed to the
+owner, not the public, so they never enter git and never go to Pages:
+
+- **Where they come from:** Unity keeps each download as a `.unitypackage` under
+  `%APPDATA%\Unity\Asset Store-5.x\` (download them in Unity's Package Manager, My Assets).
+- **Making what the game loads:** `npm run paid` (or `PAID_ONLY=soldier` / `PAID_ONLY=weapons npm run paid`)
+  unpacks them into `C:\Users\jwilb\Downloads\speedkills-paid\` and writes `public/models/paid/`, which git
+  ignores; `npm run rules` fails if any of it is ever tracked.
+- **Shipping them:** `npm run fps deploy` carries `public/models/paid/` to the game server, so **run it from a copy
+  that has the files** (run `npm run paid` there, or copy the folder in). `npm run deploy` (Pages) takes them out of
+  its build and refuses to push if any are left, so Pages shows the figures and guns of before.
+- **A re-import** is seen at once only if `version` in `src/config/soldier.json` (or `paidweapons.json`) goes up:
+  the server keeps `/models/` for a day.
+
 ## 3. Pages is on (done)
 
 GitHub switched Pages on by itself when the `gh-pages` branch arrived (the

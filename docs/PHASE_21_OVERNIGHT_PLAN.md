@@ -158,7 +158,7 @@ right in first person beat every variant; a measured reach table and proven modu
 - [ ] S8 tests
 - [x] W1 import (eec969f; run `PAID_ONLY=weapons npm run paid`)
 - [ ] W2 to W8 the weapons (see "What the import showed")
-- [~] S9 ship the soldier: main at eec969f in apex-range with the soldier's files copied in; the fallback without them passes (speedkills e2e and verify); the release batches and fit were running
+- [x] S9 the soldier is live (5ee71b4, Milestone 238): batches (failures passed alone), fit, fallback, both deploys
 - [ ] 4.2 reach harness
 - [ ] 4.3 modules and `chains.ts`
 - [ ] 4.4 layout doc

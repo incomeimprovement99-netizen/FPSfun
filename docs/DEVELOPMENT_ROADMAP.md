@@ -4360,3 +4360,22 @@ Phase 20, A18 (gunfights), and the other half of what A15's doubled speeds did w
   trails a SpeedKills runner by more than it trailed a legacy one. With the scale back at 1 every tier fails, its
   trail doubled.
 - **The owner's to change:** 1 would leave the bots weaker against the new speeds, if easier bots are wanted.
+
+## Milestone 238 — The bought soldier, live ✅
+
+Phase 21 (the overnight brief, S1 to S9), live on the game server at 5ee71b4.
+
+- **Every SpeedKills figure is the Sci-Fi Modular Soldier** (AC Game Assets) when its files are on the server, in
+  four variants (VANGUARD, BREACHER, RECON, RUNNER; `src/config/soldier.json`) with their own colours rebuilt the
+  way the pack's shaders make them. Without the files (a checkout, Pages) the figures are as before.
+- **The game's animations on it:** `src/game/retarget.ts` carries every clip from the T-posed clip rig to the
+  soldier's A-posed rig in world space; `tools/checks/soldier.ts` proves every limb points as the clip rig's do
+  (0.0 degrees off, 43.6 with the alignment taken out) and the feet stay on the floor.
+- **Four draws a figure:** each variant's 18 pieces are merged into one skinned mesh per material, exact to
+  0.000 mm mid-sprint.
+- **Kept local:** `npm run rules` fails on a tracked paid file, Pages drops them from its build, and the live check
+  no longer counts a download the page cancelled as a failure.
+- **Tested:** verify and rules; the three e2e batches (the failures, two bot tiers and a friend's search round,
+  passed alone); `npm run fit`; the SpeedKills sections with the soldier; and the fallback with no paid files.
+- **Next:** the picker for the variants and colours (S6), and the bought guns (W2 to W8, under way).
+
