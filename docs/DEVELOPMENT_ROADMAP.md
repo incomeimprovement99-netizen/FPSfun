@@ -4229,3 +4229,20 @@ Phase 20, A10 (the owner: remove the smoke grenade from SpeedKills, keep it in t
   from an older build is not drawn.
 - The legacy game is unchanged.
 - **Checked:** a new e2e check that no SpeedKills bot carries a legacy kit or a frag.
+
+## Milestone 231 — Two friends into one battle royale ✅
+
+Phase 20, A14 (the owner, 2026-09-27: two friends could not join a battle royale; when the second came in, one
+was sent to the lobby).
+
+- **The cause:** a battle royale's host took as many players as the players dropdown said. That dropdown belongs
+  to the 1v1 and defaults to 2, so the host and one friend filled the match and the second friend was turned
+  away as "full".
+- **The fix:** a battle royale's room comes from its squads. Friends as one squad get the squad's size (a trio
+  is 3); squads against each other, or solo, get up to 8. Start now still starts with fewer. The dropdown is
+  hidden for a battle royale.
+- **Also:**
+  - The e2e checks for DASH and the bots' Heal now expect A9's numbers.
+  - The outline check picks a bot that is not invisible.
+  - The HUD layout check runs on a rendered page (a ?norender page draws no HUD, so it read nothing).
+- **Checked:** a new e2e section, `skfriends`, reproduced the bug and passes with the fix.

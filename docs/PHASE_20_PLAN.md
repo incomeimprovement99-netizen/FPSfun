@@ -252,6 +252,22 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
 
 *Done (Milestone 230).*
 
+### A14. Two friends could not both join one battle royale (added 2026-09-27, done first)
+
+- **The owner:** two friends could not join a battle royale; once one friend joined, the other was sent to the
+  lobby.
+- **Found:** a battle royale's host took as many players as the players dropdown said. That dropdown belongs to
+  the 1v1 and defaults to 2, so the host and one friend filled the match. The second friend was turned away with
+  "the match is full", back to the lobby. A test with a trio battle royale and the dropdown left alone reproduced
+  it: the host's match had 2 players and the second friend read "The host turned the connection away".
+- **Fix:** a battle royale's room comes from its squads. Friends as one squad get the squad's size, so a trio is
+  3. Squads against each other, or solo, get up to 8. Start now still starts with fewer. The dropdown is hidden
+  for a battle royale.
+- **Checked:** the new e2e section `skfriends`, which failed before the fix and passes after: all three are in,
+  3 players, 2 friends connected.
+
+*Done (Milestone 231).*
+
 ### A11. The main menu too narrow, and scrollbars in our colours
 
 - **The owner:** the main screen's menu is not wide enough and shows a horizontal scrollbar. All scrollbars

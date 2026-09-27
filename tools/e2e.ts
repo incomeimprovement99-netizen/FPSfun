@@ -4859,11 +4859,11 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     await ev(page, `(() => { const r = window.__range; r.sk.setHack("${id}"); r.sk.use("${slot}"); })()`);
     await sleep(settle);
   };
-  // DASH: a blink the way you look
+  // DASH: Hyper Scape's Teleport, about 26 m the way you look (measured off its footage; Phase 20 A9)
   const z0 = await ev<number>(page, "window.__range.player.pos.z");
   await hack("dash", "mobility", 500);
   const z1 = await ev<number>(page, "window.__range.player.pos.z");
-  check("speedkills: DASH carries you about 8 m the way you look", z0 - z1 > 6 && z0 - z1 < 12, `${(z0 - z1).toFixed(1)} m`);
+  check("speedkills: DASH carries you about 26 m the way you look", z0 - z1 > 20 && z0 - z1 < 28, `${(z0 - z1).toFixed(1)} m`);
   // LEAP: straight up four storeys, then a glide
   await ev(page, `window.__range.player.teleport(0, 0, 150, 0)`);
   await sleep(200);
@@ -4941,6 +4941,29 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   // every gun named with its class for a beginner (Phase 20 A7): USSO (Fast SMG) in the label and in the loadout pickers
   const names = await ev<{ usso: string; picker: string[] }>(sight, `({ usso: window.__range.weaponLabel("r97"), picker: [...document.querySelectorAll("#slot0 option")].map((o) => o.textContent) })`);
   check("speedkills names: every gun carries its class, USSO (Fast SMG), in the label and the loadout picker", names.usso === "USSO (Fast SMG)" && names.picker.length >= 10 && names.picker.every((t) => /\(.+\)$/.test(t ?? "")), JSON.stringify(names));
+  // The HUD as the owner laid it out (Phase 20 A6, hud.json layouts.speedkills), read off the boxes it drew in this
+  // match: all on the bottom edge, the health bar twice the legacy 12 thick, the ammo count 1.5 times the legacy 58,
+  // the hacks right of the health, the guns left of the ammo, nothing overlapping
+  // (on a rendered page: a ?norender page draws no HUD, and in one the check read no boxes at all)
+  const hud = await ev<{ b: Record<string, { x: number; y: number; w: number; h: number }>; W: number; H: number; u: number }>(
+    sight,
+    "(() => { const h = window.__range.hud; return { b: JSON.parse(JSON.stringify(h.boxes)), W: innerWidth, H: innerHeight, u: innerHeight / 1080 }; })()",
+  );
+  {
+    const { b, W, H, u } = hud;
+    // the hacks' boxes only where hacks are held (a page with none picked draws none)
+    const need = ["health", "shield", "ammo", "slot0", ...(b.hack0 ? ["hack0"] : [])];
+    const all = need.every((k) => b[k]);
+    const inBand = Object.values(b).every((r) => r.y >= H - 125 * u && r.y + r.h <= H + 0.5 && r.x >= -0.5 && r.x + r.w <= W + 0.5);
+    const overlap = (p: { x: number; y: number; w: number; h: number }, q: { x: number; y: number; w: number; h: number }) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
+    const keys = Object.keys(b).filter((k) => k !== "healthNumber");
+    const clash = keys.flatMap((k, i) => keys.slice(i + 1).filter((k2) => overlap(b[k], b[k2])).map((k2) => `${k}/${k2}`));
+    check(
+      "sk hud: all on the bottom edge, health twice as thick, ammo half as big again, hacks right of the health, guns left of the ammo, nothing overlapping",
+      all && inBand && clash.length === 0 && b.health.h >= 2 * 12 * u - 0.01 && b.ammo.h / 0.66 >= 1.5 * 58 * u - 0.01 && (!b.hack0 || (b.hack0.x >= b.health.x + b.health.w && b.hack0.w > 58 * u)) && b.slot0.x + b.slot0.w <= b.ammo.x,
+      JSON.stringify({ all, have: Object.keys(b), inBand, clash, health: b.health, ammo: b.ammo, hack0: b.hack0, slot0: b.slot0 }),
+    );
+  }
   await sight.close();
   await speedkillsBrTest(browser);
   await speedkillsStartsTest(browser);
@@ -4962,6 +4985,44 @@ async function speedkillsTest(browser: Browser): Promise<void> {
  * and a bot's box with its gun and nothing of the legacy game's.
  */
 /**
+ * Two friends into one SpeedKills battle royale (the owner, 2026-09-27: two friends could not join; when the second
+ * came in, one was sent back to the lobby). The host picks a trio battle royale and leaves the players dropdown,
+ * which is the 1v1's, as it opens (2): the match must still take both friends, since a squad of three is three.
+ */
+async function brFriendsJoinTest(browser: Browser): Promise<void> {
+  const host = await open(browser, "?norender&game=speedkills");
+  const g1 = await open(browser, "?norender&game=speedkills");
+  const g2 = await open(browser, "?norender&game=speedkills");
+  const pages = [host, g1, g2];
+  const closeAll = async () => {
+    for (const p of pages) await p.close();
+  };
+  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelMode").dispatchEvent(new Event("change")); document.getElementById("brTeam").value = "trio"; document.getElementById("brSides").value = "together"; document.getElementById("duelHost").click(); })()`);
+  let code = "";
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+  } catch {
+    check("sk friends: the host of a battle royale gets a code", false, await ev<string>(host, `document.getElementById("duelStatus").textContent`));
+    await closeAll();
+    return;
+  }
+  for (const g of [g1, g2]) {
+    await ev(g, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    await g.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 20000 }).catch(() => undefined);
+    await sleep(1500);
+  }
+  await sleep(2000);
+  const got = await Promise.all(pages.map((p) => ev<{ in: boolean; players: number; connected: number; status: string }>(p, `(() => { const d = window.__range.duel(); return { in: !!d, players: d ? d.players : 0, connected: d ? d.connected : 0, status: document.getElementById("duelStatus").textContent.slice(0, 120) }; })()`)));
+  check(
+    "sk friends: two friends both join the host's trio battle royale, and neither is sent back to the lobby",
+    got.every((x) => x.in) && got[0].connected === 2,
+    JSON.stringify(got),
+  );
+  await closeAll();
+}
+
+/**
  * SpeedKills' edge (Phase 20 A4): past the city's edge a countdown runs, a step back in stops it, and staying
  * brings the laser and a death by OUT OF BOUNDS (to the Gulag, as a ring death goes). The wall stops a body
  * edge.margin metres out.
@@ -4979,28 +5040,6 @@ async function speedkillsEdgeTest(browser: Browser): Promise<void> {
     return;
   }
   await ev(page, `(() => { const d = window.__range.duel(); d.holdFire = true; window.__feed = []; const f = d.onFeed; d.onFeed = (t, a, b) => { window.__feed.push(t); f?.(t, a, b); }; })()`);
-  // The HUD as the owner laid it out (Phase 20 A6, hud.json layouts.speedkills), read off the boxes it drew in this
-  // match: all on the bottom edge, the health bar twice the legacy 12 thick, the ammo count 1.5 times the legacy 58,
-  // the hacks right of the health, the guns left of the ammo, nothing overlapping
-  const hud = await ev<{ b: Record<string, { x: number; y: number; w: number; h: number }>; W: number; H: number; u: number }>(
-    page,
-    "(() => { const h = window.__range.hud; return { b: JSON.parse(JSON.stringify(h.boxes)), W: innerWidth, H: innerHeight, u: innerHeight / 1080 }; })()",
-  );
-  {
-    const { b, W, H, u } = hud;
-    // the hacks' boxes only where hacks are held (a page with none picked draws none)
-    const need = ["health", "shield", "ammo", "slot0", ...(b.hack0 ? ["hack0"] : [])];
-    const all = need.every((k) => b[k]);
-    const inBand = Object.values(b).every((r) => r.y >= H - 125 * u && r.y + r.h <= H + 0.5 && r.x >= -0.5 && r.x + r.w <= W + 0.5);
-    const overlap = (p: { x: number; y: number; w: number; h: number }, q: { x: number; y: number; w: number; h: number }) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
-    const keys = Object.keys(b).filter((k) => k !== "healthNumber");
-    const clash = keys.flatMap((k, i) => keys.slice(i + 1).filter((k2) => overlap(b[k], b[k2])).map((k2) => `${k}/${k2}`));
-    check(
-      "sk hud: all on the bottom edge, health twice as thick, ammo half as big again, hacks right of the health, guns left of the ammo, nothing overlapping",
-      all && inBand && clash.length === 0 && b.health.h >= 2 * 12 * u - 0.01 && b.ammo.h / 0.66 >= 1.5 * 58 * u - 0.01 && (!b.hack0 || (b.hack0.x >= b.health.x + b.health.w && b.hack0.w > 58 * u)) && b.slot0.x + b.slot0.w <= b.ammo.x,
-      JSON.stringify({ all, have: Object.keys(b), inBand, clash, health: b.health, ammo: b.ammo, hack0: b.hack0, slot0: b.slot0 }),
-    );
-  }
   const e0 = await ev<{ city: { maxX: number }; margin: number }>(page, "window.__range.sk.edge()");
   const wait = (s: number) => page.waitForFunction(`window.__range.gameTime() - window.__t0 > ${s}`, { polling: 50, timeout: 30000 }).catch(() => undefined);
   const mark = () => ev(page, "window.__t0 = window.__range.gameTime()");
@@ -5502,7 +5541,8 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
     `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const held = d.holdFire; d.holdFire = true; const b = d.bots.find((x) => x.bot.alive && x.bot.skHacks.includes("heal")).bot; b.dummy.shield = 0; b.dummy.health = 30; const before = b.dummy.health; const t0 = r.gameTime();
       const wait = () => { if (r.gameTime() - t0 < 3) return setTimeout(wait, 50); d.holdFire = held; ok({ before, after: b.dummy.health, used: b.skUsed.heal }); }; wait(); }))()`
   );
-  check("speedkills br: a hurt bot uses its Heal hack (health back within 3 s, before regeneration starts at 8)", healed.used >= 1 && healed.after >= healed.before + 25, JSON.stringify(healed));
+  // (at Hyper Scape's 4.4 a second since Phase 20 A9: about 13 back in 3 s)
+  check("speedkills br: a hurt bot uses its Heal hack (health back within 3 s, before regeneration starts at 8)", healed.used >= 1 && healed.after >= healed.before + 10, JSON.stringify(healed));
   // Phase 20 A2, the owner's case for real: that healed bot's health is a fraction (Heal gives perSecond x dt a
   // frame). A hit through the bullets' own path that finishes it takes exactly what it had left, and reads whole.
   // A third off first, in case the heal happened to stop on a whole number, so this cannot pass by luck.
@@ -5581,7 +5621,7 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   // it and not once you turn away; and going well past a sprint shows the speed streaks
   const outline = await ev<{ on: number; off: number } | null>(
     page,
-    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping); if (!b) return ok(null); const upd = b.bot.update; b.bot.update = () => []; const p = r.player.pos; const eye = r.player.eyePosition(); b.bot.pos.set(p.x, p.y, p.z - 12); b.bot.dummy.group.position.copy(b.bot.pos); r.player.yaw = 0; r.player.pitch = Math.atan2(b.bot.pos.y + 1.2 - eye.y, 12) * 180 / Math.PI;
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping && !x.bot.skHacks?.includes("invis") && x.bot.dummy.group.visible); if (!b) return ok(null); const upd = b.bot.update; b.bot.update = () => []; const p = r.player.pos; const eye = r.player.eyePosition(); b.bot.pos.set(p.x, p.y, p.z - 12); b.bot.dummy.group.position.copy(b.bot.pos); r.player.yaw = 0; r.player.pitch = Math.atan2(b.bot.pos.y + 1.2 - eye.y, 12) * 180 / Math.PI;
       const lit = () => (b.bot.dummy.outline?.hulls ?? []).filter((h) => h.hull.visible).length;
       setTimeout(() => { const on = lit(); r.player.yaw = 180; setTimeout(() => { const off = lit(); b.bot.update = upd; ok({ on, off }); }, 400); }, 400); }))()`,
   );
@@ -6561,6 +6601,11 @@ async function main(): Promise<void> {
     if (want("speedkills")) {
       console.log("\nSpeedKills: the front door, the guns, fusion and the hacks");
       await speedkillsTest(browser);
+    }
+
+    if (want("skfriends")) {
+      console.log("\nSpeedKills with friends: two friends into one battle royale");
+      await brFriendsJoinTest(browser);
     }
 
     if (want("skship")) {

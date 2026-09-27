@@ -36,7 +36,7 @@ import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier, t
 import { buildRange, skyFollow, setShadowRegion, setHour, getSun, RANGE_BOUNDS, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, matchHour, loadBrSky, saveBrSky, loadSkHour, saveSkHour, type Hour } from "./game/sky";
 import { buildBrMap, BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
-import { BrMatch, DROP_HEIGHT } from "./game/brmatch";
+import { BrMatch, DROP_HEIGHT, teamFor } from "./game/brmatch";
 import { SHIP, surfaceUnder, type ShipRun } from "./game/dropship";
 import { GULAG } from "./game/gulag";
 import brCfg from "./config/br.json";
@@ -2300,6 +2300,7 @@ brAbilities.addEventListener("change", () => {
 });
 // choosing the battle royale on the friends' row shows its own setting (on unless you turned it off)
 duelMode.addEventListener("change", showAbilitySettings);
+duelMode.addEventListener("change", () => duelButtons());
 /** the battle royale's bot count, each game its own (the menu keeps the same key, menu.ts BR_BOTS_KEY) */
 const BR_BOTS_STORE = IS_SK ? "range.br.bots.sk" : "range.br.bots";
 try {
@@ -2406,7 +2407,8 @@ function duelButtons(): void {
   duelHostBtn.hidden = busy;
   duelJoinBtn.hidden = busy;
   duelCode.hidden = busy;
-  duelPlayers.hidden = busy;
+  // (not for a battle royale: its squads say how many, brCapacity)
+  duelPlayers.hidden = busy || duelMode.value === "br";
   duelLeaveBtn.hidden = !busy;
   // the host with some friends in and some places still open: start with those in
   const d = duel instanceof Duel ? duel : null;
@@ -5076,7 +5078,7 @@ duelHostBtn.addEventListener("click", () => {
   if (duel || hosting) return;
   cancelJoin?.();
   newNight();
-  const players = Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
+  const players = duelMode.value === "br" ? brCapacity() : Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
   readHostSettings();
   openHosting(players);
   // the lobby is the arena itself: in at once, run around, the code on the
@@ -5087,6 +5089,18 @@ duelHostBtn.addEventListener("click", () => {
     void input.lock();
   }
 });
+
+/**
+ * A battle royale's room for friends: its squad when the friends are one squad (a trio is three), everyone the
+ * match takes when they are squads against each other or on their own. The players dropdown is the 1v1's, and
+ * left at its 2 it turned a second friend away as the match being full (the owner, 2026-09-27). Fewer than this
+ * can start with Start now.
+ */
+function brCapacity(): number {
+  const size = teamFor(brTeamId()).size;
+  const split = $<HTMLSelectElement>("brSides").value === "split";
+  return split || size <= 1 ? MAX_PLAYERS : Math.min(MAX_PLAYERS, size);
+}
 
 /** a code for a match of `players` on hostBr and hostOpts as they stand: the invite on the Friends tab, the guests into the match as they come */
 function openHosting(players: number, then?: (code: string) => void): void {
