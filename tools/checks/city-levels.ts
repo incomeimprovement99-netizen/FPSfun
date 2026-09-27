@@ -107,13 +107,13 @@ check("this is SpeedKills (the city is its map)", IS_SK);
 check("the centre is the tallest part of the map: its highest standing top 120 m and more (the plan's 120)", maxTop >= 120, `${maxTop.toFixed(1)} m`);
 // band, its index, what it measured, the plan's target
 const held: Array<[string, number, number, number]> = [
-  ["10 to 30 m", 2, 14920, 15000],
-  ["30 to 60 m", 3, 17230, 20000],
+  ["10 to 30 m", 2, 16010, 15000],
+  ["30 to 60 m", 3, 18775, 20000],
 ];
 for (const [name, i, was, target] of held) check(`the centre's room to stand ${name}: ${spire[i]} m2, held at a tenth under ${was} (the plan's target ${target})`, spire[i] >= Math.floor(was * 0.9), `${Math.round((spire[i] / target) * 100)}% of the target`);
 // 60 m and up, held over the two bands together
 const over60 = spire[4] + spire[5];
-check(`and 60 m and up: ${over60} m2, held at a tenth under 19046 (the plan's targets 15000 to 100 m and 5000 over it)`, over60 >= Math.floor(19046 * 0.9), `${spire[4]} to 100 m, ${spire[5]} over`);
+check(`and 60 m and up: ${over60} m2, held at a tenth under 20069 (the plan's targets 15000 to 100 m and 5000 over it)`, over60 >= Math.floor(20069 * 0.9), `${spire[4]} to 100 m, ${spire[5]} over`);
 console.log(`        the street's share of the centre's room to stand: ${((spire[0] / all) * 100).toFixed(1)}% (the plan's target 20% or less)`);
 console.log(fails ? `\nCITY LEVELS FAIL (${fails})` : "\nCITY LEVELS PASS");
 process.exit(fails ? 1 : 0);

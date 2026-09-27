@@ -163,5 +163,9 @@ export async function dressCityKit(root: THREE.Object3D, places: KitPlace[], q: 
   const machines = new Set([kit.dress.machinery.stack, kit.dress.machinery.machine]);
   const dressedMachines = want.filter((p) => machines.has(p.piece) && byId.has(p.piece)).length;
   if (KIT_SITES.machinery.length && dressedMachines >= KIT_SITES.machinery.length) for (const m of STAND_INS.machinery) m.visible = false;
+  // and the fire escapes, once every storey of every one wears its piece
+  const escapeStoreys = KIT_SITES.escapes.reduce((a, e) => a + e.storeys - 1, 0);
+  const dressedEscapes = want.filter((p) => p.kind === "escape" && byId.has(p.piece)).length;
+  if (escapeStoreys && dressedEscapes >= escapeStoreys) for (const m of STAND_INS.escapes) m.visible = false;
   return CITY_KIT.drawn;
 }

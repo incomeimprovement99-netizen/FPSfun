@@ -5350,3 +5350,40 @@ building".
     at every level (both failed at the old 4.4);
   - e2e: an enemy's HEAL at your feet is an area you heal in; a real match's line passes the crown 17 to 26 m off;
   - pictures of the outline at 10, 40 and 90 m, hip and scoped, before and after; verify; rules.
+
+## Milestone 281 — Fire escapes: ladders you can fight on
+
+The plan's fire escapes (docs/PHASE_21_PLAN_THE_VERTICAL_CENTRE.md, "ladders you can fight on"; the bundle plan's rule
+7), up 18 of the centre's towers, High City's and Kyber's, in their own packs' pieces.
+
+- **Measured, not assumed** (`tools/measure-escape.ts`, reading the baked pieces locally). A tile is one 4 m storey,
+  our storey: the plan's "5 m a storey, scale 0.8" came from its bounds, whose top is the handrail a metre over the
+  landing. Its flight climbs from 0.71 m along the landing below to 3.1 m along, into a hole in the landing over it;
+  High City's and Kyber's tiles carry the same stair. Rule 7 in docs/CITY_BUNDLE_IMPLEMENTATION.md is corrected.
+- **How you go up.** From the promenade, jump and climb the drop ladder to the first landing, a storey up (you walk
+  under it). Then walk: each flight is eight treads of 0.5 m (under the 0.56 m a body steps up) in the outer lane,
+  through a hole in the landing over it cut behind a climber's back from the tread their head would meet it; the
+  inner strip is the way back to the next flight's foot. From the top landing, a storey under the roof, climb the
+  wall onto the roof, beside High City's gooseneck ladder. Rails round every landing, open over the drop ladder.
+- **Solid as drawn.** The stair's lane is 0.8 m, less than a body (0.82 m), so every piece is drawn 1.25 times deeper
+  and the solids with it; the solids' numbers are the pieces' own (`citykit.json` dress escapes), and the gameplay's
+  in `city.json` fireEscape.
+- **Where.** On a street face, a metre from its corner, never over a canyon (its walls are for running), only over
+  the promenade, with nothing solid in its way, no pad within 3 m, no window of an open storey within a metre and no
+  door; one a tower. Placed last in the build, from a stream of its own, so the city's stream is untouched.
+- **What you see.** From Balanced up, the family's pieces: the drop ladder's landing (drawn 0.81 high), a tile a
+  storey, and High City's top piece with its gooseneck over the parapet. The facade behind is pressed flat and no
+  wall unit, pipe or wire stands in it. On Competitive, and on a copy without the files, the city draws them light:
+  a landing's plates, a plate on each flight's slope and each outer rail's top bar (a box a tread and a rail was 82k
+  triangles, over the city's 320k; now 317k).
+- **What it costs.** 155k triangles of the kit on Balanced and High (1,461k and 1,564k) and 85 draw calls; the
+  city's own stand-ins 7k triangles. The kit's limits go to 1,540k and 1,640k without a bench of their own (one
+  begun ran beside another worktree's e2e and measured only that; the owner asked for basic checks until the
+  next long batch), on the strength of the last one. The interleaved bench with the escapes is owed.
+- **Room to stand.** 10 to 30 m: 16,010 m² (107% of the plan's target); 30 to 60 m: 18,775 m² (94%); 60 m and up
+  20,069 m². The street's share of it down from 21.7% to 20.9% (the plan's 20% or less). `city-levels.ts` holds the
+  new figures.
+- **Checked:** a new check, `sk-escapes.ts`: every escape climbed with the real movement, the ladder, every flight
+  walked with no climb or jump (1,152 waypoints) and the wall to the roof, 18 of 18; each clear of pads, doors and
+  windows. Proven by cutting the landings' holes 0.6 m short: every flight then needed a climb. `citykit.ts`,
+  `city-budget.ts`, `city-levels.ts`; pictures from the street, a landing and a flight on Balanced and Competitive.

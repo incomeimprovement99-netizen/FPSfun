@@ -18,7 +18,7 @@ export interface KitPlace {
   /** how far its front stands out of the wall it is on, when that is not what its measured relief says (a canyon's pressed module) */
   out?: number;
   /** what it is, for the checks' clearances: facade and parapet stand flush, the rest stand out of a wall or stand free */
-  kind: "facade" | "flat" | "band" | "car" | "podium" | "shop" | "parapet" | "cornice" | "sign" | "blade" | "poster" | "ac" | "billboard" | "roof" | "antenna" | "lamp" | "cable" | "pipe" | "wire" | "prop" | "skyline" | "zeppelin";
+  kind: "facade" | "flat" | "band" | "car" | "podium" | "shop" | "parapet" | "cornice" | "sign" | "blade" | "poster" | "ac" | "billboard" | "roof" | "antenna" | "lamp" | "cable" | "pipe" | "wire" | "prop" | "skyline" | "zeppelin" | "escape";
 }
 
 type Facing = "px" | "nx" | "pz" | "nz";
@@ -170,6 +170,8 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
   const bridgeEnds = PARK_BRIDGES.flatMap((b) => [{ x: b.ax - BR_X, z: b.az - BR_Z, y: b.y }, { x: b.bx - BR_X, z: b.bz - BR_Z, y: b.y }]);
   const atBridgeEnd = (x: number, z: number, y: number) => bridgeEnds.some((e) => Math.abs(e.y - y) < 0.5 && Math.hypot(e.x - x, e.z - z) < 2.5);
   const towers = KIT_SITES.towers.filter((t) => inCentre(t.x, t.z));
+  /** inside a fire escape's box (city.ts KIT_SITES escapes), `pad` metres round it */
+  const inEscape = (x: number, z: number, y: number, pad = 0.5) => KIT_SITES.escapes.some((e) => x > e.x0 - pad && x < e.x1 + pad && z > e.z0 - pad && z < e.z1 + pad && y > e.y0 - 0.5 && y < e.y1);
   /** a face with another tower close in front of it: a canyon's, where nothing may stand out of the wall */
   const canyonFace = (t: (typeof towers)[number], f: Face): boolean =>
     towers.some((o) => {
@@ -274,7 +276,10 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
             const piece = padBay(um) ? pick(D.flat, kitHash(um, s, 31)) : id;
             const pd = dims(piece);
             if (!pd) continue;
-            const r = relief(piece);
+            // behind a fire escape the module is pressed as a canyon's is, so its relief stays behind the landings
+            const [ex, ez] = onFace(f, um, 1);
+            const behind = inEscape(ex, ez, y + STOREY / 2, -0.5 + (b - a) / 2);
+            const r = behind ? { sz: planeOf(piece) > D.canyonRelief ? D.canyonRelief / planeOf(piece) : 1, out: D.outset + Math.min(planeOf(piece), D.canyonRelief) } : relief(piece);
             const [x, z] = onFace(f, um, r.out);
             add(piece, place(piece, x, y, z, f.yaw, (b - a) / pd.w, STOREY / pd.h, r.sz, true), 0, piece === id ? "facade" : "flat");
           }
@@ -285,6 +290,7 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
             const u = f.a + (i + 0.5) * bay;
             const [px, pz] = onFace(f, u, 0);
             if (nearPad(px, pz)) continue;
+            if (inEscape(px, pz, y)) continue;
             if (kitHash(t.x, t.z, s, i, f.nx, f.nz, 2) < (alleyFace(f) ? A.ac : D.chance.wallAc)) {
               const ac = pick(D.wallAc, kitHash(u, s, 3));
               const [x, z] = onFace(f, u, D.outset + 0.05);
@@ -293,7 +299,7 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
           }
           const col = f.a + (Math.floor(kitHash(t.x, t.z, f.nx, f.nz, 4) * n) + 0.02) * bay;
           const [cx, cz] = onFace(f, col, 0);
-          if (!nearPad(cx, cz)) {
+          if (!nearPad(cx, cz) && !inEscape(cx, cz, y)) {
             if (fam === "kyber" && kitHash(t.x, t.z, f.nx, f.nz, 5) < D.chance.wire) {
               const [x, z] = onFace(f, col, D.outset + 0.05);
               const w = D.wires[0];
@@ -632,6 +638,31 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         if (!clearOf(lx, kz, 0.6)) continue;
         // its arm out over the street
         add(D.lamp, place(D.lamp, lx, 0, kz, kz < alleyZ ? 0 : Math.PI, 1, 1, 1, false), 1, "lamp");
+      }
+    }
+  }
+
+  // ------------------------------------------------ the fire escapes (city.json fireEscape): the family's pieces over the city's boxes
+  {
+    const E = D.escapes;
+    const yawOf = { n: Math.PI, s: 0, w: -Math.PI / 2, e: Math.PI / 2 } as const;
+    for (const e of KIT_SITES.escapes) {
+      const fam = (E.families as Record<string, (typeof E.families)[keyof typeof E.families] | undefined>)[e.family];
+      if (!fam) continue;
+      const along = (x: number, out: number): [number, number] => {
+        const u = e.uStart + e.dir * x;
+        return e.face === "n" || e.face === "s" ? [u, e.at + (e.face === "s" ? 1 : -1) * out] : [e.at + (e.face === "e" ? 1 : -1) * out, u];
+      };
+      for (let k = 1; k < e.storeys; k++) {
+        // the lowest the drop ladder's (its landing measured higher, so drawn a storey tall), the highest High City's
+        // with the gooseneck over the parapet, a tile between
+        const top = k === e.storeys - 1 && fam.top ? fam.top : null;
+        const id = k === 1 ? fam.down : (top ?? fam.tile);
+        const dm = dims(id);
+        if (!dm) continue;
+        const sy = k === 1 ? STOREY / fam.downLanding : 1;
+        const [x, z] = along(dm.w / 2 - (top ? fam.topShift[0] : 0), (dm.d - (top ? fam.topShift[1] : 0)) * E.depthScale);
+        add(id, place(id, x, e.base + (k - 1) * STOREY, z, yawOf[e.face], 1, sy, E.depthScale, true), 1, "escape");
       }
     }
   }

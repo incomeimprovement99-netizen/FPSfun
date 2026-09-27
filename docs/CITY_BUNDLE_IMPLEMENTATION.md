@@ -94,7 +94,7 @@ From `src/config/city.json`: storey 4 m, streets 14 m. From `src/config/movement
 | Cyber `plate 1` / `plate 05`; Kyber `column plate` | 8 x 0.3 x 2; 4 x 0.3 x 2; 4 x 0.3 x 4 | a 2 m deep ledge | balconies, ledges, landings |
 | High `parapet tile` | 4 x **0.70** x 0.64 | **over the 0.56 m step** | roof edges that are **not** gap edges |
 | High `parapet fence` | 1.83 x 0.98 | rail height | bridges, balconies |
-| **Fire escapes**: High `fire ladder a tile` / `b tile`; Kyber `ladder tile A` | 5.03 x **4.98**; 6.01 x 4.98; 4.04 x 4.99 | **built for 5 m storeys** against our 4 m | see 4.6, rule 7 |
+| **Fire escapes**: High `fire ladder a tile` / `b tile`; Kyber `ladder tile A` | 5.03 x **4.98**; 6.01 x 4.98; 4.04 x 4.99 | **4 m storeys, ours** (measured: the landings are 4.00 m apart; the 4.98 is the handrail over the top one) | see 4.6, rule 7 |
 | Kyber `bridge` | 2.3 wide, 4 m a segment | a skybridge module | bridges at 32 and 64 m |
 | Road and sidewalk tiles | 4 x 4 | the grid | streets, concourse |
 | High `advertis plane` on `advertis hold` | 16 x 22 on a 23 m pole | landmark scale | Spire and rooftop billboards |
@@ -102,7 +102,7 @@ From `src/config/city.json`: storey 4 m, streets 14 m. From `src/config/movement
 | High cars; `fly engine`; `traffic light fly` | 1.3k to 2.3k tris a car | | parked cars, flying traffic lanes |
 
 **The two mismatches to handle:**
-- **Fire escapes are 5 m a storey** where our storeys are 4 m (rule 7).
+- **Fire escapes are 4 m a storey**, as ours are (rule 7, measured 2026-09-27; the bounds' 4.98 m is the handrail).
 - **Parapets are 0.70 m**, above the 0.56 m step, so none may stand on a gap's launch or landing edge (rule 3).
 
 ## 3. What the bundle does not have (use what the game already has)
@@ -242,9 +242,10 @@ players will expect to stand on (plates, bridges, fire-escape landings); each of
 4. **Overhead clutter:** cables, signs and holders never cross a pad column, a zipline or a gap's arc (2 m clear).
 5. **Run walls** are flat for at least one wall run (21 m) wherever a chain uses them.
 6. **Balcony ledges** (Cyber plates, 8 x 2 m) keep a 4 m step between them, under the 5.1 m climb.
-7. **Fire escapes are 5 m a storey.** Either place them on facades whose ledges are also 5 m apart (5 m is inside the
-   5.1 m climb with almost no margin, so prove it), or scale them 0.8 vertically onto our 4 m storeys (they are
-   visual). Default: scale to 0.8 and check the picture. Their landings get matching solids either way.
+7. **Fire escapes are 4 m a storey** (measured 2026-09-27 by `tools/measure-escape.ts`: a tile's landings are 4.00 m
+   apart, its stair 0.71 to 3.1 m along; the 4.98 m of its bounds is the handrail a metre over the landing). The
+   tiles go on unscaled; only the lowest piece, whose landing stands 4.96 m up over its drop ladder, is drawn 0.81
+   high. Their landings, flights and rails get matching solids (Milestone 281).
 8. **A new check, `tools/checks/kit-clear.ts`:** every chain corridor, pad column, window opening and gap arc is free
    of kit mesh bounds. Prove it by putting a sign into a chimney and watching the check fail.
 
