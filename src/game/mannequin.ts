@@ -20,7 +20,8 @@
 // spine turns back onto the aim, the spine bends to the look pitch, a shot
 // kicks, a hit flinches, a JOLT leans.
 import * as THREE from "three";
-import { fitMuzzle } from "./muzzle";
+import { fitGlint, fitMuzzle } from "./muzzle";
+import { opticInfo } from "./optics";
 import { ammoTypeOf } from "./ammo";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -857,6 +858,8 @@ export class MannequinFigure {
   }
   /** its gun's muzzle flash, lit by the figure on a shot */
   flash: THREE.Sprite | null = null;
+  /** its gun's scope glint, lit while it aims a magnified optic (muzzle.ts fitGlint), or null */
+  glint: THREE.Sprite | null = null;
   private gunShown = true;
   private mats: THREE.MeshStandardMaterial[] = [];
   private joints: THREE.MeshStandardMaterial | null = null;
@@ -1127,6 +1130,11 @@ export class MannequinFigure {
     const gun = m.root.clone(true);
     // the model's own flash out, a marker with a flash sprite in its place (muzzle.ts)
     this.flash = fitMuzzle(gun, ammoTypeOf(id) === "energy", m.muzzle);
+    // a magnified optic glints when its holder aims (Hyper Scape's lens flare), at its front lens: the frontmost point
+    // of the gun within 3 cm of its sight line, measured off the model (at the eyepiece the gun and head hid it)
+    // (SpeedKills: every gun wears its profile's one optic; the legacy game's figures carry none they show)
+    const optic = IS_SK ? ((PROFILE.weapons as Record<string, { optic?: string }>)[id]?.optic ?? null) : null;
+    this.glint = optic && opticInfo(optic)?.overlay ? fitGlint(gun, lensFront(gun, m.sightY)) : null;
     gun.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
     });
@@ -1942,6 +1950,30 @@ function soldierArmRig(skin: OperatorSkin): ArmRig | null {
   const grip = fingersFrom(cloneSkinned(src), t.clips.get("full:Pistol_Aim_Neutral"), 0);
   const fist = fingersFrom(cloneSkinned(src), t.clips.get("full:Punch_Jab"), 0.3);
   return { root, bones, grip, fist, ...restFingers(cloneSkinned(src), fist), key: `soldier|${code}` };
+}
+
+/**
+ * Where a scope's flare hangs: 12 cm ahead of the front of the gun's sight line (its frontmost drawn point within 3 cm
+ * of `sightY` and 4 cm of its centre). At the lens itself the lens housing, depth-tested, hid it from every side; ahead,
+ * a wall between still does
+ */
+function lensFront(gun: THREE.Object3D, sightY: number): THREE.Vector3 {
+  gun.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(gun.matrixWorld).invert();
+  const to = new THREE.Matrix4();
+  const v = new THREE.Vector3();
+  let front = Infinity;
+  gun.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.visible) return;
+    to.multiplyMatrices(inv, mesh.matrixWorld);
+    const p = mesh.geometry.getAttribute("position");
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i).applyMatrix4(to);
+      if (Math.abs(v.y - sightY) < 0.03 && Math.abs(v.x) < 0.04) front = Math.min(front, v.z);
+    }
+  });
+  return new THREE.Vector3(0, sightY, Number.isFinite(front) ? front - 0.12 : -0.4);
 }
 
 /** what a rig built now for this look would be keyed, so the viewmodel knows when to rebuild */

@@ -20,7 +20,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { displayGunModel, applyFinishTo } from "./gunmodels";
 import { buildGear } from "./gear";
-import { MUZZLE, fitMuzzle, muzzleOf, showFlash } from "./muzzle";
+import { MUZZLE, fitMuzzle, muzzleOf, showFlash, showGlint } from "./muzzle";
 import { ammoTypeOf } from "./ammo";
 import { OPERATORS, skinMaterials, type OperatorSkin } from "./operators";
 import { MannequinFigure, useMannequin } from "./mannequin";
@@ -950,6 +950,8 @@ export class Dummy {
 
   /** the robot gun's muzzle flash (the mannequin's is its own), and how long it has left lit */
   private flashSprite: THREE.Sprite | null = null;
+  /** the scope glint's own clock, for its twinkle */
+  private glintT = 0;
 
   /** the muzzle of the gun this figure shows, in the world: where its tracers start (null with no gun) */
   muzzleWorld(): THREE.Vector3 | null {
@@ -1264,6 +1266,8 @@ export class Dummy {
       }
     }
     // the mannequin plays its clips for the same pose, with the same corrections on top
+    // a scoped figure aiming in glints (muzzle.ts, Hyper Scape's lens flare), and not while its gun is away
+    if (this.mq?.glint) showGlint(this.mq.glint, this.gunShown && !downed ? e.ads : 0, this.glintT += dt);
     this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null }, this.lodAnimate);
     if (this.lodAnimate) this.followBones();
   }

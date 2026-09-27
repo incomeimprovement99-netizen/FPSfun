@@ -5150,6 +5150,26 @@ async function soldierTest(browser: Browser): Promise<void> {
       return { before, after: r.gunFeel().screen, clip };
     })()`,
   );
+  // a scoped figure aiming in glints (Hyper Scape's lens flare, muzzle.ts fitGlint): BOOG aimed does, BOOG at the hip
+  // does not, and the USSO (a reflex sight, not a magnified one) has none to show
+  const glint = await ev<Array<boolean | null>>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const figs = r.figureLab([
+        { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "sentinel", look: "S0000010" },
+        { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "sentinel", look: "S1111020" },
+        { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "r97", look: "S2222030" },
+      ], 6, 0);
+      const g0 = r.gameTime();
+      const t0 = performance.now();
+      while (r.gameTime() - g0 < 1 && performance.now() - t0 < 30000) await new Promise((ok) => setTimeout(ok, 20));
+      const out = r.labFigures().map((f) => (f.mq && f.mq.glint ? f.mq.glint.visible : null));
+      r.figureLab([]);
+      return out;
+    })()`,
+  );
+  check("soldier guns: a figure aiming BOOG's scope glints, not at the hip, and the USSO's reflex sight has no glint", glint[0] === true && glint[1] === false && glint[2] === null, JSON.stringify(glint));
   check(
     "soldier guns: the USSO's screen shows its rounds, and a shot takes one off it",
     !!screen.before && !!screen.after && screen.after.startsWith(`${screen.clip}|`) && screen.before !== screen.after,

@@ -26,7 +26,7 @@ is its Protocol V (a scoped bolt-action with a 3-round magazine).
 | Holo-sights were projected frames with a reticle, red until patch 2.3, white after | Every bought gun aims down its own sight; its dot is drawn red; the USSO wears the pack's reflex sight (Milestone 266) | ✅ |
 | The Protocol V's scope: the whole screen in a soft chamfered frame, thin red lines across with range ticks, a post above, stadia below, "x8.00" by a chevron at the left | BOOG's scope is drawn that way (hud.ts drawHsScope), with our recharge bar under the readout; it was a circle | ✅ (Milestone 269) |
 | The scope's rear face is a small screen showing the reticle at the hip | BOOG's scope keeps the pack's own glass | 🟡 |
-| A lens flare other players see while you are scoped (patch 1.1) | None | ❌ next |
+| A lens flare other players see while you are scoped (patch 1.1) | A figure aiming a magnified optic throws a flare, a hot core with a streak across, head-sized near and never under 18 pixels far | ✅ (Milestone 271) |
 | No published ADS time | Ours | ⛔ |
 
 ## The guns in the hands
@@ -74,7 +74,7 @@ is its Protocol V (a scoped bolt-action with a 3-round magazine).
 
 ## What is next, ranked
 
-1. **The scope's lens flare.** Other players see a glint on a scoped BOOG, as Hyper Scape added in patch 1.1.
+1. ~~The scope's lens flare~~ done (Milestone 271).
 2. **Movement trails.** Red behind enemies, blue behind mates, gold behind the crown. Hyper Scape's players named them
    among the game's defining reads.
 3. **The kill skull and the squad-wipe tracker** under the crosshair.

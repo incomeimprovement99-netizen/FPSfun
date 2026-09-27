@@ -95,6 +95,71 @@ export function fitMuzzle(gun: THREE.Object3D, energy: boolean, muzzle: THREE.Ve
   return s;
 }
 
+export const GLINT = cfg.scopeGlint;
+let glintMat: THREE.SpriteMaterial | null = null;
+let glintTex: THREE.Texture | null = null;
+
+/**
+ * A lens flare, drawn once: a hot core, a soft halo and a long thin streak across it, as a lens throws one (the
+ * flash's star, tried first, read as a white fleck against the sniper's white skin)
+ */
+function glintTexture(): THREE.Texture | null {
+  if (glintTex) return glintTex;
+  if (typeof document === "undefined") return null;
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 64;
+  const g = c.getContext("2d");
+  if (!g) return null;
+  const halo = g.createRadialGradient(128, 32, 0, 128, 32, 32);
+  halo.addColorStop(0, "rgba(255,255,255,1)");
+  halo.addColorStop(0.18, "rgba(255,255,255,0.95)");
+  halo.addColorStop(0.5, "rgba(255,255,255,0.3)");
+  halo.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = halo;
+  g.fillRect(96, 0, 64, 64);
+  const streak = g.createLinearGradient(0, 0, 256, 0);
+  streak.addColorStop(0, "rgba(255,255,255,0)");
+  streak.addColorStop(0.5, "rgba(255,255,255,0.9)");
+  streak.addColorStop(1, "rgba(255,255,255,0)");
+  g.globalCompositeOperation = "lighter";
+  g.fillStyle = streak;
+  g.fillRect(0, 30, 256, 4);
+  g.fillStyle = "rgba(255,255,255,0.35)";
+  g.fillRect(40, 28, 176, 8);
+  glintTex = new THREE.CanvasTexture(c);
+  return glintTex;
+}
+
+/**
+ * A scoped gun's lens flare (hud.json scopeGlint), on a figure's gun at the front of its sight line (`at`, gun space):
+ * the flash's star in the glint's colour, out until the figure aims in. Null with no canvas to paint it.
+ */
+export function fitGlint(gun: THREE.Object3D, at: THREE.Vector3): THREE.Sprite | null {
+  if (!canPaint()) return null;
+  if (!glintMat) glintMat = new THREE.SpriteMaterial({ map: glintTexture(), color: new THREE.Color(GLINT.color).multiplyScalar(1.6), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false, toneMapped: false });
+  const s = new THREE.Sprite(glintMat);
+  s.name = "scope-glint";
+  s.position.copy(at);
+  s.visible = false;
+  s.renderOrder = 10;
+  gun.add(s);
+  return s;
+}
+
+/** a glint this frame: lit while `aim` is past its threshold, at least GLINT.minPx across, twinkling on `t` */
+export function showGlint(s: THREE.Sprite, aim: number, t: number): void {
+  s.visible = aim > GLINT.from;
+  if (!s.visible) return;
+  s.getWorldPosition(at);
+  const dist = at.distanceTo(viewer.pos);
+  const size = Math.max(GLINT.size, (dist * GLINT.minPx) / viewer.pxPerRad) * (1 - GLINT.twinkle * 0.5 + GLINT.twinkle * 0.5 * Math.sin(t * 9));
+  s.parent?.getWorldScale(scaleOf);
+  const k = size / (scaleOf.x > 1e-6 ? scaleOf.x : 1);
+  // the texture is four times as wide as tall: the streak runs across, the core stays round
+  s.scale.set(k * 4, k, 1);
+}
+
 /** where the flashes are seen from, and how many pixels a radian is there (main sets it each frame) */
 export const viewer = { pos: new THREE.Vector3(), pxPerRad: 600 };
 

@@ -53,6 +53,14 @@
     "size": 0.35,
     "minPx": 6
   },
+  "_scopeGlint": "A scoped figure's lens flare (muzzle.ts fitGlint), Hyper Scape's patch 1.1: \"a Lens Flare when players are aiming with the rifle, to give warning to their potential victims\". On a figure aimed in (its aim past `from`) holding a gun with a magnified optic, at the front of the gun's sight line: `size` metres across, never under `minPx` pixels on screen (its players found Hyper Scape's \"too big, covering the entire body\", so ours is about a head's width near (0.12 m read as a few pixels at 6 m, lost against the gun's white skin) and never under a clear star far), in `color`, a cool white, twinkling by `twinkle` of itself; its streak across is four times its height.",
+  "scopeGlint": {
+    "from": 0.6,
+    "size": 0.28,
+    "minPx": 18,
+    "color": "#cfe6ff",
+    "twinkle": 0.25
+  },
   "_note": "The HUD's few gameplay numbers (ours). Plates: an enemy's name and bars show only after you have damaged them, for `afterHit` seconds from the last hit, and only while the line from your eye to their chest is clear of the level; a team mate's always. A plate is last drawn at `range` metres, fading from `fadeFrom`: the owner asked for them off far away as well as behind cover, so this is a room-and-a-half, not the width of the map.",
   "plates": {
     "afterHit": 6,

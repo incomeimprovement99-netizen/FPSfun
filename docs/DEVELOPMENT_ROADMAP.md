@@ -5135,3 +5135,20 @@ floors next to each deck are open inside" and "every deck, by stairs inside a to
   - `sk-lobbies` (24 lobbies, 27 window pads, every bridge and canyon; its runs now start on open floor, not on a
     core's rail), `sk-chimneys`, `sk-drop`, `citykit` (nothing across any room's window or any of the 26 doors),
     `city-budget` (299k triangles, the steps a box each; its limit 320k); verify and rules.
+
+## Milestone 271 — BOOG's scope glints: the lens flare other players see
+
+The first item of `docs/HYPERSCAPE_GAP_ANALYSIS.md`. Hyper Scape's patch 1.1: "a Lens Flare when players are aiming
+with the rifle, to give warning to their potential victims".
+
+- **A scoped figure aiming in throws a flare** (`muzzle.ts` fitGlint and showGlint, `mannequin.ts`, `hud.json`
+  scopeGlint). On any SpeedKills gun whose optic draws a full-screen scope (BOOG, HELIX and PULSAR), once the figure's
+  aim passes 0.6. Its own texture: a hot core, a soft halo and a long thin streak across it, cool white. It measures
+  0.28 m near and never under 18 pixels far; Hyper Scape's players found its flare "too big, covering the entire body".
+- **Where it hangs:** 12 cm ahead of the front of the scope, found off the model: the frontmost point within 3 cm of
+  the sight line. At the eyepiece, where it was first put, the figure's head and gun hid it. At the lens, the housing
+  hid it from every side (the same flare drawn over everything showed there). Ahead, a wall between still does.
+- **Checked:**
+  - the e2e soldier section: BOOG aimed glints, BOOG at the hip does not, and the USSO's reflex sight has none;
+  - verify and rules;
+  - pixels at 8 m: 451 in a 140-pixel window brighter with the flare than without.
