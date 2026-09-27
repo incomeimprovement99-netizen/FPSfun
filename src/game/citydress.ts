@@ -368,7 +368,8 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
   for (const p of KIT_SITES.podia) {
     if (!inCentre((p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2)) continue;
     const fam = familyAt((p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2);
-    const rows = D.rows[fam] as { bay: number; mid: string[] };
+    // one of the family's styles (dress styles), as its towers wear
+    const rows = pick([D.rows[fam], ...((D.styles as Record<string, unknown[]>)[fam] ?? [])], kitHash(p.x0, p.z0, 91)) as { bay: number; mid: string[] };
     const y0 = cityCfg.kerb;
     for (const f of faces(p.x0, p.x1, p.z0, p.z1)) {
       const len = f.b - f.a;
@@ -379,12 +380,23 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         const u = f.a + (i + 0.5) * bay;
         const [fx, fz] = onFace(f, u, 1.5);
         if (inStair(fx, fz, D.clear.stair + bay / 2) || nearPad(fx, fz, D.clear.pad + bay / 2)) continue;
-        const id = pick(lean ? D.lean.shops : D.shops, kitHash(p.x0, p.z0, u, 13));
-        const sd = dims(id);
-        if (!sd) continue;
-        const r = relief(id);
-        const [x, z] = onFace(f, u, r.out);
-        add(id, place(id, x, y0, z, f.yaw, bay / sd.w, STOREY / sd.h, r.sz, true), 0, "shop");
+        // from Balanced up, now and then a door and a window rather than one shop (dress shopPairs)
+        const SP = D.shopPairs;
+        const pair = !lean && kitHash(p.x0, p.z0, u, 33) < SP.chance;
+        const door = pick(SP.doors, kitHash(p.x0, p.z0, u, 34));
+        const win = pick(SP.windows, kitHash(p.x0, p.z0, u, 35));
+        const parts: Array<[string, number, number]> = pair
+          ? kitHash(p.x0, p.z0, u, 36) < 0.5
+            ? [[door, u - bay / 4, bay / 2], [win, u + bay / 4, bay / 2]]
+            : [[win, u - bay / 4, bay / 2], [door, u + bay / 4, bay / 2]]
+          : [[pick(lean ? D.lean.shops : D.shops, kitHash(p.x0, p.z0, u, 13)), u, bay]];
+        for (const [id, pu, pw] of parts) {
+          const sd = dims(id);
+          if (!sd) continue;
+          const r = relief(id);
+          const [x, z] = onFace(f, pu, r.out);
+          add(id, place(id, x, y0, z, f.yaw, pw / sd.w, STOREY / sd.h, r.sz, true), 0, "shop");
+        }
       }
       // the floor above: the block's family, and signs, posters and AC units on it
       const upper = pick(rows.mid, kitHash(p.x0, p.z0, 14));

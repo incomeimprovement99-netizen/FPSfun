@@ -5237,7 +5237,7 @@ family wearing two to five wall modules, and 1,400 blank panels on the canyon fa
 - **The Spire's machinery** (`city.json` spire machinery): the Glass pack's pipe stacks at the four corners of the top
   tier's terrace and its machine on the crown deck, each over a solid box of the city's (cover on the capture zone's
   last ground), in materials of their own the kit hides once it dresses them.
-- **Not yet:** the canyon faces still wear flat panels (Milestone 277 dresses them). High City's wall tiles, meant for
+- **Not yet:** the canyon faces still wear flat panels (Milestone 278 dresses them). High City's wall tiles, meant for
   that, are modelled lying down.
 - **Checked:** `citykit.ts` (the machinery's boxes each dressed and its material theirs alone; every piece measured;
   nothing across a window or a door; the budgets); `sk-roofs` (a bot still up the Spire to its crown), `sk-drop`;
@@ -5286,3 +5286,24 @@ The biggest repetition left after Milestone 276: 1,461 blank panels up the faces
   twentieth over.
 - **Checked:** `citykit.ts` (rule 1 on the pieces' real depth, the budgets, doors, windows, stand-ins); verify and
   rules; pictures down two canyons on Balanced and Competitive.
+
+## Milestone 279 — Doors and windows down the shop streets, and the small pieces
+
+The rest of Milestone 276's pass: the pieces of the packs that were imported and measured but placed nowhere. The
+centre now places 206 different pieces (176 after Milestone 278).
+
+- **Shop pairs** (`citykit.json` dress shopPairs). From Balanced up, about a third of the podiums' 8 m shop bays are
+  two 4 m pieces instead: one of Cyber City's four shop doors or three street doors beside one of its shop windows,
+  either way round. A street front reads as doors, windows and brick piers, not the same shop again, and a pair is
+  about a third of a shop's triangles, so Balanced went down 45k (1,306k). Cyber City's second shutter joins the
+  shops.
+- **The podium's upper floor** wears one of its family's styles, as its towers do (Milestone 276), not always the
+  first. Competitive's podiums with it: 562k, inside its 620k.
+- **In the lists:** High City's six strip signs with the signs; its wall vents (three discs and a vent box) with the
+  AC units on walls near a deck; Cyber City's air pipes and valves with the small roof gear, the first-person
+  pack's pipe tubs and Cyber City's pipe holder with the medium.
+- **Left out, and why:** the Glass pack's walls (4,700 to 10,000 triangles a module), the metro tunnel tile (21k),
+  Kyber's robots (1,600 each) and the dumpsters (2.7 m long with nothing solid under them, and you would run
+  through them). The fire escapes wait on solid landings (the plan's rule 7).
+- **Checked:** `citykit.ts` (every piece measured, nothing across a door or a window, the budgets); verify and rules;
+  pictures of the shop streets.
