@@ -4514,3 +4514,23 @@ Phase 21, the brief's levels: "window pads into every tower's deck floors from a
   jump and not a run off (which only mantles over the far sill); every bridge runs lobby to lobby. The city's draw cost
   is 235k triangles against its 240k budget, the window pads drawn leaner than a jump pad.
 - **Not yet:** the bots, which keep to the pads they use now until their route finder knows the lobbies.
+
+## Milestone 247 — The guns audited in every pick: reloads that move, and picks that are real
+
+Phase 21, the owner's question "are the weapons completely in with no bugs?", answered by looking: a new picture sheet
+(`tools/weapon-picks-sheet.ts`) puts every gun in every model it can be picked in, at the hip, in the sights and
+mid-reload, and prints what the reload moves.
+
+- **Three guns kept their magazines in on a reload** since the guns went live: ZEPHYR's rifle, the 3030 and the g2
+  wore the pack's `_1` builds. The pack's `_1` of a family is the same gun as its `_2` (the same length, muzzle and
+  sights, measured) in one piece, with nothing a reload can move. Every gun now wears its family's split build.
+- **The model picks were not real:** a gun's "other model" was its own family's `_1`, the same gun unsplit, and NOVA
+  was offered the launcher's round (0.18 m) as a model. A gun now picks between the pack's guns of its class whose
+  moving parts match its animation (`paidweapons.json` modelGroups): the SMGs (USSO, BIGANT and the g2 choose between
+  the two SMG models). The shotguns do not match (a magazine against a pump: either on the other kept everything still
+  on a reload), so they, the rifles, the snipers and NOVA are picked by skin; the Loadouts tab hides the model picker
+  for a gun with one model.
+- **A bought gun's own scope gives way to a fitted optic** (`viewmodel.ts`): the two stacked filled the sight picture
+  under the optic with the scope's back.
+- **Guarded:** `tools/checks/paid-weapons.ts` fails when a gun wears or can pick a model in one piece or a part that is
+  not a gun (proven with the rifle back on its `_1`); the e2e soldier section's pick is the USSO in the other SMG.

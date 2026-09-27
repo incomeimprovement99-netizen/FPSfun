@@ -1,8 +1,9 @@
 /**
  * The player's pick of each SpeedKills gun's bought model and skin (Phase 21 W9, docs/PHASE_21_OVERNIGHT_PLAN.md).
  *
- * A gun can wear any model of its own family in the pack (src/config/paidmodels.json, every one measured), so a pick
- * always fits the gun's class; its own model comes first. The skin is which of the gun's three skins shows at levels
+ * A gun can wear its own model or the other of its class in the pack (paidweapons.json modelGroups: the two SMGs, the
+ * two shotguns), every one measured (src/config/paidmodels.json); its own comes first. A family's _1 is the same gun
+ * as its _2 in one piece, so it is not a choice. The skin is which of the gun's three skins shows at levels
  * 0 and 1: the fusion levels walk on from it through the other two, so a fused gun still visibly changes.
  *
  * On the wire and in storage a pick is one digit a gun, model times three plus skin, in the roster's order after a G
@@ -21,18 +22,18 @@ export interface GunPick {
 }
 
 const GUNS = cfg.guns as Record<string, { model: string; skins: string[] }>;
-const MODELS = Object.keys(measured.models);
-const familyOf = (m: string): string => m.replace(/_\d+$/, "");
+const MODELS = new Set(Object.keys(measured.models));
+const GROUPS = (cfg as unknown as { modelGroups?: string[][] }).modelGroups ?? [];
 /** the guns a code covers, in the roster's order */
 export const PICK_GUNS = (skCfg.roster as string[]).filter((id) => GUNS[id]);
 export const LS_GUNS = "range.sk.guns";
 
-/** the models a gun can wear: its own, then the rest of its family in the pack, by name */
+/** the models a gun can wear: its own, then the rest of its group, each one measured */
 export function gunChoices(id: string): string[] {
   const g = GUNS[id];
   if (!g) return [];
-  const fam = familyOf(g.model);
-  return [g.model, ...MODELS.filter((m) => m !== g.model && familyOf(m) === fam).sort()];
+  const group = GROUPS.find((gr) => gr.includes(g.model)) ?? [];
+  return [g.model, ...group.filter((m) => m !== g.model && MODELS.has(m))];
 }
 
 /** the model a pick puts on a gun (its own without one) */

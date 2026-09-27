@@ -507,6 +507,11 @@ export class ViewModel {
     this.dropOptic();
     this.optic = buildOptic(mod);
     if (m.irons) m.irons.visible = this.optic === null;
+    // a bought gun's own scope (the pack's Scope parts, paidgun.ts) gives way to a fitted optic: the two stacked filled
+    // the sight picture under the optic with the scope's back (tools/weapon-picks-sheet.ts)
+    m.root.getObjectByName("paid")?.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh && /^Scope/.test(o.name)) o.visible = this.optic === null;
+    });
     if (!this.optic) return;
     this.optic.group.name = name;
     const parent = m.opticOnSlide && m.bolt ? m.bolt : m.root;

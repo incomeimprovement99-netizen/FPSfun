@@ -105,6 +105,31 @@ for (const [id, g] of Object.entries(guns)) {
   check(`${id}: its model and every other ${familyOf(g.model)} in the pack are measured (${fam.length} to pick from)`, fam.includes(g.model) && fam.every((m) => table[m]), fam.filter((m) => !table[m]).join(", "));
 }
 
+// every model a gun wears or can be picked in is a split build (its magazine, slide or pump a part of its own, which
+// a reload or a shot moves) and a gun, not a part: the pack's _1 of a family is the same gun in one piece, and three
+// guns that wore one kept their magazines in on a reload; SciFiGrenadeLauncher01_3 is the launcher's round
+{
+  const { gunChoices } = await import("../../src/game/gunpick");
+  const partsOf = async (name: string): Promise<string[]> => {
+    const b = readFileSync(`${dir}${name}.glb`);
+    const g = await new Promise<{ scene: THREE.Group }>((ok, no) => new GLTFLoader().parse(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), "", (x) => ok(x as never), no));
+    const out: string[] = [];
+    g.scene.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh && /^(Clip|Slide|Slider|Pump|Drum)/.test(o.name)) out.push(o.name);
+    });
+    return out;
+  };
+  const bad: string[] = [];
+  for (const id of Object.keys(guns)) {
+    for (const name of gunChoices(id)) {
+      const parts = await partsOf(name);
+      const len = table[name]?.measured.length ?? 0;
+      if (!parts.length || len < 0.4) bad.push(`${id}: ${name}${parts.length ? "" : " (in one piece)"}${len < 0.4 ? ` (${len} m long)` : ""}`);
+    }
+  }
+  check("every model a gun wears or can be picked in is a split build with moving parts, and a gun", bad.length === 0, bad.join("; ") || "all");
+}
+
 // the props (W7): a name that is not in the import falls back to our own shapes without a word, so each is looked for
 const props = (cfg as unknown as { props: Record<string, { model: string; skin: string }> }).props;
 for (const [key, p] of Object.entries(props)) {

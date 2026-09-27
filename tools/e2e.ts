@@ -4898,8 +4898,9 @@ async function soldierTest(browser: Browser): Promise<void> {
   const kits = await ev<string[]>(page, "window.__range.labFigures().map((f) => f.mq?.soldier?.variant ?? '')");
   check("soldier: figures of different operators, as bots are, wear different kits (three or more of the four among eight)", kits.every(Boolean) && new Set(kits).size >= 3, kits.join(", "));
   await ev(page, "window.__range.figureLab([])");
-  // W9: the USSO's other model and its third skin, picked on the Loadouts tab as a player's clicks pick them: the gun
-  // in hand wears both, and a figure built from the look (a friend's figure of you) holds the same model
+  // W9: the USSO's other model (the other SMG, paidweapons.json modelGroups) and its third skin, picked on the Loadouts
+  // tab as a player's clicks pick them: the gun in hand wears both, and a figure built from the look (a friend's figure
+  // of you) holds the same model
   const picked = await ev<{ inHand: string | null; skin: string | null; figure: string | null; code: string | null }>(
     page,
     `(async () => {
@@ -4925,7 +4926,7 @@ async function soldierTest(browser: Browser): Promise<void> {
       return { inHand: held.inHand, skin: held.skin, figure, code };
     })()`,
   );
-  check("soldier guns (W9): the USSO's other model and third skin, picked on the Loadouts tab, are the gun in hand, and a friend's figure of you holds that model", picked.inHand === "SciFiSMG02_1" && /^SciFiSMG02C/.test(picked.skin ?? "") && picked.figure === "SciFiSMG02_1", JSON.stringify(picked));
+  check("soldier guns (W9): the USSO's other model and third skin, picked on the Loadouts tab, are the gun in hand, and a friend's figure of you holds that model", picked.inHand === "SciFiSMG01_2" && /^SciFiSMG01C/.test(picked.skin ?? "") && picked.figure === "SciFiSMG01_2", JSON.stringify(picked));
   await page.close();
 
   // without the files: every request for them answers 404, as on a copy that never ran npm run paid

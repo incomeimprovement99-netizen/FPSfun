@@ -5633,7 +5633,10 @@ function renderGunPicks(): void {
     const pick = myGunPicks()[gun] ?? { model: 0, skin: 0 };
     const models = $<HTMLSelectElement>(`gunModel${i}`);
     const skins = $<HTMLSelectElement>(`gunSkin${i}`);
-    models.innerHTML = gunChoices(gun).map((_, k) => `<option value="${k}">${k === 0 ? "Model 1 (its own)" : `Model ${k + 1}`}</option>`).join("");
+    const choices = gunChoices(gun);
+    models.innerHTML = choices.map((_, k) => `<option value="${k}">${k === 0 ? "Its own model" : "The other of its class"}</option>`).join("");
+    // a gun the pack has one model for is picked by its skin alone
+    models.style.display = choices.length > 1 ? "" : "none";
     skins.innerHTML = pickSkins(gun).map((s, k) => `<option value="${k}">Skin ${s}</option>`).join("");
     models.value = String(pick.model);
     skins.value = String(pick.skin);
@@ -8045,6 +8048,19 @@ initWelcome();
   /** SpeedKills' soldier (soldier.ts): whether new figures are it (its files here and its clips carried over) */
   soldierReady: () => soldierReady(),
   /** SpeedKills' bought guns (paidgun.ts): in, and the model the gun in hand wears */
+  /** the gun in hand's moving groups: how many of the bought model's meshes each carries (paidgun.ts dressPaid), which is what a reload or a shot moves (tools/weapon-picks-sheet.ts) */
+  gunParts: () => {
+    const m = viewModel.gunRoot ? gunModel(loadout.active.weapon.id) : null;
+    if (!m || m.root !== viewModel.gunRoot) return null;
+    const count = (g: THREE.Object3D | null) => {
+      let n = 0;
+      g?.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh && o.visible) n++;
+      });
+      return n;
+    };
+    return { mag: count(m.mag), bolt: count(m.bolt), pump: count(m.pump) };
+  },
   paidGuns: () => {
     // the gun in hand's bought model, and the skin it wears (gunpick.ts: the player's pick of both)
     const root = viewModel.gunRoot;
