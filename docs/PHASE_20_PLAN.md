@@ -9,19 +9,30 @@ Written 2026-09-26 at the close of Phase 19 (`docs/PHASE_19_PLAN_DOWNTOWN.md`, M
 "The game" in this plan is SpeedKills. Nothing here changes the legacy game (B00G FPS, the BOOG range) unless
 an item says so.
 
-## Where Phase 20 stands (kept up to date)
+## Where Phase 20 stands (paused 2026-09-27 for the Unity soldiers)
 
-- **Live:** A1 to A16 (at 7ccc614). A13 is the memory rule, done.
-- **Next, in order:**
-  1. A17, movement measured off Hyper Scape's footage. The measuring started on 2026-09-26; the numbers go to
-     `phase20-specs/A17-movement.json` beside the repo. Its roof-run check is in (`tools/checks/sk-roofrun.ts`).
-  2. A18, smooth play and gunfights. Its frame-pacing work is Part B's first step, so they are done together.
-  3. A19, the PANDA as an animation showcase.
+The owner moved the work to the soldiers from the Unity store (Phase 21), so Phase 20 stops here with A17 and A18
+part done and A19 not started. Everything below is live.
+
+- **Live at 292bf1c** (game server and Pages, both checked live on 2026-09-27):
+  - A1 to A16 (A13 is the memory rule).
+  - A15 (Milestone 235): the sprint twice as fast (14 m/s), auto sprint, a slide just above it.
+  - A16 (Milestone 234): quicker gun swaps, quicker again with each level.
+  - A17's roof-run check; A18's first fixes: a friend's swing at the new speeds (Milestone 236) and the bots' aim
+    against runners (Milestone 237); the frame-phase timer and the repeating bench.
+- **The last full run before that release** (at the same code, 540e676 before the rebase):
+  - verify and rules passed, `npm run fit` passed (0.014% to 0.038% against 0.060%), and the mixed batch passed;
+  - batch 1 failed two: the legacy range's spray wall (passed alone) and the SpeedKills bot pad ride (see the table
+    below; not rerun alone, the owner called time);
+  - batch 2 failed one: the host migration in a battle royale, the old flake in Part B.
+- **What is left of Phase 20, for when it comes back:**
+  1. A17: the footage measurements (a research agent was measuring when the work moved; its numbers go to
+     `phase20-specs/A17-movement.json` beside the repo), then movement.speedkills.json from them, and the
+     A15 recheck list against the new numbers. The roof-run check moves with them.
+  2. A18: the frame pacing measured on a quiet machine (the instrument is in); a friend's figure at the new speeds
+     measured again on a quiet machine; checks for input to screen and hit feel; Hyper Scape's gunfight facts.
+  3. A19: the PANDA as an animation showcase.
   4. Part B, from its second step.
-- **Release e2e at 7ccc614:** the mixed batch passed; six legacy checks (the course clock, a door kick, the vault)
-  failed with the machine at 95% and passed alone. They now wait on the game's clock (`gameSleep`).
-- **Known open:** the bot squads section has failed in a full batch 2 and passed alone (40 of 40; it passed in
-  the 7ccc614 run); Part B's old host-migration flake.
 
 ## Part A: the owner's playtest fixes (before sharing)
 
@@ -585,6 +596,26 @@ legacy supply bin. Three were made steadier in Phase 19:
 - the lab climb presses jump in frames, not milliseconds;
 - the ghost's walk turns until it has room;
 - the restore's finish waits 15 s.
+
+### If something breaks after 2026-09-27 (A15 to A18), where to look
+
+| Symptom | Where it is made | What checks it |
+|---|---|---|
+| The sprint too slow or too quick, or slow to reach full speed | movement.speedkills.json `speed`, `sprintSpeed` and the ground bands (`lowSpeed`, `sprintBandStart`, the rates, `deceleration`: all doubled with the speeds) | `tools/sk-movesim.ts` (550 hu/s, reached in 1.4 s, a stop in 0.22 s) |
+| No sprint when moving forward, or the legacy game sprinting by itself | `player.ts` updateSprint (the `auto` branch), `main.ts` the sprint mode at load (SpeedKills `auto`, its own key `range.sk.sprintMode`), index.html `#sprintMode` | sk-movesim; a real page sprints at 13.97 m/s holding forward |
+| A slide too quick or too slow against the sprint | movement.speedkills.json `slideSpeedBoost`, `slideSpeedBoostCap` (630, 1.15 times the sprint) | sk-movesim |
+| Swapping guns too slow or too quick | speedkills.json `fusion.gun[].swap`, `weapons.ts` speedkillsTuned (deployTime, holsterTime) | `tools/checks/ttk.ts` |
+| Bots too slow to chase, or too quick | speedkills.json `botSpeedScale` (2), `bots.ts` speedNow | the SpeedKills e2e |
+| Bots hitting a running player too much or too little | speedkills.json `botAimLagScale` (0.5), `bots.ts` aimLagOf | `tools/checks/bot-aim.ts` (each tier's trail behind a runner) |
+| A friend's melee hit not counting | net.json `hitCheck` meleeReach and staleTrip (`_hitCheckSk`), `src/net/hitcheck.ts` MELEE_APART (9.4 m in SpeedKills, 5 m legacy) | `tools/checks/hitcheck.ts`, run in both games by verify |
+| A second friend turned away from a battle royale | `main.ts` brPlayersDefault (runs on the mode, squad and sides changes, and once after the menu has put back the saved squad) | e2e `skfriends` (in batch 2) |
+| The roofs no longer joining up (a movement or city change) | the movement numbers above, city.json | `tools/checks/sk-roofrun.ts` (147 of 958 gaps, the best roof reaching 9; the first pass's sprint gives 99 and 7) |
+| Hitches, or a frame's time | `?perf` on the address, `__range.perf()`, `src/game/framephase.ts`; `npm run bench` with `BENCH_RUNS`, `BENCH_PHASES=1`, `BENCH_SPOT=skrun` | verify "Frame phases" |
+| The outline check failing | it crouches the bot and aims at its torso, and casts a 1.2 m ray that must miss; `__range.outlinedNow()` | e2e speedkills |
+| The tour's HIGH GROUND step failing | the trigger is pulled by frame count; `__range.triggerWhy()` says what holds a trigger | e2e sktour |
+| The SpeedKills bot pad ride failing (the bot rises a little and falls) | seen once, in batch 1 at 540e676: `brmatch.ts` sense() can re-plan a bot's goal before botTraversal checks the pad, so the bot walks off instead. Rerun the `speedkills` section alone first | e2e speedkills |
+| e2e checks failing in a batch and passing alone | the machine under load: a starved page's game time falls behind the wall's. Sample the CPU, rerun the section alone, reproduce with `E2E_THROTTLE=4`, and wait on game time with `gameSleep` | the door and vault checks use `gameSleep` |
+| The e2e picking the wrong game | `open()` in tools/e2e.ts makes a page legacy unless its address names a game; pages share one browser, so localStorage (the saved squad, the sprint mode) carries between sections | set every choice with its change event, as `skfriends` does |
 
 ### A measurement not to trust yet
 
