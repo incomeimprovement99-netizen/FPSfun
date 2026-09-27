@@ -61,7 +61,7 @@ is its Protocol V (a scoped bolt-action with a 3-round magazine).
 | Realistic proportions, techwear, emissive cyan accents; a shared default jumpsuit | The bought soldier, four variants and palettes; its armour's own trim | ✅ |
 | A red outline on the enemy under your aim | Built (Phase 19) | ✅ |
 | A red bar over an enemy's head | The hit plates | 🟡 |
-| Movement trails: red for enemies, blue for mates, gold for the crown | None | ❌ next |
+| Movement trails: red for enemies, blue for mates, gold for the crown | Every other player leaves a ribbon of light at their feet in their side's colour, fading over 0.9 s | ✅ (Milestone 274) |
 | No corpses: the fallen become a hologram (Echo) and a gold Restore Point | Death boxes and ghosts (ours) | 🟡 |
 
 ## Feedback on hits and kills
@@ -75,8 +75,7 @@ is its Protocol V (a scoped bolt-action with a 3-round magazine).
 ## What is next, ranked
 
 1. ~~The scope's lens flare~~ done (Milestone 271).
-2. **Movement trails.** Red behind enemies, blue behind mates, gold behind the crown. Hyper Scape's players named them
-   among the game's defining reads.
+2. ~~Movement trails~~ done (Milestone 274).
 3. **The kill skull and the squad-wipe tracker** under the crosshair.
 4. **Echo hands.** As a ghost, low-poly hologram hands in first person.
 5. **The scope's rear screen** on BOOG at the hip, showing the reticle.

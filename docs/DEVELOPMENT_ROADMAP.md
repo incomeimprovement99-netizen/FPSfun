@@ -5183,3 +5183,23 @@ The plan's route 1 (`docs/CITY_BUNDLE_IMPLEMENTATION.md` 4.5): "Stairs only to t
 - **Checked:** `sk-stairs.ts` holds every core's top on the graph, reached from the street by walkable links: 24 of
   24 (0 before the door's centre line); `sk-roofs` (the street links, the Spire's pads, the highway) unchanged; verify
   and rules.
+
+## Milestone 274 — Movement trails: red behind enemies, blue behind mates, gold behind the crown
+
+The second item of `docs/HYPERSCAPE_GAP_ANALYSIS.md`. A Hyper Scape player: "the red trail of the enemies and the blue
+trail of your teammates ... something that every player has", and the crown's carrier's in gold.
+
+- **Every other player leaves a trail** (`src/game/trails.ts`, `hud.json` trails):
+  - a ribbon of light 0.14 m across, just over their feet;
+  - a point every 0.25 m they go, at most 40, each fading over 0.9 s (a player gone invisible left theirs 0.5 to 1 s);
+  - turned to face the eye at every point, so it reads from any side;
+  - red for an enemy, blue for a squad or team mate, gold for the crown's carrier (`modematch.ts` crownCarrierId).
+- **Limits:** none past 90 m. A jump of more than 6 m between frames (a respawn, a DASH) starts the trail afresh
+  instead of drawing a line across the map. A player hidden (invisible, out) leaves theirs to fade, then it goes.
+  SpeedKills only.
+- **Checked:**
+  - `tools/checks/trails.ts`, in verify: a run gathers a point a step; standing still it fades out; a jump starts it
+    afresh (it failed with that taken out, 12 points drawn across the gap); past 90 m none; a player gone fades then
+    goes;
+  - the SpeedKills e2e section (its check on materials three.js rebuilds every frame caught the ribbon drawn two-sided in two passes; it is one pass now); rules;
+  - a picture of bots running in a battle royale, their red trails on the street.

@@ -64,6 +64,7 @@ import { buildCityMap, cityDecay, cityEdge, SECTORS, ROOF_ROUTES } from "./game/
 import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
 import { EDGE_ID } from "./game/causes";
 import { healArea } from "./game/healarea";
+import { Trails } from "./game/trails";
 import DECAY_CFG from "./config/decay.json";
 import { Hacks, HACK, HACK_DEFS, hackDef, hackSlotOf, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
 import { BotMatch, MOST_BOTS } from "./game/bots";
@@ -737,6 +738,8 @@ renderer.toneMappingExposure = 1.05;
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
+/** SpeedKills: movement trails behind every other player (trails.ts) */
+const trails = new Trails(scene);
 /** the fog of each part of the world, before the preset's draw distance shortens it (quality.ts drawRange) */
 const RANGE_FOG = { near: 55, far: 290 };
 const BR_FOG = { near: 140, far: 680 };
@@ -5974,6 +5977,27 @@ let finisher: { r: Remote; at: number; vitals: number; blows: number } | null = 
 /** finishes this match, for the tests and the recap */
 let finishesDone = 0;
 
+/**
+ * SpeedKills' movement trails (trails.ts): every other player on its side's colour, the crown's carrier in gold; a
+ * player hidden (invisible, out, the replay's) leaves theirs to fade
+ */
+function stepTrails(now: number): void {
+  if (!IS_SK) return;
+  const d = duel instanceof Duel ? duel : null;
+  if (!d) {
+    trails.clear();
+    return;
+  }
+  const crown = d instanceof ArenaMode ? d.crownCarrierId : null;
+  const list: Parameters<typeof trails.update>[2] = [];
+  for (const a of d.avatars) {
+    const r = d.remoteOf(a);
+    if (!r) continue;
+    list.push({ key: r.id, feet: a.group.position, side: r.id === crown ? "crown" : d.isAlly(r.id) ? "ally" : "enemy", live: r.alive && a.group.visible });
+  }
+  trails.update(now, camera.position, list);
+}
+
 /** the knocked enemy you could finish from where you stand, or null */
 function finishable(): Remote | null {
   const d = duel;
@@ -7490,6 +7514,7 @@ function step(): void {
   renderer.info.reset();
   // the other players' muzzle flashes size themselves to this view (muzzle.ts)
   setMuzzleViewer(camera, renderer.domElement.clientHeight || window.innerHeight);
+  stepTrails(now);
   if (!NO_RENDER && !document.hidden) {
     gunLayer();
     lightsOnGun();
@@ -7888,6 +7913,8 @@ initWelcome();
   armCutsOff: () => viewModel.cutsOff,
   /** the signature gun in hand (gunfeel.json): which, its phase and its magazine's, and whether it is drawn */
   gunFeel: () => viewModel.feelState,
+  /** how many movement trails are drawn now (trails.ts) */
+  trailCount: () => trails.count,
   /** a hack's cast in the hands (hackcast.ts): how far up the hand is and whether it has tapped */
   castState: () => viewModel.castState,
   /** the loot card as the HUD draws it this frame, and its mode (Phase 20 A8) */

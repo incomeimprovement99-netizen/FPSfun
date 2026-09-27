@@ -1175,6 +1175,12 @@ export class ArenaMode extends Duel {
     return r ? r.avatar.group.position : null;
   }
 
+  /** the crown's carrier's id, or null (trails.ts draws theirs in gold) */
+  get crownCarrierId(): number | null {
+    const c = this.crownState();
+    return c && c.phase === "carried" ? c.carrier : null;
+  }
+
   private crownState(): { phase: CrownPhase; x: number; z: number; carrier: number; held: number } | null {
     if (this.role !== "host") return this.crownView;
     const c = this.crown;

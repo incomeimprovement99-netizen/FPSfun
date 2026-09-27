@@ -124,7 +124,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
   big digits, the fusion level as pips, gold at the top); BOOG's scope is
   Hyper Scape's full-screen one, thin red lines in a chamfered frame with the
   zoom at the edge, and its rounds leave a thick blue tracer; aimed in, its
-  scope throws a lens flare other players can see. The gap analysis
+  scope throws a lens flare other players can see. Every other player leaves
+  a trail of light behind their feet, as in Hyper Scape: red for enemies, blue
+  for squad mates, gold for the crown's carrier. The gap analysis
   against Hyper Scape is docs/HYPERSCAPE_GAP_ANALYSIS.md.
   Every bought gun's support hand holds it where the bought model is held
   (measured), and the soldier's first-person arms are drawn the glove's size and
