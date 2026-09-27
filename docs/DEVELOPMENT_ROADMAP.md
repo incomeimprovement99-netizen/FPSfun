@@ -5410,3 +5410,20 @@ Phase 22's item 22.2 (`docs/PHASE_22_PLAN_FINISHING_THE_CENTRE.md`): the centre'
   clear, a puff's rise and fade, six flickering signs in their own materials, and ten minutes of every sign's light
   sampled at 2 ms: at most three dips in any second, each to its range (proven: dips 0.2 s apart make four). Verify,
   rules; pictures of a stairwell, a drain and a street on Balanced and Competitive.
+
+## Milestone 283 — The graphics setting says what the city looks like on it
+
+The owner, on the live server: "i don't see any of the new map stuff ... the buildings all look basic like before, is
+it just not getting deployed?" It was deployed: a fresh browser on fpsfun.duckdns.org drew all five packs about 11 s
+after the page opened (41 MB on Competitive; 6,426 pieces, 6,884 on High). The game starts on Competitive, the
+owner's "snappy above pretty", and each site keeps its own setting, so the live site was on Competitive: the lean
+modules (Kyber's and the Spire's walls flat), no signs, flying cars, steam, canyon windows or fire escape pieces. The
+setting's labels said nothing of that ("Balanced: bloom and colour grade").
+
+- **The labels say it now:** Competitive "the city's lean look"; Balanced "the full city (signs, flying cars, steam)";
+  High "everything, including ambient occlusion and street detail"; and the setting's hint names what Balanced and
+  up add.
+- **Asked of the owner:** whether the default should be Balanced, on the benches' evidence that the kit costs no
+  measurable frame time on their card.
+- **Checked:** verify, rules; the live server loaded headless from an empty cache, timed, and pictured on
+  Competitive and High from the same spot.

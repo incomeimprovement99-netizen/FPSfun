@@ -826,9 +826,9 @@ const pipeline = new Renderer(renderer, scene, camera, quality, vmCamera);
 // ---------- graphics preset and the frame-rate explanation ----------
 const qualitySel = $<HTMLSelectElement>("quality");
 const PRESET_LABEL: Record<Preset, string> = {
-  competitive: "Competitive: fastest, lowest latency",
-  balanced: "Balanced: bloom and colour grade",
-  high: "High: everything, including ambient occlusion",
+  competitive: "Competitive: fastest, lowest latency, the city's lean look",
+  balanced: "Balanced: the full city (signs, flying cars, steam), bloom and colour grade",
+  high: "High: everything, including ambient occlusion and street detail",
 };
 for (const key of Object.keys(PRESETS) as Preset[]) {
   const o = document.createElement("option");

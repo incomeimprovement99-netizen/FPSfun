@@ -23,4 +23,8 @@ The round planned in `docs/PHASE_22_PLAN_FINISHING_THE_CENTRE.md`, item by item 
   at five times the light showed it working, and it was set by eye from pictures to 0.3.
 - **22.2 while 22.1 waits:** the bench runs from a frozen copy (`apex-bench` at the shipped commit, port 5212), so
   this worktree's edits cannot reload its page; it starts itself after two quiet minutes.
+- **The owner's report (2026-09-27, 11:50 pm):** "i don't see any of the new map stuff" on fpsfun.duckdns.org. Not a
+  deploy fault: the live site, loaded headless from an empty cache, drew all five packs in about 11 s. The game's
+  default preset is Competitive, which draws the lean kit, and the setting's labels did not say so. Milestone 283
+  labels the presets by what they show; whether the default becomes Balanced is the owner's call, asked.
 
