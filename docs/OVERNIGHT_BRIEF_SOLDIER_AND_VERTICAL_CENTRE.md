@@ -631,6 +631,131 @@ parts of section 3; where they disagree, this section wins.**
 8. **Paid files and tests.** verify and e2e must pass in a worktree with no `public/models/paid`. Test that once by
    moving the folder away.
 
-## 7. Empulse and wall-run level design (from apex-range-4b's researcher)
+## 7. Empulse and wall-run level design (from apex-range-4b's researcher, 2026-09-27)
 
-*(Appended below when it arrived. If this section is empty, see 4.5.)*
+Research from the web. The sources are linked; the developer's Steam posts, read through Steam's news API, were the
+best primary source.
+
+### 7.1 What Empulse actually is (three corrections to what we assumed)
+
+- **The game:** Empulse is by **1047 Games** (the Splitgate studio), a **6v6 arena movement shooter**, not a battle
+  royale. Early Access opened on 24 June 2026. The studio stopped active development on 26 August 2026
+  ([Shacknews](https://www.shacknews.com/article/150495/splitgate-arena-reloaded-empulse-discontinued),
+  [Steam](https://store.steampowered.com/app/4323990/EMPULSE/)).
+- **Its kit** is wall-running (forwards and backwards, on almost any wall), a grapple, a metered **jetpack** burst
+  where we have a double jump, Holojump pads ("closer to a snowboard jump, where you maintain momentum"), and Wall
+  Boost Pads. **Only its mechs have a dash.** The owner's chain uses our DASH hack, which is a 26 m teleport on a 7
+  to 12 s cooldown. **So a chain uses DASH once at most; the repeats come from kick plus double jump, which comes back
+  on each wall touch.**
+- **"Speed paint"** is **Speed P.A.I.N.T.**, an orange throwable (Portal 2's orange gel is its ancestor), per the
+  developer's patch notes:
+  - it gives **1.7x top speed**, capped at 18 m/s;
+  - the boost **lingers 3 s** after you leave the surface;
+  - it **lasts 15 s**, with a **12 s cooldown**;
+  - it was nerfed because it was "the obvious pick in almost every situation"; players called the game "speed paint:
+    the game".
+
+  **Lesson: build speed surfaces into the map, as our `paint.json` strips; do not make them a throwable.**
+- **Published speeds:**
+  - wall run 20 m/s;
+  - grapple 18.5 m/s;
+  - base acceleration 35 m/s2.
+
+  Wall-run length, jump height and map sizes are not published. Its movement was praised, and its maps were called
+  small and generic.
+
+### 7.2 What other wall-running games teach (sourced)
+
+- **Titanfall 2's shipped settings, a worked example only** (from the game's pilot settings files):
+  - sprint 6.6 m/s;
+  - jump and double jump 1.52 m each;
+  - gravity 15.2 m/s2;
+  - wall run up to 10.7 m/s (1.6x sprint);
+  - **a wall run lasts 1.75 s and starts slipping at 1.5 s**;
+  - the kick off a wall is 5.2 m/s out and 5.8 m/s up;
+  - **a wall touch gives the double jump back.**
+
+  Respawn's designers:
+  - new players "wouldn't trust the wall-run", and training sections fixed it;
+  - the code ignores the sides of steps as walls;
+  - runs started near the top of a wall were fixed so they no longer fall off;
+  - **tilting the camera just before wall contact** "immediately made it feel much better"
+    ([Game Developer](https://www.gamedeveloper.com/design/designer-interview-getting-i-titanfall-i-s-controls-just-right));
+  - on the War Games map they used coloured wall-run panels "with arrows" to show the lines
+    ([PCGamesN](https://www.pcgamesn.com/theres-titanfall-dlc-map-set-simulated-world-smooth-clean-and-abstract-parkour-playground)).
+- **Mirror's Edge:** red Runner Vision marks the *accessible* route and fades as players learn. The level designer
+  later preferred geometry that shows what is coming next over colour flashes.
+- **Ghostrunner:** yellow guides, and "every exit from the arena should be in your view".
+- **Neon White** ([Game Developer](https://www.gamedeveloper.com/business/-neon-white-and-designing-for-player-creativity)):
+  - the player always knows where to go next;
+  - there is at least one non-trivial shortcut;
+  - the shortcut is never hidden;
+  - it uses only moves from the main path;
+  - and "the time where you're fully optimized also needs to feel really good".
+- **Dying Light 2:** parkour forced exact distances between objects and flat roofs, with yellow reserved for
+  parkour.
+- **No designer has published a wall-to-wall spacing number.** Ours must come from our own physics (section 4.2),
+  which is what the owner asked for.
+
+### 7.3 Rules to turn into geometry (inference; every input measured from SpeedKills' movement)
+
+Symbols:
+- `v_wr`: wall-run speed; `T_slip`: when the run starts to sink;
+- `v_out`, `v_up`: the kick's speed away from the wall and upward;
+- `g`: gravity; `h_dj`: the double jump's height;
+- `r`: player radius; `h_m`: the highest mantle; `h_c`: the highest climb.
+
+Measure every one in `reach.ts` and put the config value beside each rule.
+
+1. **Corridor width with no double jump:** `W_level = 2r + v_out * (2 v_up / g)`. Build the main path at **0.6 to
+   0.85 x W_level**, so imperfect input still makes it, and never below 2 player widths.
+2. **A double-jump gap:** wider than `W_level` and no wider than the kick-plus-double-jump reach. **The check must
+   fail it without the double jump and pass it with one.**
+3. **Size a run wall by time, not metres:** `L = v_wr x 0.8 to 1.2 s`.
+   - Never require more than `v_wr x T_slip`.
+   - A wall shorter than `v_wr x 0.4 s` is a kick plate, not a run wall. Avoid the ambiguous lengths between the two.
+4. **Stagger between walls on opposite sides.** A player flies forward `v_wr x t_x` while crossing (`t_x` is the time
+   in the air). The next wall starts no later than take-off plus that carry, minus one player width, and runs at
+   least one player width past the landing.
+5. **A zig-zag climb eats floor length.** Each crossing takes about `L + v_wr x t_x` of length and gains `Δh`
+   (measure it).
+   - The owner's "repeat 3 times" is 6 crossings, **about 100 m of alley with Titanfall-like numbers**, and a block
+     is 57 m.
+   - **So chains must fold:**
+     - a **switchback**, where the owner's tap-strafe 180 *is* the turn;
+     - or a spiral light-well inside a tower;
+     - or a chimney between two towers, climbing on the spot.
+   - This is the key layout constraint for 4.4.
+6. **The chain's end:** the last peak reaches a ledge no higher than `h_m`, with 1.5 m or more of landing past the
+   lip, or a climb no higher than `h_c`.
+7. **Exactly one air jump between wall touches** (ours already restores the double jump on a wall touch). The dash is
+   assumed at most once per chain.
+8. **A runnable wall** has at least one player height of wall above the run line and is flat for at least `L`. Steps
+   and props must never start a wall run.
+9. **One colour for chain lines only.** Every wall can be runnable, but the intended lines wear one reserved neon.
+   Let the geometry show the next target first; the colour is the backup.
+10. **Frame the next target:** at every take-off, the next wall or ledge is within about 45 degrees of the direction
+    of travel. Chains turn one way. **Add the camera tilt before wall contact** if ours lacks it.
+11. **The chain route must pay:** it takes **0.7 times the ground route's time or less** between the same two points,
+    and it is more exposed (less cover), so it is a risk worth taking.
+12. **Speed strips** (our paint):
+    - model them as about 1.7x speed with a cap, lingering about 3 s;
+    - a gap a strip pays for is within 3 s of boosted speed downstream;
+    - it is always an optional, visible shortcut.
+13. **Minimum time across the map:** at top chain speed, the main loop across the centre still takes a set minimum
+    (propose 15 s; the owner decides). **Recheck it when A15 doubles sprint.** Empulse's maps broke when speeds rose
+    and the maps did not grow.
+14. **No dead ends.** From any point where a chain can fail, a way back to its start, or into another chain, exists
+    within about 10 s. A failed chain lands somewhere playable, never a pit or out of bounds.
+15. **Never kill momentum by accident:**
+    - stairs, lips under the step height and seams keep speed (Empulse's stairs were a bug players hated);
+    - a slide survives uneven ground.
+16. **Pacing:** after a hard stretch (3 or more inputs within 2 s), give a 1 to 2 s landing to recover before the
+    next decision.
+
+**The proof:** `chains.ts` runs each authored chain through the real controller.
+- It must **pass at nominal input**.
+- It must **fail when the key gap is widened by 10%**.
+
+The second half proves the check itself works (`CLAUDE.md`: a new check is proven by putting the bug back and
+watching it fail).
