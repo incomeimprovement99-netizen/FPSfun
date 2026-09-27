@@ -92,6 +92,18 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
 /** evaluate an expression string in the page (tsx mangles function sources) */
 const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
 
+/**
+ * Waits until the page's game clock has moved on `secs`. A cooldown, a prompt or a door's swing runs on game time,
+ * and a starved page's game time falls behind the wall's: the frame step is capped at 0.1 s, so under 10 fps a
+ * second of waiting is less than a second of game. With the machine at 95% (a release run beside other work) a
+ * door's second kick came inside the first's cooldown and the vault's prompt was read before the frame that moved
+ * you had run; both passed alone.
+ */
+async function gameSleep(page: Page, secs: number): Promise<void> {
+  const t0 = await ev<number>(page, "window.__range.gameTime()");
+  await page.waitForFunction(`window.__range.gameTime() >= ${t0 + secs}`, { polling: 50, timeout: 5000 + secs * 20000 }).catch(() => undefined);
+}
+
 /** back to the menu (Esc), and wait until the game agrees */
 async function toMenu(p: Page): Promise<void> {
   await ev(p, "window.__range.toMenu()");
@@ -278,7 +290,7 @@ async function vaultTest(browser: Browser, query: string): Promise<void> {
   check("vault: stocked as the fight starts: a mythic gun at gold mag and two supply bins inside", stock.mythic.length === 1 && stock.mythic[0].endsWith(":4") && stock.bins === 2, JSON.stringify(stock));
   // at the door without the card: it says so, and the door stays shut
   await ev(page, "(() => { const d = window.__range.duel(); const door = window.__range.brMap.doors.list[d.vault.door]; window.__range.player.teleport(door.centre.x, door.centre.y - 1.3, door.centre.z - 2.2, 180, 0); })()");
-  await sleep(500);
+  await gameSleep(page, 0.5);
   const lockedPrompt = await ev<string>(page, "window.__range.brPlay.hud?.prompt?.text ?? ''");
   await ev(page, `window.__range.setScript({ held: () => false, pressedNow: (a) => a === "interact" })`);
   await sleep(300);
@@ -291,7 +303,7 @@ async function vaultTest(browser: Browser, query: string): Promise<void> {
   // between, so it is not offered (a seed that stood a bin there once offered it through the door)
   const through = await ev<string>(
     page,
-    `new Promise((ok) => { const d = window.__range.duel(); const v = d.vault; const door = window.__range.brMap.doors.list[v.door]; const b = [...d.lootField.drops.values()].find((x) => x.item.kind === "bin" && x.item.id === "closed" && Math.hypot(x.pos.x - v.x, x.pos.z - v.z) < 4.5); const was = b.pos.clone(); b.pos.set(door.centre.x, b.pos.y, door.centre.z + 0.5); setTimeout(() => { const said = window.__range.brPlay.hud?.prompt?.text ?? ""; b.pos.copy(was); ok(said); }, 400); })`
+    `new Promise((ok) => { const d = window.__range.duel(); const v = d.vault; const door = window.__range.brMap.doors.list[v.door]; const b = [...d.lootField.drops.values()].find((x) => x.item.kind === "bin" && x.item.id === "closed" && Math.hypot(x.pos.x - v.x, x.pos.z - v.z) < 4.5); const was = b.pos.clone(); b.pos.set(door.centre.x, b.pos.y, door.centre.z + 0.5); const t0 = window.__range.gameTime(); const read = () => { if (window.__range.gameTime() < t0 + 0.4) return void setTimeout(read, 50); const said = window.__range.brPlay.hud?.prompt?.text ?? ""; b.pos.copy(was); ok(said); }; read(); })`
   );
   check("vault: a bin just inside its shut door is not offered through it", !/SUPPLY BIN/.test(through), through);
   // the guard down: his death box holds the keycard
@@ -301,7 +313,7 @@ async function vaultTest(browser: Browser, query: string): Promise<void> {
   check("vault: the guard down, his death box holds the vault keycard, and everyone is told", card.key !== null && card.said, JSON.stringify(card));
   // taken: the holder is shown the way, and the door offers to open
   await ev(page, `window.__range.duel().takeLoot(${card.key ?? -1})`);
-  await sleep(700);
+  await gameSleep(page, 0.7);
   const held = await ev<{ mine: boolean; mark: boolean; prompt: string }>(page, "(() => { const d = window.__range.duel(); return { mine: d.myKey, mark: window.__range.brPlay.markers.some((m) => m.label === 'THE VAULT'), prompt: window.__range.brPlay.hud?.prompt?.text ?? '' }; })()");
   check("vault: holding the keycard, the way to the vault is marked and the door offers to open", held.mine && held.mark && /OPEN THE VAULT/.test(held.prompt), JSON.stringify(held));
   await ev(page, `window.__range.setScript({ held: () => false, pressedNow: (a) => a === "interact" })`);
@@ -365,12 +377,12 @@ async function doorTest(browser: Browser, query: string): Promise<void> {
     `(() => { const r = window.__range; const ds = r.brMap.doors; const door = ds.list.find((x) => !x.open && x.side === "s" && x.centre.y < 3 && x.i !== ${info.i} && x.i !== ${other?.i ?? -1}); if (!door) return null; r.player.teleport(door.centre.x, door.centre.y - 1.3, door.centre.z + 1.3, 0, 0); return { i: door.i }; })()`
   );
   const swing = "window.__range.swing()";
-  await sleep(400);
+  await gameSleep(page, 0.4);
   await ev(page, swing);
-  await sleep(900);
+  await gameSleep(page, 0.9);
   const afterOne = kicked ? await ev<{ hits: number; open: boolean }>(page, `(() => { const d = window.__range.brMap.doors.list[${kicked.i}]; return { hits: d.hits, open: d.open }; })()`) : null;
   await ev(page, swing);
-  await sleep(900);
+  await gameSleep(page, 0.9);
   await ev(page, "window.__range.setScript(null)");
   const afterTwo = kicked ? await ev<{ broken: boolean; flat: boolean; shown: boolean }>(page, `(() => { const d = window.__range.brMap.doors.list[${kicked.i}]; return { broken: d.broken, flat: d.solid.top === d.solid.base, shown: d.pivot.visible }; })()`) : null;
   check("doors: one swing into a shut door shakes it, the second kicks it in: gone from the doorway for the match", !!afterOne && afterOne.hits === 1 && !afterOne.open && !!afterTwo && afterTwo.broken && afterTwo.flat && !afterTwo.shown, JSON.stringify({ kicked, afterOne, afterTwo }));

@@ -11,17 +11,17 @@ an item says so.
 
 ## Where Phase 20 stands (kept up to date)
 
-- **Live:** A1 to A12 and A14 (at 6e86244). A13 is the memory rule, done.
-- **In the release after it:** A16, quicker gun swaps (Milestone 234), and A15, twice the sprint and always
-  sprinting (Milestone 235), with the test fixes found on the way.
+- **Live:** A1 to A16 (at 7ccc614). A13 is the memory rule, done.
 - **Next, in order:**
   1. A17, movement measured off Hyper Scape's footage. The measuring started on 2026-09-26; the numbers go to
-     `phase20-specs/A17-movement.json` beside the repo.
+     `phase20-specs/A17-movement.json` beside the repo. Its roof-run check is in (`tools/checks/sk-roofrun.ts`).
   2. A18, smooth play and gunfights. Its frame-pacing work is Part B's first step, so they are done together.
   3. A19, the PANDA as an animation showcase.
   4. Part B, from its second step.
-- **Known open:** the bot squads section fails in a full batch 2 and passes alone (40 of 40); Part B's old
-  host-migration flake.
+- **Release e2e at 7ccc614:** the mixed batch passed; six legacy checks (the course clock, a door kick, the vault)
+  failed with the machine at 95% and passed alone. They now wait on the game's clock (`gameSleep`).
+- **Known open:** the bot squads section has failed in a full batch 2 and passed alone (40 of 40; it passed in
+  the 7ccc614 run); Part B's old host-migration flake.
 
 ## Part A: the owner's playtest fixes (before sharing)
 
@@ -375,7 +375,10 @@ This builds on A15, which keeps sprint, walk and slide.
   - Recheck everything A15 lists: tools/checks, the movement lab, the city's canyons and climbs, the jump pads'
     throws and the bots' traversal. A gravity change moves every gap and every pad.
   - Add a check that a set route across the city's roofs can be run without touching the street, so a change
-    that breaks the flow fails.
+    that breaks the flow fails. **Done** (`tools/checks/sk-roofrun.ts`): no one straight route runs the city's
+    roofs (along a row they stand apart, with plazas between), so it runs every facing gap between the 186 roofs.
+    At A15's movement 147 of 958 are crossed and the best roof reaches 9 others; the first pass's sprint gave 99
+    and 7, and fails it. Held a tenth under today's numbers.
 - **Done:** the owner runs the movement lab and a city route side by side with a Hyper Scape clip, and says it
   feels right.
 
