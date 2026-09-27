@@ -5617,13 +5617,15 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
     await push(0.05);
     await sleep(350);
   }
+  // (the bot frozen and moved by hand: its world matrix is brought up to date as the renderer would, since a
+  // ?norender page never draws and the aim ray met it where it had been)
   // The feel of a fight (speedkills.json feel): a bot stood in front of you is outlined while your crosshair is on
   // it and not once you turn away; and going well past a sprint shows the speed streaks
-  const outline = await ev<{ on: number; off: number } | null>(
+  const outline = await ev<{ on: number; off: number; alive: boolean; ghost: boolean } | null>(
     page,
-    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping && !x.bot.skHacks?.includes("invis") && x.bot.dummy.group.visible); if (!b) return ok(null); const upd = b.bot.update; b.bot.update = () => []; const p = r.player.pos; const eye = r.player.eyePosition(); b.bot.pos.set(p.x, p.y, p.z - 12); b.bot.dummy.group.position.copy(b.bot.pos); r.player.yaw = 0; r.player.pitch = Math.atan2(b.bot.pos.y + 1.2 - eye.y, 12) * 180 / Math.PI;
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); d.holdFire = true; const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping && !x.bot.skHacks?.includes("invis") && x.bot.dummy.group.visible); if (!b) return ok(null); const upd = b.bot.update; b.bot.update = () => []; const p = r.player.pos; const eye = r.player.eyePosition(); b.bot.pos.set(p.x, p.y, p.z - 12); b.bot.dummy.group.position.copy(b.bot.pos); b.bot.dummy.group.updateMatrixWorld(true); r.player.yaw = 0; r.player.pitch = Math.atan2(b.bot.pos.y + 1.2 - eye.y, 12) * 180 / Math.PI;
       const lit = () => (b.bot.dummy.outline?.hulls ?? []).filter((h) => h.hull.visible).length;
-      setTimeout(() => { const on = lit(); r.player.yaw = 180; setTimeout(() => { const off = lit(); b.bot.update = upd; ok({ on, off }); }, 400); }, 400); }))()`,
+      setTimeout(() => { const on = lit(); r.player.yaw = 180; setTimeout(() => { const off = lit(); b.bot.update = upd; ok({ on, off, alive: d.alive, ghost: !!d.ghost }); }, 400); }, 400); }))()`,
   );
   check("speedkills feel: the enemy under your crosshair is outlined, and not once you look away", !!outline && outline.on > 0 && outline.off === 0, JSON.stringify(outline));
   const streaks = await ev<number>(
