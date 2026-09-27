@@ -5046,3 +5046,23 @@ ladder.
 - **Checked:** the e2e soldier section (the USSO in its mounted sight, aimed down a red dot; it failed with the mount
   taken out); verify; rules; pictures of the owner's view hip and aimed on the USSO and ANAKIN, and through the swap
   on both signature guns.
+
+## Milestone 267 — The drop: a shaft down inside the Spire, 120 m to the concourse
+
+The last of step 2's named routes (`docs/CITY_BUNDLE_IMPLEMENTATION.md` 4.5, route 5, "the drop").
+
+- **The shaft** (`city.json` spire drop). 4 m square beside the crown, open in the top tier's roof at 128.2 m and
+  running down through every tier to the podium at 8.2 m, lit down its corners and round its mouth in the chain's
+  magenta. No fall damage in SpeedKills: 120 m in four seconds.
+- **Two doors.** At its foot a corridor runs out through the first tier onto the podium's terrace; at the Sky Park's
+  height another runs out through the second tier onto the Sky Park's terrace, the side no bridge lands on. So the
+  crown and the Sky Park both have a fast way down to the concourse. One way: the pads up the tiers are the way back.
+- **Cut, not moved** (`city.ts` cutSlab): a building's box can have boxes taken out of it, in bands up its height,
+  each band's footprint less the cuts through it. The top tier's roof clutter keeps off the mouth and still draws its
+  numbers, so the city's one stream is as it was.
+- **The kit** leaves the doors bare: a facade bay over a door is narrowed to the wall either side of it, and the
+  Spire's billboard on a face with a door stands to one side, as it does beside a pad's climb.
+- **Checked:** `tools/checks/sk-drop.ts`, in verify, on the real movement: the shaft open top to foot, a step into its
+  mouth landing at its foot in 4.0 s, out of the foot's door onto the terrace, and in from the Sky Park's terrace and
+  down. With the tiers built whole it fails three ways. `sk-roofs` (a bot still reaches 140.2 m up the Spire by pads),
+  `citykit.ts` (every tower face dressed beside its doors); verify and rules; pictures down the shaft and at its door.

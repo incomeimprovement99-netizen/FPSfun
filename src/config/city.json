@@ -224,7 +224,7 @@
     ],
     "twinReach": 3
   },
-  "_spire": "THE SPIRE, the centre block, as tiers: a podium over the block, then `tiers`, each that many storeys tall and tierInset metres in from the one below, their roofs terraces with a pad up the east face to the next, and a mast on the top. Phase 21's heights (docs/CITY_BUNDLE_IMPLEMENTATION.md 4.3): tier 1 to 64.2 m (the Sky Park's height), tier 2 to 96.2, tier 3 to 128.2, and the crown deck at 140.2, the mast to 180; the capture zone's 14 m round the middle takes in tier 2's terrace and everything above it. The first sharedTiers tiers draw their roof clutter from the city's one random stream, as the three tiers always did; a tier past them draws from its own, so adding one moves nothing in the blocks built after the Spire's. The hero of the skyline and the hottest drop.",
+  "_spire": "THE SPIRE, the centre block, as tiers: a podium over the block, then `tiers`, each that many storeys tall and tierInset metres in from the one below, their roofs terraces with a pad up the east face to the next, and a mast on the top. Phase 21's heights (docs/CITY_BUNDLE_IMPLEMENTATION.md 4.3): tier 1 to 64.2 m (the Sky Park's height), tier 2 to 96.2, tier 3 to 128.2, and the crown deck at 140.2, the mast to 180; the capture zone's 14 m round the middle takes in tier 2's terrace and everything above it. The first sharedTiers tiers draw their roof clutter from the city's one random stream, as the three tiers always did; a tier past them draws from its own, so adding one moves nothing in the blocks built after the Spire's. The hero of the skyline and the hottest drop. `drop`: the plan's drop (docs/CITY_BUNDLE_IMPLEMENTATION.md 4.5, route 5): a shaft `size` metres square with its middle at `at` (x, z from the Spire's middle, beside the crown), open in the top tier's roof and running down through every tier to the podium, 120 m with no fall damage. At its foot a corridor `door` metres wide and a storey tall runs out through the first tier to the podium's terrace, and at the Sky Park's height another runs out through the second tier onto the Sky Park's terrace: the fast way down from the crown to the concourse, or from the Sky Park. One way: the pads up the tiers' east faces are the way back up. Lit down its corners in the chain's colour (`light`).",
   "spire": {
     "podium": 2,
     "tierInset": 5,
@@ -235,7 +235,16 @@
       8,
       3
     ],
-    "sharedTiers": 3
+    "sharedTiers": 3,
+    "drop": {
+      "size": 4,
+      "at": [
+        0,
+        6.5
+      ],
+      "door": 4,
+      "light": "#ff3df2"
+    }
   },
   "_padSolve": "A jump pad onto a roof (city.ts padOnto), in metres: it stands standOff past a body's radius from the face, throws you straight up to peakOver above the roof, and once you are clear above the edge carries you across to land landInside past it. Ours, so a pad lands you on the roof with no steering; holding forward in the air still carries you further.",
   "padSolve": {

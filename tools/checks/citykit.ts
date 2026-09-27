@@ -62,6 +62,12 @@ for (const t of towers) {
     ["e", t.x + t.w / 2, t.z],
   ] as const) {
     const mid = new THREE.Vector3(fx, t.base + 2, fz);
+    // a door the city cut there (the Spire's drop) is left bare: look beside it
+    const door = KIT_SITES.doors.find((q) => mid.x > q.x0 - 0.5 && mid.x < q.x1 + 0.5 && mid.z > q.z0 - 0.5 && mid.z < q.z1 + 0.5 && mid.y > q.y0 && mid.y < q.y1);
+    if (door) {
+      if (key === "n" || key === "s") mid.x = door.x1 + 2;
+      else mid.z = door.z1 + 2;
+    }
     const hit = facades.some(({ b }) => b.clone().expandByScalar(0.3).containsPoint(mid));
     if (!hit) bare.push(`${key} face of the tower at ${t.x.toFixed(1)}, ${t.z.toFixed(1)} (base ${t.base.toFixed(1)}, ${t.storeys} storeys)`);
   }

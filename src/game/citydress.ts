@@ -139,6 +139,8 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
   const bridgeEnds = PARK_BRIDGES.flatMap((b) => [{ x: b.ax - BR_X, z: b.az - BR_Z, y: b.y }, { x: b.bx - BR_X, z: b.bz - BR_Z, y: b.y }]);
   const atBridgeEnd = (x: number, z: number, y: number) => bridgeEnds.some((e) => Math.abs(e.y - y) < 0.5 && Math.hypot(e.x - x, e.z - z) < 2.5);
   const towers = KIT_SITES.towers.filter((t) => inCentre(t.x, t.z));
+  /** a bay of a face over a door the city cut (the Spire's drop), which the kit leaves bare */
+  const onDoor = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number) => KIT_SITES.doors.some((q) => x1 > q.x0 && x0 < q.x1 && z1 > q.z0 && z0 < q.z1 && y1 > q.y0 + 0.05 && y0 < q.y1 - 0.05);
   /** a face with another tower close in front of it: a canyon's, where nothing may stand out of the wall */
   const canyonFace = (t: (typeof towers)[number], f: Face): boolean =>
     towers.some((o) => {
@@ -206,14 +208,25 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         // a far row's bays are its own width
         const rn = far && rows.farBay ? Math.max(1, Math.round(len / rows.farBay)) : n;
         const rb = len / rn;
+        // a door the city cut in this storey (the Spire's drop): the bays over it narrowed to the wall either side
+        const doorHere = KIT_SITES.doors.find((q) => {
+          const [dx0, dz0] = onFace(f, f.a, -0.1);
+          const [dx1, dz1] = onFace(f, f.b, 0.3);
+          return onDoor(Math.min(dx0, dx1), Math.max(dx0, dx1), Math.min(dz0, dz1), Math.max(dz0, dz1), y, y + STOREY) && q.y0 < y + STOREY - 0.05 && q.y1 > y + 0.05;
+        });
+        const [da, db] = doorHere ? (f.nx !== 0 ? [doorHere.z0, doorHere.z1] : [doorHere.x0, doorHere.x1]) : [Infinity, -Infinity];
         for (let i = 0; i < rn; i++) {
           const u = f.a + (i + 0.5) * rb;
-          const piece = padBay(u) ? pick(D.flat, kitHash(u, s, 31)) : id;
-          const pd = dims(piece);
-          if (!pd) continue;
-          const r = relief(piece);
-          const [x, z] = onFace(f, u, r.out);
-          add(piece, place(piece, x, y, z, f.yaw, rb / pd.w, STOREY / pd.h, r.sz, true), 0, piece === id ? "facade" : "flat");
+          const spans = u + rb / 2 <= da || u - rb / 2 >= db ? [[u - rb / 2, u + rb / 2]] : [[u - rb / 2, da], [db, u + rb / 2]].filter(([a, b]) => b - a > 0.5);
+          for (const [a, b] of spans) {
+            const um = (a + b) / 2;
+            const piece = padBay(um) ? pick(D.flat, kitHash(um, s, 31)) : id;
+            const pd = dims(piece);
+            if (!pd) continue;
+            const r = relief(piece);
+            const [x, z] = onFace(f, um, r.out);
+            add(piece, place(piece, x, y, z, f.yaw, (b - a) / pd.w, STOREY / pd.h, r.sz, true), 0, piece === id ? "facade" : "flat");
+          }
         }
         // up a street wall near a deck: an AC unit on a bay here and there, a pipe and a run of wires down one column
         if (!canyon && !edge && nearDeck(y)) {
@@ -264,7 +277,8 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
       }
       // the Spire's billboards: a lit picture on each face of each tier, beside a pad's climb where the face has one
       if (spire) {
-        const padHere = pads.some((p) => Math.abs((f.nx !== 0 ? p.x : p.z) - f.at) < 3 && (f.nx !== 0 ? p.z : p.x) > f.a && (f.nx !== 0 ? p.z : p.x) < f.b);
+        // a pad's climb, or a door of the drop, keeps the billboard to one side of the face
+        const padHere = pads.some((p) => Math.abs((f.nx !== 0 ? p.x : p.z) - f.at) < 3 && (f.nx !== 0 ? p.z : p.x) > f.a && (f.nx !== 0 ? p.z : p.x) < f.b) || KIT_SITES.doors.some((q) => f.nz !== 0 && Math.abs(q.z0 + 0.2 - f.at) < 0.5 && q.y0 < t.roof && q.y1 > t.base);
         const bw = Math.min(16, padHere ? len / 2 - 3 : len - 4);
         if (bw >= 6) {
           const id = pick(D.billboards, kitHash(t.x, t.z, t.base, f.nx, f.nz, 7));

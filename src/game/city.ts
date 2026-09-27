@@ -83,6 +83,13 @@ export const LOBBY_CANYONS: Array<{ ax: number; az: number; bx: number; bz: numb
 /** the Sky Park's (city.json skyPark): its rooms' bridges (the Spire's terrace's among them) and canyons, world metres, as the lobby's */
 export const PARK_BRIDGES: Array<{ ax: number; az: number; bx: number; bz: number; y: number }> = [];
 export const PARK_CANYONS: Array<{ ax: number; az: number; bx: number; bz: number; y: number }> = [];
+/** the Spire's drop (city.json spire drop), world metres: the shaft, its top and foot, and the doors out of it */
+export const SPIRE_DROP: { shaft: { minX: number; maxX: number; minZ: number; maxZ: number }; top: number; foot: number; doors: Array<{ y: number; minX: number; maxX: number; minZ: number; maxZ: number }> } = {
+  shaft: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 },
+  top: 0,
+  foot: 0,
+  doors: [],
+};
 /**
  * The metro under the centre (city.json metro), world metres: its sides (each a stretch of tunnel under a street, `alongX`
  * when the street runs along x), its floor, and its stairs, each from its top on the street (`top`) to its foot on the
@@ -130,6 +137,8 @@ export const KIT_SITES: {
   openings: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   /** the Sky Lobby's and the Sky Park's rooms: the tower's box, the storey's floor, and each face's window, along it from its middle */
   rooms: Array<{ x: number; z: number; w: number; d: number; y: number; at: { n: number; s: number; w: number; e: number } }>;
+  /** openings in a tower's face the kit leaves bare (the Spire's drop's doors), map-local */
+  doors: Array<{ x0: number; x1: number; z0: number; z1: number; y0: number; y1: number }>;
   /** the centre's parked cars (city.json streetLife): where each stands, which way along the street, which way it faces */
   cars: Array<{ x: number; z: number; alongX: boolean; facing: number }>;
   /** Neon Alley's stalls (city.json neonAlley): solid boxes, the kit's food stands over them, facing the street (yaw) */
@@ -138,7 +147,7 @@ export const KIT_SITES: {
   stairs: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   skyline: Array<{ x: number; z: number; w: number; h: number }>;
   lamps: Array<[number, number]>;
-} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [], rooms: [], cars: [] };
+} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [], rooms: [], cars: [], doors: [] };
 
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
@@ -268,7 +277,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   /** the core's podiums by block ("i,j"), their tops: the concourse's bridges join them */
   const podia = new Map<string, { x0: number; x1: number; z0: number; z1: number; top: number }>();
   CONCOURSE.stairs.length = 0;
-  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.openings.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = 0;
+  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.openings.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = KIT_SITES.doors.length = 0;
   /** the public stairs' footprints (local): a bridge landing across one blocked it (the concourse check found it) */
   const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
   CONCOURSE.bridges.length = 0;
@@ -415,7 +424,40 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
    * `r`: the random stream its roof's clutter draws from (the city's own unless a caller keeps that stream as it was);
    * `edge` false leaves its parapet to the caller, for a roof a bridge lands on
    */
-  function mass(x: number, z: number, w: number, d: number, base: number, storeys: number, mat: THREE.Material, accent: number, sector: string, lobby = false, r: () => number = rnd, edge = true): Tower {
+  /**
+   * A box of a building with boxes cut out of it (map-local, each x0..x1, z0..z1, y0..y1): in bands up its height at
+   * the cuts' tops and bottoms, each band's footprint less the cuts through it
+   */
+  type Cut = { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number };
+  function cutSlab(w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material, cuts: Cut[]): void {
+    const mine = cuts.filter((c) => c.x1 > x - w / 2 && c.x0 < x + w / 2 && c.z1 > z - d / 2 && c.z0 < z + d / 2 && c.y1 > y && c.y0 < y + h);
+    if (!mine.length) {
+      slab(w, h, d, x, y, z, mat);
+      return;
+    }
+    const ys = [...new Set([y, y + h, ...mine.flatMap((c) => [c.y0, c.y1]).filter((v) => v > y && v < y + h)])].sort((a, b) => a - b);
+    for (let i = 0; i + 1 < ys.length; i++) {
+      const [b0, b1] = [ys[i], ys[i + 1]];
+      let parts = [{ x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2 }];
+      for (const c of mine.filter((q) => q.y0 < b1 - 1e-6 && q.y1 > b0 + 1e-6)) {
+        parts = parts.flatMap((q) => {
+          if (c.x1 <= q.x0 || c.x0 >= q.x1 || c.z1 <= q.z0 || c.z0 >= q.z1) return [q];
+          const out: typeof parts = [];
+          if (c.x0 > q.x0) out.push({ x0: q.x0, x1: c.x0, z0: q.z0, z1: q.z1 });
+          if (c.x1 < q.x1) out.push({ x0: c.x1, x1: q.x1, z0: q.z0, z1: q.z1 });
+          const mx0 = Math.max(q.x0, c.x0);
+          const mx1 = Math.min(q.x1, c.x1);
+          if (c.z0 > q.z0) out.push({ x0: mx0, x1: mx1, z0: q.z0, z1: c.z0 });
+          if (c.z1 < q.z1) out.push({ x0: mx0, x1: mx1, z0: c.z1, z1: q.z1 });
+          return out;
+        });
+      }
+      for (const q of parts) if (q.x1 - q.x0 > 0.01 && q.z1 - q.z0 > 0.01) slab(q.x1 - q.x0, b1 - b0, q.z1 - q.z0, (q.x0 + q.x1) / 2, b0, (q.z0 + q.z1) / 2, mat);
+    }
+  }
+
+  /** `cuts`: boxes taken out of it (the Spire's drop), which its roof's clutter also keeps off */
+  function mass(x: number, z: number, w: number, d: number, base: number, storeys: number, mat: THREE.Material, accent: number, sector: string, lobby = false, r: () => number = rnd, edge = true, cuts: Cut[] = []): Tower {
     const h = storeys * storeyH;
     // the Sky Lobby's floor, when this tower is open for it (city.json skyLobby): below it, over it, and two storeys
     // at least above it; and the Sky Park's (skyPark) the same way, in a tower open for the lobby
@@ -430,11 +472,11 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     // With none open, the walls to a concrete cap: a facade's lit windows are for its sides, not the floor you stand on
     let from = base;
     for (const y of [open ? ly : NaN, park ? py : NaN].filter((v) => !Number.isNaN(v))) {
-      slab(w, y - from, d, x, from, z, mat);
+      cutSlab(w, y - from, d, x, from, z, mat, cuts);
       from = y + storeyH;
     }
-    slab(w, base + h - 0.12 - from, d, x, from, z, mat);
-    slab(w, 0.12, d, x, base + h - 0.12, z, concrete);
+    cutSlab(w, base + h - 0.12 - from, d, x, from, z, mat, cuts);
+    cutSlab(w, 0.12, d, x, base + h - 0.12, z, concrete, cuts);
     const roof = base + h;
     const k = neon(accent);
     if (edge) roofEdge(x, z, w, d, roof, k);
@@ -460,6 +502,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       const ch = 1.2 + r() * 1.4;
       const ox = (r() - 0.5) * Math.max(0, w - cw - 2);
       const oz = (r() - 0.5) * Math.max(0, d - cd - 2);
+      // (drawn all the same: a box that would stand over a cut, the drop's mouth, is left out)
+      if (cuts.some((c) => c.y1 >= roof - 0.2 && x + ox + cw / 2 > c.x0 - 0.5 && x + ox - cw / 2 < c.x1 + 0.5 && z + oz + cd / 2 > c.z0 - 0.5 && z + oz - cd / 2 < c.z1 + 0.5)) continue;
       slab(cw, ch, cd, x + ox, roof, z + oz, metal);
       clutter.push({ x: x + ox, z: z + oz, y: roof, w: cw, h: ch, d: cd });
     }
@@ -980,6 +1024,43 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       [1, 0],
       [-1, 0],
     ] as const) padOnto(cx + (nx * w) / 2, cz + (nz * d) / 2, nx, nz, PAVE_H, base);
+    // the drop (city.json spire drop): the shaft down through every tier but the crown, and a door out at its foot and at
+    // the Sky Park's height, each through the tier it stands in to that tier's face
+    const Dr = S.drop;
+    const sx = cx + Dr.at[0];
+    const sz = cz + Dr.at[1];
+    const hs = Dr.size / 2;
+    const tops: number[] = [];
+    {
+      let y = base;
+      for (const n of S.tiers) tops.push((y += n * storeyH));
+    }
+    const shaftTop = tops[tops.length - 2];
+    const py = PAVE_H + C.skyPark.storey * storeyH;
+    // each door runs from the shaft out to the face of the tier it is cut through (the first tier's, then the second's)
+    const faceAt = (tier: number) => cz + (d - 2 * S.tierInset * (tier + 1)) / 2;
+    const doors: Cut[] = [
+      { x0: sx - Dr.door / 2, x1: sx + Dr.door / 2, z0: sz + hs - 0.01, z1: faceAt(0) + 0.1, y0: base, y1: base + storeyH },
+      { x0: sx - Dr.door / 2, x1: sx + Dr.door / 2, z0: sz + hs - 0.01, z1: faceAt(1) + 0.1, y0: py, y1: py + storeyH },
+    ];
+    const cuts: Cut[] = [{ x0: sx - hs, x1: sx + hs, z0: sz - hs, z1: sz + hs, y0: base, y1: shaftTop + 0.01 }, ...doors];
+    SPIRE_DROP.shaft = { minX: sx - hs + BR_X, maxX: sx + hs + BR_X, minZ: sz - hs + BR_Z, maxZ: sz + hs + BR_Z };
+    SPIRE_DROP.top = shaftTop;
+    SPIRE_DROP.foot = base;
+    SPIRE_DROP.doors = doors.map((q) => ({ y: q.y0, minX: q.x0 + BR_X, maxX: q.x1 + BR_X, minZ: q.z0 + BR_Z, maxZ: q.z1 + BR_Z }));
+    for (const q of doors) KIT_SITES.doors.push({ x0: q.x0, x1: q.x1, z0: q.z1 - 0.2, z1: q.z1 + 1, y0: q.y0, y1: q.y1 });
+    // lit down its corners in the chain's colour, and round its mouth
+    const dl = neon(parseInt(Dr.light.slice(1), 16));
+    for (const [ex, ez] of [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+    ] as const) deco(0.08, shaftTop - base, 0.08, sx + ex * (hs - 0.05), base, sz + ez * (hs - 0.05), dl);
+    for (const s of [-1, 1]) {
+      deco(Dr.size, 0.06, 0.06, sx, shaftTop + 0.01, sz + s * hs, dl);
+      deco(0.06, 0.06, Dr.size, sx + s * hs, shaftTop + 0.01, sz, dl);
+    }
     // a tier past the ones the city always had draws from its own stream, so the blocks built after this one stand as they did
     const own = seeded(C.seed + 1);
     S.tiers.forEach((storeys, tier) => {
@@ -988,7 +1069,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       d -= 2 * S.tierInset;
       // the tier that ends at the Sky Park's height is its terrace: its parapet waits for the bridges that land on it
       const terrace = Math.abs(base + storeys * storeyH - (PAVE_H + C.skyPark.storey * storeyH)) < 0.05;
-      const t = mass(cx, cz, w, d, base, storeys, tier === S.tiers.length - 1 ? glass : night[tier % night.length], sec.accent, sec.id, false, tier < S.sharedTiers ? rnd : own, !terrace);
+      const t = mass(cx, cz, w, d, base, storeys, tier === S.tiers.length - 1 ? glass : night[tier % night.length], sec.accent, sec.id, false, tier < S.sharedTiers ? rnd : own, !terrace, tier < S.tiers.length - 1 ? cuts : []);
       if (terrace) spireDeck.terrace = { x: cx, z: cz, w, d, y: t.roof, k };
       base = t.roof;
       // a pad on the terrace below this tier, up its east face onto its roof
