@@ -112,6 +112,8 @@ import { loadPaidGuns, paidGunsReady, paidProp } from "./game/paidgun";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
 import { dressKit } from "./game/kitdress";
+import { cityKitPlaces } from "./game/citydress";
+import { CITY_KIT, dressCityKit } from "./game/citykit";
 import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
@@ -925,6 +927,13 @@ void dressKit(brMap.root, DRESSING).then((n) => {
   kitDressed = n;
   renderer.shadowMap.needsUpdate = true;
 });
+// SpeedKills' centre in the city bundle the owner bought (citydress.ts places it, citykit.ts draws it): as much of it
+// as the graphics preset asks for, and nothing where the bought files are not there (the public build, a checkout).
+// ?nocitykit leaves it off, for a before-and-after from the same spots (tools/city-sheet.ts)
+if (IS_SK && !new URLSearchParams(location.search).has("nocitykit"))
+  void dressCityKit(brMap.root, cityKitPlaces(brMap.pads, quality.cityDetail === 0), quality).then((n) => {
+    if (n) renderer.shadowMap.needsUpdate = true;
+  });
 
 // Static dummies down the lanes, plus one on each moving rail. Distances are
 // true because the player spawns on the firing line at z = 0.
@@ -8067,6 +8076,8 @@ initWelcome();
       opticShown: optic ? optic.group.visible : null,
     };
   },
+  /** the city bundle on SpeedKills' centre (citykit.ts): what is drawn, 0 until it is in or when the files are not there */
+  cityKit: () => ({ ...CITY_KIT }),
   paidGuns: () => {
     // the gun in hand's bought model, and the skin it wears (paidgun.ts: its fusion level's)
     const root = viewModel.gunRoot;

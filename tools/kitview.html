@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>City kit</title>
+<style>
+  html, body { margin: 0; background: #0b0d13; overflow: hidden; font: 12px system-ui, sans-serif; }
+  .label { position: absolute; color: #cfe3ff; background: #0009; padding: 1px 4px; border-radius: 3px; white-space: nowrap; transform: translate(-50%, 0); pointer-events: none; }
+</style>
+</head>
+<body>
+<!--
+  The city bundle's baked pieces laid out in a grid (tools/import-city.ts writes them). A dev page: Vite serves it
+  at /tools/kitview.html and the build never includes it. ?pack=high&filter=wall&lo=1&cols=8
+-->
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import kit from "../src/config/citykit.json";
+
+const q = new URLSearchParams(location.search);
+const pack = q.get("pack") ?? "cyber";
+const filter = (q.get("filter") ?? "").toLowerCase();
+const cols = +(q.get("cols") ?? 8);
+const W = innerWidth, H = innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x151a26);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.add(new THREE.HemisphereLight(0xb8c8ff, 0x302820, 0.6));
+const sun = new THREE.DirectionalLight(0xfff0e0, 1.6);
+sun.position.set(-3, 5, 4);
+scene.add(sun);
+
+const file = `/models/paid/city/${pack}-v${kit.version}${q.get("lo") ? "-lo" : ""}.glb`;
+const gltf = await new GLTFLoader().loadAsync(file);
+const pieces = gltf.scene.children.filter((o) => String(o.userData.id ?? o.name).toLowerCase().includes(filter));
+// each piece in a cell sized to the largest of them, centred on its own bounds
+let cell = 1;
+const boxes = pieces.map((o) => new THREE.Box3().setFromObject(o));
+for (const b of boxes) { const s = b.getSize(new THREE.Vector3()); cell = Math.max(cell, Math.min(Math.max(s.x, s.z) * 1.25, 30)); }
+const rows = Math.ceil(pieces.length / cols);
+const labels = [];
+pieces.forEach((o, i) => {
+  const b = boxes[i], s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
+  const fit = Math.min(1, (cell * 0.8) / Math.max(s.x, s.y, s.z, 0.01));
+  const holder = new THREE.Group();
+  holder.add(o);
+  o.position.sub(c);
+  holder.scale.setScalar(fit);
+  holder.position.set((i % cols - (cols - 1) / 2) * cell, (s.y * fit) / 2, (Math.floor(i / cols) - (rows - 1) / 2) * cell);
+  holder.rotation.y = +(q.get("yaw") ?? 0.5);
+  scene.add(holder);
+  labels.push({ p: holder.position.clone().setY(-0.3), t: `${String(o.userData.id ?? o.name).split("/").pop()} ${s.x.toFixed(1)}x${s.y.toFixed(1)}x${s.z.toFixed(1)}${fit < 1 ? " (fit)" : ""}` });
+});
+const span = Math.max(cols, rows) * cell;
+const cam = new THREE.PerspectiveCamera(35, W / H, 0.1, 5000);
+cam.position.set(0, span * 1.1, span * 1.05);
+cam.lookAt(0, 0, 0);
+renderer.render(scene, cam);
+for (const l of labels) {
+  const v = l.p.clone().project(cam);
+  const d = document.createElement("div");
+  d.className = "label";
+  d.textContent = l.t;
+  d.style.left = `${(v.x * 0.5 + 0.5) * W}px`;
+  d.style.top = `${(-v.y * 0.5 + 0.5) * H}px`;
+  document.body.appendChild(d);
+}
+window.__kit = { pieces: pieces.length };
+window.__kitDone = true;
+</script>
+</body>
+</html>

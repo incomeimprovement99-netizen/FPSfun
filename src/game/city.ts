@@ -95,6 +95,19 @@ export const CONCOURSE: {
   spire: number[];
 } = { stairs: [], bridges: [], spire: [] };
 
+/**
+ * What the city bundle dresses (citydress.ts), recorded as the city is built, map-local: the towers with their roof
+ * clutter, the podiums and which side each leaves open, the public stairs, the skyline and the lamp posts. Recording
+ * only: nothing here draws from the city's random stream, so the city is the same with or without the bundle.
+ */
+export const KIT_SITES: {
+  towers: Array<{ x: number; z: number; w: number; d: number; base: number; roof: number; storeys: number; lobby?: number; sector: string; clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }> }>;
+  podia: Array<{ key: string; x0: number; x1: number; z0: number; z1: number; top: number; plaza: number; spire: boolean }>;
+  stairs: Array<{ x0: number; x1: number; z0: number; z1: number }>;
+  skyline: Array<{ x: number; z: number; w: number; h: number }>;
+  lamps: Array<[number, number]>;
+} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [] };
+
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
   const root = new THREE.Group();
@@ -183,6 +196,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   /** the core's podiums by block ("i,j"), their tops: the concourse's bridges join them */
   const podia = new Map<string, { x0: number; x1: number; z0: number; z1: number; top: number }>();
   CONCOURSE.stairs.length = 0;
+  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = 0;
   /** the public stairs' footprints (local): a bridge landing across one blocked it (the concourse check found it) */
   const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
   CONCOURSE.bridges.length = 0;
@@ -340,6 +354,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     // the roof's clutter: plant rooms and vents to fight round
     const [cMin, cMax] = C.downtown.clutter;
     const n = cMin + Math.floor(rnd() * (cMax - cMin + 1));
+    const clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }> = [];
     for (let i = 0; i < n; i++) {
       const cw = 1.6 + rnd() * 2.4;
       const cd = 1.2 + rnd() * 1.8;
@@ -347,9 +362,11 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       const ox = (rnd() - 0.5) * Math.max(0, w - cw - 2);
       const oz = (rnd() - 0.5) * Math.max(0, d - cd - 2);
       slab(cw, ch, cd, x + ox, roof, z + oz, metal);
+      clutter.push({ x: x + ox, z: z + oz, y: roof, w: cw, h: ch, d: cd });
     }
     const t: Tower = { x, z, w, d, roof, storeys, sector, route: [], street: null, base, lobby: open ? ly : undefined, lobbyMat: open ? mat : undefined };
     towers.push(t);
+    KIT_SITES.towers.push({ x, z, w, d, base, roof, storeys, lobby: open ? ly : undefined, sector, clutter });
     return t;
   }
 
@@ -442,6 +459,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     deco(0.12, 0.12, pz1 - pz0 + 0.1, px0, podTop - 0.3, pcz, k);
     deco(0.12, 0.12, pz1 - pz0 + 0.1, px1, podTop - 0.3, pcz, k);
     podia.set(key, { x0: px0, x1: px1, z0: pz0, z1: pz1, top: podTop });
+    KIT_SITES.podia.push({ key, x0: px0, x1: px1, z0: pz0, z1: pz1, top: podTop, plaza: side, spire: false });
     // canopies over its shopfronts but the plaza's (city.json streetLife): shelter on the pavement, and a ledge
     {
       const L = C.streetLife;
@@ -487,6 +505,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
             ? { x0: px0 - sw2, x1: px0, z0: pz0 + 1, z1: pz0 + 1 + len }
             : { x0: px1, x1: px1 + sw2, z0: pz0 + 1, z1: pz0 + 1 + len },
     );
+    KIT_SITES.stairs.push(stairZones[stairZones.length - 1]);
     if (side === 0) deco(len, 0.08, 0.08, px0 + 1 + len / 2, PAVE_H + 0.3, pz0 - K.stairWidth, k);
     else if (side === 1) deco(len, 0.08, 0.08, px0 + 1 + len / 2, PAVE_H + 0.3, pz1 + K.stairWidth, k);
     else if (side === 2) deco(0.08, 0.08, len, px0 - K.stairWidth, PAVE_H + 0.3, pz0 + 1 + len / 2, k);
@@ -834,6 +853,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     slab(w, 0.12, d, cx, base + S.podium * storeyH - 0.12, cz, concrete);
     base += S.podium * storeyH;
     podia.set(key, { x0: cx - w / 2, x1: cx + w / 2, z0: cz - d / 2, z1: cz + d / 2, top: base });
+    KIT_SITES.podia.push({ key, x0: cx - w / 2, x1: cx + w / 2, z0: cz - d / 2, z1: cz + d / 2, top: base, plaza: -1, spire: true });
     deco(w + 0.1, 0.14, 0.14, cx, base - 0.3, cz - d / 2, k);
     deco(w + 0.1, 0.14, 0.14, cx, base - 0.3, cz + d / 2, k);
     deco(0.14, 0.14, d + 0.1, cx - w / 2, base - 0.3, cz, k);
@@ -1195,6 +1215,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         slab(0.25, 6, 0.25, sx + ox, 0, sz + oz, metal);
         deco(1.4, 0.12, 0.3, sx + ox, 6, sz + oz, lamp);
         lampAt.push([sx + ox, sz + oz]);
+        KIT_SITES.lamps.push([sx + ox, sz + oz]);
       }
     }
   }
@@ -1224,6 +1245,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const k = Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a)));
     const r2 = Math.max(r, (BR_HALF + C.edge.margin + C.skyline.clear + (w * Math.SQRT2) / 2) / k);
     deco(w, h, w, Math.cos(a) * r2, 0, Math.sin(a) * r2, skyMats[i % skyMats.length]).name = "skyline";
+    KIT_SITES.skyline.push({ x: Math.cos(a) * r2, z: Math.sin(a) * r2, w, h });
     if (rnd() < 0.5) deco(0.3, h, 0.3, Math.cos(a) * r2 - w / 2, 0, Math.sin(a) * r2 - w / 2, neon(SECTORS[i % SECTORS.length].accent));
   }
   // holo glyphs hanging over it in the districts' colours (city.json skyline.glyphs): the city glows to the horizon

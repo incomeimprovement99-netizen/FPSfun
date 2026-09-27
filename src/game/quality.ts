@@ -45,6 +45,17 @@ export interface Quality {
    * least (it is the preset for frames), High the most.
    */
   drawDistance: number;
+  /**
+   * The city bundle's pictures (citykit.json sizes): "lo" its 512 textures, "hi" its 1024. Looks only, like
+   * everything the bundle draws: collision and play are the same in every preset.
+   */
+  cityKit: "lo" | "hi";
+  /**
+   * How much of the bundle the centre wears (citykit.json dress tiers): 0 the buildings, shop fronts, parapets,
+   * billboards and skyline; 1 adds the signs, posters, AC units, roof gear, antennas and lamps; 2 adds the cables,
+   * pipes, wires and street clutter.
+   */
+  cityDetail: 0 | 1 | 2;
 }
 
 /**
@@ -84,6 +95,8 @@ export const PRESETS: Record<Preset, Quality> = {
     maxPixelRatio: 1,
     lowLatency: true,
     drawDistance: 460,
+    cityKit: "lo",
+    cityDetail: 0,
   },
   balanced: {
     preset: "balanced",
@@ -98,6 +111,8 @@ export const PRESETS: Record<Preset, Quality> = {
     maxPixelRatio: 1.5,
     lowLatency: false,
     drawDistance: 620,
+    cityKit: "hi",
+    cityDetail: 1,
   },
   high: {
     preset: "high",
@@ -112,6 +127,8 @@ export const PRESETS: Record<Preset, Quality> = {
     maxPixelRatio: 2,
     lowLatency: false,
     drawDistance: 760,
+    cityKit: "hi",
+    cityDetail: 2,
   },
 };
 

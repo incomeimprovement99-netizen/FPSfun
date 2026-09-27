@@ -332,7 +332,12 @@ if (!soldierPkg && !weaponsPkg) {
   process.exit(1);
 }
 mkdirSync(dirname(join(OUT, "x")), { recursive: true });
-// PAID_ONLY=weapons (or soldier) makes one of them only
+// PAID_ONLY=weapons, soldier or city makes that one only
 const only = process.env.PAID_ONLY;
-if (soldierPkg && only !== "weapons") await soldier(unpack(soldierPkg, "soldier"));
-if (weaponsPkg && only !== "soldier") await weapons(unpack(weaponsPkg, "weapons"));
+if (soldierPkg && (!only || only === "soldier")) await soldier(unpack(soldierPkg, "soldier"));
+if (weaponsPkg && (!only || only === "weapons")) await weapons(unpack(weaponsPkg, "weapons"));
+// the city bundle (tools/import-city.ts): its packs are found by name in the same Unity downloads
+if (!only || only === "city") {
+  const { city } = await import("./import-city");
+  await city({ root: ROOT, paid: PAID, out: OUT, unpack, readTga, fbx2gltf }, packages);
+}

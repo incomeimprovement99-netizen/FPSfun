@@ -1,0 +1,783 @@
+// The city bundle made into what the city draws (docs/CITY_BUNDLE_IMPLEMENTATION.md section 7).
+//
+// IL.ranch's five cyberpunk packs are Unity packages: a kit's real pieces are its prefabs, each
+// assembling several meshes from its FBX files (a shop front is 17 to 39 of them), so each prefab
+// in src/config/citykit.json is rebuilt from its Unity YAML and baked into one piece: its finest
+// level of detail, merged by material, in the prefab's own space. A pack's pieces go into one GLB
+// with their textures inside it, twice: at `sizes.hi` for the medium and high graphics presets and
+// at `sizes.lo` for low. What each piece measures (its bounds and triangles) is written back into
+// citykit.json's `measured`, because the city places the kit by those numbers and CLAUDE.md wants
+// every number about a model measured off it.
+//
+// The rules below were each found by rebuilding the packs' demo scenes and looking at them
+// (the plan's section 7): leave any one out and the pieces come out wrong.
+// - 3ds Max leaves a 100x scale on the group above each mesh, and Unity bakes that group's turn
+//   and scale into the mesh on import, where the glTF keeps them on the nodes: bake the node chain.
+// - A prefab holds its LOD1 beside its LOD0 and Unity shows one at a time: take LOD0.
+// - Unity is left-handed: mirror X on positions, take (x, -y, -z, w) for rotations.
+// - Newer Unity hashes a model's mesh IDs and lists none in the .meta: the prefab's object name is
+//   the mesh name. Nested fileIDs are 64-bit and combine by XOR, so they are BigInts here.
+//
+// Only local tools touch the files, and nothing here uploads them anywhere.
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, extname, join } from "node:path";
+import sharp from "sharp";
+import YAML from "yaml";
+import { initializeCanvas, readPsd } from "ag-psd";
+
+export interface CityImportHelpers {
+  root: string;
+  paid: string;
+  out: string;
+  unpack(pkg: string, name: string): Map<string, string>;
+  readTga(file: string): { data: Buffer; width: number; height: number; channels: 3 | 4 };
+  fbx2gltf(): string;
+}
+
+type Vec3 = [number, number, number];
+type Quat = [number, number, number, number];
+type M4 = number[];
+
+const MASK = 0x7fffffffffffffffn;
+const ROOT_T = -8679921383154817045n; // a model prefab's root Transform
+const ROOT_G = 919132149155446097n; // a model prefab's root GameObject
+const LOD_N = /lod\s*_?[1-9]/i;
+const I4: M4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+
+const num = (v: unknown, d = 0): number => (v === undefined || v === null ? d : typeof v === "bigint" ? Number(v) : Number(v));
+const big = (v: unknown): bigint | null => (v === undefined || v === null ? null : typeof v === "bigint" ? v : BigInt(Math.trunc(Number(v))));
+
+function trs(t: Vec3, q: Quat, s: Vec3): M4 {
+  const [x, y, z, w] = q;
+  const xx = x * x, yy = y * y, zz = z * z, xy = x * y, xz = x * z, yz = y * z, wx = w * x, wy = w * y, wz = w * z;
+  return [
+    (1 - 2 * (yy + zz)) * s[0], 2 * (xy + wz) * s[0], 2 * (xz - wy) * s[0], 0,
+    2 * (xy - wz) * s[1], (1 - 2 * (xx + zz)) * s[1], 2 * (yz + wx) * s[1], 0,
+    2 * (xz + wy) * s[2], 2 * (yz - wx) * s[2], (1 - 2 * (xx + yy)) * s[2], 0,
+    t[0], t[1], t[2], 1,
+  ];
+}
+function mul(a: M4, b: M4): M4 {
+  const o = new Array<number>(16).fill(0);
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) o[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3];
+  return o;
+}
+/** the inverse transpose of a matrix's 3x3, for normals, and its determinant (a mirror flips winding) */
+function normalMat(m: M4): { n: number[]; det: number } {
+  const a = m[0], b = m[4], c = m[8], d = m[1], e = m[5], f = m[9], g = m[2], h = m[6], i = m[10];
+  const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g;
+  const det = a * A + b * B + c * C || 1e-12;
+  // inverse transpose = cofactor matrix / det, laid out so n * [x,y,z] multiplies rows
+  const n = [A, B, C, -(b * i - c * h), a * i - c * g, -(a * h - b * g), b * f - c * e, -(a * f - c * d), a * e - b * d].map((v) => v / det);
+  return { n, det };
+}
+const srgbToLinear = (c: number): number => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+// ---------------------------------------------------------------- a pack's Unity side
+class Pack {
+  readonly guidPath = new Map<string, string>();
+  readonly pathFile = new Map<string, string>();
+  private parsed = new Map<string, Map<bigint, { cls: number; stripped: boolean; data: any }>>();
+  private metaNames = new Map<string, Map<bigint, string>>();
+  readonly matByName = new Map<string, string>();
+
+  constructor(readonly name: string, files: Map<string, string>) {
+    for (const [p, f] of files) {
+      const guid = basename(dirname(f));
+      this.guidPath.set(guid, p);
+      this.pathFile.set(p, f);
+      if (p.toLowerCase().endsWith(".mat")) this.matByName.set(basename(p, extname(p)).toLowerCase(), guid);
+    }
+  }
+  file(guid: string): string | undefined {
+    const p = this.guidPath.get(guid);
+    return p ? this.pathFile.get(p) : undefined;
+  }
+  parse(guid: string): Map<bigint, { cls: number; stripped: boolean; data: any }> {
+    const hit = this.parsed.get(guid);
+    if (hit) return hit;
+    const objs = new Map<bigint, { cls: number; stripped: boolean; data: any }>();
+    const f = this.file(guid);
+    if (f && existsSync(f)) {
+      const text = readFileSync(f, "utf8");
+      // split keeps the captured header fields: [before, cls, fileID, stripped, body, cls, ...]
+      const parts = text.split(/^--- !u!(\d+) &(-?\d+)( stripped)?[^\n]*$/m);
+      for (let i = 1; i + 3 < parts.length + 1; i += 4) {
+        let d: any;
+        try {
+          d = YAML.parse(parts[i + 3] ?? "", { intAsBigInt: true, uniqueKeys: false, strict: false, logLevel: "silent" });
+        } catch {
+          continue;
+        }
+        if (!d || typeof d !== "object") continue;
+        const k = Object.keys(d)[0];
+        objs.set(BigInt(parts[i + 1]), { cls: +parts[i], stripped: !!parts[i + 2], data: d[k] ?? {} });
+      }
+    }
+    this.parsed.set(guid, objs);
+    return objs;
+  }
+  /** a model's mesh names by fileID, where its .meta lists them (older imports) */
+  meshNames(guid: string): Map<bigint, string> {
+    const hit = this.metaNames.get(guid);
+    if (hit) return hit;
+    const out = new Map<bigint, string>();
+    const f = this.file(guid);
+    if (f && existsSync(f + ".meta")) {
+      const t = readFileSync(f + ".meta", "utf8");
+      for (const m of t.matchAll(/- first:\s*\n\s+43: (-?\d+)\s*\n\s+second: ([^\n]+)/g)) out.set(BigInt(m[1]), m[2].trim());
+      for (const m of t.matchAll(/^\s+(43\d{5}): ([^\n]+)$/gm)) out.set(BigInt(m[1]), m[2].trim());
+    }
+    this.metaNames.set(guid, out);
+    return out;
+  }
+  /** a model's own material remap in its .meta: FBX material name to .mat guid */
+  materialRemap(guid: string): Map<string, string> {
+    const out = new Map<string, string>();
+    const f = this.file(guid);
+    if (f && existsSync(f + ".meta")) {
+      const t = readFileSync(f + ".meta", "utf8");
+      for (const m of t.matchAll(/type: UnityEngine:Material\s*\n\s+assembly: [^\n]*\n\s+name: ([^\n]+)\n\s+second: \{fileID: \d+, guid: ([0-9a-f]+)/g)) out.set(m[1].trim(), m[2]);
+    }
+    return out;
+  }
+}
+
+// ---------------------------------------------------------------- the models, as glTF
+interface RawPrim { pos: Float32Array; nrm: Float32Array | null; uv: Float32Array | null; idx: Uint32Array; material: string }
+interface RawModel { meshes: Array<{ name: string; prims: RawPrim[] }>; nodes: Array<{ name: string; mesh: number | null; t: Vec3; r: Quat; s: Vec3; kids: number[]; parent: number | null }>; roots: number[] }
+
+class Models {
+  private cache = new Map<string, RawModel | null>();
+  constructor(private h: CityImportHelpers, private dir: string) {
+    mkdirSync(dir, { recursive: true });
+  }
+  get(pack: Pack, guid: string): RawModel | null {
+    const key = pack.name + "/" + guid;
+    if (this.cache.has(key)) return this.cache.get(key)!;
+    const src = pack.file(guid);
+    const p = pack.guidPath.get(guid) ?? "";
+    let model: RawModel | null = null;
+    if (src && /\.fbx$/i.test(p)) {
+      const out = join(this.dir, pack.name, guid);
+      mkdirSync(dirname(out), { recursive: true });
+      if (!existsSync(out + ".glb")) {
+        const tmp = out + ".fbx";
+        writeFileSync(tmp, readFileSync(src));
+        try {
+          execFileSync(this.h.fbx2gltf(), ["-b", "--pbr-metallic-roughness", "-i", tmp, "-o", out], { stdio: "ignore" });
+        } catch {
+          /* a model FBX2glTF cannot read is left out, and the pieces that need it say so */
+        }
+      }
+      if (existsSync(out + ".glb")) model = readGlb(out + ".glb");
+    }
+    this.cache.set(key, model);
+    return model;
+  }
+}
+
+/** a GLB's geometry and node tree, read directly: the importer needs raw arrays, not a scene */
+function readGlb(file: string): RawModel {
+  const b = readFileSync(file);
+  const jlen = b.readUInt32LE(12);
+  const j = JSON.parse(b.subarray(20, 20 + jlen).toString("utf8"));
+  const binStart = 20 + jlen + 8;
+  const bin = b.subarray(binStart);
+  const COMP: Record<number, number> = { 5126: 4, 5125: 4, 5123: 2, 5121: 1 };
+  const SIZE: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
+  const read = (ai: number): { data: number[] | Float32Array | Uint32Array; n: number } => {
+    const a = j.accessors[ai];
+    const bv = j.bufferViews[a.bufferView];
+    const comps = SIZE[a.type];
+    const cs = COMP[a.componentType];
+    const stride = bv.byteStride || comps * cs;
+    const base = (bv.byteOffset || 0) + (a.byteOffset || 0);
+    const out = a.componentType === 5126 ? new Float32Array(a.count * comps) : new Uint32Array(a.count * comps);
+    for (let i = 0; i < a.count; i++)
+      for (let c = 0; c < comps; c++) {
+        const o = base + i * stride + c * cs;
+        out[i * comps + c] = a.componentType === 5126 ? bin.readFloatLE(o) : a.componentType === 5125 ? bin.readUInt32LE(o) : a.componentType === 5123 ? bin.readUInt16LE(o) : bin.readUInt8(o);
+      }
+    return { data: out, n: a.count };
+  };
+  const meshes = (j.meshes ?? []).map((m: any) => ({
+    name: m.name ?? "",
+    prims: m.primitives.map((p: any): RawPrim => {
+      const pos = read(p.attributes.POSITION).data as Float32Array;
+      const nrm = p.attributes.NORMAL !== undefined ? (read(p.attributes.NORMAL).data as Float32Array) : null;
+      const uv = p.attributes.TEXCOORD_0 !== undefined ? (read(p.attributes.TEXCOORD_0).data as Float32Array) : null;
+      const idx = p.indices !== undefined ? Uint32Array.from(read(p.indices).data as Uint32Array) : Uint32Array.from({ length: pos.length / 3 }, (_, i) => i);
+      return { pos, nrm, uv, idx, material: p.material !== undefined ? (j.materials[p.material].name ?? "") : "" };
+    }),
+  }));
+  const nodes = (j.nodes ?? []).map((n: any) => ({ name: n.name ?? "", mesh: n.mesh ?? null, t: n.translation ?? [0, 0, 0], r: n.rotation ?? [0, 0, 0, 1], s: n.scale ?? [1, 1, 1], kids: n.children ?? [], parent: null as number | null }));
+  nodes.forEach((n: any, i: number) => n.kids.forEach((k: number) => (nodes[k].parent = i)));
+  return { meshes, nodes, roots: j.scenes?.[j.scene ?? 0]?.nodes ?? [] };
+}
+
+/**
+ * The scale a model's node chain gives one mesh: Unity bakes the chain's scale (3ds Max's 100x on the group) into
+ * the mesh on import, but keeps each node's turn on the prefab's own GameObject, where the prefab already carries it
+ * (a street door's parts are turned -90 degrees about X in both). So only the scales multiply in here.
+ */
+function preOf(model: RawModel, meshIdx: number): M4 {
+  const i = model.nodes.findIndex((n) => n.mesh === meshIdx);
+  if (i < 0) return I4;
+  const s: Vec3 = [...model.nodes[i].s] as Vec3;
+  let k = model.nodes[i].parent;
+  while (k !== null) {
+    for (let c = 0; c < 3; c++) s[c] *= model.nodes[k].s[c];
+    k = model.nodes[k].parent;
+  }
+  return trs([0, 0, 0], [0, 0, 0, 1], s);
+}
+function meshIndex(pack: Pack, model: RawModel, guid: string, fid: bigint | null, goName: string): number | null {
+  const want = (fid !== null && pack.meshNames(guid).get(fid)) || goName;
+  let i = model.meshes.findIndex((m) => m.name === want);
+  if (i >= 0) return i;
+  const n = model.nodes.find((x) => x.name === want && x.mesh !== null);
+  if (n) return n.mesh;
+  return model.meshes.length === 1 ? 0 : null;
+}
+
+// ---------------------------------------------------------------- a prefab, rebuilt
+interface Draw { model: RawModel; mesh: number; pre: M4 | null; mats: Array<string | null> | null; modelGuid: string; on: boolean; go: bigint | null }
+class TNode {
+  t: Vec3 = [0, 0, 0];
+  r: Quat = [0, 0, 0, 1];
+  s: Vec3 = [1, 1, 1];
+  kids: TNode[] = [];
+  draws: Draw[] = [];
+  active = true;
+  parent: TNode | null = null;
+  constructor(public name = "") {}
+}
+const u2tPos = (p: any): Vec3 => [-num(p?.x), num(p?.y), num(p?.z)];
+const u2tRot = (q: any): Quat => [num(q?.x), -num(q?.y), -num(q?.z), num(q?.w, 1)];
+
+class Resolver {
+  constructor(private pack: Pack, private models: Models) {}
+
+  private instantiateModel(guid: string): { roots: TNode[]; ids: Map<string, TNode> } {
+    const root = new TNode(basename(this.pack.guidPath.get(guid) ?? guid));
+    const ids = new Map<string, TNode>([[String(ROOT_T), root], [String(ROOT_G), root]]);
+    const model = this.models.get(this.pack, guid);
+    if (!model) return { roots: [root], ids };
+    const remap = this.pack.materialRemap(guid);
+    const top = new Set<number>();
+    for (const r of model.roots) {
+      top.add(r);
+      for (const k of model.nodes[r].kids) top.add(k);
+    }
+    const build = (i: number): TNode => {
+      const n = model.nodes[i];
+      const tn = new TNode(n.name);
+      // a model's top object becomes the prefab's origin in Unity, so its place in the old 3ds Max
+      // scene (hundreds of metres out, and in centimetres FBX2glTF left unconverted) is dropped
+      tn.t = top.has(i) ? [0, 0, 0] : ([...n.t] as Vec3);
+      tn.r = [...n.r] as Quat; tn.s = [...n.s] as Vec3;
+      if (n.mesh !== null) {
+        const mats = model.meshes[n.mesh].prims.map((p) => remap.get(p.material) ?? this.pack.matByName.get(p.material.toLowerCase()) ?? null);
+        tn.draws.push({ model, mesh: n.mesh, pre: null, mats, modelGuid: guid, on: true, go: null });
+      }
+      for (const k of n.kids) {
+        const c = build(k);
+        c.parent = tn;
+        tn.kids.push(c);
+      }
+      return tn;
+    };
+    for (const i of model.roots) {
+      const c = build(i);
+      c.parent = root;
+      root.kids.push(c);
+    }
+    return { roots: [root], ids };
+  }
+
+  instantiate(guid: string, depth = 0): { roots: TNode[]; ids: Map<string, TNode> } {
+    const p = this.pack.guidPath.get(guid) ?? "";
+    if (/\.(fbx|obj|blend)$/i.test(p)) return this.instantiateModel(guid);
+    if (depth > 12) return { roots: [], ids: new Map() };
+    const objs = this.pack.parse(guid);
+    const ids = new Map<string, TNode>();
+    const parentOf: Array<[TNode, bigint]> = [];
+    for (const [fid, o] of objs) {
+      if ((o.cls === 4 || o.cls === 224) && !o.stripped) {
+        const n = new TNode();
+        n.t = u2tPos(o.data.m_LocalPosition);
+        n.r = u2tRot(o.data.m_LocalRotation ?? { w: 1 });
+        const sc = o.data.m_LocalScale ?? { x: 1, y: 1, z: 1 };
+        n.s = [num(sc.x, 1), num(sc.y, 1), num(sc.z, 1)];
+        ids.set(String(fid), n);
+        const go = big(o.data.m_GameObject?.fileID);
+        if (go) ids.set(String(go), n);
+        parentOf.push([n, big(o.data.m_Father?.fileID) ?? 0n]);
+      }
+    }
+    for (const [fid, o] of objs) {
+      if (o.cls === 1) {
+        const n = ids.get(String(fid));
+        if (n) {
+          n.name = String(o.data.m_Name ?? "");
+          n.active = num(o.data.m_IsActive, 1) !== 0;
+        }
+      }
+    }
+    for (const [fid, o] of objs) {
+      if (o.cls !== 1001) continue;
+      const src = o.data.m_SourcePrefab?.guid;
+      if (!src) continue;
+      const mod = o.data.m_Modification ?? {};
+      const sub = this.instantiate(String(src), depth + 1);
+      for (const m of mod.m_Modifications ?? []) {
+        const tgt = big(m.target?.fileID);
+        const node = tgt !== null ? sub.ids.get(String(tgt)) : undefined;
+        if (!node) continue;
+        const path = String(m.propertyPath ?? "");
+        const ref = m.objectReference ?? {};
+        const v = m.value;
+        if (path.startsWith("m_LocalPosition.")) {
+          const i = "xyz".indexOf(path.slice(-1));
+          node.t[i] = i === 0 ? -num(v) : num(v);
+        } else if (path.startsWith("m_LocalRotation.")) {
+          const i = "xyzw".indexOf(path.slice(-1));
+          node.r[i] = i === 1 || i === 2 ? -num(v) : num(v);
+        } else if (path.startsWith("m_LocalScale.")) {
+          node.s["xyz".indexOf(path.slice(-1))] = num(v, 1);
+        } else if (path === "m_IsActive") node.active = num(v, 1) !== 0;
+        else if (path === "m_Name") node.name = String(v ?? "");
+        else if (path.startsWith("m_Materials.Array.data[") && ref.guid) {
+          const k = +path.match(/\[(\d+)\]/)![1];
+          for (const d of node.draws) {
+            const mats = (d.mats = [...(d.mats ?? [])]);
+            while (mats.length <= k) mats.push(null);
+            mats[k] = String(ref.guid);
+          }
+        } else if (path === "m_Enabled") for (const d of node.draws) d.on = num(v, 1) !== 0;
+      }
+      for (const [sfid, node] of sub.ids) {
+        const s = BigInt(sfid);
+        ids.set(String((fid ^ s) & MASK), node);
+        ids.set(String(fid ^ s), node);
+      }
+      const tp = big(mod.m_TransformParent?.fileID) ?? 0n;
+      for (const r of sub.roots) parentOf.push([r, tp]);
+    }
+    for (const [fid, o] of objs) {
+      if (!o.stripped) continue;
+      const src = big(o.data.m_CorrespondingSourceObject?.fileID);
+      const pi = big(o.data.m_PrefabInstance?.fileID);
+      if (src === null || pi === null) continue;
+      const n = ids.get(String((pi ^ src) & MASK)) ?? ids.get(String(pi ^ src));
+      if (n) ids.set(String(fid), n);
+    }
+    // this file's own meshes and renderers
+    for (const [, o] of objs) {
+      if ((o.cls === 33 || o.cls === 137) && !o.stripped) {
+        const go = big(o.data.m_GameObject?.fileID);
+        const node = go !== null ? ids.get(String(go)) : undefined;
+        const mref = o.data.m_Mesh ?? {};
+        if (!node || !mref.guid) continue;
+        const mg = String(mref.guid);
+        const model = this.models.get(this.pack, mg);
+        if (!model) continue;
+        const mi = meshIndex(this.pack, model, mg, big(mref.fileID), node.name);
+        if (mi === null) continue;
+        const d: Draw = { model, mesh: mi, pre: preOf(model, mi), mats: null, modelGuid: mg, on: true, go };
+        if (o.cls === 137) d.mats = (o.data.m_Materials ?? []).map((m: any) => (m?.guid ? String(m.guid) : null));
+        node.draws.push(d);
+      }
+    }
+    for (const [, o] of objs) {
+      if (o.cls !== 23 || o.stripped) continue;
+      const go = big(o.data.m_GameObject?.fileID);
+      const node = go !== null ? ids.get(String(go)) : undefined;
+      if (!node) continue;
+      const mats = (o.data.m_Materials ?? []).map((m: any) => (m?.guid ? String(m.guid) : null));
+      for (const d of node.draws) if (d.go === go) {
+        d.mats = mats;
+        d.on = num(o.data.m_Enabled, 1) !== 0;
+      }
+    }
+    const roots: TNode[] = [];
+    for (const [n, pf] of parentOf) {
+      const p = pf ? ids.get(String(pf)) : undefined;
+      if (p && p !== n) {
+        n.parent = p;
+        p.kids.push(n);
+      } else roots.push(n);
+    }
+    return { roots, ids };
+  }
+
+  /** every mesh a prefab draws at LOD0, with its matrix in the prefab's space */
+  flatten(guid: string): Array<{ d: Draw; m: M4 }> {
+    const { roots } = this.instantiate(guid);
+    const out: Array<{ d: Draw; m: M4 }> = [];
+    const walk = (n: TNode, pm: M4): void => {
+      if (!n.active || LOD_N.test(n.name)) return;
+      const m = mul(pm, trs(n.t, n.r, n.s));
+      for (const d of n.draws) if (d.on) out.push({ d, m: d.pre ? mul(m, d.pre) : m });
+      for (const k of n.kids) walk(k, m);
+    };
+    for (const r of roots) walk(r, I4);
+    return out;
+  }
+}
+
+// ---------------------------------------------------------------- materials and textures
+interface MatInfo {
+  name: string;
+  map: string | null; normal: string | null; emissive: string | null; metalGloss: string | null; occlusion: string | null;
+  color: [number, number, number, number]; emission: [number, number, number] | null;
+  metal: number; smooth: number; normalScale: number;
+  mode: "OPAQUE" | "MASK" | "BLEND"; cutoff: number; doubleSided: boolean;
+  tiling: [number, number, number, number];
+}
+function readMaterial(pack: Pack, guid: string): MatInfo | null {
+  const objs = pack.parse(guid);
+  for (const [, o] of objs) {
+    if (o.cls !== 21) continue;
+    const d = o.data;
+    const props = d.m_SavedProperties ?? {};
+    const tex = (keys: string[]): { guid: string; scale: [number, number]; offset: [number, number] } | null => {
+      for (const k of keys)
+        for (const e of props.m_TexEnvs ?? []) {
+          const v = e?.[k];
+          if (v?.m_Texture?.guid && pack.file(String(v.m_Texture.guid)))
+            return { guid: String(v.m_Texture.guid), scale: [num(v.m_Scale?.x, 1), num(v.m_Scale?.y, 1)], offset: [num(v.m_Offset?.x), num(v.m_Offset?.y)] };
+        }
+      return null;
+    };
+    const flt = (keys: string[], dflt: number): number => {
+      for (const k of keys) for (const e of props.m_Floats ?? []) if (e && k in e) return num(e[k]);
+      return dflt;
+    };
+    const col = (keys: string[]): any => {
+      for (const k of keys) for (const e of props.m_Colors ?? []) if (e && k in e) return e[k];
+      return null;
+    };
+    const kw = [String(d.m_ShaderKeywords ?? ""), ...(d.m_ValidKeywords ?? []).map(String)].join(" ");
+    // standard names first; a custom shader's albedo is found by its property's name
+    let base = tex(["_BaseMap", "_MainTex", "_BaseColorMap"]);
+    if (!base) {
+      const k = (props.m_TexEnvs ?? []).map((e: any) => Object.keys(e ?? {})[0]).find((n: string) => /albedo|diffuse|color|main/i.test(n ?? ""));
+      if (k) base = tex([k]);
+    }
+    const c = col(["_BaseColor", "_Color"]) ?? { r: 1, g: 1, b: 1, a: 1 };
+    const e = col(["_EmissionColor", "_EmissiveColor"]);
+    const emissiveTex = tex(["_EmissionMap", "_EmissiveColorMap"]);
+    const emitting = /_EMISSION/.test(kw) || !!emissiveTex;
+    const surface = flt(["_Surface"], 0);
+    const mode = flt(["_Mode"], 0);
+    const clip = flt(["_AlphaClip"], 0) === 1 || /_ALPHATEST_ON/.test(kw) || mode === 1;
+    const cull = flt(["_Cull", "_CullMode"], 2);
+    return {
+      name: String(d.m_Name ?? guid),
+      map: base?.guid ?? null,
+      normal: tex(["_BumpMap", "_NormalMap"])?.guid ?? null,
+      emissive: emitting ? emissiveTex?.guid ?? null : null,
+      metalGloss: tex(["_MetallicGlossMap", "_MaskMap"])?.guid ?? null,
+      occlusion: tex(["_OcclusionMap"])?.guid ?? null,
+      color: [srgbToLinear(num(c.r, 1)), srgbToLinear(num(c.g, 1)), srgbToLinear(num(c.b, 1)), num(c.a, 1)],
+      emission: emitting && e ? [num(e.r), num(e.g), num(e.b)] : emitting ? [1, 1, 1] : null,
+      metal: flt(["_Metallic"], 0),
+      smooth: flt(["_Smoothness", "_Glossiness"], 0.5),
+      normalScale: flt(["_BumpScale"], 1),
+      mode: surface === 1 || mode === 2 || mode === 3 ? "BLEND" : clip ? "MASK" : "OPAQUE",
+      cutoff: flt(["_Cutoff"], 0.5),
+      doubleSided: cull === 0,
+      tiling: base ? [base.scale[0], base.scale[1], base.offset[0], base.offset[1]] : [1, 1, 0, 0],
+    };
+  }
+  return null;
+}
+
+initializeCanvas(() => ({ width: 1, height: 1, getContext: () => ({ createImageData: (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }) }) }) as any);
+
+class Textures {
+  private raw = new Map<string, { data: Buffer; width: number; height: number; channels: 3 | 4 } | null>();
+  private out = new Map<string, Buffer | null>();
+  constructor(private h: CityImportHelpers) {}
+  /** a texture's pixels at full size, whatever its file type */
+  private async decode(pack: Pack, guid: string): Promise<{ data: Buffer; width: number; height: number; channels: 3 | 4 } | null> {
+    const key = pack.name + guid;
+    if (this.raw.has(key)) return this.raw.get(key)!;
+    const f = pack.file(guid);
+    const p = (pack.guidPath.get(guid) ?? "").toLowerCase();
+    let r: { data: Buffer; width: number; height: number; channels: 3 | 4 } | null = null;
+    try {
+      if (!f) r = null;
+      else if (p.endsWith(".tga")) r = this.h.readTga(f);
+      else if (p.endsWith(".psd")) {
+        const psd = readPsd(readFileSync(f), { useImageData: true, skipLayerImageData: true, skipThumbnail: true });
+        if (psd.imageData) r = { data: Buffer.from(psd.imageData.data.buffer), width: psd.width, height: psd.height, channels: 4 };
+      } else {
+        const { data, info } = await sharp(f, { limitInputPixels: false }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        r = { data, width: info.width, height: info.height, channels: 4 };
+      }
+    } catch {
+      r = null;
+    }
+    // keep the last few only: a pack's source textures are gigabytes raw
+    if (this.raw.size > 6) this.raw.delete(this.raw.keys().next().value!);
+    this.raw.set(key, r);
+    return r;
+  }
+  private fit(w: number, h: number, size: number): [number, number] {
+    const k = Math.min(1, size / Math.max(w, h));
+    return [Math.max(4, Math.round(w * k)), Math.max(4, Math.round(h * k))];
+  }
+  async webp(pack: Pack, guid: string, size: number, kind: "color" | "normal" | "emissive"): Promise<Buffer | null> {
+    const key = `${pack.name}/${guid}/${size}/${kind}`;
+    if (this.out.has(key)) return this.out.get(key)!;
+    const t = await this.decode(pack, guid);
+    let b: Buffer | null = null;
+    if (t) {
+      const [w, h] = this.fit(t.width, t.height, size);
+      b = await sharp(t.data, { raw: { width: t.width, height: t.height, channels: t.channels } })
+        .resize(w, h, { kernel: "lanczos3" })
+        .webp({ quality: kind === "normal" ? 90 : 82, effort: 4 })
+        .toBuffer();
+    }
+    this.out.set(key, b);
+    return b;
+  }
+  /** Unity's metal/smoothness (R metal, A smoothness) and occlusion as glTF's packed occlusion, roughness, metal */
+  async orm(pack: Pack, mi: MatInfo, size: number): Promise<Buffer | null> {
+    if (!mi.metalGloss && !mi.occlusion) return null;
+    const key = `${pack.name}/${mi.metalGloss}/${mi.occlusion}/${size}/${mi.smooth}/orm`;
+    if (this.out.has(key)) return this.out.get(key)!;
+    const mg = mi.metalGloss ? await this.decode(pack, mi.metalGloss) : null;
+    const oc = mi.occlusion ? await this.decode(pack, mi.occlusion) : null;
+    const ref = mg ?? oc;
+    if (!ref) return null;
+    const [w, h] = this.fit(ref.width, ref.height, size);
+    const px = async (t: typeof mg): Promise<Buffer | null> =>
+      t ? sharp(t.data, { raw: { width: t.width, height: t.height, channels: t.channels } }).resize(w, h).ensureAlpha().raw().toBuffer() : null;
+    const a = await px(mg);
+    const o = await px(oc);
+    const rgb = Buffer.alloc(w * h * 3);
+    for (let i = 0; i < w * h; i++) {
+      rgb[i * 3] = o ? o[i * 4] : 255;
+      const smooth = a ? (a[i * 4 + 3] / 255) * mi.smooth : mi.smooth;
+      rgb[i * 3 + 1] = Math.round((1 - smooth) * 255);
+      rgb[i * 3 + 2] = a ? a[i * 4] : Math.round(mi.metal * 255);
+    }
+    const b = await sharp(rgb, { raw: { width: w, height: h, channels: 3 } }).webp({ quality: 85 }).toBuffer();
+    this.out.set(key, b);
+    return b;
+  }
+}
+
+// ---------------------------------------------------------------- baking and writing
+interface Baked { id: string; groups: Map<string, { mat: string | null; pos: number[]; nrm: number[]; uv: number[]; idx: number[] }>; tris: number; min: Vec3; max: Vec3; faces: Record<string, number>; depths: Record<string, Map<number, number>> }
+
+function bake(pack: Pack, res: Resolver, id: string, guid: string, mats: Map<string, MatInfo | null>): Baked | null {
+  const draws = res.flatten(guid);
+  if (!draws.length) return null;
+  const groups = new Map<string, { mat: string | null; pos: number[]; nrm: number[]; uv: number[]; idx: number[] }>();
+  const min: Vec3 = [Infinity, Infinity, Infinity], max: Vec3 = [-Infinity, -Infinity, -Infinity];
+  const faces: Record<string, number> = { px: 0, nx: 0, py: 0, ny: 0, pz: 0, nz: 0 };
+  // for each way a face can look, its area by where it stands along that way (10 cm steps): a thick facade module's
+  // wall is the plane most of its front area stands on, behind the frames and cornices that stand out of it
+  const depths: Record<string, Map<number, number>> = { px: new Map(), nx: new Map(), pz: new Map(), nz: new Map() };
+  let tris = 0;
+  for (const { d, m } of draws) {
+    const mesh = d.model.meshes[d.mesh];
+    if (!mesh) continue;
+    const { n, det } = normalMat(m);
+    mesh.prims.forEach((prim, pi) => {
+      let mg = (d.mats ?? [])[pi] ?? (d.mats ?? [])[0] ?? null;
+      if (!mg && prim.material) mg = pack.matByName.get(prim.material.toLowerCase()) ?? null;
+      if (mg && !mats.has(mg)) mats.set(mg, readMaterial(pack, mg));
+      const mi = mg ? mats.get(mg) ?? null : null;
+      const key = mg ?? "none:" + prim.material;
+      if (!groups.has(key)) groups.set(key, { mat: mg, pos: [], nrm: [], uv: [], idx: [] });
+      const g = groups.get(key)!;
+      const base = g.pos.length / 3;
+      const vc = prim.pos.length / 3;
+      const [su, sv, ou, ov] = mi?.tiling ?? [1, 1, 0, 0];
+      for (let i = 0; i < vc; i++) {
+        const x = prim.pos[i * 3], y = prim.pos[i * 3 + 1], z = prim.pos[i * 3 + 2];
+        const wx = m[0] * x + m[4] * y + m[8] * z + m[12], wy = m[1] * x + m[5] * y + m[9] * z + m[13], wz = m[2] * x + m[6] * y + m[10] * z + m[14];
+        g.pos.push(wx, wy, wz);
+        if (wx < min[0]) min[0] = wx; if (wy < min[1]) min[1] = wy; if (wz < min[2]) min[2] = wz;
+        if (wx > max[0]) max[0] = wx; if (wy > max[1]) max[1] = wy; if (wz > max[2]) max[2] = wz;
+        if (prim.nrm) {
+          const a = prim.nrm[i * 3], b = prim.nrm[i * 3 + 1], c = prim.nrm[i * 3 + 2];
+          let nx = n[0] * a + n[1] * b + n[2] * c, ny = n[3] * a + n[4] * b + n[5] * c, nz = n[6] * a + n[7] * b + n[8] * c;
+          const l = Math.hypot(nx, ny, nz) || 1;
+          nx /= l; ny /= l; nz /= l;
+          g.nrm.push(nx, ny, nz);
+        } else g.nrm.push(0, 1, 0);
+        if (prim.uv) {
+          // Unity tiles in its own UV space (v up); the glTF's v runs down
+          const u = prim.uv[i * 2], vg = prim.uv[i * 2 + 1];
+          g.uv.push(u * su + ou, 1 - ((1 - vg) * sv + ov));
+        } else g.uv.push(0, 0);
+      }
+      for (let t = 0; t < prim.idx.length; t += 3) {
+        const a = prim.idx[t] + base, b = prim.idx[t + 1] + base, c = prim.idx[t + 2] + base;
+        if (det < 0) g.idx.push(a, c, b);
+        else g.idx.push(a, b, c);
+        // which way the piece's surface faces, by area: a wall's front is the side it shows most
+        const p = g.pos;
+        const ux = p[b * 3] - p[a * 3], uy = p[b * 3 + 1] - p[a * 3 + 1], uz = p[b * 3 + 2] - p[a * 3 + 2];
+        const vx = p[c * 3] - p[a * 3], vy = p[c * 3 + 1] - p[a * 3 + 1], vz = p[c * 3 + 2] - p[a * 3 + 2];
+        let cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
+        if (det < 0) { cx = -cx; cy = -cy; cz = -cz; }
+        const ax = Math.abs(cx), ay = Math.abs(cy), az = Math.abs(cz);
+        const area = Math.hypot(cx, cy, cz) / 2;
+        const at = (k: number) => (p[a * 3 + k] + p[b * 3 + k] + p[c * 3 + k]) / 3;
+        const bin = (dir: string, v: number) => depths[dir].set(Math.round(v * 10), (depths[dir].get(Math.round(v * 10)) ?? 0) + area);
+        if (ax >= ay && ax >= az) {
+          faces[cx > 0 ? "px" : "nx"] += area;
+          bin(cx > 0 ? "px" : "nx", at(0));
+        } else if (ay >= az) faces[cy > 0 ? "py" : "ny"] += area;
+        else {
+          faces[cz > 0 ? "pz" : "nz"] += area;
+          bin(cz > 0 ? "pz" : "nz", at(2));
+        }
+      }
+      tris += prim.idx.length / 3;
+    });
+  }
+  if (!Number.isFinite(min[0])) return null;
+  return { id, groups, tris, min, max, faces, depths };
+}
+
+async function writePack(_h: CityImportHelpers, pack: Pack, baked: Baked[], mats: Map<string, MatInfo | null>, tex: Textures, size: number, file: string): Promise<number> {
+  const { Document, NodeIO } = await import("@gltf-transform/core");
+  const doc = new Document();
+  const buf = doc.createBuffer();
+  const scene = doc.createScene(pack.name);
+  const matCache = new Map<string, any>();
+  const texCache = new Map<string, any>();
+  const texture = async (g: string, kind: "color" | "normal" | "emissive"): Promise<any> => {
+    const k = g + kind;
+    if (texCache.has(k)) return texCache.get(k);
+    const b = await tex.webp(pack, g, size, kind);
+    const t = b ? doc.createTexture(basename(pack.guidPath.get(g) ?? g)).setImage(new Uint8Array(b)).setMimeType("image/webp") : null;
+    texCache.set(k, t);
+    return t;
+  };
+  const material = async (g: string | null, fallbackName: string): Promise<any> => {
+    const k = g ?? "none:" + fallbackName;
+    if (matCache.has(k)) return matCache.get(k);
+    const mi = g ? mats.get(g) ?? null : null;
+    const m = doc.createMaterial(`${pack.name}/${mi?.name ?? fallbackName}`);
+    if (mi) {
+      m.setBaseColorFactor(mi.color).setMetallicFactor(mi.metalGloss ? 1 : mi.metal).setRoughnessFactor(mi.metalGloss ? 1 : 1 - mi.smooth);
+      m.setAlphaMode(mi.mode).setAlphaCutoff(mi.cutoff).setDoubleSided(mi.doubleSided);
+      if (mi.map) { const t = await texture(mi.map, "color"); if (t) m.setBaseColorTexture(t); }
+      if (mi.normal) { const t = await texture(mi.normal, "normal"); if (t) m.setNormalTexture(t).setNormalScale(mi.normalScale); }
+      const orm = await tex.orm(pack, mi, size);
+      if (orm) {
+        const t = doc.createTexture(`${mi.name} orm`).setImage(new Uint8Array(orm)).setMimeType("image/webp");
+        m.setMetallicRoughnessTexture(t);
+        if (mi.occlusion) m.setOcclusionTexture(t);
+      }
+      if (mi.emission) {
+        const peak = Math.max(...mi.emission, 1e-6);
+        const f = mi.emission.map((v) => srgbToLinear(Math.min(v / Math.max(peak, 1), 1))) as Vec3;
+        m.setEmissiveFactor(f);
+        if (mi.emissive) { const t = await texture(mi.emissive, "emissive"); if (t) m.setEmissiveTexture(t); }
+        // HDR emission past 1 comes back as a strength the game multiplies by (glTF extras reach material.userData)
+        m.setExtras({ emissiveStrength: Math.max(1, peak) });
+      }
+    } else m.setBaseColorFactor([0.55, 0.57, 0.6, 1]).setRoughnessFactor(0.8).setMetallicFactor(0);
+    matCache.set(k, m);
+    return m;
+  };
+  for (const b of baked) {
+    const mesh = doc.createMesh(b.id);
+    for (const [, g] of b.groups) {
+      const vcount = g.pos.length / 3;
+      const prim = doc
+        .createPrimitive()
+        .setAttribute("POSITION", doc.createAccessor().setType("VEC3").setArray(new Float32Array(g.pos)).setBuffer(buf))
+        .setAttribute("NORMAL", doc.createAccessor().setType("VEC3").setArray(new Float32Array(g.nrm)).setBuffer(buf))
+        .setAttribute("TEXCOORD_0", doc.createAccessor().setType("VEC2").setArray(new Float32Array(g.uv)).setBuffer(buf))
+        .setIndices(doc.createAccessor().setType("SCALAR").setArray(vcount < 65536 ? new Uint16Array(g.idx) : new Uint32Array(g.idx)).setBuffer(buf))
+        .setMaterial(await material(g.mat, `${b.id}#none`));
+      mesh.addPrimitive(prim);
+    }
+    // three.js strips "/", "." and ":" from node names on load, so the id rides in extras (userData.id)
+    scene.addChild(doc.createNode(b.id).setMesh(mesh).setExtras({ id: b.id }));
+  }
+  mkdirSync(dirname(file), { recursive: true });
+  await new NodeIO().write(file, doc);
+  return statSync(file).size;
+}
+
+export async function city(h: CityImportHelpers, packages: Map<string, string>): Promise<void> {
+  const cfgFile = join(h.root, "src", "config", "citykit.json");
+  const cfg = JSON.parse(readFileSync(cfgFile, "utf8"));
+  const out = join(h.out, "city");
+  const models = new Models(h, join(h.paid, "conv", "city"));
+  const tex = new Textures(h);
+  const measured: Record<string, number[]> = {};
+  const faces: Record<string, string> = {};
+  const planes: Record<string, number> = {};
+  const report: string[] = [];
+  const only = process.env.CITY_PACK;
+  for (const [name, pkgName] of Object.entries<string>(cfg.packages)) {
+    if (only && only !== name) continue;
+    const pkg = packages.get(pkgName);
+    if (!pkg) {
+      report.push(`${name}: no ${pkgName} in the Unity downloads, skipped`);
+      continue;
+    }
+    const pack = new Pack(name, h.unpack(pkg, name));
+    const res = new Resolver(pack, models);
+    const mats = new Map<string, MatInfo | null>();
+    const baked: Baked[] = [];
+    const missing: string[] = [];
+    for (const rel of cfg.pieces[name] ?? []) {
+      const path = `${cfg.roots[name]}${rel}.prefab`;
+      const file = pack.pathFile.get(path);
+      const guid = file ? basename(dirname(file)) : null;
+      const id = `${name}/${rel}`;
+      const b = guid ? bake(pack, res, id, guid, mats) : null;
+      if (!b) {
+        missing.push(rel);
+        continue;
+      }
+      baked.push(b);
+      measured[id] = [...b.max.map((v, i) => +(v - b.min[i]).toFixed(3)), ...b.min.map((v) => +v.toFixed(3)), b.tris];
+      // the horizontal side a piece shows most: which way a facade module faces
+      const hz = (["px", "nx", "pz", "nz"] as const).reduce((a, k) => (b.faces[k] > b.faces[a] ? k : a), "pz" as "px" | "nx" | "pz" | "nz");
+      faces[id] = hz;
+      // the wall: the deepest plane holding a real share of the front's area (a quarter of the largest). The largest
+      // alone is a thick module's pilasters, with its wall and its lit windows behind them (High City's wall1a: 15.6 m2
+      // of pilaster 0.5 m back, 12.7 m2 of wall 0.9 m back, 11.8 m2 of window 1.1 to 1.2 m back)
+      const bins = [...b.depths[hz].entries()];
+      const most = Math.max(0, ...bins.map((e) => e[1]));
+      const front = hz === "px" ? b.max[0] : hz === "nx" ? -b.min[0] : hz === "pz" ? b.max[2] : -b.min[2];
+      const along = (k: number) => (hz[0] === "p" ? k / 10 : -k / 10);
+      const deepest = bins.filter((e) => e[1] >= most * 0.25).reduce((a, e) => Math.min(a, along(e[0])), front);
+      planes[id] = +Math.max(0, front - deepest).toFixed(2);
+      if (process.env.PLANE_DEBUG && id.includes(process.env.PLANE_DEBUG))
+        console.log(id, hz, "front", front.toFixed(2), [...b.depths[hz].entries()].map(([k, a]) => [+(front - (hz[0] === "p" ? k / 10 : -k / 10)).toFixed(1), +a.toFixed(2)]).sort((x, y) => x[0] - y[0]).filter((r) => r[1] > 0.05).map((r) => r.join(":")).join(" "));
+    }
+    const v = cfg.version;
+    const hiBytes = await writePack(h, pack, baked, mats, tex, cfg.sizes.hi, join(out, `${name}-v${v}.glb`));
+    const loBytes = await writePack(h, pack, baked, mats, tex, cfg.sizes.lo, join(out, `${name}-v${v}-lo.glb`));
+    const tris = baked.reduce((a, b) => a + b.tris, 0);
+    report.push(`${name}: ${baked.length} pieces, ${tris} tris, ${mats.size} materials; hi ${(hiBytes / 1e6).toFixed(1)} MB, lo ${(loBytes / 1e6).toFixed(1)} MB${missing.length ? `; not found: ${missing.join(", ")}` : ""}`);
+  }
+  // the measured sizes go back into the config, as paid-weapons.ts does for the guns
+  if (!only) {
+    cfg.measured = measured;
+    cfg.facing = faces;
+    cfg.plane = planes;
+    cfg._measured =
+      "Written by npm run paid (tools/import-city.ts) off the baked pieces, never typed: each piece's size (w, h, d) and the minimum corner of its bounds in its own space (x, y, z), metres, then its triangles. `facing` is the horizontal side a piece shows most by area (px, nx, pz, nz): the way a facade module faces. `plane`: how far behind a piece's front its wall stands (metres), the plane most of its front area is on, so a thick module's frames and cornices stand out of the building and its wall sits on the building's face.";
+    writeFileSync(cfgFile, JSON.stringify(cfg, null, 2) + "\n");
+  }
+  console.log("city bundle:\n  " + report.join("\n  "));
+}

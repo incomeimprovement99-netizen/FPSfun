@@ -1,0 +1,417 @@
+// Where the city bundle's pieces go on the centre (docs/CITY_BUNDLE_IMPLEMENTATION.md sections 4.3 to 4.6, the rules
+// in citykit.json dress): worked out from the city as built (city.ts KIT_SITES), after the build, from a hash of
+// each place. Never from the city's random stream, which lays out every district after the centre too, and never
+// with collision: the kit is how the city looks, the boxes are how it plays, so the city is the same whether or not
+// the bought files are there. Pure data, so the checks run it in node without the files (tools/checks/citykit.ts).
+import * as THREE from "three";
+import kit from "../config/citykit.json";
+import cityCfg from "../config/city.json";
+import { CONCOURSE, KIT_SITES } from "./city";
+import { BR_X, BR_Z } from "./br";
+
+export interface KitPlace {
+  piece: string;
+  /** map-local placement */
+  m: THREE.Matrix4;
+  /** the graphics tier from which it is drawn (quality.ts cityDetail) */
+  tier: number;
+  /** what it is, for the checks' clearances: facade and parapet stand flush, the rest stand out of a wall or stand free */
+  kind: "facade" | "flat" | "podium" | "shop" | "parapet" | "cornice" | "sign" | "blade" | "poster" | "ac" | "billboard" | "roof" | "antenna" | "lamp" | "cable" | "pipe" | "wire" | "prop" | "skyline" | "zeppelin";
+}
+
+type Facing = "px" | "nx" | "pz" | "nz";
+const MEASURED = kit.measured as unknown as Record<string, number[]>;
+const FACING = kit.facing as unknown as Record<string, Facing>;
+/** how far behind a piece's front its wall stands (import-city.ts measures it): its frames and cornices stand out of the building */
+const PLANE = (kit as unknown as { plane: Record<string, number> }).plane ?? {};
+export const planeOf = (id: string): number => PLANE[id] ?? 0;
+/** a module's depth scale and how far its front stands out: its relief pressed into dress.relief, its wall on the face */
+const relief = (id: string): { sz: number; out: number } => {
+  const pl = planeOf(id);
+  const sz = pl > D.relief ? D.relief / pl : 1;
+  return { sz, out: D.outset + pl * sz };
+};
+const D = kit.dress;
+const STOREY = cityCfg.storey;
+/** the rotation about y that turns +z to face each way */
+const ANGLE: Record<Facing, number> = { pz: 0, px: Math.PI / 2, nz: Math.PI, nx: -Math.PI / 2 };
+
+/** a stable number in [0, 1) from a place and a purpose: the same on every client, from nothing but where */
+export function kitHash(...n: number[]): number {
+  let a = 0x9e3779b9 | 0;
+  for (const v of n) {
+    a ^= Math.imul(Math.round(v * 97) | 0, 0x85ebca6b);
+    a = Math.imul(a ^ (a >>> 13), 0xc2b2ae35);
+    a ^= a >>> 16;
+  }
+  return (a >>> 0) / 4294967296;
+}
+const pick = <T,>(list: readonly T[], r: number): T => list[Math.min(list.length - 1, Math.floor(r * list.length))];
+
+/** a piece's size once turned to face +z: width along x, height, depth along z */
+function dims(id: string): { w: number; h: number; d: number } | null {
+  const m = MEASURED[id];
+  if (!m) return null;
+  const f = FACING[id] ?? "pz";
+  const side = f === "px" || f === "nx";
+  return { w: side ? m[2] : m[0], h: m[1], d: side ? m[0] : m[2] };
+}
+const T = new THREE.Matrix4();
+const R = new THREE.Matrix4();
+const S = new THREE.Matrix4();
+/**
+ * The matrix that takes a piece into its standing frame: facing +z, centred on x, its bottom at y = 0, and either
+ * centred on z (`front` false) or with its front at z = 0 and the rest behind (`front` true, for a wall's face).
+ */
+function standing(id: string, front: boolean): THREE.Matrix4 | null {
+  const m = MEASURED[id];
+  if (!m) return null;
+  const [w, h, d, mx, my, mz] = m;
+  void h;
+  const f = FACING[id] ?? "pz";
+  const out = new THREE.Matrix4().makeTranslation(-(mx + w / 2), -my, -(mz + d / 2));
+  out.premultiply(R.makeRotationY(-ANGLE[f]));
+  if (front) out.premultiply(T.makeTranslation(0, 0, -(dims(id)!.d / 2)));
+  return out;
+}
+/** a piece placed: at (x, y, z) map-local, turned `yaw` about y, scaled in its standing frame */
+function place(id: string, x: number, y: number, z: number, yaw: number, sx: number, sy: number, sz: number, front: boolean): THREE.Matrix4 | null {
+  const base = standing(id, front);
+  if (!base) return null;
+  return base.premultiply(S.makeScale(sx, sy, sz)).premultiply(R.makeRotationY(yaw)).premultiply(T.makeTranslation(x, y, z));
+}
+
+/** a face of a box: where it is, which way it looks, and how to walk along it */
+interface Face {
+  key: "n" | "s" | "w" | "e";
+  /** outward normal */
+  nx: number;
+  nz: number;
+  yaw: number;
+  /** the plane: x for west and east faces, z for north and south */
+  at: number;
+  /** along the face: the other axis, from a to b */
+  a: number;
+  b: number;
+}
+function faces(x0: number, x1: number, z0: number, z1: number): Face[] {
+  return [
+    { key: "n", nx: 0, nz: -1, yaw: Math.PI, at: z0, a: x0, b: x1 },
+    { key: "s", nx: 0, nz: 1, yaw: 0, at: z1, a: x0, b: x1 },
+    { key: "w", nx: -1, nz: 0, yaw: -Math.PI / 2, at: x0, a: z0, b: z1 },
+    { key: "e", nx: 1, nz: 0, yaw: Math.PI / 2, at: x1, a: z0, b: z1 },
+  ];
+}
+/** a point on a face, `u` along it, `out` metres out of it */
+function onFace(f: Face, u: number, out: number): [number, number] {
+  return f.nx !== 0 ? [f.at + f.nx * out, u] : [u, f.at + f.nz * out];
+}
+
+/** the block a point is in, by column and row of the centre's 3 by 3 ("x,z"), and so its facade family */
+function familyAt(x: number, z: number): keyof typeof D.rows {
+  const c = (v: number) => (v < -36 ? 0 : v > 36 ? 2 : 1);
+  return (D.families as Record<string, keyof typeof D.rows>)[`${c(x)},${c(z)}`] ?? "high";
+}
+
+export interface KitClear {
+  /** the pads (map-local x, z) and the height they throw to */
+  pads: Array<{ x: number; z: number; y: number; top: number }>;
+}
+
+/**
+ * Every piece the centre wears, with the tier each is drawn from. `pads` are the city's jump pads (BrMap pads,
+ * world metres), kept clear of anything that stands out of a wall.
+ */
+/** `lean`: the competitive preset's lighter modules (citykit.json dress lean), the same city in about half the triangles */
+export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y?: number; up?: number }>, lean = false): KitPlace[] {
+  const out: KitPlace[] = [];
+  const add = (piece: string, m: THREE.Matrix4 | null, tier: number, kind: KitPlace["kind"]): void => {
+    if (m) out.push({ piece, m, tier, kind });
+  };
+  const C = D.centre;
+  const inCentre = (x: number, z: number) => Math.abs(x) <= C && Math.abs(z) <= C;
+  const pads = padsWorld.map((p) => ({ x: p.x - BR_X, z: p.z - BR_Z }));
+  const nearPad = (x: number, z: number, r = D.clear.pad) => pads.some((p) => Math.hypot(p.x - x, p.z - z) < r);
+  const bridges = CONCOURSE.bridges.map((b) => ({ x: (b.a.x + b.b.x) / 2 - BR_X, z: (b.a.z + b.b.z) / 2 - BR_Z }));
+  const nearBridge = (x: number, z: number) => bridges.some((b) => Math.hypot(b.x - x, b.z - z) < D.clear.bridge + 6);
+  const inStair = (x: number, z: number, pad = D.clear.stair) => KIT_SITES.stairs.some((s) => x > s.x0 - pad && x < s.x1 + pad && z > s.z0 - pad && z < s.z1 + pad);
+  const towers = KIT_SITES.towers.filter((t) => inCentre(t.x, t.z));
+  /** a face with another tower close in front of it: a canyon's, where nothing may stand out of the wall */
+  const canyonFace = (t: (typeof towers)[number], f: Face): boolean =>
+    towers.some((o) => {
+      if (o === t) return false;
+      const lat = f.nx !== 0 ? Math.min(t.z + t.d / 2, o.z + o.d / 2) - Math.max(t.z - t.d / 2, o.z - o.d / 2) : Math.min(t.x + t.w / 2, o.x + o.w / 2) - Math.max(t.x - t.w / 2, o.x - o.w / 2);
+      if (lat <= 0) return false;
+      const gap = f.nx !== 0 ? (f.nx > 0 ? o.x - o.w / 2 - f.at : f.at - (o.x + o.w / 2)) : f.nz > 0 ? o.z - o.d / 2 - f.at : f.at - (o.z + o.d / 2);
+      return gap >= -0.1 && gap < D.canyon;
+    });
+
+  // ------------------------------------------------ the towers' faces, storey by storey
+  for (const t of towers) {
+    const fam = familyAt(t.x, t.z);
+    const rows = D.rows[fam] as { bay: number; ground: string[]; mid: string[]; top: string[]; cornice?: string };
+    const spire = Math.abs(t.x) < 30 && Math.abs(t.z) < 30;
+    for (const f of faces(t.x - t.w / 2, t.x + t.w / 2, t.z - t.d / 2, t.z + t.d / 2)) {
+      const len = f.b - f.a;
+      const n = Math.max(1, Math.round(len / rows.bay));
+      const bay = len / n;
+      const canyon = canyonFace(t, f);
+      // a canyon's face, and the bays a pad throws you up past, wear flat panels: nothing stands out where you run
+      const fn = Math.max(1, Math.round(len / 8));
+      const fb = len / fn;
+      const padBay = (u: number) => {
+        const [px, pz] = onFace(f, u, 1.8);
+        return nearPad(px, pz, bay / 2 + 1.5);
+      };
+      for (let s = 0; s < t.storeys; s++) {
+        const y = t.base + s * STOREY;
+        // the Sky Lobby's storey keeps its own walls, so its windows stay open (the plan's rule 2)
+        if (t.lobby !== undefined && Math.abs(y - t.lobby) < 0.5) continue;
+        if (canyon) {
+          for (let i = 0; i < fn; i++) {
+            const id = pick(D.flat, kitHash(t.x, t.z, s, i, 30));
+            const dm = dims(id);
+            if (!dm) continue;
+            const r = relief(id);
+            const [x, z] = onFace(f, f.a + (i + 0.5) * fb, r.out);
+            add(id, place(id, x, y, z, f.yaw, fb / dm.w, STOREY / dm.h, r.sz, true), 0, "flat");
+          }
+          continue;
+        }
+        const leanMid = (D.lean.mid as Record<string, string[]>)[fam];
+        const row = s === 0 ? rows.ground : s === t.storeys - 1 ? rows.top : lean && leanMid ? leanMid : rows.mid;
+        const id = pick(row, kitHash(t.x, t.z, s, 1));
+        for (let i = 0; i < n; i++) {
+          const u = f.a + (i + 0.5) * bay;
+          const piece = padBay(u) ? pick(D.flat, kitHash(u, s, 31)) : id;
+          const pd = dims(piece);
+          if (!pd) continue;
+          const r = relief(piece);
+          const [x, z] = onFace(f, u, r.out);
+          add(piece, place(piece, x, y, z, f.yaw, bay / pd.w, STOREY / pd.h, r.sz, true), 0, piece === id ? "facade" : "flat");
+        }
+        // up a street wall: an AC unit on a bay here and there, a pipe and a run of wires down one column
+        if (!canyon && s > 0 && s < t.storeys - 1) {
+          for (let i = 0; i < n; i++) {
+            const u = f.a + (i + 0.5) * bay;
+            const [px, pz] = onFace(f, u, 0);
+            if (nearPad(px, pz)) continue;
+            if (kitHash(t.x, t.z, s, i, f.nx, f.nz, 2) < D.chance.wallAc) {
+              const ac = pick(D.wallAc, kitHash(u, s, 3));
+              const [x, z] = onFace(f, u, D.outset + 0.05);
+              add(ac, place(ac, x, y + 0.4, z, f.yaw, 1, 1, 1, true), 1, "ac");
+            }
+          }
+          const col = f.a + (Math.floor(kitHash(t.x, t.z, f.nx, f.nz, 4) * n) + 0.02) * bay;
+          const [cx, cz] = onFace(f, col, 0);
+          if (!nearPad(cx, cz)) {
+            if (fam === "kyber" && kitHash(t.x, t.z, f.nx, f.nz, 5) < D.chance.wire) {
+              const [x, z] = onFace(f, col, D.outset + 0.05);
+              const w = D.wires[0];
+              const wd = dims(w);
+              if (wd) add(w, place(w, x, y, z, f.yaw, 1, STOREY / wd.h, 1, true), 2, "wire");
+            } else if (kitHash(t.x, t.z, f.nx, f.nz, 6) < D.chance.pipe) {
+              const [x, z] = onFace(f, col, D.outset + 0.2);
+              const p = D.pipes[0];
+              const pd = dims(p);
+              if (pd) add(p, place(p, x, y, z, f.yaw, 1, STOREY / pd.h, 1, true), 2, "pipe");
+            }
+          }
+        }
+      }
+      // the roof's edge: parapet tiles over the knee-high parapet the roof already has (0.7 m, measured the same)
+      const pn = Math.max(1, Math.round(len / 4));
+      const pb = len / pn;
+      const pd = dims(D.parapet);
+      if (pd)
+        for (let i = 0; i < pn; i++) {
+          const [x, z] = onFace(f, f.a + (i + 0.5) * pb, D.outset);
+          add(D.parapet, place(D.parapet, x, t.roof, z, f.yaw, pb / pd.w, 1, 1, true), 0, "parapet");
+        }
+      if (rows.cornice) {
+        const cd = dims(rows.cornice);
+        if (cd)
+          for (let i = 0; i < n; i++) {
+            const [x, z] = onFace(f, f.a + (i + 0.5) * bay, D.outset + 0.1);
+            add(rows.cornice, place(rows.cornice, x, t.roof - cd.h - 0.1, z, f.yaw, bay / cd.w, 1, 1, true), 2, "cornice");
+          }
+      }
+      // the Spire's billboards: a lit picture on each face of each tier, beside a pad's climb where the face has one
+      if (spire) {
+        const padHere = pads.some((p) => Math.abs((f.nx !== 0 ? p.x : p.z) - f.at) < 3 && (f.nx !== 0 ? p.z : p.x) > f.a && (f.nx !== 0 ? p.z : p.x) < f.b);
+        const bw = Math.min(16, padHere ? len / 2 - 3 : len - 4);
+        if (bw >= 6) {
+          const id = pick(D.billboards, kitHash(t.x, t.z, t.base, f.nx, f.nz, 7));
+          const bd = dims(id);
+          const u = padHere ? f.a + bw / 2 + 1.5 : (f.a + f.b) / 2;
+          const bh = Math.min(t.storeys * STOREY - 3, 22 * (bw / 16));
+          if (bd) {
+            const [x, z] = onFace(f, u, D.outset + 0.12);
+            add(id, place(id, x, t.base + 1.5, z, f.yaw, bw / bd.w, bh / bd.h, 1, true), 0, "billboard");
+          }
+        }
+      }
+    }
+    // the roof's plant: the collision boxes the roof already has, each wearing a piece its size
+    for (const c of t.clutter) {
+      const list = c.h > 2.2 ? D.roof.tall : Math.max(c.w, c.d) < 2.6 && c.h < 1.8 ? D.roof.small : D.roof.medium;
+      const id = pick(list, kitHash(c.x, c.z, 8));
+      const rd = dims(id);
+      if (!rd) continue;
+      add(id, place(id, c.x, c.y, c.z, 0, (c.w * 1.04) / rd.w, (c.h * 1.02) / rd.h, (c.d * 1.04) / rd.d, false), 1, "roof");
+    }
+  }
+  // antennas on the tallest roofs, in a corner clear of the parapet
+  {
+    const tall = [...towers].sort((a, b) => b.roof - a.roof).slice(0, 10);
+    for (const t of tall) {
+      if (kitHash(t.x, t.z, 9) > D.chance.antenna) continue;
+      const id = pick(D.antennas, kitHash(t.x, t.z, 10));
+      const sx = Math.sign(kitHash(t.x, 11) - 0.5) || 1;
+      const sz = Math.sign(kitHash(t.z, 12) - 0.5) || 1;
+      add(id, place(id, t.x + sx * (t.w / 2 - 1.4), t.roof, t.z + sz * (t.d / 2 - 1.4), 0, 1, 1, 1, false), 1, "antenna");
+    }
+  }
+
+  // ------------------------------------------------ the podiums: shop fronts on the street floor, the family above
+  for (const p of KIT_SITES.podia) {
+    if (!inCentre((p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2)) continue;
+    const fam = familyAt((p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2);
+    const rows = D.rows[fam] as { bay: number; mid: string[] };
+    const y0 = cityCfg.kerb;
+    for (const f of faces(p.x0, p.x1, p.z0, p.z1)) {
+      const len = f.b - f.a;
+      // the street floor, in 8 m shops: clear of the public stair and of the pads that throw up this face
+      const n = Math.max(1, Math.round(len / 8));
+      const bay = len / n;
+      for (let i = 0; i < n; i++) {
+        const u = f.a + (i + 0.5) * bay;
+        const [fx, fz] = onFace(f, u, 1.5);
+        if (inStair(fx, fz, D.clear.stair + bay / 2) || nearPad(fx, fz, D.clear.pad + bay / 2)) continue;
+        const id = pick(lean ? D.lean.shops : D.shops, kitHash(p.x0, p.z0, u, 13));
+        const sd = dims(id);
+        if (!sd) continue;
+        const r = relief(id);
+        const [x, z] = onFace(f, u, r.out);
+        add(id, place(id, x, y0, z, f.yaw, bay / sd.w, STOREY / sd.h, r.sz, true), 0, "shop");
+      }
+      // the floor above: the block's family, and signs, posters and AC units on it
+      const upper = pick(rows.mid, kitHash(p.x0, p.z0, 14));
+      const ud = dims(upper);
+      const un = Math.max(1, Math.round(len / rows.bay));
+      const ub = len / un;
+      for (let i = 0; i < un && ud; i++) {
+        const u = f.a + (i + 0.5) * ub;
+        const r = relief(upper);
+        const [x, z] = onFace(f, u, r.out);
+        add(upper, place(upper, x, y0 + STOREY, z, f.yaw, ub / ud.w, (p.top - y0 - STOREY - 0.12) / ud.h, r.sz, true), 0, "podium");
+      }
+      for (let i = 0; i < n; i++) {
+        const u = f.a + (i + 0.5) * bay;
+        const [fx, fz] = onFace(f, u, 1.5);
+        if (nearPad(fx, fz, D.clear.pad + 2) || inStair(fx, fz, 2)) continue;
+        const r = kitHash(p.x0, p.z0, u, 15);
+        if (r < D.chance.sign) {
+          const id = pick(D.signs, kitHash(u, p.z1, 16));
+          const [x, z] = onFace(f, u, D.outset + 0.06);
+          add(id, place(id, x, y0 + STOREY + 0.8, z, f.yaw, 1, 1, 1, true), 1, "sign");
+        } else if (r < D.chance.sign + D.chance.poster) {
+          const id = pick(D.posters, kitHash(u, p.z1, 17));
+          const pd = dims(id);
+          const [x, z] = onFace(f, u, D.outset + 0.06);
+          if (pd) add(id, place(id, x, y0 + STOREY + 0.4, z, f.yaw, Math.min(1, (bay - 1.5) / pd.w), Math.min(1, 3.2 / pd.h), 1, true), 1, "poster");
+        } else if (r < D.chance.sign + D.chance.poster + D.chance.wallAc) {
+          const id = pick(D.wallAc, kitHash(u, p.z1, 18));
+          const [x, z] = onFace(f, u, D.outset + 0.05);
+          add(id, place(id, x, y0 + STOREY + 1.2, z, f.yaw, 1, 1, 1, true), 1, "ac");
+        }
+      }
+      // a blade sign at each end past the canopy's end, standing out from the corner (the canopies stop a metre short)
+      for (const end of [f.a + 0.5, f.b - 0.5]) {
+        const [cx, cz] = onFace(f, end, 1);
+        if (nearPad(cx, cz, D.clear.pad + 2) || inStair(cx, cz, 2) || kitHash(end, f.at, 19) > D.chance.blade) continue;
+        const id = pick(D.blades, kitHash(end, f.at, 20));
+        const bd = dims(id);
+        if (!bd) continue;
+        // turned side-on to the face, its inner edge on the wall
+        const [x, z] = onFace(f, end, D.outset + bd.w / 2);
+        add(id, place(id, x, y0 + 1.1, z, f.yaw + Math.PI / 2, 1, Math.min(1, (p.top - y0 - 1.4) / bd.h), 1, false), 1, "blade");
+      }
+    }
+    // a Kyber block's podium corners carry its neon shop holders
+    if (fam === "kyber")
+      for (const [cx, cz, yaw] of [
+        [p.x0 + 2, p.z0 - D.outset, Math.PI],
+        [p.x1 - 2, p.z1 + D.outset, 0],
+      ] as const) {
+        if (nearPad(cx, cz, D.clear.pad + 2) || inStair(cx, cz, 2)) continue;
+        const id = pick(D.neonHolders, kitHash(cx, cz, 21));
+        add(id, place(id, cx, cityCfg.kerb + STOREY + 0.3, cz, yaw, 1, 1, 1, true), 1, "sign");
+      }
+  }
+
+  // ------------------------------------------------ the streets: lamps, cables overhead, clutter on the pavement
+  for (const [lx, lz] of KIT_SITES.lamps) {
+    if (!inCentre(lx, lz)) continue;
+    // its arm toward the middle of the crossing it lights
+    const sx = cityCfg.blocks.slice(0, -1).map((b, i) => (b[1] + cityCfg.blocks[i + 1][0]) / 2).reduce((a, s) => (Math.abs(s - lx) < Math.abs(a - lx) ? s : a), 0);
+    const sz = cityCfg.blocks.slice(0, -1).map((b, i) => (b[1] + cityCfg.blocks[i + 1][0]) / 2).reduce((a, s) => (Math.abs(s - lz) < Math.abs(a - lz) ? s : a), 0);
+    add(D.lamp, place(D.lamp, lx, 0, lz, Math.atan2(sx - lx, sz - lz), 1, 1, 1, false), 1, "lamp");
+  }
+  {
+    const streets = cityCfg.blocks.slice(0, -1).map((b, i) => (b[1] + cityCfg.blocks[i + 1][0]) / 2).filter((s) => Math.abs(s) < C);
+    const faceOf = (s: number, side: -1 | 1, along: number, alongX: boolean): number | null => {
+      // the podium face across the pavement from the street, on one side of it, at this point along it
+      let best: number | null = null;
+      for (const p of KIT_SITES.podia) {
+        if (alongX ? along < p.x0 || along > p.x1 : along < p.z0 || along > p.z1) continue;
+        const faceAt = alongX ? (side < 0 ? p.z1 : p.z0) : side < 0 ? p.x1 : p.x0;
+        if ((faceAt - s) * side <= 0 || Math.abs(faceAt - s) > 16) continue;
+        if (best === null || Math.abs(faceAt - s) < Math.abs(best - s)) best = faceAt;
+      }
+      return best;
+    };
+    for (const s of streets) {
+      for (const alongX of [true, false]) {
+        for (let a = -C + 6; a < C - 6; a += D.cableEvery) {
+          const along = a + (kitHash(s, a, alongX ? 1 : 0, 22) - 0.5) * 4;
+          if (Math.abs(along - streets.find((q) => Math.abs(q - along) < 10)!) < 10) continue;
+          const f0 = faceOf(s, -1, along, alongX);
+          const f1 = faceOf(s, 1, along, alongX);
+          if (f0 === null || f1 === null) continue;
+          const [x, z] = alongX ? [along, s] : [s, along];
+          if (nearPad(x, z, D.clear.pad + 5) || nearBridge(x, z) || inStair(x, z, 4)) continue;
+          if (kitHash(s, along, 23) > D.chance.cable) continue;
+          const id = pick(D.cables, kitHash(s, along, 24));
+          const cd = dims(id);
+          if (!cd) continue;
+          const span = Math.abs(f1 - f0) - 0.2;
+          const y = D.cableAt[0] + kitHash(s, along, 25) * (D.cableAt[1] - D.cableAt[0]);
+          // a cable runs along its own x: across a street along x, it turns to run along z
+          add(id, place(id, x, y, z, alongX ? Math.PI / 2 : 0, span / cd.w, 1, 1, false), 2, "cable");
+        }
+      }
+    }
+  }
+  for (const p of KIT_SITES.podia) {
+    if (!inCentre((p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2)) continue;
+    for (const f of faces(p.x0, p.x1, p.z0, p.z1)) {
+      for (let u = f.a + 3; u < f.b - 3; u += 5) {
+        const [x, z] = onFace(f, u, 1.1);
+        if (kitHash(x, z, 26) > D.chance.prop || nearPad(x, z) || inStair(x, z, 1.5)) continue;
+        const id = pick(D.streetProps, kitHash(x, z, 27));
+        add(id, place(id, x, cityCfg.kerb, z, f.yaw, 1, 1, 1, false), 2, "prop");
+      }
+    }
+  }
+
+  // ------------------------------------------------ the skyline: lit towers over the skyline's boxes, and two airships
+  for (const b of KIT_SITES.skyline) {
+    const id = pick(D.skyline, kitHash(b.x, b.z, 28));
+    const sd = dims(id);
+    if (!sd) continue;
+    add(id, place(id, b.x, 0, b.z, 0, (b.w * 1.03) / sd.w, b.h / sd.h, (b.w * 1.03) / sd.d, false), 0, "skyline");
+  }
+  for (const [x, y, z, yaw] of D.zeppelins) add(D.zeppelin, place(D.zeppelin, x, y, z, yaw, 1, 1, 1, false), 1, "zeppelin");
+  return out;
+}
