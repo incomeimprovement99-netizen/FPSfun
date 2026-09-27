@@ -8016,7 +8016,12 @@ initWelcome();
   /** SpeedKills' soldier (soldier.ts): whether new figures are it (its files here and its clips carried over) */
   soldierReady: () => soldierReady(),
   /** SpeedKills' bought guns (paidgun.ts): in, and the model the gun in hand wears */
-  /** the gun in hand's moving groups: how many of the bought model's meshes each carries (paidgun.ts dressPaid), which is what a reload or a shot moves (tools/weapon-picks-sheet.ts) */
+  /**
+   * the gun in hand's moving groups: how many of the bought model's meshes each carries (paidgun.ts dressPaid), which
+   * is what a reload or a shot moves, and where its own parts are (paidgun.ts PaidParts: turns in radians, the round's
+   * and the button's travel in metres), whether the fitted optic's housing shows, and where the support hand reaches
+   * for the magazine (tools/weapon-sheet.ts, the e2e soldier section)
+   */
   gunParts: () => {
     const m = viewModel.gunRoot ? gunModel(loadout.active.weapon.id) : null;
     if (!m || m.root !== viewModel.gunRoot) return null;
@@ -8027,7 +8032,30 @@ initWelcome();
       });
       return n;
     };
-    return { mag: count(m.mag), bolt: count(m.bolt), pump: count(m.pump) };
+    const k = m.parts;
+    const off = (o: THREE.Object3D | null, axis: "x" | "y") => (o ? o.position[axis] - (o.userData.base as THREE.Vector3)[axis] : null);
+    const parts = k
+      ? {
+          trigger: k.trigger?.rotation.x ?? null,
+          drum: k.drum?.rotation.z ?? null,
+          drumStep: k.drumStep,
+          spinners: k.spinners.map((s) => s.rotation.x),
+          cover: k.cover?.rotation.x ?? null,
+          round: off(k.round, "y"),
+          button: off(k.button, "x"),
+          extruder: off(k.extruder, "y"),
+          sights: k.sights.map((s) => s.rotation.x),
+        }
+      : null;
+    const optic = viewModel.opticFitted;
+    return {
+      mag: count(m.mag),
+      bolt: count(m.bolt),
+      pump: count(m.pump),
+      magY: m.mag?.position.y ?? null,
+      parts,
+      opticShown: optic ? optic.group.visible : null,
+    };
   },
   paidGuns: () => {
     // the gun in hand's bought model, and the skin it wears (paidgun.ts: its fusion level's)

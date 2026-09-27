@@ -4566,3 +4566,36 @@ The owner: "one model per gun ... smg is one of the two smgs ... and the skin va
   procedural gun's was: PULSAR's scope hung in the air past the rifle's barrel.
 - **Checked:** the e2e soldier section (the USSO in its one model in hand and on a figure, skin A as found and C at
   level 5, no picker); pictures of all ten at the hip, in the sights and mid-reload.
+
+## Milestone 250 — The pack's own parts move, and every optic sits on its gun
+
+The owner: "ensure it has perfect animations that were given to us". The pack gave none: no clips, no controllers,
+no curves in any model (its PDF is a version history). What it gives is each gun split into its moving parts, for the
+buyer to animate. Until now only the magazine, slide and pump moved.
+
+- **Every part moves** (`paidgun.ts` hingeParts, `viewmodel.ts` animateParts, `paidweapons.json` motion). Each part is
+  hinged at an edge measured off its own geometry, not at its origin (the auto shotgun's parts all sit at the gun's).
+  - The triggers swing back on a shot and stay back through a burst.
+  - NOVA's drum turns a chamber a shot (45 degrees, its 8 rounds counted).
+  - The sniper's two side wheels turn over a rechamber and wind in going into the sights.
+  - BIGANTLER's loading gate opens with the pump and for a shell reload, and the shell in the hand rides up into it.
+  - The magazine releases (ANAKIN, RIPTIDE) go in as a reload starts.
+  - The rifle's extruder drops on a shot.
+- **The launcher's flip-up sights fold under its optic.** Standing, the front one stood in the optic's window, filling
+  NOVA's sight picture. They fold forward from the back edge of the foot; from the middle, the long foot tipped back
+  up into the window.
+- **Every optic sits on its gun** (`paidmodels.json` railTop, measured without the pack's own sights).
+  - ZEPHYR, PANDA and PULSAR's optic sat on the top of the rifle's hidden scope, 69 mm over the gun.
+  - ANAKIN's sat 18 mm high.
+  - NOVA's sat on its rear sight, which now folds.
+- **BOOG and HELIX sight down the sniper's own scope.** It is one piece with the gun, and the fitted optic stood stacked
+  on it at the hip. The fitted optic's housing is off and the eye comes up the scope's measured axis.
+- **HELIX takes its magazine out on a reload.** Its procedural gun has none, so the bought one's stayed in. The support
+  hand of every gun now reaches for the bought magazine's measured bottom.
+- **Checked:**
+  - `tools/checks/paid-weapons.ts`, on the game's own hinges: the drum turned a chamber puts every round where another
+    stood; the folded sights lie under the optic's window (0.103 m against 0.116 m).
+  - The e2e soldier section: NOVA's 4-round burst turns the drum 4 chambers with the trigger back, its sights folded;
+    BOOG's housing off; HELIX's magazine 133 mm out mid-reload.
+  - Each failed with its bug put back: a 7-chamber step, the middle hinge, the drum left still.
+  - Pictures of all ten at the hip, in the sights and mid-reload.

@@ -21,7 +21,7 @@
 import * as THREE from "three";
 import type { ResolvedWeapon } from "./weapons";
 import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels";
-import { setPaidLevel } from "./paidgun";
+import { PAID_MOTION, PAID_SIGHTS, setPaidLevel } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
 import type { OperatorSkin } from "./operators";
@@ -399,6 +399,9 @@ export class ViewModel {
   private kickRoll = 0;
   private cylAngle = 0;
   private cylTarget = 0;
+  /** a bought launcher's drum (paidgun.ts parts): where it is, and the chamber it is turning to */
+  private drumAngle = 0;
+  private drumTarget = 0;
   private bobT = 0;
   private sprintAmt = 0;
   /** -1..1 into a strafe, eased (viewmodel.json strafe) */
@@ -487,6 +490,7 @@ export class ViewModel {
       if (m.cylinder) this.cylBase.copy(m.cylinder.position);
       this.placeHands(m);
       this.cylAngle = this.cylTarget = 0;
+      this.drumAngle = this.drumTarget = 0;
       // a different gun in hand: a chamber check once it has come up
       this.checkPending = true;
     }
@@ -510,12 +514,25 @@ export class ViewModel {
     // a bought gun's own scope (the pack's Scope parts, paidgun.ts) gives way to a fitted optic: the two stacked filled
     // the sight picture under the optic with the scope's back (tools/weapon-picks-sheet.ts)
     m.root.getObjectByName("paid")?.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh && /^Scope/.test(o.name)) o.visible = this.optic === null;
+      if ((o as THREE.Mesh).isMesh && PAID_SIGHTS.hide.test(o.name)) o.visible = this.optic === null;
     });
+    // its flip-up sights (the launcher's) fold flat under one, as a real gun's backup sights do: standing, the front
+    // one stood in the optic's window
+    for (const s of m.parts?.sights ?? []) s.rotation.x = this.optic ? m.parts!.end * PAID_MOTION.sightFold : 0;
     if (!this.optic) return;
     this.optic.group.name = name;
     const parent = m.opticOnSlide && m.bolt ? m.bolt : m.root;
     parent.add(this.optic.group);
+    // A bought gun's scope in one piece with it (the sniper's, paidgun.ts ownScope) is the optic, for one that draws
+    // its picture over the screen: the fitted one's housing stays off (the two stood stacked at the hip), and the
+    // eye comes up the gun's own scope's axis, behind its back end
+    const seat = m.root.userData.seat as { railY: number; opticF: number } | undefined;
+    const own = m.root.userData.ownScope as { y: number; f: number } | undefined;
+    if (seat) {
+      m.railY = own && this.optic.info.overlay ? own.y - this.optic.lineH : seat.railY;
+      m.opticF = own && this.optic.info.overlay ? own.f - this.optic.backF : seat.opticF;
+    }
+    this.optic.group.visible = !(own && this.optic.info.overlay);
     this.optic.group.position.set(0, m.railY, -m.opticF);
   }
 
@@ -610,6 +627,8 @@ export class ViewModel {
     this.kickRoll = (Math.random() - 0.5) * 0.8;
     this.flash.fire(m.energy);
     if (m.cycle === "cylinder") this.cylTarget += Math.PI / 3;
+    // a bought launcher's drum turns a chamber a shot
+    if (m.parts?.drum) this.drumTarget += m.parts.drumStep;
     // Auto and slide actions eject on the shot; pump and bolt eject partway
     // through the rechamber, when the action is actually open.
     if (m.cycle === "auto" || m.cycle === "slide") this.eject();
@@ -843,6 +862,7 @@ export class ViewModel {
 
     this.animateAction(m, w, dt, f.clipEmpty && !f.reloading);
     this.animateReload(m, reloadP, f.reloading);
+    this.animateParts(m, w, dt, ads, reloadP, f.reloading);
 
     // climbing or mantling: the support hand leaves the gun for the wall,
     // reaching up and pulling in a rhythm on a climb, flat on the ledge in a
@@ -1044,6 +1064,60 @@ export class ViewModel {
     // the support hand rides the pump
     if (m.pump && m.support.kind === "pump") {
       this.left.group.position.set(this.supportBase.x, this.supportBase.y, this.supportBase.z + (m.pump.position.z - this.pumpBase.z));
+    }
+  }
+
+  /**
+   * A bought gun's own parts (paidgun.ts hinges them, paidweapons.json motion): the pack gives them split and moves
+   * none of them. The trigger swings back on a shot and stays back through a burst; the launcher's drum turns a
+   * chamber a shot; the sniper's wheels turn over a rechamber and wind in going into the sights; the heavy shotgun's
+   * loading gate opens for a shell reload and with the pump, and the shell in the hand rides up into it; a magazine
+   * release goes in as a reload starts; the rifle's extruder drops on a shot.
+   */
+  private animateParts(m: GunModel, w: ResolvedWeapon, dt: number, ads: number, p: number, reloading: boolean): void {
+    const k = m.parts;
+    if (!k) return;
+    const mo = PAID_MOTION;
+    const e = this.t - this.lastShotAt;
+    const base = (o: THREE.Object3D) => o.userData.base as THREE.Vector3;
+    if (k.trigger) {
+      const pull = e < mo.trigger.hold ? 1 : clamp(1 - (e - mo.trigger.hold) / mo.trigger.release, 0, 1);
+      k.trigger.rotation.x = k.end * mo.trigger.pull * pull;
+    }
+    if (k.drum) {
+      this.drumAngle += (this.drumTarget - this.drumAngle) * Math.min(1, dt * mo.drumRate);
+      k.drum.rotation.z = this.drumAngle;
+    }
+    if (k.spinners.length) {
+      // whole turns over the rechamber, so each wheel comes to rest as it started
+      const R = Math.max(0.4, w.rechamberTime || w.shotInterval);
+      const u = smooth(0, 1, clamp((e - 0.1) / (R * 0.75), 0, 1));
+      k.spinners.forEach((s, i) => {
+        const turns = mo.spinnerTurns[i % mo.spinnerTurns.length];
+        s.rotation.x = Math.PI * 2 * (turns * u + Math.sign(turns) * mo.spinnerAim * ads);
+      });
+    }
+    // the shell reload's reach to the port, as animateReload has it
+    const toPort = reloading && m.reload === "shells" ? smooth(0.08, 0.18, p) * (1 - smooth(0.82, 0.92, p)) : 0;
+    if (k.cover) {
+      const pumped = m.pump && m.travel > 0 ? clamp((m.pump.position.z - this.pumpBase.z) / m.travel, 0, 1) : 0;
+      k.cover.rotation.x = -k.end * mo.cover * Math.max(toPort, pumped);
+    }
+    if (k.round) {
+      // each shell rides up from the hand into the port as the thumb pushes, and is in once the push is past its top
+      const push = Math.max(0, Math.sin(p * Math.PI * 8));
+      const phase = (p * 8) % 2;
+      k.round.position.y = base(k.round).y - mo.roundTravel * toPort * (1 - push);
+      k.round.visible = !(toPort > 0.5 && phase > 0.5 && phase < 1);
+    }
+    if (k.button) {
+      const press = reloading && m.reload === "mag" ? smooth(0.02, 0.06, p) * (1 - smooth(0.12, 0.18, p)) : 0;
+      k.button.position.x = base(k.button).x + k.buttonIn * mo.buttonPress * press;
+    }
+    if (k.extruder) {
+      const T = Math.min(0.075, w.shotInterval * 0.85);
+      const out = e < T ? (e < T * 0.3 ? e / (T * 0.3) : 1 - (e - T * 0.3) / (T * 0.7)) : 0;
+      k.extruder.position.y = base(k.extruder).y - mo.extruder * out;
     }
   }
 

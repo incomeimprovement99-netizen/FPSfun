@@ -4,7 +4,9 @@
  * the magazine, bolt and pump groups the reload and the cycle animate), and its meshes are hidden under the bought
  * model: turned to point down -Z as the game's guns do (the pack's forward is +Z, measured), its grip on the
  * procedural grip, the muzzle and the sight line moved to the bought model's own (measured), and its moving parts
- * (Clip, Slide or Slider, Pump) put in the procedural groups, so a reload takes its real magazine out.
+ * (Clip, Slide or Slider, Pump) put in the procedural groups, so a reload takes its real magazine out. The pack gives
+ * its guns split into parts and no animations: the rest of the parts (a trigger, the launcher's drum, the sniper's
+ * wheels, a loading gate) are hinged at their measured edges (PaidParts), and the viewmodel moves them.
  *
  * Loaded once at the start of a SpeedKills page when the files are here; without them, or before they are in, the
  * guns are the procedural ones.
@@ -13,7 +15,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import cfg from "../config/paidweapons.json";
 import measuredCfg from "../config/paidmodels.json";
-import type { GunModel } from "./gunmodels";
+import type { GunModel, PaidParts } from "./gunmodels";
 
 interface Gun {
   model: string;
@@ -21,7 +23,14 @@ interface Gun {
 }
 const GUNS = cfg.guns as Record<string, Gun>;
 /** every model of each gun's family, measured (tools/checks/paid-weapons.ts writes it) */
-const MEASURED = measuredCfg.models as Record<string, { measured: { length: number; muzzleEnd: number; muzzle: number[]; sightTop: number; sightZ: number } }>;
+const MEASURED = measuredCfg.models as Record<
+  string,
+  { measured: { length: number; muzzleEnd: number; muzzle: number[]; sightTop: number; sightZ: number; railTop: number; railZ: number; scope?: { axis: number; back: number } } }
+>;
+/** the pack's own sights, which give way to a fitted optic (paidweapons.json sights) */
+export const PAID_SIGHTS = { hide: new RegExp(cfg.sights.hide), fold: new RegExp(cfg.sights.fold) };
+/** how the parts move (paidweapons.json motion) */
+export const PAID_MOTION = cfg.motion;
 const PROPS = (cfg.props ?? {}) as Record<string, { model: string; skin: string; scale?: number }>;
 const url = (p: string): string => `${p}?v=${cfg.version}`;
 
@@ -179,11 +188,17 @@ export function dressPaid(m: GunModel, level = 0): boolean {
   const muz = new THREE.Vector3().fromArray(size.muzzle).applyMatrix4(place.matrix);
   m.muzzle.copy(muz);
   m.sightY = m.grip.u + size.sightTop;
-  // a fitted optic sits on the bought gun's top, not at the procedural rail, where it hung in the air, and along the
-  // gun where the bought model's sight is (measured, sightZ), not where the procedural gun's was: PULSAR's marksman
-  // frame is longer than the rifle it wears, and its scope hung out past the barrel
-  m.railY = m.sightY;
-  m.opticF = -new THREE.Vector3(0, size.sightTop, size.sightZ).applyMatrix4(place.matrix).z;
+  // a fitted optic sits on the bought gun's own seat for one (measured, railTop and railZ: its top where the sight it
+  // takes the place of stood, without that sight), not at the procedural rail, where it hung in the air past PULSAR's
+  // barrel, nor on the top of the pack's own scope, which it hides, where it floated 69 mm over the rifle
+  m.railY = m.grip.u + size.railTop;
+  m.opticF = -new THREE.Vector3(0, size.railTop, size.railZ).applyMatrix4(place.matrix).z;
+  m.root.userData.seat = { railY: m.railY, opticF: m.opticF };
+  // a scope in one piece with the gun (the sniper's): its axis and back end, where the eye goes (viewmodel fitOptic)
+  if (size.scope) {
+    const back = new THREE.Vector3(0, size.scope.axis, size.scope.back).applyMatrix4(place.matrix);
+    m.root.userData.ownScope = { y: back.y, f: -back.z };
+  }
   // its moving parts into the procedural groups the animations move, kept where they are
   const mover = (re: RegExp, group: THREE.Group | null) => {
     if (!group) return;
@@ -194,14 +209,91 @@ export function dressPaid(m: GunModel, level = 0): boolean {
     for (const p of parts) group.attach(p);
   };
   m.root.updateMatrixWorld(true);
+  const clips: THREE.Object3D[] = [];
+  model.traverse((o) => {
+    if (/^Clip/.test(o.name) && (o as THREE.Mesh).isMesh) clips.push(o);
+  });
+  if (clips.length) {
+    // a gun whose procedural model has no magazine (HELIX's tube) takes out its bought model's on a reload
+    if (!m.mag) {
+      m.mag = new THREE.Group();
+      m.mag.name = "mag";
+      m.root.add(m.mag);
+      m.reload = "mag";
+    }
+    // the support hand goes to the bought magazine's bottom, not the procedural one's (measured off the part)
+    const box = new THREE.Box3();
+    for (const c of clips) box.union(boxIn(m.root, c));
+    m.magBottom.set((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
+  }
   mover(/^Clip/, m.mag);
   mover(/^(Slide|Slider)$/, m.bolt);
   mover(/^Pump$/, m.pump);
+  m.parts = hingeParts(model, size.muzzleEnd);
   if (m.irons) m.irons.visible = false;
   m.root.userData.paid = name;
   m.root.userData.paidLevel = level;
   setPaidLevel(m, level);
   return true;
+}
+
+/** a part's own geometry's box (not its children's) in another object's space */
+function boxIn(space: THREE.Object3D, o: THREE.Object3D): THREE.Box3 {
+  const box = new THREE.Box3();
+  const pos = (o as THREE.Mesh).geometry?.getAttribute("position");
+  if (!pos) return box;
+  const to = new THREE.Matrix4().copy(space.matrixWorld).invert().multiply(o.matrixWorld);
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) box.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(to));
+  return box;
+}
+
+/**
+ * The pack's other moving parts, each put in a pivot at its hinge, found off the part's own geometry (the pack's
+ * origins are not always hinges: the auto shotgun's parts all sit at the gun's origin): a trigger swings from its
+ * top, a loading gate from its front top edge, a flip-up sight forward from its foot's back edge (from the middle of
+ * its foot, the launcher's front sight's long foot tipped up into the optic's window, tools/checks/paid-weapons.ts);
+ * the drum turns about its centre, and a wheel, a button and the extruder move about theirs.
+ */
+export function hingeParts(model: THREE.Object3D, end: number): PaidParts {
+  model.updateMatrixWorld(true);
+  const find = (re: RegExp): THREE.Object3D[] => {
+    const out: THREE.Object3D[] = [];
+    model.traverse((o) => {
+      if (re.test(o.name) && (o as THREE.Mesh).isMesh) out.push(o);
+    });
+    return out;
+  };
+  const hinge = (o: THREE.Object3D | undefined, at: (b: THREE.Box3, c: THREE.Vector3) => THREE.Vector3): THREE.Object3D | null => {
+    if (!o) return null;
+    const b = boxIn(model, o);
+    const pivot = new THREE.Group();
+    pivot.name = `hinge:${o.name}`;
+    pivot.position.copy(at(b, b.getCenter(new THREE.Vector3())));
+    pivot.userData.base = pivot.position.clone();
+    model.add(pivot);
+    pivot.updateMatrixWorld(true);
+    pivot.attach(o);
+    return pivot;
+  };
+  const drumPart = find(/^Drum$/)[0];
+  // the drum turns a chamber a shot: the angle between its rounds, counted
+  const rounds = drumPart ? drumPart.children.filter((c) => /^Grenade/.test(c.name)).length : 0;
+  const buttonPart = find(/^Button$/)[0];
+  const buttonX = buttonPart ? boxIn(model, buttonPart).getCenter(new THREE.Vector3()).x : 0;
+  return {
+    end,
+    trigger: hinge(find(/^Trigger$/)[0], (b, c) => c.setY(b.max.y)),
+    drum: rounds > 1 ? hinge(drumPart, (_b, c) => c) : null,
+    drumStep: rounds > 1 ? (Math.PI * 2) / rounds : 0,
+    spinners: find(/^Spinner\d+$/).map((o) => hinge(o, (_b, c) => c)!),
+    cover: hinge(find(/^Cover$/)[0], (b, c) => c.set(c.x, b.max.y, end > 0 ? b.max.z : b.min.z)),
+    round: hinge(find(/^Bullet$/)[0], (_b, c) => c),
+    button: hinge(buttonPart, (_b, c) => c),
+    buttonIn: -Math.sign(buttonX),
+    extruder: hinge(find(/^Extruder$/)[0], (_b, c) => c),
+    sights: find(PAID_SIGHTS.fold).map((o) => hinge(o, (b, c) => c.set(c.x, b.min.y, end > 0 ? b.min.z : b.max.z))!),
+  };
 }
 
 /**

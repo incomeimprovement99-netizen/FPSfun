@@ -84,6 +84,33 @@ export interface GunModel {
   hip: THREE.Vector3;
   /** a bow's string: the two halves, from the limb tips to the nock (the bolt group's origin), re-aimed as it draws */
   bowString?: { top: THREE.Mesh; bottom: THREE.Mesh; tipTop: THREE.Vector3; tipBottom: THREE.Vector3 };
+  /** a bought gun's own moving parts (paidgun.ts), which the viewmodel moves */
+  parts?: PaidParts;
+}
+
+/**
+ * A bought gun's own moving parts past its magazine, slide and pump (paidgun.ts hinges them): each is a pivot at the
+ * part's hinge in the pack's space, the part inside it, so a turn of the pivot turns the part about its hinge.
+ */
+export interface PaidParts {
+  /** +1 when the pack's muzzle is at its +Z: the sign of every turn about the pack's x */
+  end: number;
+  trigger: THREE.Object3D | null;
+  /** the launcher's drum, and the angle between its rounds (counted off the model) */
+  drum: THREE.Object3D | null;
+  drumStep: number;
+  /** the sniper's side wheels */
+  spinners: THREE.Object3D[];
+  /** the heavy shotgun's loading gate, and the shell in the hand under it */
+  cover: THREE.Object3D | null;
+  round: THREE.Object3D | null;
+  /** a magazine release, and which way along the pack's x it goes in */
+  button: THREE.Object3D | null;
+  buttonIn: number;
+  /** the rifle's extruder, under its receiver */
+  extruder: THREE.Object3D | null;
+  /** flip-up sights, which fold under a fitted optic */
+  sights: THREE.Object3D[];
 }
 
 // ------------------------------------------------------------------ textures

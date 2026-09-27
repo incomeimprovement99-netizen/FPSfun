@@ -4932,6 +4932,69 @@ async function soldierTest(browser: Browser): Promise<void> {
     worn.inHand === "SciFiSMG02_2" && /^SciFiSMG02A/.test(worn.skin ?? "") && /^SciFiSMG02C/.test(worn.fused ?? "") && worn.figure === "SciFiSMG02_2" && worn.pickers === 0,
     JSON.stringify(worn),
   );
+  // the pack's own parts move in the hand (paidgun.ts PaidParts; the pack gives them split and moves none): NOVA's drum
+  // turns a chamber a shot and its trigger stays back through a burst, its flip-up sights folded under its optic;
+  // BOOG sights down its own scope, the fitted housing off (the two stood stacked); HELIX takes out a magazine on a
+  // reload (its procedural gun has none, and the bought one's stayed in)
+  const moving = await ev<{ why: unknown; shots: number; pulled: number; drum: number; step: number; sights: number[]; boogOptic: boolean | null; helixMag: number; helixOut: number }>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      // in game time: the e2e draws on the CPU (swiftshader), a few frames a second, and the parts move on frames
+      const gameWait = async (s) => {
+        const g0 = r.gameTime();
+        const t0 = performance.now();
+        while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
+      };
+      const hold = async (id) => {
+        r.loadout.give(0, id);
+        r.setScript({ held: () => false, pressedNow: (a) => a === "slot1" }, null);
+        await gameWait(0.1);
+        r.setScript(null);
+        const t0 = performance.now();
+        while (r.loadout.swapping && performance.now() - t0 < 30000) await wait(20);
+        await gameWait(0.3);
+      };
+      await hold("lstar");
+      const clip0 = r.loadout.active.state.clip;
+      let pulled = 0;
+      r.setScript({ held: (a) => a === "fire", pressedNow: () => false });
+      // what holds the trigger, if a shot does not go (main.ts triggerWhy)
+      const why = r.triggerWhy();
+      const g0 = r.gameTime();
+      const t0 = performance.now();
+      while (r.gameTime() - g0 < 0.4 && performance.now() - t0 < 30000) {
+        pulled = Math.max(pulled, r.gunParts()?.parts?.trigger ?? 0);
+        await wait(10);
+      }
+      r.setScript(null);
+      const shots = clip0 - r.loadout.active.state.clip;
+      await gameWait(0.6);
+      const nova = r.gunParts()?.parts;
+      await hold("sentinel");
+      const boog = r.gunParts();
+      await hold("3030");
+      const rest = r.gunParts();
+      r.debugView.reload = 0.2;
+      await gameWait(0.3);
+      const out = r.gunParts();
+      r.debugView.reload = null;
+      return { why, shots, pulled, drum: nova?.drum ?? NaN, step: nova?.drumStep ?? 0, sights: nova?.sights ?? [], boogOptic: boog?.opticShown ?? null, helixMag: out?.mag ?? 0, helixOut: (rest?.magY ?? 0) - (out?.magY ?? 0) };
+    })()`,
+  );
+  check(
+    "soldier guns: the pack's parts move, NOVA's drum a chamber a shot with its trigger back through a burst and its flip sights folded under its optic, BOOG's fitted housing off for its own scope, and HELIX's magazine out on a reload",
+    moving.shots >= 2 &&
+      Math.abs(moving.drum - moving.shots * moving.step) < 0.02 &&
+      moving.pulled > 0.3 &&
+      moving.sights.length === 2 &&
+      moving.sights.every((x) => x > 1) &&
+      moving.boogOptic === false &&
+      moving.helixMag >= 1 &&
+      moving.helixOut > 0.02,
+    JSON.stringify(moving),
+  );
   await page.close();
 
   // without the files: every request for them answers 404, as on a copy that never ran npm run paid

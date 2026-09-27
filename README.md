@@ -79,8 +79,12 @@ Game) or `?game=legacy`, and everything below this section describes it.
   Weapons model, in first person, in hands and on the floor, and a fused gun
   changes skin and glows brighter each level. One model a gun, by its class:
   the two SMGs and the two shotguns one each, the rifles and PULSAR the rifle,
-  HELIX and BOOG the sniper, NOVA the launcher. The MINE hack's mine, death
-  boxes, care packages and the med kit in a HEAL area are the pack's too.
+  HELIX and BOOG the sniper, NOVA the launcher. The pack's own parts move:
+  triggers, NOVA's drum a chamber a shot, the sniper's wheels, the heavy
+  shotgun's loading gate, the magazine releases; the launcher's flip-up sights
+  fold under its optic, and the sniper sights down its own scope. The MINE
+  hack's mine, death boxes, care packages and the med kit in a HEAL area are
+  the pack's too.
 - **Ten guns**, five named for the owner's friends; BOOG, the sniper, kills
   with one headshot. Ammo is infinite; the magazine is not.
 - **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to

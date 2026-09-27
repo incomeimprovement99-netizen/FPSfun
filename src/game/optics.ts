@@ -51,6 +51,11 @@ export function opticInfo(mod: string | null | undefined): OpticInfo | null {
   return mod ? OPTICS[mod] ?? null : null;
 }
 
+/** how high over its mount an optic's sight line runs, by its housing */
+export function opticLineH(info: OpticInfo): number {
+  return info.body === "longtube" ? 0.042 : info.body === "tube" ? 0.036 : 0.03;
+}
+
 // ------------------------------------------------------------------ reticle
 
 /**
@@ -224,7 +229,7 @@ export function buildOptic(mod: string | null | undefined): OpticModel | null {
   const g = new THREE.Group();
   g.name = "optic";
   const L = info.len;
-  const lineH = info.body === "longtube" ? 0.042 : info.body === "tube" ? 0.036 : 0.03;
+  const lineH = opticLineH(info);
   const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => {
     const m = new THREE.Mesh(geo, mat);
     m.position.set(x, y, z);
