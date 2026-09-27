@@ -25,7 +25,15 @@ const brokerHits = new Set<string>();
 async function open(browser: Browser): Promise<Page> {
   const page = await browser.newPage();
   page.on("pageerror", (e) => errors.push(String(e)));
-  page.on("requestfailed", (r) => errors.push(`request failed: ${r.url()}`));
+  // a load the page itself cancelled (closed or moved on mid-download: the bought soldier is 1.7 MB and starts
+  // loading as the page opens) is not a failure; a file that is not there answers 404, and that is still caught
+  page.on("requestfailed", (r) => {
+    if (r.failure()?.errorText === "net::ERR_ABORTED") return;
+    errors.push(`request failed: ${r.url()} (${r.failure()?.errorText ?? "?"})`);
+  });
+  page.on("response", (r) => {
+    if (r.status() === 404) errors.push(`404: ${r.url()}`);
+  });
   page.on("request", (r) => {
     if (/\/peerjs\//.test(r.url())) brokerHits.add(new globalThis.URL(r.url()).host);
   });
