@@ -5066,3 +5066,18 @@ The last of step 2's named routes (`docs/CITY_BUNDLE_IMPLEMENTATION.md` 4.5, rou
   mouth landing at its foot in 4.0 s, out of the foot's door onto the terrace, and in from the Sky Park's terrace and
   down. With the tiers built whole it fails three ways. `sk-roofs` (a bot still reaches 140.2 m up the Spire by pads),
   `citykit.ts` (every tower face dressed beside its doors); verify and rules; pictures down the shaft and at its door.
+
+## Milestone 268 — The vertical centre, measured and held
+
+Step 2 of `docs/CITY_BUNDLE_IMPLEMENTATION.md` ends "the targets in `city-levels.ts` are met". It measured and reported;
+now it is in verify.
+
+- **Bands to the crown** (`tools/checks/city-levels.ts`): the street, 1 to 10 m, 10 to 30, 30 to 60, 60 to 100 and
+  100 m and up, open and indoors, by sector.
+- **The centre held** at a tenth under what it measured after the drop, so a change that takes its height away fails:
+  the highest standing top 142.5 m (the plan's target 120 and more); 30 to 60 m 7,810 m2; 60 m and up 15,017 m2 (12,352
+  to 100 m, 2,665 over it); 10 to 30 m 372 m2.
+- **The plan's targets beside them, not yet met:** 10 to 30 m at 2% of its 15,000 m2, 30 to 60 m at 39% of 20,000, and
+  the street 32.7% of the centre's room to stand against 20% or less. Towers are solid between their decks: the plan's
+  answer is the floors next to each deck open inside, and stairs or pads up through the towers, which is what comes
+  next for the vertical centre.
