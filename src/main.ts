@@ -8028,6 +8028,8 @@ initWelcome();
     });
     return labFigs.map((l) => l.f);
   },
+  /** the figures figureLab put up, for tools that measure them (tools/soldier-hits.ts) */
+  labFigures: () => labFigs.map((l) => l.f),
   loadMannequin,
   /** a figure clip is in: the extras (a slide's way in and out, a throw, emotes) load after the figures (tools/e2e.ts) */
   hasClip,

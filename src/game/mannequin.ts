@@ -766,8 +766,12 @@ function rearOfGrip(gun: THREE.Object3D, gripF: number): number {
   return Math.max(0, box.max.z + gripF);
 }
 
+/** each merged geometry's head: the sum of its Head vertices in the Head bone's rest frame, and how many (MannequinFigure.headMiddle) */
+const headSums = new WeakMap<THREE.BufferGeometry, { sum: THREE.Vector3; n: number }>();
+
 export class MannequinFigure {
   readonly root: THREE.Object3D;
+  private headMid: THREE.Vector3 | null = null;
   private mixer: THREE.AnimationMixer;
   private lower: THREE.AnimationAction | null = null;
   private upper: THREE.AnimationAction | null = null;
@@ -786,6 +790,54 @@ export class MannequinFigure {
    */
   private clipPose = new Map<THREE.Object3D, THREE.Quaternion>();
   private static readonly EDITED = ["pelvis", "spine_01", "spine_02", "spine_03", "Head", "upperarm_l", "lowerarm_l", "upperarm_r", "lowerarm_r"];
+
+  /** a bone of this figure by name, for what follows it (dummy.ts: SpeedKills' hit volumes) */
+  bone(name: string): THREE.Object3D | undefined {
+    return this.bones[name];
+  }
+
+  /**
+   * The middle of this figure's head in its Head bone's own space: every vertex drawn weighted at least half to Head
+   * (a helmet with it), carried from where it was bound into the bone's rest frame, averaged. Measured off the
+   * geometry, so it holds for any kit, in any pose, at any scale; null before the figure has a head.
+   */
+  headMiddle(): THREE.Vector3 | null {
+    if (this.headMid) return this.headMid;
+    const sum = new THREE.Vector3();
+    let n = 0;
+    this.root.traverse((o) => {
+      const m = o as THREE.SkinnedMesh;
+      if (!m.isSkinnedMesh || !m.visible) return;
+      const h = m.skeleton.bones.findIndex((b) => b.name === "Head");
+      if (h < 0) return;
+      let got = headSums.get(m.geometry);
+      if (!got) {
+        got = { sum: new THREE.Vector3(), n: 0 };
+        // skinned in place: bone.matrixWorld x boneInverse x bindMatrix x p, so the part after the bone is fixed
+        const toBone = m.skeleton.boneInverses[h].clone().multiply(m.bindMatrix);
+        const pos = m.geometry.attributes.position as THREE.BufferAttribute;
+        const si = m.geometry.attributes.skinIndex as THREE.BufferAttribute;
+        const sw = m.geometry.attributes.skinWeight as THREE.BufferAttribute;
+        const used = new Uint8Array(pos.count);
+        const idx = m.geometry.index;
+        if (idx) for (let k = 0; k < idx.count; k++) used[idx.getX(k)] = 1;
+        else used.fill(1);
+        const p = new THREE.Vector3();
+        for (let i = 0; i < pos.count; i++) {
+          if (!used[i]) continue;
+          let w = 0;
+          for (let c = 0; c < 4; c++) if (si.getComponent(i, c) === h) w += sw.getComponent(i, c);
+          if (w < 0.5) continue;
+          got.sum.add(p.fromBufferAttribute(pos, i).applyMatrix4(toBone));
+          got.n++;
+        }
+        headSums.set(m.geometry, got);
+      }
+      sum.add(got.sum);
+      n += got.n;
+    });
+    return n ? (this.headMid = sum.divideScalar(n)) : null;
+  }
   private restoreClipPose(): void {
     for (const [b, q] of this.clipPose) b.quaternion.copy(q);
   }

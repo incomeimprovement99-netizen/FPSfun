@@ -13,6 +13,8 @@
 // Run: npm run e2e        (needs `npm run dev` already running)
 import { LOBBY_MODES, setupFor } from "../src/ui/lobby";
 import { HOLD } from "../src/game/hold";
+import { HIT_POSES, MEASURE_HEADS } from "./soldier-hits";
+import soldierCfg from "../src/config/soldier.json";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import modesCfg from "../src/config/modes.json";
 import brCfg from "../src/config/br.json";
@@ -4852,6 +4854,65 @@ async function skHitsLand(page: Page): Promise<void> {
  * the front door, the ten guns, fusion, the health model, and every hack doing
  * what its card says. The rest of the suite is the legacy game's.
  */
+/**
+ * SpeedKills' soldier (Phase 21 S8), with the bought files here (they are local only; without them this is skipped
+ * with a note): it renders; its head sits in the head's hit volume in every pose a head is shot in (S7: the volumes
+ * follow its bones, dummy.ts followBones); figures of different operators, as bots are, wear different kits; and with
+ * the files answering 404, as on a copy without them, the game falls back to the figures and guns of before.
+ */
+async function soldierTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?game=speedkills");
+  const here = await ev<boolean>(page, `fetch(${JSON.stringify(soldierCfg.model)}, { method: "HEAD" }).then((r) => r.ok && !(r.headers.get("content-type") ?? "").includes("text/html"), () => false)`);
+  const ready = await page.waitForFunction("window.__range.soldierReady()", { polling: 250, timeout: 120000 }).then(() => true, () => false);
+  if (!here && !ready) {
+    console.log("  --  the soldier's files are not here (npm run paid makes them), so its checks are skipped");
+    await page.close();
+    return;
+  }
+  check("soldier: the bought soldier loads and its clips are carried over to it", ready);
+  // the poses a head is shot in, each on a soldier, their heads against their head volumes (tools/soldier-hits.ts)
+  const poses = HIT_POSES.map(([, p]) => ({ pitch: 0, look: "S0000000", ...p }));
+  await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, 0); r.figureLab(${JSON.stringify(poses)}, 4.5, 90); })()`);
+  await gameSleep(page, 1.5);
+  const heads = await ev<Array<{ soldier: boolean; n: number; inside: number; offset: number }>>(page, MEASURE_HEADS);
+  const bad = heads.map((h, i) => ({ pose: HIT_POSES[i][0], ...h })).filter((h) => !h.soldier || h.n < 100 || h.offset > 0.02 || h.inside < 0.8);
+  check(
+    "soldier: its head sits in the head's hit volume standing, aiming, walking, running, sprinting, crouched and sliding (the middle within 20 mm, 80% of it inside)",
+    heads.length === HIT_POSES.length && bad.length === 0,
+    JSON.stringify(bad.length ? bad : heads.map((h) => `${Math.round(h.offset * 1000)} mm, ${Math.round(h.inside * 100)}%`)),
+  );
+  // bots wear their operator's soldier: figures of eight operators with no look of their own, at least three kits
+  await ev(page, `window.__range.figureLab(${JSON.stringify(Array.from({ length: 8 }, () => ({ speed: 0, stance: "stand", pitch: 0 })))}, 6, 0)`);
+  await gameSleep(page, 0.5);
+  const kits = await ev<string[]>(page, "window.__range.labFigures().map((f) => f.mq?.soldier?.variant ?? '')");
+  check("soldier: figures of different operators, as bots are, wear different kits (three or more of the four among eight)", kits.every(Boolean) && new Set(kits).size >= 3, kits.join(", "));
+  await ev(page, "window.__range.figureLab([])");
+  await page.close();
+
+  // without the files: every request for them answers 404, as on a copy that never ran npm run paid
+  const before = errors.length;
+  const bare = await browser.newPage();
+  await bare.setRequestInterception(true);
+  bare.on("request", (q) => (q.url().includes("/models/paid/") ? void q.respond({ status: 404, contentType: "text/plain", body: "" }) : void q.continue()));
+  bare.on("pageerror", (e) => errors.push(`pageerror: ${String((e as Error).message ?? e)}`));
+  await bare.evaluateOnNewDocument(NO_REAL_MOUSE);
+  await bare.setViewport({ width: 800, height: 450, deviceScaleFactor: 1 });
+  await bare.goto(`${BASE}?game=speedkills&nointro`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await bare.waitForFunction("Boolean(window.__range) && window.__range.loaded()", { polling: 250, timeout: 60000 }).catch(() => undefined);
+  await ev(bare, "window.__range.loadMannequin()").catch(() => undefined);
+  await ev(bare, `(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, 0); r.figureLab([{ speed: 0, stance: "stand", pitch: 0 }], 4, 0); })()`);
+  await gameSleep(bare, 3);
+  const fell = await ev<{ soldier: boolean; guns: boolean; figure: boolean; mq: boolean }>(
+    bare,
+    "(() => { const r = window.__range; const f = r.labFigures()[0]; return { soldier: r.soldierReady(), guns: r.paidGuns().ready, figure: !!f, mq: !!f?.mq && !f.mq.soldier }; })()",
+  );
+  const crashed = errors.slice(before).filter((e) => e.startsWith("pageerror"));
+  check("soldier: without the bought files the game runs on the figures and guns of before, and nothing throws", !fell.soldier && !fell.guns && fell.figure && crashed.length === 0, JSON.stringify({ ...fell, crashed: crashed.slice(0, 2) }));
+  await bare.close();
+  // the 404s were the point of that page, not a fault: only what it threw stays counted
+  for (let i = errors.length - 1; i >= before; i--) if (!errors[i].startsWith("pageerror")) errors.splice(i, 1);
+}
+
 async function speedkillsTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?norender&game=speedkills");
   const front = await ev<{ game: string; html: string; br: boolean; gunrun: boolean; tour: boolean; title: string }>(
@@ -5032,12 +5093,19 @@ async function speedkillsTest(browser: Browser): Promise<void> {
  * came in, one was sent back to the lobby). The host picks a trio battle royale and leaves the players dropdown,
  * which is the 1v1's, as it opens (2): the match must still take both friends, since a squad of three is three.
  */
+/** a soldier nobody has by default (soldier.ts code: RUNNER, its colours, the helmet off), so seeing it is seeing it sent */
+const FRIEND_SOLDIER = "S3343041";
+
 async function brFriendsJoinTest(browser: Browser): Promise<void> {
-  const host = await open(browser, "?norender&game=speedkills");
-  const g1 = await open(browser, "?norender&game=speedkills");
-  const g2 = await open(browser, "?norender&game=speedkills");
+  // each page wears FRIEND_SOLDIER from its first frame (pages share one localStorage; the saved one goes back after)
+  const wear = `window.__savedSoldier = localStorage.getItem("range.sk.soldier"); localStorage.setItem("range.sk.soldier", "${FRIEND_SOLDIER}")`;
+  const host = await open(browser, "?norender&game=speedkills", BASE, wear);
+  const saved = await ev<string | null>(host, "window.__savedSoldier");
+  const g1 = await open(browser, "?norender&game=speedkills", BASE, wear);
+  const g2 = await open(browser, "?norender&game=speedkills", BASE, wear);
   const pages = [host, g1, g2];
   const closeAll = async () => {
+    await ev(host, saved === null ? `localStorage.removeItem("range.sk.soldier")` : `localStorage.setItem("range.sk.soldier", ${JSON.stringify(saved)})`);
     for (const p of pages) await p.close();
   };
   // each choice made as a player makes it, its change event and all: the players count follows the squad size on
@@ -5064,6 +5132,11 @@ async function brFriendsJoinTest(browser: Browser): Promise<void> {
     got.every((x) => x.in) && got[0].connected === 2,
     JSON.stringify(got),
   );
+  // the soldier each picked goes with them (S8): the host's figure of each friend is built from their soldier's code
+  const looks = await host
+    .waitForFunction(`(() => { const l = [...window.__range.duel().remotes.values()].map((r) => r.avatarLook ?? ""); return l.length === 2 && l.every((x) => x.split("|").includes("${FRIEND_SOLDIER}")); })()`, { polling: 250, timeout: 15000 })
+    .then(() => null, () => ev<string[]>(host, `[...window.__range.duel().remotes.values()].map((r) => r.avatarLook ?? "")`));
+  check("sk friends: each friend's soldier, kit and colours, reaches the host with them", looks === null, JSON.stringify(looks));
   await closeAll();
 }
 
@@ -6662,6 +6735,11 @@ async function main(): Promise<void> {
     if (want("speedkills")) {
       console.log("\nSpeedKills: the front door, the guns, fusion and the hacks");
       await speedkillsTest(browser);
+    }
+
+    if (want("soldier")) {
+      console.log("\nSpeedKills' soldier: it renders, its hit volumes, bots' kits and the fallback");
+      await soldierTest(browser);
     }
 
     if (want("skfriends")) {

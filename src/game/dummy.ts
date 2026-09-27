@@ -305,6 +305,13 @@ function contactMat(): THREE.MeshBasicMaterial {
   cMat = new THREE.MeshBasicMaterial({ map, color: 0x000000, transparent: true, opacity: 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   return cMat;
 }
+const FB_M = new THREE.Matrix4();
+const FB_B = new THREE.Matrix4();
+const FB_Q = new THREE.Quaternion();
+const FB_X = new THREE.Vector3();
+const FB_Y = new THREE.Vector3();
+const FB_Z = new THREE.Vector3();
+
 export class Dummy {
   readonly group = new THREE.Group();
   readonly hitMeshes: THREE.Mesh[] = [];
@@ -386,6 +393,8 @@ export class Dummy {
   private gunShown = true;
   /** the motion-captured mannequin in place of the robot (mannequin.ts, a setting) */
   private mq: MannequinFigure | null = null;
+  /** the hit volumes by part, for SpeedKills' soldier, whose volumes follow its bones (followBones) */
+  private vols: { legs: THREE.Mesh; torso: THREE.Mesh; armL: THREE.Mesh; armR: THREE.Mesh; neck: THREE.Mesh; head: THREE.Mesh; plate: THREE.Mesh };
   readonly distanceLabel: number;
   /** the operator this figure wears */
   readonly skin: OperatorSkin;
@@ -451,6 +460,7 @@ export class Dummy {
     this.plate = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.34, 0.06), HITBOX);
     this.plate.position.set(0, 1.28, 0.19);
     this.plate.userData.zone = "body";
+    this.vols = { legs, torso, armL, armR, neck, head, plate: this.plate };
     for (const m of [legs, torso, armL, armR, neck, head, this.plate]) {
       m.castShadow = false;
       this.hits.add(m);
@@ -1255,6 +1265,53 @@ export class Dummy {
     }
     // the mannequin plays its clips for the same pose, with the same corrections on top
     this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null }, this.lodAnimate);
+    if (this.lodAnimate) this.followBones();
+  }
+
+  /**
+   * SpeedKills' soldier: its hit volumes follow its bones. They were a fixed upright column, the figures' of before,
+   * and the soldier leans into its gun, runs bent over and slides on its back: tools/soldier-hits.ts found its head a
+   * third inside the head volume standing and wholly outside it running, sprinting, crouched and sliding, so a shot
+   * on the head it showed missed it. Each volume keeps its size: the head sits on the head's own measured middle
+   * (MannequinFigure.headMiddle), the torso on the line from the pelvis to the neck turned with the shoulders and the
+   * plate on its front where it always was, each arm from its shoulder to its hand, the neck from neck to head, and
+   * the legs from the pelvis to between the feet, stretched to that length.
+   */
+  private followBones(): void {
+    const mq = this.mq;
+    if (!mq?.soldier) return;
+    const names = ["Head", "neck_01", "pelvis", "upperarm_l", "upperarm_r", "hand_l", "hand_r", "thigh_l", "thigh_r", "foot_l", "foot_r"] as const;
+    const b = names.map((n) => mq.bone(n));
+    const mid = mq.headMiddle();
+    if (!mid || b.some((x) => !x)) return;
+    this.group.updateMatrixWorld(true);
+    const [head, neck, pelvis, shL, shR, haL, haR, thL, thR, ftL, ftR] = b.map((x) => new THREE.Vector3().setFromMatrixPosition(x!.matrixWorld));
+    const toHits = FB_M.copy(this.hits.matrixWorld).invert();
+    const hitsQ = this.hits.getWorldQuaternion(FB_Q).invert();
+    // a volume's own frame: up along a bone line, across as near the figure's left as that allows, forward from the two
+    const put = (m: THREE.Mesh, at: THREE.Vector3, up: THREE.Vector3, across: THREE.Vector3): void => {
+      const y = FB_Y.copy(up).normalize();
+      const x = FB_X.copy(across).addScaledVector(y, -across.dot(y)).normalize();
+      const z = FB_Z.crossVectors(x, y);
+      m.position.copy(at).applyMatrix4(toHits);
+      m.quaternion.setFromRotationMatrix(FB_B.makeBasis(x, y, z)).premultiply(hitsQ);
+    };
+    const V = this.vols;
+    const left = shL.clone().sub(shR);
+    const spine = neck.clone().sub(pelvis);
+    put(V.torso, pelvis.clone().lerp(neck, 0.5), spine, left);
+    // the plate where it sat on the column, above the torso's middle and in front of it, now in the torso's frame
+    V.plate.position.copy(V.torso.position).add(FB_Y.set(0, 1.28 - 1.235, 0.19).applyQuaternion(V.torso.quaternion));
+    V.plate.quaternion.copy(V.torso.quaternion);
+    put(V.neck, neck.clone().lerp(head, 0.5), head.clone().sub(neck), left);
+    V.head.position.copy(mid).applyMatrix4(b[0]!.matrixWorld).applyMatrix4(toHits);
+    // armL stands on the column's -x, the figure's right as it faces +z; armR on its left
+    put(V.armL, shR.clone().lerp(haR, 0.5), shR.clone().sub(haR), left);
+    put(V.armR, shL.clone().lerp(haL, 0.5), shL.clone().sub(haL), left);
+    const feet = ftL.clone().lerp(ftR, 0.5);
+    put(V.legs, pelvis.clone().lerp(feet, 0.5), pelvis.clone().sub(feet), thL.clone().sub(thR));
+    V.legs.scale.y = pelvis.distanceTo(feet) / (V.legs.geometry as THREE.BoxGeometry).parameters.height;
+    this.hits.updateMatrixWorld(true);
   }
 
   /**
@@ -1528,7 +1585,8 @@ export class Dummy {
     this.crouchAmt += (wantCrouch - this.crouchAmt) * (1 - Math.exp(-26 * dt));
     const sy = 1 - 0.34 * this.crouchAmt;
     if (this.rig) {
-      this.hits.scale.y = sy;
+      // the soldier's volumes follow its bones down as it crouches (followBones), so they are not squashed too
+      this.hits.scale.y = this.mq?.soldier ? 1 : sy;
       if (!this.knocked) this.animate(dt);
     } else this.group.scale.y = sy;
 
