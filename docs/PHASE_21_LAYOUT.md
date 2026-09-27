@@ -154,3 +154,44 @@ body is past the wall) against your own steering. Without the hold, a player hol
 into the frame: the check caught it at 0.03 m off the sill. The throw peaks 0.55 m over the sill. The brief asked for
 a 2.2 m window with 0.4 m clear on every side, which a 1.83 m standing body cannot have, so the window is sized from
 the body: 2.0 m wide and 2.8 m tall. Not in it: the pad ladder, which is the city's to build.
+
+## The Sky Lobby: the towers measured for window pads (tools/centre-towers.ts)
+
+The brief's levels put a Sky Lobby deck at storey 8 (about 32 m) with window pads into every tower's deck floors from
+at least two sides. Today every downtown tower is one solid mass from the podium (8.2 m) to its roof. Measured off the
+built city: 16 downtown towers in THE SPIRE sector hold the storey at 32 m with at least one storey above it (roofs 40
+to 64 m), and the Spire's two upper tiers stand on terraces 4.5 m deep all round.
+
+A window pad needs its stand-off (1.4 m) and its reach (1.2 m) of floor in front of a face at the tower's base, and
+nothing hanging over the column it throws you up (THE CHAIN's pad, `course.ts` CoursePad). Faces with 4 m or more of
+open podium in front, and no overhang:
+
+| Tower (map-local) | Roof | Open in front (m) | Pad faces |
+|---|---|---|---|
+| x -23.5 to -10.1, z -65.3 to -48.5 | 44.1 | N 20, S 2.5, W 3, E 0 | N |
+| x -23.5 to 2.3, z 55.5 to 75.1 | 40.1 | N 2.5, S 6, W 2.5, E 20 | S, E |
+| x -23.5 to 2.3, z 81.1 to 94.5 | 48.1 | N 6, S 2.5, W 2.5 (overhead), E 6 | N, E |
+| x -4.9 to 16.5, z -65.3 to -48.5 | 40.1 | N 5, S 2.5, W 0, E 2.5 | N |
+| x -64.0 to -48.5, z -67.6 to -55.5 | 60.1 | N 6, S 2.5, W 20, E 2.5 | N, W |
+| x -64.0 to -48.5, z -94.5 to -73.6 | 40.1 | N 2.5, S 6, W 6, E 2.5 | S, W |
+| x -68.5 to -48.5, z -23.5 to -2.0 | 40.1 | N 2.5, S 5, W 0.5, E 2.5 | S |
+| x -68.5 to -48.5, z 3.4 to 16.5 | 40.1 | N 5, S 2.5, W 20, E 2.5 | N, W |
+| x -87.5 to -73.0, z 48.5 to 73.0 | 44.1 | N 2.5, S 5.5, W 2.5, E 20 | S, E |
+| x -87.5 to -73.0, z 78.6 to 94.5 | 48.1 | N 5.5, S 2.5, W 2.5, E 5.5 | N, E |
+| x 48.5 to 71.0, z -16.5 to -3.2 | 44.1 | N 2.5, S 20, W 2.5, E 0 | S |
+| x 55.5 to 68.9, z 48.5 to 73.9 | 60.1 | N 2.5, S 4.5, W 2.5, E 20 | S, E |
+| x 73.4 to 87.5, z -74.4 to -48.5 | 44.1 | N 4.5, S 2.5, W 20, E 2.5 | N, W |
+| x 73.4 to 87.5, z -94.5 to -79.3 | 48.1 | N 2.5, S 4.5, W 4.5, E 2.5 | S, W |
+| x 75.9 to 94.5, z 1.7 to 23.5 | 60.1 | N 4.5, S 2.5, W 20, E 2.5 | N, W |
+| x 8.3 to 23.5, z 81.1 to 94.5 | 64.1 | N 20, S 2.5, W 6, E 2.5 | N, W |
+| The Spire, tier 2 (x -14.5 to 14.5) | 48.1 | 4.5 all round, on the tier-1 terrace | all four |
+| The Spire, tier 3 (x -9.5 to 9.5) | 68.1 | 4.5 all round, on the tier-2 terrace | all four |
+
+So 11 of the 16 towers take pads from two sides as they stand; 5 face canyons on every other side (2.5 m of floor,
+too tight for a pad's arc). The faces at 2.5 m are the canyons between towers, where the chimneys and zig-zags go.
+
+**The build this sets up (next):** each of these towers split at 32.2 m (the podium plus six storeys) into the mass
+below, one open storey (the lobby: a floor, the corner columns, a window opening 2.0 by 2.8 m in the middle of every
+face) and the mass above; a window pad on the podium in front of each pad face, solved as THE CHAIN's is (a rise of
+24 m: 29.3 m/s up), the battle royale's pads taking the course pads' centring and hold. The bots keep to the pads
+they use now until their route finder knows the lobbies.
