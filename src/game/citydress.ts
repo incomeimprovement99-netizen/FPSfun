@@ -15,6 +15,8 @@ export interface KitPlace {
   m: THREE.Matrix4;
   /** the graphics tier from which it is drawn (quality.ts cityDetail) */
   tier: number;
+  /** how far its front stands out of the wall it is on, when that is not what its measured relief says (a canyon's pressed module) */
+  out?: number;
   /** what it is, for the checks' clearances: facade and parapet stand flush, the rest stand out of a wall or stand free */
   kind: "facade" | "flat" | "band" | "car" | "podium" | "shop" | "parapet" | "cornice" | "sign" | "blade" | "poster" | "ac" | "billboard" | "roof" | "antenna" | "lamp" | "cable" | "pipe" | "wire" | "prop" | "skyline" | "zeppelin";
 }
@@ -154,8 +156,8 @@ export function cityKitTraffic(): Array<{ piece: string; loop: Array<[number, nu
 /** `lean`: the competitive preset's lighter modules (citykit.json dress lean), the same city in about half the triangles */
 export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y?: number; up?: number }>, lean = false): KitPlace[] {
   const out: KitPlace[] = [];
-  const add = (piece: string, m: THREE.Matrix4 | null, tier: number, kind: KitPlace["kind"]): void => {
-    if (m) out.push({ piece, m, tier, kind });
+  const add = (piece: string, m: THREE.Matrix4 | null, tier: number, kind: KitPlace["kind"], stands?: number): void => {
+    if (m) out.push({ piece, m, tier, kind, ...(stands !== undefined ? { out: stands } : {}) });
   };
   const C = D.centre;
   const inCentre = (x: number, z: number) => Math.abs(x) <= C && Math.abs(z) <= C;
@@ -207,7 +209,7 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
       const n = Math.max(1, Math.round(len / rows.bay));
       const bay = len / n;
       const canyon = canyonFace(t, f);
-      // a canyon's face, and the bays a pad throws you up past, wear flat panels: nothing stands out where you run
+      // a canyon's face wears its rows pressed flat, and the bays a pad throws you up past flat panels: nothing stands out where you run
       const fn = Math.max(1, Math.round(len / 8));
       const fb = len / fn;
       const padBay = (u: number) => {
@@ -219,13 +221,33 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         // the Sky Lobby's storey and the Sky Park's keep their own walls, so their windows stay open (the plan's rule 2)
         if ((t.lobby !== undefined && Math.abs(y - t.lobby) < 0.5) || (t.park !== undefined && Math.abs(y - t.park) < 0.5) || (t.floors ?? []).some((q) => Math.abs(y - q) < 0.5)) continue;
         if (canyon) {
-          for (let i = 0; i < fn; i++) {
-            const id = pick(D.flat, kitHash(t.x, t.z, s, i, 30));
+          if (lean) {
+            for (let i = 0; i < fn; i++) {
+              const id = pick(D.flat, kitHash(t.x, t.z, s, i, 30));
+              const dm = dims(id);
+              if (!dm) continue;
+              const r = relief(id);
+              const [x, z] = onFace(f, f.a + (i + 0.5) * fb, r.out);
+              add(id, place(id, x, y, z, f.yaw, fb / dm.w, STOREY / dm.h, r.sz, true), 0, "flat");
+            }
+          } else {
+            // the tower's own row for the storey, its relief pressed into canyonRelief
+            const cEdge = s === 0 || s === t.storeys - 1;
+            const cFar = !cEdge && !nearDeck(y) && rows.far;
+            const cRow = s === 0 ? rows.ground : s === t.storeys - 1 ? rows.top : cFar ? rows.far! : rows.mid;
+            const cn = Math.max(1, Math.round(len / (cFar && rows.farBay ? rows.farBay : rows.bay)));
+            const cb = len / cn;
+            const id = pick(cRow, kitHash(t.x, t.z, s, 32));
             const dm = dims(id);
-            if (!dm) continue;
-            const r = relief(id);
-            const [x, z] = onFace(f, f.a + (i + 0.5) * fb, r.out);
-            add(id, place(id, x, y, z, f.yaw, fb / dm.w, STOREY / dm.h, r.sz, true), 0, "flat");
+            if (dm) {
+              const pl = planeOf(id);
+              const sz = pl > D.canyonRelief ? D.canyonRelief / pl : 1;
+              const stands = D.outset + pl * sz;
+              for (let i = 0; i < cn; i++) {
+                const [x, z] = onFace(f, f.a + (i + 0.5) * cb, stands);
+                add(id, place(id, x, y, z, f.yaw, cb / dm.w, STOREY / dm.h, sz, true), 0, "flat", stands);
+              }
+            }
           }
           continue;
         }

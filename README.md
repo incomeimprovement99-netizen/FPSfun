@@ -148,7 +148,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   fronts, signs, blade signs and billboards, the roofs their gear, cables cross
   the streets, and the skyline past the edge is lit windows. It is looks only:
   you run, climb and collide with the city's own boxes, as tuned, and a face you
-  wall run along or climb past a pad wears a flat panel. The graphics preset
+  wall run along wears its modules pressed flat (a plain panel on Competitive,
+  and past a pad). The graphics preset
   picks the texture size and how much is drawn (Competitive the lightest modules
   at half size; High adds pipes, cornices and street props). A copy without the
   files, and Pages, shows the city of before.

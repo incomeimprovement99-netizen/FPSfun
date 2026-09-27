@@ -5237,9 +5237,8 @@ family wearing two to five wall modules, and 1,400 blank panels on the canyon fa
 - **The Spire's machinery** (`city.json` spire machinery): the Glass pack's pipe stacks at the four corners of the top
   tier's terrace and its machine on the crown deck, each over a solid box of the city's (cover on the capture zone's
   last ground), in materials of their own the kit hides once it dresses them.
-- **Not yet:** the canyon faces still wear flat panels. Their family's modules pressed flat would cost about 120k
-  triangles, past Balanced's headroom; that waits on a bench. High City's wall tiles, meant for that, are modelled
-  lying down.
+- **Not yet:** the canyon faces still wear flat panels (Milestone 277 dresses them). High City's wall tiles, meant for
+  that, are modelled lying down.
 - **Checked:** `citykit.ts` (the machinery's boxes each dressed and its material theirs alone; every piece measured;
   nothing across a window or a door; the budgets); `sk-roofs` (a bot still up the Spire to its crown), `sk-drop`;
   verify and rules; pictures from the street, the crown and the air.
@@ -5267,3 +5266,23 @@ load first? All those matrix screen have lag".
 - **After:** the boot card's longest frame is 25 ms (was 2867 ms). The match card's longest is one of 110 to 125 ms in
   its fade out, as the match's own first frames show through (was two of 829 ms).
 - **Checked:** the tool before and after, three runs each; the intro and SpeedKills e2e sections; verify; rules.
+
+## Milestone 278 — The canyons wear their towers' walls
+
+The biggest repetition left after Milestone 276: 1,461 blank panels up the faces of the centre's canyons, the gaps of
+5 to 6 m between towers, where the plan's rule 1 keeps anything from standing out of a wall you run along.
+
+- **Pressed modules** (`citykit.json` dress canyonRelief). From Balanced up, a canyon's face wears its own tower's
+  style storey by storey, as its street faces do (the ground row, the top row, the full row by a deck and the far row
+  between), each module's relief pressed to 0.1 m, so its front stands 0.13 m out of the wall, inside the plan's
+  0.15 m. Competitive keeps the plain panels. The chimneys are unchanged: their own inner walls stand in front of
+  the towers' faces.
+- **The rule measured, not assumed.** Each placed piece carries how far it really stands out (`KitPlace.out`), and
+  `citykit.ts` checks rule 1 against that, not against the piece's unpressed relief.
+- **What it costs.** 191k triangles on Balanced and High (1,352k and 1,455k), mostly Kyber's window walls. Benched
+  three rounds, interleaved, kit on and off, on a shared machine: in the street, Balanced medians 6.5 ms with the kit
+  against 8.4 without and High 12.4 against 13.2; over the Spire, Balanced 5.8 against 6.2 and High 11.5 against
+  12.0. The pieces are ones the kit already drew, so draw calls hardly moved. The limits go to 1,420k and 1,530k, a
+  twentieth over.
+- **Checked:** `citykit.ts` (rule 1 on the pieces' real depth, the budgets, doors, windows, stand-ins); verify and
+  rules; pictures down two canyons on Balanced and Competitive.
