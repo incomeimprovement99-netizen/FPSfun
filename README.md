@@ -85,7 +85,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
   triggers, NOVA's drum a chamber a shot, the sniper's wheels, the heavy
   shotgun's loading gate, the magazine releases. Every gun is aimed down its
   own sights (its scope's dot, the sniper's scope, or its irons), with no sight
-  of ours on top; the gun's optic lends only its zoom. The MINE
+  of ours on top; the gun's optic lends only its zoom. The USSO and BOOG have
+  their own feel in the hands: they phase in and out of them on a swap, a
+  cyan sweep with a digital edge, kick on their own spring (the USSO tight and
+  buzzing, BOOG a heavy punch and a recharge you can see), and a reload phases
+  the magazine out and a new one in. The MINE
   hack's mine, death boxes, care packages and the med kit in a HEAL area are
   the pack's too.
 - **Ten guns**, five named for the owner's friends; BOOG, the sniper, kills

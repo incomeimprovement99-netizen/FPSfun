@@ -28,6 +28,8 @@ import type { OperatorSkin } from "./operators";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
 import armCfg from "../config/viewmodel.json";
+import feelCfg from "../config/gunfeel.json";
+import { newSweep, phaseMeshes } from "./phase";
 import { IS_SK, PROFILE } from "./game";
 
 /** how much of a reload's pose is gone in the sights (speedkills.json viewmodel; the legacy game keeps all of it) */
@@ -87,6 +89,18 @@ export const FLOURISH_TIME = 0.95;
 
 /** how hard the gun and the empty hands pump while sprinting (1 = the old swing) */
 const SPRINT_PUMP = 1.6;
+
+/** a signature gun's feel in the hands (gunfeel.json guns) */
+interface GunFeel {
+  swap: { out: number[]; in: number[]; move: number; rise: number; roll: number };
+  holster: { out: number[] };
+  kick: { impulse: number; spring: number; damp: number; back: number; up: number; yaw: number; roll: number };
+  buzz?: { amp: number; hz: number };
+  pulse: { glow: number; decay: number };
+  charge?: { drained: number; ready: number };
+  reload: { magOut: number[]; magIn: number[]; seat: number; snap: number; pulse: number; drop: number };
+}
+const FEEL = feelCfg.guns as unknown as Record<string, GunFeel>;
 
 const smooth = (a: number, b: number, x: number): number => {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
@@ -397,6 +411,25 @@ export class ViewModel {
   private kickVel = 0;
   private kickYaw = 0;
   private kickRoll = 0;
+  /**
+   * SpeedKills' signature gun in hand (gunfeel.json), or null for every other: it phases in and out of the hands
+   * (phase.ts), kicks on its own spring, pulses its glow on a shot and phases its magazine out and a new one in
+   */
+  private feel: GunFeel | null = null;
+  private readonly bodySweep = newSweep(feelCfg.phase);
+  private readonly magSweep = newSweep(feelCfg.phase);
+  /** the ends of the gun along its barrel (stock, muzzle) in its own space, and the magazine's top and bottom in its */
+  private readonly gunNear = new THREE.Vector3();
+  private readonly gunFar = new THREE.Vector3();
+  private readonly magTop = new THREE.Vector3();
+  private readonly magEnd = new THREE.Vector3();
+  private feelKick = 0;
+  private feelKickVel = 0;
+  /** the glow's jump on a shot, a seat or a gun coming whole, 1 at its height, falling away */
+  private pulse = 0;
+  private lastPhase = 1;
+  private lastReloadP = 0;
+  private readonly glowBase = new Map<THREE.Material, number>();
   private cylAngle = 0;
   private cylTarget = 0;
   /** a bought launcher's drum (paidgun.ts parts): where it is, and the chamber it is turning to */
@@ -493,6 +526,7 @@ export class ViewModel {
       this.placeHands(m);
       this.cylAngle = this.cylTarget = 0;
       this.drumAngle = this.drumTarget = 0;
+      this.setFeel(m, w);
       // a different gun in hand: a chamber check once it has come up
       this.checkPending = true;
     }
@@ -501,6 +535,117 @@ export class ViewModel {
     setMagRarity(this.model, w.magLevel);
     // a bought gun wears its fusion level (paidgun.ts)
     if (this.model.root.userData.paid && this.model.root.userData.paidLevel !== (w.fusion ?? 0)) setPaidLevel(this.model, w.fusion ?? 0);
+    // a signature gun's skin, new or a new level's, onto the phase
+    if (this.feel) this.phaseGun(this.model);
+  }
+
+  /** a signature gun's feel, and the axes its sweeps run along, measured off the bought model in the hands */
+  private setFeel(m: GunModel, w: ResolvedWeapon): void {
+    this.feel = IS_SK && m.root.userData.paid ? (FEEL[w.id] ?? null) : null;
+    this.feelKick = this.feelKickVel = this.pulse = 0;
+    this.bodySweep.phase.value = this.magSweep.phase.value = 1;
+    if (!this.feel) return;
+    const drawn = (root: THREE.Object3D, space: THREE.Object3D): THREE.Box3 => {
+      const box = new THREE.Box3();
+      root.updateWorldMatrix(true, true);
+      const inv = new THREE.Matrix4().copy(space.matrixWorld).invert();
+      root.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh || !mesh.visible || !mesh.geometry.boundingBox) mesh.geometry?.computeBoundingBox?.();
+        if (!mesh.isMesh || !mesh.visible || !mesh.geometry.boundingBox) return;
+        box.union(mesh.geometry.boundingBox.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, mesh.matrixWorld)));
+      });
+      return box;
+    };
+    const paid = m.root.getObjectByName("paid");
+    if (paid) {
+      const g = drawn(paid, m.root);
+      const cy = (g.min.y + g.max.y) / 2;
+      this.gunNear.set(0, cy, g.max.z);
+      this.gunFar.set(0, cy, g.min.z);
+    }
+    if (m.mag) {
+      const b = drawn(m.mag, m.mag);
+      const cx = (b.min.x + b.max.x) / 2;
+      const cz = (b.min.z + b.max.z) / 2;
+      this.magTop.set(cx, b.max.y, cz);
+      this.magEnd.set(cx, b.min.y, cz);
+    }
+    this.phaseGun(m);
+  }
+
+  /** the bought gun's meshes onto the sweeps: its magazine's on the magazine's, the rest on the gun's */
+  private phaseGun(m: GunModel): void {
+    const paid = m.root.getObjectByName("paid");
+    const under = (o: THREE.Object3D, g: THREE.Object3D | null | undefined) => {
+      for (let p: THREE.Object3D | null = o; p && p !== m.root; p = p.parent) if (p === g) return true;
+      return false;
+    };
+    // the pack's own meshes only: never the muzzle flash, the optic or the procedural gun hidden under them
+    phaseMeshes(m.root, (mesh) => (under(mesh, m.mag) && mesh.visible ? this.magSweep : under(mesh, paid) || ((under(mesh, m.bolt) || under(mesh, m.pump)) && mesh.visible) ? this.bodySweep : null));
+    this.glowBase.clear();
+  }
+
+  /**
+   * A signature gun's sweeps this frame, along the gun as it is posed and the magazine where it is, and its glow: a
+   * shot's pulse, a seat's, the gun coming whole; BOOG drains on a shot and builds back over the rechamber, flashing
+   * as it is ready
+   */
+  private feelFrame(m: GunModel, w: ResolvedWeapon, F: GunFeel, phase: number, reloadP: number, reloading: boolean, dt: number): void {
+    this.pose.updateMatrix();
+    m.root.updateWorldMatrix(true, true);
+    const toWorld = (v: THREE.Vector3, o: THREE.Object3D) => this.tmp.copy(v).applyMatrix4(o.matrixWorld);
+    const S = this.bodySweep;
+    S.phase.value = phase;
+    S.time.value = this.t;
+    S.origin.value.copy(toWorld(this.gunNear, m.root));
+    S.dir.value.copy(toWorld(this.gunFar, m.root)).sub(S.origin.value);
+    S.len.value = Math.max(1e-4, S.dir.value.length());
+    S.dir.value.normalize();
+    // the magazine: out as it drops and a new one in as it comes back, on a reload; else with the gun
+    let mp = phase;
+    if (reloading) {
+      const R = F.reload;
+      const mid = (R.magOut[1] + R.magIn[0]) / 2;
+      mp = Math.min(phase, reloadP < mid ? 1 - smooth(R.magOut[0], R.magOut[1], reloadP) : smooth(R.magIn[0], R.magIn[1], reloadP));
+      // the seat: a slap into the hands and a pulse
+      if (this.lastReloadP < R.seat && reloadP >= R.seat) {
+        this.feelKickVel += R.snap;
+        this.pulse = Math.max(this.pulse, R.pulse);
+      }
+    }
+    this.lastReloadP = reloading ? reloadP : 0;
+    const M = this.magSweep;
+    M.phase.value = mp;
+    M.time.value = this.t;
+    if (m.mag) {
+      M.origin.value.copy(toWorld(this.magTop, m.mag));
+      M.dir.value.copy(toWorld(this.magEnd, m.mag)).sub(M.origin.value);
+      M.len.value = Math.max(1e-4, M.dir.value.length());
+      M.dir.value.normalize();
+      // the phase draws it in and out; the plain reload's hiding it while "empty" would cut the sweep off
+      if (reloading) m.mag.visible = mp > 0;
+    }
+    // the glow
+    if (this.lastPhase < 1 && phase >= 1) this.pulse = Math.max(this.pulse, 0.8);
+    this.lastPhase = phase;
+    this.pulse *= Math.exp(-dt / F.pulse.decay);
+    let g = 1 + F.pulse.glow * this.pulse;
+    if (F.charge) {
+      const u = (this.t - this.lastShotAt) / Math.max(0.4, w.rechamberTime || w.shotInterval);
+      if (u >= 0 && u < 1.3) {
+        const drain = F.charge.drained + (1 - F.charge.drained) * smooth(0.12, 0.95, u);
+        const ready = F.charge.ready * Math.max(0, 1 - Math.abs(u - 1.03) / 0.1);
+        g = drain + F.pulse.glow * this.pulse + ready;
+      }
+    }
+    m.root.traverse((o) => {
+      const mat = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+      if (!(o as THREE.Mesh).isMesh || !mat || !mat.isMeshStandardMaterial || !mat.userData.phaseOf) return;
+      let base = this.glowBase.get(mat);
+      if (base === undefined) this.glowBase.set(mat, (base = mat.emissiveIntensity));
+      mat.emissiveIntensity = base * g;
+    });
   }
 
   /**
@@ -615,7 +760,11 @@ export class ViewModel {
     // tilted 5 degrees for the whole spray.
     const rateScale = Math.min(1, 4 / Math.max(1, w.fireRate));
     const adsScale = 1 - 0.6 * this.lastAds;
-    this.kickVel += 32 * m.kick * rateScale * adsScale;
+    // a signature gun kicks on its own spring (gunfeel.json), and its glow jumps
+    if (this.feel) {
+      this.feelKickVel += this.feel.kick.impulse * adsScale;
+      this.pulse = 1;
+    } else this.kickVel += 32 * m.kick * rateScale * adsScale;
     this.kickYaw = (Math.random() - 0.5) * 0.6;
     this.kickRoll = (Math.random() - 0.5) * 0.8;
     this.flash.fire(m.energy);
@@ -758,6 +907,21 @@ export class ViewModel {
     ry += -this.swayX * 2.6;
     rx += this.swayY * 2.2;
 
+    // a signature gun's kick: its own spring, back, up and a twist, and a buzz while it keeps firing
+    const F = this.feel;
+    if (F) {
+      this.feelKickVel += (-F.kick.spring * this.feelKick - F.kick.damp * this.feelKickVel) * dt;
+      this.feelKick += this.feelKickVel * dt;
+      p.z += this.feelKick * F.kick.back;
+      rx += this.feelKick * F.kick.up;
+      ry += this.feelKick * F.kick.yaw * this.kickYaw;
+      rz += this.feelKick * F.kick.roll * this.kickRoll;
+      if (F.buzz && this.t - this.lastShotAt < w.shotInterval * 1.6) {
+        const a = F.buzz.amp * (1 - ads * 0.6);
+        p.x += Math.sin(this.t * F.buzz.hz * Math.PI * 2) * a;
+        p.y += Math.cos(this.t * F.buzz.hz * Math.PI * 2.6) * a;
+      }
+    }
     // recoil: back, muzzle up, a random twist
     p.z += this.kick * 0.018;
     rx += this.kick * 0.05;
@@ -796,16 +960,28 @@ export class ViewModel {
     // Holstering takes the first half of the holster time to lower the gun
     // and the second half to bring the empty hands up.
     const gunGone = easeInOut(clamp(f.lowered * 2, 0, 1));
+    // A signature gun phases out of the hands and in rather than dropping out of the frame (gunfeel.json swap): the
+    // outgoing one over the swap's first half, the incoming one over its second (the model changes at the middle),
+    // and out and in again over a holster and a draw. Only a little of the drop is kept, so the phase is seen
+    let phase = 1;
+    if (F) {
+      const swapPh = f.raise >= 1 ? 1 : f.raise < 0.5 ? 1 - smooth(F.swap.out[0], F.swap.out[1], f.raise) : smooth(F.swap.in[0], F.swap.in[1], f.raise);
+      phase = Math.min(swapPh, 1 - smooth(F.holster.out[0], F.holster.out[1], f.lowered));
+      // coming whole it rises into the hands and unrolls
+      p.y -= (1 - phase) * F.swap.rise;
+      rz += (1 - phase) * F.swap.roll;
+    }
+    const move = F ? F.swap.move : 1;
     // melee: a quick in-and-out envelope over the swing
     const mp = (this.t - this.meleeAt) / MELEE_TIME;
     const meleeEnv = mp >= 0 && mp < 1 ? Math.sin(mp * Math.PI) : 0;
     const swapDip = Math.sin(clamp(f.raise, 0, 1) * Math.PI);
     const dip = Math.max(swapDip, gunGone, meleeEnv * 0.8);
-    p.y -= dip * 0.35;
-    rx -= dip * 0.9;
+    p.y -= dip * 0.35 * move;
+    rx -= dip * 0.9 * move;
     // holstering: the gun turns down and away to the right as it goes, and
     // comes back the same way (a draw), so it is not a straight lift
-    const turn = Math.max(gunGone, swapDip);
+    const turn = Math.max(gunGone, swapDip) * move;
     p.x += turn * 0.16;
     p.z += turn * 0.08;
     ry -= turn * 0.7;
@@ -843,7 +1019,7 @@ export class ViewModel {
     // Magnified scopes: at full aim the HUD draws the scope picture, and the
     // gun would only block it.
     const scoped = o !== null && o.info.overlay && f.adsFrac > 0.9;
-    this.holder.visible = gunGone < 0.999 && !scoped;
+    this.holder.visible = (F ? phase > 0 : gunGone < 0.999) && !scoped;
     if (o) {
       // a reflex reticle only shows when you look through the window
       (o.reticle.material as THREE.MeshBasicMaterial).opacity = smooth(0.35, 0.85, f.adsFrac);
@@ -856,6 +1032,7 @@ export class ViewModel {
     this.animateAction(m, w, dt, f.clipEmpty && !f.reloading);
     this.animateReload(m, reloadP, f.reloading);
     this.animateParts(m, w, dt, ads, reloadP, f.reloading);
+    if (F) this.feelFrame(m, w, F, phase, reloadP, f.reloading, dt);
 
     // climbing or mantling: the support hand leaves the gun for the wall,
     // reaching up and pulling in a rhythm on a climb, flat on the ledge in a
@@ -896,6 +1073,11 @@ export class ViewModel {
     this.real.view.tanV = Math.tan((fovDeg * Math.PI) / 360);
     this.real.view.tanH = this.real.view.tanV * aspect;
     this.real.view.ads = ads;
+  }
+
+  /** the signature gun's feel in hand (gunfeel.json), its phase and its magazine's, and whether it is drawn (the e2e soldier section) */
+  get feelState(): { gun: string | null; phase: number; mag: number; shown: boolean } {
+    return { gun: this.feel ? (this.model?.id ?? null) : null, phase: this.bodySweep.phase.value, mag: this.magSweep.phase.value, shown: this.holder.visible };
   }
 
   /** whether each real arm's upper arm's cut end is off the gun camera's frame (fparms.ts cutOffFrame; the e2e soldier section) */
@@ -1143,7 +1325,8 @@ export class ViewModel {
       const out = smooth(0.12, 0.3, p);
       const back = smooth(0.52, 0.76, p);
       const seat = smooth(0.76, 0.8, p) * (1 - smooth(0.8, 0.86, p));
-      const drop = 0.32 * (out - back);
+      // a signature gun's magazine drops a short way, in sight, as it phases out and the new one in (gunfeel.json)
+      const drop = (this.feel ? this.feel.reload.drop : 0.32) * (out - back);
       // pistols drop the magazine down the grip axis, rifles straight down
       const pistol = m.support.kind === "pistol";
       m.mag.position.set(

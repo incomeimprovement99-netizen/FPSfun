@@ -5028,6 +5028,53 @@ async function soldierTest(browser: Browser): Promise<void> {
       return out;
     })()`,
   );
+  // the signature guns phase out of the hands and in (gunfeel.json, phase.ts): a swap from the USSO to BOOG takes the
+  // USSO's phase down to nothing and brings BOOG's up whole, the gun never dropped out of the frame; ZEPHYR has no feel
+  const phased = await ev<{ low: Record<string, number>; end: { gun: string | null; phase: number; shown: boolean }; plain: { gun: string | null; phase: number }; frames: number }>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const gameWait = async (s) => {
+        const g0 = r.gameTime();
+        const t0 = performance.now();
+        while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
+      };
+      r.loadout.give(0, "r97");
+      r.loadout.give(1, "sentinel");
+      r.setScript({ held: () => false, pressedNow: (a) => a === "slot1" }, null);
+      await gameWait(0.1);
+      r.setScript(null);
+      let t0 = performance.now();
+      while (r.loadout.swapping && performance.now() - t0 < 30000) await wait(20);
+      await gameWait(0.3);
+      // the swap itself (the slot keys read the real keyboard, which a test never touches)
+      r.loadout.requestSwap(1, r.gameTime());
+      // each gun's own lowest phase while it is the one in the hands
+      const low = { r97: 1, sentinel: 1 };
+      let frames = 0;
+      t0 = performance.now();
+      while (r.loadout.swapping && performance.now() - t0 < 30000) {
+        const s = r.gunFeel();
+        if (s.gun in low) low[s.gun] = Math.min(low[s.gun], s.phase);
+        frames++;
+        await wait(15);
+      }
+      await gameWait(0.3);
+      const end = r.gunFeel();
+      r.loadout.give(0, "rspn101");
+      r.loadout.requestSwap(0, r.gameTime());
+      t0 = performance.now();
+      while (r.loadout.swapping && performance.now() - t0 < 30000) await wait(20);
+      await gameWait(0.3);
+      return { low, end, plain: r.gunFeel(), frames };
+    })()`,
+  );
+  check(
+    "soldier guns: the USSO phases out of the hands and BOOG in, whole at the end and drawn; ZEPHYR has no phase",
+    phased.low.r97 < 0.2 && phased.low.sentinel < 0.2 && phased.end.gun === "sentinel" && phased.end.phase === 1 && phased.end.shown && phased.plain.gun === null && phased.plain.phase === 1,
+    JSON.stringify(phased),
+  );
   check(
     "soldier arms: both upper arms' cut ends off the gun camera's frame at the hip and on the way into the sights, on the USSO and BOOG",
     elbows.length === 2 && elbows.every((e) => e.hip?.r && e.hip.l && e.ads?.r && e.ads.l),

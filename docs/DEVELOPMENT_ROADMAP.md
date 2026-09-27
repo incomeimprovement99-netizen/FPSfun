@@ -4650,3 +4650,32 @@ of bounds; a slide slower than the holstered run; the support arm "clearly fucke
 - **Checked:** the e2e soldier section, where both cut ends are off the frame at the hip and aimed, on the USSO and
   BOOG; verify; rules; pictures at the widest FOV. The range sandbox's edge check now waits on game time, not 500 ms:
   on the e2e's CPU drawing no frame had run.
+
+## Milestone 253 — The USSO and BOOG in the hands: the phase, their own kick, a reload that materialises
+
+The owner (2026-09-27): "tear through two guns, the USSO and the BOOG ... top tier animations ... swapping, recoil,
+reloading ... have them kind of phase in like how hyperscape does it ... it doesn't need to be realistic, it needs to
+be futuristic."
+
+- **The phase** (`src/game/phase.ts`). A shader on the gun in the hands, never on the copies on figures and the floor.
+  A sweep runs along the gun: behind it the gun is solid, on it a cyan band with scanlines, and ahead of it a
+  thinning scatter of cells that flicker many times a second. The edge steps by cells, a digital edge rather than a
+  smooth wipe. It runs in world space along an axis the view sets each frame, so every mesh of the gun shares one sweep.
+- **Swapping** (`gunfeel.json` swap, holster). The gun no longer drops out of the frame. It phases out from the muzzle
+  back over the swap's first half, and the next gun phases in from the stock forward over the second, rising a few
+  centimetres and unrolling into the hands. Coming whole, the glow flashes. A holster and a draw do the same. Only 12%
+  of the old drop is kept: all of it hid the phase below the frame.
+- **Recoil** (`gunfeel.json` kick, buzz, pulse, charge). Each gun kicks on a spring of its own. The USSO is stiff and
+  quick, back and up a little a shot, with a fine buzz while it keeps firing. BOOG is a heavy punch, 11 degrees of
+  muzzle a unit of kick, that settles slowly. The glow jumps on every shot. BOOG's glow drains on a shot and builds
+  back over the rechamber, its side wheels turning, and flashes as it is ready.
+- **Reloading** (`gunfeel.json` reload). The magazine drops a short way, in sight, as it phases out, and a new one
+  materialises under the gun and goes in. It seats with a slap on the kick spring and a pulse. The plain reload's
+  32 cm drop took the magazine, and its phase, out of the frame.
+- **Everything else**: `tools/gunfeel-sheet.ts` takes pictures of each through a swap, a shot and a reload
+  (`debugView.raise` holds a swap). The two are the proof. Any gun can be given a feel by adding it to
+  `gunfeel.json`.
+- **Checked:** the e2e soldier section swaps the USSO to BOOG. The USSO's own phase goes to nothing, BOOG's comes up
+  whole and drawn, and ZEPHYR, with no feel, never phases. It failed with the USSO's feel taken out. Also verify,
+  rules and the pictures. The slot keys read the real keyboard only, so the section's swaps go through the loadout;
+  its earlier scripted slot presses never swapped anything.

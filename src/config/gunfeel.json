@@ -1,0 +1,120 @@
+{
+  "_note": "SpeedKills' signature guns in the hands (src/game/viewmodel.ts, src/game/phase.ts). The owner (2026-09-27): tear through two guns, the USSO and BOOG, top tier animations, swapping, recoil, reloading, and have them phase in like Hyper Scape did; not realistic, futuristic. A gun listed here phases in and out of the hands instead of dropping out of the frame, kicks on its own spring, pulses its glow on a shot and phases its magazine out and a new one in on a reload. Ours, by eye against pictures and the game's own shot rates; every time is a share of the swap, the holster or the reload, every length metres in the gun's space, every turn radians.",
+  "_phase": "The sweep (phase.ts): its colour; band, the lit edge's width, and jag, how far a cell may push the edge back, both shares of the gun's length; cell, the cell's size, a share of the length too, so the edge steps like pixels; lines, the scanlines along the gun, per length; ahead, how far ahead of the edge the scatter of flickering cells reaches, as a share of the length, and scatter, how thick it is at the edge.",
+  "phase": {
+    "color": "#7fe9ff",
+    "band": 0.12,
+    "jag": 0.07,
+    "cell": 0.02,
+    "lines": 180,
+    "ahead": 0.28,
+    "scatter": 0.45
+  },
+  "_guns": "Per gun. swap: the outgoing gun phases out over `out` of the swap and the incoming one in over `in` (the model changes at the swap's middle), and `move` is how much of the old drop out of the frame is kept (none would hide nothing from a player's eye; all of it would hide the phase); as it phases in it rises `rise` and unrolls `roll`. holster: the same over the holster's own fraction. kick: the recoil, a spring of its own (`spring` stiffness and `damp` damping, a shot adding `impulse` to its speed), moving the gun `back` and turning it `up`, `yaw` and `roll` a unit of it; buzz: a shake while firing, `amp` metres at `hz`. pulse: the glow jumps by `glow` times on a shot and falls back over `decay` s. charge (BOOG): over the rechamber the glow drains to `drained` and builds back, with a flash of `ready` as it is ready again. reload: the magazine drops `drop` (the plain reload's 0.32 took it out of the frame, and its phase with it) and phases out over `magOut`, the new one in over `magIn`, and it seats at `seat` with a snap of `snap` on the kick spring and a pulse.",
+  "guns": {
+    "r97": {
+      "swap": {
+        "out": [
+          0.06,
+          0.46
+        ],
+        "in": [
+          0.52,
+          0.9
+        ],
+        "move": 0.12,
+        "rise": 0.03,
+        "roll": 0.3
+      },
+      "holster": {
+        "out": [
+          0,
+          0.46
+        ]
+      },
+      "kick": {
+        "impulse": 16,
+        "spring": 900,
+        "damp": 46,
+        "back": 0.014,
+        "up": 0.03,
+        "yaw": 0.012,
+        "roll": 0.03
+      },
+      "buzz": {
+        "amp": 0.0008,
+        "hz": 29
+      },
+      "pulse": {
+        "glow": 1.8,
+        "decay": 0.05
+      },
+      "reload": {
+        "magOut": [
+          0.12,
+          0.3
+        ],
+        "magIn": [
+          0.46,
+          0.66
+        ],
+        "seat": 0.78,
+        "snap": 9,
+        "pulse": 1,
+        "drop": 0.1
+      }
+    },
+    "sentinel": {
+      "swap": {
+        "out": [
+          0.06,
+          0.46
+        ],
+        "in": [
+          0.52,
+          0.9
+        ],
+        "move": 0.12,
+        "rise": 0.04,
+        "roll": 0.22
+      },
+      "holster": {
+        "out": [
+          0,
+          0.46
+        ]
+      },
+      "kick": {
+        "impulse": 30,
+        "spring": 130,
+        "damp": 14,
+        "back": 0.022,
+        "up": 0.11,
+        "yaw": 0.02,
+        "roll": 0.05
+      },
+      "pulse": {
+        "glow": 3,
+        "decay": 0.12
+      },
+      "charge": {
+        "drained": 0.15,
+        "ready": 2.4
+      },
+      "reload": {
+        "magOut": [
+          0.12,
+          0.3
+        ],
+        "magIn": [
+          0.46,
+          0.66
+        ],
+        "seat": 0.78,
+        "snap": 12,
+        "pulse": 1.2,
+        "drop": 0.1
+      }
+    }
+  }
+}

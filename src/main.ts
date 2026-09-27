@@ -1015,7 +1015,10 @@ const debugView: {
   downed: boolean | null;
   /** hold an inspect at a point in its run, 0..1, for a screenshot (tools/snap.ts) */
   inspect: number | null;
+  /** hold a swap at a point in its run, 0..1, for a screenshot of a gun phasing (tools/gunfeel-sheet.ts) */
+  raise: number | null;
 } = {
+  raise: null,
   weapon: null,
   ads: null,
   inspect: null,
@@ -7276,7 +7279,7 @@ function step(): void {
     // sideways against the view, + right: the gun rolls into a strafe
     strafe: player.vel.x * Math.cos(player.yaw * DEG) - player.vel.z * Math.sin(player.yaw * DEG),
     onGround: player.onGround,
-    raise: swapP,
+    raise: debugView.raise ?? swapP,
     sprinting: player.sprinting,
     sliding: player.sliding,
     climbing: player.stance === "climb",
@@ -7825,6 +7828,8 @@ initWelcome();
   realArmsShown: () => viewModel.realArmsShown,
   /** whether each real arm's upper arm's cut end is off the gun camera's frame (fparms.ts): in it, it hung under the gun */
   armCutsOff: () => viewModel.cutsOff,
+  /** the signature gun in hand (gunfeel.json): which, its phase and its magazine's, and whether it is drawn */
+  gunFeel: () => viewModel.feelState,
   /** the loot card as the HUD draws it this frame, and its mode (Phase 20 A8) */
   lootCard: () => lootCardNow(),
   /** the enemy the crosshair outlines this frame (Phase 20 A8's check; speedkills.json feel.outline) */
