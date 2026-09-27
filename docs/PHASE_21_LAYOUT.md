@@ -57,6 +57,47 @@ it is the moment you cannot shoot.
 - **Double gap, 16.2 m:** landed clean with the double jump, and not with the jump alone.
 - **Chimney, 3.0 m:** climbs a 4 m storey in three crossings (1.41 m a crossing); a 5.0 m corridor holds only two.
 
+## The centre as built today, measured (tools/centre-canyons.ts)
+
+THE SPIRE sector has 54 towers. Every canyon between two of them that is 2.5 to 6 m wide and at least 10 m long,
+face to face, off the built city:
+
+| Width | Length | Walls to | Where (map-local) |
+|---|---|---|---|
+| 4.87 m | 14.1 m | 44.1 m | z -79.3 to -74.4, x 73.4 to 87.5 |
+| 4.87 m | 15.2 m | 32.1 m | x 68.6 to 73.4, z -94.5 to -79.3 |
+| 4.92 m | 13.3 m | 36.1 m | x 71.0 to 75.9, z -16.5 to -3.2 |
+| 4.92 m | 18.6 m | 36.1 m | z -3.2 to 1.7, x 75.9 to 94.5 |
+| 4.94 m | 13.4 m | 28.1 m | z 73.9 to 78.9, x 55.5 to 68.9 |
+| 4.94 m | 15.6 m | 28.1 m | x 68.9 to 73.9, z 78.9 to 94.5 |
+| 5.18 m | 16.8 m | 40.1 m | x -10.1 to -4.9, z -65.3 to -48.5 |
+| 5.18 m | 21.4 m | 32.1 m | z -70.5 to -65.3, x -4.9 to 16.5 |
+| 5.46 m | 20.0 m | 40.1 m | z -2.0 to 3.4, x -68.5 to -48.5 |
+| 5.46 m | 21.5 m | 36.1 m | x -74.0 to -68.5, z -23.5 to -2.0 |
+| 5.67 m | 14.5 m | 44.1 m | z 73.0 to 78.6, x -87.5 to -73.0 |
+| 5.67 m | 15.9 m | 36.1 m | x -73.0 to -67.4, z 78.6 to 94.5 |
+
+**No canyon in the centre takes the chain today.** Every one is wider than the 4.25 m the zig-zag holds (the config's
+3 to 4.5 m is not what the built faces measure), and every one is shorter than the 26 m a storey of chimney needs
+(three crossings at 8.8 m each).
+
+## The four chimneys (the layout's instruction to city.ts)
+
+One per side of the Spire, in the canyons the city already has, each narrowed to **3.0 m** (one tower's face moved
+in) and its shared faces lengthened to **27 m or more**, so three crossings climb one storey and the walls run above
+the climb:
+
+| Side | Canyon today | Change | Climbs |
+|---|---|---|---|
+| North | x -10.1 to -4.9, z -65.3 to -48.5 (5.18 m, 16.8 m, walls to 40.1 m) | narrow to 3.0 m; extend the faces to z -75.5 | the concourse (8 m) to the Sky Lobby deck (about 32 m) in six storeys of chimney, broken by a landing every storey |
+| East | x 71.0 to 75.9, z -16.5 to -3.2 (4.92 m, 13.3 m, to 36.1 m) | narrow to 3.0 m; extend to z -30.5 | the same |
+| South | x 68.9 to 73.9, z 78.9 to 94.5 (4.94 m, 15.6 m, to 28.1 m) | narrow to 3.0 m; extend inward to z 67.5 | the concourse to the lower crowns |
+| West | x -74.0 to -68.5, z -23.5 to -2.0 (5.46 m, 21.5 m, to 36.1 m) | narrow to 3.0 m; extend to z -29 | the concourse to the Sky Lobby |
+
+A landing (a 2 m ledge at each storey) breaks each chimney into storeys the owner's chain climbs one at a time,
+with the tap-strafe 180 turning back into the next, as the brief's rule 5 folds a chain that would otherwise need
+100 m of alley. Each is proven like the 3.0 m chimney above once city.ts builds it.
+
 ## What is next
 
 1. The window pads and pad ladders, solved by `padSolve` against the solids above each arc.
