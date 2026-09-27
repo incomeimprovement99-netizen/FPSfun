@@ -38,6 +38,8 @@ export interface OperatorSkin {
   body?: string;
   /** SpeedKills: the soldier's look (soldier.ts soldierCode), when one was chosen; a figure without one takes its operator's */
   soldier?: string;
+  /** SpeedKills: the guns' picks (gunpick.ts code), from the look's sixth field */
+  guns?: string;
   extras: {
     crest?: boolean;
     antenna?: boolean;
@@ -146,7 +148,7 @@ export function operatorById(id: string | undefined): OperatorSkin {
 export function operatorWearing(id: string | undefined, look: string | undefined): OperatorSkin {
   const base = operatorById(id);
   const worn = readLook(look);
-  if (worn.outfit === undefined && worn.build === undefined && worn.face === undefined && worn.body === undefined && worn.soldier === undefined) return base;
+  if (worn.outfit === undefined && worn.build === undefined && worn.face === undefined && worn.body === undefined && worn.soldier === undefined && worn.guns === undefined) return base;
   return { ...base, ...worn };
 }
 

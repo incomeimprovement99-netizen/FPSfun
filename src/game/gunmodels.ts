@@ -22,6 +22,7 @@ import type { Finish } from "./finishes";
 import * as THREE from "three";
 import { IS_SK } from "./game";
 import { dressPaid } from "./paidgun";
+import { myGunPicks, pickKey, type GunPick } from "./gunpick";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 
@@ -1674,7 +1675,7 @@ const ROSTER: Record<string, Family> = {
 const built = new Map<string, GunModel>();
 const display = new Map<string, GunModel>();
 
-function buildModel(id: string): GunModel {
+function buildModel(id: string, pick?: GunPick | null): GunModel {
   const fam = ROSTER[id] ?? { kind: "rifle", spec: {} };
   let m: GunModel;
   if (fam.kind === "pistol") m = buildPistol(id, fam.spec);
@@ -1685,8 +1686,8 @@ function buildModel(id: string): GunModel {
   else m = buildRifle(id, { ...RIFLE, ...fam.spec });
   // remember the plate's own colour so a mag level of 0 can restore it
   if (m.magPlate) m.magPlate.userData.base = m.magPlate.material;
-  // SpeedKills: the bought gun over it, when it is in (paidgun.ts)
-  if (IS_SK) dressPaid(m);
+  // SpeedKills: the bought gun over it, when it is in (paidgun.ts), in the model and skin picked (gunpick.ts)
+  if (IS_SK) dressPaid(m, 0, pick);
   return m;
 }
 
@@ -1696,10 +1697,12 @@ export function resetGunModels(): void {
   display.clear();
 }
 
-/** build (once) and return the model for a weapon id: the one in your hands, which the viewmodel changes */
+/** build (once) and return the model for a weapon id: the one in your hands, which the viewmodel changes; in SpeedKills your pick of it (gunpick.ts), a new pick a new model */
 export function gunModel(id: string): GunModel {
-  let m = built.get(id);
-  if (!m) built.set(id, (m = buildModel(id)));
+  const pick = IS_SK ? myGunPicks()[id] : undefined;
+  const key = `${id}|${pickKey(pick)}`;
+  let m = built.get(key);
+  if (!m) built.set(key, (m = buildModel(id, pick)));
   return m;
 }
 
@@ -1708,9 +1711,11 @@ export function gunModel(id: string): GunModel {
  * Cloning the viewmodel's copy gave every dummy (and the 1v1 opponent) your
  * optic, your magazine colour and wherever your bolt was in its cycle.
  */
-export function displayGunModel(id: string): GunModel {
-  let m = display.get(id);
-  if (!m) display.set(id, (m = buildModel(id)));
+export function displayGunModel(id: string, pick?: GunPick | null): GunModel {
+  // one copy a pick: a figure wears its player's (gunpick.ts), and the floor and the boxes the gun as it comes
+  const key = `${id}|${pickKey(pick)}`;
+  let m = display.get(key);
+  if (!m) display.set(key, (m = buildModel(id, pick)));
   return m;
 }
 

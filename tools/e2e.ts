@@ -4887,6 +4887,34 @@ async function soldierTest(browser: Browser): Promise<void> {
   const kits = await ev<string[]>(page, "window.__range.labFigures().map((f) => f.mq?.soldier?.variant ?? '')");
   check("soldier: figures of different operators, as bots are, wear different kits (three or more of the four among eight)", kits.every(Boolean) && new Set(kits).size >= 3, kits.join(", "));
   await ev(page, "window.__range.figureLab([])");
+  // W9: the USSO's other model and its third skin, picked on the Loadouts tab as a player's clicks pick them: the gun
+  // in hand wears both, and a figure built from the look (a friend's figure of you) holds the same model
+  const picked = await ev<{ inHand: string | null; skin: string | null; figure: string | null; code: string | null }>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const t0 = performance.now();
+      while (!r.paidGuns().ready && performance.now() - t0 < 30000) await wait(200);
+      const pick = (id, v) => { const s = document.getElementById(id); s.value = v; s.dispatchEvent(new Event("change")); };
+      pick("slot0", "r97");
+      pick("gunModel0", "1");
+      pick("gunSkin0", "2");
+      r.loadout.give(0, "r97");
+      r.setScript({ held: () => false, pressedNow: (a) => a === "slot1" }, null);
+      await wait(1500);
+      r.setScript(null);
+      const code = localStorage.getItem("range.sk.guns");
+      const [fig] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "||||S0000000|" + code }], 4, 0);
+      await wait(600);
+      const figure = fig?.mq?.gun?.userData?.paid ?? null;
+      r.figureLab([]);
+      const held = r.paidGuns();
+      localStorage.removeItem("range.sk.guns");
+      return { inHand: held.inHand, skin: held.skin, figure, code };
+    })()`,
+  );
+  check("soldier guns (W9): the USSO's other model and third skin, picked on the Loadouts tab, are the gun in hand, and a friend's figure of you holds that model", picked.inHand === "SciFiSMG02_1" && /^SciFiSMG02C/.test(picked.skin ?? "") && picked.figure === "SciFiSMG02_1", JSON.stringify(picked));
   await page.close();
 
   // without the files: every request for them answers 404, as on a copy that never ran npm run paid

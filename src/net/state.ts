@@ -71,8 +71,11 @@ const NAME_MAX = 16;
 const ID_MAX = 32;
 /** an outfit choice: three ids and their separators (outfit.ts lookCode) */
 // 64: SpeedKills' look carries the soldier's 8-character code as a fifth field (soldier.ts); a build from before
-// clips at 48 and shows the operator's own soldier, which is the fallback anyway
-const LOOK_MAX = 64;
+// clips at 48 and shows the operator's own soldier, which is the fallback anyway.
+// 96: and the guns' picks as a sixth (gunpick.ts, 11 characters). The longest look is 91: the longest outfit, build
+// and body names and every face piece. At 64 that longest look already clipped the soldier's code off; a build from
+// before clips at 64 and shows the guns as they come
+const LOOK_MAX = 96;
 
 /**
  * One player's state, as duel.ts has always sent it: the payload of the "s"

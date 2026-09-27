@@ -27,6 +27,7 @@ import { MannequinFigure, useMannequin } from "./mannequin";
 import { Outline } from "./outline";
 import { emoteAt, emotePose } from "./emotes";
 import { IS_SK } from "./game";
+import { readGunPicks } from "./gunpick";
 
 export type Zone = "head" | "body" | "legs";
 export type ArmorTier = 0 | 1 | 2 | 3 | 4;
@@ -658,7 +659,7 @@ export class Dummy {
     if (armed) {
       // an untouched copy: the viewmodel's own gun carries your optic, your
       // magazine colour and a bolt caught mid-cycle
-      const m = displayGunModel(armed);
+      const m = displayGunModel(armed, readGunPicks(skin.guns)?.[armed]);
       gun = m.root.clone(true);
       gun.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
@@ -917,7 +918,7 @@ export class Dummy {
       this.paintGuns();
       return;
     }
-    const m = displayGunModel(id);
+    const m = displayGunModel(id, readGunPicks(this.skin.guns)?.[id]);
     const gun = m.root.clone(true);
     gun.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;

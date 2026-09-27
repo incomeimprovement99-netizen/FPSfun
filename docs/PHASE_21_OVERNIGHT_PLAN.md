@@ -131,6 +131,21 @@ files, with Pages kept free of them (S1).
 
 **Legacy:** the legacy game (`?game=legacy`) keeps its procedural guns, as it keeps its figures.
 
+**W9. The player's choice (W6's second half, not done in W1 to W8).** On the Loadouts tab, each gun's model and
+its skin, seen by everyone:
+- **The model:** any model of the gun's own family in the pack (SciFiRifle01 _1 or _2, SciFiSMG02 _1 or _2,
+  SciFiGrenadeLauncher01 _1, _2 or _3, and so on), so a choice always fits its class. Every one of them measured
+  (length, muzzle end, muzzle, sight top) into a `models` table in `paidweapons.json`, and
+  `tools/checks/paid-weapons.ts` measures them all.
+- **The skin:** which of the gun's three skins shows at levels 0 and 1; the fusion levels walk on from it through
+  the other two, so a fused gun still visibly changes.
+- **Carried:** one digit a gun (model and skin) after a `G`, a sixth field of the look code, as the soldier is the
+  fifth, so friends see your guns; saved under `range.sk.guns`.
+- **Built:** your hands' gun wears your pick; a figure's gun is its look's pick (the shared display copy keyed by the
+  pick); floor guns and death boxes stay the gun's default.
+- **Checked:** the code round trip, every model measured, and the e2e: a pick changes the gun in your hands and on
+  your figure as a friend sees it.
+
 ## The order
 
 1. **Rebase `soldier` onto main** (0de459b).
@@ -163,6 +178,7 @@ right in first person beat every variant; a measured reach table and proven modu
 - [x] W5 the guns in the soldiers' hands, checked in a picture
 - [x] W7 the pack's props: the MINE hack's mine, death boxes (the storage case), care packages (the weapon case), floor guns in their skins, the med kit in a HEAL area; SpeedKills has no grenades, so the pack's are unused; `tools/checks/paid-weapons.ts` looks for every prop's files
 - [x] W8 the guns are live (9915b25, Milestone 239)
+- [x] W9 the player's choice of each gun's model and skin: on the Loadouts tab by each slot, kept and carried to friends as the look's sixth field; every family model measured into `src/config/paidmodels.json`; the e2e soldier section checks a pick in hand and on a friend's figure of you (Milestone 245)
 - [x] Floor guns wear the bought gun's skin (they had shown its shape in one flat colour since 9915b25)
 - [ ] Open: the legacy host-migration e2e stops at "four bots armed" (3 of 6 armed), in the batch and alone, and still with a minute of game time rather than wall time, so it is the legacy bots' looting and not load; first seen at 540e676, before the soldier and guns. To look into, not to paper over by lowering the bar.
 - [x] 4.2 the reach harness (`tools/checks/reach.ts`, `src/config/reach.json`), and the modules' geometry in `docs/PHASE_21_LAYOUT.md`

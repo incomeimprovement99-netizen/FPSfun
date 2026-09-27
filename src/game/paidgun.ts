@@ -12,14 +12,17 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import cfg from "../config/paidweapons.json";
+import measuredCfg from "../config/paidmodels.json";
 import type { GunModel } from "./gunmodels";
+import { gunChoices, pickModel, pickSkins, type GunPick } from "./gunpick";
 
 interface Gun {
   model: string;
   skins: string[];
-  measured: { length: number; muzzleEnd: number; muzzle: number[]; sightTop: number };
 }
 const GUNS = cfg.guns as Record<string, Gun>;
+/** every model of each gun's family, measured (tools/checks/paid-weapons.ts writes it) */
+const MEASURED = measuredCfg.models as Record<string, { measured: { length: number; muzzleEnd: number; muzzle: number[]; sightTop: number } }>;
 const PROPS = (cfg.props ?? {}) as Record<string, { model: string; skin: string; scale?: number }>;
 const url = (p: string): string => `${p}?v=${cfg.version}`;
 
@@ -84,7 +87,8 @@ export function loadPaidGuns(): Promise<boolean> {
       const probe = await fetch(url(`${cfg.models}${first.model}.glb`), { method: "HEAD" });
       if (!probe.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) return false;
       const loader = new GLTFLoader();
-      const models = [...new Set([...Object.values(GUNS).map((g) => g.model), ...Object.values(PROPS).map((p) => p.model)])];
+      // every gun's family (a player may pick any of it, gunpick.ts) and the props
+      const models = [...new Set([...Object.keys(GUNS).flatMap((id) => gunChoices(id)), ...Object.values(PROPS).map((p) => p.model)])];
       const got = await Promise.all(models.map((m) => loader.loadAsync(url(`${cfg.models}${m}.glb`)).then((g) => [m, g.scene] as const)));
       for (const [m, scene] of got) {
         // the collision hulls are never drawn
@@ -109,7 +113,7 @@ export function loadPaidGuns(): Promise<boolean> {
 export function paidGunMaterial(id: string, level = 0): THREE.Material | null {
   const g = GUNS[id];
   if (!g || !scenes.get(g.model)) return null;
-  return skinMaterial(g.model.replace(/_\d+$/, ""), skinFor(g, level), tl);
+  return skinMaterial(g.model.replace(/_\d+$/, ""), skinFor(id, level), tl);
 }
 
 /** a prop from the pack (paidweapons.json props: the mine), in its skin, or null when it is not in */
@@ -130,29 +134,32 @@ export function paidProp(key: string): THREE.Object3D | null {
   return o;
 }
 
-/** the skin letter for a fusion level: as found, levels 2 to 3, levels 4 to 5 */
-function skinFor(g: Gun, level: number): string {
-  return g.skins[level >= 4 ? 2 : level >= 2 ? 1 : 0] ?? "A";
+/** the skin letter for a fusion level, from the player's pick of where to start: levels 0 to 1, 2 to 3, 4 to 5 */
+function skinFor(id: string, level: number, pick?: GunPick | null): string {
+  return pickSkins(id, pick)[level >= 4 ? 2 : level >= 2 ? 1 : 0] ?? "A";
 }
 
 const tl = new THREE.TextureLoader();
 
 /**
  * Dress a procedural gun model in its bought one, when there is one and it is in: the procedural meshes hidden,
- * the bought model in their place, and the gun's muzzle and sight line moved to the bought model's.
+ * the bought model in their place, and the gun's muzzle and sight line moved to the bought model's. `pick` is the
+ * player's (gunpick.ts): which model of the gun's family, and which skin its levels start from.
  */
-export function dressPaid(m: GunModel, level = 0): boolean {
+export function dressPaid(m: GunModel, level = 0, pick?: GunPick | null): boolean {
   const g = GUNS[m.id];
-  const src = g ? scenes.get(g.model) : undefined;
-  if (!g || !src) return false;
+  const name = pickModel(m.id, pick);
+  const src = name ? scenes.get(name) : undefined;
+  const size = name ? MEASURED[name]?.measured : undefined;
+  if (!g || !name || !src || !size) return false;
   // the procedural look off; its groups stay, since the animations move them
   m.root.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) o.visible = false;
   });
-  const family = g.model.replace(/_\d+$/, "");
-  const mat = skinMaterial(family, skinFor(g, level), tl);
+  const family = name.replace(/_\d+$/, "");
+  const mat = skinMaterial(family, skinFor(m.id, level, pick), tl);
   const model = src.clone(true);
-  model.name = `paid:${g.model}`;
+  model.name = `paid:${name}`;
   model.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
@@ -165,15 +172,15 @@ export function dressPaid(m: GunModel, level = 0): boolean {
   // pack's grip, on the procedural grip (the hand's centre, forward f along -Z and up u)
   const place = new THREE.Group();
   place.name = "paid";
-  if (g.measured.muzzleEnd > 0) place.rotation.y = Math.PI;
+  if (size.muzzleEnd > 0) place.rotation.y = Math.PI;
   place.position.set(m.grip.x ?? 0, m.grip.u, -m.grip.f);
   place.add(model);
   m.root.add(place);
   place.updateMatrixWorld(true);
   // the muzzle and the sight line, from the bought model's measurements, in the procedural gun's space
-  const muz = new THREE.Vector3().fromArray(g.measured.muzzle).applyMatrix4(place.matrix);
+  const muz = new THREE.Vector3().fromArray(size.muzzle).applyMatrix4(place.matrix);
   m.muzzle.copy(muz);
-  m.sightY = m.grip.u + g.measured.sightTop;
+  m.sightY = m.grip.u + size.sightTop;
   // a fitted optic sits on the bought gun's top, not at the procedural rail, where it hung in the air
   m.railY = m.sightY;
   // its moving parts into the procedural groups the animations move, kept where they are
@@ -190,7 +197,8 @@ export function dressPaid(m: GunModel, level = 0): boolean {
   mover(/^(Slide|Slider)$/, m.bolt);
   mover(/^Pump$/, m.pump);
   if (m.irons) m.irons.visible = false;
-  m.root.userData.paid = g.model;
+  m.root.userData.paid = name;
+  m.root.userData.paidPick = pick ?? null;
   m.root.userData.paidLevel = level;
   setPaidLevel(m, level);
   return true;
@@ -202,12 +210,14 @@ export function dressPaid(m: GunModel, level = 0): boolean {
  * better one in a hand and on the floor.
  */
 export function setPaidLevel(m: GunModel, level: number): void {
-  const g = GUNS[m.id];
-  if (!g || !m.root.userData.paid) return;
-  const family = g.model.replace(/_\d+$/, "");
-  const base = skinMaterial(family, skinFor(g, level), tl);
-  // one material a gun and level, so a brighter glow on one gun does not light every gun of its skin
-  const key = `${family}${skinFor(g, level)}:${level}`;
+  const name = m.root.userData.paid as string | undefined;
+  if (!GUNS[m.id] || !name) return;
+  const pick = m.root.userData.paidPick as GunPick | null;
+  const family = name.replace(/_\d+$/, "");
+  const skin = skinFor(m.id, level, pick);
+  const base = skinMaterial(family, skin, tl);
+  // one material a skin and level, so a brighter glow on one gun does not light every gun of its skin
+  const key = `${family}${skin}:${level}`;
   let mat = levelled.get(key);
   if (!mat) {
     mat = base.clone();

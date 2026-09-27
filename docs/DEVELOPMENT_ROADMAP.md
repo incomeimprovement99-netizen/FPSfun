@@ -4476,3 +4476,19 @@ Phase 21 S6's "bots pick a random variant and colours".
 - **The killcam shows the soldier you saw:** its recording carries each figure's soldier (bots, friends and you), and
   its replay wears it; it had only the operator, so a bot or a friend's pick came back in the operator's look.
   `tools/checks/sk-killcam.ts` (in verify) replays a bot's kill and fails with the ghost built from the operator.
+
+## Milestone 245 — Your guns, your pick: each gun's model and skin ✅
+
+Phase 21 W9, the second half of W6 (the weapons' variants the owner asked for).
+
+- **On the Loadouts tab, by each slot's gun** (SpeedKills, with the bought guns in): its model, any of its family in
+  the pack (the USSO's two, NOVA's three), and the skin it shows at levels 0 and 1; fusing it still moves on through
+  the other two. The finish picker, which the bought model hides, gives way to them.
+- **Seen by everyone:** the picks ride the look code as its sixth field (`src/game/gunpick.ts`, one digit a gun),
+  kept under `range.sk.guns`; your figure holds your picks on a friend's screen. The wire's look limit went from 64 to
+  96: the longest look (every face piece, the longest names) was already 79 and clipped the soldier's code at 64.
+- **Every family model measured** (`src/config/paidmodels.json`, written off the models by
+  `tools/checks/paid-weapons.ts`, 15 models), so a pick sits in the hands by its own numbers.
+- **Checked:** the e2e soldier section picks the USSO's other model and third skin through the selects and checks
+  the gun in hand wears both and a friend's figure of you holds that model; with the pick left out of the build it
+  fails. Floor guns and death boxes stay each gun as it comes.
