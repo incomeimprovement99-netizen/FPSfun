@@ -116,12 +116,12 @@ right in first person beat every variant; a measured reach table and proven modu
 
 ## Progress (updated as each step lands)
 
-- [ ] Rebase onto main
-- [ ] S1 guards (rules: no tracked paid files; Pages drops `models/paid`; the no-paid fallback)
-- [ ] S2 measure the soldier (`tools/checks/soldier.ts`)
-- [ ] S3 loader and materials (`src/game/soldier.ts`)
+- [x] Rebase onto main (onto 0de459b)
+- [x] S1 guards (19e8805): rules fails on a tracked paid file (proven); Pages drops `models/paid`; the soldier loads only when its file answers
+- [x] S2 measured (6a922af): 1.845 m, pelvis 0.959, shoulders 0.494, all bones and pieces; drawn at 1.829/1.845 for the hit boxes
+- [x] S3 loader, tinted materials, per-variant merge to 4 draws (6a922af); clips retargeted (`retarget.ts`, limbs 0.0 degrees off, proven)
 - [ ] S5 animations (retarget, contact sheet, hands, first person)
-- [ ] S4 variants (`src/config/soldier.json`)
+- [~] S4 variants: the four and their palettes are in soldier.json and render distinct (tools/soldier-sheet.ts); the picker is S6
 - [ ] S6 picker, saving, network, bots
 - [ ] S7 hit volumes
 - [ ] S8 tests

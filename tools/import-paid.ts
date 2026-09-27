@@ -230,12 +230,99 @@ async function soldier(files: Map<string, string>): Promise<void> {
   console.log(`soldier: ${join(out, "soldier.glb")} ${(statSync(join(out, "soldier.glb")).size / 1e6).toFixed(1)} MB, all files ${(bytes(out) / 1e6).toFixed(1)} MB`);
 }
 
+/**
+ * The guns (Tirgames, Sci-Fi Battle Weapons; docs/PHASE_21_OVERNIGHT_PLAN.md, the weapons). Each model FBX becomes a
+ * GLB with its materials left as named slots, as the soldier's are; each gun family's three skins (A, B, C) become
+ * WebP: the colour and the glow (sRGB), the normal, and one packed map in glTF's layout, occlusion in R, roughness
+ * in G and metalness in B, made from the pack's AO map and its Unity metallic map (metalness in R, smoothness in
+ * alpha, so roughness is 1 minus the alpha). A skin without its own AO, normal or glow uses skin A's, as the pack's
+ * materials do.
+ */
+const GUN_MODELS = [
+  "SciFiRifle01_1", "SciFiRifle01_2", "SciFiSMG01_1", "SciFiSMG01_2", "SciFiSMG02_1", "SciFiSMG02_2",
+  "SciFiShotGun01_1", "SciFiShotGun01_2", "SciFiShotGun02_1", "SciFiShotGun02_2", "SciFiSniperRifle01_1", "SciFiSniperRifle01_2",
+  "SciFiPistol01_1", "SciFiPistol01_2", "SciFiPistol02_1", "SciFiPistol02_2",
+  "SciFiGrenadeLauncher01_1", "SciFiGrenadeLauncher01_2", "SciFiGrenadeLauncher01_3", "SciFiRocketLauncher01_1", "SciFiRocketLauncher01_2",
+];
+const SKINS = ["A", "B", "C"];
+
+async function weapons(files: Map<string, string>): Promise<void> {
+  const base = "Assets/TirgamesAssets/SciFiWorld/Weapons/";
+  // the pack's paths are not all one case (SciFiPistol01_1.fbx beside SciFiPistol01_2.FBX)
+  const lower = new Map([...files.keys()].map((k) => [k.toLowerCase(), k]));
+  const find = (p: string): string | null => {
+    const k = lower.get((base + p).toLowerCase());
+    return k ? files.get(k)! : null;
+  };
+  const out = join(OUT, "weapons");
+  const tex = join(out, "tex");
+  mkdirSync(tex, { recursive: true });
+  const tmp = join(PAID, "conv", "weapons");
+  mkdirSync(tmp, { recursive: true });
+  const { NodeIO } = await import("@gltf-transform/core");
+  const io = new NodeIO();
+
+  for (const name of GUN_MODELS) {
+    const src = find(`Models/${name}.fbx`);
+    if (!src) {
+      console.log(`weapons: no ${name} in the pack, skipped`);
+      continue;
+    }
+    const fbx = join(tmp, `${name}.fbx`);
+    if (!existsSync(fbx) || statSync(fbx).size !== statSync(src).size) writeFileSync(fbx, readFileSync(src));
+    const raw = join(tmp, `${name}_raw`);
+    execFileSync(fbx2gltf(), ["-b", "--pbr-metallic-roughness", "-i", fbx, "-o", raw], { stdio: "ignore" });
+    const doc = await io.read(`${raw}.glb`);
+    for (const m of doc.getRoot().listMaterials()) {
+      m.setBaseColorTexture(null).setNormalTexture(null).setMetallicRoughnessTexture(null).setOcclusionTexture(null).setEmissiveTexture(null);
+    }
+    for (const t of doc.getRoot().listTextures()) t.dispose();
+    await io.write(join(out, `${name}.glb`), doc);
+  }
+
+  // the skins, one family at a time (each 4096 PNG is tens of MB raw)
+  const families = [...new Set(GUN_MODELS.map((n) => n.replace(/_\d+$/, "")))];
+  const png = (p: string | null) => (p ? sharp(readFileSync(p)) : null);
+  for (const fam of families) {
+    for (const sk of SKINS) {
+      const color = find(`Textures/${fam}${sk}.png`);
+      if (!color) continue;
+      const pick = (suffix: string): string | null => find(`Textures/${fam}${sk}_${suffix}.png`) ?? find(`Textures/${fam}A_${suffix}.png`);
+      const id = `${fam}${sk}`;
+      await png(color)!.resize(1024, 1024, { kernel: "lanczos3" }).webp({ quality: 86, effort: 5 }).toFile(join(tex, `${id}_color.webp`));
+      const nm = pick("NM");
+      if (nm) await png(nm)!.resize(1024, 1024, { kernel: "lanczos3" }).webp({ quality: 92, effort: 5 }).toFile(join(tex, `${id}_normal.webp`));
+      const glow = pick("Emission");
+      if (glow) await png(glow)!.resize(512, 512, { kernel: "lanczos3" }).webp({ quality: 86, effort: 5 }).toFile(join(tex, `${id}_emit.webp`));
+      // the packed map: occlusion, roughness (1 - smoothness), metalness
+      const size = 1024;
+      const metal = pick("Metallic");
+      const ao = pick("AO");
+      const m = metal ? await png(metal)!.resize(size, size, { kernel: "lanczos3" }).ensureAlpha().raw().toBuffer() : null;
+      const o = ao ? await png(ao)!.resize(size, size, { kernel: "lanczos3" }).removeAlpha().raw().toBuffer() : null;
+      const orm = Buffer.alloc(size * size * 3);
+      for (let i = 0; i < size * size; i++) {
+        orm[i * 3] = o ? o[i * 3] : 255;
+        orm[i * 3 + 1] = m ? 255 - m[i * 4 + 3] : 200;
+        orm[i * 3 + 2] = m ? m[i * 4] : 0;
+      }
+      await sharp(orm, { raw: { width: size, height: size, channels: 3 } }).webp({ quality: 90, effort: 5 }).toFile(join(tex, `${id}_orm.webp`));
+    }
+  }
+  const bytes = (dir: string): number => readdirSync(dir, { withFileTypes: true }).reduce((a, e) => a + (e.isDirectory() ? bytes(join(dir, e.name)) : statSync(join(dir, e.name)).size), 0);
+  console.log(`weapons: ${out}, all files ${(bytes(out) / 1e6).toFixed(1)} MB`);
+}
+
 const packages = findPackages(STORE);
 findPackages(PAID, packages);
 const soldierPkg = packages.get("Sci-Fi Modular Soldier.unitypackage");
-if (!soldierPkg) {
-  console.log(`No soldier package found under ${STORE} or ${PAID}: download it in Unity's Package Manager (My Assets) first.`);
+const weaponsPkg = packages.get("Sci-Fi Battle Weapons.unitypackage");
+if (!soldierPkg && !weaponsPkg) {
+  console.log(`No bought package found under ${STORE} or ${PAID}: download it in Unity's Package Manager (My Assets) first.`);
   process.exit(1);
 }
 mkdirSync(dirname(join(OUT, "x")), { recursive: true });
-await soldier(unpack(soldierPkg, "soldier"));
+// PAID_ONLY=weapons (or soldier) makes one of them only
+const only = process.env.PAID_ONLY;
+if (soldierPkg && only !== "weapons") await soldier(unpack(soldierPkg, "soldier"));
+if (weaponsPkg && only !== "soldier") await weapons(unpack(weaponsPkg, "weapons"));
