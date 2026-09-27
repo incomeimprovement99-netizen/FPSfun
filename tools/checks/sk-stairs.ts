@@ -76,7 +76,8 @@ check(
   `${STAIR_CORES.length} of ${lobbies.length} towers`,
 );
 const floors = lobbies.flatMap((t) => t.floors ?? []);
-check("the open floors: every lobby tower open just over the concourse and just under the lobby too", floors.length === lobbies.length * 2, `${floors.length} rooms`);
+const parkTowers = lobbies.filter((t) => t.park !== undefined).length;
+check("the open floors: every lobby tower open just over the concourse and just under the lobby, and a Sky Park tower three storeys more between", floors.length === lobbies.length * 2 + parkTowers * 3, `${floors.length} rooms`);
 const walks = STAIR_CORES.map((c) => ({ c, r: walkUp(c) }));
 const bad = walks.filter(({ c, r }) => r.reached < c.way.length || Math.abs(r.y - c.top) > 0.15 || r.climbed);
 check(

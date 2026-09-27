@@ -5203,3 +5203,16 @@ trail of your teammates ... something that every player has", and the crown's ca
     goes;
   - the SpeedKills e2e section (its check on materials three.js rebuilds every frame caught the ribbon drawn two-sided in two passes; it is one pass now); rules;
   - a picture of bots running in a battle royale, their red trails on the street.
+
+## Milestone 275 — Open floors up to the Sky Park: the 30 to 100 m bands
+
+The same rule as Milestone 270, carried up: the floors next to each deck open inside.
+
+- **Three more rooms in every Sky Park tower** (`city.json` skyPark floors): storeys 9 (just over the lobby), 12 and 15
+  (just under the Sky Park), all on the tower's stair core, which runs through them. 99 rooms in all now between the
+  concourse and the Sky Park, with the lobbies and the Sky Park's.
+- **The centre's bands** (`city-levels.ts`, held at a tenth under): 30 to 60 m 17,230 m2 (9,014 before; the plan's
+  20,000, 86%); 60 to 100 m 16,381 m2, past the plan's 15,000; the street's share of the centre's room to stand 21.7%
+  against the plan's 20% (32.7% this morning).
+- **Checked:** `sk-stairs` (99 rooms; every core walked; the bots' graph up all 24), `sk-lobbies`, `citykit` (the
+  bands on the new rooms: 618k, 1,219k and 1,255k by preset; Competitive has 2k of its 620k left), verify and rules.

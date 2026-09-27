@@ -479,7 +479,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const open = opens(ly);
     const park = open && opens(py);
     // the open floors (skyLobby floors), in a tower open for the lobby
-    const floors = open ? Lb.floors.map((s) => PAVE_H + s * storeyH).filter(opens) : [];
+    const floors = open ? [...Lb.floors, ...(park ? C.skyPark.floors : [])].map((s) => PAVE_H + s * storeyH).filter(opens) : [];
     // the stair core: its box cut up the tower from the concourse to its highest deck, and its door out to the promenade
     if (core && open) {
       const Sc = C.stairCore;
