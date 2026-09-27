@@ -5113,8 +5113,10 @@ The plan's answer to the gap Milestone 268 measured (`docs/PHASE_21_PLAN_THE_VER
 floors next to each deck are open inside" and "every deck, by stairs inside a tower, no pad and no ability".
 
 - **The open floors** (`city.json` skyLobby floors). Every lobby tower also opens storey 3, just over the concourse,
-  and storey 7, just under the lobby, as rooms: the lobby's four windows, no pads, no ring. From the promenade the
-  first is a climb into a window; an open storey straight over another stands on a floor of its own.
+  and storey 7, just under the lobby, as rooms: the lobby's four windows, no pads, no ring, reached by the stair core
+  (a climb from the promenade into a window, tried with the lab's climb, stalls on the wall in 92 of 96: the lintel
+  3.6 m over the sill is under the climb's reach, so that way in is not claimed). An open storey straight over another
+  stands on a floor of its own.
 - **A stair core up every lobby tower** (`city.json` stairCore; `city.ts` mass). Two lanes, a flight of 0.5 by 0.9 m
   steps a storey in each in turn, switching back on a landing at either end, from a door in the tower's end face on
   the promenade up through the open floors to the lobby, and on to the Sky Park in the 17 towers tall for it. Cut out
