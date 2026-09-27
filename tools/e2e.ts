@@ -4935,7 +4935,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   const sight = await open(browser, "?game=speedkills");
   const arms = await ev<{ scoped: boolean; dot: boolean; ready: boolean }>(
     sight,
-    `(async () => { const r = window.__range; await r.loadMannequin(); const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); const t0 = performance.now(); while (!r.realArms() && performance.now() - t0 < 8000) await wait(100); r.loadout.setWeaponId(0, "3030"); r.debugView.ads = 1; await wait(1200); const scoped = r.realArmsShown(); r.loadout.setWeaponId(0, "r97"); await wait(1200); const dot = r.realArmsShown(); r.debugView.ads = null; return { scoped, dot, ready: r.realArms() }; })()`,
+    `(async () => { const r = window.__range; await r.loadMannequin(); const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); const t0 = performance.now(); while (!r.realArms() && performance.now() - t0 < 8000) await wait(100); r.loadout.setWeaponId(0, "3030"); r.debugView.ads = 1; await wait(1200); const scoped = r.realArmsShown(); r.loadout.setWeaponId(0, "r97"); const t1 = performance.now(); while (!r.realArmsShown() && performance.now() - t1 < 4000) await wait(100); const dot = r.realArmsShown(); r.debugView.ads = null; return { scoped, dot, ready: r.realArms() }; })()`,
   );
   check("speedkills sights: aimed through a 3x scope the frozen arms are hidden; through a red dot they stay", arms.ready && !arms.scoped && arms.dot, JSON.stringify(arms));
   // every gun named with its class for a beginner (Phase 20 A7): USSO (Fast SMG) in the label and in the loadout pickers
@@ -5362,18 +5362,19 @@ async function speedkillsTourTest(browser: Browser): Promise<void> {
   await sleep(1200);
   await stop();
   // a wall run: sprinting along the right-hand wall (its face at x 33.49, the body 0.41 m round, a wall
-  // counted within 4 hu of it), then a jump. Up to three runs, as a player would try again: the take-off
+  // counted within 4 hu of it), then a jump, from 2 m down range: SpeedKills' range ends 24 m in (Phase 20 A12). Up to three runs, as a player would try again: the take-off
   // is a matter of frames, and a machine busy with another run has fewer of them
   for (let i = 0; i < 3; i++) {
-    await tp(33.03, 0, -24, 0);
+    await tp(33.03, 0, -2, 0);
     await ev(t, script(["forward", "sprint"], { jump: [600 + i * 150] }));
     await sleep(1400);
     await stop();
     await sleep(400);
     if (await ev<boolean>(t, `window.__range.tour.seen.tech.some((x) => x === "WALL RUN" || x === "WALL KICK")`)) break;
   }
-  // a climb: into the ladder's wall (x 16 to 16.5 at z -46), forward, a jump at it
-  await tp(15, 0, -46, -90);
+  // a climb: into the right-hand wall (its face at x 33.49), forward, a jump at it; the ladder's wall at z -46 is
+  // past SpeedKills' sandbox edge now (Phase 20 A12)
+  await tp(32.9, 0, -12, -90);
   await ev(t, `(() => { const K = ["forward"]; let f = 0; window.__range.setScript({ held: (a) => K.includes(a), pressedNow: (a) => (K.includes(a) && f <= 1) || (a === "jump" && f % 20 === 0) }, () => { f++; }); })()`);
   const moved = await stepTo("moves", 8000);
   await stop();
@@ -5402,17 +5403,18 @@ async function speedkillsTourTest(browser: Browser): Promise<void> {
   await t.keyboard.press("KeyU");
   const fused = await stepTo("fusion", 3000);
   check("sk tour: FUSION done with the fusion key", fused, JSON.stringify(await ev(t, "({ step: window.__range.tour.stepId, fusion: window.__range.loadout.active.fusion, swapping: window.__range.loadout.swapping, playing: window.__range.input.playing, locked: window.__range.input.locked, id: window.__range.loadout.active.id })")));
-  // high ground: on the left platform (4.6 m), at the figure that stands up there (main.ts dummies)
+  // high ground: on the stairs' sixth step (2.64 m, the tour asks 2.5), the highest footing inside SpeedKills'
+  // sandbox (Phase 20 A12: the left platform at 4.6 m is past its edge)
   await sleep(1500);
   // (the trigger pulled and let go every 120 ms: a pull of this gun is one shot)
-  const target = await ev(t, aimAt(-24, 4.7, -33));
+  const target = await ev(t, aimAt(-20, 2.64, -23.5));
   await sleep(300);
-  await ev(t, aimAt(-24, 4.7, -33));
+  await ev(t, aimAt(-20, 2.64, -23.5));
   await ev(t, `window.__range.setScript({ held: (a) => a === "fire" && Math.floor(performance.now() / 120) % 2 === 0, pressedNow: () => false }, null)`);
   const high = await stepTo("high", 4000);
   await stop();
   void target;
-  check("sk tour: HIGH GROUND done with a hit from 4.6 m up", high, JSON.stringify(await ev(t, "({ y: window.__range.player.pos.y, stats: window.__range.stats(), dropping: window.__range.player.dropping, aboard: window.__range.player.aboard, empty: window.__range.loadout.active.empty, clip: window.__range.loadout.active.state.clip, swapping: window.__range.loadout.swapping, reloading: window.__range.loadout.active.state.reloading, hud: window.__range.hud.last && { heal: window.__range.hud.last.heal, holster: window.__range.hud.last.holster } })")));
+  check("sk tour: HIGH GROUND done with a hit from the stairs, 2.6 m up", high, JSON.stringify(await ev(t, "({ y: window.__range.player.pos.y, stats: window.__range.stats(), dropping: window.__range.player.dropping, aboard: window.__range.player.aboard, empty: window.__range.loadout.active.empty, clip: window.__range.loadout.active.state.clip, swapping: window.__range.loadout.swapping, reloading: window.__range.loadout.active.state.reloading, hud: window.__range.hud.last && { heal: window.__range.hud.last.heal, holster: window.__range.hud.last.holster } })")));
   // the ring: five seconds in it
   await tp(6, 0, -14, 0);
   // (five seconds of the game's time: a slow page runs fewer of them to the wall's second)

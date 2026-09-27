@@ -2303,7 +2303,9 @@ brAbilities.addEventListener("change", () => {
 });
 // choosing the battle royale on the friends' row shows its own setting (on unless you turned it off)
 duelMode.addEventListener("change", showAbilitySettings);
-duelMode.addEventListener("change", () => duelButtons());
+for (const id of ["duelMode", "brTeam", "brSides"]) document.getElementById(id)?.addEventListener("change", brPlayersDefault);
+// (and once now: a battle royale may be the mode the page opens on)
+brPlayersDefault();
 /** the battle royale's bot count, each game its own (the menu keeps the same key, menu.ts BR_BOTS_KEY) */
 const BR_BOTS_STORE = IS_SK ? "range.br.bots.sk" : "range.br.bots";
 try {
@@ -2410,8 +2412,7 @@ function duelButtons(): void {
   duelHostBtn.hidden = busy;
   duelJoinBtn.hidden = busy;
   duelCode.hidden = busy;
-  // (not for a battle royale: its squads say how many, brCapacity)
-  duelPlayers.hidden = busy || duelMode.value === "br";
+  duelPlayers.hidden = busy;
   duelLeaveBtn.hidden = !busy;
   // the host with some friends in and some places still open: start with those in
   const d = duel instanceof Duel ? duel : null;
@@ -5089,7 +5090,7 @@ duelHostBtn.addEventListener("click", () => {
   if (duel || hosting) return;
   cancelJoin?.();
   newNight();
-  const players = duelMode.value === "br" ? brCapacity() : Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
+  const players = Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
   readHostSettings();
   openHosting(players);
   // the lobby is the arena itself: in at once, run around, the code on the
@@ -5102,15 +5103,15 @@ duelHostBtn.addEventListener("click", () => {
 });
 
 /**
- * A battle royale's room for friends: its squad when the friends are one squad (a trio is three), everyone the
- * match takes when they are squads against each other or on their own. The players dropdown is the 1v1's, and
- * left at its 2 it turned a second friend away as the match being full (the owner, 2026-09-27). Fewer than this
- * can start with Start now.
+ * SpeedKills: a battle royale with friends as one squad starts the players count at the squad's size (a trio is
+ * three). The count opened at the 1v1's 2, and left there it made the host and one friend a full match: a second
+ * friend was turned away (the owner, 2026-09-27). It is still the host's number to change, and the match still
+ * starts by itself once that many are in. A room sized to hold anyone left a match of fewer waiting for Start now.
  */
-function brCapacity(): number {
+function brPlayersDefault(): void {
+  if (!IS_SK || duelMode.value !== "br" || $<HTMLSelectElement>("brSides").value === "split") return;
   const size = teamFor(brTeamId()).size;
-  const split = $<HTMLSelectElement>("brSides").value === "split";
-  return split || size <= 1 ? MAX_PLAYERS : Math.min(MAX_PLAYERS, size);
+  if (size >= 2) duelPlayers.value = String(Math.min(MAX_PLAYERS, size));
 }
 
 /** a code for a match of `players` on hostBr and hostOpts as they stand: the invite on the Friends tab, the guests into the match as they come */
