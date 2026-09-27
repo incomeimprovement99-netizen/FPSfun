@@ -23,6 +23,9 @@ try {
   await page.evaluate(`document.getElementById("overlay").classList.add("hidden"); window.__range.input.locked = true;`);
   const ready = await page.waitForFunction("window.__range.paidGuns().ready", { polling: 250, timeout: 60000 }).then(() => true, () => false);
   console.log("bought guns in:", ready);
+  // the arms in the view are the soldier's own once it is in (mannequin.ts soldierArmRig)
+  const soldier = await page.waitForFunction("window.__range.soldierReady() && window.__range.realArms()", { polling: 250, timeout: 60000 }).then(() => true, () => false);
+  console.log("the soldier's arms in:", soldier);
   for (const id of IDS) {
     await page.evaluate(`(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, 0); r.loadout.give(0, ${JSON.stringify(id)}); r.setScript({ held: () => false, pressedNow: (a) => a === "slot1" }, null); })()`);
     await new Promise((r) => setTimeout(r, 1500));

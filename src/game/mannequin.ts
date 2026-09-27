@@ -36,7 +36,7 @@ import finCfg from "../config/finisher.json";
 import type { FigurePose } from "./dummy";
 import type { EmotePose } from "./emotes";
 import { IS_SK } from "./game";
-import { loadSoldier, lookOf, readSoldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
+import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
 
 export type FigureStyle = "robot" | "mannequin";
@@ -1674,6 +1674,7 @@ function fingersFrom(rig: THREE.Object3D, clip: THREE.AnimationClip | undefined,
  * body and the clips are in, and the viewmodel keeps its drawn arms till then.
  */
 export function buildArmRig(skin: OperatorSkin): ArmRig | null {
+  if (soldierTemplate) return soldierArmRig(skin);
   if (!template) return null;
   const name = bodyOf(skin.outfit, skin.body);
   const build = skin.build ?? "regular";
@@ -1751,8 +1752,52 @@ export function buildArmRig(skin: OperatorSkin): ArmRig | null {
   return { root, bones, grip, fist, key: `${name}|${build}|${skin.outfit}|${ready ? "dressed" : "bare"}` };
 }
 
+/**
+ * SpeedKills' soldier's own arms (soldier.ts), the same cut: its gloves and its suit's sleeves in the colours
+ * picked, so the arms in the sights are the arms the others see. The old body's arms under an outfit's sleeves
+ * would show a wardrobe the soldier does not wear (the picker hides it). The fingers take the soldier's own
+ * copies of the clips (retarget.ts carries the fingers too).
+ */
+function soldierArmRig(skin: OperatorSkin): ArmRig | null {
+  const look = soldierLookFor(skin);
+  const src = soldierScene(look);
+  if (!src || !soldierTemplate) return null;
+  const root = cloneSkinned(src);
+  const bones: Record<string, THREE.Bone> = {};
+  root.traverse((o) => {
+    if ((o as THREE.Bone).isBone) bones[o.name] = o as THREE.Bone;
+  });
+  const code = soldierCode(look);
+  root.traverse((o) => {
+    const m = o as THREE.SkinnedMesh;
+    if (!m.isSkinnedMesh) return;
+    const slot = m.userData.soldierMaterial as string | undefined;
+    // keyed by the pieces shown, not the colours: the cut is the same whatever they are painted
+    const key = `soldier|${look.variant}|${[...look.off].sort().join(",")}|${m.name}`;
+    let g = armBodies.get(key);
+    if (!g) {
+      g = armOnly(m.geometry, m.skeleton);
+      armBodies.set(key, g);
+    }
+    // a piece with nothing on the arm (a helmet, a vest) is left out rather than drawn empty
+    if (!g.index || g.index.count === 0) {
+      m.visible = false;
+      return;
+    }
+    m.geometry = g;
+    if (slot) m.material = soldierMaterial(slot, look);
+    m.frustumCulled = false;
+    m.castShadow = false;
+  });
+  const t = soldierTemplate;
+  const grip = fingersFrom(cloneSkinned(src), t.clips.get("full:Pistol_Aim_Neutral"), 0);
+  const fist = fingersFrom(cloneSkinned(src), t.clips.get("full:Punch_Jab"), 0.3);
+  return { root, bones, grip, fist, key: `soldier|${code}` };
+}
+
 /** what a rig built now for this look would be keyed, so the viewmodel knows when to rebuild */
 export function armRigKey(skin: OperatorSkin): string {
+  if (soldierTemplate) return `soldier|${soldierCode(soldierLookFor(skin))}`;
   const name = bodyOf(skin.outfit, skin.body);
   const sleeves = partsOf(skin.outfit).filter((n) => /_Arms$/.test(n));
   const ready = sleeves.every((n) => parts.has(n)) && (tintOf(skin.outfit) === null || sleeves.every((n) => tintMap(skin.outfit, n)));
