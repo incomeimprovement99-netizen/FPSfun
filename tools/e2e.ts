@@ -18,6 +18,14 @@ import soldierCfg from "../src/config/soldier.json";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import modesCfg from "../src/config/modes.json";
 import brCfg from "../src/config/br.json";
+import netCfg from "../src/config/net.json";
+/**
+ * The longest a peer goes unheard by design: one standing still sends nothing until its next keyframe (net.json
+ * keyframe, every 2 s give or take its spread), so "the two hear each other" is heard within that and a half second of
+ * latency. The checks held it to 1.5 s, under the protocol's own interval, and failed whenever a bot stood still
+ * (host migration's botFlow read 1.50 and 1.57 s, alone and in batches).
+ */
+const HEARD = netCfg.keyframe.seconds + netCfg.keyframe.spread + 0.5;
 import ringCfg from "../src/config/ring.json";
 import ammoCfg from "../src/config/ammo.json";
 import lootCfg from "../src/config/loot.json";
@@ -4128,7 +4136,7 @@ async function migrateTest(browser: Browser, query: string, label = "host migrat
   const otherView = await ev<{ phase: string; kills: number; oldGone: boolean }>(other, `(() => { const d = window.__range.duel(); return { phase: d.phase, kills: d.ladder.row(${otherId}).kills, oldGone: !d.remotes.has(0) }; })()`);
   check(
     `${label}: the match goes on, its score and clock carried over, the old host gone and the two hearing each other`,
-    after.phase === "fight" && otherView.phase === "fight" && after.kills === 3 && otherView.kills === 3 && Math.abs(after.left - expected) < 2 && after.linked && !after.held && after.oldGone && otherView.oldGone && flow[0] < 1.5 && flow[1] < 1.5,
+    after.phase === "fight" && otherView.phase === "fight" && after.kills === 3 && otherView.kills === 3 && Math.abs(after.left - expected) < 2 && after.linked && !after.held && after.oldGone && otherView.oldGone && flow[0] < HEARD && flow[1] < HEARD,
     JSON.stringify({ after, otherView, expected, flow })
   );
   if (bots > 0) {
@@ -4137,7 +4145,7 @@ async function migrateTest(browser: Browser, query: string, label = "host migrat
     const botFlow = await ev<number>(other, "Math.max(...[...window.__range.duel().remotes.values()].filter((r) => r.id >= 100).map((r) => performance.now() / 1000 - r.lastHeard))");
     const figures = await ev<number>(heir, "[...window.__range.duel().remotes.keys()].filter((id) => id >= 100).length");
     const extra = kind === "control" ? await ev<{ zones: number; heirZones: number }>(heir, "(() => { const d = window.__range.duel(); return { zones: d.control ? d.control.zones.length : 0, heirZones: d.control ? 1 : 0 }; })()") : null;
-    check(`${label}: the bots are the same ones, each with its tier and team, run by the new host, and heard from on the other guest's screen`, botsBefore.length > 0 && botsAfter === botsBefore && figures === 0 && botFlow < 1.5 && (!extra || extra.zones === 3), JSON.stringify({ botsBefore, botsAfter, figures, botFlow, extra }));
+    check(`${label}: the bots are the same ones, each with its tier and team, run by the new host, and heard from on the other guest's screen`, botsBefore.length > 0 && botsAfter === botsBefore && figures === 0 && botFlow < HEARD && (!extra || extra.zones === 3), JSON.stringify({ botsBefore, botsAfter, figures, botFlow, extra }));
   }
   // and the new host names its own heir: the last guest
   const next = await heir.waitForFunction(`window.__range.duel().heir === ${otherId}`, { polling: 200, timeout: 5000 }).then(() => true, () => false);
@@ -4195,7 +4203,10 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
   } catch {
     const why = await ev<unknown>(
       host,
-      "(() => { const d = window.__range.duel(); return d ? { phase: d.phase, heir: d.heir, over: d.brOver, ring: d.ring.state, view: d.view.state, armed: d.bots.filter((x) => x.bot.lootKit.gunId).length, bots: d.bots.map((x) => [x.landed, x.bot.alive, x.bot.aboard, x.bot.dropping, x.bot.lootKit.gunId ?? null]) } : null; })()"
+      // and, for a bot without a gun, what it is doing about it: where it is, its tier, its loot goal and how far off,
+      // whether it has loot to look in and has stopped looking; and the settings the page came in with from the
+      // sections before it (pages share localStorage), the suspect when it fails in a batch and passes alone
+      "(() => { const d = window.__range.duel(); if (!d) return null; const r = (v) => Math.round(v * 10) / 10; return { phase: d.phase, heir: d.heir, over: d.brOver, ring: d.ring.state, view: d.view.state, armed: d.bots.filter((x) => x.bot.lootKit.gunId).length, bots: d.bots.map((x) => [x.landed, x.bot.alive, x.bot.aboard, x.bot.dropping, x.bot.lootKit.gunId ?? null]), unarmed: d.bots.filter((x) => !x.bot.lootKit.gunId).map((x) => { const b = x.bot; const g = b.looter?.goal; return { at: [r(b.pos.x), r(b.pos.y), r(b.pos.z)], tier: b.diff?.name, goal: g ? [r(g.x), r(g.z)] : null, off: g ? r(Math.hypot(g.x - b.pos.x, g.z - b.pos.z)) : null, source: !!b.lootSource, done: b.looter?.done?.(window.__range.gameTime()) ?? null, knife: !!b.knife }; }), carried: Object.fromEntries(Object.keys(localStorage).filter((k) => !/profile|progress|xp|stats|board|history|recap|ghost|splits/i.test(k)).map((k) => [k, String(localStorage.getItem(k)).slice(0, 40)])) }; })()"
     ).catch(() => null);
     check(`${label}: the three drop and the host names an heir once the bots are down`, false, `stopped at ${step}: ${JSON.stringify(why)}`);
     await close();
@@ -4293,7 +4304,7 @@ async function rejoinTest(browser: Browser, query: string): Promise<void> {
     ev<number>(guest, "performance.now() / 1000 - window.__range.duel().remotes.get(0).lastHeard"),
   ]);
   const hostNow = await ev<number>(host, "performance.now() / 1000");
-  check("getting back in: the guest is back on its own seat, and the two hear each other again", back && seat.linked && !seat.held && hostNow - flow[0] < 1.5 && flow[1] < 1.5, JSON.stringify({ back, seat, t0, sinceGuest: hostNow - flow[0], sinceHost: flow[1] }));
+  check("getting back in: the guest is back on its own seat, and the two hear each other again", back && seat.linked && !seat.held && hostNow - flow[0] < HEARD && flow[1] < HEARD, JSON.stringify({ back, seat, t0, sinceGuest: hostNow - flow[0], sinceHost: flow[1] }));
   // a seat nobody comes back for: the host gives it up once the hold is over
   // (the host turns the guest's attempts away, so it cannot get back this time)
   await ev(host, "(() => { window.__range.duel().rejoin = () => false; })()");

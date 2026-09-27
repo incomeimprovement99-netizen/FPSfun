@@ -208,8 +208,17 @@ right in first person beat every variant; a measured reach table and proven modu
    down as well as up (a pad in and no way out would trap a bot 32 m up).
 3. **The pad ladder** (pads deck to deck up a tower) and the balcony ladder, proven the same way.
 4. **The owner's signature chain as a named route** in the centre, from the chimneys up to the Spire's crown.
-5. **The legacy host-migration e2e** ("four bots armed"): it passed in rel4's batch 2 but failed before; a
-   diagnostic of the bots' looting under load, not a lower bar.
+5. **The legacy host-migration e2e: the cause found, the fix is the owner's call.** "Four bots armed" fails when bots
+   land far from loot, not under load (it failed alone twice in a row, and passed throttled). The failure record now
+   says what each unarmed bot is doing (tools/e2e.ts brMigrateTest): most have a loot source, are still looking, and
+   have no goal at all, because a bot looks for loot within `bots.json` loot.search (45 m) of where it stands, and one
+   that landed farther than that from anything it wants sets no goal and only drifts with its other goals; an elite
+   gives up unarmed when its search time runs out (by design, `overtime`). The fix that follows the looter's own intent
+   ("one that is not keeps looking") is an unarmed bot looking further for a gun, which changes the bots in the legacy
+   game as well as SpeedKills (the looter is shared), so it waits for the owner. Found on the way and fixed: the "heard
+   from" checks of the same section held a peer to 1.5 s, under the protocol's own keyframe interval (2 s, with a still
+   peer sending nothing between), and failed whenever a bot stood still; they now take the keyframe plus its spread
+   and half a second (tools/e2e.ts HEARD).
 6. ~~A frame-rate reading on a quiet machine~~ done, after rel6 (the Sky Lobby in): a 30-player battle royale at high
    @skmatch, three runs each way interleaved, the soldier's volumes following its bones against not: median 12.4 ms
    (81 fps) against 12.7 ms (79 fps), inside the machine's swing, so following costs nothing measurable; no frame
