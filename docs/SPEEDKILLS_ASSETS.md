@@ -1,5 +1,9 @@
 # SpeedKills: assets, free now and what $50 could buy
 
+**Superseded 2026-09-27.** The owner raised the budget to $100 to spend now, on the vertical centre. The buy,
+the licences and how paid files ship are in `docs/PHASE_21_PLAN_THE_VERTICAL_CENTRE.md`. What follows is the
+earlier position, kept for its free-asset list.
+
 **Written 2026-09-26.** The owner's rule: free assets until the game is built, with up to $50 USD to spend
 after that (`docs/PHASE_18_PLAN_SPEEDKILLS.md`, the owner's decisions). This is the list to decide from.
 
