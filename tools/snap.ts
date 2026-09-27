@@ -284,7 +284,7 @@ export const SCENARIOS: Scenario[] = [
     note: "SpeedKills in the range: the two hack squares with a cooldown running, the gun's own name with its fusion (slot 1 at level 3) as pips, 100 health and 50 shield",
     query: "?game=speedkills",
     steps: [
-      [`(() => { ${hideMenu}; const r = window.__range; r.player.teleport(0, 0, 150, 0); r.sk.setHack("slam"); r.sk.setHack("reveal"); r.sk.use("utility"); r.sk.setFusion(0, 3); })()`, 0],
+      [`(() => { ${hideMenu}; const r = window.__range; r.player.teleport(-21, 0, 200, 0); r.sk.setHack("slam"); r.sk.setHack("reveal"); r.sk.use("utility"); r.sk.setFusion(0, 3); })()`, 0],
       [gameSeconds(1.2), 250],
     ],
   },

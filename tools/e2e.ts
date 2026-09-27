@@ -4958,8 +4958,9 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   // the hacks you picked, both ready
   const held = await ev<Array<{ slot: string; held: { id: string } | null; left: number }>>(page, "window.__range.sk.hacks()");
   check("speedkills: two hacks held, a mobility and a utility, both ready", held.length === 2 && held.every((h) => h.held && h.left === 0), JSON.stringify(held));
-  // into the range's open floor, facing down it
-  await ev(page, `(() => { document.getElementById("overlay").classList.add("hidden"); window.__range.player.teleport(0, 0, 150, 0); })()`);
+  // onto the open ground behind the range, outdoors, facing down it: past the basic course's far wall (x -21, z 200),
+  // since THE CHAIN (courses/chain.ts) stands where this was, between the other two courses
+  await ev(page, `(() => { document.getElementById("overlay").classList.add("hidden"); window.__range.player.teleport(-21, 0, 200, 0); })()`);
   await sleep(300);
   const hack = async (id: string, slot: string, settle = 600) => {
     await ev(page, `(() => { const r = window.__range; r.sk.setHack("${id}"); r.sk.use("${slot}"); })()`);
@@ -4971,7 +4972,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   const z1 = await ev<number>(page, "window.__range.player.pos.z");
   check("speedkills: DASH carries you about 26 m the way you look", z0 - z1 > 20 && z0 - z1 < 28, `${(z0 - z1).toFixed(1)} m`);
   // LEAP: straight up four storeys, then a glide
-  await ev(page, `window.__range.player.teleport(0, 0, 150, 0)`);
+  await ev(page, `window.__range.player.teleport(-21, 0, 200, 0)`);
   await sleep(200);
   let top = 0;
   await ev(page, `(() => { const r = window.__range; r.sk.setHack("leap"); r.sk.use("mobility"); })()`);
