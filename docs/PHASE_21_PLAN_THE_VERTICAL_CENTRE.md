@@ -310,7 +310,39 @@ the safe way for new characters and clips.
 > report in `docs/updates/2026-09-28.md`: before-and-after numbers, screenshots, what was cut, what is next.
 > Never touch the Algonomics VM.
 
-## 7. The buy (tonight, about 20 minutes)
+## 7. The buy
+
+### 7.0 The owner's decision, 2026-09-27: the realistic route (this replaces 7.1 below)
+
+The owner preferred a realistic look over Synty's low-poly and chose:
+- **Daelonik Neon City Bundle** (Unity Asset Store, package 315692; Unity 6000.0.48 or later): Neon City, High
+  City (skybridges and high platforms), Buildings (300+ premade blueprints) and Underground. It is
+  semi-realistic PBR with neon, the closest look to Hyper Scape.
+- **Sci-Fi Modular Soldier** by AC Game Assets (Unity, package 279661, $49.99, unrated), one male hero:
+  - 36k tris, a Humanoid rig and 51 ARKit blend shapes;
+  - modular armour, colour masks and skin tones.
+
+What changes in the overnight brief (section 6):
+- **Inputs.** The .unitypackage files the owner downloads through Unity 6's Package Manager, in
+  `%APPDATA%\Unity\Asset Store-5.x\`. The agent waits until each file's size stops changing, since big
+  downloads may still be running when the owner goes to bed.
+- **Pipeline step 1** gains a Unity stage, before fbx2gltf and gltf-transform:
+  - a project of the agent's own at `C:\Users\jwilb\Downloads\speedkills-paid\unity\`;
+  - the packages imported with `Unity.exe -batchmode -importPackage`;
+  - KhronosGroup UnityGLTF added to that project;
+  - an editor script, run with `-executeMethod`, that exports each prefab the centre uses to GLB.
+- **Materials.** Daelonik's custom shaders do not export (DLNK's pipeline page). Rebuild each material the
+  centre uses as a three.js MeshStandardMaterial from its textures, with the neon on emissive and the game's
+  bloom. Screenshot a Neon City prefab in Unity against the same prefab in three.js before dressing the centre.
+- **Textures.** Realistic PBR ships at 1K WebP, 2K only for hero pieces. Merge by material, since tileable
+  textures share well.
+- **Characters.** The soldier is baked to one or two 2048 materials with LODs. Mixamo clips are retargeted to
+  its Humanoid rig.
+- **Licence.** Unity Asset Store EULA: engine-agnostic for these publishers' packs. Its AI clause is broad, so
+  agents run only local tools on the files (Unity batch, fbx2gltf, gltf-transform) and never paste their bytes
+  into a prompt.
+
+### 7.1 The earlier stylised pick (not bought)
 
 **Total: $94.97 plus any sales tax.** One style throughout: clean stylised low-poly with neon, which is also the
 cheapest to draw for 30 players in a browser.
