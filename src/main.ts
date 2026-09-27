@@ -7348,7 +7348,7 @@ function step(): void {
   if (duel) {
     const d = duel;
     recorder.sample(wall, () => [
-      { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: downedNow ? "downed" : player.stance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive },
+      { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: downedNow ? "downed" : player.stance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive, soldier: IS_SK ? (mySoldierCode() ?? undefined) : undefined },
       ...d.actorStates(),
     ]);
   }

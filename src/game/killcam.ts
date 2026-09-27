@@ -36,6 +36,8 @@ export interface ActorState {
   alive: boolean;
   /** how far into the sights, 0..1: the killcam holds the gun as they held it */
   ads?: number;
+  /** SpeedKills: the soldier the figure wore (soldier.ts code), so the replay shows the one you saw */
+  soldier?: string;
 }
 
 interface Frame {
@@ -204,11 +206,13 @@ export class Killcam {
 
   /** a ghost for this actor, rebuilt when its gun or skin changes */
   private ghost(a: ActorState): Dummy {
-    const key = `${a.weapon}|${a.op}`;
+    const key = `${a.weapon}|${a.op}|${a.soldier ?? ""}`;
     let g = this.ghosts.get(a.id);
     if (!g || this.ghostKey.get(a.id) !== key) {
       g?.dispose();
-      g = new Dummy(0, 0, 0, { armed: a.weapon || undefined, respawn: false, skin: operatorById(a.op), rig: true, noBase: true });
+      // the soldier it wore: its operator's look was the only one before, a bot's or a friend's pick went missing
+      const op = operatorById(a.op);
+      g = new Dummy(0, 0, 0, { armed: a.weapon || undefined, respawn: false, skin: a.soldier ? { ...op, soldier: a.soldier } : op, rig: true, noBase: true });
       g.group.name = `killcam:${a.id}`;
       this.scene.add(g.group);
       this.ghosts.set(a.id, g);

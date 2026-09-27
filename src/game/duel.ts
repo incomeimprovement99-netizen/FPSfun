@@ -2129,7 +2129,7 @@ export class Duel implements MatchLike {
       if (!r.samples.length) continue;
       const g = r.avatar.group;
       const p = r.avatar.currentPose;
-      out.push({ id: r.id, name: r.name, x: g.position.x, y: g.position.y, z: g.position.z, yaw: ((g.rotation.y - Math.PI) * 180) / Math.PI, pitch: p.pitch, stance: p.stance, speed: p.speed, weapon: r.avatarWeapon, op: r.avatarOp, alive: r.alive, ads: p.ads ?? 0 });
+      out.push({ id: r.id, name: r.name, x: g.position.x, y: g.position.y, z: g.position.z, yaw: ((g.rotation.y - Math.PI) * 180) / Math.PI, pitch: p.pitch, stance: p.stance, speed: p.speed, weapon: r.avatarWeapon, op: r.avatarOp, alive: r.alive, ads: p.ads ?? 0, soldier: r.avatar.skin.soldier });
     }
     return out;
   }

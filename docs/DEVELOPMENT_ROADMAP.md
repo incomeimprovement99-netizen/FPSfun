@@ -4473,5 +4473,6 @@ Phase 21 S6's "bots pick a random variant and colours".
   (`bots.ts`) and every guest's (`duel.ts` makeAvatar, for a figure whose look carries no soldier) are the same.
 - **Checked** (`tools/checks/soldier.ts`, needs no files): 27 bots wear 25 different soldiers across all four kits,
   every code one the network reads back, the same for the same id. With one seed for every bot it fails.
-- **Not yet:** the killcam draws the killer from its operator alone (its record has no look), so a bot or a player
-  with a chosen soldier is shown in their operator's look there.
+- **The killcam shows the soldier you saw:** its recording carries each figure's soldier (bots, friends and you), and
+  its replay wears it; it had only the operator, so a bot or a friend's pick came back in the operator's look.
+  `tools/checks/sk-killcam.ts` (in verify) replays a bot's kill and fails with the ghost built from the operator.
