@@ -18,7 +18,7 @@
 // Run: npm run deploy
 import { releaseGate } from "./release-gate";
 import { execSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -32,6 +32,14 @@ releaseGate(ROOT);
 console.log(`\n== building the public beta for ${remote}`);
 sh("npm run build:beta");
 if (!existsSync(join(ROOT, "dist", "index.html"))) throw new Error("no dist/index.html: the build failed");
+// The bought models ship only with the game server (Unity Asset Store EULA; docs/PHASE_21_PLAN_THE_VERTICAL_CENTRE.md
+// section 5): Vite copies all of public/ into the build, so they are taken out here, and the push is refused if any
+// file under a paid folder is left. The game falls back to its own figures and guns without them.
+rmSync(join(ROOT, "dist", "models", "paid"), { recursive: true, force: true });
+const leftover = (dir: string): string[] =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (e.name === "paid" ? [join(dir, e.name)] : leftover(join(dir, e.name))) : []));
+const paidLeft = leftover(join(ROOT, "dist"));
+if (paidLeft.length) throw new Error(`paid files are still in the Pages build: ${paidLeft.join(", ")}`);
 // Pages runs Jekyll by default, which drops files and folders starting with an
 // underscore; this file turns it off
 writeFileSync(join(ROOT, "dist", ".nojekyll"), "");
