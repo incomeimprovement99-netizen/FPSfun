@@ -192,12 +192,13 @@ too tight for a pad's arc). The faces at 2.5 m are the canyons between towers, w
 
 **Built** (`city.ts` skyLobby, `city.json` skyLobby, `tools/checks/sk-lobbies.ts`): each of the 16 towers is split at
 32.2 m (the podium plus six storeys) into the mass below, one open storey (a floor, a ceiling light and a window 2.0
-by 2.8 m in every face) and the mass above. A window pad stands on the podium in front of every face with room, 28 in
-all, solved as THE CHAIN's (a rise of 24 m: 29.3 m/s up), the battle royale's pads taking the course pads' centring
+by 3.6 m in every face) and the mass above. Across a canyon two lobbies' windows are lined up (7 canyons: a clean
+sprint jump through both; the windows are 3.6 m because a jump's peak needs 3.25 m, and at 2.8 m every one hit the
+lintel), and across a street a bridge runs window to window at the lobby's floor (2 bridges, 25 and 32 m). A window
+pad stands on the podium in front of every other face with room, 22 in all (15 of the 16 lobbies have two ways in or
+more), solved as THE CHAIN's (a rise of 24 m: 29.3 m/s up), the battle royale's pads taking the course pads' centring
 and hold (`brplay.ts` through `course.ts` stepPads). A face's window and pad slide along the face when its middle is
-taken (the block's own pad onto a roof stands there more often than not), which gives 12 towers pads from two sides,
-one more than the survey found with the windows fixed in the middle. Every pad throws the real controller through
-its window onto the lobby's floor from standing, a run and either side, with 0.42 m or more clear of the frame. The
-windows facing a canyon are 5 m apart across it: window to window is a run gap. The bots keep to the pads they use
+taken (the block's own pad onto a roof stands there more often than not), and every pad throws the real controller through its
+window onto the lobby's floor from standing, a run and either side, with 0.44 m or more clear of the frame. The bots keep to the pads they use
 now; none of them takes a window pad until their route finder knows the lobbies. The city's draw cost went from
-227k triangles to 237k (under its 240k budget), the window pads drawn leaner than a jump pad to get there.
+227k triangles to 235k (under its 240k budget), the window pads drawn leaner than a jump pad to get there.

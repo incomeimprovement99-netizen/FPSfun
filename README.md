@@ -60,7 +60,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   - A match runs 6 to 7 minutes.
 - **The Sky Lobby:** the downtown towers are open at 32 m, one storey with a
   window in every face, and window pads on the podiums throw you through them.
-  Across a canyon it is a jump from window to window.
+  Across a canyon it is a sprint jump from window to window; across a street a
+  bridge runs from one lobby into the next.
 - **Movement for roofs:** double jump, wall run and kick, slide, and a climb
   that goes up a storey (two with a double jump first). You sprint whenever you
   move forward, at 14 m/s, and a slide tops out a little above that; a jump and

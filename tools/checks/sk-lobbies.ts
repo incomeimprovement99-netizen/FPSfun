@@ -20,7 +20,7 @@ if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS:
 const warn = console.warn;
 console.warn = () => undefined;
 const { GAME } = await import("../../src/game/game");
-const { buildCityMap } = await import("../../src/game/city");
+const { buildCityMap, LOBBY_BRIDGES, LOBBY_CANYONS } = await import("../../src/game/city");
 const { Player } = await import("../../src/game/player");
 const { MOVE } = await import("../../src/game/movement");
 const { stepPads } = await import("../../src/game/course");
@@ -125,8 +125,23 @@ check(
   pads.length > 0 && missed.length === 0 && worst.under >= 0.4 && worst.over >= 0.4 && worst.side >= 0.4,
   `${missed.length ? `missed: ${missed.slice(0, 6).join("; ")}` : "all in"}; least clear: under ${worst.under.toFixed(2)} m, over ${worst.over.toFixed(2)} m, either side ${worst.side.toFixed(2)} m`,
 );
-// the towers the pads serve: the solid a metre in behind each pad's face, under the lobby, is its tower
+// the towers the pads serve: the solid a metre in behind each pad's face, under the lobby, is its tower; a bridge's
+// or a canyon's end is a way in too
 const byTower = new Map<string, number>();
+const towerAt = (x: number, z: number, floor: number) => RANGE_SOLIDS.find((s) => x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ && Math.abs(s.top - floor) < 0.05);
+for (const e of [...LOBBY_BRIDGES, ...LOBBY_CANYONS]) {
+  const len = Math.hypot(e.bx - e.ax, e.bz - e.az);
+  const ux = (e.bx - e.ax) / len;
+  const uz = (e.bz - e.az) / len;
+  for (const [x, z] of [
+    [e.ax - ux, e.az - uz],
+    [e.bx + ux, e.bz + uz],
+  ]) {
+    const tw = towerAt(x, z, e.y);
+    const key = tw ? `${tw.minX.toFixed(1)},${tw.minZ.toFixed(1)}` : `none ${x.toFixed(0)},${z.toFixed(0)}`;
+    byTower.set(key, (byTower.get(key) ?? 0) + 1);
+  }
+}
 for (const pad of pads) {
   const cp = asCourse(pad);
   const len = Math.hypot(cp.vx, cp.vz);
@@ -139,9 +154,61 @@ for (const pad of pads) {
 }
 const twoSided = [...byTower.values()].filter((n) => n >= 2).length;
 check(
-  "the towers take window pads from two sides where the survey found room (tools/centre-towers.ts: 11 of 16)",
-  ![...byTower.keys()].some((k) => k.startsWith("none")) && twoSided >= 10,
-  `${byTower.size} towers with window pads, ${twoSided} from two sides or more`,
+  "every lobby has a way in, and most two or more (window pads, bridges, canyon windows; the survey found room for pads on two sides of 11 of 16)",
+  ![...byTower.keys()].some((k) => k.startsWith("none")) && byTower.size === 16 && twoSided >= 12,
+  `${byTower.size} lobbies, ${twoSided} with two ways in or more`,
+);
+
+/** from inside one lobby toward the other along a bridge or a canyon's line: a run (and at a canyon a jump at the window); true when it lands clean on the far lobby's floor (a climb or a mantle catches a sill a run off falls short of, so neither counts, as the gaps' proofs have it) */
+function across(e: (typeof LOBBY_BRIDGES)[number], jump: boolean): { in: boolean; y: number } {
+  const len = Math.hypot(e.bx - e.ax, e.bz - e.az);
+  const ux = (e.bx - e.ax) / len;
+  const uz = (e.bz - e.az) / len;
+  const home = towerAt(e.ax - ux, e.az - uz, e.y);
+  // as far back in the lobby as it has room for, to eight metres
+  let back = 8;
+  while (back > 1.5 && !towerAt(e.ax - ux * back, e.az - uz * back, e.y)) back -= 0.5;
+  if (!home) return { in: false, y: 0 };
+  const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+  p.extraMoves = true;
+  p.autoClimb = true;
+  p.sprintMode = "auto";
+  p.teleport(e.ax - ux * (back - 0.8), e.y, e.az - uz * (back - 0.8), (Math.atan2(-ux, -uz) * 180) / Math.PI);
+  const s = new Script();
+  s.down.add("forward");
+  let t = 1000;
+  let jumped = false;
+  let low = Infinity;
+  let climbed = false;
+  for (let i = 0; i < 6 / DT; i++) {
+    t += DT;
+    // the jump at the window: the body's front at the face
+    const along = (p.pos.x - e.ax) * ux + (p.pos.z - e.az) * uz;
+    if (jump && !jumped && p.onGround && along > -MOVE.radius - 0.2) {
+      s.taps.add("jump");
+      jumped = true;
+    }
+    p.update(DT, t, s, 0, 1, false);
+    s.taps.clear();
+    low = Math.min(low, p.pos.y);
+    if (p.climbing || p.stance === "mantle") climbed = true;
+    const past = (p.pos.x - e.bx) * ux + (p.pos.z - e.bz) * uz;
+    if (p.onGround && past > 1 && Math.abs(p.pos.y - e.y) < 0.15) return { in: !climbed, y: low };
+    if (p.pos.y < e.y - 3) break;
+  }
+  return { in: false, y: low };
+}
+const canyons = LOBBY_CANYONS.map((e) => ({ e, r: across(e, true), fall: across(e, false) }));
+check(
+  `every canyon between two lobbies (${LOBBY_CANYONS.length}) is a sprint jump from one window through the other onto its floor, clean; running off without the jump is not (at best a mantle over the far sill)`,
+  LOBBY_CANYONS.length > 0 && canyons.every((c) => c.r.in && !c.fall.in),
+  canyons.filter((c) => !c.r.in || c.fall.in).map((c) => `${(c.e.ax - BR_X).toFixed(0)},${(c.e.az - BR_Z).toFixed(0)}: ${c.r.in ? "in" : "short"}${c.fall.in ? ", and in without a jump" : ""}`).join("; ") || "all",
+);
+const bridges = LOBBY_BRIDGES.map((e) => ({ e, r: across(e, false) }));
+check(
+  `every bridge between two lobbies (${LOBBY_BRIDGES.length}) runs from one lobby's window to the other's, onto its floor, without a fall`,
+  LOBBY_BRIDGES.length > 0 && bridges.every((b) => b.r.in && b.r.y > b.e.y - 0.3),
+  bridges.map((b) => `${Math.hypot(b.e.bx - b.e.ax, b.e.bz - b.e.az).toFixed(0)} m: ${b.r.in ? "in" : "not"}`).join("; "),
 );
 console.log(`        ${pads.length} window pads`);
 console.log(fails === 0 ? "\nSK LOBBIES PASS" : `\nSK LOBBIES FAIL (${fails})`);

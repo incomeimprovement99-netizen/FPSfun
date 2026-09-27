@@ -75,6 +75,10 @@ export const STREETS: readonly number[] = BLOCKS.slice(0, -1).map((b, i) => (b[1
 
 /** each low tower's way up as graph nodes, door to roof, and the street node it hangs off (-1: none in reach); the checks walk them */
 export const ROOF_ROUTES: Array<{ street: number; nodes: number[]; storeys: number }> = [];
+/** the Sky Lobby's bridges (city.ts skyLobby): each from one lobby's window across a street to the next's, world metres, for the checks that run them */
+export const LOBBY_BRIDGES: Array<{ ax: number; az: number; bx: number; bz: number; y: number }> = [];
+/** the Sky Lobby's canyons: two lobbies' windows lined up across a canyon, from one face to the other, world metres */
+export const LOBBY_CANYONS: Array<{ ax: number; az: number; bx: number; bz: number; y: number }> = [];
 /** the chimneys (city.json chimneys): each one's walls' inner faces, its length and its landing heights, world metres, for the checks that climb them */
 export const CHIMNEYS: Array<{ name: string; x: number; innerW: number; z0: number; z1: number; base: number; landing: number; top: number }> = [];
 /** the rooftop highway's four corners in order round its loop (world metres, its deck's height), for the checks that walk it */
@@ -169,7 +173,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
 
   // ---------------------------------------------------------------- blocks
   /** a tower, and the street its way up comes off: the side its route's door is on, and that street's line (local) */
-  type Tower = { x: number; z: number; w: number; d: number; roof: number; storeys: number; sector: string; route: RoutePoint[]; street: { side: Side; line: number } | null; base?: number; lobby?: number; lobbyMat?: THREE.Material };
+  type Tower = { x: number; z: number; w: number; d: number; roof: number; storeys: number; sector: string; route: RoutePoint[]; street: { side: Side; line: number } | null; base?: number; lobby?: number; lobbyMat?: THREE.Material; bridges?: Partial<Record<"n" | "s" | "w" | "e", number>>; decks?: Set<string> };
   const towers: Tower[] = [];
   const plazas: Array<{ x: number; z: number }> = [];
   const PAVE_H = C.kerb;
@@ -1104,6 +1108,70 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     }
   }
 
+  // ---------------------------------------------------------------- the Sky Lobby's bridges and canyons
+  // Between two lobby towers facing each other across a street (city.json skyLobby bridge), a bridge at the lobby's
+  // floor from window to window, so a tower is a room you run through and out onto a bridge into the next (the brief's
+  // "windows are doors"); across a canyon (skyLobby canyon), the two windows lined up, a jump from one lobby into the
+  // other. Either way on a line where both faces have room for a window, the windows on it; the window pads (below)
+  // leave those faces to them.
+  {
+    const Lb = C.skyLobby;
+    const lob = towers.filter((t) => t.lobby !== undefined);
+    const done = new Set<string>();
+    LOBBY_BRIDGES.length = 0;
+    LOBBY_CANYONS.length = 0;
+    for (const a of lob) {
+      for (const b of lob) {
+        if (a === b || a.lobby !== b.lobby) continue;
+        const key = [a, b].map((t) => `${t.x.toFixed(0)},${t.z.toFixed(0)}`).sort().join("|");
+        if (done.has(key)) continue;
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const alongX = Math.abs(dx) > Math.abs(dz);
+        const gap = alongX ? Math.abs(dx) - (a.w + b.w) / 2 : Math.abs(dz) - (a.d + b.d) / 2;
+        if (gap < 2 || gap > Lb.bridge) continue;
+        const canyon = gap <= Lb.canyon;
+        // no third tower's lobby between the two
+        const between = lob.some((t) => t !== a && t !== b && (alongX ? (t.x - a.x) * (t.x - b.x) < 0 && Math.abs(t.z - (a.z + b.z) / 2) < (t.d + Math.min(a.d, b.d)) / 2 : (t.z - a.z) * (t.z - b.z) < 0 && Math.abs(t.x - (a.x + b.x) / 2) < (t.w + Math.min(a.w, b.w)) / 2));
+        if (between) continue;
+        // a window's room along each face: an x bridge meets the west and east faces, which run along z between
+        // the north and south walls; a z bridge meets the north and south, the tower's width
+        const room = (t: Tower) => (alongX ? t.d - 2 * Lb.wall : t.w) / 2 - Lb.width / 2 - Lb.corner;
+        const ca = alongX ? a.z : a.x;
+        const cb = alongX ? b.z : b.x;
+        const lo = Math.max(ca - room(a), cb - room(b));
+        const hi = Math.min(ca + room(a), cb + room(b));
+        if (lo > hi) continue;
+        done.add(key);
+        const c = (lo + hi) / 2;
+        const y = a.lobby!;
+        const fa = alongX ? (dx > 0 ? "e" : "w") : dz > 0 ? "s" : "n";
+        const fb = alongX ? (dx > 0 ? "w" : "e") : dz > 0 ? "n" : "s";
+        a.bridges = { ...a.bridges, [fa]: c - ca };
+        b.bridges = { ...b.bridges, [fb]: c - cb };
+        // a bridge's faces carry its deck; a canyon's keep a pad in line with the window, when there is room for one
+        if (!canyon) for (const [t, f] of [[a, fa], [b, fb]] as const) (t.decks ??= new Set()).add(f);
+        if (canyon) {
+          LOBBY_CANYONS.push(alongX ? { ax: a.x + Math.sign(dx) * (a.w / 2) + BR_X, az: c + BR_Z, bx: b.x - Math.sign(dx) * (b.w / 2) + BR_X, bz: c + BR_Z, y } : { ax: c + BR_X, az: a.z + Math.sign(dz) * (a.d / 2) + BR_Z, bx: c + BR_X, bz: b.z - Math.sign(dz) * (b.d / 2) + BR_Z, y });
+          continue;
+        }
+        const from = alongX ? a.x + Math.sign(dx) * (a.w / 2) : a.z + Math.sign(dz) * (a.d / 2);
+        const to = alongX ? b.x - Math.sign(dx) * (b.w / 2) : b.z - Math.sign(dz) * (b.d / 2);
+        const mid = (from + to) / 2;
+        const len = Math.abs(to - from);
+        // the deck at the lobby's floor, its rails and their neon, as a skybridge's
+        const box = (along: number, h: number, across: number, at: number, yy: number, off: number, mat: THREE.Material, isSolid = true) =>
+          alongX ? slab(along, h, across, at, yy, c + off, mat, isSolid) : slab(across, h, along, c + off, yy, at, mat, isSolid);
+        box(len, 0.3, 3.2, mid, y - 0.3, 0, metal);
+        for (const s of [-1, 1]) {
+          box(len, 1.0, 0.08, mid, y, s * 1.6, trimDark);
+          box(len, 0.05, 0.05, mid, y + 1.05, s * 1.55, neon(0x20e0ff), false);
+        }
+        LOBBY_BRIDGES.push(alongX ? { ax: from + BR_X, az: c + BR_Z, bx: to + BR_X, bz: c + BR_Z, y } : { ax: c + BR_X, az: from + BR_Z, bx: c + BR_X, bz: to + BR_Z, y });
+      }
+    }
+  }
+
   // ---------------------------------------------------------------- ziplines, roof to roof
   const tall = [...towers].sort((a, b) => b.roof - a.roof).slice(0, C.ziplines * 2);
   for (let i = 0; i + 1 < tall.length; i += 2) {
@@ -1620,10 +1688,15 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         ["w", -1, 0],
         ["e", 1, 0],
       ] as const) {
+        // a face with a bridge or a canyon (above) has its window there: a bridge's no pad (its deck is over the
+        // column), a canyon's a pad only in line with the window
+        const lined = t.bridges?.[key];
+        if (lined !== undefined) windows[key] = lined;
+        if (t.decks?.has(key)) continue;
         // along the face: x for north and south, z for west and east; the middle first, then slid either way
         const len = nx === 0 ? t.w : t.d - 2 * Lb.wall;
         const room = len / 2 - Lb.width / 2 - Lb.corner;
-        const tries = [0, Lb.slide * len, -Lb.slide * len].map((o) => Math.max(-room, Math.min(room, o)));
+        const tries = lined !== undefined ? [lined] : [0, Lb.slide * len, -Lb.slide * len].map((o) => Math.max(-room, Math.min(room, o)));
         for (const o of tries) {
           const fx = nx === 0 ? t.x + o : t.x + (nx * t.w) / 2;
           const fz = nx === 0 ? t.z + (nz * t.d) / 2 : t.z + o;
