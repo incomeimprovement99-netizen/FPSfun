@@ -1,0 +1,190 @@
+{
+  "_note": "The bought guns (Sci-Fi Battle Weapons by Tirgames; Phase 21, docs/PHASE_21_OVERNIGHT_PLAN.md): which model each SpeedKills gun wears when the paid files are here (npm run paid makes them, locally), and its procedural model otherwise. The legacy game never wears them. model is a file under models; a _2 build is split into its moving parts (Clip, Slide, Pump), so its magazine comes out on a reload. skins is the order the gun's three skins come in as its fusion level rises (as found, levels 2 to 3, levels 4 to 5): a gun sharing a family with another starts from a different one, so the pair differs at a glance. measured is read off the model by tools/checks/paid-weapons.ts, which fails when they part.",
+  "models": "models/paid/weapons/",
+  "textures": "models/paid/weapons/tex/",
+  "version": 1,
+  "_glow": "How bright a bought gun's glow (its emission map) is at each fusion level, 0 to 5: a step a level, so a fused gun reads as better at a glance. Ours.",
+  "glow": [0.6, 0.9, 1.2, 1.6, 2.0, 2.6],
+  "guns": {
+    "rspn101": {
+      "model": "SciFiRifle01_1",
+      "skins": [
+        "A",
+        "B",
+        "C"
+      ],
+      "measured": {
+        "length": 0.965,
+        "muzzleEnd": 1,
+        "muzzle": [
+          0,
+          0.031,
+          0.55
+        ],
+        "sightTop": 0.199
+      }
+    },
+    "vinson": {
+      "model": "SciFiRifle01_2",
+      "skins": [
+        "B",
+        "C",
+        "A"
+      ],
+      "measured": {
+        "length": 0.965,
+        "muzzleEnd": 1,
+        "muzzle": [
+          0,
+          0.031,
+          0.55
+        ],
+        "sightTop": 0.2
+      }
+    },
+    "r97": {
+      "model": "SciFiSMG02_2",
+      "skins": [
+        "A",
+        "B",
+        "C"
+      ],
+      "measured": {
+        "length": 0.625,
+        "muzzleEnd": 1,
+        "muzzle": [
+          0,
+          0.039,
+          0.403
+        ],
+        "sightTop": 0.086
+      }
+    },
+    "alternator_smg": {
+      "model": "SciFiSMG01_2",
+      "skins": [
+        "A",
+        "B",
+        "C"
+      ],
+      "measured": {
+        "length": 0.847,
+        "muzzleEnd": 1,
+        "muzzle": [
+          0,
+          0.079,
+          0.455
+        ],
+        "sightTop": 0.159
+      }
+    },
+    "shotgun": {
+      "model": "SciFiShotGun01_2",
+      "skins": [
+        "A",
+        "B",
+        "C"
+      ],
+      "measured": {
+        "length": 0.905,
+        "muzzleEnd": 1,
+        "muzzle": [
+          0,
+          0.015,
+          0.488
+        ],
+        "sightTop": 0.127
+      }
+    },
+    "mastiff": {
+      "model": "SciFiShotGun02_2",
+      "skins": [
+        "A",
+        "B",
+        "C"
+      ],
+      "measured": {
+        "length": 0.901,
+        "muzzleEnd": 1,
+        "muzzle": [
+          0,
+          0.008,
+          0.472
+        ],
+        "sightTop": 0.077
+      }
+    },
+    "g2": {
+      "model": "SciFiSMG01_1",
+      "skins": [
+        "C",
+        "A",
+        "B"
+      ],
+      "measured": {
+        "length": 0.847,
+        "muzzleEnd": 1,
+        "muzzle": [
+          0,
+          0.079,
+          0.455
+        ],
+        "sightTop": 0.148
+      }
+    },
+    "3030": {
+      "model": "SciFiSniperRifle01_1",
+      "skins": [
+        "B",
+        "C",
+        "A"
+      ],
+      "measured": {
+        "length": 1.254,
+        "muzzleEnd": 1,
+        "muzzle": [
+          0,
+          0.028,
+          0.82
+        ],
+        "sightTop": 0.142
+      }
+    },
+    "sentinel": {
+      "model": "SciFiSniperRifle01_2",
+      "skins": [
+        "A",
+        "B",
+        "C"
+      ],
+      "measured": {
+        "length": 1.254,
+        "muzzleEnd": 1,
+        "muzzle": [
+          0,
+          0.028,
+          0.82
+        ],
+        "sightTop": 0.142
+      }
+    },
+    "lstar": {
+      "model": "SciFiGrenadeLauncher01_2",
+      "skins": [
+        "A",
+        "B",
+        "C"
+      ],
+      "measured": {
+        "length": 0.879,
+        "muzzleEnd": 1,
+        "muzzle": [
+          0,
+          0.011,
+          0.469
+        ],
+        "sightTop": 0.153
+      }
+    }
+  }
+}

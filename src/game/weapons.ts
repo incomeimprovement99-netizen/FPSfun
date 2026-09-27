@@ -136,6 +136,8 @@ export interface ResolvedWeapon {
   id: string;
   name: string;
   magLevel: number;
+  /** SpeedKills' fusion level, 0 as found (a bought gun's skin follows it, paidgun.ts) */
+  fusion?: number;
   /** the fitted optic's mod name, or null for iron sights */
   optic: string | null;
   /**
@@ -335,6 +337,7 @@ function speedkillsTuned(r: ResolvedWeapon, fusion: number): ResolvedWeapon {
     clipSize: Math.max(1, Math.round(r.clipSize * (t?.mag ?? 1) * f.mag)),
     reloadTime: r.reloadTime * f.reload,
     reloadEmptyTime: r.reloadEmptyTime * f.reload,
+    fusion: Math.max(0, Math.round(fusion)),
     // switching guns: quicker as a base and quicker again with each level (speedkills.json fusion swap)
     deployTime: r.deployTime * (f.swap ?? 1),
     holsterTime: r.holsterTime * (f.swap ?? 1),

@@ -21,6 +21,7 @@
 import * as THREE from "three";
 import type { ResolvedWeapon } from "./weapons";
 import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels";
+import { setPaidLevel } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
 import type { OperatorSkin } from "./operators";
@@ -463,7 +464,7 @@ export class ViewModel {
 
   /** show this weapon; cheap to call every frame */
   setWeapon(w: ResolvedWeapon): void {
-    const key = `${w.id}:${w.magLevel}:${w.optic ?? w.integralOptic ?? ""}`;
+    const key = `${w.id}:${w.magLevel}:${w.optic ?? w.integralOptic ?? ""}:${w.fusion ?? 0}`;
     if (key === this.key) return;
     this.key = key;
     this.weapon = w;
@@ -492,6 +493,8 @@ export class ViewModel {
     // no optic fitted: a scoped weapon (the Kraber) wears its own
     this.fitOptic(this.model, w.optic ?? w.integralOptic);
     setMagRarity(this.model, w.magLevel);
+    // a bought gun wears its fusion level (paidgun.ts)
+    if (this.model.root.userData.paid && this.model.root.userData.paidLevel !== (w.fusion ?? 0)) setPaidLevel(this.model, w.fusion ?? 0);
   }
 
   /**
@@ -516,6 +519,19 @@ export class ViewModel {
    * geometry are its own; the housing materials, reticle textures and bevelled
    * shapes are shared caches (optics.ts, geo.ts) and stay.
    */
+  /** the gun in hand's model, for a check to read (the bought gun it wears, paidgun.ts) */
+  get gunRoot(): THREE.Object3D | null {
+    return this.model?.root ?? null;
+  }
+
+  /** let go of the gun in hand, so the next setWeapon builds it again (the bought guns have come in) */
+  rebuild(): void {
+    this.dropOptic();
+    if (this.model) this.holder.remove(this.model.root);
+    this.model = null;
+    this.key = "";
+  }
+
   private dropOptic(): void {
     const o = this.optic;
     this.optic = null;

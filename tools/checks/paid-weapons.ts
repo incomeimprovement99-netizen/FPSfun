@@ -1,0 +1,85 @@
+// The bought guns, measured (Phase 21 W2, docs/PHASE_21_OVERNIGHT_PLAN.md): for each gun src/config/paidweapons.json
+// maps to a model, off the model itself: its length, which end of it is the muzzle (the end farther from the model's
+// origin, which the pack puts at the grip: +Z on every long gun, Unity's forward; the narrower end was tried first
+// and chose the stock on four of ten, whose skeletal stocks are thinner than their shrouded barrels), where the
+// muzzle is, and the top of its sights over the rear half. paidweapons.json carries these beside its numbers and this fails when they part. The collision
+// hulls (UCX_*) are never counted. Without the paid files (they are local only) it is skipped with a note.
+//
+// Run on its own: npx tsx tools/checks/paid-weapons.ts (MEASURE=1 prints the numbers to put in the config).
+import { existsSync, readFileSync } from "node:fs";
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import cfg from "../../src/config/paidweapons.json";
+
+let fails = 0;
+function check(label: string, cond: boolean, detail = ""): void {
+  if (!cond) fails++;
+  console.log(`${cond ? "  ok  " : "FAIL  "}${label}${detail ? ` (${detail})` : ""}`);
+}
+
+console.log("\nThe bought guns");
+const dir = `public/${cfg.models}`;
+if (!existsSync(dir)) {
+  console.log(`  --  ${dir} is not here (the paid files are local only: npm run paid makes them), so this is skipped`);
+  console.log("\nPAID WEAPONS SKIPPED");
+  process.exit(0);
+}
+
+export interface Measured {
+  length: number;
+  /** +1 when the muzzle is at the model's +Z end, -1 at its -Z end */
+  muzzleEnd: number;
+  muzzle: [number, number, number];
+  /** the highest point over the rear half: the sight line's top */
+  sightTop: number;
+}
+
+async function measure(file: string): Promise<Measured> {
+  const b = readFileSync(file);
+  const g = await new Promise<{ scene: THREE.Group }>((ok, no) => new GLTFLoader().parse(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), "", (x) => ok(x as never), no));
+  g.scene.updateMatrixWorld(true);
+  const pts: THREE.Vector3[] = [];
+  g.scene.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || /^UCX_/.test(m.name)) return;
+    const p = m.geometry.getAttribute("position");
+    for (let i = 0; i < p.count; i++) pts.push(new THREE.Vector3().fromBufferAttribute(p, i).applyMatrix4(m.matrixWorld));
+  });
+  const box = new THREE.Box3().setFromPoints(pts);
+  const len = box.max.z - box.min.z;
+  const section = (atMax: boolean) => {
+    const band = pts.filter((p) => (atMax ? box.max.z - p.z : p.z - box.min.z) < 0.06);
+    const bb = new THREE.Box3().setFromPoints(band);
+    const s = bb.getSize(new THREE.Vector3());
+    return { area: s.x * s.y, centre: bb.getCenter(new THREE.Vector3()) };
+  };
+  const hi = section(true);
+  const lo = section(false);
+  const end = box.max.z >= -box.min.z ? 1 : -1;
+  const tip = end > 0 ? hi.centre.setZ(box.max.z) : lo.centre.setZ(box.min.z);
+  const mid = (box.max.z + box.min.z) / 2;
+  const rear = pts.filter((p) => (end > 0 ? p.z < mid : p.z > mid));
+  const sightTop = rear.reduce((a, p) => Math.max(a, p.y), -Infinity);
+  const r = (x: number) => Math.round(x * 1000) / 1000;
+  return { length: r(len), muzzleEnd: end, muzzle: [r(tip.x), r(tip.y), r(tip.z)], sightTop: r(sightTop) };
+}
+
+const guns = cfg.guns as unknown as Record<string, { model: string; measured?: Measured }>;
+for (const [id, g] of Object.entries(guns)) {
+  const file = `${dir}${g.model}.glb`;
+  if (!existsSync(file)) {
+    check(`${id}: its model ${g.model} is here`, false);
+    continue;
+  }
+  const m = await measure(file);
+  if (process.env.MEASURE) console.log(`  ${id}: ${JSON.stringify(m)}`);
+  const want = g.measured;
+  check(
+    `${id} (${g.model}): paidweapons.json holds what the model measures`,
+    !!want && Math.abs(want.length - m.length) < 0.002 && want.muzzleEnd === m.muzzleEnd && Math.abs(want.sightTop - m.sightTop) < 0.002 && want.muzzle.every((v, i) => Math.abs(v - m.muzzle[i]) < 0.002),
+    `measured ${JSON.stringify(m)}`,
+  );
+}
+
+console.log(fails === 0 ? "\nPAID WEAPONS PASS" : `\nPAID WEAPONS FAIL (${fails})`);
+process.exit(fails === 0 ? 0 : 1);

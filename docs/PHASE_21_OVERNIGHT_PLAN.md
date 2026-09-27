@@ -157,9 +157,12 @@ right in first person beat every variant; a measured reach table and proven modu
 - [ ] S7 hit volumes
 - [ ] S8 tests
 - [x] W1 import (eec969f; run `PAID_ONLY=weapons npm run paid`)
-- [ ] W2 to W8 the weapons (see "What the import showed")
+- [x] W2 measured (`tools/checks/paid-weapons.ts`, `src/config/paidweapons.json`): length, muzzle end, muzzle, sight top
+- [x] W3 and W4 (`src/game/paidgun.ts`): each SpeedKills gun wears its bought model in first and third person, its muzzle and sight line moved to the model's, its magazine, slide and pump in the procedural groups, fitted optics on its top
+- [x] W6 the fusion level shows: the skin moves A, B, C and the glow brightens each level
+- [ ] W5 check the guns in the soldiers' hands (third person) in a picture; W7 the mine, med items and cases; W8 ship the guns
+- [x] 4.2 the reach harness (`tools/checks/reach.ts`, `src/config/reach.json`), and the modules' geometry in `docs/PHASE_21_LAYOUT.md`
 - [x] S9 the soldier is live (5ee71b4, Milestone 238): batches (failures passed alone), fit, fallback, both deploys
-- [ ] 4.2 reach harness
 - [ ] 4.3 modules and `chains.ts`
 - [ ] 4.4 layout doc
 - [ ] 4.6 grey-box

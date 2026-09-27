@@ -280,6 +280,12 @@ async function weapons(files: Map<string, string>): Promise<void> {
     await io.write(join(out, `${name}.glb`), doc);
   }
 
+  // the scopes' reticles, their alpha kept (they are drawn added over the view through the lens)
+  for (const dot of ["SciFiScopeDot01", "SciFiGrenadeLauncher01_Dot"]) {
+    const d = find(`Textures/${dot}.png`);
+    if (d) await sharp(readFileSync(d)).resize(256, 256).webp({ quality: 90, alphaQuality: 100 }).toFile(join(tex, `${dot}.webp`));
+  }
+
   // the skins, one family at a time (each 4096 PNG is tens of MB raw)
   const families = [...new Set(GUN_MODELS.map((n) => n.replace(/_\d+$/, "")))];
   const png = (p: string | null) => (p ? sharp(readFileSync(p)) : null);

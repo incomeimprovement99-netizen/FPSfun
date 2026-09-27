@@ -22,7 +22,7 @@ import doorsCfg from "./config/doors.json";
 import voiceCfg from "./config/voice.json";
 import rulesCfg from "./config/rules.json";
 import { FINISHES, chooseFinish, finishFor } from "./game/finishes";
-import { applyFinish, gunModel } from "./game/gunmodels";
+import { applyFinish, gunModel, resetGunModels } from "./game/gunmodels";
 import { Voice } from "./net/voice";
 import type Peer from "peerjs";
 import { Course } from "./game/course";
@@ -107,6 +107,7 @@ import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
 import { hasClip, loadMannequin, setFigureStyle, setFitDebug, useMannequin, soldierReady } from "./game/mannequin";
+import { loadPaidGuns, paidGunsReady } from "./game/paidgun";
 import { dressKit } from "./game/kitdress";
 import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
@@ -1545,6 +1546,13 @@ try {
   /* ignore */
 }
 setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
+// SpeedKills: the bought guns (paidgun.ts), when their files are here; the guns in hand are built again once they are in
+if (IS_SK)
+  void loadPaidGuns().then((ok) => {
+    if (!ok) return;
+    resetGunModels();
+    viewModel.rebuild();
+  });
 figureSel.addEventListener("change", () => {
   setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
   try {
@@ -7924,6 +7932,8 @@ initWelcome();
    */
   /** SpeedKills' soldier (soldier.ts): whether new figures are it (its files here and its clips carried over) */
   soldierReady: () => soldierReady(),
+  /** SpeedKills' bought guns (paidgun.ts): in, and the model the gun in hand wears */
+  paidGuns: () => ({ ready: paidGunsReady(), inHand: (viewModel.gunRoot?.userData.paid as string | undefined) ?? null }),
   figureLab: (poses: Array<FigurePose & { dead?: boolean; weapon?: string; look?: string }> = [], dist = 4, turnDeg = 0) => {
     for (const lf of labFigs) lf.f.dispose();
     labFigs.length = 0;
