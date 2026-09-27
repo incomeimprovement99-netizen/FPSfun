@@ -1,0 +1,11 @@
+{
+  "_note": "THE CHAIN (src/game/courses/chain.ts, Phase 21 4.6): the centre's chain modules as a course in the range, SpeedKills only, so the owner can play the distances. Every gap's width is worked out from src/config/reach.json when the course is built, as docs/PHASE_21_LAYOUT.md's modules are: the run gap is a sprint jump's carry over runSpare (20% to spare); the double gap midway between the jump's carry times over and the double jump's times under; the wall gap midway between the double jump's carry times over and the wall run's kick's times under. A retune of the movement moves the gaps with it, and tools/checks/sk-chaincourse.ts proves each again. Each gap room is climbed into: a deck deck metres up (a climb), the pit, a deck, down to the floor for the next door (the course's doors are 3.3 m from the floor). runUp is each deck's length before its pit: a sprint is full in 1.35 s, about 12 m from a climb. Fall below the deck by fallBelow over a pit and the room restarts with 2 s added, as in the other courses. The chimney is city.json's chimneys: the same width, length, rise and landing.",
+  "deck": 3,
+  "runUp": 12,
+  "landing": 6,
+  "fallBelow": 0.5,
+  "runSpare": 1.2,
+  "over": 1.1,
+  "under": 0.9,
+  "chainColor": "#ff3df2"
+}

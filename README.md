@@ -316,7 +316,7 @@ optics and hop-ups.
 
 | Mode | What it is |
 |---|---|
-| Firing Range | 29 of Apex's guns (and the course pistol), dummies with armour tiers, target banks and moving rails, ladders, a vertical zipline, the wallbounce practice wall with its recipe on a sign, mantle ledges, a slide ramp, the spray wall, the flick drill's pad and the superglide trainer. Two lit gates on the back wall lead to the courses, and the README screen stands at the far end, 107 m down range, under the **B00G'S RANGE** sign. The Range box on the Play tab sets what the dummies do (stand, strafe, crouch, random; slow to fast) and whether they shoot back. |
+| Firing Range | 29 of Apex's guns (and the course pistol), dummies with armour tiers, target banks and moving rails, ladders, a vertical zipline, the wallbounce practice wall with its recipe on a sign, mantle ledges, a slide ramp, the spray wall, the flick drill's pad and the superglide trainer. Two lit gates on the back wall lead to the courses (three in SpeedKills: THE CHAIN, in the middle, has the city's run gap, double gap, wall gap and chimney at the widths its movement is built to), and the README screen stands at the far end, 107 m down range, under the **B00G'S RANGE** sign. The Range box on the Play tab sets what the dummies do (stand, strafe, crouch, random; slow to fast) and whether they shoot back. |
 | Guided tour | Thirteen steps through the range, a green marker for each: move, sprint, slide, jump, mantle, climb, a superglide, shoot, reload, swap, heal, JOLT, a grenade. It watches what you do and moves on; hold E (X on a controller) to skip a step. In SpeedKills it is eight: move; double jump, wall run and climb; shoot; both hacks; fusion; a hit from high ground; five seconds in a capture ring; and a walk to a squad mate's echo while it says how the Gulag and the ghost work. |
 | The Run (Basic) | Timed movement course in the range's back-left corner: seven rooms, each built round one technique (breach, vent slide, climb, superglide, gap lurch, zipline, final sprint), 20 armed pop-ups. Splits per room against your best, a gold, silver or bronze medal per room against its par, a ghost of your best run, a results TV at the start, ranks S/A/B/C. |
 | The Run (Advanced) | The back-right corner: nine rooms, 200 m, 30 pop-ups, the techniques chained. Every gate needs its move: a 7 m gap only a superglide clears, pads only a lurch reaches, a platform only a zipline superjump gets on, two vents, a bounce slalom, a drop slide, a shooting zip, a flow room. Its own bests, splits, ghost and TV. |
@@ -844,6 +844,7 @@ src/game/
   course.ts                the course engine: rooms, gates, splits, ghosts, results TV
   courses/basic.ts         The Run (Basic), seven rooms
   courses/advanced.ts      The Run (Advanced), nine rooms
+  courses/chain.ts         The Chain (SpeedKills): the city's gaps and a chimney at their measured widths
   duel.ts                  the match: rounds, scores, the circle, remotes, spectate, downs and revives
   bots.ts                  the bot controller and the offline match
   br.ts                    the battle royale map: Outskirts, its ground, places, roads, towers, beacons, pads

@@ -123,4 +123,29 @@ once: kicks up one leg, a turn, kicks up the other, two landings in 27 m of cany
 2. The rest of the modules proven the same way (window pad, pad ladder, balcony ladder, tap-strafe gate).
 3. The centre's layout by coordinates: the chimneys between the downtown towers (the city's canyons are 3 to 4.5 m
    today, so the 3.0 m chimney fits the existing downtown with no new buildings), one per side of the Spire.
-4. The grey-box course in the range, so the owner can play the distances.
+4. ~~The grey-box course in the range~~ done: THE CHAIN, below.
+
+## THE CHAIN: the grey-box in the range (courses/chain.ts, tools/checks/sk-chaincourse.ts)
+
+SpeedKills' third course, through a gate in the middle of the range's back wall (legacy's wall stays whole). Every
+width is worked out from `src/config/reach.json` when the course loads (`src/config/chaincourse.json` says how), so a
+retune of the movement moves them, and the check proves them again on the course's own colliders.
+
+| Room | Width | Landed clean with | And not with |
+|---|---|---|---|
+| Run gap | 9.46 m (a sprint jump's 11.35 over 1.2) | a sprint jump | running off |
+| Double gap | 16.2 m | the double jump | one jump (reaches 10.5 m of it) |
+| Wall gap | 27.75 m (past the double jump by a tenth, inside the kick by a tenth) | a wall run along the lit wall and a kick late in it | the run alone (22.4 m of it), a double jump in the open (20.3 m) |
+| Chimney | city.json's: 3.0 m, 27 m, landing 5.5 m, top 11 m | kicks alone, a turn on the landing, kicks to the top | no kicks (3.1 m high at best) |
+
+**A new measurement for the wall gap** (`reach.ts`, `reach.json` wallKick): a sprint jump into a wall run carries
+24.35 m if you run off its end, and 34.6 m if you kick off it 1.45 s in (32.2 m at 1.2 s, so the timing is not tight).
+The kick is what crosses a gap past the double jump.
+
+Each gap room is climbed into: a 3 m deck (a climb), 12 m to reach full sprint, the pit (a fall below 2.5 m over it
+restarts the room with 2 s added), a 6 m deck to land on, and down to the floor for the next door, because the
+course's doors are 3.3 m from the floor. From the chimney's top, a hop over its wall's cap reaches the deck beside it,
+and a zip goes down to the finish. The ranks (S 35 s) are provisional until the owner sets real times.
+
+Not in it yet: the window pad and the pad ladder. The range has no pads (they are the battle royale's, `brplay.ts`),
+so the pad's code has to come to the course engine first.

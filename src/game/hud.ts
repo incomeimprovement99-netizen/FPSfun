@@ -14,7 +14,7 @@
 // height so the layout holds at any resolution.
 import { PHOENIX_SHORT } from "../config/names";
 import * as THREE from "three";
-import { RANGE_SOLIDS, COURSE_GATE, COURSE_GATE_R } from "./range";
+import { RANGE_SOLIDS, COURSE_GATES } from "./range";
 import { ZIPLINES } from "./traversal";
 import { drawReticle, type ReticleStyle } from "./optics";
 import type { DuelHud } from "./duel";
@@ -1868,7 +1868,7 @@ export class Hud {
     }
     if (!region) {
       g.fillStyle = "#e2742b";
-      for (const gate of [COURSE_GATE, COURSE_GATE_R]) g.fillRect((gate.minX - minX) * PX, (8 - minZ) * PX, (gate.maxX - gate.minX) * PX, 1 * PX);
+      for (const gate of COURSE_GATES) g.fillRect((gate.minX - minX) * PX, (8 - minZ) * PX, (gate.maxX - gate.minX) * PX, 1 * PX);
     }
     this.map = cv;
     this.mapMinX = minX;

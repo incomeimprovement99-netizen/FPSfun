@@ -23,6 +23,11 @@
     "heightChange": 1.586,
     "started": true
   },
+  "wallKick": {
+    "at": 1.45,
+    "carry": 34.634,
+    "runAlone": 24.35
+  },
   "zigzag": [
     {
       "width": 2.5,

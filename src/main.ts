@@ -28,6 +28,7 @@ import type Peer from "peerjs";
 import { Course } from "./game/course";
 import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
+import { CHAIN_COURSE } from "./game/courses/chain";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRange, sceneryFar } from "./game/quality";
 import { lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import AUDIO_CFG from "./config/audio.json";
@@ -1365,7 +1366,8 @@ const targets: Target[] = TARGET_SPECS.map((t) => {
 // The two movement courses behind the firing line (src/game/course.ts, the
 // layouts in src/game/courses/). Their armed pop-ups are dummies too, so
 // bullets test against them as well.
-const courses = [new Course(scene, BASIC_COURSE), new Course(scene, ADVANCED_COURSE)];
+// SpeedKills has a third, THE CHAIN: the city's chain modules at their measured distances (courses/chain.ts)
+const courses = [new Course(scene, BASIC_COURSE), new Course(scene, ADVANCED_COURSE), ...(IS_SK ? [new Course(scene, CHAIN_COURSE)] : [])];
 const [courseBasic, courseAdvanced] = courses;
 /** the course a run is going on, or the one you are standing in, or the basic one */
 const activeCourse = (): Course => courses.find((c) => c.running) ?? courses.find((c) => c.hud(gameTime)) ?? courseBasic;
@@ -5100,7 +5102,7 @@ function endMatch(reason: string): void {
     resetHacks();
     // and says where to go in it once the match's own notice has been read
     window.setTimeout(() => {
-      if (!duel) hud.notice(`THE RANGE  ·  THE RUN: TWO COURSES THROUGH THE LIT GATES BEHIND YOU  ·  THE MANUAL: THE SCREEN AHEAD  ·  HACKS ON ${keyLabel("ability")} AND ${keyLabel("grenade")}`, gameTime, 6);
+      if (!duel) hud.notice(`THE RANGE  ·  THE RUN: ${IS_SK ? "THREE" : "TWO"} COURSES THROUGH THE LIT GATES BEHIND YOU  ·  THE MANUAL: THE SCREEN AHEAD  ·  HACKS ON ${keyLabel("ability")} AND ${keyLabel("grenade")}`, gameTime, 6);
     }, 3200);
   }
   const together = !party ? "" : "guests" in party ? " Your group is still here: pick the next match above and Play again." : " Your group is still together: the host starts the next match.";

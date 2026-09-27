@@ -5,6 +5,7 @@
 //
 // All geometry is generated here. Materials are CC0 (public/tex/ATTRIBUTION.md).
 import rangeCfg from "../config/range.json";
+import { IS_SK } from "./game";
 import * as THREE from "three";
 import { material, tileBox } from "./materials";
 import { PAL, bevel, flat, emissive, hazardTexture, floorNumber, textPanel } from "./geo";
@@ -25,6 +26,10 @@ export const RANGE_BOUNDS: Bounds = { minX: -34, maxX: 34, minZ: -108, maxZ: 212
 export const COURSE_GATE = { minX: -23.5, maxX: -19.5 };
 /** the second gate, back-right, into the advanced course (courses/advanced.ts) */
 export const COURSE_GATE_R = { minX: 19.5, maxX: 23.5 };
+/** SpeedKills' third, in the middle behind the spawn, into THE CHAIN (courses/chain.ts); legacy's wall stays whole */
+export const COURSE_GATE_C = { minX: -2, maxX: 2 };
+/** the gates this game's back wall has, left to right */
+export const COURSE_GATES = IS_SK ? [COURSE_GATE, COURSE_GATE_C, COURSE_GATE_R] : [COURSE_GATE, COURSE_GATE_R];
 
 /**
  * Direction TO the sun. About 25 degrees of elevation, behind and to the right
@@ -376,10 +381,10 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // lintel over the gate closes the wall above head height.
   // Three pieces and two gates: back-left into the basic course, back-right
   // into the advanced one, each with a lintel over it.
-  addBox(scene, wall, 34 + COURSE_GATE.minX, 6, 1, (-34 + COURSE_GATE.minX) / 2, 0, 8.5);
-  addBox(scene, wall, COURSE_GATE_R.minX - COURSE_GATE.maxX, 6, 1, (COURSE_GATE.maxX + COURSE_GATE_R.minX) / 2, 0, 8.5);
-  addBox(scene, wall, 34 - COURSE_GATE_R.maxX, 6, 1, (34 + COURSE_GATE_R.maxX) / 2, 0, 8.5);
-  for (const g of [COURSE_GATE, COURSE_GATE_R]) addBox(scene, wall, g.maxX - g.minX, 2.5, 1, (g.minX + g.maxX) / 2, 3.5, 8.5);
+  // (SpeedKills: four pieces and three gates, THE CHAIN's in the middle)
+  const cuts = [-34, ...COURSE_GATES.flatMap((g) => [g.minX, g.maxX]), 34];
+  for (let i = 0; i < cuts.length; i += 2) addBox(scene, wall, cuts[i + 1] - cuts[i], 6, 1, (cuts[i] + cuts[i + 1]) / 2, 0, 8.5);
+  for (const g of COURSE_GATES) addBox(scene, wall, g.maxX - g.minX, 2.5, 1, (g.minX + g.maxX) / 2, 3.5, 8.5);
   // Side walls. 10 m, not 6: a sprint jump off the 4.6 m platform peaked at
   // 5.9 m and landed the player on top of a 6 m wall, where the arena clamp
   // then kept them walking along the cap.
@@ -572,15 +577,16 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // Orange at the base of every long wall. A horizontal band low on a tall
   // surface gives it a floor line and a sense of height; without one a 10 m
   // wall and a 4 m wall look identical.
-  const gateL = COURSE_GATE.minX;
-  const gateR = COURSE_GATE.maxX;
   for (const [x, z, w, d] of [
     [-33.4, -49.5, 0.12, 117],
     [33.4, -49.5, 0.12, 117],
-    // the back wall's, either side of the two course gates
-    [(-34 + gateL) / 2, 7.9, gateL + 34, 0.12],
-    [(gateR + COURSE_GATE_R.minX) / 2, 7.9, COURSE_GATE_R.minX - gateR, 0.12],
-    [(COURSE_GATE_R.maxX + 34) / 2, 7.9, 34 - COURSE_GATE_R.maxX, 0.12],
+    // the back wall's, either side of each course gate
+    ...(() => {
+      const cuts = [-34, ...COURSE_GATES.flatMap((g) => [g.minX, g.maxX]), 34];
+      const out: Array<readonly [number, number, number, number]> = [];
+      for (let i = 0; i < cuts.length; i += 2) out.push([(cuts[i] + cuts[i + 1]) / 2, 7.9, cuts[i + 1] - cuts[i], 0.12]);
+      return out;
+    })(),
     [0, -106.9, 68, 0.12],
   ] as const) {
     const kick = new THREE.Mesh(bevel(w, 0.5, d, 0.03), trim);
@@ -670,6 +676,7 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   for (const [g, glowColor, title, fromX] of [
     [COURSE_GATE, PAL.orange, "THE RUN: BASIC\nSeven rooms: slides, a climb, a superglide, a gap, ziplines. Beat the clock.", -3],
     [COURSE_GATE_R, 0xff3b2f, "THE RUN: ADVANCED\nNine rooms, 200 m: a superglide gap, lurch pads, wallbounces, a zipline superjump. Chain them.", 3],
+    ...(IS_SK ? ([[COURSE_GATE_C, 0xff3df2, "THE CHAIN\nThe city's distances: a run gap, a double gap, a wall gap and the chimney.", 0]] as const) : []),
   ] as const) {
     const glow = emissive(glowColor, 2.4);
     for (const x of [g.minX - 0.1, g.maxX + 0.1]) {
@@ -693,8 +700,6 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
       scene.add(a);
     }
   }
-  void gateL;
-  void gateR;
   // You spawn facing down the lanes with the gate behind you, so a note is
   // painted on the floor just in front of the spawn where you will see it.
   const note = spawnNote();

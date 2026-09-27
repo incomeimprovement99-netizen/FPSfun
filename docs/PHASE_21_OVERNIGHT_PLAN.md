@@ -169,7 +169,7 @@ right in first person beat every variant; a measured reach table and proven modu
 - [x] S9 the soldier is live (5ee71b4, Milestone 238): batches (failures passed alone), fit, fallback, both deploys
 - [x] 4.3 the modules proven (run gap, double gap, chimney: tools/checks/reach.ts)
 - [x] 4.4 the layout: the centre's canyons measured (none took the chain), the four chimneys built in the city and proven there (tools/checks/sk-chimneys.ts)
-- [ ] 4.6 grey-box
+- [x] 4.6 grey-box: THE CHAIN, SpeedKills' third course (run gap, double gap, wall gap, chimney), every width from reach.json and proven on its own geometry (`tools/checks/sk-chaincourse.ts`); the window pad waits on pads coming to the course engine
 
 ## In the morning
 

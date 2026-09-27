@@ -4442,3 +4442,19 @@ Phase 21 S5 to S8.
   fail with the bug put back.
 - **Where to look if it breaks:** a headshot that misses a visible head: `tools/soldier-hits.ts` prints each pose's
   offset; a figure with no soldier: the `soldier` e2e section and `window.__range.soldierReady()`.
+
+## Milestone 243 — THE CHAIN: the city's distances as a course ✅
+
+Phase 21 4.6: the grey-box, so the owner can play the distances the centre is built to.
+
+- **A third course in SpeedKills' range**, through a lit magenta gate in the middle of the back wall
+  (`src/game/courses/chain.ts`): a run gap (9.46 m), a double gap (16.2 m), a wall gap (27.75 m, a wall run and the
+  kick off it) and the chimney (the city's, to its landing and on to its top), then a zip to the finish. Legacy's
+  range keeps its two.
+- **Every width comes from the measured movement** (`src/config/reach.json`, the rules in
+  `src/config/chaincourse.json`), so a retune moves the gaps; `tools/checks/sk-chaincourse.ts` (in verify) drives the
+  real controller through the course's own colliders: each gap landed clean with its move and not with the one below
+  it, the chimney climbed by kicks alone, the way off the top open. With the gaps narrowed it fails.
+- **A new measurement:** the wall run's kick carries 34.6 m (reach.json wallKick), against 24.35 m for the run alone
+  and 22.1 m for a double jump, which is what makes the wall gap a class of its own.
+- **Not yet:** the window pad and the pad ladder need the battle royale's pads brought to the course engine.
