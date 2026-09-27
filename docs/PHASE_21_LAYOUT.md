@@ -44,11 +44,23 @@ it. With the widest reliable zig-zag at 4.25 m:
 | **Chimney** (the owner's chain, climbing) | **3.0 m wide**, 3 crossings climb one storey (4.2 m against a 4 m storey), about 26 m of canyon a storey | the owner's "repeat like 3 times" is exactly one storey at this width; a block is 57 m, so a chimney climbs two storeys along one block's length, or folds with the tap-strafe 180 as its turn |
 | **Balcony ladder** | a balcony every storey (4 m) | under the climb's reach (5.1 m, sk-movesim) |
 
+## The auto-climb stretches every gap (found by the proofs)
+
+The auto-climb catches a far roof's lip up to 5.1 m below it. So running straight off a roof clears 9.5 m (falling
+4 m by the far wall, then climbing), and a single jump clears 16 m the same way. A gap is therefore classed by a
+**clean** landing, on the far roof without a climb, which is also the fast one: the climb costs time, and in a fight
+it is the moment you cannot shoot.
+
+## Proven (tools/checks/reach.ts, the chains, run by verify)
+
+- **Run gap, 9.46 m:** landed clean with a sprint jump, and not by running off.
+- **Double gap, 16.2 m:** landed clean with the double jump, and not with the jump alone.
+- **Chimney, 3.0 m:** climbs a 4 m storey in three crossings (1.41 m a crossing); a 5.0 m corridor holds only two.
+
 ## What is next
 
 1. The window pads and pad ladders, solved by `padSolve` against the solids above each arc.
-2. `tools/checks/chains.ts`: every module above run through the real controller, passing at nominal input and
-   failing with its key gap widened by a tenth (the brief's proof).
+2. The rest of the modules proven the same way (window pad, pad ladder, balcony ladder, tap-strafe gate).
 3. The centre's layout by coordinates: the chimneys between the downtown towers (the city's canyons are 3 to 4.5 m
    today, so the 3.0 m chimney fits the existing downtown with no new buildings), one per side of the Spire.
 4. The grey-box course in the range, so the owner can play the distances.
