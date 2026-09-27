@@ -20,7 +20,7 @@ interface Gun {
   measured: { length: number; muzzleEnd: number; muzzle: number[]; sightTop: number };
 }
 const GUNS = cfg.guns as Record<string, Gun>;
-const PROPS = (cfg.props ?? {}) as Record<string, { model: string; skin: string }>;
+const PROPS = (cfg.props ?? {}) as Record<string, { model: string; skin: string; scale?: number }>;
 const url = (p: string): string => `${p}?v=${cfg.version}`;
 
 const scenes = new Map<string, THREE.Object3D>();
@@ -119,6 +119,7 @@ export function paidProp(key: string): THREE.Object3D | null {
   if (!p || !src) return null;
   const mat = skinMaterial(p.model.replace(/_\d+$/, ""), p.skin, tl);
   const o = src.clone(true);
+  o.scale.setScalar(p.scale ?? 1);
   o.traverse((x) => {
     const m = x as THREE.Mesh;
     if (m.isMesh) {

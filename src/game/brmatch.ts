@@ -63,6 +63,7 @@
 //                    comes to it, and the ring packet carries the line, so a
 //                    guest takes its own tick the way it takes the ring's.
 import { decayPlan, sectorPhases, captureOpens, sectorIdAt, type DecayPlan, type SectorPhase } from "./decay";
+import { paidProp } from "./paidgun";
 import decayCfg from "../config/decay.json";
 import cityCfg from "../config/city.json";
 import { IS_SK, PROFILE } from "./game";
@@ -1176,7 +1177,9 @@ export class BrMatch extends Duel {
     // the canopy that carries it down, cut loose the moment it lands
     const canopy = new THREE.Mesh(new THREE.ConeGeometry(cfg.canopy.radius, cfg.canopy.height, 12, 1, true), new THREE.MeshStandardMaterial({ color: crate ? 0xd8a63a : 0xdde3ea, emissive: tint, emissiveIntensity: 0.12, roughness: 0.9, side: THREE.DoubleSide }));
     canopy.position.y = 1.8 + cfg.canopy.height * 0.5;
-    obj.add(shell, beam, canopy);
+    // SpeedKills: the pack's weapon case when it is in (paidgun.ts); our cylinder otherwise
+    const bought = IS_SK ? paidProp("carepackage") : null;
+    obj.add(bought ?? shell, beam, canopy);
     obj.position.set(at.x, cfg.height, at.z);
     obj.visible = false;
     this.scene.add(obj);
