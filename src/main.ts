@@ -108,6 +108,8 @@ import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPai
 import { throwName } from "./config/names";
 import { hasClip, loadMannequin, setFigureStyle, setFitDebug, useMannequin, soldierReady } from "./game/mannequin";
 import { loadPaidGuns, paidGunsReady } from "./game/paidgun";
+import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
+import soldierCfg from "./config/soldier.json";
 import { dressKit } from "./game/kitdress";
 import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
@@ -1546,6 +1548,54 @@ try {
   /* ignore */
 }
 setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
+// SpeedKills: the soldier picker on the Loadouts tab (soldier.json): a kit, colours, skin and eyes, and three
+// pieces on or off; kept as the player's code, which the look carries to friends (outfit.ts lookCode)
+if (IS_SK) {
+  const P = soldierCfg.palettes;
+  const sel = (id: string) => $<HTMLSelectElement>(id);
+  const fill = (id: string, items: Array<[string, string, string?]>) => {
+    sel(id).innerHTML = items.map(([v, t, c]) => `<option value="${v}"${c ? ` style="background:${c};color:#000"` : ""}>${t}</option>`).join("");
+  };
+  fill("sdVariant", SOLDIER_VARIANTS.map((v) => [v, v]));
+  fill("sdArmor", P.armor.map((c, i) => [String(i), `${i + 1}`, c]));
+  fill("sdAccent", P.accent.map((c, i) => [String(i), `${i + 1}`, c]));
+  fill("sdSuit", P.suit.map((c, i) => [String(i), `${i + 1}`, c]));
+  fill("sdSkin", P.skin.map((c, i) => [String(i), `${i + 1}`, c]));
+  fill("sdEyes", Array.from({ length: P.eyes }, (_, i) => [String(i + 1), `${i + 1}`]));
+  const toggles: Array<[string, string]> = [["sdHelmet", "helmet"], ["sdShoulders", "shoulders"], ["sdPouches", "pouches"]];
+  const show = (l: SoldierLook) => {
+    sel("sdVariant").value = l.variant;
+    sel("sdArmor").value = String(l.armor);
+    sel("sdAccent").value = String(l.accent);
+    sel("sdSuit").value = String(l.suit);
+    sel("sdSkin").value = String(l.skin);
+    sel("sdEyes").value = String(l.eyes);
+    for (const [id, t] of toggles) $<HTMLInputElement>(id).checked = !l.off.includes(t);
+  };
+  show(readSoldierCode(mySoldierCode()) ?? lookOf("VANGUARD"));
+  const read = (): SoldierLook => ({
+    variant: sel("sdVariant").value,
+    armor: Number(sel("sdArmor").value),
+    accent: Number(sel("sdAccent").value),
+    suit: Number(sel("sdSuit").value),
+    skin: Number(sel("sdSkin").value),
+    eyes: Number(sel("sdEyes").value),
+    off: toggles.filter(([id]) => !$<HTMLInputElement>(id).checked).map(([, t]) => t),
+  });
+  // a new kit comes in its own colours; a colour change keeps the kit
+  sel("sdVariant").addEventListener("change", () => {
+    const l = lookOf(sel("sdVariant").value);
+    const was = read();
+    show({ ...l, skin: was.skin, eyes: was.eyes, off: was.off });
+    saveMySoldier(read());
+    applyLoadout(loadouts.current);
+  });
+  for (const id of ["sdArmor", "sdAccent", "sdSuit", "sdSkin", "sdEyes", "sdHelmet", "sdShoulders", "sdPouches"])
+    document.getElementById(id)?.addEventListener("change", () => {
+      saveMySoldier(read());
+      applyLoadout(loadouts.current);
+    });
+}
 // SpeedKills: the bought guns (paidgun.ts), when their files are here; the guns in hand are built again once they are in
 if (IS_SK)
   void loadPaidGuns().then((ok) => {
@@ -1774,7 +1824,7 @@ function previewLoadout(now: number, dt: number): void {
   // the weapon in hand too: it is a loadout, not just an outfit
   // useMannequin() is in the key so the figure is built again once the
   // mannequin has finished loading, rather than staying the robot
-  const key = `${def.operator}|${lookCode(def)}|${def.slot1}|${useMannequin()}`;
+  const key = `${def.operator}|${lookCode(def)}|${def.slot1}|${useMannequin()}|${soldierReady()}`;
   if (key !== previewKey) {
     previewKey = key;
     previewFig?.dispose();

@@ -145,6 +145,7 @@
       .hackPicks .hint { color: #7d8aa0; letter-spacing: .06em; font-weight: 600; }
       .hackPicks select { background: #101628; border: 1px solid #20e0ff55; color: #e8fbff; padding: 6px 7px; border-radius: 4px; font-size: 13px; }
       [data-game="speedkills"] .skOnly { display: inline; }
+      [data-game="speedkills"] .soldierPick.skOnly { display: block; }
       [data-game="speedkills"] .legacyOnly { display: none; }
       /* SpeedKills' menu (Phase 20 A11): wider on a wider screen, and one width for every tab so Loadouts no longer
          jumps (1280 wide: 1120, 1600: 1200, 1920: 1280, 2560: 1400, never more than 94% of a small screen) */
@@ -460,6 +461,10 @@
                   <option value="fullMask">Full mask</option>
                   <option value="wrap,goggles">Wrap and goggles</option>
                 </select></div>
+              <div class="skOnly soldierPick"><div class="lohead">Soldier <span class="hint">four kits; the colours, skin and eyes are yours, and friends see them</span></div>
+                <div class="row"><label>Kit</label><select id="sdVariant"></select><label>Armour</label><select id="sdArmor"></select><label>Accent</label><select id="sdAccent"></select><label>Suit</label><select id="sdSuit"></select></div>
+                <div class="row"><label>Skin</label><select id="sdSkin"></select><label>Eyes</label><select id="sdEyes"></select><label><input type="checkbox" id="sdHelmet" checked /> Beret</label><label><input type="checkbox" id="sdShoulders" checked /> Shoulders</label><label><input type="checkbox" id="sdPouches" checked /> Pouches</label></div>
+              </div>
               <div class="row gunPick"><label>Slot 1 <div class="hint">key 1</div></label><select id="slot0"></select><select id="finish0" title="this gun's finish: every gun keeps its own, and every finish is there from the start"></select></div>
               <div class="row gunPick"><label>Slot 2 <div class="hint">key 2</div></label><select id="slot1"></select><select id="finish1" title="this gun's finish: every gun keeps its own, and every finish is there from the start"></select></div>
               <div class="lohead">Heirloom <span class="hint">held when holstered, swung with V</span></div>

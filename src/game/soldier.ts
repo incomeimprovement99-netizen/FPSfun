@@ -56,6 +56,28 @@ export function readSoldierCode(code: string | null | undefined): SoldierLook | 
   };
 }
 
+/** where the player's own choice is kept: SpeedKills' alone (the legacy game has no soldier) */
+export const LS_SOLDIER = "range.sk.soldier";
+
+/** the player's own soldier code, or null before they chose one (their operator's look is used then) */
+export function mySoldierCode(): string | null {
+  try {
+    const c = localStorage.getItem(LS_SOLDIER);
+    return readSoldierCode(c) ? c : null;
+  } catch {
+    return null;
+  }
+}
+
+/** keep the player's choice */
+export function saveMySoldier(l: SoldierLook): void {
+  try {
+    localStorage.setItem(LS_SOLDIER, soldierCode(l));
+  } catch {
+    /* storage refused: the choice lasts this page */
+  }
+}
+
 /** a random look, for a bot */
 export function randomLook(rng: () => number = Math.random): SoldierLook {
   const pick = (len: number) => Math.floor(rng() * len);

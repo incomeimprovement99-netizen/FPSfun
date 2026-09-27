@@ -15,6 +15,8 @@
 // joint is a different kind of asset and a different pipeline; a garment made
 // of one piece per bone is boxes and cylinders, which is what this is.
 import * as THREE from "three";
+import { IS_SK } from "./game";
+import { mySoldierCode, readSoldierCode } from "./soldier";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import outfitCfg from "../config/outfits.json";
 
@@ -90,15 +92,19 @@ export function lookCode(l: { outfit?: string; build?: string; face?: string; bo
   // the body goes last, so a page from before it existed reads the first
   // three fields as it always did and ignores the fourth
   const code = `${l.outfit ?? ""}|${l.build ?? ""}|${l.face ?? ""}${l.body ? `|${l.body}` : ""}`;
+  // SpeedKills: the player's soldier, a fifth field an older page ignores (soldier.ts)
+  const soldier = IS_SK ? mySoldierCode() : null;
+  if (soldier) return `${l.outfit ?? ""}|${l.build ?? ""}|${l.face ?? ""}|${l.body ?? ""}|${soldier}`;
   return code === "||" ? "" : code;
 }
 
 /** a look back off the wire, with anything we do not recognise dropped rather than trusted */
-export function readLook(code: string | undefined): { outfit?: OutfitId; build?: BuildId; face?: FacePiece[]; body?: BodyId } {
+export function readLook(code: string | undefined): { outfit?: OutfitId; build?: BuildId; face?: FacePiece[]; body?: BodyId; soldier?: string } {
   if (typeof code !== "string" || !code) return {};
-  const [o, b, f, y] = code.split("|");
-  const out: { outfit?: OutfitId; build?: BuildId; face?: FacePiece[]; body?: BodyId } = {};
+  const [o, b, f, y, sd] = code.split("|");
+  const out: { outfit?: OutfitId; build?: BuildId; face?: FacePiece[]; body?: BodyId; soldier?: string } = {};
   if (BODY_IDS.includes(y as BodyId)) out.body = y as BodyId;
+  if (readSoldierCode(sd)) out.soldier = sd;
   if (OUTFIT_IDS.includes(o as OutfitId)) out.outfit = o as OutfitId;
   if (BUILD_IDS.includes(b as BuildId)) out.build = b as BuildId;
   const face = faceList(f);

@@ -153,7 +153,7 @@ right in first person beat every variant; a measured reach table and proven modu
 - [x] S3 loader, tinted materials, per-variant merge to 4 draws (6a922af); clips retargeted (`retarget.ts`, limbs 0.0 degrees off, proven)
 - [ ] S5 animations (retarget, contact sheet, hands, first person)
 - [~] S4 variants: the four and their palettes are in soldier.json and render distinct (tools/soldier-sheet.ts); the picker is S6
-- [ ] S6 picker, saving, network, bots
+- [x] S6 the picker (Loadouts tab: kit, armour, accent, suit, skin, eyes, beret, shoulders, pouches), kept under `range.sk.soldier`, carried to friends as a fifth look field (the wire's look limit 48 to 64); bots take their operator's look, the same on every machine
 - [ ] S7 hit volumes
 - [ ] S8 tests
 - [x] W1 import (eec969f; run `PAID_ONLY=weapons npm run paid`)

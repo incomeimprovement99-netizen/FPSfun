@@ -146,7 +146,7 @@ export function operatorById(id: string | undefined): OperatorSkin {
 export function operatorWearing(id: string | undefined, look: string | undefined): OperatorSkin {
   const base = operatorById(id);
   const worn = readLook(look);
-  if (worn.outfit === undefined && worn.build === undefined && worn.face === undefined && worn.body === undefined) return base;
+  if (worn.outfit === undefined && worn.build === undefined && worn.face === undefined && worn.body === undefined && worn.soldier === undefined) return base;
   return { ...base, ...worn };
 }
 

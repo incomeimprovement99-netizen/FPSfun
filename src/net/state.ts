@@ -70,7 +70,9 @@ const STR_SANE = 256;
 const NAME_MAX = 16;
 const ID_MAX = 32;
 /** an outfit choice: three ids and their separators (outfit.ts lookCode) */
-const LOOK_MAX = 48;
+// 64: SpeedKills' look carries the soldier's 8-character code as a fifth field (soldier.ts); a build from before
+// clips at 48 and shows the operator's own soldier, which is the fallback anyway
+const LOOK_MAX = 64;
 
 /**
  * One player's state, as duel.ts has always sent it: the payload of the "s"
