@@ -8,7 +8,7 @@
 // In verify since Phase 21's massing (docs/CITY_BUNDLE_IMPLEMENTATION.md step 2): it holds THE SPIRE's standing room
 // in each band a tenth under what the massing, the Sky Park, the chimney stacks and the drop measured, so a change that
 // takes the centre's height away fails; and it prints the plan's targets (PHASE_21_PLAN 2.1) beside them, which the
-// centre does not all meet yet (the 10 to 30 m band is the gap: the plan's open floors by each deck are still to come).
+// centre does not all meet yet (the 30 to 60 m band, and the street's share).
 //
 // Run: GAME=speedkills npx tsx tools/checks/city-levels.ts
 import * as THREE from "three";
@@ -93,7 +93,8 @@ console.log(`above the street: ${aboveStreet} m2 = ${((aboveStreet / total) * 10
 console.log("\nBy sector (street / low / mid / high / top / crown, m2):");
 for (const [sec, row] of [...bySector.entries()].sort()) console.log(`${sec.padEnd(14)} ${row.map((v) => String(v).padStart(7)).join(" ")}`);
 
-// the centre, held: a tenth under what it measured on 2026-09-27 (after the drop), and the plan's targets beside it
+// the centre, held: a tenth under what it measured on 2026-09-27 (with the open floors and the stair cores), and the
+// plan's targets beside it
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
   if (!cond) fails++;
@@ -106,13 +107,13 @@ check("this is SpeedKills (the city is its map)", IS_SK);
 check("the centre is the tallest part of the map: its highest standing top 120 m and more (the plan's 120)", maxTop >= 120, `${maxTop.toFixed(1)} m`);
 // band, its index, what it measured, the plan's target
 const held: Array<[string, number, number, number]> = [
-  ["10 to 30 m", 2, 372, 15000],
-  ["30 to 60 m", 3, 7810, 20000],
+  ["10 to 30 m", 2, 14920, 15000],
+  ["30 to 60 m", 3, 9110, 20000],
 ];
 for (const [name, i, was, target] of held) check(`the centre's room to stand ${name}: ${spire[i]} m2, held at a tenth under ${was} (the plan's target ${target})`, spire[i] >= Math.floor(was * 0.9), `${Math.round((spire[i] / target) * 100)}% of the target`);
-// the 60 m and up the massing measured as one band, 15,017 m2, held over the two
+// 60 m and up, held over the two bands together
 const over60 = spire[4] + spire[5];
-check(`and 60 m and up: ${over60} m2, held at a tenth under 15017 (the plan's targets 15000 to 100 m and 5000 over it)`, over60 >= Math.floor(15017 * 0.9), `${spire[4]} to 100 m, ${spire[5]} over`);
+check(`and 60 m and up: ${over60} m2, held at a tenth under 15025 (the plan's targets 15000 to 100 m and 5000 over it)`, over60 >= Math.floor(15025 * 0.9), `${spire[4]} to 100 m, ${spire[5]} over`);
 console.log(`        the street's share of the centre's room to stand: ${((spire[0] / all) * 100).toFixed(1)}% (the plan's target 20% or less)`);
 console.log(fails ? `\nCITY LEVELS FAIL (${fails})` : "\nCITY LEVELS PASS");
 process.exit(fails ? 1 : 0);

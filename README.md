@@ -83,6 +83,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
 - **The drop:** a shaft down inside the Spire from the terrace at 128 m to the
   concourse, with a way in from the Sky Park too: 120 m in four seconds, no fall
   damage, out onto the podium.
+- **Stairs inside the towers:** a door on the concourse in every downtown
+  tower, and a staircase up through two open floors to the Sky Lobby, on to the
+  Sky Park in the tall ones: every level with no pad and no ability.
 - **Movement for roofs:** double jump, wall run and kick, slide, and a climb
   that goes up a storey (two with a double jump first). You sprint whenever you
   move forward, at 14 m/s, and a slide speeds you up a little past that and

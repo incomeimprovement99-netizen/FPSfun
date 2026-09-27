@@ -163,6 +163,14 @@ for (const r of KIT_SITES.rooms) {
     for (const { p, b } of [...standOut, ...facades]) if (p.kind !== "billboard" && b.intersectsBox(box)) clashes.push(`${p.piece} across a ${name}'s window at ${r.x.toFixed(1)}, ${r.z.toFixed(1)}`);
   }
 }
+// and nothing of the kit across a door the city cut (a stair core's, the drop's): the facade narrowed either side, the
+// Spire's billboard and the alley's signs beside them
+const doorsCrossed: string[] = [];
+for (const d of KIT_SITES.doors) {
+  const box = new THREE.Box3(new THREE.Vector3(d.x0 + 0.05, d.y0 + 0.3, d.z0 + 0.05), new THREE.Vector3(d.x1 - 0.05, d.y1 - 0.3, d.z1 - 0.05));
+  for (const p of places) if (bounds(p).intersectsBox(box)) doorsCrossed.push(`${p.piece} over the door at ${((d.x0 + d.x1) / 2).toFixed(1)}, ${((d.z0 + d.z1) / 2).toFixed(1)}`);
+}
+check(`nothing of the kit across any of the ${KIT_SITES.doors.length} doors the city cut in its towers`, doorsCrossed.length === 0, doorsCrossed.slice(0, 3).join("; "));
 const flatBad = places.filter((p) => p.kind === "flat" && Math.min(planeOf(p.piece), kit.dress.relief) + kit.dress.outset > 0.15);
 check("a canyon's faces and a pad's climb wear flat panels, within 0.15 m of the wall (the plan's rule 1)", flatBad.length === 0, flatBad.slice(0, 3).map((p) => p.piece).join(", "));
 check("nothing stands out of a wall in a chimney, a pad's column or across the Sky Lobby's or the Sky Park's windows", clashes.length === 0, `${clashes.length}: ${clashes.slice(0, 4).join("; ")}`);

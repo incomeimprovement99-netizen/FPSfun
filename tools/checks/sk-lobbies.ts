@@ -129,6 +129,13 @@ check(
 // or a canyon's end is a way in too
 const byTower = new Map<string, number>();
 const towerAt = (x: number, z: number, floor: number) => RANGE_SOLIDS.find((s) => x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ && Math.abs(s.top - floor) < 0.05);
+/** the tower a floor at (x, z) belongs to, by its footprint (a stair core cuts the slab under a lobby's floor into pieces) */
+const towerKey = (x: number, z: number, floor: number): string => {
+  const tw = towerAt(x, z, floor);
+  if (!tw) return `none ${x.toFixed(0)},${z.toFixed(0)}`;
+  const t = KIT_SITES.towers.find((q) => x > q.x - q.w / 2 + BR_X - 0.01 && x < q.x + q.w / 2 + BR_X + 0.01 && z > q.z - q.d / 2 + BR_Z - 0.01 && z < q.z + q.d / 2 + BR_Z + 0.01);
+  return t ? `${(t.x - t.w / 2 + BR_X).toFixed(1)},${(t.z - t.d / 2 + BR_Z).toFixed(1)}` : `${tw.minX.toFixed(1)},${tw.minZ.toFixed(1)}`;
+};
 for (const e of [...LOBBY_BRIDGES, ...LOBBY_CANYONS]) {
   const len = Math.hypot(e.bx - e.ax, e.bz - e.az);
   const ux = (e.bx - e.ax) / len;
@@ -137,8 +144,7 @@ for (const e of [...LOBBY_BRIDGES, ...LOBBY_CANYONS]) {
     [e.ax - ux, e.az - uz],
     [e.bx + ux, e.bz + uz],
   ]) {
-    const tw = towerAt(x, z, e.y);
-    const key = tw ? `${tw.minX.toFixed(1)},${tw.minZ.toFixed(1)}` : `none ${x.toFixed(0)},${z.toFixed(0)}`;
+    const key = towerKey(x, z, e.y);
     byTower.set(key, (byTower.get(key) ?? 0) + 1);
   }
 }
@@ -148,8 +154,7 @@ for (const pad of pads) {
   const ix = cp.x + (cp.vx / len) * (chain.window.standOff + 1);
   const iz = cp.z + (cp.vz / len) * (chain.window.standOff + 1);
   const floor = cp.over - chain.window.overAt;
-  const tower = RANGE_SOLIDS.find((s) => ix > s.minX && ix < s.maxX && iz > s.minZ && iz < s.maxZ && Math.abs(s.top - floor) < 0.05);
-  const key = tower ? `${tower.minX.toFixed(1)},${tower.minZ.toFixed(1)}` : `none ${ix.toFixed(0)},${iz.toFixed(0)}`;
+  const key = towerKey(ix, iz, floor);
   byTower.set(key, (byTower.get(key) ?? 0) + 1);
 }
 const twoSided = [...byTower.values()].filter((n) => n >= 2).length;
@@ -170,7 +175,9 @@ function across(e: (typeof LOBBY_BRIDGES)[number], jump: boolean): { in: boolean
   const home = towerAt(e.ax - ux, e.az - uz, e.y);
   // as far back in the lobby as it has room for, to eight metres
   let back = 8;
-  while (back > 1.5 && !towerAt(e.ax - ux * back, e.az - uz * back, e.y)) back -= 0.5;
+  // (on open floor: not in a stair core's rail or on its flight, which the rooms now have in them)
+  const clear = (x: number, z: number) => !RANGE_SOLIDS.some((q) => x > q.minX - 0.5 && x < q.maxX + 0.5 && z > q.minZ - 0.5 && z < q.maxZ + 0.5 && q.base < e.y + 1.9 && q.top > e.y + 0.05);
+  while (back > 1.5 && !(towerAt(e.ax - ux * back, e.az - uz * back, e.y) && clear(e.ax - ux * back, e.az - uz * back))) back -= 0.5;
   if (!home) return { in: false, y: 0 };
   const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
   p.extraMoves = true;
@@ -227,8 +234,7 @@ for (const e of [...PARK_BRIDGES, ...PARK_CANYONS]) {
     [e.ax - ux, e.az - uz],
     [e.bx + ux, e.bz + uz],
   ]) {
-    const tw = towerAt(x, z, e.y);
-    const key = tw ? `${tw.minX.toFixed(1)},${tw.minZ.toFixed(1)}` : `none ${x.toFixed(0)},${z.toFixed(0)}`;
+    const key = towerKey(x, z, e.y);
     parkWays.set(key, (parkWays.get(key) ?? 0) + 1);
   }
 }

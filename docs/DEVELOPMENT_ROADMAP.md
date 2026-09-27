@@ -5106,3 +5106,32 @@ gap, matched item by item against the owner's view, with the next steps ranked.
   buttons".
 - **Checked:** the e2e soldier section (the USSO's screen shows its rounds and a shot takes one off it); verify; rules;
   the owner's view hip, aimed and firing on both guns.
+
+## Milestone 270 — Floors and stairs inside the towers: the 10 to 30 m band filled
+
+The plan's answer to the gap Milestone 268 measured (`docs/PHASE_21_PLAN_THE_VERTICAL_CENTRE.md` 2.2 and 2.3): "the
+floors next to each deck are open inside" and "every deck, by stairs inside a tower, no pad and no ability".
+
+- **The open floors** (`city.json` skyLobby floors). Every lobby tower also opens storey 3, just over the concourse,
+  and storey 7, just under the lobby, as rooms: the lobby's four windows, no pads, no ring. From the promenade the
+  first is a climb into a window; an open storey straight over another stands on a floor of its own.
+- **A stair core up every lobby tower** (`city.json` stairCore; `city.ts` mass). Two lanes, a flight of 0.5 by 0.9 m
+  steps a storey in each in turn, switching back on a landing at either end, from a door in the tower's end face on
+  the promenade up through the open floors to the lobby, and on to the Sky Park in the 17 towers tall for it. Cut out
+  of the tower (`cutSlab`), so nothing moves; at the top the other lane and both landings are floored and the flight
+  down is railed on three sides.
+- **Windows and bridges keep off the cores.** A core stands by one side of its tower, set in by the deepest facade
+  module, and each tower records where it stands behind its faces: every window, the joins' bridge and canyon lines,
+  the window pads' and the rooms' own, is placed clear of it along its face. Two lobby bridges and one Sky Park bridge
+  found no line clear of both towers' cores and are gone (4 and 2 left, with the Spire's 4).
+- **The kit** leaves the rooms to their own walls (their band, Milestone 262), narrows a facade bay either side of a
+  core's door (a lookup that took any door at the storey's height found another tower's: every door was covered until
+  `citykit.ts` checked), and keeps Neon Alley's signs and cables off the rooms' windows and the doors.
+- **Checked:**
+  - `tools/checks/sk-stairs.ts`, in verify: all 24 cores walked with the real movement from the promenade up every
+    flight to the lobby or the Sky Park, no climb and no jump; with 0.8 m steps none gets past its first flight.
+  - `city-levels.ts`: the centre's 10 to 30 m band 14,920 m2 (372 before), 99% of the plan's 15,000, now held; 30 to
+    60 m 9,014 m2; the street's share 25.4% (32.7% before).
+  - `sk-lobbies` (24 lobbies, 27 window pads, every bridge and canyon; its runs now start on open floor, not on a
+    core's rail), `sk-chimneys`, `sk-drop`, `citykit` (nothing across any room's window or any of the 26 doors),
+    `city-budget` (299k triangles, the steps a box each; its limit 320k); verify and rules.

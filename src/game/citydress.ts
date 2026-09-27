@@ -139,8 +139,6 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
   const bridgeEnds = PARK_BRIDGES.flatMap((b) => [{ x: b.ax - BR_X, z: b.az - BR_Z, y: b.y }, { x: b.bx - BR_X, z: b.bz - BR_Z, y: b.y }]);
   const atBridgeEnd = (x: number, z: number, y: number) => bridgeEnds.some((e) => Math.abs(e.y - y) < 0.5 && Math.hypot(e.x - x, e.z - z) < 2.5);
   const towers = KIT_SITES.towers.filter((t) => inCentre(t.x, t.z));
-  /** a bay of a face over a door the city cut (the Spire's drop), which the kit leaves bare */
-  const onDoor = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number) => KIT_SITES.doors.some((q) => x1 > q.x0 && x0 < q.x1 && z1 > q.z0 && z0 < q.z1 && y1 > q.y0 + 0.05 && y0 < q.y1 - 0.05);
   /** a face with another tower close in front of it: a canyon's, where nothing may stand out of the wall */
   const canyonFace = (t: (typeof towers)[number], f: Face): boolean =>
     towers.some((o) => {
@@ -188,7 +186,7 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
       for (let s = 0; s < t.storeys; s++) {
         const y = t.base + s * STOREY;
         // the Sky Lobby's storey and the Sky Park's keep their own walls, so their windows stay open (the plan's rule 2)
-        if ((t.lobby !== undefined && Math.abs(y - t.lobby) < 0.5) || (t.park !== undefined && Math.abs(y - t.park) < 0.5)) continue;
+        if ((t.lobby !== undefined && Math.abs(y - t.lobby) < 0.5) || (t.park !== undefined && Math.abs(y - t.park) < 0.5) || (t.floors ?? []).some((q) => Math.abs(y - q) < 0.5)) continue;
         if (canyon) {
           for (let i = 0; i < fn; i++) {
             const id = pick(D.flat, kitHash(t.x, t.z, s, i, 30));
@@ -209,11 +207,11 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         const rn = far && rows.farBay ? Math.max(1, Math.round(len / rows.farBay)) : n;
         const rb = len / rn;
         // a door the city cut in this storey (the Spire's drop): the bays over it narrowed to the wall either side
-        const doorHere = KIT_SITES.doors.find((q) => {
-          const [dx0, dz0] = onFace(f, f.a, -0.1);
-          const [dx1, dz1] = onFace(f, f.b, 0.3);
-          return onDoor(Math.min(dx0, dx1), Math.max(dx0, dx1), Math.min(dz0, dz1), Math.max(dz0, dz1), y, y + STOREY) && q.y0 < y + STOREY - 0.05 && q.y1 > y + 0.05;
-        });
+        const [fx0, fz0] = onFace(f, f.a, -0.1);
+        const [fx1, fz1] = onFace(f, f.b, 0.3);
+        const doorHere = KIT_SITES.doors.find(
+          (q) => Math.max(fx0, fx1) > q.x0 && Math.min(fx0, fx1) < q.x1 && Math.max(fz0, fz1) > q.z0 && Math.min(fz0, fz1) < q.z1 && q.y0 < y + STOREY - 0.05 && q.y1 > y + 0.05,
+        );
         const [da, db] = doorHere ? (f.nx !== 0 ? [doorHere.z0, doorHere.z1] : [doorHere.x0, doorHere.x1]) : [Infinity, -Infinity];
         for (let i = 0; i < rn; i++) {
           const u = f.a + (i + 0.5) * rb;
@@ -279,7 +277,7 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
       if (spire) {
         // a pad's climb, or a door of the drop, keeps the billboard to one side of the face
         const padHere = pads.some((p) => Math.abs((f.nx !== 0 ? p.x : p.z) - f.at) < 3 && (f.nx !== 0 ? p.z : p.x) > f.a && (f.nx !== 0 ? p.z : p.x) < f.b) || KIT_SITES.doors.some((q) => f.nz !== 0 && Math.abs(q.z0 + 0.2 - f.at) < 0.5 && q.y0 < t.roof && q.y1 > t.base);
-        const bw = Math.min(16, padHere ? len / 2 - 3 : len - 4);
+        const bw = Math.min(16, padHere ? len / 2 - 4.5 : len - 4);
         if (bw >= 6) {
           const id = pick(D.billboards, kitHash(t.x, t.z, t.base, f.nx, f.nz, 7));
           const bd = dims(id);
@@ -495,10 +493,22 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         const vertical = kitHash(u, f.at, 40) < 0.4;
         let y = foot + A.signFrom;
         const yTop = Math.min(top - 1, A.signTo);
+        // the rooms' windows up this face (the open floors, the lobby): a sign over one is left out
+        const windowsHere = KIT_SITES.rooms
+          .filter((rm) => (f.nx !== 0 ? Math.abs(f.at - (rm.x + f.nx * (rm.w / 2))) < 0.2 && Math.abs(rm.z - (f.a + f.b) / 2) < 0.2 : Math.abs(f.at - (rm.z + f.nz * (rm.d / 2))) < 0.2 && Math.abs(rm.x - (f.a + f.b) / 2) < 0.2))
+          .map((rm) => ({ c: (f.a + f.b) / 2 + rm.at[f.key], y: rm.y }));
         for (let k = 0; y < yTop; k++) {
           const id = pick(vertical ? D.blades : D.signs, kitHash(u, f.at, k, 41));
           const sd = dims(id);
           if (!sd || y + sd.h > yTop) break;
+          // nor over a door the city cut in the face (a stair core's)
+          const [sx0, sz0] = onFace(f, u - sd.w / 2, -0.2);
+          const [sx1, sz1] = onFace(f, u + sd.w / 2, 0.5);
+          const overDoor = KIT_SITES.doors.some((q) => Math.max(sx0, sx1) > q.x0 && Math.min(sx0, sx1) < q.x1 && Math.max(sz0, sz1) > q.z0 && Math.min(sz0, sz1) < q.z1 && y < q.y1 && y + sd.h > q.y0);
+          if (overDoor || windowsHere.some((wn) => Math.abs(wn.c - u) < cityCfg.skyLobby.width / 2 + sd.w / 2 + 0.2 && y < wn.y + cityCfg.skyLobby.height && y + sd.h > wn.y)) {
+            y += sd.h + A.signGap;
+            continue;
+          }
           // in front of the facade's relief (dress relief), or a module's pilasters hide it
           const [x, z] = onFace(f, u, D.outset + D.relief + 0.06);
           add(id, place(id, x, y, z, f.yaw, 1, 1, 1, true), 0, "sign");
@@ -522,9 +532,15 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         const far = ends.filter((z) => z > alleyZ).reduce((m, z) => Math.min(m, z), Infinity);
         if (!Number.isFinite(near) || !Number.isFinite(far)) return;
         if (padsUp.some((q) => Math.abs(q.x - u) < 3.5 && q.z > near - 3 && q.z < far + 3 && q.top > y - 2)) return;
+        // nor into a room's window where it meets a face
         const id = pick(D.cables, kitHash(u, layer, 43));
         const cd = dims(id);
         if (!cd) return;
+        // (its sag hangs cd.h under where it is hung from, which is its top)
+        const intoWindow = KIT_SITES.rooms.some((rm) =>
+          [rm.z - rm.d / 2, rm.z + rm.d / 2].some((fz) => (Math.abs(fz - near) < 0.2 || Math.abs(fz - far) < 0.2) && Math.abs(rm.x + (fz < rm.z ? rm.at.n : rm.at.s) - u) < cityCfg.skyLobby.width / 2 + 1 && y < rm.y + cityCfg.skyLobby.height + 0.3 && y + cd.h > rm.y - 0.3),
+        );
+        if (intoWindow) return;
         add(id, place(id, u, y, (near + far) / 2, Math.PI / 2, (far - near - 0.2) / cd.w, 1, 1, false), 1, "cable");
       });
     }

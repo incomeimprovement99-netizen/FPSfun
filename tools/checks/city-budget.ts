@@ -70,9 +70,11 @@ function count(root: THREE.Object3D): { meshes: number; tris: number; lights: nu
  * triangles. A box costs the same at any height; the rise is the lobbies' open storey in 24 towers and their 28 window
  * pads, and a taller tower's light bands. The triangle limit is that with a twelfth over. Then with the metro, Neon
  * Alley's stalls and the centre's cars in materials of their own (the kit hides them once it draws over them, and a
- * hidden mesh is not drawn): 15,390 meshes, 404 once merged. The merged limit is 420.
+ * hidden mesh is not drawn): 15,390 meshes, 404 once merged. The merged limit is 420. Then with the open floors and a
+ * stair core up every lobby tower (the steps a box each, merged): 19,095 meshes, 404 once merged, 299k triangles. The
+ * triangle limit is 320k.
  */
-const BUDGET = { meshesBefore: 20_000, meshesAfter: 420, tris: 260_000, lights: 8 };
+const BUDGET = { meshesBefore: 22_000, meshesAfter: 420, tris: 320_000, lights: 8 };
 console.log("What the SpeedKills city costs to draw");
 check("this is SpeedKills (the city is its map)", IS_SK);
 {

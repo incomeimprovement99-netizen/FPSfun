@@ -455,7 +455,7 @@
       "inset": 0
     }
   },
-  "_skyLobby": "The Sky Lobby (docs/PHASE_21_LAYOUT.md, the brief's levels: storey 8, about 32 m): every downtown tower that stands above it by two storeys is open for that one storey, a floor with a window in the middle of every face, width by height, in walls wall thick, so a tower is a room you run through and a canyon is a jump from window to window. A window pad stands on the podium in front of every face with minOpen metres of open floor and nothing overhead (tools/centre-towers.ts measured 11 of 16 towers with two such faces), none within apart of another pad; its throw is solved as THE CHAIN's (src/config/chaincourse.json window: the stand-off, the push over the sill, the peak, the hold), since the window is the same size. A face's window and its pad slide along the face when the middle is taken (the block's own pad onto a roof stands in the middle of a face more often than not): slide is how far either way, a share of the face, and corner is the least wall left between a window and the tower's corner. height is 3.6 m, not the window pad's 2.8, so a sprint jump goes through: it peaks 1.42 m up (reach.json), and a 1.83 m body at its peak needs 3.25 m, with room over the head. Two lobbies across a canyon (canyon metres apart or less) have their windows lined up, a jump from one into the other; across a street (bridge metres or less) a bridge runs from window to window at the lobby's floor. `ring`: a line of light round every lobby tower at the storey's floor and its ceiling, the window pads' blue, so the level reads from anywhere (docs/CITY_BUNDLE_IMPLEMENTATION.md 4.4).",
+  "_skyLobby": "The Sky Lobby (docs/PHASE_21_LAYOUT.md, the brief's levels: storey 8, about 32 m): every downtown tower that stands above it by two storeys is open for that one storey, a floor with a window in the middle of every face, width by height, in walls wall thick, so a tower is a room you run through and a canyon is a jump from window to window. A window pad stands on the podium in front of every face with minOpen metres of open floor and nothing overhead (tools/centre-towers.ts measured 11 of 16 towers with two such faces), none within apart of another pad; its throw is solved as THE CHAIN's (src/config/chaincourse.json window: the stand-off, the push over the sill, the peak, the hold), since the window is the same size. A face's window and its pad slide along the face when the middle is taken (the block's own pad onto a roof stands in the middle of a face more often than not): slide is how far either way, a share of the face, and corner is the least wall left between a window and the tower's corner. height is 3.6 m, not the window pad's 2.8, so a sprint jump goes through: it peaks 1.42 m up (reach.json), and a 1.83 m body at its peak needs 3.25 m, with room over the head. Two lobbies across a canyon (canyon metres apart or less) have their windows lined up, a jump from one into the other; across a street (bridge metres or less) a bridge runs from window to window at the lobby's floor. `ring`: a line of light round every lobby tower at the storey's floor and its ceiling, the window pads' blue, so the level reads from anywhere (docs/CITY_BUNDLE_IMPLEMENTATION.md 4.4). `floors`: the storeys (counted from the street) that every lobby tower also opens as a room, the lobby's four windows and no pads: 3, just over the concourse (a climb from the promenade into its windows), and 7, just under the lobby. The plan's floors next to each deck (docs/PHASE_21_PLAN_THE_VERTICAL_CENTRE.md 2.2), for the 10 to 30 m band that stood empty.",
   "skyLobby": {
     "storey": 8,
     "width": 2.0,
@@ -467,7 +467,11 @@
     "corner": 1.5,
     "canyon": 8,
     "bridge": 34,
-    "ring": "#3b8bff"
+    "ring": "#3b8bff",
+    "floors": [
+      3,
+      7
+    ]
   },
   "_skyPark": "The Sky Park (docs/CITY_BUNDLE_IMPLEMENTATION.md 4.4 and 4.5; Phase 21's levels: storey 16, about 64 m): every tower open for the Sky Lobby that stands two storeys over this storey too is open for it as well, the same room of four windows (skyLobby's width, height and wall). Rooms facing each other are joined as the lobby's are: across a canyon of up to `canyon` metres the windows line up for a sprint jump, across a street of up to `bridge` a bridge runs window to window. The Spire's first tier ends at this height, so its roof is the Sky Park's terrace, and every room facing it across a street gets a bridge onto it, its parapet opened `gap` metres where the bridge lands and the line kept `landing` metres in from the terrace's corners. No window pads: a 56 m throw is the Spire's own pad, and the way up is the tiers' pads, the roofs at this height and, next, the chimney stacks. `ring`: its line of light round every tower at its storey, the bridges' gold.",
   "skyPark": {
@@ -477,6 +481,15 @@
     "gap": 4,
     "landing": 3,
     "ring": "#ffd070"
+  },
+  "_stairCore": "A stair up through every lobby tower (the plan's 2.3: every deck by stairs inside a tower, no pad and no ability): a core of two lanes `lane` wide, a flight of `rise` and `run` steps a storey in each lane in turn, switching back at a landing `landing` deep at either end, from a door `door` wide in the tower's end face on the concourse's promenade up through the open floors to the Sky Lobby, and on to the Sky Park in a tower tall for it. Cut out of the tower, so nothing else moves; a tower whose two end faces both stand over a canyon has none.",
+  "stairCore": {
+    "lane": 1.6,
+    "landing": 1.4,
+    "rise": 0.5,
+    "run": 0.9,
+    "door": 1.8,
+    "doorHeight": 3.6
   },
   "_metro": "The metro (the owner's, 2026-09-27: under the street, only the centre, a decent size; docs/CITY_BUNDLE_IMPLEMENTATION.md section 9): a loop of tunnel under the centre's four streets (`streets`, their indices in the city's streets from the west or north: the two either side of the Spire's block, so the loop runs under x and z of -36 and 36), `width` metres wide, its floor `floor` metres under the street and the street over it a slab `slab` thick, so a tunnel `floor` less `slab` tall: 5 m, room for a double jump. Walls `wall` thick close it in. Stairs go down from each street's outer lane (`lane` metres from its middle, a parked car's lane, never the bots' way down the middle), their middles `stairs` metres along it from the side's middle, `stairWidth` wide and the concourse's rise and run, the opening railed `rail` high on its sides and the far end. A parked train of `train.cars` cars, each `train.length` by `train.width` by `train.height`, stands on each side's inner lane as cover, too tall to stand on under the roof. Lights in the ceiling every `lightEvery` metres. Ours: 288 m of tunnel, the fast covered way round the Spire, and the only place in the city under the street.",
   "metro": {
