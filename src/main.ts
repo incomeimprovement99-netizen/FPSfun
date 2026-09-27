@@ -115,7 +115,7 @@ import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier
 import soldierCfg from "./config/soldier.json";
 import { dressKit } from "./game/kitdress";
 import { cityKitPlaces } from "./game/citydress";
-import { CITY_KIT, dressCityKit } from "./game/citykit";
+import { CITY_KIT, dressCityKit, tickCityKit } from "./game/citykit";
 import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
@@ -3901,6 +3901,7 @@ function edgeNear(): number {
 
 function stepDecay(now: number): void {
   if (!IS_SK) return;
+  tickCityKit(now);
   cityEdge(now, edgeNear());
   const d = duel instanceof BrMatch && duel.decay ? duel : null;
   const states = d ? d.sectorStates() : null;

@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import kit from "../config/citykit.json";
 import type { KitPlace } from "./citydress";
+import { cityKitTraffic } from "./citydress";
 import { KIT_SITES, STAND_INS } from "./city";
 import type { Quality } from "./quality";
 
@@ -20,6 +21,44 @@ export interface CityKitState {
   packs: string[];
 }
 export const CITY_KIT: CityKitState = { drawn: 0, pieces: 0, meshes: 0, packs: [] };
+
+/** the flying traffic once drawn: each car's instance in each of its piece's meshes, and where its loop is */
+const TRAFFIC: { cars: ReturnType<typeof cityKitTraffic>; meshes: Array<{ mesh: THREE.InstancedMesh; local: THREE.Matrix4; cars: number[] }>; root: THREE.Object3D | null } = { cars: [], meshes: [], root: null };
+const tm = new THREE.Matrix4();
+const tq = new THREE.Quaternion();
+const tp = new THREE.Vector3();
+const ts = new THREE.Vector3(1, 1, 1);
+const up = new THREE.Vector3(0, 1, 0);
+/** a point `s` metres round a closed loop of corners, and which way it runs there */
+function onLoop(loop: Array<[number, number, number]>, s: number, at: THREE.Vector3): number {
+  const n = loop.length;
+  let left = s;
+  for (let k = 0; ; k = (k + 1) % n) {
+    const a = loop[k];
+    const b = loop[(k + 1) % n];
+    const len = Math.hypot(b[0] - a[0], b[2] - a[2]);
+    if (left <= len) {
+      const f = left / len;
+      at.set(a[0] + (b[0] - a[0]) * f, a[1], a[2] + (b[2] - a[2]) * f);
+      return Math.atan2(b[0] - a[0], b[2] - a[2]);
+    }
+    left -= len;
+  }
+}
+/** the flying traffic a frame on (seconds of game time) */
+export function tickCityKit(now: number): void {
+  if (!TRAFFIC.meshes.length) return;
+  for (const { mesh, local, cars } of TRAFFIC.meshes) {
+    cars.forEach((ci, i) => {
+      const c = TRAFFIC.cars[ci];
+      const yaw = onLoop(c.loop, (c.start + now * c.speed) % c.length, tp);
+      tm.compose(tp, tq.setFromAxisAngle(up, yaw), ts);
+      if (c.standing) tm.multiply(c.standing);
+      mesh.setMatrixAt(i, tm.multiply(local));
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+}
 
 export async function dressCityKit(root: THREE.Object3D, places: KitPlace[], q: Quality): Promise<number> {
   const want = places.filter((p) => p.tier <= q.cityDetail);
@@ -86,6 +125,30 @@ export async function dressCityKit(root: THREE.Object3D, places: KitPlace[], q: 
     });
     CITY_KIT.pieces++;
     CITY_KIT.drawn += list.length;
+  }
+  // the flying traffic, from Balanced up: an instanced mesh for each of a car piece's meshes, moved every frame
+  if (q.cityDetail >= 1) {
+    TRAFFIC.cars = cityKitTraffic();
+    TRAFFIC.meshes = [];
+    const byCar = new Map<string, number[]>();
+    TRAFFIC.cars.forEach((c, i) => (byCar.get(c.piece) ?? byCar.set(c.piece, []).get(c.piece)!).push(i));
+    for (const [piece, cars] of byCar) {
+      const src = byId.get(piece);
+      if (!src) continue;
+      inv.copy(src.matrixWorld).invert();
+      src.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const im = new THREE.InstancedMesh(mesh.geometry, mesh.material as THREE.Material, cars.length);
+        im.name = `citykit:traffic:${piece}`;
+        // they cross the whole centre: never culled for leaving a sphere set where they started
+        im.frustumCulled = false;
+        im.castShadow = false;
+        group.add(im);
+        TRAFFIC.meshes.push({ mesh: im, local: new THREE.Matrix4().multiplyMatrices(inv, mesh.matrixWorld), cars });
+      });
+    }
+    tickCityKit(0);
   }
   root.add(group);
   // every stall wearing its stand: the dark kiosks under them go (the stands are open-fronted), their collision stays

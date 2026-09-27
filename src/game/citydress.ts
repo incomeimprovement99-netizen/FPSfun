@@ -122,6 +122,35 @@ export interface KitClear {
  * Every piece the centre wears, with the tier each is drawn from. `pads` are the city's jump pads (BrMap pads,
  * world metres), kept clear of anything that stands out of a wall.
  */
+/**
+ * The flying traffic (citykit.json dress traffic): each car's piece, its lane as a closed loop of corners (map-local),
+ * where on the loop it starts (metres) and how fast it goes. Pure data; citykit.ts moves them.
+ */
+export function cityKitTraffic(): Array<{ piece: string; loop: Array<[number, number, number]>; length: number; start: number; speed: number; standing: THREE.Matrix4 | null }> {
+  const out: ReturnType<typeof cityKitTraffic> = [];
+  D.traffic.lanes.forEach((ln, li) => {
+    const h = ln.half;
+    // clockwise from above (y up, z south): north-west, north-east, south-east, south-west
+    const cw: Array<[number, number, number]> = [
+      [-h, ln.y, -h],
+      [h, ln.y, -h],
+      [h, ln.y, h],
+      [-h, ln.y, h],
+    ];
+    const loop = ln.dir > 0 ? cw : [...cw].reverse();
+    const length = 8 * h;
+    for (let i = 0; i < ln.n; i++) {
+      const piece = pick(D.traffic.cars, kitHash(li, i, 80));
+      // standing, a car's long side faces +z: a quarter turn puts its length along the way it flies
+      const f = FACING[piece] ?? "pz";
+      const turn = f === "px" ? Math.PI / 2 : f === "nx" ? -Math.PI / 2 : 0;
+      const st = standing(piece, false);
+      out.push({ piece, loop, length, start: (i / ln.n) * length + kitHash(li, i, 81) * 6, speed: ln.speed, standing: st ? st.premultiply(new THREE.Matrix4().makeRotationY(turn)) : null });
+    }
+  });
+  return out;
+}
+
 /** `lean`: the competitive preset's lighter modules (citykit.json dress lean), the same city in about half the triangles */
 export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y?: number; up?: number }>, lean = false): KitPlace[] {
   const out: KitPlace[] = [];

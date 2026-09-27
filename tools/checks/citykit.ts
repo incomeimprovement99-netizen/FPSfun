@@ -178,7 +178,12 @@ check("nothing stands out of a wall in a chimney, a pad's column or across the S
 // the triangles each preset draws, off the measured pieces
 // the competitive preset wears the lean modules (citykit.json dress lean)
 const leanPlaces = cityKitPlaces(map.pads, true);
-const tris = (tier: number) => (tier === 0 ? leanPlaces : places).filter((p) => p.tier <= tier).reduce((a, p) => a + (measured[p.piece]?.[6] ?? 0), 0);
+// the flying traffic (citydress cityKitTraffic), drawn from Balanced up
+const { cityKitTraffic } = await import("../../src/game/citydress");
+const traffic = cityKitTraffic();
+const trafficTris = traffic.reduce((a, c) => a + (measured[c.piece]?.[6] ?? 0), 0);
+check("the flying traffic: every car a piece the importer baked, on its loop", traffic.length >= 12 && traffic.every((c) => measured[c.piece] && c.standing), `${traffic.length} cars, ${(trafficTris / 1000).toFixed(0)}k triangles`);
+const tris = (tier: number) => (tier === 0 ? leanPlaces : places).filter((p) => p.tier <= tier).reduce((a, p) => a + (measured[p.piece]?.[6] ?? 0), 0) + (tier >= 1 ? trafficTris : 0);
 const budget = kit.budget as Record<string, number>;
 for (const [name, q] of Object.entries(PRESETS)) {
   const t = tris(q.cityDetail);

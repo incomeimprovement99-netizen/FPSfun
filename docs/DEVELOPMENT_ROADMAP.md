@@ -5152,3 +5152,17 @@ with the rifle, to give warning to their potential victims".
   - the e2e soldier section: BOOG aimed glints, BOOG at the hip does not, and the USSO's reflex sight has none;
   - verify and rules;
   - pixels at 8 m: 451 in a 140-pixel window brighter with the flare than without.
+
+## Milestone 272 — Flying traffic over the centre's streets
+
+Step 7 (`docs/CITY_BUNDLE_IMPLEMENTATION.md` 5, motion: "flying traffic on splines between towers (High's cars)").
+
+- **High City's flying cars** (`citykit.json` dress traffic) on four loops over the streets: round the Spire's block at
+  46 m clockwise and 52 m the other way, at 84 m, and a wide loop over the ring road at 80 m, 17 cars spaced round
+  them at 20 to 30 m/s. Between the Sky Lobby's bridges (32 m) and the Sky Park's (64 m) and over it, clear of every
+  bridge, pad throw and zipline. Looks only, as all the kit is; from Balanced up.
+- **Moved every frame** (`citykit.ts` tickCityKit, from main's step): one instanced mesh for each of a car piece's
+  meshes, an instance a car, its matrix set along its loop, turned a quarter so its length runs the way it flies
+  (standing, a car's long side faces forward). Never culled, since they cross the whole centre.
+- **Checked:** `citykit.ts` holds every car a baked piece on its loop and counts their 27k triangles in Balanced and
+  High (1,240k and 1,276k, inside 1,300k and 1,340k); verify and rules; pictures from the street and level with a lane.
