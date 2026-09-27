@@ -4916,3 +4916,27 @@ The street in front of the Spire's north face (z -36), between the Spire's block
   chimney, a pad's column or a room's windows; the kit 580k, 1,166k and 1,203k triangles by preset; `sk-roofs`, the
   bots walk every street link past the stalls; verify and rules; pictures along the street, up the twins, at a stall
   and up the Spire.
+
+## Milestone 261 — The chimney stacks: the owner's chain from the podium to the Sky Park
+
+The rest of step 2 (`docs/CITY_BUNDLE_IMPLEMENTATION.md` 4.5, route 3): "a window pad into the lobby, through the tower,
+out onto the twin slot's chimney stack, three folds to the Sky Park, each turned with the tap-strafe 180, a mantle onto
+the Sky Park".
+
+- **The stack** (`city.json` chimneys legs). Each of the four chimneys now climbs ten legs of 5.5 m, a landing at its
+  far end and its near end in turn, from the podium at 8.2 m to its summit at 63.2 m, the chain line lit over every
+  leg's floor. The old top at 19.2 m led nowhere once the twins rose; now it is the second landing of ten.
+- **Two ways off it, two ways on** (`city.json` chimneys exit). The near-end landing at 30.2 m is 2 m under the Sky
+  Lobby's floor and the one at 63.2 m is 1 m under the Sky Park's: there the chimney's walls open onto a window in each
+  twin's room, which the canyon's join now puts against the room's corner at the chimney's near end. A jump and a
+  mantle off the landing take you into the room; from the room a step out of the window drops you onto the landing.
+- **The canyon's jump still crosses the chimney,** window to window through both openings, and a run off without the
+  jump still does not: the openings run from the landing up, since a sill at the floor's height was a stepping stone
+  a run crossed on (sk-lobbies caught it), and a sill between caught a body stepping out.
+- **Checked:**
+  - `sk-chimneys.ts`: every one of the 40 legs, from standing on its landing to the next; the first two legs and the
+    kicks as before; at each of the 16 exits, the mantle in and the step out. With the windows back in the middle of
+    their faces seven of those fail.
+  - `sk-lobbies.ts`: all 16 lobby canyons and 9 Sky Park canyons, the four chimney slots among them, a clean jump and
+    no walk-off; `citykit.ts`: nothing of the kit in any chimney, to its summit; `sk-roofs`, `city-budget` (250k);
+    verify and rules; pictures up the stack and from a lobby through its exit.

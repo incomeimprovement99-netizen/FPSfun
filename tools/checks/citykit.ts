@@ -98,7 +98,7 @@ const standOut = places
   .map((p) => ({ p, b: bounds(p) }));
 const clashes: string[] = [];
 for (const c of CHIMNEYS) {
-  const vol = new THREE.Box3(new THREE.Vector3(c.x - BR_X - c.innerW / 2, c.base, c.z0 - BR_Z), new THREE.Vector3(c.x - BR_X + c.innerW / 2, c.top + 2, c.z1 - BR_Z));
+  const vol = new THREE.Box3(new THREE.Vector3(c.x - BR_X - c.innerW / 2, c.base, c.z0 - BR_Z), new THREE.Vector3(c.x - BR_X + c.innerW / 2, c.summit + 2, c.z1 - BR_Z));
   for (const { p, b } of standOut) if (b.intersectsBox(vol)) clashes.push(`${p.piece} in the ${c.name} chimney`);
 }
 for (const pad of map.pads) {

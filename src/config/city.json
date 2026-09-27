@@ -403,7 +403,7 @@
       "scroll": 0.35
     }
   },
-  "_chimneys": "The owner's chain as geometry (docs/PHASE_21_LAYOUT.md, the four chimneys): two runnable walls width apart and length long, closed at the far end, one per side of the Spire in a canyon the city already has (x the canyon's middle, map-local, measured by tools/centre-canyons.ts; z0 to z1 its length, extended to length), standing on whatever the canyon stands on (the centre's podium roof, 8.2 m, measured off the solids as built). width 3.0 m: the zig-zag climbs 1.41 m a crossing there and holds without end up to 4.25 m (src/config/reach.json). A landing spans the gap at the far end rise above the floor, and the top at the near end twice it, for the second leg after the tap-strafe 180. rise 5.5 m, measured by tools/checks/sk-chimneys.ts in the built city: one wall run and a double jump without kicks reach 4.6 m above the floor, and the kicks reach 6.5 m and more in 27 m, so at 5.5 m only the chain lands it, and the check fails either way round. The chain line is lit in its one colour (the brief's rule 9).",
+  "_chimneys": "The owner's chain as geometry (docs/PHASE_21_LAYOUT.md, the four chimneys): two runnable walls width apart and length long, closed at the far end, one per side of the Spire in a canyon the city already has (x the canyon's middle, map-local, measured by tools/centre-canyons.ts; z0 to z1 its length, extended to length), standing on whatever the canyon stands on (the centre's podium roof, 8.2 m, measured off the solids as built). width 3.0 m: the zig-zag climbs 1.41 m a crossing there and holds without end up to 4.25 m (src/config/reach.json). A landing spans the gap at the far end rise above the floor, and the top at the near end twice it, for the second leg after the tap-strafe 180. rise 5.5 m, measured by tools/checks/sk-chimneys.ts in the built city: one wall run and a double jump without kicks reach 4.6 m above the floor, and the kicks reach 6.5 m and more in 27 m, so at 5.5 m only the chain lands it, and the check fails either way round. The chain line is lit in its one colour (the brief's rule 9). Phase 21's stack (docs/CITY_BUNDLE_IMPLEMENTATION.md 4.5, the owner's chain, route 3): the chimney climbs `legs` legs of `rise`, a landing at the far end and the near end in turn, from its floor to its summit (10: 8.2 m to 63.2 m), every leg proven from standing on its landing. Where a near-end landing is `exit.below` metres under a room of a twin either side (the Sky Lobby's floor 2 m over the landing at 30.2, the Sky Park's 1 m over the one at 63.2), the chimney's wall opens onto that room's window, which the canyon's join puts there, against the room's corner wall (`exit.inset`): a mantle off the landing into the room, and from the room a way out onto the stack. The canyon's jump from window to window crosses the chimney through both openings. The wall's opening runs from the landing up past the window: with its sill at the room's floor a run crossed the canyon on it without a jump (sk-lobbies caught it), and a sill between caught a body stepping out; from the landing up there is neither, and the canyon is the jump it was.",
   "chimneys": {
     "width": 3.0,
     "length": 27,
@@ -436,7 +436,15 @@
         "z0": -29,
         "z1": -2
       }
-    ]
+    ],
+    "legs": 10,
+    "exit": {
+      "below": [
+        0.9,
+        2.2
+      ],
+      "inset": 0
+    }
   },
   "_skyLobby": "The Sky Lobby (docs/PHASE_21_LAYOUT.md, the brief's levels: storey 8, about 32 m): every downtown tower that stands above it by two storeys is open for that one storey, a floor with a window in the middle of every face, width by height, in walls wall thick, so a tower is a room you run through and a canyon is a jump from window to window. A window pad stands on the podium in front of every face with minOpen metres of open floor and nothing overhead (tools/centre-towers.ts measured 11 of 16 towers with two such faces), none within apart of another pad; its throw is solved as THE CHAIN's (src/config/chaincourse.json window: the stand-off, the push over the sill, the peak, the hold), since the window is the same size. A face's window and its pad slide along the face when the middle is taken (the block's own pad onto a roof stands in the middle of a face more often than not): slide is how far either way, a share of the face, and corner is the least wall left between a window and the tower's corner. height is 3.6 m, not the window pad's 2.8, so a sprint jump goes through: it peaks 1.42 m up (reach.json), and a 1.83 m body at its peak needs 3.25 m, with room over the head. Two lobbies across a canyon (canyon metres apart or less) have their windows lined up, a jump from one into the other; across a street (bridge metres or less) a bridge runs from window to window at the lobby's floor.",
   "skyLobby": {

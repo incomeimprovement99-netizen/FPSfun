@@ -94,7 +94,12 @@ export const METRO: {
   stairs: Array<{ top: { x: number; z: number }; foot: { x: number; z: number }; x0: number; x1: number; z0: number; z1: number }>;
 } = { floor: 0, sides: [], stairs: [] };
 /** the chimneys (city.json chimneys): each one's walls' inner faces, its length and its landing heights, world metres, for the checks that climb them */
-export const CHIMNEYS: Array<{ name: string; x: number; innerW: number; z0: number; z1: number; base: number; landing: number; top: number }> = [];
+/**
+ * The chimneys (city.json chimneys), world metres: `landing` and `top` the first two legs' ends, `platforms` every leg's to
+ * the summit, `exits` the openings in its walls onto a room either side (`side` -1 west, 1 east), at the room's floor `y`
+ * and `z` along the chimney, over the landing `from`
+ */
+export const CHIMNEYS: Array<{ name: string; x: number; innerW: number; z0: number; z1: number; base: number; landing: number; top: number; summit: number; platforms: Array<{ y: number; far: boolean }>; exits: Array<{ side: number; y: number; z: number; from: number }> }> = [];
 /** the rooftop highway's four corners in order round its loop (world metres, its deck's height), for the checks that walk it */
 export const HIGHWAY: Array<{ x: number; z: number; y: number }> = [];
 /**
@@ -474,8 +479,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const lintel = storeyH - H;
     // a wall from a to b along its face with the window's middle at c: the piece either side, the lintel over it
     const wall = (a: number, b: number, c: number, put: (from: number, to: number, y: number, h: number) => void) => {
-      put(a, c - win / 2, ly, storeyH);
-      put(c + win / 2, b, ly, storeyH);
+      // (a window against a corner, as a chimney's exit is, leaves nothing on that side)
+      if (c - win / 2 - a > 0.01) put(a, c - win / 2, ly, storeyH);
+      if (b - c - win / 2 > 0.01) put(c + win / 2, b, ly, storeyH);
       put(c - win / 2, c + win / 2, ly + H, lintel);
     };
     // along x, at each end in z
@@ -1162,22 +1168,53 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       const base = cityBefore.reduce((a, s) => (wx0 >= s.minX && wx0 <= s.maxX && wz0 >= s.minZ && wz0 <= s.maxZ && s.top < 20 && s.top > a ? s.top : a), 0);
       const landing = base + Ch.rise;
       const top = base + Ch.rise * 2;
+      // the stack: a leg a landing, each `rise` over the last, at the far end and the near end in turn, to the summit
+      const platforms = Array.from({ length: Ch.legs }, (_, k) => ({ y: base + Ch.rise * (k + 1), far: k % 2 === 0 }));
+      const summit = base + Ch.rise * Ch.legs;
+      // the exits: a twin either side with a room whose floor is a mantle off a near-end landing, the window in the
+      // room's canyon wall `exit.inset` in from its corner at the chimney's near end
+      const exits: Array<{ side: number; y: number; z: number; from: number }> = [];
+      const winW = C.skyLobby.width;
+      for (const s of [-1, 1]) {
+        const face = c.x + s * (Ch.width / 2 + Ch.wall);
+        const twin = towers.find((t) => Math.abs(t.x - s * (t.w / 2) - face) < 1.2 && c.z1 > t.z - t.d / 2 && c.z1 < t.z + t.d / 2 + 0.2);
+        if (!twin) continue;
+        for (const y of [twin.lobby, twin.park]) {
+          if (y === undefined) continue;
+          const from = platforms.find((q) => !q.far && y - q.y >= Ch.exit.below[0] && y - q.y <= Ch.exit.below[1]);
+          if (!from) continue;
+          const zc = Math.min(c.z1, twin.z + twin.d / 2) - C.skyLobby.wall - Ch.exit.inset - winW / 2;
+          exits.push({ side: s, y, z: zc, from: from.y });
+        }
+      }
       for (const s of [-1, 1]) {
         const wx = c.x + s * (Ch.width / 2 + Ch.wall / 2);
-        slab(Ch.wall, top + 0.4 - base, len, wx, base, mid, concrete);
-        // the chain line, on the inner face at a wall run's height
-        deco(0.04, 0.12, len, c.x + s * (Ch.width / 2 + 0.02), base + 2.2, mid, lit);
+        // the wall in bands up its height, each band's openings left out of it
+        const holes = exits.filter((e) => e.side === s).map((e) => ({ y0: e.from, y1: e.y + C.skyLobby.height, z0: e.z - winW / 2, z1: e.z + winW / 2 }));
+        const cuts = [base, ...holes.flatMap((h) => [h.y0, h.y1]), summit + 0.4].sort((a, b) => a - b);
+        for (let k = 0; k + 1 < cuts.length; k++) {
+          const [y0, y1] = [cuts[k], cuts[k + 1]];
+          if (y1 - y0 < 0.01) continue;
+          const open = holes.filter((h) => h.y0 < y1 - 0.01 && h.y1 > y0 + 0.01).sort((a, b) => a.z0 - b.z0);
+          let from = c.z0;
+          for (const h of open) {
+            if (h.z0 > from) slab(Ch.wall, y1 - y0, h.z0 - from, wx, y0, (from + h.z0) / 2, concrete);
+            from = h.z1;
+          }
+          if (c.z1 > from) slab(Ch.wall, y1 - y0, c.z1 - from, wx, y0, (from + c.z1) / 2, concrete);
+        }
+        // the chain line, on the inner face at a wall run's height over every leg's floor
+        for (const y of [base, ...platforms.slice(0, -1).map((q) => q.y)]) deco(0.04, 0.12, len, c.x + s * (Ch.width / 2 + 0.02), y + 2.2, mid, lit);
       }
       // closed at the far end, so a chain that comes in high runs into the end and drops onto the landing
       // rather than flying out of the open end (the proof found exactly that)
-      slab(Ch.width + Ch.wall * 2, top + 0.4 - base, Ch.wall, c.x, base, c.z0 - Ch.wall / 2, concrete);
+      slab(Ch.width + Ch.wall * 2, summit + 0.4 - base, Ch.wall, c.x, base, c.z0 - Ch.wall / 2, concrete);
       // and closed above the landing at the near end, the way in staying open below it: the second leg comes in
       // high there too
-      slab(Ch.width + Ch.wall * 2, top + 0.4 - landing, Ch.wall, c.x, landing, c.z1 + Ch.wall / 2, concrete);
-      // the landing at the far end, one storey up, and the top at the near end, two
-      slab(Ch.width, 0.3, Ch.landing, c.x, landing - 0.3, c.z0 + Ch.landing / 2, metal);
-      slab(Ch.width, 0.3, Ch.landing, c.x, top - 0.3, c.z1 - Ch.landing / 2, metal);
-      CHIMNEYS.push({ name: c.name, x: c.x + BR_X, innerW: Ch.width, z0: c.z0 + BR_Z, z1: c.z1 + BR_Z, base, landing, top });
+      slab(Ch.width + Ch.wall * 2, summit + 0.4 - landing, Ch.wall, c.x, landing, c.z1 + Ch.wall / 2, concrete);
+      // every landing, at its end
+      for (const q of platforms) slab(Ch.width, 0.3, Ch.landing, c.x, q.y - 0.3, q.far ? c.z0 + Ch.landing / 2 : c.z1 - Ch.landing / 2, metal);
+      CHIMNEYS.push({ name: c.name, x: c.x + BR_X, innerW: Ch.width, z0: c.z0 + BR_Z, z1: c.z1 + BR_Z, base, landing, top, summit, platforms, exits: exits.map((e) => ({ ...e, z: e.z + BR_Z })) });
     }
   }
 
@@ -1277,6 +1314,10 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
           const gap = alongX ? Math.abs(dx) - (a.w + b.w) / 2 : Math.abs(dz) - (a.d + b.d) / 2;
           if (gap < 2 || gap > maxGap) continue;
           const canyon = gap <= canyonGap;
+          // a chimney between the two with an exit at this height: the windows go on it
+          const exit = alongX
+            ? CHIMNEYS.flatMap((ch) => ch.exits.map((e) => ({ x: ch.x - BR_X, ...e }))).find((e) => Math.abs(e.y - (yOf(a) ?? NaN)) < 0.05 && (e.x - a.x) * (e.x - b.x) < 0 && [a, b].every((t) => Math.abs(e.z - BR_Z - t.z) < t.d / 2 - Lb.wall))
+            : undefined;
           const y = yOf(a)!;
           // no third tower standing through this height between the two
           if (cuts(a, b, y, alongX)) continue;
@@ -1287,9 +1328,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
           const cb = alongX ? b.z : b.x;
           const lo = Math.max(ca - room(a), cb - room(b));
           const hi = Math.min(ca + room(a), cb + room(b));
-          if (lo > hi) continue;
+          if (lo > hi && !exit) continue;
           done.add(key);
-          const c = (lo + hi) / 2;
+          const c = exit ? exit.z - BR_Z : (lo + hi) / 2;
           const fa = alongX ? (dx > 0 ? "e" : "w") : dz > 0 ? "s" : "n";
           const fb = alongX ? (dx > 0 ? "w" : "e") : dz > 0 ? "n" : "s";
           lined(a)[fa] = c - ca;

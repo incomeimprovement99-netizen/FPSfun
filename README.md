@@ -76,6 +76,10 @@ Game) or `?game=legacy`, and everything below this section describes it.
 - **Neon Alley:** the street in front of the Spire's north face, dressed at full
   density from the bought kits: neon stacked up the towers, a web of cables,
   lamps, and food stalls on the pavement that are real cover.
+- **The chimneys:** four slots between twin towers, 3 m wide, climbed by wall
+  runs and kicks from wall to wall, ten legs of 5.5 m from the podium to 63 m,
+  turning at each end; windows off the stack into the Sky Lobby and the Sky
+  Park, and back out onto it.
 - **Movement for roofs:** double jump, wall run and kick, slide, and a climb
   that goes up a storey (two with a double jump first). You sprint whenever you
   move forward, at 14 m/s, and a slide speeds you up a little past that and
