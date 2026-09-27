@@ -110,7 +110,7 @@ import { Captions, howFar, whereFrom } from "./game/captions";
 import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
-import { hasClip, loadMannequin, setFigureStyle, setFitDebug, useMannequin, soldierReady } from "./game/mannequin";
+import { figuresSettled, hasClip, loadMannequin, setFigureStyle, setFitDebug, useMannequin, soldierReady } from "./game/mannequin";
 import { loadPaidGuns, paidGunsReady, paidProp } from "./game/paidgun";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
@@ -143,6 +143,8 @@ import emotesCfg from "./config/emotes.json";
 
 // the loading screen listens from here on: before any loader of the page's own has started
 const loadingScreen = new LoadingScreen();
+/** SpeedKills' bought guns have loaded or found their files absent (the intro card waits for it) */
+let paidSettled = false;
 /**
  * The intro card (src/ui/intro.ts): the page opens on it, and it plays again
  * as you drop into a match. `?nointro` turns it off, which is what the
@@ -169,7 +171,10 @@ intro.onWarm = () => {
 };
 // the card is the loading screen: it holds on the rain until the world is in,
 // and draws how much of it is as the line under the name
-intro.ready = () => loadingScreen.loaded;
+// the world in, and SpeedKills' late heavy steps over (the bought guns dressed, the soldier's clips carried over, and the
+// first-person arms built from him, which are asked for twice a second): each was a stall that landed on the card once
+// it had started (intro.json settle)
+intro.ready = () => loadingScreen.loaded && (!IS_SK || (paidSettled && figuresSettled() && (!soldierReady() || viewModel.realArms)));
 intro.progress = () => loadingScreen.fraction;
 
 const DEG = Math.PI / 180;
@@ -1648,6 +1653,7 @@ if (IS_SK) {
 // SpeedKills: the bought guns (paidgun.ts), when their files are here; the guns in hand are built again once they are in
 if (IS_SK)
   void loadPaidGuns().then((ok) => {
+    paidSettled = true;
     if (!ok) return;
     resetGunModels();
     resetFloorGuns();

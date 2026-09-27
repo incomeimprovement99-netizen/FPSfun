@@ -313,6 +313,15 @@ export class Intro {
   private blastSaid = false;
   /** seconds this card has held on the rain waiting for the world to come in */
   waited = 0;
+  /**
+   * On its still, not yet animating, until the page is calm (intro.json settle): when that began, the frame before,
+   * the recent gaps between frames, and how many calm ones in a row
+   */
+  private holding = false;
+  private holdAt = 0;
+  private lastFrame = 0;
+  private gaps: number[] = [];
+  private calm = 0;
   private glyphs: string[][] = [];
   private glyphAt = 0;
   private startedAt = 0;
@@ -329,6 +338,43 @@ export class Intro {
     this.canvas = document.getElementById("intro") as HTMLCanvasElement | null;
     this.ctx = this.canvas?.getContext("2d") ?? null;
     this.say = document.getElementById("introSay");
+  }
+
+  /**
+   * The page is calm enough to animate on (intro.json settle): enough frames in a row each within `under` ms or `spike`
+   * times the recent median, and the world in on the boot card; or it has held as long as it may
+   */
+  private settled(now: number): boolean {
+    const S = INTRO_CFG.settle;
+    const gap = now - this.lastFrame;
+    this.lastFrame = now;
+    this.gaps.push(gap);
+    if (this.gaps.length > 16) this.gaps.shift();
+    const sorted = [...this.gaps].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)] ?? gap;
+    const most = this.kind === "match" ? S.holdMost.match : S.holdMost.boot;
+    if ((now - this.holdAt) / 1000 >= most) return true;
+    const worldIn = this.kind !== "boot" || this.ready === null || this.ready();
+    // counted only once the world is in: the first frames after it (the arms built, their shaders compiled) stalled too
+    this.calm = worldIn && gap <= Math.max(S.under, median * S.spike) ? this.calm + 1 : 0;
+    return this.calm >= S.frames;
+  }
+
+  /** the still the card opens on: its frame, the name faint, the loading line; the rain then falls over it */
+  private drawStill(): void {
+    const c = this.canvas;
+    const ctx = this.ctx;
+    if (!c || !ctx) return;
+    const { width: w, height: h } = c;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, w, h);
+    this.drawFurniture(ctx, w, h, 0);
+    ctx.save();
+    ctx.globalAlpha = INTRO_CFG.settle.stillName;
+    this.drawTitle(ctx, 1, w, h);
+    ctx.restore();
   }
 
   /** someone has asked their machine for less movement */
@@ -358,6 +404,10 @@ export class Intro {
     this.blastSaid = false;
     this.waited = 0;
     this.startedAt = performance.now();
+    this.holding = true;
+    this.holdAt = this.lastFrame = this.startedAt;
+    this.gaps = [];
+    this.calm = 0;
     this.size();
     try {
       this.onWarm?.();
@@ -368,6 +418,13 @@ export class Intro {
     // time it is drawn, which was a frame of its own on the beat the name lands
     this.warmTitle();
     this.canvas.hidden = false;
+    // the still, faded in by the compositor, which keeps going while the page under it is busy loading
+    this.drawStill();
+    this.canvas.style.transition = "none";
+    this.canvas.style.opacity = "0";
+    void this.canvas.getBoundingClientRect();
+    this.canvas.style.transition = `opacity ${INTRO_CFG.settle.fade}s ease-out`;
+    this.canvas.style.opacity = "1";
     // the name, for anyone who is listening rather than looking
     if (this.say)
       this.say.textContent = this.words.over ? `${this.words.over}. ${this.words.mark}: ${this.words.sub}` : `${this.words.mark}: ${this.words.sub}`;
@@ -385,6 +442,7 @@ export class Intro {
   /** hold the card at one moment and draw it there (tools/snap.ts, so a picture is the same picture every time) */
   freeze(seconds: number): void {
     this.frozen = seconds;
+    this.holding = false;
     if (!this.kind) {
       this.kind = "boot";
       this.beats = introBeats("boot");
@@ -410,6 +468,7 @@ export class Intro {
     reduced: boolean;
     shown: boolean;
     waited: number;
+    holding: boolean;
   } {
     return {
       kind: this.kind,
@@ -419,12 +478,14 @@ export class Intro {
       reduced: this.reduced,
       shown: !!this.canvas && !this.canvas.hidden,
       waited: this.waited,
+      holding: this.holding,
     };
   }
 
   private stop(): void {
     this.kind = null;
     this.frozen = null;
+    this.holding = false;
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
     if (this.canvas) this.canvas.hidden = true;
@@ -438,7 +499,9 @@ export class Intro {
   /** the canvas in device pixels, and the rain and the crack laid out for this size */
   private size(): void {
     if (!this.canvas || !this.ctx) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    // at most about intro.json settle pixels: the rain and the name need no more, and a full-screen fill a frame at 2x
+    // was 8.3 million pixels on a 1920 by 1080 screen
+    const dpr = Math.min(2, window.devicePixelRatio || 1, Math.sqrt(INTRO_CFG.settle.pixels / Math.max(1, window.innerWidth * window.innerHeight)));
     const w = Math.max(1, Math.round(window.innerWidth * dpr));
     const h = Math.max(1, Math.round(window.innerHeight * dpr));
     if (this.canvas.width !== w || this.canvas.height !== h) {
@@ -459,6 +522,19 @@ export class Intro {
 
   private frame = (): void => {
     if (!this.kind) return;
+    // on the still until the page is calm: nothing animates, the loading line alone moves
+    if (this.holding && this.frozen === null) {
+      const now = performance.now();
+      if (this.settled(now)) {
+        this.holding = false;
+        this.waited += (now - this.holdAt) / 1000;
+        this.startedAt = now;
+      } else {
+        this.drawStill();
+        this.raf = requestAnimationFrame(this.frame);
+        return;
+      }
+    }
     if (this.frozen === null) {
       this.at = (performance.now() - this.startedAt) / 1000;
       // The card covers loading rather than following it: at the moment of the

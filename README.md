@@ -223,7 +223,8 @@ The plan, the gap analysis against Hyper Scape and every owner decision are in
    as the world comes in. When it is in, a round goes through the middle of the
    screen, a beat of quiet, then one shotgun blast puts its whole pattern
    through the pane at once, and the glass falls away in shards into the game. It plays again, shorter, as you drop into any
-   match. A key or a click takes the rest of it, `?nointro` in the address turns
+   match. Each card fades in on a still and starts moving only once the page
+   under it has stopped stuttering, so the rain runs smooth. A key or a click takes the rest of it, `?nointro` in the address turns
    it off for good, and a machine set to less movement gets a shorter one with
    no shake and no falling glass.
 3. The menu is up, with a short welcome on a first visit (and a warning on a

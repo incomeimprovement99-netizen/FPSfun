@@ -77,6 +77,15 @@ const rawClips: THREE.AnimationClip[] = [];
 export function soldierReady(): boolean {
   return soldierTemplate !== null;
 }
+/** the figures' loading is over, whichever way it went (the body, its clips, the soldier and their retargeting) */
+let figuresDone = false;
+/**
+ * Nothing more is coming for the figures: never asked for, failed, or in, the soldier's clips carried over. The intro
+ * card waits for it (intro.ts): retargeting the soldier's clips is a half-second stall that landed on the card.
+ */
+export function figuresSettled(): boolean {
+  return loading === null || figuresDone;
+}
 /** a figure's look: the one chosen, else one from its operator, so the operators still read as different people */
 function soldierLookFor(skin: OperatorSkin): SoldierLook {
   const chosen = readSoldierCode(skin.soldier);
@@ -660,7 +669,12 @@ export function loadMannequin(): Promise<void> {
 
       template = { scene: main.scene, clips, handAim: hand.matrixWorld.clone(), chestAim: chest.matrixWorld.clone(), shoulderR: new THREE.Vector3().setFromMatrixPosition(shoulder.matrixWorld) };
       // SpeedKills: the bought soldier, when its files are here (they are local only; see soldier.json)
-      if (IS_SK) void loadSoldier().then((a) => (a ? makeSoldierTemplate(main.scene, a.scene) : null));
+      if (IS_SK)
+        void loadSoldier()
+          .then((a) => (a ? makeSoldierTemplate(main.scene, a.scene) : null))
+          .catch(() => null)
+          .finally(() => (figuresDone = true));
+      else figuresDone = true;
     })
     .catch((e) => {
       console.warn("the mannequin did not load; the figures stay robots", e);

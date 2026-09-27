@@ -5243,3 +5243,27 @@ family wearing two to five wall modules, and 1,400 blank panels on the canyon fa
 - **Checked:** `citykit.ts` (the machinery's boxes each dressed and its material theirs alone; every piece measured;
   nothing across a window or a door; the budgets); `sk-roofs` (a bot still up the Spire to its crown), `sk-drop`;
   verify and rules; pictures from the street, the crown and the air.
+
+## Milestone 277 — The loading cards run smooth: they wait on a still until the page is calm
+
+The owner, 2026-09-27: "the loading screens with the matrix lag, can we fix that by like slowly fading in or letting it
+load first? All those matrix screen have lag".
+
+- **Measured first** (`tools/intro-frames.ts`, new: the gaps between the card's frames while it animates, headless on
+  the GPU at the owner's 1920 by 1080):
+  - the boot card froze for 2.9 s, 1.0 s and 0.3 s in its first two seconds (five frames over 100 ms);
+  - the match card froze twice for 0.8 s, which swallowed its title, shot and blast.
+  - The card animates on the page's own thread, so every load step under it (the world, the bought guns dressed, the
+    soldier's clips retargeted, the first-person arms built and their shaders compiled) stopped the rain.
+- **The card opens on a still** (`src/ui/intro.ts`, `intro.json` settle): its frame, the name faint, the loading line,
+  faded in over 0.4 s by the browser's compositor, which keeps going while the page is busy.
+- **It starts only when the page is calm:** 12 frames in a row, each within 40 ms or 2.5 times the recent median (so a
+  slow machine counts as calm and only a stall holds it). On the boot card the count starts only once the world is in,
+  and in SpeedKills also the bought guns (`paidSettled`), the soldier's clips (`mannequin.ts` figuresSettled) and the
+  first-person arms (`viewModel.realArms`; they are asked for twice a second, so they came in up to half a second
+  after the soldier, on the moving card). It never holds past 14 s (boot) or 4 s (match).
+- **Fewer pixels:** the canvas is capped at about 2.2 million (at 2x a 1920 by 1080 screen it filled 8.3 million a
+  frame).
+- **After:** the boot card's longest frame is 25 ms (was 2867 ms). The match card's longest is one of 110 to 125 ms in
+  its fade out, as the match's own first frames show through (was two of 829 ms).
+- **Checked:** the tool before and after, three runs each; the intro and SpeedKills e2e sections; verify; rules.

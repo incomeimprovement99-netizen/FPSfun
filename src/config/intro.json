@@ -51,6 +51,19 @@
     "_note": "The boot card holds on the rain and the name until the world is in, so the animation covers loading instead of following it. `waitMost` is the longest it will hold before it fires anyway, because a card that never ends is worse than a card that fires early.",
     "waitMost": 14
   },
+  "_settle": "The card lets the page load first (the owner, 2026-09-27: \"the loading screens with the matrix lag ... slowly fading in or letting it load first\"). Measured (tools/intro-frames.ts): the boot card froze for 2.9 s, 1.0 s and 0.3 s in its first two seconds while the world loaded under it, and the match card for two 0.8 s spells that swallowed its title, shot and blast, because it animates on the page's own thread. So it opens on a still: its frame, the name faint and the loading line, faded in over `fade` s by the browser's compositor (which keeps going while the page is busy). It starts only when `frames` frames in a row have each come within `under` ms or `spike` times the median of the last few (so a slow machine is calm too, and only a stall holds it), and counted only once the world is in on the boot card (and in SpeedKills the bought guns dressed, the soldier's clips carried over and the first-person arms built, each a stall of 0.3 to 0.5 s that had landed on the card after it began); never later than `holdMost` s (boot, match). `pixels` caps the canvas at about that many pixels (at 2x a 1920 by 1080 screen it filled 8.3 million a frame). After: the boot card's longest frame 25 ms (was 2867 ms, with five over 100 ms), the match card's one of 110 to 125 ms in its fade out as the match's first frames show through (was two of 829 ms).",
+  "settle": {
+    "frames": 12,
+    "under": 40,
+    "spike": 2.5,
+    "holdMost": {
+      "boot": 14,
+      "match": 4
+    },
+    "fade": 0.4,
+    "pixels": 2200000,
+    "stillName": 0.28
+  },
   "blast": {
     "_note": "The shotgun blast that finishes the pane: one flash, one kick, and `pellets` holes through the glass in the same instant, thrown out over `spread` of the screen and never into the middle (`keepOut` of the way out, so the pattern is round the name rather than over it, and the rifle round's own hole stays the one in the centre). Each pellet is a smaller hole than the rifle round's with `rays` short cracks at `reach` of its length, so the first shot stays the break that carries the pane. One blast reads as a shotgun; a string of single rounds read as a strobe, which is what this replaced. `flashAlpha` is how white the blast turns the screen, 0..1, and `flash` how long it lasts, s: 0.375, half of the 0.75 it was.",
     "pellets": 18,
