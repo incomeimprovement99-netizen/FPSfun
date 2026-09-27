@@ -54,21 +54,27 @@ public build, the real-name check), writes `dist/.nojekyll`, and force-pushes
 `dist/` as the `gh-pages` branch. It prints the URL at the end. About a
 minute.
 
-## 2b. The bought assets (the soldier, the guns)
+## 2b. The bought assets (the soldier, the guns, the city)
 
-The owner's Unity Asset Store purchases (the Sci-Fi Modular Soldier, the Sci-Fi Battle Weapons) are licensed to the
-owner, not the public, so they never enter git and never go to Pages:
+The owner's Unity Asset Store purchases (the Sci-Fi Modular Soldier, the Sci-Fi Battle Weapons, and the five city
+packs: Cyber City, its first-person props, Glass, High City and Kyber) are licensed to the owner, not the public, so
+they never enter git and never go to Pages:
 
 - **Where they come from:** Unity keeps each download as a `.unitypackage` under
   `%APPDATA%\Unity\Asset Store-5.x\` (download them in Unity's Package Manager, My Assets).
-- **Making what the game loads:** `npm run paid` (or `PAID_ONLY=soldier` / `PAID_ONLY=weapons npm run paid`)
+- **Making what the game loads:** `npm run paid` (or `PAID_ONLY=soldier`, `weapons` or `city npm run paid`)
   unpacks them into `C:\Users\jwilb\Downloads\speedkills-paid\` and writes `public/models/paid/`, which git
-  ignores; `npm run rules` fails if any of it is ever tracked.
+  ignores; `npm run rules` fails if any of it is ever tracked. The city step takes a few minutes and writes
+  `public/models/paid/city/`, each pack twice: `<pack>-v1.glb` (1024 px maps, 78 MB in all) for Balanced and High,
+  `<pack>-v1-lo.glb` (512 px, 31 MB) for Competitive. It also rewrites the pieces' measurements in
+  `src/config/citykit.json`, which are in git, so commit that file if a re-import changed it.
 - **Shipping them:** `npm run fps deploy` carries `public/models/paid/` to the game server, so **run it from a copy
   that has the files** (run `npm run paid` there, or copy the folder in). `npm run deploy` (Pages) takes them out of
   its build and refuses to push if any are left, so Pages shows the figures and guns of before.
-- **A re-import** is seen at once only if `version` in `src/config/soldier.json` (or `paidweapons.json`) goes up:
-  the server keeps `/models/` for a day.
+- **A re-import** is seen at once only if `version` in `src/config/soldier.json` (or `paidweapons.json`, or
+  `citykit.json`) goes up: the server keeps `/models/` for a day.
+- **A player on a slow line** loads the city packs once the match is up: the city is drawn from its boxes first
+  and the kit arrives over it, so nothing waits on the download.
 
 ## 3. Pages is on (done)
 

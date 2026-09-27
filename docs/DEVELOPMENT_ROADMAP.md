@@ -4679,3 +4679,46 @@ be futuristic."
   whole and drawn, and ZEPHYR, with no feel, never phases. It failed with the USSO's feel taken out. Also verify,
   rules and the pictures. The slot keys read the real keyboard only, so the section's swaps go through the loadout;
   its earlier scripted slot presses never swapped anything.
+
+## Milestone 254 — The city bundle on the centre: the bought kits dress the Spire sector
+
+The owner bought five city packs (Cyber City, its first-person props, Glass, High City and Kyber) and asked for the
+centre "in a much better spot, using the paid assets", a mix of building styles per block, and the kits' look tied to
+the graphics presets. This is steps 1 and 3 to 5 of `docs/CITY_BUNDLE_IMPLEMENTATION.md` section 8 on today's massing;
+the new heights (step 2) and the metro come next.
+
+- **The import** (`tools/import-city.ts`, in `npm run paid`; `PAID_ONLY=city`). Each Unity package is unpacked, its
+  prefabs resolved through their nested models, and each curated piece baked to one mesh in the game's frame: the
+  3ds Max group scale baked in, LOD1 skipped, Unity's left hand turned right. URP and Built-in materials become PBR,
+  HDR emission a strength; TGA, PSD, PNG and TIF maps become WebP at 1024 and 512 px. 431 pieces in five packs, 78 MB
+  at 1024 and 31 MB at 512, all in gitignored `public/models/paid/city/`. Each piece's size, triangles, facing and wall
+  plane are measured into `src/config/citykit.json`, so the placement and the checks never need the files.
+- **The wall plane is measured, not the largest face.** A High City module's largest front area is its pilasters,
+  with the wall and its lit windows 0.4 to 0.7 m behind them; set on the pilasters, the windows sank into the box and
+  the face looked bare. The wall is the deepest plane holding a quarter of the largest area, and a module's relief in
+  front of it is pressed into 0.5 m (`dress.relief`).
+- **The dressing** (`src/game/citydress.ts`). A style per block: Kyber concrete on the four corners, High City
+  brownstone north and south, Cyber City classic windows east and west, Glass on the Spire. Every tower face gets a
+  module per 4 m storey and bay, the ground, middle and top rows each their own; the Sky Lobby's storey stays open.
+  The podiums get 184 shop fronts, signs, blade signs, posters, AC units and neon holders; the roofs their parapets
+  and gear, the ten tallest their antennas; the Spire's tiers carry billboards; cables cross the streets; the 56
+  skyline towers each wear a lit building; two zeppelins cross. About 4,500 pieces, placed off a hash of their
+  position, so the city's one random stream and its layout are untouched.
+- **Looks only; the movement's volumes clear.** The collision is the city's own boxes. A face across a canyon (another
+  tower within 8 m) and a bay over a pad wear Cyber City's flat panels, within 0.15 m of the wall, so no relief sits in
+  a wall run or a pad's climb; nothing that stands out of a wall is in a chimney, a pad's column or across a Sky
+  Lobby's windows.
+- **The presets pick the look** (`quality.ts` cityKit, cityDetail). Competitive loads the 512 px packs and wears the
+  lightest module of each style between ground and roof, and the lighter shop fronts; Balanced the 1024 px packs with
+  signs, AC, roof gear, lamps and posters; High adds pipes, cornices, cables and street props. One instanced mesh per
+  piece mesh, about 400 draws, no shadows cast (the boxes under them cast the city's).
+- **Checked:**
+  - `tools/checks/citykit.ts`, in verify: every piece placed is measured, all 27 centre towers' faces wear their
+    facade, 184 shop fronts, the whole skyline, the flat panels within 0.15 m, the chimneys, pad columns and lobby
+    windows clear, and each preset's triangles inside its budget (506k, 891k and 929k against 560k, 980k and 1,020k).
+  - Over the Spire on the owner's RX 9070 XT, medians with and without the kit: Competitive 8.2 against 7.5 ms,
+    Balanced 7.9 against 6.8, High 14.2 against 12.9.
+  - Pictures at the plan's cameras, before and after (`tools/city-sheet.ts`), and each pack's pieces in the dev kit
+    viewer (`tools/kitview.html`).
+- **Known:** the kit does not fade with a decaying sector yet, and the Sky Lobby's storey keeps its old band until the
+  lobby lining (step 6).

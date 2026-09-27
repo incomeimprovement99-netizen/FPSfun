@@ -92,6 +92,18 @@ Game) or `?game=legacy`, and everything below this section describes it.
   the magazine out and a new one in. The MINE
   hack's mine, death boxes, care packages and the med kit in a HEAL area are
   the pack's too.
+- **The centre, from the bought city kits:** on the game server the Spire
+  sector (the middle 200 m) wears the five city packs the owner bought. Each
+  block has its own style: Kyber's concrete on the corners, High City's
+  brownstone north and south, Cyber City's classic windows east and west, Glass
+  on the Spire. Every storey and bay has its module, the podiums have shop
+  fronts, signs, blade signs and billboards, the roofs their gear, cables cross
+  the streets, and the skyline past the edge is lit windows. It is looks only:
+  you run, climb and collide with the city's own boxes, as tuned, and a face you
+  wall run along or climb past a pad wears a flat panel. The graphics preset
+  picks the texture size and how much is drawn (Competitive the lightest modules
+  at half size; High adds pipes, cornices and street props). A copy without the
+  files, and Pages, shows the city of before.
 - **Ten guns**, five named for the owner's friends; BOOG, the sniper, kills
   with one headshot. Ammo is infinite; the magazine is not.
 - **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to
@@ -966,6 +978,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run check` | typecheck only |
 | `npm run assets` | fetch the CC0 textures into `public/tex` (as WebP) |
 | `npm run models` | fetch the CC0 props into `public/models` (their maps as WebP) |
+| `npm run paid` | the owner's bought Unity packages (soldier, guns, city kits) into `public/models/paid`, never in git; `PAID_ONLY=soldier`, `weapons` or `city` does one. See the deploy guide |
 | `npm run sounds` | fetch Kenney's CC0 recorded sounds and the metal and gravel footsteps into `public/audio/kenney`, and the drop theme into `public/audio/music` |
 | `npm run guns` | fetch The Free Firearm Sound Library (CC0) and write recorded gunshots per class into `public/audio/guns` |
 | `npm run fonts` | fetch the HUD's two faces from Google Fonts and self-host them into `public/fonts` (SIL OFL 1.1, latin only, 110 KB). The game makes no third-party font request and works offline. |
@@ -1063,6 +1076,15 @@ and from 96, 156 and 85 to 213, 208 and 102 over the Spire; the legacy match
 went from 250, 196 and 110 to 345, 312 and 149, its Balanced draw calls halved.
 `tools/checks/city-budget.ts` holds the city's meshes and triangles, and the
 e2e holds that no material in a match is the rebuilding kind.
+
+**The bought city kits cost a frame or less.** On the game server the centre
+wears about 4,500 pieces from the owner's city packs (`src/game/citydress.ts`
+places them, `citykit.ts` draws them), one instanced mesh per piece's mesh, so
+the whole kit is about 400 draws. Their triangles are counted per preset off
+the measured pieces (`tools/checks/citykit.ts`, in verify, so it holds on a
+machine without the files): 506k on Competitive, which wears the lightest
+module of each style, 891k on Balanced, 929k on High. Over the Spire on the
+owner's RX 9070 XT that is 0.7 to 1.3 ms a frame (medians, with and without it).
 
 **The field is rock, scrub and cliff, not boxes.** The battle royale's cover
 is scanned rock (Poly Haven, CC0), its open ground has dead trees and branches

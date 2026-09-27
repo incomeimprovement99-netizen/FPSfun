@@ -360,6 +360,8 @@ Each shipped step is a roadmap Milestone with a diary entry, released with the b
 
 ## 9. Decisions for the owner
 
+**Decided 27 September 2026:** a mix of styles per block, using every pack (built as 4.3's grid, Milestone 254); a metro under the centre's streets, a decent size but only the centre; and no separate minimum PC: the graphics presets are the tiers, each with its own texture size, detail and triangle budget (`citykit.json` budget).
+
 1. **The family mix** (4.3). The proposal alternates High and Kyber round a Glass Spire, with Cyber City at every
    street. Swap any block.
 2. **The metro** (Kyber's 150 m tunnel set). An optional level **below** the street under the S block: a fast,
