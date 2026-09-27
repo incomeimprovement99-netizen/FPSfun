@@ -35,6 +35,9 @@ import figureCfg from "../config/figure.json";
 import finCfg from "../config/finisher.json";
 import type { FigurePose } from "./dummy";
 import type { EmotePose } from "./emotes";
+import { IS_SK } from "./game";
+import { loadSoldier, lookOf, readSoldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
+import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
 
 export type FigureStyle = "robot" | "mannequin";
 let style: FigureStyle = "robot";
@@ -60,6 +63,30 @@ interface Template {
 }
 let template: Template | null = null;
 let loading: Promise<void> | null = null;
+/**
+ * SpeedKills' soldier (soldier.ts), once its files and its clips are in: the game's clips carried over to its rig
+ * (retarget.ts), and its hand and chest sampled in the aim pose on it. Figures made before it is ready are the
+ * figures of before, and keep their own template, so no figure ever plays another rig's clips.
+ */
+let soldierTemplate: Template | null = null;
+let soldierMap: Retargeter | null = null;
+/** the clips as they came, kept so the soldier's are made from all of them whenever it arrives */
+const rawClips: THREE.AnimationClip[] = [];
+/** the soldier is what new figures are (SpeedKills with its files here) */
+export function soldierReady(): boolean {
+  return soldierTemplate !== null;
+}
+/** a figure's look: the one chosen, else one from its operator, so the operators still read as different people */
+function soldierLookFor(skin: OperatorSkin): SoldierLook {
+  const chosen = readSoldierCode(skin.soldier);
+  if (chosen) return chosen;
+  let h = 0;
+  for (const c of skin.id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const l = lookOf(SOLDIER_VARIANTS[h % SOLDIER_VARIANTS.length]);
+  l.skin = h % 6;
+  l.eyes = 1 + (h % 5);
+  return l;
+}
 
 /**
  * The garment PARTS: a body, arms, legs, feet, a hood, a shoulder guard, each
@@ -581,6 +608,7 @@ export function loadMannequin(): Promise<void> {
     .then(([main, more]) => {
       const clips = new Map<string, THREE.AnimationClip>();
       addClips(clips, [...main.animations, ...more.animations]);
+      rawClips.push(...main.animations, ...more.animations);
       // The clips a figure only plays now and then (a slide's way in and out,
       // a throw, a revive, an emote) come after it is up, so they never hold a
       // page up; until they are in, whatever would play them plays what it
@@ -588,7 +616,11 @@ export function loadMannequin(): Promise<void> {
       for (const extra of ["models/mannequin/mannequin-extra-1.glb", "models/mannequin/mannequin-extra-2.glb"])
         void loader
           .loadAsync(extra)
-          .then((g) => addClips(clips, g.animations))
+          .then((g) => {
+            addClips(clips, g.animations);
+            rawClips.push(...g.animations);
+            if (soldierTemplate && soldierMap) addClips(soldierTemplate.clips, g.animations.map((c) => retargetClip(soldierMap!, c)));
+          })
           .catch(() => null);
       // the right hand in the aim pose: sample the clip onto a copy once
       const probe = cloneSkinned(main.scene);
@@ -626,12 +658,47 @@ export function loadMannequin(): Promise<void> {
         .catch(() => null);
 
       template = { scene: main.scene, clips, handAim: hand.matrixWorld.clone(), chestAim: chest.matrixWorld.clone(), shoulderR: new THREE.Vector3().setFromMatrixPosition(shoulder.matrixWorld) };
+      // SpeedKills: the bought soldier, when its files are here (they are local only; see soldier.json)
+      if (IS_SK) void loadSoldier().then((a) => (a ? makeSoldierTemplate(main.scene, a.scene) : null));
     })
     .catch((e) => {
       console.warn("the mannequin did not load; the figures stay robots", e);
       loading = null;
     });
   return loading;
+}
+
+/**
+ * The soldier's template: every clip carried over to its rig, a few a tick so the page does not stall while a
+ * hundred clips are resampled, then its hand, chest and shoulder sampled in the aim pose, as the body's are.
+ */
+async function makeSoldierTemplate(clipRig: THREE.Object3D, soldier: THREE.Object3D): Promise<void> {
+  const r = retargeter(rigOf(clipRig), rigOf(soldier));
+  const clips = new Map<string, THREE.AnimationClip>();
+  const todo = rawClips.slice();
+  for (let i = 0; i < todo.length; i += 6) {
+    addClips(clips, todo.slice(i, i + 6).map((c) => retargetClip(r, c)));
+    await new Promise((ok) => setTimeout(ok, 0));
+  }
+  // extras that came in while this ran
+  for (const c of rawClips.slice(todo.length)) addClips(clips, [retargetClip(r, c)]);
+  const probe = soldierScene(lookOf("VANGUARD"));
+  if (!probe) return;
+  const p = cloneSkinned(probe);
+  const mixer = new THREE.AnimationMixer(p);
+  const aim = clips.get("full:Pistol_Aim_Neutral");
+  if (!aim) return;
+  mixer.clipAction(aim).play();
+  mixer.update(0);
+  p.updateMatrixWorld(true);
+  soldierMap = r;
+  soldierTemplate = {
+    scene: probe,
+    clips,
+    handAim: p.getObjectByName("hand_r")!.matrixWorld.clone(),
+    chestAim: p.getObjectByName("spine_03")!.matrixWorld.clone(),
+    shoulderR: new THREE.Vector3().setFromMatrixPosition(p.getObjectByName("upperarm_r")!.matrixWorld),
+  };
 }
 
 const DEG = Math.PI / 180;
@@ -777,13 +844,19 @@ export class MannequinFigure {
   /** the gun is in the hand and showing this frame */
   gunInHand = false;
 
+  /** the template this figure was made from, and plays the clips of, for its whole life */
+  private tpl: Template;
+  /** SpeedKills' soldier: this figure's look, or null for the figures of before */
+  readonly soldier: SoldierLook | null;
+
   constructor(skin: OperatorSkin, gunId: string | null) {
-    const t = template!;
+    this.soldier = soldierTemplate ? soldierLookFor(skin) : null;
+    const t = (this.tpl = this.soldier ? soldierTemplate! : template!);
     // the body this outfit's clothes were cut for, if it is here; the one the
     // template holds otherwise, and the next figure gets it right
     const want = bodyOf(skin.outfit, skin.body);
-    const body = bodyFor(want, skin.build ?? "regular");
-    if (!body) void loadBody(want);
+    const body = this.soldier ? soldierScene(this.soldier) : bodyFor(want, skin.build ?? "regular");
+    if (!body && !this.soldier) void loadBody(want);
     this.root = cloneSkinned(body ?? t.scene);
     this.root.name = "mannequin";
     this.mixer = new THREE.AnimationMixer(this.root);
@@ -800,8 +873,12 @@ export class MannequinFigure {
         // operator with a near-black shell got a black, glossy face that
         // followed the contour of the head, one figure in every lineup.
         const src = m.material as THREE.MeshStandardMaterial;
-        const mat = src.clone();
-        if (!src.map) {
+        // the soldier's are its own, rebuilt with this figure's colours (soldier.ts); none of the rules below apply
+        const slot = m.userData.soldierMaterial as string | undefined;
+        const mat = this.soldier && slot ? soldierMaterial(slot, this.soldier) : src.clone();
+        if (this.soldier && slot) {
+          // (nothing: the soldier's material is complete as it is)
+        } else if (!src.map) {
           if (src.name === "M_Joints") {
             mat.color.setHex(skin.accent);
             this.joints = mat;
@@ -822,7 +899,8 @@ export class MannequinFigure {
         m.userData.ownMaterial = mat;
       }
     });
-    this.wearGear(skin);
+    // the soldier wears its own pieces, nothing of the figures' wardrobe
+    if (!this.soldier) this.wearGear(skin);
     if (gunId) this.setGun(gunId);
   }
 
@@ -1008,12 +1086,12 @@ export class MannequinFigure {
       // front is the gun's own business: a carbine needs less room behind the
       // grip than a sniper with a full stock, and a gun given the carbine's
       // room has its stock through the chest (src/game/hold.ts).
-      const sh = template.shoulderR;
+      const sh = this.tpl.shoulderR;
       this.rear = rearOfGrip(gun, m.grip.f);
       const at = gripAt({ x: sh.x, y: sh.y, z: sh.z }, this.rear);
       const gripAtV = new THREE.Vector3(at.x, at.y, at.z);
       const inFigure = new THREE.Matrix4().compose(gripAtV, new THREE.Quaternion().setFromAxisAngle(Y, Math.PI), new THREE.Vector3(1, 1, 1));
-      this.mountBase.copy(template.chestAim).invert().multiply(inFigure);
+      this.mountBase.copy(this.tpl.chestAim).invert().multiply(inFigure);
       const mount = new THREE.Object3D();
       mount.name = "gunMount";
       this.mountBase.decompose(mount.position, mount.quaternion, mount.scale);
@@ -1027,9 +1105,9 @@ export class MannequinFigure {
     }
     // where the gun sits in the figure's frame in the aim pose: its grip in the
     // hand (a little into the palm), the muzzle forward
-    const grip = new THREE.Vector3().setFromMatrixPosition(template.handAim).add(new THREE.Vector3(0.02, -0.02, 0.06));
+    const grip = new THREE.Vector3().setFromMatrixPosition(this.tpl.handAim).add(new THREE.Vector3(0.02, -0.02, 0.06));
     const inFigure = new THREE.Matrix4().compose(grip.clone().sub(new THREE.Vector3(0, m.grip.u, m.grip.f)), new THREE.Quaternion().setFromAxisAngle(Y, Math.PI), new THREE.Vector3(1, 1, 1));
-    const local = new THREE.Matrix4().copy(template.handAim).invert().multiply(inFigure);
+    const local = new THREE.Matrix4().copy(this.tpl.handAim).invert().multiply(inFigure);
     local.decompose(gun.position, gun.quaternion, gun.scale);
     gun.visible = this.gunShown && !this.dead;
     hand.add(gun);
@@ -1188,7 +1266,7 @@ export class MannequinFigure {
 
   private play(layer: "lower" | "upper", name: string, timeScale: number, fade = 0.18, once = false, source: "lower" | "upper" | "full" = layer): void {
     const key = `${source}:${name}`;
-    const clip = template?.clips.get(key) ?? template?.clips.get(`${layer}:Idle_Loop`);
+    const clip = this.tpl.clips.get(key) ?? this.tpl.clips.get(`${layer}:Idle_Loop`);
     if (!clip) return;
     if ((layer === "lower" ? this.lowerName : this.upperName) === key) {
       const cur = layer === "lower" ? this.lower : this.upper;

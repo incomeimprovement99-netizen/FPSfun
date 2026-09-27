@@ -1,0 +1,167 @@
+{
+  "_note": "The bought soldier (Sci-Fi Modular Soldier by AC Game Assets; Phase 21, docs/OVERNIGHT_BRIEF_SOLDIER_AND_VERTICAL_CENTRE.md section 3): SpeedKills' only player character when its files are here (npm run paid makes them, locally; they never enter git), the figures of before when they are not. src/game/soldier.ts loads it and builds its materials; src/game/retarget.ts carries the game's clips over to its rig. version is added to every paid file's address, since the game server keeps /models/ for a day and a re-import would otherwise be a day late.",
+  "model": "models/paid/soldier/soldier.glb",
+  "textures": "models/paid/soldier/tex/",
+  "version": 1,
+  "_rename": "Its head bone is named head; the game's figures and clips name it Head, and code looks it up by that name (mannequin.ts, outfit.ts, gear.ts, the e2e), so it is renamed as it loads.",
+  "rename": {
+    "from": "head",
+    "to": "Head"
+  },
+  "_measured": "Off soldier.glb at rest by tools/checks/soldier.ts, which fails if the model and these differ: the height from the feet to the top of the head, the pelvis bone's height, the distance between the two upperarm bones, and the ball of the foot's height.",
+  "measured": {
+    "height": 1.845,
+    "pelvis": 0.959,
+    "shoulders": 0.494,
+    "ballHeight": 0.053
+  },
+  "_parts": "The model's 18 pieces (triangles), each a skinned mesh on the one skeleton, and the material slot each uses.",
+  "parts": {
+    "body": "M_body",
+    "head_eyes": "M_head",
+    "armor_body": "M_armor",
+    "misc": "M_body",
+    "armor_knees": "M_body",
+    "armor_shoulder_l": "M_armor",
+    "armor_shoulder_r": "M_armor",
+    "hat": "M_armor",
+    "bagL0": "M_armor",
+    "bagR0": "M_armor",
+    "bagL1": "M_armor",
+    "bagL2": "M_armor",
+    "bagL3": "M_armor",
+    "bagL4": "M_armor",
+    "bagR1": "M_armor",
+    "bagR2": "M_armor",
+    "bagR3": "M_armor",
+    "bagR4": "M_armor"
+  },
+  "_scale": "The hit boxes are fixed numbers built for a 1.829 m figure (dummy.ts, H); the soldier stands 1.845 m (measured above), so it is drawn at 1.829 / 1.845, and a headshot lands on its head without moving any hit box.",
+  "scale": 0.9913,
+  "_tint": "How the pack colours it, rebuilt (its Shader Graphs multiply the base colour by a tint wherever a mask is white): the armour by the armour colour (mask R) and the accent (the helmet mask, G); the suit by the suit colour; the head by the skin tone. Colours are sRGB hex; the pack's defaults are the first of each list, converted from its linear values.",
+  "palettes": {
+    "armor": [
+      "#e3edf5",
+      "#666666",
+      "#e6cc78",
+      "#7fd6ff",
+      "#ff5fa2",
+      "#9dff7a",
+      "#b08cff",
+      "#ff9b3d"
+    ],
+    "accent": [
+      "#618fcf",
+      "#cf0040",
+      "#b81700",
+      "#00e5ff",
+      "#ff2e9a",
+      "#c6ff00",
+      "#ffd400",
+      "#ffffff"
+    ],
+    "suit": [
+      "#e3edf5",
+      "#3a3f4a",
+      "#e6cc78",
+      "#2b4a6f",
+      "#4d2a5c",
+      "#2f4f3a",
+      "#7a2f2f",
+      "#9aa3ad"
+    ],
+    "skin": [
+      "#fff8f2",
+      "#f2d6c4",
+      "#d9b096",
+      "#b8876b",
+      "#9e8a80",
+      "#6b4a3a"
+    ],
+    "eyes": 5
+  },
+  "_variants": "The four the player picks from (the owner: 4 variants, allowing us to change certain things), each a set of the model's pieces and default colours (indexes into the palettes). hide lists the pieces a variant leaves off. The toggles the player has on top of a variant are the helmet, the shoulder plates and the pouches.",
+  "variants": {
+    "VANGUARD": {
+      "hide": [],
+      "armor": 0,
+      "accent": 0,
+      "suit": 0,
+      "reads": "the full kit"
+    },
+    "BREACHER": {
+      "hide": [
+        "bagL1",
+        "bagL2",
+        "bagL3",
+        "bagL4",
+        "bagR1",
+        "bagR2",
+        "bagR3",
+        "bagR4"
+      ],
+      "armor": 1,
+      "accent": 1,
+      "suit": 1,
+      "reads": "heavy, a clean silhouette"
+    },
+    "RECON": {
+      "hide": [
+        "hat",
+        "armor_shoulder_l",
+        "armor_shoulder_r",
+        "bagL3",
+        "bagL4",
+        "bagR3",
+        "bagR4"
+      ],
+      "armor": 2,
+      "accent": 2,
+      "suit": 2,
+      "reads": "light, the face showing"
+    },
+    "RUNNER": {
+      "hide": [
+        "armor_body",
+        "hat",
+        "armor_shoulder_l",
+        "armor_shoulder_r",
+        "bagL0",
+        "bagL1",
+        "bagL2",
+        "bagL3",
+        "bagL4",
+        "bagR0",
+        "bagR1",
+        "bagR2",
+        "bagR3",
+        "bagR4"
+      ],
+      "armor": 3,
+      "accent": 4,
+      "suit": 3,
+      "reads": "fast and lean"
+    }
+  },
+  "toggles": {
+    "helmet": [
+      "hat"
+    ],
+    "shoulders": [
+      "armor_shoulder_l",
+      "armor_shoulder_r"
+    ],
+    "pouches": [
+      "bagL0",
+      "bagL1",
+      "bagL2",
+      "bagL3",
+      "bagL4",
+      "bagR0",
+      "bagR1",
+      "bagR2",
+      "bagR3",
+      "bagR4"
+    ]
+  }
+}

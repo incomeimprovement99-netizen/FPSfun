@@ -106,7 +106,7 @@ import { Captions, howFar, whereFrom } from "./game/captions";
 import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
-import { hasClip, loadMannequin, setFigureStyle, setFitDebug, useMannequin } from "./game/mannequin";
+import { hasClip, loadMannequin, setFigureStyle, setFitDebug, useMannequin, soldierReady } from "./game/mannequin";
 import { dressKit } from "./game/kitdress";
 import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
@@ -7922,6 +7922,8 @@ initWelcome();
    * figure's own rest facing is the player's, which is why 180 is its BACK,
    * and why every wardrobe shot was of backs until somebody looked).
    */
+  /** SpeedKills' soldier (soldier.ts): whether new figures are it (its files here and its clips carried over) */
+  soldierReady: () => soldierReady(),
   figureLab: (poses: Array<FigurePose & { dead?: boolean; weapon?: string; look?: string }> = [], dist = 4, turnDeg = 0) => {
     for (const lf of labFigs) lf.f.dispose();
     labFigs.length = 0;
@@ -7933,7 +7935,9 @@ initWelcome();
       // `look` dresses the figure in something other than its operator's own
       // set, which is how the wardrobe snapshot shows all ten of them
       const op = OPERATORS[i % OPERATORS.length];
-      const f = new Dummy(0, 0, 0, { armed: p.weapon ?? "rspn101", respawn: false, rig: true, noBase: true, skin: p.look ? operatorWearing(op.id, p.look) : op });
+      // a look that is a soldier's code (soldier.ts) puts that soldier on it, in SpeedKills
+      const skin = p.look && /^S\d{7}$/.test(p.look) ? { ...op, soldier: p.look } : p.look ? operatorWearing(op.id, p.look) : op;
+      const f = new Dummy(0, 0, 0, { armed: p.weapon ?? "rspn101", respawn: false, rig: true, noBase: true, skin });
       f.group.position.set(player.pos.x + fx * dist + fz * side, player.pos.y, player.pos.z + fz * dist - fx * side);
       f.group.rotation.y = yawR + turnDeg * DEG;
       scene.add(f.group);

@@ -36,6 +36,8 @@ export interface OperatorSkin {
   face?: FacePiece[];
   /** which of the two bodies, when a player picked one; the outfit's own otherwise */
   body?: string;
+  /** SpeedKills: the soldier's look (soldier.ts soldierCode), when one was chosen; a figure without one takes its operator's */
+  soldier?: string;
   extras: {
     crest?: boolean;
     antenna?: boolean;
