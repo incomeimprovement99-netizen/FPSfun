@@ -459,9 +459,177 @@ way the owner can play the distances in the morning. The courses are code, not a
 
 **Put the PC's sleep setting back:** `powercfg /change standby-timeout-ac 300`.
 
-## 6. The figure system map (from apex-range-4b's reader)
+## 6. The figure system map (from apex-range-4b's reader, 2026-09-27)
 
-*(Appended below when it arrived. If this section is empty, map it yourself first, as S2 says.)*
+A read-only reader mapped the figure code in this worktree. Line numbers are as of `f20e955`. **Its traps change
+parts of section 3; where they disagree, this section wins.**
+
+### 6.1 How a figure is built
+
+- **Every moving figure is a `Dummy`** (`src/game/dummy.ts`), built with `{ rig: true, skin }`:
+  - bots: `bots.ts:766`
+  - remote players: `duel.ts:984-1008`
+  - you in third person: `main.ts:5906`
+  - the loadout preview: `main.ts:1763`
+  - killcam ghosts: `killcam.ts:211`
+  - the test lineup `figureLab`: `main.ts:7903`
+
+  The Dummy builds the code robot first, then, if `useMannequin()`, a `MannequinFigure`, and hides the robot's
+  pelvis (`dummy.ts:716-720`). **A figure made before the models load stays a robot**; only the preview rebuilds.
+- **`src/game/mannequin.ts` is the whole pipeline** (there is no figure.ts).
+  - `loadMannequin()` (`:567-635`) loads the clip files and samples `Pistol_Aim_Neutral` to store the aim sockets
+    `template.handAim` (`hand_r`), `chestAim` (`spine_03`) and `shoulderR` (`upperarm_r`). It then swaps in the
+    default body `models/body/Superhero_Male_FullBody.gltf`.
+  - `bodyFor()` reshapes the body's geometry (torso and arms, from `outfits.json fit`).
+  - `MannequinFigure` (`:702`, constructor `:780-827`) clones with `SkeletonUtils.clone`, names the root
+    `"mannequin"`, collects bones by name and clones every material, with rules keyed **by material name**:
+    - no `map` means it is painted the operator's shell colour;
+    - `MI_Hair*` gets the hair tint;
+    - `MI_Superhero*` with vertex colours is the body.
+  - `wearParts` (`:845-875`) re-binds each garment to the figure's bones by name, and **silently skips a garment if
+    any bone name is missing**.
+- **Kits and dressing are not figure code.** `kitdress.ts`, `dress.ts`, `heirlooms.ts`, `tools/checks/dress.ts` and
+  `tools/checks/hitcheck.ts` are not about figures.
+- **Config:**
+  - `src/config/outfits.json`: fit, builds, bodies, pieces, head, and 16 `sets` with parts, tint, hair and hair
+    colour;
+  - `src/config/figure.json`: the gun hold, used by `src/game/hold.ts`.
+
+### 6.2 Animation
+
+- **Clips:** Quaternius UAL1 and UAL2, trimmed into `public/models/mannequin/mannequin.glb`, `mannequin-more.glb`,
+  `-extra-1` and `-extra-2`. The list is in `tools/fetch-clips.ts:33-55`. **Every clip has translation, rotation and
+  scale tracks on all 65 bones**, including `root`.
+- **Layers:** `addClips` (`:508-516`) splits each clip into `lower:` (`/^(root|pelvis|thigh_|calf_|foot_|ball_)/`),
+  `upper:` and `full:`. The state machine is `update()` (`:1227-1489`).
+  - **Legs:**
+    - Idle, then Walk above 0.3 m/s, Jog above 2.6 and Sprint above 6.2;
+    - crouch; Slide_Start, Slide_Loop and Slide_Exit;
+    - in the air, Jump_Loop, or NinjaJump above `figure.json athleticJump` 7.2 m/s;
+    - climb and mantle, ClimbUp_1m; the zipline; downed; landing; revive; emotes; finishers.
+  - **Upper body:** Pistol_Aim_Neutral, Pistol_Reload, the lowered Pistol_Idle_Loop when sprinting or swapping,
+    heal, hits, throws, melee.
+  - **Death:** Death01 at 1.6x.
+- **Code on top of the clips:**
+  - `EDITED` bones are restored each frame (`:720-733`, the spin fix);
+  - `turnBone` (`:645`) does the strafe yaw, look pitch and lean;
+  - **two-bone IK** puts the hands on the gun (`reach`, `:1108-1136`), with elbow poles tuned by eye on the
+    Quaternius figure.
+- **Guns:**
+  - a pistol goes on `hand_r`, with the offset `(0.02,-0.02,0.06)`;
+  - a long gun goes on a `"gunMount"` object on `spine_03`, at `gripAt(template.shoulderR, ...)` from `hold.ts`;
+  - `holdGaps()` feeds the e2e hold test.
+- **No retargeting exists anywhere.** The code relies on the body sharing the clips' rig.
+
+### 6.3 The look: choosing, saving, sending, bots
+
+- **Operators and looks:**
+  - `OperatorSkin` and the 6 `OPERATORS` are in `src/game/operators.ts`;
+  - `lookCode()` / `readLook()` (`src/game/outfit.ts:89-107`) produce `"outfit|build|face[|body]"`.
+- **Loadouts:** `src/game/loadouts.ts` holds `outfit/build/body/face`. Its storage key is `"range.loadouts.sk.v1"`
+  in SpeedKills, and `valid()` accepts only real-cloth outfits.
+- **Menu:** `src/ui/menu.ts:468-526` (operator and outfit cards, `#opBody`, `#opBuild`, `#opFace`; HTML at
+  `index.html:451-469`). `main.ts:5390 applyLoadout` calls `viewModel.setLook(...)`.
+- **Network:** `op` and `lk` in the state message (`src/net/link.ts:53-56`, `src/net/state.ts:72-73`, codec around
+  `:185, :214, :513`). The look is sent from `duel.ts:1998` and received at `duel.ts:1422` (`setAvatarLook`, then
+  `makeAvatar`, cached by `${weapon}|${op}|${look}`).
+  - **`LOOK_MAX = 48` truncates today's longest look code.** Use short ids for the soldier's choice.
+  - Older builds still clip at 48, so the mixed e2e section will notice.
+- **Bots:** bots take `OPERATORS[(index+1)%6]` and never send a look (`bots.ts:766-780`); hosts send `op` only.
+  Killcam ghosts ignore the look.
+- **No figure or outfit field exists in either game profile.** `IS_SK` touches figures only for the loadout key, the
+  enemy outline and a few hit details.
+
+### 6.4 First-person arms
+
+- **The rig:** `buildArmRig` (`mannequin.ts:1598-1674`) cuts the forearms and hands out of the body mesh.
+  - It **keeps only meshes whose material name starts with `MI_Superhero`** and hides the rest.
+  - It takes the finger poses from Quaternius clips.
+- **The trap:** with the soldier, every mesh would be hidden but `FpArms.ready` would still be true. **The drawn
+  gloves vanish and first person has no hands.**
+- **Measuring:** `FpArms.measure()` (`fparms.ts:122-144`) needs `upperarm_*`, `lowerarm_*`, `hand_*`,
+  `index_01_*`, `pinky_01_*` and `middle_01_*`. The soldier has them. Axes come from child offsets, so bone
+  orientation does not matter there.
+- **Decide S5's first-person question here:**
+  - either filter the soldier's `body` mesh (M_body), which should include the gloved hands (check visually);
+  - or keep the drawn gloves (`arms.ts`) tinted to the suit colour.
+
+### 6.5 Tests, and where they would lie
+
+- **`tools/checks/body.ts`** measures `public/models/mannequin/mannequin.glb`, hard-coded at `:37`, and assumes
+  **bones point along +Y**. It would keep passing while measuring the wrong model. Point a new measurement at the
+  soldier (S2); do not break the old one.
+- **Other checks:**
+  - `tools/checks/outfit.ts`, `gear.ts` (a hard-coded bone list with `"Head"`), `hold.ts`, `figlod.ts`,
+    `emotes.ts`, `finisher.ts`;
+  - `net-delta.ts:1107-1119`, the `lk` codec;
+  - `verify.ts:409-415`, which pins the robot's hit-box neck.
+- **`npm run fit`** (`tools/snap.ts`, `MAGENTA_MAX`) only paints `MI_Superhero` undersuit skin. **On the soldier it
+  would show 0 magenta and pass without testing anything.** Give the soldier its own clipping test (S8).
+- **e2e:**
+  - `:1215-1233`: bots have a `"mannequin"`, `thigh_l` moves, the rifle's parent is `"gunMount"`,
+    `gripReach > 0.5`;
+  - `:2154-2176`: `figureWear` must count 4 or more `wear:*` meshes including `Peasant_Body`;
+  - `:2452-2486`: the spin check reads `"Head"`;
+  - `:5865-5926`: `holdTest` on 8 guns;
+  - `:6405-6413`: `realArms()` is true, and the extra clips load in 10 s.
+- **`tools/release-gate.ts`** runs verify and rules only.
+- **`tools/rules-check.ts`** only greps text files for real names. It has **no paid-file guard yet**.
+
+### 6.6 Serving
+
+- **`tools/deploy-server.ts`** snapshots `git archive HEAD` **plus every gitignored file under `public/`**
+  (`:99-111`), so the paid files do reach the server. Good.
+- **The server caches `/models/` for 24 hours** (`serve.mjs:339-347`, `max-age=86400`). **Put a version in the
+  soldier's file names** (for example `soldier-v1.glb`), or a re-import leaves players on the old model for a day.
+- **`tools/deploy-pages.ts` pushes the whole `dist/` to the public `gh-pages` branch, with no paid-file exclusion.**
+  S1 must add it, or not run Pages at all.
+
+### 6.7 The traps, and what to do about each
+
+1. **`Head` against `head`.** The Quaternius rig's head bone is `"Head"`; the soldier's is `"head"`.
+   - Hard-coded `"Head"` appears at `mannequin.ts:721, :931, :1420, :1427, :1442-1444`,
+     `outfit.ts:44, :532, :540` and `gear.ts:28`.
+   - Clip tracks `Head.*` will not bind.
+   - The e2e spin check hangs if `getObjectByName("Head")` is undefined (it throws inside a `setInterval`).
+   - Fix: look the head up case-insensitively, or rename the soldier's bone to `Head` in the import. **The
+     import-time rename is the smaller change.**
+2. **A different rest pose and different bone axes, so a retarget is required, not optional.**
+   - Quaternius is a T-pose with bones along +Y (`lowerarm_l` t = (0, 0.251, 0)).
+   - The soldier is an A-pose with Unreal-style bones along +X (`lowerarm_l` t = (0.262, 0, 0)).
+   - Retarget every clip once, at load or at import:
+     - `SkeletonUtils.retargetClip`, or a world-space rotation-offset retarget per bone;
+     - keep only the pelvis translation, scaled by leg length (the proportions differ: shoulders 0.494 against
+       0.424 m, calf 0.391 against 0.459 m);
+     - cache the result.
+   - **Resample the aim sockets from the retargeted Pistol_Aim_Neutral on the soldier**, or every gun sits wrong.
+   - Re-tune the hand-picked numbers against the soldier, in config, from screenshots: the pistol offset, the elbow
+     poles and the downed -0.15.
+3. **Bone sets differ.**
+   - The soldier has no `root` joint, no `*_leaf_*`, and extra `*_twist_01_*` and `ik_*` bones.
+   - Garments would be skipped, which is fine, since the soldier wears no Quaternius garments.
+   - **Do not use `ik_hand_gun` as a socket**: it is not under `hand_r` and nothing animates it.
+   - The twist bones get no roll from the IK, so watch for candy-wrapped forearms in the contact sheet.
+4. **Materials are routed by name** (`MI_Superhero`, `MI_Hair`, `M_Joints`, no map means shell colour).
+   - The soldier's materials must be set before the constructor's rules run, or be excluded from them. Otherwise it
+     is painted flat in the operator's colour.
+   - **`hat`, `body` and `head_eyes` carry COLOR_0**, which GLTFLoader turns into a vertex-colour multiply. Turn
+     `vertexColors` off on the soldier's materials unless the colours are wanted (check what they hold first).
+5. **The hit boxes are fixed numbers, not taken from bones** (`dummy.ts:428-459`: H 1.829 m, head sphere r 0.13 at
+   1.679 m, arm boxes x ±0.33). The soldier is 1.84 m, 1.85 m with the helmet, and its shoulder plates reach x ±0.39.
+   - The simplest honest fix is to scale the soldier to the hit-box figure's height (a config number with both
+     measurements beside it).
+   - Then check with a screenshot test that a headshot lands on the helmet.
+6. **Performance.** About 36k tris against about 13.7k today; 18 meshes; 19 primitives; 18 skeletons per clone;
+   19 shadow casters; 19 outline hulls.
+   - Merge by material into one skinned mesh per material on one shared skeleton, **after baking the `hat` and
+     shoulder nodes' own transforms**.
+   - Measure draw calls and frame time with 30 figures.
+   - Add a LOD through `figlod.ts` / `lod.json`.
+7. **Loading is asynchronous.** e2e expects mannequins about 800 ms into a fight. Keep the root name `"mannequin"`
+   and the mount `"gunMount"` (e2e looks for them), or update e2e in the same change.
+8. **Paid files and tests.** verify and e2e must pass in a worktree with no `public/models/paid`. Test that once by
+   moving the folder away.
 
 ## 7. Empulse and wall-run level design (from apex-range-4b's researcher)
 
