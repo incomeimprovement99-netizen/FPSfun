@@ -108,11 +108,23 @@ for (const pad of map.pads) {
   const col = new THREE.Box3(new THREE.Vector3(x - 1.2, y0 + 0.2, z - 1.2), new THREE.Vector3(x + 1.2, top, z + 1.2));
   for (const { p, b } of standOut) if (b.intersectsBox(col)) clashes.push(`${p.piece} over the pad at ${x.toFixed(1)}, ${z.toFixed(1)}`);
 }
-for (const t of towers) {
-  for (const [name, y] of [["Sky Lobby", t.lobby], ["Sky Park", t.park]] as const) {
-    if (y === undefined) continue;
-    const lob = new THREE.Box3(new THREE.Vector3(t.x - t.w / 2 - 1.5, y + 0.1, t.z - t.d / 2 - 1.5), new THREE.Vector3(t.x + t.w / 2 + 1.5, y + kit.dress.outset + 3.9, t.z + t.d / 2 + 1.5));
-    for (const { p, b } of [...standOut, ...facades]) if (p.kind !== "billboard" && b.intersectsBox(lob) && b.min.y > y - 0.5 && b.max.y < y + 4.5) clashes.push(`${p.piece} across a ${name}'s windows at ${t.x.toFixed(1)}, ${t.z.toFixed(1)}`);
+// every room's windows (the Sky Lobby's and the Sky Park's, KIT_SITES rooms): nothing of the kit across one, a metre out
+// of the face and up the window's height (the band beside them stands flush, rule 1)
+const win = (await import("../../src/config/city.json")).default.skyLobby;
+for (const r of KIT_SITES.rooms) {
+  const name = r.y > 60 ? "Sky Park" : "Sky Lobby";
+  for (const [key, nx, nz] of [
+    ["n", 0, -1],
+    ["s", 0, 1],
+    ["w", -1, 0],
+    ["e", 1, 0],
+  ] as const) {
+    const c = (nx === 0 ? r.x : r.z) + r.at[key];
+    const at = nx === 0 ? r.z + (nz * r.d) / 2 : r.x + (nx * r.w) / 2;
+    const [x0, x1] = nx === 0 ? [c - win.width / 2 + 0.05, c + win.width / 2 - 0.05] : [Math.min(at, at + nx * 1.0), Math.max(at, at + nx * 1.0)];
+    const [z0, z1] = nx === 0 ? [Math.min(at, at + nz * 1.0), Math.max(at, at + nz * 1.0)] : [c - win.width / 2 + 0.05, c + win.width / 2 - 0.05];
+    const box = new THREE.Box3(new THREE.Vector3(x0, r.y + 0.1, z0), new THREE.Vector3(x1, r.y + win.height - 0.1, z1));
+    for (const { p, b } of [...standOut, ...facades]) if (p.kind !== "billboard" && b.intersectsBox(box)) clashes.push(`${p.piece} across a ${name}'s window at ${r.x.toFixed(1)}, ${r.z.toFixed(1)}`);
   }
 }
 const flatBad = places.filter((p) => p.kind === "flat" && Math.min(planeOf(p.piece), kit.dress.relief) + kit.dress.outset > 0.15);

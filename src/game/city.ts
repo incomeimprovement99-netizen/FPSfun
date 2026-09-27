@@ -128,13 +128,15 @@ export const KIT_SITES: {
   towers: Array<{ x: number; z: number; w: number; d: number; base: number; roof: number; storeys: number; lobby?: number; park?: number; sector: string; clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }> }>;
   /** the metro's stairwells in the street (map-local), which nothing may stand over */
   openings: Array<{ x0: number; x1: number; z0: number; z1: number }>;
+  /** the Sky Lobby's and the Sky Park's rooms: the tower's box, the storey's floor, and each face's window, along it from its middle */
+  rooms: Array<{ x: number; z: number; w: number; d: number; y: number; at: { n: number; s: number; w: number; e: number } }>;
   /** Neon Alley's stalls (city.json neonAlley): solid boxes, the kit's food stands over them, facing the street (yaw) */
   stalls: Array<{ x: number; z: number; w: number; d: number; h: number; yaw: number }>;
   podia: Array<{ key: string; x0: number; x1: number; z0: number; z1: number; top: number; plaza: number; spire: boolean }>;
   stairs: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   skyline: Array<{ x: number; z: number; w: number; h: number }>;
   lamps: Array<[number, number]>;
-} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [] };
+} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [], rooms: [] };
 
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
@@ -264,7 +266,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   /** the core's podiums by block ("i,j"), their tops: the concourse's bridges join them */
   const podia = new Map<string, { x0: number; x1: number; z0: number; z1: number; top: number }>();
   CONCOURSE.stairs.length = 0;
-  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.openings.length = KIT_SITES.stalls.length = 0;
+  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.openings.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = 0;
   /** the public stairs' footprints (local): a bridge landing across one blocked it (the concourse check found it) */
   const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
   CONCOURSE.bridges.length = 0;
@@ -477,6 +479,17 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const win = Lb.width;
     const H = Lb.height;
     const lintel = storeyH - H;
+    KIT_SITES.rooms.push({ x, z, w, d, y: ly, at: { ...at } });
+    // its level's ring of light, at the storey's floor and its ceiling, a hand's width out of the face so the kit's
+    // band (flat within 0.15 m) leaves it showing
+    const ringColour = Math.abs(ly - (PAVE_H + C.skyPark.storey * storeyH)) < 0.5 ? C.skyPark.ring : Lb.ring;
+    const ring = neon(parseInt(ringColour.slice(1), 16));
+    for (const ry of [ly - 0.08, ly + storeyH]) {
+      deco(w + 0.44, 0.08, 0.06, x, ry, z - d / 2 - 0.2, ring);
+      deco(w + 0.44, 0.08, 0.06, x, ry, z + d / 2 + 0.2, ring);
+      deco(0.06, 0.08, d + 0.44, x - w / 2 - 0.2, ry, z, ring);
+      deco(0.06, 0.08, d + 0.44, x + w / 2 + 0.2, ry, z, ring);
+    }
     // a wall from a to b along its face with the window's middle at c: the piece either side, the lintel over it
     const wall = (a: number, b: number, c: number, put: (from: number, to: number, y: number, h: number) => void) => {
       // (a window against a corner, as a chimney's exit is, leaves nothing on that side)

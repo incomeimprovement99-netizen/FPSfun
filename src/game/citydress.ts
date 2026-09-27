@@ -16,7 +16,7 @@ export interface KitPlace {
   /** the graphics tier from which it is drawn (quality.ts cityDetail) */
   tier: number;
   /** what it is, for the checks' clearances: facade and parapet stand flush, the rest stand out of a wall or stand free */
-  kind: "facade" | "flat" | "podium" | "shop" | "parapet" | "cornice" | "sign" | "blade" | "poster" | "ac" | "billboard" | "roof" | "antenna" | "lamp" | "cable" | "pipe" | "wire" | "prop" | "skyline" | "zeppelin";
+  kind: "facade" | "flat" | "band" | "podium" | "shop" | "parapet" | "cornice" | "sign" | "blade" | "poster" | "ac" | "billboard" | "roof" | "antenna" | "lamp" | "cable" | "pipe" | "wire" | "prop" | "skyline" | "zeppelin";
 }
 
 type Facing = "px" | "nx" | "pz" | "nz";
@@ -427,6 +427,37 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         if (kitHash(x, z, 26) > D.chance.prop || nearPad(x, z) || inStair(x, z, 1.5)) continue;
         const id = pick(D.streetProps, kitHash(x, z, 27));
         add(id, place(id, x, cityCfg.kerb, z, f.yaw, 1, 1, 1, false), 2, "prop");
+      }
+    }
+  }
+
+  // ------------------------------------------------ the Sky Lobby's and the Sky Park's band: glass either side of each window
+  {
+    const B = D.band;
+    const win = cityCfg.skyLobby.width;
+    for (const r of KIT_SITES.rooms) {
+      if (!inCentre(r.x, r.z)) continue;
+      for (const f of faces(r.x - r.w / 2, r.x + r.w / 2, r.z - r.d / 2, r.z + r.d / 2)) {
+        const c = (f.a + f.b) / 2 + r.at[f.key];
+        for (const [a, b] of [
+          [f.a, c - win / 2],
+          [c + win / 2, f.b],
+        ]) {
+          const len = b - a;
+          if (len < 0.5) continue;
+          // a module a bay of up to 8 m, the bays filling the piece of wall
+          const n = Math.max(1, Math.round(len / 8));
+          const bay = len / n;
+          for (let i = 0; i < n; i++) {
+            const id = pick(B.modules, kitHash(r.x, r.z, r.y, f.nx, f.nz, i, 50));
+            const dm = dims(id);
+            if (!dm) continue;
+            const pl = planeOf(id);
+            const sz = pl > B.relief ? B.relief / pl : 1;
+            const [x, z] = onFace(f, a + (i + 0.5) * bay, D.outset + pl * sz);
+            add(id, place(id, x, r.y, z, f.yaw, bay / dm.w, cityCfg.storey / dm.h, sz, true), 0, "band");
+          }
+        }
       }
     }
   }

@@ -4940,3 +4940,21 @@ the Sky Park".
   - `sk-lobbies.ts`: all 16 lobby canyons and 9 Sky Park canyons, the four chimney slots among them, a clean jump and
     no walk-off; `citykit.ts`: nothing of the kit in any chimney, to its summit; `sk-roofs`, `city-budget` (250k);
     verify and rules; pictures up the stack and from a lobby through its exit.
+
+## Milestone 262 — The levels read up every tower: the lobby's and the Sky Park's bands and rings
+
+Part of step 6 (`docs/CITY_BUNDLE_IMPLEMENTATION.md` 4.4: "a neon trim ring at 32 m on every lobby tower, so the level
+reads from anywhere"). The Sky Lobby's and the Sky Park's storeys had kept the city's old dark texture, a band round
+every tower in every picture of the centre.
+
+- **The band** (`citykit.json` dress band). The wall either side of each room's window wears Cyber City's classic
+  windows, pressed to 0.1 m so a window pad's throw passes it as it passes a canyon's flat panel. The Glass pack's
+  curtain wall was tried first: 204k triangles for the 41 rooms, most of a preset's budget for one storey a tower;
+  these are 17k.
+- **The rings** (`city.json` skyLobby ring, skyPark ring). A line of light round every room's tower at its storey's
+  floor and ceiling, the window pads' blue at the lobby and the bridges' gold at the Sky Park, standing a hand's width
+  out so the band leaves it showing. They are the city's own, so a copy without the kit has them too.
+- **The rooms are recorded for the kit** (`city.ts` KIT_SITES rooms), and the kit's check now tests every piece
+  against each room's window openings, not the whole storey: nothing across any of the 41 rooms' windows.
+- **Checked:** `citykit.ts` (596k, 1,183k and 1,219k by preset); verify and rules; pictures from the air and the
+  street.
