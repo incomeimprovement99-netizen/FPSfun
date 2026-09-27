@@ -112,8 +112,10 @@ the first proof found by being pushed out of it). What the proof found on the wa
   more). In all four, the chain lands it by wall runs and kicks alone, with no climb and no touch of the floor, and
   the same runs without the kicks top out 3.1 m above the floor.
 
-The top at the near end (11 m above the floor, the second leg after the tap-strafe 180) is built; its leg is next
-to prove.
+**The second leg, proven too:** turning on the landing (the owner's tap-strafe 180), the chain climbs on to the top
+at the near end, 11 m above the floor, in all four; the near end is closed above the landing so a chain arriving
+high there drops onto the top, and stays open below it as the way in. So each chimney is the owner's chain folded
+once: kicks up one leg, a turn, kicks up the other, two landings in 27 m of canyon.
 
 ## What is next
 

@@ -982,6 +982,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       // closed at the far end, so a chain that comes in high runs into the end and drops onto the landing
       // rather than flying out of the open end (the proof found exactly that)
       slab(Ch.width + Ch.wall * 2, top + 0.4 - base, Ch.wall, c.x, base, c.z0 - Ch.wall / 2, concrete);
+      // and closed above the landing at the near end, the way in staying open below it: the second leg comes in
+      // high there too
+      slab(Ch.width + Ch.wall * 2, top + 0.4 - landing, Ch.wall, c.x, landing, c.z1 + Ch.wall / 2, concrete);
       // the landing at the far end, one storey up, and the top at the near end, two
       slab(Ch.width, 0.3, Ch.landing, c.x, landing - 0.3, c.z0 + Ch.landing / 2, metal);
       slab(Ch.width, 0.3, Ch.landing, c.x, top - 0.3, c.z1 - Ch.landing / 2, metal);

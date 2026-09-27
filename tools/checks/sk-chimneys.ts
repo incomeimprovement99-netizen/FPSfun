@@ -47,7 +47,7 @@ check("the city has its four chimneys", CHIMNEYS.length === 4, CHIMNEYS.map((c) 
 
 const DT = 1 / 144;
 /** in at the near end (z1) running to the far (z0, down -z), a jump after `runUp` s, a kick a quarter second into each wall run */
-function climb(c: (typeof CHIMNEYS)[number], runUp: number, kicks = true): { landed: boolean; best: number; ground: boolean } {
+function climb(c: (typeof CHIMNEYS)[number], runUp: number, kicks = true, legs = 1): { landed: boolean; best: number; ground: boolean } {
   const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
   p.extraMoves = true;
   p.autoClimb = true;
@@ -65,6 +65,7 @@ function climb(c: (typeof CHIMNEYS)[number], runUp: number, kicks = true): { lan
   // the chain alone: a climb up the end wall reaches the landing too (SpeedKills' climb catches a ledge 5.1 m up),
   // so a climb means the chain did not do it
   let climbed = false;
+  let leg = 1;
   for (let i = 0; i < 8 / DT; i++) {
     t += DT;
     clock += DT;
@@ -88,7 +89,20 @@ function climb(c: (typeof CHIMNEYS)[number], runUp: number, kicks = true): { lan
     if (p.climbing) climbed = true;
     if (jumped && p.onGround && p.pos.y < c.base + 0.3 && clock > runUp + 0.3) ground = true;
     // on the landing: standing at its height, over its span at the far end
-    if (p.onGround && p.pos.y > c.landing - 0.25 && p.pos.z < c.z0 + 2.5 && p.pos.z > c.z0 - 1) return { landed: !climbed, best, ground };
+    if (leg === 1 && p.onGround && p.pos.y > c.landing - 0.25 && p.pos.z < c.z0 + 2.5 && p.pos.z > c.z0 - 1) {
+      if (legs === 1 || climbed) return { landed: !climbed, best, ground };
+      // the second leg: the turn on the landing (the owner's tap-strafe 180), and the chain back up the other way
+      leg = 2;
+      p.yaw += 180;
+      jumped = false;
+      clock = 0;
+      runSince = -1;
+      kicked = false;
+      continue;
+    }
+    if (leg === 2 && p.onGround && p.pos.y > c.top - 0.25 && p.pos.z > c.z1 - 2.5) return { landed: !climbed, best, ground };
+    // fallen off the landing in the second leg: back below it
+    if (leg === 2 && p.onGround && p.pos.y < c.landing - 0.5) return { landed: false, best, ground: true };
     if (ground) break;
   }
   return { landed: false, best, ground };
@@ -104,6 +118,13 @@ for (const c of CHIMNEYS) {
     if (got.landed) break;
   }
   check(`${c.name}: the chain climbs from its floor (${c.base.toFixed(1)} m) to its landing, ${(c.landing - c.base).toFixed(1)} m up, by wall runs and kicks alone (no climb, no touch of the floor)`, got.landed, got.landed ? `a ${used} s run-up` : `highest ${got.best.toFixed(2)} m${got.ground ? ", then the ground" : ""}`);
+  // the second leg, from the landing back up to the top at the near end
+  let two = { landed: false, best: 0, ground: false };
+  for (const runUp of [0.3, 0.45, 0.6, 0.8]) {
+    two = climb(c, runUp, true, 2);
+    if (two.landed) break;
+  }
+  check(`${c.name}: and turning on the landing, the chain climbs on to the top, ${(c.top - c.base).toFixed(1)} m up`, two.landed, two.landed ? "" : `highest ${two.best.toFixed(2)} m`);
   // and the kicks are what does it: the same runs with no kick do not get there clean
   const plain = [0.3, 0.45, 0.6, 0.8].map((r) => climb(c, r, false));
   check(`${c.name}: and without the kicks it does not`, plain.every((x) => !x.landed), `highest ${Math.max(...plain.map((x) => x.best)).toFixed(2)} m`);
