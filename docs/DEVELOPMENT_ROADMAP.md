@@ -4618,3 +4618,35 @@ the owner's word.
   size; the upper arm keeps the body's, since a shorter one ended in the frame.
 - **Checked:** pictures at the hip and in the sights of ZEPHYR, ANAKIN, USSO, BIGANTLER and NOVA; verify, rules; the
   e2e soldier section's parts check now reads no optic drawn on NOVA and BOOG.
+
+## Milestone 252 — The bug hunt: no red ring in a fight, a slide that speeds you up, a support arm that reads
+
+The owner (2026-09-27): a red circle round players in free-for-all and the battle royale, which should mean only out
+of bounds; a slide slower than the holstered run; the support arm "clearly fucked up", at the widest FOV especially.
+
+- **No red ring round a player in a fight** (`main.ts` remoteHack). The out-of-bounds laser only ever strikes a player
+  who stayed past the edge; it was never the ring. An enemy's HEAL was drawn as a red wall 5 m round them, and in a
+  free-for-all every heal of every other player is an enemy's. It is drawn in the heal's own green now, fainter than a
+  squad mate's, so red round a figure means the edge alone. Found by logging every red ring, cylinder and column a live
+  match draws: the outline under the crosshair (meant) and enemy tracers (meant) were the only other red.
+- **A slide speeds you up and holds it** (`movement.speedkills.json` _slide). Apex's slide numbers, fitted to its 275
+  hu/s sprint, shed anything above 350; under SpeedKills' doubled 550 sprint that took a slide from 630 to 370 in
+  0.2 s. They are doubled with the sprint (the shed above 700, the slide jump's 700, a downhill slide's 1120). A slide
+  from a full sprint now runs 630 falling to 560 over 1.4 s, holstered 722 to 637. Guarded in `tools/sk-movesim.ts`:
+  faster than the sprint for the slide's first second, a gun out and holstered (it read 317 on the old numbers).
+- **The support arm** (`fparms.ts`, `mannequin.ts` slimForearms). The FOV the owner plays at is the widest, 1.571 (110
+  degrees); the default is 1.55 (108). The gun and arms are drawn by their own camera at 1.55 whatever the setting, and
+  that frame is about 92 degrees tall. With the hands drawn the glove's size (Milestone 251) the forearm was too short
+  to take the elbow out of that frame from a handguard: the elbow sat in the lower middle, and the upper arm's cut end
+  hung under the gun.
+  - The hand is the glove's size (the soldier's is 1.4 times it). The forearm keeps its length and is drawn thinner by
+    the same, so it no longer flanks the gun in the sights.
+  - The arm is turned until the upper arm's cut end is past the frame's edge: at the hip toward the frame's lower corner
+    (straight down it stood like a post), in the sights down under the gun (to the side, it crossed half the picture),
+    then on toward the eye only as far as it takes. The thickness used is measured off the soldier (0.069 m at the cut).
+  - NOVA's support hand sits furthest out, and at the hip its cut end is still just inside the frame.
+- **Aiming from a test's script**: a scripted page aims as it fires (`main.ts`), so a check reads the view aimed for
+  real. The view's debug hold moves the gun into the sights but leaves the gun camera at the hip's wider frame.
+- **Checked:** the e2e soldier section, where both cut ends are off the frame at the hip and aimed, on the USSO and
+  BOOG; verify; rules; pictures at the widest FOV. The range sandbox's edge check now waits on game time, not 500 ms:
+  on the e2e's CPU drawing no frame had run.

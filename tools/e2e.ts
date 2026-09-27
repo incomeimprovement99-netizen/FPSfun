@@ -4995,6 +4995,44 @@ async function soldierTest(browser: Browser): Promise<void> {
       moving.helixOut > 0.02,
     JSON.stringify(moving),
   );
+  // the arms' upper arms' cut ends stay off the frame (fparms.ts cutOffFrame): one in it hung under the gun, at the hip
+  // and in the sights, on the USSO and on BOOG (the owner: "the left is clearly fucked up")
+  const elbows = await ev<Array<{ id: string; hip: { r: boolean; l: boolean } | null; ads: { r: boolean; l: boolean } | null }>>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const gameWait = async (s) => {
+        const g0 = r.gameTime();
+        const t0 = performance.now();
+        while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
+      };
+      const out = [];
+      for (const id of ["r97", "sentinel"]) {
+        r.loadout.give(0, id);
+        r.setScript({ held: () => false, pressedNow: (a) => a === "slot1" }, null);
+        await gameWait(0.1);
+        r.setScript(null);
+        const t0 = performance.now();
+        while (r.loadout.swapping && performance.now() - t0 < 30000) await wait(20);
+        await gameWait(0.4);
+        const hip = r.realArms() ? r.armCutsOff() : null;
+        // aimed for real, not the view's debug hold, which leaves the gun camera at the hip's wider frame
+        r.setScript({ held: (a) => a === "ads", pressedNow: () => false });
+        await gameWait(0.5);
+        const ads = r.realArms() ? r.armCutsOff() : null;
+        r.setScript(null);
+        await gameWait(0.3);
+        out.push({ id, hip, ads });
+      }
+      return out;
+    })()`,
+  );
+  check(
+    "soldier arms: both upper arms' cut ends off the gun camera's frame at the hip and on the way into the sights, on the USSO and BOOG",
+    elbows.length === 2 && elbows.every((e) => e.hip?.r && e.hip.l && e.ads?.r && e.ads.l),
+    JSON.stringify(elbows),
+  );
   await page.close();
 
   // without the files: every request for them answers 404, as on a copy that never ran npm run paid
@@ -5152,10 +5190,22 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     );
   }
   // The range as SpeedKills' sandbox (Phase 20 A12): a body sent 40 m down range stops at the lit edge 24 m in,
-  // where the curtain stands, and the README screen hangs in it
+  // where the curtain stands, and the README screen hangs in it. Read after a stretch of game time, not 500 ms: on the
+  // e2e's CPU drawing a frame can take longer than that, and the edge had not been reached because no frame had run
   const sb = await ev<{ z: number; curtains: number; tvZ: number | null }>(
     sight,
-    `(() => new Promise((ok) => { const r = window.__range; r.player.teleport(0, 0, -40, 0); setTimeout(() => { const c = []; r.scene.traverse((o) => { if (o.name === "sk-sandbox-curtain") c.push(o); }); ok({ z: r.player.pos.z, curtains: c.length, tvZ: r.readmeTv ? r.readmeTv.root.children[0]?.position.z ?? null : null }); r.player.teleport(0, 0, 0, 0); }, 500); }))()`,
+    `(async () => {
+      const r = window.__range;
+      r.player.teleport(0, 0, -40, 0);
+      const g0 = r.gameTime();
+      const t0 = performance.now();
+      while (r.gameTime() - g0 < 0.3 && performance.now() - t0 < 20000) await new Promise((ok) => setTimeout(ok, 20));
+      const c = [];
+      r.scene.traverse((o) => { if (o.name === "sk-sandbox-curtain") c.push(o); });
+      const out = { z: r.player.pos.z, curtains: c.length, tvZ: r.readmeTv ? r.readmeTv.root.children[0]?.position.z ?? null : null };
+      r.player.teleport(0, 0, 0, 0);
+      return out;
+    })()`,
   );
   check("speedkills range: the sandbox stops you at its lit edge, 24 m down range, where the curtain stands", sb.z >= -24.5 && sb.z <= -22 && sb.curtains === 3, JSON.stringify(sb));
   // The menu (Phase 20 A11): no tab and no Play mode wider than the menu, at three screen sizes (the hack pickers

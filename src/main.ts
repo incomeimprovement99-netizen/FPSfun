@@ -3469,8 +3469,8 @@ function healKit(ring: THREE.Mesh, friend: boolean): void {
   ring.add(kit);
 }
 
-function hackMesh(color: number, r: number, h: number): THREE.Mesh {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 28, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false }));
+function hackMesh(color: number, r: number, h: number, opacity = 0.28): THREE.Mesh {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 28, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false }));
   scene.add(m);
   return m;
 }
@@ -3908,8 +3908,10 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       audio.whoosh();
       break;
     case 3: {
-      // a squad mate's HEAL heals you too; an enemy's is drawn and does nothing for you
-      const mesh = hackMesh(friend ? 0x3dff9a : 0xff5a5a, H.heal.radius, 0.6);
+      // a squad mate's HEAL heals you too; an enemy's is drawn and does nothing for you. An enemy's is the heal's own
+      // green, fainter, not red: a red ring round a figure is the edge's laser alone (edge.ts), and every heal of every
+      // enemy in a free-for-all drew one, which read as players being struck out of bounds in the middle of the city
+      const mesh = hackMesh(0x3dff9a, H.heal.radius, 0.6, friend ? 0.28 : 0.12);
       mesh.position.copy(a).setY(a.y + 0.3);
       healKit(mesh, friend);
       // (a squad mate's area heals at the base rate: its fusion level does not travel)
@@ -6553,8 +6555,9 @@ function step(): void {
     else if (input.pressedNow("ads") && !adsPressUsed && !ordnance.readied && !loadout.active.empty) adsLatch = !adsLatch;
     else if (input.pressedNow("sprint")) adsLatch = false;
   } else adsLatch = false;
-  const adsIn = settings.adsToggle ? adsLatch : input.held("ads");
-  const adsHeld = input.playing && adsIn && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow && !ordnance.readied && !finisher;
+  // a test's script aims as it fires (the trigger below), so a check can read the view aimed for real
+  const adsIn = scriptInput ? scriptInput.held("ads") : settings.adsToggle ? adsLatch : input.held("ads");
+  const adsHeld = (input.playing || !!scriptInput) && adsIn && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow && !ordnance.readied && !finisher;
   // inspect: hold reload with a full magazine; anything that uses the gun ends it
   {
     const slot = loadout.active;
@@ -6931,6 +6934,7 @@ function step(): void {
   vmCamera.fov = gunFov(hipH, adsH, ws.adsFrac, settings.fovScale, vmCfg.fovScale);
   vmCamera.aspect = camera.aspect;
   vmCamera.updateProjectionMatrix();
+  viewModel.setView(vmCamera.fov, vmCamera.aspect, debugView.ads ?? ws.adsFrac);
 
   // Spawn shots. Each bullet leaves along the aim as it stood the instant
   // BEFORE that shot's own view kick, so the first round of a burst is
@@ -7819,6 +7823,8 @@ initWelcome();
   /** the first-person arms are the player's own rather than the drawn gloves */
   realArms: () => viewModel.realArms,
   realArmsShown: () => viewModel.realArmsShown,
+  /** whether each real arm's upper arm's cut end is off the gun camera's frame (fparms.ts): in it, it hung under the gun */
+  armCutsOff: () => viewModel.cutsOff,
   /** the loot card as the HUD draws it this frame, and its mode (Phase 20 A8) */
   lootCard: () => lootCardNow(),
   /** the enemy the crosshair outlines this frame (Phase 20 A8's check; speedkills.json feel.outline) */

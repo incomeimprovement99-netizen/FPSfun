@@ -16,7 +16,8 @@
 import * as THREE from "three";
 import { GLOVE_MIDDLE_KNUCKLE, GLOVE_WRIST, type Forearm, type Hand } from "./arms";
 import cfg from "../config/viewmodel.json";
-import { armRigKey, buildArmRig, type ArmRig } from "./mannequin";
+import { IS_SK } from "./game";
+import { armRigKey, buildArmRig, FP_UPPER, type ArmRig } from "./mannequin";
 import type { OperatorSkin } from "./operators";
 
 /** the drawn glove's knuckles run from the little finger at the bottom to the index at the top, along +y (arms.ts Hand) */
@@ -24,6 +25,10 @@ const GLOVE_ACROSS = new THREE.Vector3(0, 1, 0);
 
 /** how much of the wrist's twist the forearm takes, and how far the upper arm turns down out of the frame (viewmodel.json realArms) */
 const TWIST = cfg.realArms.twist;
+/** how far the upper arm reaches out from its axis where it is cut, on the body (viewmodel.json realArms, measured off the soldier) */
+const CUT_RADIUS = cfg.realArms.cutRadius;
+/** how much of the upper arm is drawn, from the elbow (mannequin.ts cuts it there) */
+const UPPER = FP_UPPER;
 const DOWN = cfg.realArms.down;
 
 interface Side {
@@ -46,11 +51,11 @@ interface Side {
   /** the forearm's scale against the rig's group: the body's own units to the view's */
   restUnit: number;
   /**
-   * the hand and forearm's size against the body's: the drawn glove's wrist to middle knuckle (arms.ts) over the
-   * body's, never over 1, so the hand is the size of the glove the grips were posed for and the forearm in proportion.
-   * The bought soldier's armoured hands are 1.4 times that glove (124 mm to 87), and drawn at the body's size its
-   * armoured forearms filled the sight picture either side of the gun. The upper arm keeps the body's size: shorter,
-   * its cut end came into the frame
+   * the hand's size against the body's: the drawn glove's wrist to middle knuckle (arms.ts) over the body's, never
+   * over 1, so the hand is the size of the glove the grips were posed for. The bought soldier's armoured hands are 1.4
+   * times that glove (124 mm to 87). The forearm keeps the body's length and is drawn thinner by the same (mannequin.ts
+   * slimForearms): shrunk whole, it was too short to take the arm out of the frame from a handguard, and the upper
+   * arm's cut end hung under the gun; at the body's thickness it filled the sight picture either side of the gun
    */
   fit: number;
 }
@@ -171,7 +176,8 @@ export class FpArms {
     // a frame, compounded into the bones and grew a forearm to five times its
     // size in a few frames.
     const body = S.restUnit * gm.getMaxScaleOnAxis();
-    const unit = body * S.fit;
+    // the hand's scale (SpeedKills' soldier only: the legacy game's arms stay as they were)
+    const unit = IS_SK ? body * S.fit : body;
 
     // the hand: on the glove's wrist, in the glove's own frame
     const wrist = GLOVE_WRIST.clone().applyMatrix4(gm);
@@ -184,15 +190,17 @@ export class FpArms {
     // the forearm back along the drawn one, which the viewmodel keeps clear
     // of the eye; the elbow where a forearm of this body's length ends
     const along = new THREE.Vector3(0, 1, 0).applyQuaternion(forearm.group.getWorldQuaternion(q1)).normalize();
-    const elbow = wrist.clone().addScaledVector(along, S.foreLen * unit);
+    const down = new THREE.Vector3(0, -1, 0.35).transformDirection(this.group.matrixWorld);
+    if (IS_SK) this.cutOffFrame(side, wrist, along, down, S.foreLen * body, UPPER * S.upperLen * body, 0.5 * CUT_RADIUS * body);
+    const elbow = wrist.clone().addScaledVector(along, S.foreLen * body);
     // The upper arm goes down in the view from the elbow, blended with the
     // forearm's own line: down is the shortest way out of the frame, so its
     // cut end is never seen. Run on along the forearm's line it swept up both
     // edges of the frame past the eye; run to a shoulder behind the eye it was
     // a wall of deltoid; cut short it ended in the frame.
-    const down = new THREE.Vector3(0, -1, 0.35).transformDirection(this.group.matrixWorld);
     const upDir = along.clone().lerp(down, DOWN).normalize().negate();
     const top = elbow.clone().addScaledVector(upDir, -S.upperLen * body);
+    this.cutsOff[side] = this.offFrame(elbow.clone().addScaledVector(upDir, -UPPER * S.upperLen * body), 0.5 * CUT_RADIUS * body);
 
     // The twist: a hand rolled over on a handguard is turned a long way from
     // an arm at rest. The forearm takes half of that turn and the wrist the
@@ -210,7 +218,7 @@ export class FpArms {
     const upQ = swing(loQ.clone().multiply(q2.copy(S.loRest).invert()), S.upAxis, upDir);
 
     this.place(S.up, top, upQ, body);
-    this.place(S.lo, elbow, loQ, unit);
+    this.place(S.lo, elbow, loQ, body);
     this.place(S.hand, wrist, handQ, unit);
     // the fingers: closed round a grip, or a fist
     const pose = grip === "grip" ? this.rig.grip : this.rig.fist;
@@ -220,6 +228,54 @@ export class FpArms {
     }
     S.hand.updateMatrixWorld(true);
   }
+
+  /**
+   * The upper arm's cut end off the gun camera's frame. The forearm runs from the glove toward the drawn forearm's far
+   * end, a point low and forward, and where this body's forearm is shorter than the way there its elbow stopped in the
+   * lower middle of the frame, and the upper arm's cut end hung in the picture under the gun (the owner: "the left is
+   * clearly fucked up"). The frame is too tall (about 92 degrees) for a forearm the glove's size to take its elbow out
+   * of it from a handguard, so the arm is turned until the cut end, and half its thickness, is past the frame's edge
+   * (all of it took the arm on toward the eye like a tube), a step at a time: at the hip toward the frame's lower corner on its own side (straight down, it stood under the gun
+   * like a post), in the sights down under the gun (to the side, the narrower frame's edge took the forearm across
+   * half the picture), and then on toward the eye as far as it takes. Worked in the gun camera's space: the
+   * viewmodel's group hangs off that camera, the eye at its origin.
+   */
+  private cutOffFrame(side: "r" | "l", wrist: THREE.Vector3, along: THREE.Vector3, down: THREE.Vector3, fore: number, upper: number, radius: number): void {
+    const eye = this.group.parent;
+    if (!eye) return;
+    const x = side === "l" ? -1 : 1;
+    const ads = this.view.ads;
+    // first toward the frame's lower corner (at the hip) or down under the gun (aimed), which is how an arm reads;
+    // then, only as far as it takes, on toward the eye, the one way a short arm can always leave the frame (all the
+    // way, it came at the eye like a tube)
+    const corner = new THREE.Vector3(x, -0.9, 0.6).lerp(v2.set(0.25 * x, -1, 0.5), ads).transformDirection(eye.matrixWorld);
+    const eyeward = new THREE.Vector3(0.8 * x, -1, 1.1).lerp(v2.set(0.2 * x, -1, 0.9), ads).transformDirection(eye.matrixWorld);
+    const from = along.clone();
+    const up = new THREE.Vector3();
+    for (let t = 0; t <= 2.0001; t += 0.05) {
+      if (t <= 1) along.copy(from).lerp(corner, t).normalize();
+      else along.copy(corner).lerp(eyeward, t - 1).normalize();
+      up.copy(along).lerp(down, DOWN).normalize();
+      if (this.offFrame(v3.copy(wrist).addScaledVector(along, fore).addScaledVector(up, upper), radius)) return;
+    }
+  }
+
+  /** a point (world), with this much round it, entirely outside the gun camera's frame, or behind the eye */
+  private offFrame(at: THREE.Vector3, radius: number): boolean {
+    const eye = this.group.parent;
+    if (!eye) return true;
+    eye.updateWorldMatrix(true, false);
+    const e = at.clone().applyMatrix4(m1.copy(eye.matrixWorld).invert());
+    const r = radius / eye.matrixWorld.getMaxScaleOnAxis();
+    const depth = -e.z;
+    return depth < 0.03 || Math.abs(e.y) - r > this.view.tanV * depth || Math.abs(e.x) - r > this.view.tanH * depth;
+  }
+
+  /** whether each arm's upper arm's cut end was off the gun camera's frame when it was last posed (the e2e soldier section) */
+  readonly cutsOff = { r: true, l: true };
+
+  /** the gun camera's frame, as the tangents of its half angles (main.ts vmCamera, set every frame) */
+  readonly view = { tanV: Math.tan((38 * Math.PI) / 180), tanH: Math.tan((38 * Math.PI) / 180) * (16 / 9), ads: 0 };
 
   /** a bone to a world position and turn, written as its place against its parent */
   private place(bone: THREE.Bone, at: THREE.Vector3, turn: THREE.Quaternion, unit: number): void {

@@ -891,6 +891,18 @@ export class ViewModel {
     this.real.setLook(skin);
   }
 
+  /** the gun camera's frame this frame (main.ts vmCamera), and how far in the sights: the real arms keep their elbows off it */
+  setView(fovDeg: number, aspect: number, ads: number): void {
+    this.real.view.tanV = Math.tan((fovDeg * Math.PI) / 360);
+    this.real.view.tanH = this.real.view.tanV * aspect;
+    this.real.view.ads = ads;
+  }
+
+  /** whether each real arm's upper arm's cut end is off the gun camera's frame (fparms.ts cutOffFrame; the e2e soldier section) */
+  get cutsOff(): { r: boolean; l: boolean } {
+    return { ...this.real.cutsOff };
+  }
+
   /** the real arms are drawn rather than the gloves (tools/e2e.ts, tools/snap.ts) */
   get realArms(): boolean {
     return this.real.ready;

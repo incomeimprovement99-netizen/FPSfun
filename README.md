@@ -64,8 +64,10 @@ Game) or `?game=legacy`, and everything below this section describes it.
   bridge runs from one lobby into the next.
 - **Movement for roofs:** double jump, wall run and kick, slide, and a climb
   that goes up a storey (two with a double jump first). You sprint whenever you
-  move forward, at 14 m/s, and a slide tops out a little above that; a jump and
-  a double jump at a sprint clear 24 m, wider than any street.
+  move forward, at 14 m/s, and a slide speeds you up a little past that and
+  holds it (faster than the sprint it came from for its first second, a gun out
+  or holstered); a jump and a double jump at a sprint clear 24 m, wider than any
+  street.
 - **The soldier:** on the game server, every SpeedKills figure is the bought
   Sci-Fi Modular Soldier, in four variants (VANGUARD, the full kit; BREACHER,
   heavy and clean; RECON, light, the face showing; RUNNER, lean), each with its

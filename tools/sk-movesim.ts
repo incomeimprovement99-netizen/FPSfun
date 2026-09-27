@@ -99,6 +99,30 @@ check("this runs with SpeedKills' numbers", GAME === "speedkills");
   check("letting go stops you in about 0.22 s", stop > 0.15 && stop < 0.3, `${stop.toFixed(2)} s`);
 }
 
+// a slide from a full sprint speeds you up and holds it (the owner, 2026-09-27: holstered he ran faster, then slid and
+// slowed down): faster than the sprint it came from for its first second, a gun out or holstered. With Apex's slide
+// numbers under the doubled sprint it shed to 370 in 0.2 s (movement.speedkills.json _slide)
+for (const hb of [1, MOVE.holsterBoost]) {
+  const s = new Sim();
+  s.p.holsterBoost = hb;
+  s.in.hold("forward");
+  s.in.tap("sprint");
+  s.run(3);
+  const sprint = s.p.speed / HU;
+  s.in.hold("crouch");
+  let slowest = Infinity;
+  let sliding = true;
+  s.run(1, () => {
+    if (s.p.sliding) slowest = Math.min(slowest, s.p.speed / HU);
+    else if (s.p.speed / HU < sprint) sliding = false;
+  });
+  check(
+    `a slide from a full ${hb > 1 ? "holstered " : ""}sprint stays faster than the sprint for its first second`,
+    sliding && slowest > sprint,
+    `sprint ${sprint.toFixed(0)} hu/s, the slide's slowest in that second ${slowest.toFixed(0)}`,
+  );
+}
+
 // a one-storey roof (4 m), run straight at: auto-climb takes you up without a jump
 {
   const wall: Box = { minX: -10, maxX: 10, minZ: -30, maxZ: -6, top: 4 };
