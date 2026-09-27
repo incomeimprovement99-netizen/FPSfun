@@ -23,6 +23,7 @@
 
 import { botBlocked, botGroundAt } from "./botbody";
 import { IS_SK, PROFILE } from "./game";
+import { botSoldierCode } from "./soldier";
 import hackCfg from "../config/hacks.json";
 import { cooldownOf } from "./hacks";
 import { smokeBlocks } from "./smoke";
@@ -771,7 +772,9 @@ export class Bot {
   ) {
     const wid = weaponId ?? BOT_WEAPONS[index % BOT_WEAPONS.length];
     this.weapon = resolveWeapon(wid, 2);
-    const skin = OPERATORS[(index + 1) % OPERATORS.length];
+    // SpeedKills: its own soldier, seeded by its id, which a guest's figure of it takes too (soldier.ts botSoldierCode)
+    const op = OPERATORS[(index + 1) % OPERATORS.length];
+    const skin = IS_SK ? { ...op, soldier: botSoldierCode(id) } : op;
     this.dummy = new Dummy(spawn.x, spawn.z, 0, { armed: wid, respawn: false, skin, rig: true, noBase: true });
     // SpeedKills: a player's one shield (speedkills.json health), whatever armour tier the kit says
     if (IS_SK && PROFILE.health) this.dummy.shieldCap = PROFILE.health.shield;

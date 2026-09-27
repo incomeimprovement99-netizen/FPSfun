@@ -92,6 +92,24 @@ export function randomLook(rng: () => number = Math.random): SoldierLook {
   return l;
 }
 
+/**
+ * A bot's soldier, the same on every machine: a random look (randomLook) seeded by the bot's id in the match, which
+ * the host and every guest share. Bots had their operator's look, and a battle royale's 27 bots share six operators,
+ * so they came in six looks (bots.ts on the host, duel.ts makeAvatar on a guest).
+ */
+export function botSoldierCode(id: number): string {
+  // mulberry32, seeded from the id
+  let a = Math.imul(id + 1, 2654435761) >>> 0;
+  const rng = (): number => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  return soldierCode(randomLook(rng));
+}
+
 const url = (p: string): string => `${p}?v=${cfg.version}`;
 
 interface Asset {

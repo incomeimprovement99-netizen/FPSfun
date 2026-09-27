@@ -12,7 +12,7 @@ import { existsSync, readFileSync } from "node:fs";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { retargetClip, retargeter, rigOf } from "../../src/game/retarget";
-import { lookOf, mergeSoldier } from "../../src/game/soldier";
+import { botSoldierCode, lookOf, mergeSoldier, readSoldierCode } from "../../src/game/soldier";
 import soldierCfg from "../../src/config/soldier.json";
 
 let fails = 0;
@@ -23,6 +23,18 @@ function check(label: string, cond: boolean, detail = ""): void {
 
 const GLB = `public/${soldierCfg.model}`;
 console.log("\nThe bought soldier");
+// the bots' soldiers need no files: a battle royale's bots (ids 100 up) in many looks, every code one the network
+// reads back, and the same code for the same id every time, so the host and every guest see the same bot
+{
+  const ids = Array.from({ length: 27 }, (_, i) => 100 + i);
+  const codes = ids.map(botSoldierCode);
+  const kits = new Set(codes.map((c) => readSoldierCode(c)?.variant));
+  check(
+    "a battle royale's 27 bots wear 20 or more different soldiers across all four kits, each a code the network reads, the same for the same id",
+    new Set(codes).size >= 20 && kits.size === 4 && codes.every((c) => readSoldierCode(c) !== null) && ids.every((id, i) => botSoldierCode(id) === codes[i]),
+    `${new Set(codes).size} looks, ${kits.size} kits`,
+  );
+}
 if (!existsSync(GLB)) {
   console.log(`  --  ${GLB} is not here (the paid files are local only: npm run paid makes them), so this is skipped`);
   console.log("\nSOLDIER SKIPPED");

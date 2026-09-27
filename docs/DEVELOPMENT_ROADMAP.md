@@ -4458,3 +4458,15 @@ Phase 21 4.6: the grey-box, so the owner can play the distances the centre is bu
 - **A new measurement:** the wall run's kick carries 34.6 m (reach.json wallKick), against 24.35 m for the run alone
   and 22.1 m for a double jump, which is what makes the wall gap a class of its own.
 - **Not yet:** the window pad and the pad ladder need the battle royale's pads brought to the course engine.
+
+## Milestone 244 — Every bot its own soldier ✅
+
+Phase 21 S6's "bots pick a random variant and colours".
+
+- **Bots wore their operator's soldier**, and a battle royale's 27 bots share six operators, so they came in six looks.
+  Each now wears a random soldier seeded by its id in the match (`soldier.ts` botSoldierCode): the host's figure of it
+  (`bots.ts`) and every guest's (`duel.ts` makeAvatar, for a figure whose look carries no soldier) are the same.
+- **Checked** (`tools/checks/soldier.ts`, needs no files): 27 bots wear 25 different soldiers across all four kits,
+  every code one the network reads back, the same for the same id. With one seed for every bot it fails.
+- **Not yet:** the killcam draws the killer from its operator alone (its record has no look), so a bot or a player
+  with a chosen soldier is shown in their operator's look there.

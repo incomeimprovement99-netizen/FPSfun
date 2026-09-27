@@ -27,6 +27,7 @@
 // the full packet to any other. The battle royale and the arena modes send
 // their bots through the same broadcast and get the same choice for free.
 import { IS_SK } from "./game";
+import { botSoldierCode } from "./soldier";
 import { Revealed, type Seen } from "./reveal";
 import * as THREE from "three";
 import squadCfg from "../config/squad.json";
@@ -988,7 +989,11 @@ export class Duel implements MatchLike {
     const key = look ? `${weapon}|${op}|${look}` : `${weapon}|${op}`;
     let d = r.avatars.get(key);
     if (!d) {
-      d = new Dummy(0, 0, 0, { armed: weapon, respawn: false, skin: operatorWearing(op, look), rig: true, noBase: true });
+      // SpeedKills: a figure whose look carries no soldier (a bot, whose state has no look) wears the one its id
+      // gives it, the soldier the host's own figure of that bot wears (soldier.ts botSoldierCode)
+      const worn = operatorWearing(op, look);
+      const skin = IS_SK && !worn.soldier ? { ...worn, soldier: botSoldierCode(r.id) } : worn;
+      d = new Dummy(0, 0, 0, { armed: weapon, respawn: false, skin, rig: true, noBase: true });
       // Its own health is not the truth, the other player's is; a huge pool
       // means its hit() reports full damage and never knocks it by itself.
       // Blue shields like the player's, so hits read in the shield colour.
