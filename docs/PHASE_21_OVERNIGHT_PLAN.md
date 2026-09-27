@@ -162,7 +162,9 @@ right in first person beat every variant; a measured reach table and proven modu
 - [x] W6 the fusion level shows: the skin moves A, B, C and the glow brightens each level
 - [x] W5 the guns in the soldiers' hands, checked in a picture
 - [x] W7 the pack's props imported; the MINE hack wears the pack's mine and death boxes its storage case (next: care packages as the weapon case, floor guns simplified)
-- [x] W8 the guns are live (9915b25, Milestone 239); open: the legacy host-migration e2e fails in the batch and alone (first seen at 540e676, before this work)
+- [x] W8 the guns are live (9915b25, Milestone 239)
+- [x] Floor guns wear the bought gun's skin (they had shown its shape in one flat colour since 9915b25)
+- [ ] Open: the legacy host-migration e2e stops at "four bots armed" (3 of 6 armed), in the batch and alone, and still with a minute of game time rather than wall time, so it is the legacy bots' looting and not load; first seen at 540e676, before the soldier and guns. To look into, not to paper over by lowering the bar.
 - [x] 4.2 the reach harness (`tools/checks/reach.ts`, `src/config/reach.json`), and the modules' geometry in `docs/PHASE_21_LAYOUT.md`
 - [x] S9 the soldier is live (5ee71b4, Milestone 238): batches (failures passed alone), fit, fallback, both deploys
 - [x] 4.3 the modules proven (run gap, double gap, chimney: tools/checks/reach.ts)

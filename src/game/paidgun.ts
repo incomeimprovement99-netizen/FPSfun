@@ -105,6 +105,13 @@ export function loadPaidGuns(): Promise<boolean> {
   return loading;
 }
 
+/** a bought gun's skin at a fusion level, for its copy on the floor (loot.ts), or null when it wears none */
+export function paidGunMaterial(id: string, level = 0): THREE.Material | null {
+  const g = GUNS[id];
+  if (!g || !scenes.get(g.model)) return null;
+  return skinMaterial(g.model.replace(/_\d+$/, ""), skinFor(g, level), tl);
+}
+
 /** a prop from the pack (paidweapons.json props: the mine), in its skin, or null when it is not in */
 export function paidProp(key: string): THREE.Object3D | null {
   const p = PROPS[key];

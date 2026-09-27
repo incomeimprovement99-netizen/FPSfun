@@ -24,7 +24,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
-import { paidProp } from "./paidgun";
+import { paidGunMaterial, paidProp } from "./paidgun";
 import { weaponLabel, weaponMods, type AmmoType } from "./weapons";
 import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName, throwName } from "../config/names";
@@ -551,6 +551,11 @@ function floorAt(x: number, z: number): number | null {
 const floorGuns = new Map<string, THREE.BufferGeometry>();
 /** the merged guns' one material: their colours are in the vertices (figure LOD borrows it for a figure's far gun) */
 export const floorGunMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.45 });
+/** forget the floor guns made, so the next are made again (the bought guns have come in) */
+export function resetFloorGuns(): void {
+  floorGuns.clear();
+}
+
 export function floorGun(id: string): THREE.BufferGeometry {
   const hit = floorGuns.get(id);
   if (hit) return hit;
@@ -558,13 +563,15 @@ export function floorGun(id: string): THREE.BufferGeometry {
   root.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
   const parts: THREE.BufferGeometry[] = [];
+  // a bought gun (paidgun.ts) keeps its texture coordinates, and is drawn in its own skin (visual), not flat colours
+  const paid = !!root.userData.paid;
   root.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh || m.name === "muzzleflash" || !m.visible) return;
     const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshStandardMaterial;
     if (mat.transparent) return;
     const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()) as THREE.BufferGeometry;
-    for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal") g.deleteAttribute(name);
+    for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal" && !(paid && name === "uv")) g.deleteAttribute(name);
     if (!g.getAttribute("normal")) g.computeVertexNormals();
     g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
     const c = (mat.color ?? new THREE.Color(0x888888)).clone();
@@ -577,6 +584,7 @@ export function floorGun(id: string): THREE.BufferGeometry {
   });
   const merged = (parts.length ? mergeGeometries(parts) : null) ?? new THREE.BoxGeometry(0.6, 0.12, 0.08);
   for (const p of parts) p.dispose();
+  merged.userData.paid = paid && !!merged.getAttribute("uv");
   floorGuns.set(id, merged);
   return merged;
 }
@@ -667,7 +675,10 @@ export class LootField {
     if (this.headless) return g;
     if (it.kind === "weapon") {
       // one mesh, one draw call (floorGun); its ring on the floor is drawn with every other ring (update)
-      const m = new THREE.Mesh(floorGun(it.id), floorGunMat);
+      const geo = floorGun(it.id);
+      // a bought gun in its skin at the level it lies at (paidgun.ts); ours in the shared flat-colour material
+      const skin = geo.userData.paid ? paidGunMaterial(it.id, it.fusion ?? 0) : null;
+      const m = new THREE.Mesh(geo, skin ?? floorGunMat);
       m.rotation.set(0, Math.PI / 2, Math.PI / 2);
       m.position.y = 0.06;
       g.add(m);

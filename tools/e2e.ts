@@ -4181,7 +4181,12 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
     await host.waitForFunction("window.__range.duel().heir !== null", { polling: 250, timeout: 60000 });
     // most of the bots with a gun they found, and the ring closing: the state worth carrying over
     step = "four bots armed";
-    await host.waitForFunction("window.__range.duel().bots.filter((x) => x.bot.lootKit.gunId).length >= 4", { polling: 500, timeout: 60000 });
+    // a minute of the match's own time for them to find guns: three whole battle royales in one browser starve
+    // each other's frames, and a starved page's game time falls behind the wall's (gameSleep's reason), so a minute
+    // of wall time was sometimes a fraction of one in the match and the bots had not walked to their guns yet
+    const armedFrom = await ev<number>(host, "window.__range.gameTime()");
+    await host.waitForFunction(`window.__range.duel().bots.filter((x) => x.bot.lootKit.gunId).length >= 4 || window.__range.gameTime() > ${armedFrom} + 60`, { polling: 500, timeout: 240000 });
+    if ((await ev<number>(host, "window.__range.duel().bots.filter((x) => x.bot.lootKit.gunId).length")) < 4) throw new Error("four bots armed");
     step = "the ring closing";
     await ev(host, "(() => { const r = window.__range.duel().ring; if (r.state === 'waiting') r.timeLeft = Math.min(r.timeLeft, 1); })()");
     await host.waitForFunction("window.__range.duel().view.state === 'closing'", { polling: 200, timeout: 10000 });

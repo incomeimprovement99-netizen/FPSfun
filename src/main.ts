@@ -115,7 +115,7 @@ import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
 import squadCfg from "./config/squad.json";
-import { BINS, levelRarity, lootLabel, type LootItem } from "./game/loot";
+import { BINS, levelRarity, lootLabel, type LootItem, resetFloorGuns } from "./game/loot";
 import type { AmmoType } from "./game/weapons";
 import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
@@ -1601,6 +1601,7 @@ if (IS_SK)
   void loadPaidGuns().then((ok) => {
     if (!ok) return;
     resetGunModels();
+    resetFloorGuns();
     viewModel.rebuild();
   });
 figureSel.addEventListener("change", () => {
