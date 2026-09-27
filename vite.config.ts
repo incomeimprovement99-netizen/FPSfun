@@ -73,5 +73,8 @@ export default defineConfig(({ mode }) => {
     define: { __PUBLIC_BUILD__: JSON.stringify(beta), __DEFAULT_GAME__: JSON.stringify(defaultGame) },
     plugins: beta ? [gameInHtml, scrubForPublic(), scrubReadme()] : [gameInHtml],
     build: { chunkSizeWarningLimit: 2000 },
+    // `npm run fps backup` writes the server's accounts into server-backup/ while the dev server runs, and the
+    // watcher, opening a file still being written, died of EBUSY and took the dev server with it
+    server: { watch: { ignored: ["**/server-backup/**"] } },
   };
 });
