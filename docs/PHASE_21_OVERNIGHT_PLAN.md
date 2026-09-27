@@ -58,6 +58,37 @@ The owner: "We have the full plan laid out already so do not stop until we are d
 - The mapping is a proposal: each gun's model is picked from a render beside the others in its family, so the fast
   and the hard one of a pair read as different at a glance.
 
+### What the import showed (2026-09-27, W1 done: 21 GLBs and 120 skin textures, 21 MB, local only)
+
+- **Each family is one gun in two builds.** `_1` is the gun as one mesh; `_2` is the same gun split into its moving
+  parts: `Clip` (the magazine), `Slide` or `Slider` (the bolt), `Pump`, `Trigger`, `Button`, and its extras (`Scope`
+  with a `ScopeDot`, `Extruder`, `Silencer`, `Spinner1/2`). **Use `_2` in first person** so the reload has a
+  magazine to take out; `_1` is fine for the floor and for far figures.
+- **`UCX_*` meshes (material `Phy`) are Unity collision hulls: never draw them.** Skip them at load.
+- **Axes and units:** metres; each gun lies along Z with its origin near the grip (the rifle from z -0.42 to 0.56).
+  SpeedKills' procedural guns point down -Z with the origin at the grip, so the paid ones may need a half turn:
+  W2 decides it per model by measuring which end is the narrow barrel.
+- **Scope dots** use `SciFiScopeDot01` (and the launcher's `_Dot`), which the import did not convert: draw them with
+  a plain emissive material.
+- **The mapping, revised** (seven long-gun families for ten guns, so three pairs share a family and differ by build
+  and skin; the owner can change any line in `src/config/paidweapons.json`):
+
+| Gun | Model | Why |
+|---|---|---|
+| ZEPHYR (fast rifle) | SciFiRifle01_1 | the plain rifle |
+| PANDA (hard rifle) | SciFiRifle01_2 | the same rifle with its scope and extruder |
+| USSO (fast SMG) | SciFiSMG02_2 | the compact one (0.64 m) |
+| ANAKIN (hard SMG) | SciFiSMG01_2 | the long one with a scope (0.86 m) |
+| RIPTIDE (fast shotgun) | SciFiShotGun01_2 | magazine-fed |
+| BIGANTLER (hard shotgun) | SciFiShotGun02_2 | the pump |
+| PULSAR (fast marksman) | SciFiSMG01_1 | the long SMG without a scope, as a carbine |
+| HELIX (hard marksman) | SciFiSniperRifle01_1 | the plain long rifle |
+| BOOG (sniper) | SciFiSniperRifle01_2 | the long rifle with its spinners and magazine |
+| NOVA (special) | SciFiGrenadeLauncher01_2 | the heavy energy gun, with its own sight |
+
+- **Skins:** a gun sharing a family with another starts from a different skin (A, B or C), so the pair differs at
+  a glance; the fusion level moves it on (as found, levels 2 to 3, levels 4 to 5) and brightens the glow.
+
 ### The steps
 
 **W1. Import (`npm run paid`, `tools/import-paid.ts`).** Add the weapons to the tool: every gun model FBX to GLB
@@ -125,8 +156,9 @@ right in first person beat every variant; a measured reach table and proven modu
 - [ ] S6 picker, saving, network, bots
 - [ ] S7 hit volumes
 - [ ] S8 tests
-- [ ] S9 ship the soldier
-- [ ] W1 to W8 the weapons
+- [x] W1 import (eec969f; run `PAID_ONLY=weapons npm run paid`)
+- [ ] W2 to W8 the weapons (see "What the import showed")
+- [~] S9 ship the soldier: main at eec969f in apex-range with the soldier's files copied in; the fallback without them passes (speedkills e2e and verify); the release batches and fit were running
 - [ ] 4.2 reach harness
 - [ ] 4.3 modules and `chains.ts`
 - [ ] 4.4 layout doc
