@@ -290,6 +290,127 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
   falling each level (speedkills.json `fusion.gun[].swap`). ZEPHYR draws in 0.40 s as found and 0.30 s at level
   5, where it was 0.60. `tools/checks/ttk.ts` holds it.
 
+### Why A17 to A19: the draw and the hook (the owner, 2026-09-27)
+
+In the owner's words: the movement is the thing that draws people back; the smooth gameplay and the gunfights are
+why they are hooked. A17 to A19 are that aim.
+
+**One rule for all three.** Hyper Scape's code, models and animations are Ubisoft's creative work. We take:
+- facts: durations, speeds, heights, cooldowns;
+- rhythm: which beat happens when;
+- style: the kind of thing that happens, such as parts that move by themselves, and light and energy cues.
+
+We author the motion and the models ourselves. We never trace their animation pose by pose off frames, and never
+copy a gun's design. Numbers go in src/config with the source or the measurement beside them. Hyper Scape's names
+stay out of the public build (`npm run rules`).
+
+**Where the numbers come from.** No movement number (sprint speed, jump height, gravity) was ever published;
+this was searched on 2026-09-26 and again on 2026-09-27. So they come from footage, by the Phase 20 A9 method:
+- download with yt-dlp and step the frames;
+- measure against something of known size (a training dummy, the floor's tiles, a storey), credible to about
+  15%;
+- use several clips per number, and write down the range.
+
+The written sources are:
+- the Fandom wiki through its MediaWiki API;
+- Ubisoft's patch notes via the Wayback Machine;
+- devtrackers.gg;
+- the PCGamesN interview with producer Graeme Jennings, on making it "faster than anything on the market";
+- the PowerUp! interview with creative director Jean-Christophe Guyot, on rooftops and high jumps from the
+  first prototypes.
+
+### A17. Movement measured off Hyper Scape's footage (the draw)
+
+This builds on A15, which keeps sprint, walk and slide.
+
+- **Measure:**
+  - Jump height and time in the air on flat ground, which together give gravity.
+  - The double jump: its extra height, and how late in a jump it can still be used.
+  - Air control: how far a player can steer or reverse between leaving the ground and landing.
+  - Jump pads: each pad's height and horizontal carry, and how many there are per block.
+  - Ledge climbing: the highest ledge a player catches, how fast they go up it, and mantle speed.
+  - Landing: confirm there is no fall damage, and look for any slowdown on landing.
+  - Camera: FOV, any FOV kick at speed, head bob, and the dip on landing.
+  - Which of our moves Hyper Scape did not have (wall run, wall kick, superglide, tap-strafe). We keep them,
+    marked "ours" in the _note.
+- **Implement:**
+  - movement.speedkills.json takes the measured values, each with its source or range, and "Ours, a first
+    pass" goes.
+  - Recheck everything A15 lists: tools/checks, the movement lab, the city's canyons and climbs, the jump pads'
+    throws and the bots' traversal. A gravity change moves every gap and every pad.
+  - Add a check that a set route across the city's roofs can be run without touching the street, so a change
+    that breaks the flow fails.
+- **Done:** the owner runs the movement lab and a city route side by side with a Hyper Scape clip, and says it
+  feels right.
+
+### A18. Smooth play and gunfights (the hook)
+
+- **Measure:**
+  - **Frame pacing** in a full SpeedKills battle royale: the median and 1% low frame times, and every hitch
+    over 50 ms with its cause from a CPU profile. Bench as the memory note says: medians, and interleaved A/B
+    runs, since the owner uses the PC during runs.
+  - **Input to screen,** in frames: mouse move to camera move, and trigger to muzzle flash.
+  - **Hit feel:** the hit marker, hit sound, headshot sound, shield break and kill confirmation, each on the
+    frame of the hit.
+  - **TTK against a moving target.** Players move faster after A15 and A17, so rerun tools/checks/ttk.ts against
+    a strafing target at the new speeds. Keep the 1.3 to 1.8 s close-range band
+    (docs/PHASE_18_PLAN_SPEEDKILLS.md 4.2). If fights feel spongy at the new speeds, raise damage.
+  - **With friends:** remote players move smoothly at the new speeds (interpolation, no rubber-banding), and hits
+    land on what the shooter saw. Run the p2p section over the real network.
+  - **Hyper Scape facts to collect:** its TTK, its hit feedback, and what reviews and players complained about in
+    its gunfights (the 4.2 table already names the long TTK) and what they praised.
+- **Done:** before and after numbers are written into the plan, and the owner plays a match with friends and
+  says it is smooth.
+
+### A19. The PANDA as an animation showcase, then every gun
+
+The owner wants one gun taken as far as it can go for animations and looks. Hyper Scape's gun animations were
+short, snappy and full of futuristic detail.
+
+The PANDA is the heavy rifle (the legacy vinson):
+- its procedural model is in src/game/gunmodels.ts (about line 1636);
+- its poses are code in src/game/viewmodel.ts: the reload poses near line 746, the action cycle near 974, and
+  INSPECT_TIME = 3.2 near line 84.
+
+- **Look for, in footage of Hyper Scape's rifles:**
+  - Each action's length: draw, holster, reload with rounds left, reload from empty, and inspect. These are
+    facts; write them down.
+  - Each action's beats: when the magazine leaves, when the new one seats, when the gun is ready, and when the
+    hands move.
+  - The style, described in words and not copied as poses: what moves on its own, what lights up, what vents,
+    and how the inspect shows the gun off.
+- **Implement, all authored by us:**
+  - A PANDA model with the parts the animations need: a magazine or energy cell that comes out, a moving bolt or
+    charging part, lights, a small ammo readout on the gun, and vents or panels that open on a reload. Our own
+    design, in SpeedKills' neon-night look.
+  - Every animation:
+    - the draw, with a flourish on the first draw and quick after that;
+    - holster, tactical reload, empty reload and inspect;
+    - firing: the action, the heat, the shell;
+    - the last round;
+    - sprint, slide, jump and land;
+    - sights in and out, and idle;
+    - a fusion level-up where the gun visibly upgrades.
+  - Each animation's length comes from the gameplay number (the reload time, A16's swap times at every fusion
+    level), never the other way round. INSPECT_TIME moves into config.
+  - A sound on each beat (audio.json): magazine out, magazine in, servo, bolt, vent.
+  - Decide, and write down why, whether the procedural poses can carry this or it moves to authored keyframe
+    clips (a three.js AnimationClip, or a keyframe JSON per gun). Pick whichever will work for every gun
+    afterwards.
+  - A scrub view (a dev page, or the range TV) that steps each animation frame by frame and screenshots it.
+  - Third person: other players see the reload and the swap.
+- **Tests:**
+  - A check that every PANDA animation's length matches its gameplay time at every fusion level.
+  - Screenshots at key frames: the hand on the magazine, nothing passing through the camera, the red dot clear
+    in the sights (the A3 lesson).
+  - An e2e that plays each animation.
+  - The owner reviews it against a Hyper Scape clip.
+- **Done:** the owner watches the PANDA's inspect, reload and swap in the game and says they are at Hyper
+  Scape's level. Only then does the system roll out to the other guns, in an order written into the plan then.
+
+**Order:** A15 and A16, then A17, then A18, then A19. Each follows CLAUDE.md: build, test, document, commit,
+ship.
+
 ### A11. The main menu too narrow, and scrollbars in our colours
 
 - **The owner:** the main screen's menu is not wide enough and shows a horizontal scrollbar. All scrollbars
