@@ -121,8 +121,10 @@ Game) or `?game=legacy`, and everything below this section describes it.
   their own feel in the hands: on a swap they spin in ahead of the hand and
   build out of dark pixel cubes behind a sweeping amber band, as Hyper Scape's
   did, kick on their own spring (the USSO tight and
-  buzzing, BOOG a heavy punch and a recharge you can see), and a reload phases
-  the magazine out and a new one in. Their shots throw light, not brass (glowing
+  buzzing, BOOG a heavy punch and a recharge you can see), and a reload rolls
+  the gun's underside toward you and brings it up while the magazine phases out
+  and a new one in. From empty the USSO's support hand goes to its charging
+  handle and racks it; BOOG cants over after each shot while its wheels turn. Their shots throw light, not brass (glowing
   cells, and BOOG a shockwave off the muzzle), BOOG's scope powers on with a scan
   line and a ring round it fills as it recharges, their glow stutters when the
   magazine is nearly out, and an inspect or a fusion runs a scan along the gun.
@@ -136,8 +138,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
   for squad mates, gold for the crown's carrier. The gap analysis
   against Hyper Scape is docs/HYPERSCAPE_GAP_ANALYSIS.md.
   Every bought gun's support hand holds it where the bought model is held
-  (measured), and the soldier's first-person arms are drawn the glove's size and
-  a real forearm's thickness, whole to the shoulder. Using a hack is seen in
+  (measured), under the gun, and rolls round it until its wrist is nearly
+  straight on the forearm; the soldier's first-person arms are drawn the
+  glove's size and a real forearm's thickness, whole to the shoulder. Using a hack is seen in
   the hands, as in Hyper Scape: the left hand comes up off the gun with the
   hack's amber card over it, taps it, and the card breaks into pixels as the
   hack goes off, the gun dipping in the other hand. HEAL lays a glowing ring on

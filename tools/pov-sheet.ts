@@ -9,6 +9,8 @@ const URL = process.env.SHOT_URL ?? "http://localhost:5196/";
 const OUT = process.argv[2] ?? "docs/updates/pov";
 const IDS = process.argv.length > 3 ? process.argv.slice(3) : ["r97", "sentinel"];
 const FOV = Number(process.env.FOV ?? 1.571);
+// ONLY=stand,aim takes just those of the poses
+const ONLY = process.env.ONLY ? process.env.ONLY.split(",") : null;
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -24,6 +26,7 @@ try {
   await page.waitForFunction("Boolean(window.__range) && window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady()", { polling: 250, timeout: 60000 });
   await page.evaluate(`document.getElementById("overlay").classList.add("hidden"); window.__range.input.locked = true;`);
   const shot = async (name: string, script: string, ms: number) => {
+    if (ONLY && !ONLY.includes(name.slice(name.lastIndexOf("-") + 1))) return;
     await page.evaluate(`(() => { const r = window.__range; r.player.teleport(0, 0, 30, 0, 0); ${script} })()`);
     await wait(ms);
     await page.screenshot({ path: `${OUT}-${name}.png` });

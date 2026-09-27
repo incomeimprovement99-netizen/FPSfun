@@ -75,6 +75,8 @@ export interface GunModel {
   opticOnSlide: boolean;
   /** where the magazine sits when seated, for the support hand on a reload */
   magBottom: THREE.Vector3;
+  /** where the support hand takes the charging handle to rack it, in the gun's space (a bought gun's, measured off its Slider) */
+  boltGrip?: THREE.Vector3;
   grip: HandPlacement;
   support: HandPlacement & { kind: "guard" | "pistol" | "pump" };
   /** visual recoil strength, 1 = rifle */

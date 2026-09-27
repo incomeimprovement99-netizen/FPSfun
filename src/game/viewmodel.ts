@@ -19,6 +19,7 @@
 // more than about 30 cm in front of the camera, so it cannot clip into a wall
 // the player is standing against: the player's own radius is 41 cm.
 import * as THREE from "three";
+import { springStep } from "./spring";
 import type { ResolvedWeapon } from "./weapons";
 import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels";
 import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
@@ -103,10 +104,14 @@ interface GunFeel {
   buzz?: { amp: number; hz: number };
   pulse: { glow: number; decay: number };
   charge?: { drained: number; ready: number };
-  reload: { magOut: number[]; magIn: number[]; seat: number; snap: number; pulse: number; drop: number };
+  reload: { magOut: number[]; magIn: number[]; seat: number; snap: number; pulse: number; drop: number; twist?: { roll: number; yaw: number; pitch: number; x: number; y: number; z: number } };
+  /** BOOG: over this share of the rechamber after a shot the gun cants over and back at the hip, its wheels turning */
+  cycle?: { at: number[]; roll: number; yaw: number; y: number };
   flash: FlashStyle;
   shell: "cell";
   rack?: number[];
+  /** the support hand's way to the handle before the rack and back after it, shares of the reload */
+  rackHand?: number[];
   scan: { inspect: number; fusion: number };
   ads: number;
   lowAmmo: number;
@@ -473,6 +478,12 @@ export class ViewModel {
   /** the middle of the gun, gun-local: what an inspect or a flourish turns about */
   private readonly gunCentre = new THREE.Vector3();
   private readonly boltBase = new THREE.Vector3();
+  /** where the support hand holds the charging handle this frame */
+  private readonly rackAt = new THREE.Vector3();
+  /** the gun's own roll this frame, before any turn about its centre (feelState, tools/e2e.ts) */
+  private rollNow = 0;
+  /** how far the support hand is on the charging handle, 0..1: a knob, not a bar, so its wrist may turn any way (fparms.ts) */
+  private onKnob = 0;
   private readonly pumpBase = new THREE.Vector3();
   private readonly magBase = new THREE.Vector3();
   private readonly cylBase = new THREE.Vector3();
@@ -842,6 +853,14 @@ export class ViewModel {
           this.onFeel?.("rack");
         }
       }
+      // the support hand goes to the handle, back with it and forward, and to the gun again (the owner: "the charging
+      // handle moves ... but the wrist doesn't go for it to charge it back visually")
+      if (m.boltGrip) {
+        const R = F.rackHand ?? [0.05, 0.04];
+        const reach = smooth(F.rack[0] - R[0], F.rack[0], reloadP) * (1 - smooth(F.rack[1], F.rack[1] + R[1], reloadP));
+        this.onKnob = reach;
+        if (reach > 0) this.left.group.position.lerp(this.rackAt.copy(m.boltGrip).setZ(m.boltGrip.z + m.bolt.position.z - this.boltBase.z), reach);
+      }
     }
     // the magazine: out as it drops and a new one in as it comes back, on a reload; else with the gun
     let mp = phase;
@@ -856,6 +875,7 @@ export class ViewModel {
       }
     }
     this.lastReloadP = reloading ? reloadP : 0;
+    if (!reloading) this.onKnob = 0;
     const M = this.magSweep;
     M.phase.value = mp;
     M.time.value = this.t;
@@ -987,11 +1007,15 @@ export class ViewModel {
 
     const sp = m.support;
     const ss = sp.scale ?? 1;
-    this.supportBase.set(sp.x ?? 0, sp.u, -sp.f);
+    // SpeedKills' bought guns: the hand under the gun, palm up, rather than round its side (speedkills.json viewmodel
+    // support). Their bodies are wider than the procedural handguard the hand was posed round, and at 22 mm over the
+    // underside and rolled 0.55 the fingers went into the gun's side (the owner: "morphed/glitched into the side of it")
+    const under = IS_SK && m.root.userData.paid && sp.kind !== "pistol" && sp.kind !== "pump" ? PROFILE.viewmodel?.support : undefined;
+    this.supportBase.set(sp.x ?? 0, sp.u - (under?.below ?? 0), -sp.f);
     this.left.group.position.copy(this.supportBase);
     // 'ZYX': tilt the held bar first, then roll the hand under the handguard
     // about the barrel axis, so the palm cups it from below.
-    const roll = sp.kind === "pistol" ? 0 : 0.55;
+    const roll = sp.kind === "pistol" ? 0 : (under?.roll ?? 0.55);
     this.left.group.rotation.set(-sp.angle, 0, roll, "ZYX");
     this.left.group.scale.set(-ss, ss, ss);
     // Which shoulders this gun hangs off. The points themselves are in the
@@ -1097,8 +1121,7 @@ export class ViewModel {
 
     // ---- recoil spring, slightly underdamped so the gun settles with one
     // small overshoot, which is what reads as weight
-    this.kickVel += (-260 * this.kick - 24 * this.kickVel) * dt;
-    this.kick += this.kickVel * dt;
+    [this.kick, this.kickVel] = springStep(this.kick, this.kickVel, 260, 24, dt);
 
     // ---- no look lag. An earlier version made the gun trail the view in
     // proportion to how fast you turned, which is how realistic shooters sell
@@ -1162,8 +1185,7 @@ export class ViewModel {
     // a signature gun's kick: its own spring, back, up and a twist, and a buzz while it keeps firing
     const F = this.feel;
     if (F) {
-      this.feelKickVel += (-F.kick.spring * this.feelKick - F.kick.damp * this.feelKickVel) * dt;
-      this.feelKick += this.feelKickVel * dt;
+      [this.feelKick, this.feelKickVel] = springStep(this.feelKick, this.feelKickVel, F.kick.spring, F.kick.damp, dt);
       p.z += this.feelKick * F.kick.back;
       rx += this.feelKick * F.kick.up;
       ry += this.feelKick * F.kick.yaw * this.kickYaw;
@@ -1173,6 +1195,17 @@ export class ViewModel {
         p.x += Math.sin(this.t * F.buzz.hz * Math.PI * 2) * a;
         p.y += Math.cos(this.t * F.buzz.hz * Math.PI * 2.6) * a;
       }
+    }
+    // BOOG's cycle: after a shot, at the hip, it cants over and back while its wheels turn (the owner: "can we twist it
+    // again, even if slightly, to better animate and see it animating"; the pack's sniper has no charging handle)
+    if (F?.cycle) {
+      const C = F.cycle;
+      const u = (this.t - this.lastShotAt) / Math.max(0.4, w.rechamberTime || w.shotInterval);
+      const v = clamp((u - C.at[0]) / (C.at[1] - C.at[0]), 0, 1);
+      const k = Math.sin(Math.PI * v) * (1 - ads);
+      rz += C.roll * k;
+      ry += C.yaw * k;
+      p.y += C.y * k;
     }
     // recoil: back, muzzle up, a random twist
     p.z += this.kick * 0.018;
@@ -1211,6 +1244,17 @@ export class ViewModel {
       rz -= 0.34 * reloadEnv;
       rx += 0.1 * reloadEnv;
       p.y -= 0.03 * reloadEnv;
+    } else if (F?.reload.twist) {
+      // a signature gun turns its underside toward you, in and up, so the magazine's phase out and in is seen (the owner:
+      // "rotate the gun when reloading so that the bottom is more facing the left so the mag is more obviously being
+      // morphed into the gun"); the plain roll turned it the other way, the magazine under the gun and off the frame
+      const T = F.reload.twist;
+      rz += T.roll * reloadEnv;
+      ry += T.yaw * reloadEnv;
+      rx += T.pitch * reloadEnv;
+      p.x += T.x * reloadEnv;
+      p.y += T.y * reloadEnv;
+      p.z += T.z * reloadEnv;
     } else {
       rz -= 0.38 * reloadEnv;
       rx += 0.12 * reloadEnv;
@@ -1279,6 +1323,7 @@ export class ViewModel {
     }
 
     this.pose.rotation.set(rx, ry, rz);
+    this.rollNow = rz;
     if (turning) turnAboutCentre(p, this.baseRot, this.pose.rotation, this.gunCentre);
     this.pose.position.copy(p);
 
@@ -1360,9 +1405,17 @@ export class ViewModel {
   }
 
   /** the signature gun's feel in hand (gunfeel.json), its phase and its magazine's, and whether it is drawn (the e2e soldier section) */
-  get feelState(): { gun: string | null; phase: number; mag: number; shown: boolean; scan: number; charge: number | null; screen: string | null } {
+  get feelState(): { gun: string | null; phase: number; mag: number; shown: boolean; scan: number; charge: number | null; screen: string | null; roll: number; onHandle: number | null } {
     const hasScreen = !!this.model?.root.getObjectByName("gun-screen");
-    return { gun: this.feel ? (this.model?.id ?? null) : null, phase: this.bodySweep.phase.value, mag: this.magSweep.phase.value, shown: this.holder.visible, scan: this.bodySweep.scan.value, charge: this.scopeFeel?.charge ?? null, screen: hasScreen ? this.screenDrawn : null };
+    const m = this.model;
+    // how far the support hand is from the charging handle, metres in the gun's space (the rack puts it there)
+    const onHandle = m?.boltGrip && m.bolt ? this.left.group.position.distanceTo(this.tmp.copy(m.boltGrip).setZ(m.boltGrip.z + m.bolt.position.z - this.boltBase.z)) : null;
+    return { gun: this.feel ? (this.model?.id ?? null) : null, phase: this.bodySweep.phase.value, mag: this.magSweep.phase.value, shown: this.holder.visible, scan: this.bodySweep.scan.value, charge: this.scopeFeel?.charge ?? null, screen: hasScreen ? this.screenDrawn : null, roll: this.rollNow, onHandle };
+  }
+
+  /** each real arm's wrist bend when last posed, degrees (fparms.ts; tools/e2e.ts) */
+  get wristBend(): { r: number; l: number; rollL: number } {
+    return { ...this.real.wristBend, rollL: this.real.wristRoll.l };
   }
 
   /** whether each real arm's upper arm's cut end is off the gun camera's frame (fparms.ts cutOffFrame; the e2e soldier section) */
@@ -1404,7 +1457,7 @@ export class ViewModel {
     else if (this.fists.visible) this.real.pose("r", this.fistR, this.fistArmR, "fist");
     if (this.zipRig.visible && !this.left.group.visible) this.real.pose("l", this.zipHand, this.zipArm, "grip");
     else if (this.castRig.visible && !this.left.group.visible) this.real.pose("l", this.castHand, this.castArm, "point");
-    else if (gun && this.left.group.visible) this.real.pose("l", this.left, this.leftArm, "grip");
+    else if (gun && this.left.group.visible) this.real.pose("l", this.left, this.leftArm, "grip", this.onKnob);
     else if (this.fists.visible) this.real.pose("l", this.fistL, this.fistArmL, "fist");
   }
 

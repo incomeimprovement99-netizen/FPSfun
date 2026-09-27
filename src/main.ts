@@ -7907,6 +7907,8 @@ initWelcome();
   setThirdPerson,
   selfFigureVisible: () => selfFig?.group.visible ?? false,
   viewModelVisible: () => viewModel.group.visible,
+  /** the gun in the hands and the arms, for a picture to find a part by name (tools/gunfeel-sheet.ts) */
+  viewModelRoot: () => viewModel.group,
   /** how many kit pieces dress the battle royale's buildings (kitdress.ts), 0 until they are in */
   kitDressed: () => kitDressed,
   /** the fit test: every figure's clothed body painted flat magenta, so a picture can count what shows through (mannequin.ts) */
@@ -7922,6 +7924,8 @@ initWelcome();
   realArmsShown: () => viewModel.realArmsShown,
   /** whether each real arm's upper arm's cut end is off the gun camera's frame (fparms.ts): in it, it hung under the gun */
   armCutsOff: () => viewModel.cutsOff,
+  /** each first-person wrist's bend, degrees (fparms.ts): the support hand rolls round the gun to keep it straight */
+  wristBend: () => viewModel.wristBend,
   /** the signature gun in hand (gunfeel.json): which, its phase and its magazine's, and whether it is drawn */
   gunFeel: () => viewModel.feelState,
   /** how many movement trails are drawn now (trails.ts) */

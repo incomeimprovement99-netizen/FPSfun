@@ -5111,6 +5111,112 @@ async function soldierTest(browser: Browser): Promise<void> {
     boog.after !== null && boog.after > 0 && boog.after < 0.9 && boog.later === 1 && boog.scan > -0.5,
     JSON.stringify(boog),
   );
+  // the reload's twist (gunfeel.json reload.twist): part way through a reload the USSO and BOOG are rolled over, their
+  // underside toward you, so the magazine's phase is seen (the plain reload's roll was 0.38); and from empty the USSO's
+  // support hand is on its charging handle through the rack, and back on the gun after it (rackHand)
+  const twist = await ev<{ roll: Record<string, number>; onHandle: number | null; away: number | null }>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const gameWait = async (s) => {
+        const g0 = r.gameTime();
+        const t0 = performance.now();
+        while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
+      };
+      // in the hands and settled, 0.6 s with no swap and no flourish: a gun's first draw twirls it a whole turn round
+      // its barrel, starting as the swap ends
+      const hold = async (id) => {
+        r.loadout.give(0, id);
+        r.loadout.requestSwap(0, r.gameTime());
+        const t0 = performance.now();
+        let clearFrom = r.gameTime();
+        while (r.gameTime() - clearFrom < 0.6 && performance.now() - t0 < 30000) {
+          if (r.loadout.swapping || r.vmState().flourish) clearFrom = r.gameTime();
+          await wait(20);
+        }
+      };
+      // what the reload adds to the gun's roll: mid-reload against just before it, with no inspect turning it
+      r.debugView.inspect = -1;
+      const roll = {};
+      for (const id of ["r97", "sentinel"]) {
+        await hold(id);
+        const rest = r.gunFeel().roll;
+        r.debugView.reload = 0.5;
+        await gameWait(0.2);
+        roll[id] = r.gunFeel().roll - rest;
+        r.debugView.reload = null;
+        await gameWait(0.2);
+      }
+      await hold("r97");
+      r.loadout.active.state.clip = 0;
+      r.debugView.reload = 0.9;
+      await gameWait(0.2);
+      const onHandle = r.gunFeel().onHandle;
+      r.debugView.reload = null;
+      r.loadout.active.state.clip = r.loadout.active.weapon.clipSize;
+      await gameWait(0.2);
+      const away = r.gunFeel().onHandle;
+      r.debugView.inspect = null;
+      return { roll, onHandle, away };
+    })()`,
+  );
+  check("soldier guns: part way through a reload the USSO and BOOG are rolled over, the underside toward you", twist.roll.r97 < -0.7 && twist.roll.sentinel < -0.6, JSON.stringify(twist.roll));
+  check(
+    "soldier guns: from empty, the USSO's support hand is on its charging handle for the rack, and back on the gun after",
+    twist.onHandle !== null && twist.onHandle < 0.005 && twist.away !== null && twist.away > 0.03,
+    JSON.stringify(twist),
+  );
+  // the support wrist (fparms.ts, speedkills.json viewmodel support straighten): the hand rolls round what it holds
+  // until the wrist is nearly straight on the forearm, and on the charging handle (a knob) turns any way. Measured
+  // without it, 44 to 83 degrees at the hip, up to 103 aimed and 122 on the USSO's rack (the owner: "look at how
+  // fucked up the left wrist is")
+  const wrists = await ev<Record<string, number>>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const gameWait = async (s) => {
+        const g0 = r.gameTime();
+        const t0 = performance.now();
+        while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
+      };
+      const out = {};
+      r.debugView.inspect = -1;
+      for (const id of ["r97", "sentinel", "alternator_smg", "mastiff"]) {
+        r.loadout.give(0, id);
+        r.loadout.requestSwap(0, r.gameTime());
+        const t0 = performance.now();
+        let clearFrom = r.gameTime();
+        while (r.gameTime() - clearFrom < 0.6 && performance.now() - t0 < 30000) {
+          if (r.loadout.swapping || r.vmState().flourish) clearFrom = r.gameTime();
+          await wait(20);
+        }
+        out[id] = r.wristBend().l;
+        r.debugView.ads = 1;
+        await gameWait(0.3);
+        out[id + " aimed"] = r.wristBend().l;
+        r.debugView.ads = null;
+        await gameWait(0.2);
+        if (id === "r97") {
+          r.loadout.active.state.clip = 0;
+          r.debugView.reload = 0.9;
+          await gameWait(0.2);
+          out["r97 rack"] = r.wristBend().l;
+          r.debugView.reload = null;
+          r.loadout.active.state.clip = r.loadout.active.weapon.clipSize;
+          await gameWait(0.2);
+        }
+      }
+      r.debugView.inspect = null;
+      return out;
+    })()`,
+  );
+  check(
+    "soldier arms: the support wrist is nearly straight on every gun, held (50 degrees at most) and on the USSO's rack (30)",
+    Object.entries(wrists).every(([k, v]) => v <= (k.endsWith("rack") ? 30 : 50)) && Object.keys(wrists).length === 9,
+    JSON.stringify(Object.fromEntries(Object.entries(wrists).map(([k, v]) => [k, Math.round(v)]))),
+  );
   // the USSO wears the pack's reflex sight from the steady SMG (paidweapons.json mount; the pack has no sight
   // attachments, and the USSO had irons alone) and is aimed down its dot, drawn in its optic's red
   const reddot = await ev<{ mounted: boolean; dot: string | null; sight: { dot: boolean } | null } | null>(

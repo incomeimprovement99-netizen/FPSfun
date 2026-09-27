@@ -16,7 +16,7 @@
 import * as THREE from "three";
 import { GLOVE_MIDDLE_KNUCKLE, GLOVE_WRIST, type Forearm, type Hand } from "./arms";
 import cfg from "../config/viewmodel.json";
-import { IS_SK } from "./game";
+import { IS_SK, PROFILE } from "./game";
 import { armRigKey, buildArmRig, FP_UPPER, type ArmRig } from "./mannequin";
 import type { OperatorSkin } from "./operators";
 
@@ -165,7 +165,7 @@ export class FpArms {
    * already placed this frame. Everything is worked out in world space and
    * written back to the bones as turns against their parents.
    */
-  pose(side: "r" | "l", glove: Hand, forearm: Forearm, grip: "grip" | "fist" | "point" | "open"): void {
+  pose(side: "r" | "l", glove: Hand, forearm: Forearm, grip: "grip" | "fist" | "point" | "open", free = 0): void {
     if (!this.rig || !this.sides) return;
     const S = this.sides[side];
     glove.group.updateWorldMatrix(true, false);
@@ -196,7 +196,44 @@ export class FpArms {
     // of the eye; the elbow where a forearm of this body's length ends
     const along = new THREE.Vector3(0, 1, 0).applyQuaternion(forearm.group.getWorldQuaternion(q1)).normalize();
     const down = new THREE.Vector3(0, -1, 0.35).transformDirection(this.group.matrixWorld);
-    const downBy = IS_SK ? this.cutOffFrame(side, wrist, along, down, S.foreLen * body, UPPER * S.upperLen * body, 0.5 * CUT_RADIUS * body) : DOWN;
+    const along0 = along.clone();
+    let downBy = IS_SK ? this.cutOffFrame(side, wrist, along, down, S.foreLen * body, UPPER * S.upperLen * body, 0.5 * CUT_RADIUS * body) : DOWN;
+    // The support hand rolls round what it holds until its wrist is nearly straight on the forearm, as a hand under a
+    // handguard does (speedkills.json viewmodel support straighten). The glove's turn is posed for the gun and the
+    // forearm's line is chosen to take the arm out of the frame, each on its own, and the wrist took whatever was
+    // between them: bent back past 90 degrees on the USSO's rack (the owner: "look at how fucked up the left wrist
+    // is"). A roll about the bar, pivoted on the grip, keeps the hand on the gun; then the forearm is chosen again from
+    // where the wrist now is.
+    const SUP = PROFILE.viewmodel?.support;
+    const straighten = side === "l" && grip === "grip" && IS_SK && SUP ? SUP.straighten : 0;
+    if (straighten > 0 && SUP) {
+      const axis = across.clone().normalize();
+      const pivot = new THREE.Vector3().setFromMatrixPosition(gm);
+      const a = fwd.clone().projectOnPlane(axis).normalize();
+      const b = along.clone().negate().projectOnPlane(axis).normalize();
+      // never more than `maxRoll` round: past it the fingers came up over the far side of the gun, into the sight picture
+      const turn = THREE.MathUtils.clamp(Math.atan2(axis.dot(a.clone().cross(b)), a.dot(b)) * straighten, -SUP.maxRoll, SUP.maxRoll);
+      this.wristRoll[side] = turn;
+      const roll = new THREE.Quaternion().setFromAxisAngle(axis, turn);
+      wrist.sub(pivot).applyQuaternion(roll).add(pivot);
+      fwd.applyQuaternion(roll);
+      handQ.premultiply(roll);
+      along.copy(along0);
+      downBy = this.cutOffFrame(side, wrist, along, down, S.foreLen * body, UPPER * S.upperLen * body, 0.5 * CUT_RADIUS * body);
+      // a hand on a knob (the USSO's charging handle, `free` of the way there) is not held to a bar, so the rest of the
+      // bend comes out by turning it any way about where it holds: a roll alone left the rack's wrist at 64 degrees
+      if (free > 0) {
+        const turnAll = new THREE.Quaternion().setFromUnitVectors(fwd.clone().normalize(), along.clone().negate().normalize());
+        const q = new THREE.Quaternion().slerp(turnAll, free * straighten);
+        wrist.sub(pivot).applyQuaternion(q).add(pivot);
+        fwd.applyQuaternion(q);
+        handQ.premultiply(q);
+        along.copy(along0);
+        downBy = this.cutOffFrame(side, wrist, along, down, S.foreLen * body, UPPER * S.upperLen * body, 0.5 * CUT_RADIUS * body);
+      }
+    }
+    // the wrist's bend, degrees between the hand's line and the forearm's (tools/e2e.ts)
+    this.wristBend[side] = (fwd.angleTo(along.clone().negate()) * 180) / Math.PI;
     const elbow = wrist.clone().addScaledVector(along, S.foreLen * body);
     // The upper arm goes down in the view from the elbow, blended with the
     // forearm's own line: down is the shortest way out of the frame, so its
@@ -254,7 +291,10 @@ export class FpArms {
     // first toward the frame's lower corner (at the hip) or down under the gun (aimed), which is how an arm reads;
     // then, only as far as it takes, on toward the eye, the one way a short arm can always leave the frame (all the
     // way, it came at the eye like a tube)
-    const corner = new THREE.Vector3(x, -0.9, 0.6).lerp(v2.set(0.95 * x, -1, 0.45), ads).transformDirection(eye.matrixWorld);
+    // SpeedKills' support arm down and back under the gun, the way a forearm under a handguard runs to the body, rather
+    // than out to the corner (speedkills.json viewmodel support corner; the owner: "the left arms sticks out too much")
+    const S = side === "l" && IS_SK ? PROFILE.viewmodel?.support : undefined;
+    const corner = (S ? new THREE.Vector3().fromArray(S.corner) : new THREE.Vector3(x, -0.9, 0.6)).lerp(S ? v2.fromArray(S.cornerAds) : v2.set(0.95 * x, -1, 0.45), ads).transformDirection(eye.matrixWorld);
     const eyeward = new THREE.Vector3(0.8 * x, -0.9, 1.8).lerp(v2.set(0.4 * x, -1, 1.4), ads).transformDirection(eye.matrixWorld);
     const from = along.clone();
     const up = new THREE.Vector3();
@@ -283,6 +323,11 @@ export class FpArms {
     const depth = -e.z;
     return depth < 0.03 || Math.abs(e.y) - r > this.view.tanV * depth || Math.abs(e.x) - r > this.view.tanH * depth;
   }
+
+  /** each wrist's bend when it was last posed, degrees between the hand's line and the forearm's */
+  readonly wristBend = { r: 0, l: 0 };
+  /** how far each hand was last rolled round what it holds to straighten its wrist, radians */
+  readonly wristRoll = { r: 0, l: 0 };
 
   /** whether each arm's upper arm's cut end was off the gun camera's frame when it was last posed (the e2e soldier section) */
   readonly cutsOff = { r: true, l: true };

@@ -62,7 +62,7 @@ export interface GameProfile {
   /** how a fight feels (speedkills.json feel): the aimed enemy's outline, the speed streaks */
   feel?: { outline: { color: string; px: number; min: number; back: number; range: number }; streaks: { from: number; full: number; opacity: number } };
   /** the first-person gun over viewmodel.json's (absent: the legacy game's own) */
-  viewmodel?: { reloadAds: number };
+  viewmodel?: { reloadAds: number; support?: { roll: number; below: number; corner: number[]; cornerAds: number[]; straighten: number; maxRoll: number } };
   /** the dropship over squad.json's (doorsIn: the seconds before a jump is allowed) */
   ship?: { doorsIn: number; centre?: { near: number; far: number } };
   /** each gun's tuning over its legacy numbers (multipliers; headshotDamage outright) */

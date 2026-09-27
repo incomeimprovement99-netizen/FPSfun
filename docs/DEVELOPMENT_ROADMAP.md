@@ -5427,3 +5427,43 @@ setting's labels said nothing of that ("Balanced: bloom and colour grade").
   measurable frame time on their card.
 - **Checked:** verify, rules; the live server loaded headless from an empty cache, timed, and pictured on
   Competitive and High from the same spot.
+
+## Milestone 284 — USSO and BOOG reloads in view, the hand on the charging handle, the support wrist straightened
+
+The owner's feedback, 2026-09-27: the USSO "seems so low still, you can barely tell the mag is morphing"; "rotate the gun
+when reloading so that the bottom is more facing the left ... both USSO and BOOG should twist in a bit"; "the charging
+handle moves on the usso but the wrist doesn't go for it"; BOOG's charging handle, "can we twist it again, even if
+slightly"; the left hand "always ... glitched into the side" of every gun and the arm sticking out; and, of the rack,
+"look at how fucked up the left wrist is".
+
+- **The reload twist** (`gunfeel.json` reload.twist, `viewmodel.ts`): through a reload the USSO rolls 0.9 rad and BOOG
+  0.8, underside toward you, and each comes up and in, so the magazine phasing out and in is in full view. The plain
+  reload's 0.38 roll turned the top toward you and hid the magazine under the gun, which on the USSO was already below
+  the screen's edge (a picture with the part tinted: its magazine off the bottom at 1920 by 1080). The USSO's rest
+  pose is 45 mm higher.
+- **The rack** (`gunfeel.json` rackHand, `paidgun.ts` boltGrip): from empty, the support hand goes to the charging
+  handle (the pack's Slider, measured: a knob on the left of the receiver), rides it back and forward, and returns.
+- **BOOG's cycle** (`gunfeel.json` cycle): the pack's sniper has no charging handle (its moving parts are the clip, two
+  wheels and the trigger), so after a shot, at the hip, it cants 0.45 rad over and back while its wheels turn.
+- **The support hand** (`speedkills.json` viewmodel support, `fparms.ts`):
+  - under the gun, rolled 1.2 rad and 30 mm lower on the bought guns, whose bodies are wider than the procedural
+    handguard the hand was posed round;
+  - its forearm sent down and back under the gun rather than to the frame's lower corner: aimed, the forearm that came
+    across the sight picture is gone;
+  - then rolled round what it holds, pivoted on the grip, until the wrist is nearly straight on the forearm (at most
+    1.55 rad: past it the Mastiff's fingers came over the top of its pump), and on the charging handle, a knob, turned
+    any way. The wrist was 44 to 83 degrees at the hip, up to 103 aimed and 122 on the rack; it is 10 to 40, up to 47,
+    and 10.
+  - The soldier (AC Game Assets) and the guns (Tirgames) are two sellers' packs, and neither ships a hold or an
+    animation to take a grip from; a first-person arms pack is being looked for.
+- **A fault found on the way** (`spring.ts`): the view's recoil springs were stepped once a frame, and the USSO's
+  (stiffness 900, damping 46) grew without end below about 23 fps, flinging the gun off (its roll read -695968 radians
+  on a software-rendered page). They are stepped in pieces of at most 1/240 s.
+- **Checked:**
+  - e2e (soldier): mid-reload the USSO and BOOG are rolled 0.9 and 0.8 over (0.38 with the twist taken out); from
+    empty the support hand is on the handle for the rack and back on the gun after (15 cm off with it taken out); the
+    support wrist is at most 50 degrees held on four guns and 30 on the rack (77 to 122 with the straightening off);
+  - `tools/checks/spring.ts` (in verify): every signature gun's kick and the plain one stay in bounds and settle at 60,
+    20 and 12 fps (stepped once a frame, the USSO's reached 2.9e28 at 20 fps);
+  - pictures at the owner's view (`tools/gunfeel-sheet.ts`, now at 1920 by 1080 and 110 degrees with the rack and the
+    cycle; `tools/pov-sheet.ts` ONLY=) of all ten guns; verify; rules.

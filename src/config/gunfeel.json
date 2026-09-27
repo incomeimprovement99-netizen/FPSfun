@@ -11,7 +11,7 @@
     "scatter": 0.45,
     "cube": "#0b0f14"
   },
-  "_guns": "Per gun. swap: the outgoing gun phases out over `out` of the swap and the incoming one in over `in` (the model changes at the swap's middle), and `move` is how much of the old drop out of the frame is kept (none would hide nothing from a player's eye; all of it would hide the phase); as it phases in it rises `rise` and unrolls `roll`. holster: the same over the holster's own fraction. kick: the recoil, a spring of its own (`spring` stiffness and `damp` damping, a shot adding `impulse` to its speed), moving the gun `back` and turning it `up`, `yaw` and `roll` a unit of it; buzz: a shake while firing, `amp` metres at `hz`. pulse: the glow jumps by `glow` times on a shot and falls back over `decay` s. charge (BOOG): over the rechamber the glow drains to `drained` and builds back, with a flash of `ready` as it is ready again. reload: the magazine drops `drop` (the plain reload's 0.32 took it out of the frame, and its phase with it) and phases out over `magOut`, the new one in over `magIn`, and it seats at `seat` with a snap of `snap` on the kick spring and a pulse. flash: the muzzle's own flash, its colour, its size against the plain one, how long it lasts (s) and a shockwave ring off the muzzle (0 none, 1 BOOG's). shell: `cell`, a glowing energy casing that shrinks away as it falls, for brass. rack (USSO): on a reload from empty the charging handle goes back and forward over that share of it, after the seat. scan: a lit band passing along the whole gun, `inspect` passes over an inspect and `fusion` seconds when the gun fuses up. ads: the glow's pulse going into the sights. lowAmmo: below that share of the magazine the glow flickers, a tell that it is nearly out. scope (BOOG): its magnified picture powers on over `boot` s, a scan line drawing the reticle top to bottom, and a ring round the picture fills as the gun recharges. hip: moves the gun's hip pose (x right, y up, z back, metres before the view's scale): the USSO's sat low in the right corner at 1920 by 1080 and 110 degrees, half under the HUD's gun panel (the owner: too far down to see its animations).",
+  "_guns": "Per gun. swap: the outgoing gun phases out over `out` of the swap and the incoming one in over `in` (the model changes at the swap's middle), and `move` is how much of the old drop out of the frame is kept (none would hide nothing from a player's eye; all of it would hide the phase); as it phases in it rises `rise` and unrolls `roll`. holster: the same over the holster's own fraction. kick: the recoil, a spring of its own (`spring` stiffness and `damp` damping, a shot adding `impulse` to its speed), moving the gun `back` and turning it `up`, `yaw` and `roll` a unit of it; buzz: a shake while firing, `amp` metres at `hz`. pulse: the glow jumps by `glow` times on a shot and falls back over `decay` s. charge (BOOG): over the rechamber the glow drains to `drained` and builds back, with a flash of `ready` as it is ready again. reload: the magazine drops `drop` (the plain reload's 0.32 took it out of the frame, and its phase with it) and phases out over `magOut`, the new one in over `magIn`, and it seats at `seat` with a snap of `snap` on the kick spring and a pulse. flash: the muzzle's own flash, its colour, its size against the plain one, how long it lasts (s) and a shockwave ring off the muzzle (0 none, 1 BOOG's). shell: `cell`, a glowing energy casing that shrinks away as it falls, for brass. rack (USSO): on a reload from empty the charging handle goes back and forward over that share of it, after the seat. scan: a lit band passing along the whole gun, `inspect` passes over an inspect and `fusion` seconds when the gun fuses up. ads: the glow's pulse going into the sights. lowAmmo: below that share of the magazine the glow flickers, a tell that it is nearly out. scope (BOOG): its magnified picture powers on over `boot` s, a scan line drawing the reticle top to bottom, and a ring round the picture fills as the gun recharges. hip: moves the gun's hip pose (x right, y up, z back, metres before the view's scale): the USSO's sat low in the right corner at 1920 by 1080 and 110 degrees, half under the HUD's gun panel (the owner: too far down to see its animations), and 45 mm higher again (\"the USSO seems so low still\"; its magazine was below the screen's edge, found with the part tinted). reload.twist (USSO, BOOG): through a reload the gun turns its underside toward you and comes in and up, `roll`, `yaw` and `pitch` radians and `x`, `y`, `z` metres at the reload's full pose, so the magazine's phase is seen; the plain magazine reload's roll turned the top toward you and hid the magazine under the gun (the owner, 2026-09-27: \"rotate the gun when reloading so that the bottom is more facing the left so the mag is more obviously being morphed into the gun ... both USSO and BOOG should twist in a bit when reloading\"). rackHand (USSO): the support hand goes to the charging handle over that share of the reload before the rack and back to the gun over that share after it (the handle measured off the pack's Slider, paidgun.ts boltGrip). cycle (BOOG): over `at` of the rechamber after a shot, at the hip, the gun cants `roll` and `yaw` and rises `y` and back, its wheels turning: the pack's sniper has no charging handle, and the owner asked to see it work.",
   "guns": {
     "r97": {
       "swap": {
@@ -62,7 +62,15 @@
         "seat": 0.78,
         "snap": 9,
         "pulse": 1,
-        "drop": 0.1
+        "drop": 0.1,
+        "twist": {
+          "roll": -0.9,
+          "yaw": 0.05,
+          "pitch": 0.15,
+          "x": -0.07,
+          "y": 0.08,
+          "z": 0.02
+        }
       },
       "flash": {
         "color": "#ffc46a",
@@ -82,8 +90,8 @@
       "ads": 0.45,
       "lowAmmo": 0.2,
       "hip": [
-        -0.035,
-        0.055,
+        -0.05,
+        0.1,
         0.02
       ],
       "screen": {
@@ -92,7 +100,11 @@
         "w": 0.07,
         "h": 0.038,
         "color": "#7fe9ff"
-      }
+      },
+      "rackHand": [
+        0.05,
+        0.04
+      ]
     },
     "sentinel": {
       "swap": {
@@ -143,7 +155,15 @@
         "seat": 0.78,
         "snap": 12,
         "pulse": 1.2,
-        "drop": 0.1
+        "drop": 0.1,
+        "twist": {
+          "roll": -0.8,
+          "yaw": 0.05,
+          "pitch": 0.15,
+          "x": -0.07,
+          "y": 0.07,
+          "z": 0.03
+        }
       },
       "flash": {
         "color": "#c8faff",
@@ -173,7 +193,16 @@
         "color": "#6fb8ff",
         "width": 3
       },
-      "_scope": "style hs: Hyper Scape's Protocol V scope (hud.ts drawHsScope): the whole screen, a soft chamfered frame, thin red lines across it with range ticks, a post above and stadia below, the zoom beside a chevron at the left edge; the recharge a bar under it."
+      "_scope": "style hs: Hyper Scape's Protocol V scope (hud.ts drawHsScope): the whole screen, a soft chamfered frame, thin red lines across it with range ticks, a post above and stadia below, the zoom beside a chevron at the left edge; the recharge a bar under it.",
+      "cycle": {
+        "at": [
+          0.08,
+          0.7
+        ],
+        "roll": 0.45,
+        "yaw": 0.15,
+        "y": 0.02
+      }
     }
   },
   "_spin": "The draw's spin (viewmodel.ts), after Hyper Scape's: PC Gamer, \"switching between weapons spins the gun ahead of you like a fractured boomerang, materialising your secondary weapon before your eyes and returning it fully-formed back into your hand\". While a signature gun phases in or out it turns `turns` times flat, like a thrown boomerang, about its own middle, `ahead` metres further out and `up` higher than the hand, and comes back into the grip as it comes whole. fuse: a fusion floods the gun (its phase dips to `dip` and comes back over `seconds`), Hyper Scape's gold pixel flood as a gun fused up.",

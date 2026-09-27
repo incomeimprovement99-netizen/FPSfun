@@ -287,6 +287,14 @@ export function dressPaid(m: GunModel, level = 0): boolean {
     for (const c of clips) box.union(boxIn(m.root, c));
     m.magBottom.set((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
   }
+  // the charging handle, where the support hand takes it to rack it (viewmodel feelFrame): the top of its middle
+  {
+    const box = new THREE.Box3();
+    model.traverse((o) => {
+      if (/^(Slide|Slider)$/.test(o.name)) o.traverse((c) => void ((c as THREE.Mesh).isMesh && box.union(boxIn(m.root, c))));
+    });
+    m.boltGrip = box.isEmpty() ? undefined : new THREE.Vector3((box.min.x + box.max.x) / 2, box.max.y, (box.min.z + box.max.z) / 2);
+  }
   mover(/^Clip/, m.mag);
   mover(/^(Slide|Slider)$/, m.bolt);
   mover(/^Pump$/, m.pump);
