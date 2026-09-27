@@ -5795,7 +5795,7 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   await page.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
+/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
 /**
  * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
  * plays on the page's own clock and takes itself away, a key or a click takes

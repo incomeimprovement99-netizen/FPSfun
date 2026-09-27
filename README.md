@@ -65,9 +65,16 @@ Game) or `?game=legacy`, and everything below this section describes it.
 - **The soldier:** on the game server, every SpeedKills figure is the bought
   Sci-Fi Modular Soldier, in four variants (VANGUARD, the full kit; BREACHER,
   heavy and clean; RECON, light, the face showing; RUNNER, lean), each with its
-  own colours, and the game's animations carried over to its rig. The bought
-  files never enter git, so a copy without them (and the Pages build) shows the
-  figures of before.
+  own colours, and the game's animations carried over to its rig. Pick your
+  kit, its colours, skin and eyes, and the beret, shoulders and pouches on the
+  Loadouts tab; friends see it. In first person the arms are your soldier's own.
+  Its hit volumes follow its body, so a headshot lands on the head you see,
+  running, crouched or sliding. The bought files never enter git, so a copy
+  without them (and the Pages build) shows the figures of before.
+- **The bought guns and props:** on the game server every gun is a Sci-Fi Battle
+  Weapons model, in first person, in hands and on the floor, and a fused gun
+  changes skin and glows brighter each level. The MINE hack's mine, death
+  boxes, care packages and the med kit in a HEAL area are the pack's too.
 - **Ten guns**, five named for the owner's friends; BOOG, the sniper, kills
   with one headshot. Ammo is infinite; the magazine is not.
 - **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to

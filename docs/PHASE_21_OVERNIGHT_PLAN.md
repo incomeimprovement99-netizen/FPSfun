@@ -151,17 +151,17 @@ right in first person beat every variant; a measured reach table and proven modu
 - [x] S1 guards (19e8805): rules fails on a tracked paid file (proven); Pages drops `models/paid`; the soldier loads only when its file answers
 - [x] S2 measured (6a922af): 1.845 m, pelvis 0.959, shoulders 0.494, all bones and pieces; drawn at 1.829/1.845 for the hit boxes
 - [x] S3 loader, tinted materials, per-variant merge to 4 draws (6a922af); clips retargeted (`retarget.ts`, limbs 0.0 degrees off, proven)
-- [ ] S5 animations (retarget, contact sheet, hands, first person)
+- [x] S5 animations: retargeted (S3); the contact sheet of every motion, front and side, five moments each (`tools/soldier-clips.ts`), looked at; the guns in the hands (W5); first person wears the soldier's own arms (8d61bc8)
 - [~] S4 variants: the four and their palettes are in soldier.json and render distinct (tools/soldier-sheet.ts); the picker is S6
 - [x] S6 the picker (Loadouts tab: kit, armour, accent, suit, skin, eyes, beret, shoulders, pouches), kept under `range.sk.soldier`, carried to friends as a fifth look field (the wire's look limit 48 to 64); bots take their operator's look, the same on every machine
-- [ ] S7 hit volumes
-- [ ] S8 tests
+- [x] S7 hit volumes: the fixed column missed the soldier's head in most poses (`tools/soldier-hits.ts`: 110 mm off standing, 690 mm sliding); the soldier's volumes now follow its bones, the head within 1 mm (1b97ae5)
+- [x] S8 tests: the e2e `soldier` section (loads, heads in their volumes in eight poses, bots' kits, the fallback with every paid file a 404) and a friend's soldier code in `skfriends`; the bench with and without the volumes following (below)
 - [x] W1 import (eec969f; run `PAID_ONLY=weapons npm run paid`)
 - [x] W2 measured (`tools/checks/paid-weapons.ts`, `src/config/paidweapons.json`): length, muzzle end, muzzle, sight top
 - [x] W3 and W4 (`src/game/paidgun.ts`): each SpeedKills gun wears its bought model in first and third person, its muzzle and sight line moved to the model's, its magazine, slide and pump in the procedural groups, fitted optics on its top
 - [x] W6 the fusion level shows: the skin moves A, B, C and the glow brightens each level
 - [x] W5 the guns in the soldiers' hands, checked in a picture
-- [x] W7 the pack's props imported; the MINE hack wears the pack's mine and death boxes its storage case (next: care packages as the weapon case, floor guns simplified)
+- [x] W7 the pack's props: the MINE hack's mine, death boxes (the storage case), care packages (the weapon case), floor guns in their skins, the med kit in a HEAL area; SpeedKills has no grenades, so the pack's are unused; `tools/checks/paid-weapons.ts` looks for every prop's files
 - [x] W8 the guns are live (9915b25, Milestone 239)
 - [x] Floor guns wear the bought gun's skin (they had shown its shape in one flat colour since 9915b25)
 - [ ] Open: the legacy host-migration e2e stops at "four bots armed" (3 of 6 armed), in the batch and alone, and still with a minute of game time rather than wall time, so it is the legacy bots' looting and not load; first seen at 540e676, before the soldier and guns. To look into, not to paper over by lowering the bar.

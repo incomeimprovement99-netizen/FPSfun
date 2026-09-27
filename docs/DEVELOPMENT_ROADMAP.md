@@ -4394,3 +4394,51 @@ Phase 21 (W1 to W6), live on the game server at 9915b25.
   item and also failed alone, before any of this work); `npm run fit`; the SpeedKills sections with the guns.
 - **Next:** floor guns wear a simplified bought model (970 items on the floor need one), the heals and cases.
 
+## Milestone 240 — The four chimneys, the owner's chain built into the city ✅
+
+Phase 21 (the brief's 4.4), measured in the city and proven where they stand.
+
+- **The centre's canyons measured** (`tools/centre-canyons.ts`): twelve between the Spire sector's towers, 4.87 to
+  5.67 m wide. None takes the chain, which climbs up to 4.25 m wide (`src/config/reach.json`), so the chimneys are
+  built as walls in canyons the city already has, and nothing else moves.
+- **Four chimneys**, one each side of the Spire (`src/config/city.json` chimneys): two runnable walls 3.0 m apart and
+  27 m long, a landing 5.5 m up at the far end, the top 11 m up at the near end, the chain line lit in magenta.
+- **Proven in the built city** (`tools/checks/sk-chimneys.ts`, in verify): in all four, sprinting in and kicking
+  wall to wall reaches the landing without touching the floor or climbing; turning on the landing (the tap-strafe
+  180), the chain climbs on to the top; and without the kicks the same runs do not get there.
+- **Where to look if it breaks:** a change to wall running or the kick shows in `tools/checks/reach.ts` first (the
+  zig-zag's climb a crossing), then in sk-chimneys.
+
+## Milestone 241 — The pack's props in the world ✅
+
+Phase 21 W7: the rest of the Sci-Fi Battle Weapons pack, only where the game already has the thing.
+
+- **The MINE hack** drops the pack's mine; **death boxes** are its weapon storage case; **care packages** its
+  weapon case, drawn at 1.3 so it reads from further off; **a HEAL area** has its med kit standing in the middle,
+  skin A in a friend's area and the orange C in an enemy's (`src/config/paidweapons.json` props).
+- **Floor guns wear their bought skins** at the level they lie at; they had shown the bought shape in one flat
+  colour.
+- **A name that is not in the import** falls back to our own shapes without a word, so `tools/checks/paid-weapons.ts`
+  looks for every prop's model and skin; a wrong skin letter fails it.
+- SpeedKills has no grenades, so the pack's grenades are not used.
+
+## Milestone 242 — The soldier, finished: its arms, its clips and where it can be hit ✅
+
+Phase 21 S5 to S8.
+
+- **The picker** takes the wardrobe's place on the Loadouts tab in SpeedKills, and a first visit is VANGUARD.
+- **First person wears the soldier's own arms:** the black glove and white bracer in the colours picked, cut from
+  the soldier the way the old body's arms were, the fingers from its own copies of the clips. The sights stay clear.
+- **A contact sheet of every motion** (`tools/soldier-clips.ts`): 21 motions, front and side, five moments each.
+  No feet through the floor, the gun in the hands through every held motion.
+- **The hit volumes follow the soldier's bones.** They were a fixed upright column, and the soldier leans into its
+  gun, runs bent over and slides on its back: its head was a third inside the head volume standing and wholly
+  outside it running, sprinting, crouched and sliding (up to 690 mm off), so a shot on the head a player saw went
+  through air. Now each volume keeps its size and follows its bones (`dummy.ts` followBones); the head's middle is
+  within 1 mm of the volume's centre in all eight poses, 89% of it inside. Legacy keeps its column.
+- **Tested:** the e2e's new `soldier` section (batch 1): it loads, the heads sit in their volumes, figures of
+  different operators wear three or more kits, and with every paid file a 404 the game runs on the figures and
+  guns of before without throwing; `skfriends` checks a friend's soldier code reaches the host. The two main checks
+  fail with the bug put back.
+- **Where to look if it breaks:** a headshot that misses a visible head: `tools/soldier-hits.ts` prints each pose's
+  offset; a figure with no soldier: the `soldier` e2e section and `window.__range.soldierReady()`.
