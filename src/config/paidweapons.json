@@ -194,10 +194,14 @@
       }
     }
   },
-  "_props": "The rest of the pack where the game has the thing (W7): the model a prop wears when the paid files are here, and its skin. mine is the MINE hack's mine (ours was a lit ring); its size is the model's own.",
+  "_props": "The rest of the pack where the game has the thing (W7): the model a prop wears when the paid files are here, and its skin. mine is the MINE hack's mine (ours was a lit ring); its size is the model's own. deathbox is a death box (ours was a dark crate with an orange glow).",
   "props": {
     "mine": {
       "model": "ScifiMine01",
+      "skin": "A"
+    },
+    "deathbox": {
+      "model": "WeaponStorageCase01_1",
       "skin": "A"
     }
   }

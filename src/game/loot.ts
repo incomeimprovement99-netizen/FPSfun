@@ -24,6 +24,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
+import { paidProp } from "./paidgun";
 import { weaponLabel, weaponMods, type AmmoType } from "./weapons";
 import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName, throwName } from "../config/names";
@@ -685,9 +686,14 @@ export class LootField {
       } else lid.position.y = 0.52;
       g.add(lid);
     } else if (it.kind === "box") {
-      const crate = new THREE.Mesh(this.crateGeo, this.mat("deathbox", () => new THREE.MeshStandardMaterial({ color: 0x2b2f35, emissive: 0xff5a3a, emissiveIntensity: 0.25, roughness: 0.6 })));
-      crate.position.y = 0.28;
-      g.add(crate);
+      // SpeedKills: the pack's storage case when it is in (paidgun.ts); our crate otherwise
+      const bought = IS_SK ? paidProp("deathbox") : null;
+      if (bought) g.add(bought);
+      else {
+        const crate = new THREE.Mesh(this.crateGeo, this.mat("deathbox", () => new THREE.MeshStandardMaterial({ color: 0x2b2f35, emissive: 0xff5a3a, emissiveIntensity: 0.25, roughness: 0.6 })));
+        crate.position.y = 0.28;
+        g.add(crate);
+      }
     }
     // an item's box, a gun's ring and a rare one's beam are drawn in batches (update), not here
     return g;
