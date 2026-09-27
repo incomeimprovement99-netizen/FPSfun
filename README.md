@@ -66,6 +66,10 @@ Game) or `?game=legacy`, and everything below this section describes it.
   window in every face, and window pads on the podiums throw you through them.
   Across a canyon it is a sprint jump from window to window; across a street a
   bridge runs from one lobby into the next.
+- **The Sky Park:** 64 m up, 17 of the towers have the same open floor, joined
+  the same way (a jump across each canyon, a bridge across a street), and the
+  Spire's first tier ends there as a terrace, four bridges running onto it
+  from the twin towers.
 - **Movement for roofs:** double jump, wall run and kick, slide, and a climb
   that goes up a storey (two with a double jump first). You sprint whenever you
   move forward, at 14 m/s, and a slide speeds you up a little past that and

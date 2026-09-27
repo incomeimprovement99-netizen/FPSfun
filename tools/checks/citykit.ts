@@ -87,13 +87,15 @@ for (const pad of map.pads) {
   for (const { p, b } of standOut) if (b.intersectsBox(col)) clashes.push(`${p.piece} over the pad at ${x.toFixed(1)}, ${z.toFixed(1)}`);
 }
 for (const t of towers) {
-  if (t.lobby === undefined) continue;
-  const lob = new THREE.Box3(new THREE.Vector3(t.x - t.w / 2 - 1.5, t.lobby + 0.1, t.z - t.d / 2 - 1.5), new THREE.Vector3(t.x + t.w / 2 + 1.5, t.lobby + kit.dress.outset + 3.9, t.z + t.d / 2 + 1.5));
-  for (const { p, b } of [...standOut, ...facades]) if (p.kind !== "billboard" && b.intersectsBox(lob) && b.min.y > t.lobby - 0.5 && b.max.y < t.lobby + 4.5) clashes.push(`${p.piece} across a Sky Lobby's windows at ${t.x.toFixed(1)}, ${t.z.toFixed(1)}`);
+  for (const [name, y] of [["Sky Lobby", t.lobby], ["Sky Park", t.park]] as const) {
+    if (y === undefined) continue;
+    const lob = new THREE.Box3(new THREE.Vector3(t.x - t.w / 2 - 1.5, y + 0.1, t.z - t.d / 2 - 1.5), new THREE.Vector3(t.x + t.w / 2 + 1.5, y + kit.dress.outset + 3.9, t.z + t.d / 2 + 1.5));
+    for (const { p, b } of [...standOut, ...facades]) if (p.kind !== "billboard" && b.intersectsBox(lob) && b.min.y > y - 0.5 && b.max.y < y + 4.5) clashes.push(`${p.piece} across a ${name}'s windows at ${t.x.toFixed(1)}, ${t.z.toFixed(1)}`);
+  }
 }
 const flatBad = places.filter((p) => p.kind === "flat" && Math.min(planeOf(p.piece), kit.dress.relief) + kit.dress.outset > 0.15);
 check("a canyon's faces and a pad's climb wear flat panels, within 0.15 m of the wall (the plan's rule 1)", flatBad.length === 0, flatBad.slice(0, 3).map((p) => p.piece).join(", "));
-check("nothing stands out of a wall in a chimney, a pad's column or across the Sky Lobby's windows", clashes.length === 0, `${clashes.length}: ${clashes.slice(0, 4).join("; ")}`);
+check("nothing stands out of a wall in a chimney, a pad's column or across the Sky Lobby's or the Sky Park's windows", clashes.length === 0, `${clashes.length}: ${clashes.slice(0, 4).join("; ")}`);
 
 // the triangles each preset draws, off the measured pieces
 // the competitive preset wears the lean modules (citykit.json dress lean)

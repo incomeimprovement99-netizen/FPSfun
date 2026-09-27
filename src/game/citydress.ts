@@ -6,7 +6,7 @@
 import * as THREE from "three";
 import kit from "../config/citykit.json";
 import cityCfg from "../config/city.json";
-import { CONCOURSE, KIT_SITES } from "./city";
+import { CONCOURSE, KIT_SITES, PARK_BRIDGES } from "./city";
 import { BR_X, BR_Z } from "./br";
 
 export interface KitPlace {
@@ -135,6 +135,9 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
   const bridges = CONCOURSE.bridges.map((b) => ({ x: (b.a.x + b.b.x) / 2 - BR_X, z: (b.a.z + b.b.z) / 2 - BR_Z }));
   const nearBridge = (x: number, z: number) => bridges.some((b) => Math.hypot(b.x - x, b.z - z) < D.clear.bridge + 6);
   const inStair = (x: number, z: number, pad = D.clear.stair) => KIT_SITES.stairs.some((s) => x > s.x0 - pad && x < s.x1 + pad && z > s.z0 - pad && z < s.z1 + pad);
+  /** where a Sky Park bridge meets a roof's edge (the Spire's terrace): its parapet is open there */
+  const bridgeEnds = PARK_BRIDGES.flatMap((b) => [{ x: b.ax - BR_X, z: b.az - BR_Z, y: b.y }, { x: b.bx - BR_X, z: b.bz - BR_Z, y: b.y }]);
+  const atBridgeEnd = (x: number, z: number, y: number) => bridgeEnds.some((e) => Math.abs(e.y - y) < 0.5 && Math.hypot(e.x - x, e.z - z) < 2.5);
   const towers = KIT_SITES.towers.filter((t) => inCentre(t.x, t.z));
   /** a face with another tower close in front of it: a canyon's, where nothing may stand out of the wall */
   const canyonFace = (t: (typeof towers)[number], f: Face): boolean =>
@@ -169,8 +172,8 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
       };
       for (let s = 0; s < t.storeys; s++) {
         const y = t.base + s * STOREY;
-        // the Sky Lobby's storey keeps its own walls, so its windows stay open (the plan's rule 2)
-        if (t.lobby !== undefined && Math.abs(y - t.lobby) < 0.5) continue;
+        // the Sky Lobby's storey and the Sky Park's keep their own walls, so their windows stay open (the plan's rule 2)
+        if ((t.lobby !== undefined && Math.abs(y - t.lobby) < 0.5) || (t.park !== undefined && Math.abs(y - t.park) < 0.5)) continue;
         if (canyon) {
           for (let i = 0; i < fn; i++) {
             const id = pick(D.flat, kitHash(t.x, t.z, s, i, 30));
@@ -235,6 +238,7 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
       if (pd)
         for (let i = 0; i < pn; i++) {
           const [x, z] = onFace(f, f.a + (i + 0.5) * pb, D.outset);
+          if (atBridgeEnd(x, z, t.roof)) continue;
           add(D.parapet, place(D.parapet, x, t.roof, z, f.yaw, pb / pd.w, 1, 1, true), 0, "parapet");
         }
       if (rows.cornice) {

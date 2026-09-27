@@ -4753,3 +4753,29 @@ was.
   - Pictures: the aerial, the street, the Spire from the street, the north twins.
 - **Next in step 2:** the Sky Park deck at 64 m with its bridges to the Spire, and the chimney stacks up to the lobby
   and the Sky Park. The 10 to 30 m band (532 m2) is thin: the plan's balconies and ledges fill it (step 5).
+
+## Milestone 256 — The Sky Park at 64 m: rooms, canyon jumps and four bridges onto the Spire
+
+The plan's second deck (`docs/CITY_BUNDLE_IMPLEMENTATION.md` 4.4 and 4.5), on the heights of Milestone 255.
+
+- **The rooms** (`city.json` skyPark; `city.ts` mass). Every lobby tower standing two storeys over storey 16 is open
+  there too, the lobby's room of four windows at 64.18 m: 17 towers, the twins and the tallest round them.
+- **Joined as the lobby is.** The lobby's joins are now one function run at each height (`city.ts` join): across a
+  canyon the windows line up for a sprint jump (9, among them each chimney's slot between its twins), across a street
+  a bridge runs window to window (4). A tower standing through the height between two rooms now blocks the join, not
+  only a tower with a room at it.
+- **Four bridges onto the Spire.** Its first tier ends at 64.18 m, so its roof is the Sky Park's terrace: the two
+  north twins, the west and the east each have a bridge onto it, kept 3 m in from the terrace's corners and clear of
+  every pad's throw, the terrace's parapet opened 4 m where each lands (`city.ts` roofEdge).
+- **Faces with no join** keep a window in the middle: a way out, and a drop with no fall stun.
+- **The kit** leaves the Sky Park's storey open, as it does the lobby's, and lays no parapet tile across a bridge's
+  landing.
+- **Checked:**
+  - `sk-lobbies.ts`: 17 rooms, all joined; all 9 canyons a clean sprint jump, and none without the jump; all 8
+    bridges run onto the far floor, the Spire's four onto its terrace. With the terrace's parapet left closed, the
+    four Spire bridges fail.
+  - Unchanged: the lobby (24 rooms, 28 window pads, 16 canyons, 6 bridges), the chimneys, a bot's pads up the Spire
+    to 140.2 m, 141 roof gaps.
+  - `city-budget` 245k triangles; the kit 575k, 1,132k and 1,169k by preset.
+  - Pictures from the terrace and from a room.
+- **Next:** the chimney stacks up to the lobby and the Sky Park, and the metro.

@@ -450,5 +450,13 @@
     "corner": 1.5,
     "canyon": 8,
     "bridge": 34
+  },
+  "_skyPark": "The Sky Park (docs/CITY_BUNDLE_IMPLEMENTATION.md 4.4 and 4.5; Phase 21's levels: storey 16, about 64 m): every tower open for the Sky Lobby that stands two storeys over this storey too is open for it as well, the same room of four windows (skyLobby's width, height and wall). Rooms facing each other are joined as the lobby's are: across a canyon of up to `canyon` metres the windows line up for a sprint jump, across a street of up to `bridge` a bridge runs window to window. The Spire's first tier ends at this height, so its roof is the Sky Park's terrace, and every room facing it across a street gets a bridge onto it, its parapet opened `gap` metres where the bridge lands and the line kept `landing` metres in from the terrace's corners. No window pads: a 56 m throw is the Spire's own pad, and the way up is the tiers' pads, the roofs at this height and, next, the chimney stacks.",
+  "skyPark": {
+    "storey": 16,
+    "bridge": 34,
+    "canyon": 8,
+    "gap": 4,
+    "landing": 3
   }
 }

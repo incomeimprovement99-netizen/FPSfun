@@ -20,7 +20,7 @@ if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS:
 const warn = console.warn;
 console.warn = () => undefined;
 const { GAME } = await import("../../src/game/game");
-const { buildCityMap, LOBBY_BRIDGES, LOBBY_CANYONS, KIT_SITES } = await import("../../src/game/city");
+const { buildCityMap, LOBBY_BRIDGES, LOBBY_CANYONS, PARK_BRIDGES, PARK_CANYONS, KIT_SITES } = await import("../../src/game/city");
 const { Player } = await import("../../src/game/player");
 const { MOVE } = await import("../../src/game/movement");
 const { stepPads } = await import("../../src/game/course");
@@ -212,6 +212,45 @@ check(
   `every bridge between two lobbies (${LOBBY_BRIDGES.length}) runs from one lobby's window to the other's, onto its floor, without a fall`,
   LOBBY_BRIDGES.length > 0 && bridges.every((b) => b.r.in && b.r.y > b.e.y - 0.3),
   bridges.map((b) => `${Math.hypot(b.e.bx - b.e.ax, b.e.bz - b.e.az).toFixed(0)} m: ${b.r.in ? "in" : "not"}`).join("; "),
+);
+
+// The Sky Park (city.json skyPark), the same proofs at 64 m: every room joined to another or to the Spire's terrace,
+// every canyon a sprint jump window to window, every bridge a run onto the far floor. The Spire's bridges land on its
+// terrace through the parapet's openings, so a run from each room reaching the terrace proves the openings too.
+const parks = KIT_SITES.towers.filter((t) => t.park !== undefined);
+const parkWays = new Map<string, number>();
+for (const e of [...PARK_BRIDGES, ...PARK_CANYONS]) {
+  const len = Math.hypot(e.bx - e.ax, e.bz - e.az);
+  const ux = (e.bx - e.ax) / len;
+  const uz = (e.bz - e.az) / len;
+  for (const [x, z] of [
+    [e.ax - ux, e.az - uz],
+    [e.bx + ux, e.bz + uz],
+  ]) {
+    const tw = towerAt(x, z, e.y);
+    const key = tw ? `${tw.minX.toFixed(1)},${tw.minZ.toFixed(1)}` : `none ${x.toFixed(0)},${z.toFixed(0)}`;
+    parkWays.set(key, (parkWays.get(key) ?? 0) + 1);
+  }
+}
+// the rooms (and the terrace, one more floor at the height) with a way in
+const spireTerrace = [...parkWays.keys()].filter((k) => !k.startsWith("none")).length - parks.filter((t) => parkWays.has(`${(t.x - t.w / 2 + BR_X).toFixed(1)},${(t.z - t.d / 2 + BR_Z).toFixed(1)}`)).length;
+const joined = parks.filter((t) => parkWays.has(`${(t.x - t.w / 2 + BR_X).toFixed(1)},${(t.z - t.d / 2 + BR_Z).toFixed(1)}`)).length;
+check(
+  "the Sky Park: its rooms at 64 m (every tower two storeys over it), all but a few joined by a bridge or a canyon, and the Spire's terrace by four bridges or more",
+  parks.length >= 12 && ![...parkWays.keys()].some((k) => k.startsWith("none")) && joined >= parks.length - 3 && PARK_BRIDGES.filter((b) => Math.abs(b.bx - BR_X) < 20 && Math.abs(b.bz - BR_Z) < 20).length >= 4,
+  `${parks.length} rooms, ${joined} joined; ${PARK_BRIDGES.length} bridges (${PARK_BRIDGES.filter((b) => Math.abs(b.bx - BR_X) < 20 && Math.abs(b.bz - BR_Z) < 20).length} onto the Spire), ${PARK_CANYONS.length} canyons; ${spireTerrace} floor beyond the rooms`,
+);
+const parkCanyons = PARK_CANYONS.map((e) => ({ e, r: across(e, true), fall: across(e, false) }));
+check(
+  `every canyon between two Sky Park rooms (${PARK_CANYONS.length}) is a sprint jump window to window, clean; running off without the jump is not`,
+  PARK_CANYONS.length > 0 && parkCanyons.every((c) => c.r.in && !c.fall.in),
+  parkCanyons.filter((c) => !c.r.in || c.fall.in).map((c) => `${(c.e.ax - BR_X).toFixed(0)},${(c.e.az - BR_Z).toFixed(0)}: ${c.r.in ? "in" : "short"}${c.fall.in ? ", and in without a jump" : ""}`).join("; ") || "all",
+);
+const parkBridges = PARK_BRIDGES.map((e) => ({ e, r: across(e, false) }));
+check(
+  `every Sky Park bridge (${PARK_BRIDGES.length}) runs from its room's window onto the far floor, a room's or the Spire's terrace, without a fall`,
+  PARK_BRIDGES.length > 0 && parkBridges.every((b) => b.r.in && b.r.y > b.e.y - 0.3),
+  parkBridges.map((b) => `${Math.hypot(b.e.bx - b.e.ax, b.e.bz - b.e.az).toFixed(0)} m: ${b.r.in ? "in" : "not"}`).join("; "),
 );
 console.log(`        ${pads.length} window pads`);
 console.log(fails === 0 ? "\nSK LOBBIES PASS" : `\nSK LOBBIES FAIL (${fails})`);
