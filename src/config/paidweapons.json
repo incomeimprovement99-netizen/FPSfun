@@ -194,7 +194,7 @@
       }
     }
   },
-  "_props": "The rest of the pack where the game has the thing (W7): the model a prop wears when the paid files are here, and its skin. mine is the MINE hack's mine (ours was a lit ring); its size is the model's own. deathbox is a death box (ours was a dark crate with an orange glow). carepackage is a care package (ours was a lit cylinder), the 1.51 m weapon case drawn at scale, which reads from further off.",
+  "_props": "The rest of the pack where the game has the thing (W7): the model a prop wears when the paid files are here, and its skin. mine is the MINE hack's mine (ours was a lit ring); its size is the model's own. deathbox is a death box (ours was a dark crate with an orange glow). carepackage is a care package (ours was a lit cylinder), the 1.51 m weapon case drawn at scale, which reads from further off. healkit is the med kit standing in the middle of a HEAL area (ours was the lit ring alone), 0.40 by 0.38 m on its own base; healkitEnemy the same in another skin, for an enemy's area.",
   "props": {
     "mine": {
       "model": "ScifiMine01",
@@ -208,6 +208,14 @@
       "model": "SciFiWeaponCase01_1",
       "skin": "B",
       "scale": 1.3
+    },
+    "healkit": {
+      "model": "SciFiMedKit01",
+      "skin": "A"
+    },
+    "healkitEnemy": {
+      "model": "SciFiMedKit01",
+      "skin": "C"
     }
   }
 }

@@ -81,5 +81,12 @@ for (const [id, g] of Object.entries(guns)) {
   );
 }
 
+// the props (W7): a name that is not in the import falls back to our own shapes without a word, so each is looked for
+const props = (cfg as unknown as { props: Record<string, { model: string; skin: string }> }).props;
+for (const [key, p] of Object.entries(props)) {
+  const colour = `public/${cfg.textures}${p.model.replace(/_\d+$/, "")}${p.skin}_color.webp`;
+  check(`the ${key} prop: its model ${p.model} and its skin ${p.skin} are here`, existsSync(`${dir}${p.model}.glb`) && existsSync(colour), colour);
+}
+
 console.log(fails === 0 ? "\nPAID WEAPONS PASS" : `\nPAID WEAPONS FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

@@ -3450,6 +3450,20 @@ function stepGhosts(): void {
 /** others under INVISIBILITY, until when (the page's wall clock) */
 const unseenUntil = new Map<number, number>();
 
+/**
+ * The pack's med kit (paidgun.ts, paidweapons.json props) standing in the middle of a HEAL area, turned to face this
+ * page's player, so the lit ring reads as a heal from across a street; a child of the ring, so it goes when the ring
+ * does. Nothing without the paid files.
+ */
+function healKit(ring: THREE.Mesh, friend: boolean): void {
+  const kit = paidProp(friend ? "healkit" : "healkitEnemy");
+  if (!kit) return;
+  // on the floor: the ring stands centred on its own middle
+  kit.position.y = -(ring.geometry as THREE.CylinderGeometry).parameters.height / 2;
+  kit.rotation.y = Math.atan2(player.pos.x - ring.position.x, player.pos.z - ring.position.z);
+  ring.add(kit);
+}
+
 function hackMesh(color: number, r: number, h: number): THREE.Mesh {
   const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 28, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false }));
   scene.add(m);
@@ -3580,6 +3594,7 @@ function useHack(slot: HackSlot, now: number): void {
       const at = player.pos.clone();
       const mesh = hackMesh(0x3dff9a, H.heal.radius, 0.6);
       mesh.position.copy(at).setY(at.y + 0.3);
+      healKit(mesh, true);
       const rates = (H.heal as unknown as { perSeconds?: number[] }).perSeconds;
       healZones.push({ at, until: now + H.heal.seconds, mesh, rate: rates?.[held.level] ?? H.heal.perSecond });
       audio.healDone();
@@ -3891,6 +3906,7 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       // a squad mate's HEAL heals you too; an enemy's is drawn and does nothing for you
       const mesh = hackMesh(friend ? 0x3dff9a : 0xff5a5a, H.heal.radius, 0.6);
       mesh.position.copy(a).setY(a.y + 0.3);
+      healKit(mesh, friend);
       // (a squad mate's area heals at the base rate: its fusion level does not travel)
       if (friend) healZones.push({ at: a.clone(), until: gameTime + H.heal.seconds, mesh, rate: H.heal.perSecond });
       else setTimeout(() => scene.remove(mesh), H.heal.seconds * 1000);
