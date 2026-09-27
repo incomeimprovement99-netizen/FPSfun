@@ -1,6 +1,8 @@
 {
   "_note": "SpeedKills' movement (docs/PHASE_18_PLAN_SPEEDKILLS.md 7.2): laid over movement.json, key by key, before MOVE is built (src/game/movement.ts), on a SpeedKills page only; the legacy game reads movement.json alone. The aim is Hyper Scape's lightness on top of the measured model: a little less gravity and more steering in the air, so a double jump carries you onto a balcony; climbing that is quicker and goes a storey further (a climb may rise climbAttachOffset above where it began, 5.1 m where the legacy game allows 2.5, which measured as the real limit: a jump, a double jump and a climb stopped at 5.5 m until it moved) (the city's storeys are about 4 m, 157 hu); no fall stun, because a city of roofs is for dropping off; a slightly faster sprint. Everything not named here is movement.json's. Values in Hammer units as there. Ours, a first pass to be tuned in the movement lab.",
-  "sprintSpeed": 275,
+  "_speed": "Phase 20 A15, the owner (2026-09-26): sprint about twice as fast, the slide only a little faster than the sprint. speed (the run: moving without sprinting, sideways or back) and sprintSpeed are twice the first pass's (173.5 and 275), 347 and 550 hu/s, 8.8 and 14.0 m/s. The slide's boost is on top of the speed you have and capped at slideSpeedBoostCap, 630 hu/s (16.0 m/s), 1.15 times the sprint, where it was 400 over a 275 sprint. No Hyper Scape speed was ever published (searched twice on 2026-09-26): these are the owner's, to be replaced by footage measurements in A17. Hyper Scape had walk and sprint, and from patch 2.1 Auto-Sprint was on by default, so SpeedKills sprints whenever you move forward (main.ts sprint mode auto).",
+  "_ground": "With the speeds doubled, movement.json's ground bands (a fit to the legacy game's timings, for a 260 sprint) would take 5 s to reach 550: its sprint band adds 140 hu/s a second, 70 with a gun out. So every band edge (lowSpeed, sprintBandStart) and every rate (lowAcceleration, acceleration, sprintAcceleration, deceleration) is doubled too: the same curve in time as the first pass, at twice the speed. From standing with a gun out: 240 hu/s in 0.1 s, 400 in 0.3 s, the full 550 in 1.4 s; stopping from 550 takes 0.22 s, as stopping from 275 did. tools/sk-movesim.ts holds it.",
+  "sprintSpeed": 550,
   "gravity": 690,
   "airAcceleration": 650,
   "airSpeed": 75,
@@ -25,5 +27,14 @@
       "cooldown": 0.3,
       "hold": 0.45
     }
-  }
+  },
+  "speed": 347,
+  "slideSpeedBoost": 90,
+  "slideSpeedBoostCap": 630,
+  "lowSpeed": 240,
+  "sprintBandStart": 400,
+  "lowAcceleration": 5000,
+  "acceleration": 1600,
+  "sprintAcceleration": 280,
+  "deceleration": 2500
 }

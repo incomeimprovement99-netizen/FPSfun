@@ -4232,7 +4232,7 @@ Phase 20, A10 (the owner: remove the smoke grenade from SpeedKills, keep it in t
 
 ## Milestone 231 — Two friends into one battle royale ✅
 
-Phase 20, A14 (the owner, 2026-09-27: two friends could not join a battle royale; when the second came in, one
+Phase 20, A14 (the owner, 2026-09-26: two friends could not join a battle royale; when the second came in, one
 was sent to the lobby).
 
 - **The cause:** a battle royale's host took as many players as the players dropdown said. That dropdown belongs
@@ -4286,10 +4286,40 @@ it off about 20 m in, and point to the courses and the README TV. A quick reskin
 
 ## Milestone 234 — Quicker gun swaps, quicker again with each level ✅
 
-Phase 20, A16 (the owner, 2026-09-27: switching between guns should be quicker as a base, 1.5 or 2 times, and
+Phase 20, A16 (the owner, 2026-09-26: switching between guns should be quicker as a base, 1.5 or 2 times, and
 level up along with damage and magazine).
 
 - **A gun's draw and put-away times** are 1.5 times as quick as the legacy data as found, and twice as quick at
   level 5, falling each level (speedkills.json `fusion.gun[].swap`). ZEPHYR draws in 0.40 s as found and 0.30 s
   at level 5, where it was 0.60.
 - **Checked:** `tools/checks/ttk.ts` holds the base, the top and the fall at every level.
+
+## Milestone 235 — Twice the sprint, and always sprinting ✅
+
+Phase 20, A15 (the owner, 2026-09-26: sprint about twice as fast; check whether Hyper Scape had a walk, and if
+not, always sprint; the slide only a little faster than the sprint).
+
+- **Always sprinting:** Hyper Scape had walk and sprint, and from its patch 2.1 Auto-Sprint was on by default.
+  SpeedKills' new sprint mode, auto, sprints whenever you move forward and is its default. Toggle and hold stay,
+  and each game keeps its own choice (`range.sk.sprintMode`), so a legacy toggle does not turn SpeedKills' auto
+  off.
+- **The speeds** (movement.speedkills.json, the owner's, since no Hyper Scape speed was ever published):
+  - the run 347 hu/s (8.8 m/s);
+  - the sprint 550 (14.0 m/s);
+  - the slide capped at 630 (16.0 m/s), 1.15 times the sprint.
+- **The same curve at twice the speed:** every ground band edge and rate is doubled, so the sprint is reached in
+  1.4 s from standing, as before, and a stop takes 0.22 s.
+- **Bots** move at twice their tier's speed (`botSpeedScale`), and the speed streaks start at the new sprint.
+- **Checked:** `tools/sk-movesim.ts` holds the sprint, the time to reach it and the stop. Its roof tests record
+  standing on the roof at any point, since a run now crosses a roof and drops off the far side. A jump and a
+  double jump now clear 24 m, and every street is 14 m; A17 checks that against footage.
+- **Found on the way:**
+  - The friends' players count read the page's default squad at load, before the menu had put back the one you
+    chose last time. It is set once the menu is built.
+  - The skfriends e2e picked its squad without the change event a player's click fires, so it followed whatever
+    squad an earlier section had saved. It was also missing from the release batches; it is in batch 2 now.
+  - The outline check read nothing on some runs. It aimed at a fixed 1.2 m, which passes over a bot crouched in
+    cover (its hit zones shrink to two thirds). It now crouches the bot, aims at its torso, and casts the old
+    1.2 m ray too, which must miss, so every run proves a crouched enemy is outlined. It runs before the decay.
+  - The tour's HIGH GROUND pulled the trigger on a 120 ms beat, which a page drawing few frames could miss; it
+    counts frames now. `__range.triggerWhy()` names whatever holds a trigger.

@@ -47,7 +47,7 @@ export interface MoveInput {
 }
 
 export type Stance = "stand" | "crouch" | "slide" | "air" | "mantle" | "climb" | "zip";
-export type SprintMode = "toggle" | "hold";
+export type SprintMode = "toggle" | "hold" | "auto";
 
 interface Mantle {
   fromX: number;
@@ -869,6 +869,11 @@ export class Player {
    */
   private updateSprint(now: number, input: MoveInput, fwd: number, adsFrac: number, firing: boolean): void {
     const blocked = this.crouched || this.sliding || adsFrac >= 0.05 || firing || this.healSlow < 1;
+    // auto: moving forward is sprinting, as Hyper Scape's Auto-Sprint (on by default from its patch 2.1)
+    if (this.sprintMode === "auto") {
+      this.sprinting = fwd > 0 && !blocked;
+      return;
+    }
     if (this.sprintMode === "hold") {
       this.sprinting = input.held("sprint") && fwd > 0 && !blocked;
       return;

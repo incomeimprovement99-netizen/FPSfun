@@ -82,9 +82,21 @@ check("this runs with SpeedKills' numbers", GAME === "speedkills");
   const s = new Sim();
   s.in.hold("forward");
   s.in.tap("sprint");
-  s.run(3);
+  // the owner's doubled sprint (Phase 20 A15), reached in the first pass's time: 1.4 s from standing with a gun out
+  let at = -1;
+  s.run(3, (i) => {
+    if (at < 0 && s.p.speed / HU > 549.5) at = i * DT;
+  });
   const hu = s.p.speed / HU;
-  check("sprint is SpeedKills' 275 hu/s (7 m/s)", Math.abs(hu - 275) < 0.5, `${hu.toFixed(1)} hu/s`);
+  check("sprint is SpeedKills' 550 hu/s (14 m/s)", Math.abs(hu - 550) < 0.5, `${hu.toFixed(1)} hu/s`);
+  check("and it is reached from standing in about 1.4 s, as the first pass reached its 275", at > 1.2 && at < 1.6, `${at.toFixed(2)} s`);
+  // and stopping from it is as quick as stopping from 275 was
+  s.in.release("forward");
+  let stop = -1;
+  s.run(1, (i) => {
+    if (stop < 0 && s.p.speed / HU < 1) stop = i * DT;
+  });
+  check("letting go stops you in about 0.22 s", stop > 0.15 && stop < 0.3, `${stop.toFixed(2)} s`);
 }
 
 // a one-storey roof (4 m), run straight at: auto-climb takes you up without a jump
@@ -95,11 +107,14 @@ check("this runs with SpeedKills' numbers", GAME === "speedkills");
   s.in.hold("forward");
   s.in.tap("sprint");
   let climbed = false;
+  // stood on the roof at any point: at the doubled sprint (Phase 20 A15) a 4 s run crosses the roof and drops off its far side
+  let onRoof = false;
   s.run(4, () => {
     if (s.p.climbing) climbed = true;
+    if (s.p.onGround && s.p.pos.y > 3.9 && s.p.pos.z < -6.5) onRoof = true;
   });
-  check("run at a 4 m wall and you climb it, no jump pressed", climbed, `on top at y=${s.p.pos.y.toFixed(2)}`);
-  check("and you end up on its roof", s.p.pos.y > 3.9 && s.p.pos.z < -6.5, `y=${s.p.pos.y.toFixed(2)} z=${s.p.pos.z.toFixed(2)}`);
+  check("run at a 4 m wall and you climb it, no jump pressed", climbed);
+  check("and you end up on its roof", onRoof, `ended at y=${s.p.pos.y.toFixed(2)} z=${s.p.pos.z.toFixed(2)}`);
 }
 
 // a low wall (1 m) is mantled or stepped over, not climbed
@@ -126,13 +141,15 @@ check("this runs with SpeedKills' numbers", GAME === "speedkills");
         s.in.hold("forward");
         s.in.tap("sprint");
         let jumpedAt = -1;
+        let onRoof = false;
         s.run(5, () => {
           if (jumpedAt < 0 && s.p.onGround && s.p.pos.z < -6 + out) {
             s.in.tap("jump");
             jumpedAt = s.t;
           } else if (jumpedAt > 0 && s.t - jumpedAt >= dj && s.t - jumpedAt < dj + 1 / 144 && !s.p.climbing) s.in.tap("jump");
+          if (s.p.onGround && s.p.pos.y > h - 0.1) onRoof = true;
         });
-        if (s.p.pos.y > h - 0.1) best = Math.max(best, h);
+        if (onRoof) best = Math.max(best, h);
       }
     }
   }
@@ -142,7 +159,7 @@ check("this runs with SpeedKills' numbers", GAME === "speedkills");
 // the street: roof to roof over a gap, running, jump then double jump at the peak
 {
   let best = 0;
-  for (const gap of [6, 7, 8, 9, 10, 11, 12]) {
+  for (const gap of [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]) {
     const s = new Sim([
       { minX: -10, maxX: 10, minZ: -2, maxZ: 40, top: 10 },
       { minX: -10, maxX: 10, minZ: -80, maxZ: -2 - gap, top: 10 },
@@ -150,12 +167,14 @@ check("this runs with SpeedKills' numbers", GAME === "speedkills");
     s.p.teleport(0, 10, 30, 0);
     s.in.hold("forward");
     s.in.tap("sprint");
-    // take off at the edge
+    // take off at the edge; landed on the far roof at any point, since a sprint runs on past its end
+    let landed = false;
     s.run(10, (i) => {
       if (s.p.onGround && s.p.pos.z < -1.2 && s.p.pos.y > 9.9) s.in.tap("jump");
       if (!s.p.onGround && s.p.vel.y < 0 && s.p.pos.z < -2 && i % 20 === 0) s.in.tap("jump");
+      if (s.p.onGround && s.p.pos.y > 9.5 && s.p.pos.z < -2 - gap) landed = true;
     });
-    if (s.p.pos.y > 9.5 && s.p.pos.z < -2 - gap) best = gap;
+    if (landed) best = gap;
   }
   check("running, a jump and a double jump cross a 9 m street roof to roof", best >= 9, `widest gap crossed ${best} m`);
 }

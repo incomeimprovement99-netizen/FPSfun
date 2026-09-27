@@ -9,6 +9,20 @@ Written 2026-09-26 at the close of Phase 19 (`docs/PHASE_19_PLAN_DOWNTOWN.md`, M
 "The game" in this plan is SpeedKills. Nothing here changes the legacy game (B00G FPS, the BOOG range) unless
 an item says so.
 
+## Where Phase 20 stands (kept up to date)
+
+- **Live:** A1 to A12 and A14 (at 6e86244). A13 is the memory rule, done.
+- **In the release after it:** A16, quicker gun swaps (Milestone 234), and A15, twice the sprint and always
+  sprinting (Milestone 235), with the test fixes found on the way.
+- **Next, in order:**
+  1. A17, movement measured off Hyper Scape's footage. The measuring started on 2026-09-26; the numbers go to
+     `phase20-specs/A17-movement.json` beside the repo.
+  2. A18, smooth play and gunfights. Its frame-pacing work is Part B's first step, so they are done together.
+  3. A19, the PANDA as an animation showcase.
+  4. Part B, from its second step.
+- **Known open:** the bot squads section fails in a full batch 2 and passes alone (40 of 40); Part B's old
+  host-migration flake.
+
 ## Part A: the owner's playtest fixes (before sharing)
 
 **How each item is proven:**
@@ -252,7 +266,7 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
 
 *Done (Milestone 230).*
 
-### A14. Two friends could not both join one battle royale (added 2026-09-27, done first)
+### A14. Two friends could not both join one battle royale (added 2026-09-26, done first)
 
 - **The owner:** two friends could not join a battle royale; once one friend joined, the other was sent to the
   lobby.
@@ -268,21 +282,43 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
 
 *Done (Milestone 231).*
 
-### A15. Movement: sprint about twice as fast, always sprinting if Hyper Scape had no walk, a slide just above it (added 2026-09-27)
+### A15. Movement: sprint about twice as fast, always sprinting if Hyper Scape had no walk, a slide just above it (added 2026-09-26)
 
 - **The owner:** sprint should be about twice as fast. Check whether Hyper Scape even had a walk mode; if not,
   always sprint. Adjust the slide to match: only slightly faster than sprinting, using Hyper Scape's values if
   they are known.
 - **Now:** SpeedKills sprints at 275 hu/s (7.0 m/s). A slide boosts to at most 400 hu/s (10.2 m/s).
 - **Plan:**
-  - Research Hyper Scape's walk, sprint and slide from sources (started 2026-09-27).
+  - Research Hyper Scape's walk, sprint and slide from sources (started 2026-09-26).
   - Set sprint to about twice today's, with the source or the owner's number beside it.
   - Make movement always sprint if Hyper Scape had no walk.
   - Retune the slide to sit slightly above the new sprint.
   - Recheck the movement checks (tools/checks), the movement lab's gaps and climbs, the city's canyons, the jump
     pads' landings (their throws are solved from gravity, not run speed) and the bots' walk.
+- **Done:**
+  - **Hyper Scape had a walk.** It had walk and sprint, and from its patch 2.1 Auto-Sprint was on by default. So
+    SpeedKills now sprints whenever you move forward: a new sprint mode, auto, is SpeedKills' default. Toggle
+    and hold stay in the menu, and each game remembers its own choice.
+  - **No Hyper Scape speed was ever published** (searched twice on 2026-09-26). So the numbers are the owner's:
+    - the run (sideways or back) 347 hu/s (8.8 m/s);
+    - the sprint 550 hu/s (14.0 m/s);
+    - the slide capped at 630 hu/s (16.0 m/s), 1.15 times the sprint, where it was 400 over a 275 sprint.
+    A17 replaces them with footage measurements.
+  - **The ground curve doubled with them.** movement.json's bands would have taken 5 s to reach 550, so every
+    band edge and every rate is doubled too: the full sprint in 1.4 s from standing with a gun out, as the first
+    pass reached its 275, and a stop in 0.22 s.
+  - **Bots** move at twice their tier's speed (speedkills.json `botSpeedScale`), so they can still chase a player
+    and get away.
+  - **Speed streaks** now start at 1.05 of the new sprint and are full at 1.6.
+  - **Checked:** `tools/sk-movesim.ts` holds the sprint, the time to reach it and the stop. Its roof tests now
+    record standing on the roof at any point, since a 4 s run at 14 m/s crosses a roof and drops off its far
+    side.
+  - **What it changes:** running, a jump and a double jump now clear a 24 m gap roof to roof, where the first
+    pass cleared 12. Every street in the city is 14 m, so every street can now be crossed by the roofs. That
+    suits a game of roofs, but it is A17's to confirm against footage, since a gap that no longer needs a pad
+    changes the city's flow.
 
-### A16. Switching guns quicker, and quicker again with each level (added 2026-09-27)
+### A16. Switching guns quicker, and quicker again with each level (added 2026-09-26)
 
 - **The owner:** switching between guns should be quicker as a base, 1.5 or 2 times, and level up along with
   damage and magazine, so a level 5 SMG swaps quicker than a level 1.
@@ -290,7 +326,7 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
   falling each level (speedkills.json `fusion.gun[].swap`). ZEPHYR draws in 0.40 s as found and 0.30 s at level
   5, where it was 0.60. `tools/checks/ttk.ts` holds it.
 
-### Why A17 to A19: the draw and the hook (the owner, 2026-09-27)
+### Why A17 to A19: the draw and the hook (the owner, 2026-09-26)
 
 In the owner's words: the movement is the thing that draws people back; the smooth gameplay and the gunfights are
 why they are hooked. A17 to A19 are that aim.
@@ -305,7 +341,7 @@ copy a gun's design. Numbers go in src/config with the source or the measurement
 stay out of the public build (`npm run rules`).
 
 **Where the numbers come from.** No movement number (sprint speed, jump height, gravity) was ever published;
-this was searched on 2026-09-26 and again on 2026-09-27. So they come from footage, by the Phase 20 A9 method:
+this was searched twice on 2026-09-26. So they come from footage, by the Phase 20 A9 method:
 - download with yt-dlp and step the frames;
 - measure against something of known size (a training dummy, the floor's tiles, a storey), credible to about
   15%;
@@ -546,7 +582,7 @@ shows Phase 19 made the city slower, and nothing shows it did not.
      was the first thing Hyper Scape was.
    - The first lead, from A5's diagnosis: every figure's skinned meshes skip frustum culling. That costs about
      324 draw calls and 980k triangles a frame for 27 bots.
-2. **The guns' pace: the owner's call.** They draw in 0.6 s and aim in 0.31 s, from the legacy data, and no
+2. **The guns' pace: the owner's call.** They draw in 0.4 s as found (A16; 0.3 s at level 5) and aim in 0.31 s, and no
    public source gives Hyper Scape's numbers. The rest of Phase 19's step 10 follows the decision.
 3. **The free Quaternius kits,** downloaded and added (already agreed): trees and planters on the streets, and
    props for the interiors, so the rooms differ (Hyper Scape's reviewers called its rooms all the same).

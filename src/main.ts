@@ -1035,20 +1035,21 @@ const profile = new Stats();
 // Spawn ON the firing line (z = 0) so the lane labels are the true distance
 // to each dummy. Spawning behind it made every label read 3 m short.
 player.pos.set(0, 0, 0);
-player.sprintMode = playerCfg.sprintMode === "hold" ? "hold" : "toggle";
-// Sprint: toggle (press once, Apex's default) or hold. Chosen on the start
-// screen and remembered.
-const LS_SPRINT = "range.sprintMode";
+// SpeedKills sprints whenever you move forward, as Hyper Scape's Auto-Sprint did by default (Phase 20 A15)
+player.sprintMode = IS_SK ? "auto" : playerCfg.sprintMode === "hold" ? "hold" : "toggle";
+// Sprint: toggle (press once, the legacy default), hold, or auto. Chosen on the start screen and remembered,
+// each game its own (a legacy toggle kept must not turn SpeedKills' auto off)
+const LS_SPRINT = IS_SK ? "range.sk.sprintMode" : "range.sprintMode";
 try {
   const sm = localStorage.getItem(LS_SPRINT);
-  if (sm === "hold" || sm === "toggle") player.sprintMode = sm;
+  if (sm === "hold" || sm === "toggle" || sm === "auto") player.sprintMode = sm;
 } catch {
   /* ignore */
 }
 const sprintSel = $<HTMLSelectElement>("sprintMode");
 sprintSel.value = player.sprintMode;
 sprintSel.addEventListener("change", () => {
-  player.sprintMode = sprintSel.value === "hold" ? "hold" : "toggle";
+  player.sprintMode = sprintSel.value === "hold" ? "hold" : sprintSel.value === "auto" ? "auto" : "toggle";
   try {
     localStorage.setItem(LS_SPRINT, player.sprintMode);
   } catch {
@@ -2304,8 +2305,6 @@ brAbilities.addEventListener("change", () => {
 // choosing the battle royale on the friends' row shows its own setting (on unless you turned it off)
 duelMode.addEventListener("change", showAbilitySettings);
 for (const id of ["duelMode", "brTeam", "brSides"]) document.getElementById(id)?.addEventListener("change", brPlayersDefault);
-// (and once now: a battle royale may be the mode the page opens on)
-brPlayersDefault();
 /** the battle royale's bot count, each game its own (the menu keeps the same key, menu.ts BR_BOTS_KEY) */
 const BR_BOTS_STORE = IS_SK ? "range.br.bots.sk" : "range.br.bots";
 try {
@@ -5105,7 +5104,7 @@ duelHostBtn.addEventListener("click", () => {
 /**
  * SpeedKills: a battle royale with friends as one squad starts the players count at the squad's size (a trio is
  * three). The count opened at the 1v1's 2, and left there it made the host and one friend a full match: a second
- * friend was turned away (the owner, 2026-09-27). It is still the host's number to change, and the match still
+ * friend was turned away (the owner, 2026-09-26). It is still the host's number to change, and the match still
  * starts by itself once that many are in. A room sized to hold anyone left a match of fewer waiting for Start now.
  */
 function brPlayersDefault(): void {
@@ -5499,6 +5498,9 @@ const menu = new Menu(loadouts, profile, {
     duelHostBtn.click();
   },
 });
+// once now, after the menu has put back the squad size you chose last time: a battle royale may be the mode the
+// page opens on, and read before that the count followed the page's default squad instead of yours
+brPlayersDefault();
 // the Stats tab's level card follows every award
 progress.onChange = () => {
   menu.renderStats();
@@ -7714,6 +7716,10 @@ initWelcome();
   realArmsShown: () => viewModel.realArmsShown,
   /** the loot card as the HUD draws it this frame, and its mode (Phase 20 A8) */
   lootCard: () => lootCardNow(),
+  /** the enemy the crosshair outlines this frame (Phase 20 A8's check; speedkills.json feel.outline) */
+  outlinedNow: () => outlined,
+  /** each thing that holds the trigger (the frame's trigger line): a check whose gun fired nothing says which */
+  triggerWhy: () => ({ swapping: loadout.swapping, holster, canFire: !duel || duel.canFire, dropping: player.dropping, aboard: player.aboard, empty: loadout.active.empty, readied: !!ordnance.readied, lockedToRelease: fireLockedToRelease, finisher: !!finisher, script: !!scriptInput, sprinting: player.sprinting, playing: input.playing }),
   setLootCard: (m: LootCardMode) => (lootCardMode = m),
   /** a gun as a beginner reads it, with its class (Phase 20 A7) */
   weaponLabel,

@@ -55,6 +55,8 @@ export interface GameProfile {
   lists?: { botWeapons: string[]; loadouts: string[][]; gulagGuns: string[]; loadoutNames?: string[]; botRename?: Record<string, string> };
   /** the battle royale's floor: spots a sector by tier, the chances of a gun and a hack core, their fusion odds */
   loot?: { spots: Record<string, number>; gunChance: number; hackChance: number; gunOdds: Record<string, number[]>; hackOdds: Record<string, number[]>; maxFloor?: number; restock?: LootRestock; carePackage?: CarePackage };
+  /** a bot's tier speed times this (speedkills.json botSpeedScale; Phase 20 A15) */
+  botSpeedScale?: number;
   /** how a fight feels (speedkills.json feel): the aimed enemy's outline, the speed streaks */
   feel?: { outline: { color: string; width: number; perMetre: number; range: number }; streaks: { from: number; full: number; opacity: number } };
   /** the first-person gun over viewmodel.json's (absent: the legacy game's own) */

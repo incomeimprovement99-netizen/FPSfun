@@ -5011,7 +5011,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
  * and a bot's box with its gun and nothing of the legacy game's.
  */
 /**
- * Two friends into one SpeedKills battle royale (the owner, 2026-09-27: two friends could not join; when the second
+ * Two friends into one SpeedKills battle royale (the owner, 2026-09-26: two friends could not join; when the second
  * came in, one was sent back to the lobby). The host picks a trio battle royale and leaves the players dropdown,
  * which is the 1v1's, as it opens (2): the match must still take both friends, since a squad of three is three.
  */
@@ -5023,7 +5023,9 @@ async function brFriendsJoinTest(browser: Browser): Promise<void> {
   const closeAll = async () => {
     for (const p of pages) await p.close();
   };
-  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelMode").dispatchEvent(new Event("change")); document.getElementById("brTeam").value = "trio"; document.getElementById("brSides").value = "together"; document.getElementById("duelHost").click(); })()`);
+  // each choice made as a player makes it, its change event and all: the players count follows the squad size on
+  // that event, and a value set without it left the count at whatever squad an earlier section had saved
+  await ev(host, `(() => { const pick = (id, v) => { const s = document.getElementById(id); s.value = v; s.dispatchEvent(new Event("change")); }; pick("duelMode", "br"); pick("brTeam", "trio"); pick("brSides", "together"); document.getElementById("duelHost").click(); })()`);
   let code = "";
   try {
     await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
@@ -5406,15 +5408,18 @@ async function speedkillsTourTest(browser: Browser): Promise<void> {
   // high ground: on the stairs' sixth step (2.64 m, the tour asks 2.5), the highest footing inside SpeedKills'
   // sandbox (Phase 20 A12: the left platform at 4.6 m is past its edge)
   await sleep(1500);
-  // (the trigger pulled and let go every 120 ms: a pull of this gun is one shot)
+  // (the trigger pulled for two frames and let go for two: a pull of this gun is one shot. Counted in frames, not
+  // milliseconds: on a page drawing few frames a 120 ms beat could pull and let go between two of them)
   const target = await ev(t, aimAt(-20, 2.64, -23.5));
   await sleep(300);
   await ev(t, aimAt(-20, 2.64, -23.5));
-  await ev(t, `window.__range.setScript({ held: (a) => a === "fire" && Math.floor(performance.now() / 120) % 2 === 0, pressedNow: () => false }, null)`);
-  const high = await stepTo("high", 4000);
+  await ev(t, `(() => { let f = 0; window.__range.setScript({ held: (a) => a === "fire" && f % 4 < 2, pressedNow: () => false }, () => { f++; }); })()`);
+  // what holds the trigger, read while the script pulls it (read after, the script is gone)
+  await sleep(700);
+  const during = await ev(t, "({ why: window.__range.triggerWhy(), shots: window.__range.stats().shots, pos: window.__range.player.pos.toArray().map((v) => +v.toFixed(2)), yaw: +window.__range.player.yaw.toFixed(1), pitch: +window.__range.player.pitch.toFixed(1) })");
+  const high = await stepTo("high", 3300);
   await stop();
-  void target;
-  check("sk tour: HIGH GROUND done with a hit from the stairs, 2.6 m up", high, JSON.stringify(await ev(t, "({ y: window.__range.player.pos.y, stats: window.__range.stats(), dropping: window.__range.player.dropping, aboard: window.__range.player.aboard, empty: window.__range.loadout.active.empty, clip: window.__range.loadout.active.state.clip, swapping: window.__range.loadout.swapping, reloading: window.__range.loadout.active.state.reloading, hud: window.__range.hud.last && { heal: window.__range.hud.last.heal, holster: window.__range.hud.last.holster } })")));
+  check("sk tour: HIGH GROUND done with a hit from the stairs, 2.6 m up", high, JSON.stringify(await ev(t, `({ during: ${JSON.stringify(during)}, target: ${JSON.stringify(target)}, step: window.__range.tour.stepId, y: window.__range.player.pos.y, stats: window.__range.stats(), dropping: window.__range.player.dropping, aboard: window.__range.player.aboard, empty: window.__range.loadout.active.empty, clip: window.__range.loadout.active.state.clip, swapping: window.__range.loadout.swapping, reloading: window.__range.loadout.active.state.reloading, hud: window.__range.hud.last && { heal: window.__range.hud.last.heal, holster: window.__range.hud.last.holster } })`)));
   // the ring: five seconds in it
   await tp(6, 0, -14, 0);
   // (five seconds of the game's time: a slow page runs fewer of them to the wall's second)
@@ -5624,6 +5629,31 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
       return { first, second, third, hack }; })()`
   );
   check("speedkills br: a gun found is level 0, a copy fuses it to 1, a level-4 copy takes it to 4, a hack core fuses its hack", fuse.first === 0 && fuse.second === 1 && fuse.third === 4 && fuse.hack === 1, JSON.stringify(fuse));
+  // (before the decay: from its first wave the player stands in a sector coming apart, and the checks of a
+  // fight's feel are not about that; there the outline read nothing on some runs)
+  // (the bot frozen and moved by hand: its world matrix is brought up to date as the renderer would, since a
+  // ?norender page never draws and the aim ray met it where it had been)
+  // The feel of a fight (speedkills.json feel): a bot stood in front of you is outlined while your crosshair is on
+  // it and not once you turn away; and going well past a sprint shows the speed streaks
+  const outline = await ev<{ on: number; off: number; alive: boolean; ghost: boolean; why: { ray: { hits: number; at12: number } } & Record<string, unknown> } | null>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); d.holdFire = true; const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping && !x.bot.skHacks?.includes("invis") && x.bot.dummy.group.visible); if (!b) return ok(null); const upd = b.bot.update; b.bot.update = () => []; const p = r.player.pos; const eye = r.player.eyePosition(); b.bot.pos.set(p.x, p.y, p.z - 12); b.bot.dummy.group.position.copy(b.bot.pos); b.bot.dummy.pose.stance = "crouch"; b.bot.dummy.crouchAmt = 1; b.bot.dummy.hits.scale.y = 0.66; b.bot.dummy.group.updateMatrixWorld(true); r.player.yaw = 0; const torso = b.bot.dummy.hitMeshes[1].getWorldPosition(new r.THREE.Vector3()); r.player.pitch = Math.atan2(torso.y - eye.y, Math.hypot(torso.x - eye.x, torso.z - eye.z)) * 180 / Math.PI;
+      // crouched, and aimed at the torso where it is: a bot crouched in cover is shorter, and the check's old fixed
+      // 1.2 m passed over one on a roof. The ray at 1.2 m is cast too and must miss, so every run proves the crouch
+      // the one the game outlines (main.ts outlined): which pieces of it show depends on the figure's level of
+      // detail, which a ?norender page never updates, so the count read 0 on some bots; the picture is sk-outline's
+      const lit = () => (r.outlinedNow() === b.bot.dummy ? 1 : 0);
+      // what the game's outline ray needed, for a failure to say which part was missing
+      const at = { x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) };
+      const why = () => ({ playing: r.input.playing, inAvatars: d.avatars.includes(b.bot.dummy), meshes: b.bot.dummy.hitMeshes.length, shown: b.bot.dummy.group.visible, other: r.outlinedNow() ? r.outlinedNow() !== b.bot.dummy : false, from: at, now: { x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) }, bot: { x: +b.bot.pos.x.toFixed(2), y: +b.bot.pos.y.toFixed(2), z: +b.bot.pos.z.toFixed(2) }, pitch: +r.player.pitch.toFixed(1), ray: (() => { const T = r.THREE; const cast = (pitch) => new T.Raycaster(r.player.eyePosition(), new T.Vector3(0, 0, -1).applyQuaternion(r.player.orientationAt(r.player.yaw, pitch, 0, 0))).intersectObjects(b.bot.dummy.hitMeshes, false).length; const w = b.bot.dummy.hitMeshes[1].getWorldPosition(new T.Vector3()); return { hits: cast(r.player.pitch), at12: cast(Math.atan2(b.bot.pos.y + 1.2 - r.player.eyePosition().y, 12) * 180 / Math.PI), torso: [+w.x.toFixed(2), +w.y.toFixed(2), +w.z.toFixed(2)] }; })() });
+      setTimeout(() => { const on = lit(); const w = why(); r.player.yaw = 180; setTimeout(() => { const off = lit(); b.bot.update = upd; ok({ on, off, alive: d.alive, ghost: !!d.ghost, why: w }); }, 400); }, 400); }))()`,
+  );
+  check("speedkills feel: the enemy under your crosshair is outlined, crouched too, and not once you look away", !!outline && outline.on > 0 && outline.off === 0 && outline.why.ray.at12 === 0, JSON.stringify(outline));
+  const streaks = await ev<number>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; let best = 0; const t0 = performance.now(); const tick = () => { r.player.vel.x = 28; best = Math.max(best, Number(document.getElementById("speedLines").style.opacity || 0)); if (performance.now() - t0 < 600) requestAnimationFrame(tick); else ok(best); }; tick(); }))()`,
+  );
+  check("speedkills feel: going well past a sprint shows the speed streaks", streaks > 0.2, String(streaks));
   // the decay: the clock pushed on, a wave at a time
   type Decay = { plan: { final: string; waves: string[][] }; states: Record<string, { phase: string; k: number }>; held: number; zone: { x: number; z: number; r: number } | null; capture: { holder: number; held: number; open: boolean } };
   const decay0 = await ev<Decay>(page, "window.__range.sk.decay()");
@@ -5645,22 +5675,6 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
     await push(0.05);
     await sleep(350);
   }
-  // (the bot frozen and moved by hand: its world matrix is brought up to date as the renderer would, since a
-  // ?norender page never draws and the aim ray met it where it had been)
-  // The feel of a fight (speedkills.json feel): a bot stood in front of you is outlined while your crosshair is on
-  // it and not once you turn away; and going well past a sprint shows the speed streaks
-  const outline = await ev<{ on: number; off: number; alive: boolean; ghost: boolean } | null>(
-    page,
-    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); d.holdFire = true; const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping && !x.bot.skHacks?.includes("invis") && x.bot.dummy.group.visible); if (!b) return ok(null); const upd = b.bot.update; b.bot.update = () => []; const p = r.player.pos; const eye = r.player.eyePosition(); b.bot.pos.set(p.x, p.y, p.z - 12); b.bot.dummy.group.position.copy(b.bot.pos); b.bot.dummy.group.updateMatrixWorld(true); r.player.yaw = 0; r.player.pitch = Math.atan2(b.bot.pos.y + 1.2 - eye.y, 12) * 180 / Math.PI;
-      const lit = () => (b.bot.dummy.outline?.hulls ?? []).filter((h) => h.hull.visible).length;
-      setTimeout(() => { const on = lit(); r.player.yaw = 180; setTimeout(() => { const off = lit(); b.bot.update = upd; ok({ on, off, alive: d.alive, ghost: !!d.ghost }); }, 400); }, 400); }))()`,
-  );
-  check("speedkills feel: the enemy under your crosshair is outlined, and not once you look away", !!outline && outline.on > 0 && outline.off === 0, JSON.stringify(outline));
-  const streaks = await ev<number>(
-    page,
-    `(() => new Promise((ok) => { const r = window.__range; let best = 0; const t0 = performance.now(); const tick = () => { r.player.vel.x = 18; best = Math.max(best, Number(document.getElementById("speedLines").style.opacity || 0)); if (performance.now() - t0 < 600) requestAnimationFrame(tick); else ok(best); }; tick(); }))()`,
-  );
-  check("speedkills feel: going well past a sprint shows the speed streaks", streaks > 0.2, String(streaks));
   await page.waitForFunction("window.__range.sk.decay()?.zone !== null", { polling: 200, timeout: 15000 }).catch(() => undefined);
   const end = await ev<Decay>(page, "window.__range.sk.decay()");
   const gone = Object.entries(end.states).filter(([id, s]) => id !== end.plan.final && s.phase === "gone").length;

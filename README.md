@@ -59,7 +59,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
     BOUNDS.
   - A match runs 6 to 7 minutes.
 - **Movement for roofs:** double jump, wall run and kick, slide, and a climb
-  that goes up a storey (two with a double jump first).
+  that goes up a storey (two with a double jump first). You sprint whenever you
+  move forward, at 14 m/s, and a slide tops out a little above that; a jump and
+  a double jump at a sprint clear 24 m, wider than any street.
 - **Ten guns**, five named for the owner's friends; BOOG, the sniper, kills
   with one headshot. Ammo is infinite; the magazine is not.
 - **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to
@@ -407,7 +409,7 @@ defaults puts `binds.json` back.
 
 | Key | Action | Key | Action |
 |---|---|---|---|
-| W A S D | move | Shift | sprint (press, like the game; hold in Settings) |
+| W A S D | move | Shift | sprint (press, like the game; hold in Settings). SpeedKills sprints whenever you move forward (auto, its default) |
 | Space, scroll up | jump (scroll makes superjumps and bunny hops easy); off the dropship | Ctrl, C | crouch, slide (see Ctrl + W under limits; toggle in Settings); break off from the jumpmaster |
 | Scroll down | forward, one tap per notch, for tap-strafing | E | interact: a zipline, an item; hold: a revive, a beacon, skip a tour step; down with a gold knockdown shield, hold to self-revive |
 | Enter, then 1 to 6 | quick chat: a line (GG, Nice shot!, Thanks!, On my way, Wait for me, Rematch?) to everyone in the match, in their kill feed | 7 | emotes: hold for the wheel (wave, cheer, over there, salute, shrug, dance), move to one and let go; a tap plays the last again. Your view steps round in front to watch, everyone sees it, and a step ends it |

@@ -130,7 +130,7 @@
   "attachments": [],
   "_ammo": "Infinite reserve: every gun reloads forever and NOVA cools instead. Loot is guns and hacks only.",
   "ammo": "infinite",
-  "_fusion": "The owner's numbers: a gun on the floor is level 0, and each of five fusions adds 2% damage and 10% magazine, to +10% and +50% at level 5; reload time and recoil come down 4% a level. A copy of a higher level than yours raises yours to its level. A duplicate hack lowers that hack's cooldown by cooldownStep a level, to abilityLevels. swap is a gun's draw and put-away time over the legacy data's (Phase 20, the owner 2026-09-27: switching should be quicker as a base, 1.5 to 2 times, and quicker again as a gun is levelled, like its damage and magazine): 0.667 as found, 1.5 times as quick, to 0.5 at level 5, twice as quick. ZEPHYR's 0.6 s draw is 0.4 s as found and 0.3 s at level 5. Ours.",
+  "_fusion": "The owner's numbers: a gun on the floor is level 0, and each of five fusions adds 2% damage and 10% magazine, to +10% and +50% at level 5; reload time and recoil come down 4% a level. A copy of a higher level than yours raises yours to its level. A duplicate hack lowers that hack's cooldown by cooldownStep a level, to abilityLevels. swap is a gun's draw and put-away time over the legacy data's (Phase 20, the owner 2026-09-26: switching should be quicker as a base, 1.5 to 2 times, and quicker again as a gun is levelled, like its damage and magazine): 0.667 as found, 1.5 times as quick, to 0.5 at level 5, twice as quick. ZEPHYR's 0.6 s draw is 0.4 s as found and 0.3 s at level 5. Ours.",
   "fusion": {
     "on": true,
     "levels": 5,
@@ -544,7 +544,7 @@
     "height": 175
   },
   "_identity": "SpeedKills' face: its title and accents. skies are the hours SpeedKills offers in its Time of day setting, sky the one it starts at: the owner's neon night, and Hyper Scape's golden hour as the one other (the night stays the default, the owner's call).",
-  "_feel": "How a fight feels (Phase 19 step 10). outline: the enemy under your crosshair within range metres is outlined in color, width metres thick and perMetre more for every metre away so it holds its size on the screen (src/game/outline.ts; Hyper Scape's red outline, the thing that makes a figure one shape against a lit facade). streaks: lines at the screen's edge once you are going faster than from times the sprint's speed, full at full times it, at most opacity: the speed the movement gives you, shown (Hyper Scape's air and dash read as fast; ours read as a camera sliding). Ours, by eye.",
+  "_feel": "How a fight feels (Phase 19 step 10). outline: the enemy under your crosshair within range metres is outlined in color, width metres thick and perMetre more for every metre away so it holds its size on the screen (src/game/outline.ts; Hyper Scape's red outline, the thing that makes a figure one shape against a lit facade). streaks: lines at the screen's edge once you are going faster than from times the sprint's speed, full at full times it, at most opacity: the speed the movement gives you, shown (Hyper Scape's air and dash read as fast; ours read as a camera sliding). Ours, by eye. (Phase 20 A15: with the sprint doubled and a slide 1.15 times it, the streaks start at 1.05 times the sprint and are full at 1.6.)",
   "feel": {
     "outline": {
       "color": "#ff2a3a",
@@ -553,8 +553,8 @@
       "range": 150
     },
     "streaks": {
-      "from": 1.15,
-      "full": 1.9,
+      "from": 1.05,
+      "full": 1.6,
       "opacity": 0.5
     }
   },
@@ -567,5 +567,7 @@
     "p2020": "Pistol",
     "glock": "Pistol"
   },
-  "_familiesUse": "use is a family's one line on the loot card's Full view (Phase 20 A8): what the gun is for, for a player who does not know yet."
+  "_familiesUse": "use is a family's one line on the loot card's Full view (Phase 20 A8): what the gun is for, for a player who does not know yet.",
+  "_botSpeedScale": "SpeedKills' bots move at their tier's speed (bots.json) times botSpeedScale: 2, since the player's run and sprint doubled (Phase 20 A15); at their old speeds a bot could not keep up with a player, nor get away.",
+  "botSpeedScale": 2
 }

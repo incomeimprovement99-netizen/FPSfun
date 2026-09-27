@@ -729,7 +729,7 @@ export class Bot {
   private botRegen: { perSec: number; until: number } | null = null;
   /** its move speed now: its tier's, times OVERDRIVE while that runs */
   get speedNow(): number {
-    return this.diff.speed * (this.clock < this.boostUntil ? KITS.runner.ult.speed : 1);
+    return this.diff.speed * (IS_SK ? (PROFILE.botSpeedScale ?? 1) : 1) * (this.clock < this.boostUntil ? KITS.runner.ult.speed : 1);
   }
   /** JOLT's charges (the player's rules: two, one back every 4 s) and when the next is back */
   private joltCharges: number = JOLT.charges;
