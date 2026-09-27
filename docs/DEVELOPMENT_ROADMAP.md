@@ -4722,3 +4722,34 @@ the new heights (step 2) and the metro come next.
     viewer (`tools/kitview.html`).
 - **Known:** the kit does not fade with a decaying sector yet, and the Sky Lobby's storey keeps its old band until the
   lobby lining (step 6).
+
+## Milestone 255 — The centre rises: the twins to 104 m, the Spire's crown deck at 140 m
+
+Step 2 of `docs/CITY_BUNDLE_IMPLEMENTATION.md` (4.3), the heights first: the owner's "super vertical" middle. Every
+tower stands where it stood and only rises, so every canyon, chimney, pad and bridge the layout measured is where it
+was.
+
+- **The heights** (`city.json` downtown towers, twins; spire tiers).
+  - Round the Spire a tower is 14 to 18 storeys over its podium, its roof 64 to 80 m (it was 28 to 64).
+  - The two either side of each chimney are the twins, 22 to 26 storeys, 96 to 104 m as drawn.
+  - The Spire steps up in four tiers, to 64.2, 96.2, 128.2 and the crown deck at 140.2 m, its mast to 180. A pad up
+    each tier's east face; the capture zone's 14 m takes in tier 2's terrace and everything above.
+- **Nothing moved.** Each tower's height comes from the one random number it always drew, and the Spire's new crown
+  tier draws its roof clutter from a stream of its own, so the blocks built after the Spire's (and everything
+  after them) are laid out exactly as before.
+- **Every tower round the Spire is now a Sky Lobby tower:** 24 lobbies (16 before), all with two ways in or more, 28
+  window pads, 16 canyon windows and 6 lobby bridges, each proven by `sk-lobbies.ts` as before.
+- **The plan's detail bands** (`citykit.json` dress bands). The storeys within one of a deck (the podium, the Sky
+  Lobby at 32 m, the Sky Park's 64 m, the roof) wear the full modules and the AC units; the storeys between wear a
+  far row (Kyber's 8 m window walls, windows on every storey at half the cost a metre) and none. The wall AC went from
+  117k triangles to 17k.
+- **Checked:**
+  - verify and rules; `sk-chimneys`, `sk-roofs` (a bot's way up the Spire: 5 pads to 140.2 m), `sk-roofrun` (141
+    gaps crossed, 9 roofs from the best), `sk-lobbies`, `city-budget` (241k), `citykit`.
+  - `city-levels.ts`: the highest standing top 142.5 m (70.5 before); the centre's room above 60 m 9,433 m2 (1,478);
+    its 30 to 60 m band 7,654 m2, 7,088 of it indoors (none before).
+  - The kit's triangles 581k, 1,152k and 1,189k by preset; from 160 m over the Spire (the bench's `skroof`, moved up
+    from 100 m, now inside tier 3) the kit's cost stayed inside a shared machine's noise.
+  - Pictures: the aerial, the street, the Spire from the street, the north twins.
+- **Next in step 2:** the Sky Park deck at 64 m with its bridges to the Spire, and the chimney stacks up to the lobby
+  and the Sky Park. The 10 to 30 m band (532 m2) is thin: the plan's balconies and ledges fill it (step 5).

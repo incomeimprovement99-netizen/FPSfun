@@ -58,6 +58,10 @@ Game) or `?game=legacy`, and everything below this section describes it.
   - A lit red fence marks the city's edge. Past it you have 5 s to come back before a laser comes down: OUT OF
     BOUNDS.
   - A match runs 6 to 7 minutes.
+- **The vertical centre:** the middle of the map is its tallest part. Round
+  the Spire the towers stand 64 to 80 m, the twins either side of each chimney
+  about 100 m, and the Spire climbs in four tiers to a deck at 140 m, a pad up
+  each tier, its mast to 180.
 - **The Sky Lobby:** the downtown towers are open at 32 m, one storey with a
   window in every face, and window pads on the podiums throw you through them.
   Across a canyon it is a sprint jump from window to window; across a street a
@@ -995,7 +999,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npx tsx tools/trim-glb.ts` | cut a .glb down to the animations named (how the mannequin's files were made) |
 | `npm run probe` | a scripted wallbounce at the practice wall in the real page, printing what the feed registered (needs `npm run dev`) |
 | `npm run measure` | what each technique reaches on the real controller (needs `npm run dev`) |
-| `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`): the median, 95th and 99th percentile frame, and each frame's draw calls and triangles over every pass. `BENCH_SPOT=br` measures from the Mast's roof across the whole battle royale map, `BENCH_SPOT=brcorner` from one corner of it looking diagonally across the lot (the longest sightline there is), `BENCH_SPOT=brmatch` inside a real match on seed 42 at the hub, bots and loot in view. `BENCH_SPOT=skmatch` is SpeedKills' thirty in the city, in the street facing the Spire, and `BENCH_SPOT=skroof` the same match from 100 m over it. `BENCH_QUERY=&noskip` loads the page with a switch, here the old matrix walk, so a change is measured against what it replaced |
+| `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`): the median, 95th and 99th percentile frame, and each frame's draw calls and triangles over every pass. `BENCH_SPOT=br` measures from the Mast's roof across the whole battle royale map, `BENCH_SPOT=brcorner` from one corner of it looking diagonally across the lot (the longest sightline there is), `BENCH_SPOT=brmatch` inside a real match on seed 42 at the hub, bots and loot in view. `BENCH_SPOT=skmatch` is SpeedKills' thirty in the city, in the street facing the Spire, and `BENCH_SPOT=skroof` the same match from 160 m over it. `BENCH_QUERY=&noskip` loads the page with a switch, here the old matrix walk, so a change is measured against what it replaced |
 | `npm run profile` | where a frame's CPU time goes, by function (needs `npm run dev`): a CPU profile of a battle royale (`PROFILE_SPOT=skmatch`, `skroof` or `brmatch`), the scene's objects by group and how many are hidden, and with `PROFILE_CALLERS=name` who calls a function. The test tools never take your mouse or keyboard: under them the game's lock is pretend |
 | `npm run shot` | screenshots of every view into `shots/` (needs `npm run dev`) |
 | `npm run rules` | nothing in the repo references the game's install or its files |

@@ -20,7 +20,7 @@ if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS:
 const warn = console.warn;
 console.warn = () => undefined;
 const { GAME } = await import("../../src/game/game");
-const { buildCityMap, LOBBY_BRIDGES, LOBBY_CANYONS } = await import("../../src/game/city");
+const { buildCityMap, LOBBY_BRIDGES, LOBBY_CANYONS, KIT_SITES } = await import("../../src/game/city");
 const { Player } = await import("../../src/game/player");
 const { MOVE } = await import("../../src/game/movement");
 const { stepPads } = await import("../../src/game/course");
@@ -153,10 +153,13 @@ for (const pad of pads) {
   byTower.set(key, (byTower.get(key) ?? 0) + 1);
 }
 const twoSided = [...byTower.values()].filter((n) => n >= 2).length;
+// every tower open for the lobby (the city's own count: Phase 21's massing took it from 16 to 24, every tower round
+// the Spire now standing two storeys over it), and two ways into all but a few: 24 of 24 when the massing went in
+const lobbies = KIT_SITES.towers.filter((t) => t.lobby !== undefined).length;
 check(
-  "every lobby has a way in, and most two or more (window pads, bridges, canyon windows; the survey found room for pads on two sides of 11 of 16)",
-  ![...byTower.keys()].some((k) => k.startsWith("none")) && byTower.size === 16 && twoSided >= 12,
-  `${byTower.size} lobbies, ${twoSided} with two ways in or more`,
+  "every lobby has a way in, and nearly all two or more (window pads, bridges, canyon windows)",
+  ![...byTower.keys()].some((k) => k.startsWith("none")) && lobbies >= 24 && byTower.size === lobbies && twoSided >= lobbies - 3,
+  `${byTower.size} lobbies of ${lobbies}, ${twoSided} with two ways in or more`,
 );
 
 /** from inside one lobby toward the other along a bridge or a canyon's line: a run (and at a canyon a jump at the window); true when it lands clean on the far lobby's floor (a climb or a mantle catches a sill a run off falls short of, so neither counts, as the gaps' proofs have it) */

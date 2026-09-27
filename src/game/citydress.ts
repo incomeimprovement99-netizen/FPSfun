@@ -146,10 +146,14 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
       return gap >= -0.1 && gap < D.canyon;
     });
 
+  // the decks' heights (dress bands): a storey near one wears the full modules, one between them the lighter far row
+  const decks = D.bands.decks.map((s) => cityCfg.kerb + s * STOREY);
+  const nearDeck = (y: number): boolean => decks.some((dy) => y > dy - (D.bands.near + 0.5) * STOREY && y < dy + (D.bands.near - 0.5) * STOREY);
+
   // ------------------------------------------------ the towers' faces, storey by storey
   for (const t of towers) {
     const fam = familyAt(t.x, t.z);
-    const rows = D.rows[fam] as { bay: number; ground: string[]; mid: string[]; top: string[]; cornice?: string };
+    const rows = D.rows[fam] as { bay: number; ground: string[]; mid: string[]; top: string[]; far?: string[]; farBay?: number; cornice?: string };
     const spire = Math.abs(t.x) < 30 && Math.abs(t.z) < 30;
     for (const f of faces(t.x - t.w / 2, t.x + t.w / 2, t.z - t.d / 2, t.z + t.d / 2)) {
       const len = f.b - f.a;
@@ -179,19 +183,24 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
           continue;
         }
         const leanMid = (D.lean.mid as Record<string, string[]>)[fam];
-        const row = s === 0 ? rows.ground : s === t.storeys - 1 ? rows.top : lean && leanMid ? leanMid : rows.mid;
+        const edge = s === 0 || s === t.storeys - 1;
+        const far = !edge && !nearDeck(y) && !(lean && leanMid) && rows.far;
+        const row = s === 0 ? rows.ground : s === t.storeys - 1 ? rows.top : lean && leanMid ? leanMid : far ? rows.far! : rows.mid;
         const id = pick(row, kitHash(t.x, t.z, s, 1));
-        for (let i = 0; i < n; i++) {
-          const u = f.a + (i + 0.5) * bay;
+        // a far row's bays are its own width
+        const rn = far && rows.farBay ? Math.max(1, Math.round(len / rows.farBay)) : n;
+        const rb = len / rn;
+        for (let i = 0; i < rn; i++) {
+          const u = f.a + (i + 0.5) * rb;
           const piece = padBay(u) ? pick(D.flat, kitHash(u, s, 31)) : id;
           const pd = dims(piece);
           if (!pd) continue;
           const r = relief(piece);
           const [x, z] = onFace(f, u, r.out);
-          add(piece, place(piece, x, y, z, f.yaw, bay / pd.w, STOREY / pd.h, r.sz, true), 0, piece === id ? "facade" : "flat");
+          add(piece, place(piece, x, y, z, f.yaw, rb / pd.w, STOREY / pd.h, r.sz, true), 0, piece === id ? "facade" : "flat");
         }
-        // up a street wall: an AC unit on a bay here and there, a pipe and a run of wires down one column
-        if (!canyon && s > 0 && s < t.storeys - 1) {
+        // up a street wall near a deck: an AC unit on a bay here and there, a pipe and a run of wires down one column
+        if (!canyon && !edge && nearDeck(y)) {
           for (let i = 0; i < n; i++) {
             const u = f.a + (i + 0.5) * bay;
             const [px, pz] = onFace(f, u, 0);

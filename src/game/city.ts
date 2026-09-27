@@ -311,7 +311,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
    * `base`, its roof a floor with a parapet, neon on its edges and clutter to
    * take cover behind. No inside: the downtown's are climbed, not entered.
    */
-  function mass(x: number, z: number, w: number, d: number, base: number, storeys: number, mat: THREE.Material, accent: number, sector: string, lobby = false): Tower {
+  /** `r`: the random stream its roof's clutter draws from (the city's own unless a caller keeps that stream as it was) */
+  function mass(x: number, z: number, w: number, d: number, base: number, storeys: number, mat: THREE.Material, accent: number, sector: string, lobby = false, r: () => number = rnd): Tower {
     const h = storeys * storeyH;
     // the Sky Lobby's floor, when this tower is open for it (city.json skyLobby): below it, over it, and two storeys
     // at least above it
@@ -353,14 +354,14 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     }
     // the roof's clutter: plant rooms and vents to fight round
     const [cMin, cMax] = C.downtown.clutter;
-    const n = cMin + Math.floor(rnd() * (cMax - cMin + 1));
+    const n = cMin + Math.floor(r() * (cMax - cMin + 1));
     const clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }> = [];
     for (let i = 0; i < n; i++) {
-      const cw = 1.6 + rnd() * 2.4;
-      const cd = 1.2 + rnd() * 1.8;
-      const ch = 1.2 + rnd() * 1.4;
-      const ox = (rnd() - 0.5) * Math.max(0, w - cw - 2);
-      const oz = (rnd() - 0.5) * Math.max(0, d - cd - 2);
+      const cw = 1.6 + r() * 2.4;
+      const cd = 1.2 + r() * 1.8;
+      const ch = 1.2 + r() * 1.4;
+      const ox = (r() - 0.5) * Math.max(0, w - cw - 2);
+      const oz = (r() - 0.5) * Math.max(0, d - cd - 2);
       slab(cw, ch, cd, x + ox, roof, z + oz, metal);
       clutter.push({ x: x + ox, z: z + oz, y: roof, w: cw, h: ch, d: cd });
     }
@@ -538,7 +539,11 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       const w = a1 - a0 - ia0 - ia1;
       const d = b1 - b0 - ib0 - ib1;
       if (w < 6 || d < 6) return;
-      const storeys = Math.round(lo + rnd() * (hi - lo));
+      // a twin stands beside a chimney, along half its length or more (city.json downtown twins): the tallest round the
+      // Spire. The same one draw as ever, so the tower stands where it stood
+      const twin = C.chimneys.list.some((c) => Math.min(Math.abs(c.x - a0), Math.abs(c.x - a1)) < D.twinReach && Math.min(c.z1, b1) - Math.max(c.z0, b0) >= (c.z1 - c.z0) / 2);
+      const [tl, th] = twin ? D.twins : [lo, hi];
+      const storeys = Math.round(tl + rnd() * (th - tl));
       const mat = rnd() < 0.3 ? glass : night[Math.floor(rnd() * night.length)];
       const t = mass((a0 + ia0 + a1 - ia1) / 2, (b0 + ib0 + b1 - ib1) / 2, w, d, podTop, storeys, mat, sec.accent, sec.id, true);
       if (!lowest || t.roof < lowest.roof) lowest = t;
@@ -865,15 +870,17 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       [1, 0],
       [-1, 0],
     ] as const) padOnto(cx + (nx * w) / 2, cz + (nz * d) / 2, nx, nz, PAVE_H, base);
-    for (let tier = 0; tier < S.tiers; tier++) {
+    // a tier past the ones the city always had draws from its own stream, so the blocks built after this one stand as they did
+    const own = seeded(C.seed + 1);
+    S.tiers.forEach((storeys, tier) => {
       const floor = base;
       w -= 2 * S.tierInset;
       d -= 2 * S.tierInset;
-      const t = mass(cx, cz, w, d, base, S.tierStoreys, tier === S.tiers - 1 ? glass : night[tier % night.length], sec.accent, sec.id);
+      const t = mass(cx, cz, w, d, base, storeys, tier === S.tiers.length - 1 ? glass : night[tier % night.length], sec.accent, sec.id, false, tier < S.sharedTiers ? rnd : own);
       base = t.roof;
       // a pad on the terrace below this tier, up its east face onto its roof
       padOnto(cx + w / 2, cz, 1, 0, floor, t.roof);
-    }
+    });
     // the mast
     deco(0.6, S.mast, 0.6, cx, base, cz, k);
     deco(2.2, 0.3, 2.2, cx, base + S.mast, cz, neon(0xff3050));

@@ -26,7 +26,7 @@
 // The SpeedKills spots: "skmatch", a real battle royale of thirty in the
 // city on seed 42, standing in the street south of the Spire looking up at
 // it, with the Spire's drop (every other bot squad) around it; "skroof", the
-// same match from 100 m up over the Spire, the whole city and its neon in frame.
+// same match from 160 m up over the Spire, the whole city and its neon in frame.
 // Every other spot is the legacy game's, and the page is told which (the
 // site opens in SpeedKills otherwise, and a legacy spot would measure the city).
 //
@@ -98,7 +98,8 @@ const SPOTS: Record<string, string> = {
     const d = r.duel(); if (d) d.holdFire = true;
     r.player.teleport(0, 0, 530, 0, -2); })()`,
   skmatch: skMatch(0, 0.3, 590, 0, 12),
-  skroof: skMatch(0, 100, 500, 30, -18),
+  // 160 m, over the Spire's crown deck (140 m) and south of its mast: at 100 m, where it was, it stood in the Spire's third tier
+  skroof: skMatch(0, 160, 520, 30, -18),
   // down the street at map x 36 (city.json blocks), from the north edge toward the Spire at a sprint, eye height
   skrun: skRun(36, 1.7, 740, 14),
 };
