@@ -5168,3 +5168,18 @@ Step 7 (`docs/CITY_BUNDLE_IMPLEMENTATION.md` 5, motion: "flying traffic on splin
   (standing, a car's long side faces forward). Never culled, since they cross the whole centre.
 - **Checked:** `citykit.ts` holds every car a baked piece on its loop and counts their 27k triangles in Balanced and
   High (1,240k and 1,276k, inside 1,300k and 1,340k); verify and rules; pictures from the street and level with a lane.
+
+## Milestone 273 — The bots take the stairs
+
+The plan's route 1 (`docs/CITY_BUNDLE_IMPLEMENTATION.md` 4.5): "Stairs only to the crown deck. The bots use this route."
+
+- **Every stair core on the bots' graph** (`city.ts`, the concourse's graph): a node on the promenade outside each
+  door, linked onto its podium's corners, then one at each waypoint up the flights to the lobby or the Sky Park, each
+  link kept only where a bot walks it both ways (`botWalk`), as the public stairs' are. A bot chasing a player or
+  making for a place can now go up through a tower.
+- **In through the middle of the door.** A core's way now enters on the door's centre line before stepping across to
+  the first flight's lane: the straight line from outside to the lane clipped the door's jamb for a bot's body, and
+  every core's first link failed (the player's walk slid past it).
+- **Checked:** `sk-stairs.ts` holds every core's top on the graph, reached from the street by walkable links: 24 of
+  24 (0 before the door's centre line); `sk-roofs` (the street links, the Spire's pads, the highway) unchanged; verify
+  and rules.

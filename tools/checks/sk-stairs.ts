@@ -21,7 +21,7 @@ const { GAME } = await import("../../src/game/game");
 const { buildCityMap, STAIR_CORES, KIT_SITES } = await import("../../src/game/city");
 const { Player } = await import("../../src/game/player");
 const { BR_X, BR_Z } = await import("../../src/game/br");
-buildCityMap(new THREE.Scene());
+const map = buildCityMap(new THREE.Scene());
 console.warn = warn;
 if (!hadDocument) delete g.document;
 
@@ -84,5 +84,21 @@ check(
   STAIR_CORES.length > 0 && bad.length === 0,
   bad.map(({ c, r }) => `${(c.outside.x - BR_X).toFixed(0)},${(c.outside.z - BR_Z).toFixed(0)}: waypoint ${r.reached} of ${c.way.length} at ${r.y.toFixed(2)} m${r.climbed ? ", climbed" : ""}`).slice(0, 5).join("; ") || "all",
 );
+// the bots' graph: each core's top on it, reached from the street by links a bot walks both ways
+{
+  const nodes = map.nodes;
+  const streets = nodes.map((n, i) => ({ n, i })).filter(({ n }) => (n.y ?? 0) < 0.5).map(({ i }) => i);
+  const seen = new Set<number>(streets);
+  const queue = [...streets];
+  while (queue.length) {
+    const i = queue.shift()!;
+    for (const j of nodes[i].links) if (!seen.has(j)) (seen.add(j), queue.push(j));
+  }
+  const tops = STAIR_CORES.filter((c) => {
+    const top = c.way[c.way.length - 1];
+    return nodes.some((n, i) => seen.has(i) && Math.hypot(n.x - top.x, n.z - top.z) < 0.3 && Math.abs((n.y ?? 0) - top.y) < 0.2);
+  }).length;
+  check("the bots' graph goes up every core: its top deck reached from the street, every link one a bot walks", tops === STAIR_CORES.length, `${tops} of ${STAIR_CORES.length}`);
+}
 console.log(fails === 0 ? "\nSK STAIRS PASS" : `\nSK STAIRS FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

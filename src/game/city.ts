@@ -567,7 +567,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       const dir = -cb.end;
       const laneAt = (k: number) => cb.ac + (k % 2 === 0 ? -1 : 1) * (Sc.lane / 2);
       const at = (u: number, v: number, y: number) => (cb.alongX ? { x: u + BR_X, z: v + BR_Z, y } : { x: v + BR_X, z: u + BR_Z, y });
-      const way: Array<{ x: number; z: number; y: number }> = [at(cb.e0 + dir * (Sc.landing / 2), laneAt(0), base)];
+      // in through the middle of the door first (a line from outside straight to the first lane clips its jamb), then
+      // onto the landing at the foot of the first flight
+      const way: Array<{ x: number; z: number; y: number }> = [at(cb.e0 + dir * 0.4, cb.ac, base), at(cb.e0 + dir * (Sc.landing / 2), laneAt(0), base)];
       for (let k = 0; k < n; k++) {
         const yk = base + k * storeyH;
         const up = k % 2 === 0 ? dir : -dir;
@@ -2232,6 +2234,18 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       walkLink(a, e);
       onPodium(a);
       onPodium(e);
+    }
+    // the stair cores (city.json stairCore): the promenade outside each door, onto its podium's corners, and up the
+    // flights waypoint by waypoint to the deck it tops out on, so a bot goes up to the lobby and the Sky Park as a
+    // player does ("stairs only: the bots use this route", the plan's 4.5)
+    for (const c of STAIR_CORES) {
+      let prev = add(c.outside.x - BR_X, c.outside.z - BR_Z, c.outside.y);
+      onPodium(prev);
+      for (const wp of c.way) {
+        const n = add(wp.x - BR_X, wp.z - BR_Z, wp.y);
+        if (!walkLink(prev, n)) break;
+        prev = n;
+      }
     }
     // The centre's jump pads, one way up (the pad node's `pad`, its landing's `padFrom`): the podiums' and the
     // Spire's tiers', so a bot going for the capture zone on the Spire goes up it as a player does. A pad joins
