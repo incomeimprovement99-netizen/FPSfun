@@ -60,7 +60,7 @@ import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, t
 import finCfg from "./config/finisher.json";
 import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
-import { buildCityMap, cityDecay, cityEdge, SECTORS, ROOF_ROUTES } from "./game/city";
+import { buildCityMap, cityDecay, cityEdge, SECTORS, ROOF_ROUTES, SPIRE_TOP } from "./game/city";
 import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
 import { EDGE_ID } from "./game/causes";
 import { healArea } from "./game/healarea";
@@ -2629,7 +2629,7 @@ function boardShip(d: BrMatch, run: ShipRun): void {
   // the first of your squad leads it down (the host, unless the friends are split into squads)
   linkedTo = d.jumpmaster();
   const master = d.isJumpmaster();
-  hud.notice(master ? "YOU ARE THE JUMPMASTER: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(linkedTo)} IS THE JUMPMASTER` : `THE SHIP PASSES ${d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
+  hud.notice(master ? "YOU ARE THE JUMPMASTER: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(linkedTo)} IS THE JUMPMASTER` : `THE SHIP PASSES ${IS_SK && SPIRE_TOP.y > 0 ? "THE SPIRE" : d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
   if (!squadCfg.dive.mapOnBoard) window.setTimeout(() => hud.notice("M IS THE MAP  ·  SPACE JUMPS", gameTime, 2.5), 3200);
 }
 
@@ -3513,20 +3513,20 @@ const unseenUntil = new Map<number, number>();
  * page's player, so the lit ring reads as a heal from across a street; a child of the ring, so it goes when the ring
  * does. Nothing without the paid files.
  */
-function healKit(ring: THREE.Object3D, friend: boolean): void {
-  const kit = paidProp(friend ? "healkit" : "healkitEnemy");
+function healKit(ring: THREE.Object3D): void {
+  const kit = paidProp("healkit");
   if (!kit) return;
   // on the floor, in the middle of the area, facing the one who put it down
   kit.rotation.y = Math.atan2(player.pos.x - ring.position.x, player.pos.z - ring.position.z);
   ring.add(kit);
 }
 
-/** a HEAL area on the ground at `at` (healarea.ts), a squad mate's or an enemy's */
-function healMesh(at: THREE.Vector3, friend: boolean): THREE.Group {
-  const g = healArea(H.heal.radius, friend, (H as unknown as { healArea: Parameters<typeof healArea>[2] }).healArea);
+/** a HEAL area on the ground at `at` (healarea.ts), anyone's: they all look the same */
+function healMesh(at: THREE.Vector3): THREE.Group {
+  const g = healArea(H.heal.radius, (H as unknown as { healArea: Parameters<typeof healArea>[1] }).healArea);
   g.position.copy(at);
   scene.add(g);
-  healKit(g, friend);
+  healKit(g);
   return g;
 }
 
@@ -3660,7 +3660,7 @@ function useHack(slot: HackSlot, now: number): void {
     }
     case "heal": {
       const at = player.pos.clone();
-      const mesh = healMesh(at, true);
+      const mesh = healMesh(at);
       const rates = (H.heal as unknown as { perSeconds?: number[] }).perSeconds;
       healZones.push({ at, until: now + H.heal.seconds, mesh, rate: rates?.[held.level] ?? H.heal.perSecond });
       audio.healDone();
@@ -3965,20 +3965,17 @@ function skZoneLabel(d: BrMatch): string {
 function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: THREE.Vector3 | undefined): void {
   const d = duel;
   if (!a) return;
-  const friend = d instanceof Duel && d.isFriend(from);
   switch (n) {
     case 1:
     case 2:
       audio.whoosh();
       break;
     case 3: {
-      // a squad mate's HEAL heals you too; an enemy's is drawn and does nothing for you. An enemy's is the heal's own
-      // green, fainter, not red: a red ring round a figure is the edge's laser alone (edge.ts), and every heal of every
-      // enemy in a free-for-all drew one, which read as players being struck out of bounds in the middle of the city
-      const mesh = healMesh(a, friend);
-      // (a squad mate's area heals at the base rate: its fusion level does not travel)
-      if (friend) healZones.push({ at: a.clone(), until: gameTime + H.heal.seconds, mesh, rate: H.heal.perSecond });
-      else setTimeout(() => scene.remove(mesh), H.heal.seconds * 1000);
+      // anyone's HEAL heals you too if you stand in it, an enemy's as well (the owner: "we should be able to heal in it
+      // anyways"), and it looks the same as yours: a red ring round a figure is the edge's laser alone (edge.ts)
+      const mesh = healMesh(a);
+      // (at the base rate: its fusion level does not travel)
+      healZones.push({ at: a.clone(), until: gameTime + H.heal.seconds, mesh, rate: H.heal.perSecond });
       break;
     }
     case 4:
@@ -6574,7 +6571,10 @@ function step(): void {
       }
     }
     if (outlined && outlined !== aimed) outlined.setOutline(false);
-    aimed?.setOutline(true, O.width + dist * O.perMetre, parseInt(O.color.slice(1), 16));
+    // a width in pixels on the screen, whatever the distance and however far a scope has zoomed: in metres it grew
+    // with the distance and not with the zoom, and through a sniper's scope at 40 m the rim was 13 pixels a side
+    const perPx = (2 * Math.tan((camera.fov * DEG) / 2) * dist) / Math.max(1, window.innerHeight);
+    aimed?.setOutline(true, Math.max(O.min, O.px * perPx), parseInt(O.color.slice(1), 16), O.back);
     outlined = aimed;
     const S = PROFILE.feel.streaks;
     const over = player.speed / MOVE.sprintSpeed;
@@ -7960,6 +7960,10 @@ initWelcome();
     setHack: (id: HackId, level = 0) => hacks.set(id, level),
     take: (id: HackId, level = 0) => hacks.take(id, level, gameTime),
     use: (slot: HackSlot) => useHack(slot, gameTime),
+    /** the Spire's crown deck, world metres (city.ts SPIRE_TOP): the ship passes beside it (tools/e2e.ts) */
+    spireTop: () => ({ ...SPIRE_TOP }),
+    /** someone else's hack as their page told this one (tools/e2e.ts: an enemy's HEAL heals you too) */
+    remoteHack: (from: number, n: number, x: number, y: number, z: number) => remoteHack(from, n, new THREE.Vector3(x, y, z), undefined),
     state: () => ({ armored: gameTime < armorUntil, invisible: gameTime < invisUntil, slam: skSlam?.phase ?? null, pulling: !!skPull, leap: skLeap, healZones: healZones.length, mines: mines.length, hackSlow: player.hackSlow, incoming: duel instanceof Duel ? duel.incomingScale : 1 }),
     fusion: () => loadout.slots.map((sl) => sl.fusion ?? 0),
     /** the city's edge as this page has it (Phase 20 A4): past it, the countdown, the laser */

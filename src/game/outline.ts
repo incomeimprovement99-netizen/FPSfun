@@ -8,11 +8,20 @@
 // figure. It works with no post-processing (the Competitive preset has none),
 // and it is depth tested like the figure, so a wall hides it as it hides the
 // figure: it shows who you are aiming at, never who is behind a wall.
+//
+// The hull is also drawn a little further from the eye than it is, along the
+// line of sight, so it lands in the same place on the screen but behind the
+// figure's own front. The soldier is layers (a body under armour a few
+// centimetres out), and each layer's hull came through the one over it: red
+// streaks across the chest, and far off, with the rim as wide as the limbs, a
+// figure filled red (the owner: "this weird ball of red around them").
 import * as THREE from "three";
 
 export class Outline {
   private readonly mat: THREE.MeshBasicMaterial;
   private readonly thick = { value: 0.02 };
+  /** metres the hull is drawn behind where it is, along the line of sight */
+  private readonly back = { value: 0 };
   private readonly hulls: Array<{ hull: THREE.Mesh; src: THREE.Mesh }> = [];
   private sources = 0;
   /** the figure's scale, measured once: the push is in the mesh's own units */
@@ -22,12 +31,16 @@ export class Outline {
     private readonly root: THREE.Object3D,
     private readonly skip: THREE.Object3D[],
     color: number,
+    back = 0,
   ) {
+    this.back.value = back;
     this.mat = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide, toneMapped: false });
     this.mat.onBeforeCompile = (s) => {
       s.uniforms.uThick = this.thick;
+      s.uniforms.uBack = this.back;
       s.vertexShader = s.vertexShader
-        .replace("#include <common>", "#include <common>\nuniform float uThick;")
+        .replace("#include <common>", "#include <common>\nuniform float uThick;\nuniform float uBack;")
+        .replace("#include <project_vertex>", "#include <project_vertex>\nmvPosition.xyz += normalize(mvPosition.xyz) * uBack;\ngl_Position = projectionMatrix * mvPosition;")
         .replace("#include <begin_vertex>", "#include <begin_vertex>\ntransformed += normalize(normal) * uThick;");
     };
   }

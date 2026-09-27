@@ -793,10 +793,10 @@ export class Dummy {
     this.group.rotation.x = 0;
   }
 
-  /** outlined (the enemy under the crosshair), `width` metres thick in `color` */
-  setOutline(on: boolean, width = 0.02, color = 0xff2a3a): void {
+  /** outlined (the enemy under the crosshair), `width` metres thick in `color`, drawn `back` metres behind (outline.ts) */
+  setOutline(on: boolean, width = 0.02, color = 0xff2a3a, back = 0): void {
     if (!on && !this.outline) return;
-    this.outline ??= new Outline(this.group, [this.hits], color);
+    this.outline ??= new Outline(this.group, [this.hits], color, back);
     this.outline.show(on, width);
   }
 

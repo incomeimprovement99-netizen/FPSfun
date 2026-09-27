@@ -5307,3 +5307,46 @@ centre now places 206 different pieces (176 after Milestone 278).
   through them). The fire escapes wait on solid landings (the plan's rule 7).
 - **Checked:** `citykit.ts` (every piece measured, nothing across a door or a window, the budgets); verify and rules;
   pictures of the shop streets.
+
+## Milestone 280 — A thin outline, a heal worth taking, BOOG's reticle through the middle, the ship past the Spire
+
+The owner's feedback, 2026-09-27: "the enemies still have this weird ball of red around them, causing us to not be able
+to see/track them"; "if they are using healing, it should just be green and animated like it is now when we throw it,
+we should be able to heal in it anyways ... bump that up to actually be a comparable hack"; BOOG's lines "stop in the
+middle of the scope ... like we are guessing in the middle"; and "the drop ship should always go over the middle
+district, can start from wherever and be slightly to any side, but we should be always able to land at the top middle
+building".
+
+- **The red ball was the aim outline** (`src/game/outline.ts`, `speedkills.json` feel.outline). Pictures of bots at 10,
+  40 and 90 m, at the hip and through BOOG's scope, found two faults:
+  - its width was in metres (0.02 plus 1.2 mm a metre) and ignored the zoom: through the scope at 40 m it was 13 pixels
+    a side, and at 90 m the figure was a red shape;
+  - the soldier is layers, a body under armour a few centimetres out, and each layer's hull came through the one over
+    it: red streaks across the chest, the figure filled red at a distance.
+  - Now it is 1.2 pixels at the camera's own field of view (never under 6 mm), and the hull is drawn 0.12 m behind
+    where it is along the line of sight, so it lands in the same place on the screen but behind the figure's front:
+    only the rim shows. Forced to the 40 m hip thickness on a bot 10 m off, the chest filled red without the push and
+    was a clean rim with it.
+- **HEAL** (`hacks.json` heal and `_heal`, `healarea.ts`, `main.ts` remoteHack):
+  - 12 health a second for its 9 s (13, 14, 15 and 18 by fusion). Hyper Scape's 4.4 was 40 health, barely over our own
+    regeneration's 4 a second;
+  - anyone's area looks the same (the heal's green at full brightness, the same med kit) and heals whoever stands in
+    it, an enemy's included. An enemy's was drawn at 45% and in another kit's skin, and healed nobody but them.
+- **BOOG's reticle** (`hud.ts` drawHsScope): the heavy lines still stop short of the middle, and fine lines carry on
+  through it to a dot where the shot goes. The gap had left 70 pixels empty at the aim point.
+- **The ship past the Spire** (`dropship.ts` shipLine, `brmatch.ts`, `city.ts` SPIRE_TOP, `speedkills.json` ship
+  centre): SpeedKills' line passes the crown's middle at 17 to 26 m, on any side and flown either way, square to that
+  offset so it comes no nearer.
+  - near: the mast on the crown reaches 180.5 m, over the ship's 175, and the ship is 27.4 m across its wings (measured
+    off its model), so 13.7 m, the mast's cap and 2 m to spare is 16.8;
+  - far: a level glide from the ship reaches about 37 m before it is down at the crown's 140.2 m.
+  - The boarding notice says the ship passes THE SPIRE.
+- **Checked:**
+  - `tools/checks/sk-drop.ts` (in verify), over 60 lines: every one 17 to 26 m off, passing while the doors are open,
+    from 8 of 8 headings and 4 of 4 sides, the wings clear of the mast, and a jump at the nearest point gliding level
+    with the real movement lands on the crown (9 by 9 m) every time. At random angles through the same points (put
+    back), 15 of 60 came nearer the mast;
+  - `tools/checks/hacks.ts`: HEAL gives a whole health bar over its seconds and at least twice the regeneration's rate
+    at every level (both failed at the old 4.4);
+  - e2e: an enemy's HEAL at your feet is an area you heal in; a real match's line passes the crown 17 to 26 m off;
+  - pictures of the outline at 10, 40 and 90 m, hip and scoped, before and after; verify; rules.

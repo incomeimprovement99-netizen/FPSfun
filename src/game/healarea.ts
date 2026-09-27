@@ -3,15 +3,17 @@
  * Hyper Scape's stills and its players describe it: "healing in a big blue circle", a ring on the ground with arcs
  * turning inside it, the "+" of the heal rising round the people standing in it, and the heal's station in the middle
  * (ours is the bought med kit, main.ts healKit). Ours is in the heal's green, not Hyper Scape's cyan: cyan is the
- * signature guns' phase here, and an enemy's is fainter (a red one read as the out-of-bounds laser, Milestone 252).
+ * signature guns' phase here. Everyone's looks the same and heals whoever stands in it (the owner, 2026-09-27: "if they
+ * are using healing, it should just be green and animated like it is now when we throw it, we should be able to heal
+ * in it anyways"): an enemy's was drawn fainter and in another skin, and a red one had read as the out-of-bounds laser.
  * Numbers: src/config/hacks.json healArea.
  */
 import * as THREE from "three";
 
 interface HealAreaCfg {
-  /** the wall's height and how bright it is, a squad mate's and an enemy's */
+  /** the wall's height and how bright it is */
   wall: number;
-  opacity: number[];
+  opacity: number;
   /** the "+" signs: how many, how big, how high they rise and how long a rise takes, s */
   plus: { count: number; size: number; rise: number; seconds: number };
   /** the inner arcs: at shares of the radius, a turn a this many seconds */
@@ -37,10 +39,9 @@ function plusTexture(): THREE.CanvasTexture {
 }
 
 /** a heal area of `radius` metres, its foot at the group's origin; it animates itself as it is drawn */
-export function healArea(radius: number, friend: boolean, cfg: HealAreaCfg): THREE.Group {
+export function healArea(radius: number, cfg: HealAreaCfg): THREE.Group {
   const g = new THREE.Group();
   g.name = "heal-area";
-  const k = friend ? 1 : 0.45;
   const color = new THREE.Color(0x3dff9a);
   const add = (m: THREE.Mesh) => {
     m.frustumCulled = false;
@@ -49,7 +50,7 @@ export function healArea(radius: number, friend: boolean, cfg: HealAreaCfg): THR
     return m;
   };
   const flat = (geo: THREE.BufferGeometry, opacity: number) =>
-    add(new THREE.Mesh(geo.rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: opacity * k, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true })));
+    add(new THREE.Mesh(geo.rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true })));
   // the ring on the ground, and a fainter band just inside it
   const ring = flat(new THREE.RingGeometry(radius - 0.14, radius, 64), 0.85);
   ring.position.y = 0.04;
@@ -68,7 +69,7 @@ export function healArea(radius: number, friend: boolean, cfg: HealAreaCfg): THR
     shade[i * 3] = shade[i * 3 + 1] = shade[i * 3 + 2] = up;
   }
   wallGeo.setAttribute("color", new THREE.BufferAttribute(shade, 3));
-  add(new THREE.Mesh(wallGeo, new THREE.MeshBasicMaterial({ color, vertexColors: true, transparent: true, opacity: cfg.opacity[friend ? 0 : 1], blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true })));
+  add(new THREE.Mesh(wallGeo, new THREE.MeshBasicMaterial({ color, vertexColors: true, transparent: true, opacity: cfg.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true })));
   // the "+" signs rising, each from its own spot, at its own phase
   const P = cfg.plus;
   const pluses = Array.from({ length: P.count }, (_, i) => {
@@ -89,7 +90,7 @@ export function healArea(radius: number, friend: boolean, cfg: HealAreaCfg): THR
     for (const s of pluses) {
       const u = (t / P.seconds + (s.userData.phase as number)) % 1;
       s.position.y = 0.2 + u * P.rise;
-      (s.material as THREE.SpriteMaterial).opacity = k * Math.sin(Math.PI * u);
+      (s.material as THREE.SpriteMaterial).opacity = Math.sin(Math.PI * u);
     }
   };
   return g;

@@ -1553,6 +1553,20 @@ export class Hud {
       c.lineTo(cx + W * half, cy + H * k);
     }
     c.stroke();
+    // and fine lines on through the gap, crossing at the middle with a dot on it: the gap alone left nothing to aim
+    // with where the shot goes (the owner, 2026-09-27: "they stop in the middle of the scope ... like we are guessing
+    // in the middle"). Thin, so the heavy lines still lead the eye in and the target is not covered
+    c.lineWidth = Math.max(1, lw * 0.5);
+    c.beginPath();
+    c.moveTo(cx - gap, cy);
+    c.lineTo(cx + gap, cy);
+    c.moveTo(cx, cy - gap);
+    c.lineTo(cx, cy + gap);
+    c.stroke();
+    c.beginPath();
+    c.arc(cx, cy, Math.max(1.5, 2 * u), 0, Math.PI * 2);
+    c.fill();
+    c.lineWidth = lw;
     // the chevron and the zoom at the left edge
     const lx = inset + 10 * u;
     c.beginPath();

@@ -151,7 +151,7 @@ const BOT_LOOT_FLOOR = botsCfg.loot.floor;
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { navTree, type NavTree } from "./navgraph";
-import { ROOF_ROUTES } from "./city";
+import { ROOF_ROUTES, SPIRE_TOP } from "./city";
 import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, ringPace, type Circle, type RingPhase } from "./ring";
 import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, resurgenceArea, secondsToFinal, type BrRules } from "./resurgence";
 import { GULAG, Gulag, gulagFor, type GulagEvent } from "./gulag";
@@ -767,7 +767,10 @@ export class BrMatch extends Duel {
     if (!this.inArea(poi)) poi = [...map.pois].filter((p) => this.inArea(p)).sort((a, b) => Math.hypot(a.x - poi.x, a.z - poi.z) - Math.hypot(b.x - poi.x, b.z - poi.z))[0] ?? poi;
     this.poi = poi;
     // the ship's line passes over it, and every browser draws the same one
-    this.shipLine = opts.ship === false ? null : shipLine(this.seed, this.poi, BR_BOUNDS);
+    // SpeedKills' ship always passes the Spire, near enough to glide onto its crown (the owner, 2026-09-27: "the drop
+    // ship should always go over the middle district ... we should be always able to land at the top middle building")
+    const beside = IS_SK && SPIRE_TOP.y > 0 ? PROFILE.ship?.centre : undefined;
+    this.shipLine = opts.ship === false ? null : beside ? shipLine(this.seed, SPIRE_TOP, BR_BOUNDS, beside) : shipLine(this.seed, this.poi, BR_BOUNDS);
     const now = wallClock();
     this.startedAt = now;
     this.aliveSeen = this.botCount + this.players;

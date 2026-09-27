@@ -51,7 +51,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
   - A rooftop highway loops the core six storeys up, and gold jump pads on
     every block throw you onto the roofs.
   - Streets with parked cars for cover, zebra crossings and lit pavements.
-  - The dropship starts off the map and flies 6 s before its doors open.
+  - The dropship starts off the map and flies 6 s before its doors open. It
+    always passes the Spire, from any side, close enough that a level glide
+    lands you on its crown.
   - Sectors decay in four waves of two toward a final one; standing in the
     decay hurts.
   - Then a 14 m capture zone opens: a squad alone in it for 45 s wins.
@@ -123,7 +125,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   Like Hyper Scape's guns they carry a live screen on the side (the rounds in
   big digits, the fusion level as pips, gold at the top); BOOG's scope is
   Hyper Scape's full-screen one, thin red lines in a chamfered frame with the
-  zoom at the edge, and its rounds leave a thick blue tracer; aimed in, its
+  zoom at the edge, fine lines carried through the middle to a dot where the
+  shot goes, and its rounds leave a thick blue tracer; aimed in, its
   scope throws a lens flare other players can see. Every other player leaves
   a trail of light behind their feet, as in Hyper Scape: red for enemies, blue
   for squad mates, gold for the crown's carrier. The gap analysis
@@ -134,8 +137,10 @@ Game) or `?game=legacy`, and everything below this section describes it.
   the hands, as in Hyper Scape: the left hand comes up off the gun with the
   hack's amber card over it, taps it, and the card breaks into pixels as the
   hack goes off, the gun dipping in the other hand. HEAL lays a glowing ring on
-  the ground with arcs turning in it and "+" signs rising, and while it heals
-  you the view's edges glow green. Hack cores on the floor are the pack's
+  the ground with arcs turning in it and "+" signs rising, 12 health a second
+  for 9 s (18 at the top fusion), and while it heals you the view's edges glow
+  green. Anyone's HEAL looks the same and heals whoever stands in it, an
+  enemy's included. Hack cores on the floor are the pack's
   canister, glowing in their slot's colour over a ring the same colour, and
   supply bins are its weapon case, whose cover swings open once looted. The MINE
   hack's mine, death boxes, care packages and the med kit in a HEAL area are
@@ -178,7 +183,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   They climb the centre's stairs, cross its bridges and ride its jump pads,
   and once the capture zone opens the squads near it go for it, up the Spire
   if that is where it is.
-- **The fight's feel:** the enemy under your crosshair is outlined in red, and
+- **The fight's feel:** the enemy under your crosshair is outlined in a thin red
+  line, the same thickness on the screen at any range or zoom, and
   streaks at the screen's edge show when you are going faster than a sprint.
 - **Arenas** in the city: NEON BLOCK, a crossing with four decks a storey up
   and skybridges between them, for 1v1, FFA, team deathmatch and Control.

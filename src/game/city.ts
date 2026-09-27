@@ -89,6 +89,11 @@ export const PARK_CANYONS: Array<{ ax: number; az: number; bx: number; bz: numbe
  */
 export const STAIR_CORES: Array<{ outside: { x: number; z: number; y: number }; way: Array<{ x: number; z: number; y: number }>; top: number }> = [];
 /** the Spire's drop (city.json spire drop), world metres: the shaft, its top and foot, and the doors out of it */
+/**
+ * The Spire's crown deck, world metres: its middle, its roof and its size, and how high the mast on it reaches (city.json
+ * spire). The SpeedKills ship flies past it (dropship.ts shipLine), always near enough to glide onto it.
+ */
+export const SPIRE_TOP = { x: 0, z: 0, y: 0, w: 0, d: 0, mast: 0 };
 export const SPIRE_DROP: { shaft: { minX: number; maxX: number; minZ: number; maxZ: number }; top: number; foot: number; doors: Array<{ y: number; minX: number; maxX: number; minZ: number; maxZ: number }> } = {
   shaft: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 },
   top: 0,
@@ -1212,6 +1217,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       KIT_SITES.machinery.push({ kind: "machine", x: mx, z: mz, y: base, w: mw, h: mh, d: md });
     }
     // the mast
+    Object.assign(SPIRE_TOP, { x: cx + BR_X, z: cz + BR_Z, y: base, w, d, mast: base + S.mast + 0.3 });
     deco(0.6, S.mast, 0.6, cx, base, cz, k);
     deco(2.2, 0.3, 2.2, cx, base + S.mast, cz, neon(0xff3050));
     plazas.push({ x: cx - (x1 - x0) / 2 + 3, z: cz });

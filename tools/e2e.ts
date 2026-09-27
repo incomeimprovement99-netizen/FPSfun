@@ -5292,6 +5292,13 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await hack("heal", "utility", 150);
   const healed = await ev<{ healZones: number }>(page, "window.__range.sk.state()");
   check("speedkills: HEAL puts a healing area down", healed.healZones >= 1, JSON.stringify(healed));
+  // an enemy's HEAL heals you too if you stand in it (the owner, 2026-09-27: "we should be able to heal in it
+  // anyways"): someone on no side of yours puts one down at your feet, and it is one more area that heals
+  const foeHeal = await ev<{ before: number; after: number }>(
+    page,
+    `(() => { const r = window.__range; const before = r.sk.state().healZones; const p = r.player.pos; r.sk.remoteHack(987654, 3, p.x, p.y, p.z); return { before, after: r.sk.state().healZones }; })()`,
+  );
+  check("speedkills: an enemy's HEAL is an area you heal in too", foeHeal.after === foeHeal.before + 1, JSON.stringify(foeHeal));
   await hack("armor", "utility", 150);
   const arm = await ev<{ armored: boolean; hackSlow: number }>(page, "window.__range.sk.state()");
   check("speedkills: ARMOR is on, and you are slower under it", arm.armored && arm.hackSlow < 1, JSON.stringify(arm));
@@ -5885,6 +5892,13 @@ async function speedkillsShipTest(browser: Browser): Promise<void> {
   );
   const outside = Math.abs(on.x) > 250 || Math.abs(on.z - 500) > 250;
   check("sk ship: the match starts aboard, off the city, with the doors at least five seconds away", on.aboard && outside && on.doorsIn >= 5, JSON.stringify(on));
+  // the ship passes the Spire, beside its mast and near enough to glide onto its crown (speedkills.json ship centre;
+  // tools/checks/sk-drop.ts glides it): the match's own line, not only the function's
+  const shipPass = await ev<{ off: number; near: number; far: number } | null>(
+    page,
+    `(() => { const r = window.__range; const l = r.duel().shipLine; const t = r.sk.spireTop(); if (!l) return null; const s = Math.max(0, Math.min(l.length, (t.x - l.ax) * l.dx + (t.z - l.az) * l.dz)); return { off: Math.hypot(t.x - (l.ax + l.dx * s), t.z - (l.az + l.dz * s)), near: 17, far: 26 }; })()`,
+  );
+  check("sk ship: the ship passes the Spire's crown, 17 to 26 m off its middle", !!shipPass && shipPass.off >= shipPass.near - 0.01 && shipPass.off <= shipPass.far + 0.01, JSON.stringify(shipPass));
   // aboard, the city is the side drawn, wherever the ship starts (Phase 20 A5: from the north the camera hung over
   // the range for 7.5 s and the range and its arenas were drawn instead)
   const side = await ev<{ want: string }>(page, "window.__range.sides()");
@@ -6008,7 +6022,7 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
     `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const held = d.holdFire; d.holdFire = true; const b = d.bots.find((x) => x.bot.alive && x.bot.skHacks.includes("heal")).bot; b.dummy.shield = 0; b.dummy.health = 30; const before = b.dummy.health; const t0 = r.gameTime();
       const wait = () => { if (r.gameTime() - t0 < 3) return setTimeout(wait, 50); d.holdFire = held; ok({ before, after: b.dummy.health, used: b.skUsed.heal }); }; wait(); }))()`
   );
-  // (at Hyper Scape's 4.4 a second since Phase 20 A9: about 13 back in 3 s)
+  // (at 12 a second, hacks.json _heal: about 36 back in 3 s)
   check("speedkills br: a hurt bot uses its Heal hack (health back within 3 s, before regeneration starts at 8)", healed.used >= 1 && healed.after >= healed.before + 10, JSON.stringify(healed));
   // Phase 20 A2, the owner's case for real: that healed bot's health is a fraction (Heal gives perSecond x dt a
   // frame). A hit through the bullets' own path that finishes it takes exactly what it had left, and reads whole.

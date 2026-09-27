@@ -18,10 +18,12 @@ if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS:
 const warn = console.warn;
 console.warn = () => undefined;
 const { GAME } = await import("../../src/game/game");
-const { buildCityMap, SPIRE_DROP } = await import("../../src/game/city");
+const { buildCityMap, SPIRE_DROP, SPIRE_TOP } = await import("../../src/game/city");
+const { shipLine, buildShip, SHIP, alongNearest, offLine } = await import("../../src/game/dropship");
+const { PROFILE } = await import("../../src/game/game");
 const { Player } = await import("../../src/game/player");
 const { solidHit } = await import("../../src/game/projectile");
-const { BR_X, BR_Z } = await import("../../src/game/br");
+const { BR_X, BR_Z, BR_BOUNDS } = await import("../../src/game/br");
 buildCityMap(new THREE.Scene());
 console.warn = warn;
 if (!hadDocument) delete g.document;
@@ -88,5 +90,77 @@ check(
   Math.abs(inPark.y - SPIRE_DROP.foot) < 0.1 && inPark.z > S.minZ - 0.1 && inPark.z < S.maxZ + 0.1,
   `at ${inPark.y.toFixed(2)} m`,
 );
+
+// The ship over the middle (the owner, 2026-09-27: "the drop ship should always go over the middle district, can start
+// from wherever and be slightly to any side, but we should be always able to land at the top middle building"). Over
+// many matches: the line passes the crown deck on every side and flown every way, never near enough for the ship to
+// run into the mast on the crown, and a jump at its nearest point, gliding level with the real movement, lands on the
+// crown deck.
+console.log(`\nThe ship past the Spire`);
+const beside = PROFILE.ship?.centre;
+check("SpeedKills' ship has a pass beside the Spire", !!beside && SPIRE_TOP.y > 100, JSON.stringify({ beside, top: SPIRE_TOP }));
+if (beside) {
+  // the ship's size and the mast's, measured off their models
+  const shipBox = new THREE.Box3().setFromObject(buildShip().group);
+  // across its heading (it flies along its own z, nose to tail 36 m; its wings are its x)
+  const halfSpan = Math.max(-shipBox.min.x, shipBox.max.x);
+  const clear = halfSpan + 1.1 + 2;
+  check(
+    `the mast on the crown (to ${SPIRE_TOP.mast.toFixed(1)} m) stands over the ship's ${SHIP.height} m, so the line keeps half the ship's span (${halfSpan.toFixed(1)} m), the mast's cap and 2 m off it`,
+    SPIRE_TOP.mast > SHIP.height && beside.near >= clear,
+    `near ${beside.near}, needs ${clear.toFixed(1)}`,
+  );
+  let off = 0;
+  let behind = 0;
+  let missed = 0;
+  let worst = 0;
+  let firstMiss = "";
+  const ways = new Set<number>();
+  const sides = new Set<number>();
+  const lines = 60;
+  for (let i = 1; i <= lines; i++) {
+    const line = shipLine(i * 7919 + 13, SPIRE_TOP, BR_BOUNDS, beside);
+    const miss = offLine(line, SPIRE_TOP.x, SPIRE_TOP.z);
+    if (miss < beside.near - 1e-6 || miss > beside.far + 1e-6) off++;
+    const s = alongNearest(line, SPIRE_TOP.x, SPIRE_TOP.z);
+    // the doors are open from the edge on, so the crown must come after the ship is over the map
+    if (s <= 0 || s >= line.length) behind++;
+    ways.add(Math.floor(((Math.atan2(line.dz, line.dx) + Math.PI) / (Math.PI * 2)) * 8) % 8);
+    const jx = line.ax + line.dx * s;
+    const jz = line.az + line.dz * s;
+    sides.add(Math.floor(((Math.atan2(jz - SPIRE_TOP.z, jx - SPIRE_TOP.x) + Math.PI) / (Math.PI * 2)) * 4) % 4);
+    // off the ship there, looking level toward the deck's nearer half (clear of the mast and the machine), gliding until over it
+    const toward = Math.hypot(jx - SPIRE_TOP.x, jz - SPIRE_TOP.z);
+    const reach = Math.min(SPIRE_TOP.w, SPIRE_TOP.d) / 2 - 3;
+    const tx = SPIRE_TOP.x + ((jx - SPIRE_TOP.x) / toward) * reach;
+    const tz = SPIRE_TOP.z + ((jz - SPIRE_TOP.z) / toward) * reach;
+    const p = new Player({ minX: BR_X - 600, maxX: BR_X + 600, minZ: BR_Z - 600, maxZ: BR_Z + 600 });
+    p.extraMoves = true;
+    p.teleport(jx, SHIP.height, jz, yawTo(tx - jx, tz - jz), 0);
+    p.leaveShip(SHIP.exit);
+    const sc = new Script();
+    sc.down.add("forward");
+    let t = 1000;
+    for (let k = 0; k < 20 / DT && !(p.onGround && !p.dropping); k++) {
+      t += DT;
+      if (Math.hypot(p.pos.x - tx, p.pos.z - tz) < 1.5) sc.down.delete("forward");
+      else p.yaw = yawTo(tx - p.pos.x, tz - p.pos.z);
+      p.update(DT, t, sc, 0, 1, false);
+    }
+    // on the crown: its deck, or the machine standing on it
+    const onDeck = p.pos.y > SPIRE_TOP.y - 0.3 && Math.abs(p.pos.x - SPIRE_TOP.x) < SPIRE_TOP.w / 2 + 0.5 && Math.abs(p.pos.z - SPIRE_TOP.z) < SPIRE_TOP.d / 2 + 0.5;
+    if (!onDeck) missed++;
+    if (!onDeck && !firstMiss) firstMiss = `line ${i}: down at ${p.pos.y.toFixed(1)} m, ${Math.hypot(p.pos.x - SPIRE_TOP.x, p.pos.z - SPIRE_TOP.z).toFixed(1)} m from the middle`;
+    worst = Math.max(worst, toward);
+  }
+  check(`every line passes the crown's middle at ${beside.near} to ${beside.far} m, square to it`, off === 0, `${off} of ${lines}`);
+  check("and passes it while the ship is over the map, doors open", behind === 0, `${behind} of ${lines}`);
+  check("from any side and flown any way (it can start from wherever)", ways.size >= 7 && sides.size === 4, `${ways.size} of 8 headings, ${sides.size} of 4 sides`);
+  check(
+    `a jump at the nearest point, gliding level, lands on the crown (${SPIRE_TOP.w.toFixed(0)} by ${SPIRE_TOP.d.toFixed(0)} m at ${SPIRE_TOP.y.toFixed(1)} m) from every line`,
+    missed === 0,
+    `${missed} of ${lines} missed${firstMiss ? `, ${firstMiss}` : ""}; the furthest jump ${worst.toFixed(1)} m from its middle`,
+  );
+}
 console.log(fails === 0 ? "\nSK DROP PASS" : `\nSK DROP FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

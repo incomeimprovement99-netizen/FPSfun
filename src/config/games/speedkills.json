@@ -538,18 +538,23 @@
       ]
     }
   },
-  "_ship": "The dropship (dropship.ts), over squad.json's: doorsIn is the seconds of flight it appears short of the city's edge, which is when its doors open. The owner: the ship starts off the map and flies at least 5 s before anyone can jump, so the loading screen and the city finish behind it; at 26 m/s, 6 s is about 156 m out. height: the ship flies at 175 m (squad.json's 140 before): the skyline's towers reach 160 m, and on about a third of the ship's lines the hull passed through a tower top (Phase 20 A5).",
+  "_ship": "The dropship (dropship.ts), over squad.json's: doorsIn is the seconds of flight it appears short of the city's edge, which is when its doors open. The owner: the ship starts off the map and flies at least 5 s before anyone can jump, so the loading screen and the city finish behind it; at 26 m/s, 6 s is about 156 m out. height: the ship flies at 175 m (squad.json's 140 before): the skyline's towers reach 160 m, and on about a third of the ship's lines the hull passed through a tower top (Phase 20 A5). centre: the line passes the Spire's crown deck at between near and far metres from its middle, on any side and flown either way, square to that offset so it comes no nearer (the owner, 2026-09-27: \"the drop ship should always go over the middle district, can start from wherever and be slightly to any side, but we should be always able to land at the top middle building\"). near: the mast on the crown reaches 180.5 m, over the ship's 175, and the ship is 27.4 m across its wings (measured off its model by tools/checks/sk-drop.ts), so 13.7 m either side of its line plus the mast's 1.1 m cap and 2 m to spare is 16.8; far: from 172 m (the ship less its 3 m exit) a level glide (14 m across and 12 down a second) reaches 37 m from the jump before it is down at the crown's 140.2 m, and the check jumps at the line's nearest point and glides onto the crown, 9 by 9 m, on every one of 60 lines. At random angles through the same points, 15 of 60 lines came nearer the mast than 17 m.",
   "ship": {
     "doorsIn": 6,
-    "height": 175
+    "height": 175,
+    "centre": {
+      "near": 17,
+      "far": 26
+    }
   },
   "_identity": "SpeedKills' face: its title and accents. skies are the hours SpeedKills offers in its Time of day setting, sky the one it starts at: the owner's neon night, and Hyper Scape's golden hour as the one other (the night stays the default, the owner's call).",
-  "_feel": "How a fight feels (Phase 19 step 10). outline: the enemy under your crosshair within range metres is outlined in color, width metres thick and perMetre more for every metre away so it holds its size on the screen (src/game/outline.ts; Hyper Scape's red outline, the thing that makes a figure one shape against a lit facade). streaks: lines at the screen's edge once you are going faster than from times the sprint's speed, full at full times it, at most opacity: the speed the movement gives you, shown (Hyper Scape's air and dash read as fast; ours read as a camera sliding). Ours, by eye. (Phase 20 A15: with the sprint doubled and a slide 1.15 times it, the streaks start at 1.05 times the sprint and are full at 1.6.)",
+  "_feel": "How a fight feels (Phase 19 step 10). outline: the enemy under your crosshair within range metres is outlined in color, px screen pixels thick at the camera's own field of view (so a scope's zoom thins it in metres), never under min metres, and drawn back metres behind the figure along the line of sight so only its rim shows (src/game/outline.ts; Hyper Scape's red outline, the thing that makes a figure one shape against a lit facade). It was 0.02 m plus 1.2 mm a metre: through BOOG's scope at 40 m that was 13 pixels a side, the soldier's body hull came through his armour, and at 90 m he was a red shape (the owner, 2026-09-27: \"this weird ball of red around them, causing us to not be able to see/track them\"). back: the armour stands a few centimetres off the body. streaks: lines at the screen's edge once you are going faster than from times the sprint's speed, full at full times it, at most opacity: the speed the movement gives you, shown (Hyper Scape's air and dash read as fast; ours read as a camera sliding). Ours, by eye. (Phase 20 A15: with the sprint doubled and a slide 1.15 times it, the streaks start at 1.05 times the sprint and are full at 1.6.)",
   "feel": {
     "outline": {
       "color": "#ff2a3a",
-      "width": 0.02,
-      "perMetre": 0.0012,
+      "px": 1.2,
+      "min": 0.006,
+      "back": 0.12,
       "range": 150
     },
     "streaks": {

@@ -7,6 +7,7 @@
 // Run on its own: npx tsx tools/checks/hacks.ts
 import { MOVE } from "../../src/game/movement";
 import { Hacks, HACK, HACK_DEFS, cooldownOf, hackSlotOf } from "../../src/game/hacks";
+import SK from "../../src/config/games/speedkills.json";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -25,7 +26,14 @@ console.log("SpeedKills' hacks");
   const table = (id: Parameters<typeof cooldownOf>[0]) => [0, 1, 2, 3, 4].map((l) => cooldownOf(id, l)).join(",");
   const X = HACK as unknown as Record<string, Record<string, number | number[]>>;
   check("the cooldowns are Hyper Scape's final tables: SLAM, WALL and REVEAL 12 to 7; HEAL, ARMOR, INVISIBILITY and MINE 14 to 9", ["slam", "wall", "reveal"].every((id) => table(id as never) === "12,11,10,9,7") && ["heal", "armor", "invis", "mine"].every((id) => table(id as never) === "14,13,12,11,9"), ["slam", "wall", "reveal", "heal", "armor", "invis", "mine"].map((id) => `${id} ${table(id as never)}`).join("; "));
-  check("REVEAL is a 50 degree cone out to 60 m for 8 s; INVISIBILITY 4 s; ARMOR 4 s; HEAL 4.4 a second for 9 s, 6.6 at the top", HACK.reveal.cone === 50 && HACK.reveal.range === 60 && HACK.reveal.seconds === 8 && HACK.invis.seconds === 4 && HACK.armor.seconds === 4 && HACK.heal.seconds === 9 && JSON.stringify(X.heal.perSeconds) === "[4.4,4.4,4.4,4.4,6.6]");
+  check("REVEAL is a 50 degree cone out to 60 m for 8 s; INVISIBILITY 4 s; ARMOR 4 s; HEAL for 9 s", HACK.reveal.cone === 50 && HACK.reveal.range === 60 && HACK.reveal.seconds === 8 && HACK.invis.seconds === 4 && HACK.armor.seconds === 4 && HACK.heal.seconds === 9);
+  // HEAL's rate is ours (hacks.json _heal): Hyper Scape's 4.4 a second was 40 health, barely over the regeneration's 4
+  {
+    const rates = X.heal.perSeconds as number[];
+    const regen = SK.health.healthRegen;
+    check("HEAL gives back at least a whole health bar over its seconds, at every level", rates.every((r) => r * HACK.heal.seconds >= SK.health.health), rates.join(","));
+    check("HEAL heals at least twice the regeneration's rate, and never less at a higher level", rates.every((r, i) => r >= 2 * regen && (i === 0 || r >= rates[i - 1])) && X.heal.perSecond === rates[0], `${rates.join(",")} against ${regen}`);
+  }
   check("SLAM does 20 at every level and 30 at the top; a MINE 40 and 60, chasing for 8 s from 15 m, one at a time; at most 2 WALLS for 15 s", JSON.stringify(X.slam.damages) === "[20,20,20,20,30]" && JSON.stringify(X.mine.damages) === "[40,40,40,40,60]" && HACK.mine.chase === 8 && HACK.mine.trigger === 15 && HACK.mine.max === 1 && HACK.wall.max === 2 && HACK.wall.seconds === 15);
   {
     // measured off Hyper Scape's footage (hacks.json _note): SLAM's apex about 30 m, TELEPORT (our DASH) about 26 m

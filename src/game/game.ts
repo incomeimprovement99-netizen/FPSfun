@@ -60,11 +60,11 @@ export interface GameProfile {
   /** a bot's tier aim lag times this (speedkills.json botAimLagScale; Phase 20 A18) */
   botAimLagScale?: number;
   /** how a fight feels (speedkills.json feel): the aimed enemy's outline, the speed streaks */
-  feel?: { outline: { color: string; width: number; perMetre: number; range: number }; streaks: { from: number; full: number; opacity: number } };
+  feel?: { outline: { color: string; px: number; min: number; back: number; range: number }; streaks: { from: number; full: number; opacity: number } };
   /** the first-person gun over viewmodel.json's (absent: the legacy game's own) */
   viewmodel?: { reloadAds: number };
   /** the dropship over squad.json's (doorsIn: the seconds before a jump is allowed) */
-  ship?: { doorsIn: number };
+  ship?: { doorsIn: number; centre?: { near: number; far: number } };
   /** each gun's tuning over its legacy numbers (multipliers; headshotDamage outright) */
   tuning?: Record<string, { damage: number; fireRate: number; recoil: number; mag?: number; headshotDamage?: number }>;
 }

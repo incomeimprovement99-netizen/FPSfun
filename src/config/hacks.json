@@ -49,17 +49,18 @@
     "arrive": 2,
     "maxSeconds": 1.6
   },
+  "_heal": "HEAL's rate is ours, not Hyper Scape's (the owner, 2026-09-27: \"we will need to bump that up to actually be a comparable hack\"). Hyper Scape's 4.4 health a second for 9 s (6.6 at the top) is 40 health, and our own regeneration is 4 a second once 8 s have passed without a hit (speedkills.json health): a hack on a 14 s cooldown that did barely more than standing still. 12 a second is 108 over the 9 s, a whole health bar (100) and then shield, and 18 at the top; against a gun's 110 to 150 a second at 80% on target it slows a fight rather than winning it. The cooldowns and 9 s stay Hyper Scape's. Anyone's area heals whoever stands in it, an enemy's as well.",
   "heal": {
     "cooldown": 14,
     "radius": 5,
     "seconds": 9,
-    "perSecond": 4.4,
+    "perSecond": 12,
     "perSeconds": [
-      4.4,
-      4.4,
-      4.4,
-      4.4,
-      6.6
+      12,
+      13,
+      14,
+      15,
+      18
     ],
     "cooldowns": [
       14,
@@ -69,13 +70,10 @@
       9
     ]
   },
-  "_healArea": "How HEAL's area looks (src/game/healarea.ts), after Hyper Scape's: a ring on the ground with arcs turning inside it (one turn in `spin` s, at `arcs` shares of the radius), a low wall of light `wall` m tall fading up at `opacity` (a squad mate's, an enemy's), and `plus` signs rising round it (how many, their size in metres, how high they rise and a rise's seconds). While you stand in one and it heals you, `screen` of the view's edges glows green and the \"+\" rises there too (hud.ts drawHealing). Ours, by eye.",
+  "_healArea": "How HEAL's area looks (src/game/healarea.ts), after Hyper Scape's: a ring on the ground with arcs turning inside it (one turn in `spin` s, at `arcs` shares of the radius), a low wall of light `wall` m tall fading up at `opacity` (everyone's the same), and `plus` signs rising round it (how many, their size in metres, how high they rise and a rise's seconds). While you stand in one and it heals you, `screen` of the view's edges glows green and the \"+\" rises there too (hud.ts drawHealing). Ours, by eye.",
   "healArea": {
     "wall": 0.7,
-    "opacity": [
-      0.22,
-      0.1
-    ],
+    "opacity": 0.22,
     "plus": {
       "count": 16,
       "size": 0.28,

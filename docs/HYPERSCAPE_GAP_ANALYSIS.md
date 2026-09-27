@@ -59,7 +59,7 @@ is its Protocol V (a scoped bolt-action with a 3-round magazine).
 | Hyper Scape | SpeedKills now | Status |
 |---|---|---|
 | Realistic proportions, techwear, emissive cyan accents; a shared default jumpsuit | The bought soldier, four variants and palettes; its armour's own trim | ✅ |
-| A red outline on the enemy under your aim | Built (Phase 19) | ✅ |
+| A red outline on the enemy under your aim | Built (Phase 19); a thin rim, 1.2 pixels at any range or zoom, only round the figure (Milestone 280: it had swelled into a red blob) | ✅ |
 | A red bar over an enemy's head | The hit plates | 🟡 |
 | Movement trails: red for enemies, blue for mates, gold for the crown | Every other player leaves a ribbon of light at their feet in their side's colour, fading over 0.9 s | ✅ (Milestone 274) |
 | No corpses: the fallen become a hologram (Echo) and a gold Restore Point | Death boxes and ghosts (ours) | 🟡 |

@@ -67,13 +67,15 @@ function clip(px: number, pz: number, dx: number, dz: number, b: Box): [number, 
 /**
  * The match's line: through a point within `pass` metres of the squad's place,
  * at an angle from the seed, clipped to the map, and flown from whichever end
- * leaves more of it before the place.
+ * leaves more of it before the place. With `beside`, it passes the place at
+ * between `near` and `far` metres, on any side and flown either way: SpeedKills'
+ * ship past the Spire, near enough to glide onto its crown and clear of its mast.
  */
-export function shipLine(seed: number, place: { x: number; z: number }, bounds: Box): ShipLine {
+export function shipLine(seed: number, place: { x: number; z: number }, bounds: Box, beside?: { near: number; far: number }): ShipLine {
   // its own stream off the seed, so the loot field's draws are not shifted by it
   const rng = seeded((seed ^ 0x5bd1e995) >>> 0);
   // uniform over the disc round the place, and never outside the map
-  const r = Math.sqrt(rng()) * SHIP.pass;
+  const r = beside ? beside.near + rng() * (beside.far - beside.near) : Math.sqrt(rng()) * SHIP.pass;
   const a = rng() * Math.PI * 2;
   const inset = 1;
   const px = Math.max(bounds.minX + inset, Math.min(bounds.maxX - inset, place.x + Math.cos(a) * r));
@@ -85,7 +87,14 @@ export function shipLine(seed: number, place: { x: number; z: number }, bounds: 
   let dz = 0;
   let t0 = 0;
   let t1 = 0;
-  for (let i = 0; i < SHIP.tries; i++) {
+  // passed beside: square to the way the point is off the place, so the line comes no nearer than `near` (the Spire's
+  // mast stands above the ship's height, and a line at any angle through the point could run into it)
+  if (beside) {
+    dx = -Math.sin(a);
+    dz = Math.cos(a);
+    [t0, t1] = clip(px, pz, dx, dz, bounds);
+  }
+  for (let i = 0; i < (beside ? 0 : SHIP.tries); i++) {
     const angle = rng() * Math.PI * 2;
     const cx = Math.cos(angle);
     const cz = Math.sin(angle);
