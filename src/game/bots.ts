@@ -132,6 +132,14 @@ export function aimError(d: Difficulty, t: number, dist = 0): number {
   return (d.errFloor + (d.errStart - d.errFloor) * Math.pow(d.errDecay, Math.max(0, t))) * far;
 }
 
+/**
+ * How late a bot's aim follows its target, seconds (the time constant of its follow): the tier's, and in SpeedKills
+ * that times botAimLagScale, since its players run twice as fast (speedkills.json _botAimLagScale)
+ */
+export function aimLagOf(d: Difficulty): number {
+  return d.aimLag * (IS_SK ? (PROFILE.botAimLagScale ?? 1) : 1);
+}
+
 /** which map a bot is on: the arena is 36 m by 64, the battle royale's map 440 across */
 export type BotSightMode = keyof typeof SIGHT.range;
 export const BOT_SIGHT_MODES: BotSightMode[] = ["arena", "br"];
@@ -652,7 +660,7 @@ export class Bot {
   private strafePhase = Math.random() * 10;
   private aimErr = new THREE.Vector2();
   private nextErrAt = 0;
-  /** where its aim is, lagging the target by the tier's aimLag */
+  /** where its aim is, lagging the target by aimLagOf its tier (the tier's aimLag, scaled in SpeedKills) */
   private aimPoint = new THREE.Vector3();
   private aimSet = false;
   /** the last place and time it saw its target, and who */
@@ -1680,7 +1688,7 @@ export class Bot {
         this.aimPoint.copy(want3);
         this.aimSet = true;
       }
-      this.aimPoint.lerp(want3, Math.min(1, dt / Math.max(1e-3, tier.aimLag)));
+      this.aimPoint.lerp(want3, Math.min(1, dt / Math.max(1e-3, aimLagOf(tier))));
     }
     // a frag: at where a target was hiding, or at one that has stood still in view too long
     if (tier.grenadeAfter !== null && this.grenadesAllowed && this.frags > 0 && now >= this.nextThrowAt && this.lastSeen && !this.healing && !this.cover && sense.canShoot && this.knife === null) {

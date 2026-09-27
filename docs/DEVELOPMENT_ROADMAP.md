@@ -4323,3 +4323,40 @@ not, always sprint; the slide only a little faster than the sprint).
     1.2 m ray too, which must miss, so every run proves a crouched enemy is outlined. It runs before the decay.
   - The tour's HIGH GROUND pulled the trigger on a 120 ms beat, which a page drawing few frames could miss; it
     counts frames now. `__range.triggerWhy()` names whatever holds a trigger.
+
+## Milestone 236 — A friend's swing lands at twice the speed ✅
+
+Phase 20, A18 (smooth play and gunfights with friends), found by working out what A15's doubled speeds do to the
+host's check on a claimed hit.
+
+- **The fault:** the host refused a swing when it saw the two players more than 5 m apart. It compares its
+  latest states, while the swinger hit the other where they were drawn: up to the jitter buffer's 0.3 s behind,
+  plus a trip across the network. At SpeedKills' top ground speed (16.1 m/s, a holstered sprint) a target
+  running away in that time is 7.2 m further on, so a real swing at arm's reach could be 9.4 m apart at the host
+  and was thrown away. At the old speeds it sat just inside the 5 m.
+- **Now:** SpeedKills' limit is the swing's reach plus its fastest speed times that staleness, all read from the
+  config (net.json `_hitCheckSk`): the 1.8 m swing plus an arm's corner at 0.40 m, measured off the figure's hit
+  zones, and 16.1 m/s times 0.45 s. The legacy game keeps its 5 m. A gun's claim was already wide enough (10 m
+  plus 30%), and a check now holds that too.
+- **Checked:** `tools/checks/hitcheck.ts` runs in both games now (verify runs it with SpeedKills named too). The
+  SpeedKills swing on a target at the top speed, seen as late as the buffer allows, passes, and fails with the
+  old 5 m put back. Run under SpeedKills for the first time, two of its older checks failed on the test's own
+  gun (built at level 0 where the host caps a claim at the top fusion level); the test builds it as the host does.
+
+## Milestone 237 — The bots keep their aim against twice the speed ✅
+
+Phase 20, A18 (gunfights), and the other half of what A15's doubled speeds did without anyone choosing it.
+
+- **The fault:** a bot's aim follows its target late by its tier's lag, so it trails a steady runner by the
+  runner's speed times the lag, and a body is half a metre across. A15 doubled the runner's speed, so every tier
+  trailed twice as far and hit a running player about half as often: Skilled went from 1.2 m behind a legacy
+  sprint to 2.6 m behind a SpeedKills one. The tiers were tuned at the old speeds.
+- **Now:** SpeedKills' bots aim with their tier's lag times `botAimLagScale`, 0.5 (speedkills.json, with its
+  reason), through `bots.ts aimLagOf`. Beginner, Easy and Normal trail a SpeedKills sprint within 5% of what they
+  trailed a legacy one. The follow moves a frame's share of the gap rather than an exact exponential, so at 60
+  fps Hard and Elite come out a little closer (0.48 m to 0.40, and 0.19 to 0.08), inside their own aim error at a
+  fight's range. The legacy game keeps every tier's own lag.
+- **Checked:** `tools/checks/bot-aim.ts` runs the bot's own follow behind a target at each game's sprint; no tier
+  trails a SpeedKills runner by more than it trailed a legacy one. With the scale back at 1 every tier fails, its
+  trail doubled.
+- **The owner's to change:** 1 would leave the bots weaker against the new speeds, if easier bots are wanted.

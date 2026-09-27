@@ -14,9 +14,21 @@
 // round trip stale).
 import netCfg from "../config/net.json";
 import { resolveWeapon, weaponIds, type ResolvedWeapon } from "../game/weapons";
+import { MOVE } from "../game/movement";
+import { IS_SK } from "../game/game";
 
 const C = netCfg.hitCheck;
 const GUNS = new Set(weaponIds());
+
+/** the fastest a player goes on the ground, m/s: a holstered sprint or a slide at its cap */
+export const TOP_SPEED = Math.max(MOVE.sprintSpeed * MOVE.holsterBoost, MOVE.slideSpeedBoostCap);
+/** how late the swinger can have seen the other, against the host's latest states: the jitter buffer's most and a trip */
+export const STALE = netCfg.buffer.max + C.staleTrip;
+/**
+ * How far apart the host may see a swinger and the one they hit (net.json _hitCheckSk). SpeedKills' is its reach
+ * plus its fastest target's run over the staleness, 9.4 m; the legacy game keeps its fixed meleeRange.
+ */
+export const MELEE_APART = IS_SK ? C.meleeReach + TOP_SPEED * STALE : C.meleeRange;
 
 export interface HitClaim {
   /** who claims it */
@@ -82,7 +94,7 @@ export class HitCheck {
     // a round lands after the shot that fired it: a gun's hit with no shot heard lately is made up
     if (gun && (lastShotAt === undefined || now - lastShotAt > C.shotWindow)) return "no shot fired";
     if (apart !== null) {
-      if (melee && apart > C.meleeRange) return `a swing from ${apart.toFixed(1)} m away`;
+      if (melee && apart > MELEE_APART) return `a swing from ${apart.toFixed(1)} m away`;
       if (c.dist !== null && Math.abs(apart - c.dist) > C.rangeSlack + apart * C.rangeShare) return `claimed from ${c.dist.toFixed(0)} m, but ${apart.toFixed(0)} m apart`;
     }
     const list = (this.recent.get(c.from) ?? []).filter((h) => now - h.at < 1);

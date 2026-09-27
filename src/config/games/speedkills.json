@@ -569,5 +569,7 @@
   },
   "_familiesUse": "use is a family's one line on the loot card's Full view (Phase 20 A8): what the gun is for, for a player who does not know yet.",
   "_botSpeedScale": "SpeedKills' bots move at their tier's speed (bots.json) times botSpeedScale: 2, since the player's run and sprint doubled (Phase 20 A15); at their old speeds a bot could not keep up with a player, nor get away.",
-  "botSpeedScale": 2
+  "botSpeedScale": 2,
+  "_botAimLagScale": "A bot's aim follows its target late by its tier's aimLag (bots.json), so it trails a target running steadily by the target's speed times aimLag. A15 doubled the player's speeds, which doubled every tier's trail and about halved its hits on a runner (a body is half a metre across: Skilled trailed a legacy sprint by 1.3 m and a SpeedKills one by 2.8). SpeedKills' bots aim with aimLag times botAimLagScale, 0.5, so each tier trails a SpeedKills sprint by about what it trailed a legacy one (tools/checks/bot-aim.ts) and keeps the difficulty it was tuned to. Ours; 1 would leave every tier weaker against the new speeds.",
+  "botAimLagScale": 0.5
 }

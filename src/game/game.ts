@@ -57,6 +57,8 @@ export interface GameProfile {
   loot?: { spots: Record<string, number>; gunChance: number; hackChance: number; gunOdds: Record<string, number[]>; hackOdds: Record<string, number[]>; maxFloor?: number; restock?: LootRestock; carePackage?: CarePackage };
   /** a bot's tier speed times this (speedkills.json botSpeedScale; Phase 20 A15) */
   botSpeedScale?: number;
+  /** a bot's tier aim lag times this (speedkills.json botAimLagScale; Phase 20 A18) */
+  botAimLagScale?: number;
   /** how a fight feels (speedkills.json feel): the aimed enemy's outline, the speed streaks */
   feel?: { outline: { color: string; width: number; perMetre: number; range: number }; streaks: { from: number; full: number; opacity: number } };
   /** the first-person gun over viewmodel.json's (absent: the legacy game's own) */

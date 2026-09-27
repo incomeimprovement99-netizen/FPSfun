@@ -6,8 +6,9 @@
 // wrong distance, a swing from across the room and a stream faster than the
 // gun fires are each refused.
 //
-// Run on its own: npx tsx tools/checks/hitcheck.ts.
-import { HitCheck, maxPerSecond, maxRound } from "../../src/net/hitcheck";
+// Run on its own: npx tsx tools/checks/hitcheck.ts (and with GAME=speedkills for SpeedKills' own: verify runs both).
+import { HitCheck, MELEE_APART, STALE, TOP_SPEED, maxPerSecond, maxRound } from "../../src/net/hitcheck";
+import { IS_SK } from "../../src/game/game";
 import { resolveWeapon, weaponIds } from "../../src/game/weapons";
 import netCfg from "../../src/config/net.json";
 
@@ -42,12 +43,31 @@ console.log("The host's check on a claimed hit");
     }
   }
   check("a whole magazine at the gun's fastest, every pellet a headshot, passes", bad.length === 0, [...new Set(bad)].join(", "));
-  const r301 = resolveWeapon("rspn101");
+  // the gun as the host holds a claim up to it: at SpeedKills' top fusion level, the most a real one can carry (the
+  // legacy game has no levels and ignores it)
+  const r301 = resolveWeapon("rspn101", 0, [], 5);
   const h = new HitCheck();
   check("a round's worth more than the gun can do is refused", h.judge({ from: 1, amount: maxRound(r301) + 1, weapon: "rspn101", dist: 10 }, 10, 9.9, 10) !== null);
   check("a gun's hit with no shot heard lately is refused", h.judge({ from: 2, amount: 10, weapon: "rspn101", dist: 10 }, 10, 10 - C.shotWindow - 0.1, 10) !== null && h.judge({ from: 3, amount: 10, weapon: "rspn101", dist: 10 }, 10, undefined, 10) !== null);
   check("a claim from 100 m by two players 10 m apart is refused; a round trip's drift is not", h.judge({ from: 4, amount: 10, weapon: "rspn101", dist: 100 }, 10, 9.9, 10) !== null && h.judge({ from: 5, amount: 10, weapon: "rspn101", dist: 18 }, 10, 9.9, 10) === null);
   check(`a swing from 20 m is refused, one from 2 m passes (up to ${C.meleeMax})`, h.judge({ from: 6, amount: 30, weapon: "melee", dist: null }, 10, undefined, 20) !== null && h.judge({ from: 7, amount: 300, weapon: "melee", dist: null }, 10, undefined, 2) === null);
+  if (IS_SK) {
+    // SpeedKills' speeds (Phase 20 A15): a real swing on a target at the top speed, seen as late as the jitter
+    // buffer and a trip allow, passes; the fixed 5 m refused it. And one from much further still does not.
+    const late = C.meleeReach + TOP_SPEED * STALE - 0.05;
+    const hs = new HitCheck();
+    check(
+      `speedkills: a swing on a target at ${TOP_SPEED.toFixed(1)} m/s seen ${STALE.toFixed(2)} s late passes (${late.toFixed(1)} m apart at the host); one from ${(MELEE_APART + 3).toFixed(1)} m does not`,
+      hs.judge({ from: 11, amount: 30, weapon: "melee", dist: null }, 10, undefined, late) === null && hs.judge({ from: 12, amount: 30, weapon: "melee", dist: null }, 10, undefined, MELEE_APART + 3) !== null,
+      `the limit ${MELEE_APART.toFixed(1)} m`,
+    );
+    // a gun's claim at close range on the same target: its measured distance and the host's differ by that run
+    const drift = TOP_SPEED * STALE;
+    check(
+      `speedkills: a gun's claim from 3 m on a target at the top speed seen late passes (the host has them ${(3 + drift).toFixed(1)} m apart)`,
+      hs.judge({ from: 13, amount: 10, weapon: "rspn101", dist: 3 }, 10, 9.9, 3 + drift) === null,
+    );
+  }
   // a stream faster than the gun fires: one second's worth, then one more
   const fast = new HitCheck();
   const per = maxPerSecond(r301);

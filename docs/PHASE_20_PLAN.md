@@ -411,6 +411,21 @@ This builds on A15, which keeps sprint, walk and slide.
     p99 11.7 ms, no frame over 50 ms. Of a 7.8 ms frame, render took 5.5, the match 1.1, the figures and the
     HUD about 0.4 each. So the first lead stays Part B's: the draw calls (623 here), the skinned figures above all.
   - The real measurement waits for a quiet machine (the footage measuring for A17 runs beside it now).
+- **With friends, done 2026-09-27 (Milestone 236):** the host refused a swing seen more than 5 m apart, and at A15's
+  speeds a real one on a sliding target could be 9.4 m apart at the host. SpeedKills' limit is now worked out from
+  its reach, its top speed and the jitter buffer's most (net.json `_hitCheckSk`); a gun's claim was already wide
+  enough.
+- **A friend's figure at the new speeds, measured 2026-09-27:** the jitter test run in SpeedKills (a guest running
+  a tight circle at about 9 m/s) moves as evenly as the legacy one for a typical frame (the median deviation
+  2%), but its worst frames are rougher (the 95th percentile 0.57 to 0.61 of the median speed, where the legacy
+  test's is 0.12 to 0.30). A glide back after a carry-on past the newest state was built and tried against it,
+  four runs interleaved: it changed nothing, so the carry-on is not the cause, and it was taken back out. Two runs
+  of the eight fell apart (the guest's own motion broke up, about thirty stalls), so this machine's load is in
+  these numbers. To do on a quiet machine: the same measurement with the frame pacing, and the owner's own match
+  with friends as the judge.
+- **The bots' aim, done 2026-09-27 (Milestone 237):** a bot trails a runner by the runner's speed times its tier's
+  aim lag, so A15 about halved every tier's hits on a running player. SpeedKills' bots aim with half the lag
+  (`botAimLagScale`), which puts each tier back where it was tuned.
 
 ### A19. The PANDA as an animation showcase, then every gun
 
