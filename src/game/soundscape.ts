@@ -34,7 +34,8 @@ export interface SoundFrame {
 
 /** what is under a pair of feet */
 export function surfaceAt(y: number, outdoors: boolean): Surface {
-  if (outdoors) return y < 0.05 ? "dirt" : "concrete";
+  // the ground outdoors is dirt; the metro's floor under it (y well under 0) is concrete
+  if (outdoors) return y < 0.05 && y > -0.5 ? "dirt" : "concrete";
   return y < 0.05 ? "concrete" : "metal";
 }
 

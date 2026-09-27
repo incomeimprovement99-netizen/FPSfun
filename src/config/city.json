@@ -458,5 +458,32 @@
     "canyon": 8,
     "gap": 4,
     "landing": 3
+  },
+  "_metro": "The metro (the owner's, 2026-09-27: under the street, only the centre, a decent size; docs/CITY_BUNDLE_IMPLEMENTATION.md section 9): a loop of tunnel under the centre's four streets (`streets`, their indices in the city's streets from the west or north: the two either side of the Spire's block, so the loop runs under x and z of -36 and 36), `width` metres wide, its floor `floor` metres under the street and the street over it a slab `slab` thick, so a tunnel `floor` less `slab` tall: 5 m, room for a double jump. Walls `wall` thick close it in. Stairs go down from each street's outer lane (`lane` metres from its middle, a parked car's lane, never the bots' way down the middle), their middles `stairs` metres along it from the side's middle, `stairWidth` wide and the concourse's rise and run, the opening railed `rail` high on its sides and the far end. A parked train of `train.cars` cars, each `train.length` by `train.width` by `train.height`, stands on each side's inner lane as cover, too tall to stand on under the roof. Lights in the ceiling every `lightEvery` metres. Ours: 288 m of tunnel, the fast covered way round the Spire, and the only place in the city under the street.",
+  "metro": {
+    "streets": [
+      2,
+      3
+    ],
+    "width": 12,
+    "floor": -6,
+    "slab": 1,
+    "wall": 0.5,
+    "lane": 4.5,
+    "stairs": [
+      -14,
+      14
+    ],
+    "stairWidth": 3,
+    "rail": 1.0,
+    "train": {
+      "cars": 2,
+      "length": 15,
+      "width": 3,
+      "height": 3.4,
+      "gap": 1.2,
+      "lane": 3.4
+    },
+    "lightEvery": 4
   }
 }

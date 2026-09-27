@@ -29,6 +29,8 @@ import { weaponLabel, weaponMods, type AmmoType } from "./weapons";
 import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName, throwName } from "../config/names";
 import { RANGE_SOLIDS } from "./range";
+// the world's floor (floors.ts), named apart from this file's own floorAt, the lowest place loot can stand
+import { floorAt as worldFloor } from "./floors";
 import { ammoTypeOf, STACK } from "./ammo";
 import { optionsFor, SLOTS, type Attachments } from "./attachments";
 import { BACKPACKS, KNOCK_SHIELDS, type BackTier, type KnockTier } from "./kit";
@@ -534,6 +536,18 @@ function standingSpots(x: number, z: number): number[] {
   return out.sort((a, b) => a - b);
 }
 
+/**
+ * A spot on the street over a hole in it (a metro stairwell's opening, floors.ts): the street is not there, so the
+ * item goes down onto what is under it, the stair or the tunnel's floor. Only its height moves, so the field's draws
+ * are the same with the metro as without it.
+ */
+function underHole(x: number, z: number, y: number): number {
+  if (y !== 0 || worldFloor(x, z) >= 0) return y;
+  const under = RANGE_SOLIDS.filter((s) => x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ && s.top < 0.05);
+  if (under.some((s) => Math.abs(s.top) < 0.05)) return y;
+  return under.reduce((a, s) => Math.max(a, s.top), worldFloor(x, z));
+}
+
 /** the lowest place to stand at (x, z), or null when there is none */
 function floorAt(x: number, z: number): number | null {
   const spots = standingSpots(x, z);
@@ -819,7 +833,7 @@ export class LootField {
     this.hotZone = pickHotZone(seed, places);
     const trySpot = (into: THREE.Vector3[], x: number, z: number) => {
       const y = floorAt(x, z);
-      if (y !== null) into.push(new THREE.Vector3(x, y + 0.01, z));
+      if (y !== null) into.push(new THREE.Vector3(x, underHole(x, z, y) + 0.01, z));
     };
     // A place's loot goes on ANY floor at that spot, picked at random from the
     // ones with headroom, so a two-storey building holds loot upstairs and on
@@ -828,7 +842,7 @@ export class LootField {
       const floors = standingSpots(x, z);
       if (!floors.length) return;
       const y = floors[Math.floor(rnd() * floors.length)];
-      into.push(new THREE.Vector3(x, y + 0.01, z));
+      into.push(new THREE.Vector3(x, underHole(x, z, y) + 0.01, z));
     };
     const fill = (spots: THREE.Vector3[], tier: PlaceTier) => {
       for (const s of spots) {

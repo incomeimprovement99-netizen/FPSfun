@@ -1,6 +1,7 @@
 // Projectiles with launch speed and scaled gravity, sub-stepped, swept
 // against dummy hit meshes with a raycast per step.
 import { solidsAlong } from "./solidgrid";
+import { floorAt } from "./floors";
 const ALONG: import("./range").Solid[] = [];
 import * as THREE from "three";
 import tracerCfg from "../config/hud.json";
@@ -322,8 +323,8 @@ export class ProjectileSystem {
           // someone else's shot: it only needs to stop where it would
           // and it marks where it stopped, as a round of your own does
           if (wallAt < Infinity) this.onVisualImpact?.(prev.clone().addScaledVector(unit, wallAt), wallNormal!, b.weapon.id);
-          else if (b.pos.y <= this.floorY) this.onVisualImpact?.(b.pos.clone(), new THREE.Vector3(0, 1, 0), b.weapon.id);
-          if (wallAt < Infinity || b.pos.y <= this.floorY || b.age > b.weapon.projectile.lifetime) dead = true;
+          else if (b.pos.y <= this.floorY + floorAt(b.pos.x, b.pos.z)) this.onVisualImpact?.(b.pos.clone(), new THREE.Vector3(0, 1, 0), b.weapon.id);
+          if (wallAt < Infinity || b.pos.y <= this.floorY + floorAt(b.pos.x, b.pos.z) || b.age > b.weapon.projectile.lifetime) dead = true;
           continue;
         }
         if (len > 0 && meshes.length) {
@@ -375,7 +376,7 @@ export class ProjectileSystem {
           dead = true;
           break;
         }
-        if (b.pos.y <= this.floorY) {
+        if (b.pos.y <= this.floorY + floorAt(b.pos.x, b.pos.z)) {
           onImpact({
             dummy: null, report: null, target: null, targetHead: false, damage: 0,
             point: b.pos.clone(), distance: b.pos.distanceTo(b.origin), weapon: b.weapon.id, normal: new THREE.Vector3(0, 1, 0),

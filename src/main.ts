@@ -35,6 +35,7 @@ import AUDIO_CFG from "./config/audio.json";
 import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier, type FigurePose } from "./game/dummy";
 import { buildRange, rangeBounds, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
+import { floorAt } from "./game/floors";
 import rangeCfg from "./config/range.json";
 import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, matchHour, loadBrSky, saveBrSky, loadSkHour, saveSkHour, type Hour } from "./game/sky";
 import { buildBrMap, BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
@@ -3186,10 +3187,10 @@ function aimPoint(reach: number): THREE.Vector3 {
   const eye = camera.position.clone();
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
   const wall = solidHit(eye, fwd, reach);
-  const ground = fwd.y < -1e-3 ? eye.y / -fwd.y : Infinity;
+  const ground = fwd.y < -1e-3 ? (eye.y - floorAt(eye.x, eye.z)) / -fwd.y : Infinity;
   const t = Math.max(1, Math.min(reach, wall - 0.3, ground));
   const at = eye.clone().addScaledVector(fwd, t);
-  return at.setY(Math.max(0, at.y - (t >= reach ? 1.4 : 0)));
+  return at.setY(Math.max(floorAt(at.x, at.z), at.y - (t >= reach ? 1.4 : 0)));
 }
 
 /** SMOKE's clouds a step on, and its passive: an enemy standing in one of them is shown to you */
@@ -3587,7 +3588,7 @@ function useHack(slot: HackSlot, now: number): void {
         return;
       }
       const at = eyeAt.addScaledVector(fwd, reach);
-      const to = new THREE.Vector3(at.x, Math.max(0, at.y - (player.eyePosition().y - player.pos.y)), at.z);
+      const to = new THREE.Vector3(at.x, Math.max(floorAt(at.x, at.z), at.y - (player.eyePosition().y - player.pos.y)), at.z);
       player.teleport(to.x, to.y, to.z, player.yaw, player.pitch);
       player.vel.set(player.vel.x, Math.max(0, player.vel.y), player.vel.z);
       if (thirdPerson) fx.jolt(from, to, now);
@@ -4149,7 +4150,7 @@ const throwables = new Throwables(scene, {
 });
 /** the highest floor under a point, at or below it: where a blast's scorch lies */
 function floorUnder(at: THREE.Vector3): number {
-  let y = 0;
+  let y = floorAt(at.x, at.z);
   for (const s of RANGE_SOLIDS) if (at.x >= s.minX && at.x <= s.maxX && at.z >= s.minZ && at.z <= s.maxZ && s.top <= at.y + 0.3 && s.top > y) y = s.top;
   return y;
 }
@@ -8144,7 +8145,7 @@ initWelcome();
         const px = x + Math.cos((a / 16) * Math.PI * 2) * r;
         const pz = z + Math.sin((a / 16) * Math.PI * 2) * r;
         // only what stands on the floor: a roof or a girder overhead is no obstacle
-        if (!RANGE_SOLIDS.some((s) => s.base < 2 && px > s.minX - clear && px < s.maxX + clear && pz > s.minZ - clear && pz < s.maxZ + clear)) return { x: px, z: pz };
+        if (!RANGE_SOLIDS.some((s) => s.base < 2 && s.top > 0.05 && px > s.minX - clear && px < s.maxX + clear && pz > s.minZ - clear && pz < s.maxZ + clear)) return { x: px, z: pz };
         if (r === 0) break;
       }
     }

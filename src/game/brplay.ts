@@ -824,7 +824,7 @@ export class BrPlay {
     if (aimed && aimed.item.kind !== "banner") return null;
     for (const d of f.drops.values()) {
       if (d.item.kind !== "banner" || d.item.owner === undefined || d.item.owner === match.id || !match.isAlly(d.item.owner)) continue;
-      if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > BOX.reach) continue;
+      if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > BOX.reach || Math.abs(d.pos.y - p.y) > 2.5) continue;
       if (match.memberAlive(d.item.owner) !== false) continue;
       if (this.boxDone && this.boxDone.owner === d.item.owner && now - this.boxDone.at < 3) continue;
       return d;

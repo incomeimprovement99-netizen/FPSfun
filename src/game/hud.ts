@@ -1895,7 +1895,8 @@ export class Hud {
     g.fillRect(0, 0, cv.width, cv.height);
     // Overhead pieces (the course roof, the vent slab) would cover what is
     // under them, so the map shows only what stands on the floor.
-    const sorted = solids.filter((s) => s.base < 2.5).sort((a, b) => a.top - b.top);
+    // (and nothing under the street: the metro's walls, stairs and trains, and the street's slab over it)
+    const sorted = solids.filter((s) => s.base < 2.5 && s.top > 0.05).sort((a, b) => a.top - b.top);
     for (const s of sorted) {
       const shade = Math.min(1, s.top / 6);
       const l = Math.round(70 + shade * 120);

@@ -70,6 +70,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
   the same way (a jump across each canyon, a bridge across a street), and the
   Spire's first tier ends there as a terrace, four bridges running onto it
   from the twin towers.
+- **The metro:** under the four streets round the Spire, a loop of tunnel 6 m
+  below the street, 288 m round: stairs down from every street, a parked train
+  on each side to fight round, the fast covered way round the centre.
 - **Movement for roofs:** double jump, wall run and kick, slide, and a climb
   that goes up a storey (two with a double jump first). You sprint whenever you
   move forward, at 14 m/s, and a slide speeds you up a little past that and

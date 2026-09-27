@@ -21,6 +21,7 @@ import { loft } from "./hull";
 import squadCfg from "../config/squad.json";
 import { seeded } from "./loot";
 import { RANGE_SOLIDS } from "./range";
+import { floorAt } from "./floors";
 
 // SpeedKills starts the ship further out, so a jump is never sooner than 5 s in (speedkills.json ship)
 export const SHIP = IS_SK && PROFILE.ship ? { ...squadCfg.ship, ...PROFILE.ship } : squadCfg.ship;
@@ -103,7 +104,7 @@ export function shipLine(seed: number, place: { x: number; z: number }, bounds: 
 
 /** the top of whatever is under (x, z) at or below `y`: the ground (0), a roof, a rock */
 export function surfaceUnder(x: number, z: number, y: number): number {
-  let best = 0;
+  let best = floorAt(x, z);
   for (const s of RANGE_SOLIDS) if (x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ && s.top <= y + 1e-3 && s.top > best) best = s.top;
   return best;
 }

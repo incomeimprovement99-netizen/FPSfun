@@ -84,16 +84,37 @@ import { savedLoadout, type LoadoutDef } from "./loadouts";
 import { Bot, BODY_TOP, BOT_NAMES, MOST_BOTS, botName, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense, type SightCue, WIRE_TIERS, type BotKit, type BotTier } from "./bots";
 import botsCfg from "../config/bots.json";
 import { RANGE_SOLIDS } from "./range";
+import { floorAt } from "./floors";
 /**
  * The nearest point to (x, z) where a body stands clear of every box at body
  * height: walls, rock, crates. Floor slabs and roofs are not in the way. The
  * rings stop at 40 m, which no place on the map needs, and the spot asked for
  * comes back if nothing clear is found rather than no spot at all.
  */
+/**
+ * Over a hole in the street: the metro's floor under it (floors.ts) and no street's slab over that, a stairwell's
+ * opening, a body's width round it. A spot there would put a pod or a landing in the air over the stair.
+ */
+function overHole(px: number, pz: number): boolean {
+  const pad = 0.7;
+  for (const [ox, oz] of [
+    [0, 0],
+    [-pad, -pad],
+    [pad, -pad],
+    [-pad, pad],
+    [pad, pad],
+  ]) {
+    const x = px + ox;
+    const z = pz + oz;
+    if (floorAt(x, z) < -0.05 && !RANGE_SOLIDS.some((s) => Math.abs(s.top) < 0.05 && x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ)) return true;
+  }
+  return false;
+}
+
 function clearGround(x: number, z: number): { x: number; z: number } {
   const pad = 0.7;
   const blocked = (px: number, pz: number): boolean =>
-    RANGE_SOLIDS.some((s) => s.base < 1.8 && s.top > 0.56 && px > s.minX - pad && px < s.maxX + pad && pz > s.minZ - pad && pz < s.maxZ + pad);
+    overHole(px, pz) || RANGE_SOLIDS.some((s) => s.base < 1.8 && s.top > 0.56 && px > s.minX - pad && px < s.maxX + pad && pz > s.minZ - pad && pz < s.maxZ + pad);
   if (!blocked(x, z)) return { x, z };
   for (let r = 1; r <= 40; r += 1) {
     for (let k = 0; k < 16; k++) {
@@ -113,7 +134,7 @@ function clearGround(x: number, z: number): { x: number; z: number } {
  */
 function openGround(x: number, z: number): { x: number; z: number } {
   const pad = 0.7;
-  const covered = (px: number, pz: number): boolean => RANGE_SOLIDS.some((s) => s.top > 0.56 && px > s.minX - pad && px < s.maxX + pad && pz > s.minZ - pad && pz < s.maxZ + pad);
+  const covered = (px: number, pz: number): boolean => overHole(px, pz) || RANGE_SOLIDS.some((s) => s.top > 0.56 && px > s.minX - pad && px < s.maxX + pad && pz > s.minZ - pad && pz < s.maxZ + pad);
   if (!covered(x, z)) return { x, z };
   for (let r = 1; r <= 40; r += 1) {
     for (let k = 0; k < 16; k++) {
@@ -1660,7 +1681,8 @@ export class BrMatch extends Duel {
     const P = squadCfg.pad;
     for (const p of this.map.pads) {
       // (a jump pad up onto a podium is a player's: the bots keep to the road's)
-      if (p.up !== undefined || Math.hypot(bot.pos.x - p.x, bot.pos.z - p.z) > P.reach || bot.pos.y > 0.6) continue;
+      // on the pad's own floor: a bot in the metro under a crossing's pad is not on it
+      if (p.up !== undefined || Math.hypot(bot.pos.x - p.x, bot.pos.z - p.z) > P.reach || Math.abs(bot.pos.y - (p.y ?? 0)) > 0.6) continue;
       // a follower: only where the pad throws it toward its lead
       if (follower && lead && (lead.bot.pos.x - bot.pos.x) * p.dx + (lead.bot.pos.z - bot.pos.z) * p.dz < SQUADS.follow) continue;
       bot.fling(new THREE.Vector3(p.dx * P.speed, P.up, p.dz * P.speed));
@@ -1693,7 +1715,7 @@ export class BrMatch extends Duel {
     }
     // a jump tower (the balloon) when there is a long way to go: up and gliding
     // for the goal, as a player rides one. Not while it has someone to fight.
-    if (!sense.target && sense.goal && !bot.travel && !bot.dropping && bot.pos.y < 1.2) {
+    if (!sense.target && sense.goal && !bot.travel && !bot.dropping && bot.pos.y < 1.2 && bot.pos.y > -0.5) {
       const far = Math.hypot(sense.goal.x - bot.pos.x, sense.goal.z - bot.pos.z);
       if (far >= SQUADS.towerGain) {
         for (const t of this.map.towers) {

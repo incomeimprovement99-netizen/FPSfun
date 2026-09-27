@@ -37,6 +37,7 @@ console.log("Callouts");
   check("and standing on the floor does not", !at(0, 0, 0).high && !at(0, 0, ROOF_AT - 0.1).high, `${ROOF_AT} m up`);
   check("a step is not a roof: the height is one a person climbs onto, not one they walk up", ROOF_AT > 0.6 && ROOF_AT < 2.5, `${ROOF_AT} m`);
   check("it reads as a sentence when a squad mate is told", calloutLine(at(0, 0, 2)) === "ON THE MID ROOF" && calloutLine(at(0, 0)) === "IN MID", calloutLine(at(0, 0, 2)));
+  check("and under the street, in the metro, that is said too", at(0, 0, -6).name === "MID METRO" && calloutLine(at(0, 0, -6)) === "IN THE MID METRO" && !at(0, 0, -ROOF_AT + 0.1).under, calloutLine(at(0, 0, -6)));
 }
 {
   // every part of a map has a name, and only nine of them

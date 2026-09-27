@@ -23,6 +23,7 @@
 // black metal (tools/fetch-assets.ts), with emissive neon strips of our own.
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
+import { FLOORS } from "./floors";
 import { botWalk } from "./botbody";
 import { building, DRESSING, type BoxMaker, type PoiCtx, type Side, type RoutePoint } from "./brpoi";
 import { DOORWAYS, Doors } from "./doors";
@@ -82,6 +83,16 @@ export const LOBBY_CANYONS: Array<{ ax: number; az: number; bx: number; bz: numb
 /** the Sky Park's (city.json skyPark): its rooms' bridges (the Spire's terrace's among them) and canyons, world metres, as the lobby's */
 export const PARK_BRIDGES: Array<{ ax: number; az: number; bx: number; bz: number; y: number }> = [];
 export const PARK_CANYONS: Array<{ ax: number; az: number; bx: number; bz: number; y: number }> = [];
+/**
+ * The metro under the centre (city.json metro), world metres: its sides (each a stretch of tunnel under a street, `alongX`
+ * when the street runs along x), its floor, and its stairs, each from its top on the street (`top`) to its foot on the
+ * tunnel's floor (`foot`), for the checks that walk it.
+ */
+export const METRO: {
+  floor: number;
+  sides: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; alongX: boolean }>;
+  stairs: Array<{ top: { x: number; z: number }; foot: { x: number; z: number }; x0: number; x1: number; z0: number; z1: number }>;
+} = { floor: 0, sides: [], stairs: [] };
 /** the chimneys (city.json chimneys): each one's walls' inner faces, its length and its landing heights, world metres, for the checks that climb them */
 export const CHIMNEYS: Array<{ name: string; x: number; innerW: number; z0: number; z1: number; base: number; landing: number; top: number }> = [];
 /** the rooftop highway's four corners in order round its loop (world metres, its deck's height), for the checks that walk it */
@@ -105,11 +116,13 @@ export const CONCOURSE: {
  */
 export const KIT_SITES: {
   towers: Array<{ x: number; z: number; w: number; d: number; base: number; roof: number; storeys: number; lobby?: number; park?: number; sector: string; clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }> }>;
+  /** the metro's stairwells in the street (map-local), which nothing may stand over */
+  openings: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   podia: Array<{ key: string; x0: number; x1: number; z0: number; z1: number; top: number; plaza: number; spire: boolean }>;
   stairs: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   skyline: Array<{ x: number; z: number; w: number; h: number }>;
   lamps: Array<[number, number]>;
-} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [] };
+} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [] };
 
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
@@ -119,6 +132,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   scene.add(root);
   DOORWAYS.length = 0;
   DRESSING.length = 0;
+  FLOORS.length = 0;
   const rnd = seeded(C.seed);
   const firstSolid = RANGE_SOLIDS.length;
 
@@ -179,11 +193,49 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   };
   const trimDark = flat(0x0c0e14, 0.6, 0.4);
 
+  // ---------------------------------------------------------------- the metro's plan (city.json metro)
+  // Worked out before anything is built, from the config alone: the streets have stairwells cut into them and the
+  // parked cars keep off them. The tunnel itself is built with the streets' life, below.
+  const Mt = C.metro;
+  const mLines = Mt.streets.map((i) => STREETS[i]);
+  const mLo = Math.min(...mLines);
+  const mHi = Math.max(...mLines);
+  const mHalf = Mt.width / 2;
+  /** the ring as four stretches that do not overlap: the two along x the full width, the two along z between them */
+  const mSides: Array<{ alongX: boolean; line: number; out: number; a: number; b: number }> = [];
+  for (const line of [mLo, mHi]) {
+    mSides.push({ alongX: true, line, out: Math.sign(line), a: mLo - mHalf, b: mHi + mHalf });
+    mSides.push({ alongX: false, line, out: Math.sign(line), a: mLo + mHalf, b: mHi - mHalf });
+  }
+  const mRun = Math.ceil(-Mt.floor / C.concourse.stairRise);
+  const mLen = mRun * C.concourse.stairRun;
+  /** a stair down in each side's outer lane, its top at the end away from the side's middle */
+  const mStairs = mSides.flatMap((sd) =>
+    Mt.stairs.map((off) => {
+      const mid = (sd.a + sd.b) / 2 + off;
+      const across = sd.line + sd.out * Mt.lane;
+      const top = mid + Math.sign(off) * (mLen / 2);
+      const foot = mid - Math.sign(off) * (mLen / 2);
+      const [a0, a1] = [Math.min(top, foot), Math.max(top, foot)];
+      const [c0, c1] = [across - Mt.stairWidth / 2, across + Mt.stairWidth / 2];
+      return { sd, top, foot, across, box: sd.alongX ? { x0: a0, x1: a1, z0: c0, z1: c1 } : { x0: c0, x1: c1, z0: a0, z1: a1 } };
+    }),
+  );
+  KIT_SITES.openings.push(...mStairs.map((s) => s.box));
+  /** a footprint (local) over a stairwell's opening, a margin round it */
+  const overStairwell = (x0: number, x1: number, z0: number, z1: number): boolean => mStairs.some(({ box: o }) => x1 > o.x0 - 0.5 && x0 < o.x1 + 0.5 && z1 > o.z0 - 0.5 && z0 < o.z1 + 0.5);
+
   // ---------------------------------------------------------------- ground
-  // the streets, one plane under everything (the floor at 0 is the world's own)
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(BR_HALF * 2 + 40, BR_HALF * 2 + 40), street);
+  // the streets, one plane under everything (the floor at 0 is the world's own), with the metro's stairwells cut out
+  const GS = BR_HALF * 2 + 40;
+  const groundShape = new THREE.Shape([new THREE.Vector2(-GS / 2, -GS / 2), new THREE.Vector2(GS / 2, -GS / 2), new THREE.Vector2(GS / 2, GS / 2), new THREE.Vector2(-GS / 2, GS / 2)]);
+  // the shape's y is the world's -z once the plane is laid flat
+  for (const { box: o } of mStairs) groundShape.holes.push(new THREE.Path([new THREE.Vector2(o.x0, -o.z0), new THREE.Vector2(o.x0, -o.z1), new THREE.Vector2(o.x1, -o.z1), new THREE.Vector2(o.x1, -o.z0)]));
+  const groundGeo = new THREE.ShapeGeometry(groundShape);
+  // the street's texture a tile every 8 m, laid from the plane's corner as the one plane's was
+  (groundGeo.attributes.uv as THREE.BufferAttribute).array.forEach((v, i, a) => ((a as Float32Array)[i] = (v + GS / 2) / 8));
+  const ground = new THREE.Mesh(groundGeo, street);
   ground.rotation.x = -Math.PI / 2;
-  (ground.geometry.attributes.uv as THREE.BufferAttribute).array.forEach((_, i, a) => ((a as Float32Array)[i] *= (BR_HALF * 2 + 40) / 8));
   ground.receiveShadow = true;
   root.add(ground);
 
@@ -200,7 +252,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   /** the core's podiums by block ("i,j"), their tops: the concourse's bridges join them */
   const podia = new Map<string, { x0: number; x1: number; z0: number; z1: number; top: number }>();
   CONCOURSE.stairs.length = 0;
-  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = 0;
+  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.openings.length = 0;
   /** the public stairs' footprints (local): a bridge landing across one blocked it (the concourse check found it) */
   const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
   CONCOURSE.bridges.length = 0;
@@ -1374,7 +1426,11 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
 
   // ---------------------------------------------------------------- the ground past the edge
   // a dark plain under the skyline, so the towers past the edge stand on something
-  const far = new THREE.Mesh(new THREE.PlaneGeometry(C.skyline.to * 2.4, C.skyline.to * 2.4), flat(0x07080c, 0.95, 0));
+  const FS = C.skyline.to * 2.4;
+  const farShape = new THREE.Shape([new THREE.Vector2(-FS / 2, -FS / 2), new THREE.Vector2(FS / 2, -FS / 2), new THREE.Vector2(FS / 2, FS / 2), new THREE.Vector2(-FS / 2, FS / 2)]);
+  // the map's own square left out: the street's plane covers it, and under it a stairwell looks down into the metro
+  farShape.holes.push(new THREE.Path([new THREE.Vector2(-GS / 2 + 1, -GS / 2 + 1), new THREE.Vector2(-GS / 2 + 1, GS / 2 - 1), new THREE.Vector2(GS / 2 - 1, GS / 2 - 1), new THREE.Vector2(GS / 2 - 1, -GS / 2 + 1)]));
+  const far = new THREE.Mesh(new THREE.ShapeGeometry(farShape), flat(0x07080c, 0.95, 0));
   far.rotation.x = -Math.PI / 2;
   far.position.y = -0.05;
   root.add(far);
@@ -1524,6 +1580,134 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   root.add(ringWall);
   root.updateMatrixWorld(true);
 
+  // ---------------------------------------------------------------- the metro (city.json metro)
+  // The loop under the centre's streets: the one floor in the city below the street (range.ts FLOORS). The street over
+  // it is a solid slab drawn only from underneath, so the street's own plane stays the one surface on top and nothing
+  // flickers against it.
+  {
+    const y0 = Mt.floor;
+    const ceil = -Mt.slab;
+    const wl = Mt.wall;
+    const tile = neon(0x20e0ff);
+    const warm = emissive(0xfff0d2, 2.2);
+    // a train's lit inside through its windows: dimmer than a pad's window frame, which is meant to be seen from afar
+    const carLight = emissive(0x7fb4d8, 0.9);
+    METRO.floor = y0;
+    METRO.sides.length = 0;
+    METRO.stairs.length = 0;
+    /** a rectangle less the openings inside it, as rectangles */
+    const less = (r: { x0: number; x1: number; z0: number; z1: number }): Array<{ x0: number; x1: number; z0: number; z1: number }> => {
+      let parts = [r];
+      for (const { box: o } of mStairs) {
+        parts = parts.flatMap((q) => {
+          if (o.x1 <= q.x0 || o.x0 >= q.x1 || o.z1 <= q.z0 || o.z0 >= q.z1) return [q];
+          const out: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
+          if (o.x0 > q.x0) out.push({ x0: q.x0, x1: o.x0, z0: q.z0, z1: q.z1 });
+          if (o.x1 < q.x1) out.push({ x0: o.x1, x1: q.x1, z0: q.z0, z1: q.z1 });
+          const mx0 = Math.max(q.x0, o.x0);
+          const mx1 = Math.min(q.x1, o.x1);
+          if (o.z0 > q.z0) out.push({ x0: mx0, x1: mx1, z0: q.z0, z1: o.z0 });
+          if (o.z1 < q.z1) out.push({ x0: mx0, x1: mx1, z0: o.z1, z1: q.z1 });
+          return out;
+        });
+      }
+      return parts;
+    };
+    for (const sd of mSides) {
+      const r = sd.alongX ? { x0: sd.a, x1: sd.b, z0: sd.line - mHalf, z1: sd.line + mHalf } : { x0: sd.line - mHalf, x1: sd.line + mHalf, z0: sd.a, z1: sd.b };
+      FLOORS.push({ minX: r.x0 + BR_X, maxX: r.x1 + BR_X, minZ: r.z0 + BR_Z, maxZ: r.z1 + BR_Z, y: y0 });
+      METRO.sides.push({ minX: r.x0 + BR_X, maxX: r.x1 + BR_X, minZ: r.z0 + BR_Z, maxZ: r.z1 + BR_Z, alongX: sd.alongX });
+      const cx = (r.x0 + r.x1) / 2;
+      const cz = (r.z0 + r.z1) / 2;
+      // the street over it: collision, and its underside the tunnel's ceiling
+      for (const q of less(r)) {
+        solid(q.x0, q.x1, q.z0, q.z1, ceil, 0);
+        deco(q.x1 - q.x0, 0.05, q.z1 - q.z0, (q.x0 + q.x1) / 2, ceil - 0.05, (q.z0 + q.z1) / 2, concrete);
+      }
+      // the floor you run on
+      deco(r.x1 - r.x0, 0.1, r.z1 - r.z0, cx, y0 - 0.1, cz, pave);
+      // the track down its middle, and the lights in the ceiling over it
+      const len = sd.b - sd.a;
+      for (const e of [-0.75, 0.75]) {
+        if (sd.alongX) deco(len, 0.1, 0.08, cx, y0, sd.line + e, metal);
+        else deco(0.08, 0.1, len, sd.line + e, y0, cz, metal);
+      }
+      for (let u = sd.a + Mt.lightEvery / 2; u < sd.b; u += Mt.lightEvery) {
+        if (sd.alongX) deco(1.6, 0.06, 0.35, u, ceil - 0.11, sd.line, warm);
+        else deco(0.35, 0.06, 1.6, sd.line, ceil - 0.11, u, warm);
+      }
+      // a parked train on the inner lane: cover, too tall to stand on under the roof
+      const T = Mt.train;
+      const tAcross = sd.line - sd.out * T.lane;
+      const total = T.cars * T.length + (T.cars - 1) * T.gap;
+      const mid = (sd.a + sd.b) / 2;
+      for (let k = 0; k < T.cars; k++) {
+        const u = mid - total / 2 + T.length / 2 + k * (T.length + T.gap);
+        const put = (along: number, h: number, acr: number, yy: number, off: number, mat: THREE.Material, isSolid = true) =>
+          sd.alongX ? slab(along, h, acr, u, yy, tAcross + off, mat, isSolid) : slab(acr, h, along, tAcross + off, yy, u, mat, isSolid);
+        put(T.length, T.height, T.width, y0, 0, metal);
+        // its windows lit down both sides, and a line of the centre's colour under them
+        for (const sgn of [-1, 1]) {
+          put(T.length - 1.2, 0.9, 0.04, y0 + 1.5, sgn * (T.width / 2 + 0.02), carLight, false);
+          put(T.length, 0.08, 0.04, y0 + 1.1, sgn * (T.width / 2 + 0.02), tile, false);
+        }
+      }
+    }
+    // the walls round the ring, outside and in, floor to ceiling; and a line of light along them at a wall run's height
+    const outer = mHi + mHalf;
+    const inner = mHi - mHalf;
+    for (const sg of [-1, 1]) {
+      slab(2 * outer + 2 * wl, ceil - y0, wl, 0, y0, sg * (outer + wl / 2), concrete);
+      slab(wl, ceil - y0, 2 * outer, sg * (outer + wl / 2), y0, 0, concrete);
+      slab(2 * inner, ceil - y0, wl, 0, y0, sg * (inner - wl / 2), concrete);
+      slab(wl, ceil - y0, 2 * inner - 2 * wl, sg * (inner - wl / 2), y0, 0, concrete);
+      deco(2 * outer, 0.08, 0.04, 0, y0 + 2.2, sg * (outer - 0.02), tile);
+      deco(0.04, 0.08, 2 * outer, sg * (outer - 0.02), y0 + 2.2, 0, tile);
+      deco(2 * inner, 0.08, 0.04, 0, y0 + 2.2, sg * (inner + 0.02), tile);
+      deco(0.04, 0.08, 2 * inner, sg * (inner + 0.02), y0 + 2.2, 0, tile);
+    }
+    // the stairs: the concourse's rise and run, down from the street's lane to the tunnel's floor
+    const SR = C.concourse.stairRun;
+    const rise = -y0 / mRun;
+    for (const st of mStairs) {
+      const along = st.sd.alongX;
+      const dir = Math.sign(st.top - st.foot);
+      for (let i = 0; i < mRun; i++) {
+        const u = st.foot + dir * (i + 0.5) * SR;
+        const h = (i + 1) * rise;
+        if (along) slab(SR, h, Mt.stairWidth, u, y0, st.across, concrete);
+        else slab(Mt.stairWidth, h, SR, st.across, y0, u, concrete);
+      }
+      // railed at the street on its long sides and over its foot, open at its top; the slab's cut edge faced
+      const o = st.box;
+      const rl = Mt.rail;
+      const hw = Mt.stairWidth / 2;
+      for (const sg of [-1, 1]) {
+        if (along) {
+          slab(mLen, rl, 0.1, (o.x0 + o.x1) / 2, 0, st.across + sg * (hw + 0.05), trimDark);
+          deco(mLen, 0.06, 0.06, (o.x0 + o.x1) / 2, rl, st.across + sg * (hw + 0.05), tile);
+          deco(mLen, Mt.slab, 0.04, (o.x0 + o.x1) / 2, ceil, st.across + sg * (hw - 0.02), concrete);
+        } else {
+          slab(0.1, rl, mLen, st.across + sg * (hw + 0.05), 0, (o.z0 + o.z1) / 2, trimDark);
+          deco(0.06, 0.06, mLen, st.across + sg * (hw + 0.05), rl, (o.z0 + o.z1) / 2, tile);
+          deco(0.04, Mt.slab, mLen, st.across + sg * (hw - 0.02), ceil, (o.z0 + o.z1) / 2, concrete);
+        }
+      }
+      if (along) {
+        slab(0.1, rl, Mt.stairWidth + 0.2, st.foot - dir * 0.05, 0, st.across, trimDark);
+        deco(0.04, Mt.slab, Mt.stairWidth, st.foot + dir * 0.02, ceil, st.across, concrete);
+      } else {
+        slab(Mt.stairWidth + 0.2, rl, 0.1, st.across, 0, st.foot - dir * 0.05, trimDark);
+        deco(Mt.stairWidth, Mt.slab, 0.04, st.across, ceil, st.foot + dir * 0.02, concrete);
+      }
+      // a light over its mouth, to read from the street as the way down
+      if (along) deco(0.3, 0.08, Mt.stairWidth, st.top, rl + 1.6, st.across, tile);
+      else deco(Mt.stairWidth, 0.08, 0.3, st.across, rl + 1.6, st.top, tile);
+      const w = (u: number) => (along ? { x: u + BR_X, z: st.across + BR_Z } : { x: st.across + BR_X, z: u + BR_Z });
+      METRO.stairs.push({ top: w(st.top + dir * 0.6), foot: w(st.foot - dir * 1.5), x0: o.x0 + BR_X, x1: o.x1 + BR_X, z0: o.z0 + BR_Z, z1: o.z1 + BR_Z });
+    }
+  }
+
   // ---------------------------------------------------------------- street life (city.json streetLife)
   // Parked cars along every stretch of kerb, cover at street level, lit front and back; zebra crossings at the
   // junctions. Placed after every jump pad, which they keep clear of, and never in the street's middle, the
@@ -1562,6 +1746,12 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
             const [x, z] = alongX ? [a, s + lane * L.lane] : [s + lane * L.lane, a];
             // and clear of a door's way in from the street: the bots cross the lane to it (sk-roofs walks it)
             if (nearPad(x, z) || DOORWAYS.some((dw) => (alongX ? Math.abs(dw.x - x) < cl / 2 + 3 && Math.abs(dw.z - z) < 14 : Math.abs(dw.z - z) < cl / 2 + 3 && Math.abs(dw.x - x) < 14))) continue;
+            // over a metro stairwell: no car, its colour drawn all the same, so everything drawn after it is as it was
+            const [hl, hc] = [cl / 2, cw / 2];
+            if (alongX ? overStairwell(x - hl, x + hl, z - hc, z + hc) : overStairwell(x - hc, x + hc, z - hl, z + hl)) {
+              rnd();
+              continue;
+            }
             car(x, z, alongX, lane);
           }
         }
@@ -2042,7 +2232,9 @@ export function cityDecay(states: Record<string, { phase: SectorPhase; k: number
   // the collision list: out below the lines, back where there is no line
   let changed = false;
   for (const { s, sector } of DECAY.solids) {
-    const out = sector >= 0 && levels[sector] >= 0 && s.base < levels[sector];
+    // not what is under the street (the metro, and the street's slab over it, top 0): the decay's damage finds you
+    // down there, and the street stays a floor
+    const out = sector >= 0 && levels[sector] >= 0 && s.top > 0.001 && s.base < levels[sector];
     if (out && !DECAY.removed.has(s)) {
       DECAY.removed.add(s);
       changed = true;

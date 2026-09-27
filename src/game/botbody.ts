@@ -6,6 +6,7 @@
 import { solidsIn } from "./solidgrid";
 import { MOVE } from "./movement";
 import type { Solid } from "./range";
+import { floorAt } from "./floors";
 
 const RADIUS = MOVE.radius;
 /** the solids near a body, filled per query (solidsIn's scratch list) */
@@ -13,7 +14,8 @@ const NEAR: Solid[] = [];
 
 /** the floor a bot at height `y` stands on at (x, z): the highest top under its body it can step up onto */
 export function botGroundAt(x: number, z: number, y: number): number {
-  let best = 0;
+  // the world's own floor: the street's, or the metro's under it (floors.ts)
+  let best = floorAt(x, z);
   for (const s of solidsIn(x - RADIUS, x + RADIUS, z - RADIUS, z + RADIUS, NEAR)) {
     if (x + RADIUS > s.minX && x - RADIUS < s.maxX && z + RADIUS > s.minZ && z - RADIUS < s.maxZ) {
       if (s.top <= y + MOVE.stepHeight + 1e-4 && s.top > best) best = s.top;

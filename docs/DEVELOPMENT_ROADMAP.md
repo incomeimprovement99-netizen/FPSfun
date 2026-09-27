@@ -4822,3 +4822,45 @@ aimed, firing and reloading; every change here was judged on it.
 **Checked:** the e2e soldier section (both upper arms' cut ends off the frame at the hip and aimed on the USSO and
 BOOG, now aimed for real; BOOG part-charged after a shot and whole later; an inspect's scan); verify; rules; the
 owner's view of all the SpeedKills guns.
+
+## Milestone 258 — The metro: a loop of tunnel under the centre's streets
+
+The owner: "add a metro level under the street, just for this center part, not a huge area, but a decent amount".
+
+- **The loop** (`city.json` metro; `city.ts` METRO). 288 m of tunnel under the four streets round the Spire's block
+  (x and z of -36 and 36), 12 m wide, its floor 6 m under the street and 5 m clear, room for a double jump. Walls
+  close it in, with a line of the centre's cyan at a wall run's height; ceiling lights every 4 m; a track down the
+  middle; a parked two-car train on each side's inner lane as cover, too tall to stand on under the roof.
+- **Eight stairs down,** two a side, from each street's outer lane (a parked car's lane, never the bots' way down the
+  middle), at the concourse's rise and run, railed on their sides and over their foot, a light over each mouth. The
+  street's plane and the dark plain past the edge have the stairwells cut out of them, and the parked cars keep off
+  them, each still drawing its colour so nothing after them moves.
+- **The world's floor is no longer always 0** (`floors.ts` floorAt). Over the metro it is the tunnel's, and the street
+  is a solid slab over it, drawn only from underneath so it never flickers against the street's plane. What stood,
+  flew or landed at 0 now asks floorAt, from a survey of every place that assumed it:
+  - the player's ground and a bot's; a drop's surface from the ship;
+  - a round (it died at 0: no gun worked down there), a grenade's path and its landing ring, every throwable's
+    deploy (shockwave, rift, paint, thermite), a blast's scorch, an aimed hack's point, the dash's landing;
+  - loot keeps to the street, where the field always put it: an item that would stand over a stairwell's opening
+    goes down onto the stair under it, its height alone moving. Loot on the tunnel's floor moved the field's draws
+    and every item after them; the e2e's vault caught it, a supply bin now in reach of its door;
+  - a bot on a crossing's road pad: only on the pad's own floor, not under it;
+  - a pod, a crate or a landing: never over a stairwell's opening (brmatch overHole);
+  - a banner taken from a death box: within 2.5 m up and down, not through the street;
+  - footsteps on concrete, not dirt; the callout "IN THE MID METRO";
+  - the minimap leaves out what is under the street; the sector decay never takes the street's slab or the metro,
+    so a decaying centre does not drop everyone on its streets into the tunnel.
+- **Checked:**
+  - `tools/checks/sk-metro.ts`, in verify, on the real movement: down all 8 stairs and back up, walking; every side of
+    the loop at a sprint on its floor; the street over every side holds a walk; a body dropped in a stairwell lands
+    on its stair; a bot stands on the floor and on the street; a drop lands on the street; a round flies 72 m down
+    the tunnel; a grenade lands on its floor. With the player's floor at 0 three of those failed, with the round's
+    and the grenade's the round stopped at 1.1 m and the grenade froze in the hand.
+  - Unchanged above ground: every tower, the lobby and the Sky Park, the chimneys, the roof run, a bot's pads up the
+    Spire. The bots' street graph lost one link, the Spire's east pad to a corner of the east block, which ran
+    diagonally across a stairwell; the bots walk the other 256.
+  - `city-budget` 249k triangles, 393 meshes merged; the kit unchanged.
+  - The e2e's SpeedKills sections (speedkills, soldier, sktour, skship, throw, br, loot, brsolo): 227 passed, the four
+    vault checks failing on the loot above; with the fix the br section passes, as it does on main.
+  - Pictures down the tunnel, into a stairwell from the street and up one from below.
+- **Next:** loot of its own for the metro, from a stream of its own so the field's stays as it is.

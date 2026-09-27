@@ -25,6 +25,7 @@ import * as THREE from "three";
 import type { Action } from "./input";
 import { HU, MOVE, jumpVelocityFor, slideDecay, EXTRA } from "./movement";
 import type { Solid } from "./range";
+import { floorAt } from "./floors";
 import { ZIPLINES, type Zipline } from "./traversal";
 import squadCfg from "../config/squad.json";
 import PAINT from "../config/paint.json";
@@ -558,7 +559,8 @@ export class Player {
 
   /** highest surface under the player at (x,z) that is at or below `ceiling` */
   private groundUnder(x: number, z: number, r: number, ceiling: number): number {
-    let best = 0;
+    // the world's own floor: the street's, or the metro's under it (floors.ts)
+    let best = floorAt(x, z);
     for (const s of this.overlapping(x, z, r)) {
       if (s.top <= ceiling + 1e-4 && s.top > best) best = s.top;
     }

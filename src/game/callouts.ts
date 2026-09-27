@@ -23,6 +23,8 @@ export interface Callout {
   region: string;
   /** standing on something rather than on the floor */
   high: boolean;
+  /** under the floor: SpeedKills' metro, under the centre's streets */
+  under?: boolean;
 }
 
 /** how far up counts as being on top of something rather than on the floor */
@@ -43,7 +45,8 @@ const REGIONS = [
  *
  * The roof: `y` is the height above the map's floor. Anything above `ROOF_AT`
  * is on top of something, and that is said, because it is the thing worth
- * saying.
+ * saying. As far below it is under the street, in the metro, and that is said
+ * too: a mate 6 m under you is not beside you.
  */
 export function calloutAt(x: number, z: number, y: number, halfX: number, halfZ: number, middle = 0.34): Callout {
   const band = (v: number, half: number): 0 | 1 | 2 => {
@@ -54,7 +57,8 @@ export function calloutAt(x: number, z: number, y: number, halfX: number, halfZ:
   // z grows south, as the maps are laid out, so the row is picked from it
   const region = REGIONS[band(z, halfZ)][band(x, halfX)];
   const high = y >= ROOF_AT;
-  return { name: high ? `${region} ROOF` : region, region, high };
+  const under = y <= -ROOF_AT;
+  return { name: high ? `${region} ROOF` : under ? `${region} METRO` : region, region, high, under };
 }
 
 /**
@@ -63,5 +67,5 @@ export function calloutAt(x: number, z: number, y: number, halfX: number, halfZ:
  * grid reference.
  */
 export function calloutLine(c: Callout): string {
-  return c.high ? `ON THE ${c.region} ROOF` : `IN ${c.region}`;
+  return c.high ? `ON THE ${c.region} ROOF` : c.under ? `IN THE ${c.region} METRO` : `IN ${c.region}`;
 }

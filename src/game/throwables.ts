@@ -31,6 +31,7 @@
 // the moving, because only the caller knows who is down and who is on a
 // zipline.
 import { solidsIn } from "./solidgrid";
+import { floorAt } from "./floors";
 const THROW_NEAR: import("./range").Solid[] = [];
 import * as THREE from "three";
 import cfg from "../config/throwables.json";
@@ -164,7 +165,7 @@ export function arcSlowFor(damage: number): number {
 
 /** is a point inside something solid (or under the floor), a body's radius around it */
 function solidAt(x: number, y: number, z: number): boolean {
-  if (y < R) return true;
+  if (y < floorAt(x, z) + R) return true;
   for (const s of solidsIn(x - R, x + R, z - R, z + R, THROW_NEAR)) {
     if (x > s.minX - R && x < s.maxX + R && z > s.minZ - R && z < s.maxZ + R && y > s.base - R && y < s.top + R) return true;
   }
@@ -404,7 +405,8 @@ export function throwPath(from: THREE.Vector3, vel: THREE.Vector3, seconds = 3, 
       const d = n.clone().sub(p);
       const len = d.length();
       const hit = Math.min(len, solidHit(p, d.clone().divideScalar(len || 1), len));
-      out.push(p.clone().addScaledVector(d.normalize(), Math.max(0, hit - R)).setY(Math.max(R, p.y + (n.y - p.y) * (hit / (len || 1)))));
+      const q = p.clone().addScaledVector(d.normalize(), Math.max(0, hit - R));
+      out.push(q.setY(Math.max(floorAt(q.x, q.z) + R, p.y + (n.y - p.y) * (hit / (len || 1)))));
       return out;
     }
     p.copy(n);
@@ -513,7 +515,7 @@ export class Throwables {
       pos: from.clone(),
       vel: vel.clone(),
       from: from.clone(),
-      fromFeet: feet ? feet.clone() : new THREE.Vector3(from.x, Math.max(0, from.y - cfg.rift.eye), from.z),
+      fromFeet: feet ? feet.clone() : new THREE.Vector3(from.x, Math.max(floorAt(from.x, from.z), from.y - cfg.rift.eye), from.z),
       fuseAt: kind === "frag" ? now + cfg.frag.fuse : Infinity,
       stuck: null,
       hitTarget: null,
@@ -707,7 +709,7 @@ export class Throwables {
    */
   private deploy(t: Thrown, now: number): void {
     t.done = true;
-    const ground = t.pos.clone().setY(Math.max(0, t.pos.y - R));
+    const ground = t.pos.clone().setY(Math.max(floorAt(t.pos.x, t.pos.z), t.pos.y - R));
     if (t.kind === "shockwave") {
       const s = makeShockwave(t.owner, t.mine, ground, facing(t.vel, t.pos.clone().sub(t.from)), now);
       s.mesh = this.padMesh(s);
@@ -735,7 +737,7 @@ export class Throwables {
     const kind: PaintKind = t.kind === "jumppaint" ? "jump" : "speed";
     const at = t.pos.clone();
     if (floorY !== undefined) at.y = floorY;
-    else if (normal.y > 0.5) at.y = Math.max(0, at.y - R);
+    else if (normal.y > 0.5) at.y = Math.max(floorAt(at.x, at.z), at.y - R);
     const p = makePaint(t.owner, t.mine, kind, at, normal.lengthSq() > 0 ? normal : new THREE.Vector3(0, 1, 0), now);
     p.mesh = this.paintMesh(p);
     this.group.add(p.mesh);
@@ -842,7 +844,7 @@ export class Throwables {
     flat.normalize();
     const across = new THREE.Vector3(-flat.z, 0, flat.x);
     const ground = t.pos.clone();
-    ground.y = Math.max(0, ground.y - R);
+    ground.y = Math.max(floorAt(ground.x, ground.z), ground.y - R);
     const a = ground.clone().addScaledVector(across, -c.length / 2);
     const b = ground.clone().addScaledVector(across, c.length / 2);
     const g = new THREE.Group();
@@ -877,7 +879,7 @@ export class Throwables {
     obj.position.copy(at);
     const ring = new THREE.Mesh(geo().ring, new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
     ring.rotation.x = -Math.PI / 2;
-    ring.position.set(at.x, Math.max(0.05, at.y - 0.05), at.z);
+    ring.position.set(at.x, Math.max(floorAt(at.x, at.z) + 0.05, at.y - 0.05), at.z);
     this.group.add(obj, ring);
     this.flashes.push({ obj, ring, born: now, life: 0.45, size: radius * 0.35 });
   }
