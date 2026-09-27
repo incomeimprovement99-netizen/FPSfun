@@ -131,9 +131,10 @@ export interface BrMap {
    * jump pad (SpeedKills' city) stands on a floor `y` up and throws you `up`
    * m/s straight up, and once you are above `over` (a roof's edge, world
    * height) carries you across at (dx, dz) m/s onto it; the road's pads have
-   * none of these, and throw by squad.json pad.
+   * none of these, and throw by squad.json pad. A window pad (the Sky Lobby's, city.ts) has a `hold`: it takes you
+   * to its middle and holds the column and the push (course.ts stepPads), so you go through a window, not at it.
    */
-  pads: Array<{ x: number; z: number; dx: number; dz: number; y?: number; up?: number; over?: number }>;
+  pads: Array<{ x: number; z: number; dx: number; dz: number; y?: number; up?: number; over?: number; hold?: number }>;
   /** a door in every ground-floor doorway (doors.ts) */
   doors: Doors;
   /** the vault: its door's index, the room's middle and floor, and where its guard stands (world space) */

@@ -427,5 +427,16 @@
         "z1": -2
       }
     ]
+  },
+  "_skyLobby": "The Sky Lobby (docs/PHASE_21_LAYOUT.md, the brief's levels: storey 8, about 32 m): every downtown tower that stands above it by two storeys is open for that one storey, a floor with a window in the middle of every face, width by height, in walls wall thick, so a tower is a room you run through and a canyon is a jump from window to window. A window pad stands on the podium in front of every face with minOpen metres of open floor and nothing overhead (tools/centre-towers.ts measured 11 of 16 towers with two such faces), none within apart of another pad; its throw is solved as THE CHAIN's (src/config/chaincourse.json window: the stand-off, the push over the sill, the peak, the hold), since the window is the same size. A face's window and its pad slide along the face when the middle is taken (the block's own pad onto a roof stands in the middle of a face more often than not): slide is how far either way, a share of the face, and corner is the least wall left between a window and the tower's corner.",
+  "skyLobby": {
+    "storey": 8,
+    "width": 2.0,
+    "height": 2.8,
+    "wall": 0.6,
+    "minOpen": 4,
+    "apart": 4,
+    "slide": 0.3,
+    "corner": 1.5
   }
 }

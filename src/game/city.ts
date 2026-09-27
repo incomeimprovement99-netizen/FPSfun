@@ -33,6 +33,7 @@ import { ZIPLINES } from "./traversal";
 import { MOVE } from "./movement";
 import { BR_X, BR_Z, BR_HALF, type BrMap, type GraphNode, type Poi, type Site } from "./br";
 import cityCfg from "../config/city.json";
+import chainCfg from "../config/chaincourse.json";
 import { dissolvedTo, type SectorPhase } from "./decay";
 import type { Solid } from "./range";
 
@@ -146,6 +147,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   const street = tex("skStreet", 8, { color: 0x9aa0aa, roughness: 0.95, metalness: 0.02 });
   const pave = tex("skPave", 4, { color: 0x8a8e96, roughness: 0.9, metalness: 0.02 });
   const concrete = tex("skConcrete", 4, { color: 0x6a6e76, roughness: 0.9, metalness: 0.02 });
+  /** the Sky Lobby's ceiling light, and the frame of a window a pad throws you through (skyLobby) */
+  const lobbyLight = emissive(0xfff0d2, 2.2);
+  const windowLight = emissive(0x3b8bff, 2.4);
   const metal = tex("skMetal", 3, { color: 0x9098a8, roughness: 0.45, metalness: 0.7 });
   const neonOf = new Map<number, THREE.Material>();
   const neon = (color: number): THREE.Material => {
@@ -165,7 +169,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
 
   // ---------------------------------------------------------------- blocks
   /** a tower, and the street its way up comes off: the side its route's door is on, and that street's line (local) */
-  type Tower = { x: number; z: number; w: number; d: number; roof: number; storeys: number; sector: string; route: RoutePoint[]; street: { side: Side; line: number } | null };
+  type Tower = { x: number; z: number; w: number; d: number; roof: number; storeys: number; sector: string; route: RoutePoint[]; street: { side: Side; line: number } | null; base?: number; lobby?: number; lobbyMat?: THREE.Material };
   const towers: Tower[] = [];
   const plazas: Array<{ x: number; z: number }> = [];
   const PAVE_H = C.kerb;
@@ -289,10 +293,22 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
    * `base`, its roof a floor with a parapet, neon on its edges and clutter to
    * take cover behind. No inside: the downtown's are climbed, not entered.
    */
-  function mass(x: number, z: number, w: number, d: number, base: number, storeys: number, mat: THREE.Material, accent: number, sector: string): Tower {
+  function mass(x: number, z: number, w: number, d: number, base: number, storeys: number, mat: THREE.Material, accent: number, sector: string, lobby = false): Tower {
     const h = storeys * storeyH;
-    // the walls, and a concrete cap: a facade's lit windows are for its sides, not the floor you stand on
-    slab(w, h - 0.12, d, x, base, z, mat);
+    // the Sky Lobby's floor, when this tower is open for it (city.json skyLobby): below it, over it, and two storeys
+    // at least above it
+    const Lb = C.skyLobby;
+    const ly = PAVE_H + Lb.storey * storeyH;
+    const open = lobby && base < ly - 0.5 && base + h >= ly + 2 * storeyH;
+    if (open) {
+      // the mass below and the mass above; the lobby's storey between is built once its pads are placed, since a
+      // window goes where its pad can stand (the window pads, below)
+      slab(w, ly - base, d, x, base, z, mat);
+      slab(w, base + h - 0.12 - (ly + storeyH), d, x, ly + storeyH, z, mat);
+    } else {
+      // the walls, and a concrete cap: a facade's lit windows are for its sides, not the floor you stand on
+      slab(w, h - 0.12, d, x, base, z, mat);
+    }
     slab(w, 0.12, d, x, base + h - 0.12, z, concrete);
     const roof = base + h;
     const k = neon(accent);
@@ -328,9 +344,59 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       const oz = (rnd() - 0.5) * Math.max(0, d - cd - 2);
       slab(cw, ch, cd, x + ox, roof, z + oz, metal);
     }
-    const t: Tower = { x, z, w, d, roof, storeys, sector, route: [], street: null };
+    const t: Tower = { x, z, w, d, roof, storeys, sector, route: [], street: null, base, lobby: open ? ly : undefined, lobbyMat: open ? mat : undefined };
     towers.push(t);
     return t;
+  }
+
+  /**
+   * One storey of a tower open as the Sky Lobby (city.json skyLobby): a floor, and every face a wall with a window in
+   * its middle from the floor up, so it is a room you run through, and across a canyon a jump from window to window.
+   * The north and south walls run the tower's width, the east and west fit between them.
+   */
+  /** `at`: each face's window, how far along the face from its middle (north, south, west, east); `lit`, the faces with a pad, whose window is framed in light */
+  function skyLobby(x: number, z: number, w: number, d: number, ly: number, mat: THREE.Material, at: { n: number; s: number; w: number; e: number }, lit: Set<string>): void {
+    const Lb = C.skyLobby;
+    const t = Lb.wall;
+    const win = Lb.width;
+    const H = Lb.height;
+    const lintel = storeyH - H;
+    // a wall from a to b along its face with the window's middle at c: the piece either side, the lintel over it
+    const wall = (a: number, b: number, c: number, put: (from: number, to: number, y: number, h: number) => void) => {
+      put(a, c - win / 2, ly, storeyH);
+      put(c + win / 2, b, ly, storeyH);
+      put(c - win / 2, c + win / 2, ly + H, lintel);
+    };
+    // along x, at each end in z
+    for (const [s, o, k] of [
+      [-1, at.n, "n"],
+      [1, at.s, "s"],
+    ] as const) {
+      const wz = z + s * (d / 2 - t / 2);
+      wall(x - w / 2, x + w / 2, x + o, (a, b, y, h) => slab(b - a, h, t, (a + b) / 2, y, wz, mat));
+      // a pad's window framed in the pads' blue, so it reads as the pad's target from the podium
+      if (lit.has(k)) {
+        const fz = z + s * (d / 2 + 0.03);
+        for (const c of [x + o - win / 2, x + o + win / 2]) deco(0.08, H, 0.08, c, ly, fz, windowLight);
+        deco(win, 0.08, 0.08, x + o, ly + H, fz, windowLight);
+      }
+    }
+    // along z, at each end in x, between those
+    for (const [s, o, k] of [
+      [-1, at.w, "w"],
+      [1, at.e, "e"],
+    ] as const) {
+      const wx = x + s * (w / 2 - t / 2);
+      wall(z - d / 2 + t, z + d / 2 - t, z + o, (a, b, y, h) => slab(t, h, b - a, wx, y, (a + b) / 2, mat));
+      if (lit.has(k)) {
+        const fx = x + s * (w / 2 + 0.03);
+        for (const c of [z + o - win / 2, z + o + win / 2]) deco(0.08, H, 0.08, fx, ly, c, windowLight);
+        deco(0.08, 0.08, win, fx, ly + H, z + o, windowLight);
+      }
+    }
+    // the floor you land on, and a light in the ceiling so the room reads from a window across the canyon
+    deco(w - 2 * t, 0.02, d - 2 * t, x, ly, z, concrete);
+    deco(Math.min(6, w - 2 * t - 1), 0.05, 0.4, x, ly + storeyH - 0.06, z, lobbyLight);
   }
 
   /**
@@ -451,7 +517,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       if (w < 6 || d < 6) return;
       const storeys = Math.round(lo + rnd() * (hi - lo));
       const mat = rnd() < 0.3 ? glass : night[Math.floor(rnd() * night.length)];
-      const t = mass((a0 + ia0 + a1 - ia1) / 2, (b0 + ib0 + b1 - ib1) / 2, w, d, podTop, storeys, mat, sec.accent, sec.id);
+      const t = mass((a0 + ia0 + a1 - ia1) / 2, (b0 + ib0 + b1 - ib1) / 2, w, d, podTop, storeys, mat, sec.accent, sec.id, true);
       if (!lowest || t.roof < lowest.roof) lowest = t;
     });
     // the terrace's pad, in the open cell, up to the lowest tower's roof
@@ -1530,11 +1596,82 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     m.position.set(x, y, z);
     root.add(m);
   };
+  // ---------------------------------------------------------------- the Sky Lobby's window pads
+  // On the podium in front of every lobby tower's face with open floor and nothing overhead (city.json skyLobby;
+  // tools/centre-towers.ts measured the faces), none too near another pad. The throw is THE CHAIN's window pad
+  // (chaincourse.json window, course.ts stepPads): the window and the wall are the same size.
+  {
+    const Lb = C.skyLobby;
+    const Wn = chainCfg.window;
+    const g = MOVE.gravity;
+    const inWindow = 2 * Math.sqrt((2 * (Wn.apexOver - Wn.overAt)) / g);
+    const through = Wn.standOff + Lb.wall + MOVE.radius;
+    const push = through / (inWindow * Wn.safety);
+    const at = (x: number, z: number) => RANGE_SOLIDS.filter((s) => x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ);
+    for (const t of towers) {
+      if (t.lobby === undefined || t.base === undefined || !t.lobbyMat) continue;
+      const base = t.base;
+      const lobby = t.lobby;
+      const windows = { n: 0, s: 0, w: 0, e: 0 };
+      const lit = new Set<string>();
+      for (const [key, nx, nz] of [
+        ["n", 0, -1],
+        ["s", 0, 1],
+        ["w", -1, 0],
+        ["e", 1, 0],
+      ] as const) {
+        // along the face: x for north and south, z for west and east; the middle first, then slid either way
+        const len = nx === 0 ? t.w : t.d - 2 * Lb.wall;
+        const room = len / 2 - Lb.width / 2 - Lb.corner;
+        const tries = [0, Lb.slide * len, -Lb.slide * len].map((o) => Math.max(-room, Math.min(room, o)));
+        for (const o of tries) {
+          const fx = nx === 0 ? t.x + o : t.x + (nx * t.w) / 2;
+          const fz = nx === 0 ? t.z + (nz * t.d) / 2 : t.z + o;
+          // the floor in front stays the tower's base for minOpen metres, and nothing stands on it
+          let open = true;
+          for (let dd = 0.5; dd <= Lb.minOpen && open; dd += 0.5) {
+            const here = at(fx + nx * dd + BR_X, fz + nz * dd + BR_Z);
+            const floor = here.filter((s) => s.top <= base + 0.3).reduce((a, s) => Math.max(a, s.top), 0);
+            if (Math.abs(floor - base) > 0.3 || here.some((s) => s.base < base + 2 && s.top > base + 0.3)) open = false;
+          }
+          const px = fx + nx * Wn.standOff;
+          const pz = fz + nz * Wn.standOff;
+          // nothing over the column it throws you up
+          const overhead = RANGE_SOLIDS.some((s) => px + BR_X > s.minX - 0.9 && px + BR_X < s.maxX + 0.9 && pz + BR_Z > s.minZ - 0.9 && pz + BR_Z < s.maxZ + 0.9 && s.base > base + 2 && s.base < lobby + 3);
+          if (!open || overhead) continue;
+          if (pads.some((p) => Math.hypot(p.x - BR_X - px, p.z - BR_Z - pz) < Lb.apart)) continue;
+          const up = Math.sqrt(2 * g * (lobby - base + Wn.apexOver));
+          pads.push({ ...W(px, pz), dx: -nx * push, dz: -nz * push, y: base, up, over: lobby + Wn.overAt, hold: through / push });
+          windows[key] = o;
+          lit.add(key);
+          break;
+        }
+      }
+      skyLobby(t.x, t.z, t.w, t.d, lobby, t.lobbyMat, windows, lit);
+    }
+  }
+
+  // a window pad: the pads' blue, its beam to the window and one ring there, lighter than a jump pad's two gold rings
+  // (28 of them with a jump pad's rings were 22k triangles, over the city's budget; tools/checks/city-budget.ts)
+  const blue = emissive(0x3b8bff, 2.2);
+  const winRingGeo = new THREE.TorusGeometry(1.2, 0.12, 4, 16);
+  const winDiscGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.12, 16);
   for (const p of pads) {
     const x = p.x - BR_X;
     const z = p.z - BR_Z;
     if (p.up === undefined) {
       deco(2.4, 0.08, 2.4, x, 0.01, z, neon(0x20e0ff));
+      continue;
+    }
+    if (p.hold !== undefined) {
+      const y0 = p.y ?? 0;
+      const top = p.over ?? y0;
+      put(new THREE.Mesh(winDiscGeo, blue), x, y0 + 0.07, z);
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, top - y0, 8, 1, true), beamMat);
+      put(beam, x, (y0 + top) / 2, z);
+      const ring = new THREE.Mesh(winRingGeo, blue);
+      ring.rotation.x = Math.PI / 2;
+      put(ring, x, top, z);
       continue;
     }
     const y0 = p.y ?? 0;

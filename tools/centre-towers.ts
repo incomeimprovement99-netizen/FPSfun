@@ -5,7 +5,8 @@
 // whether anything hangs over the column a pad throws you up. Read with src/config/chaincourse.json's window pad:
 // a pad needs its stand-off (1.4 m) and its reach (1.2 m) of floor in front of a face, and a clear column above.
 //
-// Run: GAME=speedkills npx tsx tools/centre-towers.ts
+// Run: GAME=speedkills npx tsx tools/centre-towers.ts. It measured the city before the lobbies (city.ts skyLobby)
+// were built; with them in, a tower is two masses and it lists the upper ones, so read it against that.
 import * as THREE from "three";
 
 const g = globalThis as unknown as Record<string, unknown>;

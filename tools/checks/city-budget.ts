@@ -63,7 +63,9 @@ function count(root: THREE.Object3D): { meshes: number; tris: number; lights: nu
  * meshes, 321 once merged, 201k triangles. The merged count rose because
  * a sector's buildings now use more of the facade materials, and the merge
  * makes one mesh a sector a material (a sector dissolves on its own); the
- * limit on it is that with a quarter over.
+ * limit on it is that with a quarter over. Then, with the Sky Lobby's open storey in 16 towers and its 28 window
+ * pads (Phase 21): 13,963 meshes, 392 once merged, 237k triangles, close under both limits; the pads were drawn
+ * leaner than a jump pad to get there (a jump pad's two gold rings on each were 22k triangles).
  */
 const BUDGET = { meshesBefore: 20_000, meshesAfter: 400, tris: 240_000, lights: 8 };
 console.log("What the SpeedKills city costs to draw");

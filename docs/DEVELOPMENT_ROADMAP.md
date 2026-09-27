@@ -4492,3 +4492,20 @@ Phase 21 W9, the second half of W6 (the weapons' variants the owner asked for).
 - **Checked:** the e2e soldier section picks the USSO's other model and third skin through the selects and checks
   the gun in hand wears both and a friend's figure of you holds that model; with the pick left out of the build it
   fails. Floor guns and death boxes stay each gun as it comes.
+
+## Milestone 246 — The Sky Lobby: towers you run through, and window pads into them ✅
+
+Phase 21, the brief's levels: "window pads into every tower's deck floors from at least two sides".
+
+- **16 downtown towers open at 32 m** (storey 8, `city.json` skyLobby): one storey with a floor, a ceiling light and a
+  window 2.0 by 2.8 m in every face, between the mass below and the mass above. A tower is a room you run through; a
+  canyon between two is a 5 m jump from window to window.
+- **28 window pads** on the podiums, in front of every face with room and nothing overhead, measured off the built
+  city (`tools/centre-towers.ts` surveyed it first). A window and its pad slide along the face when its middle is taken,
+  so 12 towers take pads from two sides. The throw is THE CHAIN's (29.3 m/s up for the 24 m rise), and the battle
+  royale's pads now centre and hold as the course's do (`brplay.ts` through `course.ts` stepPads).
+- **Proven** (`tools/checks/sk-lobbies.ts`, in verify): every pad throws the real controller through its window onto
+  the lobby floor from standing, a run and either side, with 0.42 m or more clear of the frame; a 2.6 m window fails
+  it. The city's draw cost is 237k triangles against its 240k budget, the window pads drawn leaner than a jump pad.
+- **Not yet:** bridges between the lobbies, and the bots, which keep to the pads they use now until their route finder
+  knows the lobbies.

@@ -190,8 +190,14 @@ open podium in front, and no overhang:
 So 11 of the 16 towers take pads from two sides as they stand; 5 face canyons on every other side (2.5 m of floor,
 too tight for a pad's arc). The faces at 2.5 m are the canyons between towers, where the chimneys and zig-zags go.
 
-**The build this sets up (next):** each of these towers split at 32.2 m (the podium plus six storeys) into the mass
-below, one open storey (the lobby: a floor, the corner columns, a window opening 2.0 by 2.8 m in the middle of every
-face) and the mass above; a window pad on the podium in front of each pad face, solved as THE CHAIN's is (a rise of
-24 m: 29.3 m/s up), the battle royale's pads taking the course pads' centring and hold. The bots keep to the pads
-they use now until their route finder knows the lobbies.
+**Built** (`city.ts` skyLobby, `city.json` skyLobby, `tools/checks/sk-lobbies.ts`): each of the 16 towers is split at
+32.2 m (the podium plus six storeys) into the mass below, one open storey (a floor, a ceiling light and a window 2.0
+by 2.8 m in every face) and the mass above. A window pad stands on the podium in front of every face with room, 28 in
+all, solved as THE CHAIN's (a rise of 24 m: 29.3 m/s up), the battle royale's pads taking the course pads' centring
+and hold (`brplay.ts` through `course.ts` stepPads). A face's window and pad slide along the face when its middle is
+taken (the block's own pad onto a roof stands there more often than not), which gives 12 towers pads from two sides,
+one more than the survey found with the windows fixed in the middle. Every pad throws the real controller through
+its window onto the lobby's floor from standing, a run and either side, with 0.42 m or more clear of the frame. The
+windows facing a canyon are 5 m apart across it: window to window is a run gap. The bots keep to the pads they use
+now; none of them takes a window pad until their route finder knows the lobbies. The city's draw cost went from
+227k triangles to 237k (under its 240k budget), the window pads drawn leaner than a jump pad to get there.

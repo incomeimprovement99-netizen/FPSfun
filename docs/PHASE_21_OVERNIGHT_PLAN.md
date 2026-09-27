@@ -201,8 +201,8 @@ right in first person beat every variant; a measured reach table and proven modu
 
 1. **Play THE CHAIN and set its ranks.** Its S time (35 s) is a guess; the owner's times set the real ones, and any
    distance that feels wrong is one number in `src/config/chaincourse.json` or the movement (`reach.json` follows).
-2. **Window pads into the city's towers** (the brief's 4.4 route: street, window pad into the Sky Lobby). The pad
-   now exists and is proven on a course (`course.ts` CoursePad); the city needs its deck floors and windows placed.
+2. ~~Window pads into the city's towers~~ done: the Sky Lobby, 16 towers open at 32 m, 28 window pads (Milestone
+   246). Next there: bridges between lobbies, and the bots' route finder taught the lobbies and their pads.
 3. **The pad ladder** (pads deck to deck up a tower) and the balcony ladder, proven the same way.
 4. **The owner's signature chain as a named route** in the centre, from the chimneys up to the Spire's crown.
 5. **The legacy host-migration e2e** ("four bots armed"): it passed in rel4's batch 2 but failed before; a

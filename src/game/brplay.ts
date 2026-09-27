@@ -25,6 +25,8 @@ import { solidHit } from "./projectile";
 import { BINS, lootLabel, type LootItem, type LootDrop, type Rarity } from "./loot";
 import { DROP_HEIGHT } from "./brmatch";
 import squad from "../config/squad.json";
+import chainCfg from "../config/chaincourse.json";
+import { stepPads, type CoursePad, type PadState } from "./course";
 import hudCfg from "../config/hud.json";
 import { CONSOLE } from "./ringconsole";
 
@@ -252,6 +254,10 @@ export class BrPlay {
   /** interact went down at a squad mate's banner, and when (a tap takes it, a hold respawns them) */
   private eDownAt: number | null = null;
   private padAt = -Infinity;
+  /** the Sky Lobby's window pads, as the course engine takes them, and one player's throw on them */
+  private windowPads: CoursePad[] = [];
+  private windowPadsOf: unknown = null;
+  private windowPad: PadState = { at: -Infinity, carry: null };
   /** what the frame's prompt and hold are */
   private out: BrPlayHud = { prompt: null, hold: null, markers: [], banner: null, reach: { rows: [], pick: -1, cycleKey: "" } };
   /**
@@ -486,9 +492,16 @@ export class BrPlay {
         this.padCarry = null;
       }
     }
+    // the Sky Lobby's window pads (city.ts): through a window, centred and held, as THE CHAIN's (course.ts stepPads)
+    if (this.windowPadsOf !== match.mapInfo) {
+      this.windowPadsOf = match.mapInfo;
+      this.windowPads = match.mapInfo.pads.filter((q) => q.hold !== undefined).map((q) => ({ x: q.x, z: q.z, y: q.y ?? 0, reach: chainCfg.window.reach, up: q.up ?? 0, vx: q.dx, vz: q.dz, over: q.over ?? 0, hold: q.hold ?? 0 }));
+    }
+    if (!ctx.downed && this.windowPads.length && stepPads(this.windowPads, 0, this.windowPad, player, now)) this.deps.sound("pad");
     // launch pads: step on one and be thrown along the road and up
     if (!ctx.downed && player.onGround && now - this.padAt > 1) {
       for (const pad of match.mapInfo.pads) {
+        if (pad.hold !== undefined) continue;
         if (Math.hypot(p.x - pad.x, p.z - pad.z) < squad.pad.reach && Math.abs(p.y - (pad.y ?? 0)) < 0.5) {
           this.padAt = now;
           // a jump pad throws straight up, and carries you over its roof's edge once you are above it; a road's along and up
