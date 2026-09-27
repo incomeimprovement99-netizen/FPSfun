@@ -1,0 +1,139 @@
+# Phase 21 overnight: the soldier, the weapons and the centre
+
+Written 2026-09-27 by the agent working overnight, from `docs/OVERNIGHT_BRIEF_SOLDIER_AND_VERTICAL_CENTRE.md` (the
+brief) and the owner's message that night. **The brief holds the detail for the soldier and the centre; this plan
+adds the weapons, sets the order, and keeps the progress.** A scheduled prompt resumes the work every 20 minutes
+if the session stops (a usage limit, a crash), and it reads the progress section first.
+
+## The owner's three goals
+
+1. **The centre's layout with exact measurements, for chained movement** (the brief, section 4).
+2. **The soldier and its variants** (the brief, section 3): the bought Sci-Fi Modular Soldier, 4 variants, colours
+   and pieces the player can change, animations right in first and third person, live.
+3. **The weapons and their variants** (new, below): the bought Sci-Fi Battle Weapons replace SpeedKills' gun models
+   and skins.
+
+The owner: "We have the full plan laid out already so do not stop until we are done here."
+
+## What changed since the brief was written
+
+- **A15 is live** (292bf1c): SpeedKills sprints at 550 hu/s (14.0 m/s), always when moving forward; the ground bands
+  doubled with it; the slide caps at 630 hu/s. The brief's section 4.1 table is the first pass; the reach harness
+  (4.2) measures what is live now. A jump and a double jump already clear 24 m (`tools/sk-movesim.ts`), and
+  `tools/checks/sk-roofrun.ts` maps the city's roof network (147 of 958 gaps).
+- **A18's first fixes are live:** bots aim with half the lag, a friend's swing at 9.4 m, the frame-phase timer
+  (`?perf`) and the repeating bench (`BENCH_RUNS`, `BENCH_SPOT=skrun`). Use the bench for the soldier's 30-figure
+  measurement (S8).
+- **A17's footage numbers never landed** (the research agent stopped with the session). Every distance in the
+  centre is computed from `MOVE` and re-proven by a check, as the brief says, so they follow when A17 lands.
+- **This branch (`soldier`) starts behind main** (made at 4456723; main is at 0de459b). Rebase before the first
+  commit of code, so the soldier work sits on A15 to A18.
+
+## The weapons (new): Sci-Fi Battle Weapons by Tirgames
+
+### What was bought, and what is in it
+
+- The download: `%APPDATA%\Unity\Asset Store-5.x\Tirgames assets\3D ModelsPropsWeapons\Sci-Fi Battle Weapons.unitypackage`
+  (626 MB), unpacked to `C:\Users\jwilb\Downloads\speedkills-paid\extract\weapons\`. The same licence rules as the
+  soldier (the brief 2.5): paid files never enter git, ship only with the game server, and the game works without
+  them.
+- **Guns, each as two models (`_1`, `_2`) and three skins (A, B, C)** with PNG colour, metallic (smoothness in its
+  alpha, Unity's layout), normal, occlusion and emission maps:
+
+| Pack model | Models | Proposed SpeedKills gun |
+|---|---|---|
+| SciFiRifle01 | _1, _2 | ZEPHYR (fast rifle) and PANDA (hard rifle) |
+| SciFiSMG01 | _1, _2 | USSO (fast SMG) |
+| SciFiSMG02 | _1, _2 | ANAKIN (hard SMG) |
+| SciFiShotGun01 | _1, _2 | RIPTIDE (fast shotgun) |
+| SciFiShotGun02 | _1, _2 | BIGANTLER (hard shotgun) |
+| SciFiSniperRifle01 | _1, _2 | BOOG (sniper) and HELIX (hard marksman) |
+| SciFiPistol01, 02 | _1, _2 each | none in SpeedKills' roster today; PULSAR (fast marksman) if it reads right |
+| SciFiGrenadeLauncher01 | three parts | NOVA (special), if it reads right |
+| SciFiRocketLauncher01 | _1, _2 | spare |
+
+- **Also in the pack:** grenades, a smoke grenade, two mines (the MINE hack's model), med injectors, med packs and a
+  med kit (the heal items), an ammo box, weapon cases and storage cases (the loot crates and care packages), and five
+  sci-fi wall, floor and ceiling modules.
+- The mapping is a proposal: each gun's model is picked from a render beside the others in its family, so the fast
+  and the hard one of a pair read as different at a glance.
+
+### The steps
+
+**W1. Import (`npm run paid`, `tools/import-paid.ts`).** Add the weapons to the tool: every gun model FBX to GLB
+(FBX2glTF, as the soldier), materials stripped to named slots, textures to WebP (colour and emission sRGB; normal,
+metallic and occlusion linear; the metallic map's alpha is smoothness, so roughness = 1 - A), 1024 for the
+first-person view and a 512 set for third person. Versioned file names (`-v1`), since the server caches `/models/`
+for a day. Output to `public/models/paid/weapons/`.
+
+**W2. Measure each gun (`tools/checks/paid-weapons.ts`, skipped with a note without the paid files).** Off each GLB:
+length, the grip's position (where the hand goes), the sight line (the top of the rear sight to the front), the
+muzzle point and the magazine's node if it is separate. These go into `src/config/paidweapons.json` with the
+measurement beside each number, the way the soldier's go into soldier.json. Nothing placed by eye.
+
+**W3. The loader (`src/game/paidgun.ts`).** Load a gun's GLB once and clone it; build its material from the WebP
+maps (`MeshStandardMaterial`, emission on, so the neon night lights them); scale and orient it so its grip, sight
+line and muzzle sit where the procedural model's did (`gunmodels.ts`), so the view model's poses, the hold
+(`hold.ts`) and the muzzle flash need no new numbers except the measured offsets.
+
+**W4. First person (`viewmodel.ts`).** The paid model replaces the procedural one in the view model when present.
+Check each gun in the sights: the sight line on the crosshair, the muzzle flash at the muzzle, nothing covering the
+red dot (Phase 20 A3's lesson), the reload and swap still reading. Screenshots of every gun at hip and in the sights.
+
+**W5. Third person.** The same models on the soldier's hands (`hold.ts`, the soldier's aim sockets, S5), at the 512
+texture set; on the floor as loot (`loot.ts` drops), and in death boxes.
+
+**W6. The variants.** Two kinds:
+- **the fusion level shows on the gun:** skin A as found (level 0 and 1), B at levels 2 and 3, C at 4 and 5, with
+  the emission brighter each level. A fused gun is visibly better, which is also A19's "a fusion level-up where the
+  gun visibly upgrades";
+- **the player's choice:** on the Loadouts tab, each gun's model (_1 or _2) where both fit its class, and its
+  default skin family.
+
+**W7. The rest of the pack where it fits:** the mine for the MINE hack, the med items for heals, the weapon cases for
+care packages and loot crates, the ammo box for ammo. Each only where the game has the thing already.
+
+**W8. Tests and ship.** verify and rules; `tools/checks/paid-weapons.ts`; the e2e gun sections (the hold test on
+every gun, the view model checks) with and without the paid files; the bench for draw calls (a gun is one or two
+meshes, so it should cost nothing new). Then the release as the brief's S9 says: from a copy that has the paid
+files, with Pages kept free of them (S1).
+
+**Legacy:** the legacy game (`?game=legacy`) keeps its procedural guns, as it keeps its figures.
+
+## The order
+
+1. **Rebase `soldier` onto main** (0de459b).
+2. **The soldier:** the brief's S1 (the guards) to S9 (ship), in its order: S1, S2, S3, S5, S4, S6, S7, S8, S9.
+3. **The weapons:** W1 to W8, shipped on their own.
+4. **The centre:** the brief's 4.2 (the reach harness), 4.3 (the modules and `chains.ts`), 4.4 (the layout doc),
+   4.6 (the grey-box in the range).
+
+Each shipped piece gets its roadmap milestone, a diary entry (`docs/updates/2026-09-28.md`) and README and deploy
+guide kept true. The morning report is the diary, as the brief's section 5 describes, with the weapons added.
+
+**Cut line if the night runs short:** a soldier that looks right and ships beats every option on it; guns that look
+right in first person beat every variant; a measured reach table and proven modules beat a pretty layout doc.
+
+## Progress (updated as each step lands)
+
+- [ ] Rebase onto main
+- [ ] S1 guards (rules: no tracked paid files; Pages drops `models/paid`; the no-paid fallback)
+- [ ] S2 measure the soldier (`tools/checks/soldier.ts`)
+- [ ] S3 loader and materials (`src/game/soldier.ts`)
+- [ ] S5 animations (retarget, contact sheet, hands, first person)
+- [ ] S4 variants (`src/config/soldier.json`)
+- [ ] S6 picker, saving, network, bots
+- [ ] S7 hit volumes
+- [ ] S8 tests
+- [ ] S9 ship the soldier
+- [ ] W1 to W8 the weapons
+- [ ] 4.2 reach harness
+- [ ] 4.3 modules and `chains.ts`
+- [ ] 4.4 layout doc
+- [ ] 4.6 grey-box
+
+## In the morning
+
+- Put the PC's sleep back: `powercfg /change standby-timeout-ac 300`.
+- The scheduled resume prompt runs every 20 minutes (at :07, :27, :47) while this Claude session is open; ask to
+  cancel it once the work is done.
