@@ -37,7 +37,7 @@ export interface GameProfile {
   /** the attachment slots in play (none: fusion is the upgrade) */
   attachments: string[];
   ammo: "infinite" | "typed" | string;
-  fusion: { on: boolean; levels: number; gun: Array<{ mag: number; reload: number; damage: number; recoil: number }>; abilityLevels: number; cooldownStep: number };
+  fusion: { on: boolean; levels: number; gun: Array<{ mag: number; reload: number; damage: number; recoil: number; swap?: number }>; abilityLevels: number; cooldownStep: number };
   abilities: { slots: string[]; passives: boolean; ultimates: boolean; set: Array<{ id: string; slot: string; from: string | null; name: string; blurb: string }> };
   life: { knockdowns: boolean; gulag: boolean; ghost: boolean; reviveSeconds: number; awaySlowdown: number; followRadius: number; ghostRevives: number; ghostSight: number; ghostSpeed?: number; restoreHealth?: number };
   /** null: the legacy game's own health, shields, EVO and heals */

@@ -335,6 +335,9 @@ function speedkillsTuned(r: ResolvedWeapon, fusion: number): ResolvedWeapon {
     clipSize: Math.max(1, Math.round(r.clipSize * (t?.mag ?? 1) * f.mag)),
     reloadTime: r.reloadTime * f.reload,
     reloadEmptyTime: r.reloadEmptyTime * f.reload,
+    // switching guns: quicker as a base and quicker again with each level (speedkills.json fusion swap)
+    deployTime: r.deployTime * (f.swap ?? 1),
+    holsterTime: r.holsterTime * (f.swap ?? 1),
     viewkick: { ...vk, pitchBase: vk.pitchBase * kick, pitchRandom: vk.pitchRandom * kick, yawBase: vk.yawBase * kick, yawRandom: vk.yawRandom * kick },
   };
 }

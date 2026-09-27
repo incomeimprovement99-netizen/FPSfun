@@ -4283,3 +4283,13 @@ it off about 20 m in, and point to the courses and the README TV. A quick reskin
   - A new snapshot, `sk-range`.
 - **Left for later:** the floor's orange stripes and arrows and the screen's frame keep the legacy colours, and
   the courses keep their old look.
+
+## Milestone 234 — Quicker gun swaps, quicker again with each level ✅
+
+Phase 20, A16 (the owner, 2026-09-27: switching between guns should be quicker as a base, 1.5 or 2 times, and
+level up along with damage and magazine).
+
+- **A gun's draw and put-away times** are 1.5 times as quick as the legacy data as found, and twice as quick at
+  level 5, falling each level (speedkills.json `fusion.gun[].swap`). ZEPHYR draws in 0.40 s as found and 0.30 s
+  at level 5, where it was 0.60.
+- **Checked:** `tools/checks/ttk.ts` holds the base, the top and the fall at every level.

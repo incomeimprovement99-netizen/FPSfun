@@ -268,6 +268,28 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
 
 *Done (Milestone 231).*
 
+### A15. Movement: sprint about twice as fast, always sprinting if Hyper Scape had no walk, a slide just above it (added 2026-09-27)
+
+- **The owner:** sprint should be about twice as fast. Check whether Hyper Scape even had a walk mode; if not,
+  always sprint. Adjust the slide to match: only slightly faster than sprinting, using Hyper Scape's values if
+  they are known.
+- **Now:** SpeedKills sprints at 275 hu/s (7.0 m/s). A slide boosts to at most 400 hu/s (10.2 m/s).
+- **Plan:**
+  - Research Hyper Scape's walk, sprint and slide from sources (started 2026-09-27).
+  - Set sprint to about twice today's, with the source or the owner's number beside it.
+  - Make movement always sprint if Hyper Scape had no walk.
+  - Retune the slide to sit slightly above the new sprint.
+  - Recheck the movement checks (tools/checks), the movement lab's gaps and climbs, the city's canyons, the jump
+    pads' landings (their throws are solved from gravity, not run speed) and the bots' walk.
+
+### A16. Switching guns quicker, and quicker again with each level (added 2026-09-27)
+
+- **The owner:** switching between guns should be quicker as a base, 1.5 or 2 times, and level up along with
+  damage and magazine, so a level 5 SMG swaps quicker than a level 1.
+- **Done:** a gun's draw and put-away times are 1.5 times as quick as found and twice as quick at level 5,
+  falling each level (speedkills.json `fusion.gun[].swap`). ZEPHYR draws in 0.40 s as found and 0.30 s at level
+  5, where it was 0.60. `tools/checks/ttk.ts` holds it.
+
 ### A11. The main menu too narrow, and scrollbars in our colours
 
 - **The owner:** the main screen's menu is not wide enough and shows a horizontal scrollbar. All scrollbars
