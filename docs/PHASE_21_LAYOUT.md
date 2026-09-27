@@ -137,6 +137,7 @@ retune of the movement moves them, and the check proves them again on the course
 | Double gap | 16.2 m | the double jump | one jump (reaches 10.5 m of it) |
 | Wall gap | 27.75 m (past the double jump by a tenth, inside the kick by a tenth) | a wall run along the lit wall and a kick late in it | the run alone (22.4 m of it), a double jump in the open (20.3 m) |
 | Chimney | city.json's: 3.0 m, 27 m, landing 5.5 m, top 11 m | kicks alone, a turn on the landing, kicks to the top | no kicks (3.1 m high at best) |
+| Window pad | a 2.0 x 2.8 m window 9 m up, the finish deck behind | the pad, from standing to a full sprint, straight or from the side, forward held or not: 0.42 m or more clear of the frame on every side | a jump, the double jump and a climb (5.8 m high at best) |
 
 **A new measurement for the wall gap** (`reach.ts`, `reach.json` wallKick): a sprint jump into a wall run carries
 24.35 m if you run off its end, and 34.6 m if you kick off it 1.45 s in (32.2 m at 1.2 s, so the timing is not tight).
@@ -147,5 +148,9 @@ restarts the room with 2 s added), a 6 m deck to land on, and down to the floor 
 course's doors are 3.3 m from the floor. From the chimney's top, a hop over its wall's cap reaches the deck beside it,
 and a zip goes down to the finish. The ranks (S 35 s) are provisional until the owner sets real times.
 
-Not in it yet: the window pad and the pad ladder. The range has no pads (they are the battle royale's, `brplay.ts`),
-so the pad's code has to come to the course engine first.
+**The window pad.** Pads came to the course engine (`course.ts` CoursePad): a pad centres you, throws you straight
+up, and pushes you on once your feet are 0.25 m over the sill, holding the column and then the push (0.3 s, until the
+body is past the wall) against your own steering. Without the hold, a player holding a key through the rise drifted
+into the frame: the check caught it at 0.03 m off the sill. The throw peaks 0.55 m over the sill. The brief asked for
+a 2.2 m window with 0.4 m clear on every side, which a 1.83 m standing body cannot have, so the window is sized from
+the body: 2.0 m wide and 2.8 m tall. Not in it: the pad ladder, which is the city's to build.

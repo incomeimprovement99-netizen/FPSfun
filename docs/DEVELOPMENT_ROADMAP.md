@@ -4449,15 +4449,20 @@ Phase 21 4.6: the grey-box, so the owner can play the distances the centre is bu
 
 - **A third course in SpeedKills' range**, through a lit magenta gate in the middle of the back wall
   (`src/game/courses/chain.ts`): a run gap (9.46 m), a double gap (16.2 m), a wall gap (27.75 m, a wall run and the
-  kick off it) and the chimney (the city's, to its landing and on to its top), then a zip to the finish. Legacy's
-  range keeps its two.
+  kick off it), the chimney (the city's, to its landing and on to its top), a zip down, and a window pad that throws
+  you through a window 9 m up onto the finish deck. Legacy's range keeps its two.
 - **Every width comes from the measured movement** (`src/config/reach.json`, the rules in
   `src/config/chaincourse.json`), so a retune moves the gaps; `tools/checks/sk-chaincourse.ts` (in verify) drives the
   real controller through the course's own colliders: each gap landed clean with its move and not with the one below
   it, the chimney climbed by kicks alone, the way off the top open. With the gaps narrowed it fails.
 - **A new measurement:** the wall run's kick carries 34.6 m (reach.json wallKick), against 24.35 m for the run alone
   and 22.1 m for a double jump, which is what makes the wall gap a class of its own.
-- **Not yet:** the window pad and the pad ladder need the battle royale's pads brought to the course engine.
+- **Pads on courses** (`course.ts` CoursePad, stepPads): a pad centres you, throws you straight up and pushes you on
+  at a set height, holding the column and the push against your own steering, so the arc is the same from standing or
+  a full sprint, straight or from the side, forward held or not. The window pad's throw is solved from the body and
+  the gravity; the brief's 2.2 m window cannot keep 0.4 m clear over a standing 1.83 m body, so the window is sized from
+  the body (2.0 by 2.8 m) and every one of eight approaches passes with 0.42 m or more clear of the frame on every side.
+- **Not yet:** the pad ladder (pads deck to deck up a tower), which is the city's to build.
 
 ## Milestone 244 — Every bot its own soldier ✅
 

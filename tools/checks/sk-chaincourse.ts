@@ -11,8 +11,8 @@ import { RANGE_SOLIDS } from "../../src/game/range";
 import { ZIPLINES } from "../../src/game/traversal";
 import { MOVE } from "../../src/game/movement";
 import { GAME } from "../../src/game/game";
-import { courseColliders } from "../../src/game/course";
-import { CHAIN_COURSE, CHIMNEY, DECK, DOUBLE, FALL_Y, GAPS, RUN, WALLGAP, WALL_X, EXIT, EXIT_ZIP, type GapRoom } from "../../src/game/courses/chain";
+import { courseColliders, stepPads, type PadState } from "../../src/game/course";
+import { CHAIN_COURSE, CHIMNEY, DECK, DOUBLE, FALL_Y, GAPS, RUN, WALLGAP, WALL_X, WINDOW, EXIT, EXIT_ZIP, type GapRoom } from "../../src/game/courses/chain";
 import reach from "../../src/config/reach.json";
 
 let fails = 0;
@@ -185,6 +185,77 @@ check("and without the kicks it does not", plain.every((x) => !x.up), `highest $
   }
   const reachUp = EXIT_ZIP.a.y - C.top;
   check("off the top: a hop over the wall's cap lands on the zip's deck, and the zip hangs within reach over it", on && reachUp > 1.6 && reachUp < 3, `at x ${p.pos.x.toFixed(1)} y ${p.pos.y.toFixed(2)}, the zip ${reachUp.toFixed(1)} m over the deck`);
+}
+
+// The window pad: from standing on it to a full sprint, straight at it and from the side, the throw goes through the
+// window without touching its frame and lands on the deck. Clearances are the least over the frames the body is in
+// the wall's thickness: under the feet to the sill, over the head to the top, and either side.
+{
+  const W = WINDOW;
+  const H = MOVE.standHeight;
+  const r = MOVE.radius;
+  // `hold`: forward stays held through the throw, as a player's thumb does
+  const throwFrom = (x: number, z: number, yaw: number, runFor: number, hold = false) => {
+    const p = player(x, 0, z, yaw);
+    const s = new Script();
+    const pads: PadState = { at: -Infinity, carry: null };
+    let t = 1000;
+    let thrown = false;
+    const clear = { under: Infinity, over: Infinity, side: Infinity };
+    if (runFor > 0) s.down.add("forward");
+    for (let i = 0; i < 6 / DT; i++) {
+      t += DT;
+      p.update(DT, t, s, 0, 1, false);
+      s.taps.clear();
+      if (stepPads([W.pad], 0, pads, p, t)) {
+        thrown = true;
+        if (!hold) s.down.clear();
+      }
+      if (p.pos.z > W.face - r && p.pos.z < W.back + r && p.pos.y > 1) {
+        clear.under = Math.min(clear.under, p.pos.y - W.sill);
+        clear.over = Math.min(clear.over, W.sill + W.height - (p.pos.y + H));
+        clear.side = Math.min(clear.side, W.width / 2 - (Math.abs(p.pos.x - W.x) + r));
+      }
+      if (thrown && p.onGround && p.pos.z > W.back && Math.abs(p.pos.y - W.sill) < 0.1) return { in: true, clear };
+      if (thrown && p.onGround && p.pos.y < 0.5 && t - pads.at > 0.5) break;
+    }
+    return { in: false, clear };
+  };
+  // every approach inside the room: from its door (entryZ) to the pad is room for a full sprint
+  const at = (x: number, z: number): [number, number, number] => [x, z, (Math.atan2(-(W.pad.x - x), -(W.pad.z - z)) * 180) / Math.PI];
+  const cases: Array<[string, number, number, number, number, boolean?]> = [
+    ["standing on it", W.pad.x, W.pad.z, AHEAD, 0],
+    ["a few steps", W.pad.x, W.pad.z - 3, AHEAD, 1],
+    ["a full sprint from the door", ...at(W.pad.x, W.entryZ + 1.2), 1],
+    ["a sprint on the slant", ...at(-6, W.entryZ + 1.2), 1],
+    ["from the doorway", ...at(5, W.entryZ + 1.2), 1],
+    ["across the room", ...at(-6.4, W.pad.z), 1],
+    ["a full sprint, forward held all the way", ...at(W.pad.x, W.entryZ + 1.2), 1, true],
+    ["across, forward held all the way", ...at(-6.4, W.pad.z), 1, true],
+  ];
+  const got = cases.map(([name, x, z, yaw, run, hold]) => ({ name, ...throwFrom(x, z, yaw, run, hold) }));
+  const worst = { under: Math.min(...got.map((g) => g.clear.under)), over: Math.min(...got.map((g) => g.clear.over)), side: Math.min(...got.map((g) => g.clear.side)) };
+  check(
+    `window pad: from standing on it to a full sprint, straight and from the side, the throw goes through the ${W.width} x ${W.height} m window ${W.sill} m up with 0.4 m clear of its frame on every side, onto the deck`,
+    got.every((g) => g.in) && worst.under >= 0.4 && worst.over >= 0.4 && worst.side >= 0.4,
+    `${got.filter((g) => !g.in).map((g) => g.name).join(", ") || "all in"}; least clear: under ${worst.under.toFixed(2)} m, over ${worst.over.toFixed(2)} m, either side ${worst.side.toFixed(2)} m`,
+  );
+  // and it takes the pad: at the wall under the window, a jump, the double jump and a climb stop short of the sill
+  const p = player(W.x, 0, W.face - 3, AHEAD);
+  const s = new Script();
+  s.down.add("forward");
+  let t = 1000;
+  let best = 0;
+  let clock = 0;
+  for (let i = 0; i < 5 / DT; i++) {
+    t += DT;
+    clock += DT;
+    if (Math.abs(clock - 0.15) < DT / 2 || Math.abs(clock - 0.15 - reach.doubleJump.at * 0.5) < DT / 2) s.taps.add("jump");
+    p.update(DT, t, s, 0, 1, false);
+    s.taps.clear();
+    best = Math.max(best, p.pos.y);
+  }
+  check(`and without the pad a jump, the double jump and a climb up the wall stop short of the ${W.sill} m sill`, best < W.sill - 0.5 && !(p.pos.z > W.back), `highest ${best.toFixed(2)} m`);
 }
 
 console.log(fails === 0 ? "\nSK CHAIN COURSE PASS" : `\nSK CHAIN COURSE FAIL (${fails})`);

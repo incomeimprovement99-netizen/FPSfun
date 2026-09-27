@@ -1,6 +1,6 @@
 // THE CHAIN: the centre's chain modules as a course in the range (Phase 21 4.6, docs/PHASE_21_LAYOUT.md), SpeedKills
 // only, in the middle of the range's back wall between the other two. The owner can play the distances the city is
-// built to: a run gap, a double gap, a wall gap and a chimney, each at the width the measured movement gives it.
+// built to: a run gap, a double gap, a wall gap, a chimney and a window pad, each at what the measured movement gives.
 //
 // Every gap is worked out from src/config/reach.json when this loads (src/config/chaincourse.json says how), so a
 // retune of the movement moves them. tools/checks/sk-chaincourse.ts drives the real controller through this very
@@ -10,7 +10,8 @@
 // Course coordinates (course.ts): x across, z from the gate at 9; running it you face +z, and +x is on your LEFT.
 import * as THREE from "three";
 import { PAL, DEFAULT_WALL } from "../geo";
-import type { CourseLayout } from "../course";
+import type { CourseLayout, CoursePad } from "../course";
+import { MOVE } from "../movement";
 import reach from "../../config/reach.json";
 import cfg from "../../config/chaincourse.json";
 import cityCfg from "../../config/city.json";
@@ -61,11 +62,33 @@ export const WALL_X = X0;
 
 /** the chimney: in at z0 (the near end) running +z, the landing at the far end (z1), the top back at the near end */
 export const CHIMNEY = { x: -4.5, z0: WALLGAP.exitZ + 3, z1: WALLGAP.exitZ + 3 + Ch.length, innerW: Ch.width, landing: Ch.rise, top: TOP };
-/** the deck beside the top, over the chimney's left wall, and the zip from it to the finish */
+/** the deck beside the top, over the chimney's left wall, and the zip from it down to the window pad's door */
 export const EXIT = { x0: CHIMNEY.x + Ch.width / 2 + Ch.wall, z0: CHIMNEY.z0 - 1, z1: CHIMNEY.z0 + 4 };
-const FINISH_Z = CHIMNEY.z1 + 14;
-const FAR_Z = FINISH_Z + 6;
-export const EXIT_ZIP = { a: new THREE.Vector3(3, TOP + 2.4, EXIT.z1 - 0.5), b: new THREE.Vector3(3, 3.0, FINISH_Z - 2) };
+export const EXIT_ZIP = { a: new THREE.Vector3(3, TOP + 2.4, EXIT.z1 - 0.5), b: new THREE.Vector3(3, 3.0, CHIMNEY.z1 + 5) };
+
+/**
+ * The window pad (chaincourse.json window): a wall across the course with a window high in it, the deck behind it at
+ * the sill, and a pad in front that throws you through. The throw is solved from the body and the gravity: up to
+ * peak `apexOver` over the sill, pushed at `overAt` over it, fast enough to be through the wall before the feet
+ * drop back under that.
+ */
+const Wn = cfg.window;
+export const WINDOW = (() => {
+  const entryZ = CHIMNEY.z1 + 7;
+  const padZ = entryZ + Wn.runUp;
+  const face = padZ + Wn.standOff;
+  const g = MOVE.gravity;
+  const up = Math.sqrt(2 * g * (Wn.sill + Wn.apexOver));
+  // the feet over overAt, on the way up and back down: the time the push has
+  const inWindow = 2 * Math.sqrt((2 * (Wn.apexOver - Wn.overAt)) / g);
+  const through = Wn.standOff + Wn.wall + MOVE.radius;
+  const vz = through / (inWindow * Wn.safety);
+  // the push held until the whole body is past the wall's far face
+  const pad: CoursePad = { x: 0, z: padZ, y: 0, reach: Wn.reach, up, vx: 0, vz, over: Wn.sill + Wn.overAt, hold: through / vz };
+  return { entryZ, pad, x: 0, face, back: face + Wn.wall, sill: Wn.sill, width: Wn.width, height: Wn.height, deckEnd: face + Wn.wall + Wn.deck };
+})();
+const FINISH_Z = WINDOW.back + Wn.deck / 2;
+const FAR_Z = WINDOW.deckEnd;
 
 const tip = (name: string, body: string) => `${name}\n\n${body}`;
 
@@ -115,8 +138,16 @@ export const CHAIN_COURSE: CourseLayout = {
       name: "CHIMNEY",
       entryZ: WALLGAP.exitZ,
       tipX: 3,
-      tip: tip("CHIMNEY", `Two walls ${Ch.width.toFixed(1)} m apart. Sprint in beside one, jump, and kick across to the other a quarter second into each wall run: three kicks reach the landing ${Ch.rise} m up. Turn round on it and kick on up to the top, ${TOP} m. The zip off the top goes to the finish.`),
+      tip: tip("CHIMNEY", `Two walls ${Ch.width.toFixed(1)} m apart. Sprint in beside one, jump, and kick across to the other a quarter second into each wall run: three kicks reach the landing ${Ch.rise} m up. Turn round on it and kick on up to the top, ${TOP} m. Hop over the wall's cap on your left, and the zip takes you down.`),
       trigger: (_x, _y, z) => z > WALLGAP.exitZ + 0.7,
+      enemies: [],
+    },
+    {
+      name: "WINDOW PAD",
+      entryZ: WINDOW.entryZ,
+      tipX: -3,
+      tip: tip("WINDOW PAD", `The window is ${Wn.sill} m up, past any climb. Step on the pad, from a walk or a sprint: it throws you straight up and through the window onto the deck, where the finish is.`),
+      trigger: (_x, _y, z) => z > WINDOW.entryZ + 0.7,
       enemies: [],
     },
   ],
@@ -127,6 +158,7 @@ export const CHAIN_COURSE: CourseLayout = {
     { z: WALLGAP.entryZ, door: [-7, -3] },
     // in line with the chimney's mouth
     { z: WALLGAP.exitZ, door: [-7, -3] },
+    { z: WINDOW.entryZ, door: [3, 7] },
   ],
   themes: [
     { wall: DEFAULT_WALL, trim: PAL.orange },
@@ -134,16 +166,18 @@ export const CHAIN_COURSE: CourseLayout = {
     { wall: { top: "#4f3f6e", bottom: "#43355e", words: ["#ff5ad4", "#9ff0ff", "#f1efe6", "#ffd23c", "#7ddc8a"] }, trim: 0xb04cff },
     { wall: { top: "#7a3a36", bottom: "#682f2c", words: ["#f1efe6", "#ffd23c", "#1a1d21", "#9ff0ff", "#ff9f43"] }, trim: 0xff3b2f },
     { wall: { top: "#6a3f5e", bottom: "#5a3450", words: ["#9ff0ff", "#ffd23c", "#f1efe6", "#ff5ad4", "#1a1d21"] }, trim: 0xff5ad4 },
+    { wall: { top: "#355e7a", bottom: "#2c4f68", words: ["#f1efe6", "#ffd23c", "#ff7a3a", "#9ff0ff", "#1a1d21"] }, trim: 0x3b8bff },
   ],
-  segments: [9, RUN.entryZ, DOUBLE.entryZ, WALLGAP.entryZ, WALLGAP.exitZ, FAR_Z],
+  segments: [9, RUN.entryZ, DOUBLE.entryZ, WALLGAP.entryZ, WALLGAP.exitZ, WINDOW.entryZ, FAR_Z],
   hazards: [RUN, DOUBLE, WALLGAP].map((r) => ({ minZ: r.a1, maxZ: r.b0, fallY: FALL_Y, respawn: new THREE.Vector3(0, 0, r.entryZ + 1.5) })),
+  pads: [WINDOW.pad],
   tv: { x: 3.4, y: 2.7, z: 9.03, w: 5.2, h: 2.9 },
   returnTo: { x: 3.4, z: 11.4, yaw: 0, pitch: 3 },
   startPose: { x: 0, z: 10.2, yaw: 180 },
   sign:
     "THE CHAIN\n\nThe city's moves at the distances it is built to, measured on the real movement: a RUN GAP (a sprint jump), " +
-    "a DOUBLE GAP (the double jump), a WALL GAP (a wall run and the kick off it), and the CHIMNEY: kick wall to wall to its " +
-    "landing, turn, and on to its top. The zip from the top goes to the finish.\n\n" +
+    "a DOUBLE GAP (the double jump), a WALL GAP (a wall run and the kick off it), the CHIMNEY: kick wall to wall to its " +
+    "landing, turn, and on to its top; and a WINDOW PAD, which throws you through a window onto the finish deck.\n\n" +
     "Fall into a gap and the room restarts with 2 s added. Every room's way is written on the wall you came in by: turn round.\n\nF resets the course.",
   girders: [-4, 4],
   lights: [-2, 2],
@@ -178,5 +212,25 @@ export const CHAIN_COURSE: CourseLayout = {
     b.box(X1 - EXIT.x0, 0.3, EXIT.z1 - EXIT.z0, (EXIT.x0 + X1) / 2, TOP - 0.3, (EXIT.z0 + EXIT.z1) / 2, platMat);
     b.box(0.07, 0.07, EXIT.z1 - EXIT.z0, X1 - 0.1, TOP + 1.0, (EXIT.z0 + EXIT.z1) / 2, b.flat(PAL.orange, 0.55, 0.25), false);
     b.zipline(EXIT_ZIP.a, EXIT_ZIP.b, { vertical: false, floorA: TOP, floorB: 0 });
+
+    // the window pad: the wall across the course with its window, the deck behind at the sill, and the pad
+    const W = WINDOW;
+    const wz = W.face + Wn.wall / 2;
+    const wm = roomMat(W.face);
+    const wx0 = W.x - W.width / 2;
+    const wx1 = W.x + W.width / 2;
+    b.box(wx0 - X0, WALL_H, Wn.wall, (X0 + wx0) / 2, 0, wz, wm);
+    b.box(X1 - wx1, WALL_H, Wn.wall, (wx1 + X1) / 2, 0, wz, wm);
+    b.box(W.width, W.sill, Wn.wall, W.x, 0, wz, wm);
+    b.box(W.width, WALL_H - W.sill - W.height, Wn.wall, W.x, W.sill + W.height, wz, wm);
+    // the frame lit, so the opening reads from the pad
+    for (const x of [wx0 - 0.03, wx1 + 0.03]) b.glow(0.06, W.height, 0.1, x, W.sill, W.face - 0.05, 0x3b8bff, 1.6);
+    for (const y of [W.sill, W.sill + W.height]) b.glow(W.width + 0.12, 0.06, 0.1, W.x, y - 0.03, W.face - 0.05, 0x3b8bff, 1.6);
+    b.box(X1 - X0, W.sill, Wn.deck, 0, 0, W.back + Wn.deck / 2, platMat);
+    // the pad: a lit disc on the floor
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(W.pad.reach, W.pad.reach, 0.08, 28), b.flat(0x3b8bff, 0.4, 0.1));
+    disc.position.set(W.pad.x, 0.04, W.pad.z);
+    b.add(disc);
+    b.glow(0.3, 0.02, 0.3, W.pad.x, 0.09, W.pad.z, 0x9ff0ff, 2.2);
   },
 };

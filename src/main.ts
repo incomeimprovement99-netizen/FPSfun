@@ -1368,6 +1368,8 @@ const targets: Target[] = TARGET_SPECS.map((t) => {
 // bullets test against them as well.
 // SpeedKills has a third, THE CHAIN: the city's chain modules at their measured distances (courses/chain.ts)
 const courses = [new Course(scene, BASIC_COURSE), new Course(scene, ADVANCED_COURSE), ...(IS_SK ? [new Course(scene, CHAIN_COURSE)] : [])];
+// a course's pad (THE CHAIN's window pad) sounds as the battle royale's do
+for (const c of courses) c.onPad = () => audio.whoosh();
 const [courseBasic, courseAdvanced] = courses;
 /** the course a run is going on, or the one you are standing in, or the basic one */
 const activeCourse = (): Course => courses.find((c) => c.running) ?? courses.find((c) => c.hud(gameTime)) ?? courseBasic;

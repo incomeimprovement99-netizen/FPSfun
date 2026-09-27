@@ -170,7 +170,7 @@ right in first person beat every variant; a measured reach table and proven modu
 - [x] 4.3 the modules proven (run gap, double gap, chimney: tools/checks/reach.ts)
 - [x] 4.4 the layout: the centre's canyons measured (none took the chain), the four chimneys built in the city and proven there (tools/checks/sk-chimneys.ts)
 - [x] Bots each wear their own soldier, seeded by their id, the same on every machine (Milestone 244); the killcam still draws a killer in their operator's look
-- [x] 4.6 grey-box: THE CHAIN, SpeedKills' third course (run gap, double gap, wall gap, chimney), every width from reach.json and proven on its own geometry (`tools/checks/sk-chaincourse.ts`); the window pad waits on pads coming to the course engine
+- [x] 4.6 grey-box: THE CHAIN, SpeedKills' third course (run gap, double gap, wall gap, chimney), every width from reach.json and proven on its own geometry (`tools/checks/sk-chaincourse.ts`); the window pad too, with pads brought to the course engine
 
 ## In the morning
 

@@ -7,5 +7,19 @@
   "runSpare": 1.2,
   "over": 1.1,
   "under": 0.9,
-  "chainColor": "#ff3df2"
+  "chainColor": "#ff3df2",
+  "_window": "The window pad (the brief's module: a pad that throws you through an open window onto a deck floor). The pad takes you to its middle and throws you straight up (course.ts CoursePad), so every entry speed flies the same arc. The sill is sill metres up, past a double jump and a climb (two 4 m storeys), so only the pad gets you in. Your feet peak apexOver above the sill and the push into the window starts at overAt above it; the push is fast enough to carry the whole body through the wall (standOff from the pad to its face, wall thick) in safety of the time the feet spend over overAt. The opening is width wide (0.59 m clear either side of a 0.81 m body) and height tall: a 1.83 m body at its peak, apexOver, and 0.4 m clear over the head. The brief's 2.2 m window cannot keep 0.4 m clear over a standing body, so the window is sized from the body. deck is the floor behind it, where the finish is. runUp is the floor from the door to the pad, room for a full sprint (1.35 s, about 12 m).",
+  "window": {
+    "sill": 9,
+    "width": 2.0,
+    "height": 2.8,
+    "wall": 0.6,
+    "standOff": 1.4,
+    "overAt": 0.25,
+    "apexOver": 0.55,
+    "safety": 0.8,
+    "reach": 1.2,
+    "deck": 5,
+    "runUp": 12
+  }
 }

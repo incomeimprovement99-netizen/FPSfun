@@ -94,6 +94,69 @@ export function roomPars(L: Pick<CourseLayout, "rooms" | "ranks" | "startZ" | "f
   });
 }
 
+/**
+ * A pad on a course (course coordinates; courses/chain.ts's window pad). Step on it and it takes you to its middle,
+ * throws you straight up at `up`, and once your feet are at `over` carries you along at (vx, vz) for `hold` seconds.
+ * Player.impulse sets the speed outright, so the arc is the same whatever speed you came onto it at; the battle
+ * royale's jump pads (brplay.ts) throw the same way, less the centring and the hold, which a window needs and a roof
+ * does not. The column and the carry are held against your own steering: holding a key through the rise drifted the
+ * body into the window's frame (tools/checks/sk-chaincourse.ts caught it, 0.03 m off the sill and one case short).
+ */
+export interface CoursePad {
+  x: number;
+  z: number;
+  /** the floor it stands on */
+  y: number;
+  reach: number;
+  up: number;
+  vx: number;
+  vz: number;
+  over: number;
+  /** how long the carry is held once it starts, seconds */
+  hold: number;
+}
+/** what a pad needs of the player (the Player has it) */
+export interface PadPlayer {
+  pos: THREE.Vector3;
+  vel: THREE.Vector3;
+  onGround: boolean;
+  impulse(vx: number, vy: number, vz: number): void;
+}
+/** one player's pads: when one last threw, and the carry still to come */
+export interface PadState {
+  at: number;
+  carry: { vx: number; vz: number; over: number; hold: number; since: number | null } | null;
+}
+/** one frame of a course's pads for a player (Course.update; tools/checks/sk-chaincourse.ts drives the same), `ox` the course's x in the world; true on the frame one throws */
+export function stepPads(pads: CoursePad[], ox: number, s: PadState, p: PadPlayer, now: number): boolean {
+  const c = s.carry;
+  if (c) {
+    if (p.onGround && now - s.at > 0.3) s.carry = null;
+    else if (c.since === null && p.pos.y < c.over) {
+      // the column: straight up
+      p.vel.x = 0;
+      p.vel.z = 0;
+    } else {
+      c.since ??= now;
+      p.vel.x = c.vx;
+      p.vel.z = c.vz;
+      if (now - c.since >= c.hold) s.carry = null;
+    }
+  }
+  if (!p.onGround || now - s.at < 1) return false;
+  for (const pad of pads) {
+    if (Math.hypot(p.pos.x - ox - pad.x, p.pos.z - pad.z) < pad.reach && Math.abs(p.pos.y - pad.y) < 0.5) {
+      s.at = now;
+      p.pos.x = pad.x + ox;
+      p.pos.z = pad.z;
+      p.impulse(0, pad.up, 0);
+      s.carry = { vx: pad.vx, vz: pad.vz, over: pad.over, hold: pad.hold, since: null };
+      return true;
+    }
+  }
+  return false;
+}
+
 /** a hazard floor: below `fallY` between these z you have fallen; back to `respawn`, 2 s added */
 export interface Hazard {
   minZ: number;
@@ -156,6 +219,8 @@ export interface CourseLayout {
   /** where each segment's walls begin and end; one more than themes */
   segments: number[];
   hazards: Hazard[];
+  /** pads that throw you (THE CHAIN's window pad) */
+  pads?: CoursePad[];
   /** the results TV and where you stand to read it */
   tv: { x: number; y: number; z: number; w: number; h: number };
   returnTo: { x: number; z: number; yaw: number; pitch: number };
@@ -197,7 +262,7 @@ interface Ghost {
 }
 const GHOST_DT = 1 / 30;
 
-export interface CoursePlayer {
+export interface CoursePlayer extends PadPlayer {
   pos: THREE.Vector3;
   vel: THREE.Vector3;
   yaw: number;
@@ -284,6 +349,9 @@ export class Course {
   private resultUntil = 0;
   best: number | null = null;
   private lastZ = 0;
+  private pads: PadState = { at: -Infinity, carry: null };
+  /** a pad threw you: the page plays its sound */
+  onPad: (() => void) | null = null;
   private inCompound = false;
   /** called with true when a run starts and false when it ends */
   onRunChange: ((running: boolean) => void) | null = null;
@@ -776,6 +844,7 @@ export class Course {
     const { y, z } = p.pos;
     const insideX = x > L.x0 && x < L.x1;
     this.inCompound = insideX && z > 9 && z < L.farZ;
+    if (L.pads && this.inCompound && stepPads(L.pads, L.x, this.pads, p, now)) this.onPad?.();
 
     // start line crossed going forward (re)starts the run
     if (insideX && this.lastZ < L.startZ && z >= L.startZ) this.start(now);
