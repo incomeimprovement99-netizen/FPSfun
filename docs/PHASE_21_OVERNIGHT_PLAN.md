@@ -194,8 +194,10 @@ right in first person beat every variant; a measured reach table and proven modu
 - The scheduled resume prompt runs every 20 minutes (at :07, :27, :47) while this Claude session is open; ask to
   cancel it once the work is done.
 - **What to try first:** THE CHAIN, through the magenta gate in the middle of the range's back wall (SpeedKills): the
-  three gaps, the chimney and the window pad at the city's measured distances. Then a battle royale: every bot in its
-  own soldier, the bought guns, the med kit in a HEAL area. In first person, your soldier's own arms.
+  three gaps, the chimney and the window pad at the city's measured distances. Then a battle royale: a blue window pad
+  on any downtown podium throws you into that tower's Sky Lobby at 32 m, and across a canyon the next tower's window is
+  a jump away. Every bot in its own soldier, the bought guns, the med kit in a HEAL area. On the Loadouts tab, each
+  gun's model and skin by its slot. In first person, your soldier's own arms.
 
 ### Ranked next steps
 
