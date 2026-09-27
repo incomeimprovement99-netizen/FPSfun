@@ -165,7 +165,7 @@ export class FpArms {
    * already placed this frame. Everything is worked out in world space and
    * written back to the bones as turns against their parents.
    */
-  pose(side: "r" | "l", glove: Hand, forearm: Forearm, grip: "grip" | "fist"): void {
+  pose(side: "r" | "l", glove: Hand, forearm: Forearm, grip: "grip" | "fist" | "point" | "open"): void {
     if (!this.rig || !this.sides) return;
     const S = this.sides[side];
     glove.group.updateWorldMatrix(true, false);
@@ -226,7 +226,7 @@ export class FpArms {
     this.place(S.lo, elbow, loQ, body);
     this.place(S.hand, wrist, handQ, unit);
     // the fingers: closed round a grip, or a fist
-    const pose = grip === "grip" ? this.rig.grip : this.rig.fist;
+    const pose = grip === "grip" ? this.rig.grip : grip === "fist" ? this.rig.fist : grip === "point" ? this.rig.point : this.rig.open;
     for (const [name, q] of pose) {
       const bone = this.rig.bones[name];
       if (bone && name.endsWith(`_${side}`)) bone.quaternion.copy(q);

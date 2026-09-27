@@ -1781,8 +1781,23 @@ export interface ArmRig {
   grip: Map<string, THREE.Quaternion>;
   /** the same for a closed fist, for the empty hands while holstered */
   fist: Map<string, THREE.Quaternion>;
+  /** the fist with the index finger out straight, for tapping a hack's card (hackcast.ts) */
+  point: Map<string, THREE.Quaternion>;
+  /** every finger straight, the body's own rest */
+  open: Map<string, THREE.Quaternion>;
   /** the body, build and outfit it was built for, so a change of look rebuilds it */
   key: string;
+}
+
+/** the fingers as the body was made, straight, and a fist with only the index finger out */
+function restFingers(rig: THREE.Object3D, fist: Map<string, THREE.Quaternion>): { point: Map<string, THREE.Quaternion>; open: Map<string, THREE.Quaternion> } {
+  const open = new Map<string, THREE.Quaternion>();
+  rig.traverse((o) => {
+    if ((o as THREE.Bone).isBone && /^(thumb|index|middle|ring|pinky)_/.test(o.name)) open.set(o.name, o.quaternion.clone());
+  });
+  const point = new Map(fist);
+  for (const [name, q] of open) if (/^index_/.test(name)) point.set(name, q);
+  return { point, open };
 }
 
 /** a pose's finger turns, sampled off a clip at one moment */
@@ -1883,7 +1898,7 @@ export function buildArmRig(skin: OperatorSkin): ArmRig | null {
   const grip = fingersFrom(cloneSkinned(body), t.clips.get("full:Pistol_Aim_Neutral"), 0);
   const fist = fingersFrom(cloneSkinned(body), t.clips.get("full:Punch_Jab"), 0.3);
   const ready = sleeves.every((n) => parts.has(n)) && (tintOf(skin.outfit) === null || sleeves.every((n) => tintMap(skin.outfit, n)));
-  return { root, bones, grip, fist, key: `${name}|${build}|${skin.outfit}|${ready ? "dressed" : "bare"}` };
+  return { root, bones, grip, fist, ...restFingers(cloneSkinned(body), fist), key: `${name}|${build}|${skin.outfit}|${ready ? "dressed" : "bare"}` };
 }
 
 /**
@@ -1926,7 +1941,7 @@ function soldierArmRig(skin: OperatorSkin): ArmRig | null {
   const t = soldierTemplate;
   const grip = fingersFrom(cloneSkinned(src), t.clips.get("full:Pistol_Aim_Neutral"), 0);
   const fist = fingersFrom(cloneSkinned(src), t.clips.get("full:Punch_Jab"), 0.3);
-  return { root, bones, grip, fist, key: `soldier|${code}` };
+  return { root, bones, grip, fist, ...restFingers(cloneSkinned(src), fist), key: `soldier|${code}` };
 }
 
 /** what a rig built now for this look would be keyed, so the viewmodel knows when to rebuild */

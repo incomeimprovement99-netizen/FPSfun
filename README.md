@@ -106,7 +106,12 @@ Game) or `?game=legacy`, and everything below this section describes it.
   magazine is nearly out, and an inspect or a fusion runs a scan along the gun.
   Every bought gun's support hand holds it where the bought model is held
   (measured), and the soldier's first-person arms are drawn the glove's size and
-  a real forearm's thickness, whole to the shoulder. The MINE
+  a real forearm's thickness, whole to the shoulder. Using a hack is seen in
+  the hands, as in Hyper Scape: the left hand comes up off the gun with the
+  hack's amber card over it, taps it, and the card breaks into pixels as the
+  hack goes off, the gun dipping in the other hand. HEAL lays a glowing ring on
+  the ground with arcs turning in it and "+" signs rising, and while it heals
+  you the view's edges glow green. The MINE
   hack's mine, death boxes, care packages and the med kit in a HEAL area are
   the pack's too.
 - **The centre, from the bought city kits:** on the game server the Spire

@@ -5116,6 +5116,34 @@ async function soldierTest(browser: Browser): Promise<void> {
     phased.low.r97 < 0.2 && phased.low.sentinel < 0.2 && phased.end.gun === "sentinel" && phased.end.phase === 1 && phased.end.shown && phased.plain.gun === null && phased.plain.phase === 1,
     JSON.stringify(phased),
   );
+  // a hack used in first person (hackcast.ts): the left hand comes up with its card and taps it, and HEAL's area is
+  // Hyper Scape's ring on the ground with the heal's signs rising (healarea.ts), not a wall round the player
+  const cast = await ev<{ up: number; tapped: boolean; area: boolean; back: number }>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const g0 = r.gameTime();
+      r.sk.setHack("heal");
+      r.sk.use("utility");
+      // until the hand is back on the gun: the view's clock steps at most 0.05 s a frame, so on the e2e's CPU drawing,
+      // a few frames a second, the cast runs about three times slower than game time
+      let up = 0;
+      let tapped = false;
+      const t0 = performance.now();
+      while (r.gameTime() - g0 < 6 && performance.now() - t0 < 30000) {
+        const c = r.castState();
+        up = Math.max(up, c.up);
+        tapped = tapped || c.tapped;
+        if (tapped && c.up === 0) break;
+        await wait(10);
+      }
+      let area = false;
+      r.scene.traverse((o) => { if (o.name === "heal-area") area = true; });
+      return { up, tapped, area, back: r.castState().up };
+    })()`,
+  );
+  check("soldier hacks: a hack is used with the left hand up, its card tapped, and back on the gun after; HEAL lays its ring on the ground", cast.up > 0.9 && cast.tapped && cast.back === 0 && cast.area, JSON.stringify(cast));
   check(
     "soldier arms: both upper arms' cut ends off the gun camera's frame at the hip and on the way into the sights, on the USSO and BOOG",
     elbows.length === 2 && elbows.every((e) => e.hip?.r && e.hip.l && e.ads?.r && e.ads.l),

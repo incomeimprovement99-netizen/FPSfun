@@ -63,6 +63,7 @@ import { Announcer, cues, type Watch } from "./game/announcer";
 import { buildCityMap, cityDecay, cityEdge, SECTORS, ROOF_ROUTES } from "./game/city";
 import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
 import { EDGE_ID } from "./game/causes";
+import { healArea } from "./game/healarea";
 import DECAY_CFG from "./config/decay.json";
 import { Hacks, HACK, HACK_DEFS, hackDef, hackSlotOf, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
 import { BotMatch, MOST_BOTS } from "./game/bots";
@@ -977,6 +978,7 @@ viewModel.onFeel = (k, seconds) => {
   else if (k === "scan") audio.scanSweep(seconds ?? 0.6);
   else if (k === "ads") audio.sightHum();
 };
+viewModel.onCastTap = () => audio.holoTap();
 let snapNoGun = false;
 /** kit pieces drawn on the battle royale's buildings (kitdress.ts) */
 let kitDressed = 0;
@@ -1047,7 +1049,10 @@ const debugView: {
   inspect: number | null;
   /** hold a swap at a point in its run, 0..1, for a screenshot of a gun phasing (tools/gunfeel-sheet.ts) */
   raise: number | null;
+  /** hold a hack's cast at a moment in it, for a screenshot (tools/hackcast-sheet.ts) */
+  cast: { id: string; at: number } | null;
 } = {
+  cast: null,
   raise: null,
   weapon: null,
   ads: null,
@@ -3448,7 +3453,11 @@ let skLeap = false;
 let armorUntil = -Infinity;
 let invisUntil = -Infinity;
 /** HEAL's areas: yours and your squad's heal you while you stand in them */
-const healZones: Array<{ at: THREE.Vector3; until: number; mesh: THREE.Mesh; rate: number }> = [];
+const healZones: Array<{ at: THREE.Vector3; until: number; mesh: THREE.Object3D; rate: number }> = [];
+/** being healed this frame by a HEAL area (the view's green edges and rising "+", hud.ts drawHealing) */
+let healingNow = 0;
+/** the heal felt in the view, eased toward healingNow */
+let healFelt = 0;
 /** MINE's mines: yours hunt and hurt; everyone else's are drawn */
 const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Object3D; mine: boolean; damage?: number; chaseFrom?: number | null }> = [];
 /** your WALL hack's panels standing, oldest first (hacks.json wall.max) */
@@ -3493,13 +3502,21 @@ const unseenUntil = new Map<number, number>();
  * page's player, so the lit ring reads as a heal from across a street; a child of the ring, so it goes when the ring
  * does. Nothing without the paid files.
  */
-function healKit(ring: THREE.Mesh, friend: boolean): void {
+function healKit(ring: THREE.Object3D, friend: boolean): void {
   const kit = paidProp(friend ? "healkit" : "healkitEnemy");
   if (!kit) return;
-  // on the floor: the ring stands centred on its own middle
-  kit.position.y = -(ring.geometry as THREE.CylinderGeometry).parameters.height / 2;
+  // on the floor, in the middle of the area, facing the one who put it down
   kit.rotation.y = Math.atan2(player.pos.x - ring.position.x, player.pos.z - ring.position.z);
   ring.add(kit);
+}
+
+/** a HEAL area on the ground at `at` (healarea.ts), a squad mate's or an enemy's */
+function healMesh(at: THREE.Vector3, friend: boolean): THREE.Group {
+  const g = healArea(H.heal.radius, friend, (H as unknown as { healArea: Parameters<typeof healArea>[2] }).healArea);
+  g.position.copy(at);
+  scene.add(g);
+  healKit(g, friend);
+  return g;
 }
 
 function hackMesh(color: number, r: number, h: number, opacity = 0.28): THREE.Mesh {
@@ -3565,6 +3582,8 @@ function useHack(slot: HackSlot, now: number): void {
   const id = hacks.use(slot, now);
   if (!id) return;
   hackUses[slot]++;
+  // the hand's tap on the hack's card (hackcast.ts): the hack goes off at once, as Hyper Scape's did, under it
+  viewModel.castHack(id);
   // another hack ends INVISIBILITY, as Hyper Scape's did (Phase 20 A9)
   if (id !== "invis" && now < invisUntil) {
     invisUntil = -Infinity;
@@ -3630,9 +3649,7 @@ function useHack(slot: HackSlot, now: number): void {
     }
     case "heal": {
       const at = player.pos.clone();
-      const mesh = hackMesh(0x3dff9a, H.heal.radius, 0.6);
-      mesh.position.copy(at).setY(at.y + 0.3);
-      healKit(mesh, true);
+      const mesh = healMesh(at, true);
       const rates = (H.heal as unknown as { perSeconds?: number[] }).perSeconds;
       healZones.push({ at, until: now + H.heal.seconds, mesh, rate: rates?.[held.level] ?? H.heal.perSecond });
       audio.healDone();
@@ -3750,6 +3767,7 @@ function stepHacks(now: number, dt: number): void {
     } else if (skSlam.phase !== "down" && now - skSlam.at > 3) skSlam = null;
   }
   // HEAL's areas: standing in one heals you (health, then shield)
+  healingNow = 0;
   for (let i = healZones.length - 1; i >= 0; i--) {
     const z = healZones[i];
     if (now > z.until) {
@@ -3760,6 +3778,7 @@ function stepHacks(now: number, dt: number): void {
     const v = d as unknown as { health?: number; shield?: number; shieldMax?: number; alive?: boolean } | null;
     if (v && typeof v.health === "number" && typeof v.shield === "number" && v.alive !== false && player.pos.distanceTo(z.at) <= H.heal.radius) {
       const top = SK_HEALTH?.health ?? HEALTH_MAX;
+      if (v.health < top || (typeof v.shieldMax === "number" && v.shield < v.shieldMax)) healingNow = 1;
       let amt = z.rate * dt;
       const toHealth = Math.min(amt, top - v.health);
       v.health += Math.max(0, toHealth);
@@ -3944,9 +3963,7 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       // a squad mate's HEAL heals you too; an enemy's is drawn and does nothing for you. An enemy's is the heal's own
       // green, fainter, not red: a red ring round a figure is the edge's laser alone (edge.ts), and every heal of every
       // enemy in a free-for-all drew one, which read as players being struck out of bounds in the middle of the city
-      const mesh = hackMesh(0x3dff9a, H.heal.radius, 0.6, friend ? 0.28 : 0.12);
-      mesh.position.copy(a).setY(a.y + 0.3);
-      healKit(mesh, friend);
+      const mesh = healMesh(a, friend);
       // (a squad mate's area heals at the base rate: its fusion level does not travel)
       if (friend) healZones.push({ at: a.clone(), until: gameTime + H.heal.seconds, mesh, rate: H.heal.perSecond });
       else setTimeout(() => scene.remove(mesh), H.heal.seconds * 1000);
@@ -3967,8 +3984,11 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       break;
     }
     case 6: {
-      const mesh = hackMesh(0xff2e9a, 0.35, 0.12);
-      mesh.position.copy(a).setY(a.y + 0.06);
+      // someone else's mine: the pack's, as yours is (it was still our pink ring), our ring when the pack is not in
+      const bought = paidProp("mine");
+      if (bought) scene.add(bought);
+      const mesh = bought ?? hackMesh(0xff2e9a, 0.35, 0.12);
+      mesh.position.copy(a).setY(a.y + (bought ? 0 : 0.06));
       mines.push({ at: a.clone(), armAt: Infinity, until: gameTime + H.mine.life, mesh, mine: false });
       break;
     }
@@ -6968,6 +6988,7 @@ function step(): void {
   vmCamera.aspect = camera.aspect;
   vmCamera.updateProjectionMatrix();
   viewModel.setView(vmCamera.fov, vmCamera.aspect, debugView.ads ?? ws.adsFrac);
+  if (debugView.cast) viewModel.holdCast(debugView.cast.id, debugView.cast.at);
 
   // Spawn shots. Each bullet leaves along the aim as it stood the instant
   // BEFORE that shot's own view kick, so the first round of a burst is
@@ -7695,6 +7716,7 @@ function step(): void {
     speedHu: player.speed / HU,
     prompt,
     scope: optic && optic.info.overlay && !third ? scopeState(optic, aimNow, now) : null,
+    healing: IS_SK ? { k: (healFelt += (healingNow - healFelt) * Math.min(1, dt / 0.25)), edge: (H as unknown as { healArea: { screen: number } }).healArea.screen } : undefined,
   });
   input.endFrame();
   // the loading screen goes once the world is in and this frame is drawn
@@ -7859,6 +7881,8 @@ initWelcome();
   armCutsOff: () => viewModel.cutsOff,
   /** the signature gun in hand (gunfeel.json): which, its phase and its magazine's, and whether it is drawn */
   gunFeel: () => viewModel.feelState,
+  /** a hack's cast in the hands (hackcast.ts): how far up the hand is and whether it has tapped */
+  castState: () => viewModel.castState,
   /** the loot card as the HUD draws it this frame, and its mode (Phase 20 A8) */
   lootCard: () => lootCardNow(),
   /** the enemy the crosshair outlines this frame (Phase 20 A8's check; speedkills.json feel.outline) */

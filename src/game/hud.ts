@@ -188,6 +188,11 @@ export interface HudState {
    * is how far through its boot it is, 0..1, and `charge` how far it has recharged since its last shot
    */
   scope: { style: ReticleStyle; color: string; amount: number; on?: number; charge?: number | null } | null;
+  /**
+   * SpeedKills: being healed by a HEAL area, 0 to 1 (eased in and out by main.ts), and how much of the view's edges
+   * glow green at full (hacks.json healArea screen)
+   */
+  healing?: { k: number; edge: number };
   /** a match in progress (duel.ts DuelHud: the 1v1, the bots, the battle royale) */
   duel?: DuelHud | null;
   /** hosting a match and waiting in the arena: the code, and how many are still to come */
@@ -498,6 +503,7 @@ export class Hud {
     }
     this.uNow = u;
     this.drawScope(s, u);
+    this.drawHealing(now, s, u);
     this.drawHurt(now);
     this.drawDamageNumbers(now, camera, u);
     this.drawCrosshair(now, s, u);
@@ -1415,6 +1421,47 @@ export class Hud {
         c.lineTo(cx + Math.cos(a) * (r2 - 4 * u), cy + Math.sin(a) * (r2 - 4 * u));
         c.stroke();
       }
+    }
+    c.restore();
+  }
+
+  /**
+   * Being healed by a HEAL area (hacks.json healArea): the view's edges glow green, and the heal's "+" rises up them,
+   * the area's own sign, so the heal is felt in first person as well as seen on the ground
+   */
+  private drawHealing(now: number, s: HudState, u: number): void {
+    const h = s.healing;
+    if (!h || h.k <= 0.01) return;
+    const c = this.ctx;
+    const W = this.w;
+    const H = this.h;
+    c.save();
+    const edge = Math.min(W, H) * h.edge;
+    const pulse = 0.75 + 0.25 * Math.sin(now * 5);
+    for (const [x0, y0, x1, y1] of [
+      [0, 0, edge, 0],
+      [W, 0, W - edge, 0],
+      [0, H, 0, H - edge],
+    ] as const) {
+      const g = c.createLinearGradient(x0, y0, x1, y1);
+      g.addColorStop(0, `rgba(61,255,154,${(0.22 * h.k * pulse).toFixed(3)})`);
+      g.addColorStop(1, "rgba(61,255,154,0)");
+      c.fillStyle = g;
+      c.fillRect(0, 0, W, H);
+    }
+    // the "+" signs rising up both edges, each on its own clock
+    c.shadowColor = "#3dff9a";
+    c.shadowBlur = 10 * u;
+    for (let i = 0; i < 10; i++) {
+      const side = i % 2 ? 1 : 0;
+      const t = (now * 0.55 + i * 0.137) % 1;
+      const x = side ? W - (40 + ((i * 53) % 90)) * u : (40 + ((i * 71) % 90)) * u;
+      const y = H * (0.92 - t * 0.7);
+      const a = h.k * Math.sin(Math.PI * t) * 0.85;
+      const r = (9 + (i % 3) * 4) * u;
+      c.fillStyle = `rgba(200,255,224,${a.toFixed(3)})`;
+      c.fillRect(x - r * 0.3, y - r, r * 0.6, 2 * r);
+      c.fillRect(x - r, y - r * 0.3, 2 * r, r * 0.6);
     }
     c.restore();
   }

@@ -4864,3 +4864,32 @@ The owner: "add a metro level under the street, just for this center part, not a
     vault checks failing on the loot above; with the fix the br section passes, as it does on main.
   - Pictures down the tunnel, into a stairwell from the street and up one from below.
 - **Next:** loot of its own for the metro, from a stream of its own so the field's stays as it is.
+
+## Milestone 259 — A hack used in the hands, and HEAL's area, as Hyper Scape had them
+
+The owner: "we have no healing animation or the animation when the user uses a hack, check if hyperscape had those".
+It had both. A research pass read Hyper Scape's official hack stills (the archived game-info page's clip frames) and its
+players' descriptions; the numbers here are ours, by eye.
+
+- **A hack's cast** (`src/game/hackcast.ts`, `viewmodel.ts` castHack, `viewmodel.json` hackCast). As the stills show:
+  - the left hand comes up off the gun in 0.12 s;
+  - an amber, cut-cornered holographic card with the hack's icon (ten drawn: dash, leap, slam, grapple, heal, armor,
+    wall, invisibility, reveal, mine) stands over the index finger;
+  - the finger taps it at 0.17 s and the card breaks into amber pixels, with a digital blip (`audio.ts` holoTap);
+  - the hand is back on the gun by 0.48 s. The gun dips to the right and rolls in the other hand while it is up.
+  - The hack itself still goes off at once, as Hyper Scape's did ("it's instant. There's no buildup"). The soldier's
+    fingers point for it (`mannequin.ts` restFingers: the fist with the index out).
+- **HEAL's area** (`src/game/healarea.ts`, `hacks.json` healArea). Hyper Scape's was "a big blue circle" with the heal's
+  station in it. Ours is:
+  - a ring on the ground with a band inside it, and arcs turning both ways;
+  - a low wall of light fading up;
+  - sixteen "+" signs rising round it;
+  - the bought med kit in the middle.
+  - It is the heal's green, not Hyper Scape's cyan (cyan is the signature guns' phase here), and an enemy's is fainter.
+  It was a plain translucent wall 5 m round the player.
+- **Healing felt in first person** (`hud.ts` drawHealing): while an area heals you, the view's edges glow green and the
+  "+" rises up both sides.
+- **Other players' mines are the bought mine**, as your own is; they were still the old pink disc.
+- **Checked:** the e2e soldier section (HEAL used: the hand up, its card tapped, back on the gun, the ring on the
+  ground; it failed with the cast removed); verify; rules; pictures through the cast and of the area
+  (`tools/hackcast-sheet.ts`).

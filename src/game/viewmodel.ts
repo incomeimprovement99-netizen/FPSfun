@@ -29,6 +29,7 @@ import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
 import armCfg from "../config/viewmodel.json";
 import feelCfg from "../config/gunfeel.json";
+import { HackCard, hackCard } from "./hackcast";
 import { newSweep, phaseMeshes } from "./phase";
 import { IS_SK, PROFILE } from "./game";
 
@@ -436,6 +437,15 @@ export class ViewModel {
   private readonly zipHand = new Hand(true);
   private readonly zipArm = new Forearm();
   private readonly zipElbow = new THREE.Vector3();
+  /** a hack's cast (hackcast.ts): the left hand up off the gun, its card, and when it began */
+  private readonly castRig = new THREE.Group();
+  private readonly castHand = new Hand(true);
+  private readonly castArm = new Forearm();
+  private readonly castCard = new HackCard(armCfg.hackCast.card.size, armCfg.hackCast.amber, armCfg.hackCast.burst);
+  private castAt = -Infinity;
+  private castTapped = true;
+  /** the hack's tap, for its sound and the hack's own effect (main.ts) */
+  onCastTap: (() => void) | null = null;
   /** what is in view (tools/e2e.ts): the gun, the empty hands, how far down */
   get shown(): { gun: boolean; hands: boolean; down: number; ads: number } {
     return { gun: this.group.visible && this.holder.visible, hands: this.group.visible && this.fists.visible, down: this.downAmt, ads: this.lastAds };
@@ -562,6 +572,10 @@ export class ViewModel {
     this.zipRig.visible = false;
     this.zipArm.group.visible = false;
     this.group.add(this.zipRig, this.zipArm.group);
+    this.castRig.add(this.castHand.group);
+    this.castRig.visible = false;
+    this.castArm.group.visible = false;
+    this.group.add(this.castRig, this.castArm.group, this.castCard.group);
     this.group.add(this.real.group);
   }
 
@@ -1041,6 +1055,16 @@ export class ViewModel {
     ry += this.kick * 0.012 * this.kickYaw;
     rz += this.kick * 0.02 * this.kickRoll;
 
+    // a hack's cast: the gun dips to the right in the one hand while the other is up (viewmodel.json hackCast gun)
+    const cast = this.castEnv();
+    if (cast > 0) {
+      const G = armCfg.hackCast.gun;
+      p.x += G.x * cast;
+      p.y += G.y * cast;
+      rz += G.roll * cast;
+      rx += G.pitch * cast;
+    }
+
     // into a strafe: the gun rolls toward the way you step and slides a
     // little the other way, eased, and mostly held still in the sights
     const S = armCfg.strafe;
@@ -1141,6 +1165,7 @@ export class ViewModel {
     this.updateFists(f, Math.max(easeInOut(clamp(f.lowered * 2 - 1, 0, 1)), meleeEnv), mp >= 0 && mp < 1 ? mp : -1);
     this.heirloom?.animate?.(this.t);
     this.updateZipHand(f, dt, ads);
+    this.updateCast(dt, ads);
 
     this.animateAction(m, w, dt, f.clipEmpty && !f.reloading);
     this.animateReload(m, reloadP, f.reloading);
@@ -1231,18 +1256,19 @@ export class ViewModel {
     const ready = this.real.ready;
     if (ready !== !this.drawnShown) {
       this.drawnShown = !ready;
-      const drawn = [this.right, this.left, this.fistR, this.fistL, this.zipHand].map((h) => h.group);
-      const arms = [this.rightArm, this.leftArm, this.fistArmR, this.fistArmL, this.zipArm].map((a) => a.group);
+      const drawn = [this.right, this.left, this.fistR, this.fistL, this.zipHand, this.castHand].map((h) => h.group);
+      const arms = [this.rightArm, this.leftArm, this.fistArmR, this.fistArmL, this.zipArm, this.castArm].map((a) => a.group);
       for (const g of [...drawn, ...arms]) for (const c of g.children) c.visible = !ready;
     }
     if (!ready) return;
     const gun = this.holder.visible;
     // The arms are not under the holder: when a magnified scope hid the gun they stayed drawn where the last
     // frame posed them, and the scope's narrower view blew the left arm up into its picture (HELIX, PULSAR)
-    this.real.group.visible = !IS_SK || gun || this.fists.visible || this.zipRig.visible;
+    this.real.group.visible = !IS_SK || gun || this.fists.visible || this.zipRig.visible || this.castRig.visible;
     if (gun) this.real.pose("r", this.right, this.rightArm, "grip");
     else if (this.fists.visible) this.real.pose("r", this.fistR, this.fistArmR, "fist");
     if (this.zipRig.visible && !this.left.group.visible) this.real.pose("l", this.zipHand, this.zipArm, "grip");
+    else if (this.castRig.visible && !this.left.group.visible) this.real.pose("l", this.castHand, this.castArm, "point");
     else if (gun && this.left.group.visible) this.real.pose("l", this.left, this.leftArm, "grip");
     else if (this.fists.visible) this.real.pose("l", this.fistL, this.fistArmL, "fist");
   }
@@ -1301,6 +1327,67 @@ export class ViewModel {
       }
       arm.set(hand.wrist(this.tmp2), elbow, this.group.matrix);
     }
+  }
+
+  /**
+   * A hack used (hackcast.ts): the left hand comes up off the gun with the hack's card over it, taps it and goes back.
+   * The hack itself is the game's (main.ts useHack); this is how it looks in the hands.
+   */
+  castHack(id: string): void {
+    this.castAt = this.t;
+    this.castTapped = false;
+    this.castCard.show(hackCard(id, armCfg.hackCast.amber));
+  }
+
+  /** hold a cast `at` seconds in, for a picture (main.ts debugView.cast; tools/hackcast-sheet.ts) */
+  holdCast(id: string, at: number): void {
+    if (this.castId !== id) {
+      this.castHack(id);
+      this.castId = id;
+    }
+    this.castAt = this.t - at;
+  }
+  private castId = "";
+
+  /** a cast's state, for a check: how far up the hand is, and whether it has tapped */
+  get castState(): { up: number; tapped: boolean } {
+    return { up: this.castEnv(), tapped: this.castTapped };
+  }
+
+  /** how far up the cast hand is, 0 to 1, now (0 when no cast is running) */
+  private castEnv(): number {
+    const C = armCfg.hackCast;
+    const e = this.t - this.castAt;
+    if (e < 0 || e >= C.total) return 0;
+    return smooth(0, C.rise, e) * (1 - smooth(C.hold, C.total, e));
+  }
+
+  /** the cast's hand, card and burst this frame */
+  private updateCast(dt: number, ads: number): void {
+    const C = armCfg.hackCast;
+    const e = this.t - this.castAt;
+    const k = this.castEnv();
+    const up = k > 0.001 && this.holder.visible && this.zipAmt < 0.5;
+    this.castRig.visible = up;
+    this.castArm.group.visible = up;
+    if (up) {
+      // one-handed: the support hand is off the gun and up
+      this.left.group.visible = false;
+      this.leftArm.group.visible = false;
+      // the tap: the finger goes in toward the card and back
+      const tap = e >= C.tap - 0.05 && e < C.tap + 0.06 ? Math.sin(Math.PI * clamp((e - C.tap + 0.05) / 0.11, 0, 1)) : 0;
+      this.castRig.position.set(C.hand[0] - 0.04 * ads, C.hand[1] - (1 - k) * 0.22, C.hand[2] - tap * 0.02);
+      this.castRig.rotation.set(C.turn[0], C.turn[1], C.turn[2]);
+      this.castRig.updateMatrix();
+      this.castArm.set(this.castHand.wrist(this.tmp2).applyMatrix4(this.castRig.matrix), this.tmp.set(C.hand[0] - 0.2, -0.45, -0.05), this.group.matrix);
+      this.castCard.group.position.set(this.castRig.position.x + C.card.lift[0], this.castRig.position.y + C.card.lift[1], this.castRig.position.z + C.card.lift[2]);
+    }
+    if (!this.castTapped && e >= C.tap) {
+      this.castTapped = true;
+      this.castCard.burst();
+      this.onCastTap?.();
+    }
+    this.castCard.frame(up || e < C.total + 0.3 ? k : 0, e < C.rise, e >= C.tap ? e - C.tap : -1, dt);
   }
 
   /** the left hand up on the zipline trolley, the gun held in the right */

@@ -737,6 +737,15 @@ export class GameAudio {
     if (up) this.tone(v.input, v.t + 0.3, 0.14, "sine", 170, 80, 0.16, 0.004);
   }
 
+  /** a hack's card tapped (hackcast.ts): a bright digital double blip and a click */
+  holoTap(): void {
+    const v = this.voice(null, 0.25, "own", 2, 0.3);
+    if (!v) return;
+    this.tone(v.input, v.t, 0.035, "square", 1320, 1320, 0.05, 0.001);
+    this.tone(v.input, v.t + 0.045, 0.06, "square", 1980, 1760, 0.045, 0.001);
+    this.noise(v.input, v.t, 0.02, "bandpass", 4200, 3, 0.12, 0.001);
+  }
+
   /** BOOG's recharge after a shot: a soft whine rising over `dur` */
   recharge(dur: number): void {
     const v = this.voice(null, dur + 0.1, "own", 1, 0.2);

@@ -69,6 +69,26 @@
       9
     ]
   },
+  "_healArea": "How HEAL's area looks (src/game/healarea.ts), after Hyper Scape's: a ring on the ground with arcs turning inside it (one turn in `spin` s, at `arcs` shares of the radius), a low wall of light `wall` m tall fading up at `opacity` (a squad mate's, an enemy's), and `plus` signs rising round it (how many, their size in metres, how high they rise and a rise's seconds). While you stand in one and it heals you, `screen` of the view's edges glows green and the \"+\" rises there too (hud.ts drawHealing). Ours, by eye.",
+  "healArea": {
+    "wall": 0.7,
+    "opacity": [
+      0.22,
+      0.1
+    ],
+    "plus": {
+      "count": 16,
+      "size": 0.28,
+      "rise": 2.2,
+      "seconds": 1.8
+    },
+    "arcs": [
+      0.45,
+      0.72
+    ],
+    "spin": 6,
+    "screen": 0.12
+  },
   "armor": {
     "cooldown": 14,
     "seconds": 4,

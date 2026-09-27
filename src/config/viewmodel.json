@@ -79,5 +79,38 @@
     "shift": 0.014,
     "ease": 0.12,
     "ads": 0.85
+  },
+  "_hackCast": "A hack used in first person (src/game/hackcast.ts, viewmodel.ts castHack), after Hyper Scape's official hack stills: the left hand comes up from the gun, an amber card with the hack's icon stands over it, the index finger taps it and the hack goes off, the card breaking into amber pixels, while the gun dips to the right in the other hand. Seconds: the hand is up by `rise`, taps at `tap`, holds to `hold` and is back on the gun by `total` (no source gives the gesture's length; the stills' thumbnails a second or two apart almost never catch it, so it is well under a second). `hand` is where the hand comes up to and `turn` its turn (x, y, z radians), in the view's space before its scale; `card` the card's size and where it stands from the hand; `amber` its colour (read off the stills, by eye); `burst` its pixels; `gun` the gun's dip (metres right and down, radians of roll and of muzzle down), full while the hand is up. Ours, by eye against pictures.",
+  "hackCast": {
+    "rise": 0.12,
+    "tap": 0.17,
+    "hold": 0.3,
+    "total": 0.48,
+    "hand": [
+      -0.13,
+      -0.1,
+      -0.34
+    ],
+    "turn": [
+      0.9,
+      0.5,
+      0.9
+    ],
+    "card": {
+      "size": 0.075,
+      "lift": [
+        -0.02,
+        0.08,
+        -0.045
+      ]
+    },
+    "amber": "#ffb43c",
+    "burst": 14,
+    "gun": {
+      "x": 0.03,
+      "y": -0.07,
+      "roll": -0.22,
+      "pitch": -0.12
+    }
   }
 }
