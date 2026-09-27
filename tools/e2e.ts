@@ -5111,6 +5111,31 @@ async function soldierTest(browser: Browser): Promise<void> {
     boog.after !== null && boog.after > 0 && boog.after < 0.9 && boog.later === 1 && boog.scan > -0.5,
     JSON.stringify(boog),
   );
+  // the USSO wears the pack's reflex sight from the steady SMG (paidweapons.json mount; the pack has no sight
+  // attachments, and the USSO had irons alone) and is aimed down its dot, drawn in its optic's red
+  const reddot = await ev<{ mounted: boolean; dot: string | null; sight: { dot: boolean } | null } | null>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      r.loadout.give(0, "r97");
+      r.loadout.requestSwap(0, r.gameTime());
+      // until the view holds it (the e2e's CPU drawing is a few frames a second)
+      const t0 = performance.now();
+      let g = null;
+      while (performance.now() - t0 < 30000) {
+        g = r.loadout.swapping ? null : r.gunParts();
+        if (g && r.paidGuns().inHand === "SciFiSMG02_2") break;
+        await wait(50);
+      }
+      return g ? { mounted: g.mounted, dot: g.dot, sight: g.sight } : null;
+    })()`,
+  );
+  check(
+    "soldier guns: the USSO wears the pack's reflex sight and is aimed down its dot, a red one",
+    !!reddot && reddot.mounted && !!reddot.sight?.dot && !!reddot.dot && parseInt(reddot.dot.slice(0, 2), 16) > 2 * parseInt(reddot.dot.slice(2, 4), 16),
+    JSON.stringify(reddot),
+  );
   check(
     "soldier guns: the USSO phases out of the hands and BOOG in, whole at the end and drawn; ZEPHYR has no phase",
     phased.low.r97 < 0.2 && phased.low.sentinel < 0.2 && phased.end.gun === "sentinel" && phased.end.phase === 1 && phased.end.shown && phased.plain.gun === null && phased.plain.phase === 1,

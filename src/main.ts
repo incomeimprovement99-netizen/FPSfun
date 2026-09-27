@@ -8111,7 +8111,17 @@ initWelcome();
         }
       : null;
     const optic = viewModel.opticFitted;
+    // a sight mounted from another model (paidgun.ts mountSight), and the colour its dots are drawn in
+    let mounted = false;
+    let dot: string | null = null;
+    m.root.traverse((o) => {
+      if (o.userData.mountFamily) mounted = true;
+      if (o.userData.dot && (o as THREE.Mesh).isMesh) dot = ((o as THREE.Mesh).material as THREE.MeshBasicMaterial).color.getHexString();
+    });
     return {
+      mounted,
+      dot,
+      sight: (m.root.userData.ownSight as { dot: boolean; irons: boolean } | undefined) ?? null,
       mag: count(m.mag),
       bolt: count(m.bolt),
       pump: count(m.pump),

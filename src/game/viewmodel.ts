@@ -21,7 +21,7 @@
 import * as THREE from "three";
 import type { ResolvedWeapon } from "./weapons";
 import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels";
-import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel } from "./paidgun";
+import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
 import type { OperatorSkin } from "./operators";
@@ -123,6 +123,9 @@ interface FlashStyle {
 /** what a signature gun has just done that has a sound (main.ts plays it): phased in or out, BOOG recharging or ready, a rack, a scan, into the sights */
 export type FeelSound = "in" | "out" | "recharge" | "ready" | "rack" | "scan" | "ads";
 const FEEL = feelCfg.guns as unknown as Record<string, GunFeel>;
+/** the draw's spin and a fusion's flood (gunfeel.json spin, fuse) */
+const SPIN = feelCfg.spin;
+const FUSE = feelCfg.fuse;
 
 const smooth = (a: number, b: number, x: number): number => {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
@@ -500,6 +503,10 @@ export class ViewModel {
   private racked = false;
   /** a fusion's scan: when it started, or -Infinity */
   private scanAt = -Infinity;
+  /** a fusion's flood: when it started */
+  private fuseAt = -Infinity;
+  private readonly spinQ = new THREE.Quaternion();
+  private readonly spinV = new THREE.Vector3();
   /** BOOG's recharge: how far through it last frame, for the ready flash's sound */
   private lastCharge = 2;
   private lastAdsFeel = 0;
@@ -619,6 +626,7 @@ export class ViewModel {
     if (this.model.root.userData.paid && this.model.root.userData.paidLevel !== (w.fusion ?? 0)) {
       if (this.feel && !fresh && (w.fusion ?? 0) > (this.model.root.userData.paidLevel as number)) {
         this.scanAt = this.t;
+        this.fuseAt = this.t;
         this.pulse = Math.max(this.pulse, 1);
         this.onFeel?.("scan", this.feel.scan.fusion);
       }
@@ -626,6 +634,26 @@ export class ViewModel {
     }
     // a signature gun's skin, new or a new level's, onto the phase
     if (this.feel) this.phaseGun(this.model);
+  }
+
+  /**
+   * The draw's spin (gunfeel.json spin): `k` 1 as the gun starts to come (or has all but gone), 0 whole in the hand.
+   * The gun alone turns, flat, about its own middle, out ahead of the hand and a little up; the hands stay.
+   */
+  private spinGun(m: GunModel, k: number): void {
+    if (k <= 0.001) {
+      m.root.position.set(0, 0, 0);
+      m.root.quaternion.identity();
+      return;
+    }
+    const e = k * k * (3 - 2 * k);
+    this.spinQ.setFromAxisAngle(this.spinV.set(0, 1, 0), e * Math.PI * 2 * SPIN.turns);
+    m.root.quaternion.copy(this.spinQ);
+    // about the gun's middle, not the grip: where the middle would go, put back
+    this.spinV.copy(this.gunCentre).applyQuaternion(this.spinQ);
+    m.root.position.copy(this.gunCentre).sub(this.spinV);
+    m.root.position.z -= SPIN.ahead * e;
+    m.root.position.y += SPIN.up * e;
   }
 
   /** a signature gun's feel, and the axes its sweeps run along, measured off the bought model in the hands */
@@ -796,6 +824,8 @@ export class ViewModel {
       m.opticF = own.f - this.optic.backF + (own.irons ? this.optic.info.relief - IRONS_EYE : own.dot ? this.optic.info.relief - DOT_EYE : 0);
     }
     this.optic.group.visible = !own;
+    // and its own reticle dots take the optic's colour: the pack's dot is white, and a red dot reads as one
+    if (own) tintDots(m.root, this.optic.info.color);
     this.optic.group.position.set(0, m.railY, -m.opticF);
   }
 
@@ -1107,7 +1137,11 @@ export class ViewModel {
       // coming whole it rises into the hands and unrolls
       p.y -= (1 - phase) * F.swap.rise;
       rz += (1 - phase) * F.swap.roll;
+      // a fusion floods it: the phase dips and comes back, the band sweeping it rebuilt
+      const fu = (this.t - this.fuseAt) / FUSE.seconds;
+      if (fu >= 0 && fu < 1) phase = Math.min(phase, 1 - (1 - FUSE.dip) * Math.sin(Math.PI * fu));
     }
+    this.spinGun(m, F ? 1 - phase : 0);
     const move = F ? F.swap.move : 1;
     // melee: a quick in-and-out envelope over the swing
     const mp = (this.t - this.meleeAt) / MELEE_TIME;

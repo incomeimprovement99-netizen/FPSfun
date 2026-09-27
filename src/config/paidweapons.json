@@ -35,7 +35,12 @@
         "A",
         "B",
         "C"
-      ]
+      ],
+      "mount": {
+        "from": "SciFiSMG01_2",
+        "part": "Scope",
+        "z": -0.012
+      }
     },
     "alternator_smg": {
       "model": "SciFiSMG01_2",
@@ -166,5 +171,6 @@
       "lid": "Cover",
       "open": -1.9
     }
-  }
+  },
+  "_mount": "A sight from another model of the pack mounted on a gun that has none but irons (a gun's mount: the model it comes from, the part, and where along this gun its middle goes, the model's z). The pack has no sight attachments of its own: its only sights are built into the rifle, the steady SMG and the launcher, and the steady SMG's reflex sight is a part of its own, so the USSO (irons only) wears it: the owner, 2026-09-27, \"does the guns come with like red dot sights? we want to use those\". It sits into this gun's top as far as it sits into its own gun's (both measured off the models as they load, paidgun.ts mountSight), and the gun is aimed down its dot."
 }

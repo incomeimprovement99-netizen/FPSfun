@@ -5021,3 +5021,28 @@ grey boxes, in every street picture.
   1,340k. The city's merged meshes went to 404 with the stand-ins' own materials (hidden, so not drawn); its limit is
   420.
 - **Checked:** verify and rules; pictures of two cars in the street.
+
+## Milestone 266 — A red dot on the USSO, and the draw as Hyper Scape's: a spin, dark cubes, an amber band
+
+The owner: "Does the guns come with like red dot sights? we want to use those if they are available". The pack has
+no sight attachments. Its sights are built into three guns (the rifle's scope, the steady SMG's reflex sight and the
+launcher's flip-up holo), and its only reticles are two textures: a white tactical dot and the launcher's holographic
+ladder.
+
+- **The USSO wears the pack's reflex sight** (`paidweapons.json` guns r97 mount, `paidgun.ts` mountSight). The steady
+  SMG's (ANAKIN's) reflex sight is a part of its own. It is lifted onto the USSO's top (it had irons alone) and sits
+  into it as far as it sits into its own gun, both tops measured off the models as they load. The USSO is aimed down
+  its dot, and its skin follows the fusion level.
+- **Red dots** (`paidgun.ts` tintDots). A bought gun's dots take its optic's colour: red on the SMGs, orange-red on the
+  rifles and NOVA. They were white.
+- **The draw, from the first Hyper Scape research pass** (`gunfeel.json` phase, spin, fuse):
+  - PC Gamer: "switching between weapons spins the gun ahead of you like a fractured boomerang, materialising your
+    secondary weapon before your eyes and returning it fully-formed back into your hand". A signature gun now turns
+    flat once about its middle, out ahead of the hand and a little up, as it phases in or out, and comes back into the
+    grip whole.
+  - The phase is Hyper Scape's colours: a glowing amber band, the hack cards' amber, with dark pixel cubes ahead of it,
+    lit at their rims. It was a cyan band with bright cubes.
+  - A fusion floods the gun (its phase dips and rebuilds over 0.55 s) with the scan, where it had the scan alone.
+- **Checked:** the e2e soldier section (the USSO in its mounted sight, aimed down a red dot; it failed with the mount
+  taken out); verify; rules; pictures of the owner's view hip and aimed on the USSO and ANAKIN, and through the swap
+  on both signature guns.

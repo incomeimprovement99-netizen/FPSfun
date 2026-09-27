@@ -21,6 +21,8 @@ export interface PhaseSweep {
   dir: { value: THREE.Vector3 };
   len: { value: number };
   color: { value: THREE.Color };
+  /** the dark cubes ahead of the sweep */
+  cube: { value: THREE.Color };
   /** the band's width and the edge's jag, as shares of the axis's length; the cell size, a share too */
   band: { value: number };
   jag: { value: number };
@@ -35,13 +37,14 @@ export interface PhaseSweep {
   scan: { value: number };
 }
 
-export function newSweep(o: { color: string; band: number; jag: number; cell: number; lines: number; ahead: number; scatter: number }): PhaseSweep {
+export function newSweep(o: { color: string; cube: string; band: number; jag: number; cell: number; lines: number; ahead: number; scatter: number }): PhaseSweep {
   return {
     phase: { value: 1 },
     origin: { value: new THREE.Vector3() },
     dir: { value: new THREE.Vector3(0, 0, -1) },
     len: { value: 1 },
     color: { value: new THREE.Color(o.color) },
+    cube: { value: new THREE.Color(o.cube) },
     band: { value: o.band },
     jag: { value: o.jag },
     cell: { value: o.cell },
@@ -65,6 +68,7 @@ uniform vec3 uPhaseOrigin;
 uniform vec3 uPhaseDir;
 uniform float uPhaseLen;
 uniform vec3 uPhaseColor;
+uniform vec3 uPhaseCube;
 uniform float uPhaseBand;
 uniform float uPhaseJag;
 uniform float uPhaseCell;
@@ -79,6 +83,7 @@ float phaseHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))
 // early in main: where this fragment is against the sweep, and whether it is drawn at all
 const FRAG_TEST = /* glsl */ `
 float phaseGlow = 0.0;
+float phaseEdge = 0.0;
 bool phaseHolo = false;
 if (uPhase < 0.0001) discard;
 if (uPhase < 0.9999 || uPhaseScan > -0.5) {
@@ -92,6 +97,11 @@ if (uPhase < 0.9999 || uPhaseScan > -0.5) {
     // (thin while the sweep has barely begun, so a gun that is nearly gone is not a cloud of cells)
     if (k <= 0.0 || phaseHash(cell + floor(uPhaseTime * 24.0)) > uPhaseScatter * k * min(1.0, uPhase * 6.0)) discard;
     phaseHolo = true;
+    // how near the cube is to its cell's edge: the band's light catches the cube's rim
+    vec3 inCell = fract(vPhasePos / (uPhaseCell * uPhaseLen));
+    vec3 rim = min(inCell, 1.0 - inCell);
+    phaseEdge = 1.0 - smoothstep(0.0, 0.18, min(rim.x, min(rim.y, rim.z)));
+    phaseEdge = max(phaseEdge, k);
   } else if (uPhase < 0.9999) {
     phaseGlow = 1.0 - smoothstep(0.0, uPhaseBand, edge);
   }
@@ -102,7 +112,8 @@ if (uPhase < 0.9999 || uPhaseScan > -0.5) {
 `;
 // last: the band's light over the lit colour, and the scatter as pure light
 const FRAG_TAIL = /* glsl */ `
-if (phaseHolo) gl_FragColor = vec4(uPhaseColor * 1.6, 1.0);
+// ahead of the band, the dark cubes the gun is being built from, lit at their edges by the band
+if (phaseHolo) gl_FragColor = vec4(uPhaseCube + uPhaseColor * 0.35 * phaseEdge, 1.0);
 else gl_FragColor.rgb += uPhaseColor * phaseGlow * 2.2;
 `;
 
@@ -123,6 +134,7 @@ export function phasedMaterial(src: THREE.Material, sweep: PhaseSweep): THREE.Ma
       uPhaseDir: sweep.dir,
       uPhaseLen: sweep.len,
       uPhaseColor: sweep.color,
+      uPhaseCube: sweep.cube,
       uPhaseBand: sweep.band,
       uPhaseJag: sweep.jag,
       uPhaseCell: sweep.cell,

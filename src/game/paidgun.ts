@@ -21,6 +21,8 @@ import type { GunModel, PaidParts } from "./gunmodels";
 interface Gun {
   model: string;
   skins: string[];
+  /** a sight from another model of the pack (paidweapons.json _mount) */
+  mount?: { from: string; part: string; z: number };
 }
 const GUNS = cfg.guns as Record<string, Gun>;
 /** every model of each gun's family, measured (tools/checks/paid-weapons.ts writes it) */
@@ -98,7 +100,7 @@ export function loadPaidGuns(): Promise<boolean> {
       const probe = await fetch(url(`${cfg.models}${first.model}.glb`), { method: "HEAD" });
       if (!probe.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) return false;
       const loader = new GLTFLoader();
-      const models = [...new Set([...Object.values(GUNS).map((g) => g.model), ...Object.values(PROPS).map((p) => p.model)])];
+      const models = [...new Set([...Object.values(GUNS).flatMap((g) => [g.model, ...(g.mount ? [g.mount.from] : [])]), ...Object.values(PROPS).map((p) => p.model)])];
       const got = await Promise.all(models.map((m) => loader.loadAsync(url(`${cfg.models}${m}.glb`)).then((g) => [m, g.scene] as const)));
       for (const [m, scene] of got) {
         // the collision hulls are never drawn
@@ -225,9 +227,12 @@ export function dressPaid(m: GunModel, level = 0): boolean {
     if (!mesh.isMesh) return;
     mesh.visible = true;
     const name = (mesh.material as THREE.Material).name;
-    mesh.material = /Dot/i.test(name) ? dotMaterial(name) : mat;
+    mesh.userData.dot = /Dot/i.test(name) ? name : undefined;
+    mesh.material = mesh.userData.dot ? dotMaterial(name) : mat;
     mesh.castShadow = true;
   });
+  // a sight from another model, on a gun with irons alone (paidweapons.json mount)
+  const mounted = g.mount ? mountSight(model, g.mount, skinFor(m.id, level)) : null;
   // the pack points down +Z (measured, muzzleEnd), the game's guns down -Z: a half turn about Y; its origin, at the
   // pack's grip, on the procedural grip (the hand's centre, forward f along -Z and up u)
   const place = new THREE.Group();
@@ -243,10 +248,11 @@ export function dressPaid(m: GunModel, level = 0): boolean {
   // The gun's own sights, which it is aimed down (paidmodels.json eye, measured): its scope's reticle dot, the sniper's
   // scope, or its irons. A fitted optic never goes on top of them (viewmodel fitOptic): ours on top stood over the
   // rifle's and the steady SMG's scopes, the launcher's sights and USSO's irons, and made two scopes of the sniper's
-  const eye = new THREE.Vector3(0, size.eye.y, size.eye.back).applyMatrix4(place.matrix);
+  const own = mounted ?? size.eye;
+  const eye = new THREE.Vector3(0, own.y, own.back).applyMatrix4(place.matrix);
   m.sightY = m.railY = eye.y;
   m.rearF = m.opticF = -eye.z;
-  m.root.userData.ownSight = { y: eye.y, f: -eye.z, irons: size.eye.sight === "irons", dot: size.eye.sight === "dot" };
+  m.root.userData.ownSight = { y: eye.y, f: -eye.z, irons: own.sight === "irons", dot: own.sight === "dot" };
   // the support hand under the bought gun, where paidweapons.json support holds it (measured, paidmodels.json), 22 mm
   // above the underside as the procedural hand sits over its handguard's: it was where the procedural handguard had
   // been, on the USSO over the top of the bought gun and, aimed, beside the rear sight by the eye
@@ -395,6 +401,93 @@ export function openLenses(m: GunModel): void {
   });
 }
 
+/** the parts that are not a gun's body: its moving parts and its sights */
+const NOT_BODY = /^(Clip|Trigger|Drum|Grenade|Scope|FrontSight|RearSight|SightImage|Button|Bullet|Cover|Extruder|Slide|Slider|Pump|Spinner)/;
+
+/** the top of a model's body within 3 cm along it of `z` and 2 cm of its centre line, in the model's own space */
+function bodyTop(model: THREE.Object3D, z: number): number {
+  model.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(model.matrixWorld).invert();
+  const to = new THREE.Matrix4();
+  const v = new THREE.Vector3();
+  let top = -Infinity;
+  model.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    for (let q: THREE.Object3D | null = mesh; q && q !== model; q = q.parent) if (NOT_BODY.test(q.name)) return;
+    to.multiplyMatrices(inv, mesh.matrixWorld);
+    const p = mesh.geometry.getAttribute("position");
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i).applyMatrix4(to);
+      if (Math.abs(v.x) < 0.02 && Math.abs(v.z - z) < 0.03) top = Math.max(top, v.y);
+    }
+  });
+  return top;
+}
+
+/**
+ * Another model's sight part on this gun (paidweapons.json mount): its middle at `z` along the gun, sat into the gun's
+ * top as far as it sits into its own gun's (both tops measured off the models), in its own model's skin at this gun's
+ * level (setPaidLevel keeps it there). Returns the sight line it gives the gun, a dot's middle behind the part's back,
+ * in the model's space; null when the other model is not in.
+ */
+function mountSight(model: THREE.Object3D, mount: { from: string; part: string; z: number }, skin: string): { y: number; back: number; sight: "dot" } | null {
+  const srcScene = scenes.get(mount.from);
+  const srcPart = srcScene?.getObjectByName(mount.part);
+  if (!srcScene || !srcPart) return null;
+  srcScene.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(srcPart, true);
+  const cz = (box.min.z + box.max.z) / 2;
+  // how far below its own gun's top the part reaches (its clamp), kept on this gun
+  const sink = bodyTop(srcScene, cz) - box.min.y;
+  const dy = bodyTop(model, mount.z) - sink - box.min.y;
+  const dz = mount.z - cz;
+  const part = srcPart.clone(true);
+  part.name = mount.part;
+  new THREE.Matrix4().makeTranslation(0, dy, dz).multiply(srcPart.matrixWorld).decompose(part.position, part.quaternion, part.scale);
+  const family = mount.from.replace(/_\d+$/, "");
+  let dot: THREE.Mesh | null = null;
+  part.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const name = (mesh.material as THREE.Material).name;
+    mesh.visible = true;
+    mesh.castShadow = true;
+    if (/Dot/i.test(name)) {
+      mesh.userData.dot = name;
+      mesh.material = dotMaterial(name);
+      dot = mesh;
+    } else {
+      mesh.userData.mountFamily = family;
+      mesh.material = skinMaterial(family, skin, tl);
+    }
+  });
+  model.add(part);
+  model.updateMatrixWorld(true);
+  const partBox = new THREE.Box3().setFromObject(part, true).applyMatrix4(new THREE.Matrix4().copy(model.matrixWorld).invert());
+  const dotBox = dot ? boxIn(model, dot) : partBox;
+  return { y: (dotBox.min.y + dotBox.max.y) / 2, back: partBox.min.z, sight: "dot" };
+}
+
+const tintedDots = new Map<string, THREE.MeshBasicMaterial>();
+
+/** a bought gun's reticle dots in a colour (viewmodel fitOptic: the fitted optic's), so the pack's white dot is a red dot */
+export function tintDots(root: THREE.Object3D, color: string): void {
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    const name = mesh.isMesh ? (mesh.userData.dot as string | undefined) : undefined;
+    if (!name) return;
+    const key = `${name}|${color}`;
+    let mat = tintedDots.get(key);
+    if (!mat) {
+      mat = dotMaterial(name).clone();
+      mat.color.set(color).multiplyScalar(1.4);
+      tintedDots.set(key, mat);
+    }
+    mesh.material = mat;
+  });
+}
+
 /**
  * A bought gun's fusion level shown on it: its skin (as found, levels 2 to 3, levels 4 to 5, in the order
  * paidweapons.json gives each gun) and its glow, which brightens a step each level, so a fused gun is visibly the
@@ -416,8 +509,13 @@ export function setPaidLevel(m: GunModel, level: number): void {
   }
   m.root.traverse((o) => {
     const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh || !mesh.visible || /Dot/i.test((mesh.material as THREE.Material).name)) return;
+    if (!mesh.isMesh || !mesh.visible || mesh.userData.dot || /Dot/i.test((mesh.material as THREE.Material).name)) return;
     if (mesh.userData.procedural) return;
+    // a sight from another model (mountSight) wears that model's skin at this level
+    if (mesh.userData.mountFamily) {
+      mesh.material = skinMaterial(mesh.userData.mountFamily as string, skin, tl);
+      return;
+    }
     if ((mesh.material as THREE.Material).name.startsWith(family)) mesh.material = mat;
   });
   m.root.userData.paidLevel = level;

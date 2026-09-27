@@ -103,9 +103,12 @@ Game) or `?game=legacy`, and everything below this section describes it.
   triggers, NOVA's drum a chamber a shot, the sniper's wheels, the heavy
   shotgun's loading gate, the magazine releases. Every gun is aimed down its
   own sights (its scope's dot, the sniper's scope, or its irons), with no sight
-  of ours on top; the gun's optic lends only its zoom. The USSO and BOOG have
-  their own feel in the hands: they phase in and out of them on a swap, a
-  cyan sweep with a digital edge, kick on their own spring (the USSO tight and
+  of ours on top; the gun's optic lends its zoom and its reticle's colour, so
+  the pack's white dots are red dots. The USSO, irons only in the pack, wears
+  the steady SMG's reflex sight, lifted off that model. The USSO and BOOG have
+  their own feel in the hands: on a swap they spin in ahead of the hand and
+  build out of dark pixel cubes behind a sweeping amber band, as Hyper Scape's
+  did, kick on their own spring (the USSO tight and
   buzzing, BOOG a heavy punch and a recharge you can see), and a reload phases
   the magazine out and a new one in. Their shots throw light, not brass (glowing
   cells, and BOOG a shockwave off the muzzle), BOOG's scope powers on with a scan
