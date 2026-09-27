@@ -162,6 +162,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
   picks the texture size and how much is drawn (Competitive the lightest modules
   at half size; High adds pipes, cornices and street props). A copy without the
   files, and Pages, shows the city of before.
+- **Steam and neon:** from Balanced up, steam drifts out of the metro's
+  stairwells, the street drains and the roof plant, and a few signs flicker
+  (never more than three flashes a second). Light only: it never hides anyone.
 - **Ten guns**, five named for the owner's friends; BOOG, the sniper, kills
   with one headshot. Ammo is infinite; the magazine is not.
 - **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to

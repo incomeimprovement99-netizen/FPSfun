@@ -105,6 +105,10 @@ export const FIRE_ESCAPES: Array<{
   roof: number;
   box: { minX: number; maxX: number; minZ: number; maxZ: number };
 }> = [];
+/** where steam rises in the centre (city.json steam; steam.ts draws it), world metres: the metro's stairwells, drains at the kerbs, roof plant */
+export const STEAM_SOURCES: Array<{ x: number; y: number; z: number; kind: "metro" | "drain" | "vent" }> = [];
+/** the centre's flickering signs (city.json flicker; steam.ts dims them): each in a material of its own, its steady light, and a seed */
+export const FLICKER_SIGNS: Array<{ material: THREE.MeshStandardMaterial; base: number; seed: number }> = [];
 /** the Spire's drop (city.json spire drop), world metres: the shaft, its top and foot, and the doors out of it */
 /**
  * The Spire's crown deck, world metres: its middle, its roof and its size, and how high the mast on it reaches (city.json
@@ -281,6 +285,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       return { sd, top, foot, across, box: sd.alongX ? { x0: a0, x1: a1, z0: c0, z1: c1 } : { x0: c0, x1: c1, z0: a0, z1: a1 } };
     }),
   );
+  // cleared here, where it is filled: the sites' reset further down once emptied it after, so every rule that keeps
+  // the kit off a stairwell checked nothing (Phase 22.2 found it)
+  KIT_SITES.openings.length = 0;
   KIT_SITES.openings.push(...mStairs.map((s) => s.box));
   /** a footprint (local) over a stairwell's opening, a margin round it */
   const overStairwell = (x0: number, x1: number, z0: number, z1: number): boolean => mStairs.some(({ box: o }) => x1 > o.x0 - 0.5 && x0 < o.x1 + 0.5 && z1 > o.z0 - 0.5 && z0 < o.z1 + 0.5);
@@ -313,8 +320,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   const podia = new Map<string, { x0: number; x1: number; z0: number; z1: number; top: number }>();
   CONCOURSE.stairs.length = 0;
   STAIR_CORES.length = 0;
-  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.openings.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = KIT_SITES.doors.length = KIT_SITES.machinery.length = KIT_SITES.escapes.length = 0;
+  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = KIT_SITES.doors.length = KIT_SITES.machinery.length = KIT_SITES.escapes.length = 0;
   FIRE_ESCAPES.length = 0;
+  STEAM_SOURCES.length = FLICKER_SIGNS.length = 0;
   /** the public stairs' footprints (local): a bridge landing across one blocked it (the concourse check found it) */
   const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
   CONCOURSE.bridges.length = 0;
@@ -1805,6 +1813,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       return m;
     };
     const plane = new THREE.PlaneGeometry(C.sign.w, C.sign.h);
+    const centreSigns: THREE.Mesh[] = [];
     for (const t of towers) {
       if (t.storeys < C.sign.minStoreys) continue;
       const sec = SECTORS.find((s) => s.id === t.sector)!;
@@ -1821,7 +1830,16 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         else m.position.set(t.x + t.w / 2 + out, y, t.z);
         m.rotation.y = side === 0 ? Math.PI : side === 1 ? 0 : side === 2 ? -Math.PI / 2 : Math.PI / 2;
         root.add(m);
+        if (Math.abs(t.x) <= kitCfg.dress.centre && Math.abs(t.z) <= kitCfg.dress.centre) centreSigns.push(m);
       }
+    }
+    // a few of the centre's flicker (city.json flicker), chosen from a stream of their own so the city's draws the
+    // same numbers; each gets its own material, since a brand's is shared by every sign of it
+    const pick = seeded(C.seed ^ 0xf11c);
+    for (const { m } of centreSigns.map((m) => ({ m, o: pick() })).sort((a, b) => a.o - b.o).slice(0, C.flicker.signs)) {
+      const mat = (m.material as THREE.MeshStandardMaterial).clone();
+      m.material = mat;
+      FLICKER_SIGNS.push({ material: mat, base: mat.emissiveIntensity, seed: Math.round(m.position.x * 97 + m.position.z * 13 + m.position.y) });
     }
   }
 
@@ -2668,6 +2686,46 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         }
       }
     }
+  }
+
+  // ---------------------------------------------------------------- steam (city.json steam): where it rises
+  // Last, once the pads, the metro's stairwells, the parked cars and the fire escapes are where they are; from a stream
+  // of its own, so the city's draws the same numbers with it
+  {
+    const Sm = C.steam;
+    const r = seeded(C.seed ^ 0x57ea);
+    const half = kitCfg.dress.centre;
+    const inCentre = (x: number, z: number) => Math.abs(x) <= half && Math.abs(z) <= half;
+    const clearAt = (x: number, z: number) =>
+      !pads.some((p) => Math.hypot(p.x - BR_X - x, p.z - BR_Z - z) < Sm.clear) &&
+      !KIT_SITES.escapes.some((e) => x > e.x0 - 1 && x < e.x1 + 1 && z > e.z0 - 1 && z < e.z1 + 1) &&
+      !KIT_SITES.cars.some((c) => Math.hypot(c.x - x, c.z - z) < Sm.clear);
+    // up out of the metro's stairwells
+    for (const o of KIT_SITES.openings) {
+      const x = (o.x0 + o.x1) / 2;
+      const z = (o.z0 + o.z1) / 2;
+      if (inCentre(x, z) && clearAt(x, z)) STEAM_SOURCES.push({ x: x + BR_X, y: 0, z: z + BR_Z, kind: "metro" });
+    }
+    // drains at the kerbs down the centre's streets, off the crossings (a street's half width and two metres)
+    const lines = STREETS.filter((s) => Math.abs(s) < half);
+    const crossing = (BLOCKS[1][0] - BLOCKS[0][1]) / 2 + 2;
+    for (const s of lines)
+      for (const alongX of [true, false])
+        for (let a = -half + crossing; a < half - crossing; a += Sm.drainEvery) {
+          const side = r() < 0.5 ? -1 : 1;
+          const hit = r() < Sm.drainChance;
+          if (!hit || lines.some((q) => Math.abs(q - a) < crossing)) continue;
+          const [x, z] = alongX ? [a, s + side * Sm.drainOut] : [s + side * Sm.drainOut, a];
+          if (!clearAt(x, z) || KIT_SITES.openings.some((o) => x > o.x0 - 2 && x < o.x1 + 2 && z > o.z0 - 2 && z < o.z1 + 2)) continue;
+          STEAM_SOURCES.push({ x: x + BR_X, y: 0.05, z: z + BR_Z, kind: "drain" });
+        }
+    // off the plant on some of the centre's roofs
+    for (const t of KIT_SITES.towers) {
+      if (!inCentre(t.x, t.z) || !t.clutter.length || r() >= Sm.ventChance) continue;
+      const c = t.clutter[0];
+      STEAM_SOURCES.push({ x: c.x + BR_X, y: c.y + c.h, z: c.z + BR_Z, kind: "vent" });
+    }
+    STEAM_SOURCES.length = Math.min(STEAM_SOURCES.length, Math.floor(Sm.cap / Sm.perSource));
   }
 
   // ---------------------------------------------------------------- the decay's hold on the city

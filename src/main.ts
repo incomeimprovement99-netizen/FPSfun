@@ -117,6 +117,7 @@ import soldierCfg from "./config/soldier.json";
 import { dressKit } from "./game/kitdress";
 import { cityKitPlaces } from "./game/citydress";
 import { CITY_KIT, dressCityKit, tickCityKit } from "./game/citykit";
+import { buildAtmosphere, tickAtmosphere } from "./game/steam";
 import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
@@ -944,6 +945,9 @@ if (IS_SK && !new URLSearchParams(location.search).has("nocitykit"))
   void dressCityKit(brMap.root, cityKitPlaces(brMap.pads, quality.cityDetail === 0), quality).then((n) => {
     if (n) renderer.shadowMap.needsUpdate = true;
   });
+// The centre's steam and flickering signs (steam.ts, city.json steam and flicker): looks only, from Balanced up, and
+// with or without the bought files, since both are the city's own
+if (IS_SK) buildAtmosphere(scene, quality.cityDetail >= 1);
 
 // Static dummies down the lanes, plus one on each moving rail. Distances are
 // true because the player spawns on the firing line at z = 0.
@@ -3911,6 +3915,7 @@ function edgeNear(): number {
 function stepDecay(now: number): void {
   if (!IS_SK) return;
   tickCityKit(now);
+  tickAtmosphere(now, camera);
   cityEdge(now, edgeNear());
   const d = duel instanceof BrMatch && duel.decay ? duel : null;
   const states = d ? d.sectorStates() : null;

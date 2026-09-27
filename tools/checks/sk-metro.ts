@@ -19,7 +19,7 @@ if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS:
 const warn = console.warn;
 console.warn = () => undefined;
 const { GAME } = await import("../../src/game/game");
-const { buildCityMap, METRO } = await import("../../src/game/city");
+const { buildCityMap, METRO, KIT_SITES } = await import("../../src/game/city");
 const { Player } = await import("../../src/game/player");
 const { floorAt } = await import("../../src/game/floors");
 const { BR_X, BR_Z } = await import("../../src/game/br");
@@ -78,6 +78,8 @@ function walk(from: { x: number; z: number }, y: number, to: { x: number; z: num
 console.log(`\nThe metro under the centre (game: ${GAME})`);
 check("this runs with SpeedKills' movement", GAME === "speedkills");
 check("the loop has its four sides and its stairs, two to a side", METRO.sides.length === 4 && METRO.stairs.length === 8, `${METRO.sides.length} sides, ${METRO.stairs.length} stairs`);
+// the kit keeps off every stairwell by this list: once emptied after it was filled, so every such rule checked nothing
+check("the kit knows every stairwell, to keep its pieces off them (KIT_SITES openings)", KIT_SITES.openings.length === METRO.stairs.length, `${KIT_SITES.openings.length} of ${METRO.stairs.length}`);
 const mids = METRO.sides.map((s) => ({ x: (s.minX + s.maxX) / 2, z: (s.minZ + s.maxZ) / 2 }));
 check(
   "the world's floor is the metro's under every side, and the street's just outside it",

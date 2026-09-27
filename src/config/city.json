@@ -577,5 +577,47 @@
     "minStoreys": 5,
     "perTower": 1
   },
-  "_fireEscape": "Fire escapes up the street faces of High City's and Kyber's towers (the families in citykit.json dress families), after the plan (docs/PHASE_21_PLAN_THE_VERTICAL_CENTRE.md: ladders you can fight on; docs/CITY_BUNDLE_IMPLEMENTATION.md rule 7). Their shape is the bought pieces' (citykit.json dress escapes, measured). From the promenade a drop ladder climbs to the first landing, a storey up, which you walk under; a flight of `treads` steps (each 0.5 m, under the 0.56 m a body steps up, and `tread` thick) climbs from each landing to the next, in the outer lane, through a hole in the landing over it, and the inner strip, `gap` short of the stair, is the way back to the next flight's foot; from the top landing, a storey under the roof, you climb the wall to the roof. A rail `rail` high and `railThick` thick round each landing, open over the ladder. Each stands `corner` metres from its face's corner, on a face with no canyon in front, the promenade under it, nothing solid in its way, no pad within clear.pad metres, no window of an open storey within clear.window and no door within clear.door; one a tower at most (`perTower`), on towers of `minStoreys` and more. Drawn in the city's boxes, which the kit hides once it dresses them."
+  "_fireEscape": "Fire escapes up the street faces of High City's and Kyber's towers (the families in citykit.json dress families), after the plan (docs/PHASE_21_PLAN_THE_VERTICAL_CENTRE.md: ladders you can fight on; docs/CITY_BUNDLE_IMPLEMENTATION.md rule 7). Their shape is the bought pieces' (citykit.json dress escapes, measured). From the promenade a drop ladder climbs to the first landing, a storey up, which you walk under; a flight of `treads` steps (each 0.5 m, under the 0.56 m a body steps up, and `tread` thick) climbs from each landing to the next, in the outer lane, through a hole in the landing over it, and the inner strip, `gap` short of the stair, is the way back to the next flight's foot; from the top landing, a storey under the roof, you climb the wall to the roof. A rail `rail` high and `railThick` thick round each landing, open over the ladder. Each stands `corner` metres from its face's corner, on a face with no canyon in front, the promenade under it, nothing solid in its way, no pad within clear.pad metres, no window of an open storey within clear.window and no door within clear.door; one a tower at most (`perTower`), on towers of `minStoreys` and more. Drawn in the city's boxes, which the kit hides once it dresses them.",
+  "steam": {
+    "perSource": 10,
+    "life": 4.5,
+    "rise": 5.0,
+    "size": [
+      1.4,
+      3.6
+    ],
+    "peak": 0.3,
+    "wind": [
+      0.35,
+      0.15
+    ],
+    "wobble": 0.45,
+    "color": "#d8e0ec",
+    "drainEvery": 12,
+    "drainChance": 0.35,
+    "drainOut": 5.2,
+    "ventChance": 0.4,
+    "clear": 3,
+    "cap": 1200
+  },
+  "_steam": "Steam over the centre (steam.ts; Phase 22.2), looks only: warm air up out of the metro's stairwells, off drains at the kerbs (every `drainEvery` metres down each street, at `drainChance`, `drainOut` metres from its middle) and off the plant on some roofs (`ventChance` of the centre's towers, their first roof box). Each source is `perSource` puffs of soft light, each living `life` seconds as it rises `rise` metres, grows from size[0] to size[1] across, and drifts on the `wind` (m/s, x and z) with a `wobble`; brightest at `peak` of `color` halfway up. Added light, never paint, so it can brighten a view but never hide a body in it. Nowhere within `clear` metres of a pad, and never more than `cap` puffs. From Balanced up; Competitive has none, where seeing is the game.",
+  "flicker": {
+    "signs": 6,
+    "window": 8,
+    "chance": 0.7,
+    "burst": [
+      1,
+      3
+    ],
+    "spacing": 0.36,
+    "dipLength": [
+      0.06,
+      0.12
+    ],
+    "dip": [
+      0.12,
+      0.35
+    ]
+  },
+  "_flicker": "A few of the centre's lit signs flicker (steam.ts cityFlicker; Phase 22.2): `signs` of the holo signs on its towers, chosen by where they stand, each in a material of its own. Time runs in windows of `window` seconds; in each, at `chance`, a burst of burst[0] to burst[1] dips, `spacing` seconds apart, each dipLength[0] to dipLength[1] long, down to dip[0] to dip[1] of the sign's light. Dips are never closer than `spacing`, so no sign flashes more than three times a second (the photosensitive line, WCAG 2.3.1), and a burst ends at least that long before the next window's. From Balanced up."
 }

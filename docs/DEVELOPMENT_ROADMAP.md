@@ -5387,3 +5387,26 @@ The plan's fire escapes (docs/PHASE_21_PLAN_THE_VERTICAL_CENTRE.md, "ladders you
   walked with no climb or jump (1,152 waypoints) and the wall to the roof, 18 of 18; each clear of pads, doors and
   windows. Proven by cutting the landings' holes 0.6 m short: every flight then needed a climb. `citykit.ts`,
   `city-budget.ts`, `city-levels.ts`; pictures from the street, a landing and a flight on Balanced and Competitive.
+
+## Milestone 282 — Steam and flickering signs; the kit told where the metro's stairwells are
+
+Phase 22's item 22.2 (`docs/PHASE_22_PLAN_FINISHING_THE_CENTRE.md`): the centre's atmosphere, and a fault it found.
+
+- **Steam** (`city.json` steam; `steam.ts`). Soft puffs rising out of the metro's eight stairwells, off 17 drains at
+  the kerbs and off the plant on seven roofs: 32 sources, 320 puffs, 640 triangles in one instanced draw, moved each
+  frame and turned to the camera. Added light, never paint, so it brightens a view but cannot hide a body in it. Kept
+  3 m from every pad's column, fire escape and parked car. From Balanced up; Competitive has none. The first tuning
+  was invisible (0.16 of added light, under the fog and the tone mapping); it is 0.3, puffs 1.4 to 3.6 m across.
+- **Flickering signs** (`city.json` flicker). Six of the centre's holo signs, chosen by where they stand, each in a
+  material of its own (a brand's is shared by every sign of it): now and then a burst of one to three brief dips.
+  Dips are never closer than 0.36 s, so no sign flashes more than three times in a second (WCAG 2.3.1). From
+  Balanced up. Both are the city's own, so they show on a copy without the bought files too.
+- **A fault since Milestone 258, fixed.** The metro's stairwells were recorded for the kit (`KIT_SITES.openings`) and
+  then emptied by the sites' reset further down the build, so every rule keeping the kit off a stairwell checked
+  nothing: Neon Alley's bins and lamps, the metro's posters behind the stairs, Milestone 276's road markings. Cleared
+  where it is filled now; `sk-metro.ts` checks the kit knows all eight (0 of 8 with the fault put back). Balanced
+  draws 7k fewer triangles: pieces that stood over the stairwells.
+- **Checked:** a new check, `sk-atmosphere.ts`: the three kinds of source, the cap, every source in the open and
+  clear, a puff's rise and fade, six flickering signs in their own materials, and ten minutes of every sign's light
+  sampled at 2 ms: at most three dips in any second, each to its range (proven: dips 0.2 s apart make four). Verify,
+  rules; pictures of a stairwell, a drain and a street on Balanced and Competitive.
