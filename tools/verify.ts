@@ -96,6 +96,7 @@ import { opticZoom } from "../src/game/sens";
 import { PAD_DEFAULTS, advancedLookRate, padCurve, padDeadzone } from "../src/game/gamepad";
 import { withoutClashes } from "../src/ui/binds";
 import { withoutUndefined } from "../src/net/link";
+import { FramePhases } from "../src/game/framephase";
 import modesCfg from "../src/config/modes.json";
 import { Control, Crown, GunLadder, MODES as MODES_CFG, TeamScore, gunList, isModeKind, killLeader, pickSpawn, teamMode, yawToMiddle } from "../src/game/modes";
 /** every gun the game has but the course's own pistol */
@@ -1830,6 +1831,42 @@ fails += movesimFails;
     process.stdout.write(r.stdout ?? "");
     if (r.status !== 0) fails++;
   }
+}
+
+console.log("");
+console.log("Frame phases");
+{
+  // the game loop's phase timer (src/game/framephase.ts, Phase 20 A18): off it keeps nothing, and on, a frame over
+  // the line keeps its breakdown with the phase that took the time, which is what names a hitch's cause
+  const spin = (ms: number) => {
+    const t = performance.now();
+    while (performance.now() - t < ms) {
+      // a phase's work
+    }
+  };
+  const ph = new FramePhases();
+  ph.start();
+  ph.lap("a");
+  spin(60);
+  ph.lap("b");
+  ph.end(1);
+  eq("frame phases: off, a slow frame keeps nothing", ph.hitches.length, 0);
+  ph.on = true;
+  ph.start();
+  spin(2);
+  ph.lap("quick");
+  spin(60);
+  ph.lap("slow");
+  ph.end(2);
+  ph.start();
+  spin(1);
+  ph.lap("quick");
+  ph.lap("slow");
+  ph.end(3);
+  const h = ph.hitches[0];
+  eq("frame phases: on, the one frame over 50 ms is kept", ph.hitches.length, 1);
+  eq("and the phase that took it is named", !!h && h.phases.slow > 55 && h.phases.quick < 20, true);
+  eq("and each phase's mean is over both frames", !!h && Math.abs(ph.means().slow - h.phases.slow / 2) < 0.05, true);
 }
 
 console.log("");

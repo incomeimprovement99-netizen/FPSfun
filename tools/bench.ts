@@ -38,6 +38,16 @@
 // a comparison against something the build no longer does (the old fixed far
 // plane, say).
 //
+// BENCH_RUNS=n repeats every preset n times, taking them in turn round by round (interleaved), and ends with each
+// preset's median over its runs and the spread: a single run swings by about 25% when the machine is doing
+// anything else (the owner's own use of it included), so one number is not a measurement.
+//
+// Pacing (docs/PHASE_20_PLAN.md A18): every run counts its hitches, frames over 50 ms, and its worst frame.
+// BENCH_PHASES=1 turns on the game's phase timer (src/game/framephase.ts, ?perf) and names the phase each hitch
+// was in, or "outside the loop" when the loop's own time was short (the GPU, a garbage collection, the browser).
+// "skrun" is the spot for it: the match, with the camera running a street toward the Spire at a sprint (14 m/s),
+// since hitches come with moving, not with standing.
+//
 // Run: npm run bench        (needs `npm run dev` already running)
 import puppeteer from "puppeteer";
 
@@ -47,6 +57,10 @@ const PRESETS = (process.env.BENCH_PRESETS ?? "competitive,balanced,high").split
 const SECONDS = Number(process.env.BENCH_SECONDS ?? 4);
 const MERGE = process.env.BENCH_MERGE === "both" ? [true, false] : [true];
 const SPOT = process.env.BENCH_SPOT ?? "range";
+const RUNS = Math.max(1, Number(process.env.BENCH_RUNS ?? 1));
+const PHASES = process.env.BENCH_PHASES === "1";
+/** the hitch line, ms: the plan's */
+const HITCH = 50;
 const GAME = SPOT.startsWith("sk") ? "speedkills" : "legacy";
 /** a SpeedKills match on seed 42, dropped on the Spire, fighting held, then the camera put at (x, y, z, yaw, pitch) and kept there */
 const skMatch = (x: number, y: number, z: number, yaw: number, pitch: number) => `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "c" }); r.input.lock();
@@ -55,6 +69,13 @@ const skMatch = (x: number, y: number, z: number, yaw: number, pitch: number) =>
     const hold = () => r.player.teleport(${x}, ${y}, ${z}, ${yaw}, ${pitch});
     hold();
     setInterval(hold, 50); })()`;
+/** the match on seed 42, and the camera carried along -z from (x, y, z0) at `speed` m/s, placed every frame */
+const skRun = (x: number, y: number, z0: number, speed: number) => `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "c" }); r.input.lock();
+    for (let i = 0; i < 400 && r.duel()?.phase !== "fight"; i++) await new Promise((ok) => setTimeout(ok, 100));
+    const d = r.duel(); if (d) d.holdFire = true;
+    const t0 = performance.now();
+    const hold = () => { r.player.teleport(${x}, ${y}, ${z0} - ((performance.now() - t0) / 1000) * ${speed}, 0, 0); requestAnimationFrame(hold); };
+    hold(); })()`;
 /** where each spot puts the camera: x, y, z, yaw, pitch (the BR map's world coordinates) */
 const SPOTS: Record<string, string> = {
   range: "",
@@ -78,6 +99,8 @@ const SPOTS: Record<string, string> = {
     r.player.teleport(0, 0, 530, 0, -2); })()`,
   skmatch: skMatch(0, 0.3, 590, 0, 12),
   skroof: skMatch(0, 100, 500, 30, -18),
+  // down the street at map x 36 (city.json blocks), from the north edge toward the Spire at a sprint, eye height
+  skrun: skRun(36, 1.7, 740, 14),
 };
 /** spots that need the page told something before it loads: a straight drop, and none of the real mouse */
 const STRAIGHT_DROP = `window.__straightDrop = true; for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
@@ -85,6 +108,21 @@ const BEFORE: Record<string, string> = {
   skmatch: STRAIGHT_DROP,
   skroof: STRAIGHT_DROP,
   brmatch: `window.__straightDrop = true; for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`,
+};
+
+type Run = {
+  gpu: string;
+  frames: number;
+  med: number;
+  p95: number;
+  p99: number;
+  hitches: number;
+  worst: number;
+  calls: number;
+  tris: number;
+  bots: number;
+  merged: { meshes: number; after: number } | null;
+  perf: { means: Record<string, number>; hitches: Array<{ ms: number; phases: Record<string, number> }> } | null;
 };
 
 async function main(): Promise<void> {
@@ -101,73 +139,113 @@ async function main(): Promise<void> {
       "--no-sandbox",
     ],
   });
+  const combos = PRESETS.flatMap((preset) => MERGE.map((merge) => ({ preset, merge })));
+  const label = (c: { preset: string; merge: boolean }) => `${c.preset}${MERGE.length > 1 ? (c.merge ? " merged" : " unmerged") : ""}${SPOT !== "range" ? ` @${SPOT}` : ""}`;
+  const results = new Map<string, Run[]>();
   try {
-    for (const preset of PRESETS) {
-      for (const merge of MERGE) {
-        const page = await browser.newPage();
-        await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
-        await page.evaluateOnNewDocument((v: string) => localStorage.setItem("range.quality", v), preset);
-        // one hour for every run (a battle royale draws its own from the seed otherwise)
-        await page.evaluateOnNewDocument(() => localStorage.setItem("range.sky.br", "mine"));
-        if (BEFORE[SPOT]) await page.evaluateOnNewDocument(BEFORE[SPOT]);
-        await page.goto(PAGE_URL + (merge ? "?nointro" : "?nomerge&nointro") + `&game=${GAME}` + (process.env.BENCH_QUERY ?? ""), { waitUntil: "domcontentloaded", timeout: 60000 });
-        await page.waitForFunction("Boolean(window.__range)", { timeout: 60000 });
-        await page.waitForFunction("window.__range.loaded()", { timeout: 60000 });
-        await page.evaluate(`document.getElementById("overlay").classList.add("hidden")`);
-        if (SPOTS[SPOT]) await page.evaluate(SPOTS[SPOT]);
-        // anything else this measurement wants said to the page, for a
-        // comparison the build itself does not offer (BENCH_EVAL)
-        if (process.env.BENCH_EVAL) await page.evaluate(process.env.BENCH_EVAL);
-        // settle: textures, props, first shadow render, shader compiles
-        await new Promise((r) => setTimeout(r, 3000));
-        // Sent as a string: tsx wraps named functions in a __name helper that
-        // does not exist inside the page.
-        const out = (await page.evaluate(`(async () => {
-          const gl = document.createElement("canvas").getContext("webgl2");
-          const dbg = gl && gl.getExtension("WEBGL_debug_renderer_info");
-          const gpu = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : "unknown";
-          const times = [];
-          let calls = 0, tris = 0, n = 0;
-          await new Promise((done) => {
-            let prev = 0;
-            const end = performance.now() + ${SECONDS} * 1000;
-            function tick(t) {
-              if (prev) times.push(t - prev);
-              prev = t;
-              const c = window.__range.frameCost();
-              calls += c.calls; tris += c.triangles; n++;
-              if (t < end) requestAnimationFrame(tick); else done();
-            }
-            requestAnimationFrame(tick);
-          });
-          times.sort((a, b) => a - b);
-          const r = window.__range;
-          return {
-            gpu,
-            frames: times.length,
-            med: times[Math.floor(times.length / 2)],
-            p95: times[Math.floor(times.length * 0.95)],
-            p99: times[Math.floor(times.length * 0.99)],
-            calls: Math.round(calls / Math.max(1, n)),
-            tris: Math.round(tris / Math.max(1, n)),
-            bots: r.duel()?.bots?.length ?? 0,
-            merged: r.merged,
-          };
-        })()`)) as { gpu: string; frames: number; med: number; p95: number; p99: number; calls: number; tris: number; bots: number; merged: { meshes: number; after: number } | null };
-        const label = `${preset}${MERGE.length > 1 ? (merge ? " merged" : " unmerged") : ""}${SPOT !== "range" ? ` @${SPOT}` : ""}`;
+    // round by round, every preset in turn: a change in the machine's load lands on all of them, not on one
+    for (let round = 0; round < RUNS; round++) {
+      for (const c of combos) {
+        const out = await measure(browser, c.preset, c.merge);
+        const l = label(c);
+        results.set(l, [...(results.get(l) ?? []), out]);
         console.log(
-          `${label.padEnd(22)} ${(1000 / out.med).toFixed(0).padStart(5)} fps median   ` +
-            `${out.med.toFixed(2)} ms   p95 ${out.p95.toFixed(2)}   p99 ${out.p99.toFixed(2)} ms   ${String(out.calls).padStart(5)} draw calls   ${(out.tris / 1000).toFixed(0).padStart(5)}k triangles` +
+          `${(RUNS > 1 ? `${l} #${round + 1}` : l).padEnd(26)} ${(1000 / out.med).toFixed(0).padStart(5)} fps median   ` +
+            `${out.med.toFixed(2)} ms   p95 ${out.p95.toFixed(2)}   p99 ${out.p99.toFixed(2)} ms   ${out.hitches} over ${HITCH} ms (worst ${out.worst.toFixed(0)})   ` +
+            `${String(out.calls).padStart(5)} draw calls   ${(out.tris / 1000).toFixed(0).padStart(5)}k triangles` +
             (SPOT === "brmatch" || GAME === "speedkills" ? `   ${out.bots} bots` : "") +
             (out.merged ? `   (static meshes ${out.merged.meshes} -> ${out.merged.after})` : "") +
             `   GPU: ${out.gpu}`
         );
-        await page.close();
+        if (out.perf) {
+          console.log(`    loop, ms a frame: ${Object.entries(out.perf.means).map(([n, v]) => `${n} ${v.toFixed(2)}`).join(", ")}`);
+          // each hitch in the loop by the phase that took most of it; the rest of the frames over the line were outside it
+          const by = new Map<string, number>();
+          for (const h of out.perf.hitches) {
+            const top = Object.entries(h.phases).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "?";
+            by.set(top, (by.get(top) ?? 0) + 1);
+          }
+          const outside = Math.max(0, out.hitches - out.perf.hitches.length);
+          if (out.hitches || out.perf.hitches.length) console.log(`    hitches: ${[...by].map(([n, k]) => `${n} ${k}`).join(", ") || "none in the loop"}${outside ? `, outside the loop ${outside}` : ""}`);
+        }
+      }
+    }
+    if (RUNS > 1) {
+      console.log(`\nmedian of ${RUNS} runs each, taken in turn (the spread is the lowest and highest run):`);
+      const mid = (xs: number[]) => xs[Math.floor(xs.length / 2)];
+      for (const [l, rs] of results) {
+        const fps = rs.map((r) => 1000 / r.med).sort((a, b) => a - b);
+        const p99 = rs.map((r) => r.p99).sort((a, b) => a - b);
+        console.log(`${l.padEnd(26)} ${mid(fps).toFixed(0).padStart(5)} fps (${fps[0].toFixed(0)} to ${fps[fps.length - 1].toFixed(0)})   p99 ${mid(p99).toFixed(2)} ms   hitches ${rs.map((r) => r.hitches).join(", ")}`);
       }
     }
   } finally {
     await browser.close();
   }
+}
+
+/** one run of one preset: a fresh page, the spot, a settle, then SECONDS of frames */
+async function measure(browser: import("puppeteer").Browser, preset: string, merge: boolean): Promise<Run> {
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
+  await page.evaluateOnNewDocument((v: string) => localStorage.setItem("range.quality", v), preset);
+  // one hour for every run (a battle royale draws its own from the seed otherwise)
+  await page.evaluateOnNewDocument(() => localStorage.setItem("range.sky.br", "mine"));
+  if (BEFORE[SPOT]) await page.evaluateOnNewDocument(BEFORE[SPOT]);
+  await page.goto(PAGE_URL + (merge ? "?nointro" : "?nomerge&nointro") + `&game=${GAME}` + (PHASES ? "&perf" : "") + (process.env.BENCH_QUERY ?? ""), { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.waitForFunction("Boolean(window.__range)", { timeout: 60000 });
+  await page.waitForFunction("window.__range.loaded()", { timeout: 60000 });
+  await page.evaluate(`document.getElementById("overlay").classList.add("hidden")`);
+  if (SPOTS[SPOT]) await page.evaluate(SPOTS[SPOT]);
+  // anything else this measurement wants said to the page, for a
+  // comparison the build itself does not offer (BENCH_EVAL)
+  if (process.env.BENCH_EVAL) await page.evaluate(process.env.BENCH_EVAL);
+  // settle: textures, props, first shadow render, shader compiles
+  await new Promise((r) => setTimeout(r, 3000));
+  // what the phase timer kept while settling is not the run's
+  if (PHASES) await page.evaluate("window.__range.perf(true)");
+  // Sent as a string: tsx wraps named functions in a __name helper that
+  // does not exist inside the page.
+  const out = (await page.evaluate(`(async () => {
+    const gl = document.createElement("canvas").getContext("webgl2");
+    const dbg = gl && gl.getExtension("WEBGL_debug_renderer_info");
+    const gpu = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : "unknown";
+    const times = [];
+    let calls = 0, tris = 0, n = 0;
+    await new Promise((done) => {
+      let prev = 0;
+      const end = performance.now() + ${SECONDS} * 1000;
+      function tick(t) {
+        if (prev) times.push(t - prev);
+        prev = t;
+        const c = window.__range.frameCost();
+        calls += c.calls; tris += c.triangles; n++;
+        if (t < end) requestAnimationFrame(tick); else done();
+      }
+      requestAnimationFrame(tick);
+    });
+    const hitches = times.filter((t) => t > ${HITCH}).length;
+    const worst = times.reduce((m, t) => Math.max(m, t), 0);
+    times.sort((a, b) => a - b);
+    const r = window.__range;
+    const perf = ${PHASES} ? r.perf() : null;
+    return {
+      gpu,
+      frames: times.length,
+      med: times[Math.floor(times.length / 2)],
+      p95: times[Math.floor(times.length * 0.95)],
+      p99: times[Math.floor(times.length * 0.99)],
+      hitches,
+      worst,
+      calls: Math.round(calls / Math.max(1, n)),
+      tris: Math.round(tris / Math.max(1, n)),
+      bots: r.duel()?.bots?.length ?? 0,
+      merged: r.merged,
+      perf: perf && { means: perf.means, hitches: perf.hitches },
+    };
+  })()`)) as Run;
+  await page.close();
+  return out;
 }
 
 void main();

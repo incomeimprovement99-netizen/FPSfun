@@ -400,6 +400,17 @@ This builds on A15, which keeps sprint, walk and slide.
     its gunfights (the 4.2 table already names the long TTK) and what they praised.
 - **Done:** before and after numbers are written into the plan, and the owner plays a match with friends and
   says it is smooth.
+- **Started 2026-09-27, the instrument** (built while A17 waits on its footage):
+  - `src/game/framephase.ts`: the game loop marks seven phases (view, input, player, aim and shots, projectiles
+    and figures, match, render, hud). With `?perf` on the address, or `__range.perf(true)`, every frame over 50
+    ms keeps its breakdown. verify holds it, and fails with the switch ignored.
+  - `tools/bench.ts`: `BENCH_RUNS=n` takes every preset in turn, round by round, and ends with each one's median
+    and spread; every run counts its frames over 50 ms and its worst; `BENCH_PHASES=1` names each hitch's phase,
+    or "outside the loop"; the spot `skrun` runs a street toward the Spire at 14 m/s in the match.
+  - First reading, one run on a loaded machine and not to be trusted: Competitive on `skrun` at 128 fps median,
+    p99 11.7 ms, no frame over 50 ms. Of a 7.8 ms frame, render took 5.5, the match 1.1, the figures and the
+    HUD about 0.4 each. So the first lead stays Part B's: the draw calls (623 here), the skinned figures above all.
+  - The real measurement waits for a quiet machine (the footage measuring for A17 runs beside it now).
 
 ### A19. The PANDA as an animation showcase, then every gun
 

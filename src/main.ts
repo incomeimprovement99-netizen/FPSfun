@@ -47,6 +47,7 @@ import { ViewModel } from "./game/viewmodel";
 import { GameAudio } from "./game/audio";
 import { Hud, type HudState } from "./game/hud";
 import { damageText } from "./game/damagetext";
+import { FramePhases } from "./game/framephase";
 import { DpiCalibrator, snapDpi } from "./game/dpi-calibrate";
 import { ZIPLINES, ladderAhead, deployZipline } from "./game/traversal";
 import { mergeStatic } from "./game/staticmerge";
@@ -5799,6 +5800,9 @@ let last = performance.now() / 1000;
 let gameTime = 0;
 let fps = 60;
 let frameMs = 0;
+/** where a frame's CPU time goes, by phase, and every frame over 50 ms (Phase 20 A18; ?perf or __range.perf) */
+const phases = new FramePhases();
+phases.on = new URLSearchParams(location.search).has("perf");
 /**
  * 0..1 between a variable optic's two zooms. It blends over the data's
  * zoom_toggle_lerp_time rather than snapping.
@@ -5949,6 +5953,7 @@ const lodFrustum = new THREE.Frustum();
 const lodMatrix = new THREE.Matrix4();
 
 function frame(): void {
+  phases.start();
   framesRun++;
   // where the figures are being looked at from this frame (figlod.ts): their
   // animation, their shadows and their guns follow from it
@@ -5957,6 +5962,7 @@ function frame(): void {
   setFigureView(camera.position, lodFrustum, framesRun);
   // the field's rock and scrub: only the cells near enough to be worth drawing
   stepInstanced(camera.position);
+  phases.lap("view");
   try {
     step();
   } catch (e) {
@@ -5966,6 +5972,7 @@ function frame(): void {
         throw e;
       }, 0);
   }
+  phases.end(gameTime);
   schedule();
 }
 
@@ -6030,6 +6037,7 @@ function step(): void {
   void padWasActive;
 
   loadout.update(now);
+  phases.lap("input");
   const ws = loadout.active.state;
   {
     const w = loadout.active.weapon;
@@ -6598,6 +6606,7 @@ function step(): void {
   // once the edge's laser has hit you, you stand in it
   player.update(dt, now, (knockedOut && !skGhostNow) || finisher || edge.struckAt !== null ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
   if (duel instanceof BrMatch) edgeFrame(duel, now);
+  phases.lap("player");
   // a slide counts as crouched for the spread model: the cone tightens
   const crouched = player.crouched || player.sliding;
   const stance = !player.onGround ? "air" : crouched ? "crouch" : "stand";
@@ -7030,6 +7039,7 @@ function step(): void {
     } else if (r.broke) audio.shieldBreak();
     else audio.hitTier(r.headshot ? "head" : r.toShield > 0 ? (SHIELD_TIER[e.dummy.tier] ?? "white") : "health");
   };
+  phases.lap("aim and shots");
   projectiles.update(dt, now, handleImpact);
   // the guided tour: its marker and the check for the step
   tourHud = !duel ? tour.update(now, tourCheck(now), input.playing && input.held("interact"), (a) => keyLabel(a as Parameters<typeof keyLabel>[0])) : null;
@@ -7114,6 +7124,7 @@ function step(): void {
   fx.update(now);
   sprays.update(gameTime);
   impacts.update(gameTime, dt);
+  phases.lap("projectiles and figures");
   // the menu stops a run's clock (a minute on the Settings tab was a minute
   // on the time); a test script drives the course without the menu
   if (!duel) {
@@ -7286,6 +7297,7 @@ function step(): void {
     }
   }
 
+  phases.lap("match");
   // Digital Threat optics: aiming through one lights enemies up red, fading
   // out over the data's threat_scope_fadedist range.
   {
@@ -7332,6 +7344,7 @@ function step(): void {
     }
     pipeline.render(now);
   }
+  phases.lap("render");
   frameCost = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
   for (const o of hiddenForReplay) o.visible = true;
   const shown = loadout.display;
@@ -7571,6 +7584,7 @@ function step(): void {
   }
   // CPU time for everything this frame did: simulation, render submission and
   // HUD. The GPU works on it after this, in parallel with the next frame.
+  phases.lap("hud");
   frameMs += (performance.now() - frameStart - frameMs) * 0.1;
 }
 /**
@@ -7718,6 +7732,14 @@ initWelcome();
   lootCard: () => lootCardNow(),
   /** the enemy the crosshair outlines this frame (Phase 20 A8's check; speedkills.json feel.outline) */
   outlinedNow: () => outlined,
+  /** the frame's phases (framephase.ts): on/off (a switch clears what was kept), each phase's mean and every hitch over the line */
+  perf: (on?: boolean) => {
+    if (on !== undefined) {
+      phases.on = on;
+      phases.reset();
+    }
+    return { on: phases.on, line: phases.line, means: phases.means(), hitches: phases.hitches.slice() };
+  },
   /** each thing that holds the trigger (the frame's trigger line): a check whose gun fired nothing says which */
   triggerWhy: () => ({ swapping: loadout.swapping, holster, canFire: !duel || duel.canFire, dropping: player.dropping, aboard: player.aboard, empty: loadout.active.empty, readied: !!ordnance.readied, lockedToRelease: fireLockedToRelease, finisher: !!finisher, script: !!scriptInput, sprinting: player.sprinting, playing: input.playing }),
   setLootCard: (m: LootCardMode) => (lootCardMode = m),
