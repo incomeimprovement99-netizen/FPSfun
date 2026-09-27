@@ -177,3 +177,19 @@ right in first person beat every variant; a measured reach table and proven modu
 - Put the PC's sleep back: `powercfg /change standby-timeout-ac 300`.
 - The scheduled resume prompt runs every 20 minutes (at :07, :27, :47) while this Claude session is open; ask to
   cancel it once the work is done.
+- **What to try first:** THE CHAIN, through the magenta gate in the middle of the range's back wall (SpeedKills): the
+  three gaps, the chimney and the window pad at the city's measured distances. Then a battle royale: every bot in its
+  own soldier, the bought guns, the med kit in a HEAL area. In first person, your soldier's own arms.
+
+### Ranked next steps
+
+1. **Play THE CHAIN and set its ranks.** Its S time (35 s) is a guess; the owner's times set the real ones, and any
+   distance that feels wrong is one number in `src/config/chaincourse.json` or the movement (`reach.json` follows).
+2. **Window pads into the city's towers** (the brief's 4.4 route: street, window pad into the Sky Lobby). The pad
+   now exists and is proven on a course (`course.ts` CoursePad); the city needs its deck floors and windows placed.
+3. **The pad ladder** (pads deck to deck up a tower) and the balcony ladder, proven the same way.
+4. **The owner's signature chain as a named route** in the centre, from the chimneys up to the Spire's crown.
+5. **The legacy host-migration e2e** ("four bots armed"): it passed in rel4's batch 2 but failed before; a
+   diagnostic of the bots' looting under load, not a lower bar.
+6. **A frame-rate reading on a quiet machine**: one pair with the soldier's volumes following and not (84 and 81 fps
+   at high @skmatch) is inside the machine's swing; the second pair's run hung and was stopped.
