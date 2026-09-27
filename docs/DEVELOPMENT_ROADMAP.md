@@ -4533,3 +4533,19 @@ mid-reload, and prints what the reload moves.
   under the optic with the scope's back.
 - **Guarded:** `tools/checks/paid-weapons.ts` fails when a gun wears or can pick a model in one piece or a part that is
   not a gun (proven with the rifle back on its `_1`); the e2e soldier section's pick is the USSO in the other SMG.
+
+## Milestone 248 — The soldier audited: its own fit test, and everything the hands do
+
+Phase 21 S8, finished, for the owner's "completely in with no bugs?"
+
+- **Its own fit test** (`tools/checks/soldier-fit.ts`, in verify). `npm run fit` paints the figures of before and cannot
+  see the soldier, and a picture cannot tell the suit through a plate from the suit in a gap between plates, so it is
+  measured on the geometry: the full kit posed by the game's own clips, every suit and head point the armour covers at
+  rest tracked with the armour point over it. None is through at rest; the most in any pose is 83 mm at the collar
+  while aiming (the suit's neck tucking inside the chest plate's rim) and 10.6% of the covered points in a slide, none
+  of it visible at the distances the game is played at (close pictures of aiming, the guard, idle and a slide, front,
+  side and back). The check holds it there as a guard against worse; the clips without retargeting put the suit
+  253 mm through and fail it.
+- **Everything the hands do, on the soldier:** the contact sheet (`tools/soldier-clips.ts`) gained a row: the finisher,
+  being finished, reviving, interacting and three emotes, all read right. In first person, holstered (both fists, the
+  soldier's gloves and bracers) and riding a zipline (a hand on the trolley, the other on the gun) read right.

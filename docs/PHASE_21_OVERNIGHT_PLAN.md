@@ -170,6 +170,7 @@ right in first person beat every variant; a measured reach table and proven modu
 - [~] S4 variants: the four and their palettes are in soldier.json and render distinct (tools/soldier-sheet.ts); the picker is S6
 - [x] S6 the picker (Loadouts tab: kit, armour, accent, suit, skin, eyes, beret, shoulders, pouches), kept under `range.sk.soldier`, carried to friends as a fifth look field (the wire's look limit 48 to 64); bots take their operator's look, the same on every machine
 - [x] S7 hit volumes: the fixed column missed the soldier's head in most poses (`tools/soldier-hits.ts`: 110 mm off standing, 690 mm sliding); the soldier's volumes now follow its bones, the head within 1 mm (1b97ae5)
+- [x] S8 finished (Milestone 248): the soldier's own fit test on the geometry (`tools/checks/soldier-fit.ts`, in verify), the contact sheet's finisher, revive, interact and emotes, first person holstered and on a zipline
 - [x] S8 tests: the e2e `soldier` section (loads, heads in their volumes in eight poses, bots' kits, the fallback with every paid file a 404) and a friend's soldier code in `skfriends`; the bench with and without the volumes following (below)
 - [x] W1 import (eec969f; run `PAID_ONLY=weapons npm run paid`)
 - [x] W2 measured (`tools/checks/paid-weapons.ts`, `src/config/paidweapons.json`): length, muzzle end, muzzle, sight top

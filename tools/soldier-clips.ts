@@ -34,6 +34,14 @@ const MOTIONS: Array<[string, Record<string, unknown>]> = [
   ["melee", { speed: 0, stance: "stand", act: "melee" }],
   ["downed", { speed: 1, stance: "downed" }],
   ["knocked out", { speed: 0, stance: "stand", dead: true }],
+  // the rest of what the hands do (dummy.ts FigureAct), and three emotes (`emote`: an index into emotes.json, played on the figure)
+  ["finishing", { speed: 0, stance: "stand", act: "finish" }],
+  ["finished", { speed: 0, stance: "stand", act: "finished" }],
+  ["reviving", { speed: 0, stance: "crouch", act: "revive" }],
+  ["interact", { speed: 0, stance: "stand", act: "interact" }],
+  ["emote 1", { speed: 0, stance: "stand", emote: 0 }],
+  ["emote 2", { speed: 0, stance: "stand", emote: 1 }],
+  ["emote 3", { speed: 0, stance: "stand", emote: 2 }],
 ];
 const PER_ROW = 7;
 const MOMENTS = 5;
@@ -62,7 +70,7 @@ try {
       const poses = motions.map(([, p], i) => ({ pitch: 0, look: ["S0000010", "S1111020", "S2222030", "S3343040"][i % 4], ...p }));
       // the game page to the front: in the background it stops drawing, and its screenshot never comes
       await page.bringToFront();
-      await page.evaluate(`(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, -6); r.hideViewModel(true); r.figureLab(${JSON.stringify(poses)}, ${DIST}, ${turn}); })()`);
+      await page.evaluate(`(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, -6); r.hideViewModel(true); const figs = r.figureLab(${JSON.stringify(poses)}, ${DIST}, ${turn}); ${JSON.stringify(poses)}.forEach((p, i) => { if (p.emote !== undefined) figs[i].emote(p.emote); }); })()`);
       // the figures' own clips settle (a knocked-out one stands 0.6 s, then falls)
       await new Promise((r) => setTimeout(r, 700));
       const bands: string[] = [];
