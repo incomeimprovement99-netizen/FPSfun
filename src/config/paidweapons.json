@@ -4,7 +4,14 @@
   "textures": "models/paid/weapons/tex/",
   "version": 1,
   "_glow": "How bright a bought gun's glow (its emission map) is at each fusion level, 0 to 5: a step a level, so a fused gun reads as better at a glance. Ours.",
-  "glow": [0.6, 0.9, 1.2, 1.6, 2.0, 2.6],
+  "glow": [
+    0.6,
+    0.9,
+    1.2,
+    1.6,
+    2.0,
+    2.6
+  ],
   "guns": {
     "rspn101": {
       "model": "SciFiRifle01_1",
@@ -185,6 +192,13 @@
         ],
         "sightTop": 0.153
       }
+    }
+  },
+  "_props": "The rest of the pack where the game has the thing (W7): the model a prop wears when the paid files are here, and its skin. mine is the MINE hack's mine (ours was a lit ring); its size is the model's own.",
+  "props": {
+    "mine": {
+      "model": "ScifiMine01",
+      "skin": "A"
     }
   }
 }

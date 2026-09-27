@@ -107,7 +107,7 @@ import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
 import { hasClip, loadMannequin, setFigureStyle, setFitDebug, useMannequin, soldierReady } from "./game/mannequin";
-import { loadPaidGuns, paidGunsReady } from "./game/paidgun";
+import { loadPaidGuns, paidGunsReady, paidProp } from "./game/paidgun";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
 import { dressKit } from "./game/kitdress";
@@ -3408,7 +3408,7 @@ let invisUntil = -Infinity;
 /** HEAL's areas: yours and your squad's heal you while you stand in them */
 const healZones: Array<{ at: THREE.Vector3; until: number; mesh: THREE.Mesh; rate: number }> = [];
 /** MINE's mines: yours hunt and hurt; everyone else's are drawn */
-const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Mesh; mine: boolean; damage?: number; chaseFrom?: number | null }> = [];
+const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Object3D; mine: boolean; damage?: number; chaseFrom?: number | null }> = [];
 /** your WALL hack's panels standing, oldest first (hacks.json wall.max) */
 const myWalls: PutWall[] = [];
 /** when a ghost next looks round it */
@@ -3614,8 +3614,11 @@ function useHack(slot: HackSlot, now: number): void {
     }
     case "mine": {
       const to = aimPoint(H.mine.range);
-      const mesh = hackMesh(0xff2e9a, 0.35, 0.12);
-      mesh.position.copy(to).setY(to.y + 0.06);
+      // the pack's mine when it is in (paidgun.ts), sat on the ground; our lit ring otherwise
+      const bought = paidProp("mine");
+      if (bought) scene.add(bought);
+      const mesh = bought ?? hackMesh(0xff2e9a, 0.35, 0.12);
+      mesh.position.copy(to).setY(to.y + (bought ? 0 : 0.06));
       // at most hacks.json mine.max of yours down: a new one takes the old one away (Hyper Scape's cap)
       for (let i = mines.length - 1; i >= 0 && mines.filter((x) => x.mine).length >= H.mine.max; i--) {
         if (!mines[i].mine) continue;

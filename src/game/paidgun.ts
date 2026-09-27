@@ -20,6 +20,7 @@ interface Gun {
   measured: { length: number; muzzleEnd: number; muzzle: number[]; sightTop: number };
 }
 const GUNS = cfg.guns as Record<string, Gun>;
+const PROPS = (cfg.props ?? {}) as Record<string, { model: string; skin: string }>;
 const url = (p: string): string => `${p}?v=${cfg.version}`;
 
 const scenes = new Map<string, THREE.Object3D>();
@@ -83,7 +84,7 @@ export function loadPaidGuns(): Promise<boolean> {
       const probe = await fetch(url(`${cfg.models}${first.model}.glb`), { method: "HEAD" });
       if (!probe.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) return false;
       const loader = new GLTFLoader();
-      const models = [...new Set(Object.values(GUNS).map((g) => g.model))];
+      const models = [...new Set([...Object.values(GUNS).map((g) => g.model), ...Object.values(PROPS).map((p) => p.model)])];
       const got = await Promise.all(models.map((m) => loader.loadAsync(url(`${cfg.models}${m}.glb`)).then((g) => [m, g.scene] as const)));
       for (const [m, scene] of got) {
         // the collision hulls are never drawn
@@ -102,6 +103,23 @@ export function loadPaidGuns(): Promise<boolean> {
     }
   })();
   return loading;
+}
+
+/** a prop from the pack (paidweapons.json props: the mine), in its skin, or null when it is not in */
+export function paidProp(key: string): THREE.Object3D | null {
+  const p = PROPS[key];
+  const src = p ? scenes.get(p.model) : undefined;
+  if (!p || !src) return null;
+  const mat = skinMaterial(p.model.replace(/_\d+$/, ""), p.skin, tl);
+  const o = src.clone(true);
+  o.traverse((x) => {
+    const m = x as THREE.Mesh;
+    if (m.isMesh) {
+      m.material = mat;
+      m.castShadow = true;
+    }
+  });
+  return o;
 }
 
 /** the skin letter for a fusion level: as found, levels 2 to 3, levels 4 to 5 */

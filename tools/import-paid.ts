@@ -243,6 +243,10 @@ const GUN_MODELS = [
   "SciFiShotGun01_1", "SciFiShotGun01_2", "SciFiShotGun02_1", "SciFiShotGun02_2", "SciFiSniperRifle01_1", "SciFiSniperRifle01_2",
   "SciFiPistol01_1", "SciFiPistol01_2", "SciFiPistol02_1", "SciFiPistol02_2",
   "SciFiGrenadeLauncher01_1", "SciFiGrenadeLauncher01_2", "SciFiGrenadeLauncher01_3", "SciFiRocketLauncher01_1", "SciFiRocketLauncher01_2",
+  // the rest of the pack where the game has the thing (W7): the MINE hack's mine, the heals, the cases, ammo, grenades
+  "ScifiMine01", "ScifiMine02", "SciFiMedInjector01_1", "SciFiMedInjector02_1", "SciFiMedKit01", "SciFiMedPack01_1",
+  "SciFiWeaponCase01_1", "SciFiWeaponCase01_2", "WeaponStorageCase01_1", "WeaponStorageCase02_1", "SciFiAmmoBox01",
+  "SciFiGrenade01_1", "SciFiGrenade02", "SciFiSmokeGrenade01_1",
 ];
 const SKINS = ["A", "B", "C"];
 
