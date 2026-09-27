@@ -146,6 +146,8 @@
       .hackPicks select { background: #101628; border: 1px solid #20e0ff55; color: #e8fbff; padding: 6px 7px; border-radius: 4px; font-size: 13px; }
       [data-game="speedkills"] .skOnly { display: inline; }
       [data-game="speedkills"] .soldierPick.skOnly { display: block; }
+      /* with the bought soldier in, the wardrobe dresses nobody: the soldier picker is the look */
+      body.soldierOn .wardrobe { display: none; }
       [data-game="speedkills"] .legacyOnly { display: none; }
       /* SpeedKills' menu (Phase 20 A11): wider on a wider screen, and one width for every tab so Loadouts no longer
          jumps (1280 wide: 1120, 1600: 1200, 1920: 1280, 2560: 1400, never more than 94% of a small screen) */
@@ -450,6 +452,7 @@
               <div class="lolocked" id="loadoutLocked">Default loadouts cannot be changed. <button type="button" id="copyLoadout">Copy to a custom slot</button> <select id="copyTarget"></select></div>
               <div class="lohead">Operator</div>
               <div class="cards" id="operatorCards"></div>
+              <div class="wardrobe">
               <div class="lohead">What they wear <span class="hint">the clothes under the kit, and the body under them; the hit boxes never change</span></div>
               <div class="cards" id="outfitCards"></div>
               <div class="row"><label>Body <div class="hint">the same skeleton and hit boxes either way</div></label><select id="opBody"></select>
@@ -461,6 +464,7 @@
                   <option value="fullMask">Full mask</option>
                   <option value="wrap,goggles">Wrap and goggles</option>
                 </select></div>
+              </div>
               <div class="skOnly soldierPick"><div class="lohead">Soldier <span class="hint">four kits; the colours, skin and eyes are yours, and friends see them</span></div>
                 <div class="row"><label>Kit</label><select id="sdVariant"></select><label>Armour</label><select id="sdArmor"></select><label>Accent</label><select id="sdAccent"></select><label>Suit</label><select id="sdSuit"></select></div>
                 <div class="row"><label>Skin</label><select id="sdSkin"></select><label>Eyes</label><select id="sdEyes"></select><label><input type="checkbox" id="sdHelmet" checked /> Beret</label><label><input type="checkbox" id="sdShoulders" checked /> Shoulders</label><label><input type="checkbox" id="sdPouches" checked /> Pouches</label></div>

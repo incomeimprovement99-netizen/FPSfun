@@ -1572,6 +1572,8 @@ if (IS_SK) {
     sel("sdEyes").value = String(l.eyes);
     for (const [id, t] of toggles) $<HTMLInputElement>(id).checked = !l.off.includes(t);
   };
+  // a first visit keeps VANGUARD as the player's own, so the picker, the preview and what friends see agree
+  if (!mySoldierCode()) saveMySoldier(lookOf("VANGUARD"));
   show(readSoldierCode(mySoldierCode()) ?? lookOf("VANGUARD"));
   const read = (): SoldierLook => ({
     variant: sel("sdVariant").value,
@@ -1826,6 +1828,7 @@ function previewLoadout(now: number, dt: number): void {
   // useMannequin() is in the key so the figure is built again once the
   // mannequin has finished loading, rather than staying the robot
   const key = `${def.operator}|${lookCode(def)}|${def.slot1}|${useMannequin()}|${soldierReady()}`;
+  document.body.classList.toggle("soldierOn", IS_SK && soldierReady());
   if (key !== previewKey) {
     previewKey = key;
     previewFig?.dispose();
