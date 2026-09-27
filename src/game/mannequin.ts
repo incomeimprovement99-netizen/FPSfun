@@ -38,7 +38,6 @@ import type { EmotePose } from "./emotes";
 import { IS_SK } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
-import { readGunPicks, type GunPick } from "./gunpick";
 
 export type FigureStyle = "robot" | "mannequin";
 let style: FigureStyle = "robot";
@@ -901,11 +900,8 @@ export class MannequinFigure {
   private tpl: Template;
   /** SpeedKills' soldier: this figure's look, or null for the figures of before */
   readonly soldier: SoldierLook | null;
-  /** SpeedKills: its player's pick of each gun's model and skin (gunpick.ts), from their look */
-  private readonly gunPicks: Record<string, GunPick> | null;
 
   constructor(skin: OperatorSkin, gunId: string | null) {
-    this.gunPicks = readGunPicks(skin.guns);
     this.soldier = soldierTemplate ? soldierLookFor(skin) : null;
     const t = (this.tpl = this.soldier ? soldierTemplate! : template!);
     // the body this outfit's clothes were cut for, if it is here; the one the
@@ -1127,7 +1123,7 @@ export class MannequinFigure {
     this.gun?.removeFromParent();
     this.mount?.removeFromParent();
     this.mount = null;
-    const m = displayGunModel(id, this.gunPicks?.[id]);
+    const m = displayGunModel(id);
     const gun = m.root.clone(true);
     // the model's own flash out, a marker with a flash sprite in its place (muzzle.ts)
     this.flash = fitMuzzle(gun, ammoTypeOf(id) === "energy", m.muzzle);

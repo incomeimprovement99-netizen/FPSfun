@@ -109,7 +109,6 @@ import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPai
 import { throwName } from "./config/names";
 import { hasClip, loadMannequin, setFigureStyle, setFitDebug, useMannequin, soldierReady } from "./game/mannequin";
 import { loadPaidGuns, paidGunsReady, paidProp } from "./game/paidgun";
-import { gunChoices, myGunPicks, pickSkins, saveMyGunPick } from "./game/gunpick";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
 import { dressKit } from "./game/kitdress";
@@ -1610,7 +1609,7 @@ if (IS_SK)
     resetGunModels();
     resetFloorGuns();
     viewModel.rebuild();
-    renderGunPicks();
+    showPaidGuns();
   });
 figureSel.addEventListener("change", () => {
   setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
@@ -5620,42 +5619,11 @@ for (const i of [0, 1]) {
   $<HTMLSelectElement>(`slot${i}`).addEventListener("change", () => renderFinishes());
 }
 renderFinishes();
-/**
- * SpeedKills with the bought guns in: by each slot's gun, its model (any of its family in the pack) and the skin its
- * levels start from (gunpick.ts), kept per gun and carried to friends in the look; the finish picker, which the
- * bought model hides, gives way to them (index.html .skPick)
- */
-function renderGunPicks(): void {
+/** SpeedKills with the bought guns in: the finish picker, which the bought model hides, is put away (index.html .paidOn) */
+function showPaidGuns(): void {
   document.body.classList.toggle("paidOn", IS_SK && paidGunsReady());
-  if (!IS_SK) return;
-  for (const i of [0, 1]) {
-    const gun = $<HTMLSelectElement>(`slot${i}`).value;
-    const pick = myGunPicks()[gun] ?? { model: 0, skin: 0 };
-    const models = $<HTMLSelectElement>(`gunModel${i}`);
-    const skins = $<HTMLSelectElement>(`gunSkin${i}`);
-    const choices = gunChoices(gun);
-    models.innerHTML = choices.map((_, k) => `<option value="${k}">${k === 0 ? "Its own model" : "The other of its class"}</option>`).join("");
-    // a gun the pack has one model for is picked by its skin alone
-    models.style.display = choices.length > 1 ? "" : "none";
-    skins.innerHTML = pickSkins(gun).map((s, k) => `<option value="${k}">Skin ${s}</option>`).join("");
-    models.value = String(pick.model);
-    skins.value = String(pick.skin);
-  }
 }
-for (const i of [0, 1]) {
-  const choose = () => {
-    const gun = $<HTMLSelectElement>(`slot${i}`).value;
-    saveMyGunPick(gun, { model: Number($<HTMLSelectElement>(`gunModel${i}`).value), skin: Number($<HTMLSelectElement>(`gunSkin${i}`).value) });
-    // the gun in hand built again in the pick; the loadout again, so the preview and the look carry it
-    viewModel.rebuild();
-    applyLoadout(loadouts.current);
-    renderGunPicks();
-  };
-  $<HTMLSelectElement>(`gunModel${i}`).addEventListener("change", choose);
-  $<HTMLSelectElement>(`gunSkin${i}`).addEventListener("change", choose);
-  $<HTMLSelectElement>(`slot${i}`).addEventListener("change", () => renderGunPicks());
-}
-renderGunPicks();
+showPaidGuns();
 /** the optional account (Stats tab): the name is the account's once signed in; new stats go up after a match or a run */
 const account = initAccountUi({
   setName: (name) => {
@@ -8062,7 +8030,7 @@ initWelcome();
     return { mag: count(m.mag), bolt: count(m.bolt), pump: count(m.pump) };
   },
   paidGuns: () => {
-    // the gun in hand's bought model, and the skin it wears (gunpick.ts: the player's pick of both)
+    // the gun in hand's bought model, and the skin it wears (paidgun.ts: its fusion level's)
     const root = viewModel.gunRoot;
     const inHand = (root?.userData.paid as string | undefined) ?? null;
     const family = inHand?.replace(/_\d+$/, "") ?? "";

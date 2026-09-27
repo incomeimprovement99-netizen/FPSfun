@@ -10,7 +10,8 @@
           0.028,
           0.82
         ],
-        "sightTop": 0.142
+        "sightTop": 0.142,
+        "sightZ": 0.12
       }
     },
     "SciFiSniperRifle01_2": {
@@ -22,7 +23,8 @@
           0.028,
           0.82
         ],
-        "sightTop": 0.142
+        "sightTop": 0.142,
+        "sightZ": 0.12
       }
     },
     "SciFiRifle01_1": {
@@ -34,7 +36,8 @@
           0.031,
           0.55
         ],
-        "sightTop": 0.199
+        "sightTop": 0.199,
+        "sightZ": 0.062
       }
     },
     "SciFiRifle01_2": {
@@ -46,7 +49,8 @@
           0.031,
           0.55
         ],
-        "sightTop": 0.2
+        "sightTop": 0.2,
+        "sightZ": 0.036
       }
     },
     "SciFiSMG02_1": {
@@ -58,7 +62,8 @@
           0.039,
           0.403
         ],
-        "sightTop": 0.086
+        "sightTop": 0.086,
+        "sightZ": -0.086
       }
     },
     "SciFiSMG02_2": {
@@ -70,7 +75,8 @@
           0.039,
           0.403
         ],
-        "sightTop": 0.086
+        "sightTop": 0.086,
+        "sightZ": -0.086
       }
     },
     "SciFiSMG01_1": {
@@ -82,7 +88,8 @@
           0.079,
           0.455
         ],
-        "sightTop": 0.148
+        "sightTop": 0.148,
+        "sightZ": -0.392
       }
     },
     "SciFiSMG01_2": {
@@ -94,7 +101,8 @@
           0.079,
           0.455
         ],
-        "sightTop": 0.159
+        "sightTop": 0.159,
+        "sightZ": -0.039
       }
     },
     "SciFiShotGun01_1": {
@@ -106,7 +114,8 @@
           0.015,
           0.488
         ],
-        "sightTop": 0.127
+        "sightTop": 0.127,
+        "sightZ": -0.002
       }
     },
     "SciFiShotGun01_2": {
@@ -118,7 +127,8 @@
           0.015,
           0.488
         ],
-        "sightTop": 0.127
+        "sightTop": 0.127,
+        "sightZ": -0.002
       }
     },
     "SciFiShotGun02_1": {
@@ -130,7 +140,8 @@
           0.008,
           0.472
         ],
-        "sightTop": 0.077
+        "sightTop": 0.077,
+        "sightZ": -0.006
       }
     },
     "SciFiShotGun02_2": {
@@ -142,7 +153,8 @@
           0.008,
           0.472
         ],
-        "sightTop": 0.077
+        "sightTop": 0.077,
+        "sightZ": -0.006
       }
     },
     "SciFiGrenadeLauncher01_1": {
@@ -154,7 +166,8 @@
           0.011,
           0.469
         ],
-        "sightTop": 0.153
+        "sightTop": 0.153,
+        "sightZ": 0.015
       }
     },
     "SciFiGrenadeLauncher01_2": {
@@ -166,7 +179,8 @@
           0.011,
           0.469
         ],
-        "sightTop": 0.153
+        "sightTop": 0.153,
+        "sightZ": 0.015
       }
     },
     "SciFiGrenadeLauncher01_3": {
@@ -178,7 +192,8 @@
           0,
           -0.09
         ],
-        "sightTop": 0.026
+        "sightTop": 0.026,
+        "sightZ": 0.064
       }
     }
   }

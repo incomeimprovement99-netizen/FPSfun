@@ -30,7 +30,7 @@ try {
     await page.evaluate(`(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, 0); r.loadout.give(0, ${JSON.stringify(id)}); r.setScript({ held: () => false, pressedNow: (a) => a === "slot1" }, null); })()`);
     await new Promise((r) => setTimeout(r, 1500));
     await page.evaluate("window.__range.setScript(null)");
-    const inHand = await page.evaluate("JSON.stringify(window.__range.paidGuns())");
+    const inHand = await page.evaluate("JSON.stringify({ ...window.__range.paidGuns(), moves: window.__range.gunParts() })");
     await page.screenshot({ path: `${OUT}-${id}-hip.png` });
     // in the sights, and mid-reload with the magazine out, through the view's own debug hold (main.ts debugView)
     await page.evaluate("window.__range.debugView.ads = 1");

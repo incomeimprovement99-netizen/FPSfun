@@ -77,9 +77,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
   without them (and the Pages build) shows the figures of before.
 - **The bought guns and props:** on the game server every gun is a Sci-Fi Battle
   Weapons model, in first person, in hands and on the floor, and a fused gun
-  changes skin and glows brighter each level. On the Loadouts tab, pick the
-  skin each gun starts from, and for the SMGs which of the pack's two SMG models
-  it wears; friends see your picks. The MINE hack's mine, death
+  changes skin and glows brighter each level. One model a gun, by its class:
+  the two SMGs and the two shotguns one each, the rifles and PULSAR the rifle,
+  HELIX and BOOG the sniper, NOVA the launcher. The MINE hack's mine, death
   boxes, care packages and the med kit in a HEAL area are the pack's too.
 - **Ten guns**, five named for the owner's friends; BOOG, the sniper, kills
   with one headshot. Ammo is infinite; the magazine is not.

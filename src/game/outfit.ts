@@ -17,7 +17,6 @@
 import * as THREE from "three";
 import { IS_SK } from "./game";
 import { mySoldierCode, readSoldierCode } from "./soldier";
-import { myGunCode, readGunPicks } from "./gunpick";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import outfitCfg from "../config/outfits.json";
 
@@ -93,22 +92,19 @@ export function lookCode(l: { outfit?: string; build?: string; face?: string; bo
   // the body goes last, so a page from before it existed reads the first
   // three fields as it always did and ignores the fourth
   const code = `${l.outfit ?? ""}|${l.build ?? ""}|${l.face ?? ""}${l.body ? `|${l.body}` : ""}`;
-  // SpeedKills: the player's soldier, a fifth field an older page ignores (soldier.ts), and their guns' picks, a
-  // sixth (gunpick.ts), sent only when a gun is picked
+  // SpeedKills: the player's soldier, a fifth field an older page ignores (soldier.ts)
   const soldier = IS_SK ? mySoldierCode() : null;
-  const guns = IS_SK ? myGunCode() : null;
-  if (soldier || guns) return `${l.outfit ?? ""}|${l.build ?? ""}|${l.face ?? ""}|${l.body ?? ""}|${soldier ?? ""}${guns ? `|${guns}` : ""}`;
+  if (soldier) return `${l.outfit ?? ""}|${l.build ?? ""}|${l.face ?? ""}|${l.body ?? ""}|${soldier}`;
   return code === "||" ? "" : code;
 }
 
 /** a look back off the wire, with anything we do not recognise dropped rather than trusted */
-export function readLook(code: string | undefined): { outfit?: OutfitId; build?: BuildId; face?: FacePiece[]; body?: BodyId; soldier?: string; guns?: string } {
+export function readLook(code: string | undefined): { outfit?: OutfitId; build?: BuildId; face?: FacePiece[]; body?: BodyId; soldier?: string } {
   if (typeof code !== "string" || !code) return {};
-  const [o, b, f, y, sd, gp] = code.split("|");
-  const out: { outfit?: OutfitId; build?: BuildId; face?: FacePiece[]; body?: BodyId; soldier?: string; guns?: string } = {};
+  const [o, b, f, y, sd] = code.split("|");
+  const out: { outfit?: OutfitId; build?: BuildId; face?: FacePiece[]; body?: BodyId; soldier?: string } = {};
   if (BODY_IDS.includes(y as BodyId)) out.body = y as BodyId;
   if (readSoldierCode(sd)) out.soldier = sd;
-  if (readGunPicks(gp)) out.guns = gp;
   if (OUTFIT_IDS.includes(o as OutfitId)) out.outfit = o as OutfitId;
   if (BUILD_IDS.includes(b as BuildId)) out.build = b as BuildId;
   const face = faceList(f);

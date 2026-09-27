@@ -148,10 +148,7 @@
       [data-game="speedkills"] .soldierPick.skOnly { display: block; }
       /* with the bought soldier in, the wardrobe dresses nobody: the soldier picker is the look */
       body.soldierOn .wardrobe { display: none; }
-      /* SpeedKills with the bought guns in (paidgun.ts): each slot's model and skin in the finish's place, which the
-         bought model would hide (gunpick.ts) */
-      .skPick { display: none; }
-      body.paidOn .skPick { display: inline-block; }
+      /* SpeedKills with the bought guns in (paidgun.ts): no finish picker, which the bought model would hide */
       body.paidOn .gunPick select[id^="finish"] { display: none; }
       [data-game="speedkills"] .legacyOnly { display: none; }
       /* SpeedKills' menu (Phase 20 A11): wider on a wider screen, and one width for every tab so Loadouts no longer
@@ -474,8 +471,8 @@
                 <div class="row"><label>Kit</label><select id="sdVariant"></select><label>Armour</label><select id="sdArmor"></select><label>Accent</label><select id="sdAccent"></select><label>Suit</label><select id="sdSuit"></select></div>
                 <div class="row"><label>Skin</label><select id="sdSkin"></select><label>Eyes</label><select id="sdEyes"></select><label><input type="checkbox" id="sdHelmet" checked /> Beret</label><label><input type="checkbox" id="sdShoulders" checked /> Shoulders</label><label><input type="checkbox" id="sdPouches" checked /> Pouches</label></div>
               </div>
-              <div class="row gunPick"><label>Slot 1 <div class="hint">key 1</div></label><select id="slot0"></select><select id="finish0" title="this gun's finish: every gun keeps its own, and every finish is there from the start"></select><select id="gunModel0" class="skPick" title="this gun's model: any of its family in the bought pack, the first its own. Friends see it"></select><select id="gunSkin0" class="skPick" title="the skin it shows at levels 0 and 1; fusing it moves on through the other two"></select></div>
-              <div class="row gunPick"><label>Slot 2 <div class="hint">key 2</div></label><select id="slot1"></select><select id="finish1" title="this gun's finish: every gun keeps its own, and every finish is there from the start"></select><select id="gunModel1" class="skPick" title="this gun's model: any of its family in the bought pack, the first its own. Friends see it"></select><select id="gunSkin1" class="skPick" title="the skin it shows at levels 0 and 1; fusing it moves on through the other two"></select></div>
+              <div class="row gunPick"><label>Slot 1 <div class="hint">key 1</div></label><select id="slot0"></select><select id="finish0" title="this gun's finish: every gun keeps its own, and every finish is there from the start"></select></div>
+              <div class="row gunPick"><label>Slot 2 <div class="hint">key 2</div></label><select id="slot1"></select><select id="finish1" title="this gun's finish: every gun keeps its own, and every finish is there from the start"></select></div>
               <div class="lohead">Heirloom <span class="hint">held when holstered, swung with V</span></div>
               <div class="cards" id="heirloomCards"></div>
             </div>

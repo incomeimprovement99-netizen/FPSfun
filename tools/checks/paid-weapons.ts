@@ -35,6 +35,8 @@ export interface Measured {
   muzzle: [number, number, number];
   /** the highest point over the rear half: the sight line's top */
   sightTop: number;
+  /** where along the gun that top is (the model's z): a fitted optic mounts there (paidgun.ts opticF) */
+  sightZ: number;
 }
 
 async function measure(file: string): Promise<Measured> {
@@ -62,9 +64,10 @@ async function measure(file: string): Promise<Measured> {
   const tip = end > 0 ? hi.centre.setZ(box.max.z) : lo.centre.setZ(box.min.z);
   const mid = (box.max.z + box.min.z) / 2;
   const rear = pts.filter((p) => (end > 0 ? p.z < mid : p.z > mid));
-  const sightTop = rear.reduce((a, p) => Math.max(a, p.y), -Infinity);
+  const top = rear.reduce((a, p) => (p.y > a.y ? p : a), rear[0]);
+  const sightTop = top.y;
   const r = (x: number) => Math.round(x * 1000) / 1000;
-  return { length: r(len), muzzleEnd: end, muzzle: [r(tip.x), r(tip.y), r(tip.z)], sightTop: r(sightTop) };
+  return { length: r(len), muzzleEnd: end, muzzle: [r(tip.x), r(tip.y), r(tip.z)], sightTop: r(sightTop), sightZ: r(top.z) };
 }
 
 const guns = cfg.guns as unknown as Record<string, { model: string }>;
@@ -96,7 +99,7 @@ for (const [name, entry] of Object.entries(table)) {
   const want = entry.measured;
   check(
     `${name}: paidweapons.json holds what the model measures`,
-    Math.abs(want.length - m.length) < 0.002 && want.muzzleEnd === m.muzzleEnd && Math.abs(want.sightTop - m.sightTop) < 0.002 && want.muzzle.every((v, i) => Math.abs(v - m.muzzle[i]) < 0.002),
+    Math.abs(want.length - m.length) < 0.002 && want.muzzleEnd === m.muzzleEnd && Math.abs(want.sightTop - m.sightTop) < 0.002 && Math.abs((want.sightZ ?? NaN) - m.sightZ) < 0.002 && want.muzzle.every((v, i) => Math.abs(v - m.muzzle[i]) < 0.002),
     `measured ${JSON.stringify(m)}`,
   );
 }
@@ -105,11 +108,10 @@ for (const [id, g] of Object.entries(guns)) {
   check(`${id}: its model and every other ${familyOf(g.model)} in the pack are measured (${fam.length} to pick from)`, fam.includes(g.model) && fam.every((m) => table[m]), fam.filter((m) => !table[m]).join(", "));
 }
 
-// every model a gun wears or can be picked in is a split build (its magazine, slide or pump a part of its own, which
-// a reload or a shot moves) and a gun, not a part: the pack's _1 of a family is the same gun in one piece, and three
-// guns that wore one kept their magazines in on a reload; SciFiGrenadeLauncher01_3 is the launcher's round
+// every gun's model is a split build (its magazine, slide or pump a part of its own, which a reload or a shot moves)
+// and a gun, not a part: the pack's _1 of a family is the same gun in one piece, and three guns that wore one kept
+// their magazines in on a reload; SciFiGrenadeLauncher01_3 is the launcher's round
 {
-  const { gunChoices } = await import("../../src/game/gunpick");
   const partsOf = async (name: string): Promise<string[]> => {
     const b = readFileSync(`${dir}${name}.glb`);
     const g = await new Promise<{ scene: THREE.Group }>((ok, no) => new GLTFLoader().parse(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), "", (x) => ok(x as never), no));
@@ -121,13 +123,13 @@ for (const [id, g] of Object.entries(guns)) {
   };
   const bad: string[] = [];
   for (const id of Object.keys(guns)) {
-    for (const name of gunChoices(id)) {
+    for (const name of [guns[id].model]) {
       const parts = await partsOf(name);
       const len = table[name]?.measured.length ?? 0;
       if (!parts.length || len < 0.4) bad.push(`${id}: ${name}${parts.length ? "" : " (in one piece)"}${len < 0.4 ? ` (${len} m long)` : ""}`);
     }
   }
-  check("every model a gun wears or can be picked in is a split build with moving parts, and a gun", bad.length === 0, bad.join("; ") || "all");
+  check("every gun's model is a split build with moving parts, and a gun", bad.length === 0, bad.join("; ") || "all");
 }
 
 // the props (W7): a name that is not in the import falls back to our own shapes without a word, so each is looked for

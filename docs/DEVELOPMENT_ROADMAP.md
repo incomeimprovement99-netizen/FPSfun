@@ -4549,3 +4549,20 @@ Phase 21 S8, finished, for the owner's "completely in with no bugs?"
 - **Everything the hands do, on the soldier:** the contact sheet (`tools/soldier-clips.ts`) gained a row: the finisher,
   being finished, reviving, interacting and three emotes, all read right. In first person, holstered (both fists, the
   soldier's gloves and bracers) and riding a zipline (a hand on the trolley, the other on the gun) read right.
+
+## Milestone 249 — One model a gun, by its class; the picker gone
+
+The owner: "one model per gun ... smg is one of the two smgs ... and the skin variants for fused, higher level guns".
+
+- **No picker.** The Loadouts tab's model and skin picks are gone (`gunpick.ts` removed, the look's sixth field with
+  it), so a gun's skin says its fusion level to everyone: as found, then the second skin at levels 2 to 3, the third at
+  4 to 5, brighter each level.
+- **One model a gun, by its class** (`paidweapons.json` guns): ANAKIN and USSO the pack's two SMGs, BIGANTLER and RIPTIDE
+  its two shotguns, PANDA and ZEPHYR its rifle, BOOG its sniper, NOVA its launcher (the only drum-fed heavy). The pack
+  has no marksman rifle: HELIX (heavy marksman) wears the sniper and PULSAR (fast marksman) the scoped rifle, where it
+  had worn ANAKIN's SMG. Guns sharing a model start in different skins. The pack's two pistols and rocket launcher fit
+  none of the ten.
+- **A fitted optic mounts where the bought model's sight is** (`paidmodels.json` sightZ, measured), not where the
+  procedural gun's was: PULSAR's scope hung in the air past the rifle's barrel.
+- **Checked:** the e2e soldier section (the USSO in its one model in hand and on a figure, skin A as found and C at
+  level 5, no picker); pictures of all ten at the hip, in the sights and mid-reload.

@@ -179,6 +179,7 @@ right in first person beat every variant; a measured reach table and proven modu
 - [x] W5 the guns in the soldiers' hands, checked in a picture
 - [x] W7 the pack's props: the MINE hack's mine, death boxes (the storage case), care packages (the weapon case), floor guns in their skins, the med kit in a HEAL area; SpeedKills has no grenades, so the pack's are unused; `tools/checks/paid-weapons.ts` looks for every prop's files
 - [x] W8 the guns are live (9915b25, Milestone 239)
+- [x] W9 withdrawn at the owner's word (Milestone 249): one model a gun by its class, no picker; the skin is the fusion level's
 - [x] W9 audited (Milestone 247): every gun on its split build (three kept their magazines in on a reload), model picks only between the SMGs (the rest by skin); the audit sheet is `tools/weapon-picks-sheet.ts`
 - [x] W9 the player's choice of each gun's model and skin: on the Loadouts tab by each slot, kept and carried to friends as the look's sixth field; every family model measured into `src/config/paidmodels.json`; the e2e soldier section checks a pick in hand and on a friend's figure of you (Milestone 245)
 - [x] Floor guns wear the bought gun's skin (they had shown its shape in one flat colour since 9915b25)

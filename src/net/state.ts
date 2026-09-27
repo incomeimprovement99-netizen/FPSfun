@@ -72,9 +72,8 @@ const ID_MAX = 32;
 /** an outfit choice: three ids and their separators (outfit.ts lookCode) */
 // 64: SpeedKills' look carries the soldier's 8-character code as a fifth field (soldier.ts); a build from before
 // clips at 48 and shows the operator's own soldier, which is the fallback anyway.
-// 96: and the guns' picks as a sixth (gunpick.ts, 11 characters). The longest look is 91: the longest outfit, build
-// and body names and every face piece. At 64 that longest look already clipped the soldier's code off; a build from
-// before clips at 64 and shows the guns as they come
+// 96: the longest look is 79 (the longest outfit, build and body names, every face piece and the soldier), and at 64
+// it clipped the soldier's code off; a build from before clips at 64 and shows the operator's own soldier
 const LOOK_MAX = 96;
 
 /**
