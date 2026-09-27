@@ -114,15 +114,22 @@ export const CONCOURSE: {
  * clutter, the podiums and which side each leaves open, the public stairs, the skyline and the lamp posts. Recording
  * only: nothing here draws from the city's random stream, so the city is the same with or without the bundle.
  */
+/**
+ * The materials of what the bought kit draws over and replaces (citykit.ts hides them once it has drawn over every one):
+ * Neon Alley's stalls, a dark kiosk each, where the kit's food stand is open-fronted and would show the box inside it.
+ */
+export const STAND_INS: { stalls: THREE.Material[] } = { stalls: [] };
 export const KIT_SITES: {
   towers: Array<{ x: number; z: number; w: number; d: number; base: number; roof: number; storeys: number; lobby?: number; park?: number; sector: string; clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }> }>;
   /** the metro's stairwells in the street (map-local), which nothing may stand over */
   openings: Array<{ x0: number; x1: number; z0: number; z1: number }>;
+  /** Neon Alley's stalls (city.json neonAlley): solid boxes, the kit's food stands over them, facing the street (yaw) */
+  stalls: Array<{ x: number; z: number; w: number; d: number; h: number; yaw: number }>;
   podia: Array<{ key: string; x0: number; x1: number; z0: number; z1: number; top: number; plaza: number; spire: boolean }>;
   stairs: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   skyline: Array<{ x: number; z: number; w: number; h: number }>;
   lamps: Array<[number, number]>;
-} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [] };
+} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [] };
 
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
@@ -252,7 +259,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   /** the core's podiums by block ("i,j"), their tops: the concourse's bridges join them */
   const podia = new Map<string, { x0: number; x1: number; z0: number; z1: number; top: number }>();
   CONCOURSE.stairs.length = 0;
-  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.openings.length = 0;
+  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.openings.length = KIT_SITES.stalls.length = 0;
   /** the public stairs' footprints (local): a bridge landing across one blocked it (the concourse check found it) */
   const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
   CONCOURSE.bridges.length = 0;
@@ -1705,6 +1712,29 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       else deco(Mt.stairWidth, 0.08, 0.3, st.across, rl + 1.6, st.top, tile);
       const w = (u: number) => (along ? { x: u + BR_X, z: st.across + BR_Z } : { x: st.across + BR_X, z: u + BR_Z });
       METRO.stairs.push({ top: w(st.top + dir * 0.6), foot: w(st.foot - dir * 1.5), x0: o.x0 + BR_X, x1: o.x1 + BR_X, z0: o.z0 + BR_Z, z1: o.z1 + BR_Z });
+    }
+  }
+
+  // ---------------------------------------------------------------- Neon Alley's stalls (city.json neonAlley)
+  // Solid, so a stand you see is cover you can use: on the pavement of the Spire's block along the alley's street, each
+  // a dark kiosk with a line of the centre's colour, the kit's food stand over it
+  {
+    const Na = C.neonAlley;
+    const line = STREETS[Na.street];
+    // the Spire's block's edge on the alley's side, and the way from it out to the street
+    const toward = Math.sign(line);
+    const edge = BLOCKS.find(([a, b]) => a < 0 && b > 0)!;
+    const kerb = toward < 0 ? edge[0] : edge[1];
+    const [sw, sd, sh] = Na.stall;
+    // their own materials, not the city's shared ones, so the kit can hide these alone
+    const body = flat(0x0c0e14, 0.6, 0.4);
+    const k = emissive(0x20e0ff, C.neonGlow);
+    STAND_INS.stalls = [body, k];
+    for (const u of Na.stalls) {
+      const z = kerb - toward * (Na.back + sd / 2);
+      slab(sw, sh, sd, u, PAVE_H, z, body);
+      deco(sw + 0.04, 0.08, 0.04, u, PAVE_H + 1.1, z + toward * (sd / 2 + 0.02), k);
+      KIT_SITES.stalls.push({ x: u, z, w: sw, d: sd, h: sh, yaw: toward < 0 ? Math.PI : 0 });
     }
   }
 

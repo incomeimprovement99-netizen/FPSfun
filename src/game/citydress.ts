@@ -153,6 +153,19 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
   const decks = D.bands.decks.map((s) => cityCfg.kerb + s * STOREY);
   const nearDeck = (y: number): boolean => decks.some((dy) => y > dy - (D.bands.near + 0.5) * STOREY && y < dy + (D.bands.near - 0.5) * STOREY);
 
+  // ------------------------------------------------ Neon Alley (city.json neonAlley, citykit.json dress alley)
+  const NA = cityCfg.neonAlley;
+  const A = D.alley;
+  const streetLines = cityCfg.blocks.slice(0, -1).map((b, i) => (b[1] + cityCfg.blocks[i + 1][0]) / 2);
+  const alleyZ = streetLines[NA.street];
+  /** a face fronting the alley: looking at its street across the pavement, and along its stretch; the stretch it fronts */
+  const alleyFace = (f: Face): [number, number] | null => {
+    if (f.nx !== 0 || (alleyZ - f.at) * f.nz <= 0 || Math.abs(alleyZ - f.at) > A.front) return null;
+    const a = Math.max(f.a, NA.from) + 1;
+    const b = Math.min(f.b, NA.to) - 1;
+    return b - a > 3 ? [a, b] : null;
+  };
+
   // ------------------------------------------------ the towers' faces, storey by storey
   for (const t of towers) {
     const fam = familyAt(t.x, t.z);
@@ -208,7 +221,7 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
             const u = f.a + (i + 0.5) * bay;
             const [px, pz] = onFace(f, u, 0);
             if (nearPad(px, pz)) continue;
-            if (kitHash(t.x, t.z, s, i, f.nx, f.nz, 2) < D.chance.wallAc) {
+            if (kitHash(t.x, t.z, s, i, f.nx, f.nz, 2) < (alleyFace(f) ? A.ac : D.chance.wallAc)) {
               const ac = pick(D.wallAc, kitHash(u, s, 3));
               const [x, z] = onFace(f, u, D.outset + 0.05);
               add(ac, place(ac, x, y + 0.4, z, f.yaw, 1, 1, 1, true), 1, "ac");
@@ -414,6 +427,85 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         if (kitHash(x, z, 26) > D.chance.prop || nearPad(x, z) || inStair(x, z, 1.5)) continue;
         const id = pick(D.streetProps, kitHash(x, z, 27));
         add(id, place(id, x, cityCfg.kerb, z, f.yaw, 1, 1, 1, false), 2, "prop");
+      }
+    }
+  }
+
+  // ------------------------------------------------ Neon Alley: signs up every face, a web of cables, stands, the kerbs
+  {
+    const chimneys = cityCfg.chimneys.list;
+    const Ch = cityCfg.chimneys;
+    /** a column up a face at the mouth of a chimney: nothing may stand out there (the plan's rule 1) */
+    const atChimney = (f: Face, u: number) => chimneys.some((c) => Math.abs(u - c.x) < Ch.width / 2 + Ch.wall + 1.5 && (Math.abs(f.at - c.z0) < 2 || Math.abs(f.at - c.z1) < 2));
+    const sites: Array<{ f: Face; foot: number; top: number; spire: boolean }> = [];
+    for (const t of towers) for (const f of faces(t.x - t.w / 2, t.x + t.w / 2, t.z - t.d / 2, t.z + t.d / 2)) if (alleyFace(f)) sites.push({ f, foot: t.base, top: t.roof, spire: Math.abs(t.x) < 30 && Math.abs(t.z) < 30 });
+    // (the podiums' own upper floors carry their signs already: the stacks go up the towers)
+    for (const { f, foot, top, spire } of sites) {
+      const [a, b] = alleyFace(f)!;
+      // the Spire's billboard is in the middle of a tier's face with no pad
+      const board = spire ? Math.min(16, f.b - f.a - 4) / 2 + 1 : 0;
+      for (let u = a + 1; u <= b - 1; u += A.signEvery) {
+        const [px, pz] = onFace(f, u, 1.8);
+        if (nearPad(px, pz, D.clear.pad + 2) || atChimney(f, u) || (board && Math.abs(u - (f.a + f.b) / 2) < board)) continue;
+        const vertical = kitHash(u, f.at, 40) < 0.4;
+        let y = foot + A.signFrom;
+        const yTop = Math.min(top - 1, A.signTo);
+        for (let k = 0; y < yTop; k++) {
+          const id = pick(vertical ? D.blades : D.signs, kitHash(u, f.at, k, 41));
+          const sd = dims(id);
+          if (!sd || y + sd.h > yTop) break;
+          // in front of the facade's relief (dress relief), or a module's pilasters hide it
+          const [x, z] = onFace(f, u, D.outset + D.relief + 0.06);
+          add(id, place(id, x, y, z, f.yaw, 1, 1, 1, true), 0, "sign");
+          y += sd.h + A.signGap;
+        }
+      }
+    }
+    // the web of cables over it, in two layers, each from the face across the alley that stands at its height (the
+    // podiums' under 8 m, the towers' over), never across a pad's throw
+    const across = [
+      ...KIT_SITES.podia.flatMap((p) => faces(p.x0, p.x1, p.z0, p.z1).filter((f) => alleyFace(f)).map((f) => ({ f, foot: 0, top: p.top }))),
+      ...towers.flatMap((t) => faces(t.x - t.w / 2, t.x + t.w / 2, t.z - t.d / 2, t.z + t.d / 2).filter((f) => alleyFace(f)).map((f) => ({ f, foot: t.base, top: t.roof }))),
+    ];
+    const padsUp = padsWorld.map((q) => ({ x: q.x - BR_X, z: q.z - BR_Z, top: (q.y ?? 0) + ((q.up ?? 0) * (q.up ?? 0)) / (2 * 17.5) + 2 }));
+    for (let u = NA.from + 2; u <= NA.to - 2; u += A.cableEvery) {
+      A.cableAt.forEach(([lo, hi], layer) => {
+        const y = lo + kitHash(u, layer, 42) * (hi - lo);
+        const ends = across.filter((q) => u > q.f.a + 0.5 && u < q.f.b - 0.5 && y > q.foot + 0.5 && y < q.top - 0.5).map((q) => q.f.at);
+        // the nearest face each side of the street
+        const near = ends.filter((z) => z < alleyZ).reduce((m, z) => Math.max(m, z), -Infinity);
+        const far = ends.filter((z) => z > alleyZ).reduce((m, z) => Math.min(m, z), Infinity);
+        if (!Number.isFinite(near) || !Number.isFinite(far)) return;
+        if (padsUp.some((q) => Math.abs(q.x - u) < 3.5 && q.z > near - 3 && q.z < far + 3 && q.top > y - 2)) return;
+        const id = pick(D.cables, kitHash(u, layer, 43));
+        const cd = dims(id);
+        if (!cd) return;
+        add(id, place(id, u, y, (near + far) / 2, Math.PI / 2, (far - near - 0.2) / cd.w, 1, 1, false), 1, "cable");
+      });
+    }
+    // the stalls: a food stand over each of the city's boxes
+    for (const s of KIT_SITES.stalls) {
+      const id = pick(A.stands, kitHash(s.x, s.z, 44));
+      const sd = dims(id);
+      if (sd) add(id, place(id, s.x, cityCfg.kerb, s.z, s.yaw, (s.w * 1.06) / sd.w, (s.h * 1.04) / sd.h, (s.d * 1.1) / sd.d, false), 1, "prop");
+    }
+    // bins and a hydrant along both kerbs, and street lamps, clear of the pads, the stalls and the stairwells
+    const kerbs = [-1, 1].map((sg) => alleyZ + sg * (cityCfg.streetLife.lane + 2.2));
+    const clearOf = (x: number, z: number, r: number) =>
+      !nearPad(x, z, D.clear.pad + r) &&
+      !KIT_SITES.stalls.some((s) => Math.abs(s.x - x) < s.w / 2 + r && Math.abs(s.z - z) < s.d / 2 + r) &&
+      !KIT_SITES.openings.some((o) => x > o.x0 - r && x < o.x1 + r && z > o.z0 - r && z < o.z1 + r);
+    for (const kz of kerbs) {
+      for (let u = NA.from + 2; u <= NA.to - 2; u += A.kerbEvery) {
+        const x = u + (kitHash(u, kz, 45) - 0.5) * 2;
+        if (!clearOf(x, kz, 1) || A.lampAt.some((l) => Math.abs(l - x) < 1.5)) continue;
+        const id = pick(A.kerb, kitHash(u, kz, 46));
+        add(id, place(id, x, 0, kz, kz < alleyZ ? 0 : Math.PI, 1, 1, 1, false), 1, "prop");
+      }
+      for (const lx of A.lampAt) {
+        if (!clearOf(lx, kz, 0.6)) continue;
+        // its arm out over the street
+        add(D.lamp, place(D.lamp, lx, 0, kz, kz < alleyZ ? 0 : Math.PI, 1, 1, 1, false), 1, "lamp");
       }
     }
   }

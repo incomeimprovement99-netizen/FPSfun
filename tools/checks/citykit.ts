@@ -69,6 +69,28 @@ check(`every face of the centre's ${towers.length} towers wears its facade at it
 check("the centre's podiums wear shop fronts on their street floors", (byKind.get("shop") ?? 0) >= 40, `${byKind.get("shop") ?? 0} shop fronts`);
 check("the skyline's towers each wear a lit building from the bundle", (byKind.get("skyline") ?? 0) === KIT_SITES.skyline.length, `${byKind.get("skyline") ?? 0} of ${KIT_SITES.skyline.length}`);
 
+// Neon Alley (city.json neonAlley, the plan's 4.3.1): its stalls each a stand, signs up its towers, a web over it
+{
+  const NA = (await import("../../src/config/city.json")).default.neonAlley;
+  const lines = (await import("../../src/config/city.json")).default.blocks.slice(0, -1).map((b: number[], i: number, all: number[][]) => (b[1] + (all[i + 1] ?? b)[0]) / 2);
+  const z0 = lines[NA.street];
+  const inAlley = (p: (typeof places)[number]) => {
+    const b = bounds(p);
+    const cx = (b.min.x + b.max.x) / 2;
+    const cz = (b.min.z + b.max.z) / 2;
+    return cx > NA.from - 1 && cx < NA.to + 1 && Math.abs(cz - z0) < 20;
+  };
+  const stands = new Set(kit.dress.alley.stands);
+  const dressed = places.filter((p) => stands.has(p.piece)).length;
+  const signs = places.filter((p) => (p.kind === "sign" || p.kind === "blade") && inAlley(p)).length;
+  const cables = places.filter((p) => p.kind === "cable" && inAlley(p)).length;
+  check(
+    "Neon Alley: every stall wears a food stand, its towers carry 30 signs and more, a web of 10 cables and more crosses it",
+    KIT_SITES.stalls.length === NA.stalls.length && dressed === KIT_SITES.stalls.length && signs >= 30 && cables >= 10,
+    `${dressed} of ${KIT_SITES.stalls.length} stalls, ${signs} signs, ${cables} cables`,
+  );
+}
+
 // the movement's volumes are clear of anything that stands out of a wall (the plan's rules 1, 2 and 4)
 // a facade module stands out of its building by its relief (citykit.json plane): past the plan's 0.15 m it counts
 const standOut = places

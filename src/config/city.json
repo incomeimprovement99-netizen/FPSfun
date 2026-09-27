@@ -485,5 +485,23 @@
       "lane": 3.4
     },
     "lightEvery": 4
+  },
+  "_neonAlley": "Neon Alley (docs/CITY_BUNDLE_IMPLEMENTATION.md 4.3.1, the plan's showpiece street): the street `street` (its index in the city's streets from the north: the one in front of the Spire's north face, z -36) from `from` to `to` along it, the Spire's block. Its stalls are the city's, solid cover on the Spire's pavement, each `stall` metres (along the street, deep, tall) with its middle at each of `stalls` along the street, set `back` metres in from the block's edge; the bought kit dresses each as a food stand, and a copy without it shows a dark kiosk. Everything else the alley wears is the kit's (citykit.json dress alley).",
+  "neonAlley": {
+    "street": 2,
+    "from": -29,
+    "to": 29,
+    "stalls": [
+      -18,
+      -9,
+      9,
+      18
+    ],
+    "stall": [
+      4.2,
+      2.2,
+      3.2
+    ],
+    "back": 0.3
   }
 }

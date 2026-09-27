@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import kit from "../config/citykit.json";
 import type { KitPlace } from "./citydress";
+import { KIT_SITES, STAND_INS } from "./city";
 import type { Quality } from "./quality";
 
 // the server caches /models/ for a day, so the version rides in the file name and the query
@@ -87,5 +88,9 @@ export async function dressCityKit(root: THREE.Object3D, places: KitPlace[], q: 
     CITY_KIT.drawn += list.length;
   }
   root.add(group);
+  // every stall wearing its stand: the dark kiosks under them go (the stands are open-fronted), their collision stays
+  const stands = new Set(kit.dress.alley.stands);
+  const dressed = want.filter((p) => stands.has(p.piece) && byId.has(p.piece)).length;
+  if (KIT_SITES.stalls.length && dressed >= KIT_SITES.stalls.length) for (const m of STAND_INS.stalls) m.visible = false;
   return CITY_KIT.drawn;
 }

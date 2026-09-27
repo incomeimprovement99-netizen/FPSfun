@@ -4893,3 +4893,26 @@ players' descriptions; the numbers here are ours, by eye.
 - **Checked:** the e2e soldier section (HEAL used: the hand up, its card tapped, back on the gun, the ring on the
   ground; it failed with the cast removed); verify; rules; pictures through the cast and of the area
   (`tools/hackcast-sheet.ts`).
+
+## Milestone 260 — Neon Alley: the showpiece street in front of the Spire
+
+Step 3 of `docs/CITY_BUNDLE_IMPLEMENTATION.md` (4.3.1): one street at full density, the before and after for the owner.
+The street in front of the Spire's north face (z -36), between the Spire's block and the north twins.
+
+- **Neon up the towers** (`citykit.json` dress alley). Every tower face fronting the street carries neon signs stacked
+  in columns 6 m apart from a metre over its foot to 26 m, a horizontal sign or a vertical blade a column: the north
+  twins and the Spire's first tier, clear of the pads, the chimney's mouth and the Spire's billboard. They hang in
+  front of the facade's relief (a brownstone's pilasters hid them at the wall), and signs and blades now light by
+  their own picture, as billboards do: at the kit's own emission they read as dark red slabs.
+- **A web of cables** over it in two layers, 6 to 9 m between the podiums and 10 to 14 m between the towers, never
+  across a pad's throw.
+- **Food stalls** (`city.json` neonAlley). Four solid kiosks on the Spire's pavement, cover a player can use, each
+  wearing one of the kit's food stands. The stands are open-fronted, so once every stall wears one the kiosks' own
+  materials are hidden (`city.ts` STAND_INS) and their collision stays; on Competitive and on Pages the dark kiosk
+  shows.
+- **The kerbs:** street lamps, bins and hydrants, clear of the pads, the stalls and the metro's stairwells; AC units on
+  the alley's tower faces at 0.35 a bay-storey near a deck.
+- **Checked:** `citykit.ts`: 4 of 4 stalls dressed, 50 signs and 16 cables in the alley, nothing standing out in a
+  chimney, a pad's column or a room's windows; the kit 580k, 1,166k and 1,203k triangles by preset; `sk-roofs`, the
+  bots walk every street link past the stalls; verify and rules; pictures along the street, up the twins, at a stall
+  and up the Spire.
