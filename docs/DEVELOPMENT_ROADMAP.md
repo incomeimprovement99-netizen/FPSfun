@@ -5081,3 +5081,28 @@ now it is in verify.
   the street 32.7% of the centre's room to stand against 20% or less. Towers are solid between their decks: the plan's
   answer is the floors next to each deck open inside, and stairs or pads up through the towers, which is what comes
   next for the vertical centre.
+
+## Milestone 269 — The gap to Hyper Scape, and the first of it closed: on-gun screens, BOOG's scope, its tracer
+
+The owner: "do the gap analysis between this and Hyperscape for the char models, guns and first person views, even when
+aiming down the sights". A second research pass read Hyper Scape's patch notes, press, wiki and footage stills for
+aiming, the Ripper and the Protocol V, hands, characters and hit feedback. `docs/HYPERSCAPE_GAP_ANALYSIS.md` is the
+gap, matched item by item against the owner's view, with the next steps ranked.
+
+- **A live screen on the gun** (`gunfeel.json` screen, `viewmodel.ts` mountScreen). Hyper Scape's Protocol V showed its
+  magazine in blue digits on its side, with fusion as pips, gold at the top. USSO and BOOG now carry one:
+  - on the side the eye sees, flush with the model (its side measured as it loads);
+  - the rounds in big digits, cyan on the USSO and blue on BOOG, and the fusion level as pips;
+  - all gold at level 5, Game Informer's "max a weapon out and it turns golden".
+- **BOOG's scope is the Protocol V's** (`hud.ts` drawHsScope):
+  - the whole screen in a soft chamfered frame, not a circle;
+  - thin red lines across with a gap and range ticks, a post from above and stadia below;
+  - the zoom, "x6.00", beside a chevron at the left edge;
+  - our recharge as an amber bar under the readout, the lines at full red when it is ready;
+  - it still powers on top to bottom.
+- **BOOG's tracer**: the Protocol V's "thick, blue bullet tracer", blue and three times as wide (`projectile.ts`).
+- **The USSO's flash is warm**, as the Ripper's was, where it was cyan.
+- **A hack picked up or fused** taps its card, as Hyper Scape's pickup was "an animation ... where you press hologram
+  buttons".
+- **Checked:** the e2e soldier section (the USSO's screen shows its rounds and a shot takes one off it); verify; rules;
+  the owner's view hip, aimed and firing on both guns.

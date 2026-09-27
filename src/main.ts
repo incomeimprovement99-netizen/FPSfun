@@ -967,7 +967,9 @@ function scopeState(optic: NonNullable<typeof viewModel.opticFitted>, aim: numbe
   else if (!Number.isFinite(scopeUpAt)) scopeUpAt = now;
   const base = { style: optic.info.reticle, color: optic.info.color, amount };
   if (!feel) return base;
-  return { ...base, on: Math.min(1, (now - scopeUpAt) / feel.boot), charge: feel.charge };
+  // the optic's zoom, read off its label ("6x Sniper"), for Hyper Scape's readout
+  const zoom = /([\d.]+)x/.exec(optic.info.label)?.[1];
+  return { ...base, on: Math.min(1, (now - scopeUpAt) / feel.boot), charge: feel.charge, hs: feel.style === "hs", zoom: zoom ? `x${Number(zoom).toFixed(2)}` : undefined };
 }
 // a signature gun's sounds (gunfeel.json): its phase in and out, BOOG's recharge and its ready ping, the USSO's rack, a scan, the sights
 viewModel.onFeel = (k, seconds) => {
@@ -4349,6 +4351,9 @@ function applyLoot(it: LootItem): void {
       const held = hacks.get(hackSlotOf(it.id) ?? "mobility");
       hud.notice(what === "fused" ? `${hackDef(it.id)?.name ?? it.id} FUSED  ·  LEVEL ${held?.level ?? 0}` : what === "maxed" ? `${hackDef(it.id)?.name ?? it.id}: ALREADY AT ITS TOP LEVEL` : `${hackDef(it.id)?.name ?? it.id} HACK`, gameTime, 1.6);
       if (what === "maxed") putBack(it);
+      // taken or fused, the hand installs it as Hyper Scape's did ("an animation ... where you press hologram
+      // buttons"): the hack's card comes up in the left hand and is tapped (hackcast.ts), the hack's own move
+      else viewModel.castHack(it.id);
       audio.reloadStep("bolt");
       // its notice is the one to see: after the switch a picked-up item's bare name was written over it (Phase 20 A7)
       return;
@@ -7046,7 +7051,7 @@ function step(): void {
       }
       // the tracer from the muzzle you see: the gun in first person, your figure's in third
       const muzzle = thirdPerson ? (selfFig?.muzzleWorld() ?? null) : onScreenAsWorld(viewModel.muzzleWorld());
-      projectiles.fire(origin.clone(), tmpDir, weapon, false, s.dmgScale, s.speedScale, muzzle);
+      projectiles.fire(origin.clone(), tmpDir, weapon, false, s.dmgScale, s.speedScale, muzzle, viewModel.tracerStyle);
       duel?.localShot(origin, tmpDir, weapon.id);
       selfFig?.kick();
     }
@@ -7337,6 +7342,7 @@ function step(): void {
     mantling: player.stance === "mantle",
     clipEmpty: onScreen.state.clip <= 0,
     clipFrac: onScreen.weapon.clipSize > 0 ? onScreen.state.clip / onScreen.weapon.clipSize : 1,
+    clip: onScreen.state.clip,
     vy: player.vel.y,
     reloading: debugView.reload !== null || onScreen.state.reloading,
     reloadProgress: debugView.reload ?? (onScreen.state.reloading ? onScreen.state.reloadProgress(now) : 0),

@@ -5131,6 +5131,30 @@ async function soldierTest(browser: Browser): Promise<void> {
       return g ? { mounted: g.mounted, dot: g.dot, sight: g.sight } : null;
     })()`,
   );
+  // Hyper Scape's guns carried a live screen (docs/HYPERSCAPE_GAP_ANALYSIS.md): the USSO's shows its rounds, and a shot
+  // takes one off it
+  const screen = await ev<{ before: string | null; after: string | null; clip: number }>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const until = async (ok) => { const t0 = performance.now(); while (!ok() && performance.now() - t0 < 30000) await wait(20); };
+      await until(() => r.gunFeel().screen);
+      const before = r.gunFeel().screen;
+      const clip0 = r.loadout.active.state.clip;
+      r.setScript({ held: (a) => a === "fire", pressedNow: () => false });
+      await until(() => r.loadout.active.state.clip < clip0);
+      r.setScript(null);
+      const clip = r.loadout.active.state.clip;
+      await until(() => r.gunFeel().screen && r.gunFeel().screen.startsWith(clip + "|"));
+      return { before, after: r.gunFeel().screen, clip };
+    })()`,
+  );
+  check(
+    "soldier guns: the USSO's screen shows its rounds, and a shot takes one off it",
+    !!screen.before && !!screen.after && screen.after.startsWith(`${screen.clip}|`) && screen.before !== screen.after,
+    JSON.stringify(screen),
+  );
   check(
     "soldier guns: the USSO wears the pack's reflex sight and is aimed down its dot, a red one",
     !!reddot && reddot.mounted && !!reddot.sight?.dot && !!reddot.dot && parseInt(reddot.dot.slice(0, 2), 16) > 2 * parseInt(reddot.dot.slice(2, 4), 16),

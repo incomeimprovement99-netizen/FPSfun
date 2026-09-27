@@ -187,7 +187,7 @@ export interface HudState {
    * a magnified scope's full-screen picture, faded in with aim; a signature gun's (gunfeel.json scope) powers on: `on`
    * is how far through its boot it is, 0..1, and `charge` how far it has recharged since its last shot
    */
-  scope: { style: ReticleStyle; color: string; amount: number; on?: number; charge?: number | null } | null;
+  scope: { style: ReticleStyle; color: string; amount: number; on?: number; charge?: number | null; hs?: boolean; zoom?: string } | null;
   /**
    * SpeedKills: being healed by a HEAL area, 0 to 1 (eased in and out by main.ts), and how much of the view's edges
    * glow green at full (hacks.json healArea screen)
@@ -1351,6 +1351,10 @@ export class Hud {
   private drawScope(s: HudState, u: number): void {
     const sc = s.scope;
     if (!sc || sc.amount <= 0.001) return;
+    if (sc.hs) {
+      this.drawHsScope(sc, u);
+      return;
+    }
     const c = this.ctx;
     const cx = this.w / 2;
     const cy = this.h / 2;
@@ -1462,6 +1466,123 @@ export class Hud {
       c.fillStyle = `rgba(200,255,224,${a.toFixed(3)})`;
       c.fillRect(x - r * 0.3, y - r, r * 0.6, 2 * r);
       c.fillRect(x - r, y - r * 0.3, 2 * r, r * 0.6);
+    }
+    c.restore();
+  }
+
+  /**
+   * Hyper Scape's Protocol V scope (research, docs/HYPERSCAPE_GAP_ANALYSIS.md): not a circle, the whole screen, framed by
+   * a soft chamfered-rectangle vignette at the edges; thin red lines across it with a gap at the middle and range ticks
+   * either side, a post down from above and stadia below; a chevron and the zoom ("x6.00") at the left edge. The
+   * recharge after a shot is a bar under the readout, amber filling, then the lines at full red when it is ready. It
+   * powers on top to bottom as the signature scope does.
+   */
+  private drawHsScope(sc: NonNullable<HudState["scope"]>, u: number): void {
+    const c = this.ctx;
+    const W = this.w;
+    const H = this.h;
+    const cx = W / 2;
+    const cy = H / 2;
+    c.save();
+    c.globalAlpha = sc.amount;
+    // the chamfered frame: black outside, soft inside
+    const inset = Math.min(W, H) * 0.035;
+    const cut = Math.min(W, H) * 0.12;
+    const frame = (k: number) => {
+      const i = inset + k;
+      c.moveTo(i + cut, i);
+      c.lineTo(W - i - cut, i);
+      c.lineTo(W - i, i + cut);
+      c.lineTo(W - i, H - i - cut);
+      c.lineTo(W - i - cut, H - i);
+      c.lineTo(i + cut, H - i);
+      c.lineTo(i, H - i - cut);
+      c.lineTo(i, i + cut);
+      c.closePath();
+    };
+    c.fillStyle = "#040506";
+    c.beginPath();
+    c.rect(0, 0, W, H);
+    frame(0);
+    c.fill("evenodd");
+    for (let k = 1; k <= 6; k++) {
+      c.strokeStyle = `rgba(4,5,6,${(0.5 * (1 - k / 7)).toFixed(3)})`;
+      c.lineWidth = 6 * u;
+      c.beginPath();
+      frame(k * 5 * u);
+      c.stroke();
+    }
+    const ready = sc.charge === undefined || sc.charge === null || sc.charge >= 1;
+    const red = ready ? "rgba(255,42,58,0.95)" : "rgba(255,42,58,0.45)";
+    const on = sc.on ?? 1;
+    c.save();
+    c.beginPath();
+    c.rect(0, 0, W, cy - H * 0.5 + H * on * 1.0 + 1);
+    c.clip();
+    c.strokeStyle = red;
+    c.fillStyle = red;
+    const lw = Math.max(1.5, 2 * u);
+    c.lineWidth = lw;
+    const gap = W * 0.018;
+    // the line across, with the gap at the middle
+    c.beginPath();
+    c.moveTo(inset, cy);
+    c.lineTo(cx - gap, cy);
+    c.moveTo(cx + gap, cy);
+    c.lineTo(W - inset, cy);
+    c.stroke();
+    // range ticks either side of the gap
+    for (let i = 1; i <= 6; i++) {
+      const dx = gap + i * W * 0.022;
+      const th = (i % 3 === 0 ? 14 : 8) * u;
+      c.beginPath();
+      c.moveTo(cx - dx, cy);
+      c.lineTo(cx - dx, cy + th);
+      c.moveTo(cx + dx, cy);
+      c.lineTo(cx + dx, cy + th);
+      c.stroke();
+    }
+    // the post from above, and the stadia below
+    c.beginPath();
+    c.moveTo(cx, inset);
+    c.lineTo(cx, cy - gap);
+    c.moveTo(cx, cy + gap);
+    c.lineTo(cx, cy + H * 0.3);
+    for (const [k, half] of [[0.1, 0.028], [0.19, 0.02], [0.27, 0.014]] as const) {
+      c.moveTo(cx - W * half, cy + H * k);
+      c.lineTo(cx + W * half, cy + H * k);
+    }
+    c.stroke();
+    // the chevron and the zoom at the left edge
+    const lx = inset + 10 * u;
+    c.beginPath();
+    c.moveTo(lx, cy - 7 * u);
+    c.lineTo(lx + 34 * u, cy - 7 * u);
+    c.lineTo(lx + 44 * u, cy);
+    c.lineTo(lx + 34 * u, cy + 7 * u);
+    c.lineTo(lx, cy + 7 * u);
+    c.stroke();
+    c.font = this.font(700, 22 * u);
+    c.textAlign = "left";
+    c.fillText(sc.zoom ?? "", lx + 4 * u, cy + 34 * u);
+    // the recharge: a bar under the readout, amber filling
+    if (!ready) {
+      const bw = 90 * u;
+      c.fillStyle = "rgba(255,190,90,0.25)";
+      c.fillRect(lx + 4 * u, cy + 46 * u, bw, 4 * u);
+      c.fillStyle = "rgba(255,190,90,0.95)";
+      c.fillRect(lx + 4 * u, cy + 46 * u, bw * Math.max(0, sc.charge ?? 0), 4 * u);
+    }
+    c.restore();
+    // the power-on's scan line
+    if (on < 1) {
+      const y = H * on;
+      c.strokeStyle = "rgba(255,120,120,0.8)";
+      c.lineWidth = 2 * u;
+      c.beginPath();
+      c.moveTo(inset, y);
+      c.lineTo(W - inset, y);
+      c.stroke();
     }
     c.restore();
   }

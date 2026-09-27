@@ -117,6 +117,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
   cells, and BOOG a shockwave off the muzzle), BOOG's scope powers on with a scan
   line and a ring round it fills as it recharges, their glow stutters when the
   magazine is nearly out, and an inspect or a fusion runs a scan along the gun.
+  Like Hyper Scape's guns they carry a live screen on the side (the rounds in
+  big digits, the fusion level as pips, gold at the top); BOOG's scope is
+  Hyper Scape's full-screen one, thin red lines in a chamfered frame with the
+  zoom at the edge, and its rounds leave a thick blue tracer. The gap analysis
+  against Hyper Scape is docs/HYPERSCAPE_GAP_ANALYSIS.md.
   Every bought gun's support hand holds it where the bought model is held
   (measured), and the soldier's first-person arms are drawn the glove's size and
   a real forearm's thickness, whole to the shoulder. Using a hack is seen in

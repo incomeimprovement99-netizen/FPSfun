@@ -84,6 +84,8 @@ export interface VMFrame {
   downed?: number;
   /** how full the magazine is, 0..1: a signature gun's glow flickers when it is nearly out */
   clipFrac?: number;
+  /** the rounds in the magazine (a signature gun's screen shows them) */
+  clip?: number;
 }
 
 /** an inspect's length, s, and a first draw's flourish (ours: cosmetic, the gun is usable throughout) */
@@ -108,8 +110,10 @@ interface GunFeel {
   scan: { inspect: number; fusion: number };
   ads: number;
   lowAmmo: number;
-  scope?: { boot: number };
+  scope?: { boot: number; style?: string };
   hip?: number[];
+  screen?: { y: number; z: number; w: number; h: number; color: string };
+  tracer?: { color: string; width: number };
 }
 
 /** a signature gun's muzzle flash (gunfeel.json flash) */
@@ -514,6 +518,10 @@ export class ViewModel {
   onFeel: ((kind: FeelSound, seconds?: number) => void) | null = null;
   private readonly glowBase = new Map<THREE.Material, number>();
   private readonly hipFeel = new THREE.Vector3();
+  /** a signature gun's screen (gunfeel.json screen): its canvas, and what it last drew */
+  private screenCv: HTMLCanvasElement | null = null;
+  private screenTex: THREE.CanvasTexture | null = null;
+  private screenDrawn = "";
   private cylAngle = 0;
   private cylTarget = 0;
   /** a bought launcher's drum (paidgun.ts parts): where it is, and the chamber it is turning to */
@@ -675,6 +683,7 @@ export class ViewModel {
       return box;
     };
     const paid = m.root.getObjectByName("paid");
+    if (paid && this.feel.screen) this.mountScreen(paid.children[0], this.feel.screen);
     if (paid) {
       const g = drawn(paid, m.root);
       const cy = (g.min.y + g.max.y) / 2;
@@ -689,6 +698,90 @@ export class ViewModel {
       this.magEnd.set(cx, b.min.y, cz);
     }
     this.phaseGun(m);
+  }
+
+  /**
+   * A signature gun's screen on its left side (gunfeel.json screen): a flat panel standing just proud of the gun where
+   * it is placed, the side measured off the model, facing out of it. Once a gun: the model is the one cached copy.
+   */
+  private mountScreen(model: THREE.Object3D, S: { y: number; z: number; w: number; h: number }): void {
+    if (!this.screenCv) {
+      this.screenCv = document.createElement("canvas");
+      this.screenCv.width = 256;
+      this.screenCv.height = 140;
+      this.screenTex = new THREE.CanvasTexture(this.screenCv);
+      this.screenTex.colorSpace = THREE.SRGBColorSpace;
+    }
+    this.screenDrawn = "";
+    if (model.getObjectByName("gun-screen")) return;
+    model.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(model.matrixWorld).invert();
+    const v = new THREE.Vector3();
+    let side = -Infinity;
+    model.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const to = new THREE.Matrix4().multiplyMatrices(inv, mesh.matrixWorld);
+      const pos = mesh.geometry.getAttribute("position");
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(to);
+        if (Math.abs(v.y - S.y) < S.h / 2 && Math.abs(v.z - S.z) < S.w / 2) side = Math.max(side, v.x);
+      }
+    });
+    if (!Number.isFinite(side)) return;
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(S.w, S.h), new THREE.MeshBasicMaterial({ map: this.screenTex, transparent: true, toneMapped: false }));
+    screen.name = "gun-screen";
+    // facing out of the gun's left (the pack's +x), its right way up to the eye (along the gun, muzzle to the right)
+    screen.rotation.y = Math.PI / 2;
+    screen.position.set(side + 0.0015, S.y, S.z);
+    screen.renderOrder = 2;
+    model.add(screen);
+  }
+
+  /** a signature gun's screen this frame: its rounds in big digits and its fusion level as pips, gold at the top */
+  private drawScreen(clip: number, level: number, color: string): void {
+    const cv = this.screenCv;
+    if (!cv || !this.screenTex) return;
+    const top = PROFILE.fusion?.levels ?? 5;
+    const key = `${clip}|${level}`;
+    if (key === this.screenDrawn) return;
+    this.screenDrawn = key;
+    const c = cv.getContext("2d")!;
+    const W = cv.width;
+    const H = cv.height;
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = "rgba(4, 10, 16, 0.86)";
+    c.beginPath();
+    c.moveTo(14, 4);
+    c.lineTo(W - 4, 4);
+    c.lineTo(W - 4, H - 14);
+    c.lineTo(W - 14, H - 4);
+    c.lineTo(4, H - 4);
+    c.lineTo(4, 14);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = color;
+    c.globalAlpha = 0.5;
+    c.lineWidth = 3;
+    c.stroke();
+    c.globalAlpha = 1;
+    const gold = level >= top;
+    // the fusion pips, down the left
+    for (let i = 0; i < top; i++) {
+      const on = i < level;
+      c.fillStyle = on ? (gold ? "#ffcc3c" : "#e8f6ff") : "rgba(232, 246, 255, 0.16)";
+      c.fillRect(20, H - 26 - i * ((H - 40) / top), 26, (H - 40) / top - 6);
+    }
+    // the rounds, big, right-aligned, two digits at least
+    c.font = "700 104px Rajdhani, 'Arial Narrow', sans-serif";
+    c.textAlign = "right";
+    c.textBaseline = "middle";
+    c.fillStyle = gold ? "#ffcc3c" : color;
+    c.shadowColor = c.fillStyle;
+    c.shadowBlur = 12;
+    c.fillText(String(Math.max(0, clip)).padStart(2, "0"), W - 18, H / 2 + 6);
+    c.shadowBlur = 0;
+    this.screenTex.needsUpdate = true;
   }
 
   /** the bought gun's meshes onto the sweeps: its magazine's on the magazine's, the rest on the gun's */
@@ -719,6 +812,8 @@ export class ViewModel {
     S.dir.value.copy(toWorld(this.gunFar, m.root)).sub(S.origin.value);
     S.len.value = Math.max(1e-4, S.dir.value.length());
     S.dir.value.normalize();
+    // its screen: the rounds and the fusion level
+    if (F.screen && f.clip !== undefined) this.drawScreen(f.clip, w.fusion ?? 0, F.screen.color);
     // the sounds of the phase: out as it starts to go, in as it starts to come
     if (this.lastPhase >= 0.999 && phase < 0.999) this.onFeel?.("out");
     else if (this.lastPhase <= 0.001 && phase > 0.001) this.onFeel?.("in");
@@ -1251,17 +1346,23 @@ export class ViewModel {
    * A signature gun's scope picture (gunfeel.json scope, the HUD draws it): how long it powers on over, and how far the
    * gun has recharged since its last shot, 0..1, or null for a gun with neither
    */
-  get scopeFeel(): { boot: number; charge: number | null } | null {
+  get scopeFeel(): { boot: number; charge: number | null; style: string | null } | null {
     const F = this.feel;
     const w = this.weapon;
     if (!F?.scope || !w) return null;
     const u = F.charge ? Math.min(1, (this.t - this.lastShotAt) / Math.max(0.4, w.rechamberTime || w.shotInterval)) : null;
-    return { boot: F.scope.boot, charge: u };
+    return { boot: F.scope.boot, charge: u, style: F.scope.style ?? null };
+  }
+
+  /** the signature gun's tracer (gunfeel.json tracer), for the rounds it fires (projectile.ts) */
+  get tracerStyle(): { color: string; width: number } | null {
+    return this.feel?.tracer ?? null;
   }
 
   /** the signature gun's feel in hand (gunfeel.json), its phase and its magazine's, and whether it is drawn (the e2e soldier section) */
-  get feelState(): { gun: string | null; phase: number; mag: number; shown: boolean; scan: number; charge: number | null } {
-    return { gun: this.feel ? (this.model?.id ?? null) : null, phase: this.bodySweep.phase.value, mag: this.magSweep.phase.value, shown: this.holder.visible, scan: this.bodySweep.scan.value, charge: this.scopeFeel?.charge ?? null };
+  get feelState(): { gun: string | null; phase: number; mag: number; shown: boolean; scan: number; charge: number | null; screen: string | null } {
+    const hasScreen = !!this.model?.root.getObjectByName("gun-screen");
+    return { gun: this.feel ? (this.model?.id ?? null) : null, phase: this.bodySweep.phase.value, mag: this.magSweep.phase.value, shown: this.holder.visible, scan: this.bodySweep.scan.value, charge: this.scopeFeel?.charge ?? null, screen: hasScreen ? this.screenDrawn : null };
   }
 
   /** whether each real arm's upper arm's cut end is off the gun camera's frame (fparms.ts cutOffFrame; the e2e soldier section) */

@@ -127,6 +127,13 @@ const SUBSTEPS = 4;
 const TRACER = tracerCfg.tracers;
 const tracerGeo = new THREE.BoxGeometry(1, 1, 1);
 const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+/** a signature gun's own tracer (gunfeel.json tracer), one material a colour */
+const tracerMats = new Map<string, THREE.MeshBasicMaterial>();
+function tracerMatFor(color: string): THREE.MeshBasicMaterial {
+  let m = tracerMats.get(color);
+  if (!m) tracerMats.set(color, (m = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(1.3), transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })));
+  return m;
+}
 /** the other player's rounds, redder so you can tell whose is whose */
 const remoteTracerMat = new THREE.MeshBasicMaterial({ color: 0xff6a4a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
 const Z = new THREE.Vector3(0, 0, 1);
@@ -151,8 +158,9 @@ export class ProjectileSystem {
    * line of sight and was never seen; drawn from the muzzle, it joins the
    * real path over the first TRACER.blend metres.
    */
-  fire(origin: THREE.Vector3, dir: THREE.Vector3, w: ResolvedWeapon, visual = false, dmgScale = 1, speedScale = 1, drawFrom: THREE.Vector3 | null = null): void {
-    const mesh = new THREE.Mesh(tracerGeo, visual ? remoteTracerMat : tracerMat);
+  fire(origin: THREE.Vector3, dir: THREE.Vector3, w: ResolvedWeapon, visual = false, dmgScale = 1, speedScale = 1, drawFrom: THREE.Vector3 | null = null, style: { color: string; width: number } | null = null): void {
+    const mesh = new THREE.Mesh(tracerGeo, visual ? remoteTracerMat : style ? tracerMatFor(style.color) : tracerMat);
+    mesh.userData.width = style && !visual ? style.width : 1;
     mesh.position.copy(drawFrom ?? origin);
     mesh.scale.setScalar(0.001);
     mesh.renderOrder = 5;
@@ -192,7 +200,7 @@ export class ProjectileSystem {
     b.mesh.position.copy(tv).addScaledVector(td, -len / 2);
     b.mesh.quaternion.setFromUnitVectors(Z, td);
     const dist = viewer.pos.distanceTo(tv);
-    const width = Math.max(TRACER.width, (dist * TRACER.minPx) / viewer.pxPerRad);
+    const width = Math.max(TRACER.width, (dist * TRACER.minPx) / viewer.pxPerRad) * ((b.mesh.userData.width as number | undefined) ?? 1);
     b.mesh.scale.set(width, width, len);
   }
 
