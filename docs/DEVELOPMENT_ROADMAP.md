@@ -4599,3 +4599,22 @@ buyer to animate. Until now only the magazine, slide and pump moved.
     BOOG's housing off; HELIX's magazine 133 mm out mid-reload.
   - Each failed with its bug put back: a 7-chamber step, the middle hinge, the drum left still.
   - Pictures of all ten at the hip, in the sights and mid-reload.
+
+## Milestone 251 — Every bought gun aimed down its own sights; hands the glove's size
+
+The owner, on Milestone 250: "our custom sights on top of the already built in sights, we don't want that", and "the
+hands are huge ... the knuckles take up part of the view when aiming and then blocking the gun". Minimal testing, at
+the owner's word.
+
+- **Own sights only** (`paidmodels.json` eye, measured; `paidgun.ts` ownSight; `viewmodel.ts` fitOptic). A bought gun
+  is aimed down its own sights: the rifle's and the steady SMG's scopes on their reticle dots, NOVA's holographic
+  front sight, the sniper's scope on its axis, and USSO's and the shotguns' irons. The gun's optic lends its zoom and,
+  magnified, its picture over the screen, and is never drawn. This replaces Milestone 250's optic seat and folding
+  flip sights, which are gone.
+- **The rifle's scope glass cut out on the gun in hand** (`paidgun.ts` openLenses). The pack paints its lenses on,
+  opaque, so the target was behind a blue disc. Figures and the floor keep theirs.
+- **Hands and forearms the drawn glove's size** (`fparms.ts` fit). The soldier's armoured hands measure 1.4 times the
+  glove the grips were posed for (wrist to middle knuckle 124 mm to 87). Its hand and forearm are drawn at the glove's
+  size; the upper arm keeps the body's, since a shorter one ended in the frame.
+- **Checked:** pictures at the hip and in the sights of ZEPHYR, ANAKIN, USSO, BIGANTLER and NOVA; verify, rules; the
+  e2e soldier section's parts check now reads no optic drawn on NOVA and BOOG.

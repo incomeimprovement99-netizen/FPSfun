@@ -81,8 +81,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
   the two SMGs and the two shotguns one each, the rifles and PULSAR the rifle,
   HELIX and BOOG the sniper, NOVA the launcher. The pack's own parts move:
   triggers, NOVA's drum a chamber a shot, the sniper's wheels, the heavy
-  shotgun's loading gate, the magazine releases; the launcher's flip-up sights
-  fold under its optic, and the sniper sights down its own scope. The MINE
+  shotgun's loading gate, the magazine releases. Every gun is aimed down its
+  own sights (its scope's dot, the sniper's scope, or its irons), with no sight
+  of ours on top; the gun's optic lends only its zoom. The MINE
   hack's mine, death boxes, care packages and the med kit in a HEAL area are
   the pack's too.
 - **Ten guns**, five named for the owner's friends; BOOG, the sniper, kills

@@ -21,7 +21,7 @@
 import * as THREE from "three";
 import type { ResolvedWeapon } from "./weapons";
 import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels";
-import { PAID_MOTION, PAID_SIGHTS, setPaidLevel } from "./paidgun";
+import { openLenses, PAID_MOTION, setPaidLevel } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
 import type { OperatorSkin } from "./operators";
@@ -477,6 +477,8 @@ export class ViewModel {
       this.dropOptic();
       if (this.model) this.holder.remove(this.model.root);
       const m = gunModel(w.id);
+      // aimed down a bought gun's own scope, so its painted glass comes out (paidgun.ts)
+      openLenses(m);
       this.model = m;
       // the middle of the gun, measured before it is parented or given a
       // flash, so the box is the weapon itself in its own space
@@ -511,28 +513,19 @@ export class ViewModel {
     this.dropOptic();
     this.optic = buildOptic(mod);
     if (m.irons) m.irons.visible = this.optic === null;
-    // a bought gun's own scope (the pack's Scope parts, paidgun.ts) gives way to a fitted optic: the two stacked filled
-    // the sight picture under the optic with the scope's back (tools/weapon-picks-sheet.ts)
-    m.root.getObjectByName("paid")?.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh && PAID_SIGHTS.hide.test(o.name)) o.visible = this.optic === null;
-    });
-    // its flip-up sights (the launcher's) fold flat under one, as a real gun's backup sights do: standing, the front
-    // one stood in the optic's window
-    for (const s of m.parts?.sights ?? []) s.rotation.x = this.optic ? m.parts!.end * PAID_MOTION.sightFold : 0;
     if (!this.optic) return;
     this.optic.group.name = name;
     const parent = m.opticOnSlide && m.bolt ? m.bolt : m.root;
     parent.add(this.optic.group);
-    // A bought gun's scope in one piece with it (the sniper's, paidgun.ts ownScope) is the optic, for one that draws
-    // its picture over the screen: the fitted one's housing stays off (the two stood stacked at the hip), and the
-    // eye comes up the gun's own scope's axis, behind its back end
-    const seat = m.root.userData.seat as { railY: number; opticF: number } | undefined;
-    const own = m.root.userData.ownScope as { y: number; f: number } | undefined;
-    if (seat) {
-      m.railY = own && this.optic.info.overlay ? own.y - this.optic.lineH : seat.railY;
-      m.opticF = own && this.optic.info.overlay ? own.f - this.optic.backF : seat.opticF;
+    // A bought gun is aimed down its own sights (paidgun.ts ownSight), never ours on top of them: the fitted optic lends
+    // its zoom and, magnified, its picture over the screen, and is not drawn. The eye comes up the gun's own sight line,
+    // the optic's eye relief behind a scope, or as far behind irons as on any gun
+    const own = m.root.userData.ownSight as { y: number; f: number; irons: boolean } | undefined;
+    if (own) {
+      m.railY = own.y - this.optic.lineH;
+      m.opticF = own.f - this.optic.backF + (own.irons ? this.optic.info.relief - ADS_EYE : 0);
     }
-    this.optic.group.visible = !(own && this.optic.info.overlay);
+    this.optic.group.visible = !own;
     this.optic.group.position.set(0, m.railY, -m.opticF);
   }
 

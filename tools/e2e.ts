@@ -4933,10 +4933,10 @@ async function soldierTest(browser: Browser): Promise<void> {
     JSON.stringify(worn),
   );
   // the pack's own parts move in the hand (paidgun.ts PaidParts; the pack gives them split and moves none): NOVA's drum
-  // turns a chamber a shot and its trigger stays back through a burst, its flip-up sights folded under its optic;
-  // BOOG sights down its own scope, the fitted housing off (the two stood stacked); HELIX takes out a magazine on a
-  // reload (its procedural gun has none, and the bought one's stayed in)
-  const moving = await ev<{ why: unknown; shots: number; pulled: number; drum: number; step: number; sights: number[]; boogOptic: boolean | null; helixMag: number; helixOut: number }>(
+  // turns a chamber a shot and its trigger stays back through a burst; a bought gun is aimed down its own sights, the
+  // fitted optic not drawn on top of them (NOVA's and BOOG's); HELIX takes out a magazine on a reload (its procedural
+  // gun has none, and the bought one's stayed in)
+  const moving = await ev<{ why: unknown; shots: number; pulled: number; drum: number; step: number; novaOptic: boolean | null; boogOptic: boolean | null; helixMag: number; helixOut: number }>(
     page,
     `(async () => {
       const r = window.__range;
@@ -4971,7 +4971,8 @@ async function soldierTest(browser: Browser): Promise<void> {
       r.setScript(null);
       const shots = clip0 - r.loadout.active.state.clip;
       await gameWait(0.6);
-      const nova = r.gunParts()?.parts;
+      const novaAll = r.gunParts();
+      const nova = novaAll?.parts;
       await hold("sentinel");
       const boog = r.gunParts();
       await hold("3030");
@@ -4980,16 +4981,15 @@ async function soldierTest(browser: Browser): Promise<void> {
       await gameWait(0.3);
       const out = r.gunParts();
       r.debugView.reload = null;
-      return { why, shots, pulled, drum: nova?.drum ?? NaN, step: nova?.drumStep ?? 0, sights: nova?.sights ?? [], boogOptic: boog?.opticShown ?? null, helixMag: out?.mag ?? 0, helixOut: (rest?.magY ?? 0) - (out?.magY ?? 0) };
+      return { why, shots, pulled, drum: nova?.drum ?? NaN, step: nova?.drumStep ?? 0, novaOptic: novaAll?.opticShown ?? null, boogOptic: boog?.opticShown ?? null, helixMag: out?.mag ?? 0, helixOut: (rest?.magY ?? 0) - (out?.magY ?? 0) };
     })()`,
   );
   check(
-    "soldier guns: the pack's parts move, NOVA's drum a chamber a shot with its trigger back through a burst and its flip sights folded under its optic, BOOG's fitted housing off for its own scope, and HELIX's magazine out on a reload",
+    "soldier guns: the pack's parts move, NOVA's drum a chamber a shot with its trigger back through a burst; NOVA and BOOG aimed down their own sights, no fitted optic drawn over them; and HELIX's magazine out on a reload",
     moving.shots >= 2 &&
       Math.abs(moving.drum - moving.shots * moving.step) < 0.02 &&
       moving.pulled > 0.3 &&
-      moving.sights.length === 2 &&
-      moving.sights.every((x) => x > 1) &&
+      moving.novaOptic === false &&
       moving.boogOptic === false &&
       moving.helixMag >= 1 &&
       moving.helixOut > 0.02,

@@ -8044,7 +8044,6 @@ initWelcome();
           round: off(k.round, "y"),
           button: off(k.button, "x"),
           extruder: off(k.extruder, "y"),
-          sights: k.sights.map((s) => s.rotation.x),
         }
       : null;
     const optic = viewModel.opticFitted;

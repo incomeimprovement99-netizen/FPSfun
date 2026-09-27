@@ -45,6 +45,14 @@ interface Side {
   foreLen: number;
   /** the forearm's scale against the rig's group: the body's own units to the view's */
   restUnit: number;
+  /**
+   * the hand and forearm's size against the body's: the drawn glove's wrist to middle knuckle (arms.ts) over the
+   * body's, never over 1, so the hand is the size of the glove the grips were posed for and the forearm in proportion.
+   * The bought soldier's armoured hands are 1.4 times that glove (124 mm to 87), and drawn at the body's size its
+   * armoured forearms filled the sight picture either side of the gun. The upper arm keeps the body's size: shorter,
+   * its cut end came into the frame
+   */
+  fit: number;
 }
 
 const v1 = new THREE.Vector3();
@@ -126,8 +134,10 @@ export class FpArms {
     const hand = b[`hand_${s}`];
     const across = b[`index_01_${s}`].position.clone().sub(b[`pinky_01_${s}`].position);
     this.group.updateWorldMatrix(true, true);
+    const knuckle = b[`middle_01_${s}`]?.getWorldPosition(new THREE.Vector3()).distanceTo(hand.getWorldPosition(new THREE.Vector3()));
     return {
       restUnit: Math.abs(lo.getWorldScale(new THREE.Vector3()).x) / this.group.matrixWorld.getMaxScaleOnAxis(),
+      fit: knuckle ? Math.min(1, GLOVE_MIDDLE_KNUCKLE.distanceTo(GLOVE_WRIST) / (knuckle / this.group.matrixWorld.getMaxScaleOnAxis())) : 1,
       up,
       lo,
       hand,
@@ -160,7 +170,8 @@ export class FpArms {
     // own upper arms. The rig's root keeps one scale: sizing it per arm, twice
     // a frame, compounded into the bones and grew a forearm to five times its
     // size in a few frames.
-    const unit = S.restUnit * gm.getMaxScaleOnAxis();
+    const body = S.restUnit * gm.getMaxScaleOnAxis();
+    const unit = body * S.fit;
 
     // the hand: on the glove's wrist, in the glove's own frame
     const wrist = GLOVE_WRIST.clone().applyMatrix4(gm);
@@ -181,7 +192,7 @@ export class FpArms {
     // a wall of deltoid; cut short it ended in the frame.
     const down = new THREE.Vector3(0, -1, 0.35).transformDirection(this.group.matrixWorld);
     const upDir = along.clone().lerp(down, DOWN).normalize().negate();
-    const top = elbow.clone().addScaledVector(upDir, -S.upperLen * unit);
+    const top = elbow.clone().addScaledVector(upDir, -S.upperLen * body);
 
     // The twist: a hand rolled over on a handguard is turned a long way from
     // an arm at rest. The forearm takes half of that turn and the wrist the
@@ -198,7 +209,7 @@ export class FpArms {
     const loQ = swing(fromRest.slerp(fromWrist, TWIST), S.loAxis, loDir);
     const upQ = swing(loQ.clone().multiply(q2.copy(S.loRest).invert()), S.upAxis, upDir);
 
-    this.place(S.up, top, upQ, unit);
+    this.place(S.up, top, upQ, body);
     this.place(S.lo, elbow, loQ, unit);
     this.place(S.hand, wrist, handQ, unit);
     // the fingers: closed round a grip, or a fist

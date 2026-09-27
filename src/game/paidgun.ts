@@ -25,10 +25,8 @@ const GUNS = cfg.guns as Record<string, Gun>;
 /** every model of each gun's family, measured (tools/checks/paid-weapons.ts writes it) */
 const MEASURED = measuredCfg.models as Record<
   string,
-  { measured: { length: number; muzzleEnd: number; muzzle: number[]; sightTop: number; sightZ: number; railTop: number; railZ: number; scope?: { axis: number; back: number } } }
+  { measured: { length: number; muzzleEnd: number; muzzle: number[]; sightTop: number; sightZ: number; eye: { y: number; back: number; sight: string } } }
 >;
-/** the pack's own sights, which give way to a fitted optic (paidweapons.json sights) */
-export const PAID_SIGHTS = { hide: new RegExp(cfg.sights.hide), fold: new RegExp(cfg.sights.fold) };
 /** how the parts move (paidweapons.json motion) */
 export const PAID_MOTION = cfg.motion;
 const PROPS = (cfg.props ?? {}) as Record<string, { model: string; skin: string; scale?: number }>;
@@ -187,18 +185,13 @@ export function dressPaid(m: GunModel, level = 0): boolean {
   // the muzzle and the sight line, from the bought model's measurements, in the procedural gun's space
   const muz = new THREE.Vector3().fromArray(size.muzzle).applyMatrix4(place.matrix);
   m.muzzle.copy(muz);
-  m.sightY = m.grip.u + size.sightTop;
-  // a fitted optic sits on the bought gun's own seat for one (measured, railTop and railZ: its top where the sight it
-  // takes the place of stood, without that sight), not at the procedural rail, where it hung in the air past PULSAR's
-  // barrel, nor on the top of the pack's own scope, which it hides, where it floated 69 mm over the rifle
-  m.railY = m.grip.u + size.railTop;
-  m.opticF = -new THREE.Vector3(0, size.railTop, size.railZ).applyMatrix4(place.matrix).z;
-  m.root.userData.seat = { railY: m.railY, opticF: m.opticF };
-  // a scope in one piece with the gun (the sniper's): its axis and back end, where the eye goes (viewmodel fitOptic)
-  if (size.scope) {
-    const back = new THREE.Vector3(0, size.scope.axis, size.scope.back).applyMatrix4(place.matrix);
-    m.root.userData.ownScope = { y: back.y, f: -back.z };
-  }
+  // The gun's own sights, which it is aimed down (paidmodels.json eye, measured): its scope's reticle dot, the sniper's
+  // scope, or its irons. A fitted optic never goes on top of them (viewmodel fitOptic): ours on top stood over the
+  // rifle's and the steady SMG's scopes, the launcher's sights and USSO's irons, and made two scopes of the sniper's
+  const eye = new THREE.Vector3(0, size.eye.y, size.eye.back).applyMatrix4(place.matrix);
+  m.sightY = m.railY = eye.y;
+  m.rearF = m.opticF = -eye.z;
+  m.root.userData.ownSight = { y: eye.y, f: -eye.z, irons: size.eye.sight === "irons" };
   // its moving parts into the procedural groups the animations move, kept where they are
   const mover = (re: RegExp, group: THREE.Group | null) => {
     if (!group) return;
@@ -251,9 +244,8 @@ function boxIn(space: THREE.Object3D, o: THREE.Object3D): THREE.Box3 {
 /**
  * The pack's other moving parts, each put in a pivot at its hinge, found off the part's own geometry (the pack's
  * origins are not always hinges: the auto shotgun's parts all sit at the gun's origin): a trigger swings from its
- * top, a loading gate from its front top edge, a flip-up sight forward from its foot's back edge (from the middle of
- * its foot, the launcher's front sight's long foot tipped up into the optic's window, tools/checks/paid-weapons.ts);
- * the drum turns about its centre, and a wheel, a button and the extruder move about theirs.
+ * top, a loading gate from its front top edge; the drum turns about its centre, and a wheel, a button and the
+ * extruder move about theirs.
  */
 export function hingeParts(model: THREE.Object3D, end: number): PaidParts {
   model.updateMatrixWorld(true);
@@ -292,8 +284,53 @@ export function hingeParts(model: THREE.Object3D, end: number): PaidParts {
     button: hinge(buttonPart, (_b, c) => c),
     buttonIn: -Math.sign(buttonX),
     extruder: hinge(find(/^Extruder$/)[0], (_b, c) => c),
-    sights: find(PAID_SIGHTS.fold).map((o) => hinge(o, (b, c) => c.set(c.x, b.min.y, end > 0 ? b.min.z : b.max.z))!),
   };
+}
+
+const glassless = new Map<THREE.BufferGeometry, THREE.BufferGeometry>();
+
+/**
+ * A bought scope's glass cut out, on the gun in the hand only (viewmodel setWeapon): the pack paints its lenses on,
+ * opaque, so aimed down the rifle's own scope the target was behind a blue disc. The glass is the faces of a scope
+ * part (paidweapons.json sights) that face along the gun, inside its rim: every corner within 85% of the part's half
+ * height of its middle. The figures' and the floor's copies keep their glass, which is right from outside.
+ */
+export function openLenses(m: GunModel): void {
+  const paid = m.root.getObjectByName("paid");
+  if (!paid || m.root.userData.lensesOpen) return;
+  m.root.userData.lensesOpen = true;
+  paid.updateMatrixWorld(true);
+  const toModel = new THREE.Matrix4().copy(paid.children[0].matrixWorld).invert();
+  const part = new RegExp(cfg.sights.parts);
+  paid.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || !/^Scope/.test(mesh.name) || /Dot/i.test((mesh.material as THREE.Material).name) || !part.test(mesh.name)) return;
+    const src = mesh.geometry;
+    let cut = glassless.get(src);
+    if (!cut) {
+      const toM = new THREE.Matrix4().multiplyMatrices(toModel, mesh.matrixWorld);
+      const pos = src.getAttribute("position");
+      const pts = Array.from({ length: pos.count }, (_, i) => new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(toM));
+      const box = new THREE.Box3().setFromPoints(pts);
+      const cy = (box.min.y + box.max.y) / 2;
+      const rim = ((box.max.y - box.min.y) / 2) * 0.85;
+      const inside = (v: THREE.Vector3) => Math.hypot(v.x, v.y - cy) < rim;
+      const index = src.index ? Array.from(src.index.array) : Array.from({ length: pos.count }, (_, i) => i);
+      const keep: number[] = [];
+      const n = new THREE.Vector3();
+      const tri = new THREE.Triangle();
+      for (let t = 0; t < index.length; t += 3) {
+        const [a, b, c] = [pts[index[t]], pts[index[t + 1]], pts[index[t + 2]]];
+        tri.set(a, b, c).getNormal(n);
+        const glass = Math.abs(n.z) > 0.8 && inside(a) && inside(b) && inside(c);
+        if (!glass) keep.push(index[t], index[t + 1], index[t + 2]);
+      }
+      cut = src.clone();
+      cut.setIndex(keep);
+      glassless.set(src, cut);
+    }
+    mesh.geometry = cut;
+  });
 }
 
 /**

@@ -109,8 +109,6 @@ export interface PaidParts {
   buttonIn: number;
   /** the rifle's extruder, under its receiver */
   extruder: THREE.Object3D | null;
-  /** flip-up sights, which fold under a fitted optic */
-  sights: THREE.Object3D[];
 }
 
 // ------------------------------------------------------------------ textures
