@@ -98,6 +98,23 @@ A landing (a 2 m ledge at each storey) breaks each chimney into storeys the owne
 with the tap-strafe 180 turning back into the next, as the brief's rule 5 folds a chain that would otherwise need
 100 m of alley. Each is proven like the 3.0 m chimney above once city.ts builds it.
 
+## The four chimneys, built and proven (city.json chimneys, tools/checks/sk-chimneys.ts)
+
+Built as two walls 3.0 m apart and 27 m long in each of the four canyons above (the towers do not move), closed at
+the far end, standing on the centre's podium roof at 8.2 m (at the street the canyons are inside the podium, which
+the first proof found by being pushed out of it). What the proof found on the way:
+
+- **An open end loses the chain:** a chain that comes in high flies out of the far end; closing it drops the player
+  onto the landing.
+- **One storey is too easy to mean anything:** one wall run and a double jump, no kicks, reach 4.6 m above the
+  floor, so a landing a storey up (4.2 m) is reached without the chain.
+- **So the landing is at 5.5 m:** above what one wall run reaches, inside what the kicks reach in 27 m (6.5 m and
+  more). In all four, the chain lands it by wall runs and kicks alone, with no climb and no touch of the floor, and
+  the same runs without the kicks top out 3.1 m above the floor.
+
+The top at the near end (11 m above the floor, the second leg after the tap-strafe 180) is built; its leg is next
+to prove.
+
 ## What is next
 
 1. The window pads and pad ladders, solved by `padSolve` against the solids above each arc.

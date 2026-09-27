@@ -392,5 +392,40 @@
       "nearAt": 12,
       "scroll": 0.35
     }
+  },
+  "_chimneys": "The owner's chain as geometry (docs/PHASE_21_LAYOUT.md, the four chimneys): two runnable walls width apart and length long, closed at the far end, one per side of the Spire in a canyon the city already has (x the canyon's middle, map-local, measured by tools/centre-canyons.ts; z0 to z1 its length, extended to length), standing on whatever the canyon stands on (the centre's podium roof, 8.2 m, measured off the solids as built). width 3.0 m: the zig-zag climbs 1.41 m a crossing there and holds without end up to 4.25 m (src/config/reach.json). A landing spans the gap at the far end rise above the floor, and the top at the near end twice it, for the second leg after the tap-strafe 180. rise 5.5 m, measured by tools/checks/sk-chimneys.ts in the built city: one wall run and a double jump without kicks reach 4.6 m above the floor, and the kicks reach 6.5 m and more in 27 m, so at 5.5 m only the chain lands it, and the check fails either way round. The chain line is lit in its one colour (the brief's rule 9).",
+  "chimneys": {
+    "width": 3.0,
+    "length": 27,
+    "wall": 0.6,
+    "rise": 5.5,
+    "landing": 2,
+    "color": "#ff3df2",
+    "list": [
+      {
+        "name": "north",
+        "x": -7.5,
+        "z0": -75.5,
+        "z1": -48.5
+      },
+      {
+        "name": "east",
+        "x": 73.45,
+        "z0": -30.2,
+        "z1": -3.2
+      },
+      {
+        "name": "south",
+        "x": 71.4,
+        "z0": 67.5,
+        "z1": 94.5
+      },
+      {
+        "name": "west",
+        "x": -71.25,
+        "z0": -29,
+        "z1": -2
+      }
+    ]
   }
 }

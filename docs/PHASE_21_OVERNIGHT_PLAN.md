@@ -163,8 +163,8 @@ right in first person beat every variant; a measured reach table and proven modu
 - [ ] W5 check the guns in the soldiers' hands (third person) in a picture; W7 the mine, med items and cases; W8 ship the guns
 - [x] 4.2 the reach harness (`tools/checks/reach.ts`, `src/config/reach.json`), and the modules' geometry in `docs/PHASE_21_LAYOUT.md`
 - [x] S9 the soldier is live (5ee71b4, Milestone 238): batches (failures passed alone), fit, fallback, both deploys
-- [ ] 4.3 modules and `chains.ts`
-- [ ] 4.4 layout doc
+- [x] 4.3 the modules proven (run gap, double gap, chimney: tools/checks/reach.ts)
+- [x] 4.4 the layout: the centre's canyons measured (none took the chain), the four chimneys built in the city and proven there (tools/checks/sk-chimneys.ts)
 - [ ] 4.6 grey-box
 
 ## In the morning

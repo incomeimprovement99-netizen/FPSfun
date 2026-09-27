@@ -74,6 +74,8 @@ export const STREETS: readonly number[] = BLOCKS.slice(0, -1).map((b, i) => (b[1
 
 /** each low tower's way up as graph nodes, door to roof, and the street node it hangs off (-1: none in reach); the checks walk them */
 export const ROOF_ROUTES: Array<{ street: number; nodes: number[]; storeys: number }> = [];
+/** the chimneys (city.json chimneys): each one's walls' inner faces, its length and its landing heights, world metres, for the checks that climb them */
+export const CHIMNEYS: Array<{ name: string; x: number; innerW: number; z0: number; z1: number; base: number; landing: number; top: number }> = [];
 /** the rooftop highway's four corners in order round its loop (world metres, its deck's height), for the checks that walk it */
 export const HIGHWAY: Array<{ x: number; z: number; y: number }> = [];
 /**
@@ -949,6 +951,42 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     HIGHWAY.length = 0;
     // its corners in order round the loop, for the checks that walk it
     HIGHWAY.push(...[W(-L, -L), W(L, -L), W(L, L), W(-L, L)].map((p) => ({ ...p, y })));
+  }
+
+  // ---------------------------------------------------------------- the chimneys
+  // The owner's chain, built (city.json chimneys; docs/PHASE_21_LAYOUT.md): two walls 3.0 m apart in a canyon by
+  // the Spire, three kicks from one to the other climbing a storey to a landing at the far end, a turn, and three
+  // more to the top at the near end. Walls, not towers moved, so nothing else in the city shifts.
+  {
+    const Ch = C.chimneys;
+    const lit = neon(parseInt(Ch.color.slice(1), 16));
+    CHIMNEYS.length = 0;
+    // the city as it stood before any chimney: one chimney's slabs are not another's floor
+    const cityBefore = RANGE_SOLIDS.slice();
+    for (const c of Ch.list) {
+      const len = c.z1 - c.z0;
+      const mid = (c.z0 + c.z1) / 2;
+      // its floor: whatever the canyon stands on (the towers' podium, a storey up; measured off the solids as built,
+      // since at the street the canyon is inside the podium)
+      const wx0 = c.x + BR_X;
+      const wz0 = mid + BR_Z;
+      const base = cityBefore.reduce((a, s) => (wx0 >= s.minX && wx0 <= s.maxX && wz0 >= s.minZ && wz0 <= s.maxZ && s.top < 20 && s.top > a ? s.top : a), 0);
+      const landing = base + Ch.rise;
+      const top = base + Ch.rise * 2;
+      for (const s of [-1, 1]) {
+        const wx = c.x + s * (Ch.width / 2 + Ch.wall / 2);
+        slab(Ch.wall, top + 0.4 - base, len, wx, base, mid, concrete);
+        // the chain line, on the inner face at a wall run's height
+        deco(0.04, 0.12, len, c.x + s * (Ch.width / 2 + 0.02), base + 2.2, mid, lit);
+      }
+      // closed at the far end, so a chain that comes in high runs into the end and drops onto the landing
+      // rather than flying out of the open end (the proof found exactly that)
+      slab(Ch.width + Ch.wall * 2, top + 0.4 - base, Ch.wall, c.x, base, c.z0 - Ch.wall / 2, concrete);
+      // the landing at the far end, one storey up, and the top at the near end, two
+      slab(Ch.width, 0.3, Ch.landing, c.x, landing - 0.3, c.z0 + Ch.landing / 2, metal);
+      slab(Ch.width, 0.3, Ch.landing, c.x, top - 0.3, c.z1 - Ch.landing / 2, metal);
+      CHIMNEYS.push({ name: c.name, x: c.x + BR_X, innerW: Ch.width, z0: c.z0 + BR_Z, z1: c.z1 + BR_Z, base, landing, top });
+    }
   }
 
   // ---------------------------------------------------------------- skybridges
