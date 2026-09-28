@@ -5718,3 +5718,37 @@ MIDDLE NOW."
 - **Checked:** verify and rules (`ring-place.ts` now checks the city's cut, the ring's square and the sectors' edge are
   one size; `sk-roofrun.ts` holds the fewer roof crossings, 108, a tenth under, the chain from the best roof still 10);
   the e2e sections that play the map; pictures.
+
+## Milestone 297 — Point at the magazine, then work the gun: the USSO's and BOOG's reloads; the arms leave on a swap
+
+The owner, 2026-09-27: "the mag doesn't phase in any more and phase out ... point a finger at it while it phases out
+and in for a reload and then smack the charging handle or whatever you know? same w the sniper ... a nice combo of the
+two"; and "the guns fly in and out but the arms stay in a weird position".
+
+- **The reload** (`fparms.json` reload, `fprig.ts` update): the pack's whole reload carried the magazine out of the gun
+  to the belt and back, so our phase happened out of sight. Now the magazine stays in the gun and phases out over
+  `phaseOut` and in over `phaseIn` while the gun turns its underside toward you (`twist`, a pack gun's own replacing
+  it) and the left hand points at it: the index finger straight, its tip `gap` off the face the gun's `point` names.
+  The USSO's is the magazine's left face low down (its magazine runs up the pistol grip and the hand hides its middle);
+  BOOG's, a thin plate low on the gun's left, is its lower left edge, the finger coming up from below (pointed at from
+  the left, the hand sat between the eye and it; from ahead, the arm reached straight across the view). Then over
+  `rack` each pack gun's `rack` clip plays its moment: the MPS5's empty reload slapping the handle home, the L96X's
+  fire clip throwing the bolt.
+- **The pointing arm**: placed once toward the fingertip from its shoulder, then the hand aimed from where its elbow
+  fell (wrist 30 degrees on the USSO, 42 on BOOG; along `aim` alone it bent 107 to 126). The elbow hangs down
+  (`elbow`): bent the way the hold had it, the USSO's point, 22 cm from the shoulder, folded the arm so tight that on
+  the way in the elbow passed 9 cm in front of the eye and the sleeve filled the view for a tenth of the reload
+  (measured bone by bone). The first placement is undone before the real one, which bends toward it by the share
+  pointed.
+- **The swap** (`fparms.json` swap): as the gun phases out the whole rig drops `drop` m, comes back `back` m and
+  pitches `pitch` down about the eye, and comes back up as the next one phases in; the hands go with it.
+- **BOOG's right arm fixed**: the pack's clips turn the clavicles but never place them, so the L96X's shoulder offset
+  (21 cm back) was added again every frame and within seconds of drawing BOOG its right arm was 100 m and more behind
+  the eye, the gun held by the left hand alone. It was live. The clavicles now go back to where the body was made
+  before the clips run.
+- **Checked:** four new soldier e2e checks (the finger within 6 cm of its point with the gun not turned by the pack's
+  reload, the rack clips playing after it, both hands out of the picture at the bottom of a swap and one in it held,
+  and neither arm 1 cm short of the gun a second after drawing it, at the hip and aimed), each seen to fail with its
+  bug put back (the point late, no drop, the clavicles not reset: BOOG's right arm 4.8 m short at the hip). The long
+  soldier call was split in two, having run past a page call's 120 s on a busy machine. Pictures of every stage of
+  both reloads and swaps; verify; rules.

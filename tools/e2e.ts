@@ -5117,7 +5117,8 @@ async function soldierTest(browser: Browser): Promise<void> {
   // degrees at the middle); from empty the charging handle goes back, the left hand on it (its knuckle within 12 cm of
   // our handle as it moves), and afterwards the hand is back on the gun. Without the pack's files, the view's own:
   // rolled over by gunfeel.json reload.twist, the support hand on the handle for the rack (rackHand)
-  const twist = await ev<{ pack: boolean; roll: Record<string, number>; turn: Record<string, number>; lead: Record<string, string>; rack: { back: number; hand: number; after: number } | null; onHandle: number | null; away: number | null }>(
+  type Point = { miss: number; lead: string; turn: number; rackLead: string; held: number; swapped: number; shortHip: number; shortAimed: number };
+  const twistPoint = await ev<{ pack: boolean; roll: Record<string, number>; point: Record<string, Point> }>(
     page,
     `(async () => {
       const r = window.__range;
@@ -5141,22 +5142,78 @@ async function soldierTest(browser: Browser): Promise<void> {
       };
       r.debugView.inspect = -1;
       const roll = {};
-      const turn = {};
-      const lead = {};
+      const point = {};
       let pack = false;
       for (const id of ["r97", "sentinel"]) {
         await hold(id);
         pack = r.packArms().on;
         const rest = r.gunFeel().roll;
+        const held = r.packArms().handsBelow;
+        // both hands on the gun, still, a second after it was drawn and aimed (how far each arm falls short of where
+        // it reaches; BOOG's right arm drifted off behind the eye within seconds of drawing it, its shoulder moved 21 cm
+        // back every frame)
+        await gameWait(1);
+        const shortHip = Math.max(r.packArms().reachShort, r.packArms().reachShortR);
+        r.debugView.ads = 1;
+        await gameWait(1);
+        const shortAimed = Math.max(r.packArms().reachShort, r.packArms().reachShortR);
+        r.debugView.ads = null;
+        await gameWait(0.3);
         r.debugView.reload = 0.5;
         await gameWait(0.2);
         roll[id] = r.gunFeel().roll - rest;
-        turn[id] = r.packArms().gunTurn;
-        lead[id] = r.packArms().lead;
+        if (pack) {
+          // the bought arms: pointing at the magazine as it phases out (fparms.json reload), the gun left alone by the
+          // pack's clip; working the gun in the rack window; and out of the picture at the bottom of a swap
+          r.debugView.reload = 0.28;
+          await gameWait(0.2);
+          const s = r.packArms();
+          r.debugView.reload = 0.75;
+          await gameWait(0.2);
+          const rackLead = r.packArms().lead;
+          r.debugView.reload = null;
+          await gameWait(0.2);
+          r.debugView.raise = 0.5;
+          await gameWait(0.2);
+          const swapped = r.packArms().handsBelow;
+          r.debugView.raise = null;
+          // (no point is Infinity, which comes out of the page as null, and null < 0.06 holds: so 99 m)
+          point[id] = { miss: Number.isFinite(s.pointMiss) ? s.pointMiss : 99, lead: s.lead, turn: s.gunTurn, rackLead, held, swapped, shortHip, shortAimed };
+        }
         r.debugView.reload = null;
         await gameWait(0.2);
       }
+      r.debugView.inspect = null;
+      return { pack, roll, point };
+    })()`,
+  );
+  // (the empty reload's sweep in a call of its own: in one with the above it ran past a page call's 120 s on a busy
+  // machine)
+  const twistRack = await ev<{ rack: { back: number; hand: number; after: number } | null; onHandle: number | null; away: number | null }>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const gameWait = async (s) => {
+        const g0 = r.gameTime();
+        const t0 = performance.now();
+        while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
+      };
+      // in the hands and settled, 0.6 s with no swap and no flourish: a gun's first draw twirls it a whole turn round
+      // its barrel, starting as the swap ends; and the bought arms' clips in, if their files are here
+      const hold = async (id) => {
+        r.loadout.give(0, id);
+        r.loadout.requestSwap(0, r.gameTime());
+        const t0 = performance.now();
+        let clearFrom = r.gameTime();
+        while (r.gameTime() - clearFrom < 0.6 && performance.now() - t0 < 30000) {
+          if (r.loadout.swapping || r.vmState().flourish) clearFrom = r.gameTime();
+          await wait(20);
+        }
+      };
+      r.debugView.inspect = -1;
       await hold("r97");
+      const pack = r.packArms().on;
       r.loadout.active.state.clip = 0;
       let rack = null;
       let onHandle = null;
@@ -5183,14 +5240,35 @@ async function soldierTest(browser: Browser): Promise<void> {
       const away = r.gunFeel().onHandle;
       if (rack) rack.after = r.packArms().leftToHandle;
       r.debugView.inspect = null;
-      return { pack, roll, turn, lead, rack, onHandle, away };
+      return { rack, onHandle, away };
     })()`,
   );
+  const twist = { ...twistPoint, ...twistRack };
   if (twist.pack) {
+    const pt = Object.values(twist.point);
+    const show = (f: (p: Point) => unknown) => JSON.stringify(Object.fromEntries(Object.entries(twist.point).map(([k, p]) => [k, f(p)])));
     check(
-      "soldier guns: the bought arms hold the USSO and BOOG, and mid-reload their clip has turned the gun over in the hands",
-      twist.lead.r97 === "reloadTac" && twist.lead.sentinel === "reloadTac" && twist.turn.r97 > 12 && twist.turn.sentinel > 20,
-      JSON.stringify({ turn: twist.turn, lead: twist.lead }),
+      "soldier guns: held a while at the hip and aimed, both of the bought arms' hands stay on the USSO and BOOG (neither arm 1 cm short)",
+      pt.length === 2 && pt.every((p) => p.shortHip < 0.01 && p.shortAimed < 0.01),
+      show((p) => ({ hip: +(p.shortHip * 100).toFixed(1), aimed: +(p.shortAimed * 100).toFixed(1) })),
+    );
+    // (the owner, 2026-09-27: "point a finger at it while it phases out and in for a reload and then smack the
+    // charging handle ... same w the sniper")
+    check(
+      "soldier guns: as the magazine phases out, the bought arms' left forefinger points at it (within 6 cm), the gun not turned by the pack's own reload",
+      pt.length === 2 && pt.every((p) => p.miss < 0.06 && p.lead === "pose" && p.turn < 5),
+      show((p) => ({ miss: +(p.miss * 100).toFixed(1), lead: p.lead, turn: +p.turn.toFixed(1) })),
+    );
+    check(
+      "soldier guns: after the phase the pack's hands work the gun, the USSO's empty reload and the BOOG's bolt",
+      twist.point.r97?.rackLead === "reloadEmpty" && twist.point.sentinel?.rackLead === "fire",
+      show((p) => p.rackLead),
+    );
+    // (the owner: "the guns fly in and out but the arms stay in a weird position")
+    check(
+      "soldier guns: at the bottom of a swap both hands are below the picture (40 degrees under the eye line at the hip), and held, one is in it",
+      pt.every((p) => p.swapped > 45 && p.held < 40),
+      show((p) => ({ held: Math.round(p.held), swapped: Math.round(p.swapped) })),
     );
     check(
       "soldier guns: from empty, the USSO's charging handle goes back with the left hand on it, and the hand is back on the gun after",

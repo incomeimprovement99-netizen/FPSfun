@@ -18,7 +18,9 @@ import cfg from "../config/fparms.json";
 import { HU, MOVE } from "./movement";
 
 type Measured = { turn: number[]; forward: number[]; up: number[]; trigger: number[]; palm: number[]; clavicleL?: number[]; clavicleR?: number[] };
-type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[] };
+type Twist = { roll: number; yaw: number; pitch: number; x: number; y: number; z: number };
+type PointAt = { face: number[]; at: number; aim: number[] };
+type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; rack?: { clip: string; window: number[] }; twist?: Twist; point?: PointAt };
 const MEASURED = (cfg as unknown as { measured: Record<string, Measured> }).measured;
 const PACK = cfg.packGuns as Record<string, PackGun>;
 const GUNS = cfg.guns as Record<string, string>;
@@ -69,6 +71,12 @@ const FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0),
 
 /** the pack's sprint on the gun: seconds after a shot before it comes back, and its easing in and out (fparms.json sprint) */
 export const LOCO = (cfg as unknown as { sprint: { fireHold: number; easeIn: number; easeOut: number; swing: number } }).sprint;
+
+/** the reload with these arms: point at the magazine while it phases, then the rack (fparms.json reload) */
+export const PACK_RELOAD = (cfg as unknown as { reload: { point: number[]; phaseOut: number[]; phaseIn: number[]; seat: number; rack: number[]; reach: number; aim: number[]; face: number[]; elbow: number[]; gap: number; bend: number; at: number; twist: { roll: number; yaw: number; pitch: number; x: number; y: number; z: number } } }).reload;
+/** the arms out of the picture on a swap (fparms.json swap) */
+const SWAP = (cfg as unknown as { swap: { drop: number; back: number; pitch: number } }).swap;
+const ss = THREE.MathUtils.smoothstep;
 
 /** the gun camera's vertical field of view at the hip with these arms (fparms.json fov) */
 export const PACK_FOV = (cfg as unknown as { fov: number }).fov;
@@ -137,6 +145,8 @@ export interface PackArmsFrame {
   rechamber: number;
   /** 0..1 into the sights */
   ads: number;
+  /** 0..1 how far out of the picture on a swap or holster (the gun's phase gone) */
+  away: number;
   /** how much of the clip's own motion of the gun is taken off in the sights, 0..1 (a reload aimed: speedkills.json reloadAds) */
   adsDamp: number;
 }
@@ -151,6 +161,14 @@ export class PackArms {
   ready = false;
   /** the pack gun in the hands now, once its clips are in */
   active: string | null = null;
+  /** how the gun turns while the hand points at its magazine: the pack gun's own, else the reload's (fparms.json) */
+  get twist(): Twist {
+    return (this.active && PACK[this.active]?.twist) || PACK_RELOAD.twist;
+  }
+  /** where on the magazine the finger points, and which way: the pack gun's own, else the reload's */
+  get pointAt(): PointAt {
+    return (this.active && PACK[this.active]?.point) || PACK_RELOAD;
+  }
   /**
    * Where the pack holds the gun at the hip, as our view places a gun (its position in the view's group, and its turn):
    * the pack's hold is made for its own camera, so our gun goes where its gun was and the arms keep the shape the pack
@@ -165,7 +183,9 @@ export class PackArms {
    * What the checks read of the last frame: how far the clip turned the gun, degrees; how far back our handle is, 0..1;
    * the left hand's middle knuckle's distance to our handle and to our magazine, metres
    */
-  readonly seen = { gunTurn: 0, handleBack: 0, leftToHandle: Infinity, leftToMag: Infinity };
+  readonly seen = { gunTurn: 0, handleBack: 0, leftToHandle: Infinity, leftToMag: Infinity, pointMiss: Infinity, reachShort: 0, reachShortR: 0, handsBelow: 0 };
+  /** where the pointing fingertip is meant to be this frame (world), for the checks */
+  private readonly tipTarget = new THREE.Vector3();
 
   private arms: THREE.Object3D | null = null;
   /** the moving clips' motion of the gun, and where through them the stride is */
@@ -197,6 +217,8 @@ export class PackArms {
   private magRestO: THREE.Matrix4 | null = null;
   private magParentInv: THREE.Matrix4 | null = null;
   private handleO: THREE.Vector3 | null = null;
+  /** our magazine's bounds in our frame */
+  private readonly magBoxO = new THREE.Box3(new THREE.Vector3(-0.015, -0.05, -0.02), new THREE.Vector3(0.015, 0, 0.02));
   private boltRestZ = 0;
   private boltTravel = 0;
 
@@ -305,6 +327,14 @@ export class PackArms {
     const magRestO = mag ? new THREE.Matrix4().multiplyMatrices(rootInv, mag.matrixWorld) : null;
     const magParentInv = mag?.parent ? new THREE.Matrix4().multiplyMatrices(rootInv, mag.parent.matrixWorld).invert() : null;
     const boltRestZ = bolt ? bolt.position.z : 0;
+    // its magazine's middle and width, where the left hand points
+    const magBox = new THREE.Box3();
+    mag?.traverse((o) => {
+      const mm = o as THREE.Mesh;
+      if (!mm.isMesh) return;
+      mm.geometry.computeBoundingBox();
+      magBox.union(mm.geometry.boundingBox!.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(rootInv, mm.matrixWorld)));
+    });
 
     const set = await this.gunSet(name);
     if (!set || !set.arms.get("pose") || packGunFor(id) !== name) return false;
@@ -319,6 +349,7 @@ export class PackArms {
     this.handleO = boltGrip ? boltGrip.clone() : null;
     this.boltRestZ = boltRestZ;
     this.boltTravel = boltTravel;
+    if (!magBox.isEmpty()) this.magBoxO.copy(magBox);
     // every clip as an action the view drives by time; the pose's first frame is the reference
     this.mixer.stopAllAction();
     for (const [o, [p, q, sc]] of this.bind) {
@@ -427,16 +458,6 @@ export class PackArms {
   }
 
   /**
-   * The clip leading this frame and the shares of it where the magazine leaves the gun and is home again, measured off
-   * the pack gun's clip (null: not a reload, or the clip does not take the magazine out)
-   */
-  magMoments(): { out: number; home: number } | null {
-    const set = this.active ? this.sets.get(this.active) : null;
-    const g = set?.gun.get(this.lead);
-    return g && g.magOut !== null && g.magHome !== null ? { out: g.magOut, home: g.magHome } : null;
-  }
-
-  /**
    * One frame: the clips to where the view's state says, the rig on the eye, our gun moved by the clip, our magazine and
    * handle moved with the pack gun's, both hands onto our gun where the view has put it.
    */
@@ -444,30 +465,76 @@ export class PackArms {
     const set = this.active ? this.sets.get(this.active) : null;
     if (!set || !this.mixer || !this.arms) return;
     this.group.visible = true;
-    // which clip leads: a reload (from empty or not), the bolt worked after a shot, or the hold
-    const reloadKey = f.reload !== null ? (f.empty && this.actions.has("reloadEmpty") ? "reloadEmpty" : "reloadTac") : null;
-    const cycling = !reloadKey && this.actions.has("fire") && f.sinceShot >= 0 && f.sinceShot < f.rechamber;
-    this.lead = reloadKey ?? (cycling ? "fire" : "pose");
-    const u = reloadKey ? (f.reload ?? 0) : cycling ? f.sinceShot / f.rechamber : 0;
+    // which clip leads and how much: in a reload, the hold while the left hand points at the magazine and it phases,
+    // then the pack's own hands working the gun (its `rack` clip, over the share of it where they do); after a shot the
+    // bolt worked (BOOG); else the hold
+    const RL = PACK_RELOAD;
+    const rack = PACK[this.active!]?.rack;
+    let lead = "pose";
+    let u = 0;
+    let leadW = 0;
+    let pointW = 0;
+    const reloading = f.reload !== null;
+    if (reloading) {
+      const r = f.reload!;
+      pointW = ss(r, RL.point[0], RL.point[1]) * (1 - ss(r, RL.rack[0] - 0.06, RL.rack[0] + 0.02));
+      if (rack && this.actions.has(rack.clip)) {
+        lead = rack.clip;
+        const into = THREE.MathUtils.clamp((r - RL.rack[0]) / (RL.rack[1] - RL.rack[0]), 0, 1);
+        u = rack.window[0] + (rack.window[1] - rack.window[0]) * into;
+        leadW = ss(r, RL.rack[0] - 0.04, RL.rack[0] + 0.02) * (1 - ss(r, RL.rack[1] - 0.05, RL.rack[1]));
+      }
+    } else if (this.actions.has("fire") && f.sinceShot >= 0 && f.sinceShot < f.rechamber) {
+      lead = "fire";
+      u = f.sinceShot / f.rechamber;
+      leadW = Math.min(1, u / 0.04, (1 - u) / 0.04);
+    }
+    this.lead = leadW > 0.001 ? lead : "pose";
+    // (the weights sum to one: three.js averages them, and the hold at a full 1 beside a clip had taken half of every
+    // reload the pack's clips made)
     for (const [k, a] of this.actions) {
       if (k === "pose") {
         a.time = 0;
-        a.weight = 1;
+        a.weight = 1 - leadW;
         continue;
       }
-      const on = k === this.lead;
+      const on = k === lead;
       a.time = on ? u * a.getClip().duration : 0;
-      // in and out over its first and last few percent, so it does not snap from the hold
-      a.weight = on ? Math.min(1, u / 0.04, (1 - u) / 0.04) : 0;
+      a.weight = on ? leadW : 0;
+    }
+    // the shoulders back where the body was made before the clips put them: the clips turn the clavicles but none puts
+    // their place, so the offset below added up frame on frame and BOOG's right arm (21 cm back a frame) drifted off
+    // behind the eye, 100 m and more within seconds of drawing it, the gun held by one hand
+    for (const side of ["l", "r"]) {
+      const clav = this.bones[`clavicle_${side}`];
+      const was = clav ? this.bind.get(clav) : undefined;
+      if (clav && was) clav.position.copy(was[0]);
     }
     this.mixer.update(0);
     this.moveShoulders(f.ads);
+    // the left index finger out, straight as the body was made, while it points
+    if (pointW > 0.001) {
+      for (const n of ["index_01_l", "index_02_l", "index_03_l"]) {
+        const b = this.bones[n];
+        const bind = b ? this.bind.get(b) : undefined;
+        if (b && bind) b.quaternion.slerp(bind[1], pointW);
+      }
+    }
 
     // the rig fixed to the eye as the pack's camera is (fparms.json camera), moved by the gun's `offset`
     this.arms.quaternion.setFromAxisAngle(UP, Math.PI);
     this.arms.position.set(CAMERA[0], -CAMERA[1], CAMERA[2]).add(this.offset);
     this.arms.scale.set(1, 1, 1);
+    // out of the picture on a swap: down, back and pitched down about the eye, the hands with it
+    const away = ss(f.away, 0, 1);
+    const drop = new THREE.Matrix4().makeTranslation(0, -SWAP.drop * away, SWAP.back * away).multiply(new THREE.Matrix4().makeRotationX(-SWAP.pitch * away));
+    this.arms.updateMatrix();
+    new THREE.Matrix4().multiplyMatrices(drop, this.arms.matrix).decompose(this.arms.position, this.arms.quaternion, this.arms.scale);
     this.arms.updateMatrixWorld(true);
+    const parentW = this.group.parent ? this.group.parent.matrixWorld : new THREE.Matrix4();
+    const dropW = new THREE.Matrix4().multiplyMatrices(parentW, drop).multiply(new THREE.Matrix4().copy(parentW).invert());
+    const dropQ = new THREE.Quaternion();
+    dropW.decompose(new THREE.Vector3(), dropQ, new THREE.Vector3());
     const rigInv = new THREE.Matrix4().copy(this.arms.matrixWorld).invert();
     const inRig = (o: THREE.Object3D): THREE.Matrix4 => new THREE.Matrix4().multiplyMatrices(rigInv, o.matrixWorld);
 
@@ -498,7 +565,8 @@ export class PackArms {
     const magNow = partNow(MAG_NODE);
     if (mag && this.magRestO && this.magParentInv) {
       let ours = this.magRestO;
-      if (magNow && gunClip?.magRest) {
+      // (in a reload it stays in the gun, phasing out and in where it sits: the owner's point and phase)
+      if (magNow && gunClip?.magRest && !reloading) {
         // its move from rest in its own frame, carried into ours
         const d = new THREE.Matrix4().multiplyMatrices(magNow, new THREE.Matrix4().copy(gunClip.magRest).invert());
         ours = new THREE.Matrix4().copy(this.packToOur).multiply(d).multiply(this.ourToPack).multiply(this.magRestO);
@@ -515,6 +583,7 @@ export class PackArms {
         back = THREE.MathUtils.clamp(at.distanceTo(gunClip.handleRest) / gunClip.handleTravel, 0, 1);
         packHandleO = at.clone().applyMatrix4(this.packToOur);
       }
+      back *= leadW;
       bolt.position.z = this.boltRestZ + back * this.boltTravel;
       this.seen.handleBack = back;
       if (this.handleO) ourHandleO = this.handleO.clone().setZ(this.handleO.z + back * this.boltTravel);
@@ -527,6 +596,8 @@ export class PackArms {
     const boneInWorld = new THREE.Matrix4().multiplyMatrices(gunWorld, this.boneInOur);
     const boneNowInv = new THREE.Matrix4().copy(boneNow).invert();
     const toWorldDir = new THREE.Matrix3().setFromMatrix4(gunWorld);
+    // where the left elbow falls pointing (null holding): the final reach bends toward it by the share pointed
+    let pointElbow: THREE.Vector3 | null = null;
     for (const side of ["r", "l"] as const) {
       const rel = new THREE.Matrix4().multiplyMatrices(boneNowInv, inRig(this.bones[`ik_hand_${side}`]));
       const pos = new THREE.Vector3();
@@ -550,18 +621,77 @@ export class PackArms {
           from === null || to === null ? 0 : THREE.MathUtils.smoothstep(u, from - lead, from) * (1 - THREE.MathUtils.smoothstep(u, to, to + tail));
         // (by the window alone: gated on the hand being near the pack's magazine too, the hand jumped 12 cm the moment
         // it came within reach of it; the offset between the two magazines turns with them, smoothly)
-        if (packMagO && ourMagO && gunClip) add(win(gunClip.magOut, gunClip.magHome, 0.08, 0.04), ourMagO.clone().sub(packMagO));
+        if (packMagO && ourMagO && gunClip && !reloading) add(win(gunClip.magOut, gunClip.magHome, 0.08, 0.04), ourMagO.clone().sub(packMagO));
         if (packHandleO && ourHandleO && gunClip) add(win(gunClip.handleFrom, gunClip.handleTo, 0.06, 0.05), ourHandleO.clone().sub(packHandleO));
         if (total > 1) shift.divideScalar(total);
         pos.add(shift.applyMatrix3(toWorldDir));
+        // pointing at the magazine: the fingertip `gap` off the face the gun's `point` names (its left, or its bottom),
+        // at `at` of its height up a side face; the hand back along its forearm, turned to point
+        if (pointW > 0.001) {
+          const P = this.pointAt;
+          const mb = this.magBoxO;
+          const mc = mb.getCenter(new THREE.Vector3());
+          const mh = mb.getSize(new THREE.Vector3()).multiplyScalar(0.5);
+          const tipO = new THREE.Vector3(
+            mc.x + P.face[0] * (mh.x + RL.gap),
+            P.face[1] ? mc.y + P.face[1] * (mh.y + RL.gap) : mb.min.y + 2 * mh.y * P.at,
+            mc.z + P.face[2] * (mh.z + RL.gap),
+          );
+          const tipW = tipO.applyMatrix4(gunWorld);
+          // the hand along its forearm's line through the fingertip, as an arm points, bent a little toward `aim`: the
+          // arm placed once toward the tip from its shoulder, then the hand aimed from where its elbow fell (along `aim`
+          // alone the hand turned back on the forearm, the wrist 107 to 126 degrees)
+          this.tipTarget.copy(tipW);
+          const reachW = RL.reach * this.group.getWorldScale(new THREE.Vector3()).x;
+          const aimW = new THREE.Vector3().fromArray(P.aim).normalize().applyMatrix3(toWorldDir).normalize();
+          const shoulder = this.bones.upperarm_l.getWorldPosition(new THREE.Vector3());
+          let dirW = tipW.clone().sub(shoulder).normalize();
+          const first = tipW.clone().addScaledVector(dirW, -reachW);
+          // (the arm put back after: the final reach bends its elbow the way the elbow is, and left where this pass put
+          // it, the first frames of a reload swung the elbow up and the upper arm across the view with the hand still
+          // on the gun)
+          const armBones = [this.bones.upperarm_l, this.bones.lowerarm_l, this.bones.hand_l];
+          const armWas = armBones.map((b) => b.quaternion.clone());
+          // the elbow hanging down from the shoulder, as one's does pointing at something near the chest (bent the way
+          // the hold had it, it went up beside the eye on the way)
+          const hang = new THREE.Vector3().fromArray(RL.elbow).normalize().applyQuaternion(this.group.getWorldQuaternion(new THREE.Quaternion()));
+          this.reach("l", away > 0 ? first.clone().applyMatrix4(dropW) : first, quat, shoulder.clone().add(hang));
+          pointElbow = this.bones.lowerarm_l.getWorldPosition(new THREE.Vector3());
+          armBones.forEach((b, i) => b.quaternion.copy(armWas[i]));
+          this.bones.upperarm_l.updateMatrixWorld(true);
+          const elbowW = pointElbow.clone();
+          if (away > 0) elbowW.applyMatrix4(new THREE.Matrix4().copy(dropW).invert());
+          dirW = tipW.clone().sub(elbowW).normalize().lerp(aimW, RL.bend).normalize();
+          const wristW = tipW.clone().addScaledVector(dirW, -reachW);
+          const fwdW = this.bones.middle_01_l.position.clone().normalize().applyQuaternion(quat);
+          const pointQ = new THREE.Quaternion().setFromUnitVectors(fwdW, dirW).multiply(quat);
+          pos.lerp(wristW, pointW);
+          quat.slerp(pointQ, pointW);
+        }
       }
-      this.reach(side, pos, quat);
+      // with the rig, if it has dropped away
+      if (away > 0) {
+        pos.applyMatrix4(dropW);
+        quat.premultiply(dropQ);
+      }
+      const bend = side === "l" && pointElbow ? this.bones.lowerarm_l.getWorldPosition(new THREE.Vector3()).lerp(pointElbow, pointW) : undefined;
+      this.reach(side, pos, quat, bend);
     }
-    // for the checks
+    // for the checks: how far the index fingertip is from where it points, and how short the arm fell of its target
+    const tip = this.bones.index_03_l?.getWorldPosition(new THREE.Vector3());
+    this.seen.pointMiss = pointW > 0.9 && tip ? tip.distanceTo(this.tipTarget) / this.group.getWorldScale(new THREE.Vector3()).x : Infinity;
     this.seen.gunTurn = (2 * Math.acos(Math.min(1, Math.abs(this.gunDelta.quaternion.w))) * 180) / Math.PI;
     const knuckle = this.bones.middle_01_l?.getWorldPosition(new THREE.Vector3());
     this.seen.leftToHandle = knuckle && ourHandleO ? knuckle.distanceTo(ourHandleO.clone().applyMatrix4(gunWorld)) : Infinity;
     this.seen.leftToMag = knuckle && mag ? knuckle.distanceTo(mag.getWorldPosition(new THREE.Vector3())) : Infinity;
+    // and how far below the eye line the higher hand is, degrees (the eye is the group's origin, looking down -z; the
+    // view at the hip shows 40 below it), a hand behind the eye out of the picture whatever its height
+    const below = (b: THREE.Object3D | undefined): number => {
+      if (!b) return 0;
+      const p = this.group.worldToLocal(b.getWorldPosition(new THREE.Vector3()));
+      return p.z < 0 ? THREE.MathUtils.radToDeg(Math.atan2(-p.y, -p.z)) : 180;
+    };
+    this.seen.handsBelow = Math.min(below(this.bones.hand_l), below(this.bones.hand_r));
   }
 
   /**
@@ -591,7 +721,7 @@ export class PackArms {
   }
 
   /** the hand `side` to `target` turned `turn` (world), the arm bent to reach it in the plane the clip had its elbow */
-  private reach(side: "l" | "r", target: THREE.Vector3, turn: THREE.Quaternion): void {
+  private reach(side: "l" | "r", target: THREE.Vector3, turn: THREE.Quaternion, bendToward?: THREE.Vector3): void {
     const up = this.bones[`upperarm_${side}`];
     const lo = this.bones[`lowerarm_${side}`];
     const hand = this.bones[`hand_${side}`];
@@ -602,8 +732,10 @@ export class PackArms {
     const a = s.distanceTo(e);
     const b = e.distanceTo(w);
     const d = THREE.MathUtils.clamp(s.distanceTo(target), Math.abs(a - b) + 1e-4, a + b - 1e-4);
+    this.seen[side === "l" ? "reachShort" : "reachShortR"] = Math.max(0, s.distanceTo(target) - (a + b)) / this.group.getWorldScale(new THREE.Vector3()).x;
     const dir = target.clone().sub(s).normalize();
-    const pole = e.clone().sub(s);
+    // the elbow bends the way it is (the clip's), or toward a point given
+    const pole = (bendToward ?? e).clone().sub(s);
     pole.addScaledVector(dir, -pole.dot(dir)).normalize();
     const cosA = (a * a + d * d - b * b) / (2 * a * d);
     const elbow = s.clone().addScaledVector(dir, a * cosA).addScaledVector(pole, a * Math.sqrt(Math.max(0, 1 - cosA * cosA)));

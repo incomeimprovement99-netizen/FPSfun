@@ -33,7 +33,22 @@
         0,
         -0.03,
         -0.04
-      ]
+      ],
+      "rack": {
+        "clip": "reloadEmpty",
+        "window": [
+          0.6,
+          0.78
+        ]
+      },
+      "twist": {
+        "roll": -0.5,
+        "yaw": 0.16,
+        "pitch": 0.32,
+        "x": -0.06,
+        "y": 0.16,
+        "z": 0.03
+      }
     },
     "Striker-V": {
       "model": "SKM_Striker-V",
@@ -51,7 +66,14 @@
         0,
         -0.03,
         -0.04
-      ]
+      ],
+      "rack": {
+        "clip": "reloadEmpty",
+        "window": [
+          0.62,
+          0.78
+        ]
+      }
     },
     "L96X": {
       "model": "L96X",
@@ -71,7 +93,35 @@
         0,
         -0.08,
         -0.1
-      ]
+      ],
+      "rack": {
+        "clip": "fire",
+        "window": [
+          0.22,
+          0.56
+        ]
+      },
+      "twist": {
+        "roll": -0.5,
+        "yaw": 0.14,
+        "pitch": 0.12,
+        "x": -0.05,
+        "y": 0.08,
+        "z": 0.02
+      },
+      "point": {
+        "face": [
+          -1,
+          -1,
+          0
+        ],
+        "at": 0,
+        "aim": [
+          1,
+          1,
+          0.1
+        ]
+      }
     }
   },
   "guns": {
@@ -94,6 +144,59 @@
     "easeIn": 0.18,
     "easeOut": 0.06,
     "swing": 0
+  },
+  "_reload": "The reload with the bought arms, the owner's (2026-09-27): \"point a finger at it while it phases out and in for a reload and then smack the charging handle ... same with the sniper ... a nice combo of the two\". Shares of the reload: the left hand leaves the gun over `point` and points at the magazine, its index finger out and its tip `gap` m off the magazine's left face, the hand `reach` m back from the tip along `aim` (in the gun's frame: right, up, ahead), while the gun turns its underside toward you (gunfeel.json reload.twist); the magazine phases out over `phaseOut` and a new one in over `phaseIn`, staying in the gun, and seats at `seat`; then over `rack` the pack's own hands work the gun: each pack gun's `rack` names the clip and the share of it where they do (measured off its gun clip: the MPS5's empty reload slaps its handle forward at 0.69, the L96X's fire clip works its bolt over 0.30 to 0.48), and the hands go back to the hold. It had been the pack's whole reload, the magazine carried out of the gun to the belt and back, its phase out of sight. `twist` turns the gun while the hand points (radians, and metres before the view's scale), smaller than gunfeel.json's own: at that one the gun filled the middle of the screen and the pointing hand came up to the eye. A pack gun's own `twist` replaces it: the USSO's magazine sits low, and at the shared one its pointing hand was below the screen's edge. Which face of the magazine the finger comes at is `face` (in the gun's frame; -1 on x its left face, -1 on y its bottom), `aim` the way it points, and a pack gun's own `point` replaces the three: the BOOG's magazine is a thin plate low on the gun's left side, and pointed at from its left the hand sat between the eye and it (2026-09-27, a picture with the magazine tinted red), so its finger comes up at its bottom, the gun pitched and rolled more to show it. The pointing arm's elbow bends toward `elbow` from its shoulder (in the view: right, up, toward you), hanging down: bent the way the hold had it, the USSO's point, 22 cm from the shoulder, folded the arm so tight that on the way its elbow passed 9 cm in front of the eye and the sleeve filled the view for a tenth of the reload (measured bone by bone, 2026-09-27). The hand points along the line from its shoulder to the fingertip, `bend` of the way toward `aim` (along `aim` alone the wrist bent 107 to 126 degrees), at `at` of the magazine's height from its bottom (its middle, up a pistol grip, is hidden by the other hand).",
+  "reload": {
+    "point": [
+      0.04,
+      0.16
+    ],
+    "phaseOut": [
+      0.16,
+      0.32
+    ],
+    "phaseIn": [
+      0.36,
+      0.52
+    ],
+    "seat": 0.54,
+    "rack": [
+      0.6,
+      0.94
+    ],
+    "reach": 0.18,
+    "aim": [
+      1,
+      0.45,
+      -0.25
+    ],
+    "face": [
+      -1,
+      0,
+      0
+    ],
+    "elbow": [
+      -0.3,
+      -1,
+      0
+    ],
+    "gap": 0.025,
+    "twist": {
+      "roll": -0.4,
+      "yaw": 0.1,
+      "pitch": 0.1,
+      "x": -0.02,
+      "y": 0.03,
+      "z": 0
+    },
+    "bend": 0.3,
+    "at": 0.15
+  },
+  "_swap": "On a swap or holster the arms drop out of the picture as the gun phases out, and come back up to take the next one as it phases in (the owner: \"the guns fly in and out but the arms stay in a weird position\"): at the phase's bottom the whole rig is `drop` m lower, `back` m nearer and pitched `pitch` radians down, about the eye.",
+  "swap": {
+    "drop": 0.35,
+    "back": 0.12,
+    "pitch": 0.6
   },
   "measured": {
     "MPS5": {

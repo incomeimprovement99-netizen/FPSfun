@@ -25,7 +25,7 @@ import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels
 import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
-import { LOCO, PACK_FOV, PackArms, packGunFor } from "./fprig";
+import { LOCO, PACK_FOV, PACK_RELOAD, PackArms, packGunFor } from "./fprig";
 import type { OperatorSkin } from "./operators";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
@@ -455,6 +455,8 @@ export class ViewModel {
   private readonly pack = new PackArms();
   private packOn = false;
   private packFovAmt = 0;
+  /** the gun's swap and holster phase this frame, before a fusion's flood: the bought arms drop out as it goes */
+  private swapPhase = 1;
   private readonly locoPos = new THREE.Vector3();
   /** how far into the pack's sprint the gun is, 0..1 */
   private packSprint = 0;
@@ -714,7 +716,7 @@ export class ViewModel {
   }
 
   /** the bought arms' state (tools/e2e.ts): which pack gun holds ours, whether they are drawn, the wrists' bends */
-  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number } {
+  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; reachShort: number; reachShortR: number; handsBelow: number } {
     return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), ...this.pack.seen };
   }
 
@@ -932,10 +934,10 @@ export class ViewModel {
       const R = F.reload;
       // with the bought arms, when their clip takes the magazine out and brings the new one home (fprig.ts, measured
       // off the pack gun's clip): the old one goes as it leaves the gun, the new one comes in the hand before it seats
-      const mm = this.packOn ? this.pack.magMoments() : null;
-      const magOut = mm ? [mm.out, mm.out + 0.06] : R.magOut;
-      const magIn = mm ? [Math.max(mm.out + 0.08, mm.home - 0.14), mm.home - 0.02] : R.magIn;
-      const seat = mm ? mm.home : R.seat;
+      const PR = this.packOn ? PACK_RELOAD : null;
+      const magOut = PR ? PR.phaseOut : R.magOut;
+      const magIn = PR ? PR.phaseIn : R.magIn;
+      const seat = PR ? PR.seat : R.seat;
       const mid = (magOut[1] + magIn[0]) / 2;
       mp = Math.min(phase, reloadP < mid ? 1 - smooth(magOut[0], magOut[1], reloadP) : smooth(magIn[0], magIn[1], reloadP));
       // the seat: a slap into the hands and a pulse
@@ -1320,7 +1322,19 @@ export class ViewModel {
 
     // ---- reload pose, which depends on how this gun reloads; with the pack's arms their clip moves the gun
     if (packOn) {
-      // (fprig.ts gunDelta)
+      // the bought arms: the gun turns its underside toward you while the left hand points at the magazine and it
+      // phases (fparms.json reload), then the pack's clip moves it as its hands work it (fprig.ts gunDelta)
+      const PR = PACK_RELOAD;
+      const envP = (f.reloading ? smooth(0, PR.point[1], reloadP) * (1 - smooth(PR.rack[0] - 0.08, PR.rack[0], reloadP)) : 0) * (1 - ads * RELOAD_ADS);
+      const T = this.pack.twist;
+      if (envP > 0) {
+        rz += T.roll * envP;
+        ry += T.yaw * envP;
+        rx += T.pitch * envP;
+        p.x += T.x * envP;
+        p.y += T.y * envP;
+        p.z += T.z * envP;
+      }
     } else if (m.reload === "cylinder") {
       rz += 0.3 * reloadEnv;
       rx += 0.55 * smooth(0.24, 0.38, reloadP) * (1 - smooth(0.55, 0.7, reloadP));
@@ -1358,6 +1372,7 @@ export class ViewModel {
     if (F) {
       const swapPh = f.raise >= 1 ? 1 : f.raise < 0.5 ? 1 - smooth(F.swap.out[0], F.swap.out[1], f.raise) : smooth(F.swap.in[0], F.swap.in[1], f.raise);
       phase = Math.min(swapPh, 1 - smooth(F.holster.out[0], F.holster.out[1], f.lowered));
+      this.swapPhase = phase;
       // coming whole it rises into the hands and unrolls
       p.y -= (1 - phase) * F.swap.rise;
       rz += (1 - phase) * F.swap.roll;
@@ -1470,7 +1485,7 @@ export class ViewModel {
     // the bought arms: the clips to this frame's state, the rig under the holder, our magazine and handle moved
     if (packOn) {
       this.pack.update(
-        { dt, reload: f.reloading ? reloadP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS },
+        { dt, reload: f.reloading ? reloadP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS, away: F ? 1 - this.swapPhase : 0 },
         this.holder,
         m.mag,
         m.bolt,

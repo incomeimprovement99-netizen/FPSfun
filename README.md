@@ -141,10 +141,12 @@ Game) or `?game=legacy`, and everything below this section describes it.
   for squad mates, gold for the crown's carrier. The gap analysis
   against Hyper Scape is docs/HYPERSCAPE_GAP_ANALYSIS.md.
   The USSO and BOOG are held by real first-person arms (a bought pack's, where
-  its files are): an SMG hold and a sniper hold, and the pack's own reloads, the
-  gun turning over in the hands, the magazine out and a new one in, the USSO's
-  handle locked back and slapped home from empty, BOOG's bolt worked after every
-  shot. Every other bought gun's support hand holds it where the bought model is
+  its files are): an SMG hold and a sniper hold. On a reload the gun turns its
+  underside toward you and the left forefinger points at the magazine while it
+  phases out and a new one phases in, then the pack's own hands work the gun: the
+  USSO's charging handle slapped home, BOOG's bolt thrown; BOOG's bolt is worked
+  after every shot too. On a swap the arms drop out of the picture as the gun
+  phases out and come back up with the next. Every other bought gun's support hand holds it where the bought model is
   held (measured), under the gun, and rolls round it until its wrist is nearly
   straight on the forearm; the soldier's first-person arms are drawn the
   glove's size and a real forearm's thickness, whole to the shoulder. Using a hack is seen in
