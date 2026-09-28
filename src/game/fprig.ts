@@ -67,6 +67,9 @@ function sampleTrack(tr: AddTrack, time: number, pos: THREE.Vector3, quat: THREE
 /** half a turn about y: the rig faces +z, our view -z */
 const FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
 
+/** the pack's sprint on the gun: seconds after a shot before it comes back, and its easing in and out (fparms.json sprint) */
+export const LOCO = (cfg as unknown as { sprint: { fireHold: number; easeIn: number; easeOut: number } }).sprint;
+
 /** the gun camera's vertical field of view at the hip with these arms (fparms.json fov) */
 export const PACK_FOV = (cfg as unknown as { fov: number }).fov;
 
@@ -132,7 +135,10 @@ export interface PackArmsFrame {
   /** seconds since the last shot, and the gun's rechamber (BOOG's bolt worked after each shot) */
   sinceShot: number;
   rechamber: number;
+  /** 0..1 into the sights */
   ads: number;
+  /** how much of the clip's own motion of the gun is taken off in the sights, 0..1 (a reload aimed: speedkills.json reloadAds) */
+  adsDamp: number;
 }
 
 const loc = (m: THREE.Matrix4): THREE.Vector3 => new THREE.Vector3().setFromMatrixPosition(m);
@@ -352,14 +358,16 @@ export class PackArms {
    * `speed` (m/s) against SpeedKills' run and sprint (the gait's 1 and 2). The view adds it to the gun's pose; the
    * hands follow the gun.
    */
-  locomotion(dt: number, speed: number, air: boolean, ads: number, pos: THREE.Vector3, quat: THREE.Quaternion): void {
+  locomotion(dt: number, speed: number, sprint: number, air: boolean, ads: number, pos: THREE.Vector3, quat: THREE.Quaternion): void {
     pos.set(0, 0, 0);
     quat.identity();
     const A = this.additive;
     if (!A || !A.A_FP_Idle) return;
     const run = MOVE.speed * HU;
-    const sprint = MOVE.sprintSpeed * HU;
-    const g = speed <= run ? speed / run : 1 + THREE.MathUtils.clamp((speed - run) / Math.max(0.1, sprint - run), 0, 1);
+    // the walk by our speed, the sprint only by `sprint` (0..1, the view's: off while firing, aiming or reloading). By speed
+    // alone the sprint's swing, 51 degrees across the body, stayed on while firing on the move, as SpeedKills always
+    // sprints moving forward, and the shots left a gun pointed away from the crosshair
+    const g = Math.min(1, speed / run) + (speed > run * 0.5 ? THREE.MathUtils.clamp(sprint, 0, 1) : 0);
     const w: Array<[AddClip | undefined, number]> = [
       [A.A_FP_Idle, Math.max(0, 1 - g)],
       [A.A_FP_Walk, g <= 1 ? g : 2 - g],
@@ -394,8 +402,9 @@ export class PackArms {
       pos.lerp(p, this.airAmt);
       quat.slerp(q, this.airAmt);
     }
-    // a third of it in the sights (FPSProceduralJob: Lerp(1, 0.3, adsWeight))
-    const weight = 1 - 0.7 * ads;
+    // none of it in the sights: the pack keeps a third (FPSProceduralJob: Lerp(1, 0.3, adsWeight)), and ours aims on the
+    // move, where a third of the walk and sprint took the sight off the crosshair
+    const weight = 1 - ads;
     pos.multiplyScalar(weight);
     quat.slerp(new THREE.Quaternion(), 1 - weight);
     // into our view's space
@@ -465,6 +474,11 @@ export class PackArms {
     // the clip's gun motion, carried to our gun
     const boneNow = inRig(this.bones.ik_hand_gun);
     new THREE.Matrix4().copy(this.boneInOur).multiply(this.boneRefInv).multiply(boneNow).multiply(this.ourInBone).decompose(this.gunDelta.position, this.gunDelta.quaternion, this.gunDelta.scale);
+    // in the sights most of it is taken off, as the view does its own reload's: aimed, the reload's turn swung the sight
+    // off the crosshair
+    const keep = 1 - f.ads * f.adsDamp;
+    this.gunDelta.position.multiplyScalar(keep);
+    this.gunDelta.quaternion.slerp(new THREE.Quaternion(), 1 - keep);
     this.gunDelta.updateMatrix();
 
     // the pack gun's parts now (its own clip at the same moment), and ours moved as they are

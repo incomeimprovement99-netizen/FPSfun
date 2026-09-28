@@ -25,7 +25,7 @@ import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels
 import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
-import { PACK_FOV, PackArms, packGunFor } from "./fprig";
+import { LOCO, PACK_FOV, PackArms, packGunFor } from "./fprig";
 import type { OperatorSkin } from "./operators";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
@@ -453,6 +453,8 @@ export class ViewModel {
   private readonly pack = new PackArms();
   private packOn = false;
   private readonly locoPos = new THREE.Vector3();
+  /** how far into the pack's sprint the gun is, 0..1 */
+  private packSprint = 0;
   private readonly locoQuat = new THREE.Quaternion();
   /** whether the drawn gloves and forearms are showing, so they are hidden or shown once rather than every frame */
   private drawnShown = true;
@@ -1403,7 +1405,10 @@ export class ViewModel {
     this.pose.position.copy(p);
     // the bought arms' own motion of the gun as the body moves: walk, sprint, the jump (fprig.ts)
     if (packOn) {
-      this.pack.locomotion(dt, f.moveSpeed, !f.onGround, ads, this.locoPos, this.locoQuat);
+      // the pack's sprint only while sprinting and not firing, aiming or reloading, eased: out fast, back slower
+      const wantPackSprint = f.sprinting && f.adsFrac < 0.05 && !f.reloading && this.t - this.lastShotAt > LOCO.fireHold ? 1 : 0;
+      this.packSprint += (wantPackSprint - this.packSprint) * Math.min(1, dt / (wantPackSprint ? LOCO.easeIn : LOCO.easeOut));
+      this.pack.locomotion(dt, f.moveSpeed, easeInOut(this.packSprint), !f.onGround, ads, this.locoPos, this.locoQuat);
       this.pose.position.add(this.locoPos);
       this.pose.quaternion.premultiply(this.locoQuat);
     }
@@ -1457,7 +1462,7 @@ export class ViewModel {
     // the bought arms: the clips to this frame's state, the rig under the holder, our magazine and handle moved
     if (packOn) {
       this.pack.update(
-        { dt, reload: f.reloading ? reloadP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads },
+        { dt, reload: f.reloading ? reloadP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS },
         this.holder,
         m.mag,
         m.bolt,

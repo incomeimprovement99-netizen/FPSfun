@@ -18,6 +18,10 @@ interface Trail {
   side: TrailSide;
   /** seen this frame (a trail not seen fades out and goes) */
   seen: boolean;
+  /** where the feet were last frame and when, for their speed; and the way the last point was laid */
+  last: THREE.Vector3 | null;
+  lastAt: number;
+  heading: THREE.Vector3 | null;
 }
 
 const MAX = TRAILS.points;
@@ -72,16 +76,28 @@ export class Trails {
         mesh.renderOrder = 4;
         mesh.name = "trail";
         this.scene?.add(mesh);
-        t = { pts: [], mesh, geo, side: pl.side, seen: true };
+        t = { pts: [], mesh, geo, side: pl.side, seen: true, last: null, lastAt: now, heading: null };
         this.trails.set(pl.key, t);
       }
       t.seen = true;
       t.side = pl.side;
       const last = t.pts[t.pts.length - 1];
       const at = this.tmpA.copy(pl.feet).setY(pl.feet.y + TRAILS.lift);
+      // how fast the feet go: only a player running lays a trail. A player standing and dodging in a fight laid one
+      // back and forth under their feet, a red smear round the figure the owner was trying to track
+      const dt = now - t.lastAt;
+      const speed = t.last && dt > 0 ? Math.hypot(pl.feet.x - t.last.x, pl.feet.z - t.last.z) / dt : 0;
+      t.last = (t.last ?? new THREE.Vector3()).copy(pl.feet);
+      t.lastAt = now;
       // a teleport (a respawn, a DASH) starts the trail afresh rather than drawing a line across the map
       if (last && last.p.distanceTo(at) > TRAILS.jump) t.pts.length = 0;
-      if (!last || t.pts.length === 0 || last.p.distanceTo(at) >= TRAILS.step) {
+      if (speed >= TRAILS.minSpeed && (!last || t.pts.length === 0 || last.p.distanceTo(at) >= TRAILS.step)) {
+        // and a turn back on itself (a dodge) starts it afresh too, so a zigzag never piles up into a loop
+        if (last) {
+          const way = this.tmpB.copy(at).sub(last.p).setY(0).normalize();
+          if (t.heading && way.dot(t.heading) < TRAILS.turnBack) t.pts.length = 0;
+          t.heading = (t.heading ?? new THREE.Vector3()).copy(way);
+        }
         t.pts.push({ p: at.clone(), t: now });
         if (t.pts.length > MAX) t.pts.shift();
       }
@@ -104,6 +120,12 @@ export class Trails {
     const n = t.pts.length;
     t.mesh.visible = n >= 2;
     if (n < 2) return;
+    // faded out within fight range, where the eye is on the figure itself, not on where it has been
+    const near = THREE.MathUtils.smoothstep(t.pts[n - 1].p.distanceTo(eye), TRAILS.near[0], TRAILS.near[1]);
+    if (near <= 0.001) {
+      t.mesh.visible = false;
+      return;
+    }
     const pos = t.geo.getAttribute("position") as THREE.BufferAttribute;
     const col = t.geo.getAttribute("color") as THREE.BufferAttribute;
     const c = this.colours[t.side];
@@ -117,7 +139,7 @@ export class Trails {
       if (len > 1e-6) across.multiplyScalar(TRAILS.width / 2 / len);
       else across.set(0, 0, 0);
       // young is bright, old is gone; past the last point, the rest collapse on it
-      const a = i < n ? Math.max(0, 1 - (now - t.pts[k].t) / TRAILS.seconds) * Math.min(1, k / 2) : 0;
+      const a = i < n ? Math.max(0, 1 - (now - t.pts[k].t) / TRAILS.seconds) * Math.min(1, k / 2) * near * TRAILS.opacity : 0;
       pos.setXYZ(2 * i, p.x + across.x, p.y + across.y, p.z + across.z);
       pos.setXYZ(2 * i + 1, p.x - across.x, p.y - across.y, p.z - across.z);
       col.setXYZ(2 * i, c.r * a, c.g * a, c.b * a);

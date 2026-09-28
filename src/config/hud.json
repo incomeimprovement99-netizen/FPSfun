@@ -73,10 +73,10 @@
     "readyText": "READY",
     "flash": 0.6
   },
-  "_trails": "Movement trails behind every other player (src/game/trails.ts), Hyper Scape's: red behind enemies, blue behind mates, gold behind the crown's carrier. A ribbon `width` metres across, `lift` over the feet, a point every `step` metres the feet go, at most `points` of them, each fading over `seconds` (its players saw a trail linger 0.5 to 1 s after someone went invisible); a jump of more than `jump` metres between frames (a respawn, a DASH) starts it afresh; none past `maxDist` metres. Colours read off Hyper Scape's footage, by eye.",
+  "_trails": "Movement trails behind every other player (src/game/trails.ts), Hyper Scape's: red behind enemies, blue behind mates, gold behind the crown's carrier. A ribbon `width` metres across, `lift` over the feet, a point every `step` metres the feet go, at most `points` of them, each fading over `seconds` (its players saw a trail linger 0.5 to 1 s after someone went invisible); a jump of more than `jump` metres between frames (a respawn, a DASH) starts it afresh; none past `maxDist` metres. Colours read off Hyper Scape's footage, by eye. The owner, 2026-09-27, of the \"red circle/bubble\" round enemies that made them hard to track: it was these. A bot dodging side to side in a fight laid its trail back and forth under its feet, a bright red zigzag smeared round the figure (a picture of one 8 m off, dodging 1.4 m). So a trail is laid only while the feet go `minSpeed` m/s or more (running; SpeedKills runs at 8.8 and sprints at 14), a turn back on itself (the way on against the way before below `turnBack`, a dot product) starts it afresh, it is `opacity` as bright, and it fades out as its player comes nearer than `near` metres (gone at the first, whole at the second), where the eye is on the figure itself.",
   "trails": {
-    "seconds": 0.9,
-    "width": 0.14,
+    "seconds": 0.6,
+    "width": 0.08,
     "lift": 0.08,
     "step": 0.25,
     "points": 40,
@@ -86,7 +86,14 @@
       "enemy": "#ff2a3a",
       "ally": "#3aa8ff",
       "crown": "#ffc83c"
-    }
+    },
+    "minSpeed": 6,
+    "turnBack": -0.2,
+    "near": [
+      12,
+      25
+    ],
+    "opacity": 0.7
   },
   "_note": "The HUD's few gameplay numbers (ours). Plates: an enemy's name and bars show only after you have damaged them, for `afterHit` seconds from the last hit, and only while the line from your eye to their chest is clear of the level; a team mate's always. A plate is last drawn at `range` metres, fading from `fadeFrom`: the owner asked for them off far away as well as behind cover, so this is a room-and-a-half, not the width of the map.",
   "plates": {

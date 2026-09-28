@@ -88,6 +88,12 @@
   "fov": 80,
   "_adsShoulder": "Metres both shoulders go back in the sights, on top of the pack gun's own clavicle offset (its settings asset): our sights bring the gun to the eye nearer than KINEMATION's player does (it stops short by the gun's aim point offset, 10 to 12 cm), and with the shoulder where the hold put it the USSO's right wrist bent 109 degrees aimed and its left 70 (tools/e2e.ts, the pack's wristBend).",
   "adsShoulder": 0.12,
+  "_sprint": "The pack's sprint on the gun (fprig.ts locomotion): its swing, 51 degrees across the body, comes in over `easeIn` s while sprinting and goes over `easeOut` s the moment you fire, aim or reload, and comes back `fireHold` s after the last shot. SpeedKills sprints whenever you move forward, firing included, and with the sprint on by speed alone the owner fired from a gun swung across the body, the tracers nowhere near the crosshair (2026-09-27, the live server). In the sights none of the pack's walk or sprint is kept.",
+  "sprint": {
+    "fireHold": 0.5,
+    "easeIn": 0.18,
+    "easeOut": 0.06
+  },
   "measured": {
     "MPS5": {
       "turn": [

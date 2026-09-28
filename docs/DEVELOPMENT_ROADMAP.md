@@ -5612,3 +5612,24 @@ gun low and right, half off the screen at the owner's view.
   jump's loop in the air; a third of it in the sights, as the pack does. Our own sprint pose, bob and idle drift stand
   down for these two guns. Sprinting, the gun now swings across the body and stays in view with both hands on it.
 - **Checked:** the soldier e2e section; verify; rules; pictures of standing, walking, sprinting and aiming.
+
+## Milestone 292 — Aim and fire on the move fixed; the red smear round enemies was their trails
+
+The owner, 2026-09-27, on the live server: "we fucked up ads and shooting ... the gun is tilted before shooting and then
+the bullets don't go where the crosshair is aiming"; and "we still have that red circle/bubble glitch".
+
+- **Aim and fire** (`fprig.ts`, `fparms.json` sprint): Milestone 291's sprint motion was driven by speed alone, and
+  SpeedKills sprints whenever you move forward, firing included, so the gun stayed swung up to 51 degrees across the
+  body while firing, and a third of it stayed in the sights (about 15 degrees of tilt, the red dot off the crosshair
+  that the shots follow). Now the pack's sprint comes in only while sprinting and not firing, aiming or reloading (out
+  in 0.06 s, back 0.5 s after the last shot); none of the pack's walk or sprint is kept in the sights; and aimed, 85%
+  of a reload's turn is taken off, as the view already did for its own reload. The shots themselves were never off:
+  they go down the eye's ray.
+- **The red circle round enemies was their trails** (`trails.ts`, `hud.json` trails): a bot dodging side to side in a
+  fight laid its red trail back and forth under its feet, a bright zigzag smeared round the figure (a picture of one 8
+  m off). The edge's laser was not it: it strikes only a player past the edge. Now a trail is laid only while running
+  (6 m/s or more), a turn back on itself starts it afresh, it is thinner and dimmer, and it fades out within 12 to 25 m,
+  where the eye is on the figure.
+- **Checked:** `tools/checks/trails.ts` (a dodge lays at most one leg of it, 17 points with the fix taken out; a walk
+  lays none, 6 without it; near you none is drawn); pictures of sprinting and firing, running aimed and firing aimed
+  while reloading; the soldier e2e section; verify; rules.
