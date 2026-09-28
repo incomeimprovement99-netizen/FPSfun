@@ -6013,3 +6013,15 @@ not there.
   streets (82 nodes not reached); `sk-roofs.ts` throws a bot off each of its
   pads onto its walkway (29 pads) and walks every street link (847); the e2e sections bots, botsquads and
   gulag (two of the bots' tier checks in the warehouse arena failed beside them and passed alone); a real match.
+
+## Milestone 305 — The loadout you play with, on the battle royale's panel
+
+The owner, 2026-09-27: "my chosen loadout should be on the battle royale screen below the "play / play with friends"
+button for easy reference".
+
+- **Under Start and With friends** (`index.html` setupLoadout, `src/ui/menu.ts`): a card with the loadout's name, its two
+  guns and their kinds, the operator and the heirloom, and a Change button that opens the Loadouts tab. It shows on the
+  modes you play with your loadout (the battle royale, the arena, the team modes) and not on the range and the courses;
+  it follows the loadout picked and every edit to it.
+- **Checked:** a panel e2e check (shown under the buttons with both guns named, not on the range, Change opens
+  Loadouts), seen failing with the card kept hidden; verify; rules.

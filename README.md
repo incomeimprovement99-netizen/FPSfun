@@ -402,7 +402,8 @@ whether abilities are on) goes to everyone who joins.
 
 **Your name** for the kill feed and the scoreboard: the Stats tab.
 **Loadouts**: the Loadouts tab, before or during a match (mid-fight, the new
-guns come at the next round).
+guns come at the next round). The Play tab shows the one you will play with
+under the Start and With friends buttons, with a button to change it.
 
 Codes never contain 0, O, 1, I or L, so they can be read out loud. The
 connection is browser to browser (WebRTC); a PeerJS broker only introduces

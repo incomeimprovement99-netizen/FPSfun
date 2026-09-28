@@ -6794,6 +6794,24 @@ async function lobbyPanelTest(browser: Browser): Promise<void> {
   await pick("br");
   const afterPick = await ev<{ mode: string; started: boolean }>(page, `({ mode: window.__range.menu.picked, started: !!window.__range.duel() })`);
   check("a card picks the mode and does not start it", afterPick.mode === "br" && !afterPick.started, JSON.stringify(afterPick));
+  // the loadout you play with, under Start and With friends (the owner: "my chosen loadout should be on the battle royale
+  // screen below the play / play with friends button"): its two guns, hidden on the range, and Change opens the Loadouts tab
+  const card = await ev<{ shown: boolean; text: string; below: boolean }>(
+    page,
+    `(() => { const c = document.getElementById("setupLoadout"); const go = document.getElementById("startMode"); return { shown: !c.hidden, text: c.textContent, below: c.getBoundingClientRect().top > go.getBoundingClientRect().bottom }; })()`,
+  );
+  const guns = await ev<string[]>(page, `(() => { const r = window.__range; return r.loadout.slots.map((s) => s.weapon?.name ?? s.id); })()`);
+  await pick("range");
+  const onRange = await ev<boolean>(page, `!document.getElementById("setupLoadout").hidden`);
+  await pick("br");
+  await ev(page, `document.getElementById("setupLoadoutEdit").click()`);
+  const toLoadouts = await ev<boolean>(page, `!document.querySelector('[data-panel="loadouts"]').hidden`);
+  await ev(page, `document.querySelector('#tabs button[data-tab="play"]').click()`);
+  check(
+    "the battle royale's panel shows the loadout you play with under its buttons, its two guns named; not on the range; Change opens Loadouts",
+    card.shown && card.below && guns.every((g) => card.text.toUpperCase().includes(String(g).toUpperCase())) && !onRange && toLoadouts,
+    JSON.stringify({ ...card, guns, onRange, toLoadouts }),
+  );
   for (const id of ["range", "br", "bots", "gunrun", "run"]) {
     await pick(id);
     const on = await shown();

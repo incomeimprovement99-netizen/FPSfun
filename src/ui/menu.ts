@@ -239,6 +239,8 @@ export class Menu {
     $("setupFriends").textContent = shared
       ? "With friends makes the match on these settings and copies the invite link: everyone who opens it plays this map, these bots and these rules."
       : "On your own. Every mode from the arena down can be played with friends instead.";
+    // the loadout you play with, under the buttons, on the modes you play with it (not the courses and the range)
+    $("setupLoadout").hidden = LOADOUT_MODES.has(m.id) === false;
     // the aim bot's switch follows the one on the Settings tab
     const real = document.getElementById("aimbotMode") as HTMLSelectElement | null;
     if (real) $<HTMLSelectElement>("aimbotLobby").value = real.value;
@@ -539,11 +541,26 @@ export class Menu {
 
     const opName = OPERATORS.find((x) => x.id === cur.operator)?.name ?? "";
     $("loadoutChip").innerHTML = `Loadout <b>${esc(cur.name)}</b> &middot; ${esc(opName)}`;
+    // and on the play panel, under Start and With friends: the two guns, the operator and the heirloom
+    const gun = (id: string, slot: string) => {
+      const name = this.o.weaponName(id);
+      const kind = this.o.weaponLabel(id).replace(name, "").replace(/[()]/g, "").trim();
+      return `<div class="gun"><span>${slot}${kind ? ` &middot; ${esc(kind)}` : ""}</span>${esc(name)}</div>`;
+    };
+    const heir = HEIRLOOMS.find((h) => h.id === cur.heirloom)?.name;
+    $("setupLoadout").innerHTML =
+      `<div class="head">Your loadout <b>${esc(cur.name)}</b><button type="button" id="setupLoadoutEdit">Change</button></div>` +
+      `<div class="guns">${gun(cur.slot1, "Weapon 1")}${gun(cur.slot2, "Weapon 2")}</div>` +
+      `<div class="more">${esc(opName)}${heir ? ` &middot; ${esc(heir)}` : ""}</div>`;
+    $("setupLoadoutEdit").addEventListener("click", () => this.show("loadouts"));
     const l1 = this.o.weaponLabel(cur.slot1);
     // (no brackets inside brackets: "USSO (Fast SMG)" already has its own)
     $("duelLoadout").textContent = l1 !== this.o.weaponName(cur.slot1) ? `${cur.name}: ${l1} and ${this.o.weaponLabel(cur.slot2)}` : `${cur.name} (${l1}, ${this.o.weaponLabel(cur.slot2)})`;
   }
 }
+
+/** the lobby's modes played with your loadout, whose play panel shows it */
+const LOADOUT_MODES = new Set(["br", "tdm", "ffa", "control", "crown", "search", "bots", "duel", "arena"]);
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
