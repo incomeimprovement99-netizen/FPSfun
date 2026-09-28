@@ -5532,3 +5532,16 @@ part, yes.
   run; with each placement culled in script it was slower. The instanced meshes stay the default, batching behind
   `?kitbatched`, and `?nosteam` measures the steam, for a quiet bench.
 - **Checked:** the audit before and after; pictures of the same High City tower and canyon; verify and rules.
+
+## Milestone 288 — A daytime to see the city by, and F8 to flip it
+
+The owner, after comparing the centre with the packs' store pictures (most of High City's in hazy daylight): "add a
+toggle for daytime to see the diff".
+
+- **A hazy day** (`sky.json` hazyDay), SpeedKills' third hour after the neon night and golden hour: the noon sky's
+  picture with a paler dome, a warm sun high and raking, the fog from 30 m, after High City's store shots. In the
+  Settings' Time of day, and a battle royale plays under it too (SpeedKills matches take your hour).
+- **F8** (`binds.json` dayNight, "Day or night" in Controls) flips between the neon night and the hazy day while you
+  play, and keeps the choice as the menu does.
+- **The picture tool** takes `SKY=<hour>` (`tools/city-sheet.ts`), for the same spots by day and by night.
+- **Checked:** pictures of a street, a canyon and Neon Alley by night and by day; verify and rules.

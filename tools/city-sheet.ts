@@ -5,6 +5,7 @@
 //
 // Run: SHOT_URL=http://127.0.0.1:5197/ npx tsx tools/city-sheet.ts <out prefix> [preset: competitive|balanced|high] [before]
 // CLEAN=1 hides the HUD for a picture of the city alone.
+// SKY=<hour> (sky.json hours, e.g. hazyDay) sets the time of day first, for the same spots by day and by night.
 import puppeteer from "puppeteer";
 import { BR_X, BR_Z } from "../src/game/br";
 const URL = process.env.SHOT_URL ?? "http://127.0.0.1:5197/";
@@ -35,7 +36,7 @@ try {
   page.on("pageerror", (e) => console.log("pageerror:", String(e)));
   await page.goto(`${URL}?game=speedkills&nointro${BEFORE ? "&nocitykit" : ""}`, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range) && window.__range.loaded()", { timeout: 120000 });
-  await page.evaluate(`document.getElementById("overlay").classList.add("hidden"); window.__range.input.locked = true; window.__range.setRegion("br"); ${process.env.CLEAN ? 'document.getElementById("hud").style.visibility = "hidden";' : ""} window.__range.player.setBounds({ minX: ${BR_X - 600}, maxX: ${BR_X + 600}, minZ: ${BR_Z - 600}, maxZ: ${BR_Z + 600} });`);
+  await page.evaluate(`document.getElementById("overlay").classList.add("hidden"); window.__range.input.locked = true; window.__range.setRegion("br"); ${process.env.SKY ? `window.__range.sky.set(${JSON.stringify(process.env.SKY)});` : ""} ${process.env.CLEAN ? 'document.getElementById("hud").style.visibility = "hidden";' : ""} window.__range.player.setBounds({ minX: ${BR_X - 600}, maxX: ${BR_X + 600}, minZ: ${BR_Z - 600}, maxZ: ${BR_Z + 600} });`);
   const kitIn = BEFORE ? false : await page.waitForFunction("window.__range.cityKit().drawn > 0", { polling: 500, timeout: 180000 }).then(() => true, () => false);
   if (BEFORE) await new Promise((r) => setTimeout(r, 5000));
   console.log("city kit:", kitIn, await page.evaluate("JSON.stringify(window.__range.cityKit())"));

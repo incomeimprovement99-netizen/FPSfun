@@ -46,4 +46,7 @@ The round planned in `docs/PHASE_22_PLAN_FINISHING_THE_CENTRE.md`, item by item 
   to the round: the rest of the look gap, item by item (texture resolution, stretching and pressed relief, lighting).
 - **22.4:** three benches, all under another worktree's e2e: batched against instanced within one build swung 6 to
   12 ms run to run. Not a result either way; paused with both paths kept.
+- **The owner asked for a daytime toggle (2026-09-28):** "add a toggle for daytime to see the diff". Milestone 288:
+  a hazy day after High City's store pictures, in the Time of day and on F8. By day the restored brick reads plainly;
+  the deep streets stay in shade, and the haze is lighter than the store's, both for tuning.
 

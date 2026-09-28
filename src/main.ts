@@ -6447,6 +6447,14 @@ function step(): void {
       if (pick !== null) playEmote(pick, now);
     }
     if (input.pressedNow("map")) mapOpen = !mapOpen;
+    // F8: the neon night or the hazy day, the city both ways (the owner's toggle); kept as the chosen hour, as the menu keeps it
+    if (IS_SK && input.pressedNow("dayNight")) {
+      const next = hour.id === "hazyDay" ? PROFILE.identity.sky : "hazyDay";
+      saveSkHour(next);
+      skySel.value = next;
+      applyHour(hourFor(next));
+      hud.notice(`${HOURS[next].label} (F8 flips it)`, now, 2);
+    }
     // 5 and 6 pick an ability while its card is up (any time in the range);
     // on a controller the d-pad's left and right pick while the card is up
     if (abilities.enabled && (abilities.choosing || !duel)) {

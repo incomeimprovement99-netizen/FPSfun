@@ -605,7 +605,7 @@ The Settings tab, all remembered in this browser:
 | Volume | master, effects, hits |
 | The range's ammo | endless, or counted like a match |
 | Mantle boost cue | the ring on the crosshair in the last frames of a mantle, where a superglide is possible |
-| Time of day | seven hours, morning to moonlight: the sky, the sun, the light and the fog, applied at once with no reload. In SpeedKills, its own two: the neon night (the default) or golden hour, kept apart from the legacy game's |
+| Time of day | seven hours, morning to moonlight: the sky, the sun, the light and the fog, applied at once with no reload. In SpeedKills, its own three: the neon night (the default), golden hour or a hazy day, kept apart from the legacy game's; **F8** flips between the neon night and the hazy day in play |
 | Battle royale sky | the match's hour (the default: each battle royale draws its own hour from its seed, the same for the whole squad, dusk and moonlight rarer), or always your time of day |
 | Accessibility | a colour vision mode (normal, deuteranopia, protanopia, tritanopia) that moves the enemy and ally colours on pings, the kill feed, name plates and the damage arcs to a pair you can tell apart; and a HUD size, 80% to 140% |
 | Crosshair | five styles (the game's three prongs, cross, T, circle, dot), six colours, length, thickness, gap, centre dot, outline, whether it opens with spread, opacity; a live preview, and Reset for the game's own |
