@@ -5692,3 +5692,29 @@ and of BOOG's scope, "make the recharging like 50% transparent and then don't ha
 - **BOOG's recharge ring** (`hud.json` hsCharge): half see-through, and nothing drawn once it has closed.
 - **Checked:** pictures at the owner's view running and strafing with the USSO, BOOG and ZEPHYR; the swap's field of
   view frame by frame; the soldier e2e section (the ring's check now wants no READY); verify; rules.
+
+## Milestone 296 — The city drawn in to the middle: the outer districts cut by three quarters
+
+Phase 23's item 23.3. The owner: "CUT DOWN ON THE OTSIDE DISTRICTS TOO BY LIKE 75% BC WE WANT IT TO BE FOCUSED IN THE
+MIDDLE NOW."
+
+- **The map is 304 m across** (`city.json` cut; `br.ts` BR_HALF from it), where it was 500. The eight districts round
+  the centre keep their names, colours and landmarks on one ring of blocks, its outer side cut to 38 m: 52,400 m² of
+  districts where there were 210,000, 75% less. The centre is untouched.
+- **How the centre stayed the same.** The city is built block by block from one seeded stream, the outer ring first,
+  and a block's draws depend on its size; dropping blocks or shrinking them would have reshuffled every draw after them,
+  the centre's too, whose chimneys and routes are tuned to this layout. So every block is still built in the old order
+  from the old stream, the districts' ring and the ring past it are taken away again at once (`city.ts` sandbox: what
+  a block adds to the scene and the city's lists), and the districts' ring is then built again on its cut blocks from a
+  stream of its own. Proven by a fingerprint of the centre before and after: the same 28 towers, 53 pads, 4 chimneys and
+  24 stair cores, every solid the same but for the parked cars, which the street's own stream places.
+- **Fitted to the cut:** five landmarks laid out for 57 m blocks (the holo tower's screens, the silos, the bowl, the
+  terraces, the gantry, the station) take the block's share across; no car parks past the edge, none on a metro
+  stairwell's way in (sk-metro found one); zebras and the crossings' pads only inside, the pads on the crossings they
+  had; the jump towers and beacons only on the districts' plazas, as before; the skyline drawn in to 205 to 360 m; the
+  ring's square and its pulls toward the districts (`ring.json` speedkills) to the new size.
+- **What it costs now:** 15,053 solids where there were 20,216; the city 16,092 meshes (22,226), 296 once merged (418),
+  242k triangles (319k).
+- **Checked:** verify and rules (`ring-place.ts` now checks the city's cut, the ring's square and the sectors' edge are
+  one size; `sk-roofrun.ts` holds the fewer roof crossings, 108, a tenth under, the chain from the best roof still 10);
+  the e2e sections that play the map; pictures.

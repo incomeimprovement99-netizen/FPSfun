@@ -146,8 +146,10 @@ const f = roofs[bestFrom];
 console.log(`        ${roofs.length} roofs; ${tried} facing gaps tried, ${jumps} crossed, in ${secs.toFixed(1)} s`);
 // Held at what the city and the movement give today (Phase 20 A15's sprint, 2026-09-26: 147 crossings, 9 roofs from
 // the best), a tenth under, so a change that breaks the flow fails; a deliberate change (A17's footage numbers)
-// moves these with its reason. The first pass's 275 hu/s sprint crossed 99 and reached 7, and fails both.
-check("the gaps a sprint and a double jump cross: 130 and more of the facing gaps", jumps >= 130, `${jumps} of ${tried}`);
+// moves these with its reason. The first pass's 275 hu/s sprint crossed 99 and reached 7, and fails both. Phase 23.3
+// cut the outer districts by three quarters (city.json cut): 112 roofs, 608 facing gaps, 108 crossed, the chain from the
+// best roof 10; the crossings held at 97, a tenth under.
+check("the gaps a sprint and a double jump cross: 97 and more of the facing gaps", jumps >= 97, `${jumps} of ${tried}`);
 check("the roofs join up: from the best roof, 8 and more are reached by jumps alone, never touching the street", best >= 8, `${best} roofs from the one at (${f ? ((f.minX + f.maxX) / 2).toFixed(0) : "?"}, ${f ? ((f.minZ + f.maxZ) / 2).toFixed(0) : "?"}), ${f?.top.toFixed(1)} m up`);
 check("and a street's width is crossed roof to roof (14 m)", widest >= 14, `widest gap crossed ${widest.toFixed(1)} m`);
 

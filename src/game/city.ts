@@ -200,7 +200,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   DOORWAYS.length = 0;
   DRESSING.length = 0;
   FLOORS.length = 0;
-  const rnd = seeded(C.seed);
+  // (let: the districts' ring is built again from a stream of its own, city.json cut, and this one put back after)
+  let rnd = seeded(C.seed);
   const firstSolid = RANGE_SOLIDS.length;
 
   const solid = (minX: number, maxX: number, minZ: number, maxZ: number, base: number, top: number) =>
@@ -435,11 +436,16 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     pads.push({ ...W(fx + nx * d0, fz + nz * d0), dx: -nx * vx, dz: -nz * vx, y: floor, up: v, over: overY });
     padLands.push({ pad: pads.length - 1, x: fx - nx * PAD_SOLVE.landInside, z: fz - nz * PAD_SOLVE.landInside, y: roof });
   };
-  BLOCKS.forEach(([x0, x1], bi) => {
-    BLOCKS.forEach(([z0, z1], bj) => {
+  /** the streets inside the map (STREETS keeps the grid's six each way, which the configs name by index) */
+  const LANES = STREETS.filter((s) => Math.abs(s) < BR_HALF - 7);
+  /** the block of the grid at (bi, bj): its pavement, and what stands on it by its ring round the centre */
+  const mid = (BLOCKS.length - 1) / 2;
+  function buildBlock(x0: number, x1: number, z0: number, z1: number, bi: number, bj: number): void {
+    {
       const cx = (x0 + x1) / 2;
       const cz = (z0 + z1) / 2;
-      const sec = sectorAt(cx, cz)!;
+      // (a block the cut takes away lies past the map's edge: its sector is the one it faces, as it was before the cut)
+      const sec = sectorAt(Math.max(-BR_HALF, Math.min(BR_HALF, cx)), Math.max(-BR_HALF, Math.min(BR_HALF, cz)))!;
       // the pavement: the block's floor, a kerb above the street
       slab(x1 - x0, PAVE_H, z1 - z0, cx, 0, cz, pave);
       // neon along the kerb, the district's colour
@@ -448,8 +454,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       deco(x1 - x0, 0.06, 0.12, cx, PAVE_H, z1 - 0.06, k);
       deco(0.12, 0.06, z1 - z0, x0 + 0.06, PAVE_H, cz, k);
       deco(0.12, 0.06, z1 - z0, x1 - 0.06, PAVE_H, cz, k);
-      const ring = Math.max(Math.abs(bi - 3), Math.abs(bj - 3));
-      const centre = bi === 3 && bj === 3;
+      const ring = Math.max(Math.abs(bi - mid), Math.abs(bj - mid));
+      const centre = bi === mid && bj === mid;
       // the heart: THE SPIRE, in tiers (city.json spire)
       if (centre) {
         spireBlock(x0, x1, z0, z1, sec, `${bi},${bj}`);
@@ -505,8 +511,49 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         if (storeys <= C.botRoofs.maxStoreys && !doors.includes(edgeDoor)) doors.push(edgeDoor);
         towers.push(tower({ x: cx + ox, z: cz + oz, w: bw, d: bd, storeys, sector: sec, mat, accent: sec.accent, doors: doors.length ? doors : ["s"], block: { x0, x1, z0, z1 } }));
       }
-    });
-  });
+    }
+  }
+  /**
+   * Build, spending the stream's draws, and take away again (city.json cut): everything a block adds to the scene and to
+   * the city's lists, so the blocks built after it draw exactly the numbers they drew before the cut
+   */
+  const sandbox = (build: () => void): void => {
+    const n = { kids: root.children.length, solids: RANGE_SOLIDS.length, towers: towers.length, plazas: plazas.length, pads: pads.length, lands: padLands.length, doorways: DOORWAYS.length, dressing: DRESSING.length, floors: FLOORS.length };
+    build();
+    root.remove(...root.children.slice(n.kids));
+    RANGE_SOLIDS.length = n.solids;
+    towers.length = n.towers;
+    plazas.length = n.plazas;
+    pads.length = n.pads;
+    padLands.length = n.lands;
+    DOORWAYS.length = n.doorways;
+    DRESSING.length = n.dressing;
+    FLOORS.length = n.floors;
+  };
+  const Ct = C.cut;
+  BLOCKS.forEach(([x0, x1], bi) =>
+    BLOCKS.forEach(([z0, z1], bj) => {
+      const ring = Math.max(Math.abs(bi - mid), Math.abs(bj - mid));
+      if (ring >= Ct.keep) sandbox(() => buildBlock(x0, x1, z0, z1, bi, bj));
+      else buildBlock(x0, x1, z0, z1, bi, bj);
+    }),
+  );
+  // the districts' ring built again, its outer side cut to cut.depth, from a stream of its own; the city's stream put
+  // back after, so everything built after the blocks draws what it drew before
+  {
+    const main = rnd;
+    rnd = seeded(C.seed ^ 0xc07);
+    const cutSpan = (a0: number, a1: number, i: number): [number, number] => (i === mid - Ct.keep ? [a1 - Ct.depth, a1] : i === mid + Ct.keep ? [a0, a0 + Ct.depth] : [a0, a1]);
+    BLOCKS.forEach(([x0, x1], bi) =>
+      BLOCKS.forEach(([z0, z1], bj) => {
+        if (Math.max(Math.abs(bi - mid), Math.abs(bj - mid)) !== Ct.keep) return;
+        const [cx0, cx1] = cutSpan(x0, x1, bi);
+        const [cz0, cz1] = cutSpan(z0, z1, bj);
+        buildBlock(cx0, cx1, cz0, cz1, bi, bj);
+      }),
+    );
+    rnd = main;
+  }
 
   /**
    * A mass: a solid building of one box, a storey at a time tall, standing on
@@ -1055,6 +1102,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   function landmark(kind: string, x0: number, x1: number, z0: number, z1: number, sec: Sector): void {
     const cx = (x0 + x1) / 2;
     const cz = (z0 + z1) / 2;
+    // laid out for a block of 57 m; on the districts' cut blocks (city.json cut, 38 m) the wide ones take its share across
+    const f = Math.min(1, Math.min(x1 - x0, z1 - z0) / 57);
     const k = neon(sec.accent);
     const g = PAVE_H;
     const S = storeyH;
@@ -1067,12 +1116,14 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         ring.position.set(cx, g + y, cz);
         root.add(ring);
       }
-      for (const [dx, dz, w, d] of [
-        [-22, -22, 10, 1],
-        [22, 22, 10, 1],
-        [-22, 22, 1, 10],
-        [22, -22, 1, 10],
-      ] as const) {
+      for (const [dx, dz, w, d] of (
+        [
+          [-22, -22, 10, 1],
+          [22, 22, 10, 1],
+          [-22, 22, 1, 10],
+          [22, -22, 1, 10],
+        ] as const
+      ).map(([a, c, e, h]) => [a * f, c * f, e === 1 ? 1 : e * f, h === 1 ? 1 : h * f])) {
         slab(w, 8, d, cx + dx, g, cz + dz, trimDark);
         deco(w === 1 ? 1.1 : w - 0.4, 6, d === 1 ? 1.1 : d - 0.4, cx + dx, g + 1, cz + dz, k);
       }
@@ -1108,7 +1159,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         [0, 12, 20],
         [14, 12, 24],
       ];
-      for (const [dx, dz, h] of spots) drum(5.5, h, cx + dx, g, cz + dz, metal, k);
+      const sr = 5.5 * f;
+      for (const [dx, dz, h] of spots) drum(sr, h, cx + dx * f, g, cz + dz * f, metal, k);
       // catwalks at 16 m between neighbours, and a pad up to them
       for (const [ax, az, bx, bz] of [
         [-14, -14, 0, -14],
@@ -1117,13 +1169,14 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         [0, 12, 14, 12],
         [0, -14, 0, 12],
       ] as const) {
-        const len = Math.hypot(bx - ax, bz - az);
+        const len = Math.hypot(bx - ax, bz - az) * f;
         const along = ax !== bx;
-        slab(along ? len : 2.2, 0.3, along ? 2.2 : len, cx + (ax + bx) / 2, g + 16 - 0.3, cz + (az + bz) / 2, metal);
-        deco(along ? len : 0.08, 0.08, along ? 0.08 : len, cx + (ax + bx) / 2 + (along ? 0 : 1.1), g + 17, cz + (az + bz) / 2 + (along ? 1.1 : 0), k);
+        const [mx, mz] = [cx + ((ax + bx) / 2) * f, cz + ((az + bz) / 2) * f];
+        slab(along ? len : 2.2, 0.3, along ? 2.2 : len, mx, g + 16 - 0.3, mz, metal);
+        deco(along ? len : 0.08, 0.08, along ? 0.08 : len, mx + (along ? 0 : 1.1), g + 17, mz + (along ? 1.1 : 0), k);
       }
-      padOnto(cx - 14 - 5.5, cz - 14, -1, 0, g, g + 20);
-      padOnto(cx + 14 + 5.5, cz + 12, 1, 0, g, g + 24);
+      padOnto(cx - 14 * f - sr, cz - 14 * f, -1, 0, g, g + 20);
+      padOnto(cx + 14 * f + sr, cz + 12 * f, 1, 0, g, g + 24);
     } else if (kind === "cathedral") {
       // OLD TOWN: a long nave with a steep roof, two bell towers at its front, a rose of light over the door
       const nave = mass(cx, cz + 4, 18, 40, g, 5, brick, sec.accent, sec.id);
@@ -1141,7 +1194,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       padOnto(cx + 7, cz - 24, 0, -1, g, bells[1].roof);
     } else if (kind === "bowl") {
       // THE CIRCUIT: a stadium bowl, four stands of steps round a field, their tops a ring to run
-      const field = 24;
+      const field = 24 * f;
       const rows = 8;
       for (const [nx, nz] of [
         [0, -1],
@@ -1174,7 +1227,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       }
     } else if (kind === "terraces") {
       // THE GARDENS: a stepped garden, a storey a tier, trees on every terrace
-      let w = 46;
+      let w = 46 * f;
       let y = g;
       for (let tier = 0; tier < 5; tier++) {
         slab(w, S - 0.12, w, cx, y, cz, tier % 2 ? concrete : night[1]);
@@ -1192,37 +1245,38 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
           crown.position.set(tx, y + 3.4, tz);
           root.add(crown);
         }
-        w -= 8;
+        w -= 8 * f;
       }
-      padOnto(cx, cz + 23, 0, 1, g, g + 2 * S);
+      padOnto(cx, cz + 23 * f, 0, 1, g, g + 2 * S);
     } else if (kind === "gantry") {
       // THE YARDS: two gantry cranes across the block over stacks of containers, their beams walkable
       const cols = [0x2f5d7a, 0x7a3a2f, 0x3a6a3a, 0x7a6a2a].map((c) => flat(c, 0.55, 0.3));
       for (let i = 0; i < 14; i++) {
         const along = rnd() < 0.5;
         const tiers = 1 + Math.floor(rnd() * 3);
-        const x = cx + (rnd() - 0.5) * 44;
-        const z = cz + (rnd() - 0.5) * 44;
+        // (a container 12 m long kept inside the block: its middle no further out than half the block less its half)
+        const x = cx + (rnd() - 0.5) * Math.min(44, 44 * f - 10);
+        const z = cz + (rnd() - 0.5) * Math.min(44, 44 * f - 10);
         for (let t = 0; t < tiers; t++) slab(along ? 12 : 2.5, 2.6, along ? 2.5 : 12, x, g + t * 2.6, z, cols[(i + t) % cols.length]);
       }
       for (const dz of [-12, 12]) {
-        for (const dx of [-24, 24]) slab(1.2, 20, 1.2, cx + dx, g, cz + dz, metal);
-        slab(49, 1.2, 3, cx, g + 20, cz + dz, metal);
-        deco(49, 0.1, 0.1, cx, g + 21.25, cz + dz - 1.45, k);
-        padOnto(cx - 24 - 0.6, cz + dz, -1, 0, g, g + 21.2);
+        for (const dx of [-24, 24]) slab(1.2, 20, 1.2, cx + dx * f, g, cz + dz, metal);
+        slab(49 * f, 1.2, 3, cx, g + 20, cz + dz, metal);
+        deco(49 * f, 0.1, 0.1, cx, g + 21.25, cz + dz - 1.45, k);
+        padOnto(cx - 24 * f - 0.6, cz + dz, -1, 0, g, g + 21.2);
       }
     } else if (kind === "station") {
       // SKYHAVEN: a station raised on pillars, its platform a storey and a half up, stairs at both ends
       const y = g + 6;
-      slab(44, 0.4, 14, cx, y - 0.4, cz, concrete);
-      for (const dx of [-18, -6, 6, 18]) for (const dz of [-5, 5]) slab(1, y - g - 0.4, 1, cx + dx, g, cz + dz, metal);
-      slab(46, 0.3, 16, cx, y + 7, cz, trimDark);
-      for (const dx of [-21, 21]) for (const dz of [-6.5, 6.5]) slab(0.6, 7, 0.6, cx + dx, y, cz + dz, metal);
-      deco(46, 0.12, 0.12, cx, y + 7, cz - 8, k);
-      deco(46, 0.12, 0.12, cx, y + 7, cz + 8, k);
+      slab(44 * f, 0.4, 14, cx, y - 0.4, cz, concrete);
+      for (const dx of [-18, -6, 6, 18]) for (const dz of [-5, 5]) slab(1, y - g - 0.4, 1, cx + dx * f, g, cz + dz, metal);
+      slab(46 * f, 0.3, 16, cx, y + 7, cz, trimDark);
+      for (const dx of [-21, 21]) for (const dz of [-6.5, 6.5]) slab(0.6, 7, 0.6, cx + dx * f, y, cz + dz, metal);
+      deco(46 * f, 0.12, 0.12, cx, y + 7, cz - 8, k);
+      deco(46 * f, 0.12, 0.12, cx, y + 7, cz + 8, k);
       for (const side of [-1, 1]) {
         const steps = 12;
-        for (let i = 0; i < steps; i++) slab(3, (i + 1) * 0.5, 0.9, cx + side * 20, g, cz + side * (6.55 + (steps - i) * 0.9), concrete);
+        for (let i = 0; i < steps; i++) slab(3, (i + 1) * 0.5, 0.9, cx + side * 20 * f, g, cz + side * (6.55 + (steps - i) * 0.9), concrete);
       }
       mass(cx, cz, 10, 6, y, 1, glass, sec.accent, sec.id);
     }
@@ -1354,7 +1408,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     if (o.block) {
       const b = o.block;
       const gap: Record<Side, number> = { n: o.z - o.d / 2 - b.z0, s: b.z1 - (o.z + o.d / 2), w: o.x - o.w / 2 - b.x0, e: b.x1 - (o.x + o.w / 2) };
-      const lines = [-BR_HALF + 7, ...STREETS, BR_HALF - 7];
+      const lines = [-BR_HALF + 7, ...LANES, BR_HALF - 7];
       for (const sd of o.doors) {
         // a door onto the block's edge (its margin is 3 m), not onto the other tower of the block
         if (sd === "e" || gap[sd] > 4) continue;
@@ -1793,8 +1847,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   // ---------------------------------------------------------------- streetlights
   const lamp = neon(0xe8f6ff);
   const lampAt: Array<[number, number]> = [];
-  for (const sx of STREETS) {
-    for (const sz of STREETS) {
+  for (const sx of LANES) {
+    for (const sz of LANES) {
       for (const [ox, oz] of [
         [-6.4, -6.4],
         [6.4, 6.4],
@@ -2214,6 +2268,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
             if (rnd() >= L.carChance) continue;
             const a = b0 + 4 + cl / 2 + rnd() * (b1 - b0 - 8 - cl);
             const [x, z] = alongX ? [a, s + lane * L.lane] : [s + lane * L.lane, a];
+            // none past the map's edge (city.json cut), the draws spent all the same
+            if (Math.abs(x) > BR_HALF - cl || Math.abs(z) > BR_HALF - cl) continue;
             // and clear of a door's way in from the street: the bots cross the lane to it (sk-roofs walks it)
             if (nearPad(x, z) || DOORWAYS.some((dw) => (alongX ? Math.abs(dw.x - x) < cl / 2 + 3 && Math.abs(dw.z - z) < 14 : Math.abs(dw.z - z) < cl / 2 + 3 && Math.abs(dw.x - x) < 14))) continue;
             // over a metro stairwell: no car, its colour drawn all the same, so everything drawn after it is as it was
@@ -2222,6 +2278,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
               rnd();
               continue;
             }
+            // and off a stairwell's way in: the walk down starts on the street at its top (sk-metro found a car there once
+            // the cut moved them)
+            if (mStairs.some(({ box: o }) => x > o.x0 - 4 && x < o.x1 + 4 && z > o.z0 - 4 && z < o.z1 + 4)) continue;
             car(x, z, alongX, lane);
           }
         }
@@ -2230,8 +2289,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     // Zebra crossings on a junction's four sides, stripes lengthwise with the traffic. One instanced mesh of flat
     // quads: as 864 boxes they were 10k of the city's triangles (city-budget.ts), for paint on a road.
     const stripes: Array<[number, number, boolean]> = [];
-    for (const sx of STREETS) {
-      for (const sz of STREETS) {
+    for (const sx of LANES) {
+      for (const sz of LANES) {
         for (const e of [-1, 1]) {
           for (let k = 0; k < L.stripes; k++) {
             const across = -5.5 + (k * 11) / (L.stripes - 1);
@@ -2251,7 +2310,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   // ---------------------------------------------------------------- places, the graph, the traversal
   const P = (x: number, z: number) => ({ x: x + BR_X, z: z + BR_Z });
   const pois: Poi[] = SECTORS.map((s) => {
-    const inside = STREETS.flatMap((x) => STREETS.map((z) => [x, z] as const)).filter(([x, z]) => x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ);
+    const inside = LANES.flatMap((x) => LANES.map((z) => [x, z] as const)).filter(([x, z]) => x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ);
     const mid = { x: (s.minX + s.maxX) / 2, z: (s.minZ + s.maxZ) / 2 };
     const drops = (inside.length ? inside : [[mid.x, mid.z] as const]).map(([x, z]) => P(x, z));
     return { id: s.id, name: s.name, ...P(mid.x, mid.z), radius: Math.max(s.maxX - s.minX, s.maxZ - s.minZ) / 2, drops };
@@ -2264,7 +2323,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   // the graph: every crossing of two streets, the ends of the streets at the edge, linked along the streets
   const nodes: GraphNode[] = [];
   const index = new Map<string, number>();
-  const line = [-BR_HALF + 7, ...STREETS, BR_HALF - 7];
+  const line = [-BR_HALF + 7, ...LANES, BR_HALF - 7];
   const at = (i: number, j: number): number => {
     const k = `${i},${j}`;
     let n = index.get(k);
@@ -2446,10 +2505,13 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   }
 
   // the jump towers in the plazas, the launch pads at the crossings, the beacons
-  const towerSpots = plazas.slice(0, C.jumpTowers).map((p) => ({ ...P(p.x, p.z), y: PAVE_H }));
+  // (the districts' plazas only: the Spire's own took none before the cut, when the outer ring's came first)
+  const outerPlazas = plazas.filter((p) => Math.abs(p.x) > kitCfg.dress.centre || Math.abs(p.z) > kitCfg.dress.centre);
+  const towerSpots = outerPlazas.slice(0, C.jumpTowers).map((p) => ({ ...P(p.x, p.z), y: PAVE_H }));
+  // (by the grid's own street numbers, so the crossings that carry a pad are the ones that did before the cut)
   STREETS.forEach((x, i) =>
     STREETS.forEach((z, j) => {
-      if ((i + j) % 2 !== 0) return;
+      if ((i + j) % 2 !== 0 || !LANES.includes(x) || !LANES.includes(z)) return;
       const along = (i + j) % 4 === 0;
       pads.push({ ...P(x + (along ? 3 : 0), z + (along ? 0 : 3)), dx: along ? 1 : 0, dz: along ? 0 : 1 });
     })
@@ -2560,7 +2622,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       put(ring, x, ry, z);
     }
   }
-  const beacons = plazas.slice(C.jumpTowers, C.jumpTowers + C.beacons).map((p) => P(p.x, p.z));
+  const beacons = outerPlazas.slice(C.jumpTowers, C.jumpTowers + C.beacons).map((p) => P(p.x, p.z));
 
   // ---------------------------------------------------------------- the fire escapes (city.json fireEscape)
   // Last, once every window, pad, door and bridge is where it is, so one goes only where none of them are. Each tower

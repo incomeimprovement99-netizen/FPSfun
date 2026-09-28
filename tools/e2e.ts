@@ -6315,12 +6315,13 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   const end = await ev<Decay>(page, "window.__range.sk.decay()");
   const gone = Object.entries(end.states).filter(([id, s]) => id !== end.plan.final && s.phase === "gone").length;
   check("speedkills decay: after four waves every sector but the final one is gone, and the capture zone opens there", gone === 8 && end.states[end.plan.final].phase === "live" && !!end.zone, JSON.stringify({ gone, final: end.plan.final, zone: end.zone }));
-  // The bots go for the zone once it is open (brmatch.ts zoneTree): one stood on a street of the final sector, 40 m
-  // and more from the zone, takes the graph's way to the node nearest its middle (up the Spire's stairs, bridges
+  // The bots go for the zone once it is open (brmatch.ts zoneTree): one stood on a street of the final sector, 20 m
+  // and more from the zone (an outer district is 52 m deep since Phase 23.3's cut), takes the graph's way to the node
+  // nearest its middle (up the Spire's stairs, bridges
   // and pads when that is where it is). Three seconds on, its next node is a step along that way.
   const toward = await ev<{ start: number; goal: number; path: number[] } | null>(
     page,
-    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const z = d.captureZone(); if (!z) return ok(null); const nodes = d.map.nodes; const fin = r.sk.decay().plan.final; const start = nodes.findIndex((n) => n.poi === fin && (n.y ?? 0) < 0.5 && n.links.length >= 2 && Math.hypot(n.x - z.x, n.z - z.z) > 40); const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping && !x.down && !x.guard); if (start < 0 || !b) return ok(null); const n = nodes[start];
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const z = d.captureZone(); if (!z) return ok(null); const nodes = d.map.nodes; const fin = r.sk.decay().plan.final; const start = nodes.findIndex((n) => n.poi === fin && (n.y ?? 0) < 0.5 && n.links.length >= 2 && Math.hypot(n.x - z.x, n.z - z.z) > 20); const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping && !x.down && !x.guard); if (start < 0 || !b) return ok(null); const n = nodes[start];
       const held = { fire: d.holdFire, sees: b.bot.sees }; d.holdFire = true; b.bot.sees = () => false; b.bot.pos.set(n.x, 0, n.z); b.bot.dummy.group.position.copy(b.bot.pos); b.node = start; b.goal = start; b.climb = null;
       setTimeout(() => { const t = d.zoneNav?.tree; const path = []; for (let i = start; t && i >= 0 && path.length < 300; i = t.toward[i]) path.push(i); d.holdFire = held.fire; b.bot.sees = held.sees; ok({ start, goal: b.goal, path }); }, 3000); }))()`,
   );

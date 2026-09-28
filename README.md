@@ -36,8 +36,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
   deathmatch; FFA; Control) and TRAINING (the range, the movement lab, the
   Run, the tour). The lab has climbs of 2, 4 and 8 m, a long wall to run,
   and gaps of 4 and 6 m a storey up.
-- **The battle royale:** thirty players in a 500 m neon city at night, nine
-  sectors. The centre, THE SPIRE, is the biggest and the hottest drop, and
+- **The battle royale:** thirty players in a 304 m neon city at night, nine
+  sectors. The centre, THE SPIRE (200 m), is the biggest and the hottest drop,
+  the eight districts a ring 52 m deep round it (cut by three quarters), and
   half the bot squads land there.
   - The centre is one raised district, after Hyper Scape's Red Tiger: nine
     podiums at one height, joined by lit bridges over the streets, each with a

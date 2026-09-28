@@ -75,10 +75,11 @@ function count(root: THREE.Object3D): { meshes: number; tris: number; lights: nu
  * triangle limit is 320k. Then with the fire escapes (Milestone 281) and the centre's towers' outward faces split off
  * into skins of their own (Phase 23.2, so the kit's rooms show through its windows): 22,226 meshes, 418 once merged.
  * A skin is the same box's faces in a second mesh, merged away, so it costs the build a merge, not the frame a draw.
- * The before limit goes to 23,000 for now: the outer districts' cut (Phase 23.3) takes most of the count away, and
- * both limits are set again from what it measures.
+ * The before limit went to 23,000 for the while. Then the outer districts cut by three quarters (Phase 23.3, city.json
+ * cut): 16,092 meshes, 296 once merged, 242k triangles. The before limit back at 22,000; the merged and triangle limits
+ * stay where the benches set them, the room they have now the centre's to spend.
  */
-const BUDGET = { meshesBefore: 23_000, meshesAfter: 420, tris: 320_000, lights: 8 };
+const BUDGET = { meshesBefore: 22_000, meshesAfter: 420, tris: 320_000, lights: 8 };
 console.log("What the SpeedKills city costs to draw");
 check("this is SpeedKills (the city is its map)", IS_SK);
 {

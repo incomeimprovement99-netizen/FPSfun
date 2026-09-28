@@ -7,9 +7,13 @@ The round planned in `docs/PHASE_23_PLAN_THE_PACKS_AT_FULL_STRENGTH.md`, item by
 |---|---|---|---|---|
 | 23.1 | Sharper textures on High, lighter on every preset | shipped | 290 | KTX2 at 2K, 1K and 512; the kit's texture memory 1.2 GB, 298 MB and 50 MB (Balanced from about 1.8 GB); downloads 119, 40 and 24 MB |
 | 23.2 | The rooms behind the windows at full depth | shipped | 293 | 610 of 1,395 window walls whole rooms (from none); the towers' faces skinned and hidden under the kit, every face storey covered |
-| 23.3 | The outer districts cut by about three quarters | | | |
+| 23.3 | The outer districts cut by about three quarters | shipped | 296 | the map 304 m across (from 500), the districts 75% smaller, the centre proven unchanged |
 | 23.4 | The packs' street life | | | |
-| 23.5 | The batch's release tests | | | |
+| 23.5 | Every car in pack cars | | | |
+| 23.6 | Jump pads in pack pieces | | | |
+| 23.7 | The districts dressed in the packs | later | | the owner, 2026-09-28: "Save the districts for later on, we still don't even have the center looking like they do in the asset packs" |
+| 23.8 | Nothing of the old look left | | | |
+| 23.9 | The batch's release tests | | | |
 
 ## Notes as it goes
 
@@ -28,4 +32,12 @@ The round planned in `docs/PHASE_23_PLAN_THE_PACKS_AT_FULL_STRENGTH.md`, item by
   two meshes of one material. The first corner rule (no west or east room within 4.8 m of a corner) left 83% of those
   faces pressed; recording the north and south rooms' footprints and stopping short of them halved that. What is left
   pressed is geometry: 318 at corners, 236 in front of a stair core's end, 0.6 m from the shaft.
-
+- **23.3:** the plan's first idea, one ring of blocks at 36 m, would have reshuffled the city's seeded stream and moved
+  the centre (the outer blocks are built first, and a block's draws depend on its size). Built as before and taken
+  away again instead, the districts rebuilt from a stream of their own, and the centre fingerprinted before and after.
+  Five landmarks were too wide for their cut blocks and crossed into the centre's street (a bot's street link found
+  the holo tower's screen in it), and the parked cars moved and one stood on a stairwell's way in: both fitted.
+- **The owner, 2026-09-28:** the jump pads and the street's cars still had the look from before the packs; "we probably
+  want to repalce all the older graphics with our new ones we have paid assets for". Agreed: 23.5 to 23.8 added, the
+  release tests renumbered 23.9.
+- **The owner, 2026-09-28:** districts later; the centre first, compared side by side with the packs' store pictures.

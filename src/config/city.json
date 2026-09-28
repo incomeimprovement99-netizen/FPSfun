@@ -1,7 +1,7 @@
 {
   "_note": "SpeedKills' city (src/game/city.ts, docs/PHASE_18_PLAN_SPEEDKILLS.md 7.9): a 500 m square at night, map-local metres round its middle (the world's BR_X, BR_Z). seed builds the same city on every browser. The owner's layout: nine sectors, the centre the biggest (200 m) and the hottest drop. Ours otherwise.",
   "seed": 20260926,
-  "_sectors": "The nine sectors, map-local (z grows south, as the maps are laid out): the centre, THE SPIRE, 200 m across; the eight round it each a district with its own neon accent, so where you are reads by colour from anywhere. The decay takes them away in waves (J), the centre most often last.",
+  "_sectors": "The nine sectors, map-local (z grows south, as the maps are laid out): the centre, THE SPIRE, 200 m across; the eight round it each a district with its own neon accent, so where you are reads by colour from anywhere. The decay takes them away in waves (J), the centre most often last. Since Phase 23.3 the map is 304 m across (city.json cut): the eight round the centre are 52 m deep.",
   "sectors": [
     {
       "id": "c",
@@ -17,7 +17,7 @@
       "name": "NEON ROW",
       "minX": -100,
       "maxX": 100,
-      "minZ": -250,
+      "minZ": -152,
       "maxZ": -100,
       "accent": "#ff2e9a"
     },
@@ -27,14 +27,14 @@
       "minX": -100,
       "maxX": 100,
       "minZ": 100,
-      "maxZ": 250,
+      "maxZ": 152,
       "accent": "#2effc0"
     },
     {
       "id": "e",
       "name": "THE STACKS",
       "minX": 100,
-      "maxX": 250,
+      "maxX": 152,
       "minZ": -100,
       "maxZ": 100,
       "accent": "#9a5bff"
@@ -42,7 +42,7 @@
     {
       "id": "w",
       "name": "OLD TOWN",
-      "minX": -250,
+      "minX": -152,
       "maxX": -100,
       "minZ": -100,
       "maxZ": 100,
@@ -52,17 +52,17 @@
       "id": "ne",
       "name": "THE CIRCUIT",
       "minX": 100,
-      "maxX": 250,
-      "minZ": -250,
+      "maxX": 152,
+      "minZ": -152,
       "maxZ": -100,
       "accent": "#ff3b3b"
     },
     {
       "id": "nw",
       "name": "THE GARDENS",
-      "minX": -250,
+      "minX": -152,
       "maxX": -100,
-      "minZ": -250,
+      "minZ": -152,
       "maxZ": -100,
       "accent": "#5aff6a"
     },
@@ -70,18 +70,18 @@
       "id": "se",
       "name": "THE YARDS",
       "minX": 100,
-      "maxX": 250,
+      "maxX": 152,
       "minZ": 100,
-      "maxZ": 250,
+      "maxZ": 152,
       "accent": "#ff7a1a"
     },
     {
       "id": "sw",
       "name": "SKYHAVEN",
-      "minX": -250,
+      "minX": -152,
       "maxX": -100,
       "minZ": 100,
-      "maxZ": 250,
+      "maxZ": 152,
       "accent": "#3b8bff"
     }
   ],
@@ -150,8 +150,8 @@
   "_skyline": "The city past the edge, never reached and never solid: count towers between from and to metres from the middle, the tallest tallest metres over 30. glyphs great holo shapes hang over it at glyphHeight metres and up to half as much again, in the districts' colours, so the city glows to the horizon at night (Hyper Scape's skyline had its holograms). clear is the metres every skyline tower keeps outside the edge's wall (Phase 20 A4: towers stood over the edge).",
   "skyline": {
     "count": 56,
-    "from": 300,
-    "to": 460,
+    "from": 205,
+    "to": 360,
     "tallest": 130,
     "glyphs": 12,
     "glyphHeight": 90,
@@ -621,5 +621,11 @@
       0.35
     ]
   },
-  "_flicker": "A few of the centre's lit signs flicker (steam.ts cityFlicker; Phase 22.2): `signs` of the holo signs on its towers, chosen by where they stand, each in a material of its own. Time runs in windows of `window` seconds; in each, at `chance`, a burst of burst[0] to burst[1] dips, `spacing` seconds apart, each dipLength[0] to dipLength[1] long, down to dip[0] to dip[1] of the sign's light. Dips are never closer than `spacing`, so no sign flashes more than three times a second (the photosensitive line, WCAG 2.3.1), and a burst ends at least that long before the next window's. From Balanced up."
+  "_flicker": "A few of the centre's lit signs flicker (steam.ts cityFlicker; Phase 22.2): `signs` of the holo signs on its towers, chosen by where they stand, each in a material of its own. Time runs in windows of `window` seconds; in each, at `chance`, a burst of burst[0] to burst[1] dips, `spacing` seconds apart, each dipLength[0] to dipLength[1] long, down to dip[0] to dip[1] of the sign's light. Dips are never closer than `spacing`, so no sign flashes more than three times a second (the photosensitive line, WCAG 2.3.1), and a burst ends at least that long before the next window's. From Balanced up.",
+  "cut": {
+    "keep": 2,
+    "depth": 38,
+    "half": 152
+  },
+  "_cut": "The outer districts cut to about a quarter (Phase 23.3; the owner, 2026-09-28: \"CUT DOWN ON THE OTSIDE DISTRICTS TOO BY LIKE 75% BC WE WANT IT TO BE FOCUSED IN THE MIDDLE NOW\"). The city is still laid out on `blocks`, all seven a side, and every block is built in the same order from the same seeded stream, so the centre comes out exactly as before; the blocks of ring `keep` (the districts' ring round the centre, the downtown being ring 1) and past it are built and then taken away again (city.ts sandbox), their draws spent. Ring `keep` is then built again from a stream of its own, its outer side cut to `depth` metres, and the map ends there: `half` metres from the middle each way (114 + 38 = 152, where it was 250). The eight districts keep their names, colours and landmarks; their area is 52,400 m2 where it was 210,000, 75% less."
 }

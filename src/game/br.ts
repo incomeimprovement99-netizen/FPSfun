@@ -44,11 +44,12 @@ import { type MatName, material } from "./materials";
 import { ZIPLINES } from "./traversal";
 import type { Bounds } from "./player";
 import cfg from "../config/brmap.json";
+import cityCfg from "../config/city.json";
 
 export const BR_X = 0;
 export const BR_Z = 500;
-/** half the map's side: Outskirts' 440 m, or SpeedKills' 500 m city (city.ts) in the same square of the world */
-export const BR_HALF = IS_SK ? 250 : 220;
+/** half the map's side: Outskirts' 440 m, or SpeedKills' city (city.ts; city.json cut: 304 m since Phase 23.3) in the same square of the world */
+export const BR_HALF = IS_SK ? cityCfg.cut.half : 220;
 export const BR_BOUNDS: Bounds = { minX: BR_X - BR_HALF, maxX: BR_X + BR_HALF, minZ: BR_Z - BR_HALF, maxZ: BR_Z + BR_HALF };
 export const BR_CENTER = new THREE.Vector3(BR_X, 0, BR_Z);
 
