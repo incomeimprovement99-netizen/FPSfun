@@ -5008,7 +5008,8 @@ async function soldierTest(browser: Browser): Promise<void> {
         while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
       };
       const out = [];
-      for (const id of ["r97", "sentinel"]) {
+      // (ANAKIN, and HELIX on BOOG's model: the USSO and BOOG are held by the bought arms where their files are here)
+      for (const id of ["alternator_smg", "3030"]) {
         r.loadout.give(0, id);
         r.setScript({ held: () => false, pressedNow: (a) => a === "slot1" }, null);
         await gameWait(0.1);
@@ -5111,10 +5112,12 @@ async function soldierTest(browser: Browser): Promise<void> {
     boog.after !== null && boog.after > 0 && boog.after < 0.9 && boog.later === 1 && boog.scan > -0.5,
     JSON.stringify(boog),
   );
-  // the reload's twist (gunfeel.json reload.twist): part way through a reload the USSO and BOOG are rolled over, their
-  // underside toward you, so the magazine's phase is seen (the plain reload's roll was 0.38); and from empty the USSO's
-  // support hand is on its charging handle through the rack, and back on the gun after it (rackHand)
-  const twist = await ev<{ roll: Record<string, number>; onHandle: number | null; away: number | null }>(
+  // The reload in view, the USSO and BOOG. With the bought arms (fprig.ts, KINEMATION's pack) holding them, their clips:
+  // mid-reload the clip has turned the gun over in the hands (the pack gun's own reload, MPS5's and L96X's, 23 and 38
+  // degrees at the middle); from empty the charging handle goes back, the left hand on it (its knuckle within 12 cm of
+  // our handle as it moves), and afterwards the hand is back on the gun. Without the pack's files, the view's own:
+  // rolled over by gunfeel.json reload.twist, the support hand on the handle for the rack (rackHand)
+  const twist = await ev<{ pack: boolean; roll: Record<string, number>; turn: Record<string, number>; lead: Record<string, string>; rack: { back: number; hand: number; after: number } | null; onHandle: number | null; away: number | null }>(
     page,
     `(async () => {
       const r = window.__range;
@@ -5125,7 +5128,7 @@ async function soldierTest(browser: Browser): Promise<void> {
         while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
       };
       // in the hands and settled, 0.6 s with no swap and no flourish: a gun's first draw twirls it a whole turn round
-      // its barrel, starting as the swap ends
+      // its barrel, starting as the swap ends; and the bought arms' clips in, if their files are here
       const hold = async (id) => {
         r.loadout.give(0, id);
         r.loadout.requestSwap(0, r.gameTime());
@@ -5136,37 +5139,72 @@ async function soldierTest(browser: Browser): Promise<void> {
           await wait(20);
         }
       };
-      // what the reload adds to the gun's roll: mid-reload against just before it, with no inspect turning it
       r.debugView.inspect = -1;
       const roll = {};
+      const turn = {};
+      const lead = {};
+      let pack = false;
       for (const id of ["r97", "sentinel"]) {
         await hold(id);
+        pack = r.packArms().on;
         const rest = r.gunFeel().roll;
         r.debugView.reload = 0.5;
         await gameWait(0.2);
         roll[id] = r.gunFeel().roll - rest;
+        turn[id] = r.packArms().gunTurn;
+        lead[id] = r.packArms().lead;
         r.debugView.reload = null;
         await gameWait(0.2);
       }
       await hold("r97");
       r.loadout.active.state.clip = 0;
-      r.debugView.reload = 0.9;
-      await gameWait(0.2);
-      const onHandle = r.gunFeel().onHandle;
+      let rack = null;
+      let onHandle = null;
+      if (pack) {
+        // through the empty reload from its start: the handle's travel and the hand on it while it is back
+        let back = 0;
+        let hand = Infinity;
+        for (let p = 0.001; p < 0.99; p += 0.025) {
+          r.debugView.reload = p;
+          await gameWait(0.06);
+          const s = r.packArms();
+          back = Math.max(back, s.handleBack);
+          if (s.handleBack > 0.5) hand = Math.min(hand, s.leftToHandle);
+        }
+        rack = { back, hand, after: 0 };
+      } else {
+        r.debugView.reload = 0.9;
+        await gameWait(0.2);
+        onHandle = r.gunFeel().onHandle;
+      }
       r.debugView.reload = null;
       r.loadout.active.state.clip = r.loadout.active.weapon.clipSize;
-      await gameWait(0.2);
+      await gameWait(0.3);
       const away = r.gunFeel().onHandle;
+      if (rack) rack.after = r.packArms().leftToHandle;
       r.debugView.inspect = null;
-      return { roll, onHandle, away };
+      return { pack, roll, turn, lead, rack, onHandle, away };
     })()`,
   );
-  check("soldier guns: part way through a reload the USSO and BOOG are rolled over, the underside toward you", twist.roll.r97 < -0.7 && twist.roll.sentinel < -0.6, JSON.stringify(twist.roll));
-  check(
-    "soldier guns: from empty, the USSO's support hand is on its charging handle for the rack, and back on the gun after",
-    twist.onHandle !== null && twist.onHandle < 0.005 && twist.away !== null && twist.away > 0.03,
-    JSON.stringify(twist),
-  );
+  if (twist.pack) {
+    check(
+      "soldier guns: the bought arms hold the USSO and BOOG, and mid-reload their clip has turned the gun over in the hands",
+      twist.lead.r97 === "reloadTac" && twist.lead.sentinel === "reloadTac" && twist.turn.r97 > 12 && twist.turn.sentinel > 20,
+      JSON.stringify({ turn: twist.turn, lead: twist.lead }),
+    );
+    check(
+      "soldier guns: from empty, the USSO's charging handle goes back with the left hand on it, and the hand is back on the gun after",
+      !!twist.rack && twist.rack.back > 0.9 && twist.rack.hand < 0.12 && twist.rack.after > 0.05,
+      JSON.stringify(twist.rack),
+    );
+  } else {
+    check("soldier guns: part way through a reload the USSO and BOOG are rolled over, the underside toward you", twist.roll.r97 < -0.7 && twist.roll.sentinel < -0.6, JSON.stringify(twist.roll));
+    check(
+      "soldier guns: from empty, the USSO's support hand is on its charging handle for the rack, and back on the gun after",
+      twist.onHandle !== null && twist.onHandle < 0.005 && twist.away !== null && twist.away > 0.03,
+      JSON.stringify(twist),
+    );
+  }
   // the support wrist (fparms.ts, speedkills.json viewmodel support straighten): the hand rolls round what it holds
   // until the wrist is nearly straight on the forearm, and on the charging handle (a knob) turns any way. Measured
   // without it, 44 to 83 degrees at the hip, up to 103 aimed and 122 on the USSO's rack (the owner: "look at how
@@ -5192,17 +5230,20 @@ async function soldierTest(browser: Browser): Promise<void> {
           if (r.loadout.swapping || r.vmState().flourish) clearFrom = r.gameTime();
           await wait(20);
         }
-        out[id] = r.wristBend().l;
+        // (the bought arms' wrist on a gun they hold: fprig.ts)
+        const wrist = () => (r.packArms().on ? r.packArms().wristL : r.wristBend().l);
+        out[id] = wrist();
         r.debugView.ads = 1;
         await gameWait(0.3);
-        out[id + " aimed"] = r.wristBend().l;
+        out[id + " aimed"] = wrist();
         r.debugView.ads = null;
         await gameWait(0.2);
         if (id === "r97") {
           r.loadout.active.state.clip = 0;
           r.debugView.reload = 0.9;
           await gameWait(0.2);
-          out["r97 rack"] = r.wristBend().l;
+          out["r97 rack"] = r.packArms().on ? r.packArms().wristL : r.wristBend().l;
+          out.packRack = r.packArms().on ? 1 : 0;
           r.debugView.reload = null;
           r.loadout.active.state.clip = r.loadout.active.weapon.clipSize;
           await gameWait(0.2);
@@ -5213,8 +5254,8 @@ async function soldierTest(browser: Browser): Promise<void> {
     })()`,
   );
   check(
-    "soldier arms: the support wrist is nearly straight on every gun, held (50 degrees at most) and on the USSO's rack (30)",
-    Object.entries(wrists).every(([k, v]) => v <= (k.endsWith("rack") ? 30 : 50)) && Object.keys(wrists).length === 9,
+    "soldier arms: the support wrist is nearly straight on every gun, held (50 degrees at most) and on the USSO's rack (30; 60 in the bought arms' own grip on the handle)",
+    Object.entries(wrists).every(([k, v]) => v <= (k.endsWith("rack") ? (wrists.packRack ? 60 : 30) : 50)) && Object.keys(wrists).length === 10,
     JSON.stringify(Object.fromEntries(Object.entries(wrists).map(([k, v]) => [k, Math.round(v)]))),
   );
   // BOOG's recharge in its scope (hud.json hsCharge): aimed in, a shot, and the ring round the aim point is drawn part
@@ -5497,7 +5538,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   const sight = await open(browser, "?game=speedkills");
   const arms = await ev<{ scoped: boolean; dot: boolean; ready: boolean }>(
     sight,
-    `(async () => { const r = window.__range; await r.loadMannequin(); const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); const t0 = performance.now(); while (!r.realArms() && performance.now() - t0 < 8000) await wait(100); r.loadout.setWeaponId(0, "3030"); r.debugView.ads = 1; await wait(1200); const scoped = r.realArmsShown(); r.loadout.setWeaponId(0, "r97"); const t1 = performance.now(); while (!r.realArmsShown() && performance.now() - t1 < 4000) await wait(100); const dot = r.realArmsShown(); r.debugView.ads = null; return { scoped, dot, ready: r.realArms() }; })()`,
+    `(async () => { const r = window.__range; await r.loadMannequin(); const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); const t0 = performance.now(); while (!r.realArms() && performance.now() - t0 < 8000) await wait(100); r.loadout.setWeaponId(0, "3030"); r.debugView.ads = 1; await wait(1200); const scoped = r.realArmsShown(); r.loadout.setWeaponId(0, "r97"); const t1 = performance.now(); while (!r.realArmsShown() && !r.packArms().on && performance.now() - t1 < 4000) await wait(100); const dot = r.realArmsShown() || r.packArms().on; r.debugView.ads = null; return { scoped, dot, ready: r.realArms() }; })()`,
   );
   check("speedkills sights: aimed through a 3x scope the frozen arms are hidden; through a red dot they stay", arms.ready && !arms.scoped && arms.dot, JSON.stringify(arms));
   // every gun named with its class for a beginner (Phase 20 A7): USSO (Fast SMG) in the label and in the loadout pickers

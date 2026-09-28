@@ -332,7 +332,7 @@ if (!soldierPkg && !weaponsPkg) {
   process.exit(1);
 }
 mkdirSync(dirname(join(OUT, "x")), { recursive: true });
-// PAID_ONLY=weapons, soldier or city makes that one only
+// PAID_ONLY=weapons, soldier, city or arms makes that one only
 const only = process.env.PAID_ONLY;
 if (soldierPkg && (!only || only === "soldier")) await soldier(unpack(soldierPkg, "soldier"));
 if (weaponsPkg && (!only || only === "weapons")) await weapons(unpack(weaponsPkg, "weapons"));
@@ -340,4 +340,9 @@ if (weaponsPkg && (!only || only === "weapons")) await weapons(unpack(weaponsPkg
 if (!only || only === "city") {
   const { city } = await import("./import-city");
   await city({ root: ROOT, paid: PAID, out: OUT, unpack, readTga, fbx2gltf }, packages);
+}
+// the first-person arms (tools/import-fparms.ts, KINEMATION's FPS Animation Ultimate), found by name the same way
+if (!only || only === "arms") {
+  const { fpArms } = await import("./import-fparms");
+  await fpArms({ root: ROOT, paid: PAID, out: OUT, unpack, fbx2gltf }, packages);
 }

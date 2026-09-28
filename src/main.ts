@@ -7034,6 +7034,12 @@ function step(): void {
   camera.updateProjectionMatrix();
   // the gun's FOV: the same blend at viewmodel.json's scale, not yours, and no slide or JOLT in it
   vmCamera.fov = gunFov(hipH, adsH, ws.adsFrac, settings.fovScale, vmCfg.fovScale);
+  // the bought arms are drawn at the field of view they were made for at the hip (fparms.json fov), the sight picture
+  // aimed as every gun's: at ours, 92 degrees, the forearms and the gun's back end filled the bottom of the view
+  if (viewModel.packFov !== null) {
+    const aimed = gunFov(hipH, adsH, 1, settings.fovScale, vmCfg.fovScale);
+    vmCamera.fov = viewModel.packFov + (aimed - viewModel.packFov) * ws.adsFrac;
+  }
   vmCamera.aspect = camera.aspect;
   vmCamera.updateProjectionMatrix();
   viewModel.setView(vmCamera.fov, vmCamera.aspect, debugView.ads ?? ws.adsFrac);
@@ -7936,6 +7942,8 @@ initWelcome();
   wristBend: () => viewModel.wristBend,
   /** the signature gun in hand (gunfeel.json): which, its phase and its magazine's, and whether it is drawn */
   gunFeel: () => viewModel.feelState,
+  /** the bought first-person arms (fprig.ts): which pack gun holds ours, drawn or not, the wrists' bends */
+  packArms: () => viewModel.packState,
   /** how many movement trails are drawn now (trails.ts) */
   trailCount: () => trails.count,
   /** a hack's cast in the hands (hackcast.ts): how far up the hand is and whether it has tapped */

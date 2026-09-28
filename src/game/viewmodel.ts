@@ -25,6 +25,7 @@ import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels
 import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
+import { PACK_FOV, PackArms, packGunFor } from "./fprig";
 import type { OperatorSkin } from "./operators";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
@@ -444,6 +445,13 @@ export class ViewModel {
   private readonly zipRig = new THREE.Group();
   /** the player's own arms, posed onto the drawn gloves once they are in (fparms.ts) */
   private readonly real = new FpArms();
+  /**
+   * The bought first-person arms (fprig.ts, KINEMATION's pack) holding the gun, where a pack gun stands in for it: the
+   * USSO and BOOG first. While they hold it, its own clips lead: the reload's twist, drop and hand, and BOOG's cant, stand
+   * down, and the view's own arms are hidden
+   */
+  private readonly pack = new PackArms();
+  private packOn = false;
   /** whether the drawn gloves and forearms are showing, so they are hidden or shown once rather than every frame */
   private drawnShown = true;
   private readonly zipHand = new Hand(true);
@@ -577,6 +585,8 @@ export class ViewModel {
     this.group.add(this.pose);
     this.group.add(this.shells.group);
     this.pose.add(this.holder);
+    // the pack's clip moves the gun within the hands (a reload's tilt): between the holder and the gun
+    this.holder.add(this.pack.gunDelta);
     for (const o of [this.right.group, this.left.group, this.rightArm.group, this.leftArm.group]) this.holder.add(o);
 
     for (const o of [this.fistR.group, this.fistL.group, this.fistArmR.group, this.fistArmL.group]) this.fists.add(o);
@@ -603,6 +613,8 @@ export class ViewModel {
     this.castArm.group.visible = false;
     this.group.add(this.castRig, this.castArm.group, this.castCard.group);
     this.group.add(this.real.group);
+    this.group.add(this.pack.group);
+    if (IS_SK) void this.pack.load().then((ok) => ok && this.packRefresh());
   }
 
   /** show this weapon; cheap to call every frame */
@@ -616,7 +628,7 @@ export class ViewModel {
       // The optic comes off the old gun first. Models are cached per weapon, so
       // one left on would still be there on the way back, under the next one.
       this.dropOptic();
-      if (this.model) this.holder.remove(this.model.root);
+      if (this.model) this.model.root.removeFromParent();
       const m = gunModel(w.id);
       // aimed down a bought gun's own scope, so its painted glass comes out (paidgun.ts)
       openLenses(m);
@@ -624,7 +636,7 @@ export class ViewModel {
       // the middle of the gun, measured before it is parented or given a
       // flash, so the box is the weapon itself in its own space
       new THREE.Box3().setFromObject(m.root).getCenter(this.gunCentre);
-      this.holder.add(m.root);
+      this.pack.gunDelta.add(m.root);
       m.root.add(this.flash.group);
       this.flash.group.position.copy(m.muzzle);
       if (m.bolt) this.boltBase.copy(m.bolt.position);
@@ -635,6 +647,7 @@ export class ViewModel {
       this.cylAngle = this.cylTarget = 0;
       this.drumAngle = this.drumTarget = 0;
       this.setFeel(m, w);
+      this.packRefresh();
       // a different gun in hand: a chamber check once it has come up
       this.checkPending = true;
     }
@@ -653,6 +666,46 @@ export class ViewModel {
     }
     // a signature gun's skin, new or a new level's, onto the phase
     if (this.feel) this.phaseGun(this.model);
+  }
+
+  /** the pack's arms onto the gun in hand if a pack gun stands in for it (fprig.ts), measured on our gun at rest */
+  private packRefresh(): void {
+    const m = this.model;
+    const w = this.weapon;
+    this.pack.release();
+    if (!IS_SK || !m || !w || !m.root.userData.paid || !this.pack.ready || !packGunFor(w.id)) return;
+    const trig = m.parts?.trigger;
+    if (!trig) return;
+    // our trigger in the gun's own frame, the gun's spin taken off for the moment
+    const keepP = m.root.position.clone();
+    const keepQ = m.root.quaternion.clone();
+    m.root.position.set(0, 0, 0);
+    m.root.quaternion.identity();
+    m.root.updateWorldMatrix(true, true);
+    const trigger = m.root.worldToLocal(trig.getWorldPosition(new THREE.Vector3()));
+    m.root.position.copy(keepP);
+    m.root.quaternion.copy(keepQ);
+    const id = w.id;
+    // (measured on the gun at rest: its spin taken off, as for the trigger)
+    const keep2 = [m.root.position.clone(), m.root.quaternion.clone()] as const;
+    m.root.position.set(0, 0, 0);
+    m.root.quaternion.identity();
+    const ready = this.pack.useGun(id, m.root, trigger, m.mag, m.bolt, m.travel, m.boltGrip ?? null);
+    m.root.position.copy(keep2[0]);
+    m.root.quaternion.copy(keep2[1]);
+    void ready.then((ok) => {
+      if (!ok || this.weapon?.id !== id) this.pack.release();
+    });
+  }
+
+  /** the gun camera's vertical field of view at the hip while the bought arms hold the gun, or null (main.ts) */
+  get packFov(): number | null {
+    return this.packOn ? PACK_FOV : null;
+  }
+
+  /** the bought arms' state (tools/e2e.ts): which pack gun holds ours, whether they are drawn, the wrists' bends */
+  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number } {
+    return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), ...this.pack.seen };
   }
 
   /**
@@ -844,7 +897,8 @@ export class ViewModel {
       this.reloadEmpty = f.clipEmpty;
       this.racked = false;
     }
-    if (reloading && F.rack && this.reloadEmpty && m.bolt) {
+    // (with the bought arms, their clip racks the handle and the hand goes to it: fprig.ts)
+    if (reloading && F.rack && this.reloadEmpty && m.bolt && !this.packOn) {
       const u = (reloadP - F.rack[0]) / (F.rack[1] - F.rack[0]);
       if (u > 0 && u < 1) {
         m.bolt.position.z = this.boltBase.z + m.travel * Math.sin(Math.PI * u);
@@ -866,10 +920,16 @@ export class ViewModel {
     let mp = phase;
     if (reloading) {
       const R = F.reload;
-      const mid = (R.magOut[1] + R.magIn[0]) / 2;
-      mp = Math.min(phase, reloadP < mid ? 1 - smooth(R.magOut[0], R.magOut[1], reloadP) : smooth(R.magIn[0], R.magIn[1], reloadP));
+      // with the bought arms, when their clip takes the magazine out and brings the new one home (fprig.ts, measured
+      // off the pack gun's clip): the old one goes as it leaves the gun, the new one comes in the hand before it seats
+      const mm = this.packOn ? this.pack.magMoments() : null;
+      const magOut = mm ? [mm.out, mm.out + 0.06] : R.magOut;
+      const magIn = mm ? [Math.max(mm.out + 0.08, mm.home - 0.14), mm.home - 0.02] : R.magIn;
+      const seat = mm ? mm.home : R.seat;
+      const mid = (magOut[1] + magIn[0]) / 2;
+      mp = Math.min(phase, reloadP < mid ? 1 - smooth(magOut[0], magOut[1], reloadP) : smooth(magIn[0], magIn[1], reloadP));
       // the seat: a slap into the hands and a pulse
-      if (this.lastReloadP < R.seat && reloadP >= R.seat) {
+      if (this.lastReloadP < seat && reloadP >= seat) {
         this.feelKickVel += R.snap;
         this.pulse = Math.max(this.pulse, R.pulse);
       }
@@ -957,7 +1017,8 @@ export class ViewModel {
   /** let go of the gun in hand, so the next setWeapon builds it again (the bought guns have come in) */
   rebuild(): void {
     this.dropOptic();
-    if (this.model) this.holder.remove(this.model.root);
+    // (the gun hangs under the pack's gun-motion group, not the holder itself)
+    if (this.model) this.model.root.removeFromParent();
     this.model = null;
     this.key = "";
   }
@@ -1082,6 +1143,9 @@ export class ViewModel {
 
     const ads = easeInOut(f.adsFrac);
     const reloadP = f.reloading ? f.reloadProgress : 0;
+    // the pack's arms hold this gun: not while the hands are on the fists, a zipline or a cast (the view's own arms)
+    const packOn = this.pack.active !== null && this.pack.active === packGunFor(w.id) && !this.fists.visible && !this.zipRig.visible && !this.castRig.visible;
+    this.packOn = packOn;
     // In the sights the gun holds still for a reload, as it does for a strafe: rolled at full size, a 2x window
     // swung onto the support hand still on the handguard (PANDA, ZEPHYR, NOVA; Phase 20 A3)
     const reloadEnv = (f.reloading ? smooth(0, 0.14, reloadP) * (1 - smooth(0.84, 1, reloadP)) : 0) * (1 - ads * RELOAD_ADS);
@@ -1141,7 +1205,7 @@ export class ViewModel {
     // the OPTIC's sight line comes to the eye, at that optic's eye relief;
     // without one, the irons do.
     // a signature gun's own hip pose (gunfeel.json hip), else the gun's
-    const hip = this.feel?.hip ? this.hipFeel.copy(m.hip).add(this.tmp2.fromArray(this.feel.hip)) : m.hip;
+    const hip = packOn ? this.pack.hip.position : this.feel?.hip ? this.hipFeel.copy(m.hip).add(this.tmp2.fromArray(this.feel.hip)) : m.hip;
     const o = this.optic;
     const adsPos = o
       ? this.tmp.set(0, -(m.railY + o.lineH), m.opticF + o.backF - o.info.relief)
@@ -1165,6 +1229,12 @@ export class ViewModel {
     let rx = sp * 0.18 + Math.sin(stride * 2) * 0.05 * pump - sl * 0.12 - cl * 0.5 + mt * 0.35 - fall * 0.08;
     let ry = 0.05 * (1 - ads) - sp * 0.55 + Math.sin(stride) * 0.09 * pump - sl * 0.3 - cl * 0.7;
     let rz = sp * 0.42 + Math.sin(stride) * 0.14 * pump + sl * 0.32 + cl * 0.6 + mt * 0.15;
+    // the pack's hold turns the gun as its hands hold it (fprig.ts hip), all gone in the sights
+    if (packOn) {
+      rx += this.pack.hip.euler.x * (1 - ads);
+      ry += this.pack.hip.euler.y * (1 - ads);
+      rz += this.pack.hip.euler.z * (1 - ads);
+    }
     // idle: standing still the gun drifts a hair, as held hands do
     const idle = (1 - Math.min(1, f.moveSpeed / 1.5)) * (1 - ads) * (f.onGround ? 1 : 0);
     p.x += Math.sin(this.t * 0.9) * 0.0025 * idle;
@@ -1198,7 +1268,7 @@ export class ViewModel {
     }
     // BOOG's cycle: after a shot, at the hip, it cants over and back while its wheels turn (the owner: "can we twist it
     // again, even if slightly, to better animate and see it animating"; the pack's sniper has no charging handle)
-    if (F?.cycle) {
+    if (F?.cycle && !packOn) {
       const C = F.cycle;
       const u = (this.t - this.lastShotAt) / Math.max(0.4, w.rechamberTime || w.shotInterval);
       const v = clamp((u - C.at[0]) / (C.at[1] - C.at[0]), 0, 1);
@@ -1235,8 +1305,10 @@ export class ViewModel {
     p.y += f.landDip * 0.5;
     rx += f.landDip * 1.5;
 
-    // ---- reload pose, which depends on how this gun reloads
-    if (m.reload === "cylinder") {
+    // ---- reload pose, which depends on how this gun reloads; with the pack's arms their clip moves the gun
+    if (packOn) {
+      // (fprig.ts gunDelta)
+    } else if (m.reload === "cylinder") {
       rz += 0.3 * reloadEnv;
       rx += 0.55 * smooth(0.24, 0.38, reloadP) * (1 - smooth(0.55, 0.7, reloadP));
       p.y -= 0.02 * reloadEnv;
@@ -1342,7 +1414,7 @@ export class ViewModel {
     this.updateCast(dt, ads);
 
     this.animateAction(m, w, dt, f.clipEmpty && !f.reloading);
-    this.animateReload(m, reloadP, f.reloading);
+    if (!packOn) this.animateReload(m, reloadP, f.reloading);
     this.animateParts(m, w, dt, ads, reloadP, f.reloading);
     if (F) this.feelFrame(m, w, F, phase, reloadP, f.reloading, dt, f);
 
@@ -1373,6 +1445,16 @@ export class ViewModel {
     this.rightArm.set(this.right.wrist(this.tmp), this.armEndR, this.armView);
     this.leftArm.set(this.left.wrist(this.tmp), this.armEndL, this.armView);
     this.poseReal();
+    // the bought arms: the clips to this frame's state, the rig under the holder, our magazine and handle moved
+    if (packOn) {
+      this.pack.update(
+        { dt, reload: f.reloading ? reloadP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads },
+        this.holder,
+        m.mag,
+        m.bolt,
+      );
+      this.real.group.visible = false;
+    } else this.pack.idle();
   }
 
   /** the look the first-person arms wear: the body, the build and the outfit's sleeves */

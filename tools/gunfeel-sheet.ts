@@ -2,7 +2,8 @@
 // in (a swap), just after a shot, part way through an inspect's scan, and through a reload with its magazine phasing out and a new one in, so a look says
 // whether the phase reads and the gun stays where the eye can see it; and from empty, the USSO's rack with the hand on
 // the handle, and BOOG's cant as it cycles after a shot. At the owner's own view: 1920 by 1080 at the widest FOV setting
-// (FOV=1.571, tools/pov-sheet.ts). ONLY= limits it to some of swap, shot, inspect, reload, rack. Headless, never the
+// (FOV=1.571, tools/pov-sheet.ts). ONLY= limits it to some of swap, shot, inspect, reload, rack; RELOAD_AT= the reload's
+// moments (shares of it, comma separated). Headless, never the
 // real mouse or keyboard.
 //
 // Run: SHOT_URL=http://localhost:5196/ npx tsx tools/gunfeel-sheet.ts [out prefix] [ids...]
@@ -66,7 +67,7 @@ try {
     }
     // the reload: the magazine going, gone, coming, seated
     if (want("reload")) {
-      for (const p of [0.22, 0.4, 0.56, 0.8]) await hold(`r.debugView.reload = ${p};`, `${id}-reload${Math.round(p * 100)}`);
+      for (const p of (process.env.RELOAD_AT ?? "0.22,0.4,0.56,0.8").split(",").map(Number)) await hold(`r.debugView.reload = ${p};`, `${id}-reload${Math.round(p * 100)}`);
       await page.evaluate("window.__range.debugView.reload = null");
       await wait(400);
     }

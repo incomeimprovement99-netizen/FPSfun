@@ -101,7 +101,7 @@ A first mapping, to be judged on pictures at the owner's view (1920 by 1080, 110
 
 | Ours | Class | Pack gun | Why |
 |---|---|---|---|
-| USSO (`r97`) | Fast SMG | Striker-V or MPS5 | compact SMG hold; Striker-V has no `.anim`-only clips |
+| USSO (`r97`) | Fast SMG | MPS5 | compact SMG held by its handguard; the Striker-V holds its long magazine as a grip, 22 cm under the USSO's |
 | ANAKIN (`alternator_smg`) | Steady SMG | MPS5 | full-size SMG |
 | ZEPHYR (`rspn101`) | Fast Rifle | MX16A4 | light rifle |
 | PANDA (`vinson`) | Heavy Rifle | G3 or AK | heavier rifle hold |
@@ -156,6 +156,27 @@ alone first and shipped; then the other eight guns go through them, then step 8 
 9. **Camera clips, the look and the cost.** `A_Cam_*` as a small additive; the arms' materials tuned to the game's
    look (tint toward the soldier's colours if they read too plain); frame cost measured with `tools/profile-frame.ts`
    (budget: under 0.3 ms for the rig at 1920 by 1080); the solver retired from SpeedKills when the pack is present.
+
+## 4a. Progress
+
+- **2026-09-27, USSO and BOOG (steps 1 to 4, 6, 7 for these two):** the pack imported (`tools/import-fparms.ts`), the
+  pack guns measured (`tools/checks/fparms-pack.ts`, in verify), and `src/game/fprig.ts` holding the USSO (as the MPS5)
+  and BOOG (as the L96X) in the pack's arms, found by building it and judging each step on pictures at the owner's
+  view. What it took, beyond the plan:
+  - **the camera, not the gun, fixed in the rig**, as KINEMATION's player has it (its FPSPlayer prefab's camera, 80
+    degrees): hung off our gun instead, the arms' shoulders and sleeves filled a third of the view; the gun camera draws
+    at the pack's 80 degrees at the hip (ours was 92);
+  - **our gun fitted into the hands**, trigger on the pack gun's trigger, tilted about it until its underside meets the
+    left palm, and the hands reaching it wherever our view puts it (hip, aim, recoil, sway, sprint);
+  - **the pack's own shoulder offsets**, read off each gun's settings asset (the L96X's right one 21 cm back): without
+    it BOOG's right wrist bent 87 degrees at the hold and 155 aimed; aimed, both shoulders a further 12 cm back, since
+    our sights bring the gun nearer the eye than the pack's (the USSO's wrists 109 and 70 degrees aimed, now 4 and 11);
+  - **the left hand onto our magazine and handle** over the moments the pack gun's own clip moves them (measured off
+    it), its offset turning with the magazine, and at the hold kept at its height against our underside;
+  - the gun's quarter turn on the gun bone, measured, is KINEMATION's own `rotationOffset` (90 degrees about x, its
+    `FPSWeaponSettings` default).
+- Next: the other eight guns (steps 2 to 7), then locomotion layers (the pack's sprint in place of our procedural one),
+  the pickup, equips and the hack cast (step 8), camera clips and cost (step 9).
 
 ## 5. What stays
 

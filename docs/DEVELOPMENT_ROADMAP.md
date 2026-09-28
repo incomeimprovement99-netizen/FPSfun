@@ -5545,3 +5545,30 @@ toggle for daytime to see the diff".
   play, and keeps the choice as the menu does.
 - **The picture tool** takes `SKY=<hour>` (`tools/city-sheet.ts`), for the same spots by day and by night.
 - **Checked:** pictures of a street, a canyon and Neon Alley by night and by day; verify and rules.
+
+## Milestone 289 — The USSO and BOOG in real first-person arms (KINEMATION FPS Animation Ultimate)
+
+The owner, 2026-09-27: the left hand "glitching on the gun", and "start with the boog and the usso for the arms to be
+perfect. when we get that commit push deploy then you can work on the rest of the guns". The owner bought KINEMATION's
+FPS Animation Ultimate (docs/PLAN_FIRST_PERSON_ARMS.md), arms made for the camera with a hold and reloads per gun.
+
+- **Imported** (`tools/import-fparms.ts`, part of `npm run paid`): the arms (24,360 triangles, glove, sleeve and hand,
+  their textures), each clip src/config/fparms.json names as an animation-only GLB, the pack guns the clips were made
+  round, and each pack gun's settings (its shoulder offsets). Paid, so never in git; they ship with the game server.
+- **Measured** (`tools/checks/fparms-pack.ts`, in verify, skipped without the files): each pack gun's turn on the gun
+  bone (90 degrees about x, KINEMATION's own default), its trigger, the underside under the left palm, the shoulder
+  offsets.
+- **The rig** (`src/game/fprig.ts`, `viewmodel.ts`): the USSO held as the pack's MPS5, BOOG as its L96X:
+  - the camera fixed in the rig where the pack's player has it, the gun camera at its 80 degrees at the hip;
+  - our gun fitted into the hands (trigger on trigger, tilted to meet the left palm), placed where the pack's gun was
+    at the hip, and moved by our view as before (aim, recoil, sway, sprint, the swap's spin); both hands reach it from
+    shoulders that stay put, moved as the pack moves them per gun, and back 12 cm more aimed;
+  - the reloads are the pack's: the clip turns the gun in the hands (23 degrees for the USSO, 38 for BOOG, its muzzle
+    up), our magazine follows the pack gun's own and phases out and in at the moments it leaves and comes home, and the
+    left hand carries ours; from empty the USSO's handle is locked back and slapped home, the hand on it; BOOG works
+    its bolt after each shot. The view's own reload twist, rack hand and cant stand down for these two.
+- **Checked:**
+  - e2e (soldier): the bought arms hold both; mid-reload the clip has turned the gun; from empty the handle goes back
+    with the left hand's knuckle 5.5 cm from it; wrists within 50 degrees held and aimed (60 on the handle, the pack's
+    own grip); the old arms' cut ends checked on the guns they still hold (ANAKIN, HELIX); the red dot keeps its arms;
+  - `tools/checks/fparms-pack.ts`; verify; rules; pictures of the hold, aim, reload, rack and bolt at the owner's view.
