@@ -101,7 +101,7 @@ check("the kit knows every one", KIT_SITES.escapes.length === FIRE_ESCAPES.lengt
     const b = e.box;
     const tag = `${((b.minX + b.maxX) / 2 - BR_X).toFixed(0)},${((b.minZ + b.maxZ) / 2 - BR_Z).toFixed(0)}`;
     if (map.pads.some((p) => p.x > b.minX - Fe.clear.pad && p.x < b.maxX + Fe.clear.pad && p.z > b.minZ - Fe.clear.pad && p.z < b.maxZ + Fe.clear.pad)) bad.push(`${tag}: a pad`);
-    if (KIT_SITES.doors.some((q) => q.x1 + BR_X > b.minX && q.x0 + BR_X < b.maxX && q.z1 + BR_Z > b.minZ && q.z0 + BR_Z < b.maxZ)) bad.push(`${tag}: a door`);
+    if (KIT_SITES.doors.some((q) => !q.escape && q.x1 + BR_X > b.minX && q.x0 + BR_X < b.maxX && q.z1 + BR_Z > b.minZ && q.z0 + BR_Z < b.maxZ)) bad.push(`${tag}: a door`);
     // a window: the room's face's window, along the face from its middle, the lobby's width wide
     for (const r of KIT_SITES.rooms) {
       for (const [k, nx, nz] of [["n", 0, -1], ["s", 0, 1], ["w", -1, 0], ["e", 1, 0]] as const) {
@@ -114,7 +114,7 @@ check("the kit knows every one", KIT_SITES.escapes.length === FIRE_ESCAPES.lengt
       }
     }
   }
-  check("every one clear of a pad's column, a door and every window of an open storey", bad.length === 0, bad.slice(0, 4).join("; ") || "all clear");
+  check("every one clear of a pad's column, a door (a stair core's, the drop's) and every window of an open storey", bad.length === 0, bad.slice(0, 4).join("; ") || "all clear");
 }
 
 // climbed, every one: the ladder, the flights, the wall to the roof
@@ -152,5 +152,30 @@ check(
 );
 const noRoof = results.filter((r) => r.flights && !r.top);
 check("and from every top landing up the wall onto the roof (or what stands on it at its edge)", noRoof.length === 0 && results.every((r) => r.top), noRoof.map((r) => `${tag(r.e)} at ${r.roof.toFixed(2)} of ${r.e.roof.toFixed(2)}`).slice(0, 4).join("; ") || `${results.filter((r) => r.top).length} roofs`);
+// the doorways: from the landing in front of each into its room and back, a walk each way
+{
+  const doors = FIRE_ESCAPES.flatMap((e) => e.doors.map((d) => ({ e, d })));
+  const stuck: string[] = [];
+  for (const { e, d } of doors) {
+    for (const [from, to] of [
+      [d.out, d.in],
+      [d.in, d.out],
+    ] as const) {
+      const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+      p.extraMoves = true;
+      p.autoClimb = true;
+      const s = new Script();
+      p.teleport(from.x, from.y + 0.01, from.z, 0);
+      const w = walk(p, s, [to], { t: 1000 });
+      if (!w.reached || w.climbed) stuck.push(`${tag(e)} at ${from.y.toFixed(0)} m${w.climbed ? ", climbed" : ""}`);
+    }
+  }
+  const rooms = new Set(KIT_SITES.rooms.map((r) => `${r.x},${r.z}`));
+  check(
+    "a doorway from a landing into every open storey an escape passes (the room clear behind it), walked in and out",
+    doors.length > 0 && stuck.length === 0,
+    stuck.slice(0, 4).join("; ") || `${doors.length} doors on ${FIRE_ESCAPES.filter((e) => e.doors.length).length} escapes, ${rooms.size} towers with rooms`,
+  );
+}
 console.log(fails === 0 ? "\nSK ESCAPES PASS" : `\nSK ESCAPES FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

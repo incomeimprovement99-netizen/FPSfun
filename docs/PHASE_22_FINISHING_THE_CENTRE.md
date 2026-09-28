@@ -4,9 +4,9 @@ The round planned in `docs/PHASE_22_PLAN_FINISHING_THE_CENTRE.md`, item by item 
 
 | id | item | state | milestone | what it came to |
 |---|---|---|---|---|
-| 22.1 | The fire escapes' owed bench | waiting for a quiet machine | | |
+| 22.1 | The fire escapes' owed bench | done | 285 | about 0.4 ms on Balanced, up to 0.9 on High; kept, written beside the limits |
 | 22.2 | Atmosphere: steam and neon flicker | shipped | 282 | 32 steam sources, 320 puffs in one draw; 6 signs flicker, at most 3 dips a second; the metro's stairwells made known to the kit again |
-| 22.3 | Doors from the fire escapes into the open floors | | | |
+| 22.3 | Doors from the fire escapes into the open floors | shipped | 285 | 102 doorways on 18 escapes, each walked in and out |
 | 22.4 | A draw-call pass | | | |
 | 22.5 | The last room at 30 to 60 m, and the street's share | | | |
 | 22.6 | The batch's release tests | | | |
@@ -27,4 +27,15 @@ The round planned in `docs/PHASE_22_PLAN_FINISHING_THE_CENTRE.md`, item by item 
   deploy fault: the live site, loaded headless from an empty cache, drew all five packs in about 11 s. The game's
   default preset is Competitive, which draws the lean kit, and the setting's labels did not say so. Milestone 283
   labels the presets by what they show; whether the default becomes Balanced is the owner's call, asked.
+- **22.1, done (7:02 to 7:13 pm):** the queued bench found two quiet minutes and ran; my own verify and deploys and
+  another worktree's e2e then shared the machine for two of its three rounds. Interleaving kept the pairs honest:
+  about 0.4 ms of kit on Balanced, up to 0.9 on High. The watcher first counted its own command line as load (it
+  names what it looks for); it now leaves itself out.
+- **22.3:** the escapes are placed last, after the rooms, so the doorways are cut into walls already built: each room
+  records its wall pieces, and the piece behind a landing is swapped for the wall round a door. The kit's door rule
+  passes an escape's own pieces (they are the way to the door) and the escapes' clearance rule passes their own
+  doors. The city is now at 21,735 of 22,000 meshes and 319k of 320k triangles: 22.4 has to give room back before
+  22.5 can add any.
+- **The owner asked for proof** (11:55 pm): four screenshots from the live server on High, the flying cars in their
+  lane over the Spire's block, Neon Alley, and the centre from above.
 

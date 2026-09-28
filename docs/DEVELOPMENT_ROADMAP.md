@@ -5467,3 +5467,24 @@ slightly"; the left hand "always ... glitched into the side" of every gun and th
     20 and 12 fps (stepped once a frame, the USSO's reached 2.9e28 at 20 fps);
   - pictures at the owner's view (`tools/gunfeel-sheet.ts`, now at 1920 by 1080 and 110 degrees with the rack and the
     cycle; `tools/pov-sheet.ts` ONLY=) of all ten guns; verify; rules.
+
+## Milestone 285 — Doors from the fire escapes into the open floors; the escapes' bench
+
+Phase 22's items 22.3 and 22.1 (`docs/PHASE_22_PLAN_FINISHING_THE_CENTRE.md`).
+
+- **102 doorways** (`city.json` fireEscape door, doorClear). Where a fire escape's landing stands at an open storey's
+  floor (the Sky Lobby, the Sky Park and the open floors round them), a doorway 1.4 m wide and the storey's window high
+  through that room's wall, in the middle of the landing, onto its inner strip: the outside way up now goes in. The
+  rooms record their wall pieces as they are built (the escapes are placed last, once every window and pad is known),
+  and the piece behind the landing is swapped for the same wall round a door, only where the room is clear 2 m behind
+  it (a stair core may stand there). Each is recorded for the kit, whose band on those storeys leaves it open, and
+  whose street and alley cables now keep off an escape (one ended across a doorway on Neon Alley).
+- **The escapes' bench** (22.1), from a frozen copy of the shipped build so this worktree's edits could not reload its
+  page, three rounds interleaved, kit on and off: in the street Balanced 10.2 ms against 10.2, High 21.1 against 18.2;
+  over the Spire Balanced 8.5 against 8.0, High 16.5 against 17.0; another worktree's e2e loaded two of the rounds, the
+  third near quiet (Balanced 5.9 against 5.5). About 0.4 ms on Balanced and up to about 0.9 on High: small, kept, and
+  written beside the limits.
+- **Checked:** `sk-escapes.ts` walks every doorway in and out (102 on 18 escapes), fails when the doors are narrower
+  than a body; its clearance rule means a stair core's or the drop's door, not its own. `citykit.ts` (nothing of the
+  kit across the 128 doors), `sk-lobbies.ts`, `city-budget.ts` (21,735 meshes of 22,000, 319k triangles of 320k:
+  close, for 22.4), `city-levels.ts`; verify and rules.

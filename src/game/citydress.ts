@@ -496,6 +496,9 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
           if (!cd) continue;
           const span = Math.abs(f1 - f0) - 0.2;
           const y = D.cableAt[0] + kitHash(s, along, 25) * (D.cableAt[1] - D.cableAt[0]);
+          // neither end on a fire escape, its landings or its doorways
+          const [e0, e1] = alongX ? [[along, f0], [along, f1]] : [[f0, along], [f1, along]];
+          if (inEscape(e0[0], e0[1], y, 1) || inEscape(e1[0], e1[1], y, 1)) continue;
           // a cable runs along its own x: across a street along x, it turns to run along z
           add(id, place(id, x, y, z, alongX ? Math.PI / 2 : 0, span / cd.w, 1, 1, false), 2, "cable");
         }
@@ -522,10 +525,19 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
       if (!inCentre(r.x, r.z)) continue;
       for (const f of faces(r.x - r.w / 2, r.x + r.w / 2, r.z - r.d / 2, r.z + r.d / 2)) {
         const c = (f.a + f.b) / 2 + r.at[f.key];
-        for (const [a, b] of [
+        // the doorways cut in this wall at this storey (a fire escape's), which the band leaves open
+        const cut = KIT_SITES.doors
+          .filter((q) => Math.abs(q.y0 - r.y) < 0.5 && (f.nx === 0 ? Math.abs((q.z0 + q.z1) / 2 - f.at) < 0.6 : Math.abs((q.x0 + q.x1) / 2 - f.at) < 0.6))
+          .map((q) => (f.nx === 0 ? [q.x0, q.x1] : [q.z0, q.z1]) as [number, number]);
+        const spans = [
           [f.a, c - win / 2],
           [c + win / 2, f.b],
-        ]) {
+        ].flatMap(([a, b]) => {
+          let out: Array<[number, number]> = [[a, b]];
+          for (const [d0, d1] of cut) out = out.flatMap(([p, q]) => (d1 <= p || d0 >= q ? [[p, q] as [number, number]] : ([[p, d0 - 0.05], [d1 + 0.05, q]] as Array<[number, number]>)));
+          return out;
+        });
+        for (const [a, b] of spans) {
           const len = b - a;
           if (len < 0.5) continue;
           // a module a bay of up to 8 m, the bays filling the piece of wall
@@ -611,7 +623,7 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         const intoWindow = KIT_SITES.rooms.some((rm) =>
           [rm.z - rm.d / 2, rm.z + rm.d / 2].some((fz) => (Math.abs(fz - near) < 0.2 || Math.abs(fz - far) < 0.2) && Math.abs(rm.x + (fz < rm.z ? rm.at.n : rm.at.s) - u) < cityCfg.skyLobby.width / 2 + 1 && y < rm.y + cityCfg.skyLobby.height + 0.3 && y + cd.h > rm.y - 0.3),
         );
-        if (intoWindow) return;
+        if (intoWindow || inEscape(u, near, y, 1) || inEscape(u, far, y, 1)) return;
         add(id, place(id, u, y, (near + far) / 2, Math.PI / 2, (far - near - 0.2) / cd.w, 1, 1, false), 1, "cable");
       });
     }

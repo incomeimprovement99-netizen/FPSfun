@@ -91,7 +91,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
 - **Fire escapes:** up a street face of 18 of High City's and Kyber's towers,
   in their own packs' pieces: climb the drop ladder from the promenade, walk
   the steep flights landing to landing, and climb the last storey onto the
-  roof. Solid to stand and fight on all the way up.
+  roof. Solid to stand and fight on all the way up, with a door into every open
+  floor it passes.
 - **Movement for roofs:** double jump, wall run and kick, slide, and a climb
   that goes up a storey (two with a double jump first). You sprint whenever you
   move forward, at 14 m/s, and a slide speeds you up a little past that and

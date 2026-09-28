@@ -180,7 +180,8 @@ for (const r of KIT_SITES.rooms) {
 const doorsCrossed: string[] = [];
 for (const d of KIT_SITES.doors) {
   const box = new THREE.Box3(new THREE.Vector3(d.x0 + 0.05, d.y0 + 0.3, d.z0 + 0.05), new THREE.Vector3(d.x1 - 0.05, d.y1 - 0.3, d.z1 - 0.05));
-  for (const p of places) if (bounds(p).intersectsBox(box)) doorsCrossed.push(`${p.piece} over the door at ${((d.x0 + d.x1) / 2).toFixed(1)}, ${((d.z0 + d.z1) / 2).toFixed(1)}`);
+  // (a fire escape's pieces stand in front of its own doorways, as the landing the door opens onto)
+  for (const p of places) if (p.kind !== "escape" && bounds(p).intersectsBox(box)) doorsCrossed.push(`${p.piece} over the door at ${((d.x0 + d.x1) / 2).toFixed(1)}, ${((d.z0 + d.z1) / 2).toFixed(1)}`);
 }
 check(`nothing of the kit across any of the ${KIT_SITES.doors.length} doors the city cut in its towers`, doorsCrossed.length === 0, doorsCrossed.slice(0, 3).join("; "));
 const flatBad = places.filter((p) => p.kind === "flat" && (p.out ?? Math.min(planeOf(p.piece), kit.dress.relief) + kit.dress.outset) > 0.15);

@@ -104,6 +104,8 @@ export const FIRE_ESCAPES: Array<{
   climb: { x: number; z: number; y: number };
   roof: number;
   box: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /** the doorways into the open storeys it passes: a point on the landing in front of each, and one in the room */
+  doors: Array<{ out: { x: number; z: number; y: number }; in: { x: number; z: number; y: number } }>;
 }> = [];
 /** where steam rises in the centre (city.json steam; steam.ts draws it), world metres: the metro's stairwells, drains at the kerbs, roof plant */
 export const STEAM_SOURCES: Array<{ x: number; y: number; z: number; kind: "metro" | "drain" | "vent" }> = [];
@@ -177,7 +179,7 @@ export const KIT_SITES: {
   /** the Spire's machinery (city.json spire machinery): solid boxes the kit's Glass pieces dress, `kind` stack or machine */
   machinery: Array<{ kind: "stack" | "machine"; x: number; z: number; y: number; w: number; h: number; d: number }>;
   /** openings in a tower's face the kit leaves bare (the Spire's drop's doors), map-local */
-  doors: Array<{ x0: number; x1: number; z0: number; z1: number; y0: number; y1: number }>;
+  doors: Array<{ x0: number; x1: number; z0: number; z1: number; y0: number; y1: number; escape?: boolean }>;
   /** the centre's parked cars (city.json streetLife): where each stands, which way along the street, which way it faces */
   cars: Array<{ x: number; z: number; alongX: boolean; facing: number }>;
   /** Neon Alley's stalls (city.json neonAlley): solid boxes, the kit's food stands over them, facing the street (yaw) */
@@ -311,6 +313,11 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   type Tower = { x: number; z: number; w: number; d: number; roof: number; storeys: number; sector: string; route: RoutePoint[]; street: { side: Side; line: number } | null; base?: number; lobby?: number; lobbyMat?: THREE.Material; bridges?: Partial<Record<Side4, number>>; decks?: Set<string>; park?: number; parkBridges?: Partial<Record<Side4, number>>; parkDecks?: Set<string>; floors?: number[]; coreBlock?: Array<{ face: Side4; a: number; b: number }> };
   type Side4 = "n" | "s" | "w" | "e";
   const towers: Tower[] = [];
+  /**
+   * The open storeys' wall pieces as skyLobby builds them (a face's wall either side of its window, and the lintel):
+   * the fire escapes, placed last, cut their doorways into these
+   */
+  const roomWalls: Array<{ x: number; z: number; y: number; face: Side4; a: number; b: number; h: number; at: number; mat: THREE.Material; mesh: THREE.Mesh; solid: Solid }> = [];
   const plazas: Array<{ x: number; z: number }> = [];
   const PAVE_H = C.kerb;
   const storeyH = C.storey;
@@ -692,7 +699,10 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       [1, at.s, "s"],
     ] as const) {
       const wz = z + s * (d / 2 - t / 2);
-      wall(x - w / 2, x + w / 2, x + o, (a, b, y, h) => slab(b - a, h, t, (a + b) / 2, y, wz, mat));
+      wall(x - w / 2, x + w / 2, x + o, (a, b, y, h) => {
+        const mesh = slab(b - a, h, t, (a + b) / 2, y, wz, mat);
+        roomWalls.push({ x, z, y: ly, face: k, a, b, h, at: wz, mat, mesh, solid: RANGE_SOLIDS[RANGE_SOLIDS.length - 1] });
+      });
       // a pad's window framed in the pads' blue, so it reads as the pad's target from the podium
       if (lit.has(k)) {
         const fz = z + s * (d / 2 + 0.03);
@@ -706,7 +716,10 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       [1, at.e, "e"],
     ] as const) {
       const wx = x + s * (w / 2 - t / 2);
-      wall(z - d / 2 + t, z + d / 2 - t, z + o, (a, b, y, h) => slab(t, h, b - a, wx, y, (a + b) / 2, mat));
+      wall(z - d / 2 + t, z + d / 2 - t, z + o, (a, b, y, h) => {
+        const mesh = slab(t, h, b - a, wx, y, (a + b) / 2, mat);
+        roomWalls.push({ x, z, y: ly, face: k, a, b, h, at: wx, mat, mesh, solid: RANGE_SOLIDS[RANGE_SOLIDS.length - 1] });
+      });
       if (lit.has(k)) {
         const fx = x + s * (w / 2 + 0.03);
         for (const c of [z + o - win / 2, z + o + win / 2]) deco(0.08, H, 0.08, fx, ly, c, windowLight);
@@ -2587,7 +2600,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
           const win = Lb.width / 2 + Fe.clear.window;
           if (KIT_SITES.rooms.some((rm) => Math.abs(rm.x - t.x) < 0.01 && Math.abs(rm.z - t.z) < 0.01 && mid + rm.at[key] + win > uLo && mid + rm.at[key] - win < uHi)) continue;
           const cd = Fe.clear.door;
-          if (KIT_SITES.doors.some((q) => q.x1 > foot.minX - cd && q.x0 < foot.maxX + cd && q.z1 > foot.minZ - cd && q.z0 < foot.maxZ + cd && q.y1 > base && q.y0 < roof)) continue;
+          if (KIT_SITES.doors.some((q) => !q.escape && q.x1 > foot.minX - cd && q.x0 < foot.maxX + cd && q.z1 > foot.minZ - cd && q.z0 < foot.maxZ + cd && q.y1 > base && q.y0 < roof)) continue;
           built++;
           const T = Fe.railThick;
 
@@ -2670,6 +2683,37 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
             const y = base + k * storeyH;
             way.push(w(0.5, innerMid, y), w(0.5, laneMid, y), w(St.top + 0.4, laneMid, y + storeyH), w(St.top + 0.4, innerMid, y + storeyH));
           }
+          // a doorway into each open storey a landing stands at, in the landing's middle: the wall's piece there
+          // swapped for the same wall round a door, where the room is clear behind it
+          const doors: Array<{ out: { x: number; z: number; y: number }; in: { x: number; z: number; y: number } }> = [];
+          const [du0, du1] = [uStart + dir * (Wd / 2 - Fe.door / 2), uStart + dir * (Wd / 2 + Fe.door / 2)].sort((p, q) => p - q);
+          for (let k = 1; k < n; k++) {
+            const y = base + k * storeyH;
+            const piece = roomWalls.find((q) => q.x === t.x && q.z === t.z && Math.abs(q.y - y) < 0.01 && q.face === key && q.h > storeyH - 0.01 && q.a < du0 - 0.2 && q.b > du1 + 0.2);
+            if (!piece) continue;
+            // clear behind: nothing standing in the room across the door, doorClear deep past the wall
+            const blocked = [0.25, 0.5, 0.75].some((f) =>
+              [Lb.wall + 0.5, Lb.wall + Fe.doorClear].some((dv) => {
+                const [bx, bz] = pt(Wd / 2 - Fe.door / 2 + f * Fe.door, -dv);
+                return RANGE_SOLIDS.some((s) => bx + BR_X > s.minX && bx + BR_X < s.maxX && bz + BR_Z > s.minZ && bz + BR_Z < s.maxZ && s.base < y + 1.8 && s.top > y + 0.3);
+              }),
+            );
+            if (blocked) continue;
+            root.remove(piece.mesh);
+            const si = RANGE_SOLIDS.indexOf(piece.solid);
+            if (si >= 0) RANGE_SOLIDS.splice(si, 1);
+            roomWalls.splice(roomWalls.indexOf(piece), 1);
+            const alongX = nx === 0;
+            const wallBit = (a: number, b: number, yy: number, h: number) =>
+              alongX ? slab(b - a, h, Lb.wall, (a + b) / 2, yy, piece.at, piece.mat) : slab(Lb.wall, h, b - a, piece.at, yy, (a + b) / 2, piece.mat);
+            wallBit(piece.a, du0, y, storeyH);
+            wallBit(du1, piece.b, y, storeyH);
+            wallBit(du0, du1, y + Lb.height, storeyH - Lb.height);
+            KIT_SITES.doors.push(alongX ? { x0: du0, x1: du1, z0: at - 0.5, z1: at + 0.5, y0: y, y1: y + Lb.height, escape: true } : { x0: at - 0.5, x1: at + 0.5, z0: du0, z1: du1, y0: y, y1: y + Lb.height, escape: true });
+            const [px, pz] = pt(Wd / 2, (R + (lane0 - R)) / 2);
+            const [ix, iz] = pt(Wd / 2, -(Lb.wall + 1.2));
+            doors.push({ out: { x: px + BR_X, z: pz + BR_Z, y }, in: { x: ix + BR_X, z: iz + BR_Z, y } });
+          }
           const [ox, oz] = pt(lx, lad.v1 + R + 0.15);
           const [cx, cz] = pt(0.5, R + 0.05);
           FIRE_ESCAPES.push({
@@ -2681,6 +2725,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
             climb: { x: cx + BR_X, z: cz + BR_Z, y: roof - storeyH },
             roof,
             box: { minX: foot.minX + BR_X, maxX: foot.maxX + BR_X, minZ: foot.minZ + BR_Z, maxZ: foot.maxZ + BR_Z },
+            doors,
           });
           KIT_SITES.escapes.push({ family: families[`${third(t.x)},${third(t.z)}`], face: key, at, uStart, dir, base, storeys: n, x0: foot.minX, x1: foot.maxX, z0: foot.minZ, z1: foot.maxZ, y0: base, y1: roof + 1.6 });
         }
