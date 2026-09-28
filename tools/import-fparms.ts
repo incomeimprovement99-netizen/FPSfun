@@ -168,6 +168,63 @@ export async function fpArms(h: FpArmsImportHelpers, packages: Map<string, strin
   }
   writeFileSync(join(out, "settings.json"), `${JSON.stringify(settings, null, 2)}\n`);
 
+  // The moving clips' own motion of the gun (and the camera): KINEMATION's walk, sprint, jump and equip move no arm
+  // bone the FBX files keep. Its controller plays them on an Additive layer masked to two bones its player adds,
+  // ik_hand_gun_additive and camera_bone, whose motion its script adds to the gun (FPSProceduralJob ProcessAdditives)
+  // and the camera; those curves exist only in the pack's Unity .anim files. Baked at 30 keys a second, so read as they
+  // are; Unity's axes to glTF's (x mirrored: a position's x, a turn's y and z, negated).
+  const additive: Record<string, { seconds: number; gun: { t: number[]; p: number[]; q: number[] }; cam: { t: number[]; p: number[]; q: number[] } }> = {};
+  for (const name of cfg.general as string[]) {
+    const key = [...files.keys()].find((k) => k.endsWith(`/${name}.anim`));
+    if (!key) continue;
+    const text = readFileSync(files.get(key)!, "utf8").replace(/\r/g, "");
+    const curves = (section: string): Map<string, Array<{ t: number; v: number[] }>> => {
+      const out = new Map<string, Array<{ t: number; v: number[] }>>();
+      const at = text.indexOf(`\n  ${section}:`);
+      if (at < 0) return out;
+      const end = text.indexOf("\n  m_", at + 5);
+      const body = text.slice(at, end < 0 ? undefined : end);
+      for (const block of body.split("\n  - curve:").slice(1)) {
+        const path = /\n    path: (.*)/.exec(block)?.[1]?.trim();
+        if (!path) continue;
+        const keys: Array<{ t: number; v: number[] }> = [];
+        const re = /time: ([-\d.e]+)\n\s+value: \{([^}]*)\}/g;
+        for (let m = re.exec(block); m; m = re.exec(block)) keys.push({ t: Number(m[1]), v: m[2].split(",").map((kv) => Number(kv.split(":")[1])) });
+        out.set(path, keys);
+      }
+      return out;
+    };
+    const rot = curves("m_RotationCurves");
+    const pos = curves("m_PositionCurves");
+    const track = (path: string) => {
+      const r = rot.get(path) ?? [];
+      const p = pos.get(path) ?? [];
+      const times = [...new Set([...r, ...p].map((k) => k.t))].sort((x, y) => x - y);
+      const sample = (keys: Array<{ t: number; v: number[] }>, t: number, n: number): number[] => {
+        if (!keys.length) return n === 4 ? [0, 0, 0, 1] : [0, 0, 0];
+        let i = 0;
+        while (i < keys.length - 1 && keys[i + 1].t <= t) i++;
+        const a = keys[i];
+        const b = keys[Math.min(i + 1, keys.length - 1)];
+        const u = b.t > a.t ? Math.min(1, Math.max(0, (t - a.t) / (b.t - a.t))) : 0;
+        return a.v.map((x, j) => x + (b.v[j] - x) * u);
+      };
+      const out = { t: [] as number[], p: [] as number[], q: [] as number[] };
+      for (const t of times) {
+        const pv = sample(p, t, 3);
+        const qv = sample(r, t, 4);
+        out.t.push(Math.round(t * 1e4) / 1e4);
+        out.p.push(...[-pv[0], pv[1], pv[2]].map((x) => Math.round(x * 1e5) / 1e5));
+        out.q.push(...[qv[0], -qv[1], -qv[2], qv[3]].map((x) => Math.round(x * 1e5) / 1e5));
+      }
+      return out;
+    };
+    const seconds = Number(/m_StopTime: ([-\d.e]+)/.exec(text)?.[1] ?? 0);
+    additive[name] = { seconds, gun: track("root/ik_hand_gun_additive"), cam: track("root/camera_bone") };
+  }
+  writeFileSync(join(out, "additive.json"), `${JSON.stringify(additive)}\n`);
+  report.push(`additive: ${Object.entries(additive).map(([k, v]) => `${k} ${v.seconds.toFixed(2)} s ${v.gun.t.length}/${v.cam.t.length} keys`).join("; ")}`);
+
   const bytes = (dir: string): number => readdirSync(dir, { withFileTypes: true }).reduce((a, e) => a + (e.isDirectory() ? bytes(join(dir, e.name)) : statSync(join(dir, e.name)).size), 0);
   console.log(`arms: ${out}, ${clipNames.size} clips, ${gunModels.length} pack guns, all files ${(bytes(out) / 1e6).toFixed(1)} MB`);
   for (const r of report) console.log(`  ${r}`);

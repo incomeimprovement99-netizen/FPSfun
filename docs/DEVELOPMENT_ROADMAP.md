@@ -5596,3 +5596,19 @@ Phase 23's item 23.1 (`docs/PHASE_23_PLAN_THE_PACKS_AT_FULL_STRENGTH.md`). The o
   loaded white; caught in the pictures, fixed in the importer and the packs.
 - **Checked:** pictures on High from the spots of Milestone 287; the texture memory and downloads per preset;
   `citykit.ts`'s new rule, proven by taking a placed piece out of the baked list; verify and rules.
+
+## Milestone 291 — The bought arms move with the body: the pack's walk, sprint and jump
+
+The first gap after Milestone 289: moving, the USSO and BOOG still took our procedural sprint pose, which shoved the
+gun low and right, half off the screen at the owner's view.
+
+- **KINEMATION's moving clips** move no arm bone the FBX files keep: its controller plays idle, walk, sprint, jump and
+  equip on an Additive layer masked to a bone its player adds (`ik_hand_gun_additive`), whose motion its script adds
+  to the gun (`FPSProceduralJob` ProcessAdditives). Those curves exist only in the pack's Unity `.anim` files, so the
+  import reads them (`tools/import-fparms.ts`, `arms/additive.json`, baked at 30 keys a second; Unity's axes to
+  glTF's).
+- **The rig adds them to the gun** (`fprig.ts` locomotion): idle, walk and sprint blended by our speed against
+  SpeedKills' run (8.8 m/s) and sprint (14 m/s), one stride through all three as a blend tree keeps them in step; the
+  jump's loop in the air; a third of it in the sights, as the pack does. Our own sprint pose, bob and idle drift stand
+  down for these two guns. Sprinting, the gun now swings across the body and stays in view with both hands on it.
+- **Checked:** the soldier e2e section; verify; rules; pictures of standing, walking, sprinting and aiming.

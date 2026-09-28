@@ -175,8 +175,10 @@ alone first and shipped; then the other eight guns go through them, then step 8 
     it), its offset turning with the magazine, and at the hold kept at its height against our underside;
   - the gun's quarter turn on the gun bone, measured, is KINEMATION's own `rotationOffset` (90 degrees about x, its
     `FPSWeaponSettings` default).
-- Next: the other eight guns (steps 2 to 7), then locomotion layers (the pack's sprint in place of our procedural one),
-  the pickup, equips and the hack cast (step 8), camera clips and cost (step 9).
+- **Moving (step 5) for USSO and BOOG:** the pack's walk, sprint and jump, read off its `.anim` files' additive bone
+  (the FBX clips do not carry it), blended by our speed.
+- Next: the equip on swaps, the magazine seen in the hand through the reload, then the other eight guns, the pickup
+  and the hack cast (step 8), camera clips and cost (step 9).
 
 ## 5. What stays
 

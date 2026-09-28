@@ -452,6 +452,8 @@ export class ViewModel {
    */
   private readonly pack = new PackArms();
   private packOn = false;
+  private readonly locoPos = new THREE.Vector3();
+  private readonly locoQuat = new THREE.Quaternion();
   /** whether the drawn gloves and forearms are showing, so they are hidden or shown once rather than every frame */
   private drawnShown = true;
   private readonly zipHand = new Hand(true);
@@ -1153,7 +1155,8 @@ export class ViewModel {
     // ---- sprint blend; ADS and reloading both win over it
     const wantSprint = f.sprinting && f.adsFrac < 0.05 && !f.reloading ? 1 : 0;
     this.sprintAmt += (wantSprint - this.sprintAmt) * Math.min(1, dt / 0.16);
-    const sp = easeInOut(this.sprintAmt);
+    // (the bought arms move the gun with the pack's own walk, sprint and jump: fprig.ts locomotion)
+    const sp = packOn ? 0 : easeInOut(this.sprintAmt);
     // the slide: low and rolled like the sprint pose but a touch further
     // in, blended from wherever the gun was so a sprint into a slide flows
     const wantSlide = f.sliding && f.adsFrac < 0.05 ? 1 : 0;
@@ -1196,7 +1199,7 @@ export class ViewModel {
 
     // ---- walk bob and idle breathing
     if (f.onGround && f.moveSpeed > 0.5) this.bobT += dt * (f.moveSpeed * 1.7);
-    const bobAmp = 0.011 * (1 - ads * 0.85) * Math.min(1, f.moveSpeed / 5);
+    const bobAmp = packOn ? 0 : 0.011 * (1 - ads * 0.85) * Math.min(1, f.moveSpeed / 5);
     const bx = Math.sin(this.bobT) * bobAmp;
     const by = Math.abs(Math.cos(this.bobT)) * bobAmp * 0.6;
     const breath = Math.sin(this.t * 1.6) * 0.0005 * (1 - ads);
@@ -1236,7 +1239,7 @@ export class ViewModel {
       rz += this.pack.hip.euler.z * (1 - ads);
     }
     // idle: standing still the gun drifts a hair, as held hands do
-    const idle = (1 - Math.min(1, f.moveSpeed / 1.5)) * (1 - ads) * (f.onGround ? 1 : 0);
+    const idle = packOn ? 0 : (1 - Math.min(1, f.moveSpeed / 1.5)) * (1 - ads) * (f.onGround ? 1 : 0);
     p.x += Math.sin(this.t * 0.9) * 0.0025 * idle;
     p.y += Math.sin(this.t * 1.3 + 1) * 0.0018 * idle;
     rz += Math.sin(this.t * 0.7) * 0.008 * idle;
@@ -1398,6 +1401,12 @@ export class ViewModel {
     this.rollNow = rz;
     if (turning) turnAboutCentre(p, this.baseRot, this.pose.rotation, this.gunCentre);
     this.pose.position.copy(p);
+    // the bought arms' own motion of the gun as the body moves: walk, sprint, the jump (fprig.ts)
+    if (packOn) {
+      this.pack.locomotion(dt, f.moveSpeed, !f.onGround, ads, this.locoPos, this.locoQuat);
+      this.pose.position.add(this.locoPos);
+      this.pose.quaternion.premultiply(this.locoQuat);
+    }
 
     // Magnified scopes: at full aim the HUD draws the scope picture, and the
     // gun would only block it.

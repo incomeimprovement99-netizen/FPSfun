@@ -15,6 +15,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import cfg from "../config/fparms.json";
+import { HU, MOVE } from "./movement";
 
 type Measured = { turn: number[]; forward: number[]; up: number[]; trigger: number[]; palm: number[]; clavicleL?: number[]; clavicleR?: number[] };
 type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[] };
@@ -32,6 +33,39 @@ const CAMERA = (cfg as unknown as { camera: number[] }).camera;
 /** the pack gun's magazine and charging handle, by the names its models give them */
 const MAG_NODE = "Mag";
 const HANDLE_NODES = ["ActiveCharging", "ChargingHandle", "Charger"];
+
+/** a moving clip's own motion of the gun, read off the pack's .anim curves (tools/import-fparms.ts additive.json) */
+interface AddTrack {
+  t: number[];
+  p: number[];
+  q: number[];
+}
+interface AddClip {
+  seconds: number;
+  gun: AddTrack;
+  cam: AddTrack;
+}
+/** a track at `time`, seconds, into `pos` and `quat` (keys every 1/30 s: straight between them) */
+function sampleTrack(tr: AddTrack, time: number, pos: THREE.Vector3, quat: THREE.Quaternion): void {
+  const n = tr.t.length;
+  if (!n) {
+    pos.set(0, 0, 0);
+    quat.identity();
+    return;
+  }
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (tr.t[mid] <= time) lo = mid;
+    else hi = mid;
+  }
+  const u = tr.t[hi] > tr.t[lo] ? THREE.MathUtils.clamp((time - tr.t[lo]) / (tr.t[hi] - tr.t[lo]), 0, 1) : 0;
+  pos.set(tr.p[lo * 3], tr.p[lo * 3 + 1], tr.p[lo * 3 + 2]).lerp(new THREE.Vector3(tr.p[hi * 3], tr.p[hi * 3 + 1], tr.p[hi * 3 + 2]), u);
+  quat.set(tr.q[lo * 4], tr.q[lo * 4 + 1], tr.q[lo * 4 + 2], tr.q[lo * 4 + 3]).slerp(new THREE.Quaternion(tr.q[hi * 4], tr.q[hi * 4 + 1], tr.q[hi * 4 + 2], tr.q[hi * 4 + 3]), u);
+}
+/** half a turn about y: the rig faces +z, our view -z */
+const FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
 
 /** the gun camera's vertical field of view at the hip with these arms (fparms.json fov) */
 export const PACK_FOV = (cfg as unknown as { fov: number }).fov;
@@ -128,6 +162,11 @@ export class PackArms {
   readonly seen = { gunTurn: 0, handleBack: 0, leftToHandle: Infinity, leftToMag: Infinity };
 
   private arms: THREE.Object3D | null = null;
+  /** the moving clips' motion of the gun, and where through them the stride is */
+  private additive: Record<string, AddClip> | null = null;
+  private stride = 0;
+  private airAmt = 0;
+  private airT = 0;
   private mixer: THREE.AnimationMixer | null = null;
   private bones: Record<string, THREE.Object3D> = {};
   private sets = new Map<string, GunSet>();
@@ -187,6 +226,9 @@ export class PackArms {
       this.group.add(g.scene);
       this.group.visible = false;
       this.mixer = new THREE.AnimationMixer(g.scene);
+      this.additive = await fetch(url(`${cfg.models}additive.json`))
+        .then((r) => (r.ok ? (r.json() as Promise<Record<string, AddClip>>) : null))
+        .catch(() => null);
       this.ready = true;
       return true;
     } catch {
@@ -302,6 +344,63 @@ export class PackArms {
     this.hip.euler.setFromQuaternion(hq, "XYZ");
     this.active = name;
     return true;
+  }
+
+  /**
+   * The moving clips' motion of the gun this frame, in our view's space, as KINEMATION's player adds it (its Additive
+   * layer: idle, walk and sprint blended by the gait, the jump's loop in the air, at a third in the sights): our speed
+   * `speed` (m/s) against SpeedKills' run and sprint (the gait's 1 and 2). The view adds it to the gun's pose; the
+   * hands follow the gun.
+   */
+  locomotion(dt: number, speed: number, air: boolean, ads: number, pos: THREE.Vector3, quat: THREE.Quaternion): void {
+    pos.set(0, 0, 0);
+    quat.identity();
+    const A = this.additive;
+    if (!A || !A.A_FP_Idle) return;
+    const run = MOVE.speed * HU;
+    const sprint = MOVE.sprintSpeed * HU;
+    const g = speed <= run ? speed / run : 1 + THREE.MathUtils.clamp((speed - run) / Math.max(0.1, sprint - run), 0, 1);
+    const w: Array<[AddClip | undefined, number]> = [
+      [A.A_FP_Idle, Math.max(0, 1 - g)],
+      [A.A_FP_Walk, g <= 1 ? g : 2 - g],
+      [A.A_FP_Sprint, Math.max(0, g - 1)],
+    ];
+    // one stride through all of them together, as a blend tree keeps its children in step
+    let seconds = 0;
+    for (const [c, k] of w) if (c) seconds += c.seconds * k;
+    this.stride = (this.stride + dt / Math.max(0.2, seconds)) % 1;
+    const p = new THREE.Vector3();
+    const q = new THREE.Quaternion();
+    const acc = new THREE.Vector4();
+    let first: THREE.Quaternion | null = null;
+    for (const [c, k] of w) {
+      if (!c || k <= 0) continue;
+      sampleTrack(c.gun, this.stride * c.seconds, p, q);
+      pos.addScaledVector(p, k);
+      first ??= q.clone();
+      const s = first.dot(q) < 0 ? -k : k;
+      acc.x += q.x * s;
+      acc.y += q.y * s;
+      acc.z += q.z * s;
+      acc.w += q.w * s;
+    }
+    quat.set(acc.x, acc.y, acc.z, acc.w).normalize();
+    // the jump's loop while in the air, eased in and out
+    this.airAmt += ((air ? 1 : 0) - this.airAmt) * Math.min(1, dt / 0.12);
+    this.airT = air ? this.airT + dt : 0;
+    const jump = A.A_FP_Jump_Loop;
+    if (jump && this.airAmt > 0.001) {
+      sampleTrack(jump.gun, this.airT % jump.seconds, p, q);
+      pos.lerp(p, this.airAmt);
+      quat.slerp(q, this.airAmt);
+    }
+    // a third of it in the sights (FPSProceduralJob: Lerp(1, 0.3, adsWeight))
+    const weight = 1 - 0.7 * ads;
+    pos.multiplyScalar(weight);
+    quat.slerp(new THREE.Quaternion(), 1 - weight);
+    // into our view's space
+    pos.applyQuaternion(FLIP);
+    quat.premultiply(FLIP).multiply(new THREE.Quaternion().copy(FLIP).invert());
   }
 
   /** the pack's arms off: another gun */
