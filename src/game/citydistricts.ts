@@ -5,10 +5,12 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import cfg from "../config/citydistricts.json";
 
-// the server caches /models/ for a day, so the version rides in the file name and the query
-const url = (id: string): string => `models/paid/city/${id}-v${cfg.version}.glb?v=${cfg.version}`;
+// the server caches /models/ for a day, so the version rides in the file name and the query; `-lo` is the file at the
+// kit's lo texture size, for the presets that load the kit's lo files (Competitive: every preset loaded the 51 MB one)
+const url = (id: string, lo: boolean): string => `models/paid/city/${id}-v${cfg.version}${lo ? "-lo" : ""}.glb?v=${cfg.version}`;
 
 /** a district's crossroads (map-local) by its id, for ?dropat=<id>: a solo battle royale drops you straight onto it */
 export const districtAt = (id: string | null): { x: number; z: number } | null => {
@@ -28,15 +30,16 @@ export function districtGlow(day: boolean): void {
   for (const g of GLOWS) g.m.emissiveIntensity = g.full * (day ? g.glow.day : g.glow.night);
 }
 
-export async function dressDistricts(root: THREE.Object3D, renderer: THREE.WebGLRenderer): Promise<number> {
+export async function dressDistricts(root: THREE.Object3D, renderer: THREE.WebGLRenderer, lo = false): Promise<number> {
   const ktx2 = new KTX2Loader().setTranscoderPath("libs/basis/").detectSupport(renderer);
-  const loader = new GLTFLoader().setKTX2Loader(ktx2);
+  // (its geometry comes meshopt-compressed: tools/import-city.ts writePack)
+  const loader = new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
   for (const d of cfg.districts) {
     // a HEAD first: the Vite dev server answers a missing file with its index page, not a 404
-    const probe = await fetch(url(d.id), { method: "HEAD" }).catch(() => null);
+    const probe = await fetch(url(d.id, lo), { method: "HEAD" }).catch(() => null);
     if (!probe || !probe.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) continue;
     try {
-      const g = await loader.loadAsync(url(d.id));
+      const g = await loader.loadAsync(url(d.id, lo));
       g.scene.name = `district:${d.id}`;
       g.scene.traverse((o) => {
         const mesh = o as THREE.Mesh;

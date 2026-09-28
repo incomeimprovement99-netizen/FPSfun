@@ -1304,7 +1304,7 @@ let SIMPLIFIER: { getScale: (p: Float32Array, stride: number) => number; simplif
  * occlusion, roughness and metal at `size`, normal maps at `normalSize` (UASTC is four times ETC1S's bytes). Only the
  * pieces in `keep` are written: a GLB loads whole, and half the packs' textures were for pieces the centre never places.
  */
-async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Baked[], mats: Map<string, MatInfo | null>, tex: Textures, size: number, normalSize: number, keep: Set<string>, file: string): Promise<number> {
+async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Baked[], mats: Map<string, MatInfo | null>, tex: Textures, size: number, normalSize: number, keep: Set<string>, file: string, meshopt = false): Promise<number> {
   const { Document, NodeIO } = await import("@gltf-transform/core");
   const { KHRTextureBasisu } = await import("@gltf-transform/extensions");
   const baked = allBaked.filter((b) => keep.has(b.id));
@@ -1383,7 +1383,17 @@ async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Baked[], m
   }
   mkdirSync(dirname(file), { recursive: true });
   // the IO writes only the extensions registered with it: unregistered, the KTX2 images went out as plain ones
-  await new NodeIO().registerExtensions([KHRTextureBasisu]).write(file, doc);
+  if (!meshopt) {
+    await new NodeIO().registerExtensions([KHRTextureBasisu]).write(file, doc);
+    return statSync(file).size;
+  }
+  // Its geometry meshopt-compressed (EXT_meshopt_compression, the filter method: positions and texture coordinates as
+  // they are, normals to 8 bits): a district's 601k triangles were 31 MB of its 51, the textures 20
+  const { EXTMeshoptCompression } = await import("@gltf-transform/extensions");
+  const { MeshoptEncoder } = await import("meshoptimizer");
+  await MeshoptEncoder.ready;
+  doc.createExtension(EXTMeshoptCompression).setRequired(true).setEncoderOptions({ method: EXTMeshoptCompression.EncoderMethod.FILTER });
+  await new NodeIO().registerExtensions([KHRTextureBasisu, EXTMeshoptCompression]).registerDependencies({ "meshopt.encoder": MeshoptEncoder }).write(file, doc);
   return statSync(file).size;
 }
 
@@ -1520,9 +1530,11 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
           JSON.stringify({ _note: `The collision of the district ${dist.id} (src/config/citydistricts.json), written by tools/import-city.ts CITY_DISTRICTS=1 off the pack scene's own triangles (districtSolids), never typed: boxes [x0, x1, z0, z1, y0, y1], map-local metres.`, solids: solids.map((q) => q.map((v) => +v.toFixed(2))) }) + "\n",
         );
         report.push(`${dist.id}: ${solids.length} solid boxes`);
-        const bytes = await writePack(h, pack, [bk], mats, tex, cfg.sizes.hi, cfg.sizes.normal.hi, new Set([bk.id]), join(out, `${dist.id}-v${dCfg.version}.glb`));
+        const bytes = await writePack(h, pack, [bk], mats, tex, cfg.sizes.hi, cfg.sizes.normal.hi, new Set([bk.id]), join(out, `${dist.id}-v${dCfg.version}.glb`), true);
+        // and at the kit's lo size, for the presets that load the kit's lo files (Competitive): every preset loaded 51 MB
+        const loBytes = await writePack(h, pack, [bk], mats, tex, cfg.sizes.lo, cfg.sizes.normal.lo, new Set([bk.id]), join(out, `${dist.id}-v${dCfg.version}-lo.glb`), true);
         dist.measured = { tris: bk.tris, parts: kept.length, dropped, min: bk.min.map((v) => +v.toFixed(2)), max: bk.max.map((v) => +v.toFixed(2)) };
-        report.push(`${dist.id}: ${kept.length} parts (${dropped} left out), ${bk.tris} tris, ${(bytes / 1e6).toFixed(1)} MB`);
+        report.push(`${dist.id}: ${kept.length} parts (${dropped} left out), ${bk.tris} tris, ${(bytes / 1e6).toFixed(1)} MB, lo ${(loBytes / 1e6).toFixed(1)} MB`);
       }
       writeFileSync(dFile, JSON.stringify(dCfg, null, 2) + "\n");
       continue;

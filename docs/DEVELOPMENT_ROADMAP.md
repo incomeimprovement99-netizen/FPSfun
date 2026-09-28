@@ -6060,3 +6060,16 @@ High City's "wall 5", facing away).
 - **Checked:** verify and rules; the e2e speedkills section, a new check that the district is drawn from its own file
   with all its opaque faces from both sides (64 of 64), proven with `backs` off (0 of 64); pictures from four streets
   round it and inside it.
+
+## Milestone 309 — High City's corner in 31 MB, 24 on Competitive: its geometry meshopt-compressed
+
+Phase 25. The district was one 51 MB file for every preset, Competitive included: 19.7 MB of KTX2 textures and 31.3 MB
+of geometry (601,571 triangles). The game server sends it as it is.
+
+- **Its geometry meshopt-compressed** (`import-city.ts writePack`, EXT_meshopt_compression, the filter method: positions
+  and texture coordinates as they are, normals to 8 bits; `citydistricts.ts` loads it with three's meshopt decoder): the
+  geometry to 11.6 MB, the file to 31.3 MB. No position moves, so no seam can open between two pieces.
+- **Its own file for Competitive** (`<id>-v<version>-lo.glb`, the kit's lo texture size, where the preset loads the kit's
+  lo files): 24.1 MB. The lo textures alone took it only to 43.8 MB, since geometry was most of it.
+- The files go to v3. Checked: verify and rules; the e2e speedkills section (the district drawn from its file, 601,571
+  triangles); pictures from the crossroads on Balanced (the same as from the v1 file) and on Competitive.

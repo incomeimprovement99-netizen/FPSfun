@@ -945,7 +945,8 @@ void dressKit(brMap.root, DRESSING).then((n) => {
 // ?nocitykit leaves it off, for a before-and-after from the same spots (tools/city-sheet.ts)
 if (IS_SK && !new URLSearchParams(location.search).has("nocitykit"))
   // the districts made of the packs' own demo scenes (citydistricts.ts, Phase 25), every preset: they are the district
-  void dressDistricts(brMap.root, renderer);
+  // (at the kit's lo size where the preset loads the kit's lo files)
+  void dressDistricts(brMap.root, renderer, quality.cityKit === "lo");
 if (IS_SK && !new URLSearchParams(location.search).has("nocitykit"))
   void dressCityKit(brMap.root, cityKitPlaces(brMap.pads, quality.cityDetail === 0), quality, renderer).then((n) => {
     if (n) renderer.shadowMap.needsUpdate = true;

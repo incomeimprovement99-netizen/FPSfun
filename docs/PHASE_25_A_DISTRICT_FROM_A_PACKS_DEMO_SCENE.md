@@ -75,7 +75,6 @@ open. The check fails on that first bake and passes on this one. 6,312 boxes.
 
 ## Known limits
 
-- The file is 51 MB, and every preset loads it.
 - Rails and bars thinner than 15 cm (`stick`) have no collision. The posts do.
 
 ## The bots, and what stands on the walkways (Milestone 305)
@@ -107,10 +106,15 @@ film set is faced only toward its canyons, and single-sided faces vanish from th
 framing. Its opaque materials are now drawn from both sides (`look backs`), so from outside it reads as solid brick
 buildings. That cost nothing measurable, within 0.15 ms either way at four spots, interleaved over three rounds.
 
+## Its file (Milestone 309)
+
+The district was one 51 MB file for every preset: 19.7 MB of textures and 31.3 of geometry. Its geometry is now
+meshopt-compressed (positions and texture coordinates exact, normals to 8 bits), which makes the file 31.3 MB. Competitive
+loads its own at the kit's lo texture size, 24.1 MB. Same picture on Balanced.
+
 ## Next
 
 - The same rule for the city kit's own packs, where 1,020 material overrides still find no mesh (a re-import).
 - More of its loot up on the walkways: most of it lands on the canyons' floor, since the walkways' collision comes
   in strips too narrow to count as a floor.
 - Kyber's and Cyber's demo streets as districts of their own.
-- A lighter file for Competitive.
