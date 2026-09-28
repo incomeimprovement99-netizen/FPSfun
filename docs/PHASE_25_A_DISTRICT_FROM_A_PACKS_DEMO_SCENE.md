@@ -75,8 +75,6 @@ open. The check fails on that first bake and passes on this one. 6,312 boxes.
 
 ## Known limits
 
-- From the city's streets round it, the district's outer edge shows the film set's open backs in places. Its collision
-  is solid there.
 - The file is 51 MB, and every preset loads it.
 - Rails and bars thinner than 15 cm (`stick`) have no collision. The posts do.
 
@@ -102,11 +100,17 @@ Texture Name" does, after the texture that material uses, "fill build 1.psd". Th
 inside the FBX itself, which Unity makes from the same texture. The importer now does both (`Pack.matByTexture`), and
 no part of the district is in the stand-in.
 
+## Its backs (Milestone 308)
+
+From the city's streets round it, the district showed bare frames against the sky: its facades seen from behind. The
+film set is faced only toward its canyons, and single-sided faces vanish from the back, leaving only their thicker
+framing. Its opaque materials are now drawn from both sides (`look backs`), so from outside it reads as solid brick
+buildings. That cost nothing measurable, within 0.15 ms either way at four spots, interleaved over three rounds.
+
 ## Next
 
 - The same rule for the city kit's own packs, where 1,020 material overrides still find no mesh (a re-import).
 - More of its loot up on the walkways: most of it lands on the canyons' floor, since the walkways' collision comes
   in strips too narrow to count as a floor.
-- The edge: close the backs you can see from the city's streets.
 - Kyber's and Cyber's demo streets as districts of their own.
 - A lighter file for Competitive.

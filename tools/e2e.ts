@@ -5790,6 +5790,16 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     `(() => { const vis = (id) => getComputedStyle(document.getElementById(id)).display !== "none"; return { game: window.__range.sk.game(), html: document.documentElement.dataset.game, br: vis("goBr"), gunrun: vis("goGunRun"), tour: vis("goTour"), title: document.title }; })()`
   );
   check("speedkills: the page is SpeedKills, its menu PLAY and TRAINING (Gun Run hidden, not gone)", front.game === "speedkills" && front.html === "speedkills" && front.br && front.tour && !front.gunrun && front.title === "SpeedKills", JSON.stringify(front));
+  // High City's corner (citydistricts.ts): drawn from its own file, and its opaque faces from behind too (look backs): the
+  // film set is faced only toward its canyons, and from the city's streets round it only its frames showed
+  type Dist = { drawn: string[]; triangles: number; opaque: number; both: number };
+  const dist = await page
+    .waitForFunction("window.__range.cityDistricts().drawn.length > 0", { polling: 250, timeout: 90000 })
+    .then(
+      () => ev<Dist>(page, `(() => { const r = window.__range; let opaque = 0, both = 0; r.scene.getObjectByName("district:high-corner")?.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) if (!m.transparent) { opaque++; if (m.side === 2) both++; } }); return { ...r.cityDistricts(), opaque, both }; })()`),
+      () => null,
+    );
+  check("speedkills: High City's corner is drawn from its own file, its faces from behind too (no film set's frames to see through)", !!dist && dist.drawn.includes("high-corner") && dist.triangles > 500000 && dist.opaque > 20 && dist.both === dist.opaque, JSON.stringify(dist));
   // the guns: ten of its own, named, the owner's friends among them
   const guns = await ev<{ ids: number; names: string[] }>(page, `(() => { const r = window.__range; return { ids: r.weaponIds ? r.weaponIds().length : -1, names: r.loadout.slots.map((s) => s.weapon.name) }; })()`);
   check("speedkills: a loadout's guns carry SpeedKills names", guns.names.every((n) => /^[A-Z]+$/.test(n)) && guns.names.every((n) => ["PANDA", "ZEPHYR", "ANAKIN", "USSO", "BIGANTLER", "RIPTIDE", "HELIX", "PULSAR", "BOOG", "NOVA"].includes(n)), JSON.stringify(guns));

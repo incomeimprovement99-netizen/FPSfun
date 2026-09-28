@@ -46,6 +46,9 @@ export async function dressDistricts(root: THREE.Object3D, renderer: THREE.WebGL
           const strength = Number(m.userData?.emissiveStrength ?? 1);
           if (strength > 1 && m.emissiveIntensity === 1) m.emissiveIntensity = strength;
           if (m.emissiveMap || m.emissive.getHex() !== 0) GLOWS.push({ m, full: m.emissiveIntensity, glow: d.look.glow });
+          // the film set's faces from behind, from the city's streets round it: single-sided, only their frames showed,
+          // a building you saw through (look backs)
+          if (d.look.backs && !m.transparent) m.side = THREE.DoubleSide;
         }
         // its buildings shade its own canyons, as the pack's lighting does (look shadows); the shadow map is drawn once
         mesh.castShadow = d.look.shadows;

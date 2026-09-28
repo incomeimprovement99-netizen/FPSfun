@@ -6045,3 +6045,18 @@ buildings "fill build 08" and "09", drawn in the importer's grey stand-in (680 t
 - **Checked:** verify and rules; `sk-district.ts`; the importer's reports of materials not found and not read are both
   empty, and the file has no stand-in material; pictures of the walkway's door and the street's views that showed the
   slabs.
+
+## Milestone 308 — High City's corner solid from the city's streets: its faces drawn from behind
+
+Phase 25. From the city's streets round the district, bare frames stood against the sky over its edge: its facades
+from behind. The demo scene is a film set faced only toward its canyons, and a single-sided face is not drawn from its
+back, so from outside only the thicker framing showed, a building you saw through (picked in the page: the frames were
+High City's "wall 5", facing away).
+
+- **Its opaque faces from both sides** (`citydistricts.json look backs`, `citydistricts.ts`): from outside the district
+  now reads as solid brick buildings, and the views inside it are unchanged. It costs nothing measurable: 3.09 and
+  3.08 ms outside, 4.49 and 4.34 at the crossroads, 2.94 and 3.00 in a canyon, 3.82 and 3.80 from above (one side and
+  both, the median of three interleaved rounds, Balanced).
+- **Checked:** verify and rules; the e2e speedkills section, a new check that the district is drawn from its own file
+  with all its opaque faces from both sides (64 of 64), proven with `backs` off (0 of 64); pictures from four streets
+  round it and inside it.
