@@ -46,10 +46,10 @@ we are using out of how many."
 
 | id | item | state | milestone |
 |---|---|---|---|
-| 26.0 | The bug hunt: the storage cases' glow 404; the building assets counted | shipped | 312 |
-| 26.1 | The slam hurts enemies in every mode; its radius on the ground while you fall; the damage number on a hit | shipped | 313 |
-| 26.2 | Nobody gets into the corner where they should not | shipped | 313 |
-| 26.3 | Wallrunning: the camera leans, and you can see you are on the wall | shipped | 313 |
+| 26.0 | The bug hunt: the storage cases' glow 404; the building assets counted | shipped | 313 |
+| 26.1 | The slam hurts enemies in every mode; its radius on the ground while you fall; the damage number on a hit | shipped | 314 |
+| 26.2 | Nobody gets into the corner where they should not | shipped | 314 |
+| 26.3 | Wallrunning: the camera leans, and you can see you are on the wall | shipped | 314 |
 | 26.4 | Finish the corner | | |
 | 26.5 | Wipe the middle district and rebuild it the corner's way, bigger | after 26.4 | |
 
@@ -94,7 +94,7 @@ nothing on the floor to aim by, it looked as if it did nothing.
 
 Found: the corner's collision filled every building up to 40 m whatever stood there, an invisible floor over every
 lower building and every empty lot: from above, 2,458 of the corner's 1 m spots landed a body on nothing drawn. Fixed
-(Milestone 313): each building filled to its own height, its hollow insides drawn as dark blocks with roofs, the
+(Milestone 314): each building filled to its own height, its hollow insides drawn as dark blocks with roofs, the
 scene's open ground round its buildings left undrawn and solid to 200 m; no spot now lands on anything undrawn.
 
 The candidates as first listed:

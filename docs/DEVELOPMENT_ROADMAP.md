@@ -6197,7 +6197,7 @@ of how many."
   122 of 136, Kyber 45 of 62, Cyber City 51 of 79, Glass City 2 of 20, the first-person pack 0 of 16.
 - **Checked:** verify and rules; `paid-weapons.ts` proven as above.
 
-## Milestone 313 — The slam's ring and its damage numbers; no glitching into the corner; the wall run leans
+## Milestone 314 — The slam's ring and its damage numbers; no glitching into the corner; the wall run leans
 
 Phase 26 (`docs/PHASE_26_PLAN_FINISH_THE_CORNER.md`), items 26.1 to 26.3, the owner's report after playing the corner.
 
