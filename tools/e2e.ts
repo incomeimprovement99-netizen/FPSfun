@@ -6165,9 +6165,15 @@ async function speedkillsSlamTest(browser: Browser): Promise<void> {
     return;
   }
   type Hp = { id: number; hp: number; sh: number };
-  const before = await ev<{ bots: Hp[]; numbers: number }>(
+  const before = await ev<{ spot: boolean; bots: Hp[]; numbers: number }>(
     page,
-    `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const p = r.player.pos.clone();
+    `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true;
+      // on open street, flat 10 m round and clear of pads (where the match lands you may be a crate's top or a kerb, and
+      // the floor under a slam then moves the rule's 2.5 m about: a run hit the bot a storey over as well)
+      const clear = (x, z) => !r.brMap.pads.some((q) => Math.hypot(q.x - x, q.z - z) < 10) && !r.solids.some((b) => b.maxX > x - 10 && b.minX < x + 10 && b.maxZ > z - 10 && b.minZ < z + 10 && b.base < 6 && b.top > 0.1);
+      const spot = r.brMap.nodes.find((q) => (q.y ?? 0) === 0 && clear(q.x, q.z));
+      if (spot) r.player.teleport(spot.x, 0, spot.z, 0);
+      const p = r.player.pos.clone();
       const bs = d.bots.filter((b) => b.bot.alive && !b.down).slice(0, 3);
       const offs = [[2.5, 0], [2, 4], [8, 0]];
       window.__slamPins = bs.map((b, i) => ({ b, at: [p.x + offs[i][0], p.y + offs[i][1], p.z] }));
@@ -6175,7 +6181,7 @@ async function speedkillsSlamTest(browser: Browser): Promise<void> {
       pin();
       window.__slamPin = setInterval(pin, 8);
       r.sk.take("slam", 0);
-      return { bots: bs.map((b) => ({ id: b.bot.remote.id, hp: b.bot.remote.health, sh: b.bot.remote.shield })), numbers: r.hud.damageNumbers.length }; })()`,
+      return { spot: !!spot, bots: bs.map((b) => ({ id: b.bot.remote.id, hp: b.bot.remote.health, sh: b.bot.remote.shield })), numbers: r.hud.damageNumbers.length }; })()`,
   );
   await ev(page, `(() => { window.__ring = { visible: false, hit: false }; window.__ringT = setInterval(() => { const s = window.__range.sk.state().slamRing; if (s.visible) window.__ring.visible = true; if (s.hit) window.__ring.hit = true; }, 8); window.__range.sk.use("mobility"); })()`);
   await page.waitForFunction("window.__range.sk.state().slam === 'up'", { polling: 20, timeout: 3000 }).catch(() => undefined);
@@ -6186,9 +6192,9 @@ async function speedkillsSlamTest(browser: Browser): Promise<void> {
     `(() => { clearInterval(window.__slamPin); clearInterval(window.__ringT); return { ring: window.__ring, bots: window.__slamPins.map((q) => ({ id: q.b.bot.remote.id, hp: q.b.bot.remote.health, sh: q.b.bot.remote.shield })), numbers: window.__range.hud.damageNumbers.slice(${before.numbers}).map((n) => n.amount) }; })()`,
   );
   const lost = (i: number) => (before.bots[i] && after.bots[i] ? before.bots[i].hp + before.bots[i].sh - (after.bots[i].hp + after.bots[i].sh) : NaN);
-  const detail = JSON.stringify({ lost: [0, 1, 2].map(lost), numbers: after.numbers });
+  const detail = JSON.stringify({ spot: before.spot, lost: [0, 1, 2].map(lost), numbers: after.numbers });
   check("slam: its ring on the floor while you are up, red with an enemy inside it", after.ring.visible && after.ring.hit, JSON.stringify(after.ring));
-  check("slam: the enemy beside you on your floor takes its damage (20), and its number shows", before.bots.length === 3 && lost(0) === 20 && after.numbers.includes(20), detail);
+  check("slam: the enemy beside you on your floor takes its damage (20), and its number shows", before.spot && before.bots.length === 3 && lost(0) === 20 && after.numbers.includes(20), detail);
   check("slam: one as near but a storey over you, and one outside the ring, take nothing", lost(1) === 0 && lost(2) === 0, detail);
   await page.close();
 }

@@ -121,7 +121,12 @@ The corner as a finished place to fight:
 - 26.2's fix, and walks round every edge.
 - The bots up on the walkways, not only in the canyons (the graph reaches them, and in a test match none went up).
 - More of its loot up on the walkways; most lands on the canyons' floor.
-- Ways up besides the pads: the demo's own stairs and fire escapes, where they reach the walkways.
+- Ways up besides the pads, in the packs' own pieces, not ours (the owner, 2026-09-28: "pretty sure there are versions in
+  the asset packs"): High City's fire escapes (sets a, b and c: a tile to stack, a foot with its drop ladder, a top over
+  the parapet), Kyber's ladder set (tiles A and B, its top and foot), Cyber City's fire ladder. The city already hangs
+  High's b set and Kyber's tile A up 18 towers, walkable, their solids measured off the pieces (`tools/measure-escape.ts`);
+  here they go up the walkways' fronts from the canyons' floor, measured and walked the same way. The demo street
+  itself has none from its floor, since its canyons are bottomless.
 - Its arms' ends: the backdrop buildings close up, and the drop from the west walkway's end to the street.
 - The kit's recovered parts (Phase 25's v9: High City's fire escapes 2 m wider, the triangle budgets) where they touch
   the corner.
