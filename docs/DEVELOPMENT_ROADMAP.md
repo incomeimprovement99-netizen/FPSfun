@@ -6196,3 +6196,34 @@ of how many."
   220 of them: 92 whole in the centre's dressing, 127 inside the strips it places, 120 in the corner. By pack: High City
   122 of 136, Kyber 45 of 62, Cyber City 51 of 79, Glass City 2 of 20, the first-person pack 0 of 16.
 - **Checked:** verify and rules; `paid-weapons.ts` proven as above.
+
+## Milestone 313 — The slam's ring and its damage numbers; no glitching into the corner; the wall run leans
+
+Phase 26 (`docs/PHASE_26_PLAN_FINISH_THE_CORNER.md`), items 26.1 to 26.3, the owner's report after playing the corner.
+
+- **The slam** (`main.ts slamTargets`, `showSlamRing`, `hackHurt`; `hacks.json slam height`): "the slam doesn't seem to
+  do any damage to an enemy, it should show the radius circle ... and if it hits give the damage number". It did hurt
+  (a bot's shield 50 to 30 in a test), but showed no number and counted enemies by distance in the air. Now its 5 m ring
+  lies on the floor under you from the jump to the landing, red when an enemy is inside it; it hits everyone within the
+  ring and 2.5 m of its floor; every hack's hit shows its damage number as a shot's does. An e2e check in a battle
+  royale holds three bots round you, one beside you, one as near a storey up, one outside the ring: the ring shows red,
+  the first loses 20 and its number shows, the other two lose nothing.
+- **The corner's glitch** (`import-city.ts districtSolids`, `citydistricts.ts`, the collision file's covers and caps):
+  "i was able to glitch into the corner map area". Its buildings were filled solid to 40 m whatever stood there, an
+  invisible floor over every lower building and empty lot. Now a cell with something drawn in it is filled to the top
+  of what is drawn, a building's hollow inside to the height of what is drawn round it, and city draws those hollows as
+  dark blocks a cell back from every face with roofs over the faces' own cells, so the film set is closed from above and
+  through its windows. The scene's open ground round its buildings (a hollow joined to the plan's edge) is solid to
+  200 m and undrawn (drawn, it was a dark wall hiding the brick buildings at the corner's edge). A new check drops a
+  body from 120 m on every 1 m of the corner: 3,917 landings, all on the street, a walkway, a drawn roof or the scene's
+  own triangles; on the live collision 2,458 of them landed on nothing drawn. A body that starts a drop inside one of the
+  200 m columns is pushed out and falls onto something solid.
+- **The wall run** (`main.ts` feel, `player.ts wallSide`, `hud.ts drawWallRun`; `player.json feel wallRoll`, `hud.json
+  wallRun`): "it should twist the camera a bit and have some sort of visual feedback that we are indeed wallrunning,
+  like empulse does". The view leans 10 degrees away from the wall, easing in over 0.15 s and out over 0.25 s, and a
+  glow with streaks runs down that side of the screen. The tour's e2e reads it during a real wall run: the lean and the
+  camera's tilt away from the wall, and level again after; proven with no lean and with the lean backwards (the first
+  version leaned into the wall).
+- **Checked:** verify and rules; the e2e sections speedkills (the slam; one check of a death box's contents failed
+  beside it and passed on the rerun) and sktour (the wall run); `sk-district.ts` with the drop check, proven on the live
+  collision.

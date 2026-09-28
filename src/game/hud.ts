@@ -98,6 +98,8 @@ interface TechEntry {
 }
 
 export interface HudState {
+  /** the wall run's lean, -1 to 1: its streaks down the wall's side of the screen (drawWallRun) */
+  wallRun?: number;
   weaponName: string;
   /** SpeedKills: the gun's class beside its name (speedkills.json kind; Phase 20 A7) */
   weaponKind?: string | null;
@@ -493,6 +495,38 @@ export class Hud {
   /** the last frame's state (tools/e2e.ts reads what the HUD would show) */
   last: HudState | null = null;
 
+  /**
+   * On a wall: a glow and streaks sliding down the wall's side of the screen, as strong as the view's lean (hud.json
+   * wallRun), so a wall run reads as one (the owner, 2026-09-28: "some sort of visual feedback that we are indeed
+   * wallrunning, like empulse does")
+   */
+  private drawWallRun(now: number, lean: number): void {
+    const W = (hudCfg as unknown as { wallRun: { width: number; alpha: number; streaks: number; speed: number; color: string } }).wallRun;
+    const a = Math.min(1, Math.abs(lean));
+    if (a < 0.02) return;
+    const c = this.ctx;
+    const right = lean > 0;
+    const w = this.w * W.width;
+    const x0 = right ? this.w : 0;
+    const x1 = right ? this.w - w : w;
+    const g = c.createLinearGradient(x0, 0, x1, 0);
+    g.addColorStop(0, `${W.color}${Math.round(W.alpha * a * 255).toString(16).padStart(2, "0")}`);
+    g.addColorStop(1, `${W.color}00`);
+    c.fillStyle = g;
+    c.fillRect(Math.min(x0, x1), 0, w, this.h);
+    c.strokeStyle = `${W.color}${Math.round(W.alpha * 1.6 * a * 255).toString(16).padStart(2, "0")}`;
+    c.lineWidth = 3;
+    c.beginPath();
+    for (let i = 0; i < W.streaks; i++) {
+      const across = ((i * 0.618) % 1) * w * 0.8;
+      const x = right ? this.w - across - 4 : across + 4;
+      const y = ((now * W.speed + i / W.streaks) % 1) * this.h * 1.3 - this.h * 0.15;
+      c.moveTo(x, y);
+      c.lineTo(x, y + this.h * 0.12);
+    }
+    c.stroke();
+  }
+
   draw(now: number, camera: THREE.Camera, s: HudState): void {
     this.last = s;
     if (!this.enabled) return;
@@ -506,6 +540,7 @@ export class Hud {
       this.drawFeed(now, u);
       return;
     }
+    if (s.wallRun) this.drawWallRun(now, s.wallRun);
     this.uNow = u;
     this.drawScope(s, u);
     this.drawHealing(now, s, u);

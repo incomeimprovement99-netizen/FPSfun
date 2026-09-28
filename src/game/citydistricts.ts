@@ -6,6 +6,8 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { DISTRICT_INSIDES } from "./districtsolids";
 import cfg from "../config/citydistricts.json";
 
 // the server caches /models/ for a day, so the version rides in the file name and the query; `-lo` is the file at the
@@ -28,6 +30,29 @@ export function districtGlow(day: boolean): void {
   if (day === glowDay) return;
   glowDay = day;
   for (const g of GLOWS) g.m.emissiveIntensity = g.full * (day ? g.glow.day : g.glow.night);
+}
+
+/**
+ * A district's buildings' insides, drawn: the film set is faced only toward its canyons and hollow behind, and its
+ * collision fills each building to its height (tools/import-city.ts districtSolids), so what you stand on up there and
+ * what you see through a window is this, dark blocks a cell back from the faces and a roof over the faces' own cells,
+ * not the air over a hollow (the owner, 2026-09-28: "i was able to glitch into the corner map area")
+ */
+/** the street under a district, where its collision starts (citydistricts.json collision floor) */
+const STREET = cfg.collision.floor;
+function insides(id: string, shadows: boolean): THREE.Object3D {
+  const { covers, caps } = DISTRICT_INSIDES[id] ?? { covers: [], caps: [] };
+  const parts: THREE.BufferGeometry[] = [];
+  for (const [x0, x1, z0, z1, top] of covers) {
+    const h = top - STREET;
+    parts.push(new THREE.BoxGeometry(x1 - x0, h, z1 - z0).translate((x0 + x1) / 2, STREET + h / 2, (z0 + z1) / 2));
+  }
+  for (const [x0, x1, z0, z1, top] of caps) parts.push(new THREE.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2).translate((x0 + x1) / 2, top, (z0 + z1) / 2));
+  const mesh = new THREE.Mesh(parts.length ? mergeGeometries(parts) : new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: 0x24272c, roughness: 0.92, metalness: 0.04, side: THREE.DoubleSide }));
+  mesh.name = `district:${id}:insides`;
+  mesh.castShadow = shadows;
+  mesh.receiveShadow = true;
+  return mesh;
 }
 
 export async function dressDistricts(root: THREE.Object3D, renderer: THREE.WebGLRenderer, lo = false): Promise<number> {
@@ -59,6 +84,7 @@ export async function dressDistricts(root: THREE.Object3D, renderer: THREE.WebGL
         CITY_DISTRICTS.triangles += (mesh.geometry.getIndex()?.count ?? mesh.geometry.getAttribute("position").count) / 3;
       });
       root.add(g.scene);
+      root.add(insides(d.id, d.look.shadows));
       // the hour's glow on the new materials at once
       const was = glowDay;
       glowDay = null;

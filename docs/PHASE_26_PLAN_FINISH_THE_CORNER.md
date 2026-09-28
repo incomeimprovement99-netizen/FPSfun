@@ -21,6 +21,14 @@ in turn, and marked here as it goes.
 
 > "make a planning document as well so you don't lose track of any request here"
 
+> "remember for the map, there was alot of apartments, like 3+ storeys and the roof gameplay in hyperscape, that was
+> extremely common and we should utilize that, regardless of if its apratments or those grey, in and out shaped
+> buildings with balconies on our pack, the main ones we use for larger buildings. Should be able to double jump between
+> the rooftops, determining how wide the street should be, and the main center district should have a large building
+> that has the 1st and second floor in it and the jump pads to the roof. if that isn't possible with your current assets,
+> don't do the half baked bullshit we did with the initial spire district, bc it looks really bad right now. the layout
+> and shape is great, just asset wise its not there."
+
 Before that, the same day: "Do one quick bug hunt to ensure we are good on the map and tell me how many building assets
 we are using out of how many."
 
@@ -38,10 +46,10 @@ we are using out of how many."
 
 | id | item | state | milestone |
 |---|---|---|---|
-| 26.0 | The bug hunt: the storage cases' glow 404; the building assets counted | done, shipping | 312 |
-| 26.1 | The slam hurts enemies in every mode; its radius on the ground while you fall; the damage number on a hit | | |
-| 26.2 | Nobody gets into the corner where they should not | | |
-| 26.3 | Wallrunning: the camera leans, and you can see you are on the wall | | |
+| 26.0 | The bug hunt: the storage cases' glow 404; the building assets counted | shipped | 312 |
+| 26.1 | The slam hurts enemies in every mode; its radius on the ground while you fall; the damage number on a hit | shipped | 313 |
+| 26.2 | Nobody gets into the corner where they should not | shipped | 313 |
+| 26.3 | Wallrunning: the camera leans, and you can see you are on the wall | shipped | 313 |
 | 26.4 | Finish the corner | | |
 | 26.5 | Wipe the middle district and rebuild it the corner's way, bigger | after 26.4 | |
 
@@ -72,8 +80,9 @@ we are using out of how many."
 
 ### 26.1 The slam
 
-Found: the slam's landing looks for enemies among a duel's figures only (`main.ts enemiesNear`), so in a battle royale
-it finds none, and the bots never take its damage.
+Found: the slam did hurt a battle royale's bots (20 off a shield in a test), but a hit showed no number, and it counted
+enemies by their distance in the air, so one a storey off counted and one at the ring's edge on the floor did not. With
+nothing on the floor to aim by, it looked as if it did nothing.
 
 - Its damage reaches every enemy in its radius in every mode: a battle royale's bots, a duel's players and figures.
 - While you are up and coming down, its radius (`hacks.json slam radius`, 5 m) drawn on the ground under you, in a
@@ -83,7 +92,12 @@ it finds none, and the bots never take its damage.
 
 ### 26.2 The corner's glitch
 
-The owner got into the corner where nobody should be. Candidates to test, then fix what is found:
+Found: the corner's collision filled every building up to 40 m whatever stood there, an invisible floor over every
+lower building and every empty lot: from above, 2,458 of the corner's 1 m spots landed a body on nothing drawn. Fixed
+(Milestone 313): each building filled to its own height, its hollow insides drawn as dark blocks with roofs, the
+scene's open ground round its buildings left undrawn and solid to 200 m; no spot now lands on anything undrawn.
+
+The candidates as first listed:
 
 - The collision behind the faces is filled up to 40 m whatever stands there: an invisible floor over the corner's lower
   buildings, and over empty ground, that a player lands on from the dropship's glide or a tall roof nearby.
@@ -116,9 +130,25 @@ The corner as a finished place to fight:
 ### 26.5 The middle, rebuilt the corner's way
 
 After 26.4. The owner: wipe the current middle district and build "the bigger and better one" as the corner was made:
-a pack's own demo street, whole, staged, with its collision measured off its triangles. What it is made of, how the
-Spire and the capture zone fit, and what goes first get planned when 26.4 is done, and the owner decides the choices
-that are theirs.
+the packs' own buildings, whole, as their artists made them, staged, with collision measured off their triangles. The
+owner's brief for it (2026-09-28):
+
+- **Rooftops you fight across, as in Hyper Scape:** many apartment buildings of 3 storeys and more, High City's
+  apartments or the packs' grey buildings with balconies that step in and out (the ones the city already uses for its
+  larger buildings), roofs you can stand and fight on.
+- **Streets as wide as a double jump:** the street widths set by how far a double jump carries you from roof to roof,
+  measured with the real movement, so the rooftops join up.
+- **A large building at the centre** with its ground and first floors inside, to fight through, and jump pads up to its
+  roof.
+- **The layout stays:** "the layout and shape is great, just asset wise its not there." What changes is what the
+  buildings are made of.
+- **No half measures:** if the packs cannot make it look right, say so and do not build the half-made version the
+  first Spire district was ("it looks really bad right now"). So the first step is a survey of what the packs have
+  for it: whole apartment buildings and their floors, the balconied grey buildings, roofs you can stand on, interiors,
+  measured, with pictures, before anything is placed. What the packs cannot give is reported, not faked.
+
+What it is made of, how the Spire and the capture zone fit, and what goes first get planned when 26.4 is done, and the
+owner decides the choices that are theirs.
 
 ## Carried over from Phase 25
 

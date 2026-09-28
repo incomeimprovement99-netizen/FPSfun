@@ -6,3 +6,11 @@ import highCorner from "../config/districts/high-corner.solids.json";
 export const DISTRICT_SOLIDS: Record<string, number[][]> = {
   "high-corner": highCorner.solids,
 };
+
+/**
+ * What is drawn of each district's buildings' insides (citydistricts.ts), from the same file: `covers`, dark blocks a
+ * cell back from every face, and `caps`, a roof over the faces' own cells, each [x0, x1, z0, z1, top], map-local
+ */
+export const DISTRICT_INSIDES: Record<string, { covers: number[][]; caps: number[][] }> = {
+  "high-corner": { covers: highCorner.covers, caps: highCorner.caps },
+};

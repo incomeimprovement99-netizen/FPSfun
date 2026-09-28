@@ -6145,6 +6145,54 @@ async function speedkillsEdgeTest(browser: Browser): Promise<void> {
   await page.close();
 }
 
+/**
+ * SLAM in a battle royale (main.ts slamTargets and showSlamRing, hacks.json slam). The owner, 2026-09-28: "the slam
+ * doesn't seem to do any damage to an enemy, it should show the radius circle around the player when they are landing
+ * to visually show if it will hit or not and if it hits give the damage number". Three bots held round you: one beside
+ * you on your floor, one as near but a storey over you, one outside the ring. The ring shows red while you are up; the
+ * first takes the damage, its number shown; the other two take nothing.
+ */
+async function speedkillsSlamTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&game=speedkills");
+  await ev(page, brRow("solo", 9));
+  await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
+  const landed = await page
+    .waitForFunction(`window.__range.duel()?.phase === "fight" && window.__range.player.onGround && !window.__range.player.dropping`, { polling: 100, timeout: 90000 })
+    .then(() => true, () => false);
+  if (!landed) {
+    check("slam: a match starts and the player lands", false);
+    await page.close();
+    return;
+  }
+  type Hp = { id: number; hp: number; sh: number };
+  const before = await ev<{ bots: Hp[]; numbers: number }>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const p = r.player.pos.clone();
+      const bs = d.bots.filter((b) => b.bot.alive && !b.down).slice(0, 3);
+      const offs = [[2.5, 0], [2, 4], [8, 0]];
+      window.__slamPins = bs.map((b, i) => ({ b, at: [p.x + offs[i][0], p.y + offs[i][1], p.z] }));
+      const pin = () => { for (const q of window.__slamPins) { q.b.bot.pos.set(q.at[0], q.at[1], q.at[2]); q.b.bot.dummy.group.position.copy(q.b.bot.pos); } };
+      pin();
+      window.__slamPin = setInterval(pin, 8);
+      r.sk.take("slam", 0);
+      return { bots: bs.map((b) => ({ id: b.bot.remote.id, hp: b.bot.remote.health, sh: b.bot.remote.shield })), numbers: r.hud.damageNumbers.length }; })()`,
+  );
+  await ev(page, `(() => { window.__ring = { visible: false, hit: false }; window.__ringT = setInterval(() => { const s = window.__range.sk.state().slamRing; if (s.visible) window.__ring.visible = true; if (s.hit) window.__ring.hit = true; }, 8); window.__range.sk.use("mobility"); })()`);
+  await page.waitForFunction("window.__range.sk.state().slam === 'up'", { polling: 20, timeout: 3000 }).catch(() => undefined);
+  await page.waitForFunction("window.__range.sk.state().slam === null", { polling: 50, timeout: 15000 }).catch(() => undefined);
+  await gameSleep(page, 0.3);
+  const after = await ev<{ ring: { visible: boolean; hit: boolean }; bots: Hp[]; numbers: number[] }>(
+    page,
+    `(() => { clearInterval(window.__slamPin); clearInterval(window.__ringT); return { ring: window.__ring, bots: window.__slamPins.map((q) => ({ id: q.b.bot.remote.id, hp: q.b.bot.remote.health, sh: q.b.bot.remote.shield })), numbers: window.__range.hud.damageNumbers.slice(${before.numbers}).map((n) => n.amount) }; })()`,
+  );
+  const lost = (i: number) => (before.bots[i] && after.bots[i] ? before.bots[i].hp + before.bots[i].sh - (after.bots[i].hp + after.bots[i].sh) : NaN);
+  const detail = JSON.stringify({ lost: [0, 1, 2].map(lost), numbers: after.numbers });
+  check("slam: its ring on the floor while you are up, red with an enemy inside it", after.ring.visible && after.ring.hit, JSON.stringify(after.ring));
+  check("slam: the enemy beside you on your floor takes its damage (20), and its number shows", before.bots.length === 3 && lost(0) === 20 && after.numbers.includes(20), detail);
+  check("slam: one as near but a storey over you, and one outside the ring, take nothing", lost(1) === 0 && lost(2) === 0, detail);
+  await page.close();
+}
+
 async function speedkillsStartsTest(browser: Browser): Promise<void> {
   type Slot = { id: string; empty: boolean; fusion: number };
   type Here = { slots: Slot[]; active: number; fused: number; down: string[] };
@@ -6408,14 +6456,30 @@ async function speedkillsTourTest(browser: Browser): Promise<void> {
   // a wall run: sprinting along the right-hand wall (its face at x 33.49, the body 0.41 m round, a wall
   // counted within 4 hu of it), then a jump, from 2 m down range: SpeedKills' range ends 24 m in (Phase 20 A12). Up to three runs, as a player would try again: the take-off
   // is a matter of frames, and a machine busy with another run has fewer of them
+  // (and while on the wall, the view's lean off it, read every few frames: the owner, 2026-09-28, "it should twist the
+  // camera a bit and have some sort of visual feedback that we are indeed wallrunning")
+  let wallFelt: { lean: number; side: number; tilt: number } | null = null;
   for (let i = 0; i < 3; i++) {
     await tp(33.03, 0, -2, 0);
+    await ev(t, `(() => { window.__wallFelt = null; clearInterval(window.__wallT); window.__wallT = setInterval(() => { const w = window.__range.wallFeel(); if (w.onWall && (!window.__wallFelt || Math.abs(w.lean) > Math.abs(window.__wallFelt.lean))) window.__wallFelt = { lean: w.lean, side: w.side, tilt: w.tilt }; }, 10); })()`);
     await ev(t, script(["forward", "sprint"], { jump: [600 + i * 150] }));
     await sleep(1400);
     await stop();
     await sleep(400);
+    wallFelt = await ev<{ lean: number; side: number; tilt: number } | null>(t, "(() => { clearInterval(window.__wallT); return window.__wallFelt; })()");
     if (await ev<boolean>(t, `window.__range.tour.seen.tech.some((x) => x === "WALL RUN" || x === "WALL KICK")`)) break;
   }
+  // (off the wall, whenever the run ends, and a second of the game's time for the lean to ease out: wallOut is 0.25 s)
+  await t.waitForFunction("!window.__range.wallFeel().onWall", { polling: 50, timeout: 5000 }).catch(() => undefined);
+  await gameSleep(t, 1);
+  const feelAfter = await ev<{ onWall: boolean; lean: number }>(t, "window.__range.wallFeel()");
+  const leanAfter = feelAfter.lean;
+  check(
+    "sk tour: on the wall the view leans away from it, and levels again off it",
+    // (away: the wall on the right, the camera's right side rises, as a head tilts off a wall)
+    !!wallFelt && wallFelt.side > 0.5 && wallFelt.lean > 0.5 && wallFelt.tilt > 0.05 && Math.abs(leanAfter) < 0.1,
+    JSON.stringify({ wallFelt, feelAfter }),
+  );
   // a climb: into the right-hand wall (its face at x 33.49), forward, a jump at it; the ladder's wall at z -46 is
   // past SpeedKills' sandbox edge now (Phase 20 A12)
   await tp(32.9, 0, -12, -90);
@@ -7714,6 +7778,7 @@ async function main(): Promise<void> {
     if (want("speedkills")) {
       console.log("\nSpeedKills: the front door, the guns, fusion and the hacks");
       await speedkillsTest(browser);
+      await speedkillsSlamTest(browser);
     }
 
     if (want("soldier")) {

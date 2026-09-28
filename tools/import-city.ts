@@ -1121,7 +1121,7 @@ function cutFacades(draws: Array<{ d: Draw; m: M4 }>, width = 14, reach = 4): Ar
  * middle size under `stick` (a cable, a wire, a pole), fills nothing: they are what a player expects to pass. Cells with
  * the same spans are joined into rectangles, one box a span. Boxes [x0, x1, z0, z1, y0, y1], in the draws' own metres.
  */
-function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; stick: number; floor: number; merge: number; thin: number; minTop: number; fill?: { walkway: [number, number]; top: number; half: number; body: number; plan: number[][]; seeds: number[][]; streets?: number[][] } }): number[][] {
+function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; stick: number; floor: number; merge: number; thin: number; minTop: number; fill?: { walkway: [number, number]; top: number; open: number; half: number; body: number; plan: number[][]; seeds: number[][]; streets?: number[][] } }): { solids: number[][]; covers: number[][]; caps: number[][] } {
   const C = o.cell;
   const OFF = 100000;
   const key = (i: number, j: number) => (i + OFF) * 1000003 + (j + OFF);
@@ -1210,6 +1210,8 @@ function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; sti
   // its building, and bounds the canyon); then the street reachable on foot from the canyons' seeds, a flood over cells
   // with nothing at a body's height; every cell of the district's plan it does not reach is its buildings, solid to
   // `fill.top`, so nobody walks behind a face and sees through it
+  /** the cells filled as a building's inside, and the height each was filled to: city drawn (covers and caps) */
+  const filled = new Map<number, number>();
   if (o.fill) {
     const F = o.fill;
     for (const [k, list] of cellSpans) {
@@ -1252,6 +1254,8 @@ function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; sti
     const zs = F.plan.map((p) => p[1]);
     const walkTop = (k: number): number | null => (cellSpans.get(k) ?? []).find(([, b]) => b >= F.walkway[0] && b <= F.walkway[1])?.[1] ?? null;
     const fills = new Map<number, Array<[number, number]>>();
+    const building = new Map<number, number>();
+    const cellOf = new Map<number, [number, number]>();
     for (let i = Math.floor(Math.min(...xs) / C); i <= Math.floor(Math.max(...xs) / C); i++)
       for (let j = Math.floor(Math.min(...zs) / C); j <= Math.floor(Math.max(...zs) / C); j++) {
         const k = key(i, j);
@@ -1265,9 +1269,55 @@ function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; sti
         // pillar 40 m high a bot walked into and a shot stopped at
         const beside = [key(i + 1, j), key(i - 1, j), key(i, j + 1), key(i, j - 1)].map(walkTop).filter((t): t is number => t !== null);
         if (beside.length >= 2) fills.set(k, [[o.floor, Math.max(...beside, ...tops)]]);
-        // any other, its building to the fill's top
-        else fills.set(k, [[o.floor, Math.max(F.top, ...tops)]]);
+        // any other is its building's, filled to its height below
+        else {
+          building.set(k, tops.length ? Math.max(...tops) : -Infinity);
+          cellOf.set(k, [i, j]);
+        }
       }
+    // A building's cells filled to its own height: a cell with something drawn in it to the top of what is drawn, and
+    // one with nothing (the film set's hollow inside) to the height of the nearest cells that have, spread cell by cell
+    // from them. Filled to a fixed 40 m, every lower building and empty lot had an invisible floor over it that a glide
+    // or a roof nearby landed you on (the owner, 2026-09-28: "i was able to glitch into the corner map area"); city
+    // draws the hollow cells (covers and caps below), so what you stand on up there is drawn
+    const height = new Map<number, number>();
+    for (const [k, own] of building) if (own > -Infinity) height.set(k, own);
+    for (let front = [...height.keys()]; front.length; ) {
+      const next: number[] = [];
+      for (const k of front) {
+        const [i, j] = cellOf.get(k)!;
+        for (const n of [key(i + 1, j), key(i - 1, j), key(i, j + 1), key(i, j - 1)]) {
+          if (!building.has(n) || height.has(n)) continue;
+          height.set(n, height.get(k)!);
+          next.push(n);
+        }
+      }
+      front = next;
+    }
+    // A hollow cell joined through hollow cells to the plan's edge is not a building's inside but the scene's open
+    // ground round its buildings: drawn over, it was a dark wall in front of the brick buildings at the corner's edge.
+    // It stays undrawn and solid far over anything you reach (`open`), so there is no floor to land on up there
+    const outside = (i: number, j: number) => !inPlan((i + 0.5) * C, (j + 0.5) * C);
+    const open = new Set<number>();
+    const todo2: number[] = [];
+    for (const [k, [i, j]] of cellOf)
+      if (building.get(k) === -Infinity && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([di, dj]) => outside(i + di, j + dj))) {
+        open.add(k);
+        todo2.push(k);
+      }
+    while (todo2.length) {
+      const [i, j] = cellOf.get(todo2.pop()!)!;
+      for (const n of [key(i + 1, j), key(i - 1, j), key(i, j + 1), key(i, j - 1)])
+        if (building.get(n) === -Infinity && !open.has(n)) {
+          open.add(n);
+          todo2.push(n);
+        }
+    }
+    for (const k of building.keys()) {
+      const h = open.has(k) ? F.open : (height.get(k) ?? F.top);
+      fills.set(k, [[o.floor, h]]);
+      if (building.get(k) === -Infinity && !open.has(k)) filled.set(k, Math.round(h * 20) / 20);
+    }
     for (const [k, spans] of fills) cellSpans.set(k, spans);
   }
   // the thin made deep enough to stand on, rounded to 5 cm, and grouped by span
@@ -1282,26 +1332,46 @@ function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; sti
     }
   }
   // cells of one span into rectangles, greedily: along i as far as it goes, then down j while the whole row is there
-  const out: number[][] = [];
-  for (const [sk, set] of bySpan) {
-    const [y0, y1] = sk.split(",").map(Number);
-    const cellsOf = [...set].map((k) => [Math.floor(k / 1000003) - OFF, (k % 1000003) - OFF]).sort((p, q) => p[1] - q[1] || p[0] - q[0]);
-    for (const [i, j] of cellsOf) {
-      if (!set.has(key(i, j))) continue;
-      let i1 = i;
-      while (set.has(key(i1 + 1, j))) i1++;
-      let j1 = j;
-      for (;;) {
-        let row = true;
-        for (let ii = i; ii <= i1 && row; ii++) if (!set.has(key(ii, j1 + 1))) row = false;
-        if (!row) break;
-        j1++;
+  const rects = (groups: Map<string, Set<number>>, emit: (x0: number, x1: number, z0: number, z1: number, v: number[]) => void): void => {
+    for (const [sk, set] of groups) {
+      const v = sk.split(",").map(Number);
+      const cellsOf = [...set].map((k) => [Math.floor(k / 1000003) - OFF, (k % 1000003) - OFF]).sort((p, q) => p[1] - q[1] || p[0] - q[0]);
+      for (const [i, j] of cellsOf) {
+        if (!set.has(key(i, j))) continue;
+        let i1 = i;
+        while (set.has(key(i1 + 1, j))) i1++;
+        let j1 = j;
+        for (;;) {
+          let row = true;
+          for (let ii = i; ii <= i1 && row; ii++) if (!set.has(key(ii, j1 + 1))) row = false;
+          if (!row) break;
+          j1++;
+        }
+        for (let ii = i; ii <= i1; ii++) for (let jj = j; jj <= j1; jj++) set.delete(key(ii, jj));
+        emit(i * C, (i1 + 1) * C, j * C, (j1 + 1) * C, v);
       }
-      for (let ii = i; ii <= i1; ii++) for (let jj = j; jj <= j1; jj++) set.delete(key(ii, jj));
-      out.push([i * C, (i1 + 1) * C, j * C, (j1 + 1) * C, y0, y1]);
     }
+  };
+  const solids: number[][] = [];
+  rects(bySpan, (x0, x1, z0, z1, [y0, y1]) => solids.push([x0, x1, z0, z1, y0, y1]));
+  // What city draws of the buildings' hollow insides, so the film set is closed: `covers`, dark blocks over the hollow
+  // cells a cell back from anything drawn (a block over a cell with a face in it stood in front of the face: the brick
+  // buildings at the corner's edge were hidden behind one), and `caps`, a roof over the hollow cells beside what is
+  // drawn, each [x0, x1, z0, z1, top]
+  const inner = new Map<string, Set<number>>();
+  const edge = new Map<string, Set<number>>();
+  for (const [k, h] of filled) {
+    const i = Math.floor(k / 1000003) - OFF;
+    const j = (k % 1000003) - OFF;
+    const within = [key(i + 1, j), key(i - 1, j), key(i, j + 1), key(i, j - 1)].every((n) => filled.has(n));
+    const g = within ? inner : edge;
+    (g.get(String(h)) ?? g.set(String(h), new Set()).get(String(h))!).add(k);
   }
-  return out;
+  const covers: number[][] = [];
+  const caps: number[][] = [];
+  rects(inner, (x0, x1, z0, z1, [h]) => covers.push([x0, x1, z0, z1, h]));
+  rects(edge, (x0, x1, z0, z1, [h]) => caps.push([x0, x1, z0, z1, h]));
+  return { solids, covers, caps };
 }
 
 // ---------------------------------------------------------------- baking and writing
@@ -1657,13 +1727,13 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
         if (!bk) continue;
         // and its collision, from the same triangles (districtSolids), into src/config/districts/<id>.solids.json: numbers
         // measured off the pack's geometry, which the game loads with or without the bought files (the checks run without)
-        const solids = districtSolids(kept, { ...dCfg.collision, fill: dist.fill ? { ...dist.fill, plan: dist.hole } : undefined });
+        const { solids, covers, caps } = districtSolids(kept, { ...dCfg.collision, fill: dist.fill ? { ...dist.fill, plan: dist.hole } : undefined });
         mkdirSync(join(h.root, "src", "config", "districts"), { recursive: true });
         writeFileSync(
           join(h.root, "src", "config", "districts", `${dist.id}.solids.json`),
-          JSON.stringify({ _note: `The collision of the district ${dist.id} (src/config/citydistricts.json), written by tools/import-city.ts CITY_DISTRICTS=1 off the pack scene's own triangles (districtSolids), never typed: boxes [x0, x1, z0, z1, y0, y1], map-local metres.`, solids: solids.map((q) => q.map((v) => +v.toFixed(2))) }) + "\n",
+          JSON.stringify({ _note: `The collision of the district ${dist.id} (src/config/citydistricts.json), written by tools/import-city.ts CITY_DISTRICTS=1 off the pack scene's own triangles (districtSolids), never typed: boxes [x0, x1, z0, z1, y0, y1], map-local metres. covers and caps: what city draws of its buildings' insides so the film set is closed, dark blocks a cell back from every face and a roof over the faces' own cells, [x0, x1, z0, z1, top].`, solids: solids.map((q) => q.map((v) => +v.toFixed(2))), covers: covers.map((q) => q.map((v) => +v.toFixed(2))), caps: caps.map((q) => q.map((v) => +v.toFixed(2))) }) + "\n",
         );
-        report.push(`${dist.id}: ${solids.length} solid boxes`);
+        report.push(`${dist.id}: ${solids.length} solid boxes, ${covers.length} covers, ${caps.length} caps`);
         const bytes = await writePack(h, pack, [bk], mats, tex, cfg.sizes.hi, cfg.sizes.normal.hi, new Set([bk.id]), join(out, `${dist.id}-v${dCfg.version}.glb`), true);
         // and at the kit's lo size, for the presets that load the kit's lo files (Competitive): every preset loaded 51 MB
         const loBytes = await writePack(h, pack, [bk], mats, tex, cfg.sizes.lo, cfg.sizes.normal.lo, new Set([bk.id]), join(out, `${dist.id}-v${dCfg.version}-lo.glb`), true);

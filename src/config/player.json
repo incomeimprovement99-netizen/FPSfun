@@ -39,6 +39,10 @@
     "_airRoll": "The lean while you are in the air and strafing, degrees at full sideways speed. The slide leans and the landing rolls, and between them the air was still: a jump out of a slide dropped the lean the moment it left the ground and the view sat flat until it came down, which is the one part of a chain that did not move with the body. `airIn` and `airOut` are how fast it arrives and leaves, seconds. It is smaller than the slide's, because in the air you are steering and not carving.",
     "airRoll": 2.4,
     "airIn": 0.16,
-    "airOut": 0.22
+    "airOut": 0.22,
+    "wallRoll": 10,
+    "wallIn": 0.15,
+    "wallOut": 0.25,
+    "_wallRoll": "The view's lean away from a wall you are running, degrees with the wall full to one side (none when it is ahead), eased in over `wallIn` and out over `wallOut` seconds, as Empulse's and Titanfall's wall runs lean: the owner, 2026-09-28, 'it should twist the camera a bit'. The camera only, as every number here; the HUD's streaks (hud.json wallRun) follow it."
   }
 }

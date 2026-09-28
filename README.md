@@ -106,7 +106,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   the steep flights landing to landing, and climb the last storey onto the
   roof. Solid to stand and fight on all the way up, with a door into every open
   floor it passes.
-- **Movement for roofs:** double jump, wall run and kick, slide, and a climb
+- **Movement for roofs:** double jump, wall run and kick (the view leans off
+  the wall and streaks run down that side of the screen), slide, and a climb
   that goes up a storey (two with a double jump first). You sprint whenever you
   move forward, at 14 m/s, and a slide speeds you up a little past that and
   holds it (faster than the sprint it came from for its first second, a gun out
@@ -214,6 +215,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
 - **Ten hacks, two carried:** a move on F or LB (Dash, Slam, Leap, Grapple)
   and a tool on G or D-pad right (Heal, Armor, Wall, Invisibility, Reveal,
   Mine). Pick them in a match's setup under PLAY, or find them on the floor.
+  Slam shows its 5 m ring on the floor under you while you are up, red when an
+  enemy is inside it, and hits everyone in it on your floor, the damage shown
+  as a shot's.
 - **Health:** 100 health and a 50 shield, both coming back on their own.
 - **Dying:**
   - Your first death is the Gulag, until the capture zone opens.

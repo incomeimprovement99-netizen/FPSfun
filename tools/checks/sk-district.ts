@@ -24,7 +24,7 @@ const { buildCityMap } = await import("../../src/game/city");
 const { Player } = await import("../../src/game/player");
 const { BR_X, BR_Z } = await import("../../src/game/br");
 const { RANGE_SOLIDS } = await import("../../src/game/range");
-const { DISTRICT_SOLIDS } = await import("../../src/game/districtsolids");
+const { DISTRICT_SOLIDS, DISTRICT_INSIDES } = await import("../../src/game/districtsolids");
 const DISTRICTS = (await import("../../src/config/citydistricts.json")).default;
 const map = buildCityMap(new THREE.Scene());
 console.warn = warn;
@@ -189,6 +189,77 @@ for (const d of DISTRICTS.districts) {
       `${d.id}: on the bots' graph, its canyons from the city's streets and its walkways by its ${d.pads.length} pads, every node reached`,
       low.length >= 20 && up.length >= d.pads.length * 4 && pads.length === d.pads.length && lost.length === 0,
       `${low.length} in its canyons, ${up.length} on its walkways, ${pads.length} pads, ${lost.length} not reached${lost.length ? `: ${lost.slice(0, 10).map(({ n }) => `${(n.x - BR_X).toFixed(0)},${(n.y ?? 0).toFixed(1)},${(n.z - BR_Z).toFixed(0)}(${n.links.length})`).join(" ")}` : ""}`,
+    );
+  }
+}
+
+// From above: a glide or a jump onto the corner lands only on what is drawn. The owner, 2026-09-28: "i was able to
+// glitch into the corner map area"; its buildings were filled solid to 40 m whatever stood there, an invisible floor
+// over every lower building and empty lot. A body dropped from 120 m on a 1 m grid over the whole corner lands on the
+// highest box under it; that top must be the street, a walkway, a roof drawn over a hollow (covers and caps), or the
+// scene's own triangles there (its file, read here when the bought files are, as they are where this runs)
+{
+  const { existsSync } = await import("node:fs");
+  const cfgV = DISTRICTS.version;
+  for (const d of DISTRICTS.districts) {
+    const file = `public/models/paid/city/${d.id}-v${cfgV}.glb`;
+    if (!existsSync(file)) {
+      console.log(`  --  ${d.id}: its file is not here, the landings not judged (${file})`);
+      continue;
+    }
+    const { kitIO } = await import("../kit-glb");
+    const doc = await kitIO().read(file);
+    // every triangle's height span, by the 1 m cells its footprint covers (map-local)
+    const spans = new Map<string, number[]>();
+    for (const mesh of doc.getRoot().listMeshes())
+      for (const prim of mesh.listPrimitives()) {
+        const pos = prim.getAttribute("POSITION")!.getArray()!;
+        const idx = prim.getIndices()?.getArray();
+        const n = idx ? idx.length : pos.length / 3;
+        for (let t = 0; t + 2 < n; t += 3) {
+          const v = [0, 1, 2].map((q) => (idx ? idx[t + q] : t + q) * 3);
+          const xs = v.map((o) => pos[o]), ys = v.map((o) => pos[o + 1]), zs = v.map((o) => pos[o + 2]);
+          const y0 = Math.min(...ys), y1 = Math.max(...ys);
+          for (let x = Math.floor(Math.min(...xs)); x <= Math.floor(Math.max(...xs)); x++)
+            for (let z = Math.floor(Math.min(...zs)); z <= Math.floor(Math.max(...zs)); z++) {
+              const k = `${x},${z}`;
+              (spans.get(k) ?? spans.set(k, []).get(k)!).push(y0, y1);
+            }
+        }
+      }
+    const drawnAt = (x: number, z: number, y: number): boolean => {
+      for (let dx = -1; dx <= 1; dx++)
+        for (let dz = -1; dz <= 1; dz++) {
+          const list = spans.get(`${Math.floor(x) + dx},${Math.floor(z) + dz}`) ?? [];
+          for (let i = 0; i < list.length; i += 2) if (y >= list[i] - 0.4 && y <= list[i + 1] + 0.4) return true;
+        }
+      return false;
+    };
+    const boxes = DISTRICT_SOLIDS[d.id] ?? [];
+    const ins = DISTRICT_INSIDES[d.id] ?? { covers: [], caps: [] };
+    const roofAt = (x: number, z: number, y: number) => [...ins.covers, ...ins.caps].some(([x0, x1, z0, z1, top]) => x >= x0 && x <= x1 && z >= z0 && z <= z1 && Math.abs(top - y) < 0.1);
+    let n = 0, street = 0, walk = 0, roof = 0, geometry = 0, inside = 0;
+    const bad: string[] = [];
+    for (let x = 0.75; x < d.fill.half - 3; x += 1)
+      for (let z = 0.75; z < d.fill.half - 3; z += 1) {
+        if (!inPoly(d.hole, x, z)) continue;
+        const here = boxes.filter(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+        if (here.some(([, , , , y0, y1]) => y0 < 120 && y1 > 120)) {
+          inside++;
+          continue;
+        }
+        n++;
+        const y = Math.max(0, ...here.filter(([, , , , , y1]) => y1 < 120).map(([, , , , , y1]) => y1));
+        if (y < 0.05) street++;
+        else if (y >= d.fill.walkway[0] && y <= d.fill.walkway[1] && drawnAt(x, z, y)) walk++;
+        else if (roofAt(x, z, y)) roof++;
+        else if (drawnAt(x, z, y)) geometry++;
+        else bad.push(`${x},${y.toFixed(1)},${z}`);
+      }
+    check(
+      `${d.id}: dropped onto from 120 m anywhere, a body lands only on what is drawn: the street, a walkway, a roof over a hollow, the scene's own triangles`,
+      n > 1000 && bad.length === 0,
+      `${n} drops: ${street} street, ${walk} walkway, ${roof} roofs drawn over hollows, ${geometry} on the scene's own; ${inside} over its open ground, solid far above; ${bad.length} on nothing drawn${bad.length ? `: ${bad.slice(0, 6).join(" ")}` : ""}`,
     );
   }
 }

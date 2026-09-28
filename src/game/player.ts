@@ -133,6 +133,12 @@ export class Player {
   get onWall(): boolean {
     return this.wallRun !== null;
   }
+  /** the wall being run as a side of the view, 1 full on the right to -1 full on the left, 0 off one (main.ts leans away) */
+  get wallSide(): number {
+    if (!this.wallRun) return 0;
+    const y = this.yaw * DEG;
+    return Math.max(-1, Math.min(1, -this.wallRun.nx * Math.cos(y) + this.wallRun.nz * Math.sin(y)));
+  }
   crouchHeld = false;
   crouched = false; // the actual crouched STATE, which lags the key
   sprinting = false;

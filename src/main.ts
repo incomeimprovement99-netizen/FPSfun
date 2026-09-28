@@ -1223,6 +1223,8 @@ let debugOrbitHold = false;
 let slideLean = 0;
 /** the lean while steering in the air (player.json feel.airRoll) */
 let airLean = 0;
+/** the wall run's lean, -1 to 1 (player.json feel wallRoll) */
+let wallLean = 0;
 let boostFeel = 0;
 /** which way a slide is carrying you, to the right of where you are looking, -1 to 1 */
 function slideLeanSide(): number {
@@ -3567,13 +3569,65 @@ function enemiesNear(at: THREE.Vector3, r: number): Array<{ rem: Remote; fig: Du
   return out;
 }
 
-/** a hack's damage on a figure, the way a bullet's reaches it: its own hit, then the match's */
+/**
+ * The enemies a slam landing at `at` reaches (hacks.json slam): within its radius across the ground and within `height`
+ * above or below the landing, so the ring drawn on the floor (slamRing) says exactly who it hits. By distance in the
+ * air alone, the owner saw it hit nobody (2026-09-28): an enemy a storey off counted, one on the floor at the ring's
+ * edge did not
+ */
+function slamTargets(at: THREE.Vector3): Array<{ rem: Remote; fig: Dummy }> {
+  const S = H.slam as unknown as { radius: number; height: number };
+  return enemiesNear(at, S.radius + S.height).filter(({ fig }) => {
+    const p = fig.group.position;
+    return Math.hypot(p.x - at.x, p.z - at.z) <= S.radius && Math.abs(p.y - at.y) <= S.height;
+  });
+}
+
+/** a hack's damage on a figure, the way a bullet's reaches it: its own hit, then the match's, and its number as a shot's */
 function hackHurt(rem: Remote, fig: Dummy, amount: number, what: string): void {
   const d = duel;
   if (!(d instanceof Duel)) return;
-  fig.hit(gameTime, "body", amount, 1, 1, fig.group.position.clone().add(new THREE.Vector3(0, 1, 0)));
+  const onShield = rem.shield > 0;
+  const at = fig.group.position.clone().add(new THREE.Vector3(0, 1, 0));
+  fig.hit(gameTime, "body", amount, 1, 1, at);
   d.localHit(rem, amount, false, what, player.pos.distanceTo(fig.group.position));
+  hud.addDamage(at.setY(at.y + 0.6), amount, onShield ? `#${ARMOR_COLOR[2].toString(16).padStart(6, "0")}` : "#ff4a3d", false, gameTime, rem);
   hud.hitMarker(gameTime, false, "hit");
+}
+
+/**
+ * A slam's ring on the floor where it will land (hacks.json slam radius), from the jump to the landing: the owner's
+ * "show the radius circle around the player when they are landing to visually show if it will hit or not". Red with an
+ * enemy inside it (slamTargets), pale with none
+ */
+let slamRing: THREE.Mesh | null = null;
+const slamRingState = { visible: false, hit: false };
+function showSlamRing(on: boolean): void {
+  const S = H.slam as unknown as { radius: number };
+  if (!on) {
+    if (slamRing) slamRing.visible = false;
+    slamRingState.visible = slamRingState.hit = false;
+    return;
+  }
+  if (!slamRing) {
+    const disc = new THREE.RingGeometry(0, S.radius, 48, 1).rotateX(-Math.PI / 2);
+    const rim = new THREE.RingGeometry(S.radius - 0.14, S.radius, 64, 1).rotateX(-Math.PI / 2);
+    const mat = (o: number) => new THREE.MeshBasicMaterial({ color: 0x9fe0ff, transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide });
+    slamRing = new THREE.Mesh(disc, mat(0.12));
+    slamRing.add(new THREE.Mesh(rim, mat(0.85)));
+    slamRing.renderOrder = 5;
+    scene.add(slamRing);
+  }
+  const at = player.pos.clone();
+  at.y = floorUnder(at);
+  const hit = slamTargets(at).length > 0;
+  slamRing.position.set(at.x, at.y + 0.04, at.z);
+  const colour = hit ? 0xff3b3b : 0x9fe0ff;
+  (slamRing.material as THREE.MeshBasicMaterial).color.setHex(colour);
+  ((slamRing.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).color.setHex(colour);
+  slamRing.visible = true;
+  slamRingState.visible = true;
+  slamRingState.hit = hit;
 }
 
 /** the hacks you start a match with: your two picks, ready at once */
@@ -3787,7 +3841,7 @@ function stepHacks(now: number, dt: number): void {
     } else if (skSlam.phase === "down" && player.onGround) {
       const at = player.pos.clone();
       const dmg = (H.slam as unknown as { damages?: number[] }).damages?.[skSlam.level ?? 0] ?? H.slam.damage;
-      for (const e of enemiesNear(at, H.slam.radius)) hackHurt(e.rem, e.fig, dmg, "slam");
+      for (const e of slamTargets(at)) hackHurt(e.rem, e.fig, dmg, "slam");
       audio.blast("arcstar", at);
       fx.jolt(at.clone().setY(at.y + 3), at, now);
       d?.localFx("sk", at, undefined, 7);
@@ -3795,6 +3849,8 @@ function stepHacks(now: number, dt: number): void {
       skSlam = null;
     } else if (skSlam.phase !== "down" && now - skSlam.at > 3) skSlam = null;
   }
+  // its ring on the floor under you until it lands
+  showSlamRing(!!skSlam);
   // HEAL's areas: standing in one heals you (health, then shield)
   healingNow = 0;
   for (let i = healZones.length - 1; i >= 0; i--) {
@@ -6924,6 +6980,13 @@ function step(): void {
     const airEase = Math.min(1, dt / (Math.abs(airWant) > Math.abs(airLean) ? f.airIn : f.airOut));
     airLean += (airWant - airLean) * airEase;
     roll += airLean * f.airRoll;
+    // On a wall the view leans away from it, as Empulse's and Titanfall's wall runs do, the HUD's streaks down that
+    // side with it (hud.ts drawWallRun): the owner, 2026-09-28, "it should twist the camera a bit and have some sort of
+    // visual feedback that we are indeed wallrunning"
+    const wallWant = player.wallSide;
+    wallLean += (wallWant - wallLean) * Math.min(1, dt / (Math.abs(wallWant) > Math.abs(wallLean) ? f.wallIn : f.wallOut));
+    // (the sign: a wall on the right is a positive side, and leaning away from it is the roll the other way from the air's)
+    roll -= wallLean * f.wallRoll;
     // and it dips, by how hard it came down: a landing used to arrive with a
     // roll and nothing else, so a drop of any height read as a stop rather
     // than an impact. The camera only, as everything else in this block is.
@@ -7623,6 +7686,7 @@ function step(): void {
   });
   pipeline.setDesaturation(sounds.desat);
   hud.draw(now, camera, {
+    wallRun: wallLean,
     // name/ammo follow the INCOMING weapon during a swap; cone/ADS stay with
     // the gun actually in hand
     weaponName: shown.empty ? "FISTS" : shown.weapon.name,
@@ -8008,6 +8072,8 @@ initWelcome();
   spoken: () => announcer.spoken.map((s) => s.line),
   music: () => ({ ...audio.musicState }),
   /** SpeedKills (tools/e2e.ts): the game, the hacks held and their use as the keys would, and what they are doing */
+  /** the wall run's feel: on a wall, its side of the view, the view's lean off it (player.json feel wallRoll; tools/e2e.ts) */
+  wallFeel: () => ({ onWall: player.onWall, side: player.wallSide, lean: wallLean, tilt: new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).y }),
   sk: {
     game: () => GAME,
     hacks: () => (["mobility", "utility"] as const).map((slot) => ({ slot, held: hacks.get(slot) ? { ...hacks.get(slot)! } : null, left: hacks.left(slot, gameTime) })),
@@ -8018,7 +8084,7 @@ initWelcome();
     spireTop: () => ({ ...SPIRE_TOP }),
     /** someone else's hack as their page told this one (tools/e2e.ts: an enemy's HEAL heals you too) */
     remoteHack: (from: number, n: number, x: number, y: number, z: number) => remoteHack(from, n, new THREE.Vector3(x, y, z), undefined),
-    state: () => ({ armored: gameTime < armorUntil, invisible: gameTime < invisUntil, slam: skSlam?.phase ?? null, pulling: !!skPull, leap: skLeap, healZones: healZones.length, mines: mines.length, hackSlow: player.hackSlow, incoming: duel instanceof Duel ? duel.incomingScale : 1 }),
+    state: () => ({ armored: gameTime < armorUntil, invisible: gameTime < invisUntil, slam: skSlam?.phase ?? null, slamRing: { ...slamRingState }, pulling: !!skPull, leap: skLeap, healZones: healZones.length, mines: mines.length, hackSlow: player.hackSlow, incoming: duel instanceof Duel ? duel.incomingScale : 1 }),
     fusion: () => loadout.slots.map((sl) => sl.fusion ?? 0),
     /** the city's edge as this page has it (Phase 20 A4): past it, the countdown */
     edge: () => ({ out: edge.since !== null, since: edge.since, struckAt: edge.struckAt, left: edge.left(gameTime), armed: edgeArmed, inside: edgeInside.toArray(), city: { ...BR_BOUNDS }, wall: { ...EDGE_BOUNDS }, margin: EDGE.margin }),
