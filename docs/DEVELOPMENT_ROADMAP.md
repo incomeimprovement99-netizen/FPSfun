@@ -5813,3 +5813,17 @@ floor, likke the metro area".
   at the podium's top, all 85 doors walked in and out with the real movement, every podium's roof walked over its
   hall, the graph, the loot), proven by leaving the doors uncut; `citykit.ts` holds nothing of the kit across a hall's
   door; `sk-escapes.ts` tests doors between an escape's foot and roof; the e2e sections speedkills, sktour and skship.
+
+## Milestone 300 — The pads as vents in the floor: the pack's grate, a slim beam, one ring
+
+Phase 24's item 24.5, its pads. The owner: "the jump pads are still the old texture ones we had before assets ... those
+are obviously bad". In the pictures of Milestone 299 the pads' gold was the first thing the eye found in every view.
+
+- **Before:** a solid gold disc 3 m across, a beam 0.9 m across at half opacity up to where it throws you and 4 m
+  past, and two gold rings, one 3 m up and one at the roof; a road's pad a flat cyan square.
+- **Now** (`city.json` padLook): a vent in the floor that throws you up. A dark grate ringed in the pad's colour (gold,
+  a window pad's blue, a road's cyan); over the grate in the centre, from Balanced up, High City's round wall vent
+  turned to face up and flattened (`citykit.json` dress padVent, 8k triangles); a beam 0.56 m across at 0.3; one ring,
+  at the roof it lands you on. From a roof across a street the pads still read, which is what they are for.
+- **Checked:** verify and rules (the kit's budgets: Balanced 2,917k, High 3,020k, Competitive 620k unchanged; the
+  city's own 240k triangles); the e2e section speedkills; pictures from a roof and beside a plaza pad.

@@ -2756,12 +2756,19 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       pads.push({ ...P(x + (along ? 3 : 0), z + (along ? 0 : 3)), dx: along ? 1 : 0, dz: along ? 0 : 1 });
     })
   );
-  // A road's pad is a cyan plate. A jump pad is what Hyper Scape's were, readable from a street away: a gold
-  // disc on its floor, a beam of light up to where it throws you, and gold rings on the beam, one overhead and
-  // one at the roof it lands you on. None of it is solid, and none of it casts a shadow.
+  // A pad is a vent in the floor that throws you up (city.json padLook, Phase 24.5): a dark grate ringed in its colour
+  // (gold a jump pad, blue a window pad, cyan a road's), the kit's own round vent over the grate in the centre from
+  // Balanced up (citydress.ts), a soft beam up to where it throws you and one ring at the roof it lands you on. Readable
+  // from a street away, which is what a pad is for, without the loud gold disc, its fat beam and its second ring
+  // that were the city's look before the packs. None of it is solid, and none of it casts a shadow.
+  const PL = C.padLook;
   const gold = emissive(0xffc23c, 2.2);
-  const beamMat = new THREE.MeshBasicMaterial({ color: 0xffd070, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false });
-  const discGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.12, 24);
+  const beamMat = new THREE.MeshBasicMaterial({ color: 0xffd070, transparent: true, opacity: PL.beam.opacity, blending: THREE.AdditiveBlending, depthWrite: false });
+  const rimGeo = new THREE.RingGeometry(PL.rim[0], PL.rim[1], 40).rotateX(-Math.PI / 2);
+  const grateGeo = new THREE.CircleGeometry(PL.rim[0], 24).rotateX(-Math.PI / 2);
+  const roadRimGeo = new THREE.RingGeometry(PL.roadRim[0], PL.roadRim[1], 32).rotateX(-Math.PI / 2);
+  const roadGrateGeo = new THREE.CircleGeometry(PL.roadRim[0], 20).rotateX(-Math.PI / 2);
+  const grate = flat(0x15171b, 0.5, 0.6);
   const ringGeo = new THREE.TorusGeometry(1.4, 0.16, 6, 28);
   const put = (m: THREE.Mesh, x: number, y: number, z: number): void => {
     m.position.set(x, y, z);
@@ -2832,35 +2839,31 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   // (28 of them with a jump pad's rings were 22k triangles, over the city's budget; tools/checks/city-budget.ts)
   const blue = emissive(0x3b8bff, 2.2);
   const winRingGeo = new THREE.TorusGeometry(1.2, 0.12, 4, 16);
-  const winDiscGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.12, 16);
+  const cyan = neon(0x20e0ff);
   for (const p of pads) {
     const x = p.x - BR_X;
     const z = p.z - BR_Z;
-    if (p.up === undefined) {
-      deco(2.4, 0.08, 2.4, x, 0.01, z, neon(0x20e0ff));
-      continue;
-    }
+    const y0 = p.y ?? 0;
+    // the grate and its rim, just over the floor
+    const road = p.up === undefined;
+    put(new THREE.Mesh(road ? roadGrateGeo : grateGeo, grate), x, y0 + 0.015, z);
+    put(new THREE.Mesh(road ? roadRimGeo : rimGeo, road ? cyan : p.hold !== undefined ? blue : gold), x, y0 + 0.02, z);
+    if (road || p.up === undefined) continue;
     if (p.hold !== undefined) {
-      const y0 = p.y ?? 0;
       const top = p.over ?? y0;
-      put(new THREE.Mesh(winDiscGeo, blue), x, y0 + 0.07, z);
-      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, top - y0, 8, 1, true), beamMat);
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(PL.beam.radius, PL.beam.radius, top - y0, 8, 1, true), beamMat);
       put(beam, x, (y0 + top) / 2, z);
       const ring = new THREE.Mesh(winRingGeo, blue);
       ring.rotation.x = Math.PI / 2;
       put(ring, x, top, z);
       continue;
     }
-    const y0 = p.y ?? 0;
     const top = p.over ?? y0 + (p.up * p.up) / (2 * MOVE.gravity);
-    put(new THREE.Mesh(discGeo, gold), x, y0 + 0.07, z);
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, top - y0 + 4, 10, 1, true), beamMat);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(PL.beam.radius, PL.beam.radius, top - y0 + 4, 10, 1, true), beamMat);
     put(beam, x, (y0 + top + 4) / 2, z);
-    for (const ry of [y0 + 3.2, top]) {
-      const ring = new THREE.Mesh(ringGeo, gold);
-      ring.rotation.x = Math.PI / 2;
-      put(ring, x, ry, z);
-    }
+    const ring = new THREE.Mesh(ringGeo, gold);
+    ring.rotation.x = Math.PI / 2;
+    put(ring, x, top, z);
   }
   const beacons = outerPlazas.slice(C.jumpTowers, C.jumpTowers + C.beacons).map((p) => P(p.x, p.z));
 

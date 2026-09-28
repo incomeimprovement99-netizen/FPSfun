@@ -742,6 +742,28 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
     }
   }
 
+  // ------------------------------------------------ the pads (city.ts padLook): the kit's round vent laid over each grate
+  // (dress padVent), a wall vent turned to face up, flattened to `thick` and its top just over the floor. From Balanced up
+  {
+    const PV = (D as unknown as { padVent: { piece: string; size: number; roadSize: number; thick: number } }).padVent;
+    const vd = dims(PV.piece);
+    const base = standing(PV.piece, false);
+    if (vd && base)
+      for (const p of padsWorld) {
+        const x = p.x - BR_X;
+        const z = p.z - BR_Z;
+        if (!inCentre(x, z)) continue;
+        const s = (p.up === undefined ? PV.roadSize : PV.size) / vd.w;
+        const m = base
+          .clone()
+          .premultiply(new THREE.Matrix4().makeTranslation(0, -vd.h / 2, 0))
+          .premultiply(new THREE.Matrix4().makeScale(s, s, PV.thick / vd.d))
+          .premultiply(new THREE.Matrix4().makeRotationX(-Math.PI / 2))
+          .premultiply(new THREE.Matrix4().makeTranslation(x, (p.y ?? 0) + 0.03 - PV.thick / 2, z));
+        add(PV.piece, m, 1, "prop");
+      }
+  }
+
   // ------------------------------------------------ the streets: lamps, cables overhead, clutter on the pavement
   for (const [lx, lz] of KIT_SITES.lamps) {
     if (!inCentre(lx, lz)) continue;

@@ -10,7 +10,7 @@ Started 2026-09-28.
 | 24.3 | Towers that are stacks of the packs' buildings | first part shipped | 298 | 44% of the centre's street faces wear the demo streets' strips, stacked up each face in columns; the canyons keep pressed modules |
 | 24.1b | The overrides the importer could not place | shipped | 299 | 1,645 unplaced to 1,020 (matched by the materials' names, then by elimination); the flying cars' engines by their model's name; Competitive's file without the strips, 91 MB to 44 |
 | 24.4 | The ground floor inside | first part shipped | 299 | the eight centre podiums opened into halls at street level: 85 doors, columns and counters for cover, an arcade of shop fronts, the bots' graph and loot of their own |
-| 24.5 | Light and air, and the old look gone | | | |
+| 24.5 | Light and air, and the old look gone | in progress | 298, 300 | the haze (298); the pads as vents in the floor, the pack's round vent over each grate, a slim beam, one ring (300) |
 | 24.6 | The release tests | | | |
 
 ## Notes as it goes
@@ -75,3 +75,8 @@ Started 2026-09-28.
   graph; the loot. Proven by leaving the doors uncut (the walk and the graph both failed). `sk-escapes.ts` now tests a
   door against an escape between the escape's foot and roof, as the city places them (a hall's door in the street
   below had tripped it).
+- **24.5, the pads:** the first thing the eye found in every picture was the pads' gold: a solid disc 3 m across, a
+  beam 0.9 m across at half opacity, two rings. A pad is now a vent in the floor that throws you up: a dark grate
+  ringed in the pad's colour (gold, a window pad's blue, a road's cyan), High City's round wall vent turned to face up
+  and laid over the grate in the centre from Balanced up (8k triangles), a beam 0.56 m across at 0.3, and one ring,
+  at the roof it lands you on. From a roof the pads still read a street away.
