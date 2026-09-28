@@ -68,7 +68,8 @@ const settings = JSON.parse(readFileSync(`${D}settings.json`, "utf8")) as Record
 for (const [name, g] of Object.entries(cfg.packGuns)) {
   for (const c of [...Object.values(g.arms), ...Object.values(g.gun)]) {
     const f = `${D}clips/${c}.glb`;
-    if (!existsSync(f) && !c.endsWith("_Pose")) check(`${name}: its clip ${c} is in`, false);
+    // (every one the game asks for: a pose excused here was a 404 on every page once the arms loaded at the start)
+    if (!existsSync(f)) check(`${name}: its clip ${c} is in`, false);
   }
   // fresh arms for each: a clip leaves the bones it tracks where it put them, and the pose clips do not all track the same
   arms = await load(`${D}arms.glb`);

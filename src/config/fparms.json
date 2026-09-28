@@ -25,7 +25,6 @@
         "reloadEmpty": "A_FP_MPS5_Reload_Empty"
       },
       "gun": {
-        "pose": "A_W_MPS5_Pose",
         "reloadTac": "A_W_MPS5_ReloadTac",
         "reloadEmpty": "A_W_MPS5_ReloadEmpty"
       },
@@ -155,7 +154,6 @@
         "reloadEmpty": "A_FP_L96X_Reload_Empty"
       },
       "gun": {
-        "pose": "A_W_L96X_Pose",
         "fire": "A_W_L96X_Fire",
         "reloadTac": "A_W_L96X_Reload_Tac",
         "reloadEmpty": "A_W_L96X_Reload_Empty"
@@ -478,5 +476,5 @@
       ]
     }
   },
-  "_guns": "Which pack gun stands in for which of ours, chosen on pictures at the owner's view: the USSO's is the MPS5, a compact SMG held by its handguard, its charging handle worked from empty; the Striker-V, the first tried, holds its long magazine as a grip, 22 cm under where the USSO's short one sits, and the hand could not be on both. BOOG's is the L96X, a bolt sniper that works its bolt after every shot."
+  "_guns": "Which pack gun stands in for which of ours, chosen on pictures at the owner's view: the USSO's is the MPS5, a compact SMG held by its handguard, its charging handle worked from empty; the Striker-V, the first tried, holds its long magazine as a grip, 22 cm under where the USSO's short one sits, and the hand could not be on both. BOOG's is the L96X, a bolt sniper that works its bolt after every shot. A pack gun's gun clips list only those the import makes a file of: the MPS5's and the L96X's A_W pose are stills with no animation, which tools/import-fparms.ts writes nothing for, and asked for they were a 404 on every page once the arms load at the start for the fists (the live check caught it, 2026-09-28); the rig runs without them."
 }

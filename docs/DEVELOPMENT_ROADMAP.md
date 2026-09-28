@@ -5983,6 +5983,9 @@ enemies, "you said you fixed it like 3 times".
   figure; the owner asked for it out if the circle was still seen. Past the edge the countdown runs and at its end it is
   OUT OF BOUNDS, no laser, no red flood. A photographed fight against three bots at 8 to 25 m showed no ring round them
   in this build; if one is seen again, a screenshot of it is the next thing to have.
+- **A 404 the live check caught**: with the arms loading at the start for the fists, every page asked for the MPS5's and
+  L96X's gun pose clips, stills the import writes no file for. They are off the config, and verify's clip check no
+  longer excuses a missing pose (`tools/checks/fparms-pack.ts`: seen failing with one put back).
 - **Checked:** new soldier e2e checks (level at rest, the handle pinched, the fists the bought arms', the palm and its
   hack on an inspect), the speedkills section's edge check (the death with no laser); verify; rules.
 
