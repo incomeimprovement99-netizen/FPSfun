@@ -96,6 +96,8 @@ export const FLOURISH_TIME = 0.95;
 
 /** how hard the gun and the empty hands pump while sprinting (1 = the old swing) */
 const SPRINT_PUMP = 1.6;
+/** how much of the sprint pose (low, rolled and swung) the gun takes (speedkills.json viewmodel sprintPose; the legacy game all) */
+const SPRINT_POSE = (PROFILE.viewmodel as { sprintPose?: number } | undefined)?.sprintPose ?? 1;
 
 /** a signature gun's feel in the hands (gunfeel.json guns) */
 interface GunFeel {
@@ -452,6 +454,7 @@ export class ViewModel {
    */
   private readonly pack = new PackArms();
   private packOn = false;
+  private packFovAmt = 0;
   private readonly locoPos = new THREE.Vector3();
   /** how far into the pack's sprint the gun is, 0..1 */
   private packSprint = 0;
@@ -702,9 +705,12 @@ export class ViewModel {
     });
   }
 
-  /** the gun camera's vertical field of view at the hip while the bought arms hold the gun, or null (main.ts) */
-  get packFov(): number | null {
-    return this.packOn ? PACK_FOV : null;
+  /**
+   * The gun camera's vertical field of view at the hip with the bought arms, and how far onto it (main.ts): eased over a
+   * swap, where it had jumped 12 degrees in one frame from the USSO to ZEPHYR
+   */
+  get packFov(): { hip: number; weight: number } {
+    return { hip: PACK_FOV, weight: easeInOut(this.packFovAmt) };
   }
 
   /** the bought arms' state (tools/e2e.ts): which pack gun holds ours, whether they are drawn, the wrists' bends */
@@ -1150,6 +1156,7 @@ export class ViewModel {
     // the pack's arms hold this gun: not while the hands are on the fists, a zipline or a cast (the view's own arms)
     const packOn = this.pack.active !== null && this.pack.active === packGunFor(w.id) && !this.fists.visible && !this.zipRig.visible && !this.castRig.visible;
     this.packOn = packOn;
+    this.packFovAmt += ((packOn ? 1 : 0) - this.packFovAmt) * Math.min(1, dt / 0.2);
     // In the sights the gun holds still for a reload, as it does for a strafe: rolled at full size, a 2x window
     // swung onto the support hand still on the handguard (PANDA, ZEPHYR, NOVA; Phase 20 A3)
     const reloadEnv = (f.reloading ? smooth(0, 0.14, reloadP) * (1 - smooth(0.84, 1, reloadP)) : 0) * (1 - ads * RELOAD_ADS);
@@ -1159,7 +1166,7 @@ export class ViewModel {
     const wantSprint = f.sprinting && f.adsFrac < 0.05 && !f.reloading && this.t - this.lastShotAt > LOCO.fireHold ? 1 : 0;
     this.sprintAmt += (wantSprint - this.sprintAmt) * Math.min(1, dt / 0.16);
     // (the bought arms move the gun with the pack's own walk, sprint and jump: fprig.ts locomotion)
-    const sp = packOn ? 0 : easeInOut(this.sprintAmt);
+    const sp = packOn ? 0 : easeInOut(this.sprintAmt) * SPRINT_POSE;
     // the slide: low and rolled like the sprint pose but a touch further
     // in, blended from wherever the gun was so a sprint into a slide flows
     const wantSlide = f.sliding && f.adsFrac < 0.05 ? 1 : 0;

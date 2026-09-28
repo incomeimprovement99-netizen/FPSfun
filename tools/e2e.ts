@@ -5259,7 +5259,7 @@ async function soldierTest(browser: Browser): Promise<void> {
     JSON.stringify(Object.fromEntries(Object.entries(wrists).map(([k, v]) => [k, Math.round(v)]))),
   );
   // BOOG's recharge in its scope (hud.json hsCharge): aimed in, a shot, and the ring round the aim point is drawn part
-  // closed; later READY (it was a sliver at the frame's edge, and the ring of the older scope never came across)
+  // closed; once it has closed, nothing more (the owner: no READY, the closed circle says it)
   const scopeRing = await ev<{ during: { ring: number; ready: boolean }; after: { ring: number; ready: boolean }; charge: number | null }>(
     page,
     `(async () => {
@@ -5285,7 +5285,8 @@ async function soldierTest(browser: Browser): Promise<void> {
       const during = { ...r.hud.hsChargeDrawn };
       const charge = r.gunFeel().charge;
       t0 = performance.now();
-      while (!r.hud.hsChargeDrawn.ready && performance.now() - t0 < 20000) await wait(15);
+      while (r.hud.hsChargeDrawn.ring < 1 && performance.now() - t0 < 20000) await wait(15);
+      await gameWait(0.3);
       const after = { ...r.hud.hsChargeDrawn };
       r.setScript(null);
       await gameWait(0.3);
@@ -5293,8 +5294,8 @@ async function soldierTest(browser: Browser): Promise<void> {
     })()`,
   );
   check(
-    "soldier guns: BOOG's scope draws its recharge as a ring round the aim point after a shot, then READY",
-    scopeRing.during.ring > 0 && scopeRing.during.ring < 1 && !scopeRing.during.ready && scopeRing.after.ready,
+    "soldier guns: BOOG's scope draws its recharge as a ring round the aim point after a shot, closing, and no READY once it has",
+    scopeRing.during.ring > 0 && scopeRing.during.ring < 1 && scopeRing.after.ring === 1 && !scopeRing.after.ready,
     JSON.stringify(scopeRing),
   );
   // the USSO wears the pack's reflex sight from the steady SMG (paidweapons.json mount; the pack has no sight

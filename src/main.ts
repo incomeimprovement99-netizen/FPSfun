@@ -7039,9 +7039,10 @@ function step(): void {
   vmCamera.fov = gunFov(hipH, adsH, ws.adsFrac, settings.fovScale, vmCfg.fovScale);
   // the bought arms are drawn at the field of view they were made for at the hip (fparms.json fov), the sight picture
   // aimed as every gun's: at ours, 92 degrees, the forearms and the gun's back end filled the bottom of the view
-  if (viewModel.packFov !== null) {
+  const pf = viewModel.packFov;
+  if (pf.weight > 0.001) {
     const aimed = gunFov(hipH, adsH, 1, settings.fovScale, vmCfg.fovScale);
-    vmCamera.fov = viewModel.packFov + (aimed - viewModel.packFov) * ws.adsFrac;
+    vmCamera.fov += (pf.hip + (aimed - pf.hip) * ws.adsFrac - vmCamera.fov) * pf.weight;
   }
   vmCamera.aspect = camera.aspect;
   vmCamera.updateProjectionMatrix();

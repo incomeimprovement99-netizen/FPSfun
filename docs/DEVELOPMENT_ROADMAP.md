@@ -5676,3 +5676,19 @@ and thats how we do it. i don't think i ever walked/run and not sprinted in hype
 - **Checked:** `tools/checks/sk-sprint.ts` (in verify): forward, right, back and left all at the sprint's speed,
   firing too, crouched not (with the old auto mode, strafing, backing and firing fell to 8.8 m/s, four failures);
   the SpeedKills e2e section (its sky check brought up to Milestone 288's third sky); verify; rules.
+
+## Milestone 295 — The gun held ready at a run; the swap's field of view eased; a quieter recharge ring
+
+The owner, 2026-09-27: "the guns are fucked up right now, when we are holding them they are all crossed and inverted";
+and of BOOG's scope, "make the recharging like 50% transparent and then don't have the green ready state".
+
+- **Crossed and inverted was the sprint pose**, seen all the time since SpeedKills always sprints (Milestone 294): the
+  bought arms' sprint swung the gun across the chest and onto its side (KINEMATION's tactical carry, 51 degrees), and
+  the view's own sprint pose lowered, rolled and swung every other gun. Now the USSO and BOOG keep their ready hold at
+  a run with the walk's bob (`fparms.json` sprint swing 0), and the other guns take 0.3 of their sprint pose
+  (`speedkills.json` viewmodel sprintPose).
+- **The swap's field of view** (`viewmodel.ts` packFov, `main.ts`): the gun camera eases between the bought arms' 80
+  degrees and the other guns' 92 over 0.2 s; it had jumped 12 degrees in one frame (measured: now 0.5 at most).
+- **BOOG's recharge ring** (`hud.json` hsCharge): half see-through, and nothing drawn once it has closed.
+- **Checked:** pictures at the owner's view running and strafing with the USSO, BOOG and ZEPHYR; the swap's field of
+  view frame by frame; the soldier e2e section (the ring's check now wants no READY); verify; rules.

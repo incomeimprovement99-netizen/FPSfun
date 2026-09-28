@@ -61,17 +61,17 @@
     "color": "#cfe6ff",
     "twinkle": 0.25
   },
-  "_hsCharge": "BOOG's recharge in its Hyper Scape scope (hud.ts drawHsScope): after a shot a ring `radius` of the screen's height round the aim point, `width` pixels thick at 1080p, closing clockwise from the top in `fill` over its `track` as the gun recharges, `charging` under it; when it can fire again the ring and `readyText` flash in `ready` and fade over `flash` s. Where the eye already is, so it is read without looking away (the owner, 2026-09-27: \"when the user can shoot again, I thought we agreed on having a bar there\"); it had been a 90 by 4 pixel bar at the frame's left edge. Ours.",
+  "_hsCharge": "BOOG's recharge in its Hyper Scape scope (hud.ts drawHsScope): after a shot a ring `radius` of the screen's height round the aim point, `width` pixels thick at 1080p, closing clockwise from the top in `fill` over its `track` as the gun recharges, `charging` under it; when it can fire again the ring and `readyText` flash in `ready` and fade over `flash` s. Where the eye already is, so it is read without looking away (the owner, 2026-09-27: \"when the user can shoot again, I thought we agreed on having a bar there\"); it had been a 90 by 4 pixel bar at the frame's left edge. Ours. The owner, 2026-09-27: half see-through, and no READY (\"they know it's ready when the circle is done\"): `fill` at 0.5, `track` at 0.11, `flash` 0 (none).",
   "hsCharge": {
     "radius": 0.05,
     "width": 4,
-    "track": "rgba(255,190,90,0.22)",
-    "fill": "rgba(255,190,90,0.95)",
+    "track": "rgba(255,190,90,0.11)",
+    "fill": "rgba(255,190,90,0.5)",
     "ready": "#7fe9ff",
     "text": 15,
     "charging": "RECHARGING",
     "readyText": "READY",
-    "flash": 0.6
+    "flash": 0
   },
   "_trails": "Movement trails behind every other player (src/game/trails.ts), Hyper Scape's: red behind enemies, blue behind mates, gold behind the crown's carrier. A ribbon `width` metres across, `lift` over the feet, a point every `step` metres the feet go, at most `points` of them, each fading over `seconds` (its players saw a trail linger 0.5 to 1 s after someone went invisible); a jump of more than `jump` metres between frames (a respawn, a DASH) starts it afresh; none past `maxDist` metres. Colours read off Hyper Scape's footage, by eye. The owner, 2026-09-27, of the \"red circle/bubble\" round enemies that made them hard to track: it was these. A bot dodging side to side in a fight laid its trail back and forth under its feet, a bright red zigzag smeared round the figure (a picture of one 8 m off, dodging 1.4 m). So a trail is laid only while the feet go `minSpeed` m/s or more (running; SpeedKills runs at 8.8 and sprints at 14), a turn back on itself (the way on against the way before below `turnBack`, a dot product) starts it afresh, it is `opacity` as bright, and it fades out as its player comes nearer than `near` metres (gone at the first, whole at the second), where the eye is on the figure itself.",
   "trails": {

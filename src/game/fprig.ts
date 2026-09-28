@@ -68,7 +68,7 @@ function sampleTrack(tr: AddTrack, time: number, pos: THREE.Vector3, quat: THREE
 const FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
 
 /** the pack's sprint on the gun: seconds after a shot before it comes back, and its easing in and out (fparms.json sprint) */
-export const LOCO = (cfg as unknown as { sprint: { fireHold: number; easeIn: number; easeOut: number } }).sprint;
+export const LOCO = (cfg as unknown as { sprint: { fireHold: number; easeIn: number; easeOut: number; swing: number } }).sprint;
 
 /** the gun camera's vertical field of view at the hip with these arms (fparms.json fov) */
 export const PACK_FOV = (cfg as unknown as { fov: number }).fov;
@@ -145,7 +145,7 @@ const loc = (m: THREE.Matrix4): THREE.Vector3 => new THREE.Vector3().setFromMatr
 
 export class PackArms {
   /** hung in the view's own group, so it shares its camera and scale */
-  readonly group = new THREE.Group();
+  readonly group = Object.assign(new THREE.Group(), { name: "pack-arms" });
   /** the clip's own motion of the gun, in our gun's frame: the view puts it between the holder and the gun */
   readonly gunDelta = new THREE.Group();
   ready = false;
@@ -367,7 +367,7 @@ export class PackArms {
     // the walk by our speed, the sprint only by `sprint` (0..1, the view's: off while firing, aiming or reloading). By speed
     // alone the sprint's swing, 51 degrees across the body, stayed on while firing on the move, as SpeedKills always
     // sprints moving forward, and the shots left a gun pointed away from the crosshair
-    const g = Math.min(1, speed / run) + (speed > run * 0.5 ? THREE.MathUtils.clamp(sprint, 0, 1) : 0);
+    const g = Math.min(1, speed / run) + (speed > run * 0.5 ? THREE.MathUtils.clamp(sprint, 0, 1) * LOCO.swing : 0);
     const w: Array<[AddClip | undefined, number]> = [
       [A.A_FP_Idle, Math.max(0, 1 - g)],
       [A.A_FP_Walk, g <= 1 ? g : 2 - g],
