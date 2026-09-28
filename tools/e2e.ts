@@ -30,6 +30,8 @@ import ringCfg from "../src/config/ring.json";
 import ammoCfg from "../src/config/ammo.json";
 import lootCfg from "../src/config/loot.json";
 import skCfg from "../src/config/games/speedkills.json";
+import fparmsCfg from "../src/config/fparms.json";
+import { readFileSync } from "node:fs";
 
 /** the arena modes' spawns (arena coordinates) */
 const MODE_SPAWNS = [...modesCfg.spawns.a, ...modesCfg.spawns.b, ...modesCfg.spawns.mid];
@@ -3258,6 +3260,242 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
 }
 
 /**
+ * The bought arms on the USSO and BOOG through each thing they do (the owner, 2026-09-28: "check all frames of the reload
+ * for pinpoint accuracy, and ensure the hands are the correct size and on the correct area at all times, not glitching
+ * through the gun at any point"; tools/pack-frames.ts is the long form, every 4% of each): the gun fitted into the hands
+ * the same on every draw, the magazine sliding out as it phases, the finger on its spot, the pack's own swap, pickup and
+ * jump played, and no skin through the gun where the eye sees it go in (tools/pack-audit.js), held, pointing, the new
+ * magazine in, racking, aimed, on the way out and in of a swap and taking something off the ground.
+ */
+async function packFrames(page: Page): Promise<void> {
+  await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
+  const RL = fparmsCfg.reload;
+  type Frames = { tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; pickLead: string; pickAfter: string };
+  // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
+  const res: { guns: Record<string, Frames>; jump: string[] } = { guns: {}, jump: [] };
+  for (const id of ["r97", "sentinel"]) {
+    res.guns[id] = await ev<Frames>(
+      page,
+      `(async () => {
+      const r = window.__range;
+      const T = r.THREE;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const gameWait = async (s) => {
+        const g0 = r.gameTime();
+        const t0 = performance.now();
+        while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
+      };
+      const hold = async (id) => {
+        r.loadout.give(0, id);
+        r.loadout.requestSwap(0, r.gameTime());
+        const t0 = performance.now();
+        let clearFrom = r.gameTime();
+        while (r.gameTime() - clearFrom < 0.6 && performance.now() - t0 < 30000) {
+          if (r.loadout.swapping || r.vmState().flourish) clearFrom = r.gameTime();
+          await wait(20);
+        }
+      };
+      const clear = () => {
+        r.debugView.reload = null;
+        r.debugView.raise = null;
+        r.debugView.ads = null;
+        r.packPickupAt(null);
+      };
+      // the magazine in its gun's own frame, in the view's metres (the gun turns over for the reload: in the world the
+      // turn read as more slide than there was)
+      const magAt = () => {
+        let m = null;
+        r.viewModelRoot().traverse((x) => { if (x.name === "mag" && !m) m = x; });
+        if (!m) return new T.Vector3();
+        let root = m;
+        while (root.parent && !root.userData.paid) root = root.parent;
+        const k = root.getWorldScale(new T.Vector3()).x / r.packRig().group.getWorldScale(new T.Vector3()).x;
+        return root.worldToLocal(m.getWorldPosition(new T.Vector3())).multiplyScalar(k);
+      };
+      const scale = () => r.packRig().group.getWorldScale(new T.Vector3()).x;
+      const id = ${JSON.stringify(id)};
+      r.debugView.inspect = -1;
+        const o = { tilt: [], through: {} };
+        // drawn, away, and drawn again: fitted the same (the second draw's fit had come out as no tilt)
+        const fingers = () => ["thumb_01_r", "middle_01_r", "index_02_l", "pinky_03_l"].map((n) => r.packRig().group.getObjectByName(n).quaternion.clone());
+        await hold(id);
+        o.tilt.push(r.packRig().tilt);
+        const first = fingers();
+        await hold(id === "r97" ? "sentinel" : "r97");
+        await hold(id);
+        o.tilt.push(r.packRig().tilt);
+        // (the grip's fingers after the other gun and back: the clips had stopped putting still bones back, and a hold
+        // depended on the guns drawn before it)
+        o.gripSame = Math.min(...fingers().map((q, i) => Math.abs(q.dot(first[i]))));
+        const rest = magAt();
+        r.debugView.reload = ${(RL.phaseOut[1] + RL.phaseIn[0]) / 2};
+        await gameWait(0.2);
+        o.slid = magAt().distanceTo(rest);
+        r.debugView.reload = 0.28;
+        await gameWait(0.2);
+        const s = r.packArms();
+        o.miss = Number.isFinite(s.pointMiss) ? s.pointMiss : 99;
+        o.off = s.pointOff;
+        clear();
+        await gameWait(0.3);
+        const states = [
+          ["held", () => {}],
+          ["pointing", () => { r.debugView.reload = 0.28; }],
+          ["new magazine in", () => { r.debugView.reload = 0.46; }],
+          ["racking", () => { r.debugView.reload = 0.78; }],
+          ["swap out", () => { r.debugView.raise = 0.12; }],
+          ["swap in", () => { r.debugView.raise = 0.88; }],
+          ["pickup", () => { r.packPickupAt(0.6); }],
+          ...(id === "r97" ? [["aimed", () => { r.debugView.ads = 1; }]] : []),
+        ];
+        for (const [name, set] of states) {
+          set();
+          await gameWait(0.35);
+          let worst = 0;
+          for (let i = 0; i < 3; i++) {
+            const a = window.__packAudit(0.004);
+            worst = Math.max(worst, a ? a.seenDeepest : 0);
+            await wait(120);
+          }
+          o.through[name] = worst;
+          clear();
+          await gameWait(0.3);
+        }
+        r.debugView.raise = 0.2;
+        await gameWait(0.2);
+        o.swapMove = r.packArms().swapMove;
+        o.swapHeld = Math.max(r.packArms().reachShort, r.packArms().reachShortR);
+        clear();
+        r.packPickupAt(0.4);
+        await gameWait(0.2);
+        o.pickLead = r.packArms().lead;
+        r.packPickupAt(null);
+        await gameWait(0.3);
+        o.pickAfter = r.packArms().lead;
+        r.debugView.inspect = null;
+        return o;
+      })()`,
+    );
+  }
+  // (the jump in a page of its own: in the section's, after the checks before it, the player left the ground and was
+  // never stepped again, where a fresh page jumps, loops and lands)
+  const jumpPage = await open(page.browser(), "?game=speedkills");
+  await jumpPage.waitForFunction("window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady()", { polling: 250, timeout: 120000 });
+  await jumpPage.bringToFront();
+  res.jump = await ev<string[]>(
+    jumpPage,
+    `(async () => {
+      const r = window.__range;
+      const T = r.THREE;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const gameWait = async (s) => {
+        const g0 = r.gameTime();
+        const t0 = performance.now();
+        while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
+      };
+      const hold = async (id) => {
+        r.loadout.give(0, id);
+        r.loadout.requestSwap(0, r.gameTime());
+        const t0 = performance.now();
+        let clearFrom = r.gameTime();
+        while (r.gameTime() - clearFrom < 0.6 && performance.now() - t0 < 30000) {
+          if (r.loadout.swapping || r.vmState().flourish) clearFrom = r.gameTime();
+          await wait(20);
+        }
+      };
+      const clear = () => {
+        r.debugView.reload = null;
+        r.debugView.raise = null;
+        r.debugView.ads = null;
+        r.packPickupAt(null);
+      };
+      // the magazine in its gun's own frame, in the view's metres (the gun turns over for the reload: in the world the
+      // turn read as more slide than there was)
+      const magAt = () => {
+        let m = null;
+        r.viewModelRoot().traverse((x) => { if (x.name === "mag" && !m) m = x; });
+        if (!m) return new T.Vector3();
+        let root = m;
+        while (root.parent && !root.userData.paid) root = root.parent;
+        const k = root.getWorldScale(new T.Vector3()).x / r.packRig().group.getWorldScale(new T.Vector3()).x;
+        return root.worldToLocal(m.getWorldPosition(new T.Vector3())).multiplyScalar(k);
+      };
+      const scale = () => r.packRig().group.getWorldScale(new T.Vector3()).x;
+      // a jump: the pack's start as you leave the ground, its end as you land
+      // (on the range's floor, landed: where the section left the player it was still in the air the whole time)
+      r.player.teleport(0, 0, 0, 0, 0);
+      await hold("r97");
+      // (the bought arms on the gun first: they come a moment after the page says it is ready)
+      const t1 = performance.now();
+      while (!r.packArms().on && performance.now() - t1 < 15000) await wait(50);
+      await gameWait(0.5);
+      const jump = [];
+      let f = 0;
+      // (in play for it: the section's page has its menu up, and the game steps no player while the menu is up, so the
+      // jump left the ground and never came down)
+      const overlay = document.getElementById("overlay");
+      const menuWasUp = !overlay.classList.contains("hidden");
+      const lockedWas = r.input.locked;
+      overlay.classList.add("hidden");
+      r.input.locked = true;
+      r.setScript({ held: (a) => a === "jump" && f < 3, pressedNow: (a) => a === "jump" && f < 2 }, () => { f++; });
+      // (2 s of the game's time, not the wall's: the e2e draws in software, a few frames a second, and 2.5 s of the wall
+      // was half a second of game, the jump still in its start)
+      const g0 = r.gameTime();
+      const t0 = performance.now();
+      while (r.gameTime() - g0 < 2 && performance.now() - t0 < 90000) {
+        const p = r.packArms().jumpPart + (r.packArms().on ? "" : "(arms off)") + (r.player.onGround ? "" : "~");
+        if (jump[jump.length - 1] !== p) jump.push(p);
+        await wait(15);
+      }
+      r.setScript(null);
+      r.input.locked = lockedWas;
+      if (menuWasUp) overlay.classList.remove("hidden");
+      return jump;
+    })()`,
+  );
+  await jumpPage.close();
+  await page.bringToFront();
+  const g = Object.values(res.guns);
+  const show = (f: (x: Frames) => unknown) => JSON.stringify(Object.fromEntries(Object.entries(res.guns).map(([k, x]) => [k, f(x)])));
+  check(
+    "pack frames: the USSO and BOOG are fitted into the bought hands the same on every draw (it had been only the first)",
+    g.length === 2 && g.every((x) => x.tilt[0] > 0.05 && Math.abs(x.tilt[0] - x.tilt[1]) < 1e-4),
+    show((x) => x.tilt.map((v) => +((v * 180) / Math.PI).toFixed(2))),
+  );
+  check(
+    "pack frames: drawn after the other gun, the hands hold the USSO and BOOG with the same grip as on the first draw",
+    g.every((x) => x.gripSame > 0.9999),
+    show((x) => +x.gripSame.toFixed(6)),
+  );
+  check(
+    `pack frames: between its phase out and in the magazine has slid ${RL.slide} m out of the gun (the owner: "drop out and pixelate ... slide in")`,
+    g.every((x) => x.slid > RL.slide * 0.8 && x.slid < RL.slide * 1.2),
+    show((x) => +x.slid.toFixed(3)),
+  );
+  check(
+    "pack frames: the pointing finger's tip is on its spot (within 1 cm) and points at the magazine (within 10 degrees)",
+    g.every((x) => x.miss < 0.01 && x.off < 10),
+    show((x) => ({ cm: +(x.miss * 100).toFixed(1), deg: +x.off.toFixed(1) })),
+  );
+  check(
+    // (the pack's hands are made for thinner grips than ours: the right thumb still presses 9 mm into the side of the grip
+    // as the gun turns over for the reload, fitted as far as it goes without the far side's fingers showing; tools/pack-fit.ts)
+    "pack frames: no skin through the gun deeper than 1 cm where it is seen, held, pointing, the new magazine in, racking, aimed, swapping and picking up",
+    g.every((x) => Object.values(x.through).every((d) => d <= 0.01)),
+    show((x) => Object.fromEntries(Object.entries(x.through).map(([k, d]) => [k, Math.round(d * 1000)]))),
+  );
+  check(
+    "pack frames: a swap is the pack's own, the gun swung away 10 cm and more with both hands still on it (neither arm 1 cm short)",
+    g.every((x) => x.swapMove > 0.1 && x.swapHeld < 0.01),
+    show((x) => ({ move: +x.swapMove.toFixed(2), short: +(x.swapHeld * 100).toFixed(1) })),
+  );
+  check("pack frames: taking something off the ground plays the pack's pickup, and the hold comes back after", g.every((x) => x.pickLead === "pickup" && x.pickAfter === "pose"), show((x) => [x.pickLead, x.pickAfter]));
+  const js = res.jump.join(" ");
+  check("pack frames: a jump plays the pack's start as you leave the ground and its end as you land", /start.*end/.test(js), js);
+}
+
+/**
  * The practice aim bot: it pulls the view onto a target you are not looking
  * straight at, it takes nothing it cannot see, and anyone running it is
  * marked on everyone else's screen.
@@ -5117,7 +5355,7 @@ async function soldierTest(browser: Browser): Promise<void> {
   // degrees at the middle); from empty the charging handle goes back, the left hand on it (its knuckle within 12 cm of
   // our handle as it moves), and afterwards the hand is back on the gun. Without the pack's files, the view's own:
   // rolled over by gunfeel.json reload.twist, the support hand on the handle for the rack (rackHand)
-  type Point = { miss: number; lead: string; turn: number; rackLead: string; held: number; swapped: number; shortHip: number; shortAimed: number };
+  type Point = { miss: number; lead: string; turn: number; rackLead: string; rackBack: number; rackHand: number; held: number; swapped: number; shortHip: number; shortAimed: number };
   const twistPoint = await ev<{ pack: boolean; roll: Record<string, number>; point: Record<string, Point> }>(
     page,
     `(async () => {
@@ -5168,9 +5406,11 @@ async function soldierTest(browser: Browser): Promise<void> {
           r.debugView.reload = 0.28;
           await gameWait(0.2);
           const s = r.packArms();
-          r.debugView.reload = 0.75;
+          r.debugView.reload = 0.78;
           await gameWait(0.2);
           const rackLead = r.packArms().lead;
+          const rackBack = r.packArms().handleBack;
+          const rackHand = r.packArms().leftToHandle;
           r.debugView.reload = null;
           await gameWait(0.2);
           r.debugView.raise = 0.5;
@@ -5178,7 +5418,7 @@ async function soldierTest(browser: Browser): Promise<void> {
           const swapped = r.packArms().handsBelow;
           r.debugView.raise = null;
           // (no point is Infinity, which comes out of the page as null, and null < 0.06 holds: so 99 m)
-          point[id] = { miss: Number.isFinite(s.pointMiss) ? s.pointMiss : 99, lead: s.lead, turn: s.gunTurn, rackLead, held, swapped, shortHip, shortAimed };
+          point[id] = { miss: Number.isFinite(s.pointMiss) ? s.pointMiss : 99, lead: s.lead, turn: s.gunTurn, rackLead, rackBack, rackHand, held, swapped, shortHip, shortAimed };
         }
         r.debugView.reload = null;
         await gameWait(0.2);
@@ -5259,10 +5499,12 @@ async function soldierTest(browser: Browser): Promise<void> {
       pt.length === 2 && pt.every((p) => p.miss < 0.06 && p.lead === "pose" && p.turn < 5),
       show((p) => ({ miss: +(p.miss * 100).toFixed(1), lead: p.lead, turn: +p.turn.toFixed(1) })),
     );
+    // (the USSO's by its own grab of its handle, at the back of the gun: the MPS5's empty reload is made for a handle at the
+    // front, and carried over the left hand filled a third of the view; fparms.json packGuns MPS5 rack grab)
     check(
-      "soldier guns: after the phase the pack's hands work the gun, the USSO's empty reload and the BOOG's bolt",
-      twist.point.r97?.rackLead === "reloadEmpty" && twist.point.sentinel?.rackLead === "fire",
-      show((p) => p.rackLead),
+      "soldier guns: after the phase the hands work the gun, the USSO's left hand holding its handle back (within 6 cm of it), BOOG's bolt thrown by the pack's own",
+      twist.point.r97?.rackBack > 0.9 && twist.point.r97?.rackHand < 0.06 && twist.point.sentinel?.rackLead === "fire",
+      show((p) => ({ lead: p.rackLead, back: +p.rackBack.toFixed(2), hand: +(p.rackHand * 100).toFixed(1) })),
     );
     // (the owner: "the guns fly in and out but the arms stay in a weird position")
     check(
@@ -5275,6 +5517,7 @@ async function soldierTest(browser: Browser): Promise<void> {
       !!twist.rack && twist.rack.back > 0.9 && twist.rack.hand < 0.12 && twist.rack.after > 0.05,
       JSON.stringify(twist.rack),
     );
+    await packFrames(page);
   } else {
     check("soldier guns: part way through a reload the USSO and BOOG are rolled over, the underside toward you", twist.roll.r97 < -0.7 && twist.roll.sentinel < -0.6, JSON.stringify(twist.roll));
     check(

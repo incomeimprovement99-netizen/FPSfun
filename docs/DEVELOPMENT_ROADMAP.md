@@ -5851,3 +5851,65 @@ nothing to climb and little in its middle.
   nodes); `citykit.ts` counts Neon Alley's stands apart from the kiosks'; the e2e sections speedkills, sktour and
   skship (one speedkills check, a bot's route to the capture zone read after 3 s, failed while the halls check ran
   beside it and passed alone); pictures from the floor and the gallery.
+
+## Milestone 302 — The USSO and BOOG checked frame by frame: the magazine slides, the finger lands, the rack grabbed, no hand through a gun; the pack's swap, jump and pickup
+
+The owner, 2026-09-28: the finger "down and left more on both, not by too much"; the magazine to "drop out and pixelate,
+and then pixelate and slide in with a distance from start to end"; "check all frames of the reload for pinpoint
+accuracy, and ensure the hands are the correct size and on the correct area at all times, not glitching through the gun
+at any point"; "look for more things we can do with it, especially when we swap guns"; and "we for sure want to use all
+the pack parts we can on those two guns and if we don't like any we remove it".
+
+- **Every frame, measured** (`tools/pack-frames.ts`, `tools/pack-audit.js`): each sequence (the reload, the swap, the way
+  into the sights, the pickup) stepped 4% at a time at the owner's view, as contact sheets with each frame's faults written
+  on it: where the finger points and how far off, each wrist's bend, an arm short of the gun, and how much of the hands'
+  skin is inside the gun where the eye sees it go in (each hand vertex against its nearest point of each gun part's
+  surface; a point behind every face it is nearest is inside; the entry point in the picture and not hidden by the gun
+  itself). The test proves itself on each frame: under the biggest part's top face is inside, over it is not. `XRAY=1`
+  draws the gun as wire and each point inside red (seen) or yellow (hidden). Two faults in the first test, both caught by
+  its own proof: rays counting crossings were fooled by the models' inner shells, and a part mirrored in the scene winds
+  its faces the other way.
+- **The magazine slides** (`fparms.json` reload slide): the old one drops `slide` down its own length as it phases out,
+  the new one rises from there into the gun as it phases in; the phase's sweep follows it, and the finger follows it.
+- **The finger** lands on its spot (0.0 cm, pointing 0 degrees off it, where it had been 4 cm off and 70 degrees off: the
+  hand was aimed by its middle knuckle and placed by the finger's last joint, which is short of the tip), `shift` left and
+  down of the magazine.
+- **The USSO's rack is a grab** (`packGuns` MPS5 rack grab): the MPS5's empty reload is made for a handle at the front of
+  its gun; the USSO's is at the back, and carried over the left hand came to 27 cm from the eye and filled a third of the
+  view for a fifth of the reload. Now the left hand takes the pack's own grip on its handle (the moment of its clip when
+  the hand is nearest the handle, measured once a gun), onto ours, turned round the gun's length to the straightest wrist,
+  out round the gun's side on the way, pulls it back and lets it slam home. The gun goes straight from the point's turn to
+  the rack's (`rackBlend`): back to the hold between them it had jumped in 40 ms.
+- **The holds fitted to our guns** (`tools/pack-fit.ts`, `packGuns` hold): the pack's hands are made for its guns' grips
+  and ours are thicker. At the hip, turned for the reload and aimed: each palm moved out of the gun, each finger tried
+  from curled tighter to opened and turned at its base (judged by the whole hand: a finger shares skin with the next at
+  the knuckle), and last each hand moved along the gun's axes to where the least of it is through the gun where it is
+  seen (a finger pressed into a grip's far side is hidden behind the gun). The USSO's left hand is clear of its gun;
+  BOOG's right hand, throwing the bolt, 12 mm out (its rack `shift`) where the glove had been 15 mm into the body. What
+  is left: the right thumb presses 9 mm into the side of either grip as the gun turns over for the reload, which no
+  curl, turn or move of the hand takes out without the far side's fingers coming through.
+- **The gun fitted the same on every draw** (`fprig.ts` underside): the fit tilts our gun about the trigger until its
+  underside meets the pack's left palm (10 degrees on the USSO, 12 on BOOG), measured by a ray up at the gun. The view
+  draws its gun on a layer of its own, and the ray on the default layer found the gun only on its first draw, before it
+  was moved there: from the second draw of either gun on, the tilt was none and the left palm off the gun. It was live
+  since the bought arms shipped, and it is why two measurements of the same hold had disagreed.
+- **The pack's clips put on the bones every frame** (`fprig.ts` update): three.js's mixer writes a bone only when its
+  value has changed since the frame before, and a hold is a still, so from its second frame on nothing put the bones
+  back and all the rig does to them after the clips stacked up: a finger curled a tenth a frame wandered, the arm's
+  reach bent its elbow the way the last frame had left it, and a hold depended on the guns drawn before it (the right
+  thumb 6 mm into the USSO's grip after one order, 16 after another). BOOG's drifting right arm yesterday was the same,
+  fixed then for the shoulders alone. Now every bone goes back where the body was made each frame and the mixer is
+  made to write them all.
+- **The pack's swap** (`swap clips`): its Rifle_Unequip as the gun phases out, the gun swung down and in to the chest in
+  both hands (29 cm across, 34 cm in, turned 58 degrees, measured off its curves), and its Rifle_Equip bringing the next
+  up out of there as it phases in, the one into the other over `cross` of the swap either side of its middle. The arms
+  drop out of the picture only once the gun has all but gone (`dropFrom`): dropped from the start, they left the gun
+  flying on its own. The view's own spin is off under it: it turned the gun inside the hands, a hand 19 mm through it.
+- **The pack's jump**: its start as you leave the ground and its end as you land, around the loop in the air.
+- **The pack's pickup** (`pickup`): taking anything off the ground but a gun (`main.ts` applyLoot), the left hand goes
+  down for it and back, with half the clip's own move of the gun (all of it tipped the gun onto its side and bent the
+  right wrist to 88 degrees).
+- **Checked:** the e2e's pack frames (`E2E_ONLY=soldier`): the fit and the grip the same on a second draw, the magazine slid, the
+  finger on its spot, no skin through the gun deeper than 6 mm where it is seen in eight states on each gun, the pack's
+  swap, pickup and jump played; contact sheets of every 4% of the reload, the swap, the way into the sights and the
+  pickup on both guns; verify; rules.

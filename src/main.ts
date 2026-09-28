@@ -4351,6 +4351,8 @@ let watchName = "";
  */
 function applyLoot(it: LootItem): void {
   const d = duel instanceof BrMatch ? duel : null;
+  // the hands take it off the ground (a gun comes into them by the swap instead)
+  if (it.kind !== "weapon") viewModel.pickup();
   // a care package's loot: its EVO, once a package
   if (it.pod !== undefined && !podsPaid.has(it.pod)) {
     podsPaid.add(it.pod);
@@ -7954,6 +7956,11 @@ initWelcome();
   gunFeel: () => viewModel.feelState,
   /** the bought first-person arms (fprig.ts): which pack gun holds ours, drawn or not, the wrists' bends */
   packArms: () => viewModel.packState,
+  packRig: () => viewModel.packRig,
+  /** hold the bought arms' pickup at a share of it (null: as the game has it) */
+  packPickupAt: (u: number | null) => {
+    viewModel.pickupHold = u;
+  },
   /** how many movement trails are drawn now (trails.ts) */
   trailCount: () => trails.count,
   /** a hack's cast in the hands (hackcast.ts): how far up the hand is and whether it has tapped */
