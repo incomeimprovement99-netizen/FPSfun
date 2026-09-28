@@ -18,9 +18,11 @@ a question. Do it, measure it, and say what you found.
 
 Each item: **build it, test it, document it, commit it, ship it**, then pick up the next.
 
-- **Tests**: `npm run verify` and `npm run rules` on every change. Before a release, the three e2e batches
-  (`$TEMP/run-e2e.sh apex-net 5194 <tag>`) and a rerun, alone, of any section that failed, and `npm run fit`
-  (the picture test that counts body showing through clothes). Both deploys refuse to build if verify or
+- **Tests**: `npm run verify` and `npm run rules` on every change. e2e only for the new code: the one section the
+  change touches (`E2E_ONLY=<section>`), and a rerun, alone, of a check that failed. The full e2e batches
+  (`$TEMP/run-e2e.sh apex-net 5194 <tag>`) and `npm run fit` run once a day, as the regression sweep, not per
+  release (the owner, 2026-09-27: "stop with the e2e tests, only run e2e tests on specifically new code, we can once a
+  day check for regressions with the full e2e"). Both deploys refuse to build if verify or
   rules fail (`tools/release-gate.ts`). A new check is proven by putting the bug back and watching it fail. Never edit `src/`
   or the README in a worktree while that worktree's e2e is running - the run is invalid if you do.
 - **Docs**: a `docs/DEVELOPMENT_ROADMAP.md` milestone per shipped feature, a diary entry in
