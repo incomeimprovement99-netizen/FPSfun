@@ -122,5 +122,42 @@
       "watch": 14,
       "enemy": 6
     }
+  },
+  "_colors": "Each member of a squad has a colour and a number, the same on every screen in the squad (Phase 27, the owner: \"Color code them by blue, green, orange, white ... with a number, like 1 or 3 so its more distinguishable\"). The numbers go to the squad's player ids in order (squadview.ts squadSlots), so two screens that know the same ids agree without a word sent. Blue is the teammates' trail blue already (hud.json trails); the orange is kept well off the enemy red (#ff2a3a) of the aim outline and the enemy trails, and the white is a little under full white so the outline drawn in it does not cross the bloom's threshold (render.ts, 0.95) and glow. A squad of more than four goes round the list again.",
+  "colors": [
+    {
+      "name": "BLUE",
+      "hex": "#3aa8ff"
+    },
+    {
+      "name": "GREEN",
+      "hex": "#45d97a"
+    },
+    {
+      "name": "ORANGE",
+      "hex": "#ff9433"
+    },
+    {
+      "name": "WHITE",
+      "hex": "#eef2f6"
+    }
+  ],
+  "_mates": "How your squad is shown to you (Phase 27, the owner: \"his model should always be visible in an outline with a small name above him in the color that he is\"). `outline` is the ring round a teammate, through walls: px is its width in screen pixels whatever the distance (the enemy outline's rule, speedkills.json feel.outline), min and max in metres bound it close up and far off. `tag` is the name over them: at any distance, with their shield and health under it within `bars` metres (the plates' 30, hud.json plates) and how far they are from `distFrom` metres, lifted `lift` metres over their feet. `quiet` is how long a teammate may say nothing before their row says the connection is lost: a player standing still sends a keyframe every 2 s (net.json keyframe), up to 5 s apart across the host's relay, and duel.ts drops them at 10. `hurt` is how long a teammate's row flashes after they lose health or shield, and `chip` how long the part they lost stays drawn before the bar drains to it, which is how a squad sees that one of it is in a fight.",
+  "mates": {
+    "outline": {
+      "px": 1.6,
+      "min": 0.006,
+      "max": 0.06
+    },
+    "tag": {
+      "font": 13,
+      "badge": 15,
+      "bars": 30,
+      "distFrom": 20,
+      "lift": 2.05
+    },
+    "quiet": 6,
+    "hurt": 0.6,
+    "chip": 0.8
   }
 }

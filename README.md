@@ -224,6 +224,16 @@ Game) or `?game=legacy`, and everything below this section describes it.
   - After that you are a ghost: fast, unseen, no gun.
   - A squad mate restores you at your echo in 5 s, three times slower if you
     wander more than 12 m away. Two restores a match.
+- **Your squad, always in sight:** each of you has a colour and a number, the
+  same on every screen (1 blue, 2 green, 3 orange, 4 white). Your teammates'
+  rows sit over your own health, bordered in their colour: name, shield and
+  health (a hit flashes the row and the part it took drains away), how far off,
+  or what has happened to them instead (in the Gulag, a ghost to restore at
+  their echo, out, the connection lost, gone). Each teammate has a thin ring in
+  their colour that shows through walls, their name over them at any distance,
+  their number on the compass and the map, and the feed, the middle of the
+  screen and your character's voice say it whenever one goes to the Gulag,
+  loses it, comes back, is out or drops.
 - **Bots** in five tiers (Beginner, Casual, Skilled, Advanced, Extreme), on a
   player's health, with Heal and Dash by tier. The better ones now and then
   take the high ground: up a low tower's stairs to its roof, held a while.
@@ -1109,6 +1119,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run server` | run the game's server here on :4100 (after `build:beta`) |
 | `npm run live` | opens the deployed site in two browser pages and plays a 1v1 over the real broker (`LIVE_URL`, and `BROKER=own` on our server). Must print LIVE CHECK PASS. |
 | `npx tsx tools/net-cost.ts` | what a match costs the host's upload, read from WebRTC's own counters over the real peer to peer path: a 1v1 running and standing, team deathmatch with bots, a battle royale squad with eleven bots. `HOST_URL` and `GUEST_URL` measure two builds against each other (needs `npm run dev`) |
+| `npx tsx tools/squad-shots.ts [dir]` | pictures of the squad view drawn for real from two pages in one SpeedKills squad: the panel, the name and the ring round a teammate (through a wall too), a hit on their row, far off with the compass and the map, their Gulag, their ghost, their restore and their leaving, each with what the HUD was given (`SHOT_URL`, needs `npm run dev`; a real GPU) |
 
 Before a push: `npm run verify`, `npm run e2e` (with `npm run dev` running in
 another terminal), `npm run rules`, `npm run build:beta`. Do not edit `src/`

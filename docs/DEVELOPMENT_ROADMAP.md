@@ -6227,3 +6227,38 @@ Phase 26 (`docs/PHASE_26_PLAN_FINISH_THE_CORNER.md`), items 26.1 to 26.3, the ow
 - **Checked:** verify and rules; the e2e sections speedkills (the slam; one check of a death box's contents failed
   beside it and passed on the rerun) and sktour (the wall run); `sk-district.ts` with the drop check, proven on the live
   collision.
+
+## Milestone 316 — The squad you can see: a colour and a number each, a panel over your health, a ring through walls, and every change of state said
+
+The owner, 2026-09-28: "When i have my friend join and play a BR mode with me, I should be seeing his name, health and
+stuff right above mine, like the rest of the BRs do, his model should always be visible in an outline with a small name
+above him in the color that he is. Color code them by blue, green, orange, white ... the bottom left should have their
+color bordering it with a number ... We should be very aware that we are playing with a friend and should have all the
+indicators of that, like if a tm8 died or goes down or anything like that." SpeedKills only; the legacy game is as it
+was. See PHASE_27_PLAN_THE_SQUAD_AND_THE_SOLDIER.md, items 27.1 to 27.5.
+
+- **A colour and a number each** (`src/game/squadview.ts`, `squad.json` colors): 1 blue, 2 green, 3 orange, 4 white, by
+  player id, which every screen in the squad already shares, so both agree with nothing sent; given once a match and
+  kept by anyone who leaves. The orange is held 30 degrees of hue off the enemy red, the white under the bloom's
+  threshold so its ring does not glow.
+- **The squad panel** (`hud.ts` drawSquadPanel, `hud.json` layouts.speedkills.squad): a row a teammate over your own
+  bars, bordered in their colour with their number on it: name, distance, the shield's segments and the health bar; a
+  hit flashes the row and the part it took drains away over 0.8 s; or in their place IN THE GULAG, GHOST: RESTORE AT
+  THEIR ECHO, OUT, CONNECTION LOST, LEFT THE MATCH. Your own number in your colour beside your own health.
+- **A ring through walls** (`outline.ts` MateOutline): with no stencil on the canvas or in the post chain, the depth
+  buffer cuts it: the figure to the depth buffer only at the nearest depth, then its hull only where that depth is not,
+  so it is a rim round them through anything, 1.6 pixels wide at any distance, and never a filled shape.
+- **A name over them** at any distance, in their colour with their number, bars within 30 m, the distance past 20 m, over
+  the ghost when they are one; their number on the compass (at the strip's end with an arrow off it) and on both maps.
+- **The news** (`squadview.ts` mateNews): the feed in their colour and a line in the middle for the Gulag, a win or loss
+  in it, a ghost, a restore, out, the connection lost and back, and leaving; the character says the ones worth saying
+  (three new lines in `announcer.json`).
+- **Found and fixed on the way:** a teammate's health and shield only ever went down on your screen (and an enemy's
+  plate the same): a packet is now taken up as well as down a second after your last hit on them (`net.json` hitTrust).
+  A player's stage of life (the Gulag, a ghost, out) goes on the state as one optional field at the end of the delta
+  keys (`state.ts` lf), which an older build ignores. The "no restores left" word, sent with no place, was dropped
+  before it was read; it is read first now.
+- **Checked:** `tools/checks/squadview.ts` in verify, seen failing with the old health rule and with the new key put
+  mid-list; the e2e `sksquad` section, two real pages in one squad through every state, seen failing with the old
+  health rule; and `tools/squad-shots.ts`, the pictures, drawn for real from both screens. verify, rules, the sksquad and
+  p2p sections.

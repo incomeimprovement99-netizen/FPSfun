@@ -60,6 +60,7 @@ import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, t
 import finCfg from "./config/finisher.json";
 import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
+import { LIFE_WIRE, SquadWatch, type MateNow } from "./game/squadview";
 import { buildCityMap, cityDecay, cityEdge, SECTORS, ROOF_ROUTES, SPIRE_TOP, CITY_GROUND } from "./game/city";
 import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
 import { EDGE_ID } from "./game/causes";
@@ -2946,6 +2947,8 @@ function platesNow(d: NonNullable<typeof duel>, now: number): Plate[] {
     const r = d.remoteOf(a);
     if (!r || !a.group.visible) continue;
     const ally = d instanceof Duel && d.isAlly(r.id);
+    // a teammate on the squad panel has their name over them in their colour instead (hud.ts drawMateTags)
+    if (ally && lastSquad && squadWatch.slotOf(r.id) !== null) continue;
     // the aim bot's mark is shown whatever the plate rules say
     if (!ally && !r.aimbot) {
       if (now - (damagedAt.get(r.id) ?? -Infinity) >= hudCfg.plates.afterHit) continue;
@@ -2956,6 +2959,92 @@ function platesNow(d: NonNullable<typeof duel>, now: number): Plate[] {
   }
   return out;
 }
+/**
+ * Your squad as the HUD shows it (Phase 27, squadview.ts): a row a teammate
+ * over your own health, a name over each of them and their ring through
+ * walls, all in their colour, and the news whenever one of them goes to the
+ * Gulag, becomes a ghost, comes back, is out or drops. SpeedKills only.
+ */
+let squadWatch = new SquadWatch();
+let squadOf: object | null = null;
+/** the squad the HUD was last given (tools/e2e.ts reads it) */
+let lastSquad: HudState["squad"] = null;
+/** the teammates whose figures carry a ring this frame, so one that leaves the squad's view loses it */
+const ringed = new Set<Dummy>();
+function squadNow(d: BrMatch, now: number): HudState["squad"] {
+  if (squadOf !== d) {
+    squadWatch = new SquadWatch();
+    squadOf = d;
+  }
+  // the squad: everyone the match's welcome numbered on your side, and anyone of it heard since (once each: a
+  // teammate is usually both, and was drawn as two rows)
+  const idSet = new Set([d.id]);
+  for (let i = 0; i < d.players; i++) if (d.isAlly(i)) idSet.add(i);
+  for (const a of d.avatars) {
+    const r = d.remoteOf(a);
+    if (r && d.isAlly(r.id)) idSet.add(r.id);
+  }
+  const ids = [...idSet];
+  squadWatch.members(ids);
+  if (!squadWatch.squad) return null;
+  // the clock duel.ts notes a packet's arrival by (Remote.lastHeard)
+  const wall = realNow();
+  const talking = new Set(hudVoice?.talking ?? []);
+  const me = player.pos.clone();
+  const mates: MateNow[] = [];
+  const figures = new Map<number, { r: Remote; at: THREE.Vector3; ghost: boolean }>();
+  for (const id of ids) {
+    if (id === d.id) continue;
+    const r = d.remoteById(id);
+    if (!r) {
+      // numbered but never heard: not in yet; heard once and gone since: they left
+      if (squadWatch.heard(id)) mates.push({ id, name: squadWatch.nameOf(id), facts: { alive: false, downed: false, gulag: false, quietFor: 0, gone: true }, health: 0, healthMax: HEALTH_MAX, shield: 0, shieldMax: 0, dist: null, talking: false });
+      continue;
+    }
+    const last = r.samples[r.samples.length - 1];
+    const ghost = r.life === LIFE_WIRE.ghost;
+    // a ghost is where its player is, not where its body fell
+    const at = ghost && last ? new THREE.Vector3(last.x, last.y, last.z) : r.avatar.group.position.clone();
+    const quietFor = d.held.has(id) ? Infinity : wall - r.lastHeard;
+    mates.push({ id, name: r.name, facts: { lf: r.life, alive: r.alive, downed: r.downed, gulag: d.inGulag(id), quietFor, gone: false }, health: r.health, healthMax: HEALTH_MAX, shield: r.shield, shieldMax: r.shieldMax, dist: last ? me.distanceTo(at) : null, talking: talking.has(r.name) });
+    squadWatch.hear(id, r.name);
+    figures.set(id, { r, at, ghost });
+  }
+  const { rows, news } = squadWatch.step(mates, now);
+  for (const n of news) {
+    const color = squadWatch.colorOf(n.id) ?? "#ffffff";
+    hud.feed(n.feed, gameTime, color);
+    if (n.notice) hud.notice(n.notice, gameTime, 2.5);
+    if (n.cue) announcer.say(n.cue, realNow());
+  }
+  // the ring round each teammate who is here to see (not in the Gulag, not out), a set width on the screen
+  const M = squadCfg.mates;
+  const tags: NonNullable<HudState["squad"]>["tags"] = [];
+  const seen = new Set<Dummy>();
+  for (const row of rows) {
+    const f = figures.get(row.id);
+    if (!f) continue;
+    const here = row.life === "up" || row.life === "down" || row.life === "quiet";
+    const fig = f.r.avatar;
+    if (here && fig.group.visible && row.dist !== null) {
+      const perPx = (2 * Math.tan((camera.fov * DEG) / 2) * Math.max(1, row.dist)) / Math.max(1, window.innerHeight);
+      fig.setMateOutline(parseInt(row.color.slice(1), 16), Math.max(M.outline.min, Math.min(M.outline.max, M.outline.px * perPx)));
+      seen.add(fig);
+    }
+    if (here || row.life === "ghost") tags.push({ id: row.id, world: f.at.clone().setY(f.at.y + M.tag.lift), slot: row.slot, color: row.color, name: row.name, life: row.life, health: row.health, shield: row.shield, shieldMax: row.shieldMax, dist: row.dist ?? 0 });
+  }
+  for (const fig of ringed) if (!seen.has(fig)) fig.setMateOutline(null);
+  ringed.clear();
+  for (const fig of seen) ringed.add(fig);
+  const mySlot = squadWatch.slotOf(d.id);
+  return { me: mySlot === null ? null : { slot: mySlot, color: squadWatch.colorOf(d.id)! }, rows, tags };
+}
+/** the ring off every teammate, when the squad is not shown (out of a match, the killcam) */
+function clearSquadRings(): void {
+  for (const fig of ringed) fig.setMateOutline(null);
+  ringed.clear();
+}
+
 /** the knocks already paid (a figure can be reported twice: down, then out) */
 const evoPaid = new Map<number, number>();
 /** your revives this match (the first two pay 100, then less) and the care packages already paid */
@@ -3516,6 +3605,9 @@ function stepGhosts(): void {
         ghostFigs.set(r.id, m);
       }
       m.position.set(last.x, last.y + 0.95, last.z);
+      // in the teammate's own colour, as their name over it is (Phase 27)
+      const col = squadWatch.colorOf(r.id);
+      if (col) (m.material as THREE.MeshBasicMaterial).color.set(col);
     }
   }
   for (const [id, m] of ghostFigs) {
@@ -4032,6 +4124,12 @@ function skZoneLabel(d: BrMatch): string {
 /** someone else's hack, as their page told everyone (the kinds by number: 1 slam, 2 leap, 3 heal, 4 armour, 5 invisibility, 6 a mine, 7 a slam's landing, 8 a mine going off) */
 function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: THREE.Vector3 | undefined): void {
   const d = duel;
+  // that squad mate has had their two restores: their box is not offered again. It comes with no place (brmatch.ts
+  // respawnHere), so it is read before the rest, which all need one; below the check it was never read at all.
+  if (n === 9) {
+    if (d instanceof BrMatch) d.noRestores.add(from);
+    return;
+  }
   if (!a) return;
   switch (n) {
     case 1:
@@ -4069,10 +4167,6 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       mines.push({ at: a.clone(), armAt: Infinity, until: gameTime + H.mine.life, mesh, mine: false });
       break;
     }
-    case 9:
-      // that squad mate has had their two restores: their box is not offered again
-      if (d instanceof BrMatch) d.noRestores.add(from);
-      break;
     case 7:
     case 8: {
       audio.blast(n === 7 ? "arcstar" : "frag", a);
@@ -4764,8 +4858,11 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     // a squad mate's Gulag: in it, back from it, or out
     if (k === "gulag" && typeof n === "number" && d instanceof BrMatch) {
       d.hearGulag(from, n);
-      const who = d.nameFor(from);
-      hud.notice(n === 1 ? `${who} IS IN THE GULAG` : n === 2 ? `${who} WON THE GULAG AND IS DROPPING BACK IN` : `${who} LOST IN THE GULAG`, gameTime, 2.5);
+      // SpeedKills' squad panel says it, with what comes after (squadview.ts mateNews); the legacy game says it here
+      if (!IS_SK) {
+        const who = d.nameFor(from);
+        hud.notice(n === 1 ? `${who} IS IN THE GULAG` : n === 2 ? `${who} WON THE GULAG AND IS DROPPING BACK IN` : `${who} LOST IN THE GULAG`, gameTime, 2.5);
+      }
       return;
     }
     if (k === "rcon" && a && typeof n === "number" && d instanceof BrMatch) {
@@ -7853,6 +7950,8 @@ function step(): void {
           }
         : null,
     callout: calloutNow,
+    // the squad before the plates: a teammate the squad shows has its name tag, not a plate
+    squad: (lastSquad = IS_SK && duel instanceof BrMatch && !killcam.active ? squadNow(duel, now) : (clearSquadRings(), null)),
     plates: duel ? (lastPlates = platesNow(duel, now)) : (lastPlates = []),
     stance: player.stance,
     speedMs: player.speed,
@@ -8045,6 +8144,10 @@ initWelcome();
   lootCard: () => lootCardNow(),
   /** the enemy the crosshair outlines this frame (Phase 20 A8's check; speedkills.json feel.outline) */
   outlinedNow: () => outlined,
+  /** the squad the HUD was given last frame: your number, the rows and the names over them (Phase 27) */
+  squadNow: () => lastSquad,
+  /** each figure's teammate ring, by player id: how many meshes it draws, its width and colour (outline.ts MateOutline) */
+  mateRings: () => (duel ? duel.avatars.map((a) => ({ id: duel!.remoteOf(a)?.id ?? -1, ring: a.mateOutlineState() })) : []),
   /** the frame's phases (framephase.ts): on/off (a switch clears what was kept), each phase's mean and every hitch over the line */
   perf: (on?: boolean) => {
     if (on !== undefined) {

@@ -31,6 +31,7 @@ import ammoCfg from "../src/config/ammo.json";
 import lootCfg from "../src/config/loot.json";
 import skCfg from "../src/config/games/speedkills.json";
 import fparmsCfg from "../src/config/fparms.json";
+import squadCfg from "../src/config/squad.json";
 import { readFileSync } from "node:fs";
 
 /** the arena modes' spawns (arena coordinates) */
@@ -6826,7 +6827,125 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   await page.close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, p2p, mixed) */
+/**
+ * The squad you can see (Phase 27): two friends in one SpeedKills squad, each
+ * with the other on the squad panel in the same number and colour on both
+ * screens, their name over them, their ring through walls (and no ring on a
+ * bot), their health heard going up as well as down, and every change of
+ * state said: a connection lost and back, the Gulag, a ghost, back in the
+ * fight, out, and gone. The pictures of it are tools/squad-shots.ts's.
+ */
+async function skSquadTest(browser: Browser): Promise<void> {
+  const q = "?net=local&norender&game=speedkills";
+  const host = await open(browser, q);
+  const guest = await open(browser, q);
+  const close = async () => {
+    for (const p of [host, guest]) if (!p.isClosed()) await p.close();
+  };
+  // the Gulag on (every e2e page opens with it off): the trip is one of the states to see
+  for (const p of [host, guest]) await ev(p, "window.__noGulag = false");
+  await ev(host, `window.__range.profile.setName("B00G")`);
+  await ev(guest, `window.__range.profile.setName("FRIEND")`);
+  await ev(host, brRow("duo", 8));
+  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelHost").click(); })()`);
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
+    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
+    for (const p of [host, guest]) await pressPlay(p);
+    for (const p of [host, guest]) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 60000 });
+  } catch {
+    check("squad view: two friends in one SpeedKills squad", false);
+    await close();
+    return;
+  }
+  await ev(host, "window.__range.duel().holdFire = true");
+  type Sq = { me: { slot: number; color: string } | null; rows: Array<{ id: number; slot: number; color: string; name: string; life: string; health: number; shield: number }>; tags: Array<{ id: number; slot: number; color: string; life: string }> } | null;
+  const squad = (p: Page) => ev<Sq>(p, "JSON.parse(JSON.stringify(window.__range.squadNow()))");
+  /** the one teammate's row reaches `cond` (a page expression over `r`), or not within the time */
+  const rowIs = (p: Page, cond: string, ms = 8000) =>
+    p.waitForFunction(`(() => { const s = window.__range.squadNow(); const r = s && s.rows[0]; return !!r && (${cond}); })()`, { polling: 100, timeout: ms }).then(() => true, () => false);
+  const said = (p: Page, re: string, ms = 4000) =>
+    p.waitForFunction(`(() => { const h = window.__range.hud; return new RegExp(${JSON.stringify(re)}).test(h.noticeNow + " | " + h.feedText.join(" | ")); })()`, { polling: 100, timeout: ms }).then(() => true, () => false);
+  const words = (p: Page) => ev<string>(p, `(() => { const h = window.__range.hud; return h.noticeNow + " | " + h.feedText.join(" | "); })()`);
+  const [BLUE, GREEN] = [squadCfg.colors[0].hex, squadCfg.colors[1].hex];
+
+  // the numbers and colours: the host is 1 and blue, the friend 2 and green, and both screens say so
+  const both = (await rowIs(host, "r.life === 'up'")) && (await rowIs(guest, "r.life === 'up'"));
+  const [sh, sg] = [await squad(host), await squad(guest)];
+  check("squad view: each friend has one row, the other, up", both && sh?.rows.length === 1 && sg?.rows.length === 1, JSON.stringify({ host: sh?.rows, guest: sg?.rows }));
+  check(
+    "squad view: the same number and colour on both screens: B00G 1 blue, FRIEND 2 green",
+    sh?.me?.slot === 1 && sh.me.color === BLUE && sh.rows[0]?.id === 1 && sh.rows[0].slot === 2 && sh.rows[0].color === GREEN && sh.rows[0].name === "FRIEND" && sg?.me?.slot === 2 && sg.me.color === GREEN && sg.rows[0]?.id === 0 && sg.rows[0].slot === 1 && sg.rows[0].color === BLUE && sg.rows[0].name === "B00G",
+    JSON.stringify({ host: { me: sh?.me, row: sh?.rows[0] }, guest: { me: sg?.me, row: sg?.rows[0] } })
+  );
+  check("squad view: a name over the teammate, in their colour", sg?.tags.length === 1 && sg.tags[0].id === 0 && sg.tags[0].color === BLUE && sh?.tags.length === 1 && sh.tags[0].color === GREEN, JSON.stringify({ host: sh?.tags, guest: sg?.tags }));
+  const plated = await ev<string[]>(guest, "window.__range.platesNow().map((p) => p.name)");
+  check("squad view: the teammate's plate gives way to their name tag (one name over them, not two)", !plated.includes("B00G"), plated.join());
+
+  // the ring round the teammate, through walls, in their colour, and none on a bot
+  type Ring = { id: number; ring: { on: number; width: number; color: number; through: boolean } | null };
+  const ringed = await guest.waitForFunction("(() => { const r = window.__range.mateRings().find((x) => x.id === 0); return !!r && !!r.ring && r.ring.on > 0; })()", { polling: 200, timeout: 15000 }).then(() => true, () => false);
+  const rings = await ev<Ring[]>(guest, "window.__range.mateRings()");
+  const mate = rings.find((r) => r.id === 0)?.ring;
+  check("squad view: the teammate has a ring, drawn through walls, in their blue", ringed && !!mate && mate.through && mate.color === parseInt(BLUE.slice(1), 16), JSON.stringify(mate));
+  check(`squad view: the ring is a thin line (${squadCfg.mates.outline.min} to ${squadCfg.mates.outline.max} m)`, !!mate && mate.width >= squadCfg.mates.outline.min - 1e-6 && mate.width <= squadCfg.mates.outline.max + 1e-6, String(mate?.width));
+  const botRings = rings.filter((r) => r.id >= 100 && r.ring && r.ring.on > 0).length;
+  check("squad view: no bot has one", rings.some((r) => r.id >= 100) && botRings === 0, `${botRings} of ${rings.filter((r) => r.id >= 100).length}`);
+
+  // shield heard going up as well as down: a hit takes 40 off it, then SpeedKills gives it back by itself
+  // (speedkills.json health: back after shieldDelay, full in shieldFill); a packet could only ever lower it
+  await ev(host, "window.__range.duel().takeHit(40, 100)");
+  const down = await rowIs(guest, "r.shield <= 11 && r.hurtK > 0");
+  const H = skCfg.health;
+  const up = await rowIs(guest, "r.shield === 50", (H.shieldDelay + H.shieldFill) * 1000 + 8000);
+  check("squad view: a hit on the teammate shows on their row, and their shield coming back does too", down && up, JSON.stringify((await squad(guest))?.rows[0]));
+
+  // a silence past the limit on a guest: the connection lost, then back when the next packet comes
+  await ev(guest, `(() => { const r = window.__range.duel().remoteById(0); r.lastHeard = performance.now() / 1000 - ${squadCfg.mates.quiet + 1}; })()`);
+  const lost = await said(guest, "B00G LOST THE CONNECTION", 3000);
+  const backOn = await said(guest, "B00G is back", 8000);
+  check("squad view: a teammate gone silent: CONNECTION LOST, and back with their next packet", lost && backOn, await words(guest));
+  // a seat held for a dropped guest on the host: said at once
+  await ev(host, "window.__range.duel().held.set(1, performance.now() / 1000 + 60)");
+  const held = (await rowIs(host, "r.life === 'quiet'", 3000)) && (await said(host, "FRIEND LOST THE CONNECTION", 3000));
+  await ev(host, "window.__range.duel().held.delete(1)");
+  const unheld = await rowIs(host, "r.life === 'up'", 3000);
+  check("squad view: on the host, a dropped friend's held seat says the connection is lost at once, and back", held && unheld, await words(host));
+
+  // to the Gulag: the first death, early
+  await ev(host, "window.__range.duel().takeHit(500, 100)");
+  const toGulag = (await rowIs(guest, "r.life === 'gulag'")) && (await said(guest, "B00G IS IN THE GULAG")) && (await said(guest, "B00G went to the Gulag"));
+  check("squad view: to the Gulag: the row, the middle of the screen and the feed", toGulag, await words(guest));
+  const gone = await ev<Ring[]>(guest, "window.__range.mateRings()");
+  const sgG = await squad(guest);
+  check("squad view: in the Gulag, no ring and no name where they fell", !gone.find((r) => r.id === 0)?.ring?.on && sgG?.tags.length === 0, JSON.stringify({ ring: gone.find((r) => r.id === 0)?.ring, tags: sgG?.tags }));
+  // lost: a death in the room's fight
+  const inFight = await host.waitForFunction("(() => { const g = window.__range.duel().gulag; return !!g && g.phase === 'fight'; })()", { polling: 200, timeout: 30000 }).then(() => true, () => false);
+  await ev(host, "window.__range.duel().takeHit(500, 100)");
+  const ghost = inFight && (await rowIs(guest, "r.life === 'ghost'")) && (await said(guest, "B00G LOST THE GULAG: RESTORE THEM AT THEIR ECHO"));
+  const sgH = await squad(guest);
+  check("squad view: the Gulag lost: a ghost, where to restore them, and their name over the ghost", ghost && sgH?.tags.length === 1 && sgH.tags[0].life === "ghost", `${await words(guest)} ${JSON.stringify(sgH?.tags)}`);
+  // restored, the second restore: back, and no box offered for them after (their "no restores" word, which was dropped)
+  await ev(host, "(() => { const d = window.__range.duel(); d.restores = 1; const p = window.__range.player.pos; d.respawnHere(new window.__range.THREE.Vector3(p.x, p.y, p.z), true); })()");
+  const back = (await rowIs(guest, "r.life === 'up'")) && (await said(guest, "B00G IS BACK IN THE FIGHT"));
+  const noMore = await guest.waitForFunction("window.__range.duel().noRestores.has(0)", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  check("squad view: restored: back in the fight", back, await words(guest));
+  check("squad view: their last restore used, their box is not offered again (the word reaches the squad)", noMore);
+  // out: a death with no restore left
+  await ev(host, "window.__range.duel().takeHit(500, 100)");
+  const out = (await rowIs(guest, "r.life === 'out'")) && (await said(guest, "B00G IS OUT OF THE MATCH"));
+  check("squad view: out: the row, the middle and the feed", out, await words(guest));
+
+  // gone: the friend closes the game
+  await guest.close();
+  const left = (await rowIs(host, "r.life === 'left'")) && (await said(host, "FRIEND LEFT THE MATCH"));
+  check("squad view: the friend closes the game: LEFT THE MATCH, their row kept", left, await words(host));
+  await close();
+}
+
+/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, sksquad, p2p, mixed) */
 /**
  * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
  * plays on the page's own clock and takes itself away, a key or a click takes
@@ -7796,6 +7915,11 @@ async function main(): Promise<void> {
     if (want("skfriends")) {
       console.log("\nSpeedKills with friends: two friends into one battle royale");
       await brFriendsJoinTest(browser);
+    }
+
+    if (want("sksquad")) {
+      console.log("\nThe squad you can see: a friend's number, colour, name, ring and every change of state (Phase 27)");
+      await skSquadTest(browser);
     }
 
     if (want("skship")) {

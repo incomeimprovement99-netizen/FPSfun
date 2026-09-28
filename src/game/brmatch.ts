@@ -182,6 +182,7 @@ import { LootField, LOOT, binContents, deathBoxOf, isBin, kittedAttach, seeded, 
 import { ammoTypeOf, STACK } from "./ammo";
 import { causeName, EDGE_ID } from "./causes";
 import { EDGE } from "./edge";
+import { LIFE_WIRE } from "./squadview";
 
 /** how high the drop starts */
 export const DROP_HEIGHT = 90;
@@ -419,7 +420,7 @@ export interface BrHud {
   /** `loadout` is a loadout crate rather than a care package; `hot` is still worth contesting */
   pods: Array<{ x: number; z: number; landed: boolean; loadout: boolean; hot: boolean }>;
   /** the squad mates, for the maps: where, their name, down or out */
-  mates: Array<{ x: number; z: number; name: string; downed: boolean; alive: boolean }>;
+  mates: Array<{ id: number; x: number; z: number; name: string; downed: boolean; alive: boolean }>;
   /** Storm Surge, null until the late rounds put it in play; `safe` is this player above the line (the host ranks, a guest reads it off the ring packet) */
   surge: (SurgeView & { safe: boolean }) | null;
   /** standing in a loadout crate: how far through the claim you are, 0 to 1 */
@@ -1913,6 +1914,24 @@ export class BrMatch extends Duel {
       this.noteGulag(this.id, 1);
     }
     super.eliminate(from, how);
+  }
+
+  /**
+   * Where you are in the match's lives, for your squad's panel (squadview.ts):
+   * on the way to the Gulag or in it, a ghost waiting for a restore, waiting
+   * to redeploy (Resurgence), or out. Up says nothing.
+   */
+  protected override lifeWire(): number | undefined {
+    if (this.gulag) return LIFE_WIRE.gulag;
+    if (this.alive || this.phase !== "fight") return undefined;
+    if (this.ghost) return LIFE_WIRE.ghost;
+    if (this.selfRedeploy) return LIFE_WIRE.redeploy;
+    return LIFE_WIRE.out;
+  }
+
+  /** a squad mate in the Gulag, as their "gulag" effect said (the host keeps the count for the squad's end) */
+  inGulag(id: number): boolean {
+    return this.gulagIds.has(id);
   }
 
   /** out, or up in the Gulag's room: a squad mate's beacon or box brings you back from either */
@@ -3480,7 +3499,7 @@ export class BrMatch extends Duel {
         .filter((r) => r.id < Duel.BOT_ID && this.friendly(r.id) && r.samples.length)
         .map((r) => {
           const s = r.samples[r.samples.length - 1];
-          return { x: s.x, z: s.z, name: r.name, downed: r.downed, alive: r.alive };
+          return { id: r.id, x: s.x, z: s.z, name: r.name, downed: r.downed, alive: r.alive };
         }),
       // the card is up once it is over: no surge on it
       surge: this.surge && this.phase !== "matchEnd" ? { ...this.surge, safe: !this.surgeMine } : null,

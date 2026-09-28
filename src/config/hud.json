@@ -378,6 +378,28 @@
         "min": 2,
         "max": 5,
         "bar": 1.5
+      },
+      "_squad": "The squad panel (Phase 27): a row a teammate, stacked up from `gap` over your own speed line, bordered in their colour (`border`) with their number on a square of it (`badge`). Each row is the name, then the shield's segments and the health bar, as your own are drawn below it but smaller, or what has happened to them in their place. `mine` is your own number beside your health, in the margin left of it.",
+      "squad": {
+        "w": 260,
+        "rowH": 38,
+        "rowGap": 6,
+        "gap": 12,
+        "badge": 26,
+        "pad": 8,
+        "border": 2,
+        "nameFont": 15,
+        "stateFont": 12,
+        "numFont": 16,
+        "barH": 6,
+        "shieldH": 4,
+        "barGap": 3,
+        "distFont": 12,
+        "mine": {
+          "w": 20,
+          "font": 13,
+          "dx": 6
+        }
       }
     }
   },

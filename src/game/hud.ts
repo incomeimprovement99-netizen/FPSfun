@@ -48,6 +48,8 @@ import { drawIcon, loadIcons } from "./icons";
 import { drawReticle as drawCrosshair2d, type Reticle } from "./reticle";
 import { P, access } from "./palette";
 import { RING_TICK } from "./ring";
+import type { MateLife, SquadRow } from "./squadview";
+import squadCfg from "../config/squad.json";
 
 type ModeRow = ModeHud["rows"][number];
 
@@ -245,6 +247,12 @@ export interface HudState {
   } | null;
   /** nameplates over the other players and the bots */
   plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean; aimbot?: boolean }>;
+  /**
+   * Your squad (Phase 27, squadview.ts): your own number and colour, a row a
+   * teammate for the panel over your health, and where each teammate here is
+   * for the name over them. Null outside a squad, and in the legacy game.
+   */
+  squad?: { me: { slot: number; color: string } | null; rows: SquadRow[]; tags: MateTag[] } | null;
   /** real shield and health (a 1v1); the bars are decorative without it */
   vitals?: { shield: number; shieldMax: number; health: number; healthMax: number; evo?: number | null; helmet?: string | null } | null;
   /** your ability (abilities.ts): name, key, its cooldown and what is left of it (0: ready); a passive one has no key */
@@ -341,6 +349,40 @@ const PANEL = "rgba(8,10,12,0.55)";
 const SHIELD = "#a855f7";
 const RED = "#ff4b3e";
 const FONT = `"Rajdhani", "Segoe UI", system-ui, sans-serif`;
+
+/** a teammate's name over them (Phase 27): where, in what colour, and what goes under it */
+export interface MateTag {
+  id: number;
+  world: THREE.Vector3;
+  slot: number;
+  color: string;
+  name: string;
+  life: MateLife;
+  health: number;
+  shield: number;
+  shieldMax: number;
+  dist: number;
+}
+
+/** a squad row's words in place of its bars, when something has happened to them */
+function squadState(life: MateLife): { text: string; color: string } | null {
+  switch (life) {
+    case "gulag":
+      return { text: "IN THE GULAG", color: "#ffb13d" };
+    case "ghost":
+      return { text: "GHOST: RESTORE AT THEIR ECHO", color: "#9fefff" };
+    case "out":
+      return { text: "OUT", color: DIM };
+    case "quiet":
+      return { text: "CONNECTION LOST", color: "#ffb13d" };
+    case "left":
+      return { text: "LEFT THE MATCH", color: DIM };
+    case "redeploy":
+      return { text: "REDEPLOYING", color: "#7ddc8a" };
+    default:
+      return null;
+  }
+}
 /** a CSS colour's own alpha: an rgba()'s fourth part, else 1 (the outline fades with the text it is under) */
 function alphaOf(color: string): number {
   const m = /^rgba\(([^)]*)\)$/.exec(color.trim());
@@ -355,6 +397,8 @@ export class Hud {
   private readonly layout: SkLayout | null = SK_LAYOUT;
   /** the HUD unit of the frame being drawn (the outline's limits scale with it) */
   private uNow = 1;
+  /** where the squad panel's top is this frame (the captions and the talking list go above it); the screen's foot without one */
+  private leftTop = Infinity;
   /** the signature scope's recharge as last drawn, and when it last came ready (seconds, the page's clock) */
   private hsCharge = 1;
   private hsReadyAt = -Infinity;
@@ -542,6 +586,7 @@ export class Hud {
     }
     if (s.wallRun) this.drawWallRun(now, s.wallRun);
     this.uNow = u;
+    this.leftTop = Infinity;
     this.drawScope(s, u);
     this.drawHealing(now, s, u);
     this.drawHurt(now);
@@ -567,6 +612,7 @@ export class Hud {
     this.drawLootCard(s, u);
     this.drawTechFeed(now, u);
     this.drawPlates(now, camera, s, u);
+    this.drawMateTags(camera, s, u);
     this.drawMarkers(now, camera, s, u);
     this.drawDuel(s, u);
     this.drawMode(now, camera, s, u);
@@ -788,7 +834,8 @@ export class Hud {
     if (s.voice && (s.voice.me || s.voice.talking.length)) {
       // who is talking: you first, then the others, down the left above the vitals
       const rows = [...(s.voice.me ? ["YOU"] : []), ...s.voice.talking];
-      rows.forEach((name, i) => this.text(`● ${name}`, 24 * u, this.h - (190 + i * 17) * u, 700, 13 * u, "#7ddc8a", "left"));
+      const y0 = Math.min(this.h - 190 * u, this.leftTop - 34 * u);
+      rows.forEach((name, i) => this.text(`● ${name}`, 24 * u, y0 - i * 17 * u, 700, 13 * u, "#7ddc8a", "left"));
     }
     if (s.spectating) {
       c.fillStyle = PANEL;
@@ -2379,10 +2426,27 @@ export class Hud {
         c.stroke();
       });
     }
+    // your squad: each in their colour with their number (Phase 27), a ghost where the ghost is, pale
+    const rows = s.squad?.rows;
     for (const m of br.mates) {
-      if (!m.alive) continue;
-      dot(m.x, m.z, 5, m.downed ? "#ff4b3e" : "#3ddc84");
+      const row = rows?.find((r) => r.id === m.id);
+      const ghost = row?.life === "ghost";
+      if (!m.alive && !ghost) continue;
+      if (!row) {
+        dot(m.x, m.z, 5, m.downed ? "#ff4b3e" : "#3ddc84");
+        c.stroke();
+        continue;
+      }
+      c.globalAlpha = ghost ? 0.55 : 1;
+      dot(m.x, m.z, 6, m.downed ? RED : row.color);
       c.stroke();
+      upright(m.x, m.z, () => {
+        c.fillStyle = "#0b0e12";
+        c.font = this.font(800, 9 * u);
+        c.textAlign = "center";
+        c.fillText(String(row.slot), 0, 3.2 * u);
+      });
+      c.globalAlpha = 1;
     }
   }
 
@@ -3063,7 +3127,7 @@ export class Hud {
     if (!lines || !lines.length) return;
     const c = this.ctx;
     const x = 34 * u;
-    let y = this.h - 150 * u - lines.length * 22 * u;
+    let y = Math.min(this.h - 150 * u, this.leftTop - 20 * u) - lines.length * 22 * u;
     for (const l of lines) {
       const where = l.where ? `  ${l.where}` : "";
       const range = l.range ? `  ${l.range}` : "";
@@ -3281,6 +3345,34 @@ export class Hud {
       else if (inside && major) this.text(String(bb), x, y - 5 * u, 600, 13 * u, DIM, "center");
     }
     c.restore();
+    // Your squad along the strip (Phase 27): each teammate's number on their colour at the bearing to them, or at
+    // the strip's end, pointing, when they are off it. Before the readout, which stays readable over one.
+    for (const t of s.squad?.tags ?? []) {
+      const to = (Math.atan2(t.world.x - s.px, -(t.world.z - s.pz)) * 180) / Math.PI;
+      const d = ((((to - bearing) % 360) + 540) % 360) - 180;
+      const lim = span / 2 - 4;
+      const off = Math.abs(d) > lim;
+      const x = cx + (Math.max(-lim, Math.min(lim, d)) / span) * width;
+      const bs = 11 * u;
+      const py = y + 8 * u;
+      c.globalAlpha = t.life === "ghost" || t.life === "quiet" ? 0.6 : 1;
+      c.fillStyle = t.color;
+      c.fillRect(x - bs / 2, py, bs, bs);
+      if (off) {
+        const dir = Math.sign(d);
+        c.beginPath();
+        c.moveTo(x + dir * (bs / 2 + 6 * u), py + bs / 2);
+        c.lineTo(x + dir * (bs / 2 + 1 * u), py);
+        c.lineTo(x + dir * (bs / 2 + 1 * u), py + bs);
+        c.closePath();
+        c.fill();
+      }
+      c.fillStyle = "#0b0e12";
+      c.font = this.font(800, 10 * u);
+      c.textAlign = "center";
+      c.fillText(String(t.slot), x, py + bs / 2 + 3.5 * u);
+      c.globalAlpha = 1;
+    }
     // bearing readout
     this.text(String(Math.round(bearing) % 360), cx, y + 26 * u, 700, 16 * u, WHITE, "center");
     c.fillStyle = "#ffd23c";
@@ -3352,6 +3444,158 @@ export class Hud {
     const ny = yH + hh / 2 + L.health.font * u * 0.35;
     this.text(n, x0 + bw - L.health.pad * u, ny, 700, L.health.font * u, WHITE, "right");
     this.textBox("healthNumber", n, x0 + bw - L.health.pad * u, ny, 700, L.health.font * u, "right");
+    const sq = s.squad;
+    if (sq?.me) this.drawMyNumber(sq.me, x0, yS, yH + hh - yS, u, L);
+    if (sq?.rows.length) this.drawSquadPanel(sq.rows, x0, base - L.speed.font * u * 0.75 - L.squad.gap * u, u, L);
+  }
+
+  /** your own number, on your colour, in the margin left of your shield and health (Phase 27) */
+  private drawMyNumber(me: { slot: number; color: string }, x0: number, y: number, h: number, u: number, L: SkLayout): void {
+    const M = L.squad.mine;
+    const w = M.w * u;
+    const x = x0 - (M.w + M.dx) * u;
+    const c = this.ctx;
+    c.fillStyle = me.color;
+    c.fillRect(x, y, w, h);
+    this.edge(x, y, w, h, u);
+    c.fillStyle = "#0b0e12";
+    c.font = this.font(800, M.font * u);
+    c.textAlign = "center";
+    c.fillText(String(me.slot), x + w / 2, y + h / 2 + M.font * u * 0.35);
+    this.box("squadMe", x, y, w, h);
+  }
+
+  /**
+   * The squad panel (Phase 27): a row a teammate over your own health, as
+   * every battle royale has it, bordered in their colour with their number on
+   * it. Each shows their shield and health, a flash and a draining chip when
+   * they are hit, or what has become of them instead.
+   */
+  private drawSquadPanel(rows: SquadRow[], x0: number, bottom: number, u: number, L: SkLayout): void {
+    const Q = L.squad;
+    const c = this.ctx;
+    const w = Q.w * u;
+    const h = Q.rowH * u;
+    const top = bottom - rows.length * h - (rows.length - 1) * Q.rowGap * u;
+    this.leftTop = top;
+    rows.forEach((r, i) => {
+      const y = top + i * (h + Q.rowGap * u);
+      const gone = r.life === "out" || r.life === "left";
+      const dim = gone || r.life === "quiet";
+      c.globalAlpha = gone ? 0.55 : 1;
+      c.fillStyle = "rgba(8,10,13,0.6)";
+      c.fillRect(x0, y, w, h);
+      if (r.hurtK > 0) {
+        c.fillStyle = `rgba(255,60,60,${(0.4 * r.hurtK).toFixed(3)})`;
+        c.fillRect(x0, y, w, h);
+      }
+      c.lineWidth = Q.border * u;
+      c.strokeStyle = r.color;
+      c.strokeRect(x0 + (Q.border * u) / 2, y + (Q.border * u) / 2, w - Q.border * u, h - Q.border * u);
+      const bs = Q.badge * u;
+      const bx = x0 + (h - bs) / 2;
+      const by = y + (h - bs) / 2;
+      c.fillStyle = r.color;
+      c.fillRect(bx, by, bs, bs);
+      c.fillStyle = "#0b0e12";
+      c.font = this.font(800, Q.numFont * u);
+      c.textAlign = "center";
+      c.fillText(String(r.slot), bx + bs / 2, by + bs / 2 + Q.numFont * u * 0.35);
+      const nx = bx + bs + Q.pad * u;
+      const right = x0 + w - Q.pad * u;
+      const ny = y + Q.pad * u + Q.nameFont * u * 0.7;
+      this.text(r.name, nx, ny, 700, Q.nameFont * u, dim ? DIM : WHITE);
+      if (r.talking) {
+        c.font = this.font(700, Q.nameFont * u);
+        this.text("●", nx + c.measureText(r.name).width + 6 * u, ny, 700, Q.nameFont * u * 0.8, "#7ddc8a");
+      }
+      if (r.dist !== null && r.life !== "left" && r.life !== "gulag") this.text(`${Math.round(r.dist)} M`, right, ny, 600, Q.distFont * u, DIM, "right");
+      const state = squadState(r.life);
+      const bw = right - nx;
+      const sy = ny + Q.barGap * u + 2 * u;
+      if (state) this.text(state.text, nx, sy + Q.stateFont * u * 0.8, 700, Q.stateFont * u, state.color);
+      else {
+        // the shield's segments over the health bar, as your own below, with what the last hits took still showing
+        const segs = Math.max(1, Math.round(r.shieldMax / L.shield.per));
+        const g = 2 * u;
+        const segW = (bw - g * (segs - 1)) / segs;
+        const sh = Q.shieldH * u;
+        for (let k = 0; k < segs; k++) {
+          const sx = nx + k * (segW + g);
+          const was = (r.chipShield - k * L.shield.per) / L.shield.per;
+          c.fillStyle = "rgba(0,0,0,0.5)";
+          c.fillRect(sx, sy, segW, sh);
+          if (r.chipK > 0 && was > 0) {
+            c.fillStyle = `rgba(255,255,255,${(0.7 * r.chipK).toFixed(3)})`;
+            c.fillRect(sx, sy, segW * Math.min(1, was), sh);
+          }
+          c.fillStyle = SHIELD;
+          c.fillRect(sx, sy, segW * Math.max(0, Math.min(1, (r.shield - k * L.shield.per) / L.shield.per)), sh);
+        }
+        const hy = sy + sh + Q.barGap * u;
+        const hb = Q.barH * u;
+        const hp = Math.max(0, r.health / r.healthMax);
+        c.fillStyle = "rgba(0,0,0,0.5)";
+        c.fillRect(nx, hy, bw, hb);
+        if (r.chipK > 0 && r.chipHealth > r.health) {
+          c.fillStyle = `rgba(255,90,90,${(0.85 * r.chipK).toFixed(3)})`;
+          c.fillRect(nx, hy, bw * Math.min(1, r.chipHealth / r.healthMax), hb);
+        }
+        c.fillStyle = r.life === "down" || hp < 0.3 ? RED : WHITE;
+        c.fillRect(nx, hy, bw * Math.min(1, hp), hb);
+        this.edge(nx, hy, bw, hb, u);
+        if (r.life === "down") this.text("DOWN", right, ny, 700, Q.stateFont * u, RED, "right");
+      }
+      c.globalAlpha = 1;
+      this.box(`squad${r.slot}`, x0, y, w, h);
+    });
+  }
+
+  /**
+   * The name over each teammate (Phase 27): small, in their colour, with their
+   * number, through anything and at any distance, which is how you keep track
+   * of a friend in a city. Close up their shield and health are under it;
+   * further off, how far they are. A ghost's is over the ghost, and says so.
+   */
+  private drawMateTags(camera: THREE.Camera, s: HudState, u: number): void {
+    const tags = s.squad?.tags;
+    if (!tags?.length) return;
+    const T = squadCfg.mates.tag;
+    const c = this.ctx;
+    const v = new THREE.Vector3();
+    for (const t of tags) {
+      v.copy(t.world).project(camera);
+      if (v.z > 1) continue;
+      const x = (v.x * 0.5 + 0.5) * this.w;
+      const y = (-v.y * 0.5 + 0.5) * this.h;
+      if (x < -40 || x > this.w + 40 || y < -40 || y > this.h + 40) continue;
+      c.globalAlpha = t.life === "quiet" ? 0.5 : t.life === "ghost" ? 0.8 : 1;
+      const label = t.life === "ghost" ? `${t.name}  GHOST` : t.name;
+      c.font = this.font(700, T.font * u);
+      const tw = c.measureText(label).width;
+      const bs = T.badge * u;
+      const x0 = x - (tw + bs + 4 * u) / 2;
+      c.fillStyle = t.color;
+      c.fillRect(x0, y - bs + 3 * u, bs, bs);
+      c.fillStyle = "#0b0e12";
+      c.font = this.font(800, T.font * u * 0.85);
+      c.textAlign = "center";
+      c.fillText(String(t.slot), x0 + bs / 2, y + 3 * u - bs / 2 + T.font * u * 0.3);
+      this.text(label, x0 + bs + 4 * u, y, 700, T.font * u, t.color);
+      if (t.life === "ghost") this.text("RESTORE AT THEIR ECHO", x, y + 14 * u, 600, 11 * u, t.color, "center");
+      else if (t.life === "quiet") this.text("NO CONNECTION", x, y + 14 * u, 600, 11 * u, DIM, "center");
+      else if (t.dist <= T.bars && t.life === "up") {
+        const bw = 60 * u;
+        c.fillStyle = "rgba(0,0,0,0.55)";
+        c.fillRect(x - bw / 2, y + 6 * u, bw, 3 * u);
+        c.fillRect(x - bw / 2, y + 10 * u, bw, 3 * u);
+        c.fillStyle = SHIELD;
+        c.fillRect(x - bw / 2, y + 6 * u, bw * Math.max(0, Math.min(1, t.shield / Math.max(1, t.shieldMax))), 3 * u);
+        c.fillStyle = t.health > 30 ? "#d8e2ea" : RED;
+        c.fillRect(x - bw / 2, y + 10 * u, bw * Math.max(0, Math.min(1, t.health / 100)), 3 * u);
+      } else if (t.dist > T.distFrom) this.text(`${Math.round(t.dist)} M`, x, y + 14 * u, 600, 11 * u, DIM, "center");
+      c.globalAlpha = 1;
+    }
   }
 
   /** SpeedKills' two hacks, right of the health bar, lower and bigger than the legacy square (Phase 20 A6) */

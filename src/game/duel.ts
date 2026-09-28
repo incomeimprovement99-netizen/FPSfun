@@ -48,6 +48,7 @@ import type { ModeHud } from "./modematch";
 import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
 import { causeName, EDGE_ID } from "./causes";
+import { heardVital } from "./squadview";
 
 const SEND_HZ = 30;
 /** the least a friend's figure is drawn behind (net.json buffer: it grows with the connection's jitter) */
@@ -198,6 +199,10 @@ export interface Remote {
   ready: boolean;
   /** the practice aim bot is on for them: everyone is shown it */
   aimbot?: boolean;
+  /** where they say they are in a battle royale's lives (squadview.ts LIFE_WIRE); undefined while up, or from a build that does not say */
+  life?: number;
+  /** when this screen last predicted a hit on them (wall clock): their packets may only lower their numbers for a while after (heardVital) */
+  hitAt?: number;
   lastHeard: number;
   /** who this player's messages come in on (the host: their link; a guest: the host's) */
   link: Link;
@@ -955,6 +960,11 @@ export class Duel implements MatchLike {
     return null;
   }
 
+  /** another player by id, if this side has heard of them (remote() below makes one) */
+  remoteById(id: number): Remote | null {
+    return this.remotes.get(id) ?? null;
+  }
+
   // ---------------------------------------------------------------- avatars
 
   protected remote(id: number): Remote {
@@ -1402,16 +1412,19 @@ export class Duel implements MatchLike {
     this.noteLateness(r, at, now);
     r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), healItem: ac >= 10 ? HEAL_CODES[ac - 10] : undefined });
     if (r.samples.length > 30) r.samples.shift();
-    // Their own numbers lag our hits by a round trip, so a packet can only
-    // ever LOWER what we already predicted; a respawn (alive again) resets.
+    // Their own numbers lag our hits by a round trip, so just after a hit a
+    // packet can only LOWER what we predicted; after that it is the truth, a
+    // regeneration or a heal included (heardVital). A respawn (alive again) resets.
     if (alive && !r.alive) {
       r.avatar.reset();
       r.health = m.hp;
       r.shield = m.sh;
     } else {
-      r.health = Math.min(r.health, m.hp);
-      r.shield = Math.min(r.shield, m.sh);
+      const since = now - (r.hitAt ?? -Infinity);
+      r.health = heardVital(r.health, m.hp, since);
+      r.shield = heardVital(r.shield, m.sh, since);
     }
+    r.life = typeof m.lf === "number" && Number.isFinite(m.lf) && m.lf > 0 ? m.lf : undefined;
     // a name is whatever the other browser sent: text only, and short
     if (typeof m.name === "string") {
       const name = m.name.replace(/[\p{Cc}<>&"'`]/gu, "").trim().slice(0, 16);
@@ -1686,6 +1699,11 @@ export class Duel implements MatchLike {
     else this.hostLink?.send(m);
   }
 
+  /** where this player is in a battle royale's lives, for the squad (squadview.ts LIFE_WIRE); nothing while up, and nothing outside one */
+  protected lifeWire(): number | undefined {
+    return undefined;
+  }
+
   /** a squad mate's respawn can bring this player back now: they are out (a battle royale adds its Gulag) */
   protected canBeRespawned(): boolean {
     return !this.alive;
@@ -1842,6 +1860,7 @@ export class Duel implements MatchLike {
     if (this.role === "host") r.link.send(m);
     else this.hostLink?.send(m);
     // show it at once rather than a round trip later
+    r.hitAt = wallClock();
     const toShield = Math.min(r.shield, amount);
     r.shield -= toShield;
     r.health = Math.max(0, r.health - (amount - toShield));
@@ -2012,6 +2031,7 @@ export class Duel implements MatchLike {
         ad: local.ads ? Math.round(local.ads * 10) : undefined,
         ac: local.act || undefined,
         tm: senderStamp(),
+        lf: this.lifeWire(),
       });
     }
     if (now >= this.pingNext) {

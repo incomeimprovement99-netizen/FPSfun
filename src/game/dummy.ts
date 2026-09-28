@@ -24,7 +24,7 @@ import { MUZZLE, fitMuzzle, muzzleOf, showFlash, showGlint } from "./muzzle";
 import { ammoTypeOf } from "./ammo";
 import { OPERATORS, skinMaterials, type OperatorSkin } from "./operators";
 import { MannequinFigure, useMannequin } from "./mannequin";
-import { Outline } from "./outline";
+import { MateOutline, Outline } from "./outline";
 import { emoteAt, emotePose } from "./emotes";
 import { IS_SK } from "./game";
 
@@ -339,6 +339,8 @@ export class Dummy {
   private threat = 0;
   /** the red outline while aimed at (outline.ts), made the first time it is */
   private outline: Outline | null = null;
+  /** a teammate's ring in their squad colour, through walls (outline.ts MateOutline), made the first time it is */
+  private mateRing: MateOutline | null = null;
   readonly oneHit: boolean;
   readonly respawns: boolean;
   private readonly plate: THREE.Mesh;
@@ -800,6 +802,18 @@ export class Dummy {
     this.outline.show(on, width);
   }
 
+  /** a teammate's ring through walls in their squad colour, `width` metres wide; null takes it off */
+  setMateOutline(color: number | null, width = 0.02): void {
+    if (color === null && !this.mateRing) return;
+    this.mateRing ??= new MateOutline(this.group, [this.hits]);
+    this.mateRing.show(color !== null, width, color ?? 0xffffff);
+  }
+
+  /** the ring as drawn (tools/e2e.ts), or null when this figure has never had one */
+  mateOutlineState(): { on: number; width: number; color: number; through: boolean } | null {
+    return this.mateRing?.state() ?? null;
+  }
+
   /**
    * Seen through a Digital Threat optic: the shell glows red. 0 is off; the
    * caller fades it with distance, as the data's fade range says.
@@ -836,6 +850,8 @@ export class Dummy {
   dispose(): void {
     this.outline?.dispose();
     this.outline = null;
+    this.mateRing?.dispose();
+    this.mateRing = null;
     if (this.kdPane) {
       this.kdPane.geometry.dispose();
       (this.kdPane.material as THREE.Material).dispose();

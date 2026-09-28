@@ -72,6 +72,8 @@ export type NetMsg =
       bot?: number;
       /** the sender's clock when it made this state: milliseconds, the low 16 bits (state.ts senderStamp) */
       tm?: number;
+      /** where they are in a battle royale's lives (squadview.ts LIFE_WIRE): absent while up */
+      lf?: number;
     }
   /**
    * The same states, delta compressed (src/net/state.ts), one part per

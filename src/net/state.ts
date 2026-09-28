@@ -108,6 +108,8 @@ export interface PlayerState {
   bot?: number;
   /** the sender's clock when it made this state: milliseconds, the low 16 bits (senderStamp) */
   tm?: number;
+  /** where they are in a battle royale's lives (squadview.ts LIFE_WIRE): absent while up */
+  lf?: number;
 }
 
 /** the sender's clock for a state: performance time in milliseconds, the low 16 bits (the receiver unwraps it) */
@@ -120,7 +122,8 @@ export function senderStamp(): number {
  * every packet: x y z position in centimetres, aw ap yaw and pitch in tenths
  * of a degree, cr crouch, hp sh health and shield, al alive, w the gun, op the
  * operator, nm the name, rd ready, st stance, sp speed, sm shield size, dn
- * down, ad aim down sights, ac the hands' action, bt the practice aim bot.
+ * down, ad aim down sights, ac the hands' action, bt the practice aim bot,
+ * lf the stage of a battle royale life (the Gulag, a ghost, out).
  */
 export type Quant = Record<string, number | string>;
 
@@ -132,7 +135,7 @@ const REQ_KEYS = ["x", "y", "z", "aw", "ap", "cr", "hp", "sh", "al", "w", "op", 
  * last: an older build ignores a key it does not know, and it is never
  * cleared, so it never sets a bit an older build would misread.
  */
-const OPT_KEYS = ["rd", "st", "sp", "sm", "dn", "ad", "ac", "bt", "tm", "lk"] as const;
+const OPT_KEYS = ["rd", "st", "sp", "sm", "dn", "ad", "ac", "bt", "tm", "lk", "lf"] as const;
 /** the ones that are text; everything else is a finite number */
 const STR_KEYS = new Set<string>(["w", "op", "nm", "lk"]);
 /**
@@ -187,6 +190,7 @@ export function quantise(s: PlayerState): Quant {
   if (!absent(s.bot)) q.bt = Math.round(wireNum(s.bot));
   if (!absent(s.tm)) q.tm = Math.round(wireNum(s.tm)) & 0xffff;
   if (!absent(s.lk)) q.lk = clip(wireStr(s.lk), LOOK_MAX);
+  if (!absent(s.lf)) q.lf = Math.round(wireNum(s.lf));
   return q;
 }
 
@@ -216,6 +220,7 @@ export function dequantise(q: Quant): PlayerState {
   if (!absent(q.bt)) s.bot = wireNum(q.bt);
   if (!absent(q.tm)) s.tm = wireNum(q.tm);
   if (!absent(q.lk)) s.lk = clip(wireStr(q.lk), LOOK_MAX);
+  if (!absent(q.lf)) s.lf = wireNum(q.lf);
   return s;
 }
 
@@ -515,6 +520,7 @@ export function stateOf(m: StateMsg): PlayerState {
   if (!absent(raw.bot)) s.bot = wireNum(raw.bot);
   if (!absent(raw.tm)) s.tm = wireNum(raw.tm);
   if (!absent(raw.lk)) s.lk = clip(wireStr(raw.lk), LOOK_MAX);
+  if (!absent(raw.lf)) s.lf = wireNum(raw.lf);
   return s;
 }
 
@@ -545,5 +551,6 @@ export function stateMsg(s: PlayerState, from?: number): StateMsg {
     ac: s.ac,
     bot: s.bot,
     tm: s.tm,
+    lf: s.lf,
   } as StateMsg);
 }
