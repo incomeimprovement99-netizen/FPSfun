@@ -6110,3 +6110,45 @@ parts and a robot's.
   (`tools/measure-escape.ts`, v8 against v9). Both are the next step.
 - **Checked:** verify and rules; `sk-district.ts` on the new collision (every cell, pad, walk and node); the e2e
   speedkills section; pictures beside v3's from the crossroads and a canyon.
+
+## Milestone 312 — The USSO and BOOG with no frame at fault: each finger fitted joint by joint, the wrists straight through every move; the held gun at 2048 on High
+
+The owner, 2026-09-28: "why did you stop short of getting it perfect? That's what the animation screenshots are for? You
+know it's not perfect and know what you need to do but stopped short?", and "Yes raise the textures on high settings".
+The bar set: no flagged frame on any sheet for either gun (`tools/pack-frames.ts`, the reload, the swap, aiming in and
+the pickup a frame every 4%), the sheets sent as proof. The first sweep flagged 127 frames; the last flagged none.
+
+- **Each finger joint by joint** (`tools/pack-solve.ts joints`, `packGuns` hold `joint` and `rot`): the hand moved and
+  turned about its wrist, then each finger's three joints turned in turn, until no skin is more than 4 mm into the gun
+  while each finger that held it still touches it and the palm stays on it. Measured by depth, seen or not: a thumb in
+  the grip shows the moment the gun turns over on a reload.
+- **The thumbs** (`tools/pack-thumb.ts`): the local search could not move them. A cross-section of the right hand
+  against the USSO's grip showed the thumb lying over the receiver, where every small turn keeps it inside. Each joint
+  is searched over its whole range instead, on a grid of 729 turns, and kept where least of the finger is in the gun
+  with it still touching: both guns' right thumbs down the grip's side, and BOOG's middle finger.
+- **The wrists** (`tools/pack-solve.ts wrists`, `packGuns` shoulders and point): each shoulder moved, at rest and aimed,
+  to where both wrists are straightest, never with more of the arms in the picture than the pack's own shoulders put
+  there (`__armCover`): the first search raised the USSO's left shoulder 16 cm and its sleeve filled the aimed view.
+  The pointing arm's elbow, its reach behind the fingertip and how late the finger turns onto its spot searched the
+  same way, the tip still on it: the USSO's pointing wrist from 68 degrees to 50. The wrists now, left and right: the USSO's 38 and 20 degrees at rest and 44 and 21 aimed, BOOG's 30 and 41 and 47
+  and 23.
+- **The arms turn with the level** (`fprig.ts` level, levelAt): taking the gun's tilt off at rest bent the wrists to 56
+  degrees with the hands left where they were; the arms now turn with the gun about its origin.
+- **The swap's arms** (`fprig.ts` swing, `viewmodel.ts` swapArms): the pack's swap swung the gun alone and bent the left
+  wrist to 67 to 72 degrees; the arms are carried through the swing with it.
+- **The pickup's hands** (`fprig.ts` poseHandL): the right hand stays whole on the hold's grip through a pickup, and the
+  left eases into its own grip as it comes back (the pickup clip's was made on another gun, and came back 7 to 12 mm
+  into ours).
+- **BOOG's bolt hand** (`packGuns` L96X rack shift): 18 mm along to 21, onto our bolt's handle.
+- **The scope picture has no hand**: aimed through BOOG's scope the gun is hidden and the arms with it; a hand floated
+  in the scope's picture.
+- **The held gun at 2048 on High** (`paidweapons.json` textures2k, `tools/import-paid.ts`, `paidgun.ts` skinMaterial):
+  the import writes each gun skin at 2048 as well as 1024 (270 files, 40 MB, on the game server only, as all the bought
+  files are), and on the High preset the gun in your hands loads the 2048 ones. Only that one gun: figures, the floor
+  and the other presets keep 1024.
+- **The solvers kept**: `tools/pack-solve.ts` (joints, wrists) and `tools/pack-thumb.ts`. A Levenberg-Marquardt solve
+  of a whole hand at once was tried and dropped: two minutes a step in the page, and it stalled where coordinate
+  descent did.
+- **Checked:** new soldier e2e checks (the wrists at rest and aimed within 50 degrees, pointing and swapping within 60;
+  the held gun's 2048 skin on High and 1024 on Balanced), the through-the-gun check tightened from 1 cm to 4 mm, each
+  seen failing with its fault put back; the soldier section; verify; rules.

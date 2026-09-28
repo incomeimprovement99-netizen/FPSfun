@@ -7,7 +7,10 @@
 // A point inside counts as `seen` when where it goes in (its nearest point of the surface) is in the eye's sight: a
 // fingertip wrapped round the far side of a grip is inside it, but hidden behind the gun, and no one sees it; nor does
 // anyone see what is off the gun camera's picture (at the hip the USSO's right hand is mostly under the screen's edge).
-window.__packAudit = (deep, keep) => {
+// `only`: { side, bones (a regular expression's source) } tests those skin points alone and skips the test on itself, for
+// a solver trying one finger's joints (tools/pack-solve.ts): a whole audit of both hands took a second a try
+window.__packAudit = (deep, keep, only) => {
+  const onlyBones = only && only.bones ? new RegExp(only.bones) : null;
   const r = window.__range;
   const T = r.THREE;
   const root = r.viewModelRoot();
@@ -36,9 +39,14 @@ window.__packAudit = (deep, keep) => {
   });
   const rigScale = rig.getWorldScale(new T.Vector3()).x;
   // (a scope's picture hides the gun: nothing to test)
-  if (!parts.length) return { l: 0, r: 0, seenL: 0, seenR: 0, seenDeepest: 0, deepest: 0, where: {}, bones: {}, seenBones: {}, tested: 0, touch: 0, self: true, selfShare: 1, pts: [], push: {}, parts: 0, gap: { l: Infinity, r: Infinity }, palmGap: { l: Infinity, r: Infinity } };
+  if (!parts.length) return { l: 0, r: 0, seenL: 0, seenR: 0, seenDeepest: 0, deepest: 0, where: {}, bones: {}, seenBones: {}, tested: 0, touch: 0, self: true, selfShare: 1, pts: [], push: {}, parts: 0, gap: { l: Infinity, r: Infinity }, palmGap: { l: Infinity, r: Infinity }, boneGap: {} };
   const HAND = /^(hand|index|middle|ring|pinky|thumb)(_\d+)?_([lr])$/;
-  const out = { l: 0, r: 0, seenL: 0, seenR: 0, seenDeepest: 0, deepest: 0, where: {}, bones: {}, seenBones: {}, tested: 0, touch: 0, self: false, selfShare: 0, pts: [], push: {}, gap: { l: Infinity, r: Infinity }, palmGap: { l: Infinity, r: Infinity } };
+  const out = { l: 0, r: 0, seenL: 0, seenR: 0, seenDeepest: 0, deepest: 0, where: {}, bones: {}, seenBones: {}, tested: 0, touch: 0, self: false, selfShare: 0, pts: [], push: {}, gap: { l: Infinity, r: Infinity }, palmGap: { l: Infinity, r: Infinity }, boneGap: {} };
+  // each bone's nearest skin to the gun, mm (0 touching or in; only skin within 3 cm of a part is looked at)
+  const noteGap = (bone, away) => {
+    const mm = Math.round(away * 10000) / 10;
+    if (!(bone in out.boneGap) || mm < out.boneGap[bone]) out.boneGap[bone] = mm;
+  };
   // how near each hand comes to the gun, and its palm alone, view metres (0 touching or in): a hand meant to hold the gun
   // and short of it by a few millimetres reads as a gap between them
   const eye = rig.getWorldPosition(new T.Vector3());
@@ -58,7 +66,8 @@ window.__packAudit = (deep, keep) => {
   let nearQ = null;
   // the test on itself: down onto the biggest part's top at 16 places, a point 1 mm under the face it meets is inside
   // and one 2 cm over it is not; it holds if 14 of the 16 agree (a thin plate under the top can put the point through)
-  const big = parts.reduce((a, p) => (!a || p.grid.size > a.grid.size ? p : a), null);
+  const big = only ? null : parts.reduce((a, p) => (!a || p.grid.size > a.grid.size ? p : a), null);
+  if (!big) out.self = true;
   if (big) {
     const g = big.grid;
     const ray = new T.Raycaster();
@@ -106,6 +115,10 @@ window.__packAudit = (deep, keep) => {
       sk.userData.handVerts = list;
     }
     for (const [i, side, bone] of sk.userData.handVerts) {
+      if (only && ((only.side && side !== only.side) || (onlyBones && !onlyBones.test(bone)))) continue;
+      // (`only.points`: each tested point's depth into the gun, metres, below 0 its distance off it up to 3 cm, in a
+      // fixed order: a solver's residuals, tools/pack-solve.ts)
+      let ptDepth = -0.03;
       sk.getVertexPosition(i, v);
       v.applyMatrix4(sk.matrixWorld);
       out.tested++;
@@ -116,16 +129,20 @@ window.__packAudit = (deep, keep) => {
           if (p.grid.box.distanceToPoint(loc) * p.scale / rigScale < 0.03) {
             const d0 = p.flip * depthIn(p.grid, loc);
             const away = Math.max(0, -d0) * p.scale / rigScale;
+            ptDepth = Math.max(ptDepth, -away);
             out.gap[side] = Math.min(out.gap[side], away);
             if (bone === `hand_${side}`) out.palmGap[side] = Math.min(out.palmGap[side], away);
+            noteGap(bone, away);
           }
           continue;
         }
         const d = p.flip * depthIn(p.grid, loc);
+        ptDepth = Math.max(ptDepth, (d * p.scale) / rigScale);
         {
           const away = Math.max(0, -d) * p.scale / rigScale;
           out.gap[side] = Math.min(out.gap[side], away);
           if (bone === `hand_${side}`) out.palmGap[side] = Math.min(out.palmGap[side], away);
+          noteGap(bone, away);
         }
         if (d <= 0) continue;
         out.touch++;
@@ -150,10 +167,15 @@ window.__packAudit = (deep, keep) => {
           if (keep) out.pts.push([v.x, v.y, v.z, depth, seen ? 1 : 0]);
           out[side]++;
           out.bones[bone] = Math.max(out.bones[bone] || 0, Math.round(depth * 1000));
+          // (and which part it is in, the deepest a bone goes: the checks and the solver's notes)
+          if (!out.boneIn) out.boneIn = {};
+          const pn = p.o.name || p.o.parent?.name || "?";
+          if (!out.boneIn[bone] || out.boneIn[bone][1] < depth) out.boneIn[bone] = [pn, depth];
           const n = p.o.name || p.o.parent?.name || "?";
           out.where[n] = (out.where[n] || 0) + 1;
         }
       }
+      if (only && only.points) (out.points ??= []).push(ptDepth);
     }
   });
   for (const [mat, side] of sides) mat.side = side;

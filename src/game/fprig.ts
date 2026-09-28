@@ -19,20 +19,24 @@ import { HU, MOVE } from "./movement";
 
 type Measured = { turn: number[]; forward: number[]; up: number[]; trigger: number[]; palm: number[]; clavicleL?: number[]; clavicleR?: number[] };
 type Twist = { roll: number; yaw: number; pitch: number; x: number; y: number; z: number };
-type PointAt = { face: number[]; at: number; aim: number[] };
+type PointAt = { face: number[]; at: number; aim: number[]; elbow?: number[]; reach?: number; aimAt?: number };
 /** the rack done by our own timing with the pack's grip on its handle: shares of the rack for each part of it */
 type Grab = { reach: number[]; pull: number[]; release: number[]; back: number[]; clear: number; curl: number; thumbOpen: number; hook: number[]; roll?: number; along?: number[]; palm?: number[]; pinch?: boolean };
 const FINGER_L = /^(index|middle|ring|pinky|thumb)_0[123]_l$/;
 /**
- * a hand's hold on one of our guns, fitted (tools/pack-fit.ts): moved `shift` view metres along our gun's axes, each
- * finger `open` of the way to straight, and a finger's base joint turned `turn` radians about its own axes (a thumb
- * swings across the grip, which no curl of it moves it off)
+ * a hand's hold on one of our guns, fitted (tools/pack-fit.ts, pack-solve.ts, pack-thumb.ts): moved `shift` view metres
+ * along our gun's axes and turned `rot` radians about its wrist, each finger `open` of the way to straight, a finger's
+ * base joint turned `turn` radians about its own axes (a thumb swings across the grip, which no curl of it moves it off),
+ * and any one joint turned `joint` radians about its own axes (the fit a joint at a time: a whole finger's curl left
+ * one knuckle in the grip whichever way it went)
  */
-type HandFit = { shift: number[]; open: Record<string, number>; turn?: Record<string, number[]> };
+type HandFit = { shift: number[]; open: Record<string, number>; turn?: Record<string, number[]>; joint?: Record<string, number[]>; rot?: number[] };
+/** a pack gun's shoulders moved on top of its own clavicle offsets, metres in the rig (Unity's axes): at rest, and aimed */
+type Shoulders = { l?: number[]; r?: number[]; adsL?: number[]; adsR?: number[] };
 export type HoldFit = { l?: HandFit; r?: HandFit };
-type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt };
+type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders };
 const MEASURED = (cfg as unknown as { measured: Record<string, Measured> }).measured;
-const PACK = cfg.packGuns as Record<string, PackGun>;
+const PACK = cfg.packGuns as unknown as Record<string, PackGun>;
 const GUNS = cfg.guns as Record<string, string>;
 const DEG = Math.PI / 180;
 /** the most our gun is tilted in the hands to meet the left palm (fparms.json tiltMost, degrees) */
@@ -184,6 +188,8 @@ export interface PackArmsFrame {
    * view): the arms turn with it, so the hold is the pack's own */
   level: number;
   levelAt: THREE.Vector3;
+  /** the pack's swap swinging the gun this frame, in the view's space: the arms swing with it */
+  swing: THREE.Matrix4;
 }
 
 /** a hand off any gun: its wrist at `at` (world), its knuckles along `along` and its palm facing `palm` (both in the
@@ -215,8 +221,12 @@ export class PackArms {
   }
   /** where on the magazine the finger points, and which way: the pack gun's own, else the reload's */
   get pointAt(): PointAt {
-    return (this.active && PACK[this.active]?.point) || PACK_RELOAD;
+    // (the reload's own for whatever the gun's does not set: a gun's with only its elbow and reach had no face to point at)
+    const R = PACK_RELOAD;
+    return { face: R.face, at: R.at, aim: R.aim, ...((this.active && PACK[this.active]?.point) || {}), ...(this.debugPoint ?? {}) };
   }
+  /** a point's elbow and reach tried in place of the pack gun's own (tools/pack-fit.ts wrists) */
+  debugPoint: Partial<PointAt> | null = null;
   /**
    * Where the pack holds the gun at the hip, as our view places a gun (its position in the view's group, and its turn):
    * the pack's hold is made for its own camera, so our gun goes where its gun was and the arms keep the shape the pack
@@ -287,6 +297,15 @@ export class PackArms {
    * another gun's) */
   private readonly poseHandR = new THREE.Matrix4();
   private readonly poseFingersR = new Map<THREE.Object3D, THREE.Quaternion>();
+  /** the left hand at the hold and its fingers, which a pickup's left hand eases into as it comes back to the gun */
+  private readonly poseHandL = new THREE.Matrix4();
+  private readonly poseFingersL = new Map<THREE.Object3D, THREE.Quaternion>();
+  /** how near a pickup's left hand is to its place on the gun, 0 to 1 */
+  private pickNearL = 0;
+  /** a pickup is playing: its right hand is the hold's, whole */
+  private pickWhole = false;
+  /** shoulders tried in place of the pack gun's own (tools/pack-fit.ts wrists) */
+  debugShoulders: Shoulders | null = null;
   /** each finger joint as a fist has it (from the pack's grip, bent further along the same axis), once its clips are in */
   private readonly fistQ = new Map<THREE.Object3D, THREE.Quaternion>();
   /** the handle's knob this frame, where the grab's fingers close on it (the checks) */
@@ -453,6 +472,9 @@ export class PackArms {
     const boneRef = new THREE.Matrix4().multiplyMatrices(rigInv, this.bones.ik_hand_gun.matrixWorld);
     this.boneRefInv.copy(boneRef).invert();
     this.poseHandR.copy(this.boneRefInv).multiply(new THREE.Matrix4().multiplyMatrices(rigInv, this.bones.ik_hand_r.matrixWorld));
+    this.poseHandL.copy(this.boneRefInv).multiply(new THREE.Matrix4().multiplyMatrices(rigInv, this.bones.ik_hand_l.matrixWorld));
+    this.poseFingersL.clear();
+    for (const [n, b] of Object.entries(this.bones)) if (/^(index|middle|ring|pinky|thumb)_0[123]_l$/.test(n)) this.poseFingersL.set(b, b.quaternion.clone());
     this.poseFingersR.clear();
     for (const [n, b] of Object.entries(this.bones)) if (/^(index|middle|ring|pinky|thumb)_0[123]_r$/.test(n)) this.poseFingersR.set(b, b.quaternion.clone());
     this.restHand.setFromMatrixPosition(new THREE.Matrix4().multiplyMatrices(this.boneRefInv, new THREE.Matrix4().multiplyMatrices(rigInv, this.bones.ik_hand_l.matrixWorld))).applyMatrix4(boneInOur);
@@ -700,12 +722,19 @@ export class PackArms {
     // place on the gun: without them, the pack's hands made for thinner grips went 13 mm into ours)
     let pickHold = { r: 0, l: 0 };
     if (this.lead === "pickup") {
-      for (const [b, q] of this.poseFingersR) b.quaternion.slerp(q, leadW);
+      // (whole, not by the pickup's weight: part way in, the hand between the two grips went 11 mm into ours)
+      for (const [b, q] of this.poseFingersR) b.quaternion.copy(q);
       this.arms.updateMatrixWorld(true);
       const rel = new THREE.Matrix4().copy(this.bones.ik_hand_gun.matrixWorld).invert().multiply(this.bones.ik_hand_l.matrixWorld);
       const handO = loc(rel).applyMatrix4(this.boneInOur);
-      pickHold = { r: leadW, l: leadW * (1 - ss(handO.distanceTo(this.restHand), 0.02, 0.08)) };
-    }
+      // (and the left eases into its own grip as it comes back: the pickup clip's was made on another gun, and came
+      // back 7 to 12 mm into ours)
+      // (whole by 6 cm off its place, begun at 20: begun at 10, the USSO's hand touched the gun half in its own grip)
+      this.pickNearL = 1 - ss(handO.distanceTo(this.restHand), 0.06, 0.2);
+      for (const [b, q] of this.poseFingersL) b.quaternion.slerp(q, this.pickNearL);
+      pickHold = { r: leadW, l: leadW * this.pickNearL };
+      this.pickWhole = true;
+    } else this.pickWhole = false;
     const holdW = { r: 1 - leadW + pickHold.r, l: (1 - leadW + pickHold.l) * (1 - pointW) * (1 - grabW) * (1 - palmW) };
     for (const side of ["l", "r"] as const) {
       const fit = hold?.[side];
@@ -719,6 +748,12 @@ export class PackArms {
       }
       for (const [finger, t] of Object.entries(fit.turn ?? {})) {
         const b = this.bones[`${finger}_01_${side}`];
+        if (b) b.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(t[0] * holdW[side], t[1] * holdW[side], t[2] * holdW[side])));
+      }
+      // and each joint of a finger turned as the fit found it (tools/pack-fit.ts joints): the finger laid on our grip's
+      // surface joint by joint, where a whole finger's curl or turn left a thumb pressed 9 mm into the grip
+      for (const [joint, t] of Object.entries(fit.joint ?? {})) {
+        const b = this.bones[`${joint}_${side}`];
         if (b) b.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(t[0] * holdW[side], t[1] * holdW[side], t[2] * holdW[side])));
       }
     }
@@ -758,7 +793,7 @@ export class PackArms {
     // and turned down with the gun as it is levelled at rest, about the gun's origin: turned alone, the gun bent both
     // wrists (the support one from 44 degrees to 56) and moved the left hand off it
     const L = f.levelAt;
-    drop.multiply(new THREE.Matrix4().makeTranslation(L.x, L.y, L.z).multiply(new THREE.Matrix4().makeRotationX(-f.level)).multiply(new THREE.Matrix4().makeTranslation(-L.x, -L.y, -L.z)));
+    drop.multiply(f.swing).multiply(new THREE.Matrix4().makeTranslation(L.x, L.y, L.z).multiply(new THREE.Matrix4().makeRotationX(-f.level)).multiply(new THREE.Matrix4().makeTranslation(-L.x, -L.y, -L.z)));
     this.arms.updateMatrix();
     new THREE.Matrix4().multiplyMatrices(drop, this.arms.matrix).decompose(this.arms.position, this.arms.quaternion, this.arms.scale);
     this.arms.updateMatrixWorld(true);
@@ -847,11 +882,12 @@ export class PackArms {
     for (const side of ["r", "l"] as const) {
       const rel = new THREE.Matrix4().multiplyMatrices(boneNowInv, inRig(this.bones[`ik_hand_${side}`]));
       // (a pickup's right hand stays as the hold has it on the gun)
-      if (side === "r" && this.lead === "pickup" && leadW > 0.001) {
+      if (side === "r" && this.pickWhole) rel.copy(this.poseHandR);
+      if (side === "l" && this.pickWhole && this.pickNearL > 0.001) {
         const [ap, aq, bp, bq] = [new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(), new THREE.Quaternion()];
         rel.decompose(ap, aq, new THREE.Vector3());
-        this.poseHandR.decompose(bp, bq, new THREE.Vector3());
-        rel.compose(ap.lerp(bp, leadW), aq.slerp(bq, leadW), new THREE.Vector3(1, 1, 1));
+        this.poseHandL.decompose(bp, bq, new THREE.Vector3());
+        rel.compose(ap.lerp(bp, this.pickNearL), aq.slerp(bq, this.pickNearL), new THREE.Vector3(1, 1, 1));
       }
       const pos = new THREE.Vector3();
       const quat = new THREE.Quaternion();
@@ -864,6 +900,10 @@ export class PackArms {
         const len = v.length();
         if (len > 0) pos.add(v.applyMatrix3(toWorldDir).normalize().multiplyScalar(len * gsW * holdW[side]));
       }
+      // and turned about the wrist as the fit found it (the thumb's root is in the ball of the hand: no turn of the
+      // thumb's joints takes it out of a grip thicker than the pack's, the USSO's 9 mm in)
+      const fitRot = hold?.[side]?.rot;
+      if (fitRot && holdW[side] > 0.001) quat.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(fitRot[0] * holdW[side], fitRot[1] * holdW[side], fitRot[2] * holdW[side])));
       const rackShift = (this.debugRackShift ?? rack?.shift)?.[side];
       if (rackShift && rack && this.lead === rack.clip && leadW > 0.001) {
         const v = new THREE.Vector3().fromArray(rackShift);
@@ -914,7 +954,7 @@ export class PackArms {
           // arm placed once toward the tip from its shoulder, then the hand aimed from where its elbow fell (along `aim`
           // alone the hand turned back on the forearm, the wrist 107 to 126 degrees)
           this.tipTarget.copy(tipW);
-          const reachW = RL.reach * this.group.getWorldScale(new THREE.Vector3()).x;
+          const reachW = (P.reach ?? RL.reach) * this.group.getWorldScale(new THREE.Vector3()).x;
           const aimW = new THREE.Vector3().fromArray(P.aim).normalize().applyMatrix3(toWorldDir).normalize();
           const shoulder = this.bones.upperarm_l.getWorldPosition(new THREE.Vector3());
           let dirW = tipW.clone().sub(shoulder).normalize();
@@ -926,7 +966,7 @@ export class PackArms {
           const armWas = armBones.map((b) => b.quaternion.clone());
           // the elbow hanging down from the shoulder, as one's does pointing at something near the chest (bent the way
           // the hold had it, it went up beside the eye on the way)
-          const hang = new THREE.Vector3().fromArray(RL.elbow).normalize().applyQuaternion(this.group.getWorldQuaternion(new THREE.Quaternion()));
+          const hang = new THREE.Vector3().fromArray(P.elbow ?? RL.elbow).normalize().applyQuaternion(this.group.getWorldQuaternion(new THREE.Quaternion()));
           this.reach("l", away > 0 ? first.clone().applyMatrix4(dropW) : first, quat, shoulder.clone().add(hang));
           pointElbow = this.bones.lowerarm_l.getWorldPosition(new THREE.Vector3());
           armBones.forEach((b, i) => b.quaternion.copy(armWas[i]));
@@ -935,7 +975,7 @@ export class PackArms {
           if (away > 0) elbowW.applyMatrix4(new THREE.Matrix4().copy(dropW).invert());
           dirW = tipW.clone().sub(elbowW).normalize().lerp(aimW, RL.bend).normalize();
           // and turned `aimAt` of the way to point at it from where the tip now is
-          if (atW.distanceTo(tipW) > 1e-5) dirW.lerp(atW.clone().sub(tipW).normalize(), RL.aimAt).normalize();
+          if (atW.distanceTo(tipW) > 1e-5) dirW.lerp(atW.clone().sub(tipW).normalize(), (P.aimAt ?? RL.aimAt)).normalize();
           this.pointAtW.copy(atW);
           // the index finger itself along that line, its tip on the spot: the finger's line and tip in the hand's frame
           // (straightened above), the hand turned to lay it along the line and put back from the tip by it. Aimed by the
@@ -1067,9 +1107,18 @@ export class PackArms {
     // and aimed, both back by as much again as our sights bring the gun nearer the eye than the pack's do (fparms.json
     // adsShoulder): with the shoulders where the hold put them, the USSO's right wrist bent 109 degrees aimed, its left 70
     const back = ADS_SHOULDER * ads;
-    const r = me.clavicleR ?? [0, 0, 0];
-    const l = me.clavicleL ?? [0, 0, 0];
-    for (const [side, off] of [["l", [l[0], l[1], l[2] - back]], ["r", [r[0], r[1], r[2] - back]]] as const) {
+    // and the pack gun's own fit on top, at rest and aimed (packGuns shoulders, found by tools/pack-fit.ts wrists: the
+    // shoulder where the wrist is straightest, the hands where they are)
+    const S = this.debugShoulders ?? PACK[this.active!]?.shoulders ?? {};
+    const add = (base: number[] | undefined, rest: number[] | undefined, aimed: number[] | undefined, k: number): number[] => {
+      const b = base ?? [0, 0, 0];
+      const a = rest ?? [0, 0, 0];
+      const d = aimed ?? [0, 0, 0];
+      return [0, 1, 2].map((i) => b[i] + a[i] * (1 - ads) + d[i] * ads - (i === 2 ? k : 0));
+    };
+    const l = add(me.clavicleL, S.l, S.adsL, back);
+    const r = add(me.clavicleR, S.r, S.adsR, back);
+    for (const [side, off] of [["l", l], ["r", r]] as const) {
       if (!off || (off[0] === 0 && off[1] === 0 && off[2] === 0)) continue;
       const clav = this.bones[`clavicle_${side}`];
       if (!clav?.parent) continue;

@@ -97,7 +97,7 @@
         "l": {
           "shift": [
             -0.0193,
-            -0.0163,
+            -0.0142,
             -0.0028
           ],
           "open": {
@@ -107,18 +107,87 @@
         },
         "r": {
           "shift": [
-            0.0091,
-            -0.0026,
-            -0.0015
+            0.0142,
+            -0.008,
+            -0.006
           ],
           "open": {
             "middle": 0.2,
             "pinky": 0.4,
             "thumb": 0.1
-          }
+          },
+          "joint": {
+            "thumb_02": [
+              0.06,
+              0.3,
+              -0.24
+            ],
+            "thumb_01": [
+              -0.46,
+              -1.14,
+              0.2
+            ],
+            "middle_01": [
+              -0.24,
+              0.24,
+              0
+            ],
+            "ring_01": [
+              0,
+              0.12,
+              -0.36
+            ],
+            "ring_02": [
+              0,
+              0.12,
+              -0.24
+            ],
+            "pinky_01": [
+              -0.12,
+              0,
+              0
+            ]
+          },
+          "rot": [
+            -0.04,
+            0,
+            0
+          ]
         }
       },
-      "_hold": "Fitted by tools/pack-fit.ts on 2026-09-28: before, in L 0 R 127 deepest 12 mm {\"thumb_03_r\":12,\"pinky_02_r\":6,\"thumb_01_r\":11,\"thumb_02_r\":10,\"ring_01_r\":6,\"ring_02_r\":11,\"middle_02_r\":9,\"ring_03_r\":5}; seen L 0 R 20 deepest 9 mm; palm gap L 5.8 R 0.0 mm; after, in L 3 R 129 deepest 12 mm {\"ring_03_l\":4,\"thumb_03_r\":12,\"hand_r\":6,\"pinky_02_r\":5,\"thumb_01_r\":12,\"thumb_02_r\":10,\"ring_01_r\":6,\"ring_02_r\":11,\"middle_02_r\":8,\"ring_03_r\":5}; seen L 0 R 14 deepest 8 mm; palm gap L 0.9 R 0.0 mm."
+      "_hold": "Fitted by tools/pack-fit.ts, then joint by joint by tools/pack-solve.ts joints and tools/pack-thumb.ts, 2026-09-28. The fit alone left the right hand's seen skin up to 8 mm into the grip and its thumb 12 mm in, lying over the receiver where no small turn moved it; now no seen skin is more than 4 mm in, held, pointing, racking, aimed, swapping or picking up (tools/e2e.ts pack frames; tools/pack-frames.ts flags no frame of the reload, swap, aim or pickup).",
+      "_solve": "tools/pack-solve.ts wrists, 2026-09-28: the shoulders and the pointing arm where the wrists are straightest, the arms no more in the picture (13.8% of their skin then 14.1%). Wrists left and right 38 and 20 degrees at rest, 44 and 21 aimed; pointing 50 (68 before), the tip on its spot; 39 early in a swap (tools/e2e.ts pack frames).",
+      "shoulders": {
+        "l": [
+          0.01,
+          0,
+          -0.04
+        ],
+        "r": [
+          -0.08,
+          0.12,
+          0
+        ],
+        "adsL": [
+          0,
+          0.04,
+          0
+        ],
+        "adsR": [
+          -0.16,
+          0.16,
+          -0.16
+        ]
+      },
+      "point": {
+        "elbow": [
+          -1.05,
+          -1.3,
+          -0.15
+        ],
+        "reach": 0.18,
+        "aimAt": 0.78
+      }
     },
     "Striker-V": {
       "model": "SKM_Striker-V",
@@ -171,7 +240,7 @@
         ],
         "shift": {
           "r": [
-            0.018,
+            0.021,
             0,
             0
           ]
@@ -196,33 +265,107 @@
           1,
           1,
           0.1
-        ]
+        ],
+        "elbow": [
+          -0.6,
+          -1,
+          -0.6
+        ],
+        "reach": 0.24,
+        "aimAt": 0.77
       },
       "hold": {
         "l": {
           "shift": [
-            0,
-            0,
-            0
+            0.0024,
+            0.0036,
+            -0.003
           ],
           "open": {
             "pinky": 0.1
+          },
+          "joint": {
+            "pinky_01": [
+              -0.24,
+              0,
+              0
+            ]
           }
         },
         "r": {
           "shift": [
-            0.0106,
-            -0.007,
-            0.0099
+            0.0121,
+            -0.01,
+            0.0084
           ],
           "open": {
             "middle": -0.2,
             "ring": 0.6,
             "pinky": -0.2
+          },
+          "joint": {
+            "thumb_01": [
+              -0.24,
+              -0.74,
+              0.12
+            ],
+            "thumb_02": [
+              -0.12,
+              0,
+              -0.12
+            ],
+            "index_01": [
+              -0.12,
+              0,
+              -0.12
+            ],
+            "middle_01": [
+              0,
+              0,
+              0.62
+            ],
+            "middle_02": [
+              0.24,
+              0,
+              0
+            ],
+            "ring_01": [
+              0.06,
+              0,
+              0
+            ],
+            "pinky_01": [
+              0,
+              0.24,
+              0.24
+            ],
+            "pinky_02": [
+              0.12,
+              0,
+              0
+            ]
           }
         }
       },
-      "_hold": "Fitted by tools/pack-fit.ts on 2026-09-28: before, in L 1 R 137 deepest 14 mm {\"middle_02_l\":4,\"thumb_03_r\":14,\"thumb_01_r\":9,\"thumb_02_r\":11,\"pinky_02_r\":13,\"middle_02_r\":13,\"middle_01_r\":9,\"index_03_r\":5}; seen L 0 R 47 deepest 14 mm; after, in L 1 R 116 deepest 11 mm {\"middle_02_l\":4,\"thumb_03_r\":9,\"thumb_01_r\":9,\"thumb_02_r\":10,\"pinky_02_r\":11,\"middle_02_r\":10,\"middle_01_r\":8,\"ring_02_r\":7,\"ring_03_r\":4,\"index_03_r\":6}; seen L 0 R 28 deepest 9 mm."
+      "_hold": "Fitted by tools/pack-fit.ts, then joint by joint by tools/pack-solve.ts joints and tools/pack-thumb.ts (the right thumb and middle finger), 2026-09-28. The fit alone left the right hand's seen skin up to 9 mm into the grip; now no seen skin is more than 4 mm in, held, pointing, racking, swapping or picking up (tools/e2e.ts pack frames; tools/pack-frames.ts flags no frame of the reload, swap, aim or pickup).",
+      "_solve": "tools/pack-solve.ts wrists, 2026-09-28: the shoulders and the pointing arm where the wrists are straightest, no arm in the picture. Wrists left and right 30 and 41 degrees at rest, 47 and 23 aimed; pointing 56 (55 before, the tip brought onto its spot), 34 early in a swap (tools/e2e.ts pack frames).",
+      "shoulders": {
+        "l": [
+          0,
+          0,
+          -0.04
+        ],
+        "r": [
+          0,
+          0.04,
+          0
+        ],
+        "adsR": [
+          -0.08,
+          0.16,
+          -0.16
+        ]
+      }
     }
   },
   "guns": {
@@ -248,7 +391,7 @@
     "easeOut": 0.06,
     "swing": 0
   },
-  "_reload": "The reload with the bought arms, the owner's (2026-09-27): \"point a finger at it while it phases out and in for a reload and then smack the charging handle ... same with the sniper ... a nice combo of the two\". Shares of the reload: the left hand leaves the gun over `point` and points at the magazine, its index finger out and its tip `gap` m off the magazine's left face, the hand `reach` m back from the tip along `aim` (in the gun's frame: right, up, ahead), while the gun turns its underside toward you (gunfeel.json reload.twist); the magazine phases out over `phaseOut` and a new one in over `phaseIn`, staying in the gun, and seats at `seat`; then over `rack` the pack's own hands work the gun: each pack gun's `rack` names the clip and the share of it where they do (measured off its gun clip: the MPS5's empty reload slaps its handle forward at 0.69, the L96X's fire clip works its bolt over 0.30 to 0.48), and the hands go back to the hold. It had been the pack's whole reload, the magazine carried out of the gun to the belt and back, its phase out of sight. `twist` turns the gun while the hand points (radians, and metres before the view's scale), smaller than gunfeel.json's own: at that one the gun filled the middle of the screen and the pointing hand came up to the eye. A pack gun's own `twist` replaces it: the USSO's magazine sits low, and at the shared one its pointing hand was below the screen's edge. Which face of the magazine the finger comes at is `face` (in the gun's frame; -1 on x its left face, -1 on y its bottom), `aim` the way it points, and a pack gun's own `point` replaces the three: the BOOG's magazine is a thin plate low on the gun's left side, and pointed at from its left the hand sat between the eye and it (2026-09-27, a picture with the magazine tinted red), so its finger comes up at its bottom, the gun pitched and rolled more to show it. The pointing arm's elbow bends toward `elbow` from its shoulder (in the view: right, up, toward you), hanging down: bent the way the hold had it, the USSO's point, 22 cm from the shoulder, folded the arm so tight that on the way its elbow passed 9 cm in front of the eye and the sleeve filled the view for a tenth of the reload (measured bone by bone, 2026-09-27). The magazine slides as it phases (the owner, 2026-09-28: \"drop out and pixelate, and then pixelate and slide in with a distance from start to end\"): the old one `slide` view metres down its own length as it goes, the new one from there up into the gun as it comes (the USSO's is 17 cm long, BOOG's 12 cm tall, measured in the view), and the finger follows it. The fingertip is `shift` view metres left and down of the point it points at (the owner: \"down and left more on both, not by too much\"), the hand turned `aimAt` of the way from its forearm's line to point at it. From the point the gun goes straight into its rack pose (a pack gun's rack `pose`, view radians and metres) over `rackBlend` of the reload, and a pack gun's rack `gunKeep` is the share of its rack clip's own gun motion kept: the MPS5's empty reload is made for a handle at the front of its gun, and the USSO's is at the back, 35 cm from the eye, so carried over the left hand came to 27 cm and filled a third of the view, the gun thrown small and far to the middle (2026-09-28, every frame of it measured and looked at; tools/pack-frames.ts). The hand points along the line from its shoulder to the fingertip, `bend` of the way toward `aim` (along `aim` alone the wrist bent 107 to 126 degrees), at `at` of the magazine's height from its bottom (its middle, up a pistol grip, is hidden by the other hand). A pack gun's rack `shift` moves a hand while its rack clip works the gun, view metres along our gun's axes: the L96X's right hand throws its bolt where BOOG's body is, the glove 15 mm into it; 18 mm out along the gun's width leaves none of it through the gun where it is seen over the bolt's throw (searched, 2026-09-28, the arms turned with the levelled gun). A pack gun's rack `grab` closes the left hand on our handle itself: the owner, 2026-09-28, \"we get close to it, but our fingers don't grip it, it's like 80% of the way there\". The USSO's handle is a knob standing a centimetre off the gun's left side, which no closed hand holds without going into the gun (10 mm and more, every roll of the pack's own grip and every turn of a hand closed round it, searched), so it is a `pinch`: the thumb and forefinger's tips (`hook` off the knob, in our gun's frame) on it, the other three fingers curled into the palm, the hand turned with its knuckles `along` and its palm facing `palm` in our gun's frame, and the forefinger `curl` (below 0, opened) from the pack's grip. Searched by what of the hand is through the gun where it is seen, its gap to the gun and its wrist: none through, touching, the wrist 22 degrees.",
+  "_reload": "The reload with the bought arms, the owner's (2026-09-27): \"point a finger at it while it phases out and in for a reload and then smack the charging handle ... same with the sniper ... a nice combo of the two\". Shares of the reload: the left hand leaves the gun over `point` and points at the magazine, its index finger out and its tip `gap` m off the magazine's left face, the hand `reach` m back from the tip along `aim` (in the gun's frame: right, up, ahead), while the gun turns its underside toward you (gunfeel.json reload.twist); the magazine phases out over `phaseOut` and a new one in over `phaseIn`, staying in the gun, and seats at `seat`; then over `rack` the pack's own hands work the gun: each pack gun's `rack` names the clip and the share of it where they do (measured off its gun clip: the MPS5's empty reload slaps its handle forward at 0.69, the L96X's fire clip works its bolt over 0.30 to 0.48), and the hands go back to the hold. It had been the pack's whole reload, the magazine carried out of the gun to the belt and back, its phase out of sight. `twist` turns the gun while the hand points (radians, and metres before the view's scale), smaller than gunfeel.json's own: at that one the gun filled the middle of the screen and the pointing hand came up to the eye. A pack gun's own `twist` replaces it: the USSO's magazine sits low, and at the shared one its pointing hand was below the screen's edge. Which face of the magazine the finger comes at is `face` (in the gun's frame; -1 on x its left face, -1 on y its bottom), `aim` the way it points, and a pack gun's own `point` replaces the three: the BOOG's magazine is a thin plate low on the gun's left side, and pointed at from its left the hand sat between the eye and it (2026-09-27, a picture with the magazine tinted red), so its finger comes up at its bottom, the gun pitched and rolled more to show it. The pointing arm's elbow bends toward `elbow` from its shoulder (in the view: right, up, toward you), hanging down: bent the way the hold had it, the USSO's point, 22 cm from the shoulder, folded the arm so tight that on the way its elbow passed 9 cm in front of the eye and the sleeve filled the view for a tenth of the reload (measured bone by bone, 2026-09-27). The magazine slides as it phases (the owner, 2026-09-28: \"drop out and pixelate, and then pixelate and slide in with a distance from start to end\"): the old one `slide` view metres down its own length as it goes, the new one from there up into the gun as it comes (the USSO's is 17 cm long, BOOG's 12 cm tall, measured in the view), and the finger follows it. The fingertip is `shift` view metres left and down of the point it points at (the owner: \"down and left more on both, not by too much\"), the hand turned `aimAt` of the way from its forearm's line to point at it. From the point the gun goes straight into its rack pose (a pack gun's rack `pose`, view radians and metres) over `rackBlend` of the reload, and a pack gun's rack `gunKeep` is the share of its rack clip's own gun motion kept: the MPS5's empty reload is made for a handle at the front of its gun, and the USSO's is at the back, 35 cm from the eye, so carried over the left hand came to 27 cm and filled a third of the view, the gun thrown small and far to the middle (2026-09-28, every frame of it measured and looked at; tools/pack-frames.ts). The hand points along the line from its shoulder to the fingertip, `bend` of the way toward `aim` (along `aim` alone the wrist bent 107 to 126 degrees), at `at` of the magazine's height from its bottom (its middle, up a pistol grip, is hidden by the other hand). A pack gun's rack `shift` moves a hand while its rack clip works the gun, view metres along our gun's axes: the L96X's right hand throws its bolt where BOOG's body is, the glove 15 mm into it; 21 mm out along the gun's width leaves none of it through the gun where it is seen over the bolt's throw (searched, 2026-09-28, with the hold fitted joint by joint). A pack gun's rack `grab` closes the left hand on our handle itself: the owner, 2026-09-28, \"we get close to it, but our fingers don't grip it, it's like 80% of the way there\". The USSO's handle is a knob standing a centimetre off the gun's left side, which no closed hand holds without going into the gun (10 mm and more, every roll of the pack's own grip and every turn of a hand closed round it, searched), so it is a `pinch`: the thumb and forefinger's tips (`hook` off the knob, in our gun's frame) on it, the other three fingers curled into the palm, the hand turned with its knuckles `along` and its palm facing `palm` in our gun's frame, and the forefinger `curl` (below 0, opened) from the pack's grip. Searched by what of the hand is through the gun where it is seen, its gap to the gun and its wrist: none through, touching, the wrist 22 degrees.",
   "reload": {
     "point": [
       0.04,
@@ -476,5 +619,5 @@
       ]
     }
   },
-  "_guns": "Which pack gun stands in for which of ours, chosen on pictures at the owner's view: the USSO's is the MPS5, a compact SMG held by its handguard, its charging handle worked from empty; the Striker-V, the first tried, holds its long magazine as a grip, 22 cm under where the USSO's short one sits, and the hand could not be on both. BOOG's is the L96X, a bolt sniper that works its bolt after every shot. A pack gun's gun clips list only those the import makes a file of: the MPS5's and the L96X's A_W pose are stills with no animation, which tools/import-fparms.ts writes nothing for, and asked for they were a 404 on every page once the arms load at the start for the fists (the live check caught it, 2026-09-28); the rig runs without them."
+  "_guns": "Which pack gun stands in for which of ours, chosen on pictures at the owner's view: the USSO's is the MPS5, a compact SMG held by its handguard, its charging handle worked from empty; the Striker-V, the first tried, holds its long magazine as a grip, 22 cm under where the USSO's short one sits, and the hand could not be on both. BOOG's is the L96X, a bolt sniper that works its bolt after every shot. A pack gun's gun clips list only those the import makes a file of: the MPS5's and the L96X's A_W pose are stills with no animation, which tools/import-fparms.ts writes nothing for, and asked for they were a 404 on every page once the arms load at the start for the fists (the live check caught it, 2026-09-28); the rig runs without them. A pack gun's `hold` is each hand's fit onto our grip (fprig.ts HandFit: `shift`, `rot`, `open`, `turn`, `joint`), measured into place by tools/pack-fit.ts, then joint by joint by tools/pack-solve.ts and tools/pack-thumb.ts until no seen skin is more than 4 mm into the gun anywhere in its moves. Its `shoulders` move the clavicles on top of the pack's own offsets, metres in the rig, at rest (`l`, `r`) and aimed (`adsL`, `adsR`), to where the wrists are straightest without more of the arms in the picture (tools/pack-solve.ts wrists). Its `point` can carry its own `elbow`, `reach` and `aimAt` for the reload's pointing arm (the reload's otherwise), searched the same way with the fingertip kept on its spot."
 }

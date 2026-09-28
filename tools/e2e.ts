@@ -3270,7 +3270,7 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { pitch: number; hook: number; fists: boolean; palm: { w: number; card: boolean }; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; pickLead: string; pickAfter: string };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: boolean; palm: { w: number; card: boolean }; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; pickLead: string; pickAfter: string };
   // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
   const res: { guns: Record<string, Frames>; jump: string[] } = { guns: {}, jump: [] };
   // (the page's helpers once, then one short page call a measure: the e2e draws in software, a few frames a second, and
@@ -3351,6 +3351,9 @@ async function packFrames(page: Page): Promise<void> {
     o.gripSame = await pf<number>(`return Math.min(...H.fingers().map((q, i) => Math.abs(q.dot(H.first[i]))));`);
     // the barrel's pitch at rest (the owner: "the gun is never like that" up and to the left)
     o.pitch = await pf<number>(`await H.gameWait(0.3); return H.pitch();`);
+    // the wrists: at rest and aimed, pointing, and early in a swap as the pack's unequip swings the gun
+    const wr = (js: string) => pf<number[]>(`${js} await H.gameWait(0.35); const s = r.packArms(); H.clear(); await H.gameWait(0.3); return [s.wristL, s.wristR];`);
+    o.wrists = { rest: await wr(""), aimed: await wr("r.debugView.ads = 1;"), point: (await wr("r.debugView.reload = 0.28;"))[0], swap: (await wr("r.debugView.raise = 0.16;"))[0] };
     o.slid = await pf<number>(`const rest = H.magAt(); r.debugView.reload = ${(RL.phaseOut[1] + RL.phaseIn[0]) / 2}; await H.gameWait(0.2); const d = H.magAt().distanceTo(rest); H.clear(); return d;`);
     const point = await pf<{ miss: number; off: number }>(`r.debugView.reload = 0.28; await H.gameWait(0.2); const s = r.packArms(); H.clear(); await H.gameWait(0.2); return { miss: Number.isFinite(s.pointMiss) ? s.pointMiss : 99, off: s.pointOff };`);
     o.miss = point.miss;
@@ -3477,6 +3480,11 @@ async function packFrames(page: Page): Promise<void> {
     res.guns.r97?.hook < 0.02,
     show((x) => +(x.hook * 100).toFixed(1)),
   );
+  check(
+    "pack frames: both wrists 50 degrees or less at rest and aimed, and 60 or less pointing and early in a swap, on the USSO and BOOG",
+    g.every((x) => [...x.wrists.rest, ...x.wrists.aimed].every((w) => w <= 50) && x.wrists.point <= 60 && x.wrists.swap <= 60),
+    show((x) => ({ rest: x.wrists.rest.map(Math.round), aimed: x.wrists.aimed.map(Math.round), point: Math.round(x.wrists.point), swap: Math.round(x.wrists.swap) })),
+  );
   check("pack frames: the fists are the bought arms'", g.every((x) => x.fists), show((x) => x.fists));
   check(
     "pack frames: on an inspect the left hand opens, palm up, with the hack you carry over it",
@@ -3499,10 +3507,10 @@ async function packFrames(page: Page): Promise<void> {
     show((x) => ({ cm: +(x.miss * 100).toFixed(1), deg: +x.off.toFixed(1) })),
   );
   check(
-    // (the pack's hands are made for thinner grips than ours: the right thumb still presses 9 mm into the side of the grip
-    // as the gun turns over for the reload, fitted as far as it goes without the far side's fingers showing; tools/pack-fit.ts)
-    "pack frames: no skin through the gun deeper than 1 cm where it is seen, held, pointing, the new magazine in, racking, aimed, swapping and picking up",
-    g.every((x) => Object.values(x.through).every((d) => d <= 0.01)),
+    // (none past touching, 4 mm: the holds fitted joint by joint to our grips, tools/pack-solve.ts and pack-thumb.ts; the
+    // right thumbs had pressed 9 mm into the grips' sides, the pack's hands being made for thinner grips)
+    "pack frames: no skin through the gun past touching (4 mm) where it is seen, held, pointing, the new magazine in, racking, aimed, swapping and picking up",
+    g.every((x) => Object.values(x.through).every((d) => d <= 0.004)),
     show((x) => Object.fromEntries(Object.entries(x.through).map(([k, d]) => [k, Math.round(d * 1000)]))),
   );
   check(
@@ -5140,6 +5148,43 @@ async function skHitsLand(page: Page): Promise<void> {
  * follow its bones, dummy.ts followBones); figures of different operators, as bots are, wear different kits; and with
  * the files answering 404, as on a copy without them, the game falls back to the figures and guns of before.
  */
+/**
+ * The gun in your hands at 2048 on High and 1024 on the other presets (paidweapons.json textures2k; the owner,
+ * 2026-09-28: "Yes raise the textures on high settings"): only the one gun, so the memory it costs is one gun's.
+ */
+async function heldTexTest(browser: Browser): Promise<void> {
+  const sizes: Record<string, number> = {};
+  for (const preset of ["high", "balanced"]) {
+    const page = await open(browser, "?game=speedkills", BASE, `try { localStorage.setItem("range.quality", "${preset}"); } catch {}`);
+    const ready = await page.waitForFunction("window.__range.loaded() && window.__range.paidGuns().ready", { polling: 250, timeout: 120000 }).then(() => true, () => false);
+    if (!ready) {
+      console.log("  --  the bought guns are not here, so the texture check is skipped");
+      await page.close();
+      return;
+    }
+    await ev(page, `(() => { const r = window.__range; r.loadout.give(0, "r97"); r.loadout.requestSwap(0, r.gameTime()); })()`);
+    await gameSleep(page, 2.5);
+    sizes[preset] = await ev<number>(
+      page,
+      `(async () => {
+        const r = window.__range;
+        const width = (root) => { let w = 0; root.traverse((o) => { if (!w && o.isMesh && o.material && o.material.map && o.material.map.image) w = o.material.map.image.width; }); return w; };
+        let gun = null;
+        r.viewModelRoot().traverse((o) => { if (o.userData && o.userData.paid && !gun) gun = o; });
+        const t0 = performance.now();
+        while (gun && !width(gun) && performance.now() - t0 < 10000) await new Promise((ok) => setTimeout(ok, 100));
+        return gun ? width(gun) : 0;
+      })()`,
+    );
+    await page.close();
+  }
+  check(
+    "soldier guns: the gun in your hands wears its 2048 skin on High and its 1024 one on Balanced",
+    sizes.high === 2048 && sizes.balanced === 1024,
+    JSON.stringify(sizes),
+  );
+}
+
 async function soldierTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?game=speedkills");
   const here = await ev<boolean>(page, `fetch(${JSON.stringify(soldierCfg.model)}, { method: "HEAD" }).then((r) => r.ok && !(r.headers.get("content-type") ?? "").includes("text/html"), () => false)`);
@@ -7667,6 +7712,7 @@ async function main(): Promise<void> {
     if (want("soldier")) {
       console.log("\nSpeedKills' soldier: it renders, its hit volumes, bots' kits and the fallback");
       await soldierTest(browser);
+      await heldTexTest(browser);
     }
 
     if (want("skfriends")) {

@@ -78,6 +78,9 @@ they never enter git and never go to Pages:
   meshopt-compressed; `high-corner-v4-lo.glb`, 25 MB, for the presets that load the kit's lo files). `PAID_ONLY=city CITY_PACK=high CITY_DISTRICTS=1 npx tsx tools/import-paid.ts` bakes it in about 80 s
   and writes its collision to `src/config/districts/<id>.solids.json` and its measurements back to the config, both in
   git, so commit them; raise `version` there for the server to hand out a new file at once.
+- **The guns' skins:** `PAID_ONLY=weapons npm run paid` writes each one twice, `public/models/paid/weapons/tex/` at
+  1024 px and `weapons/tex2k/` at 2048 (270 files, 40 MB); the 2048 ones are loaded only for the gun in your hands on
+  High (`paidweapons.json` textures2k).
 - **Shipping them:** `npm run fps deploy` carries `public/models/paid/` to the game server, so **run it from a copy
   that has the files** (run `npm run paid` there, or copy the folder in: a re-import in a worktree lands only in that
   worktree's `public/`, and a deploy of the code without the files it names leaves the city bare). `npm run deploy` (Pages) takes them out of

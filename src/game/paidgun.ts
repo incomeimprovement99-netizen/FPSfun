@@ -49,13 +49,16 @@ export function paidGunsReady(): boolean {
   return ready;
 }
 
-/** a skin's material, one per family and skin letter, shared by every gun wearing it */
-function skinMaterial(family: string, skin: string, tl: THREE.TextureLoader): THREE.MeshStandardMaterial {
+/**
+ * a skin's material, one per family and skin letter, shared by every gun wearing it; `hi`, its textures at 2048 (the
+ * gun in your hands on High: paidweapons.json textures2k)
+ */
+function skinMaterial(family: string, skin: string, tl: THREE.TextureLoader, hi = false): THREE.MeshStandardMaterial {
   const id = `${family}${skin}`;
-  const had = skins.get(id);
+  const had = skins.get(hi ? `${id}@2k` : id);
   if (had) return had;
   const tex = (name: string, srgb: boolean): THREE.Texture => {
-    const t = tl.load(url(`${cfg.textures}${id}_${name}.webp`));
+    const t = tl.load(url(`${hi ? cfg.textures2k : cfg.textures}${id}_${name}.webp`));
     t.flipY = false;
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     t.anisotropy = 8;
@@ -74,7 +77,7 @@ function skinMaterial(family: string, skin: string, tl: THREE.TextureLoader): TH
     emissiveMap: tex("emit", true),
     emissive: new THREE.Color(1, 1, 1),
   });
-  skins.set(id, mat);
+  skins.set(hi ? `${id}@2k` : id, mat);
   return mat;
 }
 
@@ -501,14 +504,14 @@ export function tintDots(root: THREE.Object3D, color: string): void {
  * paidweapons.json gives each gun) and its glow, which brightens a step each level, so a fused gun is visibly the
  * better one in a hand and on the floor.
  */
-export function setPaidLevel(m: GunModel, level: number): void {
+export function setPaidLevel(m: GunModel, level: number, hi = false): void {
   const name = m.root.userData.paid as string | undefined;
   if (!GUNS[m.id] || !name) return;
   const family = name.replace(/_\d+$/, "");
   const skin = skinFor(m.id, level);
-  const base = skinMaterial(family, skin, tl);
+  const base = skinMaterial(family, skin, tl, hi);
   // one material a skin and level, so a brighter glow on one gun does not light every gun of its skin
-  const key = `${family}${skin}:${level}`;
+  const key = `${family}${skin}:${level}${hi ? "@2k" : ""}`;
   let mat = levelled.get(key);
   if (!mat) {
     mat = base.clone();
@@ -521,11 +524,12 @@ export function setPaidLevel(m: GunModel, level: number): void {
     if (mesh.userData.procedural) return;
     // a sight from another model (mountSight) wears that model's skin at this level
     if (mesh.userData.mountFamily) {
-      mesh.material = skinMaterial(mesh.userData.mountFamily as string, skin, tl);
+      mesh.material = skinMaterial(mesh.userData.mountFamily as string, skin, tl, hi);
       return;
     }
     if ((mesh.material as THREE.Material).name.startsWith(family)) mesh.material = mat;
   });
   m.root.userData.paidLevel = level;
+  m.root.userData.paidHi = hi;
 }
 const levelled = new Map<string, THREE.MeshStandardMaterial>();

@@ -261,6 +261,9 @@ async function weapons(files: Map<string, string>): Promise<void> {
   const out = join(OUT, "weapons");
   const tex = join(out, "tex");
   mkdirSync(tex, { recursive: true });
+  // and a second set at twice the size, which the gun in your hands wears on High (paidweapons.json textures2k)
+  const tex2k = join(out, "tex2k");
+  mkdirSync(tex2k, { recursive: true });
   const tmp = join(PAID, "conv", "weapons");
   mkdirSync(tmp, { recursive: true });
   const { NodeIO } = await import("@gltf-transform/core");
@@ -299,24 +302,25 @@ async function weapons(files: Map<string, string>): Promise<void> {
       if (!color) continue;
       const pick = (suffix: string): string | null => find(`Textures/${fam}${sk}_${suffix}.png`) ?? find(`Textures/${fam}A_${suffix}.png`);
       const id = `${fam}${sk}`;
-      await png(color)!.resize(1024, 1024, { kernel: "lanczos3" }).webp({ quality: 86, effort: 5 }).toFile(join(tex, `${id}_color.webp`));
       const nm = pick("NM");
-      if (nm) await png(nm)!.resize(1024, 1024, { kernel: "lanczos3" }).webp({ quality: 92, effort: 5 }).toFile(join(tex, `${id}_normal.webp`));
       const glow = pick("Emission");
-      if (glow) await png(glow)!.resize(512, 512, { kernel: "lanczos3" }).webp({ quality: 86, effort: 5 }).toFile(join(tex, `${id}_emit.webp`));
-      // the packed map: occlusion, roughness (1 - smoothness), metalness
-      const size = 1024;
       const metal = pick("Metallic");
       const ao = pick("AO");
-      const m = metal ? await png(metal)!.resize(size, size, { kernel: "lanczos3" }).ensureAlpha().raw().toBuffer() : null;
-      const o = ao ? await png(ao)!.resize(size, size, { kernel: "lanczos3" }).removeAlpha().raw().toBuffer() : null;
-      const orm = Buffer.alloc(size * size * 3);
-      for (let i = 0; i < size * size; i++) {
-        orm[i * 3] = o ? o[i * 3] : 255;
-        orm[i * 3 + 1] = m ? 255 - m[i * 4 + 3] : 200;
-        orm[i * 3 + 2] = m ? m[i * 4] : 0;
+      for (const [dir, size] of [[tex, 1024], [tex2k, 2048]] as const) {
+        await png(color)!.resize(size, size, { kernel: "lanczos3" }).webp({ quality: 86, effort: 5 }).toFile(join(dir, `${id}_color.webp`));
+        if (nm) await png(nm)!.resize(size, size, { kernel: "lanczos3" }).webp({ quality: 92, effort: 5 }).toFile(join(dir, `${id}_normal.webp`));
+        if (glow) await png(glow)!.resize(size / 2, size / 2, { kernel: "lanczos3" }).webp({ quality: 86, effort: 5 }).toFile(join(dir, `${id}_emit.webp`));
+        // the packed map: occlusion, roughness (1 - smoothness), metalness
+        const m = metal ? await png(metal)!.resize(size, size, { kernel: "lanczos3" }).ensureAlpha().raw().toBuffer() : null;
+        const o = ao ? await png(ao)!.resize(size, size, { kernel: "lanczos3" }).removeAlpha().raw().toBuffer() : null;
+        const orm = Buffer.alloc(size * size * 3);
+        for (let i = 0; i < size * size; i++) {
+          orm[i * 3] = o ? o[i * 3] : 255;
+          orm[i * 3 + 1] = m ? 255 - m[i * 4 + 3] : 200;
+          orm[i * 3 + 2] = m ? m[i * 4] : 0;
+        }
+        await sharp(orm, { raw: { width: size, height: size, channels: 3 } }).webp({ quality: 90, effort: 5 }).toFile(join(dir, `${id}_orm.webp`));
       }
-      await sharp(orm, { raw: { width: size, height: size, channels: 3 } }).webp({ quality: 90, effort: 5 }).toFile(join(tex, `${id}_orm.webp`));
     }
   }
   const bytes = (dir: string): number => readdirSync(dir, { withFileTypes: true }).reduce((a, e) => a + (e.isDirectory() ? bytes(join(dir, e.name)) : statSync(join(dir, e.name)).size), 0);

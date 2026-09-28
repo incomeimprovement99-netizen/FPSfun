@@ -19,6 +19,7 @@
 // more than about 30 cm in front of the camera, so it cannot clip into a wall
 // the player is standing against: the player's own radius is 41 cm.
 import * as THREE from "three";
+import { loadQuality } from "./quality";
 import { springStep } from "./spring";
 import type { ResolvedWeapon } from "./weapons";
 import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels";
@@ -37,6 +38,8 @@ import { IS_SK, PROFILE } from "./game";
 
 /** how much of a reload's pose is gone in the sights (speedkills.json viewmodel; the legacy game keeps all of it) */
 const RELOAD_ADS = PROFILE.viewmodel?.reloadAds ?? 0;
+/** the gun in your hands at 2048 on the High preset (paidweapons.json textures2k; a change of preset reloads the page) */
+const HI_TEX = loadQuality().preset === "high";
 
 /** a melee swing, seconds */
 export const MELEE_TIME = 0.38;
@@ -471,6 +474,8 @@ export class ViewModel {
   private palmCardId = "";
   /** how far the open palm is up this frame (the checks) */
   private palmW = 0;
+  /** the pack's swap's swing of the gun this frame, in the view's space (the arms go with it: fprig.ts swing) */
+  private readonly swapArms = new THREE.Matrix4();
   /** the pitch taken off the bought arms' gun at rest this frame (the arms turn with it: fprig.ts level) */
   private levelBy = 0;
   /** when something was last taken off the ground (the bought arms' pickup), view seconds */
@@ -681,14 +686,14 @@ export class ViewModel {
     this.fitOptic(this.model, w.optic ?? w.integralOptic);
     setMagRarity(this.model, w.magLevel);
     // a bought gun wears its fusion level (paidgun.ts); a signature gun fused up in the hands scans along its new skin
-    if (this.model.root.userData.paid && this.model.root.userData.paidLevel !== (w.fusion ?? 0)) {
+    if (this.model.root.userData.paid && (this.model.root.userData.paidLevel !== (w.fusion ?? 0) || this.model.root.userData.paidHi !== HI_TEX)) {
       if (this.feel && !fresh && (w.fusion ?? 0) > (this.model.root.userData.paidLevel as number)) {
         this.scanAt = this.t;
         this.fuseAt = this.t;
         this.pulse = Math.max(this.pulse, 1);
         this.onFeel?.("scan", this.feel.scan.fusion);
       }
-      setPaidLevel(this.model, w.fusion ?? 0);
+      setPaidLevel(this.model, w.fusion ?? 0, HI_TEX);
     }
     // a signature gun's skin, new or a new level's, onto the phase
     if (this.feel) this.phaseGun(this.model);
@@ -1514,7 +1519,10 @@ export class ViewModel {
       this.pose.position.add(this.locoPos);
       this.pose.quaternion.premultiply(this.locoQuat);
       // and on a swap, the pack's own: the gun swung down to the chest in the hands as it phases out, the next up out of there
+      const from = this.tmp.copy(this.pose.position);
       this.pack.swapMotion(f.raise, this.locoPos, this.locoQuat);
+      // (the arms carried through the swing with the gun: swung alone, the gun bent the left wrist to 72 degrees)
+      this.swapArms.makeTranslation(from.x + this.locoPos.x, from.y + this.locoPos.y, from.z + this.locoPos.z).multiply(new THREE.Matrix4().makeRotationFromQuaternion(this.locoQuat)).multiply(new THREE.Matrix4().makeTranslation(-from.x, -from.y, -from.z));
       this.pose.position.add(this.locoPos);
       this.pose.quaternion.premultiply(this.locoQuat);
     }
@@ -1568,7 +1576,7 @@ export class ViewModel {
     // the bought arms: the clips to this frame's state, the rig under the holder, our magazine and handle moved
     if (packOn) {
       this.pack.update(
-        { dt, reload: f.reloading ? reloadP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS, away: F ? 1 - this.swapPhase : 0, pickup: this.pickupShare(), palm: this.palmFrame(f), level: this.levelBy, levelAt: this.pose.position },
+        { dt, reload: f.reloading ? reloadP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS, away: F ? 1 - this.swapPhase : 0, pickup: this.pickupShare(), palm: this.palmFrame(f), level: this.levelBy, levelAt: this.pose.position, swing: this.swapArms },
         this.holder,
         m.mag,
         m.bolt,
@@ -1577,6 +1585,9 @@ export class ViewModel {
       if (F && m.mag) this.aimMagSweep(m);
       this.real.group.visible = false;
       this.placePalmCard(f);
+      // (and hidden with the gun when a scope's picture is up: the gun went and the arms stayed, a hand in the air
+      // under BOOG's scope)
+      if (!this.holder.visible) this.pack.group.visible = false;
     } else if (this.packFree && this.fists.visible) {
       this.pack.free(this.freeHands);
       this.real.group.visible = false;
