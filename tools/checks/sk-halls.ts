@@ -79,7 +79,8 @@ check("the loot and the bots know every one (floors.ts HALL_FLOORS, KIT_SITES ha
   const bad: string[] = [];
   for (const h of HALLS) {
     const pod = KIT_SITES.podia.find((p) => p.x0 + BR_X < h.minX && p.x1 + BR_X > h.maxX && p.z0 + BR_Z < h.minZ && p.z1 + BR_Z > h.maxZ);
-    const cover = [...h.columns, ...h.counters];
+    // (the cover, the flights and the gallery's runs over the floor by the walls)
+    const cover = [...h.columns, ...h.counters, ...h.stairs, ...h.gallery.runs];
     // a grid of points over the floor, each either in a piece of cover or with nothing over it up to the ceiling
     for (let i = 1; i < 10; i++)
       for (let j = 1; j < 10; j++) {
@@ -95,11 +96,11 @@ check("the loot and the bots know every one (floors.ts HALL_FLOORS, KIT_SITES ha
     if (!pod || Math.abs(roof - pod.top) > 0.01) bad.push(`${h.key}: its roof at ${roof.toFixed(2)} m, the podium's top ${pod?.top.toFixed(2)}`);
     if (h.y1 - h.y0 < 7) bad.push(`${h.key}: ${(h.y1 - h.y0).toFixed(1)} m high`);
   }
-  check("each open from its floor to its ceiling (7 m and more) but for its cover, under a roof at the podium's top", bad.length === 0, bad.slice(0, 3).join("; ") || `${HALLS.length} halls`);
+  check("each open from its floor to its ceiling (7 m and more) but for its cover and its gallery, under a roof at the podium's top", bad.length === 0, bad.slice(0, 3).join("; ") || `${HALLS.length} halls`);
 }
 check(
-  "cover inside every one: columns and waist-high counters",
-  HALLS.every((h) => h.columns.length >= 8 && h.counters.length >= 3),
+  "cover inside every one: columns, waist-high counters and kiosks",
+  HALLS.every((h) => h.columns.length >= 8 && h.counters.length >= 6),
   HALLS.map((h) => `${h.key}: ${h.columns.length} columns, ${h.counters.length} counters`).join("; "),
 );
 check(
@@ -128,6 +129,47 @@ check(
       if (inside(h, b.x, b.z) || !b.onGround || b.climbed) bad.push(`${tag}: out, ended at ${(b.x - BR_X).toFixed(1)},${(b.z - BR_Z).toFixed(1)}${b.climbed ? ", climbed" : ""}`);
     }
   check(`through every door (${n}) from the street into the hall and back out, a sprint, no climb`, bad.length === 0, bad.slice(0, 3).join("; ") || "all");
+}
+// the gallery (24.4b): up every flight from the floor onto it, a sprint with no climb, and along every run of it
+{
+  const bad: string[] = [];
+  let flights = 0;
+  let runs = 0;
+  for (const h of HALLS) {
+    if (h.stairs.length < 1) bad.push(`${h.key}: no flight up`);
+    for (const s of h.stairs) {
+      flights++;
+      const r = walk(s.foot, h.y0 + 0.01, s.top, 4);
+      if (!r.onGround || Math.abs(r.y - h.gallery.top) > 0.1 || r.climbed) bad.push(`${h.key} flight at ${(s.top.x - BR_X).toFixed(0)},${(s.top.z - BR_Z).toFixed(0)}: ended at ${r.y.toFixed(2)} m${r.climbed ? ", climbed" : ""}`);
+    }
+    for (const g of h.gallery.runs) {
+      runs++;
+      const alongX = g.maxX - g.minX >= g.maxZ - g.minZ;
+      const mid = alongX ? (g.minZ + g.maxZ) / 2 : (g.minX + g.maxX) / 2;
+      const a = alongX ? { x: g.minX + 1, z: mid } : { x: mid, z: g.minZ + 1 };
+      const e = alongX ? { x: g.maxX - 1, z: mid } : { x: mid, z: g.maxZ - 1 };
+      const r = walk(a, h.gallery.top + 0.01, e, 8);
+      if (r.low < h.gallery.top - 0.1 || Math.hypot(r.x - e.x, r.z - e.z) > 1) bad.push(`${h.key} gallery run at ${(mid - (alongX ? BR_Z : BR_X)).toFixed(0)}: lowest ${r.low.toFixed(2)} m, ${Math.hypot(r.x - e.x, r.z - e.z).toFixed(1)} m short`);
+    }
+  }
+  // and round its four corners, from a north or south run's end into the west or east run it meets (railed across, the
+  // first build shut every run off from the next)
+  let corners = 0;
+  for (const h of HALLS) {
+    const side = h.gallery.runs.filter((g) => g.maxZ - g.minZ > g.maxX - g.minX);
+    const ends = h.gallery.runs.filter((g) => g.maxX - g.minX >= g.maxZ - g.minZ);
+    for (const e of ends)
+      for (const s of side) {
+        corners++;
+        const west = Math.abs(s.minX - e.minX) < 0.5;
+        const from = { x: west ? e.minX + (s.maxX - s.minX) / 2 : e.maxX - (s.maxX - s.minX) / 2, z: (e.minZ + e.maxZ) / 2 };
+        const northEnd = Math.abs(e.minZ - h.minZ) < 0.5;
+        const to = { x: (s.minX + s.maxX) / 2, z: northEnd ? s.minZ + 3 : s.maxZ - 3 };
+        const r = walk(from, h.gallery.top + 0.01, to, 4);
+        if (r.low < h.gallery.top - 0.1 || Math.hypot(r.x - to.x, r.z - to.z) > 1) bad.push(`${h.key} corner at ${(from.x - BR_X).toFixed(0)},${(from.z - BR_Z).toFixed(0)}: ${Math.hypot(r.x - to.x, r.z - to.z).toFixed(1)} m short`);
+      }
+  }
+  check(`up every flight (${flights}) onto its gallery, along every run of it (${runs}) and round every corner (${corners}), at its height all the way`, bad.length === 0, bad.slice(0, 3).join("; ") || "all");
 }
 // the roof over each hall holds: along every podium's promenade, its edges, at its top all the way
 {

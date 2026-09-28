@@ -18,7 +18,7 @@ export interface KitPlace {
   /** how far its front stands out of the wall it is on, when that is not what its measured relief says (a canyon's pressed module) */
   out?: number;
   /** what it is, for the checks' clearances: facade and parapet stand flush, the rest stand out of a wall or stand free */
-  kind: "facade" | "flat" | "band" | "car" | "podium" | "shop" | "parapet" | "cornice" | "sign" | "blade" | "poster" | "ac" | "billboard" | "roof" | "antenna" | "lamp" | "cable" | "pipe" | "wire" | "prop" | "skyline" | "zeppelin" | "escape" | "strip";
+  kind: "facade" | "flat" | "band" | "car" | "podium" | "shop" | "parapet" | "cornice" | "sign" | "blade" | "poster" | "ac" | "billboard" | "roof" | "antenna" | "lamp" | "cable" | "pipe" | "wire" | "prop" | "skyline" | "zeppelin" | "escape" | "strip" | "kiosk";
 }
 
 type Facing = "px" | "nx" | "pz" | "nz";
@@ -740,6 +740,16 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         if (d) from = d.u1 + 0.15;
       }
     }
+  }
+
+  // ------------------------------------------------ the halls' kiosks (city.json halls kiosk): a food stand over each, as
+  // Neon Alley's stalls wear theirs, from Balanced up
+  for (const s of KIT_SITES.kiosks) {
+    const id = pick(D.kioskStands, kitHash(s.x, s.z, 45));
+    const sd = dims(id);
+    // (a stand's width along its box's longer side)
+    const [w, d] = s.yaw % Math.PI === 0 ? [s.w, s.d] : [s.d, s.w];
+    if (sd) add(id, place(id, s.x, cityCfg.kerb, s.z, s.yaw, (w * 1.06) / sd.w, (s.h * 1.04) / sd.h, (d * 1.1) / sd.d, false), 1, "kiosk");
   }
 
   // ------------------------------------------------ the pads (city.ts padLook): the kit's round vent laid over each grate

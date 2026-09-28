@@ -150,7 +150,12 @@ export const HALLS: Array<{
   y1: number;
   doors: Array<{ x: number; z: number; nx: number; nz: number; w: number; top: number }>;
   columns: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }>;
+  /** the waist-high counters and the kiosks, solid boxes to fight round */
   counters: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; top: number }>;
+  /** the walk round the walls a storey up (24.4b): its floor's top and underside, and its four runs */
+  gallery: { top: number; under: number; runs: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }> };
+  /** the flights up to it: each one's box, a point on the gallery at its top and one on the floor past its foot */
+  stairs: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; top: { x: number; z: number }; foot: { x: number; z: number } }>;
 }> = [];
 /** the chimneys (city.json chimneys): each one's walls' inner faces, its length and its landing heights, world metres, for the checks that climb them */
 /**
@@ -182,7 +187,7 @@ export const CONCOURSE: {
  * The materials of what the bought kit draws over and replaces (citykit.ts hides them once it has drawn over every one):
  * Neon Alley's stalls, a dark kiosk each, where the kit's food stand is open-fronted and would show the box inside it.
  */
-export const STAND_INS: { stalls: THREE.Material[]; cars: THREE.Material[]; machinery: THREE.Material[]; escapes: THREE.Material[]; skins: THREE.Material[] } = { stalls: [], cars: [], machinery: [], escapes: [], skins: [] };
+export const STAND_INS: { stalls: THREE.Material[]; cars: THREE.Material[]; machinery: THREE.Material[]; escapes: THREE.Material[]; skins: THREE.Material[]; kiosks: THREE.Material[] } = { stalls: [], cars: [], machinery: [], escapes: [], skins: [], kiosks: [] };
 export const KIT_SITES: {
   /** `core`: its stair core's box (city.json stairCore), which a room module behind a face stops short of */
   towers: Array<{ x: number; z: number; w: number; d: number; base: number; roof: number; storeys: number; lobby?: number; park?: number; floors?: number[]; sector: string; clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }>; core?: { x0: number; x1: number; z0: number; z1: number } }>;
@@ -213,7 +218,9 @@ export const KIT_SITES: {
    * along the face and up to `top`, so the kit leaves them open outside and lines the walls between them inside
    */
   halls: Array<{ x0: number; x1: number; z0: number; z1: number; y0: number; y1: number; accent: number; doors: Array<{ face: "n" | "s" | "w" | "e"; u0: number; u1: number; top: number }> }>;
-} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [], rooms: [], cars: [], doors: [], machinery: [], escapes: [], halls: [] };
+  /** the halls' kiosks (city.json halls kiosk), map-local: solid boxes the kit's food stands dress, turned `yaw` */
+  kiosks: Array<{ x: number; z: number; w: number; d: number; h: number; yaw: number }>;
+} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [], rooms: [], cars: [], doors: [], machinery: [], escapes: [], halls: [], kiosks: [] };
 
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
@@ -421,10 +428,11 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   const hallBodies: Array<() => void> = [];
   CONCOURSE.stairs.length = 0;
   STAIR_CORES.length = 0;
-  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = KIT_SITES.doors.length = KIT_SITES.machinery.length = KIT_SITES.escapes.length = KIT_SITES.halls.length = HALLS.length = HALL_FLOORS.length = 0;
+  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = KIT_SITES.doors.length = KIT_SITES.machinery.length = KIT_SITES.escapes.length = KIT_SITES.halls.length = KIT_SITES.kiosks.length = HALLS.length = HALL_FLOORS.length = 0;
   FIRE_ESCAPES.length = 0;
   STEAM_SOURCES.length = FLICKER_SIGNS.length = 0;
   STAND_INS.skins = [];
+  STAND_INS.kiosks = [];
   /** the public stairs' footprints (local): a bridge landing across one blocked it (the concourse check found it) */
   const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
   CONCOURSE.bridges.length = 0;
@@ -1011,17 +1019,89 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         columns.push(box);
       }
     }
-    // the counters: waist-high cover, from the hall's own stream, clear of the columns, the walls, the lanes and each other
+    // The gallery (halls gallery, 24.4b): a walk round every wall a storey up, over the doors and the shop fronts, railed on
+    // its inner edge; the north and south runs the hall's length, the west and east between them
+    const G = H.gallery;
+    const gTop = PAVE_H + G.floor;
+    const galleries = hfaces.map((f) => {
+      const [ia, ib] = f.nx !== 0 ? [iz0 + G.depth, iz1 - G.depth] : [ix0, ix1];
+      return { f, ...onF(f, ia, ib, -wl, -wl - G.depth) };
+    });
+    for (const g of galleries) slab(g.x1 - g.x0, G.thick, g.z1 - g.z0, (g.x0 + g.x1) / 2, gTop - G.thick, (g.z0 + g.z1) / 2, floor);
+    // the flights up to it, from the long walls into the hall, between the columns and clear of the doors' lanes: the top
+    // step level with the gallery, each below one `rise` lower and `run` further in
+    const nSteps = Math.round(G.floor / G.rise);
+    const reach = G.depth + nSteps * G.run;
+    const sw = G.stairWidth;
+    const stairs: Array<{ f: HFace; u: number; x0: number; x1: number; z0: number; z1: number }> = [];
+    const long = [...hfaces].sort((p, q) => q.b - q.a - (p.b - p.a)).slice(0, 2);
+    for (const f of long) {
+      if (stairs.length >= G.stairs) break;
+      const [ia, ib] = f.nx !== 0 ? [iz0, iz1] : [ix0, ix1];
+      // from the face's middle out, the first spot whose flight meets nothing
+      const spots = Array.from({ length: Math.floor((ib - ia - 2 * G.depth - sw) / 0.5) }, (_, i) => ia + G.depth + sw / 2 + i * 0.5).sort((p, q) => Math.abs(p - (ia + ib) / 2) - Math.abs(q - (ia + ib) / 2));
+      for (const u of spots) {
+        const box = onF(f, u - sw / 2, u + sw / 2, -wl - G.depth, -wl - reach);
+        if ([...columns, ...lanes].some((q) => meets(box, q, 0.6))) continue;
+        stairs.push({ f, u, ...box });
+        break;
+      }
+    }
+    for (const s of stairs) {
+      for (let i = 0; i < nSteps; i++) {
+        const q = onF(s.f, s.u - sw / 2, s.u + sw / 2, -wl - G.depth - i * G.run, -wl - G.depth - (i + 1) * G.run);
+        slab(q.x1 - q.x0, gTop - i * G.rise - PAVE_H, q.z1 - q.z0, (q.x0 + q.x1) / 2, PAVE_H, (q.z0 + q.z1) / 2, column);
+      }
+      // its edge lit, to read as the way up
+      const e = onF(s.f, s.u - sw / 2 - 0.03, s.u + sw / 2 + 0.03, -wl - G.depth, -wl - G.depth - 0.06);
+      deco(e.x1 - e.x0, 0.06, e.z1 - e.z0, (e.x0 + e.x1) / 2, gTop, (e.z0 + e.z1) / 2, k);
+    }
+    // the rail on the gallery's inner edge, open at the top of each flight; the north and south runs' rails stop where
+    // the west and east runs join them, so the corners are open (railed the full length, they shut each run off)
+    for (const g of galleries) {
+      const f = g.f;
+      const [ia, ib] = f.nx !== 0 ? [g.z0, g.z1] : [g.x0 + G.depth, g.x1 - G.depth];
+      const gaps = stairs.filter((s) => s.f === f).map((s) => [s.u - sw / 2, s.u + sw / 2] as [number, number]).sort((p, q) => p[0] - q[0]);
+      let from = ia;
+      for (const [g0, g1] of [...gaps, [ib, ib] as [number, number]]) {
+        if (g0 - from > 0.1) {
+          const r = onF(f, from, g0, -wl - G.depth + 0.1, -wl - G.depth);
+          slab(r.x1 - r.x0, G.rail, r.z1 - r.z0, (r.x0 + r.x1) / 2, gTop, (r.z0 + r.z1) / 2, trimDark);
+          deco(r.x1 - r.x0 + 0.02, 0.05, r.z1 - r.z0 + 0.02, (r.x0 + r.x1) / 2, gTop + G.rail, (r.z0 + r.z1) / 2, k);
+        }
+        from = g1;
+      }
+    }
+    // the counters and the kiosks: cover from the hall's own stream, clear of the columns, the flights, the gallery's
+    // shade, the lanes and each other
     const Cn = H.counter;
+    const Kk = H.kiosk;
     const own = seeded(C.seed ^ [...key].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 0x4a11));
     const counters: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
+    const kiosks: Array<{ x0: number; x1: number; z0: number; z1: number; yaw: number }> = [];
+    const free = (box: { x0: number; x1: number; z0: number; z1: number }, m: number, inset: number) =>
+      box.x0 > ix0 + inset && box.x1 < ix1 - inset && box.z0 > iz0 + inset && box.z1 < iz1 - inset && ![...columns, ...counters, ...kiosks, ...stairs, ...lanes].some((q) => meets(box, q, m));
+    const kioskBody = flat(0x0c0e14, 0.6, 0.4).clone();
+    const kioskLine = emissive(accent, C.neonGlow).clone();
+    STAND_INS.kiosks.push(kioskBody, kioskLine);
+    for (let tries = 0; kiosks.length < Kk.count && tries < 120; tries++) {
+      const turn = Math.floor(own() * 4);
+      const [w, d] = turn % 2 === 0 ? [Kk.size[0], Kk.size[2]] : [Kk.size[2], Kk.size[0]];
+      const x = ix0 + G.depth + Kk.clear + w / 2 + own() * (ix1 - ix0 - 2 * (G.depth + Kk.clear) - w);
+      const z = iz0 + G.depth + Kk.clear + d / 2 + own() * (iz1 - iz0 - 2 * (G.depth + Kk.clear) - d);
+      const box = { x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2 };
+      if (!free(box, Kk.clear, G.depth)) continue;
+      slab(w, Kk.size[1], d, x, PAVE_H, z, kioskBody);
+      deco(w + 0.04, 0.08, d + 0.04, x, PAVE_H + 1.1, z, kioskLine);
+      kiosks.push({ ...box, yaw: (turn * Math.PI) / 2 });
+    }
     for (let tries = 0; counters.length < Cn.count && tries < 80; tries++) {
       const along = own() < 0.5;
       const [w, d] = along ? [Cn.size[0], Cn.size[2]] : [Cn.size[2], Cn.size[0]];
       const x = ix0 + Cn.clear + w / 2 + own() * (ix1 - ix0 - 2 * Cn.clear - w);
       const z = iz0 + Cn.clear + d / 2 + own() * (iz1 - iz0 - 2 * Cn.clear - d);
       const box = { x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2 };
-      if ([...columns, ...counters, ...lanes].some((q) => meets(box, q, Cn.clear))) continue;
+      if (!free(box, Cn.clear, Cn.clear)) continue;
       slab(w, Cn.size[1], d, x, PAVE_H, z, trimDark);
       deco(w + 0.02, 0.05, d + 0.02, x, PAVE_H + Cn.size[1], z, k);
       counters.push(box);
@@ -1035,8 +1115,15 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       y1,
       doors: doors.map(({ f, u }) => ({ ...(f.nx !== 0 ? { x: f.at + BR_X, z: u + BR_Z } : { x: u + BR_X, z: f.at + BR_Z }), nx: f.nx, nz: f.nz, w: dw, top: dTop })),
       columns: columns.map(W4),
-      counters: counters.map((q) => ({ ...W4(q), top: PAVE_H + Cn.size[1] })),
+      counters: [...counters.map((q) => ({ ...W4(q), top: PAVE_H + Cn.size[1] })), ...kiosks.map((q) => ({ ...W4(q), top: PAVE_H + Kk.size[1] }))],
+      gallery: { top: gTop, under: gTop - G.thick, runs: galleries.map(W4) },
+      stairs: stairs.map((s) => {
+        const [nx, nz] = [s.f.nx, s.f.nz];
+        const at = (d: number) => (s.f.nx !== 0 ? { x: s.f.at + nx * d + BR_X, z: s.u + BR_Z } : { x: s.u + BR_X, z: s.f.at + nz * d + BR_Z });
+        return { ...W4(s), top: at(-wl - G.depth / 2), foot: at(-wl - reach - 1.2) };
+      }),
     });
+    for (const q of kiosks) KIT_SITES.kiosks.push({ x: (q.x0 + q.x1) / 2, z: (q.z0 + q.z1) / 2, w: q.x1 - q.x0, d: q.z1 - q.z0, h: Kk.size[1], yaw: q.yaw });
     HALL_FLOORS.push({ ...W4({ x0: ix0, x1: ix1, z0: iz0, z1: iz1 }), y: PAVE_H, top: y1 });
     KIT_SITES.halls.push({ x0: ix0, x1: ix1, z0: iz0, z1: iz1, y0: PAVE_H, y1, accent, doors: doors.map(({ f, u }) => ({ face: f.face, u0: u - dw / 2, u1: u + dw / 2, top: dTop })) });
     // the kit leaves each door open: its box through the wall and out past the shop fronts in front of it
@@ -2664,7 +2751,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       };
       const inHall = (n: number) => ((nodes[n].hall = hl.key), n);
       // a node not inside a column or a counter, where a bot could stand
-      const clear = (x: number, z: number) => ![...hl.columns, ...hl.counters].some((q) => x > q.minX - BR_X - 0.9 && x < q.maxX - BR_X + 0.9 && z > q.minZ - BR_Z - 0.9 && z < q.maxZ - BR_Z + 0.9);
+      const clear = (x: number, z: number) => ![...hl.columns, ...hl.counters, ...hl.stairs].some((q) => x > q.minX - BR_X - 0.9 && x < q.maxX - BR_X + 0.9 && z > q.minZ - BR_Z - 0.9 && z < q.maxZ - BR_Z + 0.9);
       const xs = along(x0, x1);
       const zs = along(z0, z1);
       const grid = xs.map((x) => zs.map((z) => (clear(x, z) ? inHall(add(x, z, hl.y0)) : -1)));
@@ -2675,6 +2762,35 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
           if (j + 1 < zs.length && grid[i][j + 1] >= 0) walkLink(grid[i][j], grid[i][j + 1]);
         }
       const cells = grid.flat().filter((n) => n >= 0);
+      const nearest = (n: number, among: number[], most: number) => {
+        let linked = 0;
+        for (const g of [...among].sort((p, q) => Math.hypot(nodes[p].x - nodes[n].x, nodes[p].z - nodes[n].z) - Math.hypot(nodes[q].x - nodes[n].x, nodes[q].z - nodes[n].z)).slice(0, most + 2))
+          if (linked < most && walkLink(n, g)) linked++;
+      };
+      // the gallery: nodes down the middle of each run, linked along it, each run's ends to the nearest of the others; each
+      // flight from a node past its foot on the floor to one at its top on the gallery
+      const gal: number[] = [];
+      for (const r of hl.gallery.runs) {
+        const alongX = r.maxX - r.minX >= r.maxZ - r.minZ;
+        const [a, b] = alongX ? [r.minX, r.maxX] : [r.minZ, r.maxZ];
+        const n = Math.max(2, Math.round((b - a) / Hn.every) + 1);
+        const run: number[] = [];
+        for (let i = 0; i < n; i++) {
+          const u = a + 1 + (i * (b - a - 2)) / (n - 1);
+          const [x, z] = alongX ? [u, (r.minZ + r.maxZ) / 2] : [(r.minX + r.maxX) / 2, u];
+          run.push(inHall(add(x - BR_X, z - BR_Z, hl.gallery.top)));
+        }
+        for (let i = 0; i + 1 < run.length; i++) walkLink(run[i], run[i + 1]);
+        gal.push(...run);
+      }
+      for (const n of gal) nearest(n, gal.filter((g) => g !== n && !nodes[n].links.includes(g)), 1);
+      for (const s of hl.stairs) {
+        const top = inHall(add(s.top.x - BR_X, s.top.z - BR_Z, hl.gallery.top));
+        const foot = inHall(add(s.foot.x - BR_X, s.foot.z - BR_Z, hl.y0));
+        walkLink(foot, top);
+        nearest(top, gal, 2);
+        nearest(foot, cells, 2);
+      }
       for (const d of hl.doors) {
         const wl = C.halls.wall;
         const inside = inHall(add(d.x - BR_X - d.nx * (wl + 1.5), d.z - BR_Z - d.nz * (wl + 1.5), hl.y0));

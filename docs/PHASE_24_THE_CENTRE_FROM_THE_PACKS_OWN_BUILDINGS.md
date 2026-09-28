@@ -10,6 +10,7 @@ Started 2026-09-28.
 | 24.3 | Towers that are stacks of the packs' buildings | first part shipped | 298 | 44% of the centre's street faces wear the demo streets' strips, stacked up each face in columns; the canyons keep pressed modules |
 | 24.1b | The overrides the importer could not place | shipped | 299 | 1,645 unplaced to 1,020 (matched by the materials' names, then by elimination); the flying cars' engines by their model's name; Competitive's file without the strips, 91 MB to 44 |
 | 24.4 | The ground floor inside | first part shipped | 299 | the eight centre podiums opened into halls at street level: 85 doors, columns and counters for cover, an arcade of shop fronts, the bots' graph and loot of their own |
+| 24.4b | The halls, part two | shipped (the metro link next) | 301 | a gallery round every hall's walls a storey up, two flights up to it, three kiosks wearing the packs' food stands; the way down to the metro still to come |
 | 24.5 | Light and air, and the old look gone | in progress | 298, 300 | the haze (298); the pads as vents in the floor, the pack's round vent over each grate, a slim beam, one ring (300) |
 | 24.6 | The release tests | | | |
 
@@ -80,3 +81,11 @@ Started 2026-09-28.
   ringed in the pad's colour (gold, a window pad's blue, a road's cyan), High City's round wall vent turned to face up
   and laid over the grate in the centre from Balanced up (8k triangles), a beam 0.56 m across at 0.3, and one ring,
   at the roof it lands you on. From a roof the pads still read a street away.
+- **24.4b, the gallery:** a walk 2.6 m deep round every hall's walls, 4 m over its floor (over the doors and the shop
+  fronts, 3.4 m under the ceiling), railed on its inner edge, with two flights up from the long walls into the hall,
+  0.5 m a step, between the columns and clear of the doors' lanes. The first build railed the north and south runs
+  their full length, across the corners where the west and east runs join them, so each run was shut off from the
+  next: the bots' graph lost 79 nodes, and the new walk round every corner in `sk-halls.ts` fails on it (proven by
+  putting it back). Three solid kiosks in each hall's open floor wear the packs' food stands from Balanced up, their
+  boxes hidden once dressed, as Neon Alley's stalls. 398 of the bots' nodes are inside the halls now, every one
+  reached from the streets; the player walks every flight, every run and every corner.

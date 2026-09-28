@@ -5827,3 +5827,27 @@ are obviously bad". In the pictures of Milestone 299 the pads' gold was the firs
   at the roof it lands you on. From a roof across a street the pads still read, which is what they are for.
 - **Checked:** verify and rules (the kit's budgets: Balanced 2,917k, High 3,020k, Competitive 620k unchanged; the
   city's own 240k triangles); the e2e section speedkills; pictures from a roof and beside a plaza pad.
+
+## Milestone 301 — The halls, part two: a gallery round the walls, flights up to it, kiosks in the packs' food stands
+
+Phase 24's item 24.4b. The halls of Milestone 299 were one open floor between columns; the pictures showed a room with
+nothing to climb and little in its middle.
+
+- **The gallery** (`city.json` halls gallery): a walk 2.6 m deep round every hall's walls, 4 m over its floor, over the
+  doors and the shop fronts and 3.4 m under the ceiling, railed on its inner edge in the block's colour. High ground
+  inside, and a way round the hall above a fight on its floor.
+- **Two flights up to it** in each hall, from the long walls into the hall, 0.5 m a step (under the 0.56 m a body
+  steps), between the columns and clear of the doors' lanes, their top edges lit.
+- **Three kiosks** in each hall's open floor, solid, wearing Cyber City's two food stands from Balanced up (the lightest of the
+  alley's four: with all four the kiosks took Balanced to 3,007k, over its limit; now 2,982k), their boxes hidden once
+  dressed, as Neon Alley's stalls are; counters and kiosks kept clear of each other, the flights and the
+  lanes.
+- **For the bots:** the gallery's runs and its flights on the graph; 398 nodes inside the halls, every one reached
+  from the streets.
+- **Found on the way:** the north and south runs were railed their full length, across the corners where the west and
+  east runs join them, so every run was shut off from the next; the bots' graph lost 79 nodes. Now open.
+- **Checked:** verify and rules; `sk-halls.ts` walks every flight (16) up onto its gallery, every run (32) and, new,
+  every corner (32) with the real movement, proven by railing the corners again (it fails, and the graph loses its 79
+  nodes); `citykit.ts` counts Neon Alley's stands apart from the kiosks'; the e2e sections speedkills, sktour and
+  skship (one speedkills check, a bot's route to the capture zone read after 3 s, failed while the halls check ran
+  beside it and passed alone); pictures from the floor and the gallery.

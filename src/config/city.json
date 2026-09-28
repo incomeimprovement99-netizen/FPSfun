@@ -716,9 +716,28 @@
         "#16181d",
         "#0b0c0f"
       ]
+    },
+    "gallery": {
+      "floor": 4.0,
+      "depth": 2.6,
+      "thick": 0.3,
+      "rail": 1.0,
+      "stairs": 2,
+      "stairWidth": 2.2,
+      "rise": 0.5,
+      "run": 0.9
+    },
+    "kiosk": {
+      "count": 3,
+      "size": [
+        4.2,
+        2.2,
+        3.2
+      ],
+      "clear": 2.5
     }
   },
-  "_halls": "The centre's podiums opened into halls at street level (Phase 24.4, city.ts podiumBody; the owner: \"i want an inside area as well to fight in on the bottom floor, likke the metro area\"): every podium of the centre's but the Spire's is a shell `wall` metres thick with a roof `roof` metres thick at its top, which is walked on as before; the hall inside runs from the pavement to the roof's underside (7.4 m on a two-storey podium). Doors `door` wide and high (under the shop canopies at 3.6 m), one per `every` metres of each face, the plaza's face too, none within `corner` metres of a corner, `pad` of a pad or `stair` of the public stair, and nothing more than a step standing within `out` metres before it (a bridge's pillar on the kerb, a metro stairwell's rail); the halls are built last of the street's things for that. Inside: square columns `size` metres a side on a grid `every` metres, none within `wall` metres of a wall nor in a door's lane (`lane` metres in from it); `count` low counters `size` (w, h, d) as cover, `clear` metres from any column, wall or lane; strips of light in the ceiling every `every` metres. The bots' graph: nodes on a grid `every` metres, `wall` metres in, linked where a bot walks them, and each door to the street outside it. Nothing here draws from the city's stream. `lit`: each inside surface's colour and the light it gives off (the roof shadows the sky's light, and a light of ours for each hall would cost every surface in the city), by eye in the pictures.",
+  "_halls": "The centre's podiums opened into halls at street level (Phase 24.4, city.ts podiumBody; the owner: \"i want an inside area as well to fight in on the bottom floor, likke the metro area\"): every podium of the centre's but the Spire's is a shell `wall` metres thick with a roof `roof` metres thick at its top, which is walked on as before; the hall inside runs from the pavement to the roof's underside (7.4 m on a two-storey podium). Doors `door` wide and high (under the shop canopies at 3.6 m), one per `every` metres of each face, the plaza's face too, none within `corner` metres of a corner, `pad` of a pad or `stair` of the public stair, and nothing more than a step standing within `out` metres before it (a bridge's pillar on the kerb, a metro stairwell's rail); the halls are built last of the street's things for that. Inside: square columns `size` metres a side on a grid `every` metres, none within `wall` metres of a wall nor in a door's lane (`lane` metres in from it); `count` low counters `size` (w, h, d) as cover, `clear` metres from any column, wall or lane; strips of light in the ceiling every `every` metres. The bots' graph: nodes on a grid `every` metres, `wall` metres in, linked where a bot walks them, and each door to the street outside it. Nothing here draws from the city's stream. `lit`: each inside surface's colour and the light it gives off (the roof shadows the sky's light, and a light of ours for each hall would cost every surface in the city), by eye in the pictures. `gallery` (Phase 24.4b): a walk round every wall `floor` metres over the hall's, `depth` deep and `thick`, railed `rail` high on its inner edge, over the doors and the shop fronts; `stairs` flights up to it `stairWidth` wide, each step `rise` up (under the 0.56 m a body steps) and `run` deep, standing out from a long wall into the hall, between the columns and clear of the doors' lanes. `kiosk`: `count` solid kiosks `size` (w, h, d, Neon Alley's stall) in the open floor, `clear` metres from anything else, each wearing one of the packs' food stands from Balanced up (citykit.json dress alley stands).",
   "padLook": {
     "rim": [
       1.3,

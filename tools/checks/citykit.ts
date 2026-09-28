@@ -178,7 +178,7 @@ check("the skyline's towers each wear a lit building from the bundle", (byKind.g
     return cx > NA.from - 1 && cx < NA.to + 1 && Math.abs(cz - z0) < 20;
   };
   const stands = new Set(kit.dress.alley.stands);
-  const dressed = places.filter((p) => stands.has(p.piece)).length;
+  const dressed = places.filter((p) => stands.has(p.piece) && p.kind !== "kiosk").length;
   const signs = places.filter((p) => (p.kind === "sign" || p.kind === "blade") && inAlley(p)).length;
   const cables = places.filter((p) => p.kind === "cable" && inAlley(p)).length;
   check(
