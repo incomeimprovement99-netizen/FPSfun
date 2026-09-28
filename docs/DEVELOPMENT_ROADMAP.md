@@ -5951,3 +5951,37 @@ playable so I can test it".
   gulag, speedkills, bots, botsquads and loot pass (botsquads failed on two runs, on different checks each time, the
   finishers and a squad keeping together at 17 of 40, and passed alone again at 40 of 40); a real match opened with
   `?dropat=high-corner` lands on its crossroads with loot round it; pictures from its floor, walkways and crossroads.
+
+## Milestone 304 — The guns level at rest, the USSO's hand on it and its handle pinched; the bought arms' fists; an inspect's hack in the open palm; the edge laser gone
+
+The owner, 2026-09-28: the USSO's left hand "slightly off the gun"; on the rack "our fingers don't grip it, it's like 80%
+of the way there"; "both guns when we are standing still have the gun aimed up and to the left ... in the chilling /
+standing position, the gun is never like that"; on an inspect, "a palm open hand and the hack glowing/levitating off of
+the palm"; "taking out melee / fists, are those the old fists and not our new bought arms?"; and of the red circle round
+enemies, "you said you fixed it like 3 times".
+
+- **Level at rest** (`fparms.json` hipPitch): the fit tilts our gun up about its trigger to meet the pack's left palm, 10
+  degrees on the USSO and 12 on BOOG (measured), and held so the muzzle pointed up at rest. The view takes it back down to
+  2 degrees, the hands going with the gun; every gun keeps its 3 degrees in toward the crosshair.
+- **The USSO's left hand on the gun**: the hold's fit (`tools/pack-fit.ts`) had moved it off the gun for the fingers' sake
+  alone, 6 mm of air beside it. The fit now wants the held palm within 1 mm of the gun as well as nothing through it
+  where it is seen: 0.9 mm, touching.
+- **The rack pinched** (`packGuns` MPS5 rack grab pinch): the USSO's handle is a knob a centimetre off the gun's side,
+  and no closed hand holds it without going into the gun (10 mm and more, every roll of the pack's grip and every turn of
+  a hand round it, searched). So the thumb and forefinger's tips close on it and the other three fingers curl into the
+  palm, the hand turned as the grab says in the gun's frame: on the knob to 0.0 cm, none of the hand through the gun
+  where it is seen, the wrist 22 degrees. The fingertips (past the last joint) are what hook it; hooked by the middle
+  joints, the palm went into the gun's body.
+- **The bought arms' fists** (`fprig.ts` free, `fparms.json` free): holstered, meleeing and crawling, the bought arms and
+  gloves where the view's own drawn fists were. Each finger joint bends into a fist along the axis the pack's own grip
+  bends it, the hands turned by their knuckles and palms, the arms' reach to them (pulled in by `pull`: at the old fists'
+  place they were straight out, 97% of their reach).
+- **An inspect's hack in the palm** (`inspectPalm`): while the right hand shows the gun, the left comes off it, open and
+  palm up, with the hack you carry (your mobility hack, else your utility) floating over it, bobbing and turning.
+- **The edge laser gone** (`edge.ts`, `city.json` edge): the red column down on whoever stayed past the city's edge, and the
+  red ring on the ground round them, drawn on every screen, was the one thing in the game that drew a red ring on a
+  figure; the owner asked for it out if the circle was still seen. Past the edge the countdown runs and at its end it is
+  OUT OF BOUNDS, no laser, no red flood. A photographed fight against three bots at 8 to 25 m showed no ring round them
+  in this build; if one is seen again, a screenshot of it is the next thing to have.
+- **Checked:** new soldier e2e checks (level at rest, the handle pinched, the fists the bought arms', the palm and its
+  hack on an inspect), the speedkills section's edge check (the death with no laser); verify; rules.

@@ -3897,7 +3897,7 @@ function edgeBounds(d: BrMatch): void {
   if (!edgeArmed && d.alive && player.onGround && !player.aboard && !player.dropping) edgeArmed = true;
   player.setBounds(edgeArmed && d.alive && d.phase === "fight" ? EDGE_BOUNDS : BR_BOUNDS);
 }
-/** a frame past the edge or back: the countdown, the laser, and the death it brings */
+/** a frame past the edge or back: the countdown, and the death it brings */
 function edgeFrame(d: BrMatch, now: number): void {
   const live = IS_SK && edgeArmed && d.phase === "fight" && d.alive && !(d.gulag && d.gulag.phase !== "wait") && !player.aboard;
   if (!live) {
@@ -3909,13 +3909,7 @@ function edgeFrame(d: BrMatch, now: number): void {
   const e = edge.step(now, out);
   if (e === "out" || e === "tick") audio.countdown(false);
   else if (e === "back") hud.notice("BACK IN THE CITY", now, 1);
-  else if (e === "strike") {
-    const at = player.pos.clone();
-    fx.laser(at, now, EDGE);
-    audio.laser(at);
-    // every other screen draws it too (onRemoteFx "edge"); this one drew its own
-    d.localFx("edge", at, undefined, 1);
-  } else if (e === "dead") d.outOfBounds();
+  else if (e === "dead") d.outOfBounds();
 }
 /** the metres from you to the city's nearest edge, 0 at it or past it: how bright its fence is where you stand */
 function edgeNear(): number {
@@ -3989,7 +3983,7 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       break;
     case 3: {
       // anyone's HEAL heals you too if you stand in it, an enemy's as well (the owner: "we should be able to heal in it
-      // anyways"), and it looks the same as yours: a red ring round a figure is the edge's laser alone (edge.ts)
+      // anyways"), and it looks the same as yours
       const mesh = healMesh(a);
       // (at the base rate: its fusion level does not travel)
       healZones.push({ at: a.clone(), until: gameTime + H.heal.seconds, mesh, rate: H.heal.perSecond });
@@ -4629,12 +4623,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     if (remoteFxLog.length > 20) remoteFxLog.shift();
     // SpeedKills has no smoke (Phase 20 A10): a cloud from an older build's SMOKE bot is not drawn here either
     if (IS_SK && (k === "smoke" || (k === "ult" && n === 5))) return;
-    // someone else past the city's edge too long: the laser on them, on this screen too
-    if (k === "edge" && a) {
-      fx.laser(a, gameTime, EDGE);
-      audio.laser(a);
-      return;
-    }
+    // (an older build's edge laser on someone past the city's edge: drawn no more, the owner took it out)
+    if (k === "edge") return;
     // a SpeedKills hack of someone else's
     if (k === "sk" && typeof n === "number") {
       remoteHack(from, n, a, b);
@@ -6828,7 +6818,7 @@ function step(): void {
   // SpeedKills: a ghost moves (knockedOut still holds its guns and hacks)
   const skGhostNow = duel instanceof BrMatch && duel.ghost;
   if (duel instanceof BrMatch) edgeBounds(duel);
-  // once the edge's laser has hit you, you stand in it
+  // once the edge has had you, you stand where you died
   player.update(dt, now, (knockedOut && !skGhostNow) || finisher || edge.struckAt !== null ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
   if (duel instanceof BrMatch) edgeFrame(duel, now);
   phases.lap("player");
@@ -7432,6 +7422,7 @@ function step(): void {
     lowered: debugView.lowered ?? (emptyHand || downedNow || debugView.downed || (knockedOut && !killcam.active) || ordnance.readied ? 1 : lowered),
     downed: downedNow || debugView.downed ? 1 : 0,
     inspect: debugView.inspect ?? (now - inspectAt < INSPECT_TIME ? (now - inspectAt) / INSPECT_TIME : undefined),
+    hackId: hacks.get("mobility")?.id ?? hacks.get("utility")?.id ?? null,
     flourish: now - flourishAt < FLOURISH_TIME ? (now - flourishAt) / FLOURISH_TIME : undefined,
     onZip: debugView.onZip ?? player.onZip,
     draw: onScreen.state.drawFrac,
@@ -7764,7 +7755,7 @@ function step(): void {
     capture: duel instanceof BrMatch && duel.decay ? skCaptureHud(duel) : null,
     zoneLabel: duel instanceof BrMatch && duel.decay ? skZoneLabel(duel) : null,
     lootCard: lootCardNow(),
-    edge: IS_SK && duel instanceof BrMatch && (edge.since !== null || edge.struckAt !== null) ? { left: edge.left(gameTime), strike: edge.flood(gameTime) } : null,
+    edge: IS_SK && duel instanceof BrMatch && (edge.since !== null || edge.struckAt !== null) ? { left: edge.left(gameTime) } : null,
     edgeZone: IS_SK && duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? { inner: BR_BOUNDS, outer: EDGE_BOUNDS } : null,
     hacks: IS_SK
       ? (["mobility", "utility"] as const).flatMap((slot) => {
@@ -7975,6 +7966,8 @@ initWelcome();
   /** the bought first-person arms (fprig.ts): which pack gun holds ours, drawn or not, the wrists' bends */
   packArms: () => viewModel.packState,
   packRig: () => viewModel.packRig,
+  /** the view's melee swing, for pictures (tools that must not press the real keys) */
+  vmMelee: () => viewModel.melee(),
   /** hold the bought arms' pickup at a share of it (null: as the game has it) */
   packPickupAt: (u: number | null) => {
     viewModel.pickupHold = u;
@@ -8026,9 +8019,8 @@ initWelcome();
     remoteHack: (from: number, n: number, x: number, y: number, z: number) => remoteHack(from, n, new THREE.Vector3(x, y, z), undefined),
     state: () => ({ armored: gameTime < armorUntil, invisible: gameTime < invisUntil, slam: skSlam?.phase ?? null, pulling: !!skPull, leap: skLeap, healZones: healZones.length, mines: mines.length, hackSlow: player.hackSlow, incoming: duel instanceof Duel ? duel.incomingScale : 1 }),
     fusion: () => loadout.slots.map((sl) => sl.fusion ?? 0),
-    /** the city's edge as this page has it (Phase 20 A4): past it, the countdown, the laser */
+    /** the city's edge as this page has it (Phase 20 A4): past it, the countdown */
     edge: () => ({ out: edge.since !== null, since: edge.since, struckAt: edge.struckAt, left: edge.left(gameTime), armed: edgeArmed, inside: edgeInside.toArray(), city: { ...BR_BOUNDS }, wall: { ...EDGE_BOUNDS }, margin: EDGE.margin }),
-    laser: (x: number, z: number) => fx.laser(new THREE.Vector3(x, 0, z), gameTime, EDGE),
     /** the decay as this page has it: the plan, each sector's state, the boxes it holds out, the capture zone */
     decay: () => {
       const d = duel instanceof BrMatch && duel.decay ? duel : null;

@@ -5,7 +5,7 @@
 
 /** the legacy ring, and SpeedKills' decay */
 export const RING_ID = -1;
-/** SpeedKills: past the city's edge for too long, the laser (edge.ts) */
+/** SpeedKills: past the city's edge for too long (edge.ts) */
 export const EDGE_ID = -2;
 
 export const causeName = (id: number): string | null => (id === RING_ID ? "THE RING" : id === EDGE_ID ? "OUT OF BOUNDS" : null);

@@ -58,8 +58,7 @@ Game) or `?game=legacy`, and everything below this section describes it.
   - Sectors decay in four waves of two toward a final one; standing in the
     decay hurts.
   - Then a 14 m capture zone opens: a squad alone in it for 45 s wins.
-  - A lit red fence marks the city's edge. Past it you have 5 s to come back before a laser comes down: OUT OF
-    BOUNDS.
+  - A lit red fence marks the city's edge. Past it you have 5 s to come back, or it is OUT OF BOUNDS.
   - A match runs 6 to 7 minutes.
 - **The vertical centre:** the middle of the map is its tallest part. Round
   the Spire the towers stand 64 to 80 m, the twins either side of each chimney
@@ -158,8 +157,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
   finger sinks into them. On a reload the gun turns its underside toward you and
   the left forefinger points at the magazine while it drops out of the gun as it
   phases away and a new one phases in below and slides home; then the hands work
-  the gun: the left hand grabs the USSO's charging handle, pulls it and lets it
-  slam home, and the pack's own hands throw BOOG's bolt, as after every shot. A
+  the gun: the left thumb and forefinger pinch the USSO's charging handle, pull
+  it and let it slam home, and the pack's own hands throw BOOG's bolt, as after
+  every shot. At rest both guns point level down the range. On an inspect the
+  left hand opens, palm up, with the hack you carry floating over it; holstered
+  or meleeing, the fists are the same bought arms and gloves. A
   swap is the pack's own: the gun swung down to the chest in both hands as it
   phases out, the next brought up into the hold as it phases in. Jumping plays
   the pack's take-off and landing, and taking loot off the ground its pickup. Every other bought gun's support hand holds it where the bought model is

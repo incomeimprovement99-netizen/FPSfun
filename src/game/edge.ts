@@ -2,7 +2,10 @@
 // showed on the minimap but not in the world, and the body just stopped. Now
 // a lit fence stands on it (city.ts), a body can go city.json edge.margin
 // metres past it, and out there a countdown runs: step back in and it stops,
-// stay and a red laser comes down and the death is OUT OF BOUNDS.
+// stay and the death is OUT OF BOUNDS. There was a red laser down on whoever
+// stayed, and a red ring on the ground round them, on every screen; the owner
+// took it out (2026-09-28: a red circle kept being seen round enemies, and
+// this was the one thing in the game that drew one on a figure).
 //
 // The clock is the page's game time, the one the player's own movement runs
 // on: on a slow page both stretch together, so nobody dies for a walk their
@@ -21,24 +24,17 @@ export const EDGE_BOUNDS: Bounds = {
 };
 export const pastEdge = (x: number, z: number): boolean => x < BR_BOUNDS.minX || x > BR_BOUNDS.maxX || z < BR_BOUNDS.minZ || z > BR_BOUNDS.maxZ;
 
-export type EdgeEvent = "out" | "tick" | "back" | "strike" | "dead";
+export type EdgeEvent = "out" | "tick" | "back" | "dead";
 
 /** one player's time past the edge: what happens as the seconds go (main.ts edgeFrame) */
 export class EdgeWatch {
   since: number | null = null;
   struckAt: number | null = null;
   private said = 0;
-  private done = false;
 
   step(now: number, out: boolean): EdgeEvent | null {
-    // once the laser has hit, it is only a matter of its own second
-    if (this.struckAt !== null) {
-      if (!this.done && now - this.struckAt >= EDGE.strike) {
-        this.done = true;
-        return "dead";
-      }
-      return null;
-    }
+    // (dead: nothing more)
+    if (this.struckAt !== null) return null;
     if (!out) {
       if (this.since === null) return null;
       this.since = null;
@@ -52,7 +48,7 @@ export class EdgeWatch {
     const t = now - this.since;
     if (t >= EDGE.countdown) {
       this.struckAt = now;
-      return "strike";
+      return "dead";
     }
     if (Math.floor(t) > this.said) {
       this.said = Math.floor(t);
@@ -61,20 +57,14 @@ export class EdgeWatch {
     return null;
   }
 
-  /** seconds left before the laser, or null while inside (or already struck) */
+  /** seconds left before the death, or null while inside (or already dead) */
   left(now: number): number | null {
     return this.since === null || this.struckAt !== null ? null : Math.max(0, EDGE.countdown - (now - this.since));
-  }
-
-  /** 0 to 1 over the strike's second: how red the screen is */
-  flood(now: number): number | null {
-    return this.struckAt === null ? null : Math.min(1, (now - this.struckAt) / EDGE.strike);
   }
 
   reset(): void {
     this.since = null;
     this.struckAt = null;
     this.said = 0;
-    this.done = false;
   }
 }

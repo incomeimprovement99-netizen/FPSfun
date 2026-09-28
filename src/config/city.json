@@ -413,16 +413,11 @@
       "#3a3f48"
     ]
   },
-  "_edge": "The city's edge (Phase 20 A4; src/game/edge.ts, city.ts, main.ts edgeFrame). margin: how far past the edge a body can go before a wall stops it, metres: the owner's about 40, held to 38 because the range's covered lane ends 39 to 40 m north of the city (its back wall at world z 210 to 211, measured off the range's solids in a match), which keeps a body a metre off it. countdown: the owner's 5 s outside before the laser; a step back in stops it and the next time out starts from 5 again. strike: seconds from the laser's hit to the death, the screen red meanwhile. gulag: an out-of-bounds first death goes to the Gulag as a ring death does. The laser stands laserSeconds on every screen, laserRadius metres at its core, from laserHeight up. fence: the lit fence on the four sides at the edge, height metres, a post every postGap m, opacity far and nearOpacity within nearAt m, its lines climbing scroll a second. Ours, by eye, except margin.",
+  "_edge": "The city's edge (Phase 20 A4; src/game/edge.ts, city.ts, main.ts edgeFrame). margin: how far past the edge a body can go before a wall stops it, metres: the owner's about 40, held to 38 because the range's covered lane ends 39 to 40 m north of the city (its back wall at world z 210 to 211, measured off the range's solids in a match), which keeps a body a metre off it. countdown: the owner's 5 s outside before the death; a step back in stops it and the next time out starts from 5 again. gulag: an out-of-bounds first death goes to the Gulag as a ring death does. There was a red laser down on whoever stayed, with a red ring on the ground round them, on every screen; the owner took it out, 2026-09-28 (\"remove the laser stuff completely and just have the user die with the explanation\"): a red circle kept being seen round enemies, and this was the one thing in the game that drew one on a figure.",
   "edge": {
     "margin": 38,
     "countdown": 5,
-    "strike": 1,
     "gulag": true,
-    "laserSeconds": 2.5,
-    "laserRadius": 1.2,
-    "laserHeight": 260,
-    "laserColor": "#ff1a2e",
     "fence": {
       "height": 14,
       "postGap": 20,

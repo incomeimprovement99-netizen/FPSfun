@@ -36,9 +36,11 @@ window.__packAudit = (deep, keep) => {
   });
   const rigScale = rig.getWorldScale(new T.Vector3()).x;
   // (a scope's picture hides the gun: nothing to test)
-  if (!parts.length) return { l: 0, r: 0, seenL: 0, seenR: 0, seenDeepest: 0, deepest: 0, where: {}, bones: {}, seenBones: {}, tested: 0, touch: 0, self: true, selfShare: 1, pts: [], push: {}, parts: 0 };
+  if (!parts.length) return { l: 0, r: 0, seenL: 0, seenR: 0, seenDeepest: 0, deepest: 0, where: {}, bones: {}, seenBones: {}, tested: 0, touch: 0, self: true, selfShare: 1, pts: [], push: {}, parts: 0, gap: { l: Infinity, r: Infinity }, palmGap: { l: Infinity, r: Infinity } };
   const HAND = /^(hand|index|middle|ring|pinky|thumb)(_\d+)?_([lr])$/;
-  const out = { l: 0, r: 0, seenL: 0, seenR: 0, seenDeepest: 0, deepest: 0, where: {}, bones: {}, seenBones: {}, tested: 0, touch: 0, self: false, selfShare: 0, pts: [], push: {} };
+  const out = { l: 0, r: 0, seenL: 0, seenR: 0, seenDeepest: 0, deepest: 0, where: {}, bones: {}, seenBones: {}, tested: 0, touch: 0, self: false, selfShare: 0, pts: [], push: {}, gap: { l: Infinity, r: Infinity }, palmGap: { l: Infinity, r: Infinity } };
+  // how near each hand comes to the gun, and its palm alone, view metres (0 touching or in): a hand meant to hold the gun
+  // and short of it by a few millimetres reads as a gap between them
   const eye = rig.getWorldPosition(new T.Vector3());
   // the gun camera's picture from the eye (the rig's group is the view's: its origin the eye, looking down -z)
   const tanV = Math.tan(((r.gunFov().gun / 2) * Math.PI) / 180);
@@ -109,8 +111,22 @@ window.__packAudit = (deep, keep) => {
       out.tested++;
       for (const p of parts) {
         loc.copy(v).applyMatrix4(p.inv);
-        if (!p.grid.box.containsPoint(loc)) continue;
+        if (!p.grid.box.containsPoint(loc)) {
+          // (outside the part's box: how far from it, only near it)
+          if (p.grid.box.distanceToPoint(loc) * p.scale / rigScale < 0.03) {
+            const d0 = p.flip * depthIn(p.grid, loc);
+            const away = Math.max(0, -d0) * p.scale / rigScale;
+            out.gap[side] = Math.min(out.gap[side], away);
+            if (bone === `hand_${side}`) out.palmGap[side] = Math.min(out.palmGap[side], away);
+          }
+          continue;
+        }
         const d = p.flip * depthIn(p.grid, loc);
+        {
+          const away = Math.max(0, -d) * p.scale / rigScale;
+          out.gap[side] = Math.min(out.gap[side], away);
+          if (bone === `hand_${side}`) out.palmGap[side] = Math.min(out.palmGap[side], away);
+        }
         if (d <= 0) continue;
         out.touch++;
         const depth = (d * p.scale) / rigScale;

@@ -27,7 +27,9 @@ const TRY = [-0.4, -0.3, -0.2, -0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6];
 /** a finger's base joint turned by these, radians, about each of its axes in turn */
 const TURNS = [-0.5, -0.3, -0.15, 0.15, 0.3, 0.5];
 /** a hand moved by these, view metres, along each of our gun's axes in turn */
-const NUDGE = [-0.015, -0.01, -0.005, 0.005, 0.01, 0.015];
+const NUDGE = [-0.015, -0.01, -0.005, -0.0025, 0.0025, 0.005, 0.01, 0.015];
+/** a held palm this near the gun touches it, view metres */
+const TOUCH = 0.001;
 const ROUNDS = 12;
 /**
  * The states a hold is seen in, each set on the view and read: at the hip the right hand is mostly under the screen's
@@ -59,6 +61,8 @@ type Audit = {
   bones: Record<string, number>;
   seenBones: Record<string, number>;
   push: Record<string, number[]>;
+  palmGap: Record<string, number>;
+  holdGap: Record<string, number>;
 };
 
 const browser = await puppeteer.launch({
@@ -132,10 +136,14 @@ try {
         await wait(i % LOOKS === 0 ? 800 : 230);
         const b = (await page.evaluate(`window.__packAudit(${DEEP})`)) as Audit;
         if (process.env.LOOKLOG) console.log(`    look ${i}: seen L ${b.seenL} R ${b.seenR}, in L ${b.l} R ${b.r}`);
+        // (the palm's gap to the gun held, at rest and aimed: in the reload's state the left hand points, off the gun)
+        const held = STATES[Math.floor(i / LOOKS)] !== "r.debugView.reload = 0.3;";
         if (!worst) {
           worst = b;
+          worst.holdGap = { l: held ? b.palmGap.l : 0, r: held ? b.palmGap.r : 0 };
           continue;
         }
+        if (held) for (const sd of ["l", "r"]) worst.holdGap[sd] = Math.max(worst.holdGap[sd], b.palmGap[sd]);
         for (const side of ["l", "r"] as const) if ((b.bones[`hand_${side}`] ?? 0) > (worst.bones[`hand_${side}`] ?? 0)) worst.push[side] = b.push[side];
         for (const key of ["bones", "seenBones"] as const) for (const [k, v] of Object.entries(b[key])) worst[key][k] = Math.max(worst[key][k] ?? 0, v);
         worst.l = Math.max(worst.l, b.l);
@@ -152,7 +160,7 @@ try {
       return worst!;
     };
     const say = (a: Audit) =>
-      `in L ${a.l} R ${a.r} deepest ${(a.deepest * 1000).toFixed(0)} mm ${JSON.stringify(a.bones)}; seen L ${a.seenL} R ${a.seenR} deepest ${(a.seenDeepest * 1000).toFixed(0)} mm`;
+      `in L ${a.l} R ${a.r} deepest ${(a.deepest * 1000).toFixed(0)} mm ${JSON.stringify(a.bones)}; seen L ${a.seenL} R ${a.seenR} deepest ${(a.seenDeepest * 1000).toFixed(0)} mm; palm gap L ${(a.holdGap.l * 1000).toFixed(1)} R ${(a.holdGap.r * 1000).toFixed(1)} mm`;
     let a = await measure();
     const before = say(a);
     console.log(`${id} (${name}) before: ${before}`);
@@ -248,8 +256,12 @@ try {
     // seen: a finger pressed into the grip's far side is hidden behind the gun, and the pack's hands are made for grips
     // thinner than ours, so no curl or turn of a finger took it off both sides at once (BOOG's thumb 13 mm into the side
     // of its grip that faces you as it turns over for the reload)
+    // (and on it: the palm within `TOUCH` of the gun where it holds it, a millimetre of gap past that as bad as one
+    // through it; moved off for the fingers' sake alone, the USSO's left hand held the air 6 mm beside its gun)
     const seenOf = (b: Audit, side: "l" | "r") =>
-      Math.max(0, ...Object.entries(b.seenBones).filter(([k]) => k.endsWith(`_${side}`)).map(([, v]) => v)) + (side === "l" ? b.l : b.r) / 1000;
+      Math.max(0, ...Object.entries(b.seenBones).filter(([k]) => k.endsWith(`_${side}`)).map(([, v]) => v)) +
+      Math.max(0, (Number.isFinite(b.holdGap[side]) ? b.holdGap[side] : 0.05) - TOUCH) * 1000 +
+      (side === "l" ? b.l : b.r) / 1000;
     for (const side of ["l", "r"] as const) {
       if (seenOf(a, side) <= DEEP * 1000) continue;
       for (let axis = 0; axis < 3; axis++) {
