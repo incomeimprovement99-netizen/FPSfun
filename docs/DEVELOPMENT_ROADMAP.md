@@ -5660,3 +5660,19 @@ showed a slab.
   districts' cut.
 - **Checked:** pictures into the Kyber and Cyber City windows by day and night on High and Competitive; `citykit.ts`,
   `sk-lobbies.ts`, `sk-stairs.ts`; verify and rules.
+
+## Milestone 294 — SpeedKills always sprints
+
+The owner, 2026-09-27: "we should only have sprinting on and not ever walking / non sprinting. fast paced is the goal
+and thats how we do it. i don't think i ever walked/run and not sprinted in hyperscape."
+
+- **Always** (`player.ts` sprintMode "always", `main.ts`): any way you move is a sprint at the sprint's 14 m/s,
+  strafing and backing too, and firing no longer drops it. It was Hyper Scape's Auto-Sprint (Phase 20 A15): forward
+  only, and a shot, an aim, a heal or a strafe fell to the run's 8.8 m/s. Aiming still takes its own share off the
+  speed (the gun's ADS move scale), crouching is the crouch's speed and a slide is a slide. The Settings row for sprint
+  is hidden in SpeedKills; the legacy game keeps its toggle, hold and auto.
+- **The first-person gun** keeps its sprint pose off while firing too (the view's own and the bought arms'), since
+  firing is now done at a sprint.
+- **Checked:** `tools/checks/sk-sprint.ts` (in verify): forward, right, back and left all at the sprint's speed,
+  firing too, crouched not (with the old auto mode, strafing, backing and firing fell to 8.8 m/s, four failures);
+  the SpeedKills e2e section (its sky check brought up to Milestone 288's third sky); verify; rules.

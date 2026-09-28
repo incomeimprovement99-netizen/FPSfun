@@ -1155,7 +1155,8 @@ export class ViewModel {
     const reloadEnv = (f.reloading ? smooth(0, 0.14, reloadP) * (1 - smooth(0.84, 1, reloadP)) : 0) * (1 - ads * RELOAD_ADS);
 
     // ---- sprint blend; ADS and reloading both win over it
-    const wantSprint = f.sprinting && f.adsFrac < 0.05 && !f.reloading ? 1 : 0;
+    // (not while firing either: SpeedKills sprints firing, and the sprint pose lowered the gun off the crosshair)
+    const wantSprint = f.sprinting && f.adsFrac < 0.05 && !f.reloading && this.t - this.lastShotAt > LOCO.fireHold ? 1 : 0;
     this.sprintAmt += (wantSprint - this.sprintAmt) * Math.min(1, dt / 0.16);
     // (the bought arms move the gun with the pack's own walk, sprint and jump: fprig.ts locomotion)
     const sp = packOn ? 0 : easeInOut(this.sprintAmt);

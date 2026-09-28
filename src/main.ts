@@ -1092,19 +1092,22 @@ const profile = new Stats();
 // Spawn ON the firing line (z = 0) so the lane labels are the true distance
 // to each dummy. Spawning behind it made every label read 3 m short.
 player.pos.set(0, 0, 0);
-// SpeedKills sprints whenever you move forward, as Hyper Scape's Auto-Sprint did by default (Phase 20 A15)
-player.sprintMode = IS_SK ? "auto" : playerCfg.sprintMode === "hold" ? "hold" : "toggle";
+// SpeedKills always sprints, whichever way you move, firing and aiming too (the owner, 2026-09-27: "only sprinting
+// on and not ever walking"); it was forward only, as Hyper Scape's Auto-Sprint (Phase 20 A15)
+player.sprintMode = IS_SK ? "always" : playerCfg.sprintMode === "hold" ? "hold" : "toggle";
 // Sprint: toggle (press once, the legacy default), hold, or auto. Chosen on the start screen and remembered,
 // each game its own (a legacy toggle kept must not turn SpeedKills' auto off)
 const LS_SPRINT = IS_SK ? "range.sk.sprintMode" : "range.sprintMode";
 try {
   const sm = localStorage.getItem(LS_SPRINT);
-  if (sm === "hold" || sm === "toggle" || sm === "auto") player.sprintMode = sm;
+  if (!IS_SK && (sm === "hold" || sm === "toggle" || sm === "auto")) player.sprintMode = sm;
 } catch {
   /* ignore */
 }
 const sprintSel = $<HTMLSelectElement>("sprintMode");
 sprintSel.value = player.sprintMode;
+// SpeedKills has no choice to make: it always sprints
+if (IS_SK) (sprintSel.closest(".row") ?? sprintSel).setAttribute("hidden", "");
 sprintSel.addEventListener("change", () => {
   player.sprintMode = sprintSel.value === "hold" ? "hold" : sprintSel.value === "auto" ? "auto" : "toggle";
   try {

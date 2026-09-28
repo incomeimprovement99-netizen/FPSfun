@@ -48,7 +48,7 @@ export interface MoveInput {
 }
 
 export type Stance = "stand" | "crouch" | "slide" | "air" | "mantle" | "climb" | "zip";
-export type SprintMode = "toggle" | "hold" | "auto";
+export type SprintMode = "toggle" | "hold" | "auto" | "always";
 
 interface Mantle {
   fromX: number;
@@ -771,7 +771,7 @@ export class Player {
     else if (now - this.crouchPressedAt >= MOVE.crouchDelay) this.crouched = true;
 
     // ----- sprint -----
-    this.updateSprint(now, input, fwd, adsFrac, firing);
+    this.updateSprint(now, input, fwd, side, adsFrac, firing);
 
     // ----- slide start on the ground -----
     const h = this.hSpeed();
@@ -869,7 +869,14 @@ export class Player {
    * needs a new press. Forward only, up to 45 degrees either side, which is
    * what W plus A or D gives.
    */
-  private updateSprint(now: number, input: MoveInput, fwd: number, adsFrac: number, firing: boolean): void {
+  private updateSprint(now: number, input: MoveInput, fwd: number, side: number, adsFrac: number, firing: boolean): void {
+    // always (SpeedKills): any way you move is a sprint, firing and aiming included (aiming still takes its share off
+    // the speed, groundMove). The owner, 2026-09-27: "we should only have sprinting on and not ever walking ... fast
+    // paced is the goal"
+    if (this.sprintMode === "always") {
+      this.sprinting = (fwd !== 0 || side !== 0) && !this.crouched && !this.sliding;
+      return;
+    }
     const blocked = this.crouched || this.sliding || adsFrac >= 0.05 || firing || this.healSlow < 1;
     // auto: moving forward is sprinting, as Hyper Scape's Auto-Sprint (on by default from its patch 2.1)
     if (this.sprintMode === "auto") {
