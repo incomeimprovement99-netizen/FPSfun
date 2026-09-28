@@ -40,6 +40,8 @@ export const COURSE_GATES = IS_SK ? [COURSE_GATE, COURSE_GATE_C, COURSE_GATE_R] 
 export const SUN_DIR = new THREE.Vector3(0.56, 0.66, 0.50).normalize();
 
 let sunLight: THREE.DirectionalLight | null = null;
+/** the sun the hour lights the world with, for what stages a place's own light over it (atmosphere.ts districts) */
+export const sunNow = (): THREE.DirectionalLight | null => sunLight;
 /** the sun, for the debug handle */
 export const getSun = (): THREE.DirectionalLight | null => sunLight;
 /**

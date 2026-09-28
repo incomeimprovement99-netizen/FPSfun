@@ -268,5 +268,9 @@
       "hard": 0.25,
       "elite": 0.35
     }
-  }
+  },
+  "slideProbe": 10,
+  "slideHold": 1.5,
+  "_slide": "A bot walking into a wall (bots.ts): every box is square to the axes, so it takes the part of its step along the wall's face when that part is `slideShare` of the step or more; else, square against the face, it slides along it toward the side where the way it wants opens soonest (a probe each way `slideProbe` half-metre steps long), and keeps that side for `slideHold` seconds while still blocked. The slide it had went at right angles to the way it wanted, a slant into the wall whenever that was not square to it: blocked, it flipped, and it dithered along a container's middle (the Gulag's bot made 2.6 m in 4 s of its fight; the owner, 2026-09-28).",
+  "slideShare": 0.3
 }

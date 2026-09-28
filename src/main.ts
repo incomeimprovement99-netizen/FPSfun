@@ -117,8 +117,9 @@ import soldierCfg from "./config/soldier.json";
 import { dressKit } from "./game/kitdress";
 import { cityKitPlaces } from "./game/citydress";
 import { CITY_KIT, dressCityKit, tickCityKit } from "./game/citykit";
+import { CITY_DISTRICTS, districtAt, districtGlow, dressDistricts } from "./game/citydistricts";
 import { buildAtmosphere, tickAtmosphere } from "./game/steam";
-import { atmosphereOn, tickAir, wetStreets } from "./game/atmosphere";
+import { atmosphereOn, districtHere, tickAir, wetStreets } from "./game/atmosphere";
 import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
@@ -942,6 +943,9 @@ void dressKit(brMap.root, DRESSING).then((n) => {
 // SpeedKills' centre in the city bundle the owner bought (citydress.ts places it, citykit.ts draws it): as much of it
 // as the graphics preset asks for, and nothing where the bought files are not there (the public build, a checkout).
 // ?nocitykit leaves it off, for a before-and-after from the same spots (tools/city-sheet.ts)
+if (IS_SK && !new URLSearchParams(location.search).has("nocitykit"))
+  // the districts made of the packs' own demo scenes (citydistricts.ts, Phase 25), every preset: they are the district
+  void dressDistricts(brMap.root, renderer);
 if (IS_SK && !new URLSearchParams(location.search).has("nocitykit"))
   void dressCityKit(brMap.root, cityKitPlaces(brMap.pads, quality.cityDetail === 0), quality, renderer).then((n) => {
     if (n) renderer.shadowMap.needsUpdate = true;
@@ -2753,7 +2757,8 @@ function respawnForMatch(d: MatchLike): void {
       const run = d.takeBoarding();
       if (run) boardShip(d, run);
       else {
-        player.beginDrop(sp.x, DROP_HEIGHT, sp.z, sp.yaw);
+        const at = DROP_AT && !d.redeploying ? { x: DROP_AT.x + BR_X, z: DROP_AT.z + BR_Z } : sp;
+        player.beginDrop(at.x, DROP_HEIGHT, at.z, sp.yaw);
         mapOpen = false;
         dropMapUntil = gameTime + squadCfg.dive.mapSeconds;
         hud.notice(d.redeploying ? "REDEPLOYED: BACK INTO THE FIGHT" : `DROPPING INTO ${d.poi.name}`, gameTime, 3);
@@ -3923,8 +3928,6 @@ function edgeNear(): number {
 function stepDecay(now: number): void {
   if (!IS_SK) return;
   tickCityKit(now);
-  tickAtmosphere(now, camera);
-  tickAir(scene, camera, now, hour.id === "hazyDay" || hour.id === "goldenHour");
   cityEdge(now, edgeNear());
   const d = duel instanceof BrMatch && duel.decay ? duel : null;
   const states = d ? d.sectorStates() : null;
@@ -4572,7 +4575,13 @@ const leashAt = new THREE.Vector3();
  * straight onto the squad's place, as it did before the ship, for the checks
  * that are about what happens after a landing and not about the ship.
  */
-const straightDrop = (): boolean => (window as unknown as { __straightDrop?: boolean }).__straightDrop === true;
+/**
+ * ?dropat=<district id> (citydistricts.json): the battle royale drops you straight onto that district of a pack's own
+ * demo scene, no ship, so it can be tried as soon as a match starts (the owner, 2026-09-28: "til it's playable so I can
+ * test it")
+ */
+const DROP_AT = districtAt(new URLSearchParams(location.search).get("dropat"));
+const straightDrop = (): boolean => (window as unknown as { __straightDrop?: boolean }).__straightDrop === true || DROP_AT !== null;
 /** the tests' other switch: no Gulag, for the checks of what a plain death does (the Gulag's own section turns it back on) */
 const noGulag = (): boolean => (window as unknown as { __noGulag?: boolean }).__noGulag === true;
 /** and no vault (its guard is a bot more on the map), for the checks that count the bots; the vault's own section turns it back on */
@@ -6157,6 +6166,15 @@ function frame(): void {
   setFigureView(camera.position, lodFrustum, framesRun);
   // the field's rock and scrub: only the cells near enough to be worth drawing
   stepInstanced(camera.position);
+  // SpeedKills' steam, signs and haze every frame, played or not (a menu, a picture of the city): looks only, and the
+  // haze eases by the wall's clock, since game time stands still when nothing is being played
+  if (IS_SK) {
+    tickAtmosphere(gameTime, camera);
+    tickAir(scene, camera, performance.now() / 1000, hour.id === "hazyDay" || hour.id === "goldenHour");
+    // and a district's own grade while you stand in it (citydistricts.json look grade)
+    pipeline.setLook(districtHere(camera)?.look.grade ?? null);
+    districtGlow(hour.id === "hazyDay" || hour.id === "goldenHour");
+  }
   phases.lap("view");
   try {
     step();
@@ -8218,6 +8236,7 @@ initWelcome();
   },
   /** the city bundle on SpeedKills' centre (citykit.ts): what is drawn, 0 until it is in or when the files are not there */
   cityKit: () => ({ ...CITY_KIT }),
+  cityDistricts: () => ({ ...CITY_DISTRICTS }),
   /** the textures the scene's materials hold, and what they cost the card: a compressed one its mips' bytes, any other its
    * pixels at four bytes with a third more for mips (Phase 23.1 measures the kit's KTX2 against the WebP it replaced) */
   textureMemory: () => {

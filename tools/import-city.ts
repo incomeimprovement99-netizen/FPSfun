@@ -958,6 +958,182 @@ function cutFacades(draws: Array<{ d: Draw; m: M4 }>, width = 14, reach = 4): Ar
   return out;
 }
 
+/**
+ * A district's collision from its own triangles (Phase 25): the pack scene is a film set of faces, never boxes, so the
+ * game's boxes are made from what it draws. Over a grid of `cell` metres each triangle is clipped to every cell it crosses
+ * and fills that cell over the heights it spans there; a cell's spans closer than `merge` join; a span under `thin` deep
+ * (a walkway, a step) is made that deep downward, so a body never falls through it; nothing under `floor` (the city's
+ * street is the floor there) and no span topping out under `minTop` (the street's scraps). A part that is a stick, its
+ * middle size under `stick` (a cable, a wire, a pole), fills nothing: they are what a player expects to pass. Cells with
+ * the same spans are joined into rectangles, one box a span. Boxes [x0, x1, z0, z1, y0, y1], in the draws' own metres.
+ */
+function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; stick: number; floor: number; merge: number; thin: number; minTop: number; fill?: { walkway: [number, number]; top: number; half: number; plan: number[][]; seeds: number[][]; streets?: number[][] } }): number[][] {
+  const C = o.cell;
+  const OFF = 100000;
+  const key = (i: number, j: number) => (i + OFF) * 1000003 + (j + OFF);
+  const spans = new Map<number, number[]>();
+  type V = [number, number, number];
+  /** a polygon kept on one side of the plane `axis` = v */
+  const clip = (poly: V[], axis: 0 | 2, v: number, above: boolean): V[] => {
+    const out: V[] = [];
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i];
+      const b = poly[(i + 1) % poly.length];
+      const ina = above ? a[axis] >= v : a[axis] <= v;
+      const inb = above ? b[axis] >= v : b[axis] <= v;
+      if (ina) out.push(a);
+      if (ina !== inb) {
+        const t = (v - a[axis]) / (b[axis] - a[axis]);
+        out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]);
+      }
+    }
+    return out;
+  };
+  for (const { d, m } of draws) {
+    const mesh = d.model.meshes[d.mesh];
+    if (!mesh) continue;
+    const w = (x: number, y: number, z: number): V => [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]];
+    const pts: V[][] = mesh.prims.map((p) => {
+      const out: V[] = [];
+      for (let k = 0; k < p.pos.length; k += 3) out.push(w(p.pos[k], p.pos[k + 1], p.pos[k + 2]));
+      return out;
+    });
+    const lo: V = [Infinity, Infinity, Infinity];
+    const hi: V = [-Infinity, -Infinity, -Infinity];
+    for (const list of pts)
+      for (const q of list)
+        for (let a = 0; a < 3; a++) {
+          lo[a] = Math.min(lo[a], q[a]);
+          hi[a] = Math.max(hi[a], q[a]);
+        }
+    const size = [hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]].sort((p, q) => p - q);
+    if (size[1] < o.stick || hi[1] < o.floor) continue;
+    mesh.prims.forEach((p, pi) => {
+      const list = pts[pi];
+      for (let t = 0; t + 2 < p.idx.length; t += 3) {
+        const tri: V[] = [list[p.idx[t]], list[p.idx[t + 1]], list[p.idx[t + 2]]];
+        const x0 = Math.min(tri[0][0], tri[1][0], tri[2][0]);
+        const x1 = Math.max(tri[0][0], tri[1][0], tri[2][0]);
+        const z0 = Math.min(tri[0][2], tri[1][2], tri[2][2]);
+        const z1 = Math.max(tri[0][2], tri[1][2], tri[2][2]);
+        if (Math.max(tri[0][1], tri[1][1], tri[2][1]) < o.floor) continue;
+        for (let i = Math.floor(x0 / C); i <= Math.floor(x1 / C); i++)
+          for (let j = Math.floor(z0 / C); j <= Math.floor(z1 / C); j++) {
+            let poly = clip(tri, 0, i * C, true);
+            if (poly.length) poly = clip(poly, 0, (i + 1) * C, false);
+            if (poly.length) poly = clip(poly, 2, j * C, true);
+            if (poly.length) poly = clip(poly, 2, (j + 1) * C, false);
+            if (!poly.length) continue;
+            let y0 = Infinity;
+            let y1 = -Infinity;
+            for (const q of poly) {
+              y0 = Math.min(y0, q[1]);
+              y1 = Math.max(y1, q[1]);
+            }
+            if (y1 < o.floor) continue;
+            const k = key(i, j);
+            const s = spans.get(k) ?? spans.set(k, []).get(k)!;
+            s.push(Math.max(o.floor, y0), y1);
+          }
+      }
+    });
+  }
+  // each cell's spans joined
+  const cellSpans = new Map<number, Array<[number, number]>>();
+  for (const [k, flat] of spans) {
+    const list: Array<[number, number]> = [];
+    for (let i = 0; i < flat.length; i += 2) list.push([flat[i], flat[i + 1]]);
+    list.sort((p, q) => p[0] - q[0]);
+    const joined: Array<[number, number]> = [];
+    for (const s of list) {
+      const last = joined[joined.length - 1];
+      if (last && s[0] <= last[1] + o.merge) last[1] = Math.max(last[1], s[1]);
+      else joined.push([s[0], s[1]]);
+    }
+    cellSpans.set(k, joined.filter(([, b]) => b >= o.minTop));
+  }
+  // The film set is faces: behind them, at the street, nothing. A walkway's cell is solid down to the street (it stands on
+  // its building, and bounds the canyon); then the street reachable on foot from the canyons' seeds, a flood over cells
+  // with nothing at a body's height; every cell of the district's plan it does not reach is its buildings, solid to
+  // `fill.top`, so nobody walks behind a face and sees through it
+  if (o.fill) {
+    const F = o.fill;
+    for (const [k, list] of cellSpans) {
+      const walk = list.find(([, b]) => b >= F.walkway[0] && b <= F.walkway[1]);
+      if (walk) cellSpans.set(k, [[o.floor, walk[1]], ...list.filter(([a]) => a > walk[1] + 0.05)]);
+    }
+    const passable = (i: number, j: number) => !(cellSpans.get(key(i, j)) ?? []).some(([a, b]) => a < 1.9 && b > 0.35);
+    const inPlan = (x: number, z: number) => {
+      if (Math.abs(x) > F.half || Math.abs(z) > F.half) return false;
+      let n = false;
+      for (let i = 0, j = F.plan.length - 1; i < F.plan.length; j = i++) {
+        const [xi, zi] = F.plan[i];
+        const [xj, zj] = F.plan[j];
+        if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) n = !n;
+      }
+      return n;
+    };
+    // the canyons' floors only: at an arm's end, before its walkways begin, the flood would run out behind the faces
+    const onStreet = (x: number, z: number) => !F.streets || F.streets.some(([x0, x1, z0, z1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1);
+    const reached = new Set<number>();
+    const todo: Array<[number, number]> = F.seeds.map(([x, z]) => [Math.floor(x / C), Math.floor(z / C)] as [number, number]).filter(([i, j]) => passable(i, j));
+    for (const [i, j] of todo) reached.add(key(i, j));
+    while (todo.length) {
+      const [i, j] = todo.pop()!;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const [a, b] = [i + di, j + dj];
+        const k = key(a, b);
+        if (reached.has(k) || !inPlan((a + 0.5) * C, (b + 0.5) * C) || !onStreet((a + 0.5) * C, (b + 0.5) * C) || !passable(a, b)) continue;
+        reached.add(k);
+        todo.push([a, b]);
+      }
+    }
+    const xs = F.plan.map((p) => p[0]);
+    const zs = F.plan.map((p) => p[1]);
+    for (let i = Math.floor(Math.min(...xs) / C); i <= Math.floor(Math.max(...xs) / C); i++)
+      for (let j = Math.floor(Math.min(...zs) / C); j <= Math.floor(Math.max(...zs) / C); j++) {
+        const k = key(i, j);
+        if (reached.has(k) || !inPlan((i + 0.5) * C, (j + 0.5) * C)) continue;
+        const list = cellSpans.get(k) ?? [];
+        // a walkway's cell keeps its walkway; any other, its building to the fill's top
+        if (list.some(([, b]) => b >= F.walkway[0] && b <= F.walkway[1])) continue;
+        cellSpans.set(k, [[o.floor, Math.max(F.top, ...list.map(([, b]) => b))]]);
+      }
+  }
+  // the thin made deep enough to stand on, rounded to 5 cm, and grouped by span
+  const bySpan = new Map<string, Set<number>>();
+  for (const [k, joined] of cellSpans) {
+    for (const [a, b] of joined) {
+      if (b < o.minTop) continue;
+      const y0 = Math.round((b - a < o.thin ? b - o.thin : a) * 20) / 20;
+      const y1 = Math.round(b * 20) / 20;
+      const sk = `${y0},${y1}`;
+      (bySpan.get(sk) ?? bySpan.set(sk, new Set()).get(sk)!).add(k);
+    }
+  }
+  // cells of one span into rectangles, greedily: along i as far as it goes, then down j while the whole row is there
+  const out: number[][] = [];
+  for (const [sk, set] of bySpan) {
+    const [y0, y1] = sk.split(",").map(Number);
+    const cellsOf = [...set].map((k) => [Math.floor(k / 1000003) - OFF, (k % 1000003) - OFF]).sort((p, q) => p[1] - q[1] || p[0] - q[0]);
+    for (const [i, j] of cellsOf) {
+      if (!set.has(key(i, j))) continue;
+      let i1 = i;
+      while (set.has(key(i1 + 1, j))) i1++;
+      let j1 = j;
+      for (;;) {
+        let row = true;
+        for (let ii = i; ii <= i1 && row; ii++) if (!set.has(key(ii, j1 + 1))) row = false;
+        if (!row) break;
+        j1++;
+      }
+      for (let ii = i; ii <= i1; ii++) for (let jj = j; jj <= j1; jj++) set.delete(key(ii, jj));
+      out.push([i * C, (i1 + 1) * C, j * C, (j1 + 1) * C, y0, y1]);
+    }
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- baking and writing
 interface Baked { id: string; groups: Map<string, { mat: string | null; pos: number[]; nrm: number[]; uv: number[]; idx: number[] }>; tris: number; min: Vec3; max: Vec3; faces: Record<string, number>; depths: Record<string, Map<number, number>> }
 
@@ -1243,6 +1419,64 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
       const bytes = await writePack(h, pack, bakedB, mats, tex, cfg.sizes.hi, cfg.sizes.normal.hi, new Set(bakedB.map((x) => x.id)), join(out, `${name}-buildings.glb`));
       writeFileSync(join(out, `${name}-buildings.json`), JSON.stringify(cat, null, 1));
       report.push(`${name} buildings: ${bakedB.length} cut, ${bakedB.reduce((a, x) => a + x.tris, 0)} tris, ${(bytes / 1e6).toFixed(1)} MB`);
+      continue;
+    }
+    // CITY_DISTRICTS=1 bakes each district of this pack (src/config/citydistricts.json, Phase 25): its demo scene whole,
+    // every part moved and turned into the map's own metres, the parts whose middle lands outside the district's corner
+    // (or past its radius) left out, into <id>-v<version>.glb; the measurements go back into citydistricts.json
+    if (process.env.CITY_DISTRICTS) {
+      const dFile = join(h.root, "src", "config", "citydistricts.json");
+      const dCfg = JSON.parse(readFileSync(dFile, "utf8"));
+      for (const dist of dCfg.districts.filter((q: { pack: string }) => q.pack === name)) {
+        const file = pack.pathFile.get(dist.scene);
+        if (!file) {
+          report.push(`${dist.id}: no ${dist.scene} in ${name}`);
+          continue;
+        }
+        const [ox, oy, oz] = dist.origin;
+        const [ax, ay, az] = dist.at;
+        const c = Math.cos(dist.yaw), s = Math.sin(dist.yaw);
+        // column-major: the scene point `origin` to `at`, turned `yaw` about y
+        const T: M4 = [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, ax - (c * ox + s * oz), ay - oy, az - (-s * ox + c * oz), 1];
+        const kept: Array<{ d: Draw; m: M4 }> = [];
+        let dropped = 0;
+        for (const { d, m } of res.flatten(basename(dirname(file)))) {
+          const mesh = d.model.meshes[d.mesh];
+          if (!mesh) continue;
+          const w = mul(T, m);
+          // the part's middle, from its own bounds
+          const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+          for (const prim of mesh.prims)
+            for (let k = 0; k < prim.pos.length; k += 3)
+              for (let a = 0; a < 3; a++) {
+                lo[a] = Math.min(lo[a], prim.pos[k + a]);
+                hi[a] = Math.max(hi[a], prim.pos[k + a]);
+              }
+          const mid = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+          const x = w[0] * mid[0] + w[4] * mid[1] + w[8] * mid[2] + w[12];
+          const z = w[2] * mid[0] + w[6] * mid[1] + w[10] * mid[2] + w[14];
+          if (!dist.keep.some((k: { x0: number; z0: number }) => x >= k.x0 && z >= k.z0) || Math.hypot(x - ax, z - az) > dist.radius) {
+            dropped++;
+            continue;
+          }
+          kept.push({ d, m: w });
+        }
+        const bk = bake(pack, res, `${name}/district ${dist.id}`, "", mats, kept);
+        if (!bk) continue;
+        // and its collision, from the same triangles (districtSolids), into src/config/districts/<id>.solids.json: numbers
+        // measured off the pack's geometry, which the game loads with or without the bought files (the checks run without)
+        const solids = districtSolids(kept, { ...dCfg.collision, fill: dist.fill ? { ...dist.fill, plan: dist.hole } : undefined });
+        mkdirSync(join(h.root, "src", "config", "districts"), { recursive: true });
+        writeFileSync(
+          join(h.root, "src", "config", "districts", `${dist.id}.solids.json`),
+          JSON.stringify({ _note: `The collision of the district ${dist.id} (src/config/citydistricts.json), written by tools/import-city.ts CITY_DISTRICTS=1 off the pack scene's own triangles (districtSolids), never typed: boxes [x0, x1, z0, z1, y0, y1], map-local metres.`, solids: solids.map((q) => q.map((v) => +v.toFixed(2))) }) + "\n",
+        );
+        report.push(`${dist.id}: ${solids.length} solid boxes`);
+        const bytes = await writePack(h, pack, [bk], mats, tex, cfg.sizes.hi, cfg.sizes.normal.hi, new Set([bk.id]), join(out, `${dist.id}-v${dCfg.version}.glb`));
+        dist.measured = { tris: bk.tris, parts: kept.length, dropped, min: bk.min.map((v) => +v.toFixed(2)), max: bk.max.map((v) => +v.toFixed(2)) };
+        report.push(`${dist.id}: ${kept.length} parts (${dropped} left out), ${bk.tris} tris, ${(bytes / 1e6).toFixed(1)} MB`);
+      }
+      writeFileSync(dFile, JSON.stringify(dCfg, null, 2) + "\n");
       continue;
     }
     // CITY_SCENE=<a pack's scene path> bakes that whole scene, the pack's own demo street as its artist assembled it, into

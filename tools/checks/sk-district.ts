@@ -1,0 +1,204 @@
+// The districts made of the packs' own demo scenes, played (Phase 25; src/config/citydistricts.json, city.ts, the
+// collision tools/import-city.ts districtSolids measures off the scene's triangles). The owner, 2026-09-28: "continue
+// with the one district with the exact assets til it's playable so I can test it". Run with the real movement over the
+// real city: into each canyon from the city's own street and along it to the crossroads; every pad up onto its walkway;
+// and nowhere behind the film set's faces, where there is nothing but its backs to see through.
+//
+// Run: GAME=speedkills npx tsx tools/checks/sk-district.ts
+import * as THREE from "three";
+const g = globalThis as unknown as Record<string, unknown>;
+const hadDocument = "document" in g;
+const anyProxy = (): unknown =>
+  new Proxy(function () {}, {
+    get: (_t, k) => (k === "measureText" ? () => ({ width: 10 }) : k === Symbol.toPrimitive ? () => 0 : k === "width" || k === "height" ? 64 : anyProxy()),
+    set: () => true,
+    apply: () => anyProxy(),
+  });
+const fakeEl = (): unknown => ({ width: 64, height: 64, style: {}, getContext: () => anyProxy(), addEventListener() {}, removeEventListener() {}, set src(_v: string) {} });
+if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS: () => fakeEl() };
+const warn = console.warn;
+console.warn = () => undefined;
+const { GAME } = await import("../../src/game/game");
+const { buildCityMap } = await import("../../src/game/city");
+const { Player } = await import("../../src/game/player");
+const { BR_X, BR_Z } = await import("../../src/game/br");
+const { RANGE_SOLIDS } = await import("../../src/game/range");
+const { DISTRICT_SOLIDS } = await import("../../src/game/districtsolids");
+const DISTRICTS = (await import("../../src/config/citydistricts.json")).default;
+const map = buildCityMap(new THREE.Scene());
+console.warn = warn;
+if (!hadDocument) delete g.document;
+
+type Action = import("../../src/game/input").Action;
+let fails = 0;
+function check(label: string, cond: boolean, detail = ""): void {
+  if (!cond) fails++;
+  console.log(`${cond ? "  ok  " : "FAIL  "}${label}${detail ? ` (${detail})` : ""}`);
+}
+class Script {
+  down = new Set<Action>();
+  taps = new Set<Action>();
+  held = (a: Action): boolean => this.down.has(a) || this.taps.has(a);
+  pressedNow = (a: Action): boolean => this.taps.has(a);
+}
+const DT = 1 / 144;
+const yawTo = (dx: number, dz: number): number => (Math.atan2(-dx, -dz) * 180) / Math.PI;
+const body = () => {
+  const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+  p.extraMoves = true;
+  p.autoClimb = true;
+  p.sprintMode = "auto";
+  return p;
+};
+/** a sprint (SpeedKills always sprints) from `from` toward `to` (map-local), standing at height y: where it ended, its highest and lowest */
+function walk(from: [number, number], y: number, to: [number, number], seconds: number): { x: number; y: number; z: number; low: number; high: number; gone: number } {
+  const p = body();
+  const [fx, fz] = [from[0] + BR_X, from[1] + BR_Z];
+  const [tx, tz] = [to[0] + BR_X, to[1] + BR_Z];
+  p.teleport(fx, y, fz, yawTo(tx - fx, tz - fz));
+  const s = new Script();
+  s.down.add("forward");
+  let t = 1000;
+  let low = Infinity;
+  let high = -Infinity;
+  const len = Math.hypot(tx - fx, tz - fz);
+  for (let i = 0; i < seconds / DT; i++) {
+    t += DT;
+    p.update(DT, t, s, 0, 1, false);
+    low = Math.min(low, p.pos.y);
+    high = Math.max(high, p.pos.y);
+    if ((p.pos.x - fx) * (tx - fx) + (p.pos.z - fz) * (tz - fz) >= len * len) break;
+  }
+  return { x: p.pos.x - BR_X, y: p.pos.y, z: p.pos.z - BR_Z, low, high, gone: Math.hypot(p.pos.x - fx, p.pos.z - fz) };
+}
+const inPoly = (poly: number[][], x: number, z: number): boolean => {
+  let n = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, zi] = poly[i];
+    const [xj, zj] = poly[j];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) n = !n;
+  }
+  return n;
+};
+
+console.log(`\nThe packs' demo districts, played (game: ${GAME})`);
+check("this runs with SpeedKills' movement", GAME === "speedkills");
+for (const d of DISTRICTS.districts) {
+  const boxes = DISTRICT_SOLIDS[d.id] ?? [];
+  const F = d.fill;
+  console.log(`\n${d.id}`);
+  check("its collision is measured and in the city's", boxes.length > 1000 && boxes.every(([x0, x1, z0, z1, y0, y1]) => RANGE_SOLIDS.some((s) => Math.abs(s.minX - (x0 + BR_X)) < 1e-6 && Math.abs(s.maxZ - (z1 + BR_Z)) < 1e-6 && Math.abs(s.top - y1) < 1e-6 && Math.abs(s.base - y0) < 1e-6 && Math.abs(s.maxX - (x1 + BR_X)) < 1e-6 && Math.abs(s.minZ - (z0 + BR_Z)) < 1e-6)), `${boxes.length} boxes`);
+
+  // Behind the faces: every half metre of its plan inside the map is its canyons' street, a walkway (solid under it, to
+  // stand on), or solid at a body's height: the film set's backs are never a place to stand.
+  {
+    const open: string[] = [];
+    let cells = 0;
+    const onStreet = (x: number, z: number) => F.streets.some(([x0, x1, z0, z1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1);
+    for (let x = 0.25; x < F.half; x += 0.5)
+      for (let z = 0.25; z < F.half; z += 0.5) {
+        if (!inPoly(d.hole, x, z) || onStreet(x, z)) continue;
+        cells++;
+        const here = boxes.filter(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+        if (!here.some(([, , , , y0, y1]) => y0 < 0.35 && y1 > 1.9) && !here.some(([, , , , y0, y1]) => y0 < 0.35 && y1 >= F.walkway[0])) open.push(`${x},${z}`);
+      }
+    check("behind its faces, nowhere to stand at the street: every cell off its canyons is solid or a walkway", open.length === 0, `${cells} cells, ${open.length} open${open.length ? `: ${open.slice(0, 6).join(" ")}` : ""}`);
+  }
+
+  // Its canyons: from the city's streets at an arm's end, in and along to the crossroads, on the street, and on along
+  // the arms that run out to the map's edge
+  {
+    const [cx, , cz] = d.at;
+    const runs: Array<{ name: string; from: [number, number]; to: [number, number] }> = [
+      { name: "the north arm from the city's street to the crossroads", from: [cx, 40], to: [cx, cz] },
+      { name: "the west arm from the city's street to the crossroads", from: [40, cz], to: [cx, cz] },
+      { name: "the crossroads down the south arm to the map's edge", from: [cx, cz], to: [cx, F.half - 3] },
+      { name: "the crossroads along the east arm to the map's edge", from: [cx, cz], to: [F.half - 3, cz] },
+    ];
+    for (const r of runs) {
+      const w = walk(r.from, 0, r.to, 30);
+      const len = Math.hypot(r.to[0] - r.from[0], r.to[1] - r.from[1]);
+      check(r.name, Math.hypot(w.x - r.to[0], w.z - r.to[1]) < 1 && w.high < 1, `${w.gone.toFixed(1)} of ${len.toFixed(1)} m, highest ${w.high.toFixed(2)} m`);
+    }
+  }
+
+  // Its pads: each one throws you from the canyon's floor onto its walkway, and you stay there
+  {
+    const mine = map.pads.filter((p) => p.up !== undefined && p.hold === undefined && inPoly(d.hole, p.x - BR_X, p.z - BR_Z));
+    check("a pad a spot (citydistricts.json pads), each found its walkway's front", mine.length === d.pads.length, `${mine.length} of ${d.pads.length}`);
+    for (const pad of mine) {
+      const p = body();
+      p.teleport(pad.x, pad.y ?? 0, pad.z, yawTo(pad.dx, pad.dz));
+      const s = new Script();
+      let t = 1000;
+      for (let i = 0; i < 20; i++) p.update(DT, (t += DT), s, 0, 1, false);
+      p.impulse(0, pad.up ?? 0, 0);
+      let carry = true;
+      for (let i = 0; i < 4 / DT; i++) {
+        t += DT;
+        p.update(DT, t, s, 0, 1, false);
+        if (carry && p.pos.y >= (pad.over ?? 0)) {
+          p.vel.x = pad.dx;
+          p.vel.z = pad.dz;
+          carry = false;
+        }
+      }
+      const [x, z] = [(pad.x - BR_X).toFixed(1), (pad.z - BR_Z).toFixed(1)];
+      const landed = { x: p.pos.x - BR_X, y: p.pos.y, z: p.pos.z - BR_Z };
+      check(`the pad at ${x}, ${z} lands you on its walkway, short of its rail, and you stay`, p.onGround && landed.y >= F.walkway[0] && landed.y <= F.walkway[1] - 0.5, `on ${landed.y.toFixed(2)} m at ${landed.x.toFixed(1)}, ${landed.z.toFixed(1)}`);
+      // and from there into the building: a sprint away from the canyon for 3 s gets no deeper than the walkway and
+      // stays up on it, never down behind the face
+      const len = Math.hypot(pad.dx, pad.dz);
+      const [ux, uz] = [pad.dx / len, pad.dz / len];
+      // (three lines a metre apart: the walkways' rail is posts 2 m apart, and one line may meet a post first)
+      const tries = [-1, 0, 1].map((o) => {
+        const from: [number, number] = [landed.x - uz * o, landed.z + ux * o];
+        const w = walk(from, landed.y, [from[0] + ux * 40, from[1] + uz * 40], 3);
+        return { deep: (w.x - from[0]) * ux + (w.z - from[1]) * uz, low: w.low };
+      });
+      const deep = Math.max(...tries.map((t) => t.deep));
+      const low = Math.min(...tries.map((t) => t.low));
+      check(`  and off it, into the building, its face stops you`, deep < 12 && low > landed.y - 1.5, `${tries.map((t) => t.deep.toFixed(1)).join(", ")} m in, lowest ${low.toFixed(2)} m`);
+    }
+  }
+}
+
+// Their loot (loot.json districts, loot.ts): spots of their own on the canyons' floor and the walkways, drawn last on a
+// stream of their own, so the rest of the field is the same item for item with them and without them
+{
+  const { LootField } = await import("../../src/game/loot");
+  const lootCfg = (await import("../../src/config/loot.json")).default;
+  const bounds = { minX: BR_X - 250, maxX: BR_X + 250, minZ: BR_Z - 250, maxZ: BR_Z + 250 };
+  const places = map.pois.map((p: { x: number; z: number }) => ({ x: p.x, z: p.z, radius: 30 }));
+  const field = new LootField(null);
+  const run = (seed: number) => {
+    field.generate(seed, places, bounds);
+    return [...field.drops.values()].map((d) => ({ at: d.pos.clone(), key: `${d.item.kind}:${d.item.id}@${d.pos.x.toFixed(2)},${d.pos.y.toFixed(2)},${d.pos.z.toFixed(2)}` }));
+  };
+  const seeds = [7, 42, 1234];
+  const per = lootCfg.districts.perDistrict;
+  const withThem = seeds.map(run);
+  lootCfg.districts.perDistrict = 0;
+  const without = seeds.map(run);
+  lootCfg.districts.perDistrict = per;
+  for (const d of DISTRICTS.districts) {
+    const mine = (items: Array<{ at: THREE.Vector3; key: string }>) => items.filter((i) => inPoly(d.hole, i.at.x - BR_X, i.at.z - BR_Z));
+    const extra = withThem.map((items, s) => mine(items).filter((i) => !without[s].some((o) => o.key === i.key)));
+    const standing = (y: number) => Math.abs(y) < 0.1 || (y >= d.fill.walkway[0] && y <= d.fill.walkway[1] + 0.1);
+    check(
+      `${d.id}: loot of its own on its canyons' floor and its walkways, ${per} spots and more a match`,
+      extra.every((items) => items.length >= per && items.every((i) => standing(i.at.y))),
+      extra.map((items, s) => `seed ${seeds[s]}: ${items.length} (${items.filter((i) => i.at.y > 1).length} up on the walkways)`).join(", "),
+    );
+  }
+  check(
+    "and the rest of the field is the same item for item with the districts' loot and without it",
+    withThem.every((items, s) => {
+      const keys = new Set(without[s].map((o) => o.key));
+      return without[s].every((o) => items.some((i) => i.key === o.key)) && items.filter((i) => !keys.has(i.key)).length === items.length - without[s].length;
+    }),
+  );
+}
+
+console.log(fails ? `\n${fails} FAILED` : "\nall passed");
+process.exit(fails ? 1 : 0);

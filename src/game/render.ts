@@ -23,7 +23,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import type { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import { makeGradePass, GRADE } from "./grade";
+import { makeGradePass, GRADE, normalised } from "./grade";
 import type { Quality } from "./quality";
 
 
@@ -182,6 +182,24 @@ export class Renderer {
 
   private desat = 0;
   private desatDiv: HTMLDivElement | null = null;
+  /** a place's own grade over the game's (citydistricts.json look grade), or null for the game's */
+  private look: { shadowTint: number; highlightTint: number; contrast: number; saturation: number; vignette: number } | null = null;
+  /**
+   * A place's own grade while you stand in it (a district made of a pack's own demo scene, staged as the pack's pictures
+   * are), the game's own given back when null. Only where there is a grade: Competitive has no post chain.
+   */
+  setLook(look: { shadowTint: string; highlightTint: string; contrast: number; saturation: number; vignette: number } | null): void {
+    const want = look ? { shadowTint: parseInt(look.shadowTint.slice(1), 16), highlightTint: parseInt(look.highlightTint.slice(1), 16), contrast: look.contrast, saturation: look.saturation, vignette: look.vignette } : null;
+    if (!this.grade || JSON.stringify(want) === JSON.stringify(this.look)) return;
+    this.look = want;
+    const g = want ?? GRADE;
+    const u = this.grade.uniforms;
+    u.uShadowTint.value = normalised(g.shadowTint);
+    u.uHighlightTint.value = normalised(g.highlightTint);
+    u.uContrast.value = g.contrast;
+    u.uSaturation.value = g.saturation * (1 - this.desat);
+    u.uVignette.value = g.vignette;
+  }
   /**
    * 0..1: the picture loses its colour (low health). The grade does it where
    * there is one; Competitive has no post chain, so a blend layer over the
@@ -192,7 +210,7 @@ export class Renderer {
     if (Math.abs(v - this.desat) < 0.005) return;
     this.desat = v;
     if (this.grade) {
-      this.grade.uniforms.uSaturation.value = GRADE.saturation * (1 - v);
+      this.grade.uniforms.uSaturation.value = (this.look?.saturation ?? GRADE.saturation) * (1 - v);
       return;
     }
     if (!this.desatDiv) {

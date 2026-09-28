@@ -5913,3 +5913,41 @@ the pack parts we can on those two guns and if we don't like any we remove it".
   finger on its spot, no skin through the gun deeper than 6 mm where it is seen in eight states on each gun, the pack's
   swap, pickup and jump played; contact sheets of every 4% of the reload, the swap, the way into the sights and the
   pickup on both guns; verify; rules.
+
+## Milestone 303 — A district made of High City's own demo scene, playable; the Gulag's bot comes for you
+
+Phase 25 (`docs/PHASE_25_A_DISTRICT_FROM_A_PACKS_DEMO_SCENE.md`). The owner, after 298 to 301: the city still did not
+look like the store's pictures; "redo one of the corner, smaller districts with the exact assets from the bought packs"
+to learn whether taking the assets out or placing them was failing, then "continue with the one district ... til it's
+playable so I can test it".
+
+- **The corner from High City's demo scene, whole** (`citydistricts.json`, `import-city.ts CITY_DISTRICTS`,
+  `citydistricts.ts`): 2,640 parts and 601,571 triangles, turned a quarter and set on the map's south-east corner in
+  place of three blocks, which are built and taken away again so the city's stream is as it was. It draws what the
+  pack's own scene draws from the same camera, so taking the assets out works; laying them over a map drawn before
+  them was the fault.
+- **Its own look where you stand in it** (`look`): its haze's colour and depth, the sun and the sky's fill turned
+  down, a colour grade (split tone, contrast, saturation, vignette; `render.ts setLook`), its windows dim by day, and
+  shadows from its buildings. The haze now runs every frame, not only in play (`frame()`), so it shows in pictures.
+- **Its collision off its own triangles** (`districtSolids`, `districts/high-corner.solids.json`, 6,312 boxes): the
+  film set has no backs, so a flood from the canyons' floor marks the street and the rest of its plan is its
+  buildings, solid; kept to the canyons (`fill streets`), where the first bake's flood got out at an arm's end and left
+  10,316 half-metre cells open behind the faces.
+- **Playable:** the canyons at the city's street level, joined to its streets at the ends of the arms; walkways 7.75 m
+  up either side; five pads up to them, found off the collision and landing short of the walkways' posts
+  (`padLand`); the city's parked cars, sectors' edge lines (the orange line across the canyon), bots' street links
+  and drop points kept off it; loot of its own, 12 spots a match on its floor and walkways on a stream of their own
+  (`loot.json districts`); `?dropat=high-corner` drops a solo battle royale onto its crossroads.
+- **The Gulag's bot** (`brmatch.ts gulagFrame`, `bots.ts`): it had no goal in the fight and stood on its spawn. Now,
+  after the 3 s countdown, it heads for you, by the room's middle when that is on its way, and its slide along a wall
+  holds to the wall's line (`bots.json` slideProbe, slideHold, slideShare) instead of turning back and forth at a
+  container's middle.
+- **Checked:** verify and rules; `sk-district.ts`, new: with the real movement, into both arms from the city's streets
+  and along all four, every pad onto its walkway and off it into the building (stopped by its face), and every
+  half-metre of the plan off the canyons solid or a walkway, proven by the first bake (10,316 cells open) and by the
+  city's 3 m landing (three pads land on a post), and its loot, proven by leaving its floors out (none);
+  `sk-roofs.ts` walks every street link, the district's edge included;
+  the e2e gulag check, new, proven without the fix (the bot moved 0 m; with it 12.9 m); the e2e sections
+  gulag, speedkills, bots, botsquads and loot pass (botsquads failed on two runs, on different checks each time, the
+  finishers and a squad keeping together at 17 of 40, and passed alone again at 40 of 40); a real match opened with
+  `?dropat=high-corner` lands on its crossroads with loot round it; pictures from its floor, walkways and crossroads.

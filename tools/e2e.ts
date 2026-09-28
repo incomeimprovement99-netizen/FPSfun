@@ -4142,8 +4142,19 @@ async function gulagTest(browser: Browser, query: string, squadQuery: string): P
       return { alive: d.alive, far: Math.hypot(p.x, p.z - 500), gap: b ? Math.hypot(b.pos.x - p.x, b.pos.z - p.z) : -1, guns: R.loadout.slots.filter((s) => !s.empty).map((s) => s.id).sort(), want: d.gulag.guns.slice().sort(), bot: !!b && b.alive }; })()`
   );
   check("the Gulag: in, up again, far from the map, facing a bot of your own, on the fight's two guns", inside && room.alive && room.far > 150 && room.gap > 5 && room.gap < 60 && room.bot && JSON.stringify(room.guns) === JSON.stringify(room.want), JSON.stringify(room));
+  // where the bot stood through the countdown, to see it leave once the fight is on
+  const spawnAt = await ev<{ x: number; z: number }>(page, "(() => { const b = window.__range.duel().gulagBot; return { x: b.pos.x, z: b.pos.z }; })()");
   const fighting = await page.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.phase === 'fight' && window.__range.duel().canFire", { polling: 100, timeout: (G.countdown + 3) * 1000 }).then(() => true, () => false);
   check(`the Gulag: ${G.countdown} s of countdown, then the fight, guns live`, fighting);
+  // The bot comes looking for you once the fight is on (the owner, 2026-09-28: it stood at its spawn the whole fight):
+  // three seconds of the game's time on (a ?norender page's frames come slowly, and a wall's second is less of the game)
+  const from = await ev<{ held: number; gap0: number }>(page, `(() => { const R = window.__range; const b = R.duel().gulagBot; const p = R.player.pos; return { held: Math.hypot(b.pos.x - ${spawnAt.x}, b.pos.z - ${spawnAt.z}), gap0: Math.hypot(b.pos.x - p.x, b.pos.z - p.z) }; })()`);
+  await gameSleep(page, 3);
+  const hunt = await ev<{ held: number; gap0: number; moved: number; gap: number }>(
+    page,
+    `(() => { const R = window.__range; const b = R.duel().gulagBot; const p = R.player.pos; return { held: ${from.held}, gap0: ${from.gap0}, moved: Math.hypot(b.pos.x - ${spawnAt.x}, b.pos.z - ${spawnAt.z}), gap: Math.hypot(b.pos.x - p.x, b.pos.z - p.z) }; })()`,
+  );
+  check("the Gulag: the bot holds its spawn through the countdown, then comes for you: 5 m and more closer in 3 s of the fight", hunt.held < 1 && hunt.gap0 - hunt.gap > 5, JSON.stringify(hunt));
   // the bot goes down: won, and back into the match with the same guns
   const guns = room.want;
   await ev(page, "(() => { const b = window.__range.duel().gulagBot; b.dummy.hit(0, 'body', 500, 1, 1, b.dummy.group.position); })()");

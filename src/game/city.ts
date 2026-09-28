@@ -23,7 +23,9 @@
 // black metal (tools/fetch-assets.ts), with emissive neon strips of our own.
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
-import { FLOORS, HALL_FLOORS } from "./floors";
+import { DISTRICT_FLOORS, FLOORS, HALL_FLOORS } from "./floors";
+import DISTRICTS from "../config/citydistricts.json";
+import { DISTRICT_SOLIDS } from "./districtsolids";
 import { botWalk } from "./botbody";
 import { building, DRESSING, type BoxMaker, type PoiCtx, type Side, type RoutePoint } from "./brpoi";
 import { DOORWAYS, Doors } from "./doors";
@@ -396,6 +398,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   const groundShape = new THREE.Shape([new THREE.Vector2(-GS / 2, -GS / 2), new THREE.Vector2(GS / 2, -GS / 2), new THREE.Vector2(GS / 2, GS / 2), new THREE.Vector2(-GS / 2, GS / 2)]);
   // the shape's y is the world's -z once the plane is laid flat
   for (const { box: o } of mStairs) groundShape.holes.push(new THREE.Path([new THREE.Vector2(o.x0, -o.z0), new THREE.Vector2(o.x0, -o.z1), new THREE.Vector2(o.x1, -o.z1), new THREE.Vector2(o.x1, -o.z0)]));
+  // and over each district made of a pack's own demo scene (citydistricts.json hole), whose canyons fall away below the street
+  for (const d of DISTRICTS.districts) if (d.bottomless) groundShape.holes.push(new THREE.Path(d.hole.map(([x, z]) => new THREE.Vector2(x, -z))));
   const groundGeo = new THREE.ShapeGeometry(groundShape);
   // the street's texture a tile every 8 m, laid from the plane's corner as the one plane's was
   (groundGeo.attributes.uv as THREE.BufferAttribute).array.forEach((v, i, a) => ((a as Float32Array)[i] = (v + GS / 2) / 8));
@@ -428,7 +432,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   const hallBodies: Array<() => void> = [];
   CONCOURSE.stairs.length = 0;
   STAIR_CORES.length = 0;
-  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = KIT_SITES.doors.length = KIT_SITES.machinery.length = KIT_SITES.escapes.length = KIT_SITES.halls.length = KIT_SITES.kiosks.length = HALLS.length = HALL_FLOORS.length = 0;
+  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = KIT_SITES.doors.length = KIT_SITES.machinery.length = KIT_SITES.escapes.length = KIT_SITES.halls.length = KIT_SITES.kiosks.length = HALLS.length = HALL_FLOORS.length = DISTRICT_FLOORS.length = 0;
   FIRE_ESCAPES.length = 0;
   STEAM_SOURCES.length = FLICKER_SIGNS.length = 0;
   STAND_INS.skins = [];
@@ -461,7 +465,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
    * short of the top (the pads' e2e caught both).
    */
   const PAD_SOLVE = C.padSolve;
-  const padOnto = (fx: number, fz: number, nx: number, nz: number, floor: number, roof: number): void => {
+  const padOnto = (fx: number, fz: number, nx: number, nz: number, floor: number, roof: number, landInside = PAD_SOLVE.landInside): void => {
     const g = MOVE.gravity;
     const H = roof - floor;
     const v = Math.sqrt(2 * g * (H + PAD_SOLVE.peakOver));
@@ -471,9 +475,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     // from there, up to the peak and down to the roof: the time the push has to carry you d0 + landInside
     const vOver = Math.sqrt(Math.max(0, v * v - 2 * g * (H + PAD_SOLVE.clear)));
     const t = vOver / g + Math.sqrt((2 * PAD_SOLVE.peakOver) / g);
-    const vx = (d0 + PAD_SOLVE.landInside) / t;
+    const vx = (d0 + landInside) / t;
     pads.push({ ...W(fx + nx * d0, fz + nz * d0), dx: -nx * vx, dz: -nz * vx, y: floor, up: v, over: overY });
-    padLands.push({ pad: pads.length - 1, x: fx - nx * PAD_SOLVE.landInside, z: fz - nz * PAD_SOLVE.landInside, y: roof });
+    padLands.push({ pad: pads.length - 1, x: fx - nx * landInside, z: fz - nz * landInside, y: roof });
   };
   /** the streets inside the map (STREETS keeps the grid's six each way, which the configs name by index) */
   const LANES = STREETS.filter((s) => Math.abs(s) < BR_HALF - 7);
@@ -588,10 +592,52 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         if (Math.max(Math.abs(bi - mid), Math.abs(bj - mid)) !== Ct.keep) return;
         const [cx0, cx1] = cutSpan(x0, x1, bi);
         const [cz0, cz1] = cutSpan(z0, z1, bj);
-        buildBlock(cx0, cx1, cz0, cz1, bi, bj);
+        // a block a district of the packs' own demo scene stands on (citydistricts.json, Phase 25): built, so the stream
+        // draws what it drew, and taken away again
+        if (DISTRICTS.districts.some((d) => d.blocks.some(([i, j]) => i === bi && j === bj))) sandbox(() => buildBlock(cx0, cx1, cz0, cz1, bi, bj));
+        else buildBlock(cx0, cx1, cz0, cz1, bi, bj);
       }),
     );
     rnd = main;
+  }
+  // the districts made of the packs' own demo scenes (citydistricts.json): their collision, measured off their triangles
+  for (const d of DISTRICTS.districts) for (const [x0, x1, z0, z1, y0, y1] of DISTRICT_SOLIDS[d.id] ?? []) solid(x0, x1, z0, z1, y0, y1);
+  // and where each one's floors are, in the world's metres, for its loot (floors.ts DISTRICT_FLOORS)
+  for (const d of DISTRICTS.districts) {
+    const xs = d.hole.map(([x]) => x);
+    const zs = d.hole.map(([, z]) => z);
+    const [x0, x1] = [Math.max(-d.fill.half, Math.min(...xs)), Math.min(d.fill.half, Math.max(...xs))];
+    const [z0, z1] = [Math.max(-d.fill.half, Math.min(...zs)), Math.min(d.fill.half, Math.max(...zs))];
+    DISTRICT_FLOORS.push({ plan: d.hole.map(([x, z]) => [x + BR_X, z + BR_Z] as [number, number]), minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, walkway: [d.fill.walkway[0], d.fill.walkway[1]] });
+  }
+  /** a point (local) on a district's plan, where the city's own street things (its cars, its lines) have no place */
+  const inDistrict = (x: number, z: number): boolean =>
+    DISTRICTS.districts.some(({ hole }) => {
+      let n = false;
+      for (let i = 0, j = hole.length - 1; i < hole.length; j = i++) {
+        const [xi, zi] = hole[i];
+        const [xj, zj] = hole[j];
+        if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) n = !n;
+      }
+      return n;
+    });
+  /** within 8 m of a district's plan: its faces reach past the plan onto the city's streets there */
+  const nearDistrict = (x: number, z: number): boolean => [[0, 0], [8, 0], [-8, 0], [0, 8], [0, -8]].some(([dx, dz]) => inDistrict(x + dx, z + dz));
+  // and their pads up from the canyons' floor to the walkways: each walks from its spot back to the walkway's front
+  // and takes the walkway's height off the collision there, so a re-bake that moves either moves the pad with it
+  for (const d of DISTRICTS.districts) {
+    const boxes = DISTRICT_SOLIDS[d.id] ?? [];
+    const [w0, w1] = d.fill.walkway;
+    for (const [px, pz, nx, nz] of d.pads) {
+      for (let t = 0; t < d.padReach; t += 0.05) {
+        const x = px - nx * t;
+        const z = pz - nz * t;
+        const face = boxes.find(([x0, x1, z0, z1, y0, y1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1 && y0 < 1 && y1 >= w0 && y1 <= w1);
+        if (!face) continue;
+        padOnto(x, z, nx, nz, 0, face[5], d.padLand);
+        break;
+      }
+    }
   }
 
   /**
@@ -2279,10 +2325,27 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   // ---------------------------------------------------------------- the sectors' edges on the ground
   // a line of light where one sector meets the next, so the decay's waves are
   // plain on the ground as well as on the map
+  // (never across a district of a pack's demo scene: it ran over its canyons' floor and into its buildings)
+  const edgeLine = (x0: number, z0: number, x1: number, z1: number, k: THREE.Material): void => {
+    const n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.5);
+    const at = (i: number) => [x0 + ((x1 - x0) * i) / n, z0 + ((z1 - z0) * i) / n];
+    const out = (i: number) => !inDistrict(...(at(i + 0.5) as [number, number]));
+    for (let i = 0; i < n; ) {
+      if (!out(i)) {
+        i++;
+        continue;
+      }
+      let j = i;
+      while (j < n && out(j)) j++;
+      const [[ax, az], [bx, bz]] = [at(i), at(j)];
+      deco(Math.max(0.3, bx - ax), 0.03, Math.max(0.3, bz - az), (ax + bx) / 2, 0.02, (az + bz) / 2, k);
+      i = j;
+    }
+  };
   for (const s of SECTORS) {
     const k = neon(s.accent);
-    deco(s.maxX - s.minX, 0.03, 0.3, (s.minX + s.maxX) / 2, 0.02, s.minZ + 0.15, k);
-    deco(0.3, 0.03, s.maxZ - s.minZ, s.minX + 0.15, 0.02, (s.minZ + s.maxZ) / 2, k);
+    edgeLine(s.minX, s.minZ + 0.15, s.maxX, s.minZ + 0.15, k);
+    edgeLine(s.minX + 0.15, s.minZ, s.minX + 0.15, s.maxZ, k);
   }
 
   // ---------------------------------------------------------------- the edge's fence (city.json edge; Phase 20 A4)
@@ -2558,6 +2621,11 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
             const [x, z] = alongX ? [a, s + lane * L.lane] : [s + lane * L.lane, a];
             // none past the map's edge (city.json cut), the draws spent all the same
             if (Math.abs(x) > BR_HALF - cl || Math.abs(z) > BR_HALF - cl) continue;
+            // none on a district of a pack's demo scene, its colour drawn all the same (and first: its own pads are there)
+            if (inDistrict(x, z)) {
+              rnd();
+              continue;
+            }
             // and clear of a door's way in from the street: the bots cross the lane to it (sk-roofs walks it)
             if (nearPad(x, z) || DOORWAYS.some((dw) => (alongX ? Math.abs(dw.x - x) < cl / 2 + 3 && Math.abs(dw.z - z) < 14 : Math.abs(dw.z - z) < cl / 2 + 3 && Math.abs(dw.x - x) < 14))) continue;
             // over a metro stairwell: no car, its colour drawn all the same, so everything drawn after it is as it was
@@ -2601,7 +2669,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   const pois: Poi[] = SECTORS.map((s) => {
     const inside = LANES.flatMap((x) => LANES.map((z) => [x, z] as const)).filter(([x, z]) => x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ);
     const mid = { x: (s.minX + s.maxX) / 2, z: (s.minZ + s.maxZ) / 2 };
-    const drops = (inside.length ? inside : [[mid.x, mid.z] as const]).map(([x, z]) => P(x, z));
+    // (none on or beside a district of a pack's demo scene: its buildings stand on the city's streets there)
+    const clear = inside.filter(([x, z]) => !nearDistrict(x, z));
+    const drops = (clear.length ? clear : [[mid.x, mid.z] as const]).map(([x, z]) => P(x, z));
     return { id: s.id, name: s.name, ...P(mid.x, mid.z), radius: Math.max(s.maxX - s.minX, s.maxZ - s.minZ) / 2, drops };
   });
   const sites: Site[] = [];
@@ -2629,14 +2699,24 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     if (!nodes[a].links.includes(b)) nodes[a].links.push(b);
     if (!nodes[b].links.includes(a)) nodes[b].links.push(a);
   };
+  // A street through a district of a pack's demo scene, or up to its edge, is on the graph only where a bot walks it both
+  // ways: the district stands on the city's streets there (its crossings inside its buildings are never made)
+  const walks = (i0: number, j0: number, i1: number, j1: number): boolean => {
+    const n = Math.ceil(Math.hypot(line[i1] - line[i0], line[j1] - line[j0]) / 2);
+    let near = false;
+    for (let k = 0; k <= n && !near; k++) near = nearDistrict(line[i0] + ((line[i1] - line[i0]) * k) / n, line[j0] + ((line[j1] - line[j0]) * k) / n);
+    if (!near) return true;
+    const [a, b] = [P(line[i0], line[j0]), P(line[i1], line[j1])];
+    return botWalk(a.x, a.z, 0, b.x, b.z).ok && botWalk(b.x, b.z, 0, a.x, a.z).ok;
+  };
   for (let i = 0; i < line.length; i++) {
     for (let j = 0; j < line.length; j++) {
       // a street runs along i where j is a street (not an edge), and the other way
       const onStreetI = j > 0 && j < line.length - 1;
       const onStreetJ = i > 0 && i < line.length - 1;
       if (!onStreetI && !onStreetJ) continue;
-      if (onStreetI && i + 1 < line.length) link(at(i, j), at(i + 1, j));
-      if (onStreetJ && j + 1 < line.length) link(at(i, j), at(i, j + 1));
+      if (onStreetI && i + 1 < line.length && walks(i, j, i + 1, j)) link(at(i, j), at(i + 1, j));
+      if (onStreetJ && j + 1 < line.length && walks(i, j, i, j + 1)) link(at(i, j), at(i, j + 1));
     }
   }
   ROOF_ROUTES.length = 0;

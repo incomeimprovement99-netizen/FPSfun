@@ -1632,17 +1632,44 @@ export class Bot {
         let nx = this.pos.x + want.x * step;
         let nz = this.pos.z + want.y * step;
         if (this.blocked(nx, nz)) {
-          if (now > this.slideUntil) {
-            this.slideDir = Math.random() < 0.5 ? 1 : -1;
-            this.slideUntil = now + 0.6;
-          }
-          const along = new THREE.Vector2(-want.y * this.slideDir, want.x * this.slideDir);
-          nx = this.pos.x + along.x * step;
-          nz = this.pos.z + along.y * step;
-          if (this.blocked(nx, nz)) {
-            this.slideDir = -this.slideDir;
-            nx = this.pos.x - along.x * step;
-            nz = this.pos.z - along.y * step;
+          // Every box in the maps is square to the axes, so a wall's face runs along x or along z. The part of the step
+          // along the face, where it is most of the step; else square against it, a slide along the face (never at a
+          // slant into it, which the old slide was whenever the way it wanted was not square to the wall: blocked one
+          // way it flipped, and dithered along a container's middle, the Gulag's bot 2.6 m in 4 s of its fight)
+          const xFree = !this.blocked(this.pos.x + want.x * step, this.pos.z);
+          const zFree = !this.blocked(this.pos.x, this.pos.z + want.y * step);
+          if (xFree && Math.abs(want.x) >= botsCfg.slideShare && Math.abs(want.x) >= (zFree ? Math.abs(want.y) : 0)) {
+            nx = this.pos.x + want.x * step;
+            nz = this.pos.z;
+          } else if (zFree && Math.abs(want.y) >= botsCfg.slideShare) {
+            nx = this.pos.x;
+            nz = this.pos.z + want.y * step;
+          } else {
+            // square against a face: along it (x for a face across z), toward where the way opens soonest (a probe each
+            // way, half a metre a step), and kept that way while it stays blocked
+            const alongX = Math.abs(want.y) >= Math.abs(want.x);
+            const [ax, az] = alongX ? [1, 0] : [0, 1];
+            if (now > this.slideUntil) {
+              const opens = (s: number): number => {
+                for (let j = 1; j <= botsCfg.slideProbe; j++) {
+                  const px = this.pos.x + ax * s * 0.5 * j;
+                  const pz = this.pos.z + az * s * 0.5 * j;
+                  if (this.blocked(px, pz)) return Infinity;
+                  if (!this.blocked(px + (alongX ? 0 : Math.sign(want.x)) * 0.6, pz + (alongX ? Math.sign(want.y) : 0) * 0.6)) return j;
+                }
+                return Infinity;
+              };
+              const [l, r] = [opens(1), opens(-1)];
+              this.slideDir = l < r ? 1 : r < l ? -1 : Math.random() < 0.5 ? 1 : -1;
+              this.slideUntil = now + (Number.isFinite(Math.min(l, r)) ? botsCfg.slideHold : 0.6);
+            }
+            nx = this.pos.x + ax * this.slideDir * step;
+            nz = this.pos.z + az * this.slideDir * step;
+            if (this.blocked(nx, nz)) {
+              this.slideDir = -this.slideDir;
+              nx = this.pos.x + ax * this.slideDir * step;
+              nz = this.pos.z + az * this.slideDir * step;
+            }
           }
         }
         if (!this.blocked(nx, nz)) {

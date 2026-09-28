@@ -2001,8 +2001,12 @@ export class BrMatch extends Duel {
     }
     if (bot && (g.phase === "countdown" || g.live)) {
       const sees = this.alive && bot.alive && bot.sees(feet);
-      // in overtime it goes for the flag
-      const goal = g.phase === "overtime" ? new THREE.Vector3(room.center.x, 0, room.center.z) : null;
+      // in overtime it goes for the flag; in the fight, once the countdown is out, it comes looking for you where it cannot
+      // see you (the owner, 2026-09-28: it stood at its spawn the whole fight, waiting to be found). By the room's middle
+      // while the middle is nearer you than it is: straight at you ran it into the cover between the two ends
+      const mid = new THREE.Vector3(room.center.x, 0, room.center.z);
+      const viaMid = Math.hypot(bot.pos.x - mid.x, bot.pos.z - mid.z) > 3 && Math.hypot(mid.x - feet.x, mid.z - feet.z) < Math.hypot(bot.pos.x - feet.x, bot.pos.z - feet.z);
+      const goal = g.phase === "overtime" ? mid : g.phase === "fight" ? (viaMid ? mid : new THREE.Vector3(feet.x, 0, feet.z)) : null;
       const shots = bot.update(now, dt, { target: sees ? feet : null, targetId: this.id, goal, canShoot: g.live });
       let d = 0;
       for (const s of shots) {

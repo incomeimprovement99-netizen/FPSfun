@@ -150,7 +150,7 @@ export function makeGradePass(s: GradeSettings = GRADE): ShaderPass {
  * shots/firing-line.png: the sky read (0, 44, 90) at the top of frame, a
  * colour with no red in it at all.
  */
-function normalised(hex: number): THREE.Vector3 {
+export function normalised(hex: number): THREE.Vector3 {
   const r = ((hex >> 16) & 0xff) / 255;
   const g = ((hex >> 8) & 0xff) / 255;
   const b = (hex & 0xff) / 255;

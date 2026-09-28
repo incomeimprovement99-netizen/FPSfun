@@ -30,7 +30,7 @@ import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName, throwName } from "../config/names";
 import { RANGE_SOLIDS } from "./range";
 // the world's floor (floors.ts), named apart from this file's own floorAt, the lowest place loot can stand
-import { floorAt as worldFloor, FLOORS, HALL_FLOORS, inHall } from "./floors";
+import { DISTRICT_FLOORS, floorAt as worldFloor, FLOORS, HALL_FLOORS, inHall } from "./floors";
 import { ammoTypeOf, STACK } from "./ammo";
 import { optionsFor, SLOTS, type Attachments } from "./attachments";
 import { BACKPACKS, KNOCK_SHIELDS, type BackTier, type KnockTier } from "./kit";
@@ -967,6 +967,33 @@ export class LootField {
         if (!blocked) spots.push(new THREE.Vector3(x, f.y + 0.01, z));
       }
       for (const s of spots) for (const item of rollSpot(hallRnd, Hl.tier as PlaceTier)) this.add(item, s.clone().add(new THREE.Vector3((hallRnd() - 0.5) * 0.8, 0, (hallRnd() - 0.5) * 0.8)));
+    }
+    // The districts made of the packs' own demo scenes (floors.ts DISTRICT_FLOORS, Phase 25), on a stream of their own
+    // as the halls': spots on each one's canyons' floor and its walkways, a metre and more from any edge, since a spot's
+    // items are spread round it
+    const Dl = cfg.districts;
+    const districtRnd = seeded((seed ^ 0x0d157c75) >>> 0);
+    for (const f of DISTRICT_FLOORS) {
+      const onPlan = (x: number, z: number): boolean => {
+        let n = false;
+        for (let i = 0, j = f.plan.length - 1; i < f.plan.length; j = i++) {
+          const [xi, zi] = f.plan[i];
+          const [xj, zj] = f.plan[j];
+          if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) n = !n;
+        }
+        return n;
+      };
+      const spots: THREE.Vector3[] = [];
+      for (let tries = 0; spots.length < Dl.perDistrict && tries < Dl.perDistrict * 40; tries++) {
+        const x = f.minX + districtRnd() * (f.maxX - f.minX);
+        const z = f.minZ + districtRnd() * (f.maxZ - f.minZ);
+        if (!onPlan(x, z)) continue;
+        const y = standingSpots(x, z).find((h) => h === 0 || (h >= f.walkway[0] && h <= f.walkway[1]));
+        if (y === undefined) continue;
+        const firm = [[-1, 0], [1, 0], [0, -1], [0, 1]].every(([dx, dz]) => standingSpots(x + dx, z + dz).some((h) => Math.abs(h - y) < 0.2));
+        if (firm) spots.push(new THREE.Vector3(x, y + 0.01, z));
+      }
+      for (const s of spots) for (const item of rollSpot(districtRnd, Dl.tier as PlaceTier)) this.add(item, s.clone().add(new THREE.Vector3((districtRnd() - 0.5) * 0.8, 0, (districtRnd() - 0.5) * 0.8)));
     }
   }
 
