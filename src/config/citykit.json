@@ -1,6 +1,6 @@
 {
   "_note": "The city bundle's pieces (docs/CITY_BUNDLE_IMPLEMENTATION.md): IL.ranch's five cyberpunk packs, bought by the owner 2026-09-27 and licensed to the owner, not the public. This lists which of their prefabs npm run paid (tools/import-city.ts) bakes, by pack and prefab path under the pack's Prefab folder; the baked files go to public/models/paid/city/ (gitignored, served only by the game server) and each piece's measured size comes back into `measured` below, written by the importer. Names only here: no geometry or texture from the packs is ever committed. `version` names the files (<pack>-v<version>.glb) because the server caches /models/ for a day. `sizes` are the texture sizes of the two builds: hi for the medium and high graphics presets, lo for low. `packages` are the Unity Asset Store downloads' file names.",
-  "version": 3,
+  "version": 5,
   "sizes": {
     "max": 2048,
     "hi": 1024,
@@ -148,7 +148,23 @@
       "vehicle/scripted vehicles/car 3 c",
       "vehicle/scripted vehicles/car 3 police",
       "vehicle/fly engine L",
-      "vehicle/fly engine R"
+      "vehicle/fly engine R",
+      "wall/wall c/fire ladder c down",
+      "wall/wall c/fire ladder c tile",
+      "wall/wall c/fire ladder c top",
+      "wall/vent disc 2",
+      "wall/vent disc 4",
+      "road/hydrant",
+      "vehicle/car 1",
+      "vehicle/car 1 b",
+      "vehicle/car 1 c",
+      "vehicle/car 1 taxi",
+      "vehicle/car 2 ambulance",
+      "vehicle/car 2 f dept",
+      "vehicle/car 3",
+      "vehicle/car 3 b",
+      "vehicle/car 3 c",
+      "vehicle/car 3 police"
     ],
     "kyber": [
       "walls 1 floor/wall 1",
@@ -235,7 +251,12 @@
       "subway/semafor wall",
       "robots/robot 1",
       "robots/robot 2",
-      "robots/robot 3"
+      "robots/robot 3",
+      "road misc/hydrant 1",
+      "road misc/hydrant 2",
+      "road misc/garbage",
+      "road/grass plant 01 doub",
+      "road/grass plant 02 doub"
     ],
     "cyber": [
       "walls/wall a 1",
@@ -418,7 +439,25 @@
       "distant building/dist building_1",
       "distant building/dist building_2",
       "distant building/dist building_3",
-      "zeppelin highlight"
+      "zeppelin highlight",
+      "street/car/car black",
+      "street/car/car green",
+      "street/car/car metalic",
+      "street/car/car red",
+      "street/car/car white",
+      "entrance/streetdoor 1 b",
+      "entrance/streetdoor 2 b",
+      "entrance/streetdoor 3 b",
+      "entrance/streetdoor single",
+      "entrance/streetdoor single 2",
+      "street/sign/road prop 08",
+      "street/sign/road prop 10",
+      "street/sign/road prop 12",
+      "street/sign/road prop 14",
+      "street/sign/road prop 16",
+      "street/sign/road prop 18",
+      "street/sign/road prop 20",
+      "street/sign/road prop 22"
     ],
     "cyberfp": [
       "street/tubs1 tile",
@@ -439,7 +478,12 @@
       "decal/decal 2",
       "decal/decal 3",
       "decal/decal 4",
-      "decal/decal 5"
+      "decal/decal 5",
+      "bike/cp_bike",
+      "advertisement/neon/neon sign L 1",
+      "advertisement/neon/neon sign L 2",
+      "advertisement/neon/neon sign L 3",
+      "street/street lamp 3"
     ],
     "glass": [
       "Walls/Wall 1",
@@ -2099,6 +2143,402 @@
       -16.034,
       148
     ],
+    "cyber/street/car/car black": [
+      3.525,
+      1.803,
+      8.876,
+      -1.762,
+      -0.015,
+      -4.438,
+      18174
+    ],
+    "cyber/street/car/car green": [
+      3.525,
+      1.803,
+      8.876,
+      -1.762,
+      -0.015,
+      -4.438,
+      18174
+    ],
+    "cyber/street/car/car metalic": [
+      3.525,
+      1.803,
+      8.876,
+      -1.762,
+      -0.015,
+      -4.438,
+      18174
+    ],
+    "cyber/street/car/car red": [
+      3.525,
+      1.803,
+      8.876,
+      -1.762,
+      -0.015,
+      -4.438,
+      18174
+    ],
+    "cyber/street/car/car white": [
+      3.525,
+      1.803,
+      8.876,
+      -1.762,
+      -0.015,
+      -4.438,
+      18174
+    ],
+    "cyber/entrance/streetdoor 1 b": [
+      4,
+      4.006,
+      1.463,
+      -2,
+      -0.006,
+      -0.731,
+      216
+    ],
+    "cyber/entrance/streetdoor 2 b": [
+      4,
+      4.188,
+      0.741,
+      -2,
+      -0.188,
+      -0.37,
+      192
+    ],
+    "cyber/entrance/streetdoor 3 b": [
+      4,
+      4,
+      0.17,
+      -2,
+      0,
+      -0.085,
+      162
+    ],
+    "cyber/entrance/streetdoor single": [
+      1.35,
+      2.612,
+      0.17,
+      -0.675,
+      0,
+      -0.085,
+      160
+    ],
+    "cyber/entrance/streetdoor single 2": [
+      1.35,
+      2.612,
+      0.17,
+      -0.675,
+      0,
+      -0.085,
+      160
+    ],
+    "cyber/street/sign/road prop 08": [
+      0.68,
+      0.946,
+      0.004,
+      -0.34,
+      -0.473,
+      -0.002,
+      4
+    ],
+    "cyber/street/sign/road prop 10": [
+      0.946,
+      0.756,
+      0.003,
+      -0.473,
+      -0.378,
+      -0.002,
+      4
+    ],
+    "cyber/street/sign/road prop 12": [
+      0.889,
+      0.718,
+      0.003,
+      -0.445,
+      -0.359,
+      -0.002,
+      2
+    ],
+    "cyber/street/sign/road prop 14": [
+      0.718,
+      0.718,
+      0.003,
+      -0.359,
+      -0.359,
+      -0.001,
+      12
+    ],
+    "cyber/street/sign/road prop 16": [
+      1.016,
+      1.016,
+      0.004,
+      -0.508,
+      -0.508,
+      -0.002,
+      4
+    ],
+    "cyber/street/sign/road prop 18": [
+      0.68,
+      0.946,
+      0.003,
+      -0.34,
+      -0.473,
+      -0.002,
+      4
+    ],
+    "cyber/street/sign/road prop 20": [
+      0.946,
+      0.756,
+      0.004,
+      -0.473,
+      -0.378,
+      -0.002,
+      4
+    ],
+    "cyber/street/sign/road prop 22": [
+      0.889,
+      0.718,
+      0.003,
+      -0.445,
+      -0.359,
+      -0.002,
+      2
+    ],
+    "cyber/facade 001": [
+      12.44,
+      16.896,
+      4.053,
+      2,
+      -0.09,
+      -0.579,
+      822
+    ],
+    "cyber/facade 002": [
+      18.163,
+      21.566,
+      3.448,
+      -0.163,
+      -1.566,
+      -0.364,
+      1120
+    ],
+    "cyber/facade 003": [
+      16,
+      36.142,
+      3.638,
+      -2,
+      -0.027,
+      -0.567,
+      1192
+    ],
+    "cyber/facade 004": [
+      16.84,
+      28.027,
+      3.641,
+      0,
+      -0.027,
+      -0.567,
+      922
+    ],
+    "cyber/facade 005": [
+      10.946,
+      33.601,
+      4.274,
+      -0.491,
+      -1.566,
+      -0.296,
+      1200
+    ],
+    "cyber/facade 006": [
+      16,
+      16.165,
+      5.005,
+      0,
+      -0.165,
+      -0.42,
+      334
+    ],
+    "cyber/facade 007": [
+      18.25,
+      28.186,
+      4.797,
+      0,
+      0,
+      -0.575,
+      2692
+    ],
+    "cyber/facade 008": [
+      8,
+      11.711,
+      4,
+      0,
+      0,
+      0,
+      244
+    ],
+    "cyber/facade 009": [
+      17.717,
+      28.705,
+      4.872,
+      -0.859,
+      -4,
+      -0.287,
+      1876
+    ],
+    "cyber/facade 010": [
+      16,
+      15.999,
+      2.986,
+      -2,
+      0,
+      0.061,
+      276
+    ],
+    "cyber/facade 011": [
+      12.111,
+      24.373,
+      4.864,
+      -2.386,
+      -8.373,
+      -0.457,
+      3383
+    ],
+    "cyber/facade 012": [
+      19.633,
+      20.371,
+      4.744,
+      0,
+      -0.371,
+      -0.578,
+      2592
+    ],
+    "cyber/facade 013": [
+      15.506,
+      20.116,
+      4.56,
+      2.104,
+      -4.404,
+      -0.559,
+      1471
+    ],
+    "cyber/facade 014": [
+      6.872,
+      16.526,
+      4.648,
+      -0.765,
+      -3.96,
+      -0.307,
+      572
+    ],
+    "cyber/facade 015": [
+      16,
+      24.372,
+      4.927,
+      0,
+      -8.372,
+      -0.591,
+      3852
+    ],
+    "cyber/facade 016": [
+      8,
+      16,
+      0.3,
+      0,
+      -4,
+      0.026,
+      200
+    ],
+    "cyber/facade 017": [
+      9.359,
+      20.146,
+      4.992,
+      -0.059,
+      0,
+      -0.541,
+      706
+    ],
+    "cyber/facade 018": [
+      15.75,
+      21.566,
+      4.424,
+      0,
+      -1.566,
+      -0.052,
+      1708
+    ],
+    "cyber/facade 019": [
+      12.111,
+      20.371,
+      4.32,
+      -3.117,
+      -0.371,
+      -0.3,
+      1127
+    ],
+    "cyber/facade 020": [
+      9.156,
+      12.364,
+      3.751,
+      -1.156,
+      -0.364,
+      -0.551,
+      276
+    ],
+    "cyber/facade 021": [
+      8.04,
+      20.371,
+      4.38,
+      -0.01,
+      -0.371,
+      -0.36,
+      873
+    ],
+    "cyber/facade 022": [
+      16.726,
+      24.088,
+      4.912,
+      0,
+      -0.082,
+      -0.314,
+      1028
+    ],
+    "cyber/facade 023": [
+      8,
+      21.566,
+      4.587,
+      0,
+      -1.566,
+      -0.054,
+      438
+    ],
+    "cyber/facade 024": [
+      15.348,
+      21.517,
+      5.135,
+      -1.629,
+      -5.365,
+      -0.563,
+      5537
+    ],
+    "cyber/facade 025": [
+      12,
+      16.188,
+      0.835,
+      0,
+      0,
+      -0.242,
+      266
+    ],
+    "cyber/facade 026": [
+      9.623,
+      16,
+      3.158,
+      -1.623,
+      0,
+      0,
+      24
+    ],
     "cyberfp/street/tubs1 tile": [
       8.244,
       5.363,
@@ -2269,6 +2709,51 @@
       0,
       -3.085,
       2
+    ],
+    "cyberfp/bike/cp_bike": [
+      1.382,
+      1.233,
+      3.873,
+      -0.691,
+      0.005,
+      -1.99,
+      14169
+    ],
+    "cyberfp/advertisement/neon/neon sign L 1": [
+      1.994,
+      2.808,
+      0.28,
+      -1.948,
+      -1.472,
+      -0.28,
+      82
+    ],
+    "cyberfp/advertisement/neon/neon sign L 2": [
+      2.215,
+      1.621,
+      0.28,
+      -2.169,
+      -1.156,
+      -0.28,
+      82
+    ],
+    "cyberfp/advertisement/neon/neon sign L 3": [
+      5.01,
+      1.81,
+      0.28,
+      -4.964,
+      -1.147,
+      -0.28,
+      120
+    ],
+    "cyberfp/street/street lamp 3": [
+      0.699,
+      0.901,
+      2.074,
+      -0.347,
+      -0.249,
+      -0.079,
+      602
     ],
     "glass/Walls/Wall 1": [
       8,
@@ -3584,6 +4069,519 @@
       -0.558,
       2934
     ],
+    "high/wall/wall c/fire ladder c down": [
+      4.038,
+      7.036,
+      1.686,
+      -2,
+      -4.805,
+      -0.253,
+      364
+    ],
+    "high/wall/wall c/fire ladder c tile": [
+      4.038,
+      4.976,
+      1.623,
+      -2,
+      -3.844,
+      -0.253,
+      492
+    ],
+    "high/wall/wall c/fire ladder c top": [
+      4.038,
+      12.068,
+      1.982,
+      -2,
+      -3.844,
+      -0.611,
+      868
+    ],
+    "high/wall/vent disc 2": [
+      0.5,
+      0.5,
+      0.04,
+      -0.25,
+      -0.25,
+      -0.02,
+      46
+    ],
+    "high/wall/vent disc 4": [
+      0.472,
+      0.678,
+      0.05,
+      -0.236,
+      -0.339,
+      -0.025,
+      10
+    ],
+    "high/road/hydrant": [
+      0.624,
+      1.305,
+      0.685,
+      -0.319,
+      -0.072,
+      -0.343,
+      5090
+    ],
+    "high/vehicle/car 1": [
+      2.589,
+      1.409,
+      6.295,
+      -1.295,
+      0.058,
+      -2.768,
+      1238
+    ],
+    "high/vehicle/car 1 b": [
+      3.527,
+      1.473,
+      6.295,
+      -1.764,
+      -0.006,
+      -2.768,
+      12974
+    ],
+    "high/vehicle/car 1 c": [
+      3.477,
+      1.964,
+      6.295,
+      -1.739,
+      -0.013,
+      -2.768,
+      7140
+    ],
+    "high/vehicle/car 1 taxi": [
+      3.527,
+      1.957,
+      6.295,
+      -1.764,
+      -0.006,
+      -2.768,
+      13008
+    ],
+    "high/vehicle/car 2 ambulance": [
+      2.518,
+      3.059,
+      6.643,
+      -1.259,
+      -1.051,
+      -2.677,
+      4457
+    ],
+    "high/vehicle/car 2 f dept": [
+      3.691,
+      3.046,
+      6.643,
+      -1.846,
+      -1.051,
+      -2.677,
+      10697
+    ],
+    "high/vehicle/car 3": [
+      3.477,
+      1.567,
+      5.915,
+      -1.739,
+      -0.091,
+      -2.807,
+      12946
+    ],
+    "high/vehicle/car 3 b": [
+      2.505,
+      1.418,
+      5.915,
+      -1.252,
+      0.058,
+      -2.807,
+      1210
+    ],
+    "high/vehicle/car 3 c": [
+      3.477,
+      1.537,
+      5.915,
+      -1.739,
+      -0.061,
+      -2.807,
+      7078
+    ],
+    "high/vehicle/car 3 police": [
+      3.477,
+      1.783,
+      5.915,
+      -1.739,
+      -0.091,
+      -2.807,
+      15122
+    ],
+    "high/facade 001": [
+      18.074,
+      40.904,
+      4.994,
+      -2.024,
+      -1.25,
+      -0.463,
+      12059
+    ],
+    "high/facade 002": [
+      23.432,
+      50.95,
+      2.25,
+      -0.162,
+      -22.45,
+      -0.586,
+      7013
+    ],
+    "high/facade 003": [
+      16.001,
+      21.982,
+      2.357,
+      -0.001,
+      0,
+      0.035,
+      7168
+    ],
+    "high/facade 004": [
+      12.32,
+      22.728,
+      2.862,
+      -2,
+      0,
+      -0.533,
+      5856
+    ],
+    "high/facade 005": [
+      18.541,
+      44.253,
+      1.97,
+      -4,
+      -1.25,
+      -0.428,
+      6621
+    ],
+    "high/facade 006": [
+      10.664,
+      48.5,
+      3.619,
+      -0.1,
+      0,
+      0.048,
+      6083
+    ],
+    "high/facade 007": [
+      10.2,
+      31.155,
+      4.604,
+      -0.1,
+      -1.451,
+      -0.082,
+      3924
+    ],
+    "high/facade 008": [
+      20.269,
+      26.495,
+      4.008,
+      -0.1,
+      -1.25,
+      -0.264,
+      8324
+    ],
+    "high/facade 009": [
+      12.442,
+      30.143,
+      1.952,
+      -2,
+      -1.138,
+      -0.347,
+      3192
+    ],
+    "high/facade 010": [
+      9.292,
+      36.462,
+      5.117,
+      -0.792,
+      -0.002,
+      -0.595,
+      3021
+    ],
+    "high/facade 011": [
+      10.25,
+      48.5,
+      2.332,
+      -0.15,
+      0,
+      0.077,
+      7410
+    ],
+    "high/facade 012": [
+      16.024,
+      33.7,
+      3.045,
+      -2.565,
+      -17.2,
+      -0.233,
+      5832
+    ],
+    "high/facade 013": [
+      11.014,
+      29.951,
+      4.479,
+      -0.914,
+      -1.451,
+      -0.083,
+      6611
+    ],
+    "high/facade 014": [
+      13.144,
+      25.425,
+      4.671,
+      -0.914,
+      -0.201,
+      -0.275,
+      7613
+    ],
+    "high/facade 015": [
+      14.447,
+      24.005,
+      4.611,
+      -0.447,
+      -5.203,
+      -0.4,
+      5976
+    ],
+    "high/facade 016": [
+      11.994,
+      14.979,
+      4.592,
+      -1.951,
+      -0.2,
+      -0.226,
+      3952
+    ],
+    "high/facade 017": [
+      10.2,
+      23,
+      4.624,
+      -0.1,
+      0,
+      -0.154,
+      5308
+    ],
+    "high/facade 018": [
+      8.024,
+      20,
+      3.49,
+      -0.024,
+      -4,
+      -0.098,
+      1873
+    ],
+    "high/facade 019": [
+      16.077,
+      26.533,
+      4.618,
+      -0.077,
+      -4,
+      -0.098,
+      10502
+    ],
+    "high/facade 020": [
+      12.269,
+      23.181,
+      4.648,
+      -0.269,
+      -1.188,
+      -0.477,
+      7542
+    ],
+    "high/facade 021": [
+      20.2,
+      26.727,
+      4.565,
+      -0.1,
+      -1.25,
+      -0.56,
+      8720
+    ],
+    "high/facade 022": [
+      8,
+      18.516,
+      4.155,
+      0,
+      0,
+      -0.413,
+      784
+    ],
+    "high/facade 023": [
+      16.33,
+      21.453,
+      4.419,
+      -0.23,
+      -0.203,
+      -0.125,
+      8821
+    ],
+    "high/facade 024": [
+      8.019,
+      20.3,
+      4.942,
+      0,
+      0,
+      -0.39,
+      3080
+    ],
+    "high/facade 025": [
+      16.445,
+      11.511,
+      4.386,
+      -0.324,
+      -1.322,
+      0.161,
+      15579
+    ],
+    "high/facade 026": [
+      16.57,
+      21.996,
+      4.611,
+      -0.57,
+      -5.244,
+      -0.275,
+      8210
+    ],
+    "high/facade 027": [
+      16.623,
+      20.004,
+      4.523,
+      -4.57,
+      -5.199,
+      -0.045,
+      6980
+    ],
+    "high/facade 028": [
+      6,
+      26.802,
+      0.832,
+      0,
+      0,
+      -0.063,
+      1474
+    ],
+    "high/facade 029": [
+      6.811,
+      24.046,
+      4.4,
+      -0.444,
+      -5.244,
+      -0.184,
+      3126
+    ],
+    "high/facade 030": [
+      6,
+      26.802,
+      0.831,
+      0,
+      0,
+      -0.063,
+      1474
+    ],
+    "high/facade 031": [
+      12,
+      21.47,
+      3.247,
+      0,
+      -5.244,
+      -0.357,
+      3914
+    ],
+    "high/facade 032": [
+      8.024,
+      22.945,
+      2.827,
+      -0.024,
+      -1.451,
+      0.008,
+      5607
+    ],
+    "high/facade 033": [
+      14.357,
+      25.47,
+      4.948,
+      -0.23,
+      -5.244,
+      -0.442,
+      11003
+    ],
+    "high/facade 034": [
+      16.024,
+      17.25,
+      1.466,
+      0,
+      -1.25,
+      -0.474,
+      3644
+    ],
+    "high/facade 035": [
+      8.024,
+      17.95,
+      3.88,
+      0,
+      -1.451,
+      -0.474,
+      1977
+    ],
+    "high/facade 036": [
+      10.2,
+      17.95,
+      4.434,
+      -0.1,
+      -1.45,
+      -0.101,
+      4147
+    ],
+    "high/facade 037": [
+      10.2,
+      13.95,
+      4.518,
+      -0.1,
+      -1.45,
+      -0.116,
+      3257
+    ],
+    "high/facade 038": [
+      9.829,
+      20,
+      4.895,
+      -0.914,
+      -8,
+      -0.336,
+      7172
+    ],
+    "high/facade 039": [
+      8.024,
+      17.45,
+      2.827,
+      -0.024,
+      -5.45,
+      0,
+      3343
+    ],
+    "high/facade 040": [
+      10.22,
+      25.951,
+      4.826,
+      -0.12,
+      -5.451,
+      -0.394,
+      2694
+    ],
+    "high/facade 041": [
+      10.323,
+      14.856,
+      1.113,
+      -0.162,
+      0,
+      0,
+      960
+    ],
     "kyber/walls 1 floor/wall 1": [
       4,
       4,
@@ -4348,6 +5346,312 @@
       0.002,
       -0.4,
       1620
+    ],
+    "kyber/road misc/hydrant 1": [
+      0.643,
+      1.303,
+      0.541,
+      -0.319,
+      -0.071,
+      -0.22,
+      7710
+    ],
+    "kyber/road misc/hydrant 2": [
+      0.643,
+      1.303,
+      0.541,
+      -0.319,
+      -0.071,
+      -0.22,
+      7710
+    ],
+    "kyber/road misc/garbage": [
+      0.896,
+      0.749,
+      0.885,
+      -0.448,
+      -0.027,
+      -0.442,
+      3242
+    ],
+    "kyber/road/grass plant 01 doub": [
+      1.26,
+      0.5,
+      1.395,
+      -0.589,
+      -0.025,
+      -0.685,
+      32
+    ],
+    "kyber/road/grass plant 02 doub": [
+      1.26,
+      0.5,
+      1.395,
+      -0.589,
+      -0.025,
+      -0.685,
+      32
+    ],
+    "kyber/facade 001": [
+      16,
+      23.566,
+      3.631,
+      0,
+      -1.566,
+      -0.569,
+      4640
+    ],
+    "kyber/facade 002": [
+      20.556,
+      23.566,
+      3.631,
+      0,
+      -1.566,
+      -0.569,
+      13701
+    ],
+    "kyber/facade 003": [
+      16.43,
+      19.619,
+      3.594,
+      0,
+      -3.566,
+      -0.552,
+      7314
+    ],
+    "kyber/facade 004": [
+      9.435,
+      16.422,
+      4.607,
+      -1.435,
+      -6.369,
+      -0.552,
+      3444
+    ],
+    "kyber/facade 005": [
+      13.438,
+      39.075,
+      5.05,
+      -0.982,
+      -0.021,
+      -0.544,
+      26572
+    ],
+    "kyber/facade 006": [
+      8,
+      26.488,
+      4.362,
+      0,
+      -0.065,
+      -0.349,
+      6171
+    ],
+    "kyber/facade 007": [
+      8.608,
+      24,
+      2.984,
+      0,
+      0,
+      -0.101,
+      4904
+    ],
+    "kyber/facade 008": [
+      8.572,
+      30.316,
+      4.607,
+      0,
+      -1.566,
+      -0.561,
+      2248
+    ],
+    "kyber/facade 009": [
+      16,
+      21.566,
+      4.992,
+      0,
+      -5.566,
+      -0.554,
+      20647
+    ],
+    "kyber/facade 010": [
+      16,
+      34.778,
+      4.929,
+      -2,
+      -16.097,
+      -0.513,
+      18683
+    ],
+    "kyber/facade 011": [
+      10.06,
+      36.673,
+      4.556,
+      -0.09,
+      -12.3,
+      -0.556,
+      8945
+    ],
+    "kyber/facade 012": [
+      8.007,
+      32.79,
+      4.474,
+      0,
+      -16.44,
+      -0.004,
+      3016
+    ],
+    "kyber/facade 013": [
+      11.952,
+      35.344,
+      4.933,
+      -0.313,
+      -6.237,
+      -0.509,
+      13546
+    ],
+    "kyber/facade 014": [
+      14.005,
+      28.581,
+      5.06,
+      -2,
+      -18.528,
+      -0.568,
+      12034
+    ],
+    "kyber/facade 015": [
+      8.899,
+      29,
+      4.75,
+      -0.16,
+      -13,
+      -0.23,
+      390
+    ],
+    "kyber/facade 016": [
+      12.026,
+      29.539,
+      4.552,
+      0,
+      -21.419,
+      -0.099,
+      2350
+    ],
+    "kyber/facade 017": [
+      12.7,
+      22.035,
+      4.556,
+      0,
+      -4.435,
+      -0.556,
+      1892
+    ],
+    "kyber/facade 018": [
+      12.32,
+      15.619,
+      3.631,
+      -0.32,
+      -1.566,
+      -0.528,
+      1408
+    ],
+    "kyber/facade 019": [
+      9.422,
+      36.92,
+      5.113,
+      -0.739,
+      -13,
+      -0.543,
+      4203
+    ],
+    "kyber/facade 020": [
+      8,
+      8.486,
+      3.274,
+      0,
+      0,
+      -0.544,
+      2734
+    ],
+    "kyber/facade 021": [
+      28.832,
+      29.429,
+      5.13,
+      -6.222,
+      -10.508,
+      -0.577,
+      19342
+    ],
+    "kyber/facade 022": [
+      10.256,
+      18.823,
+      4.122,
+      -0.209,
+      -0.335,
+      -0.038,
+      9798
+    ],
+    "kyber/facade 023": [
+      12.395,
+      21.225,
+      4.498,
+      -0.82,
+      -3.374,
+      -0.176,
+      11477
+    ],
+    "kyber/facade 024": [
+      8,
+      12.6,
+      4,
+      0,
+      0,
+      0.229,
+      974
+    ],
+    "kyber/facade 025": [
+      8.595,
+      12.969,
+      4.179,
+      0,
+      0,
+      -0.089,
+      5795
+    ],
+    "kyber/facade 026": [
+      12.986,
+      19.845,
+      4.741,
+      -0.591,
+      -6.875,
+      -0.2,
+      5746
+    ],
+    "kyber/facade 027": [
+      9.921,
+      18.507,
+      4.529,
+      0,
+      -0.019,
+      0,
+      6707
+    ],
+    "kyber/facade 028": [
+      15.59,
+      35.428,
+      4.057,
+      -0.197,
+      -20.949,
+      -0.543,
+      8941
+    ],
+    "kyber/facade 029": [
+      12.78,
+      16.581,
+      5.079,
+      -0.82,
+      -3.905,
+      -0.546,
+      13076
     ]
   },
   "facing": {
@@ -4532,6 +5836,50 @@
     "cyber/distant building/dist building_2": "pz",
     "cyber/distant building/dist building_3": "pz",
     "cyber/zeppelin highlight": "pz",
+    "cyber/street/car/car black": "px",
+    "cyber/street/car/car green": "px",
+    "cyber/street/car/car metalic": "px",
+    "cyber/street/car/car red": "px",
+    "cyber/street/car/car white": "px",
+    "cyber/entrance/streetdoor 1 b": "pz",
+    "cyber/entrance/streetdoor 2 b": "pz",
+    "cyber/entrance/streetdoor 3 b": "pz",
+    "cyber/entrance/streetdoor single": "pz",
+    "cyber/entrance/streetdoor single 2": "pz",
+    "cyber/street/sign/road prop 08": "nz",
+    "cyber/street/sign/road prop 10": "pz",
+    "cyber/street/sign/road prop 12": "pz",
+    "cyber/street/sign/road prop 14": "pz",
+    "cyber/street/sign/road prop 16": "pz",
+    "cyber/street/sign/road prop 18": "pz",
+    "cyber/street/sign/road prop 20": "pz",
+    "cyber/street/sign/road prop 22": "pz",
+    "cyber/facade 001": "nz",
+    "cyber/facade 002": "nz",
+    "cyber/facade 003": "nz",
+    "cyber/facade 004": "nz",
+    "cyber/facade 005": "nz",
+    "cyber/facade 006": "nz",
+    "cyber/facade 007": "nz",
+    "cyber/facade 008": "nz",
+    "cyber/facade 009": "nz",
+    "cyber/facade 010": "nz",
+    "cyber/facade 011": "pz",
+    "cyber/facade 012": "pz",
+    "cyber/facade 013": "nz",
+    "cyber/facade 014": "pz",
+    "cyber/facade 015": "pz",
+    "cyber/facade 016": "pz",
+    "cyber/facade 017": "nz",
+    "cyber/facade 018": "pz",
+    "cyber/facade 019": "pz",
+    "cyber/facade 020": "pz",
+    "cyber/facade 021": "pz",
+    "cyber/facade 022": "pz",
+    "cyber/facade 023": "nz",
+    "cyber/facade 024": "nz",
+    "cyber/facade 025": "nz",
+    "cyber/facade 026": "nz",
     "cyberfp/street/tubs1 tile": "pz",
     "cyberfp/street/tubs2 tile": "pz",
     "cyberfp/street/tubs1 half": "pz",
@@ -4551,6 +5899,11 @@
     "cyberfp/decal/decal 3": "pz",
     "cyberfp/decal/decal 4": "pz",
     "cyberfp/decal/decal 5": "pz",
+    "cyberfp/bike/cp_bike": "nx",
+    "cyberfp/advertisement/neon/neon sign L 1": "nz",
+    "cyberfp/advertisement/neon/neon sign L 2": "nz",
+    "cyberfp/advertisement/neon/neon sign L 3": "pz",
+    "cyberfp/street/street lamp 3": "px",
     "glass/Walls/Wall 1": "pz",
     "glass/Walls/Wall 2": "nx",
     "glass/Walls/Wall 3": "nx",
@@ -4697,6 +6050,63 @@
     "high/vehicle/scripted vehicles/car 3 police": "px",
     "high/vehicle/fly engine L": "pz",
     "high/vehicle/fly engine R": "pz",
+    "high/wall/wall c/fire ladder c down": "pz",
+    "high/wall/wall c/fire ladder c tile": "pz",
+    "high/wall/wall c/fire ladder c top": "pz",
+    "high/wall/vent disc 2": "pz",
+    "high/wall/vent disc 4": "pz",
+    "high/road/hydrant": "pz",
+    "high/vehicle/car 1": "nx",
+    "high/vehicle/car 1 b": "px",
+    "high/vehicle/car 1 c": "px",
+    "high/vehicle/car 1 taxi": "px",
+    "high/vehicle/car 2 ambulance": "px",
+    "high/vehicle/car 2 f dept": "px",
+    "high/vehicle/car 3": "px",
+    "high/vehicle/car 3 b": "px",
+    "high/vehicle/car 3 c": "px",
+    "high/vehicle/car 3 police": "px",
+    "high/facade 001": "pz",
+    "high/facade 002": "pz",
+    "high/facade 003": "pz",
+    "high/facade 004": "pz",
+    "high/facade 005": "pz",
+    "high/facade 006": "pz",
+    "high/facade 007": "pz",
+    "high/facade 008": "pz",
+    "high/facade 009": "pz",
+    "high/facade 010": "nz",
+    "high/facade 011": "pz",
+    "high/facade 012": "pz",
+    "high/facade 013": "pz",
+    "high/facade 014": "pz",
+    "high/facade 015": "pz",
+    "high/facade 016": "pz",
+    "high/facade 017": "pz",
+    "high/facade 018": "pz",
+    "high/facade 019": "pz",
+    "high/facade 020": "pz",
+    "high/facade 021": "pz",
+    "high/facade 022": "nz",
+    "high/facade 023": "pz",
+    "high/facade 024": "pz",
+    "high/facade 025": "pz",
+    "high/facade 026": "pz",
+    "high/facade 027": "pz",
+    "high/facade 028": "pz",
+    "high/facade 029": "pz",
+    "high/facade 030": "pz",
+    "high/facade 031": "pz",
+    "high/facade 032": "pz",
+    "high/facade 033": "pz",
+    "high/facade 034": "nz",
+    "high/facade 035": "nz",
+    "high/facade 036": "pz",
+    "high/facade 037": "pz",
+    "high/facade 038": "pz",
+    "high/facade 039": "pz",
+    "high/facade 040": "pz",
+    "high/facade 041": "pz",
     "kyber/walls 1 floor/wall 1": "pz",
     "kyber/walls 1 floor/wall 1 var 1": "pz",
     "kyber/walls 1 floor/wall 1 var 2": "pz",
@@ -4781,10 +6191,44 @@
     "kyber/subway/semafor wall": "pz",
     "kyber/robots/robot 1": "nz",
     "kyber/robots/robot 2": "px",
-    "kyber/robots/robot 3": "nz"
+    "kyber/robots/robot 3": "nz",
+    "kyber/road misc/hydrant 1": "px",
+    "kyber/road misc/hydrant 2": "px",
+    "kyber/road misc/garbage": "nx",
+    "kyber/road/grass plant 01 doub": "px",
+    "kyber/road/grass plant 02 doub": "px",
+    "kyber/facade 001": "nz",
+    "kyber/facade 002": "nz",
+    "kyber/facade 003": "nz",
+    "kyber/facade 004": "nz",
+    "kyber/facade 005": "pz",
+    "kyber/facade 006": "pz",
+    "kyber/facade 007": "pz",
+    "kyber/facade 008": "nz",
+    "kyber/facade 009": "nz",
+    "kyber/facade 010": "pz",
+    "kyber/facade 011": "pz",
+    "kyber/facade 012": "pz",
+    "kyber/facade 013": "pz",
+    "kyber/facade 014": "nz",
+    "kyber/facade 015": "pz",
+    "kyber/facade 016": "pz",
+    "kyber/facade 017": "nz",
+    "kyber/facade 018": "nz",
+    "kyber/facade 019": "nz",
+    "kyber/facade 020": "pz",
+    "kyber/facade 021": "pz",
+    "kyber/facade 022": "px",
+    "kyber/facade 023": "nz",
+    "kyber/facade 024": "pz",
+    "kyber/facade 025": "px",
+    "kyber/facade 026": "nx",
+    "kyber/facade 027": "nx",
+    "kyber/facade 028": "nz",
+    "kyber/facade 029": "px"
   },
   "_measured": "Written by npm run paid (tools/import-city.ts) off the baked pieces, never typed: each piece's size (w, h, d) and the minimum corner of its bounds in its own space (x, y, z), metres, then its triangles. `facing` is the horizontal side a piece shows most by area (px, nx, pz, nz): the way a facade module faces. `plane`: how far behind a piece's front its wall stands (metres), the plane most of its front area is on, so a thick module's frames and cornices stand out of the building and its wall sits on the building's face.",
-  "_dress": "How the pieces dress the centre (src/game/citydress.ts, docs/CITY_BUNDLE_IMPLEMENTATION.md sections 4.3 to 4.6). All of it is looks: collision stays the city's own boxes, so the city plays the same with or without the bundle, and every place is chosen by a hash of where it is, never the city's random stream. `outset`: how far a facade module's front stands out of its box's face, inside the plan's 0.15 m (rule 1), enough to keep the two from flickering. `families`: the facade family of each of the centre's 3 by 3 blocks by column and row (x then z, north first), placed so no two neighbours match: Kyber's concrete on the corners, High City's brownstone north and south, Cyber City's upper storeys east and west, Glass City's tech round the Spire; Cyber City's shop fronts go along every podium's street floor whatever the family. Each family's `bay` is its modules' width (measured: High 8 m, Kyber 4 m, Cyber 8 m, Glass 8 m); a face takes as many whole bays as round to its length and stretches them to fit. `ground`, `mid` and `top` are the storeys' modules, a row keeping one module so a facade reads as designed; the Sky Lobby's storey keeps its own walls, so its windows stay open. `tiers`: what each graphics preset draws (quality.ts cityDetail): 0 the buildings, the podiums' shop fronts, the roofs' parapets, the Spire's billboards and the skyline; 1 adds the signs, posters, AC units, blade signs, roof gear, antennas and lamps; 2 adds the cables over the streets, the pipes and wires down the walls and the street clutter. `clear`: how far a piece that stands out of a wall keeps from a pad's column and a stair (metres), and `canyon`: a face with another tower closer than this in front is a canyon's, where nothing stands out of the wall (the chimneys and the jumps are there): it wears `flat` panels, Cyber City's plain concrete, 2 triangles each, as do the bays behind a pad's climb. A thick module's wall stands on the building's face (citykit.json plane, measured), its frames and cornices out of it. The heavy ornate modules are for the ground storey, seen close; the storeys above take the lighter ones. `glow`: pieces whose picture is lit (billboards, posters, screens), their texture also their light at this strength. `relief`: the most a facade module stands out of its building, metres: a module's frames, pilasters and cornices in front of its wall (citykit.json plane) are pressed into this depth, so the wall and its windows sit on the building's face and nothing stands further than half a metre past the collision, where a body walks along a promenade or a jump passes a face. `lean`: what the competitive preset (the one for frames) wears instead: its storeys between ground and roof in the lightest module of each family, Kyber's and Glass's flat, and the lighter shop fronts; everything else is the same, so the city reads the same and draws about half the triangles. The vertical wire runs (`chance.wire`) are off: 3,516 triangles each was 260k for a detail. `bands`: the plan's detail bands (section 6). A storey within `near` storeys of a deck (the street's storeys `decks`, the Sky Lobby's 8 and the Sky Park's 16; a tower's first and last storeys are always its ground and top rows) wears its family's full modules and its AC units; a storey between decks wears the family's `far` row where it has one, at `farBay` metres a bay, and no AC. Kyber's far row is its 8 m window walls, 216 and 210 triangles a bay against the 4 m ones' 178 each, half the cost a metre, still windows on every storey. The towers doubled in height in Phase 21's massing, and the bands keep the detail where you play. `alley`: Neon Alley, the plan's showpiece street (city.json neonAlley). Every tower face fronting it (within `front` metres of its middle: the Spire's first tier stands 16.5 back), carries neon signs stacked up it in columns `signEvery` apart, `signFrom` over the face's foot to `signTo` metres, a horizontal sign or a vertical blade a column, `signGap` between; a cable web crosses it every `cableEvery` metres in two layers (`cableAt`), never over a pad's throw; its tower faces carry AC units at `ac` a bay-storey near a deck; each stall wears a food stand from `stands`; bins and a hydrant stand along both kerbs every `kerbEvery` metres, and street lamps at `lampAt` along both. The signs are drawn on every preset, the rest from Balanced. `glow.sign` and `glow.blade`: the neon signs' own pictures are their light, as a billboard's is; the kit's emission on them came out too weak to read against the lit windows (Neon Alley's first pictures: dark red slabs up the towers). `band`: the Sky Lobby's and the Sky Park's storeys, the wall either side of each window wearing Cyber City's classic windows (`modules`, 44 and 52 triangles a bay), their relief pressed to `relief` so a window pad's throw passes them as it passes a canyon's flat panel, where the storey had kept the city's old texture; the level's ring of light (city.json skyLobby and skyPark ring) marks it up every tower. The Glass pack's curtain wall was tried first: 204k triangles for the 41 rooms, most of a preset's budget, for one storey a tower. `metro`: the tunnel under the centre (city.json metro): posters glowing down both its walls every `posterEvery` metres, `posterAt` over the floor (above the wall's line of light at 2.2 m, under the 5 m ceiling), clear of the stairs and the parked trains; a signal (`signal`) at each end of every side, `signalAt` up the outer wall; bins along the walls here and there. All from Balanced up. `cars`: every parked car in the centre (city.ts KIT_SITES cars) wears one of High City's vans, stretched to the car's box (4.4 m long, 1.9 wide, 2.1 tall with its cabin): at that length a van stands the box's height, where a sedan left the cabin's collision in the air over its roof. The boxes' own materials are the centre's cars' alone and go once every car wears its van; the collision stays. `traffic`: High City's flying cars (`cars`) on loops over the streets (`lanes`: a square `half` metres from the middle each way, at `y`, `dir` 1 clockwise from above, `n` cars spaced evenly, `speed` m/s), between the Sky Lobby's bridges (32 m) and the Sky Park's (64 m) and over it, clear of every bridge, pad throw and zipline. Looks only, as all the kit is; drawn from Balanced up. `styles`: a second set of rows for a family, each tower wearing its family's first or one of these by a hash of where it stands, so two neighbours of one family differ: High City's wall b set (10 m bays), Kyber's plain and variant walls, Cyber City's deep window walls, each with its lighter far row. `streets`: the centre's streets dressed down their length, every `every` metres a road decal (`decals`, at `decalChance`) and a sewer cover (`sewers`, `sewerChance`), clear of the metro's stairwells and the pads; a traffic light (`lights`) at the two free corners of each crossing round the Spire; string lights (`garland`) over a shop front here and there (`garlandChance`). The lists of signs, posters, roof gear, antennas, pipes, cables and street props carry every such piece the packs gave: the owner saw the same few pieces repeated. `canyonRelief`: a canyon's faces wear their tower's own rows from Balanced up, each module's relief pressed to this, so its front stands within the plan's 0.15 m of the wall (rule 1: nothing stands out where you wall run) and the canyon is not 1,400 blank panels; Competitive keeps the flat ones (`flat`). `shopPairs`: from Balanced up, a shop bay here and there (`chance`) is two 4 m pieces, one of Cyber City's shop or street doors (`doors`) beside one of its shop windows (`windows`), in either order, rather than one 8 m shop; lighter than a shop and not the same front twice down a street. The strip signs of High City, its wall vents, and Cyber City's and the first-person pack's roof pipework and tubs go in the lists of signs, wall units and roof gear. `escapes`: the fire escapes (city.json fireEscape), every number measured off the pieces by tools/measure-escape.ts (2026-09-27), in each piece's own frame, along its width from its left as you face it, up from its foot and out from its wall. `stair` is one flight, the same in High City's tiles and Kyber's: its foot 0.71 m along on the landing below, its top 3.1 m along, the landing 4.00 m up (the grating's top; its underside 3.84, so `plate` 0.16). A tile is one storey, 4 m, our storey: the 4.98 m of its bounds is the handrail a metre over the landing, not a 5 m storey. Each family: its `tile`, its `down` (the lowest landing, `downLanding` metres up, and its drop ladder, `ladder` from and to along it and from and to out from the wall), its `top` (High City's: the tile with a gooseneck ladder over the parapet, drawn `topShift` along and out from the tile's frame) or none, `width` and `depth` its landing's, `lane` the stair's from and to out from the wall. The stair's lane is 0.8 m, less than a body (0.82 m), so every piece is drawn `depthScale` deeper, and the solids with it. `rooms` (Phase 23.2): a module with at least `front` of its face within 0.3 m of its front (citykit.json front, measured: Kyber's and Cyber City's window walls, a furnished room behind the glass) is set with its front on the tower's face and its room inside the tower's box, as deep as the room goes, where the city had pressed it to half a metre; the tower's own faces there stop drawing once the kit dresses them (city.ts skins). Its depth stops `core` short of the tower's stair core; a west or east face's room stops `gap` short of the north and south faces' rooms at its storey (their footprints are recorded as they are placed, so two rooms never cross at a corner); shallower than `min`, it is pressed as before. Its front stands only `outset` out, so it is flat enough for a canyon's wall runs too.",
+  "_dress": "How the pieces dress the centre (src/game/citydress.ts, docs/CITY_BUNDLE_IMPLEMENTATION.md sections 4.3 to 4.6). All of it is looks: collision stays the city's own boxes, so the city plays the same with or without the bundle, and every place is chosen by a hash of where it is, never the city's random stream. `outset`: how far a facade module's front stands out of its box's face, inside the plan's 0.15 m (rule 1), enough to keep the two from flickering. `families`: the facade family of each of the centre's 3 by 3 blocks by column and row (x then z, north first), placed so no two neighbours match: Kyber's concrete on the corners, High City's brownstone north and south, Cyber City's upper storeys east and west, Glass City's tech round the Spire; Cyber City's shop fronts go along every podium's street floor whatever the family. Each family's `bay` is its modules' width (measured: High 8 m, Kyber 4 m, Cyber 8 m, Glass 8 m); a face takes as many whole bays as round to its length and stretches them to fit. `ground`, `mid` and `top` are the storeys' modules, a row keeping one module so a facade reads as designed; the Sky Lobby's storey keeps its own walls, so its windows stay open. `tiers`: what each graphics preset draws (quality.ts cityDetail): 0 the buildings, the podiums' shop fronts, the roofs' parapets, the Spire's billboards and the skyline; 1 adds the signs, posters, AC units, blade signs, roof gear, antennas and lamps; 2 adds the cables over the streets, the pipes and wires down the walls and the street clutter. `clear`: how far a piece that stands out of a wall keeps from a pad's column and a stair (metres), and `canyon`: a face with another tower closer than this in front is a canyon's, where nothing stands out of the wall (the chimneys and the jumps are there): it wears `flat` panels, Cyber City's plain concrete, 2 triangles each, as do the bays behind a pad's climb. A thick module's wall stands on the building's face (citykit.json plane, measured), its frames and cornices out of it. The heavy ornate modules are for the ground storey, seen close; the storeys above take the lighter ones. `glow`: pieces whose picture is lit (billboards, posters, screens), their texture also their light at this strength. `relief`: the most a facade module stands out of its building, metres: a module's frames, pilasters and cornices in front of its wall (citykit.json plane) are pressed into this depth, so the wall and its windows sit on the building's face and nothing stands further than half a metre past the collision, where a body walks along a promenade or a jump passes a face. `lean`: what the competitive preset (the one for frames) wears instead: its storeys between ground and roof in the lightest module of each family, Kyber's and Glass's flat, and the lighter shop fronts; everything else is the same, so the city reads the same and draws about half the triangles. The vertical wire runs (`chance.wire`) are off: 3,516 triangles each was 260k for a detail. `bands`: the plan's detail bands (section 6). A storey within `near` storeys of a deck (the street's storeys `decks`, the Sky Lobby's 8 and the Sky Park's 16; a tower's first and last storeys are always its ground and top rows) wears its family's full modules and its AC units; a storey between decks wears the family's `far` row where it has one, at `farBay` metres a bay, and no AC. Kyber's far row is its 8 m window walls, 216 and 210 triangles a bay against the 4 m ones' 178 each, half the cost a metre, still windows on every storey. The towers doubled in height in Phase 21's massing, and the bands keep the detail where you play. `alley`: Neon Alley, the plan's showpiece street (city.json neonAlley). Every tower face fronting it (within `front` metres of its middle: the Spire's first tier stands 16.5 back), carries neon signs stacked up it in columns `signEvery` apart, `signFrom` over the face's foot to `signTo` metres, a horizontal sign or a vertical blade a column, `signGap` between; a cable web crosses it every `cableEvery` metres in two layers (`cableAt`), never over a pad's throw; its tower faces carry AC units at `ac` a bay-storey near a deck; each stall wears a food stand from `stands`; bins and a hydrant stand along both kerbs every `kerbEvery` metres, and street lamps at `lampAt` along both. The signs are drawn on every preset, the rest from Balanced. `glow.sign` and `glow.blade`: the neon signs' own pictures are their light, as a billboard's is; the kit's emission on them came out too weak to read against the lit windows (Neon Alley's first pictures: dark red slabs up the towers). `band`: the Sky Lobby's and the Sky Park's storeys, the wall either side of each window wearing Cyber City's classic windows (`modules`, 44 and 52 triangles a bay), their relief pressed to `relief` so a window pad's throw passes them as it passes a canyon's flat panel, where the storey had kept the city's old texture; the level's ring of light (city.json skyLobby and skyPark ring) marks it up every tower. The Glass pack's curtain wall was tried first: 204k triangles for the 41 rooms, most of a preset's budget, for one storey a tower. `metro`: the tunnel under the centre (city.json metro): posters glowing down both its walls every `posterEvery` metres, `posterAt` over the floor (above the wall's line of light at 2.2 m, under the 5 m ceiling), clear of the stairs and the parked trains; a signal (`signal`) at each end of every side, `signalAt` up the outer wall; bins along the walls here and there. All from Balanced up. `cars`: every parked car in the centre (city.ts KIT_SITES cars) wears one of High City's vans, stretched to the car's box (4.4 m long, 1.9 wide, 2.1 tall with its cabin): at that length a van stands the box's height, where a sedan left the cabin's collision in the air over its roof. The boxes' own materials are the centre's cars' alone and go once every car wears its van; the collision stays. `traffic`: High City's flying cars (`cars`) on loops over the streets (`lanes`: a square `half` metres from the middle each way, at `y`, `dir` 1 clockwise from above, `n` cars spaced evenly, `speed` m/s), between the Sky Lobby's bridges (32 m) and the Sky Park's (64 m) and over it, clear of every bridge, pad throw and zipline. Looks only, as all the kit is; drawn from Balanced up. `styles`: a second set of rows for a family, each tower wearing its family's first or one of these by a hash of where it stands, so two neighbours of one family differ: High City's wall b set (10 m bays), Kyber's plain and variant walls, Cyber City's deep window walls, each with its lighter far row. `streets`: the centre's streets dressed down their length, every `every` metres a road decal (`decals`, at `decalChance`) and a sewer cover (`sewers`, `sewerChance`), clear of the metro's stairwells and the pads; a traffic light (`lights`) at the two free corners of each crossing round the Spire; string lights (`garland`) over a shop front here and there (`garlandChance`). The lists of signs, posters, roof gear, antennas, pipes, cables and street props carry every such piece the packs gave: the owner saw the same few pieces repeated. `canyonRelief`: a canyon's faces wear their tower's own rows from Balanced up, each module's relief pressed to this, so its front stands within the plan's 0.15 m of the wall (rule 1: nothing stands out where you wall run) and the canyon is not 1,400 blank panels; Competitive keeps the flat ones (`flat`). `shopPairs`: from Balanced up, a shop bay here and there (`chance`) is two 4 m pieces, one of Cyber City's shop or street doors (`doors`) beside one of its shop windows (`windows`), in either order, rather than one 8 m shop; lighter than a shop and not the same front twice down a street. The strip signs of High City, its wall vents, and Cyber City's and the first-person pack's roof pipework and tubs go in the lists of signs, wall units and roof gear. `escapes`: the fire escapes (city.json fireEscape), every number measured off the pieces by tools/measure-escape.ts (2026-09-27), in each piece's own frame, along its width from its left as you face it, up from its foot and out from its wall. `stair` is one flight, the same in High City's tiles and Kyber's: its foot 0.71 m along on the landing below, its top 3.1 m along, the landing 4.00 m up (the grating's top; its underside 3.84, so `plate` 0.16). A tile is one storey, 4 m, our storey: the 4.98 m of its bounds is the handrail a metre over the landing, not a 5 m storey. Each family: its `tile`, its `down` (the lowest landing, `downLanding` metres up, and its drop ladder, `ladder` from and to along it and from and to out from the wall), its `top` (High City's: the tile with a gooseneck ladder over the parapet, drawn `topShift` along and out from the tile's frame) or none, `width` and `depth` its landing's, `lane` the stair's from and to out from the wall. The stair's lane is 0.8 m, less than a body (0.82 m), so every piece is drawn `depthScale` deeper, and the solids with it. `rooms` (Phase 23.2): a module with at least `front` of its face within 0.3 m of its front (citykit.json front, measured: Kyber's and Cyber City's window walls, a furnished room behind the glass) is set with its front on the tower's face and its room inside the tower's box, as deep as the room goes, where the city had pressed it to half a metre; the tower's own faces there stop drawing once the kit dresses them (city.ts skins). Its depth stops `core` short of the tower's stair core; a west or east face's room stops `gap` short of the north and south faces' rooms at its storey (their footprints are recorded as they are placed, so two rooms never cross at a corner); shallower than `min`, it is pressed as before. Its front stands only `outset` out, so it is flat enough for a canyon's wall runs too. Since Phase 23.4 every module with more relief than `rooms.flat` sits whole, as a room does: its front on the tower's face and its wall recessed inside, its pilasters, sills and window reveals at their real depth (they had been pressed to 42% of it), the face still flat enough to run; and a pad's bay wears its row's module, flush now, where it wore a flat panel. Kyber's rows lost their flat wall tile (a two-triangle picture of a wall) for its real walls. `reserve`: pieces baked into the packs before the dressing places them (Phase 23.4 to 23.7: cornices and ledges, balconies, fire escapes, vents and pipes, the packs' cars, hydrants, signs, doors, a bike), so one re-import serves the round; the importer writes only the pieces the dressing names anywhere, this list included. `strips` (Phase 24.3): the demo streets' facade strips (`facades`) a street face of a family's tower wears, the ones mostly wall (70% and more), 6 to 22 m wide and 12 m tall and more: the face in columns `col` metres wide, each a stack of strips from its foot, each scaled between `scale` of its own size and a whole number of storeys, `minStoreys` and more; the open storeys keep their walls, and a door's storeys; a fire escape, a chimney's mouth and a pad's lane (a pad close enough to the face that a strip beside it would stand less than `padDepth` metres out) keep the modules across their width and `clear` metres either side, the columns laid in the stretches between; a column beside a pad further out has its strips pressed to stand 0.15 m clear of the pad's column (the check's, 1.2 m round the pad). Balanced and High; Competitive keeps its modules.",
   "dress": {
     "outset": 0.03,
     "families": {
@@ -4826,13 +6270,13 @@
         "mid": [
           "kyber/walls/wall window 1",
           "kyber/walls/wall window 1 b",
-          "kyber/walls/wall tile",
+          "kyber/walls 1 floor/wall 1 var 1",
           "kyber/walls/wall window 1",
-          "kyber/walls/wall tile"
+          "kyber/walls 1 floor/wall 1 var 2"
         ],
         "top": [
-          "kyber/walls/wall tile",
-          "kyber/walls 1 floor/wall 1"
+          "kyber/walls 1 floor/wall 1",
+          "kyber/walls 1 floor/wall 1 var 1"
         ],
         "far": [
           "kyber/walls/wall window 2",
@@ -4964,8 +6408,7 @@
       "high/advertis/advertis plane 1",
       "high/advertis/advertis plane 2",
       "high/advertis/advertis plane 3",
-      "high/advertis/advertis plane 4",
-      "high/advertis/advertis plane archetype"
+      "high/advertis/advertis plane 4"
     ],
     "roof": {
       "small": [
@@ -5123,7 +6566,12 @@
         "cyber/entrance/shop closed",
         "cyber/entrance/streetgate 1",
         "cyber/entrance/shop 1"
-      ]
+      ],
+      "top": {
+        "kyber": [
+          "kyber/walls/wall tile"
+        ]
+      }
     },
     "bands": {
       "decks": [
@@ -5280,12 +6728,12 @@
           "mid": [
             "kyber/walls/wall window 1 b",
             "kyber/walls 1 floor/wall 1 var 1",
-            "kyber/walls/wall tile",
+            "kyber/walls/wall window 1",
             "kyber/walls 1 floor/wall 1 var 2"
           ],
           "top": [
             "kyber/walls 1 floor/wall 1",
-            "kyber/walls/wall tile"
+            "kyber/walls 1 floor/wall 1 var 2"
           ],
           "far": [
             "kyber/walls/wall window 3",
@@ -5413,14 +6861,157 @@
       "front": 0.5,
       "gap": 0.2,
       "core": 0.3,
-      "min": 1.2
+      "min": 1.2,
+      "flat": 0.15
+    },
+    "reserve": [
+      "high/wall/wall a/wall1a podium",
+      "high/wall/wall a/wallreup wall 1",
+      "high/wall/wall b/wall1b podium",
+      "high/wall/wall a/fire ladder a down",
+      "high/wall/wall a/fire ladder a tile",
+      "high/wall/wall a/fire ladder a top",
+      "high/wall/wall c/fire ladder c down",
+      "high/wall/wall c/fire ladder c tile",
+      "high/wall/wall c/fire ladder c top",
+      "high/wall/vent disc 2",
+      "high/wall/vent disc 4",
+      "high/wall/column dwn tile",
+      "high/wall/met corner",
+      "high/road/hydrant",
+      "high/parapet/parapet fence",
+      "high/parapet/parapet corner",
+      "high/vehicle/car 1",
+      "high/vehicle/car 1 b",
+      "high/vehicle/car 1 c",
+      "high/vehicle/car 1 taxi",
+      "high/vehicle/car 2 ambulance",
+      "high/vehicle/car 2 f dept",
+      "high/vehicle/car 3",
+      "high/vehicle/car 3 b",
+      "high/vehicle/car 3 c",
+      "high/vehicle/car 3 police",
+      "kyber/walls/wall 1 up",
+      "kyber/walls/wall 1 up clean",
+      "kyber/walls/wall 1 up corner",
+      "kyber/walls misc/wall part 1",
+      "kyber/walls misc/wall part 2",
+      "kyber/ladder/ladder tile A",
+      "kyber/road misc/hydrant 1",
+      "kyber/road misc/hydrant 2",
+      "kyber/road misc/garbage",
+      "kyber/road/grass plant 01 doub",
+      "kyber/road/grass plant 02 doub",
+      "kyber/wires/wires last C",
+      "kyber/wires/wires last D",
+      "cyber/walls/plate 1",
+      "cyber/walls/plate 0.5",
+      "cyber/walls/plate bow",
+      "cyber/walls/column 1",
+      "cyber/walls/column 2",
+      "cyber/walls/arc mid",
+      "cyber/walls/arc side",
+      "cyber/street/pipe/pipe valve",
+      "cyber/street/pipe/pipe corn sm",
+      "cyber/street/pipe/air pipe corn",
+      "cyber/street/fire ladder",
+      "cyber/street/car/car black",
+      "cyber/street/car/car green",
+      "cyber/street/car/car metalic",
+      "cyber/street/car/car red",
+      "cyber/street/car/car white",
+      "cyber/entrance/streetdoor 1 b",
+      "cyber/entrance/streetdoor 2 b",
+      "cyber/entrance/streetdoor 3 b",
+      "cyber/entrance/streetdoor single",
+      "cyber/entrance/streetdoor single 2",
+      "cyber/street/sign/road prop 08",
+      "cyber/street/sign/road prop 10",
+      "cyber/street/sign/road prop 12",
+      "cyber/street/sign/road prop 14",
+      "cyber/street/sign/road prop 16",
+      "cyber/street/sign/road prop 18",
+      "cyber/street/sign/road prop 20",
+      "cyber/street/sign/road prop 22",
+      "cyberfp/bike/cp_bike",
+      "cyberfp/advertisement/neon/neon sign L 1",
+      "cyberfp/advertisement/neon/neon sign L 2",
+      "cyberfp/advertisement/neon/neon sign L 3",
+      "cyberfp/street/street lamp 3"
+    ],
+    "strips": {
+      "families": {
+        "high": [
+          "high/facade 002",
+          "high/facade 006",
+          "high/facade 007",
+          "high/facade 011",
+          "high/facade 012",
+          "high/facade 013",
+          "high/facade 016",
+          "high/facade 017",
+          "high/facade 018",
+          "high/facade 020",
+          "high/facade 022",
+          "high/facade 024",
+          "high/facade 026",
+          "high/facade 028",
+          "high/facade 029",
+          "high/facade 030",
+          "high/facade 032",
+          "high/facade 035",
+          "high/facade 036",
+          "high/facade 037",
+          "high/facade 038",
+          "high/facade 039",
+          "high/facade 041"
+        ],
+        "kyber": [
+          "kyber/facade 005",
+          "kyber/facade 008",
+          "kyber/facade 009",
+          "kyber/facade 012",
+          "kyber/facade 013",
+          "kyber/facade 015",
+          "kyber/facade 021",
+          "kyber/facade 022",
+          "kyber/facade 023",
+          "kyber/facade 026",
+          "kyber/facade 027",
+          "kyber/facade 028"
+        ],
+        "cyber": [
+          "cyber/facade 001",
+          "cyber/facade 003",
+          "cyber/facade 006",
+          "cyber/facade 007",
+          "cyber/facade 010",
+          "cyber/facade 011",
+          "cyber/facade 014",
+          "cyber/facade 016",
+          "cyber/facade 017",
+          "cyber/facade 023",
+          "cyber/facade 026"
+        ]
+      },
+      "col": [
+        7,
+        20
+      ],
+      "scale": [
+        0.8,
+        1.25
+      ],
+      "minStoreys": 2,
+      "padDepth": 1,
+      "clear": 0.5
     }
   },
-  "_budget": "The triangles each graphics preset may draw of the bundle on the centre, counted off the measured pieces by tools/checks/citykit.ts, so verify holds them without the bought files. Set a tenth over what the dressing measured (2026-09-28: competitive, the lean modules, 506k; balanced 891k; high 929k). What that costs, measured with tools/bench.ts from 100 m over the Spire in a match of thirty (skroof), two runs each with the bundle and without (?nocitykit), interleaved, on the owner's RX 9070 XT: competitive 8.2 and 6.7 ms against 7.5 and 6.2; balanced 7.9 and 5.9 against 6.8 and 6.6 (within the noise); high 14.2 and 16.1 against 12.9 and 13.0, high drawing the city again for its live shadows and its ambient occlusion. Raise a number only with a bench beside it. Phase 21's massing (the centre's towers 64 to 104 m, the Spire to 140 m) doubled the storeys, with the plan's detail bands (dress bands) keeping AC units and the heavier rows near the decks: 581k, 1,152k and 1,189k triangles, the limits those with about a twentieth over. From 160 m over the Spire on the owner's RX 9070 XT, interleaved with the kit off, the medians moved inside the noise of a shared machine (Balanced 4.9 and 7.7 ms against 4.5 and 4.5; the kit's real cost is its 390 draw calls, one per piece's mesh). With the bands, the metro's dressing and the centre's cars (1,231k and 1,267k), benched again, interleaved, kit on and off, in the street (skmatch) and over the Spire (skroof), on a shared machine: Balanced medians about 7.5 ms with the kit against 8.3 without, High 14.2 against 13.6, every Balanced run under 8.5 ms. Raised to 1,300k and 1,340k. The canyons' faces in their towers' own rows, pressed flat (dress canyonRelief), 1,352k and 1,455k, benched again, three rounds interleaved, kit on and off, on a shared machine: medians in the street (skmatch) Balanced 6.5 ms with the kit against 8.4 without, High 12.4 against 13.2; over the Spire (skroof) Balanced 5.8 against 6.2, High 11.5 against 12.0; every Balanced run with the kit 9.0 ms or under. The pieces are ones the kit already drew, so the draw calls hardly moved. Raised to 1,420k and 1,530k, a twentieth over. The fire escapes (Milestone 281), 18 of them from Balanced up: 1,461k and 1,564k, and 85 more draw calls in the street (1,077 against 992 with the kit). Raised to 1,540k and 1,640k, a twentieth over, WITHOUT a bench of their own: the one begun (2026-09-27) ran beside another worktree's e2e and measured only that load (kit off slower than on), so it was stopped, and the owner asked for basic checks until the next long batch. What the raise rests on is the bench before it, where 191k more triangles of pieces the kit already drew moved nothing measurable. Benched after (Phase 22.1, 2026-09-27, 7:02 to 7:13 pm), from a frozen copy of that build, three rounds interleaved, kit on and off; another worktree's e2e loaded rounds 1 and 2, round 3 over the Spire near quiet. Medians in the street Balanced 10.2 ms with the kit against 10.2 without, High 21.1 against 18.2 (one round's 3,092 draw calls an outlier; without it about 0.9 ms); over the Spire Balanced 8.5 against 8.0, High 16.5 against 17.0; the quiet round Balanced 5.9 against 5.5. So the kit with the escapes costs about 0.4 ms on Balanced and up to about 0.9 on High: small, and kept. The limits stand.",
+  "_budget": "The triangles each graphics preset may draw of the bundle on the centre, counted off the measured pieces by tools/checks/citykit.ts, so verify holds them without the bought files. Set a tenth over what the dressing measured (2026-09-28: competitive, the lean modules, 506k; balanced 891k; high 929k). What that costs, measured with tools/bench.ts from 100 m over the Spire in a match of thirty (skroof), two runs each with the bundle and without (?nocitykit), interleaved, on the owner's RX 9070 XT: competitive 8.2 and 6.7 ms against 7.5 and 6.2; balanced 7.9 and 5.9 against 6.8 and 6.6 (within the noise); high 14.2 and 16.1 against 12.9 and 13.0, high drawing the city again for its live shadows and its ambient occlusion. Raise a number only with a bench beside it. Phase 21's massing (the centre's towers 64 to 104 m, the Spire to 140 m) doubled the storeys, with the plan's detail bands (dress bands) keeping AC units and the heavier rows near the decks: 581k, 1,152k and 1,189k triangles, the limits those with about a twentieth over. From 160 m over the Spire on the owner's RX 9070 XT, interleaved with the kit off, the medians moved inside the noise of a shared machine (Balanced 4.9 and 7.7 ms against 4.5 and 4.5; the kit's real cost is its 390 draw calls, one per piece's mesh). With the bands, the metro's dressing and the centre's cars (1,231k and 1,267k), benched again, interleaved, kit on and off, in the street (skmatch) and over the Spire (skroof), on a shared machine: Balanced medians about 7.5 ms with the kit against 8.3 without, High 14.2 against 13.6, every Balanced run under 8.5 ms. Raised to 1,300k and 1,340k. The canyons' faces in their towers' own rows, pressed flat (dress canyonRelief), 1,352k and 1,455k, benched again, three rounds interleaved, kit on and off, on a shared machine: medians in the street (skmatch) Balanced 6.5 ms with the kit against 8.4 without, High 12.4 against 13.2; over the Spire (skroof) Balanced 5.8 against 6.2, High 11.5 against 12.0; every Balanced run with the kit 9.0 ms or under. The pieces are ones the kit already drew, so the draw calls hardly moved. Raised to 1,420k and 1,530k, a twentieth over. The fire escapes (Milestone 281), 18 of them from Balanced up: 1,461k and 1,564k, and 85 more draw calls in the street (1,077 against 992 with the kit). Raised to 1,540k and 1,640k, a twentieth over, WITHOUT a bench of their own: the one begun (2026-09-27) ran beside another worktree's e2e and measured only that load (kit off slower than on), so it was stopped, and the owner asked for basic checks until the next long batch. What the raise rests on is the bench before it, where 191k more triangles of pieces the kit already drew moved nothing measurable. Benched after (Phase 22.1, 2026-09-27, 7:02 to 7:13 pm), from a frozen copy of that build, three rounds interleaved, kit on and off; another worktree's e2e loaded rounds 1 and 2, round 3 over the Spire near quiet. Medians in the street Balanced 10.2 ms with the kit against 10.2 without, High 21.1 against 18.2 (one round's 3,092 draw calls an outlier; without it about 0.9 ms); over the Spire Balanced 8.5 against 8.0, High 16.5 against 17.0; the quiet round Balanced 5.9 against 5.5. So the kit with the escapes costs about 0.4 ms on Balanced and up to about 0.9 on High: small, and kept. The limits stand. The demo streets' facade strips (Phase 24.3, Milestone 298), 44% of the centre's street faces, simplified to 15 mm (kit v5): 2,786k and 2,889k. Benched on the owner's RX 9070 XT in the street of a match of thirty (skmatch), three rounds interleaved, against a frozen copy from before the strips: Balanced 137 fps (122 to 141; 7.3 ms) against 182, High 67 fps (66 to 71) against 89, no hitches on Balanced, one on High. So the strips cost about 1.8 ms on Balanced and about 3.7 ms on High, which draws the city again for its live shadows and its ambient occlusion. The owner's word on the centre: \"we want this very detailed center district because that is the focus of the map\". Raised to 3,000k and 3,100k, about a fourteenth over; Competitive keeps its modules and its limit.",
   "budget": {
     "competitive": 620000,
-    "balanced": 1540000,
-    "high": 1640000
+    "balanced": 3000000,
+    "high": 3100000
   },
   "plane": {
     "cyber/walls/wall a 1": 0,
@@ -5604,6 +7195,50 @@
     "cyber/distant building/dist building_2": 0,
     "cyber/distant building/dist building_3": 0,
     "cyber/zeppelin highlight": 6.86,
+    "cyber/street/car/car black": 3.06,
+    "cyber/street/car/car green": 3.16,
+    "cyber/street/car/car metalic": 3.16,
+    "cyber/street/car/car red": 3.16,
+    "cyber/street/car/car white": 3.06,
+    "cyber/entrance/streetdoor 1 b": 1.43,
+    "cyber/entrance/streetdoor 2 b": 0.47,
+    "cyber/entrance/streetdoor 3 b": 0.18,
+    "cyber/entrance/streetdoor single": 0.08,
+    "cyber/entrance/streetdoor single 2": 0.08,
+    "cyber/street/sign/road prop 08": 0,
+    "cyber/street/sign/road prop 10": 0,
+    "cyber/street/sign/road prop 12": 0,
+    "cyber/street/sign/road prop 14": 0,
+    "cyber/street/sign/road prop 16": 0,
+    "cyber/street/sign/road prop 18": 0,
+    "cyber/street/sign/road prop 20": 0,
+    "cyber/street/sign/road prop 22": 0,
+    "cyber/facade 001": 0.68,
+    "cyber/facade 002": 0.46,
+    "cyber/facade 003": 0.77,
+    "cyber/facade 004": 0.77,
+    "cyber/facade 005": 0.3,
+    "cyber/facade 006": 0.42,
+    "cyber/facade 007": 0.58,
+    "cyber/facade 008": 0,
+    "cyber/facade 009": 4.89,
+    "cyber/facade 010": 0.04,
+    "cyber/facade 011": 4.31,
+    "cyber/facade 012": 4.17,
+    "cyber/facade 013": 0.36,
+    "cyber/facade 014": 4.34,
+    "cyber/facade 015": 4.14,
+    "cyber/facade 016": 0.13,
+    "cyber/facade 017": 0.84,
+    "cyber/facade 018": 4.37,
+    "cyber/facade 019": 4.02,
+    "cyber/facade 020": 3.3,
+    "cyber/facade 021": 4.02,
+    "cyber/facade 022": 4.4,
+    "cyber/facade 023": 4.55,
+    "cyber/facade 024": 0.56,
+    "cyber/facade 025": 0.84,
+    "cyber/facade 026": 0,
     "cyberfp/street/tubs1 tile": 3.06,
     "cyberfp/street/tubs2 tile": 3.06,
     "cyberfp/street/tubs1 half": 1.89,
@@ -5623,6 +7258,11 @@
     "cyberfp/decal/decal 3": 0,
     "cyberfp/decal/decal 4": 0,
     "cyberfp/decal/decal 5": 0,
+    "cyberfp/bike/cp_bike": 0.59,
+    "cyberfp/advertisement/neon/neon sign L 1": 0.08,
+    "cyberfp/advertisement/neon/neon sign L 2": 0,
+    "cyberfp/advertisement/neon/neon sign L 3": 0.1,
+    "cyberfp/street/street lamp 3": 0.65,
     "glass/Walls/Wall 1": 1.9,
     "glass/Walls/Wall 2": 7.4,
     "glass/Walls/Wall 3": 7.4,
@@ -5769,6 +7409,63 @@
     "high/vehicle/scripted vehicles/car 3 police": 0.35,
     "high/vehicle/fly engine L": 0.87,
     "high/vehicle/fly engine R": 0.87,
+    "high/wall/wall c/fire ladder c down": 0.13,
+    "high/wall/wall c/fire ladder c tile": 0.07,
+    "high/wall/wall c/fire ladder c top": 0.07,
+    "high/wall/vent disc 2": 0.02,
+    "high/wall/vent disc 4": 0.03,
+    "high/road/hydrant": 0.24,
+    "high/vehicle/car 1": 0.39,
+    "high/vehicle/car 1 b": 0.86,
+    "high/vehicle/car 1 c": 0.84,
+    "high/vehicle/car 1 taxi": 0.86,
+    "high/vehicle/car 2 ambulance": 0.96,
+    "high/vehicle/car 2 f dept": 1.55,
+    "high/vehicle/car 3": 0.84,
+    "high/vehicle/car 3 b": 0.35,
+    "high/vehicle/car 3 c": 0.84,
+    "high/vehicle/car 3 police": 0.84,
+    "high/facade 001": 4.93,
+    "high/facade 002": 1.66,
+    "high/facade 003": 1.99,
+    "high/facade 004": 1.93,
+    "high/facade 005": 1.24,
+    "high/facade 006": 3.57,
+    "high/facade 007": 4.62,
+    "high/facade 008": 3.94,
+    "high/facade 009": 1.41,
+    "high/facade 010": 4.79,
+    "high/facade 011": 2.31,
+    "high/facade 012": 3.01,
+    "high/facade 013": 4.5,
+    "high/facade 014": 4.3,
+    "high/facade 015": 4.01,
+    "high/facade 016": 4.17,
+    "high/facade 017": 4.57,
+    "high/facade 018": 3.49,
+    "high/facade 019": 4.32,
+    "high/facade 020": 4.27,
+    "high/facade 021": 4.01,
+    "high/facade 022": 0.91,
+    "high/facade 023": 4.39,
+    "high/facade 024": 4.85,
+    "high/facade 025": 3.85,
+    "high/facade 026": 4.44,
+    "high/facade 027": 4.28,
+    "high/facade 028": 0.77,
+    "high/facade 029": 4.32,
+    "high/facade 030": 0.77,
+    "high/facade 031": 2.59,
+    "high/facade 032": 2.74,
+    "high/facade 033": 4.41,
+    "high/facade 034": 1.37,
+    "high/facade 035": 1.07,
+    "high/facade 036": 4.43,
+    "high/facade 037": 4.5,
+    "high/facade 038": 4.46,
+    "high/facade 039": 2.83,
+    "high/facade 040": 4.43,
+    "high/facade 041": 1.11,
     "kyber/walls 1 floor/wall 1": 0.74,
     "kyber/walls 1 floor/wall 1 var 1": 0.74,
     "kyber/walls 1 floor/wall 1 var 2": 0.74,
@@ -5853,9 +7550,43 @@
     "kyber/subway/semafor wall": 0.47,
     "kyber/robots/robot 1": 0.8,
     "kyber/robots/robot 2": 0.2,
-    "kyber/robots/robot 3": 0.9
+    "kyber/robots/robot 3": 0.9,
+    "kyber/road misc/hydrant 1": 0.52,
+    "kyber/road misc/hydrant 2": 0.52,
+    "kyber/road misc/garbage": 0.15,
+    "kyber/road/grass plant 01 doub": 0.87,
+    "kyber/road/grass plant 02 doub": 0.87,
+    "kyber/facade 001": 0.57,
+    "kyber/facade 002": 0.57,
+    "kyber/facade 003": 0.65,
+    "kyber/facade 004": 0.65,
+    "kyber/facade 005": 4.81,
+    "kyber/facade 006": 4.01,
+    "kyber/facade 007": 2.88,
+    "kyber/facade 008": 4.56,
+    "kyber/facade 009": 1.75,
+    "kyber/facade 010": 4.42,
+    "kyber/facade 011": 4,
+    "kyber/facade 012": 4.47,
+    "kyber/facade 013": 4.62,
+    "kyber/facade 014": 4.57,
+    "kyber/facade 015": 4.52,
+    "kyber/facade 016": 4.45,
+    "kyber/facade 017": 0.56,
+    "kyber/facade 018": 0.63,
+    "kyber/facade 019": 0.54,
+    "kyber/facade 020": 3.03,
+    "kyber/facade 021": 4.85,
+    "kyber/facade 022": 10.25,
+    "kyber/facade 023": 2.38,
+    "kyber/facade 024": 4.03,
+    "kyber/facade 025": 8.6,
+    "kyber/facade 026": 10.99,
+    "kyber/facade 027": 5.9,
+    "kyber/facade 028": 0.54,
+    "kyber/facade 029": 10.36
   },
-  "_version": "2 (2026-09-27): re-baked with the prefabs' material overrides placed on their models' meshes, which v1 dropped (High City's wall rows came out untextured grey); a new name so no browser keeps v1 from its cache. 3 (2026-09-28): KTX2 textures, a 2K bake for High, only the pieces the dressing names written (Phase 23.1).",
+  "_version": "2 (2026-09-27): re-baked with the prefabs' material overrides placed on their models' meshes, which v1 dropped (High City's wall rows came out untextured grey); a new name so no browser keeps v1 from its cache. 3 (2026-09-28): KTX2 textures, a 2K bake for High, only the pieces the dressing names written (Phase 23.1). 4 (2026-09-28): the demo streets' facade strips, the reserve pieces, material names matched loosely, the specular workflow read. 5 (2026-09-28): the facade strips simplified (`simplify`), Kyber's by about half.",
   "_sizes": "The textures' longest side in each bake, GPU-compressed as KTX2 (Basis Universal; Phase 23.1): `max` for High, `hi` for Balanced, `lo` for Competitive (quality.ts cityKit). Colours, glows and the packed occlusion, roughness and metal are ETC1S at the bake's size; normal maps UASTC at `normal`'s, since UASTC is about four times ETC1S's bytes (a 1K normal map 0.95 MB, a 2K colour 0.64 MB). Compressed on the card, 2K costs about what 1K did as WebP: the placed pieces' textures decoded to 1.76 GB at 1K, and would have been 7 GB at 2K.",
   "front": {
     "cyber/walls/wall a 1": 1,
@@ -6039,6 +7770,50 @@
     "cyber/distant building/dist building_2": 1,
     "cyber/distant building/dist building_3": 1,
     "cyber/zeppelin highlight": 0,
+    "cyber/street/car/car black": 0.44,
+    "cyber/street/car/car green": 0.45,
+    "cyber/street/car/car metalic": 0.45,
+    "cyber/street/car/car red": 0.45,
+    "cyber/street/car/car white": 0.44,
+    "cyber/entrance/streetdoor 1 b": 0.04,
+    "cyber/entrance/streetdoor 2 b": 0.57,
+    "cyber/entrance/streetdoor 3 b": 1,
+    "cyber/entrance/streetdoor single": 1,
+    "cyber/entrance/streetdoor single 2": 1,
+    "cyber/street/sign/road prop 08": 1,
+    "cyber/street/sign/road prop 10": 1,
+    "cyber/street/sign/road prop 12": 1,
+    "cyber/street/sign/road prop 14": 1,
+    "cyber/street/sign/road prop 16": 1,
+    "cyber/street/sign/road prop 18": 1,
+    "cyber/street/sign/road prop 20": 1,
+    "cyber/street/sign/road prop 22": 1,
+    "cyber/facade 001": 0.12,
+    "cyber/facade 002": 0.13,
+    "cyber/facade 003": 0.07,
+    "cyber/facade 004": 0.18,
+    "cyber/facade 005": 0.87,
+    "cyber/facade 006": 0.05,
+    "cyber/facade 007": 0.04,
+    "cyber/facade 008": 0.88,
+    "cyber/facade 009": 0.62,
+    "cyber/facade 010": 0.9,
+    "cyber/facade 011": 0,
+    "cyber/facade 012": 0.02,
+    "cyber/facade 013": 0.15,
+    "cyber/facade 014": 0,
+    "cyber/facade 015": 0,
+    "cyber/facade 016": 1,
+    "cyber/facade 017": 0,
+    "cyber/facade 018": 0,
+    "cyber/facade 019": 0.02,
+    "cyber/facade 020": 0,
+    "cyber/facade 021": 0.02,
+    "cyber/facade 022": 0,
+    "cyber/facade 023": 0.71,
+    "cyber/facade 024": 0,
+    "cyber/facade 025": 0.58,
+    "cyber/facade 026": 0.98,
     "cyberfp/street/tubs1 tile": 0.01,
     "cyberfp/street/tubs2 tile": 0.01,
     "cyberfp/street/tubs1 half": 0,
@@ -6058,6 +7833,11 @@
     "cyberfp/decal/decal 3": 1,
     "cyberfp/decal/decal 4": 1,
     "cyberfp/decal/decal 5": 1,
+    "cyberfp/bike/cp_bike": 0.12,
+    "cyberfp/advertisement/neon/neon sign L 1": 1,
+    "cyberfp/advertisement/neon/neon sign L 2": 1,
+    "cyberfp/advertisement/neon/neon sign L 3": 1,
+    "cyberfp/street/street lamp 3": 0.47,
     "glass/Walls/Wall 1": 0.12,
     "glass/Walls/Wall 2": 0.03,
     "glass/Walls/Wall 3": 0.02,
@@ -6204,6 +7984,63 @@
     "high/vehicle/scripted vehicles/car 3 police": 0.65,
     "high/vehicle/fly engine L": 0.18,
     "high/vehicle/fly engine R": 0.17,
+    "high/wall/wall c/fire ladder c down": 0.91,
+    "high/wall/wall c/fire ladder c tile": 0.75,
+    "high/wall/wall c/fire ladder c top": 0.67,
+    "high/wall/vent disc 2": 1,
+    "high/wall/vent disc 4": 1,
+    "high/road/hydrant": 0.94,
+    "high/vehicle/car 1": 0.69,
+    "high/vehicle/car 1 b": 0.06,
+    "high/vehicle/car 1 c": 0.03,
+    "high/vehicle/car 1 taxi": 0.06,
+    "high/vehicle/car 2 ambulance": 0.44,
+    "high/vehicle/car 2 f dept": 0.02,
+    "high/vehicle/car 3": 0.07,
+    "high/vehicle/car 3 b": 0.69,
+    "high/vehicle/car 3 c": 0.04,
+    "high/vehicle/car 3 police": 0.07,
+    "high/facade 001": 0,
+    "high/facade 002": 0,
+    "high/facade 003": 0.02,
+    "high/facade 004": 0.01,
+    "high/facade 005": 0.01,
+    "high/facade 006": 0,
+    "high/facade 007": 0,
+    "high/facade 008": 0,
+    "high/facade 009": 0,
+    "high/facade 010": 0.12,
+    "high/facade 011": 0.01,
+    "high/facade 012": 0,
+    "high/facade 013": 0,
+    "high/facade 014": 0,
+    "high/facade 015": 0,
+    "high/facade 016": 0,
+    "high/facade 017": 0,
+    "high/facade 018": 0.03,
+    "high/facade 019": 0,
+    "high/facade 020": 0,
+    "high/facade 021": 0,
+    "high/facade 022": 0.01,
+    "high/facade 023": 0,
+    "high/facade 024": 0.03,
+    "high/facade 025": 0,
+    "high/facade 026": 0,
+    "high/facade 027": 0,
+    "high/facade 028": 0.2,
+    "high/facade 029": 0,
+    "high/facade 030": 0.2,
+    "high/facade 031": 0,
+    "high/facade 032": 0.01,
+    "high/facade 033": 0.01,
+    "high/facade 034": 0.04,
+    "high/facade 035": 0.04,
+    "high/facade 036": 0,
+    "high/facade 037": 0,
+    "high/facade 038": 0.01,
+    "high/facade 039": 0.01,
+    "high/facade 040": 0,
+    "high/facade 041": 0.21,
     "kyber/walls 1 floor/wall 1": 0,
     "kyber/walls 1 floor/wall 1 var 1": 0,
     "kyber/walls 1 floor/wall 1 var 2": 0,
@@ -6288,7 +8125,41 @@
     "kyber/subway/semafor wall": 0.65,
     "kyber/robots/robot 1": 0.68,
     "kyber/robots/robot 2": 0.87,
-    "kyber/robots/robot 3": 0.68
+    "kyber/robots/robot 3": 0.68,
+    "kyber/road misc/hydrant 1": 0.85,
+    "kyber/road misc/hydrant 2": 0.85,
+    "kyber/road misc/garbage": 0.95,
+    "kyber/road/grass plant 01 doub": 0,
+    "kyber/road/grass plant 02 doub": 0,
+    "kyber/facade 001": 0.08,
+    "kyber/facade 002": 0.11,
+    "kyber/facade 003": 0.25,
+    "kyber/facade 004": 0.2,
+    "kyber/facade 005": 0,
+    "kyber/facade 006": 0.02,
+    "kyber/facade 007": 0,
+    "kyber/facade 008": 0.09,
+    "kyber/facade 009": 0.08,
+    "kyber/facade 010": 0,
+    "kyber/facade 011": 0.01,
+    "kyber/facade 012": 0.03,
+    "kyber/facade 013": 0,
+    "kyber/facade 014": 0.14,
+    "kyber/facade 015": 0.05,
+    "kyber/facade 016": 0.02,
+    "kyber/facade 017": 0.07,
+    "kyber/facade 018": 0.11,
+    "kyber/facade 019": 0.01,
+    "kyber/facade 020": 0.01,
+    "kyber/facade 021": 0,
+    "kyber/facade 022": 0.01,
+    "kyber/facade 023": 0.38,
+    "kyber/facade 024": 0.04,
+    "kyber/facade 025": 0,
+    "kyber/facade 026": 0,
+    "kyber/facade 027": 0.03,
+    "kyber/facade 028": 0.01,
+    "kyber/facade 029": 0.01
   },
   "baked": [
     "cyber/advertisement/garland street",
@@ -6354,10 +8225,41 @@
     "cyber/entrance/shopdoor 3",
     "cyber/entrance/shopdoor 4",
     "cyber/entrance/streetdoor 1",
+    "cyber/entrance/streetdoor 1 b",
     "cyber/entrance/streetdoor 2",
+    "cyber/entrance/streetdoor 2 b",
     "cyber/entrance/streetdoor 3",
+    "cyber/entrance/streetdoor 3 b",
+    "cyber/entrance/streetdoor single",
+    "cyber/entrance/streetdoor single 2",
     "cyber/entrance/streetgate 1",
     "cyber/entrance/streetgate 2",
+    "cyber/facade 001",
+    "cyber/facade 002",
+    "cyber/facade 003",
+    "cyber/facade 004",
+    "cyber/facade 005",
+    "cyber/facade 006",
+    "cyber/facade 007",
+    "cyber/facade 008",
+    "cyber/facade 009",
+    "cyber/facade 010",
+    "cyber/facade 011",
+    "cyber/facade 012",
+    "cyber/facade 013",
+    "cyber/facade 014",
+    "cyber/facade 015",
+    "cyber/facade 016",
+    "cyber/facade 017",
+    "cyber/facade 018",
+    "cyber/facade 019",
+    "cyber/facade 020",
+    "cyber/facade 021",
+    "cyber/facade 022",
+    "cyber/facade 023",
+    "cyber/facade 024",
+    "cyber/facade 025",
+    "cyber/facade 026",
     "cyber/rooms not 1 floor/wall window 2",
     "cyber/rooms not 1 floor/wall window 3",
     "cyber/rooms not 1 floor/wall window 4",
@@ -6378,15 +8280,23 @@
     "cyber/street/cable/cable mix E",
     "cyber/street/cable/cable mix F",
     "cyber/street/cable/cable mix G",
+    "cyber/street/car/car black",
+    "cyber/street/car/car green",
+    "cyber/street/car/car metalic",
+    "cyber/street/car/car red",
+    "cyber/street/car/car white",
     "cyber/street/conditioning 1",
     "cyber/street/conditioning 2",
     "cyber/street/conditioning hldr",
     "cyber/street/eat stand",
+    "cyber/street/fire ladder",
     "cyber/street/garbage",
     "cyber/street/hotdog stand",
     "cyber/street/hydrant",
     "cyber/street/pipe/air pipe",
+    "cyber/street/pipe/air pipe corn",
     "cyber/street/pipe/pipe",
+    "cyber/street/pipe/pipe corn sm",
     "cyber/street/pipe/pipe hldr",
     "cyber/street/pipe/pipe sm",
     "cyber/street/pipe/pipe sm half",
@@ -6398,10 +8308,25 @@
     "cyber/street/robotz/robotz2 b",
     "cyber/street/sign/road prop 01",
     "cyber/street/sign/road prop 02",
+    "cyber/street/sign/road prop 08",
+    "cyber/street/sign/road prop 10",
+    "cyber/street/sign/road prop 12",
+    "cyber/street/sign/road prop 14",
+    "cyber/street/sign/road prop 16",
+    "cyber/street/sign/road prop 18",
+    "cyber/street/sign/road prop 20",
+    "cyber/street/sign/road prop 22",
     "cyber/street/strlamp",
     "cyber/street/traffic light",
     "cyber/street/trash bin 2",
     "cyber/street/trash bin 3",
+    "cyber/walls/arc mid",
+    "cyber/walls/arc side",
+    "cyber/walls/column 1",
+    "cyber/walls/column 2",
+    "cyber/walls/plate 0.5",
+    "cyber/walls/plate 1",
+    "cyber/walls/plate bow",
     "cyber/walls/streetwindow 2",
     "cyber/walls/streetwindow 3",
     "cyber/walls/wall a 1",
@@ -6413,10 +8338,15 @@
     "cyberfp/advertisement/advertis plane3",
     "cyberfp/advertisement/advertis plane4",
     "cyberfp/advertisement/advertis plane5",
+    "cyberfp/advertisement/neon/neon sign L 1",
+    "cyberfp/advertisement/neon/neon sign L 2",
+    "cyberfp/advertisement/neon/neon sign L 3",
+    "cyberfp/bike/cp_bike",
     "cyberfp/decal/decal 1",
     "cyberfp/decal/decal 3",
     "cyberfp/decal/decal 4",
     "cyberfp/decal/decal 5",
+    "cyberfp/street/street lamp 3",
     "cyberfp/street/tubs1 corner",
     "cyberfp/street/tubs1 half",
     "cyberfp/street/tubs2 corner",
@@ -6437,19 +8367,73 @@
     "high/advertis/advertiz 4",
     "high/advertis/advertiz 5",
     "high/advertis/advertiz 6",
+    "high/facade 001",
+    "high/facade 002",
+    "high/facade 003",
+    "high/facade 004",
+    "high/facade 005",
+    "high/facade 006",
+    "high/facade 007",
+    "high/facade 008",
+    "high/facade 009",
+    "high/facade 010",
+    "high/facade 011",
+    "high/facade 012",
+    "high/facade 013",
+    "high/facade 014",
+    "high/facade 015",
+    "high/facade 016",
+    "high/facade 017",
+    "high/facade 018",
+    "high/facade 019",
+    "high/facade 020",
+    "high/facade 021",
+    "high/facade 022",
+    "high/facade 023",
+    "high/facade 024",
+    "high/facade 025",
+    "high/facade 026",
+    "high/facade 027",
+    "high/facade 028",
+    "high/facade 029",
+    "high/facade 030",
+    "high/facade 031",
+    "high/facade 032",
+    "high/facade 033",
+    "high/facade 034",
+    "high/facade 035",
+    "high/facade 036",
+    "high/facade 037",
+    "high/facade 038",
+    "high/facade 039",
+    "high/facade 040",
+    "high/facade 041",
     "high/misc/conditioner",
     "high/misc/garbage",
     "high/misc/sewer 1",
     "high/misc/street food",
     "high/misc/trash a",
     "high/misc/trash b",
+    "high/parapet/parapet corner",
+    "high/parapet/parapet fence",
     "high/parapet/parapet tile",
+    "high/road/hydrant",
     "high/roof/roof antenn set",
     "high/roof/roof antenn tile",
     "high/roof/roof antenn top",
     "high/roof/roof dome",
     "high/roof/roof exhaus",
     "high/roof/roof tank",
+    "high/vehicle/car 1",
+    "high/vehicle/car 1 b",
+    "high/vehicle/car 1 c",
+    "high/vehicle/car 1 taxi",
+    "high/vehicle/car 2 ambulance",
+    "high/vehicle/car 2 f dept",
+    "high/vehicle/car 3",
+    "high/vehicle/car 3 b",
+    "high/vehicle/car 3 c",
+    "high/vehicle/car 3 police",
     "high/vehicle/scripted vehicles/car 1",
     "high/vehicle/scripted vehicles/car 1 b",
     "high/vehicle/scripted vehicles/car 1 c",
@@ -6467,41 +8451,88 @@
     "high/wall/background/fill build 06",
     "high/wall/background/fill build 07",
     "high/wall/background/fill build 09",
+    "high/wall/column dwn tile",
+    "high/wall/met corner",
     "high/wall/pipes mix",
     "high/wall/vent corn",
     "high/wall/vent disc 1",
+    "high/wall/vent disc 2",
     "high/wall/vent disc 3",
+    "high/wall/vent disc 4",
     "high/wall/vent disc 5",
     "high/wall/vent tile",
+    "high/wall/wall a/fire ladder a down",
+    "high/wall/wall a/fire ladder a tile",
+    "high/wall/wall a/fire ladder a top",
     "high/wall/wall a/wall1a",
     "high/wall/wall a/wall1a 2",
     "high/wall/wall a/wall1a 3",
+    "high/wall/wall a/wall1a podium",
     "high/wall/wall a/wall1a top",
     "high/wall/wall a/wall2a",
     "high/wall/wall a/wall2a 2",
     "high/wall/wall a/wall3a",
     "high/wall/wall a/wall4a",
     "high/wall/wall a/wall4a 2",
+    "high/wall/wall a/wallreup wall 1",
     "high/wall/wall b/fire ladder b down",
     "high/wall/wall b/fire ladder b tile",
     "high/wall/wall b/fire ladder b top",
     "high/wall/wall b/wall1b",
     "high/wall/wall b/wall1b 2",
     "high/wall/wall b/wall1b 3",
+    "high/wall/wall b/wall1b podium",
     "high/wall/wall b/wall1b top",
     "high/wall/wall b/wall1bb",
     "high/wall/wall b/wall1bb 2",
     "high/wall/wall b/wall1bb 3",
     "high/wall/wall b/wall3b",
     "high/wall/wall b/wall4b",
+    "high/wall/wall c/fire ladder c down",
+    "high/wall/wall c/fire ladder c tile",
+    "high/wall/wall c/fire ladder c top",
+    "kyber/facade 001",
+    "kyber/facade 002",
+    "kyber/facade 003",
+    "kyber/facade 004",
+    "kyber/facade 005",
+    "kyber/facade 006",
+    "kyber/facade 007",
+    "kyber/facade 008",
+    "kyber/facade 009",
+    "kyber/facade 010",
+    "kyber/facade 011",
+    "kyber/facade 012",
+    "kyber/facade 013",
+    "kyber/facade 014",
+    "kyber/facade 015",
+    "kyber/facade 016",
+    "kyber/facade 017",
+    "kyber/facade 018",
+    "kyber/facade 019",
+    "kyber/facade 020",
+    "kyber/facade 021",
+    "kyber/facade 022",
+    "kyber/facade 023",
+    "kyber/facade 024",
+    "kyber/facade 025",
+    "kyber/facade 026",
+    "kyber/facade 027",
+    "kyber/facade 028",
+    "kyber/facade 029",
     "kyber/ladder/ladder DWN",
     "kyber/ladder/ladder tile A",
     "kyber/neon/neon cafe",
     "kyber/neon/neon hotel",
     "kyber/neon/neon repair",
+    "kyber/road misc/garbage",
     "kyber/road misc/hot dog stand",
+    "kyber/road misc/hydrant 1",
+    "kyber/road misc/hydrant 2",
     "kyber/road misc/sewer entrance",
     "kyber/road misc/small trash",
+    "kyber/road/grass plant 01 doub",
+    "kyber/road/grass plant 02 doub",
     "kyber/subway/semafor wall",
     "kyber/walls 1 floor/wall 1",
     "kyber/walls 1 floor/wall 1 var 1",
@@ -6511,12 +8542,607 @@
     "kyber/walls misc/canalization",
     "kyber/walls misc/conditioner",
     "kyber/walls misc/power box",
+    "kyber/walls misc/wall part 1",
+    "kyber/walls misc/wall part 2",
+    "kyber/walls/wall 1 up",
+    "kyber/walls/wall 1 up clean",
+    "kyber/walls/wall 1 up corner",
     "kyber/walls/wall tile",
     "kyber/walls/wall window 1",
     "kyber/walls/wall window 1 b",
     "kyber/walls/wall window 2",
     "kyber/walls/wall window 3",
     "kyber/wires/electric box",
-    "kyber/wires/vert wall wires tile"
-  ]
+    "kyber/wires/vert wall wires tile",
+    "kyber/wires/wires last C",
+    "kyber/wires/wires last D"
+  ],
+  "scenes": {
+    "high": "Assets/HighCity/Demo City.unity",
+    "kyber": "Assets/KyberCity/DemoScene.unity",
+    "cyber": "Assets/CyberCity/city.unity"
+  },
+  "_scenes": "The packs' demo streets, as their artists assembled them (Phase 24): the importer cuts each into facade strips (tools/import-city.ts cutFacades), stretches of a street's wall with everything hung on it, baked as pieces \"<pack>/facade NNN\" in the strip's own frame (x along the wall from its left as you face it, y up from its foot, z out of the wall, its plane at z 0), measured into `facades` (width, height, the share of it that is wall) and `measured` like any piece.",
+  "facades": {
+    "cyber/facade 001": {
+      "width": 14,
+      "height": 16.81,
+      "wall": 0.91,
+      "from": "x+ 1.9 -80.4..-66.4 y 0.4"
+    },
+    "cyber/facade 002": {
+      "width": 14,
+      "height": 20,
+      "wall": 0.56,
+      "from": "x+ 1.9 -52.4..-38.4 y 0.4"
+    },
+    "cyber/facade 003": {
+      "width": 14,
+      "height": 36.12,
+      "wall": 0.73,
+      "from": "x+ 34.0 -16.4..-2.4 y 0.4"
+    },
+    "cyber/facade 004": {
+      "width": 18,
+      "height": 28,
+      "wall": 0.64,
+      "from": "x+ 34.0 -2.4..15.6 y 0.4"
+    },
+    "cyber/facade 005": {
+      "width": 10,
+      "height": 32.04,
+      "wall": 0.47,
+      "from": "x- -14.0 -26.4..-16.4 y 0.4"
+    },
+    "cyber/facade 006": {
+      "width": 14,
+      "height": 16,
+      "wall": 1.14,
+      "from": "z+ -40.4 -46.0..-32.0 y 0.4"
+    },
+    "cyber/facade 007": {
+      "width": 17.79,
+      "height": 28.19,
+      "wall": 0.77,
+      "from": "z- -8.4 2.0..19.8 y 0.4"
+    },
+    "cyber/facade 008": {
+      "width": 8,
+      "height": 11.71,
+      "wall": 0.68,
+      "from": "z+ 7.6 -22.0..-14.0 y 0.4"
+    },
+    "cyber/facade 009": {
+      "width": 16,
+      "height": 24.71,
+      "wall": 0.61,
+      "from": "z+ 7.6 2.0..18.0 y 4.4"
+    },
+    "cyber/facade 010": {
+      "width": 14,
+      "height": 16,
+      "wall": 1.14,
+      "from": "z- -52.3 -46.0..-32.0 y 0.4"
+    },
+    "cyber/facade 011": {
+      "width": 8,
+      "height": 16,
+      "wall": 1,
+      "from": "x+ -14.1 -40.4..-32.4 y 8.4"
+    },
+    "cyber/facade 012": {
+      "width": 16,
+      "height": 20,
+      "wall": 0.65,
+      "from": "x+ -22.2 -68.4..-52.4 y 0.4"
+    },
+    "cyber/facade 013": {
+      "width": 15.61,
+      "height": 15.71,
+      "wall": 0.55,
+      "from": "z+ -60.2 -22.0..-6.4 y 4.4"
+    },
+    "cyber/facade 014": {
+      "width": 6.11,
+      "height": 12.57,
+      "wall": 1.03,
+      "from": "z- -61.2 -19.2..-13.1 y 12.5"
+    },
+    "cyber/facade 015": {
+      "width": 14,
+      "height": 16,
+      "wall": 0.57,
+      "from": "z+ -16.7 -22.0..-8.0 y 8.4"
+    },
+    "cyber/facade 016": {
+      "width": 8,
+      "height": 12,
+      "wall": 1,
+      "from": "z+ -16.7 26.0..34.0 y 8.4"
+    },
+    "cyber/facade 017": {
+      "width": 8,
+      "height": 20.15,
+      "wall": 0.98,
+      "from": "z- -76.1 -22.0..-14.0 y 0.4"
+    },
+    "cyber/facade 018": {
+      "width": 14,
+      "height": 20,
+      "wall": 0.57,
+      "from": "x+ -6.0 7.6..21.6 y 0.4"
+    },
+    "cyber/facade 019": {
+      "width": 8,
+      "height": 20,
+      "wall": 0.6,
+      "from": "z+ -8.4 -34.0..-26.0 y 0.4"
+    },
+    "cyber/facade 020": {
+      "width": 8,
+      "height": 12,
+      "wall": 0.5,
+      "from": "x- -22.1 5.6..13.6 y 0.4"
+    },
+    "cyber/facade 021": {
+      "width": 8,
+      "height": 20,
+      "wall": 0.6,
+      "from": "z+ -96.4 -6.0..2.0 y 0.4"
+    },
+    "cyber/facade 022": {
+      "width": 16,
+      "height": 24.01,
+      "wall": 0.5,
+      "from": "z+ -96.7 -22.0..-6.0 y 0.4"
+    },
+    "cyber/facade 023": {
+      "width": 8,
+      "height": 20,
+      "wall": 0.95,
+      "from": "z+ 15.7 -6.0..2.0 y 0.4"
+    },
+    "cyber/facade 024": {
+      "width": 7.71,
+      "height": 16.15,
+      "wall": 0.49,
+      "from": "x+ -2.6 -48.8..-41.1 y 5.3"
+    },
+    "cyber/facade 025": {
+      "width": 12,
+      "height": 16.19,
+      "wall": 0.52,
+      "from": "x- -46.0 -52.4..-40.4 y 0.2"
+    },
+    "cyber/facade 026": {
+      "width": 8,
+      "height": 16,
+      "wall": 1,
+      "from": "z+ -80.4 2.0..10.0 y 0.4"
+    },
+    "high/facade 001": {
+      "width": 14,
+      "height": 39.65,
+      "wall": 0.63,
+      "from": "z- 18.9 5.0..19.0 y -13.0"
+    },
+    "high/facade 002": {
+      "width": 19.27,
+      "height": 28.5,
+      "wall": 0.74,
+      "from": "x- -34.2 -37.3..-18.0 y 1.0"
+    },
+    "high/facade 003": {
+      "width": 14,
+      "height": 21.98,
+      "wall": 0.62,
+      "from": "x- -34.2 -14.0..-0.0 y -21.5"
+    },
+    "high/facade 004": {
+      "width": 10,
+      "height": 22.73,
+      "wall": 0.56,
+      "from": "x- -34.2 -0.0..10.0 y -21.5"
+    },
+    "high/facade 005": {
+      "width": 14,
+      "height": 43,
+      "wall": 0.63,
+      "from": "x+ -43.9 32.3..46.3 y -19.5"
+    },
+    "high/facade 006": {
+      "width": 10,
+      "height": 48.5,
+      "wall": 0.99,
+      "from": "z+ -27.6 -54.6..-44.6 y -19.2"
+    },
+    "high/facade 007": {
+      "width": 10,
+      "height": 29.7,
+      "wall": 0.94,
+      "from": "z+ -27.6 -34.6..-24.6 y 1.0"
+    },
+    "high/facade 008": {
+      "width": 20,
+      "height": 25.24,
+      "wall": 0.48,
+      "from": "z+ 9.8 -63.0..-43.0 y -15.5"
+    },
+    "high/facade 009": {
+      "width": 10.39,
+      "height": 29,
+      "wall": 0.53,
+      "from": "z+ 9.8 9.0..19.4 y -9.5"
+    },
+    "high/facade 010": {
+      "width": 6.5,
+      "height": 36.46,
+      "wall": 0.54,
+      "from": "x- -42.8 -26.5..-20.0 y -17.0"
+    },
+    "high/facade 011": {
+      "width": 10,
+      "height": 48.5,
+      "wall": 0.99,
+      "from": "x+ -45.1 -37.1..-27.1 y -19.2"
+    },
+    "high/facade 012": {
+      "width": 10,
+      "height": 16.5,
+      "wall": 0.97,
+      "from": "x+ -45.1 45.8..55.8 y -3.5"
+    },
+    "high/facade 013": {
+      "width": 10,
+      "height": 28.5,
+      "wall": 0.98,
+      "from": "z- 24.3 -67.0..-57.0 y 1.0"
+    },
+    "high/facade 014": {
+      "width": 12,
+      "height": 25.22,
+      "wall": 0.61,
+      "from": "z- 24.3 -19.0..-7.0 y -0.3"
+    },
+    "high/facade 015": {
+      "width": 14,
+      "height": 18.8,
+      "wall": 0.58,
+      "from": "z- -9.8 -29.0..-15.0 y 4.7"
+    },
+    "high/facade 016": {
+      "width": 8,
+      "height": 14.78,
+      "wall": 0.95,
+      "from": "z- -9.8 -15.0..-7.0 y -0.3"
+    },
+    "high/facade 017": {
+      "width": 10,
+      "height": 23,
+      "wall": 0.87,
+      "from": "x- -28.7 30.0..40.0 y -5.5"
+    },
+    "high/facade 018": {
+      "width": 8,
+      "height": 16,
+      "wall": 1,
+      "from": "z- 24.6 -57.0..-49.0 y 1.0"
+    },
+    "high/facade 019": {
+      "width": 16,
+      "height": 22.53,
+      "wall": 0.53,
+      "from": "z- 24.6 -7.0..9.0 y 1.0"
+    },
+    "high/facade 020": {
+      "width": 10,
+      "height": 21.99,
+      "wall": 0.92,
+      "from": "x+ -31.1 -0.0..10.0 y -21.5"
+    },
+    "high/facade 021": {
+      "width": 16,
+      "height": 25.48,
+      "wall": 0.59,
+      "from": "x+ -43.4 -6.0..10.0 y -15.5"
+    },
+    "high/facade 022": {
+      "width": 8,
+      "height": 18.52,
+      "wall": 0.86,
+      "from": "x+ -29.3 -24.0..-16.0 y 1.0"
+    },
+    "high/facade 023": {
+      "width": 16,
+      "height": 21.25,
+      "wall": 0.48,
+      "from": "x+ -47.3 -10.0..6.0 y -0.3"
+    },
+    "high/facade 024": {
+      "width": 8.02,
+      "height": 20.3,
+      "wall": 0.98,
+      "from": "z+ 4.9 -70.9..-62.9 y -0.7"
+    },
+    "high/facade 025": {
+      "width": 16,
+      "height": 10.19,
+      "wall": 0.59,
+      "from": "z+ 4.9 -12.7..3.3 y -9.4"
+    },
+    "high/facade 026": {
+      "width": 16,
+      "height": 16.75,
+      "wall": 0.8,
+      "from": "z+ 5.7 -63.0..-47.0 y 4.7"
+    },
+    "high/facade 027": {
+      "width": 12,
+      "height": 14.8,
+      "wall": 0.5,
+      "from": "z+ -0.2 -1.0..11.0 y 4.7"
+    },
+    "high/facade 028": {
+      "width": 6,
+      "height": 26.8,
+      "wall": 0.95,
+      "from": "z- 35.7 -75.7..-69.7 y 26.2"
+    },
+    "high/facade 029": {
+      "width": 6,
+      "height": 18.8,
+      "wall": 1.09,
+      "from": "x- -18.9 24.0..30.0 y 4.7"
+    },
+    "high/facade 030": {
+      "width": 6,
+      "height": 26.8,
+      "wall": 0.95,
+      "from": "x+ -70.0 35.5..41.5 y 26.2"
+    },
+    "high/facade 031": {
+      "width": 12,
+      "height": 16.23,
+      "wall": 0.66,
+      "from": "x- 9.3 -2.0..10.0 y 4.7"
+    },
+    "high/facade 032": {
+      "width": 8,
+      "height": 21.49,
+      "wall": 0.74,
+      "from": "x+ -47.8 -18.0..-10.0 y 1.0"
+    },
+    "high/facade 033": {
+      "width": 14,
+      "height": 20.23,
+      "wall": 0.48,
+      "from": "z+ -4.3 -29.0..-15.0 y 4.7"
+    },
+    "high/facade 034": {
+      "width": 16,
+      "height": 16,
+      "wall": 0.63,
+      "from": "z- -15.5 -21.0..-5.0 y 1.0"
+    },
+    "high/facade 035": {
+      "width": 8,
+      "height": 16.5,
+      "wall": 0.97,
+      "from": "z- -17.5 -34.4..-26.4 y 1.0"
+    },
+    "high/facade 036": {
+      "width": 10,
+      "height": 16.5,
+      "wall": 0.97,
+      "from": "z- 30.3 -29.0..-19.0 y 1.0"
+    },
+    "high/facade 037": {
+      "width": 10,
+      "height": 12.5,
+      "wall": 0.96,
+      "from": "x- -8.7 -20.0..-10.0 y 1.0"
+    },
+    "high/facade 038": {
+      "width": 8,
+      "height": 12,
+      "wall": 1,
+      "from": "x+ -49.5 24.0..32.0 y 5.0"
+    },
+    "high/facade 039": {
+      "width": 8,
+      "height": 12,
+      "wall": 1,
+      "from": "z+ -16.7 -29.0..-21.0 y 5.0"
+    },
+    "high/facade 040": {
+      "width": 10,
+      "height": 20.5,
+      "wall": 0.59,
+      "from": "x- 9.5 18.9..28.9 y 5.0"
+    },
+    "high/facade 041": {
+      "width": 10,
+      "height": 14.86,
+      "wall": 0.81,
+      "from": "x+ -57.4 24.0..34.0 y 17.0"
+    },
+    "kyber/facade 001": {
+      "width": 14,
+      "height": 22,
+      "wall": 0.47,
+      "from": "x+ -24.0 -52.0..-38.0 y 0.4"
+    },
+    "kyber/facade 002": {
+      "width": 20,
+      "height": 22,
+      "wall": 0.54,
+      "from": "x+ -24.0 -38.0..-18.0 y 0.4"
+    },
+    "kyber/facade 003": {
+      "width": 16,
+      "height": 16.05,
+      "wall": 0.62,
+      "from": "x- -31.9 -42.0..-26.0 y 0.4"
+    },
+    "kyber/facade 004": {
+      "width": 8,
+      "height": 10.05,
+      "wall": 0.6,
+      "from": "x- -31.9 -22.0..-14.0 y 6.4"
+    },
+    "kyber/facade 005": {
+      "width": 12,
+      "height": 39.05,
+      "wall": 1.53,
+      "from": "z+ -7.0 -18.0..-6.0 y -0.1"
+    },
+    "kyber/facade 006": {
+      "width": 8,
+      "height": 26.42,
+      "wall": 0.52,
+      "from": "x+ 18.0 -10.0..-2.0 y 0.0"
+    },
+    "kyber/facade 007": {
+      "width": 8,
+      "height": 24,
+      "wall": 0.5,
+      "from": "x+ 18.0 14.0..22.0 y 0.4"
+    },
+    "kyber/facade 008": {
+      "width": 8,
+      "height": 28.75,
+      "wall": 0.7,
+      "from": "x+ -6.0 14.0..22.0 y 0.4"
+    },
+    "kyber/facade 009": {
+      "width": 16,
+      "height": 16,
+      "wall": 0.72,
+      "from": "z+ 22.0 -22.0..-6.0 y 4.4"
+    },
+    "kyber/facade 010": {
+      "width": 12,
+      "height": 18.68,
+      "wall": 0.56,
+      "from": "x+ 2.0 -8.0..4.0 y 16.1"
+    },
+    "kyber/facade 011": {
+      "width": 8,
+      "height": 24.37,
+      "wall": 0.64,
+      "from": "x- -6.0 -6.0..2.0 y 10.4"
+    },
+    "kyber/facade 012": {
+      "width": 8,
+      "height": 16.35,
+      "wall": 0.98,
+      "from": "x- -14.0 14.0..22.0 y 12.8"
+    },
+    "kyber/facade 013": {
+      "width": 8.64,
+      "height": 29.11,
+      "wall": 1.5,
+      "from": "z- 15.0 -14.6..-6.0 y 6.2"
+    },
+    "kyber/facade 014": {
+      "width": 12,
+      "height": 10.05,
+      "wall": 0.8,
+      "from": "z- -10.0 -34.0..-22.0 y 18.4"
+    },
+    "kyber/facade 015": {
+      "width": 8,
+      "height": 16,
+      "wall": 0.87,
+      "from": "z+ 5.4 42.1..50.1 y 13.0"
+    },
+    "kyber/facade 016": {
+      "width": 12,
+      "height": 8.12,
+      "wall": 0.99,
+      "from": "z- 6.0 14.0..26.0 y 21.4"
+    },
+    "kyber/facade 017": {
+      "width": 12,
+      "height": 17.6,
+      "wall": 0.53,
+      "from": "x+ 42.1 -6.6..5.4 y 4.4"
+    },
+    "kyber/facade 018": {
+      "width": 12,
+      "height": 14.05,
+      "wall": 0.66,
+      "from": "z- -69.9 -40.0..-28.0 y 0.4"
+    },
+    "kyber/facade 019": {
+      "width": 8,
+      "height": 23.92,
+      "wall": 0.59,
+      "from": "z+ 6.0 -34.0..-26.0 y 13.0"
+    },
+    "kyber/facade 020": {
+      "width": 8,
+      "height": 8.49,
+      "wall": 5.29,
+      "from": "z+ -11.0 22.0..30.0 y -0.1"
+    },
+    "kyber/facade 021": {
+      "width": 20.21,
+      "height": 18.92,
+      "wall": 1.05,
+      "from": "x+ -27.0 -6.2..14.0 y 10.5"
+    },
+    "kyber/facade 022": {
+      "width": 9.92,
+      "height": 18.49,
+      "wall": 0.79,
+      "from": "z+ -11.6 -17.0..-7.0 y 0.0"
+    },
+    "kyber/facade 023": {
+      "width": 11.58,
+      "height": 17.85,
+      "wall": 1.01,
+      "from": "z+ -34.2 -33.2..-21.6 y 3.2"
+    },
+    "kyber/facade 024": {
+      "width": 8,
+      "height": 12.6,
+      "wall": 0.48,
+      "from": "z+ -2.9 46.1..54.1 y 0.4"
+    },
+    "kyber/facade 025": {
+      "width": 8.6,
+      "height": 12.97,
+      "wall": 0.55,
+      "from": "x+ -38.0 9.4..18.0 y 0.0"
+    },
+    "kyber/facade 026": {
+      "width": 11.35,
+      "height": 12.97,
+      "wall": 0.96,
+      "from": "z- -49.7 -33.0..-21.6 y 6.8"
+    },
+    "kyber/facade 027": {
+      "width": 9.92,
+      "height": 18.49,
+      "wall": 0.79,
+      "from": "z+ 29.5 -17.0..-7.0 y 0.0"
+    },
+    "kyber/facade 028": {
+      "width": 8,
+      "height": 14.48,
+      "wall": 1.73,
+      "from": "x+ 15.2 6.0..14.0 y 21.0"
+    },
+    "kyber/facade 029": {
+      "width": 11.02,
+      "height": 12.68,
+      "wall": 0.54,
+      "from": "z+ -26.4 -33.2..-22.2 y 3.8"
+    }
+  },
+  "simplify": {
+    "strips": 0.015,
+    "_note": "tools/import-city.ts bake: a demo street's facade strip simplified (meshoptimizer, every part's edges and every UV seam held) to this many metres of error. Measured on Kyber's 29 strips (kit v4): 530k triangles, 368k at 5 mm, 281k at 10 mm, 214k at 20 mm, 183k at 40 mm; the loss is in cables, pipes and round parts, the walls' edges held."
+  }
 }

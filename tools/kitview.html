@@ -38,7 +38,8 @@ const sun = new THREE.DirectionalLight(0xfff0e0, 1.6);
 sun.position.set(-3, 5, 4);
 scene.add(sun);
 
-const file = `/models/paid/city/${pack}-v${kit.version}${q.get("lo") ? "-lo" : q.get("max") ? "-max" : ""}.glb`;
+// ?file=<name> draws another of the kit's files (a demo street's facade strips, say)
+const file = q.get("file") ? `/models/paid/city/${q.get("file")}` : `/models/paid/city/${pack}-v${kit.version}${q.get("lo") ? "-lo" : q.get("max") ? "-max" : ""}.glb`;
 const gltf = await new GLTFLoader().setKTX2Loader(new KTX2Loader().setTranscoderPath("/libs/basis/").detectSupport(renderer)).loadAsync(file);
 const pieces = gltf.scene.children.filter((o) => String(o.userData.id ?? o.name).toLowerCase().includes(filter));
 // each piece in a cell sized to the largest of them, centred on its own bounds

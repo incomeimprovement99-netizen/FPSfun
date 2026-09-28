@@ -107,6 +107,8 @@ export const FIRE_ESCAPES: Array<{
   /** the doorways into the open storeys it passes: a point on the landing in front of each, and one in the room */
   doors: Array<{ out: { x: number; z: number; y: number }; in: { x: number; z: number; y: number } }>;
 }> = [];
+/** the city's street and the blocks' pavements, which atmosphere.ts makes wet from Balanced up */
+export const CITY_GROUND: THREE.MeshStandardMaterial[] = [];
 /** where steam rises in the centre (city.json steam; steam.ts draws it), world metres: the metro's stairwells, drains at the kerbs, roof plant */
 export const STEAM_SOURCES: Array<{ x: number; y: number; z: number; kind: "metro" | "drain" | "vent" }> = [];
 /** the centre's flickering signs (city.json flicker; steam.ts dims them): each in a material of its own, its steady light, and a seed */
@@ -309,6 +311,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   const brick = tex("skBrick", C.facadeTile * 0.6, { color: 0x9a8a88, roughness: 0.85, metalness: 0.02 });
   const street = tex("skStreet", 8, { color: 0x9aa0aa, roughness: 0.95, metalness: 0.02 });
   const pave = tex("skPave", 4, { color: 0x8a8e96, roughness: 0.9, metalness: 0.02 });
+  CITY_GROUND.length = 0;
+  CITY_GROUND.push(street, pave);
   const concrete = tex("skConcrete", 4, { color: 0x6a6e76, roughness: 0.9, metalness: 0.02 });
   /** the Sky Lobby's ceiling light, and the frame of a window a pad throws you through (skyLobby) */
   const lobbyLight = emissive(0xfff0d2, 2.2);

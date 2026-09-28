@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Pack scene view</title>
+<style>
+  html, body { margin: 0; background: #111; overflow: hidden; }
+</style>
+</head>
+<body>
+<!--
+  A pack's own demo scene (tools/import-city.ts CITY_SCENE bakes it into models/paid/city/<pack>-scene.glb) drawn
+  with lighting like the game's, from ?eye=x,y,z&at=x,y,z (the scene's own metres, or "auto" for over its middle).
+  A dev page for comparing the packs' composition with ours; the bought files are local only.
+-->
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+const q = new URLSearchParams(location.search);
+const W = 1600, H = 900;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = Number(q.get("exposure") ?? 1);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const day = q.get("day") !== null;
+const fogCol = new THREE.Color(q.get("fog") ?? (day ? "#b7c1c6" : "#2b2d3c"));
+scene.background = fogCol;
+scene.fog = new THREE.Fog(fogCol, Number(q.get("near") ?? 10), Number(q.get("far") ?? 260));
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = Number(q.get("env") ?? (day ? 0.9 : 0.35));
+scene.add(new THREE.HemisphereLight(day ? 0xdde6ee : 0x6070a0, 0x202028, day ? 1.2 : 0.5));
+const sun = new THREE.DirectionalLight(day ? 0xfff1d8 : 0x8fa6ff, day ? 2.5 : 0.5);
+sun.position.set(80, 200, 60);
+scene.add(sun);
+const ktx2 = new KTX2Loader().setTranscoderPath("/libs/basis/").detectSupport(renderer);
+const gltf = await new GLTFLoader().setKTX2Loader(ktx2).loadAsync(`/models/paid/city/${q.get("pack") ?? "high"}-scene.glb`);
+scene.add(gltf.scene);
+const box = new THREE.Box3().setFromObject(gltf.scene);
+const c = box.getCenter(new THREE.Vector3());
+const cam = new THREE.PerspectiveCamera(Number(q.get("fov") ?? 75), W / H, 0.05, 3000);
+const v = (s) => s.split(",").map(Number);
+if (q.get("eye")) {
+  cam.position.fromArray(v(q.get("eye")));
+  cam.lookAt(new THREE.Vector3().fromArray(v(q.get("at"))));
+} else {
+  cam.position.set(c.x + 120, box.min.y + 140, c.z + 120);
+  cam.lookAt(c.x, box.min.y, c.z);
+}
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, cam));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), 0.6, 0.5, 0.85));
+composer.addPass(new OutputPass());
+composer.render();
+window.__scene = { min: box.min.toArray(), max: box.max.toArray(), centre: c.toArray() };
+window.__done = true;
+</script>
+</body>
+</html>

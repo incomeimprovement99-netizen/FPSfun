@@ -18,7 +18,7 @@ export interface KitPlace {
   /** how far its front stands out of the wall it is on, when that is not what its measured relief says (a canyon's pressed module) */
   out?: number;
   /** what it is, for the checks' clearances: facade and parapet stand flush, the rest stand out of a wall or stand free */
-  kind: "facade" | "flat" | "band" | "car" | "podium" | "shop" | "parapet" | "cornice" | "sign" | "blade" | "poster" | "ac" | "billboard" | "roof" | "antenna" | "lamp" | "cable" | "pipe" | "wire" | "prop" | "skyline" | "zeppelin" | "escape";
+  kind: "facade" | "flat" | "band" | "car" | "podium" | "shop" | "parapet" | "cornice" | "sign" | "blade" | "poster" | "ac" | "billboard" | "roof" | "antenna" | "lamp" | "cable" | "pipe" | "wire" | "prop" | "skyline" | "zeppelin" | "escape" | "strip";
 }
 
 type Facing = "px" | "nx" | "pz" | "nz";
@@ -38,7 +38,9 @@ const STOREY = cityCfg.storey;
 /** how much of a piece's front-facing area stands within 0.3 m of its front (import-city.ts measures it) */
 const FRONT = (kit as unknown as { front?: Record<string, number> }).front ?? {};
 /** a room module: its facade is its front, a room behind the glass (dress rooms) */
-const isRoom = (id: string): boolean => (FRONT[id] ?? 0) >= D.rooms.front && planeOf(id) > D.relief;
+export const isRoom = (id: string): boolean => (FRONT[id] ?? 0) >= D.rooms.front && planeOf(id) > D.relief;
+/** a module with relief (Phase 23.4): a room, or frames and cornices before a wall; either sits whole, its front on the face */
+const hasDepth = (id: string): boolean => planeOf(id) > D.rooms.flat;
 /** the rotation about y that turns +z to face each way */
 const ANGLE: Record<Facing, number> = { pz: 0, px: Math.PI / 2, nz: Math.PI, nx: -Math.PI / 2 };
 
@@ -54,11 +56,17 @@ export function kitHash(...n: number[]): number {
 }
 const pick = <T,>(list: readonly T[], r: number): T => list[Math.min(list.length - 1, Math.floor(r * list.length))];
 
+/**
+ * Which way a piece faces as measured. A demo street's facade strip is baked facing +z whatever its measured sides
+ * say: a strip's balconies and escapes can outweigh its wall, and dims() taking that side swapped a strip's width
+ * for its depth (three of Kyber's twelve, scaled wrong and leaving holes)
+ */
+const facingOf = (id: string): Facing => (id.includes("/facade ") ? "pz" : (FACING[id] ?? "pz"));
 /** a piece's size once turned to face +z: width along x, height, depth along z */
 function dims(id: string): { w: number; h: number; d: number } | null {
   const m = MEASURED[id];
   if (!m) return null;
-  const f = FACING[id] ?? "pz";
+  const f = facingOf(id);
   const side = f === "px" || f === "nx";
   return { w: side ? m[2] : m[0], h: m[1], d: side ? m[0] : m[2] };
 }
@@ -74,7 +82,7 @@ function standing(id: string, front: boolean): THREE.Matrix4 | null {
   if (!m) return null;
   const [w, h, d, mx, my, mz] = m;
   void h;
-  const f = FACING[id] ?? "pz";
+  const f = facingOf(id);
   const out = new THREE.Matrix4().makeTranslation(-(mx + w / 2), -my, -(mz + d / 2));
   out.premultiply(R.makeRotationY(-ANGLE[f]));
   if (front) out.premultiply(T.makeTranslation(0, 0, -(dims(id)!.d / 2)));
@@ -182,7 +190,7 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
   /** the rooms set so far, their footprints in plan by tower and storey: a west or east room stops short of them */
   const roomsSet: Array<{ t: object; y: number; x0: number; x1: number; z0: number; z1: number }> = [];
   const seat = (id: string, t: (typeof KIT_SITES.towers)[number], f: Face, a: number, b: number, y: number): { sz: number; out: number } | null => {
-    if (!isRoom(id)) return null;
+    if (!hasDepth(id)) return null;
     const dm = dims(id);
     if (!dm) return null;
     const R = D.rooms;
@@ -240,7 +248,29 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
     const fam = familyAt(t.x, t.z);
     // its family's rows, or another of the family's styles (dress styles): neighbours of one family differ
     const styles = [D.rows[fam], ...((D.styles as Record<string, unknown[]>)[fam] ?? [])];
-    const rows = pick(styles, kitHash(t.x, t.z, 90)) as { bay: number; ground: string[]; mid: string[]; top: string[]; far?: string[]; farBay?: number; cornice?: string };
+    type Rows = { bay: number; ground: string[]; mid: string[]; top: string[]; far?: string[]; farBay?: number; cornice?: string };
+    const rows = pick(styles, kitHash(t.x, t.z, 90)) as Rows;
+    // The tower a stack of buildings (dress stack, Phase 23.4): its storeys in bands of stack.storeys, each band one of
+    // the family's styles with its own top storey and a ledge over it, as the packs' own streets stack buildings of five
+    // to eight storeys; band 0 keeps the tower's first style
+    const ST = (D as unknown as { stack?: { storeys: [number, number]; ledge: Record<string, string | null>; ledgeDepth: number } }).stack;
+    const band: number[] = [];
+    const bandTop: boolean[] = [];
+    {
+      let k = 0;
+      let s0 = 0;
+      while (s0 < t.storeys) {
+        const len = ST ? ST.storeys[0] + Math.floor(kitHash(t.x, t.z, 91, k) * (ST.storeys[1] - ST.storeys[0] + 1)) : t.storeys;
+        const s1 = Math.min(t.storeys, s0 + len);
+        for (let s = s0; s < s1; s++) {
+          band[s] = k;
+          bandTop[s] = s === s1 - 1 && s1 < t.storeys;
+        }
+        s0 = s1;
+        k++;
+      }
+    }
+    const rowsAt = (s: number): Rows => (band[s] === 0 ? rows : (pick(styles, kitHash(t.x, t.z, 90, band[s])) as Rows));
     const spire = Math.abs(t.x) < 30 && Math.abs(t.z) < 30;
     for (const f of faces(t.x - t.w / 2, t.x + t.w / 2, t.z - t.d / 2, t.z + t.d / 2)) {
       const len = f.b - f.a;
@@ -253,6 +283,121 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
       const padBay = (u: number) => {
         const [px, pz] = onFace(f, u, 1.8);
         return nearPad(px, pz, bay / 2 + 1.5);
+      };
+      // The demo streets' facade strips (dress strips, Phase 24.3): a street face split into columns, each column a stack
+      // of the family's strips from its foot up, each strip near its own proportions and a whole number of storeys tall,
+      // so the columns' buildings end at different heights as a street's do. The open storeys keep their own walls, a
+      // fire escape, a chimney's mouth and a pad's lane keep the modules across their own width (the columns laid in the
+      // stretches between), and a strip beside a pad's column further out is pressed shallow enough to stand clear of it.
+      const covered: Array<{ a: number; b: number; y0: number; y1: number }> = [];
+      const SF = (D as unknown as { strips?: { families: Record<string, string[]>; col: [number, number]; scale: [number, number]; minStoreys: number; padDepth: number; clear: number } }).strips;
+      const famStrips = SF?.families[fam] ?? [];
+      if (!lean && !canyon && !spire && famStrips.length) {
+        const rooms = [t.lobby, t.park, ...(t.floors ?? [])].filter((v): v is number => v !== undefined).sort((p, q) => p - q);
+        // the stretches of the face between the open storeys, in whole storeys
+        const segs: Array<[number, number]> = [];
+        let from = t.base;
+        for (const r of [...rooms, t.roof]) {
+          if (r - from >= SF!.minStoreys * STOREY - 0.01) segs.push([from, r]);
+          from = r + STOREY;
+        }
+        const Ch = cityCfg.chimneys;
+        // the face's free stretches: less each fire escape's width and each chimney's mouth, `clear` spare either side
+        let free: Array<[number, number]> = [[f.a, f.b]];
+        const cut = (p0: number, p1: number): void => {
+          free = free.flatMap(([p, q]) => (p1 <= p || p0 >= q ? [[p, q] as [number, number]] : ([[p, p0], [p1, q]] as Array<[number, number]>).filter(([p2, q2]) => q2 - p2 > 0.01)));
+        };
+        {
+          const [ox0, oz0] = onFace(f, f.a, -0.5);
+          const [ox1, oz1] = onFace(f, f.b, 1.5);
+          for (const e of KIT_SITES.escapes)
+            if (e.x1 > Math.min(ox0, ox1) && e.x0 < Math.max(ox0, ox1) && e.z1 > Math.min(oz0, oz1) && e.z0 < Math.max(oz0, oz1))
+              if (f.nx !== 0) cut(e.z0 - SF!.clear, e.z1 + SF!.clear);
+              else cut(e.x0 - SF!.clear, e.x1 + SF!.clear);
+          // a chimney within a strip's depth in front of the face, its mouth on the face or its length along it
+          const reach = Math.max(...famStrips.map((sid) => (MEASURED[sid]?.[5] ?? 0) + (dims(sid)?.d ?? 0)));
+          for (const c of Ch.list) {
+            const [cx0, cx1] = [c.x - Ch.width / 2 - Ch.wall, c.x + Ch.width / 2 + Ch.wall];
+            const [lo, hi] = f.nx !== 0 ? [cx0, cx1] : [c.z0, c.z1];
+            const [near, far] = [f.at, f.at + (f.nx || f.nz) * reach].sort((p, q) => p - q);
+            if (hi > near && lo < far) {
+              if (f.nx !== 0) cut(c.z0 - SF!.clear, c.z1 + SF!.clear);
+              else cut(cx0 - SF!.clear, cx1 + SF!.clear);
+            }
+          }
+          // and a pad's lane, where the pad stands so close that a strip beside it would be pressed flatter than padDepth
+          for (const p of pads) {
+            const out = f.nx !== 0 ? (p.x - f.at) * f.nx : (p.z - f.at) * f.nz;
+            const along = f.nx !== 0 ? p.z : p.x;
+            if (out > -1.2 && out - 1.35 < SF!.padDepth) cut(along - 1.2 - SF!.clear, along + 1.2 + SF!.clear);
+          }
+        }
+        // columns across each free stretch, each as wide as a strip of the family, the lot stretched to the stretch; one
+        // too narrow for a column keeps the modules
+        const cols: Array<[number, number]> = [];
+        for (const [s0, s1] of free) {
+          if (s1 - s0 < SF!.col[0] * SF!.scale[0]) continue;
+          const ws: number[] = [];
+          let sum = 0;
+          for (let k = 0; sum < s1 - s0 - SF!.col[0]; k++) {
+            const sid = pick(famStrips, kitHash(t.x, t.z, f.nx, f.nz, s0, k, 60));
+            const w = Math.max(SF!.col[0], Math.min(SF!.col[1], dims(sid)?.w ?? 10));
+            ws.push(w);
+            sum += w;
+          }
+          if (!ws.length) ws.push(s1 - s0);
+          const k = (s1 - s0) / Math.max(1, ws.reduce((p, q) => p + q, 0));
+          let u = s0;
+          for (const w of ws) (cols.push([u, u + w * k]), (u += w * k));
+        }
+        for (const [a, b2] of cols) {
+          const uc = (a + b2) / 2;
+          const doorIn = (y0: number, y1: number) => {
+            const [x0, z0] = onFace(f, a, -0.2);
+            const [x1, z1] = onFace(f, b2, 0.6);
+            return KIT_SITES.doors.some((q) => q.x1 > Math.min(x0, x1) && q.x0 < Math.max(x0, x1) && q.z1 > Math.min(z0, z1) && q.z0 < Math.max(z0, z1) && q.y1 > y0 && q.y0 < y1);
+          };
+          // how far out of the face a strip here may stand: short of the nearest pad's column (the check's, 1.2 m round
+          // the pad) across the column's width; a pad throws you to a roof, so the whole height
+          let room = Infinity;
+          for (const p of pads) {
+            const along = f.nx !== 0 ? p.z : p.x;
+            const out = f.nx !== 0 ? (p.x - f.at) * f.nx : (p.z - f.at) * f.nz;
+            if (along > a - 1.2 && along < b2 + 1.2 && out > -1.2) room = Math.min(room, out - 1.2 - 0.15);
+          }
+          if (room < SF!.padDepth) continue;
+          for (const [y0, y1] of segs) {
+            if (doorIn(y0, y1)) continue;
+            let y = y0;
+            for (let k = 0; y1 - y >= SF!.minStoreys * STOREY - 0.01; k++) {
+              const sid = pick(famStrips, kitHash(uc, y, f.nx, f.nz, k, 61));
+              const sd = dims(sid);
+              if (!sd) break;
+              const sx = (b2 - a) / sd.w;
+              // near its own proportions, a whole number of storeys, never past the stretch's top
+              const want = Math.min(SF!.scale[1], Math.max(SF!.scale[0], sx)) * sd.h;
+              let storeys = Math.max(SF!.minStoreys, Math.round(want / STOREY));
+              const left = Math.round((y1 - y) / STOREY);
+              if (storeys > left || left - storeys < SF!.minStoreys) storeys = left;
+              const h = storeys * STOREY;
+              const mz = (MEASURED[sid] ?? [0, 0, 0, 0, 0, 0])[5];
+              // its front (its wall at the face, what stands out of it in front) pressed to the room a pad leaves
+              const front = mz + sd.d;
+              const sz = front > room ? room / front : 1;
+                const [x, z] = onFace(f, uc, (mz + sd.d / 2) * sz);
+              add(sid, place(sid, x, y, z, f.yaw, sx, h / sd.h, sz, false), 0, "strip");
+              covered.push({ a, b: b2, y0: y, y1: y + h });
+              y += h;
+            }
+          }
+        }
+      }
+      /** the stretches of face at storey y the strips leave to the modules */
+      const openAt = (y: number): Array<[number, number]> => {
+        let out: Array<[number, number]> = [[f.a, f.b]];
+        for (const c of covered)
+          if (c.y0 <= y + 0.01 && c.y1 >= y + STOREY - 0.01) out = out.flatMap(([p, q]) => (c.b <= p || c.a >= q ? [[p, q] as [number, number]] : ([[p, c.a], [c.b, q]] as Array<[number, number]>).filter(([p2, q2]) => q2 - p2 > 0.3)));
+        return out;
       };
       for (let s = 0; s < t.storeys; s++) {
         const y = t.base + s * STOREY;
@@ -270,10 +415,11 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
             }
           } else {
             // the tower's own row for the storey, its relief pressed into canyonRelief
-            const cEdge = s === 0 || s === t.storeys - 1;
-            const cFar = !cEdge && !nearDeck(y) && rows.far;
-            const cRow = s === 0 ? rows.ground : s === t.storeys - 1 ? rows.top : cFar ? rows.far! : rows.mid;
-            const cn = Math.max(1, Math.round(len / (cFar && rows.farBay ? rows.farBay : rows.bay)));
+            const cr = rowsAt(s);
+            const cEdge = s === 0 || s === t.storeys - 1 || bandTop[s];
+            const cFar = !cEdge && !nearDeck(y) && cr.far;
+            const cRow = s === 0 ? cr.ground : s === t.storeys - 1 || bandTop[s] ? cr.top : cFar ? cr.far! : cr.mid;
+            const cn = Math.max(1, Math.round(len / (cFar && cr.farBay ? cr.farBay : cr.bay)));
             const cb = len / cn;
             const id = pick(cRow, kitHash(t.x, t.z, s, 32));
             const dm = dims(id);
@@ -292,12 +438,14 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
           continue;
         }
         const leanMid = (D.lean.mid as Record<string, string[]>)[fam];
-        const edge = s === 0 || s === t.storeys - 1;
-        const far = !edge && !nearDeck(y) && !(lean && leanMid) && rows.far;
-        const row = s === 0 ? rows.ground : s === t.storeys - 1 ? rows.top : lean && leanMid ? leanMid : far ? rows.far! : rows.mid;
+        const rs = rowsAt(s);
+        const edge = s === 0 || s === t.storeys - 1 || bandTop[s];
+        const far = !edge && !nearDeck(y) && !(lean && leanMid) && rs.far;
+        const leanTop = (D.lean as unknown as { top?: Record<string, string[]> }).top?.[fam];
+        const row = s === 0 ? rs.ground : s === t.storeys - 1 || bandTop[s] ? (lean && leanTop ? leanTop : rs.top) : lean && leanMid ? leanMid : far ? rs.far! : rs.mid;
         const id = pick(row, kitHash(t.x, t.z, s, 1));
-        // a far row's bays are its own width
-        const rn = far && rows.farBay ? Math.max(1, Math.round(len / rows.farBay)) : n;
+        // a far row's bays are its own width, and a band's its style's
+        const rn = Math.max(1, Math.round(len / (far && rs.farBay ? rs.farBay : rs.bay)));
         const rb = len / rn;
         // a door the city cut in this storey (the Spire's drop): the bays over it narrowed to the wall either side
         const [fx0, fz0] = onFace(f, f.a, -0.1);
@@ -306,26 +454,34 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
           (q) => Math.max(fx0, fx1) > q.x0 && Math.min(fx0, fx1) < q.x1 && Math.max(fz0, fz1) > q.z0 && Math.min(fz0, fz1) < q.z1 && q.y0 < y + STOREY - 0.05 && q.y1 > y + 0.05,
         );
         const [da, db] = doorHere ? (f.nx !== 0 ? [doorHere.z0, doorHere.z1] : [doorHere.x0, doorHere.x1]) : [Infinity, -Infinity];
-        for (let i = 0; i < rn; i++) {
-          const u = f.a + (i + 0.5) * rb;
-          const spans = u + rb / 2 <= da || u - rb / 2 >= db ? [[u - rb / 2, u + rb / 2]] : [[u - rb / 2, da], [db, u + rb / 2]].filter(([a, b]) => b - a > 0.5);
+        // the bays over what the strips leave open, each stretch in bays of about the row's width
+        const bays: Array<[number, number]> = [];
+        for (const [p0, q0] of openAt(y)) {
+          const m = Math.max(1, Math.round((q0 - p0) / rb));
+          for (let i = 0; i < m; i++) bays.push([p0 + (i * (q0 - p0)) / m, p0 + ((i + 1) * (q0 - p0)) / m]);
+        }
+        for (const [ba, bb] of bays) {
+          const spans = bb <= da || ba >= db ? [[ba, bb]] : [[ba, da], [db, bb]].filter(([a, b]) => b - a > 0.5);
           for (const [a, b] of spans) {
             const um = (a + b) / 2;
-            const piece = padBay(um) ? pick(D.flat, kitHash(um, s, 31)) : id;
+            // a pad's bay keeps a flat panel only where its row's module would stand out of the face (it cannot sit whole)
+            // the row's module whole, its front on the face (seat); a pad's bay keeps a flat panel only where it cannot
+            // sit whole (at a corner or before a stair core it would stand out into the pad's column)
+            const room = seat(id, t, f, a, b, y);
+            const piece = padBay(um) && !room && planeOf(id) + D.outset > 0.15 ? pick(D.flat, kitHash(um, s, 31)) : id;
             const pd = dims(piece);
             if (!pd) continue;
-            // a room module whole, its front on the face; behind a fire escape any other is pressed as a canyon's is, so
-            // its relief stays behind the landings
+            // behind a fire escape a module that cannot sit whole is pressed as a canyon's is, so its relief stays behind
+            // the landings
             const [ex, ez] = onFace(f, um, 1);
             const behind = inEscape(ex, ez, y + STOREY / 2, -0.5 + (b - a) / 2);
-            const room = piece === id ? seat(piece, t, f, a, b, y) : null;
             const r = room ?? (behind ? { sz: planeOf(piece) > D.canyonRelief ? D.canyonRelief / planeOf(piece) : 1, out: D.outset + Math.min(planeOf(piece), D.canyonRelief) } : relief(piece));
             const [x, z] = onFace(f, um, r.out);
             add(piece, place(piece, x, y, z, f.yaw, (b - a) / pd.w, STOREY / pd.h, r.sz, true), 0, piece === id ? "facade" : "flat", room ? r.out : undefined);
           }
         }
         // up a street wall near a deck: an AC unit on a bay here and there, a pipe and a run of wires down one column
-        if (!canyon && !edge && nearDeck(y)) {
+        if (!canyon && !edge && nearDeck(y) && openAt(y).length === 1 && openAt(y)[0][1] - openAt(y)[0][0] > len - 0.5) {
           for (let i = 0; i < n; i++) {
             const u = f.a + (i + 0.5) * bay;
             const [px, pz] = onFace(f, u, 0);
@@ -364,6 +520,29 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
           if (atBridgeEnd(x, z, t.roof)) continue;
           add(D.parapet, place(D.parapet, x, t.roof, z, f.yaw, pb / pd.w, 1, 1, true), 0, "parapet");
         }
+      // a ledge over each band's top (dress stack): the line between two stacked buildings, pressed to ledgeDepth; not in a
+      // canyon, a pad's column, a fire escape, a chimney's mouth, nor against a room's storey
+      const ledge = ST?.ledge[fam];
+      const ld = ledge ? dims(ledge) : null;
+      if (ST && ledge && ld && !canyon) {
+        const rooms = [t.lobby, t.park, ...(t.floors ?? [])].filter((v): v is number => v !== undefined);
+        const Ch = cityCfg.chimneys;
+        for (let s = 0; s < t.storeys; s++) {
+          if (!bandTop[s]) continue;
+          const yTop = t.base + (s + 1) * STOREY;
+          if (rooms.some((r) => Math.abs(r - yTop) < 0.5 || Math.abs(r + STOREY - yTop) < 0.5)) continue;
+          const lsz = Math.min(1, ST.ledgeDepth / ld.d);
+          const ln = Math.max(1, Math.round(len / 8));
+          const lb = len / ln;
+          for (let i = 0; i < ln; i++) {
+            const u = f.a + (i + 0.5) * lb;
+            const [px, pz] = onFace(f, u, 1);
+            if (nearPad(px, pz, D.clear.pad + lb / 2) || inEscape(px, pz, yTop, lb / 2) || Ch.list.some((c) => Math.abs(u - c.x) < Ch.width / 2 + Ch.wall + lb / 2 && (Math.abs(f.at - c.z0) < 2 || Math.abs(f.at - c.z1) < 2))) continue;
+            const [x, z] = onFace(f, u, D.outset + ld.d * lsz);
+            add(ledge, place(ledge, x, yTop - ld.h * 0.6, z, f.yaw, lb / ld.w, 1, lsz, true), 1, "cornice");
+          }
+        }
+      }
       if (rows.cornice) {
         const cd = dims(rows.cornice);
         if (cd)

@@ -31,7 +31,7 @@ import { initializeCanvas, readPsd } from "ag-psd";
 import { BasisPool, type BasisKind } from "./basis-pool";
 
 /** what the import could not place, reported at its end */
-const IMPORT_STATS = { unplacedOverrides: 0 };
+const IMPORT_STATS = { unplacedOverrides: 0, unresolved: new Map<string, number>() };
 
 export interface CityImportHelpers {
   root: string;
@@ -88,13 +88,22 @@ class Pack {
   private parsed = new Map<string, Map<bigint, { cls: number; stripped: boolean; data: any }>>();
   private metaNames = new Map<string, Map<bigint, string>>();
   readonly matByName = new Map<string, string>();
+  /** the same, by the name with its spaces and punctuation gone: an FBX's "detz2" is the pack's "detz 2.mat" */
+  readonly matByNorm = new Map<string, string>();
+  /** a material by an FBX's own name for it: exact, else with spaces and punctuation ignored */
+  matFor(name: string): string | null {
+    return this.matByName.get(name.toLowerCase()) ?? this.matByNorm.get(name.toLowerCase().replace(/[^a-z0-9]/g, "")) ?? null;
+  }
 
   constructor(readonly name: string, files: Map<string, string>) {
     for (const [p, f] of files) {
       const guid = basename(dirname(f));
       this.guidPath.set(guid, p);
       this.pathFile.set(p, f);
-      if (p.toLowerCase().endsWith(".mat")) this.matByName.set(basename(p, extname(p)).toLowerCase(), guid);
+      if (p.toLowerCase().endsWith(".mat")) {
+        this.matByName.set(basename(p, extname(p)).toLowerCase(), guid);
+        this.matByNorm.set(basename(p, extname(p)).toLowerCase().replace(/[^a-z0-9]/g, ""), guid);
+      }
     }
   }
   file(guid: string): string | undefined {
@@ -286,7 +295,7 @@ class Resolver {
       tn.t = top.has(i) ? [0, 0, 0] : ([...n.t] as Vec3);
       tn.r = [...n.r] as Quat; tn.s = [...n.s] as Vec3;
       if (n.mesh !== null) {
-        const mats = model.meshes[n.mesh].prims.map((p) => remap.get(p.material) ?? this.pack.matByName.get(p.material.toLowerCase()) ?? null);
+        const mats = model.meshes[n.mesh].prims.map((p) => remap.get(p.material) ?? this.pack.matFor(p.material));
         tn.draws.push({ model, mesh: n.mesh, pre: null, mats, modelGuid: guid, on: true, go: null });
       }
       for (const k of n.kids) {
@@ -463,6 +472,8 @@ interface MatInfo {
   map: string | null; normal: string | null; emissive: string | null; metalGloss: string | null; occlusion: string | null;
   color: [number, number, number, number]; emission: [number, number, number] | null;
   metal: number; smooth: number; normalScale: number;
+  /** URP's specular workflow (_WorkflowMode 0): metalGloss is then its specular map, colour in RGB, smoothness in A */
+  specular: boolean;
   mode: "OPAQUE" | "MASK" | "BLEND"; cutoff: number; doubleSided: boolean;
   tiling: [number, number, number, number];
 }
@@ -509,7 +520,10 @@ function readMaterial(pack: Pack, guid: string): MatInfo | null {
       map: base?.guid ?? null,
       normal: tex(["_BumpMap", "_NormalMap"])?.guid ?? null,
       emissive: emitting ? emissiveTex?.guid ?? null : null,
-      metalGloss: tex(["_MetallicGlossMap", "_MaskMap"])?.guid ?? null,
+      // (the specular workflow's map in the same place: Glass City's machinery is drawn with it, and without it every
+      // pipe read as smoothness 1 and mirrored the sky, white)
+      metalGloss: (flt(["_WorkflowMode"], 1) === 0 ? tex(["_SpecGlossMap"]) : tex(["_MetallicGlossMap", "_MaskMap"]))?.guid ?? null,
+      specular: flt(["_WorkflowMode"], 1) === 0,
       occlusion: tex(["_OcclusionMap"])?.guid ?? null,
       color: [srgbToLinear(num(c.r, 1)), srgbToLinear(num(c.g, 1)), srgbToLinear(num(c.b, 1)), num(c.a, 1)],
       emission: emitting && e ? [num(e.r), num(e.g), num(e.b)] : emitting ? [1, 1, 1] : null,
@@ -637,17 +651,266 @@ class Textures {
       rgb[i * 3] = o ? o[i * 4] : 255;
       const smooth = a ? (a[i * 4 + 3] / 255) * mi.smooth : mi.smooth;
       rgb[i * 3 + 1] = Math.round((1 - smooth) * 255);
-      rgb[i * 3 + 2] = a ? a[i * 4] : Math.round(mi.metal * 255);
+      // a specular map's colour is not metalness: a dielectric's is dark (about 0.04); bright means metal
+      rgb[i * 3 + 2] = a ? (mi.specular ? Math.round(Math.min(1, Math.max(0, ((a[i * 4] + a[i * 4 + 1] + a[i * 4 + 2]) / 765 - 0.2) / 0.5)) * 255) : a[i * 4]) : Math.round(mi.metal * 255);
     }
     return { rgb, w, h };
   }
 }
 
+// ---------------------------------------------------------------- a demo street cut into its buildings (Phase 24.2)
+/**
+ * The packs have no whole-building prefab: their buildings exist only as their artists assembled them in the demo
+ * streets, hundreds of placed pieces each. This finds them. Every placed part's world bounds and triangles; the heavy
+ * ones (walls, not cables, lamps or litter) rasterised onto a ground grid of `cell` metres, a cell solid when its parts'
+ * triangles over it are many and they rise above the street; connected solid cells are a building, the streets and
+ * squares between them the gaps. Each building then takes every part whose middle stands over it, cables and litter
+ * included, so it comes out whole with what hangs on it. The street's height is where the most ground-level geometry is.
+ */
+function cutBuildings(draws: Array<{ d: Draw; m: M4 }>, cell = 2): Array<{ draws: Array<{ d: Draw; m: M4 }>; footprint: [number, number, number, number]; street: number }> {
+  type Part = { i: number; min: Vec3; max: Vec3; tris: number };
+  const parts: Part[] = [];
+  draws.forEach(({ d, m }, i) => {
+    const mesh = d.model.meshes[d.mesh];
+    if (!mesh) return;
+    const min: Vec3 = [Infinity, Infinity, Infinity], max: Vec3 = [-Infinity, -Infinity, -Infinity];
+    let tris = 0;
+    for (const prim of mesh.prims) {
+      tris += prim.idx ? prim.idx.length / 3 : prim.pos.length / 9;
+      for (let k = 0; k < prim.pos.length; k += 3) {
+        const x = prim.pos[k], y = prim.pos[k + 1], z = prim.pos[k + 2];
+        const w: Vec3 = [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]];
+        for (let a = 0; a < 3; a++) {
+          if (w[a] < min[a]) min[a] = w[a];
+          if (w[a] > max[a]) max[a] = w[a];
+        }
+      }
+    }
+    if (Number.isFinite(min[0])) parts.push({ i, min, max, tris });
+  });
+  // the street's height: the lowest level most parts stand on
+  const feet = new Map<number, number>();
+  for (const p of parts) feet.set(Math.round(p.min[1]), (feet.get(Math.round(p.min[1])) ?? 0) + 1);
+  const street = [...feet].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+  // a wall part: tall enough to be a storey's, not a long thin run (a cable, a rail), standing on or above the street
+  const isWall = (p: Part) => {
+    const w = p.max[0] - p.min[0], h = p.max[1] - p.min[1], d = p.max[2] - p.min[2];
+    // (a pole, a lamp, a hanging sign is narrow both ways; a module of wall is wide one way at least)
+    return h >= 2.5 && Math.max(w, d) >= 1.5 && Math.min(w, d) <= 6 && Math.max(w, d) <= 30 && p.min[1] > street - 3;
+  };
+  const key = (cx: number, cz: number) => cx * 100003 + cz;
+  // a cell is a building's where wall parts stack there: three and more, over six metres of height and more (a walkway
+  // or a sign over the street is one or two parts, at one height)
+  const stack = new Map<number, { n: number; lo: number; hi: number }>();
+  for (const p of parts.filter(isWall)) {
+    const [x0, x1, z0, z1] = [Math.floor(p.min[0] / cell), Math.floor(p.max[0] / cell), Math.floor(p.min[2] / cell), Math.floor(p.max[2] / cell)];
+    for (let cx = x0; cx <= x1; cx++)
+      for (let cz = z0; cz <= z1; cz++) {
+        const s = stack.get(key(cx, cz)) ?? { n: 0, lo: Infinity, hi: -Infinity };
+        s.n++;
+        s.lo = Math.min(s.lo, p.min[1]);
+        s.hi = Math.max(s.hi, p.max[1]);
+        stack.set(key(cx, cz), s);
+      }
+  }
+  const solid = new Map<number, number>();
+  for (const [k, s] of stack) if (s.n >= 3 && s.hi - s.lo >= 6) solid.set(k, s.n);
+  if (process.env.CUT_DEBUG) {
+    const ks = [...stack.keys()].map((k) => [Math.round(k / 100003), k - Math.round(k / 100003) * 100003]);
+    const [x0, x1, z0, z1] = [Math.min(...ks.map((q) => q[0])), Math.max(...ks.map((q) => q[0])), Math.min(...ks.map((q) => q[1])), Math.max(...ks.map((q) => q[1]))];
+    const rows: string[] = [];
+    for (let cz = z0; cz <= z1; cz++) {
+      let r = "";
+      for (let cx = x0; cx <= x1; cx++) {
+        const s = stack.get(key(cx, cz));
+        r += !s ? " " : solid.has(key(cx, cz)) ? (s.hi - s.lo > 20 ? "#" : "+") : ".";
+      }
+      rows.push(r);
+    }
+    console.log(`cut grid (x ${x0 * cell}..${x1 * cell}, z ${z0 * cell}..${z1 * cell}, street ${street}):` + String.fromCharCode(10) + rows.join(String.fromCharCode(10)));
+  }
+  // connected solid cells (4-connected), each a building's footprint
+  const seen = new Set<number>();
+  const blobs: Array<{ cells: Array<[number, number]> }> = [];
+  for (const k of solid.keys()) {
+    if (seen.has(k)) continue;
+    const cx0 = Math.round(k / 100003), cz0 = k - cx0 * 100003;
+    const cells: Array<[number, number]> = [];
+    const todo: Array<[number, number]> = [[cx0, cz0]];
+    seen.add(k);
+    while (todo.length) {
+      const [cx, cz] = todo.pop()!;
+      cells.push([cx, cz]);
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const n = key(cx + dx, cz + dz);
+        if (solid.has(n) && !seen.has(n)) (seen.add(n), todo.push([cx + dx, cz + dz]));
+      }
+    }
+    if (cells.length >= 12) blobs.push({ cells });
+  }
+  // every part to the building its middle stands over (within a cell of it)
+  const owner = new Map<number, number>();
+  blobs.forEach((bl, bi) => bl.cells.forEach(([cx, cz]) => owner.set(key(cx, cz), bi)));
+  const out = blobs.map((bl) => {
+    const xs = bl.cells.map((c) => c[0]), zs = bl.cells.map((c) => c[1]);
+    return { draws: [] as Array<{ d: Draw; m: M4 }>, footprint: [Math.min(...xs) * cell, (Math.max(...xs) + 1) * cell, Math.min(...zs) * cell, (Math.max(...zs) + 1) * cell] as [number, number, number, number], street };
+  });
+  for (const p of parts) {
+    const cx = Math.floor(((p.min[0] + p.max[0]) / 2) / cell), cz = Math.floor(((p.min[2] + p.max[2]) / 2) / cell);
+    let b2: number | undefined;
+    for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) if ((b2 = owner.get(key(cx + dx, cz + dz))) !== undefined) break;
+    if (b2 !== undefined) out[b2].draws.push(draws[p.i]);
+  }
+  return out.filter((o) => o.draws.length >= 10);
+}
+
+/**
+ * A demo street's walls as facade strips (Phase 24.2). The demo streets are film sets, built only on the sides the
+ * camera sees, so their buildings cannot be lifted whole; their faces can, and a face is what the packs' artists composed:
+ * wall modules with balconies, fire escapes, pipes, AC units and signs on them. So: the wall modules (wide one way, thin
+ * the other, a storey tall and more), each's facing from its triangles' normals and its back plane; modules sharing a
+ * facing and a plane (to the metre) are one wall, runs along it where they meet; everything that stands in front of a run
+ * (up to `reach` metres out) hangs on it; each run cut into strips of about `width` metres at module edges. A strip is
+ * returned in its own frame: x along the wall from its left as you face it, y up from its foot, z out of the wall.
+ */
+function cutFacades(draws: Array<{ d: Draw; m: M4 }>, width = 14, reach = 4): Array<{ draws: Array<{ d: Draw; m: M4 }>; width: number; height: number; wall: number; from: string }> {
+  type Part = { i: number; min: Vec3; max: Vec3; n: [number, number]; area: number; sn: [number, number] };
+  const parts: Part[] = [];
+  draws.forEach(({ d, m }, i) => {
+    const mesh = d.model.meshes[d.mesh];
+    if (!mesh) return;
+    const min: Vec3 = [Infinity, Infinity, Infinity], max: Vec3 = [-Infinity, -Infinity, -Infinity];
+    let nx = 0, nz = 0, area = 0;
+    // the way its surfaces face, signed, from the model's own normals: a module's front has most of its detail
+    const { n: nm } = normalMat(m);
+    let snx = 0, snz = 0;
+    const w = (pos: Float32Array, k: number): Vec3 => {
+      const x = pos[k * 3], y = pos[k * 3 + 1], z = pos[k * 3 + 2];
+      return [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]];
+    };
+    for (const prim of mesh.prims) {
+      if (prim.nrm)
+        for (let k = 0; k < prim.nrm.length; k += 3) {
+          const a = prim.nrm[k], bb = prim.nrm[k + 1], c = prim.nrm[k + 2];
+          snx += nm[0] * a + nm[1] * bb + nm[2] * c;
+          snz += nm[6] * a + nm[7] * bb + nm[8] * c;
+        }
+      for (let k = 0; k < prim.pos.length / 3; k++) {
+        const v = w(prim.pos, k);
+        for (let a = 0; a < 3; a++) {
+          if (v[a] < min[a]) min[a] = v[a];
+          if (v[a] > max[a]) max[a] = v[a];
+        }
+      }
+      for (let t = 0; t + 2 < prim.idx.length; t += 3) {
+        const A = w(prim.pos, prim.idx[t]), B = w(prim.pos, prim.idx[t + 1]), C = w(prim.pos, prim.idx[t + 2]);
+        const ux = B[0] - A[0], uy = B[1] - A[1], uz = B[2] - A[2], vx = C[0] - A[0], vy = C[1] - A[1], vz = C[2] - A[2];
+        // (the mirror in the node chain flips winding; the sign is taken from the part's extent below instead)
+        const cx = uy * vz - uz * vy, cz = ux * vy - uy * vx, cy = uz * vx - ux * vz;
+        const len = Math.hypot(cx, cy, cz);
+        area += len / 2;
+        nx += Math.abs(cx) / 2;
+        nz += Math.abs(cz) / 2;
+      }
+    }
+    if (Number.isFinite(min[0])) parts.push({ i, min, max, n: [nx, nz], area, sn: [snx, snz] });
+  });
+  const feet = new Map<number, number>();
+  for (const p of parts) feet.set(Math.round(p.min[1]), (feet.get(Math.round(p.min[1])) ?? 0) + 1);
+  const street = [...feet].sort((a, c) => c[1] - a[1])[0]?.[0] ?? 0;
+  // a wall module: a storey tall and more, wide along one axis, thin across it, its faces mostly across (its facing)
+  const walls: Array<{ p: Part; axis: 0 | 2; plane: number }> = [];
+  for (const p of parts) {
+    const sx = p.max[0] - p.min[0], sy = p.max[1] - p.min[1], sz = p.max[2] - p.min[2];
+    if (sy < 2.5) continue;
+    if (sx >= 2 && sz <= 1.8 && p.n[1] > p.n[0]) walls.push({ p, axis: 2, plane: 0 });
+    else if (sz >= 2 && sx <= 1.8 && p.n[0] > p.n[1]) walls.push({ p, axis: 0, plane: 0 });
+  }
+  // which side of a wall is the street's: the side with less wall mass within 12 m (a building's inside is its walls)
+  const massAt = (axis: 0 | 2, c: number, a0: number, a1: number, y0: number, y1: number) =>
+    walls.filter((q) => q.axis === axis && q.p.min[1] < y1 && q.p.max[1] > y0 && q.p.max[axis === 0 ? 2 : 0] > a0 && q.p.min[axis === 0 ? 2 : 0] < a1 && Math.abs((q.p.min[axis] + q.p.max[axis]) / 2 - c) < 12).length;
+  type Wall = { axis: 0 | 2; dir: 1 | -1; plane: number; parts: Part[] };
+  const groups = new Map<string, Wall>();
+  for (const q of walls) {
+    const along = q.axis === 0 ? 2 : 0;
+    const mid = (q.p.min[q.axis] + q.p.max[q.axis]) / 2;
+    // facing: its normals' sum across the wall; where they cancel, the side with less wall mass is the street's
+    const sn = q.axis === 0 ? q.p.sn[0] : q.p.sn[1];
+    const inFront = massAt(q.axis, mid + 6, q.p.min[along], q.p.max[along], q.p.min[1], q.p.max[1]);
+    const behind = massAt(q.axis, mid - 6, q.p.min[along], q.p.max[along], q.p.min[1], q.p.max[1]);
+    const dir: 1 | -1 = Math.abs(sn) > 1 ? (sn > 0 ? 1 : -1) : inFront <= behind ? 1 : -1;
+    // the wall's plane: its back, the side away from the street
+    const plane = dir > 0 ? q.p.min[q.axis] : q.p.max[q.axis];
+    const k = `${q.axis}:${dir}:${Math.round(plane)}`;
+    const g = groups.get(k) ?? { axis: q.axis, dir, plane, parts: [] };
+    g.parts.push(q.p);
+    groups.set(k, g);
+  }
+  const used = new Set<number>();
+  const out: Array<{ draws: Array<{ d: Draw; m: M4 }>; width: number; height: number; wall: number; from: string }> = [];
+  for (const g of [...groups.values()].sort((p, q) => q.parts.length - p.parts.length)) {
+    const along = g.axis === 0 ? 2 : 0;
+    const plane = g.parts.reduce((a, p) => a + (g.dir > 0 ? p.min[g.axis] : p.max[g.axis]), 0) / g.parts.length;
+    // runs along the wall where its modules meet
+    const spans = g.parts.map((p) => [p.min[along], p.max[along]] as [number, number]).sort((p, q) => p[0] - q[0]);
+    const runs: Array<[number, number]> = [];
+    for (const s of spans) {
+      const r = runs[runs.length - 1];
+      if (r && s[0] <= r[1] + 1.5) r[1] = Math.max(r[1], s[1]);
+      else runs.push([s[0], s[1]]);
+    }
+    for (const [r0, r1] of runs) {
+      if (r1 - r0 < 6) continue;
+      // cut at module edges near every `width` metres
+      const edges = [...new Set(g.parts.flatMap((p) => [p.min[along], p.max[along]]).filter((e) => e > r0 + 1 && e < r1 - 1))].sort((p, q) => p - q);
+      const cuts = [r0];
+      while (r1 - cuts[cuts.length - 1] > width * 1.5) {
+        const want = cuts[cuts.length - 1] + width;
+        const e = edges.reduce((best, x) => (Math.abs(x - want) < Math.abs(best - want) ? x : best), want);
+        cuts.push(e > cuts[cuts.length - 1] + 4 ? e : want);
+      }
+      cuts.push(r1);
+      for (let c = 0; c + 1 < cuts.length; c++) {
+        const [a0, a1] = [cuts[c], cuts[c + 1]];
+        // what stands on this stretch of wall: its modules and everything in front of it within reach
+        const mine = parts.filter((p) => {
+          if (used.has(p.i)) return false;
+          const ac = (p.min[along] + p.max[along]) / 2;
+          if (ac < a0 || ac >= a1) return false;
+          const front = g.dir > 0 ? p.max[g.axis] - plane : plane - p.min[g.axis];
+          const back = g.dir > 0 ? p.min[g.axis] - plane : plane - p.max[g.axis];
+          return back > -0.6 && front < reach + 0.6;
+        });
+        const wallParts = mine.filter((p) => g.parts.includes(p));
+        if (wallParts.length < 3) continue;
+        const y0 = Math.min(...wallParts.map((p) => p.min[1]));
+        const y1 = Math.max(...mine.map((p) => p.max[1]));
+        const wallArea = wallParts.reduce((a, p) => a + (p.max[along] - p.min[along]) * (p.max[1] - p.min[1]), 0);
+        const cover = wallArea / Math.max(1, (a1 - a0) * (y1 - y0));
+        if (y1 - y0 < 8 || cover < 0.45) continue;
+        for (const p of mine) used.add(p.i);
+        // the strip's frame: its left edge (as you face the wall), its foot, the plane; z out of the wall
+        const s = g.dir;
+        let T: M4;
+        if (g.axis === 2) {
+          // facing +z (dir 1): x along +x from a0; facing -z: x along -x from a1, z flipped
+          T = s > 0 ? [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -a0, -y0, -plane, 1] : [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, a1, -y0, plane, 1];
+        } else {
+          // facing +x: x along -z from a1 (the left as you face +x is +z... ) and z = world x
+          T = s > 0 ? [0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0, a1, -y0, -plane, 1] : [0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 0, -a0, -y0, plane, 1];
+        }
+        out.push({ draws: mine.map((p) => ({ d: draws[p.i].d, m: mul(T, draws[p.i].m) })), width: a1 - a0, height: y1 - y0, wall: cover, from: `${g.axis === 0 ? "x" : "z"}${s > 0 ? "+" : "-"} ${plane.toFixed(1)} ${a0.toFixed(1)}..${a1.toFixed(1)} y ${(y0 - street).toFixed(1)}` });
+      }
+    }
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- baking and writing
 interface Baked { id: string; groups: Map<string, { mat: string | null; pos: number[]; nrm: number[]; uv: number[]; idx: number[] }>; tris: number; min: Vec3; max: Vec3; faces: Record<string, number>; depths: Record<string, Map<number, number>> }
 
-function bake(pack: Pack, res: Resolver, id: string, guid: string, mats: Map<string, MatInfo | null>): Baked | null {
-  const draws = res.flatten(guid);
+function bake(pack: Pack, res: Resolver, id: string, guid: string, mats: Map<string, MatInfo | null>, given?: Array<{ d: Draw; m: M4 }>, simplify = 0): Baked | null {
+  const draws = given ?? res.flatten(guid);
   if (!draws.length) return null;
   const groups = new Map<string, { mat: string | null; pos: number[]; nrm: number[]; uv: number[]; idx: number[] }>();
   const min: Vec3 = [Infinity, Infinity, Infinity], max: Vec3 = [-Infinity, -Infinity, -Infinity];
@@ -662,7 +925,11 @@ function bake(pack: Pack, res: Resolver, id: string, guid: string, mats: Map<str
     const { n, det } = normalMat(m);
     mesh.prims.forEach((prim, pi) => {
       let mg = (d.mats ?? [])[pi] ?? (d.mats ?? [])[0] ?? null;
-      if (!mg && prim.material) mg = pack.matByName.get(prim.material.toLowerCase()) ?? null;
+      if (!mg && prim.material) mg = pack.matFor(prim.material);
+      if (!mg) {
+        const k = `${basename(pack.guidPath.get(d.modelGuid) ?? "?")} : ${prim.material || "(none)"}`;
+        IMPORT_STATS.unresolved.set(k, (IMPORT_STATS.unresolved.get(k) ?? 0) + prim.idx.length / 3);
+      }
       if (mg && !mats.has(mg)) mats.set(mg, readMaterial(pack, mg));
       const mi = mg ? mats.get(mg) ?? null : null;
       const key = mg ?? "none:" + prim.material;
@@ -717,8 +984,40 @@ function bake(pack: Pack, res: Resolver, id: string, guid: string, mats: Map<str
     });
   }
   if (!Number.isFinite(min[0])) return null;
+  // A demo street's strip was modelled for a camera a few metres off: its cables, pipes, railings and round parts carry
+  // four to ten times the triangles of the walls they hang on (Kyber's heaviest, 157 a square metre). Simplified to
+  // `simplify` metres of error, the edges of every part and every seam in its UVs held where they are, so the walls, their
+  // windows and the textures' joins do not move and only the dense round things lose what a player cannot see.
+  if (simplify && SIMPLIFIER) {
+    tris = 0;
+    for (const g of groups.values()) {
+      const pos = new Float32Array(g.pos);
+      const scale = SIMPLIFIER.getScale(pos, 3) || 1;
+      const [out] = SIMPLIFIER.simplify(new Uint32Array(g.idx), pos, 3, 0, simplify / scale, ["LockBorder"]);
+      // the vertices no triangle uses any more left out of the file
+      const remap = new Map<number, number>();
+      const [p0, n0, u0] = [g.pos, g.nrm, g.uv];
+      g.pos = [];
+      g.nrm = [];
+      g.uv = [];
+      g.idx = Array.from(out, (v) => {
+        let k = remap.get(v);
+        if (k === undefined) {
+          k = remap.size;
+          remap.set(v, k);
+          g.pos.push(p0[v * 3], p0[v * 3 + 1], p0[v * 3 + 2]);
+          g.nrm.push(n0[v * 3], n0[v * 3 + 1], n0[v * 3 + 2]);
+          g.uv.push(u0[v * 2], u0[v * 2 + 1]);
+        }
+        return k;
+      });
+      tris += g.idx.length / 3;
+    }
+  }
   return { id, groups, tris, min, max, faces, depths };
 }
+/** meshoptimizer's simplifier, loaded once the import starts (city()) */
+let SIMPLIFIER: { getScale: (p: Float32Array, stride: number) => number; simplify: (i: Uint32Array, p: Float32Array, stride: number, target: number, error: number, flags?: "LockBorder"[]) => [Uint32Array, number] } | null = null;
 
 /**
  * One pack's pieces into a GLB: every texture GPU-compressed as KTX2 (KHR_texture_basisu), colours, glows and the packed
@@ -828,8 +1127,14 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
   };
   walkNames(cfg.dress);
   const keptAll: string[] = [];
+  const facadeCat: Record<string, { width: number; height: number; wall: number; from: string }> = {};
   const fronts: Record<string, number> = {};
   tex.pool = await BasisPool.start(h.paid);
+  {
+    const { MeshoptSimplifier } = await import("meshoptimizer");
+    await MeshoptSimplifier.ready;
+    SIMPLIFIER = MeshoptSimplifier;
+  }
   for (const [name, pkgName] of Object.entries<string>(cfg.packages)) {
     if (only && only !== name) continue;
     const pkg = packages.get(pkgName);
@@ -842,12 +1147,80 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
     const mats = new Map<string, MatInfo | null>();
     const baked: Baked[] = [];
     const missing: string[] = [];
-    for (const rel of cfg.pieces[name] ?? []) {
+    // CITY_FACADES=<a pack's scene path> cuts that demo street's walls into facade strips (cutFacades), each baked in
+    // its own frame (x along the wall, y up, z out of it, the wall's plane at z 0), <pack>-facades.glb and .json (24.2)
+    const facPath = process.env.CITY_FACADES;
+    if (facPath) {
+      const file = pack.pathFile.get(facPath);
+      if (!file) continue;
+      const strips = cutFacades(res.flatten(basename(dirname(file))));
+      const bakedF: Baked[] = [];
+      const cat: Array<Record<string, unknown>> = [];
+      strips.forEach((s, i) => {
+        const id = `${name}/facade ${String(i + 1).padStart(3, "0")}`;
+        const bk = bake(pack, res, id, "", mats, s.draws);
+        if (!bk) return;
+        bakedF.push(bk);
+        cat.push({ id, width: +s.width.toFixed(2), height: +s.height.toFixed(2), depth: +(bk.max[2]).toFixed(2), back: +(bk.min[2]).toFixed(2), wall: +s.wall.toFixed(2), tris: bk.tris, parts: s.draws.length, from: s.from });
+      });
+      const bytes = await writePack(h, pack, bakedF, mats, tex, cfg.sizes.hi, cfg.sizes.normal.hi, new Set(bakedF.map((x) => x.id)), join(out, `${name}-facades.glb`));
+      writeFileSync(join(out, `${name}-facades.json`), JSON.stringify(cat, null, 1));
+      report.push(`${name} facades: ${bakedF.length} strips, ${bakedF.reduce((a, x) => a + x.tris, 0)} tris, ${(bytes / 1e6).toFixed(1)} MB`);
+      continue;
+    }
+    // CITY_BUILDINGS=<a pack's scene path> cuts that demo street into its buildings (cutBuildings) and bakes each as a
+    // piece, <pack>-buildings.glb, with their measurements in <pack>-buildings.json (Phase 24.2)
+    const buildPath = process.env.CITY_BUILDINGS;
+    if (buildPath) {
+      const file = pack.pathFile.get(buildPath);
+      if (!file) continue;
+      const cut = cutBuildings(res.flatten(basename(dirname(file))));
+      const bakedB: Baked[] = [];
+      const cat: Array<Record<string, unknown>> = [];
+      cut.forEach((c, i) => {
+        const id = `${name}/building ${String(i + 1).padStart(2, "0")}`;
+        const bk = bake(pack, res, id, "", mats, c.draws);
+        if (!bk) return;
+        bakedB.push(bk);
+        cat.push({ id, size: bk.max.map((v, k) => +(v - bk.min[k]).toFixed(2)), min: bk.min.map((v) => +v.toFixed(2)), tris: bk.tris, parts: c.draws.length, footprint: c.footprint, street: +c.street.toFixed(2) });
+      });
+      const bytes = await writePack(h, pack, bakedB, mats, tex, cfg.sizes.hi, cfg.sizes.normal.hi, new Set(bakedB.map((x) => x.id)), join(out, `${name}-buildings.glb`));
+      writeFileSync(join(out, `${name}-buildings.json`), JSON.stringify(cat, null, 1));
+      report.push(`${name} buildings: ${bakedB.length} cut, ${bakedB.reduce((a, x) => a + x.tris, 0)} tris, ${(bytes / 1e6).toFixed(1)} MB`);
+      continue;
+    }
+    // CITY_SCENE=<a pack's scene path> bakes that whole scene, the pack's own demo street as its artist assembled it, into
+    // <pack>-scene.glb (Phase 23: to set the packs' own composition beside ours), and nothing else of the pack
+    const scenePath = process.env.CITY_SCENE;
+    if (scenePath) {
+      const file = pack.pathFile.get(scenePath);
+      if (!file) continue;
+      const sb = bake(pack, res, `${name}/scene`, basename(dirname(file)), mats);
+      if (sb) {
+        const bytes = await writePack(h, pack, [sb], mats, tex, cfg.sizes.hi, cfg.sizes.normal.hi, new Set([sb.id]), join(out, `${name}-scene.glb`));
+        report.push(`${name} scene: ${sb.tris} tris, ${(bytes / 1e6).toFixed(1)} MB, ${sb.max.map((v, i) => (v - sb.min[i]).toFixed(0)).join(" x ")} m`);
+      }
+      continue;
+    }
+    // the pack's demo street cut into facade strips (cutFacades, citykit.json scenes), each a piece like any other,
+    // "<pack>/facade NNN", written whatever the dressing names, with its measurements in `facades`
+    const strips = new Map<string, Array<{ d: Draw; m: M4 }>>();
+    const demoPath = (cfg.scenes ?? {})[name];
+    const sceneFile = demoPath ? pack.pathFile.get(demoPath) : undefined;
+    if (sceneFile)
+      cutFacades(res.flatten(basename(dirname(sceneFile)))).forEach((s, i) => {
+        const id = `${name}/facade ${String(i + 1).padStart(3, "0")}`;
+        strips.set(id, s.draws);
+        facadeCat[id] = { width: +s.width.toFixed(2), height: +s.height.toFixed(2), wall: +s.wall.toFixed(2), from: s.from };
+        keep.add(id);
+      });
+    for (const rel of [...(cfg.pieces[name] ?? []), ...[...strips.keys()].map((id) => id.slice(name.length + 1))]) {
       const path = `${cfg.roots[name]}${rel}.prefab`;
       const file = pack.pathFile.get(path);
       const guid = file ? basename(dirname(file)) : null;
       const id = `${name}/${rel}`;
-      const b = guid ? bake(pack, res, id, guid, mats) : null;
+      const given = strips.get(id);
+      const b = given ? bake(pack, res, id, "", mats, given, cfg.simplify?.strips ?? 0) : guid ? bake(pack, res, id, guid, mats) : null;
       if (!b) {
         missing.push(rel);
         continue;
@@ -891,6 +1264,7 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
     cfg.facing = faces;
     cfg.plane = planes;
     cfg.front = fronts;
+    cfg.facades = facadeCat;
     cfg.baked = keptAll.sort();
     cfg._measured =
       "Written by npm run paid (tools/import-city.ts) off the baked pieces, never typed: each piece's size (w, h, d) and the minimum corner of its bounds in its own space (x, y, z), metres, then its triangles. `facing` is the horizontal side a piece shows most by area (px, nx, pz, nz): the way a facade module faces. `plane`: how far behind a piece's front its wall stands (metres), the plane most of its front area is on, so a thick module's frames and cornices stand out of the building and its wall sits on the building's face.";
@@ -899,4 +1273,7 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
   await tex.pool.stop();
   console.log("city bundle:\n  " + report.join("\n  "));
   if (IMPORT_STATS.unplacedOverrides) console.log(`  ${IMPORT_STATS.unplacedOverrides} material overrides on a model found no mesh to go to`);
+  // the model parts that drew with no material: which model, its FBX's own material name, triangles
+  if (IMPORT_STATS.unresolved.size)
+    console.log(["  no material resolved (model : its FBX material, triangles):", ...[...IMPORT_STATS.unresolved].sort((p, q) => q[1] - p[1]).slice(0, 25).map(([k, n]) => `    ${Math.round(n)}  ${k}`)].join(String.fromCharCode(10)));
 }

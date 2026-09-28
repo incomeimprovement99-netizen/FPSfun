@@ -54,3 +54,49 @@ the end of the batch. Gameplay numbers in config with notes; numbers about the p
 
 About eight hours: 23.1 two (the encoding runs an hour on its own), 23.2 one and a half, 23.3 three (every system
 that knows the map's size, and its checks), 23.4 one, 23.5 one and a half.
+
+## Re-ranked after the side-by-sides (2026-09-28)
+
+The owner: "we still don't even have the center looking like they do in the asset packs, which is really
+disappointing. Compare in game to the website photos... Show proof here side by sides". Five pairs, a store screenshot
+of each pack beside the game from the nearest spot on High (`tools/.scratch/pair.mjs`, the store's pictures kept out
+of git). What they show, in order of how much of the difference each is:
+
+1. **Light and air.** Every store shot is in coloured haze (Cyber City green, Kyber warm, High City bright and
+   hazy, Glass blue), its street wet and shining, its lamps and neon lighting the walls and the ground round them.
+   Ours: clear black air, dry flat streets, neon that lights nothing near it.
+2. **Our old look.** The cyan kerb lines, the gold pads' beams and rings, the black bridges and the flat pink
+   billboards are the city from before the packs, and they are the loudest things in every picture of ours.
+3. **Density.** Their streets are narrow and full at every height: cable webs, signs up the walls, fire escapes on
+   every building, pipes and AC units, cones, barriers, bags, wires and puddles, cars. Ours are 14 m wide with clean
+   walls and bare pavements.
+
+So the items from 23.4 on run:
+
+| id | item | how | verified by |
+|---|---|---|---|
+| 23.4 | **Light and air** | Haze coloured by the district you stand in and nearer, as the packs' own scenes are lit; the street wet (a low roughness and a reflection of the lit city captured once); the neon and the lamps lighting what is round them (light cast on the ground and the walls, cheap: additive cards, a few real lights on High) | side by sides again, the same spots; a bench |
+| 23.5 | **Our old look replaced** | Every car in pack cars; the jump pads in pack parts; the kerb lines, the bridges, the highway's frames and the billboards in pack pieces or pack materials | pictures; the pads' and bridges' checks |
+| 23.6 | **Density like the store** | Cable webs over every street, signs up the walls at every height, fire escapes on High City's street faces, pipes and AC units, the ground's clutter (import the rest of the packs' street pieces) | the placed counts, side by sides, the budgets |
+| 23.7 | The districts dressed | later (the owner) | |
+| 23.8 | Nothing of the old look left | the audit | |
+| 23.9 | The batch's release tests | | |
+
+## Re-ranked again: the buildings themselves (2026-09-28)
+
+The owner: "woah woah it is WAY mroe than that isn't it? the outside of the buildings do not look anywhere near the
+same... did you compare in game fireladders and the buildsing themselves?!" Close pictures of one High City face against
+the store's alley and against the pack's own module, and they are right: most of the centre's tower faces are not the
+packs' building walls at all but flat two-triangle panels (Kyber's wall tile, Cyber City's plain wall); where High
+City's real walls are, they are pressed to 42% of their 1.2 m depth, one row stacked twenty storeys high; and one face
+of a tower has a fire escape, where the pack has one on every building. So the order from 23.4 on:
+
+| id | item | how | verified by |
+|---|---|---|---|
+| 23.4 | **The buildings as the packs build them** | (a) Every module whole: its front on the tower's face and its wall recessed inside, as the rooms are (23.2), so pilasters, sills and window reveals stand at their real depth and the face still runs flat. (b) No flat panel on a face: the rows' flat fillers out, the pad bays in real modules (their fronts are flush now). (c) A tower a stack of buildings, five to eight storeys each, each its own style with a base row and a cornice (the packs' podium, top and reup pieces). (d) Fire escapes and the packs' detail (AC units, pipes, vents, signs, balconies) on most street faces, at every height | close side by sides against the store, the kit check's rules, the budgets |
+| 23.5 | Light and air | as above | |
+| 23.6 | Our old look replaced | as above | |
+| 23.7 | Density at street level | as above | |
+| 23.8 | The districts dressed | later | |
+| 23.9 | Nothing of the old look left; the release tests | | |
+

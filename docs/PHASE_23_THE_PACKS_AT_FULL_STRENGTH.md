@@ -8,9 +8,10 @@ The round planned in `docs/PHASE_23_PLAN_THE_PACKS_AT_FULL_STRENGTH.md`, item by
 | 23.1 | Sharper textures on High, lighter on every preset | shipped | 290 | KTX2 at 2K, 1K and 512; the kit's texture memory 1.2 GB, 298 MB and 50 MB (Balanced from about 1.8 GB); downloads 119, 40 and 24 MB |
 | 23.2 | The rooms behind the windows at full depth | shipped | 293 | 610 of 1,395 window walls whole rooms (from none); the towers' faces skinned and hidden under the kit, every face storey covered |
 | 23.3 | The outer districts cut by about three quarters | shipped | 296 | the map 304 m across (from 500), the districts 75% smaller, the centre proven unchanged |
-| 23.4 | The packs' street life | | | |
-| 23.5 | Every car in pack cars | | | |
-| 23.6 | Jump pads in pack pieces | | | |
+| 23.4 | The buildings as the packs build them | moved | | taken over by Phase 24 (`docs/PHASE_24_THE_CENTRE_FROM_THE_PACKS_OWN_BUILDINGS.md`), which builds them from the packs' own demo streets |
+| 23.4b | Light and air | shipped | 298 | the haze coloured by block, thinning as you climb, the sky's horizon the same colour, the streets wet and reflecting the lit city; Balanced and High |
+| 23.5 | Our old look replaced (cars, pads, kerb lines, bridges, billboards) | | | |
+| 23.6 | Density like the store | | | |
 | 23.7 | The districts dressed in the packs | later | | the owner, 2026-09-28: "Save the districts for later on, we still don't even have the center looking like they do in the asset packs" |
 | 23.8 | Nothing of the old look left | | | |
 | 23.9 | The batch's release tests | | | |
@@ -41,3 +42,7 @@ The round planned in `docs/PHASE_23_PLAN_THE_PACKS_AT_FULL_STRENGTH.md`, item by
   want to repalce all the older graphics with our new ones we have paid assets for". Agreed: 23.5 to 23.8 added, the
   release tests renumbered 23.9.
 - **The owner, 2026-09-28:** districts later; the centre first, compared side by side with the packs' store pictures.
+- **The side by sides (2026-09-28):** five pairs, store left, ours right. The gap is light and air first, our old
+  look second, density third; the plan re-ranked to that order (the plan's last section).
+- **The owner, on the buildings:** close pictures against the store and the pack's module proved most faces were flat
+  two-triangle panels and the real walls pressed to 42%; the buildings themselves go first (the plan's last section).

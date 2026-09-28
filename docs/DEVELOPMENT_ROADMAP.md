@@ -5752,3 +5752,36 @@ two"; and "the guns fly in and out but the arms stay in a weird position".
   bug put back (the point late, no drop, the clavicles not reset: BOOG's right arm 4.8 m short at the hip). The long
   soldier call was split in two, having run past a page call's 120 s on a busy machine. Pictures of every stage of
   both reloads and swaps; verify; rules.
+
+## Milestone 298 — The packs' own streets on the centre's towers: facade strips from the demo scenes, and the haze
+
+Phase 24's items 24.1 to 24.3 (`docs/PHASE_24_PLAN_THE_CENTRE_FROM_THE_PACKS_OWN_BUILDINGS.md`, results beside it),
+and 23.4b's haze. The owner, after the side by sides: "the one we bought has grey buildings with balconies and shapes in
+and out, why couldn't we just stack those on top of each other".
+
+- **The textures whole (24.1).** The importer placed a prefab's material overrides only where it could match a mesh by
+  name or by its number of slots, and High City's brick came out grey; material names are now matched loosely, and the
+  Unity specular workflow (a spec map and gloss, where the others use metal) is read. Kit v4, then v5 (below).
+- **The demo streets cut into facade strips (24.2).** The packs have no whole buildings: every one exists only as its
+  artist assembled it in the pack's demo street, and those streets are film sets, faced only where the camera looks.
+  Cutting them into buildings (a 2 m ground grid of their walls) gave High City one blob. Their faces lift cleanly:
+  `cutFacades` (tools/import-city.ts) finds the wall modules, takes each one's facing from its triangles and the side
+  with less wall behind it (the street's), runs along each wall plane, cuts runs into strips of about 14 m at module
+  edges, and hangs on each everything standing up to 4 m in front of it: balconies, fire escapes, pipes, AC units, signs,
+  as the artists placed them. 46 strips are used (High City 23, Kyber 12, Cyber City 11: mostly wall, 6 to 22 m wide,
+  12 m tall and more).
+- **Stacked up the towers (24.3).** A street face is split into columns as wide as its family's strips, each column a
+  stack of strips from its foot, each near its own proportions and a whole number of storeys, so neighbouring columns
+  end at different heights as a street's buildings do. The open storeys keep their walls; a fire escape, a chimney
+  within a strip's depth and a pad's lane keep the modules across their width; a strip beside a pad further out is
+  pressed to stand clear of the pad's column. 232 strips placed, 44% of the centre's street faces; the canyons keep their pressed modules, and Competitive its modules.
+- **Found on the way:** the size helper took a strip's measured side for its facing, and three of Kyber's strips face
+  sideways by area (their balconies outweigh their wall): their width and depth swapped, scaled wrong and holes left.
+- **What it costs.** Kyber's strips were modelled heavy (up to 157 triangles a square metre, in their cables and pipes), so the importer now simplifies a strip to 15 mm of error with every part's edges and every UV seam held (`citykit.json` simplify, meshoptimizer): Kyber's placed strips from 1,417k triangles to 898k, kit v5. Balanced draws 2,786k and High 2,889k (limits 3,000k and 3,100k); in the street of a match on the owner's RX 9070 XT, three rounds interleaved against a copy from before, Balanced 137 fps (182 before) and High 67 (89). The download grew with the strips' own materials: 354, 133 and 91 MB for High, Balanced and Competitive (119, 40 and 26 at v4); Competitive's file carries strips it never places, which the next import leaves out. One billboard (High City's archetype plane) had no material and showed a blank grey panel: dropped.
+- **The haze (23.4b).** From Balanced up the fog takes the colour of the block you are in (Cyber City green, Kyber
+  warm, High City pale, Glass blue), blended between blocks, starts 4 m off and thins as you climb; the sky's horizon
+  takes the same colour; the streets are wet, reflecting the lit city (one cube map, taken once the kit has dressed
+  it). Competitive keeps its clear air.
+- **Checked:** verify and rules; `citykit.ts` counts strips as facade and holds every storey covered, nothing in a
+  chimney or a pad's column; `sk-atmosphere.ts` now checks the haze (its colour in a block, reach up a tower, the hour's
+  fog back when you leave, and off on Competitive), proven by breaking the restore; pictures.

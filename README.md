@@ -1155,14 +1155,18 @@ went from 250, 196 and 110 to 345, 312 and 149, its Balanced draw calls halved.
 `tools/checks/city-budget.ts` holds the city's meshes and triangles, and the
 e2e holds that no material in a match is the rebuilding kind.
 
-**The bought city kits cost a frame or less.** On the game server the centre
-wears about 4,500 pieces from the owner's city packs (`src/game/citydress.ts`
-places them, `citykit.ts` draws them), one instanced mesh per piece's mesh, so
-the whole kit is about 400 draws. Their triangles are counted per preset off
-the measured pieces (`tools/checks/citykit.ts`, in verify, so it holds on a
-machine without the files): 506k on Competitive, which wears the lightest
-module of each style, 891k on Balanced, 929k on High. Over the Spire on the
-owner's RX 9070 XT that is 0.7 to 1.3 ms a frame (medians, with and without it).
+**The bought city kits, and what they cost.** The centre wears about 6,300
+pieces from the owner's city packs (`src/game/citydress.ts` places them,
+`citykit.ts` draws them), one instanced mesh per piece's mesh. From Balanced up,
+44% of its towers' street faces are the packs' own building faces, cut out of
+their demo streets with their balconies, fire escapes, pipes and signs
+(`tools/import-city.ts` cutFacades, 232 placed), the rest the packs' wall
+modules. Their triangles are counted per preset off the measured pieces
+(`tools/checks/citykit.ts`, in verify, so it holds on a machine without the
+files): Competitive wears the lightest module of each style; Balanced 2,786k,
+High 2,889k. In the street of a match on the owner's RX 9070 XT that costs about
+1.8 ms a frame on Balanced (137 fps, from 182) and 3.7 ms on High (67 fps, from
+89), which draws the city again for its shadows and ambient occlusion.
 
 **The field is rock, scrub and cliff, not boxes.** The battle royale's cover
 is scanned rock (Poly Haven, CC0), its open ground has dead trees and branches

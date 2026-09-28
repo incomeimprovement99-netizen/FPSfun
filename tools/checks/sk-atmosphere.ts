@@ -1,6 +1,7 @@
 // The centre's steam and flickering signs (Phase 22.2; city.json steam and flicker, steam.ts): where the steam rises
 // and how much of it there is, and that no sign ever flashes more than three times in a second (the photosensitive
-// line, WCAG 2.3.1), sampled over ten minutes of every flickering sign's light.
+// line, WCAG 2.3.1), sampled over ten minutes of every flickering sign's light. And the haze (Phase 23.4b, atmosphere.ts):
+// its colour a block's, its reach growing as you climb, the hour's fog given back when you leave or it is off.
 //
 // Run: GAME=speedkills npx tsx tools/checks/sk-atmosphere.ts
 import * as THREE from "three";
@@ -20,7 +21,7 @@ const { GAME } = await import("../../src/game/game");
 const { buildCityMap, STEAM_SOURCES, FLICKER_SIGNS, KIT_SITES } = await import("../../src/game/city");
 const { steamPuff, cityFlicker } = await import("../../src/game/steam");
 const { RANGE_SOLIDS } = await import("../../src/game/range");
-const { BR_X, BR_Z } = await import("../../src/game/br");
+const { BR_X, BR_Z, BR_HALF } = await import("../../src/game/br");
 const cityCfg = (await import("../../src/config/city.json")).default;
 const map = buildCityMap(new THREE.Scene());
 console.warn = warn;
@@ -94,6 +95,46 @@ check("the flickering signs are the centre's, as many as the config says, each i
   check("the signs do flicker, briefly: dimmed a small share of the time", dims > 0 && share < 0.05, `${dims} dips over ten minutes of ${FLICKER_SIGNS.length} signs, dimmed ${(share * 100).toFixed(2)}% of the time`);
   check("never more than three flashes in any second (WCAG 2.3.1)", worst <= 3, `at most ${worst} in a second`);
   check("each dip to between its lowest and highest", bad === 0, `${bad} samples outside ${Fl.dip[0]} to ${Fl.dip[1]}`);
+}
+
+// ---- the haze: off, the fog is the hour's; on, in a block the fog takes that block's colour, starts near and thins as
+// you climb, and leaving the city gives the hour's fog back
+{
+  console.log("\nThe haze");
+  const { atmosphereOn, tickAir } = await import("../../src/game/atmosphere");
+  const A = cityCfg.atmosphere;
+  const kitCfg = (await import("../../src/config/citykit.json")).default;
+  const scene = new THREE.Scene();
+  const hourFog = new THREE.Fog(0x101018, 30, 600);
+  scene.fog = hourFog.clone();
+  const cam = new THREE.PerspectiveCamera();
+  const blocks = cityCfg.blocks as Array<[number, number]>;
+  const mid = (blocks.length - 1) / 2;
+  const nw = (blocks[mid - 1][0] + blocks[mid - 1][1]) / 2;
+  // the north-west block's family, and a camera in its middle
+  const fam = (kitCfg.dress.families as Record<string, string>)["0,0"] as keyof typeof A.night;
+  const at = (x: number, y: number, z: number) => cam.position.set(x + BR_X, y, z + BR_Z);
+  const run = (seconds: number, t0: number) => {
+    for (let t = 0; t <= seconds; t += 0.1) tickAir(scene, cam, t0 + t, false);
+  };
+  const fog = scene.fog as THREE.Fog;
+  const isHour = () => fog.color.equals(hourFog.color) && fog.near === hourFog.near && fog.far === hourFog.far;
+  atmosphereOn(false);
+  at(nw, 2, nw);
+  run(3, 0);
+  check("off (Competitive), the fog is the hour's", isHour());
+  atmosphereOn(true);
+  run(12, 10);
+  const want = new THREE.Color(A.night[fam]);
+  const off = Math.abs(fog.color.r - want.r) + Math.abs(fog.color.g - want.g) + Math.abs(fog.color.b - want.b);
+  check(`on, in the ${fam} block the fog is the ${fam} colour (${A.night[fam]}), starting ${A.near} m off`, off < 0.08 && fog.near === A.near && fog.far === A.far, `#${fog.color.getHexString()}, ${fog.near} to ${fog.far} m`);
+  at(nw, 80, nw);
+  run(1, 30);
+  check("and thinner up a tower: 80 m up it reaches further, never past the hour's", fog.far > A.far && fog.far <= hourFog.far, `${fog.far.toFixed(0)} m`);
+  at(BR_HALF + A.margin + 50, 2, 0);
+  run(1, 40);
+  check("leaving the city gives the hour's fog back", isHour(), `#${fog.color.getHexString()}, ${fog.near} to ${fog.far} m`);
+  atmosphereOn(false);
 }
 console.log(fails === 0 ? "\nSK ATMOSPHERE PASS" : `\nSK ATMOSPHERE FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

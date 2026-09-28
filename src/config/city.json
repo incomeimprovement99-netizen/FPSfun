@@ -575,11 +575,11 @@
       "door": 1
     },
     "minStoreys": 5,
-    "perTower": 1,
+    "perTower": 2,
     "door": 1.4,
     "doorClear": 2.0
   },
-  "_fireEscape": "Fire escapes up the street faces of High City's and Kyber's towers (the families in citykit.json dress families), after the plan (docs/PHASE_21_PLAN_THE_VERTICAL_CENTRE.md: ladders you can fight on; docs/CITY_BUNDLE_IMPLEMENTATION.md rule 7). Their shape is the bought pieces' (citykit.json dress escapes, measured). From the promenade a drop ladder climbs to the first landing, a storey up, which you walk under; a flight of `treads` steps (each 0.5 m, under the 0.56 m a body steps up, and `tread` thick) climbs from each landing to the next, in the outer lane, through a hole in the landing over it, and the inner strip, `gap` short of the stair, is the way back to the next flight's foot; from the top landing, a storey under the roof, you climb the wall to the roof. A rail `rail` high and `railThick` thick round each landing, open over the ladder. Each stands `corner` metres from its face's corner, on a face with no canyon in front, the promenade under it, nothing solid in its way, no pad within clear.pad metres, no window of an open storey within clear.window and no door within clear.door; one a tower at most (`perTower`), on towers of `minStoreys` and more. Drawn in the city's boxes, which the kit hides once it dresses them. Where a landing stands at an open storey's floor (the Sky Lobby, the Sky Park and their open floors), a doorway `door` metres wide and the storey's window high through that room's wall, in the middle of the landing, onto its inner strip (Phase 22.3); only where the room is clear `doorClear` metres in behind it (a stair core may stand there).",
+  "_fireEscape": "Fire escapes up the street faces of High City's and Kyber's towers (the families in citykit.json dress families), after the plan (docs/PHASE_21_PLAN_THE_VERTICAL_CENTRE.md: ladders you can fight on; docs/CITY_BUNDLE_IMPLEMENTATION.md rule 7). Their shape is the bought pieces' (citykit.json dress escapes, measured). From the promenade a drop ladder climbs to the first landing, a storey up, which you walk under; a flight of `treads` steps (each 0.5 m, under the 0.56 m a body steps up, and `tread` thick) climbs from each landing to the next, in the outer lane, through a hole in the landing over it, and the inner strip, `gap` short of the stair, is the way back to the next flight's foot; from the top landing, a storey under the roof, you climb the wall to the roof. A rail `rail` high and `railThick` thick round each landing, open over the ladder. Each stands `corner` metres from its face's corner, on a face with no canyon in front, the promenade under it, nothing solid in its way, no pad within clear.pad metres, no window of an open storey within clear.window and no door within clear.door; one a tower at most (`perTower`), on towers of `minStoreys` and more. Drawn in the city's boxes, which the kit hides once it dresses them. Where a landing stands at an open storey's floor (the Sky Lobby, the Sky Park and their open floors), a doorway `door` metres wide and the storey's window high through that room's wall, in the middle of the landing, onto its inner strip (Phase 22.3); only where the room is clear `doorClear` metres in behind it (a stair core may stand there). Two a tower since Phase 23.4 (the packs' own streets have one on nearly every building): at both ends of a face, or on two faces, by the same rules.",
   "steam": {
     "perSource": 10,
     "life": 4.5,
@@ -627,5 +627,40 @@
     "depth": 38,
     "half": 152
   },
-  "_cut": "The outer districts cut to about a quarter (Phase 23.3; the owner, 2026-09-28: \"CUT DOWN ON THE OTSIDE DISTRICTS TOO BY LIKE 75% BC WE WANT IT TO BE FOCUSED IN THE MIDDLE NOW\"). The city is still laid out on `blocks`, all seven a side, and every block is built in the same order from the same seeded stream, so the centre comes out exactly as before; the blocks of ring `keep` (the districts' ring round the centre, the downtown being ring 1) and past it are built and then taken away again (city.ts sandbox), their draws spent. Ring `keep` is then built again from a stream of its own, its outer side cut to `depth` metres, and the map ends there: `half` metres from the middle each way (114 + 38 = 152, where it was 250). The eight districts keep their names, colours and landmarks; their area is 52,400 m2 where it was 210,000, 75% less."
+  "_cut": "The outer districts cut to about a quarter (Phase 23.3; the owner, 2026-09-28: \"CUT DOWN ON THE OTSIDE DISTRICTS TOO BY LIKE 75% BC WE WANT IT TO BE FOCUSED IN THE MIDDLE NOW\"). The city is still laid out on `blocks`, all seven a side, and every block is built in the same order from the same seeded stream, so the centre comes out exactly as before; the blocks of ring `keep` (the districts' ring round the centre, the downtown being ring 1) and past it are built and then taken away again (city.ts sandbox), their draws spent. Ring `keep` is then built again from a stream of its own, its outer side cut to `depth` metres, and the map ends there: `half` metres from the middle each way (114 + 38 = 152, where it was 250). The eight districts keep their names, colours and landmarks; their area is 52,400 m2 where it was 210,000, 75% less.",
+  "atmosphere": {
+    "night": {
+      "high": "#4a4f66",
+      "kyber": "#6e4636",
+      "cyber": "#1f6a50",
+      "glass": "#33398c",
+      "districts": "#43325f"
+    },
+    "day": {
+      "high": "#b7c1c6",
+      "kyber": "#c8a896",
+      "cyber": "#97b8a8",
+      "glass": "#a3a9d2",
+      "districts": "#b3aec2"
+    },
+    "near": 4,
+    "far": 150,
+    "farUp": 2.2,
+    "blend": 55,
+    "ease": 1.2,
+    "margin": 40,
+    "wet": {
+      "size": 256,
+      "far": 400,
+      "at": [
+        0,
+        3,
+        -36
+      ],
+      "roughness": 0.38,
+      "metalness": 0.08,
+      "intensity": 1.6
+    }
+  },
+  "_atmosphere": "Light and air over the centre (atmosphere.ts; Phase 23.4b), after the packs' own scenes, which stand in coloured haze on wet streets (the owner's side by sides, 2026-09-28). The fog takes the colour of the block you are in (`night` or `day`, by the hour, a colour each family and one for the districts), each block's weighed by exp of minus its distance over `blend` squared, eased over `ease` seconds; it starts `near` metres out and ends `far` metres out, `farUp` more a metre you stand above the street, so a roof's view stays clear. The sky's horizon takes the same colour. Within `margin` metres of the city. `wet`: the street and the blocks' pavements glossy (`roughness`, `metalness`), reflecting a cube map `size` pixels a side taken once from `at` (map-local, Neon Alley) out to `far` metres, at `intensity`. From Balanced up; Competitive keeps its clear air. Colours by eye against the store's pictures."
 }

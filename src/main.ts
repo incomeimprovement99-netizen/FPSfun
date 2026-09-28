@@ -60,7 +60,7 @@ import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, t
 import finCfg from "./config/finisher.json";
 import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
-import { buildCityMap, cityDecay, cityEdge, SECTORS, ROOF_ROUTES, SPIRE_TOP } from "./game/city";
+import { buildCityMap, cityDecay, cityEdge, SECTORS, ROOF_ROUTES, SPIRE_TOP, CITY_GROUND } from "./game/city";
 import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
 import { EDGE_ID } from "./game/causes";
 import { healArea } from "./game/healarea";
@@ -118,6 +118,7 @@ import { dressKit } from "./game/kitdress";
 import { cityKitPlaces } from "./game/citydress";
 import { CITY_KIT, dressCityKit, tickCityKit } from "./game/citykit";
 import { buildAtmosphere, tickAtmosphere } from "./game/steam";
+import { atmosphereOn, tickAir, wetStreets } from "./game/atmosphere";
 import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
@@ -944,10 +945,14 @@ void dressKit(brMap.root, DRESSING).then((n) => {
 if (IS_SK && !new URLSearchParams(location.search).has("nocitykit"))
   void dressCityKit(brMap.root, cityKitPlaces(brMap.pads, quality.cityDetail === 0), quality, renderer).then((n) => {
     if (n) renderer.shadowMap.needsUpdate = true;
+    // the streets wet, reflecting the city the kit has just dressed (atmosphere.ts)
+    if (n) wetStreets(renderer, scene, CITY_GROUND);
   });
 // The centre's steam and flickering signs (steam.ts, city.json steam and flicker): looks only, from Balanced up, and
 // with or without the bought files, since both are the city's own. ?nosteam leaves them off, to measure what they cost
 if (IS_SK) buildAtmosphere(scene, quality.cityDetail >= 1 && !new URLSearchParams(location.search).has("nosteam"));
+// and the city's haze and wet streets (atmosphere.ts), from Balanced up; ?noair leaves them off, to compare
+atmosphereOn(IS_SK && quality.cityDetail >= 1 && !new URLSearchParams(location.search).has("noair"));
 
 // Static dummies down the lanes, plus one on each moving rail. Distances are
 // true because the player spawns on the firing line at z = 0.
@@ -3919,6 +3924,7 @@ function stepDecay(now: number): void {
   if (!IS_SK) return;
   tickCityKit(now);
   tickAtmosphere(now, camera);
+  tickAir(scene, camera, now, hour.id === "hazyDay" || hour.id === "goldenHour");
   cityEdge(now, edgeNear());
   const d = duel instanceof BrMatch && duel.decay ? duel : null;
   const states = d ? d.sectorStates() : null;

@@ -61,7 +61,7 @@ for (const p of places) byKind.set(p.kind, (byKind.get(p.kind) ?? 0) + 1);
 // every centre tower's four faces carry facade modules, but for a storey (the lobby's) left open
 const centre = kit.dress.centre;
 const towers = KIT_SITES.towers.filter((t) => Math.abs(t.x) <= centre && Math.abs(t.z) <= centre);
-const facades = places.filter((p) => p.kind === "facade" || p.kind === "flat").map((p) => ({ p, b: bounds(p) }));
+const facades = places.filter((p) => p.kind === "facade" || p.kind === "flat" || p.kind === "strip").map((p) => ({ p, b: bounds(p) }));
 const bare: string[] = [];
 for (const t of towers) {
   for (const [key, fx, fz] of [
@@ -191,7 +191,8 @@ check("the skyline's towers each wear a lit building from the bundle", (byKind.g
 // the movement's volumes are clear of anything that stands out of a wall (the plan's rules 1, 2 and 4)
 // a facade module stands out of its building by its relief (citykit.json plane): past the plan's 0.15 m it counts
 const standOut = places
-  .filter((p) => !["flat", "podium", "parapet", "shop", "skyline", "zeppelin", "roof"].includes(p.kind) && !(p.kind === "facade" && Math.min(planeOf(p.piece), kit.dress.relief) + kit.dress.outset <= 0.15))
+  // (a module that sits whole, its front on the face, carries how far it stands out: p.out)
+  .filter((p) => !["flat", "podium", "parapet", "shop", "skyline", "zeppelin", "roof"].includes(p.kind) && !(p.kind === "facade" && (p.out ?? Math.min(planeOf(p.piece), kit.dress.relief) + kit.dress.outset) <= 0.15))
   .map((p) => ({ p, b: bounds(p) }));
 const clashes: string[] = [];
 for (const c of CHIMNEYS) {

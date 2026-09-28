@@ -14,7 +14,7 @@ try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
     page.on("pageerror", (e) => console.log("pageerror:", String(e)));
-    await page.goto(`${URL}tools/kitview.html?pack=${pack}&filter=${encodeURIComponent(filter)}&cols=${cols}`, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await page.goto(`${URL}tools/kitview.html?pack=${pack}&filter=${encodeURIComponent(filter)}&cols=${cols}${process.env.KIT_FILE ? `&file=${encodeURIComponent(process.env.KIT_FILE)}&yaw=0.35` : ""}`, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForFunction("window.__kitDone === true", { timeout: 180000 });
     await new Promise((r) => setTimeout(r, 1500));
     const name = `${OUT}-${pack}${filter ? "-" + filter.replace(/\W+/g, "_") : ""}.png`;
