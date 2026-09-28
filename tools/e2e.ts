@@ -5217,6 +5217,45 @@ async function soldierTest(browser: Browser): Promise<void> {
     Object.entries(wrists).every(([k, v]) => v <= (k.endsWith("rack") ? 30 : 50)) && Object.keys(wrists).length === 9,
     JSON.stringify(Object.fromEntries(Object.entries(wrists).map(([k, v]) => [k, Math.round(v)]))),
   );
+  // BOOG's recharge in its scope (hud.json hsCharge): aimed in, a shot, and the ring round the aim point is drawn part
+  // closed; later READY (it was a sliver at the frame's edge, and the ring of the older scope never came across)
+  const scopeRing = await ev<{ during: { ring: number; ready: boolean }; after: { ring: number; ready: boolean }; charge: number | null }>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const gameWait = async (s) => {
+        const g0 = r.gameTime();
+        const t0 = performance.now();
+        while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
+      };
+      r.loadout.give(0, "sentinel");
+      r.loadout.requestSwap(0, r.gameTime());
+      let t0 = performance.now();
+      while (r.loadout.swapping && performance.now() - t0 < 30000) await wait(20);
+      r.setScript({ held: (a) => a === "ads", pressedNow: () => false });
+      await gameWait(1.2);
+      const clip0 = r.loadout.active.state.clip;
+      r.setScript({ held: (a) => a === "ads" || a === "fire", pressedNow: () => false });
+      t0 = performance.now();
+      while (r.loadout.active.state.clip === clip0 && performance.now() - t0 < 20000) await wait(10);
+      r.setScript({ held: (a) => a === "ads", pressedNow: () => false });
+      await gameWait(0.3);
+      const during = { ...r.hud.hsChargeDrawn };
+      const charge = r.gunFeel().charge;
+      t0 = performance.now();
+      while (!r.hud.hsChargeDrawn.ready && performance.now() - t0 < 20000) await wait(15);
+      const after = { ...r.hud.hsChargeDrawn };
+      r.setScript(null);
+      await gameWait(0.3);
+      return { during, after, charge };
+    })()`,
+  );
+  check(
+    "soldier guns: BOOG's scope draws its recharge as a ring round the aim point after a shot, then READY",
+    scopeRing.during.ring > 0 && scopeRing.during.ring < 1 && !scopeRing.during.ready && scopeRing.after.ready,
+    JSON.stringify(scopeRing),
+  );
   // the USSO wears the pack's reflex sight from the steady SMG (paidweapons.json mount; the pack has no sight
   // attachments, and the USSO had irons alone) and is aimed down its dot, drawn in its optic's red
   const reddot = await ev<{ mounted: boolean; dot: string | null; sight: { dot: boolean } | null } | null>(

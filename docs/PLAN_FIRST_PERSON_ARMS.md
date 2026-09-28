@@ -130,6 +130,10 @@ The pack's pistols are ready for when SpeedKills has one (the Tirgames pistols a
 Each step is built, tested, documented (a roadmap milestone, the diary, the README), committed and shipped before the
 next, as every item is (`CLAUDE.md`).
 
+The owner, 2026-09-27: "start with the boog and the usso for the arms to be perfect. when we get that commit push
+deploy then you can work on the rest of the guns and all the other stuff". So steps 2 to 7 are done for USSO and BOOG
+alone first and shipped; then the other eight guns go through them, then step 8 and 9.
+
 1. **Import and inventory.** Unpack, convert the arms and the clips, measure the pack's guns, print the inventory,
    answer section 6. Check: `tools/checks/fparms-pack.ts` (in verify, skipped when the files are absent) that the arms
    and each mapped gun's clips load, the bones the rig uses exist, and the measurements are in `fparms.json`; `npm
@@ -162,11 +166,17 @@ next, as every item is (`CLAUDE.md`).
 
 ## 6. Open questions, answered in step 1
 
-- The arms' triangles and texture sizes (not listed on the store page), and whether the sleeves suit the game.
-- The pack guns' part names in the `A_W_*` clips (magazine, bolt, charging handle), and so the exact "out" and "in"
-  moments.
-- How the pose and locomotion clips are meant to combine (KINEMATION's controller uses masks: `Mask_Additive`,
-  `Mask_FullBody`, the right hand's fingers). Their Animator Controller and override controllers show the intended
-  layering; we read them rather than guess.
-- Whether any `.anim`-only clip is worth a parser.
-- The scale the FBX files are in (UE4 skeletons are often in centimetres), checked against a measured forearm.
+Answered by the first look at the owner's download, 2026-09-27 (unpacked outside the repo, converted with our
+FBX2glTF, read in `speedkills-paid/analysis/fparms`):
+
+- **The arms:** 24,360 triangles in three meshes (glove, sleeve, hand) and three materials, textures as separate PNGs
+  (`T_Arm01_C`, `T_Glove01_N`, `T_Cloth01_Roughness` and the rest). A full UE4 skeleton, with `ik_hand_gun`,
+  `ik_hand_l` and `ik_hand_r`.
+- **The scale is metres:** upper arm 0.30 m, forearm 0.27 m, wrist to middle knuckle 0.12 m.
+- **The clips convert whole:** each `A_FP_*` FBX becomes one take of about 130 bone tracks; each also carries the arms'
+  meshes, which the import strips.
+- **The pack's guns name their parts plainly** (the MP5: `Root`, `Mag`, `ChargingHandle`, `Bolt`, `Trigger`,
+  `ReleaseHandle`, `FireSelect`), and its `A_W_*` clips move those, so the magazine's and the handle's moments are read
+  straight off the tracks.
+- Still open: how the pose and locomotion clips combine (KINEMATION's controller and masks; read in step 2), and
+  whether any `.anim`-only clip is worth a parser (not for USSO and BOOG: their stand-ins have FBX clips).

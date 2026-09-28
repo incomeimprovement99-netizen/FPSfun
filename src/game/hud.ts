@@ -353,6 +353,11 @@ export class Hud {
   private readonly layout: SkLayout | null = SK_LAYOUT;
   /** the HUD unit of the frame being drawn (the outline's limits scale with it) */
   private uNow = 1;
+  /** the signature scope's recharge as last drawn, and when it last came ready (seconds, the page's clock) */
+  private hsCharge = 1;
+  private hsReadyAt = -Infinity;
+  /** what the signature scope drew of its recharge on its last frame (tools/e2e.ts): the ring's share and READY */
+  hsChargeDrawn: { ring: number; ready: boolean } = { ring: 1, ready: false };
   private hitMarkerUntil = 0;
   private hitMarkerHead = false;
   private hitMarkerKind: "hit" | "knock" | "kill" = "hit";
@@ -1473,9 +1478,9 @@ export class Hud {
   /**
    * Hyper Scape's Protocol V scope (research, docs/HYPERSCAPE_GAP_ANALYSIS.md): not a circle, the whole screen, framed by
    * a soft chamfered-rectangle vignette at the edges; thin red lines across it with a gap at the middle and range ticks
-   * either side, a post down from above and stadia below; a chevron and the zoom ("x6.00") at the left edge. The
-   * recharge after a shot is a bar under the readout, amber filling, then the lines at full red when it is ready. It
-   * powers on top to bottom as the signature scope does.
+   * either side, a post down from above and stadia below; a chevron and the zoom ("x6.00") at the left edge. After a
+   * shot a ring round the aim point closes as the gun recharges, and READY flashes when it can fire again (hud.json
+   * hsCharge). It powers on top to bottom as the signature scope does.
    */
   private drawHsScope(sc: NonNullable<HudState["scope"]>, u: number): void {
     const c = this.ctx;
@@ -1579,13 +1584,45 @@ export class Hud {
     c.font = this.font(700, 22 * u);
     c.textAlign = "left";
     c.fillText(sc.zoom ?? "", lx + 4 * u, cy + 34 * u);
-    // the recharge: a bar under the readout, amber filling
-    if (!ready) {
-      const bw = 90 * u;
-      c.fillStyle = "rgba(255,190,90,0.25)";
-      c.fillRect(lx + 4 * u, cy + 46 * u, bw, 4 * u);
-      c.fillStyle = "rgba(255,190,90,0.95)";
-      c.fillRect(lx + 4 * u, cy + 46 * u, bw * Math.max(0, sc.charge ?? 0), 4 * u);
+    // the recharge (hud.json hsCharge): a ring round the aim point, closing clockwise from the top as the gun
+    // recharges, then READY as it can fire again. It was a 90 by 4 pixel bar at the frame's edge, which the owner never
+    // saw ("when the user can shoot again, I thought we agreed on having a bar there")
+    {
+      const HC = hudCfg.hsCharge;
+      const k = Math.max(0, Math.min(1, sc.charge ?? 1));
+      const t = performance.now() / 1000;
+      if (this.hsCharge < 1 && k >= 1) this.hsReadyAt = t;
+      this.hsCharge = k;
+      const rr = H * HC.radius;
+      const since = t - this.hsReadyAt;
+      c.shadowBlur = 0;
+      c.lineWidth = HC.width * u;
+      c.textAlign = "center";
+      c.font = this.font(700, HC.text * u);
+      if (k < 1) {
+        c.strokeStyle = HC.track;
+        c.beginPath();
+        c.arc(cx, cy, rr, 0, Math.PI * 2);
+        c.stroke();
+        c.strokeStyle = HC.fill;
+        c.beginPath();
+        c.arc(cx, cy, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k);
+        c.stroke();
+        c.fillStyle = HC.fill;
+        c.fillText(HC.charging, cx, cy + rr + (HC.width + HC.text + 4) * u);
+        this.hsChargeDrawn = { ring: k, ready: false };
+      } else if (since < HC.flash) {
+        const a = 1 - since / HC.flash;
+        c.globalAlpha = sc.amount * a;
+        c.strokeStyle = HC.ready;
+        c.beginPath();
+        c.arc(cx, cy, rr, 0, Math.PI * 2);
+        c.stroke();
+        c.fillStyle = HC.ready;
+        c.fillText(HC.readyText, cx, cy + rr + (HC.width + HC.text + 4) * u);
+        c.globalAlpha = sc.amount;
+        this.hsChargeDrawn = { ring: 1, ready: true };
+      } else this.hsChargeDrawn = { ring: 1, ready: false };
     }
     c.restore();
     // the power-on's scan line

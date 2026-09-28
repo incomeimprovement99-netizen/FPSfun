@@ -5488,3 +5488,19 @@ Phase 22's items 22.3 and 22.1 (`docs/PHASE_22_PLAN_FINISHING_THE_CENTRE.md`).
   than a body; its clearance rule means a stair core's or the drop's door, not its own. `citykit.ts` (nothing of the
   kit across the 128 doors), `sk-lobbies.ts`, `city-budget.ts` (21,735 meshes of 22,000, 319k triangles of 320k:
   close, for 22.4), `city-levels.ts`; verify and rules.
+
+## Milestone 286 — BOOG's recharge ring in its scope, the USSO higher, the magazine morphing at the gun
+
+The owner, 2026-09-27, after playing: "none of the sniper details we said were in the scope are actually there, like
+when the user can shoot again, I thought we agreed on having a bar there"; "the usso needs to be brought up more ...
+the cant on the reload isn't really where I thought it would be".
+
+- **BOOG's recharge** (`hud.ts` drawHsScope, `hud.json` hsCharge): after a shot, a ring round the aim point closes
+  clockwise as it recharges, RECHARGING under it, and READY flashes as it can fire again. The ring the README promised
+  belonged to the older scope style and never came across when BOOG moved to the Hyper Scape scope; what was left was
+  a 90 by 4 pixel bar at the frame's left edge.
+- **The USSO** (`gunfeel.json`): its rest pose another 35 mm up and 10 mm in; its reload comes further up and in, with
+  less roll and the muzzle turned in; and its magazine drops 3 cm, not 10, so it phases out and back in at the
+  magazine well, where the morph reads as the gun's, rather than down in the hand. BOOG's drops 4 cm.
+- **Checked:** e2e (soldier), aimed in with BOOG after a shot the ring is drawn part closed and later READY (with the
+  ring taken out, it failed); pictures at the owner's view; verify; rules.

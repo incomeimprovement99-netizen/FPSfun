@@ -127,7 +127,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   and a new one in. From empty the USSO's support hand goes to its charging
   handle and racks it; BOOG cants over after each shot while its wheels turn. Their shots throw light, not brass (glowing
   cells, and BOOG a shockwave off the muzzle), BOOG's scope powers on with a scan
-  line and a ring round it fills as it recharges, their glow stutters when the
+  line, and after a shot a ring round the aim point closes as it recharges and
+  READY flashes when it can fire again; their glow stutters when the
   magazine is nearly out, and an inspect or a fusion runs a scan along the gun.
   Like Hyper Scape's guns they carry a live screen on the side (the rounds in
   big digits, the fusion level as pips, gold at the top); BOOG's scope is
