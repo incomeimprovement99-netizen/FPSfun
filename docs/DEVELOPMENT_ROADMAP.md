@@ -6089,3 +6089,24 @@ Phase 25, after 307 and 309 changed the importer for the district: the same for 
 - One measurement moved (a piece's 13,701 triangles to 13,697). The centre draws the same 6,443 pieces.
 - **Checked:** verify and rules; the e2e speedkills section; pictures of the centre from the v8 files. The density
   work parked for v8 (the street clutter's pieces) goes to v9.
+
+## Milestone 311 — High City's corner with the 233 parts it lacked: a mesh found by Unity's own ID for it
+
+Phase 25. A renderer names its mesh by an ID. Newer Unity makes a model's IDs by hashing, where its .meta keeps no
+table, so the importer fell back on the renderer's name, and one called "Box06056 (1)" (Unity's name for a copy) found
+no mesh and drew nothing. Its new report of such renderers (`import-city.ts`) listed Kyber's ladders (82), a shop's
+parts and a robot's.
+
+- **Unity's ID for a mesh** (`import-city.ts unityId`, `meshIndex`): xxHash64 of "Type:Mesh-><name><index>" (UTF-8,
+  seed 0), read signed. Found against Kyber's "metro tonnel tile.prefab", whose meshes it references by it: all four
+  tested reproduce exactly (Shape021's mesh is 2009449214765265626). A model's GameObjects and renderers hash some
+  other way, not yet known (their names, paths from the model's root and other class names tried), so material
+  overrides on a model of several meshes still go by slots and names (1,020).
+- **The district, v4:** 2,873 parts where it had 2,640, 612,049 triangles where 601,571, 5,545 boxes of collision where
+  5,406; 32.0 MB, 24.6 on Competitive.
+- **The kit, held at v8:** a v9 re-import recovers 8,724 triangles in High City's pieces and 4,462 in Kyber's, but takes
+  Balanced and High past their budgets (3,064k and 3,167k of 3,000k and 3,100k, `city-budget.ts`), and High City's fire
+  escape tiles come out 1.05 m wider, their stair 1.05 m along from where the solids were measured
+  (`tools/measure-escape.ts`, v8 against v9). Both are the next step.
+- **Checked:** verify and rules; `sk-district.ts` on the new collision (every cell, pad, walk and node); the e2e
+  speedkills section; pictures beside v3's from the crossroads and a canyon.

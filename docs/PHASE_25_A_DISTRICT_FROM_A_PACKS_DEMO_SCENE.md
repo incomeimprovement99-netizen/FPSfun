@@ -118,8 +118,22 @@ The kit's own pack files, re-imported as v8 with the importer's new rules: their
 loads 114 MB where it loaded 135, Competitive 37 where 44, High 338 where 359; the kit is mostly textures, so less is
 saved than on the district), and High City's last grey parts in the kit (20 triangles) in their materials.
 
+## Its missing parts (Milestone 311)
+
+233 of the scene's renderers drew nothing. A renderer names its mesh by an ID, and newer Unity makes a model's IDs by
+hashing, where the .meta keeps no table. The importer fell back on the renderer's name, and a renderer called "Box06056
+(1)" (Unity's name for a copy) found no mesh. The hash is xxHash64 of "Type:Mesh-><name><index>", found against Kyber's
+prefabs, whose meshes reproduce exactly. The importer now finds meshes by it: the district has 2,873 parts where it had
+2,640, and 612,049 triangles where it had 601,571. The same fix for the city kit is ready but held back. A v9 kit
+recovers 8,724 triangles in High City's pieces and 4,462 in Kyber's, but it takes Balanced and High past their triangle
+budgets (3,064k and 3,167k), and the fire escapes' tiles come out 1.05 m wider, so the numbers their solids were
+measured from move.
+
 ## Next
 
+- The kit v9: the recovered parts within the budgets, and the fire escapes re-measured (`tools/measure-escape.ts`).
+- A model's GameObjects and renderers are hashed some other way than its meshes, not yet known, so the 1,020 material
+  overrides on models of several meshes still go by slots and names.
 - Kyber's facade strips still draw 15,440 triangles in the grey stand-in: its metro tunnel pieces, whose FBX materials
   ("tonnel14", "up circle") name no material of the pack and carry no texture, and whose scene overrides are among the
   1,020 the importer cannot place on a mesh.

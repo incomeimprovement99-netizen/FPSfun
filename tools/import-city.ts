@@ -31,7 +31,7 @@ import { initializeCanvas, readPsd } from "ag-psd";
 import { BasisPool, type BasisKind } from "./basis-pool";
 
 /** what the import could not place, reported at its end */
-const IMPORT_STATS = { unplacedOverrides: 0, unresolved: new Map<string, number>(), unreadable: new Map<string, number>() };
+const IMPORT_STATS = { unplacedOverrides: 0, unresolved: new Map<string, number>(), unreadable: new Map<string, number>(), unmatchedMeshes: new Map<string, number>() };
 
 export interface CityImportHelpers {
   root: string;
@@ -80,6 +80,62 @@ function normalMat(m: M4): { n: number[]; det: number } {
   return { n, det };
 }
 const srgbToLinear = (c: number): number => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+// ---------------------------------------------------------------- Unity's IDs for a model's own objects
+// Newer Unity names a model's objects (its meshes, its renderers, their GameObjects) by a hash, not a table in the
+// .meta: the file ID of the index-th object of a class with a name is xxHash64 of "Type:<class>-><name><index>" (UTF-8,
+// seed 0), read as a signed number, for a Mesh. Found against Kyber's prefabs, which reference a model's meshes by it
+// ("metro tonnel tile.prefab": Shape021's mesh is 2009449214765265626); by name alone a renderer called "Box06056 (1)"
+// found no mesh and drew nothing (Kyber's ladders). A model's GameObjects and renderers are hashed some other way, not
+// yet known (tried: the same with their names, paths from the model's root, other class names), so a prefab's
+// material overrides on a model of several meshes are still matched by their slots and names.
+const U64 = (1n << 64n) - 1n;
+const XP1 = 11400714785074694791n, XP2 = 14029467366897019727n, XP3 = 1609587929392839161n, XP4 = 9650029242287828579n, XP5 = 2870177450012600261n;
+const xrot = (x: bigint, k: number): bigint => ((x << BigInt(k)) | (x >> BigInt(64 - k))) & U64;
+const xmul = (a: bigint, b: bigint): bigint => (a * b) & U64;
+const xround = (acc: bigint, v: bigint): bigint => xmul(xrot((acc + xmul(v, XP2)) & U64, 31), XP1);
+const xmerge = (acc: bigint, v: bigint): bigint => (xmul(acc ^ xround(0n, v), XP1) + XP4) & U64;
+function xxh64(bytes: Uint8Array): bigint {
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const len = bytes.length;
+  let p = 0;
+  let h: bigint;
+  if (len >= 32) {
+    let v1 = (XP1 + XP2) & U64, v2 = XP2, v3 = 0n, v4 = (0n - XP1) & U64;
+    for (; p + 32 <= len; p += 32) {
+      v1 = xround(v1, dv.getBigUint64(p, true));
+      v2 = xround(v2, dv.getBigUint64(p + 8, true));
+      v3 = xround(v3, dv.getBigUint64(p + 16, true));
+      v4 = xround(v4, dv.getBigUint64(p + 24, true));
+    }
+    h = (xrot(v1, 1) + xrot(v2, 7) + xrot(v3, 12) + xrot(v4, 18)) & U64;
+    h = xmerge(xmerge(xmerge(xmerge(h, v1), v2), v3), v4);
+  } else h = XP5;
+  h = (h + BigInt(len)) & U64;
+  for (; p + 8 <= len; p += 8) {
+    h ^= xround(0n, dv.getBigUint64(p, true));
+    h = (xmul(xrot(h, 27), XP1) + XP4) & U64;
+  }
+  if (p + 4 <= len) {
+    h ^= xmul(BigInt(dv.getUint32(p, true)), XP1);
+    h = (xmul(xrot(h, 23), XP2) + XP3) & U64;
+    p += 4;
+  }
+  for (; p < len; p++) {
+    h ^= xmul(BigInt(bytes[p]), XP5);
+    h = xmul(xrot(h, 11), XP1);
+  }
+  h ^= h >> 33n;
+  h = xmul(h, XP2);
+  h ^= h >> 29n;
+  h = xmul(h, XP3);
+  h ^= h >> 32n;
+  return h;
+}
+const unityId = (cls: string, name: string, index: number): bigint => {
+  const h = xxh64(new Uint8Array(Buffer.from(`Type:${cls}->${name}${index}`, "utf8")));
+  return h >= 1n << 63n ? h - (1n << 64n) : h;
+};
 
 // ---------------------------------------------------------------- a pack's Unity side
 class Pack {
@@ -271,7 +327,33 @@ function preOf(model: RawModel, meshIdx: number): M4 {
   }
   return trs([0, 0, 0], [0, 0, 0, 1], s);
 }
+const meshIds = new WeakMap<RawModel, Map<bigint, number>>();
 function meshIndex(pack: Pack, model: RawModel, guid: string, fid: bigint | null, goName: string): number | null {
+  // by Unity's own ID for the mesh (unityId), where it is one: a renderer named "Box06056 (1)" drew nothing by name
+  if (fid !== null) {
+    let byId = meshIds.get(model);
+    if (!byId) {
+      const map = new Map<bigint, number>();
+      const seen = new Map<string, number>();
+      model.meshes.forEach((m, i) => {
+        const k = seen.get(m.name) ?? 0;
+        seen.set(m.name, k + 1);
+        map.set(unityId("Mesh", m.name, k), i);
+      });
+      const seenN = new Map<string, number>();
+      for (const n of model.nodes) {
+        if (n.mesh === null) continue;
+        const k = seenN.get(n.name) ?? 0;
+        seenN.set(n.name, k + 1);
+        const id = unityId("Mesh", n.name, k);
+        if (!map.has(id)) map.set(id, n.mesh);
+      }
+      meshIds.set(model, map);
+      byId = map;
+    }
+    const hit = byId.get(fid);
+    if (hit !== undefined) return hit;
+  }
   const want = (fid !== null && pack.meshNames(guid).get(fid)) || goName;
   let i = model.meshes.findIndex((m) => m.name === want);
   if (i >= 0) return i;
@@ -497,7 +579,13 @@ class Resolver {
         const model = this.models.get(this.pack, mg);
         if (!model) continue;
         const mi = meshIndex(this.pack, model, mg, big(mref.fileID), node.name);
-        if (mi === null) continue;
+        if (mi === null) {
+          // (a renderer whose mesh is not found by name draws nothing: counted, so it does not go unseen)
+          const k = `${basename(this.pack.guidPath.get(mg) ?? mg)} : ${node.name}`;
+          IMPORT_STATS.unmatchedMeshes.set(k, (IMPORT_STATS.unmatchedMeshes.get(k) ?? 0) + 1);
+          if (process.env.MESH_DEBUG && k.includes(process.env.MESH_DEBUG)) console.log("mesh not found", k, "model meshes:", model.meshes.map((m) => `${m.name}(${m.prims.length})`).join(", "), "nodes:", model.nodes.filter((x) => x.mesh !== null).map((x) => x.name).join(", "));
+          continue;
+        }
         const d: Draw = { model, mesh: mi, pre: preOf(model, mi), mats: null, modelGuid: mg, on: true, go };
         if (o.cls === 137) d.mats = (o.data.m_Materials ?? []).map((m: any) => (m?.guid ? String(m.guid) : null));
         node.draws.push(d);
@@ -1627,6 +1715,8 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
   console.log("city bundle:\n  " + report.join("\n  "));
   if (IMPORT_STATS.unplacedOverrides) console.log(`  ${IMPORT_STATS.unplacedOverrides} material overrides on a model found no mesh to go to`);
   // the model parts that drew with no material: which model, its FBX's own material name, triangles
+  if (IMPORT_STATS.unmatchedMeshes.size)
+    console.log(["  a renderer's mesh not found in its model by name (model : renderer, times):", ...[...IMPORT_STATS.unmatchedMeshes].sort((p, q) => q[1] - p[1]).slice(0, 25).map(([k, n]) => `    ${n}  ${k}`)].join(String.fromCharCode(10)));
   if (IMPORT_STATS.unreadable.size)
     console.log(["  a material found but not read (material (for its model), triangles):", ...[...IMPORT_STATS.unreadable].sort((p, q) => q[1] - p[1]).slice(0, 25).map(([k, n]) => `    ${Math.round(n)}  ${k}`)].join(String.fromCharCode(10)));
   if (IMPORT_STATS.unresolved.size)
