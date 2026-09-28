@@ -1093,10 +1093,10 @@ npm run fps check    # from your PC: DNS, the firewall, /health, a real relayed 
 npm run fps backup   # the boards and accounts down to server-backup/ first
 ```
 
-**A static mirror** can be published beside it with `npm run deploy` (the
-built `dist/` on a `gh-pages` branch). A mirror uses the free public broker
-and has no relay, boards or accounts, so it is a fallback rather than the
-address to hand out. Players need a reload after either (the file names carry
+**A static mirror** could be published beside it with `npm run deploy` (the
+built `dist/` on a `gh-pages` branch), but it no longer is: the game lives only
+at https://fpsfun.duckdns.org/ (the owner's call, 2026-09-27). A mirror used the
+free public broker and had no relay, boards or accounts. Players need a reload after either (the file names carry
 a hash, so a plain reload is enough).
 
 `dist/` is a static site and would work on Netlify, Cloudflare Pages or any

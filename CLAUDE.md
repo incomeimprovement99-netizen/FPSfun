@@ -26,8 +26,8 @@ Each item: **build it, test it, document it, commit it, ship it**, then pick up 
 - **Docs**: a `docs/DEVELOPMENT_ROADMAP.md` milestone per shipped feature, a diary entry in
   `docs/updates/<date>.md`, and README and the deploy guide kept true.
 - **Release**: commit in the worktree, rebase onto main, `git merge --ff-only` in `apex-range`, push,
-  `npm run fps backup`, `npm run fps deploy` (LIVE CHECK), `npm run deploy` (Pages, which prints
-  `== LIVE:` or `== NOT LIVE:`).
+  `npm run fps backup`, `npm run fps deploy` (LIVE CHECK). The game lives only at fpsfun.duckdns.org: no GitHub
+  Pages deploy (`npm run deploy`) any more, and no time spent on it (the owner, 2026-09-27).
 
 ## Rules that do not bend
 

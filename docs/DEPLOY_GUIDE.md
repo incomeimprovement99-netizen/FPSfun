@@ -1,9 +1,9 @@
 # Deploy Guide: from this folder to a link a friend can open and 1v1 you
 
-> **The game's own server** (a proper address like `fpsfun.duckdns.org`,
-> our own matchmaking, a relay for strict networks, online boards) is in
-> **`docs/SERVER_GUIDE.md`**. This guide is the GitHub Pages link, which keeps
-> working as a backup: the same build falls back to the public broker there.
+> **Not used any more.** The game lives only at https://fpsfun.duckdns.org/
+> (its own server: **`docs/SERVER_GUIDE.md`**); the owner stopped the GitHub
+> Pages deploys on 2026-09-27. This guide is kept for the record of how the
+> Pages link worked.
 
 The concrete, do-it-now guide. Cost: $0. Time: about ten minutes the first
 time, one command after that.
