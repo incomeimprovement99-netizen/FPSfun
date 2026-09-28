@@ -42,12 +42,12 @@ The owner: "We have the full plan laid out already so do not stop until we are d
 
 | Pack model | Models | Proposed SpeedKills gun |
 |---|---|---|
-| SciFiRifle01 | _1, _2 | ZEPHYR (fast rifle) and PANDA (hard rifle) |
+| SciFiRifle01 | _1, _2 | STRYDER (fast rifle) and PANDA (hard rifle) |
 | SciFiSMG01 | _1, _2 | USSO (fast SMG) |
 | SciFiSMG02 | _1, _2 | ANAKIN (hard SMG) |
-| SciFiShotGun01 | _1, _2 | RIPTIDE (fast shotgun) |
+| SciFiShotGun01 | _1, _2 | REZ (fast shotgun) |
 | SciFiShotGun02 | _1, _2 | BIGANTLER (hard shotgun) |
-| SciFiSniperRifle01 | _1, _2 | BOOG (sniper) and HELIX (hard marksman) |
+| SciFiSniperRifle01 | _1, _2 | BOOG (sniper) and HAEFY (hard marksman) |
 | SciFiPistol01, 02 | _1, _2 each | none in SpeedKills' roster today; PULSAR (fast marksman) if it reads right |
 | SciFiGrenadeLauncher01 | three parts | NOVA (special), if it reads right |
 | SciFiRocketLauncher01 | _1, _2 | spare |
@@ -75,14 +75,14 @@ The owner: "We have the full plan laid out already so do not stop until we are d
 
 | Gun | Model | Why |
 |---|---|---|
-| ZEPHYR (fast rifle) | SciFiRifle01_1 | the plain rifle |
+| STRYDER (fast rifle) | SciFiRifle01_1 | the plain rifle |
 | PANDA (hard rifle) | SciFiRifle01_2 | the same rifle with its scope and extruder |
 | USSO (fast SMG) | SciFiSMG02_2 | the compact one (0.64 m) |
 | ANAKIN (hard SMG) | SciFiSMG01_2 | the long one with a scope (0.86 m) |
-| RIPTIDE (fast shotgun) | SciFiShotGun01_2 | magazine-fed |
+| REZ (fast shotgun) | SciFiShotGun01_2 | magazine-fed |
 | BIGANTLER (hard shotgun) | SciFiShotGun02_2 | the pump |
 | PULSAR (fast marksman) | SciFiSMG01_1 | the long SMG without a scope, as a carbine |
-| HELIX (hard marksman) | SciFiSniperRifle01_1 | the plain long rifle |
+| HAEFY (hard marksman) | SciFiSniperRifle01_1 | the plain long rifle |
 | BOOG (sniper) | SciFiSniperRifle01_2 | the long rifle with its spinners and magazine |
 | NOVA (special) | SciFiGrenadeLauncher01_2 | the heavy energy gun, with its own sight |
 
@@ -179,7 +179,7 @@ right in first person beat every variant; a measured reach table and proven modu
 - [x] W5 the guns in the soldiers' hands, checked in a picture
 - [x] W7 the pack's props: the MINE hack's mine, death boxes (the storage case), care packages (the weapon case), floor guns in their skins, the med kit in a HEAL area; SpeedKills has no grenades, so the pack's are unused; `tools/checks/paid-weapons.ts` looks for every prop's files
 - [x] W8 the guns are live (9915b25, Milestone 239)
-- [x] The pack's parts animated (Milestone 250): triggers, NOVA's drum, the sniper's wheels, BIGANTLER's gate, the releases; the launcher's flip sights fold under its optic; every optic on its measured seat; the sniper's own scope; HELIX's magazine
+- [x] The pack's parts animated (Milestone 250): triggers, NOVA's drum, the sniper's wheels, BIGANTLER's gate, the releases; the launcher's flip sights fold under its optic; every optic on its measured seat; the sniper's own scope; HAEFY's magazine
 - [x] W9 withdrawn at the owner's word (Milestone 249): one model a gun by its class, no picker; the skin is the fusion level's
 - [x] W9 audited (Milestone 247): every gun on its split build (three kept their magazines in on a reload), model picks only between the SMGs (the rest by skin); the audit sheet is `tools/weapon-picks-sheet.ts`
 - [x] W9 the player's choice of each gun's model and skin: on the Loadouts tab by each slot, kept and carried to friends as the look's sixth field; every family model measured into `src/config/paidmodels.json`; the e2e soldier section checks a pick in hand and on a friend's figure of you (Milestone 245)

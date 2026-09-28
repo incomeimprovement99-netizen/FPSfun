@@ -125,7 +125,7 @@ Game) or `?game=legacy`, and everything below this section describes it.
   Weapons model, in first person, in hands and on the floor, and a fused gun
   changes skin and glows brighter each level. One model a gun, by its class:
   the two SMGs and the two shotguns one each, the rifles and PULSAR the rifle,
-  HELIX and BOOG the sniper, NOVA the launcher. The pack's own parts move:
+  HAEFY and BOOG the sniper, NOVA the launcher. The pack's own parts move:
   triggers, NOVA's drum a chamber a shot, the sniper's wheels, the heavy
   shotgun's loading gate, the magazine releases. Every gun is aimed down its
   own sights (its scope's dot, the sniper's scope, or its irons), with no sight

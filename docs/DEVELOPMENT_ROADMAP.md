@@ -3310,7 +3310,7 @@ built, on SpeedKills pages only, so the legacy game's measured Apex numbers are 
 
 Stages D and E.
 
-- **The ten:** PANDA and ZEPHYR (rifles), ANAKIN and USSO (SMGs), BIGANTLER and RIPTIDE (shotguns), HELIX and
+- **The ten:** PANDA and STRYDER (rifles), ANAKIN and USSO (SMGs), BIGANTLER and REZ (shotguns), HAEFY and
   PULSAR (marksman), BOOG (sniper) and NOVA (an energy gun that overheats), each with one fixed optic and no
   attachments.
 - **Tuned to the owner's longer fights:** `tools/checks/ttk.ts` measures every gun at every fusion level
@@ -4036,7 +4036,7 @@ Phase 20, Part A, item A1 (`docs/PHASE_20_PLAN.md`).
     - with the clutter back, the box lists light ammo and five grenades.
   - Verify, rules, the `speedkills` section (77 ok), and the legacy `loot` and `br` sections (78 ok). The legacy
     sections whose matches land with a loadout, `ship`, `console` and `gulag`, pass unchanged (38 ok).
-  - A new snapshot, `sk-loadout-loot`: landed with the loadout, ZEPHYR in hand at level 0, a PANDA on a zebra
+  - A new snapshot, `sk-loadout-loot`: landed with the loadout, STRYDER in hand at level 0, a PANDA on a zebra
     crossing in NEON ROW and E's prompt to take it.
 - **Not changed, noted:** a loadout start now lays out and draws the same floor as a loot start (about 960
   items), so its frame rate is a loot start's. A SpeedKills Resurgence redeploy in a loot start still hands a
@@ -4057,7 +4057,7 @@ Phase 20, A2 (the owner saw "33.66666666666666" over a bot).
   up. The fraction came from SpeedKills bots' shield and health, which come back a sliver a frame, so a hit that
   finishes a part-healed bot reported what it had left.
 - **SpeedKills hits land at their tuned value.** Each hit was rounded down as it landed, which cut USSO's 7.8 to
-  7 (10% off its time to kill) and made RIPTIDE's fusion add nothing. The legacy game keeps whole points.
+  7 (10% off its time to kill) and made REZ's fusion add nothing. The legacy game keeps whole points.
   `tools/checks/ttk.ts` lands every gun on a figure to hold this.
 - **Checked:** new e2e checks for:
   - a HUD frame drawn with fractions in every field;
@@ -4069,15 +4069,15 @@ Phase 20, A2 (the owner saw "33.66666666666666" over a bot).
 Phase 20, A3 (the owner: "the left arm is in the red dot and sight area"). Two faults were measured by the
 diagnosis at 1280x720:
 
-- **HELIX and PULSAR, the 3x scope.** Aimed past 0.9, the gun is hidden so the HUD's scope picture can take
+- **HAEFY and PULSAR, the 3x scope.** Aimed past 0.9, the gun is hidden so the HUD's scope picture can take
   over. The player's arms are not under the gun, so they stayed drawn, frozen, and the scope's narrow view blew
   the left arm up into the picture: 23,800 to 29,200 pixels. Now the arms are hidden whenever nothing posed them.
-- **PANDA, ZEPHYR and NOVA, a reload in the sights.** At full size the reload rolled the gun, and the support
+- **PANDA, STRYDER and NOVA, a reload in the sights.** At full size the reload rolled the gun, and the support
   hand still on the handguard showed in the 2x window: 152 to 621 pixels. A reload while aiming now keeps 15% of
   its roll (speedkills.json `viewmodel.reloadAds` 0.85), so the sight holds steady.
 - The four red-dot guns never showed the arm.
 - Both fixes are SpeedKills only.
-- **Checked:** a new e2e check: aimed through HELIX's scope the arms are hidden, and through USSO's red dot they
+- **Checked:** a new e2e check: aimed through HAEFY's scope the arms are hidden, and through USSO's red dot they
   are drawn.
 
 ## Milestone 224 — The city's edge: a fence, a countdown and a laser ✅
@@ -4147,8 +4147,8 @@ outlines on all of it).
 Phase 20, A7 (the owner: "USSO (Fast SMG)", so a beginner can see what each gun is).
 
 - **Each SpeedKills gun has a two-word class** (speedkills.json `kind`), read off its numbers. Each pair reads
-  Heavy or Steady against Fast or Auto: PANDA Heavy Rifle, ZEPHYR Fast Rifle, ANAKIN Steady SMG, USSO Fast
-  SMG, BIGANTLER Heavy Shotgun, RIPTIDE Auto Shotgun, HELIX Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper,
+  Heavy or Steady against Fast or Auto: PANDA Heavy Rifle, STRYDER Fast Rifle, ANAKIN Steady SMG, USSO Fast
+  SMG, BIGANTLER Heavy Shotgun, REZ Auto Shotgun, HAEFY Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper,
   NOVA Energy LMG. The Run's pistols are Pistol.
 - **`weaponLabel` names a gun with its class wherever there is room:**
   - the loot prompts and the reach list;
@@ -4290,7 +4290,7 @@ Phase 20, A16 (the owner, 2026-09-26: switching between guns should be quicker a
 level up along with damage and magazine).
 
 - **A gun's draw and put-away times** are 1.5 times as quick as the legacy data as found, and twice as quick at
-  level 5, falling each level (speedkills.json `fusion.gun[].swap`). ZEPHYR draws in 0.40 s as found and 0.30 s
+  level 5, falling each level (speedkills.json `fusion.gun[].swap`). STRYDER draws in 0.40 s as found and 0.30 s
   at level 5, where it was 0.60.
 - **Checked:** `tools/checks/ttk.ts` holds the base, the top and the fall at every level.
 
@@ -4521,7 +4521,7 @@ Phase 21, the owner's question "are the weapons completely in with no bugs?", an
 (`tools/weapon-picks-sheet.ts`) puts every gun in every model it can be picked in, at the hip, in the sights and
 mid-reload, and prints what the reload moves.
 
-- **Three guns kept their magazines in on a reload** since the guns went live: ZEPHYR, HELIX and PULSAR wore the pack's `_1` builds. The pack's `_1` of a family is the same gun as its `_2` (the same length, muzzle and
+- **Three guns kept their magazines in on a reload** since the guns went live: STRYDER, HAEFY and PULSAR wore the pack's `_1` builds. The pack's `_1` of a family is the same gun as its `_2` (the same length, muzzle and
   sights, measured) in one piece, with nothing a reload can move. Every gun now wears its family's split build.
 - **The model picks were not real:** a gun's "other model" was its own family's `_1`, the same gun unsplit, and NOVA
   was offered the launcher's round (0.18 m) as a model. A gun now picks between the pack's guns of its class whose
@@ -4557,9 +4557,9 @@ The owner: "one model per gun ... smg is one of the two smgs ... and the skin va
 - **No picker.** The Loadouts tab's model and skin picks are gone (`gunpick.ts` removed, the look's sixth field with
   it), so a gun's skin says its fusion level to everyone: as found, then the second skin at levels 2 to 3, the third at
   4 to 5, brighter each level.
-- **One model a gun, by its class** (`paidweapons.json` guns): ANAKIN and USSO the pack's two SMGs, BIGANTLER and RIPTIDE
-  its two shotguns, PANDA and ZEPHYR its rifle, BOOG its sniper, NOVA its launcher (the only drum-fed heavy). The pack
-  has no marksman rifle: HELIX (heavy marksman) wears the sniper and PULSAR (fast marksman) the scoped rifle, where it
+- **One model a gun, by its class** (`paidweapons.json` guns): ANAKIN and USSO the pack's two SMGs, BIGANTLER and REZ
+  its two shotguns, PANDA and STRYDER its rifle, BOOG its sniper, NOVA its launcher (the only drum-fed heavy). The pack
+  has no marksman rifle: HAEFY (heavy marksman) wears the sniper and PULSAR (fast marksman) the scoped rifle, where it
   had worn ANAKIN's SMG. Guns sharing a model start in different skins. The pack's two pistols and rocket launcher fit
   none of the ten.
 - **A fitted optic mounts where the bought model's sight is** (`paidmodels.json` sightZ, measured), not where the
@@ -4579,24 +4579,24 @@ buyer to animate. Until now only the magazine, slide and pump moved.
   - NOVA's drum turns a chamber a shot (45 degrees, its 8 rounds counted).
   - The sniper's two side wheels turn over a rechamber and wind in going into the sights.
   - BIGANTLER's loading gate opens with the pump and for a shell reload, and the shell in the hand rides up into it.
-  - The magazine releases (ANAKIN, RIPTIDE) go in as a reload starts.
+  - The magazine releases (ANAKIN, REZ) go in as a reload starts.
   - The rifle's extruder drops on a shot.
 - **The launcher's flip-up sights fold under its optic.** Standing, the front one stood in the optic's window, filling
   NOVA's sight picture. They fold forward from the back edge of the foot; from the middle, the long foot tipped back
   up into the window.
 - **Every optic sits on its gun** (`paidmodels.json` railTop, measured without the pack's own sights).
-  - ZEPHYR, PANDA and PULSAR's optic sat on the top of the rifle's hidden scope, 69 mm over the gun.
+  - STRYDER, PANDA and PULSAR's optic sat on the top of the rifle's hidden scope, 69 mm over the gun.
   - ANAKIN's sat 18 mm high.
   - NOVA's sat on its rear sight, which now folds.
-- **BOOG and HELIX sight down the sniper's own scope.** It is one piece with the gun, and the fitted optic stood stacked
+- **BOOG and HAEFY sight down the sniper's own scope.** It is one piece with the gun, and the fitted optic stood stacked
   on it at the hip. The fitted optic's housing is off and the eye comes up the scope's measured axis.
-- **HELIX takes its magazine out on a reload.** Its procedural gun has none, so the bought one's stayed in. The support
+- **HAEFY takes its magazine out on a reload.** Its procedural gun has none, so the bought one's stayed in. The support
   hand of every gun now reaches for the bought magazine's measured bottom.
 - **Checked:**
   - `tools/checks/paid-weapons.ts`, on the game's own hinges: the drum turned a chamber puts every round where another
     stood; the folded sights lie under the optic's window (0.103 m against 0.116 m).
   - The e2e soldier section: NOVA's 4-round burst turns the drum 4 chambers with the trigger back, its sights folded;
-    BOOG's housing off; HELIX's magazine 133 mm out mid-reload.
+    BOOG's housing off; HAEFY's magazine 133 mm out mid-reload.
   - Each failed with its bug put back: a 7-chamber step, the middle hinge, the drum left still.
   - Pictures of all ten at the hip, in the sights and mid-reload.
 
@@ -4616,7 +4616,7 @@ the owner's word.
 - **Hands and forearms the drawn glove's size** (`fparms.ts` fit). The soldier's armoured hands measure 1.4 times the
   glove the grips were posed for (wrist to middle knuckle 124 mm to 87). Its hand and forearm are drawn at the glove's
   size; the upper arm keeps the body's, since a shorter one ended in the frame.
-- **Checked:** pictures at the hip and in the sights of ZEPHYR, ANAKIN, USSO, BIGANTLER and NOVA; verify, rules; the
+- **Checked:** pictures at the hip and in the sights of STRYDER, ANAKIN, USSO, BIGANTLER and NOVA; verify, rules; the
   e2e soldier section's parts check now reads no optic drawn on NOVA and BOOG.
 
 ## Milestone 252 — The bug hunt: no red ring in a fight, a slide that speeds you up, a support arm that reads
@@ -4676,7 +4676,7 @@ be futuristic."
   (`debugView.raise` holds a swap). The two are the proof. Any gun can be given a feel by adding it to
   `gunfeel.json`.
 - **Checked:** the e2e soldier section swaps the USSO to BOOG. The USSO's own phase goes to nothing, BOOG's comes up
-  whole and drawn, and ZEPHYR, with no feel, never phases. It failed with the USSO's feel taken out. Also verify,
+  whole and drawn, and STRYDER, with no feel, never phases. It failed with the USSO's feel taken out. Also verify,
   rules and the pictures. The slot keys read the real keyboard only, so the section's swaps go through the loadout;
   its earlier scripted slot presses never swapped anything.
 
@@ -5144,7 +5144,7 @@ The first item of `docs/HYPERSCAPE_GAP_ANALYSIS.md`. Hyper Scape's patch 1.1: "a
 with the rifle, to give warning to their potential victims".
 
 - **A scoped figure aiming in throws a flare** (`muzzle.ts` fitGlint and showGlint, `mannequin.ts`, `hud.json`
-  scopeGlint). On any SpeedKills gun whose optic draws a full-screen scope (BOOG, HELIX and PULSAR), once the figure's
+  scopeGlint). On any SpeedKills gun whose optic draws a full-screen scope (BOOG, HAEFY and PULSAR), once the figure's
   aim passes 0.6. Its own texture: a hot core, a soft halo and a long thin streak across it, cool white. It measures
   0.28 m near and never under 18 pixels far; Hyper Scape's players found its flare "too big, covering the entire body".
 - **Where it hangs:** 12 cm ahead of the front of the scope, found off the model: the frontmost point within 3 cm of
@@ -5570,7 +5570,7 @@ FPS Animation Ultimate (docs/PLAN_FIRST_PERSON_ARMS.md), arms made for the camer
 - **Checked:**
   - e2e (soldier): the bought arms hold both; mid-reload the clip has turned the gun; from empty the handle goes back
     with the left hand's knuckle 5.5 cm from it; wrists within 50 degrees held and aimed (60 on the handle, the pack's
-    own grip); the old arms' cut ends checked on the guns they still hold (ANAKIN, HELIX); the red dot keeps its arms;
+    own grip); the old arms' cut ends checked on the guns they still hold (ANAKIN, HAEFY); the red dot keeps its arms;
   - `tools/checks/fparms-pack.ts`; verify; rules; pictures of the hold, aim, reload, rack and bolt at the owner's view.
 
 ## Milestone 290 — Sharper textures on High, lighter on every preset: the packs GPU-compressed
@@ -5690,7 +5690,7 @@ and of BOOG's scope, "make the recharging like 50% transparent and then don't ha
 - **The swap's field of view** (`viewmodel.ts` packFov, `main.ts`): the gun camera eases between the bought arms' 80
   degrees and the other guns' 92 over 0.2 s; it had jumped 12 degrees in one frame (measured: now 0.5 at most).
 - **BOOG's recharge ring** (`hud.json` hsCharge): half see-through, and nothing drawn once it has closed.
-- **Checked:** pictures at the owner's view running and strafing with the USSO, BOOG and ZEPHYR; the swap's field of
+- **Checked:** pictures at the owner's view running and strafing with the USSO, BOOG and STRYDER; the swap's field of
   view frame by frame; the soldier e2e section (the ring's check now wants no READY); verify; rules.
 
 ## Milestone 296 — The city drawn in to the middle: the outer districts cut by three quarters
@@ -6152,3 +6152,29 @@ the pickup a frame every 4%), the sheets sent as proof. The first sweep flagged 
 - **Checked:** new soldier e2e checks (the wrists at rest and aimed within 50 degrees, pointing and swapping within 60;
   the held gun's 2048 skin on High and 1024 on Balanced), the through-the-gun check tightened from 1 cm to 4 mm, each
   seen failing with its fault put back; the soldier section; verify; rules.
+
+## Milestone 313 — STRYDER, REZ and HAEFY; the bought arms' fists straight on their forearms, the thumbs across the fingers; the guns-in-hand plan
+
+The owner, 2026-09-28: "Change the Zephyr to a Stryder, all mentions of it, everywhere ... change one of the guns to
+REZ ... Another one could be Haefy"; "the right arm is clearly still so fucked up lol, just put the guns away and look
+at the right arm"; and of the round's feedback, "make a planning / update document for this since this is perfect
+feedback that you'll have to remember for context when we go for the other guns".
+
+- **The renames** (`speedkills.json` weapons): ZEPHYR is STRYDER, RIPTIDE REZ and HELIX HAEFY, in the code, the
+  config, the checks, the README and the docs (79 mentions). The guns' ids are the legacy ones (`rspn101`, `shotgun`,
+  `3030`), so saved loadouts keep their guns. RIPTIDE and HELIX were the two chosen because they were ours rather than
+  friends' names; PULSAR and NOVA are now the only invented ones.
+- **The right fist on its forearm** (`fparms.json` free palmSign): the hands are mirror images, so a palm off the
+  knuckles faces opposite ways on the two; with the right's sign the same as the left's, its palm faced out and up and
+  the hand was rolled 159 degrees on its forearm (measured, `fprig.ts` wristTwist), the glove's cuff split from the
+  sleeve. Now 18 degrees; the left 21. The bend check (wristBend) never saw it: a roll is not a bend.
+- **The thumbs across the fingers** (`free.thumb`, `tools/fist-thumb.ts`): bent as the pack's pistol grip bends it,
+  each fist's thumb lay along the top of the fist with its tip 1.3 to 1.6 phalanges out ahead, a pointing finger in the
+  picture. Each thumb joint searched over its range for the tip across the index and middle fingers' middle bones
+  with none of it in them: 0.42 and 0.14.
+- **The plan** (`docs/PLAN_GUNS_IN_HAND.md`): the owner's feedback on the USSO and BOOG round by round, in their words,
+  with what was done; the bar every gun in hand meets, as checks; the swap as it is now, tagged `swap-drop`, to revert
+  to if the thrown swap is worse; the fitting recipe and the plan for the other eight.
+- **Checked:** the soldier e2e's fists check now also holds each fist within 45 degrees of roll on its forearm, every
+  finger curled 120 degrees and more and each thumb within a phalanx of its place, seen failing with the right palm's
+  old sign and no thumb fit (159 degrees; 1.55 and 1.33); the speedkills section (the names); verify; rules.

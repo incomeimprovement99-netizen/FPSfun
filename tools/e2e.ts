@@ -3270,7 +3270,7 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: boolean; palm: { w: number; card: boolean }; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; pickLead: string; pickAfter: string };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; palm: { w: number; card: boolean }; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; pickLead: string; pickAfter: string };
   // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
   const res: { guns: Record<string, Frames>; jump: string[] } = { guns: {}, jump: [] };
   // (the page's helpers once, then one short page call a measure: the e2e draws in software, a few frames a second, and
@@ -3361,7 +3361,7 @@ async function packFrames(page: Page): Promise<void> {
     // the rack's grab: the fingertips on the handle (the USSO's pinch)
     o.hook = await pf<number>(`r.debugView.reload = 0.76; await H.gameWait(0.2); const h = r.packArms().hookMiss; H.clear(); await H.gameWait(0.3); return Number.isFinite(h) ? h : ${id === "r97" ? 99 : 0};`);
     // the hands off the gun: the bought arms' fists
-    o.fists = await pf<boolean>(`r.debugView.lowered = 1; await H.gameWait(0.8); const f = r.packArms().free; H.clear(); await H.gameWait(0.8); return f;`);
+    o.fists = await pf<Frames["fists"]>(`r.debugView.lowered = 1; await H.gameWait(0.8); const s = r.packArms(); const f = { free: s.free, twist: [s.twistL, s.twistR], curl: [s.curlL, s.curlR], thumb: [s.thumbL, s.thumbR] }; H.clear(); await H.gameWait(0.8); return f;`);
     // an inspect: the open left palm with the hack over it
     o.palm = await pf<{ w: number; card: boolean }>(`r.debugView.inspect = 0.5; await H.gameWait(0.3); const p = { w: r.packArms().palm, card: r.packArms().palmCard }; r.debugView.inspect = -1; await H.gameWait(0.3); return p;`);
     // no skin through the gun where it is seen, in each state
@@ -3485,7 +3485,14 @@ async function packFrames(page: Page): Promise<void> {
     g.every((x) => [...x.wrists.rest, ...x.wrists.aimed].every((w) => w <= 50) && x.wrists.point <= 60 && x.wrists.swap <= 60),
     show((x) => ({ rest: x.wrists.rest.map(Math.round), aimed: x.wrists.aimed.map(Math.round), point: Math.round(x.wrists.point), swap: Math.round(x.wrists.swap) })),
   );
-  check("pack frames: the fists are the bought arms'", g.every((x) => x.fists), show((x) => x.fists));
+  // (the owner, 2026-09-28: "the right arm is clearly still so fucked up ... just put the guns away and look at the right
+  // arm": the right fist rolled 159 degrees on its forearm, the glove's cuff split from the sleeve, and each thumb out
+  // ahead of its fist like a pointing finger)
+  check(
+    "pack frames: the fists are the bought arms', neither rolled on its forearm past 45 degrees, every finger curled (120 degrees and more) and each thumb across the fingers (within a phalanx)",
+    g.every((x) => x.fists.free && x.fists.twist.every((t) => t <= 45) && x.fists.curl.every((c) => c >= 120) && x.fists.thumb.every((t) => t <= 1)),
+    show((x) => ({ twist: x.fists.twist.map(Math.round), curl: x.fists.curl.map(Math.round), thumb: x.fists.thumb.map((t) => +t.toFixed(2)) })),
+  );
   check(
     "pack frames: on an inspect the left hand opens, palm up, with the hack you carry over it",
     g.every((x) => x.palm.w > 0.9 && x.palm.card),
@@ -5073,7 +5080,7 @@ async function skWholeNumbers(page: Page): Promise<void> {
       for (let i = 0; i < 3; i++) h.addDamage(at.clone(), 11.16, "#ff4a3d", false, now, key);
       h.addDamage(at.clone().add(new r.THREE.Vector3(1.5, 0, 0)), 101 / 3, "#ff4a3d", true, now, {});
       numbers = h.damageNumbers.slice(kept).map((n) => ({ amount: n.amount, text: n.text }));
-      const row = { id: 101, name: "BOT GRIM", killer: true, dealt: { damage: 40.66666666666667, hits: 3, heads: 0 }, taken: { damage: 531.16, hits: 3, heads: 0 }, guns: [{ name: "ZEPHYR", hits: 3, damage: 531.16, near: 12.34, far: 12.34 }], healed: null, left: { shield: 0.4, health: 0.3 } };
+      const row = { id: 101, name: "BOT GRIM", killer: true, dealt: { damage: 40.66666666666667, hits: 3, heads: 0 }, taken: { damage: 531.16, hits: 3, heads: 0 }, guns: [{ name: "STRYDER", hits: 3, damage: 531.16, near: 12.34, far: 12.34 }], healed: null, left: { shield: 0.4, health: 0.3 } };
       h.draw(now, r.camera, { ...base, killcam: null, course: null, drill: null, trainer: null, tour: null, hacks: null, ability: null,
         stats: { ...base.stats, damage: 135.85606666673223, headshots: 4, lastTtk: null },
         vitals: { ...(base.vitals ?? {}), shield: 18.84, shieldMax: 50, health: 42.00000000000001, healthMax: 100 },
@@ -5248,7 +5255,7 @@ async function soldierTest(browser: Browser): Promise<void> {
   );
   // the pack's own parts move in the hand (paidgun.ts PaidParts; the pack gives them split and moves none): NOVA's drum
   // turns a chamber a shot and its trigger stays back through a burst; a bought gun is aimed down its own sights, the
-  // fitted optic not drawn on top of them (NOVA's and BOOG's); HELIX takes out a magazine on a reload (its procedural
+  // fitted optic not drawn on top of them (NOVA's and BOOG's); HAEFY takes out a magazine on a reload (its procedural
   // gun has none, and the bought one's stayed in)
   const moving = await ev<{ why: unknown; shots: number; pulled: number; drum: number; step: number; novaOptic: boolean | null; boogOptic: boolean | null; helixMag: number; helixOut: number }>(
     page,
@@ -5299,7 +5306,7 @@ async function soldierTest(browser: Browser): Promise<void> {
     })()`,
   );
   check(
-    "soldier guns: the pack's parts move, NOVA's drum a chamber a shot with its trigger back through a burst; NOVA and BOOG aimed down their own sights, no fitted optic drawn over them; and HELIX's magazine out on a reload",
+    "soldier guns: the pack's parts move, NOVA's drum a chamber a shot with its trigger back through a burst; NOVA and BOOG aimed down their own sights, no fitted optic drawn over them; and HAEFY's magazine out on a reload",
     moving.shots >= 2 &&
       Math.abs(moving.drum - moving.shots * moving.step) < 0.02 &&
       moving.pulled > 0.3 &&
@@ -5322,7 +5329,7 @@ async function soldierTest(browser: Browser): Promise<void> {
         while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
       };
       const out = [];
-      // (ANAKIN, and HELIX on BOOG's model: the USSO and BOOG are held by the bought arms where their files are here)
+      // (ANAKIN, and HAEFY on BOOG's model: the USSO and BOOG are held by the bought arms where their files are here)
       for (const id of ["alternator_smg", "3030"]) {
         r.loadout.give(0, id);
         r.setScript({ held: () => false, pressedNow: (a) => a === "slot1" }, null);
@@ -5344,7 +5351,7 @@ async function soldierTest(browser: Browser): Promise<void> {
     })()`,
   );
   // the signature guns phase out of the hands and in (gunfeel.json, phase.ts): a swap from the USSO to BOOG takes the
-  // USSO's phase down to nothing and brings BOOG's up whole, the gun never dropped out of the frame; ZEPHYR has no feel
+  // USSO's phase down to nothing and brings BOOG's up whole, the gun never dropped out of the frame; STRYDER has no feel
   const phased = await ev<{ low: Record<string, number>; end: { gun: string | null; phase: number; shown: boolean }; plain: { gun: string | null; phase: number }; frames: number }>(
     page,
     `(async () => {
@@ -5765,7 +5772,7 @@ async function soldierTest(browser: Browser): Promise<void> {
     JSON.stringify(reddot),
   );
   check(
-    "soldier guns: the USSO phases out of the hands and BOOG in, whole at the end and drawn; ZEPHYR has no phase",
+    "soldier guns: the USSO phases out of the hands and BOOG in, whole at the end and drawn; STRYDER has no phase",
     phased.low.r97 < 0.2 && phased.low.sentinel < 0.2 && phased.end.gun === "sentinel" && phased.end.phase === 1 && phased.end.shown && phased.plain.gun === null && phased.plain.phase === 1,
     JSON.stringify(phased),
   );
@@ -5847,7 +5854,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   check("speedkills: High City's corner is drawn from its own file, its faces from behind too (no film set's frames to see through)", !!dist && dist.drawn.includes("high-corner") && dist.triangles > 500000 && dist.opaque > 20 && dist.both === dist.opaque, JSON.stringify(dist));
   // the guns: ten of its own, named, the owner's friends among them
   const guns = await ev<{ ids: number; names: string[] }>(page, `(() => { const r = window.__range; return { ids: r.weaponIds ? r.weaponIds().length : -1, names: r.loadout.slots.map((s) => s.weapon.name) }; })()`);
-  check("speedkills: a loadout's guns carry SpeedKills names", guns.names.every((n) => /^[A-Z]+$/.test(n)) && guns.names.every((n) => ["PANDA", "ZEPHYR", "ANAKIN", "USSO", "BIGANTLER", "RIPTIDE", "HELIX", "PULSAR", "BOOG", "NOVA"].includes(n)), JSON.stringify(guns));
+  check("speedkills: a loadout's guns carry SpeedKills names", guns.names.every((n) => /^[A-Z]+$/.test(n)) && guns.names.every((n) => ["PANDA", "STRYDER", "ANAKIN", "USSO", "BIGANTLER", "REZ", "HAEFY", "PULSAR", "BOOG", "NOVA"].includes(n)), JSON.stringify(guns));
   // fusion: level 5 is half again the magazine
   const fused = await ev<{ before: number; after: number; level: number }>(page, `(() => { const r = window.__range; const before = r.loadout.slots[0].weapon.clipSize; r.sk.setFusion(0, 5); return { before, after: r.loadout.slots[0].weapon.clipSize, level: r.sk.fusion()[0] }; })()`);
   check("speedkills: fused to 5, a gun's magazine is half as big again", fused.level === 5 && Math.abs(fused.after / fused.before - 1.5) < 0.08, JSON.stringify(fused));
@@ -5940,7 +5947,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await ev(lab, "window.__range.setScript(null)");
   check("speedkills: in the lab, the storey block is climbed to its top (4 m)", topped, JSON.stringify(await ev(lab, "({ y: window.__range.player.pos.y, z: window.__range.player.pos.z })")));
   await lab.close();
-  // The arms in the sights (Phase 20 A3): aimed through HELIX's 3x scope the gun is hidden for the scope picture,
+  // The arms in the sights (Phase 20 A3): aimed through HAEFY's 3x scope the gun is hidden for the scope picture,
   // and the arms, which are not under the gun, stayed drawn frozen and filled the scope. With a red dot (USSO) the
   // arms stay, as they should.
   const sight = await open(browser, "?game=speedkills");

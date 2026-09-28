@@ -278,7 +278,7 @@ export function dressPaid(m: GunModel, level = 0): boolean {
     if (/^Clip/.test(o.name) && (o as THREE.Mesh).isMesh) clips.push(o);
   });
   if (clips.length) {
-    // a gun whose procedural model has no magazine (HELIX's tube) takes out its bought model's on a reload
+    // a gun whose procedural model has no magazine (HAEFY's tube) takes out its bought model's on a reload
     if (!m.mag) {
       m.mag = new THREE.Group();
       m.mag.name = "mag";

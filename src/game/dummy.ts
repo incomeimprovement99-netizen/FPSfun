@@ -50,7 +50,7 @@ const RESPAWN_S = 1.2;
 /**
  * The legacy game deals whole points: a hit is rounded down as it lands, as its reference numbers are.
  * SpeedKills lands a hit at its tuned value (Phase 20 A2): rounding down cut USSO's 7.8 to 7, 10% off its
- * time to kill, and made RIPTIDE's fusion (7.0 to 7.7) add nothing at any level. The HUD rounds what it
+ * time to kill, and made REZ's fusion (7.0 to 7.7) add nothing at any level. The HUD rounds what it
  * shows (damagetext.ts); tools/checks/ttk.ts lands every gun on a figure to hold this.
  */
 const WHOLE_HITS = !IS_SK;

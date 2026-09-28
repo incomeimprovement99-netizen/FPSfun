@@ -731,7 +731,7 @@ export class ViewModel {
 
   /**
    * The gun camera's vertical field of view at the hip with the bought arms, and how far onto it (main.ts): eased over a
-   * swap, where it had jumped 12 degrees in one frame from the USSO to ZEPHYR
+   * swap, where it had jumped 12 degrees in one frame from the USSO to STRYDER
    */
   get packFov(): { hip: number; weight: number } {
     return { hip: PACK_FOV, weight: easeInOut(this.packFovAmt) };
@@ -790,8 +790,8 @@ export class ViewModel {
     return this.pack;
   }
 
-  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; free: boolean; palm: number; palmCard: boolean } {
-    return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCard: this.palmCard.group.visible };
+  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; curlL: number; curlR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; free: boolean; palm: number; palmCard: boolean } {
+    return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), twistL: this.pack.wristTwist("l"), twistR: this.pack.wristTwist("r"), curlL: this.pack.fingerCurl("l"), curlR: this.pack.fingerCurl("r"), thumbL: this.pack.freeReady ? this.pack.thumbOff("l") : 0, thumbR: this.pack.freeReady ? this.pack.thumbOff("r") : 0, ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCard: this.palmCard.group.visible };
   }
 
   /**
@@ -1231,7 +1231,7 @@ export class ViewModel {
     this.packOn = packOn;
     this.packFovAmt += ((packOn ? 1 : 0) - this.packFovAmt) * Math.min(1, dt / 0.2);
     // In the sights the gun holds still for a reload, as it does for a strafe: rolled at full size, a 2x window
-    // swung onto the support hand still on the handguard (PANDA, ZEPHYR, NOVA; Phase 20 A3)
+    // swung onto the support hand still on the handguard (PANDA, STRYDER, NOVA; Phase 20 A3)
     const reloadEnv = (f.reloading ? smooth(0, 0.14, reloadP) * (1 - smooth(0.84, 1, reloadP)) : 0) * (1 - ads * RELOAD_ADS);
 
     // ---- sprint blend; ADS and reloading both win over it
@@ -1685,7 +1685,7 @@ export class ViewModel {
     if (!ready) return;
     const gun = this.holder.visible;
     // The arms are not under the holder: when a magnified scope hid the gun they stayed drawn where the last
-    // frame posed them, and the scope's narrower view blew the left arm up into its picture (HELIX, PULSAR)
+    // frame posed them, and the scope's narrower view blew the left arm up into its picture (HAEFY, PULSAR)
     this.real.group.visible = !IS_SK || gun || (this.fists.visible && !this.packFree) || this.zipRig.visible || this.castRig.visible;
     if (gun) this.real.pose("r", this.right, this.rightArm, "grip");
     else if (this.fists.visible) this.real.pose("r", this.fistR, this.fistArmR, "fist");

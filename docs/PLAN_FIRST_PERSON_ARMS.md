@@ -103,12 +103,12 @@ A first mapping, to be judged on pictures at the owner's view (1920 by 1080, 110
 |---|---|---|---|
 | USSO (`r97`) | Fast SMG | MPS5 | compact SMG held by its handguard; the Striker-V holds its long magazine as a grip, 22 cm under the USSO's |
 | ANAKIN (`alternator_smg`) | Steady SMG | MPS5 | full-size SMG |
-| ZEPHYR (`rspn101`) | Fast Rifle | MX16A4 | light rifle |
+| STRYDER (`rspn101`) | Fast Rifle | MX16A4 | light rifle |
 | PANDA (`vinson`) | Heavy Rifle | G3 or AK | heavier rifle hold |
-| RIPTIDE (`shotgun`) | Auto Shotgun | Drake-12 | magazine shotgun |
+| REZ (`shotgun`) | Auto Shotgun | Drake-12 | magazine shotgun |
 | BIGANTLER (`mastiff`) | Heavy Shotgun | KXG12 | pump, and a shell-by-shell reload |
 | PULSAR (`g2`) | Fast Marksman | Mk14EBR | DMR |
-| HELIX (`3030`) | Heavy Marksman | SVD | DMR, a long gun |
+| HAEFY (`3030`) | Heavy Marksman | SVD | DMR, a long gun |
 | BOOG (`sentinel`) | Sniper | L96X | bolt sniper: the bolt worked after each shot |
 | NOVA (`lstar`) | Energy LMG | MGX5 | LMG hold for the drum launcher's bulk |
 

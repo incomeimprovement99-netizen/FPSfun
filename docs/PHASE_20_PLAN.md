@@ -59,7 +59,7 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
   - SpeedKills stops rounding each hit down before it lands (dummy.ts). The rounding cut USSO 10% and made some
     guns' fusion add nothing.
 - **A3:**
-  - Real arms that nothing posed are hidden; they showed in the 3x scope on HELIX and PULSAR.
+  - Real arms that nothing posed are hidden; they showed in the 3x scope on HAEFY and PULSAR.
   - A reload while aiming keeps the sight steady (reloadAds 0.85), instead of leaving the sights.
 - **A4:**
   - 38 m of grace, not 40, because the range's back wall stands 39 m north of the city.
@@ -79,8 +79,8 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
   - Gun levels show as pips and "LV n".
   - The speed readout stays, smaller.
 - **A7:**
-  - The kinds: PANDA Heavy Rifle, ZEPHYR Fast Rifle, ANAKIN Steady SMG, USSO Fast SMG, BIGANTLER Heavy
-    Shotgun, RIPTIDE Auto Shotgun, HELIX Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper, NOVA Energy LMG.
+  - The kinds: PANDA Heavy Rifle, STRYDER Fast Rifle, ANAKIN Steady SMG, USSO Fast SMG, BIGANTLER Heavy
+    Shotgun, REZ Auto Shotgun, HAEFY Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper, NOVA Energy LMG.
     The Run's pistols are Pistol.
   - The kill feed names no gun, as today.
   - The bot called NOVA is renamed in SpeedKills.
@@ -334,7 +334,7 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
 - **The owner:** switching between guns should be quicker as a base, 1.5 or 2 times, and level up along with
   damage and magazine, so a level 5 SMG swaps quicker than a level 1.
 - **Done:** a gun's draw and put-away times are 1.5 times as quick as found and twice as quick at level 5,
-  falling each level (speedkills.json `fusion.gun[].swap`). ZEPHYR draws in 0.40 s as found and 0.30 s at level
+  falling each level (speedkills.json `fusion.gun[].swap`). STRYDER draws in 0.40 s as found and 0.30 s at level
   5, where it was 0.60. `tools/checks/ttk.ts` holds it.
 
 ### Why A17 to A19: the draw and the hook (the owner, 2026-09-26)

@@ -461,7 +461,7 @@
     "ease": 0.12,
     "gunKeep": 0.5
   },
-  "_free": "The bought arms off a gun (fprig.ts free, handTurn; the owner, 2026-09-28: the fists were \"the old fists and not our new bought arms\"). `fist`: each finger joint's bend in a fist, radians, along the axis the pack's own grip bends it (its first gun's pose clip, the right hand round a pistol grip). `palmSign`: which way off the knuckles each hand's palm faces, the hands being mirrored. `palm`: on an inspect, the open left hand's knuckles and the way its palm faces, in the view's space (x right, y up, z back toward the eye), with the hack floating over it. `pull`: the fists moved from the view's own fists' place toward the eye, view metres (in, up, back): the bought arms are shorter than the view's, and there they were straight out, 97% of their reach.",
+  "_free": "The bought arms off a gun (fprig.ts free, handTurn; the owner, 2026-09-28: the fists were \"the old fists and not our new bought arms\"). `fist`: each finger joint's bend in a fist, radians, along the axis the pack's own grip bends it (its first gun's pose clip, the right hand round a pistol grip). `thumb`: each fist's thumb joints turned on top of that, radians about each joint's own axes, searched by tools/fist-thumb.ts to lie across the index and middle fingers' middle bones with none of it in them: bent as the grip bends it, its tip stood 1.3 to 1.6 of a phalanx out ahead of the fist like a pointing finger, now 0.42 (left) and 0.14 (right). `palmSign`: which way off the knuckles each hand's palm faces, opposite on the two hands, which are mirror images (the right at -1 like the left faced its palm out and up, the hand rolled 159 degrees on its forearm and the glove's cuff split from the sleeve; the owner, 2026-09-28: \"the right arm is clearly still so fucked up ... just put the guns away and look at the right arm\"). `palm`: on an inspect, the open left hand's knuckles and the way its palm faces, in the view's space (x right, y up, z back toward the eye), with the hack floating over it. `pull`: the fists moved from the view's own fists' place toward the eye, view metres (in, up, back): the bought arms are shorter than the view's, and there they were straight out, 97% of their reach.",
   "free": {
     "fist": {
       "01": 1.3,
@@ -473,7 +473,7 @@
     },
     "palmSign": {
       "l": -1,
-      "r": -1
+      "r": 1
     },
     "palm": {
       "along": [
@@ -491,7 +491,23 @@
       0.04,
       0.04,
       0.13
-    ]
+    ],
+    "thumb": {
+      "l": {
+        "thumb_01": [
+          -0.2,
+          -0.4,
+          0.6
+        ]
+      },
+      "r": {
+        "thumb_01": [
+          0.3,
+          0.2,
+          0.6
+        ]
+      }
+    }
   },
   "_inspectPalm": "Where the open left hand's wrist is on an inspect, view metres (x right, y up, z back toward the eye), and how the hack floats over the palm: `bob` metres up and down at `rate` a second, `spin` radians side to side. `lift`: how far off the palm the hack floats, view metres (at 6 cm it sat in the palm).",
   "inspectPalm": {

@@ -51,7 +51,7 @@ for (const [fam, f] of Object.entries(PROFILE.families)) {
 console.log(rows.map((r) => `        ${r}`).join("\n"));
 
 // The table is what a hit deals (Phase 20 A2). Every hit on a figure went through a Math.floor, so the table above
-// held for the tuned numbers and not for the game: USSO's 7.8 landed as 7 (10% off its time to kill), and RIPTIDE's
+// held for the tuned numbers and not for the game: USSO's 7.8 landed as 7 (10% off its time to kill), and REZ's
 // fusion, 7.0 to 7.7, added nothing at any level. A real figure with the game's 50 shield and 100 health takes
 // every gun's body rounds at every fusion level: each hit takes the round's tuned damage, and the figure goes
 // down on the round that arithmetic says. Bodies only: a head or a leg scales that same number.
