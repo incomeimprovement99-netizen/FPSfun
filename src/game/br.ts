@@ -107,6 +107,11 @@ export interface GraphNode {
   pad?: { to: number; up: number; dx: number; dz: number; over: number };
   /** the pads that throw to this node (their nodes): what a plan to here follows back */
   padFrom?: number[];
+  /**
+   * Inside one of SpeedKills' podium halls (city.ts HALLS), its key: under a roof other nodes stand on, so a bot coming
+   * down from the sky never takes one of these for the nearest node
+   */
+  hall?: string;
 }
 
 export interface BrMap {

@@ -8,8 +8,8 @@ Started 2026-09-28.
 | 24.1 | All five demo streets baked, their textures whole | shipped with 24.3 | 298 | the importer placed only the overrides it could match by mesh or by slot count, so High City's brick came out grey; the Unity specular workflow read (spec map, gloss); KTX2 textures with the extension registered |
 | 24.2 | The packs' buildings, cut out of their demo streets | shipped with 24.3, changed | 298 | cut as facade strips, not buildings: the demo streets are film sets, faced only where the camera looks, so a whole building cannot be lifted but a face can (below) |
 | 24.3 | Towers that are stacks of the packs' buildings | first part shipped | 298 | 44% of the centre's street faces wear the demo streets' strips, stacked up each face in columns; the canyons keep pressed modules |
-| 24.1b | The overrides the importer could not place | next | | 1,645 left grey parts (the flying cars' engines, the High City cars' bodies, bits of strips) |
-| 24.4 | The ground floor inside | after 24.1b | | |
+| 24.1b | The overrides the importer could not place | shipped | 299 | 1,645 unplaced to 1,020 (matched by the materials' names, then by elimination); the flying cars' engines by their model's name; Competitive's file without the strips, 91 MB to 44 |
+| 24.4 | The ground floor inside | first part shipped | 299 | the eight centre podiums opened into halls at street level: 85 doors, columns and counters for cover, an arcade of shop fronts, the bots' graph and loot of their own |
 | 24.5 | Light and air, and the old look gone | | | |
 | 24.6 | The release tests | | | |
 
@@ -48,3 +48,30 @@ Started 2026-09-28.
   view; one billboard piece had no material and showed a blank grey panel (dropped); 1,645 material overrides the
   importer could not place leave parts grey, the flying cars' engines (42k triangles) and the High City cars' bodies
   among them; the districts at the edge are the old boxes (the owner: later).
+- **24.1b, the overrides (kit v6):** a prefab's material override names its renderer by an ID newer Unity hashes, so
+  the importer placed one only where the model had one mesh, or one mesh with that many slots. Where the counts do not
+  decide, it now matches the materials an override sets against the model's own names for its slots, each target to
+  its best mesh, then gives a last target the last mesh with room for it: 1,645 unplaced to 1,020. And Competitive, the
+  one preset on the `-lo` file, never places a strip, so that file leaves them out: 91 MB to 44.
+- **24.1b, the engines (kit v7):** the flying cars' engines (83k triangles) were grey: their part calls for "cars
+  detz", which no material is, and no override reaches them. A part whose own name finds nothing now wears the
+  material named for its model, its level of detail and side left off ("fly engine L lod0" to "fly engine").
+- **24.4, the halls:** each centre podium but the Spire's is a shell 0.35 m thick under a 0.6 m roof that is walked on
+  as before, the hall inside 7.4 m tall. Doors 3.2 by 3.4 m (under the shop canopies at 3.6 m), about one per 16 m of
+  each face, kept off the corners, the pads, the public stair, and anything more than a step within 4 m in front: the
+  first build put three doors behind a bridge's kerb pillar and a metro stairwell's rail, which the new check's walk
+  found, so the halls are now built last of the street's things. Inside: square columns on a 10 m grid, five
+  waist-high counters from the hall's own stream, lined walls with a line of the block's colour, strips of light in
+  the ceiling. The roof shadows the sky's light, and a light of ours per hall would cost every surface in the city,
+  so the hall's floor, columns and walls give off a little light of their own.
+- **24.4, the game:** the bots' graph has a grid of nodes over each floor and a way through every door to its street
+  (218 nodes, all reached from the streets); a bot coming down from the sky never takes a hall's node for its nearest.
+  The field's own loot keeps off the halls' floors, so it lands exactly where it did, and each hall gets six spots of
+  its own, drawn last on a stream of their own, as the metro's are. From Balanced up the walls are an arcade of the
+  packs' shop fronts facing in (107k triangles, kept off Competitive, which sat at its limit); on the street, a bay
+  with a door keeps a shop window either side.
+- **24.4, checked:** `sk-halls.ts`, new: every hall built, open floor to ceiling but for its cover, its roof at the
+  podium's top; through all 85 doors in and out with the real movement; along every podium's roof over its hall; the
+  graph; the loot. Proven by leaving the doors uncut (the walk and the graph both failed). `sk-escapes.ts` now tests a
+  door against an escape between the escape's foot and roof, as the city places them (a hall's door in the street
+  below had tripped it).

@@ -1514,10 +1514,12 @@ export class BrMatch extends Duel {
     return best ? new THREE.Vector3(best.at.x, 0, best.at.z) : null;
   }
 
+  /** where a bot comes down (a drop, a redeploy): always under the open sky, so never a node inside a hall (GraphNode hall) */
   private nearestNode(x: number, z: number): number {
     let best = 0;
     let bd = Infinity;
     this.map.nodes.forEach((n, i) => {
+      if (n.hall) return;
       const d = Math.hypot(n.x - x, n.z - z);
       if (d < bd) {
         bd = d;

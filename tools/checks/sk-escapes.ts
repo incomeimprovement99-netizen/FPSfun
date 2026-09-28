@@ -101,7 +101,8 @@ check("the kit knows every one", KIT_SITES.escapes.length === FIRE_ESCAPES.lengt
     const b = e.box;
     const tag = `${((b.minX + b.maxX) / 2 - BR_X).toFixed(0)},${((b.minZ + b.maxZ) / 2 - BR_Z).toFixed(0)}`;
     if (map.pads.some((p) => p.x > b.minX - Fe.clear.pad && p.x < b.maxX + Fe.clear.pad && p.z > b.minZ - Fe.clear.pad && p.z < b.maxZ + Fe.clear.pad)) bad.push(`${tag}: a pad`);
-    if (KIT_SITES.doors.some((q) => !q.escape && q.x1 + BR_X > b.minX && q.x0 + BR_X < b.maxX && q.z1 + BR_Z > b.minZ && q.z0 + BR_Z < b.maxZ)) bad.push(`${tag}: a door`);
+    // (between its foot and its roof, as the city places them: a podium hall's door in the street below is not in its way)
+    if (KIT_SITES.doors.some((q) => !q.escape && q.x1 + BR_X > b.minX && q.x0 + BR_X < b.maxX && q.z1 + BR_Z > b.minZ && q.z0 + BR_Z < b.maxZ && q.y1 > e.outside.y && q.y0 < e.roof)) bad.push(`${tag}: a door`);
     // a window: the room's face's window, along the face from its middle, the lobby's width wide
     for (const r of KIT_SITES.rooms) {
       for (const [k, nx, nz] of [["n", 0, -1], ["s", 0, 1], ["w", -1, 0], ["e", 1, 0]] as const) {

@@ -5785,3 +5785,31 @@ and out, why couldn't we just stack those on top of each other".
 - **Checked:** verify and rules; `citykit.ts` counts strips as facade and holds every storey covered, nothing in a
   chimney or a pad's column; `sk-atmosphere.ts` now checks the haze (its colour in a block, reach up a tower, the hour's
   fog back when you leave, and off on Competitive), proven by breaking the restore; pictures.
+
+## Milestone 299 — Halls inside the podiums to fight in; the packs' materials placed by name; the flying cars' engines
+
+Phase 24's items 24.4 (its first part) and 24.1b. The owner: "i want an inside area as well to fight in on the bottom
+floor, likke the metro area".
+
+- **The halls (24.4).** Each of the centre's eight podiums but the Spire's is now a hall at street level, 7.4 m tall
+  under a roof that is walked on as before (`city.json` halls, `city.ts` podiumBody): 85 doors off the streets in all,
+  3.2 by 3.4 m, under the shop canopies, kept off the corners, the pads, the public stairs, and anything more than a
+  step within 4 m in front (a bridge's kerb pillar, a metro stairwell's rail: the halls are built last of the street's
+  things for that). Inside, square columns on a 10 m grid and five waist-high counters as cover, the walls lined with a
+  line of the block's colour, strips of light in the ceiling; the floor, columns and walls give off a little light of
+  their own, since the roof shadows the sky's and a light per hall would cost every surface in the city. From Balanced
+  up the walls are an arcade of the packs' shop fronts facing in, a sign over every other one.
+- **For the game.** The bots' graph covers every hall (218 nodes, a way through every door to its street), and a bot
+  coming down from the sky never takes a hall's node for its nearest (`brmatch.ts` nearestNode, `br.ts` GraphNode
+  hall). The field's loot keeps off the halls' floors, so it lands exactly where it did, and each hall has six spots
+  of its own, drawn last on a stream of their own (`loot.json` halls, `floors.ts` HALL_FLOORS).
+- **The packs' materials (24.1b, kit v6 and v7).** Where a model's meshes do not tell apart by their number of slots,
+  a prefab's material overrides now go by the materials' names against the model's own names for its slots, then by
+  elimination: 1,645 left unplaced to 1,020. The flying cars' engines, 83k triangles of grey, wear the material named
+  for their model. Competitive's files leave out the facade strips it never places: 91 MB to 44.
+- **What it costs.** Competitive 620k triangles, as before (a bay with a door on Competitive keeps the very shop it
+  wore, narrowed, and its halls keep their lined walls); Balanced 2,910k and High 3,013k, inside their limits.
+- **Checked:** verify and rules; `sk-halls.ts`, new (every hall open floor to ceiling but for its cover under a roof
+  at the podium's top, all 85 doors walked in and out with the real movement, every podium's roof walked over its
+  hall, the graph, the loot), proven by leaving the doors uncut; `citykit.ts` holds nothing of the kit across a hall's
+  door; `sk-escapes.ts` tests doors between an escape's foot and roof; the e2e sections speedkills, sktour and skship.

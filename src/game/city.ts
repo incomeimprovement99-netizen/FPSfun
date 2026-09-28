@@ -23,7 +23,7 @@
 // black metal (tools/fetch-assets.ts), with emissive neon strips of our own.
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
-import { FLOORS } from "./floors";
+import { FLOORS, HALL_FLOORS } from "./floors";
 import { botWalk } from "./botbody";
 import { building, DRESSING, type BoxMaker, type PoiCtx, type Side, type RoutePoint } from "./brpoi";
 import { DOORWAYS, Doors } from "./doors";
@@ -135,6 +135,23 @@ export const METRO: {
   sides: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; alongX: boolean }>;
   stairs: Array<{ top: { x: number; z: number }; foot: { x: number; z: number }; x0: number; x1: number; z0: number; z1: number }>;
 } = { floor: 0, sides: [], stairs: [] };
+/**
+ * The centre's podium halls (city.json halls, Phase 24.4), world metres: each one's inside (the box you stand in, its
+ * floor `y0` and ceiling `y1`), its doors (the opening's middle on the wall's outer face, the way out `nx`, `nz`, its
+ * width and top), its columns and counters (solid boxes), for the loot, the bots and the checks
+ */
+export const HALLS: Array<{
+  key: string;
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+  y0: number;
+  y1: number;
+  doors: Array<{ x: number; z: number; nx: number; nz: number; w: number; top: number }>;
+  columns: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }>;
+  counters: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; top: number }>;
+}> = [];
 /** the chimneys (city.json chimneys): each one's walls' inner faces, its length and its landing heights, world metres, for the checks that climb them */
 /**
  * The chimneys (city.json chimneys), world metres: `landing` and `top` the first two legs' ends, `platforms` every leg's to
@@ -191,7 +208,12 @@ export const KIT_SITES: {
   stairs: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   skyline: Array<{ x: number; z: number; w: number; h: number }>;
   lamps: Array<[number, number]>;
-} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [], rooms: [], cars: [], doors: [], machinery: [], escapes: [] };
+  /**
+   * The podium halls (HALLS), map-local: each one's inside, and its doors by face (n, s, w, e as a tower's), `u0` to `u1`
+   * along the face and up to `top`, so the kit leaves them open outside and lines the walls between them inside
+   */
+  halls: Array<{ x0: number; x1: number; z0: number; z1: number; y0: number; y1: number; accent: number; doors: Array<{ face: "n" | "s" | "w" | "e"; u0: number; u1: number; top: number }> }>;
+} = { towers: [], podia: [], stairs: [], skyline: [], lamps: [], openings: [], stalls: [], rooms: [], cars: [], doors: [], machinery: [], escapes: [], halls: [] };
 
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
@@ -392,9 +414,14 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   const pads: BrMap["pads"] = [];
   /** the core's podiums by block ("i,j"), their tops: the concourse's bridges join them */
   const podia = new Map<string, { x0: number; x1: number; z0: number; z1: number; top: number }>();
+  /**
+   * The centre's podium halls, built once everything else in the street stands (podiumBody): a door keeps clear of what
+   * stands before it, and the bridges' pillars on the kerbs and the metro's stairwell rails come after the blocks
+   */
+  const hallBodies: Array<() => void> = [];
   CONCOURSE.stairs.length = 0;
   STAIR_CORES.length = 0;
-  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = KIT_SITES.doors.length = KIT_SITES.machinery.length = KIT_SITES.escapes.length = 0;
+  KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = KIT_SITES.doors.length = KIT_SITES.machinery.length = KIT_SITES.escapes.length = KIT_SITES.halls.length = HALLS.length = HALL_FLOORS.length = 0;
   FIRE_ESCAPES.length = 0;
   STEAM_SOURCES.length = FLICKER_SIGNS.length = 0;
   STAND_INS.skins = [];
@@ -853,6 +880,169 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     deco(Math.min(6, w - 2 * t - 1), 0.05, 0.4, x, ly + storeyH - 0.06, z, lobbyLight);
   }
 
+  /** the halls' materials (city.json halls lit), made once: the street's and the concrete's textures, lit a little from within */
+  let hallMats: { lining: THREE.Material; ceiling: THREE.Material; floor: THREE.Material; column: THREE.Material } | null = null;
+  const hallLit = () => {
+    if (hallMats) return hallMats;
+    const L = C.halls.lit;
+    const hex = (s: string) => parseInt(s.slice(1), 16);
+    const from = (base: THREE.MeshStandardMaterial, color: string, glow: string): THREE.MeshStandardMaterial => {
+      const m = base.clone();
+      m.color.set(hex(color));
+      m.emissive.set(hex(glow));
+      tileOf.set(m, tileOf.get(base) ?? 0);
+      return m;
+    };
+    const plain = (color: string, glow: string) => new THREE.MeshStandardMaterial({ color: hex(color), emissive: hex(glow), roughness: 0.85, metalness: 0.05 });
+    hallMats = { lining: plain(L.lining[0], L.lining[1]), ceiling: plain(L.ceiling[0], L.ceiling[1]), floor: from(pave, L.floor[0], L.floor[1]), column: from(concrete, L.column[0], L.column[1]) };
+    return hallMats;
+  };
+  /**
+   * A podium's body under its cap. Out of the centre, solid, as it always was. In the centre (city.json halls, Phase 24.4)
+   * a hall to fight in at street level, as the metro is below it: a shell of walls under a roof that is walked on as
+   * before, doors off the streets, square columns and low counters inside as cover, the walls lined and the ceiling lit
+   * in the block's colour. Its layout comes from a stream of its own, so the city's draws stay as they were.
+   */
+  function podiumBody(px0: number, px1: number, pz0: number, pz1: number, top: number, mat: THREE.Material, hall: boolean, stair: { x0: number; x1: number; z0: number; z1: number } | undefined, key: string, accent: number): void {
+    const cx = (px0 + px1) / 2;
+    const cz = (pz0 + pz1) / 2;
+    const h = top - 0.12 - PAVE_H;
+    if (!hall) {
+      slab(px1 - px0, h, pz1 - pz0, cx, PAVE_H, cz, mat);
+      return;
+    }
+    const H = C.halls;
+    const wl = H.wall;
+    const y1 = top - H.roof;
+    const dw = H.door.width;
+    const dTop = PAVE_H + H.door.height;
+    const [ix0, ix1, iz0, iz1] = [px0 + wl, px1 - wl, pz0 + wl, pz1 - wl];
+    const local = pads.map((p) => ({ x: p.x - BR_X, z: p.z - BR_Z }));
+    type HFace = { face: "n" | "s" | "w" | "e"; nx: number; nz: number; at: number; a: number; b: number };
+    const hfaces: HFace[] = [
+      { face: "n", nx: 0, nz: -1, at: pz0, a: px0, b: px1 },
+      { face: "s", nx: 0, nz: 1, at: pz1, a: px0, b: px1 },
+      { face: "w", nx: -1, nz: 0, at: px0, a: pz0, b: pz1 },
+      { face: "e", nx: 1, nz: 0, at: px1, a: pz0, b: pz1 },
+    ];
+    /** a box along a face from u0 to u1, from `near` to `far` metres out of it (negative: into the podium) */
+    const onF = (f: HFace, u0: number, u1: number, near: number, far: number) => {
+      const [o0, o1] = [f.at + (f.nx || f.nz) * near, f.at + (f.nx || f.nz) * far].sort((p, q) => p - q);
+      return f.nx !== 0 ? { x0: o0, x1: o1, z0: u0, z1: u1 } : { x0: u0, x1: u1, z0: o0, z1: o1 };
+    };
+    const meets = (p: { x0: number; x1: number; z0: number; z1: number }, q: { x0: number; x1: number; z0: number; z1: number }, m = 0) => p.x1 > q.x0 - m && p.x0 < q.x1 + m && p.z1 > q.z0 - m && p.z0 < q.z1 + m;
+    // the doors: one per `every` metres of each face, at its even spot or slid a little either way to stay clear of the
+    // corners, the pads in front of the face and the public stair
+    const doors: Array<{ f: HFace; u: number }> = [];
+    for (const f of hfaces) {
+      const len = f.b - f.a;
+      const n = Math.max(1, Math.round(len / H.door.every));
+      for (let i = 0; i < n; i++) {
+        for (const off of [0, 0.25, -0.25, 0.4, -0.4]) {
+          const u = f.a + (i + 0.5 + off) * (len / n);
+          if (u - f.a < H.door.corner + dw / 2 || f.b - u < H.door.corner + dw / 2) continue;
+          const [ox, oz] = f.nx !== 0 ? [f.at + f.nx * 1.5, u] : [u, f.at + f.nz * 1.5];
+          if (local.some((p) => Math.hypot(p.x - ox, p.z - oz) < H.door.pad + dw / 2)) continue;
+          if (stair && meets(onF(f, u - dw / 2, u + dw / 2, 0, 2), stair, H.door.stair)) continue;
+          // nothing more than a step standing in the way out (a bridge's pillar on the kerb), nor a stairwell's rail
+          const way = onF(f, u - dw / 2 - 0.3, u + dw / 2 + 0.3, 0.05, H.door.out);
+          if (RANGE_SOLIDS.some((s) => s.base < dTop && s.top > PAVE_H + 0.4 && meets(way, { x0: s.minX - BR_X, x1: s.maxX - BR_X, z0: s.minZ - BR_Z, z1: s.maxZ - BR_Z }))) continue;
+          if (KIT_SITES.openings.some((o) => meets(way, o, 0.5))) continue;
+          doors.push({ f, u });
+          break;
+        }
+      }
+    }
+    // the shell: the podium's box less the hall and a cut through the wall at each door
+    const cuts: Cut[] = [{ x0: ix0, x1: ix1, z0: iz0, z1: iz1, y0: PAVE_H, y1 }];
+    for (const { f, u } of doors) cuts.push({ ...onF(f, u - dw / 2, u + dw / 2, 0.1, -wl - 0.1), y0: PAVE_H, y1: dTop });
+    cutSlab(px1 - px0, h, pz1 - pz0, cx, PAVE_H, cz, mat, cuts);
+    // lined inside: the walls between the doors and over them, the ceiling, a line of the block's colour along the walls.
+    // The roof keeps the sky's light off everything in here and no light of ours is cheap enough for eight halls, so the
+    // hall's own surfaces carry a little light of their own (hallLit), what the strips in the ceiling would throw: a body
+    // stands out dark against a floor you can see
+    const { lining, ceiling, floor, column } = hallLit();
+    const k = neon(accent);
+    deco(ix1 - ix0, 0.02, iz1 - iz0, (ix0 + ix1) / 2, PAVE_H, (iz0 + iz1) / 2, floor);
+    const warm = emissive(0xffe6c0, H.light.glow);
+    for (const f of hfaces) {
+      const [ia, ib] = f.nx !== 0 ? [iz0, iz1] : [ix0, ix1];
+      const mine = doors.filter((d) => d.f === f).map((d) => d.u).sort((p, q) => p - q);
+      let from = ia;
+      for (const u of [...mine, Infinity]) {
+        const to = Math.min(ib, u - dw / 2);
+        if (to - from > 0.05) {
+          const q = onF(f, from, to, -wl - 0.01, -wl - 0.04);
+          deco(q.x1 - q.x0, y1 - PAVE_H, q.z1 - q.z0, (q.x0 + q.x1) / 2, PAVE_H, (q.z0 + q.z1) / 2, lining);
+          const s = onF(f, from, to, -wl - 0.04, -wl - 0.07);
+          deco(s.x1 - s.x0, 0.08, s.z1 - s.z0, (s.x0 + s.x1) / 2, PAVE_H + 2.2, (s.z0 + s.z1) / 2, k);
+        }
+        if (u === Infinity) break;
+        const q = onF(f, u - dw / 2, u + dw / 2, -wl - 0.01, -wl - 0.04);
+        deco(q.x1 - q.x0, y1 - dTop, q.z1 - q.z0, (q.x0 + q.x1) / 2, dTop, (q.z0 + q.z1) / 2, lining);
+        from = u + dw / 2;
+      }
+    }
+    deco(ix1 - ix0, 0.05, iz1 - iz0, (ix0 + ix1) / 2, y1 - 0.05, (iz0 + iz1) / 2, ceiling);
+    const alongX = ix1 - ix0 >= iz1 - iz0;
+    const across = alongX ? iz1 - iz0 : ix1 - ix0;
+    const ln = Math.max(1, Math.round(across / H.light.every));
+    for (let i = 0; i < ln; i++) {
+      const v = (alongX ? iz0 : ix0) + ((i + 0.5) * across) / ln;
+      if (alongX) deco(ix1 - ix0 - 4, 0.06, H.light.width, (ix0 + ix1) / 2, y1 - 0.11, v, warm);
+      else deco(H.light.width, 0.06, iz1 - iz0 - 4, v, y1 - 0.11, (iz0 + iz1) / 2, warm);
+    }
+    // each door's lane: the floor in from it, which the columns and counters keep off
+    const lanes = doors.map(({ f, u }) => onF(f, u - dw / 2 - 0.5, u + dw / 2 + 0.5, -wl, -wl - H.column.lane));
+    // the columns, on a grid clear of the walls and the lanes
+    const Co = H.column;
+    const columns: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
+    const gx = Math.max(1, Math.round((ix1 - ix0) / Co.every));
+    const gz = Math.max(1, Math.round((iz1 - iz0) / Co.every));
+    for (let i = 0; i < gx; i++) {
+      for (let j = 0; j < gz; j++) {
+        const x = ix0 + ((i + 0.5) * (ix1 - ix0)) / gx;
+        const z = iz0 + ((j + 0.5) * (iz1 - iz0)) / gz;
+        const box = { x0: x - Co.size / 2, x1: x + Co.size / 2, z0: z - Co.size / 2, z1: z + Co.size / 2 };
+        if (box.x0 - ix0 < Co.wall || ix1 - box.x1 < Co.wall || box.z0 - iz0 < Co.wall || iz1 - box.z1 < Co.wall) continue;
+        if (lanes.some((l) => meets(box, l, 0.5))) continue;
+        slab(Co.size, y1 - PAVE_H, Co.size, x, PAVE_H, z, column);
+        deco(Co.size + 0.04, 0.08, Co.size + 0.04, x, PAVE_H + 2.2, z, k);
+        columns.push(box);
+      }
+    }
+    // the counters: waist-high cover, from the hall's own stream, clear of the columns, the walls, the lanes and each other
+    const Cn = H.counter;
+    const own = seeded(C.seed ^ [...key].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 0x4a11));
+    const counters: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
+    for (let tries = 0; counters.length < Cn.count && tries < 80; tries++) {
+      const along = own() < 0.5;
+      const [w, d] = along ? [Cn.size[0], Cn.size[2]] : [Cn.size[2], Cn.size[0]];
+      const x = ix0 + Cn.clear + w / 2 + own() * (ix1 - ix0 - 2 * Cn.clear - w);
+      const z = iz0 + Cn.clear + d / 2 + own() * (iz1 - iz0 - 2 * Cn.clear - d);
+      const box = { x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2 };
+      if ([...columns, ...counters, ...lanes].some((q) => meets(box, q, Cn.clear))) continue;
+      slab(w, Cn.size[1], d, x, PAVE_H, z, trimDark);
+      deco(w + 0.02, 0.05, d + 0.02, x, PAVE_H + Cn.size[1], z, k);
+      counters.push(box);
+    }
+    // for the loot, the bots, the kit and the checks
+    const W4 = (q: { x0: number; x1: number; z0: number; z1: number }) => ({ minX: q.x0 + BR_X, maxX: q.x1 + BR_X, minZ: q.z0 + BR_Z, maxZ: q.z1 + BR_Z });
+    HALLS.push({
+      key,
+      ...W4({ x0: ix0, x1: ix1, z0: iz0, z1: iz1 }),
+      y0: PAVE_H,
+      y1,
+      doors: doors.map(({ f, u }) => ({ ...(f.nx !== 0 ? { x: f.at + BR_X, z: u + BR_Z } : { x: u + BR_X, z: f.at + BR_Z }), nx: f.nx, nz: f.nz, w: dw, top: dTop })),
+      columns: columns.map(W4),
+      counters: counters.map((q) => ({ ...W4(q), top: PAVE_H + Cn.size[1] })),
+    });
+    HALL_FLOORS.push({ ...W4({ x0: ix0, x1: ix1, z0: iz0, z1: iz1 }), y: PAVE_H, top: y1 });
+    KIT_SITES.halls.push({ x0: ix0, x1: ix1, z0: iz0, z1: iz1, y0: PAVE_H, y1, accent, doors: doors.map(({ f, u }) => ({ face: f.face, u0: u - dw / 2, u1: u + dw / 2, top: dTop })) });
+    // the kit leaves each door open: its box through the wall and out past the shop fronts in front of it
+    for (const { f, u } of doors) KIT_SITES.doors.push({ ...onF(f, u - dw / 2, u + dw / 2, 0.7, -wl), y0: PAVE_H, y1: dTop });
+  }
+
   /**
    * A downtown block (city.json downtown): a podium over most of it, one side
    * left a plaza at street level, and two to four towers on the podium split
@@ -878,9 +1068,10 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const pcx = (px0 + px1) / 2;
     const pcz = (pz0 + pz1) / 2;
     const k = neon(sec.accent);
-    // the podium: lit floors over the street, a cap to walk on, and a shopfront's glow along its foot
+    // the podium: lit floors over the street, a cap to walk on, and a shopfront's glow along its foot. Its body is built
+    // once the public stair and the plaza's pad are placed (podiumBody, below), since a centre podium's hall keeps its
+    // doors clear of both
     const podMat = night[Math.floor(rnd() * night.length)];
-    slab(px1 - px0, podS * storeyH - 0.12, pz1 - pz0, pcx, PAVE_H, pcz, podMat);
     slab(px1 - px0, 0.12, pz1 - pz0, pcx, podTop - 0.12, pcz, concrete);
     const shop = neon(sec.accent);
     deco(px1 - px0 + 0.06, 0.5, 0.06, pcx, PAVE_H + 3.1, pz0, shop);
@@ -948,6 +1139,12 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     else if (side === 1) padOnto(pcx, pz1, 0, 1, PAVE_H, podTop);
     else if (side === 2) padOnto(px0, pcz, -1, 0, PAVE_H, podTop);
     else padOnto(px1, pcz, 1, 0, PAVE_H, podTop);
+    {
+      const stair = KIT_SITES.stairs[KIT_SITES.stairs.length - 1];
+      // (a district's podium is built now, inside the sandbox that may take its block away again; the centre's are never)
+      if (sec.id === "c") hallBodies.push(() => podiumBody(px0, px1, pz0, pz1, podTop, podMat, true, stair, key, sec.accent));
+      else podiumBody(px0, px1, pz0, pz1, podTop, podMat, false, stair, key, sec.accent);
+    }
     // the towers: a 2 by 2 split of the podium by two canyons, one cell left open as the terrace
     const [lo, hi] = (D.towers as Record<string, number[]>)[String(ring)] ?? D.towers["1"];
     const gap = D.canyon[0] + rnd() * (D.canyon[1] - D.canyon[0]);
@@ -2311,6 +2508,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     root.add(zebra);
   }
 
+  for (const body of hallBodies) body();
   // ---------------------------------------------------------------- places, the graph, the traversal
   const P = (x: number, z: number) => ({ x: x + BR_X, z: z + BR_Z });
   const pois: Poi[] = SECTORS.map((s) => {
@@ -2421,15 +2619,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       const key = podOf(nodes[n].x - BR_X, nodes[n].z - BR_Z, nodes[n].y ?? 0);
       for (const c of key ? (corners.get(key) ?? []) : []) walkLink(n, c);
     };
-    for (const s of CONCOURSE.stairs) {
-      const [f, t, l] = s.legs.map((q) => ({ x: q.x - BR_X, z: q.z - BR_Z }));
-      const foot = add(f.x, f.z, PAVE_H);
-      const top = add(t.x, t.z, s.top);
-      const land = add(l.x, l.z, s.top);
-      walkLink(foot, top);
-      walkLink(top, land);
-      onPodium(land);
-      // the foot to its street: straight out to the nearer street's middle, then along it to the crossings either side
+    /** a node on the pavement to its street: straight out to the nearer street's middle, then along it to the crossings either side */
+    const toStreet = (foot: number): void => {
+      const f = { x: nodes[foot].x - BR_X, z: nodes[foot].z - BR_Z };
       const lx = line.reduce((a, v) => (Math.abs(v - f.x) < Math.abs(a - f.x) ? v : a));
       const lz = line.reduce((a, v) => (Math.abs(v - f.z) < Math.abs(a - f.z) ? v : a));
       const alongX = Math.abs(lz - f.z) < Math.abs(lx - f.x);
@@ -2449,6 +2641,50 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
           }
         }
         if (best >= 0) walkLink(sp, best);
+      }
+    };
+    for (const s of CONCOURSE.stairs) {
+      const [f, t, l] = s.legs.map((q) => ({ x: q.x - BR_X, z: q.z - BR_Z }));
+      const foot = add(f.x, f.z, PAVE_H);
+      const top = add(t.x, t.z, s.top);
+      const land = add(l.x, l.z, s.top);
+      walkLink(foot, top);
+      walkLink(top, land);
+      onPodium(land);
+      toStreet(foot);
+    }
+    // The halls (HALLS, city.json halls): a grid of nodes over each one's floor, linked where a bot walks them; each door
+    // from a node just inside it to one just outside, and that one to its street as a public stair's foot is
+    for (const hl of HALLS) {
+      const Hn = C.halls.nodes;
+      const [x0, x1, z0, z1] = [hl.minX - BR_X, hl.maxX - BR_X, hl.minZ - BR_Z, hl.maxZ - BR_Z];
+      const along = (a: number, b: number) => {
+        const n = Math.max(1, Math.round((b - a - 2 * Hn.wall) / Hn.every) + 1);
+        return Array.from({ length: n }, (_, i) => (n === 1 ? (a + b) / 2 : a + Hn.wall + (i * (b - a - 2 * Hn.wall)) / (n - 1)));
+      };
+      const inHall = (n: number) => ((nodes[n].hall = hl.key), n);
+      // a node not inside a column or a counter, where a bot could stand
+      const clear = (x: number, z: number) => ![...hl.columns, ...hl.counters].some((q) => x > q.minX - BR_X - 0.9 && x < q.maxX - BR_X + 0.9 && z > q.minZ - BR_Z - 0.9 && z < q.maxZ - BR_Z + 0.9);
+      const xs = along(x0, x1);
+      const zs = along(z0, z1);
+      const grid = xs.map((x) => zs.map((z) => (clear(x, z) ? inHall(add(x, z, hl.y0)) : -1)));
+      for (let i = 0; i < xs.length; i++)
+        for (let j = 0; j < zs.length; j++) {
+          if (grid[i][j] < 0) continue;
+          if (i + 1 < xs.length && grid[i + 1][j] >= 0) walkLink(grid[i][j], grid[i + 1][j]);
+          if (j + 1 < zs.length && grid[i][j + 1] >= 0) walkLink(grid[i][j], grid[i][j + 1]);
+        }
+      const cells = grid.flat().filter((n) => n >= 0);
+      for (const d of hl.doors) {
+        const wl = C.halls.wall;
+        const inside = inHall(add(d.x - BR_X - d.nx * (wl + 1.5), d.z - BR_Z - d.nz * (wl + 1.5), hl.y0));
+        const outside = add(d.x - BR_X + d.nx * 1.5, d.z - BR_Z + d.nz * 1.5, PAVE_H);
+        walkLink(inside, outside);
+        // the inside node to the two nearest of the grid it walks to
+        let linked = 0;
+        for (const g of [...cells].sort((p, q) => Math.hypot(nodes[p].x - nodes[inside].x, nodes[p].z - nodes[inside].z) - Math.hypot(nodes[q].x - nodes[inside].x, nodes[q].z - nodes[inside].z)).slice(0, 4))
+          if (linked < 2 && walkLink(inside, g)) linked++;
+        toStreet(outside);
       }
     }
     for (const b of CONCOURSE.bridges) {

@@ -662,5 +662,61 @@
       "intensity": 1.6
     }
   },
-  "_atmosphere": "Light and air over the centre (atmosphere.ts; Phase 23.4b), after the packs' own scenes, which stand in coloured haze on wet streets (the owner's side by sides, 2026-09-28). The fog takes the colour of the block you are in (`night` or `day`, by the hour, a colour each family and one for the districts), each block's weighed by exp of minus its distance over `blend` squared, eased over `ease` seconds; it starts `near` metres out and ends `far` metres out, `farUp` more a metre you stand above the street, so a roof's view stays clear. The sky's horizon takes the same colour. Within `margin` metres of the city. `wet`: the street and the blocks' pavements glossy (`roughness`, `metalness`), reflecting a cube map `size` pixels a side taken once from `at` (map-local, Neon Alley) out to `far` metres, at `intensity`. From Balanced up; Competitive keeps its clear air. Colours by eye against the store's pictures."
+  "_atmosphere": "Light and air over the centre (atmosphere.ts; Phase 23.4b), after the packs' own scenes, which stand in coloured haze on wet streets (the owner's side by sides, 2026-09-28). The fog takes the colour of the block you are in (`night` or `day`, by the hour, a colour each family and one for the districts), each block's weighed by exp of minus its distance over `blend` squared, eased over `ease` seconds; it starts `near` metres out and ends `far` metres out, `farUp` more a metre you stand above the street, so a roof's view stays clear. The sky's horizon takes the same colour. Within `margin` metres of the city. `wet`: the street and the blocks' pavements glossy (`roughness`, `metalness`), reflecting a cube map `size` pixels a side taken once from `at` (map-local, Neon Alley) out to `far` metres, at `intensity`. From Balanced up; Competitive keeps its clear air. Colours by eye against the store's pictures.",
+  "halls": {
+    "wall": 0.35,
+    "roof": 0.6,
+    "door": {
+      "width": 3.2,
+      "height": 3.4,
+      "every": 16,
+      "corner": 3.5,
+      "pad": 3.5,
+      "stair": 1.5,
+      "out": 4
+    },
+    "column": {
+      "size": 0.9,
+      "every": 10,
+      "wall": 3.0,
+      "lane": 4.5
+    },
+    "counter": {
+      "count": 5,
+      "size": [
+        3.2,
+        1.1,
+        0.7
+      ],
+      "clear": 2.0
+    },
+    "light": {
+      "every": 7,
+      "width": 0.35,
+      "glow": 2.0
+    },
+    "nodes": {
+      "every": 12,
+      "wall": 3.0
+    },
+    "lit": {
+      "floor": [
+        "#5a5e66",
+        "#1c1e24"
+      ],
+      "column": [
+        "#8a8f99",
+        "#202329"
+      ],
+      "lining": [
+        "#2c3038",
+        "#17191e"
+      ],
+      "ceiling": [
+        "#16181d",
+        "#0b0c0f"
+      ]
+    }
+  },
+  "_halls": "The centre's podiums opened into halls at street level (Phase 24.4, city.ts podiumHall; the owner: \"i want an inside area as well to fight in on the bottom floor, likke the metro area\"): every podium of the centre's but the Spire's is a shell `wall` metres thick with a roof `roof` metres thick at its top, which is walked on as before; the hall inside runs from the pavement to the roof's underside (7.4 m on a two-storey podium). Doors `door` wide and high (under the shop canopies at 3.6 m), one per `every` metres of each face, the plaza's face too, none within `corner` metres of a corner, `pad` of a pad or `stair` of the public stair, and nothing more than a step standing within `out` metres before it (a bridge's pillar on the kerb, a metro stairwell's rail); the halls are built last of the street's things for that. Inside: square columns `size` metres a side on a grid `every` metres, none within `wall` metres of a wall nor in a door's lane (`lane` metres in from it); `count` low counters `size` (w, h, d) as cover, `clear` metres from any column, wall or lane; strips of light in the ceiling every `every` metres. The bots' graph: nodes on a grid `every` metres, `wall` metres in, linked where a bot walks them, and each door to the street outside it. Nothing here draws from the city's stream. `lit`: each inside surface's colour and the light it gives off (the roof shadows the sky's light, and a light of ours for each hall would cost every surface in the city), by eye in the pictures."
 }

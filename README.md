@@ -76,6 +76,10 @@ Game) or `?game=legacy`, and everything below this section describes it.
 - **The metro:** under the four streets round the Spire, a loop of tunnel 6 m
   below the street, 288 m round: stairs down from every street, a parked train
   on each side to fight round, the fast covered way round the centre.
+- **The halls:** the eight podiums round the Spire are halls at street level,
+  about 50 by 45 m and 7.4 m tall, with doors off every street: columns and
+  waist-high counters to fight round, the packs' shop fronts along the walls,
+  loot of their own, and the roofs above walked on as before.
 - **Neon Alley:** the street in front of the Spire's north face, dressed at full
   density from the bought kits: neon stacked up the towers, a web of cables,
   lamps, and food stalls on the pavement that are real cover.

@@ -359,16 +359,68 @@ class Resolver {
       };
       for (const r of sub.roots) collect(r);
       const slots = new Map<string, number>();
+      // each target's materials by slot, their names from the pack's .mat files
+      const setBy = new Map<string, Map<number, string>>();
       for (const m of mod.m_Modifications ?? []) {
         const path = String(m.propertyPath ?? "");
         const t = big(m.target?.fileID);
-        if (t !== null && !sub.ids.has(String(t)) && path.startsWith("m_Materials.Array.data[")) slots.set(String(t), Math.max(slots.get(String(t)) ?? 0, +path.match(/\[(\d+)\]/)![1] + 1));
+        if (t !== null && !sub.ids.has(String(t)) && path.startsWith("m_Materials.Array.data[")) {
+          const k = +path.match(/\[(\d+)\]/)![1];
+          slots.set(String(t), Math.max(slots.get(String(t)) ?? 0, k + 1));
+          const g = m.objectReference?.guid;
+          if (g) {
+            const byK = setBy.get(String(t)) ?? new Map<number, string>();
+            byK.set(k, basename(this.pack.guidPath.get(String(g)) ?? "", ".mat"));
+            setBy.set(String(t), byK);
+          }
+        }
       }
       const byTarget = new Map<string, TNode>();
+      const primsOf = (q: TNode) => q.draws[0]?.model.meshes[q.draws[0].mesh]?.prims ?? [];
+      const open: string[] = [];
       for (const [t, n] of slots) {
         const fit = meshNodes.length === 1 ? meshNodes : meshNodes.filter((q) => q.draws.some((d) => d.model.meshes[d.mesh]?.prims.length === n));
         if (fit.length === 1) byTarget.set(t, fit[0]);
-        else IMPORT_STATS.unplacedOverrides++;
+        else open.push(t);
+      }
+      // Where the slot counts do not decide (a car's body, glass and lamps each one or two slots), by the names: the
+      // materials an override sets against the model's own names for its slots (High City's "car 1 glass" on a mesh
+      // whose slot the FBX calls "glass"), each target to the mesh it matches best, one mesh a target; then, if one
+      // target and one mesh with room for it are left, those two
+      if (open.length) {
+        const words = (s: string) => new Set(s.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 1 || /\d/.test(w)));
+        const sim = (a: string, b: string) => {
+          const A = words(a);
+          const B = words(b);
+          let n = 0;
+          for (const w of A) if (B.has(w)) n++;
+          return n / Math.max(1, Math.min(A.size, B.size));
+        };
+        const used = new Set<TNode>(byTarget.values());
+        const pairs: Array<{ t: string; q: TNode; s: number }> = [];
+        for (const t of open) {
+          const want = setBy.get(t) ?? new Map<number, string>();
+          for (const q of meshNodes) {
+            const prims = primsOf(q);
+            if (prims.length < (slots.get(t) ?? 1)) continue;
+            let s = 0;
+            for (const [k, name] of want) s += sim(prims[k]?.material ?? "", name);
+            if (s > 0) pairs.push({ t, q, s: s + (prims.length === slots.get(t) ? 0.25 : 0) });
+          }
+        }
+        pairs.sort((p, q) => q.s - p.s);
+        for (const p of pairs) {
+          if (byTarget.has(p.t) || used.has(p.q)) continue;
+          byTarget.set(p.t, p.q);
+          used.add(p.q);
+        }
+        const left = open.filter((t) => !byTarget.has(t));
+        const free = meshNodes.filter((q) => !used.has(q));
+        if (left.length === 1) {
+          const room = free.filter((q) => primsOf(q).length >= (slots.get(left[0]) ?? 1));
+          if (room.length === 1) byTarget.set(left[0], room[0]);
+        }
+        for (const t of open) if (!byTarget.has(t)) IMPORT_STATS.unplacedOverrides++;
       }
       for (const m of mod.m_Modifications ?? []) {
         const tgt = big(m.target?.fileID);
@@ -926,6 +978,10 @@ function bake(pack: Pack, res: Resolver, id: string, guid: string, mats: Map<str
     mesh.prims.forEach((prim, pi) => {
       let mg = (d.mats ?? [])[pi] ?? (d.mats ?? [])[0] ?? null;
       if (!mg && prim.material) mg = pack.matFor(prim.material);
+      // else the material named for the model, its level of detail and side left off: High City's flying car engines
+      // ("fly engine L lod0.FBX", its part calling for "cars detz", which no material is) wear "fly engine.mat", and
+      // only the first of a model's slots, since the others (its glass, its lights) are what the name is not
+      if (!mg && pi === 0) mg = pack.matFor(basename(pack.guidPath.get(d.modelGuid) ?? "", extname(pack.guidPath.get(d.modelGuid) ?? "")).replace(/\s+lod\d+$/i, "").replace(/\s+[lr]$/i, ""));
       if (!mg) {
         const k = `${basename(pack.guidPath.get(d.modelGuid) ?? "?")} : ${prim.material || "(none)"}`;
         IMPORT_STATS.unresolved.set(k, (IMPORT_STATS.unresolved.get(k) ?? 0) + prim.idx.length / 3);
@@ -1254,7 +1310,10 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
     keptAll.push(...kept);
     const maxBytes = await writePack(h, pack, baked, mats, tex, S.max, S.normal.max, keep, join(out, `${name}-v${v}-max.glb`));
     const hiBytes = await writePack(h, pack, baked, mats, tex, S.hi, S.normal.hi, keep, join(out, `${name}-v${v}.glb`));
-    const loBytes = await writePack(h, pack, baked, mats, tex, S.lo, S.normal.lo, keep, join(out, `${name}-v${v}-lo.glb`));
+    // Competitive, the one preset on the -lo file, keeps its modules and never places a facade strip (citydress.ts): the
+    // strips and their own materials were most of v5's -lo download (91 MB)
+    const keepLo = new Set([...keep].filter((id) => !id.includes("/facade ")));
+    const loBytes = await writePack(h, pack, baked, mats, tex, S.lo, S.normal.lo, keepLo, join(out, `${name}-v${v}-lo.glb`));
     const tris = baked.reduce((a, b) => a + b.tris, 0);
     report.push(`${name}: ${baked.length} pieces (${kept.length} written), ${tris} tris, ${mats.size} materials; max ${(maxBytes / 1e6).toFixed(1)} MB, hi ${(hiBytes / 1e6).toFixed(1)} MB, lo ${(loBytes / 1e6).toFixed(1)} MB${missing.length ? `; not found: ${missing.join(", ")}` : ""}`);
   }

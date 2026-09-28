@@ -1,6 +1,6 @@
 {
   "_note": "The city bundle's pieces (docs/CITY_BUNDLE_IMPLEMENTATION.md): IL.ranch's five cyberpunk packs, bought by the owner 2026-09-27 and licensed to the owner, not the public. This lists which of their prefabs npm run paid (tools/import-city.ts) bakes, by pack and prefab path under the pack's Prefab folder; the baked files go to public/models/paid/city/ (gitignored, served only by the game server) and each piece's measured size comes back into `measured` below, written by the importer. Names only here: no geometry or texture from the packs is ever committed. `version` names the files (<pack>-v<version>.glb) because the server caches /models/ for a day. `sizes` are the texture sizes of the two builds: hi for the medium and high graphics presets, lo for low. `packages` are the Unity Asset Store downloads' file names.",
-  "version": 5,
+  "version": 7,
   "sizes": {
     "max": 2048,
     "hi": 1024,
@@ -2402,7 +2402,7 @@
       -2.386,
       -8.373,
       -0.457,
-      3383
+      3441
     ],
     "cyber/facade 012": [
       19.633,
@@ -2411,7 +2411,7 @@
       0,
       -0.371,
       -0.578,
-      2592
+      2598
     ],
     "cyber/facade 013": [
       15.506,
@@ -5435,7 +5435,7 @@
       -0.982,
       -0.021,
       -0.544,
-      26572
+      26530
     ],
     "kyber/facade 006": [
       8,
@@ -5471,7 +5471,7 @@
       0,
       -5.566,
       -0.554,
-      20647
+      20641
     ],
     "kyber/facade 010": [
       16,
@@ -5480,7 +5480,7 @@
       -2,
       -16.097,
       -0.513,
-      18683
+      18971
     ],
     "kyber/facade 011": [
       10.06,
@@ -5507,7 +5507,7 @@
       -0.313,
       -6.237,
       -0.509,
-      13546
+      13552
     ],
     "kyber/facade 014": [
       14.005,
@@ -5570,7 +5570,7 @@
       0,
       0,
       -0.544,
-      2734
+      2732
     ],
     "kyber/facade 021": [
       28.832,
@@ -5579,7 +5579,7 @@
       -6.222,
       -10.508,
       -0.577,
-      19342
+      19336
     ],
     "kyber/facade 022": [
       10.256,
@@ -5588,7 +5588,7 @@
       -0.209,
       -0.335,
       -0.038,
-      9798
+      9804
     ],
     "kyber/facade 023": [
       12.395,
@@ -5597,7 +5597,7 @@
       -0.82,
       -3.374,
       -0.176,
-      11477
+      11507
     ],
     "kyber/facade 024": [
       8,
@@ -5642,7 +5642,7 @@
       -0.197,
       -20.949,
       -0.543,
-      8941
+      8853
     ],
     "kyber/facade 029": [
       12.78,
@@ -7586,7 +7586,7 @@
     "kyber/facade 028": 0.54,
     "kyber/facade 029": 10.36
   },
-  "_version": "2 (2026-09-27): re-baked with the prefabs' material overrides placed on their models' meshes, which v1 dropped (High City's wall rows came out untextured grey); a new name so no browser keeps v1 from its cache. 3 (2026-09-28): KTX2 textures, a 2K bake for High, only the pieces the dressing names written (Phase 23.1). 4 (2026-09-28): the demo streets' facade strips, the reserve pieces, material names matched loosely, the specular workflow read. 5 (2026-09-28): the facade strips simplified (`simplify`), Kyber's by about half.",
+  "_version": "2 (2026-09-27): re-baked with the prefabs' material overrides placed on their models' meshes, which v1 dropped (High City's wall rows came out untextured grey); a new name so no browser keeps v1 from its cache. 3 (2026-09-28): KTX2 textures, a 2K bake for High, only the pieces the dressing names written (Phase 23.1). 4 (2026-09-28): the demo streets' facade strips, the reserve pieces, material names matched loosely, the specular workflow read. 5 (2026-09-28): the facade strips simplified (`simplify`), Kyber's by about half. 6 (2026-09-28): a prefab's material overrides placed by the materials' names where the slot counts do not decide (the flying cars' engines, the cars' bodies, parts of the strips); the -lo file without the strips Competitive never places. 7 (2026-09-28): a part whose own material name finds nothing wears the material named for its model (the flying cars' engines).",
   "_sizes": "The textures' longest side in each bake, GPU-compressed as KTX2 (Basis Universal; Phase 23.1): `max` for High, `hi` for Balanced, `lo` for Competitive (quality.ts cityKit). Colours, glows and the packed occlusion, roughness and metal are ETC1S at the bake's size; normal maps UASTC at `normal`'s, since UASTC is about four times ETC1S's bytes (a 1K normal map 0.95 MB, a 2K colour 0.64 MB). Compressed on the card, 2K costs about what 1K did as WebP: the placed pieces' textures decoded to 1.76 GB at 1K, and would have been 7 GB at 2K.",
   "front": {
     "cyber/walls/wall a 1": 1,
@@ -8360,7 +8360,6 @@
     "high/advertis/advertis plane 2",
     "high/advertis/advertis plane 3",
     "high/advertis/advertis plane 4",
-    "high/advertis/advertis plane archetype",
     "high/advertis/advertiz 1",
     "high/advertis/advertiz 2",
     "high/advertis/advertiz 3",

@@ -30,7 +30,7 @@ import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName, throwName } from "../config/names";
 import { RANGE_SOLIDS } from "./range";
 // the world's floor (floors.ts), named apart from this file's own floorAt, the lowest place loot can stand
-import { floorAt as worldFloor, FLOORS } from "./floors";
+import { floorAt as worldFloor, FLOORS, HALL_FLOORS, inHall } from "./floors";
 import { ammoTypeOf, STACK } from "./ammo";
 import { optionsFor, SLOTS, type Attachments } from "./attachments";
 import { BACKPACKS, KNOCK_SHIELDS, type BackTier, type KnockTier } from "./kit";
@@ -534,7 +534,9 @@ function standingSpots(x: number, z: number): number[] {
   for (const y of new Set(tops)) {
     // room to stand: nothing occupying the 1.9 m above this surface
     const blocked = here.some((s) => s.base < y + 1.9 - 1e-4 && s.top > y + 0.05);
-    if (!blocked) out.push(y);
+    // and not a podium hall's floor (floors.ts HALL_FLOORS): the field lands where it did before there were halls, and
+    // the halls get loot of their own below
+    if (!blocked && !inHall(x, z, y)) out.push(y);
   }
   return out.sort((a, b) => a - b);
 }
@@ -951,6 +953,20 @@ export class LootField {
         if (!blocked) spots.push(new THREE.Vector3(x, f.y + 0.01, z));
       }
       for (const s of spots) for (const item of rollSpot(metroRnd, M.tier as PlaceTier)) this.add(item, s.clone().add(new THREE.Vector3((metroRnd() - 0.5) * 0.8, 0, (metroRnd() - 0.5) * 0.8)));
+    }
+    // The podium halls (floors.ts HALL_FLOORS, Phase 24.4), last and on a stream of their own as the metro's: spots over
+    // each hall's floor, clear of its columns and counters
+    const Hl = cfg.halls;
+    const hallRnd = seeded((seed ^ 0x4a11f10a) >>> 0);
+    for (const f of HALL_FLOORS) {
+      const spots: THREE.Vector3[] = [];
+      for (let tries = 0; spots.length < Hl.perHall && tries < Hl.perHall * 20; tries++) {
+        const x = f.minX + 1.5 + hallRnd() * (f.maxX - f.minX - 3);
+        const z = f.minZ + 1.5 + hallRnd() * (f.maxZ - f.minZ - 3);
+        const blocked = RANGE_SOLIDS.some((s) => x > s.minX - 1 && x < s.maxX + 1 && z > s.minZ - 1 && z < s.maxZ + 1 && s.base < f.y + 1.9 && s.top > f.y + 0.05);
+        if (!blocked) spots.push(new THREE.Vector3(x, f.y + 0.01, z));
+      }
+      for (const s of spots) for (const item of rollSpot(hallRnd, Hl.tier as PlaceTier)) this.add(item, s.clone().add(new THREE.Vector3((hallRnd() - 0.5) * 0.8, 0, (hallRnd() - 0.5) * 0.8)));
     }
   }
 

@@ -45,3 +45,20 @@ looks overall ... its very clear ours looks like a 3rd grader drew it compared t
 (lobbies, bridges, chimneys, pads, stairs) was fitted to today's boxes and has to be fitted again. 24.4 half a day.
 Phase 23's unshipped work (whole modules, stacked bands, ledges, two escapes a tower, the haze) stays in the worktree:
 the haze and the escapes carry over; the module work is superseded by 24.3.
+
+## Re-ranked after Milestones 298 and 299 (2026-09-28)
+
+What the pictures of the shipped build showed, in the order the eye finds it, and so the order of the work:
+
+1. **The pads in the packs' parts (24.5).** Their gold beams and rings are in every view and are the loudest thing of
+   the old look. A pad's base from the packs (High City's round vent laid flat), its beam slimmer and softer, one ring
+   where it lands you; still readable from a street away, which is what a pad is for.
+2. **The halls, part two (24.4b).** Kiosks, vending machines and food stands from the packs as cover in the middle of
+   each hall (it is open between its columns), a gallery round the walls at the podium's first storey, and a stair down
+   from a hall to the metro beside it, so the inside areas join up as the owner described.
+3. **The street's density (24.5).** The Kyber demo street's clutter at street level: cables overhead between the
+   buildings, pipes down the walls, litter, grass in the cracks, traffic lights, as the store pictures have.
+4. **The canyons' faces.** 41,000 m² of the towers' faces still wear the pressed modules; strips there need a shallow
+   pressing that does not flicker.
+5. **The towers' lines of light.** The cyan edge line on every tower was the city's look before the packs; on the
+   faces the strips dress, it fights them.

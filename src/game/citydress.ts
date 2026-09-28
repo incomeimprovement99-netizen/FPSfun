@@ -596,15 +596,40 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
     // one of the family's styles (dress styles), as its towers wear
     const rows = pick([D.rows[fam], ...((D.styles as Record<string, unknown[]>)[fam] ?? [])], kitHash(p.x0, p.z0, 91)) as { bay: number; mid: string[] };
     const y0 = cityCfg.kerb;
+    // its hall's doors (city.ts podiumBody), which the street floor leaves open
+    const hall = KIT_SITES.halls.find((h) => h.x0 > p.x0 - 1 && h.x1 < p.x1 + 1 && h.z0 > p.z0 - 1 && h.z1 < p.z1 + 1);
     for (const f of faces(p.x0, p.x1, p.z0, p.z1)) {
       const len = f.b - f.a;
       // the street floor, in 8 m shops: clear of the public stair and of the pads that throw up this face
       const n = Math.max(1, Math.round(len / 8));
       const bay = len / n;
+      const hallDoors = (hall?.doors ?? []).filter((d) => d.face === f.key);
       for (let i = 0; i < n; i++) {
         const u = f.a + (i + 0.5) * bay;
         const [fx, fz] = onFace(f, u, 1.5);
         if (inStair(fx, fz, D.clear.stair + bay / 2) || nearPad(fx, fz, D.clear.pad + bay / 2)) continue;
+        // a bay with a hall's door in it: the door open, a shop window either side of it where there is room for one
+        const inBay = hallDoors.filter((d) => d.u1 > u - bay / 2 && d.u0 < u + bay / 2);
+        if (inBay.length) {
+          const spans: Array<[number, number]> = [];
+          let from = u - bay / 2;
+          for (const d of [...inBay.sort((p2, q2) => p2.u0 - q2.u0), null]) {
+            spans.push([from, d ? d.u0 - 0.15 : u + bay / 2]);
+            if (d) from = d.u1 + 0.15;
+          }
+          // (Competitive on the wider side only, the very shop the bay wore before it had a door, narrowed)
+          const widest = spans.reduce((a, s) => (s[1] - s[0] > a[1] - a[0] ? s : a));
+          for (const [s0, s1] of lean ? [widest] : spans) {
+            if (s1 - s0 < 1.4) continue;
+            const id = lean ? pick(D.lean.shops, kitHash(p.x0, p.z0, u, 13)) : pick(D.shopPairs.windows, kitHash(p.x0, p.z0, s0, 37));
+            const sd = dims(id);
+            if (!sd) continue;
+            const r = relief(id);
+            const [x, z] = onFace(f, (s0 + s1) / 2, r.out);
+            add(id, place(id, x, y0, z, f.yaw, (s1 - s0) / sd.w, STOREY / sd.h, r.sz, true), 0, "shop");
+          }
+          continue;
+        }
         // from Balanced up, now and then a door and a window rather than one shop (dress shopPairs)
         const SP = D.shopPairs;
         const pair = !lean && kitHash(p.x0, p.z0, u, 33) < SP.chance;
@@ -676,6 +701,45 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
         const id = pick(D.neonHolders, kitHash(cx, cz, 21));
         add(id, place(id, cx, cityCfg.kerb + STOREY + 0.3, cz, yaw, 1, 1, 1, true), 1, "sign");
       }
+  }
+
+  // ------------------------------------------------ the halls inside the podiums (city.ts podiumBody, Phase 24.4)
+  // An arcade: shop fronts facing in along every wall between the doors, a sign over every other one. From Balanced up:
+  // Competitive's halls keep their lined walls and the line of light (the fronts were 107k triangles on its 620k)
+  for (const h of lean ? [] : KIT_SITES.halls) {
+    // each wall seen from inside: the hall's own faces turned about, at the same planes
+    const inward: Array<[Face, "n" | "s" | "w" | "e"]> = [
+      [{ key: "s", nx: 0, nz: 1, yaw: 0, at: h.z0, a: h.x0, b: h.x1 }, "n"],
+      [{ key: "n", nx: 0, nz: -1, yaw: Math.PI, at: h.z1, a: h.x0, b: h.x1 }, "s"],
+      [{ key: "e", nx: 1, nz: 0, yaw: Math.PI / 2, at: h.x0, a: h.z0, b: h.z1 }, "w"],
+      [{ key: "w", nx: -1, nz: 0, yaw: -Math.PI / 2, at: h.x1, a: h.z0, b: h.z1 }, "e"],
+    ];
+    for (const [f, wall] of inward) {
+      const doorsHere = h.doors.filter((d) => d.face === wall).sort((p2, q2) => p2.u0 - q2.u0);
+      let from = f.a;
+      for (const d of [...doorsHere, null]) {
+        const to = d ? d.u0 - 0.15 : f.b;
+        const run = to - from;
+        const n = Math.floor(run / 5);
+        for (let i = 0; i < n; i++) {
+          const a = from + (i * run) / n;
+          const b = from + ((i + 1) * run) / n;
+          const u = (a + b) / 2;
+          const id = pick(D.shops, kitHash(h.x0, h.z0, u, f.nx, f.nz, 38));
+          const sd = dims(id);
+          if (!sd) continue;
+          const r = relief(id);
+          const [x, z] = onFace(f, u, r.out);
+          add(id, place(id, x, h.y0, z, f.yaw, (b - a) / sd.w, STOREY / sd.h, r.sz, true), 0, "shop");
+          if (i % 2 === 0) {
+            const sg = pick(D.signs, kitHash(h.x0, u, 39));
+            const [sx, sz] = onFace(f, u, D.outset + 0.06);
+            add(sg, place(sg, sx, h.y0 + STOREY + 0.5, sz, f.yaw, 1, 1, 1, true), 1, "sign");
+          }
+        }
+        if (d) from = d.u1 + 0.15;
+      }
+    }
   }
 
   // ------------------------------------------------ the streets: lamps, cables overhead, clutter on the pavement

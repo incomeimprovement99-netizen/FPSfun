@@ -67,9 +67,10 @@ they never enter git and never go to Pages:
   ignores; `npm run rules` fails if any of it is ever tracked. The city step takes about half an hour (it encodes every
   texture as KTX2, GPU-compressed, on every core; the encoder, Basis Universal's WebAssembly build, is fetched once into
   `speedkills-paid\tools\basis\`) and writes `public/models/paid/city/`, each pack three times, with only the pieces
-  the dressing names: `<pack>-vN-max.glb` (2048 px, 354 MB in all at v5) for High, `<pack>-vN.glb` (1024 px, 133 MB)
-  for Balanced, `<pack>-vN-lo.glb` (512 px, 91 MB) for Competitive. The demo streets' facade strips (Phase 24.3) and
-  their own materials more than doubled them from v4's 119, 40 and 26 MB. It also rewrites the pieces' measurements and the list
+  the dressing names: `<pack>-vN-max.glb` (2048 px, 359 MB in all at v7) for High, `<pack>-vN.glb` (1024 px, 135 MB)
+  for Balanced, `<pack>-vN-lo.glb` (512 px, 44 MB) for Competitive. The demo streets' facade strips (Phase 24.3) and
+  their own materials more than tripled High's and Balanced's from v4's 119 and 40 MB; Competitive never places a
+  strip, so its file leaves them out. It also rewrites the pieces' measurements and the list
   of pieces baked in `src/config/citykit.json`, which are in git, so commit that file if a re-import changed it; a
   piece added to the dressing needs a re-import (`citykit.ts` fails until it is in the packs).
 - **Shipping them:** `npm run fps deploy` carries `public/models/paid/` to the game server, so **run it from a copy
