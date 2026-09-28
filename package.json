@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
     "@types/node": "^26.5.1",
     "@types/three": "^0.170.0",
     "ag-psd": "^22.0.2",

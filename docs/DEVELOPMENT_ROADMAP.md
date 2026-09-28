@@ -5572,3 +5572,27 @@ FPS Animation Ultimate (docs/PLAN_FIRST_PERSON_ARMS.md), arms made for the camer
     with the left hand's knuckle 5.5 cm from it; wrists within 50 degrees held and aimed (60 on the handle, the pack's
     own grip); the old arms' cut ends checked on the guns they still hold (ANAKIN, HELIX); the red dot keeps its arms;
   - `tools/checks/fparms-pack.ts`; verify; rules; pictures of the hold, aim, reload, rack and bolt at the owner's view.
+
+## Milestone 290 — Sharper textures on High, lighter on every preset: the packs GPU-compressed
+
+Phase 23's item 23.1 (`docs/PHASE_23_PLAN_THE_PACKS_AT_FULL_STRENGTH.md`). The owner: "YEP SHARPER TEXTERS ON HIGH".
+
+- **Why not just bigger pictures.** A browser decodes a WebP to raw RGBA on the card: the placed pieces' textures were
+  1.76 GB at 1K, and would have been 7 GB at 2K (`tools/kit-texmem.ts`). So the textures are now KTX2 (Basis
+  Universal), which stay compressed on the card: colours, glows and the packed occlusion, roughness and metal in
+  ETC1S, normal maps in UASTC (ETC1S blocks up their slopes).
+- **Three bakes** (`citykit.json` sizes, kit version 3): High loads 2048 px (normal maps 1024), Balanced 1024 (512),
+  Competitive 512. Only the pieces the dressing names are written: half the packs' textures were for pieces the centre
+  never places, and a pack loads whole. `citykit.json` baked lists them, and `citykit.ts` fails if a piece any preset
+  places is not in the packs.
+- **Measured in the browser** (`tools/kit-vram.ts`, the kit's share against `?nocitykit`): Competitive 50 MB of
+  texture memory and a 24 MB download; Balanced 298 MB and 40 MB (from about 1.8 GB and 69 MB); High 1.2 GB and 119
+  MB, twice the sharpness in two thirds of what Balanced took before. The rest of the game's textures come to 877
+  MB, the next thing to look at.
+- **The pipeline.** The importer encodes on every core (`tools/basis-pool.ts`, `tools/basis-worker.mjs`), with Basis's
+  own WebAssembly encoder fetched into the paid folder, nothing installed; the game transcodes with three.js's own
+  transcoder (`public/libs/basis`). Sizes go in blocks of 4, as the format works. A first bake wrote the KTX2 images
+  without the glTF extension that marks them (the IO writes only extensions registered with it), and every texture
+  loaded white; caught in the pictures, fixed in the importer and the packs.
+- **Checked:** pictures on High from the spots of Milestone 287; the texture memory and downloads per preset;
+  `citykit.ts`'s new rule, proven by taking a placed piece out of the baked list; verify and rules.

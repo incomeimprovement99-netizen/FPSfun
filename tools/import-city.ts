@@ -28,6 +28,7 @@ import { basename, dirname, extname, join } from "node:path";
 import sharp from "sharp";
 import YAML from "yaml";
 import { initializeCanvas, readPsd } from "ag-psd";
+import { BasisPool, type BasisKind } from "./basis-pool";
 
 /** what the import could not place, reported at its end */
 const IMPORT_STATS = { unplacedOverrides: 0 };
@@ -556,8 +557,43 @@ class Textures {
     return r;
   }
   private fit(w: number, h: number, size: number): [number, number] {
+    // in whole blocks of 4: Basis's ETC1S and UASTC work in 4 by 4 blocks, and three.js warns on any other size
     const k = Math.min(1, size / Math.max(w, h));
-    return [Math.max(4, Math.round(w * k)), Math.max(4, Math.round(h * k))];
+    return [Math.max(4, Math.round((w * k) / 4) * 4), Math.max(4, Math.round((h * k) / 4) * 4)];
+  }
+  /** the pool that turns pictures into KTX2 (set by city() before any pack is written) */
+  pool: BasisPool | null = null;
+  private ktx = new Map<string, Promise<Uint8Array | null>>();
+  /** a texture as KTX2 at `size` (the longest side, never past the source's), GPU-compressed: a promise, cached */
+  ktx2(pack: Pack, guid: string, size: number, kind: BasisKind): Promise<Uint8Array | null> {
+    const key = `${pack.name}/${guid}/${size}/${kind}`;
+    if (!this.ktx.has(key))
+      this.ktx.set(
+        key,
+        (async () => {
+          const t = await this.decode(pack, guid);
+          if (!t) return null;
+          const [w, h] = this.fit(t.width, t.height, size);
+          const rgba = await sharp(t.data, { raw: { width: t.width, height: t.height, channels: t.channels } }).resize(w, h, { kernel: "lanczos3" }).ensureAlpha().raw().toBuffer();
+          return this.pool!.encode(rgba, w, h, kind);
+        })(),
+      );
+    return this.ktx.get(key)!;
+  }
+  /** the packed occlusion, roughness and metal (orm) as KTX2 */
+  ormKtx2(pack: Pack, mi: MatInfo, size: number): Promise<Uint8Array | null> {
+    const key = `${pack.name}/${mi.metalGloss}/${mi.occlusion}/${size}/${mi.smooth}/${mi.metal}/orm`;
+    if (!this.ktx.has(key))
+      this.ktx.set(
+        key,
+        (async () => {
+          const px = await this.ormPixels(pack, mi, size);
+          if (!px) return null;
+          const rgba = await sharp(px.rgb, { raw: { width: px.w, height: px.h, channels: 3 } }).ensureAlpha().raw().toBuffer();
+          return this.pool!.encode(rgba, px.w, px.h, "data");
+        })(),
+      );
+    return this.ktx.get(key)!;
   }
   async webp(pack: Pack, guid: string, size: number, kind: "color" | "normal" | "emissive"): Promise<Buffer | null> {
     const key = `${pack.name}/${guid}/${size}/${kind}`;
@@ -579,6 +615,14 @@ class Textures {
     if (!mi.metalGloss && !mi.occlusion) return null;
     const key = `${pack.name}/${mi.metalGloss}/${mi.occlusion}/${size}/${mi.smooth}/orm`;
     if (this.out.has(key)) return this.out.get(key)!;
+    const px = await this.ormPixels(pack, mi, size);
+    const b = px ? await sharp(px.rgb, { raw: { width: px.w, height: px.h, channels: 3 } }).webp({ quality: 85 }).toBuffer() : null;
+    this.out.set(key, b);
+    return b;
+  }
+  /** Unity's metal and smoothness and its occlusion, packed as glTF's occlusion, roughness and metal, raw RGB */
+  private async ormPixels(pack: Pack, mi: MatInfo, size: number): Promise<{ rgb: Buffer; w: number; h: number } | null> {
+    if (!mi.metalGloss && !mi.occlusion) return null;
     const mg = mi.metalGloss ? await this.decode(pack, mi.metalGloss) : null;
     const oc = mi.occlusion ? await this.decode(pack, mi.occlusion) : null;
     const ref = mg ?? oc;
@@ -595,9 +639,7 @@ class Textures {
       rgb[i * 3 + 1] = Math.round((1 - smooth) * 255);
       rgb[i * 3 + 2] = a ? a[i * 4] : Math.round(mi.metal * 255);
     }
-    const b = await sharp(rgb, { raw: { width: w, height: h, channels: 3 } }).webp({ quality: 85 }).toBuffer();
-    this.out.set(key, b);
-    return b;
+    return { rgb, w, h };
   }
 }
 
@@ -678,9 +720,17 @@ function bake(pack: Pack, res: Resolver, id: string, guid: string, mats: Map<str
   return { id, groups, tris, min, max, faces, depths };
 }
 
-async function writePack(_h: CityImportHelpers, pack: Pack, baked: Baked[], mats: Map<string, MatInfo | null>, tex: Textures, size: number, file: string): Promise<number> {
+/**
+ * One pack's pieces into a GLB: every texture GPU-compressed as KTX2 (KHR_texture_basisu), colours, glows and the packed
+ * occlusion, roughness and metal at `size`, normal maps at `normalSize` (UASTC is four times ETC1S's bytes). Only the
+ * pieces in `keep` are written: a GLB loads whole, and half the packs' textures were for pieces the centre never places.
+ */
+async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Baked[], mats: Map<string, MatInfo | null>, tex: Textures, size: number, normalSize: number, keep: Set<string>, file: string): Promise<number> {
   const { Document, NodeIO } = await import("@gltf-transform/core");
+  const { KHRTextureBasisu } = await import("@gltf-transform/extensions");
+  const baked = allBaked.filter((b) => keep.has(b.id));
   const doc = new Document();
+  doc.createExtension(KHRTextureBasisu).setRequired(true);
   const buf = doc.createBuffer();
   const scene = doc.createScene(pack.name);
   const matCache = new Map<string, any>();
@@ -688,11 +738,26 @@ async function writePack(_h: CityImportHelpers, pack: Pack, baked: Baked[], mats
   const texture = async (g: string, kind: "color" | "normal" | "emissive"): Promise<any> => {
     const k = g + kind;
     if (texCache.has(k)) return texCache.get(k);
-    const b = await tex.webp(pack, g, size, kind);
-    const t = b ? doc.createTexture(basename(pack.guidPath.get(g) ?? g)).setImage(new Uint8Array(b)).setMimeType("image/webp") : null;
+    const b = await tex.ktx2(pack, g, kind === "normal" ? normalSize : size, kind);
+    const t = b ? doc.createTexture(basename(pack.guidPath.get(g) ?? g)).setImage(b).setMimeType("image/ktx2") : null;
     texCache.set(k, t);
     return t;
   };
+  // every texture this pack's kept pieces need, started at once so the pool keeps every core busy
+  const wanted = new Set<string>();
+  for (const bk of baked) for (const [, gr] of bk.groups) if (gr.mat) wanted.add(gr.mat);
+  await Promise.all(
+    [...wanted].flatMap((g) => {
+      const mi = mats.get(g);
+      if (!mi) return [];
+      return [
+        mi.map ? tex.ktx2(pack, mi.map, size, "color") : null,
+        mi.normal ? tex.ktx2(pack, mi.normal, normalSize, "normal") : null,
+        mi.emission && mi.emissive ? tex.ktx2(pack, mi.emissive, size, "emissive") : null,
+        tex.ormKtx2(pack, mi, size),
+      ].filter(Boolean);
+    }),
+  );
   const material = async (g: string | null, fallbackName: string): Promise<any> => {
     const k = g ?? "none:" + fallbackName;
     if (matCache.has(k)) return matCache.get(k);
@@ -703,9 +768,9 @@ async function writePack(_h: CityImportHelpers, pack: Pack, baked: Baked[], mats
       m.setAlphaMode(mi.mode).setAlphaCutoff(mi.cutoff).setDoubleSided(mi.doubleSided);
       if (mi.map) { const t = await texture(mi.map, "color"); if (t) m.setBaseColorTexture(t); }
       if (mi.normal) { const t = await texture(mi.normal, "normal"); if (t) m.setNormalTexture(t).setNormalScale(mi.normalScale); }
-      const orm = await tex.orm(pack, mi, size);
+      const orm = await tex.ormKtx2(pack, mi, size);
       if (orm) {
-        const t = doc.createTexture(`${mi.name} orm`).setImage(new Uint8Array(orm)).setMimeType("image/webp");
+        const t = doc.createTexture(`${mi.name} orm`).setImage(orm).setMimeType("image/ktx2");
         m.setMetallicRoughnessTexture(t);
         if (mi.occlusion) m.setOcclusionTexture(t);
       }
@@ -738,7 +803,8 @@ async function writePack(_h: CityImportHelpers, pack: Pack, baked: Baked[], mats
     scene.addChild(doc.createNode(b.id).setMesh(mesh).setExtras({ id: b.id }));
   }
   mkdirSync(dirname(file), { recursive: true });
-  await new NodeIO().write(file, doc);
+  // the IO writes only the extensions registered with it: unregistered, the KTX2 images went out as plain ones
+  await new NodeIO().registerExtensions([KHRTextureBasisu]).write(file, doc);
   return statSync(file).size;
 }
 
@@ -753,6 +819,17 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
   const planes: Record<string, number> = {};
   const report: string[] = [];
   const only = process.env.CITY_PACK;
+  // the pieces the dressing names anywhere (citykit.json dress): the only ones written into the packs
+  const keep = new Set<string>();
+  const walkNames = (x: unknown): void => {
+    if (typeof x === "string") keep.add(x);
+    else if (Array.isArray(x)) x.forEach(walkNames);
+    else if (x && typeof x === "object") Object.values(x).forEach(walkNames);
+  };
+  walkNames(cfg.dress);
+  const keptAll: string[] = [];
+  const fronts: Record<string, number> = {};
+  tex.pool = await BasisPool.start(h.paid);
   for (const [name, pkgName] of Object.entries<string>(cfg.packages)) {
     if (only && only !== name) continue;
     const pkg = packages.get(pkgName);
@@ -789,24 +866,37 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
       const along = (k: number) => (hz[0] === "p" ? k / 10 : -k / 10);
       const deepest = bins.filter((e) => e[1] >= most * 0.25).reduce((a, e) => Math.min(a, along(e[0])), front);
       planes[id] = +Math.max(0, front - deepest).toFixed(2);
+      // how much of its front-facing area stands within 0.3 m of its front: most of it for a room module (Kyber's and
+      // Cyber City's window walls, a furnished room behind the glass), little for a relief module (High City's, frames
+      // and cornices before a wall), so the dressing knows which it may set with its front on the building's face
+      const totalArea = bins.reduce((a, e) => a + e[1], 0);
+      const frontArea = bins.filter((e) => front - along(e[0]) <= 0.3).reduce((a, e) => a + e[1], 0);
+      fronts[id] = totalArea > 0 ? +(frontArea / totalArea).toFixed(2) : 1;
       if (process.env.PLANE_DEBUG && id.includes(process.env.PLANE_DEBUG))
         console.log(id, hz, "front", front.toFixed(2), [...b.depths[hz].entries()].map(([k, a]) => [+(front - (hz[0] === "p" ? k / 10 : -k / 10)).toFixed(1), +a.toFixed(2)]).sort((x, y) => x[0] - y[0]).filter((r) => r[1] > 0.05).map((r) => r.join(":")).join(" "));
     }
     const v = cfg.version;
-    const hiBytes = await writePack(h, pack, baked, mats, tex, cfg.sizes.hi, join(out, `${name}-v${v}.glb`));
-    const loBytes = await writePack(h, pack, baked, mats, tex, cfg.sizes.lo, join(out, `${name}-v${v}-lo.glb`));
+    const S = cfg.sizes;
+    const kept = baked.filter((bk) => keep.has(bk.id)).map((bk) => bk.id);
+    keptAll.push(...kept);
+    const maxBytes = await writePack(h, pack, baked, mats, tex, S.max, S.normal.max, keep, join(out, `${name}-v${v}-max.glb`));
+    const hiBytes = await writePack(h, pack, baked, mats, tex, S.hi, S.normal.hi, keep, join(out, `${name}-v${v}.glb`));
+    const loBytes = await writePack(h, pack, baked, mats, tex, S.lo, S.normal.lo, keep, join(out, `${name}-v${v}-lo.glb`));
     const tris = baked.reduce((a, b) => a + b.tris, 0);
-    report.push(`${name}: ${baked.length} pieces, ${tris} tris, ${mats.size} materials; hi ${(hiBytes / 1e6).toFixed(1)} MB, lo ${(loBytes / 1e6).toFixed(1)} MB${missing.length ? `; not found: ${missing.join(", ")}` : ""}`);
+    report.push(`${name}: ${baked.length} pieces (${kept.length} written), ${tris} tris, ${mats.size} materials; max ${(maxBytes / 1e6).toFixed(1)} MB, hi ${(hiBytes / 1e6).toFixed(1)} MB, lo ${(loBytes / 1e6).toFixed(1)} MB${missing.length ? `; not found: ${missing.join(", ")}` : ""}`);
   }
   // the measured sizes go back into the config, as paid-weapons.ts does for the guns
   if (!only) {
     cfg.measured = measured;
     cfg.facing = faces;
     cfg.plane = planes;
+    cfg.front = fronts;
+    cfg.baked = keptAll.sort();
     cfg._measured =
       "Written by npm run paid (tools/import-city.ts) off the baked pieces, never typed: each piece's size (w, h, d) and the minimum corner of its bounds in its own space (x, y, z), metres, then its triangles. `facing` is the horizontal side a piece shows most by area (px, nx, pz, nz): the way a facade module faces. `plane`: how far behind a piece's front its wall stands (metres), the plane most of its front area is on, so a thick module's frames and cornices stand out of the building and its wall sits on the building's face.";
     writeFileSync(cfgFile, JSON.stringify(cfg, null, 2) + "\n");
   }
+  await tex.pool.stop();
   console.log("city bundle:\n  " + report.join("\n  "));
   if (IMPORT_STATS.unplacedOverrides) console.log(`  ${IMPORT_STATS.unplacedOverrides} material overrides on a model found no mesh to go to`);
 }

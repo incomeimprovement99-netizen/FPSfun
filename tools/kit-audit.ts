@@ -5,7 +5,7 @@
 //
 // Run: GAME=speedkills npx tsx tools/kit-audit.ts
 import * as THREE from "three";
-import { NodeIO } from "@gltf-transform/core";
+import { kitFile, kitIO } from "./kit-glb";
 const g = globalThis as unknown as Record<string, unknown>;
 const anyProxy = (): unknown => new Proxy(function () {}, { get: (_t, k) => (k === "measureText" ? () => ({ width: 10 }) : k === Symbol.toPrimitive ? () => 0 : k === "width" || k === "height" ? 64 : anyProxy()), set: () => true, apply: () => anyProxy() });
 const fakeEl = (): unknown => ({ width: 64, height: 64, style: {}, getContext: () => anyProxy(), addEventListener() {}, removeEventListener() {}, set src(_v: string) {} });
@@ -17,11 +17,11 @@ const map = buildCityMap(new THREE.Scene());
 const places = cityKitPlaces(map.pads, false);
 const used = new Map<string, number>();
 for (const p of places) used.set(p.piece, (used.get(p.piece) ?? 0) + 1);
-const io = new NodeIO();
+const io = kitIO();
 const bad: Array<{ id: string; n: number; mats: string[]; tris: number }> = [];
 let piecesOk = 0;
 for (const pack of new Set([...used.keys()].map((k) => k.split("/")[0]))) {
-  const doc = await io.read(`public/models/paid/city/${pack}-v1.glb`);
+  const doc = await io.read(kitFile(pack));
   const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
   for (const top of scene.listChildren()) {
     const id = String((top.getExtras() as { id?: string }).id ?? top.getName());

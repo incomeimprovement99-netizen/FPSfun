@@ -39,6 +39,14 @@ check("this is SpeedKills (the city is its map)", IS_SK);
 const places = cityKitPlaces(map.pads);
 const measured = kit.measured as unknown as Record<string, number[]>;
 check("every piece placed is one the importer baked and measured (citykit.json measured)", places.every((p) => measured[p.piece]), [...new Set(places.filter((p) => !measured[p.piece]).map((p) => p.piece))].join(", "));
+// the packs hold only the pieces the dressing named when they were baked (Phase 23.1): a piece named since, with no
+// re-bake, would be in no pack and silently not drawn
+{
+  const baked = new Set((kit as unknown as { baked?: string[] }).baked ?? []);
+  const { cityKitTraffic } = await import("../../src/game/citydress");
+  const missing = [...new Set([...places, ...cityKitPlaces(map.pads, true)].map((p) => p.piece).concat(cityKitTraffic().map((c) => c.piece)))].filter((id) => !baked.has(id));
+  check("and in the packs as baked (citykit.json baked): every piece any preset places, the flying cars too", baked.size > 0 && missing.length === 0, missing.slice(0, 5).join(", ") || `${baked.size} pieces baked`);
+}
 
 /** a placed piece's bounds, map-local, from its measured box through its matrix */
 function bounds(p: (typeof places)[number]): THREE.Box3 {

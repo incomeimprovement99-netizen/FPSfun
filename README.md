@@ -169,7 +169,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   wall run along wears its modules pressed flat (a plain panel on Competitive,
   and past a pad). The graphics preset
   picks the texture size and how much is drawn (Competitive the lightest modules
-  at half size; High adds pipes, cornices and street props). A copy without the
+  at 512 px; Balanced 1024; High 2048 and pipes, cornices and street props), the
+  textures GPU-compressed so High's 2K fits in less memory than 1K once took. A copy without the
   files, and Pages, shows the city of before.
 - **Steam and neon:** from Balanced up, steam drifts out of the metro's
   stairwells, the street drains and the roof plant, and a few signs flicker

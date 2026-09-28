@@ -7,12 +7,12 @@
 // width and out from its wall the stair's vertices lie.
 //
 // Run: npx tsx tools/measure-escape.ts high "fire ladder a tile" "fire ladder b tile" ...
-import { NodeIO } from "@gltf-transform/core";
 import type { Node } from "@gltf-transform/core";
 import * as THREE from "three";
+import { kitFile, kitIO } from "./kit-glb";
 
 const [pack, ...names] = process.argv.slice(2);
-const doc = await new NodeIO().read(`public/models/paid/city/${pack}-v1.glb`);
+const doc = await kitIO().read(kitFile(pack));
 const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
 const idOf = (n: Node): string => String((n.getExtras() as { id?: string }).id ?? n.getName());
 

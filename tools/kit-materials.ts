@@ -1,9 +1,9 @@
 // What a baked piece's materials carry (textures, factors), to set against the pack's own .mat. Local only.
 //
 // Run: npx tsx tools/kit-materials.ts <pack> <piece id suffix> ...
-import { NodeIO } from "@gltf-transform/core";
+import { kitFile, kitIO } from "./kit-glb";
 const [pack, ...ids] = process.argv.slice(2);
-const doc = await new NodeIO().read(`public/models/paid/city/${pack}-v1.glb`);
+const doc = await kitIO().read(kitFile(pack));
 const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
 for (const top of scene.listChildren()) {
   const id = String((top.getExtras() as { id?: string }).id ?? top.getName());

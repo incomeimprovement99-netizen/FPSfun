@@ -942,7 +942,7 @@ void dressKit(brMap.root, DRESSING).then((n) => {
 // as the graphics preset asks for, and nothing where the bought files are not there (the public build, a checkout).
 // ?nocitykit leaves it off, for a before-and-after from the same spots (tools/city-sheet.ts)
 if (IS_SK && !new URLSearchParams(location.search).has("nocitykit"))
-  void dressCityKit(brMap.root, cityKitPlaces(brMap.pads, quality.cityDetail === 0), quality).then((n) => {
+  void dressCityKit(brMap.root, cityKitPlaces(brMap.pads, quality.cityDetail === 0), quality, renderer).then((n) => {
     if (n) renderer.shadowMap.needsUpdate = true;
   });
 // The centre's steam and flickering signs (steam.ts, city.json steam and flicker): looks only, from Balanced up, and
@@ -8201,6 +8201,32 @@ initWelcome();
   },
   /** the city bundle on SpeedKills' centre (citykit.ts): what is drawn, 0 until it is in or when the files are not there */
   cityKit: () => ({ ...CITY_KIT }),
+  /** the textures the scene's materials hold, and what they cost the card: a compressed one its mips' bytes, any other its
+   * pixels at four bytes with a third more for mips (Phase 23.1 measures the kit's KTX2 against the WebP it replaced) */
+  textureMemory: () => {
+    const seen = new Set<THREE.Texture>();
+    let compressed = 0;
+    let other = 0;
+    let bytes = 0;
+    scene.traverse((o) => {
+      const mat = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+      for (const m of mat ? (Array.isArray(mat) ? mat : [mat]) : [])
+        for (const v of Object.values(m))
+          if (v instanceof THREE.Texture && !seen.has(v)) {
+            seen.add(v);
+            const mips = (v as THREE.CompressedTexture).mipmaps as Array<{ data?: ArrayBufferView }> | undefined;
+            if ((v as THREE.CompressedTexture).isCompressedTexture && mips?.length) {
+              compressed++;
+              bytes += mips.reduce((a, q) => a + (q.data?.byteLength ?? 0), 0);
+            } else {
+              const img = v.image as { width?: number; height?: number } | undefined;
+              other++;
+              bytes += ((img?.width ?? 0) * (img?.height ?? 0) * 4 * 4) / 3;
+            }
+          }
+    });
+    return { textures: seen.size, compressed, other, mb: Math.round(bytes / 1e6) };
+  },
   paidGuns: () => {
     // the gun in hand's bought model, and the skin it wears (paidgun.ts: its fusion level's)
     const root = viewModel.gunRoot;

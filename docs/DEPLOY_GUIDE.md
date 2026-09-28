@@ -64,12 +64,16 @@ they never enter git and never go to Pages:
   `%APPDATA%\Unity\Asset Store-5.x\` (download them in Unity's Package Manager, My Assets).
 - **Making what the game loads:** `npm run paid` (or `PAID_ONLY=soldier`, `weapons` or `city npm run paid`)
   unpacks them into `C:\Users\jwilb\Downloads\speedkills-paid\` and writes `public/models/paid/`, which git
-  ignores; `npm run rules` fails if any of it is ever tracked. The city step takes a few minutes and writes
-  `public/models/paid/city/`, each pack twice: `<pack>-v1.glb` (1024 px maps, 78 MB in all) for Balanced and High,
-  `<pack>-v1-lo.glb` (512 px, 31 MB) for Competitive. It also rewrites the pieces' measurements in
-  `src/config/citykit.json`, which are in git, so commit that file if a re-import changed it.
+  ignores; `npm run rules` fails if any of it is ever tracked. The city step takes about half an hour (it encodes every
+  texture as KTX2, GPU-compressed, on every core; the encoder, Basis Universal's WebAssembly build, is fetched once into
+  `speedkills-paid\tools\basis\`) and writes `public/models/paid/city/`, each pack three times, with only the pieces
+  the dressing names: `<pack>-vN-max.glb` (2048 px, 119 MB in all) for High, `<pack>-vN.glb` (1024 px, 40 MB) for
+  Balanced, `<pack>-vN-lo.glb` (512 px, 26 MB) for Competitive. It also rewrites the pieces' measurements and the list
+  of pieces baked in `src/config/citykit.json`, which are in git, so commit that file if a re-import changed it; a
+  piece added to the dressing needs a re-import (`citykit.ts` fails until it is in the packs).
 - **Shipping them:** `npm run fps deploy` carries `public/models/paid/` to the game server, so **run it from a copy
-  that has the files** (run `npm run paid` there, or copy the folder in). `npm run deploy` (Pages) takes them out of
+  that has the files** (run `npm run paid` there, or copy the folder in: a re-import in a worktree lands only in that
+  worktree's `public/`, and a deploy of the code without the files it names leaves the city bare). `npm run deploy` (Pages) takes them out of
   its build and refuses to push if any are left, so Pages shows the figures and guns of before.
 - **A re-import** is seen at once only if `version` in `src/config/soldier.json` (or `paidweapons.json`, or
   `citykit.json`) goes up: the server keeps `/models/` for a day.

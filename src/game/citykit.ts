@@ -5,6 +5,7 @@
 // city plays: every piece is looks, the collision is the city's own boxes.
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import kit from "../config/citykit.json";
 import type { KitPlace } from "./citydress";
 import { cityKitTraffic } from "./citydress";
@@ -60,15 +61,18 @@ export function tickCityKit(now: number): void {
   }
 }
 
-export async function dressCityKit(root: THREE.Object3D, places: KitPlace[], q: Quality): Promise<number> {
+export async function dressCityKit(root: THREE.Object3D, places: KitPlace[], q: Quality, renderer: THREE.WebGLRenderer): Promise<number> {
   const want = places.filter((p) => p.tier <= q.cityDetail);
   if (!want.length) return 0;
   const packs = [...new Set(want.map((p) => p.piece.split("/")[0]))];
-  const file = (pack: string): string => `${pack}-v${kit.version}${q.cityKit === "lo" ? "-lo" : ""}.glb`;
+  const file = (pack: string): string => `${pack}-v${kit.version}${q.cityKit === "lo" ? "-lo" : q.cityKit === "max" ? "-max" : ""}.glb`;
   // a HEAD first: the Vite dev server answers a missing file with its index page, not a 404
   const probe = await fetch(url(file(packs[0])), { method: "HEAD" }).catch(() => null);
   if (!probe || !probe.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) return 0;
-  const loader = new GLTFLoader();
+  // the packs' textures are KTX2 (Basis), transcoded in a worker to whatever the card reads compressed (BC7 and BC1
+  // on a desktop): public/libs/basis is three.js's own transcoder
+  const ktx2 = new KTX2Loader().setTranscoderPath("libs/basis/").detectSupport(renderer);
+  const loader = new GLTFLoader().setKTX2Loader(ktx2);
   const byId = new Map<string, THREE.Object3D>();
   await Promise.all(
     packs.map(async (pack) => {

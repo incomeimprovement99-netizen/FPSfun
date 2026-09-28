@@ -16,6 +16,7 @@
 <script type="module">
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import kit from "../src/config/citykit.json";
 
@@ -37,8 +38,8 @@ const sun = new THREE.DirectionalLight(0xfff0e0, 1.6);
 sun.position.set(-3, 5, 4);
 scene.add(sun);
 
-const file = `/models/paid/city/${pack}-v${kit.version}${q.get("lo") ? "-lo" : ""}.glb`;
-const gltf = await new GLTFLoader().loadAsync(file);
+const file = `/models/paid/city/${pack}-v${kit.version}${q.get("lo") ? "-lo" : q.get("max") ? "-max" : ""}.glb`;
+const gltf = await new GLTFLoader().setKTX2Loader(new KTX2Loader().setTranscoderPath("/libs/basis/").detectSupport(renderer)).loadAsync(file);
 const pieces = gltf.scene.children.filter((o) => String(o.userData.id ?? o.name).toLowerCase().includes(filter));
 // each piece in a cell sized to the largest of them, centred on its own bounds
 let cell = 1;

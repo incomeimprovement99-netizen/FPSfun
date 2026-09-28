@@ -5,8 +5,8 @@
 //
 // Run: GAME=speedkills npx tsx tools/kit-drawcalls.ts [preset tier: 0 | 1 | 2]
 import * as THREE from "three";
-import { NodeIO } from "@gltf-transform/core";
 import type { Node } from "@gltf-transform/core";
+import { kitFile, kitIO } from "./kit-glb";
 const g = globalThis as unknown as Record<string, unknown>;
 const anyProxy = (): unknown =>
   new Proxy(function () {}, {
@@ -26,10 +26,10 @@ const places = cityKitPlaces(map.pads, tier === 0).filter((p) => p.tier <= tier)
 const used = new Map<string, { n: number; kind: string }>();
 for (const p of places) used.set(p.piece, { n: (used.get(p.piece)?.n ?? 0) + 1, kind: p.kind });
 
-const io = new NodeIO();
+const io = kitIO();
 const pieces = new Map<string, Array<{ material: string; tris: number }>>();
 for (const pack of new Set([...used.keys()].map((k) => k.split("/")[0]))) {
-  const doc = await io.read(`public/models/paid/city/${pack}-v1.glb`);
+  const doc = await io.read(kitFile(pack));
   const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
   const matId = new Map(doc.getRoot().listMaterials().map((m, i) => [m, `${pack}#${i}:${m.getName()}`]));
   for (const top of scene.listChildren()) {
