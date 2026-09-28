@@ -25,6 +25,7 @@ const { cityKitPlaces, planeOf } = await import("../../src/game/citydress");
 const { PRESETS } = await import("../../src/game/quality");
 const { BR_X, BR_Z } = await import("../../src/game/br");
 const kit = (await import("../../src/config/citykit.json")).default;
+const cityCfg = (await import("../../src/config/city.json")).default;
 const scene = new THREE.Scene();
 const map = buildCityMap(scene);
 console.warn = warn;
@@ -81,6 +82,46 @@ for (const t of towers) {
   }
 }
 check(`every face of the centre's ${towers.length} towers wears its facade at its first storey`, bare.length === 0, bare.slice(0, 4).join("; "));
+// Every storey of every face, covered end to end (Phase 23.2): once the kit dresses the centre, its towers' own outward
+// faces stop drawing (city.ts skins), so a bay the kit leaves open would be a hole into the tower. A storey that is a
+// room of its own (the lobby's, the Sky Park's, an open floor) keeps its walls, and a door's width is open by design.
+{
+  const storey = cityCfg.storey;
+  const holes: string[] = [];
+  let storeys = 0;
+  for (const t of towers) {
+    const rooms = [t.lobby, t.park, ...(t.floors ?? [])].filter((v): v is number => v !== undefined);
+    for (const [key, alongX, at, a0, a1] of [
+      ["n", true, t.z - t.d / 2, t.x - t.w / 2, t.x + t.w / 2],
+      ["s", true, t.z + t.d / 2, t.x - t.w / 2, t.x + t.w / 2],
+      ["w", false, t.x - t.w / 2, t.z - t.d / 2, t.z + t.d / 2],
+      ["e", false, t.x + t.w / 2, t.z - t.d / 2, t.z + t.d / 2],
+    ] as const) {
+      for (let s = 0; s < t.storeys; s++) {
+        const y = t.base + s * storey;
+        if (rooms.some((r) => Math.abs(r - y) < 0.5)) continue;
+        storeys++;
+        const mid = y + storey / 2;
+        // the pieces across this face at this storey: their span along it, where their bounds take in the face's plane
+        const spans = facades
+          .filter(({ b }) => b.min.y < mid && b.max.y > mid && (alongX ? b.min.z - 0.2 <= at && b.max.z + 0.2 >= at : b.min.x - 0.2 <= at && b.max.x + 0.2 >= at))
+          .map(({ b }) => (alongX ? [b.min.x, b.max.x] : [b.min.z, b.max.z]) as [number, number]);
+        for (const q of KIT_SITES.doors)
+          if (q.y0 < mid && q.y1 > mid && (alongX ? q.z0 - 0.6 <= at && q.z1 + 0.6 >= at : q.x0 - 0.6 <= at && q.x1 + 0.6 >= at)) spans.push(alongX ? [q.x0, q.x1] : [q.z0, q.z1]);
+        spans.sort((p, q) => p[0] - q[0]);
+        let reach = a0;
+        let gap = 0;
+        for (const [p, q] of spans) {
+          if (p > reach) gap = Math.max(gap, Math.min(p, a1) - reach);
+          reach = Math.max(reach, q);
+        }
+        if (reach < a1) gap = Math.max(gap, a1 - reach);
+        if (gap > 0.3) holes.push(`${key} face at ${t.x.toFixed(0)}, ${t.z.toFixed(0)}, ${y.toFixed(0)} m: ${gap.toFixed(1)} m open`);
+      }
+    }
+  }
+  check("every storey of every face of the centre's towers covered end to end by the kit, so their own faces can stop drawing", holes.length === 0, holes.slice(0, 4).join("; ") || `${storeys} face storeys`);
+}
 check("the centre's podiums wear shop fronts on their street floors", (byKind.get("shop") ?? 0) >= 40, `${byKind.get("shop") ?? 0} shop fronts`);
 check("the skyline's towers each wear a lit building from the bundle", (byKind.get("skyline") ?? 0) === KIT_SITES.skyline.length, `${byKind.get("skyline") ?? 0} of ${KIT_SITES.skyline.length}`);
 

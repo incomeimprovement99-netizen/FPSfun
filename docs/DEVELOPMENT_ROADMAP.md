@@ -5633,3 +5633,30 @@ the bullets don't go where the crosshair is aiming"; and "we still have that red
 - **Checked:** `tools/checks/trails.ts` (a dodge lays at most one leg of it, 17 points with the fix taken out; a walk
   lays none, 6 without it; near you none is drawn); pictures of sprinting and firing, running aimed and firing aimed
   while reloading; the soldier e2e section; verify; rules.
+
+## Milestone 293 — Rooms behind the windows: the packs' window walls at their real depth
+
+Phase 23's item 23.2. Kyber's and Cyber City's window walls, the centre's most placed modules, are each a wall with a
+furnished room behind the glass, 3 to 4.7 m deep, and the city had pressed every one to half a metre, so each window
+showed a slab.
+
+- **Which modules are rooms is measured** (`citykit.json` front, by the importer): the share of a module's
+  front-facing area within 0.3 m of its front. The window walls have 0.57 to 0.68 of it there; High City's and Glass's
+  relief modules, frames and cornices before a wall, 0.12 to 0.39.
+- **A room module's front goes on the tower's face and its room inside the tower** (`dress rooms`), as deep as the room
+  goes, where the tower's solid box stands. Collision is unchanged, and the front stands 0.03 m out, flat enough for a
+  canyon's wall runs. It stops 0.3 m short of a stair core; a west or east room stops short of the north and south
+  rooms' footprints at its storey (recorded as they are set), so no two rooms cross at a corner. 610 of the 1,395
+  window walls placed are now whole rooms; the rest stand in front of a stair core's end or at a corner, and are
+  pressed as before.
+- **The towers' own faces step aside** (`city.ts` skins). Each centre tower's box is drawn as two meshes of one
+  material each, its outward faces in a clone of the tower's material, the rest (its top, a stair shaft's walls, a
+  room's ceiling) in its own, so the static merge still folds them away. Once every facade piece loaded, the kit sets
+  the skins to draw no colour and no depth: the rooms show through the windows, and the towers still cast their
+  shadows. Ambient occlusion leaves them out (`render.ts`, `userData.noAo`).
+- **A new rule in `citykit.ts`:** every storey of every face of the centre's towers covered end to end by the kit
+  (1,340 face storeys), since the towers' faces no longer draw; proven by leaving out one bay. `city-budget.ts`'s
+  before-merge limit goes to 23,000 (22,226 with the skins, 418 once merged), to be set again after the outer
+  districts' cut.
+- **Checked:** pictures into the Kyber and Cyber City windows by day and night on High and Competitive; `citykit.ts`,
+  `sk-lobbies.ts`, `sk-stairs.ts`; verify and rules.

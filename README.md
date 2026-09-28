@@ -170,7 +170,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
   and past a pad). The graphics preset
   picks the texture size and how much is drawn (Competitive the lightest modules
   at 512 px; Balanced 1024; High 2048 and pipes, cornices and street props), the
-  textures GPU-compressed so High's 2K fits in less memory than 1K once took. A copy without the
+  textures GPU-compressed so High's 2K fits in less memory than 1K once took.
+  The packs' window walls keep the furnished rooms behind their glass, inside
+  the towers, where the towers' own faces step aside for them. A copy without the
   files, and Pages, shows the city of before.
 - **Steam and neon:** from Balanced up, steam drifts out of the metro's
   stairwells, the street drains and the roof plant, and a few signs flicker

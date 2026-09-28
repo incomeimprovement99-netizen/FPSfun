@@ -163,9 +163,10 @@ export const CONCOURSE: {
  * The materials of what the bought kit draws over and replaces (citykit.ts hides them once it has drawn over every one):
  * Neon Alley's stalls, a dark kiosk each, where the kit's food stand is open-fronted and would show the box inside it.
  */
-export const STAND_INS: { stalls: THREE.Material[]; cars: THREE.Material[]; machinery: THREE.Material[]; escapes: THREE.Material[] } = { stalls: [], cars: [], machinery: [], escapes: [] };
+export const STAND_INS: { stalls: THREE.Material[]; cars: THREE.Material[]; machinery: THREE.Material[]; escapes: THREE.Material[]; skins: THREE.Material[] } = { stalls: [], cars: [], machinery: [], escapes: [], skins: [] };
 export const KIT_SITES: {
-  towers: Array<{ x: number; z: number; w: number; d: number; base: number; roof: number; storeys: number; lobby?: number; park?: number; floors?: number[]; sector: string; clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }> }>;
+  /** `core`: its stair core's box (city.json stairCore), which a room module behind a face stops short of */
+  towers: Array<{ x: number; z: number; w: number; d: number; base: number; roof: number; storeys: number; lobby?: number; park?: number; floors?: number[]; sector: string; clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }>; core?: { x0: number; x1: number; z0: number; z1: number } }>;
   /** the metro's stairwells in the street (map-local), which nothing may stand over */
   openings: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   /** the Sky Lobby's and the Sky Park's rooms: the tower's box, the storey's floor, and each face's window, along it from its middle */
@@ -220,6 +221,67 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       geoCache.set(k, g);
     }
     return g;
+  };
+  /**
+   * The centre's towers' outward faces in a material of their own, a clone of the tower's (Phase 23.2): once the kit
+   * dresses every face, citykit.ts stops it drawing, so a room module's room, set inside the tower's box, shows through
+   * its windows. The box's other faces (its top, its cuts: a stair shaft's walls, a room's ceiling) keep the tower's
+   * own material. Split into two meshes of one material each, since the static merge merges only those.
+   */
+  const skins = new Map<THREE.Material, THREE.Material>();
+  const skinOf = (mat: THREE.Material): THREE.Material => {
+    let s = skins.get(mat);
+    if (!s) {
+      s = mat.clone();
+      s.name = `${mat.name || "tower"} skin`;
+      tileOf.set(s, tileOf.get(mat) ?? 0);
+      skins.set(mat, s);
+      STAND_INS.skins.push(s);
+    }
+    return s;
+  };
+  const splitCache = new Map<string, [THREE.BufferGeometry, THREE.BufferGeometry]>();
+  /** a box's geometry as two: the faces `mask` names (BoxGeometry's order: +x, -x, +y, -y, +z, -z), and the rest */
+  const splitGeo = (w: number, h: number, d: number, tile: number, mask: number): [THREE.BufferGeometry, THREE.BufferGeometry] => {
+    const k = `${w.toFixed(2)}:${h.toFixed(2)}:${d.toFixed(2)}:${tile}:${mask}`;
+    let pair = splitCache.get(k);
+    if (!pair) {
+      const base = geo(w, h, d, tile);
+      const idx = base.getIndex()!;
+      const lists: [number[], number[]] = [[], []];
+      for (const gr of base.groups) for (let j = gr.start; j < gr.start + gr.count; j++) lists[(mask >> (gr.materialIndex ?? 0)) & 1 ? 0 : 1].push(idx.getX(j));
+      const make = (list: number[]): THREE.BufferGeometry => {
+        const g = new THREE.BufferGeometry();
+        for (const [n, a] of Object.entries(base.attributes)) g.setAttribute(n, a);
+        g.setIndex(list);
+        g.userData.shared = true;
+        return g;
+      };
+      pair = [make(lists[0]), make(lists[1])];
+      splitCache.set(k, pair);
+    }
+    return pair;
+  };
+  /** a solid box whose faces on the tower's outside (`outer`) are drawn in the skin */
+  const skinSlab = (w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material, outer: { x0: number; x1: number; z0: number; z1: number }): void => {
+    const e = 0.01;
+    const mask = (Math.abs(x + w / 2 - outer.x1) < e ? 1 : 0) | (Math.abs(x - w / 2 - outer.x0) < e ? 2 : 0) | (Math.abs(z + d / 2 - outer.z1) < e ? 16 : 0) | (Math.abs(z - d / 2 - outer.z0) < e ? 32 : 0);
+    if (!mask) {
+      slab(w, h, d, x, y, z, mat);
+      return;
+    }
+    const [og, ig] = splitGeo(w, h, d, tileOf.get(mat) ?? 0, mask);
+    for (const [g, m] of [
+      [og, skinOf(mat)],
+      [ig, mat],
+    ] as const) {
+      const mesh = new THREE.Mesh(g, m);
+      mesh.position.set(x, y + h / 2, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      root.add(mesh);
+    }
+    solid(x - w / 2, x + w / 2, z - d / 2, z + d / 2, y, y + h);
   };
   const slab: BoxMaker = (w, h, d, x, y, z, mat, isSolid = true) => {
     const m = new THREE.Mesh(geo(w, h, d, tileOf.get(mat) ?? 0), mat);
@@ -330,6 +392,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   KIT_SITES.towers.length = KIT_SITES.podia.length = KIT_SITES.stairs.length = KIT_SITES.skyline.length = KIT_SITES.lamps.length = KIT_SITES.stalls.length = KIT_SITES.rooms.length = KIT_SITES.cars.length = KIT_SITES.doors.length = KIT_SITES.machinery.length = KIT_SITES.escapes.length = 0;
   FIRE_ESCAPES.length = 0;
   STEAM_SOURCES.length = FLICKER_SIGNS.length = 0;
+  STAND_INS.skins = [];
   /** the public stairs' footprints (local): a bridge landing across one blocked it (the concourse check found it) */
   const stairZones: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
   CONCOURSE.bridges.length = 0;
@@ -485,10 +548,15 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
    * the cuts' tops and bottoms, each band's footprint less the cuts through it
    */
   type Cut = { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number };
-  function cutSlab(w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material, cuts: Cut[]): void {
+  /** `skin`: the tower's outside, whose faces go in a skin (skinSlab), for the centre's towers the kit dresses */
+  function cutSlab(w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material, cuts: Cut[], skin: { x0: number; x1: number; z0: number; z1: number } | null = null): void {
+    const put = (pw: number, ph: number, pd: number, px: number, py: number, pz: number): void => {
+      if (skin) skinSlab(pw, ph, pd, px, py, pz, mat, skin);
+      else slab(pw, ph, pd, px, py, pz, mat);
+    };
     const mine = cuts.filter((c) => c.x1 > x - w / 2 && c.x0 < x + w / 2 && c.z1 > z - d / 2 && c.z0 < z + d / 2 && c.y1 > y && c.y0 < y + h);
     if (!mine.length) {
-      slab(w, h, d, x, y, z, mat);
+      put(w, h, d, x, y, z);
       return;
     }
     const ys = [...new Set([y, y + h, ...mine.flatMap((c) => [c.y0, c.y1]).filter((v) => v > y && v < y + h)])].sort((a, b) => a - b);
@@ -508,7 +576,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
           return out;
         });
       }
-      for (const q of parts) if (q.x1 - q.x0 > 0.01 && q.z1 - q.z0 > 0.01) slab(q.x1 - q.x0, b1 - b0, q.z1 - q.z0, (q.x0 + q.x1) / 2, b0, (q.z0 + q.z1) / 2, mat);
+      for (const q of parts) if (q.x1 - q.x0 > 0.01 && q.z1 - q.z0 > 0.01) put(q.x1 - q.x0, b1 - b0, q.z1 - q.z0, (q.x0 + q.x1) / 2, b0, (q.z0 + q.z1) / 2);
     }
   }
 
@@ -553,12 +621,14 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     // With none open, the walls to a concrete cap: a facade's lit windows are for its sides, not the floor you stand on.
     // An open storey straight over another stands on a floor of its own
     let from = base;
+    // the centre's towers, which the kit dresses, have their outward faces skinned (skinSlab)
+    const skin = Math.abs(x) <= kitCfg.dress.centre && Math.abs(z) <= kitCfg.dress.centre ? { x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2 } : null;
     for (const y of [open ? ly : NaN, park ? py : NaN, ...floors].filter((v) => !Number.isNaN(v)).sort((a, b) => a - b)) {
-      if (y - from > 0.01) cutSlab(w, y - from, d, x, from, z, mat, cuts);
+      if (y - from > 0.01) cutSlab(w, y - from, d, x, from, z, mat, cuts, skin);
       else if (from > base) cutSlab(w, 0.3, d, x, y - 0.3, z, concrete, cuts);
       from = y + storeyH;
     }
-    cutSlab(w, base + h - 0.12 - from, d, x, from, z, mat, cuts);
+    cutSlab(w, base + h - 0.12 - from, d, x, from, z, mat, cuts, skin);
     cutSlab(w, 0.12, d, x, base + h - 0.12, z, concrete, cuts);
     const roof = base + h;
     const k = neon(accent);
@@ -602,7 +672,8 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       ];
     }
     towers.push(t);
-    KIT_SITES.towers.push({ x, z, w, d, base, roof, storeys, lobby: open ? ly : undefined, park: park ? py : undefined, floors, sector, clutter });
+    const coreBox = coreBuild ? coreBuild.box(coreBuild.e0, coreBuild.e1, coreBuild.ac - coreBuild.wid / 2, coreBuild.ac + coreBuild.wid / 2, base, coreBuild.topY) : null;
+    KIT_SITES.towers.push({ x, z, w, d, base, roof, storeys, lobby: open ? ly : undefined, park: park ? py : undefined, floors, sector, clutter, ...(coreBox ? { core: { x0: coreBox.x0, x1: coreBox.x1, z0: coreBox.z0, z1: coreBox.z1 } } : {}) });
     // the stair core's flights and landings, in the box cut for them
     if (coreBuild) {
       const cb = coreBuild;

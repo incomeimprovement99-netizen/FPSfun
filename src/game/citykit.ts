@@ -211,5 +211,14 @@ export async function dressCityKit(root: THREE.Object3D, places: KitPlace[], q: 
   const escapeStoreys = KIT_SITES.escapes.reduce((a, e) => a + e.storeys - 1, 0);
   const dressedEscapes = want.filter((p) => p.kind === "escape" && byId.has(p.piece)).length;
   if (escapeStoreys && dressedEscapes >= escapeStoreys) for (const m of STAND_INS.escapes) m.visible = false;
+  // and the centre's towers' outward faces, once every facade piece loaded (city.ts skins): not drawn, so a room module's
+  // room inside the box shows through its windows, but still casting the tower's shadow; ambient occlusion leaves them out
+  const facades = want.filter((p) => p.kind === "facade" || p.kind === "flat");
+  if (facades.length && facades.every((p) => byId.has(p.piece)))
+    for (const m of STAND_INS.skins) {
+      m.colorWrite = false;
+      m.depthWrite = false;
+      m.userData.noAo = true;
+    }
   return CITY_KIT.drawn;
 }

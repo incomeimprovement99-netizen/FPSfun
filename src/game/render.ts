@@ -56,7 +56,8 @@ function excludeFromAo(gtao: GTAOPass): void {
       const mat = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
       if (!mat) return;
       const list = Array.isArray(mat) ? mat : [mat];
-      if (list.every((m) => m.transparent || !m.visible)) o.visible = false;
+      // (and what draws only its shadow, the centre's tower skins under the kit: userData.noAo)
+      if (list.every((m) => m.transparent || !m.visible || m.userData.noAo)) o.visible = false;
     });
   };
 }

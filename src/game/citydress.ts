@@ -35,6 +35,10 @@ const relief = (id: string): { sz: number; out: number } => {
 };
 const D = kit.dress;
 const STOREY = cityCfg.storey;
+/** how much of a piece's front-facing area stands within 0.3 m of its front (import-city.ts measures it) */
+const FRONT = (kit as unknown as { front?: Record<string, number> }).front ?? {};
+/** a room module: its facade is its front, a room behind the glass (dress rooms) */
+const isRoom = (id: string): boolean => (FRONT[id] ?? 0) >= D.rooms.front && planeOf(id) > D.relief;
 /** the rotation about y that turns +z to face each way */
 const ANGLE: Record<Facing, number> = { pz: 0, px: Math.PI / 2, nz: Math.PI, nx: -Math.PI / 2 };
 
@@ -170,6 +174,38 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
   const bridgeEnds = PARK_BRIDGES.flatMap((b) => [{ x: b.ax - BR_X, z: b.az - BR_Z, y: b.y }, { x: b.bx - BR_X, z: b.bz - BR_Z, y: b.y }]);
   const atBridgeEnd = (x: number, z: number, y: number) => bridgeEnds.some((e) => Math.abs(e.y - y) < 0.5 && Math.hypot(e.x - x, e.z - z) < 2.5);
   const towers = KIT_SITES.towers.filter((t) => inCentre(t.x, t.z));
+  /**
+   * How a module sits on face `f` of tower `t` across `a` to `b` along it (dress rooms): a room module with its front on
+   * the face and its room inside the tower, as deep as the room goes, short of the stair core, and on a west or east face
+   * off the corners the north and south faces' rooms own; anything else not a room (null), for the caller to press
+   */
+  /** the rooms set so far, their footprints in plan by tower and storey: a west or east room stops short of them */
+  const roomsSet: Array<{ t: object; y: number; x0: number; x1: number; z0: number; z1: number }> = [];
+  const seat = (id: string, t: (typeof KIT_SITES.towers)[number], f: Face, a: number, b: number, y: number): { sz: number; out: number } | null => {
+    if (!isRoom(id)) return null;
+    const dm = dims(id);
+    if (!dm) return null;
+    const R = D.rooms;
+    let depth = dm.d;
+    // on a west or east face, short of the north and south faces' rooms at this storey (faces() gives n and s first)
+    if (f.nx !== 0)
+      for (const q of roomsSet)
+        if (q.t === t && Math.abs(q.y - y) < 0.01 && q.z1 > a && q.z0 < b) depth = Math.min(depth, (f.key === "w" ? q.x0 - f.at : f.at - q.x1) - R.gap);
+    const c = t.core;
+    if (c) {
+      const [l0, l1] = f.nx !== 0 ? [c.z0, c.z1] : [c.x0, c.x1];
+      if (l1 > a && l0 < b) {
+        const dist = f.key === "n" ? c.z0 - f.at : f.key === "s" ? f.at - c.z1 : f.key === "w" ? c.x0 - f.at : f.at - c.x1;
+        if (dist >= 0) depth = Math.min(depth, dist - R.core);
+      }
+    }
+    if (depth < R.min) return null;
+    const sz = Math.min(1, depth / dm.d);
+    const reach = dm.d * sz;
+    const plan = f.key === "n" ? { x0: a, x1: b, z0: f.at, z1: f.at + reach } : f.key === "s" ? { x0: a, x1: b, z0: f.at - reach, z1: f.at } : f.key === "w" ? { x0: f.at, x1: f.at + reach, z0: a, z1: b } : { x0: f.at - reach, x1: f.at, z0: a, z1: b };
+    roomsSet.push({ t, y, ...plan });
+    return { sz, out: D.outset };
+  };
   /** inside a fire escape's box (city.ts KIT_SITES escapes), `pad` metres round it */
   const inEscape = (x: number, z: number, y: number, pad = 0.5) => KIT_SITES.escapes.some((e) => x > e.x0 - pad && x < e.x1 + pad && z > e.z0 - pad && z < e.z1 + pad && y > e.y0 - 0.5 && y < e.y1);
   /** a face with another tower close in front of it: a canyon's, where nothing may stand out of the wall */
@@ -243,11 +279,13 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
             const dm = dims(id);
             if (dm) {
               const pl = planeOf(id);
-              const sz = pl > D.canyonRelief ? D.canyonRelief / pl : 1;
-              const stands = D.outset + pl * sz;
+              const psz = pl > D.canyonRelief ? D.canyonRelief / pl : 1;
               for (let i = 0; i < cn; i++) {
-                const [x, z] = onFace(f, f.a + (i + 0.5) * cb, stands);
-                add(id, place(id, x, y, z, f.yaw, cb / dm.w, STOREY / dm.h, sz, true), 0, "flat", stands);
+                const u = f.a + (i + 0.5) * cb;
+                // a room module whole, its front on the face; any other pressed into canyonRelief
+                const st = seat(id, t, f, u - cb / 2, u + cb / 2, y) ?? { sz: psz, out: D.outset + pl * psz };
+                const [x, z] = onFace(f, u, st.out);
+                add(id, place(id, x, y, z, f.yaw, cb / dm.w, STOREY / dm.h, st.sz, true), 0, "flat", st.out);
               }
             }
           }
@@ -276,12 +314,14 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
             const piece = padBay(um) ? pick(D.flat, kitHash(um, s, 31)) : id;
             const pd = dims(piece);
             if (!pd) continue;
-            // behind a fire escape the module is pressed as a canyon's is, so its relief stays behind the landings
+            // a room module whole, its front on the face; behind a fire escape any other is pressed as a canyon's is, so
+            // its relief stays behind the landings
             const [ex, ez] = onFace(f, um, 1);
             const behind = inEscape(ex, ez, y + STOREY / 2, -0.5 + (b - a) / 2);
-            const r = behind ? { sz: planeOf(piece) > D.canyonRelief ? D.canyonRelief / planeOf(piece) : 1, out: D.outset + Math.min(planeOf(piece), D.canyonRelief) } : relief(piece);
+            const room = piece === id ? seat(piece, t, f, a, b, y) : null;
+            const r = room ?? (behind ? { sz: planeOf(piece) > D.canyonRelief ? D.canyonRelief / planeOf(piece) : 1, out: D.outset + Math.min(planeOf(piece), D.canyonRelief) } : relief(piece));
             const [x, z] = onFace(f, um, r.out);
-            add(piece, place(piece, x, y, z, f.yaw, (b - a) / pd.w, STOREY / pd.h, r.sz, true), 0, piece === id ? "facade" : "flat");
+            add(piece, place(piece, x, y, z, f.yaw, (b - a) / pd.w, STOREY / pd.h, r.sz, true), 0, piece === id ? "facade" : "flat", room ? r.out : undefined);
           }
         }
         // up a street wall near a deck: an AC unit on a bay here and there, a pipe and a run of wires down one column
