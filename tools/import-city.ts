@@ -1602,12 +1602,12 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
     const S = cfg.sizes;
     const kept = baked.filter((bk) => keep.has(bk.id)).map((bk) => bk.id);
     keptAll.push(...kept);
-    const maxBytes = await writePack(h, pack, baked, mats, tex, S.max, S.normal.max, keep, join(out, `${name}-v${v}-max.glb`));
-    const hiBytes = await writePack(h, pack, baked, mats, tex, S.hi, S.normal.hi, keep, join(out, `${name}-v${v}.glb`));
+    const maxBytes = await writePack(h, pack, baked, mats, tex, S.max, S.normal.max, keep, join(out, `${name}-v${v}-max.glb`), true);
+    const hiBytes = await writePack(h, pack, baked, mats, tex, S.hi, S.normal.hi, keep, join(out, `${name}-v${v}.glb`), true);
     // Competitive, the one preset on the -lo file, keeps its modules and never places a facade strip (citydress.ts): the
     // strips and their own materials were most of v5's -lo download (91 MB)
     const keepLo = new Set([...keep].filter((id) => !id.includes("/facade ")));
-    const loBytes = await writePack(h, pack, baked, mats, tex, S.lo, S.normal.lo, keepLo, join(out, `${name}-v${v}-lo.glb`));
+    const loBytes = await writePack(h, pack, baked, mats, tex, S.lo, S.normal.lo, keepLo, join(out, `${name}-v${v}-lo.glb`), true);
     const tris = baked.reduce((a, b) => a + b.tris, 0);
     report.push(`${name}: ${baked.length} pieces (${kept.length} written), ${tris} tris, ${mats.size} materials; max ${(maxBytes / 1e6).toFixed(1)} MB, hi ${(hiBytes / 1e6).toFixed(1)} MB, lo ${(loBytes / 1e6).toFixed(1)} MB${missing.length ? `; not found: ${missing.join(", ")}` : ""}`);
   }

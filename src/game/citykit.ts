@@ -6,6 +6,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import kit from "../config/citykit.json";
 import type { KitPlace } from "./citydress";
 import { cityKitTraffic } from "./citydress";
@@ -72,7 +73,8 @@ export async function dressCityKit(root: THREE.Object3D, places: KitPlace[], q: 
   // the packs' textures are KTX2 (Basis), transcoded in a worker to whatever the card reads compressed (BC7 and BC1
   // on a desktop): public/libs/basis is three.js's own transcoder
   const ktx2 = new KTX2Loader().setTranscoderPath("libs/basis/").detectSupport(renderer);
-  const loader = new GLTFLoader().setKTX2Loader(ktx2);
+  // (their geometry comes meshopt-compressed from v8: tools/import-city.ts writePack)
+  const loader = new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
   const byId = new Map<string, THREE.Object3D>();
   await Promise.all(
     packs.map(async (pack) => {

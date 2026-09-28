@@ -112,9 +112,17 @@ The district was one 51 MB file for every preset: 19.7 MB of textures and 31.3 o
 meshopt-compressed (positions and texture coordinates exact, normals to 8 bits), which makes the file 31.3 MB. Competitive
 loads its own at the kit's lo texture size, 24.1 MB. Same picture on Balanced.
 
+## The city kit the same way (Milestone 310)
+
+The kit's own pack files, re-imported as v8 with the importer's new rules: their geometry meshopt-compressed (Balanced
+loads 114 MB where it loaded 135, Competitive 37 where 44, High 338 where 359; the kit is mostly textures, so less is
+saved than on the district), and High City's last grey parts in the kit (20 triangles) in their materials.
+
 ## Next
 
-- The same rule for the city kit's own packs, where 1,020 material overrides still find no mesh (a re-import).
+- Kyber's facade strips still draw 15,440 triangles in the grey stand-in: its metro tunnel pieces, whose FBX materials
+  ("tonnel14", "up circle") name no material of the pack and carry no texture, and whose scene overrides are among the
+  1,020 the importer cannot place on a mesh.
 - More of its loot up on the walkways: most of it lands on the canyons' floor, since the walkways' collision comes
   in strips too narrow to count as a floor.
 - Kyber's and Cyber's demo streets as districts of their own.

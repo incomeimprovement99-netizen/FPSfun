@@ -6073,3 +6073,19 @@ of geometry (601,571 triangles). The game server sends it as it is.
   lo files): 24.1 MB. The lo textures alone took it only to 43.8 MB, since geometry was most of it.
 - The files go to v3. Checked: verify and rules; the e2e speedkills section (the district drawn from its file, 601,571
   triangles); pictures from the crossroads on Balanced (the same as from the v1 file) and on Competitive.
+
+## Milestone 310 — The city kit v8: its geometry meshopt-compressed, and the importer's material rules
+
+Phase 25, after 307 and 309 changed the importer for the district: the same for the city kit's own pack files.
+
+- **Re-imported as v8** (`citykit.json` version; `import-city.ts writePack` for the kit's three sizes;
+  `citykit.ts` loads them with three's meshopt decoder; `tools/kit-glb.ts`'s reader knows the extension, so the kit's
+  Node tools still open them): Balanced's files 135 to 114 MB, Competitive's 44 to 37, High's 359 to 338. The kit is
+  mostly KTX2 textures, so it saves less than the district, which was mostly geometry.
+- **Materials:** High City's last parts in the grey stand-in in the kit (20 triangles) wear theirs by the texture rule
+  of 307. Kyber's facade strips keep 15,440 grey triangles, its metro tunnel pieces, whose FBX materials name nothing in
+  the pack and carry no texture: the next thing to trace, with the 1,020 material overrides the importer places on no
+  mesh.
+- One measurement moved (a piece's 13,701 triangles to 13,697). The centre draws the same 6,443 pieces.
+- **Checked:** verify and rules; the e2e speedkills section; pictures of the centre from the v8 files. The density
+  work parked for v8 (the street clutter's pieces) goes to v9.
