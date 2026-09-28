@@ -2,7 +2,8 @@
 // collision tools/import-city.ts districtSolids measures off the scene's triangles). The owner, 2026-09-28: "continue
 // with the one district with the exact assets til it's playable so I can test it". Run with the real movement over the
 // real city: into each canyon from the city's own street and along it to the crossroads; every pad up onto its walkway;
-// and nowhere behind the film set's faces, where there is nothing but its backs to see through.
+// and nowhere behind the film set's faces, where there is nothing but its backs to see through. Then the bots' graph
+// through it, and its loot.
 //
 // Run: GAME=speedkills npx tsx tools/checks/sk-district.ts
 import * as THREE from "three";
@@ -160,6 +161,35 @@ for (const d of DISTRICTS.districts) {
       const low = Math.min(...tries.map((t) => t.low));
       check(`  and off it, into the building, its face stops you`, deep < 12 && low > landed.y - 1.5, `${tries.map((t) => t.deep.toFixed(1)).join(", ")} m in, lowest ${low.toFixed(2)} m`);
     }
+  }
+}
+
+// The bots (citydistricts.json bots, city.ts): the district on their graph, its canyons reached from the city's streets
+// and its walkways by its pads, one way up, every node of it
+{
+  type N = { x: number; z: number; y?: number; links: number[]; pad?: { to: number } };
+  const nodes = map.nodes as N[];
+  const reach = new Set<number>([0]);
+  const queue = [0];
+  for (let q = 0; q < queue.length; q++) {
+    const n = nodes[queue[q]];
+    for (const j of [...n.links, ...(n.pad ? [n.pad.to] : [])])
+      if (!reach.has(j)) {
+        reach.add(j);
+        queue.push(j);
+      }
+  }
+  for (const d of DISTRICTS.districts) {
+    const mine = nodes.map((n, i) => ({ n, i })).filter(({ n }) => inPoly(d.hole, n.x - BR_X, n.z - BR_Z));
+    const low = mine.filter(({ n }) => (n.y ?? 0) < 1);
+    const up = mine.filter(({ n }) => (n.y ?? 0) >= d.fill.walkway[0]);
+    const lost = mine.filter(({ i }) => !reach.has(i));
+    const pads = mine.filter(({ n }) => n.pad);
+    check(
+      `${d.id}: on the bots' graph, its canyons from the city's streets and its walkways by its ${d.pads.length} pads, every node reached`,
+      low.length >= 20 && up.length >= d.pads.length * 4 && pads.length === d.pads.length && lost.length === 0,
+      `${low.length} in its canyons, ${up.length} on its walkways, ${pads.length} pads, ${lost.length} not reached${lost.length ? `: ${lost.slice(0, 10).map(({ n }) => `${(n.x - BR_X).toFixed(0)},${(n.y ?? 0).toFixed(1)},${(n.z - BR_Z).toFixed(0)}(${n.links.length})`).join(" ")}` : ""}`,
+    );
   }
 }
 

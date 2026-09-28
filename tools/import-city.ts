@@ -967,7 +967,7 @@ function cutFacades(draws: Array<{ d: Draw; m: M4 }>, width = 14, reach = 4): Ar
  * middle size under `stick` (a cable, a wire, a pole), fills nothing: they are what a player expects to pass. Cells with
  * the same spans are joined into rectangles, one box a span. Boxes [x0, x1, z0, z1, y0, y1], in the draws' own metres.
  */
-function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; stick: number; floor: number; merge: number; thin: number; minTop: number; fill?: { walkway: [number, number]; top: number; half: number; plan: number[][]; seeds: number[][]; streets?: number[][] } }): number[][] {
+function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; stick: number; floor: number; merge: number; thin: number; minTop: number; fill?: { walkway: [number, number]; top: number; half: number; body: number; plan: number[][]; seeds: number[][]; streets?: number[][] } }): number[][] {
   const C = o.cell;
   const OFF = 100000;
   const key = (i: number, j: number) => (i + OFF) * 1000003 + (j + OFF);
@@ -1060,7 +1060,13 @@ function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; sti
     const F = o.fill;
     for (const [k, list] of cellSpans) {
       const walk = list.find(([, b]) => b >= F.walkway[0] && b <= F.walkway[1]);
-      if (walk) cellSpans.set(k, [[o.floor, walk[1]], ...list.filter(([a]) => a > walk[1] + 0.05)]);
+      // What stands on a floor reaches down to it: a crate's or a car's top alone in a cell (its sides fall in the cells
+      // round it) hovered a hand over the walkway, a ledge a bot walked into and a player caught his feet on
+      const base = walk ? walk[1] : 0;
+      const standing = list.filter(([a, b]) => b > base + 0.05 && a < base + F.body);
+      const top = Math.max(walk ? walk[1] : -Infinity, ...standing.map(([, b]) => b));
+      const rest = list.filter(([a, b]) => b > base + 0.05 && a >= base + F.body);
+      if (walk || standing.length) cellSpans.set(k, [[o.floor, top], ...rest]);
     }
     const passable = (i: number, j: number) => !(cellSpans.get(key(i, j)) ?? []).some(([a, b]) => a < 1.9 && b > 0.35);
     const inPlan = (x: number, z: number) => {
@@ -1090,15 +1096,25 @@ function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; sti
     }
     const xs = F.plan.map((p) => p[0]);
     const zs = F.plan.map((p) => p[1]);
+    const walkTop = (k: number): number | null => (cellSpans.get(k) ?? []).find(([, b]) => b >= F.walkway[0] && b <= F.walkway[1])?.[1] ?? null;
+    const fills = new Map<number, Array<[number, number]>>();
     for (let i = Math.floor(Math.min(...xs) / C); i <= Math.floor(Math.max(...xs) / C); i++)
       for (let j = Math.floor(Math.min(...zs) / C); j <= Math.floor(Math.max(...zs) / C); j++) {
         const k = key(i, j);
         if (reached.has(k) || !inPlan((i + 0.5) * C, (j + 0.5) * C)) continue;
         const list = cellSpans.get(k) ?? [];
-        // a walkway's cell keeps its walkway; any other, its building to the fill's top
-        if (list.some(([, b]) => b >= F.walkway[0] && b <= F.walkway[1])) continue;
-        cellSpans.set(k, [[o.floor, Math.max(F.top, ...list.map(([, b]) => b))]]);
+        // a walkway's cell keeps its walkway
+        if (walkTop(k) !== null) continue;
+        const tops = list.map(([, b]) => b);
+        // one with walkway on two sides and more is on the walkway: what stands there (a lamp post, a sign's foot) to
+        // its own top, or a gap in the deck filled to the walkway's; filled to the building's top, a lamp post was a
+        // pillar 40 m high a bot walked into and a shot stopped at
+        const beside = [key(i + 1, j), key(i - 1, j), key(i, j + 1), key(i, j - 1)].map(walkTop).filter((t): t is number => t !== null);
+        if (beside.length >= 2) fills.set(k, [[o.floor, Math.max(...beside, ...tops)]]);
+        // any other, its building to the fill's top
+        else fills.set(k, [[o.floor, Math.max(F.top, ...tops)]]);
       }
+    for (const [k, spans] of fills) cellSpans.set(k, spans);
   }
   // the thin made deep enough to stand on, rounded to 5 cm, and grouped by span
   const bySpan = new Map<string, Set<number>>();

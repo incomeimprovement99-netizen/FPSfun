@@ -5985,3 +5985,28 @@ enemies, "you said you fixed it like 3 times".
   in this build; if one is seen again, a screenshot of it is the next thing to have.
 - **Checked:** new soldier e2e checks (level at rest, the handle pinched, the fists the bought arms', the palm and its
   hack on an inspect), the speedkills section's edge check (the death with no laser); verify; rules.
+
+## Milestone 305 — The bots come into High City's corner; what stands on its walkways solid, and no pillar over it
+
+Phase 25, after 303's limits: the bots' graph kept out of the district, and walking its walkways met things that were
+not there.
+
+- **On the bots' graph** (`citydistricts.json bots`, `city.ts`): a node every 6 m down each canyon's middle, from the
+  city's street past an arm's end (joined to that street's crossings either side) through the crossroads to the map's
+  edge; its five pads on the graph, one way up, as the centre's are; and its walkways as a grid of nodes every 3 m where
+  the collision's top is a walkway's, linked where a bot walks both ways, kept where the walk reaches from a pad's
+  landing. 34 nodes in its canyons, 48 on its walkways. A line of nodes laid along each walkway from its landing stopped
+  within a step or two: High City's walkways are cluttered in front of their posts, with bollards, bins, hydrants and
+  parked cars. In a real match 5 bots walked into its canyons in the first 2 minutes. The city's build takes about 40 ms
+  more (1,003 to 1,040 ms, the median of two).
+- **What stands on a walkway, solid down to it** (`fill body`): a crate's or a car's top alone in a cell, its sides
+  falling in the cells round it, hovered a hand over the deck, a ledge a bot walked into and a player's feet caught on;
+  anything whose foot is less than 1.9 m over the street or a walkway now reaches down to it.
+- **No 40 m pillars:** a cell on a walkway with no walkway top of its own (a lamp post's foot, a gap in the deck) was
+  filled as the building behind, to 40 m, invisible over the lamp and in the way of shots; with walkway on two sides and
+  more it now takes its own height or the walkway's. 6,312 boxes to 5,406.
+- **Checked:** verify and rules; `sk-district.ts`, new: the district on the bots' graph, its canyons reached from the
+  city's streets and its walkways by its pads, every node reached, proven by cutting the canyons off the city's
+  streets (82 nodes not reached); `sk-roofs.ts` throws a bot off each of its
+  pads onto its walkway (29 pads) and walks every street link (847); the e2e sections bots, botsquads and
+  gulag (two of the bots' tier checks in the warehouse arena failed beside them and passed alone); a real match.

@@ -87,8 +87,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   street, whole, as the bought pack's artist built it: its buildings, walkways,
   signs and parked flying cars, in its own grey-green haze. Its canyons meet
   the city's streets at the ends of two arms, five pads throw you up to the
-  walkways 7.75 m above them, its buildings are solid behind their faces, and
-  it has loot of its own.
+  walkways 7.75 m above them, its buildings are solid behind their faces, it
+  has loot of its own, and the bots come into it too.
   `?dropat=high-corner` drops a solo battle royale straight onto its
   crossroads. The game server alone has its file (a bought one).
 - **The chimneys:** four slots between twin towers, 3 m wide, climbed by wall

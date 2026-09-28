@@ -77,13 +77,24 @@ open. The check fails on that first bake and passes on this one. 6,312 boxes.
 
 - From the city's streets round it, the district's outer edge shows the film set's open backs in places. Its collision
   is solid there.
-- The bots do not come into it yet. Their graph keeps to the city's streets round it.
 - The file is 51 MB, and every preset loads it.
 - Rails and bars thinner than 15 cm (`stick`) have no collision. The posts do.
 
+## The bots, and what stands on the walkways (Milestone 305)
+
+- **On the bots' graph:** a node every 6 m down each canyon's middle, from the city's street past an arm's end through
+  the crossroads to the map's edge; its five pads, one way up; and its walkways as a grid of nodes every 3 m where the
+  collision's top is a walkway's, linked where a bot walks both ways and kept where the walk reaches from a pad's
+  landing. A line of nodes laid along each walkway from its landing stopped within a step or two, because the walkways
+  are cluttered in front of their posts. 34 nodes in the canyons, 48 on the walkways, about 40 ms on the city's build.
+- **What stands on a walkway is solid down to it** (`fill body`). A crate's or car's top alone in a cell, its sides in
+  the cells round it, had hovered a hand over the deck, a ledge a bot walked into.
+- **No 40 m pillars:** a cell with walkway on two sides and more (a lamp post's foot, a gap in the deck) had been filled
+  as building, to 40 m, invisible above the lamp and in the way of shots. It now takes its own height or the walkway's.
+  6,312 boxes became 5,406.
+
 ## Next
 
-- Nodes on the bots' graph along the canyons and walkways.
 - More of its loot up on the walkways: most of it lands on the canyons' floor, since the walkways' collision comes
   in strips too narrow to count as a floor.
 - The edge: close the backs you can see from the city's streets.

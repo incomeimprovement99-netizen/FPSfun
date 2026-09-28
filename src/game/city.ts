@@ -2902,6 +2902,102 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         prev = n;
       }
     }
+    // The districts made of the packs' demo scenes (citydistricts.json bots): each canyon's street, a node every `step`
+    // metres from the city's street at an arm's end (joined to its crossings either side) through the crossroads to the
+    // map's edge; and each walkway, a node every `step` metres either way along it from where a pad lands you, as far as
+    // a bot walks it. A link only where a bot walks it both ways. Their pads join below, as the centre's do.
+    const districtNode = new Map<string, number>();
+    for (const d of DISTRICTS.districts) {
+      const B = d.bots;
+      const nodeAt = (x: number, z: number, y: number): number => {
+        const k = `${x.toFixed(1)},${z.toFixed(1)},${y.toFixed(1)}`;
+        return districtNode.get(k) ?? districtNode.set(k, add(x, z, y)).get(k)!;
+      };
+      for (const line of B.canyons) {
+        let prev = -1;
+        for (let k = 0; k + 1 < line.length; k++) {
+          const [ax, az] = line[k];
+          const [bx, bz] = line[k + 1];
+          const n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / B.step));
+          for (let s = k === 0 ? 0 : 1; s <= n; s++) {
+            const node = nodeAt(ax + ((bx - ax) * s) / n, az + ((bz - az) * s) / n, 0);
+            if (prev >= 0) walkLink(prev, node);
+            prev = node;
+          }
+        }
+        // its first point is on the city's street: onto the crossings either side of it along that street
+        const [sx, sz] = line[0];
+        const S = nodes[nodeAt(sx, sz, 0)];
+        for (const side of [-1, 1]) {
+          let best = -1;
+          let bestD = Infinity;
+          for (let i = 0; i < streetNodes; i++) {
+            const n = nodes[i];
+            const [along, across] = Math.abs(n.z - S.z) < 0.5 ? [n.x - S.x, 0] : Math.abs(n.x - S.x) < 0.5 ? [n.z - S.z, 0] : [0, 1];
+            if (across || along * side <= 0 || Math.abs(along) >= bestD || !n.links.length) continue;
+            best = i;
+            bestD = Math.abs(along);
+          }
+          if (best >= 0) walkLink(nodeAt(sx, sz, 0), best);
+        }
+      }
+      // The walkways: a point every `grid` metres of the plan where the collision's top is a walkway's, each linked to
+      // the points round it a bot walks to and back, and kept where the walk reaches from a pad's landing (the posts,
+      // bollards, bins and parked cars on High City's walkways stopped a line of nodes laid along them)
+      const boxes = DISTRICT_SOLIDS[d.id] ?? [];
+      const [w0, w1] = d.fill.walkway;
+      const topAt = (x: number, z: number): number => {
+        let t = -Infinity;
+        for (const b of boxes) if (x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3] && b[5] > t && b[5] <= w1 + 2) t = b[5];
+        return t;
+      };
+      const walks = (ax: number, az: number, bx: number, bz: number, y: number): boolean => botWalk(ax + BR_X, az + BR_Z, y, bx + BR_X, bz + BR_Z).ok && botWalk(bx + BR_X, bz + BR_Z, y, ax + BR_X, az + BR_Z).ok;
+      const G = B.grid;
+      const pts = new Map<string, { x: number; z: number; y: number; to: string[] }>();
+      const xs = d.hole.map(([x]) => x);
+      const zs = d.hole.map(([, z]) => z);
+      const lim = d.fill.half - 3;
+      for (let x = Math.min(...xs) + G / 2; x < Math.min(Math.max(...xs), lim); x += G)
+        for (let z = Math.min(...zs) + G / 2; z < Math.min(Math.max(...zs), lim); z += G) {
+          const y = topAt(x, z);
+          if (y >= w0 && y <= w1 && inDistrict(x, z)) pts.set(`${x},${z}`, { x, z, y, to: [] });
+        }
+      for (const [k, q] of pts)
+        for (const [dx, dz] of [[G, 0], [0, G], [G, G], [G, -G]]) {
+          const o = pts.get(`${q.x + dx},${q.z + dz}`);
+          if (o && walks(q.x, q.z, o.x, o.z, Math.max(q.y, o.y))) {
+            q.to.push(`${o.x},${o.z}`);
+            o.to.push(k);
+          }
+        }
+      // from each landing, the points it walks to within reach, and all the points those reach
+      const seen = new Map<string, number>();
+      const queue: string[] = [];
+      for (const l of padLands) {
+        const p = pads[l.pad];
+        if (!inDistrict(p.x - BR_X, p.z - BR_Z)) continue;
+        const land = nodeAt(l.x, l.z, l.y);
+        for (const [k, q] of pts) {
+          if (Math.hypot(q.x - l.x, q.z - l.z) > G * 1.5 || !walks(l.x, l.z, q.x, q.z, l.y)) continue;
+          if (!seen.has(k)) {
+            seen.set(k, nodeAt(q.x, q.z, q.y));
+            queue.push(k);
+          }
+          link(land, seen.get(k)!);
+        }
+      }
+      for (let i = 0; i < queue.length; i++) {
+        const q = pts.get(queue[i])!;
+        for (const k of q.to) {
+          if (!seen.has(k)) {
+            const o = pts.get(k)!;
+            seen.set(k, nodeAt(o.x, o.z, o.y));
+            queue.push(k);
+          }
+          link(seen.get(queue[i])!, seen.get(k)!);
+        }
+      }
+    }
     // The centre's jump pads, one way up (the pad node's `pad`, its landing's `padFrom`): the podiums' and the
     // Spire's tiers', so a bot going for the capture zone on the Spire goes up it as a player does. A pad joins
     // the graph where a bot walks to it from a node on its floor within reach, and its landing links on to the
@@ -2913,11 +3009,12 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       const p = pads[l.pad];
       const px = p.x - BR_X;
       const pz = p.z - BR_Z;
-      if (!centre(px, pz)) continue;
+      if (!centre(px, pz) && !inDistrict(px, pz)) continue;
       padNode.set(l.pad, add(px, pz, p.y ?? 0));
     }
     const landNode = new Map<number, number>();
-    for (const l of padLands) if (padNode.has(l.pad)) landNode.set(l.pad, add(l.x, l.z, l.y));
+    // (a district's walkway already has its landing, the node its walk along started from)
+    for (const l of padLands) if (padNode.has(l.pad)) landNode.set(l.pad, districtNode.get(`${l.x.toFixed(1)},${l.z.toFixed(1)},${l.y.toFixed(1)}`) ?? add(l.x, l.z, l.y));
     const near = (n: number, skip: number): number[] =>
       nodes
         .map((m, i) => ({ m, i }))
@@ -2935,8 +3032,9 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       if (!joined) continue;
       nodes[pn].pad = { to: ln, up: p.up ?? 0, dx: p.dx, dz: p.dz, over: p.over ?? 0 };
       (nodes[ln].padFrom ??= []).push(pn);
-      // the landing, on to what stands on its roof (a podium's corners, the next tier's pad)
-      for (const i of near(ln, pn)) walkLink(ln, i);
+      // the landing, on to what stands on its roof (a podium's corners, the next tier's pad); a district's walkway has
+      // its landing linked already, to the walkway's own points round it
+      if (!inDistrict(p.x - BR_X, p.z - BR_Z)) for (const i of near(ln, pn)) walkLink(ln, i);
     }
   }
 
