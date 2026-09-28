@@ -31,7 +31,7 @@ import { initializeCanvas, readPsd } from "ag-psd";
 import { BasisPool, type BasisKind } from "./basis-pool";
 
 /** what the import could not place, reported at its end */
-const IMPORT_STATS = { unplacedOverrides: 0, unresolved: new Map<string, number>() };
+const IMPORT_STATS = { unplacedOverrides: 0, unresolved: new Map<string, number>(), unreadable: new Map<string, number>() };
 
 export interface CityImportHelpers {
   root: string;
@@ -93,6 +93,28 @@ class Pack {
   /** a material by an FBX's own name for it: exact, else with spaces and punctuation ignored */
   matFor(name: string): string | null {
     return this.matByName.get(name.toLowerCase()) ?? this.matByNorm.get(name.toLowerCase().replace(/[^a-z0-9]/g, "")) ?? null;
+  }
+  private byTexture = new Map<string, string | null>();
+  /**
+   * Unity's "By Base Texture Name" (an FBX importer's materialName: 0): the model wears the pack's material named after
+   * the texture its FBX material uses, found the way Unity does, by name. The textures' names are read straight out of
+   * the FBX's bytes, the first that names a material of the pack taken. High City's "fill build 08" calls for "Material
+   * #3020", whose texture is "fill build 1.psd", so it wears "fill build 1.mat"; without this its backdrop building came
+   * out a plain grey slab in the gaps between the corner district's faces.
+   */
+  matByTexture(modelGuid: string): string | null {
+    if (this.byTexture.has(modelGuid)) return this.byTexture.get(modelGuid)!;
+    let found: string | null = null;
+    const f = this.file(modelGuid);
+    const meta = f ? join(dirname(f), "asset.meta") : "";
+    if (f && existsSync(f) && existsSync(meta) && /materialName:\s*0\b/.test(readFileSync(meta, "utf8"))) {
+      for (const m of readFileSync(f).toString("latin1").matchAll(/([A-Za-z0-9 _#-][A-Za-z0-9 _#.-]{0,79})\.(psd|png|tga|jpe?g|tiff?)\b/gi)) {
+        found = this.matFor(m[1].trim());
+        if (found) break;
+      }
+    }
+    this.byTexture.set(modelGuid, found);
+    return found;
   }
 
   constructor(readonly name: string, files: Map<string, string>) {
@@ -1174,12 +1196,22 @@ function bake(pack: Pack, res: Resolver, id: string, guid: string, mats: Map<str
       // ("fly engine L lod0.FBX", its part calling for "cars detz", which no material is) wear "fly engine.mat", and
       // only the first of a model's slots, since the others (its glass, its lights) are what the name is not
       if (!mg && pi === 0) mg = pack.matFor(basename(pack.guidPath.get(d.modelGuid) ?? "", extname(pack.guidPath.get(d.modelGuid) ?? "")).replace(/\s+lod\d+$/i, "").replace(/\s+[lr]$/i, ""));
+      // else as Unity names a model's materials by their texture, where its importer says so; and a material the scene
+      // takes from inside the model itself (High City's "fill build 09", placed with the FBX's own) is Unity's made from
+      // that same texture
+      if (mg && /\.fbx$/i.test(pack.guidPath.get(mg) ?? "")) mg = pack.matByTexture(mg);
+      if (!mg) mg = pack.matByTexture(d.modelGuid);
       if (!mg) {
         const k = `${basename(pack.guidPath.get(d.modelGuid) ?? "?")} : ${prim.material || "(none)"}`;
         IMPORT_STATS.unresolved.set(k, (IMPORT_STATS.unresolved.get(k) ?? 0) + prim.idx.length / 3);
       }
       if (mg && !mats.has(mg)) mats.set(mg, readMaterial(pack, mg));
       const mi = mg ? mats.get(mg) ?? null : null;
+      // (a material found but not read comes out in the grey stand-in as surely as one not found)
+      if (mg && !mi) {
+        const k = `${basename(pack.guidPath.get(mg) ?? mg)} (for ${basename(pack.guidPath.get(d.modelGuid) ?? "?")})`;
+        IMPORT_STATS.unreadable.set(k, (IMPORT_STATS.unreadable.get(k) ?? 0) + prim.idx.length / 3);
+      }
       const key = mg ?? "none:" + prim.material;
       if (!groups.has(key)) groups.set(key, { mat: mg, pos: [], nrm: [], uv: [], idx: [] });
       const g = groups.get(key)!;
@@ -1583,6 +1615,8 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
   console.log("city bundle:\n  " + report.join("\n  "));
   if (IMPORT_STATS.unplacedOverrides) console.log(`  ${IMPORT_STATS.unplacedOverrides} material overrides on a model found no mesh to go to`);
   // the model parts that drew with no material: which model, its FBX's own material name, triangles
+  if (IMPORT_STATS.unreadable.size)
+    console.log(["  a material found but not read (material (for its model), triangles):", ...[...IMPORT_STATS.unreadable].sort((p, q) => q[1] - p[1]).slice(0, 25).map(([k, n]) => `    ${Math.round(n)}  ${k}`)].join(String.fromCharCode(10)));
   if (IMPORT_STATS.unresolved.size)
     console.log(["  no material resolved (model : its FBX material, triangles):", ...[...IMPORT_STATS.unresolved].sort((p, q) => q[1] - p[1]).slice(0, 25).map(([k, n]) => `    ${Math.round(n)}  ${k}`)].join(String.fromCharCode(10)));
 }

@@ -74,7 +74,7 @@ they never enter git and never go to Pages:
   of pieces baked in `src/config/citykit.json`, which are in git, so commit that file if a re-import changed it; a
   piece added to the dressing needs a re-import (`citykit.ts` fails until it is in the packs).
 - **The districts** (Phase 25, `src/config/citydistricts.json`): a pack's demo street baked whole into the map, one
-  file each, `public/models/paid/city/<id>-v<version>.glb` (High City's corner, `high-corner-v1.glb`, 51 MB, loaded by
+  file each, `public/models/paid/city/<id>-v<version>.glb` (High City's corner, `high-corner-v2.glb`, 51 MB, loaded by
   every preset). `PAID_ONLY=city CITY_PACK=high CITY_DISTRICTS=1 npx tsx tools/import-paid.ts` bakes it in about 80 s
   and writes its collision to `src/config/districts/<id>.solids.json` and its measurements back to the config, both in
   git, so commit them; raise `version` there for the server to hand out a new file at once.

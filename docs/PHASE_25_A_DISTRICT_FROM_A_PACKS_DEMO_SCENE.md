@@ -93,8 +93,18 @@ open. The check fails on that first bake and passes on this one. 6,312 boxes.
   as building, to 40 m, invisible above the lamp and in the way of shots. It now takes its own height or the walkway's.
   6,312 boxes became 5,406.
 
+## The white slabs (Milestone 307)
+
+Plain grey slabs showed in the gaps between the district's faces and over its skyline. They were High City's backdrop
+buildings "fill build 08" and "09" in the importer's grey stand-in, 680 triangles. Part of it had no material the
+importer could find: its FBX asks for "Material #3020", and its import settings name materials the way Unity's "By Base
+Texture Name" does, after the texture that material uses, "fill build 1.psd". The rest was placed with the material
+inside the FBX itself, which Unity makes from the same texture. The importer now does both (`Pack.matByTexture`), and
+no part of the district is in the stand-in.
+
 ## Next
 
+- The same rule for the city kit's own packs, where 1,020 material overrides still find no mesh (a re-import).
 - More of its loot up on the walkways: most of it lands on the canyons' floor, since the walkways' collision comes
   in strips too narrow to count as a floor.
 - The edge: close the backs you can see from the city's streets.

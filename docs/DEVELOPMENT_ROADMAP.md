@@ -6014,7 +6014,7 @@ not there.
   pads onto its walkway (29 pads) and walks every street link (847); the e2e sections bots, botsquads and
   gulag (two of the bots' tier checks in the warehouse arena failed beside them and passed alone); a real match.
 
-## Milestone 305 — The loadout you play with, on the battle royale's panel
+## Milestone 306 — The loadout you play with, on the battle royale's panel
 
 The owner, 2026-09-27: "my chosen loadout should be on the battle royale screen below the "play / play with friends"
 button for easy reference".
@@ -6025,3 +6025,23 @@ button for easy reference".
   it follows the loadout picked and every edit to it.
 - **Checked:** a panel e2e check (shown under the buttons with both guns named, not on the range, Change opens
   Loadouts), seen failing with the card kept hidden; verify; rules.
+
+## Milestone 307 — The white slabs in High City's corner were its backdrop building: materials named by their texture, as Unity does
+
+Phase 25. Plain grey slabs stood in the gaps between the district's faces (a wall of it behind a walkway's door) and
+over its skyline from the city's streets: the see-through look the owner named. They were High City's backdrop
+buildings "fill build 08" and "09", drawn in the importer's grey stand-in (680 triangles of the district's 601,571).
+
+- **Unity's "By Base Texture Name"** (`import-city.ts Pack.matByTexture`): the model's FBX asks for "Material #3020",
+  and its import settings (`materialName: 0`) have Unity name its material after the texture that material uses, "fill
+  build 1.psd", so it wears "fill build 1.mat". The importer now does the same where the prefab, the FBX's own name and
+  the model's name found nothing: the textures' names read out of the FBX, the first that names a material of the pack.
+- **A material from inside the model:** the rest (560 triangles, "fill build 09" and part of "08") were placed with the
+  material inside the FBX itself, which the importer found and could not read as a material. Unity makes that one from
+  the same texture, and the importer now takes the same one; its report now lists a material found but not read, as it
+  did one not found.
+- None of the district's parts is in the stand-in now; its file goes to v2 (`high-corner-v2.glb`) so the server hands
+  it out at once.
+- **Checked:** verify and rules; `sk-district.ts`; the importer's reports of materials not found and not read are both
+  empty, and the file has no stand-in material; pictures of the walkway's door and the street's views that showed the
+  slabs.
