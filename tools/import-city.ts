@@ -372,6 +372,8 @@ class TNode {
   draws: Draw[] = [];
   active = true;
   parent: TNode | null = null;
+  /** the prefab (guid) this node is the root of an instance of, for PREFAB_REPORT */
+  src: string | null = null;
   constructor(public name = "") {}
 }
 const u2tPos = (p: any): Vec3 => [-num(p?.x), num(p?.y), num(p?.z)];
@@ -452,6 +454,7 @@ class Resolver {
       if (!src) continue;
       const mod = o.data.m_Modification ?? {};
       const sub = this.instantiate(String(src), depth + 1);
+      for (const r of sub.roots) r.src ??= String(src);
       // A model's own objects (its renderers) have IDs newer Unity hashes from their names, which this cannot compute,
       // so an override of a renderer's materials found no node and was dropped: High City's wall rows lost their walls
       // (Phase 22, the owner's "our buildings look nothing like the assets"). Such an override goes to the model's only
@@ -614,18 +617,59 @@ class Resolver {
   }
 
   /** every mesh a prefab draws at LOD0, with its matrix in the prefab's space */
-  flatten(guid: string): Array<{ d: Draw; m: M4 }> {
+  flatten(guid: string): Array<{ d: Draw; m: M4; from: string[] }> {
     const { roots } = this.instantiate(guid);
-    const out: Array<{ d: Draw; m: M4 }> = [];
-    const walk = (n: TNode, pm: M4): void => {
+    const out: Array<{ d: Draw; m: M4; from: string[] }> = [];
+    // (`from`: the prefabs whose instances hold the part, outermost first, for PREFAB_REPORT)
+    const walk = (n: TNode, pm: M4, from: string[]): void => {
       if (!n.active || LOD_N.test(n.name)) return;
       const m = mul(pm, trs(n.t, n.r, n.s));
-      for (const d of n.draws) if (d.on) out.push({ d, m: d.pre ? mul(m, d.pre) : m });
-      for (const k of n.kids) walk(k, m);
+      const f = n.src ? [...from, n.src] : from;
+      for (const d of n.draws) if (d.on) out.push({ d, m: d.pre ? mul(m, d.pre) : m, from: f });
+      for (const k of n.kids) walk(k, m, f);
     };
-    for (const r of roots) walk(r, I4);
+    for (const r of roots) walk(r, I4, []);
     return out;
   }
+}
+
+/**
+ * A district's parts (citydistricts.json): its demo scene's, moved and turned into the map's metres (the scene point
+ * `origin` to `at`, turned `yaw` about y), those whose middle lands in one of `keep` within `radius` of `at`
+ */
+function districtKept(
+  dist: { origin: number[]; at: number[]; yaw: number; keep: Array<{ x0: number; z0: number }>; radius: number },
+  draws: Array<{ d: Draw; m: M4; from: string[] }>,
+): { kept: Array<{ d: Draw; m: M4; from: string[] }>; dropped: number } {
+  const [ox, oy, oz] = dist.origin;
+  const [ax, ay, az] = dist.at;
+  const c = Math.cos(dist.yaw), s = Math.sin(dist.yaw);
+  // column-major
+  const T: M4 = [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, ax - (c * ox + s * oz), ay - oy, az - (-s * ox + c * oz), 1];
+  const kept: Array<{ d: Draw; m: M4; from: string[] }> = [];
+  let dropped = 0;
+  for (const { d, m, from } of draws) {
+    const mesh = d.model.meshes[d.mesh];
+    if (!mesh) continue;
+    const w = mul(T, m);
+    // the part's middle, from its own bounds
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (const prim of mesh.prims)
+      for (let k = 0; k < prim.pos.length; k += 3)
+        for (let a = 0; a < 3; a++) {
+          lo[a] = Math.min(lo[a], prim.pos[k + a]);
+          hi[a] = Math.max(hi[a], prim.pos[k + a]);
+        }
+    const mid = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+    const x = w[0] * mid[0] + w[4] * mid[1] + w[8] * mid[2] + w[12];
+    const z = w[2] * mid[0] + w[6] * mid[1] + w[10] * mid[2] + w[14];
+    if (!dist.keep.some((k) => x >= k.x0 && z >= k.z0) || Math.hypot(x - ax, z - az) > dist.radius) {
+      dropped++;
+      continue;
+    }
+    kept.push({ d, m: w, from });
+  }
+  return { kept, dropped };
 }
 
 // ---------------------------------------------------------------- materials and textures
@@ -1061,7 +1105,7 @@ function cutFacades(draws: Array<{ d: Draw; m: M4 }>, width = 14, reach = 4): Ar
           // facing +x: x along -z from a1 (the left as you face +x is +z... ) and z = world x
           T = s > 0 ? [0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0, a1, -y0, -plane, 1] : [0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 0, -a0, -y0, plane, 1];
         }
-        out.push({ draws: mine.map((p) => ({ d: draws[p.i].d, m: mul(T, draws[p.i].m) })), width: a1 - a0, height: y1 - y0, wall: cover, from: `${g.axis === 0 ? "x" : "z"}${s > 0 ? "+" : "-"} ${plane.toFixed(1)} ${a0.toFixed(1)}..${a1.toFixed(1)} y ${(y0 - street).toFixed(1)}` });
+        out.push({ draws: mine.map((p) => ({ d: draws[p.i].d, m: mul(T, draws[p.i].m), from: (draws[p.i] as { from?: string[] }).from })), width: a1 - a0, height: y1 - y0, wall: cover, from: `${g.axis === 0 ? "x" : "z"}${s > 0 ? "+" : "-"} ${plane.toFixed(1)} ${a0.toFixed(1)}..${a1.toFixed(1)} y ${(y0 - street).toFixed(1)}` });
       }
     }
   }
@@ -1525,6 +1569,35 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
     const mats = new Map<string, MatInfo | null>();
     const baked: Baked[] = [];
     const missing: string[] = [];
+    // PREFAB_REPORT=<file>: which of the pack's prefabs its demo street's facade strips and its districts draw (the
+    // prefabs holding each part, nested ones included), by path, and all the pack's prefabs; nothing baked. The owner's
+    // "how many building assets we are using out of how many" (2026-09-28)
+    if (process.env.PREFAB_REPORT) {
+      const file = process.env.PREFAB_REPORT;
+      const rep = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
+      const paths = (list: Array<{ from?: string[] }>) => [...new Set(list.flatMap((q) => q.from ?? []))].map((g) => pack.guidPath.get(g) ?? g).sort();
+      const entry: { prefabs: string[]; strips: Record<string, string[]>; districts: Record<string, string[]> } = {
+        prefabs: [...pack.guidPath.values()].filter((q) => q.toLowerCase().endsWith(".prefab")).sort(),
+        strips: {},
+        districts: {},
+      };
+      const demo = (cfg.scenes ?? {})[name];
+      const demoFile = demo ? pack.pathFile.get(demo) : undefined;
+      if (demoFile)
+        cutFacades(res.flatten(basename(dirname(demoFile)))).forEach((st, i) => {
+          entry.strips[`${name}/facade ${String(i + 1).padStart(3, "0")}`] = paths(st.draws as Array<{ from?: string[] }>);
+        });
+      const dCfg = JSON.parse(readFileSync(join(h.root, "src", "config", "citydistricts.json"), "utf8"));
+      for (const dist of dCfg.districts.filter((q: { pack: string }) => q.pack === name)) {
+        const sf = pack.pathFile.get(dist.scene);
+        if (!sf) continue;
+        entry.districts[dist.id] = paths(districtKept(dist, res.flatten(basename(dirname(sf)))).kept);
+      }
+      rep[name] = entry;
+      writeFileSync(file, JSON.stringify(rep, null, 1));
+      report.push(`${name}: ${entry.prefabs.length} prefabs, ${Object.keys(entry.strips).length} strips, ${Object.keys(entry.districts).length} districts reported`);
+      continue;
+    }
     // CITY_FACADES=<a pack's scene path> cuts that demo street's walls into facade strips (cutFacades), each baked in
     // its own frame (x along the wall, y up, z out of it, the wall's plane at z 0), <pack>-facades.glb and .json (24.2)
     const facPath = process.env.CITY_FACADES;
@@ -1579,34 +1652,7 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
           report.push(`${dist.id}: no ${dist.scene} in ${name}`);
           continue;
         }
-        const [ox, oy, oz] = dist.origin;
-        const [ax, ay, az] = dist.at;
-        const c = Math.cos(dist.yaw), s = Math.sin(dist.yaw);
-        // column-major: the scene point `origin` to `at`, turned `yaw` about y
-        const T: M4 = [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, ax - (c * ox + s * oz), ay - oy, az - (-s * ox + c * oz), 1];
-        const kept: Array<{ d: Draw; m: M4 }> = [];
-        let dropped = 0;
-        for (const { d, m } of res.flatten(basename(dirname(file)))) {
-          const mesh = d.model.meshes[d.mesh];
-          if (!mesh) continue;
-          const w = mul(T, m);
-          // the part's middle, from its own bounds
-          const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-          for (const prim of mesh.prims)
-            for (let k = 0; k < prim.pos.length; k += 3)
-              for (let a = 0; a < 3; a++) {
-                lo[a] = Math.min(lo[a], prim.pos[k + a]);
-                hi[a] = Math.max(hi[a], prim.pos[k + a]);
-              }
-          const mid = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
-          const x = w[0] * mid[0] + w[4] * mid[1] + w[8] * mid[2] + w[12];
-          const z = w[2] * mid[0] + w[6] * mid[1] + w[10] * mid[2] + w[14];
-          if (!dist.keep.some((k: { x0: number; z0: number }) => x >= k.x0 && z >= k.z0) || Math.hypot(x - ax, z - az) > dist.radius) {
-            dropped++;
-            continue;
-          }
-          kept.push({ d, m: w });
-        }
+        const { kept, dropped } = districtKept(dist, res.flatten(basename(dirname(file))));
         const bk = bake(pack, res, `${name}/district ${dist.id}`, "", mats, kept);
         if (!bk) continue;
         // and its collision, from the same triangles (districtSolids), into src/config/districts/<id>.solids.json: numbers
@@ -1700,7 +1746,8 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
     report.push(`${name}: ${baked.length} pieces (${kept.length} written), ${tris} tris, ${mats.size} materials; max ${(maxBytes / 1e6).toFixed(1)} MB, hi ${(hiBytes / 1e6).toFixed(1)} MB, lo ${(loBytes / 1e6).toFixed(1)} MB${missing.length ? `; not found: ${missing.join(", ")}` : ""}`);
   }
   // the measured sizes go back into the config, as paid-weapons.ts does for the guns
-  if (!only) {
+  // (a PREFAB_REPORT run bakes nothing, so it measures nothing and leaves citykit.json as it is)
+  if (!only && !process.env.PREFAB_REPORT) {
     cfg.measured = measured;
     cfg.facing = faces;
     cfg.plane = planes;

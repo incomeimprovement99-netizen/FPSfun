@@ -310,6 +310,8 @@ async function weapons(files: Map<string, string>): Promise<void> {
         await png(color)!.resize(size, size, { kernel: "lanczos3" }).webp({ quality: 86, effort: 5 }).toFile(join(dir, `${id}_color.webp`));
         if (nm) await png(nm)!.resize(size, size, { kernel: "lanczos3" }).webp({ quality: 92, effort: 5 }).toFile(join(dir, `${id}_normal.webp`));
         if (glow) await png(glow)!.resize(size / 2, size / 2, { kernel: "lanczos3" }).webp({ quality: 86, effort: 5 }).toFile(join(dir, `${id}_emit.webp`));
+        // no glow in the pack (its storage cases): a black one, since the game asks every skin for its glow
+        else await sharp({ create: { width: 4, height: 4, channels: 3, background: "#000000" } }).webp().toFile(join(dir, `${id}_emit.webp`));
         // the packed map: occlusion, roughness (1 - smoothness), metalness
         const m = metal ? await png(metal)!.resize(size, size, { kernel: "lanczos3" }).ensureAlpha().raw().toBuffer() : null;
         const o = ao ? await png(ao)!.resize(size, size, { kernel: "lanczos3" }).removeAlpha().raw().toBuffer() : null;

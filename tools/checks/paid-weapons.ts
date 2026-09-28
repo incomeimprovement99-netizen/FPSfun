@@ -237,6 +237,17 @@ for (const [key, p] of Object.entries(props)) {
   const colour = `public/${cfg.textures}${p.model.replace(/_\d+$/, "")}${p.skin}_color.webp`;
   check(`the ${key} prop: its model ${p.model} and its skin ${p.skin} are here`, existsSync(`${dir}${p.model}.glb`) && existsSync(colour), colour);
 }
+// every skin's four maps, its glow's too: paidgun.ts asks for all four, and the storage cases (the death box, the supply
+// bin), whose pack has no glow for them, were a 404 each time one was drawn (the live site, 2026-09-28)
+// (the 2048 set too, where it is here: the gun in your hands wears it on High)
+for (const dirKey of ["textures", "textures2k"] as const) {
+  const rel = (cfg as unknown as Record<string, string | undefined>)[dirKey];
+  const tex = `public/${rel}`;
+  if (!rel || (dirKey === "textures2k" && !existsSync(tex))) continue;
+  const skins = readdirSync(tex).filter((f) => f.endsWith("_color.webp")).map((f) => f.slice(0, -"_color.webp".length));
+  const short = skins.filter((id) => ["normal", "orm", "emit"].some((k) => !existsSync(`${tex}${id}_${k}.webp`)));
+  check(`every skin has all four of its maps, its glow's included (${rel})`, skins.length > 0 && short.length === 0, `${skins.length} skins${short.length ? `, short: ${short.join(", ")}` : ""}`);
+}
 
 console.log(fails === 0 ? "\nPAID WEAPONS PASS" : `\nPAID WEAPONS FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

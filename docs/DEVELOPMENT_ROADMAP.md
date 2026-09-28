@@ -6178,3 +6178,21 @@ feedback that you'll have to remember for context when we go for the other guns"
 - **Checked:** the soldier e2e's fists check now also holds each fist within 45 degrees of roll on its forearm, every
   finger curled 120 degrees and more and each thumb within a phalanx of its place, seen failing with the right palm's
   old sign and no thumb fit (159 degrees; 1.55 and 1.33); the speedkills section (the names); verify; rules.
+
+## Milestone 314 — The bug hunt: the storage cases' missing glow, and the building assets counted
+
+Phase 26 (`docs/PHASE_26_PLAN_FINISH_THE_CORNER.md`, the plan of the owner's requests after playing the corner). The
+owner: "Do one quick bug hunt to ensure we are good on the map and tell me how many building assets we are using out
+of how many."
+
+- **The hunt, live:** a solo battle royale dropped onto the corner, the district drawn 12 s after the page opened, the
+  landing on the crossroads' street and still standing 5 s on, the kit and the district drawn whole; twelve spots
+  pictured, nothing broken. One fault: the storage cases (the death box, the supply bin) asked for a glow map their
+  pack does not have, a 404 each time one was drawn. The importer (`import-paid.ts`) now writes a black one where the
+  pack has none; `paid-weapons.ts` checks every skin has all four maps, failing on the live files and passing with the
+  six written. Cosmetic: the west arm's walkway ends a few metres from a backdrop building made for the distance.
+- **The count** (`import-city.ts PREFAB_REPORT`: which prefabs hold every part the facade strips and the districts
+  draw, nothing baked, citykit.json left alone): of the packs' 741 prefabs, 313 are building pieces, and the game draws
+  220 of them: 92 whole in the centre's dressing, 127 inside the strips it places, 120 in the corner. By pack: High City
+  122 of 136, Kyber 45 of 62, Cyber City 51 of 79, Glass City 2 of 20, the first-person pack 0 of 16.
+- **Checked:** verify and rules; `paid-weapons.ts` proven as above.
