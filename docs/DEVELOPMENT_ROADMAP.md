@@ -5504,3 +5504,31 @@ the cant on the reload isn't really where I thought it would be".
   magazine well, where the morph reads as the gun's, rather than down in the hand. BOOG's drops 4 cm.
 - **Checked:** e2e (soldier), aimed in with BOOG after a shot the ring is drawn part closed and later READY (with the
   ring taken out, it failed); pictures at the owner's view; verify; rules.
+
+## Milestone 287 — The bought walls restored: the import had dropped High City's facade materials
+
+The owner, comparing the live centre with the packs' store pages: "the assets have way more detail and look like paid
+ones, ours are all stretched out and shitty looking ... was it our pipeline extraction process that broke this?" In
+part, yes.
+
+- **The fault** (`tools/import-city.ts`). A prefab that places a model sets its renderer's materials by override,
+  naming the renderer by an ID newer Unity hashes from its name, which the importer cannot compute; it found no node
+  and dropped the override. Materials whose names matched the FBX's own came through (the windows); the rest drew a
+  plain grey. High City's wall rows (wall1a and its variants, wall3b, wall4b, wall1bb) were among the most placed
+  pieces in the centre, 141, 103, 92, 82 and 72 times: whole brownstone towers in flat grey-white with yellow windows.
+- **The fix.** Such an override goes to the model's only mesh, or to the one whose material slots number what it
+  sets. Re-baked (kit version 2, so no browser keeps the old from its cache): High City's walls wear their brick,
+  stone and concrete with their normal and occlusion-roughness-metal maps. Of the 203 pieces the centre places, 170
+  are whole (155 before); what is left without a texture is plain colour in the packs (Cyber City's and Kyber's black
+  trim) and three small pieces (a skyline block, a billboard frame, an AC unit). 178 overrides on models of several
+  meshes still find no mesh; none of them on a piece the centre places.
+- **New local tools:** `tools/kit-audit.ts` (every placed piece's materials, whole or not), `tools/kit-materials.ts`
+  (a piece's materials against the pack's), `tools/kit-drawcalls.ts` (Phase 22.4).
+- **Not the pipeline, and next:** the packs' own pictures are human-scale streets under Unity's lighting (fog,
+  reflections, many lights) with 4K textures; ours are the vertical centre's 64 to 104 m towers, the modules
+  stretched to fit their bays and their relief pressed, textures at 1K. Each is its own step.
+- **22.4 (draw calls) on the way:** batching the kit by material (three.js BatchedMesh) drew 205 meshes for 604 and
+  40% fewer calls, but no frame measurably faster on the owner's machine, loaded by another worktree through every
+  run; with each placement culled in script it was slower. The instanced meshes stay the default, batching behind
+  `?kitbatched`, and `?nosteam` measures the steam, for a quiet bench.
+- **Checked:** the audit before and after; pictures of the same High City tower and canyon; verify and rules.

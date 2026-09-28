@@ -17,6 +17,9 @@
 // - Unity is left-handed: mirror X on positions, take (x, -y, -z, w) for rotations.
 // - Newer Unity hashes a model's mesh IDs and lists none in the .meta: the prefab's object name is
 //   the mesh name. Nested fileIDs are 64-bit and combine by XOR, so they are BigInts here.
+// - A prefab that places a model sets its renderer's materials by override, naming the renderer by an ID
+//   newer Unity hashes and this cannot compute: the override goes to the model's only mesh, or to the one
+//   whose material slots number what it sets. Dropped, High City's wall rows came out untextured grey.
 //
 // Only local tools touch the files, and nothing here uploads them anywhere.
 import { execFileSync } from "node:child_process";
@@ -25,6 +28,9 @@ import { basename, dirname, extname, join } from "node:path";
 import sharp from "sharp";
 import YAML from "yaml";
 import { initializeCanvas, readPsd } from "ag-psd";
+
+/** what the import could not place, reported at its end */
+const IMPORT_STATS = { unplacedOverrides: 0 };
 
 export interface CityImportHelpers {
   root: string;
@@ -332,9 +338,31 @@ class Resolver {
       if (!src) continue;
       const mod = o.data.m_Modification ?? {};
       const sub = this.instantiate(String(src), depth + 1);
+      // A model's own objects (its renderers) have IDs newer Unity hashes from their names, which this cannot compute,
+      // so an override of a renderer's materials found no node and was dropped: High City's wall rows lost their walls
+      // (Phase 22, the owner's "our buildings look nothing like the assets"). Such an override goes to the model's only
+      // mesh; with several, to the one whose material slots number what the override sets, when just one does.
+      const meshNodes: TNode[] = [];
+      const collect = (n: TNode): void => {
+        if (n.draws.length) meshNodes.push(n);
+        for (const k of n.kids) collect(k);
+      };
+      for (const r of sub.roots) collect(r);
+      const slots = new Map<string, number>();
+      for (const m of mod.m_Modifications ?? []) {
+        const path = String(m.propertyPath ?? "");
+        const t = big(m.target?.fileID);
+        if (t !== null && !sub.ids.has(String(t)) && path.startsWith("m_Materials.Array.data[")) slots.set(String(t), Math.max(slots.get(String(t)) ?? 0, +path.match(/\[(\d+)\]/)![1] + 1));
+      }
+      const byTarget = new Map<string, TNode>();
+      for (const [t, n] of slots) {
+        const fit = meshNodes.length === 1 ? meshNodes : meshNodes.filter((q) => q.draws.some((d) => d.model.meshes[d.mesh]?.prims.length === n));
+        if (fit.length === 1) byTarget.set(t, fit[0]);
+        else IMPORT_STATS.unplacedOverrides++;
+      }
       for (const m of mod.m_Modifications ?? []) {
         const tgt = big(m.target?.fileID);
-        const node = tgt !== null ? sub.ids.get(String(tgt)) : undefined;
+        const node = tgt !== null ? (sub.ids.get(String(tgt)) ?? byTarget.get(String(tgt))) : undefined;
         if (!node) continue;
         const path = String(m.propertyPath ?? "");
         const ref = m.objectReference ?? {};
@@ -780,4 +808,5 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
     writeFileSync(cfgFile, JSON.stringify(cfg, null, 2) + "\n");
   }
   console.log("city bundle:\n  " + report.join("\n  "));
+  if (IMPORT_STATS.unplacedOverrides) console.log(`  ${IMPORT_STATS.unplacedOverrides} material overrides on a model found no mesh to go to`);
 }

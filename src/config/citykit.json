@@ -1,6 +1,6 @@
 {
   "_note": "The city bundle's pieces (docs/CITY_BUNDLE_IMPLEMENTATION.md): IL.ranch's five cyberpunk packs, bought by the owner 2026-09-27 and licensed to the owner, not the public. This lists which of their prefabs npm run paid (tools/import-city.ts) bakes, by pack and prefab path under the pack's Prefab folder; the baked files go to public/models/paid/city/ (gitignored, served only by the game server) and each piece's measured size comes back into `measured` below, written by the importer. Names only here: no geometry or texture from the packs is ever committed. `version` names the files (<pack>-v<version>.glb) because the server caches /models/ for a day. `sizes` are the texture sizes of the two builds: hi for the medium and high graphics presets, lo for low. `packages` are the Unity Asset Store downloads' file names.",
-  "version": 1,
+  "version": 2,
   "sizes": {
     "hi": 1024,
     "lo": 512
@@ -5128,7 +5128,7 @@
     },
     "alley": {
       "signEvery": 6,
-      "signFrom": 1.0,
+      "signFrom": 1,
       "signTo": 26,
       "signGap": 0.7,
       "cableEvery": 3,
@@ -5398,7 +5398,7 @@
       "stair": {
         "foot": 0.71,
         "top": 3.1,
-        "landing": 4.0,
+        "landing": 4,
         "plate": 0.16
       },
       "depthScale": 1.25
@@ -5842,5 +5842,6 @@
     "kyber/robots/robot 1": 0.8,
     "kyber/robots/robot 2": 0.2,
     "kyber/robots/robot 3": 0.9
-  }
+  },
+  "_version": "2 (2026-09-27): re-baked with the prefabs' material overrides placed on their models' meshes, which v1 dropped (High City's wall rows came out untextured grey); a new name so no browser keeps v1 from its cache."
 }

@@ -7,7 +7,7 @@ The round planned in `docs/PHASE_22_PLAN_FINISHING_THE_CENTRE.md`, item by item 
 | 22.1 | The fire escapes' owed bench | done | 285 | about 0.4 ms on Balanced, up to 0.9 on High; kept, written beside the limits |
 | 22.2 | Atmosphere: steam and neon flicker | shipped | 282 | 32 steam sources, 320 puffs in one draw; 6 signs flicker, at most 3 dips a second; the metro's stairwells made known to the kit again |
 | 22.3 | Doors from the fire escapes into the open floors | shipped | 285 | 102 doorways on 18 escapes, each walked in and out |
-| 22.4 | A draw-call pass | | | |
+| 22.4 | A draw-call pass | paused | 287 | batching drew 40% fewer calls, no frame measurably faster under load; instanced stays default, batching behind a switch |
 | 22.5 | The last room at 30 to 60 m, and the street's share | | | |
 | 22.6 | The batch's release tests | | | |
 
@@ -38,4 +38,12 @@ The round planned in `docs/PHASE_22_PLAN_FINISHING_THE_CENTRE.md`, item by item 
   22.5 can add any.
 - **The owner asked for proof** (11:55 pm): four screenshots from the live server on High, the flying cars in their
   lane over the Spire's block, Neon Alley, and the centre from above.
+- **The owner's comparison (2026-09-28, 12:30 am):** the store pages against the live centre, "DRASTICALLY
+  different". Looked at: the High City, Kyber City, Cyber City and Glass City pages and their pictures. The import
+  had dropped every prefab's material override on its model's mesh (the renderer is named by a hashed ID), so High
+  City's wall rows, the centre's most placed facades, drew untextured grey. Fixed, re-baked as kit version 2, and
+  audited (`tools/kit-audit.ts`: 170 of 203 placed pieces whole, the rest plain colour in the packs or minor). Added
+  to the round: the rest of the look gap, item by item (texture resolution, stretching and pressed relief, lighting).
+- **22.4:** three benches, all under another worktree's e2e: batched against instanced within one build swung 6 to
+  12 ms run to run. Not a result either way; paused with both paths kept.
 

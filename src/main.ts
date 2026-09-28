@@ -946,8 +946,8 @@ if (IS_SK && !new URLSearchParams(location.search).has("nocitykit"))
     if (n) renderer.shadowMap.needsUpdate = true;
   });
 // The centre's steam and flickering signs (steam.ts, city.json steam and flicker): looks only, from Balanced up, and
-// with or without the bought files, since both are the city's own
-if (IS_SK) buildAtmosphere(scene, quality.cityDetail >= 1);
+// with or without the bought files, since both are the city's own. ?nosteam leaves them off, to measure what they cost
+if (IS_SK) buildAtmosphere(scene, quality.cityDetail >= 1 && !new URLSearchParams(location.search).has("nosteam"));
 
 // Static dummies down the lanes, plus one on each moving rail. Distances are
 // true because the player spawns on the firing line at z = 0.

@@ -89,8 +89,16 @@ export async function dressCityKit(root: THREE.Object3D, places: KitPlace[], q: 
   group.name = "citykit";
   const inv = new THREE.Matrix4();
   const local = new THREE.Matrix4();
-  const m = new THREE.Matrix4();
   const lit = new Map<string, THREE.Material>();
+  // Every piece's meshes go into batches, one a material (Phase 22.4): a BatchedMesh draws many geometries that share a
+  // material in one multi-draw, culling each placement on its own, where an instanced mesh a piece's mesh was a draw
+  // each (604 on Balanced for 206 materials, tools/kit-drawcalls.ts). A batch's geometries must agree in their
+  // attributes and in having an index, so that is in its key too.
+  const batches = new Map<string, { mat: THREE.Material; parts: Array<{ geo: THREE.BufferGeometry; at: THREE.Matrix4[] }> }>();
+  // Batched only with ?kitbatched: on the owner's machine it drew 40% fewer calls but no frame measurably faster, the
+  // bench loaded by another worktree throughout (Phase 22.4), so the instanced meshes it measured against stay the
+  // default until a quiet bench says otherwise
+  const instanced = !(typeof location !== "undefined" && new URLSearchParams(location.search).has("kitbatched"));
   for (const [piece, list] of byPiece) {
     const src = byId.get(piece);
     if (!src) continue;
@@ -112,19 +120,51 @@ export async function dressCityKit(root: THREE.Object3D, places: KitPlace[], q: 
         mat.emissive.set(0xffffff);
         mat.emissiveIntensity = glow;
       }
-      const im = new THREE.InstancedMesh(mesh.geometry, mat, list.length);
-      list.forEach((p, i) => im.setMatrixAt(i, m.multiplyMatrices(p.m, local)));
-      im.instanceMatrix.needsUpdate = true;
-      im.computeBoundingSphere();
-      // the boxes under the kit already cast the city's shadows
-      im.castShadow = false;
-      im.receiveShadow = true;
-      im.name = `citykit:${piece}`;
-      group.add(im);
-      CITY_KIT.meshes++;
+      const geo = mesh.geometry;
+      const sig =
+        Object.keys(geo.attributes)
+          .sort()
+          .map((k) => `${k}:${geo.getAttribute(k).itemSize}${geo.getAttribute(k).normalized ? "n" : ""}`)
+          .join(",") + (geo.getIndex() ? "|indexed" : "");
+      const at = list.map((p) => new THREE.Matrix4().multiplyMatrices(p.m, local));
+      if (instanced) {
+        const im = new THREE.InstancedMesh(geo, mat, at.length);
+        at.forEach((a, i) => im.setMatrixAt(i, a));
+        im.computeBoundingSphere();
+        im.castShadow = false;
+        im.receiveShadow = true;
+        im.name = `citykit:${piece}`;
+        group.add(im);
+        CITY_KIT.meshes++;
+        return;
+      }
+      const key = `${mat.uuid}|${sig}`;
+      const batch = batches.get(key) ?? batches.set(key, { mat, parts: [] }).get(key)!;
+      batch.parts.push({ geo, at });
     });
     CITY_KIT.pieces++;
     CITY_KIT.drawn += list.length;
+  }
+  for (const { mat, parts } of batches.values()) {
+    const instances = parts.reduce((a, q) => a + q.at.length, 0);
+    const vertices = parts.reduce((a, q) => a + q.geo.getAttribute("position").count, 0);
+    const indices = parts.reduce((a, q) => a + (q.geo.getIndex()?.count ?? 0), 0);
+    const bm = new THREE.BatchedMesh(instances, vertices, Math.max(1, indices), mat);
+    // no work a frame: culling and sorting each of its placements in script cost more than the draws it saved (the
+    // A/B bench, Phase 22.4: Balanced 9.4 ms against 6.5 with them on), and the instanced meshes it replaces did
+    // neither; the batch as a whole is still culled by its bounds
+    bm.perObjectFrustumCulled = false;
+    bm.sortObjects = false;
+    for (const q of parts) {
+      const id = bm.addGeometry(q.geo);
+      for (const at of q.at) bm.setMatrixAt(bm.addInstance(id), at);
+    }
+    // the boxes under the kit already cast the city's shadows
+    bm.castShadow = false;
+    bm.receiveShadow = true;
+    bm.name = `citykit:${mat.name || "batch"}`;
+    group.add(bm);
+    CITY_KIT.meshes++;
   }
   // the flying traffic, from Balanced up: an instanced mesh for each of a car piece's meshes, moved every frame
   if (q.cityDetail >= 1) {
