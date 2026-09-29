@@ -58,7 +58,10 @@ if (q.get("clip")) {
 }
 const box = new THREE.Box3().setFromObject(gltf.scene);
 const c = box.getCenter(new THREE.Vector3());
-const cam = new THREE.PerspectiveCamera(Number(q.get("fov") ?? 75), W / H, 0.05, 3000);
+// ?ortho=<half height, m> draws an elevation, ?cnear=<m> cuts away what is nearer than that (a section)
+const oh = Number(q.get("ortho") ?? 0);
+const cnear = Number(q.get("cnear") ?? 0.05);
+const cam = oh ? new THREE.OrthographicCamera(-oh * (W / H), oh * (W / H), oh, -oh, cnear, 3000) : new THREE.PerspectiveCamera(Number(q.get("fov") ?? 75), W / H, cnear, 3000);
 if (q.get("eye")) {
   cam.position.fromArray(v(q.get("eye")));
   cam.lookAt(new THREE.Vector3().fromArray(v(q.get("at"))));

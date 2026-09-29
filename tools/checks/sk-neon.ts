@@ -96,7 +96,7 @@ const sprint = (x: number, z: number, y: number, yaw: number, s: number) => {
   }
   return { x: p.pos.x - BR_X, z: p.pos.z - BR_Z, y: p.pos.y, low };
 };
-for (const h of K.halls) {
+for (const h of K.halls.filter((q) => !("route" in q))) {
   // from 3 m inside the court's edge, straight down the hall's middle line
   const alongX = h.z1 - h.z0 < h.x1 - h.x0;
   const [mx, mz] = [(h.x0 + h.x1) / 2, (h.z0 + h.z1) / 2];
@@ -106,8 +106,45 @@ for (const h of K.halls) {
   const r = sprint(fx, fz, K.y + 0.05, yaw, 3);
   const far = alongX ? (out > 0 ? h.x1 : h.x0) : out > 0 ? h.z1 : h.z0;
   const gone = Math.abs((alongX ? r.x : r.z) - far);
-  const over = sprint(mx, mz, 0.05, yaw, 0.5);
+  // (the plaza over its corridor: an entrance's well beyond is open to the street)
+  const [sx0, sx1, sz0, sz1] = h.slab;
+  const over = sprint((sx0 + sx1) / 2, (sz0 + sz1) / 2, 0.05, yaw, 0.5);
   check(`hall at (${mx.toFixed(0)}, ${mz.toFixed(0)}): walked from the court to its far wall on the court's floor, and the plaza over it holds a body`, gone < 1.2 && Math.abs(r.y - K.y) < 0.05 && r.low > K.y - 0.05 && Math.abs(over.y) < 0.05, `ended ${gone.toFixed(2)} m from its end at ${r.y.toFixed(2)} m; on the plaza over it ${over.y.toFixed(2)} m`);
+}
+// (an entrance's hall: the plaza over its corridor holds a body too; its walk is its route, below)
+for (const h of K.halls.filter((q) => "route" in q)) {
+  const [sx0, sx1, sz0, sz1] = h.slab;
+  const over = sprint((sx0 + sx1) / 2, (sz0 + sz1) / 2, 0.05, 0, 0.5);
+  // (over an entrance's corridor stands its kiosk, whose floor is a few centimetres up: not sunk through is what counts)
+  check(`hall at (${((h.x0 + h.x1) / 2).toFixed(0)}, ${((h.z0 + h.z1) / 2).toFixed(0)}): the plaza over its corridor holds a body`, over.y > -0.05, `${over.y.toFixed(2)} m`);
+}
+
+// each entrance walked by a player's own movement along its way through (rules.court.entrance.route): from the plaza
+// beside its kiosk into it, down its two flights and along its hall into the court; and back up and out
+const along = (pts: number[][]): { k: number; x: number; z: number; y: number } => {
+  const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+  p.sprintMode = "auto";
+  p.teleport(pts[0][0] + BR_X, pts[0][2] + 0.05, pts[0][1] + BR_Z, 0);
+  const run = { held: (a: Action) => a === "forward", pressedNow: (_a: Action) => false };
+  let t = 1000;
+  let k = 1;
+  for (let i = 0; i < 30 * 144 && k < pts.length; i++) {
+    const [tx, tz, ty] = pts[k];
+    const dx = tx - (p.pos.x - BR_X), dz = tz - (p.pos.z - BR_Z);
+    if (Math.hypot(dx, dz) < 0.35 && Math.abs(p.pos.y - ty) < 1) {
+      k++;
+      continue;
+    }
+    p.yaw = (Math.atan2(-dx, -dz) * 180) / Math.PI;
+    p.update(1 / 144, (t += 1 / 144), run, 0, 1, false);
+  }
+  return { k, x: p.pos.x - BR_X, z: p.pos.z - BR_Z, y: p.pos.y };
+};
+for (const h of K.halls.filter((q) => "route" in q && q.route)) {
+  const route = (h as { route: number[][] }).route;
+  const down = along(route);
+  const up = along([...route].reverse());
+  check(`the entrance at (${route[1][0].toFixed(0)}, ${route[1][1].toFixed(0)}): a player walks from the plaza down into the court, and back up`, down.k === route.length && up.k === route.length, `down ${down.k - 1} of ${route.length - 1} legs to (${down.x.toFixed(1)}, ${down.z.toFixed(1)}) at ${down.y.toFixed(2)} m; up ${up.k - 1} to (${up.x.toFixed(1)}, ${up.z.toFixed(1)}) at ${up.y.toFixed(2)} m`);
 }
 
 // every pad the bake found, ridden: a player stood on it thrown straight up, carried across once above `over`

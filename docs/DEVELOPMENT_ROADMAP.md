@@ -6780,3 +6780,31 @@ going in, giving it a point to be like that."
   steady on the way: the thrown swap's rise is read once the held pose has settled (read 0.15 s in, at the few frames
   a second the e2e draws, BOOG's middle had come 7 to 13 cm of its 20 cm, run to run, and once failed at 8), and the
   inspect's length is timed by game time itself (its 30 s wait had run out before 5.6 s of game time had passed).
+
+## Milestone 334 — Down from the street: the pack's metro kiosks over the north and south halls
+
+Phase 28.7, the underground: the halls off the tower's court (Milestone 328) were reached only from the court, and the
+court only by dropping in or climbing out. Now two of them are ways through from the street.
+
+- **The kiosk** (`tools/neon-layout.ts`, rules.court.entrance): the pack's MetroEntrance00, a glass kiosk with its
+  "U" over two escalator flights folded back on each other, from the street down to -6.8 m and a landing 10 m long
+  (measured off its sections: the upper flight from the street near 1 m along it to -3.2 m at 5.6 m, the lower back down
+  to 0). It stands end-on over the north and south halls, its landing toward the court over the hall's 10 m corridor
+  (which is its walls and roof there), its flights in a well walled with the court's concrete. The plaza strips north and
+  south of the court are 17.5 m to the kerb, and the kiosk 20 m, so it runs from the court's edge to the kerb.
+- **The street opened over the well only**: its 10 m tiles taken up and laid again in the pack's 2.5 m tile of the same
+  material (the tiles are mapped at 0.1 of their texture a metre whatever their size, measured, so they join
+  seamlessly), less the well. The world's floor is lowered in the well; the street's slab stays over the corridor.
+- **What had to give**: the kiosk's hanging ad board, 0.3 to 2 m over the landing's floor at its end, stood across the
+  hall's mouth (in Unity it hangs in a hall wider than a corridor): a placement can now leave named parts of its prefab
+  out, drawing and collision both (`without`). And at the rooms' half-metre collision cells the escalators' glass sides
+  widened to half a metre each and left no room for a body: the kiosk's collision is measured at 0.25 m (rules.fine).
+- **Its way through** (rules.court.entrance.route, onto the map by the layout): from the plaza beside it, in at its side,
+  down the upper flight, round the balustrades' ends at 6.4 m, down the lower flight on its middle line, where its foot
+  leaves a body room, and along the hall into the court. A player walks it both ways. A bot does not: the lower flight's
+  foot is about 0.8 m clear, room for a player's round body and not a bot's square one, so the bots keep to the street.
+- **The map's files are version 4.**
+- **Checks:** `sk-neon.ts` walks each entrance's way through with a player's own movement, plaza to court and court to
+  plaza (seen failing with the kiosk's fine collision taken out: stuck on the upper flight both ways), and stands a body
+  on the plaza over each hall's corridor.
+- **Checked:** verify and rules; `sk-neon.ts`; the way through photographed at night.

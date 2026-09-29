@@ -14,7 +14,7 @@ import { join } from "node:path";
 const ROOT = join(import.meta.dirname, "..");
 const CFG_FILE = join(ROOT, "src", "config", "neonmap.json");
 const PAID = process.env.PAID_DIR ?? "C:/Users/jwilb/Downloads/speedkills-paid";
-type Row = { path: string; size: number[] | null; min: number[] | null; max: number[] | null; tris: number };
+type Row = { path: string; size: number[] | null; min: number[] | null; max: number[] | null; tris: number; materials?: string[] };
 const catalogue: Row[] = JSON.parse(readFileSync(join(PAID, "neon", "catalogue.json"), "utf8"));
 const cfg = JSON.parse(readFileSync(CFG_FILE, "utf8"));
 const R = cfg.rules;
@@ -33,7 +33,7 @@ function piece(name: string): { key: string; row: Row } {
 }
 
 /** a placement: the prefab, its pivot (x, y, z), its turn about y in degrees, how it collides, a material over all its parts */
-type Place = [string, number, number, number, number, "g" | "s" | "o", string?];
+type Place = [string, number, number, number, number, "g" | "s" | "o", (string | null)?, string[]?];
 const chunks = new Map<string, { sector: string; place: Place[] }>();
 const add = (chunk: string, sector: string, p: Place) => {
   const c = chunks.get(chunk) ?? chunks.set(chunk, { sector, place: [] }).get(chunk)!;
@@ -61,7 +61,7 @@ function turned(row: Row, yaw: number): [number, number, number, number] {
 }
 
 /** place a piece so its turned footprint's middle is at (cx, cz) and its base (its measured bottom, or `base`) at y */
-function placeAt(chunk: string, sector: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], o: { y?: number; bottom?: boolean; mat?: string } = {}): { x0: number; x1: number; z0: number; z1: number; top: number } {
+function placeAt(chunk: string, sector: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], o: { y?: number; bottom?: boolean; mat?: string; without?: string[] } = {}): { x0: number; x1: number; z0: number; z1: number; top: number; px: number; pz: number } {
   const { key, row } = piece(name);
   const [fx0, fx1, fz0, fz1] = turned(row, yaw);
   const px = cx - (fx0 + fx1) / 2;
@@ -69,8 +69,8 @@ function placeAt(chunk: string, sector: string, name: string, cx: number, cz: nu
   // by default the piece's own zero is the ground (a building's ground floor, whatever lies under it); `bottom` puts its
   // lowest point there instead (High City's towers, whose zero is their roof)
   const py = (o.y ?? 0) - (o.bottom ? row.min![1] : 0);
-  add(chunk, sector, [key, +px.toFixed(3), +py.toFixed(3), +pz.toFixed(3), yaw, mode, ...(o.mat ? [o.mat] : [])] as Place);
-  return { x0: cx - (fx1 - fx0) / 2, x1: cx + (fx1 - fx0) / 2, z0: cz - (fz1 - fz0) / 2, z1: cz + (fz1 - fz0) / 2, top: py + row.max![1] };
+  add(chunk, sector, [key, +px.toFixed(3), +py.toFixed(3), +pz.toFixed(3), yaw, mode, ...(o.mat || o.without ? [o.mat ?? null] : []), ...(o.without ? [o.without] : [])] as Place);
+  return { x0: cx - (fx1 - fx0) / 2, x1: cx + (fx1 - fx0) / 2, z0: cz - (fz1 - fz0) / 2, z1: cz + (fz1 - fz0) / 2, top: py + row.max![1], px, pz };
 }
 
 /** a seeded random (mulberry32): the same map every run */
@@ -234,8 +234,37 @@ if (holes.length) {
   // The halls: the pack's metro corridors off the court through its doors, out under the plaza on the court's floor,
   // floored with the pack's tiles and closed at their far end with the court's wall (a corridor is open at both ends and
   // has no floor of its own). Each one's rectangle, for the game to lower its floor in and lay the street's slab over
-  const halls: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
-  for (const h of C.halls as Array<{ side: "n" | "s" | "w" | "e"; at: number; pieces: string[] }>) {
+  const halls: Array<{ x0: number; x1: number; z0: number; z1: number; slab: number[]; route?: number[][] }> = [];
+  /** the ground's 10 m tiles over a rectangle (map-local) taken up and laid again in the pack's smaller tile of the same
+   * material, but for the rectangle itself: an opening in the street (the tiles are mapped by the metre, 0.1 of their
+   * texture a metre whatever their size, so the small ones join the big ones seamlessly) */
+  const openGround = (ox0: number, ox1: number, oz0: number, oz1: number): void => {
+    const g = chunks.get("c-ground")!;
+    const big = piece(R.ground.tile);
+    const small = piece(C.entrance.patch);
+    const st = small.row.size![0];
+    const keep: Place[] = [];
+    const laid: Place[] = [];
+    for (const q of g.place) {
+      const [key, px, , pz] = q;
+      // (a tile's pivot is its corner at the least x and the most z, the big ones' and the small ones' alike)
+      const [tx0, tx1, tz0, tz1] = [px, px + T, pz - T, pz];
+      if (key !== big.key || tx1 <= ox0 || tx0 >= ox1 || tz1 <= oz0 || tz0 >= oz1) {
+        keep.push(q);
+        continue;
+      }
+      const mat = q[6] ?? big.row.materials![0];
+      for (let x = tx0; x < tx1 - 1e-6; x += st)
+        for (let z = tz0; z < tz1 - 1e-6; z += st) {
+          if (x >= ox0 - 1e-6 && x + st <= ox1 + 1e-6 && z >= oz0 - 1e-6 && z + st <= oz1 + 1e-6) continue;
+          laid.push([small.key, +x.toFixed(3), 0, +(z + st).toFixed(3), 0, "g", mat]);
+        }
+    }
+    g.place = [...keep, ...laid];
+  };
+  /** the turn that points a piece's own -z (an entrance's landing) the way given */
+  const yawLanding = (dir: string) => ({ "-z": 0, "-x": 90, "+z": 180, "+x": 270 })[dir]!;
+  for (const h of C.halls as Array<{ side: "n" | "s" | "w" | "e"; at: number; pieces: string[]; entrance?: boolean }>) {
     const alongX = h.side === "w" || h.side === "e";
     const out = h.side === "n" || h.side === "w" ? -1 : 1;
     const start = { n: z0, s: z1, w: x0, e: x1 }[h.side];
@@ -249,12 +278,46 @@ if (holes.length) {
       placeAt("c-court", "c", name, ...spot(d + row.size![2] / 2), alongX ? 90 : 0, "o", { y: foot });
       d += row.size![2];
     }
+    const back = (out > 0 ? "-" : "+") + (alongX ? "x" : "z");
+    /** the rectangle from `d0` to `d1` out along the hall, map-local [x0, x1, z0, z1] */
+    const rect = (d0: number, d1: number): number[] => {
+      const [a, b] = [start + out * d0, start + out * d1].sort((p, q) => p - q);
+      return alongX ? [a, b, h.at, h.at + len] : [h.at, h.at + len, a, b];
+    };
+    // The street's entrance at its far end (rules.court.entrance): the pack's metro kiosk, its landing toward the court
+    // over the hall's corridor, which is its bottom's walls and roof, and its two flights down from the street in a well
+    // walled with the court's wall; the street opened over the well (and only there: the kiosk stands on the rest)
+    const E = C.entrance;
+    const kiosk = h.entrance ? piece(E.piece).row : null;
+    const slabTo = d;
+    let route: number[][] | undefined;
+    if (kiosk) {
+      if (Math.abs(d - (0 - kiosk.min![2])) > 0.05) throw new Error(`hall ${h.side}: its corridor is ${d} m, the entrance's landing ${-kiosk.min![2]} m`);
+      const k = placeAt("c-court", "c", E.piece, ...spot(kiosk.size![2] / 2), yawLanding(back), "o", { without: E.without });
+      // its way through for a body, in the kiosk's own metres (rules.court.entrance.route), onto the map: turned as the
+      // bake turns it (x' = c x + s z, z' = -s x + c z) and moved to its pivot
+      const a = (yawLanding(back) * Math.PI) / 180;
+      const [c, s] = [Math.cos(a), Math.sin(a)];
+      route = (E.route as number[][]).map(([lx, lz, y]) => [+(k.px + c * lx + s * lz).toFixed(2), +(k.pz - s * lx + c * lz).toFixed(2), y]);
+      const [w0, w1] = [d + E.well[0], d + E.well[1]];
+      const sides: Array<[number, string]> = [
+        [h.at - thick / 2, "+" + (alongX ? "z" : "x")],
+        [h.at + len + thick / 2, "-" + (alongX ? "z" : "x")],
+      ];
+      for (let a = w0; a < w1 - 1e-6; a += len)
+        for (const [c, face] of sides) {
+          const along = start + out * (a + len / 2);
+          placeAt("c-court", "c", C.wall, alongX ? along : c, alongX ? c : along, yawFacing(face), "o", { y: foot });
+        }
+      d = w1;
+      openGround(...(rect(slabTo, w1) as [number, number, number, number]));
+    }
     const tile = piece(C.hallTile).row.size![0];
     for (let t = 0; t < d - 1e-6; t += tile) placeAt("c-court", "c", C.hallTile, ...spot(t + tile / 2), 0, "g", { y: foot - C.under });
     // (its end wall looks back down the hall, toward the court)
-    placeAt("c-court", "c", C.wall, ...spot(d + thick / 2), yawFacing((out > 0 ? "-" : "+") + (alongX ? "x" : "z")), "o", { y: foot });
-    const [a, b] = [start, start + out * (d + thick)].sort((p, q) => p - q);
-    halls.push(alongX ? { x0: a, x1: b, z0: h.at, z1: h.at + len } : { x0: h.at, x1: h.at + len, z0: a, z1: b });
+    placeAt("c-court", "c", C.wall, ...spot(d + thick / 2), yawFacing(back), "o", { y: foot });
+    const [hx0, hx1, hz0, hz1] = rect(0, d + thick);
+    halls.push({ x0: hx0, x1: hx1, z0: hz0, z1: hz1, slab: rect(0, slabTo), ...(route ? { route } : {}) });
   }
   cfg.court = { x0, x1, z0, z1, y: foot, halls };
 }

@@ -199,6 +199,9 @@ if (mode === "bake") {
   const mats = new Map();
   const baked: Baked[] = [];
   const open: Array<{ d: Draw; m: M4 }> = [];
+  /** the rooms whose collision is measured at the finer cell (rules.fine): an entrance's escalators, 2 m wide with their
+   * glass sides, left no room for a body between sides widened to half a metre each */
+  const openFine: Array<{ d: Draw; m: M4 }> = [];
   const solidBoxes: number[][] = [];
   let placed = 0;
   // the chunks named by rules.bake.merge baked as one, a mesh a material (the centre's: its pieces share the pack's
@@ -207,15 +210,18 @@ if (mode === "bake") {
   const TAG = process.env.NEON_TAG ?? "";
   const groupOf = (id: string) => (id.startsWith(cfg.rules.bake.merge) ? cfg.rules.bake.as : id);
   const groups = new Map<string, Array<{ d: Draw; m: M4 }>>();
-  for (const [id, chunk] of Object.entries<{ sector: string; place: Array<[string, number, number, number, number, string, string?]> }>(cfg.chunks)) {
+  for (const [id, chunk] of Object.entries<{ sector: string; place: Array<[string, number, number, number, number, string, (string | null)?, string[]?]> }>(cfg.chunks)) {
     const all = groups.get(groupOf(id)) ?? groups.set(groupOf(id), []).get(groupOf(id))!;
-    for (const [key, x, y, z, yaw, how, mat] of chunk.place) {
+    for (const [key, x, y, z, yaw, how, mat, without] of chunk.place) {
       const W = place(x, y, z, yaw);
       const matGuid = mat ? pack.matFor(mat) : null;
       if (mat && !matGuid) throw new Error(`no material ${mat}`);
-      const mine = draws(key).map(({ d, m }) => ({ d: matGuid ? { ...d, mats: d.model.meshes[d.mesh].prims.map(() => matGuid) } : d, m: mul(W, m) }));
+      // (a placement may leave named parts of its prefab out: neonmap.json's rules say which and why)
+      const kept = without ? draws(key).filter(({ d }) => !without.includes(basename(pack.guidPath.get(d.modelGuid) ?? ""))) : draws(key);
+      if (without && kept.length === draws(key).length) throw new Error(`${key}: none of ${without.join(", ")} to leave out`);
+      const mine = kept.map(({ d, m }) => ({ d: matGuid ? { ...d, mats: d.model.meshes[d.mesh].prims.map(() => matGuid) } : d, m: mul(W, m) }));
       all.push(...mine);
-      if (how === "o") open.push(...mine);
+      if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...mine);
       else if (how === "s") solidBoxes.push(...columnSolids(mine, C.cell, C.stick, cfg.rules.shell));
       placed++;
     }
@@ -223,7 +229,9 @@ if (mode === "bake") {
   // the rooms, stairs and what stands in the open: their own spans, as a district's are (no fill: these pieces are whole)
   // (below the street kept: the tallest building stands in a pit to its basement, 7 m down, whose floors the districts'
   // street-scrap rule, nothing topping out under 0.35 m, threw away; rules.below)
-  const { solids } = districtSolids(open, { cell: C.cell, stick: C.stick, floor: cfg.rules.below.floor, merge: C.merge, thin: C.thin, minTop: cfg.rules.below.minTop });
+  const { solids: coarse } = districtSolids(open, { cell: C.cell, stick: C.stick, floor: cfg.rules.below.floor, merge: C.merge, thin: C.thin, minTop: cfg.rules.below.minTop });
+  const { solids: fine } = openFine.length ? districtSolids(openFine, { cell: cfg.rules.fine.cell, stick: C.stick, floor: cfg.rules.below.floor, merge: C.merge, thin: C.thin, minTop: cfg.rules.below.minTop }) : { solids: [] };
+  const solids = [...coarse, ...fine];
   const all = [...solids, ...solidBoxes];
   mkdirSync(join(ROOT, "src", "config", "neon"), { recursive: true });
   if (!TAG) writeFileSync(

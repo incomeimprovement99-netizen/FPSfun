@@ -51,7 +51,8 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
 
   // the collision, measured off the pieces' triangles at the bake
   const first = RANGE_SOLIDS.length;
-  for (const h of K.halls) RANGE_SOLIDS.push({ minX: h.x0 + BR_X, maxX: h.x1 + BR_X, minZ: h.z0 + BR_Z, maxZ: h.z1 + BR_Z, base: -G.slab, top: 0 });
+  // (over the corridor only: an entrance's well is open to the street)
+  for (const { slab: [x0, x1, z0, z1] } of K.halls) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: -G.slab, top: 0 });
   for (const [x0, x1, z0, z1, y0, y1] of SOLIDS.solids as number[][]) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: y0, top: y1 });
   rebuildSolidGrid();
 
@@ -94,11 +95,12 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     return nodes.length - 1;
   };
   const onStreetGrid = (v: number) => Math.abs((v + lim) / step - Math.round((v + lim) / step)) < 1e-6;
-  const raised = (i: number) => (nodes[i].y ?? 0) > MOVE.stepHeight;
+  // (above the street or under it: the court and its halls, 7 m down, are walked at the finer step too)
+  const raised = (i: number) => Math.abs(nodes[i].y ?? 0) > MOVE.stepHeight;
   for (let x = -lim; x <= lim + 1e-6; x += fine)
     for (let z = -lim; z <= lim + 1e-6; z += fine) {
       const street = onStreetGrid(x) && onStreetGrid(z);
-      const ys = floorsAt(x, z).filter((y) => street || y > MOVE.stepHeight);
+      const ys = floorsAt(x, z).filter((y) => street || Math.abs(y) > MOVE.stepHeight);
       if (ys.length) at.set(`${x},${z}`, ys.map((y) => add(x, z, y)));
     }
   const reaches = (a: GraphNode, b: GraphNode): boolean => {

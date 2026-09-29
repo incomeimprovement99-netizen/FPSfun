@@ -1261,7 +1261,8 @@ multiplied in, their light beams unlit and added (`src/game/detailmaps.ts`).
 The tower stands in a sunken court 7 m deep, its own basement at its floor,
 walled with the pack's concrete (the world's floor lowered into it, as the old
 metro's was), and four of the pack's metro corridors lead off it under the
-plaza. Eight jump pads, the pack's plate and blue beam, throw you onto High City's
+plaza, two of them down from the street through the pack's metro kiosks and
+their escalators. Eight jump pads, the pack's plate and blue beam, throw you onto High City's
 roofs; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map.
 `tools/checks/sk-neon.ts` rides every pad and walks the graph.

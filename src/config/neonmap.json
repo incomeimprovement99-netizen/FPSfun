@@ -1,6 +1,6 @@
 {
- "_note": "The map made of Daelonik's Neon City bundle (Phase 28, docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md): the owner, 2026-09-28, 'basically wiping the entire map except the idea ... implement using all new assets, nothing at all should be custom made'. `rules` are the plan's, read by tools/neon-layout.ts, which writes `chunks` (every placement: the prefab by its path under the bundle's City Builder, its pivot x, y, z in map-local metres, its turn about y in degrees, how it collides: g the ground and what lies flat on it, none, s solid to its own top a cell at a time (a building with no rooms), o its own triangles' spans (rooms, stairs, floors to walk), and a pack material over all its parts where given) and `tallest` and `measured`, never typed. tools/import-neon.ts NEON=bake bakes the chunks into one file a texture size and the collision off their triangles; src/game/neonmap.ts draws and plays it. `rules`: the map to `extent` metres (past the 152 m edge, so the ground reaches the fence); the ground's `tile`, the pack's 10 m pavement plane, and the carriageways in `road`, the pack's asphalt; the centre's `streets` (`road` metres wide at `centres`, the pavement either side belonging to the blocks, so roof to roof across a street is about 15 m, a double jump's 22 carry with room: tools/checks/reach.ts) with the pack's kerbs `every` metres and its dashed line; the `ring` road round the centre; the centre's 3 by 3 `blocks` (the middle one's half width `inner`, the others between `outer`); the `middle` block's tallest building; the axis blocks' `high` city of High City's towers with walkable roofs, a big piece fronting the middle and a `row` of smaller ones on the ring's side; the corner blocks' `low` city, a 3 by 3 of cells with a yard in the middle, a `tall` building on each block's inner corner and `low` ones round it (a piece may overhang its cell by `overhang`); the chunks whose names begin with `bake merge` baked as one named `as`, a mesh a material (the centre's pieces share the pack's materials: a chunk at a time they drew 920 calls in the street, as one 440, 2.3 ms a frame on Competitive, measured in turn by tools/bench.ts); the rooms' collision kept down to `below floor` and every span topping out over `below minTop` (the tallest building stands in a pit to its basement, 7 m under the street, whose floors the districts' rule for the street's scraps, nothing under 0.35 m, threw away), the world's floor lowered over the pit in the game; a solid building's `shell`: what its ground floor's walls close in (the triangles crossing its lowest `band` metres, gaps up to twice `close` metres shut) collides from its foot to its top, since High City's towers are shells with nothing inside (tools/import-neon.ts columnSolids); the `court` the tallest building stands in: the hole its footprint leaves in the ground floored at its foot, 7 m down, with the ground's tiles `under` metres beneath its basement's own floor, and walled round with the pack's `wall` (5 m lengths; one-sided, its face toward `faces` in its own frame, measured off its triangles, 36.5 m2 that way and none the other, so each is turned to look into the court), as tall as the hole is deep; its `halls`, the pack's metro corridors off the court through a door in one side's wall (the segment from `at` left out), out under the plaza on the court's floor, their `pieces` in order from the court, floored with `hallTile` and closed with the court's wall (the layout writes `court` and its halls' rectangles; the game lowers its floor in the court and the halls and lays the street's slab over the halls); the jump `pads` onto each high city block's roof from the street before it and the ring road behind it, the pack's `plate` on the ground and its `beam` of light rising from it, found by the bake in the collision it has just made (a `body`-wide line from the street's middle toward the block, tried every metre `across` either side of the block's middle, meets as its face the first column at least `roofMin` high within `search` metres, kept where the roof behind the face is level to `flat` metres for `flatDepth`, the landing, with no more than a `rail` of `rail` metres at its edge, the nearest the street and the block's middle taken, `landBonus` metres nearer where a bot walks at least `landArea` square metres of the roof from where it lands (a bot never jumps: a High City roof's raised decks, 0.85 m, are walls to it)) and written to `pads` (never typed): each the face's point, the way out of it, the floor the pad stands on and the roof, the throw solved in the game (src/game/padsolve.ts). `game`: what src/game/neonmap.ts plays it with: the street's `slab`, metres deep, over the court's halls under the plaza; a street spot is `clear` metres round of anything at a body's height; the bots' graph a node every `graph step` metres of the street and every `raised` metres of the floors over it (a roof, a room: High City's roofs step 0.3 to 0.85 m between their decks, too fine for the street's lattice) over the map (`margin` in from its edge), linked where a bot walks there and back ending within `level` metres of the other's height, between floors no more than `climb` apart (a pad's landing joined the same way); each district's `drops` spread over its street nodes; respawn `beacons` at street spots (map-local); the small named `sites` the big map shows and a match puts loot of their own at (loot.json site), so a share of it is on the roofs where the fights are: a high city block's deck at the middle of its graph's nodes `roof` metres up and more, the lobby at the tallest building's middle.",
- "version": 3,
+ "_note": "The map made of Daelonik's Neon City bundle (Phase 28, docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md): the owner, 2026-09-28, 'basically wiping the entire map except the idea ... implement using all new assets, nothing at all should be custom made'. `rules` are the plan's, read by tools/neon-layout.ts, which writes `chunks` (every placement: the prefab by its path under the bundle's City Builder, its pivot x, y, z in map-local metres, its turn about y in degrees, how it collides: g the ground and what lies flat on it, none, s solid to its own top a cell at a time (a building with no rooms), o its own triangles' spans (rooms, stairs, floors to walk), a pack material over all its parts where given, and the parts of it left out, by their model's file name, where given) and `tallest` and `measured`, never typed. tools/import-neon.ts NEON=bake bakes the chunks into one file a texture size and the collision off their triangles; src/game/neonmap.ts draws and plays it. `rules`: the map to `extent` metres (past the 152 m edge, so the ground reaches the fence); the ground's `tile`, the pack's 10 m pavement plane, and the carriageways in `road`, the pack's asphalt; the centre's `streets` (`road` metres wide at `centres`, the pavement either side belonging to the blocks, so roof to roof across a street is about 15 m, a double jump's 22 carry with room: tools/checks/reach.ts) with the pack's kerbs `every` metres and its dashed line; the `ring` road round the centre; the centre's 3 by 3 `blocks` (the middle one's half width `inner`, the others between `outer`); the `middle` block's tallest building; the axis blocks' `high` city of High City's towers with walkable roofs, a big piece fronting the middle and a `row` of smaller ones on the ring's side; the corner blocks' `low` city, a 3 by 3 of cells with a yard in the middle, a `tall` building on each block's inner corner and `low` ones round it (a piece may overhang its cell by `overhang`); the chunks whose names begin with `bake merge` baked as one named `as`, a mesh a material (the centre's pieces share the pack's materials: a chunk at a time they drew 920 calls in the street, as one 440, 2.3 ms a frame on Competitive, measured in turn by tools/bench.ts); the rooms' collision kept down to `below floor` and every span topping out over `below minTop` (the tallest building stands in a pit to its basement, 7 m under the street, whose floors the districts' rule for the street's scraps, nothing under 0.35 m, threw away), the world's floor lowered over the pit in the game; the `fine` pieces' collision measured at its finer `cell` (the metro kiosk's escalators are 2 m wide with their glass sides, and at the rooms' half-metre cells each side widened to half a metre and left no room for a body between them); a solid building's `shell`: what its ground floor's walls close in (the triangles crossing its lowest `band` metres, gaps up to twice `close` metres shut) collides from its foot to its top, since High City's towers are shells with nothing inside (tools/import-neon.ts columnSolids); the `court` the tallest building stands in: the hole its footprint leaves in the ground floored at its foot, 7 m down, with the ground's tiles `under` metres beneath its basement's own floor, and walled round with the pack's `wall` (5 m lengths; one-sided, its face toward `faces` in its own frame, measured off its triangles, 36.5 m2 that way and none the other, so each is turned to look into the court), as tall as the hole is deep; its `halls`, the pack's metro corridors off the court through a door in one side's wall (the segment from `at` left out), out under the plaza on the court's floor, their `pieces` in order from the court, floored with `hallTile` and closed with the court's wall, and on the long sides an `entrance` from the street at the far end: the pack's metro kiosk, its bottom landing (10 m) toward the court over the hall's corridor, which is its walls and roof there, and its two flights down from the street in a `well` from its landing's end (in the kiosk's own metres along the hall, measured off its sections: from the street near 1 m to -3.2 m at 5.6 m, and back down to -6.8 m at 0) walled with the court's wall, the ground's tiles over the well taken up and laid again in the pack's `patch` tile of the same material but for the well itself, its way through for a body, its `route` (x, z in the kiosk's own metres, the height it is walked at: from the plaza beside it, in at its side, down the upper flight, round the balustrades' ends at 6.4 m, down the lower flight on its middle line, 3.3 m in, where its foot leaves a body room, and along the hall into the court; walked both ways by a player's own movement, tools/checks/sk-neon.ts; a bot's square body does not fit the lower flight's foot), and the kiosk's parts `without` left out (its hanging ad board, 0.3 to 2 m over its landing's floor at the landing's end, stood across the hall's mouth: in Unity it hangs in a hall wider than the corridor) (the layout writes `court` and its halls' rectangles, each with the `slab` over its corridor; the game lowers its floor in the court and the halls and lays the street's slab over the halls); the jump `pads` onto each high city block's roof from the street before it and the ring road behind it, the pack's `plate` on the ground and its `beam` of light rising from it, found by the bake in the collision it has just made (a `body`-wide line from the street's middle toward the block, tried every metre `across` either side of the block's middle, meets as its face the first column at least `roofMin` high within `search` metres, kept where the roof behind the face is level to `flat` metres for `flatDepth`, the landing, with no more than a `rail` of `rail` metres at its edge, the nearest the street and the block's middle taken, `landBonus` metres nearer where a bot walks at least `landArea` square metres of the roof from where it lands (a bot never jumps: a High City roof's raised decks, 0.85 m, are walls to it)) and written to `pads` (never typed): each the face's point, the way out of it, the floor the pad stands on and the roof, the throw solved in the game (src/game/padsolve.ts). `game`: what src/game/neonmap.ts plays it with: the street's `slab`, metres deep, over the court's halls under the plaza; a street spot is `clear` metres round of anything at a body's height; the bots' graph a node every `graph step` metres of the street and every `raised` metres of the floors over it (a roof, a room: High City's roofs step 0.3 to 0.85 m between their decks, too fine for the street's lattice) over the map (`margin` in from its edge), linked where a bot walks there and back ending within `level` metres of the other's height, between floors no more than `climb` apart (a pad's landing joined the same way); each district's `drops` spread over its street nodes; respawn `beacons` at street spots (map-local); the small named `sites` the big map shows and a match puts loot of their own at (loot.json site), so a share of it is on the roofs where the fights are: a high city block's deck at the middle of its graph's nodes `roof` metres up and more, the lobby at the tallest building's middle.",
+ "version": 4,
  "rules": {
   "seed": 20260929,
   "extent": 160,
@@ -138,17 +138,17 @@
      "side": "n",
      "at": 10,
      "pieces": [
-      "MetroPassage00A.prefab",
-      "MetroPassage01A.prefab"
-     ]
+      "MetroPassage00A.prefab"
+     ],
+     "entrance": true
     },
     {
      "side": "s",
      "at": -5,
      "pieces": [
-      "MetroPassage00C.prefab",
-      "MetroPassage01C.prefab"
-     ]
+      "MetroPassage00C.prefab"
+     ],
+     "entrance": true
     },
     {
      "side": "w",
@@ -165,7 +165,71 @@
      ]
     }
    ],
-   "faces": "+x"
+   "faces": "+x",
+   "entrance": {
+    "piece": "MetroEntrance00.prefab",
+    "well": [
+     0,
+     7.5
+    ],
+    "patch": "CityTerrain_Base_2.5x2.5.prefab",
+    "without": [
+     "StreetAds00.FBX"
+    ],
+    "route": [
+     [
+      12.7,
+      -5.7,
+      0
+     ],
+     [
+      1.5,
+      0.8,
+      0.3
+     ],
+     [
+      1.5,
+      5.7,
+      -3.2
+     ],
+     [
+      1.5,
+      6.4,
+      -3.3
+     ],
+     [
+      3.335,
+      6.4,
+      -3.3
+     ],
+     [
+      3.335,
+      0.3,
+      -6.8
+     ],
+     [
+      3.335,
+      -3,
+      -7
+     ],
+     [
+      2.335,
+      -6,
+      -7
+     ],
+     [
+      2.335,
+      -15,
+      -7
+     ]
+    ]
+   }
+  },
+  "fine": {
+   "cell": 0.25,
+   "pieces": [
+    "MetroEntrance00.prefab"
+   ]
   }
  },
  "tallest": {
@@ -413,11 +477,47 @@
      "o"
     ],
     [
-     "1_Premade/Underground/Corridor/MetroPassage01A.prefab",
-     10,
+     "1_Premade/Underground/Entrance/MetroEntrance00.prefab",
+     14.835,
+     0,
+     -20,
+     180,
+     "o",
+     null,
+     [
+      "StreetAds00.FBX"
+     ]
+    ],
+    [
+     "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
+     9.68,
      -7,
      -20,
      0,
+     "o"
+    ],
+    [
+     "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
+     15.32,
+     -7,
+     -25,
+     180,
+     "o"
+    ],
+    [
+     "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
+     9.68,
+     -7,
+     -25,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
+     15.32,
+     -7,
+     -30,
+     180,
      "o"
     ],
     [
@@ -445,10 +545,18 @@
      "g"
     ],
     [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_5x5.prefab",
+     10,
+     -7.03,
+     -25,
+     0,
+     "g"
+    ],
+    [
      "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
      10,
      -7,
-     -25.32,
+     -27.82,
      270,
      "o"
     ],
@@ -461,11 +569,47 @@
      "o"
     ],
     [
-     "1_Premade/Underground/Corridor/MetroPassage01C.prefab",
-     -5,
+     "1_Premade/Underground/Entrance/MetroEntrance00.prefab",
+     -4.835,
+     0,
+     20,
+     0,
+     "o",
+     null,
+     [
+      "StreetAds00.FBX"
+     ]
+    ],
+    [
+     "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
+     -5.32,
      -7,
      25,
      0,
+     "o"
+    ],
+    [
+     "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
+     0.32,
+     -7,
+     20,
+     180,
+     "o"
+    ],
+    [
+     "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
+     -5.32,
+     -7,
+     30,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
+     0.32,
+     -7,
+     25,
+     180,
      "o"
     ],
     [
@@ -493,10 +637,18 @@
      "g"
     ],
     [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_5x5.prefab",
+     -5,
+     -7.03,
+     30,
+     0,
+     "g"
+    ],
+    [
      "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
      0,
      -7,
-     25.32,
+     27.82,
      90,
      "o"
     ],
@@ -2176,14 +2328,6 @@
      "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_10x10.prefab",
      -10,
      0,
-     30,
-     0,
-     "g"
-    ],
-    [
-     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_10x10.prefab",
-     -10,
-     0,
      40,
      0,
      "g",
@@ -2443,14 +2587,6 @@
      0,
      "g",
      "Asphalt00"
-    ],
-    [
-     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_10x10.prefab",
-     10,
-     0,
-     -20,
-     0,
-     "g"
     ],
     [
      "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_10x10.prefab",
@@ -3877,6 +4013,186 @@
      0,
      "g",
      "Asphalt00"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     10,
+     0,
+     -27.5,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     12.5,
+     0,
+     -27.5,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     15,
+     0,
+     -27.5,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     15,
+     0,
+     -25,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     15,
+     0,
+     -22.5,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     15,
+     0,
+     -20,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     17.5,
+     0,
+     -27.5,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     17.5,
+     0,
+     -25,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     17.5,
+     0,
+     -22.5,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     17.5,
+     0,
+     -20,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     -10,
+     0,
+     22.5,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     -10,
+     0,
+     25,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     -10,
+     0,
+     27.5,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     -10,
+     0,
+     30,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     -7.5,
+     0,
+     22.5,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     -7.5,
+     0,
+     25,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     -7.5,
+     0,
+     27.5,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     -7.5,
+     0,
+     30,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     -5,
+     0,
+     30,
+     0,
+     "g",
+     "PavementDirtTiles00b"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
+     -2.5,
+     0,
+     30,
+     0,
+     "g",
+     "PavementDirtTiles00b"
     ],
     [
      "2_Deco/Street Deco/Sidewalk/Curb/Curb00b.prefab",
@@ -19082,15 +19398,15 @@
   }
  },
  "measured": {
-  "placements": 2327,
-  "pieces": 26
+  "placements": 2355,
+  "pieces": 27
  },
  "baked": {
-  "triangles": 1218817,
-  "boxes": 22047,
+  "triangles": 1245857,
+  "boxes": 24190,
   "chunks": {
    "c": {
-    "tris": 1205969,
+    "tris": 1233009,
     "min": [
      -100,
      -7.03,
@@ -19208,10 +19524,10 @@
    }
   },
   "mb": {
-   "preview": 34.7,
-   "lo": 48.9,
-   "hi": 94.9,
-   "max": 264
+   "preview": 35.5,
+   "lo": 49.8,
+   "hi": 96,
+   "max": 265.8
   }
  },
  "game": {
@@ -19422,26 +19738,144 @@
    {
     "x0": 10,
     "x1": 15,
-    "z0": -25.32,
-    "z1": -10
+    "z0": -27.82,
+    "z1": -10,
+    "slab": [
+     10,
+     15,
+     -20,
+     -10
+    ],
+    "route": [
+     [
+      2.14,
+      -14.3,
+      0
+     ],
+     [
+      13.34,
+      -20.8,
+      0.3
+     ],
+     [
+      13.34,
+      -25.7,
+      -3.2
+     ],
+     [
+      13.34,
+      -26.4,
+      -3.3
+     ],
+     [
+      11.5,
+      -26.4,
+      -3.3
+     ],
+     [
+      11.5,
+      -20.3,
+      -6.8
+     ],
+     [
+      11.5,
+      -17,
+      -7
+     ],
+     [
+      12.5,
+      -14,
+      -7
+     ],
+     [
+      12.5,
+      -5,
+      -7
+     ]
+    ]
    },
    {
     "x0": -5,
     "x1": 0,
     "z0": 10,
-    "z1": 25.32
+    "z1": 27.82,
+    "slab": [
+     -5,
+     0,
+     10,
+     20
+    ],
+    "route": [
+     [
+      7.86,
+      14.3,
+      0
+     ],
+     [
+      -3.33,
+      20.8,
+      0.3
+     ],
+     [
+      -3.33,
+      25.7,
+      -3.2
+     ],
+     [
+      -3.33,
+      26.4,
+      -3.3
+     ],
+     [
+      -1.5,
+      26.4,
+      -3.3
+     ],
+     [
+      -1.5,
+      20.3,
+      -6.8
+     ],
+     [
+      -1.5,
+      17,
+      -7
+     ],
+     [
+      -2.5,
+      14,
+      -7
+     ],
+     [
+      -2.5,
+      5,
+      -7
+     ]
+    ]
    },
    {
     "x0": -25.32,
     "x1": -20,
     "z0": -5,
-    "z1": 0
+    "z1": 0,
+    "slab": [
+     -25,
+     -20,
+     -5,
+     0
+    ]
    },
    {
     "x0": 20,
     "x1": 25.32,
     "z0": 0,
-    "z1": 5
+    "z1": 5,
+    "slab": [
+     20,
+     25,
+     0,
+     5
+    ]
    }
   ]
  }
