@@ -1,9 +1,11 @@
-# Phase 28 plan: the centre rebuilt from Daelonik's Neon City
+# Phase 28 plan: the map wiped, and the centre built from Daelonik's Neon City
 
-Started 2026-09-28, the evening. The owner bought Daelonik's Neon City Bundle after comparing it with the five ILranch
-packs the city is made of today. Every request is listed here, in the owner's words where they matter, and each item is
-built, tested, documented, committed and shipped in turn, and marked here as it goes. This takes over item 26.5 (the
-middle rebuilt) of `docs/PHASE_26_PLAN_FINISH_THE_CORNER.md`, with the same brief.
+Started 2026-09-28, the evening. The owner bought Daelonik's Neon City bundle and asked for a fresh start: the whole map
+wiped but for its idea, the centre rebuilt from the bundle alone, the eight other districts plain for now. This plan is
+the long planning step the owner asked for ("you really need to take a long planning phase to get to know each object
+available to you (which is 100s so this is probably THE most important step)"): every prefab of the four packages was
+rebuilt, measured and seen before any of it was placed. It takes over item 26.5 of
+`docs/PHASE_26_PLAN_FINISH_THE_CORNER.md`.
 
 ## What the owner asked
 
@@ -15,125 +17,172 @@ middle rebuilt) of `docs/PHASE_26_PLAN_FINISH_THE_CORNER.md`, with the same brie
 > the center for now. We want the best textures we can get and save that for the high quality settings, similar to how
 > we did it before. you should really be able to tell now."
 
-"The rest how you described it" is this design, given the same evening:
-- keep the street grid and a tallest building in the middle ("the layout and shape is great, just asset wise its not
-  there", 26.5);
-- round it, blocks of the pack's premade buildings, 3 to 8 storeys, roofs at matching heights across streets 12 to 16 m
-  wide, so a double jump (22.1 m carry from a sprint, rising only 1.69 m: `tools/checks/reach.ts`) joins them;
-- High City's floating bridges and platforms linking roofs and upper floors, for Hyper Scape's layers;
-- the large building at the centre with its ground and first floors inside (the pack's realistic buildings: rooms,
-  stairs, elevators), fought through, and jump pads up to its roof;
-- the Underground's metro stations and tunnels under the centre, replacing the metro built of boxes;
-- all of it measured as the corner is: collision off the pack's own triangles, the bots' graph through doors and stairs,
-  loot a room.
+> "remember we are basically wiping the entire map except the idea. we want to have a fresh start and have in all the
+> lessons we learned previously with building a map ... everything is just plain for now and is the smaller district
+> sizes, just basic roads there if anything and we want to make the before vs after performance and triangle / polygon
+> testing so that we can see the difference ... implement using all new assets, nothing at all should be custom made or
+> not coming from the asset packs. if you have to look for something the most similar to one we have custom for, then
+> look for the closest thing and make it work. Like the jump pads and path shown coming out of them is an ugly color
+> that looks like we drew it in ms.paint."
 
-And from Phase 26's brief (26.5), still in force: "if that isn't possible with your current assets, don't do the half
-baked bullshit we did with the initial spire district". So the first look is checked against the pack's own pictures
-before anything is built out, and what the pack cannot give is reported, not faked.
+> "Analyze, make the plan, build, don't stop til we have the center district laid out as planned. Then, once we have
+> the layout, start adding in the detail, ensuring we utilize the underground, higher buildings, inside rooms to fight
+> in."
 
-## The save point (28.0, done)
+Still in force from Phase 26's brief (26.5): Hyper Scape's rooftops ("Should be able to double jump between the
+rooftops, determining how wide the street should be"), "the main center district should have a large building that has
+the 1st and second floor in it and the jump pads to the roof", and "don't do the half baked bullshit".
 
-- Git tag `city-ilranch-final` on 5d8700b (Milestones 281 to 320), pushed: the code and config of the city made from
-  ILranch's packs, High City's corner included.
-- The baked pack files, which are never in git: `C:\Users\jwilb\Downloads\speedkills-paid\city-bake-ilranch-final\`
-  (521 MB: the kit v8 in its lo, standard and max sizes, and the corner's district v5). The ILranch unitypackages stay in
-  Unity's Asset Store cache, so every bake can be made again.
-- To come back: `git checkout city-ilranch-final` in a worktree, copy those files into its `public/models/paid/city/`.
+## 28.0 The save point (done)
 
-## What was bought
+- Git tag `city-ilranch-final` on 5d8700b (Milestones 281 to 320), pushed: the city made from ILranch's packs.
+- Its bakes, never in git: `C:\Users\jwilb\Downloads\speedkills-paid\city-bake-ilranch-final\` (521 MB).
+- The frozen copy `apex-bench` is checked out at the tag and served on port 5212, the "before" of every comparison.
 
-The bundle ($269.50) is a key: its own package is 1 MB, a readme and a window. The four packages it unlocks show as free
-in Unity's Package Manager and are downloaded one by one:
+## 28.1 The inventory (done)
 
-| package | store size | what it is |
+The four packages, unpacked (`C:\Users\jwilb\Downloads\speedkills-paid\neon\extract\`), are one pack: the three
+expansions carry 3 to 6 materials and 4 to 70 models each and build on the core's.
+
+| package | files | prefabs | models | materials | textures |
+|---|---|---|---|---|---|
+| SciFi Neon City (core) | 3,682 | 978 | 143 FBX (882 MB) | 625 | 1,092 PNG (3.7 GB), 376 EXR lightmaps |
+| SciFi Neon Buildings | 545 | 332 | 4 | 6 | 38 PNG |
+| SciFi Neon High City | 478 | 320 | 46 | 3 | 33 PNG |
+| SciFi Neon Underground | 521 | 214 | 70 | 2 | 41 PNG |
+
+- **Read by our importer, no Unity.** `tools/import-neon.ts` reads the four as one pack with `tools/import-city.ts`'s
+  reader. All 1,826 City Builder prefabs rebuild (`NEON=catalogue`, `speedkills-paid\neon\catalogue.json`: each one's
+  size, bounds, triangles, parts and materials); 14 material slots of 7 models and one mesh go unfound.
+- **Found and fixed: the models' import scale.** Unity applies each FBX's Scale Factor (`globalScale` in its .meta);
+  Daelonik's shared models import at 10 (some at 0.1, 8, 13, 80 or 200), and the importer ignored it: the buildings came
+  out as clouds of specks a tenth their size. `Pack.unityScale` applies it, for this pack only (ILranch's are all 1).
+- **Materials are Unity's Standard shader.** 613 of the 636 (the others: plants, water, one shadow). So colour, normal,
+  metal and smoothness, occlusion, emission and height all read straight into glTF's material; the custom Amplify
+  shaders that do not export are only on what the centre does not use.
+- **Textures are a tiling library, mostly 2048.** 722 at 2048, 333 at 1024, 15 at 4096 (ads and effects). So High
+  gets 2048, Balanced 1024, Competitive 512, as the kit's max, hi and lo files and the guns' skins are split.
+- **Seen, every category**: `NEON=gallery` bakes contact sheets and `tools/neon-sheets.ts` draws them
+  (`tools/neongallery.html`), 90 sheets over the 1,826 prefabs, each piece framed with its name and measured size.
+
+### What there is, by what the centre needs
+
+| role | pieces | measured |
 |---|---|---|
-| SciFi Neon City (core) | 4.0 GB | 925 prefabs: a grid-snap kit (walls, floors, roofs, interior walls, doors and elevators that work, furniture, streets, lights, vehicles), 10 premade decorated buildings, a 2K tiling PBR texture library, a 3-level demo |
-| SciFi Neon Buildings | | 313 prefabs: 19 whole decorated buildings (117 floors, 9 roof pieces) and 11 realistic buildings with 110 rooms (61 floor rooms, 7 basement levels, 17 stair layouts, 13 elevators) |
-| SciFi Neon High City | 144 MB | 320 prefabs: raised streets, floating platforms, floating bridges, platform stairs |
-| SciFi Neon Underground | 133 MB | 200+ prefabs: metro stations, metro tunnels, halls |
+| The tallest building | Neon Buildings / Realistic / **Neon Building 08** | 42.5 x 151.4 x 25.6 m, 211k triangles, 109 materials. Its levels (its room prefabs by height): a basement of underground rooms and ramp stairs (-7 to -3 m); the ground and first floors with working elevators, large ramp stairs and double stairs (0 to 9 m); elevator rooms (12 m); a floor of chamfered 12.5 m rooms and corridors (39 to 45 m); the tower (48 to 105 m); a roof room (108 to 129 m) |
+| Other realistic buildings (interiors) | Neon Building 00 to 10 | 11 to 50 m wide, 13.6 to 111 m tall, 16k to 111k triangles; most reach 3.5 to 12.4 m below the street |
+| Decorative buildings (no interiors) | Neon Buildings / Decorative, NeonBuilding_Decorative00 to 18 | 17 detailed: 10 to 37 m wide, 12.5 to 234 m tall (the 3 to 6 storey ones 12.5 to 24.5 m), 9k to 49k triangles; 2 low-detail skyline giants 206 and 262 m |
+| More buildings | Essential / Decorative (StreetBuilding00 to 07, BuildingDeco towers, CityWalls facades) | street buildings 6 to 23 m wide, 10 to 144 m tall; facade dressings 9 m high |
+| High City towers with walkable roofs | High City / Platform High (26) | rounded glass towers 26.9 m tall (9 storeys of 3 m), railed flat roofs; their pivot is the roof, their body hangs 26 m below it |
+| Decks and bridges | High City / Platform Floating (32), Building Deco / Bridges (4) | decks 2.9 m thick with rails: 5 m bridges, crossings, islands, peninsulas, stairs; FloorBridge00 a 10 m ramped bridge |
+| Raised walkways | High City / Platform Street (97), Streets Build / High City Streets (127) | walkways on 50 m scaffolds; high street modules |
+| Rooms to fight in | Neon Buildings / Realistic / Rooms (110) | wall sets on a 5 and 10 m grid, 3 to 3.5 m high: square, rectangle, capsule, hexagonal, corridors, halls, entrances, underground rooms |
+| Floors and walls | Building Interior / Floors (94), Walls (128), Building Pieces (59), Roof (16) | a 2.5 m grid: floors 2.5 x 0.5 x 2.5, walls 2.5 x 3 m |
+| Streets | Streets Build / Streets (39) | road tiles with pavements: 10 x 5 straight, crossing, 12.5 corner, 15 x 12.5 T, 15 x 15 crossroads, composed 40 to 45 m lengths; raised concrete levels with steps, ramps and railings (3.4 to 4.8 m) |
+| The underground | Underground premade (96) and deco (61) | metro tunnels 20 x 8 x 10 m and 38 m junctions, station modules 10 x 10.5 x 11, stairs down 4 to 5 m, a street entrance 5.3 x 14.4 x 20 m, arched halls and passages, a 22 x 27 m square atrium ring, an inverted building in a 76 m shaft; 4 metro trains, 34 signs |
+| Ways up | Active / Elevator (8), Building Deco / Stairs (25), High City stairs | working lift cabins (a round glass one 4 x 3.8 x 4), elevator systems 12 to 14 m, stairs |
+| A jump pad, from the pack | Building Deco / CapHole00 and CapHole01, Lighting / StreetFocusLarge00 (white, red, blue) | a round floor cap 4.8 m and an octagonal glowing plate 2.7 m; a light beam 2.5 x 91.9 m. Our pads' own ring and beam, "drawn in ms.paint", go |
+| Cover and props | Building Deco (Furniture, Items, Coolbox, Tech, Fence), Street Deco (Street Furniture, Sidewalk, Street Elements, Cars) | crates 1 m, barrels 1.5 m, bars, counters, racks, fences and glass rails, benches, AC units |
+| Doors | Active / Doors | 2.8 m doors, 5 m gates, thin doors |
+| Light | Lighting (40) | lamps, strips, spots, Chinese lanterns, the light beams |
+| Signs and ads | Street Ads (52), Road Signs (12), Underground Signs (34), Graffiti (39) | |
 
-## The order
+The pack's own store pictures (`%TEMP%\neon\store\`) are the look to meet: dense, hazy streets lit by neon, interiors
+behind glass.
 
-| id | item | state | milestone |
-|---|---|---|---|
-| 28.0 | The save point: the ILranch city tagged, its bakes kept | done | |
-| 28.1 | The files: downloaded, unpacked without Unity, counted and measured | waiting on the downloads | |
-| 28.2 | The materials: the pack's shaders read into ours; one building in the game beside the pack's own picture, for the owner | | |
-| 28.3 | The textures by preset: the pack's best on High, as the kit and the guns do it | | |
-| 28.4 | The kit measured: grid, storey, doors, stairs, elevators, bridges; collision a prefab | | |
-| 28.5 | The centre's plan, drawn from above, for the owner | | |
-| 28.6 | The centre built, in shipped steps | | |
-| 28.7 | Frames: budgets a preset, benched | | |
-| 28.8 | The checks: movement, bots, loot, landing | | |
+## What the old map taught (carried into this one)
 
-### 28.1 The files
+- **Measure, never type.** Every size, height and storey comes off the pieces (the catalogue); every jump off the real
+  movement (`tools/checks/reach.ts`): a sprint carries 11.35 m, a double jump 22.1 m rising only 1.69 m, a slide
+  jump 16.7 m, a wall run's kick 27.75 m; a climb goes 5.59 m, a mantle 2.29 m.
+- **Collision from the drawn triangles**, never invisible: nothing solid that is not drawn, and nothing drawn you fall
+  through (Milestones 315 and 318: invisible floors and invisible walls were the owner's "glitch into the corner").
+- **A demo scene is a film set; these are whole pieces.** Daelonik's buildings have four sides and roofs, and the
+  realistic ones real rooms, so the fills that closed ILranch's backs are not needed.
+- **Pivots lie.** Pieces are placed by their measured bounds, not their origin (High City's towers hang 26 m under
+  theirs).
+- **Draw calls, not triangles, are the cost** (a building carries 36 to 123 materials): the centre is baked as one file
+  grouped by material, so the materials shared by every building draw once.
+- **Every way up walked by a body, every bot link walked both ways, every pad's landing short of the rail.**
+- **The streets as wide as a double jump:** 15 m, so roofs of the same height join and a lower roof is always reachable.
+- **Loot where the fights are:** a share on the roofs and in the rooms, not all in the street.
+- **Before and after, measured the same way:** `tools/map-stats.ts` (downloads, load, the scene's triangles, meshes,
+  materials, textures) and `tools/bench.ts` (frame time, draw calls, triangles a frame), the old and new builds run in
+  turn in the same session.
 
-- The owner downloads the four in Unity: Window > Package Manager > My Assets, each package > Download (no Import
-  needed). They land in `%APPDATA%\Unity\Asset Store-5.x\Daelonik Artworks\`; the core is 4 GB, so its size is watched
-  until it stops changing.
-- Unpacked as tars, read by `tools/import-city.ts` as the ILranch packs are (Unity's YAML prefabs and scenes, no Editor).
-- Counted and measured, and written here: prefabs by folder; every whole building's size, storeys and triangles; texture
-  sizes (the store says 2K, the first release 4K); which shaders and their properties; LODs; the demo scenes.
+## The design
 
-### 28.2 The materials, and the first look
+### The map
 
-- Daelonik's shaders are their own (DLNK's pipeline notes say they do not export), so each is read into three.js's
-  standard material from its textures: colour, normal, metal and smoothness, emission (the neon, on the game's bloom),
-  tiling, glass.
-- **The checkpoint:** one of the pack's buildings, whole, in the game under the city's light, beside the pack's own
-  picture of it, sent to the owner before anything else is built.
+- The same nine districts and bounds (`city.json sectors`): the centre 200 x 200 m (x and z from -100 to 100), eight
+  around it to the edge at 152, so the decay, the capture zone and the edge work unchanged.
+- **The eight around it, plain for now:** the pack's road tiles on a ring road round the centre and on the centre's
+  street lines out to the edge, the pack's concrete floor tiles between them. Nothing else.
+- **The centre, the largest:** on today's street lines (the owner: "the layout and shape is great"), a 3 by 3 grid of
+  blocks with 15 m streets centred on x and z of -36.25 and 36.25:
+  - the middle block, 57.5 m square (-28.75 to 28.75): the tallest building;
+  - four blocks along the axes, 57.5 x 56.25 m: the high city, High City's 26.9 m towers with walkable roofs;
+  - four corner blocks, 56.25 m square: the low city, buildings of 3 to 6 storeys (12.5 to 24.5 m).
 
-### 28.3 The textures a preset
+### The middle block: the tallest building
 
-- High gets the best the pack has, at full size; Balanced a half; Competitive a quarter; KTX2, as the kit's lo, standard
-  and max files and the guns' 1024 and 2048 skins are split (the owner: "save that for the high quality settings,
-  similar to how we did it before").
-- The textures tile and are shared by every piece, so the download is the library once and the meshes, not a texture a
-  piece as ILranch's are (the city's bought files are 150 MB today, 370 MB at max).
+- **Neon Building 08** (42.5 x 151.4 x 25.6 m) in the middle, turned so its long side faces the plaza. It is exactly
+  what the brief asks: its ground and first floors are rooms with stairs and working elevators, its basement is the
+  underground's, a floor of rooms at 40 m is a sky lobby, and its roof room at 108 to 129 m is the top.
+- A plaza of the pack's floor tiles round it, its cover the pack's bars, planters and crates.
+- **Jump pads**, each the pack's CapHole plate with its StreetFocusLarge beam, from the plaza up to the building's lower
+  roofs; its elevators up inside.
+- The capture zone on its 40 m floor or its roof (the owner decides; the 40 m floor first, for a fight indoors).
 
-### 28.4 The kit measured
+### The high city: the four axis blocks
 
-- The grid, the storey height, door and window sizes, stair rise and run (a body steps 0.56 m), elevator shafts, the
-  platforms' and bridges' heights, off the meshes (`tools/checks/body.ts`'s rule: measure, never type a number in).
-- Collision a prefab, from its own triangles (as `districtSolids` does a district's), made once and placed with every
-  copy of it.
+- High City's high platforms (Addon, Island, Peninsula, Crossroads: 10 to 55 m wide, all 26.9 m tall with railed
+  roofs) filling each block's street fronts, so the roofs make one level at 26.9 m.
+- **High City's floating bridges** (2.9 m decks, 5 m modules) across the streets between them and to the tallest
+  building, so the roof level is walked and run the whole way round the centre.
+- Their ground floors are glass fronts; the rooms kit where the towers are entered.
 
-### 28.5 The centre's plan
+### The low city: the four corner blocks
 
-- The centre sector (x and z from -100 to 100, the largest of the 9), on today's street grid.
-- In the middle the tallest building, with its ground and first floors inside and pads to its roof; the capture zone,
-  the drop and the Sky Lobby's parts that still make sense kept on it (proposed in the plan, the owner decides).
-- Round it the blocks, their roofs joined by double jumps and by High City's bridges; the metro under it.
-- A plan from above, with heights and street widths, for the owner before building.
+- Decorative and realistic buildings of 3 to 6 storeys (NeonBuilding_Decorative05, 11, 12, 13, 14 and 15; Neon Building
+  04, 05 and 06; StreetBuilding01, 04 and 05), their roofs 12.5 to 24.5 m, stepped so every roof is a double jump from a
+  neighbour at its height or a drop to a lower one; the realistic ones have their rooms inside.
+- Raised concrete levels with the pack's steps and ramps on the block's inner yard: the way up to the first roofs.
 
-### 28.6 The build, each step shipped
+### The underground
 
-1. The streets and one block, whole, walked.
-2. Every block.
-3. The tallest building and its inside.
-4. High City's bridges and platforms.
-5. The underground.
-6. The bots' graph, the loot, the pads, the capture zone.
-7. The look a preset: haze, light, glow.
+- A metro station under the middle block (station modules, 10 m each, along x), joined to the tallest building's
+  basement.
+- Metro entrances from the street on two sides (MetroEntrance00, its stairs 7 m down), metro stairs down from the plaza.
+- Tunnels out to the centre's edge under two streets, for later.
+- The game's floor under the street (`floors.ts FLOORS`) where the underground is, as the old metro had it.
 
-### 28.7 Frames
+### Look
 
-- Budgets a preset for triangles, draw calls and texture memory, as `citykit.json budget` has them.
-- Every repeated piece drawn as one instanced batch (as the kit is); the insides drawn only near a building or inside it
-  (three.js does not hide what walls hide); the pack's LODs on its decoration.
-- Benched against today's build in the street of a match: Balanced 11.6 ms, High 20.9 ms (2026-09-28).
-- Daelonik's own warning: its demo scenes are heavy on mid-range machines. The pack publishes no triangle counts; 28.1
-  measures them.
+- The pack's own lights where its pieces carry them; the store's haze and night colours.
+- High: 2048 textures; Balanced: 1024; Competitive: 512.
 
-### 28.8 The checks
+## The build, in shipped steps
 
-- Every movement check stays green (reach, the roofs and the roof run).
-- New for the centre: roofs joined by double jumps, every inside walked, every stair climbed, the underground walked from
-  the street, a body dropped anywhere lands only on something drawn, the bots reach every floor, loot in the rooms.
+| id | item | state |
+|---|---|---|
+| 28.0 | The save point | done |
+| 28.1 | The inventory: every prefab rebuilt, measured and seen; the import scale fixed | done |
+| 28.2 | The layout: the centre's placements from these rules, placed by measured bounds (`tools/neon-layout.ts`, `src/config/neonmap.json`), drawn from above for the owner | |
+| 28.3 | The bake: the centre and the plain districts into one file at three texture sizes, its collision off its triangles (`tools/import-neon.ts NEON=bake`) | |
+| 28.4 | The new map in the game (`src/game/neonmap.ts`), replacing the old city for SpeedKills: its ground, its collision, its districts and their places, the bots' graph, loot, pads, the drop | |
+| 28.5 | The first look beside the pack's own pictures, for the owner | |
+| 28.6 | Before and after: downloads, load, triangles, draw calls, frame times | |
+| 28.7 | The detail: the underground station, the tallest building's rooms, the high city's bridges, cover | |
+| 28.8 | The checks: walked streets, every pad's landing, every roof joined by jumps, rooms walked, the drop lands only on what is drawn, the bots reach every level | |
 
-## The rest of the map
+The "before" (the saved map, 2026-09-28, `tools/map-stats.ts`, the machine at 95%):
 
-The eight other districts stay as they are for now, and High City's corner (ILranch) with them.
+| preset | loaded | downloaded | triangles in the scene | meshes | materials | textures |
+|---|---|---|---|---|---|---|
+| Competitive | 14.4 s | 111 MB | 6.56 M | 3,337 | 1,071 | 665 |
+| Balanced | 16.0 s | 200 MB | 9.04 M | 4,382 | 1,303 | 1,134 |
+| High | 26.3 s | 425 MB | 9.14 M | 4,342 | 1,311 | 1,141 |
 
 ## Licence
 

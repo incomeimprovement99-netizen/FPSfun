@@ -31,7 +31,7 @@ import { initializeCanvas, readPsd } from "ag-psd";
 import { BasisPool, type BasisKind } from "./basis-pool";
 
 /** what the import could not place, reported at its end */
-const IMPORT_STATS = { unplacedOverrides: 0, unresolved: new Map<string, number>(), unreadable: new Map<string, number>(), unmatchedMeshes: new Map<string, number>() };
+export const IMPORT_STATS = { unplacedOverrides: 0, unresolved: new Map<string, number>(), unreadable: new Map<string, number>(), unmatchedMeshes: new Map<string, number>() };
 
 export interface CityImportHelpers {
   root: string;
@@ -42,9 +42,9 @@ export interface CityImportHelpers {
   fbx2gltf(): string;
 }
 
-type Vec3 = [number, number, number];
-type Quat = [number, number, number, number];
-type M4 = number[];
+export type Vec3 = [number, number, number];
+export type Quat = [number, number, number, number];
+export type M4 = number[];
 
 const MASK = 0x7fffffffffffffffn;
 const ROOT_T = -8679921383154817045n; // a model prefab's root Transform
@@ -55,7 +55,7 @@ const I4: M4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 const num = (v: unknown, d = 0): number => (v === undefined || v === null ? d : typeof v === "bigint" ? Number(v) : Number(v));
 const big = (v: unknown): bigint | null => (v === undefined || v === null ? null : typeof v === "bigint" ? v : BigInt(Math.trunc(Number(v))));
 
-function trs(t: Vec3, q: Quat, s: Vec3): M4 {
+export function trs(t: Vec3, q: Quat, s: Vec3): M4 {
   const [x, y, z, w] = q;
   const xx = x * x, yy = y * y, zz = z * z, xy = x * y, xz = x * z, yz = y * z, wx = w * x, wy = w * y, wz = w * z;
   return [
@@ -65,7 +65,7 @@ function trs(t: Vec3, q: Quat, s: Vec3): M4 {
     t[0], t[1], t[2], 1,
   ];
 }
-function mul(a: M4, b: M4): M4 {
+export function mul(a: M4, b: M4): M4 {
   const o = new Array<number>(16).fill(0);
   for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) o[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3];
   return o;
@@ -138,7 +138,7 @@ const unityId = (cls: string, name: string, index: number): bigint => {
 };
 
 // ---------------------------------------------------------------- a pack's Unity side
-class Pack {
+export class Pack {
   readonly guidPath = new Map<string, string>();
   readonly pathFile = new Map<string, string>();
   private parsed = new Map<string, Map<bigint, { cls: number; stripped: boolean; data: any }>>();
@@ -173,6 +173,13 @@ class Pack {
     return found;
   }
 
+  /**
+   * Whether the models' import scale (Unity's Scale Factor, `globalScale` in an FBX's .meta) is applied: Unity bakes it
+   * into the mesh and its node positions. ILranch's packs all import at 1; Daelonik's Neon City imports most of its shared
+   * models at 10 (and some at 0.1, 8 or 200), and without it their parts came out a tenth their size, the buildings a
+   * cloud of specks (Phase 28.1)
+   */
+  unityScale = false;
   constructor(readonly name: string, files: Map<string, string>) {
     for (const [p, f] of files) {
       const guid = basename(dirname(f));
@@ -239,10 +246,10 @@ class Pack {
 }
 
 // ---------------------------------------------------------------- the models, as glTF
-interface RawPrim { pos: Float32Array; nrm: Float32Array | null; uv: Float32Array | null; idx: Uint32Array; material: string }
-interface RawModel { meshes: Array<{ name: string; prims: RawPrim[] }>; nodes: Array<{ name: string; mesh: number | null; t: Vec3; r: Quat; s: Vec3; kids: number[]; parent: number | null }>; roots: number[] }
+export interface RawPrim { pos: Float32Array; nrm: Float32Array | null; uv: Float32Array | null; idx: Uint32Array; material: string }
+export interface RawModel { meshes: Array<{ name: string; prims: RawPrim[] }>; nodes: Array<{ name: string; mesh: number | null; t: Vec3; r: Quat; s: Vec3; kids: number[]; parent: number | null }>; roots: number[] }
 
-class Models {
+export class Models {
   private cache = new Map<string, RawModel | null>();
   constructor(private h: CityImportHelpers, private dir: string) {
     mkdirSync(dir, { recursive: true });
@@ -266,6 +273,13 @@ class Models {
         }
       }
       if (existsSync(out + ".glb")) model = readGlb(out + ".glb");
+      if (model && pack.unityScale && existsSync(src + ".meta")) {
+        const gs = Number(/globalScale: ([-\d.e]+)/.exec(readFileSync(src + ".meta", "utf8"))?.[1] ?? 1);
+        if (gs !== 1 && Number.isFinite(gs)) {
+          for (const m of model.meshes) for (const q of m.prims) for (let k = 0; k < q.pos.length; k++) q.pos[k] *= gs;
+          for (const n of model.nodes) n.t = n.t.map((v) => v * gs) as Vec3;
+        }
+      }
     }
     this.cache.set(key, model);
     return model;
@@ -363,7 +377,7 @@ function meshIndex(pack: Pack, model: RawModel, guid: string, fid: bigint | null
 }
 
 // ---------------------------------------------------------------- a prefab, rebuilt
-interface Draw { model: RawModel; mesh: number; pre: M4 | null; mats: Array<string | null> | null; modelGuid: string; on: boolean; go: bigint | null }
+export interface Draw { model: RawModel; mesh: number; pre: M4 | null; mats: Array<string | null> | null; modelGuid: string; on: boolean; go: bigint | null }
 class TNode {
   t: Vec3 = [0, 0, 0];
   r: Quat = [0, 0, 0, 1];
@@ -379,7 +393,7 @@ class TNode {
 const u2tPos = (p: any): Vec3 => [-num(p?.x), num(p?.y), num(p?.z)];
 const u2tRot = (q: any): Quat => [num(q?.x), -num(q?.y), -num(q?.z), num(q?.w, 1)];
 
-class Resolver {
+export class Resolver {
   constructor(private pack: Pack, private models: Models) {}
 
   private instantiateModel(guid: string): { roots: TNode[]; ids: Map<string, TNode> } {
@@ -680,7 +694,7 @@ function districtKept(
 }
 
 // ---------------------------------------------------------------- materials and textures
-interface MatInfo {
+export interface MatInfo {
   name: string;
   map: string | null; normal: string | null; emissive: string | null; metalGloss: string | null; occlusion: string | null;
   color: [number, number, number, number]; emission: [number, number, number] | null;
@@ -690,7 +704,7 @@ interface MatInfo {
   mode: "OPAQUE" | "MASK" | "BLEND"; cutoff: number; doubleSided: boolean;
   tiling: [number, number, number, number];
 }
-function readMaterial(pack: Pack, guid: string): MatInfo | null {
+export function readMaterial(pack: Pack, guid: string): MatInfo | null {
   const objs = pack.parse(guid);
   for (const [, o] of objs) {
     if (o.cls !== 21) continue;
@@ -754,7 +768,7 @@ function readMaterial(pack: Pack, guid: string): MatInfo | null {
 
 initializeCanvas(() => ({ width: 1, height: 1, getContext: () => ({ createImageData: (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }) }) }) as any);
 
-class Textures {
+export class Textures {
   private raw = new Map<string, { data: Buffer; width: number; height: number; channels: 3 | 4 } | null>();
   private out = new Map<string, Buffer | null>();
   constructor(private h: CityImportHelpers) {}
@@ -1128,7 +1142,7 @@ function cutFacades(draws: Array<{ d: Draw; m: M4 }>, width = 14, reach = 4): Ar
  * middle size under `stick` (a cable, a wire, a pole), fills nothing: they are what a player expects to pass. Cells with
  * the same spans are joined into rectangles, one box a span. Boxes [x0, x1, z0, z1, y0, y1], in the draws' own metres.
  */
-function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; stick: number; floor: number; merge: number; thin: number; minTop: number; fill?: { walkway: [number, number]; top: number; open: number; half: number; body: number; plan: number[][]; seeds: number[][]; streets?: number[][]; backs?: { storey: number; storeys: [number, number] } } }): { solids: number[][]; covers: number[][]; caps: number[][]; backs: number[][]; fronts: number[][] } {
+export function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; stick: number; floor: number; merge: number; thin: number; minTop: number; fill?: { walkway: [number, number]; top: number; open: number; half: number; body: number; plan: number[][]; seeds: number[][]; streets?: number[][]; backs?: { storey: number; storeys: [number, number] } } }): { solids: number[][]; covers: number[][]; caps: number[][]; backs: number[][]; fronts: number[][] } {
   const C = o.cell;
   const OFF = 100000;
   const key = (i: number, j: number) => (i + OFF) * 1000003 + (j + OFF);
@@ -1485,9 +1499,9 @@ function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; sti
 }
 
 // ---------------------------------------------------------------- baking and writing
-interface Baked { id: string; groups: Map<string, { mat: string | null; pos: number[]; nrm: number[]; uv: number[]; idx: number[] }>; tris: number; min: Vec3; max: Vec3; faces: Record<string, number>; depths: Record<string, Map<number, number>> }
+export interface Baked { id: string; groups: Map<string, { mat: string | null; pos: number[]; nrm: number[]; uv: number[]; idx: number[] }>; tris: number; min: Vec3; max: Vec3; faces: Record<string, number>; depths: Record<string, Map<number, number>> }
 
-function bake(pack: Pack, res: Resolver, id: string, guid: string, mats: Map<string, MatInfo | null>, given?: Array<{ d: Draw; m: M4 }>, simplify = 0): Baked | null {
+export function bake(pack: Pack, res: Resolver, id: string, guid: string, mats: Map<string, MatInfo | null>, given?: Array<{ d: Draw; m: M4 }>, simplify = 0): Baked | null {
   const draws = given ?? res.flatten(guid);
   if (!draws.length) return null;
   const groups = new Map<string, { mat: string | null; pos: number[]; nrm: number[]; uv: number[]; idx: number[] }>();
@@ -1609,6 +1623,9 @@ function bake(pack: Pack, res: Resolver, id: string, guid: string, mats: Map<str
   return { id, groups, tris, min, max, faces, depths };
 }
 /** meshoptimizer's simplifier, loaded once the import starts (city()) */
+export const setSimplifier = (x: typeof SIMPLIFIER): void => {
+  SIMPLIFIER = x;
+};
 let SIMPLIFIER: { getScale: (p: Float32Array, stride: number) => number; simplify: (i: Uint32Array, p: Float32Array, stride: number, target: number, error: number, flags?: "LockBorder"[]) => [Uint32Array, number] } | null = null;
 
 /**
@@ -1616,7 +1633,7 @@ let SIMPLIFIER: { getScale: (p: Float32Array, stride: number) => number; simplif
  * occlusion, roughness and metal at `size`, normal maps at `normalSize` (UASTC is four times ETC1S's bytes). Only the
  * pieces in `keep` are written: a GLB loads whole, and half the packs' textures were for pieces the centre never places.
  */
-async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Baked[], mats: Map<string, MatInfo | null>, tex: Textures, size: number, normalSize: number, keep: Set<string>, file: string, meshopt = false): Promise<number> {
+export async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Baked[], mats: Map<string, MatInfo | null>, tex: Textures, size: number, normalSize: number, keep: Set<string>, file: string, meshopt = false): Promise<number> {
   const { Document, NodeIO } = await import("@gltf-transform/core");
   const { KHRTextureBasisu } = await import("@gltf-transform/extensions");
   const baked = allBaked.filter((b) => keep.has(b.id));
