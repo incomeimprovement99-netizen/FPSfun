@@ -221,7 +221,9 @@ if (mode === "bake") {
     }
   }
   // the rooms, stairs and what stands in the open: their own spans, as a district's are (no fill: these pieces are whole)
-  const { solids } = districtSolids(open, { cell: C.cell, stick: C.stick, floor: -20, merge: C.merge, thin: C.thin, minTop: C.minTop });
+  // (below the street kept: the tallest building stands in a pit to its basement, 7 m down, whose floors the districts'
+  // street-scrap rule, nothing topping out under 0.35 m, threw away; rules.below)
+  const { solids } = districtSolids(open, { cell: C.cell, stick: C.stick, floor: cfg.rules.below.floor, merge: C.merge, thin: C.thin, minTop: cfg.rules.below.minTop });
   const all = [...solids, ...solidBoxes];
   mkdirSync(join(ROOT, "src", "config", "neon"), { recursive: true });
   if (!TAG) writeFileSync(

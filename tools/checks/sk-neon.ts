@@ -63,6 +63,24 @@ check("the street one network: every street node reaches the rest", seen.size ==
 check("the collision the bake measured, every box", RANGE_SOLIDS.length - firstSolid === SOLIDS.solids.length && SOLIDS.solids.length === cfg.baked.boxes, `${RANGE_SOLIDS.length - firstSolid} of ${SOLIDS.solids.length}, bake ${cfg.baked.boxes}`);
 check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.tallest.top) < 1e-6 && SPIRE_TOP.y > 100, `${SPIRE_TOP.y}`);
 
+// the court the tallest building stands in: a body dropped in its corners stands on its drawn floor, 7 m down, not on
+// the street's height over nothing (the hole showed the sky through the world before it was floored)
+const K = cfg.court;
+const rests = [
+  [K.x0 + 1, K.z0 + 1],
+  [K.x1 - 1, K.z0 + 1],
+  [K.x0 + 1, K.z1 - 1],
+  [K.x1 - 1, K.z1 - 1],
+].map(([x, z]) => {
+  const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+  p.teleport(x + BR_X, 3, z + BR_Z, 0);
+  let t = 1000;
+  for (let i = 0; i < 2 * 144; i++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
+  return +p.pos.y.toFixed(2);
+});
+const tiles = cfg.chunks["c-court"].place.filter((q) => q[5] === "g").length;
+check("the court round the tallest building: a body dropped in its corners stands on its floor, 7 m down, and it is drawn", K.y < -6 && rests.every((y) => Math.abs(y - K.y) < 0.05) && tiles * 100 >= (K.x1 - K.x0) * (K.z1 - K.z0), `rests at ${rests.join(", ")}; ${tiles} tiles`);
+
 // every pad the bake found, ridden: a player stood on it thrown straight up, carried across once above `over`
 check("a jump pad onto each side of the four high city blocks", map.pads.length === cfg.pads.length && map.pads.length === 8, `${map.pads.length}`);
 for (const [k, pad] of map.pads.entries()) {

@@ -115,7 +115,7 @@ const noGround: Array<[number, number, number, number]> = [];
   const M = R.middle;
   const b = placeAt("c-middle", "c", M.building, 0, 0, M.yaw, "o");
   noGround.push([b.x0, b.x1, b.z0, b.z1]);
-  cfg.tallest = { x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, top: +b.top.toFixed(2) };
+  cfg.tallest = { x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, top: +b.top.toFixed(2), foot: +piece(M.building).row.min![1].toFixed(2) };
 }
 
 // ---------------------------------------------------------------- the high city: the four axis blocks
@@ -188,16 +188,46 @@ const noGround: Array<[number, number, number, number]> = [];
 }
 
 // the ground itself, less the building footprints that keep their own floor
+/** the tiles left out, a footprint's: the hole in the ground its basement stands in */
+const holes: Array<[number, number, number, number]> = [];
 for (let x = -R.extent; x < R.extent; x += T)
   for (let z = -R.extent; z < R.extent; z += T) {
     const cx = x + T / 2;
     const cz = z + T / 2;
-    if (noGround.some(([x0, x1, z0, z1]) => x >= x0 - 1e-6 && x + T <= x1 + 1e-6 && z >= z0 - 1e-6 && z + T <= z1 + 1e-6)) continue;
+    if (noGround.some(([x0, x1, z0, z1]) => x >= x0 - 1e-6 && x + T <= x1 + 1e-6 && z >= z0 - 1e-6 && z + T <= z1 + 1e-6)) {
+      holes.push([x, x + T, z, z + T]);
+      continue;
+    }
     const sector = sectorAt(cx, cz);
     const chunk = sector === "c" ? "c-ground" : `ground-${sector}`;
     // (the base is 10 m square from its pivot toward -z: placed by its middle)
     placeAt(chunk, sector, R.ground.tile, cx, cz, 0, "g", road(cx, cz) ? { mat: R.ground.road } : {});
   }
+// the court the tallest building stands in: the hole its footprint leaves in the ground floored at its foot (its basement,
+// 7 m down) with the same tiles, a hair under the basement's own floor so its floor draws where it has one, and walled
+// round with the pack's concrete city walls, as tall as the hole is deep (rules.court). Without it the hole showed the
+// sky through the world, and the game's floor, the street's, held a body up over it on nothing
+if (holes.length) {
+  const C = R.court;
+  const [x0, x1, z0, z1] = [Math.min(...holes.map((h) => h[0])), Math.max(...holes.map((h) => h[1])), Math.min(...holes.map((h) => h[2])), Math.max(...holes.map((h) => h[3]))];
+  const foot = cfg.tallest.foot;
+  for (const [hx0, , hz0] of holes) placeAt("c-court", "c", R.ground.tile, hx0 + T / 2, hz0 + T / 2, 0, "g", { y: foot - C.under });
+  const wall = piece(C.wall).row;
+  const len = wall.size![2];
+  const thick = wall.size![0];
+  if (Math.abs(wall.size![1] + foot) > 0.05) throw new Error(`the court's wall is ${wall.size![1]} m, the hole ${-foot} m deep`);
+  // along x at z0 and z1, along z at x0 and x1, each wall just outside the hole, its face on the hole's edge
+  for (let x = x0; x < x1 - 1e-6; x += len) {
+    placeAt("c-court", "c", C.wall, x + len / 2, z0 - thick / 2, 90, "o", { y: foot });
+    placeAt("c-court", "c", C.wall, x + len / 2, z1 + thick / 2, 90, "o", { y: foot });
+  }
+  for (let z = z0; z < z1 - 1e-6; z += len) {
+    placeAt("c-court", "c", C.wall, x0 - thick / 2, z + len / 2, 0, "o", { y: foot });
+    placeAt("c-court", "c", C.wall, x1 + thick / 2, z + len / 2, 0, "o", { y: foot });
+  }
+  cfg.court = { x0, x1, z0, z1, y: foot };
+}
+
 // the kerbs along each carriageway's edge where pavement meets it, and the dashed line down its middle
 {
   const C = R.streets.centres as number[];

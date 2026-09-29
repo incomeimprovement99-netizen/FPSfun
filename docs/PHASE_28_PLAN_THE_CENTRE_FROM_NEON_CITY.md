@@ -252,9 +252,10 @@ higher buildings, inside rooms to fight in". In this order, each shipped on its 
    (the sections, 28.4) walked: which doors open to the plaza, which stairs join which floors (its stair tower climbs
    13 to 40 m), and every floor drawn made a floor a body stands on (its floors come out of the collision as narrow
    strips today). The way up: its own stairs, and a window pad (the old Sky Lobby's, `hold`) from the plaza into the
-   40 m ring. Loot in the rooms. Found already: a body sprinting at it from the plaza gets 2 m inside its outline on 154
-   of 168 tries, some climbing to 3 to 11 m, and at eye height its foot looks to stand below the plaza (its basement
-   showing): whether those are its open lobby and stairs or glass that does not collide is the first thing to settle.
+   40 m ring. Loot in the rooms. Found already: its base is an open atrium of terraces, glass rails, ramps and stairs
+   (a body sprinting at it from the plaza gets 2 m inside on 154 of 168 tries, legitimately), standing in a pit to its
+   basement 7 m down that showed the sky through the world and was walked over on nothing: floored and walled as a
+   court, the world's floor lowered into it (Milestone 326).
 2. **The underground under the middle block.** The pack's station (`Subway Hall` MetroStation00 modules, 10 x 10.5 x
    11 m; MetroStationDouble00 for the platforms either side), its tunnels (`Subway Tunnels`) out under two streets, the
    street entrances (MetroEntrance00, 5.3 x 14.4 x 20 m, stairs down) on two streets, and SquareHoleGroundLevel00

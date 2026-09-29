@@ -10,6 +10,7 @@ import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { RANGE_SOLIDS, type Solid } from "./range";
 import { rebuildSolidGrid, solidsIn } from "./solidgrid";
+import { FLOORS, floorAt } from "./floors";
 import { botWalk } from "./botbody";
 import { Doors } from "./doors";
 import { BR_X, BR_Z, BR_HALF, type BrMap, type GraphNode, type Poi } from "./br";
@@ -39,6 +40,12 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
   standIn.name = "neon:standIn";
   root.add(standIn);
 
+  // the court the tallest building stands in (neon-layout.ts): the world's floor lowered to its floor, 7 m down, as the
+  // old city's metro lowered it (floors.ts), so a body in it stands on the court's tiles and not on the street's height
+  FLOORS.length = 0;
+  const K = neonCfg.court;
+  FLOORS.push({ minX: K.x0 + BR_X, maxX: K.x1 + BR_X, minZ: K.z0 + BR_Z, maxZ: K.z1 + BR_Z, y: K.y });
+
   // the collision, measured off the pieces' triangles at the bake
   const first = RANGE_SOLIDS.length;
   for (const [x0, x1, z0, z1, y0, y1] of SOLIDS.solids as number[][]) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: y0, top: y1 });
@@ -53,7 +60,7 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
 
   const sectorAt = (x: number, z: number) => SECTORS.find((s) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ) ?? null;
   /**
-   * The floors a body stands on at (x, z), map-local: the street where nothing is under foot, and the top of every box
+   * The floors a body stands on at (x, z), map-local: the world's own (the street, the court) where nothing is under foot, and the top of every box
    * there that carries the spot's middle, each with a head's room over it (nothing from a step over it to a standing
    * body's height). A roof, a room's floor, the tallest building's lobby
    */
@@ -63,7 +70,8 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     // (the grid hands back every box that may overlap, the always-checked ones too: the overlap is tested here)
     const here = solidsIn(x0, x1, z0, z1).filter((s: Solid) => s.minX < x1 && s.maxX > x0 && s.minZ < z1 && s.maxZ > z0);
     const out: number[] = [];
-    for (const y of new Set([0, ...here.filter((s) => s.minX <= wx && s.maxX >= wx && s.minZ <= wz && s.maxZ >= wz).map((s) => s.top)])) {
+    const ground = floorAt(wx, wz);
+    for (const y of new Set([ground, ...here.filter((s) => s.minX <= wx && s.maxX >= wx && s.minZ <= wz && s.maxZ >= wz && s.top > ground).map((s) => s.top)])) {
       if (here.some((s) => s.base < y + MOVE.standHeight && s.top > y + MOVE.stepHeight)) continue;
       out.push(y);
     }

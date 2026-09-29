@@ -6544,3 +6544,25 @@ drew it in ms.paint". The old city stays the default until the new one has its d
   an 8 ms timer alone, fell to your floor in its own update between pins, and on the loaded machine the slam hit it
   there 3 runs in 5 (the player landed exactly where it rose, so the game's rule was right). It stands on a deck of its
   own now, removed after: 6 runs of 6, and seen failing with the slam's height reach widened to 5 m.
+
+## Milestone 326 — The tallest building's court: its pit floored and walled, the world's floor lowered into it
+
+Phase 28, item 28.7's first find (`docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md`). Neon Building 08 goes down to 7 m
+under the street, a basement, and the layout leaves the ground's tiles out under its footprint. What that left, live in
+`?map=neon` since Milestone 325: a 40 x 20 m hole in the plaza with the sky showing through the world under it, and the
+game's floor, the street's, holding a body up over it on nothing. The collision had none of the basement either: the
+districts' rule for the street's scraps (nothing topping out under 0.35 m) threw every floor below the street away.
+
+- **The court** (`tools/neon-layout.ts`, rules.court): the hole the footprint leaves floored at the building's foot,
+  7 m down, with the ground's own tiles 3 cm under the basement's floor so its floor draws where it has one, and walled
+  round with the pack's concrete city wall (CityWallsWall00_Concrete, 7.0 m, exactly the hole's depth: the layout
+  refuses a wall that is not). The world's floor is lowered over it (`floors.ts FLOORS`, as the old city's metro did).
+- **Its collision kept below the street** (rules.below): the basement's floor at -7 m, a level at -3.5 m and the steps
+  between. Dropped anywhere over the court, a body comes to rest on its floor or on the building's own stairs and
+  terraces (-3.5 to 3.7 m). A player climbs out over its walls (a climb and a mantle reach 7.9 m); a bot, which never
+  climbs, has no way in on the graph.
+- **The map's files are version 2** (`neonmap-v2-<size>.glb`): the server lets a browser keep `/models/` a day, and a
+  v1 kept would have drawn the hole over the court's collision.
+- **Checks:** `sk-neon.ts` drops a body in the court's four corners: each stands on its floor, and the floor is drawn
+  (seen failing with the floor not lowered: all four stood at the street's height, on nothing).
+- **Checked:** verify and rules; `sk-neon.ts`; the court photographed from its floor and from above.

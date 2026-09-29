@@ -1234,7 +1234,9 @@ by its measured bounds from the rules in `src/config/neonmap.json`, and
 measured off their own triangles (`src/config/neon/neonmap.solids.json`). The
 pack's Unity materials are drawn as Unity draws them: their detail maps
 multiplied in, their light beams unlit and added (`src/game/detailmaps.ts`).
-Eight jump pads, the pack's plate and blue beam, throw you onto High City's
+The tower stands in a sunken court 7 m deep, its own basement at its floor,
+walled with the pack's concrete (the world's floor lowered into it, as the old
+metro's was). Eight jump pads, the pack's plate and blue beam, throw you onto High City's
 roofs; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map.
 `tools/checks/sk-neon.ts` rides every pad and walks the graph.
