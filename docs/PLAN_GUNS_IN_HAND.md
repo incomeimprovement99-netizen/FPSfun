@@ -55,8 +55,9 @@ Checked against the deployed build's own sheets before acting on each.
    front) and **done** (Milestone 319), the hand out on the fore-end 2.7 cm ahead of it, the arm reaching along the gun.
    The lesson: a pack gun's hold sits where its own gun is held; measure it against our gun's magazine.
 3. "I STILL FEEL like the guns when resting are still too angled up and to the left too much, like the view angle
-   isn't how it was originally ... compare it to hyperscape": to do, measured against the view's own gun pose from
-   before the bought arms and against Hyper Scape's.
+   isn't how it was originally ... compare it to hyperscape": **done** (Milestone 324). Measured against the view's own
+   arms on the same gun: the bought arms drew the gun at the pack camera's 80 degrees where ours is 92, and held it 2
+   degrees up; now the game's own field of view and level. The lesson: "the view angle" can be the field of view.
 4. "The hack animation also needs to be held higher and slightly more to the left so it doesn't bug in and out with
    the gun when it sways back and forth on the usso when we inspect": **done** (Milestone 321), measured: no card over
    the gun at any moment of the inspect.

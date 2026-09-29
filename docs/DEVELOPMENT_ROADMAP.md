@@ -6474,3 +6474,21 @@ stuff of that nature?" SpeedKills' soldier only. See PHASE_27_PLAN_THE_SQUAD_AND
   config; each hand's frame and every finger's bend on both sides of the mirrored rig; the right eye), seen failing with
   the mirrored palm put back; the e2e `skfigure` section (both guns held in four poses, the reload's magazine out, let
   fall, cleared and home, the Loadouts tab's soldier); the soldier section; verify; rules.
+
+## Milestone 324 — The guns at rest as the view's own arms held them: the game's field of view, the barrel level
+
+The owner, 2026-09-28: "I STILL FEEL like the guns when resting are still too angled up and to the left too much, like
+the view angle isn't how it was originally ... compare it to hyperscape and you'll notice right away".
+
+- **Measured** (the barrel's line in the view and where it runs on the screen, with the bought arms and with the view's
+  own arms holding the same bought gun): the turn in toward the crosshair was the same, 3 degrees; the bought arms held
+  the barrel 2 degrees up where the view's own held it level (0.3 on the USSO, -0.1 on BOOG), and drew it at the pack
+  camera's field of view, 80 degrees where ours is 92 at the default setting: the gun bigger and lower (the USSO's
+  origin 69% down the screen against 58%), its line steep up to the crosshair.
+- **The field of view** (`main.ts`, `fparms.json` fov gone): the gun camera's own at the hip with the bought arms, as
+  for every gun and as before them. It was narrowed because at ours the forearms and the gun's back end filled the
+  bottom of the view; with the shoulders fitted since (Milestones 312, 319) the left sleeve shows at the bottom edge
+  without filling it.
+- **Level** (`fparms.json` hipPitch): 0, as the view's own arms held it.
+- **Checked:** the soldier e2e's level check (its target from the config, now 0 within 1 degree); the sheets of every
+  move of both guns at the game's field of view; the soldier section; verify; rules.

@@ -110,7 +110,6 @@ const PALM_UP = new THREE.Vector3().fromArray(FREE.palm.up);
 const jointKey = (n: string): string => (n.startsWith("thumb") ? "thumb" : "") + n.split("_")[1];
 /** the barrel's pitch at rest with these arms, radians (fparms.json hipPitch) */
 export const HIP_PITCH = (cfg as unknown as { hipPitch: number }).hipPitch;
-export const PACK_FOV = (cfg as unknown as { fov: number }).fov;
 
 const url = (p: string): string => `${p}?v=${cfg.version}`;
 const loader = new GLTFLoader();

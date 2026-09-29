@@ -26,7 +26,7 @@ import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels
 import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
-import { FREE, HIP_PITCH, LOCO, PACK_FOV, PACK_INSPECT, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, packGunFor, type FreeHand } from "./fprig";
+import { FREE, HIP_PITCH, LOCO, PACK_INSPECT, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, packGunFor, type FreeHand } from "./fprig";
 import type { OperatorSkin } from "./operators";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
@@ -462,7 +462,6 @@ export class ViewModel {
    */
   private readonly pack = new PackArms();
   private packOn = false;
-  private packFovAmt = 0;
   /** the gun's swap and holster phase this frame, before a fusion's flood: the bought arms drop out as it goes */
   private swapPhase = 1;
   private readonly locoPos = new THREE.Vector3();
@@ -746,13 +745,6 @@ export class ViewModel {
     });
   }
 
-  /**
-   * The gun camera's vertical field of view at the hip with the bought arms, and how far onto it (main.ts): eased over a
-   * swap, where it had jumped 12 degrees in one frame from the USSO to STRYDER
-   */
-  get packFov(): { hip: number; weight: number } {
-    return { hip: PACK_FOV, weight: easeInOut(this.packFovAmt) };
-  }
 
   /** the bought arms' state (tools/e2e.ts): which pack gun holds ours, whether they are drawn, the wrists' bends */
   /**
@@ -1256,7 +1248,6 @@ export class ViewModel {
     // the pack's arms hold this gun: not while the hands are on the fists, a zipline or a cast (the view's own arms)
     const packOn = this.pack.active !== null && this.pack.active === packGunFor(w.id) && !this.fists.visible && !this.zipRig.visible && !this.castRig.visible;
     this.packOn = packOn;
-    this.packFovAmt += ((packOn ? 1 : 0) - this.packFovAmt) * Math.min(1, dt / 0.2);
     // In the sights the gun holds still for a reload, as it does for a strafe: rolled at full size, a 2x window
     // swung onto the support hand still on the handguard (PANDA, STRYDER, NOVA; Phase 20 A3)
     const reloadEnv = (f.reloading ? smooth(0, 0.14, reloadP) * (1 - smooth(0.84, 1, reloadP)) : 0) * (1 - ads * RELOAD_ADS);

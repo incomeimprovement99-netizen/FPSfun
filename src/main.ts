@@ -7227,13 +7227,6 @@ function step(): void {
   camera.updateProjectionMatrix();
   // the gun's FOV: the same blend at viewmodel.json's scale, not yours, and no slide or JOLT in it
   vmCamera.fov = gunFov(hipH, adsH, ws.adsFrac, settings.fovScale, vmCfg.fovScale);
-  // the bought arms are drawn at the field of view they were made for at the hip (fparms.json fov), the sight picture
-  // aimed as every gun's: at ours, 92 degrees, the forearms and the gun's back end filled the bottom of the view
-  const pf = viewModel.packFov;
-  if (pf.weight > 0.001) {
-    const aimed = gunFov(hipH, adsH, 1, settings.fovScale, vmCfg.fovScale);
-    vmCamera.fov += (pf.hip + (aimed - pf.hip) * ws.adsFrac - vmCamera.fov) * pf.weight;
-  }
   vmCamera.aspect = camera.aspect;
   vmCamera.updateProjectionMatrix();
   viewModel.setView(vmCamera.fov, vmCamera.aspect, debugView.ads ?? ws.adsFrac);

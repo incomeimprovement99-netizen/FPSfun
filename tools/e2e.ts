@@ -3278,7 +3278,7 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; palm: { w: number; cards: number }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; pickLead: string; pickAfter: string };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; palm: { w: number; cards: number }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; pickLead: string; pickAfter: string };
   // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
   const res: { guns: Record<string, Frames>; jump: string[] } = { guns: {}, jump: [] };
   // (the page's helpers once, then one short page call a measure: the e2e draws in software, a few frames a second, and
@@ -3346,6 +3346,9 @@ async function packFrames(page: Page): Promise<void> {
     })()`,
   );
   const pf = <T>(js: string) => ev<T>(page, `(async () => { const r = window.__range; const H = window.__pf; ${js} })()`);
+  // the gun camera's field of view at the hip with a gun the view's own arms hold (ANAKIN), to hold the bought arms' to
+  // (the owner, 2026-09-28: "like the view angle isn't how it was originally": they had drawn at the pack's 80 degrees)
+  const plainFov = await pf<number>(`r.debugView.inspect = -1; H.clear(); await H.hold("alternator_smg"); await H.gameWait(0.4); return r.gunFov().gun;`);
   for (const id of ["r97", "sentinel"]) {
     const other = id === "r97" ? "sentinel" : "r97";
     const o = { through: {} as Record<string, number> } as Frames;
@@ -3368,6 +3371,7 @@ async function packFrames(page: Page): Promise<void> {
     o.off = point.off;
     // where the support hand holds the gun at rest against its magazine
     o.palmAhead = await pf<number>(`H.clear(); await H.gameWait(0.3); return r.packArms().palmAhead;`);
+    o.fov = await pf<number>(`H.clear(); await H.gameWait(0.3); return r.gunFov().gun;`);
     // from the magazine seated to the grab on the handle, how near the left hand comes to its place on the gun (the
     // USSO's: it goes from the point straight to the handle)
     const grabbed = RL.rack[0] + (fparmsCfg.packGuns.MPS5.rack.grab?.reach[1] ?? 0) * (RL.rack[1] - RL.rack[0]);
@@ -3494,6 +3498,11 @@ async function packFrames(page: Page): Promise<void> {
     `pack frames: at rest the USSO's and BOOG's barrels point ${(fparmsCfg.hipPitch * 180 / Math.PI).toFixed(0)} degrees up (within 1), not up the fit's tilt`,
     g.every((x) => Math.abs(x.pitch - (fparmsCfg.hipPitch * 180) / Math.PI) < 1),
     show((x) => +x.pitch.toFixed(1)),
+  );
+  check(
+    "pack frames: at the hip the bought arms' guns are drawn at the gun camera's own field of view, as a gun the view's own arms hold (within half a degree)",
+    g.every((x) => Math.abs(x.fov - plainFov) < 0.5),
+    `${plainFov.toFixed(1)}: ${show((x) => +x.fov.toFixed(1))}`,
   );
   // (the owner, 2026-09-28: "for the boog, the support hand is holding the mag": its palm was 10 cm back from the
   // magazine's front, the pack's L96X's fore-end being where BOOG's magazine is)
