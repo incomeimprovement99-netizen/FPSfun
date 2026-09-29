@@ -89,6 +89,9 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
   // and no vault: its guard is a bot more, and most checks count the bots (vaultTest turns it back on)
   await page.evaluateOnNewDocument("window.__noVault = true");
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
+  // every file the page loads kept for the checks that count them (the textures'): the browser keeps 250, and the dev
+  // server's modules, a request each, grew past that before the first texture came (it counted 37, then 22, then 0)
+  await page.evaluateOnNewDocument("performance.setResourceTimingBufferSize(20000)");
   if (init) await page.evaluateOnNewDocument(init);
   // E2E_THROTTLE=4 runs every page on a quarter of the CPU: what a machine busy with other runs does to a
   // page, on demand, so a check that only fails in the release run can be made to fail alone
