@@ -6754,3 +6754,29 @@ only. See PHASE_27_PLAN_THE_SQUAD_AND_THE_SOLDIER.md, 27.11 and 27.12.
   soldier section, all passing but one first-person check, the inspect running past 5.6 s, the same run alone: that is
   the first-person inspect main changed in Milestone 330, which none of this touches; verify; rules; the frame sheets of
   every sequence for both guns (`shots/figure-v11`).
+
+## Milestone 333 — The USSO's reload: the hand closed on the handle, the finger leading the magazine
+
+The owner, 2026-09-29, playtesting: "the left hand when doing the charging handle on the usso doesn't like close its
+joints/fingers around the charging handle, you know? it kind of keeps its same position from the pointing ... and then
+we should have the finger move up and down by a bit following where the mag goes, as if the finger controls the mag
+going in, giving it a point to be like that."
+
+- **The rack** (`fprig.ts` grab, MPS5 rack grab `close` and `hook`): photographed, the forefinger lay straight up the
+  gun's side with its tip on the knob, curled 13 degrees. Now the forefinger and thumb close `close` of the way to a fist
+  (0.7 and 0.3) once the pinch has the knob, the forefinger curled 133 degrees over the top of the receiver beside it.
+  Closed at the old pinch point the fingertip went 5 mm into the gun, so the point is 4 mm further out, where nothing
+  goes in at any 1% of the grab (2 mm further in it touched 4.3 mm); the pinch is 1.7 cm off the knob, the wrist 22
+  degrees.
+- **The point** (`fprig.ts`, `fparms.json` reload `lead` and `follow`): measured, the finger already went with the
+  magazine, 170 pixels at 1920 by 1080, but in step with it and with the gun's turn, so nothing read as the finger's
+  doing. Now it goes 0.07 of the reload ahead of the magazine: it is 65% of the way down as the magazine starts to drop,
+  and rises first as the new one comes in, the magazine following it. Tried and dropped: carried 1.4 times as far, the
+  finger went out of the bottom of the picture; aimed on along the magazine's way, the wrist bent 158 degrees; led by 0.1,
+  the finger had finished before the magazine began.
+- **Checked:** the reload's frame sheets on both guns, no frame flagged; new soldier e2e checks: the USSO's forefinger
+  curled 100 degrees and more on the handle, and the finger a third of the way and more ahead of the magazine going out
+  and coming in, each seen failing with the change taken out; the soldier section; verify; rules. Two checks made
+  steady on the way: the thrown swap's rise is read once the held pose has settled (read 0.15 s in, at the few frames
+  a second the e2e draws, BOOG's middle had come 7 to 13 cm of its 20 cm, run to run, and once failed at 8), and the
+  inspect's length is timed by game time itself (its 30 s wait had run out before 5.6 s of game time had passed).

@@ -21,7 +21,7 @@ type Measured = { turn: number[]; forward: number[]; up: number[]; trigger: numb
 type Twist = { roll: number; yaw: number; pitch: number; x: number; y: number; z: number };
 type PointAt = { face: number[]; at: number; aim: number[]; elbow?: number[]; reach?: number; aimAt?: number };
 /** the rack done by our own timing with the pack's grip on its handle: shares of the rack for each part of it */
-type Grab = { reach: number[]; pull: number[]; release: number[]; back: number[]; clear: number; curl: number; thumbOpen: number; hook: number[]; roll?: number; along?: number[]; palm?: number[]; pinch?: boolean };
+type Grab = { reach: number[]; pull: number[]; release: number[]; back: number[]; clear: number; curl: number; thumbOpen: number; hook: number[]; roll?: number; along?: number[]; palm?: number[]; pinch?: boolean; close?: { index: number; thumb: number } };
 const FINGER_L = /^(index|middle|ring|pinky|thumb)_0[123]_l$/;
 /**
  * a hand's hold on one of our guns, fitted (tools/pack-fit.ts, pack-solve.ts, pack-thumb.ts): moved `shift` view metres
@@ -89,7 +89,7 @@ const FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0),
 export const LOCO = (cfg as unknown as { sprint: { fireHold: number; easeIn: number; easeOut: number; swing: number } }).sprint;
 
 /** the reload with these arms: point at the magazine while it phases, then the rack (fparms.json reload) */
-export const PACK_RELOAD = (cfg as unknown as { reload: { point: number[]; phaseOut: number[]; phaseIn: number[]; seat: number; rack: number[]; reach: number; aim: number[]; face: number[]; elbow: number[]; slide: number; shift: number[]; aimAt: number; rackBlend: number; gap: number; bend: number; at: number; clear: number; twist: { roll: number; yaw: number; pitch: number; x: number; y: number; z: number } } }).reload;
+export const PACK_RELOAD = (cfg as unknown as { reload: { point: number[]; phaseOut: number[]; phaseIn: number[]; seat: number; rack: number[]; reach: number; aim: number[]; face: number[]; elbow: number[]; slide: number; follow: number; lead: number; shift: number[]; aimAt: number; rackBlend: number; gap: number; bend: number; at: number; clear: number; twist: { roll: number; yaw: number; pitch: number; x: number; y: number; z: number } } }).reload;
 /** the arms out of the picture on a swap (fparms.json swap) */
 const SWAP = (cfg as unknown as { swap: { drop: number; back: number; pitch: number; clips: number; cross: number; dropFrom: number } }).swap;
 /** the swap thrown: the gun pushed up and out, let go and caught (fparms.json swap style, throw) */
@@ -270,7 +270,7 @@ export class PackArms {
    * What the checks read of the last frame: how far the clip turned the gun, degrees; how far back our handle is, 0..1;
    * the left hand's middle knuckle's distance to our handle and to our magazine, metres
    */
-  readonly seen = { gunTurn: 0, handleBack: 0, leftToHandle: Infinity, leftToMag: Infinity, pointMiss: Infinity, pointOff: 180, reachShort: 0, reachShortR: 0, handsBelow: 0, gripU: -1, gripMiss: -1, swapMove: 0, jumpPart: "", hookMiss: Infinity, offHold: 0, palmAhead: 0 };
+  readonly seen = { gunTurn: 0, handleBack: 0, leftToHandle: Infinity, leftToMag: Infinity, pointMiss: Infinity, pointOff: 180, reachShort: 0, reachShortR: 0, handsBelow: 0, gripU: -1, gripMiss: -1, swapMove: 0, jumpPart: "", hookMiss: Infinity, offHold: 0, palmAhead: 0, rackCurl: 0, tipSlid: 0, magSlid: 0 };
   /** where the pointing fingertip is meant to be this frame (world), for the checks */
   private readonly tipTarget = new THREE.Vector3();
 
@@ -319,6 +319,8 @@ export class PackArms {
   debugPalmAlong: number[] | null = null;
   /** the open hand's elbow moved off its line on an inspect, view metres, tried in place of the pack gun's */
   debugPalmElbow: number[] | null = null;
+  /** the pointing finger's lead on the magazine and how far it goes, tried in place of the config's (reload) */
+  debugPointMove: { lead?: number; follow?: number } | null = null;
   /** a fist's thumb tried in place of the config's (tools/fist-thumb.ts) */
   debugThumb: ThumbFit | null = null;
   /** a grab's closing tried in place of the pack gun's own (its curl, thumb and hook) */
@@ -686,8 +688,9 @@ export class PackArms {
     let leadW = 0;
     let pointW = 0;
     // how far down its own length the magazine is (0 home, 1 `slide` out): the old one drops out as it phases away, the
-    // new one rises from there as it phases in, and the pointing finger goes with it
+    // new one rises from there as it phases in; and where the pointing finger is along the same way, leading it
     let slid = 0;
+    let tipSlid = 0;
     // the grab's weight, where the handle is (0 home, 1 back) and where the hand is along it (it lets go at the back)
     let grabW = 0;
     let pull = 0;
@@ -700,7 +703,15 @@ export class PackArms {
       leadW = ss(f.pickup, 0, PICKUP.ease) * (1 - ss(f.pickup, 1 - PICKUP.ease, 1));
     } else if (reloading) {
       const r = f.reload!;
-      slid = r < (RL.phaseOut[1] + RL.phaseIn[0]) / 2 ? ss(r, RL.phaseOut[0], RL.phaseOut[1]) : 1 - ss(r, RL.phaseIn[0], RL.phaseIn[1]);
+      const slidAt = (x: number) => (x < (RL.phaseOut[1] + RL.phaseIn[0]) / 2 ? ss(x, RL.phaseOut[0], RL.phaseOut[1]) : 1 - ss(x, RL.phaseIn[0], RL.phaseIn[1]));
+      slid = slidAt(r);
+      // the pointing finger `lead` of the reload ahead of the magazine, `follow` as far, so the magazine goes where the finger
+      // sends it (the owner, 2026-09-29: "have the finger move up and down by a bit following where the mag goes, as if the
+      // finger controls the mag going in": in step with it, the finger and magazine moved as one with the gun's turn and
+      // nothing read as the finger's doing; carried 1.4 times as far, the finger went out of the bottom of the picture,
+      // and aimed on along the magazine's way, the wrist bent 158 degrees)
+      const P2 = { ...RL, ...(this.debugPointMove ?? {}) };
+      tipSlid = slidAt(r + P2.lead) * P2.follow;
       pointW = ss(r, RL.point[0], RL.point[1]) * (1 - ss(r, RL.rack[0] - 0.06, RL.rack[0] + 0.02));
       if (rack?.grab) {
         const into = THREE.MathUtils.clamp((r - RL.rack[0]) / (RL.rack[1] - RL.rack[0]), 0, 1);
@@ -849,6 +860,12 @@ export class PackArms {
         const fist = this.fistQ.get(b);
         if (G.pinch && fist && /^(middle|ring|pinky)/.test(n)) b.quaternion.slerp(fist, grabW);
         else if (bind) b.quaternion.slerp(bind[1], (n.startsWith("thumb") ? G.thumbOpen : -G.curl) * grabW);
+        // and the forefinger and thumb closed round the knob, `close` of the way to a fist (the owner, 2026-09-29: "the
+        // left hand when doing the charging handle on the usso doesn't like close its joints/fingers around the charging
+        // handle ... it kind of keeps its same position from the pointing": the forefinger lay straight up the gun's
+        // side, its tip on the knob)
+        const c = n.startsWith("index") ? G.close?.index : n.startsWith("thumb") ? G.close?.thumb : 0;
+        if (c && fist) b.quaternion.slerp(fist, c * grabW);
       }
     }
 
@@ -908,10 +925,14 @@ export class PackArms {
     // the magazine's slide in our gun's frame: down its own length (its sweep runs top to bottom, viewmodel.ts), `slide`
     // view metres
     const slideO = new THREE.Vector3();
-    if (this.magRestO && slid > 0) {
+    const tipSlideO = new THREE.Vector3();
+    if (this.magRestO && (slid > 0 || tipSlid > 0)) {
       const k = this.group.getWorldScale(new THREE.Vector3()).x / Math.max(1e-6, holder.getWorldScale(new THREE.Vector3()).x);
       slideO.set(0, -1, 0).transformDirection(this.magRestO).multiplyScalar(RL.slide * k * slid);
+      tipSlideO.set(0, -1, 0).transformDirection(this.magRestO).multiplyScalar(RL.slide * k * tipSlid);
     }
+    this.seen.magSlid = slid;
+    this.seen.tipSlid = tipSlid;
     if (mag && this.magRestO && this.magParentInv) {
       let ours = slid > 0 ? new THREE.Matrix4().makeTranslation(slideO.x, slideO.y, slideO.z).multiply(this.magRestO) : this.magRestO;
       // (in a reload it stays in the gun, phasing out and in where it sits: the owner's point and phase)
@@ -1019,14 +1040,14 @@ export class PackArms {
           const mb = this.magBoxO;
           const mc = mb.getCenter(new THREE.Vector3());
           const mh = mb.getSize(new THREE.Vector3()).multiplyScalar(0.5);
-          const tipO = new THREE.Vector3(
+          const spotO = new THREE.Vector3(
             mc.x + P.face[0] * (mh.x + RL.gap),
             P.face[1] ? mc.y + P.face[1] * (mh.y + RL.gap) : mb.min.y + 2 * mh.y * P.at,
             mc.z + P.face[2] * (mh.z + RL.gap),
-          ).add(slideO);
-          // what it points at, and the fingertip `shift` view metres off it, left and down (the owner: the finger "down and
-          // left more on both, not by too much")
-          const atW = tipO.applyMatrix4(gunWorld);
+          );
+          // what it points at, where the finger has the magazine going, and the fingertip `shift` view metres off it, left
+          // and down (the owner: the finger "down and left more on both, not by too much")
+          const atW = spotO.clone().add(tipSlideO).applyMatrix4(gunWorld);
           const viewQ = this.group.getWorldQuaternion(new THREE.Quaternion());
           const gs = this.group.getWorldScale(new THREE.Vector3()).x;
           const tipW = atW.clone().add(new THREE.Vector3(-RL.shift[0], -RL.shift[1], 0).multiplyScalar(gs).applyQuaternion(viewQ));
@@ -1206,6 +1227,8 @@ export class PackArms {
     const i2 = this.bones.index_03_l?.getWorldPosition(new THREE.Vector3());
     const m2 = (PACK[this.active ?? ""]?.rack?.grab?.pinch ? this.bones.thumb_03_l : this.bones.middle_03_l)?.getWorldPosition(new THREE.Vector3());
     this.seen.hookMiss = grabW > 0.9 && i2 && m2 ? i2.add(m2).multiplyScalar(0.5).distanceTo(this.hookTarget) / this.group.getWorldScale(new THREE.Vector3()).x : Infinity;
+    // and how far the forefinger is bent round it, degrees
+    this.seen.rackCurl = grabW > 0.9 ? this.curlOf("l", "index") : 0;
     // and how far below the eye line the higher hand is, degrees (the eye is the group's origin, looking down -z; the
     // view at the hip shows 40 below it), a hand behind the eye out of the picture whatever its height
     const below = (b: THREE.Object3D | undefined): number => {
@@ -1520,6 +1543,14 @@ export class PackArms {
       if (a && b && c) least = Math.min(least, ((a.clone().sub(wrist).angleTo(b.clone().sub(a)) + b.clone().sub(a).angleTo(c.clone().sub(b))) * 180) / Math.PI);
     }
     return least;
+  }
+
+  /** one finger's curl, degrees, as fingerCurl measures each (0 without its bones) */
+  curlOf(side: "l" | "r", finger: string): number {
+    const at = (n: string) => this.bones[`${n}_${side}`]?.getWorldPosition(new THREE.Vector3());
+    const [wrist, a, b, c] = [at("hand"), at(`${finger}_01`), at(`${finger}_02`), at(`${finger}_03`)];
+    if (!wrist || !a || !b || !c) return 0;
+    return ((a.clone().sub(wrist).angleTo(b.clone().sub(a)) + b.clone().sub(a).angleTo(c.clone().sub(b))) * 180) / Math.PI;
   }
 
   /**

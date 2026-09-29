@@ -172,10 +172,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
   a pickup (every frame of each photographed and measured), and the wrists kept
   near straight throughout. On High the gun in your hands wears its skins at 2048,
   the other presets at 1024. On a reload the gun turns its underside toward you and
-  the left forefinger points at the magazine while it drops out of the gun as it
-  phases away and a new one phases in below and slides home; then the hands work
-  the gun: the left thumb and forefinger pinch the USSO's charging handle, pull
-  it and let it slam home, and the pack's own hands throw BOOG's bolt, as after
+  the left forefinger points at the magazine and leads it, down a moment before
+  it drops out of the gun as it phases away and up before a new one phases in
+  below and slides home; then the hands work the gun: the left hand closes on
+  the USSO's charging handle, pulls it and lets it slam home, and the pack's own
+  hands throw BOOG's bolt, as after
   every shot. At rest both guns point level down the range. An inspect in these
   arms lasts 5.2 s, a beat held after each turn of the gun: the left hand comes
   up from below, palm up, with the hacks you carry floating over it, each card

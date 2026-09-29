@@ -103,9 +103,13 @@ Checked against the deployed build's own sheets before acting on each.
    plane. The lesson, kept: every state of a gun is photographed and looked at, aimed in and firing included, not only
    the ones the measures check.
 6. "the left hand when doing the charging handle on the usso doesn't like close its joints/fingers around the charging
-   handle ... it kind of keeps its same position from the pointing": to do.
+   handle ... it kind of keeps its same position from the pointing": **seen** (the forefinger straight up the gun's side,
+   curled 13 degrees) and **done** (Milestone 333), the forefinger and thumb closed round the knob, the forefinger
+   curled 133 degrees over the receiver's top.
 7. "we should have the finger move up and down by a bit following where the mag goes, as if the finger controls the mag
-   going in": to do.
+   going in": **measured** (the finger already went with the magazine, 170 pixels, but in step with it and the gun's
+   turn, so nothing read as the finger's doing) and **done** (Milestone 333), the finger 0.07 of the reload ahead of
+   the magazine, down first and up first, the magazine following it.
 
 ## 2. The bar every gun in hand meets
 
@@ -119,10 +123,10 @@ Each is a check in the e2e soldier section (`tools/e2e.ts` packFrames) or on the
 | Wrists | 50 degrees or less at rest and aimed, 60 pointing and swapping |
 | The fists | the bought arms', rolled 45 degrees or less on the forearm, every finger curled, the thumb across the fingers |
 | The point | the fingertip on its spot, down and left of the magazine, within 1 cm and 10 degrees |
-| The magazine | out 8 cm as it phases out; the new one phases in below and slides home |
+| The magazine | out 8 cm as it phases out; the new one phases in below and slides home, the pointing finger leading it a third of the way and more |
 | From the point to the rack | the support hand goes straight to the handle or bolt, never back to the gun between |
 | The support hand at rest | on the handguard, ahead of the magazine, never on it |
-| The rack | the fingers close on the handle (the USSO's: the thumb and forefinger's tips within 2 cm of its knob) |
+| The rack | the fingers close on the handle (the USSO's: the thumb and forefinger's tips within 2 cm of its knob, the forefinger curled 100 degrees and more round it) |
 | At rest | the gun level, as Hyper Scape holds it, not pointed up and left |
 | The inspect | the other hand open, palm up, its forearm up from below the picture (the elbow under its bottom edge), every hack carried floating over it with its level, clear of the gun's sway; tossed up and phased out before the hand goes back |
 | The inspect's own move | no frame at fault: the gun turned by the forearm, both arms reaching, wrists 60 or less, a forearm wrung 90 or less |
