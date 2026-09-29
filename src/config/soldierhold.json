@@ -62,6 +62,10 @@
       ]
     }
   },
+  "_reach": "How far each shoulder may be brought forward, degrees of the clavicle's swing about its own joint, when the arm alone falls short of its hand's place: a person reaching pushes the shoulder forward (5 to 8 cm). The clavicle is 0.205 m (measured), so 18 degrees brings the shoulder up to 6.4 cm nearer. Without it the left hand's hold slid back along the gun whenever the arm came up short, running (BOOG's 5.5 cm) or looking down, and took the fitted hand into the gun; the slide (mannequin.ts supportHold) now counts this reach first.",
+  "reach": {
+    "shoulder": 18
+  },
   "_elbows": "Which way each elbow points, in the figure's frame (+x its left, +y up, +z its front): the right out to the side and down, the left down and a little in, as a rifleman's are.",
   "elbows": {
     "r": [
@@ -164,10 +168,10 @@
       ]
     }
   },
-  "_recoil": "A shot's kick on the held gun, at its start (it fades as the figure's kick does, a tenth of a second): the muzzle up, degrees, and the gun driven back into the shoulder, metres. Enough to read as a shot at 30 m, not to aim it away.",
+  "_recoil": "A shot's kick on the held gun, at its start (it fades as the figure's kick does, a tenth of a second): the muzzle up, degrees, and the gun driven back beyond the shoulder, metres. None back: the figure's chest already rocks back with a shot (mannequin.ts, the shoulder with it), and driven back 2.5 cm more the butt went 20 mm (the USSO) to 35 mm (BOOG) into the collarbone. Enough to read as a shot at 30 m, not to aim it away.",
   "recoil": {
     "up": 5,
-    "back": 0.025
+    "back": 0
   },
   "_reload": "The reload as other players see it (Phase 27, 27.9; rifle.ts reloadTarget), a share of the gun's own reload time (weapons.ts reloadTime) at each step, so an enemy's plays from the moment their \"reload\" arrives and nothing new goes over the network. The gun turns its magazine toward the left hand (`tilt`, in over `tiltIn`, back over `tiltOut`); the left hand goes from the handguard to the magazine, pulls it `out` metres down over `pull` and lets it go at `dropAt` (a copy falls to the floor and fades), fetches a new one from the pouch at the left hip (in the hand over `inHand`, its bottom `magInPalm` over the palm), pushes it home, racks the charging handle and goes back. `left` and `right` are each hand's keys, [share, key]; a hand without keys at that share holds as it always does. `keys` are palm places and turns: off the magazine's bottom (`mag`), the charging handle or bolt (`handle`), or the hips (`hips`, in the figure's frame: +x its left, +z its front), with `fwd` and `palm` as in `hands`. A bolt gun works its bolt with the right hand (guns.sentinel).",
   "reload": {
@@ -697,7 +701,7 @@
         ]
       },
       "aim": {
-        "relief": 0.1,
+        "relief": 0.115,
         "cheek": 0,
         "side": 0.05
       },

@@ -39,7 +39,7 @@ import type { EmotePose } from "./emotes";
 import { IS_SK, PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
-import { buttOf, gunScaleOf, holdRifle, measureRifleRig, RIFLE_BONES, supportOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
+import { buttOf, gunScaleOf, holdRifle, measureRifleRig, RIFLE_BONES, shoulderGain, supportOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
 import { resolveWeapon } from "./weapons";
 
 export type FigureStyle = "robot" | "mannequin";
@@ -1303,7 +1303,10 @@ export class MannequinFigure {
     if (!up || !lo || !hand || !this.grip || !this.gun) return held;
     this.root.updateMatrixWorld(true);
     const shoulder = up.getWorldPosition(v1);
-    const arm = shoulder.distanceTo(lo.getWorldPosition(v2)) + lo.getWorldPosition(v2).distanceTo(hand.getWorldPosition(v3));
+    // (the soldier's rifle hold reaches further with the shoulder brought forward, rifle.ts reachWithShoulder)
+    const clav = this.rifle ? this.bones.clavicle_l : null;
+    const gain = clav ? shoulderGain(clav.getWorldPosition(v2).distanceTo(shoulder), this.gunId) : 0;
+    const arm = shoulder.distanceTo(lo.getWorldPosition(v2)) + lo.getWorldPosition(v2).distanceTo(hand.getWorldPosition(v3)) + gain;
     const a = this.gun.localToWorld(v4.copy(held));
     const b = this.gun.localToWorld(v5.copy(this.grip));
     const t = reachFraction([a.x - shoulder.x, a.y - shoulder.y, a.z - shoulder.z], [b.x - a.x, b.y - a.y, b.z - a.z], arm * 0.98);

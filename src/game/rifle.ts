@@ -214,6 +214,43 @@ function setWorldQuat(b: THREE.Object3D, q: THREE.Quaternion, w: number): void {
   b.updateWorldMatrix(false, true);
 }
 
+/**
+ * The shoulder brought forward toward a place the arm alone falls short of, as a person reaching does: the clavicle
+ * swung about its own joint, in the plane of it, the shoulder and the target, as far as puts the shoulder an arm's length
+ * from the target and no further than `maxDeg`. Without it the left hand's hold slid back along the gun whenever the
+ * arm came up short (running, looking down), and took the hand fitted to its place into the gun.
+ */
+function reachWithShoulder(clav: THREE.Object3D, up: THREE.Object3D, lo: THREE.Object3D, hand: THREE.Object3D, target: THREE.Vector3, maxDeg: number, w: number): void {
+  if (!clav.parent || maxDeg <= 0) return;
+  clav.updateWorldMatrix(true, true);
+  const c = clav.getWorldPosition(new THREE.Vector3());
+  const s = up.getWorldPosition(new THREE.Vector3());
+  const e = lo.getWorldPosition(new THREE.Vector3());
+  const arm = (s.distanceTo(e) + e.distanceTo(hand.getWorldPosition(new THREE.Vector3()))) * 0.995;
+  if (s.distanceTo(target) <= arm) return;
+  const cs = s.clone().sub(c);
+  const axis = cs.clone().cross(target.clone().sub(c));
+  if (axis.lengthSq() < 1e-10) return;
+  axis.normalize();
+  const off = (t: number) => cs.clone().applyAxisAngle(axis, t).add(c).distanceTo(target);
+  let lo2 = 0;
+  let hi = maxDeg * DEG;
+  if (off(hi) < arm)
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo2 + hi) / 2;
+      if (off(mid) > arm) lo2 = mid;
+      else hi = mid;
+    }
+  const world = clav.getWorldQuaternion(new THREE.Quaternion()).premultiply(new THREE.Quaternion().setFromAxisAngle(axis, hi * w));
+  clav.quaternion.copy(clav.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(world));
+  clav.updateWorldMatrix(false, true);
+}
+
+/** how much nearer the shoulder can come to a hold by `reachWithShoulder`, metres: the chord its swing makes */
+export function shoulderGain(clavicle: number, id: string): number {
+  return 2 * clavicle * Math.sin((cfgFor(id).reach.shoulder * DEG) / 2);
+}
+
 /** turn a bone about an axis given in the figure's own frame (mannequin.ts turnBone, here for the chest and head) */
 function turnAbout(b: THREE.Object3D, fig: THREE.Object3D, axis: THREE.Vector3, angle: number): void {
   if (Math.abs(angle) < 1e-5 || !b.parent) return;
@@ -466,6 +503,8 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
     // the hand's frame in the world is its bone's: the palm's middle sits `palm` from the wrist in it
     const handScale = hand.getWorldScale(new THREE.Vector3()).x;
     const wrist = palmAt.clone().sub(hr.palm.clone().multiplyScalar(handScale).applyQuaternion(handQ));
+    const clav = b[`clavicle_${side}`];
+    if (clav) reachWithShoulder(clav, up, fore, hand, wrist, C.reach.shoulder, w);
     const short = reachArm(fig, up, fore, hand, wrist, new THREE.Vector3(...C.elbows[side]), w);
     if (side === "r") out.shortR = short;
     else out.shortL = short;
