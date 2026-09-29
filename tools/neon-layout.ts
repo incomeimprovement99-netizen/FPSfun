@@ -8,7 +8,7 @@
 // that shapes the map is in the config's `rules`, read here; this file only applies them.
 //
 // Run: npx tsx tools/neon-layout.ts   (needs the catalogue: NEON=catalogue npx tsx tools/import-neon.ts)
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -369,6 +369,70 @@ if (holes.length) {
     const y = D.flying.height[0] + rnd() * (D.flying.height[1] - D.flying.height[0]);
     placeAt("c-dress", "c", D.flying.pieces[Math.floor(rnd() * D.flying.pieces.length)], x, z, (along ? 90 : 0) + (rnd() < 0.5 ? 0 : 180), "g", { y });
   }
+}
+
+// The fronts along the centre's streets and its ring hung with the pack's neon signs (rules.signs): found in the last
+// bake's collision (src/config/neon/neonmap.solids.json; a sign changes no building's): from the pavement, at a sign's
+// height, straight at the block to the first front within `reach`, kept where the front is flat across the sign's width
+// and `apart` from the last on that side. A sign is lit on one side only, its own +z (from behind its letters read
+// mirrored in bare metal), so it hangs with that side to the street; it collides with nothing
+{
+  const S = R.signs;
+  const solidsFile = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
+  const boxes: number[][] = existsSync(solidsFile) ? JSON.parse(readFileSync(solidsFile, "utf8")).solids : [];
+  /** how far from (x, z) along (dx, dz) the first box standing across height y is, within `reach` */
+  const faceAt = (x: number, z: number, dx: number, dz: number, y: number): number => {
+    let best = Infinity;
+    for (const [x0, x1, z0, z1, y0, y1] of boxes) {
+      if (y0 > y || y1 < y) continue;
+      // the ray's entry into the box's footprint (a slab test on the one axis it runs along)
+      if (dx !== 0) {
+        if (z < z0 || z > z1) continue;
+        const t = dx > 0 ? x0 - x : x - x1;
+        if (t >= 0 && t < best && (dx > 0 ? x1 > x : x0 < x)) best = t;
+      } else {
+        if (x < x0 || x > x1) continue;
+        const t = dz > 0 ? z0 - z : z - z1;
+        if (t >= 0 && t < best && (dz > 0 ? z1 > z : z0 < z)) best = t;
+      }
+    }
+    return best;
+  };
+  const C = R.streets.centres as number[];
+  const hw = R.streets.road / 2;
+  // each street's two sides and the ring's inner one: the road's middle, its half width, the way to the block beyond
+  const ringHalf = (R.ring[1] - R.ring[0]) / 2;
+  const lines: Array<[number, number, number]> = [];
+  for (const c of C) for (const side of [-1, 1]) lines.push([c, hw, side]);
+  for (const r of [-1, 1]) lines.push([(r * (R.ring[0] + R.ring[1])) / 2, ringHalf, -r]);
+  let hung = 0;
+  for (const [c, half, side] of lines)
+    for (const along of ["x", "z"] as const) {
+      // the line on the pavement a metre past the kerb
+      const at = c + side * (half + 1);
+      let lastU = -Infinity;
+      for (let u = -R.centre + 2; u < R.centre - 2; u += S.step) {
+        if (u - lastU < S.apart || rnd() > S.chance) continue;
+        const name = S.pieces[Math.floor(rnd() * S.pieces.length)];
+        const row = piece(name).row;
+        const w = row.size![0];
+        const y = S.height[0] + rnd() * (S.height[1] - S.height[0]);
+        const [x, z] = along === "x" ? [u, at] : [at, u];
+        const [dx, dz] = along === "x" ? [0, side] : [side, 0];
+        const d = faceAt(x, z, dx, dz, y);
+        if (d > S.reach) continue;
+        // flat across its width: the front as near at each end as in the middle
+        const ends = [-w / 2, w / 2].map((o) => faceAt(along === "x" ? x + o : x, along === "x" ? z : z + o, dx, dz, y));
+        if (ends.some((e) => Math.abs(e - d) > S.flat)) continue;
+        // hung with its +z toward the street: its back, `row.min z` behind its pivot, on the front
+        const [fx, fz] = [x + dx * (d + row.min![2]), z + dz * (d + row.min![2])];
+        const yaw = along === "x" ? (side > 0 ? 180 : 0) : side > 0 ? 270 : 90;
+        placeAt("c-signs", "c", name, fx, fz, yaw, "g", { y: y - (row.min![1] + row.max![1]) / 2 });
+        lastU = u;
+        hung++;
+      }
+    }
+  console.log(`signs: ${hung} hung on the fronts`);
 }
 
 // the kerbs along each carriageway's edge where pavement meets it, and the dashed line down its middle

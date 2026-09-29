@@ -270,7 +270,7 @@ higher buildings, inside rooms to fight in". In this order, each shipped on its 
    spans at 26.9 m) and the floating PlatformBridge modules (5 m, 2.9 m deep) across the inner streets where two roofs
    face each other, and FloorBridge00 (10 m) to the low city's roofs.
 4. **The streets dressed**: begun (Milestone 338): the pack's lamps along the kerbs, parked cars as cover, flying cars
-   over the streets. Still: the pack's signs, billboards and holograms on the fronts, its street props (benches, bins,
+   over the streets; its neon signs on the fronts (Milestone 339). Still: its billboards and holograms, its street props (benches, bins,
    vending machines, barriers, planters) as cover along the pavements, its StreetFocus lamps and its flying cars over
    the streets, so a street reads like the store's pictures. Its ad screens (SquareAd00 and the rest, the picture as
    both colour and emission at 1) come out blank white: lit colour and full emission together saturate under the game's

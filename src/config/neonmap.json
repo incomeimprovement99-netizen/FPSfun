@@ -1,6 +1,6 @@
 {
- "_note": "The map made of Daelonik's Neon City bundle (Phase 28, docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md): the owner, 2026-09-28, 'basically wiping the entire map except the idea ... implement using all new assets, nothing at all should be custom made'. `rules` are the plan's, read by tools/neon-layout.ts, which writes `chunks` (every placement: the prefab by its path under the bundle's City Builder, its pivot x, y, z in map-local metres, its turn about y in degrees, how it collides: g the ground and what lies flat on it, none, s solid to its own top a cell at a time (a building with no rooms), o its own triangles' spans (rooms, stairs, floors to walk), a pack material over all its parts where given, and the parts of it left out, by their model's file name, where given) and `tallest` and `measured`, never typed. tools/import-neon.ts NEON=bake bakes the chunks into one file a texture size and the collision off their triangles; src/game/neonmap.ts draws and plays it. `rules`: the map to `extent` metres (past the 152 m edge, so the ground reaches the fence); the ground's `tile`, the pack's 10 m pavement plane, and the carriageways in `road`, the pack's asphalt; the centre's `streets` (`road` metres wide at `centres`, the pavement either side belonging to the blocks, so roof to roof across a street is about 15 m, a double jump's 22 carry with room: tools/checks/reach.ts) with the pack's kerbs `every` metres and its dashed line; the `ring` road round the centre; the centre's 3 by 3 `blocks` (the middle one's half width `inner`, the others between `outer`); the `middle` block's tallest building; the axis blocks' `high` city of High City's towers with walkable roofs, a big piece fronting the middle and a `row` of smaller ones on the ring's side; the corner blocks' `low` city, a 3 by 3 of cells with a yard in the middle, a `tall` building on each block's inner corner and `low` ones round it (a piece may overhang its cell by `overhang`); the chunks whose names begin with `bake merge` baked as one named `as`, a mesh a material (the centre's pieces share the pack's materials: a chunk at a time they drew 920 calls in the street, as one 440, 2.3 ms a frame on Competitive, measured in turn by tools/bench.ts); the rooms' collision kept down to `below floor` and every span topping out over `below minTop` (the tallest building stands in a pit to its basement, 7 m under the street, whose floors the districts' rule for the street's scraps, nothing under 0.35 m, threw away), the world's floor lowered over the pit in the game; the `fine` pieces' collision measured at its finer `cell` (the metro kiosk's escalators are 2 m wide with their glass sides, and at the rooms' half-metre cells each side widened to half a metre and left no room for a body between them); a solid building's `shell`: what its ground floor's walls close in (the triangles crossing its lowest `band` metres, gaps up to twice `close` metres shut) collides from its foot to its top, since High City's towers are shells with nothing inside (tools/import-neon.ts columnSolids); the `court` the tallest building stands in: the hole its footprint leaves in the ground floored at its foot, 7 m down, with the ground's tiles `under` metres beneath its basement's own floor, and walled round with the pack's `wall` (5 m lengths; one-sided, its face toward `faces` in its own frame, measured off its triangles, 36.5 m2 that way and none the other, so each is turned to look into the court), as tall as the hole is deep; its `halls`, the pack's metro corridors off the court through a door in one side's wall (the segment from `at` left out), out under the plaza on the court's floor, their `pieces` in order from the court, floored with `hallTile` and closed with the court's wall, and on the long sides an `entrance` from the street at the far end: the pack's metro kiosk, its bottom landing (10 m) toward the court over the hall's corridor, which is its walls and roof there, and its two flights down from the street in a `well` from its landing's end (in the kiosk's own metres along the hall, measured off its sections: from the street near 1 m to -3.2 m at 5.6 m, and back down to -6.8 m at 0) walled with the court's wall, the ground's tiles over the well taken up and laid again in the pack's `patch` tile of the same material but for the well itself, its way through for a body, its `route` (x, z in the kiosk's own metres, the height it is walked at: from the plaza beside it, in at its side, down the upper flight, round the balustrades' ends at 6.4 m, down the lower flight on its middle line, 3.3 m in, where its foot leaves a body room, and along the hall into the court; walked both ways by a player's own movement, tools/checks/sk-neon.ts; a bot's square body does not fit the lower flight's foot), and the kiosk's parts `without` left out (its hanging ad board, 0.3 to 2 m over its landing's floor at the landing's end, stood across the hall's mouth: in Unity it hangs in a hall wider than the corridor) (the layout writes `court` and its halls' rectangles, each with the `slab` over its corridor; the game lowers its floor in the court and the halls and lays the street's slab over the halls); the centre's streets' `dress`: the pack's street `lamp` every `every` metres on both pavements, `inset` from the kerb, its arms along it; its `cars` parked in the lanes by the kerbs, their middle `lane` metres out, a seeded gap between `gap` metres apart, a car at each with the `chance`, as crouching cover in the street; and `count` `flying` cars over the streets between `height` metres, out of reach and so with no collision; all clear of the crossings (by `crossing` metres), the pads (by `padClear`), the ring road and the metro's kiosks; the jump `pads` onto each high city block's roof from the street before it and the ring road behind it, the pack's `plate` on the ground and its `beam` of light rising from it, found by the bake in the collision it has just made (a `body`-wide line from the street's middle toward the block, tried every metre `across` either side of the block's middle, meets as its face the first column at least `roofMin` high within `search` metres, kept where the roof behind the face is level to `flat` metres for `flatDepth`, the landing, with no more than a `rail` of `rail` metres at its edge, the nearest the street and the block's middle taken, `landBonus` metres nearer where a bot walks at least `landArea` square metres of the roof from where it lands (a bot never jumps: a High City roof's raised decks, 0.85 m, are walls to it)) and written to `pads` (never typed): each the face's point, the way out of it, the floor the pad stands on and the roof, the throw solved in the game (src/game/padsolve.ts). `game`: what src/game/neonmap.ts plays it with: its own `air` (atmosphere.ts ownAir, from Balanced up), a haze of one colour by `night` and one by `day` from `near` to `far` metres, thinning `farUp` metres further a metre climbed (a pale violet, as the store's pictures' is pale: a dark one over a dark city did not show; far as the ILranch city's, for the fights' sightlines), in place of the ILranch city's blocks' colours and its districts' staged light, which fell on this map's streets where those blocks had stood; the city's own picture its materials `reflect`, a cube `size` pixels a side taken from `at` (map-local, the street south of the tower at eye height) out to `far` metres once the map's file is in, in place of the sky's (the pack's asphalt is a wet street, smoothness 0.85, and with the sky in it the roads came out pale); the street's `slab`, metres deep, over the court's halls under the plaza; a street spot is `clear` metres round of anything at a body's height; the bots' graph a node every `graph step` metres of the street and every `raised` metres of the floors over it (a roof, a room: High City's roofs step 0.3 to 0.85 m between their decks, too fine for the street's lattice) over the map (`margin` in from its edge), linked where a bot walks there and back ending within `level` metres of the other's height, between floors no more than `climb` apart (a pad's landing joined the same way); each district's `drops` spread over its street nodes; respawn `beacons` at street spots (map-local); the small named `sites` the big map shows and a match puts loot of their own at (loot.json site), so a share of it is on the roofs where the fights are: a high city block's deck at the middle of its graph's nodes `roof` metres up and more, the lobby at the tallest building's middle.",
- "version": 5,
+ "_note": "The map made of Daelonik's Neon City bundle (Phase 28, docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md): the owner, 2026-09-28, 'basically wiping the entire map except the idea ... implement using all new assets, nothing at all should be custom made'. `rules` are the plan's, read by tools/neon-layout.ts, which writes `chunks` (every placement: the prefab by its path under the bundle's City Builder, its pivot x, y, z in map-local metres, its turn about y in degrees, how it collides: g the ground and what lies flat on it, none, s solid to its own top a cell at a time (a building with no rooms), o its own triangles' spans (rooms, stairs, floors to walk), a pack material over all its parts where given, and the parts of it left out, by their model's file name, where given) and `tallest` and `measured`, never typed. tools/import-neon.ts NEON=bake bakes the chunks into one file a texture size and the collision off their triangles; src/game/neonmap.ts draws and plays it. `rules`: the map to `extent` metres (past the 152 m edge, so the ground reaches the fence); the ground's `tile`, the pack's 10 m pavement plane, and the carriageways in `road`, the pack's asphalt; the centre's `streets` (`road` metres wide at `centres`, the pavement either side belonging to the blocks, so roof to roof across a street is about 15 m, a double jump's 22 carry with room: tools/checks/reach.ts) with the pack's kerbs `every` metres and its dashed line; the `ring` road round the centre; the centre's 3 by 3 `blocks` (the middle one's half width `inner`, the others between `outer`); the `middle` block's tallest building; the axis blocks' `high` city of High City's towers with walkable roofs, a big piece fronting the middle and a `row` of smaller ones on the ring's side; the corner blocks' `low` city, a 3 by 3 of cells with a yard in the middle, a `tall` building on each block's inner corner and `low` ones round it (a piece may overhang its cell by `overhang`); the chunks whose names begin with `bake merge` baked as one named `as`, a mesh a material (the centre's pieces share the pack's materials: a chunk at a time they drew 920 calls in the street, as one 440, 2.3 ms a frame on Competitive, measured in turn by tools/bench.ts); the rooms' collision kept down to `below floor` and every span topping out over `below minTop` (the tallest building stands in a pit to its basement, 7 m under the street, whose floors the districts' rule for the street's scraps, nothing under 0.35 m, threw away), the world's floor lowered over the pit in the game; the `fine` pieces' collision measured at its finer `cell` (the metro kiosk's escalators are 2 m wide with their glass sides, and at the rooms' half-metre cells each side widened to half a metre and left no room for a body between them); a solid building's `shell`: what its ground floor's walls close in (the triangles crossing its lowest `band` metres, gaps up to twice `close` metres shut) collides from its foot to its top, since High City's towers are shells with nothing inside (tools/import-neon.ts columnSolids); the `court` the tallest building stands in: the hole its footprint leaves in the ground floored at its foot, 7 m down, with the ground's tiles `under` metres beneath its basement's own floor, and walled round with the pack's `wall` (5 m lengths; one-sided, its face toward `faces` in its own frame, measured off its triangles, 36.5 m2 that way and none the other, so each is turned to look into the court), as tall as the hole is deep; its `halls`, the pack's metro corridors off the court through a door in one side's wall (the segment from `at` left out), out under the plaza on the court's floor, their `pieces` in order from the court, floored with `hallTile` and closed with the court's wall, and on the long sides an `entrance` from the street at the far end: the pack's metro kiosk, its bottom landing (10 m) toward the court over the hall's corridor, which is its walls and roof there, and its two flights down from the street in a `well` from its landing's end (in the kiosk's own metres along the hall, measured off its sections: from the street near 1 m to -3.2 m at 5.6 m, and back down to -6.8 m at 0) walled with the court's wall, the ground's tiles over the well taken up and laid again in the pack's `patch` tile of the same material but for the well itself, its way through for a body, its `route` (x, z in the kiosk's own metres, the height it is walked at: from the plaza beside it, in at its side, down the upper flight, round the balustrades' ends at 6.4 m, down the lower flight on its middle line, 3.3 m in, where its foot leaves a body room, and along the hall into the court; walked both ways by a player's own movement, tools/checks/sk-neon.ts; a bot's square body does not fit the lower flight's foot), and the kiosk's parts `without` left out (its hanging ad board, 0.3 to 2 m over its landing's floor at the landing's end, stood across the hall's mouth: in Unity it hangs in a hall wider than the corridor) (the layout writes `court` and its halls' rectangles, each with the `slab` over its corridor; the game lowers its floor in the court and the halls and lays the street's slab over the halls); the centre's streets' `dress`: the pack's street `lamp` every `every` metres on both pavements, `inset` from the kerb, its arms along it; its `cars` parked in the lanes by the kerbs, their middle `lane` metres out, a seeded gap between `gap` metres apart, a car at each with the `chance`, as crouching cover in the street; and `count` `flying` cars over the streets between `height` metres, out of reach and so with no collision; all clear of the crossings (by `crossing` metres), the pads (by `padClear`), the ring road and the metro's kiosks; the fronts along the centre's streets and its ring hung with the pack's neon `signs`: tried every `step` metres along a line on the pavement a metre from the kerb with the `chance`, at a height between `height` metres, straight at the block to the first front within `reach` metres in the last bake's collision, kept where the front is flat to `flat` metres across the sign's width and `apart` metres from the last on that side, hung lit side to the street (a sign is lit on its own +z only), colliding with nothing; the jump `pads` onto each high city block's roof from the street before it and the ring road behind it, the pack's `plate` on the ground and its `beam` of light rising from it, found by the bake in the collision it has just made (a `body`-wide line from the street's middle toward the block, tried every metre `across` either side of the block's middle, meets as its face the first column at least `roofMin` high within `search` metres, kept where the roof behind the face is level to `flat` metres for `flatDepth`, the landing, with no more than a `rail` of `rail` metres at its edge, the nearest the street and the block's middle taken, `landBonus` metres nearer where a bot walks at least `landArea` square metres of the roof from where it lands (a bot never jumps: a High City roof's raised decks, 0.85 m, are walls to it)) and written to `pads` (never typed): each the face's point, the way out of it, the floor the pad stands on and the roof, the throw solved in the game (src/game/padsolve.ts). `game`: what src/game/neonmap.ts plays it with: its own `air` (atmosphere.ts ownAir, from Balanced up), a haze of one colour by `night` and one by `day` from `near` to `far` metres, thinning `farUp` metres further a metre climbed (a pale violet, as the store's pictures' is pale: a dark one over a dark city did not show; far as the ILranch city's, for the fights' sightlines), in place of the ILranch city's blocks' colours and its districts' staged light, which fell on this map's streets where those blocks had stood; the city's own picture its materials `reflect`, a cube `size` pixels a side taken from `at` (map-local, the street south of the tower at eye height) out to `far` metres once the map's file is in, in place of the sky's (the pack's asphalt is a wet street, smoothness 0.85, and with the sky in it the roads came out pale); the street's `slab`, metres deep, over the court's halls under the plaza; a street spot is `clear` metres round of anything at a body's height; the bots' graph a node every `graph step` metres of the street and every `raised` metres of the floors over it (a roof, a room: High City's roofs step 0.3 to 0.85 m between their decks, too fine for the street's lattice) over the map (`margin` in from its edge), linked where a bot walks there and back ending within `level` metres of the other's height, between floors no more than `climb` apart (a pad's landing joined the same way); each district's `drops` spread over its street nodes; respawn `beacons` at street spots (map-local); the small named `sites` the big map shows and a match puts loot of their own at (loot.json site), so a share of it is on the roofs where the fights are: a high city block's deck at the middle of its graph's nodes `roof` metres up and more, the lobby at the tallest building's middle.",
+ "version": 6,
  "rules": {
   "seed": 20260929,
   "extent": 160,
@@ -267,6 +267,34 @@
      28
     ]
    }
+  },
+  "signs": {
+   "pieces": [
+    "Neon00.prefab",
+    "Neon001.prefab",
+    "Neon002.prefab",
+    "Neon003.prefab",
+    "Neon004.prefab",
+    "SignLetters/Neon008.prefab",
+    "SignLetters/Neon009.prefab",
+    "Neon010.prefab",
+    "Neon011.prefab",
+    "Neon011b.prefab",
+    "Neon013.prefab",
+    "Neon014.prefab",
+    "Neon015.prefab",
+    "Neon016.prefab",
+    "SignLetters/Neon017.prefab"
+   ],
+   "step": 3,
+   "apart": 6,
+   "chance": 0.75,
+   "height": [
+    3,
+    10
+   ],
+   "reach": 6,
+   "flat": 0.3
   }
  },
  "tallest": {
@@ -11180,6 +11208,523 @@
     ]
    ]
   },
+  "c-signs": {
+   "sector": "c",
+   "place": [
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
+     -82.94,
+     9.37,
+     -43.95,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011.prefab",
+     -76.995,
+     9.713,
+     -43.96,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
+     -64.94,
+     4.634,
+     -43.95,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
+     -53.165,
+     8.761,
+     -44.825,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
+     -4.99,
+     9.644,
+     -42.03,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
+     49.01,
+     10.084,
+     -43.53,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon015.prefab",
+     67.015,
+     6.389,
+     -44.02,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon014.prefab",
+     75.945,
+     8.845,
+     -45.02,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon010.prefab",
+     -44.46,
+     4.068,
+     -80.025,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
+     -44.53,
+     6.896,
+     -65.01,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon015.prefab",
+     -44.52,
+     6.905,
+     -53.015,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     -44.455,
+     7.849,
+     -46.92,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
+     -44.95,
+     3.428,
+     45.94,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon010.prefab",
+     -44.96,
+     7.136,
+     51.975,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     -45.455,
+     5.46,
+     67.08,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
+     -44.53,
+     4.98,
+     81.99,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
+     -83.06,
+     8.661,
+     -27.05,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon010.prefab",
+     -23.54,
+     3.863,
+     58.025,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
+     -26.54,
+     7.941,
+     82,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon010.prefab",
+     -55.975,
+     9.526,
+     27.54,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
+     -2,
+     3.945,
+     23.79,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
+     58,
+     7.165,
+     23.54,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
+     23.47,
+     7.484,
+     54.99,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon015.prefab",
+     -68.015,
+     8.793,
+     44.02,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
+     -47,
+     9.292,
+     41.96,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
+     4.165,
+     8.765,
+     42.325,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
+     45.94,
+     7.348,
+     44.95,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon016.prefab",
+     44.02,
+     5.171,
+     -65,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon013.prefab",
+     44.52,
+     2.53,
+     -49.985,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
+     43.825,
+     5.807,
+     75.835,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon014.prefab",
+     -82.945,
+     5.646,
+     -85.98,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
+     -61.835,
+     10.41,
+     -85.675,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
+     -53.01,
+     9.481,
+     -84.97,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab",
+     -47.065,
+     4.075,
+     -84.54,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
+     -23.01,
+     9.369,
+     -87.97,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
+     -5.06,
+     9.678,
+     -87.55,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab",
+     15.935,
+     9.694,
+     -88.04,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     61.08,
+     7.782,
+     -85.545,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     67.08,
+     7.683,
+     -85.545,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
+     -86.175,
+     7.86,
+     -83.165,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab",
+     -86.04,
+     6.178,
+     -76.935,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     -86.545,
+     9.613,
+     -65.08,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
+     -85.97,
+     4.26,
+     -52.99,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
+     -86.05,
+     3.318,
+     -46.94,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab",
+     -88.04,
+     9.179,
+     -7.935,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     -88.045,
+     3.888,
+     18.92,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon013.prefab",
+     -87.48,
+     4.223,
+     61.015,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
+     -87.54,
+     4.977,
+     67,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
+     -80,
+     6.788,
+     86.04,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon017.prefab",
+     -64.985,
+     6.28,
+     85.89,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
+     49.06,
+     8.263,
+     86.05,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     63.92,
+     6.649,
+     86.045,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
+     79.01,
+     10.1,
+     84.97,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab",
+     83.04,
+     2.985,
+     -80.065,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab",
+     87.54,
+     6.649,
+     -68.065,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
+     85.675,
+     10.715,
+     -52.835,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon017.prefab",
+     87.39,
+     8.324,
+     -5.015,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon002.prefab",
+     88.04,
+     3.113,
+     3.92,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
+     87.47,
+     8.841,
+     21.99,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon013.prefab",
+     85.48,
+     3.708,
+     48.985,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
+     86.05,
+     4.29,
+     60.94,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
+     85.97,
+     8.083,
+     69.99,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
+     85.54,
+     4.071,
+     76,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon002.prefab",
+     85.54,
+     4.269,
+     81.92,
+     90,
+     "g"
+    ]
+   ]
+  },
   "c-sw": {
    "sector": "c",
    "place": [
@@ -20536,15 +21081,15 @@
   }
  },
  "measured": {
-  "placements": 2492,
-  "pieces": 37
+  "placements": 2556,
+  "pieces": 52
  },
  "baked": {
-  "triangles": 1495285,
+  "triangles": 1560777,
   "boxes": 26887,
   "chunks": {
    "c": {
-    "tris": 1482437,
+    "tris": 1547929,
     "min": [
      -100,
      -7.03,
@@ -20662,10 +21207,10 @@
    }
   },
   "mb": {
-   "preview": 41.1,
-   "lo": 55.7,
-   "hi": 102.5,
-   "max": 274.4
+   "preview": 42.4,
+   "lo": 56.9,
+   "hi": 103.8,
+   "max": 275.6
   }
  },
  "game": {

@@ -6918,3 +6918,19 @@ were bare road between the buildings. The first pass of the pack's own dressing 
   1.21 M to 1.50 M); the cars share their materials, so the centre's draw calls barely move.
 - **The map's files are version 5.**
 - **Checked:** verify and rules; `sk-neon.ts`; the streets photographed at night from the street and the roofs.
+
+## Milestone 339 — Neon signs on the centre's fronts
+
+Phase 28.7, the streets' second pass (`tools/neon-layout.ts`, rules.signs): the pack's lit sign letters ("holocall",
+"movie", "COOL5", "superstars", the tall Korean signs and the rest, 15 of them) hung on the fronts along the centre's
+streets and its ring.
+
+- **Where**: found in the last bake's collision (a sign changes no building's): tried every 3 m along a line on the
+  pavement a metre past the kerb, three times in four, at a height between 3 and 10 m, straight at the block to the
+  first front within 6 m, kept where the front is flat to 0.3 m across the sign's width and 6 m from the last on that
+  side. High City's curved faces take few; the low city's flat ones take most. 64 signs, 65k triangles.
+- **Which way round**: a sign is lit on its own +z only; from behind, its letters read mirrored in bare metal (seen in
+  pictures of one from both sides), so each hangs with its back on the front and that side to the street.
+- They collide with nothing, as a sign on a wall a body climbs past should not stop it.
+- **The map's files are version 6.**
+- **Checked:** verify and rules; `sk-neon.ts`; signs photographed head-on from the street.
