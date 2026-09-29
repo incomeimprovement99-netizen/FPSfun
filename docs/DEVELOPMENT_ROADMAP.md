@@ -6882,3 +6882,22 @@ moving the moon, the sky's fill or the environment barely changed it. Measured d
   lights.
 - **Checked:** verify and rules; photographed at night and at golden hour against the store's pictures; the old city
   (`?map=city`) untouched (its atmosphere and wet streets are its own).
+
+## Milestone 337 — A live check that fails fails the deploy
+
+The deploy of Milestone 335 printed "FAIL both sides connect over the internet (No match with that code)" and then "==
+live at https://fpsfun.duckdns.org/", and exited 0. Run again alone a minute later, the live check passed.
+
+- **The exit code** (`tools/live-check.ts`): a check that fails part way (no code from the broker, or the two sides
+  never meeting) returns out of the `try`, and the verdict and `process.exit` stood after the `finally`, so they were
+  never reached: the process ended with 0, and the deploy, which runs it with `execSync`, took that as a pass. The
+  verdict and the exit now sit in the `finally`. Seen: with a failure forced at the start, the file as it was printed
+  its FAIL line and exited 0 with no verdict; now it prints LIVE CHECK FAIL (1) and exits 1.
+- **"No match" on the first Join after a deploy**: the second time it has happened (2026-09-28 was the first), each
+  time the host had its code from the broker and the guest was told no match had it. Two `npm run fps restart`s, each
+  followed at once by the live check with nobody connected (`/health` peers 0), did not bring it back, so it is not the
+  restart alone; the cause is not found. The live check now waits for whichever comes first, in or told there is no
+  such match, and on the second joins once more after 3 s, saying so on its own line; a second "no match" fails. A pass
+  takes as long as it did (34 s against the live site).
+- **Checked:** the forced failure both ways (above); the live check against https://fpsfun.duckdns.org/: LIVE CHECK
+  PASS; verify, rules.

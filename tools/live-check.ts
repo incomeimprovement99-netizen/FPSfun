@@ -115,6 +115,19 @@ async function main(): Promise<void> {
       return;
     }
     await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    // Twice, both times the first match after a deploy, the broker handed the host its code and then told the guest
+    // there was no such match; a second Join a minute later went through (2026-09-28, 2026-09-29). Two restarts
+    // followed at once by this check did not bring it back, so it is not the restart alone. It is let through once,
+    // said out loud, and a second "no match" is a failure like any other.
+    // (whichever comes first: in, or told there is no such match)
+    const noMatch = await guest
+      .waitForFunction(`window.__range.duel() !== null || /No match with that code/.test(document.getElementById("duelStatus").textContent)`, { polling: 200, timeout: 30000 })
+      .then(async () => !(await ev<boolean>(guest, "window.__range.duel() !== null")), () => false);
+    if (noMatch) {
+      console.log("  --  the guest's first Join found no match with the host's code (seen twice right after a deploy): joining again");
+      await sleep(3000);
+      await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+    }
     try {
       await host.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 40000 });
       await guest.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 40000 });
@@ -161,8 +174,10 @@ async function main(): Promise<void> {
     check("no page errors or failed requests", errors.length === 0, [...new Set(errors)].slice(0, 4).join(" | "));
   } finally {
     await browser.close();
+    // here and not after: a check that fails part way returns out of the try, and the verdict after the finally was
+    // never reached, so the process ended with 0 and the deploy called a failed live check live (2026-09-29)
+    console.log(fails === 0 ? "\nLIVE CHECK PASS" : `\nLIVE CHECK FAIL (${fails})`);
+    process.exit(fails === 0 ? 0 : 1);
   }
-  console.log(fails === 0 ? "\nLIVE CHECK PASS" : `\nLIVE CHECK FAIL (${fails})`);
-  process.exit(fails === 0 ? 0 : 1);
 }
 void main();
