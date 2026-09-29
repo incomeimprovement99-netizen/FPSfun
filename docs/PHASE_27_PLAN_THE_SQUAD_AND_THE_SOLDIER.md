@@ -58,11 +58,12 @@ frame from the side an enemy sees it, and the Loadouts tab's soldier with it, un
 | 27.3 | Teammates seen through walls: a thin outline in their colour, and a small name above them | done | 316 |
 | 27.4 | A teammate's state: to the Gulag, a ghost, restored, eliminated, left, on the panel, over them and in the feed | done | 316 |
 | 27.5 | Checks: two real players in one squad over the network see all of it | done | 316 |
-| 27.6 | The soldier bundle: what was bought, what is used, what is left | | |
-| 27.7 | The third-person frame tool: sheets of the body holding the USSO and BOOG, every stage, faults flagged | | |
-| 27.8 | The USSO and BOOG held properly in third person: the gun in the right hand, the left on the handguard | | |
-| 27.9 | The third-person reload: the magazine out and in, the arms working it, seen by enemies and teammates | | |
-| 27.10 | The Loadouts tab's soldier holding the gun it shows, the same way | | |
+| 27.6 | The soldier bundle: what was bought, what is used, what is left | done (below) | |
+| 27.7 | The third-person frame tool: sheets of the body holding the USSO and BOOG, every stage, faults flagged | done | 323 |
+| 27.8 | The USSO and BOOG held properly in third person: the gun in the right hand, the left on the handguard | done | 323 |
+| 27.9 | The third-person reload: the magazine out and in, the arms working it, seen by enemies and teammates | done | 323 |
+| 27.10 | The Loadouts tab's soldier holding the gun it shows, the same way | done | 323 |
+| 27.11 | The hands' skin fully out of the guns: the USSO's 12 to 14 mm where the hands wrap its grip, BOOG's 27 to 28 mm | next | |
 
 The details of each item follow as it is started.
 
@@ -112,7 +113,7 @@ What is built:
   lost, restored with the last restore's word reaching the squad, out, left), failing with the old health rule; and
   `tools/squad-shots.ts`, pictures of all of it drawn for real from both screens.
 
-## 27.6 The soldier bundle (first look)
+## 27.6 The soldier bundle
 
 The bought soldier pack is one character: AC Game Assets' Sci-Fi Modular Soldier ($49.99). Its whole contents are one
 FBX (a 67-bone rig, 18 armour and body pieces, 51 face blend shapes), three material sets for the armour, body, head
@@ -122,3 +123,76 @@ colours are ours, laid on through the pack's masks. Left out of the game so far:
 import), two head textures (an extra-white skin and a subsurface map), and the pack's demo scene. The third-person moves
 are the free Quaternius clips retargeted onto it, and among them the only ones for holding a gun are pistol clips: that
 is why the soldier holds the USSO and BOOG badly, and why its reload is a pistol's.
+
+So the answer to "is that what we are limited to?" is yes, for this pack: one soldier, its armour pieces on and off
+(the four kits), its colours, its skin and eyes. There is no second skin to unlock and no animation to use. What is
+left unused is small: the face's blend shapes (expressions, useless at a game's distance) and two head textures. Doing
+more with the characters means either more of our own on this soldier (colour sets, decals, the kits' pieces in new
+combinations) or another purchase: a pack of rifle animations for this Unreal-style rig would let the body move as a
+rifleman does rather than as posed on top of pistol clips. The hold and the reload below are built so that they would
+still sit on top of such clips.
+
+## 27.7 The third-person frame tool
+
+`tools/figure-frames.ts`, the third-person twin of `tools/pack-frames.ts`: a lab soldier holding the USSO and BOOG,
+stepped by the tool (main.ts figureLabStep) so each frame lands on its moment exactly, photographed from the front, the
+right, the left and the back, far (the whole figure) and close (the upper body), at a 40 degree lens. Sequences: at
+rest, aimed in, looking from 40 down to 40 up, the reload and the swap a frame every 4% of the gun's own times, a jump,
+a run, a sprint, crouching still and walking, a slide. Also the Loadouts tab's soldier holding each gun from four
+sides. Each frame is measured by `tools/figure-audit.js`: each palm against its hold, the barrel against the look, the
+wrists, a hand's skin into the gun and the gun into the body (each skin point against the nearest surface, inside only
+when behind every face it lies on), and a caption on the tile says the numbers and, in red, what is past the bar.
+`XRAY=1` draws the soldier see-through with every point found inside marked. `tools/figure-solve.ts` searches the
+hold's numbers against the same measures (as `tools/pack-solve.ts` does the first-person arms).
+
+The bar: a palm within 3 cm of its grip and 4 cm of its support; the barrel within 6 degrees of the look; wrists 60
+degrees or less; no hand more than 6 mm into the gun; the gun no more than 15 mm into the body.
+
+**Before** (the figures as they were, 2026-09-28): every frame flagged. The USSO hung at the chest with its stock in
+front of the shoulder, the palm 6 cm off the grip, the left hand open under the barrel or hanging below it, hand skin
+up to 30 mm into the gun, the gun 40 mm into the body, the reload a pistol's with the left arm off the gun.
+
+## 27.8 The hold (done)
+
+The legacy figures' hold (`figure.json` hold, `hold.ts`) was measured on the Quaternius mannequin and hangs a long
+gun's grip 11.5 cm under and 22 cm in front of the shoulder joint by design; the soldier inherited it. SpeedKills'
+soldier now has its own (`src/game/rifle.ts`, `src/config/soldierhold.json`): the chest turned so the left shoulder
+leads, the butt in the right shoulder's pocket (measured off the model, in the chest's frame), the gun along the look
+exactly, each palm placed on its hold and the hand turned to it (a two-bone reach to the wrist, the forearm's twist
+bone taking half the roll), the fingers closed about their measured bend axes. What a hand is comes off the bones'
+places (wrist, knuckles, the line across them), not their axes, because the bought rig mirrors its right hand's.
+
+- **Aimed in** the gun comes up until its own sight line (the eye point the first-person view aims down) runs 7 cm in
+  front of the right eye (measured off the soldier's eye mesh) and 3.5 cm to its right, the head leant onto the stock:
+  lined up on the eye itself, the stock ended in the middle of the chest. At rest the butt is in its pocket and the gun
+  at the chest; the two blend by how far the figure aims in (the Loadouts tab's soldier aims in).
+- **The lowered carry** (a sprint, which SpeedKills always does, and a swap): the gun turned down, left and rolled about
+  the butt, held out from the body, the left hand taking it its own way.
+- **Full-body clips** (a slide, a climb, a zipline): the gun goes with the right hand (where it sits in the hand is
+  remembered while both hands hold it); it used to hang at the chest with no hand on it.
+- **A shot** kicks the muzzle up 5 degrees and back 2.5 cm, fading as the figure's kick does.
+- **The numbers were searched**, not typed (`tools/figure-solve.ts`, stages pocket, hands, right, left, lowered,
+  fingers): the pocket, each gun's palm places and turns, the elbows, the lowered carry. The guns' own marks were
+  photographed first (`gunmodels.ts` grip and support): the USSO's grip point is the top of its grip, where the web of
+  the hand goes, and BOOG's is on its receiver 11 cm ahead of its real pistol grip, so each gun's palm offsets are its own
+  (`soldierhold.json` guns).
+- **Where it stands** (the frame sheets): both palms on their holds and the barrel along the look in every hold frame;
+  the wrists 1 to 38 degrees at rest and aimed, 38 lowered; the gun 19 mm into the armour at the collarbone aimed in,
+  the stock resting on it. Still over the sheets' bar (27.11): hand skin 12 to 14 mm into the USSO where the fingers wrap
+  its grip, and 27 to 28 mm into BOOG round its thick grip and fore-end, invisible past a few metres but there close up.
+
+## 27.9 The reload (done)
+
+Procedural, keyed to the gun's own reload time, so an enemy's plays from the moment their "reload" arrives and nothing
+new goes over the network: the gun turned toward the left hand, the hand to the magazine, the magazine pulled out and
+let go (a copy falls to the floor and fades), a new one from the pouch at the left hip pushed home, then the USSO's
+charging handle racked by the left hand, BOOG's bolt worked by the right, and back to the hold.
+
+The steps are shares of the reload (`soldierhold.json` reload): the tilt in over 0 to 12%, the magazine out over 18 to
+28%, let go at 30%, the new one in the hand from 40% to 62%, the handle racked from 70% to 80%, back from 90%. The
+upper body stays in the aim clip through it (the pistol's reload clip twisted the chest).
+
+## 27.10 The Loadouts tab (done)
+
+The tab's soldier is the same figure aiming in, so it holds the gun the new way. Its rebuild key now includes whether
+the bought guns are in: a figure built before they loaded held the procedural stand-in until the loadout changed.

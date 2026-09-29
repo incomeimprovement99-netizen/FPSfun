@@ -6433,3 +6433,44 @@ or replace it with a paid asset muzzle flash from our fps animations pack, makin
   models and textures, and the city packs a neon flicker script.
 - **Checked:** the range section's tracer check also holds your own rounds at 0.3 or less, seen failing at 0.9; the
   range section; verify; rules.
+
+## Milestone 323 — The soldier holds the USSO and BOOG as a rifleman does, reloads them where others can see, and every frame of it is photographed and measured
+
+The owner, 2026-09-28: "If you just simpley go to the loadouts tab and then look at the character/soldier while they are
+weilding the usso, you can tell it is purely fucked up ... the main focus should be how the third person view model (how
+we see enemies as well) has the boog and the usso being held properly and their reloads are shown ... check out how we
+have the frame by frame tool for the first person FOV, we should be doing the third person / enemy view the same", and
+later "Have you taken all screenshots frame by frame when the enemy is reloading and changing weapons and jumping and
+stuff of that nature?" SpeedKills' soldier only. See PHASE_27_PLAN_THE_SQUAD_AND_THE_SOLDIER.md, 27.6 to 27.11.
+
+- **The frame tool** (`tools/figure-frames.ts`, `tools/figure-audit.js`): the third-person twin of pack-frames. A lab
+  soldier stepped by the tool (`main.ts` figureLabStep), so a reload's frames land at 0, 4, 8 ... 100% of it; at rest,
+  aimed, looking 40 down to 40 up, firing, the reload and the swap a frame every 4%, a jump, a run, a sprint, crouching, a
+  slide; from the front, the right, the left and the back, whole and close, at a 40 degree lens; and the Loadouts tab's
+  soldier holding each gun from four sides. Each frame measured: each palm against its place, the barrel against the
+  look, the wrists, a hand's skin into the gun and the gun into the body, the faults written on the tile; `XRAY=1` marks
+  where. Before: every frame at fault.
+- **The hold** (`src/game/rifle.ts`, `src/config/soldierhold.json`): the chest turned so the left shoulder leads, the butt
+  in the right shoulder's pocket (measured off the model, riding the chest), the gun along the look exactly, each palm
+  placed on its hold and the hand turned to it, the forearm's twist bone taking half the roll, the fingers closed about
+  their measured bend axes. What a hand is comes off the bones' places, since the bought rig mirrors its right hand.
+- **Aimed in**, the gun's own sight line comes up to the soldier's right eye (measured off its eye mesh) with the head
+  leant onto the stock; at rest the gun is at the chest. The Loadouts tab's soldier aims in.
+- **The reload**, on the gun's own reload time, so an enemy's plays from the moment it arrives and nothing new goes over
+  the network: the gun turned to the left hand, the magazine out and let go (a copy falls to the floor and is gone a
+  moment later), a new one from the pouch at the left hip pushed home, the USSO's handle racked, BOOG's bolt worked by
+  the right hand.
+- **The lowered carry** for a sprint (which SpeedKills always does) and a swap, the left hand its own way; **a slide or a
+  climb** keeps the gun in the right hand (it hung at the chest with no hand on it); **a shot** kicks the gun.
+- **The search** (`tools/figure-solve.ts`): the pocket, each gun's palm places and turns, the elbows and the lowered carry,
+  by coordinate descent against the audit, as pack-solve does the first-person arms; each gun's marks photographed first.
+- **The Loadouts tab** rebuilds its soldier once the bought guns are in (it kept the procedural stand-in).
+- **The bundle** (27.6): one soldier, its armour on and off (the kits), its colours, skin and eyes; no other skins and
+  no animations. The figures' clips are the free pistol library, which is why the hold is built on top of them.
+- **Where it stands:** both palms on their holds and the barrel along the look in every hold frame, the wrists 1 to 38
+  degrees. Hand skin is still 12 to 14 mm into the USSO where the fingers wrap its grip and 27 to 28 mm into BOOG round its
+  grip and fore-end (27.11, next).
+- **Checked:** `tools/checks/soldier-hold.ts` in verify (the arms, hands and pocket measured off the model against the
+  config; each hand's frame and every finger's bend on both sides of the mirrored rig; the right eye), seen failing with
+  the mirrored palm put back; the e2e `skfigure` section (both guns held in four poses, the reload's magazine out, let
+  fall, cleared and home, the Loadouts tab's soldier); the soldier section; verify; rules.

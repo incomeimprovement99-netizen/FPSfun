@@ -61,6 +61,7 @@ import finCfg from "./config/finisher.json";
 import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
 import { LIFE_WIRE, SquadWatch, type MateNow } from "./game/squadview";
+import { rifleConfig, tuneRifle } from "./game/rifle";
 import { buildCityMap, cityDecay, cityEdge, SECTORS, ROOF_ROUTES, SPIRE_TOP, CITY_GROUND } from "./game/city";
 import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
 import { EDGE_ID } from "./game/causes";
@@ -1903,8 +1904,10 @@ function previewLoadout(now: number, dt: number): void {
   const def = loadouts.current;
   // the weapon in hand too: it is a loadout, not just an outfit
   // useMannequin() is in the key so the figure is built again once the
-  // mannequin has finished loading, rather than staying the robot
-  const key = `${def.operator}|${lookCode(def)}|${def.slot1}|${useMannequin()}|${soldierReady()}`;
+  // mannequin has finished loading, rather than staying the robot; and the
+  // bought guns' readiness, or a figure built before they came in held the
+  // procedural stand-in until the loadout changed (Phase 27)
+  const key = `${def.operator}|${lookCode(def)}|${def.slot1}|${useMannequin()}|${soldierReady()}|${IS_SK && paidGunsReady()}`;
   document.body.classList.toggle("soldierOn", IS_SK && soldierReady());
   if (key !== previewKey) {
     previewKey = key;
@@ -6243,6 +6246,13 @@ const eye = new THREE.Vector3();
 let selfFig: Dummy | null = null;
 /** the figure lab (tools/snap.ts): posed figures in a row in front of you, to judge the animation */
 const labFigs: Array<{ f: Dummy; pose: FigurePose; dead: boolean; at: number }> = [];
+/**
+ * The lab figures stepped by a tool rather than by the frame (tools/figure-frames.ts): a reload photographed a frame
+ * every 4% has to land on those moments exactly, and a page's own frames come when they come.
+ */
+let labManual: { now: number } | null = null;
+/** a field of view a tool photographs at, vertical degrees, in place of yours (tools/figure-frames.ts); null is yours */
+let shotFov: number | null = null;
 let selfFigKey = "";
 /** what your hands are doing, for your figure on the others' screens and in third person */
 function localAct(): number {
@@ -7213,7 +7223,7 @@ function step(): void {
   joltFov += ((player.jolting ? JOLT.feel.fov / hipV : 0) - joltFov) * Math.min(1, dt / (player.jolting ? JOLT.feel.rollIn : JOLT.feel.rollOut));
   // and a paint boost opens it a touch too, the same way the slide does
   const speedFov = (player.slideFov + joltFov + boostFeel * playerCfg.feel.boostFov * SPRINT_SHAKE[sprintShakeMode]) * (1 - ws.adsFrac);
-  camera.fov = (hipV + (adsV - hipV) * ws.adsFrac) * (1 + speedFov);
+  camera.fov = shotFov ?? (hipV + (adsV - hipV) * ws.adsFrac) * (1 + speedFov);
   camera.updateProjectionMatrix();
   // the gun's FOV: the same blend at viewmodel.json's scale, not yours, and no slide or JOLT in it
   vmCamera.fov = gunFov(hipH, adsH, ws.adsFrac, settings.fovScale, vmCfg.fovScale);
@@ -7600,12 +7610,13 @@ function step(): void {
   viewModel.group.visible = !snapNoGun && (killcam.active || (!third && !knockedOut && !player.dropping && !player.aboard));
   if (killcam.active && killcam.firedThisFrame) viewModel.onShot();
   selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, lookCode(loadouts.current), third && !killcam.active, knockedOut, downedNow);
-  for (const lf of labFigs) {
-    lf.f.setPose(lf.pose);
-    // a knocked-out one stands a moment first (it drops the gun it held)
-    if (lf.dead && now - lf.at > 0.6) lf.f.fallDown();
-    lf.f.update(now, dt);
-  }
+  if (!labManual)
+    for (const lf of labFigs) {
+      lf.f.setPose(lf.pose);
+      // a knocked-out one stands a moment first (it drops the gun it held)
+      if (lf.dead && now - lf.at > 0.6) lf.f.fallDown();
+      lf.f.update(now, dt);
+    }
 
   // Search: interact held is a plant on a site, or a defuse beside the bomb
   if (duel instanceof ArenaMode) duel.holding = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("interact") : input.held("interact"));
@@ -8464,6 +8475,42 @@ initWelcome();
   },
   /** the figures figureLab put up, for tools that measure them (tools/soldier-hits.ts) */
   labFigures: () => labFigs.map((l) => l.f),
+  /** a gun's times as the game plays them (fusion 0): its reload, empty and not, and its swap's two halves */
+  weaponTimes: (id: string) => {
+    const w = resolveWeapon(id, 0);
+    return { reload: w.reloadTime, reloadEmpty: w.reloadEmptyTime, deploy: w.deployTime, holster: w.holsterTime };
+  },
+  /** the soldier's rifle hold's numbers changed live, and read back (rifle.ts; tools/figure-solve.ts) */
+  rifleTune: (patch: Record<string, unknown>) => tuneRifle(patch),
+  rifleConfig: () => rifleConfig(),
+  /** the camera's vertical field of view held at `deg` for a tool's pictures, or given back (null) */
+  shotFov: (deg: number | null) => {
+    shotFov = deg;
+  },
+  /** the lab figures stepped by the caller from now on (true), or by the frame again (false) */
+  figureLabManual: (on: boolean) => {
+    labManual = on ? { now: gameTime } : null;
+  },
+  /** a lab figure's pose from now on (its gun too, when the pose names another) */
+  figureLabPose: (i: number, p: FigurePose & { weapon?: string }) => {
+    const lf = labFigs[i];
+    if (!lf) return;
+    lf.pose = p;
+    if (p.weapon && p.weapon !== lf.f.armedId) lf.f.setGun(p.weapon);
+  },
+  /** every lab figure `dt` seconds on, in steps no longer than a 60 Hz frame (the clips blend as they do in play) */
+  figureLabStep: (dt: number) => {
+    if (!labManual) return;
+    for (let left = dt; left > 1e-6; left -= 1 / 60) {
+      const step = Math.min(1 / 60, left);
+      labManual.now += step;
+      for (const lf of labFigs) {
+        lf.f.setPose(lf.pose);
+        lf.f.update(labManual.now, step);
+      }
+    }
+    scene.updateMatrixWorld(true);
+  },
   loadMannequin,
   /** a figure clip is in: the extras (a slide's way in and out, a throw, emotes) load after the figures (tools/e2e.ts) */
   hasClip,

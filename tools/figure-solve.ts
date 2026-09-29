@@ -1,0 +1,201 @@
+// Searching the soldier's rifle hold (Phase 27, 27.8; src/game/rifle.ts, src/config/soldierhold.json), as
+// tools/pack-solve.ts searches the first-person arms: one lab soldier holding the gun in four poses (at rest, aimed
+// in, looking 35 degrees up and 35 down), measured each try by tools/figure-audit.js, the numbers moved one at a time
+// by coordinate descent, each step halved once no move of any number helps.
+//
+// What a try costs: the gun into the body, mm, and a hand into the gun, mm, both as the frame sheets flag them; a
+// wrist bent past 45 degrees; a palm off its hold; an arm that falls short of its hold (heavily: a hand at nothing is
+// the floating hand).
+//
+// Stages: pocket (where the butt sits, and the chest's turn), hands (each palm's place and turn on its hold, and the
+// elbows). Run: SHOT_URL=http://localhost:5198/ npx tsx tools/figure-solve.ts <gun id> <stage>
+// WRITE=1 writes what it found into soldierhold.json as that gun's own numbers (guns.<id>).
+import fs from "node:fs";
+import path from "node:path";
+import puppeteer, { type Page } from "puppeteer";
+
+const URL = process.env.SHOT_URL ?? "http://localhost:5198/";
+const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
+const ID = process.argv[2] ?? "r97";
+const STAGE = process.argv[3] ?? "pocket";
+const MAX = Number(process.env.EVALS ?? 160);
+const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
+const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
+
+/** a number the search moves: where it lives in the config, its range, its first step and its smallest */
+type Param = { path: (string | number)[]; lo: number; hi: number; step: number; min: number };
+const STAGES: Record<string, Param[]> = {
+  pocket: [
+    { path: ["pocket", "ahead"], lo: 0.04, hi: 0.26, step: 0.02, min: 0.004 },
+    { path: ["pocket", "in"], lo: -0.06, hi: 0.1, step: 0.02, min: 0.004 },
+    { path: ["pocket", "down"], lo: -0.04, hi: 0.12, step: 0.02, min: 0.004 },
+    { path: ["blade"], lo: 0, hi: 50, step: 6, min: 1 },
+  ],
+  hands: [
+    ...[0, 1, 2].map((i) => ({ path: ["hands", "r", "at", i], lo: -0.06, hi: 0.06, step: 0.008, min: 0.001 })),
+    ...[0, 1, 2].map((i) => ({ path: ["hands", "r", "fwd", i], lo: -1.5, hi: 1.5, step: 0.2, min: 0.02 })),
+    ...[0, 1, 2].map((i) => ({ path: ["hands", "r", "palm", i], lo: -1.5, hi: 1.5, step: 0.2, min: 0.02 })),
+    ...[0, 1, 2].map((i) => ({ path: ["hands", "l", "at", i], lo: -0.06, hi: 0.06, step: 0.008, min: 0.001 })),
+    ...[0, 1, 2].map((i) => ({ path: ["hands", "l", "fwd", i], lo: -1.5, hi: 1.5, step: 0.2, min: 0.02 })),
+    ...[0, 1, 2].map((i) => ({ path: ["hands", "l", "palm", i], lo: -1.5, hi: 1.5, step: 0.2, min: 0.02 })),
+    ...[0, 1, 2].map((i) => ({ path: ["elbows", "r", i], lo: -1.5, hi: 1.5, step: 0.25, min: 0.03 })),
+    ...[0, 1, 2].map((i) => ({ path: ["elbows", "l", i], lo: -1.5, hi: 1.5, step: 0.25, min: 0.03 })),
+  ],
+  right: [
+    ...[0, 1, 2].map((i) => ({ path: ["hands", "r", "at", i], lo: -0.08, hi: 0.08, step: 0.006, min: 0.001 })),
+    ...[0, 1, 2].map((i) => ({ path: ["hands", "r", "fwd", i], lo: -1.5, hi: 1.5, step: 0.12, min: 0.02 })),
+    ...[0, 1, 2].map((i) => ({ path: ["hands", "r", "palm", i], lo: -1.5, hi: 1.5, step: 0.12, min: 0.02 })),
+    ...[0, 1, 2].map((i) => ({ path: ["elbows", "r", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.03 })),
+  ],
+  left: [
+    ...[0, 1, 2].map((i) => ({ path: ["hands", "l", "at", i], lo: -0.08, hi: 0.08, step: 0.006, min: 0.001 })),
+    ...[0, 1, 2].map((i) => ({ path: ["hands", "l", "fwd", i], lo: -1.5, hi: 1.5, step: 0.12, min: 0.02 })),
+    ...[0, 1, 2].map((i) => ({ path: ["hands", "l", "palm", i], lo: -1.5, hi: 1.5, step: 0.12, min: 0.02 })),
+    ...[0, 1, 2].map((i) => ({ path: ["elbows", "l", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.03 })),
+  ],
+  lowered: [
+    ...["down", "left", "roll"].map((k) => ({ path: ["lowered", k], lo: -60, hi: 70, step: 6, min: 1 })),
+    ...[0, 1, 2].map((i) => ({ path: ["lowered", "out", i], lo: -0.1, hi: 0.2, step: 0.02, min: 0.003 })),
+    ...[0, 1, 2].map((i) => ({ path: ["lowered", "l", "at", i], lo: -0.1, hi: 0.1, step: 0.01, min: 0.002 })),
+    ...[0, 1, 2].map((i) => ({ path: ["lowered", "l", "fwd", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.02 })),
+    ...[0, 1, 2].map((i) => ({ path: ["lowered", "l", "palm", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.02 })),
+  ],
+  fingers: ["r", "l"].flatMap((side) => ["index", "middle", "ring", "pinky", "thumb"].flatMap((f) => [0, 1, 2].map((j) => ({ path: ["fingers", side, f, j], lo: -10, hi: 100, step: 12, min: 1.5 })))),
+};
+/** the poses a try is measured in: the hold's four, or for the lowered carry a sprint and a swap (settled into) */
+const POSES =
+  STAGE === "lowered"
+    ? [
+        { speed: 14, stance: "stand", pitch: 0 },
+        { speed: 0, stance: "stand", pitch: 0, act: "swap" },
+      ]
+    : [
+        { speed: 0, stance: "stand", pitch: 0 },
+        { speed: 0, stance: "stand", pitch: 0, ads: 1 },
+        { speed: 0, stance: "stand", pitch: 35, ads: 1 },
+        { speed: 0, stance: "stand", pitch: -35, ads: 1 },
+      ];
+
+type Audit = { grip?: number; support?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number; fingerGap?: Record<string, number> };
+/** the fingers that hold the gun, each of which should touch it: a hand held open beside it is not holding it */
+const HOLDING = ["middle_r", "ring_r", "pinky_r", "thumb_r", "index_l", "middle_l", "ring_l", "pinky_l"];
+type Out = { shortL: number; shortR: number } | null;
+
+function cost(a: Audit | null, o: Out): number {
+  if (!a) return 1e6;
+  return (
+    (a.gunIn ?? 0) +
+    Math.max(a.handIn?.l ?? 0, a.handIn?.r ?? 0) +
+    3 * Math.max(0, a.wristR - 45) +
+    3 * Math.max(0, a.wristL - 45) +
+    20 * Math.max(0, (a.grip ?? 0) - 1.5) +
+    20 * Math.max(0, (a.support ?? 0) - 2) +
+    3000 * ((o?.shortL ?? 0) + (o?.shortR ?? 0)) +
+    (STAGE === "pocket" ? 0 : HOLDING.reduce((sum, f) => sum + 2 * Math.max(0, (a.fingerGap?.[f] ?? 30) - 4), 0))
+  );
+}
+
+const get = (o: Record<string, unknown>, p: (string | number)[]): number => p.reduce<unknown>((x, k) => (x as Record<string | number, unknown>)[k], o) as number;
+const set = (o: Record<string, unknown>, p: (string | number)[], v: number): void => {
+  let x = o as Record<string | number, unknown>;
+  for (const k of p.slice(0, -1)) x = x[k] as Record<string | number, unknown>;
+  x[p[p.length - 1]] = v;
+};
+
+async function main(): Promise<void> {
+  const params = STAGES[STAGE];
+  if (!params) throw new Error(`no stage ${STAGE}: ${Object.keys(STAGES).join(", ")}`);
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist", "--mute-audio", "--no-sandbox"] });
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 800, height: 500, deviceScaleFactor: 1 });
+    await page.evaluateOnNewDocument(NO_REAL_MOUSE);
+    await page.evaluateOnNewDocument(() => localStorage.setItem("range.welcomed", "1"));
+    page.on("pageerror", (e) => console.log("pageerror:", String(e)));
+    await page.goto(`${URL}${URL.includes("?") ? "&" : "?"}game=speedkills&nointro&norender`, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await page.waitForFunction("Boolean(window.__range) && window.__range.loaded()", { timeout: 90000 });
+    await page.waitForFunction("window.__range.soldierReady()", { polling: 250, timeout: 60000 });
+    await page.waitForFunction("window.__range.paidGuns().ready", { polling: 250, timeout: 60000 }).catch(() => console.log("the bought guns did not load"));
+    await page.addScriptTag({ path: path.resolve("tools/figure-audit.js") });
+    await ev(page, `(() => { const r = window.__range; document.getElementById("overlay").classList.add("hidden"); r.player.teleport(0, 0, 0, 0, -9); r.figureLab([${JSON.stringify({ ...POSES[0], weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabStep(0.8); })()`);
+    const cfg = await ev<Record<string, unknown>>(page, "window.__range.rifleConfig()");
+    // what this gun's numbers are now: its own over the shared
+    const own = ((cfg.guns as Record<string, Record<string, unknown>>)[ID] ?? {}) as Record<string, unknown>;
+    const cur = JSON.parse(JSON.stringify(cfg)) as Record<string, unknown>;
+    delete cur.guns;
+    const mergeInto = (to: Record<string, unknown>, from: Record<string, unknown>) => {
+      for (const [k, v] of Object.entries(from)) {
+        if (v && typeof v === "object" && !Array.isArray(v) && to[k] && typeof to[k] === "object") mergeInto(to[k] as Record<string, unknown>, v as Record<string, unknown>);
+        else to[k] = JSON.parse(JSON.stringify(v));
+      }
+    };
+    mergeInto(cur, own);
+    // the patch this stage owns: its numbers' own sub-objects, whole, so a write keeps what it did not move
+    const tops = [...new Set(params.map((p) => p.path[0] as string))];
+    const patchOf = (c: Record<string, unknown>) => Object.fromEntries(tops.map((k) => [k, c[k]]));
+    let evals = 0;
+    const measure = async (c: Record<string, unknown>): Promise<{ cost: number; worst: Audit | null; per: number[] }> => {
+      evals++;
+      await ev(page, `window.__range.rifleTune({ guns: { ${JSON.stringify(ID)}: ${JSON.stringify(patchOf(c))} } })`);
+      let total = 0;
+      let worst: Audit | null = null;
+      let worstCost = -1;
+      const per: number[] = [];
+      for (const p of POSES) {
+        const got = await ev<{ a: Audit | null; o: Out }>(page, `(() => { const r = window.__range; r.figureLabPose(0, ${JSON.stringify(p)}); r.figureLabStep(${STAGE === "lowered" ? 0.6 : 0.1}); return { a: window.__figureAudit(0, { pitch: ${p.pitch} }), o: r.labFigures()[0].figure.rifleOut }; })()`);
+        const c1 = cost(got.a, got.o);
+        per.push(Math.round(c1));
+        total += c1;
+        if (c1 > worstCost) {
+          worstCost = c1;
+          worst = got.a;
+        }
+      }
+      return { cost: total, worst, per };
+    };
+    let best = await measure(cur);
+    console.log(`${ID} ${STAGE}: start ${best.cost.toFixed(1)} per pose ${best.per.join("/")} ${JSON.stringify(best.worst)}`);
+    const steps = params.map((p) => p.step);
+    while (evals < MAX) {
+      let moved = false;
+      for (let i = 0; i < params.length && evals < MAX; i++) {
+        const p = params[i];
+        if (steps[i] < p.min) continue;
+        const v0 = get(cur, p.path);
+        for (const dir of [1, -1]) {
+          const v = Math.max(p.lo, Math.min(p.hi, v0 + dir * steps[i]));
+          if (Math.abs(v - v0) < 1e-9) continue;
+          set(cur, p.path, v);
+          const m = await measure(cur);
+          if (m.cost < best.cost - 1e-6) {
+            best = m;
+            moved = true;
+            console.log(`  ${evals} ${p.path.join(".")} ${v0.toFixed(4)} -> ${v.toFixed(4)}: ${m.cost.toFixed(1)} per pose ${m.per.join("/")}`);
+            break;
+          }
+          set(cur, p.path, v0);
+        }
+      }
+      if (!moved) {
+        for (let i = 0; i < steps.length; i++) steps[i] /= 2;
+        if (steps.every((s, i) => s < params[i].min)) break;
+      }
+    }
+    // the found numbers applied, and measured once more as they stand
+    const fin = await measure(cur);
+    console.log(`${ID} ${STAGE}: end ${fin.cost.toFixed(1)} per pose ${fin.per.join("/")} after ${evals} tries ${JSON.stringify(fin.worst)}`);
+    const found = patchOf(cur);
+    console.log(JSON.stringify(found));
+    if (process.env.WRITE === "1") {
+      const file = path.resolve("src/config/soldierhold.json");
+      const j = JSON.parse(fs.readFileSync(file, "utf8"));
+      j.guns[ID] = { ...(j.guns[ID] ?? {}), ...found };
+      fs.writeFileSync(file, `${JSON.stringify(j, null, 2)}\n`);
+      console.log(`written to soldierhold.json guns.${ID}`);
+    }
+  } finally {
+    await browser.close();
+  }
+}
+
+void main();

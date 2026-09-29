@@ -885,6 +885,16 @@ export class Dummy {
     this.pose = this.finishing ? { ...p, act: "finished" } : p;
   }
 
+  /** the gun it holds, by id (null unarmed) */
+  get armedId(): string | null {
+    return this.armedWith;
+  }
+
+  /** its soldier or mannequin, for the tools that measure a figure (tools/figure-frames.ts); null on a merged figure */
+  get figure(): MannequinFigure | null {
+    return this.mq;
+  }
+
   /** an emote playing (emotes.ts): which, and how far in */
   private emoteIndex: number | null = null;
   private emoteT = 0;

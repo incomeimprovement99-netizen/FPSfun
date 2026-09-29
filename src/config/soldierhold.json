@@ -1,0 +1,607 @@
+{
+  "_note": "How SpeedKills' soldier holds a long gun as other players see it (Phase 27, 27.8; src/game/rifle.ts). The free clips the figures play are a pistol library, and the gun used to hang off the chest with the arms swung at it (figure.json hold, measured on the legacy mannequin): the owner saw the USSO held low, its stock out in front of the shoulder, the left hand open under the barrel. The soldier now stands as a rifleman does: the chest turned so the left shoulder leads, the butt in the right shoulder's pocket, the gun along the look, each hand placed on its hold palm first and turned to it, the fingers closed round it. Lengths in metres, angles in degrees. Measured values are off the bought soldier at its game scale (tools/checks/soldier-hold.ts measures them and fails when these part from the model).",
+  "_measured": "Off the model in its rest pose, at soldier.json's scale: the upper arm (shoulder to elbow joint) 0.260 m, the forearm (elbow to wrist) 0.268 m, the hand from the wrist to the middle finger's knuckle 0.123 m, the middle finger 0.097 m; the shoulders 0.490 m apart; the front of the body 0.092 to 0.121 m in front of the right shoulder joint, from level with it to 8 cm under it.",
+  "measured": {
+    "upperArm": 0.26,
+    "foreArm": 0.268,
+    "hand": 0.123,
+    "finger": 0.097,
+    "pocketAhead": 0.092
+  },
+  "_blade": "The chest's turn to its right, so the left shoulder leads and the support hand reaches the handguard (square on, the left hand is 0.67 m from the USSO's handguard and the arm reaches 0.59): split between spine_02 and spine_03, the neck and head turned back by it so the figure still looks where it aims.",
+  "blade": 32,
+  "_pocket": "Where the butt sits, from the right shoulder joint in the chest's frame at rest: `in` toward the middle of the chest, `down` under the joint, `ahead` in front of it, which is the body's front there (measured, 0.092) and the armour's thickness past it. `adsUp` lifts the butt this much into the shoulder as the figure aims in, and the head leans onto the stock by `adsHead` (down, toward the gun).",
+  "pocket": {
+    "in": 0.045,
+    "down": 0.05,
+    "ahead": 0.1,
+    "adsUp": 0,
+    "adsHead": {
+      "down": 8,
+      "toward": 12
+    }
+  },
+  "_hands": "Where each palm goes on the gun and how the hand is turned there, in the gun's own frame (+x its right side, +y up, -z forward). `at` is the palm's middle from the hold point the gun names (its grip, its support); `fwd` the way the hand runs from the wrist to the knuckles; `palm` the way the palm faces. The right hand on the pistol grip: the palm on the grip's right side, the hand running forward along it, the knuckles at its front. The left under the handguard: the palm up, the hand running across it to the gun's right, the fingers up its right side.",
+  "hands": {
+    "r": {
+      "at": [
+        0.024,
+        -0.012,
+        0.012
+      ],
+      "fwd": [
+        0,
+        -0.35,
+        -1
+      ],
+      "palm": [
+        -1,
+        0,
+        0
+      ]
+    },
+    "l": {
+      "at": [
+        -0.012,
+        -0.03,
+        0
+      ],
+      "fwd": [
+        1,
+        0.15,
+        -0.35
+      ],
+      "palm": [
+        0,
+        1,
+        0
+      ]
+    }
+  },
+  "_elbows": "Which way each elbow points, in the figure's frame (+x its left, +y up, +z its front): the right out to the side and down, the left down and a little in, as a rifleman's are.",
+  "elbows": {
+    "r": [
+      -0.85,
+      -0.7,
+      -0.1
+    ],
+    "l": [
+      0.15,
+      -1,
+      0.05
+    ]
+  },
+  "_twist": "The share of a hand's roll about the forearm the forearm's twist bone takes, so the wrist's skin does not wring round like a sweet wrapper when the hand turns onto the gun.",
+  "twist": 0.5,
+  "_fingers": "Each finger's joints closed toward the palm, degrees, knuckle outward: the right hand wrapped round the grip with its index finger along the trigger guard, the thumb over the fingers; the left round the handguard.",
+  "fingers": {
+    "r": {
+      "index": [
+        22,
+        30,
+        14
+      ],
+      "middle": [
+        72,
+        78,
+        38
+      ],
+      "ring": [
+        74,
+        80,
+        40
+      ],
+      "pinky": [
+        72,
+        80,
+        40
+      ],
+      "thumb": [
+        12,
+        30,
+        26
+      ]
+    },
+    "l": {
+      "index": [
+        44,
+        50,
+        28
+      ],
+      "middle": [
+        50,
+        55,
+        32
+      ],
+      "ring": [
+        52,
+        58,
+        34
+      ],
+      "pinky": [
+        52,
+        60,
+        36
+      ],
+      "thumb": [
+        6,
+        18,
+        14
+      ]
+    }
+  },
+  "_lowered": "The gun lowered across the body for a sprint or a swap (SpeedKills always sprints, so this is how an enemy is mostly seen): turned down, toward the figure's left and rolled about its own length, about the butt, held `out` (the figure's frame: +x its left, +z its front) from the body so its receiver clears the belly, the left hand taking it its own way (`l`, as in hands), blended in as it drops.",
+  "lowered": {
+    "down": 26,
+    "left": 17,
+    "roll": -14,
+    "out": [
+      0.02,
+      -0.02,
+      0.1
+    ],
+    "l": {
+      "at": [
+        -0.002,
+        -0.014,
+        -0.018
+      ],
+      "fwd": [
+        1,
+        0.35,
+        -0.75
+      ],
+      "palm": [
+        -0.15,
+        1.2,
+        -0.2
+      ]
+    }
+  },
+  "_recoil": "A shot's kick on the held gun, at its start (it fades as the figure's kick does, a tenth of a second): the muzzle up, degrees, and the gun driven back into the shoulder, metres. Enough to read as a shot at 30 m, not to aim it away.",
+  "recoil": {
+    "up": 5,
+    "back": 0.025
+  },
+  "_reload": "The reload as other players see it (Phase 27, 27.9; rifle.ts reloadTarget), a share of the gun's own reload time (weapons.ts reloadTime) at each step, so an enemy's plays from the moment their \"reload\" arrives and nothing new goes over the network. The gun turns its magazine toward the left hand (`tilt`, in over `tiltIn`, back over `tiltOut`); the left hand goes from the handguard to the magazine, pulls it `out` metres down over `pull` and lets it go at `dropAt` (a copy falls to the floor and fades), fetches a new one from the pouch at the left hip (in the hand over `inHand`, its bottom `magInPalm` over the palm), pushes it home, racks the charging handle and goes back. `left` and `right` are each hand's keys, [share, key]; a hand without keys at that share holds as it always does. `keys` are palm places and turns: off the magazine's bottom (`mag`), the charging handle or bolt (`handle`), or the hips (`hips`, in the figure's frame: +x its left, +z its front), with `fwd` and `palm` as in `hands`. A bolt gun works its bolt with the right hand (guns.sentinel).",
+  "reload": {
+    "magazine": true,
+    "tilt": {
+      "roll": 28,
+      "down": 10
+    },
+    "tiltIn": [
+      0.0,
+      0.12
+    ],
+    "tiltOut": [
+      0.82,
+      0.96
+    ],
+    "out": 0.13,
+    "pull": [
+      0.18,
+      0.28
+    ],
+    "dropAt": 0.3,
+    "inHand": [
+      0.4,
+      0.62
+    ],
+    "magInPalm": 0.02,
+    "keys": {
+      "mag": {
+        "from": "mag",
+        "at": [
+          0,
+          -0.02,
+          0
+        ],
+        "fwd": [
+          1,
+          0,
+          -0.3
+        ],
+        "palm": [
+          0,
+          1,
+          0.2
+        ]
+      },
+      "magOut": {
+        "from": "mag",
+        "at": [
+          0,
+          -0.15,
+          0
+        ],
+        "fwd": [
+          1,
+          0,
+          -0.3
+        ],
+        "palm": [
+          0,
+          1,
+          0.2
+        ]
+      },
+      "magUnder": {
+        "from": "mag",
+        "at": [
+          0,
+          -0.17,
+          0
+        ],
+        "fwd": [
+          1,
+          0,
+          -0.3
+        ],
+        "palm": [
+          0,
+          1,
+          0.2
+        ]
+      },
+      "pouch": {
+        "from": "hips",
+        "at": [
+          0.16,
+          -0.02,
+          0.14
+        ],
+        "fwd": [
+          0,
+          -1,
+          0.35
+        ],
+        "palm": [
+          -1,
+          0,
+          0
+        ]
+      },
+      "handle": {
+        "from": "handle",
+        "at": [
+          0,
+          0.025,
+          0
+        ],
+        "fwd": [
+          1,
+          0,
+          0
+        ],
+        "palm": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "handleBack": {
+        "from": "handle",
+        "at": [
+          0,
+          0.025,
+          0.06
+        ],
+        "fwd": [
+          1,
+          0,
+          0
+        ],
+        "palm": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "bolt": {
+        "from": "handle",
+        "at": [
+          0.03,
+          0.005,
+          0
+        ],
+        "fwd": [
+          0,
+          -0.3,
+          -1
+        ],
+        "palm": [
+          -1,
+          0,
+          0
+        ]
+      },
+      "boltUp": {
+        "from": "handle",
+        "at": [
+          0.03,
+          0.03,
+          0
+        ],
+        "fwd": [
+          0,
+          -0.3,
+          -1
+        ],
+        "palm": [
+          -1,
+          0,
+          0
+        ]
+      },
+      "boltBack": {
+        "from": "handle",
+        "at": [
+          0.03,
+          0.03,
+          0.08
+        ],
+        "fwd": [
+          0,
+          -0.3,
+          -1
+        ],
+        "palm": [
+          -1,
+          0,
+          0
+        ]
+      }
+    },
+    "left": [
+      [
+        0,
+        "hold"
+      ],
+      [
+        0.12,
+        "mag"
+      ],
+      [
+        0.18,
+        "mag"
+      ],
+      [
+        0.28,
+        "magOut"
+      ],
+      [
+        0.36,
+        "pouch"
+      ],
+      [
+        0.44,
+        "pouch"
+      ],
+      [
+        0.54,
+        "magUnder"
+      ],
+      [
+        0.62,
+        "mag"
+      ],
+      [
+        0.7,
+        "handle"
+      ],
+      [
+        0.76,
+        "handleBack"
+      ],
+      [
+        0.8,
+        "handleBack"
+      ],
+      [
+        0.9,
+        "hold"
+      ]
+    ],
+    "right": []
+  },
+  "_aim": "Aimed in, the gun comes up so its own sight line (gunmodels.ts sightY and rearF, the eye point the first-person view aims down) runs through the soldier's right eye (measured off its eye meshes, rifle.ts rightEye): the rear sight `relief` in front of the eye and the line `cheek` under its middle, the head leant onto the stock first (pocket.adsHead). At rest the butt is in its pocket; the two are blended by how far the figure aims in. `side` sets the sight line that far to the figure's right of the eye, the head leant over to it (pocket.adsHead toward): lined up on the eye itself, the stock ended in the middle of the chest, where a shooter's never is.",
+  "aim": {
+    "relief": 0.07,
+    "cheek": 0.01,
+    "side": 0.035
+  },
+  "_guns": "A gun's own numbers over the ones above, where its shape needs them (a longer stock, a handguard further out), found by tools/figure-solve.ts against the frame sheets.",
+  "guns": {
+    "sentinel": {
+      "reload": {
+        "left": [
+          [
+            0,
+            "hold"
+          ],
+          [
+            0.12,
+            "mag"
+          ],
+          [
+            0.18,
+            "mag"
+          ],
+          [
+            0.28,
+            "magOut"
+          ],
+          [
+            0.36,
+            "pouch"
+          ],
+          [
+            0.44,
+            "pouch"
+          ],
+          [
+            0.54,
+            "magUnder"
+          ],
+          [
+            0.62,
+            "mag"
+          ],
+          [
+            0.7,
+            "hold"
+          ]
+        ],
+        "right": [
+          [
+            0.62,
+            "grip"
+          ],
+          [
+            0.68,
+            "bolt"
+          ],
+          [
+            0.72,
+            "boltUp"
+          ],
+          [
+            0.78,
+            "boltBack"
+          ],
+          [
+            0.84,
+            "boltUp"
+          ],
+          [
+            0.88,
+            "bolt"
+          ],
+          [
+            0.95,
+            "grip"
+          ]
+        ]
+      },
+      "pocket": {
+        "in": 0.005,
+        "down": 0.12,
+        "ahead": 0.18,
+        "adsUp": 0,
+        "adsHead": {
+          "down": 8,
+          "toward": 12
+        }
+      },
+      "hands": {
+        "r": {
+          "at": [
+            0.03,
+            -0.052,
+            0.115
+          ],
+          "fwd": [
+            0.2,
+            0.62,
+            -1.28
+          ],
+          "palm": [
+            -1,
+            0.4,
+            0
+          ]
+        },
+        "l": {
+          "at": [
+            -0.004,
+            -0.022,
+            0
+          ],
+          "fwd": [
+            0.8,
+            0.35,
+            -0.75
+          ],
+          "palm": [
+            0,
+            1.2,
+            -0.2
+          ]
+        }
+      },
+      "elbows": {
+        "r": [
+          -0.6,
+          -0.55,
+          -0.35
+        ],
+        "l": [
+          0.15,
+          -0.75,
+          0.05
+        ]
+      }
+    },
+    "r97": {
+      "pocket": {
+        "in": 0.005,
+        "down": 0.12,
+        "ahead": 0.18,
+        "adsUp": 0,
+        "adsHead": {
+          "down": 8,
+          "toward": 12
+        }
+      },
+      "hands": {
+        "r": {
+          "at": [
+            0.034,
+            -0.042,
+            0.024
+          ],
+          "fwd": [
+            -0.32,
+            0.22,
+            -0.92
+          ],
+          "palm": [
+            -1.12,
+            -0.12,
+            -0.2
+          ]
+        },
+        "l": {
+          "at": [
+            -0.012,
+            -0.014,
+            -0.008
+          ],
+          "fwd": [
+            1,
+            0.35,
+            -0.75
+          ],
+          "palm": [
+            0,
+            1.2,
+            -0.2
+          ]
+        }
+      },
+      "elbows": {
+        "r": [
+          -0.35,
+          -0.55,
+          -0.1
+        ],
+        "l": [
+          0.15,
+          -0.75,
+          0.05
+        ]
+      }
+    }
+  }
+}

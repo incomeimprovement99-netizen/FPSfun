@@ -231,6 +231,13 @@ Game) or `?game=legacy`, and everything below this section describes it.
   - After that you are a ghost: fast, unseen, no gun.
   - A squad mate restores you at your echo in 5 s, three times slower if you
     wander more than 12 m away. Two restores a match.
+- **The soldier as others see it:** holding the USSO or BOOG the way a rifleman
+  does, the stock in the right shoulder, the right hand on the grip and the left
+  under the front, the gun pointing where they look; aiming, it comes up to their
+  eye; sprinting, it is carried low across the body; sliding or climbing, it stays
+  in their right hand. A reload shows: the old magazine drops to the floor and a
+  new one comes from a pouch at the hip, then the handle is racked or the bolt
+  worked, in the gun's own reload time. The Loadouts tab shows the same soldier.
 - **Your squad, always in sight:** each of you has a colour and a number, the
   same on every screen (1 blue, 2 green, 3 orange, 4 white). Your teammates'
   rows sit over your own health, bordered in their colour: name, shield and
@@ -1127,6 +1134,8 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run live` | opens the deployed site in two browser pages and plays a 1v1 over the real broker (`LIVE_URL`, and `BROKER=own` on our server). Must print LIVE CHECK PASS. |
 | `npx tsx tools/net-cost.ts` | what a match costs the host's upload, read from WebRTC's own counters over the real peer to peer path: a 1v1 running and standing, team deathmatch with bots, a battle royale squad with eleven bots. `HOST_URL` and `GUEST_URL` measure two builds against each other (needs `npm run dev`) |
 | `npx tsx tools/squad-shots.ts [dir]` | pictures of the squad view drawn for real from two pages in one SpeedKills squad: the panel, the name and the ring round a teammate (through a wall too), a hit on their row, far off with the compass and the map, their Gulag, their ghost, their restore and their leaving, each with what the HUD was given (`SHOT_URL`, needs `npm run dev`; a real GPU) |
+| `npx tsx tools/figure-frames.ts [dir] [guns]` | the soldier as other players see it, frame by frame (the third-person twin of `tools/pack-frames.ts`): holding each gun at rest, aimed, looking up and down, firing, the reload and the swap a frame every 4%, a jump, a run, a sprint, crouching and a slide, from four sides whole and close, and the Loadouts tab's soldier; each frame measured (each palm on its hold, the barrel along the look, the wrists, skin in the gun, the gun in the body) with the faults on the tile. `SEQ`, `VIEWS`, `DIST` pick; `XRAY=1` marks where. Needs `npm run dev` and a real GPU |
+| `npx tsx tools/figure-solve.ts <gun> <stage>` | searches the soldier's rifle hold (`src/config/soldierhold.json`) against the same measures: `pocket`, `hands`, `right`, `left`, `lowered`, `fingers`; `WRITE=1` stores what it found as that gun's own numbers |
 
 Before a push: `npm run verify`, `npm run e2e` (with `npm run dev` running in
 another terminal), `npm run rules`, `npm run build:beta`. Do not edit `src/`

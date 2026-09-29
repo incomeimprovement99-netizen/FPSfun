@@ -6968,6 +6968,83 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
 }
 
 /**
+ * The soldier as other players see it, holding the USSO and BOOG (Phase 27, 27.8 to 27.10): a lab soldier measured by
+ * tools/figure-audit.js against tools/figure-frames.ts's bar at rest, aimed and looking up and down; its reload taking
+ * the magazine out, letting a copy fall that is cleared away, and bringing a new one home; and the Loadouts tab's soldier
+ * with its hands on the gun it shows. The frame sheets are tools/figure-frames.ts's.
+ */
+async function figureHoldTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&game=speedkills");
+  const ready = await page.waitForFunction("window.__range.loaded() && window.__range.soldierReady()", { polling: 250, timeout: 90000 }).then(() => true, () => false);
+  if (!ready) {
+    check("the soldier: loaded", false);
+    await page.close();
+    return;
+  }
+  const paid = await page.waitForFunction("window.__range.paidGuns().ready", { polling: 250, timeout: 60000 }).then(() => true, () => false);
+  await page.addScriptTag({ path: "tools/figure-audit.js" });
+  await ev(page, `document.getElementById("overlay").classList.add("hidden")`);
+  // The hold's bar: both palms on their holds, the barrel along the look, the wrists straight enough. How deep skin goes
+  // into the gun and the gun into the body are held no worse than Milestone 320 left them (the USSO's hands 14 mm in
+  // where they wrap the grip, BOOG's 28 mm round its thick grip and fore-end; the stock 40 mm into the armour at worst,
+  // looking 35 degrees up): tools/figure-frames.ts's sheets hold the finer bar, 6 and 15, still to reach.
+  const BAR = { grip: 3, support: 4, aim: 6, wrist: 60, handIn: 30, gunIn: 40 };
+  type A = { armed: boolean; grip?: number; support?: number; aim?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number };
+  const within = (a: A | null, aimed: boolean) =>
+    !!a && a.armed && (a.grip ?? 99) <= BAR.grip && (a.support ?? 99) <= BAR.support && (!aimed || (a.aim ?? 99) <= BAR.aim) && a.wristL <= BAR.wrist && a.wristR <= BAR.wrist && Math.max(a.handIn?.l ?? 99, a.handIn?.r ?? 99) <= BAR.handIn && (a.gunIn ?? 99) <= BAR.gunIn;
+  for (const id of ["r97", "sentinel"]) {
+    const name = id === "r97" ? "USSO" : "BOOG";
+    await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, -9); r.figureLabManual(false); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "${id}", look: "S0000010" }], 2.6, 30); r.figureLabManual(true); r.figureLabStep(0.9); })()`);
+    const poses: Array<[string, Record<string, unknown>]> = [
+      ["at rest", { speed: 0, stance: "stand", pitch: 0 }],
+      ["aimed in", { speed: 0, stance: "stand", pitch: 0, ads: 1 }],
+      ["looking 35 up", { speed: 0, stance: "stand", pitch: 35, ads: 1 }],
+      ["looking 35 down", { speed: 0, stance: "stand", pitch: -35, ads: 1 }],
+    ];
+    for (const [label, p] of poses) {
+      const a = await ev<A | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, ${JSON.stringify(p)}); r.figureLabStep(0.3); return window.__figureAudit(0, { pitch: ${p.pitch} }); })()`);
+      check(`the soldier holding ${name}, ${label}: both palms on their holds, the barrel along the look, the wrists straight enough, no hand in the gun and the gun not in the body`, within(a, true), JSON.stringify(a));
+    }
+    // the reload: the magazine out, a copy let fall, a new one home
+    const R = await ev<number>(page, `window.__range.weaponTimes("${id}").reload`);
+    const mag = `(() => { const f = window.__range.labFigures()[0].figure; const m = f.gunObject.getObjectByName("mag"); return m ? { y: m.position.y, shown: m.visible } : null; })()`;
+    const home = await ev<{ y: number; shown: boolean } | null>(page, mag);
+    await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload" })`);
+    await ev(page, `window.__range.figureLabStep(${R * 0.25})`);
+    const out = await ev<{ y: number; shown: boolean } | null>(page, mag);
+    const drops = `(() => { const s = window.__range.scene; return s.children.filter((o) => o.name === "mag").length; })()`;
+    await ev(page, `window.__range.figureLabStep(${R * 0.1})`);
+    const falling = await ev<number>(page, drops);
+    await ev(page, `window.__range.figureLabStep(${R * 0.4})`);
+    const back = await ev<{ y: number; shown: boolean } | null>(page, mag);
+    check(`the soldier's ${name} reload: the magazine comes down out of the gun`, !!home && !!out && out.shown && out.y < home.y - 0.05, JSON.stringify({ home, out }));
+    check(`the soldier's ${name} reload: the old magazine is let go, and falls`, falling >= 1, `${falling}`);
+    check(`the soldier's ${name} reload: a new one goes home`, !!home && !!back && back.shown && Math.abs(back.y - home.y) < 1e-3, JSON.stringify({ home, back }));
+    await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
+    check(`the soldier's ${name} reload: the dropped magazine is cleared away`, (await ev<number>(page, drops)) === 0);
+    const after = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
+    check(`the soldier's ${name} reload: after it, the hands are back on the gun`, within(after, true), JSON.stringify(after));
+  }
+  await ev(page, "window.__range.figureLabManual(false)");
+  await page.close();
+  // the Loadouts tab's soldier holding the USSO: the same hold, its palms on their holds (on a page that draws: the
+  // preview is built and posed by the drawing, which ?norender has none of)
+  // (the first visit's welcome screen covers the menu, and a panel under it is never drawn)
+  const lp = await open(browser, "?game=speedkills", BASE, `localStorage.setItem("range.welcomed", "1")`);
+  // (the tab shows its soldier only on a window wide enough for it: at the suite's 800 it is laid out of sight)
+  await lp.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 1 });
+  await lp.waitForFunction("window.__range.loaded() && window.__range.soldierReady()", { polling: 250, timeout: 90000 }).catch(() => undefined);
+  await lp.waitForFunction("window.__range.paidGuns().ready", { polling: 250, timeout: 60000 }).catch(() => undefined);
+  await ev(lp, `(() => { const r = window.__range; r.loadouts.copyTo({ kind: "default", index: 0 }, 0); r.loadouts.edit(0, { slot1: "r97" }); document.getElementById("overlay").classList.remove("hidden"); document.querySelector('[data-tab="loadouts"]').click(); })()`);
+  const shown = await lp.waitForFunction(`(window.__range.previewState().key || "").includes("|r97|")`, { polling: 100, timeout: 15000 }).then(() => true, () => false);
+  await sleep(1500);
+  const lo = await ev<{ grip: number; support: number } | null>(lp, `(() => { const f = window.__range.previewFigure()?.figure; const h = f && f.holdPoints(); if (!h) return null; const T = window.__range.THREE; const palm = (s) => f.boneAt("hand_" + s).getWorldPosition(new T.Vector3()).lerp(f.boneAt("middle_01_" + s).getWorldPosition(new T.Vector3()), 0.5); return { grip: palm("r").distanceTo(h.grip) * 100, support: palm("l").distanceTo(h.support) * 100 }; })()`);
+  check("the Loadouts tab's soldier holds the USSO: both palms on their holds", shown && !!lo && lo.grip <= BAR.grip && lo.support <= BAR.support, JSON.stringify(lo));
+  check("the bought guns were there to hold (the checks above are on them)", paid);
+  await lp.close();
+}
+
+/**
  * The squad you can see (Phase 27): two friends in one SpeedKills squad, each
  * with the other on the squad panel in the same number and colour on both
  * screens, their name over them, their ring through walls (and no ring on a
@@ -7085,7 +7162,7 @@ async function skSquadTest(browser: Browser): Promise<void> {
   await close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, sksquad, p2p, mixed) */
+/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, p2p, mixed) */
 /**
  * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
  * plays on the page's own clock and takes itself away, a key or a click takes
@@ -8056,6 +8133,11 @@ async function main(): Promise<void> {
     if (want("skfriends")) {
       console.log("\nSpeedKills with friends: two friends into one battle royale");
       await brFriendsJoinTest(browser);
+    }
+
+    if (want("skfigure")) {
+      console.log("\nThe soldier as others see it, holding the USSO and BOOG, and its reload (Phase 27)");
+      await figureHoldTest(browser);
     }
 
     if (want("sksquad")) {

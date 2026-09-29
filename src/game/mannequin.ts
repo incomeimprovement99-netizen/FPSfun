@@ -39,6 +39,8 @@ import type { EmotePose } from "./emotes";
 import { IS_SK, PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
+import { buttOf, holdRifle, measureRifleRig, RIFLE_BONES, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
+import { resolveWeapon } from "./weapons";
 
 export type FigureStyle = "robot" | "mannequin";
 let style: FigureStyle = "robot";
@@ -61,6 +63,8 @@ interface Template {
   chestAim: THREE.Matrix4;
   /** the right shoulder in the aim pose, figure space (a rifle's stock goes to it) */
   shoulderR: THREE.Vector3;
+  /** SpeedKills' soldier: its rifle hold's measures (rifle.ts), off its rest pose */
+  rifle?: RifleRig | null;
 }
 let template: Template | null = null;
 let loading: Promise<void> | null = null;
@@ -713,11 +717,28 @@ async function makeSoldierTemplate(clipRig: THREE.Object3D, soldier: THREE.Objec
     handAim: p.getObjectByName("hand_r")!.matrixWorld.clone(),
     chestAim: p.getObjectByName("spine_03")!.matrixWorld.clone(),
     shoulderR: new THREE.Vector3().setFromMatrixPosition(p.getObjectByName("upperarm_r")!.matrixWorld),
+    // measured on a clone no clip has touched: the rest pose is the one the measures are taken in
+    rifle: measureRifleRig(cloneSkinned(probe)),
   };
 }
 
 const DEG = Math.PI / 180;
 const Y = new THREE.Vector3(0, 1, 0);
+
+/** a gun's reload time, seconds (weapons.ts, fusion 0): how long an enemy's figure takes over its reload */
+const reloadTimes = new Map<string, number>();
+function reloadSeconds(id: string): number {
+  let t = reloadTimes.get(id);
+  if (t === undefined) {
+    try {
+      t = resolveWeapon(id, 0).reloadTime;
+    } catch {
+      t = 2;
+    }
+    reloadTimes.set(id, (t = Math.max(0.5, t)));
+  }
+  return t;
+}
 const tq1 = new THREE.Quaternion();
 const tq2 = new THREE.Quaternion();
 const tq3 = new THREE.Quaternion();
@@ -856,8 +877,13 @@ export class MannequinFigure {
   private restoreClipPose(): void {
     for (const [b, q] of this.clipPose) b.quaternion.copy(q);
   }
+  /** the bones this figure turns on top of its clips: the soldier's rifle hold turns its hands and fingers too */
+  private get edited(): readonly string[] {
+    return this.rifle ? MannequinFigure.EDITED_RIFLE : MannequinFigure.EDITED;
+  }
+  private static readonly EDITED_RIFLE = [...MannequinFigure.EDITED, ...RIFLE_BONES];
   private captureClipPose(): void {
-    for (const n of MannequinFigure.EDITED) {
+    for (const n of this.edited) {
       const b = this.bones[n];
       if (!b) continue;
       const q = this.clipPose.get(b);
@@ -1140,6 +1166,8 @@ export class MannequinFigure {
     this.gun?.removeFromParent();
     this.mount?.removeFromParent();
     this.mount = null;
+    this.gunId = id;
+    this.rifleMem.gunInHand = null;
     const m = displayGunModel(id);
     const gun = m.root.clone(true);
     // the model's own flash out, a marker with a flash sprite in its place (muzzle.ts)
@@ -1175,8 +1203,18 @@ export class MannequinFigure {
       chest.add(mount);
       this.mount = mount;
       this.gun = gun;
+      // SpeedKills' soldier holds it as a rifleman does (rifle.ts): its butt measured off the gun it holds
+      this.rifle = this.soldier ? (this.tpl.rifle ?? null) : null;
+      this.butt = this.rifle ? buttOf(gun) : null;
+      // the magazine group the reload takes out (gunmodels.ts builds it as "mag"), where it sits, and the handle
+      const mag = gun.getObjectByName("mag") ?? null;
+      this.reloadParts = this.rifle ? { mag, magHome: mag ? mag.position.clone() : new THREE.Vector3(), magBottom: m.magBottom.clone(), handle: m.boltGrip ? m.boltGrip.clone() : null } : null;
+      this.sight = new THREE.Vector3(0, m.sightY, -m.rearF);
       return;
     }
+    this.reloadParts = null;
+    this.rifle = null;
+    this.butt = null;
     // where the gun sits in the figure's frame in the aim pose: its grip in the
     // hand (a little into the palm), the muzzle forward
     const grip = new THREE.Vector3().setFromMatrixPosition(this.tpl.handAim).add(new THREE.Vector3(0.02, -0.02, 0.06));
@@ -1190,6 +1228,22 @@ export class MannequinFigure {
 
   /** how far this gun reaches behind its own grip, metres (0 for a pistol) */
   rear = 0;
+  /** the soldier's rifle hold (rifle.ts), while it holds a long gun: its measures, and the held gun's butt, gun-local */
+  private rifle: RifleRig | null = null;
+  /** the gun in its hands, by id */
+  private gunId = "";
+  /** where the eye goes to aim the held gun, gun-local */
+  private sight: THREE.Vector3 | null = null;
+  private butt: THREE.Vector3 | null = null;
+  /** what the hold did last frame (how far short each arm fell), for the checks */
+  rifleOut: RifleOut | null = null;
+  /** where the gun sits in the right hand, remembered while held (rifle.ts RifleState.mem) */
+  private rifleMem: { gunInHand: THREE.Matrix4 | null } = { gunInHand: null };
+  /** what the held gun gives a reload (its magazine, its charging handle), and last frame's reload progress */
+  private reloadParts: ReloadParts | null = null;
+  private lastReload: number | null = null;
+  /** magazines let go of in a reload, falling: each copy, its fall, its spin, and how long it has been down */
+  private drops: Array<{ o: THREE.Object3D; v: THREE.Vector3; spin: THREE.Vector3; floor: number; down: number }> = [];
   /**
    * Where the gun ended up, for the checks: how far behind the shoulder its
    * stock sits (positive is behind, and a stock is allowed a little), and how
@@ -1298,6 +1352,23 @@ export class MannequinFigure {
     return this.gun;
   }
 
+  /** a bone by its name (the rig's own, e.g. hand_r or middle_01_l), for the tools that measure a figure */
+  boneAt(name: string): THREE.Object3D | null {
+    return this.bones[name] ?? null;
+  }
+
+  /**
+   * Where each palm is meant to be this frame, in the world (tools/figure-frames.ts): the soldier's rifle hold's own
+   * (its hold points and each gun's palm offsets, rifle.ts), else the gun's grip and support; null without a long gun.
+   */
+  holdPoints(): { grip: THREE.Vector3; support: THREE.Vector3 } | null {
+    if (!this.gun || !this.grip || !this.support) return null;
+    const p = this.rifle ? this.rifleOut?.palm : null;
+    if (p?.r && p.l) return { grip: p.r.clone(), support: p.l.clone() };
+    this.root.updateMatrixWorld(true);
+    return { grip: this.gun.localToWorld(this.grip.clone()), support: this.gun.localToWorld(this.supportHold().clone()) };
+  }
+
   /** knocked out, or back up: the death clip plays once from the start; back up snaps to the pose */
   setDead(on: boolean): void {
     if (on === this.dead) return;
@@ -1383,6 +1454,7 @@ export class MannequinFigure {
     }
     dt += this.owed;
     this.owed = 0;
+    this.stepDrops(dt);
     const speed = Math.max(0, p.speed);
     this.t += dt;
     // a landing from standing (or a walk): the impact's crouch from the landing clip, briefly
@@ -1535,9 +1607,10 @@ export class MannequinFigure {
       } else if (!armed || p.stance === "downed") {
         upper = lower;
       } else if (p.act === "reload") {
-        upper = "Pistol_Reload";
+        // the soldier's rifle is reloaded by its own hands (rifle.ts); the pistol's reload clip is the rest's
+        upper = this.rifle && this.mount ? "Pistol_Aim_Neutral" : "Pistol_Reload";
         upperRate = 1;
-        once = true;
+        once = !(this.rifle && this.mount);
       } else if (p.act === "swap" || (lower === "Sprint_Loop" && (p.ads ?? 0) < 0.3)) {
         upper = "Pistol_Idle_Loop";
         upperRate = 1;
@@ -1615,7 +1688,31 @@ export class MannequinFigure {
       this.root.position.y = em.bounce;
     } else this.root.position.y = p.stance === "downed" ? -0.15 : 0;
     const shown = !!this.gun && this.gun.visible;
-    if (this.mount && this.grip) {
+    if (this.mount && this.grip && this.rifle && this.butt && this.support) {
+      // SpeedKills' soldier: the rifleman's hold (rifle.ts), the stance, the gun and both hands, on top of the clips
+      const low = shown && !full && (p.act === "swap" || upper === "Pistol_Idle_Loop") ? 1 : 0;
+      this.lowered += (low - this.lowered) * Math.min(1, dt * REACH.lower);
+      this.gripW += ((shown && !full ? 1 : 0) - this.gripW) * Math.min(1, dt * REACH.grip);
+      // the left hand stays with the gun through a reload: it is the hand that does it
+      const support = shown && !full && this.t >= this.staggerUntil;
+      this.ikW += ((support ? 1 : 0) - this.ikW) * Math.min(1, dt * REACH.support);
+      // a reload's progress, on the gun's own reload time (an enemy's figure is told only that it reloads)
+      const reload = shown && !full && p.act === "reload" ? Math.min(1, (this.t - this.actAt) / reloadSeconds(this.gunId)) : null;
+      this.rifleOut = holdRifle(this.root, this.bones, this.rifle, { id: this.gunId, gun: this.gun!, mount: this.mount, grip: this.grip, support: this.supportHold(), butt: this.butt, parts: this.reloadParts ?? undefined, sight: this.sight ?? undefined }, {
+        pitch: (Math.max(-70, Math.min(70, p.pitch)) * DEG * (aimed ? 1 : 0)),
+        ads: aimed ? (p.ads ?? 0) : 0,
+        lowered: this.lowered,
+        wR: this.gripW,
+        wL: this.ikW,
+        stance: this.gripW,
+        reload,
+        lastReload: this.lastReload,
+        kick: fx.kick,
+        mem: this.rifleMem,
+      });
+      this.lastReload = reload;
+      if (this.rifleOut.dropped) this.dropMagazine(this.rifleOut.dropped);
+    } else if (this.mount && this.grip) {
       // a long gun: lowered and canted across the body for a sprint or a swap, up at the shoulder otherwise
       const low = shown && !full && (p.act === "swap" || upper === "Pistol_Idle_Loop") ? 1 : 0;
       this.lowered += (low - this.lowered) * Math.min(1, dt * REACH.lower);
@@ -1640,7 +1737,51 @@ export class MannequinFigure {
     }
   }
 
+  /**
+   * A magazine let go in a reload: a copy of it where the hand let go, falling to the figure's feet with a turn, lying
+   * a moment and gone. Only while the figure is animated near enough to see (figlod.ts); the gun's own is hidden
+   * meanwhile (rifle.ts).
+   */
+  private dropMagazine(at: { at: THREE.Vector3; q: THREE.Quaternion }): void {
+    const mag = this.reloadParts?.mag;
+    if (!mag) return;
+    let top: THREE.Object3D = this.root;
+    while (top.parent) top = top.parent;
+    if (top === this.root) return;
+    const copy = mag.clone(true);
+    copy.visible = true;
+    copy.position.copy(at.at);
+    copy.quaternion.copy(at.q);
+    copy.scale.copy(mag.getWorldScale(new THREE.Vector3()));
+    copy.userData.dynamic = true;
+    top.add(copy);
+    const floor = this.root.getWorldPosition(new THREE.Vector3()).y + 0.02;
+    this.drops.push({ o: copy, v: new THREE.Vector3(0, -0.6, 0), spin: new THREE.Vector3(2.2, 0, 1.4), floor, down: 0 });
+  }
+
+  /** the falling magazines: gravity to the floor, a moment lying there, then gone */
+  private stepDrops(dt: number): void {
+    for (let i = this.drops.length - 1; i >= 0; i--) {
+      const d = this.drops[i];
+      if (d.o.position.y > d.floor) {
+        d.v.y -= 9.8 * dt;
+        d.o.position.addScaledVector(d.v, dt);
+        d.o.rotateX(d.spin.x * dt);
+        d.o.rotateZ(d.spin.z * dt);
+        if (d.o.position.y <= d.floor) d.o.position.y = d.floor;
+        continue;
+      }
+      d.down += dt;
+      if (d.down > 1.2) {
+        d.o.removeFromParent();
+        this.drops.splice(i, 1);
+      }
+    }
+  }
+
   dispose(): void {
+    for (const d of this.drops) d.o.removeFromParent();
+    this.drops.length = 0;
     this.root.traverse((o) => bodyMeshes.delete(o as THREE.SkinnedMesh));
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.root);
