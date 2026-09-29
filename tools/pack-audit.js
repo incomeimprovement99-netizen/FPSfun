@@ -312,3 +312,68 @@ window.__packAudit = (deep, keep, only) => {
     return { d: dx * dx + dy * dy + dz * dz, behind: dx * nx + dy * ny + dz * nz < 0, q: [qx, qy, qz] };
   }
 };
+
+// How much of each hack card over the open palm lies over the gun on the screen, per cent (the owner, 2026-09-28: the hack
+// "needs to be held higher and slightly more to the left so it doesn't bug in and out with the gun when it sways back and
+// forth on the usso when we inspect"). The card draws with no depth test and adds its light, so over the white gun it
+// washes out: in the picture it goes in and out as the gun sways under it. The gun's triangles are filled into a grid a
+// tenth of the screen's size, and each shown card's cells over them counted.
+window.__cardOverGun = () => {
+  const r = window.__range;
+  const T = r.THREE;
+  const root = r.viewModelRoot();
+  const tanV = Math.tan(((r.gunFov().gun / 2) * Math.PI) / 180);
+  const tanH = tanV * (innerWidth / innerHeight);
+  const inv = new T.Matrix4().copy(root.matrixWorld).invert();
+  const GW = 192, GH = 108;
+  const grid = new Uint8Array(GW * GH);
+  const px = (v) => [(0.5 + v.x / -v.z / tanH / 2) * GW, (0.5 - v.y / -v.z / tanV / 2) * GH];
+  const shown = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
+  let gun = null;
+  root.traverse((o) => { if (o.userData && o.userData.paid && !gun) gun = o; });
+  if (!gun) return [];
+  const a = new T.Vector3(), b = new T.Vector3(), c = new T.Vector3();
+  gun.traverse((o) => {
+    if (!o.isMesh || !shown(o) || !o.geometry.attributes.position) return;
+    const m = new T.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+    const pos = o.geometry.attributes.position;
+    const idx = o.geometry.index;
+    const n = idx ? idx.count : pos.count;
+    for (let t = 0; t < n; t += 3) {
+      a.fromBufferAttribute(pos, idx ? idx.getX(t) : t).applyMatrix4(m);
+      b.fromBufferAttribute(pos, idx ? idx.getX(t + 1) : t + 1).applyMatrix4(m);
+      c.fromBufferAttribute(pos, idx ? idx.getX(t + 2) : t + 2).applyMatrix4(m);
+      if (a.z > -0.01 || b.z > -0.01 || c.z > -0.01) continue;
+      const [ax, ay] = px(a), [bx, by] = px(b), [cx, cy] = px(c);
+      const d = (bx - ax) * (cy - ay) - (cx - ax) * (by - ay);
+      if (Math.abs(d) < 1e-9) continue;
+      const x0 = Math.max(0, Math.floor(Math.min(ax, bx, cx))), x1 = Math.min(GW - 1, Math.ceil(Math.max(ax, bx, cx)));
+      const y0 = Math.max(0, Math.floor(Math.min(ay, by, cy))), y1 = Math.min(GH - 1, Math.ceil(Math.max(ay, by, cy)));
+      for (let y = y0; y <= y1; y++)
+        for (let x = x0; x <= x1; x++) {
+          const qx = x + 0.5, qy = y + 0.5;
+          const w1 = ((bx - qx) * (cy - qy) - (cx - qx) * (by - qy)) / d;
+          const w2 = ((cx - qx) * (ay - qy) - (ax - qx) * (cy - qy)) / d;
+          if (w1 >= 0 && w2 >= 0 && w1 + w2 <= 1) grid[y * GW + x] = 1;
+        }
+    }
+  });
+  // (the palm's cards are the view's meshes drawn at render order 10 with a picture on them)
+  const out = [];
+  root.traverse((o) => {
+    if (!o.isMesh || !o.material || !o.material.map || o.renderOrder !== 10 || !shown(o) || o.material.opacity < 0.05) return;
+    const m = new T.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+    const pos = o.geometry.attributes.position;
+    const pts = [];
+    for (let k = 0; k < pos.count; k++) pts.push(px(new T.Vector3().fromBufferAttribute(pos, k).applyMatrix4(m)));
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    let n = 0, over = 0;
+    for (let y = Math.max(0, Math.floor(Math.min(...ys))); y <= Math.min(GH - 1, Math.ceil(Math.max(...ys))); y++)
+      for (let x = Math.max(0, Math.floor(Math.min(...xs))); x <= Math.min(GW - 1, Math.ceil(Math.max(...xs))); x++) {
+        n++;
+        if (grid[y * GW + x]) over++;
+      }
+    out.push(n ? (100 * over) / n : 0);
+  });
+  return out;
+};

@@ -26,7 +26,7 @@ import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels
 import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
-import { FREE, HIP_PITCH, LOCO, PACK_FOV, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, packGunFor, type FreeHand } from "./fprig";
+import { FREE, HIP_PITCH, LOCO, PACK_FOV, PACK_INSPECT, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, packGunFor, type FreeHand } from "./fprig";
 import type { OperatorSkin } from "./operators";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
@@ -84,7 +84,8 @@ export interface VMFrame {
   /** 0..1 through an inspect (holding reload with a full magazine), or undefined */
   inspect?: number;
   /** the hack you carry (the first of your two), shown in the open left hand on an inspect */
-  hackId?: string | null;
+  /** the hacks carried, mobility first: each floats over the open palm on an inspect */
+  hackIds?: string[];
   /** 0..1 through a new gun's first-draw flourish, or undefined */
   flourish?: number;
   /** 1 down, not out: no gun, the hands low on the floor, reaching in turn as you crawl */
@@ -470,8 +471,8 @@ export class ViewModel {
     r: { at: new THREE.Vector3(), along: new THREE.Vector3(), palm: new THREE.Vector3(), fist: 1 },
   };
   /** an inspect's hack over the open left palm (the bought arms), and whose card it shows */
-  private readonly palmCard = new HackCard(armCfg.hackCast.card.size, armCfg.hackCast.amber, 0);
-  private palmCardId = "";
+  private readonly palmCards = [new HackCard(armCfg.hackCast.card.size, armCfg.hackCast.amber, 0), new HackCard(armCfg.hackCast.card.size, armCfg.hackCast.amber, 0)];
+  private readonly palmCardIds = ["", ""];
   /** how far the open palm is up this frame (the checks) */
   private palmW = 0;
   /** the pack's swap's swing of the gun this frame, in the view's space (the arms go with it: fprig.ts swing) */
@@ -516,6 +517,17 @@ export class ViewModel {
   private armFamily: ArmFamily = "guard";
   /** the middle of the gun, gun-local: what an inspect or a flourish turns about */
   private readonly gunCentre = new THREE.Vector3();
+  /**
+   * our trigger, gun-local (packRefresh): what an inspect turns about in the bought arms' hands. About the gun's middle,
+   * far ahead of the grip on a long gun, BOOG's grip swung out of the right arm's reach, 20 cm short, the hand off it
+   */
+  private readonly gunGrip = new THREE.Vector3();
+  private gunGripOn = false;
+  /** the right forearm's line in the view at rest with the bought arms (measured each frame off an inspect) */
+  private readonly forearmR = new THREE.Vector3();
+  private forearmOn = false;
+  /** how far this frame's inspect has the gun rolled, 0..1 (the right forearm takes it) */
+  private rollR = 0;
   private readonly boltBase = new THREE.Vector3();
   /** where the support hand holds the charging handle this frame */
   private readonly rackAt = new THREE.Vector3();
@@ -642,7 +654,7 @@ export class ViewModel {
     this.castRig.add(this.castHand.group);
     this.castRig.visible = false;
     this.castArm.group.visible = false;
-    this.group.add(this.castRig, this.castArm.group, this.castCard.group, this.palmCard.group);
+    this.group.add(this.castRig, this.castArm.group, this.castCard.group, ...this.palmCards.map((c) => c.group));
     this.group.add(this.real.group);
     this.group.add(this.pack.group);
     if (IS_SK) void this.pack.load().then((ok) => ok && this.packRefresh());
@@ -704,6 +716,7 @@ export class ViewModel {
     const m = this.model;
     const w = this.weapon;
     this.pack.release();
+    this.gunGripOn = false;
     if (!IS_SK || !m || !w || !m.root.userData.paid || !this.pack.ready || !packGunFor(w.id)) return;
     const trig = m.parts?.trigger;
     if (!trig) return;
@@ -714,6 +727,8 @@ export class ViewModel {
     m.root.quaternion.identity();
     m.root.updateWorldMatrix(true, true);
     const trigger = m.root.worldToLocal(trig.getWorldPosition(new THREE.Vector3()));
+    this.gunGrip.copy(trigger);
+    this.gunGripOn = true;
     m.root.position.copy(keepP);
     m.root.quaternion.copy(keepQ);
     const id = w.id;
@@ -745,29 +760,39 @@ export class ViewModel {
    */
   private palmFrame(f: VMFrame): { w: number; at: THREE.Vector3 } | null {
     const i = f.inspect;
-    if (i === undefined || i < 0 || i >= 1 || !f.hackId) return null;
+    if (i === undefined || i < 0 || i >= 1 || !f.hackIds?.length) return null;
     const P = PACK_PALM;
     const w = smooth(0, P.ease, i) * (1 - smooth(1 - P.ease, 1, i));
     this.group.updateMatrixWorld(true);
-    return { w, at: this.group.localToWorld(new THREE.Vector3().fromArray(P.at)) };
+    return { w, at: this.group.localToWorld(new THREE.Vector3().fromArray(this.pack.debugPalmAt ?? P.at)) };
   }
 
-  /** the inspect's hack over the open palm: its card shown, floating and turning a little */
+  /**
+   * the inspect's hacks over the open palm: a card for each hack carried, side by side (smaller, two together: the owner,
+   * 2026-09-28, "I have two hacks enabled, only 1 shows ... move one to the side a bit more and have the other next to
+   * it ... possibly smaller if needed to fit in the hand"), floating and turning a little, each a little out of step
+   */
   private placePalmCard(f: VMFrame): void {
     const pf = this.palmFrame(f);
     const w = pf?.w ?? 0;
     this.palmW = w;
-    if (w > 0.001 && f.hackId && f.hackId !== this.palmCardId) {
-      this.palmCard.show(hackCard(f.hackId, armCfg.hackCast.amber));
-      this.palmCardId = f.hackId;
-    }
-    if (w > 0.001) {
-      const P = PACK_PALM;
-      const at = this.group.worldToLocal(this.pack.palmPoint(new THREE.Vector3()));
-      this.palmCard.group.position.copy(at).add(this.tmp.set(0, P.bob * Math.sin(this.t * P.rate), 0));
-      this.palmCard.group.rotation.set(0, P.spin * Math.sin(this.t * 0.9), 0);
-    }
-    this.palmCard.frame(w, false, -1, f.dt);
+    const ids = w > 0.001 ? (f.hackIds ?? []).slice(0, this.palmCards.length) : [];
+    const P = PACK_PALM;
+    const at = ids.length ? this.group.worldToLocal(this.pack.palmPoint(new THREE.Vector3())) : null;
+    this.palmCards.forEach((card, k) => {
+      const id = ids[k];
+      if (id && id !== this.palmCardIds[k]) {
+        card.show(hackCard(id, armCfg.hackCast.amber));
+        this.palmCardIds[k] = id;
+      }
+      if (id && at) {
+        card.group.position.copy(at).add(this.tmp.set((k - (ids.length - 1) / 2) * P.pair.gap, P.bob * Math.sin(this.t * P.rate + k), 0));
+        card.group.rotation.set(0, P.spin * Math.sin(this.t * 0.9 + k), 0);
+        card.group.scale.setScalar(ids.length > 1 ? P.pair.scale : 1);
+      }
+      // (up once the hand is: shown as it left the gun, the cards stood over the gun)
+      card.frame(id ? smooth(0.5, 1, w) : 0, false, -1, f.dt);
+    });
   }
 
   /** something taken off the ground now: the bought arms reach down for it (fparms.json pickup) */
@@ -790,8 +815,8 @@ export class ViewModel {
     return this.pack;
   }
 
-  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; curlL: number; curlR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; offHold: number; palmAhead: number; free: boolean; palm: number; palmCard: boolean } {
-    return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), twistL: this.pack.wristTwist("l"), twistR: this.pack.wristTwist("r"), curlL: this.pack.fingerCurl("l"), curlR: this.pack.fingerCurl("r"), thumbL: this.pack.freeReady ? this.pack.thumbOff("l") : 0, thumbR: this.pack.freeReady ? this.pack.thumbOff("r") : 0, ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCard: this.palmCard.group.visible };
+  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; skinL: number; skinR: number; curlL: number; curlR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; offHold: number; palmAhead: number; free: boolean; palm: number; palmCards: number } {
+    return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), twistL: this.pack.wristTwist("l"), twistR: this.pack.wristTwist("r"), skinL: this.pack.skinTwist("l"), skinR: this.pack.skinTwist("r"), curlL: this.pack.fingerCurl("l"), curlR: this.pack.fingerCurl("r"), thumbL: this.pack.freeReady ? this.pack.thumbOff("l") : 0, thumbR: this.pack.freeReady ? this.pack.thumbOff("r") : 0, ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCards: this.palmCards.filter((c) => c.group.visible).length };
   }
 
   /**
@@ -1489,7 +1514,25 @@ export class ViewModel {
 
     // ---- an inspect: the gun comes up and turns to show its left side, then
     // over to its right and top, and settles back into the hands
-    if (f.inspect !== undefined && f.inspect >= 0 && f.inspect < 1) {
+    this.rollR = 0;
+    if (f.inspect !== undefined && f.inspect >= 0 && f.inspect < 1 && this.packOn && this.gunGripOn && this.forearmOn) {
+      // in the bought arms' hands the forearm turns the gun: rolled about the forearm's own line through the grip to
+      // show its left side, then its right, and back, the wrist as it is (turned about the gun's own axes the right wrist
+      // bent 99 degrees, and about a long gun's middle BOOG's grip swung 20 cm out of the arm's reach); settled before
+      // the left hand comes back to it (fparms.json inspectPack)
+      const t = f.inspect;
+      const IP = PACK_INSPECT;
+      const k1 = smooth(IP.show[0], IP.show[1], t) - smooth(IP.turn[0], IP.turn[1], t);
+      const k2 = smooth(IP.turn[0], IP.turn[1], t) - smooth(IP.settle[0], IP.settle[1], t);
+      const q = new THREE.Quaternion().setFromAxisAngle(this.forearmR, IP.roll[0] * k1 - IP.roll[1] * k2).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz, this.pose.rotation.order)));
+      const e = new THREE.Euler().setFromQuaternion(q, this.pose.rotation.order);
+      rx = e.x;
+      ry = e.y;
+      rz = e.z;
+      p.y += IP.lift * (k1 + k2);
+      this.rollR = Math.min(1, (k1 + k2) * 2);
+      turning = true;
+    } else if (f.inspect !== undefined && f.inspect >= 0 && f.inspect < 1) {
       inspectTurn(f.inspect, this.turnPos, this.turnRot);
       p.add(this.turnPos);
       rx += this.turnRot.x;
@@ -1497,8 +1540,20 @@ export class ViewModel {
       rz += this.turnRot.z;
       turning = true;
     }
-    // ---- a new gun's first draw: a twirl round its barrel as it comes up
-    if (f.flourish !== undefined && f.flourish >= 0 && f.flourish < 1) {
+    // ---- a new gun's first draw: a twirl round its barrel as it comes up; in the bought arms' hands a flick of the
+    // forearm instead, the gun rolled out and back about its line through the grip (a whole twirl in a hand on the grip
+    // wrung the wrist 152 degrees and put it through the gun; fparms.json inspectPack flourish)
+    if (f.flourish !== undefined && f.flourish >= 0 && f.flourish < 1 && this.packOn && this.gunGripOn && this.forearmOn) {
+      const k = Math.sin(Math.PI * smooth(0, 0.9, f.flourish));
+      const q = new THREE.Quaternion().setFromAxisAngle(this.forearmR, PACK_INSPECT.flourish * k).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz, this.pose.rotation.order)));
+      const e = new THREE.Euler().setFromQuaternion(q, this.pose.rotation.order);
+      rx = e.x;
+      ry = e.y;
+      rz = e.z;
+      p.y += PACK_INSPECT.lift * k;
+      this.rollR = Math.max(this.rollR, Math.min(1, k * 2));
+      turning = true;
+    } else if (f.flourish !== undefined && f.flourish >= 0 && f.flourish < 1) {
       const t = f.flourish;
       rz += Math.PI * 2 * easeInOut(smooth(0.05, 0.75, t));
       p.y += 0.035 * Math.sin(Math.PI * smooth(0, 0.9, t));
@@ -1508,7 +1563,7 @@ export class ViewModel {
 
     this.pose.rotation.set(rx, ry, rz);
     this.rollNow = rz;
-    if (turning) turnAboutCentre(p, this.baseRot, this.pose.rotation, this.gunCentre);
+    if (turning) turnAboutCentre(p, this.baseRot, this.pose.rotation, this.packOn && this.gunGripOn ? this.gunGrip : this.gunCentre);
     this.pose.position.copy(p);
     // the bought arms' own motion of the gun as the body moves: walk, sprint, the jump (fprig.ts)
     if (packOn) {
@@ -1576,13 +1631,18 @@ export class ViewModel {
     // the bought arms: the clips to this frame's state, the rig under the holder, our magazine and handle moved
     if (packOn) {
       this.pack.update(
-        { dt, reload: f.reloading ? reloadP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS, away: F ? 1 - this.swapPhase : 0, pickup: this.pickupShare(), palm: this.palmFrame(f), level: this.levelBy, levelAt: this.pose.position, swing: this.swapArms },
+        { dt, reload: f.reloading ? reloadP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS, away: F ? 1 - this.swapPhase : 0, pickup: this.pickupShare(), palm: this.palmFrame(f), level: this.levelBy, levelAt: this.pose.position, swing: this.swapArms, rollR: this.rollR },
         this.holder,
         m.mag,
         m.bolt,
       );
       // the magazine's sweep where the rig has just put it (it slides out and in): set before, it trailed it a frame
       if (F && m.mag) this.aimMagSweep(m);
+      // the right forearm's line at rest, for an inspect to roll the gun about
+      if (!(f.inspect !== undefined && f.inspect >= 0 && f.inspect < 1) && this.pack.forearm("r", this.forearmR)) {
+        this.forearmR.transformDirection(new THREE.Matrix4().copy(this.group.matrixWorld).invert());
+        this.forearmOn = true;
+      }
       this.real.group.visible = false;
       this.placePalmCard(f);
       // (and hidden with the gun when a scope's picture is up: the gun went and the arms stayed, a hand in the air
@@ -1591,10 +1651,10 @@ export class ViewModel {
     } else if (this.packFree && this.fists.visible) {
       this.pack.free(this.freeHands);
       this.real.group.visible = false;
-      this.palmCard.frame(0, false, -1, dt);
+      for (const c of this.palmCards) c.frame(0, false, -1, dt);
     } else {
       this.pack.idle();
-      this.palmCard.frame(0, false, -1, dt);
+      for (const c of this.palmCards) c.frame(0, false, -1, dt);
     }
   }
 

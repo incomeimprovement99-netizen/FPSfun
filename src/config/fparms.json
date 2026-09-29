@@ -472,7 +472,7 @@
     "ease": 0.12,
     "gunKeep": 0.5
   },
-  "_free": "The bought arms off a gun (fprig.ts free, handTurn; the owner, 2026-09-28: the fists were \"the old fists and not our new bought arms\"). `fist`: each finger joint's bend in a fist, radians, along the axis the pack's own grip bends it (its first gun's pose clip, the right hand round a pistol grip). `thumb`: each fist's thumb joints turned on top of that, radians about each joint's own axes, searched by tools/fist-thumb.ts to lie across the index and middle fingers' middle bones with none of it in them: bent as the grip bends it, its tip stood 1.3 to 1.6 of a phalanx out ahead of the fist like a pointing finger, now 0.42 (left) and 0.14 (right). `palmSign`: which way off the knuckles each hand's palm faces, opposite on the two hands, which are mirror images (the right at -1 like the left faced its palm out and up, the hand rolled 159 degrees on its forearm and the glove's cuff split from the sleeve; the owner, 2026-09-28: \"the right arm is clearly still so fucked up ... just put the guns away and look at the right arm\"). `palm`: on an inspect, the open left hand's knuckles and the way its palm faces, in the view's space (x right, y up, z back toward the eye), with the hack floating over it. `pull`: the fists moved from the view's own fists' place toward the eye, view metres (in, up, back): the bought arms are shorter than the view's, and there they were straight out, 97% of their reach.",
+  "_free": "The bought arms off a gun (fprig.ts free, handTurn; the owner, 2026-09-28: the fists were \"the old fists and not our new bought arms\"). `fist`: each finger joint's bend in a fist, radians, along the axis the pack's own grip bends it (its first gun's pose clip, the right hand round a pistol grip). `thumb`: each fist's thumb joints turned on top of that, radians about each joint's own axes, searched by tools/fist-thumb.ts to lie across the index and middle fingers' middle bones with none of it in them: bent as the grip bends it, its tip stood 1.3 to 1.6 of a phalanx out ahead of the fist like a pointing finger, now 0.42 (left) and 0.14 (right). `palmSign`: which way off the knuckles each hand's palm faces, opposite on the two hands, which are mirror images (the right at -1 like the left faced its palm out and up, the hand rolled 159 degrees on its forearm and the glove's cuff split from the sleeve; the owner, 2026-09-28: \"the right arm is clearly still so fucked up ... just put the guns away and look at the right arm\"). `palm`: on an inspect, the open left hand's knuckles and the way its palm faces, in the view's space (x right, y up, z back toward the eye), with the hack floating over it. `pull`: the fists moved from the view's own fists' place toward the eye, view metres (in, up, back): the bought arms are shorter than the view's, and there they were straight out, 97% of their reach. `twistShare`: of a hand's roll on its forearm, the share its twist bone halfway down the forearm takes, where the hand is posed here rather than by a clip (the fists, the open palm): with none, the whole roll was at the wrist, and the open palm's 150 degrees split the glove's cuff from the sleeve.",
   "free": {
     "fist": {
       "01": 1.3,
@@ -518,20 +518,26 @@
           0.6
         ]
       }
-    }
+    },
+    "twistShare": 0.5
   },
-  "_inspectPalm": "Where the open left hand's wrist is on an inspect, view metres (x right, y up, z back toward the eye), and how the hack floats over the palm: `bob` metres up and down at `rate` a second, `spin` radians side to side. `lift`: how far off the palm the hack floats, view metres (at 6 cm it sat in the palm).",
+  "_inspectPalm": "Where the open left hand's wrist is on an inspect, view metres (x right, y up, z back toward the eye): 3 cm left of and 12 cm over where it first was, searched by tools/palm-place.ts on both guns for no hack card over the gun at any moment of the inspect (the owner, 2026-09-28: \"held higher and slightly more to the left so it doesn't bug in and out with the gun\"; there, 34 to 87% of a card was over it), the arm reaching and the wrist straight enough; and how the hack floats over the palm: `bob` metres up and down at `rate` a second, `spin` radians side to side. `lift`: how far off the palm the hack floats, view metres (at 6 cm it sat in the palm). `pair`: with two hacks carried, each has its card, `gap` metres apart across the view and at `scale` of one card's size, side by side over the palm. `clear`: metres the hand bows out past the gun's left side on its way up to the palm and back, the most near the gun (6.75 x share x (1 - share)^2): straight, it went 9 to 25 mm through the gun. The cards come up only once the hand is halfway there.",
   "inspectPalm": {
     "at": [
-      -0.14,
-      -0.22,
+      -0.17,
+      -0.1,
       -0.3
     ],
     "bob": 0.006,
     "rate": 2.2,
     "spin": 0.35,
     "ease": 0.15,
-    "lift": 0.11
+    "lift": 0.11,
+    "pair": {
+      "gap": 0.07,
+      "scale": 0.8
+    },
+    "clear": 0.08
   },
   "measured": {
     "MPS5": {
@@ -646,5 +652,26 @@
       ]
     }
   },
-  "_guns": "Which pack gun stands in for which of ours, chosen on pictures at the owner's view: the USSO's is the MPS5, a compact SMG held by its handguard, its charging handle worked from empty; the Striker-V, the first tried, holds its long magazine as a grip, 22 cm under where the USSO's short one sits, and the hand could not be on both. BOOG's is the L96X, a bolt sniper that works its bolt after every shot. A pack gun's gun clips list only those the import makes a file of: the MPS5's and the L96X's A_W pose are stills with no animation, which tools/import-fparms.ts writes nothing for, and asked for they were a 404 on every page once the arms load at the start for the fists (the live check caught it, 2026-09-28); the rig runs without them. A pack gun's `hold` is each hand's fit onto our grip (fprig.ts HandFit: `shift`, `rot`, `open`, `turn`, `joint`), measured into place by tools/pack-fit.ts, then joint by joint by tools/pack-solve.ts and tools/pack-thumb.ts until no seen skin is more than 4 mm into the gun anywhere in its moves. Its `shoulders` move the clavicles on top of the pack's own offsets, metres in the rig, at rest (`l`, `r`) and aimed (`adsL`, `adsR`), to where the wrists are straightest without more of the arms in the picture (tools/pack-solve.ts wrists). Its `point` can carry its own `elbow`, `reach` and `aimAt` for the reload's pointing arm (the reload's otherwise), searched the same way with the fingertip kept on its spot."
+  "_guns": "Which pack gun stands in for which of ours, chosen on pictures at the owner's view: the USSO's is the MPS5, a compact SMG held by its handguard, its charging handle worked from empty; the Striker-V, the first tried, holds its long magazine as a grip, 22 cm under where the USSO's short one sits, and the hand could not be on both. BOOG's is the L96X, a bolt sniper that works its bolt after every shot. A pack gun's gun clips list only those the import makes a file of: the MPS5's and the L96X's A_W pose are stills with no animation, which tools/import-fparms.ts writes nothing for, and asked for they were a 404 on every page once the arms load at the start for the fists (the live check caught it, 2026-09-28); the rig runs without them. A pack gun's `hold` is each hand's fit onto our grip (fprig.ts HandFit: `shift`, `rot`, `open`, `turn`, `joint`), measured into place by tools/pack-fit.ts, then joint by joint by tools/pack-solve.ts and tools/pack-thumb.ts until no seen skin is more than 4 mm into the gun anywhere in its moves. Its `shoulders` move the clavicles on top of the pack's own offsets, metres in the rig, at rest (`l`, `r`) and aimed (`adsL`, `adsR`), to where the wrists are straightest without more of the arms in the picture (tools/pack-solve.ts wrists). Its `point` can carry its own `elbow`, `reach` and `aimAt` for the reload's pointing arm (the reload's otherwise), searched the same way with the fingertip kept on its spot.",
+  "_inspectPack": "An inspect in the bought arms' hands (viewmodel.ts): the forearm turns the gun, rolled about the right forearm's own line through the grip (measured off the rig at rest) by `roll[0]` radians to show its left side over `show` of the inspect, over to `roll[1]` the other way over `turn` to show its right, and back over `settle`, lifted `lift` metres; the right forearm takes the roll along its length (fprig.ts spreadTwist). Turned about the gun's own axes, the view's own inspect bent the right wrist to 99 degrees, and about a long gun's middle BOOG's grip swung 20 cm out of the arm's reach. Settled before the open left hand comes back to the gun (inspectPalm ease): settling as it came, BOOG's body swung through the hand. `flourish`: a new gun's first draw in these hands, radians the forearm rolls the gun out and back the same way (sin over the flourish), in place of the view's whole twirl round the barrel, which in a hand on the grip wrung the wrist 152 degrees and put the hand through the gun. The left hand stays on the gun through it: at 0.9 its wrist bent 70 degrees, at 0.5 62, so 0.42.",
+  "inspectPack": {
+    "roll": [
+      1.1,
+      0.9
+    ],
+    "lift": 0.03,
+    "show": [
+      0.04,
+      0.26
+    ],
+    "turn": [
+      0.44,
+      0.62
+    ],
+    "settle": [
+      0.7,
+      0.85
+    ],
+    "flourish": 0.42
+  }
 }

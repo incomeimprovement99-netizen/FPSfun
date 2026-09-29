@@ -98,9 +98,11 @@ const ss = THREE.MathUtils.smoothstep;
 
 /** the gun camera's vertical field of view at the hip with these arms (fparms.json fov) */
 /** the hands off a gun (fparms.json free): a fist's bend a joint, and the palm's way in the hand's own frame */
-export const FREE = (cfg as unknown as { free: { fist: Record<string, number>; thumb?: ThumbFit; palmSign: { l: number; r: number }; palm: { along: number[]; up: number[] }; pull: number[] } }).free;
+export const FREE = (cfg as unknown as { free: { fist: Record<string, number>; thumb?: ThumbFit; twistShare: number; palmSign: { l: number; r: number }; palm: { along: number[]; up: number[] }; pull: number[] } }).free;
 /** where the open left hand is on an inspect and how its hack floats (fparms.json inspectPalm) */
-export const PACK_PALM = (cfg as unknown as { inspectPalm: { at: number[]; bob: number; rate: number; spin: number; ease: number; lift: number } }).inspectPalm;
+/** an inspect in the bought arms' hands: the gun rolled about the right forearm (fparms.json inspectPack) */
+export const PACK_INSPECT = (cfg as unknown as { inspectPack: { roll: number[]; lift: number; show: number[]; turn: number[]; settle: number[]; flourish: number } }).inspectPack;
+export const PACK_PALM = (cfg as unknown as { inspectPalm: { at: number[]; bob: number; rate: number; spin: number; ease: number; lift: number; clear: number; pair: { gap: number; scale: number } } }).inspectPalm;
 /** the open palm's knuckles and face on an inspect, in the view's space */
 const PALM_ALONG = new THREE.Vector3().fromArray(FREE.palm.along);
 const PALM_UP = new THREE.Vector3().fromArray(FREE.palm.up);
@@ -192,6 +194,8 @@ export interface PackArmsFrame {
   levelAt: THREE.Vector3;
   /** the pack's swap swinging the gun this frame, in the view's space: the arms swing with it */
   swing: THREE.Matrix4;
+  /** 0..1 how far an inspect has the gun rolled in the right hand, which the right forearm takes (spreadTwist) */
+  rollR: number;
 }
 
 /** a hand off any gun: its wrist at `at` (world), its knuckles along `along` and its palm facing `palm` (both in the
@@ -280,6 +284,10 @@ export class PackArms {
    */
   /** a hold tried in place of the pack gun's own (tools/pack-fit.ts) */
   debugHold: HoldFit | null = null;
+  /** where the open hand is held on an inspect, tried in place of the config's (tools/palm-place.ts) */
+  debugPalmAt: number[] | null = null;
+  /** the open hand's knuckles' way on an inspect, tried in place of the config's (tools/palm-place.ts) */
+  debugPalmAlong: number[] | null = null;
   /** a fist's thumb tried in place of the config's (tools/fist-thumb.ts) */
   debugThumb: ThumbFit | null = null;
   /** a grab's closing tried in place of the pack gun's own (its curl, thumb and hook) */
@@ -895,6 +903,8 @@ export class PackArms {
     let pointElbow: THREE.Vector3 | null = null;
     // where the hold has the left hand before a point or a grab takes it (the checks: offHold)
     const heldL = new THREE.Vector3();
+    // where the open left hand's elbow goes on an inspect (null otherwise)
+    let palmElbow: THREE.Vector3 | null = null;
     for (const side of ["r", "l"] as const) {
       const rel = new THREE.Matrix4().multiplyMatrices(boneNowInv, inRig(this.bones[`ik_hand_${side}`]));
       // (a pickup's right hand stays as the hold has it on the gun)
@@ -1087,7 +1097,15 @@ export class PackArms {
       // off the gun and open, palm up, for an inspect's hack
       if (side === "l" && palmW > 0.001 && f.palm) {
         pos.lerp(f.palm.at, palmW);
-        quat.slerp(this.handTurn("l", PALM_ALONG, PALM_UP), palmW);
+        const along = this.debugPalmAlong ? new THREE.Vector3().fromArray(this.debugPalmAlong) : PALM_ALONG;
+        quat.slerp(this.handTurn("l", along, PALM_UP), palmW);
+        // the elbow back along the knuckles' line, so the forearm runs on into the hand (palm up and held up, a hanging
+        // elbow bent the wrist to 100 degrees)
+        const fore = this.bones.lowerarm_l.getWorldPosition(new THREE.Vector3()).distanceTo(this.bones.hand_l.getWorldPosition(new THREE.Vector3()));
+        palmElbow = f.palm.at.clone().addScaledVector(along.clone().normalize().applyQuaternion(this.group.getWorldQuaternion(new THREE.Quaternion())), -fore);
+        // down and out round the gun's left side on the way up and back, the most near the gun, as a hand lets go of what
+        // it holds from under it (straight, the hand went 9 to 25 mm through it; out alone, BOOG's fingers still 9 mm)
+        pos.add(new THREE.Vector3(-1, -1, 0).applyMatrix3(toWorldDir).normalize().multiplyScalar(6.75 * palmW * (1 - palmW) ** 2 * PACK_PALM.clear * gsW));
       }
       if (side === "l") this.seen.offHold = pos.distanceTo(heldL) / gsW;
       // with the rig, if it has dropped away
@@ -1095,8 +1113,13 @@ export class PackArms {
         pos.applyMatrix4(dropW);
         quat.premultiply(dropQ);
       }
-      const bend = side === "l" && pointElbow ? this.bones.lowerarm_l.getWorldPosition(new THREE.Vector3()).lerp(pointElbow, pointW) : undefined;
+      let bend = side === "l" && pointElbow ? this.bones.lowerarm_l.getWorldPosition(new THREE.Vector3()).lerp(pointElbow, pointW) : undefined;
+      if (side === "l" && palmElbow) bend = (bend ?? this.bones.lowerarm_l.getWorldPosition(new THREE.Vector3())).lerp(palmElbow, palmW);
       this.reach(side, pos, quat, bend);
+      if (side === "r" && f.rollR > 0.001) this.spreadTwist("r", f.rollR);
+      // (whole a quarter of the way in: the hand turns palm up faster than it moves, and spread by the palm's own weight the
+      // wrist was wrung 100 degrees on the way)
+      if (side === "l") this.spreadTwist("l", Math.min(1, palmW * 4));
     }
     // for the checks: how far the index fingertip is from where it points, and how short the arm fell of its target
     const tip = this.bones.index_03_l ? this.indexTipW() : undefined;
@@ -1325,7 +1348,10 @@ export class PackArms {
     this.arms.position.set(CAMERA[0], -CAMERA[1], CAMERA[2]);
     this.arms.scale.set(1, 1, 1);
     this.arms.updateMatrixWorld(true);
-    for (const side of ["r", "l"] as const) this.reach(side, hands[side].at, this.handTurn(side, hands[side].along, hands[side].palm));
+    for (const side of ["r", "l"] as const) {
+      this.reach(side, hands[side].at, this.handTurn(side, hands[side].along, hands[side].palm));
+      this.spreadTwist(side, 1);
+    }
   }
 
   /**
@@ -1389,6 +1415,43 @@ export class PackArms {
     return (2 * Math.acos(Math.min(1, Math.abs(twist.w))) * 180) / Math.PI;
   }
 
+  /**
+   * The most the forearm's skin is wrung, degrees: the hand's roll against the forearm's twist bone halfway down it, or
+   * that bone's against the elbow, whichever is more (wristTwist is the two together)
+   */
+  skinTwist(side: "l" | "r"): number {
+    const all = this.wristTwist(side);
+    const tb = this.bones[`lowerarm_twist_01_${side}`];
+    const bind = tb && this.bind.get(tb);
+    if (!bind) return all;
+    const d = bind[1].clone().invert().multiply(tb.quaternion);
+    const mid = (2 * Math.acos(Math.min(1, Math.abs(d.w))) * 180) / Math.PI;
+    return Math.max(mid, Math.abs(all - mid));
+  }
+
+  /**
+   * A share of the hand's roll on its forearm taken by the forearm's twist bone halfway down it, as a forearm turns along
+   * its length (FREE.twistShare): with the bone left as it was made the whole turn was at the wrist, and a hand posed
+   * here rather than by a clip (a fist, the open palm) rolled 150 degrees split the glove's cuff from the sleeve
+   */
+  private spreadTwist(side: "l" | "r", w: number): void {
+    const hand = this.bones[`hand_${side}`];
+    const tb = this.bones[`lowerarm_twist_01_${side}`];
+    const hb = hand && this.bind.get(hand);
+    const bb = tb && this.bind.get(tb);
+    if (!hb || !bb || w <= 0.001) return;
+    const d = hb[1].clone().invert().multiply(hand.quaternion);
+    const axisH = hand.position.clone().normalize().applyQuaternion(hb[1].clone().invert());
+    const along = new THREE.Vector3(d.x, d.y, d.z).projectOnVector(axisH);
+    const twist = new THREE.Quaternion(along.x, along.y, along.z, d.w).normalize();
+    // (the short way round: a turn and its negative are the same, and 163 degrees taken as -197 put 98 on the twist bone)
+    if (twist.w < 0) twist.set(-twist.x, -twist.y, -twist.z, -twist.w);
+    const angle = 2 * Math.atan2(new THREE.Vector3(twist.x, twist.y, twist.z).dot(axisH), twist.w);
+    // the same turn about the forearm's line, in the twist bone's own frame
+    const axisT = hand.position.clone().normalize().applyQuaternion(bb[1].clone().invert());
+    tb.quaternion.slerp(bb[1].clone().multiply(new THREE.Quaternion().setFromAxisAngle(axisT, angle * FREE.twistShare)), w);
+  }
+
   /** the least curled of a hand's four fingers, degrees: the bends at its knuckle and its middle joint, added */
   fingerCurl(side: "l" | "r"): number {
     const at = (n: string) => this.bones[`${n}_${side}`]?.getWorldPosition(new THREE.Vector3());
@@ -1415,6 +1478,14 @@ export class PackArms {
     const along = at("middle_01").sub(at("hand")).normalize();
     const mid = (f: string) => at(`${f}_02`).add(at(`${f}_03`)).multiplyScalar(0.5);
     return tip.distanceTo(mid("index").add(mid("middle")).multiplyScalar(0.5).addScaledVector(along, 0.3 * L)) / L;
+  }
+
+  /** a forearm's line, elbow to wrist, in the world (an inspect rolls the gun about the right one's) */
+  forearm(side: "l" | "r", out: THREE.Vector3): THREE.Vector3 | null {
+    const lo = this.bones[`lowerarm_${side}`];
+    const hand = this.bones[`hand_${side}`];
+    if (!lo || !hand) return null;
+    return out.copy(hand.getWorldPosition(new THREE.Vector3())).sub(lo.getWorldPosition(new THREE.Vector3())).normalize();
   }
 
   /** a hand, in the world (the checks) */

@@ -1074,11 +1074,14 @@ const debugView: {
   inspect: number | null;
   /** hold a swap at a point in its run, 0..1, for a screenshot of a gun phasing (tools/gunfeel-sheet.ts) */
   raise: number | null;
+  /** hold a first draw's flourish at a point in it, 0..1 (tools/pack-frames.ts); -1 for none */
+  flourish: number | null;
   /** hold a hack's cast at a moment in it, for a screenshot (tools/hackcast-sheet.ts) */
   cast: { id: string; at: number } | null;
 } = {
   cast: null,
   raise: null,
+  flourish: null,
   weapon: null,
   ads: null,
   inspect: null,
@@ -7583,8 +7586,8 @@ function step(): void {
     lowered: debugView.lowered ?? (emptyHand || downedNow || debugView.downed || (knockedOut && !killcam.active) || ordnance.readied ? 1 : lowered),
     downed: downedNow || debugView.downed ? 1 : 0,
     inspect: debugView.inspect ?? (now - inspectAt < INSPECT_TIME ? (now - inspectAt) / INSPECT_TIME : undefined),
-    hackId: hacks.get("mobility")?.id ?? hacks.get("utility")?.id ?? null,
-    flourish: now - flourishAt < FLOURISH_TIME ? (now - flourishAt) / FLOURISH_TIME : undefined,
+    hackIds: [hacks.get("mobility")?.id, hacks.get("utility")?.id].filter((id) => id !== undefined).map(String),
+    flourish: debugView.flourish !== null ? (debugView.flourish >= 0 ? debugView.flourish : undefined) : now - flourishAt < FLOURISH_TIME ? (now - flourishAt) / FLOURISH_TIME : undefined,
     onZip: debugView.onZip ?? player.onZip,
     draw: onScreen.state.drawFrac,
   });

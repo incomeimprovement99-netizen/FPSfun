@@ -3271,10 +3271,14 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
  * jump played, and no skin through the gun where the eye sees it go in (tools/pack-audit.js), held, pointing, the new
  * magazine in, racking, aimed, on the way out and in of a swap and taking something off the ground.
  */
+/** the worst of an inspect's or a flourish's measures: a card's share over the gun, %, the deepest seen skin in it, mm, the
+ * most bent wrist and most wrung forearm, degrees, and the most an arm falls short, m */
+type Moves = { cards: number; deep: number; wrist: number; wrung: number; short: number };
+
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; palm: { w: number; card: boolean }; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; pickLead: string; pickAfter: string };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; palm: { w: number; cards: number }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; pickLead: string; pickAfter: string };
   // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
   const res: { guns: Record<string, Frames>; jump: string[] } = { guns: {}, jump: [] };
   // (the page's helpers once, then one short page call a measure: the e2e draws in software, a few frames a second, and
@@ -3374,7 +3378,12 @@ async function packFrames(page: Page): Promise<void> {
     // the hands off the gun: the bought arms' fists
     o.fists = await pf<Frames["fists"]>(`r.debugView.lowered = 1; await H.gameWait(0.8); const s = r.packArms(); const f = { free: s.free, twist: [s.twistL, s.twistR], curl: [s.curlL, s.curlR], thumb: [s.thumbL, s.thumbR] }; H.clear(); await H.gameWait(0.8); return f;`);
     // an inspect: the open left palm with the hack over it
-    o.palm = await pf<{ w: number; card: boolean }>(`r.debugView.inspect = 0.5; await H.gameWait(0.3); const p = { w: r.packArms().palm, card: r.packArms().palmCard }; r.debugView.inspect = -1; await H.gameWait(0.3); return p;`);
+    o.palm = await pf<{ w: number; cards: number }>(`r.debugView.inspect = 0.5; await H.gameWait(0.3); const p = { w: r.packArms().palm, cards: r.packArms().palmCards }; r.debugView.inspect = -1; await H.gameWait(0.3); return p;`);
+    // an inspect and a first draw's flourish all the way through: the worst of each measure at each moment
+    const moves = (knob: string, cards: boolean) =>
+      pf<Moves>(`const w = { cards: 0, deep: 0, wrist: 0, wrung: 0, short: 0 }; for (const u of [0.04, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.96]) { r.debugView.${knob} = u; await H.gameWait(0.12); const s = r.packArms(); const a = window.__packAudit(0.004); ${cards ? "w.cards = Math.max(w.cards, ...window.__cardOverGun());" : ""} w.deep = Math.max(w.deep, a.seenDeepest * 1000); w.wrist = Math.max(w.wrist, s.wristL, s.wristR); w.wrung = Math.max(w.wrung, s.skinL, s.skinR); w.short = Math.max(w.short, s.reachShort, s.reachShortR); } r.debugView.${knob} = -1; await H.gameWait(0.3); return w;`);
+    o.inspect = await moves("inspect", true);
+    o.flourish = await moves("flourish", false);
     // no skin through the gun where it is seen, in each state
     const states: Array<[string, string]> = [
       ["held", ""],
@@ -3519,9 +3528,25 @@ async function packFrames(page: Page): Promise<void> {
     show((x) => ({ twist: x.fists.twist.map(Math.round), curl: x.fists.curl.map(Math.round), thumb: x.fists.thumb.map((t) => +t.toFixed(2)) })),
   );
   check(
-    "pack frames: on an inspect the left hand opens, palm up, with the hack you carry over it",
-    g.every((x) => x.palm.w > 0.9 && x.palm.card),
+    "pack frames: on an inspect the left hand opens, palm up, with both hacks you carry over it",
+    g.every((x) => x.palm.w > 0.9 && x.palm.cards === 2),
     show((x) => x.palm),
+  );
+  // (the owner, 2026-09-28: the hack "needs to be held higher and slightly more to the left so it doesn't bug in and out
+  // with the gun when it sways back and forth on the usso", and "I have two hacks enabled, only 1 shows"; and the inspect
+  // itself, first swept then: 85 of its 98 frames at fault, BOOG's grip 20 cm out of the right arm's reach, the right
+  // wrist bent 99 degrees, the hands through the gun)
+  const movesOk = (m: Moves, cards: boolean) => (!cards || m.cards <= 2) && m.deep <= 4 && m.wrist <= 60 && m.wrung <= 90 && m.short <= 0.01;
+  const showMoves = (k: "inspect" | "flourish") => show((x) => ({ cards: Math.round(x[k].cards), deep: Math.round(x[k].deep), wrist: Math.round(x[k].wrist), wrung: Math.round(x[k].wrung), short: +(x[k].short * 100).toFixed(1) }));
+  check(
+    "pack frames: all through an inspect the hack cards are clear of the gun on the screen (2%), no hand through the gun (4 mm), the wrists 60 degrees or less, a forearm wrung 90 or less and both arms reaching",
+    g.every((x) => movesOk(x.inspect, true)),
+    showMoves("inspect"),
+  );
+  check(
+    "pack frames: all through a first draw's flourish, a flick of the forearm, no hand through the gun, the wrists 60 degrees or less, a forearm wrung 90 or less and both arms reaching",
+    g.every((x) => movesOk(x.flourish, false)),
+    showMoves("flourish"),
   );
   check(
     "pack frames: drawn after the other gun, the hands hold the USSO and BOOG with the same grip as on the first draw",

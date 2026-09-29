@@ -6382,3 +6382,38 @@ roofs alone.
   memory hunts there first, a ride it was on carries it on, and a bot in a sector the decay warns runs from it and drops
   any climb (the pad stands on the line between two sectors).
 - **Checked:** verify and rules; `sk-district.ts`; the e2e section speedkills; the new test alone 12 runs of 12.
+
+## Milestone 321 — Both hacks over the open palm, clear of the gun; the inspect and the first draw turned by the forearm
+
+The owner, 2026-09-28: the hack "needs to be held higher and slightly more to the left so it doesn't bug in and out with
+the gun when it sways back and forth on the usso when we inspect. and I have two hacks enabled, only 1 shows, the
+animation should show both, so move one to the side a bit more and have the other next to it, very similar, possibly
+smaller if needed to fit in the hand".
+
+- **Why it went in and out** (`tools/pack-audit.js` __cardOverGun): the card draws with no depth test and adds its light,
+  so over the white gun it washes out; as the gun swayed under it, 34 to 67% of it was over the gun on the screen (87%
+  with two). Measured by filling the gun's triangles into a grid a tenth of the screen's size and counting each card's
+  cells over it.
+- **Both hacks** (`viewmodel.ts` palmCards, `inspectPalm.pair`): a card for each hack carried, 7 cm apart at 0.8 of one
+  card's size, each bobbing a little out of step; they come up once the hand is halfway there.
+- **Higher and to the left** (`tools/palm-place.ts`, `inspectPalm.at`): a search of the open hand's place up and to the
+  left on both guns, for no card over the gun at any moment of the inspect with the arm reaching and the wrist straight
+  enough: 3 cm left and 12 cm up, palm up as before. Raised with the elbow hanging, the wrist bent 100 degrees, so the
+  elbow now goes back along the knuckles' line (the forearm runs on into the hand).
+- **The wrist not wrung** (`fprig.ts` spreadTwist, `free.twistShare`): palm up with the forearm level, the hand is rolled
+  150 degrees on its forearm, and with the forearm's twist bone left as it was made all of it was at the wrist: the
+  glove's cuff split from the sleeve. The twist bone halfway down the forearm now takes half (`skinTwist`, the most the
+  skin is wrung: 77 to 84 degrees, as the gun holds' own).
+- **The inspect, first swept** (`tools/pack-frames.ts` SEQ inspect, flourish): 85 of its 98 frames at fault. Turned about
+  the gun's middle, BOOG's grip swung 20 cm out of the right arm's reach; turned about the gun's own axes, the right wrist
+  bent 99 degrees; BOOG's body swung through the open hand. In the bought arms' hands the forearm now turns the gun
+  (`inspectPack`): rolled about the right forearm's own line through the grip, measured off the rig at rest, to show its
+  left side and then its right, the forearm taking the roll along its length, and settled before the open hand comes
+  back to it. The hand lets go down and out round the gun's left side (`inspectPalm.clear`: straight, 9 to 25 mm through
+  it; out alone, 9 mm).
+- **The first draw** (`inspectPack.flourish`, `debugView.flourish`): a whole twirl round the barrel in a hand on the grip
+  wrung the wrist 152 degrees; in the bought arms' hands it is a flick of the forearm, 0.42 rad out and back, the left
+  hand on the gun through it (at 0.9 its wrist bent 70 degrees).
+- **Checked:** new soldier e2e checks: both hacks over the palm; all through an inspect the cards clear of the gun, no
+  hand through it, the wrists 60 degrees or less, a forearm wrung 90 or less and both arms reaching; the same through a
+  flourish; each seen failing with its fault put back; the sheets of every move on both guns; verify; rules.

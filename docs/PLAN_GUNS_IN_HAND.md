@@ -58,9 +58,12 @@ Checked against the deployed build's own sheets before acting on each.
    isn't how it was originally ... compare it to hyperscape": to do, measured against the view's own gun pose from
    before the bought arms and against Hyper Scape's.
 4. "The hack animation also needs to be held higher and slightly more to the left so it doesn't bug in and out with
-   the gun when it sways back and forth on the usso when we inspect": to do.
+   the gun when it sways back and forth on the usso when we inspect": **done** (Milestone 321), measured: no card over
+   the gun at any moment of the inspect.
 5. "I have two hacks enabled, only 1 shows, the animation should show both, so move one to the side a bit more and
-   have the other next to it, very similar, possibly smaller if needed to fit in the hand": to do.
+   have the other next to it, very similar, possibly smaller if needed to fit in the hand": **done** (Milestone 321).
+   The inspect itself, swept for the first time then, had 85 of 98 frames at fault and was rebuilt: the forearm turns
+   the gun. The lesson: every move the hands make goes in the sheets, not only the ones asked about.
 6. "When spraying the usso, the tracers ... are a bit obnoxious ... we should make the tracers much less visible and
    maybe even remove muzzle flash completely or replace it with a paid asset muzzle flash from our fps animations
    pack, making it like 50% transparent": to do.
@@ -94,6 +97,7 @@ Each is a check in the e2e soldier section (`tools/e2e.ts` packFrames) or on the
 | The rack | the fingers close on the handle (the USSO's: the thumb and forefinger's tips within 2 cm of its knob) |
 | At rest | the gun level, as Hyper Scape holds it, not pointed up and left |
 | The inspect | the other hand open, palm up, every hack carried floating over it, clear of the gun's sway |
+| The inspect's own move | no frame at fault: the gun turned by the forearm, both arms reaching, wrists 60 or less, a forearm wrung 90 or less |
 | Firing | a muzzle flash and tracers that read without covering the target |
 | The textures | the held gun at 2048 on High |
 | Proof | the sheets and 5 to 10 close-ups of the stages sent to the owner every round |

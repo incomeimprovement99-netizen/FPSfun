@@ -5,7 +5,7 @@
 // falls short of the gun, and how much of the hands' skin is inside the gun: each hand vertex (a sample) against the nearest
 // part's surface (tools/pack-audit.js). A grip's fingers touch the gun, so only skin deeper than `DEEP` counts.
 //
-// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-frames.ts <out dir> [ids...]   (SEQ=reload,swap,ads STEP=0.04)
+// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-frames.ts <out dir> [ids...]   (SEQ=reload,swap,ads,pickup,inspect,flourish STEP=0.04)
 // At the owner's view (1920 by 1080, FOV setting 1.571). Headless, never the real mouse or keyboard.
 import fs from "node:fs";
 import path from "node:path";
@@ -52,17 +52,18 @@ try {
   await page.evaluate(`document.getElementById("overlay").classList.add("hidden"); window.__range.input.locked = true; ${AUDIT}`);
   const report: string[] = [];
   for (const id of IDS) {
-    await page.evaluate(`(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, 0); r.debugView.inspect = -1; r.loadout.give(0, ${JSON.stringify(id)}); r.loadout.requestSwap(0, r.gameTime()); })()`);
+    await page.evaluate(`(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, 0); r.debugView.inspect = -1; r.debugView.flourish = -1; r.loadout.give(0, ${JSON.stringify(id)}); r.loadout.requestSwap(0, r.gameTime()); })()`);
     await wait(2800);
     for (const seq of SEQ) {
       // (ads: the way into the sights, held at each share of it)
-      const knob = seq === "swap" ? "raise" : seq === "ads" ? "ads" : "reload";
+      const knob = seq === "swap" ? "raise" : seq === "ads" ? "ads" : seq === "inspect" || seq === "flourish" ? seq : "reload";
       const frames: Frame[] = [];
       const steps: number[] = [];
-      for (let p = seq === "reload" ? 0 : STEP; p <= 1 - (seq === "swap" ? STEP / 2 : -1e-9); p += STEP) if (p >= FROM - 1e-9 && p <= TO + 1e-9) steps.push(Math.round(p * 1000) / 1000);
+      for (let p = seq === "reload" ? 0 : STEP; p <= 1 - (seq === "swap" || seq === "inspect" || seq === "flourish" ? STEP / 2 : -1e-9); p += STEP) if (p >= FROM - 1e-9 && p <= TO + 1e-9) steps.push(Math.round(p * 1000) / 1000);
       if (seq === "reload") await page.evaluate("window.__range.loadout.active.state.clip = 0");
       // (pickup: taking something off the ground, held at each share of it by its own knob)
-      const set = (v: number | null) => (seq === "pickup" ? `window.__range.packPickupAt(${v})` : `window.__range.debugView.${knob} = ${v}`);
+      // (an inspect put back to none rather than to the game's own: the sweep keeps inspects and flourishes off)
+      const set = (v: number | null) => (seq === "pickup" ? `window.__range.packPickupAt(${v})` : seq === "inspect" || seq === "flourish" ? `window.__range.debugView.${seq} = ${v ?? -1}` : `window.__range.debugView.${knob} = ${v}`);
       for (const p of steps) {
         await page.evaluate(set(p));
         await wait(220);
@@ -70,6 +71,8 @@ try {
         await page.screenshot({ path: file as `${string}.png`, clip: { x: CROP.left, y: CROP.top, width: CROP.width, height: CROP.height } });
         const s = (await page.evaluate("window.__range.packArms()")) as Record<string, number | string>;
         const a = (await page.evaluate(`window.__packAudit(${DEEP}, ${XRAY})`)) as Frame["a"] & { pts?: number[][] };
+        // (an inspect's hack cards: how much of each is over the gun on the screen)
+        if (seq === "inspect") s.cards = JSON.stringify(await page.evaluate("window.__cardOverGun()"));
         if (XRAY && a && a.pts && a.pts.length) {
           await page.evaluate(`(() => {
             const r = window.__range, T = r.THREE, root = r.viewModelRoot();
@@ -115,6 +118,13 @@ try {
           if (shown && (n(s.wristL) ?? 0) > 60) bad.push(`wristL ${Math.round(s.wristL as number)}`);
           if (shown && (n(s.wristR) ?? 0) > 60) bad.push(`wristR ${Math.round(s.wristR as number)}`);
           if (Math.max(n(s.reachShort) ?? 0, n(s.reachShortR) ?? 0) > 0.01) bad.push("arm short");
+          // (a forearm's skin wrung past what the gun holds' own go to, 77 degrees: the open palm's 150 split the glove's cuff)
+          // (only where it can be seen, as the wrists: in a swap's middle the pack's own clip wrings them out of the picture)
+          if (shown) for (const k of ["skinL", "skinR"] as const) if ((n(s[k]) ?? 0) > 90) bad.push(`wrist wrung ${k.slice(-1)} ${Math.round(s[k] as number)}`);
+          if (typeof s.cards === "string") {
+            const over = Math.max(0, ...(JSON.parse(s.cards) as number[]));
+            if (over > 2) bad.push(`hack card ${over.toFixed(0)}% over the gun`);
+          }
           // (through where it can be seen; inside but hidden behind the gun, as a fingertip round a grip's far side, is not)
           if (fr.a && fr.a.seenL + fr.a.seenR > 0) bad.push(`through gun L${fr.a.seenL} R${fr.a.seenR} ${(fr.a.seenDeepest * 1000).toFixed(0)}mm`);
           if (fr.a && !fr.a.self && fr.a.selfShare !== undefined && fr.a.tested > 0 && (fr.a as { parts?: number }).parts !== 0) bad.push(`inside test failed on itself (${Math.round((fr.a.selfShare ?? 0) * 16)}/16)`);
@@ -135,7 +145,7 @@ try {
       for (const fr of frames) if (fr.s.bad) report.push(`${id} ${seq} ${Math.round(fr.at * 100)}%: ${fr.s.bad}${fr.a && Object.keys(fr.a.where).length ? ` (${JSON.stringify(fr.a.where)})` : ""}`);
       fs.writeFileSync(path.join(OUT, `${id}-${seq}.json`), JSON.stringify(frames.map((f) => ({ at: f.at, ...f.s, audit: f.a })), null, 1));
     }
-    await page.evaluate("window.__range.debugView.inspect = null");
+    await page.evaluate("window.__range.debugView.inspect = null; window.__range.debugView.flourish = null");
   }
   console.log(report.length ? `\n${report.length} frames with a fault:\n${report.join("\n")}` : "\nno frame with a fault");
 } finally {
