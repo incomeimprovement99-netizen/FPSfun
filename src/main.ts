@@ -953,7 +953,9 @@ void dressKit(brMap.root, DRESSING).then((n) => {
 // as the graphics preset asks for, and nothing where the bought files are not there (the public build, a checkout).
 // ?nocitykit leaves it off, for a before-and-after from the same spots (tools/city-sheet.ts)
 // (the Neon City map draws the bundle's pieces alone, at the preset's texture size)
-if (NEON) void dressNeonMap(brMap.root, renderer, quality.cityKit);
+// (not on a ?norender page, which never draws it: decoding and dressing its million and a half triangles there only
+// takes the CPU from the e2e's fights)
+if (NEON && !new URLSearchParams(location.search).has("norender")) void dressNeonMap(brMap.root, renderer, quality.cityKit);
 if (IS_SK && !NEON && !new URLSearchParams(location.search).has("nocitykit"))
   // the districts made of the packs' own demo scenes (citydistricts.ts, Phase 25), every preset: they are the district
   // (at the kit's lo size where the preset loads the kit's lo files)
