@@ -6320,8 +6320,8 @@ its canyons and its walkways): 491 half metres on the live corner, 0 now.
   stood inside the map, the blurry low block at the west arm's end and faces that stood 6 m out onto the city's street, are
   left out of the bake (17 parts). `import-city.ts DISTRICT_PARTS` reports what a district keeps and where, to find them.
 - **The kit's limits** (`citykit.json budget`): the fronts are 125k triangles on Balanced and High in 24 pieces the kit
-  already draws and one draw call more. Raised to 3,200k and 3,300k on the precedent of the fire escapes' raise; a bench of
-  their own is owed, the machine at 95% on other work that evening.
+  already draws and one draw call more. Raised to 3,200k and 3,300k on the precedent of the fire escapes' raise, the machine
+  at 95% on other work that evening; benched after, later that evening with the machine quiet (10%): three rounds interleaved in the street of a match (skmatch) against the build before the fronts, Balanced medians 11.6 ms against 11.5, High 20.9 against 20.7, both inside the rounds' own spread (Balanced before 10.7 to 12.9 ms), 5 to 15 draw calls and 100k to 200k triangles drawn more; the limits stand.
 - **Loot up on the walkways** (`loot.json districts walkways`, `loot.ts`): drawn at random over the plan, the narrow
   walkways lost to the canyons' floor (0 to 4 of 12 spots up there); half the spots now come from the walkways' own
   decks, by their area: 7 to 9 items up there a match, the rest of the field item for item the same.

@@ -158,7 +158,8 @@ The corner as a finished place to fight:
   have caught it (`sk-district.ts`, nothing undrawn beside anywhere you stand) fails on the live corner: 491 half metres.
   **Done (Milestone 318):** 0 now; the backs 20, 24 and 28 m, drawn as the city's own buildings, their fronts in High
   City's strips from Balanced up; 17 backdrop parts left out (district v5); the kit's limits raised by the fronts' 125k
-  triangles on the fire escapes' precedent, a bench of their own owed (the machine was busy).
+  triangles on the fire escapes' precedent, and benched once the machine was quiet: Balanced 11.6 ms against 11.5, High
+  20.9 against 20.7, inside the rounds' spread.
 - The kit's recovered parts (Phase 25's v9: High City's fire escapes 2 m wider, the triangle budgets) where they touch
   the corner.
 - The rest of what a playtest finds.
