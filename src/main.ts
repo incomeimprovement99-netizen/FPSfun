@@ -1399,7 +1399,7 @@ function doSpray(now: number): boolean {
   const normal = lastSolidNormal.clone();
   const idx = Math.max(0, Math.min(SPRAYS.list.length - 1, Number(sprayPick.value) || 0));
   sprays.place(duel?.id ?? 0, at, normal, idx, now);
-  duel?.localFx("spray", at, normal, idx);
+  sendFx("spray", at, normal, idx);
   audio.spray(at);
   sprayReadyAt = now + SPRAYS.cooldown;
   return true;
@@ -2044,6 +2044,16 @@ let hosting: HostHandle | null = null;
  */
 let party: { guests: Map<number, Link> } | { host: Link } | null = null;
 /**
+ * The firing range, together (link.ts MatchOpts.range): a group in the range as
+ * each would be in it alone, seeing each other. It is not `duel`, on purpose:
+ * over a hundred things in this file ask whether a match is on to decide that
+ * the range's own rules no longer apply (the drill, the courses, the dummies,
+ * the tour, the heal kit), and with friends in the range they all still should.
+ * This carries only the others' figures, their shots, hacks, emotes and voice,
+ * and the group's links until the host starts its next match (groupNext).
+ */
+let hangout: Duel | null = null;
+/**
  * Voice chat (src/net/voice.ts): one per PeerJS peer, which outlives a match
  * when the group plays again; who this page talks to is worked out each frame
  * from the host's roster, and the key is push to talk.
@@ -2072,7 +2082,7 @@ function hearsVoice(d: Duel, id: number): boolean {
   return allies ? d.isAlly(id) : true;
 }
 function voiceFrame(): void {
-  const d = duel instanceof Duel ? duel : null;
+  const d = duel instanceof Duel ? duel : hangout;
   if (d && !voice) {
     const peer = d.anyLink()?.voicePeer?.();
     if (peer) {
@@ -2542,11 +2552,14 @@ function leaveParty(reason: string): void {
 }
 
 /** the host: the group's next match, on what the Friends tab says now, over the links it already has */
-function playAgain(): void {
-  if (duel || !party || !("guests" in party)) return;
+function playAgain(range = false): void {
+  if (duel || hangout || !party || !("guests" in party)) return;
   const links = [...party.guests.entries()].sort((a, b) => a[0] - b[0]).map(([, l]) => l);
   party = null;
-  readHostSettings();
+  if (range) rangeSettings();
+  else readHostSettings();
+  // a match takes the group it has; the range takes anyone else who opens the invite (startHangout opens it again)
+  if (!hostOpts?.range) hosting?.stopAccepting();
   const players = links.length + 1;
   // ids afresh, 1 up: a friend who left the group leaves no gap
   links.forEach((l, i) => {
@@ -2557,7 +2570,7 @@ function playAgain(): void {
 }
 
 function duelButtons(): void {
-  const busy = duel !== null || hosting !== null || party !== null;
+  const busy = duel !== null || hosting !== null || party !== null || hangout !== null;
   duelHostBtn.hidden = busy;
   duelJoinBtn.hidden = busy;
   duelCode.hidden = busy;
@@ -2567,17 +2580,65 @@ function duelButtons(): void {
   const d = duel instanceof Duel ? duel : null;
   const short = !!d && !!hosting && d.role === "host" && d.phase === "waiting" && d.mode !== "duel" && d.connected >= 1 && d.connected < d.players - 1;
   duelStartNowBtn.hidden = !short;
-  // the host of a kept group: another match on the same links
-  const again = !duel && party !== null && "guests" in party;
-  duelAgainBtn.hidden = !again;
-  if (again && party && "guests" in party) duelAgainBtn.textContent = `Play again with ${party.guests.size + 1}`;
-  duelLeaveBtn.textContent = !duel && party ? "Leave the group" : "Leave match";
+  // the host of a group, in a match or out of one: the next match for everyone, on the same links
+  const g = groupNow();
+  duelAgainBtn.hidden = !g?.host;
+  if (g?.host) duelAgainBtn.textContent = `Start for everyone (${g.size})`;
+  duelLeaveBtn.textContent = (!duel && party) || hangout ? "Leave the group" : "Leave match";
+  menu.setGroup(g);
   renderRoster();
   if (short && d) duelStartNowBtn.textContent = `Start with ${d.connected + 1}`;
 }
 const duelStartNowBtn = $<HTMLButtonElement>("duelStartNow");
 const duelAgainBtn = $<HTMLButtonElement>("duelAgain");
-duelAgainBtn.addEventListener("click", () => playAgain());
+duelAgainBtn.addEventListener("click", () => void groupNext());
+/**
+ * The group this page is in, if any: its host (this page or not) and how many
+ * are in it. A friends' match counts from its first friend in, the range
+ * together likewise, and a group between matches as it is.
+ */
+function groupNow(): { host: boolean; size: number } | null {
+  if (duel instanceof Duel && duel.players > 1 && !(duel.role === "host" && duel.connected === 0)) return { host: duel.role === "host", size: duel.role === "host" ? duel.connected + 1 : duel.players };
+  if (hangout && !(hangout.role === "host" && hangout.connected === 0)) return { host: hangout.role === "host", size: hangout.role === "host" ? hangout.connected + 1 : hangout.avatars.length + 1 };
+  if (party) return { host: "guests" in party, size: "guests" in party ? party.guests.size + 1 : 0 };
+  return null;
+}
+/** the range together's settings: nothing but the range itself */
+function rangeSettings(): void {
+  hostBr = null;
+  hostOpts = { game: GAME, abilities: false, range: true };
+}
+/** a move to the group's next match is under way: the end of the last one must not start the range as well (endMatch) */
+let groupMoving = false;
+/**
+ * The host's next match for the whole group, from wherever it is: a match under
+ * way (a 1v1 has no end, it goes straight into the next rematch, so waiting for
+ * it was never the answer), the range together, or between matches. The links
+ * go from one to the next and nobody needs a new code: each friend's page takes
+ * the welcome as the end of what it was in (Duel onNextMatch). False when there
+ * is no group to move.
+ */
+function groupNext(range = false): boolean {
+  let guests: Map<number, Link> | null = null;
+  groupMoving = true;
+  try {
+    if (duel instanceof Duel && duel.role === "host" && duel.players > 1 && duel.connected > 0) {
+      guests = duel.release().guests;
+      // the group in hand before the match ends: endMatch keeps the code for a group, and cancels it (and its links) otherwise
+      party = { guests };
+      endMatch("On to the next match with the group.");
+    } else if (hangout && hangout.role === "host" && hangout.connected > 0) {
+      guests = hangout.release().guests;
+      party = { guests };
+      endHangout("", true);
+    } else if (party && "guests" in party) guests = party.guests;
+  } finally {
+    groupMoving = false;
+  }
+  if (!guests?.size) return false;
+  playAgain(range);
+  return true;
+}
 /**
  * The host's lobby: each friend in, whether they have clicked Play, their
  * ping, and a button to take them out. The status line only said "3 of 7
@@ -2588,14 +2649,15 @@ const duelRosterEl = $("duelRoster");
 const escapeHtml = (t: string): string => t.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
 let rosterKey = "";
 function renderRoster(): void {
-  const d = duel instanceof Duel && duel.role === "host" && duel.phase === "waiting" ? duel : null;
+  const d = duel instanceof Duel && duel.role === "host" && duel.phase === "waiting" ? duel : hangout?.role === "host" ? hangout : null;
   const rows = d ? d.roster() : [];
+  const handover = d !== hangout;
   const key = JSON.stringify(rows.map((r) => [r.id, r.name, r.ready, r.ping === null ? null : Math.round(r.ping / 10)]));
   if (key === rosterKey) return;
   rosterKey = key;
   duelRosterEl.hidden = !rows.length;
   duelRosterEl.innerHTML = rows
-    .map((r) => `<div class="rosterRow"><b>${escapeHtml(r.name)}</b> · ${r.ready ? "in" : "on the menu"} · ${r.ping === null ? "ping -" : `${Math.round(r.ping)} ms`} <button type="button" class="ghost" data-host="${r.id}" title="hand the host over: they make a new code for this lobby and everyone moves there">Make host</button> <button type="button" class="ghost" data-kick="${r.id}">Kick</button></div>`)
+    .map((r) => `<div class="rosterRow"><b>${escapeHtml(r.name)}</b> · ${r.ready ? "in" : "on the menu"} · ${r.ping === null ? "ping -" : `${Math.round(r.ping)} ms`} ${handover ? `<button type="button" class="ghost" data-host="${r.id}" title="hand the host over: they make a new code for this lobby and everyone moves there">Make host</button> ` : ""}<button type="button" class="ghost" data-kick="${r.id}">Kick</button></div>`)
     .join("");
 }
 duelRosterEl.addEventListener("click", (e) => {
@@ -2605,7 +2667,7 @@ duelRosterEl.addEventListener("click", (e) => {
     return;
   }
   const id = Number(t.getAttribute("data-kick"));
-  if (t.hasAttribute("data-kick") && Number.isFinite(id) && duel instanceof Duel) duel.kick(id);
+  if (t.hasAttribute("data-kick") && Number.isFinite(id)) (duel instanceof Duel ? duel : hangout)?.kick(id);
 });
 duelStartNowBtn.addEventListener("click", () => {
   if (duel instanceof Duel && duel.startNow()) {
@@ -3190,15 +3252,19 @@ function playEmote(i: number, now: number): void {
   emoteReadyAt = now + def.seconds + emotesCfg.cooldown;
   lastEmote = i;
   selfFig?.emote(i);
-  d?.localFx("emote", undefined, undefined, i);
+  sendFx("emote", undefined, undefined, i);
 }
 
+/** an effect of yours for the others: the match's, or the range's when friends are in it with you (hangout) */
+function sendFx(k: string, a?: THREE.Vector3, b?: THREE.Vector3, n?: number): void {
+  (duel ?? hangout)?.localFx(k, a, b, n);
+}
 /** your emote ends early (you moved, fired, were hit): the figure stops for everyone */
 function stopEmote(): void {
   if (!emoting) return;
   emoting = null;
   selfFig?.emote(null);
-  duel?.localFx("emote", undefined, undefined, EMOTE_STOP);
+  sendFx("emote", undefined, undefined, EMOTE_STOP);
 }
 /** the heal in progress: cancelled by firing or aiming, applied when its time is up */
 function updateHeal(now: number, cancel: boolean): void {
@@ -3776,7 +3842,7 @@ function useHack(slot: HackSlot, now: number): void {
   if (id !== "invis" && now < invisUntil) {
     invisUntil = -Infinity;
     if (d instanceof Duel) d.hiddenUntil.delete(d.id);
-    d?.localFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
+    sendFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
   }
   const eye = camera.position.clone();
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
@@ -3800,7 +3866,7 @@ function useHack(slot: HackSlot, now: number): void {
       player.vel.set(player.vel.x, Math.max(0, player.vel.y), player.vel.z);
       if (thirdPerson) fx.jolt(from, to, now);
       audio.jolt(1);
-      d?.localFx("jolt", from, to);
+      sendFx("jolt", from, to);
       selfFig?.jolt();
       joltedAt = gameTime;
       break;
@@ -3810,14 +3876,14 @@ function useHack(slot: HackSlot, now: number): void {
       player.impulse(player.vel.x * 0.15, Math.sqrt(2 * MOVE.gravity * H.slam.apex), player.vel.z * 0.15);
       skSlam = { phase: "up", at: now, level: held.level };
       audio.whoosh();
-      d?.localFx("sk", player.pos.clone(), undefined, 1);
+      sendFx("sk", player.pos.clone(), undefined, 1);
       break;
     }
     case "leap": {
       player.impulse(player.vel.x * 0.3, Math.sqrt(2 * MOVE.gravity * H.leap.height), player.vel.z * 0.3);
       skLeap = true;
       audio.whoosh();
-      d?.localFx("sk", player.pos.clone(), undefined, 2);
+      sendFx("sk", player.pos.clone(), undefined, 2);
       break;
     }
     case "grapple": {
@@ -3832,7 +3898,7 @@ function useHack(slot: HackSlot, now: number): void {
       skPull = { to, until: now + H.grapple.maxSeconds };
       fx.jolt(player.pos.clone(), to, now);
       audio.zipOn(player.pos);
-      d?.localFx("grap", player.pos.clone(), to);
+      sendFx("grap", player.pos.clone(), to);
       break;
     }
     case "heal": {
@@ -3841,13 +3907,13 @@ function useHack(slot: HackSlot, now: number): void {
       const rates = (H.heal as unknown as { perSeconds?: number[] }).perSeconds;
       healZones.push({ at, until: now + H.heal.seconds, mesh, rate: rates?.[held.level] ?? H.heal.perSecond });
       audio.healDone();
-      d?.localFx("sk", at, undefined, 3);
+      sendFx("sk", at, undefined, 3);
       break;
     }
     case "armor": {
       armorUntil = now + H.armor.seconds;
       audio.shieldBreak();
-      d?.localFx("sk", player.pos.clone(), undefined, 4);
+      sendFx("sk", player.pos.clone(), undefined, 4);
       break;
     }
     case "wall": {
@@ -3857,14 +3923,14 @@ function useHack(slot: HackSlot, now: number): void {
       while (myWalls.length >= H.wall.max) myWalls.shift()!.until = now;
       myWalls.push(putWall(scene, spot.x, spot.y, spot.z, spot.deg, now, H.wall.seconds));
       audio.clatter(new THREE.Vector3(spot.x, spot.y, spot.z));
-      d?.localFx("wall", new THREE.Vector3(spot.x, spot.y, spot.z), new THREE.Vector3(spot.deg, 0, 0));
+      sendFx("wall", new THREE.Vector3(spot.x, spot.y, spot.z), new THREE.Vector3(spot.deg, 0, 0));
       break;
     }
     case "invis": {
       invisUntil = now + H.invis.seconds;
       if (d instanceof Duel) d.hiddenUntil.set(d.id, realNow() + H.invis.seconds);
       audio.whoosh();
-      d?.localFx("sk", player.pos.clone(), new THREE.Vector3(H.invis.seconds, 0, 0), 5);
+      sendFx("sk", player.pos.clone(), new THREE.Vector3(H.invis.seconds, 0, 0), 5);
       break;
     }
     case "reveal": {
@@ -3890,7 +3956,7 @@ function useHack(slot: HackSlot, now: number): void {
       const dmgs = (H.mine as unknown as { damages?: number[] }).damages;
       mines.push({ at: to, armAt: now + H.mine.arm, until: now + H.mine.life, mesh, mine: true, damage: dmgs?.[held.level] ?? H.mine.damage, chaseFrom: null });
       audio.throwNoise("bounce", to);
-      d?.localFx("sk", to, undefined, 6);
+      sendFx("sk", to, undefined, 6);
       break;
     }
   }
@@ -3917,7 +3983,7 @@ function stepHacks(now: number, dt: number): void {
   if (now < invisUntil && (now - loadout.active.state.lastShotAt < 0.05 || loadout.active.state.adsFrac > 0.1)) {
     invisUntil = -Infinity;
     if (d instanceof Duel) d.hiddenUntil.delete(d.id);
-    d?.localFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
+    sendFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
   }
   // GRAPPLE: a pull along the line until you arrive, hit something, or it gives out
   if (skPull) {
@@ -3949,7 +4015,7 @@ function stepHacks(now: number, dt: number): void {
       for (const e of slamTargets(at)) hackHurt(e.rem, e.fig, dmg, "slam");
       audio.blast("arcstar", at);
       fx.jolt(at.clone().setY(at.y + 3), at, now);
-      d?.localFx("sk", at, undefined, 7);
+      sendFx("sk", at, undefined, 7);
       if (input.pad.active) input.pad.rumble(0.8, 0.8, 160);
       skSlam = null;
     } else if (skSlam.phase !== "down" && now - skSlam.at > 3) skSlam = null;
@@ -3999,7 +4065,7 @@ function stepHacks(now: number, dt: number): void {
     }
     for (const e of enemiesNear(m.at, H.mine.radius)) hackHurt(e.rem, e.fig, m.damage ?? H.mine.damage, "mine");
     audio.blast("frag", m.at);
-    d?.localFx("sk", m.at.clone(), undefined, 8);
+    sendFx("sk", m.at.clone(), undefined, 8);
     scene.remove(m.mesh);
     mines.splice(i, 1);
   }
@@ -4283,6 +4349,7 @@ function damageDirs(): Array<{ angle: number; alpha: number }> {
 
 function figureById(id: number): Dummy | null {
   if (duel) return duel.avatars.find((a) => duel!.remoteOf(a)?.id === id) ?? null;
+  if (hangout) return hangout.avatarOf(id);
   return id <= -2 ? (dummies[-2 - id] ?? null) : null;
 }
 /** the figures a throw can reach: the match's (and you, for the others' throws), or the range's dummies */
@@ -4770,6 +4837,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   }
   // the lobby's host handover
   if (d instanceof Duel) d.onHandover = (m, from) => onHandover(d, m, from);
+  // the group's next match, started by its host from the middle of this one (groupNext)
+  if (d instanceof Duel) d.onNextMatch = (w) => nextFromHost(d, w);
   d.onHurt = () => {
     stopEmote();
     lastHurtAt = gameTime;
@@ -4782,138 +4851,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onNotice = (t) => hud.notice(t, gameTime, 1);
   d.onEnd = (reason) => endMatch(reason);
   d.onFeed = (text, mine, neutral) => hud.feed(text, gameTime, neutral ? "#c8d0d8" : mine ? P.feedAlly : P.feedEnemy);
-  // someone else's JOLT: the streak where it went, and its sound by distance
-  d.onRemoteFx = (k, from, a, b, n) => {
-    remoteFxLog.push({ k, from });
-    if (remoteFxLog.length > 20) remoteFxLog.shift();
-    // SpeedKills has no smoke (Phase 20 A10): a cloud from an older build's SMOKE bot is not drawn here either
-    if (IS_SK && (k === "smoke" || (k === "ult" && n === 5))) return;
-    // (an older build's edge laser on someone past the city's edge: drawn no more, the owner took it out)
-    if (k === "edge") return;
-    // a SpeedKills hack of someone else's
-    if (k === "sk" && typeof n === "number") {
-      remoteHack(from, n, a, b);
-      return;
-    }
-    // a MEDIC mate's FIELD HEAL: close enough, and it is health over time for this player too
-    if (k === "ult" && n === 2 && a && d instanceof Duel && d.isFriend(from)) {
-      if (player.pos.distanceTo(a) <= KITS.medic.ult.radius) {
-        startRegen(KITS.medic.ult.health, KITS.medic.ult.seconds, gameTime);
-        hud.notice(`${KITS.medic.ult.name} FROM ${d.nameFor(from) ?? "A MATE"}`, gameTime, 1.4);
-      }
-      return;
-    }
-    // someone else's GRAPPLE: the line where it went; their ZIP LINE: the same rope here
-    if (k === "grap" && a && b) {
-      fx.jolt(a, b, gameTime);
-      audio.zipOn(a);
-      return;
-    }
-    if (k === "ult" && n === 4 && a && b) {
-      putUpZipline(a, b, gameTime);
-      return;
-    }
-    // someone else's canister, or their screen of three: the same clouds here
-    if (k === "wall" && a && b) {
-      putWall(scene, a.x, a.y, a.z, b.x, gameTime, IS_SK ? H.wall.seconds : undefined);
-      audio.clatter(a);
-      return;
-    }
-    if (k === "ult" && n === 6 && a && b) {
-      putBastion(a, b.x, gameTime);
-      audio.clatter(a);
-      return;
-    }
-    if (k === "smoke" && a && b) {
-      throwSmoke(scene, a, b, gameTime);
-      audio.throwNoise("bounce", b);
-      return;
-    }
-    if (k === "ult" && n === 5 && a && b) {
-      const u = KITS.smoke.ult;
-      const across = new THREE.Vector3(0, 1, 0).cross(b.clone().sub(a).setY(0).normalize()).normalize();
-      for (let i = 0; i < u.count; i++) throwSmoke(scene, a, b.clone().addScaledVector(across, (i - (u.count - 1) / 2) * u.spread), gameTime);
-      audio.throwNoise("bounce", b);
-      return;
-    }
-    if (k === "ult" || k === "patch") return;
-    // a quick chat line: its number, said in the feed under their name
-    if (k === "chat" && typeof n === "number") {
-      sayQuick(d.nameFor(from) ?? "PLAYER", n, false);
-      return;
-    }
-    // a squad mate scanned a Ring Console: the circle after next is on our map too
-    // someone's emote: their figure plays it (or stops)
-    // someone's line for the end table
-    if (k === "sum" && a && duel) {
-      endTable.set(from, { name: duel.nameFor(from) ?? `PLAYER ${from + 1}`, kills: Math.max(0, Math.round(a.x)), damage: Math.max(0, a.y), place: Math.max(0, Math.round(a.z)) });
-      return;
-    }
-    // the finish on someone's gun
-    if (k === "fin" && typeof n === "number") {
-      if (n >= 0 && n < FINISHES.length) remoteFinishes.set(from, n);
-      return;
-    }
-    // someone's banner card
-    if (k === "banner" && typeof n === "number") {
-      remoteBanners.set(from, n);
-      return;
-    }
-    // someone's spray, where they put it
-    if (k === "spray" && a && b && typeof n === "number") {
-      sprays.place(from, a, b, n, gameTime);
-      audio.spray(a);
-      return;
-    }
-    if (k === "emote" && typeof n === "number") {
-      figureById(from)?.emote(n === EMOTE_STOP ? null : n);
-      return;
-    }
-    // a squad mate's Gulag: in it, back from it, or out
-    if (k === "gulag" && typeof n === "number" && d instanceof BrMatch) {
-      d.hearGulag(from, n);
-      // SpeedKills' squad panel says it, with what comes after (squadview.ts mateNews); the legacy game says it here
-      if (!IS_SK) {
-        const who = d.nameFor(from);
-        hud.notice(n === 1 ? `${who} IS IN THE GULAG` : n === 2 ? `${who} WON THE GULAG AND IS DROPPING BACK IN` : `${who} LOST IN THE GULAG`, gameTime, 2.5);
-      }
-      return;
-    }
-    if (k === "rcon" && a && typeof n === "number" && d instanceof BrMatch) {
-      d.hearConsole(a, n);
-      hud.notice(`${d.nameFor(from)} SCANNED A RING CONSOLE: THE RING AFTER NEXT IS ON THE MAP`, gameTime, 2.5);
-      return;
-    }
-    // the jumpmaster jumped: a squad mate still linked to them goes too, and follows them down
-    if (k === "jm" && player.aboard && linkedTo === from && d instanceof BrMatch) {
-      linkedTo = null;
-      jumpOut(d, `FOLLOWING ${d.nameFor(from)}  ·  ${keyLabel("crouch")} BREAKS OFF`);
-      following = from;
-      return;
-    }
-    // someone's throw: its flight, bounce and blast here too (their side sends the damage)
-    const tk = throwFromCode(n);
-    if (k === "throw" && a && b && tk) throwables.throw(tk, a, b, from, false, gameTime);
-    if (k === "jolt" && a && b) {
-      fx.jolt(a, b, gameTime);
-      audio.joltAt(a);
-    }
-    // a squad mate's Deathbox Respawn: the beam while it runs
-    if (k === "beam") {
-      setBeam(from, n === 1 && a ? a : null);
-      if (n === 1 && a && duel instanceof BrMatch) duel.hearBeam(a);
-    }
-    // A care package or a loadout crate (brmatch.ts: n 0 or 2 called, 1
-    // landed): the horn when it is called and the thump when it lands, each
-    // heard only so far (br.json podHeard). Past 25 m the audio holds each
-    // back by its distance over the speed of sound, so a far one comes late.
-    if (k === "pod" && a) {
-      const far = Math.hypot(a.x - player.pos.x, a.z - player.pos.z);
-      if (n === 1) {
-        if (far <= brCfg.podHeard.thump) audio.bodyFall(a);
-      } else if (far <= brCfg.podHeard.horn) audio.horn(a);
-    }
-  };
+  // someone else's JOLT, hack, emote, spray: remoteFx
+  d.onRemoteFx = (k, from, a, b, n) => remoteFx(d, k, from, a, b, n);
   // abilities are the match's: on or off, nothing picked yet (the card comes at the countdown or the landing)
   abilities.reset(d.abilities && !IS_SK);
   // SpeedKills: your two picked hacks, ready
@@ -5074,6 +5013,143 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       });
   };
 }
+/**
+ * Someone else's effect, drawn and heard here: a JOLT's streak, a hack, an
+ * emote, a spray, a finish. A match's (wireMatch) and the range's together
+ * (startHangout) both come through it, so friends in the range see each other's
+ * hacks and emotes as they would in a match.
+ */
+function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3, n?: number): void {
+  remoteFxLog.push({ k, from });
+  if (remoteFxLog.length > 20) remoteFxLog.shift();
+  // SpeedKills has no smoke (Phase 20 A10): a cloud from an older build's SMOKE bot is not drawn here either
+  if (IS_SK && (k === "smoke" || (k === "ult" && n === 5))) return;
+  // (an older build's edge laser on someone past the city's edge: drawn no more, the owner took it out)
+  if (k === "edge") return;
+  // a SpeedKills hack of someone else's
+  if (k === "sk" && typeof n === "number") {
+    remoteHack(from, n, a, b);
+    return;
+  }
+  // a MEDIC mate's FIELD HEAL: close enough, and it is health over time for this player too
+  if (k === "ult" && n === 2 && a && d instanceof Duel && d.isFriend(from)) {
+    if (player.pos.distanceTo(a) <= KITS.medic.ult.radius) {
+      startRegen(KITS.medic.ult.health, KITS.medic.ult.seconds, gameTime);
+      hud.notice(`${KITS.medic.ult.name} FROM ${d.nameFor(from) ?? "A MATE"}`, gameTime, 1.4);
+    }
+    return;
+  }
+  // someone else's GRAPPLE: the line where it went; their ZIP LINE: the same rope here
+  if (k === "grap" && a && b) {
+    fx.jolt(a, b, gameTime);
+    audio.zipOn(a);
+    return;
+  }
+  if (k === "ult" && n === 4 && a && b) {
+    putUpZipline(a, b, gameTime);
+    return;
+  }
+  // someone else's canister, or their screen of three: the same clouds here
+  if (k === "wall" && a && b) {
+    putWall(scene, a.x, a.y, a.z, b.x, gameTime, IS_SK ? H.wall.seconds : undefined);
+    audio.clatter(a);
+    return;
+  }
+  if (k === "ult" && n === 6 && a && b) {
+    putBastion(a, b.x, gameTime);
+    audio.clatter(a);
+    return;
+  }
+  if (k === "smoke" && a && b) {
+    throwSmoke(scene, a, b, gameTime);
+    audio.throwNoise("bounce", b);
+    return;
+  }
+  if (k === "ult" && n === 5 && a && b) {
+    const u = KITS.smoke.ult;
+    const across = new THREE.Vector3(0, 1, 0).cross(b.clone().sub(a).setY(0).normalize()).normalize();
+    for (let i = 0; i < u.count; i++) throwSmoke(scene, a, b.clone().addScaledVector(across, (i - (u.count - 1) / 2) * u.spread), gameTime);
+    audio.throwNoise("bounce", b);
+    return;
+  }
+  if (k === "ult" || k === "patch") return;
+  // a quick chat line: its number, said in the feed under their name
+  if (k === "chat" && typeof n === "number") {
+    sayQuick(d.nameFor(from) ?? "PLAYER", n, false);
+    return;
+  }
+  // a squad mate scanned a Ring Console: the circle after next is on our map too
+  // someone's emote: their figure plays it (or stops)
+  // someone's line for the end table
+  if (k === "sum" && a && duel) {
+    endTable.set(from, { name: duel.nameFor(from) ?? `PLAYER ${from + 1}`, kills: Math.max(0, Math.round(a.x)), damage: Math.max(0, a.y), place: Math.max(0, Math.round(a.z)) });
+    return;
+  }
+  // the finish on someone's gun
+  if (k === "fin" && typeof n === "number") {
+    if (n >= 0 && n < FINISHES.length) remoteFinishes.set(from, n);
+    return;
+  }
+  // someone's banner card
+  if (k === "banner" && typeof n === "number") {
+    remoteBanners.set(from, n);
+    return;
+  }
+  // someone's spray, where they put it
+  if (k === "spray" && a && b && typeof n === "number") {
+    sprays.place(from, a, b, n, gameTime);
+    audio.spray(a);
+    return;
+  }
+  if (k === "emote" && typeof n === "number") {
+    figureById(from)?.emote(n === EMOTE_STOP ? null : n);
+    return;
+  }
+  // a squad mate's Gulag: in it, back from it, or out
+  if (k === "gulag" && typeof n === "number" && d instanceof BrMatch) {
+    d.hearGulag(from, n);
+    // SpeedKills' squad panel says it, with what comes after (squadview.ts mateNews); the legacy game says it here
+    if (!IS_SK) {
+      const who = d.nameFor(from);
+      hud.notice(n === 1 ? `${who} IS IN THE GULAG` : n === 2 ? `${who} WON THE GULAG AND IS DROPPING BACK IN` : `${who} LOST IN THE GULAG`, gameTime, 2.5);
+    }
+    return;
+  }
+  if (k === "rcon" && a && typeof n === "number" && d instanceof BrMatch) {
+    d.hearConsole(a, n);
+    hud.notice(`${d.nameFor(from)} SCANNED A RING CONSOLE: THE RING AFTER NEXT IS ON THE MAP`, gameTime, 2.5);
+    return;
+  }
+  // the jumpmaster jumped: a squad mate still linked to them goes too, and follows them down
+  if (k === "jm" && player.aboard && linkedTo === from && d instanceof BrMatch) {
+    linkedTo = null;
+    jumpOut(d, `FOLLOWING ${d.nameFor(from)}  ·  ${keyLabel("crouch")} BREAKS OFF`);
+    following = from;
+    return;
+  }
+  // someone's throw: its flight, bounce and blast here too (their side sends the damage)
+  const tk = throwFromCode(n);
+  if (k === "throw" && a && b && tk) throwables.throw(tk, a, b, from, false, gameTime);
+  if (k === "jolt" && a && b) {
+    fx.jolt(a, b, gameTime);
+    audio.joltAt(a);
+  }
+  // a squad mate's Deathbox Respawn: the beam while it runs
+  if (k === "beam") {
+    setBeam(from, n === 1 && a ? a : null);
+    if (n === 1 && a && duel instanceof BrMatch) duel.hearBeam(a);
+  }
+  // A care package or a loadout crate (brmatch.ts: n 0 or 2 called, 1
+  // landed): the horn when it is called and the thump when it lands, each
+  // heard only so far (br.json podHeard). Past 25 m the audio holds each
+  // back by its distance over the speed of sound, so a far one comes late.
+  if (k === "pod" && a) {
+    const far = Math.hypot(a.x - player.pos.x, a.z - player.pos.z);
+    if (n === 1) {
+      if (far <= brCfg.podHeard.thump) audio.bodyFall(a);
+    } else if (far <= brCfg.podHeard.horn) audio.horn(a);
+  }
+}
 /** the others' effects as they arrived, for the tests */
 const remoteFxLog: Array<{ k: string; from: number }> = [];
 /** the host's battle royale settings, fixed at Create so every guest's welcome says the same */
@@ -5083,6 +5159,23 @@ let hostOpts: MatchOpts | null = null;
 
 /** a friend's match: the host on its first guest, or a guest on the host's welcome (`br`: a battle royale squad) */
 function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: BrWelcome, opts?: MatchOpts): void {
+  // the range together: a friend who opens the invite while the group is in it comes in there
+  if (hangout && myId === 0 && hangout.role === "host") {
+    hangout.addGuest(link, guestId);
+    openRange();
+    hud.notice("A FRIEND IS IN THE RANGE WITH YOU", gameTime, 2);
+    hangoutStatus();
+    duelButtons();
+    return;
+  }
+  if (myId === 0 ? hostOpts?.range : opts?.range) {
+    if (duel || hangout) {
+      link.close();
+      return;
+    }
+    startHangout(link, myId, guestId);
+    return;
+  }
   if (duel && duel.kind === "duel") {
     // the host's second guest joins the match in progress
     if (myId === 0 && duel instanceof Duel) {
@@ -5144,6 +5237,105 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   // straight into the arena when the browser still allows it (a Join click a
   // moment ago counts); otherwise the menu says Click Play
   if (!input.playing && !calibrating) void input.lock(true);
+}
+/**
+ * The range together (hangout), on the first friend's link: the host where it
+ * already stands, a guest beside the range's spawn by its id (net.json group),
+ * so a group arriving at once is not one figure inside another.
+ */
+function startHangout(link: Link, myId: number, guestId: number): void {
+  cancelJoin = null;
+  const h = new Duel(scene, projectiles, { players: MAX_PLAYERS, myId, link, guestId, mode: "range" });
+  hangout = h;
+  h.onEnd = (reason) => endHangout(/host left/i.test(reason) ? "The host left the range." : /^You left/.test(reason) ? "You left the group." : reason);
+  h.onNotice = (t) => hud.notice(t, gameTime, 1);
+  // (a friend leaving says so here: the status and the button count follow it)
+  h.onFeed = (text, mine, neutral) => {
+    hud.feed(text.replace(/ the match\b/, " the range"), gameTime, neutral ? "#c8d0d8" : mine ? P.feedAlly : P.feedEnemy);
+    hangoutStatus();
+    duelButtons();
+  };
+  h.onRemoteFx = (k, from, a, b, n) => remoteFx(h, k, from, a, b, n);
+  // their shots heard where they were fired, once a trigger pull (as a match's: wireMatch)
+  h.onShotFired = (id, o, _dir, w) => {
+    if (id === h.id) return;
+    const t = realNow();
+    if (t - (lastShotSound.get(id) ?? -1) > 0.03) {
+      lastShotSound.set(id, t);
+      audio.gun(w, o);
+    }
+  };
+  h.onNextMatch = (w) => nextFromHost(h, w);
+  h.onSlotFree = (id) => hosting?.release(id);
+  h.onRoster = () => {
+    hangoutStatus();
+    duelButtons();
+  };
+  // your banner and your gun's finish, to the friends in here at once
+  bannerSentAt = -Infinity;
+  finishSent = "";
+  if (myId !== 0) {
+    const G = netCfg.group;
+    player.setBounds(RANGE_PLAY);
+    player.teleport((myId % G.perRow) * G.spacing, 0, Math.floor(myId / G.perRow) * G.rowStep, 0);
+  }
+  openRange();
+  hangoutStatus();
+  duelButtons();
+  hud.notice(myId === 0 ? "A FRIEND IS IN THE RANGE WITH YOU" : "IN THE RANGE WITH THE GROUP", gameTime, 2.5);
+  if (!input.playing && !calibrating) void input.lock(true);
+}
+/** the host's code open to anyone else who opens the invite, into the range: told it is the range, with room for the rest */
+function openRange(): void {
+  if (hangout?.role === "host") hosting?.retarget(MAX_PLAYERS, hangout.roster().map((r) => r.id), undefined, hostOpts ?? undefined);
+}
+/** the Friends tab's line while in the range together */
+function hangoutStatus(): void {
+  const h = hangout;
+  if (!h) return;
+  const code = `<b class="code">${hosting?.code ?? ""}</b>`;
+  if (h.role !== "host") setDuelStatus("In the range with the group. The host picks the next match; your group is still together.", "good");
+  else if (h.connected) setDuelStatus(`In the range with ${h.connected === 1 ? "a friend" : `${h.connected} friends`}. Pick any mode and <b>Start for everyone</b>: they come with you, no new code. More can still join on your link (${code}).`, "good");
+  else setDuelStatus(`In the range, waiting for friends on your link (${code}).`, "live");
+}
+/**
+ * Out of the range together. `moving`: the group's next match takes its links
+ * (groupNext, nextFromHost), so the code stays and nothing is said.
+ */
+function endHangout(reason: string, moving = false): void {
+  const h = hangout;
+  if (!h) return;
+  hangout = null;
+  h.dispose();
+  voiceStop();
+  if (moving) return;
+  if (h.role === "host" && !party) {
+    hosting?.cancel();
+    hosting = null;
+  }
+  hud.notice(reason.toUpperCase(), gameTime, 3);
+  setDuelStatusText(reason);
+  duelButtons();
+}
+/**
+ * A guest: the host's welcome to the group's next match came in on the link of
+ * the match (or the range) this page is in. That one ends here as it would have
+ * at its end, and the next starts on the same link, as a group between matches
+ * does (keepParty).
+ */
+function nextFromHost(d: Duel, w: Extract<NetMsg, { t: "welcome" }>): void {
+  const { host } = d.release();
+  groupMoving = true;
+  try {
+    if (d === hangout) endHangout("", true);
+    else if (d === duel) endMatch("The host started the next match.");
+  } finally {
+    groupMoving = false;
+  }
+  if (!host) return;
+  if (mySeat && w.key) mySeat = { ...mySeat, id: w.id, key: w.key };
+  joinedWith = { players: w.players, br: w.br, opts: w.opts };
+  startDuel(host, w.players, w.id, 1, w.br, w.opts);
 }
 /** the offline match against bots */
 function startBots(): void {
@@ -5362,6 +5554,11 @@ function endMatch(reason: string): void {
   setDuelStatusText(reason + together);
   duelButtons();
   goTo("range");
+  // SpeedKills: a group whose match ran out is back in the range together, where the host picks the next one
+  if (IS_SK && !groupMoving && party && "guests" in party && party.guests.size)
+    window.setTimeout(() => {
+      if (!duel && !hangout && party && "guests" in party) playAgain(true);
+    }, 0);
 }
 /** what the host's match will be, from the Friends tab as it stands: read when a match is made, and again for the group's next one */
 function readHostSettings(): void {
@@ -5382,6 +5579,7 @@ function readHostSettings(): void {
     mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList(), botWeapon: botWeaponChoice() ?? (mk !== "gunrun" ? classGun : null), map: arenaMapChoice(mk, 8), split: $<HTMLSelectElement>("modeSides").value === "split" } : undefined,
     map: arenaMapChoice("duel", 2),
     rules,
+    ...(duelMode.value === "range" ? { range: true } : {}),
   };
 }
 
@@ -5423,15 +5621,18 @@ function inviteLink(code: string): string {
   return `${location.origin}${location.pathname}?${q.toString()}`;
 }
 duelHostBtn.addEventListener("click", () => {
-  if (duel || hosting) return;
+  if (duel || hosting || hangout) return;
   cancelJoin?.();
   newNight();
-  const players = Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
+  // the range together has room for everyone who opens the link
+  const players = duelMode.value === "range" ? MAX_PLAYERS : Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
   readHostSettings();
   openHosting(players);
-  // the lobby is the arena itself: in at once, run around, the code on the
-  // HUD; the match starts when the others arrive and everyone is in
-  goTo("arena");
+  // SpeedKills: you wait in the range, doing what you like there, with the code
+  // on the HUD, and the match starts as it always has once the others are in
+  // (the owner, 2026-09-29: waiting in a small map for a friend was a waste).
+  // The legacy game's lobby is still the arena itself.
+  goTo(IS_SK || duelMode.value === "range" ? "range" : "arena");
   if (!calibrating) {
     readSettings();
     void input.lock();
@@ -5473,7 +5674,7 @@ function openHosting(players: number, then?: (code: string) => void): void {
       note("host", { code, mode: duelMode.value });
       then?.(code);
     },
-    (link, id) => startDuel(link, players, 0, id),
+    (link, id, n) => startDuel(link, n, 0, id),
     (err) => {
       setDuelStatusText(err, "bad");
       hosting = null;
@@ -5593,6 +5794,7 @@ duelCode.addEventListener("keydown", (e) => {
 });
 duelLeaveBtn.addEventListener("click", () => {
   if (duel) duel.leave();
+  else if (hangout) hangout.leave();
   else if (party) leaveParty("You left the group.");
   else if (hosting) {
     hosting.cancel();
@@ -5605,6 +5807,7 @@ duelLeaveBtn.addEventListener("click", () => {
 // leaving them facing a frozen figure until the silence timeout.
 window.addEventListener("pagehide", () => {
   duel?.leave();
+  hangout?.leave();
   note("close");
 });
 // Ctrl+W still closes a windowed tab (Input.lock): mid-match or mid-play the
@@ -5753,8 +5956,12 @@ function applyLoadout(def: LoadoutDef): void {
 }
 
 /** go somewhere to play, from the menu: the range, the course start, or the arena alone */
+/** the modes played on the range's side of the world: the range together goes on through them */
+const RANGE_SIDE: ReadonlySet<Mode> = new Set<Mode>(["range", "tour", "lab", "run", "runAdvanced", "arena"]);
 function goTo(mode: Mode): void {
   if (mode === "duel") return;
+  // anything else, on your own, is leaving the group (its host starts the group's matches: Start for everyone)
+  if (hangout && !RANGE_SIDE.has(mode)) hangout.leave();
   applyExtraMoves();
   // In a match the arena and your spawn are the match's, so a jump elsewhere
   // has to end it first. It used to refuse and send you to a tab to resign
@@ -5836,6 +6043,32 @@ const menu = new Menu(loadouts, profile, {
     if (!want) return;
     duelMode.value = want;
     duelMode.dispatchEvent(new Event("change"));
+    // In a group already: this is its next match, for everyone, on the links it
+    // has, from the middle of a match or from the range (the owner, 2026-09-29).
+    // A friend who is not its host has nothing to start: the host picks.
+    const g = groupNow();
+    if (g && !g.host) return;
+    // Alone in the range, every friend gone: the link they were sent still
+    // works, and waits now for this mode, as it did before anyone came.
+    if (!g && hangout?.role === "host" && hosting) {
+      const h = hosting;
+      hangout.release();
+      endHangout("", true);
+      readHostSettings();
+      const players = want === "range" ? MAX_PLAYERS : Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
+      h.retarget(players, [], hostBr ?? undefined, hostOpts ?? undefined);
+      // (the link's clicks now make this match; the range itself is still where you wait)
+      setDuelStatus(`Waiting in the range for friends on your link (<b class="code">${h.code}</b>): whoever opens it now plays this.`, "live");
+      duelButtons();
+      return;
+    }
+    if (g?.host && groupNext()) {
+      if (!calibrating) {
+        readSettings();
+        void input.lock();
+      }
+      return;
+    }
     menu.show("duel");
     duelHostBtn.click();
   },
@@ -6629,9 +6862,9 @@ function step(): void {
     // 8: your spray on the wall you look at
     if (input.pressedNow("spray")) doSpray(now);
     // your banner card to the match, now and then
-    if (duel && now - bannerSentAt > BANNERS.resend) {
+    if ((duel || hangout) && now - bannerSentAt > BANNERS.resend) {
       bannerSentAt = now;
-      duel.localFx("banner", undefined, undefined, myBanner());
+      sendFx("banner", undefined, undefined, myBanner());
     }
     if (input.pressedNow("emote")) {
       emoteHeldAt = now;
@@ -7302,7 +7535,7 @@ function step(): void {
       // the tracer from the muzzle you see: the gun in first person, your figure's in third
       const muzzle = thirdPerson ? (selfFig?.muzzleWorld() ?? null) : onScreenAsWorld(viewModel.muzzleWorld());
       projectiles.fire(origin.clone(), tmpDir, weapon, false, s.dmgScale, s.speedScale, muzzle, viewModel.tracerStyle);
-      duel?.localShot(origin, tmpDir, weapon.id);
+      (duel ?? hangout)?.localShot(origin, tmpDir, weapon.id);
       selfFig?.kick();
     }
     hardPitch += s.kick.permPitchUp;
@@ -7559,15 +7792,16 @@ function step(): void {
     const m = gunModel(drawn.id);
     if (m.root.userData.finish !== f.id) applyFinish(m, f);
     const key = `${drawn.id}:${f.id}`;
-    if (duel && (key !== finishSent || now - finishSentAt > BANNERS.resend)) {
+    if ((duel || hangout) && (key !== finishSent || now - finishSentAt > BANNERS.resend)) {
       finishSent = key;
       finishSentAt = now;
-      duel.localFx("fin", undefined, undefined, FINISHES.indexOf(f));
+      sendFx("fin", undefined, undefined, FINISHES.indexOf(f));
     }
     // the others' figures in the finishes their pages said
-    if (duel instanceof Duel)
+    const finishOf = duel instanceof Duel ? duel : hangout;
+    if (finishOf)
       for (const [id, n] of remoteFinishes) {
-        const fig = duel.avatarOf(id);
+        const fig = finishOf.avatarOf(id);
         const want = FINISHES[n] ?? null;
         if (fig && fig.finishId !== (want?.id ?? "factory")) fig.setFinish(want);
       }
@@ -7626,7 +7860,7 @@ function step(): void {
 
   // Search: interact held is a plant on a site, or a defuse beside the bomb
   if (duel instanceof ArenaMode) duel.holding = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("interact") : input.held("interact"));
-  duel?.update({
+  const local: Parameters<Duel["update"]>[0] = {
     x: player.pos.x,
     y: player.pos.y,
     z: player.pos.z,
@@ -7643,7 +7877,9 @@ function step(): void {
     ads: ws.adsFrac,
     act: localAct(),
     aimbot: aimbot.enabled,
-  });
+  };
+  duel?.update(local);
+  hangout?.update(local);
   // the battle royale from your side: E, the pads, pings
   if (duel instanceof BrMatch) {
     const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
@@ -7904,7 +8140,7 @@ function step(): void {
     healWheel: wheelOpen ? { items: HEAL_ORDER.map((k) => ({ id: k, name: HEAL_ITEMS[k].name, count: kit.items[k] })), pick: wheelPick } : null,
     emoteWheel: emoteWheelOpen ? { items: EMOTES.map((e) => e.name), pick: emotePick } : null,
     lobby:
-      hosting && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
+      hosting && !hangout?.connected && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
         ? { code: hosting.code, waitingFor: duel ? duel.players - 1 - (duel as Duel).connected : Number(duelPlayers.value) === 3 ? 2 : 1 }
         : null,
     vitals: duel ? { shield: duel.shield, shieldMax: duel.shieldMax, health: duel.health, healthMax: HEALTH_MAX, evo: duel instanceof BrMatch ? armor.evoFrac : null, helmet: armor.helmet } : rangeCombat.on ? { shield: rangeCombat.shield, shieldMax: rangeCombat.shieldMax, health: rangeCombat.health, healthMax: HEALTH_MAX } : null,
@@ -7972,7 +8208,7 @@ function step(): void {
     callout: calloutNow,
     // the squad before the plates: a teammate the squad shows has its name tag, not a plate
     squad: (lastSquad = IS_SK && duel instanceof BrMatch && !killcam.active ? squadNow(duel, now) : (clearSquadRings(), null)),
-    plates: duel ? (lastPlates = platesNow(duel, now)) : (lastPlates = []),
+    plates: duel ? (lastPlates = platesNow(duel, now)) : hangout ? (lastPlates = platesNow(hangout, now)) : (lastPlates = []),
     stance: player.stance,
     speedMs: player.speed,
     speedHu: player.speed / HU,
@@ -8111,6 +8347,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   courseAdvanced,
   merged,
   duel: () => duel,
+  /** the range together (main.ts hangout) */
+  hangout: () => hangout,
   hud,
   input,
   profile,

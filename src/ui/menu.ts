@@ -194,6 +194,14 @@ export class Menu {
     this.render();
   }
 
+  /** the group this page is in (main.ts groupNow), for the panel's friends button */
+  private group: { host: boolean; size: number } | null = null;
+  setGroup(g: { host: boolean; size: number } | null): void {
+    if (g?.host === this.group?.host && g?.size === this.group?.size) return;
+    this.group = g;
+    this.renderSetup();
+  }
+
   /**
    * Pick a mode: the card lights up, the panel becomes that mode's own, and
    * the choice is remembered. Nothing starts.
@@ -236,9 +244,18 @@ export class Menu {
     friends.hidden = !shared;
     // with friends is the only way into a 1v1, so there it wears the colour
     friends.classList.toggle("go", !m.solo);
-    $("setupFriends").textContent = shared
-      ? "With friends makes the match on these settings and copies the invite link: everyone who opens it plays this map, these bots and these rules."
-      : "On your own. Every mode from the arena down can be played with friends instead.";
+    // In a group the button is the group's next match (main.ts groupNext), for
+    // all of it at once; a friend in someone else's group has nothing to start.
+    const g = this.group;
+    friends.disabled = !!g && !g.host;
+    friends.textContent = !g ? "With friends" : g.host ? `Start for everyone (${g.size})` : "The host picks the match";
+    $("setupFriends").textContent = g?.host
+      ? `Your group of ${g.size} is together: this starts it for all of you, from wherever you are now, with no new code.`
+      : g
+        ? "You are in a group: its host starts the next match for everyone. Leave the group on the Friends tab to play on your own."
+        : shared
+          ? "With friends makes the match on these settings and copies the invite link: everyone who opens it plays this map, these bots and these rules."
+          : "On your own. Every mode from the arena down can be played with friends instead.";
     // the loadout you play with, under the buttons, on the modes you play with it (not the courses and the range)
     $("setupLoadout").hidden = LOADOUT_MODES.has(m.id) === false;
     // the aim bot's switch follows the one on the Settings tab

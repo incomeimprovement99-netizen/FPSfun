@@ -365,7 +365,7 @@
           <ol>
             <li><b>Pick a mode on the left</b> (Firing Range is the place to start), set it up on the right, and press the green button. The game takes over your mouse; <kbd>Esc</kbd> gives it back and brings this menu up.</li>
             <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move, <kbd>Space</kbd> jump, <kbd>Shift</kbd> sprint, <kbd>Ctrl</kbd> crouch and slide, left click fire, right click aim, <kbd>R</kbd> reload, <kbd>1</kbd> <kbd>2</kbd> weapons. Everything else is on the Controls tab.</li>
-            <li><b>Playing a friend?</b> Pick the mode, set it up, then <b>With friends</b>: it makes the match and copies the invite link. Opening the link joins it.</li>
+            <li><b>Playing a friend?</b> Pick the mode, set it up, then <b>With friends</b>: it makes the match and copies the invite link, and you wait in the range until they open it. After that you are a group: pick any mode and <b>Start for everyone</b> takes you all into it, no new code.</li>
             <li>A controller works too: plug it in and press <b>Start</b>.</li>
           </ol>
           <button type="button" id="welcomeOk">Got it</button>
@@ -429,7 +429,7 @@
           <div class="duel">
             <div class="duelTitle">Play with friends: any mode, with bots</div>
             <div class="duelRow">
-              <select id="duelMode" title="what to play"><option value="arena">Arena: 1v1 / 1v1v1</option><option value="gunrun">Gun Run: every kill the next gun</option><option value="tdm">Team deathmatch: together against the bots</option><option value="crown">Crown: take it, hold it</option><option value="control">Control: three zones, five a side</option><option value="ffa">Free-for-all: everyone for themselves</option><option value="search">Search: plant and defuse, one life a round</option><option value="br">Battle royale: a squad against the bots</option></select>
+              <select id="duelMode" title="what to play"><option value="arena">Arena: 1v1 / 1v1v1</option><option value="gunrun">Gun Run: every kill the next gun</option><option value="tdm">Team deathmatch: together against the bots</option><option value="crown">Crown: take it, hold it</option><option value="control">Control: three zones, five a side</option><option value="ffa">Free-for-all: everyone for themselves</option><option value="search">Search: plant and defuse, one life a round</option><option value="br">Battle royale: a squad against the bots</option><option value="range">Firing range: all of you in it together</option></select>
               <select id="duelPlayers" title="how many people (not counting bots). Two is the 1v1 arena, three the triangle, more the warehouse with a spawn each"><option value="2">2 players</option><option value="3">3 players</option><option value="4">4 players</option><option value="5">5 players</option><option value="6">6 players</option><option value="7">7 players</option><option value="8">8 players</option></select>
               <select id="duelAbilities" class="legacyOnly" title="JOLT (a 10 m dash, every 3 s) or TRIAGE (heals twice as fast), picked at the countdown or the landing"><option value="0">Abilities off</option><option value="1">Abilities on</option></select>
               <button id="duelHost" type="button">Create match</button>

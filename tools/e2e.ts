@@ -6212,6 +6212,87 @@ async function skLoadoutTest(browser: Browser): Promise<void> {
   await back.close();
 }
 
+/**
+ * The group (the owner, 2026-09-29): "when I send a friend a join link, it needs to put me in the range waiting for
+ * him ... once they're joined, we play the game ... I could just pull us both into a new match, whether that's ...
+ * battle royale or back to a range". The host waits in the range; the friend who opens the link is in the 1v1 as it
+ * always was; the host then moves both into the range together, into a battle royale and back mid-match, with no new
+ * code; a friend who opens the same link later lands in the range with them; one who leaves is gone from it.
+ */
+async function skGroupTest(browser: Browser, Q = "?game=speedkills&net=local&norender"): Promise<void> {
+  const host = await open(browser, Q);
+  await ev(host, `(() => { const s = document.getElementById("duelMode"); s.value = "arena"; s.dispatchEvent(new Event("change")); document.getElementById("duelPlayers").value = "2"; document.getElementById("duelHost").click(); })()`);
+  const got = await host.waitForSelector("#inviteLink", { timeout: 20000 }).then(() => true, () => false);
+  const link = got ? await ev<string>(host, `document.getElementById("inviteLink").value`) : "";
+  const wait = await ev<{ x: number; z: number; code: string | null; match: boolean }>(host, `(() => { const p = window.__range.player.pos; return { x: +p.x.toFixed(2), z: +p.z.toFixed(2), code: window.__range.lobbyCode(), match: window.__range.duel() !== null }; })()`);
+  check("group: the host waits for a friend in the range (not a small map), with the code on the HUD", Math.hypot(wait.x, wait.z) < 1 && !!wait.code && !wait.match, JSON.stringify(wait));
+  if (!link) return void (await host.close());
+  const guest = await open(browser, new URL(link).search);
+  const duel = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel()?.mode === "duel"`, { polling: 200, timeout: 30000 }).then(() => true, () => false)));
+  const inArena = await ev<{ inside: boolean; x: number; z: number }>(host, `(() => { const d = window.__range.duel(); const b = d.arenaBounds, p = window.__range.player.pos; return { inside: p.x >= b.minX && p.x <= b.maxX && p.z >= b.minZ && p.z <= b.maxZ, x: +p.x.toFixed(1), z: +p.z.toFixed(1) }; })()`);
+  check("group: the friend who opens the link is in the 1v1 with the host, and the host is in its arena now, as it always was", duel.every(Boolean) && inArena.inside, JSON.stringify({ duel, inArena }));
+  const buttons = await Promise.all([host, guest].map((p) => ev<{ text: string; off: boolean }>(p, `(() => { window.__range.menu.pickMode("range"); const b = document.getElementById("playFriends"); return { text: b.textContent, off: b.disabled }; })()`)));
+  check("group: the host's With friends is now Start for everyone (2); the friend's says the host picks", buttons[0].text === "Start for everyone (2)" && !buttons[0].off && buttons[1].off && /host picks/.test(buttons[1].text), JSON.stringify(buttons));
+
+  // mid-1v1, the range together
+  await ev(host, `document.getElementById("playFriends").click()`);
+  const ranged = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel() === null && window.__range.hangout()?.mode === "range"`, { polling: 200, timeout: 15000 }).then(() => true, () => false)));
+  await Promise.all([host, guest].map((p) => p.waitForFunction(`(window.__range.hangout()?.avatars ?? []).filter((a) => a.group.visible).length === 1`, { polling: 200, timeout: 10000 }).catch(() => undefined)));
+  const seen = await Promise.all(
+    [host, guest].map((p) =>
+      ev<{ role: string; figures: number; x: number; z: number; fire: boolean; status: string }>(
+        p,
+        `(() => { const h = window.__range.hangout(); const p = window.__range.player.pos; return { role: h?.role, figures: h ? h.avatars.filter((a) => a.group.visible).length : -1, x: +p.x.toFixed(1), z: +p.z.toFixed(1), fire: window.__range.triggerWhy().canFire, status: document.getElementById("duelStatus").textContent }; })()`
+      )
+    )
+  );
+  check("group: mid-1v1 the host takes both to the range together, no new code: out of the match, each with the other's figure in view", ranged.every(Boolean) && seen[0].role === "host" && seen[1].role === "guest" && seen.every((s) => s.figures === 1), JSON.stringify({ ranged, seen }));
+  check("group: in the range, beside its spawn (the friend a place along), with the range's own rules: the guns fire", Math.hypot(seen[0].x, seen[0].z) < 1 && Math.abs(seen[1].x - 1.6) < 0.3 && Math.abs(seen[1].z) < 0.3 && seen.every((s) => s.fire), JSON.stringify(seen));
+  check("group: the friend is told the group is still together and the host picks", /still together/.test(seen[1].status) && /host picks/.test(seen[1].status), seen[1].status);
+  // what one does, the other sees: the host's emote on the friend's page
+  await ev(host, `window.__range.hangout().localFx("emote", undefined, undefined, 0)`);
+  const emote = await guest.waitForFunction(`window.__range.remoteFxLog.some((e) => e.k === "emote" && e.from === 0)`, { polling: 100, timeout: 5000 }).then(() => true, () => false);
+  check("group: in the range together the host's emote reaches the friend", emote);
+
+  // from the range, a battle royale for both
+  await ev(host, `(() => { ${brRow("duo", 2)}; window.__range.menu.pickMode("br"); document.getElementById("playFriends").click(); })()`);
+  const br = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel()?.mode === "br" && window.__range.hangout() === null`, { polling: 200, timeout: 15000 }).then(() => true, () => false)));
+  const brSame = await Promise.all([host, guest].map((p) => ev<{ poi: string; role: string; id: number }>(p, `(() => { const d = window.__range.duel(); return { poi: d?.poi?.name ?? "", role: d?.role ?? "", id: d?.id ?? -1 }; })()`)));
+  check("group: from the range the host starts a battle royale for both, on the same links: one match, one drop", br.every(Boolean) && brSame[0].poi !== "" && brSame[0].poi === brSame[1].poi && brSame[0].role === "host" && brSame[1].role === "guest" && brSame[1].id === 1, JSON.stringify({ br, brSame }));
+
+  // and mid-battle royale, back to the range
+  await ev(host, `(() => { window.__range.menu.pickMode("range"); document.getElementById("playFriends").click(); })()`);
+  const back = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel() === null && window.__range.hangout()?.mode === "range"`, { polling: 200, timeout: 15000 }).then(() => true, () => false)));
+  check("group: mid-battle royale the host takes both back to the range", back.every(Boolean), JSON.stringify(back));
+
+  // a friend who opens the same link now comes into the range with them
+  const late = await open(browser, new URL(link).search);
+  const lateIn = await late.waitForFunction(`window.__range.hangout()?.role === "guest"`, { polling: 200, timeout: 20000 }).then(() => true, () => false);
+  await Promise.all([host, guest, late].map((p) => p.waitForFunction(`(window.__range.hangout()?.avatars ?? []).filter((a) => a.group.visible).length === 2`, { polling: 200, timeout: 10000 }).catch(() => undefined)));
+  const three = await Promise.all([host, guest, late].map((p) => ev<number>(p, `(() => { const h = window.__range.hangout(); return h ? h.avatars.filter((a) => a.group.visible).length : -1; })()`)));
+  const size = await ev<string>(host, `document.getElementById("playFriends").textContent`);
+  check("group: a friend opening the same link later lands in the range with them, and all three see the other two", lateIn && three.every((n) => n === 2) && size === "Start for everyone (3)", JSON.stringify({ lateIn, three, size }));
+
+  // the first friend leaves the group: gone from the others' range, the group two again
+  await ev(guest, `document.getElementById("duelLeave").click()`);
+  const left = await host.waitForFunction(`window.__range.hangout()?.connected === 1`, { polling: 200, timeout: 10000 }).then(() => true, () => false);
+  await sleep(800);
+  const after = await Promise.all([guest, late].map((p) => ev<{ in: boolean; figures: number }>(p, `(() => { const h = window.__range.hangout(); return { in: !!h, figures: h ? h.avatars.filter((a) => a.group.visible).length : -1 }; })()`)));
+  check("group: a friend who leaves is out of the range, and gone from the others' (the group two again)", left && !after[0].in && after[1].in && after[1].figures === 1, JSON.stringify({ left, after }));
+  // the last friend goes too: alone in the range, the host picks a 1v1, and the same old link now makes that match
+  await ev(late, `document.getElementById("duelLeave").click()`);
+  await host.waitForFunction(`window.__range.hangout()?.connected === 0`, { polling: 200, timeout: 10000 }).catch(() => undefined);
+  const alone = await ev<{ text: string; code: string | null }>(host, `(() => { window.__range.menu.pickMode("duel"); return { text: document.getElementById("playFriends").textContent, code: window.__range.lobbyCode() }; })()`);
+  await ev(host, `(() => { document.getElementById("duelPlayers").value = "2"; document.getElementById("playFriends").click(); })()`);
+  const waiting = await ev<{ range: boolean; code: string | null }>(host, `({ range: window.__range.hangout() !== null, code: window.__range.lobbyCode() })`);
+  check("group: alone in the range, the host's button is With friends again, and picking a 1v1 waits on the same code", alone.text === "With friends" && !waiting.range && !!alone.code && waiting.code === alone.code, JSON.stringify({ alone, waiting }));
+  const next = await open(browser, new URL(link).search);
+  const again = await Promise.all([host, next].map((p) => p.waitForFunction(`window.__range.duel()?.mode === "duel"`, { polling: 200, timeout: 30000 }).then(() => true, () => false)));
+  const sized = await ev<number>(host, `window.__range.duel()?.players ?? -1`);
+  check("group: a friend opening that link now is in the 1v1 with the host, a match for two", again.every(Boolean) && sized === 2, JSON.stringify({ again, sized }));
+  for (const p of [next, late, guest, host]) await p.close();
+}
+
 /** a soldier nobody has by default (soldier.ts code: RUNNER, its colours, the helmet off), so seeing it is seeing it sent */
 const FRIEND_SOLDIER = "S3343041";
 
@@ -8260,8 +8341,9 @@ async function main(): Promise<void> {
     }
 
     if (want("sklobby")) {
-      console.log("\nSpeedKills' lobby: the USSO and BOOG first");
+      console.log("\nSpeedKills' lobby: the USSO and BOOG first; the group, from match to match with no new code");
       await skLoadoutTest(browser);
+      await skGroupTest(browser);
     }
 
     if (want("skfriends")) {
@@ -8332,6 +8414,8 @@ async function main(): Promise<void> {
         await handoverTest(browser, "?norender");
         console.log("\nVoice chat, over peer to peer");
         await voiceTest(browser, "?norender");
+        console.log("\nThe group from match to match, over peer to peer (a welcome mid-match, packed the way PeerJS packs it)");
+        await skGroupTest(browser, "?game=speedkills&norender");
       }
     }
 

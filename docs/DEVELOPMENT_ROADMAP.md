@@ -6808,3 +6808,54 @@ court only by dropping in or climbing out. Now two of them are ways through from
   plaza (seen failing with the kiosk's fine collision taken out: stuck on the upper flight both ways), and stands a body
   on the plaza over each hall's corridor.
 - **Checked:** verify and rules; `sk-neon.ts`; the way through photographed at night.
+
+## Milestone 335 — The group: invite once, wait in the range, and the host takes everyone from match to match
+
+The owner, 2026-09-29: "when I send a friend a join link, it needs to put me in the range waiting for him, now it goes
+to a small map while I wait. I then want when he joins for it to act the same way that it does currently ... if I want
+to switch, like, let's say I wanted to 1v1 them to show them the new guns ... And then I want to switch to Battle
+Royale ... now that we're in the lobby together, I could just pull us both into a new match, whether that's ...
+battle royale or back to a range ... we have to send them a new invite code every time."
+
+- **Waiting in the range** (`main.ts` duelHost): SpeedKills' host waits in the range with the code on the HUD, doing
+  what they like there, where the lobby used to be the 1v1's own arena. The match starts as it always did once the
+  friend is in: their arrival makes the match and puts the host at its spawn. The legacy game still waits in its arena.
+- **The group's next match, at any time** (`main.ts` groupNext, `duel.ts` release and onNextMatch): a group between
+  matches could already play again on the links it had, but only once a match had run out, and a 1v1 never does (it
+  goes straight into the rematch). Now the host's With friends, in a match or out of one, reads "Start for everyone
+  (N)": the match in progress lets its links go without a goodbye, and the host's welcome to the next match goes out
+  on them. A guest's page takes a welcome from its host mid-match as the end of what it is in (as its end would have
+  been) and starts the next on the same link. A friend's button says the host picks; the Friends tab's Play again is
+  the same move.
+- **The range together** (`MatchOpts.range`, `main.ts` hangout, `Duel` mode "range"): a new friends' mode, offered on
+  the range's own card and in the Friends box. It is deliberately not `duel`: over a hundred things in main.ts ask
+  whether a match is on to decide that the range's rules no longer apply (the drill, the courses, the dummies, the
+  tour, the heal kit), and with friends in the range they still should. It carries the figures, their shots (heard,
+  not hittable: a friend's figure is not added to the bullets' targets), hacks, emotes, sprays, gun finishes and
+  voice, and never counts down or scores. A guest stands beside the range's spawn by its id (`net.json` group:
+  1.6 m apart, a body being 0.81 m across). The range goes on through the range's own modes (the tour, the lab, the
+  Run, the arena walk); a solo match leaves the group.
+- **Back in the range after a match** (`endMatch`): in SpeedKills a friends' match that runs out puts the group in the
+  range together, where the host picks the next one. The legacy game keeps its Play again.
+- **A friend who opens the link late** (`link.ts` HostHandle.retarget): the invite names the match it was made for,
+  and a welcome from it put a latecomer into a 1v1 the group had left an hour before. The code is now told what the
+  group is in: while it is in the range it takes up to seven friends again, and welcomes them into the range; a match
+  shuts it to newcomers. The host's own side of an arrival is told the match's size as it stands too (`onLink`'s
+  third argument), not the size the code was opened for.
+- **Alone in the range again**: every friend gone, the range is no group, the button is With friends again, and a mode
+  picked waits on the same code, in the range, for whoever opens the link next.
+- **The effects handler** (`main.ts` remoteFx) is lifted out of wireMatch unchanged so the range can share it; the
+  hack, emote, spray, banner and finish sends go through `sendFx` (the match's, else the range's).
+- **Checked:** new e2e checks in `sklobby`: the host waits in the range with the code on the HUD (seen failing with the
+  arena put back); the friend opening the link is in the 1v1 and the host in its arena; the host's button reads Start
+  for everyone (2) and the friend's is disabled; mid-1v1 both are moved to the range together, each seeing the other,
+  the friend a place along, the guns live, the friend told the host picks (seen failing when only the range, and not a
+  match, followed the host's welcome); an emote crosses; from the range both go to one battle royale (the same drop,
+  the friend id 1); mid-battle royale both come back; a third page on the same link lands in the range and all three
+  see the other two (seen failing with the retarget taken out); a friend leaving is gone from the others; the last one
+  gone, the host's button is With friends again and a 1v1 picked waits on the same code, and the next friend on the old
+  link is in a 1v1 for two (seen failing with an empty range still counted as a group). The group test runs again over
+  the real peer to peer path in the p2p section (a welcome mid-match packed the way PeerJS packs it): all 13 of its checks passed over the public broker, in a p2p run of 45, E2E PASS. The
+  lobby check now says the range is played together. invite, duel, brsolo and skfriends, which run the Create, Join and
+  Play again this changed: 55 checks, E2E PASS (the legacy host still waits in its arena; its group's button now reads
+  Start for everyone (2)). verify, rules.

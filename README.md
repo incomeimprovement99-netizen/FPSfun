@@ -127,6 +127,15 @@ Game) or `?game=legacy`, and everything below this section describes it.
   Its hit volumes follow its body, so a headshot lands on the head you see,
   running, crouched or sliding. The bought files never enter git, so a copy
   without them (and the Pages build) shows the figures of before.
+- **Playing with friends:** pick a mode and **With friends**: the invite link
+  is copied and you wait in the range, with the code on your screen, until your
+  friend opens it; then the match starts as it always has. From then on you are
+  a group: in a match or out of one, pick any mode and **Start for everyone**
+  takes all of you into it, a 1v1, a battle royale or the range, with no new
+  code (mid-match too). The **range together** is a mode of its own: everyone
+  in it as they would be alone, seeing and hearing each other, nobody hurt. A
+  group lands there when a match runs out, and a friend who opens your old link
+  while you are in it walks in beside you.
 - **The first loadout is the USSO and BOOG:** the two guns finished to the
   bar every gun will be held to. A new player starts with them, and everyone
   who played before was moved onto them once; pick another on the Loadouts tab
@@ -427,11 +436,16 @@ Gun Run has its ladder.
 over: their page opens a new code for the same match, and everyone, the old
 host included, moves to it by themselves; nobody types a code.
 
-**The group stays together.** When a battle royale ends (or any match runs to
-its end screen and closes), nobody is sent back to swap codes: the host's
-Friends tab shows **Play again with N**. Pick the next mode and its settings
-in the lobby and click it, and everyone goes straight into the new match on the
-connections they already have. **Leave the group** drops out; if the host
+**The group stays together.** Once a friend is in, you are a group, and the
+host moves it: pick the next mode and its settings in the lobby and **Start
+for everyone (N)** (the lobby's With friends button, or the Friends tab's)
+takes everyone straight into it on the connections they already have, from
+the middle of a match (a 1v1 never runs out: it goes into the rematch) or from
+between matches. A friend's page takes the host's welcome as the end of the
+match it is in; their button says the host picks. The firing range is one of
+the choices: everyone in it together, as they would be alone, no rounds and
+nobody hurt, and a friend who opens the old invite link while you are there
+comes into it. In SpeedKills a match that runs out puts the group there. **Leave the group** drops out; if the host
 leaves, everyone is told. The end screen of a match with friends carries one
 table of everybody: kills, damage and where each placed. And the Friends tab keeps **Tonight**: every
 match the group has played since the code was made, each player's wins,

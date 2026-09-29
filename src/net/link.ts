@@ -251,6 +251,13 @@ export interface MatchOpts {
   map?: string;
   /** the host's custom rules (src/config/rules.json): an older host sends none, the rules as they always were */
   rules?: MatchRules;
+  /**
+   * The firing range, together: everyone in the range as they would be alone,
+   * seeing each other, with no rounds and nobody hurt, until the host starts
+   * the group's next match (main.ts hangout). An older build takes the welcome
+   * for the 1v1 it would otherwise be.
+   */
+  range?: boolean;
 }
 
 /** custom match rules: which guns (a category, or any), the 1v1's first-to, friendly fire */
@@ -569,6 +576,14 @@ export interface HostHandle {
   keyOf(id: number): string;
   /** a guest back for seat `id` with its key: true if the match took them back on this link (main sets it) */
   onRejoin: ((link: Link, id: number) => boolean) | null;
+  /**
+   * The group moved on to another match: what a friend arriving from now on is
+   * told, and room for them again. The invite link a friend opens late is the
+   * one they were sent at the start, and it named the first match; without
+   * this they would join a 1v1 the others left an hour ago. `ids` are the
+   * seats the group holds now (its next match numbers them afresh).
+   */
+  retarget(players: number, ids: number[], br?: BrWelcome, opts?: MatchOpts): void;
 }
 
 /** a match a guest is taking over from a host that dropped: its own code again, its seats and their keys, and the new host's id */
@@ -625,7 +640,8 @@ async function peerOptions(): Promise<PeerOptions> {
 export function hostMatch(
   players: number,
   onCode: (code: string) => void,
-  onLink: (l: Link, id: number) => void,
+  /** a guest is in: its link, its id, and how many the match is for now (retarget changes it) */
+  onLink: (l: Link, id: number, players: number) => void,
   onError: (msg: string) => void,
   /** a battle royale: what the welcome tells each guest */
   br?: BrWelcome,
@@ -675,6 +691,14 @@ export function hostMatch(
     stopAccepting,
     keyOf,
     onRejoin: null,
+    retarget: (n, ids, b, o) => {
+      players = n;
+      br = b;
+      opts = o;
+      taken.clear();
+      for (const id of ids) taken.add(id);
+      closed = false;
+    },
   };
   /** a hello asking for a seat back: the seat's own key, and the match taking them. True if it is handled (taken back or refused) */
   const rejoin = (link: Link, m: NetMsg): boolean => {
@@ -709,7 +733,7 @@ export function hostMatch(
       const id = claim();
       const link = new LocalLink("host", ch, "host", e.data.from, false);
       link.send({ t: "welcome", id, players, br, opts, key: keyOf(id) });
-      onLink(link, id);
+      onLink(link, id, players);
     });
     if (!resume) {
       listen();
@@ -770,7 +794,7 @@ export function hostMatch(
           }
           const id = claim();
           link.send({ t: "welcome", id, players, br, opts, key: keyOf(id) });
-          onLink(link, id);
+          onLink(link, id, players);
         };
       });
     });

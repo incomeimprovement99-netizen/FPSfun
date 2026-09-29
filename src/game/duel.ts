@@ -425,6 +425,8 @@ export class Duel implements MatchLike {
   /** voice chat: each player's PeerJS id (the host's own, and every guest's), for voice.ts's calls */
   readonly voicePeers = new Map<number, string>();
 
+  /** a guest: the host's welcome to its next match came in, mid-match; main ends this one and starts that one on the same link */
+  onNextMatch: ((w: Extract<NetMsg, { t: "welcome" }>) => void) | null = null;
   /** the lobby's host handover (link.ts "host"): main runs it; only while waiting, and a guest only hears it from the host */
   onHandover: ((m: Extract<NetMsg, { t: "host" }>, from: number) => void) | null = null;
   /** a guest: the connection to the host dropped mid-match; main tries the code again with the seat's key (swapHost takes the new link) */
@@ -520,14 +522,16 @@ export class Duel implements MatchLike {
    * the humans (they are a squad), the subclass drives the phases and adds
    * the bots and the ring. "arena": the arena's modes (modematch.ts: Gun Run,
    * team deathmatch, Crown), whose subclass drives the phases, the scores and
-   * the bots, and says who is on whose side.
+   * the bots, and says who is on whose side. "range": the firing range
+   * together (main.ts hangout), everyone where they would be alone, no rounds,
+   * nobody hurt and nobody a target: only the figures and what they do.
    */
-  readonly mode: "duel" | "br" | "arena";
+  readonly mode: "duel" | "br" | "arena" | "range";
 
   constructor(
     protected scene: THREE.Scene,
     protected projectiles: ProjectileSystem,
-    opts: { players: number; myId: number; hostId?: number; link: Link | null; guestId?: number; mode?: "duel" | "br" | "arena"; abilities?: boolean; map?: ArenaMapId | null }
+    opts: { players: number; myId: number; hostId?: number; link: Link | null; guestId?: number; mode?: "duel" | "br" | "arena" | "range"; abilities?: boolean; map?: ArenaMapId | null }
   ) {
     const now = wallClock();
     this.mode = opts.mode ?? "duel";
@@ -556,7 +560,8 @@ export class Duel implements MatchLike {
       opts.link.onClose = () => this.hostDropped();
       // the others are known once their state arrives; the host at once
       this.remote(this.hostId);
-      if (MIGRATE) opts.link.send({ t: "heir", op: "can" });
+      // (the range has no match to carry on: a host that goes ends it)
+      if (MIGRATE && this.mode !== "range") opts.link.send({ t: "heir", op: "can" });
     }
     // The first spawn is the caller's to do (onRespawn is not set yet); every
     // later round calls onRespawn itself.
@@ -634,7 +639,7 @@ export class Duel implements MatchLike {
   }
 
   protected friendly(id: number): boolean {
-    return this.mode === "br" && id >= 0 && id < Duel.BOT_ID;
+    return (this.mode === "br" || this.mode === "range") && id >= 0 && id < Duel.BOT_ID;
   }
   /** a figure on this player's side: its plate reads as a team mate's, aim assist leaves it alone */
   isAlly(id: number): boolean {
@@ -1015,7 +1020,8 @@ export class Duel implements MatchLike {
     d.setThreat(0);
     d.health = 1e9;
     this.scene.add(d.group);
-    this.projectiles.addDummy(d);
+    // in the range a friend is not something to shoot: the bullets go through to the targets behind
+    if (this.mode !== "range") this.projectiles.addDummy(d);
     r.avatarWeapon = weapon;
     r.avatarOp = op;
     r.avatarLook = look;
@@ -1208,12 +1214,18 @@ export class Duel implements MatchLike {
       if (this.phase === "waiting" && (this.role === "host" || from === this.hostId)) this.onHandover?.(m, from);
       return;
     }
+    // The host's next match, on this same link: a group moves from match to
+    // match without a new code, whenever its host says (main.ts groupNext).
+    if (m.t === "welcome") {
+      if (this.role === "guest" && from === this.hostId && typeof m.id === "number" && typeof m.players === "number") this.onNextMatch?.(m);
+      return;
+    }
     // the host took you out of its lobby
     if (m.t === "kick") {
       if (this.role === "guest" && from === this.hostId) this.finish("The host took you out of the match.");
       return;
     }
-    if (m.t === "bye" || m.t === "ping" || m.t === "pong" || m.t === "round" || m.t === "zone" || m.t === "hello" || m.t === "welcome" || m.t === "ring" || m.t === "brend" || m.t === "mode") {
+    if (m.t === "bye" || m.t === "ping" || m.t === "pong" || m.t === "round" || m.t === "zone" || m.t === "hello" || m.t === "ring" || m.t === "brend" || m.t === "mode") {
       const known = this.remotes.get(from);
       if (known) known.lastHeard = now;
       if (m.t === "ring" || m.t === "brend" || m.t === "mode") {
@@ -1983,7 +1995,7 @@ export class Duel implements MatchLike {
     if (this.ended) return;
 
     // host: advance the rounds (a battle royale drives its own phases after the drop)
-    if (this.role === "host" && this.phase === "waiting" && this.everyoneReady()) this.enter("countdown", now, COUNTDOWN);
+    if (this.role === "host" && this.phase === "waiting" && this.mode !== "range" && this.everyoneReady()) this.enter("countdown", now, COUNTDOWN);
     if (this.role === "host") this.tick(now, dt, local);
     if (this.ended) return;
     if (this.role === "host" && now >= this.heirSendNext) this.sendHeir(now);
@@ -2212,6 +2224,17 @@ export class Duel implements MatchLike {
     this.links.clear();
     this.hostLink = null;
     return { guests, host };
+  }
+
+  /**
+   * The group's next match takes the links over: this one stops where it is,
+   * with no goodbye on them, and hands them back open (main.ts groupNext and
+   * the guest's side of it). Nothing it sent afterwards would be wanted.
+   */
+  release(): { guests: Map<number, Link>; host: Link | null } {
+    const links = this.takeLinks();
+    this.ended = true;
+    return links;
   }
 
   /** this player left, or a guest's host did (not the match running out): nothing to keep together after it */

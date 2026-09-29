@@ -56,7 +56,8 @@ console.log("The lobby");
   const offered = Array.from(box.slice(0, box.indexOf("</select>")).matchAll(/value="([a-z]+)"/g)).map((m) => m[1]);
   check("every mode that can be played with friends names a mode the Friends box offers", friends.every((m) => offered.includes(m.friends as string)), friends.map((m) => `${m.id}>${m.friends}`).join(" "));
   check("the battle royale is one of them, which is the thing that used to take a tab marked 1v1", friendsModeFor("br") === "br" && friendsModeFor("bots") === "arena");
-  check("the range and the courses are not, and they are the ones with nobody else in them", ["range", "run", "runAdvanced", "tour"].every((id) => friendsModeFor(id) === null));
+  // the range can be played together since the owner asked to be in it with a friend (2026-09-29); the courses and the tour are one person's runs
+  check("the range is played together, as itself, and the courses and the tour are not", friendsModeFor("range") === "range" && ["run", "runAdvanced", "tour"].every((id) => friendsModeFor(id) === null));
   check("a 1v1 cannot be played alone, and everything else can", lobbyMode("duel")?.solo === false && LOBBY_MODES.filter((m) => m.id !== "duel").every((m) => m.solo));
 }
 {
