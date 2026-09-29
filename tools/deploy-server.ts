@@ -56,6 +56,11 @@ if (existsSync(envFile)) {
 const HOST = process.env.RANGE_HOST ?? "";
 const KEY = process.env.RANGE_KEY ?? "";
 const DOMAIN = process.env.RANGE_DOMAIN ?? "";
+/**
+ * after pm2 reloads the server: /health once it answers, up to 20 s, else the failing probe (a second after the reload
+ * the server was not yet listening, and a deploy that had gone out whole failed there, 2026-09-29)
+ */
+const HEALTH_AFTER_RELOAD = "for i in $(seq 1 20); do curl -fsS localhost:4100/health >/dev/null 2>&1 && break; sleep 1; done; curl -fsS localhost:4100/health; echo";
 const sshArgs = [...(KEY ? ["-i", KEY] : []), "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=15"];
 /** the box's address, from RANGE_HOST (user@ip) */
 const IP = HOST.replace(/^.*@/, "");
@@ -280,7 +285,7 @@ async function main(): Promise<void> {
     needHost();
     spawnSync(SSH, [...sshArgs, HOST], { stdio: "inherit" });
   } else if (verb === "restart") {
-    ssh("pm2 startOrReload ~/range/app/server/ecosystem.config.cjs --update-env && pm2 save >/dev/null; sleep 1; curl -fsS localhost:4100/health; echo");
+    ssh(`pm2 startOrReload ~/range/app/server/ecosystem.config.cjs --update-env && pm2 save >/dev/null; ${HEALTH_AFTER_RELOAD}`);
   } else if (verb === "backup") {
     const have = sshOut("cd ~/range && ls boards.json accounts.json seen.jsonl 2>/dev/null || true").split(/\s+/).filter(Boolean);
     if (!have.length) return console.log("nothing to save yet: no boards or accounts on the box");
@@ -313,7 +318,7 @@ async function main(): Promise<void> {
     ssh(
       "set -e; cd ~/range; test -d prev || { echo 'no previous release'; exit 1; }; " +
         "mv app failed; mv prev app; mv failed prev; " +
-        "pm2 startOrReload app/server/ecosystem.config.cjs --update-env && pm2 save >/dev/null; sleep 1; curl -fsS localhost:4100/health; echo"
+        `pm2 startOrReload app/server/ecosystem.config.cjs --update-env && pm2 save >/dev/null; ${HEALTH_AFTER_RELOAD}`
     );
   } else if (verb === "dry") {
     // the release as the box would get it, unpacked and run here
@@ -374,8 +379,7 @@ async function main(): Promise<void> {
         "cd next/server && npm ci --omit=dev --no-audit --no-fund --loglevel=error && cd ~/range",
         "rm -rf prev; if [ -d app ]; then mv app prev; fi; mv next app",
         "pm2 startOrReload app/server/ecosystem.config.cjs --update-env && pm2 save >/dev/null",
-        "sleep 1",
-        "curl -fsS localhost:4100/health; echo",
+        HEALTH_AFTER_RELOAD,
       ].join("; ")
     );
     if (DOMAIN) {

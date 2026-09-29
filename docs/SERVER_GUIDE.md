@@ -174,7 +174,8 @@ npm run fps check
 
 `deploy` builds the public beta (codenames only, checked), packs the site with
 the server, copies it over ssh, installs, swaps it in, restarts the `range`
-pm2 app, checks `/health`, and then plays a real 1v1 between two browser
+pm2 app, checks `/health` (waiting up to 20 s for the restarted server to
+answer), and then plays a real 1v1 between two browser
 pages on `https://fpsfun.duckdns.org` through its own broker. About two
 minutes. `check` then probes it from outside the way a stranger's browser
 would: the DNS name, ssh, TCP 80/443/3478, a STUN answer on UDP 3478,
