@@ -173,8 +173,10 @@ Game) or `?game=legacy`, and everything below this section describes it.
   every shot. At rest both guns point level down the range. On an inspect the
   left hand opens, palm up, with the hack you carry floating over it; holstered
   or meleeing, the fists are the same bought arms and gloves. A
-  swap is the pack's own: the gun swung down to the chest in both hands as it
-  phases out, the next brought up into the hold as it phases in. Jumping plays
+  swap is a throw: the hands lift the gun and toss it up and away, turning over
+  as it phases out in the air, and the next phases in out there and flies back
+  into the hands, which come up to catch it (a setting brings back the pack's own
+  swap, the gun swung down to the chest in both hands). Jumping plays
   the pack's take-off and landing, and taking loot off the ground its pickup. Every other bought gun's support hand holds it where the bought model is
   held (measured), under the gun, and rolls round it until its wrist is nearly
   straight on the forearm; the soldier's first-person arms are drawn the

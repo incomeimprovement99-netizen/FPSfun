@@ -72,8 +72,9 @@ Checked against the deployed build's own sheets before acting on each.
 7. The swap: "any way we can like reverse that animation and just have the character throw it up and out or
    something while after 0.5-1s and some distance, the weapon phases out and the new one phases in in its place and
    then animates towards the user's hands? so the timing is probably much quicker ... If this isn't feasible, it's ok,
-   but I think we should try it and make a note of how it is now in case we need to revert": to try; the swap as it
-   is now is written down in section 3.
+   but I think we should try it and make a note of how it is now in case we need to revert": **done** (Milestone 327),
+   `swap.style` "throw"; the swap as it was is "drop" (section 3). One fault left and known: on the USSO a fingertip
+   grazes the gun, 5 to 6 mm for about a hundredth of the swap, as it leaves the hands and as the next lands.
 8. Renames: ZEPHYR is STRYDER, and two more of the guns are named for people who matter to the owner, REZ and HAEFY
    (RIPTIDE and HELIX, the names that were ours rather than friends'): **done** (Milestone 313).
 9. "the right arm is clearly still so fucked up lol, just put the guns away and look at the right arm": **done**

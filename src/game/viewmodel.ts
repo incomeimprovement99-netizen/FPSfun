@@ -26,7 +26,7 @@ import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels
 import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
-import { FREE, HIP_PITCH, LOCO, PACK_INSPECT, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, packGunFor, type FreeHand } from "./fprig";
+import { FREE, HIP_PITCH, LOCO, PACK_INSPECT, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, SWAP_THROW, packGunFor, type FreeHand } from "./fprig";
 import type { OperatorSkin } from "./operators";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
@@ -529,6 +529,12 @@ export class ViewModel {
   private forearmOn = false;
   /** how far this frame's inspect has the gun rolled, 0..1 (the right forearm takes it) */
   private rollR = 0;
+  /** how far this frame's thrown swap has the hands off the gun, 0..1 */
+  private throwRelease = 0;
+  /** how far open the hands are on a thrown swap, 0..1 */
+  private readonly throwOpen = { l: 0, r: 0 };
+  /** how far the hands have backed off a thrown gun, 0..1 */
+  private readonly throwLeave = { l: 0, r: 0 };
   private readonly boltBase = new THREE.Vector3();
   /** where the support hand holds the charging handle this frame */
   private readonly rackAt = new THREE.Vector3();
@@ -831,6 +837,25 @@ export class ViewModel {
     m.root.position.copy(this.gunCentre).sub(this.spinV);
     m.root.position.z -= SPIN.ahead * e;
     m.root.position.y += SPIN.up * e;
+  }
+
+  /**
+   * The thrown gun off the hands: `s` of its way on alone (view metres along `to`, turned `f` of `turn` about its middle
+   * and lifted on an arc). Moved as the model itself, so the arms' rig, which holds the gun's place, lets it go.
+   */
+  private throwGun(m: GunModel, s: number, f: number): void {
+    const T = this.pack.throwCfg;
+    // (up out of the hands first, along the grip, then on ahead and over: ahead or turning at once, the grip went into
+    // the right hand's fingers and the magazine swung back through them)
+    const turn = smooth(T.clear, 1, f);
+    this.spinQ.setFromEuler(new THREE.Euler(T.turn[0] * turn, T.turn[1] * turn, T.turn[2] * turn));
+    m.root.quaternion.copy(this.spinQ);
+    this.spinV.copy(this.gunCentre).applyQuaternion(this.spinQ);
+    // (view metres into the gun's own units: the model is drawn scaled in the hands)
+    const toGun = this.group.getWorldScale(this.tmp2).x / Math.max(1e-6, m.root.parent ? m.root.parent.getWorldScale(new THREE.Vector3()).x : 1);
+    // (up along the grip's own rake, `slide` ahead for each metre up: straight up, its raked front came through the fingers)
+    const up = T.to[1] * s + T.arc * Math.sin(Math.PI * f);
+    m.root.position.copy(this.gunCentre).sub(this.spinV).add(new THREE.Vector3(T.to[0] * s * s, up, T.to[2] * s * s - T.slide * up * (1 - s)).multiplyScalar(toGun));
   }
 
   /** a signature gun's feel, and the axes its sweeps run along, measured off the bought model in the hands */
@@ -1482,7 +1507,37 @@ export class ViewModel {
     }
     // (not in the bought arms: the pack's own swap swings the gun in the hands, and the spin turned it inside them, a
     // hand 19 mm through it)
-    this.spinGun(m, F && !(packOn && this.pack.swapsByClip) ? 1 - phase : 0);
+    // ---- a swap thrown, in the bought arms' hands (fparms.json swap style "throw"; the owner, 2026-09-28: "have the
+    // character throw it up and out or something while after ... some distance, the weapon phases out and the new one
+    // phases in in its place and then animates towards the user's hands"): the hands lift the gun, let it go and drop
+    // away as it flies on alone, turning over, and it phases out in the air; the next phases in where it went and flies
+    // back, the hands coming up to catch it. The second half is the first run backwards (`u` from the far end)
+    this.throwRelease = 0;
+    this.throwOpen.l = this.throwOpen.r = 0;
+    this.throwLeave.l = this.throwLeave.r = 0;
+    const thrown = F && packOn && SWAP_THROW.style === "throw" && f.raise > 0 && f.raise < 1;
+    if (thrown) {
+      const T = this.pack.throwCfg;
+      const u = f.raise < 0.5 ? f.raise : 1 - f.raise;
+      // the lift, in the hands (up, not ahead: the arms are near their reach at rest, and pushed 10 cm ahead fell short)
+      const lift = smooth(T.liftAt[0], T.liftAt[1], u);
+      p.x += T.lift[0] * lift;
+      p.y += T.lift[1] * lift;
+      p.z += T.lift[2] * lift;
+      // then on alone, once the fingers are opening (flying from a closed hand, the magazine went through it), quick off
+      // the hands and slowing as it goes; the hands dropping away only once it has gone (dropped as they opened, they went
+      // 13 mm into the gun still in them)
+      const x = clamp((u - T.fly[0]) / (0.5 - T.fly[0]), 0, 1);
+      const fly = 1 - (1 - x) * (1 - x);
+      this.throwGun(m, fly, fly);
+      // (each hand in its own time: the right off the pistol grip first while the left holds the gun up, then the left
+      // tosses it: let go together, a fingertip of each caught the gun as it left, 5 to 7 mm in)
+      for (const side of ["l", "r"] as const) {
+        this.throwOpen[side] = smooth(T.hands[side].open[0], T.hands[side].open[1], u);
+        this.throwLeave[side] = smooth(T.hands[side].leave[0], T.hands[side].leave[1], u);
+      }
+      this.throwRelease = smooth(T.drop[0], T.drop[1], u);
+    } else this.spinGun(m, F && !(packOn && this.pack.swapsByClip) ? 1 - phase : 0);
     const move = F ? F.swap.move : 1;
     // melee: a quick in-and-out envelope over the swing
     const mp = (this.t - this.meleeAt) / MELEE_TIME;
@@ -1568,7 +1623,10 @@ export class ViewModel {
       this.pose.quaternion.premultiply(this.locoQuat);
       // and on a swap, the pack's own: the gun swung down to the chest in the hands as it phases out, the next up out of there
       const from = this.tmp.copy(this.pose.position);
-      this.pack.swapMotion(f.raise, this.locoPos, this.locoQuat);
+      if (SWAP_THROW.style === "throw") {
+        this.locoPos.set(0, 0, 0);
+        this.locoQuat.identity();
+      } else this.pack.swapMotion(f.raise, this.locoPos, this.locoQuat);
       // (the arms carried through the swing with the gun: swung alone, the gun bent the left wrist to 72 degrees)
       this.swapArms.makeTranslation(from.x + this.locoPos.x, from.y + this.locoPos.y, from.z + this.locoPos.z).multiply(new THREE.Matrix4().makeRotationFromQuaternion(this.locoQuat)).multiply(new THREE.Matrix4().makeTranslation(-from.x, -from.y, -from.z));
       this.pose.position.add(this.locoPos);
@@ -1624,7 +1682,7 @@ export class ViewModel {
     // the bought arms: the clips to this frame's state, the rig under the holder, our magazine and handle moved
     if (packOn) {
       this.pack.update(
-        { dt, reload: f.reloading ? reloadP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS, away: F ? 1 - this.swapPhase : 0, pickup: this.pickupShare(), palm: this.palmFrame(f), level: this.levelBy, levelAt: this.pose.position, swing: this.swapArms, rollR: this.rollR },
+        { dt, reload: f.reloading ? reloadP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS, away: F && SWAP_THROW.style !== "throw" ? 1 - this.swapPhase : 0, pickup: this.pickupShare(), palm: this.palmFrame(f), level: this.levelBy, levelAt: this.pose.position, swing: this.swapArms, rollR: this.rollR, release: this.throwRelease, open: this.throwOpen, leave: this.throwLeave },
         this.holder,
         m.mag,
         m.bolt,

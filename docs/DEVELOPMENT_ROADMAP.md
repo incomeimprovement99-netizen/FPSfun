@@ -6566,3 +6566,34 @@ districts' rule for the street's scraps (nothing topping out under 0.35 m) threw
 - **Checks:** `sk-neon.ts` drops a body in the court's four corners: each stands on its floor, and the floor is drawn
   (seen failing with the floor not lowered: all four stood at the street's height, on nothing).
 - **Checked:** verify and rules; `sk-neon.ts`; the court photographed from its floor and from above.
+
+## Milestone 327 — The swap thrown: the gun tossed up and out of the hands, the next caught
+
+The owner, 2026-09-28: "currently we bring the guns down like a realistic fps to swap between, but the gun just phases
+out, any way we can like reverse that animation and just have the character throw it up and out or something while
+after 0.5-1s and some distance, the weapon phases out and the new one phases in in its place and then animates towards
+the user's hands? ... If this isn't feasible, it's ok, but I think we should try it and make a note of how it is now in
+case we need to revert".
+
+- **The throw** (`fparms.json` swap style "throw" and throw, `viewmodel.ts` throwGun): the hands lift the gun 4.5 cm,
+  then it goes on alone, straight up out of the hands first and on ahead as the square of its way, 30 cm up and 70 cm
+  ahead by the swap's middle, turning end over end from a third of its way; it phases out in the air over its own swap
+  timing, and the next phases in out there and comes back the same way into the hands. The throw is moved as the model
+  itself, below where the arms' rig holds the gun, so the rig lets it go; the hands open once it has left them, drop out
+  of the picture and come back up to catch the next. Within the swap's own time: the swap is a gameplay number.
+- **The way out of the hands, measured:** pushed ahead with the hands on it, the arms, near their reach, fell short; slid
+  out of closed hands at an angle to the grip, its raked front came through the fingers; opened in place, the
+  straightening fingers went into the USSO's magazine in front of its grip; each hand letting go in its own time, the
+  right's fingers opened into the grip. Straight up out of both closed hands, the fingers opening once it has cleared
+  them, is the cleanest found: BOOG clean all through; on the USSO a fingertip grazes the gun by 5 to 6 mm for about a
+  hundredth of the swap as it leaves the hands, and again as the next lands (the sheets at 1% steps flag it; its
+  magazine and trigger guard sit where a hand opening off a pistol grip sweeps). `tools/throw-release.ts` searches the
+  let-go's settings together, for the next guns.
+- **The swap as it was** is `swap.style` "drop": the pack's unequip and equip clips, the arms dropping out (tag
+  `swap-drop`, docs/PLAN_GUNS_IN_HAND.md).
+- **Checked:** the soldier e2e's swap check now holds a thrown swap: the gun's middle 8 cm and more up and 30 cm ahead by
+  the swap's middle (measured 16 and 59 on the USSO, 21 and 60 on BOOG), and at each 4% of it no hand through the gun and
+  both arms reaching. First written as 30 cm from where it was held, it passed with the old swap too, whose clip carries
+  the gun far as well, down and in to the chest; up and ahead is what only a throw does, and it fails with the old swap
+  (the gun's middle 5 to 15 cm down and 39 to 46 cm in). Measured by the gun's middle: its model's origin, at its back, swings down as it turns
+  end over end. The sheets of every move of both guns; verify; rules.

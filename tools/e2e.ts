@@ -3278,7 +3278,7 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; palm: { w: number; cards: number }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; pickLead: string; pickAfter: string };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; palm: { w: number; cards: number }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; swapDeep: number; swapRise: number; swapAhead: number; pickLead: string; pickAfter: string };
   // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
   const res: { guns: Record<string, Frames>; jump: string[] } = { guns: {}, jump: [] };
   // (the page's helpers once, then one short page call a measure: the e2e draws in software, a few frames a second, and
@@ -3400,9 +3400,15 @@ async function packFrames(page: Page): Promise<void> {
       ...(id === "r97" ? ([["aimed", "r.debugView.ads = 1;"]] as Array<[string, string]>) : []),
     ];
     for (const [name, set] of states) o.through[name] = await pf<number>(`${set} await H.gameWait(0.35); const d = await H.through(); H.clear(); await H.gameWait(0.3); return d;`);
-    const swap = await pf<{ move: number; short: number }>(`r.debugView.raise = 0.2; await H.gameWait(0.2); const s = r.packArms(); H.clear(); return { move: s.swapMove, short: Math.max(s.reachShort, s.reachShortR) };`);
-    o.swapMove = swap.move;
+    // a thrown swap: how far the gun's middle has flown from its place in the hands by the swap's middle (its model's
+    // origin, at its back, swings down as it turns end over end), and all through it the deepest seen skin in the gun and
+    // the most an arm falls short
+    const swap = await pf<{ flown: number; rise: number; ahead: number; deep: number; short: number }>(`const root = r.viewModelRoot(); const T = r.THREE; let gun = null; root.traverse((o) => { if (o.userData && o.userData.paid && !gun) gun = o; }); const at = () => root.worldToLocal(new T.Box3().setFromObject(gun).getCenter(new T.Vector3())); H.clear(); await H.gameWait(0.2); const p0 = at(); r.debugView.raise = 0.46; await H.gameWait(0.15); const p1 = at(); const flown = p1.distanceTo(p0); const rise = p1.y - p0.y; const ahead = p0.z - p1.z; let deep = 0, short = 0; for (let u = 0.04; u < 0.97; u += 0.04) { r.debugView.raise = u; await H.gameWait(0.1); const a = window.__packAudit(0.004); deep = Math.max(deep, a ? a.seenDeepest * 1000 : 0); const s = r.packArms(); short = Math.max(short, s.reachShort, s.reachShortR); } H.clear(); await H.gameWait(0.3); return { flown, rise, ahead, deep, short };`);
+    o.swapMove = swap.flown;
     o.swapHeld = swap.short;
+    o.swapDeep = swap.deep;
+    o.swapRise = swap.rise;
+    o.swapAhead = swap.ahead;
     const pick = await pf<string[]>(`r.packPickupAt(0.4); await H.gameWait(0.2); const a = r.packArms().lead; r.packPickupAt(null); await H.gameWait(0.3); const b = r.packArms().lead; r.debugView.inspect = null; return [a, b];`);
     o.pickLead = pick[0];
     o.pickAfter = pick[1];
@@ -3580,9 +3586,9 @@ async function packFrames(page: Page): Promise<void> {
     show((x) => Object.fromEntries(Object.entries(x.through).map(([k, d]) => [k, Math.round(d * 1000)]))),
   );
   check(
-    "pack frames: a swap is the pack's own, the gun swung away 10 cm and more with both hands still on it (neither arm 1 cm short)",
-    g.every((x) => x.swapMove > 0.1 && x.swapHeld < 0.01),
-    show((x) => ({ move: +x.swapMove.toFixed(2), short: +(x.swapHeld * 100).toFixed(1) })),
+    "pack frames: a swap throws the gun up and out of the hands, its middle 8 cm and more up and 30 cm ahead by the swap's middle, and the next is caught, no hand through the gun (4 mm) and both arms reaching all through it",
+    g.every((x) => x.swapRise > 0.08 && x.swapAhead > 0.3 && x.swapDeep <= 4 && x.swapHeld < 0.01),
+    show((x) => ({ rise: +x.swapRise.toFixed(2), ahead: +x.swapAhead.toFixed(2), deep: +x.swapDeep.toFixed(1), short: +(x.swapHeld * 100).toFixed(1) })),
   );
   check("pack frames: taking something off the ground plays the pack's pickup, and the hold comes back after", g.every((x) => x.pickLead === "pickup" && x.pickAfter === "pose"), show((x) => [x.pickLead, x.pickAfter]));
   const js = res.jump.join(" ");

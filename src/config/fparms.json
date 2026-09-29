@@ -454,14 +454,80 @@
     "at": 0.15,
     "clear": 0.1
   },
-  "_swap": "On a swap or holster the arms drop out of the picture as the gun phases out, and come back up to take the next one as it phases in (the owner: \"the guns fly in and out but the arms stay in a weird position\"): at the phase's bottom the whole rig is `drop` m lower, `back` m nearer and pitched `pitch` radians down, about the eye. With `clips` of the pack's own swap on top (fprig.ts swapMotion, its Rifle_Unequip and Rifle_Equip, measured: the gun swung 29 cm across, 34 cm in to the chest and turned 58 degrees, the hands on it all the way), the one into the other over `cross` of the swap either side of its middle, where the guns change; the owner, 2026-09-28: \"look for more things we can do with it, especially when we swap guns, what the hands and arms can do\". The arms drop only from `dropFrom` of the way out of the picture (the gun all but gone): from the start they left the gun flying on its own while the pack's swap carried it.",
+  "_swap": "On a swap or holster the arms drop out of the picture as the gun phases out, and come back up to take the next one as it phases in (the owner: \"the guns fly in and out but the arms stay in a weird position\"): at the phase's bottom the whole rig is `drop` m lower, `back` m nearer and pitched `pitch` radians down, about the eye. With `clips` of the pack's own swap on top (fprig.ts swapMotion, its Rifle_Unequip and Rifle_Equip, measured: the gun swung 29 cm across, 34 cm in to the chest and turned 58 degrees, the hands on it all the way), the one into the other over `cross` of the swap either side of its middle, where the guns change; the owner, 2026-09-28: \"look for more things we can do with it, especially when we swap guns, what the hands and arms can do\". The arms drop only from `dropFrom` of the way out of the picture (the gun all but gone): from the start they left the gun flying on its own while the pack's swap carried it. `style`: \"throw\" (the owner, 2026-09-28: \"have the character throw it up and out ... the weapon phases out and the new one phases in in its place and then animates towards the user's hands ... make a note of how it is now in case we need to revert\") or \"drop\", the pack's own swap as above (tagged swap-drop in git, docs/PLAN_GUNS_IN_HAND.md). Thrown (viewmodel.ts throwGun), over the swap's first half and back again over its second: the hands lift the gun `lift` view metres over `liftAt` of the swap (up, not ahead: pushed 10 cm ahead, the arms, near their reach at rest, fell short; lifted 6 cm, BOOG's right wrist bent 61 degrees), and from `fly[0]` it goes on alone, straight up out of the hands first (along the grip) and on ahead and to the side as the square of its way, `to` view metres (x right, y up, z back) by the swap's middle, `slide` ahead a metre up, turning `turn` radians about its middle from `clear` of its way and lifted `arc` (ahead or turning at once, the grip went into the right hand's fingers and the magazine swung back through them). Each hand (`hands`) backs off `off` view metres in the gun's frame over `leave`, its fingertips relaxing `relax` of the way to straight, and opens its fingers over `open`, once the gun is clear of it (opened round it, the straightening fingers went into the USSO's magazine and front); the arms drop out of the picture over `drop`, and come back up to catch the next, which lands in them the same way run backwards. Each gun phases out and in over its own swap timing (gunfeel.json swap), in the air. tools/throw-release.ts searches the let-go's settings.",
   "swap": {
     "drop": 0.35,
     "back": 0.12,
     "pitch": 0.6,
     "clips": 1,
     "cross": 0.06,
-    "dropFrom": 0.7
+    "dropFrom": 0.7,
+    "style": "throw",
+    "throw": {
+      "to": [
+        0.06,
+        0.3,
+        -0.7
+      ],
+      "turn": [
+        -2.6,
+        0.4,
+        0.9
+      ],
+      "arc": 0.08,
+      "lift": [
+        0,
+        0.045,
+        0.01
+      ],
+      "liftAt": [
+        0.04,
+        0.16
+      ],
+      "fly": [
+        0.2,
+        0.5
+      ],
+      "drop": [
+        0.28,
+        0.4
+      ],
+      "clear": 0.35,
+      "slide": 0,
+      "relax": 0,
+      "hands": {
+        "r": {
+          "leave": [
+            0.18,
+            0.24
+          ],
+          "off": [
+            0,
+            0,
+            0
+          ],
+          "open": [
+            0.26,
+            0.34
+          ]
+        },
+        "l": {
+          "leave": [
+            0.18,
+            0.24
+          ],
+          "off": [
+            0,
+            0,
+            0
+          ],
+          "open": [
+            0.26,
+            0.34
+          ]
+        }
+      }
+    }
   },
   "_pickup": "Taking something off the ground (main.ts applyLoot, any item but a gun, which comes into the hands by the swap): the pack's pickup clip, its left hand down and back up, over `seconds` (the clip's own length), eased in and out over `ease` of it. `gunKeep` is the share of the clip's own motion of the gun kept: all of it tipped the gun up onto its side and bent the right wrist to 88 degrees.",
   "pickup": {

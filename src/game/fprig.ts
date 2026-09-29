@@ -92,6 +92,11 @@ export const LOCO = (cfg as unknown as { sprint: { fireHold: number; easeIn: num
 export const PACK_RELOAD = (cfg as unknown as { reload: { point: number[]; phaseOut: number[]; phaseIn: number[]; seat: number; rack: number[]; reach: number; aim: number[]; face: number[]; elbow: number[]; slide: number; shift: number[]; aimAt: number; rackBlend: number; gap: number; bend: number; at: number; clear: number; twist: { roll: number; yaw: number; pitch: number; x: number; y: number; z: number } } }).reload;
 /** the arms out of the picture on a swap (fparms.json swap) */
 const SWAP = (cfg as unknown as { swap: { drop: number; back: number; pitch: number; clips: number; cross: number; dropFrom: number } }).swap;
+/** the swap thrown: the gun pushed up and out, let go and caught (fparms.json swap style, throw) */
+export const SWAP_THROW = (cfg as unknown as { swap: { style: string; throw: { to: number[]; turn: number[]; arc: number; lift: number[]; liftAt: number[]; fly: number[]; drop: number[]; clear: number; slide: number; relax: number; hands: { l: ThrowHand; r: ThrowHand } } } }).swap;
+/** a hand letting a thrown gun go: backing off it `off` view metres (its frame) over `leave` of the swap, its fingertips
+ * relaxing, and its fingers opening over `open` */
+type ThrowHand = { leave: number[]; off: number[]; open: number[] };
 /** the pack's pickup: its clip, how long it takes, and when in it the hand reaches the ground (fparms.json pickup) */
 export const PICKUP = (cfg as unknown as { pickup: { clip: string; seconds: number; ease: number; gunKeep: number } }).pickup;
 const ss = THREE.MathUtils.smoothstep;
@@ -195,6 +200,12 @@ export interface PackArmsFrame {
   swing: THREE.Matrix4;
   /** 0..1 how far an inspect has the gun rolled in the right hand, which the right forearm takes (spreadTwist) */
   rollR: number;
+  /** 0..1 the hands off a thrown gun, dropped out of the picture as far as a swap's `away` drops them */
+  release: number;
+  /** 0..1 each hand's fingers open, letting a thrown gun go or before catching one */
+  open: { l: number; r: number };
+  /** 0..1 how far each hand has backed off a thrown gun as it lets it go (fparms.json swap throw hands) */
+  leave: { l: number; r: number };
 }
 
 /** a hand off any gun: its wrist at `at` (world), its knuckles along `along` and its palm facing `palm` (both in the
@@ -283,6 +294,12 @@ export class PackArms {
    */
   /** a hold tried in place of the pack gun's own (tools/pack-fit.ts) */
   debugHold: HoldFit | null = null;
+  /** a thrown swap's settings tried over the config's (tools/throw-release.ts) */
+  debugThrow: Partial<typeof SWAP_THROW.throw> | null = null;
+  /** a thrown swap's settings: the config's, or those being tried */
+  get throwCfg(): typeof SWAP_THROW.throw {
+    return this.debugThrow ? { ...SWAP_THROW.throw, ...this.debugThrow } : SWAP_THROW.throw;
+  }
   /** where the open hand is held on an inspect, tried in place of the config's (tools/palm-place.ts) */
   debugPalmAt: number[] | null = null;
   /** the open hand's knuckles' way on an inspect, tried in place of the config's (tools/palm-place.ts) */
@@ -731,6 +748,24 @@ export class PackArms {
       }
     }
 
+    // the grip relaxed as a thrown gun leaves the hands: the fingertips' last joints off it, the fingers still round it
+    // (slid out of the closed hand, the USSO's grip came 5 mm through the fingertips; the middle joints relaxed too, the
+    // fingers swung into the gun, and the whole fingers straightened, into the magazine in front of it)
+    if (f.leave.l > 0.001 || f.leave.r > 0.001) {
+      for (const [n, b] of Object.entries(this.bones)) {
+        if (!/^(index|middle|ring|pinky)_03_[lr]$/.test(n)) continue;
+        const bind = this.bind.get(b);
+        if (bind) b.quaternion.slerp(bind[1], f.leave[n.endsWith("_l") ? "l" : "r"] * this.throwCfg.relax);
+      }
+    }
+    // the hands open as they let a thrown gun go, and close again on the one they catch
+    if (f.open.l > 0.001 || f.open.r > 0.001) {
+      for (const [n, b] of Object.entries(this.bones)) {
+        if (!/^(index|middle|ring|pinky|thumb)_0[123]_[lr]$/.test(n)) continue;
+        const bind = this.bind.get(b);
+        if (bind) b.quaternion.slerp(bind[1], f.open[n.endsWith("_l") ? "l" : "r"]);
+      }
+    }
     // the hold's fit on our gun: each finger opened as far as it has to be to stay out of it (our grips are thicker than the
     // pack's: the USSO's magazine runs up its grip, and the hand made for the MPS5's sank 15 mm into it), as far as the
     // hand is holding (a clip's own move of it, a point or a grab takes over)
@@ -809,7 +844,7 @@ export class PackArms {
     // out of the picture on a swap: down, back and pitched down about the eye, the hands with it
     // (only once the gun has all but gone, `dropFrom` of the way: the pack's own swap carries the gun away in the hands,
     // and dropped from the start the arms left the gun flying on its own)
-    const away = ss(f.away, SWAP.dropFrom, 1);
+    const away = Math.max(ss(f.away, SWAP.dropFrom, 1), f.release);
     const drop = new THREE.Matrix4().makeTranslation(0, -SWAP.drop * away, SWAP.back * away).multiply(new THREE.Matrix4().makeRotationX(-SWAP.pitch * away));
     // and turned down with the gun as it is levelled at rest, about the gun's origin: turned alone, the gun bent both
     // wrists (the support one from 44 degrees to 56) and moved the left hand off it
@@ -1107,6 +1142,10 @@ export class PackArms {
         pos.add(new THREE.Vector3(-1, -1, 0).applyMatrix3(toWorldDir).normalize().multiplyScalar(6.75 * palmW * (1 - palmW) ** 2 * PACK_PALM.clear * gsW));
       }
       if (side === "l") this.seen.offHold = pos.distanceTo(heldL) / gsW;
+      // off the gun as the fingers open to let a thrown one go (opened in place, they went 12 mm into the USSO's front and
+      // its magazine through the right hand as it left), view metres in our gun's frame
+      const offV = new THREE.Vector3().fromArray(this.throwCfg.hands[side].off);
+      if (f.leave[side] > 0.001 && offV.lengthSq() > 0) pos.add(offV.clone().applyMatrix3(toWorldDir).normalize().multiplyScalar(offV.length() * gsW * f.leave[side]));
       // with the rig, if it has dropped away
       if (away > 0) {
         pos.applyMatrix4(dropW);
