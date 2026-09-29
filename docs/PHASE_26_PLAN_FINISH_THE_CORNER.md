@@ -51,7 +51,7 @@ we are using out of how many."
 | 26.2 | Nobody gets into the corner where they should not | shipped | 315 |
 | 26.3 | Wallrunning: the camera leans, and you can see you are on the wall | shipped | 315 |
 | 26.4 | Finish the corner: the fire escapes up its walkways; the arm ends closed; loot and bots up on the walkways | in progress | 317, 318, 320 |
-| 26.5 | Wipe the middle district and rebuild it the corner's way, bigger | after 26.4 | |
+| 26.5 | Wipe the middle district and rebuild it the corner's way, bigger | moved to Phase 28: the owner bought Daelonik's Neon City for it (`docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md`) | |
 
 ### 26.0 The bug hunt (done)
 
