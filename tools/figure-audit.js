@@ -19,45 +19,49 @@
   const grids = new Map();
   const CELL = 0.02;
 
-  /** the closest point of triangle abc to p (Ericson, Real-Time Collision Detection 5.1.5), into out; squared distance back */
-  function closest(p, a, b, c, out) {
-    const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
-    const acx = c[0] - a[0], acy = c[1] - a[1], acz = c[2] - a[2];
-    const apx = p[0] - a[0], apy = p[1] - a[1], apz = p[2] - a[2];
+  /**
+   * The closest point to p of the triangle at t in the flat array T (its corners a, b, c: Ericson, Real-Time Collision
+   * Detection 5.1.5), into out; squared distance back. Read in place: three arrays made a triangle were most of a measure.
+   */
+  function closest(p, T, t, out) {
+    const a0 = T[t], a1 = T[t + 1], a2 = T[t + 2], b0 = T[t + 3], b1 = T[t + 4], b2 = T[t + 5], c0 = T[t + 6], c1 = T[t + 7], c2 = T[t + 8];
+    const abx = b0 - a0, aby = b1 - a1, abz = b2 - a2;
+    const acx = c0 - a0, acy = c1 - a1, acz = c2 - a2;
+    const apx = p[0] - a0, apy = p[1] - a1, apz = p[2] - a2;
     const d1 = abx * apx + aby * apy + abz * apz;
     const d2 = acx * apx + acy * apy + acz * apz;
     let x, y, z;
-    if (d1 <= 0 && d2 <= 0) [x, y, z] = a;
+    if (d1 <= 0 && d2 <= 0) (x = a0), (y = a1), (z = a2);
     else {
-      const bpx = p[0] - b[0], bpy = p[1] - b[1], bpz = p[2] - b[2];
+      const bpx = p[0] - b0, bpy = p[1] - b1, bpz = p[2] - b2;
       const d3 = abx * bpx + aby * bpy + abz * bpz;
       const d4 = acx * bpx + acy * bpy + acz * bpz;
-      if (d3 >= 0 && d4 <= d3) [x, y, z] = b;
+      if (d3 >= 0 && d4 <= d3) (x = b0), (y = b1), (z = b2);
       else {
         const vc = d1 * d4 - d3 * d2;
         if (vc <= 0 && d1 >= 0 && d3 <= 0) {
           const v = d1 / (d1 - d3);
-          x = a[0] + v * abx; y = a[1] + v * aby; z = a[2] + v * abz;
+          x = a0 + v * abx; y = a1 + v * aby; z = a2 + v * abz;
         } else {
-          const cpx = p[0] - c[0], cpy = p[1] - c[1], cpz = p[2] - c[2];
+          const cpx = p[0] - c0, cpy = p[1] - c1, cpz = p[2] - c2;
           const d5 = abx * cpx + aby * cpy + abz * cpz;
           const d6 = acx * cpx + acy * cpy + acz * cpz;
-          if (d6 >= 0 && d5 <= d6) [x, y, z] = c;
+          if (d6 >= 0 && d5 <= d6) (x = c0), (y = c1), (z = c2);
           else {
             const vb = d5 * d2 - d1 * d6;
             if (vb <= 0 && d2 >= 0 && d6 <= 0) {
               const w = d2 / (d2 - d6);
-              x = a[0] + w * acx; y = a[1] + w * acy; z = a[2] + w * acz;
+              x = a0 + w * acx; y = a1 + w * acy; z = a2 + w * acz;
             } else {
               const va = d3 * d6 - d5 * d4;
               if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) {
                 const w = (d4 - d3) / (d4 - d3 + (d5 - d6));
-                x = b[0] + w * (c[0] - b[0]); y = b[1] + w * (c[1] - b[1]); z = b[2] + w * (c[2] - b[2]);
+                x = b0 + w * (c0 - b0); y = b1 + w * (c1 - b1); z = b2 + w * (c2 - b2);
               } else {
                 const den = 1 / (va + vb + vc);
                 const v = vb * den;
                 const w = vc * den;
-                x = a[0] + abx * v + acx * w; y = a[1] + aby * v + acy * w; z = a[2] + abz * v + acz * w;
+                x = a0 + abx * v + acx * w; y = a1 + aby * v + acy * w; z = a2 + abz * v + acz * w;
               }
             }
           }
@@ -88,7 +92,8 @@
             list.push(t);
           }
     }
-    return { tris, map, cell, key };
+    // each triangle's stamp: the query that last looked at it, so a query sees each once (a Set a query was slow)
+    return { tris, map, cell, key, stamp: new Int32Array(tris.length / 9), query: 0 };
   }
 
   /**
@@ -100,26 +105,37 @@
     const r = Math.ceil(reach / g.cell);
     const ci = Math.floor(p[0] / g.cell), cj = Math.floor(p[1] / g.cell), ck = Math.floor(p[2] / g.cell);
     let best = reach * reach;
-    const seen = new Set();
+    const now = ++g.query;
     const near = [];
     const q = [0, 0, 0];
+    // the cells nearest first, and none once the nearest a cell could hold is past the best face found: the same
+    // answer, but a point by a surface looks at a few cells' faces, not the 125 round it (a hand's fit measures often)
+    const cells = [];
+    const c = g.cell;
     for (let i = ci - r; i <= ci + r; i++)
       for (let j = cj - r; j <= cj + r; j++)
         for (let k = ck - r; k <= ck + r; k++) {
-          const list = g.map.get(g.key(i, j, k));
-          if (!list) continue;
-          for (const t of list) {
-            if (seen.has(t)) continue;
-            seen.add(t);
-            const T = g.tris;
-            const d = closest(p, [T[t], T[t + 1], T[t + 2]], [T[t + 3], T[t + 4], T[t + 5]], [T[t + 6], T[t + 7], T[t + 8]], q);
-            if (d < best - 1e-12) {
-              best = d;
-              near.length = 0;
-              near.push({ t, q: q.slice() });
-            } else if (Math.abs(d - best) <= 1e-12) near.push({ t, q: q.slice() });
-          }
+          const dx = Math.max(0, i * c - p[0], p[0] - (i + 1) * c);
+          const dy = Math.max(0, j * c - p[1], p[1] - (j + 1) * c);
+          const dz = Math.max(0, k * c - p[2], p[2] - (k + 1) * c);
+          cells.push([dx * dx + dy * dy + dz * dz, i, j, k]);
         }
+    cells.sort((a, b) => a[0] - b[0]);
+    for (const [d2, i, j, k] of cells) {
+      if (d2 > best + 1e-12) break;
+      const list = g.map.get(g.key(i, j, k));
+      if (!list) continue;
+      for (const t of list) {
+        if (g.stamp[t / 9] === now) continue;
+        g.stamp[t / 9] = now;
+        const d = closest(p, g.tris, t, q);
+        if (d < best - 1e-12) {
+          best = d;
+          near.length = 0;
+          near.push({ t, q: q.slice() });
+        } else if (Math.abs(d - best) <= 1e-12) near.push({ t, q: q.slice() });
+      }
+    }
     if (far) far.d = Math.sqrt(best);
     if (!near.length || best >= reach * reach) return 0;
     if (hit) hit.t = near[0].t;
@@ -168,6 +184,8 @@
     const n = sk.geometry.getAttribute("position").count;
     const boneOf = new Array(n);
     const keep = [];
+    /** the hands' own vertices, for a measure of the hands alone (a hand's fit tries thousands of grasps) */
+    const hands = [];
     for (let k = 0; k < n; k++) {
       let bi = si.getX(k);
       let bw = sw.getX(k);
@@ -178,8 +196,9 @@
         }
       boneOf[k] = bones[bi] ? bones[bi].name : "";
       if (!LEGS.test(boneOf[k])) keep.push(k);
+      if (HAND.test(boneOf[k])) hands.push(k);
     }
-    upper.set(sk.geometry.uuid, (u = { boneOf, keep }));
+    upper.set(sk.geometry.uuid, (u = { boneOf, keep, hands }));
     return u;
   }
 
@@ -230,7 +249,8 @@
       if (m && m.transparent) return;
       let g = grids.get(o.geometry.uuid);
       if (!g) grids.set(o.geometry.uuid, (g = gridOf(localTris(o.geometry), CELL)));
-      parts.push({ o, g, inv: new T.Matrix4().copy(o.matrixWorld).invert(), scale: o.getWorldScale(V()).x, flip: o.matrixWorld.determinant() < 0 ? -1 : 1 });
+      // (its box, out by the 3 cm a depth looks: a point outside it has no face of this part within reach)
+      parts.push({ o, g, box: new T.Box3().setFromObject(o).expandByScalar(0.03), inv: new T.Matrix4().copy(o.matrixWorld).invert(), scale: o.getWorldScale(V()).x, flip: o.matrixWorld.determinant() < 0 ? -1 : 1 });
     });
 
     // the figure's skin, skinned as drawn this frame, world space; each vertex's bone the one weighted most
@@ -243,6 +263,7 @@
     // each finger's nearest skin to the gun, mm (outside it; 0 touching or in): a finger meant to hold the gun and 2 cm
     // off it is a hand held open beside the gun, which a measure of depth alone would call perfect
     const fingerGap = {};
+    const palmGap = { l: 30, r: 30 };
     const far = { d: 0 };
     const FINGER = /^(index|middle|ring|pinky|thumb)_0([23])_([lr])$/;
     const bodyTris = [];
@@ -252,10 +273,10 @@
     const v = V();
     for (const sk of skins) {
       const pos = sk.geometry.getAttribute("position");
-      const { boneOf, keep } = upperOf(sk);
+      const { boneOf, keep, hands } = upperOf(sk);
       // a leg's vertex is never skinned: it stays at the far corner of the world, outside every box
       const world = new Float32Array(pos.count * 3).fill(1e9);
-      for (const k of keep) {
+      for (const k of opts.handsOnly ? hands : keep) {
         sk.getVertexPosition(k, v);
         v.applyMatrix4(sk.matrixWorld);
         world[k * 3] = v.x;
@@ -263,16 +284,22 @@
         world[k * 3 + 2] = v.z;
       }
       // the hands' skin into the gun (every second point)
-      for (let k = 0; k < pos.count; k += 2) {
+      for (const k of hands) {
+        if (k % 2) continue;
         const m = HAND.exec(boneOf[k]);
-        if (!m) continue;
         const wp = new T.Vector3(world[k * 3], world[k * 3 + 1], world[k * 3 + 2]);
         if (!gunBox.containsPoint(wp)) continue;
         const fm = FINGER.exec(boneOf[k]);
         for (const pt of parts) {
+          if (!pt.box.containsPoint(wp)) continue;
           const lp = wp.clone().applyMatrix4(pt.inv);
           far.d = Infinity;
           const d = depthIn(pt.g, [lp.x, lp.y, lp.z], 0.03 / pt.scale, pt.flip, null, far) * pt.scale;
+          // the palm's nearest skin to the gun, the same way: a palm held off its grip is as wrong as one through it
+          if (boneOf[k] === `hand_${m[3]}`) {
+            const gap = d > 0 ? 0 : Math.min(30, far.d * pt.scale * 1000);
+            palmGap[m[3]] = Math.min(palmGap[m[3]], Math.round(gap));
+          }
           if (fm) {
             const key = `${fm[1]}_${fm[3]}`;
             const gap = d > 0 ? 0 : Math.min(30, far.d * pt.scale * 1000);
@@ -281,9 +308,15 @@
           if (d > handIn[m[3]]) handIn[m[3]] = d;
           if (opts.pts && d > 0.004) (out.pts ??= []).push([wp.x, wp.y, wp.z, 0]);
           if (d > 0.002) where[boneOf[k]] = Math.max(where[boneOf[k]] ?? 0, Math.round(d * 1000));
+          // where in the gun each bone's deepest skin is (cm, the gun's own frame), to say which part of the gun it is in
+          if (opts.locate && d > 0.002 && Math.round(d * 1000) >= where[boneOf[k]]) {
+            const g = gun.worldToLocal(wp.clone());
+            (out.whereAt ??= {})[boneOf[k]] = [cm(g.x), cm(g.y), cm(g.z), pt.o.name];
+          }
         }
       }
-      // the rest of the body near the gun, for the gun's points against it
+      // the rest of the body near the gun, for the gun's points against it (handsOnly: a hand's fit, which has no use for it)
+      if (opts.handsOnly) continue;
       const idx = sk.geometry.index;
       const n = idx ? idx.count : pos.count;
       for (let t = 0; t < n; t += 3) {
@@ -302,6 +335,7 @@
     }
     out.handIn = { l: Math.round(handIn.l * 1000), r: Math.round(handIn.r * 1000) };
     out.fingerGap = fingerGap;
+    out.palmGap = palmGap;
     out.handWhere = where;
     // the gun's points against the body (every fourth vertex of each part)
     let gunIn = 0;

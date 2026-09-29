@@ -7084,10 +7084,14 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // into the gun and the gun into the body are held no worse than Milestone 320 left them (the USSO's hands 14 mm in
   // where they wrap the grip, BOOG's 28 mm round its thick grip and fore-end; the stock 40 mm into the armour at worst,
   // looking 35 degrees up): tools/figure-frames.ts's sheets hold the finer bar, 6 and 15, still to reach.
-  const BAR = { grip: 3, support: 4, aim: 6, wrist: 60, handIn: 30, gunIn: 40 };
-  type A = { armed: boolean; grip?: number; support?: number; aim?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number };
+  // A hand is on its hold, too: its palm and the fingers that close round it touching the gun, `off` mm at most (a hand
+  // kept out of the gun and splayed beside it measured perfect by depth alone).
+  const BAR = { grip: 3, support: 4, aim: 6, wrist: 60, handIn: 30, gunIn: 40, off: 8 };
+  type A = { armed: boolean; grip?: number; support?: number; aim?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number; palmGap?: { l: number; r: number }; fingerGap?: Record<string, number> };
+  const HOLDING = ["middle_r", "ring_r", "pinky_r", "thumb_r", "index_l", "middle_l", "ring_l", "pinky_l"];
+  const on = (a: A) => Math.max(a.palmGap?.l ?? 99, a.palmGap?.r ?? 99) <= BAR.off && HOLDING.every((f) => (a.fingerGap?.[f] ?? 99) <= BAR.off);
   const within = (a: A | null, aimed: boolean) =>
-    !!a && a.armed && (a.grip ?? 99) <= BAR.grip && (a.support ?? 99) <= BAR.support && (!aimed || (a.aim ?? 99) <= BAR.aim) && a.wristL <= BAR.wrist && a.wristR <= BAR.wrist && Math.max(a.handIn?.l ?? 99, a.handIn?.r ?? 99) <= BAR.handIn && (a.gunIn ?? 99) <= BAR.gunIn;
+    !!a && a.armed && (a.grip ?? 99) <= BAR.grip && (a.support ?? 99) <= BAR.support && (!aimed || (a.aim ?? 99) <= BAR.aim) && a.wristL <= BAR.wrist && a.wristR <= BAR.wrist && Math.max(a.handIn?.l ?? 99, a.handIn?.r ?? 99) <= BAR.handIn && (a.gunIn ?? 99) <= BAR.gunIn && on(a);
   for (const id of ["r97", "sentinel"]) {
     const name = id === "r97" ? "USSO" : "BOOG";
     await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, -9); r.figureLabManual(false); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "${id}", look: "S0000010" }], 2.6, 30); r.figureLabManual(true); r.figureLabStep(0.9); })()`);
@@ -7099,7 +7103,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     ];
     for (const [label, p] of poses) {
       const a = await ev<A | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, ${JSON.stringify(p)}); r.figureLabStep(0.3); return window.__figureAudit(0, { pitch: ${p.pitch} }); })()`);
-      check(`the soldier holding ${name}, ${label}: both palms on their holds, the barrel along the look, the wrists straight enough, no hand in the gun and the gun not in the body`, within(a, true), JSON.stringify(a));
+      check(`the soldier holding ${name}, ${label}: both palms on their holds and the fingers round them, the barrel along the look, the wrists straight enough, no hand in the gun and the gun not in the body`, within(a, true), JSON.stringify(a));
     }
     // the reload: the magazine out, a copy let fall, a new one home
     const R = await ev<number>(page, `window.__range.weaponTimes("${id}").reload`);

@@ -40,8 +40,11 @@ export interface RifleRig {
   figInSpine: THREE.Quaternion;
   spineScale: number;
   hands: Record<Side, HandRig>;
-  /** each finger joint's bend toward the palm (an axis in its own frame) and its bind rotation */
-  bend: Map<string, { axis: THREE.Vector3; bind: THREE.Quaternion }>;
+  /**
+   * each finger joint's bend toward the palm (an axis in its own frame), its sideways swing in the palm's plane, its bind
+   * rotation, and (a finger's first joint) how far it is splayed from the middle finger's line, degrees about that swing
+   */
+  bend: Map<string, { axis: THREE.Vector3; spread: THREE.Vector3; bind: THREE.Quaternion; splay: number }>;
   /** each forearm's twist bone: its bind rotation, and the forearm's line in the forearm's frame */
   twist: Record<Side, { bind: THREE.Quaternion; along: THREE.Vector3 } | null>;
   /** the right eye's middle, in the Head bone's frame (the soldier's eye meshes, measured): where an aimed gun's sight line goes */
@@ -63,7 +66,7 @@ export function measureRifleRig(root: THREE.Object3D): RifleRig | null {
   const shoulder = at("upperarm_r");
   if (!spine || !shoulder) return null;
   const hands = {} as Record<Side, HandRig>;
-  const bend = new Map<string, { axis: THREE.Vector3; bind: THREE.Quaternion }>();
+  const bend = new Map<string, { axis: THREE.Vector3; spread: THREE.Vector3; bind: THREE.Quaternion; splay: number }>();
   const twist = {} as RifleRig["twist"];
   for (const s of SIDES) {
     const hand = bone(`hand_${s}`);
@@ -79,6 +82,15 @@ export function measureRifleRig(root: THREE.Object3D): RifleRig | null {
     face.addScaledVector(fwd, -face.dot(fwd)).normalize();
     const inv = hand.getWorldQuaternion(new THREE.Quaternion()).invert();
     hands[s] = { palm: hand.worldToLocal(w.clone().lerp(k, 0.5)), fwd: fwd.applyQuaternion(inv.clone()), face: face.clone().applyQuaternion(inv) };
+    // each finger's first phalanx in the palm's plane: the bought rig's fingers fan out as a T-pose's do
+    const inPalm = (f: string): THREE.Vector3 | null => {
+      const a = at(`${f}_01_${s}`);
+      const b = at(`${f}_02_${s}`);
+      if (!a || !b) return null;
+      const d = b.sub(a);
+      return d.addScaledVector(face, -d.dot(face)).normalize();
+    };
+    const middle = inPalm("middle");
     // each finger joint turns toward the palm about the line across it: its own direction crossed with the palm's
     for (const f of FINGERS)
       for (let j = 1; j <= 3; j++) {
@@ -88,7 +100,13 @@ export function measureRifleRig(root: THREE.Object3D): RifleRig | null {
         const from = b.getWorldPosition(new THREE.Vector3());
         const dir = next ? next.getWorldPosition(new THREE.Vector3()).sub(from) : from.clone().sub(b.parent!.getWorldPosition(new THREE.Vector3()));
         const axis = dir.normalize().cross(face).normalize();
-        bend.set(b.name, { axis: axis.applyQuaternion(b.getWorldQuaternion(new THREE.Quaternion()).invert()), bind: b.quaternion.clone() });
+        // and swings sideways about the palm's own normal, square to its line: a thumb that only curled could not
+        // be brought down round a grip's side from where the bind pose has it, over the receiver
+        const spread = face.clone().addScaledVector(dir, -face.dot(dir)).normalize();
+        const toBone = b.getWorldQuaternion(new THREE.Quaternion()).invert();
+        const line = j === 1 && f !== "thumb" && middle ? inPalm(f) : null;
+        const splay = line && middle ? Math.atan2(line.clone().cross(middle).dot(face), line.dot(middle)) / DEG : 0;
+        bend.set(b.name, { axis: axis.applyQuaternion(toBone), spread: spread.applyQuaternion(toBone), bind: b.quaternion.clone(), splay });
       }
     const tw = bone(`lowerarm_twist_01_${s}`);
     twist[s] = tw ? { bind: tw.quaternion.clone(), along: hand.position.clone().normalize() } : null;
@@ -140,6 +158,17 @@ function mergeInto(to: Record<string, unknown>, from: Record<string, unknown>): 
     if (v && typeof v === "object" && !Array.isArray(v) && to[k] && typeof to[k] === "object") mergeInto(to[k] as Record<string, unknown>, v as Record<string, unknown>);
     else to[k] = v;
   }
+}
+
+/** how much bigger than its model the soldier draws this gun (soldierhold.json scale): the glove is a big man's */
+export function gunScaleOf(id: string): number {
+  return cfgFor(id).scale;
+}
+
+/** where the soldier's left hand takes this gun, gun-local, when not where the model's own measures put it (soldierhold.json support) */
+export function supportOf(id: string): THREE.Vector3 | null {
+  const at = (cfg.guns as Record<string, { support?: number[] }>)[id]?.support;
+  return at ? new THREE.Vector3(...at) : null;
 }
 
 /** where the butt sits, in spine_03's frame: in from the right shoulder joint toward the chest's middle (+x, the figure's left), under it, in front (soldierhold.json pocket) */
@@ -430,7 +459,14 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
         const fb = b[`${f}_0${j}_${side}`];
         const m = rig.bend.get(`${f}_0${j}_${side}`);
         if (!fb || !m) continue;
-        const target = m.bind.clone().multiply(new THREE.Quaternion().setFromAxisAngle(m.axis, F[f][j - 1] * DEG));
+        // A finger's first joint is swung sideways (its fourth number, or `together` of the way from its splay to the
+        // middle finger's line) and then curled about its bend axis as it was: swung after the curl, a curled finger
+        // only spins about its own length. The thumb the other way round: curled, and then the curled thumb turned
+        // about the palm's normal, which is how it goes round the far side of a grip (swung first, it could not).
+        const swing = j === 1 ? (F[f][3] ?? (f === "thumb" ? 0 : C.together * m.splay)) : 0;
+        const curl = new THREE.Quaternion().setFromAxisAngle(m.axis, F[f][j - 1] * DEG);
+        const turn = new THREE.Quaternion().setFromAxisAngle(m.spread, swing * DEG);
+        const target = f === "thumb" ? m.bind.clone().multiply(turn).multiply(curl) : m.bind.clone().multiply(curl).multiply(turn);
         fb.quaternion.slerp(target, w);
       }
   }

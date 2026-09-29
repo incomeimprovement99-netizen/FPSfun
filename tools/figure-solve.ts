@@ -60,11 +60,44 @@ const STAGES: Record<string, Param[]> = {
     ...[0, 1, 2].map((i) => ({ path: ["lowered", "l", "fwd", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.02 })),
     ...[0, 1, 2].map((i) => ({ path: ["lowered", "l", "palm", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.02 })),
   ],
+  rest: [
+    { path: ["pocket", "ahead"], lo: 0.04, hi: 0.3, step: 0.015, min: 0.003 },
+    { path: ["pocket", "in"], lo: -0.08, hi: 0.1, step: 0.015, min: 0.003 },
+    { path: ["pocket", "down"], lo: -0.04, hi: 0.16, step: 0.015, min: 0.003 },
+    // the hands are the gun's (tools/figure-fit.ts puts them on it): at rest the body moves round them, not they on it
+    { path: ["blade"], lo: 10, hi: 55, step: 4, min: 0.5 },
+    ...[0, 1, 2].map((i) => ({ path: ["elbows", "r", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.03 })),
+    ...[0, 1, 2].map((i) => ({ path: ["elbows", "l", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.03 })),
+    { path: ["aim", "relief"], lo: 0.03, hi: 0.16, step: 0.015, min: 0.003 },
+    { path: ["aim", "cheek"], lo: -0.03, hi: 0.06, step: 0.01, min: 0.002 },
+    { path: ["aim", "side"], lo: 0, hi: 0.1, step: 0.01, min: 0.002 },
+    { path: ["pocket", "adsHead", "down"], lo: 0, hi: 25, step: 3, min: 0.5 },
+    { path: ["pocket", "adsHead", "toward"], lo: 0, hi: 25, step: 3, min: 0.5 },
+  ],
+  // each hand's place and turn on its hold and every finger joint, together: the hand's shape round its own grip
+  grip: [
+    ...["r", "l"].flatMap((side) => [
+      ...[0, 1, 2].map((i) => ({ path: ["hands", side, "at", i], lo: -0.12, hi: 0.16, step: 0.005, min: 0.001 })),
+      ...[0, 1, 2].map((i) => ({ path: ["hands", side, "fwd", i], lo: -1.6, hi: 1.6, step: 0.1, min: 0.02 })),
+      ...[0, 1, 2].map((i) => ({ path: ["hands", side, "palm", i], lo: -1.6, hi: 1.6, step: 0.1, min: 0.02 })),
+    ]),
+    ...["r", "l"].flatMap((side) => ["index", "middle", "ring", "pinky", "thumb"].flatMap((f) => [0, 1, 2].map((j) => ({ path: ["fingers", side, f, j], lo: -10, hi: 100, step: 8, min: 1 })))),
+  ],
   fingers: ["r", "l"].flatMap((side) => ["index", "middle", "ring", "pinky", "thumb"].flatMap((f) => [0, 1, 2].map((j) => ({ path: ["fingers", side, f, j], lo: -10, hi: 100, step: 12, min: 1.5 })))),
 };
 /** the poses a try is measured in: the hold's four, or for the lowered carry a sprint and a swap (settled into) */
 const POSES =
-  STAGE === "lowered"
+  // a hand's place on the gun is the gun's, whatever the pose: one pose measures it
+  STAGE === "grip"
+    ? [{ speed: 0, stance: "stand", pitch: 0, ads: 1 }]
+    : STAGE === "rest"
+    ? [
+        { speed: 0, stance: "stand", pitch: 0 },
+        { speed: 0, stance: "stand", pitch: 0, ads: 1 },
+        { speed: 0, stance: "crouch", pitch: 0 },
+        { speed: 7, stance: "air", pitch: 0 },
+      ]
+    : STAGE === "lowered"
     ? [
         { speed: 14, stance: "stand", pitch: 0 },
         { speed: 0, stance: "stand", pitch: 0, act: "swap" },
@@ -76,22 +109,30 @@ const POSES =
         { speed: 0, stance: "stand", pitch: -35, ads: 1 },
       ];
 
-type Audit = { grip?: number; support?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number; fingerGap?: Record<string, number> };
+type Audit = { grip?: number; support?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number; fingerGap?: Record<string, number>; handWhere?: Record<string, number>; gunWhere?: Record<string, number> };
 /** the fingers that hold the gun, each of which should touch it: a hand held open beside it is not holding it */
 const HOLDING = ["middle_r", "ring_r", "pinky_r", "thumb_r", "index_l", "middle_l", "ring_l", "pinky_l"];
 type Out = { shortL: number; shortR: number } | null;
 
+/**
+ * A try's cost. Skin in the gun weighs three times a finger's gap, and each bone's depth adds to it, not only the
+ * deepest: weighed alike, a palm 1 mm out of the grip cost more in the eight fingers' gaps than it saved, and the search
+ * kept the hand inside the gun. A finger costs only past 6 mm off the gun (a hand does not touch it with every joint).
+ */
 function cost(a: Audit | null, o: Out): number {
   if (!a) return 1e6;
+  const sum = (m?: Record<string, number>) => Object.values(m ?? {}).reduce((s, v) => s + v, 0);
   return (
     (a.gunIn ?? 0) +
-    Math.max(a.handIn?.l ?? 0, a.handIn?.r ?? 0) +
+    0.3 * sum(a.gunWhere) +
+    3 * Math.max(a.handIn?.l ?? 0, a.handIn?.r ?? 0) +
+    0.5 * sum(a.handWhere) +
     3 * Math.max(0, a.wristR - 45) +
     3 * Math.max(0, a.wristL - 45) +
     20 * Math.max(0, (a.grip ?? 0) - 1.5) +
     20 * Math.max(0, (a.support ?? 0) - 2) +
     3000 * ((o?.shortL ?? 0) + (o?.shortR ?? 0)) +
-    (STAGE === "pocket" ? 0 : HOLDING.reduce((sum, f) => sum + 2 * Math.max(0, (a.fingerGap?.[f] ?? 30) - 4), 0))
+    (STAGE === "pocket" ? 0 : HOLDING.reduce((s, f) => s + Math.max(0, (a.fingerGap?.[f] ?? 30) - 6), 0))
   );
 }
 
@@ -105,9 +146,16 @@ const set = (o: Record<string, unknown>, p: (string | number)[], v: number): voi
 async function main(): Promise<void> {
   const params = STAGES[STAGE];
   if (!params) throw new Error(`no stage ${STAGE}: ${Object.keys(STAGES).join(", ")}`);
-  const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist", "--mute-audio", "--no-sandbox"] });
+  // the browser too is started again if it dies (two searches lost theirs at the same moment, to the machine)
+  let browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist", "--mute-audio", "--no-sandbox"] });
   try {
-    const page = await browser.newPage();
+    // A page opened afresh every 50 tries: a figure made and dropped four times a try left something behind, and a
+    // search of hundreds of tries lost its page to it at the 150th
+    let page!: Page;
+    const openPage = async () => {
+    if (page) await page.close().catch(() => undefined);
+    if (!browser.connected) browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist", "--mute-audio", "--no-sandbox"] });
+    page = await browser.newPage();
     await page.setViewport({ width: 800, height: 500, deviceScaleFactor: 1 });
     await page.evaluateOnNewDocument(NO_REAL_MOUSE);
     await page.evaluateOnNewDocument(() => localStorage.setItem("range.welcomed", "1"));
@@ -118,6 +166,8 @@ async function main(): Promise<void> {
     await page.waitForFunction("window.__range.paidGuns().ready", { polling: 250, timeout: 60000 }).catch(() => console.log("the bought guns did not load"));
     await page.addScriptTag({ path: path.resolve("tools/figure-audit.js") });
     await ev(page, `(() => { const r = window.__range; document.getElementById("overlay").classList.add("hidden"); r.player.teleport(0, 0, 0, 0, -9); r.figureLab([${JSON.stringify({ ...POSES[0], weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabStep(0.8); })()`);
+    };
+    await openPage();
     const cfg = await ev<Record<string, unknown>>(page, "window.__range.rifleConfig()");
     // what this gun's numbers are now: its own over the shared
     const own = ((cfg.guns as Record<string, Record<string, unknown>>)[ID] ?? {}) as Record<string, unknown>;
@@ -135,6 +185,7 @@ async function main(): Promise<void> {
     const patchOf = (c: Record<string, unknown>) => Object.fromEntries(tops.map((k) => [k, c[k]]));
     let evals = 0;
     const measure = async (c: Record<string, unknown>): Promise<{ cost: number; worst: Audit | null; per: number[] }> => {
+      if (evals > 0 && evals % 50 === 0) await openPage();
       evals++;
       await ev(page, `window.__range.rifleTune({ guns: { ${JSON.stringify(ID)}: ${JSON.stringify(patchOf(c))} } })`);
       let total = 0;
@@ -142,7 +193,20 @@ async function main(): Promise<void> {
       let worstCost = -1;
       const per: number[] = [];
       for (const p of POSES) {
-        const got = await ev<{ a: Audit | null; o: Out }>(page, `(() => { const r = window.__range; r.figureLabPose(0, ${JSON.stringify(p)}); r.figureLabStep(${STAGE === "lowered" ? 0.6 : 0.1}); return { a: window.__figureAudit(0, { pitch: ${p.pitch} }), o: r.labFigures()[0].figure.rifleOut }; })()`);
+        // A fresh figure every pose of every try, stepped the same time: its clips start over, so a try is measured at
+        // the same moment of them as every other and its score is the numbers', not the breathing's (a figure carried
+        // from try to try was measured 0.1 s further into its idle each time, and the noise passed for improvements)
+        const expr = `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([${JSON.stringify({ ...POSES[0], weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabPose(0, ${JSON.stringify({ ...p, weapon: ID })}); r.figureLabStep(0.8); return { a: window.__figureAudit(0, { pitch: ${p.pitch} }), o: r.labFigures()[0].figure.rifleOut }; })()`;
+        let got: { a: Audit | null; o: Out };
+        try {
+          got = await ev<{ a: Audit | null; o: Out }>(page, expr);
+        } catch (e) {
+          // the page (or the browser) died under it: a new one, the try's numbers again, the pose again
+          console.log(`  (page lost at try ${evals}: ${String(e).slice(0, 80)}; opening another)`);
+          await openPage();
+          await ev(page, `window.__range.rifleTune({ guns: { ${JSON.stringify(ID)}: ${JSON.stringify(patchOf(c))} } })`);
+          got = await ev<{ a: Audit | null; o: Out }>(page, expr);
+        }
         const c1 = cost(got.a, got.o);
         per.push(Math.round(c1));
         total += c1;
@@ -171,6 +235,7 @@ async function main(): Promise<void> {
             best = m;
             moved = true;
             console.log(`  ${evals} ${p.path.join(".")} ${v0.toFixed(4)} -> ${v.toFixed(4)}: ${m.cost.toFixed(1)} per pose ${m.per.join("/")}`);
+            console.log(`best ${JSON.stringify(patchOf(cur))}`);
             break;
           }
           set(cur, p.path, v0);

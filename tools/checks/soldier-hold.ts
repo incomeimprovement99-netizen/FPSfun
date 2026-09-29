@@ -45,6 +45,9 @@ if (!existsSync(GLB)) {
     check(`the ${side === "l" ? "left" : "right"} forearm is ${M.foreArm} m`, near(fore, M.foreArm, 0.003), `${fore.toFixed(4)} m`);
     check(`the ${side === "l" ? "left" : "right"} hand, wrist to knuckle, is ${M.hand} m`, near(hand, M.hand, 0.003), `${hand.toFixed(4)} m`);
     check(`the ${side === "l" ? "left" : "right"} middle finger is ${M.finger} m`, near(finger, M.finger, 0.003), `${finger.toFixed(4)} m`);
+    // the glove's width, which a gun's trigger guard has to take (soldierhold.json scale)
+    const knuckles = wp(`index_01_${side}`).distanceTo(wp(`pinky_01_${side}`));
+    check(`the ${side === "l" ? "left" : "right"} knuckles, index to little finger, are ${M.knuckles} m across`, near(knuckles, M.knuckles, 0.003), `${knuckles.toFixed(4)} m`);
   }
   // the front of the body before the right shoulder joint, the nearest of a few rays straight at it from the front
   {
@@ -101,6 +104,26 @@ if (!existsSync(GLB)) {
           if (after.sub(before).dot(face) <= 0) wrong++;
         }
       check(`each of the ${side === "l" ? "left" : "right"} hand's finger joints closes toward the palm`, wrong === 0, `${seen - wrong} of ${seen}`);
+      // each finger's splay from the middle finger's line, which `together` closes: the index and the little finger on
+      // opposite sides of it, none past 30 degrees; and swung by its whole splay, the little finger lies along it
+      const splay = (f: string) => rig.bend.get(`${f}_01_${side}`)!.splay;
+      const [ix, rg, pk] = [splay("index"), splay("ring"), splay("pinky")];
+      check(`the ${side === "l" ? "left" : "right"} hand's fingers fan out from the middle finger, the index one way and the ring and little finger the other`, ix * pk < 0 && ix * rg < 0 && Math.max(Math.abs(ix), Math.abs(rg), Math.abs(pk)) < 30, `index ${ix.toFixed(1)}, ring ${rg.toFixed(1)}, little ${pk.toFixed(1)} degrees`);
+      {
+        const lineOf = (f: string) => {
+          const d = wp(`${f}_02_${side}`).sub(wp(`${f}_01_${side}`));
+          return d.addScaledVector(face, -d.dot(face)).normalize();
+        };
+        const bone = s.getObjectByName(`pinky_01_${side}`)!;
+        const m = rig.bend.get(bone.name)!;
+        const keep = bone.quaternion.clone();
+        bone.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(m.spread, (m.splay * Math.PI) / 180));
+        s.updateMatrixWorld(true);
+        const off = (Math.acos(Math.min(1, lineOf("pinky").dot(lineOf("middle")))) * 180) / Math.PI;
+        bone.quaternion.copy(keep);
+        s.updateMatrixWorld(true);
+        check(`the ${side === "l" ? "left" : "right"} little finger swung by its whole splay lies along the middle finger's line`, off < 2, `${off.toFixed(1)} degrees off`);
+      }
     }
   }
   console.log(fails === 0 ? "\nSOLDIER HOLD PASS" : `\nSOLDIER HOLD FAIL (${fails})`);

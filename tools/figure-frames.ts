@@ -30,8 +30,14 @@ const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mous
 /** the soldier every frame is taken on (soldier.ts code): the default kit, so the arms are not hidden by one */
 const LOOK = "S0000010";
 
-/** the bar a frame is held to (27.7); a caption says the measure, and in red what is past it */
-const BAR = { grip: 3, support: 4, aim: 6, wrist: 60, handIn: 6, gunIn: 15 };
+/**
+ * The bar a frame is held to (27.7); a caption says the measure, and in red what is past it. `off` is contact: a palm
+ * or a finger that holds the gun more than this many mm off it is a hand held beside its hold, not on it (BOOG's right
+ * hand once measured 2 mm into its gun with its fingers splayed over the receiver: depth alone called it perfect).
+ */
+const BAR = { grip: 3, support: 4, aim: 6, wrist: 60, handIn: 6, gunIn: 15, off: 8 };
+/** the fingers that close round each hold; the right index lies at the trigger, the left thumb along the fore-end */
+const HOLDING = { r: ["middle", "ring", "pinky", "thumb"], l: ["index", "middle", "ring", "pinky"] };
 const XRAY = process.env.XRAY === "1";
 
 type Pose = { speed: number; stance: string; pitch?: number; ads?: number; moveDir?: number; act?: string | null; weapon?: string };
@@ -122,7 +128,7 @@ const DISTS: Record<string, { dist: number; pitch: number }> = { far: { dist: 6,
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
 
-type Audit = { armed: boolean; gripReach: number; supportReach: number; grip?: number; support?: number; aim?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; handWhere?: Record<string, number>; gunIn?: number; gunWhere?: Record<string, number> };
+type Audit = { armed: boolean; gripReach: number; supportReach: number; grip?: number; support?: number; aim?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; handWhere?: Record<string, number>; gunIn?: number; gunWhere?: Record<string, number>; palmGap?: { l: number; r: number }; fingerGap?: Record<string, number> };
 
 /** `keys`: where a reload has each hand (rifle.ts), "l:mag r:grip": a hand at a reload's key is not held to its hold */
 function faults(a: Audit | null, aimed: boolean, keys: string | null): string[] {
@@ -136,6 +142,13 @@ function faults(a: Audit | null, aimed: boolean, keys: string | null): string[] 
   if (a.wristR > BAR.wrist) bad.push(`wristR ${Math.round(a.wristR)}`);
   if (a.handIn && Math.max(a.handIn.l, a.handIn.r) > BAR.handIn) bad.push(`hand in gun L${a.handIn.l} R${a.handIn.r}mm`);
   if ((a.gunIn ?? 0) > BAR.gunIn) bad.push(`gun in body ${a.gunIn}mm`);
+  // each hand on its hold: the palm, and the fingers that close round it, touching the gun
+  for (const side of ["r", "l"] as const) {
+    if (!a.armed || away(side) || (side === "r" ? a.gripReach : a.supportReach) <= 0.9) continue;
+    const off = HOLDING[side].filter((f) => (a.fingerGap?.[`${f}_${side}`] ?? 30) > BAR.off);
+    if ((a.palmGap?.[side] ?? 0) > BAR.off) bad.push(`palm${side.toUpperCase()} off ${a.palmGap?.[side]}mm`);
+    if (off.length) bad.push(`${side.toUpperCase()} ${off.join("/")} off`);
+  }
   return bad;
 }
 
@@ -161,7 +174,8 @@ async function cropOf(page: Page, close: boolean): Promise<{ x: number; y: numbe
       const r = window.__range, T = r.THREE, f = r.labFigures()[0], mq = f.figure, cam = r.camera;
       const names = ${close ? `["Head", "hand_l", "hand_r", "upperarm_l", "upperarm_r", "spine_01"]` : `["Head", "ball_l", "ball_r", "hand_l", "hand_r", "upperarm_l", "upperarm_r"]`};
       const pts = names.map((n) => mq.boneAt(n)).filter(Boolean).map((b) => b.getWorldPosition(new T.Vector3()));
-      const g = mq.gunObject; if (g) { const box = new T.Box3().setFromObject(g); pts.push(box.min, box.max); }
+      // (close, the upper body and the hands; the whole gun is the far view's: BOOG's 1.27 m made a close tile a far one)
+      const g = mq.gunObject; if (g && !${close}) { const box = new T.Box3().setFromObject(g); pts.push(box.min, box.max); }
       let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
       for (const p of pts) { const v = p.clone().project(cam); const x = (v.x * 0.5 + 0.5) * innerWidth, y = (-v.y * 0.5 + 0.5) * innerHeight; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
       return { x0, y0, x1, y1 };
@@ -273,7 +287,9 @@ async function main(): Promise<void> {
               }
               if (audit) delete (audit as { pts?: unknown }).pts;
               const keys = await ev<string | null>(page, "window.__range.labFigures()[0].figure?.rifleOut?.keys ?? null");
-              const bad = faults(audit, seq.aimed(t), keys);
+              // (aimed: the gun is up, not on its way up out of the lowered carry a sprint or a swap has it in)
+              const lowered = await ev<number>(page, "window.__range.labFigures()[0].figure?.lowered ?? 0");
+              const bad = faults(audit, seq.aimed(t) && lowered < 0.05, keys);
               frames.push({ t, audit, bad });
               const a = audit;
               const line1 = `${id} ${seq.name} ${seq.label(t)} ${view} ${dname}${keys ? `  ${keys}` : ""}`;

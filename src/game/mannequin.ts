@@ -39,7 +39,7 @@ import type { EmotePose } from "./emotes";
 import { IS_SK, PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
-import { buttOf, holdRifle, measureRifleRig, RIFLE_BONES, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
+import { buttOf, gunScaleOf, holdRifle, measureRifleRig, RIFLE_BONES, supportOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
 import { resolveWeapon } from "./weapons";
 
 export type FigureStyle = "robot" | "mannequin";
@@ -1197,7 +1197,12 @@ export class MannequinFigure {
       const mount = new THREE.Object3D();
       mount.name = "gunMount";
       this.mountBase.decompose(mount.position, mount.quaternion, mount.scale);
-      gun.position.copy(this.grip).negate();
+      // the soldier's gun drawn at its own size for the glove (soldierhold.json scale), its grip still at the mount,
+      // and its left hand's hold where the arm reaches it when the model's own is too far out (soldierhold.json support)
+      const size = this.soldier && this.tpl.rifle ? gunScaleOf(id) : 1;
+      if (this.soldier && this.tpl.rifle) this.support = supportOf(id) ?? this.support;
+      gun.scale.setScalar(size);
+      gun.position.copy(this.grip).multiplyScalar(size).negate();
       gun.visible = this.gunShown && !this.dead;
       mount.add(gun);
       chest.add(mount);
