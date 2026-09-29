@@ -13,6 +13,7 @@
 //      new gun's grip and fore-end are measured before its hands are fitted (tools/gun-shape.ts gives the numbers)
 //      XRAY=1 adds each view with the soldier see-through and the skin found in the gun marked
 //      TUNE='{"hands":...}' tries hold numbers over the gun's own before photographing (soldierhold.json guns.<id>)
+//      POSE='{"speed":14}' photographs the hands in another pose than aimed in (a lab pose: speed, stance, pitch, ads, act)
 // (needs the dev server and a real GPU; never the real mouse or keyboard)
 import fs from "node:fs";
 import path from "node:path";
@@ -33,6 +34,8 @@ const HOLDS = { grip: "r", support: "l" } as const;
 const OFF = 0.55;
 const CLIP = { x: 200, y: 200, width: 600, height: 600 };
 const TILE = 300;
+/** the pose the hands are photographed in: aimed in, or what POSE says over it */
+const POSE = { speed: 0, stance: "stand", pitch: 0, ads: 1, ...(process.env.POSE ? (JSON.parse(process.env.POSE) as object) : {}) };
 
 type Audit = { handWhere?: Record<string, number>; palmGap?: { l: number; r: number }; fingerGap?: Record<string, number> };
 const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
@@ -73,7 +76,7 @@ async function main(): Promise<void> {
               r.player.teleport(0, 0, 0, 0, 0);
               ${process.env.TUNE ? `r.rifleTune({ guns: { ${JSON.stringify(id)}: ${process.env.TUNE} } });` : ""}
               r.figureLabManual(false);
-              r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: ${JSON.stringify(id)}, look: "S0000010" }], 2.6, ${turn});
+              r.figureLab([${JSON.stringify({ ...POSE, weapon: "@" })}].map((p) => ({ ...p, weapon: ${JSON.stringify(id)}, look: "S0000010" })), 2.6, ${turn});
               r.figureLabManual(true);
               r.figureLabStep(0.8);
               const f = r.labFigures()[0], mq = f.figure;
@@ -97,7 +100,7 @@ async function main(): Promise<void> {
                 lines.renderOrder = 998;
                 mq.gunObject.add(lines);
               }
-              return window.__figureAudit(0, { pitch: 0, handsOnly: true });
+              return window.__figureAudit(0, { pitch: ${POSE.pitch ?? 0}, handsOnly: true });
             })()`,
           );
           await wait(400);
@@ -110,7 +113,7 @@ async function main(): Promise<void> {
               page,
               `(() => {
                 const r = window.__range, T = r.THREE, mq = r.labFigures()[0].figure;
-                const pts = window.__figureAudit(0, { pitch: 0, pts: true }).pts ?? [];
+                const pts = window.__figureAudit(0, { pitch: ${POSE.pitch ?? 0}, pts: true }).pts ?? [];
                 const mats = new Map();
                 mq.root.traverse((o) => { if (o.isSkinnedMesh) for (const m of [].concat(o.material)) if (!mats.has(m)) { mats.set(m, [m.transparent, m.opacity, m.depthWrite]); m.transparent = true; m.opacity = 0.25; m.depthWrite = false; } });
                 const g = new T.BufferGeometry().setAttribute("position", new T.Float32BufferAttribute(pts.flatMap((q) => q.slice(0, 3)), 3));

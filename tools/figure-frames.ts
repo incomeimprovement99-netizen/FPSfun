@@ -166,16 +166,26 @@ async function sheet(tiles: Buffer[], file: string): Promise<void> {
   console.log(file);
 }
 
-/** the screen box round the figure standing: its bones and its gun projected, padded, as a crop the whole sequence keeps */
-async function cropOf(page: Page, close: boolean): Promise<{ x: number; y: number; width: number; height: number }> {
+type Crop = { x: number; y: number; width: number; height: number };
+/**
+ * The screen box round the figure standing: its bones and its gun projected, padded; its size the whole sequence keeps.
+ * `keep`: that size, the box moved to where the figure is now (a jump's figure rose out of the top of a fixed box).
+ */
+async function cropOf(page: Page, close: boolean, keep?: Crop): Promise<Crop> {
   const b = await ev<{ x0: number; y0: number; x1: number; y1: number }>(
     page,
     `(() => {
       const r = window.__range, T = r.THREE, f = r.labFigures()[0], mq = f.figure, cam = r.camera;
       const names = ${close ? `["Head", "hand_l", "hand_r", "upperarm_l", "upperarm_r", "spine_01"]` : `["Head", "ball_l", "ball_r", "hand_l", "hand_r", "upperarm_l", "upperarm_r"]`};
       const pts = names.map((n) => mq.boneAt(n)).filter(Boolean).map((b) => b.getWorldPosition(new T.Vector3()));
-      // (close, the upper body and the hands; the whole gun is the far view's: BOOG's 1.27 m made a close tile a far one)
-      const g = mq.gunObject; if (g && !${close}) { const box = new T.Box3().setFromObject(g); pts.push(box.min, box.max); }
+      // (close, the gun only within 45 cm of the right hand: BOOG's whole 1.27 m made a close tile a far one, and none of
+      // it left a jump's figure out of the top of the tile)
+      const g = mq.gunObject;
+      if (g) {
+        const box = new T.Box3().setFromObject(g);
+        if (${close}) box.intersect(new T.Box3().setFromCenterAndSize(mq.boneAt("hand_r").getWorldPosition(new T.Vector3()), new T.Vector3(0.9, 0.9, 0.9)));
+        if (!box.isEmpty()) pts.push(box.min, box.max);
+      }
       let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
       for (const p of pts) { const v = p.clone().project(cam); const x = (v.x * 0.5 + 0.5) * innerWidth, y = (-v.y * 0.5 + 0.5) * innerHeight; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
       return { x0, y0, x1, y1 };
@@ -183,6 +193,7 @@ async function cropOf(page: Page, close: boolean): Promise<{ x: number; y: numbe
   );
   const cx = (b.x0 + b.x1) / 2;
   const cy = (b.y0 + b.y1) / 2;
+  if (keep) return { ...keep, x: Math.round(Math.max(0, Math.min(W - keep.width, cx - keep.width / 2))), y: Math.round(Math.max(0, Math.min(H - keep.height, cy - keep.height / 2))) };
   // a fixed shape (the tile's), big enough for the widest a sequence gets: arms out in a sprint, a leg up in a jump
   let h = (b.y1 - b.y0) * (close ? 1.7 : 1.35);
   let w = (h * TILE.w) / TILE.h;
@@ -263,7 +274,8 @@ async function main(): Promise<void> {
               await wait(120);
               const file = path.join(OUT, id, `${seq.name}-${view}-${dname}-${String(Math.round(t * 1000)).padStart(5, "0")}.png`);
               fs.mkdirSync(path.dirname(file), { recursive: true });
-              await page.screenshot({ path: file as `${string}.png`, clip: crop });
+              const at = await cropOf(page, dname === "close", crop);
+              await page.screenshot({ path: file as `${string}.png`, clip: at });
               const audit = await ev<Audit | null>(page, `window.__figureAudit(0, { pitch: ${seq.at(t).pitch ?? 0}, pts: ${XRAY} })`);
               // XRAY=1: the same frame again with the soldier see-through and every point found inside marked (red: the gun
               // in the body; yellow: a hand in the gun), to see where a measure comes from
@@ -282,7 +294,7 @@ async function main(): Promise<void> {
                   window.__xrayUndo = () => { r.scene.remove(dots); for (const [m, [t, o, d]] of mats) { m.transparent = t; m.opacity = o; m.depthWrite = d; } };
                 })()`);
                 await wait(150);
-                await page.screenshot({ path: file.replace(/\.png$/, "-xray.png") as `${string}.png`, clip: crop });
+                await page.screenshot({ path: file.replace(/\.png$/, "-xray.png") as `${string}.png`, clip: at });
                 await ev(page, "window.__xrayUndo()");
               }
               if (audit) delete (audit as { pts?: unknown }).pts;

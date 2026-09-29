@@ -63,7 +63,8 @@ frame from the side an enemy sees it, and the Loadouts tab's soldier with it, un
 | 27.8 | The USSO and BOOG held properly in third person: the gun in the right hand, the left on the handguard | done | 323 |
 | 27.9 | The third-person reload: the magazine out and in, the arms working it, seen by enemies and teammates | done | 323 |
 | 27.10 | The Loadouts tab's soldier holding the gun it shows, the same way | done | 323 |
-| 27.11 | The hands' skin fully out of the guns: the USSO's 12 to 14 mm where the hands wrap its grip, BOOG's 27 to 28 mm | next | |
+| 27.11 | Each hand closed round its hold: the palm and the fingers on the gun, not through it or beside it | done | 332 |
+| 27.12 | Perfect on every front: every sequence of both guns from every side without a faulted frame (below) | next | |
 
 The details of each item follow as it is started.
 
@@ -178,8 +179,8 @@ places (wrist, knuckles, the line across them), not their axes, because the boug
   (`soldierhold.json` guns).
 - **Where it stands** (the frame sheets): both palms on their holds and the barrel along the look in every hold frame;
   the wrists 1 to 38 degrees at rest and aimed, 38 lowered; the gun 19 mm into the armour at the collarbone aimed in,
-  the stock resting on it. Still over the sheets' bar (27.11): hand skin 12 to 14 mm into the USSO where the fingers wrap
-  its grip, and 27 to 28 mm into BOOG round its thick grip and fore-end, invisible past a few metres but there close up.
+  the stock resting on it. Over the sheets' bar then, since closed (27.11): hand skin 12 to 14 mm into the USSO where
+  the fingers wrapped its grip, and 27 to 28 mm into BOOG round its thick grip and fore-end.
 
 ## 27.9 The reload (done)
 
@@ -196,3 +197,61 @@ upper body stays in the aim clip through it (the pistol's reload clip twisted th
 
 The tab's soldier is the same figure aiming in, so it holds the gun the new way. Its rebuild key now includes whether
 the bought guns are in: a figure built before they loaded held the procedural stand-in until the loadout changed.
+
+## 27.11 The hands closed round the guns (done)
+
+The owner, 2026-09-29: "we want these two guns that the char holds to be perfect on all fronts, then i'll verify, then we
+can move on to the other guns with the char". What close photographs of each hand on its hold showed, that the sheets'
+measures had not:
+
+- **The USSO's right hand crossed its grip.** Its middle knuckle sat on the grip's centre line, the palm inside the grip.
+- **BOOG's right hand was not on its grip at all.** It lay flat on the receiver's side with the fingers splayed forward
+  and up, and measured 2 mm into the gun: depth alone called it nearly perfect. Fitted by depth alone (the first
+  figure-fit), the fingers of both guns came out straight, kept out of the gun and holding nothing.
+- **The glove does not fit the USSO's trigger guard.** The soldier's gloved hand is 0.094 m across the knuckles and
+  0.123 m from the wrist to the middle knuckle (measured), about 1.25 times a man's; the USSO's guard closes round the
+  fingers with an opening 0.075 m tall, the trigger hanging in its top. Four gloved fingers cannot go through it.
+
+What was done:
+
+- **The USSO is drawn at 1.1 on the figure** (`soldierhold.json` scale, per gun; `mannequin.ts` setGun): the least the
+  grasp fits (1.2 and 1.3 fitted no better). Only the figure's gun; the one in your own hands is the first-person arms'.
+  BOOG's grip is open and takes the glove at 1.
+- **Each hand grasps** (`tools/figure-fit.ts`): the palm seated along the way it faces, out of the gun or in onto it, then
+  each finger closed a phalanx at a time, each until its own skin touches the gun (no more than 2 mm into it), a joint
+  opened back if it pointed the next phalanx into the gun. The hand's place is searched round a start measured off the
+  grip (the grip's thickness mapped a centimetre at a time, and photographed on a centimetre grid): 5 cm along the hand,
+  a centimetre either way across its knuckles, tilted 12 degrees either way, a grasp at each, scored by no skin in the
+  gun, the palm and the holding fingers touching it, the fingers closed, the wrist straight and the thumb round the far
+  side. The knuckles had to go back: with a glove this size on a thin grip the first phalanges run along the grip's side
+  and the middle ones cross its front.
+- **The thumb swings** as well as curls (a finger's fourth number, its first joint's turn about the palm's normal;
+  `rifle.ts`): only curled, the USSO's thumb stood straight up beside the receiver.
+- **The sheets and the e2e hold contact** (`tools/figure-frames.ts`, `tools/e2e.ts` skfigure): a palm, or a finger that
+  closes round a hold, more than 8 mm off the gun is a fault, as a hand in it is.
+- **The audit is 28 times faster** (`tools/figure-audit.js`): the nearest surface found cell by cell nearest first,
+  stopping once no cell can hold anything nearer, and each triangle read in place: a hand's measure 2.5 s to 90 ms, the
+  whole figure's 2.9 s to 140 ms, the same answers. The fit tries about 12,000 grasps a hand.
+
+Where it stands: every hand on its hold, no skin more than 2 to 6 mm into either gun, the palms and the holding fingers
+on it; at rest, aimed and crouched the USSO has no faulted frame from any side (`shots/figure-v11`, both guns, every
+sequence). BOOG's left hand holds its box magazine: its fore-end is 0.83 m in front of the butt, past a man's reach
+(0.59 m to the palm), and its hand had slid back and cupped the air under the magazine (`soldierhold.json` support; the
+chest turned to 41 degrees, a marksman's stance).
+
+## 27.12 Perfect on every front (next)
+
+The owner verifies the USSO and BOOG once no frame of theirs is at fault, and only then do the other guns follow. What
+the sheets of 2026-09-29 still flag, most seen first:
+
+- **The left hand where its hold slides.** When the arm cannot reach the support (running: the USSO 0.15 of the way to
+  the grip, BOOG 0.43; looking 35 down), `supportHold` moves the hold toward the grip and the fitted hand goes with it,
+  12 to 20 mm into the gun. Reach further with the shoulder (the clavicle forward) before sliding, or fit the hand for the
+  places it slides to.
+- **BOOG's right forearm and upper arm through its stock**, 21 to 40 mm in most poses: the stock is 10.5 cm wide and the
+  forearm runs back along it from the grip. The elbow further out, the hand turned to put the wrist wider, or both.
+- **The reload's own hand places** (`soldierhold.json` reload keys) were never fitted: skin up to 29 mm in, the magazine
+  through the left forearm and the belly on its way to and from the pouch (40 mm), the left wrist to 72 degrees.
+- **The swap**: BOOG lowered through the body (40 mm), the lowered carry's numbers being the USSO's.
+- **The recoil**: the kick drives the butt 20 mm (the USSO) to 35 mm (BOOG) into the collarbone.
+- **A slide's and a jump's way in and out**, where the arms blend between the clip and the hold.

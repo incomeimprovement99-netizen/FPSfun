@@ -415,13 +415,39 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   const local = new THREE.Matrix4().copy(parent.matrixWorld).invert().multiply(want);
   local.decompose(g.mount.position, g.mount.quaternion, g.mount.scale);
   g.mount.updateMatrixWorld(true);
+  // 4. the fingers closed round the hold, each joint about its own bend axis, from its bind pose
+  const closeFingers = (side: Side, w: number): void => {
+    const F = C.fingers[side];
+    for (const f of FINGERS)
+      for (let j = 1; j <= 3; j++) {
+        const fb = b[`${f}_0${j}_${side}`];
+        const m = rig.bend.get(`${f}_0${j}_${side}`);
+        if (!fb || !m) continue;
+        // A finger's first joint is swung sideways (its fourth number, or `together` of the way from its splay to the
+        // middle finger's line) and then curled about its bend axis as it was: swung after the curl, a curled finger
+        // only spins about its own length. The thumb the other way round: curled, and then the curled thumb turned
+        // about the palm's normal, which is how it goes round the far side of a grip (swung first, it could not).
+        const swing = j === 1 ? (F[f][3] ?? (f === "thumb" ? 0 : C.together * m.splay)) : 0;
+        const curl = new THREE.Quaternion().setFromAxisAngle(m.axis, F[f][j - 1] * DEG);
+        const turn = new THREE.Quaternion().setFromAxisAngle(m.spread, swing * DEG);
+        const target = f === "thumb" ? m.bind.clone().multiply(turn).multiply(curl) : m.bind.clone().multiply(curl).multiply(turn);
+        fb.quaternion.slerp(target, w);
+      }
+  };
   // 3. the hands, palm first: the wrist where the palm lands, the elbow the rifleman's way, the hand turned to its hold
   for (const side of ["r", "l"] as Side[]) {
     const w = side === "r" ? s.wR : s.wL;
     const up = b[`upperarm_${side}`];
     const fore = b[`lowerarm_${side}`];
     const hand = b[`hand_${side}`];
-    if (!up || !fore || !hand || w < 0.01) continue;
+    if (!up || !fore || !hand) continue;
+    // A full-body clip (a slide, a climb) has the arm, but the gun is still in the right hand, where the hold left it
+    // (mem.gunInHand): its fingers stay closed round the grip. The clip's own were a fist through it.
+    const carried = side === "r" && s.stance < 0.999 && !!s.mem?.gunInHand;
+    if (w < 0.01) {
+      if (carried) closeFingers(side, 1);
+      continue;
+    }
     const gunQ = g.gun.getWorldQuaternion(new THREE.Quaternion());
     const aimAt = keyTarget(side === "r" ? "grip" : "hold", C, g, gunQ, b, figQ);
     // lowered, the left hand takes the gun its own way (lowered.l), blended in as the gun drops
@@ -452,23 +478,7 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
       const roll = twistAbout(rel, tw.along);
       twb.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(tw.along, roll * C.twist * w).multiply(tw.bind));
     }
-    // 4. the fingers closed round the hold, each joint about its own bend axis, from its bind pose
-    const F = C.fingers[side];
-    for (const f of FINGERS)
-      for (let j = 1; j <= 3; j++) {
-        const fb = b[`${f}_0${j}_${side}`];
-        const m = rig.bend.get(`${f}_0${j}_${side}`);
-        if (!fb || !m) continue;
-        // A finger's first joint is swung sideways (its fourth number, or `together` of the way from its splay to the
-        // middle finger's line) and then curled about its bend axis as it was: swung after the curl, a curled finger
-        // only spins about its own length. The thumb the other way round: curled, and then the curled thumb turned
-        // about the palm's normal, which is how it goes round the far side of a grip (swung first, it could not).
-        const swing = j === 1 ? (F[f][3] ?? (f === "thumb" ? 0 : C.together * m.splay)) : 0;
-        const curl = new THREE.Quaternion().setFromAxisAngle(m.axis, F[f][j - 1] * DEG);
-        const turn = new THREE.Quaternion().setFromAxisAngle(m.spread, swing * DEG);
-        const target = f === "thumb" ? m.bind.clone().multiply(turn).multiply(curl) : m.bind.clone().multiply(curl).multiply(turn);
-        fb.quaternion.slerp(target, w);
-      }
+    closeFingers(side, carried ? Math.max(w, 1 - s.stance) : w);
   }
   // held in both hands in the stance: remember where the gun is in the right hand, for when a full-body clip takes the arms
   if (s.mem && handR && s.stance > 0.99 && s.wR > 0.99 && u === null) {

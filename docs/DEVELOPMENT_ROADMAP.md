@@ -6707,3 +6707,50 @@ you tell when he connects and plays? even if its just connecting to the lobby?"
   the address hashed, an unknown event and a body that is not JSON refused. New e2e section `sklobby`: a new player
   holds the USSO and BOOG, a returning one on Marksman is moved onto them with the tag stored (seen failing with the
   move taken out), and Marksman picked again survives a reload. verify, rules.
+
+## Milestone 332 — The soldier's hands closed round the USSO and BOOG: each grasped as a hand grasps, found by search, and the USSO drawn at the glove's size
+
+The owner, 2026-09-29: "ok good continue, we aren't perfect yet. remember we want these two guns that the char holds to
+be perfect on all frontss, then i'll verify, then we can move on to the other guns with the char". SpeedKills' soldier
+only. See PHASE_27_PLAN_THE_SQUAD_AND_THE_SOLDIER.md, 27.11 and 27.12.
+
+- **Found by photographing each hand close** (`tools/figure-hands.ts`, new: each hold from the gun's right, left and
+  front, half a metre off, captioned with its measures): the USSO's right hand lay across its grip, its middle knuckle on
+  the grip's centre line; BOOG's lay flat on its receiver with the fingers splayed, and measured 2 mm into the gun,
+  nearly perfect by depth alone. Fitted by depth alone, both guns' fingers had come out straight, holding nothing.
+- **The glove and the guns, measured** (`tools/gun-shape.ts`, new: a gun's side thickness map and cross-sections;
+  `tools/checks/soldier-hold.ts` now measures the knuckles): the glove is 0.094 m across the knuckles and 0.123 m wrist
+  to knuckle, about 1.25 times a man's hand; the USSO's trigger guard closes round the fingers with an opening 7.5 cm
+  tall and 4 cm deep. The figure's USSO is drawn at 1.1 (`soldierhold.json` scale, `mannequin.ts` setGun), the least its
+  hand fits (1.2 and 1.3 fitted no better); your own is the first-person arms' and unchanged.
+- **Each hand grasps** (`tools/figure-fit.ts`, rewritten): the palm seated along the way it faces, onto the gun or out of
+  it; each finger closed a phalanx at a time until its own skin touches the gun, a joint opened back when it pointed the
+  next into the gun; the hand's place searched round a start measured off the gun (5 cm along it, a centimetre across,
+  24 degrees of tilt), a whole grasp at each, scored by no skin in it, the palm and the holding fingers on it, the
+  fingers closed, the wrist straight and the thumb round the far side. The knuckles had to go back: with a glove this size
+  on a thin grip, the first phalanges lie along the grip's side and the middle ones cross its front.
+- **Fingers and thumbs** (`rifle.ts`): a finger's first joint swings sideways before its curl, and the rig's T-pose
+  splay (measured: index 7.4, ring 8.1, little finger 17.4 degrees off the middle finger's line) is 80% closed
+  (`soldierhold.json` together); the thumb is turned round the far side of its hold after its curl.
+- **BOOG's left hand holds its magazine** (`soldierhold.json` support, per gun): its fore-end is 0.83 m in front of the
+  butt, past a man's reach (0.59 m to the palm), so the hand had slid back and cupped the air under the magazine. With
+  the chest turned further (41 degrees, a marksman's stance) it holds the box magazine from below, as an AK's is held.
+- **The rest stance searched again** (`tools/figure-solve.ts` rest now moves the body, not the hands): the USSO no more
+  than 8 mm into the body at rest, aimed, crouched or in the air (it was 28); BOOG's torso clear, its right upper arm
+  still up to 35 mm into its stock (27.12).
+- **In a slide or a climb** the right hand's fingers stay closed round the grip (the clip's fist went through it), and
+  the lowered carry's left hand is each gun's own fitted hand.
+- **The audit is 28 times faster** (`tools/figure-audit.js`): the nearest surface found cell by cell nearest first,
+  stopping once none can hold anything nearer, triangles read in place; a hand's measure 2.5 s to 90 ms, the whole
+  figure's 2.9 s to 140 ms, the same answers. The frame sheets and the e2e now hold contact as well as depth (a palm or
+  a holding finger more than 8 mm off its hold is a fault); a close tile follows the figure through a jump.
+- **Where it stands:** at rest, aimed and crouched the USSO has no faulted frame from any side; every hand is on its
+  hold with no skin more than 2 to 6 mm into either gun. Still faulted, listed in 27.12: BOOG's right forearm and upper
+  arm through its stock, the reload's own hand places (never fitted), the swap's BOOG through the body, the recoil's butt
+  into the collarbone, and the left hand where the hold slides back out of the arm's reach.
+- **Checked:** `tools/checks/soldier-hold.ts` in verify (the knuckles measured; the fingers' splay, index one way and
+  ring and little finger the other; swung by its splay the little finger lies on the middle finger's line, seen failing
+  34.9 degrees off with the sign flipped); the e2e `skfigure` section, all passing (now also each hand on its hold); the
+  soldier section, all passing but one first-person check, the inspect running past 5.6 s, the same run alone: that is
+  the first-person inspect main changed in Milestone 330, which none of this touches; verify; rules; the frame sheets of
+  every sequence for both guns (`shots/figure-v11`).
