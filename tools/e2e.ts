@@ -32,6 +32,9 @@ import lootCfg from "../src/config/loot.json";
 import skCfg from "../src/config/games/speedkills.json";
 import fparmsCfg from "../src/config/fparms.json";
 import squadCfg from "../src/config/squad.json";
+import cityCfgE2e from "../src/config/city.json";
+import districtsCfg from "../src/config/citydistricts.json";
+import { BR_X, BR_Z } from "../src/game/br";
 import { readFileSync } from "node:fs";
 
 /** the arena modes' spawns (arena coordinates) */
@@ -6221,6 +6224,95 @@ async function speedkillsSlamTest(browser: Browser): Promise<void> {
   await page.close();
 }
 
+/**
+ * A bot takes High City's corner's walkway as high ground (city.ts DISTRICT_HOLDS, brmatch.ts roofFor, Phase 26.4): in a
+ * match none went up, which only a wander that happened onto a pad reached. A bot on a canyon node beside a pad, sent
+ * for the walkway the pad lands on, with nobody in sight, rides the pad and stands up there holding it
+ */
+async function speedkillsDistrictHoldTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&game=speedkills");
+  await ev(page, brRow("solo", 9));
+  await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
+  const landed = await page
+    .waitForFunction(`window.__range.duel()?.phase === "fight" && window.__range.player.onGround && !window.__range.player.dropping && window.__range.duel().bots.some((b) => b.landed && b.bot.alive)`, { polling: 100, timeout: 90000 })
+    .then(() => true, () => false);
+  if (!landed) {
+    check("district hold: a match starts and a bot lands", false);
+    await page.close();
+    return;
+  }
+  // (every bot down first: one still falling into sight was a target, and a bot with a target does not walk its way)
+  await page.waitForFunction("window.__range.duel().bots.every((b) => !b.bot.alive || (b.landed && !b.bot.dropping))", { polling: 100, timeout: 60000 }).catch(() => undefined);
+  const d0 = districtsCfg.districts[0];
+  const [w0] = d0.fill.walkway;
+  const set = await ev<{ hold: number; roof: number; from: number; bot: number } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true;
+      const nodes = r.brMap.nodes;
+      const inCorner = (n) => n.x - ${BR_X} > ${d0.hole[0][0]} && n.z - ${BR_Z} > ${d0.hole[0][1]};
+      const hold = nodes.findIndex((n) => n.padFrom && (n.y ?? 0) >= ${w0} && inCorner(n));
+      if (hold < 0) return null;
+      const pad = nodes[hold].padFrom[0];
+      let from = -1, best = Infinity;
+      nodes.forEach((n, i) => { if (i === pad || (n.y ?? 0) > 1 || !n.links.includes(pad)) return; const dd = Math.hypot(n.x - nodes[pad].x, n.z - nodes[pad].z); if (dd < best) { best = dd; from = i; } });
+      if (from < 0) return null;
+      // (the sectors it passes through live the while: a bot in a sector the decay warns runs from it, and drops any
+      // climb, as it should; the pad stands on the line between two of them)
+      const sectors = ${JSON.stringify(cityCfgE2e.sectors.map((q) => ({ id: q.id, minX: q.minX, maxX: q.maxX, minZ: q.minZ, maxZ: q.maxZ })))};
+      const pts = [nodes[from], nodes[pad], nodes[hold]].map((n) => [n.x - ${BR_X}, n.z - ${BR_Z}]);
+      const keep = sectors.filter((q) => pts.some(([x, z]) => x > q.minX - 5 && x < q.maxX + 5 && z > q.minZ - 5 && z < q.maxZ + 5)).map((q) => q.id).filter((id) => d.decay && id !== d.decay.final);
+      if (d.decay && keep.length) {
+        d.decay.waves = d.decay.waves.map((w) => w.filter((id) => !keep.includes(id))).filter((w) => w.length);
+        d.decay.waves.push(keep);
+      }
+      // the player far off on the far side of the map, and every other bot too, so nothing is in sight
+      const far = nodes.find((n) => (n.y ?? 0) === 0 && n.x - ${BR_X} < -60 && n.z - ${BR_Z} < -60);
+      if (far) r.player.teleport(far.x, 0, far.z, 0);
+      const bs = d.bots.filter((b) => b.landed && b.bot.alive && !b.down);
+      const b = bs[0];
+      // (off any ride it was on: a launch pad's throw or a rope carried it on past the move)
+      for (const o of d.bots) if (o !== b && far) { o.bot.travel = null; o.bot.pos.set(far.x + 5, 0, far.z + 5); o.bot.dummy.group.position.copy(o.bot.pos); }
+      // (and nobody in its memory: a bot hunts where it last saw an enemy, which was where it landed)
+      b.bot.travel = null;
+      b.bot.lastSeen = null;
+      b.ropeTo = null;
+      b.bot.pos.set(nodes[from].x, 0, nodes[from].z);
+      b.bot.dummy.group.position.copy(b.bot.pos);
+      b.node = from;
+      b.goal = from;
+      // the high ground the match gives it (roofFor), its tier's chance made a yes: the walkway beside it, before any
+      // low tower's roof
+      const rnd = Math.random;
+      Math.random = () => 0;
+      const roof = d.roofFor(b);
+      Math.random = rnd;
+      b.climb = roof >= 0 ? { roof, holdUntil: null } : null;
+      window.__holdBot = b;
+      return { hold, roof, from, bot: b.bot.remote.id }; })()`,
+  );
+  if (!set) {
+    check("district hold: a bot, a pad and its walkway's landing to send it to", false);
+    await page.close();
+    return;
+  }
+  let at = { x: 0, y: 0, z: 0, holding: false };
+  for (let i = 0; i < 30 && at.y < w0 - 0.3; i++) {
+    await gameSleep(page, 1);
+    at = await ev(page, `(() => { const b = window.__holdBot; return { x: b.bot.pos.x - ${BR_X}, y: b.bot.pos.y, z: b.bot.pos.z - ${BR_Z}, holding: !!(b.climb && b.climb.holdUntil !== null) }; })()`);
+  }
+  let held = { y: 0, holding: false };
+  for (let i = 0; i < 6 && !held.holding; i++) {
+    await gameSleep(page, 1);
+    held = await ev<{ y: number; holding: boolean }>(page, `(() => { const b = window.__holdBot; return { y: b.bot.pos.y, holding: !!(b.climb && b.climb.holdUntil !== null) || b.node === ${set.hold} }; })()`);
+  }
+  check(
+    "district hold: a bot sent for High City's corner's walkway rides its pad up and holds it",
+    set.roof === set.hold && at.y >= w0 - 0.3 && held.y >= w0 - 0.3 && held.holding,
+    JSON.stringify({ ...set, at: { x: +at.x.toFixed(1), y: +at.y.toFixed(2), z: +at.z.toFixed(1) }, held }),
+  );
+  await page.close();
+}
+
 async function speedkillsStartsTest(browser: Browser): Promise<void> {
   type Slot = { id: string; empty: boolean; fusion: number };
   type Here = { slots: Slot[]; active: number; fused: number; down: string[] };
@@ -7925,6 +8017,7 @@ async function main(): Promise<void> {
       console.log("\nSpeedKills: the front door, the guns, fusion and the hacks");
       await speedkillsTest(browser);
       await speedkillsSlamTest(browser);
+      await speedkillsDistrictHoldTest(browser);
     }
 
     if (want("soldier")) {

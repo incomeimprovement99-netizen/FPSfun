@@ -79,6 +79,9 @@ export const STREETS: readonly number[] = BLOCKS.slice(0, -1).map((b, i) => (b[1
 
 /** each low tower's way up as graph nodes, door to roof, and the street node it hangs off (-1: none in reach); the checks walk them */
 export const ROOF_ROUTES: Array<{ street: number; nodes: number[]; storeys: number }> = [];
+/** the districts' walkways a bot may take and hold as it takes a low tower's roof (bots.json skRoofs): each pad's landing
+ * on one, as graph nodes; the pad is the way up (Phase 26.4) */
+export const DISTRICT_HOLDS: number[] = [];
 /** the Sky Lobby's bridges (city.ts skyLobby): each from one lobby's window across a street to the next's, world metres, for the checks that run them */
 export const LOBBY_BRIDGES: Array<{ ax: number; az: number; bx: number; bz: number; y: number }> = [];
 /** the Sky Lobby's canyons: two lobbies' windows lined up across a canyon, from one face to the other, world metres */
@@ -2744,6 +2747,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     }
   }
   ROOF_ROUTES.length = 0;
+  DISTRICT_HOLDS.length = 0;
   // The low towers' stairs, door to roof, on the graph (city.json botRoofs): a bot
   // wandering past takes one now and then, and a fight has someone above it.
   const streetNodes = nodes.length;
@@ -3056,6 +3060,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       if (!joined) continue;
       nodes[pn].pad = { to: ln, up: p.up ?? 0, dx: p.dx, dz: p.dz, over: p.over ?? 0 };
       (nodes[ln].padFrom ??= []).push(pn);
+      if (inDistrict(p.x - BR_X, p.z - BR_Z) && !DISTRICT_HOLDS.includes(ln)) DISTRICT_HOLDS.push(ln);
       // the landing, on to what stands on its roof (a podium's corners, the next tier's pad); a district's walkway has
       // its landing linked already, to the walkway's own points round it
       if (!inDistrict(p.x - BR_X, p.z - BR_Z)) for (const i of near(ln, pn)) walkLink(ln, i);

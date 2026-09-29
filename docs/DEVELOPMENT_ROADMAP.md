@@ -6362,3 +6362,23 @@ sheets before acting on them (docs/PLAN_GUNS_IN_HAND.md, round 4).
 - **Checked:** new soldier e2e checks: the USSO's left hand 15 cm and more off its place from the magazine seated to
   the grab on the handle, and the support hand's palm 1 cm and more ahead of the magazine at rest on both guns, each
   seen failing with its fault put back; the sheets of both guns, every 2%; verify; rules.
+
+## Milestone 320 — The bots take High City's corner's walkways as high ground
+
+Phase 26 (`docs/PHASE_26_PLAN_FINISH_THE_CORNER.md`), item 26.4: "the bots up on the walkways, not only in the canyons
+(the graph reaches them, and in a test match none went up)". A bot wanders the graph at random, and the corner's pads are
+one-way links on it, so only a wander that happened onto a pad took a bot up; the high ground a bot goes for on purpose
+(`brmatch.ts roofFor`, bots.json skRoofs, now and then out of a fight: take a roof and hold it 25 s) was the low towers'
+roofs alone.
+
+- **The corner's walkways are high ground now** (`city.ts DISTRICT_HOLDS`, `brmatch.ts roofFor`): each district pad's
+  landing on its walkway is a place a bot takes and holds as it takes a low tower's roof, the nearest within reach; the
+  way there is the graph's, up that pad (`climbTree`), and the bot rides the pad as a player does.
+- **Checks:** `sk-district.ts`, each of the 5 landings reached from every node of the corner's canyons up a pad (170
+  ways; seen failing with the landings not recorded). The e2e speedkills section, in a real battle royale: a bot on a
+  canyon node beside a pad, nobody in sight, asks the match for its high ground with its tier's chance made a yes; it
+  gets the walkway, rides the pad and stands up there holding it (seen failing, with no high ground in reach, without the
+  landings). The test's own setup had to make room for three things the match does rightly: a bot with an enemy in its
+  memory hunts there first, a ride it was on carries it on, and a bot in a sector the decay warns runs from it and drops
+  any climb (the pad stands on the line between two sectors).
+- **Checked:** verify and rules; `sk-district.ts`; the e2e section speedkills; the new test alone 12 runs of 12.

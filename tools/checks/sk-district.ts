@@ -20,7 +20,8 @@ if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS:
 const warn = console.warn;
 console.warn = () => undefined;
 const { GAME } = await import("../../src/game/game");
-const { buildCityMap, FIRE_ESCAPES } = await import("../../src/game/city");
+const { buildCityMap, FIRE_ESCAPES, DISTRICT_HOLDS } = await import("../../src/game/city");
+const { navTree } = await import("../../src/game/navgraph");
 const { Player } = await import("../../src/game/player");
 const { BR_X, BR_Z } = await import("../../src/game/br");
 const { RANGE_SOLIDS } = await import("../../src/game/range");
@@ -200,6 +201,28 @@ for (const d of DISTRICTS.districts) {
       `${d.id}: on the bots' graph, its canyons from the city's streets and its walkways by its ${d.pads.length} pads, every node reached`,
       low.length >= 20 && up.length >= d.pads.length * 4 && pads.length === d.pads.length && lost.length === 0,
       `${low.length} in its canyons, ${up.length} on its walkways, ${pads.length} pads, ${lost.length} not reached${lost.length ? `: ${lost.slice(0, 10).map(({ n }) => `${(n.x - BR_X).toFixed(0)},${(n.y ?? 0).toFixed(1)},${(n.z - BR_Z).toFixed(0)}(${n.links.length})`).join(" ")}` : ""}`,
+    );
+    // Its walkways as high ground a bot takes and holds (city.ts DISTRICT_HOLDS, bots.json skRoofs): each pad's landing,
+    // and the way a bot takes to it (brmatch.ts climbTree) from every node of its canyons, up that pad
+    const holds = DISTRICT_HOLDS.filter((h) => inPoly(d.hole, nodes[h].x - BR_X, nodes[h].z - BR_Z));
+    const astray: string[] = [];
+    for (const h of holds) {
+      const t = navTree(map.nodes, 0, 0, { target: h });
+      for (const { i } of low) {
+        let at = i;
+        let padded = false;
+        for (let k = 0; k < 400 && at !== h && at >= 0; k++) {
+          const next = t.toward[at];
+          if (nodes[at].pad && nodes[at].pad!.to === next) padded = true;
+          at = next;
+        }
+        if (at !== h || !padded) astray.push(`${(nodes[i].x - BR_X).toFixed(0)},${(nodes[i].z - BR_Z).toFixed(0)} to ${(nodes[h].x - BR_X).toFixed(0)},${(nodes[h].z - BR_Z).toFixed(0)}`);
+      }
+    }
+    check(
+      `${d.id}: its walkways high ground the bots take, each pad's landing reached from every node of its canyons up a pad`,
+      holds.length === d.pads.length && astray.length === 0,
+      `${holds.length} holds, ${holds.length * low.length} ways${astray.length ? `, ${astray.length} astray: ${astray.slice(0, 4).join("; ")}` : ""}`,
     );
   }
 }

@@ -257,7 +257,7 @@
   },
   "_maxStep": "Metres: the longest single step a bot's walk is made of in one go (bots.ts). A frame's walk longer than this (a slow frame: dt runs to 0.1 s, and 0.1 s at 6.6 m/s is 0.66 m) is walked in pieces, each with its own wall check and slide, as a quick frame would have walked it. 0.2 m is a quick frame's step at the fastest tier's pace and 30 fps.",
   "maxStep": 0.2,
-  "_skRoofs": "SpeedKills: a bot out of a fight, not looting and not running from the decay, now and then takes the high ground (brmatch.ts): up the stairs of a low tower within reach metres (city.ts ROOF_ROUTES), where it holds the roof for hold seconds. chance is per node it arrives at, by tier; a beginner never does. Ours: the city's fights are meant to be vertical, and the roofs were empty.",
+  "_skRoofs": "SpeedKills: a bot out of a fight, not looting and not running from the decay, now and then takes the high ground (brmatch.ts): up the stairs of a low tower within reach metres (city.ts ROOF_ROUTES), or up a district's pad onto its walkway (city.ts DISTRICT_HOLDS, Phase 26.4: in a test match none went up the corner's walkways, which only a wander that happened onto a pad reached), where it holds the roof for hold seconds. chance is per node it arrives at, by tier; a beginner never does. Ours: the city's fights are meant to be vertical, and the roofs were empty.",
   "skRoofs": {
     "reach": 120,
     "hold": 25,

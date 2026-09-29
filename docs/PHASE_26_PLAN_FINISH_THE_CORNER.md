@@ -50,7 +50,7 @@ we are using out of how many."
 | 26.1 | The slam hurts enemies in every mode; its radius on the ground while you fall; the damage number on a hit | shipped | 315 |
 | 26.2 | Nobody gets into the corner where they should not | shipped | 315 |
 | 26.3 | Wallrunning: the camera leans, and you can see you are on the wall | shipped | 315 |
-| 26.4 | Finish the corner: the fire escapes up its walkways; the arm ends closed; loot up on the walkways | in progress | 317, 318 |
+| 26.4 | Finish the corner: the fire escapes up its walkways; the arm ends closed; loot and bots up on the walkways | in progress | 317, 318, 320 |
 | 26.5 | Wipe the middle district and rebuild it the corner's way, bigger | after 26.4 | |
 
 ### 26.0 The bug hunt (done)
@@ -120,6 +120,8 @@ The corner as a finished place to fight:
 
 - 26.2's fix, and walks round every edge.
 - The bots up on the walkways, not only in the canyons (the graph reaches them, and in a test match none went up).
+  **Done (Milestone 320):** each pad's landing is high ground a bot takes and holds as it takes a low tower's roof
+  (`city.ts DISTRICT_HOLDS`, `brmatch.ts roofFor`); proven in a real match.
 - More of its loot up on the walkways; most lands on the canyons' floor. **Done (Milestone 318):** half the corner's
   spots are drawn from the walkways' own decks (`loot.json districts walkways`); 7 to 9 items up there a match.
 - Ways up besides the pads, in the packs' own pieces, not ours (the owner, 2026-09-28: "pretty sure there are versions in

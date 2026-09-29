@@ -151,7 +151,7 @@ const BOT_LOOT_FLOOR = botsCfg.loot.floor;
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { navTree, type NavTree } from "./navgraph";
-import { ROOF_ROUTES, SPIRE_TOP } from "./city";
+import { DISTRICT_HOLDS, ROOF_ROUTES, SPIRE_TOP } from "./city";
 import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, ringPace, type Circle, type RingPhase } from "./ring";
 import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, resurgenceArea, secondsToFinal, type BrRules } from "./resurgence";
 import { GULAG, Gulag, gulagFor, type GulagEvent } from "./gulag";
@@ -3412,16 +3412,15 @@ export class BrMatch extends Duel {
     return t;
   }
 
-  /** SpeedKills: a roof for this bot to take, by its tier's chance, within reach, and none already holding it; -1 for none */
+  /** SpeedKills: a roof for this bot to take, by its tier's chance, within reach, and none already holding it; -1 for none.
+   * A low tower's roof up its stairs, or a district's walkway up its pad (city.ts DISTRICT_HOLDS) */
   private roofFor(b: BrBot): number {
     const chance = (botsCfg.skRoofs.chance as Record<string, number>)[b.bot.diff.name] ?? 0;
     if (!(Math.random() < chance)) return -1;
     const nodes = this.map.nodes;
     let best = -1;
     let bestD = botsCfg.skRoofs.reach;
-    for (const r of ROOF_ROUTES) {
-      if (r.street < 0) continue;
-      const roof = r.nodes[r.nodes.length - 1];
+    for (const roof of [...ROOF_ROUTES.filter((r) => r.street >= 0).map((r) => r.nodes[r.nodes.length - 1]), ...DISTRICT_HOLDS]) {
       if (this.bots.some((o) => o !== b && o.climb?.roof === roof)) continue;
       const n = nodes[roof];
       const dd = Math.hypot(n.x - b.bot.pos.x, n.z - b.bot.pos.z);

@@ -91,7 +91,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   the north arm's east walkway, its buildings are solid behind their faces, its
   arms' ends are buildings in High City's own brick fronts where they meet the
   city's streets (no invisible walls), it has loot of its own, half of it up on
-  the walkways, and the bots come into it too.
+  the walkways, and the bots come into it too, now and then riding a pad up to
+  hold a walkway.
   `?dropat=high-corner` drops a solo battle royale straight onto its
   crossroads. The game server alone has its file (a bought one).
 - **The chimneys:** four slots between twin towers, 3 m wide, climbed by wall
