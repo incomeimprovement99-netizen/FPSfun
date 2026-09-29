@@ -58,11 +58,20 @@ export type LoadoutRef = { kind: "default" | "custom"; index: number };
 interface Store {
   selected: LoadoutRef;
   custom: LoadoutDef[];
+  /** the game's loadoutPick this store has already been moved onto (see PICK) */
+  pick?: string;
 }
 
 // each game keeps its own: SpeedKills' guns would not survive a legacy check of what a slot may hold, nor the other way round
 const KEY = IS_SK ? "range.loadouts.sk.v1" : "range.loadouts.v1";
 const OLD_SLOTS = "range.slots.v1";
+/**
+ * A returning player keeps whatever loadout they last picked, which for
+ * everyone who played before the USSO and BOOG were finished is a pair that
+ * shows none of that work. A new tag here moves every browser onto the first
+ * default once; the tag is kept in the store, so a pick made after that sticks.
+ */
+const PICK = IS_SK ? (PROFILE.lists?.loadoutPick ?? "") : "";
 
 /**
  * A dressed slot, picked at random but spread out: the shuffle is seeded by
@@ -121,6 +130,11 @@ export class Loadouts {
 
   constructor() {
     this.store = this.load();
+    if (PICK && this.store.pick !== PICK) {
+      this.store.selected = { kind: "default", index: 0 };
+      this.store.pick = PICK;
+      this.save();
+    }
   }
 
   private load(): Store {
@@ -141,7 +155,7 @@ export class Loadouts {
           // (the bound is the list's own length: it was five, and adding a
           // sixth default would otherwise make it unselectable after a reload)
           sel && (sel.kind === "default" || sel.kind === "custom") && Number.isInteger(sel.index) && sel.index >= 0 && sel.index < DEFAULT_LOADOUTS.length ? sel : fresh.selected;
-        return { selected, custom };
+        return { selected, custom, pick: typeof s.pick === "string" ? s.pick : undefined };
       }
       // carry over the two weapons picked before loadouts existed
       const old = JSON.parse(localStorage.getItem(OLD_SLOTS) ?? "null") as unknown;

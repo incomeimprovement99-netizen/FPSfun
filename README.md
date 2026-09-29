@@ -127,6 +127,10 @@ Game) or `?game=legacy`, and everything below this section describes it.
   Its hit volumes follow its body, so a headshot lands on the head you see,
   running, crouched or sliding. The bought files never enter git, so a copy
   without them (and the Pages build) shows the figures of before.
+- **The first loadout is the USSO and BOOG:** the two guns finished to the
+  bar every gun will be held to. A new player starts with them, and everyone
+  who played before was moved onto them once; pick another on the Loadouts tab
+  and it stays picked.
 - **The bought guns and props:** on the game server every gun is a Sci-Fi Battle
   Weapons model, in first person, in hands and on the floor, and a fused gun
   changes skin and glows brighter each level. One model a gun, by its class:
@@ -330,8 +334,12 @@ The plan, the gap analysis against Hyper Scape and every owner decision are in
    practice. Then **Start**, or **With friends**, which makes the match on
    exactly those settings and copies an invite link.
 
-Nothing is installed and nothing is sent anywhere: settings, loadouts, your
-name, your best times and your stats live in this browser's localStorage.
+Nothing is installed: settings, loadouts, your name, your best times and your
+stats live in this browser's localStorage. The game's own server keeps a short
+visit log (`npm run fps seen`): a line when the page opens, a lobby is made or
+joined, a match starts and the page closes, with the name you play under and
+an id this browser made for itself. Your address is kept only as a hash, so
+two visits from one place can be told apart without it being written down.
 
 ## 1v1 a friend
 
@@ -1161,6 +1169,7 @@ TURN relay, the online boards and the optional accounts. The short form:
 npm run fps deploy   # build the last commit, ship it, reload, play a 1v1 on it
 npm run fps check    # from your PC: DNS, the firewall, /health, a real relayed datagram
 npm run fps backup   # the boards and accounts down to server-backup/ first
+npm run fps seen     # who played in the last 3 days (`seen 7` for a week, `seen 3 all` with the test browsers)
 ```
 
 **A static mirror** could be published beside it with `npm run deploy` (the

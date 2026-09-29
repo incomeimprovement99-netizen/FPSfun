@@ -11,7 +11,10 @@
 //   5. keeps optional accounts (/api/account: a name and a password, hashed
 //      with scrypt; a session token; the player's saved settings, stats and
 //      loadouts, synced between browsers), in a JSON file that survives deploys,
-//   6. answers /health for the deploy script.
+//   6. answers /health for the deploy script,
+//   7. keeps a visit log (/api/seen: a line as the page opens, a lobby is
+//      made or joined, a match starts, the page closes), so the owner can see
+//      when a friend played; addresses are hashed, never written down.
 //
 // The game reads /net.json when a match is made or joined (src/net/link.ts). On
 // a host without this server (GitHub Pages) the file is missing and the game
@@ -30,12 +33,13 @@
 //   PEER_KEY      the broker key the game must send, default "range"
 //   BOARD_FILE    where the boards are kept, default boards.json next to this file
 //   ACCOUNT_FILE  where the accounts are kept, default accounts.json next to this file
+//   SEEN_FILE     the visit log, default seen.jsonl next to this file
 //   VERSION       shown on /health, default the build stamp in dist/version.txt
 import { nextBoardValue } from "./boardrules.mjs";
 import express from "express";
 import { ExpressPeerServer } from "peer";
 import { createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -84,7 +88,7 @@ app.get("/net.json", (req, res) => {
       { urls: [`turn:${host}:${TURN_PORT}?transport=udp`, `turn:${host}:${TURN_PORT}?transport=tcp`], username, credential }
     );
   }
-  res.json({ v: 1, peer: { path: "/peerjs/", key: PEER_KEY }, iceServers, board: "/api/board", account: "/api/account" });
+  res.json({ v: 1, peer: { path: "/peerjs/", key: PEER_KEY }, iceServers, board: "/api/board", account: "/api/account", seen: "/api/seen" });
 });
 
 // ---------- the online boards ----------
@@ -332,6 +336,77 @@ app.put("/api/account/profile", express.json({ limit: PROFILE_MAX }), (req, res)
   s.user.updated = new Date().toISOString();
   accountsDirty = true;
   res.json({ ok: true, updated: s.user.updated });
+});
+
+// ---------- who came, and what they did ----------
+// The owner could not tell whether a friend had played: the broker keeps no
+// names, and a result reaches the boards only when a run or a match is won.
+// The game posts a line here as the page opens, as a lobby is made or joined,
+// as a match starts and as the page closes (src/net/seen.ts), and each is kept
+// as one JSON line in SEEN_FILE: the time, what happened, the name the player
+// goes by, an id their browser made for itself, and the address hashed with
+// the server's own secrets, so two visits from one place can be told apart
+// without the address itself ever being written down. `npm run fps seen` reads it.
+const SEEN_FILE = resolve(process.env.SEEN_FILE ?? join(here, "seen.jsonl"));
+/** past this the file is moved aside to .1 (the one before that goes), so it never fills the disk */
+const SEEN_MAX_BYTES = 5 * 1024 * 1024;
+const SEEN_EVENTS = new Set(["open", "host", "join", "match", "close"]);
+const SEEN_LIMIT = 120;
+const seenPosts = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, p] of seenPosts) if (p.resetAt < now) seenPosts.delete(ip);
+}, POST_WINDOW_MS).unref();
+const seenSalt = `${PEER_KEY}:${TURN_SECRET}:seen`;
+/** a short field from the post: a string of the allowed characters, cut to `n`, or undefined */
+const shortText = (v, n) => (typeof v === "string" && v.length ? v.replace(/[^\w .:+-]/g, "").slice(0, n) || undefined : undefined);
+/** the browser and system, in two words, from the user agent */
+const agentOf = (ua) => {
+  const b = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "other";
+  const os = /Windows/.test(ua) ? "Windows" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Mac OS/.test(ua) ? "Mac" : /CrOS/.test(ua) ? "ChromeOS" : /Linux/.test(ua) ? "Linux" : "other";
+  return `${b}/${os}`;
+};
+app.post("/api/seen", express.text({ type: "*/*", limit: "1kb" }), (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const now = Date.now();
+  const ip = req.ip ?? "?";
+  const p = seenPosts.get(ip) ?? { count: 0, resetAt: now + POST_WINDOW_MS };
+  if (p.resetAt < now) Object.assign(p, { count: 0, resetAt: now + POST_WINDOW_MS });
+  seenPosts.set(ip, p);
+  if (++p.count > SEEN_LIMIT) return res.status(429).end();
+  let b;
+  try {
+    b = JSON.parse(typeof req.body === "string" ? req.body : "");
+  } catch {
+    return res.status(400).end();
+  }
+  if (!b || typeof b !== "object" || !SEEN_EVENTS.has(b.ev)) return res.status(400).end();
+  const line = {
+    at: new Date(now).toISOString(),
+    ev: b.ev,
+    name: shortText(b.name, 24),
+    acct: shortText(b.acct, 24),
+    dev: shortText(b.dev, 12),
+    ip: createHmac("sha256", seenSalt).update(ip).digest("hex").slice(0, 8),
+    ua: agentOf(req.get("user-agent") ?? ""),
+    game: shortText(b.game, 12),
+    mode: shortText(b.mode, 24),
+    code: shortText(b.code, 5),
+    role: shortText(b.role, 6),
+    invite: b.invite === 1 ? 1 : undefined,
+    secs: typeof b.secs === "number" && Number.isFinite(b.secs) ? Math.max(0, Math.min(86400, Math.round(b.secs))) : undefined,
+    // the build that was served (its commit), so a visit can be matched to what the player saw
+    v: version.split(" ")[0],
+    // a test browser (the deploy's live check drives one): kept, and marked so the reader can leave it out
+    bot: b.bot === 1 ? 1 : undefined,
+  };
+  try {
+    if (existsSync(SEEN_FILE) && statSync(SEEN_FILE).size > SEEN_MAX_BYTES) renameSync(SEEN_FILE, `${SEEN_FILE}.1`);
+    appendFileSync(SEEN_FILE, `${JSON.stringify(line)}\n`);
+  } catch (e) {
+    console.error(`seen: write failed (${e})`);
+  }
+  res.status(204).end();
 });
 
 // the built site: file names under assets/ carry a content hash, so they can be

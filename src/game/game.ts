@@ -52,7 +52,8 @@ export interface GameProfile {
   botNames?: Record<string, string>;
   identity: { title: string; accent: string; accent2: string; sky: string; skies?: string[] };
   /** the game's own versions of lists the legacy game keeps in its configs; absent: the legacy game's own */
-  lists?: { botWeapons: string[]; loadouts: string[][]; gulagGuns: string[]; loadoutNames?: string[]; botRename?: Record<string, string> };
+  /** loadoutPick: a tag; a browser that has not seen this one is moved onto the first default once (loadouts.ts) */
+  lists?: { botWeapons: string[]; loadouts: string[][]; gulagGuns: string[]; loadoutNames?: string[]; botRename?: Record<string, string>; loadoutPick?: string };
   /** the battle royale's floor: spots a sector by tier, the chances of a gun and a hack core, their fusion odds */
   loot?: { spots: Record<string, number>; gunChance: number; hackChance: number; gunOdds: Record<string, number[]>; hackOdds: Record<string, number[]>; maxFloor?: number; restock?: LootRestock; carePackage?: CarePackage };
   /** a bot's tier speed times this (speedkills.json botSpeedScale; Phase 20 A15) */

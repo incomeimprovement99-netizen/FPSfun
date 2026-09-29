@@ -24,6 +24,7 @@ import rulesCfg from "./config/rules.json";
 import { FINISHES, chooseFinish, finishFor } from "./game/finishes";
 import { applyFinish, gunModel, resetGunModels } from "./game/gunmodels";
 import { Voice } from "./net/voice";
+import { seen, type SeenDetail, type SeenEvent } from "./net/seen";
 import type Peer from "peerjs";
 import { Course } from "./game/course";
 import { BASIC_COURSE } from "./game/courses/basic";
@@ -4758,6 +4759,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   // dropping into a match: the short card, over the match already starting
   // underneath it. Nothing waits for it (src/ui/intro.ts).
   if (!NO_INTRO) void intro.play("match", modeWords(d, kind));
+  note("match", { mode: kind, role: d instanceof Duel && d.players > 1 ? d.role : undefined });
   d.onRespawn = () => respawnForMatch(d);
   // a guest with a seat key (a host that gives one) gets back in after a dropped connection
   if (d instanceof Duel && d.role === "guest" && mySeat) d.onHostLost = () => getBackIn(d);
@@ -5468,6 +5470,7 @@ function openHosting(players: number, then?: (code: string) => void): void {
         $("inviteCopy").textContent = "Copied";
       });
       $<HTMLInputElement>("inviteLink")?.addEventListener("focus", (e) => (e.target as HTMLInputElement).select());
+      note("host", { code, mode: duelMode.value });
       then?.(code);
     },
     (link, id) => startDuel(link, players, 0, id),
@@ -5503,6 +5506,7 @@ function joinCode(code: string): void {
       // the seat's key, for getting back in if the connection drops
       mySeat = w.key ? { code, id: w.id, key: w.key } : null;
       joinedWith = { players: w.players, br: w.br, opts: w.opts };
+      note("join", { code, mode: w.br ? "br" : (w.opts?.mode?.kind ?? "arena") });
       startDuel(link, w.players, w.id, 1, w.br, w.opts);
     },
     (err) => setDuelStatusText(err, "bad")
@@ -5599,7 +5603,10 @@ duelLeaveBtn.addEventListener("click", () => {
 });
 // Closing or reloading the tab tells the other side at once, rather than
 // leaving them facing a frozen figure until the silence timeout.
-window.addEventListener("pagehide", () => duel?.leave());
+window.addEventListener("pagehide", () => {
+  duel?.leave();
+  note("close");
+});
 // Ctrl+W still closes a windowed tab (Input.lock): mid-match or mid-play the
 // browser asks first.
 window.addEventListener("beforeunload", (e) => {
@@ -8057,11 +8064,16 @@ initWelcome();
     const rest = q.toString();
     history.replaceState(null, "", `${location.pathname}${rest ? `?${rest}` : ""}${location.hash}`);
   }
+  note("open", { invite: invite.length === 5, code: invite.length === 5 ? invite : undefined });
   if (invite.length === 5) {
     menu.show("duel");
     duelCode.value = invite;
     duelJoinBtn.click();
   }
+}
+/** a line in the owner's visit log (src/net/seen.ts): who, in which game, and what they just did */
+function note(ev: SeenEvent, d: SeenDetail = {}): void {
+  seen(ev, { name: profile.profile.name, game: GAME, ...d });
 }
 
 // debug handle

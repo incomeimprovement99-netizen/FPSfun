@@ -6161,6 +6161,33 @@ async function speedkillsTest(browser: Browser): Promise<void> {
  * came in, one was sent back to the lobby). The host picks a trio battle royale and leaves the players dropdown,
  * which is the 1v1's, as it opens (2): the match must still take both friends, since a squad of three is three.
  */
+/**
+ * SpeedKills' first loadout is the USSO and BOOG (speedkills.json lists.loadoutPick; the owner, 2026-09-29): a new
+ * player starts with them, a returning one is moved onto them once, and a pick made after that is kept.
+ */
+async function skLoadoutTest(browser: Browser): Promise<void> {
+  const read = `(() => { const r = window.__range; const c = r.loadouts.current; const s = JSON.parse(localStorage.getItem("range.loadouts.sk.v1") ?? "null"); return { name: c.name, want: [c.slot1, c.slot2], held: r.loadout.slots.map((x) => x.id), pick: s?.pick ?? null, sel: s?.selected ?? null }; })()`;
+  // a new player: nothing stored
+  const fresh = await open(browser, "?game=speedkills&norender", BASE, `if (!sessionStorage.getItem("e2e.fresh")) { sessionStorage.setItem("e2e.fresh", "1"); localStorage.removeItem("range.loadouts.sk.v1"); }`);
+  const a = await ev<{ name: string; want: string[]; held: string[]; pick: string | null }>(fresh, read);
+  check("a new player's loadout is the USSO and BOOG, in hand", a.want.join() === "r97,sentinel" && a.held.join() === "r97,sentinel" && a.name === "USSO and BOOG", JSON.stringify(a));
+  await fresh.close();
+  // a returning player on Marksman from before, the store with no pick in it
+  const OLD = `{"selected":{"kind":"default","index":2},"custom":[]}`;
+  const back = await open(browser, "?game=speedkills&norender", BASE, `if (!sessionStorage.getItem("e2e.back")) { sessionStorage.setItem("e2e.back", "1"); localStorage.setItem("range.loadouts.sk.v1", '${OLD}'); }`);
+  const b = await ev<{ want: string[]; held: string[]; pick: string | null; sel: { kind: string; index: number } | null }>(back, read);
+  check("a returning player is moved onto the USSO and BOOG once, and the store says so", b.want.join() === "r97,sentinel" && b.held.join() === "r97,sentinel" && b.pick === "usso-boog" && b.sel?.index === 0, JSON.stringify(b));
+  // they pick Marksman again: after a reload it is still theirs
+  await ev(back, `[...document.querySelectorAll("#loadoutList button")].find((x) => x.textContent.startsWith("Marksman")).click()`);
+  await back.reload({ waitUntil: "domcontentloaded" });
+  await back.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
+  const c = await ev<{ name: string; want: string[] }>(back, read);
+  check("a pick made after the move is kept over a reload", c.name === "Marksman" && c.want.join() === "g2,vinson", JSON.stringify(c));
+  // put the first back for the pages after this one (they share the browser's storage)
+  await ev(back, `[...document.querySelectorAll("#loadoutList button")].find((x) => x.textContent.startsWith("USSO and BOOG")).click()`);
+  await back.close();
+}
+
 /** a soldier nobody has by default (soldier.ts code: RUNNER, its colours, the helmet off), so seeing it is seeing it sent */
 const FRIEND_SOLDIER = "S3343041";
 
@@ -7231,7 +7258,7 @@ async function skSquadTest(browser: Browser): Promise<void> {
   await close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, p2p, mixed) */
+/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, p2p, mixed) */
 /**
  * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
  * plays on the page's own clock and takes itself away, a key or a click takes
@@ -8202,6 +8229,11 @@ async function main(): Promise<void> {
       console.log("\nSpeedKills' soldier: it renders, its hit volumes, bots' kits and the fallback");
       await soldierTest(browser);
       await heldTexTest(browser);
+    }
+
+    if (want("sklobby")) {
+      console.log("\nSpeedKills' lobby: the USSO and BOOG first");
+      await skLoadoutTest(browser);
     }
 
     if (want("skfriends")) {

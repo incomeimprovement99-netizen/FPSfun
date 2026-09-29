@@ -11,6 +11,7 @@
 //                         keeps them
 //   ~/range/accounts.json the optional accounts (hashed passwords, sessions,
 //                         synced profiles), outside the release for the same reason
+//   ~/range/seen.jsonl    the visit log (serve.mjs /api/seen), outside it too
 const { existsSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 
@@ -36,6 +37,7 @@ module.exports = {
         DIST: join(__dirname, "..", "site"),
         BOARD_FILE: join(__dirname, "..", "..", "boards.json"),
         ACCOUNT_FILE: join(__dirname, "..", "..", "accounts.json"),
+        SEEN_FILE: join(__dirname, "..", "..", "seen.jsonl"),
         ...boxEnv,
       },
       autorestart: true,

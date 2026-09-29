@@ -360,7 +360,7 @@
       "hazyDay"
     ]
   },
-  "_lists": "The lists the legacy game keeps in its own configs, in SpeedKills' guns: what the bots carry (every gun, in turn), the six default loadouts' two guns (the order of the legacy defaults: Assault, Close Quarters, Marksman, Heavy, Sidearms, Dirt Bike), and the Gulag's pool, from which the two fighters' shared pair is drawn. loadoutNames are the six defaults' names in SpeedKills (Phase 20 A7): the legacy Sidearms and Dirt Bike no longer fit guns that are HAEFY with USSO and BOOG with ANAKIN. botRename renames the bots whose names are a gun's (BOT NOVA beside the gun NOVA).",
+  "_lists": "The lists the legacy game keeps in its own configs, in SpeedKills' guns: what the bots carry (every gun, in turn), the six default loadouts' two guns (the order of the legacy defaults: Assault, Close Quarters, Marksman, Heavy, Sidearms, Dirt Bike), and the Gulag's pool, from which the two fighters' shared pair is drawn. loadoutNames are the six defaults' names in SpeedKills (Phase 20 A7): the legacy Sidearms and Dirt Bike no longer fit guns that are HAEFY with USSO and BOOG with ANAKIN. botRename renames the bots whose names are a gun's (BOT NOVA beside the gun NOVA). The first default is USSO and BOOG (the owner, 2026-09-29): the two guns finished to the bar every gun will be held to, in first person and on the soldier, so they are what a new player and a friend opening an invite pick up first; loadoutPick moves a returning player onto it once (src/game/loadouts.ts).",
   "lists": {
     "botWeapons": [
       "rspn101",
@@ -376,8 +376,8 @@
     ],
     "loadouts": [
       [
-        "rspn101",
-        "r97"
+        "r97",
+        "sentinel"
       ],
       [
         "alternator_smg",
@@ -408,8 +408,9 @@
       "shotgun",
       "g2"
     ],
+    "loadoutPick": "usso-boog",
     "loadoutNames": [
-      "Assault",
+      "USSO and BOOG",
       "Close Quarters",
       "Marksman",
       "Heavy",

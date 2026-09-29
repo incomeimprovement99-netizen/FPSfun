@@ -6676,3 +6676,34 @@ the air like we plan to do when swapping guns."
   half, each card's hack and level, the toss (the cards 5 cm and more up and more than 40% phased by 85%, none shown by
   93%), and an inspect begun as its button begins one still going 4.4 s in and over by 5.6, each seen failing with the
   change taken out; the soldier section; verify; rules.
+
+## Milestone 331 — The USSO and BOOG first for everyone; a visit log that says who played
+
+The owner, 2026-09-29: "would like any new user or returning user to have their loadout defaulted to the boog and the
+usso. the only one who has been connecting other than me is usso, he said he played around a bit again yesterday, can
+you tell when he connects and plays? even if its just connecting to the lobby?"
+
+- **The first loadout** (`speedkills.json` lists.loadouts[0] and loadoutNames[0]): USSO and BOOG, named for them. The
+  two are the guns finished to the bar in `docs/PLAN_GUNS_IN_HAND.md`, in first person and on the soldier; a friend
+  opening an invite picked up a rifle and the USSO.
+- **Returning players** (`loadouts.ts` PICK, `lists.loadoutPick`): a stored loadout is kept across visits, so a new
+  default alone reached nobody who had played. The store now carries the tag it was last moved to; a browser without
+  `usso-boog` is put on the first default once and the tag saved, so a pick made after that sticks. A later tag moves
+  everyone again. The tag rides in the store itself, which the account sync already carries between browsers.
+- **Could the server say whether USSO played?** No: the broker keeps no names, Caddy keeps no access log, the relay's
+  log held only port scanners, and the boards hear only of wins and course times (his last, "Usso", 2026-09-21; a few
+  generated names on 09-27 and 09-28 could be anyone).
+- **The visit log** (`serve.mjs` /api/seen, `src/net/seen.ts`, `tools/seen-report.ts`): the page sends a line as it
+  opens (and whether from an invite), as a lobby is made or joined (code and mode), as any match starts (its kind, and
+  host or guest) and as it closes (seconds on the page), by beacon, only where `/net.json` names the log. Each line
+  keeps the name the player goes by, an id the browser made for itself (`seen.device`, outside `range.*` so the
+  account sync never copies it to another browser), the address as an HMAC under the server's own secrets, the
+  browser and system in two words and the build served; a test browser is marked. 120 lines a 10 minutes an address,
+  1 KB a line, the file moved aside at 5 MB. `npm run fps seen [days] [all]` groups each browser's lines into sittings
+  (a new one after half an hour of nothing) and prints them in Chicago time; `fps backup` takes the file too.
+- **Checked:** `tools/checks/seen.ts` in verify: every event the game sends is in the server's list and sent from
+  main.ts (seen failing with `close` taken off the server's list), and a made-up night reads as two sittings with the
+  test browser left out; the server run here on a stub site: a line written with the markup stripped from the name and
+  the address hashed, an unknown event and a body that is not JSON refused. New e2e section `sklobby`: a new player
+  holds the USSO and BOOG, a returning one on Marksman is moved onto them with the tag stored (seen failing with the
+  move taken out), and Marksman picked again survives a reload. verify, rules.

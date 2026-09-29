@@ -199,7 +199,8 @@ ships.
 | `npm run fps check` | everything from outside, each failure with its fix | no |
 | `npm run fps health` | `/health`, `pm2 ls`, coturn and Caddy up, memory, disk | no |
 | `npm run fps logs` | the server's last 60 log lines | no |
-| `npm run fps backup` | copies `boards.json` and `accounts.json` down to `server-backup/<date>/` (gitignored: password hashes) | no |
+| `npm run fps seen [days] [all]` | who played: the visit log (`~/range/seen.jsonl`) read as sittings, each browser's lines grouped until half an hour passes with nothing, the last 3 days by default in Chicago time; the deploy's own test browser is left out unless `all` | no |
+| `npm run fps backup` | copies `boards.json`, `accounts.json` and `seen.jsonl` down to `server-backup/<date>/` (gitignored: password hashes) | no |
 | `npm run fps ssh` | a shell on the box | only what you type |
 | `npm run fps restart` | restart the game server, rereading `~/range/range.env` | restarts it |
 | `npm run fps rollback` | put the previous release back | yes |
@@ -211,8 +212,10 @@ What lives where on the box: `~/range/app/` is the current release
 (`site/` and `server/`), `~/range/prev/` the one before, `~/range/range.env`
 the relay secret (written once by setup, never shipped),
 `~/range/boards.json` the online boards and `~/range/accounts.json` the
-accounts (password hashes, sessions and synced profiles), both outside the
-release so a deploy keeps them. Back `accounts.json` up now and then
+accounts (password hashes, sessions and synced profiles), and
+`~/range/seen.jsonl` the visit log (`/api/seen`: the time, what happened, the
+player's name, an id their browser made, the address as a hash; moved aside
+to `seen.jsonl.1` at 5 MB), all outside the release so a deploy keeps them. Back `accounts.json` up now and then
 (`npm run fps backup`): it is the one file on the box a player would miss.
 
 ## 8. When something is wrong
@@ -242,8 +245,10 @@ release so a deploy keeps them. Back `accounts.json` up now and then
 the PeerJS broker at `/peerjs`, answers `/net.json` (the broker's path and
 TURN credentials that expire after 12 hours, signed with the relay's
 secret), keeps the boards at `/api/board` and the accounts at `/api/account`
-(register, login, logout, profile; rate limited, sessions of 30 days), and
-answers `/health`. The game
+(register, login, logout, profile; rate limited, sessions of 30 days), keeps
+the visit log at `/api/seen` (a line from `src/net/seen.ts` as the page opens, a
+lobby is made or joined, a match starts and the page closes; 120 a 10 minutes an
+address), and answers `/health`. The game
 reads `/net.json` when a match is made or joined (`src/net/link.ts`) and when
 the Stats tab opens (`src/game/leaderboard.ts`). The match itself still goes
 browser to browser; the relay only carries it when a network blocks that.
