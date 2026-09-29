@@ -25,6 +25,8 @@ import SOLIDS from "../config/neon/neonmap.solids.json";
 export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0 };
 
 const G = neonCfg.game;
+/** the map's own haze (atmosphere.ts ownAir), neonmap.json game.air */
+export const NEON_AIR = G.air;
 /** the plain floor drawn until the bundle's file is in, or where it is not */
 let standIn: THREE.Mesh | null = null;
 
@@ -215,6 +217,41 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
 }
 
 /**
+ * The pack's materials reflecting the city itself, not the game's sky: its asphalt is smoothness 0.85, a wet street, and
+ * in Unity the scene's reflection probes show it the dark city and its neon; with the sky's map in it the roads came out
+ * pale, lit or not (turning the moon, the sky's fill and the environment down left them as they were). One picture of
+ * the lit map taken from `reflect.at` (map-local) once its file is in, as the old city's wet streets did (atmosphere.ts)
+ */
+let reflection: { cam: THREE.CubeCamera; scene: THREE.Scene; renderer: THREE.WebGLRenderer } | null = null;
+function reflectCity(map: THREE.Object3D, renderer: THREE.WebGLRenderer): void {
+  const scene = map.parent?.parent as THREE.Scene | undefined;
+  if (!scene) return;
+  const R = G.reflect;
+  const rt = new THREE.WebGLCubeRenderTarget(R.size, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+  const cam = new THREE.CubeCamera(0.5, R.far, rt);
+  cam.position.set(BR_X + R.at[0], R.at[1], BR_Z + R.at[2]);
+  reflection = { cam, scene, renderer };
+  retakeReflection();
+  const done = new Set<THREE.Material>();
+  map.traverse((o) => {
+    const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+    if (!m || Array.isArray(m) || done.has(m) || !m.isMeshStandardMaterial) return;
+    done.add(m);
+    m.envMap = rt.texture;
+    m.needsUpdate = true;
+  });
+}
+
+/** the city's picture taken again, as the hour changes (main.ts applyHour): a night's city reflected in a golden hour's road read wrong */
+export function retakeReflection(): void {
+  if (!reflection) return;
+  const { cam, scene, renderer } = reflection;
+  scene.add(cam);
+  cam.update(renderer, scene);
+  scene.remove(cam);
+}
+
+/**
  * The bundle's file drawn over the map: the preset's texture size (lo 512, hi 1024, max 2048), its geometry
  * meshopt-compressed, its detail maps multiplied in (detailmaps.ts), every material taught the decay, the plain floor put
  * away. How many meshes it drew; 0 where the file is not (a checkout without the bought files)
@@ -252,6 +289,7 @@ export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRe
   gltf.scene.name = "neon:map";
   root.add(gltf.scene);
   holdForDecay(gltf.scene, null);
+  reflectCity(gltf.scene, renderer);
   if (standIn) standIn.visible = false;
   renderer.shadowMap.needsUpdate = true;
   Object.assign(NEON_MAP, { drawn: true, file: url, meshes });

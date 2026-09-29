@@ -274,7 +274,9 @@ higher buildings, inside rooms to fight in". In this order, each shipped on its 
    the streets, so a street reads like the store's pictures. Its ad screens (SquareAd00 and the rest, the picture as
    both colour and emission at 1) come out blank white: lit colour and full emission together saturate under the game's
    tone mapping and bloom.
-5. **The look**: the store's haze and a night lit by the neon: the map's own hour (its fog, its sky's light and the
+5. **The look**: begun (Milestone 336): the roads reflect the city, not the sky, and the map has its own pale violet
+   haze in place of the old city's. Still: the range's sky fill lights the city by night (the dressing's lights first).
+   The store's haze and a night lit by the neon: the map's own hour (its fog, its sky's light and the
    environment's strength, in `neonmap.json`), so the wet asphalt reflects the signs and not a sky.
 6. **The eight districts** round the centre, each its own build after the centre (the owner: "just do the center for
    now").

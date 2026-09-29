@@ -121,9 +121,9 @@ import { dressKit } from "./game/kitdress";
 import { cityKitPlaces } from "./game/citydress";
 import { CITY_KIT, dressCityKit, tickCityKit } from "./game/citykit";
 import { CITY_DISTRICTS, districtAt, districtGlow, dressDistricts } from "./game/citydistricts";
-import { NEON_MAP, buildNeonMap, dressNeonMap } from "./game/neonmap";
+import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, retakeReflection } from "./game/neonmap";
 import { buildAtmosphere, tickAtmosphere } from "./game/steam";
-import { atmosphereOn, districtHere, tickAir, wetStreets } from "./game/atmosphere";
+import { atmosphereOn, districtHere, ownAir, tickAir, wetStreets } from "./game/atmosphere";
 import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
@@ -817,6 +817,8 @@ function applyHour(h: Hour): void {
   setHour(h, scene);
   renderer.shadowMap.needsUpdate = true;
   void installSky(scene, renderer, h.hdr);
+  // (the Neon City map's roads reflect a picture of the city under this hour, not the last one's)
+  retakeReflection();
 }
 applyHour(hour);
 // A GPU reset (a driver update, a sleeping laptop, another tab crashing the
@@ -967,6 +969,8 @@ if (IS_SK && !NEON && !new URLSearchParams(location.search).has("nocitykit"))
 if (IS_SK) buildAtmosphere(scene, quality.cityDetail >= 1 && !new URLSearchParams(location.search).has("nosteam"));
 // and the city's haze and wet streets (atmosphere.ts), from Balanced up; ?noair leaves them off, to compare
 atmosphereOn(IS_SK && quality.cityDetail >= 1 && !new URLSearchParams(location.search).has("noair"));
+// (the Neon City map's own haze, not the ILranch city's blocks')
+if (NEON) ownAir(NEON_AIR);
 
 // Static dummies down the lanes, plus one on each moving rail. Distances are
 // true because the player spawns on the firing line at z = 0.

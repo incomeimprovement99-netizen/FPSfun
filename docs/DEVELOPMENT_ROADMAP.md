@@ -6859,3 +6859,26 @@ battle royale or back to a range ... we have to send them a new invite code ever
   lobby check now says the range is played together. invite, duel, brsolo and skfriends, which run the Create, Join and
   Play again this changed: 55 checks, E2E PASS (the legacy host still waits in its arena; its group's button now reads
   Start for everyone (2)). verify, rules.
+
+## Milestone 336 — The Neon City night: its roads reflecting the city, its own violet haze
+
+Phase 28.7, the look. Beside the store's pictures the new map's streets were pale grey ice under a flat night, and
+moving the moon, the sky's fill or the environment barely changed it. Measured down to two causes:
+
+- **The roads reflected the sky.** The pack's asphalt is a wet street (smoothness 0.85); in Unity the scene's
+  reflection probes show it the dark city and its neon, ours the game's sky map, bright at a grazing angle. Now the
+  map's materials reflect a picture of the lit city itself (`neonmap.ts reflectCity`: one cube, 256 px a side, taken
+  from the street south of the tower at eye height once the map's file is in, as the old city's wet streets did), taken
+  again when the hour changes, so a golden hour's road reflects a golden city. The roads go dark and wet, the lights
+  mirrored in them.
+- **The ILranch city's haze was painting the new map.** Its atmosphere (`atmosphere.ts tickAir`) runs every frame over
+  the same square of the world: the old blocks' colours (Cyber City green, Kyber warm, High City pale) by where those
+  blocks had stood, and the old High City corner's staged light, overriding any fog set. The Neon map has its own now
+  (`ownAir`, neonmap.json game.air): one pale violet by night, as the store's haze is pale (a dark one over a dark city
+  did not show), from 3 to 150 m, thinning as you climb as before; the day hours keep the old day colour.
+- **Looked at and kept:** the big white panels are the pack's light-box materials (its Light00 to 09), glowing white by
+  design; every ad material carries its own picture as its emission. The range's sky fill (a hemisphere at 0.75, made
+  for the desert range) still lights the city by night: turned down, the court went black; left for the dressing step's
+  lights.
+- **Checked:** verify and rules; photographed at night and at golden hour against the store's pictures; the old city
+  (`?map=city`) untouched (its atmosphere and wet streets are its own).

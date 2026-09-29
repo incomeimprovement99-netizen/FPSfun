@@ -40,6 +40,16 @@ export function atmosphereOn(v: boolean): void {
 }
 
 /**
+ * A map's own haze in place of the ILranch city's (the Neon City map, neonmap.json game.air): one colour by night and one
+ * by day, its own near and far, thinning as you climb; none of that city's blocks' colours or its districts' staged light,
+ * which fell on the new map's streets where the old blocks had stood
+ */
+let own: { night: string; day: string; near: number; far: number; farUp: number } | null = null;
+export function ownAir(look: typeof own): void {
+  own = look;
+}
+
+/**
  * A district's light over the hour's: the sun and the sky's fill scaled while you stand in it, the hour's own given back
  * when you leave. The hour can change under it (F8), so what it set is remembered, and a value it did not set is the
  * hour's new one to scale from.
@@ -113,6 +123,21 @@ export function tickAir(scene: THREE.Scene, camera: THREE.Camera, now: number, d
     if (skyU) skyBase = { horizon: skyU.uHorizon.value.clone(), ground: skyU.uGround.value.clone() };
     cur.copy(fog.color);
     inside = true;
+  }
+  if (own) {
+    want.set(day ? own.day : own.night);
+    stageLight(scene, null);
+    const dt = Math.min(0.25, Math.max(0, now - last));
+    last = now;
+    cur.lerp(want, 1 - Math.exp(-dt / A.ease));
+    fog.color.copy(cur);
+    fog.near = own.near;
+    fog.far = Math.min(saved?.far ?? own.far, own.far + Math.max(0, camera.position.y - 2) * own.farUp);
+    if (skyU) {
+      skyU.uHorizon.value.copy(cur);
+      skyU.uGround.value.copy(cur);
+    }
+    return;
   }
   // the blocks' colours, each weighed by how near its middle is; past the centre the districts' own
   const pal = (day ? A.day : A.night) as Record<string, string>;
