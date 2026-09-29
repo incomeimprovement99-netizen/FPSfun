@@ -6417,3 +6417,19 @@ smaller if needed to fit in the hand".
 - **Checked:** new soldier e2e checks: both hacks over the palm; all through an inspect the cards clear of the gun, no
   hand through it, the wrists 60 degrees or less, a forearm wrung 90 or less and both arms reaching; the same through a
   flourish; each seen failing with its fault put back; the sheets of every move on both guns; verify; rules.
+
+## Milestone 322 — Your own tracers a quarter as bright, your muzzle flash at half
+
+The owner, 2026-09-28: "When spraying the usso, the tracers ... are a bit obnoxious. its like the muzzle flash that is
+factor that multiplies it ... we should make the tracers much less visible and maybe even remove muzzle flash completely
+or replace it with a paid asset muzzle flash from our fps animations pack, making it like 50% transparent".
+
+- **Your own tracers** (`hud.json` tracers ownOpacity, `projectile.ts`): 0.25, additive, where everyone's were 0.9: a
+  USSO spray at 18 rounds a second drew a bright wedge from the gun to the target in the frames that caught a round.
+  Other players' and bots' rounds keep 0.9, so fire coming at you still reads, and a signature gun's own tracer (BOOG's
+  blue) keeps its own.
+- **Your muzzle flash** (`gunfeel.json` flashOpacity, `viewmodel.ts` MuzzleFlash): drawn at half on every gun. None of the
+  bought packs has a muzzle flash to use instead: the arms pack is animations, sounds and camera shakes, the guns pack
+  models and textures, and the city packs a neon flicker script.
+- **Checked:** the range section's tracer check also holds your own rounds at 0.3 or less, seen failing at 0.9; the
+  range section; verify; rules.

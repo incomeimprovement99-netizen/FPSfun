@@ -11,12 +11,13 @@
     "smokeTime": 3,
     "scorchSize": 1.6
   },
-  "_tracers": "Tracers (projectile.ts). Ours, after Apex and Warzone: a streak along the round's flight, a frame's travel long up to maxLen metres, width metres across and never thinner than minPx on screen; drawn from the gun's muzzle and joined to the real path (which leaves the eye) over the first blend metres.",
+  "_tracers": "Tracers (projectile.ts). Ours, after Apex and Warzone: a streak along the round's flight, a frame's travel long up to maxLen metres, width metres across and never thinner than minPx on screen; drawn from the gun's muzzle and joined to the real path (which leaves the eye) over the first blend metres. ownOpacity: how bright your own rounds' streaks are (additive, 0 to 1): at 0.9, as everyone else's are, a USSO spray at 18 rounds a second was a sheet of light over the target (the owner, 2026-09-28: \"the tracers ... are a bit obnoxious ... we should make the tracers much less visible\"). Others' rounds keep 0.9, so fire coming at you still reads; a signature gun's own tracer (gunfeel.json tracer, BOOG's) keeps its own.",
   "tracers": {
     "maxLen": 6,
     "width": 0.025,
     "minPx": 1.5,
-    "blend": 8
+    "blend": 8,
+    "ownOpacity": 0.25
   },
   "_impacts": "Bullet impacts on the level (src/game/impacts.ts). Ours: holes is how many hole decals stay on the map at once (the oldest goes first), each holeSize metres across and gone after holeLife seconds; a hit throws puffPer dust sprites (sparks off metal) from a pool of puffs, each living puffLife seconds; the sound carries hearing metres.",
   "impacts": {

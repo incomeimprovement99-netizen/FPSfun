@@ -3690,10 +3690,12 @@ async function shotgunChecks(page: Page): Promise<void> {
   // a tracer is a streak from the muzzle, not a dot on the line of sight:
   // caught in flight, it is a metre or more long, and a few metres out it
   // has joined the real path
-  const tr = await ev<{ first: { len: number; width: number; off: number } | null; later: { off: number; travelled: number } | null }>(page, `new Promise((ok) => { const r = window.__range; r.fireRound([0, 0.01, -1]); let first = null;
+  const tr = await ev<{ first: { len: number; width: number; off: number; opacity: number } | null; later: { off: number; travelled: number } | null }>(page, `new Promise((ok) => { const r = window.__range; r.fireRound([0, 0.01, -1]); let first = null;
     const look = () => { const t = r.tracers(); if (!t.length) return ok({ first, later: null }); const x = t[t.length - 1]; if (!first && x.travelled > 0.5) first = x; if (x.travelled > 12) return ok({ first, later: x }); requestAnimationFrame(look); };
     requestAnimationFrame(look); })`);
-  check("tracers: a streak a metre or more long, and on the real path once it is clear of the gun", !!tr.first && tr.first.len >= 1 && tr.first.width >= 0.02 && (!tr.later || tr.later.off < 0.05), JSON.stringify(tr));
+  // (and your own dim: the owner, 2026-09-28, of a USSO spray, "the tracers ... are a bit obnoxious ... we should make the
+  // tracers much less visible"; everyone else's keep 0.9, so fire coming at you still reads)
+  check("tracers: a streak a metre or more long, on the real path once it is clear of the gun, and your own dim (0.3 or less)", !!tr.first && tr.first.len >= 1 && tr.first.width >= 0.02 && tr.first.opacity <= 0.3 && (!tr.later || tr.later.off < 0.05), JSON.stringify(tr));
   // the low-ammo line: a quarter of the magazine left, then none
   await ev(page, "(() => { const r = window.__range; r.loadout.active.state.clip = 3; })()");
   await sleep(200);

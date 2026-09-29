@@ -126,7 +126,8 @@ const SUBSTEPS = 4;
  */
 const TRACER = tracerCfg.tracers;
 const tracerGeo = new THREE.BoxGeometry(1, 1, 1);
-const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+/** your own rounds, dim (hud.json tracers ownOpacity: sprayed, the USSO's were a sheet of light over the target) */
+const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: TRACER.ownOpacity, blending: THREE.AdditiveBlending, depthWrite: false });
 /** a signature gun's own tracer (gunfeel.json tracer), one material a colour */
 const tracerMats = new Map<string, THREE.MeshBasicMaterial>();
 function tracerMatFor(color: string): THREE.MeshBasicMaterial {
@@ -180,10 +181,10 @@ export class ProjectileSystem {
   }
 
   /** the live rounds' tracers: how long and wide each is drawn, and how far its head is off the real path (tools/e2e.ts) */
-  get tracers(): Array<{ len: number; width: number; off: number; travelled: number }> {
+  get tracers(): Array<{ len: number; width: number; off: number; travelled: number; opacity: number }> {
     return this.bullets.map((b) => {
       const head = b.mesh.position.clone().addScaledVector(b.vel.clone().normalize(), b.mesh.scale.z / 2);
-      return { len: b.mesh.scale.z, width: b.mesh.scale.x, off: head.distanceTo(b.pos), travelled: b.pos.distanceTo(b.origin) };
+      return { len: b.mesh.scale.z, width: b.mesh.scale.x, off: head.distanceTo(b.pos), travelled: b.pos.distanceTo(b.origin), opacity: (b.mesh.material as THREE.MeshBasicMaterial).opacity };
     });
   }
 

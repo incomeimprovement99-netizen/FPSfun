@@ -130,6 +130,8 @@ interface GunFeel {
   tracer?: { color: string; width: number };
 }
 
+/** how much of your own muzzle flash is drawn, 0 to 1 (gunfeel.json flashOpacity) */
+const FLASH_OPACITY = (feelCfg as unknown as { flashOpacity: number }).flashOpacity;
 /** a signature gun's muzzle flash (gunfeel.json flash) */
 interface FlashStyle {
   color: string;
@@ -338,7 +340,7 @@ class MuzzleFlash {
     this.life -= dt / this.span;
     const a = Math.max(0, this.life);
     this.group.visible = a > 0 || this.ringLife > 0;
-    for (const m of this.mats) m.opacity = a;
+    for (const m of this.mats) m.opacity = a * FLASH_OPACITY;
   }
 }
 

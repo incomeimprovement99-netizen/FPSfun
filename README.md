@@ -154,7 +154,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
   Hyper Scape's full-screen one, thin red lines in a chamfered frame with the
   zoom at the edge, fine lines carried through the middle to a dot where the
   shot goes, and its rounds leave a thick blue tracer; aimed in, its
-  scope throws a lens flare other players can see. Every other player leaves
+  scope throws a lens flare other players can see. Your own rounds' tracers
+  are dim, a quarter as bright as other players' (so fire coming at you still
+  reads), and your muzzle flash is drawn at half strength. Every other player leaves
   a trail of light behind their feet, as in Hyper Scape: red for enemies, blue
   for squad mates, gold for the crown's carrier. The gap analysis
   against Hyper Scape is docs/HYPERSCAPE_GAP_ANALYSIS.md.

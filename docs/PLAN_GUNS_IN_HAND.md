@@ -66,7 +66,8 @@ Checked against the deployed build's own sheets before acting on each.
    the gun. The lesson: every move the hands make goes in the sheets, not only the ones asked about.
 6. "When spraying the usso, the tracers ... are a bit obnoxious ... we should make the tracers much less visible and
    maybe even remove muzzle flash completely or replace it with a paid asset muzzle flash from our fps animations
-   pack, making it like 50% transparent": to do.
+   pack, making it like 50% transparent": **done** (Milestone 322): your own tracers a quarter as bright, your flash at
+   half (no bought pack has a muzzle flash).
 7. The swap: "any way we can like reverse that animation and just have the character throw it up and out or
    something while after 0.5-1s and some distance, the weapon phases out and the new one phases in in its place and
    then animates towards the user's hands? so the timing is probably much quicker ... If this isn't feasible, it's ok,
