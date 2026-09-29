@@ -6329,3 +6329,36 @@ its canyons and its walkways): 491 half metres on the live corner, 0 now.
   backs' drawn roofs: 2,027 of 5,601 drops land on them, none on anything undrawn; the loot's share seen failing at 2 and
   3 spots); `citykit.ts`; pictures from the city's streets, the canyons' mouths and above, on High, Balanced and
   Competitive.
+
+## Milestone 319 — The USSO's left hand from the point straight to its handle; BOOG held by its fore-end, ahead of the magazine
+
+The owner, 2026-09-28: "on the usso reload, the hand goes back to the grip in between pointing at the mag and hitting
+the charging handle", and "for the boog, the support hand is holding the mag". Both were seen in Milestone 312's own
+sheets before acting on them (docs/PLAN_GUNS_IN_HAND.md, round 4).
+
+- **The USSO, point to handle** (`fprig.ts`): the point let go as the magazine seated (54 to 62% of the reload) and the
+  grab reached for the handle only from 60 to 70%, so between them the hold had the hand, 3.8 cm from its place on
+  the gun at 62%. For a gun with a grab the point is now held until the grab has the hand: 20 cm off its place at the
+  least, which is the handle itself (`offHold`, measured).
+- **BOOG's hand off the magazine** (`packGuns` L96X hold, shoulders): BOOG's magazine is further ahead of its trigger
+  than the pack's L96X's, and the pack's hold put the palm's middle 10.4 cm back from the magazine's front
+  (`palmAhead`, measured along the gun). Moved 14 cm ahead, the arm fell short of it from 6 cm on, so the shoulders
+  were searched again with the hand there (`tools/pack-solve.ts wrists`); the pack's grip, made for a thicker
+  fore-end, then lay flat against BOOG's side with its fingers 5 to 10 cm off it, so a new search turns and moves the
+  hand into a grip (`tools/pack-grip.ts`: the palm on the gun ahead of the magazine, the fingers and thumb on it,
+  none of it in it): the palm 2.7 cm ahead of the magazine, the wrists 12 and 20 degrees at rest. The left arm now
+  reaches along the gun into the picture, as a rifleman's does with the hand out on the fore-end.
+- **The bolt is the right hand's** (`fprig.ts` leftClip): while the pack's bolt clip plays, after a shot and on the
+  reload, the left hand keeps its fit and its rest grip. Let go, it went back to where the pack's gun is held, BOOG's
+  magazine, after every shot; and with the hand out on the fore-end the clip's push of the gun, 5 cm ahead, left the
+  arm 1.9 cm short, so the left shoulder sits 4 cm further forward than the search put it, the arm a little bent.
+- **Round the magazine** (`reload.clear`): on its way to the point and back the left hand bows out past the gun's
+  left side, the most a third of the way from the hold, where the magazine is in the way (straight, BOOG's went 15 mm
+  through it). A pickup's left hand is carried by the hold's move all the way down and back: eased in only as it came
+  back, BOOG's came back by way of its magazine, the pack's own place for it, 6 mm through it.
+- **The sheets**: every 2% now, not 4 (a frame at 14% the 4% sweeps never saw); and the point measured once it has
+  settled (98% blended in), as the e2e measures it, the line from a tip still arriving to a spot 2.5 cm away being
+  anything.
+- **Checked:** new soldier e2e checks: the USSO's left hand 15 cm and more off its place from the magazine seated to
+  the grab on the handle, and the support hand's palm 1 cm and more ahead of the magazine at rest on both guns, each
+  seen failing with its fault put back; the sheets of both guns, every 2%; verify; rules.

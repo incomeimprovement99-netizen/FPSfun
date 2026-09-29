@@ -50,9 +50,10 @@ Checked against the deployed build's own sheets before acting on each.
 
 1. "on the usso reload, the hand goes back to the grip in between pointing at the mag and hitting the charging
    handle": **seen in the sheets** (56 to 60% of the reload the left hand is back on the handguard, then goes up to the
-   handle). To do: the hand goes from the point straight to the handle.
-2. "for the boog, the support hand is holding the mag": to check in a close-up and fix: the support hand belongs on
-   the handguard, ahead of the magazine.
+   handle); **done** (Milestone 319), the point held until the grab has the hand.
+2. "for the boog, the support hand is holding the mag": **seen** (the palm's middle 10.4 cm back from the magazine's
+   front) and **done** (Milestone 319), the hand out on the fore-end 2.7 cm ahead of it, the arm reaching along the gun.
+   The lesson: a pack gun's hold sits where its own gun is held; measure it against our gun's magazine.
 3. "I STILL FEEL like the guns when resting are still too angled up and to the left too much, like the view angle
    isn't how it was originally ... compare it to hyperscape": to do, measured against the view's own gun pose from
    before the bought arms and against Hyper Scape's.

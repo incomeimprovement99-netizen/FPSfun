@@ -790,7 +790,7 @@ export class ViewModel {
     return this.pack;
   }
 
-  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; curlL: number; curlR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; free: boolean; palm: number; palmCard: boolean } {
+  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; curlL: number; curlR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; offHold: number; palmAhead: number; free: boolean; palm: number; palmCard: boolean } {
     return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), twistL: this.pack.wristTwist("l"), twistR: this.pack.wristTwist("r"), curlL: this.pack.fingerCurl("l"), curlR: this.pack.fingerCurl("r"), thumbL: this.pack.freeReady ? this.pack.thumbOff("l") : 0, thumbR: this.pack.freeReady ? this.pack.thumbOff("r") : 0, ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCard: this.palmCard.group.visible };
   }
 

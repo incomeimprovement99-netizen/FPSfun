@@ -3271,7 +3271,7 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; palm: { w: number; card: boolean }; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; pickLead: string; pickAfter: string };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; palm: { w: number; card: boolean }; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; pickLead: string; pickAfter: string };
   // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
   const res: { guns: Record<string, Frames>; jump: string[] } = { guns: {}, jump: [] };
   // (the page's helpers once, then one short page call a measure: the e2e draws in software, a few frames a second, and
@@ -3359,6 +3359,13 @@ async function packFrames(page: Page): Promise<void> {
     const point = await pf<{ miss: number; off: number }>(`r.debugView.reload = 0.28; await H.gameWait(0.2); const s = r.packArms(); H.clear(); await H.gameWait(0.2); return { miss: Number.isFinite(s.pointMiss) ? s.pointMiss : 99, off: s.pointOff };`);
     o.miss = point.miss;
     o.off = point.off;
+    // where the support hand holds the gun at rest against its magazine
+    o.palmAhead = await pf<number>(`H.clear(); await H.gameWait(0.3); return r.packArms().palmAhead;`);
+    // from the magazine seated to the grab on the handle, how near the left hand comes to its place on the gun (the
+    // USSO's: it goes from the point straight to the handle)
+    const grabbed = RL.rack[0] + (fparmsCfg.packGuns.MPS5.rack.grab?.reach[1] ?? 0) * (RL.rack[1] - RL.rack[0]);
+    const across = Array.from({ length: 8 }, (_, i) => RL.seat + ((grabbed - RL.seat) * (i + 1)) / 8);
+    o.handover = await pf<number>(`let least = Infinity; for (const u of ${JSON.stringify(across)}) { r.debugView.reload = u; await H.gameWait(0.12); least = Math.min(least, r.packArms().offHold); } H.clear(); await H.gameWait(0.3); return least;`);
     // the rack's grab: the fingertips on the handle (the USSO's pinch)
     o.hook = await pf<number>(`r.debugView.reload = 0.76; await H.gameWait(0.2); const h = r.packArms().hookMiss; H.clear(); await H.gameWait(0.3); return Number.isFinite(h) ? h : ${id === "r97" ? 99 : 0};`);
     // the hands off the gun: the bought arms' fists
@@ -3475,6 +3482,20 @@ async function packFrames(page: Page): Promise<void> {
     `pack frames: at rest the USSO's and BOOG's barrels point ${(fparmsCfg.hipPitch * 180 / Math.PI).toFixed(0)} degrees up (within 1), not up the fit's tilt`,
     g.every((x) => Math.abs(x.pitch - (fparmsCfg.hipPitch * 180) / Math.PI) < 1),
     show((x) => +x.pitch.toFixed(1)),
+  );
+  // (the owner, 2026-09-28: "for the boog, the support hand is holding the mag": its palm was 10 cm back from the
+  // magazine's front, the pack's L96X's fore-end being where BOOG's magazine is)
+  check(
+    "pack frames: at rest the support hand holds the USSO and BOOG ahead of the magazine, not on it (its palm's middle 1 cm and more ahead of the magazine's front)",
+    g.every((x) => x.palmAhead >= 0.01),
+    show((x) => +(x.palmAhead * 100).toFixed(1)),
+  );
+  // (the owner, 2026-09-28: "the hand goes back to the grip in between pointing at the mag and hitting the charging
+  // handle": it came within 4 cm of its place, the point let go as the magazine seated and the grab not yet reaching)
+  check(
+    "pack frames: reloading the USSO, the left hand goes from pointing at the magazine straight to its handle, never back onto the gun between (15 cm off its place at least)",
+    res.guns.r97?.handover >= 0.15,
+    show((x) => +(x.handover * 100).toFixed(1)),
   );
   check(
     "pack frames: racking the USSO, the left thumb and forefinger pinch its handle (their tips within 2 cm of the knob)",

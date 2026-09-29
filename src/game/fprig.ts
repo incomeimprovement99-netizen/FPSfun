@@ -89,7 +89,7 @@ const FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0),
 export const LOCO = (cfg as unknown as { sprint: { fireHold: number; easeIn: number; easeOut: number; swing: number } }).sprint;
 
 /** the reload with these arms: point at the magazine while it phases, then the rack (fparms.json reload) */
-export const PACK_RELOAD = (cfg as unknown as { reload: { point: number[]; phaseOut: number[]; phaseIn: number[]; seat: number; rack: number[]; reach: number; aim: number[]; face: number[]; elbow: number[]; slide: number; shift: number[]; aimAt: number; rackBlend: number; gap: number; bend: number; at: number; twist: { roll: number; yaw: number; pitch: number; x: number; y: number; z: number } } }).reload;
+export const PACK_RELOAD = (cfg as unknown as { reload: { point: number[]; phaseOut: number[]; phaseIn: number[]; seat: number; rack: number[]; reach: number; aim: number[]; face: number[]; elbow: number[]; slide: number; shift: number[]; aimAt: number; rackBlend: number; gap: number; bend: number; at: number; clear: number; twist: { roll: number; yaw: number; pitch: number; x: number; y: number; z: number } } }).reload;
 /** the arms out of the picture on a swap (fparms.json swap) */
 const SWAP = (cfg as unknown as { swap: { drop: number; back: number; pitch: number; clips: number; cross: number; dropFrom: number } }).swap;
 /** the pack's pickup: its clip, how long it takes, and when in it the hand reaches the ground (fparms.json pickup) */
@@ -243,7 +243,7 @@ export class PackArms {
    * What the checks read of the last frame: how far the clip turned the gun, degrees; how far back our handle is, 0..1;
    * the left hand's middle knuckle's distance to our handle and to our magazine, metres
    */
-  readonly seen = { gunTurn: 0, handleBack: 0, leftToHandle: Infinity, leftToMag: Infinity, pointMiss: Infinity, pointOff: 180, reachShort: 0, reachShortR: 0, handsBelow: 0, gripU: -1, gripMiss: -1, swapMove: 0, jumpPart: "", hookMiss: Infinity };
+  readonly seen = { gunTurn: 0, handleBack: 0, leftToHandle: Infinity, leftToMag: Infinity, pointMiss: Infinity, pointOff: 180, reachShort: 0, reachShortR: 0, handsBelow: 0, gripU: -1, gripMiss: -1, swapMove: 0, jumpPart: "", hookMiss: Infinity, offHold: 0, palmAhead: 0 };
   /** where the pointing fingertip is meant to be this frame (world), for the checks */
   private readonly tipTarget = new THREE.Vector3();
 
@@ -667,6 +667,10 @@ export class PackArms {
         const into = THREE.MathUtils.clamp((r - RL.rack[0]) / (RL.rack[1] - RL.rack[0]), 0, 1);
         const G = rack.grab;
         grabW = ss(into, G.reach[0], G.reach[1]) * (1 - ss(into, G.back[0], G.back[1]));
+        // (from the point straight to the handle, the point held until the grab has the hand: let go as the magazine
+        // seated, the hand went back onto the gun between the two; the owner, 2026-09-28: "the hand goes back to the
+        // grip in between pointing at the mag and hitting the charging handle")
+        pointW = ss(r, RL.point[0], RL.point[1]) * (into < G.reach[1] ? 1 : 0);
         handBack = ss(into, G.pull[0], G.pull[1]);
         pull = handBack * (1 - ss(into, G.release[0], G.release[1]));
       } else if (rack && this.actions.has(rack.clip)) {
@@ -708,6 +712,9 @@ export class PackArms {
     this.mixer.update(0);
     for (const b of (this.mixer as unknown as { _bindings: Array<{ buffer: { fill(v: number, from: number, to: number): unknown }; valueSize: number }> })._bindings) b.buffer.fill(NaN, b.valueSize, 3 * b.valueSize);
     this.moveShoulders(f.ads);
+    // (the bolt worked is the right hand's: the left holds the gun as at rest, its fingers too; the pack's clip moved it
+    // on its own gun's fore-end, and with BOOG's hand out ahead of the magazine that took the arm past its reach)
+    if (this.lead === "fire") for (const [b, q] of this.poseFingersL) b.quaternion.copy(q);
     // the left index finger out, straight as the body was made, while it points
     if (pointW > 0.001) {
       for (const n of ["index_01_l", "index_02_l", "index_03_l"]) {
@@ -739,7 +746,10 @@ export class PackArms {
       pickHold = { r: leadW, l: leadW * this.pickNearL };
       this.pickWhole = true;
     } else this.pickWhole = false;
-    const holdW = { r: 1 - leadW + pickHold.r, l: (1 - leadW + pickHold.l) * (1 - pointW) * (1 - grabW) * (1 - palmW) };
+    // (the bolt worked after a shot or on a reload is the right hand's: the left keeps its fit on the gun through it. Let
+    // go, it went back to where the pack's own gun is held, BOOG's magazine, after every shot)
+    const leftClip = this.lead === "fire" ? 0 : leadW;
+    const holdW = { r: 1 - leadW + pickHold.r, l: (1 - leftClip + pickHold.l) * (1 - pointW) * (1 - grabW) * (1 - palmW) };
     for (const side of ["l", "r"] as const) {
       const fit = hold?.[side];
       if (!fit || holdW[side] <= 0.001) continue;
@@ -883,10 +893,13 @@ export class PackArms {
     const gsW = this.group.getWorldScale(new THREE.Vector3()).x;
     // where the left elbow falls pointing (null holding): the final reach bends toward it by the share pointed
     let pointElbow: THREE.Vector3 | null = null;
+    // where the hold has the left hand before a point or a grab takes it (the checks: offHold)
+    const heldL = new THREE.Vector3();
     for (const side of ["r", "l"] as const) {
       const rel = new THREE.Matrix4().multiplyMatrices(boneNowInv, inRig(this.bones[`ik_hand_${side}`]));
       // (a pickup's right hand stays as the hold has it on the gun)
       if (side === "r" && this.pickWhole) rel.copy(this.poseHandR);
+      if (side === "l" && this.lead === "fire") rel.copy(this.poseHandL);
       if (side === "l" && this.pickWhole && this.pickNearL > 0.001) {
         const [ap, aq, bp, bq] = [new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(), new THREE.Quaternion()];
         rel.decompose(ap, aq, new THREE.Vector3());
@@ -899,10 +912,13 @@ export class PackArms {
       // moved off our gun as far as the fit says, while holding; and while the pack's rack clip works the gun, as far as
       // its rack says (the L96X's hand throws its bolt where BOOG's body is, the glove 15 mm into it)
       const fitShift = hold?.[side]?.shift;
-      if (fitShift && holdW[side] > 0.001) {
+      // (a pickup's left hand moved by it all the way, down and back: eased in only as it came back, BOOG's, moved 14 cm
+      // ahead onto its fore-end, came back by way of its magazine, the pack's own place for it, 6 mm through it)
+      const shiftW = side === "l" && this.lead === "pickup" ? 1 : holdW[side];
+      if (fitShift && shiftW > 0.001) {
         const v = new THREE.Vector3().fromArray(fitShift);
         const len = v.length();
-        if (len > 0) pos.add(v.applyMatrix3(toWorldDir).normalize().multiplyScalar(len * gsW * holdW[side]));
+        if (len > 0) pos.add(v.applyMatrix3(toWorldDir).normalize().multiplyScalar(len * gsW * shiftW));
       }
       // and turned about the wrist as the fit found it (the thumb's root is in the ball of the hand: no turn of the
       // thumb's joints takes it out of a grip thicker than the pack's, the USSO's 9 mm in)
@@ -936,6 +952,7 @@ export class PackArms {
         if (packHandleO && ourHandleO && gunClip) add(win(gunClip.handleFrom, gunClip.handleTo, 0.06, 0.05), ourHandleO.clone().sub(packHandleO));
         if (total > 1) shift.divideScalar(total);
         pos.add(shift.applyMatrix3(toWorldDir));
+        heldL.copy(pos);
         // pointing at the magazine: the fingertip `gap` off the face the gun's `point` names (its left, or its bottom),
         // at `at` of its height up a side face; the hand back along its forearm, turned to point
         if (pointW > 0.001) {
@@ -990,6 +1007,10 @@ export class PackArms {
           const wristW = tipW.clone().sub(tipL.clone().multiplyScalar(handS).applyQuaternion(pointQ));
           pos.lerp(wristW, pointW);
           quat.slerp(pointQ, pointW);
+          // out round the gun's left side on the way to the point and back (BOOG's hand, out on the fore-end, went 15 mm
+          // through its magazine going straight), the most a third of the way from the hold, where the magazine is in the
+          // way, and next to none as the finger lands on its spot (bowed evenly, it landed 50 to 74 degrees off it)
+          pos.add(new THREE.Vector3(-1, 0, 0).applyMatrix3(toWorldDir).normalize().multiplyScalar(6.75 * pointW * (1 - pointW) ** 2 * RL.clear * gsW));
         }
       }
       // grabbing our handle: the pack's hand as it is on its own, moved from that handle to ours, and back with it as far
@@ -1068,6 +1089,7 @@ export class PackArms {
         pos.lerp(f.palm.at, palmW);
         quat.slerp(this.handTurn("l", PALM_ALONG, PALM_UP), palmW);
       }
+      if (side === "l") this.seen.offHold = pos.distanceTo(heldL) / gsW;
       // with the rig, if it has dropped away
       if (away > 0) {
         pos.applyMatrix4(dropW);
@@ -1078,14 +1100,28 @@ export class PackArms {
     }
     // for the checks: how far the index fingertip is from where it points, and how short the arm fell of its target
     const tip = this.bones.index_03_l ? this.indexTipW() : undefined;
-    this.seen.pointMiss = pointW > 0.9 && tip ? tip.distanceTo(this.tipTarget) / this.group.getWorldScale(new THREE.Vector3()).x : Infinity;
+    // (once it points: on the way from the point to the USSO's handle the point is held and the grab moves the hand, and
+    // on the way in, a hand 93% there had its tip 1 to 2 cm off, and the line from it to a spot 2.5 cm away anything)
+    const pointing = pointW * (1 - grabW);
+    this.seen.pointMiss = pointing > 0.98 && tip ? tip.distanceTo(this.tipTarget) / this.group.getWorldScale(new THREE.Vector3()).x : Infinity;
     // and how many degrees the finger's line is off the line to what it points at
     const knuckleI = this.bones.index_01_l?.getWorldPosition(new THREE.Vector3());
-    this.seen.pointOff = pointW > 0.9 && tip && knuckleI ? THREE.MathUtils.radToDeg(tip.clone().sub(knuckleI).angleTo(this.pointAtW.clone().sub(tip))) : 180;
+    this.seen.pointOff = pointing > 0.98 && tip && knuckleI ? THREE.MathUtils.radToDeg(tip.clone().sub(knuckleI).angleTo(this.pointAtW.clone().sub(tip))) : 180;
     this.seen.gunTurn = (2 * Math.acos(Math.min(1, Math.abs(this.gunDelta.quaternion.w))) * 180) / Math.PI;
     const knuckle = this.bones.middle_01_l?.getWorldPosition(new THREE.Vector3());
     this.seen.leftToHandle = knuckle && ourHandleO ? knuckle.distanceTo(ourHandleO.clone().applyMatrix4(gunWorld)) : Infinity;
     this.seen.leftToMag = knuckle && mag ? knuckle.distanceTo(mag.getWorldPosition(new THREE.Vector3())) : Infinity;
+    // and how far the left palm's middle is ahead of the magazine's front along our gun, view metres (behind it, on the
+    // magazine: BOOG's hand held its plate; the owner, 2026-09-28: "for the boog, the support hand is holding the mag")
+    if (knuckle && !this.magBoxO.isEmpty()) {
+      const toO = new THREE.Matrix4().copy(gunWorld).invert();
+      const aheadO = new THREE.Vector3(0, 0, -1).applyQuaternion(this.group.getWorldQuaternion(new THREE.Quaternion())).transformDirection(toO);
+      const palmO = this.bones.hand_l.getWorldPosition(new THREE.Vector3()).add(knuckle).multiplyScalar(0.5).applyMatrix4(toO);
+      const b = this.magBoxO;
+      let front = -Infinity;
+      for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) front = Math.max(front, new THREE.Vector3(x, y, z).dot(aheadO));
+      this.seen.palmAhead = ((palmO.dot(aheadO) - front) * new THREE.Vector3().setFromMatrixScale(gunWorld).x) / this.group.getWorldScale(new THREE.Vector3()).x;
+    }
     // and how far the grab's pinch (between its two fingertips) is from the handle's knob, view metres
     const i2 = this.bones.index_03_l?.getWorldPosition(new THREE.Vector3());
     const m2 = (PACK[this.active ?? ""]?.rack?.grab?.pinch ? this.bones.thumb_03_l : this.bones.middle_03_l)?.getWorldPosition(new THREE.Vector3());
