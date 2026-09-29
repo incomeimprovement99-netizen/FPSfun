@@ -6540,3 +6540,7 @@ drew it in ms.paint". The old city stays the default until the new one has its d
   (the old city's code the new map shares was moved, its pads, graph and collision compared identical). One bench of
   nine heavy page loads in one browser crashed its page with the chunked bake; the same nine with the merged bake did
   not.
+- **The slam's e2e made steady** (found running the speedkills section): its bot "a storey over you" was held 4 m up by
+  an 8 ms timer alone, fell to your floor in its own update between pins, and on the loaded machine the slam hit it
+  there 3 runs in 5 (the player landed exactly where it rose, so the game's rule was right). It stands on a deck of its
+  own now, removed after: 6 runs of 6, and seen failing with the slam's height reach widened to 5 m.

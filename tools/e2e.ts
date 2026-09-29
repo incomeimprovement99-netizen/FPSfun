@@ -6236,8 +6236,12 @@ async function speedkillsSlamTest(browser: Browser): Promise<void> {
       if (spot) r.player.teleport(spot.x, 0, spot.z, 0);
       const p = r.player.pos.clone();
       const bs = d.bots.filter((b) => b.bot.alive && !b.down).slice(0, 3);
-      const offs = [[2.5, 0], [2, 4], [8, 0]];
-      window.__slamPins = bs.map((b, i) => ({ b, at: [p.x + offs[i][0], p.y + offs[i][1], p.z] }));
+      // the one a storey over stands on a deck of its own, 2 m to your side (held in the air by the pins alone, its own
+      // update let it fall to your floor between them, and on a loaded machine the slam took it there 3 runs in 5)
+      window.__slamDeck = { minX: p.x - 0.5, maxX: p.x + 0.5, minZ: p.z + 1.6, maxZ: p.z + 2.4, base: p.y, top: p.y + 4 };
+      r.solids.push(window.__slamDeck);
+      const offs = [[2.5, 0, 0], [0, 4, 2], [8, 0, 0]];
+      window.__slamPins = bs.map((b, i) => ({ b, at: [p.x + offs[i][0], p.y + offs[i][1], p.z + offs[i][2]] }));
       const pin = () => { for (const q of window.__slamPins) { q.b.bot.pos.set(q.at[0], q.at[1], q.at[2]); q.b.bot.dummy.group.position.copy(q.b.bot.pos); } };
       pin();
       window.__slamPin = setInterval(pin, 8);
@@ -6248,12 +6252,13 @@ async function speedkillsSlamTest(browser: Browser): Promise<void> {
   await page.waitForFunction("window.__range.sk.state().slam === 'up'", { polling: 20, timeout: 3000 }).catch(() => undefined);
   await page.waitForFunction("window.__range.sk.state().slam === null", { polling: 50, timeout: 15000 }).catch(() => undefined);
   await gameSleep(page, 0.3);
-  const after = await ev<{ ring: { visible: boolean; hit: boolean }; bots: Hp[]; numbers: number[] }>(
+  const after = await ev<{ ring: { visible: boolean; hit: boolean }; bots: Hp[]; numbers: number[]; landed: number[] }>(
     page,
-    `(() => { clearInterval(window.__slamPin); clearInterval(window.__ringT); return { ring: window.__ring, bots: window.__slamPins.map((q) => ({ id: q.b.bot.remote.id, hp: q.b.bot.remote.health, sh: q.b.bot.remote.shield })), numbers: window.__range.hud.damageNumbers.slice(${before.numbers}).map((n) => n.amount) }; })()`,
+    `(() => { clearInterval(window.__slamPin); clearInterval(window.__ringT); const k = window.__range.solids.indexOf(window.__slamDeck); if (k >= 0) window.__range.solids.splice(k, 1); const p = window.__range.player.pos; const q0 = window.__slamPins[0].at; return { ring: window.__ring, bots: window.__slamPins.map((q) => ({ id: q.b.bot.remote.id, hp: q.b.bot.remote.health, sh: q.b.bot.remote.shield })), numbers: window.__range.hud.damageNumbers.slice(${before.numbers}).map((n) => n.amount), landed: [+(p.x - q0[0] + 2.5).toFixed(2), +(p.y - q0[1]).toFixed(2), +(p.z - q0[2]).toFixed(2)] }; })()`,
   );
   const lost = (i: number) => (before.bots[i] && after.bots[i] ? before.bots[i].hp + before.bots[i].sh - (after.bots[i].hp + after.bots[i].sh) : NaN);
-  const detail = JSON.stringify({ spot: before.spot, lost: [0, 1, 2].map(lost), numbers: after.numbers });
+  // (where you came down, from where you went up: x, height, z)
+  const detail = JSON.stringify({ spot: before.spot, lost: [0, 1, 2].map(lost), numbers: after.numbers, landed: after.landed });
   check("slam: its ring on the floor while you are up, red with an enemy inside it", after.ring.visible && after.ring.hit, JSON.stringify(after.ring));
   check("slam: the enemy beside you on your floor takes its damage (20), and its number shows", before.spot && before.bots.length === 3 && lost(0) === 20 && after.numbers.includes(20), detail);
   check("slam: one as near but a storey over you, and one outside the ring, take nothing", lost(1) === 0 && lost(2) === 0, detail);
@@ -8131,6 +8136,11 @@ async function main(): Promise<void> {
       await speedkillsTest(browser);
       await speedkillsSlamTest(browser);
       await speedkillsDistrictHoldTest(browser);
+    }
+    // (the slam alone, named only: a rerun of the one check that failed, as a flaky one is rerun)
+    if (ONLY.includes("skslam")) {
+      console.log("\nSpeedKills: the slam, alone");
+      await speedkillsSlamTest(browser);
     }
 
     if (want("soldier")) {
