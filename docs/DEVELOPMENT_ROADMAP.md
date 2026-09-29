@@ -6295,3 +6295,37 @@ the pads, in the packs' own pieces (the owner, 2026-09-28: "pretty sure there ar
   200 m and undrawn since Milestone 315, meets the city's streets and the north arm's canyon in four lots: from the
   street they look like more street, and an invisible wall stops you.
 - **Checked:** verify and rules; the e2e section speedkills.
+
+## Milestone 318 — The corner's arm ends closed: its backs built, in High City's own fronts; loot up on its walkways
+
+Phase 26 (`docs/PHASE_26_PLAN_FINISH_THE_CORNER.md`), item 26.4, found while hanging the fire escapes: at each end of the
+corner's arms the scene's open ground, solid to 200 m and undrawn since Milestone 315, met the city's street and the
+canyons' mouths, so the street seemed to go on into an empty lot and an invisible wall stopped you. A new check fails on
+that (`sk-district.ts`: nothing undrawn beside anywhere you stand, every half metre of the city's street round the corner,
+its canyons and its walkways): 491 half metres on the live corner, 0 now.
+
+- **The backs closed** (`import-city.ts districtSolids backs and fronts`, `citydistricts.json fill backs`): measured, the
+  undrawn ground was four big pieces, one at each arm end (623, 557, 439 and 328 m²), and three small ones. Rectangles laid
+  over them did not fit the film set's stepped backs (they left fill beside a roof, an invisible wall up there, or cut into
+  the scene's corner building), so each piece that meets ground you stand on became the block itself: solid to the median
+  height of the buildings round it, whole storeys down (20, 24 and 28 m), and the city draws it as its own buildings are,
+  brick under a concrete roof (`city.ts`). A piece that meets nothing you stand on stays as it was.
+- **Their fronts dressed** (`city.ts`, `citydress.ts`): each run of a back's edge that faces where you stand, 3 m and
+  longer, is given to the kit as a tower dressed on that face alone, in High City's own facade strips as the centre's
+  High City towers wear them (whole buildings cannot be lifted out of High City's street: Phase 24.2). The arms' mouths now
+  open between buildings: from the city's street a brick front with lit windows, fire escapes, pipes and a billboard where
+  the empty lot was. Competitive, whose lean modules fill their limit, leaves the fronts undressed and shows the city's
+  own buildings there.
+- **The backdrop out of the map** (`citydistricts.json drop`, district v5): the pieces High City made for the distance that
+  stood inside the map, the blurry low block at the west arm's end and faces that stood 6 m out onto the city's street, are
+  left out of the bake (17 parts). `import-city.ts DISTRICT_PARTS` reports what a district keeps and where, to find them.
+- **The kit's limits** (`citykit.json budget`): the fronts are 125k triangles on Balanced and High in 24 pieces the kit
+  already draws and one draw call more. Raised to 3,200k and 3,300k on the precedent of the fire escapes' raise; a bench of
+  their own is owed, the machine at 95% on other work that evening.
+- **Loot up on the walkways** (`loot.json districts walkways`, `loot.ts`): drawn at random over the plan, the narrow
+  walkways lost to the canyons' floor (0 to 4 of 12 spots up there); half the spots now come from the walkways' own
+  decks, by their area: 7 to 9 items up there a match, the rest of the field item for item the same.
+- **Checked:** verify and rules; `sk-district.ts` (the new check seen failing on the live corner; the drop check counts the
+  backs' drawn roofs: 2,027 of 5,601 drops land on them, none on anything undrawn; the loot's share seen failing at 2 and
+  3 spots); `citykit.ts`; pictures from the city's streets, the canyons' mouths and above, on High, Balanced and
+  Competitive.

@@ -43,6 +43,7 @@ const STREET = cfg.collision.floor;
 function insides(id: string, shadows: boolean): THREE.Object3D {
   const { covers, caps } = DISTRICT_INSIDES[id] ?? { covers: [], caps: [] };
   const parts: THREE.BufferGeometry[] = [];
+  // (its backs, the open ground closed where it meets ground you stand on, the city draws as its own buildings: city.ts)
   for (const [x0, x1, z0, z1, top] of covers) {
     const h = top - STREET;
     parts.push(new THREE.BoxGeometry(x1 - x0, h, z1 - z0).translate((x0 + x1) / 2, STREET + h / 2, (z0 + z1) / 2));

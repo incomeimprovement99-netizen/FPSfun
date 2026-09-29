@@ -25,7 +25,7 @@ import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
 import { DISTRICT_FLOORS, FLOORS, HALL_FLOORS, floorAt } from "./floors";
 import DISTRICTS from "../config/citydistricts.json";
-import { DISTRICT_SOLIDS } from "./districtsolids";
+import { DISTRICT_INSIDES, DISTRICT_SOLIDS } from "./districtsolids";
 import { botWalk } from "./botbody";
 import { building, DRESSING, type BoxMaker, type PoiCtx, type Side, type RoutePoint } from "./brpoi";
 import { DOORWAYS, Doors } from "./doors";
@@ -191,8 +191,10 @@ export const CONCOURSE: {
  */
 export const STAND_INS: { stalls: THREE.Material[]; cars: THREE.Material[]; machinery: THREE.Material[]; escapes: THREE.Material[]; skins: THREE.Material[]; kiosks: THREE.Material[] } = { stalls: [], cars: [], machinery: [], escapes: [], skins: [], kiosks: [] };
 export const KIT_SITES: {
-  /** `core`: its stair core's box (city.json stairCore), which a room module behind a face stops short of */
-  towers: Array<{ x: number; z: number; w: number; d: number; base: number; roof: number; storeys: number; lobby?: number; park?: number; floors?: number[]; sector: string; clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }>; core?: { x0: number; x1: number; z0: number; z1: number } }>;
+  /** `core`: its stair core's box (city.json stairCore), which a room module behind a face stops short of. `family` and
+   * `faces`: one outside the centre that the kit dresses all the same, in that family's pieces and on those faces alone
+   * (a district's backs' fronts, Phase 26.4) */
+  towers: Array<{ x: number; z: number; w: number; d: number; base: number; roof: number; storeys: number; lobby?: number; park?: number; floors?: number[]; sector: string; clutter: Array<{ x: number; z: number; y: number; w: number; h: number; d: number }>; core?: { x0: number; x1: number; z0: number; z1: number }; family?: string; faces?: Array<"n" | "s" | "w" | "e"> }>;
   /** the metro's stairwells in the street (map-local), which nothing may stand over */
   openings: Array<{ x0: number; x1: number; z0: number; z1: number }>;
   /** the Sky Lobby's and the Sky Park's rooms: the tower's box, the storey's floor, and each face's window, along it from its middle */
@@ -609,6 +611,28 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const [x0, x1] = [Math.max(-d.fill.half, Math.min(...xs)), Math.min(d.fill.half, Math.max(...xs))];
     const [z0, z1] = [Math.max(-d.fill.half, Math.min(...zs)), Math.min(d.fill.half, Math.max(...zs))];
     DISTRICT_FLOORS.push({ plan: d.hole.map(([x, z]) => [x + BR_X, z + BR_Z] as [number, number]), minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, walkway: [d.fill.walkway[0], d.fill.walkway[1]] });
+  }
+  // Their backs (districtSolids backs, Phase 26.4): the open ground that meets ground you stand on, closed as blocks the
+  // height of the buildings round it, drawn as the city's own buildings are, brick walls under a concrete roof, since
+  // where the kit is off (Competitive) nothing else covers them; their collision is the district's
+  for (const d of DISTRICTS.districts)
+    for (const [x0, x1, z0, z1, top] of DISTRICT_INSIDES[d.id]?.backs ?? []) {
+      deco(x1 - x0, top - 0.12, z1 - z0, (x0 + x1) / 2, 0, (z0 + z1) / 2, brick);
+      deco(x1 - x0, 0.12, z1 - z0, (x0 + x1) / 2, top - 0.12, (z0 + z1) / 2, concrete);
+    }
+  // and their backs' faces toward where you stand (districtSolids fronts, Phase 26.4), for the kit to dress in the
+  // district's pack's own facade strips as it dresses a tower's: each a tower of its own, the front's width and a storey
+  // deep behind it, dressed on that face alone, whole storeys down from the back's top to where you stand; one shorter than
+  // fill backs.dress keeps the back's own face
+  for (const d of DISTRICTS.districts) {
+    for (const [x0, z0, x1, z1, nx, nz, stand, top] of DISTRICT_INSIDES[d.id]?.fronts ?? []) {
+      const storeys = Math.round((top - stand) / storeyH);
+      if (Math.hypot(x1 - x0, z1 - z0) < d.fill.backs.dress || storeys < 1) continue;
+      const face: Side4 = nx < 0 ? "w" : nx > 0 ? "e" : nz < 0 ? "n" : "s";
+      const [bx0, bx1] = nx === 0 ? [x0, x1] : nx < 0 ? [x0, x0 + storeyH] : [x0 - storeyH, x0];
+      const [bz0, bz1] = nz === 0 ? [z0, z1] : nz < 0 ? [z0, z0 + storeyH] : [z0 - storeyH, z0];
+      KIT_SITES.towers.push({ x: (bx0 + bx1) / 2, z: (bz0 + bz1) / 2, w: bx1 - bx0, d: bz1 - bz0, base: top - storeys * storeyH, roof: top, storeys, sector: d.id, clutter: [], family: d.pack, faces: [face] });
+    }
   }
   /** a point (local) on a district's plan, where the city's own street things (its cars, its lines) have no place */
   const inDistrict = (x: number, z: number): boolean =>

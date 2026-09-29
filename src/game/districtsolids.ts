@@ -9,8 +9,11 @@ export const DISTRICT_SOLIDS: Record<string, number[][]> = {
 
 /**
  * What is drawn of each district's buildings' insides (citydistricts.ts), from the same file: `covers`, dark blocks a
- * cell back from every face, and `caps`, a roof over the faces' own cells, each [x0, x1, z0, z1, top], map-local
+ * cell back from every face, and `caps`, a roof over the faces' own cells, each [x0, x1, z0, z1, top], map-local; and
+ * `backs`, its open ground that meets ground you stand on closed as blocks the height of the buildings round it
+ * [x0, x1, z0, z1, top], with `fronts`, their faces toward where you stand, which the kit dresses
+ * [x0, z0, x1, z1, nx, nz, the height you stand at, top] (Phase 26.4)
  */
-export const DISTRICT_INSIDES: Record<string, { covers: number[][]; caps: number[][] }> = {
-  "high-corner": { covers: highCorner.covers, caps: highCorner.caps },
+export const DISTRICT_INSIDES: Record<string, { covers: number[][]; caps: number[][]; backs: number[][]; fronts: number[][] }> = {
+  "high-corner": { covers: highCorner.covers, caps: highCorner.caps, backs: highCorner.backs, fronts: highCorner.fronts },
 };

@@ -74,10 +74,12 @@ they never enter git and never go to Pages:
   of pieces baked in `src/config/citykit.json`, which are in git, so commit that file if a re-import changed it; a
   piece added to the dressing needs a re-import (`citykit.ts` fails until it is in the packs).
 - **The districts** (Phase 25, `src/config/citydistricts.json`): a pack's demo street baked whole into the map, one
-  file each, `public/models/paid/city/<id>-v<version>.glb` (High City's corner, `high-corner-v4.glb`, 32 MB, its geometry
-  meshopt-compressed; `high-corner-v4-lo.glb`, 25 MB, for the presets that load the kit's lo files). `PAID_ONLY=city CITY_PACK=high CITY_DISTRICTS=1 npx tsx tools/import-paid.ts` bakes it in about 80 s
-  and writes its collision to `src/config/districts/<id>.solids.json` and its measurements back to the config, both in
-  git, so commit them; raise `version` there for the server to hand out a new file at once.
+  file each, `public/models/paid/city/<id>-v<version>.glb` (High City's corner, `high-corner-v5.glb`, 32 MB, its geometry
+  meshopt-compressed; `high-corner-v5-lo.glb`, 25 MB, for the presets that load the kit's lo files). `PAID_ONLY=city CITY_PACK=high CITY_DISTRICTS=1 npx tsx tools/import-paid.ts` bakes it in about 70 s
+  and writes its collision (with its backs closed and their fronts, Phase 26.4) to `src/config/districts/<id>.solids.json`
+  and its measurements back to the config, both in git, so commit them; raise `version` there for the server to hand out
+  a new file at once. A deploy builds from `apex-range`: a worktree's bake goes into its `public/models/paid/city/` first.
+  `DISTRICT_PARTS=<file>` with `CITY_PACK` writes every part a district keeps and where it stands, baking nothing.
 - **The guns' skins:** `PAID_ONLY=weapons npm run paid` writes each one twice, `public/models/paid/weapons/tex/` at
   1024 px and `weapons/tex2k/` at 2048 (270 files, 40 MB); the 2048 ones are loaded only for the gun in your hands on
   High (`paidweapons.json` textures2k).

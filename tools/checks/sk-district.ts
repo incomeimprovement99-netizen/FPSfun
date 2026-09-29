@@ -207,8 +207,9 @@ for (const d of DISTRICTS.districts) {
 // From above: a glide or a jump onto the corner lands only on what is drawn. The owner, 2026-09-28: "i was able to
 // glitch into the corner map area"; its buildings were filled solid to 40 m whatever stood there, an invisible floor
 // over every lower building and empty lot. A body dropped from 120 m on a 1 m grid over the whole corner lands on the
-// highest box under it; that top must be the street, a walkway, a roof drawn over a hollow (covers and caps), or the
-// scene's own triangles there (its file, read here when the bought files are, as they are where this runs)
+// highest box under it; that top must be the street, a walkway, a roof drawn over a hollow (covers and caps) or over the
+// film set's backs closed (backs), or the scene's own triangles there (its file, read here when the bought files are,
+// as they are where this runs)
 {
   const { existsSync } = await import("node:fs");
   const cfgV = DISTRICTS.version;
@@ -247,8 +248,8 @@ for (const d of DISTRICTS.districts) {
       return false;
     };
     const boxes = DISTRICT_SOLIDS[d.id] ?? [];
-    const ins = DISTRICT_INSIDES[d.id] ?? { covers: [], caps: [] };
-    const roofAt = (x: number, z: number, y: number) => [...ins.covers, ...ins.caps].some(([x0, x1, z0, z1, top]) => x >= x0 && x <= x1 && z >= z0 && z <= z1 && Math.abs(top - y) < 0.1);
+    const ins = DISTRICT_INSIDES[d.id] ?? { covers: [], caps: [], backs: [] };
+    const roofAt = (x: number, z: number, y: number) => [...ins.covers, ...ins.caps, ...ins.backs].some(([x0, x1, z0, z1, top]) => x >= x0 && x <= x1 && z >= z0 && z <= z1 && Math.abs(top - y) < 0.1);
     let n = 0, street = 0, walk = 0, roof = 0, geometry = 0, inside = 0;
     const bad: string[] = [];
     for (let x = 0.75; x < d.fill.half - 3; x += 1)
@@ -268,9 +269,43 @@ for (const d of DISTRICTS.districts) {
         else bad.push(`${x},${y.toFixed(1)},${z}`);
       }
     check(
-      `${d.id}: dropped onto from 120 m anywhere, a body lands only on what is drawn: the street, a walkway, a roof over a hollow, the scene's own triangles`,
+      `${d.id}: dropped onto from 120 m anywhere, a body lands only on what is drawn: the street, a walkway, a roof over a hollow or a back, the scene's own triangles`,
       n > 1000 && bad.length === 0,
-      `${n} drops: ${street} street, ${walk} walkway, ${roof} roofs drawn over hollows, ${geometry} on the scene's own; ${inside} over its open ground, solid far above; ${bad.length} on nothing drawn${bad.length ? `: ${bad.slice(0, 6).join(" ")}` : ""}`,
+      `${n} drops: ${street} street, ${walk} walkway, ${roof} roofs drawn over hollows and backs, ${geometry} on the scene's own; ${inside} over its open ground, solid far above; ${bad.length} on nothing drawn${bad.length ? `: ${bad.slice(0, 6).join(" ")}` : ""}`,
+    );
+  }
+}
+
+// Beside anywhere you stand, nothing undrawn: the scene's open ground, solid to fill.open and not drawn (Milestone 315),
+// must not meet the city's street or pavement round the district, its canyons' floor or its walkways, or it is an
+// invisible wall where the street seems to go on (Phase 26.4: four lots at its arms' ends were). Every half metre from
+// 6 m outside its plan in, where the highest thing is the street, a pavement or a walkway, and the half metres beside it
+{
+  for (const d of DISTRICTS.districts) {
+    const open = (DISTRICT_SOLIDS[d.id] ?? []).filter(([, , , , y0, y1]) => y0 < 1 && y1 >= d.fill.open - 1);
+    const xs = d.hole.map(([x]) => x);
+    const zs = d.hole.map(([, z]) => z);
+    const lim = d.fill.half;
+    const inOpen = (x: number, z: number) => open.some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+    const topAt = (x: number, z: number): number => {
+      let t = 0;
+      for (const s of RANGE_SOLIDS) if (s.base < 1 && x + BR_X > s.minX && x + BR_X < s.maxX && z + BR_Z > s.minZ && z + BR_Z < s.maxZ && s.top > t) t = s.top;
+      return t;
+    };
+    const walls: string[] = [];
+    let cells = 0;
+    for (let x = Math.min(...xs) - 6 + 0.25; x < Math.min(Math.max(...xs) + 6, lim); x += 0.5)
+      for (let z = Math.min(...zs) - 6 + 0.25; z < Math.min(Math.max(...zs) + 6, lim); z += 0.5) {
+        if (inOpen(x, z)) continue;
+        const t = topAt(x, z);
+        if (!(t < 0.6 || (t >= d.fill.walkway[0] && t <= d.fill.walkway[1]))) continue;
+        cells++;
+        if ([[0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5]].some(([dx, dz]) => inOpen(x + dx, z + dz))) walls.push(`${x},${t.toFixed(1)},${z}`);
+      }
+    check(
+      `${d.id}: nothing undrawn beside anywhere you stand, the city's street round it, its canyons, its walkways`,
+      cells > 1000 && walls.length === 0,
+      `${cells} half metres stood on, ${walls.length} beside the undrawn open ground${walls.length ? `: ${walls.filter((_, i) => i % Math.max(1, Math.floor(walls.length / 8)) === 0).slice(0, 8).join(" ")}` : ""}`,
     );
   }
 }
@@ -297,9 +332,10 @@ for (const d of DISTRICTS.districts) {
     const mine = (items: Array<{ at: THREE.Vector3; key: string }>) => items.filter((i) => inPoly(d.hole, i.at.x - BR_X, i.at.z - BR_Z));
     const extra = withThem.map((items, s) => mine(items).filter((i) => !without[s].some((o) => o.key === i.key)));
     const standing = (y: number) => Math.abs(y) < 0.1 || (y >= d.fill.walkway[0] && y <= d.fill.walkway[1] + 0.1);
+    const upWant = Math.round(per * lootCfg.districts.walkways);
     check(
-      `${d.id}: loot of its own on its canyons' floor and its walkways, ${per} spots and more a match`,
-      extra.every((items) => items.length >= per && items.every((i) => standing(i.at.y))),
+      `${d.id}: loot of its own on its canyons' floor and its walkways, ${per} spots and more a match, ${upWant} of them up on the walkways`,
+      extra.every((items) => items.length >= per && items.every((i) => standing(i.at.y)) && new Set(items.filter((i) => i.at.y > 1).map((i) => `${Math.round(i.at.x)},${Math.round(i.at.z)}`)).size >= upWant - 1),
       extra.map((items, s) => `seed ${seeds[s]}: ${items.length} (${items.filter((i) => i.at.y > 1).length} up on the walkways)`).join(", "),
     );
   }

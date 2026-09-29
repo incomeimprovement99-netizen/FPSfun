@@ -557,7 +557,8 @@
   "_halls": "SpeedKills' podium halls (city.json halls, floors.ts HALL_FLOORS, Phase 24.4): `perHall` spots over each hall's floor, clear of its columns and counters, rolled at `tier` as the metro's are, last of all and on a stream of their own; the field's own spots keep off the halls' floors (loot.ts standingSpots), so the loot outside lands exactly where it did before.",
   "districts": {
     "perDistrict": 12,
+    "walkways": 0.5,
     "tier": "site"
   },
-  "_districts": "SpeedKills' districts made of the packs' own demo scenes (citydistricts.json, floors.ts DISTRICT_FLOORS, Phase 25): `perDistrict` spots on each one's canyons' floor and its walkways, a metre and more from any edge, rolled at `tier` as the halls' are, last of all and on a stream of their own, so the loot everywhere else lands where it did."
+  "_districts": "SpeedKills' districts made of the packs' own demo scenes (citydistricts.json, floors.ts DISTRICT_FLOORS, Phase 25): `perDistrict` spots on each one's canyons' floor and its walkways, a metre and more from any edge, rolled at `tier` as the halls' are, last of all and on a stream of their own, so the loot everywhere else lands where it did. `walkways`: the share of them up on the walkways, drawn until each share is met (Phase 26.4): drawn at random over the plan, the narrow walkways lost to the wide canyons' floor, 0 to 4 spots of 12 up there, where the fights over the pads' landings and the fire escapes' tops are."
 }

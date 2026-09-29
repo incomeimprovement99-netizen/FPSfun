@@ -181,7 +181,9 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
   /** where a Sky Park bridge meets a roof's edge (the Spire's terrace): its parapet is open there */
   const bridgeEnds = PARK_BRIDGES.flatMap((b) => [{ x: b.ax - BR_X, z: b.az - BR_Z, y: b.y }, { x: b.bx - BR_X, z: b.bz - BR_Z, y: b.y }]);
   const atBridgeEnd = (x: number, z: number, y: number) => bridgeEnds.some((e) => Math.abs(e.y - y) < 0.5 && Math.hypot(e.x - x, e.z - z) < 2.5);
-  const towers = KIT_SITES.towers.filter((t) => inCentre(t.x, t.z));
+  // (and the towers outside it given a family: a district's backs' fronts, each dressed on its own faces alone; not by the
+  // lean modules, Competitive's, whose limit the centre fills: there the backs keep their own faces)
+  const towers = KIT_SITES.towers.filter((t) => inCentre(t.x, t.z) || (t.family !== undefined && !lean));
   /**
    * How a module sits on face `f` of tower `t` across `a` to `b` along it (dress rooms): a room module with its front on
    * the face and its room inside the tower, as deep as the room goes, short of the stair core, and on a west or east face
@@ -245,7 +247,7 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
 
   // ------------------------------------------------ the towers' faces, storey by storey
   for (const t of towers) {
-    const fam = familyAt(t.x, t.z);
+    const fam = (t.family as keyof typeof D.rows | undefined) ?? familyAt(t.x, t.z);
     // its family's rows, or another of the family's styles (dress styles): neighbours of one family differ
     const styles = [D.rows[fam], ...((D.styles as Record<string, unknown[]>)[fam] ?? [])];
     type Rows = { bay: number; ground: string[]; mid: string[]; top: string[]; far?: string[]; farBay?: number; cornice?: string };
@@ -273,6 +275,7 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
     const rowsAt = (s: number): Rows => (band[s] === 0 ? rows : (pick(styles, kitHash(t.x, t.z, 90, band[s])) as Rows));
     const spire = Math.abs(t.x) < 30 && Math.abs(t.z) < 30;
     for (const f of faces(t.x - t.w / 2, t.x + t.w / 2, t.z - t.d / 2, t.z + t.d / 2)) {
+      if (t.faces && !t.faces.includes(f.key)) continue;
       const len = f.b - f.a;
       const n = Math.max(1, Math.round(len / rows.bay));
       const bay = len / n;

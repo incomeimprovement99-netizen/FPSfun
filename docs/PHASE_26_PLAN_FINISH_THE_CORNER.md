@@ -50,7 +50,7 @@ we are using out of how many."
 | 26.1 | The slam hurts enemies in every mode; its radius on the ground while you fall; the damage number on a hit | shipped | 315 |
 | 26.2 | Nobody gets into the corner where they should not | shipped | 315 |
 | 26.3 | Wallrunning: the camera leans, and you can see you are on the wall | shipped | 315 |
-| 26.4 | Finish the corner: the fire escapes up its walkways (shipped); the arm ends' lots next | in progress | 317 |
+| 26.4 | Finish the corner: the fire escapes up its walkways; the arm ends closed; loot up on the walkways | in progress | 317, 318 |
 | 26.5 | Wipe the middle district and rebuild it the corner's way, bigger | after 26.4 | |
 
 ### 26.0 The bug hunt (done)
@@ -120,7 +120,8 @@ The corner as a finished place to fight:
 
 - 26.2's fix, and walks round every edge.
 - The bots up on the walkways, not only in the canyons (the graph reaches them, and in a test match none went up).
-- More of its loot up on the walkways; most lands on the canyons' floor.
+- More of its loot up on the walkways; most lands on the canyons' floor. **Done (Milestone 318):** half the corner's
+  spots are drawn from the walkways' own decks (`loot.json districts walkways`); 7 to 9 items up there a match.
 - Ways up besides the pads, in the packs' own pieces, not ours (the owner, 2026-09-28: "pretty sure there are versions in
   the asset packs"): High City's fire escapes (sets a, b and c: a tile to stack, a foot with its drop ladder, a top over
   the parapet), Kyber's ladder set (tiles A and B, its top and foot), Cyber City's fire ladder. The city already hangs
@@ -141,6 +142,21 @@ The corner as a finished place to fight:
   from the city's street along z 60. Beside it, east of the east walkway (x 140 to 152): a narrow lot at the map's edge,
   a facade seen edge on. Either side of the west arm's end (x 60 to 92, z 108 to 125; x 60 to 120, z 141 to 152), from
   the city's street along x 60: the backdrop's blurry faces close a courtyard.
+  **The plan for them (26.4b, the film set's backs closed):** measured, the undrawn fill is four big pieces, one at
+  each arm end (623, 557, 439 and 328 m²), each beside the street or a canyon along 120 to 180 half metres, and three
+  small ones behind the east walkway. Rectangles laid over them do not fit: the film set's backs step round its
+  buildings, so a rectangle either leaves fill beside its roof (an invisible wall up there) or cuts into the scene's
+  corner building. So the pieces themselves become buildings. The importer (`districtSolids`) makes every piece of the
+  fill that meets ground you stand on into solid blocks up to its neighbours' measured height, not 200 m, with a roof the
+  city draws; the faces it shows to the street, a canyon or a walkway go to the kit, which dresses them in High City's
+  own facade strips as it dresses the centre's High City towers (whole buildings cannot be lifted out of High City's
+  street: Phase 24.2 found them one blob). A piece that meets nothing you stand on stays as it is. And the backdrop's
+  pieces made for the distance that stand inside the map (`fill build 07`, the blurry block at the west arm's end, and
+  `fill build 09`, which stands 6 m out onto the city's street at x 54) are left out of the bake. The check that should
+  have caught it (`sk-district.ts`, nothing undrawn beside anywhere you stand) fails on the live corner: 491 half metres.
+  **Done (Milestone 318):** 0 now; the backs 20, 24 and 28 m, drawn as the city's own buildings, their fronts in High
+  City's strips from Balanced up; 17 backdrop parts left out (district v5); the kit's limits raised by the fronts' 125k
+  triangles on the fire escapes' precedent, a bench of their own owed (the machine was busy).
 - The kit's recovered parts (Phase 25's v9: High City's fire escapes 2 m wider, the triangle budgets) where they touch
   the corner.
 - The rest of what a playtest finds.

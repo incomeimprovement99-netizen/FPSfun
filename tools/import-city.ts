@@ -635,11 +635,13 @@ class Resolver {
 
 /**
  * A district's parts (citydistricts.json): its demo scene's, moved and turned into the map's metres (the scene point
- * `origin` to `at`, turned `yaw` about y), those whose middle lands in one of `keep` within `radius` of `at`
+ * `origin` to `at`, turned `yaw` about y), those whose middle lands in one of `keep` within `radius` of `at`, less those
+ * of a prefab named in `drop` (its file's name, `pathOf` a guid's path) whose middle is inside the map (`fill.half`)
  */
 function districtKept(
-  dist: { origin: number[]; at: number[]; yaw: number; keep: Array<{ x0: number; z0: number }>; radius: number },
+  dist: { origin: number[]; at: number[]; yaw: number; keep: Array<{ x0: number; z0: number }>; radius: number; drop?: string[]; fill?: { half: number } },
   draws: Array<{ d: Draw; m: M4; from: string[] }>,
+  pathOf: (guid: string) => string,
 ): { kept: Array<{ d: Draw; m: M4; from: string[] }>; dropped: number } {
   const [ox, oy, oz] = dist.origin;
   const [ax, ay, az] = dist.at;
@@ -664,6 +666,11 @@ function districtKept(
     const x = w[0] * mid[0] + w[4] * mid[1] + w[8] * mid[2] + w[12];
     const z = w[2] * mid[0] + w[6] * mid[1] + w[10] * mid[2] + w[14];
     if (!dist.keep.some((k) => x >= k.x0 && z >= k.z0) || Math.hypot(x - ax, z - az) > dist.radius) {
+      dropped++;
+      continue;
+    }
+    const half = dist.fill?.half ?? Infinity;
+    if (dist.drop && Math.abs(x) < half && Math.abs(z) < half && from.some((g) => dist.drop!.includes(basename(pathOf(g))))) {
       dropped++;
       continue;
     }
@@ -1121,7 +1128,7 @@ function cutFacades(draws: Array<{ d: Draw; m: M4 }>, width = 14, reach = 4): Ar
  * middle size under `stick` (a cable, a wire, a pole), fills nothing: they are what a player expects to pass. Cells with
  * the same spans are joined into rectangles, one box a span. Boxes [x0, x1, z0, z1, y0, y1], in the draws' own metres.
  */
-function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; stick: number; floor: number; merge: number; thin: number; minTop: number; fill?: { walkway: [number, number]; top: number; open: number; half: number; body: number; plan: number[][]; seeds: number[][]; streets?: number[][] } }): { solids: number[][]; covers: number[][]; caps: number[][] } {
+function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; stick: number; floor: number; merge: number; thin: number; minTop: number; fill?: { walkway: [number, number]; top: number; open: number; half: number; body: number; plan: number[][]; seeds: number[][]; streets?: number[][]; backs?: { storey: number; storeys: [number, number] } } }): { solids: number[][]; covers: number[][]; caps: number[][]; backs: number[][]; fronts: number[][] } {
   const C = o.cell;
   const OFF = 100000;
   const key = (i: number, j: number) => (i + OFF) * 1000003 + (j + OFF);
@@ -1212,6 +1219,10 @@ function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; sti
   // `fill.top`, so nobody walks behind a face and sees through it
   /** the cells filled as a building's inside, and the height each was filled to: city drawn (covers and caps) */
   const filled = new Map<number, number>();
+  /** the film set's backs closed (the open ground that meets ground you stand on), each cell's height: city draws them */
+  const backs = new Map<number, number>();
+  /** their edges that face where you stand, a cell long each: [line, along, axis, out, stand, height] */
+  const edges: number[][] = [];
   if (o.fill) {
     const F = o.fill;
     for (const [k, list] of cellSpans) {
@@ -1313,12 +1324,83 @@ function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; sti
           todo2.push(n);
         }
     }
+    // The open ground that meets ground you stand on (the city's street round the plan, a canyon's floor, a walkway) is
+    // not left undrawn: there it was an invisible wall the street seemed to go on through (four lots at the corner's arms'
+    // ends, Phase 26.4). Each such piece of it is the film set's back closed: solid to the median height of the
+    // buildings round it, whole storeys down, drawn by city (`backs`), and each run of its edge facing where you stand
+    // given to the kit to dress (`fronts`). A piece that meets nothing you stand on stays undrawn at `open`
+    const inPoly = (x: number, z: number) => {
+      let n = false;
+      for (let i = 0, j = F.plan.length - 1; i < F.plan.length; j = i++) {
+        const [xi, zi] = F.plan[i];
+        const [xj, zj] = F.plan[j];
+        if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) n = !n;
+      }
+      return n;
+    };
+    /** what stands in cell (i, j) for someone on foot: the street (the canyons' floor, or the city's round the plan
+     * within the map) at 0, a walkway at its top, or nothing to stand on (null) */
+    const standAt = (i: number, j: number): number | null => {
+      const k = key(i, j);
+      if (reached.has(k)) return 0;
+      const [x, z] = [(i + 0.5) * C, (j + 0.5) * C];
+      if (Math.abs(x) > F.half || Math.abs(z) > F.half) return null;
+      if (!inPoly(x, z)) return 0;
+      return walkTop(k);
+    };
+    const B = F.backs;
+    const backOf = new Map<number, number>();
+    if (B) {
+      const seen = new Set<number>();
+      for (const start of open) {
+        if (seen.has(start)) continue;
+        const piece = [start];
+        seen.add(start);
+        let meets = false;
+        const round: number[] = [];
+        for (let q = 0; q < piece.length; q++) {
+          const [i, j] = cellOf.get(piece[q])!;
+          for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const n = key(i + di, j + dj);
+            if (open.has(n)) {
+              if (!seen.has(n)) {
+                seen.add(n);
+                piece.push(n);
+              }
+            } else if (standAt(i + di, j + dj) !== null) meets = true;
+            else if (building.has(n) && height.has(n)) round.push(height.get(n)!);
+          }
+        }
+        if (!meets) continue;
+        round.sort((p, q) => p - q);
+        const median = round.length ? round[Math.floor(round.length / 2)] : B.storeys[0] * B.storey;
+        const h = Math.max(B.storeys[0], Math.min(B.storeys[1], Math.floor(median / B.storey))) * B.storey;
+        for (const k of piece) backOf.set(k, h);
+      }
+      for (const k of backOf.keys()) open.delete(k);
+    }
     for (const k of building.keys()) {
-      const h = open.has(k) ? F.open : (height.get(k) ?? F.top);
+      const h = open.has(k) ? F.open : (backOf.get(k) ?? height.get(k) ?? F.top);
       fills.set(k, [[o.floor, h]]);
-      if (building.get(k) === -Infinity && !open.has(k)) filled.set(k, Math.round(h * 20) / 20);
+      if (building.get(k) === -Infinity && !open.has(k) && !backOf.has(k)) filled.set(k, Math.round(h * 20) / 20);
     }
     for (const [k, spans] of fills) cellSpans.set(k, spans);
+    // the backs' cells, and their edges that face where you stand, each edge one cell long: [the line it is on, where
+    // along it, the way it faces (0 along x at a z, 1 along z at an x), out (1 or -1), the height you stand at there, the
+    // back's height]
+    for (const [k, h] of backOf) {
+      const [i, j] = cellOf.get(k)!;
+      backs.set(k, h);
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (backOf.has(key(i + di, j + dj))) continue;
+        const at = standAt(i + di, j + dj);
+        if (at === null) continue;
+        // (a walkway's top varies by centimetres: its lowest, so one front runs the walkway's length)
+        const lvl = at > 1 ? F.walkway[0] : 0;
+        // a face across x (di) runs along z at the line x = the cell's edge, one across z along x
+        edges.push(di !== 0 ? [(di > 0 ? i + 1 : i) * C, j * C, 1, di, lvl, h] : [(dj > 0 ? j + 1 : j) * C, i * C, 0, dj, lvl, h]);
+      }
+    }
   }
   // the thin made deep enough to stand on, rounded to 5 cm, and grouped by span
   const bySpan = new Map<string, Set<number>>();
@@ -1371,7 +1453,35 @@ function districtSolids(draws: Array<{ d: Draw; m: M4 }>, o: { cell: number; sti
   const caps: number[][] = [];
   rects(inner, (x0, x1, z0, z1, [h]) => covers.push([x0, x1, z0, z1, h]));
   rects(edge, (x0, x1, z0, z1, [h]) => caps.push([x0, x1, z0, z1, h]));
-  return { solids, covers, caps };
+  // the backs as boxes [x0, x1, z0, z1, top], and their fronts as runs of edges on one line facing one way, at one
+  // height you stand at and one back's height, joined where they meet: [x0, z0, x1, z1, nx, nz, stand, top]
+  const backGroups = new Map<string, Set<number>>();
+  for (const [k, h] of backs) (backGroups.get(String(h)) ?? backGroups.set(String(h), new Set()).get(String(h))!).add(k);
+  const backBoxes: number[][] = [];
+  rects(backGroups, (x0, x1, z0, z1, [h]) => backBoxes.push([x0, x1, z0, z1, h]));
+  const fronts: number[][] = [];
+  const byLine = new Map<string, number[]>();
+  for (const [line, along, axis, out, stand, h] of edges) {
+    const lk = `${line},${axis},${out},${stand},${h}`;
+    (byLine.get(lk) ?? byLine.set(lk, []).get(lk)!).push(along);
+  }
+  for (const [lk, list] of byLine) {
+    const [line, axis, out, stand, h] = lk.split(",").map(Number);
+    list.sort((p, q) => p - q);
+    let a = list[0];
+    let b = a + C;
+    const flush = () => fronts.push(axis === 1 ? [line, a, line, b, out, 0, stand, h] : [a, line, b, line, 0, out, stand, h]);
+    for (const v of list.slice(1)) {
+      if (Math.abs(v - b) < 1e-6) b = v + C;
+      else {
+        flush();
+        a = v;
+        b = v + C;
+      }
+    }
+    flush();
+  }
+  return { solids, covers, caps, backs: backBoxes, fronts };
 }
 
 // ---------------------------------------------------------------- baking and writing
@@ -1661,11 +1771,40 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
       for (const dist of dCfg.districts.filter((q: { pack: string }) => q.pack === name)) {
         const sf = pack.pathFile.get(dist.scene);
         if (!sf) continue;
-        entry.districts[dist.id] = paths(districtKept(dist, res.flatten(basename(dirname(sf)))).kept);
+        entry.districts[dist.id] = paths(districtKept(dist, res.flatten(basename(dirname(sf))), (g) => pack.guidPath.get(g) ?? g).kept);
       }
       rep[name] = entry;
       writeFileSync(file, JSON.stringify(rep, null, 1));
       report.push(`${name}: ${entry.prefabs.length} prefabs, ${Object.keys(entry.strips).length} strips, ${Object.keys(entry.districts).length} districts reported`);
+      continue;
+    }
+    // DISTRICT_PARTS=<file>: every part each district of this pack keeps, where it stands in the map's metres (its bounds,
+    // x0 x1 y0 y1 z0 z1), its mesh and the prefabs holding it, outermost first; nothing baked. To find what stands where in
+    // a district (Phase 26.4: the backdrop's pieces left inside the map at its arms' ends)
+    if (process.env.DISTRICT_PARTS) {
+      const file = process.env.DISTRICT_PARTS;
+      const dCfg = JSON.parse(readFileSync(join(h.root, "src", "config", "citydistricts.json"), "utf8"));
+      const rep: Record<string, unknown[]> = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
+      for (const dist of dCfg.districts.filter((q: { pack: string }) => q.pack === name)) {
+        const sf = pack.pathFile.get(dist.scene);
+        if (!sf) continue;
+        rep[dist.id] = districtKept(dist, res.flatten(basename(dirname(sf))), (g) => pack.guidPath.get(g) ?? g).kept.map(({ d, m, from }) => {
+          const lo = [Infinity, Infinity, Infinity];
+          const hi = [-Infinity, -Infinity, -Infinity];
+          for (const prim of d.model.meshes[d.mesh].prims)
+            for (let k = 0; k < prim.pos.length; k += 3) {
+              const [px, py, pz] = [prim.pos[k], prim.pos[k + 1], prim.pos[k + 2]];
+              const w = [m[0] * px + m[4] * py + m[8] * pz + m[12], m[1] * px + m[5] * py + m[9] * pz + m[13], m[2] * px + m[6] * py + m[10] * pz + m[14]];
+              for (let a = 0; a < 3; a++) {
+                lo[a] = Math.min(lo[a], w[a]);
+                hi[a] = Math.max(hi[a], w[a]);
+              }
+            }
+          return { mesh: d.model.meshes[d.mesh].name, from: from.map((g) => pack.guidPath.get(g) ?? g), box: [lo[0], hi[0], lo[1], hi[1], lo[2], hi[2]].map((v) => +v.toFixed(2)) };
+        });
+        report.push(`${dist.id}: ${rep[dist.id].length} parts reported`);
+      }
+      writeFileSync(file, JSON.stringify(rep, null, 1));
       continue;
     }
     // CITY_FACADES=<a pack's scene path> cuts that demo street's walls into facade strips (cutFacades), each baked in
@@ -1722,18 +1861,18 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
           report.push(`${dist.id}: no ${dist.scene} in ${name}`);
           continue;
         }
-        const { kept, dropped } = districtKept(dist, res.flatten(basename(dirname(file))));
+        const { kept, dropped } = districtKept(dist, res.flatten(basename(dirname(file))), (g) => pack.guidPath.get(g) ?? g);
         const bk = bake(pack, res, `${name}/district ${dist.id}`, "", mats, kept);
         if (!bk) continue;
         // and its collision, from the same triangles (districtSolids), into src/config/districts/<id>.solids.json: numbers
         // measured off the pack's geometry, which the game loads with or without the bought files (the checks run without)
-        const { solids, covers, caps } = districtSolids(kept, { ...dCfg.collision, fill: dist.fill ? { ...dist.fill, plan: dist.hole } : undefined });
+        const { solids, covers, caps, backs, fronts } = districtSolids(kept, { ...dCfg.collision, fill: dist.fill ? { ...dist.fill, plan: dist.hole } : undefined });
         mkdirSync(join(h.root, "src", "config", "districts"), { recursive: true });
         writeFileSync(
           join(h.root, "src", "config", "districts", `${dist.id}.solids.json`),
-          JSON.stringify({ _note: `The collision of the district ${dist.id} (src/config/citydistricts.json), written by tools/import-city.ts CITY_DISTRICTS=1 off the pack scene's own triangles (districtSolids), never typed: boxes [x0, x1, z0, z1, y0, y1], map-local metres. covers and caps: what city draws of its buildings' insides so the film set is closed, dark blocks a cell back from every face and a roof over the faces' own cells, [x0, x1, z0, z1, top].`, solids: solids.map((q) => q.map((v) => +v.toFixed(2))), covers: covers.map((q) => q.map((v) => +v.toFixed(2))), caps: caps.map((q) => q.map((v) => +v.toFixed(2))) }) + "\n",
+          JSON.stringify({ _note: `The collision of the district ${dist.id} (src/config/citydistricts.json), written by tools/import-city.ts CITY_DISTRICTS=1 off the pack scene's own triangles (districtSolids), never typed: boxes [x0, x1, z0, z1, y0, y1], map-local metres. covers and caps: what city draws of its buildings' insides so the film set is closed, dark blocks a cell back from every face and a roof over the faces' own cells, [x0, x1, z0, z1, top]. backs: the scene's open ground that meets ground you stand on, closed as blocks the height of the buildings round it, [x0, x1, z0, z1, top]; fronts: their faces toward where you stand, for the kit to dress, [x0, z0, x1, z1, nx, nz, the height you stand at, top].`, solids: solids.map((q) => q.map((v) => +v.toFixed(2))), covers: covers.map((q) => q.map((v) => +v.toFixed(2))), caps: caps.map((q) => q.map((v) => +v.toFixed(2))), backs: backs.map((q) => q.map((v) => +v.toFixed(2))), fronts: fronts.map((q) => q.map((v) => +v.toFixed(2))) }) + "\n",
         );
-        report.push(`${dist.id}: ${solids.length} solid boxes, ${covers.length} covers, ${caps.length} caps`);
+        report.push(`${dist.id}: ${solids.length} solid boxes, ${covers.length} covers, ${caps.length} caps, ${backs.length} backs, ${fronts.length} fronts`);
         const bytes = await writePack(h, pack, [bk], mats, tex, cfg.sizes.hi, cfg.sizes.normal.hi, new Set([bk.id]), join(out, `${dist.id}-v${dCfg.version}.glb`), true);
         // and at the kit's lo size, for the presets that load the kit's lo files (Competitive): every preset loaded 51 MB
         const loBytes = await writePack(h, pack, [bk], mats, tex, cfg.sizes.lo, cfg.sizes.normal.lo, new Set([bk.id]), join(out, `${dist.id}-v${dCfg.version}-lo.glb`), true);
@@ -1816,8 +1955,8 @@ export async function city(h: CityImportHelpers, packages: Map<string, string>):
     report.push(`${name}: ${baked.length} pieces (${kept.length} written), ${tris} tris, ${mats.size} materials; max ${(maxBytes / 1e6).toFixed(1)} MB, hi ${(hiBytes / 1e6).toFixed(1)} MB, lo ${(loBytes / 1e6).toFixed(1)} MB${missing.length ? `; not found: ${missing.join(", ")}` : ""}`);
   }
   // the measured sizes go back into the config, as paid-weapons.ts does for the guns
-  // (a PREFAB_REPORT run bakes nothing, so it measures nothing and leaves citykit.json as it is)
-  if (!only && !process.env.PREFAB_REPORT) {
+  // (a PREFAB_REPORT or DISTRICT_PARTS run bakes nothing, so it measures nothing and leaves citykit.json as it is)
+  if (!only && !process.env.PREFAB_REPORT && !process.env.DISTRICT_PARTS) {
     cfg.measured = measured;
     cfg.facing = faces;
     cfg.plane = planes;
