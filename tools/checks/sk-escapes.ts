@@ -1,5 +1,5 @@
-// The fire escapes up the centre's towers (city.json fireEscape, city.ts FIRE_ESCAPES): the plan's ladders you can
-// fight on. Every one climbed with the real movement over the real city: from the promenade up its drop ladder to the
+// The fire escapes up the centre's towers (city.json fireEscape, city.ts FIRE_ESCAPES) and up the districts' walkway
+// fronts (citydistricts.json escapes): the plan's ladders you can fight on. Every one climbed with the real movement over the real city: from the promenade up its drop ladder to the
 // first landing, flight by flight to the top landing without a climb or a jump, and up the wall from there onto the
 // roof. And each is where it may be: on a High City or Kyber tower, clear of every pad's column, every window of an
 // open storey and every door.
@@ -59,6 +59,8 @@ function climbTo(p: InstanceType<typeof Player>, s: Script, wall: number, y: num
     p.update(DT, clock.t, s, 0, 1, false);
     s.taps.clear();
     if (p.onGround && p.pos.y > y - 0.1 && !p.climbing && p.stance !== "mantle") {
+      // over the edge: let go, or a walkway narrower than a stride is crossed and fallen off its far side
+      s.down.clear();
       if (++still > 20) break;
     } else still = 0;
   }
@@ -90,7 +92,7 @@ console.log(`\nThe fire escapes (game: ${GAME})`);
 check("this runs with SpeedKills' movement", GAME === "speedkills");
 check("a storey of the bought pieces is the city's storey (their landings measured 4.00 m apart)", Math.abs(kitCfg.dress.escapes.stair.landing - cityCfg.storey) < 0.05, `${kitCfg.dress.escapes.stair.landing} and ${cityCfg.storey}`);
 const fams = new Set(FIRE_ESCAPES.map((e) => e.family));
-check("fire escapes up the centre's High City and Kyber towers, and only theirs", FIRE_ESCAPES.length >= 6 && [...fams].every((f) => f === "high" || f === "kyber") && fams.size === 2, `${FIRE_ESCAPES.length}: ${[...fams].join(", ")}`);
+check("fire escapes up the centre's High City and Kyber towers and the districts' walkways, the packs' own and only theirs", FIRE_ESCAPES.length >= 6 && [...fams].every((f) => f === "high" || f === "kyber") && fams.size === 2, `${FIRE_ESCAPES.length}: ${[...fams].join(", ")}`);
 check("the kit knows every one", KIT_SITES.escapes.length === FIRE_ESCAPES.length);
 
 // where each is: clear of every pad's column, every window of an open storey, every door

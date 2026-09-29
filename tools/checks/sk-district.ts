@@ -2,8 +2,8 @@
 // collision tools/import-city.ts districtSolids measures off the scene's triangles). The owner, 2026-09-28: "continue
 // with the one district with the exact assets til it's playable so I can test it". Run with the real movement over the
 // real city: into each canyon from the city's own street and along it to the crossroads; every pad up onto its walkway;
-// and nowhere behind the film set's faces, where there is nothing but its backs to see through. Then the bots' graph
-// through it, and its loot.
+// every fire escape it asks for built; and nowhere behind the film set's faces, where there is nothing but its backs to
+// see through. Then the bots' graph through it, and its loot.
 //
 // Run: GAME=speedkills npx tsx tools/checks/sk-district.ts
 import * as THREE from "three";
@@ -20,7 +20,7 @@ if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS:
 const warn = console.warn;
 console.warn = () => undefined;
 const { GAME } = await import("../../src/game/game");
-const { buildCityMap } = await import("../../src/game/city");
+const { buildCityMap, FIRE_ESCAPES } = await import("../../src/game/city");
 const { Player } = await import("../../src/game/player");
 const { BR_X, BR_Z } = await import("../../src/game/br");
 const { RANGE_SOLIDS } = await import("../../src/game/range");
@@ -161,6 +161,17 @@ for (const d of DISTRICTS.districts) {
       const low = Math.min(...tries.map((t) => t.low));
       check(`  and off it, into the building, its face stops you`, deep < 12 && low > landed.y - 1.5, `${tries.map((t) => t.deep.toFixed(1)).join(", ")} m in, lowest ${low.toFixed(2)} m`);
     }
+  }
+
+  // Its fire escapes (citydistricts.json escapes): each one it asks for is built (none turned down by the city's rules),
+  // from its canyon's street up to a walkway; tools/checks/sk-escapes.ts climbs every one
+  {
+    const mine = FIRE_ESCAPES.filter((e) => inPoly(d.hole, (e.box.minX + e.box.maxX) / 2 - BR_X, (e.box.minZ + e.box.maxZ) / 2 - BR_Z));
+    check(
+      "a fire escape a spot (citydistricts.json escapes), each from the street up to a walkway",
+      mine.length === d.escapes.length && mine.every((e) => Math.abs(e.outside.y) < 0.3 && e.roof >= F.walkway[0] && e.roof <= F.walkway[1]),
+      `${mine.length} of ${d.escapes.length}${mine.length ? `: ${mine.map((e) => `${e.family} at ${((e.box.minX + e.box.maxX) / 2 - BR_X).toFixed(0)}, ${((e.box.minZ + e.box.maxZ) / 2 - BR_Z).toFixed(0)} to ${e.roof.toFixed(2)} m`).join("; ")}` : ""}`,
+    );
   }
 }
 

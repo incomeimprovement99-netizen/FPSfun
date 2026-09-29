@@ -6262,3 +6262,36 @@ was. See PHASE_27_PLAN_THE_SQUAD_AND_THE_SOLDIER.md, items 27.1 to 27.5.
   mid-list; the e2e `sksquad` section, two real pages in one squad through every state, seen failing with the old
   health rule; and `tools/squad-shots.ts`, the pictures, drawn for real from both screens. verify, rules, the sksquad and
   p2p sections.
+
+## Milestone 317 — The corner's fire escapes: High City's own, up its north arm's east walkway
+
+Phase 26 (`docs/PHASE_26_PLAN_FINISH_THE_CORNER.md`), item 26.4, the first part of finishing the corner: ways up besides
+the pads, in the packs' own pieces (the owner, 2026-09-28: "pretty sure there are versions in the asset packs").
+
+- **One builder** (`city.ts escapeAt`): the fire escape the centre's towers have had since Phase 21 (High City's b set or
+  Kyber's ladder set, over boxes measured off the pieces, walked and climbed as solids) is one function now, hung on a
+  tower's face or a walkway's front. The city's 31 are unchanged box for box: a snapshot of every solid, escape and
+  dressing site before and after (23,214 boxes, 31 escapes, 31 sites, 16,865 meshes) differs in nothing but the rounding
+  of two climb heights.
+- **The corner's** (`citydistricts.json escapes`): each walks back from a spot in the canyon to the walkway's front, as a
+  pad does, and takes the front's plane and the walkway's height off the collision there, so a re-bake that moves the
+  front moves it too. From the street its drop ladder climbs to a landing a storey up, and from the landing you climb
+  the wall onto the walkway, at an end or the middle of the landing where the walkway is over it and nothing rises out
+  of it. The dressing (`citydress.ts`) draws a one-landing escape as the drop ladder's piece (High City's top piece has a
+  flight up to its landing and no ladder).
+- **Where they go, measured**: every quarter metre of the corner's four walkway fronts tried by the city's rules (nothing
+  in the way from the street to over the walkway, no pad within 3 m, the front flat under both ends). High City's set
+  fits on the north arm's east front only, at z 87.75 to 90.5 and 122 to 123.25; it hangs at z 89 and 122.6. The rest
+  were turned down for what is there: the west arm's south front has ledges at 3.05 and 7.05 m its whole length; its
+  north front is a ledge half a metre deep with a wall to 9.2 m behind it, not a walkway; the one clean stretch of the
+  north arm's west front is a block standing alone in the canyon; and at the west arm's end the wall is the backdrop
+  building, blurry up close. Kyber's narrower set fits more of them, but it would be another pack's look on High City's
+  street, so it is left out.
+- **Checks**: `sk-escapes.ts` climbs all 33 (the city's 31 and the corner's 2) with the real movement: the ladder, the
+  landing and the wall onto the walkway. Its climb now lets go once over the edge (on a walkway narrower than a stride it
+  ran on and fell off the far side). `sk-district.ts` fails when the city's rules turn down an escape the config asks for
+  (seen failing with one moved beside a pad).
+- **Found on the way** (next, in 26.4): the corner's arm ends. The scene's open ground round its buildings, solid to
+  200 m and undrawn since Milestone 315, meets the city's streets and the north arm's canyon in four lots: from the
+  street they look like more street, and an invisible wall stops you.
+- **Checked:** verify and rules; the e2e section speedkills.

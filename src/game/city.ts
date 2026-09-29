@@ -23,7 +23,7 @@
 // black metal (tools/fetch-assets.ts), with emissive neon strips of our own.
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
-import { DISTRICT_FLOORS, FLOORS, HALL_FLOORS } from "./floors";
+import { DISTRICT_FLOORS, FLOORS, HALL_FLOORS, floorAt } from "./floors";
 import DISTRICTS from "../config/citydistricts.json";
 import { DISTRICT_SOLIDS } from "./districtsolids";
 import { botWalk } from "./botbody";
@@ -3198,14 +3198,18 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     const hole0 = St.foot + (firstUnder - 1) * run - 2 * R - 0.05;
     const sideOf = (key: Side4) =>
       key === "n" ? { nx: 0, nz: -1, dir: -1 } : key === "s" ? { nx: 0, nz: 1, dir: 1 } : key === "w" ? { nx: -1, nz: 0, dir: 1 } : { nx: 1, nz: 0, dir: -1 };
-    for (const t of towers) {
-      if (t.base === undefined || Math.abs(t.x) > kitCfg.dress.centre || Math.abs(t.z) > kitCfg.dress.centre || t.storeys < Fe.minStoreys) continue;
-      const fam = (Ek.families as Record<string, (typeof Ek.families)[keyof typeof Ek.families] | undefined>)[families[`${third(t.x)},${third(t.z)}`]];
-      if (!fam) continue;
-      // a storey of the pieces is the city's: if the kit's were ever re-cut, the solids would stand off the picture
-      if (Math.abs(St.landing - storeyH) > 0.05) continue;
-      const base = t.base;
-      const roof = t.roof;
+    type EscapeFamily = (typeof Ek.families)[keyof typeof Ek.families];
+    /**
+     * One fire escape on a face (`key` as a tower's; `at` its plane, `u0` where the pieces start along it, `mid` the
+     * face's middle), from `base` to the ledge at `roof`: `n` - 1 landings a storey apart, the first with its drop ladder
+     * from the ground, the last a climb under the ledge. `t`, the tower it hangs on, for its open storeys' windows and
+     * doors (a district's walkway front has neither); `floorGround` where the ground under it is the world's own floor,
+     * with no solid there (a district's street); `climbX` where along the pieces the climb from the last landing is (a
+     * district's front can rise past its walkway in places). Whether it was built: nothing solid in its way, and no
+     * pad, open storey's window or door near it
+     */
+    const escapeAt = (fam: EscapeFamily, family: string, key: Side4, at: number, u0: number, mid: number, base: number, roof: number, n: number, t: Tower | null, floorGround: boolean, climbX = 0.5): boolean => {
+      const { nx, nz, dir } = sideOf(key);
       const Wd = fam.width;
       const Dv = fam.depth * sz;
       const lane0 = fam.lane[0] * sz;
@@ -3213,12 +3217,182 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
       const inner = lane0 - Fe.gap;
       const lad = { a: fam.ladder[0], b: fam.ladder[1], v0: fam.ladder[2] * sz, v1: fam.ladder[3] * sz };
       const reach = Math.max(Dv, lad.v1) + 2 * R;
+      const uStart = dir > 0 ? u0 : u0 + Wd;
+      /** a point in the pieces' frame (along from their left, out from the wall), map-local */
+      const pt = (x: number, v: number): [number, number] => {
+        const u = uStart + dir * x;
+        return nx === 0 ? [u, at + nz * v] : [at + nx * v, u];
+      };
+      const box = (xa: number, xb: number, va: number, vb: number) => {
+        const [x1, z1] = pt(xa, va);
+        const [x2, z2] = pt(xb, vb);
+        return { minX: Math.min(x1, x2), maxX: Math.max(x1, x2), minZ: Math.min(z1, z2), maxZ: Math.max(z1, z2) };
+      };
+      const foot = box(-0.3, Wd + 0.3, 0.02, reach);
+      // the promenade under it all, at the tower's base
+      let ground = true;
+      for (const [gx, gv] of [
+        [0.3, Dv / 2],
+        [Wd - 0.3, Dv / 2],
+        [(lad.a + lad.b) / 2, lad.v1 + R],
+      ] as const) {
+        const [px, pz] = pt(gx, gv);
+        const top = RANGE_SOLIDS.filter((s) => px + BR_X > s.minX && px + BR_X < s.maxX && pz + BR_Z > s.minZ && pz + BR_Z < s.maxZ && s.top <= base + 0.3).reduce((m, s) => Math.max(m, s.top), floorGround ? floorAt(px + BR_X, pz + BR_Z) : -Infinity);
+        if (Math.abs(top - base) > 0.3) ground = false;
+      }
+      if (!ground) return false;
+      // nothing solid in the way, from the promenade to over the roof
+      if (RANGE_SOLIDS.some((s) => s.maxX > foot.minX + BR_X && s.minX < foot.maxX + BR_X && s.maxZ > foot.minZ + BR_Z && s.minZ < foot.maxZ + BR_Z && s.top > base + 0.05 && s.base < roof + 1.2)) return false;
+      // no pad's column near it, no window of an open storey, no door
+      const cp = Fe.clear.pad;
+      if (pads.some((p) => p.x - BR_X > foot.minX - cp && p.x - BR_X < foot.maxX + cp && p.z - BR_Z > foot.minZ - cp && p.z - BR_Z < foot.maxZ + cp)) return false;
+      const uLo = Math.min(u0, u0 + Wd);
+      const uHi = Math.max(u0, u0 + Wd);
+      const win = Lb.width / 2 + Fe.clear.window;
+      if (t && KIT_SITES.rooms.some((rm) => Math.abs(rm.x - t.x) < 0.01 && Math.abs(rm.z - t.z) < 0.01 && mid + rm.at[key] + win > uLo && mid + rm.at[key] - win < uHi)) return false;
+      const cd = Fe.clear.door;
+      if (KIT_SITES.doors.some((q) => !q.escape && q.x1 > foot.minX - cd && q.x0 < foot.maxX + cd && q.z1 > foot.minZ - cd && q.z0 < foot.maxZ + cd && q.y1 > base && q.y0 < roof)) return false;
+      const T = Fe.railThick;
+
+      // ---- the solids, a storey at a time, and the way up them
+      // Solid as the pieces are, drawn light: where the kit is off (Competitive, a copy without the files) the city
+      // draws every escape, and a box a tread and a rail was 82k triangles over the city's 320k (city-budget.ts). So
+      // a landing is drawn as its plates, a flight as one plate on its slope, a rail as its top bar
+      const hard = (xa: number, xb: number, va: number, vb: number, ya: number, yb: number): void => {
+        const q = box(xa, xb, va, vb);
+        solid(q.minX, q.maxX, q.minZ, q.maxZ, ya, yb);
+      };
+      const plateAt = (xa: number, xb: number, va: number, vb: number, y: number): void => {
+        const q = box(xa, xb, va, vb);
+        const m = new THREE.Mesh(plateGeo(q.maxX - q.minX, q.maxZ - q.minZ), body);
+        m.position.set((q.minX + q.maxX) / 2, y, (q.minZ + q.maxZ) / 2);
+        m.receiveShadow = true;
+        root.add(m);
+      };
+      /** a landing's plate: solid its thickness, drawn at its top */
+      const plate = (xa: number, xb: number, va: number, vb: number, y: number): void => {
+        hard(xa, xb, va, vb, y - St.plate, y);
+        plateAt(xa, xb, va, vb, y);
+      };
+      /** a rail: solid its full height, drawn as its top bar */
+      const rail = (xa: number, xb: number, va: number, vb: number, y: number, drawn: boolean): void => {
+        const q = box(xa, xb, va, vb);
+        solid(q.minX, q.maxX, q.minZ, q.maxZ, y, y + Fe.rail);
+        if (drawn) deco(q.maxX - q.minX, T, q.maxZ - q.minZ, (q.minX + q.maxX) / 2, y + Fe.rail - T, (q.minZ + q.maxZ) / 2, body);
+      };
+      /** a flight's treads, solid, drawn as one plate from its foot on the landing below to its top */
+      const flight = (y0: number): void => {
+        for (let i = 1; i <= Fe.treads; i++) hard(St.foot + (i - 1) * run, St.foot + i * run, lane0 + 0.02, lane1, y0 + i * rise - Fe.tread, y0 + i * rise);
+        const len = Math.hypot(St.top - St.foot, storeyH);
+        const pitch = Math.atan2(storeyH, St.top - St.foot);
+        const [mx, mz] = pt((St.foot + St.top) / 2, (lane0 + lane1) / 2);
+        const alongX = nx === 0;
+        const m = new THREE.Mesh(alongX ? plateGeo(len, lane1 - lane0) : plateGeo(lane1 - lane0, len), body);
+        m.position.set(mx, y0 + storeyH / 2, mz);
+        // rising the way the pieces' width runs: about z along x, about x along z
+        if (alongX) m.rotation.z = dir * pitch;
+        else m.rotation.x = -dir * pitch;
+        m.receiveShadow = true;
+        root.add(m);
+      };
+      for (let k = 1; k < n; k++) {
+        const y = base + k * storeyH;
+        if (k === 1) {
+          // the first landing, whole, and its drop ladder from the promenade
+          plate(0, Wd, 0, Dv, y);
+          const q = box(lad.a, lad.b, lad.v0, lad.v1);
+          slab(q.maxX - q.minX, y - base, q.maxZ - q.minZ, (q.minX + q.maxX) / 2, base, (q.minZ + q.maxZ) / 2, body);
+        } else {
+          // the landing round the hole the flight comes up through, and the flight
+          plate(0, Wd, 0, inner, y);
+          plate(0, hole0, inner, Dv, y);
+          plate(St.top, Wd, inner, Dv, y);
+          flight(y - storeyH);
+        }
+        // its rail: along its outer edge (open over the ladder) and across both ends
+        if (k === 1) {
+          rail(0, lad.a - 0.15, Dv - T, Dv, y, true);
+          rail(lad.b + 0.15, Wd, Dv - T, Dv, y, true);
+        } else rail(0, Wd, Dv - T, Dv, y, true);
+        rail(0, T, 0, Dv, y, false);
+        rail(Wd - T, Wd, 0, Dv, y, false);
+      }
+      // the way up, for the checks: onto the first landing off the ladder, then each flight from the landing's
+      // outer lane by its foot to its top, back along the inner strip past the hole, and out to the next foot
+      const laneMid = (inner + R + (Dv - T - R)) / 2;
+      const innerMid = (R + (lane0 - R)) / 2;
+      const w = (x: number, v: number, y: number) => {
+        const [px, pz] = pt(x, v);
+        return { x: px + BR_X, z: pz + BR_Z, y };
+      };
+      const way: Array<{ x: number; z: number; y: number }> = [];
+      const lx = (lad.a + lad.b) / 2;
+      way.push(w(lx, laneMid, base + storeyH), w(lx, innerMid, base + storeyH));
+      for (let k = 1; k < n - 1; k++) {
+        const y = base + k * storeyH;
+        way.push(w(0.5, innerMid, y), w(0.5, laneMid, y), w(St.top + 0.4, laneMid, y + storeyH), w(St.top + 0.4, innerMid, y + storeyH));
+      }
+      // a doorway into each open storey a landing stands at, in the landing's middle: the wall's piece there
+      // swapped for the same wall round a door, where the room is clear behind it
+      const doors: Array<{ out: { x: number; z: number; y: number }; in: { x: number; z: number; y: number } }> = [];
+      const [du0, du1] = [uStart + dir * (Wd / 2 - Fe.door / 2), uStart + dir * (Wd / 2 + Fe.door / 2)].sort((p, q) => p - q);
+      for (let k = 1; k < n; k++) {
+        const y = base + k * storeyH;
+        const piece = t ? roomWalls.find((q) => q.x === t.x && q.z === t.z && Math.abs(q.y - y) < 0.01 && q.face === key && q.h > storeyH - 0.01 && q.a < du0 - 0.2 && q.b > du1 + 0.2) : undefined;
+        if (!piece) continue;
+        // clear behind: nothing standing in the room across the door, doorClear deep past the wall
+        const blocked = [0.25, 0.5, 0.75].some((f) =>
+          [Lb.wall + 0.5, Lb.wall + Fe.doorClear].some((dv) => {
+            const [bx, bz] = pt(Wd / 2 - Fe.door / 2 + f * Fe.door, -dv);
+            return RANGE_SOLIDS.some((s) => bx + BR_X > s.minX && bx + BR_X < s.maxX && bz + BR_Z > s.minZ && bz + BR_Z < s.maxZ && s.base < y + 1.8 && s.top > y + 0.3);
+          }),
+        );
+        if (blocked) continue;
+        root.remove(piece.mesh);
+        const si = RANGE_SOLIDS.indexOf(piece.solid);
+        if (si >= 0) RANGE_SOLIDS.splice(si, 1);
+        roomWalls.splice(roomWalls.indexOf(piece), 1);
+        const alongX = nx === 0;
+        const wallBit = (a: number, b: number, yy: number, h: number) =>
+          alongX ? slab(b - a, h, Lb.wall, (a + b) / 2, yy, piece.at, piece.mat) : slab(Lb.wall, h, b - a, piece.at, yy, (a + b) / 2, piece.mat);
+        wallBit(piece.a, du0, y, storeyH);
+        wallBit(du1, piece.b, y, storeyH);
+        wallBit(du0, du1, y + Lb.height, storeyH - Lb.height);
+        KIT_SITES.doors.push(alongX ? { x0: du0, x1: du1, z0: at - 0.5, z1: at + 0.5, y0: y, y1: y + Lb.height, escape: true } : { x0: at - 0.5, x1: at + 0.5, z0: du0, z1: du1, y0: y, y1: y + Lb.height, escape: true });
+        const [px, pz] = pt(Wd / 2, (R + (lane0 - R)) / 2);
+        const [ix, iz] = pt(Wd / 2, -(Lb.wall + 1.2));
+        doors.push({ out: { x: px + BR_X, z: pz + BR_Z, y }, in: { x: ix + BR_X, z: iz + BR_Z, y } });
+      }
+      const [ox, oz] = pt(lx, lad.v1 + R + 0.15);
+      const [cx, cz] = pt(climbX, R + 0.05);
+      FIRE_ESCAPES.push({
+        family,
+        outside: { x: ox + BR_X, z: oz + BR_Z, y: base },
+        wall: (Math.atan2(nx, nz) * 180) / Math.PI,
+        landing: base + storeyH,
+        way,
+        climb: { x: cx + BR_X, z: cz + BR_Z, y: base + (n - 1) * storeyH },
+        roof,
+        box: { minX: foot.minX + BR_X, maxX: foot.maxX + BR_X, minZ: foot.minZ + BR_Z, maxZ: foot.maxZ + BR_Z },
+        doors,
+      });
+      KIT_SITES.escapes.push({ family, face: key, at, uStart, dir, base, storeys: n, x0: foot.minX, x1: foot.maxX, z0: foot.minZ, z1: foot.maxZ, y0: base, y1: roof + 1.6 });
+      return true;
+    };
+    for (const t of towers) {
+      if (t.base === undefined || Math.abs(t.x) > kitCfg.dress.centre || Math.abs(t.z) > kitCfg.dress.centre || t.storeys < Fe.minStoreys) continue;
+      const family = families[`${third(t.x)},${third(t.z)}`];
+      const fam = (Ek.families as Record<string, EscapeFamily | undefined>)[family];
+      if (!fam) continue;
+      // a storey of the pieces is the city's: if the kit's were ever re-cut, the solids would stand off the picture
+      if (Math.abs(St.landing - storeyH) > 0.05) continue;
+      const Wd = fam.width;
       const r = seeded(C.seed ^ Math.round(t.x * 131 + t.z * 7919));
       const keys = (["n", "s", "w", "e"] as const).map((k) => ({ k, o: r() })).sort((a, b) => a.o - b.o);
       let built = 0;
       for (const { k: key } of keys) {
         if (built >= Fe.perTower) break;
-        const { nx, nz, dir } = sideOf(key);
+        const { nx, nz } = sideOf(key);
         const at = nx === 0 ? t.z + (nz * t.d) / 2 : t.x + (nx * t.w) / 2;
         const a = nx === 0 ? t.x - t.w / 2 : t.z - t.d / 2;
         const b = nx === 0 ? t.x + t.w / 2 : t.z + t.d / 2;
@@ -3236,168 +3410,46 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
         const ends = r() < 0.5 ? [a + Fe.corner, b - Fe.corner - Wd] : [b - Fe.corner - Wd, a + Fe.corner];
         for (const u0 of ends) {
           if (built >= Fe.perTower) break;
-          const uStart = dir > 0 ? u0 : u0 + Wd;
-          /** a point in the pieces' frame (along from their left, out from the wall), map-local */
-          const pt = (x: number, v: number): [number, number] => {
-            const u = uStart + dir * x;
-            return nx === 0 ? [u, at + nz * v] : [at + nx * v, u];
-          };
-          const box = (xa: number, xb: number, va: number, vb: number) => {
-            const [x1, z1] = pt(xa, va);
-            const [x2, z2] = pt(xb, vb);
-            return { minX: Math.min(x1, x2), maxX: Math.max(x1, x2), minZ: Math.min(z1, z2), maxZ: Math.max(z1, z2) };
-          };
-          const foot = box(-0.3, Wd + 0.3, 0.02, reach);
-          // the promenade under it all, at the tower's base
-          let ground = true;
-          for (const [gx, gv] of [
-            [0.3, Dv / 2],
-            [Wd - 0.3, Dv / 2],
-            [(lad.a + lad.b) / 2, lad.v1 + R],
-          ] as const) {
-            const [px, pz] = pt(gx, gv);
-            const top = RANGE_SOLIDS.filter((s) => px + BR_X > s.minX && px + BR_X < s.maxX && pz + BR_Z > s.minZ && pz + BR_Z < s.maxZ && s.top <= base + 0.3).reduce((m, s) => Math.max(m, s.top), -Infinity);
-            if (Math.abs(top - base) > 0.3) ground = false;
-          }
-          if (!ground) continue;
-          // nothing solid in the way, from the promenade to over the roof
-          if (RANGE_SOLIDS.some((s) => s.maxX > foot.minX + BR_X && s.minX < foot.maxX + BR_X && s.maxZ > foot.minZ + BR_Z && s.minZ < foot.maxZ + BR_Z && s.top > base + 0.05 && s.base < roof + 1.2)) continue;
-          // no pad's column near it, no window of an open storey, no door
-          const cp = Fe.clear.pad;
-          if (pads.some((p) => p.x - BR_X > foot.minX - cp && p.x - BR_X < foot.maxX + cp && p.z - BR_Z > foot.minZ - cp && p.z - BR_Z < foot.maxZ + cp)) continue;
-          const uLo = Math.min(u0, u0 + Wd);
-          const uHi = Math.max(u0, u0 + Wd);
-          const win = Lb.width / 2 + Fe.clear.window;
-          if (KIT_SITES.rooms.some((rm) => Math.abs(rm.x - t.x) < 0.01 && Math.abs(rm.z - t.z) < 0.01 && mid + rm.at[key] + win > uLo && mid + rm.at[key] - win < uHi)) continue;
-          const cd = Fe.clear.door;
-          if (KIT_SITES.doors.some((q) => !q.escape && q.x1 > foot.minX - cd && q.x0 < foot.maxX + cd && q.z1 > foot.minZ - cd && q.z0 < foot.maxZ + cd && q.y1 > base && q.y0 < roof)) continue;
-          built++;
-          const T = Fe.railThick;
-
-          // ---- the solids, a storey at a time, and the way up them
-          // Solid as the pieces are, drawn light: where the kit is off (Competitive, a copy without the files) the city
-          // draws every escape, and a box a tread and a rail was 82k triangles over the city's 320k (city-budget.ts). So
-          // a landing is drawn as its plates, a flight as one plate on its slope, a rail as its top bar
-          const hard = (xa: number, xb: number, va: number, vb: number, ya: number, yb: number): void => {
-            const q = box(xa, xb, va, vb);
-            solid(q.minX, q.maxX, q.minZ, q.maxZ, ya, yb);
-          };
-          const plateAt = (xa: number, xb: number, va: number, vb: number, y: number): void => {
-            const q = box(xa, xb, va, vb);
-            const m = new THREE.Mesh(plateGeo(q.maxX - q.minX, q.maxZ - q.minZ), body);
-            m.position.set((q.minX + q.maxX) / 2, y, (q.minZ + q.maxZ) / 2);
-            m.receiveShadow = true;
-            root.add(m);
-          };
-          /** a landing's plate: solid its thickness, drawn at its top */
-          const plate = (xa: number, xb: number, va: number, vb: number, y: number): void => {
-            hard(xa, xb, va, vb, y - St.plate, y);
-            plateAt(xa, xb, va, vb, y);
-          };
-          /** a rail: solid its full height, drawn as its top bar */
-          const rail = (xa: number, xb: number, va: number, vb: number, y: number, drawn: boolean): void => {
-            const q = box(xa, xb, va, vb);
-            solid(q.minX, q.maxX, q.minZ, q.maxZ, y, y + Fe.rail);
-            if (drawn) deco(q.maxX - q.minX, T, q.maxZ - q.minZ, (q.minX + q.maxX) / 2, y + Fe.rail - T, (q.minZ + q.maxZ) / 2, body);
-          };
-          /** a flight's treads, solid, drawn as one plate from its foot on the landing below to its top */
-          const flight = (y0: number): void => {
-            for (let i = 1; i <= Fe.treads; i++) hard(St.foot + (i - 1) * run, St.foot + i * run, lane0 + 0.02, lane1, y0 + i * rise - Fe.tread, y0 + i * rise);
-            const len = Math.hypot(St.top - St.foot, storeyH);
-            const pitch = Math.atan2(storeyH, St.top - St.foot);
-            const [mx, mz] = pt((St.foot + St.top) / 2, (lane0 + lane1) / 2);
-            const alongX = nx === 0;
-            const m = new THREE.Mesh(alongX ? plateGeo(len, lane1 - lane0) : plateGeo(lane1 - lane0, len), body);
-            m.position.set(mx, y0 + storeyH / 2, mz);
-            // rising the way the pieces' width runs: about z along x, about x along z
-            if (alongX) m.rotation.z = dir * pitch;
-            else m.rotation.x = -dir * pitch;
-            m.receiveShadow = true;
-            root.add(m);
-          };
-          const n = t.storeys;
-          for (let k = 1; k < n; k++) {
-            const y = base + k * storeyH;
-            if (k === 1) {
-              // the first landing, whole, and its drop ladder from the promenade
-              plate(0, Wd, 0, Dv, y);
-              const q = box(lad.a, lad.b, lad.v0, lad.v1);
-              slab(q.maxX - q.minX, y - base, q.maxZ - q.minZ, (q.minX + q.maxX) / 2, base, (q.minZ + q.maxZ) / 2, body);
-            } else {
-              // the landing round the hole the flight comes up through, and the flight
-              plate(0, Wd, 0, inner, y);
-              plate(0, hole0, inner, Dv, y);
-              plate(St.top, Wd, inner, Dv, y);
-              flight(y - storeyH);
-            }
-            // its rail: along its outer edge (open over the ladder) and across both ends
-            if (k === 1) {
-              rail(0, lad.a - 0.15, Dv - T, Dv, y, true);
-              rail(lad.b + 0.15, Wd, Dv - T, Dv, y, true);
-            } else rail(0, Wd, Dv - T, Dv, y, true);
-            rail(0, T, 0, Dv, y, false);
-            rail(Wd - T, Wd, 0, Dv, y, false);
-          }
-          // the way up, for the checks: onto the first landing off the ladder, then each flight from the landing's
-          // outer lane by its foot to its top, back along the inner strip past the hole, and out to the next foot
-          const laneMid = (inner + R + (Dv - T - R)) / 2;
-          const innerMid = (R + (lane0 - R)) / 2;
-          const w = (x: number, v: number, y: number) => {
-            const [px, pz] = pt(x, v);
-            return { x: px + BR_X, z: pz + BR_Z, y };
-          };
-          const way: Array<{ x: number; z: number; y: number }> = [];
-          const lx = (lad.a + lad.b) / 2;
-          way.push(w(lx, laneMid, base + storeyH), w(lx, innerMid, base + storeyH));
-          for (let k = 1; k < n - 1; k++) {
-            const y = base + k * storeyH;
-            way.push(w(0.5, innerMid, y), w(0.5, laneMid, y), w(St.top + 0.4, laneMid, y + storeyH), w(St.top + 0.4, innerMid, y + storeyH));
-          }
-          // a doorway into each open storey a landing stands at, in the landing's middle: the wall's piece there
-          // swapped for the same wall round a door, where the room is clear behind it
-          const doors: Array<{ out: { x: number; z: number; y: number }; in: { x: number; z: number; y: number } }> = [];
-          const [du0, du1] = [uStart + dir * (Wd / 2 - Fe.door / 2), uStart + dir * (Wd / 2 + Fe.door / 2)].sort((p, q) => p - q);
-          for (let k = 1; k < n; k++) {
-            const y = base + k * storeyH;
-            const piece = roomWalls.find((q) => q.x === t.x && q.z === t.z && Math.abs(q.y - y) < 0.01 && q.face === key && q.h > storeyH - 0.01 && q.a < du0 - 0.2 && q.b > du1 + 0.2);
-            if (!piece) continue;
-            // clear behind: nothing standing in the room across the door, doorClear deep past the wall
-            const blocked = [0.25, 0.5, 0.75].some((f) =>
-              [Lb.wall + 0.5, Lb.wall + Fe.doorClear].some((dv) => {
-                const [bx, bz] = pt(Wd / 2 - Fe.door / 2 + f * Fe.door, -dv);
-                return RANGE_SOLIDS.some((s) => bx + BR_X > s.minX && bx + BR_X < s.maxX && bz + BR_Z > s.minZ && bz + BR_Z < s.maxZ && s.base < y + 1.8 && s.top > y + 0.3);
-              }),
-            );
-            if (blocked) continue;
-            root.remove(piece.mesh);
-            const si = RANGE_SOLIDS.indexOf(piece.solid);
-            if (si >= 0) RANGE_SOLIDS.splice(si, 1);
-            roomWalls.splice(roomWalls.indexOf(piece), 1);
-            const alongX = nx === 0;
-            const wallBit = (a: number, b: number, yy: number, h: number) =>
-              alongX ? slab(b - a, h, Lb.wall, (a + b) / 2, yy, piece.at, piece.mat) : slab(Lb.wall, h, b - a, piece.at, yy, (a + b) / 2, piece.mat);
-            wallBit(piece.a, du0, y, storeyH);
-            wallBit(du1, piece.b, y, storeyH);
-            wallBit(du0, du1, y + Lb.height, storeyH - Lb.height);
-            KIT_SITES.doors.push(alongX ? { x0: du0, x1: du1, z0: at - 0.5, z1: at + 0.5, y0: y, y1: y + Lb.height, escape: true } : { x0: at - 0.5, x1: at + 0.5, z0: du0, z1: du1, y0: y, y1: y + Lb.height, escape: true });
-            const [px, pz] = pt(Wd / 2, (R + (lane0 - R)) / 2);
-            const [ix, iz] = pt(Wd / 2, -(Lb.wall + 1.2));
-            doors.push({ out: { x: px + BR_X, z: pz + BR_Z, y }, in: { x: ix + BR_X, z: iz + BR_Z, y } });
-          }
-          const [ox, oz] = pt(lx, lad.v1 + R + 0.15);
-          const [cx, cz] = pt(0.5, R + 0.05);
-          FIRE_ESCAPES.push({
-            family: families[`${third(t.x)},${third(t.z)}`],
-            outside: { x: ox + BR_X, z: oz + BR_Z, y: base },
-            wall: (Math.atan2(nx, nz) * 180) / Math.PI,
-            landing: base + storeyH,
-            way,
-            climb: { x: cx + BR_X, z: cz + BR_Z, y: roof - storeyH },
-            roof,
-            box: { minX: foot.minX + BR_X, maxX: foot.maxX + BR_X, minZ: foot.minZ + BR_Z, maxZ: foot.maxZ + BR_Z },
-            doors,
+          if (escapeAt(fam, family, key, at, u0, mid, t.base, t.roof, t.storeys, t, false)) built++;
+        }
+      }
+    }
+    // The districts' (citydistricts.json escapes): up a walkway's front from the canyon's street, by the same rules.
+    // Each walks back from its spot to the front, as a pad does, and takes the front's plane and the walkway's height
+    // off the collision there, so a re-bake that moves the front moves it too
+    for (const d of DISTRICTS.districts) {
+      const boxes = DISTRICT_SOLIDS[d.id] ?? [];
+      const [w0, w1] = d.fill.walkway;
+      for (const q of d.escapes) {
+        const fam = (Ek.families as Record<string, EscapeFamily | undefined>)[q.family];
+        if (!fam || Math.abs(St.landing - storeyH) > 0.05) continue;
+        const [sx, sz] = q.spot;
+        const [nx, nz] = q.out;
+        for (let s = 0; s < d.padReach; s += 0.05) {
+          const x = sx - nx * s;
+          const z = sz - nz * s;
+          const face = boxes.find(([x0, x1, z0, z1, y0, y1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1 && y0 < 1 && y1 >= w0 && y1 <= w1);
+          if (!face) continue;
+          const key: Side4 = nx < 0 ? "w" : nx > 0 ? "e" : nz < 0 ? "n" : "s";
+          const at = nx < 0 ? face[0] : nx > 0 ? face[1] : nz < 0 ? face[2] : face[3];
+          const along = nx === 0 ? sx : sz;
+          const base = floorAt(sx + BR_X, sz + BR_Z);
+          // the climb from the last landing where the walkway is over it, where a body stands once over the edge, with
+          // nothing rising out of it there (a front can: a tower's corner stands in High City's west walkway): its end,
+          // middle or other end
+          const { dir } = sideOf(key);
+          const uStart = dir > 0 ? along - fam.width / 2 : along + fam.width / 2;
+          const climbX = [0.5, fam.width / 2, fam.width - 0.5].find((cx) => {
+            const u = uStart + dir * cx;
+            const [ua, ub] = [u - R - 0.05, u + R + 0.05];
+            const [va, vb] = [at - (nx + nz) * 0.05, at - (nx + nz) * (2 * R + 0.1)].sort((p, q) => p - q);
+            const [x0, x1, z0, z1] = nx === 0 ? [ua, ub, va, vb] : [va, vb, ua, ub];
+            const over = boxes.filter((o) => o[1] > x0 && o[0] < x1 && o[3] > z0 && o[2] < z1 && o[4] < face[5] + MOVE.standHeight);
+            return over.some((o) => Math.abs(o[5] - face[5]) < 0.3) && over.every((o) => o[5] < face[5] + 0.3);
           });
-          KIT_SITES.escapes.push({ family: families[`${third(t.x)},${third(t.z)}`], face: key, at, uStart, dir, base, storeys: n, x0: foot.minX, x1: foot.maxX, z0: foot.minZ, z1: foot.maxZ, y0: base, y1: roof + 1.6 });
+          // a landing each whole storey under the walkway, the climb from the last onto it
+          if (climbX !== undefined) escapeAt(fam, q.family, key, at, along - fam.width / 2, along, base, face[5], Math.max(2, Math.round((face[5] - base) / storeyH)), null, true, climbX);
+          break;
         }
       }
     }

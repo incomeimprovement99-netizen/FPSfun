@@ -982,8 +982,9 @@ export function cityKitPlaces(padsWorld: ReadonlyArray<{ x: number; z: number; y
       };
       for (let k = 1; k < e.storeys; k++) {
         // the lowest the drop ladder's (its landing measured higher, so drawn a storey tall), the highest High City's
-        // with the gooseneck over the parapet, a tile between
-        const top = k === e.storeys - 1 && fam.top ? fam.top : null;
+        // with the gooseneck over the parapet, a tile between; one landing alone (a district's walkway) is the drop
+        // ladder's, as the top has a flight up to it and no ladder
+        const top = k === e.storeys - 1 && k > 1 && fam.top ? fam.top : null;
         const id = k === 1 ? fam.down : (top ?? fam.tile);
         const dm = dims(id);
         if (!dm) continue;

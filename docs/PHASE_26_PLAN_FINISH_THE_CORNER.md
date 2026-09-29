@@ -50,7 +50,7 @@ we are using out of how many."
 | 26.1 | The slam hurts enemies in every mode; its radius on the ground while you fall; the damage number on a hit | shipped | 315 |
 | 26.2 | Nobody gets into the corner where they should not | shipped | 315 |
 | 26.3 | Wallrunning: the camera leans, and you can see you are on the wall | shipped | 315 |
-| 26.4 | Finish the corner | | |
+| 26.4 | Finish the corner: the fire escapes up its walkways (shipped); the arm ends' lots next | in progress | 317 |
 | 26.5 | Wipe the middle district and rebuild it the corner's way, bigger | after 26.4 | |
 
 ### 26.0 The bug hunt (done)
@@ -127,7 +127,20 @@ The corner as a finished place to fight:
   High's b set and Kyber's tile A up 18 towers, walkable, their solids measured off the pieces (`tools/measure-escape.ts`);
   here they go up the walkways' fronts from the canyons' floor, measured and walked the same way. The demo street
   itself has none from its floor, since its canyons are bottomless.
+  **Done (Milestone 317):** the city's builder is shared (`city.ts escapeAt`, the city's 31 unchanged box for box) and
+  the corner's hang from `citydistricts.json escapes`. Every quarter metre of the four walkway fronts was tried by the
+  city's rules: High City's set fits only on the north arm's east front, and hangs there twice (z 89 and 122.6). The
+  others were turned down for what is on them: ledges at 3.05 and 7.05 m the length of the west arm's south front; a
+  ledge with a wall to 9.2 m behind it and no walkway on its north front; a block standing alone in the canyon on the
+  north arm's west front; the blurry backdrop building at the west arm's end. Kyber's narrower set would fit more,
+  but as another pack's look on High City's street, so not.
 - Its arms' ends: the backdrop buildings close up, and the drop from the west walkway's end to the street.
+  **Found with the fire escapes:** the scene's open ground (solid to 200 m and undrawn, Milestone 315) meets ground you
+  walk on in four lots, each an invisible wall where the street seems to go on. At the north arm's end, west of its
+  canyon (x 108 to 126, z 60 to 85): an empty lot between the city's building and High City's, seen from the canyon and
+  from the city's street along z 60. Beside it, east of the east walkway (x 140 to 152): a narrow lot at the map's edge,
+  a facade seen edge on. Either side of the west arm's end (x 60 to 92, z 108 to 125; x 60 to 120, z 141 to 152), from
+  the city's street along x 60: the backdrop's blurry faces close a courtyard.
 - The kit's recovered parts (Phase 25's v9: High City's fire escapes 2 m wider, the triangle budgets) where they touch
   the corner.
 - The rest of what a playtest finds.
