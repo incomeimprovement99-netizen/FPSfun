@@ -172,8 +172,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
   phases away and a new one phases in below and slides home; then the hands work
   the gun: the left thumb and forefinger pinch the USSO's charging handle, pull
   it and let it slam home, and the pack's own hands throw BOOG's bolt, as after
-  every shot. At rest both guns point level down the range. On an inspect the
-  left hand opens, palm up, with the hack you carry floating over it; holstered
+  every shot. At rest both guns point level down the range. An inspect in these
+  arms lasts 5.2 s, a beat held after each turn of the gun: the left hand comes
+  up from below, palm up, with the hacks you carry floating over it, each card
+  glowing and showing its level as the HUD's pips do, and near the end tosses
+  them up to burn out in the air as a swapped gun does; holstered
   or meleeing, the fists are the same bought arms and gloves. A
   swap is a throw: the hands lift the gun and toss it up and away, turning over
   as it phases out in the air, and the next phases in out there and flies back

@@ -7,6 +7,7 @@
  * castHack). Numbers: src/config/viewmodel.json hackCast.
  */
 import * as THREE from "three";
+import { phasedMaterial, type PhaseSweep } from "./phase";
 
 /** a hack's icon on its card, drawn in a 100 by 100 box round (0, 0) */
 function drawIcon(c: CanvasRenderingContext2D, id: string): void {
@@ -90,12 +91,16 @@ function drawIcon(c: CanvasRenderingContext2D, id: string): void {
 
 const cards = new Map<string, THREE.CanvasTexture>();
 
+/** a hack's fusion level on its card: `at` of `of` pips lit, in `color` (its slot's, as the HUD's hack boxes have them) */
+export type CardLevel = { at: number; of: number; color: string };
+
 /**
  * A hack's card: amber cut-cornered frame, a dashed line inside it, the icon in white with a cyan halo, over a dark
- * glass, as the official stills show it
+ * glass, as the official stills show it; with a `level`, the hack's fusion level as pips along its foot
  */
-export function hackCard(id: string, amber: string): THREE.CanvasTexture {
-  const have = cards.get(id);
+export function hackCard(id: string, amber: string, level?: CardLevel): THREE.CanvasTexture {
+  const key = level ? `${id}|${level.at}|${level.of}|${level.color}` : id;
+  const have = cards.get(key);
   if (have) return have;
   const W = 256;
   const H = 208;
@@ -130,8 +135,9 @@ export function hackCard(id: string, amber: string): THREE.CanvasTexture {
   c.stroke();
   c.setLineDash([]);
   c.save();
-  c.translate(W / 2, H / 2);
-  c.scale(0.95, 0.95);
+  // (up and a little smaller with the pips under it: centred, the icon's foot ran into them)
+  c.translate(W / 2, level ? H / 2 - 14 : H / 2);
+  c.scale(level ? 0.8 : 0.95, level ? 0.8 : 0.95);
   c.strokeStyle = c.fillStyle = "#ffffff";
   c.lineWidth = 9;
   c.lineCap = "round";
@@ -140,24 +146,71 @@ export function hackCard(id: string, amber: string): THREE.CanvasTexture {
   c.shadowBlur = 14;
   drawIcon(c, id);
   c.restore();
+  if (level && level.of > 0) {
+    const [x0, x1, y, h, gap] = [60, W - 60, H - 50, 12, 8];
+    const pw = (x1 - x0 - gap * (level.of - 1)) / level.of;
+    for (let p = 0; p < level.of; p++) {
+      const lit = p < level.at;
+      c.fillStyle = lit ? level.color : "rgba(255, 255, 255, 0.22)";
+      c.shadowColor = level.color;
+      c.shadowBlur = lit ? 12 : 0;
+      c.fillRect(x0 + p * (pw + gap), y, pw, h);
+    }
+  }
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
-  cards.set(id, tex);
+  cards.set(key, tex);
   return tex;
 }
 
-/** the card and its burst of pixels, in the view's space (the viewmodel's group) */
+let haloTex: THREE.CanvasTexture | null = null;
+/** a soft round light, white in the middle falling to nothing: tinted, the glow behind a card */
+function halo(): THREE.CanvasTexture {
+  if (haloTex) return haloTex;
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = 128;
+  const c = cv.getContext("2d")!;
+  const g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, "rgba(255, 255, 255, 1)");
+  g.addColorStop(0.45, "rgba(255, 255, 255, 0.35)");
+  g.addColorStop(1, "rgba(255, 255, 255, 0)");
+  c.fillStyle = g;
+  c.fillRect(0, 0, 128, 128);
+  haloTex = new THREE.CanvasTexture(cv);
+  return haloTex;
+}
+
+/**
+ * The card and its burst of pixels, in the view's space (the viewmodel's group). Options for an inspect's cards: `solid`,
+ * drawn over what is behind it rather than added to it (added, over the open glove's lit palm the icon washed out to
+ * white); `glow`, a halo behind it; `sweep`, a phase sweep it can dissolve by, as a gun does (phase.ts)
+ */
 export class HackCard {
   readonly group = new THREE.Group();
   private readonly card: THREE.Mesh;
   private readonly mat: THREE.MeshBasicMaterial;
   private readonly bits: Array<{ mesh: THREE.Mesh; vel: THREE.Vector3 }> = [];
   private readonly bitMat: THREE.MeshBasicMaterial;
+  private readonly halo: THREE.Mesh | null = null;
+  private readonly haloMat: THREE.MeshBasicMaterial | null = null;
+  private readonly sweep: PhaseSweep | null;
+  /** the halo's brightness asked for (glowAt), and how whole the card is (phaseAt) */
+  private glowK = 0;
+  private whole = 1;
 
-  constructor(size: number, amber: string, burst: number) {
-    this.mat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false });
+  constructor(size: number, amber: string, burst: number, opts: { solid?: boolean; glow?: boolean; sweep?: PhaseSweep } = {}) {
+    const base = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: opts.solid ? THREE.NormalBlending : THREE.AdditiveBlending, toneMapped: false });
+    this.sweep = opts.sweep ?? null;
+    this.mat = (this.sweep ? phasedMaterial(base, this.sweep) : base) as THREE.MeshBasicMaterial;
     this.card = new THREE.Mesh(new THREE.PlaneGeometry(size, size * (208 / 256)), this.mat);
     this.card.renderOrder = 10;
+    if (opts.glow) {
+      this.haloMat = new THREE.MeshBasicMaterial({ map: halo(), color: new THREE.Color(amber), transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false });
+      this.halo = new THREE.Mesh(new THREE.PlaneGeometry(size * 1.7, size * 1.5), this.haloMat);
+      this.halo.renderOrder = 9;
+      this.halo.position.z = -0.002;
+      this.group.add(this.halo);
+    }
     this.group.add(this.card);
     this.bitMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(amber).multiplyScalar(1.6), transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false });
     const bitGeo = new THREE.PlaneGeometry(size * 0.07, size * 0.07);
@@ -198,7 +251,12 @@ export class HackCard {
     const gone = after >= 0 ? Math.max(0, 1 - after / 0.12) : 1;
     this.mat.opacity = k * on * gone;
     this.card.scale.setScalar(0.6 + 0.4 * k + (after >= 0 ? after * 2.5 : 0));
-    this.card.visible = this.mat.opacity > 0.01;
+    this.card.visible = this.mat.opacity > 0.01 && this.whole > 0.001;
+    if (this.halo && this.haloMat) {
+      this.haloMat.opacity = this.mat.opacity * this.glowK * this.whole;
+      this.halo.scale.copy(this.card.scale);
+      this.halo.visible = this.card.visible && this.haloMat.opacity > 0.01;
+    }
     this.bitMat.opacity = after >= 0 ? Math.max(0, 1 - after / 0.28) : 0;
     for (const b of this.bits) {
       if (!b.mesh.visible) continue;
@@ -206,5 +264,28 @@ export class HackCard {
       if (this.bitMat.opacity <= 0) b.mesh.visible = false;
     }
     this.group.visible = this.card.visible || this.bitMat.opacity > 0;
+  }
+
+  /** the halo's brightness, 0 to 1 (with `glow`) */
+  glowAt(k: number): void {
+    this.glowK = k;
+  }
+
+  /**
+   * How whole the card is, 0 gone to 1 (with a `sweep`): the sweep runs up the card as it is now, so it dissolves from
+   * its top down the way a gun phases out; `t` the view's clock, for the sweep's flicker. Called before frame().
+   */
+  phaseAt(whole: number, t: number): void {
+    this.whole = whole;
+    const S = this.sweep;
+    if (!S) return;
+    S.phase.value = whole;
+    S.time.value = t;
+    const h = (this.card.geometry as THREE.PlaneGeometry).parameters.height;
+    this.card.updateWorldMatrix(true, false);
+    S.origin.value.set(0, -h / 2, 0).applyMatrix4(this.card.matrixWorld);
+    S.dir.value.set(0, h / 2, 0).applyMatrix4(this.card.matrixWorld).sub(S.origin.value);
+    S.len.value = Math.max(1e-6, S.dir.value.length());
+    S.dir.value.normalize();
   }
 }

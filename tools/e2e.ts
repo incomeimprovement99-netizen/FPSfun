@@ -3281,9 +3281,9 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; palm: { w: number; cards: number }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; swapDeep: number; swapRise: number; swapAhead: number; pickLead: string; pickAfter: string };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; palm: { w: number; cards: number }; palmArm: { hand: number[]; elbow: number[]; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; swapDeep: number; swapRise: number; swapAhead: number; pickLead: string; pickAfter: string };
   // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
-  const res: { guns: Record<string, Frames>; jump: string[] } = { guns: {}, jump: [] };
+  const res: { guns: Record<string, Frames>; jump: string[]; inspectLen: { time: number; at44: boolean; at56: boolean } } = { guns: {}, jump: [], inspectLen: { time: 0, at44: false, at56: true } };
   // (the page's helpers once, then one short page call a measure: the e2e draws in software, a few frames a second, and
   // a call doing several draws and states ran past a page call's 120 s)
   await ev(
@@ -3352,6 +3352,8 @@ async function packFrames(page: Page): Promise<void> {
   // the gun camera's field of view at the hip with a gun the view's own arms hold (ANAKIN), to hold the bought arms' to
   // (the owner, 2026-09-28: "like the view angle isn't how it was originally": they had drawn at the pack's 80 degrees)
   const plainFov = await pf<number>(`r.debugView.inspect = -1; H.clear(); await H.hold("alternator_smg"); await H.gameWait(0.4); return r.gunFov().gun;`);
+  // and the length of an inspect in the view's own arms
+  const plainInspect = await pf<number>(`return r.packArms().inspectTime;`);
   for (const id of ["r97", "sentinel"]) {
     const other = id === "r97" ? "sentinel" : "r97";
     const o = { through: {} as Record<string, number> } as Frames;
@@ -3389,6 +3391,10 @@ async function packFrames(page: Page): Promise<void> {
     o.fists = await pf<Frames["fists"]>(`r.debugView.lowered = 1; await H.gameWait(0.8); const s = r.packArms(); const f = { free: s.free, twist: [s.twistL, s.twistR], curl: [s.curlL, s.curlR], thumb: [s.thumbL, s.thumbR] }; H.clear(); await H.gameWait(0.8); return f;`);
     // an inspect: the open left palm with the hack over it
     o.palm = await pf<{ w: number; cards: number }>(`r.debugView.inspect = 0.5; await H.gameWait(0.3); const p = { w: r.packArms().palm, cards: r.packArms().palmCards }; r.debugView.inspect = -1; await H.gameWait(0.3); return p;`);
+    // the open hand's wrist and elbow on the screen (-1 to 1 across and up it), and the cards' hacks with their levels
+    o.palmArm = await pf<Frames["palmArm"]>(`r.sk.setHack("dash", 2); r.sk.setHack("reveal", 3); r.debugView.inspect = 0.3; await H.gameWait(0.3); const T = r.THREE; const root = r.viewModelRoot(); const inv = new T.Matrix4().copy(root.matrixWorld).invert(); const tanV = Math.tan(((r.gunFov().gun / 2) * Math.PI) / 180); const tanH = tanV * (innerWidth / innerHeight); const at = (n) => { const v = r.packRig().group.getObjectByName(n).getWorldPosition(new T.Vector3()).applyMatrix4(inv); return [v.x / -v.z / tanH, v.y / -v.z / tanV]; }; const out = { hand: at("hand_l"), elbow: at("lowerarm_l"), keys: r.packArms().palmCardKeys }; r.debugView.inspect = -1; await H.gameWait(0.3); return out;`);
+    // the toss: the cards before it, rising and phasing, and after it as the hand goes back
+    o.toss = await pf<Frames["toss"]>(`const at = async (u) => { r.debugView.inspect = u; await H.gameWait(0.15); return r.packArms(); }; const a = await at(0.72); const b = await at(0.85); const c = await at(0.93); r.debugView.inspect = -1; await H.gameWait(0.3); return { y0: a.palmCardY, y1: b.palmCardY, whole0: a.palmWhole, whole1: b.palmWhole, after: c.palmCards };`);
     // an inspect and a first draw's flourish all the way through: the worst of each measure at each moment
     const moves = (knob: string, cards: boolean) =>
       pf<Moves>(`const w = { cards: 0, deep: 0, wrist: 0, wrung: 0, short: 0 }; for (const u of [0.04, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.96]) { r.debugView.${knob} = u; await H.gameWait(0.12); const s = r.packArms(); const a = window.__packAudit(0.004); ${cards ? "w.cards = Math.max(w.cards, ...window.__cardOverGun());" : ""} w.deep = Math.max(w.deep, a.seenDeepest * 1000); w.wrist = Math.max(w.wrist, s.wristL, s.wristR); w.wrung = Math.max(w.wrung, s.skinL, s.skinR); w.short = Math.max(w.short, s.reachShort, s.reachShortR); } r.debugView.${knob} = -1; await H.gameWait(0.3); return w;`);
@@ -3420,6 +3426,8 @@ async function packFrames(page: Page): Promise<void> {
     o.pickAfter = pick[1];
     res.guns[id] = o;
   }
+  // an inspect begun as its button begins one, timed in the game's own clock (BOOG, in the bought arms)
+  res.inspectLen = await pf<typeof res.inspectLen>(`r.debugView.inspect = null; H.clear(); await H.gameWait(0.3); const time = r.packArms().inspectTime; r.inspectNow(); await H.gameWait(4.4); const at44 = r.vmState().inspecting; await H.gameWait(1.2); const at56 = r.vmState().inspecting; return { time, at44, at56 };`);
   // (the jump in a page of its own: in the section's, after the checks before it, the player left the ground and was
   // never stepped again, where a fresh page jumps, loops and lands)
   const jumpPage = await open(page.browser(), "?game=speedkills");
@@ -3560,6 +3568,33 @@ async function packFrames(page: Page): Promise<void> {
     "pack frames: on an inspect the left hand opens, palm up, with both hacks you carry over it",
     g.every((x) => x.palm.w > 0.9 && x.palm.cards === 2),
     show((x) => x.palm),
+  );
+  // (the owner, 2026-09-29: "the arm looks out of place now when inspecting the hacks ... move it back down and slightly
+  // closer to the camera ... the arm is weirdly up and out there": the elbow had been in the picture on its left, 0.5 and
+  // 0.69 of the way down, the whole arm in from the side and the hand a third of the way down)
+  check(
+    "pack frames: on an inspect the open hand's forearm comes up from below the picture (its elbow under the bottom edge), the hand in the lower half of it",
+    g.every((x) => x.palmArm.elbow[1] < -1 && x.palmArm.hand[1] < -0.45),
+    show((x) => ({ hand: x.palmArm.hand.map((v) => +v.toFixed(2)), elbow: x.palmArm.elbow.map((v) => +v.toFixed(2)) })),
+  );
+  // (the owner: "or it should show the level as well like we do on the custom ui on the bottom")
+  check(
+    "pack frames: on an inspect each hack's card carries its fusion level, lit in its slot's colour as the HUD's hack boxes",
+    g.every((x) => JSON.stringify(x.palmArm.keys) === JSON.stringify(["dash|2|mobility", "reveal|3|utility"])),
+    show((x) => x.palmArm.keys),
+  );
+  // (the owner: "include the tossing up animation of the hacks nearing the end of the inspect and they dissolve in the air
+  // like we plan to do when swapping guns")
+  check(
+    "pack frames: near an inspect's end the hacks are tossed up off the palm (5 cm and more) and phase out in the air, gone before the hand goes back to the gun",
+    g.every((x) => x.toss.whole0 > 0.99 && x.toss.y1 - x.toss.y0 > 0.05 && x.toss.whole1 < 0.6 && x.toss.after === 0),
+    show((x) => ({ rise: +(x.toss.y1 - x.toss.y0).toFixed(3), whole: [+x.toss.whole0.toFixed(2), +x.toss.whole1.toFixed(2)], after: x.toss.after })),
+  );
+  // (the owner: "make the whole animation like 2 seconds longer, so like a bit longer after each twist"), timed in the game
+  check(
+    "pack frames: an inspect in the bought arms runs 2 s longer than the view's own, still going 4.4 s in and over by 5.6",
+    Math.abs(res.inspectLen.time - plainInspect - 2) < 0.01 && res.inspectLen.at44 && !res.inspectLen.at56,
+    JSON.stringify({ ...res.inspectLen, plain: plainInspect }),
   );
   // (the owner, 2026-09-28: the hack "needs to be held higher and slightly more to the left so it doesn't bug in and out
   // with the gun when it sways back and forth on the usso", and "I have two hacks enabled, only 1 shows"; and the inspect

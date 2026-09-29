@@ -92,7 +92,7 @@ import { Menu, brRulesId, brTeamId, type Mode } from "./ui/menu";
 import { friendsModeFor } from "./ui/lobby";
 import { calloutAt, calloutLine } from "./game/callouts";
 import type { ImpactEvent } from "./game/projectile";
-import { INSPECT_TIME, FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
+import { FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
 import { Abilities, ABILITIES, ABILITY_IDS, ABILITY_KNOBS, JOLT, JOLT_DEFAULTS, KITS, kitOf, setJolt, tuneAbilities, tuningChanges, type AbilityId } from "./game/abilities";
 import { currentBinds, type Action } from "./game/input";
 import { bindName } from "./ui/binds";
@@ -6859,11 +6859,11 @@ function step(): void {
     // (not in the tour: there the held X is the step's skip, and the two would fight)
     if (input.playing && input.held("reload") && full && !loadout.swapping && holster === "out" && !tour.active) {
       if (!Number.isFinite(reloadHeldAt)) reloadHeldAt = now;
-      if (now - reloadHeldAt > INSPECT_HOLD && now - inspectAt > INSPECT_TIME) inspectAt = now;
+      if (now - reloadHeldAt > INSPECT_HOLD && now - inspectAt > viewModel.inspectTime) inspectAt = now;
     } else reloadHeldAt = -Infinity;
     // its own button too (the pad's D-pad left, held): any magazine
     if (input.playing && input.pressedNow("chat") && duel) quickOpenUntil = gameTime < quickOpenUntil ? 0 : gameTime + QUICK.open;
-    if (input.playing && input.pressedNow("inspect") && !slot.empty && !loadout.swapping && holster === "out" && now - inspectAt > INSPECT_TIME) inspectAt = now;
+    if (input.playing && input.pressedNow("inspect") && !slot.empty && !loadout.swapping && holster === "out" && now - inspectAt > viewModel.inspectTime) inspectAt = now;
     if (trigger || adsHeld || loadout.swapping || player.sprinting || holster !== "out" || ordnance.readied || knockedOut) inspectAt = -Infinity;
     // a new gun's first time out (a pickup, Gun Run's next gun): the flourish, once it is up
     if (slot.firstDraw && !loadout.swapping && !slot.empty) {
@@ -7594,8 +7594,8 @@ function step(): void {
     landDip: player.viewDip,
     lowered: debugView.lowered ?? (emptyHand || downedNow || debugView.downed || (knockedOut && !killcam.active) || ordnance.readied ? 1 : lowered),
     downed: downedNow || debugView.downed ? 1 : 0,
-    inspect: debugView.inspect ?? (now - inspectAt < INSPECT_TIME ? (now - inspectAt) / INSPECT_TIME : undefined),
-    hackIds: [hacks.get("mobility")?.id, hacks.get("utility")?.id].filter((id) => id !== undefined).map(String),
+    inspect: debugView.inspect ?? (now - inspectAt < viewModel.inspectTime ? (now - inspectAt) / viewModel.inspectTime : undefined),
+    hacks: (["mobility", "utility"] as const).flatMap((slot) => { const h = hacks.get(slot); return h ? [{ id: String(h.id), level: h.level, of: HACK.fuseLevels, slot }] : []; }),
     flourish: debugView.flourish !== null ? (debugView.flourish >= 0 ? debugView.flourish : undefined) : now - flourishAt < FLOURISH_TIME ? (now - flourishAt) / FLOURISH_TIME : undefined,
     onZip: debugView.onZip ?? player.onZip,
     draw: onScreen.state.drawFrac,
@@ -8341,7 +8341,11 @@ initWelcome();
   feelState: () => ({ lean: slideLean, air: airLean, boost: boostFeel, yaw: player.yaw, pitch: player.pitch, landSide: player.landSide, lurchSide: player.lurchSide }),
   /** a JOLT's view: the roll in degrees and the FOV fraction now (tools/e2e.ts) */
   joltFeel: () => ({ roll: joltRoll(gameTime), fov: joltFov }),
-  vmState: () => ({ inspecting: gameTime - inspectAt < INSPECT_TIME, flourish: gameTime - flourishAt < FLOURISH_TIME, ...viewModel.shown }),
+  /** an inspect begun now, as its button begins one (tools/e2e.ts times it) */
+  inspectNow: () => {
+    inspectAt = gameTime;
+  },
+  vmState: () => ({ inspecting: gameTime - inspectAt < viewModel.inspectTime, flourish: gameTime - flourishAt < FLOURISH_TIME, ...viewModel.shown }),
   /** how far into the sights the killcam is holding the killer's gun (tools/e2e.ts) */
   killcamAds: () => killcam.killerAds,
   /** your own third-person figure (tools/e2e.ts) */

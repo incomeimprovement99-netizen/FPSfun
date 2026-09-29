@@ -6641,3 +6641,38 @@ stuff. these are things i was hoping you would notice in general."
   the view's units or more off the eye, aimed and firing (0.077 in the e2e's burst), with the near plane at 0.048.
 - **Checked:** a new soldier e2e check: aimed and firing a burst, no part of either gun inside the near plane (the USSO
   0.077), seen failing without the clearance; the sheets of both guns aimed; the soldier section; verify; rules.
+
+## Milestone 330 — The inspect's hacks: the arm down and nearer, the cards bigger with their levels, tossed away at the end
+
+The owner, 2026-09-29, playtesting: "the arm looks out of place now when inspecting the hacks. If you just move it back
+down and slightly closer to the camera again i think it fixes it ... the arm is weirdly up and out there, then the hacks
+themselves can be slightly bigger themselves, be moved over slightly to the right as a pair, should have some more
+animation to it as well, like very basic glow or something or it should show the level as well like we do on the custom
+ui on the bottom. Then i think we make the whole animation like 2 seconds longer, so like a bit longer after each twist
+... and if we can also include the tossing up animation of the hacks nearing the end of the inspect and they dissolve in
+the air like we plan to do when swapping guns."
+
+- **The arm** (`fparms.json` inspectPalm.at, L96X palmElbow): photographed as it was, the whole left arm lay across the
+  left of the screen with the palm near eye height, its elbow inside the picture (0.5 of the way down on the USSO, 0.69
+  on BOOG). Three spots between round 4's and the one before it were photographed; at [-0.15, -0.16, -0.26], 6 cm lower
+  and 4 cm nearer, the forearm comes up from below the picture on the USSO, its elbow drawn 5 cm lower as well (at the
+  spot alone the forearm was wrung 90 degrees, the most the checks allow; now 76, the wrist 50). BOOG's rig sits 5 cm
+  lower and 6 cm further ahead, and there its elbow still swung out left with the sleeve across the bottom at every palm
+  spot (lowered to match, a card lay 14% over its scope), so its open hand's elbow is drawn 14 cm lower: the forearm up
+  from below as on the USSO, the wrist 52 degrees (20 cm lower bent it 67). Both elbows are now under the picture's
+  bottom edge (-1.66 and -1.69).
+- **The cards** (`hackcast.ts` hackCard and HackCard, `viewmodel.ts` placePalmCard): at 0.92 of a card's size where they
+  were 0.8, and nearer the eye, 2 cm right as a pair. Each carries the hack's fusion level as pips along its foot, lit in
+  its slot's colour as the HUD's hack boxes light them (mobility cyan, utility pink), with a soft amber halo behind it
+  pulsing. They are drawn over what is behind them rather than added to it: added, over the open glove's lit palm, an
+  icon washed out to white.
+- **Longer** (`inspectPack.seconds`, `viewmodel.ts` inspectTime): an inspect in the bought arms is 5.2 s where the view's
+  own is 3.2, a second more held after each twist, the moves themselves as long as they were.
+- **The toss** (`inspectPalm.toss`): near the end the palm flicks up 3 cm and throws the cards, which rise 14 cm, slower
+  as they go, spreading and turning, and phase out in the air with the gun's own sweep (`phase.ts`, the card's material
+  wrapped as the gun's are), top down, gone before the hand goes back to the gun.
+- **Checked:** the inspect's frame sheets on both guns, no frame flagged; the cards clear of BOOG's scope through its turn
+  (it comes nearest at 64%); new soldier e2e checks: the open hand's elbow under the picture and the hand in its lower
+  half, each card's hack and level, the toss (the cards 5 cm and more up and more than 40% phased by 85%, none shown by
+  93%), and an inspect begun as its button begins one still going 4.4 s in and over by 5.6, each seen failing with the
+  change taken out; the soldier section; verify; rules.

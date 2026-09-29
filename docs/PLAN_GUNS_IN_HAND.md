@@ -85,13 +85,19 @@ Checked against the deployed build's own sheets before acting on each.
 ### Round 5 (2026-09-29, playtesting the build before the thrown swap)
 
 1. "the arm looks out of place now when inspecting the hacks. If you just move it back down and slightly closer to the
-   camera again i think it fixes it ... the arm is weirdly up and out there": to do.
+   camera again i think it fixes it ... the arm is weirdly up and out there": **seen** (the elbow inside the picture on
+   its left, the whole arm in from the side) and **done** (Milestone 330), 6 cm lower and 4 cm nearer, the forearm up
+   from below the picture, and the elbow drawn down, BOOG's most (its rig sits lower and further ahead). The lesson:
+   a pose is looked at on every gun, since each pack gun's rig sits in its own place.
 2. "the hacks themselves can be slightly bigger themselves, be moved over slightly to the right as a pair, should have
    some more animation to it as well, like very basic glow or something or it should show the level as well like we do
-   on the custom ui on the bottom": to do.
-3. "make the whole animation like 2 seconds longer, so like a bit longer after each twist": to do.
+   on the custom ui on the bottom": **done** (Milestone 330), bigger, 2 cm right, a pulsing halo, and the level as the
+   HUD's pips in the slot's colour.
+3. "make the whole animation like 2 seconds longer, so like a bit longer after each twist": **done** (Milestone 330),
+   5.2 s, a second more held after each twist.
 4. "include the tossing up animation of the hacks nearing the end of the inspect and they dissolve in the air like we
-   plan to do when swapping guns": to do.
+   plan to do when swapping guns": **done** (Milestone 330), tossed up off a flick of the palm and phased out with the
+   gun's own sweep.
 5. "ADS on the USSO, you can see part of the optic disappearing, showing all buggy and stuff. these are things i was
    hoping you would notice in general": **done** (Milestone 329), the gun's back end had come inside the camera's near
    plane. The lesson, kept: every state of a gun is photographed and looked at, aimed in and firing included, not only
@@ -118,7 +124,7 @@ Each is a check in the e2e soldier section (`tools/e2e.ts` packFrames) or on the
 | The support hand at rest | on the handguard, ahead of the magazine, never on it |
 | The rack | the fingers close on the handle (the USSO's: the thumb and forefinger's tips within 2 cm of its knob) |
 | At rest | the gun level, as Hyper Scape holds it, not pointed up and left |
-| The inspect | the other hand open, palm up, every hack carried floating over it, clear of the gun's sway |
+| The inspect | the other hand open, palm up, its forearm up from below the picture (the elbow under its bottom edge), every hack carried floating over it with its level, clear of the gun's sway; tossed up and phased out before the hand goes back |
 | The inspect's own move | no frame at fault: the gun turned by the forearm, both arms reaching, wrists 60 or less, a forearm wrung 90 or less |
 | Firing | a muzzle flash and tracers that read without covering the target |
 | The textures | the held gun at 2048 on High |

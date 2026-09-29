@@ -36,7 +36,7 @@ type Shoulders = { l?: number[]; r?: number[]; adsL?: number[]; adsR?: number[] 
 export type HoldFit = { l?: HandFit; r?: HandFit };
 /** a fist's thumb joints turned on top of the fist, radians about each joint's own axes, per hand (tools/fist-thumb.ts) */
 export type ThumbFit = { l?: Record<string, number[]>; r?: Record<string, number[]> };
-type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders };
+type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[] };
 const MEASURED = (cfg as unknown as { measured: Record<string, Measured> }).measured;
 const PACK = cfg.packGuns as unknown as Record<string, PackGun>;
 const GUNS = cfg.guns as Record<string, string>;
@@ -101,13 +101,26 @@ type ThrowHand = { leave: number[]; off: number[]; open: number[] };
 export const PICKUP = (cfg as unknown as { pickup: { clip: string; seconds: number; ease: number; gunKeep: number } }).pickup;
 const ss = THREE.MathUtils.smoothstep;
 
-/** the gun camera's vertical field of view at the hip with these arms (fparms.json fov) */
 /** the hands off a gun (fparms.json free): a fist's bend a joint, and the palm's way in the hand's own frame */
 export const FREE = (cfg as unknown as { free: { fist: Record<string, number>; thumb?: ThumbFit; twistShare: number; palmSign: { l: number; r: number }; palm: { along: number[]; up: number[] }; pull: number[] } }).free;
-/** where the open left hand is on an inspect and how its hack floats (fparms.json inspectPalm) */
-/** an inspect in the bought arms' hands: the gun rolled about the right forearm (fparms.json inspectPack) */
-export const PACK_INSPECT = (cfg as unknown as { inspectPack: { roll: number[]; lift: number; show: number[]; turn: number[]; settle: number[]; flourish: number } }).inspectPack;
-export const PACK_PALM = (cfg as unknown as { inspectPalm: { at: number[]; bob: number; rate: number; spin: number; ease: number; lift: number; clear: number; pair: { gap: number; scale: number } } }).inspectPalm;
+/** an inspect in the bought arms' hands, its own length: the gun rolled about the right forearm (fparms.json inspectPack) */
+export const PACK_INSPECT = (cfg as unknown as { inspectPack: { seconds: number; roll: number[]; lift: number; show: number[]; turn: number[]; settle: number[]; flourish: number } }).inspectPack;
+/** where the open left hand is on an inspect, and how the hacks float, glow and are tossed away (fparms.json inspectPalm) */
+export const PACK_PALM = (cfg as unknown as {
+  inspectPalm: {
+    at: number[];
+    bob: number;
+    rate: number;
+    spin: number;
+    hold: number[];
+    lift: number;
+    clear: number;
+    pair: { gap: number; scale: number; dx: number };
+    glow: { base: number; depth: number; rate: number };
+    pips: Record<"mobility" | "utility", string>;
+    toss: { at: number[]; flick: number; rise: number; spread: number; turn: number; fade: number[] };
+  };
+}).inspectPalm;
 /** the open palm's knuckles and face on an inspect, in the view's space */
 const PALM_ALONG = new THREE.Vector3().fromArray(FREE.palm.along);
 const PALM_UP = new THREE.Vector3().fromArray(FREE.palm.up);
@@ -304,6 +317,8 @@ export class PackArms {
   debugPalmAt: number[] | null = null;
   /** the open hand's knuckles' way on an inspect, tried in place of the config's (tools/palm-place.ts) */
   debugPalmAlong: number[] | null = null;
+  /** the open hand's elbow moved off its line on an inspect, view metres, tried in place of the pack gun's */
+  debugPalmElbow: number[] | null = null;
   /** a fist's thumb tried in place of the config's (tools/fist-thumb.ts) */
   debugThumb: ThumbFit | null = null;
   /** a grab's closing tried in place of the pack gun's own (its curl, thumb and hook) */
@@ -1137,6 +1152,10 @@ export class PackArms {
         // elbow bent the wrist to 100 degrees)
         const fore = this.bones.lowerarm_l.getWorldPosition(new THREE.Vector3()).distanceTo(this.bones.hand_l.getWorldPosition(new THREE.Vector3()));
         palmElbow = f.palm.at.clone().addScaledVector(along.clone().normalize().applyQuaternion(this.group.getWorldQuaternion(new THREE.Quaternion())), -fore);
+        // and moved as the pack gun's rig needs it (view metres): from a shoulder lower and further ahead, BOOG's elbow
+        // swung out to the left and its sleeve lay across the bottom of the picture
+        const elbowBy = this.debugPalmElbow ?? PACK[this.active!]?.palmElbow;
+        if (elbowBy) palmElbow.add(new THREE.Vector3().fromArray(elbowBy).applyQuaternion(this.group.getWorldQuaternion(new THREE.Quaternion())).multiplyScalar(gsW));
         // down and out round the gun's left side on the way up and back, the most near the gun, as a hand lets go of what
         // it holds from under it (straight, the hand went 9 to 25 mm through it; out alone, BOOG's fingers still 9 mm)
         pos.add(new THREE.Vector3(-1, -1, 0).applyMatrix3(toWorldDir).normalize().multiplyScalar(6.75 * palmW * (1 - palmW) ** 2 * PACK_PALM.clear * gsW));

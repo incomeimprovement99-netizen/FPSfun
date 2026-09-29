@@ -83,9 +83,8 @@ export interface VMFrame {
   draw?: number;
   /** 0..1 through an inspect (holding reload with a full magazine), or undefined */
   inspect?: number;
-  /** the hack you carry (the first of your two), shown in the open left hand on an inspect */
-  /** the hacks carried, mobility first: each floats over the open palm on an inspect */
-  hackIds?: string[];
+  /** the hacks carried, mobility first: each floats over the open palm on an inspect, its fusion level on its card */
+  hacks?: Array<{ id: string; level: number; of: number; slot: "mobility" | "utility" }>;
   /** 0..1 through a new gun's first-draw flourish, or undefined */
   flourish?: number;
   /** 1 down, not out: no gun, the hands low on the floor, reaching in turn as you crawl */
@@ -96,7 +95,10 @@ export interface VMFrame {
   clip?: number;
 }
 
-/** an inspect's length, s, and a first draw's flourish (ours: cosmetic, the gun is usable throughout) */
+/**
+ * an inspect's length in the view's own arms, s (the bought arms' is their own: ViewModel inspectTime), and a first
+ * draw's flourish (ours: cosmetic, the gun is usable throughout)
+ */
 export const INSPECT_TIME = 3.2;
 export const FLOURISH_TIME = 0.95;
 
@@ -471,9 +473,13 @@ export class ViewModel {
     l: { at: new THREE.Vector3(), along: new THREE.Vector3(), palm: new THREE.Vector3(), fist: 1 },
     r: { at: new THREE.Vector3(), along: new THREE.Vector3(), palm: new THREE.Vector3(), fist: 1 },
   };
-  /** an inspect's hack over the open left palm (the bought arms), and whose card it shows */
-  private readonly palmCards = [new HackCard(armCfg.hackCast.card.size, armCfg.hackCast.amber, 0), new HackCard(armCfg.hackCast.card.size, armCfg.hackCast.amber, 0)];
+  /** an inspect's hacks over the open left palm (the bought arms), each with the sweep it phases out by when tossed */
+  private readonly palmCards = [0, 1].map(() => new HackCard(armCfg.hackCast.card.size, armCfg.hackCast.amber, 0, { solid: true, glow: true, sweep: newSweep(feelCfg.phase) }));
+  /** the hack, level and slot each card shows */
   private readonly palmCardIds = ["", ""];
+  /** where the cards float in the view this frame (their middle's height) and how whole they are (the checks) */
+  private palmCardY = 0;
+  private palmWhole = 1;
   /** how far the open palm is up this frame (the checks) */
   private palmW = 0;
   /** the pack's swap's swing of the gun this frame, in the view's space (the arms go with it: fprig.ts swing) */
@@ -764,39 +770,59 @@ export class ViewModel {
    */
   private palmFrame(f: VMFrame): { w: number; at: THREE.Vector3 } | null {
     const i = f.inspect;
-    if (i === undefined || i < 0 || i >= 1 || !f.hackIds?.length) return null;
+    if (i === undefined || i < 0 || i >= 1 || !f.hacks?.length) return null;
     const P = PACK_PALM;
-    const w = smooth(0, P.ease, i) * (1 - smooth(1 - P.ease, 1, i));
+    const w = smooth(0, P.hold[0], i) * (1 - smooth(P.hold[1], 1, i));
+    const at = new THREE.Vector3().fromArray(this.pack.debugPalmAt ?? P.at);
+    // the palm flicked up and back as it tosses the cards away
+    at.y += P.toss.flick * Math.sin(Math.PI * smooth(P.toss.at[0], P.toss.at[1], i));
     this.group.updateMatrixWorld(true);
-    return { w, at: this.group.localToWorld(new THREE.Vector3().fromArray(this.pack.debugPalmAt ?? P.at)) };
+    return { w, at: this.group.localToWorld(at) };
+  }
+
+  /** an inspect's length now, s: the bought arms' own when they hold the gun (fparms.json inspectPack seconds) */
+  get inspectTime(): number {
+    return this.packOn ? PACK_INSPECT.seconds : INSPECT_TIME;
   }
 
   /**
-   * the inspect's hacks over the open palm: a card for each hack carried, side by side (smaller, two together: the owner,
+   * the inspect's hacks over the open palm: a card for each hack carried, side by side (two together: the owner,
    * 2026-09-28, "I have two hacks enabled, only 1 shows ... move one to the side a bit more and have the other next to
-   * it ... possibly smaller if needed to fit in the hand"), floating and turning a little, each a little out of step
+   * it"), floating and turning a little, each a little out of step, glowing, with its fusion level along its foot; and
+   * near the end tossed up off the palm, rising slower as they go, and phased out in the air
    */
   private placePalmCard(f: VMFrame): void {
     const pf = this.palmFrame(f);
     const w = pf?.w ?? 0;
     this.palmW = w;
-    const ids = w > 0.001 ? (f.hackIds ?? []).slice(0, this.palmCards.length) : [];
+    const hacks = w > 0.001 ? (f.hacks ?? []).slice(0, this.palmCards.length) : [];
     const P = PACK_PALM;
-    const at = ids.length ? this.group.worldToLocal(this.pack.palmPoint(new THREE.Vector3())) : null;
+    const T = P.toss;
+    const i = f.inspect ?? 0;
+    const at = hacks.length ? this.group.worldToLocal(this.pack.palmPoint(new THREE.Vector3())) : null;
+    const up = smooth(T.at[0], T.fade[1], i);
+    this.palmWhole = 1 - smooth(T.fade[0], T.fade[1], i);
+    let y = 0;
     this.palmCards.forEach((card, k) => {
-      const id = ids[k];
-      if (id && id !== this.palmCardIds[k]) {
-        card.show(hackCard(id, armCfg.hackCast.amber));
-        this.palmCardIds[k] = id;
+      const h = hacks[k];
+      const key = h ? `${h.id}|${h.level}|${h.slot}` : "";
+      if (h && key !== this.palmCardIds[k]) {
+        card.show(hackCard(h.id, armCfg.hackCast.amber, { at: h.level, of: h.of, color: P.pips[h.slot] }));
+        this.palmCardIds[k] = key;
       }
-      if (id && at) {
-        card.group.position.copy(at).add(this.tmp.set((k - (ids.length - 1) / 2) * P.pair.gap, P.bob * Math.sin(this.t * P.rate + k), 0));
-        card.group.rotation.set(0, P.spin * Math.sin(this.t * 0.9 + k), 0);
-        card.group.scale.setScalar(ids.length > 1 ? P.pair.scale : 1);
+      if (h && at) {
+        const side = k - (hacks.length - 1) / 2;
+        card.group.position.copy(at).add(this.tmp.set(side * (P.pair.gap + T.spread * up) + P.pair.dx, P.bob * Math.sin(this.t * P.rate + k) + T.rise * (1 - (1 - up) ** 2), 0));
+        card.group.rotation.set(0, P.spin * Math.sin(this.t * 0.9 + k) + T.turn * up * (side < 0 ? -1 : 1), 0);
+        card.group.scale.setScalar(hacks.length > 1 ? P.pair.scale : 1);
+        card.glowAt(P.glow.base + P.glow.depth * Math.sin(this.t * P.glow.rate + k * 1.3));
+        y += card.group.position.y / hacks.length;
       }
+      card.phaseAt(h ? this.palmWhole : 1, this.t);
       // (up once the hand is: shown as it left the gun, the cards stood over the gun)
-      card.frame(id ? smooth(0.5, 1, w) : 0, false, -1, f.dt);
+      card.frame(h ? smooth(0.5, 1, w) : 0, false, -1, f.dt);
     });
+    this.palmCardY = y;
   }
 
   /** something taken off the ground now: the bought arms reach down for it (fparms.json pickup) */
@@ -819,8 +845,8 @@ export class ViewModel {
     return this.pack;
   }
 
-  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; skinL: number; skinR: number; curlL: number; curlR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; offHold: number; palmAhead: number; free: boolean; palm: number; palmCards: number } {
-    return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), twistL: this.pack.wristTwist("l"), twistR: this.pack.wristTwist("r"), skinL: this.pack.skinTwist("l"), skinR: this.pack.skinTwist("r"), curlL: this.pack.fingerCurl("l"), curlR: this.pack.fingerCurl("r"), thumbL: this.pack.freeReady ? this.pack.thumbOff("l") : 0, thumbR: this.pack.freeReady ? this.pack.thumbOff("r") : 0, ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCards: this.palmCards.filter((c) => c.group.visible).length };
+  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; skinL: number; skinR: number; curlL: number; curlR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; offHold: number; palmAhead: number; free: boolean; palm: number; palmCards: number; palmCardKeys: string[]; palmCardY: number; palmWhole: number; inspectTime: number } {
+    return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), twistL: this.pack.wristTwist("l"), twistR: this.pack.wristTwist("r"), skinL: this.pack.skinTwist("l"), skinR: this.pack.skinTwist("r"), curlL: this.pack.fingerCurl("l"), curlR: this.pack.fingerCurl("r"), thumbL: this.pack.freeReady ? this.pack.thumbOff("l") : 0, thumbR: this.pack.freeReady ? this.pack.thumbOff("r") : 0, ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCards: this.palmCards.filter((c) => c.group.visible).length, palmCardKeys: this.palmCardIds.filter((k, i) => k && this.palmCards[i].group.visible), palmCardY: this.palmCardY, palmWhole: this.palmWhole, inspectTime: this.inspectTime };
   }
 
   /**
