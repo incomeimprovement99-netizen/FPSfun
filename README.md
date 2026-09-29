@@ -1221,6 +1221,24 @@ High 2,889k. In the street of a match on the owner's RX 9070 XT that costs about
 1.8 ms a frame on Balanced (137 fps, from 182) and 3.7 ms on High (67 fps, from
 89), which draws the city again for its shadows and ambient occlusion.
 
+**The Neon City map, being built.** SpeedKills' next city (Phase 28,
+`docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md`) is made of Daelonik's Neon
+City bundle alone, nothing drawn by hand: `?map=neon` in the address plays it.
+The same nine districts, the eight round the centre plain for now; the centre a
+3 by 3 of blocks with 15 m streets, the bundle's 151 m Neon Building 08 in the
+middle, High City's 26 m towers with walkable roofs on the four axis blocks, 3
+to 6 storey buildings on the corners. `tools/neon-layout.ts` places every piece
+by its measured bounds from the rules in `src/config/neonmap.json`, and
+`tools/import-neon.ts NEON=bake` bakes them into one file a texture size
+(512, 1024 and 2048 px for Competitive, Balanced and High) with the collision
+measured off their own triangles (`src/config/neon/neonmap.solids.json`). The
+pack's Unity materials are drawn as Unity draws them: their detail maps
+multiplied in, their light beams unlit and added (`src/game/detailmaps.ts`).
+Eight jump pads, the pack's plate and blue beam, throw you onto High City's
+roofs; the bots' graph covers the street, the roofs and the floors, and a share
+of the loot is on the four roofs, named decks on the map.
+`tools/checks/sk-neon.ts` rides every pad and walks the graph.
+
 **The field is rock, scrub and cliff, not boxes.** The battle royale's cover
 is scanned rock (Poly Haven, CC0), its open ground has dead trees and branches
 scattered over it, and the cliff that walls the map in has rock faces along it.

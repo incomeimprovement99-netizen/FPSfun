@@ -58,7 +58,8 @@ pieces.forEach((p, i) => {
   const col = i % COLS, row = Math.floor(i / COLS);
   const x = col * cw, y = H - (row + 1) * ch;
   // from the front (+z, the pack's facing) and a little to the side and above
-  const dir = new THREE.Vector3(0.55, 0.42, 1).normalize();
+  // (?top: straight down, north up, for how floor pieces tile)
+  const dir = q.get("top") !== null ? new THREE.Vector3(0, 1, 0.0001).normalize() : new THREE.Vector3(0.55, 0.42, 1).normalize();
   const dist = r / Math.sin(THREE.MathUtils.degToRad(cam.fov / 2)) * 1.02;
   cam.position.copy(c).addScaledVector(dir, dist);
   cam.near = dist / 100;

@@ -34,6 +34,7 @@ import { emissive, flat } from "./geo";
 import { ZIPLINES } from "./traversal";
 // (a jump pad throws to a height by the movement's own gravity: SpeedKills' is 17.5 m/s/s, its overlay's)
 import { MOVE } from "./movement";
+import { padOnto as solvePad } from "./padsolve";
 import { BR_X, BR_Z, BR_HALF, type BrMap, type GraphNode, type Poi, type Site } from "./br";
 import cityCfg from "../config/city.json";
 import kitCfg from "../config/citykit.json";
@@ -458,31 +459,11 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   let coreBuild: { e0: number; e1: number; ac: number; wid: number; topY: number; face: number; box: (ua: number, ub: number, va: number, vb: number, y0: number, y1: number) => Cut; alongX: boolean; end: number } | null = null;
   /** map-local to world (the graph's P, which is made further down) */
   const W = (x: number, z: number) => ({ x: x + BR_X, z: z + BR_Z });
-  /**
-   * A jump pad onto a roof, solved: the face it throws you over is at (fx, fz)
-   * with (nx, nz) pointing out of it toward the pad, its floor `floor` and the
-   * roof `roof`. It throws you straight up to peakOver above the roof, and
-   * once you are clear above the edge carries you across to land landInside
-   * past it. Timed as one throw, a fraction of a second off met the wall
-   * metres below the top (the pads' e2e caught it three ways); split, the push
-   * waits for the height. A fixed nudge either met the wall below its top or never
-   * got over the edge, and aiming the body's middle at the face met it 0.4 m
-   * short of the top (the pads' e2e caught both).
-   */
-  const PAD_SOLVE = C.padSolve;
-  const padOnto = (fx: number, fz: number, nx: number, nz: number, floor: number, roof: number, landInside = PAD_SOLVE.landInside): void => {
-    const g = MOVE.gravity;
-    const H = roof - floor;
-    const v = Math.sqrt(2 * g * (H + PAD_SOLVE.peakOver));
-    // the pad a body and a little off the face; straight up, then over the edge once above it
-    const d0 = MOVE.radius + PAD_SOLVE.standOff;
-    const overY = roof + PAD_SOLVE.clear;
-    // from there, up to the peak and down to the roof: the time the push has to carry you d0 + landInside
-    const vOver = Math.sqrt(Math.max(0, v * v - 2 * g * (H + PAD_SOLVE.clear)));
-    const t = vOver / g + Math.sqrt((2 * PAD_SOLVE.peakOver) / g);
-    const vx = (d0 + landInside) / t;
-    pads.push({ ...W(fx + nx * d0, fz + nz * d0), dx: -nx * vx, dz: -nz * vx, y: floor, up: v, over: overY });
-    padLands.push({ pad: pads.length - 1, x: fx - nx * landInside, z: fz - nz * landInside, y: roof });
+  /** a jump pad onto a roof (padsolve.ts), in map-local metres, and where it lands you: the graph's one-way step up */
+  const padOnto = (fx: number, fz: number, nx: number, nz: number, floor: number, roof: number, landInside?: number): void => {
+    const { pad, land } = solvePad(fx, fz, nx, nz, floor, roof, landInside);
+    pads.push({ ...pad, ...W(pad.x, pad.z) });
+    padLands.push({ pad: pads.length - 1, ...land });
   };
   /** the streets inside the map (STREETS keeps the grid's six each way, which the configs name by index) */
   const LANES = STREETS.filter((s) => Math.abs(s) < BR_HALF - 7);
@@ -2376,78 +2357,10 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   }
 
   // ---------------------------------------------------------------- the edge's fence (city.json edge; Phase 20 A4)
-  // Lit lines climbing a red fence on all four sides, posts along it and a strip on the ground: the city's edge,
-  // plain in the world and not only on the minimap. Past it a countdown runs (edge.ts). Its materials opt out of
-  // the decay (userData.decay): the edge sectors dissolving would take the fence with them.
-  {
-    const F = C.edge.fence;
-    const canvas = document.createElement("canvas");
-    canvas.width = 256;
-    canvas.height = 256;
-    const g = canvas.getContext("2d");
-    if (g) {
-      g.clearRect(0, 0, 256, 256);
-      g.fillStyle = "rgba(255,255,255,0.9)";
-      for (let y = 0; y < 256; y += 32) g.fillRect(0, y, 256, 3);
-      const foot = g.createLinearGradient(0, 256, 0, 180);
-      foot.addColorStop(0, "rgba(255,255,255,0.9)");
-      foot.addColorStop(1, "rgba(255,255,255,0)");
-      g.fillStyle = foot;
-      g.fillRect(0, 180, 256, 76);
-    }
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set((BR_HALF * 2) / 8, F.height / 8);
-    const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(F.color), transparent: true, opacity: F.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, forceSinglePass: true });
-    mat.userData.decay = true;
-    for (const [x, z, turn] of [
-      [0, -BR_HALF, false],
-      [0, BR_HALF, false],
-      [-BR_HALF, 0, true],
-      [BR_HALF, 0, true],
-    ] as const) {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(BR_HALF * 2, F.height), mat);
-      m.position.set(x, F.height / 2, z);
-      if (turn) m.rotation.y = Math.PI / 2;
-      m.name = "edgeFence";
-      m.userData.dynamic = true;
-      root.add(m);
-    }
-    const postMat = emissive(parseInt(F.color.slice(1), 16), C.neonGlow);
-    postMat.userData.decay = true;
-    const per = Math.round((BR_HALF * 2) / F.postGap);
-    const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.3, F.height, 0.3), postMat, per * 4);
-    const m4 = new THREE.Matrix4();
-    let n = 0;
-    for (let i = 0; i < per; i++) {
-      const t = -BR_HALF + i * F.postGap;
-      for (const [x, z] of [
-        [t, -BR_HALF],
-        [BR_HALF, t],
-        [-t, BR_HALF],
-        [-BR_HALF, -t],
-      ] as const) posts.setMatrixAt(n++, m4.makeTranslation(x, F.height / 2, z));
-    }
-    posts.name = "edgePosts";
-    root.add(posts);
-    for (const [w, d, x, z] of [
-      [BR_HALF * 2, 0.5, 0, -BR_HALF],
-      [BR_HALF * 2, 0.5, 0, BR_HALF],
-      [0.5, BR_HALF * 2, -BR_HALF, 0],
-      [0.5, BR_HALF * 2, BR_HALF, 0],
-    ] as const) deco(w, 0.04, d, x, 0.03, z, postMat);
-    FENCE = { mat, tex, base: F.opacity };
-  }
+  buildEdgeFence(root);
 
   // ---------------------------------------------------------------- the ring's wall (the legacy ring's, until the decay replaces it)
-  const ringWall = new THREE.Mesh(
-    new THREE.CylinderGeometry(1, 1, 120, 96, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xff2e9a, transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true })
-  );
-  ringWall.position.y = 60;
-  ringWall.userData.dynamic = true;
-  ringWall.frustumCulled = false;
-  root.add(ringWall);
+  const ringWall = buildRingWall(root);
   root.updateMatrixWorld(true);
 
   // ---------------------------------------------------------------- the metro (city.json metro)
@@ -3528,13 +3441,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
   // every box the city put in, by the sector it stands in, so a decaying
   // sector's boxes can leave the collision list as it dissolves; and every
   // material it drew with, taught to dissolve (cityDecay, below)
-  DECAY.solids = RANGE_SOLIDS.slice(firstSolid).map((s) => ({ s, sector: SECTORS.findIndex((x) => sectorContains(x, (s.minX + s.maxX) / 2 - BR_X, (s.minZ + s.maxZ) / 2 - BR_Z)) }));
-  const mats = new Set<THREE.Material>();
-  root.traverse((o) => {
-    const m = (o as THREE.Mesh).material;
-    if (m && !Array.isArray(m)) mats.add(m);
-  });
-  for (const m of mats) teachDecay(m);
+  holdForDecay(root, RANGE_SOLIDS.slice(firstSolid));
 
   return {
     root,
@@ -3551,6 +3458,101 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     vault: { door: -1, ...P(0, 0), y: 0, post: P(0, 0) },
     scenery: { rocks: [], boxed: [], scrub: [], cliffs: [], flora: [] },
   };
+}
+
+// Lit lines climbing a red fence on all four sides, posts along it and a strip on the ground: the city's edge,
+// plain in the world and not only on the minimap. Past it a countdown runs (edge.ts). Its materials opt out of
+// the decay (userData.decay): the edge sectors dissolving would take the fence with them.
+export function buildEdgeFence(root: THREE.Group): void {
+  const F = cityCfg.edge.fence;
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const g = canvas.getContext("2d");
+  if (g) {
+    g.clearRect(0, 0, 256, 256);
+    g.fillStyle = "rgba(255,255,255,0.9)";
+    for (let y = 0; y < 256; y += 32) g.fillRect(0, y, 256, 3);
+    const foot = g.createLinearGradient(0, 256, 0, 180);
+    foot.addColorStop(0, "rgba(255,255,255,0.9)");
+    foot.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = foot;
+    g.fillRect(0, 180, 256, 76);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set((BR_HALF * 2) / 8, F.height / 8);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(F.color), transparent: true, opacity: F.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, forceSinglePass: true });
+  mat.userData.decay = true;
+  for (const [x, z, turn] of [
+    [0, -BR_HALF, false],
+    [0, BR_HALF, false],
+    [-BR_HALF, 0, true],
+    [BR_HALF, 0, true],
+  ] as const) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(BR_HALF * 2, F.height), mat);
+    m.position.set(x, F.height / 2, z);
+    if (turn) m.rotation.y = Math.PI / 2;
+    m.name = "edgeFence";
+    m.userData.dynamic = true;
+    root.add(m);
+  }
+  const postMat = emissive(parseInt(F.color.slice(1), 16), cityCfg.neonGlow);
+  postMat.userData.decay = true;
+  const per = Math.round((BR_HALF * 2) / F.postGap);
+  const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.3, F.height, 0.3), postMat, per * 4);
+  const m4 = new THREE.Matrix4();
+  let n = 0;
+  for (let i = 0; i < per; i++) {
+    const t = -BR_HALF + i * F.postGap;
+    for (const [x, z] of [
+      [t, -BR_HALF],
+      [BR_HALF, t],
+      [-t, BR_HALF],
+      [-BR_HALF, -t],
+    ] as const) posts.setMatrixAt(n++, m4.makeTranslation(x, F.height / 2, z));
+  }
+  posts.name = "edgePosts";
+  root.add(posts);
+  for (const [w, d, x, z] of [
+    [BR_HALF * 2, 0.5, 0, -BR_HALF],
+    [BR_HALF * 2, 0.5, 0, BR_HALF],
+    [0.5, BR_HALF * 2, -BR_HALF, 0],
+    [0.5, BR_HALF * 2, BR_HALF, 0],
+  ] as const) {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), postMat);
+    strip.position.set(x, 0.05, z);
+    root.add(strip);
+  }
+  FENCE = { mat, tex, base: F.opacity };
+}
+
+/** the legacy ring's wall, scaled to the live ring each frame (SpeedKills' decay has no ring, and draws it nowhere) */
+export function buildRingWall(root: THREE.Group): THREE.Mesh {
+  const ringWall = new THREE.Mesh(
+    new THREE.CylinderGeometry(1, 1, 120, 96, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xff2e9a, transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true })
+  );
+  ringWall.position.y = 60;
+  ringWall.userData.dynamic = true;
+  ringWall.frustumCulled = false;
+  root.add(ringWall);
+  return ringWall;
+}
+
+/**
+ * A map's boxes and materials given to the decay (cityDecay): each box by the sector it stands in, so a decaying
+ * sector's boxes leave the collision list as it dissolves, and every material under `root` taught to dissolve. Called
+ * again for materials that come later (a file loaded after the map is built: neonmap.ts), with `solids` null
+ */
+export function holdForDecay(root: THREE.Object3D, solids: Solid[] | null): void {
+  if (solids) DECAY.solids = solids.map((s) => ({ s, sector: SECTORS.findIndex((x) => sectorContains(x, (s.minX + s.maxX) / 2 - BR_X, (s.minZ + s.maxZ) / 2 - BR_Z)) }));
+  const mats = new Set<THREE.Material>();
+  root.traverse((o) => {
+    const m = (o as THREE.Mesh).material;
+    if (m && !Array.isArray(m)) mats.add(m);
+  });
+  for (const m of mats) teachDecay(m);
 }
 
 /** a zipline with its rope and a post at each end, recorded in world space (as br.ts's) */
@@ -3652,7 +3654,9 @@ vec3 skGlow = vec3(0.0);`
       )
       .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += skGlow;");
   };
-  m.customProgramCacheKey = () => "skdecay";
+  // (with what the material's program is already keyed by: the Neon City map's detail maps patch it too, detailmaps.ts)
+  const prevKey = m.customProgramCacheKey.bind(m);
+  m.customProgramCacheKey = () => `${prevKey()}|skdecay`;
   m.needsUpdate = true;
 }
 

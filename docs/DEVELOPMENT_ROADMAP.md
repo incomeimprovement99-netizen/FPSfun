@@ -6492,3 +6492,51 @@ the view angle isn't how it was originally ... compare it to hyperscape and you'
 - **Level** (`fparms.json` hipPitch): 0, as the view's own arms held it.
 - **Checked:** the soldier e2e's level check (its target from the config, now 0 within 1 degree); the sheets of every
   move of both guns at the game's field of view; the soldier section; verify; rules.
+
+## Milestone 325 — The Neon City map in the game: the centre laid out from the bundle, its pads the pack's own
+
+Phase 28 (`docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md`), items 28.2 to 28.5: the owner, 2026-09-28, "basically
+wiping the entire map except the idea ... implement using all new assets, nothing at all should be custom made or not
+coming from the asset packs ... Like the jump pads and path shown coming out of them is an ugly color that looks like we
+drew it in ms.paint". The old city stays the default until the new one has its detail; `?map=neon` plays the new one.
+
+- **The layout** (`tools/neon-layout.ts`, `src/config/neonmap.json`): 2,281 placements of 19 of the bundle's pieces,
+  each placed by its measured bounds, never its pivot. The nine districts and their bounds as they were; the eight round
+  the centre the pack's pavement and roads; the centre a 3 by 3 of blocks with 15 m streets: Neon Building 08 (151 m)
+  in the middle, High City's 26 m towers on the four axis blocks, 3 to 6 storey buildings on the corners.
+- **The bake** (`tools/import-neon.ts NEON=bake`): one file a texture size, lo 48 MB (512 px), hi 93 MB (1024), max
+  258 MB (2048), 1.21 M triangles, and its collision measured off the same triangles, 21,142 boxes
+  (`src/config/neon/neonmap.solids.json`). The centre's chunks bake as one, a mesh a material (its pieces share the
+  pack's materials): a chunk at a time it drew 920 calls in the street, as one 440, and measured in turn on Competitive
+  106, 106 and 98 fps became 141, 139 and 167.
+- **The pack's materials as Unity draws them.** A third of them keep the surface in Unity's detail maps (the asphalt's
+  main map is a noise, the asphalt the detail): multiplied in now (`src/game/detailmaps.ts`, 80 materials). The
+  roughness was counted twice wherever the packed map carried a material's own smoothness, which made the asphalt a
+  mirror (0.148 squared): the factors are 1 now. The light beams and glows are Unity's particle shaders, drawn unlit
+  and added (`applyUnityLooks`), not the solid white columns they were read as.
+- **High City's towers are shells with nothing inside**: what a solid building's ground-floor walls close in (gaps up
+  to 3 m shut) collides from its foot, so nobody walks in under a roof slab and stands inside a shell (26 street nodes
+  were cut off in them).
+- **The jump pads are the pack's**: its CapHole plate and its StreetFocusLarge beam, blue, found by the bake in the
+  collision (each high city block's face, from the street before it and the ring road behind it, with a level landing)
+  and thrown by the old city's solve, now shared (`src/game/padsolve.ts`). All eight land a rider 3 m onto their 26 m
+  roof.
+- **The bots' graph** covers every floor a body stands on: the street every 10 m, the roofs and floors over it every
+  5 m (High City's roofs step 0.3 to 0.85 m between decks, and a bot never jumps), each link walked both ways; every
+  pad is a bot's way up with its landing joined to the roof.
+- **Loot where the fights are**: the four high city roofs are named sites (NORTH, SOUTH, WEST and EAST DECK) with loot
+  of their own, and the tallest building's lobby a fifth; 40 items over 12 m and 39 over 24 m, the old city's bar.
+- **Before and after**, this build measured both ways in one session (`tools/map-stats.ts`, `tools/bench.ts`):
+  on Balanced and High the map draws 1.21 M triangles in 251 meshes against 3.73 and 3.84 M in 1,533 and 1,554,
+  downloads 143 and 309 MB against 199 and 424, and loads in 8.6 and 12.2 s against 10.9 and 16.7. The median frame, the
+  two in turn three rounds: in the street Balanced 8.4 to 6.0 ms and High 16.0 to 9.3; over the centre Balanced 6.6 to
+  4.7 and High 13.3 to 8.2. Competitive is 0.4 to 1.2 ms slower (5.0 to 5.4 in the street, 4.1 to 5.3 over the centre):
+  the map's geometry is the same on every preset, where the old city gave Competitive a lighter kit.
+- **Checks:** `tools/checks/sk-neon.ts`, in verify: the nine places and their drops, the street one network, every box
+  of the bake's collision, the ship over the tallest top, every pad ridden by a player's own movement onto its roof,
+  every bot pad joined, the loot's share up high (seen failing with the graph's overlap test taken out: 698 street nodes
+  and one bot pad).
+- **Checked:** verify and rules; `sk-neon.ts`; the pads ridden in a real match in the page; the e2e section speedkills
+  (the old city's code the new map shares was moved, its pads, graph and collision compared identical). One bench of
+  nine heavy page loads in one browser crashed its page with the chunked bake; the same nine with the merged bake did
+  not.

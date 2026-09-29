@@ -8,6 +8,7 @@ const URL = process.env.SHOT_URL ?? "http://localhost:5211/";
 const args = process.argv.slice(2);
 const out = args[0];
 const cols = Number(args.find((a) => a.startsWith("--cols="))?.split("=")[1] ?? 6);
+const top = args.includes("--top");
 const sheets = args.slice(1).filter((a) => !a.startsWith("--"));
 const browser = await puppeteer.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true, args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist", "--mute-audio", "--no-sandbox"] });
 try {
@@ -15,10 +16,10 @@ try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1800, height: 1200 });
     page.on("pageerror", (e) => console.log("pageerror:", String(e)));
-    await page.goto(`${URL}tools/neongallery.html?sheet=${s}&cols=${cols}`, { waitUntil: "domcontentloaded", timeout: 120000 });
+    await page.goto(`${URL}tools/neongallery.html?sheet=${s}&cols=${cols}${top ? "&top" : ""}`, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.waitForFunction("window.__done === true", { timeout: 600000 });
     await new Promise((r) => setTimeout(r, 500));
-    await page.screenshot({ path: `${out}/${s}.png` });
+    await page.screenshot({ path: `${out}/${s}${top ? "-top" : ""}.png` });
     console.log(`${out}/${s}.png`);
     await page.close();
   }

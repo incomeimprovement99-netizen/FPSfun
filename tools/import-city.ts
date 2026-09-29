@@ -703,6 +703,22 @@ export interface MatInfo {
   specular: boolean;
   mode: "OPAQUE" | "MASK" | "BLEND"; cutoff: number; doubleSided: boolean;
   tiling: [number, number, number, number];
+  /**
+   * Unity's Standard shader's detail maps (_DetailAlbedoMap x2, _DetailNormalMap, _DetailMask), each at the detail's own
+   * tiling: Daelonik's Neon City keeps the real surface there on a third of its materials (its asphalt's _MainTex is a
+   * noise, its colour the detail's), so read alone the city came out plain white. The game multiplies them in
+   * (neonmap.ts); `detailTiling` is the detail's scale and offset in Unity's UV space, as `tiling` is the main's
+   */
+  detail: string | null; detailNormal: string | null; detailMask: string | null; detailNormalScale: number;
+  detailTiling: [number, number, number, number];
+  /** Built-in Standard's smoothness in the colour map's alpha (_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A), scaled by `smooth` */
+  smoothFromAlbedo: boolean;
+  /**
+   * Unity's built-in particle shaders (Particles/Standard Unlit, fileID 211, and Surface, 210), which Neon City draws its
+   * light beams, glows and grille decals with: `unlit` for the Unlit one, `additive` for their _Mode 4 (added to what is
+   * behind, no depth written). Read as Standard, the pads' light beams came out solid white columns
+   */
+  unlit: boolean; additive: boolean;
 }
 export function readMaterial(pack: Pack, guid: string): MatInfo | null {
   const objs = pack.parse(guid);
@@ -738,9 +754,22 @@ export function readMaterial(pack: Pack, guid: string): MatInfo | null {
     const e = col(["_EmissionColor", "_EmissiveColor"]);
     const emissiveTex = tex(["_EmissionMap", "_EmissiveColorMap"]);
     const emitting = /_EMISSION/.test(kw) || !!emissiveTex;
+    const detail = tex(["_DetailAlbedoMap"]);
+    const detailNormal = tex(["_DetailNormalMap"]);
+    // Built-in Standard's smoothness: the gloss map's alpha (or the colour map's) times _GlossMapScale, else _Glossiness;
+    // URP's Lit, the ILranch packs', has _Smoothness for both
+    const glossMap = flt(["_WorkflowMode"], 1) === 0 ? tex(["_SpecGlossMap"]) : tex(["_MetallicGlossMap", "_MaskMap"]);
+    const fromAlbedo = /_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A/.test(kw);
+    const hasUrp = (props.m_Floats ?? []).some((e: any) => e && "_Smoothness" in e);
+    const smooth = hasUrp ? flt(["_Smoothness"], 0.5) : glossMap || fromAlbedo ? flt(["_GlossMapScale"], 1) : flt(["_Glossiness"], 0.5);
     const surface = flt(["_Surface"], 0);
     const mode = flt(["_Mode"], 0);
     const clip = flt(["_AlphaClip"], 0) === 1 || /_ALPHATEST_ON/.test(kw) || mode === 1;
+    // a built-in shader's guid is Unity's extra resources' (all zeros but an f); the particles' _Mode runs opaque 0,
+    // cutout 1, fade 2, transparent 3, additive 4 (Standard's stops at 3)
+    const shader = d.m_Shader ?? {};
+    const builtin = /^0{16}f0{15}$/.test(String(shader.guid ?? ""));
+    const particles = builtin && (num(shader.fileID) === 210 || num(shader.fileID) === 211);
     const cull = flt(["_Cull", "_CullMode"], 2);
     return {
       name: String(d.m_Name ?? guid),
@@ -749,18 +778,26 @@ export function readMaterial(pack: Pack, guid: string): MatInfo | null {
       emissive: emitting ? emissiveTex?.guid ?? null : null,
       // (the specular workflow's map in the same place: Glass City's machinery is drawn with it, and without it every
       // pipe read as smoothness 1 and mirrored the sky, white)
-      metalGloss: (flt(["_WorkflowMode"], 1) === 0 ? tex(["_SpecGlossMap"]) : tex(["_MetallicGlossMap", "_MaskMap"]))?.guid ?? null,
+      metalGloss: glossMap?.guid ?? null,
       specular: flt(["_WorkflowMode"], 1) === 0,
       occlusion: tex(["_OcclusionMap"])?.guid ?? null,
       color: [srgbToLinear(num(c.r, 1)), srgbToLinear(num(c.g, 1)), srgbToLinear(num(c.b, 1)), num(c.a, 1)],
       emission: emitting && e ? [num(e.r), num(e.g), num(e.b)] : emitting ? [1, 1, 1] : null,
       metal: flt(["_Metallic"], 0),
-      smooth: flt(["_Smoothness", "_Glossiness"], 0.5),
+      smooth,
       normalScale: flt(["_BumpScale"], 1),
-      mode: surface === 1 || mode === 2 || mode === 3 ? "BLEND" : clip ? "MASK" : "OPAQUE",
+      mode: surface === 1 || mode === 2 || mode === 3 || (particles && mode >= 4) ? "BLEND" : clip ? "MASK" : "OPAQUE",
       cutoff: flt(["_Cutoff"], 0.5),
       doubleSided: cull === 0,
       tiling: base ? [base.scale[0], base.scale[1], base.offset[0], base.offset[1]] : [1, 1, 0, 0],
+      detail: detail?.guid ?? null,
+      detailNormal: detailNormal?.guid ?? null,
+      detailMask: tex(["_DetailMask"])?.guid ?? null,
+      detailNormalScale: flt(["_DetailNormalMapScale"], 1),
+      detailTiling: detail ? [detail.scale[0], detail.scale[1], detail.offset[0], detail.offset[1]] : detailNormal ? [detailNormal.scale[0], detailNormal.scale[1], detailNormal.offset[0], detailNormal.offset[1]] : [1, 1, 0, 0],
+      smoothFromAlbedo: fromAlbedo && !glossMap,
+      unlit: builtin && num(shader.fileID) === 211,
+      additive: particles && mode === 4,
     };
   }
   return null;
@@ -823,7 +860,7 @@ export class Textures {
   }
   /** the packed occlusion, roughness and metal (orm) as KTX2 */
   ormKtx2(pack: Pack, mi: MatInfo, size: number): Promise<Uint8Array | null> {
-    const key = `${pack.name}/${mi.metalGloss}/${mi.occlusion}/${size}/${mi.smooth}/${mi.metal}/orm`;
+    const key = `${pack.name}/${mi.metalGloss}/${mi.smoothFromAlbedo ? mi.map : ""}/${mi.occlusion}/${size}/${mi.smooth}/${mi.metal}/orm`;
     if (!this.ktx.has(key))
       this.ktx.set(
         key,
@@ -863,8 +900,9 @@ export class Textures {
   }
   /** Unity's metal and smoothness and its occlusion, packed as glTF's occlusion, roughness and metal, raw RGB */
   private async ormPixels(pack: Pack, mi: MatInfo, size: number): Promise<{ rgb: Buffer; w: number; h: number } | null> {
-    if (!mi.metalGloss && !mi.occlusion) return null;
-    const mg = mi.metalGloss ? await this.decode(pack, mi.metalGloss) : null;
+    const glossFrom = mi.metalGloss ?? (mi.smoothFromAlbedo ? mi.map : null);
+    if (!glossFrom && !mi.occlusion) return null;
+    const mg = glossFrom ? await this.decode(pack, glossFrom) : null;
     const oc = mi.occlusion ? await this.decode(pack, mi.occlusion) : null;
     const ref = mg ?? oc;
     if (!ref) return null;
@@ -879,7 +917,7 @@ export class Textures {
       const smooth = a ? (a[i * 4 + 3] / 255) * mi.smooth : mi.smooth;
       rgb[i * 3 + 1] = Math.round((1 - smooth) * 255);
       // a specular map's colour is not metalness: a dielectric's is dark (about 0.04); bright means metal
-      rgb[i * 3 + 2] = a ? (mi.specular ? Math.round(Math.min(1, Math.max(0, ((a[i * 4] + a[i * 4 + 1] + a[i * 4 + 2]) / 765 - 0.2) / 0.5)) * 255) : a[i * 4]) : Math.round(mi.metal * 255);
+      rgb[i * 3 + 2] = a && mi.metalGloss ? (mi.specular ? Math.round(Math.min(1, Math.max(0, ((a[i * 4] + a[i * 4 + 1] + a[i * 4 + 2]) / 765 - 0.2) / 0.5)) * 255) : a[i * 4]) : Math.round(mi.metal * 255);
     }
     return { rgb, w, h };
   }
@@ -1666,6 +1704,7 @@ export async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Bak
       ].filter(Boolean);
     }),
   );
+  const detailLater: Array<{ m: any; dt: any; dn: any; dm: any; xf: number[]; normalScale: number }> = [];
   const material = async (g: string | null, fallbackName: string): Promise<any> => {
     const k = g ?? "none:" + fallbackName;
     if (matCache.has(k)) return matCache.get(k);
@@ -1681,6 +1720,25 @@ export async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Bak
         const t = doc.createTexture(`${mi.name} orm`).setImage(orm).setMimeType("image/ktx2");
         m.setMetallicRoughnessTexture(t);
         if (mi.occlusion) m.setOcclusionTexture(t);
+        // the map carries the whole roughness and metalness (ormPixels writes the material's own values into it where
+        // no gloss map does), so the factors are 1: left at 1 - smooth, Neon City's asphalt (smoothness 0.85 from its
+        // colour's alpha) came out at roughness 0.148 squared, a mirror, and the road pale with the sky in it
+        m.setMetallicFactor(1).setRoughnessFactor(1);
+      }
+      // the detail maps ride as textures the material's extras name by index (set once every texture is made, below):
+      // the game multiplies them in as Unity's Standard shader does (neonmap.ts)
+      if (mi.detail || mi.detailNormal) {
+        const dt = mi.detail ? await texture(mi.detail, "color") : null;
+        const dn = mi.detailNormal ? await texture(mi.detailNormal, "normal") : null;
+        const dm = mi.detailMask ? doc.createTexture(`${mi.name} detail mask`).setImage((await tex.ktx2(pack, mi.detailMask, Math.min(size, 512), "data"))!).setMimeType("image/ktx2") : null;
+        // the detail's UV from the stored one (the main's tiling baked in, v flipped to glTF's): u' = a u + b, v' = c v + d
+        const [su, sv, ou, ov] = mi.tiling;
+        const [dsu, dsv, dou, dov] = mi.detailTiling;
+        if (su && sv) {
+          const a = dsu / su, c = dsv / sv;
+          const xf = [a, dou - ou * a, c, 1 - dov - (1 - ov) * c];
+          detailLater.push({ m, dt, dn, dm, xf, normalScale: mi.detailNormalScale });
+        }
       }
       if (mi.emission) {
         const peak = Math.max(...mi.emission, 1e-6);
@@ -1690,6 +1748,8 @@ export async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Bak
         // HDR emission past 1 comes back as a strength the game multiplies by (glTF extras reach material.userData)
         m.setExtras({ emissiveStrength: Math.max(1, peak) });
       }
+      // the particle shaders' look rides in extras too: the game draws these unlit and added (detailmaps.ts applyUnityLooks)
+      if (mi.unlit || mi.additive) m.setExtras({ ...(m.getExtras() ?? {}), unlit: mi.unlit, additive: mi.additive });
     } else m.setBaseColorFactor([0.55, 0.57, 0.6, 1]).setRoughnessFactor(0.8).setMetallicFactor(0);
     matCache.set(k, m);
     return m;
@@ -1709,6 +1769,19 @@ export async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Bak
     }
     // three.js strips "/", "." and ":" from node names on load, so the id rides in extras (userData.id)
     scene.addChild(doc.createNode(b.id).setMesh(mesh).setExtras({ id: b.id }));
+  }
+  // the detail maps by their images' indexes, now every image is made (an image's index is its place in the file's list):
+  // each held by a material no mesh uses, as a picture only a material's extras name gets no texture entry to load by
+  {
+    const list = doc.getRoot().listTextures();
+    for (const q of detailLater) {
+      if (!q.dt && !q.dn && !q.dm) continue;
+      const holder = doc.createMaterial(`${q.m.getName()} detail`);
+      if (q.dt) holder.setBaseColorTexture(q.dt);
+      if (q.dn) holder.setNormalTexture(q.dn);
+      if (q.dm) holder.setOcclusionTexture(q.dm);
+      q.m.setExtras({ ...(q.m.getExtras() ?? {}), detail: { map: q.dt ? list.indexOf(q.dt) : -1, normal: q.dn ? list.indexOf(q.dn) : -1, mask: q.dm ? list.indexOf(q.dm) : -1, xf: q.xf.map((v) => +v.toFixed(5)), normalScale: q.normalScale } });
+    }
   }
   mkdirSync(dirname(file), { recursive: true });
   // the IO writes only the extensions registered with it: unregistered, the KTX2 images went out as plain ones

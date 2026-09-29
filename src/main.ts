@@ -120,6 +120,7 @@ import { dressKit } from "./game/kitdress";
 import { cityKitPlaces } from "./game/citydress";
 import { CITY_KIT, dressCityKit, tickCityKit } from "./game/citykit";
 import { CITY_DISTRICTS, districtAt, districtGlow, dressDistricts } from "./game/citydistricts";
+import { NEON_MAP, buildNeonMap, dressNeonMap } from "./game/neonmap";
 import { buildAtmosphere, tickAtmosphere } from "./game/steam";
 import { atmosphereOn, districtHere, tickAir, wetStreets } from "./game/atmosphere";
 import { DRESSING } from "./game/brpoi";
@@ -765,8 +766,10 @@ buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadow
 const arena = buildArena(scene);
 const triArena = buildTriArena(scene);
 // the battle royale map, 500 m south (src/game/br.ts)
-// SpeedKills' neon city, or the legacy game's Outskirts, in the same square of the world
-const brMap = IS_SK ? buildCityMap(scene) : buildBrMap(scene);
+// SpeedKills' neon city, or the legacy game's Outskirts, in the same square of the world. ?map=neon: the map rebuilt from
+// Daelonik's Neon City (neonmap.ts, Phase 28), while it is built; the city of the ILranch packs otherwise
+const NEON = IS_SK && new URLSearchParams(location.search).get("map") === "neon";
+const brMap = IS_SK ? (NEON ? buildNeonMap(scene) : buildCityMap(scene)) : buildBrMap(scene);
 // a door opening or shutting, heard where it hangs (whoever did it)
 brMap.doors.onChange = (d, what) => audio.door(d.centre, what === "break" || what === "kick" ? "kick" : what);
 /**
@@ -945,11 +948,13 @@ void dressKit(brMap.root, DRESSING).then((n) => {
 // SpeedKills' centre in the city bundle the owner bought (citydress.ts places it, citykit.ts draws it): as much of it
 // as the graphics preset asks for, and nothing where the bought files are not there (the public build, a checkout).
 // ?nocitykit leaves it off, for a before-and-after from the same spots (tools/city-sheet.ts)
-if (IS_SK && !new URLSearchParams(location.search).has("nocitykit"))
+// (the Neon City map draws the bundle's pieces alone, at the preset's texture size)
+if (NEON) void dressNeonMap(brMap.root, renderer, quality.cityKit);
+if (IS_SK && !NEON && !new URLSearchParams(location.search).has("nocitykit"))
   // the districts made of the packs' own demo scenes (citydistricts.ts, Phase 25), every preset: they are the district
   // (at the kit's lo size where the preset loads the kit's lo files)
   void dressDistricts(brMap.root, renderer, quality.cityKit === "lo");
-if (IS_SK && !new URLSearchParams(location.search).has("nocitykit"))
+if (IS_SK && !NEON && !new URLSearchParams(location.search).has("nocitykit"))
   void dressCityKit(brMap.root, cityKitPlaces(brMap.pads, quality.cityDetail === 0), quality, renderer).then((n) => {
     if (n) renderer.shadowMap.needsUpdate = true;
     // the streets wet, reflecting the city the kit has just dressed (atmosphere.ts)
@@ -8406,6 +8411,8 @@ initWelcome();
   /** the city bundle on SpeedKills' centre (citykit.ts): what is drawn, 0 until it is in or when the files are not there */
   cityKit: () => ({ ...CITY_KIT }),
   cityDistricts: () => ({ ...CITY_DISTRICTS }),
+  /** the Neon City map (?map=neon): what its file drew */
+  neonMap: () => ({ on: NEON, ...NEON_MAP }),
   /** the textures the scene's materials hold, and what they cost the card: a compressed one its mips' bytes, any other its
    * pixels at four bytes with a third more for mips (Phase 23.1 measures the kit's KTX2 against the WebP it replaced) */
   textureMemory: () => {

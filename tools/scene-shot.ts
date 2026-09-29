@@ -12,11 +12,11 @@ try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1600, height: 900 });
     page.on("pageerror", (e) => console.log("pageerror:", String(e)));
-    await page.goto(`${URL}tools/sceneview.html?pack=${pack}&${s.q}`, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await page.goto(`${URL}tools/sceneview.html?${pack.includes("/") ? `file=${pack}` : `pack=${pack}`}&${s.q}`, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForFunction("window.__done === true", { timeout: 300000 });
     await new Promise((r) => setTimeout(r, 1500));
-    await page.screenshot({ path: `${out}-${pack}-${s.name}.png` });
-    console.log(`${out}-${pack}-${s.name}.png`, await page.evaluate("JSON.stringify(window.__scene)"));
+    await page.screenshot({ path: `${out}-${pack.split("/").pop()!.replace(".glb", "")}-${s.name}.png` });
+    console.log(`${out}-${pack.split("/").pop()!.replace(".glb", "")}-${s.name}.png`, await page.evaluate("JSON.stringify(window.__scene)"));
     await page.close();
   }
 } finally {

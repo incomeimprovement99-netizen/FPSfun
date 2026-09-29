@@ -17,12 +17,15 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import { applyDetailMaps, applyUnityLooks, DETAIL_OF } from "/src/game/detailmaps.ts";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 const q = new URLSearchParams(location.search);
+const v = (s) => s.split(",").map(Number);
 const W = 1600, H = 900;
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H);
@@ -41,12 +44,21 @@ const sun = new THREE.DirectionalLight(day ? 0xfff1d8 : 0x8fa6ff, day ? 2.5 : 0.
 sun.position.set(80, 200, 60);
 scene.add(sun);
 const ktx2 = new KTX2Loader().setTranscoderPath("/libs/basis/").detectSupport(renderer);
-const gltf = await new GLTFLoader().setKTX2Loader(ktx2).loadAsync(`/models/paid/city/${q.get("pack") ?? "high"}-scene.glb`);
+const gltf = await new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder).loadAsync(q.get("file") ? `/${q.get("file")}` : `/models/paid/city/${q.get("pack") ?? "high"}-scene.glb`);
+// (Neon City's detail maps, as the game draws them: src/game/detailmaps.ts; ?nodetail to see without)
+if (q.get("nodetail") === null) await applyDetailMaps(gltf);
+applyUnityLooks(gltf.scene);
 scene.add(gltf.scene);
+// ?clip=lo,hi: only what lies between two heights, a floor seen from above as a plan (the tallest building's rooms)
+if (q.get("clip")) {
+  const [lo, hi] = v(q.get("clip"));
+  renderer.localClippingEnabled = true;
+  const planes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), hi), new THREE.Plane(new THREE.Vector3(0, 1, 0), -lo)];
+  gltf.scene.traverse((o) => { if (o.material) for (const m of [o.material].flat()) { m.clippingPlanes = planes; m.side = THREE.DoubleSide; } });
+}
 const box = new THREE.Box3().setFromObject(gltf.scene);
 const c = box.getCenter(new THREE.Vector3());
 const cam = new THREE.PerspectiveCamera(Number(q.get("fov") ?? 75), W / H, 0.05, 3000);
-const v = (s) => s.split(",").map(Number);
 if (q.get("eye")) {
   cam.position.fromArray(v(q.get("eye")));
   cam.lookAt(new THREE.Vector3().fromArray(v(q.get("at"))));
@@ -60,6 +72,8 @@ composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), 0.6, 0.5, 0.85));
 composer.addPass(new OutputPass());
 composer.render();
 window.__scene = { min: box.min.toArray(), max: box.max.toArray(), centre: c.toArray() };
+window.__gltf = gltf;
+window.__detailOf = DETAIL_OF;
 window.__done = true;
 </script>
 </body>

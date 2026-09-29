@@ -80,6 +80,14 @@ they never enter git and never go to Pages:
   and its measurements back to the config, both in git, so commit them; raise `version` there for the server to hand out
   a new file at once. A deploy builds from `apex-range`: a worktree's bake goes into its `public/models/paid/city/` first.
   `DISTRICT_PARTS=<file>` with `CITY_PACK` writes every part a district keeps and where it stands, baking nothing.
+- **The Neon City map** (Phase 28, `?map=neon`): Daelonik's Neon City bundle, four packages (download them in Unity's
+  Package Manager). `npx tsx tools/neon-layout.ts` writes the placements into `src/config/neonmap.json`, then
+  `GAME=speedkills NEON=bake NEON_SIZES=lo,hi,max npx tsx tools/import-neon.ts` bakes
+  `public/models/paid/neon/neonmap-v<version>-<size>.glb` (lo 48 MB, hi 93 MB, max 258 MB, about 9 minutes on
+  every core) and writes the collision to `src/config/neon/neonmap.solids.json` and the pads and measurements back to
+  `neonmap.json`, all in git, so commit them. `NEON_SIZES=preview` (256 px) is for looking at a layout, and the gallery
+  sheets under `neon/gallery/` are for choosing pieces: neither goes to the server, so copy only the three
+  `neonmap-v<version>-{lo,hi,max}.glb` into `apex-range`'s `public/models/paid/neon/` before a deploy.
 - **The guns' skins:** `PAID_ONLY=weapons npm run paid` writes each one twice, `public/models/paid/weapons/tex/` at
   1024 px and `weapons/tex2k/` at 2048 (270 files, 40 MB); the 2048 ones are loaded only for the gun in your hands on
   High (`paidweapons.json` textures2k).

@@ -168,13 +168,43 @@ behind glass.
 |---|---|---|
 | 28.0 | The save point | done |
 | 28.1 | The inventory: every prefab rebuilt, measured and seen; the import scale fixed | done |
-| 28.2 | The layout: the centre's placements from these rules, placed by measured bounds (`tools/neon-layout.ts`, `src/config/neonmap.json`), drawn from above for the owner | |
-| 28.3 | The bake: the centre and the plain districts into one file at three texture sizes, its collision off its triangles (`tools/import-neon.ts NEON=bake`) | |
-| 28.4 | The new map in the game (`src/game/neonmap.ts`), replacing the old city for SpeedKills: its ground, its collision, its districts and their places, the bots' graph, loot, pads, the drop | |
-| 28.5 | The first look beside the pack's own pictures, for the owner | |
-| 28.6 | Before and after: downloads, load, triangles, draw calls, frame times | |
+| 28.2 | The layout: the centre's placements from these rules, placed by measured bounds (`tools/neon-layout.ts`, `src/config/neonmap.json`), drawn from above for the owner | done |
+| 28.3 | The bake: the centre and the plain districts into one file at three texture sizes, its collision off its triangles (`tools/import-neon.ts NEON=bake`) | done |
+| 28.4 | The new map in the game (`src/game/neonmap.ts`), for SpeedKills behind `?map=neon` until the detail is in: its ground, its collision, its districts and their places, the bots' graph, loot, pads, the drop | done (Milestone 325) |
+| 28.5 | The first look beside the pack's own pictures, for the owner | done: the buildings and their textures are the pack's; its signs, props and haze are not in yet |
+| 28.6 | Before and after: downloads, load, triangles, draw calls, frame times | done (below) |
 | 28.7 | The detail: the underground station, the tallest building's rooms, the high city's bridges, cover | |
 | 28.8 | The checks: walked streets, every pad's landing, every roof joined by jumps, rooms walked, the drop lands only on what is drawn, the bots reach every level | |
+
+### What building it found (28.2 to 28.4)
+
+- **A third of the pack's surfaces are in their detail maps.** Unity's Standard shader multiplies `_DetailAlbedoMap` in
+  (times 2 in gamma, 4.595 in linear) at its own tiling, weighted by `_DetailMask`; the asphalt's main map is a noise
+  and the asphalt itself the detail, so read alone the roads came out white. The importer writes the detail maps as
+  textures the material's extras name, and the game multiplies them in (`src/game/detailmaps.ts`, 80 materials).
+- **The roughness was counted twice** wherever the packed roughness map carried a material's own smoothness (its
+  colour's alpha, or no gloss map at all): the factor was also left at 1 - smoothness, so the asphalt (0.85 smooth)
+  drew at roughness 0.148 squared, a mirror. The factors are 1 now whenever the map is written. Measured after: the
+  asphalt with its gloss taken off renders at 112 against 102 for a plate of exactly Unity's albedo, 0.096.
+- **The light beams, glows and grille decals are Unity's particle shaders** (built-in fileID 211, additive at `_Mode`
+  4): read as Standard they were solid white. They are drawn unlit and added now (`applyUnityLooks`).
+- **High City's towers are shells with nothing inside.** Filled only where no triangle crossed, their hollow stayed
+  open under the roof slab and the street reached it through the glass fronts' gaps: 26 of the street's nodes were
+  cut off inside them. What a solid building's ground-floor walls close in (gaps up to 3 m shut) now collides from
+  its foot.
+- **High City's roofs step** 0.3 to 0.85 m between their decks, and a bot never jumps: the bots' graph has a node
+  every 5 m on raised floors (10 m on the street), and a pad is a bot's way up only where its landing joins the roof.
+- **The pads are the pack's**: its CapHole plate on the street and its StreetFocusLarge beam, blue, rising from it.
+  The bake finds each face in the collision it has just made and the game solves the throw (`src/game/padsolve.ts`,
+  the old city's solve, shared): all eight land a rider 3 m onto their 26 m roof.
+- **Draw calls, not triangles, again.** Baked a chunk at a time (a mesh a material a chunk, 743 meshes) the map cost
+  Competitive more than the old city's light kit: 920 draw calls in the street. The centre's pieces share the pack's
+  materials, so its chunks bake as one now, a mesh a material: 440 calls, and measured in turn three times on
+  Competitive, 106, 106 and 98 fps became 141, 139 and 167 in the street (over the centre it draws more triangles, 2.1 M
+  against 1.5 M, and is as fast or faster).
+- **What the store's pictures have that ours do not yet**: the streets full of the pack's signs, holograms and props;
+  a heavy haze; and a night lit by the neon alone, where ours is lit by the game's moon and sky, so the wet asphalt
+  shows grey. The signs and props are 28.7, the light is the look.
 
 The "before" (the saved map, 2026-09-28, `tools/map-stats.ts`, the machine at 95%):
 
@@ -183,6 +213,66 @@ The "before" (the saved map, 2026-09-28, `tools/map-stats.ts`, the machine at 95
 | Competitive | 14.4 s | 111 MB | 6.56 M | 3,337 | 1,071 | 665 |
 | Balanced | 16.0 s | 200 MB | 9.04 M | 4,382 | 1,303 | 1,134 |
 | High | 26.3 s | 425 MB | 9.14 M | 4,342 | 1,311 | 1,141 |
+
+The "after" (2026-09-29, the same build both ways in one session: the old city is the page as it opens, the Neon City
+map the page with `&map=neon`; "the map's" is what hangs under the map's root, the range, the figures and the ship
+being the rest of the scene):
+
+| preset | map | loaded | downloaded | the map's triangles | the map's meshes | the map's materials | the scene's triangles | textures in memory |
+|---|---|---|---|---|---|---|---|---|
+| Competitive | old city | 11.0 s | 115 MB | 1.25 M | 489 | 211 | 6.56 M | 987 MB |
+| Competitive | Neon City | 9.2 s | 98 MB | 1.21 M | 251 | 226 | 6.30 M | 812 MB |
+| Balanced | old city | 10.9 s | 199 MB | 3.73 M | 1,533 | 442 | 9.04 M | 1,757 MB |
+| Balanced | Neon City | 8.6 s | 143 MB | 1.21 M | 251 | 226 | 6.30 M | 1,191 MB |
+| High | old city | 16.7 s | 424 MB | 3.84 M | 1,554 | 451 | 9.14 M | 3,837 MB |
+| High | Neon City | 12.2 s | 309 MB | 1.21 M | 251 | 226 | 6.30 M | 2,585 MB |
+
+The Neon City map's geometry is the same on every preset (its texture size is what differs), so Balanced and High
+draw a third of the old city's triangles; its centre has no signs, props or rooms' dressing yet, which 28.7 adds. The
+frames (`tools/bench.ts`, the two maps in turn, three rounds, the median frame; the RX 9070 XT, the machine shared with
+two other agents' tests):
+
+| preset | in the street (skmatch) | over the centre (skroof) |
+|---|---|---|
+| Competitive | 5.0 ms (200 fps) to 5.4 ms (185) | 4.1 ms (244 fps) to 5.3 ms (189) |
+| Balanced | 8.4 ms (119 fps) to 6.0 ms (167) | 6.6 ms (152 fps) to 4.7 ms (213) |
+| High | 16.0 ms (63 fps) to 9.3 ms (108) | 13.3 ms (75 fps) to 8.2 ms (122) |
+
+Balanced and High are 2.4 to 6.7 ms a frame faster. Competitive is 0.4 to 1.2 ms slower: the map's geometry is the same
+on every preset, only its textures smaller, where the old city gave Competitive a lighter kit. The street's two spots
+are not the same place (the old city's is south of the Spire, the new map's the ring road before the south block);
+the view over the centre is.
+
+## 28.7 The detail, planned from the pieces
+
+The owner, 2026-09-28: "once we have the layout, start adding in the detail, ensuring we utilize the underground,
+higher buildings, inside rooms to fight in". In this order, each shipped on its own, each walked by a body and the bots:
+
+1. **The tallest building's rooms.** Its ground floor, first floor, the ring of rooms at 38 to 50 m and the top rooms
+   (the sections, 28.4) walked: which doors open to the plaza, which stairs join which floors (its stair tower climbs
+   13 to 40 m), and every floor drawn made a floor a body stands on (its floors come out of the collision as narrow
+   strips today). The way up: its own stairs, and a window pad (the old Sky Lobby's, `hold`) from the plaza into the
+   40 m ring. Loot in the rooms. Found already: a body sprinting at it from the plaza gets 2 m inside its outline on 154
+   of 168 tries, some climbing to 3 to 11 m, and at eye height its foot looks to stand below the plaza (its basement
+   showing): whether those are its open lobby and stairs or glass that does not collide is the first thing to settle.
+2. **The underground under the middle block.** The pack's station (`Subway Hall` MetroStation00 modules, 10 x 10.5 x
+   11 m; MetroStationDouble00 for the platforms either side), its tunnels (`Subway Tunnels`) out under two streets, the
+   street entrances (MetroEntrance00, 5.3 x 14.4 x 20 m, stairs down) on two streets, and SquareHoleGroundLevel00
+   (22.6 x 13.7 x 25 m) in the plaza: the ground opened into the station, a sunken court with sightlines up and down.
+   The world's floor lowered where it opens (`floors.ts FLOORS`, as the old metro had it).
+3. **High City's roofs joined and reached on foot.** HighPlatform_Stairs01 and 02 (stair towers 30.4 and 33.9 m) on
+   each axis block, so a body and a bot walk up to the 26 m roofs without a pad; StreetPlatformBridge00 to 03 (10 m
+   spans at 26.9 m) and the floating PlatformBridge modules (5 m, 2.9 m deep) across the inner streets where two roofs
+   face each other, and FloorBridge00 (10 m) to the low city's roofs.
+4. **The streets dressed**: the pack's signs, billboards and holograms on the fronts, its street props (benches, bins,
+   vending machines, barriers, planters) as cover along the pavements, its StreetFocus lamps and its flying cars over
+   the streets, so a street reads like the store's pictures. Its ad screens (SquareAd00 and the rest, the picture as
+   both colour and emission at 1) come out blank white: lit colour and full emission together saturate under the game's
+   tone mapping and bloom.
+5. **The look**: the store's haze and a night lit by the neon: the map's own hour (its fog, its sky's light and the
+   environment's strength, in `neonmap.json`), so the wet asphalt reflects the signs and not a sky.
+6. **The eight districts** round the centre, each its own build after the centre (the owner: "just do the center for
+   now").
 
 ## Licence
 
