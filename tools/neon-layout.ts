@@ -322,6 +322,55 @@ if (holes.length) {
   cfg.court = { x0, x1, z0, z1, y: foot, halls };
 }
 
+// The centre's streets dressed with the pack's own (rules.dress): its street lamps along both kerbs, cars parked in the
+// lanes by the kerbs (crouching cover in the street), and cars flying over the streets (the store's pictures have them,
+// out of reach and so with no collision). Clear of the crossings, the ring road, the jump pads and the metro's kiosks
+{
+  const D = R.dress;
+  const C = R.streets.centres as number[];
+  const hw = R.streets.road / 2;
+  const edge = R.centre;
+  const pads = ((cfg.pads ?? []) as Array<{ pad: number[] }>).map((q) => q.pad);
+  const kiosks = ((cfg.court?.halls ?? []) as Array<{ route?: number[][]; x0: number; x1: number; z0: number; z1: number }>).filter((h) => h.route);
+  /** a spot along a street clear of what is there (map-local) */
+  const nearRoad = (v: number) => C.some((c) => Math.abs(v - c) < hw + D.crossing);
+  const clear = (x: number, z: number, r: number): boolean =>
+    // not in a crossing (near a road each way), on a pad or by a kiosk
+    !(nearRoad(x) && nearRoad(z)) &&
+    !pads.some(([px, pz]) => Math.hypot(px - x, pz - z) < r + D.padClear) &&
+    !kiosks.some((h) => x > h.x0 - r && x < h.x1 + r && z > h.z0 - r && z < h.z1 + r);
+  for (const c of C)
+    for (const along of ["x", "z"] as const)
+      for (const side of [-1, 1]) {
+        const kerb = c + side * hw;
+        const at = (u: number, off: number): [number, number] => (along === "x" ? [u, kerb + off] : [kerb + off, u]);
+        const yawAlong = along === "x" ? 90 : 0;
+        // the lamps on the pavement, `inset` in from the kerb, their arms along it
+        for (let u = -edge + D.lamp.every / 2; u < edge; u += D.lamp.every) {
+          const [x, z] = at(u, side * D.lamp.inset);
+          if (Math.abs(u) > R.ring[0] - 2 || !clear(x, z, 1)) continue;
+          placeAt("c-dress", "c", D.lamp.piece, x, z, along === "x" ? 0 : 90, "o");
+        }
+        // the cars in the lane by the kerb, a seeded gap apart
+        for (let u = -edge + 6 + rnd() * D.cars.gap[1]; u < edge - 6; u += D.cars.gap[0] + rnd() * (D.cars.gap[1] - D.cars.gap[0])) {
+          if (rnd() > D.cars.chance) continue;
+          const [x, z] = at(u, -side * D.cars.lane);
+          if (Math.abs(u) > R.ring[0] - 4 || !clear(x, z, 3)) continue;
+          const name = D.cars.pieces[Math.floor(rnd() * D.cars.pieces.length)];
+          placeAt("c-dress", "c", name, x, z, yawAlong + (rnd() < 0.5 ? 0 : 180), "o", { bottom: true });
+        }
+      }
+  // the flying cars, over the streets out of reach
+  for (let i = 0; i < D.flying.count; i++) {
+    const c = C[Math.floor(rnd() * C.length)];
+    const u = -edge + 10 + rnd() * (2 * edge - 20);
+    const along = rnd() < 0.5;
+    const [x, z] = along ? [u, c + (rnd() - 0.5) * hw] : [c + (rnd() - 0.5) * hw, u];
+    const y = D.flying.height[0] + rnd() * (D.flying.height[1] - D.flying.height[0]);
+    placeAt("c-dress", "c", D.flying.pieces[Math.floor(rnd() * D.flying.pieces.length)], x, z, (along ? 90 : 0) + (rnd() < 0.5 ? 0 : 180), "g", { y });
+  }
+}
+
 // the kerbs along each carriageway's edge where pavement meets it, and the dashed line down its middle
 {
   const C = R.streets.centres as number[];

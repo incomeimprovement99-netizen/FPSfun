@@ -6901,3 +6901,20 @@ live at https://fpsfun.duckdns.org/", and exited 0. Run again alone a minute lat
   takes as long as it did (34 s against the live site).
 - **Checked:** the forced failure both ways (above); the live check against https://fpsfun.duckdns.org/: LIVE CHECK
   PASS; verify, rules.
+
+## Milestone 338 — The centre's streets dressed: the pack's lamps, parked cars as cover, cars flying over
+
+Phase 28.7, the streets (`tools/neon-layout.ts`, rules.dress). The store's pictures are full; the new map's streets
+were bare road between the buildings. The first pass of the pack's own dressing along the centre's streets:
+
+- **Street lamps**: the pack's double-armed lamp (Lighting_Deco002_lgt, 5.7 m, its lamps lit) every 15 m on both
+  pavements, 0.6 m in from the kerb, its arms along it.
+- **Parked cars**: the pack's UrbanCar00 and its three variants (2.5 x 1.4 x 4.4 m, placed by their lowest point: their
+  pivot is 0.39 m above it) in the lanes by the kerbs, a seeded 9 to 24 m apart with a car at seven slots in ten, facing
+  either way: crouching cover in the street, colliding by their own triangles.
+- **Flying cars**: 14 of the pack's flying and floating cars over the streets between 11 and 28 m, out of reach, so with
+  no collision.
+- All clear of the crossings, the jump pads, the ring road and the metro's kiosks. 137 pieces, 249k triangles (the map
+  1.21 M to 1.50 M); the cars share their materials, so the centre's draw calls barely move.
+- **The map's files are version 5.**
+- **Checked:** verify and rules; `sk-neon.ts`; the streets photographed at night from the street and the roofs.
