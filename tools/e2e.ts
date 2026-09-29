@@ -3281,7 +3281,7 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; palm: { w: number; cards: number }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; swapDeep: number; swapRise: number; swapAhead: number; pickLead: string; pickAfter: string };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; palm: { w: number; cards: number }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; swapDeep: number; swapRise: number; swapAhead: number; pickLead: string; pickAfter: string };
   // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
   const res: { guns: Record<string, Frames>; jump: string[] } = { guns: {}, jump: [] };
   // (the page's helpers once, then one short page call a measure: the e2e draws in software, a few frames a second, and
@@ -3375,6 +3375,9 @@ async function packFrames(page: Page): Promise<void> {
     // where the support hand holds the gun at rest against its magazine
     o.palmAhead = await pf<number>(`H.clear(); await H.gameWait(0.3); return r.packArms().palmAhead;`);
     o.fov = await pf<number>(`H.clear(); await H.gameWait(0.3); return r.gunFov().gun;`);
+    // aimed in and firing a burst: how near the eye any part of the gun comes, view units (the gun camera's near plane
+    // is 0.02 m, 0.048 of them)
+    o.adsNear = await pf<number>(`const T = r.THREE; const root = r.viewModelRoot(); let gun = null; root.traverse((x) => { if (x.userData && x.userData.paid && !gun) gun = x; }); const shown = (x) => { for (let q = x; q; q = q.parent) if (!q.visible) return false; return true; }; const near = () => { const inv = new T.Matrix4().copy(root.matrixWorld).invert(); let n = Infinity; const v = new T.Vector3(); gun.traverse((x) => { if (!x.isMesh || !shown(x)) return; const m = new T.Matrix4().multiplyMatrices(inv, x.matrixWorld); const pos = x.geometry.attributes.position; for (let i = 0; i < pos.count; i += 3) { v.fromBufferAttribute(pos, i).applyMatrix4(m); n = Math.min(n, -v.z); } }); return n; }; r.debugView.ads = 1; await H.gameWait(0.4); let least = near(); r.setScript({ held: (a) => a === "ads" || a === "fire", pressedNow: () => false }); for (let k = 0; k < 10; k++) { await H.gameWait(0.1); least = Math.min(least, near()); } r.setScript(null); r.debugView.ads = null; H.clear(); await H.gameWait(0.4); r.loadout.active.state.clip = r.loadout.active.weapon.clipSize; return least;`);
     // from the magazine seated to the grab on the handle, how near the left hand comes to its place on the gun (the
     // USSO's: it goes from the point straight to the handle)
     const grabbed = RL.rack[0] + (fparmsCfg.packGuns.MPS5.rack.grab?.reach[1] ?? 0) * (RL.rack[1] - RL.rack[0]);
@@ -3507,6 +3510,14 @@ async function packFrames(page: Page): Promise<void> {
     `pack frames: at rest the USSO's and BOOG's barrels point ${(fparmsCfg.hipPitch * 180 / Math.PI).toFixed(0)} degrees up (within 1), not up the fit's tilt`,
     g.every((x) => Math.abs(x.pitch - (fparmsCfg.hipPitch * 180) / Math.PI) < 1),
     show((x) => +x.pitch.toFixed(1)),
+  );
+  // (the owner, 2026-09-29: aimed down the USSO "you can see part of the optic disappearing, showing all buggy": at the
+  // red dot's eye relief its receiver's back end came to 2 mm of the eye, inside the camera's near plane, and showed
+  // through cut off behind the glass)
+  check(
+    "pack frames: aimed in and firing, no part of the USSO or BOOG comes inside the gun camera's near plane (0.02 m, 0.048 of the view's units)",
+    g.every((x) => x.adsNear > 0.048),
+    show((x) => +x.adsNear.toFixed(3)),
   );
   check(
     "pack frames: at the hip the bought arms' guns are drawn at the gun camera's own field of view, as a gun the view's own arms hold (within half a degree)",

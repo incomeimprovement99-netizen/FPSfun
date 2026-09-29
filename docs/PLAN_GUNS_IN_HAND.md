@@ -82,6 +82,25 @@ Checked against the deployed build's own sheets before acting on each.
    stuck out ahead of the fists. The lesson for every gun: a wrist's roll on the forearm is measured as well as its
    bend, and each state of the hands is looked at, not just measured.
 
+### Round 5 (2026-09-29, playtesting the build before the thrown swap)
+
+1. "the arm looks out of place now when inspecting the hacks. If you just move it back down and slightly closer to the
+   camera again i think it fixes it ... the arm is weirdly up and out there": to do.
+2. "the hacks themselves can be slightly bigger themselves, be moved over slightly to the right as a pair, should have
+   some more animation to it as well, like very basic glow or something or it should show the level as well like we do
+   on the custom ui on the bottom": to do.
+3. "make the whole animation like 2 seconds longer, so like a bit longer after each twist": to do.
+4. "include the tossing up animation of the hacks nearing the end of the inspect and they dissolve in the air like we
+   plan to do when swapping guns": to do.
+5. "ADS on the USSO, you can see part of the optic disappearing, showing all buggy and stuff. these are things i was
+   hoping you would notice in general": **done** (Milestone 329), the gun's back end had come inside the camera's near
+   plane. The lesson, kept: every state of a gun is photographed and looked at, aimed in and firing included, not only
+   the ones the measures check.
+6. "the left hand when doing the charging handle on the usso doesn't like close its joints/fingers around the charging
+   handle ... it kind of keeps its same position from the pointing": to do.
+7. "we should have the finger move up and down by a bit following where the mag goes, as if the finger controls the mag
+   going in": to do.
+
 ## 2. The bar every gun in hand meets
 
 Each is a check in the e2e soldier section (`tools/e2e.ts` packFrames) or on the frame sheets

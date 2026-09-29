@@ -34,6 +34,8 @@ const MEASURED = measuredCfg.models as Record<
 export const IRONS_EYE: number = cfg.sights.ironsEye;
 /** and a bought scope's reticle dot (paidweapons.json sights) */
 export const DOT_EYE: number = cfg.sights.dotEye;
+/** the least a gun's back end is kept in front of the eye aimed, before VM_SCALE (paidweapons.json sights clear) */
+export const SIGHT_CLEAR: number = (cfg.sights as unknown as { clear: number }).clear;
 /** how the parts move (paidweapons.json motion) */
 export const PAID_MOTION = cfg.motion;
 const PROPS = (cfg.props ?? {}) as Record<string, { model: string; skin: string; scale?: number; lid?: string; open?: number }>;

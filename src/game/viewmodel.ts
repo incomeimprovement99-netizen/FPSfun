@@ -23,7 +23,7 @@ import { loadQuality } from "./quality";
 import { springStep } from "./spring";
 import type { ResolvedWeapon } from "./weapons";
 import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels";
-import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
+import { DOT_EYE, IRONS_EYE, SIGHT_CLEAR, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
 import { FREE, HIP_PITCH, LOCO, PACK_INSPECT, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, SWAP_THROW, packGunFor, type FreeHand } from "./fprig";
@@ -518,6 +518,8 @@ export class ViewModel {
   private armFamily: ArmFamily = "guard";
   /** the middle of the gun, gun-local: what an inspect or a flourish turns about */
   private readonly gunCentre = new THREE.Vector3();
+  /** the gun's back end, gun-local z (behind its origin), measured with its middle: aimed, it is kept off the eye */
+  private gunBack = 0;
   /**
    * our trigger, gun-local (packRefresh): what an inspect turns about in the bought arms' hands. About the gun's middle,
    * far ahead of the grip on a long gun, BOOG's grip swung out of the right arm's reach, 20 cm short, the hand off it
@@ -685,7 +687,9 @@ export class ViewModel {
       this.model = m;
       // the middle of the gun, measured before it is parented or given a
       // flash, so the box is the weapon itself in its own space
-      new THREE.Box3().setFromObject(m.root).getCenter(this.gunCentre);
+      const box = new THREE.Box3().setFromObject(m.root);
+      box.getCenter(this.gunCentre);
+      this.gunBack = box.max.z;
       this.pack.gunDelta.add(m.root);
       m.root.add(this.flash.group);
       this.flash.group.position.copy(m.muzzle);
@@ -1123,7 +1127,13 @@ export class ViewModel {
     const own = m.root.userData.ownSight as { y: number; f: number; irons: boolean; dot: boolean } | undefined;
     if (own) {
       m.railY = own.y - this.optic.lineH;
-      m.opticF = own.f - this.optic.backF + (own.irons ? this.optic.info.relief - IRONS_EYE : own.dot ? this.optic.info.relief - DOT_EYE : 0);
+      // (the eye back along the sight line far enough that the gun's own back end stays SIGHT_CLEAR in front of it: at a
+      // red dot's eye relief the USSO's receiver came to within 2 mm of the eye, inside the camera's near plane, and its
+      // cut-off back end showed through behind the glass, flickering as the gun swayed; the owner, 2026-09-29, "you can
+      // see part of the optic disappearing, showing all buggy")
+      const eye = own.irons ? IRONS_EYE : own.dot ? DOT_EYE : 0;
+      const need = own.irons || own.dot ? Math.max(eye, own.f + this.gunBack + SIGHT_CLEAR) : 0;
+      m.opticF = own.f - this.optic.backF + (own.irons || own.dot ? this.optic.info.relief - need : 0);
     }
     this.optic.group.visible = !own;
     // and its own reticle dots take the optic's colour: the pack's dot is white, and a red dot reads as one

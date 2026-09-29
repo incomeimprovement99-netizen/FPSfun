@@ -6624,3 +6624,20 @@ so whatever lost the word on the way, the map no longer needs it.
   sank to -1.5 m, onto the corridors' roofs).
 - **Checked:** verify and rules; `sk-neon.ts`; the halls and the court photographed from inside at night; a match on
   the default map.
+
+## Milestone 329 — The USSO's sight whole aimed in: the gun's back end kept off the eye
+
+The owner, 2026-09-29, playtesting: "ADS on the USSO, you can see part of the optic disappearing, showing all buggy and
+stuff. these are things i was hoping you would notice in general."
+
+- **Measured:** aimed at the red dot's eye relief (`paidweapons.json` sights dotEye), the USSO's receiver runs back past
+  its sight to within 2 mm of the eye (0.0043 of the view's units), inside the gun camera's near plane (0.02 m, 0.048
+  of them): its back end was cut off by the camera, and showed through behind the glass, the housing looking see-through
+  and flickering as the gun swayed.
+- **The fix** (`viewmodel.ts` fitOptic, `paidgun.ts` SIGHT_CLEAR, `paidweapons.json` sights clear): each gun's back end
+  measured with its middle when it is loaded, and the eye put back along the sight line far enough that the back end
+  stays `clear` (0.03, before the view's scale) in front of it, so the dot stays where it was on the screen. At 0.12 the
+  gun sat far out with its rear block filling the bottom of the sight picture; at 0.03 its nearest part stays 0.067 of
+  the view's units or more off the eye, aimed and firing (0.077 in the e2e's burst), with the near plane at 0.048.
+- **Checked:** a new soldier e2e check: aimed and firing a burst, no part of either gun inside the near plane (the USSO
+  0.077), seen failing without the clearance; the sheets of both guns aimed; the soldier section; verify; rules.
