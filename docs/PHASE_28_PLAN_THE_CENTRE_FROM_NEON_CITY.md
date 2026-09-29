@@ -170,7 +170,7 @@ behind glass.
 | 28.1 | The inventory: every prefab rebuilt, measured and seen; the import scale fixed | done |
 | 28.2 | The layout: the centre's placements from these rules, placed by measured bounds (`tools/neon-layout.ts`, `src/config/neonmap.json`), drawn from above for the owner | done |
 | 28.3 | The bake: the centre and the plain districts into one file at three texture sizes, its collision off its triangles (`tools/import-neon.ts NEON=bake`) | done |
-| 28.4 | The new map in the game (`src/game/neonmap.ts`), for SpeedKills behind `?map=neon` until the detail is in: its ground, its collision, its districts and their places, the bots' graph, loot, pads, the drop | done (Milestone 325) |
+| 28.4 | The new map in the game (`src/game/neonmap.ts`): its ground, its collision, its districts and their places, the bots' graph, loot, pads, the drop | done (Milestone 325); SpeedKills' default since Milestone 328, the old city at `?map=city` |
 | 28.5 | The first look beside the pack's own pictures, for the owner | done: the buildings and their textures are the pack's; its signs, props and haze are not in yet |
 | 28.6 | Before and after: downloads, load, triangles, draw calls, frame times | done (below) |
 | 28.7 | The detail: the underground station, the tallest building's rooms, the high city's bridges, cover | |
@@ -256,7 +256,10 @@ higher buildings, inside rooms to fight in". In this order, each shipped on its 
    (a body sprinting at it from the plaza gets 2 m inside on 154 of 168 tries, legitimately), standing in a pit to its
    basement 7 m down that showed the sky through the world and was walked over on nothing: floored and walled as a
    court, the world's floor lowered into it (Milestone 326).
-2. **The underground under the middle block.** The pack's station (`Subway Hall` MetroStation00 modules, 10 x 10.5 x
+2. **The underground under the middle block.** Begun (Milestone 328): four of the pack's metro corridors off the
+   tower's court under the plaza, the world's floor lowered in them and the street's slab over them. Next: the street
+   entrances (MetroEntrance00, its stairs reach exactly the court's floor, -7.03 m) at the halls' far ends, so the
+   underground is a way through and the bots walk into it; then the station. The pack's station (`Subway Hall` MetroStation00 modules, 10 x 10.5 x
    11 m; MetroStationDouble00 for the platforms either side), its tunnels (`Subway Tunnels`) out under two streets, the
    street entrances (MetroEntrance00, 5.3 x 14.4 x 20 m, stairs down) on two streets, and SquareHoleGroundLevel00
    (22.6 x 13.7 x 25 m) in the plaza: the ground opened into the station, a sunken court with sightlines up and down.

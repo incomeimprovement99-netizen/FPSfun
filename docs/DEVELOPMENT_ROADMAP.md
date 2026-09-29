@@ -6597,3 +6597,30 @@ case we need to revert".
   the gun far as well, down and in to the chest; up and ahead is what only a throw does, and it fails with the old swap
   (the gun's middle 5 to 15 cm down and 39 to 46 cm in). Measured by the gun's middle: its model's origin, at its back, swings down as it turns
   end over end. The sheets of every move of both guns; verify; rules.
+
+## Milestone 328 — Neon City is SpeedKills' map; the metro's halls off the tower's court; its walls facing in
+
+The owner, 2026-09-29: "i can't play on the new map anymore, make it the default, the url doesn't work with the
+map=neon". The address worked when tried from here (the live page with `?game=speedkills&map=neon` drew the map in 16 s),
+so whatever lost the word on the way, the map no longer needs it.
+
+- **The default**: SpeedKills plays the Neon City map (`main.ts`); `?map=city` keeps the ILranch city it replaces, to
+  compare and to come back to. The e2e's SpeedKills pages stay on `?map=city`, where its city tests are, unless a query
+  names a map (`E2E_MAP=neon` puts every one on the new map); `tools/bench.ts` and `tools/map-stats.ts` measure the new
+  map with no query and the old with `&map=city`.
+- **The halls** (Phase 28.7, the underground): four of the pack's metro corridors off the tower's court through doors in
+  its walls, out under the plaza on the court's floor (7 m down): 15 m north and south, 5 m east and west, floored with
+  the pack's tiles (a corridor has no floor of its own) and closed with the court's wall. The world's floor is lowered in
+  them, and the street's slab laid over them at the plaza's height where its tiles are drawn: without it a body on the
+  plaza sank through onto a corridor's roof. The north door sits at x 10 to 15, where the tower's basement leaves the
+  way clear (a body 3.5 m inside the court reaches every other segment but x -5 to 10 there).
+- **The court's walls face in.** The pack's concrete city wall is one-sided (its triangles face one way: 36.5 m² and
+  none the other), and turned the same way on opposite sides, the north and east walls of Milestone 326's court faced
+  out: from inside the court they were not there, and the sky showed through. Each wall is turned now so its face looks
+  into the court or down its hall, from the measured facing (rules.court.faces).
+- **The map's files are version 3.**
+- **Checks:** `sk-neon.ts`: from 3 m inside the court a body sprints down each hall to its far wall on the court's
+  floor, and on the plaza over each it stands at the street's height (seen failing with the slab taken out: all four
+  sank to -1.5 m, onto the corridors' roofs).
+- **Checked:** verify and rules; `sk-neon.ts`; the halls and the court photographed from inside at night; a match on
+  the default map.

@@ -216,16 +216,47 @@ if (holes.length) {
   const len = wall.size![2];
   const thick = wall.size![0];
   if (Math.abs(wall.size![1] + foot) > 0.05) throw new Error(`the court's wall is ${wall.size![1]} m, the hole ${-foot} m deep`);
+  /** a side's wall segment from `a` left out: a hall's door */
+  const door = (side: string, a: number) => (C.halls as Array<{ side: string; at: number }>).some((h) => h.side === side && Math.abs(h.at - a) < 1e-6);
+  // The wall is one-sided, its face toward `faces` in its own frame (measured off its triangles): turned so the face looks
+  // back into the court or the hall. Turned 90 degrees at a time, its +x goes to -z, -x, +z (tools/import-neon.ts place)
+  const turns = ["+x", "-z", "-x", "+z"];
+  const yawFacing = (dir: string) => ((turns.indexOf(dir) - turns.indexOf(C.faces) + 4) % 4) * 90;
   // along x at z0 and z1, along z at x0 and x1, each wall just outside the hole, its face on the hole's edge
   for (let x = x0; x < x1 - 1e-6; x += len) {
-    placeAt("c-court", "c", C.wall, x + len / 2, z0 - thick / 2, 90, "o", { y: foot });
-    placeAt("c-court", "c", C.wall, x + len / 2, z1 + thick / 2, 90, "o", { y: foot });
+    if (!door("n", x)) placeAt("c-court", "c", C.wall, x + len / 2, z0 - thick / 2, yawFacing("+z"), "o", { y: foot });
+    if (!door("s", x)) placeAt("c-court", "c", C.wall, x + len / 2, z1 + thick / 2, yawFacing("-z"), "o", { y: foot });
   }
   for (let z = z0; z < z1 - 1e-6; z += len) {
-    placeAt("c-court", "c", C.wall, x0 - thick / 2, z + len / 2, 0, "o", { y: foot });
-    placeAt("c-court", "c", C.wall, x1 + thick / 2, z + len / 2, 0, "o", { y: foot });
+    if (!door("w", z)) placeAt("c-court", "c", C.wall, x0 - thick / 2, z + len / 2, yawFacing("+x"), "o", { y: foot });
+    if (!door("e", z)) placeAt("c-court", "c", C.wall, x1 + thick / 2, z + len / 2, yawFacing("-x"), "o", { y: foot });
   }
-  cfg.court = { x0, x1, z0, z1, y: foot };
+  // The halls: the pack's metro corridors off the court through its doors, out under the plaza on the court's floor,
+  // floored with the pack's tiles and closed at their far end with the court's wall (a corridor is open at both ends and
+  // has no floor of its own). Each one's rectangle, for the game to lower its floor in and lay the street's slab over
+  const halls: Array<{ x0: number; x1: number; z0: number; z1: number }> = [];
+  for (const h of C.halls as Array<{ side: "n" | "s" | "w" | "e"; at: number; pieces: string[] }>) {
+    const alongX = h.side === "w" || h.side === "e";
+    const out = h.side === "n" || h.side === "w" ? -1 : 1;
+    const start = { n: z0, s: z1, w: x0, e: x1 }[h.side];
+    const across = h.at + len / 2;
+    /** a spot `d` metres out from the court's edge on the hall's middle line */
+    const spot = (d: number): [number, number] => (alongX ? [start + out * d, across] : [across, start + out * d]);
+    let d = 0;
+    for (const name of h.pieces) {
+      const row = piece(name).row;
+      if (Math.abs(row.size![0] - len) > 0.05) throw new Error(`hall piece ${name} is ${row.size![0]} m wide, the door ${len} m`);
+      placeAt("c-court", "c", name, ...spot(d + row.size![2] / 2), alongX ? 90 : 0, "o", { y: foot });
+      d += row.size![2];
+    }
+    const tile = piece(C.hallTile).row.size![0];
+    for (let t = 0; t < d - 1e-6; t += tile) placeAt("c-court", "c", C.hallTile, ...spot(t + tile / 2), 0, "g", { y: foot - C.under });
+    // (its end wall looks back down the hall, toward the court)
+    placeAt("c-court", "c", C.wall, ...spot(d + thick / 2), yawFacing((out > 0 ? "-" : "+") + (alongX ? "x" : "z")), "o", { y: foot });
+    const [a, b] = [start, start + out * (d + thick)].sort((p, q) => p - q);
+    halls.push(alongX ? { x0: a, x1: b, z0: h.at, z1: h.at + len } : { x0: h.at, x1: h.at + len, z0: a, z1: b });
+  }
+  cfg.court = { x0, x1, z0, z1, y: foot, halls };
 }
 
 // the kerbs along each carriageway's edge where pavement meets it, and the dashed line down its middle

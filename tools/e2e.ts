@@ -98,7 +98,10 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
   const q0 = query.includes("intro=on") ? query : query.startsWith("?") ? `${query}&nointro` : "?nointro";
   // The suite is the legacy game's regression net (docs/PHASE_18_PLAN_SPEEDKILLS.md section 9): a page is
   // legacy unless its query or E2E_GAME names a game, now that a page with no word opens in SpeedKills.
-  const q = q0.includes("game=") ? q0 : `${q0}&game=${process.env.E2E_GAME ?? "legacy"}`;
+  const q1 = q0.includes("game=") ? q0 : `${q0}&game=${process.env.E2E_GAME ?? "legacy"}`;
+  // SpeedKills opens on the Neon City map now (Phase 28); the suite's city tests are the ILranch city's, which ?map=city
+  // keeps, so a SpeedKills page is on it unless its query names a map (E2E_MAP=neon puts every one on the new map)
+  const q = q1.includes("game=speedkills") && !q1.includes("map=") ? `${q1}&map=${process.env.E2E_MAP ?? "city"}` : q1;
   const url = base.includes("?") ? `${base}&${q.slice(1)}` : base + q;
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });

@@ -60,7 +60,8 @@ check("the street a network of at least 700 nodes", street.length >= 700, `${str
 check("the street one network: every street node reaches the rest", seen.size === street.length, `${seen.size} of ${street.length}`);
 
 // the collision the bake wrote, all of it; the tallest building's top where the ship passes
-check("the collision the bake measured, every box", RANGE_SOLIDS.length - firstSolid === SOLIDS.solids.length && SOLIDS.solids.length === cfg.baked.boxes, `${RANGE_SOLIDS.length - firstSolid} of ${SOLIDS.solids.length}, bake ${cfg.baked.boxes}`);
+// (and the street's slab over each of the court's halls)
+check("the collision the bake measured, every box, and a slab over each hall", RANGE_SOLIDS.length - firstSolid === SOLIDS.solids.length + cfg.court.halls.length && SOLIDS.solids.length === cfg.baked.boxes, `${RANGE_SOLIDS.length - firstSolid} of ${SOLIDS.solids.length} + ${cfg.court.halls.length}, bake ${cfg.baked.boxes}`);
 check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.tallest.top) < 1e-6 && SPIRE_TOP.y > 100, `${SPIRE_TOP.y}`);
 
 // the court the tallest building stands in: a body dropped in its corners stands on its drawn floor, 7 m down, not on
@@ -78,8 +79,36 @@ const rests = [
   for (let i = 0; i < 2 * 144; i++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
   return +p.pos.y.toFixed(2);
 });
-const tiles = cfg.chunks["c-court"].place.filter((q) => q[5] === "g").length;
+const tiles = cfg.chunks["c-court"].place.filter((q) => q[5] === "g" && String(q[0]).endsWith(cfg.rules.ground.tile)).length;
 check("the court round the tallest building: a body dropped in its corners stands on its floor, 7 m down, and it is drawn", K.y < -6 && rests.every((y) => Math.abs(y - K.y) < 0.05) && tiles * 100 >= (K.x1 - K.x0) * (K.z1 - K.z0), `rests at ${rests.join(", ")}; ${tiles} tiles`);
+// its halls: from the court's floor a body sprints down each one to its far end, on the court's floor all the way; and
+// on the plaza over a hall it stands at the street's height, not fallen through onto the corridor's roof
+const sprint = (x: number, z: number, y: number, yaw: number, s: number) => {
+  const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+  p.sprintMode = "auto";
+  p.teleport(x + BR_X, y, z + BR_Z, yaw);
+  const run = { held: (a: Action) => a === "forward", pressedNow: (_a: Action) => false };
+  let t = 1000;
+  let low = Infinity;
+  for (let i = 0; i < s * 144; i++) {
+    p.update(1 / 144, (t += 1 / 144), run, 0, 1, false);
+    low = Math.min(low, p.pos.y);
+  }
+  return { x: p.pos.x - BR_X, z: p.pos.z - BR_Z, y: p.pos.y, low };
+};
+for (const h of K.halls) {
+  // from 3 m inside the court's edge, straight down the hall's middle line
+  const alongX = h.z1 - h.z0 < h.x1 - h.x0;
+  const [mx, mz] = [(h.x0 + h.x1) / 2, (h.z0 + h.z1) / 2];
+  const out = alongX ? Math.sign(mx) : Math.sign(mz);
+  const [fx, fz] = alongX ? [out > 0 ? K.x1 - 3 : K.x0 + 3, mz] : [mx, out > 0 ? K.z1 - 3 : K.z0 + 3];
+  const yaw = alongX ? (out > 0 ? -90 : 90) : out > 0 ? 180 : 0;
+  const r = sprint(fx, fz, K.y + 0.05, yaw, 3);
+  const far = alongX ? (out > 0 ? h.x1 : h.x0) : out > 0 ? h.z1 : h.z0;
+  const gone = Math.abs((alongX ? r.x : r.z) - far);
+  const over = sprint(mx, mz, 0.05, yaw, 0.5);
+  check(`hall at (${mx.toFixed(0)}, ${mz.toFixed(0)}): walked from the court to its far wall on the court's floor, and the plaza over it holds a body`, gone < 1.2 && Math.abs(r.y - K.y) < 0.05 && r.low > K.y - 0.05 && Math.abs(over.y) < 0.05, `ended ${gone.toFixed(2)} m from its end at ${r.y.toFixed(2)} m; on the plaza over it ${over.y.toFixed(2)} m`);
+}
 
 // every pad the bake found, ridden: a player stood on it thrown straight up, carried across once above `over`
 check("a jump pad onto each side of the four high city blocks", map.pads.length === cfg.pads.length && map.pads.length === 8, `${map.pads.length}`);

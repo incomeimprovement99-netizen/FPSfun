@@ -766,9 +766,10 @@ buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadow
 const arena = buildArena(scene);
 const triArena = buildTriArena(scene);
 // the battle royale map, 500 m south (src/game/br.ts)
-// SpeedKills' neon city, or the legacy game's Outskirts, in the same square of the world. ?map=neon: the map rebuilt from
-// Daelonik's Neon City (neonmap.ts, Phase 28), while it is built; the city of the ILranch packs otherwise
-const NEON = IS_SK && new URLSearchParams(location.search).get("map") === "neon";
+// SpeedKills' city, or the legacy game's Outskirts, in the same square of the world. SpeedKills plays the map rebuilt from
+// Daelonik's Neon City (neonmap.ts, Phase 28; the owner, 2026-09-29: "make it the default"); ?map=city the city of the
+// ILranch packs before it, kept to compare and to come back to
+const NEON = IS_SK && new URLSearchParams(location.search).get("map") !== "city";
 const brMap = IS_SK ? (NEON ? buildNeonMap(scene) : buildCityMap(scene)) : buildBrMap(scene);
 // a door opening or shutting, heard where it hangs (whoever did it)
 brMap.doors.onChange = (d, what) => audio.door(d.centre, what === "break" || what === "kick" ? "kick" : what);

@@ -45,9 +45,13 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
   FLOORS.length = 0;
   const K = neonCfg.court;
   FLOORS.push({ minX: K.x0 + BR_X, maxX: K.x1 + BR_X, minZ: K.z0 + BR_Z, maxZ: K.z1 + BR_Z, y: K.y });
+  // and its halls under the plaza: their floor lowered too, and the street's slab over them where the plaza's tiles are
+  // drawn (the world's floor lowered under a hall lets a body through the tiles onto the corridor's roof otherwise)
+  for (const h of K.halls) FLOORS.push({ minX: h.x0 + BR_X, maxX: h.x1 + BR_X, minZ: h.z0 + BR_Z, maxZ: h.z1 + BR_Z, y: K.y });
 
   // the collision, measured off the pieces' triangles at the bake
   const first = RANGE_SOLIDS.length;
+  for (const h of K.halls) RANGE_SOLIDS.push({ minX: h.x0 + BR_X, maxX: h.x1 + BR_X, minZ: h.z0 + BR_Z, maxZ: h.z1 + BR_Z, base: -G.slab, top: 0 });
   for (const [x0, x1, z0, z1, y0, y1] of SOLIDS.solids as number[][]) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: y0, top: y1 });
   rebuildSolidGrid();
 

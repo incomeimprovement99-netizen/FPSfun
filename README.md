@@ -1223,9 +1223,10 @@ High 2,889k. In the street of a match on the owner's RX 9070 XT that costs about
 1.8 ms a frame on Balanced (137 fps, from 182) and 3.7 ms on High (67 fps, from
 89), which draws the city again for its shadows and ambient occlusion.
 
-**The Neon City map, being built.** SpeedKills' next city (Phase 28,
+**The Neon City map.** SpeedKills' city (Phase 28,
 `docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md`) is made of Daelonik's Neon
-City bundle alone, nothing drawn by hand: `?map=neon` in the address plays it.
+City bundle alone, nothing drawn by hand; `?map=city` in the address plays the
+ILranch city it replaced.
 The same nine districts, the eight round the centre plain for now; the centre a
 3 by 3 of blocks with 15 m streets, the bundle's 151 m Neon Building 08 in the
 middle, High City's 26 m towers with walkable roofs on the four axis blocks, 3
@@ -1238,7 +1239,8 @@ pack's Unity materials are drawn as Unity draws them: their detail maps
 multiplied in, their light beams unlit and added (`src/game/detailmaps.ts`).
 The tower stands in a sunken court 7 m deep, its own basement at its floor,
 walled with the pack's concrete (the world's floor lowered into it, as the old
-metro's was). Eight jump pads, the pack's plate and blue beam, throw you onto High City's
+metro's was), and four of the pack's metro corridors lead off it under the
+plaza. Eight jump pads, the pack's plate and blue beam, throw you onto High City's
 roofs; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map.
 `tools/checks/sk-neon.ts` rides every pad and walks the graph.
