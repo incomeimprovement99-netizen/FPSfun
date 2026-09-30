@@ -88,6 +88,9 @@ they never enter git and never go to Pages:
   `neonmap.json`, all in git, so commit them. `NEON_SIZES=preview` (256 px) is for looking at a layout, and the gallery
   sheets under `neon/gallery/` are for choosing pieces: neither goes to the server, so copy only the three
   `neonmap-v<version>-{lo,hi,max}.glb` into `apex-range`'s `public/models/paid/neon/` before a deploy.
+  Every file under `public/` ships with a release, so an older version's three files are moved out when a new one
+  goes in (to `speedkills-paid/neon/old-bakes/`): three versions left there were 1.4 GB sent with every deploy that
+  no build asked for.
 - **The guns' skins:** `PAID_ONLY=weapons npm run paid` writes each one twice, `public/models/paid/weapons/tex/` at
   1024 px and `weapons/tex2k/` at 2048 (270 files, 40 MB); the 2048 ones are loaded only for the gun in your hands on
   High (`paidweapons.json` textures2k).
