@@ -7244,3 +7244,20 @@ watch the youtube videos that the packs offer").
   on nothing, with the concourse's caps moved away), and counts the street's slabs over the station. verify and rules;
   e2e `loot` and `br`. The station photographed at night from the street, the hall, the platform, the concourse and the
   tunnel.
+
+## Milestone 350 — A card that stands still no longer holds a match; the live check fails on a throw
+
+Milestone 348's deploy printed LIVE CHECK PASS with its 1v1 never having started: after "the match went through our own
+broker" a wait gave out and threw, and the verdict Milestone 337 had moved into the `finally` printed PASS over the
+throw and exited 0. Run again with a `catch` that counts it (`live-check.ts`: "the check ran to its end"), it failed
+honestly: the fight had not started in 60 s.
+
+- **Why** (`main.ts`): the mode's card runs on the browser's animation frames, and a tab in the background gets none.
+  The live check's guest is a background tab: its card stood still, its player was never ready, and the match waited
+  for ever. A player who alt-tabbed as the card played would have held everyone the same way.
+- **The fix:** a tab that goes into the background skips its card (nobody is watching it), and a card holds its match
+  for `intro.json` matchHold (8 s) at the most from its start, whatever happens to it (the card is 1.85 s and settles for
+  4 at the most). A card waiting for the loading screen is bounded by the screen's own 25 s.
+- **Checked:** the live check against the dev server: the countdown ends once both are in, a hit lands, leaving ends it
+  (its site-only asset count aside); the live site's run before the fix failed at the 60 s wait. sklobby 29 of 29
+  (the match still waits under a card that plays); verify, rules; and the deploy's own live check.

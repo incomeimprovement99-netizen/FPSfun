@@ -162,7 +162,9 @@ async function main(): Promise<void> {
       await ev(p, "window.__pad.buttons[9].pressed = false");
       await sleep(300);
     }
-    await host.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 20000 });
+    // SpeedKills holds a match's start until its mode card has played, and the card waits for the loading screen,
+    // which a page that draws nothing leaves only at its limit (hud.json loading.maxSeconds, 25 s): room for both
+    await host.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 60000 });
     check("the countdown ends once both have clicked Play", true);
     await sleep(1000);
     await ev(host, "(() => { const d = window.__range.duel(); d.localHit(d.remoteOf(d.avatars[0]), 50, false); })()");
@@ -172,6 +174,10 @@ async function main(): Promise<void> {
     await host.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 15000 }).catch(() => undefined);
     check("leaving ends it for the host", (await ev<boolean>(host, "window.__range.duel() === null")));
     check("no page errors or failed requests", errors.length === 0, [...new Set(errors)].slice(0, 4).join(" | "));
+  } catch (e) {
+    // a wait that gave out or a page that threw is a failure like any other: without this the verdict in the finally
+    // below said PASS over it and exited 0 (Milestone 348's deploy: the fight never started inside 20 s, "PASS")
+    check("the check ran to its end", false, String((e as Error)?.message ?? e).slice(0, 200));
   } finally {
     await browser.close();
     // here and not after: a check that fails part way returns out of the try, and the verdict after the finally was

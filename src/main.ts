@@ -187,6 +187,12 @@ let introShown = false;
  * page opens): it waits for the screen to go, then plays, and the match waits for it (the local state's `held`)
  */
 let cardPending: { words?: { name: string; sub: string } } | null = null;
+/** when the mode's card last started (real seconds): it holds its match for introCfg.matchHold at the most */
+let cardAt = -Infinity;
+// a tab in the background gets no animation frames, so its card would stand still and hold the match: it skips it
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && intro.kind === "match") intro.skip();
+});
 // a key or a click takes the rest of it: nobody wants a title card twice
 if (!NO_INTRO) for (const ev of ["keydown", "pointerdown"] as const) window.addEventListener(ev, () => intro.skip(), { capture: true });
 // the shot the card is built round, heard as well as seen. Nothing is heard on
@@ -4951,7 +4957,10 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   // SpeedKills: never over the loading screen; the mode's card once it has gone (cardPending), the match held under it
   if (!NO_INTRO) {
     if (IS_SK && !loadingScreen.loaded) cardPending = { words: modeWords(d, kind) };
-    else void intro.play("match", modeWords(d, kind));
+    else {
+      cardAt = performance.now() / 1000;
+      void intro.play("match", modeWords(d, kind));
+    }
   }
   note("match", { mode: kind, role: d instanceof Duel && d.players > 1 ? d.role : undefined });
   d.onRespawn = () => respawnForMatch(d);
@@ -8010,7 +8019,7 @@ function step(): void {
     name: profile.profile.name,
     ready: input.playing,
     // SpeedKills: the mode's card still up holds the match's start (duel.ts LocalState.held)
-    held: IS_SK && (intro.kind !== null || cardPending !== null),
+    held: IS_SK && (cardPending !== null || (intro.kind !== null && performance.now() / 1000 - cardAt < introCfg.matchHold)),
     stance: downedNow ? "downed" : player.stance,
     speed: player.speed,
     ads: ws.adsFrac,
@@ -8368,6 +8377,7 @@ function step(): void {
   if (cardPending && loadingScreen.loaded) {
     const { words } = cardPending;
     cardPending = null;
+    cardAt = performance.now() / 1000;
     void intro.play("match", words);
   }
   if (!NO_INTRO && !introShown) {

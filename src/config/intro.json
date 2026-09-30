@@ -131,5 +131,7 @@
     "head": "#e8fbff",
     "dim": "#20e0ff",
     "alt": "#ff2e9a"
-  }
+  },
+  "_matchHold": "SpeedKills holds a match's start while its mode card plays (main.ts, duel.ts LocalState.held): at the most this many seconds from the card's start, whatever happens to it. The card runs on the browser's animation frames, and a tab in the background gets none: the card stood still, its player was never ready, and the match (every friend in it) waited for ever (Milestone 348's live check). The card is 1.85 s and settles for 4 at the most, so 8 never cuts one short. A tab that goes into the background skips its card besides.",
+  "matchHold": 8
 }
