@@ -6934,3 +6934,29 @@ streets and its ring.
 - They collide with nothing, as a sign on a wall a body climbs past should not stop it.
 - **The map's files are version 6.**
 - **Checked:** verify and rules; `sk-neon.ts`; signs photographed head-on from the street.
+
+## Milestone 340 — The soldier reaches with its shoulder, and runs, sprints and fires with the USSO without a faulted frame
+
+The owner's order stands (2026-09-29): the USSO and BOOG perfect on every front in third person, then the owner
+verifies. This is 27.12's first round. SpeedKills' soldier only.
+
+- **The shoulder reaches** (`rifle.ts` reachWithShoulder, `soldierhold.json` reach): when an arm comes up short of its
+  hand's place, the clavicle (0.205 m, measured) swings up to 18 degrees toward it first, up to 6.4 cm, as a person
+  reaching pushes the shoulder forward, and the left hand's hold slides back along the gun only past that
+  (`mannequin.ts` supportHold). It used to slide 2.6 cm on the USSO and 5.5 cm on BOOG running, and took the hand fitted
+  to its place into the gun (12 to 20 mm); no pose of either gun slides now.
+- **A shot** no longer drives the gun 2.5 cm back into a shoulder that stays put (the chest already rocks back with it),
+  and the USSO aimed sits 1.5 cm further out (its eye relief 11.5 cm): aimed 0 to 4 mm into the armour, firing 10 at most.
+- **The reload searched a hand place at a time** (`tools/figure-solve.ts` reload, `KEY=`): the USSO's left hand on its
+  magazine, pulling it and bringing the new one (one grip on the magazine, lower), at the handle and racking it, at the
+  pouch; the gun's turn toward the left hand (15.5 degrees, it was 28); BOOG's bolt worked by the right hand, its magazine
+  and pouch. The left wrist at the magazine from 65 to 45 degrees.
+- **The lowered carry** (sprint and swap) searched for each gun (`ONLY=` keeps a fitted hand as it is): BOOG's through the
+  body 18 mm at most sprinting, from 40.
+- **Where it stands** (every sequence, four sides, whole and close, `shots/figure-v19`): the USSO at rest, aimed,
+  crouched, firing, running and sprinting has no faulted frame (firing, running and sprinting all did); looking up or
+  down 16 of 72 frames, jumping 44 of 168, sliding 24 of 112, the reload 136 of 224 (its magazine through the left
+  forearm and the belly on the way to and from the pouch), the swap 176 of 208 (lowered standing, the magazine into the
+  belly: the swap and the sprint share one lowered carry). BOOG running and sprinting has none; in the others its stock
+  and receiver are 21 to 40 mm into the bulky right shoulder and arm, its one fault left in the still poses (27.12).
+- **Checked:** verify; rules; the frame sheets above; the e2e `skfigure` section.

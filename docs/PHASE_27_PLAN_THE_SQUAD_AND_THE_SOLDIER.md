@@ -255,3 +255,10 @@ the sheets of 2026-09-29 still flag, most seen first:
 - **The swap**: BOOG lowered through the body (40 mm), the lowered carry's numbers being the USSO's.
 - **The recoil**: the kick drives the butt 20 mm (the USSO) to 35 mm (BOOG) into the collarbone.
 - **A slide's and a jump's way in and out**, where the arms blend between the clip and the hold.
+
+First round (Milestone 340): the slide fixed by the shoulder reaching (no pose slides now), the recoil and the USSO's
+aim by eye relief, the reload's hand places and tilt searched, both lowered carries searched. The USSO at rest, aimed,
+crouched, firing, running and sprinting has no faulted frame; BOOG running and sprinting none. Next, most seen first:
+BOOG's stock in the right shoulder and arm (every still pose, 21 to 40 mm), the swap standing (a lowered carry of its
+own, the sprint's being right), the reload's magazine through the left forearm, then the look's extremes, the jump and
+the slide.
