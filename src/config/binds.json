@@ -1,5 +1,5 @@
 {
-  "_note": "Input bindings. Keys use KeyboardEvent.code. Mouse uses `mouse0`..`mouse4`: 0 left, 1 middle, 2 right, 3 thumb-back (nearer the wrist), 4 thumb-forward (further from the wrist). What people call Mouse 4 and Mouse 5 are `mouse3` and `mouse4` here. The scroll wheel is `wheelup` and `wheeldown`: each notch is one press. Scroll down is forward, one tap of W per notch, which is how a scroll tap-strafe works; scroll up is jump, the other common movement bind (a stream of jump presses for bunny hops and superglide timing). `dayNight` (F8) flips SpeedKills between its neon night and its hazy day, to see the city both ways.",
+  "_note": "Input bindings. Keys use KeyboardEvent.code. Mouse uses `mouse0`..`mouse4`: 0 left, 1 middle, 2 right, 3 thumb-back (nearer the wrist), 4 thumb-forward (further from the wrist). What people call Mouse 4 and Mouse 5 are `mouse3` and `mouse4` here. The scroll wheel is `wheelup` and `wheeldown`: each notch is one press. Scroll down is forward, one tap of W per notch, which is how a scroll tap-strafe works; scroll up is jump, the other common movement bind (a stream of jump presses for bunny hops and superglide timing). `dayNight` (F8) flips SpeedKills between its neon night and its hazy day, to see the city both ways. `inspect` is I (the owner, 2026-09-29: \"make I the default inspect key\"); it had no key of its own, only a long press of reload with a full magazine, which still works. I was the range's dummy mode, which moved to the full stop (every letter is in use). `keyHints` (/) shows and hides the keys on screen (keyhints.json).",
   "fire": [
     "mouse0"
   ],
@@ -129,7 +129,7 @@
     "KeyL"
   ],
   "dummyMode": [
-    "KeyI"
+    "Period"
   ],
   "ping": [
     "mouse1"
@@ -137,7 +137,9 @@
   "grenade": [
     "KeyG"
   ],
-  "inspect": [],
+  "inspect": [
+    "KeyI"
+  ],
   "chat": [
     "Enter"
   ],
@@ -152,5 +154,8 @@
   ],
   "dayNight": [
     "F8"
+  ],
+  "keyHints": [
+    "Slash"
   ]
 }

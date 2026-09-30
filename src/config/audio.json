@@ -201,7 +201,9 @@
     "fadeIn": 1.5,
     "fadeOut": 3.0
   },
-  "_ambience": "SpeedKills' city under everything in a match (audio.ts ambience): 'Scifi City - Ambient Loop' (busy_cyberworld) by TinyWorlds, CC0, from OpenGameArt, fetched by `npm run sounds` into public/audio/music as city.mp3. It plays in a match on the ground and gives way to the drop theme in the air; it rides the effects volume, since it is the world's sound rather than a score. level is its share of that, low so steps and shots stay on top; the fades are seconds.",
+  "_ambience": "SpeedKills' city under everything in a match (audio.ts ambience): 'Scifi City - Ambient Loop' (busy_cyberworld) by TinyWorlds, CC0, from OpenGameArt, fetched by `npm run sounds` into public/audio/music as city.mp3. It plays in a match on the ground and gives way to the drop theme in the air. It rode the effects volume, as the world's sound rather than a score, but it is a loop with a tune in it and the owner heard it as music (2026-09-29: \"i didn't want music\"): it rides the Music slider now, so the one slider is all of it. level is its share of that; the fades are seconds.",
+  "_musicOff": "The Music slider starts at 0 (the owner, 2026-09-29: \"i didn't want music lol take that out or just default it to silent\"): `volume` is its default, and a stored volume without `tag` in it is moved to 0 once, so a player who never touched it hears nothing and one who turns it up afterwards keeps what they chose.",
+  "musicOff": { "volume": 0, "tag": "2026-09-29" },
   "ambience": {
     "level": 0.3,
     "fadeIn": 2.5,

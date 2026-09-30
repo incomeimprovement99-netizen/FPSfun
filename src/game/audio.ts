@@ -64,7 +64,7 @@ export class GameAudio {
   }
   private space: "indoor" | "outdoor" = "indoor";
   /** 0..1 each; Settings */
-  volumes = { master: 0.8, effects: 1, hits: 1, voice: 0.8, music: 0.6 };
+  volumes = { master: 0.8, effects: 1, hits: 1, voice: 0.8, music: cfg.musicOff.volume };
   /** sounds played (tests) */
   played = 0;
   /** the recorded samples by name, every take of each (loaded once the audio starts) */
@@ -117,6 +117,11 @@ export class GameAudio {
           const n = Number(v[k]);
           if (Number.isFinite(n) && n >= 0 && n <= 1) this.volumes[k] = n;
         }
+        // the music off for everyone once (audio.json musicOff); a slider moved after that is theirs
+        if ((v as { musicTag?: unknown }).musicTag !== cfg.musicOff.tag) {
+          this.volumes.music = cfg.musicOff.volume;
+          localStorage.setItem(LS, JSON.stringify({ ...this.volumes, musicTag: cfg.musicOff.tag }));
+        }
       }
     } catch {
       /* ignore */
@@ -126,7 +131,7 @@ export class GameAudio {
   setVolumes(v: Partial<GameAudio["volumes"]>): void {
     Object.assign(this.volumes, v);
     try {
-      localStorage.setItem(LS, JSON.stringify(this.volumes));
+      localStorage.setItem(LS, JSON.stringify({ ...this.volumes, musicTag: cfg.musicOff.tag }));
     } catch {
       /* ignore */
     }
@@ -142,7 +147,7 @@ export class GameAudio {
     // your own gun skips the master gain (it joins after the master compressor), so the sliders reach it here
     this.ownBus?.gain.setTargetAtTime(0.5 * this.volumes.master * this.volumes.effects, t, 0.02);
     if (this.musicState.on) this.musicBus?.gain.setTargetAtTime(this.volumes.music * cfg.music.level, t, 0.02);
-    if (this.ambienceState.on) this.ambBus?.gain.setTargetAtTime(this.volumes.effects * cfg.ambience.level, t, 0.02);
+    if (this.ambienceState.on) this.ambBus?.gain.setTargetAtTime(this.volumes.music * cfg.ambience.level, t, 0.02);
   }
 
   /** the drop theme's element and its gain, made the first time it plays */
@@ -178,7 +183,7 @@ export class GameAudio {
     bus.gain.cancelScheduledValues(t);
     if (on) {
       void el.play().catch(() => undefined);
-      bus.gain.setTargetAtTime(this.volumes.effects * cfg.ambience.level, t, cfg.ambience.fadeIn / 3);
+      bus.gain.setTargetAtTime(this.volumes.music * cfg.ambience.level, t, cfg.ambience.fadeIn / 3);
     } else {
       bus.gain.setTargetAtTime(0, t, cfg.ambience.fadeOut / 3);
       setTimeout(() => void (this.ambienceState.on || el.pause()), cfg.ambience.fadeOut * 1000);

@@ -70,7 +70,7 @@ import { healArea } from "./game/healarea";
 import { Trails } from "./game/trails";
 import DECAY_CFG from "./config/decay.json";
 import { Hacks, HACK, HACK_DEFS, hackDef, hackSlotOf, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
-import { BotMatch, MOST_BOTS } from "./game/bots";
+import { BotMatch, MOST_BOTS, tierSpeed } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
 import { submitScore } from "./game/leaderboard";
@@ -147,6 +147,27 @@ import { BANNERS, BANNER_ICONS, bannerCode, bannerOf } from "./game/banners";
 import { ImpactLayer, IMPACTS, blastShakeDeg } from "./game/impacts";
 import { EMOTES, EMOTE_STOP } from "./game/emotes";
 import emotesCfg from "./config/emotes.json";
+import keyHintsCfg from "./config/keyhints.json";
+
+// The battle royale row as everyone starts it (speedkills.json brDefaults), written once over what this browser
+// had before any of it is read: the row reads its choices back from these keys as the page builds it.
+applyBrDefaults();
+function applyBrDefaults(): void {
+  const D = IS_SK ? PROFILE.brDefaults : undefined;
+  if (!D) return;
+  try {
+    if (localStorage.getItem("range.brDefaults") === D.tag) return;
+    localStorage.setItem("range.br.team.sk", D.team);
+    localStorage.setItem("range.brRules.v1", D.rules);
+    localStorage.setItem("range.br.bots.sk", String(D.bots));
+    localStorage.setItem("range.br.pace", D.pace);
+    localStorage.setItem("range.br.start", D.start);
+    localStorage.setItem("range.bots.difficulty", D.difficulty);
+    localStorage.setItem("range.brDefaults", D.tag);
+  } catch {
+    // storage off: the page's own first choices
+  }
+}
 
 // the loading screen listens from here on: before any loader of the page's own has started
 const loadingScreen = new LoadingScreen();
@@ -3352,6 +3373,41 @@ function updateHeal(now: number, cancel: boolean): void {
 // ---------- abilities: JOLT and TRIAGE ----------
 /** the key an action is on, as the HUD shows it */
 const keyLabel = (a: Action): string => bindName(currentBinds()[a]?.[0] ?? "?").toUpperCase();
+/**
+ * The keys on screen (keyhints.json, hud.ts drawKeyHints): up for everyone until
+ * they hide them, and remembered either way. Built from the bindings as they are,
+ * so a rebind on the Controls tab shows at once; rebuilt twice a second, not a frame.
+ */
+let keyHintsOn = true;
+try {
+  keyHintsOn = localStorage.getItem("range.keyHints") !== "off";
+} catch {
+  /* storage off: up, for the visit */
+}
+let keyHintsBuilt: { at: number; key: string; value: NonNullable<HudState["keyHints"]> } | null = null;
+function keyHintsNow(now: number): HudState["keyHints"] {
+  if (!keyHintsOn) return null;
+  const inRange = !duel;
+  const friends = (duel instanceof Duel && duel.players > 1) || hangout !== null;
+  const key = `${inRange}|${friends}`;
+  if (keyHintsBuilt && keyHintsBuilt.key === key && now - keyHintsBuilt.at < 0.5) return keyHintsBuilt.value;
+  const binds = currentBinds();
+  // the keys a person would name: not the scroll wheel's notches, nor the right-hand twin of a left-hand key
+  const named = (b: string): boolean => !b.startsWith("wheel") && !/Right$/.test(b);
+  const first = (a: string, n: number): string[] => (binds[a as Action] ?? []).filter(named).slice(0, n).map((b) => bindName(b));
+  const rows: Array<{ label: string; keys: string[] }> = [];
+  for (const r of keyHintsCfg.rows as ReadonlyArray<{ label: string; actions: string[]; games?: string[]; when?: string }>) {
+    if (r.games && !r.games.includes(GAME)) continue;
+    if (r.when === "range" && !inRange) continue;
+    if (r.when === "friends" && !friends) continue;
+    const keys = r.actions.length > 1 ? r.actions.flatMap((a) => first(a, 1)) : first(r.actions[0], keyHintsCfg.keysPerAction);
+    // an action someone unbound has nothing to press: its row goes rather than showing an empty cap
+    if (keys.length) rows.push({ label: r.label, keys });
+  }
+  const value = { rows, hide: bindName(binds.keyHints?.[0] ?? "?") };
+  keyHintsBuilt = { at: now, key, value };
+  return value;
+}
 function pickAbility(id: AbilityId, now: number): void {
   if (!abilities.enabled) return;
   abilities.pick(id);
@@ -6918,6 +6974,16 @@ function step(): void {
     // 7: hold for the emote wheel (move to one, let go); a tap plays the last one again
     // 8: your spray on the wall you look at
     if (input.pressedNow("spray")) doSpray(now);
+    // the keys on screen, away or back (keyhints.json), remembered
+    if (input.pressedNow("keyHints")) {
+      keyHintsOn = !keyHintsOn;
+      try {
+        localStorage.setItem("range.keyHints", keyHintsOn ? "on" : "off");
+      } catch {
+        /* storage off: for the visit */
+      }
+      if (!keyHintsOn) hud.notice(`KEYS HIDDEN  ·  ${keyLabel("keyHints")} SHOWS THEM AGAIN`, now, 2.5);
+    }
     // your banner card to the match, now and then
     if ((duel || hangout) && now - bannerSentAt > BANNERS.resend) {
       bannerSentAt = now;
@@ -8270,6 +8336,7 @@ function step(): void {
     speedMs: player.speed,
     speedHu: player.speed / HU,
     prompt,
+    keyHints: keyHintsNow(now),
     scope: optic && optic.info.overlay && !third ? scopeState(optic, aimNow, now) : null,
     healing: IS_SK ? { k: (healFelt += (healingNow - healFelt) * Math.min(1, dt / 0.25)), edge: (H as unknown as { healArea: { screen: number } }).healArea.screen } : undefined,
   });
@@ -8406,6 +8473,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   duel: () => duel,
   /** the range together (main.ts hangout) */
   hangout: () => hangout,
+  /** a bot tier's walking speed in this game (bots.ts tierSpeed) */
+  botSpeedOf: tierSpeed,
   hud,
   input,
   profile,

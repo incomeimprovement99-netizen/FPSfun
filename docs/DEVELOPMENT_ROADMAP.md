@@ -6998,3 +6998,41 @@ The owner, 2026-09-30: "ensure the loadout screen shows the character holding th
   in, and the whole gun inside the panel front on, three quarters, both sides and from behind; seen failing with the
   fixed camera put back (BOOG 0.58 to 0.83 of the panel's half-width past its edge); the Loadouts sheets of both guns;
   verify; rules.
+
+## Milestone 343 — No music unless you want it, the battle royale row's defaults, Casual bots slower, I inspects, the keys on screen
+
+The owner, 2026-09-29: "i didn't want music lol take that out or just default it to silent, then have the battle royale
+options be defaulted for everyone at squad=duos, rules = br, friends: one squad, bots=27, ring normal, land with loadout
+and casual. and for casual, make the bots move like 0.75x speed so they are easier to track for everyone to start", and
+"make I the default inspect key, make sure most / all of our functionality has a default key and make default the
+options/buttons to be displayed on the page, with a clear press [button] to hide this ... on the right side, below the
+FPS, showing short description + button(s) ... this will help new players."
+
+- **Music** (`audio.json` musicOff, `audio.ts`): the Music slider starts at 0, and a stored volume without the
+  musicOff tag is moved to 0 once, so turning it up afterwards sticks. SpeedKills' city loop ('Scifi City - Ambient
+  Loop', under every match) rode the effects volume; it is a loop with a tune in it, so it rides the Music slider now
+  and is silent with it. The drop theme was already on it.
+- **The battle royale row** (`speedkills.json` brDefaults, `main.ts` applyBrDefaults): duos, battle royale rules,
+  friends as one squad, 28 bots, the normal ring, landing with the loadout, Casual. Written once over what a browser
+  had (a tag), before the row reads it back, so a choice made after that is kept. **28, not 27:** duos' bots come in
+  whole pairs, and the row offers 20, 28 and 34 (29 in the match, 30 with a friend). Rules, start, pace and the bots'
+  tier are keys the legacy game shares, so its row starts there too.
+- **Casual bots at 0.75** (`speedkills.json` botTierSpeed, `bots.ts` tierSpeed): a tier's speed times SpeedKills'
+  botSpeedScale (2) and now its own scale, easy (Casual) at 0.75; the others as they were. One function for the bots
+  and the tests, where the speed was computed inline.
+- **I inspects** (`binds.json`): inspect had no key of its own, only a long press of reload with a full magazine,
+  which still works. I was the range's dummy mode; every letter is in use, so that moved to the full stop. Every other
+  action already had a default key.
+- **The keys on screen** (`keyhints.json`, `hud.ts` drawKeyHints, `main.ts` keyHintsNow): up for everyone on the
+  right under the FPS, in the HUD's panel with the prompts' white key caps: move, jump (twice: double jump), sprint,
+  crouch and slide, fire, aim, reload, inspect, swap, the two hacks, pick up, melee, ping, map, emotes, third person;
+  talk with friends in the match or the range; the fusion level, the dummies and their reset in the range. Each row's
+  keys are read from the bindings as they are, so a rebind shows at once (not the scroll wheel's notches nor a
+  right-hand twin). The last line, in the hacks' gold: Press / to hide this. `/` (new action keyHints, on the Controls
+  tab) hides it, says how to bring it back, and the choice is remembered; the kill feed moves under the panel while it
+  is up. Not a layout box: the SpeedKills HUD check holds every box to the bottom band.
+- **Checked:** new sklobby checks: a new player's row and music (duos, br, one squad, 28, normal, loadout, Casual, 0);
+  a returning one on trios, 9 bots, loot, Skilled and 60% music moved onto them once, and trios and 40% chosen after
+  kept over a reload; Casual at 0.75 of its tier's speed and Skilled as it was; the keys up by default with I for
+  inspect and / named; I turning the gun over; / hiding them, remembered over a reload. e2e: sklobby 24 of 24, each new check but one seen failing with its change taken out (the one: a choice kept over a reload); the speedkills section three times: its battle royale check, which read the row's old default, now sets trios and 27 itself; two other checks failed once each and passed on the other runs (host and guest in one city match; the loot start's death box); page passed. Seen: the
+  panel photographed in the range at 1600x900. verify, rules.

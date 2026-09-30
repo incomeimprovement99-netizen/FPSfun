@@ -1,0 +1,31 @@
+{
+  "_note": "The keys on screen (hud.ts drawKeyHints, main.ts keyHintsNow): what a new player needs to know to play, as a short description and the key or keys bound to it right now, so a rebind shows at once. Up on the right under the FPS for everyone until they hide it with the keyHints key (binds.json, / by default), and remembered either way (the owner, 2026-09-29: \"make default the options/buttons to be displayed on the page, with a clear press [button] to hide this ... on the right side, below the FPS, showing short description + button(s) ... this will help new players\"). A row lists its actions' first keys (a row of one action shows up to `keysPerAction`); `games` limits it to a game, and `when` to a moment: `range` only in the range, `friends` only with friends in the match or the range. Ours.",
+  "keysPerAction": 2,
+  "rows": [
+    { "label": "Move", "actions": ["forward", "left", "back", "right"] },
+    { "label": "Jump (twice: double jump)", "actions": ["jump"], "games": ["speedkills"] },
+    { "label": "Jump", "actions": ["jump"], "games": ["legacy"] },
+    { "label": "Sprint", "actions": ["sprint"] },
+    { "label": "Crouch, slide", "actions": ["crouch"] },
+    { "label": "Fire", "actions": ["fire"] },
+    { "label": "Aim", "actions": ["ads"] },
+    { "label": "Reload", "actions": ["reload"] },
+    { "label": "Inspect your gun", "actions": ["inspect"] },
+    { "label": "Swap guns", "actions": ["swapWeapon"] },
+    { "label": "Mobility hack", "actions": ["ability"], "games": ["speedkills"] },
+    { "label": "Utility hack", "actions": ["grenade"], "games": ["speedkills"] },
+    { "label": "Ability", "actions": ["ability"], "games": ["legacy"] },
+    { "label": "Grenade", "actions": ["grenade"], "games": ["legacy"] },
+    { "label": "Heal", "actions": ["heal"], "games": ["legacy"] },
+    { "label": "Pick up, use", "actions": ["interact"] },
+    { "label": "Melee", "actions": ["melee"] },
+    { "label": "Ping (hold: the wheel)", "actions": ["ping"] },
+    { "label": "Map", "actions": ["map"] },
+    { "label": "Emotes (hold)", "actions": ["emote"] },
+    { "label": "Third person", "actions": ["thirdPerson"] },
+    { "label": "Talk to your squad", "actions": ["voice"], "when": "friends" },
+    { "label": "Fusion level (the range)", "actions": ["magLevel"], "when": "range", "games": ["speedkills"] },
+    { "label": "Dummies: stand, strafe, crouch", "actions": ["dummyMode"], "when": "range" },
+    { "label": "Reset the dummies", "actions": ["resetDummies"], "when": "range" }
+  ]
+}

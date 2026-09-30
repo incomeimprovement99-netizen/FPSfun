@@ -568,6 +568,11 @@ export class BotLooter {
   }
 }
 
+/** a tier's walking speed in this game, m/s: its own, times SpeedKills' botSpeedScale and the tier's botTierSpeed (Casual slower) */
+export function tierSpeed(tier: BotTier): number {
+  return DIFFICULTY[tier].speed * (IS_SK ? (PROFILE.botSpeedScale ?? 1) * (PROFILE.botTierSpeed?.[tier] ?? 1) : 1);
+}
+
 /** a shot a bot fired that may have hit an enemy: for the match to apply */
 export interface BotShot {
   from: THREE.Vector3;
@@ -738,7 +743,7 @@ export class Bot {
   private botRegen: { perSec: number; until: number } | null = null;
   /** its move speed now: its tier's, times OVERDRIVE while that runs */
   get speedNow(): number {
-    return this.diff.speed * (IS_SK ? (PROFILE.botSpeedScale ?? 1) : 1) * (this.clock < this.boostUntil ? KITS.runner.ult.speed : 1);
+    return tierSpeed(this.diff.name) * (this.clock < this.boostUntil ? KITS.runner.ult.speed : 1);
   }
   /** JOLT's charges (the player's rules: two, one back every 4 s) and when the next is back */
   private joltCharges: number = JOLT.charges;

@@ -136,6 +136,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
   in it as they would be alone, seeing and hearing each other, nobody hurt. A
   group lands there when a match runs out, and a friend who opens your old link
   while you are in it walks in beside you.
+- **Starting out:** the keys are on screen, on the right under the FPS, until you
+  press / to hide them. The battle royale row starts at duos, friends as one squad,
+  28 bots, the normal ring, landing with your loadout, and Casual bots, which move
+  at three quarters of their tier's speed. There is no music until you turn the
+  Music slider up (it carries the city's loop too).
 - **The first loadout is the USSO and BOOG:** the two guns finished to the
   bar every gun will be held to. A new player starts with them, and everyone
   who played before was moved onto them once; pick another on the Loadouts tab
@@ -618,7 +623,8 @@ defaults puts `binds.json` back.
 | Enter, then 1 to 6 | quick chat: a line (GG, Nice shot!, Thanks!, On my way, Wait for me, Rematch?) to everyone in the match, in their kill feed | 7 | emotes: hold for the wheel (wave, cheer, over there, salute, shrug, dance), move to one and let go; a tap plays the last again. Your view steps round in front to watch, everyone sees it, and a step ends it |
 | 8 | your spray on the wall you look at (within 5 m): everyone in the match sees it, a new one replaces your last, and it fades after two minutes; pick yours in Settings | | |
 | Left mouse | fire | Right mouse | aim down sights (toggle in Settings) |
-| R | reload; hold with a full magazine to inspect the gun (Inspect can have a key of its own) | V | melee (heirloom or fist) |
+| R | reload; hold with a full magazine to inspect the gun too | V | melee (heirloom or fist) |
+| I | inspect the gun | / | the keys on screen, up or away (up for everyone at first, on the right under the FPS; remembered) |
 | 1, 2 | weapon slot | Q, Mouse 5 | swap weapon |
 | 3 | holster (move 15% faster) | 4 | heal: a tap is the quick heal, hold for the wheel of every heal |
 | G | a grenade in hand (again: the next kind); fire throws, aim puts it away | F | your kit's tactical (JOLT, PATCH) |
@@ -629,7 +635,7 @@ defaults puts `binds.json` back.
 | U | magazine level | O | cycle optic |
 | J, N, H | barrel, stock, laser | L | hop-up |
 | Z | variable optic zoom | T | dummy armour tier |
-| I | what the dummies do | Y | reset dummies and the course |
+| . (full stop) | what the dummies do | Y | reset dummies and the course |
 | K | ghost of your best run on/off | P | copy your course result |
 | X | third person on/off | Alt (hold) | look round your character |
 | Esc | menu | | |

@@ -360,6 +360,10 @@
       "hazyDay"
     ]
   },
+  "_brDefaults": "The battle royale row as everyone starts it (the owner, 2026-09-29): duos, battle royale rules, friends as one squad (the row's first choice, never stored), 28 bots, the ring at its normal pace, landing with your loadout, and Casual bots. The owner asked for 27 bots; duos come in whole pairs, so the row offers 20, 28 and 34, and 28 is the nearest (29 in the match, 30 with a friend). A browser that has not seen `tag` has these written over what it had, once (main.ts applyBrDefaults), so a choice made after that is kept.",
+  "brDefaults": { "tag": "2026-09-29", "team": "duo", "rules": "br", "bots": 28, "pace": "normal", "start": "loadout", "difficulty": "easy" },
+  "_botTierSpeed": "A tier's speed times this, on top of botSpeedScale (bots.ts speed): Casual (easy) at 0.75, so a bot is easier to follow with the eye and the gun while players learn the game (the owner, 2026-09-29: \"make the bots move like 0.75x speed so they are easier to track for everyone to start\"). A tier not named moves as it did.",
+  "botTierSpeed": { "easy": 0.75 },
   "_lists": "The lists the legacy game keeps in its own configs, in SpeedKills' guns: what the bots carry (every gun, in turn), the six default loadouts' two guns (the order of the legacy defaults: Assault, Close Quarters, Marksman, Heavy, Sidearms, Dirt Bike), and the Gulag's pool, from which the two fighters' shared pair is drawn. loadoutNames are the six defaults' names in SpeedKills (Phase 20 A7): the legacy Sidearms and Dirt Bike no longer fit guns that are HAEFY with USSO and BOOG with ANAKIN. botRename renames the bots whose names are a gun's (BOT NOVA beside the gun NOVA). The first default is USSO and BOOG (the owner, 2026-09-29): the two guns finished to the bar every gun will be held to, in first person and on the soldier, so they are what a new player and a friend opening an invite pick up first; loadoutPick moves a returning player onto it once (src/game/loadouts.ts).",
   "lists": {
     "botWeapons": [

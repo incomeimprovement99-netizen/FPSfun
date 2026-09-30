@@ -30,6 +30,7 @@ import ringCfg from "../src/config/ring.json";
 import ammoCfg from "../src/config/ammo.json";
 import lootCfg from "../src/config/loot.json";
 import skCfg from "../src/config/games/speedkills.json";
+import botsCfgE2e from "../src/config/bots.json";
 import fparmsCfg from "../src/config/fparms.json";
 import squadCfg from "../src/config/squad.json";
 import cityCfgE2e from "../src/config/city.json";
@@ -6296,6 +6297,68 @@ async function skGroupTest(browser: Browser, Q = "?game=speedkills&net=local&nor
   for (const p of [next, late, guest, host]) await p.close();
 }
 
+/**
+ * The owner's asks of 2026-09-29, after the group: no music unless turned up; the battle royale row starting at duos,
+ * battle royale rules, one squad, 28 bots, the normal ring, landing with the loadout and Casual bots, and Casual bots
+ * at 0.75 of their speed; I inspects; and the keys on screen, up until / hides them.
+ */
+async function skDefaultsTest(browser: Browser): Promise<void> {
+  const Q = "?game=speedkills&norender";
+  const row = `(() => ({ team: document.getElementById("brTeam").value, rules: document.getElementById("brRules").value, sides: document.getElementById("brSides").value, bots: document.getElementById("brBots").value, pace: document.getElementById("brPace").value, start: document.getElementById("brStart").value, difficulty: document.getElementById("botDifficulty").value, music: window.__range.audio.volumes.music }))()`;
+  const want = JSON.stringify({ team: "duo", rules: "br", sides: "together", bots: "28", pace: "normal", start: "loadout", difficulty: "easy", music: 0 });
+  // a new player: nothing stored
+  const fresh = await open(browser, Q, BASE, `if (!sessionStorage.getItem("e2e.d1")) { sessionStorage.setItem("e2e.d1", "1"); for (const k of ["range.brDefaults", "range.br.team.sk", "range.br.bots.sk", "range.br.start", "range.bots.difficulty", "range.audio.v1"]) localStorage.removeItem(k); }`);
+  const a = await ev<Record<string, unknown>>(fresh, row);
+  check("defaults: a new player's battle royale row is duos, BR rules, one squad, 28 bots, normal ring, landing with the loadout, Casual; the music at 0", JSON.stringify(a) === want, JSON.stringify(a));
+  await fresh.close();
+  // a returning one, with trios, 9 bots, loot, Skilled bots and the music at 60% from before
+  const OLD = `localStorage.removeItem("range.brDefaults"); localStorage.setItem("range.br.team.sk", "trio"); localStorage.setItem("range.br.bots.sk", "9"); localStorage.setItem("range.br.start", "loot"); localStorage.setItem("range.bots.difficulty", "normal"); localStorage.setItem("range.audio.v1", JSON.stringify({ master: 0.8, effects: 1, hits: 1, voice: 0.8, music: 0.6 }));`;
+  const back = await open(browser, Q, BASE, `if (!sessionStorage.getItem("e2e.d2")) { sessionStorage.setItem("e2e.d2", "1"); ${OLD} }`);
+  const b = await ev<Record<string, unknown>>(back, row);
+  check("defaults: a returning player is moved onto them once, the music included", JSON.stringify(b) === want, JSON.stringify(b));
+  // they choose trios and turn the music up: after a reload it is theirs
+  await ev(back, `(() => { const t = document.getElementById("brTeam"); t.value = "trio"; t.dispatchEvent(new Event("change")); window.__range.audio.setVolumes({ music: 0.4 }); })()`);
+  await back.reload({ waitUntil: "domcontentloaded" });
+  await back.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
+  const c = await ev<{ team: string; music: number }>(back, row);
+  check("defaults: a choice made after that is kept over a reload", c.team === "trio" && c.music === 0.4, JSON.stringify(c));
+  await ev(back, `(() => { const t = document.getElementById("brTeam"); t.value = "duo"; t.dispatchEvent(new Event("change")); window.__range.audio.setVolumes({ music: 0 }); })()`);
+  await back.close();
+
+  // Casual bots at 0.75 of their speed, the other tiers as they were
+  const page = await open(browser, Q);
+  const speeds = await ev<Record<string, number>>(page, `(() => { const r = window.__range; return Object.fromEntries(["easy", "normal"].map((t) => [t, r.botSpeedOf(t)])); })()`);
+  const base = skCfg.botSpeedScale ?? 1;
+  check("casual: a Casual bot moves at 0.75 of its tier's speed, a Skilled one as it did", Math.abs(speeds.easy - botsCfgE2e.tiers.easy.speed * base * 0.75) < 1e-6 && Math.abs(speeds.normal - botsCfgE2e.tiers.normal.speed * base) < 1e-6, JSON.stringify(speeds));
+
+  // the keys on screen: up by default, I inspects, / hides them, and hidden stays hidden
+  await pressPlay(page);
+  await sleep(800);
+  const hints = await ev<{ rows: Array<{ label: string; keys: string[] }>; hide: string } | null>(page, "window.__range.hud.last?.keyHints ?? null");
+  const inspectRow = hints?.rows.find((r) => /Inspect/.test(r.label));
+  check("keys: up on screen by default, Inspect on I and the hide key named", !!hints && hints.rows.length >= 12 && inspectRow?.keys[0] === "I" && hints.hide === "/", JSON.stringify({ rows: hints?.rows.length, inspect: inspectRow, hide: hints?.hide }));
+  // the keys themselves (a scripted page has no pointer lock: the lock flag stands in)
+  await ev(page, "window.__range.input.locked = true");
+  await ev(page, "(() => { const s = window.__range.loadout.active.state; s.clip = window.__range.loadout.active.weapon.clipSize; })()");
+  await page.keyboard.press("KeyI");
+  await sleep(500);
+  const inspecting = await ev<boolean>(page, "window.__range.vmState().inspecting");
+  check("keys: I turns the gun over (inspect had no key of its own)", inspecting);
+  await ev(page, "window.__range.input.locked = true");
+  await page.keyboard.press("Slash");
+  await sleep(500);
+  const hidden = await ev<{ hints: unknown; stored: string | null }>(page, `({ hints: window.__range.hud.last?.keyHints ?? null, stored: localStorage.getItem("range.keyHints") })`);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
+  await pressPlay(page);
+  await sleep(800);
+  const still = await ev<unknown>(page, "window.__range.hud.last?.keyHints ?? null");
+  check("keys: / hides them, and they stay hidden after a reload", hidden.hints === null && hidden.stored === "off" && still === null, JSON.stringify({ hidden, still }));
+  // back up for the pages after this one (they share the browser's storage)
+  await ev(page, `localStorage.setItem("range.keyHints", "on")`);
+  await page.close();
+}
+
 /** a soldier nobody has by default (soldier.ts code: RUNNER, its colours, the helmet off), so seeing it is seeing it sent */
 const FRIEND_SOLDIER = "S3343041";
 
@@ -6936,6 +6999,8 @@ async function speedkillsShipTest(browser: Browser): Promise<void> {
 /** a SpeedKills battle royale in the city: it starts, 30 in it, bots on the streets, loot on the floors */
 async function speedkillsBrTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?norender&game=speedkills");
+  // the row set to what this checks (trios, 27 bots), not left to its defaults: those are duos and 28 since Milestone 341
+  await ev(page, brRow("trio", 27));
   await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   const fought = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 60000 }).then(() => true, () => false);
   if (!fought) {
@@ -8360,6 +8425,7 @@ async function main(): Promise<void> {
       console.log("\nSpeedKills' lobby: the USSO and BOOG first; the group, from match to match with no new code");
       await skLoadoutTest(browser);
       await skGroupTest(browser);
+      await skDefaultsTest(browser);
     }
 
     if (want("skfriends")) {

@@ -187,6 +187,8 @@ export interface HudState {
   course: CourseHud | null;
   /** a context prompt under the crosshair: key and what it does */
   prompt: { key: string; text: string } | null;
+  /** the keys on screen, under the FPS (keyhints.json): each row's description and keys, and the key that hides them */
+  keyHints?: { rows: ReadonlyArray<{ label: string; keys: readonly string[] }>; hide: string } | null;
   /**
    * a magnified scope's full-screen picture, faded in with aim; a signature gun's (gunfeel.json scope) powers on: `on`
    * is how far through its boot it is, 0..1, and `charge` how far it has recharged since its last shot
@@ -581,6 +583,7 @@ export class Hud {
     // the killcam has the screen to itself, and the kill feed
     if (s.killcam) {
       this.drawKillcam(now, s.killcam, u);
+      this.hintsBottom = 0;
       this.drawFeed(now, u);
       return;
     }
@@ -603,6 +606,7 @@ export class Hud {
     this.drawCompass(s, u);
     this.drawCallout(s, u);
     this.drawFps(s, u);
+    this.drawKeyHints(s, u);
     this.drawVitals(s, u);
     this.drawWeapons(s, u);
     this.drawCourse(s, u);
@@ -1069,10 +1073,69 @@ export class Hud {
     }
   }
 
-  /** the kill feed under the FPS counter, six seconds a line */
+  /** the bottom of the keys panel this frame, for the kill feed to start under (0: not shown) */
+  private hintsBottom = 0;
+
+  /**
+   * The keys on screen (keyhints.json): up on the right under the FPS, a row a
+   * thing to do, its keys in the prompt's own caps, and how to put it away. Not
+   * a layout box: the SpeedKills layout check holds every box to the bottom band.
+   */
+  private drawKeyHints(s: HudState, u: number): void {
+    this.hintsBottom = 0;
+    const k = s.keyHints;
+    if (!k || !k.rows.length) return;
+    const c = this.ctx;
+    const right = this.w - 30 * u;
+    const width = 330 * u;
+    const left = right - width;
+    const rowH = 27 * u;
+    const cap = 22 * u;
+    const top = 116 * u;
+    const head = 26 * u;
+    const foot = 32 * u;
+    const h = head + k.rows.length * rowH + foot;
+    c.fillStyle = PANEL;
+    c.fillRect(left - 12 * u, top, width + 24 * u, h);
+    this.text("KEYS", left, top + 18 * u, 700, 13 * u, DIM);
+    const caps = (keys: readonly string[], x0: number, yMid: number): void => {
+      // right to left, so the last key sits on the panel's right edge
+      let x = x0;
+      for (let i = keys.length - 1; i >= 0; i--) {
+        c.font = this.font(700, 15 * u);
+        const w = Math.max(cap, c.measureText(keys[i]).width + 12 * u);
+        x -= w;
+        c.fillStyle = "#f2f2f2";
+        c.fillRect(x, yMid - cap / 2, w, cap);
+        this.text(keys[i], x + w / 2, yMid + 5 * u, 700, 15 * u, "#101214", "center");
+        x -= 5 * u;
+      }
+    };
+    let y = top + head;
+    for (const r of k.rows) {
+      const mid = y + rowH / 2;
+      this.text(r.label, left, mid + 5 * u, 600, 15 * u, WHITE);
+      caps(r.keys, right, mid);
+      y += rowH;
+    }
+    // how to put it away, in the hacks' gold so it is the line a new player finds
+    const mid = y + foot / 2;
+    this.text("Press", left, mid + 5 * u, 700, 14 * u, "#ffd23c");
+    c.font = this.font(700, 14 * u);
+    const pw = c.measureText("Press ").width;
+    c.font = this.font(700, 13 * u);
+    const hw = Math.max(cap, c.measureText(k.hide).width + 12 * u);
+    c.fillStyle = "#ffd23c";
+    c.fillRect(left + pw, mid - cap / 2, hw, cap);
+    this.text(k.hide, left + pw + hw / 2, mid + 5 * u, 700, 13 * u, "#101214", "center");
+    this.text("to hide this", left + pw + hw + 6 * u, mid + 5 * u, 700, 14 * u, "#ffd23c");
+    this.hintsBottom = top + h;
+  }
+
+  /** the kill feed under the FPS counter, six seconds a line (and under the keys, when they are up) */
   private drawFeed(now: number, u: number): void {
     const x = this.w - 30 * u;
-    let y = 120 * u;
+    let y = this.hintsBottom ? this.hintsBottom + 22 * u : 120 * u;
     for (let i = this.feedLines.length - 1; i >= 0; i--) if (now - this.feedLines[i].born > 6) this.feedLines.splice(i, 1);
     for (const l of this.feedLines) {
       const age = now - l.born;

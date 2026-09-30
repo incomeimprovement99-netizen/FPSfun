@@ -58,6 +58,10 @@ export interface GameProfile {
   loot?: { spots: Record<string, number>; gunChance: number; hackChance: number; gunOdds: Record<string, number[]>; hackOdds: Record<string, number[]>; maxFloor?: number; restock?: LootRestock; carePackage?: CarePackage };
   /** a bot's tier speed times this (speedkills.json botSpeedScale; Phase 20 A15) */
   botSpeedScale?: number;
+  /** and a tier's own on top of it (speedkills.json botTierSpeed: Casual slower) */
+  botTierSpeed?: Record<string, number>;
+  /** the battle royale row as everyone starts it, written once over what a browser had (main.ts applyBrDefaults) */
+  brDefaults?: { tag: string; team: string; rules: string; bots: number; pace: string; start: string; difficulty: string };
   /** a bot's tier aim lag times this (speedkills.json botAimLagScale; Phase 20 A18) */
   botAimLagScale?: number;
   /** how a fight feels (speedkills.json feel): the aimed enemy's outline, the speed streaks */
