@@ -7261,3 +7261,38 @@ honestly: the fight had not started in 60 s.
 - **Checked:** the live check against the dev server: the countdown ends once both are in, a hit lands, leaving ends it
   (its site-only asset count aside); the live site's run before the fix failed at the 60 s wait. sklobby 29 of 29
   (the match still waits under a card that plays); verify, rules; and the deploy's own live check.
+
+## Milestone 351 — A bot with no gun goes for a gun first: the host migration flake found at its cause
+
+The battle royale host migration check had failed about one run in two for weeks (docs/TEST_AUDIT.md item 3), with a
+guess on 2026-09-25 that bots were not finding guns. Its own diagnostic, run four times on 2026-09-29, failed once:
+six bots, three armed after a minute, the other three one squad, one of them an elite whose looting had given up.
+
+- **Measured, not guessed** (a probe of real legacy battle royales, nine bots in trios, nobody firing, as the check
+  runs them): 60 s of match time in, **26 of 36 bots** had a gun. The squad drop spots were not the reason: from every
+  one, over four matches (108 spots), the third-nearest gun on the same floor was a median 14 m off, the furthest 54 m,
+  and one spot in 108 had fewer than three within the 45 m a bot searches. Each unarmed bot's state said why instead:
+  - **The ring.** At 60 s the first ring is already closing, and a bot outside the next circle is `urgent`, which put
+    looting down outright: five of nine unarmed bots were running for the circle empty-handed, a gun 6 to 40 m off.
+  - **The nearest thing first.** A bot took the nearest thing it wanted, gun or not. On the checks' rich floor it
+    picked up a syringe, a battery, two frags and a helmet (a rummage each, 4 s for a normal bot) before its first gun,
+    **29 s** in.
+  - **Walls.** It walks to loot in a straight line, and a spot behind a wall held it against the wall for all of
+    `giveUp` (10 s): one bot gave up six guns in its first minute, each 10 to 35 m off on its own floor.
+  - Someone in its sights put looting down too, so an unarmed bot squared up to them and strafed with nothing to fire.
+- **The fix** (`bots.ts` BotLooter.step and the bot's frame, `bots.json` loot):
+  - With no gun, the nearest gun first, then the rest. Armed, the fittings come last (a better gun, a heal, a helmet
+    or a frag, whichever is nearest): they fit the gun it has, and nearest-first they filled its kit to `enough`
+    before it walked to a better gun across the room.
+  - Hurried with no gun (the ring, or someone in sight), it still takes a gun within `hurrySearch` (25 m, a few
+    seconds' detour at every tier's 3.6 to 6.6 m/s) and nothing else, and runs for it before the ring or the enemy.
+    Armed, a hurry puts looting down as before.
+  - A spot it comes no nearer to by `progress` (0.3 m) in `stuck` (2 s) is given up: a wall, not a walk.
+- **After:** the same probe, **33 of 36** armed (8, 7, 9, 9 of 9), up from 26 (7, 5, 6, 8); the three left had no gun
+  within reach of where they landed. On the rich floor the first gun is in hand at 4.4 s, the best one at 18.7 s, and
+  its kit reaches `enough` at 29 s as before.
+- **Checked:** new bot-sense checks in verify, each seen failing on the looter as it was (a gun in the first few
+  seconds on a place, 29.1 s before; a gun first past a heal, a frag and a helmet nearer; hurried with no gun, a gun
+  within hurrySearch and nothing else; nothing further than hurrySearch; a walled spot given up at 2.1 s where it took
+  10); "and frags" on the rich floor is now "armed, it still picks up a frag near it" (the frags were only ever in the
+  first 20 points by being nearest). The migrate section, three runs: four runs with the fix: all 19 checks in two; in the third the migration passed and the kit comparison failed on two bots that had each gone up an armour tier with the same gun while the takeover ran (it compared whole kits, armour included, one change allowed, and a bot goes on looting through the takeover: it now compares the guns, and fails on any gun or armour lost); the fourth, with that check, 19 of 19. Before the fix, one run in four stopped at "four bots armed" (3 of 6). verify, rules.

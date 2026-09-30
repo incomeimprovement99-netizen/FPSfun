@@ -4684,10 +4684,19 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
     heir,
     `(() => { const d = window.__range.duel(); const v = d.view; return { roster: d.botRoster, kits: ${kitsOf}, figures: [...d.remotes.keys()].filter((id) => id >= 100).length, ring: { phase: v.phase, state: v.state, timeLeft: v.timeLeft }, hasRing: !!d.ring, phase: d.phase }; })()`
   );
-  const kitSame = after.kits.filter((k, i) => k === kits[i]).length;
+  // What the takeover has to carry is each bot's kit, not freeze it: a bot goes on looting through the few seconds
+  // of it, and whole kits compared (armour included, one change allowed) failed on two bots that had each gone up an
+  // armour tier with the same gun (2026-09-29). The guns the same (one swapped up allowed), and nobody's gun or armour
+  // lost, is a kit carried; a reset or a lost kit still fails.
+  const part = (k: string) => {
+    const [, gun, armor] = k.split(":");
+    return { gun, armor: Number(armor) };
+  };
+  const kitSame = after.kits.filter((k, i) => part(k).gun === part(kits[i] ?? "").gun).length;
+  const kitLost = after.kits.filter((k, i) => (part(kits[i] ?? "").gun !== "" && part(k).gun === "") || part(k).armor < part(kits[i] ?? "").armor).length;
   check(
     `${label}: the same bots, each with its tier and squad and (nearly all) the kit it had looted, run by the new host`,
-    roster.length === 6 && after.roster.join() === roster.join() && after.figures === 0 && kitSame >= kits.length - 1 && kits.filter((k) => k.split(":")[1]).length >= 4 && after.phase === "fight",
+    roster.length === 6 && after.roster.join() === roster.join() && after.figures === 0 && kitSame >= kits.length - 1 && kitLost === 0 && kits.filter((k) => k.split(":")[1]).length >= 4 && after.phase === "fight",
     JSON.stringify({ roster, after: after.roster, kits, afterKits: after.kits, figures: after.figures })
   );
   const expected = ring.timeLeft - (Date.now() - ringAt) / 1000;

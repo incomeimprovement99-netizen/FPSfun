@@ -240,7 +240,29 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   check("it is better armed at the end than at the start", rich.scores[rich.scores.length - 1] > rich.scores[0], `${rich.scores[0]} -> ${rich.scores[rich.scores.length - 1]}`);
   check("it kits up a shield as it goes", rich.looter.kit.armor > LOOTING.startArmor, `tier ${rich.looter.kit.armor}`);
   check("it carries heals it found", rich.looter.kit.cells + rich.looter.kit.syringes > 0, `${rich.looter.kit.cells} cells, ${rich.looter.kit.syringes} syringes`);
-  check("and frags", rich.looter.kit.frags > 0, `${rich.looter.kit.frags}`);
+  // As it was, the nearest first, it took a syringe, a battery, both frags and the
+  // helmet round it before its first gun, 29 s in; it reaches `enough` at the same
+  // time either way, and the frags were only ever in that set by being nearest.
+  const firstGun = (() => {
+    const l = new BotLooter("normal");
+    const f = richFloor();
+    const at = new THREE.Vector3();
+    for (let t = 0; t < 50; t += 0.05) {
+      l.step(t, at, f, false);
+      if (l.armed) return t;
+      const g = l.goal;
+      if (g && !l.holding) at.lerp(g, Math.min(1, (DIFFICULTY.normal.speed * 0.05) / Math.max(1e-6, at.distanceTo(g))));
+    }
+    return Infinity;
+  })();
+  check("on a place it has a gun in its first few seconds, not after everything round it", firstGun < 6, `${firstGun.toFixed(1)} s (29 s as it was)`);
+  const withGun = (() => {
+    const f = new Floor();
+    f.add(3, 0, gun("r97", "common"));
+    f.add(-4, 0, frag());
+    return loot("normal", f, 20).looter;
+  })();
+  check("and armed it still picks up a frag near it", withGun.armed && withGun.kit.frags > 0, `${withGun.kit.frags}`);
   check(
     "the one that landed in a field is worse off for it",
     rich.looter.score > poor.looter.score,
@@ -270,6 +292,87 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   const bare = loot("hard", new Floor(), 14);
   check("but one that has found no gun keeps looking rather than going unarmed", !bare.looter.armed && !bare.looter.done(upAt));
   check("and it gives up in the end rather than following the floor for ever", bare.looter.done(lootCfg.botSearch.hard * LOOTING.window * LOOTING.overtime + 1), `${LOOTING.overtime} windows`);
+
+  // A gun first. It took the nearest thing it wanted, and a heal or a helmet is a
+  // rummage each: 60 s into real battle royales a bot in four still had no gun,
+  // one on its floor 2 to 17 m off (the host migration check, 2026-09-29).
+  const junkFirst = (): Floor => {
+    const f = new Floor();
+    f.add(2, 0, heal("cell"));
+    f.add(0, 3, frag());
+    f.add(-3, 1, { kind: "helmet", id: "gold", rarity: "legendary", n: 1 });
+    f.add(12, 0, gun("r97", "common"));
+    return f;
+  };
+  const first = new BotLooter("normal");
+  const floor1 = junkFirst();
+  const took: string[] = [];
+  const at1 = new THREE.Vector3();
+  for (let t = 0; t < 20 && took.length < 1; t += 0.05) {
+    const got = first.step(t, at1, floor1, false);
+    if (got) took.push(got.kind);
+    const g = first.goal;
+    if (g && !first.holding) at1.lerp(g, Math.min(1, (DIFFICULTY.normal.speed * 0.05) / Math.max(1e-6, at1.distanceTo(g))));
+  }
+  check("with no gun, a gun first: past a heal, a frag and a helmet nearer to it", took[0] === "weapon", took.join(", ") || "nothing");
+  const armedNext = loot("normal", junkFirst(), 30);
+  check("and with one, the rest of the floor as before", armedNext.looter.armed && armedNext.looter.kit.cells > 0, `${armedNext.looter.kit.taken} taken`);
+
+  // Hurried (the ring, someone in its sights), a bot used to stop looting outright,
+  // and most of those still unarmed a minute in were outside the next circle
+  // running for it empty-handed. With no gun it still takes one near its way.
+  const hurried = (gunAt: number): { goal: number | null; took: string | null } => {
+    const l = new BotLooter("hard");
+    const f = new Floor();
+    f.add(1.5, 0, heal("cell"));
+    f.add(gunAt, 0, gun("r97", "common"));
+    const at = new THREE.Vector3();
+    let took: string | null = null;
+    let goal: number | null = null;
+    for (let t = 0; t < 12 && !took; t += 0.05) {
+      const got = l.step(t, at, f, false, true);
+      if (got) took = got.kind;
+      const g = l.goal;
+      if (g) goal ??= Math.round(Math.hypot(g.x, g.z));
+      if (g && !l.holding) at.lerp(g, Math.min(1, (DIFFICULTY.hard.speed * 0.05) / Math.max(1e-6, at.distanceTo(g))));
+    }
+    return { goal, took };
+  };
+  const nearGun = hurried(LOOTING.hurrySearch - 5);
+  const farGun = hurried(LOOTING.hurrySearch + 10);
+  check("hurried with no gun, it goes for a gun near its way and takes that, not the heal at its feet", nearGun.took === "weapon" && nearGun.goal === LOOTING.hurrySearch - 5, JSON.stringify(nearGun));
+  check("but not one further off than hurrySearch, nor anything else", farGun.goal === null && farGun.took === null, JSON.stringify(farGun));
+  const armedHurry = new BotLooter("hard");
+  const armedFloor = new Floor();
+  armedFloor.add(1, 0, gun("r97", "common"));
+  for (let t = 0; t < 6; t += 0.05) armedHurry.step(t, new THREE.Vector3(), armedFloor, false);
+  const gunNow = armedHurry.armed;
+  armedFloor.add(2, 0, heal("cell"));
+  let armedGoal = false;
+  for (let t = 6; t < 10; t += 0.05) {
+    armedHurry.step(t, new THREE.Vector3(), armedFloor, true);
+    armedGoal ||= armedHurry.goal !== null;
+  }
+  check("armed and hurried, it puts looting down as it always did", gunNow && !armedGoal);
+
+  // A wall: it walks to loot in a straight line, and one in the way held it there
+  // for all of giveUp, a spot at a time. No nearer in `stuck` seconds is a wall.
+  const walled = new BotLooter("normal");
+  const wf = new Floor();
+  wf.add(20, 0, gun("r97", "common"));
+  wf.add(-20, 0, gun("rspn101", "common"));
+  const pinned = new THREE.Vector3();
+  let firstGoal: number | null = null;
+  let movedOnAt: number | null = null;
+  for (let t = 0; t < LOOTING.giveUp && movedOnAt === null; t += 0.05) {
+    walled.step(t, pinned, wf, false);
+    const g = walled.goal;
+    if (g && firstGoal === null) firstGoal = g.x;
+    else if (g && firstGoal !== null && g.x !== firstGoal) movedOnAt = t;
+  }
+  check("a spot it comes no nearer to is given up after `stuck` seconds, not all of giveUp", movedOnAt !== null && movedOnAt <= LOOTING.stuck + LOOTING.rescan + 0.1, `moved on at ${movedOnAt?.toFixed(2)} s (stuck ${LOOTING.stuck}, giveUp ${LOOTING.giveUp})`);
+  const walking = loot("normal", (() => { const f = new Floor(); f.add(40, 0, gun("r97", "common")); return f; })(), 12);
+  check("and a long walk that keeps getting closer is not taken for a wall", walking.looter.armed, `${walking.looter.kit.gunId}`);
 }
 
 console.log("\nWhat a bot would rather have (bots.ts BotLooter.wants)");

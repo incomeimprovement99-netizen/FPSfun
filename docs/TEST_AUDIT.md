@@ -88,7 +88,7 @@ caught by a person reading a picture, and would be missed by anyone who did not.
 | 1 | Pictures that assert | **done.** A scenario can carry `magentaMax`; `npm run fit` runs four lineups of all sixteen outfits, front and back, with the clothed body painted flat magenta (`mannequin.ts setFitDebug`), and counts it. Today: 0.009 to 0.037% of the frame. **Proven**: with the body's narrowing turned off the back lineup measures 0.144% and fails. A first limit of 0.2% did not fail it; the limit is 0.06% because of that |
 | 2 | No vacuous passes | **done.** The recorded-sound and gunshot checks fail when their files are missing |
 | 3 | A gate before a deploy | **done.** `tools/release-gate.ts`: both deploys run verify and rules and check the recorded sounds are on disk before building anything, and stop on a failure (`RELEASE_GATE=off` to skip, said in the commit) |
-| 4 | The flaky checks | open: Phase 17 item 17.9. Four now: BR host migration, the bot tiers, the dropship's glide, and bot squads keeping together |
+| 4 | The flaky checks | open: Phase 17 item 17.9. Three now: the bot tiers, the dropship's glide, and bot squads keeping together. BR host migration found at its cause on 2026-09-29 (Milestone 351): unarmed bots, not the migration |
 | 5 | Behaviour beside config | open |
 
 Also this day: the scenery-culling bug (Milestone 177) came with a check that was proven the same way, by

@@ -386,7 +386,7 @@ const BOT_SEARCH = lootCfg.botSearch as Record<string, number>;
 export class BotLooter {
   readonly kit: BotKit = { gunId: null, gun: 0, mag: LOOTING.startMag, mods: {}, armor: LOOTING.startArmor, cells: 0, syringes: 0, frags: 0, taken: 0 };
   /** the drop it is walking to, when it started walking, and when its rummage there is up */
-  private mark: { key: number; pos: THREE.Vector3; since: number } | null = null;
+  private mark: { key: number; pos: THREE.Vector3; since: number; gun: boolean; best: number; bestAt: number } | null = null;
   private holdUntil = Infinity;
   private scanAt = -Infinity;
   private startedAt = Infinity;
@@ -516,23 +516,35 @@ export class BotLooter {
   }
 
   /**
-   * One frame at `at`. `busy` (someone in its sights) puts looting down, since
-   * a fight comes first and the rummage starts over when it comes back.
-   * Returns what it took this frame, for the bot to put on, or null.
+   * One frame at `at`. `busy` (someone in its sights, the ring) puts looting
+   * down, since a fight comes first and the rummage starts over when it comes
+   * back. `gunOnly` is the same hurry for a bot with no gun: it still takes a
+   * gun close to its way (`hurrySearch`), and nothing else, because without
+   * one it is a free kill wherever it runs to. Returns what it took this
+   * frame, for the bot to put on, or null.
    */
-  step(now: number, at: THREE.Vector3, source: BotLootSource, busy: boolean): BotLootItem | null {
+  step(now: number, at: THREE.Vector3, source: BotLootSource, busy: boolean, gunOnly = false): BotLootItem | null {
     if (!Number.isFinite(this.startedAt)) this.startedAt = now;
-    if (busy || this.done(now)) {
+    if (busy || this.done(now) || (gunOnly && this.mark && !this.mark.gun)) {
       this.mark = null;
       this.holdUntil = Infinity;
-      return null;
+      if (busy || this.done(now)) return null;
     }
     if (this.mark) {
       const d = Math.hypot(this.mark.pos.x - at.x, this.mark.pos.z - at.z);
       if (d > LOOTING.reach) {
         this.holdUntil = Infinity;
+        // getting closer, or not: a bot walks to loot in a straight line, and a
+        // wall in the way held it against the wall for all of `giveUp`, a spot at
+        // a time (in real battle royales one gave up six guns in its first
+        // minute, 10 to 35 m off, and had none). No nearer for `stuck` seconds
+        // is a wall.
+        if (d < this.mark.best - LOOTING.progress) {
+          this.mark.best = d;
+          this.mark.bestAt = now;
+        }
         // no way in: leave it and look for something else
-        if (now - this.mark.since > LOOTING.giveUp) {
+        if (now - this.mark.since > LOOTING.giveUp || now - this.mark.bestAt > LOOTING.stuck) {
           this.gaveUp.add(this.mark.key);
           this.mark = null;
         }
@@ -553,17 +565,36 @@ export class BotLooter {
     }
     if (now < this.scanAt) return null;
     this.scanAt = now + LOOTING.rescan;
-    let best: BotLootDrop | null = null;
-    let bestD = Infinity;
-    for (const drop of source.near(at, LOOTING.search)) {
-      if (this.gaveUp.has(drop.key) || !this.wants(drop.item)) continue;
-      const d = Math.hypot(drop.pos.x - at.x, drop.pos.z - at.z);
-      if (d < bestD) {
-        bestD = d;
-        best = drop;
+    // The nearest thing it wants, and with no gun the nearest gun first. It took
+    // whatever was nearest, and a heal, a helmet or a frag is a rummage each
+    // (4 s for a normal bot) and sometimes a spot it cannot reach (10 s to give
+    // up on): in real battle royales, 60 s in, a bot in four landed with a gun
+    // on its floor 2 to 17 m off and still had none (the host migration check).
+    const nearest = (ok: (kind: string) => boolean, r: number): BotLootDrop | null => {
+      let best: BotLootDrop | null = null;
+      let bestD = Infinity;
+      for (const drop of source.near(at, r)) {
+        if (this.gaveUp.has(drop.key) || !this.wants(drop.item) || !ok(drop.item.kind)) continue;
+        const d = Math.hypot(drop.pos.x - at.x, drop.pos.z - at.z);
+        if (d < bestD) {
+          bestD = d;
+          best = drop;
+        }
       }
-    }
-    if (best) this.mark = { key: best.key, pos: best.pos.clone(), since: now };
+      return best;
+    };
+    // Armed, the fittings come last: they fit the gun it has, and nearest-first
+    // they filled its kit to `enough` before it walked to a better gun across
+    // the room. A better gun, a heal, a helmet or a frag, whichever is nearest.
+    const gunKind = (k: string) => k === "weapon";
+    const notFitting = (k: string) => k !== "attach" && k !== "hopup";
+    const any = () => true;
+    const best = gunOnly
+      ? nearest(gunKind, LOOTING.hurrySearch)
+      : this.armed
+        ? (nearest(notFitting, LOOTING.search) ?? nearest(any, LOOTING.search))
+        : (nearest(gunKind, LOOTING.search) ?? nearest(any, LOOTING.search));
+    if (best) this.mark = { key: best.key, pos: best.pos.clone(), since: now, gun: best.item.kind === "weapon", best: Infinity, bestAt: now };
     return null;
   }
 }
@@ -1364,7 +1395,7 @@ export class Bot {
    * with a floor under it strips the kit it was handed, because the point of
    * looting is that what it has is what it found.
    */
-  private stepLoot(now: number, busy: boolean): THREE.Vector3 | null {
+  private stepLoot(now: number, busy: boolean, gunOnly = false): THREE.Vector3 | null {
     const src = this.lootSource;
     if (!src) return null;
     if (!this.lootStarted) {
@@ -1375,7 +1406,7 @@ export class Bot {
       this.setArmor(this.looter.kit.armor);
       this.dummy.setGunVisible(false);
     }
-    const got = this.looter.step(now, this.pos, src, busy);
+    const got = this.looter.step(now, this.pos, src, busy, gunOnly);
     if (got) this.equip(got);
     return this.looter.goal;
   }
@@ -1560,18 +1591,27 @@ export class Bot {
     // comes before hunting and before the match's goal, because the first
     // minutes of a battle royale are the looting. Someone in its sights puts it
     // down, and so does the ring: nobody rummages through a box in the wall.
-    const lootGoal = this.stepLoot(now, sees || sense.urgent === true);
-    // where to go: cover when it is healing behind it; at the target if seen
-    // (keeping a distance); the loot it is going for; where it last saw one (a
-    // hunt), or a shot it heard; else the match's goal
+    // Not for a bot with no gun, though: it ran for the ring with nothing to
+    // fire, or squared up to whoever it saw and strafed at its fighting
+    // distance empty-handed, and stayed unarmed for good (in real battle
+    // royales, 60 s in, the bots with no gun were most of them outside the next
+    // circle, a gun within 20 m). Hurried with no gun, it still takes a gun
+    // near its way, and runs for it before anything else, as a player would.
+    const unarmed = this.holdingFire;
+    const hurried = sees || sense.urgent === true;
+    const lootGoal = this.stepLoot(now, hurried && !unarmed, hurried && unarmed);
+    const running = unarmed && lootGoal !== null;
+    // where to go: cover when it is healing behind it; a gun, running for it
+    // unarmed; at the target if seen (keeping a distance); the loot it is going
+    // for; where it last saw one (a hunt), or a shot it heard; else the match's goal
     const hunting = !sees && this.lastSeen && tier.name !== "easy" ? this.lastSeen.pos : null;
     if (this.cover?.via && Math.hypot(this.cover.via.x - this.pos.x, this.cover.via.z - this.pos.z) < 0.8) this.cover.via = null;
-    const goal = this.cover ? (this.cover.via ?? this.cover.spot) : (target ?? (sense.urgent ? sense.goal : (lootGoal ?? hunting ?? this.heard?.pos ?? sense.goal)));
+    const goal = this.cover ? (this.cover.via ?? this.cover.spot) : running ? lootGoal : (target ?? (sense.urgent ? sense.goal : (lootGoal ?? hunting ?? this.heard?.pos ?? sense.goal)));
     const toGoal = goal ? new THREE.Vector2(goal.x - this.pos.x, goal.z - this.pos.z) : new THREE.Vector2();
     const dist = toGoal.length();
     let want = new THREE.Vector2();
     if (dist > 1e-3) want.copy(toGoal).divideScalar(dist);
-    if (sees && !this.cover && target) {
+    if (sees && !this.cover && target && !running) {
       // strafe across the line of sight, hold the distance; a dodge reverses it and runs it harder
       const toT = new THREE.Vector2(target.x - this.pos.x, target.z - this.pos.z);
       const td = toT.length();
@@ -1591,7 +1631,7 @@ export class Bot {
     // standing over a drop, rummaging through it: it does not walk while it does that
     if (this.looter.holding) want.set(0, 0);
     // a crouch now and then while it fires (by tier), never while it walks to cover or heals
-    if (sees && target && !this.cover && !this.healing && tier.crouchPeek > 0) {
+    if (sees && target && !this.cover && !this.healing && !running && tier.crouchPeek > 0) {
       // only a crouch that still sees the target (not one that ducks behind low cover mid-fight)
       const seesLow = lineOfSight(this.pos, target, CROUCH_EYE);
       if (now >= this.crouchNext) {
