@@ -264,3 +264,9 @@ crouched, firing, running and sprinting has no faulted frame; BOOG running and s
 BOOG's stock in the right shoulder and arm (every still pose, 21 to 40 mm), the swap standing (a lowered carry of its
 own, the sprint's being right), the reload's magazine through the left forearm, then the look's extremes, the jump and
 the slide.
+
+Rounds two to four (Milestones 341, 342 and 347): the reload's new magazine held as a hand holds it; the swap and a sprint's
+jump each with a carry of their own, blended in; the gun's arc between the carry and the hold; the Loadouts tab's
+soldier at rest with the whole gun framed. Left for the owner's check (2026-09-30): BOOG's stock pressed 2 to 4 cm into
+the rigid shoulder armour in its still poses (hidden from outside), the reload's left fingertips at the receiver (close
+up only), and the USSO's stock end in the forearm pad on a jump's takeoff (hidden).

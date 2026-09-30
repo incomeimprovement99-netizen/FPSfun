@@ -7145,3 +7145,32 @@ the red dot sight has them as well. that is obviously bugs and i asked for you t
   each gun's middle the same drawn first and drawn back after a thrown swap (shipped at once to put aiming right on the
   live build; the two are seen failing with their faults put back in the next milestone's proof run); the soldier
   section; verify; rules.
+
+## Milestone 347 — A sprint's jump keeps the gun carried low, and the gun swings clear on its way up and down
+
+27.12's third round (the owner, 2026-09-30: "we want to get the boog and the usso perfect with all animations for enemy
+/ 3rd palyer stuff"). SpeedKills' soldier only.
+
+- **A jump out of a sprint** (`mannequin.ts`): the gun was raised to the shoulder in the air and dropped again on
+  landing, its stock swept through the right forearm both ways. The sprint's carry is now kept through the jump and the
+  landing, as a runner's gun stays low until they aim; a gun carried low into a landing comes up once the landing is
+  over, in the standing body.
+- **The air's own carry** (`soldierhold.json` air, per gun; `rifle.ts` carryOf): the jump's clip tucks the body, and the
+  sprint's carry was 39 mm into the belly there. Eased in as fast as the clip tucks (`airRate`, 14 a second: at the
+  carry's own 8 the body tucked round a gun still in the sprint's carry as the feet left the ground). The swap's own
+  carry is blended in the same way now, so a swap begun mid-sprint no longer snaps the gun from one carry to the other.
+- **The arc** (`soldierhold.json` lowered.arc, per gun): between the carry and the hold the gun swings out, most at the
+  middle, 4 lo (1 - lo): straight, BOOG's stock went 40 mm through the right upper arm each time a sprint stopped.
+- **The tools**: `figure-solve.ts` stages `air` (both jumps' clips, the takeoff, the landing) and `rise` (a sprint
+  stopping and one starting, part way through), and a pose followed by another (`then`); the frame tool jumps at
+  SpeedKills' sprint (14 m/s, the athletic jump) and has a standing `hop`; a lab figure given a new gun is placed at once,
+  as the game's loop places it before it draws (the swap's one frame at 40 mm was the tool's, not the game's).
+- **Where it stands** (every sequence, close, four sides, `shots/figure-v28`): the USSO at rest, aimed, crouched,
+  firing, running and sprinting has no faulted frame, and in the air settled and landing none; BOOG running and
+  sprinting none. What is still flagged, looked at frame by frame: BOOG's stock 2 to 4 cm into the right shoulder, arm
+  and chest in its still poses and its reload (its butt plate is 22 cm deep, the soldier's armour rigid: from outside it
+  reads as a stock pressed into the shoulder, nothing through); the USSO's stock end inside the right forearm pad on a
+  jump's takeoff and a standing hop (hidden, and flickering 0 to 35 mm with a few millimetres of elbow: the audit's
+  inside test at the pad's open edge); the reload's left fingertips 9 to 23 mm into the receiver at the magazine and the
+  handle, seen only close.
+- **Checked:** verify; rules; the e2e `skfigure` and `soldier` sections; the sheets above.
