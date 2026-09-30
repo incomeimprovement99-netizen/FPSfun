@@ -6481,8 +6481,9 @@ async function skOutlineTest(browser: Browser): Promise<void> {
  * The one SpeedKills page in the suite with the card on.
  */
 async function skIntroTest(browser: Browser): Promise<void> {
-  // drawn: a ?norender page never builds the first-person arms, one of the late steps the loading screen waits on
-  const page = await open(browser, "?game=speedkills&intro=on");
+  // drawn: a ?norender page never builds the first-person arms, one of the late steps the loading screen waits on.
+  // The ship on (open() drops straight in): the way in is the ship's to hold.
+  const page = await open(browser, "?game=speedkills&intro=on", BASE, "window.__straightDrop = false");
   // while it loads: the loading screen, its bar, and no card; and it goes only once everything the card waits on is in
   const boot = await ev<{ everCard: boolean; bar: boolean; atHide: { loaded: boolean; secs: number; status: string; waited: boolean; kind: string | null } | null }>(
     page,
@@ -6502,18 +6503,49 @@ async function skIntroTest(browser: Browser): Promise<void> {
   // on its time limit (hud.json loading.maxSeconds). (Its count can run on after it has gone: a page asks for a few
   // more files as it settles, and the line keeps counting under the fade.)
   check("sk order: the loading screen goes by itself once everything is in, not on its time limit", !!boot.atHide && boot.atHide.loaded && boot.atHide.secs < hudCfgE2e.loading.maxSeconds, JSON.stringify(boot.atHide));
-  // a battle royale: the mode's card, and the match waiting under it; the ship only once it has ended
-  await ev(page, `(() => { document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
-  await pressPlay(page);
-  const during = await page
-    .waitForFunction(`(() => { const s = window.__range.intro.state(); return s.kind === "match" ? { phase: window.__range.duel()?.phase, aboard: window.__range.player.aboard, dropping: window.__range.player.dropping } : null; })()`, { polling: 50, timeout: 20000 })
-    .then((h) => h.jsonValue() as Promise<{ phase: string; aboard: boolean; dropping: boolean }>, () => null);
-  await sleep(1200);
-  const stillHeld = await ev<{ kind: string | null; phase: string; aboard: boolean }>(page, `(() => ({ kind: window.__range.intro.state().kind, phase: window.__range.duel()?.phase, aboard: window.__range.player.aboard }))()`);
-  check("sk order: starting a battle royale plays its card, and the match waits under it: no countdown, no ship", !!during && during.phase === "waiting" && !during.aboard && !during.dropping && (stillHeld.kind === null || (stillHeld.phase === "waiting" && !stillHeld.aboard)), JSON.stringify({ during, stillHeld }));
-  const ended = await page.waitForFunction(`window.__range.intro.state().kind === null`, { polling: 50, timeout: 20000 }).then(() => true, () => false);
-  const started = await page.waitForFunction(`window.__range.duel()?.phase !== "waiting" && (window.__range.player.aboard || window.__range.player.dropping)`, { polling: 100, timeout: 30000 }).then(() => true, () => false);
-  check("sk order: once the card has ended the match starts, and you are on the ship", ended && started, JSON.stringify({ ended, started, phase: await ev<string>(page, "window.__range.duel()?.phase ?? null") }));
+  // A battle royale (the owner, 2026-09-30, of the order before: "it loads the map, then the animation matrix, then it
+  // shows our gun while it like loads the map again or something with black background, then we are in the ship"):
+  // the loading screen at once, the ship boarded under it, the card over the ship, and the ship off once it has gone.
+  // What the player would see, sampled every 30 ms from the click: which of the screen and the card is up, and the ship.
+  type Seen = { t: number; screen: boolean; card: boolean; built: boolean; phase: string | null; aboard: boolean; doorsIn: number | null; startAt: number | null; line: string };
+  const seen = await ev<{ atClick: Seen; rows: Seen[] }>(
+    page,
+    `new Promise((ok) => { const R = window.__range; const L = document.getElementById("loading"); const t0 = performance.now(); const rows = []; let cardGone = 0;
+      const look = () => { const d = R.duel(); const now = performance.now();
+        return { t: +((now - t0) / 1000).toFixed(3), screen: !!L && !L.hidden && !L.classList.contains("done"), card: R.intro.state().kind === "match", built: !!d, phase: d ? d.phase : null, aboard: R.player.aboard, doorsIn: d && d.ship ? +d.ship.doorsIn(now / 1000).toFixed(2) : null, startAt: d && d.ship ? d.ship.startAt : null, line: document.getElementById("loadingStatus")?.textContent ?? "" }; };
+      document.getElementById("goBr").click(); document.getElementById("startMode").click();
+      // the pointer as a real click takes it (a test's click is no gesture a browser gives the pointer for)
+      R.input.locked = true;
+      const atClick = look();
+      const step = () => { const s = look(); rows.push(s);
+        if (rows.some((r) => r.card) && !s.card && !cardGone) cardGone = performance.now();
+        if ((cardGone && performance.now() - cardGone > 1500) || performance.now() - t0 > 60000) return ok({ atClick, rows });
+        setTimeout(step, 30); };
+      step(); })`,
+  );
+  const rows = seen.rows;
+  const cardFrom = rows.findIndex((r) => r.card);
+  const before = cardFrom < 0 ? rows : rows.slice(0, cardFrom);
+  const under = cardFrom < 0 ? [] : rows.slice(cardFrom).filter((r) => r.card);
+  const last = rows[rows.length - 1];
+  const full = Math.max(...rows.map((r) => r.doorsIn ?? 0));
+  const brief = (r?: Seen) => (r ? `${r.t}s screen ${r.screen} card ${r.card} ${r.phase} aboard ${r.aboard} doors ${r.doorsIn} "${r.line}"` : "none");
+  // where the time went, for a run that took long: the screen's line as it changed, and when the match started
+  const lines = before.filter((r, i) => i === 0 || r.line !== before[i - 1].line || r.phase !== before[i - 1].phase).map((r) => `${r.t}s ${r.phase ?? "-"} "${r.line}"`);
+  console.log(`  --  from Start to the card: ${lines.join("; ")}`);
+  check("sk order: Start puts the loading screen up at once, before the match is built (the menu stood frozen through the build)", seen.atClick.screen && !seen.atClick.built, brief(seen.atClick));
+  const bare = before.find((r) => !r.screen);
+  check("sk order: from Start to the card the loading screen is up the whole time: never the range, the gun on black, or the ship", cardFrom > 0 && !bare, `card from ${brief(rows[cardFrom])}; bare ${brief(bare)}`);
+  check("sk order: the card plays over the ship: you are aboard under it, the match started", cardFrom > 0 && rows[cardFrom].aboard && rows[cardFrom].phase === "countdown", brief(rows[cardFrom]));
+  // Held, the ship's clock is moved on to each frame's time (brmatch.ts holdShip), so its start keeps up with the card;
+  // let go, its start stays where it was. (Its doors' count read between two frames is a frame's time along: in the
+  // software drawing the suite runs on, a frame on the ship took over a second.)
+  const firstUnder = under[0];
+  const lastUnder = under[under.length - 1];
+  const cardLong = under.length ? lastUnder.t - firstUnder.t : 0;
+  const kept = under.length && firstUnder.startAt !== null && lastUnder.startAt !== null ? lastUnder.startAt - firstUnder.startAt : 0;
+  check("sk order: the ship waits at its start while the loading screen and the card are up (its clock held with the card)", cardLong > 1.5 && full > 1 && kept > cardLong * 0.5, `full ${full}; the card ${cardLong.toFixed(2)} s; the ship's start moved on ${kept.toFixed(2)} s with it`);
+  check("sk order: once the card has gone the ship sets off", !last.card && last.aboard && last.doorsIn !== null && last.doorsIn < full - 0.5, brief(last));
   await page.close();
 }
 

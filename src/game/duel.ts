@@ -245,12 +245,19 @@ export interface LocalState {
   /** in the game (not on the menu) */
   ready: boolean;
   /**
-   * SpeedKills: the mode's intro card is still up, so this player is not ready
-   * yet however they came in: the match's start (the countdown, the ship) waits
-   * for the card to end (the owner, 2026-09-29: "then when that finishes
-   * playing, then we start the drop ship and / or other modes").
+   * SpeedKills: this page is still loading the match, or showing its mode's card
+   * over a match that has not started, so this player is not ready yet however
+   * they came in: the match's start (the countdown) waits for it (the owner,
+   * 2026-09-29: "then when that finishes playing, then we start the drop ship
+   * and / or other modes"; main.ts show).
    */
   held?: boolean;
+  /**
+   * SpeedKills, a battle royale: the ship waits at its start while this page
+   * boards it under the loading screen and plays the card over it, and sets
+   * off once the card has gone (brmatch.ts holdShip)
+   */
+  shipHeld?: boolean;
   /** for the figure the others see */
   stance: FigureStance;
   speed: number;

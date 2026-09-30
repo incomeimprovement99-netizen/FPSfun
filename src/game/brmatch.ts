@@ -2875,7 +2875,8 @@ export class BrMatch extends Duel {
       this.finish(this.placement ? this.placedText(this.placement) : "The battle royale is over.");
       return;
     }
-    // the ship flies on every browser, on its own clock
+    // the ship flies on every browser, on its own clock, from when this page has shown the match
+    if (local.shipHeld) this.holdShip(now);
     this.placeShip(now);
     // Resurgence: your wait and your way back
     this.resurgenceFrame(frameDt);
@@ -2968,6 +2969,19 @@ export class BrMatch extends Duel {
         b.bot.dropFrom(DROP_HEIGHT * (0.8 + Math.random() * 0.4));
       }
     }
+  }
+
+  /**
+   * The ship waits at its start (SpeedKills: the loading screen and the card are still up on this page): its clock is
+   * moved on by the wait, and so is each bot's jump off it, so a bot still leaves as the ship passes its place
+   */
+  private holdShip(now: number): void {
+    const run = this.ship;
+    if (!run) return;
+    const late = now - run.startAt;
+    if (late <= 0) return;
+    run.startAt = now;
+    for (const b of this.bots) if (b.bot.aboard && Number.isFinite(b.jumpAt)) b.jumpAt += late;
   }
 
   /** the ship's figure where the flight has got to; taken away a while after it leaves the map */

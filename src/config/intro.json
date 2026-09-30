@@ -133,5 +133,15 @@
     "alt": "#ff2e9a"
   },
   "_matchHold": "SpeedKills holds a match's start while its mode card plays (main.ts, duel.ts LocalState.held): at the most this many seconds from the card's start, whatever happens to it. The card runs on the browser's animation frames, and a tab in the background gets none: the card stood still, its player was never ready, and the match (every friend in it) waited for ever (Milestone 348's live check). The card is 1.85 s and settles for 4 at the most, so 8 never cuts one short. A tab that goes into the background skips its card besides.",
-  "matchHold": 8
+  "matchHold": 8,
+  "_show": "SpeedKills' way into a match (main.ts show): the loading screen up again with `text` as its line while the match's own files come in (the bought guns' textures for the loot and the bots, 62 files on the first battle royale of a page) and `loadFrames` frames in a row after that come steadily (a few: the range is what is drawn under it, and a page drawn in software never gave settle.frames of them), `loadMost` s at the most (1 to 2 s on a fast machine; a page drawn in software in the e2e took the whole of 20); a battle royale then starts under it, you are put on the ship and the ship waits at its start until the frames there are steady too, `boardMost` s at the most from the match's start (the first frames on that side of the world were a black frame with the gun and a 300 ms stall on a fast machine, between the card and the ship: the owner, 2026-09-30); then the mode's card, and the match or the ship only once it has gone. While a friend's match waits for the others (still loading, or on the menu), the line says `waitText`. The menu opened over it (Esc) puts the screen aside once it has been open `menuGrace` s (the click that starts a match takes the pointer a frame or two late). As Start is clicked the screen goes up before the match is built, the build waiting two frames and `paintWait` s more: the frame that shows the screen is only on the monitor once the GPU has put it there, and a build begun on the next frame kept the GPU busy, so the menu stood through the whole build in the frame capture.",
+  "show": {
+    "text": "GETTING THE MATCH READY",
+    "waitText": "WAITING FOR THE OTHERS TO BE READY",
+    "loadFrames": 3,
+    "loadMost": 12,
+    "boardMost": 6,
+    "menuGrace": 0.5,
+    "paintWait": 0.08
+  }
 }

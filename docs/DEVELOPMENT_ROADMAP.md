@@ -7536,3 +7536,39 @@ expand on it").
   floor with a standing body's room over it reached, and the street over them holds a body (seen failing with the
   market and `D4` above); the halls' own walks to their far walls, now 10 m. verify and rules; e2e `loot` and `br`.
   Both photographed in daylight from the halls, the doorways and inside, their roofs closed.
+
+## Milestone 359 — SpeedKills' way into a match: the loading screen, the ship boarded under it, the card, then the ship
+
+The owner, 2026-09-30, of the order Milestone 349 left: "the intro now is fucked up, like it loads the map, then the
+animation matrix, then it shows our gun while it like loads the map again or something with black background, then we
+are in the ship ... you can't test the full end to end flow with screenshots capturing frames every like 5% to tell?"
+
+- **Seen frame by frame first.** A drawn page with every painted frame kept (Chrome's screencast) and, every 100 ms,
+  what the game was doing, laid out as a sheet of a frame every 5% of the way: Start froze the menu on the screen for
+  a second (the match being built), the card played over the range with WAITING FOR EVERYONE TO CLICK PLAY behind it,
+  broke into the range and the gun, then one frame of the gun on black and a stall, then the ship. With the city's
+  real files in, that stall was **6.8 s**: every shader of the Neon City map compiled the moment it was first drawn,
+  from the ship.
+- **The city warmed under the page's own loading screen.** Its side is compiled with three's `compileAsync` (off the
+  page's thread where the browser can) with the side shown and the range's hidden, so the lights counted are the ones
+  it is drawn with, and its 600 textures sent to the GPU forty a frame; the screen waits for it. Measured on the ship:
+  the worst frame 6,829 ms before, 504 to 551 ms after (and that under the match's loading screen now).
+- **A match's way in** (`show` in main.ts, `show` in intro.json): Start puts the loading screen up at once and builds
+  the match two frames and 80 ms later, so the screen is on the monitor through the build; it counts the match's own
+  files (the bought guns' textures for the loot and the bots); a battle royale then starts under it, you are put on
+  the ship and the **ship waits at its start** (`LocalState.shipHeld`, brmatch.ts `holdShip`: its clock and each bot's
+  jump moved on with the wait) until its frames are steady; the card **cuts in** over the screen (no fade, which had
+  shown the screen's words through it), the screen comes down under it, the card breaks into the ship, and only then
+  does the ship set off. Other modes: the screen, then the card over a match held as before. The boarding notice is
+  said when the card has gone. Esc over the screen puts it aside while the menu is open; a friend's match waiting for
+  the others says so on its line; a hidden tab skips the whole of it.
+- **Two faults on the way.** The card's still drew its name at full strength (`globalAlpha` set, not multiplied), so a
+  cut-in card flashed its name and faded it before the name smashed in. And SpeedKills put its own hour up again as a
+  battle royale started, fetching the sky once more and retaking the roads' reflection, six renders of the city, on the
+  match's first frames: skipped when the hour is the one already up.
+- **Checked** (e2e `sklobby`, skIntroTest, the page drawn with the ship on): Start puts the screen up before the match
+  is built; from Start to the card the screen is up in every 30 ms sample; the card starts with you aboard and the match
+  counting down; the ship's clock is held with the card (its start moved on 5.1 to 5.9 s over a card of 6.1 to 7.0 s);
+  after it the doors' count runs. Each seen failing with its fault put back (the hold off: moved on 0.00 s; the card
+  before boarding and no screen at Start: four checks fail). e2e `intro` and `skship`, verify and rules. The flow sheet
+  after: loading screen, menu, loading screen, card, ship, no other frame between.

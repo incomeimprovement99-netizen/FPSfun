@@ -391,7 +391,7 @@ export class Intro {
    * simply does not wait, which is what the match start does: the match is
    * already running underneath.
    */
-  play(kind: IntroKind, words?: { name: string; sub: string }): Promise<void> {
+  play(kind: IntroKind, words?: { name: string; sub: string }, cut = false): Promise<void> {
     if (this.kind) this.stop();
     // a mode's card: its name big and its line under it, the game's name small over them
     this.words = words ? { mark: words.name, sub: words.sub, over: TEXT.mark } : { mark: TEXT.mark, sub: TEXT.sub, over: "" };
@@ -418,13 +418,16 @@ export class Intro {
     // time it is drawn, which was a frame of its own on the beat the name lands
     this.warmTitle();
     this.canvas.hidden = false;
-    // the still, faded in by the compositor, which keeps going while the page under it is busy loading
+    // the still, faded in by the compositor, which keeps going while the page under it is busy loading; or `cut` in at
+    // once, over SpeedKills' loading screen (main.ts showCard): a fade showed the screen's words through the card's
     this.drawStill();
     this.canvas.style.transition = "none";
-    this.canvas.style.opacity = "0";
+    this.canvas.style.opacity = cut ? "1" : "0";
     void this.canvas.getBoundingClientRect();
-    this.canvas.style.transition = `opacity ${INTRO_CFG.settle.fade}s ease-out`;
-    this.canvas.style.opacity = "1";
+    if (!cut) {
+      this.canvas.style.transition = `opacity ${INTRO_CFG.settle.fade}s ease-out`;
+      this.canvas.style.opacity = "1";
+    }
     // the name, for anyone who is listening rather than looking
     if (this.say)
       this.say.textContent = this.words.over ? `${this.words.over}. ${this.words.mark}: ${this.words.sub}` : `${this.words.mark}: ${this.words.sub}`;
@@ -754,7 +757,9 @@ export class Intro {
     if (across > w * 0.9) mark = Math.floor((mark * w * 0.9) / across);
     const sub = Math.round(mark * 0.3);
     ctx.save();
-    ctx.globalAlpha = alpha;
+    // times what the caller set, not over it: the still asks for its name faint (intro.json settle.stillName), and
+    // setting it outright drew that name at full strength, which the rain then faded out before the name smashed in
+    ctx.globalAlpha *= alpha;
     ctx.translate(w / 2, h / 2);
     ctx.scale(scale, scale);
     ctx.textAlign = "center";

@@ -988,9 +988,13 @@ damage).
 - **The intro card** (`src/ui/intro.ts`, `src/config/intro.json`): one 2D
   canvas over the page, and the loading screen while it is there. SpeedKills
   plays no card as the page opens: its loading screen and bar stay until the
-  world, the bought guns and the figures are in, the mode's card plays as a
-  match starts, once loading is done, and the match (the countdown, the
-  dropship) waits for it to end. The rain is a column every
+  world, the bought guns, the figures and the city's shaders are in (the city
+  drawn cold from the ship froze the page for 6.8 s). A match starts in the
+  owner's order: Start puts the loading screen up at once, before the match is
+  built; it stays while the match's own files come in, and in a battle royale
+  while you are put on the ship and its first frames settle (the ship waits at
+  its start); then the mode's card cuts in over it, breaks into the ship, and
+  only then does the ship set off (main.ts `show`, intro.json `show`). The rain is a column every
   16 px, each falling at its own speed with its head lit and its tail left
   behind by a frame that only half clears; the name lands from two and a half
   times its size with a green and a cyan copy a few pixels either side; the

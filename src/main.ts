@@ -183,15 +183,25 @@ const NO_INTRO = new URLSearchParams(location.search).has("nointro");
 /** the card that opens the game has been played (the frame loop starts it once the world is in) */
 let introShown = false;
 /**
- * SpeedKills: a mode's card asked for while the loading screen is still up (a match started from an invite link as the
- * page opens): it waits for the screen to go, then plays, and the match waits for it (the local state's `held`)
+ * SpeedKills' way into a match, in the owner's order (2026-09-29: "the basic speed kills with the progress bar is all
+ * we want them to see whenever we are loading things, then once that's done, then we put the animation specific screen
+ * up (depending on which mode they are playing), then when that finishes playing, then we start the drop ship and / or
+ * other modes"). Its stages (showFrame):
+ * - "load": the loading screen up again, counting what the match asks for (the bought guns' textures for its loot and
+ *   its bots), the match held (LocalState.held) until that is in and the frames come steadily;
+ * - "board", a battle royale's: the match starts under the screen, you are put on the ship and the ship waits at its
+ *   start (LocalState.shipHeld) until the frames there are steady too. The first frames on that side of the world were
+ *   a black frame with the gun and a stall, between the card and the ship (the owner, 2026-09-30, and the frames of it);
+ * - "card": the mode's card over all that, the screen taken down under it once it covers it, and the match (or the
+ *   ship) waiting until the card has gone, introCfg.matchHold at the most.
  */
-let cardPending: { words?: { name: string; sub: string } } | null = null;
-/** when the mode's card last started (real seconds): it holds its match for introCfg.matchHold at the most */
-let cardAt = -Infinity;
-// a tab in the background gets no animation frames, so its card would stand still and hold the match: it skips it
+let show: { stage: "load" | "board" | "card"; words?: { name: string; sub: string }; br: boolean; at: number; menuAt: number; then: Array<() => void> } | null = null;
+// a tab in the background gets no animation frames, so its card would stand still and hold the match: it skips it,
+// and the whole of the way in with it
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && intro.kind === "match") intro.skip();
+  if (!document.hidden) return;
+  if (show) endShow();
+  if (intro.kind === "match") intro.skip();
 });
 // a key or a click takes the rest of it: nobody wants a title card twice
 if (!NO_INTRO) for (const ev of ["keydown", "pointerdown"] as const) window.addEventListener(ev, () => intro.skip(), { capture: true });
@@ -216,7 +226,8 @@ intro.onWarm = () => {
 intro.ready = () => loadingScreen.loaded && (!IS_SK || (paidSettled && figuresSettled() && (!soldierReady() || viewModel.realArms)));
 // SpeedKills: the loading screen, its bar and its tips, is what shows while anything loads, up to those late steps
 // too; there is no card over it, and a mode's card plays once it is done (below, and wireMatch)
-if (IS_SK) loadingScreen.waitFor = () => paidSettled && figuresSettled() && (!soldierReady() || viewModel.realArms);
+// and the city's side warmed after all that (brWarmed): drawn cold from the ship, it froze the page for seconds
+if (IS_SK) loadingScreen.waitFor = () => paidSettled && figuresSettled() && (!soldierReady() || viewModel.realArms) && brWarmed();
 intro.progress = () => loadingScreen.fraction;
 
 const DEG = Math.PI / 180;
@@ -917,7 +928,11 @@ skyBrSel.addEventListener("change", () => {
 });
 /** the sky a battle royale is played under: the match's hour, or the owner's own */
 function brHour(d: BrMatch): void {
-  applyHour(IS_SK ? gameHour() : loadBrSky() === "match" ? matchHour(d.seed) : loadHour());
+  const h = IS_SK ? gameHour() : loadBrSky() === "match" ? matchHour(d.seed) : loadHour();
+  // SpeedKills plays under the hour already up: putting it up again fetched the sky once more and took the city's
+  // reflection again (six renders of the city) for nothing, on the match's first frames
+  if (IS_SK && h.id === hour.id) return;
+  applyHour(h);
 }
 const perfLine = $("perfLine");
 void measureRefresh().then((hz) => {
@@ -992,7 +1007,9 @@ void dressKit(brMap.root, DRESSING).then((n) => {
 // (the Neon City map draws the bundle's pieces alone, at the preset's texture size)
 // (not on a ?norender page, which never draws it: decoding and dressing its million and a half triangles there only
 // takes the CPU from the e2e's fights)
-if (NEON && !new URLSearchParams(location.search).has("norender")) void dressNeonMap(brMap.root, renderer, quality.cityKit);
+/** the Neon City map's file is in and dressed, or is not there: its side is warmed after it (warmBrSide) */
+let cityIn = !NEON || new URLSearchParams(location.search).has("norender");
+if (NEON && !new URLSearchParams(location.search).has("norender")) void dressNeonMap(brMap.root, renderer, quality.cityKit).finally(() => (cityIn = true));
 if (IS_SK && !NEON && !new URLSearchParams(location.search).has("nocitykit"))
   // the districts made of the packs' own demo scenes (citydistricts.ts, Phase 25), every preset: they are the district
   // (at the kit's lo size where the preset loads the kit's lo files)
@@ -2818,8 +2835,13 @@ function boardShip(d: BrMatch, run: ShipRun): void {
   // the first of your squad leads it down (the host, unless the friends are split into squads)
   linkedTo = d.jumpmaster();
   const master = d.isJumpmaster();
-  hud.notice(master ? "YOU ARE THE JUMPMASTER: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(linkedTo)} IS THE JUMPMASTER` : `THE SHIP PASSES ${IS_SK && SPIRE_TOP.y > 0 ? "THE SPIRE" : d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
-  if (!squadCfg.dive.mapOnBoard) window.setTimeout(() => hud.notice("M IS THE MAP  ·  SPACE JUMPS", gameTime, 2.5), 3200);
+  const say = (): void => {
+    hud.notice(master ? "YOU ARE THE JUMPMASTER: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(linkedTo)} IS THE JUMPMASTER` : `THE SHIP PASSES ${IS_SK && SPIRE_TOP.y > 0 ? "THE SPIRE" : d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
+    if (!squadCfg.dive.mapOnBoard) window.setTimeout(() => hud.notice("M IS THE MAP  ·  SPACE JUMPS", gameTime, 2.5), 3200);
+  };
+  // boarded under SpeedKills' loading screen and card: said once they have gone, or it was over before anyone saw it
+  if (show) show.then.push(say);
+  else say();
 }
 
 /** off the ship, into the skydive where it is; the jumpmaster's jump takes the linked squad with them */
@@ -4950,17 +4972,118 @@ function modeWords(d: MatchLike, kind: MatchKind): { name: string; sub: string }
   return (introCfg.modes as Record<string, { name: string; sub: string }>)[key];
 }
 
+/**
+ * SpeedKills' way into a match, a frame at a time (`show`, at the top): the loading screen, the ship boarded under it,
+ * the mode's card, and only then the match
+ */
+function showFrame(): void {
+  if (!show) return;
+  const S = introCfg.show;
+  const now = performance.now() / 1000;
+  const d = duel;
+  if (!d) {
+    endShow(false);
+    return;
+  }
+  // The menu opened over it (Esc): the screen stands aside for as long as it is open, or the menu is under it with
+  // no way to reach it. A moment's grace first: the click that started the match takes the pointer a frame or two late.
+  if (show.stage !== "card") {
+    if (input.playing || scriptInput) show.menuAt = now;
+    const menu = now - show.menuAt > S.menuGrace;
+    if (menu && loadingScreen.up) loadingScreen.close();
+    else if (!menu && !loadingScreen.up) loadingScreen.again(S.text);
+    if (menu) {
+      // and its time limits wait with it
+      show.at = now;
+      return;
+    }
+  }
+  const N = introCfg.settle.frames;
+  if (show.stage === "load") {
+    // the bar: the match built (a tenth), its files in (to seven tenths), its frames steady (to eight)
+    if (loadingScreen.loaded) loadingScreen.step(0.1 + 0.6 * loadingScreen.filesIn + 0.1 * Math.min(1, loadingScreen.calm / S.loadFrames) * (loadingScreen.allAsked ? 1 : 0));
+    // everything the match asked for is in, and the page drew a few frames steadily after it
+    if ((loadingScreen.loaded && loadingScreen.allAsked && loadingScreen.calm >= S.loadFrames) || now - show.at > S.loadMost) {
+      show.stage = show.br ? "board" : "card";
+      show.at = now;
+      loadingScreen.resetCalm();
+      if (!show.br) showCard();
+    }
+    return;
+  }
+  if (show.stage === "board") {
+    // on the ship (a test's straight drop: in the air), and the frames there steady; until the match starts, the
+    // others are what it waits for, and its time limit waits with it
+    const on = d.phase !== "waiting" && (player.aboard || player.dropping);
+    if (!on) {
+      loadingScreen.resetCalm();
+      loadingScreen.sayLine(d.phase === "waiting" && d instanceof Duel && d.players > 1 ? S.waitText : "");
+      show.at = now;
+      return;
+    }
+    loadingScreen.sayLine("");
+    // the bar's last fifth: the frames on the ship steady
+    loadingScreen.step(0.8 + 0.2 * Math.min(1, loadingScreen.calm / N));
+    if ((loadingScreen.allAsked && loadingScreen.calm >= N) || now - show.at > S.boardMost) {
+      show.stage = "card";
+      show.at = now;
+      showCard();
+    }
+    return;
+  }
+  // the card: the match goes once it has gone
+  if (intro.kind === null || now - show.at > introCfg.matchHold) endShow();
+}
+
+/** the lobby's modes that start a match (goTo), the ones SpeedKills puts its loading screen up for as Start is clicked */
+const MATCH_MODES: ReadonlySet<Mode> = new Set<Mode>(["bots", "br", "gunrun", "tdm", "crown", "control", "ffa", "search"]);
+
+/**
+ * `f` once the page has drawn what is on it now and the screen shows it: two animation frames on, and a moment more
+ * (intro.json show.paintWait), because a frame is only on the screen once the GPU has put it there, and a match's build
+ * keeps the GPU busy too. A second at the most, for a tab that goes into the background before then and draws nothing.
+ */
+function afterPaint(f: () => void): void {
+  let done = false;
+  const go = (): void => {
+    if (done) return;
+    done = true;
+    f();
+  };
+  requestAnimationFrame(() => requestAnimationFrame(() => window.setTimeout(go, introCfg.show.paintWait * 1000)));
+  window.setTimeout(go, 1000);
+}
+
+/** the card of the match being shown, cut in over the loading screen, which comes down under it */
+function showCard(): void {
+  if (!show) return;
+  void intro.play("match", show.words, true);
+  loadingScreen.close();
+}
+
+/**
+ * The way in is over, or cut short (the tab went into the background, the match ended): the match goes on its own,
+ * and what it put off is said now, unless `say` is false (the match it was about is gone)
+ */
+function endShow(say = true): void {
+  const s = show;
+  show = null;
+  loadingScreen.close();
+  if (!s || !say) return;
+  for (const f of s.then) f();
+}
+
 /** the callbacks every kind of match gets */
 function wireMatch(d: MatchLike, kind: MatchKind): void {
   // dropping into a match: the short card, over the match already starting
   // underneath it. Nothing waits for it (src/ui/intro.ts).
-  // SpeedKills: never over the loading screen; the mode's card once it has gone (cardPending), the match held under it
+  // SpeedKills: the loading screen first, then the card, then the match (showFrame); not for a tab in the background,
+  // which gets no frames to show it with
   if (!NO_INTRO) {
-    if (IS_SK && !loadingScreen.loaded) cardPending = { words: modeWords(d, kind) };
-    else {
-      cardAt = performance.now() / 1000;
-      void intro.play("match", modeWords(d, kind));
-    }
+    if (IS_SK && !document.hidden) {
+      show = { stage: "load", words: modeWords(d, kind), br: d instanceof BrMatch, at: performance.now() / 1000, menuAt: performance.now() / 1000, then: [] };
+      loadingScreen.again(introCfg.show.text);
+    } else if (!IS_SK) void intro.play("match", modeWords(d, kind));
   }
   note("match", { mode: kind, role: d instanceof Duel && d.players > 1 ? d.role : undefined });
   d.onRespawn = () => respawnForMatch(d);
@@ -5606,6 +5729,9 @@ const brDifficulty = (): BotDifficulty => asDifficulty(botDifficulty.value);
 const brBotCount = (): number => Math.max(1, Math.min(MOST_BOTS, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
   const wasBr = duel instanceof BrMatch;
+  // a match over while it was still being shown (left from the menu over the loading screen): the screen goes with it,
+  // and nothing it put off is said
+  if (show) endShow(false);
   // any zipline HOOK put up, and any cloud SMOKE left, go with the match
   clearZiplines();
   clearSmoke();
@@ -6020,6 +6146,61 @@ const merged = new URLSearchParams(location.search).has("nomerge")
   ? null
   : mergeStatic(scene, [[...rangeRoots, ...courses.map((c) => c.root)], arena.root, triArena.root, brMap.root], [rangeSide, rangeSide, rangeSide, brSide]);
 
+/**
+ * SpeedKills: the city's side made ready to be drawn before anyone flies over it, under the page's own loading screen
+ * (its waitFor). Drawn for the first time from the ship, it froze the page for 6.8 s (measured, 2026-09-30: every
+ * shader of the map compiled the moment it was first drawn), which was the owner's "black background" between the card
+ * and the ship. Its shaders are compiled by three's compileAsync, which the browser does off the page's thread where it
+ * can (0.6 to 0.8 s here, and the freeze on the ship 0.3 to 0.6 s after it), and its textures are sent to the GPU a few
+ * a frame. Not on a ?norender page, which never draws it.
+ */
+let brWarm: "no" | "going" | "done" = IS_SK && !new URLSearchParams(location.search).has("norender") ? "no" : "done";
+function brWarmed(): boolean {
+  if (brWarm === "done") return true;
+  if (brWarm === "no" && cityIn) warmBrSide();
+  return false;
+}
+function warmBrSide(): void {
+  brWarm = "going";
+  // compiled as it will be drawn from the ship: the city's side shown and the range's not, so the lights each side
+  // has are the ones counted (the count is part of every shader)
+  const was = [rangeSide.visible, brSide.visible];
+  rangeSide.visible = false;
+  brSide.visible = true;
+  let compiled: Promise<unknown>;
+  try {
+    compiled = renderer.compileAsync(brSide, camera, scene);
+  } catch {
+    compiled = Promise.resolve();
+  } finally {
+    rangeSide.visible = was[0];
+    brSide.visible = was[1];
+  }
+  const textures: THREE.Texture[] = [];
+  const seen = new Set<THREE.Texture>();
+  brSide.traverse((o) => {
+    const mat = (o as THREE.Mesh).material;
+    for (const m of mat ? (Array.isArray(mat) ? mat : [mat]) : []) {
+      for (const v of Object.values(m)) {
+        const t = v as THREE.Texture | null;
+        // (a render target's picture, the roads' reflection, is drawn, not sent)
+        if (t && t.isTexture && !(t as unknown as { isRenderTargetTexture?: boolean }).isRenderTargetTexture && !seen.has(t)) {
+          seen.add(t);
+          textures.push(t);
+        }
+      }
+    }
+  });
+  // a few a frame: sent all at once they were a third of a second in one frame
+  const send = (): void => {
+    for (let i = 0; i < 40 && textures.length; i++) renderer.initTexture(textures.pop()!);
+    if (textures.length) requestAnimationFrame(send);
+    else void compiled.then(() => (brWarm = "done"));
+  };
+  requestAnimationFrame(send);
+  // a tab in the background draws no frames to send them on: the screen does not wait for it (hud.json loading.maxSeconds)
+}
+
 // Two slots, each with its own clip and reload state: empty one mag, swap,
 // empty the other, swap back and the first is still empty.
 const loadout = new Loadout([loadouts.current.slot1, loadouts.current.slot2]);
@@ -6165,6 +6346,20 @@ const menu = new Menu(loadouts, profile, {
   onApply: applyLoadout,
   sessionGuns: () => [...gunSession.entries()].map(([id, r]) => ({ name: weaponName(id), ...r })),
   onGo: (mode) => {
+    // SpeedKills: the loading screen up and drawn before a match is built. Building one is a second or more of work (a
+    // battle royale's bots and loot), and the menu stood frozen on the screen through it after the click on Start.
+    if (IS_SK && !NO_INTRO && !calibrating && MATCH_MODES.has(mode) && !document.hidden) {
+      loadingScreen.again(introCfg.show.text);
+      readSettings();
+      void input.lock();
+      afterPaint(() => {
+        goTo(mode);
+        refreshDerived();
+        // (no match came of it: the screen goes again)
+        if (!show) loadingScreen.close();
+      });
+      return;
+    }
     goTo(mode);
     if (calibrating) return;
     readSettings();
@@ -8026,8 +8221,10 @@ function step(): void {
     look: lookCode(loadouts.current),
     name: profile.profile.name,
     ready: input.playing,
-    // SpeedKills: the mode's card still up holds the match's start (duel.ts LocalState.held)
-    held: IS_SK && (cardPending !== null || (intro.kind !== null && performance.now() / 1000 - cardAt < introCfg.matchHold)),
+    // SpeedKills: the way in (show) holds the match's start while it loads, and a card over a match that has not
+    // started; a battle royale's starts once it has loaded, its ship waiting at its start until the card has gone
+    held: show !== null && (show.stage === "load" || (show.stage === "card" && !show.br)),
+    shipHeld: show !== null && show.br,
     stance: downedNow ? "downed" : player.stance,
     speed: player.speed,
     ads: ws.adsFrac,
@@ -8376,18 +8573,13 @@ function step(): void {
   input.endFrame();
   // the loading screen goes once the world is in and this frame is drawn
   loadingScreen.frame();
+  // SpeedKills' way into a match: the screen, the ship, the card
+  showFrame();
   // and the card opens the game the moment it does. It waits for that rather
   // than starting with the page, because the first seconds of a page are the
   // models and textures coming in and being decoded, which is one long stutter
   // on the main thread: a card played through that plays on a clock nobody can
   // see. From here the frames are steady (src/ui/intro.ts).
-  // a mode's card that waited for the loading screen: now it has gone
-  if (cardPending && loadingScreen.loaded) {
-    const { words } = cardPending;
-    cardPending = null;
-    cardAt = performance.now() / 1000;
-    void intro.play("match", words);
-  }
   if (!NO_INTRO && !introShown) {
     introShown = true;
     // SpeedKills opens on its loading screen alone, which goes by itself once everything is in (its waitFor); the
