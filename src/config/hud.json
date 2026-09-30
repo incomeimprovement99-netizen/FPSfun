@@ -96,6 +96,21 @@
     ],
     "opacity": 0.7
   },
+  "_jumpTracers": "A double jump that turns a player (trails.ts): a streak of light through the air along the way they went, in their trail's colour (the owner, 2026-09-30: \"a tracer if they changed directions in the middle of the jump\"). Seen by their double-jump count (the figure's, sent over the network as dj). A double jump only gives the jump back; the turn is the air control after it, over a few tenths of a second, so from the jump on, for up to `within` seconds, the way they are going (over the last `span` seconds) is held against the way they were going over the `before` seconds up to it; `turn` degrees or more apart, and a ribbon `width` metres across, `lift` over the feet (the body's middle), is drawn through where they were from `before` seconds before the jump to then, fading over `seconds`, at `opacity` (0.1 m: at 0.06 it read as a laser line 12 m off, the movement trails being 0.08). None past the trails' maxDist; faded out within `near` metres of you (from its second number in to its first), nearer than the trails' own: a tracer is for seeing a turn in a fight, where the trails are faded out. Ours.",
+  "jumpTracers": {
+    "before": 0.2,
+    "within": 0.6,
+    "span": 0.1,
+    "turn": 25,
+    "width": 0.1,
+    "lift": 1.0,
+    "seconds": 0.8,
+    "opacity": 0.9,
+    "near": [
+      3,
+      6
+    ]
+  },
   "_note": "The HUD's few gameplay numbers (ours). Plates: an enemy's name and bars show only after you have damaged them, for `afterHit` seconds from the last hit, and only while the line from your eye to their chest is clear of the level; a team mate's always. A plate is last drawn at `range` metres, fading from `fadeFrom`: the owner asked for them off far away as well as behind cover, so this is a room-and-a-half, not the width of the map.",
   "plates": {
     "afterHit": 6,

@@ -1294,9 +1294,10 @@ export class Dummy {
       }
     }
     // the mannequin plays its clips for the same pose, with the same corrections on top
-    // a scoped figure aiming in glints (muzzle.ts, Hyper Scape's lens flare), and not while its gun is away
-    if (this.mq?.glint) showGlint(this.mq.glint, this.gunShown && !downed ? e.ads : 0, this.glintT += dt);
     this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null, airJumps: p.airJumps }, this.lodAnimate);
+    // a scoped figure glints (muzzle.ts, Hyper Scape's lens flare) only while it is looking down its scope (mannequin.ts
+    // scoped): not while its gun is away, and not for an aim held through a reload, a swap, a throw or a strike
+    if (this.mq?.glint) showGlint(this.mq.glint, this.gunShown && !downed ? this.mq.scoped : 0, this.glintT += dt);
     if (this.lodAnimate) this.followBones();
   }
 

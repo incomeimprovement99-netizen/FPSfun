@@ -5,7 +5,7 @@
 //
 // Run on its own: npx tsx tools/checks/trails.ts (npm run verify runs it).
 import * as THREE from "three";
-import { Trails, TRAILS } from "../../src/game/trails";
+import { TRACERS, Trails, TRAILS } from "../../src/game/trails";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -100,6 +100,61 @@ check("a player gone leaves theirs to fade, then it is taken away", lingering > 
     t4.update(n4, eyeNear, [{ key: 4, feet: f4, side: "enemy", live: true }]);
   }
   check(`running within ${TRAILS.near[0]} m of you, its trail is not drawn`, t4.points(4) > 3 && t4.count === 0, `${t4.points(4)} points, ${t4.count} drawn`);
+}
+
+// A double jump that turns a player draws a tracer through the turn (hud.json jumpTracers); one straight on, or a first count
+// seen, draws none; and it fades within its seconds
+{
+  const run = (turnDeg: number, firstSeen = false): number => {
+    const t5 = new Trails(null);
+    const f5 = new THREE.Vector3(0, 0, 0);
+    const way = new THREE.Vector3(1, 0, 0);
+    let n5 = 0;
+    const step = (count: number) => {
+      n5 += dt;
+      f5.addScaledVector(way, 8 * dt);
+      t5.update(n5, eye, [{ key: 5, feet: f5, side: "enemy", live: true, airJumps: count }]);
+    };
+    // (first seen: the count arrives already made, with the turn)
+    for (let i = 0; i < 20; i++) firstSeen ? t5.update((n5 += dt), eye, [{ key: 5, feet: f5.addScaledVector(way, 8 * dt), side: "enemy", live: true }]) : step(0);
+    way.applyAxisAngle(new THREE.Vector3(0, 1, 0), (turnDeg * Math.PI) / 180);
+    for (let i = 0; i < Math.ceil((TRACERS.within + 0.05) / dt); i++) step(firstSeen ? 3 : 1);
+    return t5.tracerCount;
+  };
+  check(`a double jump that turns a player ${TRACERS.turn + 20} degrees draws a tracer through the turn`, run(TRACERS.turn + 20) === 1);
+  check("one straight on draws none", run(0) === 0);
+  // (as the game turns them: the double jump gives the jump back, and air control turns them over the next tenths)
+  {
+    const t7 = new Trails(null);
+    const f7 = new THREE.Vector3(0, 0, 0);
+    const w7 = new THREE.Vector3(1, 0, 0);
+    let n7 = 0;
+    const s7 = (count: number, turnPerFrame = 0) => {
+      n7 += dt;
+      w7.applyAxisAngle(new THREE.Vector3(0, 1, 0), (turnPerFrame * Math.PI) / 180);
+      f7.addScaledVector(w7, 8 * dt);
+      t7.update(n7, eye, [{ key: 7, feet: f7, side: "enemy", live: true, airJumps: count }]);
+    };
+    for (let i = 0; i < 20; i++) s7(0);
+    for (let i = 0; i < 24; i++) s7(1, 3);
+    check("and a turn made over the air time after it (3 degrees a frame) draws one too", t7.tracerCount === 1, `${t7.tracerCount}`);
+  }
+  check("nor a count first seen (a player met mid-air)", run(TRACERS.turn + 20, true) === 0);
+  const t6 = new Trails(null);
+  const f6 = new THREE.Vector3(0, 0, 0);
+  const w6 = new THREE.Vector3(1, 0, 0);
+  let n6 = 0;
+  const s6 = (count: number) => {
+    n6 += dt;
+    f6.addScaledVector(w6, 8 * dt);
+    t6.update(n6, eye, [{ key: 6, feet: f6, side: "enemy", live: true, airJumps: count }]);
+  };
+  for (let i = 0; i < 20; i++) s6(0);
+  w6.set(0, 0, 1);
+  for (let i = 0; i < Math.ceil((TRACERS.within + 0.05) / dt); i++) s6(1);
+  const drawn = t6.tracerCount;
+  for (let i = 0; i < Math.ceil((TRACERS.seconds + 0.1) / dt); i++) s6(1);
+  check(`and it fades within its ${TRACERS.seconds} s`, drawn === 1 && t6.tracerCount === 0, `${drawn} then ${t6.tracerCount}`);
 }
 
 console.log(fails === 0 ? "\nTRAILS PASS" : `\nTRAILS FAIL (${fails})`);

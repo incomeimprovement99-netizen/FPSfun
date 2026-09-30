@@ -180,7 +180,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   are dim, a quarter as bright as other players' (so fire coming at you still
   reads), and your muzzle flash is drawn at a tenth of its strength. Every other player leaves
   a trail of light behind their feet, as in Hyper Scape: red for enemies, blue
-  for squad mates, gold for the crown's carrier. The gap analysis
+  for squad mates, gold for the crown's carrier; a double jump that turns them
+  leaves a streak of the same light through the air along the turn. The gap analysis
   against Hyper Scape is docs/HYPERSCAPE_GAP_ANALYSIS.md.
   The USSO and BOOG are held by real first-person arms (a bought pack's, where
   its files are): an SMG hold and a sniper hold, fitted to our guns' grips joint
@@ -270,8 +271,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   rail under its barrel, standing more side-on as a marksman does), the gun
   pointing where they look; aiming, it comes up to their eye; sprinting, it is
   carried low across the body; sliding or climbing, it stays in their right hand.
-  A melee is a strike with the gun, both hands on it. A double jump is a front
-  flip. Their gloved fingers are drawn a tenth smaller than the model's. A reload
+  A melee is a strike with the gun, both hands on it. A double jump lifts their
+  knees for a moment. Their gloved fingers are drawn a tenth smaller than the model's. A reload
   is the one you see in your own hands, on the same timeline: the left hand points
   at the magazine as it slides out and phases away, a new one phases in and seats,
   then the handle is racked or the bolt worked, in the gun's own reload time. The

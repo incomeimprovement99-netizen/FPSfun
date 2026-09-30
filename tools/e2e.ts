@@ -7485,6 +7485,12 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     const sizes = await ev<number[]>(page, `(() => { const f = window.__range.labFigures()[0].figure; return ["index", "middle", "ring", "pinky", "thumb"].flatMap((n) => ["l", "r"].map((s) => Math.round(f.boneAt(n + "_01_" + s).scale.x * 1000) / 1000)); })()`);
     check(`the soldier holding ${name}: every finger drawn at ${soldierHoldCfg.fingerSize} of the model's size`, sizes.every((x) => Math.abs(x - soldierHoldCfg.fingerSize) < 1e-3), sizes.join());
     if (id === "sentinel") {
+      // BOOG's scope glints only while the figure looks down it (the owner, 2026-09-30: "the sniper should only have glint
+      // when they are ADSing"): aimed in, yes; the aim held through a reload or a swap, or at the hip, no
+      const glintIn = async (p: Record<string, unknown>) => ev<boolean | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, ${JSON.stringify({ speed: 0, stance: "stand", pitch: 0, ...p })}); r.figureLabStep(0.6); const g = r.labFigures()[0].figure.glint; return g ? g.visible : null; })()`);
+      const glints = { aimed: await glintIn({ ads: 1 }), reloading: await glintIn({ ads: 1, act: "reload" }), swapping: await glintIn({ ads: 1, act: "swap" }), hip: await glintIn({ ads: 0 }), again: await glintIn({ ads: 1 }) };
+      await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
+      check("BOOG's scope glints only while the soldier looks down it: aimed in, not through a reload or a swap, not at the hip", glints.aimed === true && glints.reloading === false && glints.swapping === false && glints.hip === false && glints.again === true, JSON.stringify(glints));
       // BOOG's left hand on the rail under its fore-end, not the magazine (which ends 20 cm in front of the grip): the
       // owner, 2026-09-30, "the boogs 3rd person still has the hand grabbing the magazine instead of the hand stop/rail"
       const rail = await ev<{ z: number; y: number; slide: number }>(page, `(() => { const f = window.__range.labFigures()[0].figure, g = f.gunObject, h = f.holdPoints(); const at = g.worldToLocal(h.support.clone()); return { z: Math.round(at.z * 1000) / 1000, y: Math.round(at.y * 1000) / 1000, slide: f.supportSlide }; })()`);
@@ -7573,17 +7579,21 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     const after = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
     check(`the soldier's ${name} reload: after it, the hands are back on the gun`, within(after, true), JSON.stringify(after));
   }
-  // A double jump: the figure flips forward, the whole of it round the hips, and is upright again before it could land
-  // (the owner, 2026-09-30: "there should be an animation for when we double jump for sure"). One seen for the first
-  // time with a count already made does not flip for them.
-  const flipOf = `(() => { const f = window.__range.labFigures()[0].figure; return Math.round((f.root.rotation.x * 180) / Math.PI); })()`;
+  // A double jump: the knees come up and go back down, the body upright (the owner, 2026-09-30, of the flip it first was:
+  // "just have the legs raise a bit at the same time as the double jump"). One seen for the first time with a count
+  // already made does not lift for them.
+  const kneeOf = `(() => { const r = window.__range, T = r.THREE, f = r.labFigures()[0].figure; const k = f.boneAt("calf_l").getWorldPosition(new T.Vector3()); const pv = f.boneAt("pelvis").getWorldPosition(new T.Vector3()); return { knee: Math.round((k.y - pv.y) * 1000), turn: Math.round((f.root.rotation.x * 180) / Math.PI) }; })()`;
   await ev(page, `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([{ speed: 0, stance: "air", pitch: 0, weapon: "r97", look: "S0000010", airJumps: 5 }], 2.6, 30); r.figureLabManual(true); r.figureLabStep(0.25); })()`);
-  const firstSeen = await ev<number>(page, flipOf);
-  await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "air", pitch: 0, airJumps: 6 }); r.figureLabStep(DJ_HALF); })()`.replace("DJ_HALF", String(figureCfg.doubleJump.time / 2)));
-  const midFlip = await ev<number>(page, flipOf);
+  const firstSeen = await ev<{ knee: number; turn: number }>(page, kneeOf);
+  await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "air", pitch: 0, airJumps: 6 }); r.figureLabStep(${figureCfg.doubleJump.time / 2}); })()`);
+  const lifted = await ev<{ knee: number; turn: number }>(page, kneeOf);
   await ev(page, `window.__range.figureLabStep(${figureCfg.doubleJump.time / 2 + 0.05})`);
-  const flipped = await ev<number>(page, flipOf);
-  check("a double jump: the figure flips forward, halfway round halfway through, and is upright at the end; none for a count it was first seen with", firstSeen === 0 && midFlip > 150 && midFlip < 210 && flipped === 0, JSON.stringify({ firstSeen, midFlip, flipped }));
+  const after = await ev<{ knee: number; turn: number }>(page, kneeOf);
+  check(
+    "a double jump: the knees come up (6 cm or more nearer the hips) and go back down, the body upright throughout; none for a count it was first seen with",
+    lifted.knee - firstSeen.knee >= 60 && Math.abs(after.knee - firstSeen.knee) <= 20 && firstSeen.turn === 0 && lifted.turn === 0 && after.turn === 0,
+    JSON.stringify({ firstSeen, lifted, after })
+  );
   await ev(page, "window.__range.figureLabManual(false)");
   await page.close();
   // the Loadouts tab's soldier holding the USSO: the same hold, its palms on their holds (on a page that draws: the

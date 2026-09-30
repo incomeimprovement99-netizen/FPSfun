@@ -8,6 +8,8 @@ import * as THREE from "three";
 import cfg from "../config/hud.json";
 
 export const TRAILS = cfg.trails;
+/** a double jump's tracer (hud.json jumpTracers) */
+export const TRACERS = cfg.jumpTracers;
 export type TrailSide = "enemy" | "ally" | "crown";
 
 interface Trail {
@@ -22,12 +24,26 @@ interface Trail {
   last: THREE.Vector3 | null;
   lastAt: number;
   heading: THREE.Vector3 | null;
+  /** where the body has been lately, for a tracer; the double jumps seen (null until the first count); one just made */
+  air: Array<{ p: THREE.Vector3; t: number }>;
+  jumps: number | null;
+  jumped: { at: number; from: THREE.Vector3; before: THREE.Vector3 } | null;
+}
+
+/** a tracer drawn: its ribbon through fixed points, and when it was drawn */
+interface Tracer {
+  pts: THREE.Vector3[];
+  mesh: THREE.Mesh;
+  geo: THREE.BufferGeometry;
+  side: TrailSide;
+  born: number;
 }
 
 const MAX = TRAILS.points;
 
 export class Trails {
   private readonly trails = new Map<unknown, Trail>();
+  private readonly tracers: Tracer[] = [];
   private readonly mat: THREE.MeshBasicMaterial;
   private readonly colours: Record<TrailSide, THREE.Color>;
   private readonly tmpA = new THREE.Vector3();
@@ -46,6 +62,11 @@ export class Trails {
     return n;
   }
 
+  /** how many double-jump tracers are drawn now (the checks) */
+  get tracerCount(): number {
+    return this.tracers.length;
+  }
+
   /** a trail's points now, oldest first (the checks) */
   points(key: unknown): number {
     return this.trails.get(key)?.pts.length ?? 0;
@@ -55,7 +76,7 @@ export class Trails {
    * One frame: each player `key` at `feet`, on `side`, `moving` it (not hidden, alive). The eye is where the ribbon
    * turns to face.
    */
-  update(now: number, eye: THREE.Vector3, players: Array<{ key: unknown; feet: THREE.Vector3; side: TrailSide; live: boolean }>): void {
+  update(now: number, eye: THREE.Vector3, players: Array<{ key: unknown; feet: THREE.Vector3; side: TrailSide; live: boolean; airJumps?: number }>): void {
     for (const t of this.trails.values()) t.seen = false;
     const far2 = TRAILS.maxDist * TRAILS.maxDist;
     for (const pl of players) {
@@ -76,7 +97,7 @@ export class Trails {
         mesh.renderOrder = 4;
         mesh.name = "trail";
         this.scene?.add(mesh);
-        t = { pts: [], mesh, geo, side: pl.side, seen: true, last: null, lastAt: now, heading: null };
+        t = { pts: [], mesh, geo, side: pl.side, seen: true, last: null, lastAt: now, heading: null, air: [], jumps: null, jumped: null };
         this.trails.set(pl.key, t);
       }
       t.seen = true;
@@ -101,6 +122,16 @@ export class Trails {
         t.pts.push({ p: at.clone(), t: now });
         if (t.pts.length > MAX) t.pts.shift();
       }
+      this.watchJumps(t, pl, now);
+    }
+    // the tracers fade and go
+    for (let i = this.tracers.length - 1; i >= 0; i--) {
+      const tr = this.tracers[i];
+      if (now - tr.born > TRACERS.seconds) {
+        tr.mesh.removeFromParent();
+        tr.geo.dispose();
+        this.tracers.splice(i, 1);
+      } else this.buildTracer(tr, now, eye);
     }
     for (const [key, t] of this.trails) {
       // the old points go; a player gone or out of sight leaves theirs to fade
@@ -149,12 +180,99 @@ export class Trails {
     col.needsUpdate = true;
   }
 
-  /** every trail gone (a new match) */
+  /**
+   * A double jump that turns them: from the jump on, for up to `within` seconds, the way they go against the way they
+   * went before it, and a tracer through the turn once the two are `turn` degrees apart (hud.json jumpTracers). A count
+   * first seen is where it starts.
+   */
+  private watchJumps(t: Trail, pl: { feet: THREE.Vector3; side: TrailSide; airJumps?: number }, now: number): void {
+    const T = TRACERS;
+    const body = pl.feet.clone().setY(pl.feet.y + T.lift);
+    // a teleport starts the body's way afresh, as it does the trail
+    const prev = t.air[t.air.length - 1];
+    if (prev && prev.p.distanceTo(body) > TRAILS.jump) {
+      t.air.length = 0;
+      t.jumped = null;
+    }
+    t.air.push({ p: body, t: now });
+    while (t.air.length && now - t.air[0].t > T.before + T.within + 0.2) t.air.shift();
+    /** where the body was `ago` seconds back, or the oldest kept */
+    const at = (ago: number) => (t.air.find((a) => now - a.t <= ago) ?? t.air[0]).p;
+    if (pl.airJumps !== undefined && pl.airJumps !== t.jumps) {
+      if (t.jumps !== null) t.jumped = { at: now, from: body.clone(), before: body.clone().sub(at(T.before)).setY(0) };
+      t.jumps = pl.airJumps;
+    }
+    const J = t.jumped;
+    if (!J) return;
+    if (now - J.at > T.within) {
+      t.jumped = null;
+      return;
+    }
+    const going = body.clone().sub(at(T.span)).setY(0);
+    if (J.before.length() > 0.05 && going.length() > 0.02 && J.before.angleTo(going) >= (T.turn * Math.PI) / 180) {
+      t.jumped = null;
+      const pts = t.air.filter((a) => a.t >= J.at - T.before).map((a) => a.p.clone());
+      if (pts.length >= 2) this.addTracer(pts, pl.side, now);
+    }
+  }
+
+  private addTracer(pts: THREE.Vector3[], side: TrailSide, now: number): void {
+    const n = pts.length;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 2 * 3), 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(n * 2 * 3), 3));
+    const idx: number[] = [];
+    for (let i = 0; i < n - 1; i++) idx.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
+    geo.setIndex(idx);
+    const mesh = new THREE.Mesh(geo, this.mat);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 4;
+    mesh.name = "tracer";
+    this.scene?.add(mesh);
+    this.tracers.push({ pts, mesh, geo, side, born: now });
+  }
+
+  /** a tracer's ribbon, turned to the eye as a trail's is, fading as a whole with its age (and close by, jumpTracers.near) */
+  private buildTracer(tr: Tracer, now: number, eye: THREE.Vector3): void {
+    const n = tr.pts.length;
+    const near = THREE.MathUtils.smoothstep(tr.pts[n - 1].distanceTo(eye), TRACERS.near[0], TRACERS.near[1]);
+    const far = tr.pts[n - 1].distanceTo(eye) <= TRAILS.maxDist ? 1 : 0;
+    const pos = tr.geo.getAttribute("position") as THREE.BufferAttribute;
+    const col = tr.geo.getAttribute("color") as THREE.BufferAttribute;
+    const c = this.colours[tr.side];
+    const a0 = Math.max(0, 1 - (now - tr.born) / TRACERS.seconds) * TRACERS.opacity * near * far;
+    tr.mesh.visible = a0 > 0.001;
+    if (!tr.mesh.visible) return;
+    for (let i = 0; i < n; i++) {
+      const p = tr.pts[i];
+      const along = this.tmpB.copy(tr.pts[Math.min(i + 1, n - 1)]).sub(tr.pts[Math.max(i - 1, 0)]);
+      const toEye = this.tmpC.copy(eye).sub(p);
+      const across = along.cross(toEye);
+      const len = across.length();
+      if (len > 1e-6) across.multiplyScalar(TRACERS.width / 2 / len);
+      else across.set(0, 0, 0);
+      // the ends fade in, so it reads as a streak and not a bar
+      const a = a0 * Math.min(1, i / 2, (n - 1 - i) / 2 + 0.5);
+      pos.setXYZ(2 * i, p.x + across.x, p.y + across.y, p.z + across.z);
+      pos.setXYZ(2 * i + 1, p.x - across.x, p.y - across.y, p.z - across.z);
+      col.setXYZ(2 * i, c.r * a, c.g * a, c.b * a);
+      col.setXYZ(2 * i + 1, c.r * a, c.g * a, c.b * a);
+    }
+    pos.needsUpdate = true;
+    col.needsUpdate = true;
+  }
+
+  /** every trail and tracer gone (a new match) */
   clear(): void {
     for (const t of this.trails.values()) {
       t.mesh.removeFromParent();
       t.geo.dispose();
     }
     this.trails.clear();
+    for (const tr of this.tracers) {
+      tr.mesh.removeFromParent();
+      tr.geo.dispose();
+    }
+    this.tracers.length = 0;
   }
 }

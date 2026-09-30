@@ -25,6 +25,8 @@ const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Applic
 const OUT = path.resolve(process.argv[2] ?? "shots/live");
 const PARTS = (process.env.PARTS ?? "enemies,self,remote").split(",");
 const ACTS = process.env.ACTS ? process.env.ACTS.split(",") : null;
+/** how far the camera stands off another player's figure, metres (REMOTE_DIST): further to see a double jump's tracer */
+const REMOTE_DIST = Number(process.env.REMOTE_DIST ?? 4.5);
 const W = 1600;
 const H = 1000;
 const TILE = { w: 360, h: 420 };
@@ -35,6 +37,8 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 /** a jump and then, in the air, the second one (the page's own keys, a frame count apart) */
 const DOUBLE_JUMP = `(() => { let t = 0; window.__range.setScript({ held: () => false, pressedNow: (a) => a === "jump" && (++t === 2 || t === 14) }); })()`;
+/** the same on the run, turning right with the second jump: a double jump that changes direction (its tracer) */
+const DOUBLE_JUMP_TURN = `(() => { let t = 0; window.__range.setScript({ held: (a) => (t < 14 ? a === "forward" : a === "right"), pressedNow: (a) => a === "jump" && (++t === 2 || t === 14) }); })()`;
 
 type Audit = { grip?: number; support?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number; palmGap?: { l: number; r: number }; armed?: boolean } | null;
 /** the lab's bar, the same faults its sheets flag */
@@ -283,6 +287,7 @@ async function remote(browser: import("puppeteer").Browser, host: Page): Promise
     { name: "crouch", start: hold(`a === "crouch"`), stop: free, frames: 4, every: 200 },
     { name: "run", start: hold(`a === "left"`), stop: free, frames: 8, every: 90 },
     { name: "double-jump", start: (p) => ev<void>(p, DOUBLE_JUMP), stop: free, frames: 14, every: 0 },
+    { name: "double-jump-turn", start: (p) => ev<void>(p, DOUBLE_JUMP_TURN), stop: free, frames: 14, every: 0 },
   ];
   for (const [vname, ang] of [["front", 0.5], ["right", -1.4], ["left", 1.7]] as Array<[string, number]>) {
     const tiles: Buffer[] = [];
@@ -293,14 +298,14 @@ async function remote(browser: import("puppeteer").Browser, host: Page): Promise
       await act.start(guest);
       for (let k = 0; k < act.frames; k++) {
         if (act.every) await wait(act.every);
-        // the camera 4.5 m off their figure, at this view's angle from the way it faces
+        // the camera REMOTE_DIST (4.5) m off their figure, at this view's angle from the way it faces
         const seen = await ev<{ act: string | null; speed: number; gun: string | null } | null>(
           host,
           `(() => {
             const r = window.__range, d = ${them};
             if (!d) return null;
             const g = d.group, p = g.position, a = g.rotation.y + ${ang};
-            const cx = p.x + Math.sin(a) * 4.5, cz = p.z + Math.cos(a) * 4.5;
+            const cx = p.x + Math.sin(a) * ${REMOTE_DIST}, cz = p.z + Math.cos(a) * ${REMOTE_DIST};
             r.player.teleport(cx, p.y, cz, Math.atan2(-(p.x - cx), -(p.z - cz)) * 180 / Math.PI, -6);
             const m = r.duel(); m.health = 100; m.shield = m.shieldMax;
             const pose = d.pose || {};

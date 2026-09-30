@@ -603,7 +603,7 @@ function clipSeconds(name: string): number {
 
 /** horizontal speed, m/s, above which a jump is the athletic one (figure.json) */
 const ATHLETIC_JUMP = figureCfg.athleticJump;
-/** a double jump's flip: how long, and how far round, degrees (figure.json doubleJump) */
+/** a double jump's knee lift: how long, and how far the thighs come up and the knees bend, degrees (figure.json doubleJump) */
 const DOUBLE_JUMP = figureCfg.doubleJump;
 /** how long the soldier's throw takes before the hands go back for the gun, s (soldierhold.json throwFor) */
 const THROW_FOR = soldierHold.throwFor;
@@ -839,7 +839,7 @@ export class MannequinFigure {
    * it, and the edits start from it every frame.
    */
   private clipPose = new Map<THREE.Object3D, THREE.Quaternion>();
-  private static readonly EDITED = ["pelvis", "spine_01", "spine_02", "spine_03", "Head", "upperarm_l", "lowerarm_l", "upperarm_r", "lowerarm_r"];
+  private static readonly EDITED = ["pelvis", "spine_01", "spine_02", "spine_03", "Head", "upperarm_l", "lowerarm_l", "upperarm_r", "lowerarm_r", "thigh_l", "calf_l", "thigh_r", "calf_r"];
 
   /** a bone of this figure by name, for what follows it (dummy.ts: SpeedKills' hit volumes) */
   bone(name: string): THREE.Object3D | undefined {
@@ -914,6 +914,13 @@ export class MannequinFigure {
   flash: THREE.Sprite | null = null;
   /** its gun's scope glint, lit while it aims a magnified optic (muzzle.ts fitGlint), or null */
   glint: THREE.Sprite | null = null;
+  /**
+   * How far the figure is looking down its scope this frame, 0..1: its aim in, only while the gun is up at the eye and the
+   * hands are on nothing else (a reload, a swap, a throw, a strike) and it is not carried low. The scope's glint shows by
+   * it (the owner, 2026-09-30: "the sniper should only have glint when they are ADSing"); by the pose's aim alone, a bot
+   * aiming as it reloaded glinted through the reload.
+   */
+  scoped = 0;
   private gunShown = true;
   private mats: THREE.MeshStandardMaterial[] = [];
   private joints: THREE.MeshStandardMaterial | null = null;
@@ -954,11 +961,9 @@ export class MannequinFigure {
   private staggerSeen = -Infinity;
   private staggerUntil = -Infinity;
   private wasAir = false;
-  /** the double jumps seen so far (null until the first count arrives), when the last flip began, and its pivot */
+  /** the double jumps seen so far (null until the first count arrives), and when the last one's knee lift began */
   private airJumpsSeen: number | null = null;
-  private flipAt = -Infinity;
-  private flipping = false;
-  private readonly flipPivot = new THREE.Vector3();
+  private liftAt = -Infinity;
   /** the gun is in the hand and showing this frame */
   gunInHand = false;
 
@@ -1367,39 +1372,6 @@ export class MannequinFigure {
     return t < 1e-3 ? held : this.supportAt.copy(held).lerp(this.grip, t);
   }
 
-  /**
-   * A double jump's flip: the whole figure turned forward about its hips, eased in and out, so its pose, its gun and
-   * the hit zones that follow its bones all go round together. The hips are where the pelvis is as the flip starts.
-   * Landed or over, it is put upright where it stands (a knock's fall tilts the root after this, dummy.ts).
-   */
-  private turnForFlip(flip: number): void {
-    const root = this.root;
-    if (!(flip >= 0 && flip < 1)) {
-      if (this.flipping) {
-        root.rotation.x = 0;
-        root.position.x = 0;
-        root.position.z = 0;
-        this.flipping = false;
-      }
-      return;
-    }
-    if (!this.flipping && this.bones.pelvis) {
-      root.rotation.x = 0;
-      root.updateMatrixWorld(true);
-      root.worldToLocal(this.bones.pelvis.getWorldPosition(this.flipPivot));
-      this.flipping = true;
-    }
-    const e = flip * flip * (3 - 2 * flip);
-    const a = e * DOUBLE_JUMP.turn * DEG;
-    // turned about +x (the figure's left), the head goes forward and down first: a front flip. The root moves by the
-    // pivot's own swing, so the hips stay where they were
-    const p = v1.copy(this.flipPivot).multiply(root.scale);
-    root.position.x = 0;
-    root.position.z = 0;
-    root.position.add(p).sub(v2.copy(p).applyAxisAngle(X_AXIS, a));
-    root.rotation.x = a;
-  }
-
   /** how far back along the gun the support hand had to slide, 0..1 (the tests look) */
   supportSlide = 0;
   private readonly supportAt = new THREE.Vector3();
@@ -1554,13 +1526,13 @@ export class MannequinFigure {
     const air = p.stance === "air";
     if (this.wasAir && !air && (fx.land ?? 0) > 0.4 && speed < 2.6 && p.stance === "stand") this.landUntil = this.t + 0.32;
     this.wasAir = air;
-    // A double jump: the figure flips (figure.json doubleJump). The first count a figure is given is where it starts,
-    // so a player first seen after some double jumps does not flip for them.
+    // A double jump: the knees come up and go back down (figure.json doubleJump). The first count a figure is given is
+    // where it starts, so a player first seen after some double jumps does not lift for them.
     if (fx.airJumps !== undefined && fx.airJumps !== this.airJumpsSeen) {
-      if (this.airJumpsSeen !== null && air) this.flipAt = this.t;
+      if (this.airJumpsSeen !== null && air) this.liftAt = this.t;
       this.airJumpsSeen = fx.airJumps;
     }
-    const flip = air ? (this.t - this.flipAt) / DOUBLE_JUMP.time : 1;
+    const lift = air ? (this.t - this.liftAt) / DOUBLE_JUMP.time : 1;
     // the head was hit: the head snaps back, once
     if (fx.headHit !== undefined && fx.headHit !== this.headSeen && Number.isFinite(fx.headHit)) {
       this.headSeen = fx.headHit;
@@ -1613,9 +1585,8 @@ export class MannequinFigure {
         full = true;
         break;
       case "air":
-        // a fast jump (out of a sprint, a slide, a pad) tucks its legs like an athlete's, and so does a double jump's
-        // flip; a standing hop does not
-        lower = (speed > ATHLETIC_JUMP || flip < 1) && hasClip("NinjaJump_Idle_Loop") ? "NinjaJump_Idle_Loop" : "Jump_Loop";
+        // a fast jump (out of a sprint, a slide, a pad) tucks its legs like an athlete's; a standing hop does not
+        lower = speed > ATHLETIC_JUMP && hasClip("NinjaJump_Idle_Loop") ? "NinjaJump_Idle_Loop" : "Jump_Loop";
         break;
       case "climb":
       case "mantle":
@@ -1761,6 +1732,7 @@ export class MannequinFigure {
       if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), 0.5);
       if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), -0.95);
     }
+    this.scoped = aimed && !act && wantGun && !this.gunComing ? (p.ads ?? 0) * (1 - this.lowered) : 0;
     const pitch = aimed ? Math.max(-70, Math.min(70, p.pitch)) * DEG : 0;
     // +x is the figure's left: a turn about it by a negative angle tips the chest back (a look up)
     const lean = fx.jolt * 0.45 - fx.flinch * 0.22;
@@ -1804,7 +1776,17 @@ export class MannequinFigure {
       }
       this.root.position.y = em.bounce;
     } else this.root.position.y = p.stance === "downed" ? -0.15 : 0;
-    this.turnForFlip(flip);
+    // the double jump's knees, up and back down over its time: the thighs forward (a turn about the figure's left by a
+    // negative angle brings a hanging bone's end forward) and the knees bent back
+    if (lift >= 0 && lift < 1) {
+      const w = Math.sin(Math.PI * lift);
+      for (const s of ["l", "r"]) {
+        const thigh = b[`thigh_${s}`];
+        const calf = b[`calf_${s}`];
+        if (thigh) turnBone(thigh, fig, X_AXIS, -DOUBLE_JUMP.raise * DEG * w);
+        if (calf) turnBone(calf, fig, X_AXIS, DOUBLE_JUMP.bend * DEG * w);
+      }
+    }
     const shown = !!this.gun && this.gun.visible;
     if (this.mount && this.grip && this.rifle && this.butt && this.support) {
       // (the hold goes on for a gun on its way back, not yet shown: the hands go to where it will be)

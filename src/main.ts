@@ -6748,7 +6748,7 @@ function stepTrails(now: number): void {
   for (const a of d.avatars) {
     const r = d.remoteOf(a);
     if (!r) continue;
-    list.push({ key: r.id, feet: a.group.position, side: r.id === crown ? "crown" : d.isAlly(r.id) ? "ally" : "enemy", live: r.alive && a.group.visible });
+    list.push({ key: r.id, feet: a.group.position, side: r.id === crown ? "crown" : d.isAlly(r.id) ? "ally" : "enemy", live: r.alive && a.group.visible, airJumps: a.currentPose.airJumps });
   }
   trails.update(now, camera.position, list);
 }
