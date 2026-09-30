@@ -33,6 +33,7 @@ import { OUR_GEOMETRY, buildOutfit, outfitMaterials } from "./outfit";
 import outfitCfg from "../config/outfits.json";
 import vmCfg from "../config/viewmodel.json";
 import figureCfg from "../config/figure.json";
+import soldierHold from "../config/soldierhold.json";
 import finCfg from "../config/finisher.json";
 import type { FigurePose } from "./dummy";
 import type { EmotePose } from "./emotes";
@@ -600,6 +601,8 @@ function clipSeconds(name: string): number {
 
 /** horizontal speed, m/s, above which a jump is the athletic one (figure.json) */
 const ATHLETIC_JUMP = figureCfg.athleticJump;
+/** how fast a sprint jump's own carry comes in, per second (soldierhold.json airRate) */
+const AIR_CARRY = soldierHold.airRate;
 
 /** the melee swings, in the order a string of them goes through */
 const MELEE_SWINGS = ["Punch_Jab", "Punch_Cross", "Melee_Hook"];
@@ -920,6 +923,8 @@ export class MannequinFigure {
   private gripW = 0;
   /** 0..1 the long gun lowered and canted across the body (a sprint, a swap) */
   private lowered = 0;
+  /** 0..1 each, eased: the lowered carry a swap's own, and a sprint jump's own (rifle.ts carryOf) */
+  private carryW = { swap: 0, air: 0 };
   /** the stance and the hands' act last frame, when a slide began and when its way out ends, and which swing a melee is on */
   private lastStance = "";
   private lastAct: FigurePose["act"] = null;
@@ -1577,6 +1582,10 @@ export class MannequinFigure {
       full = true;
       lowerOnce = true;
     }
+    // A jump out of a sprint keeps the sprint's carry, as a runner's gun stays low until they aim: raised in the air and
+    // lowered again on landing, the stock swept through the right forearm both ways. And a gun carried low into the
+    // landing stays low until the landing is over, to come up in the standing body (Phase 27, 27.12)
+    const sprintJump = (p.stance === "air" && speed > 6.2) || (lower === "Jump_Land" && this.lowered > 0.5);
     // the hands: a full-body clip takes them too; otherwise the gun's pose, or the arms' swing
     let upper = lower;
     let upperRate = lowerRate;
@@ -1619,7 +1628,7 @@ export class MannequinFigure {
         upper = this.rifle && this.mount ? "Pistol_Aim_Neutral" : "Pistol_Reload";
         upperRate = 1;
         once = !(this.rifle && this.mount);
-      } else if (p.act === "swap" || (lower === "Sprint_Loop" && (p.ads ?? 0) < 0.3)) {
+      } else if (p.act === "swap" || ((lower === "Sprint_Loop" || sprintJump) && (p.ads ?? 0) < 0.3)) {
         upper = "Pistol_Idle_Loop";
         upperRate = 1;
       } else {
@@ -1700,6 +1709,10 @@ export class MannequinFigure {
       // SpeedKills' soldier: the rifleman's hold (rifle.ts), the stance, the gun and both hands, on top of the clips
       const low = shown && !full && (p.act === "swap" || upper === "Pistol_Idle_Loop") ? 1 : 0;
       this.lowered += (low - this.lowered) * Math.min(1, dt * REACH.lower);
+      this.carryW.swap += ((p.act === "swap" ? 1 : 0) - this.carryW.swap) * Math.min(1, dt * REACH.lower);
+      // (the air's own carry as fast as the jump's clip tucks the body, 0.18 s: at the carry's own pace the body was
+      // tucked round a gun still in the sprint's carry, 39 mm into the belly, as the feet left the ground)
+      this.carryW.air += ((sprintJump ? 1 : 0) - this.carryW.air) * Math.min(1, dt * AIR_CARRY);
       this.gripW += ((shown && !full ? 1 : 0) - this.gripW) * Math.min(1, dt * REACH.grip);
       // the left hand stays with the gun through a reload: it is the hand that does it
       const support = shown && !full && this.t >= this.staggerUntil;
@@ -1710,7 +1723,7 @@ export class MannequinFigure {
         pitch: (Math.max(-70, Math.min(70, p.pitch)) * DEG * (aimed ? 1 : 0)),
         ads: aimed ? (p.ads ?? 0) : 0,
         lowered: this.lowered,
-        swapping: p.act === "swap",
+        carry: this.carryW,
         wR: this.gripW,
         wL: this.ikW,
         stance: this.gripW,

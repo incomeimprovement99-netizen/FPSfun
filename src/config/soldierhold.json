@@ -140,7 +140,7 @@
       ]
     }
   },
-  "_lowered": "The gun lowered across the body for a sprint or a swap (SpeedKills always sprints, so this is how an enemy is mostly seen): turned down, toward the figure's left and rolled about its own length, about the butt, held `out` (the figure's frame: +x its left, +z its front) from the body so its receiver clears the belly, the left hand taking it its own way (`l`, as in hands), blended in as it drops.",
+  "_lowered": "The gun lowered across the body for a sprint or a swap (SpeedKills always sprints, so this is how an enemy is mostly seen): turned down, toward the figure's left and rolled about its own length, about the butt, held `out` (the figure's frame: +x its left, +z its front) from the body so its receiver clears the belly, the left hand taking it its own way (`l`, as in hands), blended in as it drops. `arc` (metres, the figure's frame) is how far out the gun swings at the middle of its way down or up, 4 lo (1 - lo) of it: blended straight between the two carries, BOOG's stock swept through the right upper arm each time a sprint stopped (found by tools/figure-solve.ts rise). A jump out of a sprint keeps this carry (mannequin.ts), so the lowered stage measures one in the air too.",
   "lowered": {
     "down": 26,
     "left": 17,
@@ -166,7 +166,12 @@
         1.2,
         -0.2
       ]
-    }
+    },
+    "arc": [
+      0,
+      0,
+      0
+    ]
   },
   "_swap": "The lowered carry for a swap, which the figure does standing, over the sprint's (`lowered`): turned down, left and rolled, degrees, and held out, metres, as there. One carry for both had the searches trade a runner's arms against a stander's: sprinting clean, swapping the USSO's magazine 39 mm into the belly. The same numbers as the sprint's here; a gun's own in guns, found by tools/figure-solve.ts swap.",
   "swap": {
@@ -179,6 +184,19 @@
       0.1
     ]
   },
+  "_air": "The lowered carry in the air, for a jump out of a sprint (which keeps the sprint's carry, mannequin.ts), over the sprint's: the jump's clip tucks the body forward, and carried the sprint's way the USSO was 39 mm into the belly. A gun's own in guns, found by tools/figure-solve.ts air. The swap's and the air's are blended in over the carry's own time, so a swap begun mid-sprint does not snap the gun from one to the other.",
+  "air": {
+    "down": 26,
+    "left": 17,
+    "roll": -14,
+    "out": [
+      0.02,
+      -0.02,
+      0.1
+    ]
+  },
+  "_airRate": "How fast the air's own carry comes in and goes, per second (an easing rate, as figure.json reach): as fast as the jump's clip tucks the body (its crossfade is 0.18 s). At the carry's own pace (8) the body was tucked round a gun still in the sprint's carry, 39 mm into the belly, as the feet left the ground.",
+  "airRate": 14,
   "_recoil": "A shot's kick on the held gun, at its start (it fades as the figure's kick does, a tenth of a second): the muzzle up, degrees, and the gun driven back beyond the shoulder, metres. None back: the figure's chest already rocks back with a shot (mannequin.ts, the shoulder with it), and driven back 2.5 cm more the butt went 20 mm (the USSO) to 35 mm (BOOG) into the collarbone. Enough to read as a shot at 30 m, not to aim it away.",
   "recoil": {
     "up": 5,
@@ -793,6 +811,11 @@
           0.03,
           -0.01,
           0.08
+        ],
+        "arc": [
+          -0.005,
+          0.035,
+          0.025
         ]
       },
       "swap": {
@@ -803,6 +826,16 @@
           0.04,
           0,
           0.12
+        ]
+      },
+      "air": {
+        "down": 23,
+        "left": 15,
+        "roll": -2.5,
+        "out": [
+          0.02,
+          0.05,
+          0.22
         ]
       }
     },
@@ -955,6 +988,11 @@
           0.02,
           -0.02,
           0.12
+        ],
+        "arc": [
+          -0.02,
+          0,
+          0
         ]
       },
       "reload": {
@@ -1081,6 +1119,16 @@
           0,
           -0.02,
           0.12
+        ]
+      },
+      "air": {
+        "down": 20,
+        "left": -1,
+        "roll": -8,
+        "out": [
+          0,
+          0.02,
+          0.1
         ]
       }
     }

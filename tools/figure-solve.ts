@@ -63,6 +63,13 @@ const STAGES: Record<string, Param[]> = {
     ...[0, 1, 2].map((i) => ({ path: ["lowered", "l", "fwd", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.02 })),
     ...[0, 1, 2].map((i) => ({ path: ["lowered", "l", "palm", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.02 })),
   ],
+  // a sprint jump's own lowered carry (soldierhold.json air), measured in the air out of a sprint
+  air: [
+    ...["down", "left", "roll"].map((k) => ({ path: ["air", k], lo: -60, hi: 70, step: 6, min: 1 })),
+    ...[0, 1, 2].map((i) => ({ path: ["air", "out", i], lo: -0.1, hi: 0.3, step: 0.02, min: 0.003 })),
+  ],
+  // the arc the gun swings out on between the lowered carry and the hold, measured on its way up and down (below)
+  rise: [0, 1, 2].map((i) => ({ path: ["lowered", "arc", i], lo: -0.1, hi: 0.25, step: 0.02, min: 0.003 })),
   // the swap's own lowered carry (soldierhold.json swap), measured standing in a swap
   swap: [
     ...["down", "left", "roll"].map((k) => ({ path: ["swap", k], lo: -60, hi: 70, step: 6, min: 1 })),
@@ -106,7 +113,7 @@ STAGES.reload =
         ...[0, 1, 2].map((i) => ({ path: ["reload", "keys", KEY, "fwd", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.02 })),
         ...[0, 1, 2].map((i) => ({ path: ["reload", "keys", KEY, "palm", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.02 })),
       ];
-type Pose = { speed: number; stance: string; pitch: number; ads?: number; act?: string; reloadAt?: number };
+type Pose = { speed: number; stance: string; pitch: number; ads?: number; act?: string; reloadAt?: number; then?: { pose: Omit<Pose, "then">; dt: number } };
 /** the poses a try is measured in: the hold's four, or for the lowered carry a sprint and a swap (settled into) */
 let POSES: Pose[] =
   // a hand's place on the gun is the gun's, whatever the pose: one pose measures it
@@ -121,11 +128,24 @@ let POSES: Pose[] =
       ]
     : STAGE === "swap"
     ? [{ speed: 0, stance: "stand", pitch: 0, act: "swap" }]
-    : STAGE === "lowered"
-    ? [
-        { speed: 14, stance: "stand", pitch: 0 },
-        { speed: 0, stance: "stand", pitch: 0, act: "swap" },
+    : STAGE === "air"
+    ? // both jumps' clips (the athletic one above 7.2 m/s: a sprint's jump is), a moment after the feet leave the ground,
+      // settled in the air, and landing (the carry kept low through the landing)
+      [
+        { speed: 14, stance: "air", pitch: 0 },
+        { speed: 7, stance: "air", pitch: 0 },
+        { speed: 14, stance: "stand", pitch: 0, then: { pose: { speed: 14, stance: "air", pitch: 0 }, dt: 0.1 } },
+        { speed: 14, stance: "air", pitch: 0, then: { pose: { speed: 0, stance: "stand", pitch: 0 }, dt: 0.12 } },
       ]
+    : STAGE === "rise"
+    ? // a sprint stopping (the gun coming up) and a stand breaking into a sprint (going down), part way through each
+      [0.06, 0.12, 0.2, 0.3].flatMap((dt) => [
+        { speed: 14, stance: "stand", pitch: 0, then: { pose: { speed: 0, stance: "stand", pitch: 0 }, dt } },
+        { speed: 0, stance: "stand", pitch: 0, then: { pose: { speed: 14, stance: "stand", pitch: 0 }, dt } },
+      ])
+    : STAGE === "lowered"
+    ? // the sprint (the swap and a sprint jump have their own, stages swap and air)
+      [{ speed: 14, stance: "stand", pitch: 0 }]
     : [
         { speed: 0, stance: "stand", pitch: 0 },
         { speed: 0, stance: "stand", pitch: 0, ads: 1 },
@@ -235,10 +255,15 @@ async function main(): Promise<void> {
         // A fresh figure every pose of every try, stepped the same time: its clips start over, so a try is measured at
         // the same moment of them as every other and its score is the numbers', not the breathing's (a figure carried
         // from try to try was measured 0.1 s further into its idle each time, and the noise passed for improvements)
-        const { reloadAt, ...pose } = p;
-        // (a reload's moment: settled, then the reload begun and stepped to it)
-        const then = reloadAt === undefined ? "" : `r.figureLabPose(0, ${JSON.stringify({ ...pose, act: "reload", weapon: ID })}); r.figureLabStep(${reloadAt * reloadTime});`;
-        const expr = `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([${JSON.stringify({ ...POSES[0], reloadAt: undefined, weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabPose(0, ${JSON.stringify({ ...pose, weapon: ID })}); r.figureLabStep(0.8); ${then} return { a: window.__figureAudit(0, { pitch: ${p.pitch} }), o: r.labFigures()[0].figure.rifleOut }; })()`;
+        const { reloadAt, then: next, ...pose } = p;
+        // (a reload's moment: settled, then the reload begun and stepped to it; or settled, then another pose for a while)
+        const then =
+          reloadAt !== undefined
+            ? `r.figureLabPose(0, ${JSON.stringify({ ...pose, act: "reload", weapon: ID })}); r.figureLabStep(${reloadAt * reloadTime});`
+            : next
+              ? `r.figureLabPose(0, ${JSON.stringify({ ...next.pose, weapon: ID })}); r.figureLabStep(${next.dt});`
+              : "";
+        const expr = `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([${JSON.stringify({ ...POSES[0], reloadAt: undefined, then: undefined, weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabPose(0, ${JSON.stringify({ ...pose, weapon: ID })}); r.figureLabStep(0.8); ${then} return { a: window.__figureAudit(0, { pitch: ${p.pitch} }), o: r.labFigures()[0].figure.rifleOut }; })()`;
         let got: { a: Audit | null; o: Out };
         try {
           got = await ev<{ a: Audit | null; o: Out }>(page, expr);

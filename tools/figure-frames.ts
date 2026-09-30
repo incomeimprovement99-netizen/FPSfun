@@ -87,11 +87,21 @@ function sequences(gun: string, other: string, T: Times, To: Times): Seq[] {
       aimed: () => false,
     },
     {
+      // at SpeedKills' sprint (14 m/s: a jump out of it is the athletic one), landing and stopping
       name: "jump",
-      settle: { speed: 7, stance: "stand", pitch: 0 },
-      at: (t) => (t < 0.2 ? { speed: 7, stance: "stand", pitch: 0 } : t < 0.9 ? { speed: 7, stance: "air", pitch: 0 } : { speed: t < 1.1 ? 1 : 0, stance: "stand", pitch: 0 }),
+      settle: { speed: 14, stance: "stand", pitch: 0 },
+      at: (t) => (t < 0.2 ? { speed: 14, stance: "stand", pitch: 0 } : t < 0.9 ? { speed: 14, stance: "air", pitch: 0 } : { speed: t < 1.1 ? 1 : 0, stance: "stand", pitch: 0 }),
       frames: every(1.4, 0.07),
       label: (t) => `${t.toFixed(2)} s ${t < 0.2 ? "run" : t < 0.9 ? "air" : "land"}`,
+      aimed: () => true,
+    },
+    {
+      // a jump from standing still: the plain jump, the gun at the shoulder
+      name: "hop",
+      settle: { speed: 0, stance: "stand", pitch: 0 },
+      at: (t) => (t < 0.2 ? { speed: 0, stance: "stand", pitch: 0 } : t < 0.8 ? { speed: 0, stance: "air", pitch: 0 } : { speed: 0, stance: "stand", pitch: 0 }),
+      frames: every(1.2, 0.08),
+      label: (t) => `${t.toFixed(2)} s ${t < 0.2 ? "stand" : t < 0.8 ? "air" : "land"}`,
       aimed: () => true,
     },
     { name: "run", settle: { speed: 7, stance: "stand", pitch: 0 }, at: () => ({ speed: 7, stance: "stand", pitch: 0 }), frames: every(0.8, 0.1), label: (t) => `${t.toFixed(2)} s`, aimed: () => true },

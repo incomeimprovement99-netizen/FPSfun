@@ -160,6 +160,25 @@ function mergeInto(to: Record<string, unknown>, from: Record<string, unknown>): 
   }
 }
 
+type Carry = { down: number; left: number; roll: number; out: number[]; arc?: number[] };
+/** the lowered carry, the sprint's blended toward the swap's and the air's by their weights (RifleState.carry) */
+function carryOf(C: HoldCfg, w?: { swap: number; air: number }): HoldCfg["lowered"] {
+  const L = C.lowered as HoldCfg["lowered"] & Carry;
+  if (!w || (w.swap < 1e-3 && w.air < 1e-3)) return L;
+  const mix = (a: Carry, b: Partial<Carry>, k: number): Carry => ({
+    ...a,
+    down: a.down + ((b.down ?? a.down) - a.down) * k,
+    left: a.left + ((b.left ?? a.left) - a.left) * k,
+    roll: a.roll + ((b.roll ?? a.roll) - a.roll) * k,
+    out: a.out.map((v, i) => v + ((b.out ?? a.out)[i] - v) * k),
+  });
+  const cfgC = C as HoldCfg & { swap?: Partial<Carry>; air?: Partial<Carry> };
+  let out: Carry = L;
+  if (w.air > 1e-3 && cfgC.air) out = mix(out, cfgC.air, w.air);
+  if (w.swap > 1e-3 && cfgC.swap) out = mix(out, cfgC.swap, w.swap);
+  return out as HoldCfg["lowered"];
+}
+
 /** how much bigger than its model the soldier draws this gun (soldierhold.json scale): the glove is a big man's */
 export function gunScaleOf(id: string): number {
   return cfgFor(id).scale;
@@ -312,8 +331,12 @@ export interface RifleState {
   ads: number;
   /** 0..1 lowered across the body (a sprint, a swap) */
   lowered: number;
-  /** lowered for a swap (standing), not a sprint: the gun takes the swap's own carry (soldierhold.json swap) */
-  swapping?: boolean;
+  /**
+   * 0..1 each, eased: how far the lowered carry is the swap's own (a swap) and the air's (a jump out of a sprint) rather
+   * than the sprint's (soldierhold.json swap, air). Switched outright, a swap begun mid-sprint snapped the gun from one
+   * carry to the other.
+   */
+  carry?: { swap: number; air: number };
   /** 0..1 the right hand on its grip, and the left on the gun */
   wR: number;
   wL: number;
@@ -398,7 +421,7 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   const figScale = fig.getWorldScale(new THREE.Vector3()).x;
   const pocket = spine.localToWorld(pocketOf(rig, figScale, C)).add(Y.clone().applyQuaternion(figQ).multiplyScalar(C.pocket.adsUp * s.ads * figScale));
   // (a swap's carry is its own: one carry for a runner's arms and a stander's was a compromise that suited neither)
-  const L = s.swapping ? { ...C.lowered, ...C.swap } : C.lowered;
+  const L = carryOf(C, s.carry);
   const lo = s.lowered;
   // a reload turns the gun's magazine toward the left hand and tips it down, then back
   const R = C.reload;
@@ -433,6 +456,9 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   const gunScale = g.gun.getWorldScale(new THREE.Vector3()).x;
   // lowered, the gun is held out from the body a little, so its receiver clears the belly it hangs across
   if (lo > 0) pocket.add(new THREE.Vector3(...L.out).multiplyScalar(lo * figScale).applyQuaternion(figQ));
+  // and on its way down or up it swings out on an arc, most at the middle (lowered.arc): a straight blend between the
+  // two carries swept BOOG's stock 40 mm through the right upper arm each time a sprint stopped
+  if (lo > 0 && lo < 1 && L.arc) pocket.add(new THREE.Vector3(...L.arc).multiplyScalar(4 * lo * (1 - lo) * figScale).applyQuaternion(figQ));
   const mountAt = pocket.clone().add(g.grip.clone().sub(g.butt).multiplyScalar(gunScale).applyQuaternion(q));
   const parent = g.mount.parent;
   if (!parent) return out;

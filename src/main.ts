@@ -8881,7 +8881,16 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
     const lf = labFigs[i];
     if (!lf) return;
     lf.pose = p;
-    if (p.weapon && p.weapon !== lf.f.armedId) lf.f.setGun(p.weapon);
+    // a new gun placed at once, as the game's loop places it before it draws (photographed unplaced, it sat where the
+    // figure's mount was built, 40 mm into the arm, for the one frame of a swap's change: the tool's, not the game's)
+    if (p.weapon && p.weapon !== lf.f.armedId) {
+      lf.f.setGun(p.weapon);
+      if (labManual) {
+        lf.f.setPose(p);
+        lf.f.update(labManual.now, 0);
+        scene.updateMatrixWorld(true);
+      }
+    }
   },
   /** every lab figure `dt` seconds on, in steps no longer than a 60 Hz frame (the clips blend as they do in play) */
   figureLabStep: (dt: number) => {
