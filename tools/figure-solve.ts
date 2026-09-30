@@ -63,6 +63,11 @@ const STAGES: Record<string, Param[]> = {
     ...[0, 1, 2].map((i) => ({ path: ["lowered", "l", "fwd", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.02 })),
     ...[0, 1, 2].map((i) => ({ path: ["lowered", "l", "palm", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.02 })),
   ],
+  // the swap's own lowered carry (soldierhold.json swap), measured standing in a swap
+  swap: [
+    ...["down", "left", "roll"].map((k) => ({ path: ["swap", k], lo: -60, hi: 70, step: 6, min: 1 })),
+    ...[0, 1, 2].map((i) => ({ path: ["swap", "out", i], lo: -0.1, hi: 0.25, step: 0.02, min: 0.003 })),
+  ],
   rest: [
     { path: ["pocket", "ahead"], lo: 0.04, hi: 0.3, step: 0.015, min: 0.003 },
     { path: ["pocket", "in"], lo: -0.08, hi: 0.1, step: 0.015, min: 0.003 },
@@ -114,6 +119,8 @@ let POSES: Pose[] =
         { speed: 0, stance: "crouch", pitch: 0 },
         { speed: 7, stance: "air", pitch: 0 },
       ]
+    : STAGE === "swap"
+    ? [{ speed: 0, stance: "stand", pitch: 0, act: "swap" }]
     : STAGE === "lowered"
     ? [
         { speed: 14, stance: "stand", pitch: 0 },

@@ -312,6 +312,8 @@ export interface RifleState {
   ads: number;
   /** 0..1 lowered across the body (a sprint, a swap) */
   lowered: number;
+  /** lowered for a swap (standing), not a sprint: the gun takes the swap's own carry (soldierhold.json swap) */
+  swapping?: boolean;
   /** 0..1 the right hand on its grip, and the left on the gun */
   wR: number;
   wL: number;
@@ -395,7 +397,8 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   const figQ = fig.getWorldQuaternion(new THREE.Quaternion());
   const figScale = fig.getWorldScale(new THREE.Vector3()).x;
   const pocket = spine.localToWorld(pocketOf(rig, figScale, C)).add(Y.clone().applyQuaternion(figQ).multiplyScalar(C.pocket.adsUp * s.ads * figScale));
-  const L = C.lowered;
+  // (a swap's carry is its own: one carry for a runner's arms and a stander's was a compromise that suited neither)
+  const L = s.swapping ? { ...C.lowered, ...C.swap } : C.lowered;
   const lo = s.lowered;
   // a reload turns the gun's magazine toward the left hand and tips it down, then back
   const R = C.reload;

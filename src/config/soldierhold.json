@@ -168,6 +168,17 @@
       ]
     }
   },
+  "_swap": "The lowered carry for a swap, which the figure does standing, over the sprint's (`lowered`): turned down, left and rolled, degrees, and held out, metres, as there. One carry for both had the searches trade a runner's arms against a stander's: sprinting clean, swapping the USSO's magazine 39 mm into the belly. The same numbers as the sprint's here; a gun's own in guns, found by tools/figure-solve.ts swap.",
+  "swap": {
+    "down": 26,
+    "left": 17,
+    "roll": -14,
+    "out": [
+      0.02,
+      -0.02,
+      0.1
+    ]
+  },
   "_recoil": "A shot's kick on the held gun, at its start (it fades as the figure's kick does, a tenth of a second): the muzzle up, degrees, and the gun driven back beyond the shoulder, metres. None back: the figure's chest already rocks back with a shot (mannequin.ts, the shoulder with it), and driven back 2.5 cm more the butt went 20 mm (the USSO) to 35 mm (BOOG) into the collarbone. Enough to read as a shot at 30 m, not to aim it away.",
   "recoil": {
     "up": 5,
@@ -783,6 +794,16 @@
           -0.01,
           0.08
         ]
+      },
+      "swap": {
+        "down": 20,
+        "left": 5,
+        "roll": -20,
+        "out": [
+          0.04,
+          0,
+          0.12
+        ]
       }
     },
     "r97": {
@@ -1051,6 +1072,16 @@
           "roll": 15.5,
           "down": -9.5
         }
+      },
+      "swap": {
+        "down": 26,
+        "left": 2,
+        "roll": -24.5,
+        "out": [
+          0,
+          -0.02,
+          0.12
+        ]
       }
     }
   }

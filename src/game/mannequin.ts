@@ -1710,6 +1710,7 @@ export class MannequinFigure {
         pitch: (Math.max(-70, Math.min(70, p.pitch)) * DEG * (aimed ? 1 : 0)),
         ads: aimed ? (p.ads ?? 0) : 0,
         lowered: this.lowered,
+        swapping: p.act === "swap",
         wR: this.gripW,
         wL: this.ikW,
         stance: this.gripW,

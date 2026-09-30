@@ -6960,3 +6960,23 @@ verifies. This is 27.12's first round. SpeedKills' soldier only.
   belly: the swap and the sprint share one lowered carry). BOOG running and sprinting has none; in the others its stock
   and receiver are 21 to 40 mm into the bulky right shoulder and arm, its one fault left in the still poses (27.12).
 - **Checked:** verify; rules; the frame sheets above; the e2e `skfigure` section.
+
+## Milestone 341 — The reload's new magazine held as a hand holds it, and a swap with a carry of its own
+
+27.12's second round (the owner, 2026-09-30: "we want to get the boog and the usso perfect with all animations for
+enemy / 3rd palyer stuff"). SpeedKills' soldier only.
+
+- **The new magazine at the pouch** (`rifle.ts`, `soldierhold.json` reload.upright): a part of the gun whose place
+  followed the left hand but whose turn stayed the gun's, so down at the hip it stood upright and ran 39 mm through the
+  left forearm and 37 into the belly. It now lies across the hand there as a hand grips it (its length from the little
+  finger to the index, its middle against the palm) and comes upright as the gun is on the way up, its bottom in the
+  palm, so it still goes in straight. The USSO's grip on its magazine sits 13 mm further out of it. The USSO's reload from
+  the front: the gun at most 25 mm into the body (it was 40).
+- **A swap's own lowered carry** (`soldierhold.json` swap, per gun; `rifle.ts` swapping; `tools/figure-solve.ts` swap):
+  the figure swaps standing and sprints running, and one carry for both had the searches trade one against the other.
+  The USSO lowered for a swap is now at most 10 mm into the body (its magazine was 39 mm into the belly), BOOG settled
+  13 to 17; both still sprint with no faulted frame.
+- **Left:** a single frame at a swap's change, the new gun shown before its carry takes it (40 mm); BOOG's stock in the
+  right shoulder and arm; the reload's hand at the charging handle; BOOG's reload; the look's extremes; the jump; the
+  slide (plan 27.12).
+- **Checked:** verify; rules; the e2e `skfigure` section; the reload, swap and sprint sheets of both guns.
