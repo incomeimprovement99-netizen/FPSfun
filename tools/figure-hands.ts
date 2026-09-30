@@ -14,6 +14,7 @@
 //      XRAY=1 adds each view with the soldier see-through and the skin found in the gun marked
 //      TUNE='{"hands":...}' tries hold numbers over the gun's own before photographing (soldierhold.json guns.<id>)
 //      POSE='{"speed":14}' photographs the hands in another pose than aimed in (a lab pose: speed, stance, pitch, ads, act)
+//      FINGERS=0.7 draws the fingers at that size instead of soldierhold.json fingerSize
 // (needs the dev server and a real GPU; never the real mouse or keyboard)
 import fs from "node:fs";
 import path from "node:path";
@@ -37,7 +38,7 @@ const TILE = 300;
 /** the pose the hands are photographed in: aimed in, or what POSE says over it */
 const POSE = { speed: 0, stance: "stand", pitch: 0, ads: 1, ...(process.env.POSE ? (JSON.parse(process.env.POSE) as object) : {}) };
 
-type Audit = { handWhere?: Record<string, number>; palmGap?: { l: number; r: number }; fingerGap?: Record<string, number> };
+type Audit = { handWhere?: Record<string, number>; palmGap?: { l: number; r: number }; fingerGap?: Record<string, number>; wristL?: number; wristR?: number };
 const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
@@ -47,7 +48,8 @@ function caption(a: Audit | null, side: "l" | "r"): string {
   if (!a) return "no figure";
   const deep = Math.max(0, ...Object.entries(a.handWhere ?? {}).filter(([b]) => b.endsWith(`_${side}`)).map(([, d]) => d));
   const off = ["thumb", "index", "middle", "ring", "pinky"].map((f) => `${f[0]}${a.fingerGap?.[`${f}_${side}`] ?? "-"}`).join(" ");
-  return `in gun ${deep} mm, palm off ${a.palmGap?.[side] ?? "-"} mm, fingers off ${off}`;
+  const wrist = side === "l" ? a.wristL : a.wristR;
+  return `in gun ${deep} mm, palm off ${a.palmGap?.[side] ?? "-"} mm, fingers off ${off}${wrist !== undefined ? `, wrist ${Math.round(wrist)}` : ""}`;
 }
 
 async function main(): Promise<void> {
@@ -75,6 +77,7 @@ async function main(): Promise<void> {
               const r = window.__range, T = r.THREE;
               r.player.teleport(0, 0, 0, 0, 0);
               ${process.env.TUNE ? `r.rifleTune({ guns: { ${JSON.stringify(id)}: ${process.env.TUNE} } });` : ""}
+              ${process.env.FINGERS ? `r.rifleTune({ fingerSize: ${Number(process.env.FINGERS)} });` : ""}
               r.figureLabManual(false);
               r.figureLab([${JSON.stringify({ ...POSE, weapon: "@" })}].map((p) => ({ ...p, weapon: ${JSON.stringify(id)}, look: "S0000010" })), 2.6, ${turn});
               r.figureLabManual(true);

@@ -15,6 +15,8 @@ import { LOBBY_MODES, setupFor } from "../src/ui/lobby";
 import { HOLD } from "../src/game/hold";
 import { HIT_POSES, MEASURE_HEADS } from "./soldier-hits";
 import soldierCfg from "../src/config/soldier.json";
+import soldierHoldCfg from "../src/config/soldierhold.json";
+import figureCfg from "../src/config/figure.json";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import modesCfg from "../src/config/modes.json";
 import brCfg from "../src/config/br.json";
@@ -6085,7 +6087,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   check("speedkills: High City's corner is drawn from its own file, its faces from behind too (no film set's frames to see through)", !!dist && dist.drawn.includes("high-corner") && dist.triangles > 500000 && dist.opaque > 20 && dist.both === dist.opaque, JSON.stringify(dist));
   // the guns: ten of its own, named, the owner's friends among them
   const guns = await ev<{ ids: number; names: string[] }>(page, `(() => { const r = window.__range; return { ids: r.weaponIds ? r.weaponIds().length : -1, names: r.loadout.slots.map((s) => s.weapon.name) }; })()`);
-  check("speedkills: a loadout's guns carry SpeedKills names", guns.names.every((n) => /^[A-Z]+$/.test(n)) && guns.names.every((n) => ["PANDA", "STRYDER", "ANAKIN", "USSO", "BIGANTLER", "REZ", "HAEFY", "PULSAR", "BOOG", "NOVA"].includes(n)), JSON.stringify(guns));
+  check("speedkills: a loadout's guns carry SpeedKills names", guns.names.every((n) => /^[A-Z]+$/.test(n)) && guns.names.every((n) => ["PANDA", "STRYDER", "ANAKIN", "USSO", "BIGANTLER", "REZ", "HAEFY", "HAMMER", "BOOG", "NOVA"].includes(n)), JSON.stringify(guns));
   // fusion: level 5 is half again the magazine
   const fused = await ev<{ before: number; after: number; level: number }>(page, `(() => { const r = window.__range; const before = r.loadout.slots[0].weapon.clipSize; r.sk.setFusion(0, 5); return { before, after: r.loadout.slots[0].weapon.clipSize, level: r.sk.fusion()[0] }; })()`);
   check("speedkills: fused to 5, a gun's magazine is half as big again", fused.level === 5 && Math.abs(fused.after / fused.before - 1.5) < 0.08, JSON.stringify(fused));
@@ -6297,7 +6299,7 @@ async function skLoadoutTest(browser: Browser): Promise<void> {
   await back.reload({ waitUntil: "domcontentloaded" });
   await back.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
   const c = await ev<{ name: string; want: string[] }>(back, read);
-  check("a pick made after the move is kept over a reload", c.name === "Marksman" && c.want.join() === "g2,vinson", JSON.stringify(c));
+  check("a pick made after the move is kept over a reload", c.name === "Marksman" && c.want.join() === "3030,vinson", JSON.stringify(c));
   // put the first back for the pages after this one (they share the browser's storage)
   await ev(back, `[...document.querySelectorAll("#loadoutList button")].find((x) => x.textContent.startsWith("USSO and BOOG")).click()`);
   await back.close();
@@ -7475,6 +7477,19 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       `(() => { const r = window.__range; r.figureLabPose(0, { speed: 14, stance: "stand", pitch: 0, ads: 1 }); r.figureLabStep(0.9); return { slide: r.labFigures()[0].figure.supportSlide, a: window.__figureAudit(0, { pitch: 0 }) }; })()`,
     );
     check(`the soldier holding ${name}, aimed at a sprint: the left hand on its hold, not slid back along the gun and into it`, moving.slide < 0.01 && (moving.a?.handIn?.l ?? 99) <= 8, JSON.stringify({ slide: moving.slide, handIn: moving.a?.handIn }));
+    // The right index on the trigger, not laid along the frame (the owner, 2026-09-30: the gun fires on a click, and a
+    // straight finger read as not firing): aimed in, the tip of its last joint on the trigger's face, 4 mm at most
+    const trig = await ev<number | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, ads: 1 }); r.figureLabStep(0.9); return window.__triggerGap(0); })()`);
+    check(`the soldier holding ${name}: the right index finger on the trigger, aimed in`, trig !== null && trig <= 4, `${trig} mm from its face`);
+    // the fingers drawn at soldierhold.json fingerSize (the owner: "cut down by like 50%"), every one of both hands
+    const sizes = await ev<number[]>(page, `(() => { const f = window.__range.labFigures()[0].figure; return ["index", "middle", "ring", "pinky", "thumb"].flatMap((n) => ["l", "r"].map((s) => Math.round(f.boneAt(n + "_01_" + s).scale.x * 1000) / 1000)); })()`);
+    check(`the soldier holding ${name}: every finger drawn at ${soldierHoldCfg.fingerSize} of the model's size`, sizes.every((x) => Math.abs(x - soldierHoldCfg.fingerSize) < 1e-3), sizes.join());
+    if (id === "sentinel") {
+      // BOOG's left hand on the rail under its fore-end, not the magazine (which ends 20 cm in front of the grip): the
+      // owner, 2026-09-30, "the boogs 3rd person still has the hand grabbing the magazine instead of the hand stop/rail"
+      const rail = await ev<{ z: number; y: number; slide: number }>(page, `(() => { const f = window.__range.labFigures()[0].figure, g = f.gunObject, h = f.holdPoints(); const at = g.worldToLocal(h.support.clone()); return { z: Math.round(at.z * 1000) / 1000, y: Math.round(at.y * 1000) / 1000, slide: f.supportSlide }; })()`);
+      check("the soldier holding BOOG: the left hand on the rail under the fore-end, 22 cm or more in front of the grip, not on the magazine", rail.z <= -0.22 && rail.slide < 0.01, JSON.stringify(rail));
+    }
     // A melee is a strike with the gun, both hands on it, driven out and back in the game's melee time: the gun stays
     // in the hands (the boxer's punches it used to play put it away and brought it back through both of them). 18 cm:
     // the chest squaring into it alone moves the gun 8 to 12 cm, the thrust takes it to 24 and 27)
@@ -7518,26 +7533,57 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     }
     check(`the soldier's ${name} throw: the gun away for it, and back within a second with no hand through it (8 mm at most)`, !thrown.shown && backAt > 0 && backAt <= 1 && worst <= 8, JSON.stringify({ thrown: thrown.shown, backAt, worst }));
     await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); })()`);
-    // the reload: the magazine out, a copy let fall, a new one home
+    // The reload, the first person's (the owner, 2026-09-30: "the first and third person final forms agree ... when they
+    // reload"): read from the guns agent's fparms.json, as the soldier reads it, so a change there fails here. The
+    // magazine slides down and phases out, a new one phases in and seats, all in the gun; nothing is dropped
     const R = await ev<number>(page, `window.__range.weaponTimes("${id}").reload`);
-    const mag = `(() => { const f = window.__range.labFigures()[0].figure; const m = f.gunObject.getObjectByName("mag"); return m ? { y: m.position.y, shown: m.visible } : null; })()`;
-    const home = await ev<{ y: number; shown: boolean } | null>(page, mag);
+    const FR = fparmsCfg.reload;
+    const rack = (fparmsCfg.packGuns as Record<string, { rack?: { grab?: { reach: number[]; pull: number[] } } }>)[(fparmsCfg.guns as Record<string, string>)[id]]?.rack;
+    type Mag = { y: number; shown: boolean; phase: number; keys: string; drops: number } | null;
+    const mag = `(() => { const f = window.__range.labFigures()[0].figure; const m = f.gunObject.getObjectByName("mag"); const drops = window.__range.scene.children.filter((o) => o.name === "mag").length; return m ? { y: m.position.y, shown: m.visible, phase: f.magSweep.phase.value, keys: f.rifleOut?.keys ?? "", drops } : null; })()`;
+    const home = await ev<Mag>(page, mag);
     await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload" })`);
-    await ev(page, `window.__range.figureLabStep(${R * 0.25})`);
-    const out = await ev<{ y: number; shown: boolean } | null>(page, mag);
-    const drops = `(() => { const s = window.__range.scene; return s.children.filter((o) => o.name === "mag").length; })()`;
-    await ev(page, `window.__range.figureLabStep(${R * 0.1})`);
-    const falling = await ev<number>(page, drops);
-    await ev(page, `window.__range.figureLabStep(${R * 0.4})`);
-    const back = await ev<{ y: number; shown: boolean } | null>(page, mag);
-    check(`the soldier's ${name} reload: the magazine comes down out of the gun`, !!home && !!out && out.shown && out.y < home.y - 0.05, JSON.stringify({ home, out }));
-    check(`the soldier's ${name} reload: the old magazine is let go, and falls`, falling >= 1, `${falling}`);
-    check(`the soldier's ${name} reload: a new one goes home`, !!home && !!back && back.shown && Math.abs(back.y - home.y) < 1e-3, JSON.stringify({ home, back }));
+    let at = 0;
+    const to = async (u: number): Promise<Mag> => {
+      await ev(page, `window.__range.figureLabStep(${Math.max(0, u - at) * R})`);
+      at = u;
+      return ev<Mag>(page, mag);
+    };
+    const pointing = await to((FR.phaseOut[0] + FR.phaseOut[1]) / 2);
+    const gone = await to(FR.phaseOut[1] + 0.02);
+    const coming = await to((FR.phaseIn[0] + FR.phaseIn[1]) / 2);
+    const seated = await to(FR.seat + 0.02);
+    const workAt = rack?.grab ? FR.rack[0] + ((rack.grab.pull[0] + rack.grab.pull[1]) / 2) * (FR.rack[1] - FR.rack[0]) : FR.rack[0] + 0.5 * (FR.rack[1] - FR.rack[0]);
+    const working = await to(workAt);
+    const slid = (m: Mag) => (home && m ? home.y - m.y : 0);
+    check(`the soldier's ${name} reload is the first person's: the left hand points at the magazine as it slides down and phases out`, !!pointing && pointing.shown && pointing.phase > 0 && pointing.phase < 1 && slid(pointing) > 0 && /l:point/.test(pointing.keys), JSON.stringify({ pointing, slid: slid(pointing) }));
+    check(`the soldier's ${name} reload: by the end of the first person's phase out (${FR.phaseOut[1]}) the old magazine is gone, ${FR.slide} m down`, !!gone && !gone.shown && gone.phase === 0 && Math.abs(slid(gone) - FR.slide) < 0.005, JSON.stringify({ gone, slid: slid(gone) }));
+    // (the new one comes in `slideIn` of the way out, and up as it phases in, the one curve: 0 is seated, built from the
+    // well down; 1 when not given)
+    const SI = (FR as { slideIn?: number }).slideIn ?? 1;
+    check(`the soldier's ${name} reload: a new one phases in (${SI} of the way out) and comes up`, !!coming && coming.shown && coming.phase > 0.2 && coming.phase < 0.8 && Math.abs(slid(coming) - FR.slide * SI * (1 - coming.phase)) < 0.002, JSON.stringify({ coming, slid: slid(coming) }));
+    check(`the soldier's ${name} reload: seated by the first person's seat (${FR.seat}), home and whole`, !!seated && !!home && seated.shown && seated.phase === 1 && Math.abs(slid(seated)) < 1e-3, JSON.stringify({ seated, slid: slid(seated) }));
+    check(
+      `the soldier's ${name} reload: then the hands work the gun as the first person's do (${rack?.grab ? "the left racks the charging handle" : "the right works the bolt"})`,
+      !!working && (rack?.grab ? /l:handle/.test(working.keys) : /r:bolt/.test(working.keys)),
+      working?.keys ?? "none"
+    );
+    check(`the soldier's ${name} reload: no magazine is ever dropped, and no hand goes to a pouch`, [pointing, gone, coming, seated, working].every((m) => !!m && m.drops === 0 && !/pouch/.test(m.keys)), JSON.stringify([pointing, gone, coming, seated, working].map((m) => m && { drops: m.drops, keys: m.keys })));
     await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
-    check(`the soldier's ${name} reload: the dropped magazine is cleared away`, (await ev<number>(page, drops)) === 0);
     const after = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
     check(`the soldier's ${name} reload: after it, the hands are back on the gun`, within(after, true), JSON.stringify(after));
   }
+  // A double jump: the figure flips forward, the whole of it round the hips, and is upright again before it could land
+  // (the owner, 2026-09-30: "there should be an animation for when we double jump for sure"). One seen for the first
+  // time with a count already made does not flip for them.
+  const flipOf = `(() => { const f = window.__range.labFigures()[0].figure; return Math.round((f.root.rotation.x * 180) / Math.PI); })()`;
+  await ev(page, `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([{ speed: 0, stance: "air", pitch: 0, weapon: "r97", look: "S0000010", airJumps: 5 }], 2.6, 30); r.figureLabManual(true); r.figureLabStep(0.25); })()`);
+  const firstSeen = await ev<number>(page, flipOf);
+  await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "air", pitch: 0, airJumps: 6 }); r.figureLabStep(DJ_HALF); })()`.replace("DJ_HALF", String(figureCfg.doubleJump.time / 2)));
+  const midFlip = await ev<number>(page, flipOf);
+  await ev(page, `window.__range.figureLabStep(${figureCfg.doubleJump.time / 2 + 0.05})`);
+  const flipped = await ev<number>(page, flipOf);
+  check("a double jump: the figure flips forward, halfway round halfway through, and is upright at the end; none for a count it was first seen with", firstSeen === 0 && midFlip > 150 && midFlip < 210 && flipped === 0, JSON.stringify({ firstSeen, midFlip, flipped }));
   await ev(page, "window.__range.figureLabManual(false)");
   await page.close();
   // the Loadouts tab's soldier holding the USSO: the same hold, its palms on their holds (on a page that draws: the

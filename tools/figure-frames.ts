@@ -40,7 +40,7 @@ const BAR = { grip: 3, support: 4, aim: 6, wrist: 60, handIn: 6, gunIn: 15, off:
 const HOLDING = { r: ["middle", "ring", "pinky", "thumb"], l: ["index", "middle", "ring", "pinky"] };
 const XRAY = process.env.XRAY === "1";
 
-type Pose = { speed: number; stance: string; pitch?: number; ads?: number; moveDir?: number; act?: string | null; weapon?: string };
+type Pose = { speed: number; stance: string; pitch?: number; ads?: number; moveDir?: number; act?: string | null; weapon?: string; airJumps?: number };
 type Times = { reload: number; reloadEmpty: number; deploy: number; holster: number };
 /** a sequence: its pose to settle into, then what it does over time (a pose from each moment on), and when to photograph it */
 type Seq = { name: string; settle: Pose; at: (t: number) => Pose; frames: number[]; label: (t: number) => string; aimed: (t: number) => boolean; kicks?: number[] };
@@ -103,6 +103,25 @@ function sequences(gun: string, other: string, T: Times, To: Times): Seq[] {
       frames: every(1.2, 0.08),
       label: (t) => `${t.toFixed(2)} s ${t < 0.2 ? "stand" : t < 0.8 ? "air" : "land"}`,
       aimed: () => true,
+    },
+    {
+      // a double jump out of a sprint: the jump, the second one in the air at 0.45 s (the flip, figure.json doubleJump),
+      // the landing and the stop
+      name: "doublejump",
+      settle: { speed: 14, stance: "stand", pitch: 0, airJumps: 0 },
+      at: (t) => (t < 0.2 ? { speed: 14, stance: "stand", pitch: 0, airJumps: 0 } : t < 1.3 ? { speed: 14, stance: "air", pitch: 0, airJumps: t < 0.45 ? 0 : 1 } : { speed: t < 1.5 ? 1 : 0, stance: "stand", pitch: 0, airJumps: 1 }),
+      frames: every(1.8, 0.05),
+      label: (t) => `${t.toFixed(2)} s ${t < 0.2 ? "run" : t < 0.45 ? "air" : t < 1.3 ? "second jump" : "land"}`,
+      aimed: () => false,
+    },
+    {
+      // the same from standing still, the gun at the shoulder
+      name: "doublehop",
+      settle: { speed: 0, stance: "stand", pitch: 0, airJumps: 0 },
+      at: (t) => (t < 0.2 ? { speed: 0, stance: "stand", pitch: 0, airJumps: 0 } : t < 1.2 ? { speed: 0, stance: "air", pitch: 0, airJumps: t < 0.45 ? 0 : 1 } : { speed: 0, stance: "stand", pitch: 0, airJumps: 1 }),
+      frames: every(1.6, 0.05),
+      label: (t) => `${t.toFixed(2)} s ${t < 0.2 ? "stand" : t < 0.45 ? "air" : t < 1.2 ? "second jump" : "land"}`,
+      aimed: () => false,
     },
     {
       // three melee swings in a row, each for as long as the game shows one (viewmodel.ts MELEE_TIME 0.38 s), the next

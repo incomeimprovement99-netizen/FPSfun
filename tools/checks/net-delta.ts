@@ -157,6 +157,18 @@ check("an ack goes a few times a second, and history outlasts the round trip it 
   const s = sample(3, 11);
   const back = dequantise(quantise(s));
   check("everything that is not a number comes back untouched", back.w === s.w && back.op === s.op && back.name === s.name && back.alive === s.alive && back.crouch === s.crouch && back.hp === s.hp && back.sh === s.sh);
+  // A double jump is a count (player.ts airJumps), its low 8 bits: the others' figure of you flips when it changes, so
+  // it has to arrive through a keyframe, a difference and a full packet alike, and a new one has to read as a change
+  const jumped = { ...s, dj: 3 };
+  const q0 = quantise(s);
+  const q1 = quantise(jumped);
+  const moved = diff(q0, q1);
+  const after = applyDiff(q0, moved.d, moved.c);
+  check(
+    "a double jump's count comes through a keyframe, a difference and a full packet, and its low 8 bits wrap",
+    dequantise(q1).dj === 3 && moved.d.dj === 3 && !!after && dequantise(after).dj === 3 && stateOf(stateMsg(jumped)).dj === 3 && dequantise(quantise({ ...s, dj: 300 })).dj === 44,
+    JSON.stringify({ key: dequantise(q1).dj, diff: moved.d.dj, applied: after && dequantise(after).dj, full: stateOf(stateMsg(jumped)).dj })
+  );
   const spun = dequantise(quantise({ ...sample(0, 0), yaw: 725 }));
   check("a yaw that has wound round many times still names the same angle", apart(spun.yaw, 725) < 0.06, `${spun.yaw.toFixed(1)} for 725`);
   const sliver = dequantise(quantise({ ...sample(0, 0), hp: 0.4, sh: 0.3 }));

@@ -11,6 +11,10 @@
 //   by the models' inner shells).
 // - gunIn: how deep the gun is inside the body (torso, arms, head; the hands are handIn's), mm, by the same rule the
 //   other way round: the gun's points against the body's skin, which is skinned, so it is taken afresh every frame.
+// - __triggerGap(i): how far the right index finger's tip is from the trigger, mm: the nearest of the skin points its
+//   last joint moves most to the trigger's front face (the bought model's own part, a mesh named Trigger), sampled over
+//   the face's triangles; anywhere on the face is a finger on the trigger, as a real one pulls it low or high on the
+//   blade. null for a gun with no trigger part (the soldier's finger is on it: the owner, 2026-09-30)
 // Never the real mouse or keyboard: it only reads the scene.
 (() => {
   const HAND = /^(hand|index|middle|ring|pinky|thumb)(_\d+)?_([lr])$/;
@@ -359,5 +363,56 @@
     }
     out.gunIn = Math.round(gunIn * 1000);
     return out;
+  };
+
+  /** each figure's trigger face (gun-local) and fingertip points, found once a figure and gun */
+  const tips = new WeakMap();
+  window.__triggerGap = (i) => {
+    const r = window.__range, T = r.THREE, mq = r.labFigures()[i].figure, gun = mq.gunObject;
+    if (!gun) return null;
+    let known = tips.get(gun);
+    if (!known) {
+      let trig = null;
+      gun.traverse((o) => {
+        if (!trig && o.isMesh && /^Trigger/.test(o.name)) trig = o;
+      });
+      if (!trig) return null;
+      gun.updateMatrixWorld(true);
+      const inv = gun.matrixWorld.clone().invert(), p = trig.geometry.getAttribute("position"), idx = trig.geometry.index, v = new T.Vector3();
+      const at = (k) => new T.Vector3().fromBufferAttribute(p, k).applyMatrix4(trig.matrixWorld).applyMatrix4(inv);
+      const corners = [];
+      for (let k = 0; k < p.count; k++) corners.push(at(k));
+      // its front: the gun's -z, the triangles within 6 mm of the frontmost point, each sampled every few millimetres
+      const zMin = Math.min(...corners.map((q) => q.z));
+      const target = [];
+      const n = idx ? idx.count : p.count;
+      for (let t = 0; t < n; t += 3) {
+        const [a, b, c] = [0, 1, 2].map((k) => corners[idx ? idx.getX(t + k) : t + k]);
+        if ((a.z + b.z + c.z) / 3 > zMin + 0.006) continue;
+        for (let u = 0; u <= 6; u++) for (let w = 0; w <= 6 - u; w++) target.push(a.clone().multiplyScalar(u / 6).addScaledVector(b, w / 6).addScaledVector(c, (6 - u - w) / 6));
+      }
+      const skin = [];
+      mq.root.traverse((o) => {
+        if (!o.isSkinnedMesh) return;
+        const bi = o.skeleton.bones.findIndex((b) => b.name === "index_03_r");
+        if (bi < 0) return;
+        const si = o.geometry.getAttribute("skinIndex"), sw = o.geometry.getAttribute("skinWeight");
+        for (let k = 0; k < si.count; k++) {
+          let top = -1, w = -1;
+          for (let c = 0; c < 4; c++) if (sw.getComponent(k, c) > w) (w = sw.getComponent(k, c)), (top = si.getComponent(k, c));
+          if (top === bi) skin.push([o, k]);
+        }
+      });
+      known = { target, skin };
+      tips.set(gun, known);
+    }
+    gun.updateMatrixWorld(true);
+    const inv = gun.matrixWorld.clone().invert(), v = new T.Vector3();
+    let d = Infinity;
+    for (const [m, k] of known.skin) {
+      m.getVertexPosition(k, v).applyMatrix4(m.matrixWorld).applyMatrix4(inv);
+      for (const q of known.target) d = Math.min(d, v.distanceTo(q));
+    }
+    return Number.isFinite(d) ? Math.round(d * 10000) / 10 : null;
   };
 })();

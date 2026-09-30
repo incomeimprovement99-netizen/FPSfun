@@ -126,6 +126,8 @@ export class Player {
   autoClimb = false;
   /** the double jump has not been spent since the last ground, wall or rope */
   private airJumpLeft = true;
+  /** how many double jumps this player has made: the figure others see flips on each new one (dummy.ts FigurePose) */
+  airJumps = 0;
   /** while running a wall: which wall, when it started, and when the last one ended */
   private wallRun: { nx: number; nz: number; since: number } | null = null;
   private wallRunEndedAt = -Infinity;
@@ -936,6 +938,7 @@ export class Player {
    */
   private doubleJump(now: number): void {
     this.airJumpLeft = false;
+    this.airJumps++;
     this.vel.y = Math.sqrt(2 * MOVE.gravity * EXTRA.doubleJump.height);
     this.lastJumpAt = now;
     // SpeedKills: the second jump starts the climb's space afresh from here, so

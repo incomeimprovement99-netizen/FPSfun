@@ -5,15 +5,16 @@
 //   enemies   an Arena Bots match: each bot given the USSO or BOOG, photographed from half a dozen metres as its AI
 //             moves, fights and reloads (a bot's magazine run down so it does), the camera kept on it as it goes
 //   self      your own soldier in third person, driven by the keys a player presses (the page's own keyboard, never
-//             the machine's): standing, running and sprinting, a jump, a reload, a swap, a melee string, a grenade;
+//             the machine's): standing, running and sprinting, a jump, a double jump, a reload, a swap, a melee;
 //             from behind the shoulder as you play it, and orbited round to the front and side
 //   remote    another player, over the network: a second page joins a firing range with friends and is driven by keys,
 //             and this page photographs the figure it draws of them from what arrives (their stance, speed, aim and
-//             act: a reload, a swap and a melee as an enemy's screen shows them)
+//             act: a reload, a swap, a melee and a double jump as an enemy's screen shows them)
 //
 // Each sheet is a row of frames, captioned with what the figure was doing and, measured by tools/figure-audit.js, the
 // same faults as the lab's sheets. Run: SHOT_URL=http://localhost:5198/ npx tsx tools/live-shots.ts [out dir]
-// PARTS=enemies,self picks (needs the dev server and a real GPU; never the real mouse or keyboard)
+// PARTS=enemies,self picks, and ACTS=double-jump,melee only those of self's and remote's actions (needs the dev server
+// and a real GPU; never the real mouse or keyboard)
 import fs from "node:fs";
 import path from "node:path";
 import puppeteer, { type Page } from "puppeteer";
@@ -23,6 +24,7 @@ const URL = process.env.SHOT_URL ?? "http://localhost:5198/";
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const OUT = path.resolve(process.argv[2] ?? "shots/live");
 const PARTS = (process.env.PARTS ?? "enemies,self,remote").split(",");
+const ACTS = process.env.ACTS ? process.env.ACTS.split(",") : null;
 const W = 1600;
 const H = 1000;
 const TILE = { w: 360, h: 420 };
@@ -31,6 +33,8 @@ const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mous
 const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+/** a jump and then, in the air, the second one (the page's own keys, a frame count apart) */
+const DOUBLE_JUMP = `(() => { let t = 0; window.__range.setScript({ held: () => false, pressedNow: (a) => a === "jump" && (++t === 2 || t === 14) }); })()`;
 
 type Audit = { grip?: number; support?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number; palmGap?: { l: number; r: number }; armed?: boolean } | null;
 /** the lab's bar, the same faults its sheets flag */
@@ -175,6 +179,14 @@ async function self(page: Page): Promise<void> {
       every: 70,
     },
     {
+      // the flip: photographed as fast as the page gives frames
+      name: "double-jump",
+      start: (p) => ev(p, DOUBLE_JUMP),
+      stop: (p) => ev(p, "window.__range.setScript(null)"),
+      frames: 16,
+      every: 0,
+    },
+    {
       // a few rounds first: a full magazine does not reload
       name: "reload",
       start: async (p) => {
@@ -211,7 +223,7 @@ async function self(page: Page): Promise<void> {
   ];
   for (const [vname, yaw, pitch] of views) {
     const tiles: Buffer[] = [];
-    for (const act of actions) {
+    for (const act of actions.filter((a) => !ACTS || ACTS.includes(a.name))) {
       await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, -4, 0, 0); r.setOrbit(${yaw}, ${pitch}, ${yaw !== 0}); })()`);
       await wait(900);
       await act.start(page);
@@ -270,10 +282,11 @@ async function remote(browser: import("puppeteer").Browser, host: Page): Promise
     { name: "melee", start: (p) => press(p, "KeyV", 20), frames: 8, every: 0 },
     { name: "crouch", start: hold(`a === "crouch"`), stop: free, frames: 4, every: 200 },
     { name: "run", start: hold(`a === "left"`), stop: free, frames: 8, every: 90 },
+    { name: "double-jump", start: (p) => ev<void>(p, DOUBLE_JUMP), stop: free, frames: 14, every: 0 },
   ];
   for (const [vname, ang] of [["front", 0.5], ["right", -1.4], ["left", 1.7]] as Array<[string, number]>) {
     const tiles: Buffer[] = [];
-    for (const act of actions) {
+    for (const act of actions.filter((a) => !ACTS || ACTS.includes(a.name))) {
       // (neither can hurt the other: this page holds its fire, and the other's shots are given back each frame)
       await ev(host, `(() => { const d = window.__range.duel(); d.holdFire = true; d.health = 100; d.shield = d.shieldMax; })()`);
       await wait(500);

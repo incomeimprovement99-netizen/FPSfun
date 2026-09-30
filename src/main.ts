@@ -6878,7 +6878,7 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, look:
   if (knocked) f.fallDown();
   else if (f.knocked) f.reset();
   const ac = localAct();
-  f.setPose({ speed: player.speed, stance: downed ? "downed" : player.stance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), healItem: heal?.item });
+  f.setPose({ speed: player.speed, stance: downed ? "downed" : player.stance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), healItem: heal?.item, airJumps: player.airJumps });
   f.update(now, dt);
 }
 
@@ -8230,6 +8230,7 @@ function step(): void {
     ads: ws.adsFrac,
     act: localAct(),
     aimbot: aimbot.enabled,
+    airJumps: player.airJumps,
   };
   duel?.update(local);
   hangout?.update(local);

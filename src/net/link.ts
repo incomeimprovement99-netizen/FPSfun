@@ -80,6 +80,8 @@ export type NetMsg =
       tm?: number;
       /** where they are in a battle royale's lives (squadview.ts LIFE_WIRE): absent while up */
       lf?: number;
+      /** how many double jumps they have made, the low 8 bits: a new one flips their figure (player.ts airJumps) */
+      dj?: number;
     }
   /**
    * The same states, delta compressed (src/net/state.ts), one part per

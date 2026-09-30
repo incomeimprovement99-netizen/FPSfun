@@ -11,7 +11,7 @@
   },
   "_scale": "How much bigger than its own model the soldier's gun is drawn, 1 for most (a gun's own over it in guns). The soldier is a big man in armour: its gloved hand is 0.123 m from the wrist to the middle finger's knuckle and 0.094 m across the knuckles (measured, tools/checks/soldier-hold.ts), about 1.25 times a man's, and the bought guns are modelled at a man's size. A gun with an open grip takes the glove as it is (BOOG); one whose trigger guard closes round the fingers can be too small for it (the USSO's opening is 0.075 m tall, and the glove's four fingers need more), and is drawn the least bigger that its hand fits (tools/figure-fit.ts). Only the figure's gun: the one in your own hands is the first-person arms'.",
   "scale": 1,
-  "_support": "Where the left hand takes a gun, gun-local metres, when not where the model's own measures put it (a gun's own, in guns; none for most). BOOG's own is under its fore-end, 0.83 m in front of the butt, and the soldier's arm (a man's: 0.59 m from the shoulder joint to the palm) does not reach so far: the hand slid two thirds of the way back toward the grip and cupped the air under the magazine. Turned 45 degrees (a marksman's stance; the rest search left it at 41), the arm reaches 15 cm in front of the trigger guard at most, measured on the figure aimed, which is on BOOG's box magazine (15 cm long, hanging 18 cm under the bore): the hand holds that from below, as an AK's is held. The point is 8 cm in front of the grip point, the palm 2 cm in front of that (hands.l at), since the slide back (mannequin.ts supportHold) is tested at the point, not the palm.",
+  "_support": "Where the left hand takes a gun, gun-local metres, when not where the model's own measures put it (a gun's own, in guns; none for most). BOOG's own is the front of its fore-end, 0.84 m in front of the butt. BOOG was held by its box magazine while the arm alone fell short of the fore-end (Milestone 342); the owner, 2026-09-30: \"the boogs 3rd person still has the hand grabbing the magazine instead of the hand stop/rail\". So BOOG's left hand is on the rail under its fore-end, which runs from 22 to 37 cm in front of the grip, 3 cm wide, its bottom 12 cm under the bore (tools/gun-shape.ts across), at its rear end, 22.5 cm in front of the grip: at the rail's middle (30 cm) the arm fell short at rest and the hold slid back 19%, and aimed on the move 54%, onto the magazine and 15 mm into it. There, with BOOG's shoulder let reach 70 degrees (guns.sentinel.reach; the shared 34 slid it 44% aimed at a sprint, 55 still 17), it does not slide at rest, aimed, looking 35 up or down, running or sprinting aimed, or through a melee (measured on the figure, supportSlide). The shoulder only comes forward as far as a pose needs.",
   "_blade": "The chest's turn to its right, so the left shoulder leads and the support hand reaches the handguard (square on, the left hand is 0.67 m from the USSO's handguard and the arm reaches 0.59): split between spine_02 and spine_03, the neck and head turned back by it so the figure still looks where it aims.",
   "blade": 32,
   "_pocket": "Where the butt sits, from the right shoulder joint in the chest's frame at rest: `in` toward the middle of the chest, `down` under the joint, `ahead` in front of it, which is the body's front there (measured, 0.092) and the armour's thickness past it. `adsUp` lifts the butt this much into the shoulder as the figure aims in, and the head leans onto the stock by `adsHead` (down, toward the gun).",
@@ -83,7 +83,9 @@
   "twist": 0.5,
   "_together": "How far each finger's first joint is swung from its splay toward the middle finger's line, 0 to 1. The bought rig's fingers fan out as a T-pose's do (the splay measured off it, rifle.ts measureRifleRig), and a hand on a gun has them together: laid along the side of a fore-end, fanned they read as a wave. Not all the way: a hand's fingers keep a little fan.",
   "together": 0.8,
-  "_fingers": "Each finger's joints closed toward the palm, degrees, knuckle outward, as tools/figure-fit.ts closed each phalanx onto the gun until its skin touched: the right hand's round the grip, its index finger straight along the frame, the thumb round the far side; the left's laid up the side of what it holds. A fourth number is the first joint's sideways swing, degrees, about the palm's normal: a finger's before its curl, the thumb's after it (the curled thumb turned round the far side of its hold; rifle.ts).",
+  "_fingerSize": "How big the soldier's fingers are drawn against its model's, each finger scaled about its root (a finger's first knuckle, the thumb's joint at the wrist): the owner, 2026-09-30, first \"all fingers in 3rd person should be cut down by like 50% size\", then, seeing them at half their thickness (they could not hold the guns at half their size), \"change them back to normal size and just make it like 90% of the size it was before\". Only the figure's: the arms in your own view keep the model's.",
+  "fingerSize": 0.9,
+  "_fingers": "Each finger's joints closed toward the palm, degrees, knuckle outward, as tools/figure-fit.ts closed each phalanx onto the gun until its skin touched: the right hand's round the grip, its index finger on the trigger (searched onto the trigger part's face: the owner, 2026-09-30, \"trigger finger should be on the trigger, not in the ready position\"), the thumb round the far side; the left's laid up the side of what it holds. A fourth number is the first joint's sideways swing, degrees, about the palm's normal: a finger's before its curl, the thumb's after it (the curled thumb turned round the far side of its hold; rifle.ts).",
   "fingers": {
     "r": {
       "index": [
@@ -238,109 +240,13 @@
       }
     ]
   },
-  "_reload": "The reload as other players see it (Phase 27, 27.9; rifle.ts reloadTarget), a share of the gun's own reload time (weapons.ts reloadTime) at each step, so an enemy's plays from the moment their \"reload\" arrives and nothing new goes over the network. The gun turns its magazine toward the left hand (`tilt`, in over `tiltIn`, back over `tiltOut`); the left hand goes from the handguard to the magazine, pulls it `out` metres down over `pull` and lets it go at `dropAt` (a copy falls to the floor and fades), fetches a new one from the pouch at the left hip (in the hand over `inHand`, its bottom `magInPalm` over the palm), pushes it home, racks the charging handle and goes back. `left` and `right` are each hand's keys, [share, key]; a hand without keys at that share holds as it always does. `keys` are palm places and turns: off the magazine's bottom (`mag`), the charging handle or bolt (`handle`), or the hips (`hips`, in the figure's frame: +x its left, +z its front), with `fwd` and `palm` as in `hands`. A bolt gun works its bolt with the right hand (guns.sentinel). upright: over this share of the reload the new magazine turns from held as a hand holds it (its length across the hand, at the pouch) to upright as the gun is (its bottom in the palm), so it goes in straight: kept upright all the way, it ran through the left forearm and the belly at the pouch (40 mm).",
+  "_reload": "The reload as other players see it (rifle.ts reloadPlanOf), the first person's own (the owner, 2026-09-30: \"the first and third person final forms agree with each others animations and movements when they reload for the boog and the usso\"): its timing is read from the guns agent's fparms.json reload at run time, shares of the gun's reload time (weapons.ts reloadTime), so an enemy's plays from the moment their \"reload\" arrives and nothing new goes over the network. The gun turns its magazine toward the left hand (`tilt`) as the left hand leaves the fore-end and points at the magazine (the `point` key, its fingers `pointFingers`); the magazine slides down its own length and phases out, a new one phases in from there and slides home, and seats with a kick (`seatKick` of a shot's, gone over `seatKickFor` s), all in the gun: the soldier used to pull it, drop a copy to the floor and fetch a new one from a pouch at the hip, which the first person never did. Then the hands work the gun as its pack gun does: the USSO's left hand racks the charging handle (`handle`, `handleBack`), BOOG's left goes back to the fore-end and its right works the bolt (`bolt`, `boltUp`, `boltBack`) over the shares of the rack in `bolt` (the L96X clip's bolt at 0.30 to 0.48 of its 0.22 to 0.56 window, 0.235 to 0.765 of the rack). `keys` are palm places and turns off the magazine's bottom (`mag`, carried with it as it slides), the charging handle or bolt (`handle`) or the grip, with `fwd` and `palm` as in `hands`.",
   "reload": {
-    "magazine": true,
     "tilt": {
       "roll": 28,
       "down": 10
     },
-    "tiltIn": [
-      0.0,
-      0.12
-    ],
-    "tiltOut": [
-      0.82,
-      0.96
-    ],
-    "out": 0.13,
-    "pull": [
-      0.18,
-      0.28
-    ],
-    "dropAt": 0.3,
-    "inHand": [
-      0.4,
-      0.62
-    ],
-    "upright": [
-      0.44,
-      0.54
-    ],
-    "magInPalm": 0.02,
     "keys": {
-      "mag": {
-        "from": "mag",
-        "at": [
-          0,
-          -0.02,
-          0
-        ],
-        "fwd": [
-          1,
-          0,
-          -0.3
-        ],
-        "palm": [
-          0,
-          1,
-          0.2
-        ]
-      },
-      "magOut": {
-        "from": "mag",
-        "at": [
-          0,
-          -0.15,
-          0
-        ],
-        "fwd": [
-          1,
-          0,
-          -0.3
-        ],
-        "palm": [
-          0,
-          1,
-          0.2
-        ]
-      },
-      "magUnder": {
-        "from": "mag",
-        "at": [
-          0,
-          -0.17,
-          0
-        ],
-        "fwd": [
-          1,
-          0,
-          -0.3
-        ],
-        "palm": [
-          0,
-          1,
-          0.2
-        ]
-      },
-      "pouch": {
-        "from": "hips",
-        "at": [
-          0.16,
-          -0.02,
-          0.14
-        ],
-        "fwd": [
-          0,
-          -1,
-          0.35
-        ],
-        "palm": [
-          -1,
-          0,
-          0
-        ]
-      },
       "handle": {
         "from": "handle",
         "at": [
@@ -430,59 +336,56 @@
           0,
           0
         ]
+      },
+      "point": {
+        "from": "mag",
+        "at": [
+          -0.154,
+          0.018,
+          0.055
+        ],
+        "fwd": [
+          1,
+          0.2,
+          -0.6
+        ],
+        "palm": [
+          0,
+          -1,
+          0
+        ]
       }
     },
-    "left": [
-      [
+    "pointFingers": {
+      "index": [
         0,
-        "hold"
+        0,
+        0
       ],
-      [
-        0.12,
-        "mag"
+      "middle": [
+        90,
+        100,
+        80
       ],
-      [
-        0.18,
-        "mag"
+      "ring": [
+        90,
+        100,
+        80
       ],
-      [
-        0.28,
-        "magOut"
+      "pinky": [
+        90,
+        100,
+        80
       ],
-      [
-        0.36,
-        "pouch"
-      ],
-      [
-        0.44,
-        "pouch"
-      ],
-      [
-        0.54,
-        "magUnder"
-      ],
-      [
-        0.62,
-        "mag"
-      ],
-      [
-        0.7,
-        "handle"
-      ],
-      [
-        0.76,
-        "handleBack"
-      ],
-      [
-        0.8,
-        "handleBack"
-      ],
-      [
-        0.9,
-        "hold"
+      "thumb": [
+        40,
+        60,
+        40,
+        -60
       ]
-    ],
-    "right": []
+    },
+    "seatKick": 0.35,
+    "seatKickFor": 0.15
   },
   "_aim": "Aimed in, the gun comes up so its own sight line (gunmodels.ts sightY and rearF, the eye point the first-person view aims down) runs through the soldier's right eye (measured off its eye meshes, rifle.ts rightEye): the rear sight `relief` in front of the eye and the line `cheek` under its middle, the head leant onto the stock first (pocket.adsHead). At rest the butt is in its pocket; the two are blended by how far the figure aims in. `side` sets the sight line that far to the figure's right of the eye, the head leant over to it (pocket.adsHead toward): lined up on the eye itself, the stock ended in the middle of the chest, where a shooter's never is.",
   "aim": {
@@ -494,74 +397,6 @@
   "guns": {
     "sentinel": {
       "reload": {
-        "left": [
-          [
-            0,
-            "hold"
-          ],
-          [
-            0.12,
-            "mag"
-          ],
-          [
-            0.18,
-            "mag"
-          ],
-          [
-            0.28,
-            "magOut"
-          ],
-          [
-            0.36,
-            "pouch"
-          ],
-          [
-            0.44,
-            "pouch"
-          ],
-          [
-            0.54,
-            "magUnder"
-          ],
-          [
-            0.62,
-            "mag"
-          ],
-          [
-            0.7,
-            "hold"
-          ]
-        ],
-        "right": [
-          [
-            0.62,
-            "grip"
-          ],
-          [
-            0.68,
-            "bolt"
-          ],
-          [
-            0.72,
-            "boltUp"
-          ],
-          [
-            0.78,
-            "boltBack"
-          ],
-          [
-            0.84,
-            "boltUp"
-          ],
-          [
-            0.88,
-            "bolt"
-          ],
-          [
-            0.95,
-            "grip"
-          ]
-        ],
         "tilt": {
           "roll": 24,
           "down": 7
@@ -621,79 +456,55 @@
               0.15
             ]
           },
-          "mag": {
+          "point": {
             "from": "mag",
             "at": [
-              -0.01,
-              -0.02,
-              -0.01
-            ],
-            "fwd": [
-              0.775,
-              0.15,
-              -0.45
-            ],
-            "palm": [
-              -0.15,
-              1.15,
-              0.05
-            ]
-          },
-          "magOut": {
-            "from": "mag",
-            "at": [
-              -0.01,
-              -0.15,
-              -0.01
-            ],
-            "fwd": [
-              0.775,
-              0.15,
-              -0.45
-            ],
-            "palm": [
-              -0.15,
-              1.15,
-              0.05
-            ]
-          },
-          "magUnder": {
-            "from": "mag",
-            "at": [
-              -0.01,
-              -0.17,
-              -0.01
-            ],
-            "fwd": [
-              0.775,
-              0.15,
-              -0.45
-            ],
-            "palm": [
-              -0.15,
-              1.15,
-              0.05
-            ]
-          },
-          "pouch": {
-            "from": "hips",
-            "at": [
-              0.16,
-              -0.02,
-              0.14
-            ],
-            "fwd": [
-              0.15,
-              -1,
-              0.35
-            ],
-            "palm": [
-              -1,
+              -0.167,
               0,
+              0.031
+            ],
+            "fwd": [
+              1,
+              0.2,
+              -0.6
+            ],
+            "palm": [
+              0,
+              -1,
               0
             ]
           }
-        }
+        },
+        "bolt": [
+          [
+            0,
+            "grip"
+          ],
+          [
+            0.235,
+            "bolt"
+          ],
+          [
+            0.35,
+            "boltUp"
+          ],
+          [
+            0.5,
+            "boltBack"
+          ],
+          [
+            0.62,
+            "boltUp"
+          ],
+          [
+            0.765,
+            "bolt"
+          ],
+          [
+            1,
+            "grip"
+          ]
+        ]
       },
       "pocket": {
         "in": 0.02,
@@ -708,9 +519,9 @@
       "hands": {
         "r": {
           "at": [
-            0.0576,
-            -0.1034,
-            0.1293
+            0.0561,
+            -0.0942,
+            0.1255
           ],
           "fwd": [
             -0.248,
@@ -725,19 +536,19 @@
         },
         "l": {
           "at": [
-            -0.0192,
-            -0.047,
-            -0.0226
+            -0.0273,
+            -0.0411,
+            0.0022
           ],
           "fwd": [
-            0.789,
-            0.015,
-            -0.615
+            0.846,
+            0.14,
+            -0.514
           ],
           "palm": [
-            -0.2,
-            1.4,
-            -0.2
+            0,
+            1,
+            0
           ]
         }
       },
@@ -761,83 +572,84 @@
       "fingers": {
         "r": {
           "index": [
-            -7.1,
-            0.3,
-            80
+            0,
+            90,
+            2.5,
+            -20
           ],
           "middle": [
-            73.6,
-            71.6,
-            0.5
+            80.6,
+            51,
+            27.3
           ],
           "ring": [
-            80.6,
-            -4.8,
-            80
+            84.5,
+            4.6,
+            76.5
           ],
           "pinky": [
-            74.4,
-            2.9,
-            40.6
+            75.9,
+            1.2,
+            23.8
           ],
           "thumb": [
             90,
-            27.8,
-            -4.4,
-            -105
+            19.2,
+            38.5,
+            -120
           ]
         },
         "l": {
           "index": [
-            68.7,
+            53.1,
             0.3,
-            5.5
+            2
           ],
           "middle": [
-            74.4,
-            -4.9,
-            -0.2
+            66.5,
+            -0.1,
+            -10
           ],
           "ring": [
-            83.8,
+            74.4,
             -10,
-            -2.3
+            -10
           ],
           "pinky": [
             90,
-            -10,
-            -7.9
+            100,
+            80
           ],
           "thumb": [
             90,
             100,
             80,
-            90
+            105
           ]
         }
       },
       "blade": 41,
       "support": [
         0,
-        -0.16,
-        -0.08
+        -0.12,
+        -0.225
       ],
       "lowered": {
         "l": {
           "at": [
-            -0.0192,
-            -0.047,
-            -0.0226
+            -0.0273,
+            -0.0411,
+            0.0022
           ],
           "fwd": [
-            0.789,
-            0.015,
-            -0.615
+            0.846,
+            0.14,
+            -0.514
           ],
           "palm": [
-            -0.2,
-            1.4,
-            -0.2
+            0,
+            1,
+            0
           ]
         },
         "down": 15.5,
@@ -873,6 +685,9 @@
           0.05,
           0.22
         ]
+      },
+      "reach": {
+        "shoulder": 70
       }
     },
     "r97": {
@@ -942,62 +757,62 @@
       "fingers": {
         "r": {
           "index": [
-            -3,
-            -8.6,
-            -0.2
+            5,
+            65,
+            35,
+            15
           ],
           "middle": [
-            43.9,
-            76.8,
-            13.9
+            47,
+            73.4,
+            6.9
           ],
           "ring": [
-            66.6,
-            -10,
-            80
+            68.9,
+            20.9,
+            58.2
           ],
           "pinky": [
-            61.1,
-            1.2,
-            25.9
+            19.7,
+            100,
+            80
           ],
           "thumb": [
-            38.4,
-            35.9,
-            -0.2,
+            34.5,
+            30.9,
+            2,
             90
           ]
         },
         "l": {
           "index": [
-            90,
-            100,
-            80
+            66,
+            0,
+            0
           ],
           "middle": [
-            76.7,
-            -1.2,
-            -10
+            79.8,
+            -3.1,
+            -0.2
           ],
           "ring": [
-            83.8,
-            -3.1,
-            -1.6
+            90,
+            -10,
+            -2.3
           ],
           "pinky": [
             90,
-            -10,
-            -10
+            100,
+            80
           ],
           "thumb": [
             90,
             100,
             80,
-            75
+            90
           ]
         }
       },
-      "scale": 1.1,
       "blade": 28,
       "lowered": {
         "l": {
@@ -1033,60 +848,6 @@
       },
       "reload": {
         "keys": {
-          "mag": {
-            "from": "mag",
-            "at": [
-              -0.0565,
-              0.0441,
-              0.0027
-            ],
-            "fwd": [
-              1.15,
-              -0.3,
-              0.15
-            ],
-            "palm": [
-              0.6,
-              1.0,
-              -0.25
-            ]
-          },
-          "magOut": {
-            "from": "mag",
-            "at": [
-              -0.0565,
-              -0.0859,
-              0.0027
-            ],
-            "fwd": [
-              1.15,
-              -0.3,
-              0.15
-            ],
-            "palm": [
-              0.6,
-              1.0,
-              -0.25
-            ]
-          },
-          "magUnder": {
-            "from": "mag",
-            "at": [
-              -0.0565,
-              -0.1059,
-              0.0027
-            ],
-            "fwd": [
-              1.15,
-              -0.3,
-              0.15
-            ],
-            "palm": [
-              0.6,
-              1.0,
-              -0.25
-            ]
-          },
           "handle": {
             "from": "handle",
             "at": [
@@ -1123,21 +884,21 @@
               0
             ]
           },
-          "pouch": {
-            "from": "hips",
+          "point": {
+            "from": "mag",
             "at": [
-              0.15,
-              -0.02,
-              0.14
+              -0.154,
+              0.018,
+              0.055
             ],
             "fwd": [
-              0,
-              -1,
-              0.35
+              1,
+              0.2,
+              -0.6
             ],
             "palm": [
-              -1,
               0,
+              -1,
               0
             ]
           }
@@ -1166,7 +927,8 @@
           0.02,
           0.1
         ]
-      }
+      },
+      "scale": 1.05
     }
   }
 }

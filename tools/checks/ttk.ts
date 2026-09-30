@@ -34,8 +34,8 @@ function ttk(w: ResolvedWeapon): number {
 console.log(`\nSpeedKills time to kill (game: ${GAME}), at ${HIT * 100}% on target against ${POOL}`);
 check("this runs with SpeedKills' tuning", GAME === "speedkills");
 
-/** each family's band at close range, seconds */
-const BAND: Record<string, [number, number]> = { rifle: [1.3, 1.8], smg: [1.3, 1.8], special: [1.3, 1.8], shotgun: [0.8, 1.4], marksman: [1.2, 2.4] };
+/** each family's band at close range, seconds (the pistol hits as hard and as seldom as the marksman guns) */
+const BAND: Record<string, [number, number]> = { rifle: [1.3, 1.8], smg: [1.3, 1.8], special: [1.3, 1.8], shotgun: [0.8, 1.4], marksman: [1.2, 2.4], pistol: [1.2, 2.4] };
 const rows: string[] = [];
 for (const [fam, f] of Object.entries(PROFILE.families)) {
   const band = BAND[fam];

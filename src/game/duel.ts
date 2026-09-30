@@ -164,6 +164,8 @@ interface Sample {
   ads: number;
   act: FigureAct;
   healItem?: string;
+  /** the double jumps they had made by then (the low 8 bits) */
+  airJumps?: number;
 }
 
 /** another player as this side sees them */
@@ -267,6 +269,8 @@ export interface LocalState {
   act?: number;
   /** the practice aim bot is on (it is shown to everyone) */
   aimbot?: boolean;
+  /** how many double jumps this player has made (player.ts airJumps): the others' figure of them flips on a new one */
+  airJumps?: number;
 }
 
 /** what a match (against friends or bots) offers the game loop */
@@ -1445,7 +1449,7 @@ export class Duel implements MatchLike {
     const stale = m.alive && !r.alive && sentAt !== null && r.outAtSent !== undefined && sentAt <= r.outAtSent;
     const alive = m.alive && !stale;
     this.noteLateness(r, at, now);
-    r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), healItem: ac >= 10 ? HEAL_CODES[ac - 10] : undefined });
+    r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), healItem: ac >= 10 ? HEAL_CODES[ac - 10] : undefined, airJumps: typeof m.dj === "number" && Number.isFinite(m.dj) ? m.dj : 0 });
     if (r.samples.length > 30) r.samples.shift();
     // Their own numbers lag our hits by a round trip, so just after a hit a
     // packet can only LOWER what we predicted; after that it is the truth, a
@@ -2066,6 +2070,7 @@ export class Duel implements MatchLike {
         dn: this.downed ? (this.kdUp ? 2 : 1) : 0,
         ad: local.ads ? Math.round(local.ads * 10) : undefined,
         ac: local.act || undefined,
+        dj: local.airJumps ? local.airJumps & 0xff : undefined,
         tm: senderStamp(),
         lf: this.lifeWire(),
       });
@@ -2138,6 +2143,7 @@ export class Duel implements MatchLike {
       ads: near.ads,
       act: near.act,
       healItem: near.healItem,
+      airJumps: near.airJumps,
     });
     void dt;
   }

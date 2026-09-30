@@ -11,12 +11,22 @@
 // grasp should be (no skin in the gun, the palm on it, the holding fingers touching it and closed round it, the wrist
 // straight). The thumb is swung round its base as well as curled (a fourth number, soldierhold.json fingers).
 //
+// The right index finger goes on the trigger (the owner, 2026-09-30: the gun fires on a click, so a finger laid along
+// the frame reads as not firing): once the right hand is placed, its three joints and its sideways swing are searched
+// so its last phalanx's nearest skin is on the middle of the trigger's front face, no finger deeper in the gun than
+// touching. The trigger is the bought model's own part (its mesh named Trigger).
+//
 // Measured in the aimed pose on one figure, settled once and re-posed for each try (rifle.ts keeps no state between
 // frames, so a try's answer is the same as a fresh figure's), by tools/figure-audit.js.
 //
 // Run: SHOT_URL=http://localhost:5198/ npx tsx tools/figure-fit.ts <gun id>   (WRITE=1 stores it as guns.<id>)
 //      SCALE=1.1 draws the gun that much bigger (soldierhold.json scale); HAND_R / HAND_L='{"at":..,"fwd":..,"palm":..}'
-//      start a hand there; SIDES=r fits only that hand; SEARCH=0 grasps where the hand is, without moving it
+//      start a hand there; SIDES=r fits only that hand; SEARCH=0 grasps where the hand is, without moving it;
+//      TRIGGER_ONLY=1 only puts the right index on the trigger, the hands as they are; TOGETHER=l closes that hand's four
+//      fingers as one (a fist's curl, as far as the first of them touches), for a hold narrower than the fingers are long
+//      (BOOG's rail: closed one by one, the middle finger stood straight up its side and the rest shut on the air). Each hand's numbers are printed
+//      as it is done. Nothing the page loads may change while it runs (src/, the README the range's walls show): the
+//      dev server reloads the page and the run dies
 import fs from "node:fs";
 import path from "node:path";
 import puppeteer, { type Page } from "puppeteer";
@@ -35,7 +45,7 @@ const FINGERS = ["index", "middle", "ring", "pinky"] as const;
 const HOLDING = { r: ["middle", "ring", "pinky"], l: ["index", "middle", "ring", "pinky"] } as const;
 
 type Side = "l" | "r";
-type Audit = { handWhere?: Record<string, number>; fingerGap?: Record<string, number>; palmGap?: { l: number; r: number }; wristL: number; wristR: number; thumbX: { l: number; r: number } };
+type Audit = { handWhere?: Record<string, number>; fingerGap?: Record<string, number>; palmGap?: { l: number; r: number }; wristL: number; wristR: number; thumbX: { l: number; r: number }; trigger: number | null };
 type Hand = { at: number[]; fwd: number[]; palm: number[] };
 type Cfg = { hands: Record<Side, Hand>; fingers: Record<Side, Record<string, number[]>>; scale?: number };
 
@@ -76,16 +86,20 @@ async function main(): Promise<void> {
     cfg.scale = process.env.SCALE ? Number(process.env.SCALE) : ((own.scale as number | undefined) ?? (all.scale as number));
     if (process.env.HAND_R) cfg.hands.r = JSON.parse(process.env.HAND_R) as Hand;
     if (process.env.HAND_L) cfg.hands.l = JSON.parse(process.env.HAND_L) as Hand;
-    const tune = () => `window.__range.rifleTune({ guns: { ${JSON.stringify(ID)}: ${JSON.stringify(cfg)} } })`;
+    // (FINGERS=0.7 tries the fingers at another size than soldierhold.json fingerSize: the figure takes it as it is built)
+    const size = process.env.FINGERS ? `fingerSize: ${Number(process.env.FINGERS)}, ` : "";
+    const tune = () => `window.__range.rifleTune({ ${size}guns: { ${JSON.stringify(ID)}: ${JSON.stringify(cfg)} } })`;
     // the figure, settled into the aimed pose once (the gun's scale is taken when the figure takes the gun)
     await ev(page, `(() => { const r = window.__range; ${tune()}; r.figureLabManual(false); r.figureLab([${JSON.stringify({ ...POSE, weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabStep(0.8); })()`);
+    // how far the right index's tip is from the trigger, each measure (figure-audit.js __triggerGap)
+    console.log(`the trigger: ${(await ev<number | null>(page, "window.__triggerGap(0)")) === null ? "none on this gun" : "found"}`);
     let n = 0;
     const measure = async (): Promise<Audit> => {
       n++;
       // (and each thumb's last joint across the gun, cm, the gun's own frame: + its right, - its left)
       return ev<Audit>(
         page,
-        `(() => { const r = window.__range; ${tune()}; r.figureLabStep(0.00001); const a = window.__figureAudit(0, { pitch: 0, handsOnly: true }); const mq = r.labFigures()[0].figure; const x = (s) => mq.gunObject.worldToLocal(mq.boneAt("thumb_03_" + s).getWorldPosition(new r.THREE.Vector3())).x * 100; a.thumbX = { l: x("l"), r: x("r") }; return a; })()`,
+        `(() => { const r = window.__range; ${tune()}; r.figureLabStep(0.00001); const a = window.__figureAudit(0, { pitch: 0, handsOnly: true }); const mq = r.labFigures()[0].figure; const x = (s) => mq.gunObject.worldToLocal(mq.boneAt("thumb_03_" + s).getWorldPosition(new r.THREE.Vector3())).x * 100; a.thumbX = { l: x("l"), r: x("r") }; a.trigger = window.__triggerGap(0); return a; })()`,
       );
     };
     const report = (a: Audit, label: string) =>
@@ -176,9 +190,33 @@ async function main(): Promise<void> {
         why: `deepest ${deepest} mm, palm off ${palm} mm, fingers off ${off} mm, ${Math.round(open)} deg short of closed, wrist ${Math.round(side === "r" ? a.wristR : a.wristL)}, thumb ${th.toFixed(1)} (its last joint ${a.thumbX[side].toFixed(1)} cm across)`,
       };
     };
+    /** the four fingers closed as one along a fist's curl (SHUT times k), as far as none is deeper than touching */
+    const together = (process.env.TOGETHER ?? "").split(",");
+    const wrapTogether = async (side: Side): Promise<void> => {
+      const set = (k: number) => {
+        for (const f of FINGERS) cfg.fingers[side][f].splice(0, 3, ...SHUT.map((x) => round(x * k, 10)));
+      };
+      const deep = async (k: number) => {
+        set(k);
+        const a = await measure();
+        return Math.max(0, ...FINGERS.flatMap((f) => [1, 2, 3].map((j) => a.handWhere?.[`${f}_0${j}_${side}`] ?? 0)));
+      };
+      let lo = 0;
+      let hi = 1;
+      if ((await deep(1)) <= TOUCH) return;
+      for (let i = 0; i < 7; i++) {
+        const mid = (lo + hi) / 2;
+        if ((await deep(mid)) <= TOUCH) lo = mid;
+        else hi = mid;
+      }
+      set(lo);
+    };
     const grasp = async (side: Side): Promise<{ cost: number; why: string }> => {
       await seatPalm(side);
-      for (const f of [...FINGERS, "thumb"]) await wrap(side, f);
+      if (together.includes(side)) {
+        await wrapTogether(side);
+        await wrap(side, "thumb");
+      } else for (const f of [...FINGERS, "thumb"]) await wrap(side, f);
       return score(await measure(), side);
     };
     /** the thumb swung round its base (the fingers as they are) to where, curled, it costs least */
@@ -200,7 +238,41 @@ async function main(): Promise<void> {
       console.log(`${side} thumb swung ${best.J[3]} deg, curled ${best.J.slice(0, 3).join("/")}, its last joint ${best.x.toFixed(1)} cm across the gun (cost ${best.cost.toFixed(1)})`);
     };
 
+    /**
+     * The right index onto the trigger: its three joints and its sideways swing, a coarse look over how a trigger finger
+     * bends and then a finer one round the best, scored by its tip's distance from the trigger's face, mm, and ten times
+     * any of the finger deeper in the gun than touching
+     */
+    const trigger = async (): Promise<void> => {
+      const J = cfg.fingers.r.index;
+      const cost = async (): Promise<number> => {
+        const a = await measure();
+        if (a.trigger === null) return Infinity;
+        const deep = Math.max(0, ...[1, 2, 3].map((j) => a.handWhere?.[`index_0${j}_r`] ?? 0));
+        return a.trigger + 10 * Math.max(0, deep - TOUCH);
+      };
+      let best = { c: Infinity, J: [...J] };
+      const tryJ = async (v: number[]) => {
+        J.splice(0, J.length, ...v);
+        const c = await cost();
+        if (c < best.c - 0.05) best = { c, J: [...v] };
+      };
+      for (let j1 = 0; j1 <= 80; j1 += 10) for (let j2 = 0; j2 <= 90; j2 += 10) for (const j3 of [0, 20, 40]) for (const sw of [-15, 0, 15]) await tryJ([j1, j2, j3, sw]);
+      for (const step of [5, 2.5, 1]) {
+        let moved = true;
+        while (moved) {
+          moved = false;
+          const from = best.c;
+          for (let k = 0; k < 4; k++) for (const d of [-step, step]) await tryJ(best.J.map((x, i) => (i === k ? round(x + d, 10) : x)));
+          moved = best.c < from - 0.05;
+        }
+      }
+      cfg.fingers.r.index = best.J;
+      console.log(`r index on the trigger: its tip ${best.c.toFixed(1)} mm from the trigger's face, joints ${JSON.stringify(best.J)}`);
+    };
+
     const sides = (process.env.SIDES ?? "r,l").split(",") as Side[];
+    if (process.env.TRIGGER_ONLY === "1") sides.length = 0;
     for (const side of sides) {
       // the thumb's swing first, where the hand is, so every grasp tried has a thumb that can go round the hold
       await thumb(side);
@@ -237,7 +309,10 @@ async function main(): Promise<void> {
       await thumb(side);
       const last = await grasp(side);
       console.log(`${side} final: ${last.cost.toFixed(1)} (${last.why})`);
+      // each hand as soon as it is done: a run that dies later (a page reloaded by an edit, the machine) keeps it
+      console.log(`${side} fitted: ${JSON.stringify({ hand: cfg.hands[side], fingers: cfg.fingers[side] })}`);
     }
+    if (sides.includes("r") || process.env.TRIGGER_ONLY === "1") await trigger();
     report(await measure(), `${ID} after ${n} measures`);
     console.log(JSON.stringify(cfg));
     if (process.env.WRITE === "1") {

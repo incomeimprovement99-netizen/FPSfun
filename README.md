@@ -148,8 +148,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
 - **The bought guns and props:** on the game server every gun is a Sci-Fi Battle
   Weapons model, in first person, in hands and on the floor, and a fused gun
   changes skin and glows brighter each level. One model a gun, by its class:
-  the two SMGs and the two shotguns one each, the rifles and PULSAR the rifle,
-  HAEFY and BOOG the sniper, NOVA the launcher. The pack's own parts move:
+  the two SMGs and the two shotguns one each, the two rifles the rifle,
+  HAEFY and BOOG the sniper, HAMMER the second pistol, NOVA the launcher. The
+  pack's own parts move:
   triggers, NOVA's drum a chamber a shot, the sniper's wheels, the heavy
   shotgun's loading gate, the magazine releases. Every gun is aimed down its
   own sights (its scope's dot, the sniper's scope, or its irons), with no sight
@@ -238,8 +239,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
 - **Steam and neon:** from Balanced up, steam drifts out of the metro's
   stairwells, the street drains and the roof plant, and a few signs flicker
   (never more than three flashes a second). Light only: it never hides anyone.
-- **Ten guns**, five named for the owner's friends; BOOG, the sniper, kills
-  with one headshot. Ammo is infinite; the magazine is not.
+- **Ten guns**, most named for the owner's friends: two rifles, two SMGs, two
+  shotguns, a marksman gun (HAEFY), a sniper (BOOG, which kills with one
+  headshot), a heavy pistol (HAMMER, a heavy semi-automatic with six rounds, no
+  drop-off and almost no recoil: five body hits a kill) and NOVA, which cools
+  instead of reloading. Ammo is infinite; the magazine is not.
 - **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to
   level 5: +2% damage and +10% magazine a level for a gun, a shorter cooldown
   for a hack. The HUD shows each gun's level as pips.
@@ -261,15 +265,17 @@ Game) or `?game=legacy`, and everything below this section describes it.
   - A squad mate restores you at your echo in 5 s, three times slower if you
     wander more than 12 m away. Two restores a match.
 - **The soldier as others see it:** holding the USSO or BOOG the way a rifleman
-  does, the stock in the right shoulder, the right hand closed round the grip (the
-  fingers through the guard, the thumb round the far side) and the left under the
-  front (BOOG's by its magazine, its front being past a man's reach, standing more
-  side-on as a marksman does), the gun pointing where they look; aiming, it comes up
-  to their eye; sprinting, it is carried low across the body; sliding or climbing,
-  it stays in their right hand. A melee is a strike with the gun, both hands on it.
-  Their USSO is drawn a tenth bigger than yours, for their big armoured gloves. A reload shows: the old magazine drops to the floor and a
-  new one comes from a pouch at the hip, then the handle is racked or the bolt
-  worked, in the gun's own reload time. The Loadouts tab shows the same soldier.
+  does, the stock in the right shoulder, the right hand closed round the grip with
+  the trigger finger on the trigger, and the left under the front (BOOG's on the
+  rail under its barrel, standing more side-on as a marksman does), the gun
+  pointing where they look; aiming, it comes up to their eye; sprinting, it is
+  carried low across the body; sliding or climbing, it stays in their right hand.
+  A melee is a strike with the gun, both hands on it. A double jump is a front
+  flip. Their gloved fingers are drawn a tenth smaller than the model's. A reload
+  is the one you see in your own hands, on the same timeline: the left hand points
+  at the magazine as it slides out and phases away, a new one phases in and seats,
+  then the handle is racked or the bolt worked, in the gun's own reload time. The
+  Loadouts tab shows the same soldier.
 - **Your squad, always in sight:** each of you has a colour and a number, the
   same on every screen (1 blue, 2 green, 3 orange, 4 white). Your teammates'
   rows sit over your own health, bordered in their colour: name, shield and
@@ -1187,9 +1193,9 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npx tsx tools/flow-frames.ts` | SpeedKills from opening the page to riding the dropship, as a player sees it: every painted frame (Chrome's screencast) with what the game was doing every 100 ms beside it (the loading screen and its line, the card, the match's phase, the ship's doors), a sheet of a frame every 5% of the whole and of Start to the ship, and the order of things in one line. `OUT` (default `shots/flow`), `QUERY`, `GL`, `RIDE`. Needs `npm run dev` and a real GPU |
 | `npx tsx tools/squad-shots.ts [dir]` | pictures of the squad view drawn for real from two pages in one SpeedKills squad: the panel, the name and the ring round a teammate (through a wall too), a hit on their row, far off with the compass and the map, their Gulag, their ghost, their restore and their leaving, each with what the HUD was given (`SHOT_URL`, needs `npm run dev`; a real GPU) |
 | `npx tsx tools/figure-frames.ts [dir] [guns]` | the soldier as other players see it, frame by frame (the third-person twin of `tools/pack-frames.ts`): holding each gun at rest, aimed, looking up and down, firing, the reload and the swap a frame every 4%, a jump, a run, a sprint, crouching and a slide, from four sides whole and close, and the Loadouts tab's soldier; each frame measured (each palm on its hold, the barrel along the look, the wrists, skin in the gun, a palm or a holding finger off it, the gun in the body) with the faults on the tile. `SEQ`, `VIEWS`, `DIST` pick; `XRAY=1` marks where. Needs `npm run dev` and a real GPU |
-| `npx tsx tools/live-shots.ts [dir]` | the soldier in the game itself, not the lab: bots in an Arena Bots match given the USSO and BOOG, your own soldier in third person driven by the keys a player presses, and another player's figure over the network, each photographed a frame at a time and measured as the lab's sheets are. `PARTS=enemies,self,remote` picks. Needs `npm run dev` and a real GPU |
+| `npx tsx tools/live-shots.ts [dir]` | the soldier in the game itself, not the lab: bots in an Arena Bots match given the USSO and BOOG, your own soldier in third person driven by the keys a player presses, and another player's figure over the network, each photographed a frame at a time and measured as the lab's sheets are (a double jump's flip among them). `PARTS=enemies,self,remote` picks, `ACTS=double-jump,melee` only those actions. Needs `npm run dev` and a real GPU |
 | `npx tsx tools/figure-solve.ts <gun> <stage>` | searches the soldier's rifle hold (`src/config/soldierhold.json`) against the same measures: `rest` (the pocket, the chest's turn, the elbows, the aim), `lowered`, and the older `pocket`, `hands`, `right`, `left`, `fingers`; `WRITE=1` stores what it found as that gun's own numbers |
-| `npx tsx tools/figure-fit.ts <gun>` | closes each of the soldier's hands round its hold as a hand grasps: the palm onto the gun, each finger a phalanx at a time until it touches, the thumb round the far side, the hand's place searched round a start measured off the gun; `SCALE`, `HAND_R`/`HAND_L`, `SIDES`, `SEARCH=0`; `WRITE=1` stores it |
+| `npx tsx tools/figure-fit.ts <gun>` | closes each of the soldier's hands round its hold as a hand grasps: the palm onto the gun, each finger a phalanx at a time until it touches, the thumb round the far side, the hand's place searched round a start measured off the gun, then the right index finger searched onto the trigger's face; `SCALE`, `HAND_R`/`HAND_L`, `SIDES`, `SEARCH=0`, `TRIGGER_ONLY=1`; `WRITE=1` stores it |
 | `npx tsx tools/figure-hands.ts [dir] [guns]` | each of the soldier's hands on its hold, close, from the gun's right, left and front, captioned with what is in the gun and what is off it; `POSE` another pose, `XRAY=1`, `TUNE` numbers to try, `GUNONLY=1` the gun alone on a centimetre grid |
 | `npx tsx tools/gun-shape.ts <gun> side\|across <z...>` | a held gun's shape in its own frame: its half-thickness in each centimetre of its side view (a grip, a guard's opening, a magazine), or its cross-sections, where a hand's hold starts from |
 

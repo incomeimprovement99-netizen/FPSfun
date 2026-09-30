@@ -277,3 +277,10 @@ it; the shoulder's reach to 34 degrees, so nothing slides aimed on the move; no 
 on the same figure. After it, what is left of the two guns is what the owner was shown on 2026-09-30: BOOG's butt plate
 in the rigid shoulder armour (hidden), the reload's left fingertips at the receiver (close up only), and 0.3 s of empty
 hands after a throw. The other eight guns are planned in PLAN_SOLDIER_EIGHT_GUNS.md and wait on the owner's word.
+
+Round six (the owner's look at the two guns, 2026-09-30): the soldier's reload made the first person's, read from the
+guns agent's fparms.json at run time (the two agents agreed it over messages: the point, the phase out and in, the seat,
+the rack, and the guns agent's slideIn and rackOut as they land); the right index on the trigger; the fingers a tenth
+smaller (half could not hold the guns); BOOG by its rail, its shoulder let reach 70 degrees; a double jump's front flip,
+sent over the network as a count; PULSAR out and HAMMER, a Riot One-like pistol, in. The two guns go back to the owner
+to verify, first and third person together, before the other guns.

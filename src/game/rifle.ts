@@ -16,6 +16,7 @@
 // (Unreal's convention), so a local axis means one thing on one hand and the opposite on the other. A hand here is
 // its wrist, the way it runs to its knuckles, and the way its palm faces, the same on both.
 import * as THREE from "three";
+import fp from "../config/fparms.json";
 import cfg from "../config/soldierhold.json";
 
 export type Side = "l" | "r";
@@ -179,6 +180,14 @@ function carryOf(C: HoldCfg, w?: { swap: number; air: number }): HoldCfg["lowere
   return out as HoldCfg["lowered"];
 }
 
+/**
+ * the soldier's fingers drawn smaller than its model's (soldierhold.json fingerSize), each about its root: the clips
+ * and the hold only ever turn a finger's bones, so a scale set once stays
+ */
+export function sizeFingers(bones: Record<string, THREE.Object3D>): void {
+  for (const s of SIDES) for (const f of FINGERS) bones[`${f}_01_${s}`]?.scale.setScalar(cfg.fingerSize);
+}
+
 /** how much bigger than its model the soldier draws this gun (soldierhold.json scale): the glove is a big man's */
 export function gunScaleOf(id: string): number {
   return cfgFor(id).scale;
@@ -204,6 +213,91 @@ function pocketOf(rig: RifleRig, figScale: number, C: HoldCfg): THREE.Vector3 {
 export function tuneRifle(patch: Record<string, unknown>): void {
   mergeInto(cfg as unknown as Record<string, unknown>, patch);
   perGun.clear();
+  plans.clear();
+}
+
+/**
+ * The first person's reload, which the soldier's follows (the owner, 2026-09-30: "the first and third person final forms
+ * agree with each others animations and movements when they reload"): shares of the gun's reload time, read from the
+ * guns agent's own config (fparms.json reload), so the two cannot part. The magazine slides `slide` down its own
+ * length as it phases out over `phaseOut`, a new one phases in over `phaseIn` from there and seats at `seat`; then over
+ * `rack` the hands work the gun, each gun as its pack gun does (fparms.json guns, packGuns.<gun>.rack).
+ */
+const FPR = (fp as unknown as { reload: { point: number[]; phaseOut: number[]; phaseIn: number[]; seat: number; rack: number[]; rackBlend: number; slide: number; lead: number; follow: number; slideIn?: number; rackOut?: number[]; tipBack?: number[] } }).reload;
+type Grab = { reach: number[]; pull: number[]; release: number[]; back: number[] };
+const PACKS = fp as unknown as { guns: Record<string, string>; packGuns: Record<string, { rack?: { clip: string; window: number[]; grab?: Grab } }> };
+/** the first person's reload shares (fparms.json reload), for the checks */
+export const FIRST_PERSON_RELOAD = FPR;
+
+/** each hand's keys through a reload ([share, key], none for a hand that holds as it always does), and the gun's turn */
+interface ReloadPlan {
+  left: Array<[number, string]>;
+  right: Array<[number, string]>;
+  tiltIn: number[];
+  tiltOut: number[];
+}
+const plans = new Map<string, ReloadPlan>();
+/**
+ * A gun's reload on the soldier, laid on the first person's: the left hand leaves the fore-end over `point` and points
+ * at the magazine as it phases out and in; a gun whose pack gun racks a handle (the USSO, the MPS5's `grab`) then has
+ * the left hand go straight to the handle, pull it back, let it go and go back to the fore-end; one that works a bolt
+ * (BOOG, the L96X) has the left hand back on the fore-end over the rack's start and the right on the bolt through the
+ * rack (soldierhold.json reload.bolt, shares of it). The gun turns in while the hand points and out as the first
+ * person's does: with a rack pose, at the rack's end; without, as the rack begins.
+ */
+export function reloadPlanOf(id: string): ReloadPlan {
+  const had = plans.get(id);
+  if (had) return had;
+  const R = FPR;
+  const rack = PACKS.packGuns[PACKS.guns[id] ?? ""]?.rack;
+  const at = (x: number) => R.rack[0] + x * (R.rack[1] - R.rack[0]);
+  const left: Array<[number, string]> = [
+    [0, "hold"],
+    [R.point[0], "hold"],
+    [R.point[1], "point"],
+  ];
+  const right: Array<[number, string]> = [];
+  const G = rack?.grab;
+  if (G) left.push([at(G.reach[0]), "point"], [at(G.reach[1]), "handle"], [at(G.pull[1]), "handleBack"], [at(G.back[0]), "handleBack"], [at(G.back[1]), "hold"]);
+  else {
+    // (fprig.ts: the point let go over [rack - 0.06, rack + 0.02])
+    left.push([R.rack[0] - 0.06, "point"], [R.rack[0] + 0.02, "hold"]);
+    const bolt = (cfgFor(id).reload as { bolt?: Array<[number, string]> }).bolt;
+    // (the last, back on the grip, where the first person's bolt clip hands back to the hold: rack[1] + rackOut[1])
+    if (bolt) bolt.forEach(([x, k], i) => right.push([i === bolt.length - 1 && R.rackOut ? R.rack[1] + R.rackOut[1] : at(x), k]));
+  }
+  const plan: ReloadPlan = { left, right, tiltIn: [0, R.point[1]], tiltOut: G ? [R.rack[1] - R.rackBlend, R.rack[1]] : [R.rack[0] - R.rackBlend, R.rack[0]] };
+  plans.set(id, plan);
+  return plan;
+}
+
+/**
+ * how far the magazine is slid out, 0 home to 1 `slide` out: out as it phases away; the new one phases in `slideIn` of
+ * that out (fparms.json, 1 when it is not there: 0 phases it in seated, built from the well down) and comes up home
+ */
+function slidAt(u: number): number {
+  const R = FPR;
+  const SI = R.slideIn ?? 1;
+  return u < (R.phaseOut[1] + R.phaseIn[0]) / 2 ? smooth(u, R.phaseOut[0], R.phaseOut[1]) : SI * (1 - smooth(u, R.phaseIn[0], R.phaseIn[1]));
+}
+
+/**
+ * where the pointing hand is along the magazine's way, as slidAt: down with the old one as it goes, then up with the new
+ * one as far as it rises (`slideIn`) and, for the rest, back over `tipBack` (fparms.json; between the two phases when it
+ * is not there: the first person's finger, fprig.ts, jumped 64 mm in a frame over that)
+ */
+function handSlidAt(x: number): number {
+  const R = FPR;
+  const SI = R.slideIn ?? 1;
+  const TB = R.tipBack ?? [R.phaseOut[1], R.phaseIn[0]];
+  if (x < R.phaseOut[1]) return smooth(x, R.phaseOut[0], R.phaseOut[1]);
+  return SI * (1 - smooth(x, R.phaseIn[0], R.phaseIn[1])) + (1 - SI) * (1 - smooth(x, TB[0], TB[1]));
+}
+
+/** the magazine's phase, 1 whole to 0 gone, at a reload's share (fparms.json phaseOut, phaseIn) */
+export function magPhaseAt(u: number): number {
+  const R = FPR;
+  return u < (R.phaseOut[1] + R.phaseIn[0]) / 2 ? 1 - smooth(u, R.phaseOut[0], R.phaseOut[1]) : smooth(u, R.phaseIn[0], R.phaseIn[1]);
 }
 
 /** the hold's numbers as they are now (tools/figure-solve.ts) */
@@ -387,8 +481,11 @@ export interface RifleGun {
 export interface RifleOut {
   shortL: number;
   shortR: number;
-  /** the magazine's place and turn in the world as the hand let go of it (the figure drops a copy there) */
-  dropped?: { at: THREE.Vector3; q: THREE.Quaternion } | null;
+  /** a reload's magazine: its phase, 1 whole to 0 gone (the figure drives its sweep), and whether it seated this frame */
+  magPhase?: number;
+  seated?: boolean;
+  /** the magazine is the new one, phasing in (not the old one phasing out) */
+  magIn?: boolean;
   /** where the reload is: which of its keys each hand is between (tools/figure-frames.ts) */
   keys?: string;
   /** where each palm was meant to be this frame, world (MannequinFigure.holdPoints) */
@@ -431,10 +528,15 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   // (a swap's carry is its own: one carry for a runner's arms and a stander's was a compromise that suited neither)
   const L = carryOf(C, s.carry);
   const lo = s.lowered;
-  // a reload turns the gun's magazine toward the left hand and tips it down, then back
+  // a reload turns the gun's magazine toward the left hand and tips it down, then back, as the first person's does
   const R = C.reload;
   const u = s.reload;
-  const tilt = u === null ? 0 : smooth(u, R.tiltIn[0], R.tiltIn[1]) * (1 - smooth(u, R.tiltOut[0], R.tiltOut[1]));
+  const plan = u === null ? null : reloadPlanOf(g.id);
+  const tilt = u === null || !plan ? 0 : smooth(u, plan.tiltIn[0], plan.tiltIn[1]) * (1 - smooth(u, plan.tiltOut[0], plan.tiltOut[1]));
+  // the magazine's own way down (its group's -y) and how far along it the hand's keys off the magazine are: the pointing
+  // finger leads the magazine by `lead` (fparms.json), as the first person's does
+  const magDown = g.parts ? new THREE.Vector3(0, -1, 0).applyQuaternion(g.parts.magHomeQ) : new THREE.Vector3(0, -1, 0);
+  const handDrop = u === null ? null : magDown.clone().multiplyScalar(FPR.slide * handSlidAt(u + FPR.lead) * FPR.follow);
   const q = figQ
     .clone()
     .multiply(new THREE.Quaternion().setFromAxisAngle(X, -s.pitch * (1 - lo) + R.tilt.down * DEG * tilt - C.recoil.up * DEG * s.kick - (sw ? sw.pitch * DEG * strike : 0)))
@@ -494,8 +596,11 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   local.decompose(g.mount.position, g.mount.quaternion, g.mount.scale);
   g.mount.updateMatrixWorld(true);
   // 4. the fingers closed round the hold, each joint about its own bend axis, from its bind pose
-  const closeFingers = (side: Side, w: number): void => {
-    const F = C.fingers[side];
+  const closeFingers = (side: Side, w: number, point = 0): void => {
+    const F0 = C.fingers[side];
+    // pointing at the magazine in a reload (reload.pointFingers), blended in with the hand's way to it
+    const P = (R as { pointFingers?: Record<string, number[]> }).pointFingers;
+    const F = point > 0 && P ? (Object.fromEntries(Object.entries(F0).map(([f, a]) => [f, a.map((x, i) => x + ((P[f]?.[i] ?? x) - x) * point)])) as typeof F0) : F0;
     for (const f of FINGERS)
       for (let j = 1; j <= 3; j++) {
         const fb = b[`${f}_0${j}_${side}`];
@@ -535,7 +640,7 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
       aimAt.fwd.lerp(LL.fwd, lo).normalize();
       aimAt.face.lerp(LL.face, lo).normalize();
     }
-    const reloadAt = u !== null && g.parts ? reloadTarget(side, u, C, g, gunQ, b, figQ) : null;
+    const reloadAt = u !== null && g.parts && plan ? reloadTarget(side === "l" ? plan.left : plan.right, u, C, g, gunQ, b, figQ, handDrop) : null;
     const { at: palmAt, fwd, face } = reloadAt ?? aimAt;
     (out.palm ??= {})[side] = palmAt.clone();
     if (reloadAt) out.keys = `${out.keys ? `${out.keys} ` : ""}${side}:${reloadAt.key}`;
@@ -558,7 +663,7 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
       const roll = twistAbout(rel, tw.along);
       twb.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(tw.along, roll * C.twist * w).multiply(tw.bind));
     }
-    closeFingers(side, carried ? Math.max(w, 1 - s.stance) : w);
+    closeFingers(side, carried ? Math.max(w, 1 - s.stance) : w, reloadAt?.point ?? 0);
   }
   // held in both hands in the stance: remember where the gun is in the right hand, for when a full-body clip takes the arms
   if (s.mem && handR && s.stance > 0.99 && s.wR > 0.99 && u === null) {
@@ -566,52 +671,21 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
     g.mount.updateWorldMatrix(true, false);
     s.mem.gunInHand = (s.mem.gunInHand ?? new THREE.Matrix4()).copy(handR.matrixWorld).invert().multiply(g.mount.matrixWorld);
   }
-  // the magazine: out with the hand, let go (the figure drops a copy), a new one in the hand from the pouch, home
+  // The magazine: slid down its own length as it phases out, a new one phasing in from there and sliding home, seated
+  // (fparms.json reload, as the first person's). It stays in the gun: the soldier used to pull it, drop a copy to the
+  // floor and fetch a new one from a pouch at the hip, which the first person never did.
   const parts = g.parts;
   if (parts?.mag) {
     const m = parts.mag;
     m.quaternion.copy(parts.magHomeQ);
-    if (u === null || !R.magazine) {
-      m.position.copy(parts.magHome);
-      m.visible = true;
-    } else {
-      const outK = smooth(u, R.pull[0], R.pull[1]);
-      if (u < R.dropAt) {
-        m.visible = true;
-        m.position.copy(parts.magHome).add(new THREE.Vector3(0, -R.out * outK, 0));
-      } else if (u < R.inHand[0]) {
-        m.visible = false;
-      } else if (u < R.inHand[1]) {
-        // In the left hand. Down at the pouch it is held as a hand holds it, its length across the hand (thumb side up)
-        // and its middle against the palm: kept upright as the gun is there, it ran through the forearm and the belly.
-        // On the way up it comes upright as the gun is, its bottom in the palm (reload.upright), so it goes in straight.
-        m.visible = true;
-        const hand = b.hand_l;
-        const hr = rig.hands.l;
-        if (hand) {
-          const palm = hand.localToWorld(hr.palm.clone());
-          const home = g.gun.worldToLocal(palm);
-          const upright = home.clone().sub(parts.magBottom.clone().sub(parts.magHome)).add(new THREE.Vector3(0, R.magInPalm, 0));
-          const toGun = g.gun.getWorldQuaternion(new THREE.Quaternion()).invert();
-          const handQ = hand.getWorldQuaternion(new THREE.Quaternion());
-          const fwdG = hr.fwd.clone().applyQuaternion(handQ).applyQuaternion(toGun);
-          const faceG = hr.face.clone().applyQuaternion(handQ).applyQuaternion(toGun);
-          // (the left hand's across, little finger to index: face = fwd x across, so across = face x fwd)
-          const across = faceG.clone().cross(fwdG).normalize();
-          const turn = frameTo(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1), across, fwdG);
-          const mid = parts.magBottom.clone().sub(parts.magHome).multiplyScalar(0.5).applyQuaternion(turn);
-          const held = home.clone().addScaledVector(faceG, R.magInPalm).sub(mid);
-          const k = 1 - smooth(u, R.upright[0], R.upright[1]);
-          m.quaternion.copy(new THREE.Quaternion().slerp(turn, k)).multiply(parts.magHomeQ);
-          m.position.copy(upright.lerp(held, k));
-        }
-      } else m.position.copy(parts.magHome);
-      m.visible = u < R.dropAt || u >= R.inHand[0];
-    }
-    // the moment the hand lets go: where it is, for the copy that falls
-    if (u !== null && R.magazine && u >= R.dropAt && (s.lastReload ?? -1) < R.dropAt) {
-      m.updateWorldMatrix(true, false);
-      out.dropped = { at: m.getWorldPosition(new THREE.Vector3()), q: m.getWorldQuaternion(new THREE.Quaternion()) };
+    m.position.copy(parts.magHome);
+    if (u === null) m.visible = true;
+    else {
+      m.position.addScaledVector(magDown, FPR.slide * slidAt(u));
+      out.magPhase = magPhaseAt(u);
+      out.magIn = u >= (FPR.phaseOut[1] + FPR.phaseIn[0]) / 2;
+      m.visible = out.magPhase > 0;
+      out.seated = u >= FPR.seat && (s.lastReload ?? -1) < FPR.seat;
     }
   }
   (b.spine_02 ?? fig).updateWorldMatrix(false, true);
@@ -631,7 +705,7 @@ type Target = { at: THREE.Vector3; fwd: THREE.Vector3; face: THREE.Vector3; key:
  * rest are a reload's, each a palm place and turn off a part of the gun (its magazine's bottom, its charging handle,
  * its bolt) or, for the pouch, off the hips.
  */
-function keyTarget(key: string, C: HoldCfg, g: RifleGun, gunQ: THREE.Quaternion, b: Record<string, THREE.Object3D>, figQ: THREE.Quaternion): Target {
+function keyTarget(key: string, C: HoldCfg, g: RifleGun, gunQ: THREE.Quaternion, b: Record<string, THREE.Object3D>, figQ: THREE.Quaternion, drop: THREE.Vector3 | null = null): Target {
   if (key === "grip" || key === "hold" || key === "lowL") {
     const H = key === "lowL" ? C.lowered.l : C.hands[key === "grip" ? "r" : "l"];
     const hold = key === "grip" ? g.grip : g.support;
@@ -644,25 +718,29 @@ function keyTarget(key: string, C: HoldCfg, g: RifleGun, gunQ: THREE.Quaternion,
     const at = (pelvis ? pelvis.getWorldPosition(new THREE.Vector3()) : g.gun.getWorldPosition(new THREE.Vector3())).add(new THREE.Vector3(...K.at).applyQuaternion(figQ));
     return { at, fwd: new THREE.Vector3(...K.fwd).normalize().applyQuaternion(figQ), face: new THREE.Vector3(...K.palm).normalize().applyQuaternion(figQ), key };
   }
-  const base = K.from === "mag" ? parts.magBottom : K.from === "handle" && parts.handle ? parts.handle : g.grip;
+  // (a key off the magazine goes where the magazine is, slid out in a reload)
+  const base = K.from === "mag" ? parts.magBottom.clone().add(drop ?? new THREE.Vector3()) : K.from === "handle" && parts.handle ? parts.handle : g.grip;
   return { at: g.gun.localToWorld(base.clone().add(new THREE.Vector3(...K.at))), fwd: new THREE.Vector3(...K.fwd).normalize().applyQuaternion(gunQ), face: new THREE.Vector3(...K.palm).normalize().applyQuaternion(gunQ), key };
 }
 
-/** a hand's target during a reload: between the two of its keys the progress is between, eased; null when this hand has none then */
-function reloadTarget(side: Side, u: number, C: HoldCfg, g: RifleGun, gunQ: THREE.Quaternion, b: Record<string, THREE.Object3D>, figQ: THREE.Quaternion): Target | null {
-  const list = (side === "l" ? C.reload.left : C.reload.right) as Array<[number, string]>;
+/**
+ * a hand's target during a reload: between the two of its keys (`list`, reloadPlanOf) the progress is between, eased;
+ * null when this hand has none then. `point` is how much of it is the pointing hand (reload.pointFingers)
+ */
+function reloadTarget(list: Array<[number, string]>, u: number, C: HoldCfg, g: RifleGun, gunQ: THREE.Quaternion, b: Record<string, THREE.Object3D>, figQ: THREE.Quaternion, drop: THREE.Vector3 | null): (Target & { point: number }) | null {
   if (!list.length || u < list[0][0] || u > list[list.length - 1][0]) return null;
   let i = 0;
   while (i < list.length - 2 && u > list[i + 1][0]) i++;
   const [a0, k0] = list[i];
   const [a1, k1] = list[i + 1];
   const t = smooth(u, a0, a1);
-  const A = keyTarget(k0, C, g, gunQ, b, figQ);
-  if (t <= 0 || k0 === k1) return A;
-  const B = keyTarget(k1, C, g, gunQ, b, figQ);
+  const point = (k0 === "point" ? 1 - t : 0) + (k1 === "point" ? t : 0);
+  const A = keyTarget(k0, C, g, gunQ, b, figQ, drop);
+  if (t <= 0 || k0 === k1) return { ...A, point };
+  const B = keyTarget(k1, C, g, gunQ, b, figQ, drop);
   const fwd = A.fwd.clone().lerp(B.fwd, t).normalize();
   const face = A.face.clone().lerp(B.face, t).normalize();
-  return { at: A.at.clone().lerp(B.at, t), fwd, face, key: t < 0.5 ? k0 : k1 };
+  return { at: A.at.clone().lerp(B.at, t), fwd, face, key: t < 0.5 ? k0 : k1, point };
 }
 
 /**

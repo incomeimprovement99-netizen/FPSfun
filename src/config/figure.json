@@ -27,5 +27,10 @@
   "_throwShown": "How long, s, a figure shows a grenade throw after it leaves the hand (src/main.ts localAct): the overhand throw clip is 1.1 s and plays at 1.3x, so this is its arm coming over and through, and a throw reads on other players' screens as a throw rather than a gun lowered for a moment.",
   "throwShown": 0.7,
   "_athleticJump": "Horizontal speed, m/s, above which a figure in the air plays the athletic jump (the free library's NinjaJump_Idle_Loop, legs tucked) instead of the plain one. Sprint is 6.6 m/s (260 hu/s), so this is faster than a sprint: a slide jump, a pad, a hop chain, not a jump from a standing start or a walk.",
-  "athleticJump": 7.2
+  "athleticJump": 7.2,
+  "_doubleJump": "A double jump seen on a figure (the owner, 2026-09-30: \"there should be an animation for when we double jump for sure\"): a front flip, tucked (the athletic jump's legs), the whole figure turned `turn` degrees about its hips over `time` seconds, eased in and out. SpeedKills' double jump rises for 0.39 s (movement.speedkills.json: 52 hu against a gravity of 690, sqrt(2 x 52 / 690)), and a jump from level ground lands no sooner than twice that, so the flip is over before the feet can touch. The hips are the pelvis where it is as the flip starts, measured off the figure, so a crouched or tucked body turns about its own middle. A figure that touches down mid-flip is stood upright on the spot. Ours.",
+  "doubleJump": {
+    "time": 0.5,
+    "turn": 360
+  }
 }

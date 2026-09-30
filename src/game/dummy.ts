@@ -216,6 +216,8 @@ export interface FigurePose {
   act?: FigureAct;
   /** a heal's item, for what it holds */
   healItem?: string;
+  /** how many double jumps it has made (player.ts airJumps): a new one is a flip on the figure (mannequin.ts) */
+  airJumps?: number;
 }
 /**
  * What the hands are doing, as one small number for the network: 0 nothing,
@@ -1294,7 +1296,7 @@ export class Dummy {
     // the mannequin plays its clips for the same pose, with the same corrections on top
     // a scoped figure aiming in glints (muzzle.ts, Hyper Scape's lens flare), and not while its gun is away
     if (this.mq?.glint) showGlint(this.mq.glint, this.gunShown && !downed ? e.ads : 0, this.glintT += dt);
-    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null }, this.lodAnimate);
+    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null, airJumps: p.airJumps }, this.lodAnimate);
     if (this.lodAnimate) this.followBones();
   }
 
