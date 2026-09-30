@@ -63,8 +63,9 @@ check("the street a network of at least 700 nodes", street.length >= 700, `${str
 check("the street one network: every street node reaches the rest", seen.size === street.length, `${seen.size} of ${street.length}`);
 
 // the collision the bake wrote, all of it; the tallest building's top where the ship passes
-// (and the street's slab over each of the court's halls)
-check("the collision the bake measured, every box, and a slab over each hall", RANGE_SOLIDS.length - firstSolid === SOLIDS.solids.length + cfg.court.halls.length && SOLIDS.solids.length === cfg.baked.boxes, `${RANGE_SOLIDS.length - firstSolid} of ${SOLIDS.solids.length} + ${cfg.court.halls.length}, bake ${cfg.baked.boxes}`);
+// (and the street's slab over each of the court's halls and over the station, its tunnel and its concourse)
+const slabs = cfg.court.halls.length + cfg.underground.slabs.length;
+check("the collision the bake measured, every box, and the street's slab over each hall and the station", RANGE_SOLIDS.length - firstSolid === SOLIDS.solids.length + slabs && SOLIDS.solids.length === cfg.baked.boxes, `${RANGE_SOLIDS.length - firstSolid} of ${SOLIDS.solids.length} + ${slabs}, bake ${cfg.baked.boxes}`);
 check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.tallest.top) < 1e-6 && SPIRE_TOP.y > 100, `${SPIRE_TOP.y}`);
 
 // the court the tallest building stands in: a body dropped in its corners stands on its drawn floor, 7 m down, not on
@@ -241,6 +242,49 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
     const share = storeys.map(([all, got]) => (all ? got / all : 0));
     check(`the ${name} rooms: walked into from the street and up its stairs, on foot, its ground floor and the two over it`, share.every((q) => q >= 0.95), share.map((q, f) => `${["ground", "first", "second"][f]} ${(q * 100).toFixed(0)}%`).join(", "));
   }
+}
+
+// Centre Station (rules.underground): closed, and reached. The owner found the new map's lower floor see-through: under
+// the street there is nothing, and an arch or a doorway that opens onto nothing shows the sky and the city through the
+// ground. From every metre of the platform and the concourse, at eye height, a look along the ground eight ways and one
+// straight up meets the station's walls within 60 m. And its platform is walked to on foot from the street
+{
+  const S = cfg.rules.underground.station;
+  const [sx, sy, sz] = [S.x, S.platform, S.back];
+  const areas = cfg.underground.floors.filter((f) => Math.abs(f.y - sy) < 0.05).map((f) => f.rect);
+  // the platform itself: its back to its edge, along the modules
+  areas.push([sx, sx + 10 * S.modules, sz, sz + 5]);
+  const dirs = [...Array.from({ length: 8 }, (_, k) => [Math.cos((k * Math.PI) / 4), 0, Math.sin((k * Math.PI) / 4)]), [0, 1, 0]];
+  /** how far along the ray from p the first box is, up to `far` */
+  const hit = (p: number[], d: number[], far: number): number => {
+    let best = far;
+    const o = new THREE.Vector3(p[0], p[1], p[2]);
+    for (const s of solidsIn(Math.min(p[0], p[0] + d[0] * far), Math.max(p[0], p[0] + d[0] * far), Math.min(p[2], p[2] + d[2] * far), Math.max(p[2], p[2] + d[2] * far))) {
+      let t0 = 0, t1 = best;
+      for (const [a, lo, hi] of [[0, s.minX, s.maxX], [1, s.base, s.top], [2, s.minZ, s.maxZ]] as const) {
+        const [oa, da] = [a === 0 ? o.x : a === 1 ? o.y : o.z, d[a]];
+        if (Math.abs(da) < 1e-9) { if (oa < lo || oa > hi) t0 = Infinity; continue; }
+        let [u0, u1] = [(lo - oa) / da, (hi - oa) / da];
+        if (u0 > u1) [u0, u1] = [u1, u0];
+        t0 = Math.max(t0, u0); t1 = Math.min(t1, u1);
+      }
+      if (t0 <= t1) best = Math.min(best, t0);
+    }
+    return best;
+  };
+  const eye = sy + 1.6;
+  let spots = 0;
+  const open: string[] = [];
+  for (const [x0, x1, z0, z1] of areas)
+    for (let x = x0 + 0.5; x < x1; x += 1)
+      for (let z = z0 + 0.5; z < z1; z += 1) {
+        const p = [x + BR_X, eye, z + BR_Z];
+        // (not a spot inside a wall or a pillar)
+        if (solidsIn(p[0], p[0], p[2], p[2]).some((s) => p[0] >= s.minX && p[0] <= s.maxX && p[2] >= s.minZ && p[2] <= s.maxZ && s.base < eye && s.top > sy + 0.3)) continue;
+        spots++;
+        for (const d of dirs) if (hit(p, d, 60) >= 60) open.push(`(${x.toFixed(1)}, ${z.toFixed(1)}) ${d[1] ? "up" : `toward ${d[0].toFixed(1)},${d[2].toFixed(1)}`}`);
+      }
+  check("Centre Station closed: from every metre of its platform and concourse a look along the ground or up meets its walls within 60 m", spots > 300 && open.length === 0, `${spots} spots, ${open.length} looks out on nothing${open.length ? `: ${open.slice(0, 4).join("; ")}` : ""}`);
 }
 
 // loot where the fights are, as a match lays it (brmatch.ts): each place's and site's spots on any floor there with a

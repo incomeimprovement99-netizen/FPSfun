@@ -264,8 +264,13 @@ the importer read FBX only. They are drawn now, the tower's and the metro's incl
 2. **The underground under the middle block.** Begun (Milestone 328): four of the pack's metro corridors off the
    tower's court under the plaza, the world's floor lowered in them and the street's slab over them. The street
    entrances next (Milestone 334): the pack's metro kiosk over the north and south halls, walked through by a player
-   both ways. Still to do: a way down the bots can walk (the kiosk's lower escalator is too narrow at its foot for a
-   bot's square body), then the station. The pack's station (`Subway Hall` MetroStation00 modules, 10 x 10.5 x
+   both ways. Then the station (Milestone 349): Centre Station under the south street at -10 m, put together as the
+   pack's own demo scene puts its -10 m station (NeonUnderground00, read piece by piece), its glass-roofed hall on the
+   plaza its way down, a concourse of marble halls behind the platform, closed on every side (checked by looking out
+   from every metre of it). Still to do: a way from the court down to the concourse (the pack's stairs join levels 3 m
+   apart, but its 3 m stair room climbs through its ceiling to a floor 3.5 m up), a way down the bots can walk (the
+   kiosk's lower escalator is too narrow at its foot for a bot's square body), the demo's -24 m station and its lines
+   under it, and the square shaft through every level. The pack's station (`Subway Hall` MetroStation00 modules, 10 x 10.5 x
    11 m; MetroStationDouble00 for the platforms either side), its tunnels (`Subway Tunnels`) out under two streets, the
    street entrances (MetroEntrance00, 5.3 x 14.4 x 20 m, stairs down) on two streets, and SquareHoleGroundLevel00
    (22.6 x 13.7 x 25 m) in the plaza: the ground opened into the station, a sunken court with sightlines up and down.

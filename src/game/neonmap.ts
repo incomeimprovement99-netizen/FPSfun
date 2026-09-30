@@ -50,11 +50,16 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
   // and its halls under the plaza: their floor lowered too, and the street's slab over them where the plaza's tiles are
   // drawn (the world's floor lowered under a hall lets a body through the tiles onto the corridor's roof otherwise)
   for (const h of K.halls) FLOORS.push({ minX: h.x0 + BR_X, maxX: h.x1 + BR_X, minZ: h.z0 + BR_Z, maxZ: h.z1 + BR_Z, y: K.y });
+  // and the underground (neon-layout.ts rules.underground): the station and its tunnel to their track bed, the glass hall
+  // to its marble floor (FLOORS is read first match first: these are clear of the court's and the halls')
+  const UG = neonCfg.underground ?? { floors: [], slabs: [] };
+  for (const { rect: [x0, x1, z0, z1], y } of UG.floors) FLOORS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, y });
 
   // the collision, measured off the pieces' triangles at the bake
   const first = RANGE_SOLIDS.length;
-  // (over the corridor only: an entrance's well is open to the street)
+  // (over the corridor only: an entrance's well is open to the street; over the station and its tunnel, the street)
   for (const { slab: [x0, x1, z0, z1] } of K.halls) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: -G.slab, top: 0 });
+  for (const [x0, x1, z0, z1] of UG.slabs) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: -G.slab, top: 0 });
   for (const [x0, x1, z0, z1, y0, y1] of SOLIDS.solids as number[][]) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: y0, top: y1 });
   rebuildSolidGrid();
 

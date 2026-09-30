@@ -42,7 +42,16 @@ sun.position.set(60, 120, 90);
 scene.add(sun);
 const ktx2 = new KTX2Loader().setTranscoderPath("/libs/basis/").detectSupport(renderer);
 const gltf = await new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder).loadAsync(`/models/paid/neon/gallery/${q.get("sheet")}.glb`);
-const pieces = gltf.scene.children.filter((o) => o.userData && o.userData.id);
+// ?only=a,b: just the pieces whose names hold one of those; ?cut=<m>: everything higher than that over a piece's lowest
+// point cut away, its rooms seen from above (the clipping plane is set per piece below); ?dir=x,y,z: the view's direction
+const only = (q.get("only") ?? "").split(",").filter(Boolean);
+const pieces = gltf.scene.children.filter((o) => o.userData && o.userData.id && (!only.length || only.some((w) => o.userData.id.includes(w))));
+const cut = q.get("cut") !== null ? Number(q.get("cut")) : null;
+const clip = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+if (cut !== null) {
+  renderer.localClippingEnabled = true;
+  gltf.scene.traverse((o) => { if (o.material) for (const m of [o.material].flat()) { m.clippingPlanes = [clip]; m.side = THREE.DoubleSide; } });
+}
 const rows = Math.ceil(pieces.length / COLS);
 const cw = Math.floor(W / COLS), ch = Math.floor(H / Math.max(1, rows));
 const labels = document.getElementById("labels");
@@ -59,7 +68,8 @@ pieces.forEach((p, i) => {
   const x = col * cw, y = H - (row + 1) * ch;
   // from the front (+z, the pack's facing) and a little to the side and above
   // (?top: straight down, north up, for how floor pieces tile)
-  const dir = q.get("top") !== null ? new THREE.Vector3(0, 1, 0.0001).normalize() : new THREE.Vector3(0.55, 0.42, 1).normalize();
+  const dir = q.get("dir") ? new THREE.Vector3(...q.get("dir").split(",").map(Number)).normalize() : q.get("top") !== null ? new THREE.Vector3(0, 1, 0.0001).normalize() : new THREE.Vector3(0.55, 0.42, 1).normalize();
+  if (cut !== null) clip.constant = box.min.y + cut;
   const dist = r / Math.sin(THREE.MathUtils.degToRad(cam.fov / 2)) * 1.02;
   cam.position.copy(c).addScaledVector(dir, dist);
   cam.near = dist / 100;

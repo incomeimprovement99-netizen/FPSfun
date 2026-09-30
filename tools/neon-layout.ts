@@ -214,6 +214,38 @@ for (let x = -R.extent; x < R.extent; x += T)
     // (the base is 10 m square from its pivot toward -z: placed by its middle)
     placeAt(chunk, sector, R.ground.tile, cx, cz, 0, "g", road(cx, cz) ? { mat: R.ground.road } : {});
   }
+// The court's wall is one-sided, its face toward `faces` in its own frame (measured off its triangles): turned so the face
+// looks back into the court or the hall. Turned 90 degrees at a time, its +x goes to -z, -x, +z (tools/import-neon.ts place)
+const turns = ["+x", "-z", "-x", "+z"];
+const yawFacing = (dir: string) => ((turns.indexOf(dir) - turns.indexOf(R.court.faces) + 4) % 4) * 90;
+/** the ground's 10 m tiles over a rectangle (map-local) taken up and laid again in the pack's smaller tile of the same
+ * material, but for the rectangle itself: an opening in the street (the tiles are mapped by the metre, 0.1 of their
+ * texture a metre whatever their size, so the small ones join the big ones seamlessly) */
+const openGround = (ox0: number, ox1: number, oz0: number, oz1: number): void => {
+  const g = chunks.get("c-ground")!;
+  const big = piece(R.ground.tile);
+  const small = piece(R.court.entrance.patch);
+  const st = small.row.size![0];
+  const keep: Place[] = [];
+  const laid: Place[] = [];
+  for (const q of g.place) {
+    const [key, px, , pz] = q;
+    // (a tile's pivot is its corner at the least x and the most z, the big ones' and the small ones' alike)
+    const [tx0, tx1, tz0, tz1] = [px, px + T, pz - T, pz];
+    if (key !== big.key || tx1 <= ox0 || tx0 >= ox1 || tz1 <= oz0 || tz0 >= oz1) {
+      keep.push(q);
+      continue;
+    }
+    const mat = q[6] ?? big.row.materials![0];
+    for (let x = tx0; x < tx1 - 1e-6; x += st)
+      for (let z = tz0; z < tz1 - 1e-6; z += st) {
+        if (x >= ox0 - 1e-6 && x + st <= ox1 + 1e-6 && z >= oz0 - 1e-6 && z + st <= oz1 + 1e-6) continue;
+        laid.push([small.key, +x.toFixed(3), 0, +(z + st).toFixed(3), 0, "g", mat]);
+      }
+  }
+  g.place = [...keep, ...laid];
+};
+
 // the court the tallest building stands in: the hole its footprint leaves in the ground floored at its foot (its basement,
 // 7 m down) with the same tiles, a hair under the basement's own floor so its floor draws where it has one, and walled
 // round with the pack's concrete city walls, as tall as the hole is deep (rules.court). Without it the hole showed the
@@ -229,10 +261,6 @@ if (holes.length) {
   if (Math.abs(wall.size![1] + foot) > 0.05) throw new Error(`the court's wall is ${wall.size![1]} m, the hole ${-foot} m deep`);
   /** a side's wall segment from `a` left out: a hall's door */
   const door = (side: string, a: number) => (C.halls as Array<{ side: string; at: number }>).some((h) => h.side === side && Math.abs(h.at - a) < 1e-6);
-  // The wall is one-sided, its face toward `faces` in its own frame (measured off its triangles): turned so the face looks
-  // back into the court or the hall. Turned 90 degrees at a time, its +x goes to -z, -x, +z (tools/import-neon.ts place)
-  const turns = ["+x", "-z", "-x", "+z"];
-  const yawFacing = (dir: string) => ((turns.indexOf(dir) - turns.indexOf(C.faces) + 4) % 4) * 90;
   // along x at z0 and z1, along z at x0 and x1, each wall just outside the hole, its face on the hole's edge
   for (let x = x0; x < x1 - 1e-6; x += len) {
     if (!door("n", x)) placeAt("c-court", "c", C.wall, x + len / 2, z0 - thick / 2, yawFacing("+z"), "o", { y: foot });
@@ -246,33 +274,6 @@ if (holes.length) {
   // floored with the pack's tiles and closed at their far end with the court's wall (a corridor is open at both ends and
   // has no floor of its own). Each one's rectangle, for the game to lower its floor in and lay the street's slab over
   const halls: Array<{ x0: number; x1: number; z0: number; z1: number; slab: number[]; route?: number[][] }> = [];
-  /** the ground's 10 m tiles over a rectangle (map-local) taken up and laid again in the pack's smaller tile of the same
-   * material, but for the rectangle itself: an opening in the street (the tiles are mapped by the metre, 0.1 of their
-   * texture a metre whatever their size, so the small ones join the big ones seamlessly) */
-  const openGround = (ox0: number, ox1: number, oz0: number, oz1: number): void => {
-    const g = chunks.get("c-ground")!;
-    const big = piece(R.ground.tile);
-    const small = piece(C.entrance.patch);
-    const st = small.row.size![0];
-    const keep: Place[] = [];
-    const laid: Place[] = [];
-    for (const q of g.place) {
-      const [key, px, , pz] = q;
-      // (a tile's pivot is its corner at the least x and the most z, the big ones' and the small ones' alike)
-      const [tx0, tx1, tz0, tz1] = [px, px + T, pz - T, pz];
-      if (key !== big.key || tx1 <= ox0 || tx0 >= ox1 || tz1 <= oz0 || tz0 >= oz1) {
-        keep.push(q);
-        continue;
-      }
-      const mat = q[6] ?? big.row.materials![0];
-      for (let x = tx0; x < tx1 - 1e-6; x += st)
-        for (let z = tz0; z < tz1 - 1e-6; z += st) {
-          if (x >= ox0 - 1e-6 && x + st <= ox1 + 1e-6 && z >= oz0 - 1e-6 && z + st <= oz1 + 1e-6) continue;
-          laid.push([small.key, +x.toFixed(3), 0, +(z + st).toFixed(3), 0, "g", mat]);
-        }
-    }
-    g.place = [...keep, ...laid];
-  };
   /** the turn that points a piece's own -z (an entrance's landing) the way given */
   const yawLanding = (dir: string) => ({ "-z": 0, "-x": 90, "+z": 180, "+x": 270 })[dir]!;
   for (const h of C.halls as Array<{ side: "n" | "s" | "w" | "e"; at: number; pieces: string[]; entrance?: boolean }>) {
@@ -331,6 +332,107 @@ if (holes.length) {
     halls.push({ x0: hx0, x1: hx1, z0: hz0, z1: hz1, slab: rect(0, slabTo), ...(route ? { route } : {}) });
   }
   cfg.court = { x0, x1, z0, z1, y: foot, halls };
+}
+
+// ---------------------------------------------------------------- the underground: Centre Station (rules.underground)
+// The pack's metro station under the south street, put together as the pack's own demo scene (NeonUnderground00) puts
+// its -10 m station: platform modules in a row along the street, the tunnel portal at the west end and the buffer stop
+// at the east, the tunnel running on west, the train standing at the platform, and the glass-roofed hall on the plaza
+// behind it, its arcade at the street and its stairs down to a marble room at the platform's level, facing the
+// platform's open back (the arches in every platform module's back wall). Each piece where the demo has it from the
+// station's pivot (the platform's back at its floor), measured off the scene (tools/.scratch/scenepieces.ts)
+{
+  const U = R.underground;
+  const S = U.station;
+  /** a piece by its pivot, not its footprint's middle: these pieces fit each other by their pivots, as in the scene */
+  const pivot = (chunk: string, name: string, x: number, y: number, z: number, yaw: number, without?: string[]): void => {
+    add(chunk, "c", [piece(name).key, +x.toFixed(3), +y.toFixed(3), +z.toFixed(3), yaw, "o", ...(without ? [null, without] : [])] as Place);
+  };
+  const [sx, sy, sz] = [S.x, S.platform, S.back];
+  const mid = piece(S.pieces.mid).row;
+  const len = mid.size![0];
+  // the tunnel portal's end, then the platform's modules, then the buffer stop's end
+  pivot("c-station", S.pieces.mouth, sx, sy, sz, 0);
+  for (let k = 0; k < S.modules; k++) pivot("c-station", S.pieces.mid, sx + S.mouthLength + len * k, sy, sz, 0);
+  const east = sx + S.mouthLength + len * S.modules;
+  pivot("c-station", S.pieces.end, east, sy, sz, 0);
+  // the train at the platform, its front end into the buffer stop's module as the demo's is (its rails 8 m out from the
+  // platform's back, its wheels a metre under the platform's floor)
+  pivot("c-station", S.train.piece, east + S.train.front, sy + S.train.down, sz + S.train.out, 0);
+  // the brick tunnel on west from the mouth, its rails in line with the station's (theirs 3 m from its edge, the station's
+  // 8 m from its back: `firstAt`), to its end, closed there with the court's wall
+  const T = S.tunnel;
+  let tx = sx + T.firstAt[0];
+  pivot("c-station", T.first, tx, sy, sz + T.firstAt[1], 0);
+  const seg = piece(T.segment).row.size![0];
+  while (tx - seg > T.to + 1e-6) {
+    tx -= seg;
+    pivot("c-station", T.segment, tx, sy, sz + T.firstAt[1], 0);
+  }
+  const tunnelEnd = tx - seg;
+  const tRow = piece(T.segment).row;
+  const [tz0, tz1] = [sz + T.firstAt[1] + tRow.min![2], sz + T.firstAt[1] + tRow.max![2]];
+  // (the court's wall is 7 m, the tunnel 9: a second row over the first, its top at the tunnel's)
+  const endWall = piece(R.court.wall).row;
+  const [wallLen, wallThick, wallTall] = [endWall.size![2], endWall.size![0], endWall.size![1]];
+  for (const wy of [sy + tRow.min![1], sy + tRow.max![1] - wallTall])
+    for (let z = tz0; z < tz1 - 1e-6; z += wallLen) placeAt("c-station", "c", R.court.wall, tunnelEnd - wallThick / 2, z + wallLen / 2, yawFacing("+x"), "o", { y: wy });
+  // the glass-roofed hall on the plaza behind the platform, its marble room at the platform's floor
+  const H = U.hall;
+  const hallRow = piece(H.piece).row;
+  const [hx, hz] = [sx + H.at[0], sz + H.at[1]];
+  pivot("c-station", H.piece, hx, 0, hz, 0);
+  const hallRect: [number, number, number, number] = [hx + hallRow.min![0], hx + hallRow.max![0], hz + hallRow.min![2], hz + hallRow.max![2]];
+  openGround(...hallRect);
+  // The concourse on east of it behind the platform, so every arch in the platform's back opens onto a room: the pack's
+  // marble hall modules on the hall's line to `to`. Its north side and the marble room's are arches the demo opens onto
+  // corridors: here, where there are none, each is closed with the pack's hall cap, the plain one (the others' doorways
+  // look out on nothing, the sky and the city through the ground), as are the two ends and the platform's west end
+  const Q = U.concourse;
+  const qRow = piece(Q.piece).row;
+  const qLen = qRow.size![0];
+  let qx = hallRect[1];
+  while (qx + qLen <= sx + Q.to + 1e-6) {
+    pivot("c-station", Q.piece, qx + qLen, sy, hz, 0);
+    qx += qLen;
+  }
+  const capRow = piece(Q.cap).row;
+  const capLen = capRow.size![0];
+  // (a cap turned 180 degrees covers x from its pivot to 5 m on, z from its pivot to 1 m on: the north side's outside)
+  for (let x = hallRect[0]; x < qx - 1e-6; x += capLen) pivot("c-station", Q.cap, Math.min(x, qx - capLen), sy, hz + Q.capAt, 180);
+  // (turned -90: x from its pivot to 1 m on, z 5 m up to its pivot; turned 90: x 1 m up to its pivot, z 5 m on)
+  for (const z of [hallRect[2] + capLen, hallRect[3]]) {
+    pivot("c-station", Q.cap, qx, sy, z, -90);
+    pivot("c-station", Q.cap, hallRect[0], sy, z - capLen, 90);
+  }
+  pivot("c-station", Q.cap, sx + piece(S.pieces.mouth).row.min![0], sy, sz, 90);
+  // its ceiling: the pack's floor slabs laid over it, their plaster underside down (the marble modules are open to the
+  // sky: in the demo they stand under the floors round them)
+  const ceil = piece(Q.ceiling).row;
+  for (let x = hallRect[1]; x < qx - 1e-6; x += ceil.size![0]) pivot("c-station", Q.ceiling, x + ceil.max![0] - ceil.min![0], sy + qRow.max![1] + (ceil.max![1] - ceil.min![1]), hallRect[2] - ceil.min![2], 0);
+  const concourseRect = [hallRect[1], qx + capRow.size![2], hz + Q.capAt, hallRect[3]];
+  // its north wall lined with the pack's ticket and vending machines, as the demo's concourses are, their backs to the
+  // wall and their fronts to the platform (turned -90 degrees their own +x, their front, faces +z)
+  const M = Q.machines;
+  for (let x = hallRect[0] + M.from; x < qx - M.from; x += M.every) {
+    const name = M.pieces[Math.floor(rnd() * M.pieces.length)];
+    const row = piece(name).row;
+    pivot("c-station", name, x, sy, hallRect[2] - row.min![0], -90);
+  }
+  // where the world's floor is lowered (floors.ts): the station and its tunnel to their track bed, the hall to its marble
+  // floor; the street laid over the station and the tunnel as a slab to walk on (the hall stands on its own floors)
+  const stationRect = [sx + piece(S.pieces.mouth).row.min![0], east + piece(S.pieces.end).row.max![0], sz, sz + Math.max(mid.max![2], piece(S.pieces.end).row.max![2])];
+  // (the tunnel's up to the station's, so the floor is lowered all the way along the track)
+  const tunnelRect = [tunnelEnd - wallThick, stationRect[0], tz0, tz1];
+  cfg.underground = {
+    floors: [
+      { rect: stationRect.map((v) => +v.toFixed(3)), y: sy + mid.min![1] },
+      { rect: tunnelRect.map((v) => +v.toFixed(3)), y: sy + tRow.min![1] },
+      { rect: hallRect.map((v) => +v.toFixed(3)), y: sy },
+      { rect: concourseRect.map((v) => +v.toFixed(3)), y: sy },
+    ],
+    slabs: [stationRect, tunnelRect, concourseRect].map((r) => r.map((v) => +v.toFixed(3))),
+  };
 }
 
 // The centre's streets dressed with the pack's own (rules.dress): its street lamps along both kerbs, cars parked in the

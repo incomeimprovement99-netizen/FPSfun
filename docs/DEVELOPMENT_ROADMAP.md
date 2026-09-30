@@ -7205,3 +7205,42 @@ SpeedKills only (the legacy game keeps its card as it was, and its intro check w
   it the check measured nothing), and puts the rifle in the bot's hands itself (a bot 1v1 draws its gun at random).
   sklobby 29 of 29; speedkills 100 of 100 run alone (a first run under load failed two of the friends' ghost checks,
   which passed alone, as they have before); verify, rules.
+
+## Milestone 349 — Centre Station: the pack's metro station under the south street, closed on every side
+
+Phase 28.7, the underground (the owner, 2026-09-29: "focus on the center district and take screenshots from all
+angles, right now the basement / lower floor is like see through and not how it should be, we want the full layout,
+you need to study each piece and compare and see what and where you can put them together before fully doing it ...
+watch the youtube videos that the packs offer").
+
+- **Studied first.** The packs' eight trailers (the store's and Daelonik's pages list them: Neon City's five, Neon
+  Buildings', Neon High City's, Neon Underground's) cut into frames every 5 s and looked at: an underground of arched
+  station halls, platforms and trains, corridors, shops and a noodle bar, lifts, a shaft through every level; streets
+  with walkways and bridges over them, fire stairs, signs on every front. The Underground pack's own demo scene
+  (NeonUnderground00) read piece by piece off its file, 1,148 placed prefabs: a -10 m station with its glass-roofed
+  street hall behind it, corridors, the square shaft through every level, a -24 m station with two lines under it. The
+  96 underground pieces photographed whole and cut away (the importer's OBJ fix drew their floors and walls for the
+  first time), their stairs measured: the pack's stairs join levels 3 m apart.
+- **The station** (`tools/neon-layout.ts`, rules.underground), put together as the demo puts its -10 m station, each
+  piece where the demo has it from the station's pivot: four 10 m platform modules along the south street at -10 m
+  (the platform's floor), the tunnel mouth standing on the first as the demo's does (it has no platform floor of its
+  own) and the buffer stop's end at the east, the pack's 35 m train at the platform, and the brick tunnel on west under
+  the street to the ring, its rails in line with the station's (measured: theirs 3 m from its edge, the station's 8 m
+  from its back), closed at its end.
+- **Its way down**: the pack's glass-roofed hall on the south plaza behind the platform, its arcade at the street and
+  its stairs down past a -4 m floor to a marble room at the platform's level, facing the arches in the platform's back,
+  as the demo has it. Walked on foot from the street: the platform and concourse reached, 476 of 478 m2.
+- **Closed on every side.** The first build showed the owner's fault again: arches in the platform's back and the
+  marble room's opened onto nothing, the sky and the city through the ground. Behind the platform past the hall now runs
+  a concourse of the pack's marble hall modules under its floor slabs (the modules have no roof of their own; in the
+  demo they stand under the floors round them), every arch on its north side, the marble room's and both ends closed
+  with the pack's plain hall cap (its other caps' doorways, which open onto corridors in the demo, looked out on
+  nothing here), and the platform's west end closed. Its north wall lined with the pack's ticket and vending machines.
+- The court and the station are not yet joined underground: the pack's 3 m stair room climbs through its own ceiling
+  to a floor 3.5 m up, not the court's; the way from the court to the concourse is next.
+- The map: 2,627 placements, 1.64 M triangles (from 1.49 M), 43,031 collision boxes. **Its files are version 8.**
+- **Checked:** `sk-neon.ts` looks from every metre of the platform and concourse at eye height, eight ways along the
+  ground and straight up: every look meets the station's walls within 60 m (377 spots; seen failing, 2,985 looks out
+  on nothing, with the concourse's caps moved away), and counts the street's slabs over the station. verify and rules;
+  e2e `loot` and `br`. The station photographed at night from the street, the hall, the platform, the concourse and the
+  tunnel.
