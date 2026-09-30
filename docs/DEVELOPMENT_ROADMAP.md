@@ -7090,3 +7090,28 @@ buildings, inside rooms to fight in").
 - Also on main before it (3c25274): a `?norender` page, the e2e's, no longer dresses the Neon map it never draws. That
   load took the CPU from the e2e's Arena fights: the bots section's last fight failed four runs in four with it, and
   passed two in two without.
+
+## Milestone 345 — The red orb: the outline's hull pushed out by each mesh's own scale
+
+The owner, 2026-09-29: "we still have the red orb bug that is like a red circle around the player in the gulag ... it
+happens every few seconds when fighting", then "I saw the red orb in the normal gameplay as well, fight a bot for like
+20 seconds capturing every frame you'll see it". Three earlier fixes were guesses (an enemy's heal area, the movement
+trails, the edge laser); `docs/PLAN_GUNS_IN_HAND.md` had left "a screenshot of it is the next step".
+
+- **Seen:** a rendered SpeedKills 1v1 against a Skilled bot, aimed at and fired on for 20 s, every painted frame kept
+  by Chrome's screencast with the match's state logged beside it. At 11.8 s, 7 m from the bot: a solid red dome some
+  metres across where the bot stood, the crosshair on it, in the outline's own #ff2a3a.
+- **Measured, on a live bot** (`dummy.outline`): the outline round the enemy under the crosshair (Phase 19 step 10) is
+  an inverted hull, a copy of each mesh pushed out along its normals by the width over "the figure's scale", taken
+  once off its first mesh (the body, 1.0). The bought guns in a figure's hands are modelled a hundredth size and drawn
+  at world scale 100 (12 of the rifle's parts: the magazine, the scope, the trigger...), so their hulls stood a hundred
+  times too far out: 2 m for the 2 cm rim, and more with distance, since the rim is sized in pixels. Which of the
+  gun's parts are drawn changes with its state, so the ball came and went: every few seconds in a fight, round
+  anybody with a bought gun, the Gulag's bot included.
+- **The fix** (`outline.ts`): the hulls grouped by their mesh's scale, a material each, every group pushed by the
+  width over its own scale, so every rim is the same number of metres. The teammate ring through walls (MateOutline,
+  Phase 27) was built the same way and is fixed the same way.
+- **After:** the same 20 s fight shot again: the bot under the crosshair has its thin rim and no ball.
+- **Checked:** a new sklobby check measures every hull on a live bot holding the rifle (drawn or not, since which
+  parts are drawn is a level of detail a ?norender page never updates): 79 hulls, 12 on scale-100 parts, all 2 cm;
+  with the old single push put back, those 12 stood 2 m out and it failed. sklobby 25 of 25; sksquad (the teammate rings) and speedkills (the enemy outline in a fight), 117 checks, E2E PASS. verify, rules.

@@ -285,7 +285,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   if that is where it is.
 - **The fight's feel:** the enemy under your crosshair is outlined in a thin red
   line, the same thickness on the screen at any range or zoom, and
-  streaks at the screen's edge show when you are going faster than a sprint.
+  streaks at the screen's edge show when you are going faster than a sprint. The rim is the same width round the gun in their hands as round
+  them (the gun's parts are scaled up a hundredfold, and it had swollen into a red ball).
 - **Arenas** in the city: NEON BLOCK, a crossing with four decks a storey up
   and skybridges between them, for 1v1, FFA, team deathmatch and Control.
 - **A controller** with an outer deadzone, a curve strength, per-optic ADS and

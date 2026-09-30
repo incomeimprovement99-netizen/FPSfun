@@ -6359,6 +6359,32 @@ async function skDefaultsTest(browser: Browser): Promise<void> {
   await page.close();
 }
 
+/**
+ * The red orb (the owner, 2026-09-29, and three times before): the outline round the enemy you aim at is a hull pushed
+ * out along each mesh's normals, in the mesh's own units, and one push was taken off the figure's first mesh for all
+ * of them. The bought guns in a figure's hands are drawn at scale 100, so their hulls stood 100 times too far out: a
+ * red ball metres wide round a bot. Every hull must stand out the width asked for, the scale-100 parts too.
+ */
+async function skOutlineTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?game=speedkills&norender");
+  // the bot on the rifle, whose bought model is the one with scale-100 parts (a bot's gun is otherwise drawn at random)
+  await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "normal"; const w = document.getElementById("botWeapon"); w.value = "rspn101"; w.dispatchEvent(new Event("change")); window.__range.startBots(); })()`);
+  await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 60000 }).catch(() => undefined);
+  // the bot's figure with a bought gun in its hands (the scale-100 parts), its outline on at 2 cm
+  const read = `(() => { const r = window.__range; const d = r.duel(); const b0 = d?.bots?.[0]; if (!b0) return null; const fig = (b0.bot ?? b0).dummy;
+    fig.setOutline(true, 0.02, 0xff2a3a, 0.12);
+    // every hull, drawn or not: which of the gun's parts are drawn is a level of detail a ?norender page never updates
+    const st = fig.outline.state();
+    return { widths: st.hulls.map((h) => +h.width.toFixed(4)), big: st.hulls.filter((h) => h.scale >= 10).length, on: st.on }; })()`;
+  const got = await page.waitForFunction(`(() => { const x = ${read}; return x && x.big > 0 && x.on > 0 ? x : null; })()`, { polling: 500, timeout: 30000 }).then((h) => h.jsonValue() as Promise<{ widths: number[]; on: number; big: number }>, () => null);
+  const off = got ? got.widths.filter((w) => Math.abs(w - 0.02) > 0.0005) : [];
+  if (!got) console.log("  --  outline read:", await ev<string>(page, `(() => { try { return JSON.stringify(${read}); } catch (e) { return "threw: " + e.message; } })()`).catch((e) => String(e)));
+  check("outline: every hull round an enemy stands 2 cm out, the bought gun's scale-100 parts too (they stood 2 m out: the red orb)", !!got && got.on > 0 && got.big > 0 && off.length === 0, JSON.stringify({ hulls: got?.widths.length, big: got?.big, off: off.slice(0, 6) }));
+  // the bots' guns back to the mixed list for the pages after this one (they share the browser's storage)
+  await ev(page, `(() => { const w = document.getElementById("botWeapon"); w.value = ""; w.dispatchEvent(new Event("change")); })()`);
+  await page.close();
+}
+
 /** a soldier nobody has by default (soldier.ts code: RUNNER, its colours, the helmet off), so seeing it is seeing it sent */
 const FRIEND_SOLDIER = "S3343041";
 
@@ -8426,6 +8452,7 @@ async function main(): Promise<void> {
       await skLoadoutTest(browser);
       await skGroupTest(browser);
       await skDefaultsTest(browser);
+      await skOutlineTest(browser);
     }
 
     if (want("skfriends")) {
