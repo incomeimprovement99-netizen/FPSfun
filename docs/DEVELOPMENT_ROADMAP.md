@@ -7416,3 +7416,23 @@ before fully doing it. your layout has been good so far, expand on it").
 - Not yet: the roofs reached on foot from the street (the pack's 30 m stair towers, Phase 28 step 3), the ring out to
   the tower itself, and the bots' graph over the bridges (the owner, 2026-09-29: "don't bother with the bot's pathing
   for now").
+
+## Milestone 355 — The melee's jabs lead with the left shoulder, and the full sweep of both guns after the bug hunt
+
+SpeedKills' soldier. The full sweep of Milestone 353's build (every sequence of the USSO and BOOG, close, from four
+sides, `shots/figure-final`) flagged the new melee: the left hand up to 14 mm into the USSO and 24 mm into BOOG.
+
+- **The cause, measured over the chest's turn:** the two jabs squared the chest into the strike (18 and 12 degrees),
+  which took the left shoulder back; the arm came up short and the hold slid most of the way to the grip. Square-on or
+  further side-on, nothing slides. The jabs now lead with the left shoulder (15 and 10 degrees further side-on), as a
+  bayonet's thrust does; the sweep across still squares, since it turns the gun toward the left hand
+  (`soldierhold.json` melee). Through all three swings no hold slides and no hand is more than 5 mm into either gun.
+- **The sweep, frames faulted of those taken, after the bug hunt:** the USSO has none at rest, aimed, crouched,
+  firing, running, running aimed, sprinting, strafing, throwing or healing (a heal is the legacy game's; SpeedKills
+  has none). Still flagged on the USSO: the swap (92 of 104: BOOG's stock at the shoulder once it is in the hands, and
+  four frames of the USSO passing the belly on its way down), the reload (64 of 112, the left fingertips at the
+  receiver), the jump's takeoff and the standing hop (the stock's end in the right forearm pad, hidden), the melee (the
+  same, during the sweep), the look's extremes and the slide. BOOG is clean running and sprinting; everywhere else its
+  22 cm butt plate is 2 to 4 cm into the rigid shoulder armour, hidden from outside.
+- **Checked:** the `skfigure` e2e checks every swing of a string, seen failing on both guns with the old chest turn put
+  back; verify; rules; the melee sheets.
