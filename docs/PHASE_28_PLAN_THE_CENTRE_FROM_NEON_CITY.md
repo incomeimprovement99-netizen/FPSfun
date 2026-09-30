@@ -267,8 +267,9 @@ the importer read FBX only. They are drawn now, the tower's and the metro's incl
    both ways. Then the station (Milestone 349): Centre Station under the south street at -10 m, put together as the
    pack's own demo scene puts its -10 m station (NeonUnderground00, read piece by piece), its glass-roofed hall on the
    plaza its way down, a concourse of marble halls behind the platform, closed on every side (checked by looking out
-   from every metre of it). Still to do: a way from the court down to the concourse (the pack's stairs join levels 3 m
-   apart, but its 3 m stair room climbs through its ceiling to a floor 3.5 m up), a way down the bots can walk (the
+   from every metre of it). The court joined to it (Milestone 357): a door in the court's south wall, one of the pack's
+   corridors, and the pack's 3 m terrain ramp down to a gate behind the marble room's first arch (the pack's stairs
+   and escalators all climb 3.5 m, the court stands 3 m over the station). Still to do: a way down the bots can walk (the
    kiosk's lower escalator is too narrow at its foot for a bot's square body), the demo's -24 m station and its lines
    under it, and the square shaft through every level. The pack's station (`Subway Hall` MetroStation00 modules, 10 x 10.5 x
    11 m; MetroStationDouble00 for the platforms either side), its tunnels (`Subway Tunnels`) out under two streets, the

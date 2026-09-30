@@ -259,8 +259,12 @@ if (holes.length) {
   const len = wall.size![2];
   const thick = wall.size![0];
   if (Math.abs(wall.size![1] + foot) > 0.05) throw new Error(`the court's wall is ${wall.size![1]} m, the hole ${-foot} m deep`);
+  // (the way down to the station, rules.underground.link, leaves the court as a hall does: by a door, along one of the
+  // pack's corridors on the court's floor; its far end is open, onto the ramp)
+  const L0 = R.underground?.link;
+  const hallList = [...C.halls, ...(L0 ? [{ ...L0.door, pieces: [L0.passage], open: true }] : [])] as Array<{ side: "n" | "s" | "w" | "e"; at: number; pieces: string[]; entrance?: boolean; open?: boolean }>;
   /** a side's wall segment from `a` left out: a hall's door */
-  const door = (side: string, a: number) => (C.halls as Array<{ side: string; at: number }>).some((h) => h.side === side && Math.abs(h.at - a) < 1e-6);
+  const door = (side: string, a: number) => hallList.some((h) => h.side === side && Math.abs(h.at - a) < 1e-6);
   // along x at z0 and z1, along z at x0 and x1, each wall just outside the hole, its face on the hole's edge
   for (let x = x0; x < x1 - 1e-6; x += len) {
     if (!door("n", x)) placeAt("c-court", "c", C.wall, x + len / 2, z0 - thick / 2, yawFacing("+z"), "o", { y: foot });
@@ -270,13 +274,28 @@ if (holes.length) {
     if (!door("w", z)) placeAt("c-court", "c", C.wall, x0 - thick / 2, z + len / 2, yawFacing("+x"), "o", { y: foot });
     if (!door("e", z)) placeAt("c-court", "c", C.wall, x1 + thick / 2, z + len / 2, yawFacing("-x"), "o", { y: foot });
   }
+  // A post in each corner (rules.court.post). The wall is a raised panel whose face steps back its whole thickness at
+  // both ends (read off its mesh), so where two meet at a corner there was a slot as tall as the court, the haze and
+  // the sky through it. The pack's half-metre room wall stood on end outside the corner fills it, in rows to the
+  // street, the last lapping the one under it a hair further out, its top a hair under the plaza's tiles
+  {
+    const P = C.post;
+    const post = piece(P.piece).row;
+    const [pw, ph] = [post.size![0], post.size![1]];
+    // (the piece runs back 0.5 m along x and z from its pivot: each corner's pivot puts it just outside the hole)
+    for (const [px, pz, ox, oz] of [[x0, z0, -1, -1], [x1 + pw, z0, 1, -1], [x0, z1 + pw, -1, 1], [x1 + pw, z1 + pw, 1, 1]]) {
+      let y = foot;
+      for (; y + ph <= -P.under + 1e-6; y += ph) add("c-court", "c", [piece(P.piece).key, px, +y.toFixed(3), pz, 0, "o"] as Place);
+      if (y < -P.under - 1e-6) add("c-court", "c", [piece(P.piece).key, +(px + ox * P.hair).toFixed(3), +(-P.under - ph).toFixed(3), +(pz + oz * P.hair).toFixed(3), 0, "o"] as Place);
+    }
+  }
   // The halls: the pack's metro corridors off the court through its doors, out under the plaza on the court's floor,
   // floored with the pack's tiles and closed at their far end with the court's wall (a corridor is open at both ends and
   // has no floor of its own). Each one's rectangle, for the game to lower its floor in and lay the street's slab over
-  const halls: Array<{ x0: number; x1: number; z0: number; z1: number; slab: number[]; route?: number[][] }> = [];
+  const halls: Array<{ x0: number; x1: number; z0: number; z1: number; slab: number[]; route?: number[][]; open?: boolean }> = [];
   /** the turn that points a piece's own -z (an entrance's landing) the way given */
   const yawLanding = (dir: string) => ({ "-z": 0, "-x": 90, "+z": 180, "+x": 270 })[dir]!;
-  for (const h of C.halls as Array<{ side: "n" | "s" | "w" | "e"; at: number; pieces: string[]; entrance?: boolean }>) {
+  for (const h of hallList) {
     const alongX = h.side === "w" || h.side === "e";
     const out = h.side === "n" || h.side === "w" ? -1 : 1;
     const start = { n: z0, s: z1, w: x0, e: x1 }[h.side];
@@ -326,10 +345,10 @@ if (holes.length) {
     }
     const tile = piece(C.hallTile).row.size![0];
     for (let t = 0; t < d - 1e-6; t += tile) placeAt("c-court", "c", C.hallTile, ...spot(t + tile / 2), 0, "g", { y: foot - C.under });
-    // (its end wall looks back down the hall, toward the court)
-    placeAt("c-court", "c", C.wall, ...spot(d + thick / 2), yawFacing(back), "o", { y: foot });
-    const [hx0, hx1, hz0, hz1] = rect(0, d + thick);
-    halls.push({ x0: hx0, x1: hx1, z0: hz0, z1: hz1, slab: rect(0, slabTo), ...(route ? { route } : {}) });
+    // (its end wall looks back down the hall, toward the court; none where it goes on, down to the station)
+    if (!h.open) placeAt("c-court", "c", C.wall, ...spot(d + thick / 2), yawFacing(back), "o", { y: foot });
+    const [hx0, hx1, hz0, hz1] = rect(0, h.open ? d : d + thick);
+    halls.push({ x0: hx0, x1: hx1, z0: hz0, z1: hz1, slab: rect(0, slabTo), ...(route ? { route } : {}), ...(h.open ? { open: true } : {}) });
   }
   cfg.court = { x0, x1, z0, z1, y: foot, halls };
 }
@@ -398,8 +417,16 @@ if (holes.length) {
   }
   const capRow = piece(Q.cap).row;
   const capLen = capRow.size![0];
-  // (a cap turned 180 degrees covers x from its pivot to 5 m on, z from its pivot to 1 m on: the north side's outside)
-  for (let x = hallRect[0]; x < qx - 1e-6; x += capLen) pivot("c-station", Q.cap, Math.min(x, qx - capLen), sy, hz + Q.capAt, 180);
+  // (a cap turned 180 degrees covers x from its pivot to 5 m on, z from its pivot to 1 m on: the north side's outside).
+  // Laid on the court's own 5 m lines, where the marble room's arches are (its first pair 5.5 to 9.5 m, measured off the
+  // hall's parts), so the way down from the court (rules.underground.link) comes in through one bay: there the cap is
+  // the pack's open one, its framed gate, and no machine stands in front of it
+  const L = U.link;
+  const bay = L ? [L.door.at, L.door.at + capLen] : null;
+  for (let x = Math.floor(hallRect[0] / capLen) * capLen; x < qx - 1e-6; x += capLen) {
+    const cx = Math.min(x, qx - capLen);
+    pivot("c-station", bay && Math.abs(cx - bay[0]) < 1e-6 ? L.gate : Q.cap, cx, sy, hz + Q.capAt, 180);
+  }
   // (turned -90: x from its pivot to 1 m on, z 5 m up to its pivot; turned 90: x 1 m up to its pivot, z 5 m on)
   for (const z of [hallRect[2] + capLen, hallRect[3]]) {
     pivot("c-station", Q.cap, qx, sy, z, -90);
@@ -416,8 +443,51 @@ if (holes.length) {
   const M = Q.machines;
   for (let x = hallRect[0] + M.from; x < qx - M.from; x += M.every) {
     const name = M.pieces[Math.floor(rnd() * M.pieces.length)];
+    if (bay && x > bay[0] - M.clear && x < bay[1] + M.clear) continue;
     const row = piece(name).row;
     pivot("c-station", name, x, sy, hallRect[2] - row.min![0], -90);
+  }
+  // The way down from the court (rules.underground.link). From the open end of its corridor on the court's floor the
+  // pack's terrain ramp, which climbs exactly what the court's floor stands over the station's (3 m in 5, its corners
+  // read off its mesh: the pack's stairs and escalators all climb 3.5), down to the gate in the station's north side.
+  // Its room is walled in the pack's plain room wall, 3 m a row from the station's floor to the street, its plaster
+  // side in, and roofed with the pack's floor slab a hair under the plaza. Each of these was seen leaking first:
+  // - the court's own wall is a raised panel, its face stepping back 0.32 m at both ends (read off its mesh), and two
+  //   of them at a right angle left a 0.45 m opening at the corner, the sky through it: the room wall is a plain box;
+  // - the rows do not come out even at the street (3 m rows, a room 7 to 10 m high), so the top row laps the one under
+  //   it, a hair in front so the two are never drawn in one plane (behind, it left a slit along the roof);
+  // - the corridor's side walls are open at their ends and its vault stands clear of a square room's corners, so a
+  //   jamb stands before each wall's end and the wall hangs from the roof to the jambs' tops: the corridor's arch is
+  //   a doorway from this side
+  let linkRect: number[] | null = null;
+  if (L) {
+    const link = (cfg.court.halls as Array<{ x0: number; x1: number; z0: number; z1: number; open?: boolean }>).find((h) => h.open)!;
+    const [ramp, wall, slab, jamb, gate] = [piece(L.ramp).row, piece(L.wall).row, piece(L.ceiling).row, piece(L.jamb).row, piece(L.gate).row];
+    const [top, gateZ] = [link.z1, hz + Q.capAt];
+    const [run, rise] = [ramp.size![2], ramp.size![1]];
+    const [wl, wh, wt] = [wall.size![0], wall.size![1], wall.size![2]];
+    if (Math.abs(top + run - gateZ) > 0.01 || Math.abs(cfg.court.y - rise - sy) > 0.01 || Math.abs(ramp.size![0] - (link.x1 - link.x0)) > 0.01 || Math.abs(wl - run) > 0.01)
+      throw new Error(`the way down: its ramp runs ${run} m and climbs ${rise} m, its wall is ${wl} m, and there are ${(gateZ - top).toFixed(2)} m from the corridor's end to the gate and ${(cfg.court.y - sy).toFixed(2)} m to go down`);
+    // (turned half round: its own high edge, z 0, at the corridor's end, its low edge at the gate)
+    pivot("c-station", L.ramp, link.x0, sy, top, 180);
+    /** the rows of wall from `from` up to the street: whole rows, then one more under the street lapping the last, put
+     * a hair in front of it */
+    const rows = (from: number, put: (y: number, hair: number) => void) => {
+      let y = from;
+      for (; y + wh <= 1e-6; y += wh) put(y, 0);
+      if (y < -1e-6) put(-wh, L.hair);
+    };
+    // its sides: a wall turned a quarter runs from its pivot along z, its plaster side (its own z 0) toward the ramp
+    rows(sy, (y, h) => pivot("c-station", L.wall, link.x0 + h, y, top, 90));
+    rows(sy, (y, h) => pivot("c-station", L.wall, link.x1 - h, y, gateZ, 270));
+    // over the gate, from the cap's top
+    rows(sy + gate.max![1], (y, h) => pivot("c-station", L.wall, link.x0, y, gateZ - h, 180));
+    // at the corridor's end: the jambs, and from their tops up
+    for (const jx of [link.x0 + jamb.size![0], link.x1]) pivot("c-station", L.jamb, jx, cfg.court.y, top + jamb.size![2], 0);
+    rows(cfg.court.y + jamb.size![1], (y, h) => pivot("c-station", L.wall, link.x1, y, top + wt + h, 0));
+    pivot("c-station", L.ceiling, link.x1, -L.under, top + slab.size![2], 0);
+    // (its floor lowered on under the gate to the hall's own)
+    linkRect = [link.x0, link.x1, top, hallRect[2]].map((v) => +v.toFixed(3));
   }
   // where the world's floor is lowered (floors.ts): the station and its tunnel to their track bed, the hall to its marble
   // floor; the street laid over the station and the tunnel as a slab to walk on (the hall stands on its own floors)
@@ -430,8 +500,9 @@ if (holes.length) {
       { rect: tunnelRect.map((v) => +v.toFixed(3)), y: sy + tRow.min![1] },
       { rect: hallRect.map((v) => +v.toFixed(3)), y: sy },
       { rect: concourseRect.map((v) => +v.toFixed(3)), y: sy },
+      ...(linkRect ? [{ rect: linkRect, y: sy, ramp: true }] : []),
     ],
-    slabs: [stationRect, tunnelRect, concourseRect].map((r) => r.map((v) => +v.toFixed(3))),
+    slabs: [stationRect, tunnelRect, concourseRect, ...(linkRect ? [linkRect] : [])].map((r) => r.map((v) => +v.toFixed(3))),
   };
 }
 

@@ -7472,3 +7472,41 @@ trigger".
   its fault back: it drew the gun again by giving the slot a new one, which builds the model afresh, so it never drew a
   gun still carrying its last throw. It now swaps to the other slot and back as a player does, where the fault measures
   the USSO's middle 78 cm off and BOOG's 70, and is seen failing there. The soldier section; verify; rules.
+
+## Milestone 357 — The court joined to Centre Station underground, and the court's corners closed
+
+Phase 28.7, the underground (the owner, 2026-09-29: "right now the basement / lower floor is like see through and not
+how it should be, we want the full layout, you need to study each piece and compare and see what and where you can put
+them together before fully doing it").
+
+- **The way down.** A door in the tower's court, in its south wall, onto one of the pack's vaulted metro corridors on
+  the court's floor (7 m down), and from its end a ramp down to the station's level (10 m down) and in through a
+  framed gate behind the marble room's first arch. A player walks from the court to the platform without going up to
+  the street (`tools/neon-layout.ts`, rules.underground.link).
+- **Studied before it was built.** The parked first try (Milestone 349) used the pack's stair room, whose stairs climb
+  3.5 m like all the pack's stairs and escalators (measured again here: `MetroPassageLow05`'s escalators, the stair
+  rooms), and the court's floor stands 3 m over the station's, so its head met a wall. The pack's low corridor set
+  was photographed whole: its "vertical tunnel" pieces are round shafts, not stairs. Its terrain set has a plain
+  sloped slab that climbs exactly 3 m in 5 (`CityTerrain_Base_ramp3x5x5`, its four corners read off its mesh), which
+  is what joins the two here. The marble room's north wall was read off the hall's parts: its arches stand on the
+  court's own 5 m lines (the first 5.5 to 9.5 m along), so the station's caps are now laid on those lines too, the
+  gate straight down the corridor's middle line; and the station was moved 2 m north (its platform's back at 28 m) so
+  the run from the court's wall to the gate is exactly one 5 m corridor and one 5 m ramp.
+- **Seen leaking, and closed.** The ramp's room was photographed from every face and corner in daylight, where the
+  sky shows through anything open:
+  1. walled first with the court's own wall, a slot of sky at a corner: the court's wall is a raised panel whose face
+     steps back its whole thickness at both ends (read off its mesh), so two at a right angle leave a 0.45 m opening.
+     The room is walled in the pack's plain 3 m room wall instead, its plaster side in;
+  2. the wall over the gate set a hair behind the cap's face left a slit at the corners and along the roof: it now
+     stands from the cap's top, and each top row laps the one under it a hair in front, never behind;
+  3. the corridor's side walls are open at their ends and its vault stands clear of a square room's corners: a jamb
+     stands before each, and the wall hangs from the roof to the jambs, the arch a 4 by 3 m doorway from this side.
+- **The court's corners, open since it was built.** The same photographs showed the same slot in all four of the
+  court's own corners, the haze and the sky through them, 7 m tall. Each is now closed with a post of the pack's
+  half-metre room wall standing just outside the corner, its top a hair under the plaza (rules.court.post).
+- The map: 2,711 placements (from 2,684), 1.69 M triangles, 44,734 collision boxes. **Its files are version 10.**
+- **Checked** (`tools/checks/sk-neon.ts`): a player's own movement sprints from the court through the door, down the
+  ramp and through the gate into the marble room, on the station's floor, and back up into the court (seen failing
+  first from a start inside the tower's basement wall, which stands 2.5 m in front of that stretch of the court's
+  wall); the station's closed check now looks from every metre of the ramp too, eight ways and up (405 spots). verify
+  and rules; e2e `loot` and `br`. The link and the court's corners photographed by day from inside and out.

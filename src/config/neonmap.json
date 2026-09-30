@@ -1,6 +1,6 @@
 {
- "_note": "The map made of Daelonik's Neon City bundle (Phase 28, docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md): the owner, 2026-09-28, 'basically wiping the entire map except the idea ... implement using all new assets, nothing at all should be custom made'. `rules` are the plan's, read by tools/neon-layout.ts, which writes `chunks` (every placement: the prefab by its path under the bundle's City Builder, its pivot x, y, z in map-local metres, its turn about y in degrees, how it collides: g the ground and what lies flat on it, none, s solid to its own top a cell at a time (a building with no rooms), o its own triangles' spans (rooms, stairs, floors to walk), a pack material over all its parts where given, and the parts of it left out, by their model's file name, where given) and `tallest` and `measured`, never typed. tools/import-neon.ts NEON=bake bakes the chunks into one file a texture size and the collision off their triangles; src/game/neonmap.ts draws and plays it. `rules`: the map to `extent` metres (past the 152 m edge, so the ground reaches the fence); the ground's `tile`, the pack's 10 m pavement plane, and the carriageways in `road`, the pack's asphalt; the centre's `streets` (`road` metres wide at `centres`, the pavement either side belonging to the blocks, so roof to roof across a street is about 15 m, a double jump's 22 carry with room: tools/checks/reach.ts) with the pack's kerbs `every` metres and its dashed line; the `ring` road round the centre; the centre's 3 by 3 `blocks` (the middle one's half width `inner`, the others between `outer`); the `middle` block's tallest building; the axis blocks' `high` city of High City's towers with walkable roofs, a big piece fronting the middle and a `row` of smaller ones on the ring's side; the corner blocks' `low` city, a 3 by 3 of cells with a yard in the middle, the `rooms` to fight in on each block's inner corner, the pack's realistic `piece` with its floors, stairs and rooms walkable (its own triangles), over the four cells there, the yard among them, turned by `face` (by the block's corner, x and z signs) toward the middle, and `low` buildings in the other cells (a piece may overhang its cell by `overhang`; `tall`, on the block's outer corner so it keeps a roof high over the streets, the inner corner's before the rooms; none of them deeper than a cell and its overhang, measured with their floors); the chunks whose names begin with `bake merge` baked as one named `as`, a mesh a material (the centre's pieces share the pack's materials: a chunk at a time they drew 920 calls in the street, as one 440, 2.3 ms a frame on Competitive, measured in turn by tools/bench.ts); the rooms' collision kept down to `below floor` and every span topping out over `below minTop` (the tallest building stands in a pit to its basement, 7 m under the street, whose floors the districts' rule for the street's scraps, nothing under 0.35 m, threw away), the world's floor lowered over the pit in the game; the `fine` pieces' collision measured at its finer `cell` (the metro kiosk's escalators are 2 m wide with their glass sides, and the rooms building's stairs 1.6 m with their railings, and at the rooms' half-metre cells each side widened to half a metre and left no room for a body between them); a solid building's `shell`: what its ground floor's walls close in (the triangles crossing its lowest `band` metres, gaps up to twice `close` metres shut) collides from its foot to its top, since High City's towers are shells with nothing inside (tools/import-neon.ts columnSolids); the `court` the tallest building stands in: the hole its footprint leaves in the ground floored at its foot, 7 m down, with the ground's tiles `under` metres beneath its basement's own floor, and walled round with the pack's `wall` (5 m lengths; one-sided, its face toward `faces` in its own frame, measured off its triangles, 36.5 m2 that way and none the other, so each is turned to look into the court), as tall as the hole is deep; its `halls`, the pack's metro corridors off the court through a door in one side's wall (the segment from `at` left out), out under the plaza on the court's floor, their `pieces` in order from the court, floored with `hallTile` and closed with the court's wall, and on the long sides an `entrance` from the street at the far end: the pack's metro kiosk, its bottom landing (10 m) toward the court over the hall's corridor, which is its walls and roof there, and its two flights down from the street in a `well` from its landing's end (in the kiosk's own metres along the hall, measured off its sections: from the street near 1 m to -3.2 m at 5.6 m, and back down to -6.8 m at 0) walled with the court's wall, the ground's tiles over the well taken up and laid again in the pack's `patch` tile of the same material but for the well itself, its way through for a body, its `route` (x, z in the kiosk's own metres, the height it is walked at: from the plaza beside it, in through its doorway, the 2 m gap in its side between its walls and glass (its other side is walled, its end glass), down the upper flight, round the balustrades' ends at 6.4 m, down the lower flight on its middle line, 3.3 m in, where its foot leaves a body room, and along the hall into the court; walked both ways by a player's own movement, tools/checks/sk-neon.ts; a bot's square body does not fit the lower flight's foot), and the kiosk's parts `without` left out, a model's file name for every part drawn from it or name@x,y,z for the one whose middle is there in the kiosk's own metres (its hanging ad board, 0.3 to 2 m over its landing's floor at the landing's end, stood across the hall's mouth: in Unity it hangs in a hall wider than the corridor; and the pack's plain wall closing its bottom level's end toward the court, where in Unity its way out is a gate in its side) (the layout writes `court` and its halls' rectangles, each with the `slab` over its corridor; the game lowers its floor in the court and the halls and lays the street's slab over the halls); the `underground`: Centre Station, the pack's metro station under the south street put together as the pack's own demo scene (NeonUnderground00) puts its -10 m station, every piece where the demo has it from the station's pivot (the platform's back at its floor, `x`, `platform`, `back`; the offsets measured off the scene): its `mouth` end with the tunnel portal, `modules` platform modules (`mid`, the first `mouthLength` on: the mouth has no platform floor of its own, and stands on the first module as the demo's does), the `end` with the buffer stop, the `train` standing at the platform (its front `front` into the end, `down` under the platform's floor, `out` from its back), the `tunnel` running on west (its `first` piece at its offset from the station's pivot, its rails in line with the station's, `segment`s on to x `to`, closed there with the court's wall), the glass-roofed `hall` on the plaza behind the platform `at` its offset, its arcade at the street and its marble room at the platform's floor facing the platform's open back, and the `concourse` on east of it behind the platform to `to` metres past the station's pivot, the pack's marble hall modules (`piece`) on the hall's line under its floor slabs laid as a `ceiling`, the north side of both and their two ends and the platform's west end closed with the pack's plain hall `cap` (`capAt` from the hall's pivot), so every arch in the platform's back opens onto a room and none onto nothing (the demo's arches there open onto corridors; its other caps' doorways here looked out on the sky and the city through the ground), its north wall lined with the pack's ticket and vending `machines` every `every` metres from `from` in, their fronts to the platform (the layout writes `underground`: where the game lowers the world's floor, the station and tunnel to their track bed and the hall to its marble floor, and the street's slabs over the station and the tunnel); the centre's streets' `dress`: the pack's street `lamp` every `every` metres on both pavements, `inset` from the kerb, its arms along it; its `cars` parked in the lanes by the kerbs, their middle `lane` metres out, a seeded gap between `gap` metres apart, a car at each with the `chance`, as crouching cover in the street; and `count` `flying` cars over the streets between `height` metres, out of reach and so with no collision; all clear of the crossings (by `crossing` metres), the pads (by `padClear`), the ring road and the metro's kiosks; High City's roofs joined by the pack's floating `bridges`, a rooftop circuit round the tower: each of the `paths` (map-local points, from inside one island's roof, round the corner over a street crossing, to inside the next) a line of 5 m cells, the `straight` piece along its legs and the `corner` where it turns, turned so its open sides face both legs (each piece's own `deck` height in its own frame, measured, taken off). The islands' `roof` is measured at 26.0 m and their crystal `fence`'s pillars top out at 26.86 (its glass at 26.84): every deck rides at `deck`, just over the fence (the layout stops if it does not clear it), so where a bridge crosses an island's fence the fence is inside the deck's 2 m body and nothing of the island is cut (a lobe's arc crosses a 5 m deck on a slant: left out it opened the roof's edge beside the bridge, kept it stood across the way). Each end steps down to the roof by the `stairs` piece, on the roof with its top edge at the deck's end, climbing its own `up` way; its ramp climbs `rise` metres (measured off its collision on a 26.0 m roof: 26.15, 26.25, 26.40, 26.50 a quarter metre at a time toward its own -z; the 0.83 m of its bounds is its side cheeks), so the deck stands 0.4 m over its top, a step a player takes in stride (0.56 m), and the layout stops if that step is over `step` metres; it collides fine (rules.fine) so its ramp is a ramp; the fronts along the centre's streets and its ring hung with the pack's neon `signs`: tried every `step` metres along a line on the pavement a metre from the kerb with the `chance`, at a height between `height` metres, straight at the block to the first front within `reach` metres in the last bake's collision, kept where the front is flat to `flat` metres across the sign's width and `apart` metres from the last on that side, hung lit side to the street (a sign is lit on its own +z only), colliding with nothing; the jump `pads` onto each high city block's roof from the street before it and the ring road behind it, the pack's `plate` on the ground and its `beam` of light rising from it, found by the bake in the collision it has just made (a `body`-wide line from the street's middle toward the block, tried every metre `across` either side of the block's middle, meets as its face the first column at least `roofMin` high within `search` metres, kept where the roof behind the face is level to `flat` metres for `flatDepth`, the landing, with no more than a `rail` of `rail` metres within `edge` metres of the face (the islands' fence stands 0.5 to 1.5 m in, measured along the north block's inner face; at 1 m the one spot that passed was where a bridge's end now stands), the nearest the street and the block's middle taken, `landBonus` metres nearer where a bot walks at least `landArea` square metres of the roof from where it lands (a bot never jumps: a High City roof's raised decks, 0.85 m, are walls to it)) and written to `pads` (never typed): each the face's point, the way out of it, the floor the pad stands on and the roof, the throw solved in the game (src/game/padsolve.ts). `game`: what src/game/neonmap.ts plays it with: its own `air` (atmosphere.ts ownAir, from Balanced up), a haze of one colour by `night` and one by `day` from `near` to `far` metres, thinning `farUp` metres further a metre climbed (a pale violet, as the store's pictures' is pale: a dark one over a dark city did not show; far as the ILranch city's, for the fights' sightlines), in place of the ILranch city's blocks' colours and its districts' staged light, which fell on this map's streets where those blocks had stood; the city's own picture its materials `reflect`, a cube `size` pixels a side taken from `at` (map-local, the street south of the tower at eye height) out to `far` metres once the map's file is in, in place of the sky's (the pack's asphalt is a wet street, smoothness 0.85, and with the sky in it the roads came out pale); the street's `slab`, metres deep, over the court's halls under the plaza; a street spot is `clear` metres round of anything at a body's height; the bots' graph a node every `graph step` metres of the street and every `raised` metres of the floors over it (a roof, a room: High City's roofs step 0.3 to 0.85 m between their decks, too fine for the street's lattice) over the map (`margin` in from its edge), linked where a bot walks there and back ending within `level` metres of the other's height, between floors no more than `climb` apart (a pad's landing joined the same way); each district's `drops` spread over its street nodes; respawn `beacons` at street spots (map-local); the small named `sites` the big map shows and a match puts loot of their own at (loot.json site), so a share of it is on the roofs where the fights are: a high city block's deck at the middle of its graph's nodes `roof` metres up and more, the lobby at the tallest building's middle.",
- "version": 9,
+ "_note": "The map made of Daelonik's Neon City bundle (Phase 28, docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md): the owner, 2026-09-28, 'basically wiping the entire map except the idea ... implement using all new assets, nothing at all should be custom made'. `rules` are the plan's, read by tools/neon-layout.ts, which writes `chunks` (every placement: the prefab by its path under the bundle's City Builder, its pivot x, y, z in map-local metres, its turn about y in degrees, how it collides: g the ground and what lies flat on it, none, s solid to its own top a cell at a time (a building with no rooms), o its own triangles' spans (rooms, stairs, floors to walk), a pack material over all its parts where given, and the parts of it left out, by their model's file name, where given) and `tallest` and `measured`, never typed. tools/import-neon.ts NEON=bake bakes the chunks into one file a texture size and the collision off their triangles; src/game/neonmap.ts draws and plays it. `rules`: the map to `extent` metres (past the 152 m edge, so the ground reaches the fence); the ground's `tile`, the pack's 10 m pavement plane, and the carriageways in `road`, the pack's asphalt; the centre's `streets` (`road` metres wide at `centres`, the pavement either side belonging to the blocks, so roof to roof across a street is about 15 m, a double jump's 22 carry with room: tools/checks/reach.ts) with the pack's kerbs `every` metres and its dashed line; the `ring` road round the centre; the centre's 3 by 3 `blocks` (the middle one's half width `inner`, the others between `outer`); the `middle` block's tallest building; the axis blocks' `high` city of High City's towers with walkable roofs, a big piece fronting the middle and a `row` of smaller ones on the ring's side; the corner blocks' `low` city, a 3 by 3 of cells with a yard in the middle, the `rooms` to fight in on each block's inner corner, the pack's realistic `piece` with its floors, stairs and rooms walkable (its own triangles), over the four cells there, the yard among them, turned by `face` (by the block's corner, x and z signs) toward the middle, and `low` buildings in the other cells (a piece may overhang its cell by `overhang`; `tall`, on the block's outer corner so it keeps a roof high over the streets, the inner corner's before the rooms; none of them deeper than a cell and its overhang, measured with their floors); the chunks whose names begin with `bake merge` baked as one named `as`, a mesh a material (the centre's pieces share the pack's materials: a chunk at a time they drew 920 calls in the street, as one 440, 2.3 ms a frame on Competitive, measured in turn by tools/bench.ts); the rooms' collision kept down to `below floor` and every span topping out over `below minTop` (the tallest building stands in a pit to its basement, 7 m under the street, whose floors the districts' rule for the street's scraps, nothing under 0.35 m, threw away), the world's floor lowered over the pit in the game; the `fine` pieces' collision measured at its finer `cell` (the metro kiosk's escalators are 2 m wide with their glass sides, and the rooms building's stairs 1.6 m with their railings, and at the rooms' half-metre cells each side widened to half a metre and left no room for a body between them); a solid building's `shell`: what its ground floor's walls close in (the triangles crossing its lowest `band` metres, gaps up to twice `close` metres shut) collides from its foot to its top, since High City's towers are shells with nothing inside (tools/import-neon.ts columnSolids); the `court` the tallest building stands in: the hole its footprint leaves in the ground floored at its foot, 7 m down, with the ground's tiles `under` metres beneath its basement's own floor, and walled round with the pack's `wall` (5 m lengths; one-sided, its face toward `faces` in its own frame, measured off its triangles, 36.5 m2 that way and none the other, so each is turned to look into the court), as tall as the hole is deep; its `halls`, the pack's metro corridors off the court through a door in one side's wall (the segment from `at` left out), out under the plaza on the court's floor, their `pieces` in order from the court, floored with `hallTile` and closed with the court's wall, and on the long sides an `entrance` from the street at the far end: the pack's metro kiosk, its bottom landing (10 m) toward the court over the hall's corridor, which is its walls and roof there, and its two flights down from the street in a `well` from its landing's end (in the kiosk's own metres along the hall, measured off its sections: from the street near 1 m to -3.2 m at 5.6 m, and back down to -6.8 m at 0) walled with the court's wall, the ground's tiles over the well taken up and laid again in the pack's `patch` tile of the same material but for the well itself, its way through for a body, its `route` (x, z in the kiosk's own metres, the height it is walked at: from the plaza beside it, in through its doorway, the 2 m gap in its side between its walls and glass (its other side is walled, its end glass), down the upper flight, round the balustrades' ends at 6.4 m, down the lower flight on its middle line, 3.3 m in, where its foot leaves a body room, and along the hall into the court; walked both ways by a player's own movement, tools/checks/sk-neon.ts; a bot's square body does not fit the lower flight's foot), and the kiosk's parts `without` left out, a model's file name for every part drawn from it or name@x,y,z for the one whose middle is there in the kiosk's own metres (its hanging ad board, 0.3 to 2 m over its landing's floor at the landing's end, stood across the hall's mouth: in Unity it hangs in a hall wider than the corridor; and the pack's plain wall closing its bottom level's end toward the court, where in Unity its way out is a gate in its side) (the layout writes `court` and its halls' rectangles, each with the `slab` over its corridor; the game lowers its floor in the court and the halls and lays the street's slab over the halls); the `underground`: Centre Station, the pack's metro station under the south street put together as the pack's own demo scene (NeonUnderground00) puts its -10 m station, every piece where the demo has it from the station's pivot (the platform's back at its floor, `x`, `platform`, `back`; the offsets measured off the scene): its `mouth` end with the tunnel portal, `modules` platform modules (`mid`, the first `mouthLength` on: the mouth has no platform floor of its own, and stands on the first module as the demo's does), the `end` with the buffer stop, the `train` standing at the platform (its front `front` into the end, `down` under the platform's floor, `out` from its back), the `tunnel` running on west (its `first` piece at its offset from the station's pivot, its rails in line with the station's, `segment`s on to x `to`, closed there with the court's wall), the glass-roofed `hall` on the plaza behind the platform `at` its offset, its arcade at the street and its marble room at the platform's floor facing the platform's open back, and the `concourse` on east of it behind the platform to `to` metres past the station's pivot, the pack's marble hall modules (`piece`) on the hall's line under its floor slabs laid as a `ceiling`, the north side of both and their two ends and the platform's west end closed with the pack's plain hall `cap` (`capAt` from the hall's pivot), so every arch in the platform's back opens onto a room and none onto nothing (the demo's arches there open onto corridors; its other caps' doorways here looked out on the sky and the city through the ground), its north wall lined with the pack's ticket and vending `machines` every `every` metres from `from` in, their fronts to the platform (the layout writes `underground`: where the game lowers the world's floor, the station and tunnel to their track bed and the hall to its marble floor, and the street's slabs over the station and the tunnel); the centre's streets' `dress`: the pack's street `lamp` every `every` metres on both pavements, `inset` from the kerb, its arms along it; its `cars` parked in the lanes by the kerbs, their middle `lane` metres out, a seeded gap between `gap` metres apart, a car at each with the `chance`, as crouching cover in the street; and `count` `flying` cars over the streets between `height` metres, out of reach and so with no collision; all clear of the crossings (by `crossing` metres), the pads (by `padClear`), the ring road and the metro's kiosks; The court's corners each closed with a `post` (`court.post`): the court's wall is a raised panel whose face steps back its whole thickness at both ends (read off its mesh), and where two met at a corner a slot as tall as the court showed the haze and the sky (seen in daylight from the court, Milestone 357); the `piece` (the pack's half-metre room wall) stands on end just outside the corner in rows to the street, the last lapping the one under it `hair` metres further out, its top `under` metres below the plaza's tiles. The court joined to the station underground (`underground.link`): a `door` in the court's wall (its side, and where along it the 5 m segment left out begins) onto one 5 m `passage` of the pack's metro corridor on the court's floor, open at its far end onto the pack's terrain `ramp`, which climbs exactly the 3 m the court's floor (7 m down) stands over the station's (10 m down) in 5 m of run (its corners read off its mesh; the pack's stairs and escalators all climb 3.5 m, which is why the first try, its stair room, met no floor), down to the station's north side, where the cap of that bay is the `gate`, the pack's cap with a framed opening 3.5 m wide, in front of the marble room's first arch (5.5 to 9.5 m along, measured off the hall's parts: the arches stand on the court's own 5 m lines, so the caps are laid on those lines too). The station's `back` is at 28 m so that run is one passage and one ramp with nothing left over. The ramp's room is walled in the `wall` piece (the pack's plain 3 m room wall, its plaster side in) from the station's floor to the street, and roofed with the `ceiling` slab `under` metres below the plaza's tiles so the two are never drawn in one plane. The court's own wall was tried first and leaked: it is a raised panel whose face steps back 0.32 m at both ends (read off its mesh), and two at a right angle left a 0.45 m opening at the corner. The rows do not come out even at the street, so the top row laps the one under it, `hair` metres in front (behind, it left a slit along the roof). At the passage's end a `jamb` (the pack's half-metre room wall) stands before each of its side walls' open ends and the wall hangs from the roof to the jambs' tops, so the passage's arch is a doorway 4 m wide and 3 high from the ramp's side (its vault stands clear of a square room's corners); over the gate the wall stands from the cap's top; no ticket machine stands within `machines.clear` metres of the gate's bay; the layout stops if the ramp's run, climb or width do not fit. High City's roofs joined by the pack's floating `bridges`, a rooftop circuit round the tower: each of the `paths` (map-local points, from inside one island's roof, round the corner over a street crossing, to inside the next) a line of 5 m cells, the `straight` piece along its legs and the `corner` where it turns, turned so its open sides face both legs (each piece's own `deck` height in its own frame, measured, taken off). The islands' `roof` is measured at 26.0 m and their crystal `fence`'s pillars top out at 26.86 (its glass at 26.84): every deck rides at `deck`, just over the fence (the layout stops if it does not clear it), so where a bridge crosses an island's fence the fence is inside the deck's 2 m body and nothing of the island is cut (a lobe's arc crosses a 5 m deck on a slant: left out it opened the roof's edge beside the bridge, kept it stood across the way). Each end steps down to the roof by the `stairs` piece, on the roof with its top edge at the deck's end, climbing its own `up` way; its ramp climbs `rise` metres (measured off its collision on a 26.0 m roof: 26.15, 26.25, 26.40, 26.50 a quarter metre at a time toward its own -z; the 0.83 m of its bounds is its side cheeks), so the deck stands 0.4 m over its top, a step a player takes in stride (0.56 m), and the layout stops if that step is over `step` metres; it collides fine (rules.fine) so its ramp is a ramp; the fronts along the centre's streets and its ring hung with the pack's neon `signs`: tried every `step` metres along a line on the pavement a metre from the kerb with the `chance`, at a height between `height` metres, straight at the block to the first front within `reach` metres in the last bake's collision, kept where the front is flat to `flat` metres across the sign's width and `apart` metres from the last on that side, hung lit side to the street (a sign is lit on its own +z only), colliding with nothing; the jump `pads` onto each high city block's roof from the street before it and the ring road behind it, the pack's `plate` on the ground and its `beam` of light rising from it, found by the bake in the collision it has just made (a `body`-wide line from the street's middle toward the block, tried every metre `across` either side of the block's middle, meets as its face the first column at least `roofMin` high within `search` metres, kept where the roof behind the face is level to `flat` metres for `flatDepth`, the landing, with no more than a `rail` of `rail` metres within `edge` metres of the face (the islands' fence stands 0.5 to 1.5 m in, measured along the north block's inner face; at 1 m the one spot that passed was where a bridge's end now stands), the nearest the street and the block's middle taken, `landBonus` metres nearer where a bot walks at least `landArea` square metres of the roof from where it lands (a bot never jumps: a High City roof's raised decks, 0.85 m, are walls to it)) and written to `pads` (never typed): each the face's point, the way out of it, the floor the pad stands on and the roof, the throw solved in the game (src/game/padsolve.ts). `game`: what src/game/neonmap.ts plays it with: its own `air` (atmosphere.ts ownAir, from Balanced up), a haze of one colour by `night` and one by `day` from `near` to `far` metres, thinning `farUp` metres further a metre climbed (a pale violet, as the store's pictures' is pale: a dark one over a dark city did not show; far as the ILranch city's, for the fights' sightlines), in place of the ILranch city's blocks' colours and its districts' staged light, which fell on this map's streets where those blocks had stood; the city's own picture its materials `reflect`, a cube `size` pixels a side taken from `at` (map-local, the street south of the tower at eye height) out to `far` metres once the map's file is in, in place of the sky's (the pack's asphalt is a wet street, smoothness 0.85, and with the sky in it the roads came out pale); the street's `slab`, metres deep, over the court's halls under the plaza; a street spot is `clear` metres round of anything at a body's height; the bots' graph a node every `graph step` metres of the street and every `raised` metres of the floors over it (a roof, a room: High City's roofs step 0.3 to 0.85 m between their decks, too fine for the street's lattice) over the map (`margin` in from its edge), linked where a bot walks there and back ending within `level` metres of the other's height, between floors no more than `climb` apart (a pad's landing joined the same way); each district's `drops` spread over its street nodes; respawn `beacons` at street spots (map-local); the small named `sites` the big map shows and a match puts loot of their own at (loot.json site), so a share of it is on the roofs where the fights are: a high city block's deck at the middle of its graph's nodes `roof` metres up and more, the lobby at the tallest building's middle.",
+ "version": 10,
  "rules": {
   "seed": 20260929,
   "extent": 160,
@@ -238,6 +238,11 @@
       -7
      ]
     ]
+   },
+   "post": {
+    "piece": "Wall_Simple_2Sides_0.5x3.prefab",
+    "under": 0.03,
+    "hair": 0.02
    }
   },
   "fine": {
@@ -317,7 +322,7 @@
    "station": {
     "x": 5,
     "platform": -10,
-    "back": 30,
+    "back": 28,
     "modules": 4,
     "mouthLength": 0,
     "pieces": {
@@ -362,8 +367,23 @@
       "VendingMachine00b Variant.prefab"
      ],
      "from": 1.5,
-     "every": 2.5
+     "every": 2.5,
+     "clear": 0.5
     }
+   },
+   "link": {
+    "door": {
+     "side": "s",
+     "at": 5
+    },
+    "passage": "MetroPassage01C.prefab",
+    "ramp": "CityTerrain_Base_ramp3x5x5.prefab",
+    "gate": "HallUnderground00_Cap_01.prefab",
+    "wall": "Wall_Simple_2Sides_5x3.prefab",
+    "jamb": "Wall_Simple_2Sides_0.5x3.prefab",
+    "ceiling": "FloorBasic00_5x5.prefab",
+    "under": 0.05,
+    "hair": 0.02
    }
   },
   "bridges": {
@@ -1122,14 +1142,6 @@
     ],
     [
      "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
-     10,
-     -7,
-     10.32,
-     90,
-     "o"
-    ],
-    [
-     "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
      15,
      -7,
      10.32,
@@ -1198,6 +1210,102 @@
      -7,
      5,
      180,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     -20,
+     -7,
+     -10,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     -20,
+     -4,
+     -10,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     -20.02,
+     -3.03,
+     -10.02,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     20.5,
+     -7,
+     -10,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     20.5,
+     -4,
+     -10,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     20.52,
+     -3.03,
+     -10.02,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     -20,
+     -7,
+     10.5,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     -20,
+     -4,
+     10.5,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     -20.02,
+     -3.03,
+     10.52,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     20.5,
+     -7,
+     10.5,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     20.5,
+     -4,
+     10.5,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     20.52,
+     -3.03,
+     10.52,
+     0,
      "o"
     ],
     [
@@ -1433,6 +1541,22 @@
      0,
      180,
      "o"
+    ],
+    [
+     "1_Premade/Underground/Corridor/MetroPassage01C.prefab",
+     5,
+     -7,
+     15,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_5x5.prefab",
+     5,
+     -7.03,
+     15,
+     0,
+     "g"
     ]
    ]
   },
@@ -5942,7 +6066,7 @@
      "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
      2.5,
      0,
-     25,
+     30,
      0,
      "g",
      "PavementDirtTiles00b"
@@ -5960,7 +6084,7 @@
      "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
      5,
      0,
-     25,
+     30,
      0,
      "g",
      "PavementDirtTiles00b"
@@ -5978,7 +6102,7 @@
      "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
      7.5,
      0,
-     25,
+     30,
      0,
      "g",
      "PavementDirtTiles00b"
@@ -5996,7 +6120,7 @@
      "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
      10,
      0,
-     25,
+     30,
      0,
      "g",
      "PavementDirtTiles00b"
@@ -6014,7 +6138,7 @@
      "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
      12.5,
      0,
-     25,
+     30,
      0,
      "g",
      "PavementDirtTiles00b"
@@ -6032,7 +6156,7 @@
      "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
      15,
      0,
-     25,
+     30,
      0,
      "g",
      "PavementDirtTiles00b"
@@ -6050,7 +6174,7 @@
      "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
      17.5,
      0,
-     25,
+     30,
      0,
      "g",
      "PavementDirtTiles00b"
@@ -6068,7 +6192,7 @@
      "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_2.5x2.5.prefab",
      20,
      0,
-     25,
+     30,
      0,
      "g",
      "PavementDirtTiles00b"
@@ -12473,7 +12597,7 @@
      "1_Premade/Underground/Subway Hall/MetroStation00_02.prefab",
      5,
      -10,
-     30,
+     28,
      0,
      "o"
     ],
@@ -12481,7 +12605,7 @@
      "1_Premade/Underground/Subway Hall/MetroStation00_00.prefab",
      5,
      -10,
-     30,
+     28,
      0,
      "o"
     ],
@@ -12489,7 +12613,7 @@
      "1_Premade/Underground/Subway Hall/MetroStation00_00.prefab",
      15,
      -10,
-     30,
+     28,
      0,
      "o"
     ],
@@ -12497,7 +12621,7 @@
      "1_Premade/Underground/Subway Hall/MetroStation00_00.prefab",
      25,
      -10,
-     30,
+     28,
      0,
      "o"
     ],
@@ -12505,7 +12629,7 @@
      "1_Premade/Underground/Subway Hall/MetroStation00_00.prefab",
      35,
      -10,
-     30,
+     28,
      0,
      "o"
     ],
@@ -12513,7 +12637,7 @@
      "1_Premade/Underground/Subway Hall/MetroStation00_03.prefab",
      45,
      -10,
-     30,
+     28,
      0,
      "o"
     ],
@@ -12521,7 +12645,7 @@
      "2_Deco/Underground/Metro Vehicles/METRO_Train.prefab",
      46.94,
      -11,
-     38,
+     36,
      0,
      "o"
     ],
@@ -12529,7 +12653,7 @@
      "1_Premade/Underground/Subway Tunnels/MetroTunnel01_00.prefab",
      5,
      -10,
-     35,
+     33,
      0,
      "o"
     ],
@@ -12537,7 +12661,7 @@
      "1_Premade/Underground/Subway Tunnels/MetroTunnel01_01.prefab",
      -5,
      -10,
-     35,
+     33,
      0,
      "o"
     ],
@@ -12545,7 +12669,7 @@
      "1_Premade/Underground/Subway Tunnels/MetroTunnel01_01.prefab",
      -15,
      -10,
-     35,
+     33,
      0,
      "o"
     ],
@@ -12553,7 +12677,7 @@
      "1_Premade/Underground/Subway Tunnels/MetroTunnel01_01.prefab",
      -25,
      -10,
-     35,
+     33,
      0,
      "o"
     ],
@@ -12561,7 +12685,7 @@
      "1_Premade/Underground/Subway Tunnels/MetroTunnel01_01.prefab",
      -35,
      -10,
-     35,
+     33,
      0,
      "o"
     ],
@@ -12569,7 +12693,7 @@
      "1_Premade/Underground/Subway Tunnels/MetroTunnel01_01.prefab",
      -45,
      -10,
-     35,
+     33,
      0,
      "o"
     ],
@@ -12577,7 +12701,7 @@
      "1_Premade/Underground/Subway Tunnels/MetroTunnel01_01.prefab",
      -55,
      -10,
-     35,
+     33,
      0,
      "o"
     ],
@@ -12585,7 +12709,7 @@
      "1_Premade/Underground/Subway Tunnels/MetroTunnel01_01.prefab",
      -65,
      -10,
-     35,
+     33,
      0,
      "o"
     ],
@@ -12593,7 +12717,7 @@
      "1_Premade/Underground/Subway Tunnels/MetroTunnel01_01.prefab",
      -75,
      -10,
-     35,
+     33,
      0,
      "o"
     ],
@@ -12601,7 +12725,7 @@
      "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
      -85.32,
      -13,
-     37.5,
+     35.5,
      0,
      "o"
     ],
@@ -12609,7 +12733,7 @@
      "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
      -85.32,
      -13,
-     42.5,
+     40.5,
      0,
      "o"
     ],
@@ -12617,7 +12741,7 @@
      "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
      -85.32,
      -13,
-     47.5,
+     45.5,
      0,
      "o"
     ],
@@ -12625,7 +12749,7 @@
      "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
      -85.32,
      -11,
-     37.5,
+     35.5,
      0,
      "o"
     ],
@@ -12633,7 +12757,7 @@
      "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
      -85.32,
      -11,
-     42.5,
+     40.5,
      0,
      "o"
     ],
@@ -12641,7 +12765,7 @@
      "0_Basic/Streets Build/Walls/Concrete/CityWallsWall005_Concrete.prefab",
      -85.32,
      -11,
-     47.5,
+     45.5,
      0,
      "o"
     ],
@@ -12649,7 +12773,7 @@
      "1_Premade/Underground/Halls/CrystalRoofHall00.prefab",
      22.5,
      0,
-     24,
+     22,
      0,
      "o"
     ],
@@ -12657,7 +12781,7 @@
      "1_Premade/Underground/Halls/HallUnderground00_5_01.prefab",
      28.5,
      -10,
-     24,
+     22,
      0,
      "o"
     ],
@@ -12665,7 +12789,7 @@
      "1_Premade/Underground/Halls/HallUnderground00_5_01.prefab",
      33.5,
      -10,
-     24,
+     22,
      0,
      "o"
     ],
@@ -12673,7 +12797,7 @@
      "1_Premade/Underground/Halls/HallUnderground00_5_01.prefab",
      38.5,
      -10,
-     24,
+     22,
      0,
      "o"
     ],
@@ -12681,71 +12805,71 @@
      "1_Premade/Underground/Halls/HallUnderground00_5_01.prefab",
      43.5,
      -10,
-     24,
+     22,
      0,
      "o"
     ],
     [
      "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
-     2,
+     0,
      -10,
-     22,
+     20,
+     180,
+     "o"
+    ],
+    [
+     "1_Premade/Underground/Halls/HallUnderground00_Cap_01.prefab",
+     5,
+     -10,
+     20,
      180,
      "o"
     ],
     [
      "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
-     7,
+     10,
      -10,
-     22,
+     20,
      180,
      "o"
     ],
     [
      "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
-     12,
+     15,
      -10,
-     22,
+     20,
      180,
      "o"
     ],
     [
      "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
-     17,
+     20,
      -10,
-     22,
+     20,
      180,
      "o"
     ],
     [
      "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
-     22,
+     25,
      -10,
-     22,
+     20,
      180,
      "o"
     ],
     [
      "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
-     27,
+     30,
      -10,
-     22,
+     20,
      180,
      "o"
     ],
     [
      "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
-     32,
+     35,
      -10,
-     22,
-     180,
-     "o"
-    ],
-    [
-     "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
-     37,
-     -10,
-     22,
+     20,
      180,
      "o"
     ],
@@ -12753,8 +12877,24 @@
      "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
      38.5,
      -10,
-     22,
+     20,
      180,
+     "o"
+    ],
+    [
+     "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
+     43.5,
+     -10,
+     26,
+     -90,
+     "o"
+    ],
+    [
+     "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
+     2,
+     -10,
+     21,
+     90,
      "o"
     ],
     [
@@ -12775,25 +12915,9 @@
     ],
     [
      "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
-     43.5,
-     -10,
-     30,
-     -90,
-     "o"
-    ],
-    [
-     "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
-     2,
-     -10,
-     25,
-     90,
-     "o"
-    ],
-    [
-     "1_Premade/Underground/Halls/HallUnderground00_Cap_00.prefab",
      4.1,
      -10,
-     30,
+     28,
      90,
      "o"
     ],
@@ -12801,7 +12925,7 @@
      "0_Basic/Building Interior/Floors/Floor Basic/Bricks Original/FloorBasic00_5x10.prefab",
      28.5,
      -3.5,
-     33,
+     31,
      0,
      "o"
     ],
@@ -12809,7 +12933,7 @@
      "0_Basic/Building Interior/Floors/Floor Basic/Bricks Original/FloorBasic00_5x10.prefab",
      33.5,
      -3.5,
-     33,
+     31,
      0,
      "o"
     ],
@@ -12817,7 +12941,7 @@
      "0_Basic/Building Interior/Floors/Floor Basic/Bricks Original/FloorBasic00_5x10.prefab",
      38.5,
      -3.5,
-     33,
+     31,
      0,
      "o"
     ],
@@ -12825,7 +12949,7 @@
      "0_Basic/Building Interior/Floors/Floor Basic/Bricks Original/FloorBasic00_5x10.prefab",
      43.5,
      -3.5,
-     33,
+     31,
      0,
      "o"
     ],
@@ -12833,23 +12957,7 @@
      "2_Deco/Building Deco/Tech/VendingMachine00 Variant.prefab",
      3.5,
      -10,
-     23.5,
-     -90,
-     "o"
-    ],
-    [
-     "2_Deco/Building Deco/Tech/TicketMachine00 Variant.prefab",
-     6,
-     -10,
-     23.5,
-     -90,
-     "o"
-    ],
-    [
-     "2_Deco/Building Deco/Tech/TicketMachine00 Variant.prefab",
-     8.5,
-     -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12857,7 +12965,7 @@
      "2_Deco/Building Deco/Tech/VendingMachine00b Variant.prefab",
      11,
      -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12865,7 +12973,7 @@
      "2_Deco/Building Deco/Tech/TicketMachine00 Variant.prefab",
      13.5,
      -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12873,7 +12981,7 @@
      "2_Deco/Building Deco/Tech/VendingMachine00b Variant.prefab",
      16,
      -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12881,7 +12989,7 @@
      "2_Deco/Building Deco/Tech/VendingMachine00 Variant.prefab",
      18.5,
      -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12889,7 +12997,7 @@
      "2_Deco/Building Deco/Tech/VendingMachine00 Variant.prefab",
      21,
      -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12897,7 +13005,7 @@
      "2_Deco/Building Deco/Tech/TicketMachine00 Variant.prefab",
      23.5,
      -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12905,7 +13013,7 @@
      "2_Deco/Building Deco/Tech/TicketMachine00 Variant.prefab",
      26,
      -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12913,7 +13021,7 @@
      "2_Deco/Building Deco/Tech/TicketMachine00 Variant.prefab",
      28.5,
      -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12921,7 +13029,7 @@
      "2_Deco/Building Deco/Tech/VendingMachine00 Variant.prefab",
      31,
      -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12929,7 +13037,7 @@
      "2_Deco/Building Deco/Tech/TicketMachine00 Variant.prefab",
      33.5,
      -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12937,7 +13045,7 @@
      "2_Deco/Building Deco/Tech/TicketMachine00 Variant.prefab",
      36,
      -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12945,7 +13053,7 @@
      "2_Deco/Building Deco/Tech/TicketMachine00 Variant.prefab",
      38.5,
      -10,
-     23.5,
+     21.5,
      -90,
      "o"
     ],
@@ -12953,8 +13061,136 @@
      "2_Deco/Building Deco/Tech/VendingMachine00 Variant.prefab",
      41,
      -10,
-     23.5,
+     21.5,
      -90,
+     "o"
+    ],
+    [
+     "0_Basic/Building Elements/Basic Shapes/Horizontal/CityTerrain_Base_ramp3x5x5.prefab",
+     5,
+     -10,
+     15,
+     180,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_5x3.prefab",
+     5,
+     -10,
+     15,
+     90,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_5x3.prefab",
+     5,
+     -7,
+     15,
+     90,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_5x3.prefab",
+     5,
+     -4,
+     15,
+     90,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_5x3.prefab",
+     5.02,
+     -3,
+     15,
+     90,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_5x3.prefab",
+     10,
+     -10,
+     20,
+     270,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_5x3.prefab",
+     10,
+     -7,
+     20,
+     270,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_5x3.prefab",
+     10,
+     -4,
+     20,
+     270,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_5x3.prefab",
+     9.98,
+     -3,
+     20,
+     270,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_5x3.prefab",
+     5,
+     -4.5,
+     20,
+     180,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_5x3.prefab",
+     5,
+     -3,
+     19.98,
+     180,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     5.5,
+     -7,
+     15.5,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_0.5x3.prefab",
+     10,
+     -7,
+     15.5,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_5x3.prefab",
+     10,
+     -4,
+     15.5,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Walls/Panels Concrete Basic/Basic/Double Side/Wall_Simple_2Sides_5x3.prefab",
+     10,
+     -3,
+     15.52,
+     0,
+     "o"
+    ],
+    [
+     "0_Basic/Building Interior/Floors/Floor Basic/Bricks Original/FloorBasic00_5x5.prefab",
+     10,
+     -0.05,
+     20,
+     0,
      "o"
     ]
    ]
@@ -22299,15 +22535,15 @@
   }
  },
  "measured": {
-  "placements": 2684,
-  "pieces": 68
+  "placements": 2711,
+  "pieces": 74
  },
  "baked": {
-  "triangles": 1691020,
-  "boxes": 44636,
+  "triangles": 1691120,
+  "boxes": 44734,
   "chunks": {
    "c": {
-    "tris": 1678172,
+    "tris": 1678272,
     "min": [
      -100,
      -13,
@@ -22803,6 +23039,19 @@
      0,
      5
     ]
+   },
+   {
+    "x0": 5,
+    "x1": 10,
+    "z0": 10,
+    "z1": 15,
+    "slab": [
+     5,
+     10,
+     10,
+     15
+    ],
+    "open": true
    }
   ]
  },
@@ -22812,8 +23061,8 @@
     "rect": [
      4.1,
      52.7,
-     30,
-     47.36
+     28,
+     45.36
     ],
     "y": -13
    },
@@ -22821,8 +23070,8 @@
     "rect": [
      -85.32,
      4.1,
-     32.5,
-     43.5
+     30.5,
+     41.5
     ],
     "y": -13
    },
@@ -22830,8 +23079,8 @@
     "rect": [
      2,
      23.5,
-     23,
-     30
+     21,
+     28
     ],
     "y": -10
    },
@@ -22839,30 +23088,46 @@
     "rect": [
      23.5,
      44.5,
-     22,
-     30
+     20,
+     28
     ],
     "y": -10
+   },
+   {
+    "rect": [
+     5,
+     10,
+     15,
+     21
+    ],
+    "y": -10,
+    "ramp": true
    }
   ],
   "slabs": [
    [
     4.1,
     52.7,
-    30,
-    47.36
+    28,
+    45.36
    ],
    [
     -85.32,
     4.1,
-    32.5,
-    43.5
+    30.5,
+    41.5
    ],
    [
     23.5,
     44.5,
-    22,
-    30
+    20,
+    28
+   ],
+   [
+    5,
+    10,
+    15,
+    21
    ]
   ]
  }

@@ -1297,7 +1297,9 @@ plaza, two of them down from the street through the pack's metro kiosks and
 their escalators. Under the south street is Centre Station, the pack's own metro
 station put together as its demo scene puts it: a glass-roofed hall on the plaza
 down to a platform with a train at it, a tunnel off into the dark, and a marble
-concourse behind the platform, closed on every side. Eight jump pads, the pack's plate and blue beam, throw you onto High City's
+concourse behind the platform, closed on every side, and reached from the tower's
+court too: a door in its south wall, a corridor and a ramp down to a gate into the
+station's marble hall. Eight jump pads, the pack's plate and blue beam, throw you onto High City's
 roofs, and the four roofs are joined into a ring round the tower by the pack's
 floating bridges over the street crossings, each riding over its islands' fence
 and stepping down to the roof by a short ramp; the bots' graph covers the street, the roofs and the floors, and a share

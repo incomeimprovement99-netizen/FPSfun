@@ -100,7 +100,7 @@ const sprint = (x: number, z: number, y: number, yaw: number, s: number) => {
   }
   return { x: p.pos.x - BR_X, z: p.pos.z - BR_Z, y: p.pos.y, low };
 };
-for (const h of K.halls.filter((q) => !("route" in q))) {
+for (const h of K.halls.filter((q) => !("route" in q) && !("open" in q))) {
   // from 3 m inside the court's edge, straight down the hall's middle line
   const alongX = h.z1 - h.z0 < h.x1 - h.x0;
   const [mx, mz] = [(h.x0 + h.x1) / 2, (h.z0 + h.z1) / 2];
@@ -247,11 +247,14 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
 // Centre Station (rules.underground): closed, and reached. The owner found the new map's lower floor see-through: under
 // the street there is nothing, and an arch or a doorway that opens onto nothing shows the sky and the city through the
 // ground. From every metre of the platform and the concourse, at eye height, a look along the ground eight ways and one
-// straight up meets the station's walls within 60 m. And its platform is walked to on foot from the street
+// straight up meets the station's walls within 60 m, and from every metre of the ramp down from the court. And a
+// player's own movement sprints down to it from the court and back up
 {
   const S = cfg.rules.underground.station;
   const [sx, sy, sz] = [S.x, S.platform, S.back];
-  const areas = cfg.underground.floors.filter((f) => Math.abs(f.y - sy) < 0.05).map((f) => f.rect);
+  // (the way down from the court is lowered to the station's floor under its ramp, where nobody stands: its looks are
+  // from on the ramp, below)
+  const areas = cfg.underground.floors.filter((f) => Math.abs(f.y - sy) < 0.05 && !("ramp" in f)).map((f) => f.rect);
   // the platform itself: its back to its edge, along the modules
   areas.push([sx, sx + 10 * S.modules, sz, sz + 5]);
   const dirs = [...Array.from({ length: 8 }, (_, k) => [Math.cos((k * Math.PI) / 4), 0, Math.sin((k * Math.PI) / 4)]), [0, 1, 0]];
@@ -275,6 +278,17 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   const eye = sy + 1.6;
   let spots = 0;
   const open: string[] = [];
+  // on the ramp down from the court: from every metre of it, an eye's height over the ramp there
+  for (const f of cfg.underground.floors.filter((q) => "ramp" in q)) {
+    const [x0, x1, z0, z1] = f.rect;
+    for (let x = x0 + 0.5; x < x1; x += 1)
+      for (let z = z0 + 0.5; z < z1; z += 1) {
+        const under = solidsIn(x + BR_X, x + BR_X, z + BR_Z, z + BR_Z).filter((b) => x + BR_X >= b.minX && x + BR_X <= b.maxX && z + BR_Z >= b.minZ && z + BR_Z <= b.maxZ && b.top <= cfg.court.y + 0.05);
+        const p = [x + BR_X, Math.max(sy, ...under.map((b) => b.top)) + 1.6, z + BR_Z];
+        spots++;
+        for (const d of dirs) if (hit(p, d, 60) >= 60) open.push(`the ramp (${x.toFixed(1)}, ${z.toFixed(1)}) ${d[1] ? "up" : `toward ${d[0].toFixed(1)},${d[2].toFixed(1)}`}`);
+      }
+  }
   for (const [x0, x1, z0, z1] of areas)
     for (let x = x0 + 0.5; x < x1; x += 1)
       for (let z = z0 + 0.5; z < z1; z += 1) {
@@ -284,7 +298,31 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
         spots++;
         for (const d of dirs) if (hit(p, d, 60) >= 60) open.push(`(${x.toFixed(1)}, ${z.toFixed(1)}) ${d[1] ? "up" : `toward ${d[0].toFixed(1)},${d[2].toFixed(1)}`}`);
       }
-  check("Centre Station closed: from every metre of its platform and concourse a look along the ground or up meets its walls within 60 m", spots > 300 && open.length === 0, `${spots} spots, ${open.length} looks out on nothing${open.length ? `: ${open.slice(0, 4).join("; ")}` : ""}`);
+  check("Centre Station closed: from every metre of its platform, its concourse and the ramp down from the court a look along the ground or up meets its walls within 60 m", spots > 300 && open.length === 0, `${spots} spots, ${open.length} looks out on nothing${open.length ? `: ${open.slice(0, 4).join("; ")}` : ""}`);
+
+  // The way down from the court (rules.underground.link): a player's own movement sprints from the court's floor
+  // through the door in its south wall, along the corridor, down the ramp and through the gate into the marble room,
+  // on the station's floor; and back up the ramp into the court. (The first try at this join, the pack's stair room,
+  // met a wall at its head and shut gate leaves at its foot.)
+  const link = K.halls.find((q) => "open" in q);
+  check("the court's way down to the station is laid", Boolean(link));
+  if (link) {
+    const mx = (link.x0 + link.x1) / 2;
+    const hall = cfg.underground.floors.find((f) => !("ramp" in f) && Math.abs(f.y - sy) < 0.05 && mx > f.rect[0] && mx < f.rect[1])!.rect;
+    const walk = (z: number, y: number, yaw: number, done: (pz: number) => boolean) => {
+      const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+      p.sprintMode = "auto";
+      p.teleport(mx + BR_X, y, z + BR_Z, yaw);
+      const run = { held: (a: Action) => a === "forward", pressedNow: (_a: Action) => false };
+      let t = 1000;
+      for (let i = 0; i < 12 * 144 && !done(p.pos.z - BR_Z); i++) p.update(1 / 144, (t += 1 / 144), run, 0, 1, false);
+      return { x: p.pos.x - BR_X, z: p.pos.z - BR_Z, y: p.pos.y };
+    };
+    // (to the marble room's middle, and to a metre inside the court: the tower's basement wall stands 2.5 m in there)
+    const down = walk(K.z1 - 1, K.y + 0.05, 180, (z) => z >= (hall[2] + hall[3]) / 2);
+    const up = walk((hall[2] + hall[3]) / 2, sy + 0.05, 0, (z) => z <= K.z1 - 1);
+    check("the court's way down to the station: a player sprints from the court down the ramp into the marble room, and back up into the court", down.z >= (hall[2] + hall[3]) / 2 && Math.abs(down.y - sy) < 0.05 && up.z <= K.z1 - 1 && Math.abs(up.y - K.y) < 0.05, `down to (${down.x.toFixed(1)}, ${down.z.toFixed(1)}) at ${down.y.toFixed(2)} m; up to (${up.x.toFixed(1)}, ${up.z.toFixed(1)}) at ${up.y.toFixed(2)} m`);
+  }
 }
 
 // High City's bridges (rules.bridges): each walked from one island's deck to the next and back, on foot, and railed.
