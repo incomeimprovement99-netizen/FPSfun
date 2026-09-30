@@ -193,8 +193,10 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   const third = (o1 - o0) / 3;
   const C = 0.125;
   const H = MOVE.radius;
-  const rooms = cfg.chunks["c-se"].place.find((p) => p[0].endsWith(`/${cfg.rules.low.rooms.piece}`));
-  check("the rooms building on each corner block", Object.keys(cfg.chunks).filter((k) => /^c-[ns][ew]$/.test(k)).every((k) => cfg.chunks[k].place.some((p) => p[0].endsWith(`/${cfg.rules.low.rooms.piece}`))), `${rooms?.[0]}`);
+  const chunks = cfg.chunks as Record<string, { place: unknown[][] }>;
+  const isRooms = (p: unknown[]) => String(p[0]).endsWith(`/${cfg.rules.low.rooms.piece}`);
+  const rooms = chunks["c-se"].place.find(isRooms);
+  check("the rooms building on each corner block", Object.keys(chunks).filter((k) => /^c-[ns][ew]$/.test(k)).every((k) => chunks[k].place.some(isRooms)), `${rooms?.[0]}`);
   for (const [sx, sz, name] of [[-1, -1, "nw"], [1, -1, "ne"], [-1, 1, "sw"], [1, 1, "se"]] as const) {
     const [mx, mz] = [sx * (o0 + third), sz * (o0 + third)];
     // the building's 20 m and 6 m of street round it
