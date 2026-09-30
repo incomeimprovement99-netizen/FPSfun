@@ -23,7 +23,7 @@ import { loadQuality } from "./quality";
 import { springStep } from "./spring";
 import type { ResolvedWeapon } from "./weapons";
 import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels";
-import { DOT_EYE, IRONS_EYE, SIGHT_CLEAR, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
+import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
 import { FREE, HIP_PITCH, LOCO, PACK_INSPECT, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, SWAP_THROW, packGunFor, type FreeHand } from "./fprig";
@@ -524,8 +524,6 @@ export class ViewModel {
   private armFamily: ArmFamily = "guard";
   /** the middle of the gun, gun-local: what an inspect or a flourish turns about */
   private readonly gunCentre = new THREE.Vector3();
-  /** the gun's back end, gun-local z (behind its origin), measured with its middle: aimed, it is kept off the eye */
-  private gunBack = 0;
   /**
    * our trigger, gun-local (packRefresh): what an inspect turns about in the bought arms' hands. About the gun's middle,
    * far ahead of the grip on a long gun, BOOG's grip swung out of the right arm's reach, 20 cm short, the hand off it
@@ -692,10 +690,14 @@ export class ViewModel {
       openLenses(m);
       this.model = m;
       // the middle of the gun, measured before it is parented or given a
-      // flash, so the box is the weapon itself in its own space
-      const box = new THREE.Box3().setFromObject(m.root);
-      box.getCenter(this.gunCentre);
-      this.gunBack = box.max.z;
+      // flash, so the box is the weapon itself in its own space; and at rest:
+      // a cached model keeps the place a throw or a draw's spin last gave its
+      // root, and measured there the middle was wherever the gun was left in
+      // the air (the spin and the throw turn about it, and a USSO aimed after
+      // one draw and not after another, the owner, 2026-09-29)
+      m.root.position.set(0, 0, 0);
+      m.root.quaternion.identity();
+      new THREE.Box3().setFromObject(m.root).getCenter(this.gunCentre);
       this.pack.gunDelta.add(m.root);
       m.root.add(this.flash.group);
       this.flash.group.position.copy(m.muzzle);
@@ -845,8 +847,8 @@ export class ViewModel {
     return this.pack;
   }
 
-  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; skinL: number; skinR: number; curlL: number; curlR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; offHold: number; palmAhead: number; free: boolean; palm: number; palmCards: number; palmCardKeys: string[]; palmCardY: number; palmWhole: number; inspectTime: number } {
-    return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), twistL: this.pack.wristTwist("l"), twistR: this.pack.wristTwist("r"), skinL: this.pack.skinTwist("l"), skinR: this.pack.skinTwist("r"), curlL: this.pack.fingerCurl("l"), curlR: this.pack.fingerCurl("r"), thumbL: this.pack.freeReady ? this.pack.thumbOff("l") : 0, thumbR: this.pack.freeReady ? this.pack.thumbOff("r") : 0, ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCards: this.palmCards.filter((c) => c.group.visible).length, palmCardKeys: this.palmCardIds.filter((k, i) => k && this.palmCards[i].group.visible), palmCardY: this.palmCardY, palmWhole: this.palmWhole, inspectTime: this.inspectTime };
+  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; skinL: number; skinR: number; curlL: number; curlR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; offHold: number; palmAhead: number; free: boolean; palm: number; palmCards: number; palmCardKeys: string[]; palmCardY: number; palmWhole: number; inspectTime: number; gunCentre: number[] } {
+    return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), twistL: this.pack.wristTwist("l"), twistR: this.pack.wristTwist("r"), skinL: this.pack.skinTwist("l"), skinR: this.pack.skinTwist("r"), curlL: this.pack.fingerCurl("l"), curlR: this.pack.fingerCurl("r"), thumbL: this.pack.freeReady ? this.pack.thumbOff("l") : 0, thumbR: this.pack.freeReady ? this.pack.thumbOff("r") : 0, ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCards: this.palmCards.filter((c) => c.group.visible).length, palmCardKeys: this.palmCardIds.filter((k, i) => k && this.palmCards[i].group.visible), palmCardY: this.palmCardY, palmWhole: this.palmWhole, inspectTime: this.inspectTime, gunCentre: this.gunCentre.toArray() };
   }
 
   /**
@@ -1153,13 +1155,11 @@ export class ViewModel {
     const own = m.root.userData.ownSight as { y: number; f: number; irons: boolean; dot: boolean } | undefined;
     if (own) {
       m.railY = own.y - this.optic.lineH;
-      // (the eye back along the sight line far enough that the gun's own back end stays SIGHT_CLEAR in front of it: at a
-      // red dot's eye relief the USSO's receiver came to within 2 mm of the eye, inside the camera's near plane, and its
-      // cut-off back end showed through behind the glass, flickering as the gun swayed; the owner, 2026-09-29, "you can
-      // see part of the optic disappearing, showing all buggy")
-      const eye = own.irons ? IRONS_EYE : own.dot ? DOT_EYE : 0;
-      const need = own.irons || own.dot ? Math.max(eye, own.f + this.gunBack + SIGHT_CLEAR) : 0;
-      m.opticF = own.f - this.optic.backF + (own.irons || own.dot ? this.optic.info.relief - need : 0);
+      // (at the sight's own eye relief, however near the gun's back end comes: pushed out until the USSO's back end was 3
+      // cm off the eye, its sight shrank to a speck far down a gun held at arm's length, the owner, 2026-09-29, "adsing
+      // with the usso is completely broken"; what had shown through aimed was the mounted sight's own culled faces
+      // (paidgun.ts mountMaterial), and the gun camera's near plane is close enough that the back end is not cut, main.ts)
+      m.opticF = own.f - this.optic.backF + (own.irons ? this.optic.info.relief - IRONS_EYE : own.dot ? this.optic.info.relief - DOT_EYE : 0);
     }
     this.optic.group.visible = !own;
     // and its own reticle dots take the optic's colour: the pack's dot is white, and a red dot reads as one

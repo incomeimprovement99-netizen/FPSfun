@@ -99,8 +99,9 @@ Checked against the deployed build's own sheets before acting on each.
    plan to do when swapping guns": **done** (Milestone 330), tossed up off a flick of the palm and phased out with the
    gun's own sweep.
 5. "ADS on the USSO, you can see part of the optic disappearing, showing all buggy and stuff. these are things i was
-   hoping you would notice in general": **done** (Milestone 329), the gun's back end had come inside the camera's near
-   plane. The lesson, kept: every state of a gun is photographed and looked at, aimed in and firing included, not only
+   hoping you would notice in general": taken at first for the gun's back end inside the camera's near plane
+   (Milestone 329, which pushed the gun out and broke aiming: undone in Milestone 346); it was the mounted sight's own
+   faces, drawn from one side (round 6, item 2). The lesson, kept: every state of a gun is photographed and looked at, aimed in and firing included, not only
    the ones the measures check.
 6. "the left hand when doing the charging handle on the usso doesn't like close its joints/fingers around the charging
    handle ... it kind of keeps its same position from the pointing": **seen** (the forefinger straight up the gun's side,
@@ -110,6 +111,35 @@ Checked against the deployed build's own sheets before acting on each.
    going in": **measured** (the finger already went with the magazine, 170 pixels, but in step with it and the gun's
    turn, so nothing read as the finger's doing) and **done** (Milestone 333), the finger 0.07 of the reload ahead of
    the magazine, down first and up first, the magazine following it.
+
+### Round 6 (2026-09-29, the owner playing Milestones 329 to 333)
+
+"We need to continue getting these two guns perfect. other than what i pointed out changed, the rest looks perfect ...
+only once i approve we can move on to the other 8 guns".
+
+1. "THE THUMB AND THE PALM OF THE LEFT ARM ARE NOT EXACTLY FLUSH UP WITH THE USSO ON THE GUNS LEFT SIDE, SEE THE GAP?
+   TAKE SCREENSHOTS FOR IT, THE GAP IS OBVIOUS": to do.
+2. "the sight's base has seethrough textures and the bottom half of the red dot sight has them as well. that is
+   obviously bugs and i asked for you to fix them before": **seen** (the lower half of the hex frame and the base
+   see-through at rest, the sight a shell lifted off the steady SMG and drawn from the front only) and **done**
+   (Milestone 346), drawn from both sides. And the owner, the same evening: "adsing with the usso is completely broken
+   right now on the live build": Milestone 329's push undone, the near plane brought in instead (Milestone 346).
+3. "for the right hands bottom two fingers, why is the middle finger so separated from the bottom two? the 3 should be
+   next to each other and then the pointer on the trigger": to do.
+4. "MAKE THE muzzle flash only like 10% transparent, since we don't have a paid asset for it, it looks like shit still":
+   **done** (Milestone 346), a tenth of it drawn (read as less of it: "only", and "it looks like shit still").
+5. The swap: "we need the arms to go flying upwards and hands opening, then the reverse to catch the gun ... currently,
+   the gun goes up and the hands go down. the hands should go up with the gun like if a person holding it were to move
+   from the steady standing still position, then opened their palms up to throw it up and it disintegrates and then the
+   reverse motion, other weapon phases in and they catch it higher up and bring it down. we don't want the hands to go
+   too far up, just a bit to show the toss. and with how quick it is now the animation we want doesn't show the phasing
+   in, you should have seen this in your screenshot frame by frame reviews, it needs to just be a slightly longer swap
+   time and a faster animation for throwing it up and making it vaporize": to do.
+6. "Like we are doing the same things already with the hacks in the left hand, we should do that pretty much for the
+   weapon swap. also we should use that animation/phase style with the weapon when it goes to swap and when we inspect
+   it should be that glow we are using on the hacks, not the janky looking highlight we made from our non-assets days":
+   to do.
+7. "WE SHOULD UPDATE OUR HACKS ON THE UI TO LOOK MORE LIKE THE HACKS IN THE ANIMATION": to do.
 
 ## 2. The bar every gun in hand meets
 

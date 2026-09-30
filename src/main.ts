@@ -778,8 +778,10 @@ const RANGE_FOG = { near: 55, far: 290 };
 const BR_FOG = { near: 140, far: 680 };
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.02, drawRange(RANGE_FOG, quality).camFar);
 scene.add(camera);
-// the gun's own camera, at the world camera's place, drawn after it at its own FOV (render.ts)
-const vmCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.02, 20);
+// the gun's own camera, at the world camera's place, drawn after it at its own FOV (render.ts); its near plane half a
+// millimetre off the eye, so a gun whose back end comes right up to the eye aimed is never cut open (at 2 cm the USSO's
+// was, aimed down its sight), with depth to spare over the 20 m it draws
+const vmCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.0005, 20);
 vmCamera.layers.set(VM_LAYER);
 camera.add(vmCamera);
 const beforeRange = new Set(scene.children);
@@ -8717,6 +8719,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   feelState: () => ({ lean: slideLean, air: airLean, boost: boostFeel, yaw: player.yaw, pitch: player.pitch, landSide: player.landSide, lurchSide: player.lurchSide }),
   /** a JOLT's view: the roll in degrees and the FOV fraction now (tools/e2e.ts) */
   joltFeel: () => ({ roll: joltRoll(gameTime), fov: joltFov }),
+  /** the gun camera's near plane, metres (tools/e2e.ts: nothing of a held gun comes inside it) */
+  vmCameraNear: () => vmCamera.near,
   /** an inspect begun now, as its button begins one (tools/e2e.ts times it) */
   inspectNow: () => {
     inspectAt = gameTime;

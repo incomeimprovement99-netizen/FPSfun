@@ -7115,3 +7115,33 @@ trails, the edge laser); `docs/PLAN_GUNS_IN_HAND.md` had left "a screenshot of i
 - **Checked:** a new sklobby check measures every hull on a live bot holding the rifle (drawn or not, since which
   parts are drawn is a level of detail a ?norender page never updates): 79 hulls, 12 on scale-100 parts, all 2 cm;
   with the old single push put back, those 12 stood 2 m out and it failed. sklobby 25 of 25; sksquad (the teammate rings) and speedkills (the enemy outline in a fight), 117 checks, E2E PASS. verify, rules.
+
+## Milestone 346 — The USSO aimed as it was, its sight whole: Milestone 329 undone, the sight drawn from both sides
+
+The owner, 2026-09-29, on the live build: "adsing with the usso is completely broken right now on the live build, it
+wasn't like last game"; and, earlier the same evening: "the sight's base has seethrough textures and the bottom half of
+the red dot sight has them as well. that is obviously bugs and i asked for you to fix them before".
+
+- **What broke it:** Milestone 329. Photographed aimed on the live build, on the release before it (8678608) and on the
+  one before 329 (6be8698): 329 had put the eye back along the sight line until the USSO's back end was 3 cm off it, so
+  the sight shrank to a speck far down a gun held at arm's length, both arms stretched across the picture. Its
+  diagnosis was wrong: what the owner had seen disappear aimed in round 5 was not the gun's back end in the near plane
+  but the mounted sight's own faces. And it came and went (the owner: "the usso adsing wasn't broken when i just tried
+  it, so its an intermittent problem?"): the back end, like the gun's middle before it, was measured on the cached
+  model where its last throw or draw's spin had left it, so the push varied draw to draw; on the live build the same
+  USSO aimed far out after one draw and right after another (photographed). The middle is now measured with the
+  model at rest (`viewmodel.ts`), which the spin and the throw turn about too.
+- **The sight** (`paidgun.ts` mountMaterial): the USSO's reflex sight is lifted off the steady SMG's model, a shell whose
+  inner faces that gun hid; drawn from the front only, the lower half of its frame and its base drew see-through from
+  the USSO's hold, at rest and aimed. Drawn from both sides (a copy of the skin, so the steady SMG is drawn as before),
+  photographed whole at rest and aimed.
+- **Aimed** (`viewmodel.ts` fitOptic, `paidweapons.json` sights): the eye back at the dot's own eye relief, as before 329
+  (its `clear` taken out); the gun's back end comes to 2 mm of the eye there, so the gun camera's near plane is half a
+  millimetre (`main.ts`, from 2 cm), and nothing of the gun is cut open, with depth to spare over its 20 m.
+- **The muzzle flash** (`gunfeel.json` flashOpacity): a tenth, from a half (the owner: "MAKE THE muzzle flash only like
+  10% transparent, since we don't have a paid asset for it, it looks like shit still").
+- **Checked:** the USSO aimed and at rest photographed and looked at, the sight zoomed; the soldier e2e's near-plane
+  check now reads the camera's own near plane (nothing of either gun inside it aimed and firing), and a new one holds
+  each gun's middle the same drawn first and drawn back after a thrown swap (shipped at once to put aiming right on the
+  live build; the two are seen failing with their faults put back in the next milestone's proof run); the soldier
+  section; verify; rules.

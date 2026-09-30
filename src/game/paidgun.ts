@@ -34,8 +34,6 @@ const MEASURED = measuredCfg.models as Record<
 export const IRONS_EYE: number = cfg.sights.ironsEye;
 /** and a bought scope's reticle dot (paidweapons.json sights) */
 export const DOT_EYE: number = cfg.sights.dotEye;
-/** the least a gun's back end is kept in front of the eye aimed, before VM_SCALE (paidweapons.json sights clear) */
-export const SIGHT_CLEAR: number = (cfg.sights as unknown as { clear: number }).clear;
 /** how the parts move (paidweapons.json motion) */
 export const PAID_MOTION = cfg.motion;
 const PROPS = (cfg.props ?? {}) as Record<string, { model: string; skin: string; scale?: number; lid?: string; open?: number }>;
@@ -472,7 +470,7 @@ function mountSight(model: THREE.Object3D, mount: { from: string; part: string; 
       dot = mesh;
     } else {
       mesh.userData.mountFamily = family;
-      mesh.material = skinMaterial(family, skin, tl);
+      mesh.material = mountMaterial(family, skin, false);
     }
   });
   model.add(part);
@@ -480,6 +478,24 @@ function mountSight(model: THREE.Object3D, mount: { from: string; part: string; 
   const partBox = new THREE.Box3().setFromObject(part, true).applyMatrix4(new THREE.Matrix4().copy(model.matrixWorld).invert());
   const dotBox = dot ? boxIn(model, dot) : partBox;
   return { y: (dotBox.min.y + dotBox.max.y) / 2, back: partBox.min.z, sight: "dot" };
+}
+
+const mountMats = new Map<string, THREE.MeshStandardMaterial>();
+/**
+ * a mounted sight's skin, drawn from both sides: lifted off its own gun, the sight is a shell whose inner faces that gun
+ * hid, and seen from the USSO's hold the lower half of its frame and its base drew see-through (the owner, 2026-09-29:
+ * "the sight's base has seethrough textures and the bottom half of the red dot sight has them as well"); a copy, so the
+ * gun it came from is drawn as before
+ */
+function mountMaterial(family: string, skin: string, hi: boolean): THREE.MeshStandardMaterial {
+  const key = `${family}|${skin}|${hi}`;
+  let mat = mountMats.get(key);
+  if (!mat) {
+    mat = skinMaterial(family, skin, tl, hi).clone();
+    mat.side = THREE.DoubleSide;
+    mountMats.set(key, mat);
+  }
+  return mat;
 }
 
 const tintedDots = new Map<string, THREE.MeshBasicMaterial>();
@@ -526,7 +542,7 @@ export function setPaidLevel(m: GunModel, level: number, hi = false): void {
     if (mesh.userData.procedural) return;
     // a sight from another model (mountSight) wears that model's skin at this level
     if (mesh.userData.mountFamily) {
-      mesh.material = skinMaterial(mesh.userData.mountFamily as string, skin, tl, hi);
+      mesh.material = mountMaterial(mesh.userData.mountFamily as string, skin, hi);
       return;
     }
     if ((mesh.material as THREE.Material).name.startsWith(family)) mesh.material = mat;

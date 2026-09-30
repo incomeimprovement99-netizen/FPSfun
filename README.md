@@ -155,9 +155,10 @@ Game) or `?game=legacy`, and everything below this section describes it.
   own sights (its scope's dot, the sniper's scope, or its irons), with no sight
   of ours on top; the gun's optic lends its zoom and its reticle's colour, so
   the pack's white dots are red dots. The USSO, irons only in the pack, wears
-  the steady SMG's reflex sight, lifted off that model. Aimed, a gun whose back
-  end would reach the eye is held out further along its sight line, so no part
-  of it is ever cut off by the camera. The USSO and BOOG have
+  the steady SMG's reflex sight, lifted off that model and drawn from both sides
+  (lifted off, its inner faces showed). The gun camera draws from half a
+  millimetre off the eye, so a gun whose back end comes right up to it aimed is
+  never cut open. The USSO and BOOG have
   their own feel in the hands: on a swap they spin in ahead of the hand and
   build out of dark pixel cubes behind a sweeping amber band, as Hyper Scape's
   did, kick on their own spring (the USSO tight and
