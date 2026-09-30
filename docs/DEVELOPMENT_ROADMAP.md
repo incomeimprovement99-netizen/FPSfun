@@ -6980,3 +6980,21 @@ enemy / 3rd palyer stuff"). SpeedKills' soldier only.
   right shoulder and arm; the reload's hand at the charging handle; BOOG's reload; the look's extremes; the jump; the
   slide (plan 27.12).
 - **Checked:** verify; rules; the e2e `skfigure` section; the reload, swap and sprint sheets of both guns.
+
+## Milestone 342 — The Loadouts tab's soldier holds the gun as a soldier stands with it, the whole gun in the panel at every turn
+
+The owner, 2026-09-30: "ensure the loadout screen shows the character holding the guns like normal". SpeedKills only.
+
+- **The hold** (`main.ts` previewLoadout): the tab's soldier stood aimed in, its head down on the stock, and BOOG's
+  scope threw its lens glint across the panel. It now stands at rest, the gun up at the shoulder as a rifleman holds it,
+  the head up (the rest hold, clean from every side for both guns; no glint, which is the aimed-in figure's).
+- **The framing** (`main.ts` placePreviewCam, previewFitNow): the camera stood at a fixed 3.15 m, showing 0.63 m either
+  side of the turning axis; BOOG reaches 1.08 m and ran out of the panel side on, and pointed at you it ran out of it
+  too. The camera now stands, for the turn the figure is at, just far enough back that every point of the held gun is
+  inside the panel with 8% to spare, head to boots at the least: the USSO whole at every turn at the old distance, BOOG
+  front and three-quarter on the same, stepping back as it comes round side on, continuously, since the turn is. The
+  wheel's zoom works from there as before. (Fitted once for every turn, the figure was half the panel even front on.)
+- **Checked:** the e2e `skfigure` section's Loadouts checks now cover both guns: both palms on their holds and not aimed
+  in, and the whole gun inside the panel front on, three quarters, both sides and from behind; seen failing with the
+  fixed camera put back (BOOG 0.58 to 0.83 of the panel's half-width past its edge); the Loadouts sheets of both guns;
+  verify; rules.

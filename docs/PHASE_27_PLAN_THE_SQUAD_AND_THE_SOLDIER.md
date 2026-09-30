@@ -195,6 +195,8 @@ upper body stays in the aim clip through it (the pistol's reload clip twisted th
 
 ## 27.10 The Loadouts tab (done)
 
+(Since Milestone 342 it holds the gun at rest, not aimed in, and the camera fits the whole gun at every turn.)
+
 The tab's soldier is the same figure aiming in, so it holds the gun the new way. Its rebuild key now includes whether
 the bought guns are in: a figure built before they loaded held the procedural stand-in until the loadout changed.
 

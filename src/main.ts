@@ -1890,9 +1890,7 @@ const previewCam = new THREE.PerspectiveCamera(32, 0.7, 0.1, 12);
     (e) => {
       e.preventDefault();
       previewZoom = Math.max(0.32, Math.min(1.25, previewZoom + (e.deltaY > 0 ? 0.1 : -0.1)));
-      const y = 0.95 + (1 - previewZoom) * 0.55;
-      previewCam.position.set(0, y + 0.17, 0.5 + 2.65 * previewZoom);
-      previewCam.lookAt(0, y, 0);
+      placePreviewCam();
     },
     { passive: false }
   );
@@ -1912,6 +1910,53 @@ let previewDrag: { x: number; from: number } | null = null;
 let previewHeldAt = -Infinity;
 /** how far back the camera sits: the wheel moves it between these */
 let previewZoom = 1;
+/**
+ * How far back the camera stands at zoom 1, metres: head to boots (3.15), or further while the held gun as it is turned
+ * now would run out of the panel. At the fixed 3.15 the panel showed 0.63 m either side of the axis, and BOOG, which
+ * reaches 1.08 m, ran out of it whenever the figure turned side on; fitted to the gun at every turn at once, the figure
+ * was half the panel's height even front on. Fitted to the turn it is at, it is whole front on and steps back as a long
+ * gun comes round to the side, continuously, since the turn is.
+ */
+let previewWhole = 3.15;
+/** the camera for the zoom and the gun: at zoom 1 the whole figure and the whole gun, nearer as the wheel zooms in */
+function placePreviewCam(): void {
+  const y = 0.95 + (1 - previewZoom) * 0.55;
+  previewCam.position.set(0, y + 0.17, 0.5 + (previewWhole - 0.5) * previewZoom);
+  previewCam.lookAt(0, y, 0);
+}
+/** each gun mesh's points, a quarter of its vertices, in its own frame, for the fit (a gun's shape does not change) */
+const previewGunPts = new WeakMap<THREE.BufferGeometry, Float32Array>();
+/** the distance at zoom 1 that has the held gun, turned as it is now, inside the panel with 8% to spare */
+function previewFitNow(fig: Dummy): number {
+  const gun = fig.figure?.gunObject;
+  if (!gun || !gun.visible) return 3.15;
+  fig.group.updateMatrixWorld(true);
+  const c = fig.group.getWorldPosition(new THREE.Vector3());
+  // a point x across and z toward the camera stays in the panel while x / (D - z) <= k
+  const k = (Math.tan((previewCam.fov * Math.PI) / 360) * previewCam.aspect) / 1.08;
+  let need = 3.15;
+  const v = new THREE.Vector3();
+  gun.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    let pts = previewGunPts.get(m.geometry);
+    if (!pts) {
+      const pos = m.geometry.getAttribute("position");
+      pts = new Float32Array(Math.ceil(pos.count / 4) * 3);
+      for (let i = 0, j = 0; i < pos.count; i += 4, j += 3) {
+        pts[j] = pos.getX(i);
+        pts[j + 1] = pos.getY(i);
+        pts[j + 2] = pos.getZ(i);
+      }
+      previewGunPts.set(m.geometry, pts);
+    }
+    for (let j = 0; j < pts.length; j += 3) {
+      v.set(pts[j], pts[j + 1], pts[j + 2]).applyMatrix4(m.matrixWorld);
+      need = Math.max(need, v.z - c.z + Math.abs(v.x - c.x) / k);
+    }
+  });
+  return need;
+}
 const previewBox = $("loPreview");
 function previewLoadout(now: number, dt: number): void {
   const def = loadouts.current;
@@ -1942,9 +1987,14 @@ function previewLoadout(now: number, dt: number): void {
   previewFig.group.rotation.y = previewTurn;
   // the gun in its hands too: it is a loadout, not an outfit. `ads` brings the
   // weapon up into the hold rather than leaving it at rest, which is the pose
-  // a player pictures when they picture their loadout.
-  previewFig.setPose({ speed: 0, stance: "stand", pitch: 0, ads: 1 });
+  // a player pictures when they picture their loadout. SpeedKills' soldier holds
+  // it up at rest already, as a rifleman stands (rifle.ts): aimed in, its head was
+  // down on the stock and BOOG's scope glinted across the panel (Phase 27, 27.12)
+  const soldier = IS_SK && soldierReady();
+  previewFig.setPose({ speed: 0, stance: "stand", pitch: 0, ads: soldier ? 0 : 1 });
   previewFig.update(now, dt);
+  previewWhole = previewFitNow(previewFig);
+  placePreviewCam();
 }
 /** the panel's box, in the canvas's own pixels, or null when it is not on screen */
 function previewRect(): { x: number; y: number; w: number; h: number } | null {
@@ -1980,6 +2030,7 @@ function drawPreview(): void {
     previewRenderer.setSize(w, h, false);
     previewCam.aspect = w / h;
     previewCam.updateProjectionMatrix();
+    placePreviewCam();
   }
   previewDraws++;
   previewRenderer.render(previewScene, previewCam);
@@ -8884,7 +8935,26 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   },
   /** the Loadouts tab's figure: is it built, and where is it being drawn (tools/e2e.ts) */
   previewFigure: () => previewFig,
-  previewState: () => ({ key: previewKey, has: !!previewFig, rect: previewRect(), kids: previewScene.children.length, draws: previewDraws, vis: previewFig?.group.visible, at: previewFig?.group.position.toArray() }),
+  previewState: () => ({ key: previewKey, has: !!previewFig, rect: previewRect(), kids: previewScene.children.length, draws: previewDraws, vis: previewFig?.group.visible, at: previewFig?.group.position.toArray(), whole: previewWhole }),
+  /** how much of the Loadouts figure's gun is out of the panel as the camera sees it now, 0 in frame, else how far past its edge (tools/e2e.ts) */
+  previewGunOut: (): number | null => {
+    const gun = previewFig?.figure?.gunObject;
+    if (!gun) return null;
+    previewFig!.group.updateMatrixWorld(true);
+    previewCam.updateMatrixWorld();
+    let out = 0;
+    const v = new THREE.Vector3();
+    gun.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const pos = m.geometry.getAttribute("position");
+      for (let i = 0; i < pos.count; i += 4) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld).project(previewCam);
+        out = Math.max(out, Math.abs(v.x) - 1, Math.abs(v.y) - 1);
+      }
+    });
+    return out;
+  },
   /** turn the Loadouts figure to a known angle (tools/snap.ts, tools/e2e.ts) */
   previewTurn: (rad: number) => {
     previewTurn = rad;

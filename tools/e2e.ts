@@ -7243,11 +7243,24 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   await lp.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 1 });
   await lp.waitForFunction("window.__range.loaded() && window.__range.soldierReady()", { polling: 250, timeout: 90000 }).catch(() => undefined);
   await lp.waitForFunction("window.__range.paidGuns().ready", { polling: 250, timeout: 60000 }).catch(() => undefined);
-  await ev(lp, `(() => { const r = window.__range; r.loadouts.copyTo({ kind: "default", index: 0 }, 0); r.loadouts.edit(0, { slot1: "r97" }); document.getElementById("overlay").classList.remove("hidden"); document.querySelector('[data-tab="loadouts"]').click(); })()`);
-  const shown = await lp.waitForFunction(`(window.__range.previewState().key || "").includes("|r97|")`, { polling: 100, timeout: 15000 }).then(() => true, () => false);
-  await sleep(1500);
-  const lo = await ev<{ grip: number; support: number } | null>(lp, `(() => { const f = window.__range.previewFigure()?.figure; const h = f && f.holdPoints(); if (!h) return null; const T = window.__range.THREE; const palm = (s) => f.boneAt("hand_" + s).getWorldPosition(new T.Vector3()).lerp(f.boneAt("middle_01_" + s).getWorldPosition(new T.Vector3()), 0.5); return { grip: palm("r").distanceTo(h.grip) * 100, support: palm("l").distanceTo(h.support) * 100 }; })()`);
-  check("the Loadouts tab's soldier holds the USSO: both palms on their holds", shown && !!lo && lo.grip <= BAR.grip && lo.support <= BAR.support, JSON.stringify(lo));
+  // Each gun: both palms on their holds, the gun held as the soldier stands with it (not aimed in, head down on the
+  // stock), and the whole gun inside the panel at every turn (BOOG, held side on, ran out of it)
+  await ev(lp, `(() => { const r = window.__range; r.loadouts.copyTo({ kind: "default", index: 0 }, 0); document.getElementById("overlay").classList.remove("hidden"); document.querySelector('[data-tab="loadouts"]').click(); })()`);
+  for (const id of ["r97", "sentinel"]) {
+    const name = id === "r97" ? "USSO" : "BOOG";
+    await ev(lp, `window.__range.loadouts.edit(0, { slot1: "${id}" })`);
+    const shown = await lp.waitForFunction(`(window.__range.previewState().key || "").includes("|${id}|")`, { polling: 100, timeout: 15000 }).then(() => true, () => false);
+    await sleep(1500);
+    const lo = await ev<{ grip: number; support: number; aimed: boolean } | null>(lp, `(() => { const f = window.__range.previewFigure()?.figure; const h = f && f.holdPoints(); if (!h) return null; const T = window.__range.THREE; const palm = (s) => f.boneAt("hand_" + s).getWorldPosition(new T.Vector3()).lerp(f.boneAt("middle_01_" + s).getWorldPosition(new T.Vector3()), 0.5); return { grip: palm("r").distanceTo(h.grip) * 100, support: palm("l").distanceTo(h.support) * 100, aimed: (window.__range.previewFigure().pose?.ads ?? 0) > 0 }; })()`);
+    check(`the Loadouts tab's soldier holds the ${name}: both palms on their holds, at rest and not aimed in`, shown && !!lo && lo.grip <= BAR.grip && lo.support <= BAR.support && !lo.aimed, JSON.stringify(lo));
+    const outs: number[] = [];
+    for (const turn of [0, 0.6, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+      await ev(lp, `window.__range.previewTurn(${turn})`);
+      await sleep(250);
+      outs.push(Math.round(((await ev<number | null>(lp, "window.__range.previewGunOut()")) ?? 9) * 1000) / 1000);
+    }
+    check(`the Loadouts tab's soldier's ${name} is whole in the panel at every turn (front, three quarters, both sides, back)`, outs.every((o) => o <= 0), JSON.stringify(outs));
+  }
   check("the bought guns were there to hold (the checks above are on them)", paid);
   await lp.close();
 }
