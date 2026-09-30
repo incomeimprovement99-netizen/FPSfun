@@ -6659,6 +6659,14 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, look:
     return;
   }
   const key = `${weaponId}|${op}|${look}`;
+  // One gun for another is the same figure with a new gun in its hands (Dummy.setGun): built anew at every swap, it
+  // started from its rest pose and blends, its hands 2 to 6 cm off the new gun and into it, the frame it changed
+  // (Phase 27, 27.12). Only a new operator, a new look, or a hand going empty or armed builds it again.
+  const was = selfFigKey.split("|");
+  if (selfFig && selfFigKey !== key && was[0] && weaponId && was[1] === op && was.slice(2).join("|") === look) {
+    selfFig.setGun(weaponId);
+    selfFigKey = key;
+  }
   if (!selfFig || selfFigKey !== key) {
     selfFig?.dispose();
     selfFig = new Dummy(0, 0, 0, { armed: weaponId, respawn: false, skin: operatorWearing(op, look), rig: true, noBase: true });

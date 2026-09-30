@@ -346,6 +346,8 @@ export interface RifleState {
   reload: number | null;
   /** a shot's kick, 1 as it fires and fading (dummy.ts kick) */
   kick: number;
+  /** a melee swing under way: its progress (0..1) and which swing of a string it is (soldierhold.json melee) */
+  melee?: { u: number; swing: number } | null;
   /** last frame's, so the moment a magazine is let go is caught once */
   lastReload?: number | null;
   /**
@@ -402,7 +404,13 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   const b = bones;
   const C = cfgFor(g.id);
   // 1. the chest turned to its right, the left shoulder leading; the head turned back to look where the gun points
-  const blade = C.blade * DEG * s.stance;
+  // A melee is a strike with the gun, both hands on it: driven out and back over the swing, the chest squaring into
+  // it. The figures' clips are a boxer's punches: played, the gun went away for each swing, the second threw the whole
+  // body half a metre out to the side, and the gun came back through both hands (Phase 27, 27.12)
+  const M = C.melee as { out: number; back: number[]; swings: Array<{ thrust: number; up: number; pitch: number; yaw: number; square: number }> };
+  const sw = s.melee ? M.swings[s.melee.swing % M.swings.length] : null;
+  const strike = s.melee && sw ? smooth(s.melee.u, 0, M.out) * (1 - smooth(s.melee.u, M.back[0], M.back[1])) * s.stance : 0;
+  const blade = (C.blade - (sw ? sw.square * strike : 0)) * DEG * s.stance;
   if (b.spine_02) turnAbout(b.spine_02, fig, Y, -blade * 0.5);
   if (b.spine_03) turnAbout(b.spine_03, fig, Y, -blade * 0.5);
   if (b.Head) turnAbout(b.Head, fig, Y, blade);
@@ -429,8 +437,8 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   const tilt = u === null ? 0 : smooth(u, R.tiltIn[0], R.tiltIn[1]) * (1 - smooth(u, R.tiltOut[0], R.tiltOut[1]));
   const q = figQ
     .clone()
-    .multiply(new THREE.Quaternion().setFromAxisAngle(X, -s.pitch * (1 - lo) + R.tilt.down * DEG * tilt - C.recoil.up * DEG * s.kick))
-    .multiply(new THREE.Quaternion().setFromAxisAngle(Y, L.left * DEG * lo))
+    .multiply(new THREE.Quaternion().setFromAxisAngle(X, -s.pitch * (1 - lo) + R.tilt.down * DEG * tilt - C.recoil.up * DEG * s.kick - (sw ? sw.pitch * DEG * strike : 0)))
+    .multiply(new THREE.Quaternion().setFromAxisAngle(Y, L.left * DEG * lo + (sw ? sw.yaw * DEG * strike : 0)))
     .multiply(new THREE.Quaternion().setFromAxisAngle(X, L.down * DEG * lo))
     // the gun's own -z (its muzzle) onto the figure's +z (its front)
     .multiply(new THREE.Quaternion().setFromAxisAngle(Y, Math.PI))
@@ -450,6 +458,8 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
     const buttAt = sightAt.add(g.butt.clone().sub(g.sight).multiplyScalar(gunScale0).applyQuaternion(q));
     pocket.lerp(buttAt, Math.min(1, s.ads) * s.stance);
   }
+  // the strike: the gun driven out along the figure's front, and up
+  if (sw && strike > 0) pocket.add(new THREE.Vector3(0, sw.up * strike, sw.thrust * strike).multiplyScalar(figScale).applyQuaternion(figQ));
   // a shot drives the gun back into the shoulder
   if (s.kick > 0) pocket.add(new THREE.Vector3(0, 0, -C.recoil.back * s.kick * figScale).applyQuaternion(figQ));
   // the mount is the grip's frame: the butt at the pocket puts the grip at pocket + q (grip - butt)

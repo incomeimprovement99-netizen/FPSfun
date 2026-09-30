@@ -1058,7 +1058,10 @@ export class Bot {
       }
       return;
     }
-    // out of sight behind cover it starts at once; otherwise after its tier's quiet spell
+    // out of sight behind cover it starts at once; otherwise after its tier's quiet spell. SpeedKills carries no heals, a
+    // bot no more than a player (health and shield come back on their own, stepSk): a bot there stood behind cover with
+    // its gun put away, holding nothing, for the four seconds of a heal nobody else has (Phase 27, 27.12)
+    if (IS_SK) return;
     if (!this.cover && now - this.lastTargetAt < this.diff.healAfter) return;
     if (d.shield < d.shieldMax && this.kit.cell > 0) this.healing = { item: "cell", startedAt: now };
     else if (d.health < HEALTH_MAX && this.kit.syringe > 0) this.healing = { item: "syringe", startedAt: now };
@@ -1547,7 +1550,9 @@ export class Bot {
     this.prevVital = vital;
     // low, with cover on: away out of sight to heal, then back to peek
     const hurtFrac = vital / Math.max(1, HEALTH_MAX + this.dummy.shieldMax);
-    if (tier.cover && !this.cover && sees && target && now >= this.coverTryAt && hurtFrac < COVER.below && (this.kit.cell > 0 || this.kit.syringe > 0)) {
+    // (SpeedKills: into cover to be out of the fire while its shield comes back on its own, no heal needed)
+    const canRecover = IS_SK || this.kit.cell > 0 || this.kit.syringe > 0;
+    if (tier.cover && !this.cover && sees && target && now >= this.coverTryAt && hurtFrac < COVER.below && canRecover) {
       // (nothing found: look again in a moment, from wherever the strafe has taken it)
       this.coverTryAt = now + 0.5;
       const found = this.findCover(target);
@@ -1562,7 +1567,7 @@ export class Bot {
         this.cover.bestAt = now;
       } else if (now - this.cover.bestAt > 1) this.cover = null;
     }
-    if (this.cover && (now > this.cover.until || (!this.healing && hurtFrac >= 0.95) || (this.kit.cell <= 0 && this.kit.syringe <= 0))) this.cover = null;
+    if (this.cover && (now > this.cover.until || (!this.healing && hurtFrac >= 0.95) || !canRecover)) this.cover = null;
     this.stepHeal(now, sees);
     this.stepUlt(now, dt, !!target);
     // SMOKE and WARD: cover between it and whoever is shooting it

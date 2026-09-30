@@ -62,9 +62,9 @@
       ]
     }
   },
-  "_reach": "How far each shoulder may be brought forward, degrees of the clavicle's swing about its own joint, when the arm alone falls short of its hand's place: a person reaching pushes the shoulder forward (5 to 8 cm). The clavicle is 0.205 m (measured), so 18 degrees brings the shoulder up to 6.4 cm nearer. Without it the left hand's hold slid back along the gun whenever the arm came up short, running (BOOG's 5.5 cm) or looking down, and took the fitted hand into the gun; the slide (mannequin.ts supportHold) now counts this reach first.",
+  "_reach": "How far each shoulder may be brought forward, degrees of the clavicle's swing about its own joint, when the arm alone falls short of its hand's place: a person reaching pushes the shoulder forward. The clavicle is 0.205 m (measured), so 34 degrees brings the shoulder up to 12 cm nearer, only as far as is needed. Without it the left hand's hold slid back along the gun whenever the arm came up short and took the fitted hand into the gun (12 to 20 mm): standing it was running (BOOG's 5.5 cm) or looking down, at 18 degrees; and aimed on the move, where the running clips lean the chest 20 cm forward, the hold still slid a third of the way to the grip until 34 (bots aim as they run: every one of them showed it). The slide (mannequin.ts supportHold) counts this reach first.",
   "reach": {
-    "shoulder": 18
+    "shoulder": 34
   },
   "_elbows": "Which way each elbow points, in the figure's frame (+x its left, +y up, +z its front): the right out to the side and down, the left down and a little in, as a rifleman's are.",
   "elbows": {
@@ -201,6 +201,42 @@
   "recoil": {
     "up": 5,
     "back": 0
+  },
+  "_throwFor": "How long the soldier's grenade throw takes, s, before its hands go back for the gun: the overhand clip's release is at 0.3 s and its arm is through by 0.4. The act itself lasts figure.json throwShown on the wire (0.7), and held to that the arms hung empty for 0.35 s after the release.",
+  "throwFor": 0.4,
+  "_gunBack": "How far both hands have come back onto the long gun (the hold's weights, 0 to 1, the slower of the two) when it is shown again after a throw, a heal or a reach for something: until then the hands go to where it will be, the gun hidden. Shown at once, it came back through both hands (23 to 28 mm) while they were still on their way; at 0.85 of the way the right palm was still 3 cm off its grip. At 0.97 it shows about 0.3 s after the hands start back.",
+  "gunBack": 0.97,
+  "_melee": "A melee, as the soldier holding a long gun does it: a strike with the gun, both hands on it (rifle.ts). `time` is the game's melee, s (viewmodel.ts MELEE_TIME, which the first person's gun dips out of sight over; tools/checks/soldier-hold.ts holds them equal): a string of swings goes on from one to the next. The strike is out by `out` of the swing and back from `back[0]` to `back[1]`; each swing drives the gun `thrust` metres out along the figure's front and `up` metres up, the muzzle `pitch` degrees up and `yaw` to the figure's left, the chest squared `square` degrees into it: a jab, a sweep across, a jab up, in turn. The figures' clips are a boxer's punches: played, the gun went away for each swing, the second threw the body half a metre out to the side, and the gun came back through both hands.",
+  "melee": {
+    "time": 0.38,
+    "out": 0.3,
+    "back": [
+      0.45,
+      1
+    ],
+    "swings": [
+      {
+        "thrust": 0.24,
+        "up": 0.03,
+        "pitch": 5,
+        "yaw": 0,
+        "square": 18
+      },
+      {
+        "thrust": 0.16,
+        "up": 0.02,
+        "pitch": 0,
+        "yaw": 28,
+        "square": 30
+      },
+      {
+        "thrust": 0.2,
+        "up": 0.08,
+        "pitch": 16,
+        "yaw": 0,
+        "square": 12
+      }
+    ]
   },
   "_reload": "The reload as other players see it (Phase 27, 27.9; rifle.ts reloadTarget), a share of the gun's own reload time (weapons.ts reloadTime) at each step, so an enemy's plays from the moment their \"reload\" arrives and nothing new goes over the network. The gun turns its magazine toward the left hand (`tilt`, in over `tiltIn`, back over `tiltOut`); the left hand goes from the handguard to the magazine, pulls it `out` metres down over `pull` and lets it go at `dropAt` (a copy falls to the floor and fades), fetches a new one from the pouch at the left hip (in the hand over `inHand`, its bottom `magInPalm` over the palm), pushes it home, racks the charging handle and goes back. `left` and `right` are each hand's keys, [share, key]; a hand without keys at that share holds as it always does. `keys` are palm places and turns: off the magazine's bottom (`mag`), the charging handle or bolt (`handle`), or the hips (`hips`, in the figure's frame: +x its left, +z its front), with `fwd` and `palm` as in `hands`. A bolt gun works its bolt with the right hand (guns.sentinel). upright: over this share of the reload the new magazine turns from held as a hand holds it (its length across the hand, at the pouch) to upright as the gun is (its bottom in the palm), so it goes in straight: kept upright all the way, it ran through the left forearm and the belly at the pouch (40 mm).",
   "reload": {

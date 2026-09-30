@@ -1038,6 +1038,15 @@ export class Duel implements MatchLike {
   /** the other figure when a player changes weapon or operator */
   private setAvatarLook(r: Remote, weapon: string, op: string, look?: string): void {
     if (weapon === r.avatarWeapon && op === r.avatarOp && (look ?? "") === (r.avatarLook ?? "")) return;
+    // Another gun only: the same figure takes it in its hands (Dummy.setGun), as a bot's does. A figure of its own for
+    // each gun put the other player's swap on your screen as one figure vanishing and another appearing, from its rest
+    // pose, its hands off the new gun and into it for the frames it took to blend back (Phase 27, 27.12).
+    if (weapon && r.avatarWeapon && op === r.avatarOp && (look ?? "") === (r.avatarLook ?? "") && !r.avatar.knocked) {
+      r.avatar.setGun(weapon);
+      r.avatarWeapon = weapon;
+      r.avatars.set(look ? `${weapon}|${op}|${look}` : `${weapon}|${op}`, r.avatar);
+      return;
+    }
     const old = r.avatar;
     const next = this.makeAvatar(r, weapon, op, look);
     next.group.position.copy(old.group.position);
@@ -1511,7 +1520,8 @@ export class Duel implements MatchLike {
     this.sync.forgetSubject(id);
     const r = this.remotes.get(id);
     if (!r) return false;
-    for (const d of r.avatars.values()) {
+    // (one figure can sit under two keys, a gun changed in its hands: each disposed once)
+    for (const d of new Set(r.avatars.values())) {
       this.projectiles.removeDummy(d);
       d.dispose();
     }
@@ -2260,7 +2270,7 @@ export class Duel implements MatchLike {
     for (const l of this.links.values()) l.onMessage = null;
     if (this.hostLink) this.hostLink.onMessage = null;
     for (const r of this.remotes.values()) {
-      for (const d of r.avatars.values()) {
+      for (const d of new Set(r.avatars.values())) {
         this.projectiles.removeDummy(d);
         d.dispose();
       }

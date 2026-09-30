@@ -19,6 +19,12 @@ function check(label: string, cond: boolean, detail = ""): void {
   console.log(`${cond ? "  ok  " : "FAIL  "}${label}${detail ? ` (${detail})` : ""}`);
 }
 
+// the figure's melee swing takes the game's melee time, as the first person's does (read off viewmodel.ts, which a
+// check running in Node cannot import: it builds on the page)
+{
+  const m = /export const MELEE_TIME = ([\d.]+);/.exec(readFileSync("src/game/viewmodel.ts", "utf8"));
+  check("the soldier's melee swing is the game's melee time (viewmodel.ts MELEE_TIME)", !!m && Number(m[1]) === holdCfg.melee.time, `${holdCfg.melee.time} s against ${m?.[1] ?? "none"}`);
+}
 const GLB = `public/${soldierCfg.model}`;
 console.log("\nThe soldier's rifle hold, measured");
 if (!existsSync(GLB)) {

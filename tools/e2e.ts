@@ -7405,6 +7405,42 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       const a = await ev<A | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, ${JSON.stringify(p)}); r.figureLabStep(0.3); return window.__figureAudit(0, { pitch: ${p.pitch} }); })()`);
       check(`the soldier holding ${name}, ${label}: both palms on their holds and the fingers round them, the barrel along the look, the wrists straight enough, no hand in the gun and the gun not in the body`, within(a, true), JSON.stringify(a));
     }
+    // Aimed on the move, as every bot fights and a player strafes: the left hand stays on its hold. The running clips
+    // lean the chest forward, and the hold used to slide a third of the way back to the grip, the hand into the gun.
+    const moving = await ev<{ slide: number; a: A | null }>(
+      page,
+      `(() => { const r = window.__range; r.figureLabPose(0, { speed: 14, stance: "stand", pitch: 0, ads: 1 }); r.figureLabStep(0.9); return { slide: r.labFigures()[0].figure.supportSlide, a: window.__figureAudit(0, { pitch: 0 }) }; })()`,
+    );
+    check(`the soldier holding ${name}, aimed at a sprint: the left hand on its hold, not slid back along the gun and into it`, moving.slide < 0.01 && (moving.a?.handIn?.l ?? 99) <= 8, JSON.stringify({ slide: moving.slide, handIn: moving.a?.handIn }));
+    // A melee is a strike with the gun, both hands on it, driven out and back in the game's melee time: the gun stays
+    // in the hands (the boxer's punches it used to play put it away and brought it back through both of them). 18 cm:
+    // the chest squaring into it alone moves the gun 8 to 12 cm, the thrust takes it to 24 and 27)
+    const gunZ = `(() => { const r = window.__range, f = r.labFigures()[0], g = f.figure.gunObject; f.group.updateMatrixWorld(true); return { z: f.group.worldToLocal(g.getWorldPosition(new r.THREE.Vector3())).z, shown: g.visible }; })()`;
+    await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); })()`);
+    const rest = await ev<{ z: number; shown: boolean }>(page, gunZ);
+    await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "melee" }); r.figureLabStep(0.15); })()`);
+    const struck = await ev<{ z: number; shown: boolean }>(page, gunZ);
+    const strike = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
+    check(`the soldier's ${name} melee: a strike with the gun, driven 18 cm or more out in front, shown, both palms on it`, struck.shown && struck.z > rest.z + 0.18 && (strike?.grip ?? 99) <= BAR.grip && (strike?.support ?? 99) <= BAR.support, JSON.stringify({ rest, struck, grip: strike?.grip, support: strike?.support }));
+    await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(0.6); })()`);
+    const after2 = await ev<{ z: number; shown: boolean }>(page, gunZ);
+    check(`the soldier's ${name} melee: and back to the hold after it`, after2.shown && Math.abs(after2.z - rest.z) < 0.02, JSON.stringify({ rest, after2 }));
+    // A grenade thrown: the gun away for the throw, and back only once both hands are on it (shown at once, it came
+    // back through both hands, 23 to 28 mm, while they were still on their way)
+    await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "throw" }); r.figureLabStep(0.2); })()`);
+    const thrown = await ev<{ z: number; shown: boolean }>(page, gunZ);
+    let worst = 0;
+    let backAt = -1;
+    for (let i = 1; i <= 16; i++) {
+      await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: ${i <= 5 ? `"throw"` : "null"} }); r.figureLabStep(0.06); })()`);
+      const g = await ev<{ z: number; shown: boolean }>(page, gunZ);
+      if (!g.shown) continue;
+      if (backAt < 0) backAt = 0.2 + i * 0.06;
+      const a = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
+      worst = Math.max(worst, a?.handIn?.l ?? 0, a?.handIn?.r ?? 0);
+    }
+    check(`the soldier's ${name} throw: the gun away for it, and back within a second with no hand through it (8 mm at most)`, !thrown.shown && backAt > 0 && backAt <= 1 && worst <= 8, JSON.stringify({ thrown: thrown.shown, backAt, worst }));
+    await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); })()`);
     // the reload: the magazine out, a copy let fall, a new one home
     const R = await ev<number>(page, `window.__range.weaponTimes("${id}").reload`);
     const mag = `(() => { const f = window.__range.labFigures()[0].figure; const m = f.gunObject.getObjectByName("mag"); return m ? { y: m.position.y, shown: m.visible } : null; })()`;

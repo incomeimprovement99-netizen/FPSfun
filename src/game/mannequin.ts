@@ -601,6 +601,10 @@ function clipSeconds(name: string): number {
 
 /** horizontal speed, m/s, above which a jump is the athletic one (figure.json) */
 const ATHLETIC_JUMP = figureCfg.athleticJump;
+/** how long the soldier's throw takes before the hands go back for the gun, s (soldierhold.json throwFor) */
+const THROW_FOR = soldierHold.throwFor;
+/** how far the hands have come back onto a returning long gun when it shows (soldierhold.json gunBack) */
+const GUN_BACK = soldierHold.gunBack;
 /** how fast a sprint jump's own carry comes in, per second (soldierhold.json airRate) */
 const AIR_CARRY = soldierHold.airRate;
 
@@ -923,6 +927,8 @@ export class MannequinFigure {
   private gripW = 0;
   /** 0..1 the long gun lowered and canted across the body (a sprint, a swap) */
   private lowered = 0;
+  /** the long gun is on its way back into the hands after a throw, a heal or a reach: hidden until they are on it */
+  private gunComing = false;
   /** 0..1 each, eased: the lowered carry a swap's own, and a sprint jump's own (rifle.ts carryOf) */
   private carryW = { swap: 0, air: 0 };
   /** the stance and the hands' act last frame, when a slide began and when its way out ends, and which swing a melee is on */
@@ -1500,12 +1506,17 @@ export class MannequinFigure {
     // off the gun: it goes away for the moment, and with it the rifle's
     // two-handed hold, whose reach onto the gun ran after the clip and pulled
     // both arms straight back onto it.
-    if (act === "throw" || act === "melee" || act === "revive" || act === "interact" || act === "finish" || act === "finished") armed = false;
+    // SpeedKills' soldier with a long gun strikes with it instead (rifle.ts melee): it keeps it, and both hands on it
+    const rifleMelee = act === "melee" && !!this.rifle && !!this.mount && p.stance !== "downed";
     if (act !== this.lastAct) {
       if (act === "melee") this.meleeSwing = (this.meleeSwing + 1) % MELEE_SWINGS.length;
       this.lastAct = act;
       this.actAt = this.t;
     }
+    // the soldier's throw is over once the grenade has gone (soldierhold.json throwFor), and the hands go back for the
+    // gun: held to the act's own time, its arms hung empty for 0.35 s after the release
+    const throwing = act === "throw" && !(this.rifle && this.mount && this.t - this.actAt >= THROW_FOR);
+    if (throwing || (act === "melee" && !rifleMelee) || act === "revive" || act === "interact" || act === "finish" || act === "finished") armed = false;
     let lowerOnce = false;
     // the legs
     let lower = "Idle_Loop";
@@ -1609,10 +1620,13 @@ export class MannequinFigure {
         upper = "Hit_Chest";
         upperRate = 1.1;
         once = true;
-      } else if (act === "throw" && hasClip("OverhandThrow") && p.stance !== "downed") {
+      } else if (throwing && hasClip("OverhandThrow") && p.stance !== "downed") {
         upper = "OverhandThrow";
         upperRate = 1.3;
         once = true;
+      } else if (rifleMelee) {
+        upper = "Pistol_Aim_Neutral";
+        upperRate = 1;
       } else if (act === "melee" && p.stance !== "downed") {
         // a jab, a cross or a hook, whichever of them has loaded
         upper = [MELEE_SWINGS[this.meleeSwing], "Punch_Jab"].find((c) => hasClip(c))!;
@@ -1638,8 +1652,12 @@ export class MannequinFigure {
     }
     this.play("lower", lower, lowerRate, 0.18, lowerOnce);
     this.play("upper", upper, upperRate, 0.15, once);
-    // no gun in the hand for a heal, or down (the figure says armed = false then)
-    if (this.gun) this.gun.visible = this.gunShown && armed && p.act !== "heal" && !this.dead;
+    // no gun in the hand for a heal, or down (the figure says armed = false then). SpeedKills' soldier, taking its long
+    // gun back (after a throw, a heal, a reach for something), has the hands go to it first and shows it once they are
+    // nearly there: shown at once, it came back through both hands while they were still on their way (Phase 27, 27.12)
+    const wantGun = this.gunShown && armed && p.act !== "heal" && !this.dead;
+    if (!wantGun && this.rifle && this.mount) this.gunComing = true;
+    if (this.gun) this.gun.visible = wantGun && !(this.gunComing && Math.min(this.gripW, this.ikW) < GUN_BACK);
     this.gunInHand = !!this.gun && this.gun.visible;
     this.restoreClipPose();
     this.mixer.update(dt);
@@ -1706,17 +1724,23 @@ export class MannequinFigure {
     } else this.root.position.y = p.stance === "downed" ? -0.15 : 0;
     const shown = !!this.gun && this.gun.visible;
     if (this.mount && this.grip && this.rifle && this.butt && this.support) {
+      // (the hold goes on for a gun on its way back, not yet shown: the hands go to where it will be)
+      const holding = shown || (this.gunComing && wantGun);
       // SpeedKills' soldier: the rifleman's hold (rifle.ts), the stance, the gun and both hands, on top of the clips
-      const low = shown && !full && (p.act === "swap" || upper === "Pistol_Idle_Loop") ? 1 : 0;
+      const low = holding && !full && !rifleMelee && (p.act === "swap" || upper === "Pistol_Idle_Loop") ? 1 : 0;
       this.lowered += (low - this.lowered) * Math.min(1, dt * REACH.lower);
+      // a melee's swing: where it is, and which of a string (a string held on the act goes on from one to the next)
+      const swung = rifleMelee ? (this.t - this.actAt) / soldierHold.melee.time : -1;
+      const melee = swung >= 0 ? { u: swung % 1, swing: this.meleeSwing + Math.floor(swung) } : null;
       this.carryW.swap += ((p.act === "swap" ? 1 : 0) - this.carryW.swap) * Math.min(1, dt * REACH.lower);
       // (the air's own carry as fast as the jump's clip tucks the body, 0.18 s: at the carry's own pace the body was
       // tucked round a gun still in the sprint's carry, 39 mm into the belly, as the feet left the ground)
       this.carryW.air += ((sprintJump ? 1 : 0) - this.carryW.air) * Math.min(1, dt * AIR_CARRY);
-      this.gripW += ((shown && !full ? 1 : 0) - this.gripW) * Math.min(1, dt * REACH.grip);
+      this.gripW += ((holding && !full ? 1 : 0) - this.gripW) * Math.min(1, dt * REACH.grip);
       // the left hand stays with the gun through a reload: it is the hand that does it
-      const support = shown && !full && this.t >= this.staggerUntil;
+      const support = holding && !full && this.t >= this.staggerUntil;
       this.ikW += ((support ? 1 : 0) - this.ikW) * Math.min(1, dt * REACH.support);
+      if (this.gunComing && Math.min(this.gripW, this.ikW) >= GUN_BACK) this.gunComing = false;
       // a reload's progress, on the gun's own reload time (an enemy's figure is told only that it reloads)
       const reload = shown && !full && p.act === "reload" ? Math.min(1, (this.t - this.actAt) / reloadSeconds(this.gunId)) : null;
       this.rifleOut = holdRifle(this.root, this.bones, this.rifle, { id: this.gunId, gun: this.gun!, mount: this.mount, grip: this.grip, support: this.supportHold(), butt: this.butt, parts: this.reloadParts ?? undefined, sight: this.sight ?? undefined }, {
@@ -1730,6 +1754,7 @@ export class MannequinFigure {
         reload,
         lastReload: this.lastReload,
         kick: fx.kick,
+        melee,
         mem: this.rifleMem,
       });
       this.lastReload = reload;

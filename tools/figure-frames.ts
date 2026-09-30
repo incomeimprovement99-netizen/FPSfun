@@ -104,7 +104,46 @@ function sequences(gun: string, other: string, T: Times, To: Times): Seq[] {
       label: (t) => `${t.toFixed(2)} s ${t < 0.2 ? "stand" : t < 0.8 ? "air" : "land"}`,
       aimed: () => true,
     },
+    {
+      // three melee swings in a row, each for as long as the game shows one (viewmodel.ts MELEE_TIME 0.38 s), the next
+      // begun as the last ends as a string of them does, then back to the hold
+      name: "melee",
+      settle: stand,
+      at: (t) => ({ ...stand, act: t < 1.14 && t % 0.38 < 0.36 ? "melee" : null }),
+      frames: every(1.6, 0.04),
+      label: (t) => `${t.toFixed(2)} s ${t < 1.14 ? `swing ${Math.floor(t / 0.38) + 1}` : "back"}`,
+      aimed: (t) => t > 1.5,
+    },
+    {
+      // a grenade thrown (the figure shows a throw for figure.json throwShown, 0.7 s), then back to the hold
+      name: "throw",
+      settle: stand,
+      at: (t) => ({ ...stand, act: t < 0.7 ? "throw" : null }),
+      frames: every(1.2, 0.05),
+      label: (t) => `${t.toFixed(2)} s ${t < 0.7 ? "throw" : "back"}`,
+      aimed: (t) => t > 1.1,
+    },
+    {
+      // a heal (a syringe), then back to the hold
+      name: "heal",
+      settle: stand,
+      at: (t) => ({ ...stand, act: t < 1.5 ? "heal" : null, healItem: "syringe" }) as Pose,
+      frames: every(2, 0.1),
+      label: (t) => `${t.toFixed(2)} s ${t < 1.5 ? "heal" : "back"}`,
+      aimed: (t) => t > 1.9,
+    },
+    {
+      // walking sideways and backwards, aimed, the body on the look and the legs on the way it goes
+      name: "strafe",
+      settle: { ...stand, ads: 1 },
+      at: (t) => ({ speed: 3, stance: "stand", pitch: 0, ads: 1, moveDir: t < 0.8 ? Math.PI / 2 : t < 1.6 ? -Math.PI / 2 : Math.PI }),
+      frames: every(2.4, 0.1),
+      label: (t) => `${t.toFixed(1)} s ${t < 0.8 ? "left" : t < 1.6 ? "right" : "back"}`,
+      aimed: () => true,
+    },
     { name: "run", settle: { speed: 7, stance: "stand", pitch: 0 }, at: () => ({ speed: 7, stance: "stand", pitch: 0 }), frames: every(0.8, 0.1), label: (t) => `${t.toFixed(2)} s`, aimed: () => true },
+    // aimed on the move, as every bot fights: running and sprinting with the sights up
+    { name: "runaim", settle: { speed: 8.8, stance: "stand", pitch: 0, ads: 0.85 }, at: (t) => ({ speed: t < 0.6 ? 8.8 : 14, stance: "stand", pitch: 0, ads: 0.85 }), frames: every(1.2, 0.1), label: (t) => `${t.toFixed(2)} s ${t < 0.6 ? "run" : "sprint"} aimed`, aimed: () => true },
     { name: "sprint", settle: { speed: 14, stance: "stand", pitch: 0 }, at: () => ({ speed: 14, stance: "stand", pitch: 0 }), frames: every(1, 1 / 12), label: (t) => `${t.toFixed(2)} s`, aimed: () => false },
     {
       name: "crouch",
